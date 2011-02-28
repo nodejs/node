@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --opt-eagerly --debug-code --lazy
 
-#ifndef V8_X64_CODEGEN_X64_INL_H_
-#define V8_X64_CODEGEN_X64_INL_H_
+// See: http://code.google.com/p/v8/issues/detail?id=1145
+// Should not throw a syntax error exception (change this if we make lazily
+// compiled functions with syntax errors into early errors).
+// Should not hit an assertion in debug mode.
 
-namespace v8 {
-namespace internal {
+// A lazily compiled function with a syntax error that is attempted inlined
+// would set a pending exception that is then ignored (until it triggers
+// an assert).
+// This file must be at least 1024 bytes long to trigger lazy compilation.
 
-#define __ ACCESS_MASM(masm_)
+function f() { return 1; }
 
-// Platform-specific inline functions.
+// Must be lazy. Must throw SyntaxError during compilation.
+function fail() { continue; }
 
-void DeferredCode::Jump() { __ jmp(&entry_label_); }
-void DeferredCode::Branch(Condition cc) { __ j(cc, &entry_label_); }
+function opt_me() {
+  var x = 1;
+  // Do lots of function calls and hope to be optimized.
+  for (var i = 0; i < 1000000; i++) {
+    x = f();
+  }
+  if (x == 0) fail();  // Hope to be inlined during optimization.
+}
 
-#undef __
-
-} }  // namespace v8::internal
-
-#endif  // V8_X64_CODEGEN_X64_INL_H_
+opt_me();

@@ -1296,6 +1296,9 @@ void CompareStub::Generate(MacroAssembler* masm) {
 // This stub does not handle the inlined cases (Smis, Booleans, undefined).
 // The stub returns zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
+  // This stub uses VFP3 instructions.
+  ASSERT(CpuFeatures::IsEnabled(VFP3));
+
   Label false_result;
   Label not_heap_number;
   Register scratch = r9.is(tos_) ? r7 : r9;
@@ -5957,11 +5960,10 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
-                                    ApiFunction *function) {
+                                    ExternalReference function) {
   __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                      RelocInfo::CODE_TARGET));
-  __ mov(r2,
-         Operand(ExternalReference(function, ExternalReference::DIRECT_CALL)));
+  __ mov(r2, Operand(function));
   // Push return address (accessible to GC through exit frame pc).
   __ str(pc, MemOperand(sp, 0));
   __ Jump(r2);  // Call the api function.

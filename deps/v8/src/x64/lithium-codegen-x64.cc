@@ -711,7 +711,8 @@ void LCodeGen::DoCallStub(LCallStub* instr) {
       break;
     }
     case CodeStub::TranscendentalCache: {
-      TranscendentalCacheStub stub(instr->transcendental_type());
+      TranscendentalCacheStub stub(instr->transcendental_type(),
+                                   TranscendentalCacheStub::TAGGED);
       CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
       break;
     }
@@ -1579,7 +1580,20 @@ static Condition BranchCondition(HHasInstanceType* instr) {
 
 
 void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
-  Abort("Unimplemented: %s", "DoHasInstanceType");
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
+
+  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
+  __ testl(input, Immediate(kSmiTagMask));
+  NearLabel done, is_false;
+  __ j(zero, &is_false);
+  __ CmpObjectType(input, TestType(instr->hydrogen()), result);
+  __ j(NegateCondition(BranchCondition(instr->hydrogen())), &is_false);
+  __ LoadRoot(result, Heap::kTrueValueRootIndex);
+  __ jmp(&done);
+  __ bind(&is_false);
+  __ LoadRoot(result, Heap::kFalseValueRootIndex);
+  __ bind(&done);
 }
 
 
@@ -2271,12 +2285,105 @@ void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
 
 
 void LCodeGen::DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoDeferredMathAbsTaggedHeapNumber");
+  Register input_reg = ToRegister(instr->InputAt(0));
+  __ CompareRoot(FieldOperand(input_reg, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  DeoptimizeIf(not_equal, instr->environment());
+
+  Label done;
+  Register tmp = input_reg.is(rax) ? rcx : rax;
+  Register tmp2 = tmp.is(rcx) ? rdx : input_reg.is(rcx) ? rdx : rcx;
+
+  // Preserve the value of all registers.
+  __ PushSafepointRegisters();
+
+  Label negative;
+  __ movl(tmp, FieldOperand(input_reg, HeapNumber::kExponentOffset));
+  // Check the sign of the argument. If the argument is positive, just
+  // return it. We do not need to patch the stack since |input| and
+  // |result| are the same register and |input| will be restored
+  // unchanged by popping safepoint registers.
+  __ testl(tmp, Immediate(HeapNumber::kSignMask));
+  __ j(not_zero, &negative);
+  __ jmp(&done);
+
+  __ bind(&negative);
+
+  Label allocated, slow;
+  __ AllocateHeapNumber(tmp, tmp2, &slow);
+  __ jmp(&allocated);
+
+  // Slow case: Call the runtime system to do the number allocation.
+  __ bind(&slow);
+
+  __ CallRuntimeSaveDoubles(Runtime::kAllocateHeapNumber);
+  RecordSafepointWithRegisters(
+      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  // Set the pointer to the new heap number in tmp.
+  if (!tmp.is(rax)) {
+    __ movq(tmp, rax);
+  }
+
+  // Restore input_reg after call to runtime.
+  __ LoadFromSafepointRegisterSlot(input_reg, input_reg);
+
+  __ bind(&allocated);
+  __ movq(tmp2, FieldOperand(input_reg, HeapNumber::kValueOffset));
+  __ shl(tmp2, Immediate(1));
+  __ shr(tmp2, Immediate(1));
+  __ movq(FieldOperand(tmp, HeapNumber::kValueOffset), tmp2);
+  __ StoreToSafepointRegisterSlot(input_reg, tmp);
+
+  __ bind(&done);
+  __ PopSafepointRegisters();
+}
+
+
+void LCodeGen::EmitIntegerMathAbs(LUnaryMathOperation* instr) {
+  Register input_reg = ToRegister(instr->InputAt(0));
+  __ testl(input_reg, input_reg);
+  Label is_positive;
+  __ j(not_sign, &is_positive);
+  __ negl(input_reg);  // Sets flags.
+  DeoptimizeIf(negative, instr->environment());
+  __ bind(&is_positive);
 }
 
 
 void LCodeGen::DoMathAbs(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathAbs");
+  // Class for deferred case.
+  class DeferredMathAbsTaggedHeapNumber: public LDeferredCode {
+   public:
+    DeferredMathAbsTaggedHeapNumber(LCodeGen* codegen,
+                                    LUnaryMathOperation* instr)
+        : LDeferredCode(codegen), instr_(instr) { }
+    virtual void Generate() {
+      codegen()->DoDeferredMathAbsTaggedHeapNumber(instr_);
+    }
+   private:
+    LUnaryMathOperation* instr_;
+  };
+
+  ASSERT(instr->InputAt(0)->Equals(instr->result()));
+  Representation r = instr->hydrogen()->value()->representation();
+
+  if (r.IsDouble()) {
+    XMMRegister scratch = xmm0;
+    XMMRegister input_reg = ToDoubleRegister(instr->InputAt(0));
+    __ xorpd(scratch, scratch);
+    __ subsd(scratch, input_reg);
+    __ andpd(input_reg, scratch);
+  } else if (r.IsInteger32()) {
+    EmitIntegerMathAbs(instr);
+  } else {  // Tagged case.
+    DeferredMathAbsTaggedHeapNumber* deferred =
+        new DeferredMathAbsTaggedHeapNumber(this, instr);
+    Register input_reg = ToRegister(instr->InputAt(0));
+    // Smi check.
+    __ JumpIfNotSmi(input_reg, deferred->entry());
+    EmitIntegerMathAbs(instr);
+    __ bind(deferred->exit());
+  }
 }
 
 
@@ -2360,17 +2467,26 @@ void LCodeGen::DoPower(LPower* instr) {
 
 
 void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathLog");
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
 void LCodeGen::DoMathCos(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathCos");
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
 void LCodeGen::DoMathSin(LUnaryMathOperation* instr) {
-  Abort("Unimplemented: %s", "DoMathSin");
+  ASSERT(ToDoubleRegister(instr->result()).is(xmm1));
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::UNTAGGED);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
 }
 
 
@@ -2414,6 +2530,7 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   int arity = instr->arity();
   Handle<Code> ic = StubCache::ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
 }
 
 

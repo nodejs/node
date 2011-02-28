@@ -574,13 +574,38 @@ void FullCodeGenerator::TestContext::Plug(bool flag) const {
 void FullCodeGenerator::DoTest(Label* if_true,
                                Label* if_false,
                                Label* fall_through) {
-  // Call the runtime to find the boolean value of the source and then
-  // translate it into control flow to the pair of labels.
-  __ push(result_register());
-  __ CallRuntime(Runtime::kToBool, 1);
-  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ cmp(r0, ip);
-  Split(eq, if_true, if_false, fall_through);
+  if (CpuFeatures::IsSupported(VFP3)) {
+    CpuFeatures::Scope scope(VFP3);
+    // Emit the inlined tests assumed by the stub.
+    __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+    __ cmp(result_register(), ip);
+    __ b(eq, if_false);
+    __ LoadRoot(ip, Heap::kTrueValueRootIndex);
+    __ cmp(result_register(), ip);
+    __ b(eq, if_true);
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(result_register(), ip);
+    __ b(eq, if_false);
+    STATIC_ASSERT(kSmiTag == 0);
+    __ tst(result_register(), result_register());
+    __ b(eq, if_false);
+    __ JumpIfSmi(result_register(), if_true);
+
+    // Call the ToBoolean stub for all other cases.
+    ToBooleanStub stub(result_register());
+    __ CallStub(&stub);
+    __ tst(result_register(), result_register());
+  } else {
+    // Call the runtime to find the boolean value of the source and then
+    // translate it into control flow to the pair of labels.
+    __ push(result_register());
+    __ CallRuntime(Runtime::kToBool, 1);
+    __ LoadRoot(ip, Heap::kFalseValueRootIndex);
+    __ cmp(r0, ip);
+  }
+
+  // The stub returns nonzero for true.
+  Split(ne, if_true, if_false, fall_through);
 }
 
 
@@ -796,9 +821,9 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   Comment cmnt(masm_, "[ SwitchStatement");
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
+
   // Keep the switch value on the stack until a case matches.
   VisitForStackValue(stmt->tag());
-
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
 
   ZoneList<CaseClause*>* clauses = stmt->cases();
@@ -887,8 +912,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
   __ cmp(r0, ip);
   __ b(eq, &exit);
-  __ LoadRoot(ip, Heap::kNullValueRootIndex);
-  __ cmp(r0, ip);
+  Register null_value = r5;
+  __ LoadRoot(null_value, Heap::kNullValueRootIndex);
+  __ cmp(r0, null_value);
   __ b(eq, &exit);
 
   // Convert the object to a JS object.
@@ -902,12 +928,62 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ bind(&done_convert);
   __ push(r0);
 
-  // BUG(867): Check cache validity in generated code. This is a fast
-  // case for the JSObject::IsSimpleEnum cache validity checks. If we
-  // cannot guarantee cache validity, call the runtime system to check
-  // cache validity or get the property names in a fixed array.
+  // Check cache validity in generated code. This is a fast case for
+  // the JSObject::IsSimpleEnum cache validity checks. If we cannot
+  // guarantee cache validity, call the runtime system to check cache
+  // validity or get the property names in a fixed array.
+  Label next, call_runtime;
+  // Preload a couple of values used in the loop.
+  Register  empty_fixed_array_value = r6;
+  __ LoadRoot(empty_fixed_array_value, Heap::kEmptyFixedArrayRootIndex);
+  Register empty_descriptor_array_value = r7;
+  __ LoadRoot(empty_descriptor_array_value,
+              Heap::kEmptyDescriptorArrayRootIndex);
+  __ mov(r1, r0);
+  __ bind(&next);
+
+  // Check that there are no elements.  Register r1 contains the
+  // current JS object we've reached through the prototype chain.
+  __ ldr(r2, FieldMemOperand(r1, JSObject::kElementsOffset));
+  __ cmp(r2, empty_fixed_array_value);
+  __ b(ne, &call_runtime);
+
+  // Check that instance descriptors are not empty so that we can
+  // check for an enum cache.  Leave the map in r2 for the subsequent
+  // prototype load.
+  __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ ldr(r3, FieldMemOperand(r2, Map::kInstanceDescriptorsOffset));
+  __ cmp(r3, empty_descriptor_array_value);
+  __ b(eq, &call_runtime);
+
+  // Check that there is an enum cache in the non-empty instance
+  // descriptors (r3).  This is the case if the next enumeration
+  // index field does not contain a smi.
+  __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumerationIndexOffset));
+  __ JumpIfSmi(r3, &call_runtime);
+
+  // For all objects but the receiver, check that the cache is empty.
+  Label check_prototype;
+  __ cmp(r1, r0);
+  __ b(eq, &check_prototype);
+  __ ldr(r3, FieldMemOperand(r3, DescriptorArray::kEnumCacheBridgeCacheOffset));
+  __ cmp(r3, empty_fixed_array_value);
+  __ b(ne, &call_runtime);
+
+  // Load the prototype from the map and loop if non-null.
+  __ bind(&check_prototype);
+  __ ldr(r1, FieldMemOperand(r2, Map::kPrototypeOffset));
+  __ cmp(r1, null_value);
+  __ b(ne, &next);
+
+  // The enum cache is valid.  Load the map of the object being
+  // iterated over and use the cache for the iteration.
+  Label use_cache;
+  __ ldr(r0, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ b(&use_cache);
 
   // Get the set of properties to enumerate.
+  __ bind(&call_runtime);
   __ push(r0);  // Duplicate the enumerable object on the stack.
   __ CallRuntime(Runtime::kGetPropertyNamesFast, 1);
 
@@ -922,6 +998,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ b(ne, &fixed_array);
 
   // We got a map in register r0. Get the enumeration cache from it.
+  __ bind(&use_cache);
   __ ldr(r1, FieldMemOperand(r0, Map::kInstanceDescriptorsOffset));
   __ ldr(r1, FieldMemOperand(r1, DescriptorArray::kEnumerationIndexOffset));
   __ ldr(r2, FieldMemOperand(r1, DescriptorArray::kEnumCacheBridgeCacheOffset));
@@ -1010,8 +1087,14 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
                                        bool pretenure) {
   // Use the fast case closure allocation code that allocates in new
-  // space for nested functions that don't need literals cloning.
-  if (scope()->is_function_scope() &&
+  // space for nested functions that don't need literals cloning. If
+  // we're running with the --always-opt or the --prepare-always-opt
+  // flag, we need to use the runtime function so that the new function
+  // we are creating here gets a chance to have its code optimized and
+  // doesn't just get a copy of the existing unoptimized code.
+  if (!FLAG_always_opt &&
+      !FLAG_prepare_always_opt &&
+      scope()->is_function_scope() &&
       info->num_literals() == 0 &&
       !pretenure) {
     FastNewClosureStub stub;
@@ -1265,18 +1348,19 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   Comment cmnt(masm_, "[ RegExpLiteral");
   Label materialized;
   // Registers will be used as follows:
+  // r5 = materialized value (RegExp literal)
   // r4 = JS function, literals array
   // r3 = literal index
   // r2 = RegExp pattern
   // r1 = RegExp flags
-  // r0 = temp + materialized value (RegExp literal)
+  // r0 = RegExp literal clone
   __ ldr(r0, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
   __ ldr(r4, FieldMemOperand(r0, JSFunction::kLiteralsOffset));
   int literal_offset =
       FixedArray::kHeaderSize + expr->literal_index() * kPointerSize;
-  __ ldr(r0, FieldMemOperand(r4, literal_offset));
+  __ ldr(r5, FieldMemOperand(r4, literal_offset));
   __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(r0, ip);
+  __ cmp(r5, ip);
   __ b(ne, &materialized);
 
   // Create regexp literal using runtime function.
@@ -1286,20 +1370,27 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
   __ mov(r1, Operand(expr->flags()));
   __ Push(r4, r3, r2, r1);
   __ CallRuntime(Runtime::kMaterializeRegExpLiteral, 4);
+  __ mov(r5, r0);
 
   __ bind(&materialized);
   int size = JSRegExp::kSize + JSRegExp::kInObjectFieldCount * kPointerSize;
-  __ push(r0);
+  Label allocated, runtime_allocate;
+  __ AllocateInNewSpace(size, r0, r2, r3, &runtime_allocate, TAG_OBJECT);
+  __ jmp(&allocated);
+
+  __ bind(&runtime_allocate);
+  __ push(r5);
   __ mov(r0, Operand(Smi::FromInt(size)));
   __ push(r0);
   __ CallRuntime(Runtime::kAllocateInNewSpace, 1);
+  __ pop(r5);
 
+  __ bind(&allocated);
   // After this, registers are used as follows:
   // r0: Newly allocated regexp.
-  // r1: Materialized regexp.
+  // r5: Materialized regexp.
   // r2: temp.
-  __ pop(r1);
-  __ CopyFields(r0, r1, r2.bit(), size / kPointerSize);
+  __ CopyFields(r0, r5, r2.bit(), size / kPointerSize);
   context()->Plug(r0);
 }
 
@@ -3134,19 +3225,31 @@ void FullCodeGenerator::EmitStringCompare(ZoneList<Expression*>* args) {
 
 
 void FullCodeGenerator::EmitMathSin(ZoneList<Expression*>* args) {
-  // Load the argument on the stack and call the runtime.
+  // Load the argument on the stack and call the stub.
+  TranscendentalCacheStub stub(TranscendentalCache::SIN);
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_sin, 1);
+  __ CallStub(&stub);
   context()->Plug(r0);
 }
 
 
 void FullCodeGenerator::EmitMathCos(ZoneList<Expression*>* args) {
-  // Load the argument on the stack and call the runtime.
+  // Load the argument on the stack and call the stub.
+  TranscendentalCacheStub stub(TranscendentalCache::COS);
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_cos, 1);
+  __ CallStub(&stub);
+  context()->Plug(r0);
+}
+
+
+void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
+  // Load the argument on the stack and call the stub.
+  TranscendentalCacheStub stub(TranscendentalCache::LOG);
+  ASSERT(args->length() == 1);
+  VisitForStackValue(args->at(0));
+  __ CallStub(&stub);
   context()->Plug(r0);
 }
 
@@ -3156,15 +3259,6 @@ void FullCodeGenerator::EmitMathSqrt(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   VisitForStackValue(args->at(0));
   __ CallRuntime(Runtime::kMath_sqrt, 1);
-  context()->Plug(r0);
-}
-
-
-void FullCodeGenerator::EmitMathLog(ZoneList<Expression*>* args) {
-  // Load the argument on the stack and call the runtime function.
-  ASSERT(args->length() == 1);
-  VisitForStackValue(args->at(0));
-  __ CallRuntime(Runtime::kMath_log, 1);
   context()->Plug(r0);
 }
 
@@ -3323,8 +3417,14 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
 void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
   VisitForAccumulatorValue(args->at(0));
+
+  if (FLAG_debug_code) {
+    __ AbortIfNotString(r0);
+  }
+
   __ ldr(r0, FieldMemOperand(r0, String::kHashFieldOffset));
   __ IndexFromHash(r0, r0);
+
   context()->Plug(r0);
 }
 
@@ -3486,9 +3586,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       bool can_overwrite = expr->expression()->ResultOverwriteAllowed();
       UnaryOverwriteMode overwrite =
           can_overwrite ? UNARY_OVERWRITE : UNARY_NO_OVERWRITE;
-      GenericUnaryOpStub stub(Token::SUB,
-                              overwrite,
-                              NO_UNARY_FLAGS);
+      GenericUnaryOpStub stub(Token::SUB, overwrite, NO_UNARY_FLAGS);
       // GenericUnaryOpStub expects the argument to be in the
       // accumulator register r0.
       VisitForAccumulatorValue(expr->expression());
@@ -3998,11 +4096,43 @@ Register FullCodeGenerator::context_register() {
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
   ASSERT(mode == RelocInfo::CODE_TARGET ||
          mode == RelocInfo::CODE_TARGET_CONTEXT);
+  switch (ic->kind()) {
+    case Code::LOAD_IC:
+      __ IncrementCounter(&Counters::named_load_full, 1, r1, r2);
+      break;
+    case Code::KEYED_LOAD_IC:
+      __ IncrementCounter(&Counters::keyed_load_full, 1, r1, r2);
+      break;
+    case Code::STORE_IC:
+      __ IncrementCounter(&Counters::named_store_full, 1, r1, r2);
+      break;
+    case Code::KEYED_STORE_IC:
+      __ IncrementCounter(&Counters::keyed_store_full, 1, r1, r2);
+    default:
+      break;
+  }
+
   __ Call(ic, mode);
 }
 
 
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  switch (ic->kind()) {
+    case Code::LOAD_IC:
+      __ IncrementCounter(&Counters::named_load_full, 1, r1, r2);
+      break;
+    case Code::KEYED_LOAD_IC:
+      __ IncrementCounter(&Counters::keyed_load_full, 1, r1, r2);
+      break;
+    case Code::STORE_IC:
+      __ IncrementCounter(&Counters::named_store_full, 1, r1, r2);
+      break;
+    case Code::KEYED_STORE_IC:
+      __ IncrementCounter(&Counters::keyed_store_full, 1, r1, r2);
+    default:
+      break;
+  }
+
   __ Call(ic, RelocInfo::CODE_TARGET);
   if (patch_site != NULL && patch_site->is_bound()) {
     patch_site->EmitPatchInfo();

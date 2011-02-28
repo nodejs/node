@@ -1506,40 +1506,59 @@ void TypeRecordingBinaryOpStub::GenerateRegisterArgsPush(MacroAssembler* masm) {
 
 
 void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
-  // Input on stack:
-  // rsp[8]: argument (should be number).
-  // rsp[0]: return address.
+  // TAGGED case:
+  //   Input:
+  //     rsp[8]: argument (should be number).
+  //     rsp[0]: return address.
+  //   Output:
+  //     rax: tagged double result.
+  // UNTAGGED case:
+  //   Input::
+  //     rsp[0]: return address.
+  //     xmm1: untagged double input argument
+  //   Output:
+  //     xmm1: untagged double result.
+
   Label runtime_call;
   Label runtime_call_clear_stack;
-  Label input_not_smi;
-  NearLabel loaded;
-  // Test that rax is a number.
-  __ movq(rax, Operand(rsp, kPointerSize));
-  __ JumpIfNotSmi(rax, &input_not_smi);
-  // Input is a smi. Untag and load it onto the FPU stack.
-  // Then load the bits of the double into rbx.
-  __ SmiToInteger32(rax, rax);
-  __ subq(rsp, Immediate(kPointerSize));
-  __ cvtlsi2sd(xmm1, rax);
-  __ movsd(Operand(rsp, 0), xmm1);
-  __ movq(rbx, xmm1);
-  __ movq(rdx, xmm1);
-  __ fld_d(Operand(rsp, 0));
-  __ addq(rsp, Immediate(kPointerSize));
-  __ jmp(&loaded);
+  Label skip_cache;
+  const bool tagged = (argument_type_ == TAGGED);
+  if (tagged) {
+    NearLabel input_not_smi;
+    NearLabel loaded;
+    // Test that rax is a number.
+    __ movq(rax, Operand(rsp, kPointerSize));
+    __ JumpIfNotSmi(rax, &input_not_smi);
+    // Input is a smi. Untag and load it onto the FPU stack.
+    // Then load the bits of the double into rbx.
+    __ SmiToInteger32(rax, rax);
+    __ subq(rsp, Immediate(kDoubleSize));
+    __ cvtlsi2sd(xmm1, rax);
+    __ movsd(Operand(rsp, 0), xmm1);
+    __ movq(rbx, xmm1);
+    __ movq(rdx, xmm1);
+    __ fld_d(Operand(rsp, 0));
+    __ addq(rsp, Immediate(kDoubleSize));
+    __ jmp(&loaded);
 
-  __ bind(&input_not_smi);
-  // Check if input is a HeapNumber.
-  __ Move(rbx, Factory::heap_number_map());
-  __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
-  __ j(not_equal, &runtime_call);
-  // Input is a HeapNumber. Push it on the FPU stack and load its
-  // bits into rbx.
-  __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
-  __ movq(rdx, rbx);
-  __ bind(&loaded);
-  // ST[0] == double value
+    __ bind(&input_not_smi);
+    // Check if input is a HeapNumber.
+    __ LoadRoot(rbx, Heap::kHeapNumberMapRootIndex);
+    __ cmpq(rbx, FieldOperand(rax, HeapObject::kMapOffset));
+    __ j(not_equal, &runtime_call);
+    // Input is a HeapNumber. Push it on the FPU stack and load its
+    // bits into rbx.
+    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+    __ movq(rbx, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ movq(rdx, rbx);
+
+    __ bind(&loaded);
+  } else {  // UNTAGGED.
+    __ movq(rbx, xmm1);
+    __ movq(rdx, xmm1);
+  }
+
+  // ST[0] == double value, if TAGGED.
   // rbx = bits of double value.
   // rdx = also bits of double value.
   // Compute hash (h is 32 bits, bits are 64 and the shifts are arithmetic):
@@ -1571,7 +1590,7 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   // rax points to the cache for the type type_.
   // If NULL, the cache hasn't been initialized yet, so go through runtime.
   __ testq(rax, rax);
-  __ j(zero, &runtime_call_clear_stack);
+  __ j(zero, &runtime_call_clear_stack);  // Only clears stack if TAGGED.
 #ifdef DEBUG
   // Check that the layout of cache elements match expectations.
   {  // NOLINT - doesn't like a single brace on a line.
@@ -1597,30 +1616,70 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
   __ j(not_equal, &cache_miss);
   // Cache hit!
   __ movq(rax, Operand(rcx, 2 * kIntSize));
-  __ fstp(0);  // Clear FPU stack.
-  __ ret(kPointerSize);
+  if (tagged) {
+    __ fstp(0);  // Clear FPU stack.
+    __ ret(kPointerSize);
+  } else {  // UNTAGGED.
+    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ Ret();
+  }
 
   __ bind(&cache_miss);
   // Update cache with new value.
-  Label nan_result;
-  GenerateOperation(masm, &nan_result);
+  if (tagged) {
   __ AllocateHeapNumber(rax, rdi, &runtime_call_clear_stack);
+  } else {  // UNTAGGED.
+    __ AllocateHeapNumber(rax, rdi, &skip_cache);
+    __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
+    __ fld_d(FieldOperand(rax, HeapNumber::kValueOffset));
+  }
+  GenerateOperation(masm);
   __ movq(Operand(rcx, 0), rbx);
   __ movq(Operand(rcx, 2 * kIntSize), rax);
   __ fstp_d(FieldOperand(rax, HeapNumber::kValueOffset));
-  __ ret(kPointerSize);
+  if (tagged) {
+    __ ret(kPointerSize);
+  } else {  // UNTAGGED.
+    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ Ret();
 
-  __ bind(&runtime_call_clear_stack);
-  __ fstp(0);
-  __ bind(&runtime_call);
-  __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+    // Skip cache and return answer directly, only in untagged case.
+    __ bind(&skip_cache);
+    __ subq(rsp, Immediate(kDoubleSize));
+    __ movsd(Operand(rsp, 0), xmm1);
+    __ fld_d(Operand(rsp, 0));
+    GenerateOperation(masm);
+    __ fstp_d(Operand(rsp, 0));
+    __ movsd(xmm1, Operand(rsp, 0));
+    __ addq(rsp, Immediate(kDoubleSize));
+    // We return the value in xmm1 without adding it to the cache, but
+    // we cause a scavenging GC so that future allocations will succeed.
+    __ EnterInternalFrame();
+    // Allocate an unused object bigger than a HeapNumber.
+    __ Push(Smi::FromInt(2 * kDoubleSize));
+    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    __ LeaveInternalFrame();
+    __ Ret();
+  }
 
-  __ bind(&nan_result);
-  __ fstp(0);  // Remove argument from FPU stack.
-  __ LoadRoot(rax, Heap::kNanValueRootIndex);
-  __ movq(Operand(rcx, 0), rbx);
-  __ movq(Operand(rcx, 2 * kIntSize), rax);
-  __ ret(kPointerSize);
+  // Call runtime, doing whatever allocation and cleanup is necessary.
+  if (tagged) {
+    __ bind(&runtime_call_clear_stack);
+    __ fstp(0);
+    __ bind(&runtime_call);
+    __ TailCallExternalReference(ExternalReference(RuntimeFunction()), 1, 1);
+  } else {  // UNTAGGED.
+    __ bind(&runtime_call_clear_stack);
+    __ bind(&runtime_call);
+    __ AllocateHeapNumber(rax, rdi, &skip_cache);
+    __ movsd(FieldOperand(rax, HeapNumber::kValueOffset), xmm1);
+    __ EnterInternalFrame();
+    __ push(rax);
+    __ CallRuntime(RuntimeFunction(), 1);
+    __ LeaveInternalFrame();
+    __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+    __ Ret();
+  }
 }
 
 
@@ -1637,9 +1696,9 @@ Runtime::FunctionId TranscendentalCacheStub::RuntimeFunction() {
 }
 
 
-void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
-                                                Label* on_nan_result) {
+void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm) {
   // Registers:
+  // rax: Newly allocated HeapNumber, which must be preserved.
   // rbx: Bits of input double. Must be preserved.
   // rcx: Pointer to cache entry. Must be preserved.
   // st(0): Input double
@@ -1661,9 +1720,18 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
     __ j(below, &in_range);
     // Check for infinity and NaN. Both return NaN for sin.
     __ cmpl(rdi, Immediate(0x7ff));
-    __ j(equal, on_nan_result);
+    NearLabel non_nan_result;
+    __ j(not_equal, &non_nan_result);
+    // Input is +/-Infinity or NaN. Result is NaN.
+    __ fstp(0);
+    __ LoadRoot(kScratchRegister, Heap::kNanValueRootIndex);
+    __ fld_d(FieldOperand(kScratchRegister, HeapNumber::kValueOffset));
+    __ jmp(&done);
+
+    __ bind(&non_nan_result);
 
     // Use fpmod to restrict argument to the range +/-2*PI.
+    __ movq(rdi, rax);  // Save rax before using fnstsw_ax.
     __ fldpi();
     __ fadd(0);
     __ fld(1);
@@ -1696,6 +1764,7 @@ void TranscendentalCacheStub::GenerateOperation(MacroAssembler* masm,
     // FPU Stack: input % 2*pi, 2*pi,
     __ fstp(0);
     // FPU Stack: input % 2*pi
+    __ movq(rax, rdi);  // Restore rax, pointer to the new HeapNumber.
     __ bind(&in_range);
     switch (type_) {
       case TranscendentalCache::SIN:

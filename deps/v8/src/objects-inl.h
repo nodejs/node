@@ -769,6 +769,10 @@ bool Object::HasSpecificClassOf(String* name) {
 
 
 MaybeObject* Object::GetElement(uint32_t index) {
+  // GetElement can trigger a getter which can cause allocation.
+  // This was not always the case. This ASSERT is here to catch
+  // leftover incorrect uses.
+  ASSERT(Heap::IsAllocationAllowed());
   return GetElementWithReceiver(this, index);
 }
 

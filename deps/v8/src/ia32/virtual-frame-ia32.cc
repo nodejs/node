@@ -1306,6 +1306,7 @@ void VirtualFrame::EmitPush(Immediate immediate, TypeInfo info) {
 
 
 void VirtualFrame::PushUntaggedElement(Handle<Object> value) {
+  ASSERT(!ConstantPoolOverflowed());
   elements_.Add(FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED));
   elements_[element_count() - 1].set_untagged_int32(true);
 }

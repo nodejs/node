@@ -39,7 +39,7 @@ namespace internal {
 // Handles are only valid within a HandleScope.
 // When a handle is created for an object a cell is allocated in the heap.
 
-template<class T>
+template<typename T>
 class Handle {
  public:
   INLINE(explicit Handle(T** location)) { location_ = location; }
@@ -89,6 +89,55 @@ class Handle {
   inline Handle<T> EscapeFrom(v8::HandleScope* scope);
 
  private:
+  T** location_;
+};
+
+
+// A handle-scope based variable. The value stored in the variable can change
+// over time. The value stored in the variable at any time is a root
+// for garbage collection.
+// The variable is backed by the current HandleScope.
+template <typename T>
+class HandleCell {
+ public:
+  // Create a new HandleCell holding the given value.
+  explicit HandleCell(Handle<T> value);
+  explicit HandleCell(T* value);
+
+  // Create an alias of an existing HandleCell.
+  explicit HandleCell(const HandleCell<T>& value)
+      : location_(value.location_) { }
+
+  INLINE(T* operator->() const) { return operator*(); }
+  INLINE(T* operator*() const) {
+    return *location_;
+  }
+  INLINE(void operator=(T* value)) {
+    *location_ = value;
+  }
+  INLINE(void operator=(Handle<T> value)) {
+    *location_ = *value;
+  }
+  INLINE(void operator=(const HandleCell<T>& value)) {
+    *location_ = *value.location_;
+  }
+
+  // Extract the value of the variable and cast it to a give type.
+  // This is typically used for calling methods on a more specialized type.
+  template <typename S>
+  inline S* cast() {
+    S::cast(*location_);
+    return *reinterpret_cast<S**>(location_);
+  }
+
+  Handle<T> ToHandle() const {
+    return Handle<T>(*location_);
+  }
+
+ private:
+  // Prevent implicit constructor from being created.
+  HandleCell();
+
   T** location_;
 };
 
@@ -354,7 +403,9 @@ bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
-bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id);
+bool CompileOptimized(Handle<JSFunction> function,
+                      int osr_ast_id,
+                      ClearExceptionFlag flag);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

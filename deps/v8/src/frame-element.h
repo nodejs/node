@@ -113,6 +113,10 @@ class FrameElement BASE_EMBEDDED {
 
   static ZoneObjectList* ConstantList();
 
+  static bool ConstantPoolOverflowed() {
+    return !DataField::is_valid(ConstantList()->length());
+  }
+
   // Clear the constants indirection table.
   static void ClearConstantList() {
     ConstantList()->Clear();

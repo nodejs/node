@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,67 +24,31 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
 
-#ifndef V8_HANDLES_INL_H_
-#define V8_HANDLES_INL_H_
+// The first count times, test is called with an integer argument and
+// crankshaft produces code for int32 representation. Test that the
+// implementation correctly deoptimizes.
 
-#include "apiutils.h"
-#include "handles.h"
-#include "api.h"
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
-
-template<typename T>
-Handle<T>::Handle(T* obj) {
-  ASSERT(!obj->IsFailure());
-  location_ = HandleScope::CreateHandle(obj);
+function test(x) {
+    var xp = x  * 1 - 1;
+    return xp;
 }
 
 
-template <typename T>
-inline T* Handle<T>::operator*() const {
-  ASSERT(location_ != NULL);
-  ASSERT(reinterpret_cast<Address>(*location_) != kHandleZapValue);
-  return *BitCast<T**>(location_);
+function check(count) {
+    %DeoptimizeFunction(test);
+    var i;
+    for(var x=0; x < count; x++){
+        for(var y=0; y < count; y++){
+            i = test(x / 100);
+        }
+    }
+    assertEquals((count - 1) / 100, i + 1);
 }
 
 
-template <typename T>
-HandleCell<T>::HandleCell(T* value)
-    : location_(HandleScope::CreateHandle(value)) { }
-
-
-template <typename T>
-HandleCell<T>::HandleCell(Handle<T> value)
-    : location_(HandleScope::CreateHandle(*value)) { }
-
-
-#ifdef DEBUG
-inline NoHandleAllocation::NoHandleAllocation() {
-  v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
-  // Shrink the current handle scope to make it impossible to do
-  // handle allocations without an explicit handle scope.
-  current->limit = current->next;
-
-  level_ = current->level;
-  current->level = 0;
-}
-
-
-inline NoHandleAllocation::~NoHandleAllocation() {
-  // Restore state in current handle scope to re-enable handle
-  // allocations.
-  v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
-  ASSERT_EQ(0, current->level);
-  current->level = level_;
-}
-#endif
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_HANDLES_INL_H_
+check(150);
+check(200);
+check(350);

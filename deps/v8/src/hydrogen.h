@@ -117,6 +117,7 @@ class HBasicBlock: public ZoneObject {
   void SetJoinId(int id);
 
   void Finish(HControlInstruction* last);
+  void FinishExit(HControlInstruction* instruction);
   void Goto(HBasicBlock* block, bool include_stack_check = false);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
@@ -206,34 +207,6 @@ class HSubgraph: public ZoneObject {
     exit_block_ = block;
   }
 
-  void PreProcessOsrEntry(IterationStatement* statement);
-
-  void AppendJoin(HBasicBlock* first, HBasicBlock* second, int join_id);
-  void AppendWhile(IterationStatement* statement,
-                   HBasicBlock* condition_entry,
-                   HBasicBlock* exit_block,
-                   HBasicBlock* body_exit,
-                   HBasicBlock* break_block,
-                   HBasicBlock* loop_entry,
-                   HBasicBlock* loop_exit);
-  void AppendDoWhile(IterationStatement* statement,
-                     HBasicBlock* body_entry,
-                     HBasicBlock* go_back,
-                     HBasicBlock* exit_block,
-                     HBasicBlock* break_block);
-  void AppendEndless(IterationStatement* statement,
-                     HBasicBlock* body_entry,
-                     HBasicBlock* body_exit,
-                     HBasicBlock* break_block);
-  void Append(BreakableStatement* stmt,
-              HBasicBlock* entry_block,
-              HBasicBlock* exit_block,
-              HBasicBlock* break_block);
-  void ResolveContinue(IterationStatement* statement,
-                       HBasicBlock* continue_block);
-  HBasicBlock* JoinBlocks(HBasicBlock* a, HBasicBlock* b, int id);
-
-  void FinishExit(HControlInstruction* instruction);
   void Initialize(HBasicBlock* block) {
     ASSERT(entry_block_ == NULL);
     entry_block_ = block;
@@ -698,11 +671,36 @@ class HGraphBuilder: public AstVisitor {
 
   void Bailout(const char* reason);
 
-  void AppendPeeledWhile(IterationStatement* stmt,
-                         HBasicBlock* condition_entry,
-                         HBasicBlock* exit_block,
-                         HBasicBlock* body_exit,
-                         HBasicBlock* break_block);
+  void PreProcessOsrEntry(IterationStatement* statement);
+
+  HBasicBlock* CreateJoin(HBasicBlock* first,
+                          HBasicBlock* second,
+                          int join_id);
+  HBasicBlock* CreateWhile(IterationStatement* statement,
+                           HBasicBlock* condition_entry,
+                           HBasicBlock* exit_block,
+                           HBasicBlock* body_exit,
+                           HBasicBlock* break_block,
+                           HBasicBlock* loop_entry,
+                           HBasicBlock* loop_exit);
+  HBasicBlock* CreateDoWhile(IterationStatement* statement,
+                             HBasicBlock* body_entry,
+                             HBasicBlock* go_back,
+                             HBasicBlock* exit_block,
+                             HBasicBlock* break_block);
+  HBasicBlock* CreateEndless(IterationStatement* statement,
+                             HBasicBlock* body_entry,
+                             HBasicBlock* body_exit,
+                             HBasicBlock* break_block);
+  HBasicBlock* CreatePeeledWhile(IterationStatement* stmt,
+                                 HBasicBlock* condition_entry,
+                                 HBasicBlock* exit_block,
+                                 HBasicBlock* body_exit,
+                                 HBasicBlock* break_block);
+  HBasicBlock* JoinContinue(IterationStatement* statement,
+                            HBasicBlock* exit_block,
+                            HBasicBlock* continue_block);
+
 
   void AddToSubgraph(HSubgraph* graph, ZoneList<Statement*>* stmts);
   void AddToSubgraph(HSubgraph* graph, Statement* stmt);

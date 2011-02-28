@@ -127,7 +127,7 @@ bool LCodeGen::GenerateRelocPadding() {
   int reloc_size = masm()->relocation_writer_size();
   while (reloc_size < deoptimization_reloc_size.min_size) {
     __ RecordComment(RelocInfo::kFillerCommentString, true);
-    reloc_size += RelocInfo::kRelocCommentSize;
+    reloc_size += RelocInfo::kMinRelocCommentSize;
   }
   return !is_aborted();
 }

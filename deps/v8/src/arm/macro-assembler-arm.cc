@@ -1618,7 +1618,7 @@ static int AddressOffset(ExternalReference ref0, ExternalReference ref1) {
 
 
 MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
-    ApiFunction* function, int stack_space) {
+    ExternalReference function, int stack_space) {
   ExternalReference next_address =
       ExternalReference::handle_scope_next_address();
   const int kNextOffset = 0;

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -4694,7 +4694,18 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  frame_->Push(node->handle());
+  if (frame_->ConstantPoolOverflowed()) {
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    if (node->handle()->IsSmi()) {
+      __ Move(temp.reg(), Smi::cast(*node->handle()));
+    } else {
+      __ movq(temp.reg(), node->handle(), RelocInfo::EMBEDDED_OBJECT);
+    }
+    frame_->Push(&temp);
+  } else {
+    frame_->Push(node->handle());
+  }
 }
 
 
@@ -7030,7 +7041,8 @@ void CodeGenerator::GenerateMathPow(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  TranscendentalCacheStub stub(TranscendentalCache::SIN);
+  TranscendentalCacheStub stub(TranscendentalCache::SIN,
+                               TranscendentalCacheStub::TAGGED);
   Result result = frame_->CallStub(&stub, 1);
   frame_->Push(&result);
 }
@@ -7039,7 +7051,8 @@ void CodeGenerator::GenerateMathSin(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  TranscendentalCacheStub stub(TranscendentalCache::COS);
+  TranscendentalCacheStub stub(TranscendentalCache::COS,
+                               TranscendentalCacheStub::TAGGED);
   Result result = frame_->CallStub(&stub, 1);
   frame_->Push(&result);
 }
@@ -7048,7 +7061,8 @@ void CodeGenerator::GenerateMathCos(ZoneList<Expression*>* args) {
 void CodeGenerator::GenerateMathLog(ZoneList<Expression*>* args) {
   ASSERT_EQ(args->length(), 1);
   Load(args->at(0));
-  TranscendentalCacheStub stub(TranscendentalCache::LOG);
+  TranscendentalCacheStub stub(TranscendentalCache::LOG,
+                               TranscendentalCacheStub::TAGGED);
   Result result = frame_->CallStub(&stub, 1);
   frame_->Push(&result);
 }

@@ -184,10 +184,10 @@ class RelocInfo BASE_EMBEDDED {
   // we do not normally record relocation info.
   static const char* kFillerCommentString;
 
-  // The size of a comment is equal to tree bytes for the extra tagged pc +
-  // the tag for the data, and kPointerSize for the actual pointer to the
+  // The minimum size of a comment is equal to three bytes for the extra tagged
+  // pc + the tag for the data, and kPointerSize for the actual pointer to the
   // comment.
-  static const int kRelocCommentSize = 3 + kPointerSize;
+  static const int kMinRelocCommentSize = 3 + kPointerSize;
 
   // The maximum size for a call instruction including pc-jump.
   static const int kMaxCallSize = 6;
@@ -481,21 +481,22 @@ class Debug_Address;
 class ExternalReference BASE_EMBEDDED {
  public:
   // Used in the simulator to support different native api calls.
-  //
-  // BUILTIN_CALL - builtin call.
-  // MaybeObject* f(v8::internal::Arguments).
-  //
-  // FP_RETURN_CALL - builtin call that returns floating point.
-  // double f(double, double).
-  //
-  // DIRECT_CALL - direct call to API function native callback
-  // from generated code.
-  // Handle<Value> f(v8::Arguments&)
-  //
   enum Type {
+    // Builtin call.
+    // MaybeObject* f(v8::internal::Arguments).
     BUILTIN_CALL,  // default
+
+    // Builtin call that returns floating point.
+    // double f(double, double).
     FP_RETURN_CALL,
-    DIRECT_CALL
+
+    // Direct call to API function callback.
+    // Handle<Value> f(v8::Arguments&)
+    DIRECT_API_CALL,
+
+    // Direct call to accessor getter callback.
+    // Handle<value> f(Local<String> property, AccessorInfo& info)
+    DIRECT_GETTER_CALL
   };
 
   typedef void* ExternalReferenceRedirector(void* original, Type type);

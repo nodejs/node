@@ -1,3 +1,17 @@
+2011-02-28: Version 3.1.7
+
+        Fixed a number of crash bugs.
+
+        Improved Crankshaft for x64 and ARM.
+
+        Fixed implementation of indexOf/lastIndexOf for sparse 
+        arrays (http://crbug.com/73940).
+
+        Fixed bug in map space compaction (http://crbug.com/59688).
+
+        Added support for direct getter accessors calls on ARM.
+
+
 2011-02-24: Version 3.1.6
 
         Fixed a number of crash bugs.

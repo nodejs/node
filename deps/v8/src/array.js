@@ -418,7 +418,6 @@ function ArrayPush() {
 
 
 function ArrayConcat(arg1) {  // length == 1
-  // TODO: can we just use arguments?
   var arg_count = %_ArgumentsLength();
   var arrays = new $Array(1 + arg_count);
   arrays[0] = this;
@@ -1018,13 +1017,13 @@ function ArrayIndexOf(element, index) {
   }
   var min = index;
   var max = length;
-  if (UseSparseVariant(this, length, true)) {
+  if (UseSparseVariant(this, length, IS_ARRAY(this))) {
     var intervals = %GetArrayKeys(this, length);
     if (intervals.length == 2 && intervals[0] < 0) {
       // A single interval.
       var intervalMin = -(intervals[0] + 1);
       var intervalMax = intervalMin + intervals[1];
-      min = MAX(min, intervalMin);
+      if (min < intervalMin) min = intervalMin;
       max = intervalMax;  // Capped by length already.
       // Fall through to loop below.
     } else {
@@ -1074,13 +1073,13 @@ function ArrayLastIndexOf(element, index) {
   }
   var min = 0;
   var max = index;
-  if (UseSparseVariant(this, length, true)) {
+  if (UseSparseVariant(this, length, IS_ARRAY(this))) {
     var intervals = %GetArrayKeys(this, index + 1);
     if (intervals.length == 2 && intervals[0] < 0) {
       // A single interval.
       var intervalMin = -(intervals[0] + 1);
       var intervalMax = intervalMin + intervals[1];
-      min = MAX(min, intervalMin);
+      if (min < intervalMin) min = intervalMin;
       max = intervalMax;  // Capped by index already.
       // Fall through to loop below.
     } else {

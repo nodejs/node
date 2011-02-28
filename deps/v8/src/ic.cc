@@ -804,6 +804,7 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 
   HandleScope scope;
   Handle<Object> result = GetProperty(object, key);
+  RETURN_IF_EMPTY_HANDLE(result);
 
   // Make receiver an object if the callee requires it. Strict mode or builtin
   // functions do not wrap the receiver, non-strict functions and objects

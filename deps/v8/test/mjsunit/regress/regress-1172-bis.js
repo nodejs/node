@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,22 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Verifies that exception thrown from JS accessors when attempting a call
+// are properly treated.
 
-#ifndef V8_X64_CODEGEN_X64_INL_H_
-#define V8_X64_CODEGEN_X64_INL_H_
-
-namespace v8 {
-namespace internal {
-
-#define __ ACCESS_MASM(masm_)
-
-// Platform-specific inline functions.
-
-void DeferredCode::Jump() { __ jmp(&entry_label_); }
-void DeferredCode::Branch(Condition cc) { __ j(cc, &entry_label_); }
-
-#undef __
-
-} }  // namespace v8::internal
-
-#endif  // V8_X64_CODEGEN_X64_INL_H_
+Object.prototype.__defineGetter__(0, function() { throw 42; });
+try {
+  Object[0]();
+  assertUnreachable();
+} catch(e) {
+  assertEquals(42, e);
+}

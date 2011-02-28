@@ -5360,10 +5360,20 @@ void CodeGenerator::VisitVariableProxy(VariableProxy* node) {
 
 void CodeGenerator::VisitLiteral(Literal* node) {
   Comment cmnt(masm_, "[ Literal");
-  if (in_safe_int32_mode()) {
-    frame_->PushUntaggedElement(node->handle());
+  if (frame_->ConstantPoolOverflowed()) {
+    Result temp = allocator_->Allocate();
+    ASSERT(temp.is_valid());
+    if (in_safe_int32_mode()) {
+      temp.set_untagged_int32(true);
+    }
+    __ Set(temp.reg(), Immediate(node->handle()));
+    frame_->Push(&temp);
   } else {
-    frame_->Push(node->handle());
+    if (in_safe_int32_mode()) {
+      frame_->PushUntaggedElement(node->handle());
+    } else {
+      frame_->Push(node->handle());
+    }
   }
 }
 

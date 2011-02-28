@@ -1502,8 +1502,10 @@ LInstruction* LChunkBuilder::DoIsSmi(HIsSmi* instr) {
 
 
 LInstruction* LChunkBuilder::DoHasInstanceType(HHasInstanceType* instr) {
-  Abort("Unimplemented: %s", "DoHasInstanceType");
-  return NULL;
+  ASSERT(instr->value()->representation().IsTagged());
+  LOperand* value = UseRegisterAtStart(instr->value());
+
+  return DefineAsRegister(new LHasInstanceType(value));
 }
 
 

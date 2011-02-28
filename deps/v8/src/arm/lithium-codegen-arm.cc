@@ -3371,30 +3371,35 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
 
-  VFPRoundingMode rounding_mode = instr->truncating() ? kRoundToMinusInf
-                                                      : kRoundToNearest;
-
-  EmitVFPTruncate(rounding_mode,
+  EmitVFPTruncate(kRoundToZero,
                   single_scratch,
                   double_input,
                   scratch1,
                   scratch2);
   // Deoptimize if we had a vfp invalid exception.
   DeoptimizeIf(ne, instr->environment());
+
   // Retrieve the result.
   __ vmov(result_reg, single_scratch);
 
-  if (instr->truncating() &&
-      instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    Label done;
-    __ cmp(result_reg, Operand(0));
-    __ b(ne, &done);
-    // Check for -0.
-    __ vmov(scratch1, double_input.high());
-    __ tst(scratch1, Operand(HeapNumber::kSignMask));
+  if (!instr->truncating()) {
+    // Convert result back to double and compare with input
+    // to check if the conversion was exact.
+    __ vmov(single_scratch, result_reg);
+    __ vcvt_f64_s32(double_scratch0(), single_scratch);
+    __ VFPCompareAndSetFlags(double_scratch0(), double_input);
     DeoptimizeIf(ne, instr->environment());
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      Label done;
+      __ cmp(result_reg, Operand(0));
+      __ b(ne, &done);
+      // Check for -0.
+      __ vmov(scratch1, double_input.high());
+      __ tst(scratch1, Operand(HeapNumber::kSignMask));
+      DeoptimizeIf(ne, instr->environment());
 
-    __ bind(&done);
+      __ bind(&done);
+    }
   }
 }
 

@@ -690,7 +690,7 @@ class MacroAssembler: public Assembler {
   // from handle and propagates exceptions. Restores context.
   // stack_space - space to be unwound on exit (includes the call js
   // arguments space and the additional space allocated for the fast call).
-  MaybeObject* TryCallApiFunctionAndReturn(ApiFunction* function,
+  MaybeObject* TryCallApiFunctionAndReturn(ExternalReference function,
                                            int stack_space);
 
   // Jump to a runtime routine.

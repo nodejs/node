@@ -2121,6 +2121,12 @@ class MapSpace : public FixedSpace {
     accounting_stats_.DeallocateBytes(accounting_stats_.Size());
     accounting_stats_.AllocateBytes(new_size);
 
+    // Flush allocation watermarks.
+    for (Page* p = first_page_; p != top_page; p = p->next_page()) {
+      p->SetAllocationWatermark(p->AllocationTop());
+    }
+    top_page->SetAllocationWatermark(new_top);
+
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
       intptr_t actual_size = 0;

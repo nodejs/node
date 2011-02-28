@@ -548,7 +548,7 @@ void FullCodeGenerator::DoTest(Label* if_true,
   __ j(equal, if_true);
   __ cmp(result_register(), Factory::false_value());
   __ j(equal, if_false);
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ test(result_register(), Operand(result_register()));
   __ j(zero, if_false);
   __ test(result_register(), Immediate(kSmiTagMask));
@@ -655,6 +655,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   ASSERT(variable != NULL);  // Must have been resolved.
   Slot* slot = variable->AsSlot();
   Property* prop = variable->AsProperty();
+
   if (slot != NULL) {
     switch (slot->type()) {
       case Slot::PARAMETER:
@@ -814,7 +815,6 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     SetSourcePosition(clause->position());
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
     EmitCallIC(ic, &patch_site);
-
     __ test(eax, Operand(eax));
     __ j(not_equal, &next_test);
     __ Drop(1);  // Switch value is no longer needed.
@@ -895,7 +895,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ cmp(edx, Factory::empty_descriptor_array());
   __ j(equal, &call_runtime);
 
-  // Check that there in an enum cache in the non-empty instance
+  // Check that there is an enum cache in the non-empty instance
   // descriptors (edx).  This is the case if the next enumeration
   // index field does not contain a smi.
   __ mov(edx, FieldOperand(edx, DescriptorArray::kEnumerationIndexOffset));
@@ -2390,7 +2390,9 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     Literal* key = prop->key()->AsLiteral();
     if (key != NULL && key->handle()->IsSymbol()) {
       // Call to a named property, use call IC.
-      VisitForStackValue(prop->obj());
+      { PreservePositionScope scope(masm()->positions_recorder());
+        VisitForStackValue(prop->obj());
+      }
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
       // Call to a keyed property.
@@ -3401,7 +3403,6 @@ void FullCodeGenerator::EmitHasCachedArrayIndex(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
   ASSERT(args->length() == 1);
-
   VisitForAccumulatorValue(args->at(0));
 
   if (FLAG_debug_code) {
@@ -3791,6 +3792,7 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
         Label* if_true = NULL;
         Label* if_false = NULL;
         Label* fall_through = NULL;
+
         // Notice that the labels are swapped.
         context()->PrepareTest(&materialize_true, &materialize_false,
                                &if_false, &if_true, &fall_through);
@@ -4386,6 +4388,22 @@ void FullCodeGenerator::EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode) {
 
 
 void FullCodeGenerator::EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site) {
+  switch (ic->kind()) {
+    case Code::LOAD_IC:
+      __ IncrementCounter(&Counters::named_load_full, 1);
+      break;
+    case Code::KEYED_LOAD_IC:
+      __ IncrementCounter(&Counters::keyed_load_full, 1);
+      break;
+    case Code::STORE_IC:
+      __ IncrementCounter(&Counters::named_store_full, 1);
+      break;
+    case Code::KEYED_STORE_IC:
+      __ IncrementCounter(&Counters::keyed_store_full, 1);
+    default:
+      break;
+  }
+
   __ call(ic, RelocInfo::CODE_TARGET);
   if (patch_site != NULL && patch_site->is_bound()) {
     patch_site->EmitPatchInfo();
