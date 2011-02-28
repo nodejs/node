@@ -295,7 +295,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "isStdinBlocking", IsStdinBlocking);
   NODE_SET_METHOD(target, "setRawMode", SetRawMode);
   NODE_SET_METHOD(target, "getWindowSize", GetWindowSize);
-  NODE_SET_METHOD(target, "setWindowSize", GetWindowSize);
+  NODE_SET_METHOD(target, "setWindowSize", SetWindowSize);
   NODE_SET_METHOD(target, "isatty", IsATTY);
   NODE_SET_METHOD(target, "openpty", OpenPTY);
 
