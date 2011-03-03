@@ -677,12 +677,10 @@ class HGraphBuilder: public AstVisitor {
                           HBasicBlock* second,
                           int join_id);
   HBasicBlock* CreateWhile(IterationStatement* statement,
-                           HBasicBlock* condition_entry,
-                           HBasicBlock* exit_block,
-                           HBasicBlock* body_exit,
-                           HBasicBlock* break_block,
                            HBasicBlock* loop_entry,
-                           HBasicBlock* loop_exit);
+                           HBasicBlock* cond_false,
+                           HBasicBlock* body_exit,
+                           HBasicBlock* break_block);
   HBasicBlock* CreateDoWhile(IterationStatement* statement,
                              HBasicBlock* body_entry,
                              HBasicBlock* go_back,
@@ -692,11 +690,6 @@ class HGraphBuilder: public AstVisitor {
                              HBasicBlock* body_entry,
                              HBasicBlock* body_exit,
                              HBasicBlock* break_block);
-  HBasicBlock* CreatePeeledWhile(IterationStatement* stmt,
-                                 HBasicBlock* condition_entry,
-                                 HBasicBlock* exit_block,
-                                 HBasicBlock* body_exit,
-                                 HBasicBlock* break_block);
   HBasicBlock* JoinContinue(IterationStatement* statement,
                             HBasicBlock* exit_block,
                             HBasicBlock* continue_block);
@@ -746,7 +739,7 @@ class HGraphBuilder: public AstVisitor {
   HSubgraph* CreateEmptySubgraph();
   HSubgraph* CreateGotoSubgraph(HEnvironment* env);
   HSubgraph* CreateBranchSubgraph(HEnvironment* env);
-  HSubgraph* CreateLoopHeaderSubgraph(HEnvironment* env);
+  HBasicBlock* CreateLoopHeader();
   HSubgraph* CreateInlinedSubgraph(HEnvironment* outer,
                                    Handle<JSFunction> target,
                                    FunctionLiteral* function);

@@ -836,7 +836,8 @@ bool Debug::Load() {
   Handle<String> key = Factory::LookupAsciiSymbol("builtins");
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
   RETURN_IF_EMPTY_HANDLE_VALUE(
-      SetProperty(global, key, Handle<Object>(global->builtins()), NONE),
+      SetProperty(global, key, Handle<Object>(global->builtins()),
+                  NONE, kNonStrictMode),
       false);
 
   // Compile the JavaScript for the debugger in the debugger context.

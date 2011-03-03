@@ -2552,12 +2552,13 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
   __ push(edx);  // receiver
   __ push(ecx);  // name
   __ push(eax);  // value
+  __ push(Immediate(Smi::FromInt(strict_mode_)));
   __ push(ebx);  // restore return address
 
   // Do tail-call to the runtime system.
   ExternalReference store_ic_property =
       ExternalReference(IC_Utility(IC::kStoreInterceptorProperty));
-  __ TailCallExternalReference(store_ic_property, 3, 1);
+  __ TailCallExternalReference(store_ic_property, 4, 1);
 
   // Handle store cache miss.
   __ bind(&miss);
@@ -3712,10 +3713,13 @@ MaybeObject* ExternalArrayStubCompiler::CompileKeyedStoreStub(
   __ push(edx);
   __ push(ecx);
   __ push(eax);
-  __ push(ebx);
+  __ push(Immediate(Smi::FromInt(NONE)));   // PropertyAttributes
+  __ push(Immediate(Smi::FromInt(
+      Code::ExtractExtraICStateFromFlags(flags) & kStrictMode)));
+  __ push(ebx);   // return address
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 
   return GetCode(flags);
 }

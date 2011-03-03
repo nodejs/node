@@ -761,7 +761,8 @@ void KeyedLoadIC::GenerateIndexedInterceptor(MacroAssembler* masm) {
 }
 
 
-void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
+                                   StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -801,7 +802,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Slow case: call runtime.
   __ bind(&slow);
-  GenerateRuntimeSetProperty(masm);
+  GenerateRuntimeSetProperty(masm, strict_mode);
 
   // Check whether the elements is a pixel array.
   __ bind(&check_pixel_array);
@@ -1488,7 +1489,7 @@ void KeyedLoadIC::GenerateRuntimeGetProperty(MacroAssembler* masm) {
 
 
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
-                                  Code::ExtraICState extra_ic_state) {
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -1499,7 +1500,7 @@ void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
   Code::Flags flags = Code::ComputeFlags(Code::STORE_IC,
                                          NOT_IN_LOOP,
                                          MONOMORPHIC,
-                                         extra_ic_state);
+                                         strict_mode);
   StubCache::GenerateProbe(masm, flags, edx, ecx, ebx, no_reg);
 
   // Cache miss: Jump to runtime.
@@ -1617,7 +1618,8 @@ void StoreIC::GenerateNormal(MacroAssembler* masm) {
 }
 
 
-void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
+void StoreIC::GenerateGlobalProxy(MacroAssembler* masm,
+                                  StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : name
@@ -1628,14 +1630,17 @@ void StoreIC::GenerateGlobalProxy(MacroAssembler* masm) {
   __ push(edx);
   __ push(ecx);
   __ push(eax);
-  __ push(ebx);
+  __ push(Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
+  __ push(Immediate(Smi::FromInt(strict_mode)));
+  __ push(ebx);  // return address
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 
-void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
+void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm,
+                                              StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
   //  -- eax    : value
   //  -- ecx    : key
@@ -1647,10 +1652,12 @@ void KeyedStoreIC::GenerateRuntimeSetProperty(MacroAssembler* masm) {
   __ push(edx);
   __ push(ecx);
   __ push(eax);
-  __ push(ebx);
+  __ push(Immediate(Smi::FromInt(NONE)));         // PropertyAttributes
+  __ push(Immediate(Smi::FromInt(strict_mode)));  // Strict mode.
+  __ push(ebx);   // return address
 
   // Do tail-call to runtime routine.
-  __ TailCallRuntime(Runtime::kSetProperty, 3, 1);
+  __ TailCallRuntime(Runtime::kSetProperty, 5, 1);
 }
 
 

@@ -332,9 +332,9 @@ void VirtualFrame::CallLoadIC(Handle<String> name, RelocInfo::Mode mode) {
 void VirtualFrame::CallStoreIC(Handle<String> name,
                                bool is_contextual,
                                StrictModeFlag strict_mode) {
-  Handle<Code> ic(Builtins::builtin(strict_mode == kStrictMode
-      ? Builtins::StoreIC_Initialize_Strict
-      : Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
+                                   : Builtins::StoreIC_Initialize));
   PopToR0();
   RelocInfo::Mode mode;
   if (is_contextual) {
@@ -359,8 +359,10 @@ void VirtualFrame::CallKeyedLoadIC() {
 }
 
 
-void VirtualFrame::CallKeyedStoreIC() {
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+void VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
+  Handle<Code> ic(Builtins::builtin(
+      (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
+                                   : Builtins::KeyedStoreIC_Initialize));
   PopToR1R0();
   SpillAll();
   EmitPop(r2);

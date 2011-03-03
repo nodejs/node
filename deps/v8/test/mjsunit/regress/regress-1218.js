@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,53 +25,5 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_RUNTIME_PROFILER_H_
-#define V8_RUNTIME_PROFILER_H_
-
-#include "v8.h"
-#include "allocation.h"
-
-namespace v8 {
-namespace internal {
-
-class RuntimeProfiler : public AllStatic {
- public:
-  static bool IsEnabled() { return V8::UseCrankshaft() && FLAG_opt; }
-
-  static void OptimizeNow();
-  static void OptimizeSoon(JSFunction* function);
-
-  static void NotifyTick();
-
-  static void Setup();
-  static void Reset();
-  static void TearDown();
-
-  static int SamplerWindowSize();
-  static void UpdateSamplesAfterScavenge();
-  static void RemoveDeadSamples();
-  static void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
-};
-
-
-// Rate limiter intended to be used in the profiler thread.
-class RuntimeProfilerRateLimiter BASE_EMBEDDED {
- public:
-  RuntimeProfilerRateLimiter() : non_js_ticks_(0) { }
-
-  // Suspends the current thread when not executing JavaScript to
-  // minimize CPU usage. Returns whether this thread was suspended
-  // (and so might have to check whether profiling is still active.)
-  //
-  // Does nothing when runtime profiling is not enabled.
-  bool SuspendIfNecessary();
-
- private:
-  int non_js_ticks_;
-
-  DISALLOW_COPY_AND_ASSIGN(RuntimeProfilerRateLimiter);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_RUNTIME_PROFILER_H_
+// Builtin functions should not have prototype objects.
+assertFalse(Error.prototype.toString.hasOwnProperty("prototype"));

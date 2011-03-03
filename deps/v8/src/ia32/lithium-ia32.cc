@@ -870,10 +870,18 @@ LInstruction* LChunkBuilder::DoArithmeticD(Token::Value op,
   ASSERT(instr->representation().IsDouble());
   ASSERT(instr->left()->representation().IsDouble());
   ASSERT(instr->right()->representation().IsDouble());
-  LOperand* left = UseRegisterAtStart(instr->left());
-  LOperand* right = UseRegisterAtStart(instr->right());
-  LArithmeticD* result = new LArithmeticD(op, left, right);
-  return DefineSameAsFirst(result);
+  if (op == Token::MOD) {
+    LOperand* left = UseFixedDouble(instr->left(), xmm2);
+    LOperand* right = UseFixedDouble(instr->right(), xmm1);
+    LArithmeticD* result = new LArithmeticD(op, left, right);
+    return MarkAsCall(DefineFixedDouble(result, xmm1), instr);
+
+  } else {
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseRegisterAtStart(instr->right());
+    LArithmeticD* result = new LArithmeticD(op, left, right);
+    return DefineSameAsFirst(result);
+  }
 }
 
 
@@ -1165,8 +1173,7 @@ LInstruction* LChunkBuilder::DoInstanceOfKnownGlobal(
       new LInstanceOfKnownGlobal(
           UseFixed(instr->value(), InstanceofStub::left()),
           FixedTemp(edi));
-  MarkAsSaveDoubles(result);
-  return AssignEnvironment(AssignPointerMap(DefineFixed(result, eax)));
+  return MarkAsCall(DefineFixed(result, eax), instr);
 }
 
 

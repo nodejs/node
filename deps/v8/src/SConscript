@@ -31,7 +31,6 @@ root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
 import js2c
 Import('context')
-Import('tools')
 
 
 SOURCES = {
@@ -306,7 +305,7 @@ def Abort(message):
 
 
 def ConfigureObjectFiles():
-  env = Environment(tools=tools)
+  env = Environment()
   env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)

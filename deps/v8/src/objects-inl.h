@@ -2619,7 +2619,8 @@ Code::Flags Code::ComputeFlags(Kind kind,
   ASSERT(extra_ic_state == kNoExtraICState ||
          (kind == CALL_IC && (ic_state == MONOMORPHIC ||
                               ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
-         (kind == STORE_IC));
+         (kind == STORE_IC) ||
+         (kind == KEYED_STORE_IC));
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
@@ -3741,7 +3742,8 @@ MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
   ASSERT(!IsJSGlobalProxy());
   return SetPropertyPostInterceptor(Heap::hidden_symbol(),
                                     hidden_obj,
-                                    DONT_ENUM);
+                                    DONT_ENUM,
+                                    kNonStrictMode);
 }
 
 

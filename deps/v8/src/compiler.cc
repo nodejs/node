@@ -221,11 +221,12 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // or perform on-stack replacement for function with too many
   // stack-allocated local variables.
   //
-  // The encoding is as a signed value, with parameters using the negative
-  // indices and locals the non-negative ones.
+  // The encoding is as a signed value, with parameters and receiver using
+  // the negative indices and locals the non-negative ones.
   const int limit = LUnallocated::kMaxFixedIndices / 2;
   Scope* scope = info->scope();
-  if (scope->num_parameters() > limit || scope->num_stack_slots() > limit) {
+  if ((scope->num_parameters() + 1) > limit ||
+      scope->num_stack_slots() > limit) {
     AbortAndDisable(info);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.

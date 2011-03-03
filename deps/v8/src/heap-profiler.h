@@ -340,6 +340,7 @@ class AggregatedHeapSnapshot {
 
 
 class HeapEntriesMap;
+class HeapEntriesAllocator;
 class HeapSnapshot;
 
 class AggregatedHeapSnapshotGenerator {
@@ -354,7 +355,8 @@ class AggregatedHeapSnapshotGenerator {
   void CalculateStringsStats();
   void CollectStats(HeapObject* obj);
   template<class Iterator>
-  void IterateRetainers(HeapEntriesMap* entries_map);
+  void IterateRetainers(
+      HeapEntriesAllocator* allocator, HeapEntriesMap* entries_map);
 
   AggregatedHeapSnapshot* agg_snapshot_;
 };

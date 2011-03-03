@@ -10091,10 +10091,11 @@ class RegExpStringModificationTest {
     // Inject the input as a global variable.
     i::Handle<i::String> input_name =
         i::Factory::NewStringFromAscii(i::Vector<const char>("input", 5));
-    i::Top::global_context()->global()->SetProperty(*input_name,
-                                                    *input_,
-                                                    NONE)->ToObjectChecked();
-
+    i::Top::global_context()->global()->SetProperty(
+        *input_name,
+        *input_,
+        NONE,
+        i::kNonStrictMode)->ToObjectChecked();
 
     MorphThread morph_thread(this);
     morph_thread.Start();

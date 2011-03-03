@@ -111,18 +111,6 @@ regress/regress-3247124: SKIP
 regress/regress-1132: SKIP
 
 ##############################################################################
-[ $arch == arm && $crankshaft ]
-
-# BUG (1094)
-regress/regress-deopt-gc: SKIP
-
-##############################################################################
-[ $arch == x64 && $crankshaft ]
-
-# BUG (1094)
-regress/regress-deopt-gc: SKIP
-
-##############################################################################
 [ $arch == mips ]
 
 # Skip all tests on MIPS.

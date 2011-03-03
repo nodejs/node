@@ -121,6 +121,15 @@ class MacroAssembler: public Assembler {
             Condition cond = al);
   void Sbfx(Register dst, Register src, int lsb, int width,
             Condition cond = al);
+  // The scratch register is not used for ARMv7.
+  // scratch can be the same register as src (in which case it is trashed), but
+  // not the same as dst.
+  void Bfi(Register dst,
+           Register src,
+           Register scratch,
+           int lsb,
+           int width,
+           Condition cond = al);
   void Bfc(Register dst, int lsb, int width, Condition cond = al);
   void Usat(Register dst, int satpos, const Operand& src,
             Condition cond = al);
@@ -231,6 +240,17 @@ class MacroAssembler: public Assembler {
     } else {
       str(src1, MemOperand(sp, 4, NegPreIndex), cond);
       Push(src2, src3, src4, cond);
+    }
+  }
+
+  // Pop two registers. Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Condition cond = al) {
+    ASSERT(!src1.is(src2));
+    if (src1.code() > src2.code()) {
+      ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+    } else {
+      ldr(src2, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
     }
   }
 
@@ -497,6 +517,14 @@ class MacroAssembler: public Assembler {
   // Copies a fixed number of fields of heap objects from src to dst.
   void CopyFields(Register dst, Register src, RegList temps, int field_count);
 
+  // Copies a number of bytes from src to dst. All registers are clobbered. On
+  // exit src and dst will point to the place just after where the last byte was
+  // read or written and length will be zero.
+  void CopyBytes(Register src,
+                 Register dst,
+                 Register length,
+                 Register scratch);
+
   // ---------------------------------------------------------------------------
   // Support functions.
 
@@ -612,6 +640,19 @@ class MacroAssembler: public Assembler {
                       Register scratch2,
                       DwVfpRegister double_scratch,
                       Label *not_int32);
+
+// Truncates a double using a specific rounding mode.
+// Clears the z flag (ne condition) if an overflow occurs.
+// If exact_conversion is true, the z flag is also cleared if the conversion
+// was inexact, ie. if the double value could not be converted exactly
+// to a 32bit integer.
+  void EmitVFPTruncate(VFPRoundingMode rounding_mode,
+                       SwVfpRegister result,
+                       DwVfpRegister double_input,
+                       Register scratch1,
+                       Register scratch2,
+                       CheckForInexactConversion check
+                           = kDontCheckForInexactConversion);
 
   // Count leading zeros in a 32 bit word.  On ARM5 and later it uses the clz
   // instruction.  On pre-ARM5 hardware this routine gives the wrong answer
@@ -777,11 +818,11 @@ class MacroAssembler: public Assembler {
     mov(reg, scratch);
   }
 
-  void SmiUntag(Register reg) {
-    mov(reg, Operand(reg, ASR, kSmiTagSize));
+  void SmiUntag(Register reg, SBit s = LeaveCC) {
+    mov(reg, Operand(reg, ASR, kSmiTagSize), s);
   }
-  void SmiUntag(Register dst, Register src) {
-    mov(dst, Operand(src, ASR, kSmiTagSize));
+  void SmiUntag(Register dst, Register src, SBit s = LeaveCC) {
+    mov(dst, Operand(src, ASR, kSmiTagSize), s);
   }
 
   // Jump the register contains a smi.

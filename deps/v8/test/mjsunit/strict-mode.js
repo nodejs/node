@@ -280,6 +280,19 @@ CheckStrictMode("function strict() { print(--arguments); }", SyntaxError);
 CheckStrictMode("function strict() { var x = --eval; }", SyntaxError);
 CheckStrictMode("function strict() { var x = --arguments; }", SyntaxError);
 
+// Use of const in strict mode is disallowed in anticipation of ES Harmony.
+CheckStrictMode("const x = 0;", SyntaxError);
+CheckStrictMode("for (const x = 0; false;) {}", SyntaxError);
+CheckStrictMode("function strict() { const x = 0; }", SyntaxError);
+
+// Strict mode only allows functions in SourceElements
+CheckStrictMode("if (true) { function invalid() {} }", SyntaxError);
+CheckStrictMode("for (;false;) { function invalid() {} }", SyntaxError);
+CheckStrictMode("{ function invalid() {} }", SyntaxError);
+CheckStrictMode("try { function invalid() {} } catch(e) {}", SyntaxError);
+CheckStrictMode("try { } catch(e) { function invalid() {} }", SyntaxError);
+CheckStrictMode("function outer() {{ function invalid() {} }}", SyntaxError);
+
 // Delete of an unqualified identifier
 CheckStrictMode("delete unqualified;", SyntaxError);
 CheckStrictMode("function strict() { delete unqualified; }", SyntaxError);
@@ -698,5 +711,120 @@ repeat(10, function() { testAssignToUndefined(false); });
     cleanup(String);
     cleanup(Number);
     cleanup(Boolean);
+  }
+})();
+
+
+(function ObjectEnvironment() {
+  var o = {};
+  Object.defineProperty(o, "foo", { value: "FOO", writable: false });
+  assertThrows(
+    function () {
+      with (o) {
+        (function() {
+          "use strict";
+          foo = "Hello";
+        })();
+      }
+    },
+    TypeError);
+})();
+
+
+(function TestSetPropertyWithoutSetter() {
+  var o = { get foo() { return "Yey"; } };
+  assertThrows(
+    function broken() {
+      "use strict";
+      o.foo = (0xBADBAD00 >> 1);
+    },
+    TypeError);
+})();
+
+
+(function TestSetPropertyNonConfigurable() {
+  var frozen = Object.freeze({});
+  var sealed = Object.seal({});
+
+  function strict(o) {
+    "use strict";
+    o.property = "value";
+  }
+
+  assertThrows(function() { strict(frozen); }, TypeError);
+  assertThrows(function() { strict(sealed); }, TypeError);
+})();
+
+
+(function TestAssignmentToReadOnlyProperty() {
+  "use strict";
+
+  var o = {};
+  Object.defineProperty(o, "property", { value: 7 });
+
+  assertThrows(function() { o.property = "new value"; }, TypeError);
+  assertThrows(function() { o.property += 10; }, TypeError);
+  assertThrows(function() { o.property -= 10; }, TypeError);
+  assertThrows(function() { o.property *= 10; }, TypeError);
+  assertThrows(function() { o.property /= 10; }, TypeError);
+  assertThrows(function() { o.property++; }, TypeError);
+  assertThrows(function() { o.property--; }, TypeError);
+  assertThrows(function() { ++o.property; }, TypeError);
+  assertThrows(function() { --o.property; }, TypeError);
+
+  var name = "prop" + "erty"; // to avoid symbol path.
+  assertThrows(function() { o[name] = "new value"; }, TypeError);
+  assertThrows(function() { o[name] += 10; }, TypeError);
+  assertThrows(function() { o[name] -= 10; }, TypeError);
+  assertThrows(function() { o[name] *= 10; }, TypeError);
+  assertThrows(function() { o[name] /= 10; }, TypeError);
+  assertThrows(function() { o[name]++; }, TypeError);
+  assertThrows(function() { o[name]--; }, TypeError);
+  assertThrows(function() { ++o[name]; }, TypeError);
+  assertThrows(function() { --o[name]; }, TypeError);
+
+  assertEquals(o.property, 7);
+})();
+
+
+(function TestAssignmentToReadOnlyLoop() {
+  var name = "prop" + "erty"; // to avoid symbol path.
+  var o = {};
+  Object.defineProperty(o, "property", { value: 7 });
+
+  function strict(o, name) {
+    "use strict";
+    o[name] = "new value";
+  }
+
+  for (var i = 0; i < 10; i ++) {
+    try {
+      strict(o, name);
+      assertUnreachable();
+    } catch(e) {
+      assertInstanceof(e, TypeError);
+    }
+  }
+})();
+
+
+// Specialized KeyedStoreIC experiencing miss.
+(function testKeyedStoreICStrict() {
+  var o = [9,8,7,6,5,4,3,2,1];
+
+  function test(o, i, v) {
+    "use strict";
+    o[i] = v;
+  }
+
+  for (var i = 0; i < 10; i ++) {
+    test(o, 5, 17);        // start specialized for smi indices
+    assertEquals(o[5], 17);
+    test(o, "a", 19);
+    assertEquals(o["a"], 19);
+    test(o, "5", 29);
+    assertEquals(o[5], 29);
+    test(o, 100000, 31);
+    assertEquals(o[100000], 31);
   }
 })();

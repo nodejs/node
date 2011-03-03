@@ -110,7 +110,6 @@ DEFINE_bool(use_lithium, true, "use lithium code generator")
 DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(eliminate_dead_phis, true, "eliminate dead phis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
-DEFINE_bool(use_peeling, false, "use loop peeling")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(limit_inlining, true, "limit code size growth from inlining")
@@ -267,6 +266,12 @@ DEFINE_bool(use_idle_notification, true,
 // ic.cc
 DEFINE_bool(use_ic, true, "use inline caching")
 
+#ifdef LIVE_OBJECT_LIST
+// liveobjectlist.cc
+DEFINE_string(lol_workdir, NULL, "path for lol temp files")
+DEFINE_bool(verify_lol, false, "perform debugging verification for lol")
+#endif
+
 // macro-assembler-ia32.cc
 DEFINE_bool(native_code_counters, false,
             "generate extra code for manipulating stats counters")
@@ -355,7 +360,7 @@ DEFINE_bool(remote_debugger, false, "Connect JavaScript debugger to the "
                                     "debugger agent in another process")
 DEFINE_bool(debugger_agent, false, "Enable debugger agent")
 DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
-DEFINE_string(map_counters, NULL, "Map counters to a file")
+DEFINE_string(map_counters, "", "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
 

@@ -343,7 +343,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  All three are dropped.
-  Result CallKeyedStoreIC();
+  Result CallKeyedStoreIC(StrictModeFlag strict_mode);
 
   // Call call IC.  Function name, arguments, and receiver are found on top
   // of the frame and dropped by the call.
@@ -403,8 +403,8 @@ class VirtualFrame : public ZoneObject {
   inline bool ConstantPoolOverflowed();
 
   // Push an element on the virtual frame.
+  void Push(Handle<Object> value);
   inline void Push(Register reg, TypeInfo info = TypeInfo::Unknown());
-  inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 
   // Pushing a result invalidates it (its contents become owned by the

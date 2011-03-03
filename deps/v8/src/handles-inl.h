@@ -51,16 +51,6 @@ inline T* Handle<T>::operator*() const {
 }
 
 
-template <typename T>
-HandleCell<T>::HandleCell(T* value)
-    : location_(HandleScope::CreateHandle(value)) { }
-
-
-template <typename T>
-HandleCell<T>::HandleCell(Handle<T> value)
-    : location_(HandleScope::CreateHandle(*value)) { }
-
-
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation() {
   v8::ImplementationUtilities::HandleScopeData* current =

@@ -242,17 +242,21 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
-                           PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(object->SetProperty(*key, *value, attributes), Object);
+                           PropertyAttributes attributes,
+                           StrictModeFlag strict) {
+  CALL_HEAP_FUNCTION(object->SetProperty(*key, *value, attributes, strict),
+                     Object);
 }
 
 
 Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
-                           PropertyAttributes attributes) {
+                           PropertyAttributes attributes,
+                           StrictModeFlag strict) {
   CALL_HEAP_FUNCTION(
-      Runtime::SetObjectProperty(object, key, value, attributes), Object);
+      Runtime::SetObjectProperty(object, key, value, attributes, strict),
+      Object);
 }
 
 
@@ -304,10 +308,12 @@ void SetLocalPropertyNoThrow(Handle<JSObject> object,
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
-                                          PropertyAttributes attributes) {
+                                          PropertyAttributes attributes,
+                                          StrictModeFlag strict) {
   CALL_HEAP_FUNCTION(object->SetPropertyWithInterceptor(*key,
                                                         *value,
-                                                        attributes),
+                                                        attributes,
+                                                        strict),
                      Object);
 }
 

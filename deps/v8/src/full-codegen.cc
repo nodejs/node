@@ -739,25 +739,13 @@ void FullCodeGenerator::VisitBinaryOperation(BinaryOperation* expr) {
     case Token::SHL:
     case Token::SHR:
     case Token::SAR: {
-      // Figure out if either of the operands is a constant.
-      ConstantOperand constant = ShouldInlineSmiCase(op)
-          ? GetConstantOperand(op, left, right)
-          : kNoConstants;
-
-      // Load only the operands that we need to materialize.
-      if (constant == kNoConstants) {
-        VisitForStackValue(left);
-        VisitForAccumulatorValue(right);
-      } else if (constant == kRightConstant) {
-        VisitForAccumulatorValue(left);
-      } else {
-        ASSERT(constant == kLeftConstant);
-        VisitForAccumulatorValue(right);
-      }
+      // Load both operands.
+      VisitForStackValue(left);
+      VisitForAccumulatorValue(right);
 
       SetSourcePosition(expr->position());
       if (ShouldInlineSmiCase(op)) {
-        EmitInlineSmiBinaryOp(expr, op, mode, left, right, constant);
+        EmitInlineSmiBinaryOp(expr, op, mode, left, right);
       } else {
         EmitBinaryOp(op, mode);
       }

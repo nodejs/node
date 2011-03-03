@@ -153,7 +153,8 @@ class DebugLocalContext {
     Handle<v8::internal::String> debug_string =
         v8::internal::Factory::LookupAsciiSymbol("debug");
     SetProperty(global, debug_string,
-        Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM);
+        Handle<Object>(Debug::debug_context()->global_proxy()), DONT_ENUM,
+        ::v8::internal::kNonStrictMode);
   }
  private:
   v8::Persistent<v8::Context> context_;

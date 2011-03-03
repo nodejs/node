@@ -588,7 +588,8 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   Handle<DeoptimizationInputData> data =
       Factory::NewDeoptimizationInputData(length, TENURED);
 
-  data->SetTranslationByteArray(*translations_.CreateByteArray());
+  Handle<ByteArray> translations = translations_.CreateByteArray();
+  data->SetTranslationByteArray(*translations);
   data->SetInlinedFunctionCount(Smi::FromInt(inlined_function_count_));
 
   Handle<FixedArray> literals =
@@ -1912,12 +1913,7 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
   __ bind(&before_push_delta);
   __ mov(temp, Immediate(delta));
   __ StoreToSafepointRegisterSlot(temp, temp);
-  __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  __ call(stub.GetCode(), RelocInfo::CODE_TARGET);
-  ASSERT_EQ(kAdditionalDelta,
-            masm_->SizeOfCodeGeneratedSince(&before_push_delta));
-  RecordSafepointWithRegisters(
-      instr->pointer_map(), 0, Safepoint::kNoDeoptimizationIndex);
+  CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr, false);
   // Put the result value into the eax slot and restore all registers.
   __ StoreToSafepointRegisterSlot(eax, eax);
   __ PopSafepointRegisters();
@@ -2786,7 +2782,9 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
   ASSERT(ToRegister(instr->value()).is(eax));
 
   __ mov(ecx, instr->name());
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      info_->is_strict() ? Builtins::StoreIC_Initialize_Strict
+                         : Builtins::StoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2854,7 +2852,9 @@ void LCodeGen::DoStoreKeyedGeneric(LStoreKeyedGeneric* instr) {
   ASSERT(ToRegister(instr->key()).is(ecx));
   ASSERT(ToRegister(instr->value()).is(eax));
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      info_->is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                         : Builtins::KeyedStoreIC_Initialize));
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 

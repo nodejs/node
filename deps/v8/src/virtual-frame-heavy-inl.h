@@ -87,14 +87,6 @@ bool VirtualFrame::ConstantPoolOverflowed() {
 }
 
 
-void VirtualFrame::Push(Handle<Object> value) {
-  ASSERT(!ConstantPoolOverflowed());
-  FrameElement element =
-      FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
-  elements_.Add(element);
-}
-
-
 bool VirtualFrame::Equals(VirtualFrame* other) {
 #ifdef DEBUG
   for (int i = 0; i < RegisterAllocator::kNumRegisters; i++) {

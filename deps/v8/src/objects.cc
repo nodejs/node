@@ -1444,14 +1444,15 @@ MaybeObject* JSObject::AddProperty(String* name,
 MaybeObject* JSObject::SetPropertyPostInterceptor(
     String* name,
     Object* value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes,
+    StrictModeFlag strict) {
   // Check local property, ignore interceptor.
   LookupResult result;
   LocalLookupRealNamedProperty(name, &result);
   if (result.IsFound()) {
     // An existing property, a map transition or a null descriptor was
     // found.  Use set property to handle all these cases.
-    return SetProperty(&result, name, value, attributes);
+    return SetProperty(&result, name, value, attributes, strict);
   }
   // Add a new real property.
   return AddProperty(name, value, attributes);
@@ -1576,7 +1577,8 @@ MaybeObject* JSObject::ConvertDescriptorToField(String* name,
 MaybeObject* JSObject::SetPropertyWithInterceptor(
     String* name,
     Object* value,
-    PropertyAttributes attributes) {
+    PropertyAttributes attributes,
+    StrictModeFlag strict) {
   HandleScope scope;
   Handle<JSObject> this_handle(this);
   Handle<String> name_handle(name);
@@ -1605,7 +1607,8 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
   MaybeObject* raw_result =
       this_handle->SetPropertyPostInterceptor(*name_handle,
                                               *value_handle,
-                                              attributes);
+                                              attributes,
+                                              strict);
   RETURN_IF_SCHEDULED_EXCEPTION();
   return raw_result;
 }
@@ -1613,10 +1616,11 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 
 MaybeObject* JSObject::SetProperty(String* name,
                                    Object* value,
-                                   PropertyAttributes attributes) {
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict) {
   LookupResult result;
   LocalLookup(name, &result);
-  return SetProperty(&result, name, value, attributes);
+  return SetProperty(&result, name, value, attributes, strict);
 }
 
 
@@ -1896,7 +1900,8 @@ MaybeObject* JSObject::SetPropertyWithFailedAccessCheck(LookupResult* result,
 MaybeObject* JSObject::SetProperty(LookupResult* result,
                                    String* name,
                                    Object* value,
-                                   PropertyAttributes attributes) {
+                                   PropertyAttributes attributes,
+                                   StrictModeFlag strict) {
   // Make sure that the top context does not change when doing callbacks or
   // interceptor calls.
   AssertNoContextChange ncc;
@@ -1923,7 +1928,8 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     Object* proto = GetPrototype();
     if (proto->IsNull()) return value;
     ASSERT(proto->IsJSGlobalObject());
-    return JSObject::cast(proto)->SetProperty(result, name, value, attributes);
+    return JSObject::cast(proto)->SetProperty(
+        result, name, value, attributes, strict);
   }
 
   if (!result->IsProperty() && !IsJSContextExtensionObject()) {
@@ -1942,7 +1948,19 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
     // Neither properties nor transitions found.
     return AddProperty(name, value, attributes);
   }
-  if (result->IsReadOnly() && result->IsProperty()) return value;
+  if (result->IsReadOnly() && result->IsProperty()) {
+    if (strict == kStrictMode) {
+      HandleScope scope;
+      Handle<String> key(name);
+      Handle<Object> holder(this);
+      Handle<Object> args[2] = { key, holder };
+      return Top::Throw(*Factory::NewTypeError("strict_read_only_property",
+                                                HandleVector(args, 2)));
+
+    } else {
+      return value;
+    }
+  }
   // This is a real property that is not read-only, or it is a
   // transition or null descriptor and there are no setters in the prototypes.
   switch (result->type()) {
@@ -1970,7 +1988,7 @@ MaybeObject* JSObject::SetProperty(LookupResult* result,
                                      value,
                                      result->holder());
     case INTERCEPTOR:
-      return SetPropertyWithInterceptor(name, value, attributes);
+      return SetPropertyWithInterceptor(name, value, attributes, strict);
     case CONSTANT_TRANSITION: {
       // If the same constant function is being added we can simply
       // transition to the target map.
@@ -6287,7 +6305,8 @@ void Code::PrintExtraICState(FILE* out, Kind kind, ExtraICState extra) {
       }
       break;
     case STORE_IC:
-      if (extra == StoreIC::kStoreICStrict) {
+    case KEYED_STORE_IC:
+      if (extra == kStrictMode) {
         name = "STRICT";
       }
       break;

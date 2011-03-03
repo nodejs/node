@@ -322,23 +322,6 @@ void FullCodeGenerator::EmitReturnSequence() {
 }
 
 
-FullCodeGenerator::ConstantOperand FullCodeGenerator::GetConstantOperand(
-    Token::Value op, Expression* left, Expression* right) {
-  ASSERT(ShouldInlineSmiCase(op));
-  if (op == Token::DIV || op == Token::MOD || op == Token::MUL) {
-    // We never generate inlined constant smi operations for these.
-    return kNoConstants;
-  } else if (right->IsSmiLiteral()) {
-    return kRightConstant;
-  } else if (left->IsSmiLiteral() && !Token::IsShiftOp(op)) {
-    // Don't inline shifts with constant left hand side.
-    return kLeftConstant;
-  } else {
-    return kNoConstants;
-  }
-}
-
-
 void FullCodeGenerator::EffectContext::Plug(Slot* slot) const {
 }
 
@@ -741,7 +724,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
              prop->key()->AsLiteral()->handle()->IsSmi());
       __ Set(ecx, Immediate(prop->key()->AsLiteral()->handle()));
 
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(is_strict()
+          ? Builtins::KeyedStoreIC_Initialize_Strict
+          : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
     }
   }
@@ -758,7 +743,8 @@ void FullCodeGenerator::DeclareGlobals(Handle<FixedArray> pairs) {
   __ push(esi);  // The context is the first argument.
   __ push(Immediate(pairs));
   __ push(Immediate(Smi::FromInt(is_eval() ? 1 : 0)));
-  __ CallRuntime(Runtime::kDeclareGlobals, 3);
+  __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+  __ CallRuntime(Runtime::kDeclareGlobals, 4);
   // Return value is ignored.
 }
 
@@ -1380,7 +1366,9 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             VisitForAccumulatorValue(value);
             __ mov(ecx, Immediate(key->handle()));
             __ mov(edx, Operand(esp, 0));
-            Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+            Handle<Code> ic(Builtins::builtin(
+                is_strict() ? Builtins::StoreIC_Initialize_Strict
+                            : Builtins::StoreIC_Initialize));
             EmitCallIC(ic, RelocInfo::CODE_TARGET);
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
@@ -1394,7 +1382,8 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         VisitForStackValue(key);
         VisitForStackValue(value);
         if (property->emit_store()) {
-          __ CallRuntime(Runtime::kSetProperty, 3);
+          __ push(Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
+          __ CallRuntime(Runtime::kSetProperty, 4);
         } else {
           __ Drop(3);
         }
@@ -1572,14 +1561,8 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
     }
 
     Token::Value op = expr->binary_op();
-    ConstantOperand constant = ShouldInlineSmiCase(op)
-        ? GetConstantOperand(op, expr->target(), expr->value())
-        : kNoConstants;
-    ASSERT(constant == kRightConstant || constant == kNoConstants);
-    if (constant == kNoConstants) {
-      __ push(eax);  // Left operand goes on the stack.
-      VisitForAccumulatorValue(expr->value());
-    }
+    __ push(eax);  // Left operand goes on the stack.
+    VisitForAccumulatorValue(expr->value());
 
     OverwriteMode mode = expr->value()->ResultOverwriteAllowed()
         ? OVERWRITE_RIGHT
@@ -1591,8 +1574,7 @@ void FullCodeGenerator::VisitAssignment(Assignment* expr) {
                             op,
                             mode,
                             expr->target(),
-                            expr->value(),
-                            constant);
+                            expr->value());
     } else {
       EmitBinaryOp(op, mode);
     }
@@ -1640,220 +1622,11 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
 }
 
 
-void FullCodeGenerator::EmitConstantSmiAdd(Expression* expr,
-                                           OverwriteMode mode,
-                                           bool left_is_constant_smi,
-                                           Smi* value) {
-  NearLabel call_stub, done;
-  // Optimistically add smi value with unknown object. If result overflows or is
-  // not a smi then we had either a smi overflow or added a smi with a tagged
-  // pointer.
-  __ add(Operand(eax), Immediate(value));
-  __ j(overflow, &call_stub);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(eax, &done);
-
-  // Undo the optimistic add operation and call the shared stub.
-  __ bind(&call_stub);
-  __ sub(Operand(eax), Immediate(value));
-  TypeRecordingBinaryOpStub stub(Token::ADD, mode);
-  if (left_is_constant_smi) {
-    __ mov(edx, Immediate(value));
-  } else {
-    __ mov(edx, eax);
-    __ mov(eax, Immediate(value));
-  }
-  EmitCallIC(stub.GetCode(), &patch_site);
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiSub(Expression* expr,
-                                           OverwriteMode mode,
-                                           bool left_is_constant_smi,
-                                           Smi* value) {
-  NearLabel call_stub, done;
-  // Optimistically subtract smi value with unknown object. If result overflows
-  // or is not a smi then we had either a smi overflow or added a smi with a
-  // tagged pointer.
-  if (left_is_constant_smi) {
-    __ mov(ecx, eax);
-    __ mov(eax, Immediate(value));
-    __ sub(Operand(eax), ecx);
-  } else {
-    __ sub(Operand(eax), Immediate(value));
-  }
-  __ j(overflow, &call_stub);
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(eax, &done);
-
-  __ bind(&call_stub);
-  if (left_is_constant_smi) {
-    __ mov(edx, Immediate(value));
-    __ mov(eax, ecx);
-  } else {
-    __ add(Operand(eax), Immediate(value));  // Undo the subtraction.
-    __ mov(edx, eax);
-    __ mov(eax, Immediate(value));
-  }
-  TypeRecordingBinaryOpStub stub(Token::SUB, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiShiftOp(Expression* expr,
-                                               Token::Value op,
-                                               OverwriteMode mode,
-                                               Smi* value) {
-  NearLabel call_stub, smi_case, done;
-  int shift_value = value->value() & 0x1f;
-
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(eax, &smi_case);
-
-  // Call stub.
-  __ bind(&call_stub);
-  __ mov(edx, eax);
-  __ mov(eax, Immediate(value));
-  TypeRecordingBinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-  __ jmp(&done);
-
-  // Smi case.
-  __ bind(&smi_case);
-  switch (op) {
-    case Token::SHL:
-      if (shift_value != 0) {
-        __ mov(edx, eax);
-        if (shift_value > 1) {
-          __ shl(edx, shift_value - 1);
-        }
-        // Convert int result to smi, checking that it is in int range.
-        STATIC_ASSERT(kSmiTagSize == 1);  // Adjust code if not the case.
-        __ add(edx, Operand(edx));
-        __ j(overflow, &call_stub);
-        __ mov(eax, edx);  // Put result back into eax.
-      }
-      break;
-    case Token::SAR:
-      if (shift_value != 0) {
-        __ sar(eax, shift_value);
-        __ and_(eax, ~kSmiTagMask);
-      }
-      break;
-    case Token::SHR:
-      // SHR must return a positive value. When shifting by 0 or 1 we need to
-      // check that smi tagging the result will not create a negative value.
-      if (shift_value < 2) {
-        __ mov(edx, eax);
-        __ SmiUntag(edx);
-        __ shr(edx, shift_value);
-        __ test(edx, Immediate(0xc0000000));
-        __ j(not_zero, &call_stub);
-        __ SmiTag(edx);
-        __ mov(eax, edx);  // Put result back into eax.
-      } else {
-        __ SmiUntag(eax);
-        __ shr(eax, shift_value);
-        __ SmiTag(eax);
-      }
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiBitOp(Expression* expr,
-                                             Token::Value op,
-                                             OverwriteMode mode,
-                                             Smi* value) {
-  NearLabel smi_case, done;
-
-  JumpPatchSite patch_site(masm_);
-  patch_site.EmitJumpIfSmi(eax, &smi_case);
-
-  // The order of the arguments does not matter for bit-ops with a
-  // constant operand.
-  __ mov(edx, Immediate(value));
-  TypeRecordingBinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), &patch_site);
-  __ jmp(&done);
-
-  // Smi case.
-  __ bind(&smi_case);
-  switch (op) {
-    case Token::BIT_OR:
-      __ or_(Operand(eax), Immediate(value));
-      break;
-    case Token::BIT_XOR:
-      __ xor_(Operand(eax), Immediate(value));
-      break;
-    case Token::BIT_AND:
-      __ and_(Operand(eax), Immediate(value));
-      break;
-    default:
-      UNREACHABLE();
-  }
-
-  __ bind(&done);
-  context()->Plug(eax);
-}
-
-
-void FullCodeGenerator::EmitConstantSmiBinaryOp(Expression* expr,
-                                                Token::Value op,
-                                                OverwriteMode mode,
-                                                bool left_is_constant_smi,
-                                                Smi* value) {
-  switch (op) {
-    case Token::BIT_OR:
-    case Token::BIT_XOR:
-    case Token::BIT_AND:
-      EmitConstantSmiBitOp(expr, op, mode, value);
-      break;
-    case Token::SHL:
-    case Token::SAR:
-    case Token::SHR:
-      ASSERT(!left_is_constant_smi);
-      EmitConstantSmiShiftOp(expr, op, mode, value);
-      break;
-    case Token::ADD:
-      EmitConstantSmiAdd(expr, mode, left_is_constant_smi, value);
-      break;
-    case Token::SUB:
-      EmitConstantSmiSub(expr, mode, left_is_constant_smi, value);
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
 void FullCodeGenerator::EmitInlineSmiBinaryOp(Expression* expr,
                                               Token::Value op,
                                               OverwriteMode mode,
                                               Expression* left,
-                                              Expression* right,
-                                              ConstantOperand constant) {
-  if (constant == kRightConstant) {
-    Smi* value =  Smi::cast(*right->AsLiteral()->handle());
-    EmitConstantSmiBinaryOp(expr, op, mode, false, value);
-    return;
-  } else if (constant == kLeftConstant) {
-    Smi* value =  Smi::cast(*left->AsLiteral()->handle());
-    EmitConstantSmiBinaryOp(expr, op, mode, true, value);
-    return;
-  }
-
+                                              Expression* right) {
   // Do combined smi check of the operands. Left operand is on the
   // stack. Right operand is in eax.
   NearLabel done, smi_case, stub_call;
@@ -1985,7 +1758,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       __ mov(edx, eax);
       __ pop(eax);  // Restore value.
       __ mov(ecx, prop->key()->AsLiteral()->handle());
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::StoreIC_Initialize_Strict
+                      : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2006,7 +1781,9 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
         __ pop(edx);
       }
       __ pop(eax);  // Restore value.
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                      : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       break;
     }
@@ -2101,7 +1878,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ push(eax);  // Value.
         __ push(esi);  // Context.
         __ push(Immediate(var->name()));
-        __ CallRuntime(Runtime::kStoreContextSlot, 3);
+        __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+        __ CallRuntime(Runtime::kStoreContextSlot, 4);
         break;
     }
   }
@@ -2132,7 +1910,9 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   } else {
     __ pop(edx);
   }
-  Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      is_strict() ? Builtins::StoreIC_Initialize_Strict
+                  : Builtins::StoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -2170,7 +1950,9 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   }
   // Record source code position before IC call.
   SetSourcePosition(expr->position());
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                  : Builtins::KeyedStoreIC_Initialize));
   EmitCallIC(ic, RelocInfo::CODE_TARGET);
 
   // If the assignment ends an initialization block, revert to fast case.
@@ -2283,6 +2065,27 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr) {
 }
 
 
+void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
+                                                      int arg_count) {
+  // Push copy of the first argument or undefined if it doesn't exist.
+  if (arg_count > 0) {
+    __ push(Operand(esp, arg_count * kPointerSize));
+  } else {
+    __ push(Immediate(Factory::undefined_value()));
+  }
+
+  // Push the receiver of the enclosing function.
+  __ push(Operand(ebp, (2 + scope()->num_parameters()) * kPointerSize));
+
+  // Push the strict mode flag.
+  __ push(Immediate(Smi::FromInt(strict_mode_flag())));
+
+  __ CallRuntime(flag == SKIP_CONTEXT_LOOKUP
+                 ? Runtime::kResolvePossiblyDirectEvalNoLookup
+                 : Runtime::kResolvePossiblyDirectEval, 4);
+}
+
+
 void FullCodeGenerator::VisitCall(Call* expr) {
 #ifdef DEBUG
   // We want to verify that RecordJSReturnSite gets called on all paths
@@ -2311,21 +2114,30 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         VisitForStackValue(args->at(i));
       }
 
-      // Push copy of the function - found below the arguments.
-      __ push(Operand(esp, (arg_count + 1) * kPointerSize));
-
-      // Push copy of the first argument or undefined if it doesn't exist.
-      if (arg_count > 0) {
-        __ push(Operand(esp, arg_count * kPointerSize));
-      } else {
-        __ push(Immediate(Factory::undefined_value()));
+      // If we know that eval can only be shadowed by eval-introduced
+      // variables we attempt to load the global eval function directly
+      // in generated code. If we succeed, there is no need to perform a
+      // context lookup in the runtime system.
+      Label done;
+      if (var->AsSlot() != NULL && var->mode() == Variable::DYNAMIC_GLOBAL) {
+        Label slow;
+        EmitLoadGlobalSlotCheckExtensions(var->AsSlot(),
+                                          NOT_INSIDE_TYPEOF,
+                                          &slow);
+        // Push the function and resolve eval.
+        __ push(eax);
+        EmitResolvePossiblyDirectEval(SKIP_CONTEXT_LOOKUP, arg_count);
+        __ jmp(&done);
+        __ bind(&slow);
       }
 
-      // Push the receiver of the enclosing function and do runtime call.
-      __ push(Operand(ebp, (2 + scope()->num_parameters()) * kPointerSize));
-      // Push the strict mode flag.
-      __ push(Immediate(Smi::FromInt(strict_mode_flag())));
-      __ CallRuntime(Runtime::kResolvePossiblyDirectEval, 4);
+      // Push copy of the function (found below the arguments) and
+      // resolve eval.
+      __ push(Operand(esp, (arg_count + 1) * kPointerSize));
+      EmitResolvePossiblyDirectEval(PERFORM_CONTEXT_LOOKUP, arg_count);
+      if (done.is_linked()) {
+        __ bind(&done);
+      }
 
       // The runtime call returns a pair of values in eax (function) and
       // edx (receiver). Touch up the stack with the right values.
@@ -3418,7 +3230,7 @@ void FullCodeGenerator::EmitGetCachedArrayIndex(ZoneList<Expression*>* args) {
 
 void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   Label bailout, done, one_char_separator, long_separator,
-      non_trivial_array, not_size_one_array, loop, loop_condition,
+      non_trivial_array, not_size_one_array, loop,
       loop_1, loop_1_condition, loop_2, loop_2_entry, loop_3, loop_3_entry;
 
   ASSERT(args->length() == 2);
@@ -3460,7 +3272,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 
   // If the array has length zero, return the empty string.
   __ mov(array_length, FieldOperand(array, JSArray::kLengthOffset));
-  __ sar(array_length, 1);
+  __ SmiUntag(array_length);
   __ j(not_zero, &non_trivial_array);
   __ mov(result_operand, Factory::empty_string());
   __ jmp(&done);
@@ -3483,14 +3295,15 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   // Loop condition: while (index < length).
   // Live loop registers: index, array_length, string,
   //                      scratch, string_length, elements.
-  __ jmp(&loop_condition);
+  if (FLAG_debug_code) {
+    __ cmp(index, Operand(array_length));
+    __ Assert(less, "No empty arrays here in EmitFastAsciiArrayJoin");
+  }
   __ bind(&loop);
-  __ cmp(index, Operand(array_length));
-  __ j(greater_equal, &done);
-
-  __ mov(string, FieldOperand(elements, index,
-                                      times_pointer_size,
-                                      FixedArray::kHeaderSize));
+  __ mov(string, FieldOperand(elements,
+                              index,
+                              times_pointer_size,
+                              FixedArray::kHeaderSize));
   __ test(string, Immediate(kSmiTagMask));
   __ j(zero, &bailout);
   __ mov(scratch, FieldOperand(string, HeapObject::kMapOffset));
@@ -3503,7 +3316,6 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
          FieldOperand(string, SeqAsciiString::kLengthOffset));
   __ j(overflow, &bailout);
   __ add(Operand(index), Immediate(1));
-  __ bind(&loop_condition);
   __ cmp(index, Operand(array_length));
   __ j(less, &loop);
 
@@ -3532,7 +3344,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
   __ and_(scratch, Immediate(
       kIsNotStringMask | kStringEncodingMask | kStringRepresentationMask));
-  __ cmp(scratch, kStringTag | kAsciiStringTag | kSeqStringTag);
+  __ cmp(scratch, ASCII_STRING_TYPE);
   __ j(not_equal, &bailout);
 
   // Add (separator length times array_length) - separator length
@@ -4025,7 +3837,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case NAMED_PROPERTY: {
       __ mov(ecx, prop->key()->AsLiteral()->handle());
       __ pop(edx);
-      Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::StoreIC_Initialize_Strict
+                      : Builtins::StoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
@@ -4040,7 +3854,9 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
     case KEYED_PROPERTY: {
       __ pop(ecx);
       __ pop(edx);
-      Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+      Handle<Code> ic(Builtins::builtin(
+          is_strict() ? Builtins::KeyedStoreIC_Initialize_Strict
+                      : Builtins::KeyedStoreIC_Initialize));
       EmitCallIC(ic, RelocInfo::CODE_TARGET);
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {

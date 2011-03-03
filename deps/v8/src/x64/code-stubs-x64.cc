@@ -2017,8 +2017,8 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
       __ AbortIfSmi(rax);
     }
 
-    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
+    __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
     __ j(not_equal, &slow);
     // Operand is a float, negate its value by flipping sign bit.
     __ movq(rdx, FieldOperand(rax, HeapNumber::kValueOffset));
@@ -2047,8 +2047,8 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     }
 
     // Check if the operand is a heap number.
-    __ movq(rdx, FieldOperand(rax, HeapObject::kMapOffset));
-    __ CompareRoot(rdx, Heap::kHeapNumberMapRootIndex);
+    __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                   Heap::kHeapNumberMapRootIndex);
     __ j(not_equal, &slow);
 
     // Convert the heap number in rax to an untagged integer in rcx.
@@ -2078,6 +2078,157 @@ void GenericUnaryOpStub::Generate(MacroAssembler* masm) {
     default:
       UNREACHABLE();
   }
+}
+
+
+void MathPowStub::Generate(MacroAssembler* masm) {
+  // Registers are used as follows:
+  // rdx = base
+  // rax = exponent
+  // rcx = temporary, result
+
+  Label allocate_return, call_runtime;
+
+  // Load input parameters.
+  __ movq(rdx, Operand(rsp, 2 * kPointerSize));
+  __ movq(rax, Operand(rsp, 1 * kPointerSize));
+
+  // Save 1 in xmm3 - we need this several times later on.
+  __ movl(rcx, Immediate(1));
+  __ cvtlsi2sd(xmm3, rcx);
+
+  Label exponent_nonsmi;
+  Label base_nonsmi;
+  // If the exponent is a heap number go to that specific case.
+  __ JumpIfNotSmi(rax, &exponent_nonsmi);
+  __ JumpIfNotSmi(rdx, &base_nonsmi);
+
+  // Optimized version when both exponent and base are smis.
+  Label powi;
+  __ SmiToInteger32(rdx, rdx);
+  __ cvtlsi2sd(xmm0, rdx);
+  __ jmp(&powi);
+  // Exponent is a smi and base is a heapnumber.
+  __ bind(&base_nonsmi);
+  __ CompareRoot(FieldOperand(rdx, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &call_runtime);
+
+  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+
+  // Optimized version of pow if exponent is a smi.
+  // xmm0 contains the base.
+  __ bind(&powi);
+  __ SmiToInteger32(rax, rax);
+
+  // Save exponent in base as we need to check if exponent is negative later.
+  // We know that base and exponent are in different registers.
+  __ movq(rdx, rax);
+
+  // Get absolute value of exponent.
+  NearLabel no_neg;
+  __ cmpl(rax, Immediate(0));
+  __ j(greater_equal, &no_neg);
+  __ negl(rax);
+  __ bind(&no_neg);
+
+  // Load xmm1 with 1.
+  __ movsd(xmm1, xmm3);
+  NearLabel while_true;
+  NearLabel no_multiply;
+
+  __ bind(&while_true);
+  __ shrl(rax, Immediate(1));
+  __ j(not_carry, &no_multiply);
+  __ mulsd(xmm1, xmm0);
+  __ bind(&no_multiply);
+  __ mulsd(xmm0, xmm0);
+  __ j(not_zero, &while_true);
+
+  // Base has the original value of the exponent - if the exponent  is
+  // negative return 1/result.
+  __ testl(rdx, rdx);
+  __ j(positive, &allocate_return);
+  // Special case if xmm1 has reached infinity.
+  __ divsd(xmm3, xmm1);
+  __ movsd(xmm1, xmm3);
+  __ xorpd(xmm0, xmm0);
+  __ ucomisd(xmm0, xmm1);
+  __ j(equal, &call_runtime);
+
+  __ jmp(&allocate_return);
+
+  // Exponent (or both) is a heapnumber - no matter what we should now work
+  // on doubles.
+  __ bind(&exponent_nonsmi);
+  __ CompareRoot(FieldOperand(rax, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &call_runtime);
+  __ movsd(xmm1, FieldOperand(rax, HeapNumber::kValueOffset));
+  // Test if exponent is nan.
+  __ ucomisd(xmm1, xmm1);
+  __ j(parity_even, &call_runtime);
+
+  NearLabel base_not_smi;
+  NearLabel handle_special_cases;
+  __ JumpIfNotSmi(rdx, &base_not_smi);
+  __ SmiToInteger32(rdx, rdx);
+  __ cvtlsi2sd(xmm0, rdx);
+  __ jmp(&handle_special_cases);
+
+  __ bind(&base_not_smi);
+  __ CompareRoot(FieldOperand(rdx, HeapObject::kMapOffset),
+                 Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &call_runtime);
+  __ movl(rcx, FieldOperand(rdx, HeapNumber::kExponentOffset));
+  __ andl(rcx, Immediate(HeapNumber::kExponentMask));
+  __ cmpl(rcx, Immediate(HeapNumber::kExponentMask));
+  // base is NaN or +/-Infinity
+  __ j(greater_equal, &call_runtime);
+  __ movsd(xmm0, FieldOperand(rdx, HeapNumber::kValueOffset));
+
+  // base is in xmm0 and exponent is in xmm1.
+  __ bind(&handle_special_cases);
+  NearLabel not_minus_half;
+  // Test for -0.5.
+  // Load xmm2 with -0.5.
+  __ movq(rcx, V8_UINT64_C(0xBFE0000000000000), RelocInfo::NONE);
+  __ movq(xmm2, rcx);
+  // xmm2 now has -0.5.
+  __ ucomisd(xmm2, xmm1);
+  __ j(not_equal, &not_minus_half);
+
+  // Calculates reciprocal of square root.
+  // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+  __ xorpd(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);
+  __ sqrtsd(xmm1, xmm1);
+  __ divsd(xmm3, xmm1);
+  __ movsd(xmm1, xmm3);
+  __ jmp(&allocate_return);
+
+  // Test for 0.5.
+  __ bind(&not_minus_half);
+  // Load xmm2 with 0.5.
+  // Since xmm3 is 1 and xmm2 is -0.5 this is simply xmm2 + xmm3.
+  __ addsd(xmm2, xmm3);
+  // xmm2 now has 0.5.
+  __ ucomisd(xmm2, xmm1);
+  __ j(not_equal, &call_runtime);
+  // Calculates square root.
+  // sqrtsd returns -0 when input is -0.  ECMA spec requires +0.
+  __ xorpd(xmm1, xmm1);
+  __ addsd(xmm1, xmm0);
+  __ sqrtsd(xmm1, xmm1);
+
+  __ bind(&allocate_return);
+  __ AllocateHeapNumber(rcx, rax, &call_runtime);
+  __ movsd(FieldOperand(rcx, HeapNumber::kValueOffset), xmm1);
+  __ movq(rax, rcx);
+  __ ret(2 * kPointerSize);
+
+  __ bind(&call_runtime);
+  __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
 }
 
 
@@ -4681,6 +4832,61 @@ void StringCompareStub::Generate(MacroAssembler* masm) {
   __ bind(&runtime);
   __ TailCallRuntime(Runtime::kStringCompare, 2, 1);
 }
+
+
+void StringCharAtStub::Generate(MacroAssembler* masm) {
+  // Expects two arguments (object, index) on the stack:
+
+  // Stack frame on entry.
+  //  rsp[0]: return address
+  //  rsp[8]: index
+  //  rsp[16]: object
+
+  Register object = rbx;
+  Register index = rax;
+  Register scratch1 = rcx;
+  Register scratch2 = rdx;
+  Register result = rax;
+
+  __ pop(scratch1);  // Return address.
+  __ pop(index);
+  __ pop(object);
+  __ push(scratch1);
+
+  Label need_conversion;
+  Label index_out_of_range;
+  Label done;
+  StringCharAtGenerator generator(object,
+                                  index,
+                                  scratch1,
+                                  scratch2,
+                                  result,
+                                  &need_conversion,
+                                  &need_conversion,
+                                  &index_out_of_range,
+                                  STRING_INDEX_IS_NUMBER);
+  generator.GenerateFast(masm);
+  __ jmp(&done);
+
+  __ bind(&index_out_of_range);
+  // When the index is out of range, the spec requires us to return
+  // the empty string.
+  __ Move(result, Factory::empty_string());
+  __ jmp(&done);
+
+  __ bind(&need_conversion);
+  // Move smi zero into the result register, which will trigger
+  // conversion.
+  __ Move(result, Smi::FromInt(0));
+  __ jmp(&done);
+
+  StubRuntimeCallHelper call_helper;
+  generator.GenerateSlow(masm, call_helper);
+
+  __ bind(&done);
+  __ ret(0);
+}
+
 
 void ICCompareStub::GenerateSmis(MacroAssembler* masm) {
   ASSERT(state_ == CompareIC::SMIS);

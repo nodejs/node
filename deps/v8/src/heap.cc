@@ -844,8 +844,6 @@ void Heap::MarkCompactPrologue(bool is_compacting) {
   ContextSlotCache::Clear();
   DescriptorLookupCache::Clear();
 
-  RuntimeProfiler::MarkCompactPrologue(is_compacting);
-
   CompilationCache::MarkCompactPrologue();
 
   CompletelyClearInstanceofCache();
@@ -1056,20 +1054,13 @@ void Heap::Scavenge() {
   // Scavenge object reachable from the global contexts list directly.
   scavenge_visitor.VisitPointer(BitCast<Object**>(&global_contexts_list_));
 
-  // Scavenge objects reachable from the runtime-profiler sampler
-  // window directly.
-  Object** sampler_window_address = RuntimeProfiler::SamplerWindowAddress();
-  int sampler_window_size = RuntimeProfiler::SamplerWindowSize();
-  scavenge_visitor.VisitPointers(
-      sampler_window_address,
-      sampler_window_address + sampler_window_size);
-
   new_space_front = DoScavenge(&scavenge_visitor, new_space_front);
 
   UpdateNewSpaceReferencesInExternalStringTable(
       &UpdateNewSpaceReferenceInExternalStringTableEntry);
 
   LiveObjectList::UpdateReferencesForScavengeGC();
+  RuntimeProfiler::UpdateSamplesAfterScavenge();
 
   ASSERT(new_space_front == new_space_.top());
 
@@ -5336,7 +5327,11 @@ void PathTracer::ProcessResults() {
     for (int i = 0; i < object_stack_.length(); i++) {
       if (i > 0) PrintF("\n     |\n     |\n     V\n\n");
       Object* obj = object_stack_[i];
+#ifdef OBJECT_PRINT
       obj->Print();
+#else
+      obj->ShortPrint();
+#endif
     }
     PrintF("=====================================\n");
   }
