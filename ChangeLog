@@ -1,4 +1,46 @@
-2011.02.19, Version 0.4.1 (stable)
+2011.03.02, Version 0.4.2 (stable)
+
+* Improve docs.
+
+* Fix process.on edge case with signal event (Alexis Sellier)
+
+* Pragma HTTP header comma separation
+
+* In addition to 'aborted' emit 'close' from incoming requests
+  (Felix Geisendörfer)
+
+* Fix memleak in vm.runInNewContext
+
+* Do not cache modules that throw exceptions (Felix Geisendörfer)
+
+* Build system changes for libnode (Aria Stewart)
+
+* Read up the prototype of the 'env' object. (Nathan Rajlich)
+
+* Add 'close' and 'aborted' events to Agent responses
+
+* http: fix missing 'drain' events (Russell Haering)
+
+* Fix process.stdout.end() throws ENOTSOCK error. (Koichi Kobayashi)
+
+* REPL bug fixes (isaacs)
+
+* node_modules folders should be highest priority (isaacs)
+
+* URL parse more safely (isaacs)
+
+* Expose errno with a string for dns/cares (Felix Geisendörfer)
+
+* Fix tty.setWindowSize
+
+* spawn: setuid after chdir (isaacs)
+
+* SIGUSR1 should break the VM without delay
+
+* Upgrade V8 to 3.1.8.
+
+
+2011.02.19, Version 0.4.1 (stable), e8aef84191bc2c1ba2bcaa54f30aabde7f03769b
 
 * Fixed field merging with progressive fields on writeHead()
   (TJ Holowaychuk)
