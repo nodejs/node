@@ -14,6 +14,11 @@ automatically set as a listener for the `'connection'` event.
     { allowHalfOpen: false
     }
 
+If `allowHalfOpen` is `true`, then the socket won't automatically send FIN
+packet when the other end of the socket sends a FIN packet. The socket becomes
+non-readable, but still writable. You should call the end() method explicitly.
+See `'end'` event for more information.
+
 ### net.createConnection(arguments...)
 
 Construct a new socket object and opens a socket to the given location. When
