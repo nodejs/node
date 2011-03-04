@@ -1486,6 +1486,18 @@ static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
   }
 }
 
+static Handle<Value> Uptime(const Arguments& args) {
+  HandleScope scope;
+  assert(args.Length() == 0);
+
+  double uptime =  Platform::GetUptime(true);
+
+  if (uptime < 0) {
+    return Undefined();
+  }
+
+  return scope.Close(Number::New(uptime));
+}
 
 v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
@@ -2023,6 +2035,7 @@ static void Load(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "_kill", Kill);
 #endif // __POSIX__
 
+  NODE_SET_METHOD(process, "uptime", Uptime);
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   NODE_SET_METHOD(process, "binding", Binding);

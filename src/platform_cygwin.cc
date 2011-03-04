@@ -18,7 +18,7 @@ using namespace v8;
 
 static char buf[MAXPATHLEN + 1];
 static char *process_title = NULL;
-
+double Platform::prog_start_time = Platform::GetUptime();
 
 // Does the about the same as perror(), but for windows api functions
 static void _winapi_perror(const char* prefix = NULL) {
@@ -338,7 +338,7 @@ double Platform::GetTotalMemory() {
   return pages * pagesize;
 }
 
-double Platform::GetUptime() {
+double Platform::GetUptimeImpl() {
   double amount;
   char line[512];
   FILE *fpUptime = fopen("/proc/uptime", "r");

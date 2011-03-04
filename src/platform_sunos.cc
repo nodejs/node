@@ -25,6 +25,8 @@ namespace node {
 
 using namespace v8;
 
+double Platform::prog_start_time = Platform::GetUptime();
+
 char** Platform::SetupArgs(int argc, char *argv[]) {
   return argv;
 }
@@ -106,7 +108,7 @@ double Platform::GetTotalMemory() {
 }
 
 
-double Platform::GetUptime() {
+double Platform::GetUptimeImpl() {
   // http://munin-monitoring.org/attachment/ticket/419/uptime
   return 0.0;
 }

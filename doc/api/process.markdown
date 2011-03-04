@@ -319,3 +319,7 @@ given, otherwise returns the current mask.
     console.log('Changed umask from: ' + oldmask.toString(8) +
                 ' to ' + newmask.toString(8));
 
+
+### process.uptime()
+
+Number of seconds Node has been running.

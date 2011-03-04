@@ -21,6 +21,7 @@ using namespace v8;
 
 static char buf[MAXPATHLEN + 1];
 static char *process_title;
+double Platform::prog_start_time = Platform::GetUptime();
 
 
 char** Platform::SetupArgs(int argc, char *argv[]) {
@@ -238,7 +239,7 @@ double Platform::GetTotalMemory() {
   return pages * pagesize;
 }
 
-double Platform::GetUptime() {
+double Platform::GetUptimeImpl() {
   struct sysinfo info;
 
   if (sysinfo(&info) < 0) {
