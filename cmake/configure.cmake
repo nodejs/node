@@ -61,6 +61,8 @@ endif()
 
 if(${node_platform} MATCHES darwin)
   set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -framework Carbon")
+  # explicitly set this so that we don't check again when building libeio
+  set(HAVE_FDATASYNC 0)
 else()
   # OSX fdatasync() check wrong: http://public.kitware.com/Bug/view.php?id=10044
   check_function_exists(fdatasync HAVE_FDATASYNC)
