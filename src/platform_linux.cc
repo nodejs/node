@@ -15,6 +15,10 @@
 #include <stdlib.h> // free
 #include <string.h> // strdup
 
+#if HAVE_MONOTONIC_CLOCK
+#include <time.h>
+#endif
+
 namespace node {
 
 using namespace v8;
@@ -240,13 +244,21 @@ double Platform::GetTotalMemory() {
 }
 
 double Platform::GetUptimeImpl() {
+#if HAVE_MONOTONIC_CLOCK
+  struct timespec now;
+  if (0 == clock_gettime(CLOCK_MONOTONIC, &now)) {
+    double uptime = now.tv_sec;
+    uptime += (double)now.tv_nsec / 1000000000.0;
+    return uptime;
+  }
+  return -1;
+#else
   struct sysinfo info;
-
   if (sysinfo(&info) < 0) {
     return -1;
   }
-
   return static_cast<double>(info.uptime);
+#endif
 }
 
 int Platform::GetLoadAvg(Local<Array> *loads) {

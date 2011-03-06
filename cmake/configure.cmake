@@ -2,7 +2,8 @@
 # configure node for building
 #
 include(CheckFunctionExists)
-
+include(CheckLibraryExists)
+include(CheckSymbolExists)
 
 if(NOT "v${CMAKE_BUILD_TYPE}" MATCHES vDebug)
   set(CMAKE_BUILD_TYPE "Release")
@@ -70,6 +71,20 @@ if(HAVE_FDATASYNC)
   add_definitions(-DHAVE_FDATASYNC=1)
 else()
   add_definitions(-DHAVE_FDATASYNC=0)
+endif()
+
+# check first without rt and then with rt
+check_function_exists(clock_gettime HAVE_CLOCK_GETTIME)
+check_library_exists(rt clock_gettime "" HAVE_CLOCK_GETTIME_RT)
+
+if(HAVE_CLOCK_GETTIME OR HAVE_CLOCK_GETTIME_RT)
+  check_symbol_exists(CLOCK_MONOTONIC "time.h" HAVE_MONOTONIC_CLOCK)
+endif()
+
+if(HAVE_MONOTONIC_CLOCK)
+  add_definitions(-DHAVE_MONOTONIC_CLOCK=1)
+else()
+  add_definitions(-DHAVE_MONOTONIC_CLOCK=0)
 endif()
 
 if(DTRACE)
