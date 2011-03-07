@@ -23,6 +23,12 @@ console.log('start');
 
 e.emit('hello', 'a', 'b');
 
+
+// just make sure that this doesn't throw:
+var f = new events.EventEmitter();
+f.setMaxListeners(0);
+
+
 process.addListener('exit', function() {
   assert.deepEqual(['hello'], events_new_listener_emited);
   assert.equal(1, times_hello_emited);
