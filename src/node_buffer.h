@@ -63,7 +63,7 @@ class Buffer : public ObjectWrap {
   }
 
   static inline size_t Length(Buffer *b) {
-    return Buffer::Length(b);
+    return Buffer::Length(b->handle_);
   }
 
 
