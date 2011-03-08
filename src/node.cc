@@ -48,6 +48,7 @@
 #include <node_stdio.h>
 #include <node_javascript.h>
 #include <node_version.h>
+#include <node_string.h>
 #ifdef HAVE_OPENSSL
 # include <node_crypto.h>
 #endif
@@ -1269,7 +1270,7 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
 }
 
 // Executes a str within the current v8 context.
-Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
+Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
   HandleScope scope;
   TryCatch try_catch;
 
@@ -2036,8 +2037,8 @@ static void Load(int argc, char *argv[]) {
 
   TryCatch try_catch;
 
-  Local<Value> f_value = ExecuteString(String::New(MainSource()),
-                                       String::New("node.js"));
+  Local<Value> f_value = ExecuteString(MainSource(),
+                                       IMMUTABLE_STRING("node.js"));
   if (try_catch.HasCaught())  {
     ReportException(try_catch, true);
     exit(10);

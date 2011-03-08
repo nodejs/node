@@ -801,6 +801,7 @@ def build(bld):
     src/node_script.cc
     src/node_os.cc
     src/node_dtrace.cc
+    src/node_string.cc
   """
 
   if sys.platform.startswith("win32"):

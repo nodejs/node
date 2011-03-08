@@ -3,6 +3,6 @@
 namespace node {
 
 void DefineJavaScript(v8::Handle<v8::Object> target);
-const char* MainSource();
+v8::Handle<v8::String> MainSource();
 
 }  // namespace node

@@ -1,6 +1,7 @@
 #include <v8.h>
 #include "node.h"
 #include "node_natives.h"
+#include "node_string.h"
 #include <string.h>
 #include <strings.h>
 
@@ -8,8 +9,8 @@ using namespace v8;
 
 namespace node {
 
-const char* MainSource() {
-  return node_native;
+Handle<String> MainSource() {
+  return BUILTIN_ASCII_ARRAY(node_native, sizeof(node_native)-1);
 }
 
 void DefineJavaScript(v8::Handle<v8::Object> target) {
@@ -18,14 +19,10 @@ void DefineJavaScript(v8::Handle<v8::Object> target) {
   for (int i = 0; natives[i].name; i++) {
     if (natives[i].source != node_native) {
       Local<String> name = String::New(natives[i].name);
-      // TODO: Use ExternalAsciiStringResource for source
-      // Might need to do some assertions in js2c about chars > 128
-      Local<String> source = String::New(natives[i].source);
+      Handle<String> source = BUILTIN_ASCII_ARRAY(natives[i].source, natives[i].source_len);
       target->Set(name, source);
     }
   }
 }
-
-
 
 }  // namespace node
