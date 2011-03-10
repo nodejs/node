@@ -53,6 +53,18 @@ Example:
       console.error(e);
     });
 
+The options argument has the following options
+
+- host: IP or domain of host to make request to. Defaults to `'localhost'`.
+- port: port of host to request to. Defaults to 443.
+- path: Path to request. Default `'/'`.
+- method: HTTP request method. Default `'GET'`.
+- key: Private key to use for SSL. Default `null`.
+- cert: Public x509 certificate to use. Default `null`.
+- ca: An authority certificate or array of authority certificates to check
+  the remote host against.
+
+
 ## https.get(options, callback)
 
 Like `http.get()` but for HTTPS.
