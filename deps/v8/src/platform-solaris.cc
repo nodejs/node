@@ -612,11 +612,16 @@ static Sampler* active_sampler_ = NULL;
 static pthread_t vm_tid_ = 0;
 
 
+static pthread_t GetThreadID() {
+  return pthread_self();
+}
+
+
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
   if (signal != SIGPROF) return;
   if (active_sampler_ == NULL || !active_sampler_->IsActive()) return;
-  if (vm_tid_ != pthread_self()) return;
+  if (vm_tid_ != GetThreadID()) return;
 
   TickSample sample_obj;
   TickSample* sample = CpuProfiler::TickSampleEvent();
@@ -645,14 +650,77 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
 
 class Sampler::PlatformData : public Malloced {
  public:
-  PlatformData() {
-    signal_handler_installed_ = false;
+  enum SleepInterval {
+    FULL_INTERVAL,
+    HALF_INTERVAL
+  };
+
+  explicit PlatformData(Sampler* sampler)
+      : sampler_(sampler),
+        signal_handler_installed_(false),
+        vm_tgid_(getpid()),
+        signal_sender_launched_(false) {
   }
 
+  void SignalSender() {
+    while (sampler_->IsActive()) {
+      if (rate_limiter_.SuspendIfNecessary()) continue;
+      if (sampler_->IsProfiling() && RuntimeProfiler::IsEnabled()) {
+        SendProfilingSignal();
+        Sleep(HALF_INTERVAL);
+        RuntimeProfiler::NotifyTick();
+        Sleep(HALF_INTERVAL);
+      } else {
+        if (sampler_->IsProfiling()) SendProfilingSignal();
+        if (RuntimeProfiler::IsEnabled()) RuntimeProfiler::NotifyTick();
+        Sleep(FULL_INTERVAL);
+      }
+    }
+  }
+
+  void SendProfilingSignal() {
+    if (!signal_handler_installed_) return;
+    /*
+    // Glibc doesn't provide a wrapper for tgkill(2).
+    syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
+    */
+    kill(vm_tgid_, SIGPROF);
+  }
+
+  void Sleep(SleepInterval full_or_half) {
+    // Convert ms to us and subtract 100 us to compensate delays
+    // occuring during signal delivery.
+    useconds_t interval = sampler_->interval_ * 1000 - 100;
+    if (full_or_half == HALF_INTERVAL) interval /= 2;
+    int result = usleep(interval);
+#ifdef DEBUG
+    if (result != 0 && errno != EINTR) {
+      fprintf(stderr,
+              "SignalSender usleep error; interval = %u, errno = %d\n",
+              interval,
+              errno);
+      ASSERT(result == 0 || errno == EINTR);
+    }
+#endif
+    USE(result);
+  }
+
+  Sampler* sampler_;
   bool signal_handler_installed_;
   struct sigaction old_signal_handler_;
-  struct itimerval old_timer_value_;
+  int vm_tgid_;
+  bool signal_sender_launched_;
+  pthread_t signal_sender_thread_;
+  RuntimeProfilerRateLimiter rate_limiter_;
 };
+
+
+static void* SenderEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
+  data->SignalSender();
+  return 0;
+}
 
 
 Sampler::Sampler(int interval)
@@ -660,11 +728,12 @@ Sampler::Sampler(int interval)
       profiling_(false),
       active_(false),
       samples_taken_(0) {
-  data_ = new PlatformData();
+  data_ = new PlatformData(this);
 }
 
 
 Sampler::~Sampler() {
+  ASSERT(!data_->signal_sender_launched_);
   delete data_;
 }
 
@@ -672,42 +741,52 @@ Sampler::~Sampler() {
 void Sampler::Start() {
   // There can only be one active sampler at the time on POSIX
   // platforms.
-  if (active_sampler_ != NULL) return;
+  ASSERT(!IsActive());
+  vm_tid_ = GetThreadID();
 
   // Request profiling signals.
   struct sigaction sa;
   sa.sa_sigaction = ProfilerSignalHandler;
   sigemptyset(&sa.sa_mask);
-  sa.sa_flags = SA_SIGINFO;
-  if (sigaction(SIGPROF, &sa, &data_->old_signal_handler_) != 0) return;
-  data_->signal_handler_installed_ = true;
+  sa.sa_flags = SA_RESTART | SA_SIGINFO;
+  data_->signal_handler_installed_ =
+      sigaction(SIGPROF, &sa, &data_->old_signal_handler_) == 0;
 
-  // Set the itimer to generate a tick for each interval.
-  itimerval itimer;
-  itimer.it_interval.tv_sec = interval_ / 1000;
-  itimer.it_interval.tv_usec = (interval_ % 1000) * 1000;
-  itimer.it_value.tv_sec = itimer.it_interval.tv_sec;
-  itimer.it_value.tv_usec = itimer.it_interval.tv_usec;
-  setitimer(ITIMER_PROF, &itimer, &data_->old_timer_value_);
+  // Start a thread that sends SIGPROF signal to VM thread.
+  // Sending the signal ourselves instead of relying on itimer provides
+  // much better accuracy.
+  SetActive(true);
+  if (pthread_create(
+          &data_->signal_sender_thread_, NULL, SenderEntry, data_) == 0) {
+    data_->signal_sender_launched_ = true;
+  }
 
   // Set this sampler as the active sampler.
   active_sampler_ = this;
-  active_ = true;
 }
 
 
 void Sampler::Stop() {
+  SetActive(false);
+
+  // Wait for signal sender termination (it will exit after setting
+  // active_ to false).
+  if (data_->signal_sender_launched_) {
+    Top::WakeUpRuntimeProfilerThreadBeforeShutdown();
+    pthread_join(data_->signal_sender_thread_, NULL);
+    data_->signal_sender_launched_ = false;
+  }
+
   // Restore old signal handler
   if (data_->signal_handler_installed_) {
-    setitimer(ITIMER_PROF, &data_->old_timer_value_, NULL);
     sigaction(SIGPROF, &data_->old_signal_handler_, 0);
     data_->signal_handler_installed_ = false;
   }
 
   // This sampler is no longer the active sampler.
   active_sampler_ = NULL;
-  active_ = false;
 }
+
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
