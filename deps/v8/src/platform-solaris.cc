@@ -45,7 +45,7 @@
 #include <errno.h>
 #include <ieeefp.h>  // finite()
 #include <signal.h>  // sigemptyset(), etc
-#include <sys/kdi_regs.h>
+#include <sys/regset.h>
 
 
 #undef MAP_TYPE
@@ -632,17 +632,10 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   mcontext_t& mcontext = ucontext->uc_mcontext;
   sample->state = Top::current_vm_state();
 
-#if V8_HOST_ARCH_IA32
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[KDIREG_EIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_ESP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_EBP]);
-#elif V8_HOST_ARCH_X64
-  sample->pc = reinterpret_cast<Address>(mcontext.gregs[KDIREG_RIP]);
-  sample->sp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_RSP]);
-  sample->fp = reinterpret_cast<Address>(mcontext.gregs[KDIREG_RBP]);
-#else
-  UNIMPLEMENTED();
-#endif
+  sample->pc = reinterpret_cast<Address>(mcontext.gregs[REG_PC]);
+  sample->sp = reinterpret_cast<Address>(mcontext.gregs[REG_SP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.gregs[REG_FP]);
+
   active_sampler_->SampleStack(sample);
   active_sampler_->Tick(sample);
 }
