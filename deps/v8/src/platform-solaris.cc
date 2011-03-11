@@ -673,11 +673,7 @@ class Sampler::PlatformData : public Malloced {
 
   void SendProfilingSignal() {
     if (!signal_handler_installed_) return;
-    /*
-    // Glibc doesn't provide a wrapper for tgkill(2).
-    syscall(SYS_tgkill, vm_tgid_, vm_tid_, SIGPROF);
-    */
-    kill(vm_tgid_, SIGPROF);
+    pthread_kill(vm_tid_, SIGPROF);
   }
 
   void Sleep(SleepInterval full_or_half) {
