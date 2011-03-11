@@ -297,6 +297,7 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
   if (!x509) return False();
 
   X509_STORE_add_cert(sc->ca_store_, x509);
+  SSL_CTX_add_client_CA(sc->ctx_, x509);
 
   X509_free(x509);
 
