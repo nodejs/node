@@ -16,6 +16,11 @@
 # define OPENSSL_CONST
 #endif
 
+#define ASSERT_IS_STRING_OR_BUFFER(val) \
+  if (!val->IsString() && !Buffer::HasInstance(val)) { \
+    return ThrowException(Exception::TypeError(String::New("Not a string or buffer"))); \
+  }
+
 namespace node {
 namespace crypto {
 
@@ -1420,6 +1425,7 @@ class Cipher : public ObjectWrap {
         "Must give cipher-type, key")));
     }
 
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_buf_len = DecodeBytes(args[1], BINARY);
 
     if (key_buf_len < 0) {
@@ -1456,6 +1462,8 @@ class Cipher : public ObjectWrap {
       return ThrowException(Exception::Error(String::New(
         "Must give cipher-type, key, and iv as argument")));
     }
+
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_len = DecodeBytes(args[1], BINARY);
 
     if (key_len < 0) {
@@ -1463,6 +1471,7 @@ class Cipher : public ObjectWrap {
       return ThrowException(exception);
     }
 
+    ASSERT_IS_STRING_OR_BUFFER(args[2]);
     ssize_t iv_len = DecodeBytes(args[2], BINARY);
 
     if (iv_len < 0) {
@@ -1492,11 +1501,12 @@ class Cipher : public ObjectWrap {
     return args.This();
   }
 
-
   static Handle<Value> CipherUpdate(const Arguments& args) {
     Cipher *cipher = ObjectWrap::Unwrap<Cipher>(args.This());
 
     HandleScope scope;
+
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
     enum encoding enc = ParseEncoding(args[1]);
     ssize_t len = DecodeBytes(args[0], enc);
@@ -1781,6 +1791,7 @@ class Decipher : public ObjectWrap {
         "Must give cipher-type, key as argument")));
     }
 
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_len = DecodeBytes(args[1], BINARY);
 
     if (key_len < 0) {
@@ -1818,6 +1829,7 @@ class Decipher : public ObjectWrap {
         "Must give cipher-type, key, and iv as argument")));
     }
 
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t key_len = DecodeBytes(args[1], BINARY);
 
     if (key_len < 0) {
@@ -1825,6 +1837,7 @@ class Decipher : public ObjectWrap {
       return ThrowException(exception);
     }
 
+    ASSERT_IS_STRING_OR_BUFFER(args[2]);
     ssize_t iv_len = DecodeBytes(args[2], BINARY);
 
     if (iv_len < 0) {
@@ -1858,6 +1871,8 @@ class Decipher : public ObjectWrap {
     HandleScope scope;
 
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
+
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
 
     ssize_t len = DecodeBytes(args[0], BINARY);
     if (len < 0) {
@@ -2160,6 +2175,7 @@ class Hmac : public ObjectWrap {
         "Must give hashtype string as argument")));
     }
 
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t len = DecodeBytes(args[1], BINARY);
 
     if (len < 0) {
@@ -2189,6 +2205,7 @@ class Hmac : public ObjectWrap {
 
     HandleScope scope;
 
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
     ssize_t len = DecodeBytes(args[0], enc);
 
@@ -2336,6 +2353,7 @@ class Hash : public ObjectWrap {
 
     Hash *hash = ObjectWrap::Unwrap<Hash>(args.This());
 
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
     ssize_t len = DecodeBytes(args[0], enc);
 
@@ -2527,6 +2545,7 @@ class Sign : public ObjectWrap {
 
     HandleScope scope;
 
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
     ssize_t len = DecodeBytes(args[0], enc);
 
@@ -2573,6 +2592,7 @@ class Sign : public ObjectWrap {
     md_len = 8192; // Maximum key size is 8192 bits
     md_value = new unsigned char[md_len];
 
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
     ssize_t len = DecodeBytes(args[0], BINARY);
 
     if (len < 0) {
@@ -2740,6 +2760,7 @@ class Verify : public ObjectWrap {
 
     Verify *verify = ObjectWrap::Unwrap<Verify>(args.This());
 
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
     enum encoding enc = ParseEncoding(args[1]);
     ssize_t len = DecodeBytes(args[0], enc);
 
@@ -2778,6 +2799,7 @@ class Verify : public ObjectWrap {
 
     Verify *verify = ObjectWrap::Unwrap<Verify>(args.This());
 
+    ASSERT_IS_STRING_OR_BUFFER(args[0]);
     ssize_t klen = DecodeBytes(args[0], BINARY);
 
     if (klen < 0) {
@@ -2789,7 +2811,7 @@ class Verify : public ObjectWrap {
     ssize_t kwritten = DecodeWrite(kbuf, klen, args[0], BINARY);
     assert(kwritten == klen);
 
-
+    ASSERT_IS_STRING_OR_BUFFER(args[1]);
     ssize_t hlen = DecodeBytes(args[1], BINARY);
 
     if (hlen < 0) {
