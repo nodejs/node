@@ -288,9 +288,11 @@ def configure(conf):
        conf.fatal("Install the libexecinfo port from /usr/ports/devel/libexecinfo.")
 
   if not Options.options.without_ssl:
-    if conf.check_cfg(package='openssl',
-                      args='--cflags --libs',
-                      uselib_store='OPENSSL'):
+    # Don't override explicitly supplied openssl paths with pkg-config results.
+    explicit_openssl = o.openssl_includes or o.openssl_libpath
+    if not explicit_openssl and conf.check_cfg(package='openssl',
+                                               args='--cflags --libs',
+                                               uselib_store='OPENSSL'):
       Options.options.use_openssl = conf.env["USE_OPENSSL"] = True
       conf.env.append_value("CPPFLAGS", "-DHAVE_OPENSSL=1")
     else:
