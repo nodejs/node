@@ -80,9 +80,28 @@
       console.log(rv);
 
     } else {
-      // REPL
+      var binding = process.binding('stdio');
+      var fd = binding.openStdin();
       var Module = NativeModule.require('module');
-      Module.requireRepl().start();
+
+      if (NativeModule.require('tty').isatty(fd)) {
+        // REPL
+        Module.requireRepl().start();
+
+      } else {
+        // Read all of stdin - execute it.
+        process.stdin.resume();
+        process.stdin.setEncoding('utf8');
+
+        var code = '';
+        process.stdin.on('data', function(d) {
+          code += d;
+        });
+
+        process.stdin.on('end', function() {
+          new Module()._compile(code, '[stdin]');
+        });
+      }
     }
   }
 
