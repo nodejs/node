@@ -462,3 +462,12 @@ var hexb2 = new Buffer(hexStr, 'hex');
 for (var i = 0; i < 256; i ++) {
   assert.equal(hexb2[i], hexb[i]);
 }
+
+// test an invalid slice end.
+console.log('Try to slice off the end of the buffer');
+var b = new Buffer([1,2,3,4,5]);
+var b2 = b.toString('hex', 1, 10000);
+var b3 = b.toString('hex', 1, 5);
+var b4 = b.toString('hex', 1);
+assert.equal(b2, b3);
+assert.equal(b2, b4);
