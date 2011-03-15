@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 // Hello, and welcome to hacking node.js!
 //
 // This file is invoked by node::Load in src/node.cc, and responsible for
@@ -71,11 +92,8 @@
   };
 
   startup.globalConsole = function() {
-    global.__defineGetter__('console', function() {
-      return NativeModule.require('console');
-    });
+    global.console = NativeModule.require('console');
   };
-
 
   startup._lazyConstants = null;
 
@@ -126,32 +144,29 @@
   };
 
   startup.processStdio = function() {
-    var stdout, stdin;
+    var binding = process.binding('stdio'),
+        net = NativeModule.require('net'),
+        fs = NativeModule.require('fs'),
+        tty = NativeModule.require('tty');
 
-    process.__defineGetter__('stdout', function() {
-      if (stdout) return stdout;
+    // process.stdout
 
-      var binding = process.binding('stdio'),
-          net = NativeModule.require('net'),
-          fs = NativeModule.require('fs'),
-          tty = NativeModule.require('tty'),
-          fd = binding.stdoutFD;
+    var fd = binding.stdoutFD;
 
-      if (binding.isatty(fd)) {
-        stdout = new tty.WriteStream(fd);
-      } else if (binding.isStdoutBlocking()) {
-        stdout = new fs.WriteStream(null, {fd: fd});
-      } else {
-        stdout = new net.Stream(fd);
-        // FIXME Should probably have an option in net.Stream to create a
-        // stream from an existing fd which is writable only. But for now
-        // we'll just add this hack and set the `readable` member to false.
-        // Test: ./node test/fixtures/echo.js < /etc/passwd
-        stdout.readable = false;
-      }
+    if (binding.isatty(fd)) {
+      process.stdout = new tty.WriteStream(fd);
+    } else if (binding.isStdoutBlocking()) {
+      process.stdout = new fs.WriteStream(null, {fd: fd});
+    } else {
+      process.stdout = new net.Stream(fd);
+      // FIXME Should probably have an option in net.Stream to create a
+      // stream from an existing fd which is writable only. But for now
+      // we'll just add this hack and set the `readable` member to false.
+      // Test: ./node test/fixtures/echo.js < /etc/passwd
+      process.stdout.readable = false;
+    }
 
-      return stdout;
-    });
+    // process.stderr
 
     var events = NativeModule.require('events');
     var stderr = process.stderr = new events.EventEmitter();
@@ -160,26 +175,18 @@
     stderr.write = process.binding('stdio').writeError;
     stderr.end = stderr.destroy = stderr.destroySoon = function() { };
 
-    process.__defineGetter__('stdin', function() {
-      if (stdin) return stdin;
+    // process.stdin
 
-      var binding = process.binding('stdio'),
-          net = NativeModule.require('net'),
-          fs = NativeModule.require('fs'),
-          tty = NativeModule.require('tty'),
-          fd = binding.openStdin();
+    var fd = binding.openStdin();
 
-      if (binding.isatty(fd)) {
-        stdin = new tty.ReadStream(fd);
-      } else if (binding.isStdinBlocking()) {
-        stdin = new fs.ReadStream(null, {fd: fd});
-      } else {
-        stdin = new net.Stream(fd);
-        stdin.readable = true;
-      }
-
-      return stdin;
-    });
+    if (binding.isatty(fd)) {
+      process.stdin = new tty.ReadStream(fd);
+    } else if (binding.isStdinBlocking()) {
+      process.stdin = new fs.ReadStream(null, {fd: fd});
+    } else {
+      process.stdin = new net.Stream(fd);
+      process.stdin.readable = true;
+    }
 
     process.openStdin = function() {
       process.stdin.resume();

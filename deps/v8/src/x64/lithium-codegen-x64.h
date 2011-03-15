@@ -53,6 +53,7 @@ class LCodeGen BASE_EMBEDDED {
         current_instruction_(-1),
         instructions_(chunk->instructions()),
         deoptimizations_(4),
+        jump_table_(4),
         deoptimization_literals_(8),
         inlined_function_count_(0),
         scope_(chunk->graph()->info()->scope()),
@@ -147,6 +148,7 @@ class LCodeGen BASE_EMBEDDED {
   bool GeneratePrologue();
   bool GenerateBody();
   bool GenerateDeferredCode();
+  bool GenerateJumpTable();
   bool GenerateSafepointTable();
 
   void CallCode(Handle<Code> code,
@@ -186,6 +188,7 @@ class LCodeGen BASE_EMBEDDED {
   XMMRegister ToDoubleRegister(int index) const;
 
   // Specific math operations - used from DoUnaryMathOperation.
+  void EmitIntegerMathAbs(LUnaryMathOperation* instr);
   void DoMathAbs(LUnaryMathOperation* instr);
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathRound(LUnaryMathOperation* instr);
@@ -233,6 +236,14 @@ class LCodeGen BASE_EMBEDDED {
   // Emits code for pushing a constant operand.
   void EmitPushConstantOperand(LOperand* operand);
 
+  struct JumpTableEntry {
+    inline JumpTableEntry(Address address)
+        : label_(),
+          address_(address) { }
+    Label label_;
+    Address address_;
+  };
+
   LChunk* const chunk_;
   MacroAssembler* const masm_;
   CompilationInfo* const info_;
@@ -241,6 +252,7 @@ class LCodeGen BASE_EMBEDDED {
   int current_instruction_;
   const ZoneList<LInstruction*>* instructions_;
   ZoneList<LEnvironment*> deoptimizations_;
+  ZoneList<JumpTableEntry*> jump_table_;
   ZoneList<Handle<Object> > deoptimization_literals_;
   int inlined_function_count_;
   Scope* const scope_;

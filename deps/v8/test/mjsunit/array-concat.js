@@ -101,7 +101,6 @@ while (pos = poses.shift()) {
   assertEquals("undefined", typeof(c[-1]));
   assertEquals("undefined", typeof(c[0xffffffff]));
   assertEquals(c.length, a.length + 1);
-
 }
 
 poses = [140, 4000000000];
@@ -193,3 +192,46 @@ for (var i = 0; i < holey.length; i++) {
     assertTrue(i in holey);
   }
 }
+
+// Polluted prototype from prior tests.
+delete Array.prototype[123];
+
+// Check that concat reads getters in the correct order.
+var arr1 = [,2];
+var arr2 = [1,3];
+var r1 = [].concat(arr1, arr2);  // [,2,1,3]
+assertEquals([,2,1,3], r1);
+
+// Make first array change length of second array.
+Object.defineProperty(arr1, 0, {get: function() {
+      arr2.push("X");
+      return undefined;
+    }, configurable: true})
+var r2 = [].concat(arr1, arr2);  // [undefined,2,1,3,"X"]
+assertEquals([undefined,2,1,3,"X"], r2);
+
+// Make first array change length of second array massively.
+arr2.length = 2;
+Object.defineProperty(arr1, 0, {get: function() {
+      arr2[500000] = "X";
+      return undefined;
+    }, configurable: true})
+var r3 = [].concat(arr1, arr2);  // [undefined,2,1,3,"X"]
+var expected = [undefined,2,1,3];
+expected[500000 + 2] = "X";
+
+assertEquals(expected, r3);
+
+var arr3 = [];
+var trace = [];
+var expectedTrace = []
+function mkGetter(i) { return function() { trace.push(i); }; }
+arr3.length = 10000;
+for (var i = 0; i < 100; i++) {
+  Object.defineProperty(arr3, i * i, {get: mkGetter(i)});
+  expectedTrace[i] = i;
+  expectedTrace[100 + i] = i;
+}
+var r4 = [0].concat(arr3, arr3);
+assertEquals(1 + arr3.length * 2, r4.length);
+assertEquals(expectedTrace, trace);

@@ -482,128 +482,75 @@ HConstant* HGraph::GetConstantFalse() {
 }
 
 
-void HSubgraph::AppendJoin(HBasicBlock* first,
-                           HBasicBlock* second,
-                           int join_id) {
+HBasicBlock* HGraphBuilder::CreateJoin(HBasicBlock* first,
+                                       HBasicBlock* second,
+                                       int join_id) {
   if (first == NULL) {
-    exit_block_ = second;
+    return second;
   } else if (second == NULL) {
-    exit_block_ = first;
+    return first;
   } else {
     HBasicBlock* join_block = graph_->CreateBasicBlock();
     first->Goto(join_block);
     second->Goto(join_block);
     join_block->SetJoinId(join_id);
-    exit_block_ = join_block;
+    return join_block;
   }
 }
 
 
-void HSubgraph::ResolveContinue(IterationStatement* statement,
-                                HBasicBlock* continue_block) {
+HBasicBlock* HGraphBuilder::JoinContinue(IterationStatement* statement,
+                                         HBasicBlock* exit_block,
+                                         HBasicBlock* continue_block) {
   if (continue_block != NULL) {
     continue_block->SetJoinId(statement->ContinueId());
   }
-  exit_block_ =
-      JoinBlocks(exit_block(), continue_block, statement->ContinueId());
+  return CreateJoin(exit_block, continue_block, statement->ContinueId());
 }
 
 
-HBasicBlock* HSubgraph::JoinBlocks(HBasicBlock* a, HBasicBlock* b, int id) {
-  if (a == NULL) return b;
-  if (b == NULL) return a;
-  HBasicBlock* target = graph_->CreateBasicBlock();
-  a->Goto(target);
-  b->Goto(target);
-  target->SetJoinId(id);
-  return target;
-}
-
-
-void HSubgraph::AppendEndless(IterationStatement* statement,
-                              HBasicBlock* body_entry,
-                              HBasicBlock* body_exit,
-                              HBasicBlock* break_block) {
-  if (exit_block() != NULL) {
-    exit_block()->Goto(body_entry, false);
-  }
-  if (body_exit != NULL) {
-    body_exit->Goto(body_entry, true);
-  }
+HBasicBlock* HGraphBuilder::CreateEndless(IterationStatement* statement,
+                                          HBasicBlock* body_entry,
+                                          HBasicBlock* body_exit,
+                                          HBasicBlock* break_block) {
+  if (body_exit != NULL) body_exit->Goto(body_entry, true);
   if (break_block != NULL) break_block->SetJoinId(statement->ExitId());
-  exit_block_ = break_block;
   body_entry->PostProcessLoopHeader(statement);
+  return break_block;
 }
 
 
-void HSubgraph::AppendDoWhile(IterationStatement* statement,
-                              HBasicBlock* body_entry,
-                              HBasicBlock* go_back,
-                              HBasicBlock* exit_block,
-                              HBasicBlock* break_block) {
-  if (this->exit_block() != NULL) {
-    this->exit_block()->Goto(body_entry, false);
-  }
-  if (go_back != NULL) {
-    go_back->Goto(body_entry, true);
-  }
+HBasicBlock* HGraphBuilder::CreateDoWhile(IterationStatement* statement,
+                                          HBasicBlock* body_entry,
+                                          HBasicBlock* go_back,
+                                          HBasicBlock* exit_block,
+                                          HBasicBlock* break_block) {
+  if (go_back != NULL) go_back->Goto(body_entry, true);
   if (break_block != NULL) break_block->SetJoinId(statement->ExitId());
-  exit_block_ =
-      JoinBlocks(exit_block, break_block, statement->ExitId());
+  HBasicBlock* new_exit =
+      CreateJoin(exit_block, break_block, statement->ExitId());
   body_entry->PostProcessLoopHeader(statement);
+  return new_exit;
 }
 
 
-void HSubgraph::AppendWhile(IterationStatement* statement,
-                            HBasicBlock* condition_entry,
-                            HBasicBlock* exit_block,
-                            HBasicBlock* body_exit,
-                            HBasicBlock* break_block,
-                            HBasicBlock* loop_entry,
-                            HBasicBlock* loop_exit) {
-  if (this->exit_block() != NULL) {
-    this->exit_block()->Goto(condition_entry, false);
-  }
-
+HBasicBlock* HGraphBuilder::CreateWhile(IterationStatement* statement,
+                                        HBasicBlock* loop_entry,
+                                        HBasicBlock* cond_false,
+                                        HBasicBlock* body_exit,
+                                        HBasicBlock* break_block) {
   if (break_block != NULL) break_block->SetJoinId(statement->ExitId());
-  exit_block_ =
-      JoinBlocks(exit_block, break_block, statement->ExitId());
-
-  if (loop_entry != NULL) {
-    if (body_exit != NULL) {
-      body_exit->Goto(loop_entry, true);
-    }
-    loop_entry->SetJoinId(statement->EntryId());
-    exit_block_ = JoinBlocks(exit_block_, loop_exit, statement->ExitId());
-  } else {
-    if (body_exit != NULL) {
-      body_exit->Goto(condition_entry, true);
-    }
-  }
-  condition_entry->PostProcessLoopHeader(statement);
+  HBasicBlock* new_exit =
+      CreateJoin(cond_false, break_block, statement->ExitId());
+  if (body_exit != NULL) body_exit->Goto(loop_entry, true);
+  loop_entry->PostProcessLoopHeader(statement);
+  return new_exit;
 }
 
 
-void HSubgraph::Append(BreakableStatement* stmt,
-                       HBasicBlock* entry_block,
-                       HBasicBlock* exit_block,
-                       HBasicBlock* break_block) {
-  exit_block_->Goto(entry_block);
-  exit_block_ = exit_block;
-
-  if (stmt != NULL) {
-    entry_block->SetJoinId(stmt->EntryId());
-    if (break_block != NULL) break_block->SetJoinId(stmt->EntryId());
-    exit_block_ = JoinBlocks(exit_block, break_block, stmt->ExitId());
-  }
-}
-
-
-void HSubgraph::FinishExit(HControlInstruction* instruction) {
-  ASSERT(exit_block() != NULL);
-  exit_block_->Finish(instruction);
-  exit_block_->ClearEnvironment();
-  exit_block_ = NULL;
+void HBasicBlock::FinishExit(HControlInstruction* instruction) {
+  Finish(instruction);
+  ClearEnvironment();
 }
 
 
@@ -2165,16 +2112,16 @@ HGraph* HGraphBuilder::CreateGraph(CompilationInfo* info) {
 
     ZoneList<Statement*>* stmts = info->function()->body();
     HSubgraph* body = CreateGotoSubgraph(environment());
+    current_block()->Goto(body->entry_block());
     AddToSubgraph(body, stmts);
     if (HasStackOverflow()) return NULL;
-    current_subgraph_->Append(NULL,
-                              body->entry_block(),
-                              body->exit_block(),
-                              NULL);
     body->entry_block()->SetJoinId(info->function()->id());
+    set_current_block(body->exit_block());
 
     if (graph()->exit_block() != NULL) {
-      graph_->FinishExit(new HReturn(graph_->GetConstantUndefined()));
+      HReturn* instr = new HReturn(graph()->GetConstantUndefined());
+      graph()->exit_block()->FinishExit(instr);
+      graph()->set_exit_block(NULL);
     }
   }
 
@@ -2361,28 +2308,29 @@ HSubgraph* HGraphBuilder::CreateBranchSubgraph(HEnvironment* env) {
 }
 
 
-HSubgraph* HGraphBuilder::CreateLoopHeaderSubgraph(HEnvironment* env) {
-  HSubgraph* subgraph = new HSubgraph(graph());
-  HBasicBlock* block = graph()->CreateBasicBlock();
-  HEnvironment* new_env = env->CopyAsLoopHeader(block);
-  block->SetInitialEnvironment(new_env);
-  subgraph->Initialize(block);
-  subgraph->entry_block()->AttachLoopInformation();
-  return subgraph;
+HBasicBlock* HGraphBuilder::CreateLoopHeader() {
+  HBasicBlock* header = graph()->CreateBasicBlock();
+  HEnvironment* entry_env = environment()->CopyAsLoopHeader(header);
+  header->SetInitialEnvironment(entry_env);
+  header->AttachLoopInformation();
+  return header;
 }
 
 
 void HGraphBuilder::VisitBlock(Block* stmt) {
   if (stmt->labels() != NULL) {
     HSubgraph* block_graph = CreateGotoSubgraph(environment());
+    current_block()->Goto(block_graph->entry_block());
+    block_graph->entry_block()->SetJoinId(stmt->EntryId());
     BreakAndContinueInfo break_info(stmt);
     { BreakAndContinueScope push(&break_info, this);
       ADD_TO_SUBGRAPH(block_graph, stmt->statements());
     }
-    subgraph()->Append(stmt,
-                       block_graph->entry_block(),
-                       block_graph->exit_block(),
-                       break_info.break_block());
+    HBasicBlock* break_block = break_info.break_block();
+    if (break_block != NULL) break_block->SetJoinId(stmt->EntryId());
+    set_current_block(CreateJoin(block_graph->exit_block(),
+                                 break_block,
+                                 stmt->ExitId()));
   } else {
     VisitStatements(stmt->statements());
   }
@@ -2418,9 +2366,9 @@ void HGraphBuilder::VisitIfStatement(IfStatement* stmt) {
     else_graph->entry_block()->SetJoinId(stmt->ElseId());
     ADD_TO_SUBGRAPH(else_graph, stmt->else_statement());
 
-    current_subgraph_->AppendJoin(then_graph->exit_block(),
-                                  else_graph->exit_block(),
-                                  stmt->id());
+    set_current_block(CreateJoin(then_graph->exit_block(),
+                                 else_graph->exit_block(),
+                                 stmt->id()));
   }
 }
 
@@ -2476,7 +2424,8 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
     // Not an inlined return, so an actual one.
     VISIT_FOR_VALUE(stmt->expression());
     HValue* result = environment()->Pop();
-    subgraph()->FinishExit(new HReturn(result));
+    current_block()->FinishExit(new HReturn(result));
+    set_current_block(NULL);
   } else {
     // Return from an inlined function, visit the subexpression in the
     // expression context of the call.
@@ -2496,7 +2445,7 @@ void HGraphBuilder::VisitReturnStatement(ReturnStatement* stmt) {
         return_value = environment()->Pop();
       }
       current_block()->AddLeaveInlined(return_value,
-                                                function_return_);
+                                       function_return_);
       set_current_block(NULL);
     }
   }
@@ -2685,145 +2634,116 @@ bool HGraph::HasOsrEntryAt(IterationStatement* statement) {
 }
 
 
-void HSubgraph::PreProcessOsrEntry(IterationStatement* statement) {
+void HGraphBuilder::PreProcessOsrEntry(IterationStatement* statement) {
   if (!graph()->HasOsrEntryAt(statement)) return;
 
   HBasicBlock* non_osr_entry = graph()->CreateBasicBlock();
   HBasicBlock* osr_entry = graph()->CreateBasicBlock();
   HValue* true_value = graph()->GetConstantTrue();
   HTest* test = new HTest(true_value, non_osr_entry, osr_entry);
-  exit_block()->Finish(test);
+  current_block()->Finish(test);
 
   HBasicBlock* loop_predecessor = graph()->CreateBasicBlock();
   non_osr_entry->Goto(loop_predecessor);
 
+  set_current_block(osr_entry);
   int osr_entry_id = statement->OsrEntryId();
   // We want the correct environment at the OsrEntry instruction.  Build
   // it explicitly.  The expression stack should be empty.
-  int count = osr_entry->last_environment()->length();
-  ASSERT(count == (osr_entry->last_environment()->parameter_count() +
-                   osr_entry->last_environment()->local_count()));
+  int count = environment()->length();
+  ASSERT(count ==
+         (environment()->parameter_count() + environment()->local_count()));
   for (int i = 0; i < count; ++i) {
     HUnknownOSRValue* unknown = new HUnknownOSRValue;
-    osr_entry->AddInstruction(unknown);
-    osr_entry->last_environment()->Bind(i, unknown);
+    AddInstruction(unknown);
+    environment()->Bind(i, unknown);
   }
 
-  osr_entry->AddSimulate(osr_entry_id);
-  osr_entry->AddInstruction(new HOsrEntry(osr_entry_id));
-  osr_entry->Goto(loop_predecessor);
+  AddSimulate(osr_entry_id);
+  AddInstruction(new HOsrEntry(osr_entry_id));
+  current_block()->Goto(loop_predecessor);
   loop_predecessor->SetJoinId(statement->EntryId());
-  set_exit_block(loop_predecessor);
+  set_current_block(loop_predecessor);
 }
 
 
 void HGraphBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
   ASSERT(current_block() != NULL);
-  subgraph()->PreProcessOsrEntry(stmt);
+  PreProcessOsrEntry(stmt);
+  HBasicBlock* loop_entry = CreateLoopHeader();
+  current_block()->Goto(loop_entry, false);
+  set_current_block(loop_entry);
 
-  HSubgraph* body_graph = CreateLoopHeaderSubgraph(environment());
   BreakAndContinueInfo break_info(stmt);
   { BreakAndContinueScope push(&break_info, this);
-    ADD_TO_SUBGRAPH(body_graph, stmt->body());
+    Visit(stmt->body());
+    CHECK_BAILOUT;
   }
-  body_graph->ResolveContinue(stmt, break_info.continue_block());
-
-  if (body_graph->exit_block() == NULL || stmt->cond()->ToBooleanIsTrue()) {
-    subgraph()->AppendEndless(stmt,
-                              body_graph->entry_block(),
-                              body_graph->exit_block(),
+  HBasicBlock* body_exit =
+      JoinContinue(stmt, current_block(), break_info.continue_block());
+  HBasicBlock* loop_exit = NULL;
+  if (body_exit == NULL || stmt->cond()->ToBooleanIsTrue()) {
+    loop_exit = CreateEndless(stmt,
+                              loop_entry,
+                              body_exit,
                               break_info.break_block());
   } else {
-    HSubgraph* go_back = CreateEmptySubgraph();
-    HSubgraph* exit = CreateEmptySubgraph();
-    {
-      SubgraphScope scope(this, body_graph);
-      VISIT_FOR_CONTROL(stmt->cond(),
-                        go_back->entry_block(),
-                        exit->entry_block());
-      go_back->entry_block()->SetJoinId(stmt->BackEdgeId());
-      exit->entry_block()->SetJoinId(stmt->ExitId());
-    }
-    subgraph()->AppendDoWhile(stmt,
-                              body_graph->entry_block(),
-                              go_back->exit_block(),
-                              exit->exit_block(),
+    set_current_block(body_exit);
+    HBasicBlock* cond_true = graph()->CreateBasicBlock();
+    HBasicBlock* cond_false = graph()->CreateBasicBlock();
+    VISIT_FOR_CONTROL(stmt->cond(), cond_true, cond_false);
+    cond_true->SetJoinId(stmt->BackEdgeId());
+    cond_false->SetJoinId(stmt->ExitId());
+    loop_exit = CreateDoWhile(stmt,
+                              loop_entry,
+                              cond_true,
+                              cond_false,
                               break_info.break_block());
   }
+  set_current_block(loop_exit);
 }
 
 
 void HGraphBuilder::VisitWhileStatement(WhileStatement* stmt) {
   ASSERT(current_block() != NULL);
-  subgraph()->PreProcessOsrEntry(stmt);
+  PreProcessOsrEntry(stmt);
+  HBasicBlock* loop_entry = CreateLoopHeader();
+  current_block()->Goto(loop_entry, false);
+  set_current_block(loop_entry);
 
-  HSubgraph* cond_graph = NULL;
-  HSubgraph* body_graph = NULL;
-  HSubgraph* exit_graph = NULL;
-
-  // If the condition is constant true, do not generate a condition subgraph.
-  if (stmt->cond()->ToBooleanIsTrue()) {
-    body_graph = CreateLoopHeaderSubgraph(environment());
-  } else {
-    cond_graph = CreateLoopHeaderSubgraph(environment());
-    body_graph = CreateEmptySubgraph();
-    exit_graph = CreateEmptySubgraph();
-    {
-      SubgraphScope scope(this, cond_graph);
-      VISIT_FOR_CONTROL(stmt->cond(),
-                        body_graph->entry_block(),
-                        exit_graph->entry_block());
-      body_graph->entry_block()->SetJoinId(stmt->BodyId());
-      exit_graph->entry_block()->SetJoinId(stmt->ExitId());
-    }
+  // If the condition is constant true, do not generate a branch.
+  HBasicBlock* cond_false = NULL;
+  if (!stmt->cond()->ToBooleanIsTrue()) {
+    HBasicBlock* cond_true = graph()->CreateBasicBlock();
+    cond_false = graph()->CreateBasicBlock();
+    VISIT_FOR_CONTROL(stmt->cond(), cond_true, cond_false);
+    cond_true->SetJoinId(stmt->BodyId());
+    cond_false->SetJoinId(stmt->ExitId());
+    set_current_block(cond_true);
   }
 
   BreakAndContinueInfo break_info(stmt);
   { BreakAndContinueScope push(&break_info, this);
-    ADD_TO_SUBGRAPH(body_graph, stmt->body());
+    Visit(stmt->body());
+    CHECK_BAILOUT;
   }
-  body_graph->ResolveContinue(stmt, break_info.continue_block());
-
-  if (cond_graph != NULL) {
-    AppendPeeledWhile(stmt,
-                      cond_graph->entry_block(),
-                      exit_graph->exit_block(),
-                      body_graph->exit_block(),
-                      break_info.break_block());
-  } else {
-    // TODO(fschneider): Implement peeling for endless loops as well.
-    subgraph()->AppendEndless(stmt,
-                              body_graph->entry_block(),
-                              body_graph->exit_block(),
-                              break_info.break_block());
-  }
-}
-
-
-void HGraphBuilder::AppendPeeledWhile(IterationStatement* stmt,
-                                      HBasicBlock* condition_entry,
-                                      HBasicBlock* exit_block,
-                                      HBasicBlock* body_exit,
-                                      HBasicBlock* break_block) {
-  HBasicBlock* loop_entry = NULL;
+  HBasicBlock* body_exit =
+      JoinContinue(stmt, current_block(), break_info.continue_block());
   HBasicBlock* loop_exit = NULL;
-  if (FLAG_use_peeling && body_exit != NULL && stmt != peeled_statement_) {
-    // Save the last peeled iteration statement to prevent infinite recursion.
-    IterationStatement* outer_peeled_statement = peeled_statement_;
-    peeled_statement_ = stmt;
-    HSubgraph* loop = CreateGotoSubgraph(body_exit->last_environment());
-    ADD_TO_SUBGRAPH(loop, stmt);
-    peeled_statement_ = outer_peeled_statement;
-    loop_entry = loop->entry_block();
-    loop_exit = loop->exit_block();
+  if (stmt->cond()->ToBooleanIsTrue()) {
+    // TODO(fschneider): Implement peeling for endless loops as well.
+    loop_exit = CreateEndless(stmt,
+                              loop_entry,
+                              body_exit,
+                              break_info.break_block());
+  } else {
+    loop_exit = CreateWhile(stmt,
+                            loop_entry,
+                            cond_false,
+                            body_exit,
+                            break_info.break_block());
   }
-  subgraph()->AppendWhile(stmt,
-                          condition_entry,
-                          exit_block,
-                          body_exit,
-                          break_block,
-                          loop_entry,
-                          loop_exit);
+  set_current_block(loop_exit);
 }
 
 
@@ -2834,57 +2754,50 @@ void HGraphBuilder::VisitForStatement(ForStatement* stmt) {
     CHECK_BAILOUT;
   }
   ASSERT(current_block() != NULL);
-  subgraph()->PreProcessOsrEntry(stmt);
+  PreProcessOsrEntry(stmt);
+  HBasicBlock* loop_entry = CreateLoopHeader();
+  current_block()->Goto(loop_entry, false);
+  set_current_block(loop_entry);
 
-  HSubgraph* cond_graph = NULL;
-  HSubgraph* body_graph = NULL;
-  HSubgraph* exit_graph = NULL;
+  HBasicBlock* cond_false = NULL;
   if (stmt->cond() != NULL) {
-    cond_graph = CreateLoopHeaderSubgraph(environment());
-    body_graph = CreateEmptySubgraph();
-    exit_graph = CreateEmptySubgraph();
-    {
-      SubgraphScope scope(this, cond_graph);
-      VISIT_FOR_CONTROL(stmt->cond(),
-                        body_graph->entry_block(),
-                        exit_graph->entry_block());
-      body_graph->entry_block()->SetJoinId(stmt->BodyId());
-      exit_graph->entry_block()->SetJoinId(stmt->ExitId());
-    }
-  } else {
-    body_graph = CreateLoopHeaderSubgraph(environment());
+    HBasicBlock* cond_true = graph()->CreateBasicBlock();
+    cond_false = graph()->CreateBasicBlock();
+    VISIT_FOR_CONTROL(stmt->cond(), cond_true, cond_false);
+    cond_true->SetJoinId(stmt->BodyId());
+    cond_false->SetJoinId(stmt->ExitId());
+    set_current_block(cond_true);
   }
+
   BreakAndContinueInfo break_info(stmt);
   { BreakAndContinueScope push(&break_info, this);
-    ADD_TO_SUBGRAPH(body_graph, stmt->body());
+    Visit(stmt->body());
+    CHECK_BAILOUT;
+  }
+  HBasicBlock* body_exit =
+      JoinContinue(stmt, current_block(), break_info.continue_block());
+
+  if (stmt->next() != NULL && body_exit != NULL) {
+    set_current_block(body_exit);
+    Visit(stmt->next());
+    CHECK_BAILOUT;
+    body_exit = current_block();
   }
 
-  HSubgraph* next_graph = NULL;
-  body_graph->ResolveContinue(stmt, break_info.continue_block());
-
-  if (stmt->next() != NULL && body_graph->exit_block() != NULL) {
-    next_graph =
-        CreateGotoSubgraph(body_graph->exit_block()->last_environment());
-    ADD_TO_SUBGRAPH(next_graph, stmt->next());
-    body_graph->Append(NULL,
-                       next_graph->entry_block(),
-                       next_graph->exit_block(),
-                       NULL);
-    next_graph->entry_block()->SetJoinId(stmt->ContinueId());
-  }
-
-  if (cond_graph != NULL) {
-    AppendPeeledWhile(stmt,
-                      cond_graph->entry_block(),
-                      exit_graph->exit_block(),
-                      body_graph->exit_block(),
-                      break_info.break_block());
-  } else {
-    subgraph()->AppendEndless(stmt,
-                              body_graph->entry_block(),
-                              body_graph->exit_block(),
+  HBasicBlock* loop_exit = NULL;
+  if (stmt->cond() == NULL) {
+    loop_exit = CreateEndless(stmt,
+                              loop_entry,
+                              body_exit,
                               break_info.break_block());
+  } else {
+    loop_exit = CreateWhile(stmt,
+                            loop_entry,
+                            cond_false,
+                            body_exit,
+                            break_info.break_block());
   }
+  set_current_block(loop_exit);
 }
 
 
@@ -2937,9 +2850,9 @@ void HGraphBuilder::VisitConditional(Conditional* expr) {
   else_graph->entry_block()->SetJoinId(expr->ElseId());
   ADD_TO_SUBGRAPH(else_graph, expr->else_expression());
 
-  current_subgraph_->AppendJoin(then_graph->exit_block(),
-                                else_graph->exit_block(),
-                                expr->id());
+  set_current_block(CreateJoin(then_graph->exit_block(),
+                               else_graph->exit_block(),
+                               expr->id()));
   ast_context()->ReturnValue(Pop());
 }
 
@@ -3317,7 +3230,8 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     HSubgraph* default_graph = CreateBranchSubgraph(environment());
     { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->FinishExit(new HDeoptimize());
+        default_graph->exit_block()->FinishExit(new HDeoptimize());
+        default_graph->set_exit_block(NULL);
       } else {
         HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
         Push(value);
@@ -3604,7 +3518,8 @@ void HGraphBuilder::VisitThrow(Throw* expr) {
   instr->set_position(expr->position());
   AddInstruction(instr);
   AddSimulate(expr->id());
-  current_subgraph_->FinishExit(new HAbnormalExit);
+  current_block()->FinishExit(new HAbnormalExit);
+  set_current_block(NULL);
 }
 
 
@@ -3652,7 +3567,8 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     HSubgraph* default_graph = CreateBranchSubgraph(environment());
     { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->FinishExit(new HDeoptimize());
+        default_graph->exit_block()->FinishExit(new HDeoptimize());
+        default_graph->set_exit_block(NULL);
       } else {
         HInstruction* instr = BuildLoadNamedGeneric(object, expr);
         instr->set_position(expr->position());
@@ -3853,9 +3769,11 @@ bool HGraphBuilder::TryArgumentsAccess(Property* expr) {
     HInstruction* elements = AddInstruction(new HArgumentsElements);
     result = new HArgumentsLength(elements);
   } else {
+    Push(graph()->GetArgumentsObject());
     VisitForValue(expr->key());
     if (HasStackOverflow()) return false;
     HValue* key = Pop();
+    Drop(1);  // Arguments object.
     HInstruction* elements = AddInstruction(new HArgumentsElements);
     HInstruction* length = AddInstruction(new HArgumentsLength(elements));
     AddInstruction(new HBoundsCheck(key, length));
@@ -4010,7 +3928,8 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     HSubgraph* default_graph = CreateBranchSubgraph(environment());
     { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->FinishExit(new HDeoptimize());
+        default_graph->exit_block()->FinishExit(new HDeoptimize());
+        default_graph->set_exit_block(NULL);
       } else {
         HContext* context = new HContext;
         AddInstruction(context);
@@ -4091,6 +4010,8 @@ bool HGraphBuilder::TryInline(Call* expr) {
       !Scope::Analyze(&inner_info)) {
     if (Top::has_pending_exception()) {
       SetStackOverflow();
+      // Stop trying to optimize and inline this function.
+      target->shared()->set_optimization_disabled(true);
     }
     return false;
   }
@@ -4730,9 +4651,9 @@ void HGraphBuilder::VisitUnaryOperation(UnaryOperation* expr) {
       false_graph->exit_block()->last_environment()->Push(
           graph_->GetConstantFalse());
 
-      current_subgraph_->AppendJoin(true_graph->exit_block(),
-                                    false_graph->exit_block(),
-                                    expr->id());
+      set_current_block(CreateJoin(true_graph->exit_block(),
+                                   false_graph->exit_block(),
+                                   expr->id()));
       ast_context()->ReturnValue(Pop());
     } else {
       ASSERT(ast_context()->IsEffect());

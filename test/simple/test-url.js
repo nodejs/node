@@ -1,3 +1,24 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
 var common = require('../common');
 var assert = require('assert');
 
@@ -28,7 +49,8 @@ var parseTests = {
     'pathname': '/vt/lyrs=m@114&hl=en&src=api&x=2&y=2&z=3&s='
   },
   'http://mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=' : {
-    'href': 'http://mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=',
+    'href': 'http://mt0.google.com/vt/lyrs=m@114???&hl=en&src=api' +
+        '&x=2&y=2&z=3&s=',
     'protocol': 'http:',
     'host': 'mt0.google.com',
     'hostname': 'mt0.google.com',
@@ -37,7 +59,8 @@ var parseTests = {
     'pathname': '/vt/lyrs=m@114'
   },
   'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=' : {
-    'href': 'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=',
+    'href': 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
+        '&hl=en&src=api&x=2&y=2&z=3&s=',
     'protocol': 'http:',
     'host': 'user:pass@mt0.google.com',
     'auth': 'user:pass',
@@ -84,49 +107,6 @@ var parseTests = {
     'query': 'baz=quux',
     'pathname': '/foo/bar'
   },
-  'http://example.com?foo=bar#frag' : {
-    'href': 'http://example.com?foo=bar#frag',
-    'protocol': 'http:',
-    'host': 'example.com',
-    'hostname': 'example.com',
-    'hash': '#frag',
-    'search': '?foo=bar',
-    'query': 'foo=bar'
-  },
-  'http://example.com?foo=@bar#frag' : {
-    'href': 'http://example.com?foo=@bar#frag',
-    'protocol': 'http:',
-    'host': 'example.com',
-    'hostname': 'example.com',
-    'hash': '#frag',
-    'search': '?foo=@bar',
-    'query': 'foo=@bar'
-  },
-  'http://example.com?foo=/bar/#frag' : {
-    'href': 'http://example.com?foo=/bar/#frag',
-    'protocol': 'http:',
-    'host': 'example.com',
-    'hostname': 'example.com',
-    'hash': '#frag',
-    'search': '?foo=/bar/',
-    'query': 'foo=/bar/'
-  },
-  'http://example.com?foo=?bar/#frag' : {
-    'href': 'http://example.com?foo=?bar/#frag',
-    'protocol': 'http:',
-    'host': 'example.com',
-    'hostname': 'example.com',
-    'hash': '#frag',
-    'search': '?foo=?bar/',
-    'query': 'foo=?bar/'
-  },
-  'http://example.com#frag=?bar/#frag' : {
-    'href': 'http://example.com#frag=?bar/#frag',
-    'protocol': 'http:',
-    'host': 'example.com',
-    'hostname': 'example.com',
-    'hash': '#frag=?bar/#frag'
-  },
   '/foo/bar?baz=quux#frag' : {
     'href': '/foo/bar?baz=quux#frag',
     'hash': '#frag',
@@ -154,9 +134,7 @@ var parseTests = {
   'javascript:alert(\'hello\');' : {
     'href': 'javascript:alert(\'hello\');',
     'protocol': 'javascript:',
-    'host': 'alert(\'hello\')',
-    'hostname': 'alert(\'hello\')',
-    'pathname' : ';'
+    'pathname': 'alert(\'hello\');'
   },
   'xmpp:isaacschlueter@jabber.org' : {
     'href': 'xmpp:isaacschlueter@jabber.org',
@@ -194,21 +172,13 @@ var parseTestsWithQueryString = {
     'pathname': '/foo/bar'
   },
   'http://example.com' : {
-    'href': 'http://example.com',
+    'href': 'http://example.com/',
     'protocol': 'http:',
     'slashes': true,
     'host': 'example.com',
     'hostname': 'example.com',
-    'query': {}
-  },
-  'http://example.com?' : {
-    'href': 'http://example.com?',
-    'protocol': 'http:',
-    'slashes': true,
-    'host': 'example.com',
-    'hostname': 'example.com',
-    'search': '?',
-    'query': {}
+    'query': {},
+    'pathname': '/'
   }
 };
 for (var u in parseTestsWithQueryString) {
@@ -225,7 +195,72 @@ for (var u in parseTestsWithQueryString) {
 // some extra formatting tests, just to verify
 // that it'll format slightly wonky content to a valid url.
 var formatTests = {
+  'http://example.com?' : {
+    'href': 'http://example.com/?',
+    'protocol': 'http:',
+    'slashes': true,
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'search': '?',
+    'query': {},
+    'pathname': '/'
+  },
+  'http://example.com?foo=bar#frag' : {
+    'href': 'http://example.com/?foo=bar#frag',
+    'protocol': 'http:',
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'hash': '#frag',
+    'search': '?foo=bar',
+    'query': 'foo=bar',
+    'pathname': '/'
+  },
+  'http://example.com?foo=@bar#frag' : {
+    'href': 'http://example.com/?foo=@bar#frag',
+    'protocol': 'http:',
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'hash': '#frag',
+    'search': '?foo=@bar',
+    'query': 'foo=@bar',
+    'pathname': '/'
+  },
+  'http://example.com?foo=/bar/#frag' : {
+    'href': 'http://example.com/?foo=/bar/#frag',
+    'protocol': 'http:',
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'hash': '#frag',
+    'search': '?foo=/bar/',
+    'query': 'foo=/bar/',
+    'pathname': '/'
+  },
+  'http://example.com?foo=?bar/#frag' : {
+    'href': 'http://example.com/?foo=?bar/#frag',
+    'protocol': 'http:',
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'hash': '#frag',
+    'search': '?foo=?bar/',
+    'query': 'foo=?bar/',
+    'pathname': '/'
+  },
+  'http://example.com#frag=?bar/#frag' : {
+    'href': 'http://example.com/#frag=?bar/#frag',
+    'protocol': 'http:',
+    'host': 'example.com',
+    'hostname': 'example.com',
+    'hash': '#frag=?bar/#frag',
+    'pathname': '/'
+  },
+  'http://google.com" onload="alert(42)/' : {
+    'href': 'http://google.com/',
+    'protocol': 'http:',
+    'host': 'google.com',
+    'pathname': '/'
+  },
   'http://a.com/a/b/c?s#h' : {
+    'href': 'http://a.com/a/b/c?s#h',
     'protocol': 'http',
     'host': 'a.com',
     'pathname': 'a/b/c',
@@ -233,7 +268,7 @@ var formatTests = {
     'search': 's'
   },
   'xmpp:isaacschlueter@jabber.org' : {
-    'href': 'xmpp://isaacschlueter@jabber.org',
+    'href': 'xmpp:isaacschlueter@jabber.org',
     'protocol': 'xmpp:',
     'host': 'isaacschlueter@jabber.org',
     'auth': 'isaacschlueter',
@@ -241,9 +276,17 @@ var formatTests = {
   }
 };
 for (var u in formatTests) {
-  var actual = url.format(formatTests[u]);
-  assert.equal(actual, u,
-               'wonky format(' + u + ') == ' + u + '\nactual:' + actual);
+  var expect = formatTests[u].href;
+  delete formatTests[u].href;
+  var actual = url.format(u);
+  var actualObj = url.format(formatTests[u]);
+  assert.equal(actual, expect,
+               'wonky format(' + u + ') == ' + expect +
+               '\nactual:' + actual);
+  assert.equal(actualObj, expect,
+               'wonky format(' + JSON.stringify(formatTests[u]) +
+               ') == ' + expect +
+               '\nactual: ' + actualObj);
 }
 
 /*

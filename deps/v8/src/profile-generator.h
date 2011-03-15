@@ -681,14 +681,14 @@ class HeapSnapshot {
 
   void AllocateEntries(
       int entries_count, int children_count, int retainers_count);
-  HeapEntry* AddEntry(
-      HeapObject* object, int children_count, int retainers_count);
   HeapEntry* AddEntry(HeapEntry::Type type,
                       const char* name,
                       uint64_t id,
                       int size,
                       int children_count,
                       int retainers_count);
+  HeapEntry* AddRootEntry(int children_count);
+  HeapEntry* AddGcRootsEntry(int children_count, int retainers_count);
   void ClearPaint();
   HeapSnapshotsDiff* CompareWith(HeapSnapshot* snapshot);
   HeapEntry* GetEntryById(uint64_t id);
@@ -701,15 +701,7 @@ class HeapSnapshot {
   void Print(int max_depth);
   void PrintEntriesSize();
 
-  static HeapObject* const kInternalRootObject;
-  static HeapObject* const kGcRootsObject;
-
  private:
-  HeapEntry* AddEntry(HeapObject* object,
-                      HeapEntry::Type type,
-                      const char* name,
-                      int children_count,
-                      int retainers_count);
   HeapEntry* GetNextEntryToInit();
 
   HeapSnapshotsCollection* collection_;
@@ -873,6 +865,20 @@ class HeapSnapshotsCollection {
 };
 
 
+// A typedef for referencing anything that can be snapshotted living
+// in any kind of heap memory.
+typedef void* HeapThing;
+
+
+// An interface that creates HeapEntries by HeapThings.
+class HeapEntriesAllocator {
+ public:
+  virtual ~HeapEntriesAllocator() { }
+  virtual HeapEntry* AllocateEntry(
+      HeapThing ptr, int children_count, int retainers_count) = 0;
+};
+
+
 // The HeapEntriesMap instance is used to track a mapping between
 // real heap objects and their representations in heap snapshots.
 class HeapEntriesMap {
@@ -880,13 +886,12 @@ class HeapEntriesMap {
   HeapEntriesMap();
   ~HeapEntriesMap();
 
-  HeapEntry* Map(HeapObject* object);
-  void Pair(HeapObject* object, HeapEntry* entry);
-  void CountReference(HeapObject* from, HeapObject* to,
+  void AllocateEntries();
+  HeapEntry* Map(HeapThing thing);
+  void Pair(HeapThing thing, HeapEntriesAllocator* allocator, HeapEntry* entry);
+  void CountReference(HeapThing from, HeapThing to,
                       int* prev_children_count = NULL,
                       int* prev_retainers_count = NULL);
-  template<class Visitor>
-  void UpdateEntries(Visitor* visitor);
 
   int entries_count() { return entries_count_; }
   int total_children_count() { return total_children_count_; }
@@ -896,18 +901,25 @@ class HeapEntriesMap {
 
  private:
   struct EntryInfo {
-    explicit EntryInfo(HeapEntry* entry)
-        : entry(entry), children_count(0), retainers_count(0) { }
+    EntryInfo(HeapEntry* entry, HeapEntriesAllocator* allocator)
+        : entry(entry),
+          allocator(allocator),
+          children_count(0),
+          retainers_count(0) {
+    }
     HeapEntry* entry;
+    HeapEntriesAllocator* allocator;
     int children_count;
     int retainers_count;
   };
 
-  static uint32_t Hash(HeapObject* object) {
+  static uint32_t Hash(HeapThing thing) {
     return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(object)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
   }
-  static bool HeapObjectsMatch(void* key1, void* key2) { return key1 == key2; }
+  static bool HeapThingsMatch(HeapThing key1, HeapThing key2) {
+    return key1 == key2;
+  }
 
   HashMap entries_;
   int entries_count_;
@@ -934,52 +946,70 @@ class HeapObjectsSet {
 };
 
 
-class HeapSnapshotGenerator {
+// An interface used to populate a snapshot with nodes and edges.
+class SnapshotFillerInterface {
  public:
-  class SnapshotFillerInterface {
-   public:
-    virtual ~SnapshotFillerInterface() { }
-    virtual HeapEntry* AddEntry(HeapObject* obj) = 0;
-    virtual void SetIndexedReference(HeapGraphEdge::Type type,
-                                     HeapObject* parent_obj,
-                                     HeapEntry* parent_entry,
-                                     int index,
-                                     Object* child_obj,
-                                     HeapEntry* child_entry) = 0;
-    virtual void SetNamedReference(HeapGraphEdge::Type type,
-                                   HeapObject* parent_obj,
+  virtual ~SnapshotFillerInterface() { }
+  virtual HeapEntry* AddEntry(HeapThing ptr) = 0;
+  virtual HeapEntry* FindOrAddEntry(HeapThing ptr) = 0;
+  virtual void SetIndexedReference(HeapGraphEdge::Type type,
+                                   HeapThing parent_ptr,
                                    HeapEntry* parent_entry,
-                                   const char* reference_name,
-                                   Object* child_obj,
+                                   int index,
+                                   HeapThing child_ptr,
                                    HeapEntry* child_entry) = 0;
-    virtual void SetRootGcRootsReference() = 0;
-    virtual void SetRootShortcutReference(Object* child_obj,
+  virtual void SetIndexedAutoIndexReference(HeapGraphEdge::Type type,
+                                            HeapThing parent_ptr,
+                                            HeapEntry* parent_entry,
+                                            HeapThing child_ptr,
+                                            HeapEntry* child_entry) = 0;
+  virtual void SetNamedReference(HeapGraphEdge::Type type,
+                                 HeapThing parent_ptr,
+                                 HeapEntry* parent_entry,
+                                 const char* reference_name,
+                                 HeapThing child_ptr,
+                                 HeapEntry* child_entry) = 0;
+  virtual void SetNamedAutoIndexReference(HeapGraphEdge::Type type,
+                                          HeapThing parent_ptr,
+                                          HeapEntry* parent_entry,
+                                          HeapThing child_ptr,
                                           HeapEntry* child_entry) = 0;
-    virtual void SetStrongRootReference(Object* child_obj,
-                                        HeapEntry* child_entry) = 0;
-  };
+};
 
-  HeapSnapshotGenerator(HeapSnapshot* snapshot,
-                        v8::ActivityControl* control);
-  bool GenerateSnapshot();
+
+class SnapshottingProgressReportingInterface {
+ public:
+  virtual ~SnapshottingProgressReportingInterface() { }
+  virtual void ProgressStep() = 0;
+  virtual bool ProgressReport(bool force) = 0;
+};
+
+
+// An implementation of V8 heap graph extractor.
+class V8HeapExplorer : public HeapEntriesAllocator {
+ public:
+  V8HeapExplorer(HeapSnapshot* snapshot,
+                 SnapshottingProgressReportingInterface* progress);
+  ~V8HeapExplorer();
+  virtual HeapEntry* AllocateEntry(
+      HeapThing ptr, int children_count, int retainers_count);
+  void AddRootEntries(SnapshotFillerInterface* filler);
+  int EstimateObjectsCount();
+  bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
 
  private:
-  bool ApproximateRetainedSizes();
-  bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
-                          Vector<HeapEntry*>* dominators);
-  bool CountEntriesAndReferences();
-  HeapEntry* GetEntry(Object* obj);
-  void IncProgressCounter() { ++progress_counter_; }
+  HeapEntry* AddEntry(
+      HeapObject* object, int children_count, int retainers_count);
+  HeapEntry* AddEntry(HeapObject* object,
+                      HeapEntry::Type type,
+                      const char* name,
+                      int children_count,
+                      int retainers_count);
   void ExtractReferences(HeapObject* obj);
   void ExtractClosureReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractPropertyReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractElementReferences(JSObject* js_obj, HeapEntry* entry);
   void ExtractInternalReferences(JSObject* js_obj, HeapEntry* entry);
-  bool FillReferences();
-  void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
-  bool IterateAndExtractReferences();
-  inline bool ReportProgress(bool force = false);
-  bool SetEntriesDominators();
   void SetClosureReference(HeapObject* parent_obj,
                            HeapEntry* parent,
                            String* reference_name,
@@ -1011,23 +1041,53 @@ class HeapSnapshotGenerator {
   void SetRootShortcutReference(Object* child);
   void SetRootGcRootsReference();
   void SetGcRootsReference(Object* child);
+
+  HeapEntry* GetEntry(Object* obj);
+
+  HeapSnapshot* snapshot_;
+  HeapSnapshotsCollection* collection_;
+  SnapshottingProgressReportingInterface* progress_;
+  // Used during references extraction to mark heap objects that
+  // are references via non-hidden properties.
+  HeapObjectsSet known_references_;
+  SnapshotFillerInterface* filler_;
+
+  static HeapObject* const kInternalRootObject;
+  static HeapObject* const kGcRootsObject;
+
+  friend class IndexedReferencesExtractor;
+  friend class RootsReferencesExtractor;
+
+  DISALLOW_COPY_AND_ASSIGN(V8HeapExplorer);
+};
+
+
+class HeapSnapshotGenerator : public SnapshottingProgressReportingInterface {
+ public:
+  HeapSnapshotGenerator(HeapSnapshot* snapshot,
+                        v8::ActivityControl* control);
+  bool GenerateSnapshot();
+
+ private:
+  bool ApproximateRetainedSizes();
+  bool BuildDominatorTree(const Vector<HeapEntry*>& entries,
+                          Vector<HeapEntry*>* dominators);
+  bool CountEntriesAndReferences();
+  bool FillReferences();
+  void FillReversePostorderIndexes(Vector<HeapEntry*>* entries);
+  void ProgressStep();
+  bool ProgressReport(bool force = false);
+  bool SetEntriesDominators();
   void SetProgressTotal(int iterations_count);
 
   HeapSnapshot* snapshot_;
   v8::ActivityControl* control_;
-  HeapSnapshotsCollection* collection_;
-  // Mapping from HeapObject* pointers to HeapEntry* pointers.
+  V8HeapExplorer v8_heap_explorer_;
+  // Mapping from HeapThing pointers to HeapEntry* pointers.
   HeapEntriesMap entries_;
-  SnapshotFillerInterface* filler_;
-  // Used during references extraction to mark heap objects that
-  // are references via non-hidden properties.
-  HeapObjectsSet known_references_;
   // Used during snapshot generation.
   int progress_counter_;
   int progress_total_;
-
-  friend class IndexedReferencesExtractor;
-  friend class RootsReferencesExtractor;
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotGenerator);
 };

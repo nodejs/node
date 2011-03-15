@@ -53,7 +53,7 @@ def ToCArray(filename, lines):
 
     value = ord(chr)
 
-    if value > 128:
+    if value >= 128:
       print 'non-ascii value ' + filename + ':' + str(row) + ':' + str(col)
       sys.exit(1);
 
@@ -220,6 +220,7 @@ namespace node {
 struct _native {
   const char* name;
   const char* source;
+  size_t source_len;
 };
 
 static const struct _native natives[] = {
@@ -236,7 +237,7 @@ static const struct _native natives[] = {
 
 
 NATIVE_DECLARATION = """\
-  { "%(id)s", %(id)s_native },
+  { "%(id)s", %(id)s_native, sizeof(%(id)s_native)-1 },
 """
 
 SOURCE_DECLARATION = """\

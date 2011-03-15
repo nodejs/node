@@ -911,22 +911,27 @@ static JSObjectsCluster HeapObjectAsCluster(HeapObject* object) {
 class CountingRetainersIterator {
  public:
   CountingRetainersIterator(const JSObjectsCluster& child_cluster,
+                            HeapEntriesAllocator* allocator,
                             HeapEntriesMap* map)
-      : child_(ClusterAsHeapObject(child_cluster)), map_(map) {
+      : child_(ClusterAsHeapObject(child_cluster)),
+        allocator_(allocator),
+        map_(map) {
     if (map_->Map(child_) == NULL)
-      map_->Pair(child_, HeapEntriesMap::kHeapEntryPlaceholder);
+      map_->Pair(child_, allocator_, HeapEntriesMap::kHeapEntryPlaceholder);
   }
 
   void Call(const JSObjectsCluster& cluster,
             const NumberAndSizeInfo& number_and_size) {
     if (map_->Map(ClusterAsHeapObject(cluster)) == NULL)
       map_->Pair(ClusterAsHeapObject(cluster),
+                 allocator_,
                  HeapEntriesMap::kHeapEntryPlaceholder);
     map_->CountReference(ClusterAsHeapObject(cluster), child_);
   }
 
  private:
   HeapObject* child_;
+  HeapEntriesAllocator* allocator_;
   HeapEntriesMap* map_;
 };
 
@@ -934,6 +939,7 @@ class CountingRetainersIterator {
 class AllocatingRetainersIterator {
  public:
   AllocatingRetainersIterator(const JSObjectsCluster& child_cluster,
+                              HeapEntriesAllocator*,
                               HeapEntriesMap* map)
       : child_(ClusterAsHeapObject(child_cluster)), map_(map) {
     child_entry_ = map_->Map(child_);
@@ -966,8 +972,9 @@ template<class RetainersIterator>
 class AggregatingRetainerTreeIterator {
  public:
   explicit AggregatingRetainerTreeIterator(ClustersCoarser* coarser,
+                                           HeapEntriesAllocator* allocator,
                                            HeapEntriesMap* map)
-      : coarser_(coarser), map_(map) {
+      : coarser_(coarser), allocator_(allocator), map_(map) {
   }
 
   void Call(const JSObjectsCluster& cluster, JSObjectsClusterTree* tree) {
@@ -981,25 +988,28 @@ class AggregatingRetainerTreeIterator {
       tree->ForEach(&retainers_aggregator);
       tree_to_iterate = &dest_tree_;
     }
-    RetainersIterator iterator(cluster, map_);
+    RetainersIterator iterator(cluster, allocator_, map_);
     tree_to_iterate->ForEach(&iterator);
   }
 
  private:
   ClustersCoarser* coarser_;
+  HeapEntriesAllocator* allocator_;
   HeapEntriesMap* map_;
 };
 
 
-class AggregatedRetainerTreeAllocator {
+class AggregatedRetainerTreeAllocator : public HeapEntriesAllocator {
  public:
   AggregatedRetainerTreeAllocator(HeapSnapshot* snapshot,
                                   int* root_child_index)
       : snapshot_(snapshot), root_child_index_(root_child_index) {
   }
+  ~AggregatedRetainerTreeAllocator() { }
 
-  HeapEntry* GetEntry(
-      HeapObject* obj, int children_count, int retainers_count) {
+  HeapEntry* AllocateEntry(
+      HeapThing ptr, int children_count, int retainers_count) {
+    HeapObject* obj = reinterpret_cast<HeapObject*>(ptr);
     JSObjectsCluster cluster = HeapObjectAsCluster(obj);
     const char* name = cluster.GetSpecialCaseName();
     if (name == NULL) {
@@ -1018,12 +1028,13 @@ class AggregatedRetainerTreeAllocator {
 
 template<class Iterator>
 void AggregatedHeapSnapshotGenerator::IterateRetainers(
-    HeapEntriesMap* entries_map) {
+    HeapEntriesAllocator* allocator, HeapEntriesMap* entries_map) {
   RetainerHeapProfile* p = agg_snapshot_->js_retainer_profile();
   AggregatingRetainerTreeIterator<Iterator> agg_ret_iter_1(
-      p->coarser(), entries_map);
+      p->coarser(), allocator, entries_map);
   p->retainers_tree()->ForEach(&agg_ret_iter_1);
-  AggregatingRetainerTreeIterator<Iterator> agg_ret_iter_2(NULL, entries_map);
+  AggregatingRetainerTreeIterator<Iterator> agg_ret_iter_2(
+      NULL, allocator, entries_map);
   p->aggregator()->output_tree().ForEach(&agg_ret_iter_2);
 }
 
@@ -1042,7 +1053,9 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
   agg_snapshot_->js_cons_profile()->ForEach(&counting_cons_iter);
   histogram_entities_count += counting_cons_iter.entities_count();
   HeapEntriesMap entries_map;
-  IterateRetainers<CountingRetainersIterator>(&entries_map);
+  int root_child_index = 0;
+  AggregatedRetainerTreeAllocator allocator(snapshot, &root_child_index);
+  IterateRetainers<CountingRetainersIterator>(&allocator, &entries_map);
   histogram_entities_count += entries_map.entries_count();
   histogram_children_count += entries_map.total_children_count();
   histogram_retainers_count += entries_map.total_retainers_count();
@@ -1056,10 +1069,7 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
   snapshot->AllocateEntries(histogram_entities_count,
                             histogram_children_count,
                             histogram_retainers_count);
-  snapshot->AddEntry(HeapSnapshot::kInternalRootObject,
-                     root_children_count,
-                     0);
-  int root_child_index = 0;
+  snapshot->AddRootEntry(root_children_count);
   for (int i = FIRST_NONSTRING_TYPE; i <= kAllStringsType; ++i) {
     if (agg_snapshot_->info()[i].bytes() > 0) {
       AddEntryFromAggregatedSnapshot(snapshot,
@@ -1075,11 +1085,10 @@ void AggregatedHeapSnapshotGenerator::FillHeapSnapshot(HeapSnapshot* snapshot) {
   AllocatingConstructorHeapProfileIterator alloc_cons_iter(
       snapshot, &root_child_index);
   agg_snapshot_->js_cons_profile()->ForEach(&alloc_cons_iter);
-  AggregatedRetainerTreeAllocator allocator(snapshot, &root_child_index);
-  entries_map.UpdateEntries(&allocator);
+  entries_map.AllocateEntries();
 
   // Fill up references.
-  IterateRetainers<AllocatingRetainersIterator>(&entries_map);
+  IterateRetainers<AllocatingRetainersIterator>(&allocator, &entries_map);
 
   snapshot->SetDominatorsToSelf();
 }

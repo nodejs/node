@@ -108,7 +108,7 @@ static void SetGlobalProperty(const char* name, Object* value) {
   Handle<Object> object(value);
   Handle<String> symbol = Factory::LookupAsciiSymbol(name);
   Handle<JSObject> global(Top::context()->global());
-  SetProperty(global, symbol, object, NONE);
+  SetProperty(global, symbol, object, NONE, kNonStrictMode);
 }
 
 

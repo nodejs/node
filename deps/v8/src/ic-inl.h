@@ -76,6 +76,15 @@ Code* IC::GetTargetAtAddress(Address address) {
 
 void IC::SetTargetAtAddress(Address address, Code* target) {
   ASSERT(target->is_inline_cache_stub() || target->is_compare_ic_stub());
+#ifdef DEBUG
+  // STORE_IC and KEYED_STORE_IC use Code::extra_ic_state() to mark
+  // ICs as strict mode. The strict-ness of the IC must be preserved.
+  Code* old_target = GetTargetAtAddress(address);
+  if (old_target->kind() == Code::STORE_IC ||
+      old_target->kind() == Code::KEYED_STORE_IC) {
+    ASSERT(old_target->extra_ic_state() == target->extra_ic_state());
+  }
+#endif
   Assembler::set_target_address_at(address, target->instruction_start());
 }
 

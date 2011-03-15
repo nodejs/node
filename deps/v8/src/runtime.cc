@@ -40,8 +40,10 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
+#include "global-handles.h"
 #include "jsregexp.h"
 #include "liveedit.h"
+#include "liveobjectlist-inl.h"
 #include "parser.h"
 #include "platform.h"
 #include "runtime.h"
@@ -160,7 +162,8 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(JSObject* boilerplate) {
           if (!maybe_result->ToObject(&result)) return maybe_result;
         }
         { MaybeObject* maybe_result =
-              copy->SetProperty(key_string, result, NONE);
+              // Creating object copy for literals. No strict mode needed.
+              copy->SetProperty(key_string, result, NONE, kNonStrictMode);
           if (!maybe_result->ToObject(&result)) return maybe_result;
         }
       }
@@ -546,7 +549,9 @@ static MaybeObject* Runtime_CreateCatchExtensionObject(Arguments args) {
   // Assign the exception value to the catch variable and make sure
   // that the catch variable is DontDelete.
   { MaybeObject* maybe_value =
-        JSObject::cast(object)->SetProperty(key, value, DONT_DELETE);
+        // Passing non-strict per ECMA-262 5th Ed. 12.14. Catch, bullet #4.
+        JSObject::cast(object)->SetProperty(
+            key, value, DONT_DELETE, kNonStrictMode);
     if (!maybe_value->ToObject(&value)) return maybe_value;
   }
   return object;
@@ -783,7 +788,8 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
       case JSObject::INTERCEPTED_ELEMENT:
       case JSObject::FAST_ELEMENT: {
         elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-        elms->set(VALUE_INDEX, *GetElement(obj, index));
+        Handle<Object> value = GetElement(obj, index);
+        elms->set(VALUE_INDEX, *value);
         elms->set(WRITABLE_INDEX, Heap::true_value());
         elms->set(ENUMERABLE_INDEX,  Heap::true_value());
         elms->set(CONFIGURABLE_INDEX, Heap::true_value());
@@ -816,12 +822,14 @@ static MaybeObject* Runtime_GetOwnProperty(Arguments args) {
             }
             break;
           }
-          case NORMAL:
+          case NORMAL: {
             // This is a data property.
             elms->set(IS_ACCESSOR_INDEX, Heap::false_value());
-            elms->set(VALUE_INDEX, *GetElement(obj, index));
+            Handle<Object> value = GetElement(obj, index);
+            elms->set(VALUE_INDEX, *value);
             elms->set(WRITABLE_INDEX, Heap::ToBoolean(!details.IsReadOnly()));
             break;
+          }
           default:
             UNREACHABLE();
             break;
@@ -994,12 +1002,16 @@ static Failure* ThrowRedeclarationError(const char* type, Handle<String> name) {
 
 
 static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
+  ASSERT(args.length() == 4);
   HandleScope scope;
   Handle<GlobalObject> global = Handle<GlobalObject>(Top::context()->global());
 
   Handle<Context> context = args.at<Context>(0);
   CONVERT_ARG_CHECKED(FixedArray, pairs, 1);
   bool is_eval = Smi::cast(args[2])->value() == 1;
+  StrictModeFlag strict_mode =
+      static_cast<StrictModeFlag>(Smi::cast(args[3])->value());
+  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
 
   // Compute the property attributes. According to ECMA-262, section
   // 13, page 71, the property must be read-only and
@@ -1104,12 +1116,21 @@ static MaybeObject* Runtime_DeclareGlobals(Arguments args) {
     // onload setter in those case and Safari does not. We follow
     // Safari for compatibility.
     if (value->IsJSFunction()) {
+      // Do not change DONT_DELETE to false from true.
+      if (lookup.IsProperty() && (lookup.type() != INTERCEPTOR)) {
+        attributes = static_cast<PropertyAttributes>(
+            attributes | (lookup.GetAttributes() & DONT_DELETE));
+      }
       RETURN_IF_EMPTY_HANDLE(SetLocalPropertyIgnoreAttributes(global,
                                                               name,
                                                               value,
                                                               attributes));
     } else {
-      RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
+      RETURN_IF_EMPTY_HANDLE(SetProperty(global,
+                                         name,
+                                         value,
+                                         attributes,
+                                         strict_mode));
     }
   }
 
@@ -1170,7 +1191,8 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         // Slow case: The property is not in the FixedArray part of the context.
         Handle<JSObject> context_ext = Handle<JSObject>::cast(holder);
         RETURN_IF_EMPTY_HANDLE(
-            SetProperty(context_ext, name, initial_value, mode));
+            SetProperty(context_ext, name, initial_value,
+                        mode, kNonStrictMode));
       }
     }
 
@@ -1211,7 +1233,8 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
         return ThrowRedeclarationError("const", name);
       }
     }
-    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, mode));
+    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, mode,
+                                       kNonStrictMode));
   }
 
   return Heap::undefined_value();
@@ -1220,14 +1243,21 @@ static MaybeObject* Runtime_DeclareContextSlot(Arguments args) {
 
 static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   NoHandleAllocation nha;
+  // args[0] == name
+  // args[1] == strict_mode
+  // args[2] == value (optional)
 
   // Determine if we need to assign to the variable if it already
   // exists (based on the number of arguments).
-  RUNTIME_ASSERT(args.length() == 1 || args.length() == 2);
-  bool assign = args.length() == 2;
+  RUNTIME_ASSERT(args.length() == 2 || args.length() == 3);
+  bool assign = args.length() == 3;
 
   CONVERT_ARG_CHECKED(String, name, 0);
   GlobalObject* global = Top::context()->global();
+  RUNTIME_ASSERT(args[1]->IsSmi());
+  StrictModeFlag strict_mode =
+      static_cast<StrictModeFlag>(Smi::cast(args[1])->value());
+  ASSERT(strict_mode == kStrictMode || strict_mode == kNonStrictMode);
 
   // According to ECMA-262, section 12.2, page 62, the property must
   // not be deletable.
@@ -1283,8 +1313,9 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
       }
 
       // Assign the value (or undefined) to the property.
-      Object* value = (assign) ? args[1] : Heap::undefined_value();
-      return real_holder->SetProperty(&lookup, *name, value, attributes);
+      Object* value = (assign) ? args[2] : Heap::undefined_value();
+      return real_holder->SetProperty(
+          &lookup, *name, value, attributes, strict_mode);
     }
 
     Object* proto = real_holder->GetPrototype();
@@ -1298,7 +1329,9 @@ static MaybeObject* Runtime_InitializeVarGlobal(Arguments args) {
   }
 
   global = Top::context()->global();
-  if (assign) return global->SetProperty(*name, args[1], attributes);
+  if (assign) {
+    return global->SetProperty(*name, args[2], attributes, strict_mode);
+  }
   return Heap::undefined_value();
 }
 
@@ -1357,13 +1390,19 @@ static MaybeObject* Runtime_InitializeConstGlobal(Arguments args) {
     // BUG 1213575: Handle the case where we have to set a read-only
     // property through an interceptor and only do it if it's
     // uninitialized, e.g. the hole. Nirk...
-    RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, attributes));
+    // Passing non-strict mode because the property is writable.
+    RETURN_IF_EMPTY_HANDLE(SetProperty(global,
+                                       name,
+                                       value,
+                                       attributes,
+                                       kNonStrictMode));
     return *value;
   }
 
   // Set the value, but only we're assigning the initial value to a
   // constant. For now, we determine this by checking if the
   // current value is the hole.
+  // Strict mode handling not needed (const disallowed in strict mode).
   PropertyType type = lookup.type();
   if (type == FIELD) {
     FixedArray* properties = global->properties();
@@ -1439,7 +1478,9 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
   // context.
   if (attributes == ABSENT) {
     Handle<JSObject> global = Handle<JSObject>(Top::context()->global());
-    RETURN_IF_EMPTY_HANDLE(SetProperty(global, name, value, NONE));
+    // Strict mode not needed (const disallowed in strict mode).
+    RETURN_IF_EMPTY_HANDLE(
+        SetProperty(global, name, value, NONE, kNonStrictMode));
     return *value;
   }
 
@@ -1476,8 +1517,9 @@ static MaybeObject* Runtime_InitializeConstContextSlot(Arguments args) {
     // The property was found in a different context extension object.
     // Set it if it is not a read-only property.
     if ((attributes & READ_ONLY) == 0) {
+      // Strict mode not needed (const disallowed in strict mode).
       RETURN_IF_EMPTY_HANDLE(
-          SetProperty(context_ext, name, value, attributes));
+          SetProperty(context_ext, name, value, attributes, kNonStrictMode));
     }
   }
 
@@ -1643,7 +1685,7 @@ static Handle<JSFunction> InstallBuiltin(Handle<JSObject> holder,
                                                       code,
                                                       false);
   optimized->shared()->DontAdaptArguments();
-  SetProperty(holder, key, optimized, NONE);
+  SetProperty(holder, key, optimized, NONE, kStrictMode);
   return optimized;
 }
 
@@ -3739,7 +3781,8 @@ static MaybeObject* Runtime_DefineOrRedefineDataProperty(Arguments args) {
 MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
                                         Handle<Object> key,
                                         Handle<Object> value,
-                                        PropertyAttributes attr) {
+                                        PropertyAttributes attr,
+                                        StrictModeFlag strict) {
   HandleScope scope;
 
   if (object->IsUndefined() || object->IsNull()) {
@@ -3769,6 +3812,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
       return *value;
     }
 
+    // TODO(1220): Implement SetElement strict mode.
     Handle<Object> result = SetElement(js_object, index, value);
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -3781,7 +3825,7 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
     } else {
       Handle<String> key_string = Handle<String>::cast(key);
       key_string->TryFlatten();
-      result = SetProperty(js_object, key_string, value, attr);
+      result = SetProperty(js_object, key_string, value, attr, strict);
     }
     if (result.is_null()) return Failure::Exception();
     return *value;
@@ -3794,9 +3838,10 @@ MaybeObject* Runtime::SetObjectProperty(Handle<Object> object,
   Handle<String> name = Handle<String>::cast(converted);
 
   if (name->AsArrayIndex(&index)) {
+    // TODO(1220): Implement SetElement strict mode.
     return js_object->SetElement(index, *value);
   } else {
-    return js_object->SetProperty(*name, *value, attr);
+    return js_object->SetProperty(*name, *value, attr, strict);
   }
 }
 
@@ -3888,23 +3933,27 @@ MaybeObject* Runtime::ForceDeleteObjectProperty(Handle<JSObject> js_object,
 
 static MaybeObject* Runtime_SetProperty(Arguments args) {
   NoHandleAllocation ha;
-  RUNTIME_ASSERT(args.length() == 3 || args.length() == 4);
+  RUNTIME_ASSERT(args.length() == 4 || args.length() == 5);
 
   Handle<Object> object = args.at<Object>(0);
   Handle<Object> key = args.at<Object>(1);
   Handle<Object> value = args.at<Object>(2);
-
+  CONVERT_SMI_CHECKED(unchecked_attributes, args[3]);
+  RUNTIME_ASSERT(
+      (unchecked_attributes & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
   // Compute attributes.
-  PropertyAttributes attributes = NONE;
-  if (args.length() == 4) {
-    CONVERT_CHECKED(Smi, value_obj, args[3]);
-    int unchecked_value = value_obj->value();
-    // Only attribute bits should be set.
-    RUNTIME_ASSERT(
-        (unchecked_value & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-    attributes = static_cast<PropertyAttributes>(unchecked_value);
+  PropertyAttributes attributes =
+      static_cast<PropertyAttributes>(unchecked_attributes);
+
+  StrictModeFlag strict = kNonStrictMode;
+  if (args.length() == 5) {
+    CONVERT_SMI_CHECKED(strict_unchecked, args[4]);
+    RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
+                   strict_unchecked == kNonStrictMode);
+    strict = static_cast<StrictModeFlag>(strict_unchecked);
   }
-  return Runtime::SetObjectProperty(object, key, value, attributes);
+
+  return Runtime::SetObjectProperty(object, key, value, attributes, strict);
 }
 
 
@@ -3938,7 +3987,7 @@ static MaybeObject* Runtime_DeleteProperty(Arguments args) {
   CONVERT_CHECKED(JSObject, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
   CONVERT_SMI_CHECKED(strict, args[2]);
-  return object->DeleteProperty(key, strict == kStrictMode
+  return object->DeleteProperty(key, (strict == kStrictMode)
                                       ? JSObject::STRICT_DELETION
                                       : JSObject::NORMAL_DELETION);
 }
@@ -7020,7 +7069,7 @@ static MaybeObject* Runtime_LazyRecompile(Arguments args) {
     function->ReplaceCode(function->shared()->code());
     return function->code();
   }
-  if (CompileOptimized(function, AstNode::kNoNumber)) {
+  if (CompileOptimized(function, AstNode::kNoNumber, CLEAR_EXCEPTION)) {
     return function->code();
   }
   if (FLAG_trace_opt) {
@@ -7029,7 +7078,7 @@ static MaybeObject* Runtime_LazyRecompile(Arguments args) {
     PrintF(": optimized compilation failed]\n");
   }
   function->ReplaceCode(function->shared()->code());
-  return Failure::Exception();
+  return function->code();
 }
 
 
@@ -7189,7 +7238,8 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     // Try to compile the optimized code.  A true return value from
     // CompileOptimized means that compilation succeeded, not necessarily
     // that optimization succeeded.
-    if (CompileOptimized(function, ast_id) && function->IsOptimized()) {
+    if (CompileOptimized(function, ast_id, CLEAR_EXCEPTION) &&
+        function->IsOptimized()) {
       DeoptimizationInputData* data = DeoptimizationInputData::cast(
           function->code()->deoptimization_data());
       if (data->OsrPcOffset()->value() >= 0) {
@@ -7232,6 +7282,9 @@ static MaybeObject* Runtime_CompileForOnStackReplacement(Arguments args) {
     ASSERT(function->code()->kind() == Code::OPTIMIZED_FUNCTION);
     return Smi::FromInt(ast_id);
   } else {
+    if (function->IsMarkedForLazyRecompilation()) {
+      function->ReplaceCode(function->shared()->code());
+    }
     return Smi::FromInt(-1);
   }
 }
@@ -7482,11 +7535,16 @@ static ObjectPair Runtime_LoadContextSlotNoReferenceError(Arguments args) {
 
 static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   HandleScope scope;
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
 
   Handle<Object> value(args[0]);
   CONVERT_ARG_CHECKED(Context, context, 1);
   CONVERT_ARG_CHECKED(String, name, 2);
+  CONVERT_SMI_CHECKED(strict_unchecked, args[3]);
+  RUNTIME_ASSERT(strict_unchecked == kStrictMode ||
+                 strict_unchecked == kNonStrictMode);
+  StrictModeFlag strict = static_cast<StrictModeFlag>(strict_unchecked);
+
 
   int index;
   PropertyAttributes attributes;
@@ -7530,7 +7588,12 @@ static MaybeObject* Runtime_StoreContextSlot(Arguments args) {
   // extension object itself.
   if ((attributes & READ_ONLY) == 0 ||
       (context_ext->GetLocalPropertyAttribute(*name) == ABSENT)) {
-    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, NONE));
+    RETURN_IF_EMPTY_HANDLE(SetProperty(context_ext, name, value, NONE, strict));
+  } else if (strict == kStrictMode && (attributes & READ_ONLY) != 0) {
+    // Setting read only property in strict mode.
+    Handle<Object> error =
+      Factory::NewTypeError("strict_cannot_assign", HandleVector(&name, 1));
+    return Top::Throw(*error);
   }
   return *value;
 }
@@ -7859,12 +7922,9 @@ static ObjectPair CompileGlobalEval(Handle<String> source,
 
 static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
   ASSERT(args.length() == 4);
-  if (!args[0]->IsJSFunction()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
-  }
 
   HandleScope scope;
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Handle<Object> callee = args.at<Object>(0);
   Handle<Object> receiver;  // Will be overwritten.
 
   // Compute the calling context.
@@ -7932,12 +7992,9 @@ static ObjectPair Runtime_ResolvePossiblyDirectEval(Arguments args) {
 
 static ObjectPair Runtime_ResolvePossiblyDirectEvalNoLookup(Arguments args) {
   ASSERT(args.length() == 4);
-  if (!args[0]->IsJSFunction()) {
-    return MakePair(Top::ThrowIllegalOperation(), NULL);
-  }
 
   HandleScope scope;
-  Handle<JSFunction> callee = args.at<JSFunction>(0);
+  Handle<Object> callee = args.at<Object>(0);
 
   // 'eval' is bound in the global context, but it may have been overwritten.
   // Compare it to the builtin 'GlobalEval' function to make sure.
@@ -8028,377 +8085,467 @@ static MaybeObject* Runtime_PushIfAbsent(Arguments args) {
 class ArrayConcatVisitor {
  public:
   ArrayConcatVisitor(Handle<FixedArray> storage,
-                     uint32_t index_limit,
                      bool fast_elements) :
-      storage_(storage), index_limit_(index_limit),
-      index_offset_(0), fast_elements_(fast_elements) { }
+    storage_(Handle<FixedArray>::cast(GlobalHandles::Create(*storage))),
+      index_offset_(0u),
+      fast_elements_(fast_elements) { }
+
+  ~ArrayConcatVisitor() {
+    clear_storage();
+  }
 
   void visit(uint32_t i, Handle<Object> elm) {
-    if (i >= index_limit_ - index_offset_) return;
+    if (i >= JSObject::kMaxElementCount - index_offset_) return;
     uint32_t index = index_offset_ + i;
 
     if (fast_elements_) {
-      ASSERT(index < static_cast<uint32_t>(storage_->length()));
-      storage_->set(index, *elm);
-
-    } else {
-      Handle<NumberDictionary> dict = Handle<NumberDictionary>::cast(storage_);
-      Handle<NumberDictionary> result =
-          Factory::DictionaryAtNumberPut(dict, index, elm);
-      if (!result.is_identical_to(dict))
-        storage_ = result;
+      if (index < static_cast<uint32_t>(storage_->length())) {
+        storage_->set(index, *elm);
+        return;
+      }
+      // Our initial estimate of length was foiled, possibly by
+      // getters on the arrays increasing the length of later arrays
+      // during iteration.
+      // This shouldn't happen in anything but pathological cases.
+      SetDictionaryMode(index);
+      // Fall-through to dictionary mode.
     }
-  }
+    ASSERT(!fast_elements_);
+    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_));
+    Handle<NumberDictionary> result =
+        Factory::DictionaryAtNumberPut(dict, index, elm);
+    if (!result.is_identical_to(dict)) {
+      // Dictionary needed to grow.
+      clear_storage();
+      set_storage(*result);
+    }
+}
 
   void increase_index_offset(uint32_t delta) {
-    if (index_limit_ - index_offset_ < delta) {
-      index_offset_ = index_limit_;
+    if (JSObject::kMaxElementCount - index_offset_ < delta) {
+      index_offset_ = JSObject::kMaxElementCount;
     } else {
       index_offset_ += delta;
     }
   }
 
-  Handle<FixedArray> storage() { return storage_; }
+  Handle<JSArray> ToArray() {
+    Handle<JSArray> array = Factory::NewJSArray(0);
+    Handle<Object> length =
+        Factory::NewNumber(static_cast<double>(index_offset_));
+    Handle<Map> map;
+    if (fast_elements_) {
+      map = Factory::GetFastElementsMap(Handle<Map>(array->map()));
+    } else {
+      map = Factory::GetSlowElementsMap(Handle<Map>(array->map()));
+    }
+    array->set_map(*map);
+    array->set_length(*length);
+    array->set_elements(*storage_);
+    return array;
+  }
 
  private:
-  Handle<FixedArray> storage_;
-  // Limit on the accepted indices. Elements with indices larger than the
-  // limit are ignored by the visitor.
-  uint32_t index_limit_;
-  // Index after last seen index. Always less than or equal to index_limit_.
+  // Convert storage to dictionary mode.
+  void SetDictionaryMode(uint32_t index) {
+    ASSERT(fast_elements_);
+    Handle<FixedArray> current_storage(*storage_);
+    Handle<NumberDictionary> slow_storage(
+        Factory::NewNumberDictionary(current_storage->length()));
+    uint32_t current_length = static_cast<uint32_t>(current_storage->length());
+    for (uint32_t i = 0; i < current_length; i++) {
+      HandleScope loop_scope;
+      Handle<Object> element(current_storage->get(i));
+      if (!element->IsTheHole()) {
+        Handle<NumberDictionary> new_storage =
+          Factory::DictionaryAtNumberPut(slow_storage, i, element);
+        if (!new_storage.is_identical_to(slow_storage)) {
+          slow_storage = loop_scope.CloseAndEscape(new_storage);
+        }
+      }
+    }
+    clear_storage();
+    set_storage(*slow_storage);
+    fast_elements_ = false;
+  }
+
+  inline void clear_storage() {
+    GlobalHandles::Destroy(Handle<Object>::cast(storage_).location());
+  }
+
+  inline void set_storage(FixedArray* storage) {
+    storage_ = Handle<FixedArray>::cast(GlobalHandles::Create(storage));
+  }
+
+  Handle<FixedArray> storage_;  // Always a global handle.
+  // Index after last seen index. Always less than or equal to
+  // JSObject::kMaxElementCount.
   uint32_t index_offset_;
-  const bool fast_elements_;
+  bool fast_elements_;
 };
 
 
-template<class ExternalArrayClass, class ElementType>
-static uint32_t IterateExternalArrayElements(Handle<JSObject> receiver,
-                                             bool elements_are_ints,
-                                             bool elements_are_guaranteed_smis,
-                                             uint32_t range,
-                                             ArrayConcatVisitor* visitor) {
-  Handle<ExternalArrayClass> array(
-      ExternalArrayClass::cast(receiver->elements()));
-  uint32_t len = Min(static_cast<uint32_t>(array->length()), range);
-
-  if (visitor != NULL) {
-    if (elements_are_ints) {
-      if (elements_are_guaranteed_smis) {
-        for (uint32_t j = 0; j < len; j++) {
-          Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get(j))));
-          visitor->visit(j, e);
-        }
-      } else {
-        for (uint32_t j = 0; j < len; j++) {
-          int64_t val = static_cast<int64_t>(array->get(j));
-          if (Smi::IsValid(static_cast<intptr_t>(val))) {
-            Handle<Smi> e(Smi::FromInt(static_cast<int>(val)));
-            visitor->visit(j, e);
-          } else {
-            Handle<Object> e =
-                Factory::NewNumber(static_cast<ElementType>(val));
-            visitor->visit(j, e);
-          }
-        }
-      }
-    } else {
-      for (uint32_t j = 0; j < len; j++) {
-        Handle<Object> e = Factory::NewNumber(array->get(j));
-        visitor->visit(j, e);
-      }
-    }
-  }
-
-  return len;
-}
-
-/**
- * A helper function that visits elements of a JSObject. Only elements
- * whose index between 0 and range (exclusive) are visited.
- *
- * If the third parameter, visitor, is not NULL, the visitor is called
- * with parameters, 'visitor_index_offset + element index' and the element.
- *
- * It returns the number of visisted elements.
- */
-static uint32_t IterateElements(Handle<JSObject> receiver,
-                                uint32_t range,
-                                ArrayConcatVisitor* visitor) {
-  uint32_t num_of_elements = 0;
-
-  switch (receiver->GetElementsKind()) {
+static uint32_t EstimateElementCount(Handle<JSArray> array) {
+  uint32_t length = static_cast<uint32_t>(array->length()->Number());
+  int element_count = 0;
+  switch (array->GetElementsKind()) {
     case JSObject::FAST_ELEMENTS: {
-      Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
-      uint32_t len = elements->length();
-      if (range < len) {
-        len = range;
+      // Fast elements can't have lengths that are not representable by
+      // a 32-bit signed integer.
+      ASSERT(static_cast<int32_t>(FixedArray::kMaxLength) >= 0);
+      int fast_length = static_cast<int>(length);
+      Handle<FixedArray> elements(FixedArray::cast(array->elements()));
+      for (int i = 0; i < fast_length; i++) {
+        if (!elements->get(i)->IsTheHole()) element_count++;
       }
-
-      for (uint32_t j = 0; j < len; j++) {
-        Handle<Object> e(elements->get(j));
-        if (!e->IsTheHole()) {
-          num_of_elements++;
-          if (visitor) {
-            visitor->visit(j, e);
-          }
-        }
-      }
-      break;
-    }
-    case JSObject::PIXEL_ELEMENTS: {
-      Handle<PixelArray> pixels(PixelArray::cast(receiver->elements()));
-      uint32_t len = pixels->length();
-      if (range < len) {
-        len = range;
-      }
-
-      for (uint32_t j = 0; j < len; j++) {
-        num_of_elements++;
-        if (visitor != NULL) {
-          Handle<Smi> e(Smi::FromInt(pixels->get(j)));
-          visitor->visit(j, e);
-        }
-      }
-      break;
-    }
-    case JSObject::EXTERNAL_BYTE_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalByteArray, int8_t>(
-              receiver, true, true, range, visitor);
-      break;
-    }
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalUnsignedByteArray, uint8_t>(
-              receiver, true, true, range, visitor);
-      break;
-    }
-    case JSObject::EXTERNAL_SHORT_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalShortArray, int16_t>(
-              receiver, true, true, range, visitor);
-      break;
-    }
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalUnsignedShortArray, uint16_t>(
-              receiver, true, true, range, visitor);
-      break;
-    }
-    case JSObject::EXTERNAL_INT_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalIntArray, int32_t>(
-              receiver, true, false, range, visitor);
-      break;
-    }
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalUnsignedIntArray, uint32_t>(
-              receiver, true, false, range, visitor);
-      break;
-    }
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
-      num_of_elements =
-          IterateExternalArrayElements<ExternalFloatArray, float>(
-              receiver, false, false, range, visitor);
       break;
     }
     case JSObject::DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> dict(receiver->element_dictionary());
+      Handle<NumberDictionary> dictionary(
+          NumberDictionary::cast(array->elements()));
+      int capacity = dictionary->Capacity();
+      for (int i = 0; i < capacity; i++) {
+        Handle<Object> key(dictionary->KeyAt(i));
+        if (dictionary->IsKey(*key)) {
+          element_count++;
+        }
+      }
+      break;
+    }
+    default:
+      // External arrays are always dense.
+      return length;
+  }
+  // As an estimate, we assume that the prototype doesn't contain any
+  // inherited elements.
+  return element_count;
+}
+
+
+
+template<class ExternalArrayClass, class ElementType>
+static void IterateExternalArrayElements(Handle<JSObject> receiver,
+                                         bool elements_are_ints,
+                                         bool elements_are_guaranteed_smis,
+                                         ArrayConcatVisitor* visitor) {
+  Handle<ExternalArrayClass> array(
+      ExternalArrayClass::cast(receiver->elements()));
+  uint32_t len = static_cast<uint32_t>(array->length());
+
+  ASSERT(visitor != NULL);
+  if (elements_are_ints) {
+    if (elements_are_guaranteed_smis) {
+      for (uint32_t j = 0; j < len; j++) {
+        HandleScope loop_scope;
+        Handle<Smi> e(Smi::FromInt(static_cast<int>(array->get(j))));
+        visitor->visit(j, e);
+      }
+    } else {
+      for (uint32_t j = 0; j < len; j++) {
+        HandleScope loop_scope;
+        int64_t val = static_cast<int64_t>(array->get(j));
+        if (Smi::IsValid(static_cast<intptr_t>(val))) {
+          Handle<Smi> e(Smi::FromInt(static_cast<int>(val)));
+          visitor->visit(j, e);
+        } else {
+          Handle<Object> e =
+              Factory::NewNumber(static_cast<ElementType>(val));
+          visitor->visit(j, e);
+        }
+      }
+    }
+  } else {
+    for (uint32_t j = 0; j < len; j++) {
+      HandleScope loop_scope;
+      Handle<Object> e = Factory::NewNumber(array->get(j));
+      visitor->visit(j, e);
+    }
+  }
+}
+
+
+// Used for sorting indices in a List<uint32_t>.
+static int compareUInt32(const uint32_t* ap, const uint32_t* bp) {
+  uint32_t a = *ap;
+  uint32_t b = *bp;
+  return (a == b) ? 0 : (a < b) ? -1 : 1;
+}
+
+
+static void CollectElementIndices(Handle<JSObject> object,
+                                  uint32_t range,
+                                  List<uint32_t>* indices) {
+  JSObject::ElementsKind kind = object->GetElementsKind();
+  switch (kind) {
+    case JSObject::FAST_ELEMENTS: {
+      Handle<FixedArray> elements(FixedArray::cast(object->elements()));
+      uint32_t length = static_cast<uint32_t>(elements->length());
+      if (range < length) length = range;
+      for (uint32_t i = 0; i < length; i++) {
+        if (!elements->get(i)->IsTheHole()) {
+          indices->Add(i);
+        }
+      }
+      break;
+    }
+    case JSObject::DICTIONARY_ELEMENTS: {
+      Handle<NumberDictionary> dict(NumberDictionary::cast(object->elements()));
       uint32_t capacity = dict->Capacity();
       for (uint32_t j = 0; j < capacity; j++) {
+        HandleScope loop_scope;
         Handle<Object> k(dict->KeyAt(j));
         if (dict->IsKey(*k)) {
           ASSERT(k->IsNumber());
           uint32_t index = static_cast<uint32_t>(k->Number());
           if (index < range) {
-            num_of_elements++;
-            if (visitor) {
-              visitor->visit(index, Handle<Object>(dict->ValueAt(j)));
-            }
+            indices->Add(index);
           }
         }
       }
+      break;
+    }
+    default: {
+      int dense_elements_length;
+      switch (kind) {
+        case JSObject::PIXEL_ELEMENTS: {
+        dense_elements_length =
+            PixelArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_BYTE_ELEMENTS: {
+        dense_elements_length =
+            ExternalByteArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+        dense_elements_length =
+            ExternalUnsignedByteArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_SHORT_ELEMENTS: {
+        dense_elements_length =
+            ExternalShortArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+        dense_elements_length =
+            ExternalUnsignedShortArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_INT_ELEMENTS: {
+        dense_elements_length =
+            ExternalIntArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+        dense_elements_length =
+            ExternalUnsignedIntArray::cast(object->elements())->length();
+          break;
+        }
+        case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
+        dense_elements_length =
+            ExternalFloatArray::cast(object->elements())->length();
+          break;
+        }
+        default:
+          UNREACHABLE();
+          dense_elements_length = 0;
+          break;
+      }
+      uint32_t length = static_cast<uint32_t>(dense_elements_length);
+      if (range <= length) {
+        length = range;
+        // We will add all indices, so we might as well clear it first
+        // and avoid duplicates.
+        indices->Clear();
+      }
+      for (uint32_t i = 0; i < length; i++) {
+        indices->Add(i);
+      }
+      if (length == range) return;  // All indices accounted for already.
+      break;
+    }
+  }
+
+  Handle<Object> prototype(object->GetPrototype());
+  if (prototype->IsJSObject()) {
+    // The prototype will usually have no inherited element indices,
+    // but we have to check.
+    CollectElementIndices(Handle<JSObject>::cast(prototype), range, indices);
+  }
+}
+
+
+/**
+ * A helper function that visits elements of a JSArray in numerical
+ * order.
+ *
+ * The visitor argument called for each existing element in the array
+ * with the element index and the element's value.
+ * Afterwards it increments the base-index of the visitor by the array
+ * length.
+ */
+static void IterateElements(Handle<JSArray> receiver,
+                            ArrayConcatVisitor* visitor) {
+  uint32_t length = static_cast<uint32_t>(receiver->length()->Number());
+  switch (receiver->GetElementsKind()) {
+    case JSObject::FAST_ELEMENTS: {
+      // Run through the elements FixedArray and use HasElement and GetElement
+      // to check the prototype for missing elements.
+      Handle<FixedArray> elements(FixedArray::cast(receiver->elements()));
+      int fast_length = static_cast<int>(length);
+      ASSERT(fast_length <= elements->length());
+      for (int j = 0; j < fast_length; j++) {
+        HandleScope loop_scope;
+        Handle<Object> element_value(elements->get(j));
+        if (!element_value->IsTheHole()) {
+          visitor->visit(j, element_value);
+        } else if (receiver->HasElement(j)) {
+          // Call GetElement on receiver, not its prototype, or getters won't
+          // have the correct receiver.
+          element_value = GetElement(receiver, j);
+          visitor->visit(j, element_value);
+        }
+      }
+      break;
+    }
+    case JSObject::DICTIONARY_ELEMENTS: {
+      Handle<NumberDictionary> dict(receiver->element_dictionary());
+      List<uint32_t> indices(dict->Capacity() / 2);
+      // Collect all indices in the object and the prototypes less
+      // than length. This might introduce duplicates in the indices list.
+      CollectElementIndices(receiver, length, &indices);
+      indices.Sort(&compareUInt32);
+      int j = 0;
+      int n = indices.length();
+      while (j < n) {
+        HandleScope loop_scope;
+        uint32_t index = indices[j];
+        Handle<Object> element = GetElement(receiver, index);
+        visitor->visit(index, element);
+        // Skip to next different index (i.e., omit duplicates).
+        do {
+          j++;
+        } while (j < n && indices[j] == index);
+      }
+      break;
+    }
+    case JSObject::PIXEL_ELEMENTS: {
+      Handle<PixelArray> pixels(PixelArray::cast(receiver->elements()));
+      for (uint32_t j = 0; j < length; j++) {
+        Handle<Smi> e(Smi::FromInt(pixels->get(j)));
+        visitor->visit(j, e);
+      }
+      break;
+    }
+    case JSObject::EXTERNAL_BYTE_ELEMENTS: {
+      IterateExternalArrayElements<ExternalByteArray, int8_t>(
+          receiver, true, true, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS: {
+      IterateExternalArrayElements<ExternalUnsignedByteArray, uint8_t>(
+          receiver, true, true, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_SHORT_ELEMENTS: {
+      IterateExternalArrayElements<ExternalShortArray, int16_t>(
+          receiver, true, true, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS: {
+      IterateExternalArrayElements<ExternalUnsignedShortArray, uint16_t>(
+          receiver, true, true, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_INT_ELEMENTS: {
+      IterateExternalArrayElements<ExternalIntArray, int32_t>(
+          receiver, true, false, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS: {
+      IterateExternalArrayElements<ExternalUnsignedIntArray, uint32_t>(
+          receiver, true, false, visitor);
+      break;
+    }
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS: {
+      IterateExternalArrayElements<ExternalFloatArray, float>(
+          receiver, false, false, visitor);
       break;
     }
     default:
       UNREACHABLE();
       break;
   }
-
-  return num_of_elements;
-}
-
-
-/**
- * A helper function that visits elements of an Array object, and elements
- * on its prototypes.
- *
- * Elements on prototypes are visited first, and only elements whose indices
- * less than Array length are visited.
- *
- * If a ArrayConcatVisitor object is given, the visitor is called with
- * parameters, element's index + visitor_index_offset and the element.
- *
- * The returned number of elements is an upper bound on the actual number
- * of elements added. If the same element occurs in more than one object
- * in the array's prototype chain, it will be counted more than once, but
- * will only occur once in the result.
- */
-static uint32_t IterateArrayAndPrototypeElements(Handle<JSArray> array,
-                                                 ArrayConcatVisitor* visitor) {
-  uint32_t range = static_cast<uint32_t>(array->length()->Number());
-  Handle<Object> obj = array;
-
-  static const int kEstimatedPrototypes = 3;
-  List< Handle<JSObject> > objects(kEstimatedPrototypes);
-
-  // Visit prototype first. If an element on the prototype is shadowed by
-  // the inheritor using the same index, the ArrayConcatVisitor visits
-  // the prototype element before the shadowing element.
-  // The visitor can simply overwrite the old value by new value using
-  // the same index.  This follows Array::concat semantics.
-  while (!obj->IsNull()) {
-    objects.Add(Handle<JSObject>::cast(obj));
-    obj = Handle<Object>(obj->GetPrototype());
-  }
-
-  uint32_t nof_elements = 0;
-  for (int i = objects.length() - 1; i >= 0; i--) {
-    Handle<JSObject> obj = objects[i];
-    uint32_t encountered_elements =
-        IterateElements(Handle<JSObject>::cast(obj), range, visitor);
-
-    if (encountered_elements > JSObject::kMaxElementCount - nof_elements) {
-      nof_elements = JSObject::kMaxElementCount;
-    } else {
-      nof_elements += encountered_elements;
-    }
-  }
-
-  return nof_elements;
-}
-
-
-/**
- * A helper function of Runtime_ArrayConcat.
- *
- * The first argument is an Array of arrays and objects. It is the
- * same as the arguments array of Array::concat JS function.
- *
- * If an argument is an Array object, the function visits array
- * elements.  If an argument is not an Array object, the function
- * visits the object as if it is an one-element array.
- *
- * If the result array index overflows 32-bit unsigned integer, the rounded
- * non-negative number is used as new length. For example, if one
- * array length is 2^32 - 1, second array length is 1, the
- * concatenated array length is 0.
- * TODO(lrn) Change length behavior to ECMAScript 5 specification (length
- * is one more than the last array index to get a value assigned).
- */
-static uint32_t IterateArguments(Handle<JSArray> arguments,
-                                 ArrayConcatVisitor* visitor) {
-  uint32_t visited_elements = 0;
-  uint32_t num_of_args = static_cast<uint32_t>(arguments->length()->Number());
-
-  for (uint32_t i = 0; i < num_of_args; i++) {
-    Object *element;
-    MaybeObject* maybe_element = arguments->GetElement(i);
-    // This if() is not expected to fail, but we have the check in the
-    // interest of hardening the runtime calls.
-    if (maybe_element->ToObject(&element)) {
-      Handle<Object> obj(element);
-      if (obj->IsJSArray()) {
-        Handle<JSArray> array = Handle<JSArray>::cast(obj);
-        uint32_t len = static_cast<uint32_t>(array->length()->Number());
-        uint32_t nof_elements =
-            IterateArrayAndPrototypeElements(array, visitor);
-        // Total elements of array and its prototype chain can be more than
-        // the array length, but ArrayConcat can only concatenate at most
-        // the array length number of elements. We use the length as an estimate
-        // for the actual number of elements added.
-        uint32_t added_elements = (nof_elements > len) ? len : nof_elements;
-        if (JSArray::kMaxElementCount - visited_elements < added_elements) {
-          visited_elements = JSArray::kMaxElementCount;
-        } else {
-          visited_elements += added_elements;
-        }
-        if (visitor) visitor->increase_index_offset(len);
-      } else {
-        if (visitor) {
-          visitor->visit(0, obj);
-          visitor->increase_index_offset(1);
-        }
-        if (visited_elements < JSArray::kMaxElementCount) {
-          visited_elements++;
-        }
-      }
-    }
-  }
-  return visited_elements;
+  visitor->increase_index_offset(length);
 }
 
 
 /**
  * Array::concat implementation.
  * See ECMAScript 262, 15.4.4.4.
- * TODO(lrn): Fix non-compliance for very large concatenations and update to
+ * TODO(581): Fix non-compliance for very large concatenations and update to
  * following the ECMAScript 5 specification.
  */
 static MaybeObject* Runtime_ArrayConcat(Arguments args) {
   ASSERT(args.length() == 1);
   HandleScope handle_scope;
 
-  CONVERT_CHECKED(JSArray, arg_arrays, args[0]);
-  Handle<JSArray> arguments(arg_arrays);
+  CONVERT_ARG_CHECKED(JSArray, arguments, 0);
+  int argument_count = static_cast<int>(arguments->length()->Number());
+  RUNTIME_ASSERT(arguments->HasFastElements());
+  Handle<FixedArray> elements(FixedArray::cast(arguments->elements()));
 
-  // Pass 1: estimate the number of elements of the result
-  // (it could be more than real numbers if prototype has elements).
-  uint32_t result_length = 0;
-  uint32_t num_of_args = static_cast<uint32_t>(arguments->length()->Number());
+  // Pass 1: estimate the length and number of elements of the result.
+  // The actual length can be larger if any of the arguments have getters
+  // that mutate other arguments (but will otherwise be precise).
+  // The number of elements is precise if there are no inherited elements.
 
-  { AssertNoAllocation nogc;
-    for (uint32_t i = 0; i < num_of_args; i++) {
-      Object* obj;
-      MaybeObject* maybe_object = arguments->GetElement(i);
-      // This if() is not expected to fail, but we have the check in the
-      // interest of hardening the runtime calls.
-      if (maybe_object->ToObject(&obj)) {
-        uint32_t length_estimate;
-        if (obj->IsJSArray()) {
-          length_estimate =
-              static_cast<uint32_t>(JSArray::cast(obj)->length()->Number());
-        } else {
-          length_estimate = 1;
-        }
-        if (JSObject::kMaxElementCount - result_length < length_estimate) {
-          result_length = JSObject::kMaxElementCount;
-          break;
-        }
-        result_length += length_estimate;
+  uint32_t estimate_result_length = 0;
+  uint32_t estimate_nof_elements = 0;
+  {
+    for (int i = 0; i < argument_count; i++) {
+      HandleScope loop_scope;
+      Handle<Object> obj(elements->get(i));
+      uint32_t length_estimate;
+      uint32_t element_estimate;
+      if (obj->IsJSArray()) {
+        Handle<JSArray> array(Handle<JSArray>::cast(obj));
+        length_estimate =
+            static_cast<uint32_t>(array->length()->Number());
+        element_estimate =
+            EstimateElementCount(array);
+      } else {
+        length_estimate = 1;
+        element_estimate = 1;
+      }
+      // Avoid overflows by capping at kMaxElementCount.
+      if (JSObject::kMaxElementCount - estimate_result_length <
+          length_estimate) {
+        estimate_result_length = JSObject::kMaxElementCount;
+      } else {
+        estimate_result_length += length_estimate;
+      }
+      if (JSObject::kMaxElementCount - estimate_nof_elements <
+          element_estimate) {
+        estimate_nof_elements = JSObject::kMaxElementCount;
+      } else {
+        estimate_nof_elements += element_estimate;
       }
     }
   }
 
-  // Allocate an empty array, will set map, length, and content later.
-  Handle<JSArray> result = Factory::NewJSArray(0);
-
-  uint32_t estimate_nof_elements = IterateArguments(arguments, NULL);
   // If estimated number of elements is more than half of length, a
   // fixed array (fast case) is more time and space-efficient than a
   // dictionary.
-  bool fast_case = (estimate_nof_elements * 2) >= result_length;
+  bool fast_case = (estimate_nof_elements * 2) >= estimate_result_length;
 
-  Handle<Map> map;
   Handle<FixedArray> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to
     // preserve holes across concat operations.
-    map = Factory::GetFastElementsMap(Handle<Map>(result->map()));
-    storage = Factory::NewFixedArrayWithHoles(result_length);
+    storage = Factory::NewFixedArrayWithHoles(estimate_result_length);
   } else {
-    map = Factory::GetSlowElementsMap(Handle<Map>(result->map()));
     // TODO(126): move 25% pre-allocation logic into Dictionary::Allocate
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
@@ -8406,21 +8553,20 @@ static MaybeObject* Runtime_ArrayConcat(Arguments args) {
         Factory::NewNumberDictionary(at_least_space_for));
   }
 
-  Handle<Object> len = Factory::NewNumber(static_cast<double>(result_length));
+  ArrayConcatVisitor visitor(storage, fast_case);
 
-  ArrayConcatVisitor visitor(storage, result_length, fast_case);
+  for (int i = 0; i < argument_count; i++) {
+    Handle<Object> obj(elements->get(i));
+    if (obj->IsJSArray()) {
+      Handle<JSArray> array = Handle<JSArray>::cast(obj);
+      IterateElements(array, &visitor);
+    } else {
+      visitor.visit(0, obj);
+      visitor.increase_index_offset(1);
+    }
+  }
 
-  IterateArguments(arguments, &visitor);
-
-  // Please note:
-  // - the storage might have been changed in the visitor;
-  // - the map and the storage must be set together to avoid breaking
-  //   the invariant that the map describes the array's elements.
-  result->set_map(*map);
-  result->set_length(*len);
-  result->set_elements(*visitor.storage());
-
-  return *result;
+  return *visitor.ToArray();
 }
 
 
@@ -9192,7 +9338,9 @@ static bool CopyContextLocalsToScopeObject(
       RETURN_IF_EMPTY_HANDLE_VALUE(
           SetProperty(scope_object,
                       scope_info.context_slot_name(i),
-                      Handle<Object>(context->get(context_index)), NONE),
+                      Handle<Object>(context->get(context_index)),
+                      NONE,
+                      kNonStrictMode),
           false);
     }
   }
@@ -9218,7 +9366,9 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         SetProperty(local_scope,
                     scope_info.parameter_name(i),
-                    Handle<Object>(frame->GetParameter(i)), NONE),
+                    Handle<Object>(frame->GetParameter(i)),
+                    NONE,
+                    kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -9227,7 +9377,9 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         SetProperty(local_scope,
                     scope_info.stack_slot_name(i),
-                    Handle<Object>(frame->GetExpression(i)), NONE),
+                    Handle<Object>(frame->GetExpression(i)),
+                    NONE,
+                    kNonStrictMode),
         Handle<JSObject>());
   }
 
@@ -9251,7 +9403,11 @@ static Handle<JSObject> MaterializeLocalScope(JavaScriptFrame* frame) {
         ASSERT(keys->get(i)->IsString());
         Handle<String> key(String::cast(keys->get(i)));
         RETURN_IF_EMPTY_HANDLE_VALUE(
-            SetProperty(local_scope, key, GetProperty(ext, key), NONE),
+            SetProperty(local_scope,
+                        key,
+                        GetProperty(ext, key),
+                        NONE,
+                        kNonStrictMode),
             Handle<JSObject>());
       }
     }
@@ -9289,7 +9445,8 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
           SetProperty(closure_scope,
                       scope_info.parameter_name(i),
                       Handle<Object>(element),
-                      NONE),
+                      NONE,
+                      kNonStrictMode),
           Handle<JSObject>());
     }
   }
@@ -9310,7 +9467,11 @@ static Handle<JSObject> MaterializeClosure(Handle<Context> context) {
       ASSERT(keys->get(i)->IsString());
       Handle<String> key(String::cast(keys->get(i)));
       RETURN_IF_EMPTY_HANDLE_VALUE(
-          SetProperty(closure_scope, key, GetProperty(ext, key), NONE),
+          SetProperty(closure_scope,
+                      key,
+                      GetProperty(ext, key),
+                      NONE,
+                      kNonStrictMode),
           Handle<JSObject>());
     }
   }
@@ -10788,6 +10949,207 @@ static MaybeObject* Runtime_GetHeapUsage(Arguments args) {
   }
   return Smi::FromInt(usage);
 }
+
+
+// Captures a live object list from the present heap.
+static MaybeObject* Runtime_HasLOLEnabled(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  return Heap::true_value();
+#else
+  return Heap::false_value();
+#endif
+}
+
+
+// Captures a live object list from the present heap.
+static MaybeObject* Runtime_CaptureLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  return LiveObjectList::Capture();
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Deletes the specified live object list.
+static MaybeObject* Runtime_DeleteLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  CONVERT_SMI_CHECKED(id, args[0]);
+  bool success = LiveObjectList::Delete(id);
+  return success ? Heap::true_value() : Heap::false_value();
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Generates the response to a debugger request for a dump of the objects
+// contained in the difference between the captured live object lists
+// specified by id1 and id2.
+// If id1 is 0 (i.e. not a valid lol), then the whole of lol id2 will be
+// dumped.
+static MaybeObject* Runtime_DumpLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(id1, args[0]);
+  CONVERT_SMI_CHECKED(id2, args[1]);
+  CONVERT_SMI_CHECKED(start, args[2]);
+  CONVERT_SMI_CHECKED(count, args[3]);
+  CONVERT_ARG_CHECKED(JSObject, filter_obj, 4);
+  EnterDebugger enter_debugger;
+  return LiveObjectList::Dump(id1, id2, start, count, filter_obj);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the specified object as requested by the debugger.
+// This is only used for obj ids shown in live object lists.
+static MaybeObject* Runtime_GetLOLObj(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  Object* result = LiveObjectList::GetObj(obj_id);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the obj id for the specified address if valid.
+// This is only used for obj ids shown in live object lists.
+static MaybeObject* Runtime_GetLOLObjId(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_ARG_CHECKED(String, address, 0);
+  Object* result = LiveObjectList::GetObjId(address);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the retainers that references the specified object alive.
+static MaybeObject* Runtime_GetLOLObjRetainers(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  RUNTIME_ASSERT(args[1]->IsUndefined() || args[1]->IsJSObject());
+  RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsBoolean());
+  RUNTIME_ASSERT(args[3]->IsUndefined() || args[3]->IsSmi());
+  RUNTIME_ASSERT(args[4]->IsUndefined() || args[4]->IsSmi());
+  CONVERT_ARG_CHECKED(JSObject, filter_obj, 5);
+
+  Handle<JSObject> instance_filter;
+  if (args[1]->IsJSObject()) {
+    instance_filter = args.at<JSObject>(1);
+  }
+  bool verbose = false;
+  if (args[2]->IsBoolean()) {
+    verbose = args[2]->IsTrue();
+  }
+  int start = 0;
+  if (args[3]->IsSmi()) {
+    start = Smi::cast(args[3])->value();
+  }
+  int limit = Smi::kMaxValue;
+  if (args[4]->IsSmi()) {
+    limit = Smi::cast(args[4])->value();
+  }
+
+  return LiveObjectList::GetObjRetainers(obj_id,
+                                         instance_filter,
+                                         verbose,
+                                         start,
+                                         limit,
+                                         filter_obj);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets the reference path between 2 objects.
+static MaybeObject* Runtime_GetLOLPath(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(obj_id1, args[0]);
+  CONVERT_SMI_CHECKED(obj_id2, args[1]);
+  RUNTIME_ASSERT(args[2]->IsUndefined() || args[2]->IsJSObject());
+
+  Handle<JSObject> instance_filter;
+  if (args[2]->IsJSObject()) {
+    instance_filter = args.at<JSObject>(2);
+  }
+
+  Object* result =
+      LiveObjectList::GetPath(obj_id1, obj_id2, instance_filter);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Generates the response to a debugger request for a list of all
+// previously captured live object lists.
+static MaybeObject* Runtime_InfoLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  CONVERT_SMI_CHECKED(start, args[0]);
+  CONVERT_SMI_CHECKED(count, args[1]);
+  return LiveObjectList::Info(start, count);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Gets a dump of the specified object as requested by the debugger.
+// This is only used for obj ids shown in live object lists.
+static MaybeObject* Runtime_PrintLOLObj(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(obj_id, args[0]);
+  Object* result = LiveObjectList::PrintObj(obj_id);
+  return result;
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Resets and releases all previously captured live object lists.
+static MaybeObject* Runtime_ResetLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  LiveObjectList::Reset();
+  return Heap::undefined_value();
+#else
+  return Heap::undefined_value();
+#endif
+}
+
+
+// Generates the response to a debugger request for a summary of the types
+// of objects in the difference between the captured live object lists
+// specified by id1 and id2.
+// If id1 is 0 (i.e. not a valid lol), then the whole of lol id2 will be
+// summarized.
+static MaybeObject* Runtime_SummarizeLOL(Arguments args) {
+#ifdef LIVE_OBJECT_LIST
+  HandleScope scope;
+  CONVERT_SMI_CHECKED(id1, args[0]);
+  CONVERT_SMI_CHECKED(id2, args[1]);
+  CONVERT_ARG_CHECKED(JSObject, filter_obj, 2);
+
+  EnterDebugger enter_debugger;
+  return LiveObjectList::Summarize(id1, id2, filter_obj);
+#else
+  return Heap::undefined_value();
+#endif
+}
+
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 

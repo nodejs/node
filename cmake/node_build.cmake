@@ -62,6 +62,7 @@ set(node_sources
   src/node_script.cc
   src/node_os.cc
   src/node_dtrace.cc
+  src/node_string.cc
   src/node_natives.h
   ${node_extra_src})
 

@@ -6,14 +6,14 @@ all: agent1-cert.pem agent2-cert.pem agent3-cert.pem agent4-cert.pem ca2-crl.pem
 # ('password' is used for the CA password.)
 #
 ca1-cert.pem: ca1.cnf
-	openssl req -new -x509 -config ca1.cnf -keyout ca1-key.pem -out ca1-cert.pem
+	openssl req -new -x509 -days 9999 -config ca1.cnf -keyout ca1-key.pem -out ca1-cert.pem
 
 #
 # Create Certificate Authority: ca2
 # ('password' is used for the CA password.)
 #
 ca2-cert.pem: ca2.cnf
-	openssl req -new -x509 -config ca2.cnf -keyout ca2-key.pem -out ca2-cert.pem
+	openssl req -new -x509 -days 9999 -config ca2.cnf -keyout ca2-key.pem -out ca2-cert.pem
 	echo '01' > ca2-serial
 	touch ca2-database.txt
 
@@ -30,7 +30,7 @@ agent1-csr.pem: agent1.cnf agent1-key.pem
 
 agent1-cert.pem: agent1-csr.pem ca1-cert.pem ca1-key.pem
 	openssl x509 -req \
-		-days 999 \
+		-days 9999 \
 		-passin "pass:password" \
 		-in agent1-csr.pem \
 		-CA ca1-cert.pem \
@@ -56,7 +56,7 @@ agent2-csr.pem: agent2-key.pem agent2.cnf
 # Create a Certificate for the agent.
 agent2-cert.pem: agent2-csr.pem agent2-key.pem
 	openssl x509 -req \
-		-days 999 \
+		-days 9999 \
 		-in agent2-csr.pem \
 		-signkey agent2-key.pem \
 		-out agent2-cert.pem
@@ -76,7 +76,7 @@ agent3-csr.pem: agent3.cnf agent3-key.pem
 
 agent3-cert.pem: agent3-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
-		-days 999 \
+		-days 9999 \
 		-passin "pass:password" \
 		-in agent3-csr.pem \
 		-CA ca2-cert.pem \
@@ -100,7 +100,7 @@ agent4-csr.pem: agent4.cnf agent4-key.pem
 
 agent4-cert.pem: agent4-csr.pem ca2-cert.pem ca2-key.pem
 	openssl x509 -req \
-		-days 999 \
+		-days 9999 \
 		-passin "pass:password" \
 		-in agent4-csr.pem \
 		-CA ca2-cert.pem \

@@ -4,10 +4,20 @@ The `net` module provides you with an asynchronous network wrapper. It contains
 methods for creating both servers and clients (called streams). You can include
 this module with `require("net");`
 
-### net.createServer(connectionListener)
+### net.createServer([options], [connectionListener])
 
 Creates a new TCP server. The `connectionListener` argument is
 automatically set as a listener for the `'connection'` event.
+
+`options` is an object with the following defaults:
+
+    { allowHalfOpen: false
+    }
+
+If `allowHalfOpen` is `true`, then the socket won't automatically send FIN
+packet when the other end of the socket sends a FIN packet. The socket becomes
+non-readable, but still writable. You should call the end() method explicitly.
+See `'end'` event for more information.
 
 ### net.createConnection(arguments...)
 
@@ -152,6 +162,21 @@ user and used as a client (with `connect()`) or they can be created by Node
 and passed to the user through the `'connection'` event of a server.
 
 `net.Socket` instances are EventEmitters with the following events:
+
+#### new net.Socket([options])
+
+Construct a new socket object.
+
+`options` is an object with the following defaults:
+
+    { fd: null
+      type: null
+      allowHalfOpen: false
+    }
+
+`fd` allows you to specify the existing file descriptor of socket. `type`
+specified underlying protocol. It can be `'tcp4'`, `'tcp6'`, or `'unix'`.
+About `allowHalfOpen`, refer to `createServer()` and `'end'` event.
 
 #### socket.connect(port, [host], [callback])
 #### socket.connect(path, [callback])

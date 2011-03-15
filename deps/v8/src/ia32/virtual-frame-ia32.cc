@@ -1038,9 +1038,9 @@ Result VirtualFrame::CallStoreIC(Handle<String> name,
                                  StrictModeFlag strict_mode) {
   // Value and (if not contextual) receiver are on top of the frame.
   // The IC expects name in ecx, value in eax, and receiver in edx.
-  Handle<Code> ic(Builtins::builtin(strict_mode == kStrictMode
-      ? Builtins::StoreIC_Initialize_Strict
-      : Builtins::StoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      (strict_mode == kStrictMode) ? Builtins::StoreIC_Initialize_Strict
+                                   : Builtins::StoreIC_Initialize));
 
   Result value = Pop();
   RelocInfo::Mode mode;
@@ -1061,7 +1061,7 @@ Result VirtualFrame::CallStoreIC(Handle<String> name,
 }
 
 
-Result VirtualFrame::CallKeyedStoreIC() {
+Result VirtualFrame::CallKeyedStoreIC(StrictModeFlag strict_mode) {
   // Value, key, and receiver are on the top of the frame.  The IC
   // expects value in eax, key in ecx, and receiver in edx.
   Result value = Pop();
@@ -1105,7 +1105,9 @@ Result VirtualFrame::CallKeyedStoreIC() {
     receiver.Unuse();
   }
 
-  Handle<Code> ic(Builtins::builtin(Builtins::KeyedStoreIC_Initialize));
+  Handle<Code> ic(Builtins::builtin(
+      (strict_mode == kStrictMode) ? Builtins::KeyedStoreIC_Initialize_Strict
+                                   : Builtins::KeyedStoreIC_Initialize));
   return RawCallCodeObject(ic, RelocInfo::CODE_TARGET);
 }
 
@@ -1306,6 +1308,7 @@ void VirtualFrame::EmitPush(Immediate immediate, TypeInfo info) {
 
 
 void VirtualFrame::PushUntaggedElement(Handle<Object> value) {
+  ASSERT(!ConstantPoolOverflowed());
   elements_.Add(FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED));
   elements_[element_count() - 1].set_untagged_int32(true);
 }
@@ -1333,6 +1336,20 @@ void VirtualFrame::Push(Expression* expr) {
     }
   }
   UNREACHABLE();
+}
+
+
+void VirtualFrame::Push(Handle<Object> value) {
+  if (ConstantPoolOverflowed()) {
+    Result temp = cgen()->allocator()->Allocate();
+    ASSERT(temp.is_valid());
+    __ Set(temp.reg(), Immediate(value));
+    Push(&temp);
+  } else {
+    FrameElement element =
+        FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
+    elements_.Add(element);
+  }
 }
 
 

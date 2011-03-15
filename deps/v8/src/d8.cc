@@ -405,7 +405,7 @@ void Shell::AddHistogramSample(void* histogram, int sample) {
 void Shell::Initialize() {
   Shell::counter_map_ = new CounterMap();
   // Set up counters
-  if (i::FLAG_map_counters != NULL)
+  if (i::StrLength(i::FLAG_map_counters) != 0)
     MapCounters(i::FLAG_map_counters);
   if (i::FLAG_dump_counters) {
     V8::SetCounterFunction(LookupCounter);
@@ -424,6 +424,12 @@ void Shell::Initialize() {
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
   global_template->Set(String::New("quit"), FunctionTemplate::New(Quit));
   global_template->Set(String::New("version"), FunctionTemplate::New(Version));
+
+#ifdef LIVE_OBJECT_LIST
+  global_template->Set(String::New("lol_is_enabled"), Boolean::New(true));
+#else
+  global_template->Set(String::New("lol_is_enabled"), Boolean::New(false));
+#endif
 
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);

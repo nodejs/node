@@ -769,6 +769,10 @@ bool Object::HasSpecificClassOf(String* name) {
 
 
 MaybeObject* Object::GetElement(uint32_t index) {
+  // GetElement can trigger a getter which can cause allocation.
+  // This was not always the case. This ASSERT is here to catch
+  // leftover incorrect uses.
+  ASSERT(Heap::IsAllocationAllowed());
   return GetElementWithReceiver(this, index);
 }
 
@@ -2615,7 +2619,8 @@ Code::Flags Code::ComputeFlags(Kind kind,
   ASSERT(extra_ic_state == kNoExtraICState ||
          (kind == CALL_IC && (ic_state == MONOMORPHIC ||
                               ic_state == MONOMORPHIC_PROTOTYPE_FAILURE)) ||
-         (kind == STORE_IC));
+         (kind == STORE_IC) ||
+         (kind == KEYED_STORE_IC));
   // Compute the bit mask.
   int bits = kind << kFlagsKindShift;
   if (in_loop) bits |= kFlagsICInLoopMask;
@@ -3737,7 +3742,8 @@ MaybeObject* JSObject::SetHiddenPropertiesObject(Object* hidden_obj) {
   ASSERT(!IsJSGlobalProxy());
   return SetPropertyPostInterceptor(Heap::hidden_symbol(),
                                     hidden_obj,
-                                    DONT_ENUM);
+                                    DONT_ENUM,
+                                    kNonStrictMode);
 }
 
 

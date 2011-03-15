@@ -1353,6 +1353,9 @@ void MarkCompactCollector::MarkLiveObjects() {
 
   // Flush code from collected candidates.
   FlushCode::ProcessCandidates();
+
+  // Clean up dead objects from the runtime profiler.
+  RuntimeProfiler::RemoveDeadSamples();
 }
 
 
@@ -1937,6 +1940,9 @@ static void SweepNewSpace(NewSpace* space) {
   // All pointers were updated. Update auxiliary allocation info.
   Heap::IncrementYoungSurvivorsCounter(survivors_size);
   space->set_age_mark(space->top());
+
+  // Update JSFunction pointers from the runtime profiler.
+  RuntimeProfiler::UpdateSamplesAfterScavenge();
 }
 
 
@@ -2535,6 +2541,7 @@ void MarkCompactCollector::UpdatePointers() {
   state_ = UPDATE_POINTERS;
 #endif
   UpdatingVisitor updating_visitor;
+  RuntimeProfiler::UpdateSamplesAfterCompact(&updating_visitor);
   Heap::IterateRoots(&updating_visitor, VISIT_ONLY_STRONG);
   GlobalHandles::IterateWeakRoots(&updating_visitor);
 

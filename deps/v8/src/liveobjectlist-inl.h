@@ -32,5 +32,95 @@
 
 #include "liveobjectlist.h"
 
+namespace v8 {
+namespace internal {
+
+#ifdef LIVE_OBJECT_LIST
+
+void LiveObjectList::GCEpilogue() {
+  if (!NeedLOLProcessing()) return;
+  GCEpiloguePrivate();
+}
+
+
+void LiveObjectList::GCPrologue() {
+  if (!NeedLOLProcessing()) return;
+#ifdef VERIFY_LOL
+  if (FLAG_verify_lol) {
+    Verify();
+  }
+#endif
+}
+
+
+void LiveObjectList::IterateElements(ObjectVisitor* v) {
+  if (!NeedLOLProcessing()) return;
+  IterateElementsPrivate(v);
+}
+
+
+void LiveObjectList::ProcessNonLive(HeapObject *obj) {
+  // Only do work if we have at least one list to process.
+  if (last()) DoProcessNonLive(obj);
+}
+
+
+void LiveObjectList::UpdateReferencesForScavengeGC() {
+  if (LiveObjectList::NeedLOLProcessing()) {
+    UpdateLiveObjectListVisitor update_visitor;
+    LiveObjectList::IterateElements(&update_visitor);
+  }
+}
+
+
+LiveObjectList* LiveObjectList::FindLolForId(int id,
+                                             LiveObjectList* start_lol) {
+  if (id != 0) {
+    LiveObjectList* lol = start_lol;
+    while (lol != NULL) {
+      if (lol->id() == id) {
+        return lol;
+      }
+      lol = lol->prev_;
+    }
+  }
+  return NULL;
+}
+
+
+// Iterates the elements in every lol and returns the one that matches the
+// specified key.  If no matching element is found, then it returns NULL.
+template <typename T>
+inline LiveObjectList::Element*
+LiveObjectList::FindElementFor(T (*GetValue)(LiveObjectList::Element*), T key) {
+  LiveObjectList *lol = last();
+  while (lol != NULL) {
+    Element* elements = lol->elements_;
+    for (int i = 0; i < lol->obj_count_; i++) {
+      Element* element = &elements[i];
+      if (GetValue(element) == key) {
+        return element;
+      }
+    }
+    lol = lol->prev_;
+  }
+  return NULL;
+}
+
+
+inline int LiveObjectList::GetElementId(LiveObjectList::Element* element) {
+  return element->id_;
+}
+
+
+inline HeapObject*
+LiveObjectList::GetElementObj(LiveObjectList::Element* element) {
+  return element->obj_;
+}
+
+#endif  // LIVE_OBJECT_LIST
+
+} }  // namespace v8::internal
+
 #endif  // V8_LIVEOBJECTLIST_INL_H_
 

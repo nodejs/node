@@ -82,10 +82,8 @@ void VirtualFrame::Push(Register reg, TypeInfo info) {
 }
 
 
-void VirtualFrame::Push(Handle<Object> value) {
-  FrameElement element =
-      FrameElement::ConstantElement(value, FrameElement::NOT_SYNCED);
-  elements_.Add(element);
+bool VirtualFrame::ConstantPoolOverflowed() {
+  return FrameElement::ConstantPoolOverflowed();
 }
 
 

@@ -284,6 +284,7 @@ const SwVfpRegister s29 = { 29 };
 const SwVfpRegister s30 = { 30 };
 const SwVfpRegister s31 = { 31 };
 
+const DwVfpRegister no_dreg = { -1 };
 const DwVfpRegister d0  = {  0 };
 const DwVfpRegister d1  = {  1 };
 const DwVfpRegister d2  = {  2 };

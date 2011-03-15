@@ -3399,7 +3399,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ test(edx, Immediate(kSmiTagMask));
   __ j(not_zero, &base_nonsmi);
 
-  // Optimized version when both exponent and base is a smi.
+  // Optimized version when both exponent and base are smis.
   Label powi;
   __ SmiUntag(edx);
   __ cvtsi2sd(xmm0, Operand(edx));
@@ -3438,7 +3438,6 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ j(not_carry, &no_multiply);
   __ mulsd(xmm1, xmm0);
   __ bind(&no_multiply);
-  __ test(eax, Operand(eax));
   __ mulsd(xmm0, xmm0);
   __ j(not_zero, &while_true);
 
@@ -3525,7 +3524,7 @@ void MathPowStub::Generate(MacroAssembler* masm) {
   __ AllocateHeapNumber(ecx, eax, edx, &call_runtime);
   __ movdbl(FieldOperand(ecx, HeapNumber::kValueOffset), xmm1);
   __ mov(eax, ecx);
-  __ ret(2);
+  __ ret(2 * kPointerSize);
 
   __ bind(&call_runtime);
   __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -174,7 +174,7 @@ class MacroAssembler: public Assembler {
   // Store the value in register src in the safepoint register stack
   // slot for register dst.
   void StoreToSafepointRegisterSlot(Register dst, Register src);
-
+  void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes

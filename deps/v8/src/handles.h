@@ -39,7 +39,7 @@ namespace internal {
 // Handles are only valid within a HandleScope.
 // When a handle is created for an object a cell is allocated in the heap.
 
-template<class T>
+template<typename T>
 class Handle {
  public:
   INLINE(explicit Handle(T** location)) { location_ = location; }
@@ -112,15 +112,7 @@ class HandleScope {
   }
 
   ~HandleScope() {
-    current_.next = prev_next_;
-    current_.level--;
-    if (current_.limit != prev_limit_) {
-      current_.limit = prev_limit_;
-      DeleteExtensions();
-    }
-#ifdef DEBUG
-    ZapRange(prev_next_, prev_limit_);
-#endif
+    CloseScope();
   }
 
   // Counts the number of allocated handles.
@@ -148,6 +140,26 @@ class HandleScope {
   static Address current_limit_address();
   static Address current_level_address();
 
+  // Closes the HandleScope (invalidating all handles
+  // created in the scope of the HandleScope) and returns
+  // a Handle backed by the parent scope holding the
+  // value of the argument handle.
+  template <typename T>
+  Handle<T> CloseAndEscape(Handle<T> handle_value) {
+    T* value = *handle_value;
+    // Throw away all handles in the current scope.
+    CloseScope();
+    // Allocate one handle in the parent scope.
+    ASSERT(current_.level > 0);
+    Handle<T> result(CreateHandle<T>(value));
+    // Reinitialize the current scope (so that it's ready
+    // to be used or closed again).
+    prev_next_ = current_.next;
+    prev_limit_ = current_.limit;
+    current_.level++;
+    return result;
+  }
+
  private:
   // Prevent heap allocation or illegal handle scopes.
   HandleScope(const HandleScope&);
@@ -155,9 +167,23 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
+  inline void CloseScope() {
+    current_.next = prev_next_;
+    current_.level--;
+    if (current_.limit != prev_limit_) {
+      current_.limit = prev_limit_;
+      DeleteExtensions();
+    }
+#ifdef DEBUG
+    ZapRange(prev_next_, prev_limit_);
+#endif
+  }
+
   static v8::ImplementationUtilities::HandleScopeData current_;
-  Object** const prev_next_;
-  Object** const prev_limit_;
+  // Holds values on entry. The prev_next_ value is never NULL
+  // on_entry, but is set to NULL when this scope is closed.
+  Object** prev_next_;
+  Object** prev_limit_;
 
   // Extend the handle scope making room for more handles.
   static internal::Object** Extend();
@@ -197,12 +223,14 @@ Handle<String> FlattenGetString(Handle<String> str);
 Handle<Object> SetProperty(Handle<JSObject> object,
                            Handle<String> key,
                            Handle<Object> value,
-                           PropertyAttributes attributes);
+                           PropertyAttributes attributes,
+                           StrictModeFlag strict);
 
 Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
-                           PropertyAttributes attributes);
+                           PropertyAttributes attributes,
+                           StrictModeFlag strict);
 
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
@@ -233,7 +261,8 @@ void SetLocalPropertyNoThrow(Handle<JSObject> object,
 Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
-                                          PropertyAttributes attributes);
+                                          PropertyAttributes attributes,
+                                          StrictModeFlag strict);
 
 Handle<Object> SetElement(Handle<JSObject> object,
                           uint32_t index,
@@ -354,7 +383,9 @@ bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
 
 bool CompileLazyInLoop(Handle<JSFunction> function, ClearExceptionFlag flag);
 
-bool CompileOptimized(Handle<JSFunction> function, int osr_ast_id);
+bool CompileOptimized(Handle<JSFunction> function,
+                      int osr_ast_id,
+                      ClearExceptionFlag flag);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

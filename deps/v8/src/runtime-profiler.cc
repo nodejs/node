@@ -35,6 +35,7 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "global-handles.h"
+#include "mark-compact.h"
 #include "scopeinfo.h"
 #include "top.h"
 
@@ -100,11 +101,6 @@ static int sampler_ticks_until_threshold_adjustment =
 // The ratio of ticks spent in JS code in percent.
 static Atomic32 js_ratio;
 
-// The JSFunctions in the sampler window are not GC safe. Old-space
-// pointers are not cleared during mark-sweep collection and therefore
-// the window might contain stale pointers. The window is updated on
-// scavenges and (parts of it) cleared on mark-sweep and
-// mark-sweep-compact.
 static Object* sampler_window[kSamplerWindowSize] = { NULL, };
 static int sampler_window_position = 0;
 static int sampler_window_weight[kSamplerWindowSize] = { 0, };
@@ -134,7 +130,6 @@ void PendingListNode::WeakCallback(v8::Persistent<v8::Value>, void* data) {
 
 
 static bool IsOptimizable(JSFunction* function) {
-  if (Heap::InNewSpace(function)) return false;
   Code* code = function->code();
   return code->kind() == Code::FUNCTION && code->optimizable();
 }
@@ -204,16 +199,6 @@ static void ClearSampleBuffer() {
   for (int i = 0; i < kSamplerWindowSize; i++) {
     sampler_window[i] = NULL;
     sampler_window_weight[i] = 0;
-  }
-}
-
-
-static void ClearSampleBufferNewSpaceEntries() {
-  for (int i = 0; i < kSamplerWindowSize; i++) {
-    if (Heap::InNewSpace(sampler_window[i])) {
-      sampler_window[i] = NULL;
-      sampler_window_weight[i] = 0;
-    }
   }
 }
 
@@ -372,24 +357,6 @@ void RuntimeProfiler::NotifyTick() {
 }
 
 
-void RuntimeProfiler::MarkCompactPrologue(bool is_compacting) {
-  if (is_compacting) {
-    // Clear all samples before mark-sweep-compact because every
-    // function might move.
-    ClearSampleBuffer();
-  } else {
-    // Clear only new space entries on mark-sweep since none of the
-    // old-space functions will move.
-    ClearSampleBufferNewSpaceEntries();
-  }
-}
-
-
-bool IsEqual(void* first, void* second) {
-  return first == second;
-}
-
-
 void RuntimeProfiler::Setup() {
   ClearSampleBuffer();
   // If the ticker hasn't already started, make sure to do so to get
@@ -411,13 +378,41 @@ void RuntimeProfiler::TearDown() {
 }
 
 
-Object** RuntimeProfiler::SamplerWindowAddress() {
-  return sampler_window;
+int RuntimeProfiler::SamplerWindowSize() {
+  return kSamplerWindowSize;
 }
 
 
-int RuntimeProfiler::SamplerWindowSize() {
-  return kSamplerWindowSize;
+// Update the pointers in the sampler window after a GC.
+void RuntimeProfiler::UpdateSamplesAfterScavenge() {
+  for (int i = 0; i < kSamplerWindowSize; i++) {
+    Object* function = sampler_window[i];
+    if (function != NULL && Heap::InNewSpace(function)) {
+      MapWord map_word = HeapObject::cast(function)->map_word();
+      if (map_word.IsForwardingAddress()) {
+        sampler_window[i] = map_word.ToForwardingAddress();
+      } else {
+        sampler_window[i] = NULL;
+      }
+    }
+  }
+}
+
+
+void RuntimeProfiler::RemoveDeadSamples() {
+  for (int i = 0; i < kSamplerWindowSize; i++) {
+    Object* function = sampler_window[i];
+    if (function != NULL && !HeapObject::cast(function)->IsMarked()) {
+      sampler_window[i] = NULL;
+    }
+  }
+}
+
+
+void RuntimeProfiler::UpdateSamplesAfterCompact(ObjectVisitor* visitor) {
+  for (int i = 0; i < kSamplerWindowSize; i++) {
+    visitor->VisitPointer(&sampler_window[i]);
+  }
 }
 
 

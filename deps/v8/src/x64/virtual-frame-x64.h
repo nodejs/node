@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -343,7 +343,7 @@ class VirtualFrame : public ZoneObject {
 
   // Call keyed store IC.  Value, key, and receiver are found on top
   // of the frame.  All three are dropped.
-  Result CallKeyedStoreIC();
+  Result CallKeyedStoreIC(StrictModeFlag strict_mode);
 
   // Call call IC.  Function name, arguments, and receiver are found on top
   // of the frame and dropped by the call.
@@ -400,9 +400,11 @@ class VirtualFrame : public ZoneObject {
   // Uses kScratchRegister, emits appropriate relocation info.
   void EmitPush(Handle<Object> value);
 
+  inline bool ConstantPoolOverflowed();
+
   // Push an element on the virtual frame.
+  void Push(Handle<Object> value);
   inline void Push(Register reg, TypeInfo info = TypeInfo::Unknown());
-  inline void Push(Handle<Object> value);
   inline void Push(Smi* value);
 
   // Pushing a result invalidates it (its contents become owned by the

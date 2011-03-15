@@ -1,4 +1,23 @@
-// Copyright 2009 Ryan Dahl <ry@tinyclouds.org>
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <node.h>
 
@@ -48,6 +67,7 @@
 #include <node_stdio.h>
 #include <node_javascript.h>
 #include <node_version.h>
+#include <node_string.h>
 #ifdef HAVE_OPENSSL
 # include <node_crypto.h>
 #endif
@@ -96,7 +116,6 @@ static ev_idle tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
-static ev_async enable_debug;
 static ev_async eio_want_poll_notifier;
 static ev_async eio_done_poll_notifier;
 static ev_idle  eio_poller;
@@ -1273,7 +1292,7 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
 }
 
 // Executes a str within the current v8 context.
-Local<Value> ExecuteString(Local<String> source, Local<Value> filename) {
+Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
   HandleScope scope;
   TryCatch try_catch;
 
@@ -1761,6 +1780,7 @@ static void DebugBreakMessageHandler(const Debug::Message& message) {
   // debug-agent.cc of v8/src when a new session is created
 }
 
+
 Persistent<Object> binding_cache;
 
 static Handle<Value> Binding(const Arguments& args) {
@@ -2052,8 +2072,8 @@ static void Load(int argc, char *argv[]) {
 
   TryCatch try_catch;
 
-  Local<Value> f_value = ExecuteString(String::New(MainSource()),
-                                       String::New("node.js"));
+  Local<Value> f_value = ExecuteString(MainSource(),
+                                       IMMUTABLE_STRING("node.js"));
   if (try_catch.HasCaught())  {
     ReportException(try_catch, true);
     exit(10);
@@ -2190,13 +2210,6 @@ static void SignalExit(int signal) {
 }
 
 
-static void EnableDebugSignalHandler(int signal) {
-  // can't do much here, marshal this back into the main thread where we'll
-  // enable the debugger.
-  ev_async_send(EV_DEFAULT_UC_ &enable_debug);
-}
-
-
 static void EnableDebug(bool wait_connect) {
   // Start the debug thread and it's associated TCP server on port 5858.
   bool r = Debug::EnableAgent("node " NODE_VERSION, debug_port);
@@ -2217,10 +2230,22 @@ static void EnableDebug(bool wait_connect) {
 }
 
 
-static void EnableDebug2(EV_P_ ev_async *watcher, int revents) {
-  assert(watcher == &enable_debug);
-  assert(revents == EV_ASYNC);
-  EnableDebug(false);
+static volatile bool hit_signal;
+
+
+static void EnableDebugSignalHandler(int signal) {
+  // This is signal safe.
+  hit_signal = true;
+  v8::Debug::DebugBreak();
+}
+
+
+static void DebugSignalCB(const Debug::EventDetails& details) {
+  if (hit_signal && details.GetEvent() == v8::Break) {
+    hit_signal = false;
+    fprintf(stderr, "Hit SIGUSR1 - starting debugger agent.\n");
+    EnableDebug(false);
+  }
 }
 
 
@@ -2357,9 +2382,7 @@ int Start(int argc, char *argv[]) {
   } else {
 #ifdef __POSIX__
     RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
-    ev_async_init(&enable_debug, EnableDebug2);
-    ev_async_start(EV_DEFAULT_UC_ &enable_debug);
-    ev_unref(EV_DEFAULT_UC);
+    Debug::SetDebugEventListener2(DebugSignalCB);
 #endif // __POSIX__
   }
 

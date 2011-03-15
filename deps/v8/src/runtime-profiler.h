@@ -47,9 +47,10 @@ class RuntimeProfiler : public AllStatic {
   static void Reset();
   static void TearDown();
 
-  static void MarkCompactPrologue(bool is_compacting);
-  static Object** SamplerWindowAddress();
   static int SamplerWindowSize();
+  static void UpdateSamplesAfterScavenge();
+  static void RemoveDeadSamples();
+  static void UpdateSamplesAfterCompact(ObjectVisitor* visitor);
 };
 
 

@@ -109,6 +109,7 @@ var debugger_flags = {
     }
   },
 };
+var lol_is_enabled = %HasLOLEnabled();
 
 
 // Create a new break point object and add it to the list of break points.
@@ -1391,6 +1392,8 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
         this.scopeRequest_(request, response);
       } else if (request.command == 'evaluate') {
         this.evaluateRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'getobj') {
+        this.getobjRequest_(request, response);
       } else if (request.command == 'lookup') {
         this.lookupRequest_(request, response);
       } else if (request.command == 'references') {
@@ -1417,6 +1420,28 @@ DebugCommandProcessor.prototype.processDebugJSONRequest = function(json_request)
       // GC tools:
       } else if (request.command == 'gc') {
         this.gcRequest_(request, response);
+
+      // LiveObjectList tools:
+      } else if (lol_is_enabled && request.command == 'lol-capture') {
+        this.lolCaptureRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-delete') {
+        this.lolDeleteRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-diff') {
+        this.lolDiffRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-getid') {
+        this.lolGetIdRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-info') {
+        this.lolInfoRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-reset') {
+        this.lolResetRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-retainers') {
+        this.lolRetainersRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-path') {
+        this.lolPathRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-print') {
+        this.lolPrintRequest_(request, response);
+      } else if (lol_is_enabled && request.command == 'lol-stats') {
+        this.lolStatsRequest_(request, response);
 
       } else {
         throw new Error('Unknown command "' + request.command + '" in request');
@@ -2011,6 +2036,24 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
 };
 
 
+DebugCommandProcessor.prototype.getobjRequest_ = function(request, response) {
+  if (!request.arguments) {
+    return response.failed('Missing arguments');
+  }
+
+  // Pull out arguments.
+  var obj_id = request.arguments.obj_id;
+
+  // Check for legal arguments.
+  if (IS_UNDEFINED(obj_id)) {
+    return response.failed('Argument "obj_id" missing');
+  }
+
+  // Dump the object.
+  response.body = MakeMirror(%GetLOLObj(obj_id));
+};
+
+
 DebugCommandProcessor.prototype.lookupRequest_ = function(request, response) {
   if (!request.arguments) {
     return response.failed('Missing arguments');
@@ -2341,6 +2384,84 @@ DebugCommandProcessor.prototype.gcRequest_ = function(request, response) {
 };
 
 
+DebugCommandProcessor.prototype.lolCaptureRequest_ =
+    function(request, response) {
+  response.body = %CaptureLOL();
+};
+
+
+DebugCommandProcessor.prototype.lolDeleteRequest_ =
+    function(request, response) {
+  var id = request.arguments.id;
+  var result = %DeleteLOL(id);
+  if (result) {
+    response.body = { id: id };
+  } else {
+    response.failed('Failed to delete: live object list ' + id + ' not found.');
+  }
+};
+
+
+DebugCommandProcessor.prototype.lolDiffRequest_ = function(request, response) {
+  var id1 = request.arguments.id1;
+  var id2 = request.arguments.id2;
+  var verbose = request.arguments.verbose;
+  var filter = request.arguments.filter;
+  if (verbose === true) {
+    var start = request.arguments.start;
+    var count = request.arguments.count;
+    response.body = %DumpLOL(id1, id2, start, count, filter);
+  } else {
+    response.body = %SummarizeLOL(id1, id2, filter);
+  }
+};
+
+
+DebugCommandProcessor.prototype.lolGetIdRequest_ = function(request, response) {
+  var address = request.arguments.address;
+  response.body = {};
+  response.body.id = %GetLOLObjId(address);
+};
+
+
+DebugCommandProcessor.prototype.lolInfoRequest_ = function(request, response) {
+  var start = request.arguments.start;
+  var count = request.arguments.count;
+  response.body = %InfoLOL(start, count);
+};
+
+
+DebugCommandProcessor.prototype.lolResetRequest_ = function(request, response) {
+  %ResetLOL();
+};
+
+
+DebugCommandProcessor.prototype.lolRetainersRequest_ =
+    function(request, response) {
+  var id = request.arguments.id;
+  var verbose = request.arguments.verbose;
+  var start = request.arguments.start;
+  var count = request.arguments.count;
+  var filter = request.arguments.filter;
+
+  response.body = %GetLOLObjRetainers(id, Mirror.prototype, verbose,
+                                      start, count, filter);
+};
+
+
+DebugCommandProcessor.prototype.lolPathRequest_ = function(request, response) {
+  var id1 = request.arguments.id1;
+  var id2 = request.arguments.id2;
+  response.body = {};
+  response.body.path = %GetLOLPath(id1, id2, Mirror.prototype);
+};
+
+
+DebugCommandProcessor.prototype.lolPrintRequest_ = function(request, response) {
+  var id = request.arguments.id;
+  response.body = {};
+  response.body.dump = %PrintLOLObj(id);
+};
 
 
 // Check whether the previously processed command caused the VM to become
