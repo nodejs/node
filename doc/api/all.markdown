@@ -17,15 +17,15 @@
 @include fs
 @include path
 @include net
-@include dns
 @include dgram
+@include dns
 @include http
 @include https
 @include url
 @include querystring
 @include readline
 @include repl
-@include script
+@include vm
 @include child_processes
 @include assert
 @include tty
