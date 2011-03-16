@@ -100,3 +100,14 @@ Example inspection of os.cpus:
            sys: 34920,
            idle: 1072572010,
            irq: 30 } } ]
+
+### os.getNetworkInterfaces()
+
+Get a list of network interfaces:
+
+    { lo: { ip: '127.0.0.1', internal: true, ip6: '::1' },
+      eth0: { ip6: 'fe80::f2de:f1ff:fe19:ae7', internal: false },
+      wlan0: { ip: '10.0.1.118', internal: false, ip6: 'fe80::226:c7ff:fe7d:1602' },
+      vboxnet0: {} }
+
+

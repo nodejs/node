@@ -36,6 +36,14 @@
 #include <stdlib.h> // free
 #include <string.h> // strdup
 
+/* GetInterfaceAddresses */
+#include <arpa/inet.h>
+#include <sys/types.h>
+#include <ifaddrs.h>
+#include <errno.h>
+#include <sys/ioctl.h>
+#include <net/if.h>
+
 #if HAVE_MONOTONIC_CLOCK
 #include <time.h>
 #endif
@@ -294,5 +302,78 @@ int Platform::GetLoadAvg(Local<Array> *loads) {
 
   return 0;
 }
+
+
+bool IsInternal(struct ifaddrs* addr) {
+  return addr->ifa_flags & IFF_UP &&
+         addr->ifa_flags & IFF_RUNNING &&
+         addr->ifa_flags & IFF_LOOPBACK;
+}
+
+
+Handle<Value> Platform::GetInterfaceAddresses() {
+  HandleScope scope;
+
+  struct ::ifaddrs *addrs;
+
+  int r = getifaddrs(&addrs);
+
+  if (r != 0) {
+    return ThrowException(ErrnoException(errno, "getifaddrs"));
+  }
+
+  struct ::ifaddrs *addr;
+
+  Local<Object> a = Object::New();
+
+  for (addr = addrs;
+       addr;
+       addr = addr->ifa_next) {
+    Local<String> name = String::New(addr->ifa_name);
+    Local<Object> info;
+
+    if (a->Has(name)) {
+      info = a->Get(name)->ToObject();
+    } else {
+      info = Object::New();
+      a->Set(name, info);
+    }
+
+    struct sockaddr *address = addr->ifa_addr;
+    char ip[INET6_ADDRSTRLEN];
+
+    switch (address->sa_family) {
+      case AF_INET6: {
+        struct sockaddr_in6 *a6 = (struct sockaddr_in6*)address;
+        inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN);
+        info->Set(String::New("ip6"), String::New(ip));
+        if (addr->ifa_flags) {
+          info->Set(String::New("internal"),
+                    IsInternal(addr) ? True() : False());
+        }
+        break;
+      }
+
+      case AF_INET: {
+        struct sockaddr_in *a4 = (struct sockaddr_in*)address;
+        inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN);
+        info->Set(String::New("ip"), String::New(ip));
+        if (addr->ifa_flags) {
+          info->Set(String::New("internal"),
+                    IsInternal(addr) ? True() : False());
+        }
+        break;
+      }
+
+      default:
+        assert(0);
+    }
+  }
+
+  freeifaddrs(addrs);
+
+  return scope.Close(a);
+}
+
 
 }  // namespace node

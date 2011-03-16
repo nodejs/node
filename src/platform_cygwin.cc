@@ -380,4 +380,10 @@ int Platform::GetLoadAvg(Local<Array> *loads) {
 }
 
 
+Handle<Value> Platform::GetInterfaceAddresses() {
+  HandleScope scope;
+  return scope.Close(Object::New());
+}
+
+
 }  // namespace node

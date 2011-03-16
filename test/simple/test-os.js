@@ -31,3 +31,12 @@ assert.ok(os.totalmem() > 0);
 assert.ok(os.cpus().length > 0);
 assert.ok(os.type().length > 0);
 assert.ok(os.release().length > 0);
+
+
+var interfaces = os.getNetworkInterfaces();
+console.error(interfaces);
+switch (process.platform) {
+  case 'linux':
+    assert.equal('127.0.0.1', interfaces.lo.ip);
+    break;
+}

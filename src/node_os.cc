@@ -161,6 +161,12 @@ static Handle<Value> GetLoadAvg(const Arguments& args) {
   return scope.Close(loads);
 }
 
+
+static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
+  return Platform::GetInterfaceAddresses();
+}
+
+
 #ifdef __MINGW32__
 static Handle<Value> OpenOSHandle(const Arguments& args) {
   HandleScope scope;
@@ -186,6 +192,7 @@ void OS::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getCPUs", GetCPUInfo);
   NODE_SET_METHOD(target, "getOSType", GetOSType);
   NODE_SET_METHOD(target, "getOSRelease", GetOSRelease);
+  NODE_SET_METHOD(target, "getInterfaceAddresses", GetInterfaceAddresses);
 
 #ifdef __MINGW32__
   NODE_SET_METHOD(target, "openOSHandle", OpenOSHandle);
