@@ -70,6 +70,7 @@ website_files = \
 	build/doc/sh_vim-dark.css \
 	build/doc/logo.png      \
 	build/doc/sponsored.png \
+  build/doc/favicon.ico   \
 	build/doc/pipe.css
 
 doc: build/default/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
