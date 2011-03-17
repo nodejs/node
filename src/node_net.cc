@@ -591,6 +591,42 @@ static Handle<Value> GetSockName(const Arguments& args) {
   return scope.Close(info);
 }
 
+static Handle<Value> GetSockFamily(const Arguments& args) {
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  Local<Value> result;
+
+  struct sockaddr_storage address_storage;
+  socklen_t len = sizeof(struct sockaddr_storage);
+
+#ifdef __POSIX__
+  if (0 > getsockname(fd, (struct sockaddr *) &address_storage, &len)) {
+    return ThrowException(ErrnoException(errno, "getsockname"));
+  }
+
+#else // __MINGW32__
+  if (SOCKET_ERROR == getsockname(_get_osfhandle(fd),
+      (struct sockaddr *) &address_storage, &len)) {
+    return ThrowException(ErrnoException(WSAGetLastError(), "getsockname"));
+  }
+#endif // __MINGW32__
+  switch ((address_storage).ss_family) {
+    case AF_INET6:
+      result = String::New("AF_INET6");
+      break;
+    case AF_INET:
+      result = String::New("AF_INET");
+      break;
+    case AF_UNIX:
+      result = String::New("AF_UNIX");
+      break;
+    default:
+      result = Integer::New((address_storage).ss_family);
+  }
+  scope.Close(result);
+}
 
 static Handle<Value> GetPeerName(const Arguments& args) {
   HandleScope scope;
@@ -720,6 +756,40 @@ static Handle<Value> SocketError(const Arguments& args) {
   return scope.Close(Integer::New(error));
 }
 
+static Handle<Value> GetSockType(const Arguments& args) {
+  HandleScope scope;
+
+  FD_ARG(args[0])
+
+  int type;
+  socklen_t len = sizeof(int);
+
+#ifdef __POSIX__
+  int r = getsockopt(fd, SOL_SOCKET, SO_TYPE, &type, &len);
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(errno, "getsockopt"));
+  }
+#else // __MINGW32__
+  int r = getsockopt(_get_osfhandle(fd), SOL_SOCKET, SO_TYPE, (char*)&type, &len);
+
+  if (r < 0) {
+    return ThrowException(ErrnoException(WSAGetLastError(), "getsockopt"));
+  }
+#endif
+  Local<Value> result;
+  switch (type) {
+    case SOCK_STREAM:
+      result = String::New("SOCK_STREAM");
+      break;
+    case SOCK_DGRAM:
+      result = String::New("SOCK_DGRAM");
+      break;
+    default:
+      result = Integer::New(type);
+  }
+  return scope.Close(result);
+}
 
 //  var bytesRead = t.read(fd, buffer, offset, length);
 //  returns null on EAGAIN or EINTR, raises an exception on all other errors
@@ -1760,6 +1830,8 @@ void InitNet(Handle<Object> target) {
   NODE_SET_METHOD(target, "getaddrinfo", GetAddrInfo);
   NODE_SET_METHOD(target, "isIP", IsIP);
   NODE_SET_METHOD(target, "errnoException", CreateErrnoException);
+  NODE_SET_METHOD(target, "getsocktype", GetSockType);
+  NODE_SET_METHOD(target, "getsockfamily", GetSockFamily);
 
   errno_symbol          = NODE_PSYMBOL("errno");
   syscall_symbol        = NODE_PSYMBOL("syscall");
