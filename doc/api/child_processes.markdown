@@ -71,7 +71,7 @@ if set true, will cause the subprocess to be run in a new session.
 
 Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit code:
 
-    var util   = require('util'),
+    var util  = require('util'),
         spawn = require('child_process').spawn,
         ls    = spawn('ls', ['-lh', '/usr']);
 
@@ -90,7 +90,7 @@ Example of running `ls -lh /usr`, capturing `stdout`, `stderr`, and the exit cod
 
 Example: A very elaborate way to run 'ps ax | grep ssh'
 
-    var util   = require('util'),
+    var util  = require('util'),
         spawn = require('child_process').spawn,
         ps    = spawn('ps', ['ax']),
         grep  = spawn('grep', ['ssh']);
@@ -144,8 +144,8 @@ See also: `child_process.exec()`
 High-level way to execute a command as a child process, buffer the
 output, and return it all in a callback.
 
-    var util   = require('util'),
-        exec  = require('child_process').exec,
+    var util = require('util'),
+        exec = require('child_process').exec,
         child;
 
     child = exec('cat *.js bad_file | wc -l',
