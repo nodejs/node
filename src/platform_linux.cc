@@ -364,9 +364,6 @@ Handle<Value> Platform::GetInterfaceAddresses() {
         }
         break;
       }
-
-      default:
-        assert(0);
     }
   }
 
