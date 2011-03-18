@@ -694,7 +694,7 @@ def GuessStrictAliasing(env):
     env = Environment(tools=['gcc'])
     version = subprocess.Popen([env['CC'], '-dumpversion'],
         stdout=subprocess.PIPE).communicate()[0]
-    if version.find('4.5.') == 0:
+    if version.find('4.5') == 0:
       return 'off'
   return 'default'
 
