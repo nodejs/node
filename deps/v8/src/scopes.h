@@ -104,6 +104,9 @@ class Scope: public ZoneObject {
   // doesn't re-allocate variables repeatedly.
   static bool Analyze(CompilationInfo* info);
 
+  static Scope* DeserializeScopeChain(CompilationInfo* info,
+                                      Scope* innermost_scope);
+
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
 
@@ -313,14 +316,6 @@ class Scope: public ZoneObject {
 
   explicit Scope(Type type);
 
-  void InsertAfterScope(Scope* scope) {
-    inner_scopes_.Add(scope);
-    outer_scope_ = scope->outer_scope_;
-    outer_scope_->inner_scopes_.RemoveElement(scope);
-    outer_scope_->inner_scopes_.Add(this);
-    scope->outer_scope_ = this;
-  }
-
   // Scope tree.
   Scope* outer_scope_;  // the immediately enclosing outer scope, or NULL
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
@@ -412,6 +407,13 @@ class Scope: public ZoneObject {
 
  private:
   Scope(Scope* inner_scope, SerializedScopeInfo* scope_info);
+
+  void AddInnerScope(Scope* inner_scope) {
+    if (inner_scope != NULL) {
+      inner_scopes_.Add(inner_scope);
+      inner_scope->outer_scope_ = this;
+    }
+  }
 
   void SetDefaults(Type type,
                    Scope* outer_scope,
