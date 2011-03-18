@@ -48,7 +48,7 @@ var exits = 0;
 // for child_process.spawn(path, args, env, customFds) deprecated api
 (function() {
   var expected = 'hello world';
-  var helloPath = path.join(common.fixturesDir, 'hello.txt');
+  var helloPath = path.join(common.tmpDir, 'hello.txt');
 
   fs.open(helloPath, 'w', 400, function(err, fd) {
     if (err) throw err;

@@ -35,7 +35,7 @@ var expected = 'hello world';
 
 // Test the equivalent of:
 // $ /bin/echo 'hello world' > hello.txt
-var helloPath = fixtPath('hello.txt');
+var helloPath = path.join(common.tmpDir, 'hello.txt');
 
 function test1(next) {
   console.log('Test 1...');

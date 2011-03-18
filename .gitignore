@@ -5,7 +5,6 @@ tags
 *.pyc
 doc/api.xml
 tools/nodejs.pc
-test/fixtures/hello.txt
 tmp/
 node
 node_g
