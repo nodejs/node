@@ -1483,9 +1483,10 @@ static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
   assert(revents == EV_TIMEOUT);
 
   // check memory
-  size_t rss, vsize;
-  if (!ev_is_active(&gc_idle) && Platform::GetMemory(&rss, &vsize) == 0) {
-    if (rss > 1024*1024*128) {
+  if (!ev_is_active(&gc_idle)) {
+    HeapStatistics stats;
+    V8::GetHeapStatistics(&stats);
+    if (stats.total_heap_size() > 1024 * 1024 * 128) {
       // larger than 128 megs, just start the idle watcher
       ev_idle_start(EV_A_ &gc_idle);
       return;
