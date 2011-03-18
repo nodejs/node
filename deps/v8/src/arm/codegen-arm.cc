@@ -1153,7 +1153,7 @@ void DeferredInlineSmiOperation::GenerateNonSmiInput() {
   }
   // Check that the *signed* result fits in a smi. Not necessary for AND, SAR
   // if the shift if more than 0 or SHR if the shit is more than 1.
-  if (!( (op_ == Token::AND) ||
+  if (!( (op_ == Token::AND && value_ >= 0) ||
         ((op_ == Token::SAR) && (shift_value > 0)) ||
         ((op_ == Token::SHR) && (shift_value > 1)))) {
     __ add(r3, int32, Operand(0x40000000), SetCC);
@@ -1414,8 +1414,10 @@ void CodeGenerator::SmiOperation(Token::Value op,
           default: UNREACHABLE();
         }
         deferred->BindExit();
-        TypeInfo result_type =
-            (op == Token::BIT_AND) ? TypeInfo::Smi() : TypeInfo::Integer32();
+        TypeInfo result_type = TypeInfo::Integer32();
+        if (op == Token::BIT_AND && int_value >= 0) {
+          result_type = TypeInfo::Smi();
+        }
         frame_->EmitPush(tos, result_type);
       }
       break;

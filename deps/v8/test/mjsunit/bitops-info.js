@@ -37,7 +37,6 @@ function hidden_int32() {
   return 1600822924;  // It's a signed Int32.
 }
 
-
 function f() {
   var x = non_int32();  // Not a constant.
   var y = hidden_smi();  // Not a constant.
@@ -65,6 +64,13 @@ function f() {
   assertEquals(2600822924 & 1600822924, z & 2600822924, "9rev");
   assertEquals(46512102 & 2600822924, x & y, "10rev");
   assertEquals(1600822924 & 2600822924, x & z, "11rev");
+
+  assertEquals((46512102 & -0x20123456) | 1, (y & -0x20123456) | 1, "12");
+  assertEquals((1600822924 & -0x20123456) | 1, (z & -0x20123456) | 1, "13");
+  assertEquals((2600822924 & -0x20123456) | 1, (x & -0x20123456) | 1, "14");
+  assertEquals((46512102 & -0x20123456) | 1, (-0x20123456 & y) | 1, "12rev");
+  assertEquals((1600822924 & -0x20123456) | 1, (-0x20123456 & z) | 1, "13rev");
+  assertEquals((2600822924 & -0x20123456) | 1, (-0x20123456 & x) | 1, "14rev");
 
   assertEquals(2600822924 & 2600822924, x & x, "xx");
   assertEquals(y, y & y, "yy");

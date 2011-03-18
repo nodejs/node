@@ -148,12 +148,13 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
     unresolved_(16),
     decls_(4) {
   ASSERT(scope_info != NULL);
-  SetDefaults(FUNCTION_SCOPE, inner_scope->outer_scope(), scope_info);
+  SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
   ASSERT(resolved());
-  InsertAfterScope(inner_scope);
   if (scope_info->HasHeapAllocatedLocals()) {
     num_heap_slots_ = scope_info_->NumberOfContextSlots();
   }
+
+  AddInnerScope(inner_scope);
 
   // This scope's arguments shadow (if present) is context-allocated if an inner
   // scope accesses this one's parameters.  Allocate the arguments_shadow_
@@ -175,28 +176,38 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
 }
 
 
+Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
+                                    Scope* global_scope) {
+  ASSERT(!info->closure().is_null());
+  // If we have a serialized scope info, reuse it.
+  Scope* innermost_scope = NULL;
+  Scope* scope = NULL;
+
+  SerializedScopeInfo* scope_info = info->closure()->shared()->scope_info();
+  if (scope_info != SerializedScopeInfo::Empty()) {
+    JSFunction* current = *info->closure();
+    do {
+      current = current->context()->closure();
+      SerializedScopeInfo* scope_info = current->shared()->scope_info();
+      if (scope_info != SerializedScopeInfo::Empty()) {
+        scope = new Scope(scope, scope_info);
+        if (innermost_scope == NULL) innermost_scope = scope;
+      } else {
+        ASSERT(current->context()->IsGlobalContext());
+      }
+    } while (!current->context()->IsGlobalContext());
+  }
+
+  global_scope->AddInnerScope(scope);
+  if (innermost_scope == NULL) innermost_scope = global_scope;
+
+  return innermost_scope;
+}
+
 
 bool Scope::Analyze(CompilationInfo* info) {
   ASSERT(info->function() != NULL);
   Scope* top = info->function()->scope();
-
-  // If we have a serialized scope info, reuse it.
-  if (!info->closure().is_null()) {
-    SerializedScopeInfo* scope_info = info->closure()->shared()->scope_info();
-    if (scope_info != SerializedScopeInfo::Empty()) {
-      Scope* scope = top;
-      JSFunction* current = *info->closure();
-      do {
-        current = current->context()->closure();
-        SerializedScopeInfo* scope_info = current->shared()->scope_info();
-        if (scope_info != SerializedScopeInfo::Empty()) {
-          scope = new Scope(scope, scope_info);
-        } else {
-          ASSERT(current->context()->IsGlobalContext());
-        }
-      } while (!current->context()->IsGlobalContext());
-    }
-  }
 
   while (top->outer_scope() != NULL) top = top->outer_scope();
   top->AllocateVariables(info->calling_context());
