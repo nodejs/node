@@ -1420,7 +1420,11 @@ static Handle<Value> SetGid(const Arguments& args) {
 
     if ((err = getgrnam_r(*grpnam, &grp, getbuf, ARRAY_SIZE(getbuf), &grpp)) ||
         grpp == NULL) {
-      return ThrowException(ErrnoException(errno, "getgrnam_r"));
+      if (errno == 0)
+        return ThrowException(Exception::Error(
+          String::New("setgid group id does not exist")));
+      else
+        return ThrowException(ErrnoException(errno, "getgrnam_r"));
     }
 
     gid = grpp->gr_gid;
@@ -1455,7 +1459,11 @@ static Handle<Value> SetUid(const Arguments& args) {
 
     if ((err = getpwnam_r(*pwnam, &pwd, getbuf, ARRAY_SIZE(getbuf), &pwdp)) ||
         pwdp == NULL) {
-      return ThrowException(ErrnoException(errno, "getpwnam_r"));
+      if (errno == 0)
+        return ThrowException(Exception::Error(
+          String::New("setuid user id does not exist")));
+      else
+        return ThrowException(ErrnoException(errno, "getpwnam_r"));
     }
 
     uid = pwdp->pw_uid;
