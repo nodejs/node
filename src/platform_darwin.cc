@@ -128,7 +128,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
     return -1;
   }
   *cpus = Array::New(numcpus);
-  for (int i = 0; i < numcpus; i++) {
+  for (unsigned int i = 0; i < numcpus; i++) {
     cpuinfo = Object::New();
     cputimes = Object::New();
     cputimes->Set(String::New("user"),
@@ -210,7 +210,7 @@ int Platform::GetLoadAvg(Local<Array> *loads) {
 }
 
 
-Handle<Value> Platform::GetInterfaceAddresses() {
+v8::Handle<v8::Value> Platform::GetInterfaceAddresses() {
   HandleScope scope;
   return scope.Close(Object::New());
 }
