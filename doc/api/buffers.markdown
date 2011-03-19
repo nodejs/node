@@ -25,7 +25,7 @@ only BMP(Basic Multilingual Plane, U+0000 - U+FFFF).
 * `'base64'` - Base64 string encoding.
 
 * `'binary'` - A way of encoding raw binary data into strings by using only
-the first 8 bits of each character. This encoding method is depreciated and
+the first 8 bits of each character. This encoding method is deprecated and
 should be avoided in favor of `Buffer` objects where possible. This encoding
 will be removed in future versions of Node.
 
