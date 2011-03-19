@@ -230,6 +230,10 @@ See pwrite(2).
 The callback will be given two arguments `(err, written)` where `written`
 specifies how many _bytes_ were written.
 
+Note that it is unsafe to use `fs.write` multiple times on the same file
+without waiting for the callback. For this scenario,
+`fs.createWriteStream` is strongly recommended.
+
 ### fs.writeSync(fd, buffer, offset, length, position)
 
 Synchronous version of buffer-based `fs.write()`. Returns the number of bytes
