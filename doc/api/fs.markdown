@@ -290,7 +290,8 @@ returns a buffer.
 
 ### fs.writeFile(filename, data, encoding='utf8', [callback])
 
-Asynchronously writes data to a file. `data` can be a string or a buffer.
+Asynchronously writes data to a file, replacing the file if it already exists.
+`data` can be a string or a buffer.
 
 Example:
 
