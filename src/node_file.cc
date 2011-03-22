@@ -910,12 +910,17 @@ static Handle<Value> FUTimes(const Arguments& args) {
   if (args[3]->IsFunction()) {
     ASYNC_CALL(futime, args[3], fd, atime, mtime);
   } else {
+#ifdef __sun
+    // Solaris does not have futimes
+    return ThrowException(ErrnoException(ENOSYS, "futimes", "", 0));
+#else
     timeval times[2];
 
     ToTimevals(atime, mtime, times);
     if (futimes(fd, times) == -1) {
       return ThrowException(ErrnoException(errno, "futimes", "", 0));
     }
+#endif  //__sun
   }
 
   return Undefined();
