@@ -17,7 +17,10 @@ method.  Here are the different string encodings;
 * `'ascii'` - for 7 bit ASCII data only.  This encoding method is very fast, and will
 strip the high bit if set.
 
-* `'utf8'` - Unicode characters.  Many web pages and other document formats use UTF-8.
+* `'utf8'` - Multi byte encoded Unicode characters.  Many web pages and other document formats use UTF-8.
+
+* `'ucs2'` - 2-bytes, little endian encoded Unicode characters. It can encode
+only BMP(Basic Multilingual Plane, U+0000 - U+FFFF).
 
 * `'base64'` - Base64 string encoding.
 

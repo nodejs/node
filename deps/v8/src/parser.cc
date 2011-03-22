@@ -703,38 +703,40 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
   return result;
 }
 
-FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info) {
+FunctionLiteral* Parser::ParseLazy(CompilationInfo* info) {
   CompilationZoneScope zone_scope(DONT_DELETE_ON_EXIT);
   HistogramTimerScope timer(&Counters::parse_lazy);
   Handle<String> source(String::cast(script_->source()));
   Counters::total_parse_size.Increment(source->length());
 
+  Handle<SharedFunctionInfo> shared_info = info->shared_info();
   // Initialize parser state.
   source->TryFlatten();
   if (source->IsExternalTwoByteString()) {
     ExternalTwoByteStringUC16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source),
-        info->start_position(),
-        info->end_position());
+        shared_info->start_position(),
+        shared_info->end_position());
     FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
     return result;
   } else {
     GenericStringUC16CharacterStream stream(source,
-                                            info->start_position(),
-                                            info->end_position());
+                                            shared_info->start_position(),
+                                            shared_info->end_position());
     FunctionLiteral* result = ParseLazy(info, &stream, &zone_scope);
     return result;
   }
 }
 
 
-FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
+FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
                                    UC16CharacterStream* source,
                                    ZoneScope* zone_scope) {
+  Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
   ASSERT(target_stack_ == NULL);
 
-  Handle<String> name(String::cast(info->name()));
+  Handle<String> name(String::cast(shared_info->name()));
   fni_ = new FuncNameInferrer();
   fni_->PushEnclosingName(name);
 
@@ -746,18 +748,20 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
   {
     // Parse the function literal.
     Handle<String> no_name = Factory::empty_symbol();
-    Scope* scope =
-        NewScope(top_scope_, Scope::GLOBAL_SCOPE, inside_with());
+    Scope* scope = NewScope(top_scope_, Scope::GLOBAL_SCOPE, inside_with());
+    if (!info->closure().is_null()) {
+      scope = Scope::DeserializeScopeChain(info, scope);
+    }
     LexicalScope lexical_scope(&this->top_scope_, &this->with_nesting_level_,
                                scope);
     TemporaryScope temp_scope(&this->temp_scope_);
 
-    if (info->strict_mode()) {
+    if (shared_info->strict_mode()) {
       temp_scope.EnableStrictMode();
     }
 
     FunctionLiteralType type =
-        info->is_expression() ? EXPRESSION : DECLARATION;
+        shared_info->is_expression() ? EXPRESSION : DECLARATION;
     bool ok = true;
     result = ParseFunctionLiteral(name,
                                   false,    // Strict mode name already checked.
@@ -775,7 +779,7 @@ FunctionLiteral* Parser::ParseLazy(Handle<SharedFunctionInfo> info,
     zone_scope->DeleteOnExit();
     if (stack_overflow_) Top::StackOverflow();
   } else {
-    Handle<String> inferred_name(info->inferred_name());
+    Handle<String> inferred_name(shared_info->inferred_name());
     result->set_inferred_name(inferred_name);
   }
   return result;
@@ -5133,7 +5137,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
   Handle<Script> script = info->script();
   if (info->is_lazy()) {
     Parser parser(script, true, NULL, NULL);
-    result = parser.ParseLazy(info->shared_info());
+    result = parser.ParseLazy(info);
   } else {
     bool allow_natives_syntax =
         FLAG_allow_natives_syntax || Bootstrapper::IsActive();

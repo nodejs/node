@@ -426,7 +426,7 @@ class Parser {
                                 bool in_global_context,
                                 StrictModeFlag strict_mode);
 
-  FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info);
+  FunctionLiteral* ParseLazy(CompilationInfo* info);
 
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
@@ -441,7 +441,7 @@ class Parser {
   // construct a hashable id, so if more than 2^17 are allowed, this
   // should be checked.
   static const int kMaxNumFunctionParameters = 32766;
-  FunctionLiteral* ParseLazy(Handle<SharedFunctionInfo> info,
+  FunctionLiteral* ParseLazy(CompilationInfo* info,
                              UC16CharacterStream* source,
                              ZoneScope* zone_scope);
   enum Mode {
