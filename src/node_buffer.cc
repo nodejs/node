@@ -134,6 +134,7 @@ Buffer* Buffer::New(size_t length) {
 
   Local<Value> arg = Integer::NewFromUnsigned(length);
   Local<Object> b = constructor_template->GetFunction()->NewInstance(1, &arg);
+  if (b.IsEmpty()) return NULL;
 
   return ObjectWrap::Unwrap<Buffer>(b);
 }
