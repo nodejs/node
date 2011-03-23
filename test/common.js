@@ -60,6 +60,10 @@ process.on('exit', function() {
                       process,
                       global];
 
+  if (global.gc) {
+    knownGlobals.push(gc);
+  }
+
   if (global.DTRACE_HTTP_SERVER_RESPONSE) {
     knownGlobals.push(DTRACE_HTTP_SERVER_RESPONSE);
     knownGlobals.push(DTRACE_HTTP_SERVER_REQUEST);

@@ -707,9 +707,6 @@ static Handle<Value> Write(const Arguments& args) {
   Local<Value> cb = args[5];
 
   if (cb->IsFunction()) {
-    // Grab a reference to buffer so it isn't GCed
-    Local<Object> cb_obj = cb->ToObject();
-    cb_obj->Set(buf_symbol, buffer_obj);
 
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
@@ -775,10 +772,6 @@ static Handle<Value> Read(const Arguments& args) {
   cb = args[5];
 
   if (cb->IsFunction()) {
-    // Grab a reference to buffer so it isn't GCed
-    // TODO: need test coverage
-    Local<Object> cb_obj = cb->ToObject();
-    cb_obj->Set(buf_symbol, buffer_obj);
 
     ASYNC_CALL(read, cb, fd, buf, len, pos);
   } else {
