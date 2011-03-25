@@ -75,6 +75,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   code->set_stack_slots(StackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
+  Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
 }
 
 

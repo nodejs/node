@@ -55,6 +55,80 @@ static void ZapCodeRange(Address start, Address end) {
 }
 
 
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  HandleScope scope;
+
+  // Compute the size of relocation information needed for the code
+  // patching in Deoptimizer::DeoptimizeFunction.
+  int min_reloc_size = 0;
+  Address prev_reloc_address = code->instruction_start();
+  Address code_start_address = code->instruction_start();
+  SafepointTable table(*code);
+  for (unsigned i = 0; i < table.length(); ++i) {
+    Address curr_reloc_address = code_start_address + table.GetPcOffset(i);
+    ASSERT_GE(curr_reloc_address, prev_reloc_address);
+    SafepointEntry safepoint_entry = table.GetEntry(i);
+    int deoptimization_index = safepoint_entry.deoptimization_index();
+    if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
+      // The gap code is needed to get to the state expected at the
+      // bailout and we need to skip the call opcode to get to the
+      // address that needs reloc.
+      curr_reloc_address += safepoint_entry.gap_code_size() + 1;
+      int pc_delta = curr_reloc_address - prev_reloc_address;
+      // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
+      // if encodable with small pc delta encoding and up to 6 bytes
+      // otherwise.
+      if (pc_delta <= RelocInfo::kMaxSmallPCDelta) {
+        min_reloc_size += 2;
+      } else {
+        min_reloc_size += 6;
+      }
+      prev_reloc_address = curr_reloc_address;
+    }
+  }
+
+  // If the relocation information is not big enough we create a new
+  // relocation info object that is padded with comments to make it
+  // big enough for lazy doptimization.
+  int reloc_length = code->relocation_info()->length();
+  if (min_reloc_size > reloc_length) {
+    int comment_reloc_size = RelocInfo::kMinRelocCommentSize;
+    // Padding needed.
+    int min_padding = min_reloc_size - reloc_length;
+    // Number of comments needed to take up at least that much space.
+    int additional_comments =
+        (min_padding + comment_reloc_size - 1) / comment_reloc_size;
+    // Actual padding size.
+    int padding = additional_comments * comment_reloc_size;
+    // Allocate new relocation info and copy old relocation to the end
+    // of the new relocation info array because relocation info is
+    // written and read backwards.
+    Handle<ByteArray> new_reloc =
+        Factory::NewByteArray(reloc_length + padding, TENURED);
+    memcpy(new_reloc->GetDataStartAddress() + padding,
+           code->relocation_info()->GetDataStartAddress(),
+           reloc_length);
+    // Create a relocation writer to write the comments in the padding
+    // space. Use position 0 for everything to ensure short encoding.
+    RelocInfoWriter reloc_info_writer(
+        new_reloc->GetDataStartAddress() + padding, 0);
+    intptr_t comment_string
+        = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
+    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string);
+    for (int i = 0; i < additional_comments; ++i) {
+#ifdef DEBUG
+      byte* pos_before = reloc_info_writer.pos();
+#endif
+      reloc_info_writer.Write(&rinfo);
+      ASSERT(RelocInfo::kMinRelocCommentSize ==
+             pos_before - reloc_info_writer.pos());
+    }
+    // Replace relocation information on the code object.
+    code->set_relocation_info(*new_reloc);
+  }
+}
+
+
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;
 

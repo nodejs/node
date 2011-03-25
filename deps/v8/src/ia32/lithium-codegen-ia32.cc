@@ -31,6 +31,7 @@
 
 #include "ia32/lithium-codegen-ia32.h"
 #include "code-stubs.h"
+#include "deoptimizer.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -43,20 +44,13 @@ class SafepointGenerator : public PostCallGenerator {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
-                     int deoptimization_index,
-                     bool ensure_reloc_space = false)
+                     int deoptimization_index)
       : codegen_(codegen),
         pointers_(pointers),
-        deoptimization_index_(deoptimization_index),
-        ensure_reloc_space_(ensure_reloc_space) { }
+        deoptimization_index_(deoptimization_index) {}
   virtual ~SafepointGenerator() { }
 
   virtual void Generate() {
-    // Ensure that we have enough space in the reloc info to patch
-    // this with calls when doing deoptimization.
-    if (ensure_reloc_space_) {
-      codegen_->EnsureRelocSpaceForDeoptimization();
-    }
     codegen_->RecordSafepoint(pointers_, deoptimization_index_);
   }
 
@@ -64,7 +58,6 @@ class SafepointGenerator : public PostCallGenerator {
   LCodeGen* codegen_;
   LPointerMap* pointers_;
   int deoptimization_index_;
-  bool ensure_reloc_space_;
 };
 
 
@@ -78,7 +71,6 @@ bool LCodeGen::GenerateCode() {
   return GeneratePrologue() &&
       GenerateBody() &&
       GenerateDeferredCode() &&
-      GenerateRelocPadding() &&
       GenerateSafepointTable();
 }
 
@@ -88,6 +80,7 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   code->set_stack_slots(StackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
+  Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
 }
 
 
@@ -385,22 +378,6 @@ void LCodeGen::WriteTranslation(LEnvironment* environment,
 }
 
 
-void LCodeGen::EnsureRelocSpaceForDeoptimization() {
-  // Since we patch the reloc info with RUNTIME_ENTRY calls every patch
-  // site will take up 2 bytes + any pc-jumps.
-  // We are conservative and always reserver 6 bytes in case where a
-  // simple pc-jump is not enough.
-  uint32_t pc_delta =
-      masm()->pc_offset() - deoptimization_reloc_size.last_pc_offset;
-  if (is_uintn(pc_delta, 6)) {
-    deoptimization_reloc_size.min_size += 2;
-  } else {
-    deoptimization_reloc_size.min_size += 6;
-  }
-  deoptimization_reloc_size.last_pc_offset = masm()->pc_offset();
-}
-
-
 void LCodeGen::AddToTranslation(Translation* translation,
                                 LOperand* op,
                                 bool is_tagged) {
@@ -454,7 +431,6 @@ void LCodeGen::CallCode(Handle<Code> code,
   }
   __ call(code, mode);
 
-  EnsureRelocSpaceForDeoptimization();
   RegisterLazyDeoptimization(instr);
 
   // Signal that we don't inline smi code before these stubs in the
@@ -479,6 +455,7 @@ void LCodeGen::CallRuntime(Runtime::Function* fun,
     __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   }
   __ CallRuntime(fun, argc);
+
   RegisterLazyDeoptimization(instr);
 }
 
@@ -2299,8 +2276,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   RegisterEnvironmentForDeoptimization(env);
   SafepointGenerator safepoint_generator(this,
                                          pointers,
-                                         env->deoptimization_index(),
-                                         true);
+                                         env->deoptimization_index());
   v8::internal::ParameterCount actual(eax);
   __ InvokeFunction(function, actual, CALL_FUNCTION, &safepoint_generator);
 }
@@ -2372,7 +2348,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
     __ CallSelf();
   } else {
     __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
-    EnsureRelocSpaceForDeoptimization();
   }
 
   // Setup deoptimization.
@@ -3835,8 +3810,7 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   // builtin)
   SafepointGenerator safepoint_generator(this,
                                          pointers,
-                                         env->deoptimization_index(),
-                                         true);
+                                         env->deoptimization_index());
   __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
   __ push(Immediate(Smi::FromInt(strict_mode_flag())));
   __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, &safepoint_generator);
