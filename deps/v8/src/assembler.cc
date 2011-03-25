@@ -139,6 +139,7 @@ const int kPCJumpTag = (1 << kExtraTagBits) - 1;
 
 const int kSmallPCDeltaBits = kBitsPerByte - kTagBits;
 const int kSmallPCDeltaMask = (1 << kSmallPCDeltaBits) - 1;
+const int RelocInfo::kMaxSmallPCDelta = kSmallPCDeltaMask;
 
 const int kVariableLengthPCJumpTopTag = 1;
 const int kChunkBits = 7;
