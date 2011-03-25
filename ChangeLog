@@ -1,4 +1,21 @@
-2011.03.18, Version 0.4.3 (stable)
+2011.03.26, Version 0.4.4 (stable)
+
+* CryptoStream.end shouldn't throw if not writable GH-820
+
+* Drop out if connection destroyed before connect() GH-819
+
+* expose https.Agent
+
+* Correctly setsid in tty.open GH-815
+
+* Bug fix for failed buffer construction
+
+* Added support for removing .once listeners (GH-806)
+
+* Upgrade V8 to 3.1.8.5
+
+
+2011.03.18, Version 0.4.3 (stable), c095ce1a1b41ca015758a713283bf1f0bd41e4c4
 
 * Don't decrease server connection counter again if destroy() is called more
 	than once GH-431 (Andreas Reich, Anders Conbere)
