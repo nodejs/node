@@ -586,7 +586,9 @@ def v8_cmd(bld, variant):
   if bld.env["USE_GDBJIT"]:
     cmd += ' gdbjit=on '
 
-  if sys.platform.startswith("sunos"): cmd += ' toolchain=gcc'
+  if sys.platform.startswith("sunos"):
+    cmd += ' toolchain=gcc strictaliasing=off'
+
 
 
   return ("echo '%s' && " % cmd) + cmd
