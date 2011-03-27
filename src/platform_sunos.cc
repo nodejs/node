@@ -27,6 +27,10 @@
 #include <stdlib.h> /* getexecname() */
 #include <strings.h> /* strncpy() */
 
+#include <kstat.h>
+#include <errno.h>
+#include <inttypes.h>
+#include <sys/types.h>
 
 #if (!defined(_LP64)) && (_FILE_OFFSET_BITS - 0 == 64)
 #define PROCFS_FILE_OFFSET_BITS_HACK 1
@@ -112,10 +116,102 @@ int Platform::GetExecutablePath(char* buffer, size_t* size) {
 
 
 int Platform::GetCPUInfo(Local<Array> *cpus) {
-  // http://src.opensolaris.org/source/xref/onnv/onnv-gate/usr/src/cmd/psrinfo/psrinfo.pl
+  HandleScope scope;
+  Local<Object> cpuinfo;
+  Local<Object> cputimes;
+
+  kstat_ctl_t   *kc;
+  kstat_t       *ksp;
+  kstat_named_t *knp;
+
+  kc = kstat_open();
+  if ((kc = kstat_open()) == NULL)
+    throw "could not open kstat";
+
+  *cpus = Array::New();
+
+  int lookup_instance = 0;
+  while (ksp = kstat_lookup(kc, "cpu_info", lookup_instance, NULL)){
+    cpuinfo  = Object::New();
+    cputimes = Object::New();
+
+    if (kstat_read(kc, ksp, NULL) == -1) {
+      /*
+       * It is deeply annoying, but some kstats can return errors
+       * under otherwise routine conditions.  (ACPI is one
+       * offender; there are surely others.)  To prevent these
+       * fouled kstats from completely ruining our day, we assign
+       * an "error" member to the return value that consists of
+       * the strerror().
+       */
+      cpuinfo->Set(String::New("error"), String::New(strerror(errno)));
+    } else {
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "clock_MHz");
+      cpuinfo->Set(String::New("speed"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "brand");
+      cpuinfo->Set(String::New("model"), data_named(knp));
+      (*cpus)->Set(lookup_instance, cpuinfo);
+    }
+
+    lookup_instance++;
+  }
+
+  lookup_instance = 0;
+  while (ksp = kstat_lookup(kc, "cpu", lookup_instance, "sys")){
+    cpuinfo = (*cpus)->Get(lookup_instance)->ToObject();
+    cputimes = Object::New();
+
+    if (kstat_read(kc, ksp, NULL) == -1) {
+      cputimes->Set(String::New("error"), String::New(strerror(errno)));
+    } else {
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_kernel");
+      cputimes->Set(String::New("system"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_user");
+      cputimes->Set(String::New("user"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_idle");
+      cputimes->Set(String::New("idle"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "intr");
+      cputimes->Set(String::New("intr"), data_named(knp));
+
+      cpuinfo->Set(String::New("times"), cputimes);
+    }
+
+    lookup_instance++;
+  }
+
+  kstat_close(kc);
+
   return 0;
 }
 
+Handle<Value> Platform::data_named(kstat_named_t *knp) {
+  Handle<Value> val;
+
+  switch (knp->data_type) {
+  case KSTAT_DATA_CHAR:
+    val = Number::New(knp->value.c[0]);
+    break;
+  case KSTAT_DATA_INT32:
+    val = Number::New(knp->value.i32);
+    break;
+  case KSTAT_DATA_UINT32:
+    val = Number::New(knp->value.ui32);
+    break;
+  case KSTAT_DATA_INT64:
+    val = Number::New(knp->value.i64);
+    break;
+  case KSTAT_DATA_UINT64:
+    val = Number::New(knp->value.ui64);
+    break;
+  case KSTAT_DATA_STRING:
+    val = String::New(KSTAT_NAMED_STR_PTR(knp));
+    break;
+  default:
+    throw (String::New("unrecognized data type"));
+  }
+
+  return (val);
+}
 
 double Platform::GetFreeMemory() {
   return 0.0;

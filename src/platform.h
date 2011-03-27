@@ -23,6 +23,9 @@
 #define NODE_PLATFORM_H_
 
 #include <v8.h>
+#ifdef __sun
+#include <kstat.h>
+#endif
 
 namespace node {
 
@@ -39,6 +42,13 @@ class Platform {
   static double GetTotalMemory();
   static double GetUptime();
   static int GetLoadAvg(v8::Local<v8::Array> *loads);
+  static v8::Handle<v8::Value> GetInterfaceAddresses();
+ private:
+  static double GetUptimeImpl();
+  static double prog_start_time;
+#ifdef __sun
+  static v8::Handle<v8::Value> data_named(kstat_named_t *);
+#endif
 };
 
 
