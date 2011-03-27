@@ -124,7 +124,6 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   kstat_t       *ksp;
   kstat_named_t *knp;
 
-  kc = kstat_open();
   if ((kc = kstat_open()) == NULL)
     throw "could not open kstat";
 
