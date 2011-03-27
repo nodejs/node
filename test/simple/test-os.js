@@ -23,11 +23,29 @@ var common = require('../common');
 var assert = require('assert');
 var os = require('os');
 
-assert.ok(os.hostname().length > 0);
-assert.ok(os.loadavg().length > 0);
-assert.ok(os.uptime() > 0);
-assert.ok(os.freemem() > 0);
-assert.ok(os.totalmem() > 0);
-assert.ok(os.cpus().length > 0);
-assert.ok(os.type().length > 0);
-assert.ok(os.release().length > 0);
+var hostname = os.hostname()
+console.log("hostname = %s", hostname);
+assert.ok(hostname.length > 0);
+
+var uptime = os.uptime();
+console.log("uptime = %d", uptime);
+assert.ok(uptime > 0);
+
+var cpus = os.cpus();
+console.log("cpus = ", cpus);
+assert.ok(cpus.length > 0);
+
+var type = os.type();
+console.log("type = ", type);
+assert.ok(type.length > 0);
+
+var release = os.release();
+console.log("release = ", release);
+assert.ok(release > 0);
+
+if (process.platform != 'sunos') {
+  // not implemeneted yet
+  assert.ok(os.loadavg().length > 0);
+  assert.ok(os.freemem() > 0);
+  assert.ok(os.totalmem() > 0);
+}

@@ -50,6 +50,7 @@ namespace node {
 
 using namespace v8;
 
+
 char** Platform::SetupArgs(int argc, char *argv[]) {
   return argv;
 }
@@ -112,78 +113,7 @@ int Platform::GetExecutablePath(char* buffer, size_t* size) {
 }
 
 
-// TODO: libkstat provides all this info. Need to link it though.
-
-
-int Platform::GetCPUInfo(Local<Array> *cpus) {
-  HandleScope scope;
-  Local<Object> cpuinfo;
-  Local<Object> cputimes;
-
-  kstat_ctl_t   *kc;
-  kstat_t       *ksp;
-  kstat_named_t *knp;
-
-  if ((kc = kstat_open()) == NULL)
-    throw "could not open kstat";
-
-  *cpus = Array::New();
-
-  int lookup_instance = 0;
-  while (ksp = kstat_lookup(kc, "cpu_info", lookup_instance, NULL)){
-    cpuinfo  = Object::New();
-    cputimes = Object::New();
-
-    if (kstat_read(kc, ksp, NULL) == -1) {
-      /*
-       * It is deeply annoying, but some kstats can return errors
-       * under otherwise routine conditions.  (ACPI is one
-       * offender; there are surely others.)  To prevent these
-       * fouled kstats from completely ruining our day, we assign
-       * an "error" member to the return value that consists of
-       * the strerror().
-       */
-      cpuinfo->Set(String::New("error"), String::New(strerror(errno)));
-    } else {
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "clock_MHz");
-      cpuinfo->Set(String::New("speed"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "brand");
-      cpuinfo->Set(String::New("model"), data_named(knp));
-      (*cpus)->Set(lookup_instance, cpuinfo);
-    }
-
-    lookup_instance++;
-  }
-
-  lookup_instance = 0;
-  while (ksp = kstat_lookup(kc, "cpu", lookup_instance, "sys")){
-    cpuinfo = (*cpus)->Get(lookup_instance)->ToObject();
-    cputimes = Object::New();
-
-    if (kstat_read(kc, ksp, NULL) == -1) {
-      cputimes->Set(String::New("error"), String::New(strerror(errno)));
-    } else {
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_kernel");
-      cputimes->Set(String::New("system"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_user");
-      cputimes->Set(String::New("user"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_idle");
-      cputimes->Set(String::New("idle"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "intr");
-      cputimes->Set(String::New("intr"), data_named(knp));
-
-      cpuinfo->Set(String::New("times"), cputimes);
-    }
-
-    lookup_instance++;
-  }
-
-  kstat_close(kc);
-
-  return 0;
-}
-
-Handle<Value> Platform::data_named(kstat_named_t *knp) {
+static Handle<Value> data_named(kstat_named_t *knp) {
   Handle<Value> val;
 
   switch (knp->data_type) {
@@ -212,6 +142,78 @@ Handle<Value> Platform::data_named(kstat_named_t *knp) {
   return (val);
 }
 
+
+int Platform::GetCPUInfo(Local<Array> *cpus) {
+  HandleScope scope;
+  Local<Object> cpuinfo;
+  Local<Object> cputimes;
+
+  int           lookup_instance;
+  kstat_ctl_t   *kc;
+  kstat_t       *ksp;
+  kstat_named_t *knp;
+
+  if ((kc = kstat_open()) == NULL)
+    throw "could not open kstat";
+
+  *cpus = Array::New();
+
+  lookup_instance = 0;
+  while (ksp = kstat_lookup(kc, "cpu_info", lookup_instance, NULL)) {
+    cpuinfo  = Object::New();
+
+    if (kstat_read(kc, ksp, NULL) == -1) {
+      /*
+       * It is deeply annoying, but some kstats can return errors
+       * under otherwise routine conditions.  (ACPI is one
+       * offender; there are surely others.)  To prevent these
+       * fouled kstats from completely ruining our day, we assign
+       * an "error" member to the return value that consists of
+       * the strerror().
+       */
+      cpuinfo->Set(String::New("error"), String::New(strerror(errno)));
+      (*cpus)->Set(lookup_instance, cpuinfo);
+    } else {
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "clock_MHz");
+      cpuinfo->Set(String::New("speed"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "brand");
+      cpuinfo->Set(String::New("model"), data_named(knp));
+      (*cpus)->Set(lookup_instance, cpuinfo);
+    }
+
+    lookup_instance++;
+  }
+
+  lookup_instance = 0;
+  while (ksp = kstat_lookup(kc, "cpu", lookup_instance, "sys")){
+    cpuinfo = (*cpus)->Get(lookup_instance)->ToObject();
+    cputimes = Object::New();
+
+    if (kstat_read(kc, ksp, NULL) == -1) {
+      cputimes->Set(String::New("error"), String::New(strerror(errno)));
+      cpuinfo->Set(String::New("times"), cpuinfo);
+    } else {
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_kernel");
+      cputimes->Set(String::New("system"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_user");
+      cputimes->Set(String::New("user"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_idle");
+      cputimes->Set(String::New("idle"), data_named(knp));
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, "intr");
+      cputimes->Set(String::New("irq"), data_named(knp));
+
+      cpuinfo->Set(String::New("times"), cputimes);
+    }
+
+    lookup_instance++;
+  }
+
+  kstat_close(kc);
+
+  return 0;
+}
+
+
 double Platform::GetFreeMemory() {
   return 0.0;
 }
@@ -223,13 +225,40 @@ double Platform::GetTotalMemory() {
 
 
 double Platform::GetUptime() {
-  // http://munin-monitoring.org/attachment/ticket/419/uptime
-  return 0.0;
+  kstat_ctl_t   *kc;
+  kstat_t       *ksp;
+  kstat_named_t *knp;
+
+  long hz = sysconf(_SC_CLK_TCK);
+  ulong_t clk_intr;
+
+  if ((kc = kstat_open()) == NULL) {
+    throw "could not open kstat";
+  }
+
+  ksp = kstat_lookup(kc, "unix", 0, "system_misc");
+
+  if (kstat_read(kc, ksp, NULL) == -1) {
+    throw "unable to read kstat";
+  } else {
+    knp = (kstat_named_t *) kstat_data_lookup(ksp, "clk_intr");
+    clk_intr = knp->value.ul;
+  }
+
+  kstat_close(kc);
+
+  return static_cast<double>(clk_intr / hz);
 }
 
 
 int Platform::GetLoadAvg(Local<Array> *loads) {
   return 0;
+}
+
+
+Handle<Value> Platform::GetInterfaceAddresses() {
+  HandleScope scope;
+  return scope.Close(Object::New());
 }
 
 
