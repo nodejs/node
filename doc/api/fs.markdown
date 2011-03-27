@@ -82,7 +82,7 @@ Synchronous chmod(2).
 ### fs.stat(path, [callback])
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a `fs.Stats` object. It looks like this:
+`stats` is a [`fs.Stats`](#fs.Stats) object. It looks like this:
 
     { dev: 2049,
       ino: 305352,
@@ -98,7 +98,7 @@ Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
       mtime: '2009-06-29T11:11:40Z',
       ctime: '2009-06-29T11:11:40Z' }
 
-See the `fs.Stats` section below for more information.
+See the [fs.Stats](#fs.Stats) section below for more information.
 
 ### fs.lstat(path, [callback])
 
