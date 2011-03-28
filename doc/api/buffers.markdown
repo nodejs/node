@@ -55,8 +55,6 @@ Example: write a utf8 string into a buffer, then print it
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
 
-    // 12 bytes: ½ + ¼ = ¾
-
 
 ### buffer.toString(encoding, start=0, end=buffer.length)
 
