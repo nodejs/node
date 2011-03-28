@@ -124,7 +124,7 @@ This can be called many times with new data as it is streamed.
 ### verifier.verify(cert, signature, signature_format='binary')
 
 Verifies the signed data by using the `cert` which is a string containing
-the PEM encoded public key, and `signature`, which is the previously calculates
+the PEM encoded certificate, and `signature`, which is the previously calculates
 signature for the data, in the `signature_format` which can be `'binary'`, `'hex'` or `'base64'`.
 
 Returns true or false depending on the validity of the signature for the data and public key.
