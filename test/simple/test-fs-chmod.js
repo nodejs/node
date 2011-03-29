@@ -41,8 +41,28 @@ fs.chmod(file, '0777', function(err) {
   }
 });
 
+fs.open(file, 'a', function(err, fd) {
+  if (err) {
+    got_error = true;
+    console.error(err.stack);
+    return;
+  }
+  fs.fchmod(fd, '0777', function(err) {
+    if (err) {
+      got_error = true;
+    } else {
+      console.log(fs.fstatSync(fd).mode);
+      assert.equal(0777, fs.fstatSync(fd).mode & 0777);
+
+      fs.fchmodSync(fd, 0644);
+      assert.equal(0644, fs.fstatSync(fd).mode & 0777);
+      success_count++;
+    }
+  });
+});
+
 process.addListener('exit', function() {
-  assert.equal(1, success_count);
+  assert.equal(2, success_count);
   assert.equal(false, got_error);
 });
 

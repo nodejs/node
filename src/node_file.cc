@@ -126,7 +126,9 @@ static int After(eio_req *req) {
       case EIO_LINK:
       case EIO_SYMLINK:
       case EIO_CHMOD:
+      case EIO_FCHMOD:
       case EIO_CHOWN:
+      case EIO_FCHOWN:
         // These, however, don't.
         argc = 1;
         break;
@@ -792,7 +794,7 @@ static Handle<Value> Read(const Arguments& args) {
 }
 
 
-/* fs.chmod(fd, mode);
+/* fs.chmod(path, mode);
  * Wrapper for chmod(1) / EIO_CHMOD
  */
 static Handle<Value> Chmod(const Arguments& args) {
@@ -808,16 +810,38 @@ static Handle<Value> Chmod(const Arguments& args) {
     ASYNC_CALL(chmod, args[2], *path, mode);
   } else {
     int ret = chmod(*path, mode);
-    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
+    if (ret != 0) return ThrowException(ErrnoException(errno, "chmod", "", *path));
     return Undefined();
   }
 }
 
 
-/* fs.chown(fd, uid, gid);
+/* fs.fchmod(fd, mode);
+ * Wrapper for fchmod(1) / EIO_FCHMOD
+ */
+static Handle<Value> FChmod(const Arguments& args) {
+  HandleScope scope;
+
+  if(args.Length() < 2 || !args[0]->IsInt32() || !args[1]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+  int fd = args[0]->Int32Value();
+  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+
+  if(args[2]->IsFunction()) {
+    ASYNC_CALL(fchmod, args[2], fd, mode);
+  } else {
+    int ret = fchmod(fd, mode);
+    if (ret != 0) return ThrowException(ErrnoException(errno, "fchmod", "", 0));
+    return Undefined();
+  }
+}
+
+
+#ifdef __POSIX__
+/* fs.chown(path, uid, gid);
  * Wrapper for chown(1) / EIO_CHOWN
  */
-#ifdef __POSIX__
 static Handle<Value> Chown(const Arguments& args) {
   HandleScope scope;
 
@@ -837,7 +861,37 @@ static Handle<Value> Chown(const Arguments& args) {
     ASYNC_CALL(chown, args[3], *path, uid, gid);
   } else {
     int ret = chown(*path, uid, gid);
-    if (ret != 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
+    if (ret != 0) return ThrowException(ErrnoException(errno, "chown", "", *path));
+    return Undefined();
+  }
+}
+#endif // __POSIX__
+
+
+#ifdef __POSIX__
+/* fs.fchown(fd, uid, gid);
+ * Wrapper for fchown(1) / EIO_FCHOWN
+ */
+static Handle<Value> FChown(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 3 || !args[0]->IsInt32()) {
+    return THROW_BAD_ARGS;
+  }
+
+  if (!args[1]->IsInt32() || !args[2]->IsInt32()) {
+    return ThrowException(Exception::Error(String::New("User and Group IDs must be an integer.")));
+  }
+
+  int fd = args[0]->Int32Value();
+  uid_t uid = static_cast<uid_t>(args[1]->Int32Value());
+  gid_t gid = static_cast<gid_t>(args[2]->Int32Value());
+
+  if (args[3]->IsFunction()) {
+    ASYNC_CALL(fchown, args[3], fd, uid, gid);
+  } else {
+    int ret = fchown(fd, uid, gid);
+    if (ret != 0) return ThrowException(ErrnoException(errno, "fchown", "", 0));
     return Undefined();
   }
 }
@@ -948,8 +1002,13 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "write", Write);
 
   NODE_SET_METHOD(target, "chmod", Chmod);
+  NODE_SET_METHOD(target, "fchmod", FChmod);
 #ifdef __POSIX__
+  //NODE_SET_METHOD(target, "lchmod", LChmod);
+
   NODE_SET_METHOD(target, "chown", Chown);
+  NODE_SET_METHOD(target, "fchown", FChown);
+  //NODE_SET_METHOD(target, "lchown", LChown);
 #endif // __POSIX__
 
   NODE_SET_METHOD(target, "utimes", UTimes);
