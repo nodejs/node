@@ -103,6 +103,11 @@ void DefineConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, O_SYNC);
 #endif
 
+#ifdef O_SYMLINK
+  NODE_DEFINE_CONSTANT(target, O_SYMLINK);
+#endif
+
+
 #ifdef S_IRWXU
   NODE_DEFINE_CONSTANT(target, S_IRWXU);
 #endif
