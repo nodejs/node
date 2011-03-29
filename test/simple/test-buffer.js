@@ -431,3 +431,63 @@ assert.equal(12, Buffer.byteLength('Il était tué', 'binary'));
 
 // slice(0,0).length === 0
 assert.equal(0, Buffer('hello').slice(0, 0).length);
+
+
+// Test slice on SlowBuffer GH-843
+var SlowBuffer = process.binding('buffer').SlowBuffer;
+
+function buildSlowBuffer (data) {
+  if (Array.isArray(data)) {
+    var buffer = new SlowBuffer(data.length);
+    data.forEach(function(v,k) {
+      buffer[k] = v;
+    });
+    return buffer;
+  };
+  return null;
+}
+
+var x = buildSlowBuffer([0x81,0xa3,0x66,0x6f,0x6f,0xa3,0x62,0x61,0x72]);
+
+console.log(x.inspect())
+assert.equal('<SlowBuffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
+
+var z = x.slice(4);
+console.log(z.inspect())
+console.log(z.length)
+assert.equal(5, z.length);
+assert.equal(0x6f, z[0]);
+assert.equal(0xa3, z[1]);
+assert.equal(0x62, z[2]);
+assert.equal(0x61, z[3]);
+assert.equal(0x72, z[4]);
+
+var z = x.slice(0);
+console.log(z.inspect())
+console.log(z.length)
+assert.equal(z.length, x.length);
+
+var z = x.slice(0, 4);
+console.log(z.inspect())
+console.log(z.length)
+assert.equal(4, z.length);
+assert.equal(0x81, z[0]);
+assert.equal(0xa3, z[1]);
+
+var z = x.slice(0, 9);
+console.log(z.inspect())
+console.log(z.length)
+assert.equal(9, z.length);
+
+var z = x.slice(1, 4);
+console.log(z.inspect())
+console.log(z.length)
+assert.equal(3, z.length);
+assert.equal(0xa3, z[0]);
+
+var z = x.slice(2, 4);
+console.log(z.inspect())
+console.log(z.length)
+assert.equal(2, z.length);
+assert.equal(0x66, z[0]);
+assert.equal(0x6f, z[1]);
