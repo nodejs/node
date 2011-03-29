@@ -227,8 +227,8 @@ should be written. If `position` is `null`, the data will be written at the
 current position.
 See pwrite(2).
 
-The callback will be given two arguments `(err, written)` where `written`
-specifies how many _bytes_ were written.
+The callback will be given three arguments `(err, written, buffer)` where `written`
+specifies how many _bytes_ were written into `buffer`.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -257,7 +257,7 @@ Read data from the file specified by `fd`.
 `position` is an integer specifying where to begin reading from in the file.
 If `position` is `null`, data will be read from the current file position.
 
-The callback is given the two arguments, `(err, bytesRead)`.
+The callback is given the three arguments, `(err, bytesRead, buffer)`.
 
 ### fs.readSync(fd, buffer, offset, length, position)
 
