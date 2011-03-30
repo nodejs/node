@@ -36,3 +36,6 @@ global.process.stdout.write = stdout_write;
 assert.equal('foo\n', strings.shift());
 assert.equal('foo bar\n', strings.shift());
 assert.equal('foo bar hop\n', strings.shift());
+
+
+assert.equal(true, process.stderr.write("hello world"));
