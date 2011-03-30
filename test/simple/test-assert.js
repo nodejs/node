@@ -209,3 +209,23 @@ a.throws(makeBlock(thrower, TypeError), function(err) {
     return true;
   }
 });
+
+
+// GH-207. Make sure deepEqual doesn't loop forever on circular refs
+
+var b = {};
+b.b = b;
+
+var c = {};
+c.b = c;
+
+var gotError = false;
+try {
+  assert.deepEqual(b, c);
+} catch(e) {
+  gotError = true;
+}
+
+console.log('All OK');
+assert.ok(gotError);
+
