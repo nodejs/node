@@ -349,7 +349,7 @@
   // core modules found in lib/*.js. All core modules are compiled into the
   // node binary, so they can be loaded faster.
 
-  var Script = process.binding('evals').Script;
+  var Script = process.binding('evals').NodeScript;
   var runInThisContext = Script.runInThisContext;
 
   function NativeModule(id) {
