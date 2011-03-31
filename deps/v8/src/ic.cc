@@ -1113,6 +1113,16 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 MaybeObject* KeyedLoadIC::Load(State state,
                                Handle<Object> object,
                                Handle<Object> key) {
+  // Check for values that can be converted into a symbol.
+  // TODO(1295): Remove this code.
+  HandleScope scope;
+  if (key->IsHeapNumber() &&
+      isnan(HeapNumber::cast(*key)->value())) {
+    key = Factory::nan_symbol();
+  } else if (key->IsUndefined()) {
+    key = Factory::undefined_symbol();
+  }
+
   if (key->IsSymbol()) {
     Handle<String> name = Handle<String>::cast(key);
 
@@ -2082,6 +2092,7 @@ const char* TRBinaryOpIC::GetName(TypeInfo type_info) {
     case SMI: return "SMI";
     case INT32: return "Int32s";
     case HEAP_NUMBER: return "HeapNumbers";
+    case ODDBALL: return "Oddball";
     case STRING: return "Strings";
     case GENERIC: return "Generic";
     default: return "Invalid";
@@ -2096,6 +2107,7 @@ TRBinaryOpIC::State TRBinaryOpIC::ToState(TypeInfo type_info) {
     case SMI:
     case INT32:
     case HEAP_NUMBER:
+    case ODDBALL:
     case STRING:
       return MONOMORPHIC;
     case GENERIC:
@@ -2142,6 +2154,10 @@ TRBinaryOpIC::TypeInfo TRBinaryOpIC::GetTypeInfo(Handle<Object> left,
     // arguments is a string.
     return STRING;
   }
+
+  // Check for oddball objects.
+  if (left->IsUndefined() && right->IsNumber()) return ODDBALL;
+  if (left->IsNumber() && right->IsUndefined()) return ODDBALL;
 
   return GENERIC;
 }

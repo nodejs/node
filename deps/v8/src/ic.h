@@ -576,6 +576,7 @@ class TRBinaryOpIC: public IC {
     SMI,
     INT32,
     HEAP_NUMBER,
+    ODDBALL,
     STRING,  // Only used for addition operation.  At least one string operand.
     GENERIC
   };
