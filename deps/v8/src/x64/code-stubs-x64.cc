@@ -1053,6 +1053,9 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
     case TRBinaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
+    case TRBinaryOpIC::ODDBALL:
+      GenerateOddballStub(masm);
+      break;
     case TRBinaryOpIC::STRING:
       GenerateStringStub(masm);
       break;
@@ -1425,6 +1428,39 @@ void TypeRecordingBinaryOpStub::GenerateStringStub(MacroAssembler* masm) {
   // Try to add arguments as strings, otherwise, transition to the generic
   // TRBinaryOpIC type.
   GenerateTypeTransition(masm);
+}
+
+
+void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
+  Label call_runtime;
+
+  if (op_ == Token::ADD) {
+    // Handle string addition here, because it is the only operation
+    // that does not do a ToNumber conversion on the operands.
+    GenerateStringAddCode(masm);
+  }
+
+  // Convert oddball arguments to numbers.
+  NearLabel check, done;
+  __ CompareRoot(rdx, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, &check);
+  if (Token::IsBitOp(op_)) {
+    __ xor_(rdx, rdx);
+  } else {
+    __ LoadRoot(rdx, Heap::kNanValueRootIndex);
+  }
+  __ jmp(&done);
+  __ bind(&check);
+  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+  __ j(not_equal, &done);
+  if (Token::IsBitOp(op_)) {
+    __ xor_(rax, rax);
+  } else {
+    __ LoadRoot(rax, Heap::kNanValueRootIndex);
+  }
+  __ bind(&done);
+
+  GenerateHeapNumberStub(masm);
 }
 
 
