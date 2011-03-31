@@ -221,6 +221,7 @@ Handle<Value> WrappedScript::CreateContext(const Arguments& args) {
     for (uint32_t i = 0; i < keys->Length(); i++) {
       Handle<String> key = keys->Get(Integer::New(i))->ToString();
       Handle<Value> value = sandbox->Get(key);
+      if(value == sandbox) { value = context; }
       context->Set(key, value);
     }
   }
