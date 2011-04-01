@@ -131,8 +131,7 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
   SSL_CTX_set_session_cache_mode(sc->ctx_, SSL_SESS_CACHE_SERVER);
   // SSL_CTX_set_session_cache_mode(sc->ctx_,SSL_SESS_CACHE_OFF);
 
-  sc->ca_store_ = X509_STORE_new();
-  SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+  sc->ca_store_ = NULL;
   return True();
 }
 
@@ -311,12 +310,18 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
 
 
 Handle<Value> SecureContext::AddCACert(const Arguments& args) {
+  bool newCAStore = false;
   HandleScope scope;
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
   if (args.Length() != 1) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
+  }
+
+  if (!sc->ca_store_) {
+    sc->ca_store_ = X509_STORE_new();
+    newCAStore = true;
   }
 
   X509* x509 = LoadX509(args[0]);
@@ -326,6 +331,10 @@ Handle<Value> SecureContext::AddCACert(const Arguments& args) {
   SSL_CTX_add_client_CA(sc->ctx_, x509);
 
   X509_free(x509);
+
+  if (newCAStore) {
+    SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
+  }
 
   return True();
 }
@@ -362,32 +371,41 @@ Handle<Value> SecureContext::AddCRL(const Arguments& args) {
 }
 
 
+
 Handle<Value> SecureContext::AddRootCerts(const Arguments& args) {
   HandleScope scope;
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  for (int i = 0; root_certs[i]; i++) {
-    // TODO: reuse bp ?
-    BIO *bp = BIO_new(BIO_s_mem());
+  assert(sc->ca_store_ == NULL);
 
-    if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
+  if (!root_cert_store) {
+    root_cert_store = X509_STORE_new();
+
+    for (int i = 0; root_certs[i]; i++) {
+      BIO *bp = BIO_new(BIO_s_mem());
+
+      if (!BIO_write(bp, root_certs[i], strlen(root_certs[i]))) {
+        BIO_free(bp);
+        return False();
+      }
+
+      X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
+
+      if (x509 == NULL) {
+        BIO_free(bp);
+        return False();
+      }
+
+      X509_STORE_add_cert(root_cert_store, x509);
+
       BIO_free(bp);
-      return False();
+      X509_free(x509);
     }
-
-    X509 *x509 = PEM_read_bio_X509(bp, NULL, NULL, NULL);
-
-    if (x509 == NULL) {
-      BIO_free(bp);
-      return False();
-    }
-
-    X509_STORE_add_cert(sc->ca_store_, x509);
-
-    BIO_free(bp);
-    X509_free(x509);
   }
+
+  sc->ca_store_ = root_cert_store;
+  SSL_CTX_set_cert_store(sc->ctx_, sc->ca_store_);
 
   return True();
 }
@@ -411,18 +429,11 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
 
 Handle<Value> SecureContext::Close(const Arguments& args) {
   HandleScope scope;
-
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
-
-  if (sc->ctx_ != NULL) {
-    SSL_CTX_free(sc->ctx_);
-    sc->ctx_ = NULL;
-    sc->ca_store_ = NULL;
-    return True();
-  }
-
+  sc->FreeCTXMem();
   return False();
 }
+
 
 #ifdef SSL_PRINT_DEBUG
 # define DEBUG_PRINT(...) fprintf (stderr, __VA_ARGS__)
