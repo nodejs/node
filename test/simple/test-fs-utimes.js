@@ -26,7 +26,7 @@ function check_mtime(resource, mtime) {
 }
 
 function expect_errno(syscall, resource, err, errno) {
-  if (err && err.code == errno) {
+  if (err && (err.code === errno || err.code === 'ENOSYS')) {
     tests_ok++;
   } else {
     console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
@@ -34,7 +34,8 @@ function expect_errno(syscall, resource, err, errno) {
 }
 
 function expect_ok(syscall, resource, err, atime, mtime) {
-  if (!err && check_mtime(resource, mtime)) {
+  if (!err && check_mtime(resource, mtime) ||
+      err && err.code === 'ENOSYS') {
     tests_ok++;
   } else {
     console.log('FAILED:', arguments.callee.name, util.inspect(arguments));
@@ -55,10 +56,17 @@ function runTests(atime, mtime, callback) {
     expect_ok('utimesSync', __filename, undefined, atime, mtime);
     tests_run++;
 
-    fs.futimesSync(fd, atime, mtime);
-    expect_ok('futimesSync', fd, undefined, atime, mtime);
-    tests_run++;
+    // some systems don't have futimes
+    // if there's an error, it should be ENOSYS
+    try {
+      tests_run++;
+      fs.futimesSync(fd, atime, mtime);
+      expect_ok('futimesSync', fd, undefined, atime, mtime);
+    } catch (ex) {
+      expect_errno('futimesSync', fd, ex, 'ENOSYS');
+    }
 
+    var err;
     err = undefined;
     try {
       fs.utimesSync('foobarbaz', atime, mtime);
