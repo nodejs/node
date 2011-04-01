@@ -59,3 +59,10 @@ Example: running `node example.js` from `/Users/mjr`
 A reference to the current module. In particular
 `module.exports` is the same as the `exports` object. See `src/node.js`
 for more information.
+
+### setTimeout(cb, ms)
+### clearTimeout(t)
+### setInterval(cb, ms)
+### clearInterval(t)
+
+The timer functions are global variables. See the [timers](timers.html) section.
