@@ -24,7 +24,7 @@ var assert = require('assert');
 
 common.error('before');
 
-var Script = process.binding('evals').Script;
+var Script = process.binding('evals').NodeScript;
 
 // undefined reference
 script = new Script('foo.bar = 5;');
