@@ -1,4 +1,23 @@
-2011.03.26, Version 0.4.4 (stable)
+2011.04.01, Version 0.4.5 (stable)
+
+* Fix listener leak in stream.pipe() (Mikeal Rogers)
+
+* Retain buffers in fs.read/write() GH-814 (Jorge Chamorro Bieling)
+
+* TLS performance improvements
+
+* SlowBuffer.prototype.slice bug GH-843
+
+* process.stderr.write should return true
+
+* Immediate pause/resume race condition GH-535 (isaacs)
+
+* Set default host header properly GH-721 (isaacs)
+
+* Upgrade V8 to 3.1.8.8
+
+
+2011.03.26, Version 0.4.4 (stable), 25122b986a90ba0982697b7abcb0158c302a1019
 
 * CryptoStream.end shouldn't throw if not writable GH-820
 
