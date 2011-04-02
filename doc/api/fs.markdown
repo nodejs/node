@@ -70,6 +70,33 @@ given to the completion callback.
 
 Synchronous ftruncate(2).
 
+### fs.chown(path, mode, [callback])
+
+Asycnronous chown(2). No arguments other than a possible exception are given
+to the completion callback.
+
+### fs.chownSync(path, mode)
+
+Synchronous chown(2).
+
+### fs.fchown(path, mode, [callback])
+
+Asycnronous fchown(2). No arguments other than a possible exception are given
+to the completion callback.
+
+### fs.fchownSync(path, mode)
+
+Synchronous fchown(2).
+
+### fs.lchown(path, mode, [callback])
+
+Asycnronous lchown(2). No arguments other than a possible exception are given
+to the completion callback.
+
+### fs.lchownSync(path, mode)
+
+Synchronous lchown(2).
+
 ### fs.chmod(path, mode, [callback])
 
 Asynchronous chmod(2). No arguments other than a possible exception are given
@@ -78,6 +105,24 @@ to the completion callback.
 ### fs.chmodSync(path, mode)
 
 Synchronous chmod(2).
+
+### fs.fchmod(fd, mode, [callback])
+
+Asynchronous fchmod(2). No arguments other than a possible exception
+are given to the completion callback.
+
+### fs.fchmodSync(path, mode)
+
+Synchronous fchmod(2).
+
+### fs.lchmod(fd, mode, [callback])
+
+Asynchronous lchmod(2). No arguments other than a possible exception
+are given to the completion callback.
+
+### fs.lchmodSync(path, mode)
+
+Synchronous lchmod(2).
 
 ### fs.stat(path, [callback])
 
