@@ -65,7 +65,7 @@ The third argument is used to specify additional options, which defaults to:
 
 `cwd` allows you to specify the working directory from which the process is spawned.
 Use `env` to specify environment variables that will be visible to the new process.
-With `customFds` it is possible to hook up the new process' [stdin, stout, stderr] to
+With `customFds` it is possible to hook up the new process' [stdin, stdout, stderr] to
 existing streams; `-1` means that a new stream should be created. `setsid`,
 if set true, will cause the subprocess to be run in a new session.
 
