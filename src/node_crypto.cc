@@ -73,6 +73,7 @@ void SecureContext::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "addCRL", SecureContext::AddCRL);
   NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
   NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
+  NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
 
   target->Set(String::NewSymbol("SecureContext"), t->GetFunction());
@@ -426,6 +427,21 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
   return True();
 }
 
+Handle<Value> SecureContext::SetOptions(const Arguments& args) {
+  HandleScope scope;
+
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+
+  if (args.Length() != 1 || !args[0]->IsUint32()) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
+  }
+
+  unsigned int opts = args[0]->Uint32Value();
+
+  SSL_CTX_set_options(sc->ctx_, opts);
+
+  return True();
+}
 
 Handle<Value> SecureContext::Close(const Arguments& args) {
   HandleScope scope;

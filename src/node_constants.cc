@@ -35,6 +35,10 @@
 # include <platform_win32_winsock.h>
 #endif
 
+#ifdef HAVE_OPENSSL
+# include <openssl/ssl.h>
+#endif
+
 namespace node {
 
 using namespace v8;
@@ -837,6 +841,72 @@ void DefineConstants(Handle<Object> target) {
 
 #ifdef SIGUNUSED
   NODE_DEFINE_CONSTANT(target, SIGUNUSED);
+#endif
+
+// OpenSSL SSL context options
+
+#ifdef SSL_OP_NO_QUERY_MTU
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_QUERY_MTU);
+#endif
+
+#ifdef SSL_OP_COOKIE_EXCHANGE
+  NODE_DEFINE_CONSTANT(target, SSL_OP_COOKIE_EXCHANGE);
+#endif
+
+#ifdef SSL_OP_NO_TICKET
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TICKET);
+#endif
+
+#ifdef SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION);
+#endif
+
+#ifdef SSL_OP_SINGLE_ECDH_USE
+  NODE_DEFINE_CONSTANT(target, SSL_OP_SINGLE_ECDH_USE);
+#endif
+
+#ifdef SSL_OP_SINGLE_DH_USE
+  NODE_DEFINE_CONSTANT(target, SSL_OP_SINGLE_DH_USE);
+#endif
+
+#ifdef SSL_OP_EPHEMERAL_RSA
+  NODE_DEFINE_CONSTANT(target, SSL_OP_EPHEMERAL_RSA);
+#endif
+
+#ifdef SSL_OP_CIPHER_SERVER_PREFERENCE
+  NODE_DEFINE_CONSTANT(target, SSL_OP_CIPHER_SERVER_PREFERENCE);
+#endif
+
+#ifdef SSL_OP_TLS_ROLLBACK_BUG
+  NODE_DEFINE_CONSTANT(target, SSL_OP_TLS_ROLLBACK_BUG);
+#endif
+
+#ifdef SSL_OP_NO_SSLv2
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SSLv2);
+#endif
+
+#ifdef SSL_OP_NO_SSLv3
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_SSLv3);
+#endif
+
+#ifdef SSL_OP_NO_TLSv1
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NO_TLSv1);
+#endif
+
+#ifdef SSL_OP_PKCS1_CHECK_1
+  NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_1);
+#endif
+
+#ifdef SSL_OP_PKCS1_CHECK_2
+  NODE_DEFINE_CONSTANT(target, SSL_OP_PKCS1_CHECK_2);
+#endif
+
+#ifdef SSL_OP_NETSCAPE_CA_DN_BUG
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_CA_DN_BUG);
+#endif
+
+#ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
+  NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
 #endif
 }
 
