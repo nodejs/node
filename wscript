@@ -603,7 +603,9 @@ def v8_cmd(bld, variant):
   if bld.env["USE_GDBJIT"]:
     cmd += ' gdbjit=on '
 
-  if sys.platform.startswith("sunos"): cmd += ' toolchain=gcc'
+  if sys.platform.startswith("sunos"):
+    cmd += ' toolchain=gcc strictaliasing=off'
+
 
 
   return ("echo '%s' && " % cmd) + cmd
@@ -885,7 +887,7 @@ def build(bld):
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"]).replace('"', '\\"')
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"]).replace('"', '\\"')
         , 'PREFIX'    : safe_path(program.env["PREFIX"])
-        , 'VERSION'   : '0.4.3' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.
+        , 'VERSION'   : '0.4.5' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.
         }
     return x
 

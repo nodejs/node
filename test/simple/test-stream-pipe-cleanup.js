@@ -19,31 +19,64 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+// This test asserts that Stream.prototype.pipe does not leave listeners
+// hanging on the source or dest.
+
+var stream = require('stream');
 var assert = require('assert');
-var events = require('events');
+var util = require('util');
 
-var e = new events.EventEmitter();
-var times_hello_emited = 0;
+function Writable () {
+  this.writable = true;
+  stream.Stream.call(this);
+}
+util.inherits(Writable, stream.Stream);
+Writable.prototype.end = function () {}
 
-e.once('hello', function(a, b) {
-  times_hello_emited++;
-});
+function Readable () {
+  this.readable = true;
+  stream.Stream.call(this);
+}
+util.inherits(Readable, stream.Stream);
 
-e.emit('hello', 'a', 'b');
-e.emit('hello', 'a', 'b');
-e.emit('hello', 'a', 'b');
-e.emit('hello', 'a', 'b');
+var i = 0;
+var limit = 100;
 
-var remove = function() {
-  assert.fail(1,0, 'once->foo should not be emitted', '!');
-};
+var w = new Writable();
 
-e.once('foo', remove);
-e.removeListener('foo', remove);
-e.emit('foo');
+console.error = function (text) {
+  throw new Error(text);
+}
 
-process.addListener('exit', function() {
-  assert.equal(1, times_hello_emited);
-});
+var r;
+
+for (i = 0; i < limit; i++) {
+  r = new Readable()
+  r.pipe(w)
+  r.emit('end')
+}
+assert.equal(0, r.listeners('end').length);
+
+for (i = 0; i < limit; i++) {
+  r = new Readable()
+  r.pipe(w)
+  r.emit('close')
+}
+assert.equal(0, r.listeners('close').length);
+
+r = new Readable();
+
+for (i = 0; i < limit; i++) {
+  w = new Writable();
+  r.pipe(w);
+  w.emit('end');
+}
+assert.equal(0, w.listeners('end').length);
+
+for (i = 0; i < limit; i++) {
+  w = new Writable();
+  r.pipe(w);
+  w.emit('close');
+}
+assert.equal(0, w.listeners('close').length);
 

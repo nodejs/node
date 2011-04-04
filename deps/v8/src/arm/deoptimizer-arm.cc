@@ -44,6 +44,11 @@ int Deoptimizer::patch_size() {
 }
 
 
+void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
+  // Nothing to do. No new relocation information is written for lazy
+  // deoptimization on ARM.
+}
+
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   AssertNoAllocation no_allocation;

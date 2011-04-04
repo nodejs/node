@@ -110,6 +110,13 @@ class Deoptimizer : public Malloced {
                           int fp_to_sp_delta);
   static Deoptimizer* Grab();
 
+  // Makes sure that there is enough room in the relocation
+  // information of a code object to perform lazy deoptimization
+  // patching. If there is not enough room a new relocation
+  // information object is allocated and comments are added until it
+  // is big enough.
+  static void EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code);
+
   // Deoptimize the function now. Its current optimized code will never be run
   // again and any activations of the optimized code will get deoptimized when
   // execution returns.

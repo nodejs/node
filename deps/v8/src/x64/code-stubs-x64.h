@@ -289,6 +289,7 @@ class TypeRecordingBinaryOpStub: public CodeStub {
   void GenerateSmiStub(MacroAssembler* masm);
   void GenerateInt32Stub(MacroAssembler* masm);
   void GenerateHeapNumberStub(MacroAssembler* masm);
+  void GenerateOddballStub(MacroAssembler* masm);
   void GenerateStringStub(MacroAssembler* masm);
   void GenerateGenericStub(MacroAssembler* masm);
 

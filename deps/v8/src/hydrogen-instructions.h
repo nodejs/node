@@ -1423,8 +1423,9 @@ class HJSArrayLength: public HUnaryOperation {
     // object. It is guaranteed to be 32 bit integer, but it can be
     // represented as either a smi or heap number.
     set_representation(Representation::Tagged());
-    SetFlag(kDependsOnArrayLengths);
     SetFlag(kUseGVN);
+    SetFlag(kDependsOnArrayLengths);
+    SetFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -1442,8 +1443,8 @@ class HFixedArrayLength: public HUnaryOperation {
  public:
   explicit HFixedArrayLength(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
-    SetFlag(kDependsOnArrayLengths);
     SetFlag(kUseGVN);
+    SetFlag(kDependsOnArrayLengths);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -2268,6 +2269,7 @@ class HCompareJSObjectEq: public HBinaryOperation {
       : HBinaryOperation(left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
   }
 
   virtual bool EmitAtUses() const {
@@ -2943,6 +2945,7 @@ class HLoadNamedField: public HUnaryOperation {
         offset_(offset) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
     if (is_in_object) {
       SetFlag(kDependsOnInobjectFields);
     } else {
@@ -3269,6 +3272,7 @@ class HStringCharCodeAt: public HBinaryOperation {
       : HBinaryOperation(string, index) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
@@ -3296,6 +3300,7 @@ class HStringLength: public HUnaryOperation {
   explicit HStringLength(HValue* string) : HUnaryOperation(string) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
+    SetFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {

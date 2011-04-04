@@ -192,6 +192,9 @@ class RelocInfo BASE_EMBEDDED {
   // The maximum size for a call instruction including pc-jump.
   static const int kMaxCallSize = 6;
 
+  // The maximum pc delta that will use the short encoding.
+  static const int kMaxSmallPCDelta;
+
   enum Mode {
     // Please note the order is important (see IsCodeTarget, IsGCRelocMode).
     CONSTRUCT_CALL,  // code target that is a call to a JavaScript constructor.

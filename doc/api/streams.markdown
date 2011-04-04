@@ -170,3 +170,9 @@ Same as above but with a `buffer`.
 ### stream.destroy()
 
 Closes the underlying file descriptor. Stream will not emit any more events.
+
+### stream.destroySoon()
+
+After the write queue is drained, close the file descriptor. `destroySoon()`
+can still destroy straight away, as long as there is no data left in the queue
+for writes.

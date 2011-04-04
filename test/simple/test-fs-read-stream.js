@@ -42,8 +42,13 @@ file.addListener('open', function(fd) {
   callbacks.open++;
   assert.equal('number', typeof fd);
   assert.ok(file.readable);
-});
 
+  // GH-535
+  file.pause();
+  file.resume();
+  file.pause();
+  file.resume();
+});
 
 file.addListener('data', function(data) {
   assert.ok(data instanceof Buffer);

@@ -2856,6 +2856,9 @@ void TypeRecordingBinaryOpStub::Generate(MacroAssembler* masm) {
     case TRBinaryOpIC::HEAP_NUMBER:
       GenerateHeapNumberStub(masm);
       break;
+    case TRBinaryOpIC::ODDBALL:
+      GenerateOddballStub(masm);
+      break;
     case TRBinaryOpIC::STRING:
       GenerateStringStub(masm);
       break;
@@ -3572,10 +3575,43 @@ void TypeRecordingBinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
 }
 
 
+void TypeRecordingBinaryOpStub::GenerateOddballStub(MacroAssembler* masm) {
+  Label call_runtime;
+
+  if (op_ == Token::ADD) {
+    // Handle string addition here, because it is the only operation
+    // that does not do a ToNumber conversion on the operands.
+    GenerateAddStrings(masm);
+  }
+
+  // Convert oddball arguments to numbers.
+  Label check, done;
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r1, ip);
+  __ b(ne, &check);
+  if (Token::IsBitOp(op_)) {
+    __ mov(r1, Operand(Smi::FromInt(0)));
+  } else {
+    __ LoadRoot(r1, Heap::kNanValueRootIndex);
+  }
+  __ jmp(&done);
+  __ bind(&check);
+  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
+  __ cmp(r0, ip);
+  __ b(ne, &done);
+  if (Token::IsBitOp(op_)) {
+    __ mov(r0, Operand(Smi::FromInt(0)));
+  } else {
+    __ LoadRoot(r0, Heap::kNanValueRootIndex);
+  }
+  __ bind(&done);
+
+  GenerateHeapNumberStub(masm);
+}
+
+
 void TypeRecordingBinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
   Label not_numbers, call_runtime;
-  ASSERT(operands_type_ == TRBinaryOpIC::HEAP_NUMBER);
-
   GenerateFPOperation(masm, false, &not_numbers, &call_runtime);
 
   __ bind(&not_numbers);

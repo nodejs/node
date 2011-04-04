@@ -25,7 +25,7 @@ only BMP(Basic Multilingual Plane, U+0000 - U+FFFF).
 * `'base64'` - Base64 string encoding.
 
 * `'binary'` - A way of encoding raw binary data into strings by using only
-the first 8 bits of each character. This encoding method is depreciated and
+the first 8 bits of each character. This encoding method is deprecated and
 should be avoided in favor of `Buffer` objects where possible. This encoding
 will be removed in future versions of Node.
 
@@ -56,8 +56,6 @@ Example: write a utf8 string into a buffer, then print it
     buf = new Buffer(256);
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
-
-    // 12 bytes: ½ + ¼ = ¾
 
 
 ### buffer.toString(encoding, start=0, end=buffer.length)

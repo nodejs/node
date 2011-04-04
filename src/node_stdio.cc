@@ -165,13 +165,12 @@ static Handle<Value> IsATTY (const Arguments& args) {
 
 
 /* STDERR IS ALWAY SYNC ALWAYS UTF8 */
-static Handle<Value>
-WriteError (const Arguments& args)
-{
+static Handle<Value> WriteError (const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() < 1)
+  if (args.Length() < 1) {
     return Undefined();
+  }
 
   String::Utf8Value msg(args[0]->ToString());
 
@@ -189,7 +188,7 @@ WriteError (const Arguments& args)
     written += (size_t)r;
   }
 
-  return Undefined();
+  return True();
 }
 
 

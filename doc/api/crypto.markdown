@@ -29,6 +29,24 @@ which can be used to generate hash digests.
 of OpenSSL on the platform. Examples are `'sha1'`, `'md5'`, `'sha256'`, `'sha512'`, etc.
 On recent releases, `openssl list-message-digest-algorithms` will display the available digest algorithms.
 
+Example: this program that takes the sha1 sum of a file
+
+    var filename = process.argv[2];
+    var crypto = require('crypto');
+    var fs = require('fs');
+
+    var shasum = crypto.createHash('sha1');
+
+    var s = fs.ReadStream(filename);
+    s.on('data', function(d) {
+      shasum.update(d);
+    });
+
+    s.on('end', function() {
+      var d = shasum.digest('hex');
+      console.log(d + '  ' + filename);
+    });
+
 ### hash.update(data)
 
 Updates the hash content with the given `data`.
@@ -124,7 +142,7 @@ This can be called many times with new data as it is streamed.
 ### verifier.verify(cert, signature, signature_format='binary')
 
 Verifies the signed data by using the `cert` which is a string containing
-the PEM encoded public key, and `signature`, which is the previously calculates
+the PEM encoded certificate, and `signature`, which is the previously calculates
 signature for the data, in the `signature_format` which can be `'binary'`, `'hex'` or `'base64'`.
 
 Returns true or false depending on the validity of the signature for the data and public key.

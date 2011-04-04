@@ -13,11 +13,11 @@ scope; `var something` inside a Node module will be local to that module.
 
 ### process
 
-The process object. See the 'process object' section.
+The process object. See the [process object](process.html#process) section.
 
 ### require()
 
-To require modules. See the 'Modules' section.
+To require modules. See the [Modules](modules.html#modules) section.
 
 ### require.resolve()
 
@@ -59,3 +59,10 @@ Example: running `node example.js` from `/Users/mjr`
 A reference to the current module. In particular
 `module.exports` is the same as the `exports` object. See `src/node.js`
 for more information.
+
+### setTimeout(cb, ms)
+### clearTimeout(t)
+### setInterval(cb, ms)
+### clearInterval(t)
+
+The timer functions are global variables. See the [timers](timers.html) section.

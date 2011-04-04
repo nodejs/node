@@ -226,7 +226,7 @@ received.
 #### socket.setSecure()
 
 This function has been removed in v0.3. It used to upgrade the connection to
-SSL/TLS. See the TLS for the new API.
+SSL/TLS. See the [TLS section](tls.html#tLS_) for the new API.
 
 
 #### socket.write(data, [encoding], [callback])
@@ -319,7 +319,7 @@ See `connect()`.
 
 Emitted when data is received.  The argument `data` will be a `Buffer` or
 `String`.  Encoding of data is set by `socket.setEncoding()`.
-(See the section on `Readable Socket` for more information.)
+(See the [Readable Stream](streams.html#readable_Stream) section for more information.)
 
 #### Event: 'end'
 
