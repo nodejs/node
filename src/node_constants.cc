@@ -908,6 +908,10 @@ void DefineConstants(Handle<Object> target) {
 #ifdef SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG
   NODE_DEFINE_CONSTANT(target, SSL_OP_NETSCAPE_DEMO_CIPHER_CHANGE_BUG);
 #endif
+
+#ifdef SSL_OP_CRYPTOPRO_TLSEXT_BUG
+  NODE_DEFINE_CONSTANT(target, SSL_OP_CRYPTOPRO_TLSEXT_BUG);
+#endif
 }
 
 }  // namespace node
