@@ -56,9 +56,9 @@ Remove a listener from the listener array for the specified event.
     server.removeListener('connection', callback);
 
 
-#### emitter.removeAllListeners(event)
+#### emitter.removeAllListeners([event])
 
-Removes all listeners from the listener array for the specified event.
+Removes all listeners, or those of the specified event.
 
 
 #### emitter.setMaxListeners(n)
