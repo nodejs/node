@@ -32,6 +32,39 @@ var parseTests = {
     'href': '//some_path',
     'pathname': '//some_path'
   },
+  'HTTP://www.example.com/' : {
+    'href': 'http://www.example.com/',
+    'protocol': 'http:',
+    'host': 'www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/'
+  },
+  'http://www.ExAmPlE.com/' : {
+    'href': 'http://www.example.com/',
+    'protocol': 'http:',
+    'host': 'www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/'
+
+  },
+  'http://user:pw@www.ExAmPlE.com/' : {
+    'href': 'http://user:pw@www.example.com/',
+    'protocol': 'http:',
+    'auth': 'user:pw',
+    'host': 'user:pw@www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/'
+
+  },
+  'http://USER:PW@www.ExAmPlE.com/' : {
+    'href': 'http://USER:PW@www.example.com/',
+    'protocol': 'http:',
+    'auth': 'USER:PW',
+    'host': 'USER:PW@www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/'
+
+  },
   'http://www.narwhaljs.org/blog/categories?id=news' : {
     'href': 'http://www.narwhaljs.org/blog/categories?id=news',
     'protocol': 'http:',
@@ -154,11 +187,11 @@ for (var u in parseTests) {
                  'parse(' + u + ').' + i + ' == ' + e + '\nactual: ' + a);
   }
 
-  var expected = u,
+  var expected = parseTests[u].href,
       actual = url.format(parseTests[u]);
 
   assert.equal(expected, actual,
-               'format(' + u + ') == ' + u + '\nactual:' + actual);
+               'format(' + u + ') == ' + expected + '\nactual:' + actual);
 }
 
 var parseTestsWithQueryString = {
@@ -171,7 +204,7 @@ var parseTestsWithQueryString = {
     },
     'pathname': '/foo/bar'
   },
-  'http://example.com' : {
+  'http://example.com/' : {
     'href': 'http://example.com/',
     'protocol': 'http:',
     'slashes': true,

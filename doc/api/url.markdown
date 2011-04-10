@@ -9,19 +9,19 @@ string will not be in the parsed object. Examples are shown for the URL
 
 `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
 
-* `href`: The full URL that was originally parsed.
+* `href`: The full URL that was originally parsed. Both the protocol and host are lowercased.
 
   Example: `'http://user:pass@host.com:8080/p/a/t/h?query=string#hash'`
-* `protocol`: The request protocol.
+* `protocol`: The request protocol, lowercased.
 
   Example: `'http:'`
-* `host`: The full host portion of the URL, including port and authentication information.
+* `host`: The full lowercased host portion of the URL, including port and authentication information.
 
   Example: `'user:pass@host.com:8080'`
 * `auth`: The authentication information portion of a URL.
 
   Example: `'user:pass'`
-* `hostname`: Just the hostname portion of the host.
+* `hostname`: Just the lowercased hostname portion of the host.
 
   Example: `'host.com'`
 * `port`: The port number portion of the host.
