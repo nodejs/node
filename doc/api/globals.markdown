@@ -1,6 +1,7 @@
 ## Global Objects
 
-These object are available in the global scope and can be accessed from anywhere.
+These object are available in all modules. Some of these objects aren't
+actually in the global scope but in the module scope - this will be noted.
 
 ### global
 
@@ -18,6 +19,8 @@ The process object. See the [process object](process.html#process) section.
 ### require()
 
 To require modules. See the [Modules](modules.html#modules) section.
+`require` isn't actually a global but rather local to each module.
+
 
 ### require.resolve()
 
@@ -44,6 +47,8 @@ Example: running `node example.js` from `/Users/mjr`
     console.log(__filename);
     // /Users/mjr/example.js
 
+`__filename` isn't actually a global but rather local to each module.
+
 ### __dirname
 
 The dirname of the script being executed.
@@ -52,6 +57,8 @@ Example: running `node example.js` from `/Users/mjr`
 
     console.log(__dirname);
     // /Users/mjr
+
+`__dirname` isn't actually a global but rather local to each module.
 
 
 ### module
@@ -66,3 +73,5 @@ for more information.
 ### clearInterval(t)
 
 The timer functions are global variables. See the [timers](timers.html) section.
+
+`module` isn't actually a global but rather local to each module.
