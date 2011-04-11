@@ -118,7 +118,7 @@ Scope::Scope(Type type)
     params_(0),
     unresolved_(0),
     decls_(0) {
-  SetDefaults(type, NULL, NULL);
+  SetDefaults(type, NULL, Handle<SerializedScopeInfo>::null());
   ASSERT(!resolved());
 }
 
@@ -130,7 +130,7 @@ Scope::Scope(Scope* outer_scope, Type type)
     params_(4),
     unresolved_(16),
     decls_(4) {
-  SetDefaults(type, outer_scope, NULL);
+  SetDefaults(type, outer_scope, Handle<SerializedScopeInfo>::null());
   // At some point we might want to provide outer scopes to
   // eval scopes (by walking the stack and reading the scope info).
   // In that case, the ASSERT below needs to be adjusted.
@@ -140,14 +140,14 @@ Scope::Scope(Scope* outer_scope, Type type)
 }
 
 
-Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
+Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
   : inner_scopes_(4),
     variables_(),
     temps_(4),
     params_(4),
     unresolved_(16),
     decls_(4) {
-  ASSERT(scope_info != NULL);
+  ASSERT(!scope_info.is_null());
   SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
   ASSERT(resolved());
   if (scope_info->HasHeapAllocatedLocals()) {
@@ -176,6 +176,31 @@ Scope::Scope(Scope* inner_scope, SerializedScopeInfo* scope_info)
 }
 
 
+void Scope::SetDefaults(Type type,
+                        Scope* outer_scope,
+                        Handle<SerializedScopeInfo> scope_info) {
+  outer_scope_ = outer_scope;
+  type_ = type;
+  scope_name_ = Factory::empty_symbol();
+  dynamics_ = NULL;
+  receiver_ = NULL;
+  function_ = NULL;
+  arguments_ = NULL;
+  arguments_shadow_ = NULL;
+  illegal_redecl_ = NULL;
+  scope_inside_with_ = false;
+  scope_contains_with_ = false;
+  scope_calls_eval_ = false;
+  outer_scope_calls_eval_ = false;
+  inner_scope_calls_eval_ = false;
+  outer_scope_is_eval_scope_ = false;
+  force_eager_compilation_ = false;
+  num_stack_slots_ = 0;
+  num_heap_slots_ = 0;
+  scope_info_ = scope_info;
+}
+
+
 Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
                                     Scope* global_scope) {
   ASSERT(!info->closure().is_null());
@@ -188,8 +213,8 @@ Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
     JSFunction* current = *info->closure();
     do {
       current = current->context()->closure();
-      SerializedScopeInfo* scope_info = current->shared()->scope_info();
-      if (scope_info != SerializedScopeInfo::Empty()) {
+      Handle<SerializedScopeInfo> scope_info(current->shared()->scope_info());
+      if (*scope_info != SerializedScopeInfo::Empty()) {
         scope = new Scope(scope, scope_info);
         if (innermost_scope == NULL) innermost_scope = scope;
       } else {

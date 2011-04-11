@@ -57,7 +57,8 @@ class LCodeGen BASE_EMBEDDED {
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
-        resolver_(this) {
+        resolver_(this),
+        expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
   }
 
@@ -167,18 +168,34 @@ class LCodeGen BASE_EMBEDDED {
   bool GenerateDeferredCode();
   bool GenerateSafepointTable();
 
+  enum SafepointMode {
+    RECORD_SIMPLE_SAFEPOINT,
+    RECORD_SAFEPOINT_WITH_REGISTERS_AND_NO_ARGUMENTS
+  };
+
   void CallCode(Handle<Code> code,
                 RelocInfo::Mode mode,
                 LInstruction* instr);
+
+  void CallCodeGeneric(Handle<Code> code,
+                       RelocInfo::Mode mode,
+                       LInstruction* instr,
+                       SafepointMode safepoint_mode);
+
   void CallRuntime(Runtime::Function* function,
                    int num_arguments,
                    LInstruction* instr);
+
   void CallRuntime(Runtime::FunctionId id,
                    int num_arguments,
                    LInstruction* instr) {
     Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, num_arguments, instr);
   }
+
+  void CallRuntimeFromDeferred(Runtime::FunctionId id,
+                               int argc,
+                               LInstruction* instr);
 
   // Generate a direct call to a known function.  Expects the function
   // to be in edi.
@@ -188,7 +205,9 @@ class LCodeGen BASE_EMBEDDED {
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
-  void RegisterLazyDeoptimization(LInstruction* instr);
+  void RegisterLazyDeoptimization(LInstruction* instr,
+                                  SafepointMode safepoint_mode);
+
   void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
 
@@ -274,6 +293,48 @@ class LCodeGen BASE_EMBEDDED {
 
   // Compiler from a set of parallel moves to a sequential list of moves.
   LGapResolver resolver_;
+
+  Safepoint::Kind expected_safepoint_kind_;
+
+  class PushSafepointRegistersScope BASE_EMBEDDED {
+   public:
+    PushSafepointRegistersScope(LCodeGen* codegen,
+                                Safepoint::Kind kind)
+        : codegen_(codegen) {
+      ASSERT(codegen_->expected_safepoint_kind_ == Safepoint::kSimple);
+      codegen_->expected_safepoint_kind_ = kind;
+
+      switch (codegen_->expected_safepoint_kind_) {
+        case Safepoint::kWithRegisters:
+          codegen_->masm_->PushSafepointRegisters();
+          break;
+        case Safepoint::kWithRegistersAndDoubles:
+          codegen_->masm_->PushSafepointRegistersAndDoubles();
+          break;
+        default:
+          UNREACHABLE();
+      }
+    }
+
+    ~PushSafepointRegistersScope() {
+      Safepoint::Kind kind = codegen_->expected_safepoint_kind_;
+      ASSERT((kind & Safepoint::kWithRegisters) != 0);
+      switch (kind) {
+        case Safepoint::kWithRegisters:
+          codegen_->masm_->PopSafepointRegisters();
+          break;
+        case Safepoint::kWithRegistersAndDoubles:
+          codegen_->masm_->PopSafepointRegistersAndDoubles();
+          break;
+        default:
+          UNREACHABLE();
+      }
+      codegen_->expected_safepoint_kind_ = Safepoint::kSimple;
+    }
+
+   private:
+    LCodeGen* codegen_;
+  };
 
   friend class LDeferredCode;
   friend class LEnvironment;

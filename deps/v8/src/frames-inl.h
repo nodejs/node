@@ -136,15 +136,26 @@ inline bool StandardFrame::IsConstructFrame(Address fp) {
 }
 
 
+Address JavaScriptFrame::GetParameterSlot(int index) const {
+  int param_count = ComputeParametersCount();
+  ASSERT(-1 <= index && index < param_count);
+  int parameter_offset = (param_count - index - 1) * kPointerSize;
+  return caller_sp() + parameter_offset;
+}
+
+
+Object* JavaScriptFrame::GetParameter(int index) const {
+  return Memory::Object_at(GetParameterSlot(index));
+}
+
+
 inline Object* JavaScriptFrame::receiver() const {
-  const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  return Memory::Object_at(caller_sp() + offset);
+  return GetParameter(-1);
 }
 
 
 inline void JavaScriptFrame::set_receiver(Object* value) {
-  const int offset = JavaScriptFrameConstants::kReceiverOffset;
-  Memory::Object_at(caller_sp() + offset) = value;
+  Memory::Object_at(GetParameterSlot(-1)) = value;
 }
 
 
