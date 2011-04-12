@@ -136,7 +136,7 @@ Emitted when a piece of the message body is received.
 Example: A chunk of the body is given as the single
 argument. The transfer-encoding has been decoded.  The
 body chunk is a string.  The body encoding is set with
-`request.setBodyEncoding()`.
+`request.setEncoding()`.
 
 ### Event: 'end'
 
