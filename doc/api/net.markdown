@@ -303,7 +303,11 @@ initialDelay will leave the value unchanged from the default
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
-This member is only present in server-side connections.
+#### socket.remotePort
+
+The numeric representation of the remote port. For example,
+`80` or `21`.
+
 
 
 #### Event: 'connect'
