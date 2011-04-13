@@ -495,7 +495,7 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
 
   size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
                                              : args[2]->Uint32Value();
-  max_length = MIN(buffer->length_ - offset, max_length);
+  max_length = MIN(buffer->length_ - offset, max_length) / 2;
 
   uint16_t* p = (uint16_t*)(buffer->data_ + offset);
 
@@ -503,6 +503,10 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
                          0,
                          max_length,
                          String::HINT_MANY_WRITES_EXPECTED);
+
+  constructor_template->GetFunction()->Set(chars_written_sym,
+                                           Integer::New(written));
+
   return scope.Close(Integer::New(written * 2));
 }
 
