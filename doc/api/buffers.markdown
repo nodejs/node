@@ -46,8 +46,8 @@ Allocates a new buffer containing the given `str`.
 
 Writes `string` to the buffer at `offset` using the given encoding. Returns
 number of octets written.  If `buffer` did not contain enough space to fit
-the entire string, it will write a partial amount of the string. In the case
-of `'utf8'` encoding, the method will not write partial characters.
+the entire string, it will write a partial amount of the string.
+The method will not write partial characters.
 
 Example: write a utf8 string into a buffer, then print it
 
