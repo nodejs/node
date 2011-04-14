@@ -66,6 +66,7 @@ Example: running `node example.js` from `/Users/mjr`
 A reference to the current module. In particular
 `module.exports` is the same as the `exports` object. See `src/node.js`
 for more information.
+`module` isn't actually a global but rather local to each module.
 
 ### setTimeout(cb, ms)
 ### clearTimeout(t)
@@ -73,5 +74,3 @@ for more information.
 ### clearInterval(t)
 
 The timer functions are global variables. See the [timers](timers.html) section.
-
-`module` isn't actually a global but rather local to each module.
