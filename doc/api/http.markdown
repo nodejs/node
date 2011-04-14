@@ -259,6 +259,11 @@ be called before `response.end()` is called.
 If you call `response.write()` or `response.end()` before calling this, the
 implicit/mutable headers will be calculated and call this function for you.
 
+Note: that Content-Length is given in bytes not characters. The above example
+works because the string `'hello world'` contains only single byte characters.
+If the body contains higher coded characters then `Buffer.byteLength()`
+should be used to determine the number of bytes in a given encoding.
+
 ### response.statusCode
 
 When using implicit headers (not calling `response.writeHead()` explicitly), this property
