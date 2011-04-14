@@ -565,6 +565,11 @@ void Connection::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "receivedShutdown", Connection::ReceivedShutdown);
   NODE_SET_PROTOTYPE_METHOD(t, "close", Connection::Close);
 
+#ifdef OPENSSL_NPN_NEGOTIATED
+  NODE_SET_PROTOTYPE_METHOD(t, "getNegotiatedProtocol", Connection::GetNegotiatedProto);
+  NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", Connection::SetNPNProtocols);
+#endif
+
   target->Set(String::NewSymbol("Connection"), t->GetFunction());
 }
 
@@ -614,6 +619,76 @@ static int VerifyCallback(int preverify_ok, X509_STORE_CTX *ctx) {
   return 1;
 }
 
+#ifdef OPENSSL_NPN_NEGOTIATED
+
+int Connection::AdvertiseNextProtoCallback_(SSL *s,
+                                            const unsigned char **data,
+                                            unsigned int *len,
+                                            void *arg) {
+
+  Connection *p = static_cast<Connection*>(SSL_get_app_data(s));
+
+  if (p->npnProtos_.IsEmpty()) {
+    // No initialization - no NPN protocols
+    *data = reinterpret_cast<const unsigned char*>("");
+    *len = 0;
+  } else {
+    *data = reinterpret_cast<const unsigned char*>(Buffer::Data(p->npnProtos_));
+    *len = Buffer::Length(p->npnProtos_);
+  }
+
+  return SSL_TLSEXT_ERR_OK;
+}
+
+int Connection::SelectNextProtoCallback_(SSL *s,
+                             unsigned char **out, unsigned char *outlen,
+                             const unsigned char* in,
+                             unsigned int inlen, void *arg) {
+  Connection *p = static_cast<Connection*> SSL_get_app_data(s);
+
+  // Release old protocol handler if present
+  if (!p->selectedNPNProto_.IsEmpty()) {
+    p->selectedNPNProto_.Dispose();
+  }
+
+  if (p->npnProtos_.IsEmpty()) {
+    // We should at least select one protocol
+    // If server is using NPN
+    *out = reinterpret_cast<unsigned char*>(const_cast<char*>("http/1.1"));
+    *outlen = 8;
+
+    // set status unsupported
+    p->selectedNPNProto_ = Persistent<Value>::New(False());
+
+    return SSL_TLSEXT_ERR_OK;
+  }
+
+  const unsigned char* npnProtos =
+      reinterpret_cast<const unsigned char*>(Buffer::Data(p->npnProtos_));
+
+  int status = SSL_select_next_proto(out, outlen, in, inlen, npnProtos,
+                                     Buffer::Length(p->npnProtos_));
+
+  switch (status) {
+    case OPENSSL_NPN_UNSUPPORTED:
+      p->selectedNPNProto_ = Persistent<Value>::New(Null());
+      break;
+    case OPENSSL_NPN_NEGOTIATED:
+      p->selectedNPNProto_ = Persistent<Value>::New(String::New(
+                                 reinterpret_cast<const char*>(*out), *outlen
+                             ));
+      break;
+    case OPENSSL_NPN_NO_OVERLAP:
+      p->selectedNPNProto_ = Persistent<Value>::New(False());
+      break;
+    default:
+      break;
+  }
+
+  return SSL_TLSEXT_ERR_OK;
+}                                  
+#endif
+
 
 Handle<Value> Connection::New(const Arguments& args) {
   HandleScope scope;
@@ -633,6 +708,23 @@ Handle<Value> Connection::New(const Arguments& args) {
   p->ssl_ = SSL_new(sc->ctx_);
   p->bio_read_ = BIO_new(BIO_s_mem());
   p->bio_write_ = BIO_new(BIO_s_mem());
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+  SSL_set_app_data(p->ssl_, p);
+  if (is_server) {
+    // Server should advertise NPN protocols
+    SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
+                                          AdvertiseNextProtoCallback_,
+                                          NULL);
+  } else {
+    // Client should select protocol from advertised
+    // If server supports NPN
+    SSL_CTX_set_next_proto_select_cb(sc->ctx_,
+                                     SelectNextProtoCallback_,
+                                     NULL);
+  }
+#endif
+
   SSL_set_bio(p->ssl_, p->bio_read_, p->bio_write_);
 
 #ifdef SSL_MODE_RELEASE_BUFFERS
@@ -1183,6 +1275,48 @@ Handle<Value> Connection::Close(const Arguments& args) {
   }
   return True();
 }
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+Handle<Value> Connection::GetNegotiatedProto(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (ss->is_server_) {
+    const unsigned char *npn_proto;
+    unsigned int npn_proto_len;
+
+    SSL_get0_next_proto_negotiated(ss->ssl_, &npn_proto, &npn_proto_len);
+
+    if (!npn_proto) {
+      return False();
+    }
+
+    return String::New((const char*) npn_proto, npn_proto_len);
+  } else {
+    return ss->selectedNPNProto_;
+  }
+}
+
+Handle<Value> Connection::SetNPNProtocols(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (args.Length() < 1 || !Buffer::HasInstance(args[0])) {
+    return ThrowException(Exception::Error(String::New(
+           "Must give a Buffer as first argument")));
+  }
+
+  // Release old handle
+  if (!ss->npnProtos_.IsEmpty()) {
+    ss->npnProtos_.Dispose();
+  }
+  ss->npnProtos_ = Persistent<Object>::New(args[0]->ToObject());
+
+  return True();
+};
+#endif
 
 
 static void HexEncode(unsigned char *md_value,

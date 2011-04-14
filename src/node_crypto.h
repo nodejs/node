@@ -23,6 +23,7 @@
 #define SRC_NODE_CRYPTO_H_
 
 #include <node.h>
+
 #include <node_object_wrap.h>
 #include <v8.h>
 
@@ -32,6 +33,10 @@
 #include <openssl/pem.h>
 #include <openssl/x509.h>
 #include <openssl/hmac.h>
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+#include <node_buffer.h>
+#endif
 
 #define EVP_F_EVP_DECRYPTFINAL 101
 
@@ -94,6 +99,11 @@ class Connection : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
+#ifdef OPENSSL_NPN_NEGOTIATED
+  v8::Persistent<v8::Object> npnProtos_;
+  v8::Persistent<v8::Value> selectedNPNProto_;
+#endif
+
  protected:
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> EncIn(const v8::Arguments& args);
@@ -110,6 +120,20 @@ class Connection : ObjectWrap {
   static v8::Handle<v8::Value> ReceivedShutdown(const v8::Arguments& args);
   static v8::Handle<v8::Value> Start(const v8::Arguments& args);
   static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+  // NPN
+  static v8::Handle<v8::Value> GetNegotiatedProto(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetNPNProtocols(const v8::Arguments& args);
+  static int AdvertiseNextProtoCallback_(SSL *s,
+                                         const unsigned char **data,
+                                         unsigned int *len,
+                                         void *arg);
+  static int SelectNextProtoCallback_(SSL *s,
+                                      unsigned char **out, unsigned char *outlen,
+                                      const unsigned char* in,
+                                      unsigned int inlen, void *arg);
+#endif
 
   int HandleBIOError(BIO *bio, const char* func, int rv);
   int HandleSSLError(const char* func, int rv);
@@ -139,6 +163,7 @@ class Connection : ObjectWrap {
   BIO *bio_read_;
   BIO *bio_write_;
   SSL *ssl_;
+  
   bool is_server_; /* coverity[member_decl] */
 };
 
