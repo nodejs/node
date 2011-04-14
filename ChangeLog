@@ -1,3 +1,33 @@
+2011.04.13, Version 0.4.6 (stable)
+
+* Don't error on ENOTCONN from shutdown() #670
+
+* Auto completion of built-in debugger suggests prefix match rather than
+	partial match. (koichik)
+
+* circular reference in vm modules. #822 (Jakub Lekstan)
+
+* http response.readable should be false after 'end' #867 (Abe Fettig)
+
+* Implemenet os.cpus() and os.uptime() on Solaris (Scott McWhirter)
+
+* fs.ReadStream: Allow omission of end option for range reads #801
+	(Felix Geisendörfer)
+
+* Buffer.write() with UCS-2 should not be write partial char
+	#916 (koichik)
+
+* Pass secureProtocol through on tls.Server creation (Theo Schlossnagle)
+
+* TLS use RC4-SHA by default
+
+* Don't strangely drop out of event loop on HTTPS client uploads #892
+
+* Doc improvements
+
+* Upgrade v8 to 3.1.8.10
+
+
 2011.04.01, Version 0.4.5 (stable)
 
 * Fix listener leak in stream.pipe() (Mikeal Rogers)
