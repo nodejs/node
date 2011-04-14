@@ -370,8 +370,8 @@ class Scope: public ZoneObject {
   int num_heap_slots_;
 
   // Serialized scopes support.
-  SerializedScopeInfo* scope_info_;
-  bool resolved() { return scope_info_ != NULL; }
+  Handle<SerializedScopeInfo> scope_info_;
+  bool resolved() { return !scope_info_.is_null(); }
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -406,7 +406,7 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
  private:
-  Scope(Scope* inner_scope, SerializedScopeInfo* scope_info);
+  Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {
@@ -417,27 +417,7 @@ class Scope: public ZoneObject {
 
   void SetDefaults(Type type,
                    Scope* outer_scope,
-                   SerializedScopeInfo* scope_info) {
-    outer_scope_ = outer_scope;
-    type_ = type;
-    scope_name_ = Factory::empty_symbol();
-    dynamics_ = NULL;
-    receiver_ = NULL;
-    function_ = NULL;
-    arguments_ = NULL;
-    arguments_shadow_ = NULL;
-    illegal_redecl_ = NULL;
-    scope_inside_with_ = false;
-    scope_contains_with_ = false;
-    scope_calls_eval_ = false;
-    outer_scope_calls_eval_ = false;
-    inner_scope_calls_eval_ = false;
-    outer_scope_is_eval_scope_ = false;
-    force_eager_compilation_ = false;
-    num_stack_slots_ = 0;
-    num_heap_slots_ = 0;
-    scope_info_ = scope_info;
-  }
+                   Handle<SerializedScopeInfo> scope_info);
 };
 
 

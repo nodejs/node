@@ -256,6 +256,15 @@ console.error('f.length: %d     (should be 12)', f.length);
 assert.deepEqual(f, new Buffer([63, 4, 64, 4, 56, 4, 50, 4, 53, 4, 66, 4]));
 assert.equal(f.toString('ucs2'), 'привет');
 
+var f = new Buffer([0, 0, 0, 0, 0]);
+assert.equal(f.length, 5);
+var size = f.write('あいうえお', 'ucs2');
+console.error('bytes written to buffer: %d     (should be 4)', size);
+console.error('chars written to buffer: %d     (should be 2)', Buffer._charsWritten);
+assert.equal(size, 4);
+assert.equal(Buffer._charsWritten, 2);
+assert.deepEqual(f, new Buffer([0x42, 0x30, 0x44, 0x30, 0x00]));
+
 
 var arrayIsh = {0: 0, 1: 1, 2: 2, 3: 3, length: 4};
 var g = new Buffer(arrayIsh);

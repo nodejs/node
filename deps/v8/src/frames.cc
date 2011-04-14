@@ -540,9 +540,7 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
       pc(), &safepoint_entry, &stack_slots);
   unsigned slot_space = stack_slots * kPointerSize;
 
-  // Visit the outgoing parameters. This is usually dealt with by the
-  // callee, but while GC'ing we artificially lower the number of
-  // arguments to zero and let the caller deal with it.
+  // Visit the outgoing parameters.
   Object** parameters_base = &Memory::Object_at(sp());
   Object** parameters_limit = &Memory::Object_at(
       fp() + JavaScriptFrameConstants::kFunctionOffset - slot_space);
@@ -596,21 +594,6 @@ void OptimizedFrame::Iterate(ObjectVisitor* v) const {
 
   // Visit the return address in the callee and incoming arguments.
   IteratePc(v, pc_address(), code);
-  IterateArguments(v);
-}
-
-
-Object* JavaScriptFrame::GetParameter(int index) const {
-  ASSERT(index >= 0 && index < ComputeParametersCount());
-  const int offset = JavaScriptFrameConstants::kParam0Offset;
-  return Memory::Object_at(caller_sp() + offset - (index * kPointerSize));
-}
-
-
-int JavaScriptFrame::ComputeParametersCount() const {
-  Address base  = caller_sp() + JavaScriptFrameConstants::kReceiverOffset;
-  Address limit = fp() + JavaScriptFrameConstants::kSavedRegistersOffset;
-  return static_cast<int>((base - limit) / kPointerSize);
 }
 
 
@@ -630,32 +613,17 @@ Code* JavaScriptFrame::unchecked_code() const {
 }
 
 
-int JavaScriptFrame::GetProvidedParametersCount() const {
-  return ComputeParametersCount();
+int JavaScriptFrame::GetNumberOfIncomingArguments() const {
+  ASSERT(!SafeStackFrameIterator::is_active() &&
+         Heap::gc_state() == Heap::NOT_IN_GC);
+
+  JSFunction* function = JSFunction::cast(this->function());
+  return function->shared()->formal_parameter_count();
 }
 
 
 Address JavaScriptFrame::GetCallerStackPointer() const {
-  int arguments;
-  if (Heap::gc_state() != Heap::NOT_IN_GC ||
-      SafeStackFrameIterator::is_active()) {
-    // If the we are currently iterating the safe stack the
-    // arguments for frames are traversed as if they were
-    // expression stack elements of the calling frame. The reason for
-    // this rather strange decision is that we cannot access the
-    // function during mark-compact GCs when objects may have been marked.
-    // In fact accessing heap objects (like function->shared() below)
-    // at all during GC is problematic.
-    arguments = 0;
-  } else {
-    // Compute the number of arguments by getting the number of formal
-    // parameters of the function. We must remember to take the
-    // receiver into account (+1).
-    JSFunction* function = JSFunction::cast(this->function());
-    arguments = function->shared()->formal_parameter_count() + 1;
-  }
-  const int offset = StandardFrameConstants::kCallerSPOffset;
-  return fp() + offset + (arguments * kPointerSize);
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 
@@ -833,9 +801,7 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
 
 
 Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
-  const int arguments = Smi::cast(GetExpression(0))->value();
-  const int offset = StandardFrameConstants::kCallerSPOffset;
-  return fp() + offset + (arguments + 1) * kPointerSize;
+  return fp() + StandardFrameConstants::kCallerSPOffset;
 }
 
 
@@ -1074,17 +1040,6 @@ void StandardFrame::IterateExpressions(ObjectVisitor* v) const {
 void JavaScriptFrame::Iterate(ObjectVisitor* v) const {
   IterateExpressions(v);
   IteratePc(v, pc_address(), code());
-  IterateArguments(v);
-}
-
-
-void JavaScriptFrame::IterateArguments(ObjectVisitor* v) const {
-  // Traverse callee-saved registers, receiver, and parameters.
-  const int kBaseOffset = JavaScriptFrameConstants::kSavedRegistersOffset;
-  const int kLimitOffset = JavaScriptFrameConstants::kReceiverOffset;
-  Object** base = &Memory::Object_at(fp() + kBaseOffset);
-  Object** limit = &Memory::Object_at(caller_sp() + kLimitOffset) + 1;
-  v->VisitPointers(base, limit);
 }
 
 

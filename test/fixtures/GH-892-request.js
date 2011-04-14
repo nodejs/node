@@ -19,43 +19,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+// Called by test/simple/test-regress-GH-892.js
+
+var https = require('https');
+var fs = require('fs');
 var assert = require('assert');
-var os = require('os');
 
+var PORT = parseInt(process.argv[2]);
+var bytesExpected = parseInt(process.argv[3]);
 
-var hostname = os.hostname()
-console.log("hostname = %s", hostname);
-assert.ok(hostname.length > 0);
+var gotResponse = false;
 
-var uptime = os.uptime();
-console.log("uptime = %d", uptime);
-assert.ok(uptime > 0);
+var options = {
+  method: 'POST',
+  port: PORT
+};
 
-var cpus = os.cpus();
-console.log("cpus = ", cpus);
-assert.ok(cpus.length > 0);
+var req = https.request(options, function(res) {
+  assert.equal(200, res.statusCode);
+  gotResponse = true;
+  console.error("DONE");
+});
 
-var type = os.type();
-console.log("type = ", type);
-assert.ok(type.length > 0);
+req.end(new Buffer(bytesExpected));
 
-var release = os.release();
-console.log("release = ", release);
-assert.ok(release.length > 0);
-
-if (process.platform != 'sunos') {
-  // not implemeneted yet
-  assert.ok(os.loadavg().length > 0);
-  assert.ok(os.freemem() > 0);
-  assert.ok(os.totalmem() > 0);
-}
-
-
-var interfaces = os.getNetworkInterfaces();
-console.error(interfaces);
-switch (process.platform) {
-  case 'linux':
-    assert.equal('127.0.0.1', interfaces.lo.ip);
-    break;
-}
+process.on('exit', function() {
+  assert.ok(gotResponse);
+});

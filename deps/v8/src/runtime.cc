@@ -4332,7 +4332,7 @@ static MaybeObject* Runtime_GetArgumentsProperty(Arguments args) {
   JavaScriptFrame* frame = it.frame();
 
   // Get the actual number of provided arguments.
-  const uint32_t n = frame->GetProvidedParametersCount();
+  const uint32_t n = frame->ComputeParametersCount();
 
   // Try to convert the key to an index. If successful and within
   // index return the the argument from the frame.
@@ -6887,7 +6887,7 @@ static MaybeObject* Runtime_NewObjectFromBound(Arguments args) {
   ASSERT(!frame->is_optimized());
   it.AdvanceToArgumentsFrame();
   frame = it.frame();
-  int argc = frame->GetProvidedParametersCount();
+  int argc = frame->ComputeParametersCount();
 
   // Prepend bound arguments to caller's arguments.
   int total_argc = bound_argc + argc;
@@ -7092,14 +7092,13 @@ static MaybeObject* Runtime_NotifyDeoptimized(Arguments args) {
   ASSERT(Heap::IsAllocationAllowed());
   int frames = deoptimizer->output_count();
 
+  deoptimizer->MaterializeHeapNumbers();
+  delete deoptimizer;
+
   JavaScriptFrameIterator it;
   JavaScriptFrame* frame = NULL;
-  for (int i = 0; i < frames; i++) {
-    if (i != 0) it.Advance();
-    frame = it.frame();
-    deoptimizer->InsertHeapNumberValues(frames - i - 1, frame);
-  }
-  delete deoptimizer;
+  for (int i = 0; i < frames - 1; i++) it.Advance();
+  frame = it.frame();
 
   RUNTIME_ASSERT(frame->function()->IsJSFunction());
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
@@ -7720,7 +7719,7 @@ static void PrintTransition(Object* result) {
     // supplied parameters, not all parameters required)
     PrintF("(this=");
     PrintObject(frame->receiver());
-    const int length = frame->GetProvidedParametersCount();
+    const int length = frame->ComputeParametersCount();
     for (int i = 0; i < length; i++) {
       PrintF(", ");
       PrintObject(frame->GetParameter(i));
@@ -9223,8 +9222,8 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
   // Find the number of arguments to fill. At least fill the number of
   // parameters for the function and fill more if more parameters are provided.
   int argument_count = info.number_of_parameters();
-  if (argument_count < it.frame()->GetProvidedParametersCount()) {
-    argument_count = it.frame()->GetProvidedParametersCount();
+  if (argument_count < it.frame()->ComputeParametersCount()) {
+    argument_count = it.frame()->ComputeParametersCount();
   }
 
   // Calculate the size of the result.
@@ -9281,7 +9280,7 @@ static MaybeObject* Runtime_GetFrameDetails(Arguments args) {
     // TODO(3141533): We should be able to get the actual parameter
     // value for optimized frames.
     if (!is_optimized_frame &&
-        (i < it.frame()->GetProvidedParametersCount())) {
+        (i < it.frame()->ComputeParametersCount())) {
       details->set(details_index++, it.frame()->GetParameter(i));
     } else {
       details->set(details_index++, Heap::undefined_value());
@@ -10161,7 +10160,7 @@ static Handle<Object> GetArgumentsObject(JavaScriptFrame* frame,
     }
   }
 
-  const int length = frame->GetProvidedParametersCount();
+  const int length = frame->ComputeParametersCount();
   Handle<JSObject> arguments = Factory::NewArgumentsObject(function, length);
   Handle<FixedArray> array = Factory::NewFixedArray(length);
 

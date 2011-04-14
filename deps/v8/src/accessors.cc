@@ -566,8 +566,8 @@ static Address SlotAddress(JavaScriptFrame* frame, int slot_index) {
     const int offset = JavaScriptFrameConstants::kLocal0Offset;
     return frame->fp() + offset - (slot_index * kPointerSize);
   } else {
-    const int offset = JavaScriptFrameConstants::kReceiverOffset;
-    return frame->caller_sp() + offset + (slot_index * kPointerSize);
+    const int offset = JavaScriptFrameConstants::kSavedRegistersOffset;
+    return frame->fp() + offset - ((slot_index + 1) * kPointerSize);
   }
 }
 
@@ -791,14 +791,16 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
 
       // Get the number of arguments and construct an arguments object
       // mirror for the right frame.
-      const int length = frame->GetProvidedParametersCount();
+      const int length = frame->ComputeParametersCount();
       Handle<JSObject> arguments = Factory::NewArgumentsObject(function,
                                                                length);
       Handle<FixedArray> array = Factory::NewFixedArray(length);
 
       // Copy the parameters to the arguments object.
       ASSERT(array->length() == length);
-      for (int i = 0; i < length; i++) array->set(i, frame->GetParameter(i));
+      for (int i = 0; i < length; i++) {
+        array->set(i, frame->GetParameter(i));
+      }
       arguments->set_elements(*array);
 
       // Return the freshly allocated arguments object.

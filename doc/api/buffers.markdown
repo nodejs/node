@@ -48,14 +48,18 @@ Allocates a new buffer containing the given `str`.
 
 Writes `string` to the buffer at `offset` using the given encoding. Returns
 number of octets written.  If `buffer` did not contain enough space to fit
-the entire string, it will write a partial amount of the string. In the case
-of `'utf8'` encoding, the method will not write partial characters.
+the entire string, it will write a partial amount of the string.
+The method will not write partial characters.
 
 Example: write a utf8 string into a buffer, then print it
 
     buf = new Buffer(256);
     len = buf.write('\u00bd + \u00bc = \u00be', 0);
     console.log(len + " bytes: " + buf.toString('utf8', 0, len));
+
+The number of characters written (which may be different than the number of
+bytes written) is set in `Buffer._charsWritten` and will be overwritten the
+next time `buf.write()` is called.
 
 
 ### buffer.toString(encoding, start=0, end=buffer.length)
