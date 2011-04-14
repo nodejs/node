@@ -58,6 +58,8 @@ file
       }
     })
   .addListener('close', function() {
+      assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
+
       callbacks.close++;
       assert.throws(function() {
         file.write('should not work anymore');

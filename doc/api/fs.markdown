@@ -396,6 +396,11 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
  `fd` is the file descriptor used by the WriteStream.
 
+### file.bytesWritten
+
+The number of bytes written so far. Does not include data that is still queued
+for writing.
+
 ### fs.createWriteStream(path, [options])
 
 Returns a new WriteStream object (See `Writable Stream`).
