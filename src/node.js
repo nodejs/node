@@ -111,6 +111,9 @@
     global.GLOBAL = global;
     global.root = global;
     global.Buffer = NativeModule.require('buffer').Buffer;
+    if (process.cov) {
+      global.__cov = {};
+    }
   };
 
   startup.globalTimeouts = function() {
@@ -342,6 +345,20 @@
     if (!isWindows && argv0.indexOf('/') !== -1 && argv0.charAt(0) !== '/') {
       var path = NativeModule.require('path');
       process.argv[0] = path.join(cwd, process.argv[0]);
+    }
+
+    if (process.cov) {
+      process.on('exit', function() {
+        var coverage = JSON.stringify(__cov);
+        var path = NativeModule.require('path');
+        var fs = NativeModule.require('fs');
+        var filename = path.join(cwd, 'node-cov.json');
+        try {
+          fs.unlinkSync(filename);
+        } catch(e) {
+        }
+        fs.writeFileSync(filename, coverage);
+      });
     }
   };
 

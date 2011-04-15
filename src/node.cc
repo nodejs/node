@@ -107,6 +107,7 @@ static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
 static bool debug_wait_connect = false;
+static bool cov = false;
 static int debug_port=5858;
 static int max_stack_size = 0;
 
@@ -2029,6 +2030,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   process->Set(String::NewSymbol("ENV"), ENV);
 
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
+  process->Set(String::NewSymbol("cov"), cov ? True() : False());
 
   // -e, --eval
   if (eval_string) {
@@ -2171,6 +2173,7 @@ static void PrintHelp() {
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
+         "  --cov                code coverage; writes node-cov.json \n"
          "\n"
          "Enviromental variables:\n"
          "NODE_PATH              ':'-separated list of directories\n"
@@ -2192,6 +2195,9 @@ static void ParseArgs(int argc, char **argv) {
     const char *arg = argv[i];
     if (strstr(arg, "--debug") == arg) {
       ParseDebugOpt(arg);
+      argv[i] = const_cast<char*>("");
+    } else if (!strcmp(arg, "--cov")) {
+      cov = true;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
