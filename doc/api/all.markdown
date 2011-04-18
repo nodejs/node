@@ -1,6 +1,7 @@
 
 @include synopsis
 @include globals
+@include stdio
 @include timers
 @include modules
 @include addons

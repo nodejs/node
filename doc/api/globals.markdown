@@ -16,6 +16,11 @@ scope; `var something` inside a Node module will be local to that module.
 
 The process object. See the [process object](process.html#process) section.
 
+### console
+
+Used to print to stdout and stderr. See the [stdio](stdio.html) section.
+
+
 ### require()
 
 To require modules. See the [Modules](modules.html#modules) section.
