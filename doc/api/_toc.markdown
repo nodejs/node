@@ -2,6 +2,7 @@
 
 * [Synopsis](synopsis.html)
 * [Globals](globals.html)
+* [STDIO](stdio.html)
 * [Timers](timers.html)
 * [Modules](modules.html)
 * [C/C++ Addons](addons.html)
