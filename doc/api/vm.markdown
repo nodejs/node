@@ -33,7 +33,7 @@ Example of using `vm.runInThisContext` and `eval` to run the same code:
 `eval` does have access to the local scope, so `localVar` is changed.
 
 In case of syntax error in `code`, `vm.runInThisContext` emits the syntax error to stderr
-and throws.an exception.
+and throws an exception.
 
 
 ### vm.runInNewContext(code, [sandbox], [filename])
@@ -62,7 +62,7 @@ Note that running untrusted code is a tricky business requiring great care.  To 
 global variable leakage, `vm.runInNewContext` is quite useful, but safely running untrusted code
 requires a separate process.
 
-In case of syntax error in `code`, `vm.runInThisContext` emits the syntax error to stderr
+In case of syntax error in `code`, `vm.runInNewContext` emits the syntax error to stderr
 and throws an exception.
 
 
