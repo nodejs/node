@@ -43,7 +43,7 @@ int Start (int argc, char *argv[]);
 
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(1000*static_cast<double>(t))
-#define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->IntegerValue())/1000.0);
+#define NODE_V8_UNIXTIME(v) (static_cast<double>((v)->NumberValue())/1000.0);
 
 #define NODE_DEFINE_CONSTANT(target, constant)                            \
   (target)->Set(v8::String::NewSymbol(#constant),                         \
