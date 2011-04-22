@@ -31,6 +31,7 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <sys/types.h>
+#include <sys/loadavg.h>
 
 #if (!defined(_LP64)) && (_FILE_OFFSET_BITS - 0 == 64)
 #define PROCFS_FILE_OFFSET_BITS_HACK 1
@@ -249,6 +250,14 @@ double Platform::GetUptime() {
 }
 
 int Platform::GetLoadAvg(Local<Array> *loads) {
+  HandleScope scope;
+  double loadavg[3];
+
+  (void) getloadavg(loadavg, 3);
+  (*loads)->Set(0, Number::New(loadavg[LOADAVG_1MIN]));
+  (*loads)->Set(1, Number::New(loadavg[LOADAVG_5MIN]));
+  (*loads)->Set(2, Number::New(loadavg[LOADAVG_15MIN]));
+
   return 0;
 }
 
