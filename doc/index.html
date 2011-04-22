@@ -55,8 +55,8 @@ var http = require('http');
 http.createServer(function (req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
-}).listen(8124, "127.0.0.1");
-console.log('Server running at http://127.0.0.1:8124/');
+}).listen(1337, "127.0.0.1");
+console.log('Server running at http://127.0.0.1:1337/');
 </pre>
 
       <p>
@@ -66,10 +66,10 @@ console.log('Server running at http://127.0.0.1:8124/');
       </p>
       <pre class="sh_none">
 % node example.js
-Server running at http://127.0.0.1:8124/</pre>
+Server running at http://127.0.0.1:1337/</pre>
 
       <p>
-        Here is an example of a simple TCP server which listens on port 8124
+        Here is an example of a simple TCP server which listens on port 1337
         and echoes whatever you send it:
       </p>
 
@@ -79,9 +79,9 @@ var net = require('net');
 var server = net.createServer(function (socket) {
   socket.write("Echo server\r\n");
   socket.pipe(socket);
-})
+});
 
-server.listen(8124, "127.0.0.1");
+server.listen(1337, "127.0.0.1");
 </pre>
 
       <p>
