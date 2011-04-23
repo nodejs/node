@@ -11,7 +11,7 @@
 
 * Add os.loadavg for SunOS (Robert Mustacchi)
 
-* Fix timeouts with floating point numbers #897
+* Fix timeouts with floating point numbers #897 (Jorge Chamorro Bieling)
 
 * Improve docs.
 
