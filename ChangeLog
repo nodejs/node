@@ -1,3 +1,21 @@
+2011.04.22, Version 0.4.7 (stable)
+
+* Don't emit error on ECONNRESET from read() #670
+
+* Fix: Multiple pipes to the same stream were broken #929
+  (Felix Geisendörfer)
+
+* URL parsing/formatting corrections #954 (isaacs)
+
+* make it possible to do repl.start('', stream) (Wade Simmons)
+
+* Add os.loadavg for SunOS (Robert Mustacchi)
+
+* Fix timeouts with floating point numbers #897
+
+* Improve docs.
+
+
 2011.04.13, Version 0.4.6 (stable)
 
 * Don't error on ENOTCONN from shutdown() #670

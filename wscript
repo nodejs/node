@@ -872,7 +872,7 @@ def build(bld):
         , 'CPPFLAGS'  : " ".join(program.env["CPPFLAGS"]).replace('"', '\\"')
         , 'LIBFLAGS'  : " ".join(program.env["LIBFLAGS"]).replace('"', '\\"')
         , 'PREFIX'    : safe_path(program.env["PREFIX"])
-        , 'VERSION'   : '0.4.6' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.
+        , 'VERSION'   : '0.4.7' # FIXME should not be hard-coded, see NODE_VERSION_STRING in src/node_version.
         }
     return x
 
