@@ -368,6 +368,7 @@ Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
 - `port`: Port of remote server.
+- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 - `method`: A string specifying the HTTP request method. Possible values:
   `'GET'` (default), `'POST'`, `'PUT'`, and `'DELETE'`.
 - `path`: Request path. Should include query string and fragments if any.
@@ -443,12 +444,18 @@ Example:
 
 
 ## http.Agent
-## http.getAgent(host, port)
+## http.getAgent(options)
 
 `http.request()` uses a special `Agent` for managing multiple connections to
 an HTTP server. Normally `Agent` instances should not be exposed to user
 code, however in certain situations it's useful to check the status of the
 agent. The `http.getAgent()` function allows you to access the agents.
+
+Options:
+
+- `host`: A domain name or IP address of the server to issue the request to.
+- `port`: Port of remote server.
+- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 
 ### Event: 'upgrade'
 
