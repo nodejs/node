@@ -1,0 +1,6 @@
+before
+
+node.js:134
+        throw e; // process.nextTick error, or 'error' event on first tick
+        ^
+MyCustomError: This is a custom message
