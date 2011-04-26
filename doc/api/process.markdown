@@ -271,6 +271,13 @@ The PID of the process.
 Getter/setter to set what is displayed in 'ps'.
 
 
+### process.arch
+
+What processor architecture you're running on. `'arm'`, `'ia32'`, etc.
+
+    console.log('This processor architecture is ' + process.arch);
+
+
 ### process.platform
 
 What platform you're running on. `'linux2'`, `'darwin'`, etc.

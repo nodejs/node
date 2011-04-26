@@ -501,6 +501,9 @@ def configure(conf):
   else:
     conf.env.append_value('CPPFLAGS', '-DHAVE_FDATASYNC=0')
 
+  # arch
+  conf.env.append_value('CPPFLAGS', '-DARCH="' + conf.env['DEST_CPU'] + '"')
+
   # platform
   conf.env.append_value('CPPFLAGS', '-DPLATFORM="' + conf.env['DEST_OS'] + '"')
 
