@@ -44,6 +44,14 @@ var release = os.release();
 console.log("release = ", release);
 assert.ok(release.length > 0);
 
+var platform = os.platform();
+console.log("platform = ", platform);
+assert.ok(platform.length > 0);
+
+var arch = os.arch();
+console.log("arch = ", arch);
+assert.ok(arch.length > 0);
+
 if (process.platform != 'sunos') {
   // not implemeneted yet
   assert.ok(os.loadavg().length > 0);
@@ -54,7 +62,7 @@ if (process.platform != 'sunos') {
 
 var interfaces = os.getNetworkInterfaces();
 console.error(interfaces);
-switch (process.platform) {
+switch (platform) {
   case 'linux':
     assert.equal('127.0.0.1', interfaces.lo.ip);
     break;

@@ -10,6 +10,14 @@ Returns the hostname of the operating system.
 
 Returns the operating system name.
 
+### os.platform()
+
+Returns the operating system platform.
+
+### os.arch()
+
+Returns the operating system CPU architecture.
+
 ### os.release()
 
 Returns the operating system release.
