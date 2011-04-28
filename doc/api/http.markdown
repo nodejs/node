@@ -88,7 +88,7 @@ sent to the server on that socket.
 
 If a client connection emits an 'error' event - it will forwarded here.
 
-### http.createServer(requestListener)
+### http.createServer([requestListener])
 
 Returns a new web server object.
 
