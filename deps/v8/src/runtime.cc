@@ -2625,7 +2625,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
     end = RegExpImpl::GetCapture(match_info_array, 1);
   }
 
-  int length = subject->length();
+  int length = subject_handle->length();
   int new_length = length - (end - start);
   if (new_length == 0) {
     return Heap::empty_string();
