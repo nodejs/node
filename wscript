@@ -143,13 +143,6 @@ def set_options(opt):
                 , dest='openssl_libpath'
                 )
 
-  opt.add_option( '--oprofile'
-                , action='store_true'
-                , default=False
-                , help="add oprofile support"
-                , dest='use_oprofile'
-                )
-
   opt.add_option( '--gdb'
                 , action='store_true'
                 , default=False
@@ -252,11 +245,7 @@ def configure(conf):
   conf.env["USE_SHARED_CARES"] = o.shared_cares or o.shared_cares_includes or o.shared_cares_libpath
   conf.env["USE_SHARED_LIBEV"] = o.shared_libev or o.shared_libev_includes or o.shared_libev_libpath
 
-  conf.env["USE_OPROFILE"] = o.use_oprofile
   conf.env["USE_GDBJIT"] = o.use_gdbjit
-
-  if o.use_oprofile:
-    conf.check(lib=['bfd', 'opagent'], uselib_store="OPROFILE")
 
   conf.check(lib='dl', uselib_store='DL')
   if not sys.platform.startswith("sunos") and not sys.platform.startswith("cygwin") and not sys.platform.startswith("win32"):
@@ -567,12 +556,7 @@ def v8_cmd(bld, variant):
   else:
     snapshot = ""
 
-  if bld.env["USE_OPROFILE"]:
-    profile = "prof=oprofile"
-  else:
-    profile = ""
-
-  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s toolchain=%s library=static %s %s'
+  cmd_R = sys.executable + ' "%s" -j %d -C "%s" -Y "%s" visibility=default mode=%s %s toolchain=%s library=static %s'
 
   cmd = cmd_R % ( scons
                 , Options.options.jobs
@@ -582,7 +566,6 @@ def v8_cmd(bld, variant):
                 , arch
                 , toolchain
                 , snapshot
-                , profile
                 )
 
   if bld.env["USE_GDBJIT"]:
