@@ -272,6 +272,14 @@ Change file timestamps.
 Change file timestamps with the difference that if filename refers to a
 symbolic link, then the link is not dereferenced.
 
+### fs.fsync(fd, callback)
+
+Asynchronous fsync(2). No arguments other than a possible exception are given
+to the completion callback.
+
+### fs.fsyncSync(fd)
+
+Synchronous fsync(2).
 
 ### fs.write(fd, buffer, offset, length, position, [callback])
 
