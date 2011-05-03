@@ -102,6 +102,7 @@ endif()
 
 add_definitions(
   -DPLATFORM="${node_platform}"
+  -DARCH="${node_arch}"
   -DX_STACKSIZE=65536
   -D_LARGEFILE_SOURCE
   -D_FILE_OFFSET_BITS=64
