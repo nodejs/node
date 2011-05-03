@@ -2222,7 +2222,7 @@ static void EnableDebug(bool wait_connect) {
   assert(r);
 
   // Print out some information.
-  fprintf(stderr, "debugger listening on port %d\r\n", debug_port);
+  fprintf(stderr, "debugger listening on port %d", debug_port);
 }
 
 
