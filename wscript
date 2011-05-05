@@ -521,7 +521,6 @@ def configure(conf):
 
   # Configure default variant
   conf.setenv('default')
-  conf.env.append_value('CPPFLAGS', '-DNDEBUG')
   default_compile_flags = ['-g', '-O3']
   conf.env.append_value('CCFLAGS', default_compile_flags)
   conf.env.append_value('CXXFLAGS', default_compile_flags)
@@ -716,8 +715,8 @@ def build(bld):
     native_cc_debug = native_cc.clone("debug")
     native_cc_debug.rule = javascript_in_c_debug
 
-  native_cc.rule = javascript_in_c
-  
+  native_cc.rule = javascript_in_c_debug
+
   if bld.env["USE_DTRACE"]:
     dtrace = bld.new_task_gen(
       name   = "dtrace",
