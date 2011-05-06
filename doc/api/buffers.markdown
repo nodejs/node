@@ -363,3 +363,13 @@ format. Note, `value` must be a valid 16 bit signed integer.
 
 Works as `buffer.writeUInt832, except value is written out as a two's complement
 signed integer into `buffer`.
+
+
+### buffer.fill(value, offset=0, length=-1)
+
+Fills the buffer with the specified value. If the offset and length are not
+given it will fill the entire buffer.
+
+    var b = new Buffer(50);
+    b.fill("h");
+
