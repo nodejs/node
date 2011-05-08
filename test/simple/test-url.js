@@ -63,7 +63,67 @@ var parseTests = {
     'host': 'USER:PW@www.example.com',
     'hostname': 'www.example.com',
     'pathname': '/'
-
+  },
+  'http://x.com/path?that\'s#all, folks' : {
+    'href': 'http://x.com/path?that%27s#all,',
+    'protocol': 'http:',
+    'host': 'x.com',
+    'hostname': 'x.com',
+    'search': '?that%27s',
+    'query': 'that%27s',
+    'pathname': '/path',
+    'hash': '#all,'
+  },
+  'HTTP://X.COM/Y' : {
+    'href': 'http://x.com/Y',
+    'protocol': 'http:',
+    'host': 'x.com',
+    'hostname': 'x.com',
+    'pathname': '/Y',
+  },
+  // an unexpected invalid char in the hostname.
+  'HtTp://x.y.cOm*a/b/c?d=e#f g<h>i' : {
+    'href': 'http://x.y.com/*a/b/c?d=e#f',
+    'protocol': 'http:',
+    'host': 'x.y.com',
+    'hostname': 'x.y.com',
+    'pathname': '/*a/b/c',
+    'search': '?d=e',
+    'query': 'd=e',
+    'hash': '#f'
+  },
+  // make sure that we don't accidentally lcast the path parts.
+  'HtTp://x.y.cOm*A/b/c?d=e#f g<h>i' : {
+    'href': 'http://x.y.com/*A/b/c?d=e#f',
+    'protocol': 'http:',
+    'host': 'x.y.com',
+    'hostname': 'x.y.com',
+    'pathname': '/*A/b/c',
+    'search': '?d=e',
+    'query': 'd=e',
+    'hash': '#f'
+  },
+  'http://x...y...#p': {
+    'href': 'http://x...y.../#p',
+    'protocol': 'http:',
+    'host': 'x...y...',
+    'hostname': 'x...y...',
+    'hash': '#p',
+    'pathname': '/'
+  },
+  'http://x/p/"quoted"': {
+    'href': 'http://x/p/',
+    'protocol':'http:',
+    'host': 'x',
+    'hostname': 'x',
+    'pathname': '/p/'
+  },
+  '<http://goo.corn/bread> Is a URL!': {
+    'href': 'http://goo.corn/bread',
+    'protocol': 'http:',
+    'host': 'goo.corn',
+    'hostname': 'goo.corn',
+    'pathname': '/bread'
   },
   'http://www.narwhaljs.org/blog/categories?id=news' : {
     'href': 'http://www.narwhaljs.org/blog/categories?id=news',
@@ -91,17 +151,18 @@ var parseTests = {
     'query': '??&hl=en&src=api&x=2&y=2&z=3&s=',
     'pathname': '/vt/lyrs=m@114'
   },
-  'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=' : {
-    'href': 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
-        '&hl=en&src=api&x=2&y=2&z=3&s=',
-    'protocol': 'http:',
-    'host': 'user:pass@mt0.google.com',
-    'auth': 'user:pass',
-    'hostname': 'mt0.google.com',
-    'search': '???&hl=en&src=api&x=2&y=2&z=3&s=',
-    'query': '??&hl=en&src=api&x=2&y=2&z=3&s=',
-    'pathname': '/vt/lyrs=m@114'
-  },
+  'http://user:pass@mt0.google.com/vt/lyrs=m@114???&hl=en&src=api&x=2&y=2&z=3&s=':
+      {
+        'href': 'http://user:pass@mt0.google.com/vt/lyrs=m@114???' +
+            '&hl=en&src=api&x=2&y=2&z=3&s=',
+        'protocol': 'http:',
+        'host': 'user:pass@mt0.google.com',
+        'auth': 'user:pass',
+        'hostname': 'mt0.google.com',
+        'search': '???&hl=en&src=api&x=2&y=2&z=3&s=',
+        'query': '??&hl=en&src=api&x=2&y=2&z=3&s=',
+        'pathname': '/vt/lyrs=m@114'
+      },
   'file:///etc/passwd' : {
     'href': 'file:///etc/passwd',
     'protocol': 'file:',
@@ -191,7 +252,7 @@ for (var u in parseTests) {
       actual = url.format(parseTests[u]);
 
   assert.equal(expected, actual,
-               'format(' + u + ') == ' + expected + '\nactual:' + actual);
+               'format(' + u + ') == ' + u + '\nactual:' + actual);
 }
 
 var parseTestsWithQueryString = {
@@ -204,7 +265,7 @@ var parseTestsWithQueryString = {
     },
     'pathname': '/foo/bar'
   },
-  'http://example.com/' : {
+  'http://example.com' : {
     'href': 'http://example.com/',
     'protocol': 'http:',
     'slashes': true,

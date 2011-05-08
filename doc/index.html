@@ -24,9 +24,9 @@
     <div id="toc">
       <ol>
         <li><a href="#download">Download</a></li>
-        <li><a href="https://github.com/joyent/node/raw/master/ChangeLog">ChangeLog</a></li>
+        <li><a href="https://github.com/joyent/node/raw/v0.4/ChangeLog">ChangeLog</a></li>
         <li><a href="#about">About</a></li>
-        <li><a href="http://nodejs.org/docs/v0.4.6/api">v0.4.6 docs</a></li>
+        <li><a href="http://nodejs.org/docs/v0.4.7/api">v0.4.7 docs</a></li>
         <br/>
         <li><a href="https://github.com/joyent/node/wiki">Wiki</a></li>
         <li><a href="http://blog.nodejs.org/">Blog</a></li>
@@ -55,8 +55,8 @@ var http = require('http');
 http.createServer(function (req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
-}).listen(8124, "127.0.0.1");
-console.log('Server running at http://127.0.0.1:8124/');
+}).listen(1337, "127.0.0.1");
+console.log('Server running at http://127.0.0.1:1337/');
 </pre>
 
       <p>
@@ -66,10 +66,10 @@ console.log('Server running at http://127.0.0.1:8124/');
       </p>
       <pre class="sh_none">
 % node example.js
-Server running at http://127.0.0.1:8124/</pre>
+Server running at http://127.0.0.1:1337/</pre>
 
       <p>
-        Here is an example of a simple TCP server which listens on port 8124
+        Here is an example of a simple TCP server which listens on port 1337
         and echoes whatever you send it:
       </p>
 
@@ -79,9 +79,9 @@ var net = require('net');
 var server = net.createServer(function (socket) {
   socket.write("Echo server\r\n");
   socket.pipe(socket);
-})
+});
 
-server.listen(8124, "127.0.0.1");
+server.listen(1337, "127.0.0.1");
 </pre>
 
       <p>
@@ -107,9 +107,9 @@ server.listen(8124, "127.0.0.1");
       </p>
 
       <p>
-        2011.04.13
-        <a href="http://nodejs.org/dist/node-v0.4.6.tar.gz">node-v0.4.6.tar.gz</a>
-        (<a href="http://nodejs.org/docs/v0.4.6/api/index.html">Documentation</a>)
+        2011.04.22
+        <a href="http://nodejs.org/dist/node-v0.4.7.tar.gz">node-v0.4.7.tar.gz</a>
+        (<a href="http://nodejs.org/docs/v0.4.7/api/index.html">Documentation</a>)
       </p>
 
       <p>Historical: <a href="http://nodejs.org/dist">versions</a>, <a href="http://nodejs.org/docs">docs</a></p>

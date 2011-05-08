@@ -1278,13 +1278,24 @@ static void ReportException(TryCatch &try_catch, bool show_line) {
 
   String::Utf8Value trace(try_catch.StackTrace());
 
-  if (trace.length() > 0) {
+  // range errors have a trace member set to undefined
+  if (trace.length() > 0 && !try_catch.StackTrace()->IsUndefined()) {
     fprintf(stderr, "%s\n", *trace);
   } else {
     // this really only happens for RangeErrors, since they're the only
-    // kind that won't have all this info in the trace.
+    // kind that won't have all this info in the trace, or when non-Error
+    // objects are thrown manually.
     Local<Value> er = try_catch.Exception();
-    String::Utf8Value msg(!er->IsObject() ? er->ToString()
+    bool isErrorObject = er->IsObject() &&
+      !(er->ToObject()->Get(String::New("message"))->IsUndefined()) &&
+      !(er->ToObject()->Get(String::New("name"))->IsUndefined());
+
+    if (isErrorObject) {
+      String::Utf8Value name(er->ToObject()->Get(String::New("name")));
+      fprintf(stderr, "%s: ", *name);
+    }
+
+    String::Utf8Value msg(!isErrorObject ? er->ToString()
                          : er->ToObject()->Get(String::New("message"))->ToString());
     fprintf(stderr, "%s\n", *msg);
   }
@@ -2251,7 +2262,7 @@ static void EnableDebug(bool wait_connect) {
   assert(r);
 
   // Print out some information.
-  fprintf(stderr, "debugger listening on port %d\r\n", debug_port);
+  fprintf(stderr, "debugger listening on port %d", debug_port);
 }
 
 

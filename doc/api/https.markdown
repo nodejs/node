@@ -4,7 +4,15 @@ HTTPS is the HTTP protocol over TLS/SSL. In Node this is implemented as a
 separate module.
 
 ## https.Server
-## https.createServer
+
+This class is a subclass of `tls.Server` and emits events same as
+`http.Server`. See `http.Server` for more information.
+
+## https.createServer(options, [requestListener])
+
+Returns a new HTTPS web server object. The `options` is similer to
+`tls.createServer()`. The `requestListener` is a function which is
+automatically added to the `'request'` event.
 
 Example:
 

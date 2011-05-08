@@ -36,6 +36,10 @@ Writable.prototype.end = function () {
   this.endCalls++;
 }
 
+Writable.prototype.destroy = function () {
+  this.endCalls++;
+}
+
 function Readable () {
   this.readable = true;
   stream.Stream.call(this);

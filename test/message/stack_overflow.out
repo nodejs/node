@@ -1,0 +1,6 @@
+before
+
+node.js:*
+        throw e; // process.nextTick error, or 'error' event on first tick
+        ^
+RangeError: Maximum call stack size exceeded
