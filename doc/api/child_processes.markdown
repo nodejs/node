@@ -183,13 +183,15 @@ the child process is killed.
 
 This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
-instance, the returned object, has a communication channel built-in. The
+instance, the returned object has a communication channel built-in. The
 channel is written to with `child.send(message)` and messages are recieved
 by a `'message'` event on the child.
 
 For example:
 
-    var n = spawnNode(__dirname + '/sub.js');
+    var cp = require('child_process');
+
+    var n = cp.spawnNode(__dirname + '/sub.js');
 
     n.on('message', function(m) {
       console.log('PARENT got message:', m);
@@ -208,8 +210,13 @@ And then the child script, `'sub.js'` would might look like this:
 In the child the `process` object will have a `send()` method, and `process`
 will emit objects each time it receives a message on its channel.
 
-By default the spawned Node process will have the stdin, stdout, stderr associated
-with the parent's. This can be overridden by using the `customFds` option.
+By default the spawned Node process will have the stdin, stdout, stderr
+associated with the parent's. This can be overridden by using the
+`customFds` option.
+
+These child Nodes are still whole new instances of V8. Assume at least 30ms
+startup and 10mb memory for each new Node. That is, you cannot create many
+thousands of them.
 
 
 ### child.kill(signal='SIGTERM')
