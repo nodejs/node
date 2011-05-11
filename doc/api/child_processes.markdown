@@ -179,6 +179,39 @@ amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
 
 
+### child_process.spawnNode(modulePath, arguments, options)
+
+This is a special case of the `spawn()` functionality for spawning Node
+processes. In addition to having all the methods in a normal ChildProcess
+instance, the returned object, has a communication channel built-in. The
+channel is written to with `child.send(message)` and messages are recieved
+by a `'message'` event on the child.
+
+For example:
+
+    var n = spawnNode(__dirname + '/sub.js');
+
+    n.on('message', function(m) {
+      console.log('PARENT got message:', m);
+    });
+
+    n.send({ hello: 'world' });
+
+And then the child script, `'sub.js'` would might look like this:
+
+    process.on('message', function(m) {
+      console.log('CHILD got message:', m);
+    });
+
+    process.send({ foo: 'bar' });
+
+In the child the `process` object will have a `send()` method, and `process`
+will emit objects each time it receives a message on its channel.
+
+By default the spawned Node process will have the stdin, stdout, stderr associated
+with the parent's. This can be overridden by using the `customFds` option.
+
+
 ### child.kill(signal='SIGTERM')
 
 Send a signal to the child process. If no argument is given, the process will

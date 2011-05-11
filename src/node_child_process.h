@@ -89,7 +89,8 @@ class ChildProcess : ObjectWrap {
             int custom_uid,
             char *custom_uname,
             int custom_gid,
-            char *custom_gname);
+            char *custom_gname,
+            int* channel);
 
   // Simple syscall wrapper. Does not disable the watcher. onexit will be
   // called still.

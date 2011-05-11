@@ -38,6 +38,8 @@
     startup.processKillAndExit();
     startup.processSignalHandlers();
 
+    startup.processChannel();
+
     startup.removedMethods();
 
     startup.resolveArgv0();
@@ -306,6 +308,19 @@
       return ret;
     };
   };
+
+
+  startup.processChannel = function() {
+    // If we were spawned with env NODE_CHANNEL_FD then load that up and
+    // start parsing data from that stream.
+    if (process.env.NODE_CHANNEL_FD) {
+      var fd = parseInt(process.env.NODE_CHANNEL_FD);
+      assert(fd >= 0);
+      var cp = NativeModule.require('child_process');
+      cp._spawnNodeChild(fd);
+      assert(process.send);
+    }
+  }
 
   startup._removedProcessMethods = {
     'assert': 'process.assert() use require("assert").ok() instead',
