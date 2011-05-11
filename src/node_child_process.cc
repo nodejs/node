@@ -345,7 +345,7 @@ int ChildProcess::Spawn(const char *file,
   }
 
 
-  // The channel will be used by spawnNode() for a little JSON channel.
+  // The channel will be used by js-land "fork()" for a little JSON channel.
   // The pointer is used to pass one end of the socket pair back to the
   // parent.
   // channel_fds[0] is for the parent

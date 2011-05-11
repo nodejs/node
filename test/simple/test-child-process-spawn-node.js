@@ -1,8 +1,8 @@
 var assert = require('assert');
 var common = require('../common');
-var spawnNode = require('child_process').spawnNode;
+var fork = require('child_process').fork;
 
-var n = spawnNode(common.fixturesDir + '/child-process-spawn-node.js');
+var n = fork(common.fixturesDir + '/child-process-spawn-node.js');
 
 var messageCount = 0;
 

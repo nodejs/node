@@ -317,7 +317,7 @@
       var fd = parseInt(process.env.NODE_CHANNEL_FD);
       assert(fd >= 0);
       var cp = NativeModule.require('child_process');
-      cp._spawnNodeChild(fd);
+      cp._forkChild(fd);
       assert(process.send);
     }
   }

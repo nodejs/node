@@ -179,7 +179,7 @@ amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
 
 
-### child_process.spawnNode(modulePath, arguments, options)
+### child_process.fork(modulePath, arguments, options)
 
 This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
@@ -191,7 +191,7 @@ For example:
 
     var cp = require('child_process');
 
-    var n = cp.spawnNode(__dirname + '/sub.js');
+    var n = cp.fork(__dirname + '/sub.js');
 
     n.on('message', function(m) {
       console.log('PARENT got message:', m);
