@@ -113,7 +113,7 @@ static bool cov = false;
 static int debug_port=5858;
 static int max_stack_size = 0;
 
-static ev_check check_tick_watcher;
+static uv_handle_t check_tick_watcher;
 static uv_handle_t prepare_tick_watcher;
 static uv_handle_t tick_spinner;
 static bool need_tick_cb;
@@ -257,9 +257,9 @@ static void PrepareTick(uv_handle_t* handle, int status) {
 }
 
 
-static void CheckTick(EV_P_ ev_check *watcher, int revents) {
-  assert(watcher == &check_tick_watcher);
-  assert(revents == EV_CHECK);
+static void CheckTick(uv_handle_t* handle, int status) {
+  assert(handle == &check_tick_watcher);
+  assert(status == 0);
   Tick();
 }
 
@@ -2358,11 +2358,11 @@ char** Init(int argc, char *argv[]) {
 
   uv_prepare_init(&node::prepare_tick_watcher, NULL, NULL);
   uv_prepare_start(&node::prepare_tick_watcher, PrepareTick);
-  uv_unref(EV_DEFAULT_UC);
+  uv_unref();
 
-  ev_check_init(&node::check_tick_watcher, node::CheckTick);
-  ev_check_start(EV_DEFAULT_UC_ &node::check_tick_watcher);
-  ev_unref(EV_DEFAULT_UC);
+  uv_check_init(&node::check_tick_watcher, NULL, NULL);
+  uv_check_start(&node::check_tick_watcher, node::CheckTick);
+  uv_unref();
 
   uv_idle_init(&node::tick_spinner, NULL, NULL);
 
