@@ -115,7 +115,7 @@ static int max_stack_size = 0;
 
 static ev_check check_tick_watcher;
 static ev_prepare prepare_tick_watcher;
-static ev_idle tick_spinner;
+static uv_handle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
@@ -202,6 +202,12 @@ static void Check(EV_P_ ev_check *watcher, int revents) {
 }
 
 
+static void Spin(uv_handle_t* handle, int status) {
+  assert(handle == &tick_spinner);
+  assert(status == 0);
+}
+
+
 static Handle<Value> NeedTickCallback(const Arguments& args) {
   HandleScope scope;
   need_tick_cb = true;
@@ -210,14 +216,8 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
   // there is nothing left to do in the event loop and libev will exit. The
   // ev_prepare callback isn't called before exiting. Thus we start this
   // tick_spinner to keep the event loop alive long enough to handle it.
-  ev_idle_start(EV_DEFAULT_UC_ &tick_spinner);
+  uv_idle_start(&tick_spinner, Spin);
   return Undefined();
-}
-
-
-static void Spin(EV_P_ ev_idle *watcher, int revents) {
-  assert(watcher == &tick_spinner);
-  assert(revents == EV_IDLE);
 }
 
 
@@ -226,7 +226,7 @@ static void Tick(void) {
   if (!need_tick_cb) return;
 
   need_tick_cb = false;
-  ev_idle_stop(EV_DEFAULT_UC_ &tick_spinner);
+  uv_idle_stop(&tick_spinner);
 
   HandleScope scope;
 
@@ -2364,7 +2364,7 @@ char** Init(int argc, char *argv[]) {
   ev_check_start(EV_DEFAULT_UC_ &node::check_tick_watcher);
   ev_unref(EV_DEFAULT_UC);
 
-  ev_idle_init(&node::tick_spinner, node::Spin);
+  uv_idle_init(&node::tick_spinner, NULL, NULL);
 
   ev_check_init(&node::gc_check, node::Check);
   ev_check_start(EV_DEFAULT_UC_ &node::gc_check);
