@@ -114,7 +114,7 @@ static int debug_port=5858;
 static int max_stack_size = 0;
 
 static ev_check check_tick_watcher;
-static ev_prepare prepare_tick_watcher;
+static uv_handle_t prepare_tick_watcher;
 static uv_handle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
@@ -250,9 +250,9 @@ static void Tick(void) {
 }
 
 
-static void PrepareTick(EV_P_ ev_prepare *watcher, int revents) {
-  assert(watcher == &prepare_tick_watcher);
-  assert(revents == EV_PREPARE);
+static void PrepareTick(uv_handle_t* handle, int status) {
+  assert(handle == &prepare_tick_watcher);
+  assert(status == 0);
   Tick();
 }
 
@@ -2356,9 +2356,9 @@ char** Init(int argc, char *argv[]) {
   ev_default_loop(EVFLAG_AUTO);
 #endif
 
-  ev_prepare_init(&node::prepare_tick_watcher, node::PrepareTick);
-  ev_prepare_start(EV_DEFAULT_UC_ &node::prepare_tick_watcher);
-  ev_unref(EV_DEFAULT_UC);
+  uv_prepare_init(&node::prepare_tick_watcher, NULL, NULL);
+  uv_prepare_start(&node::prepare_tick_watcher, PrepareTick);
+  uv_unref(EV_DEFAULT_UC);
 
   ev_check_init(&node::check_tick_watcher, node::CheckTick);
   ev_check_start(EV_DEFAULT_UC_ &node::check_tick_watcher);
