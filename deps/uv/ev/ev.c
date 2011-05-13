@@ -1337,12 +1337,12 @@ evpipe_write (EV_P_ EV_ATOMIC_T *flag)
         }
       else
 #endif
-
-#ifdef __MINGW32__
-      send(EV_FD_TO_WIN32_HANDLE(evpipe [1]), &dummy, 1, 0);
-#else
-      write (evpipe [1], &dummy, 1);
-#endif
+        /* win32 people keep sending patches that change this write() to send() */
+        /* and then run away. but send() is wrong, it wants a socket handle on win32 */
+        /* so when you think this write should be a send instead, please find out */
+        /* where your send() is from - it's definitely not the microsoft send, and */
+        /* tell me. thank you. */
+        write (evpipe [1], &dummy, 1);
 
       errno = old_errno;
     }
@@ -1365,11 +1365,8 @@ pipecb (EV_P_ ev_io *iow, int revents)
 #endif
     {
       char dummy;
-#ifdef __MINGW32__
-      recv(EV_FD_TO_WIN32_HANDLE(evpipe [0]), &dummy, 1, 0);
-#else
+      /* see discussion in evpipe_write when you think this read should be recv in win32 */
       read (evpipe [0], &dummy, 1);
-#endif
     }
 
 #if EV_SIGNAL_ENABLE

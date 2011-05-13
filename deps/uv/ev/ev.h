@@ -179,7 +179,7 @@ struct ev_loop;
 #endif
 
 /* EV_INLINE is used for functions in header files */
-#if __STDC_VERSION__ >= 199901L || __GNUC__ >= 3
+#if __STDC_VERSION__ >= 199901L && __GNUC__ >= 3
 # define EV_INLINE static inline
 #else
 # define EV_INLINE static

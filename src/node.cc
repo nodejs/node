@@ -21,6 +21,8 @@
 
 #include <node.h>
 
+#include <uv.h>
+
 #include <v8-debug.h>
 #include <node_dtrace.h>
 
@@ -2437,7 +2439,17 @@ void EmitExit(v8::Handle<v8::Object> process) {
 }
 
 
+uv_buf UVAlloc(uv_handle_t* handle, size_t suggested_size) {
+  char* base = (char*)malloc(suggested_size);
+  uv_buf buf;
+  buf.base = base;
+  buf.len = suggested_size;
+  return buf;
+}
+
+
 int Start(int argc, char *argv[]) {
+  uv_init(UVAlloc);
   v8::V8::Initialize();
   v8::HandleScope handle_scope;
 
@@ -2462,7 +2474,7 @@ int Start(int argc, char *argv[]) {
   // there are no watchers on the loop (except for the ones that were
   // ev_unref'd) then this function exits. As long as there are active
   // watchers, it blocks.
-  ev_loop(EV_DEFAULT_UC_ 0);
+  uv_run();
 
   EmitExit(process);
 
