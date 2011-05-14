@@ -21,31 +21,33 @@
 
 var common = require('../common');
 var assert = require('assert');
-var http = require('http');
+var https = require('https');
+var fs = require('fs');
 
-var server = http.createServer(function(req, res) {
-  console.log('got request. setting 100ms second timeout');
-  req.connection.setTimeout(100);
+var closeError;
+
+var options = {
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  cert: fs.readFileSync(common.fixturesDir + '/keys/agent1-cert.pem')
+};
+
+var server = https.Server(options, function(req, res) {
+  res.writeHead(200);
+  res.write('Hi');
 
   req.on('close', function(err) {
-    assert.strictEqual(err.code, 'timeout');
-
-    common.debug('TIMEOUT');
+    closeError = err;
     server.close();
   });
 });
 
 server.listen(common.PORT, function() {
-  console.log('Server running at http://127.0.0.1:' + common.PORT + '/');
+  https.get({port: common.PORT, path: '/'}, function(res) {
+    res.socket.end();
+  })
+});
 
-  var errorTimer = setTimeout(function() {
-    throw new Error('Timeout was not sucessful');
-  }, 2000);
-
-  var url = 'http://localhost:' + common.PORT + '/';
-
-  http.cat(url, 'utf8', function(err, content) {
-    clearTimeout(errorTimer);
-    console.log('HTTP REQUEST COMPLETE (this is good)');
-  });
+process.on('exit', function() {
+  console.log(closeError);
+  assert.equal(closeError.code, 'aborted');
 });
