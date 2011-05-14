@@ -30,9 +30,7 @@ var client_recv_count = 0;
 var disconnect_count = 0;
 
 var server = net.createServer(function(socket) {
-  socket.addListener('connect', function() {
-    socket.write('hello\r\n');
-  });
+  socket.write('hello\r\n');
 
   socket.addListener('end', function() {
     socket.end();
