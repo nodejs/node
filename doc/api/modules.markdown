@@ -139,6 +139,22 @@ Modules are cached after the first time they are loaded.  This means
 (among other things) that every call to `require('foo')` will get
 exactly the same object returned, if it would resolve to the same file.
 
+Multiple calls to `require('foo')` may not cause the module code to be
+executed multiple times.  This is an important feature.  With it,
+"partially done" objects can be returned, thus allowing transitive
+dependencies to be loaded even when they would cause cycles.
+
+If you want to have a module execute code multiple times, then export a
+function, and call that function.
+
+#### Module Caching Caveats
+
+Modules are cached based on their resolved filename.  Since modules may
+resolve to a different filename based on the location of the calling
+module (loading from `node_modules` folders), it is not a *guarantee*
+that `require('foo')` will always return the exact same object, if it
+would resolve to different files.
+
 ### module.exports
 
 The `exports` object is created by the Module system. Sometimes this is not
@@ -173,15 +189,10 @@ x.js:
       module.exports = { a: "hello" };
     }, 0);
 
-y.js
+y.js:
 
     var x = require('./x');
     console.log(x.a);
-
-
-
-
-
 
 
 ### All Together...
@@ -192,11 +203,11 @@ the `require.resolve()` function.
 Putting together all of the above, here is the high-level algorithm
 in pseudocode of what require.resolve does:
 
-    require(X)
+    require(X) from module at path Y
     1. If X is a core module,
        a. return the core module
        b. STOP
-    2. If X begins with `./` or `/`,
+    2. If X begins with './' or '/' or '../'
        a. LOAD_AS_FILE(Y + X)
        b. LOAD_AS_DIRECTORY(Y + X)
     3. LOAD_NODE_MODULES(X, dirname(Y))
@@ -229,6 +240,7 @@ in pseudocode of what require.resolve does:
        a. if PARTS[I] = "node_modules" CONTINUE
        c. DIR = path join(PARTS[0 .. I] + "node_modules")
        b. DIRS = DIRS + DIR
+       c. let I = I - 1
     6. return DIRS
 
 ### Loading from the `require.paths` Folders
@@ -261,9 +273,7 @@ Global modules are lower priority than bundled dependencies.
 
 #### **Note:** Please Avoid Modifying `require.paths`
 
-For compatibility reasons, `require.paths` is still given first priority
-in the module lookup process.  However, it may disappear in a future
-release.
+`require.paths` may disappear in a future release.
 
 While it seemed like a good idea at the time, and enabled a lot of
 useful experimentation, in practice a mutable `require.paths` list is
@@ -302,8 +312,8 @@ all modules.
 As a result, if one node program comes to rely on this behavior, it may
 permanently and subtly alter the behavior of all other node programs in
 the same process.  As the application stack grows, we tend to assemble
-functionality, and it is a problem with those parts interact in ways
-that are difficult to predict.
+functionality, and those parts interact in ways that are difficult to
+predict.
 
 ### Accessing the main module
 
