@@ -66,3 +66,6 @@ The externally maintained libraries used by Node are:
 
   - tools/cpplint.py is copyright Google Inc. and released under a
     BSD license.
+
+  - lib/buffer_ieee754.js is copyright 2008 Fair Oaks Labs, Inc. and released
+    under the New BSD license.

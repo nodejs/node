@@ -275,6 +275,48 @@ bytes from the buffer in.
 Works as `buffer.readUInt32`, except buffer contents are treated as twos
 complement signed values.
 
+### buffer.readFloat(offset, endian)
+
+Reads a 32 bit float from the buffer at the specified offset. Endian must be
+either 'big' or 'little' and specifies what endian ordering to read the bytes
+from the buffer in.
+
+Example:
+
+    var buf = new Buffer(4);
+
+    buf[0] = 0x00;
+    buf[1] = 0x00;
+    buf[2] = 0x80;
+    buf[3] = 0x3f;
+
+    console.log(buf.readFloat(0, 'little');
+
+    // 0x01
+
+### buffer.readDouble(offset, endian)
+
+Reads a 64 bit double from the buffer at the specified offset. Endian must be
+either 'big' or 'little' and specifies what endian ordering to read the bytes
+from the buffer in.
+
+Example:
+
+    var buf = new Buffer(8);
+
+    buf[0] = 0x55;
+    buf[1] = 0x55;
+    buf[2] = 0x55;
+    buf[3] = 0x55;
+    buf[4] = 0x55;
+    buf[5] = 0x55;
+    buf[6] = 0xd5;
+    buf[7] = 0x3f;
+
+    console.log(buf.readDouble(0, 'little');
+
+    // 0.3333333333333333
+
 ### buffer.writeUInt8(value, offset, endian)
 
 Writes `value` to the buffer at the specified offset with specified endian
@@ -363,6 +405,44 @@ format. Note, `value` must be a valid 16 bit signed integer.
 
 Works as `buffer.writeUInt832, except value is written out as a two's complement
 signed integer into `buffer`.
+
+### buffer.writeFloat(value, offset, endian)
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid 32 bit float.
+
+Example:
+
+    var buf = new Buffer(4);
+    buf.writeFloat(0xcafebabe, 0, 'big');
+
+    console.log(buf);
+
+    buf.writeFloat(0xcafebabe, 0, 'little');
+
+    console.log(buf);
+
+    // <Buffer 4f 4a fe bb>
+    // <Buffer bb fe 4a 4f>
+
+### buffer.writeDouble(value, offset, endian)
+
+Writes `value` to the buffer at the specified offset with specified endian
+format. Note, `value` must be a valid 64 bit double.
+
+Example:
+
+    var buf = new Buffer(8);
+    buf.writeFloat(0xdeadbeefcafebabe, 0, 'big');
+
+    console.log(buf);
+
+    buf.writeFloat(0xdeadbeefcafebabe, 0, 'little');
+
+    console.log(buf);
+
+    // <Buffer 43 eb d5 b7 dd f9 5f d7>
+    // <Buffer d7 5f f9 dd b7 d5 eb 43>
 
 
 ### buffer.fill(value, offset=0, length=-1)
