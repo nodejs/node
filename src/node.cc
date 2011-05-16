@@ -1203,7 +1203,6 @@ ssize_t DecodeWrite(char *buf,
 
   for (size_t i = 0; i < buflen; i++) {
     unsigned char *b = reinterpret_cast<unsigned char*>(&twobytebuf[i]);
-    assert(b[1] == 0);
     buf[i] = b[0];
   }
 
