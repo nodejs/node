@@ -21,46 +21,24 @@
 
 var common = require('../common');
 var assert = require('assert');
+var http = require('http');
+var net = require('net');
 
-var dns = require('dns');
+var closeError;
 
-
-// Try resolution without callback
-
-dns.getHostByName('localhost', function(error, result) {
-  console.dir(result);
-  assert.deepEqual(['127.0.0.1'], result);
+var server = http.Server(function(req, res) {
+  req.on('close', function(err) {
+    closeError = err;
+    server.close();
+  });
 });
 
-dns.getHostByName('127.0.0.1', function(error, result) {
-  console.dir(result);
-  assert.deepEqual(['127.0.0.1'], result);
+server.listen(common.PORT, function() {
+  var socket = net.createConnection(common.PORT);
+  socket.write('GET / HTTP/1.1\n\n');
+  socket.end();
 });
 
-dns.lookup(null, function(error, result, addressType) {
-  assert.equal(null, result);
-  assert.equal(4, addressType);
+process.on('exit', function() {
+  assert.equal(closeError.code, 'aborted');
 });
-
-dns.lookup('127.0.0.1', function(error, result, addressType) {
-  assert.equal('127.0.0.1', result);
-  assert.equal(4, addressType);
-});
-
-dns.lookup('::1', function(error, result, addressType) {
-  assert.equal('::1', result);
-  assert.equal(6, addressType);
-});
-
-dns.lookup('ipv6.google.com', function(error, result, addressType) {
-  if (error) throw error;
-  console.dir(arguments);
-  //assert.equal('string', typeof result);
-  assert.equal(6, addressType);
-});
-
-dns.resolve('127.0.0.1', 'PTR', function(error, domains) {
-  if (error) throw error;
-  assert.ok(Array.isArray(domains));
-});
-

@@ -142,9 +142,29 @@ body chunk is a string.  The body encoding is set with
 
 `function () { }`
 
-Emitted exactly once for each message. No arguments.  After
-emitted no other events will be emitted on the request.
+Emitted exactly once for each request. After that, no more `'data'` events
+will be emitted on the request.
 
+### Event: 'close'
+
+`function (err) { }`
+
+Indicates that the underlaying connection was terminated before
+`response.end()` was called or able to flush.
+
+The `err` parameter is always present and indicates the reason for the timeout:
+
+`err.code === 'timeout'` indicates that the underlaying connection timed out.
+This may happen because all incoming connections have a default timeout of 2
+minutes.
+
+`err.code === 'aborted'` means that the client has closed the underlaying
+connection prematurely.
+
+Just like `'end'`, this event occurs only once per request, and no more `'data'`
+events will fire afterwards.
+
+Note: `'close'` can fire after `'end'`, but not vice versa.
 
 ### request.method
 

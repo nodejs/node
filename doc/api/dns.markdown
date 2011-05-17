@@ -41,7 +41,8 @@ necessarily the value initially passed to `lookup`).
 Resolves a domain (e.g. `'google.com'`) into an array of the record types
 specified by rrtype. Valid rrtypes are `A` (IPV4 addresses), `AAAA` (IPV6
 addresses), `MX` (mail exchange records), `TXT` (text records), `SRV` (SRV
-records), and `PTR` (used for reverse IP lookups).
+records), `PTR` (used for reverse IP lookups), `NS` (name server records)
+and `CNAME` (canonical name records).
 
 The callback has arguments `(err, addresses)`.  The type of each item
 in `addresses` is determined by the record type, and described in the
@@ -88,6 +89,18 @@ of SRV records are priority, weight, port, and name (e.g.,
 Reverse resolves an ip address to an array of domain names.
 
 The callback has arguments `(err, domains)`.
+
+### dns.resolveNs(domain, callback)
+
+The same as `dns.resolve()`, but only for name server records (`NS` records).
+`addresses` is an array of the name server records available for `domain`
+(e.g., `['ns1.example.com', 'ns2.example.com']`).
+
+### dns.resolveCname(domain, callback)
+
+The same as `dns.resolve()`, but only for canonical name records (`CNAME`
+records). `addresses` is an array of the canonical name records available for
+`domain` (e.g., `['bar.example.com']`).
 
 If there an an error, `err` will be non-null and an instanceof the Error
 object.

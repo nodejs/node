@@ -236,6 +236,18 @@ var parseTests = {
     'host': 'isaacschlueter@jabber.org',
     'auth': 'isaacschlueter',
     'hostname': 'jabber.org'
+  },
+  'http://atpass:foo%40bar@127.0.0.1:8080/path?search=foo#bar' : {
+    'href' : 'http://atpass:foo%40bar@127.0.0.1:8080/path?search=foo#bar',
+    'protocol' : 'http:',
+    'host' : 'atpass:foo%40bar@127.0.0.1:8080',
+    'auth' : 'atpass:foo%40bar',
+    'hostname' : '127.0.0.1',
+    'port' : '8080',
+    'pathname': '/path',
+    'search' : '?search=foo',
+    'query' : 'search=foo',
+    'hash' : '#bar'
   }
 };
 for (var u in parseTests) {
@@ -367,6 +379,20 @@ var formatTests = {
     'host': 'isaacschlueter@jabber.org',
     'auth': 'isaacschlueter',
     'hostname': 'jabber.org'
+  },
+  'http://atpass:foo%40bar@127.0.0.1/' : {
+    'href': 'http://atpass:foo%40bar@127.0.0.1/',
+    'auth': 'atpass:foo@bar',
+    'hostname': '127.0.0.1',
+    'protocol': 'http:',
+    'pathname': '/'
+  },
+  'http://atslash%2F%40:%2F%40@foo/' : {
+    'href': 'http://atslash%2F%40:%2F%40@foo/',
+    'auth': 'atslash/@:/@',
+    'hostname': 'foo',
+    'protocol': 'http:',
+    'pathname': '/'
   }
 };
 for (var u in formatTests) {
