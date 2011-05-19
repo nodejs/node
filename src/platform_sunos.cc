@@ -160,7 +160,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   *cpus = Array::New();
 
   lookup_instance = 0;
-  while (ksp = kstat_lookup(kc, "cpu_info", lookup_instance, NULL)){
+  while (ksp = kstat_lookup(kc, (char *)"cpu_info", lookup_instance, NULL)){
     cpuinfo  = Object::New();
 
     if (kstat_read(kc, ksp, NULL) == -1) {
@@ -175,9 +175,9 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
       cpuinfo->Set(String::New("error"), String::New(strerror(errno)));
       (*cpus)->Set(lookup_instance, cpuinfo);
     } else {
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "clock_MHz");
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clock_MHz");
       cpuinfo->Set(String::New("speed"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "brand");
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"brand");
       cpuinfo->Set(String::New("model"), data_named(knp));
       (*cpus)->Set(lookup_instance, cpuinfo);
     }
@@ -186,7 +186,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   }
 
   lookup_instance = 0;
-  while (ksp = kstat_lookup(kc, "cpu", lookup_instance, "sys")){
+  while (ksp = kstat_lookup(kc, (char *)"cpu", lookup_instance, (char *)"sys")){
     cpuinfo = (*cpus)->Get(lookup_instance)->ToObject();
     cputimes = Object::New();
 
@@ -194,13 +194,13 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
       cputimes->Set(String::New("error"), String::New(strerror(errno)));
       cpuinfo->Set(String::New("times"), cpuinfo);
     } else {
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_kernel");
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"cpu_ticks_kernel");
       cputimes->Set(String::New("system"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_user");
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"cpu_ticks_user");
       cputimes->Set(String::New("user"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "cpu_ticks_idle");
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"cpu_ticks_idle");
       cputimes->Set(String::New("idle"), data_named(knp));
-      knp = (kstat_named_t *) kstat_data_lookup(ksp, "intr");
+      knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"intr");
       cputimes->Set(String::New("irq"), data_named(knp));
 
       cpuinfo->Set(String::New("times"), cputimes);
@@ -226,13 +226,13 @@ double Platform::GetFreeMemory() {
   if((kc = kstat_open()) == NULL)
     throw "could not open kstat";
 
-  ksp = kstat_lookup(kc, "unix", 0, "system_pages");
+  ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_pages");
 
   if(kstat_read(kc, ksp, NULL) == -1){
     throw "could not read kstat";
   }
   else {
-    knp = (kstat_named_t *) kstat_data_lookup(ksp, "freemem");
+    knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"freemem");
     freemem = knp->value.ul;
   }
 
@@ -260,12 +260,12 @@ double Platform::GetUptime() {
   if ((kc = kstat_open()) == NULL)
     throw "could not open kstat";
 
-  ksp = kstat_lookup(kc, "unix", 0, "system_misc");
+  ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_misc");
 
   if (kstat_read(kc, ksp, NULL) == -1) {
     throw "unable to read kstat";
   } else {
-    knp = (kstat_named_t *) kstat_data_lookup(ksp, "clk_intr");
+    knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clk_intr");
     clk_intr = knp->value.ul;
   }
 
