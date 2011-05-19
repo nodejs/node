@@ -15,7 +15,7 @@ img {
   position: absolute;
   top: 2em;
   left: 0;
-  width: 8em;
+  width: 10em;
   font-size: 12pt;
   line-height: 150%;
 }
@@ -40,6 +40,12 @@ img {
 h1, h2, h3, h4 {
   color: #B0C4DE;
   margin: 2em 0; 
+}
+
+#toc ol ol {
+  font-size: 8pt;
+  line-height: 110%;
+  list-style: circle;
 }
 
 h1 code, h2 code, h3 code, h4 code, 
