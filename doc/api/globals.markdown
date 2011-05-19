@@ -79,6 +79,15 @@ A reference to the current module. In particular
 for more information.
 `module` isn't actually a global but rather local to each module.
 
+
+### exports
+
+An object which is shared between all instances of the current module and
+made accessible through `require()`.
+`exports` is the same as the `module.exports` object. See `src/node.js`
+for more information.
+`exports` isn't actually a global but rather local to each module.
+
 ### setTimeout(cb, ms)
 ### clearTimeout(t)
 ### setInterval(cb, ms)
