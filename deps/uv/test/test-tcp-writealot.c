@@ -72,7 +72,7 @@ static void shutdown_cb(uv_req_t* req, int status) {
 }
 
 
-static void read_cb(uv_handle_t* handle, int nread, uv_buf buf) {
+static void read_cb(uv_handle_t* handle, int nread, uv_buf_t buf) {
   ASSERT(handle != NULL);
 
   if (nread < 0) {
@@ -110,7 +110,7 @@ static void write_cb(uv_req_t* req, int status) {
 
 
 static void connect_cb(uv_req_t* req, int status) {
-  uv_buf send_bufs[CHUNKS_PER_WRITE];
+  uv_buf_t send_bufs[CHUNKS_PER_WRITE];
   uv_handle_t* handle;
   int i, j, r;
 
@@ -134,7 +134,7 @@ static void connect_cb(uv_req_t* req, int status) {
     ASSERT(req != NULL);
 
     uv_req_init(req, handle, write_cb);
-    r = uv_write(req, (uv_buf*)&send_bufs, CHUNKS_PER_WRITE);
+    r = uv_write(req, (uv_buf_t*)&send_bufs, CHUNKS_PER_WRITE);
     ASSERT(r == 0);
   }
 
@@ -155,8 +155,8 @@ static void connect_cb(uv_req_t* req, int status) {
 }
 
 
-static uv_buf alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf buf;
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  uv_buf_t buf;
   buf.base = (char*)malloc(size);
   buf.len = size;
   return buf;

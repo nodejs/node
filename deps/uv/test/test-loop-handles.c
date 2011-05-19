@@ -58,9 +58,9 @@
  *   being started by a check_1 watcher. It verifies that a watcher is
  *   implicitly stopped when closed, and that a watcher can close itself
  *   safely.
- * - There is a timeout request that reposts itself after every timeout. It
- *   does not keep te event loop alive (ev_unref) but makes sure that the loop
- *   keeps polling the system for events.
+ * - There is a repeating timer. It does not keep te event loop alive
+ *   (ev_unref) but makes sure that the loop keeps polling the system for
+ *   events.
  */
 
 
@@ -83,7 +83,7 @@ static uv_handle_t check_handle;
 static uv_handle_t idle_1_handles[IDLE_COUNT];
 static uv_handle_t idle_2_handle;
 
-static uv_req_t timeout_req;
+static uv_handle_t timer_handle;
 
 
 static int loop_iteration = 0;
@@ -106,19 +106,19 @@ static int idle_2_close_cb_called = 0;
 static int idle_2_cb_started = 0;
 static int idle_2_is_active = 0;
 
-static int timeout_cb_called = 0;
+static int timer_cb_called = 0;
 
 
-static void timeout_cb(uv_req_t *req, int64_t skew, int status) {
-  int r;
-
-  ASSERT(req == &timeout_req);
+static void timer_cb(uv_handle_t* handle, int status) {
+  ASSERT(handle == &timer_handle);
   ASSERT(status == 0);
 
-  timeout_cb_called++;
+  timer_cb_called++;
+}
 
-  r = uv_timeout(req, TIMEOUT);
-  ASSERT(r == 0);
+
+static void timer_close_cb(uv_handle_t* handle, int status) {
+  FATAL("timer_close_cb should not be called");
 }
 
 
@@ -313,8 +313,8 @@ static void prepare_1_close_cb(uv_handle_t* handle, int status){
 }
 
 
-static uv_buf alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf rv = { 0, 0 };
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  uv_buf_t rv = { 0, 0 };
   FATAL("alloc_cb should never be called in this test");
   return rv;
 }
@@ -350,8 +350,9 @@ TEST_IMPL(loop_handles) {
 
   /* the timer callback is there to keep the event loop polling */
   /* unref it as it is not supposed to keep the loop alive */
-  uv_req_init(&timeout_req, NULL, timeout_cb);
-  r = uv_timeout(&timeout_req, TIMEOUT);
+  r = uv_timer_init(&timer_handle, timer_close_cb, NULL);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer_handle, timer_cb, TIMEOUT, TIMEOUT);
   ASSERT(r == 0);
   uv_unref();
 
@@ -379,7 +380,7 @@ TEST_IMPL(loop_handles) {
   ASSERT(idle_2_close_cb_called == idle_2_cb_started);
   ASSERT(idle_2_is_active == 0);
 
-  ASSERT(timeout_cb_called > 0);
+  ASSERT(timer_cb_called > 0);
 
   return 0;
 }

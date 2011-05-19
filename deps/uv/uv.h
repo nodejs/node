@@ -48,17 +48,16 @@ typedef struct uv_req_s uv_req_t;
  * For uv_close_cb, -1 means that the handle was closed due to an error.
  * Error details can be obtained by calling uv_last_error().
  *
- * In the case of uv_read_cb the uv_buf returned should be freed by the
+ * In the case of uv_read_cb the uv_buf_t returned should be freed by the
  * user.
  */
-typedef uv_buf (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
-typedef void (*uv_read_cb)(uv_handle_t *handle, int nread, uv_buf buf);
+typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
+typedef void (*uv_read_cb)(uv_handle_t *handle, int nread, uv_buf_t buf);
 typedef void (*uv_write_cb)(uv_req_t* req, int status);
 typedef void (*uv_connect_cb)(uv_req_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_req_t* req, int status);
 typedef void (*uv_accept_cb)(uv_handle_t* handle);
 typedef void (*uv_close_cb)(uv_handle_t* handle, int status);
-typedef void (*uv_timer_cb)(uv_req_t* req, int64_t skew, int status);
 /* TODO: do loop_cb and async_cb really need a status argument? */
 typedef void (*uv_loop_cb)(uv_handle_t* handle, int status);
 typedef void (*uv_async_cb)(uv_handle_t* handle, int stats);
@@ -109,6 +108,7 @@ typedef enum {
   UV_NAMED_PIPE,
   UV_TTY,
   UV_FILE,
+  UV_TIMER,
   UV_PREPARE,
   UV_CHECK,
   UV_IDLE,
@@ -122,7 +122,6 @@ typedef enum {
   UV_READ,
   UV_WRITE,
   UV_SHUTDOWN,
-  UV_TIMEOUT,
   UV_WAKEUP
 } uv_req_type;
 
@@ -166,7 +165,7 @@ struct uv_handle_s {
  */
 uv_err_t uv_last_error();
 char* uv_strerror(uv_err_t err);
-
+const char* uv_err_tostr(uv_err_code code);
 
 void uv_init(uv_alloc_cb alloc);
 int uv_run();
@@ -219,10 +218,26 @@ int uv_accept(uv_handle_t* server, uv_handle_t* client,
 int uv_read_start(uv_handle_t* handle, uv_read_cb cb);
 int uv_read_stop(uv_handle_t* handle);
 
-int uv_write(uv_req_t* req, uv_buf bufs[], int bufcnt);
+int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt);
 
 /* Timer methods */
-int uv_timeout(uv_req_t* req, int64_t timeout);
+int uv_timer_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
+int uv_timer_start(uv_handle_t* handle, uv_loop_cb cb, int64_t timeout, int64_t repeat);
+int uv_timer_stop(uv_handle_t* handle);
+/*
+ * Stop the timer, and if it is repeating restart it using the repeat value 
+ * as the timeout. If the timer has never been started before it returns -1 and
+ * sets the error to UV_EINVAL.
+ */
+int uv_timer_again(uv_handle_t* handle);
+/*
+ * Set the repeat value. Note that if the repeat value is set from a timer
+ * callback it does not immediately take effect. If the timer was nonrepeating
+ * before, it will have been stopped. If it was repeating, then the old repeat
+ * value will have been used to schedule the next timeout.
+ */
+void uv_timer_set_repeat(uv_handle_t* handle, int64_t repeat);
+int64_t uv_timer_get_repeat(uv_handle_t* handle);
 
 /* libev wrapper. Every active prepare handle gets its callback called
  * exactly once per loop iteration, just before the system blocks to wait
@@ -247,6 +262,11 @@ int uv_check_stop(uv_handle_t* handle);
 int uv_idle_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
 int uv_idle_start(uv_handle_t* handle, uv_loop_cb cb);
 int uv_idle_stop(uv_handle_t* handle);
+
+/* Returns 1 if the prepare/check/idle handle has been started, 0 otherwise.
+ * For other handle types this always returns 1.
+ */
+int uv_is_active(uv_handle_t* handle);
 
 /* libev wrapper. uv_async_send wakes up the event loop and calls the async
  * handle's callback There is no guarantee that every uv_async_send call

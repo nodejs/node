@@ -27,7 +27,7 @@
 
 typedef struct {
   uv_req_t req;
-  uv_buf buf;
+  uv_buf_t buf;
 } write_req_t;
 
 
@@ -35,7 +35,7 @@ static uv_handle_t server;
 
 
 static void after_write(uv_req_t* req, int status);
-static void after_read(uv_handle_t* handle, int nread, uv_buf buf);
+static void after_read(uv_handle_t* handle, int nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer, int status);
 static void on_accept(uv_handle_t* handle);
 
@@ -62,7 +62,7 @@ static void after_shutdown(uv_req_t* req, int status) {
 }
 
 
-static void after_read(uv_handle_t* handle, int nread, uv_buf buf) {
+static void after_read(uv_handle_t* handle, int nread, uv_buf_t buf) {
   write_req_t *wr;
   uv_req_t* req;
 
@@ -156,8 +156,8 @@ static int echo_stop() {
 }
 
 
-static uv_buf echo_alloc(uv_handle_t* handle, size_t suggested_size) {
-  uv_buf buf;
+static uv_buf_t echo_alloc(uv_handle_t* handle, size_t suggested_size) {
+  uv_buf_t buf;
   buf.base = (char*) malloc(suggested_size);
   buf.len = suggested_size;
   return buf;

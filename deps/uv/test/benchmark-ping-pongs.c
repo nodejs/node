@@ -39,7 +39,7 @@ typedef struct {
 } pinger_t;
 
 typedef struct buf_s {
-  uv_buf uv_buf;
+  uv_buf_t uv_buf_t;
   struct buf_s* next;
 } buf_t;
 
@@ -52,26 +52,26 @@ static int completed_pingers = 0;
 static int64_t start_time;
 
 
-static uv_buf buf_alloc(uv_handle_t* handle, size_t size) {
+static uv_buf_t buf_alloc(uv_handle_t* handle, size_t size) {
   buf_t* ab;
 
   ab = buf_freelist;
 
   if (ab != NULL) {
     buf_freelist = ab->next;
-    return ab->uv_buf;
+    return ab->uv_buf_t;
   }
 
   ab = (buf_t*) malloc(size + sizeof *ab);
-  ab->uv_buf.len = size;
-  ab->uv_buf.base = ((char*) ab) + sizeof *ab;
+  ab->uv_buf_t.len = size;
+  ab->uv_buf_t.base = ((char*) ab) + sizeof *ab;
 
-  return ab->uv_buf;
+  return ab->uv_buf_t;
 }
 
 
-static void buf_free(uv_buf uv_buf) {
-  buf_t* ab = (buf_t*) (uv_buf.base - sizeof *ab);
+static void buf_free(uv_buf_t uv_buf_t) {
+  buf_t* ab = (buf_t*) (uv_buf_t.base - sizeof *ab);
 
   ab->next = buf_freelist;
   buf_freelist = ab;
@@ -101,7 +101,7 @@ static void pinger_write_cb(uv_req_t *req, int status) {
 
 static void pinger_write_ping(pinger_t* pinger) {
   uv_req_t *req;
-  uv_buf buf;
+  uv_buf_t buf;
 
   buf.base = (char*)&PING;
   buf.len = strlen(PING);
@@ -120,7 +120,7 @@ static void pinger_shutdown_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void pinger_read_cb(uv_handle_t* handle, int nread, uv_buf buf) {
+static void pinger_read_cb(uv_handle_t* handle, int nread, uv_buf_t buf) {
   unsigned int i;
   pinger_t* pinger;
 

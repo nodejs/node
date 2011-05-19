@@ -1,5 +1,4 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
- *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -43,6 +42,50 @@ void uv__next(EV_P_ ev_idle* watcher, int revents);
 static void uv__tcp_connect(uv_handle_t* handle);
 int uv_tcp_open(uv_handle_t*, int fd);
 static void uv__finish_close(uv_handle_t* handle);
+
+
+const char* uv_err_tostr(uv_err_code code) {
+  switch (code) {
+    case UV_UNKNOWN: return "UNKNOWN";
+    case UV_OK: return "OK";
+    case UV_EOF: return "EOF";
+    case UV_EACCESS: return "EACCESS";
+    case UV_EAGAIN: return "EAGAIN";
+    case UV_EADDRINUSE: return "EADDRINUSE";
+    case UV_EADDRNOTAVAIL: return "EADDRNOTAVAIL";
+    case UV_EAFNOSUPPORT: return "EAFNOSUPPORT";
+    case UV_EALREADY: return "EALREADY";
+    case UV_EBADF: return "EBADF";
+    case UV_EBUSY: return "EBUSY";
+    case UV_ECONNABORTED: return "ECONNABORTED";
+    case UV_ECONNREFUSED: return "ECONNREFUSED";
+    case UV_ECONNRESET: return "ECONNRESET";
+    case UV_EDESTADDRREQ: return "EDESTADDRREQ";
+    case UV_EFAULT: return "EFAULT";
+    case UV_EHOSTUNREACH: return "EHOSTUNREACH";
+    case UV_EINTR: return "EINTR";
+    case UV_EINVAL: return "EINVAL";
+    case UV_EISCONN: return "EISCONN";
+    case UV_EMFILE: return "EMFILE";
+    case UV_ENETDOWN: return "ENETDOWN";
+    case UV_ENETUNREACH: return "ENETUNREACH";
+    case UV_ENFILE: return "ENFILE";
+    case UV_ENOBUFS: return "ENOBUFS";
+    case UV_ENOMEM: return "ENOMEM";
+    case UV_ENONET: return "ENONET";
+    case UV_ENOPROTOOPT: return "ENOPROTOOPT";
+    case UV_ENOTCONN: return "ENOTCONN";
+    case UV_ENOTSOCK: return "ENOTSOCK";
+    case UV_ENOTSUP: return "ENOTSUP";
+    case UV_EPROTO: return "EPROTO";
+    case UV_EPROTONOSUPPORT: return "EPROTONOSUPPORT";
+    case UV_EPROTOTYPE: return "EPROTOTYPE";
+    case UV_ETIMEDOUT: return "ETIMEDOUT";
+    default:
+      assert(0);
+      return NULL;
+  }
+}
 
 
 /* flags */
@@ -149,6 +192,13 @@ int uv_close(uv_handle_t* handle) {
       ev_async_stop(EV_DEFAULT_ &handle->async_watcher);
       break;
 
+    case UV_TIMER:
+      if (ev_is_active(&handle->timer_watcher)) {
+        ev_ref(EV_DEFAULT_UC);
+      }
+      ev_timer_stop(EV_DEFAULT_ &handle->timer_watcher);
+      break;
+
     default:
       assert(0);
       return -1;
@@ -168,7 +218,13 @@ int uv_close(uv_handle_t* handle) {
 void uv_init(uv_alloc_cb cb) {
   assert(cb);
   alloc_cb = cb;
-  ev_default_loop(0);
+
+  // Initialize the default ev loop.
+#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+  ev_default_loop(EVBACKEND_KQUEUE);
+#else
+  ev_default_loop(EVFLAG_AUTO);
+#endif
 }
 
 
@@ -187,6 +243,9 @@ static void uv__handle_init(uv_handle_t* handle, uv_handle_type type,
 
   ev_init(&handle->next_watcher, uv__next);
   handle->next_watcher.data = handle;
+
+  /* Ref the loop until this handle is closed. See uv__finish_close. */
+  ev_ref(EV_DEFAULT_UC);
 }
 
 
@@ -425,6 +484,14 @@ void uv__finish_close(uv_handle_t* handle) {
     case UV_ASYNC:
       assert(!ev_is_active(&handle->async_watcher));
       break;
+
+    case UV_TIMER:
+      assert(!ev_is_active(&handle->timer_watcher));
+      break;
+
+    default:
+      assert(0);
+      break;
   }
 
   ev_idle_stop(EV_DEFAULT_ &handle->next_watcher);
@@ -432,6 +499,8 @@ void uv__finish_close(uv_handle_t* handle) {
   if (handle->close_cb) {
     handle->close_cb(handle, 0);
   }
+
+  ev_unref(EV_DEFAULT_UC);
 }
 
 
@@ -509,10 +578,10 @@ void uv__write(uv_handle_t* handle) {
 
   assert(req->handle == handle);
 
-  /* Cast to iovec. We had to have our own uv_buf instead of iovec
+  /* Cast to iovec. We had to have our own uv_buf_t instead of iovec
    * because Windows's WSABUF is not an iovec.
    */
-  assert(sizeof(uv_buf) == sizeof(struct iovec));
+  assert(sizeof(uv_buf_t) == sizeof(struct iovec));
   struct iovec* iov = (struct iovec*) &(req->bufs[req->write_index]);
   int iovcnt = req->bufcnt - req->write_index;
 
@@ -541,7 +610,7 @@ void uv__write(uv_handle_t* handle) {
 
     /* The loop updates the counters. */
     while (n > 0) {
-      uv_buf* buf = &(req->bufs[req->write_index]);
+      uv_buf_t* buf = &(req->bufs[req->write_index]);
       size_t len = buf->len;
 
       assert(req->write_index < req->bufcnt);
@@ -607,7 +676,7 @@ void uv__read(uv_handle_t* handle) {
    */
   while (handle->read_cb && uv_flag_is_set(handle, UV_READING)) {
     assert(alloc_cb);
-    uv_buf buf = alloc_cb(handle, 64 * 1024);
+    uv_buf_t buf = alloc_cb(handle, 64 * 1024);
 
     assert(buf.len > 0);
     assert(buf.base);
@@ -813,7 +882,7 @@ int uv_connect(uv_req_t* req, struct sockaddr* addr) {
 }
 
 
-static size_t uv__buf_count(uv_buf bufs[], int bufcnt) {
+static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
   size_t total = 0;
   int i;
 
@@ -826,9 +895,9 @@ static size_t uv__buf_count(uv_buf bufs[], int bufcnt) {
 
 
 /* The buffers to be written must remain valid until the callback is called.
- * This is not required for the uv_buf array.
+ * This is not required for the uv_buf_t array.
  */
-int uv_write(uv_req_t* req, uv_buf bufs[], int bufcnt) {
+int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt) {
   uv_handle_t* handle = req->handle;
   assert(handle->fd >= 0);
 
@@ -836,8 +905,8 @@ int uv_write(uv_req_t* req, uv_buf bufs[], int bufcnt) {
   req->type = UV_WRITE;
 
   /* TODO: Don't malloc for each write... */
-  req->bufs = malloc(sizeof(uv_buf) * bufcnt);
-  memcpy(req->bufs, bufs, bufcnt * sizeof(uv_buf));
+  req->bufs = malloc(sizeof(uv_buf_t) * bufcnt);
+  memcpy(req->bufs, bufs, bufcnt * sizeof(uv_buf_t));
   req->bufcnt = bufcnt;
 
   req->write_index = 0;
@@ -867,23 +936,6 @@ void uv_unref() {
 }
 
 
-void uv__timeout(EV_P_ ev_timer* watcher, int revents) {
-  uv_req_t* req = watcher->data;
-  assert(watcher == &req->timer);
-  assert(EV_TIMER & revents);
-
-  /* This watcher is not repeating. */
-  assert(!ev_is_active(watcher));
-  assert(!ev_is_pending(watcher));
-
-  if (req->cb) {
-    uv_timer_cb cb = req->cb;
-    /* TODO skew */
-    cb(req, 0, 0);
-  }
-}
-
-
 void uv_update_time() {
   ev_now_update(EV_DEFAULT_UC);
 }
@@ -891,14 +943,6 @@ void uv_update_time() {
 
 int64_t uv_now() {
   return (int64_t)(ev_now(EV_DEFAULT_UC) * 1000);
-}
-
-
-int uv_timeout(uv_req_t* req, int64_t timeout) {
-  ev_timer_init(&req->timer, uv__timeout, timeout / 1000.0, 0.0);
-  ev_timer_start(EV_DEFAULT_UC_ &req->timer);
-  req->timer.data = req;
-  return 0;
 }
 
 
@@ -1046,6 +1090,19 @@ int uv_idle_stop(uv_handle_t* handle) {
 }
 
 
+int uv_is_active(uv_handle_t* handle) {
+  switch (handle->type) {
+    case UV_PREPARE:
+    case UV_CHECK:
+    case UV_IDLE:
+      return ev_is_active(handle);
+
+    default:
+      return 1;
+  }
+}
+
+
 static void uv__async(EV_P_ ev_async* w, int revents) {
   uv_handle_t* handle = (uv_handle_t*)(w->data);
 
@@ -1072,3 +1129,70 @@ int uv_async_init(uv_handle_t* handle, uv_async_cb async_cb,
 int uv_async_send(uv_handle_t* handle) {
   ev_async_send(EV_DEFAULT_UC_ &handle->async_watcher);
 }
+
+
+static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
+  uv_handle_t* handle = (uv_handle_t*)(w->data);
+
+  if (!ev_is_active(w)) {
+    ev_ref(EV_DEFAULT_UC);
+  }
+
+  if (handle->timer_cb) handle->timer_cb(handle, 0);
+}
+
+
+int uv_timer_init(uv_handle_t* handle, uv_close_cb close_cb, void* data) {
+  uv__handle_init(handle, UV_TIMER, close_cb, data);
+
+  ev_init(&handle->timer_watcher, uv__timer_cb);
+  handle->timer_watcher.data = handle;
+
+  return 0;
+}
+
+
+int uv_timer_start(uv_handle_t* handle, uv_loop_cb cb, int64_t timeout,
+    int64_t repeat) {
+  if (ev_is_active(&handle->timer_watcher)) {
+    return -1;
+  }
+
+  handle->timer_cb = cb;
+  ev_timer_set(&handle->timer_watcher, timeout / 1000.0, repeat / 1000.0);
+  ev_timer_start(EV_DEFAULT_UC_ &handle->timer_watcher);
+  ev_unref(EV_DEFAULT_UC);
+  return 0;
+}
+
+
+int uv_timer_stop(uv_handle_t* handle) {
+  if (ev_is_active(&handle->timer_watcher)) {
+    ev_ref(EV_DEFAULT_UC);
+  }
+
+  ev_timer_stop(EV_DEFAULT_UC_ &handle->timer_watcher);
+  return 0;
+}
+
+
+int uv_timer_again(uv_handle_t* handle) {
+  if (!ev_is_active(&handle->timer_watcher)) {
+    uv_err_new(handle, EINVAL);
+    return -1;
+  }
+
+  ev_timer_again(EV_DEFAULT_UC_ &handle->timer_watcher);
+  return 0;
+}
+
+void uv_timer_set_repeat(uv_handle_t* handle, int64_t repeat) {
+  assert(handle->type == UV_TIMER);
+  handle->timer_watcher.repeat = repeat / 1000.0;
+}
+
+int64_t uv_timer_get_repeat(uv_handle_t* handle) {
+  assert(handle->type == UV_TIMER);
+  return (int64_t)(1000 * handle->timer_watcher.repeat);
+}
+

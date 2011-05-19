@@ -2431,9 +2431,9 @@ void EmitExit(v8::Handle<v8::Object> process) {
 }
 
 
-uv_buf UVAlloc(uv_handle_t* handle, size_t suggested_size) {
+uv_buf_t UVAlloc(uv_handle_t* handle, size_t suggested_size) {
   char* base = (char*)malloc(suggested_size);
-  uv_buf buf;
+  uv_buf_t buf;
   buf.base = base;
   buf.len = suggested_size;
   return buf;

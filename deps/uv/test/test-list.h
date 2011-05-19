@@ -29,7 +29,8 @@ TEST_DECLARE   (bind_error_fault)
 TEST_DECLARE   (bind_error_inval)
 TEST_DECLARE   (connection_fail)
 TEST_DECLARE   (callback_stack)
-TEST_DECLARE   (timeout)
+TEST_DECLARE   (timer)
+TEST_DECLARE   (timer_again)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (async)
 TEST_DECLARE   (fail_always)
@@ -60,7 +61,9 @@ TASK_LIST_START
   TEST_ENTRY  (callback_stack)
   TEST_HELPER (callback_stack, echo_server)
 
-  TEST_ENTRY  (timeout)
+  TEST_ENTRY  (timer)
+
+  TEST_ENTRY  (timer_again)
 
   TEST_ENTRY  (loop_handles)
 
