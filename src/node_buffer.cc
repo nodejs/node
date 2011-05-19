@@ -679,6 +679,11 @@ Handle<Value> Buffer::ByteLength(const Arguments &args) {
 Handle<Value> Buffer::MakeFastBuffer(const Arguments &args) {
   HandleScope scope;
 
+  if (!Buffer::HasInstance(args[0])) {
+    return ThrowException(Exception::TypeError(String::New(
+            "First argument must be a Buffer")));
+  }
+
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args[0]->ToObject());
   Local<Object> fast_buffer = args[1]->ToObject();;
   uint32_t offset = args[2]->Uint32Value();

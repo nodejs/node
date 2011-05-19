@@ -520,3 +520,7 @@ assert.equal(0xee, b[0]);
 assert.equal(0xad, b[1]);
 assert.equal(0xbe, b[2]);
 assert.equal(0xef, b[3]);
+
+
+// This should not segfault the program.
+new Buffer('"pong"', 0, 6, 8031, '127.0.0.1')
