@@ -216,12 +216,37 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 
 
 double Platform::GetFreeMemory() {
-  return 0.0;
+  kstat_ctl_t   *kc;
+  kstat_t       *ksp;
+  kstat_named_t *knp;
+
+  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
+  ulong_t freemem;
+
+  if((kc = kstat_open()) == NULL)
+    throw "could not open kstat";
+
+  ksp = kstat_lookup(kc, "unix", 0, "system_pages");
+
+  if(kstat_read(kc, ksp, NULL) == -1){
+    throw "could not read kstat";
+  }
+  else {
+    knp = (kstat_named_t *) kstat_data_lookup(ksp, "freemem");
+    freemem = knp->value.ul;
+  }
+
+  kstat_close(kc);
+
+  return static_cast<double>(freemem)*pagesize;
 }
 
 
 double Platform::GetTotalMemory() {
-  return 0.0;
+  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
+  double pages = static_cast<double>(sysconf(_SC_PHYS_PAGES));
+
+  return pagesize*pages;
 }
 
 double Platform::GetUptime() {
