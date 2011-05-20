@@ -141,9 +141,9 @@ static LPFN_TRANSMITFILE            pTransmitFile;
 
 
 /* Binary tree used to keep the list of timers sorted. */
-static int uv_timer_compare(uv_handle_t* handle1, uv_handle_t* handle2);
-RB_HEAD(uv_timer_s, uv_handle_s);
-RB_PROTOTYPE_STATIC(uv_timer_s, uv_handle_s, tree_entry, uv_timer_compare);
+static int uv_timer_compare(uv_req_t* t1, uv_req_t* t2);
+RB_HEAD(uv_timer_s, uv_req_s);
+RB_PROTOTYPE_STATIC(uv_timer_s, uv_req_s, tree_entry, uv_timer_compare);
 
 /* The head of the timers tree */
 static struct uv_timer_s uv_timers_ = RB_INITIALIZER(uv_timers_);
@@ -296,7 +296,6 @@ static uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_CONNECTION_REFUSED:          return UV_ECONNREFUSED;
     case WSAECONNREFUSED:                   return UV_ECONNREFUSED;
     case WSAEFAULT:                         return UV_EFAULT;
-    case ERROR_INVALID_DATA:                return UV_EINVAL;
     case WSAEINVAL:                         return UV_EINVAL;
     case ERROR_TOO_MANY_OPEN_FILES:         return UV_EMFILE;
     case WSAEMFILE:                         return UV_EMFILE;
@@ -340,7 +339,7 @@ static void uv_get_extension_function(SOCKET socket, GUID guid,
   if (result == SOCKET_ERROR) {
     *target = NULL;
     uv_fatal_error(WSAGetLastError(),
-                   "WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER)");
+                    "WSAIoctl(SIO_GET_EXTENSION_FUNCTION_POINTER)");
   }
 }
 
@@ -375,20 +374,20 @@ void uv_init(uv_alloc_cb alloc_cb) {
   }
 
   uv_get_extension_function(dummy,
-                            wsaid_connectex,
-                            (void**)&pConnectEx);
+                             wsaid_connectex,
+                             (void**)&pConnectEx);
   uv_get_extension_function(dummy,
-                            wsaid_acceptex,
-                            (void**)&pAcceptEx);
+                             wsaid_acceptex,
+                             (void**)&pAcceptEx);
   uv_get_extension_function(dummy,
-                            wsaid_getacceptexsockaddrs,
-                            (void**)&pGetAcceptExSockAddrs);
+                             wsaid_getacceptexsockaddrs,
+                             (void**)&pGetAcceptExSockAddrs);
   uv_get_extension_function(dummy,
-                            wsaid_disconnectex,
-                            (void**)&pDisconnectEx);
+                             wsaid_disconnectex,
+                             (void**)&pDisconnectEx);
   uv_get_extension_function(dummy,
-                            wsaid_transmitfile,
-                            (void**)&pTransmitFile);
+                             wsaid_transmitfile,
+                             (void**)&pTransmitFile);
 
   if (closesocket(dummy) == SOCKET_ERROR) {
     uv_fatal_error(WSAGetLastError(), "closesocket");
@@ -539,20 +538,6 @@ static void uv_tcp_endgame(uv_handle_t* handle) {
 }
 
 
-static void uv_timer_endgame(uv_handle_t* handle) {
-  if (handle->flags & UV_HANDLE_CLOSING) {
-    assert(!(handle->flags & UV_HANDLE_CLOSED));
-    handle->flags |= UV_HANDLE_CLOSED;
-
-    if (handle->close_cb) {
-      handle->close_cb(handle, 0);
-    }
-
-    uv_refs_--;
-  }
-}
-
-
 static void uv_loop_endgame(uv_handle_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
@@ -594,10 +579,6 @@ static void uv_call_endgames() {
     switch (handle->type) {
       case UV_TCP:
         uv_tcp_endgame(handle);
-        break;
-
-      case UV_TIMER:
-        uv_timer_endgame(handle);
         break;
 
       case UV_PREPARE:
@@ -643,11 +624,6 @@ static int uv_close_error(uv_handle_t* handle, uv_err_t e) {
       if (handle->reqs_pending == 0) {
         uv_want_endgame(handle);
       }
-      return 0;
-
-    case UV_TIMER:
-      uv_timer_stop(handle);
-      uv_want_endgame(handle);
       return 0;
 
     case UV_PREPARE:
@@ -775,7 +751,7 @@ static void uv_queue_accept(uv_handle_t* handle) {
 
 static void uv_queue_read(uv_handle_t* handle) {
   uv_req_t *req;
-  uv_buf_t buf;
+  uv_buf buf;
   int result;
   DWORD bytes, flags;
 
@@ -950,7 +926,7 @@ int uv_connect(uv_req_t* req, struct sockaddr* addr) {
 }
 
 
-static size_t uv_count_bufs(uv_buf_t bufs[], int count) {
+static size_t uv_count_bufs(uv_buf bufs[], int count) {
   size_t bytes = 0;
   int i;
 
@@ -962,7 +938,7 @@ static size_t uv_count_bufs(uv_buf_t bufs[], int count) {
 }
 
 
-int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt) {
+int uv_write(uv_req_t* req, uv_buf bufs[], int bufcnt) {
   int result;
   DWORD bytes, err;
   uv_handle_t* handle = req->handle;
@@ -1045,7 +1021,7 @@ int uv_shutdown(uv_req_t* req) {
 static void uv_tcp_return_req(uv_handle_t* handle, uv_req_t* req) {
   BOOL success;
   DWORD bytes, flags, err;
-  uv_buf_t buf;
+  uv_buf buf;
 
   assert(handle->type == UV_TCP);
 
@@ -1132,10 +1108,10 @@ static void uv_tcp_return_req(uv_handle_t* handle, uv_req_t* req) {
 
       success = GetOverlappedResult(handle->handle, &req->overlapped, &bytes, FALSE);
       success = success && (setsockopt(handle->accept_socket,
-                                       SOL_SOCKET,
-                                       SO_UPDATE_ACCEPT_CONTEXT,
-                                       (char*)&handle->socket,
-                                       sizeof(handle->socket)) == 0);
+                                        SOL_SOCKET,
+                                        SO_UPDATE_ACCEPT_CONTEXT,
+                                        (char*)&handle->socket,
+                                        sizeof(handle->socket)) == 0);
 
       if (success) {
         if (handle->accept_cb) {
@@ -1158,10 +1134,10 @@ static void uv_tcp_return_req(uv_handle_t* handle, uv_req_t* req) {
                                       FALSE);
         if (success) {
           if (setsockopt(handle->socket,
-                         SOL_SOCKET,
-                         SO_UPDATE_CONNECT_CONTEXT,
-                         NULL,
-                         0) == 0) {
+                          SOL_SOCKET,
+                          SO_UPDATE_CONNECT_CONTEXT,
+                          NULL,
+                          0) == 0) {
             uv_tcp_init_connection(handle);
             ((uv_connect_cb)req->cb)(req, 0);
           } else {
@@ -1191,7 +1167,7 @@ static void uv_tcp_return_req(uv_handle_t* handle, uv_req_t* req) {
 }
 
 
-static int uv_timer_compare(uv_handle_t* a, uv_handle_t* b) {
+static int uv_timer_compare(uv_req_t* a, uv_req_t* b) {
   if (a->due < b->due)
     return -1;
   if (a->due > b->due)
@@ -1204,89 +1180,23 @@ static int uv_timer_compare(uv_handle_t* a, uv_handle_t* b) {
 }
 
 
-RB_GENERATE_STATIC(uv_timer_s, uv_handle_s, tree_entry, uv_timer_compare);
+RB_GENERATE_STATIC(uv_timer_s, uv_req_s, tree_entry, uv_timer_compare);
 
 
-int uv_timer_init(uv_handle_t* handle, uv_close_cb close_cb, void* data) {
-  handle->type = UV_TIMER;
-  handle->close_cb = (void*) close_cb;
-  handle->data = data;
-  handle->flags = 0;
-  handle->error = uv_ok_;
-  handle->timer_cb = NULL;
-  handle->repeat = 0;
+int uv_timeout(uv_req_t* req, int64_t timeout) {
+  assert(!(req->flags & UV_REQ_PENDING));
 
-  uv_refs_++;
+  req->type = UV_TIMEOUT;
 
-  return 0;
-}
-
-
-int uv_timer_start(uv_handle_t* handle, uv_loop_cb timer_cb, int64_t timeout, int64_t repeat) {
-  if (handle->flags & UV_HANDLE_ACTIVE) {
-    RB_REMOVE(uv_timer_s, &uv_timers_, handle);
-  }
-
-  handle->timer_cb = (void*) timer_cb;
-  handle->due = uv_now_ + timeout;
-  handle->repeat = repeat;
-  handle->flags |= UV_HANDLE_ACTIVE;
-
-  if (RB_INSERT(uv_timer_s, &uv_timers_, handle) != NULL) {
-    uv_fatal_error(ERROR_INVALID_DATA, "RB_INSERT");
-  }
-
-  return 0;
-}
-
-
-int uv_timer_stop(uv_handle_t* handle) {
-  if (!(handle->flags & UV_HANDLE_ACTIVE))
-    return 0;
-
-  RB_REMOVE(uv_timer_s, &uv_timers_, handle);
-
-  handle->flags &= ~UV_HANDLE_ACTIVE;
-
-  return 0;
-}
-
-
-int uv_timer_again(uv_handle_t* handle) {
-  /* If timer_cb is NULL that means that the timer was never started. */
-  if (!handle->timer_cb) {
+  req->due = uv_now_ + timeout;
+  if (RB_INSERT(uv_timer_s, &uv_timers_, req) != NULL) {
     uv_set_sys_error(ERROR_INVALID_DATA);
     return -1;
   }
 
-  if (handle->flags & UV_HANDLE_ACTIVE) {
-    RB_REMOVE(uv_timer_s, &uv_timers_, handle);
-    handle->flags &= ~UV_HANDLE_ACTIVE;
-  }
-
-  if (handle->repeat) {
-    handle->due = uv_now_ + handle->repeat;
-
-    if (RB_INSERT(uv_timer_s, &uv_timers_, handle) != NULL) {
-      uv_fatal_error(ERROR_INVALID_DATA, "RB_INSERT");
-    }
-
-    handle->flags |= UV_HANDLE_ACTIVE;
-  }
-
+  uv_refs_++;
+  req->flags |= UV_REQ_PENDING;
   return 0;
-}
-
-
-void uv_timer_set_repeat(uv_handle_t* handle, int64_t repeat) {
-  assert(handle->type == UV_TIMER);
-  handle->repeat = repeat;
-}
-
-
-int64_t uv_timer_get_repeat(uv_handle_t* handle) {
-  assert(handle->type == UV_TIMER);
-  return handle->repeat;
 }
 
 
@@ -1437,20 +1347,6 @@ int uv_idle_stop(uv_handle_t* handle) {
 }
 
 
-int uv_is_active(uv_handle_t* handle) {
-  switch (handle->type) {
-    case UV_TIMER:
-    case UV_IDLE:
-    case UV_PREPARE:
-    case UV_CHECK:
-      return (handle->flags & UV_HANDLE_ACTIVE) ? 1 : 0;
-
-    default:
-      return 1;
-  }
-}
-
-
 int uv_async_init(uv_handle_t* handle, uv_async_cb async_cb,
                    uv_close_cb close_cb, void* data) {
   uv_req_t* req;
@@ -1530,9 +1426,9 @@ static void uv_poll() {
   uv_update_time();
 
   /* Check if there are any running timers */
-  handle = RB_MIN(uv_timer_s, &uv_timers_);
-  if (handle) {
-    delta = handle->due - uv_now_;
+  req = RB_MIN(uv_timer_s, &uv_timers_);
+  if (req) {
+    delta = req->due - uv_now_;
     if (delta >= UINT_MAX) {
       /* Can't have a timeout greater than UINT_MAX, and a timeout value of */
       /* UINT_MAX means infinite, so that's no good either. */
@@ -1560,26 +1456,13 @@ static void uv_poll() {
   uv_loop_invoke(uv_check_handles_);
 
   /* Call timer callbacks */
-  for (handle = RB_MIN(uv_timer_s, &uv_timers_);
-       handle != NULL && handle->due <= uv_now_;
-       handle = RB_MIN(uv_timer_s, &uv_timers_)) {
-    RB_REMOVE(uv_timer_s, &uv_timers_, handle);
-
-    if (handle->repeat != 0) {
-      /* If it is a repeating timer, reschedule with repeat timeout. */
-      handle->due += handle->repeat;
-      if (handle->due < uv_now_) {
-        handle->due = uv_now_;
-      }
-      if (RB_INSERT(uv_timer_s, &uv_timers_, handle) != NULL) {
-        uv_fatal_error(ERROR_INVALID_DATA, "RB_INSERT");
-      }
-    } else {
-      /* If non-repeating, mark the timer as inactive. */
-      handle->flags &= ~UV_HANDLE_ACTIVE;
-    }
-
-    ((uv_loop_cb) handle->timer_cb)(handle, 0);
+  for (req = RB_MIN(uv_timer_s, &uv_timers_);
+       req != NULL && req->due <= uv_now_;
+       req = RB_MIN(uv_timer_s, &uv_timers_)) {
+    RB_REMOVE(uv_timer_s, &uv_timers_, req);
+    req->flags &= ~UV_REQ_PENDING;
+    uv_refs_--;
+    ((uv_timer_cb)req->cb)(req, req->due - uv_now_, 0);
   }
 
   /* Only if a iocp package was dequeued... */

@@ -30,14 +30,14 @@
 
 static const char MESSAGE[] = "Failure is for the weak. Everyone dies alone.";
 
-static uv_handle_t client, timer;
-static uv_req_t connect_req, write_req, shutdown_req;
+static uv_handle_t client;
+static uv_req_t connect_req, write_req, timeout_req, shutdown_req;
 
 static int nested = 0;
 static int close_cb_called = 0;
 static int connect_cb_called = 0;
 static int write_cb_called = 0;
-static int timer_cb_called = 0;
+static int timeout_cb_called = 0;
 static int bytes_received = 0;
 static int shutdown_cb_called = 0;
 
@@ -58,7 +58,7 @@ static void shutdown_cb(uv_req_t* req, int status) {
 }
 
 
-static void read_cb(uv_handle_t* handle, int nread, uv_buf_t buf) {
+static void read_cb(uv_handle_t* handle, int nread, uv_buf buf) {
   ASSERT(nested == 0 && "read_cb must be called from a fresh stack");
 
   printf("Read. nread == %d\n", nread);
@@ -100,12 +100,9 @@ static void read_cb(uv_handle_t* handle, int nread, uv_buf_t buf) {
 }
 
 
-static void timer_cb(uv_handle_t* handle, int status) {
-  int r;
-
-  ASSERT(handle == &timer);
+static void timeout_cb(uv_req_t* req, int64_t skew, int status) {
   ASSERT(status == 0);
-  ASSERT(nested == 0 && "timer_cb must be called from a fresh stack");
+  ASSERT(nested == 0 && "timeout_cb must be called from a fresh stack");
 
   puts("Timeout complete. Now read data...");
 
@@ -115,16 +112,11 @@ static void timer_cb(uv_handle_t* handle, int status) {
   }
   nested--;
 
-  timer_cb_called++;
-
-  r = uv_close(handle);
-  ASSERT(r == 0);
+  timeout_cb_called++;
 }
 
 
 static void write_cb(uv_req_t* req, int status) {
-  int r;
-
   ASSERT(status == 0);
   ASSERT(nested == 0 && "write_cb must be called from a fresh stack");
 
@@ -135,10 +127,10 @@ static void write_cb(uv_req_t* req, int status) {
   /* back to our receive buffer when we start reading. This maximizes the */
   /* tempation for the backend to use dirty stack for calling read_cb. */
   nested++;
-  r = uv_timer_init(&timer, close_cb, NULL);
-  ASSERT(r == 0);
-  r = uv_timer_start(&timer, timer_cb, 500, 0);
-  ASSERT(r == 0);
+  uv_req_init(&timeout_req, NULL, timeout_cb);
+  if (uv_timeout(&timeout_req, 500)) {
+    FATAL("uv_timeout failed");
+  }
   nested--;
 
   write_cb_called++;
@@ -146,7 +138,7 @@ static void write_cb(uv_req_t* req, int status) {
 
 
 static void connect_cb(uv_req_t* req, int status) {
-  uv_buf_t buf;
+  uv_buf buf;
 
   puts("Connected. Write some data to echo server...");
 
@@ -170,8 +162,8 @@ static void connect_cb(uv_req_t* req, int status) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf_t buf;
+static uv_buf alloc_cb(uv_handle_t* handle, size_t size) {
+  uv_buf buf;
   buf.len = size;
   buf.base = (char*) malloc(size);
   ASSERT(buf.base);
@@ -202,10 +194,10 @@ TEST_IMPL(callback_stack) {
   ASSERT(nested == 0);
   ASSERT(connect_cb_called == 1 && "connect_cb must be called exactly once");
   ASSERT(write_cb_called == 1 && "write_cb must be called exactly once");
-  ASSERT(timer_cb_called == 1 && "timer_cb must be called exactly once");
+  ASSERT(timeout_cb_called == 1 && "timeout_cb must be called exactly once");
   ASSERT(bytes_received == sizeof MESSAGE);
   ASSERT(shutdown_cb_called == 1 && "shutdown_cb must be called exactly once");
-  ASSERT(close_cb_called == 2 && "close_cb must be called exactly twice");
+  ASSERT(close_cb_called == 1 && "close_cb must be called exactly once");
 
   return 0;
 }
