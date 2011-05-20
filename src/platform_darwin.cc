@@ -34,6 +34,13 @@
 #include <sys/param.h>
 #include <sys/sysctl.h>
 #include <time.h>
+#include <sys/socket.h>
+#include <net/if.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <ifaddrs.h>
+
+
 
 namespace node {
 
@@ -212,7 +219,71 @@ int Platform::GetLoadAvg(Local<Array> *loads) {
 
 v8::Handle<v8::Value> Platform::GetInterfaceAddresses() {
   HandleScope scope;
-  return scope.Close(Object::New());
+  struct ::ifaddrs *addrs, *ent;
+  struct ::sockaddr_in *in4;
+  struct ::sockaddr_in6 *in6;
+  char ip[INET6_ADDRSTRLEN];
+  Local<Object> ret, o;
+  Local<String> name, ipaddr, family;
+  Local<Array> ifarr;
+
+  if (getifaddrs(&addrs) != 0) {
+    return ThrowException(ErrnoException(errno, "getifaddrs"));
+  }
+
+  ret = Object::New();
+
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+    bzero(&ip, sizeof (ip));
+    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING)) {
+      continue;
+    }
+
+    if (ent->ifa_addr == NULL) {
+      continue;
+    }
+
+    /*
+     * On Mac OS X getifaddrs returns information related to Mac Addresses for
+     * various devices, such as firewire, etc. These are not relevant here.
+     */
+    if (ent->ifa_addr->sa_family == AF_LINK)
+	    continue;
+
+    name = String::New(ent->ifa_name);
+    if (ret->Has(name)) {
+      ifarr = Local<Array>::Cast(ret->Get(name));
+    } else {
+      ifarr = Array::New();
+      ret->Set(name, ifarr);
+    }
+
+    if (ent->ifa_addr->sa_family == AF_INET6) {
+      in6 = (struct sockaddr_in6 *)ent->ifa_addr;
+      inet_ntop(AF_INET6, &(in6->sin6_addr), ip, INET6_ADDRSTRLEN);
+      family = String::New("IPv6");
+    } else if (ent->ifa_addr->sa_family == AF_INET) {
+      in4 = (struct sockaddr_in *)ent->ifa_addr;
+      inet_ntop(AF_INET, &(in4->sin_addr), ip, INET6_ADDRSTRLEN);
+      family = String::New("IPv4");
+    } else {
+      (void) strlcpy(ip, "<unknown sa family>", INET6_ADDRSTRLEN);
+      family = String::New("<unknown>");
+    }
+
+    o = Object::New();
+    o->Set(String::New("address"), String::New(ip));
+    o->Set(String::New("family"), family);
+    o->Set(String::New("internal"), ent->ifa_flags & IFF_LOOPBACK ?
+	True() : False());
+
+    ifarr->Set(ifarr->Length(), o);
+
+  }
+
+  freeifaddrs(addrs);
+
+  return scope.Close(ret);
 }
 
 }  // namespace node

@@ -313,63 +313,71 @@ bool IsInternal(struct ifaddrs* addr) {
 
 Handle<Value> Platform::GetInterfaceAddresses() {
   HandleScope scope;
+  struct ::ifaddrs *addrs, *ent;
+  struct ::sockaddr_in *in4;
+  struct ::sockaddr_in6 *in6;
+  char ip[INET6_ADDRSTRLEN];
+  Local<Object> ret, o;
+  Local<String> name, ipaddr, family;
+  Local<Array> ifarr;
 
-  struct ::ifaddrs *addrs;
-
-  int r = getifaddrs(&addrs);
-
-  if (r != 0) {
+  if (getifaddrs(&addrs) != 0) {
     return ThrowException(ErrnoException(errno, "getifaddrs"));
   }
 
-  struct ::ifaddrs *addr;
+  ret = Object::New();
 
-  Local<Object> a = Object::New();
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+    bzero(&ip, sizeof (ip));
+    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING)) {
+      continue;
+    }
 
-  for (addr = addrs;
-       addr;
-       addr = addr->ifa_next) {
-    Local<String> name = String::New(addr->ifa_name);
-    Local<Object> info;
+    if (ent->ifa_addr == NULL) {
+      continue;
+    }
 
-    if (a->Has(name)) {
-      info = a->Get(name)->ToObject();
+    /*
+     * On Linux getifaddrs returns information related to the raw underlying
+     * devices. We're not interested in this information.
+     */
+    if (ent->ifa_addr->sa_family == PF_PACKET)
+	    continue;
+
+    name = String::New(ent->ifa_name);
+    if (ret->Has(name)) {
+      ifarr = Local<Array>::Cast(ret->Get(name));
     } else {
-      info = Object::New();
-      a->Set(name, info);
+      ifarr = Array::New();
+      ret->Set(name, ifarr);
     }
 
-    struct sockaddr *address = addr->ifa_addr;
-    char ip[INET6_ADDRSTRLEN];
-
-    switch (address->sa_family) {
-      case AF_INET6: {
-        struct sockaddr_in6 *a6 = (struct sockaddr_in6*)address;
-        inet_ntop(AF_INET6, &(a6->sin6_addr), ip, INET6_ADDRSTRLEN);
-        info->Set(String::New("ip6"), String::New(ip));
-        if (addr->ifa_flags) {
-          info->Set(String::New("internal"),
-                    IsInternal(addr) ? True() : False());
-        }
-        break;
-      }
-
-      case AF_INET: {
-        struct sockaddr_in *a4 = (struct sockaddr_in*)address;
-        inet_ntop(AF_INET, &(a4->sin_addr), ip, INET6_ADDRSTRLEN);
-        info->Set(String::New("ip"), String::New(ip));
-        if (addr->ifa_flags) {
-          info->Set(String::New("internal"),
-                    IsInternal(addr) ? True() : False());
-        }
-        break;
-      }
+    if (ent->ifa_addr->sa_family == AF_INET6) {
+      in6 = (struct sockaddr_in6 *)ent->ifa_addr;
+      inet_ntop(AF_INET6, &(in6->sin6_addr), ip, INET6_ADDRSTRLEN);
+      family = String::New("IPv6");
+    } else if (ent->ifa_addr->sa_family == AF_INET) {
+      in4 = (struct sockaddr_in *)ent->ifa_addr;
+      inet_ntop(AF_INET, &(in4->sin_addr), ip, INET6_ADDRSTRLEN);
+      family = String::New("IPv4");
+    } else {
+      (void) strncpy(ip, "<unknown sa family>", INET6_ADDRSTRLEN);
+      family = String::New("<unknown>");
     }
+
+    o = Object::New();
+    o->Set(String::New("address"), String::New(ip));
+    o->Set(String::New("family"), family);
+    o->Set(String::New("internal"), ent->ifa_flags & IFF_LOOPBACK ?
+	True() : False());
+
+    ifarr->Set(ifarr->Length(), o);
+
   }
 
   freeifaddrs(addrs);
 
-  return scope.Close(a);
+  return scope.Close(ret);
 }
 
 
