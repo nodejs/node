@@ -599,7 +599,7 @@ def uv_cmd(bld, variant):
   # modifying libuv's build to send object files to a separate directory.
   #
   cmd = 'cp -r ' + sh_escape(srcdir)  + '/* ' + sh_escape(blddir) + \
-        ' &&  make -C ' + sh_escape(blddir)
+        ' &&  if [[ -z "$NODE_MAKE" ]]; then NODE_MAKE=make; fi; $NODE_MAKE -C ' + sh_escape(blddir)
   return cmd
 
 

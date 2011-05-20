@@ -2,6 +2,14 @@ WAF=python tools/waf-light
 
 web_root = ryan@nodejs.org:~/web/nodejs.org/
 
+#
+# Because we recursively call make from waf we need to make sure that we are
+# using the correct make. Not all makes are GNU Make, but this likely only
+# works with gnu make. To deal with this we remember how the user invoked us
+# via a make builtin variable and use that in all subsequent operations
+#
+export NODE_MAKE := $(MAKE)
+
 all: program
 
 all-progress:
