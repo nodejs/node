@@ -1379,7 +1379,7 @@ void Assembler::jmp(NearLabel* L) {
   EnsureSpace ensure_space(this);
   last_pc_ = pc_;
   if (L->is_bound()) {
-    const int short_size = sizeof(int8_t);
+    const int short_size = 2;
     int offs = L->pos() - pc_offset();
     ASSERT(offs <= 0);
     ASSERT(is_int8(offs - short_size));
