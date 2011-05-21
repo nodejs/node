@@ -1,3 +1,43 @@
+2011.05.20, Version 0.4.8 (stable)
+
+* #974 Properly report traceless errors (isaacs)
+
+* #983 Better JSON.parse error detection in REPL (isaacs)
+
+* #836 Agent socket errors bubble up to req only if req exists
+
+* #1041 Fix event listener leak check timing (koichik)
+
+*	#1038 Fix dns.resolve() with 'PTR' throws Error: Unknown type "PTR"
+  (koichik)
+
+* #1073 Share SSL context between server connections (Fedor Indutny)
+
+* Disable compression with OpenSSL. Improves memory perf.
+
+* Implement os.totalmem() and os.freemem() for SunOS (Alexandre Marangone)
+
+* Fix a special characters in URL regression (isaacs)
+
+* Fix idle timeouts in HTTPS (Felix Geisendörfer)
+
+* SlowBuffer.write() with 'ucs2' throws ReferenceError. (koichik)
+
+* http.ServerRequest 'close' sometimes gets an error argument
+  (Felix Geisendörfer)
+
+* Doc improvements
+
+* cleartextstream.destroy() should close(2) the socket. Previously was being
+	mapped to a shutdown(2) syscall.
+
+* No longer compile out asserts and debug statements in normal build.
+
+* Debugger improvements.
+
+* Upgrade V8 to 3.1.8.16.
+
+
 2011.04.22, Version 0.4.7 (stable)
 
 * Don't emit error on ECONNRESET from read() #670
