@@ -217,6 +217,7 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
   // ev_prepare callback isn't called before exiting. Thus we start this
   // tick_spinner to keep the event loop alive long enough to handle it.
   uv_idle_start(&tick_spinner, Spin);
+  uv_ref();
   return Undefined();
 }
 
@@ -227,6 +228,7 @@ static void Tick(void) {
 
   need_tick_cb = false;
   uv_idle_stop(&tick_spinner);
+  uv_unref();
 
   HandleScope scope;
 
@@ -2357,6 +2359,7 @@ char** Init(int argc, char *argv[]) {
   uv_unref();
 
   uv_idle_init(&node::tick_spinner, NULL, NULL);
+  uv_unref();
 
   ev_check_init(&node::gc_check, node::Check);
   ev_check_start(EV_DEFAULT_UC_ &node::gc_check);
@@ -2431,9 +2434,9 @@ void EmitExit(v8::Handle<v8::Object> process) {
 }
 
 
-uv_buf UVAlloc(uv_handle_t* handle, size_t suggested_size) {
+uv_buf_t UVAlloc(uv_handle_t* handle, size_t suggested_size) {
   char* base = (char*)malloc(suggested_size);
-  uv_buf buf;
+  uv_buf_t buf;
   buf.base = base;
   buf.len = suggested_size;
   return buf;

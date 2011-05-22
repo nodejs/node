@@ -46,8 +46,8 @@ static void on_connect(uv_req_t *req, int status) {
 }
 
 
-static uv_buf alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf buf = {0, 0};
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  uv_buf_t buf = {0, 0};
   FATAL("alloc should not be called");
   return buf;
 }

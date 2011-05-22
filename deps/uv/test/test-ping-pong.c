@@ -69,7 +69,7 @@ static void pinger_after_write(uv_req_t *req, int status) {
 
 static void pinger_write_ping(pinger_t* pinger) {
   uv_req_t *req;
-  uv_buf buf;
+  uv_buf_t buf;
 
   buf.base = (char*)&PING;
   buf.len = strlen(PING);
@@ -85,7 +85,7 @@ static void pinger_write_ping(pinger_t* pinger) {
 }
 
 
-static void pinger_read_cb(uv_handle_t* handle, int nread, uv_buf buf) {
+static void pinger_read_cb(uv_handle_t* handle, int nread, uv_buf_t buf) {
   unsigned int i;
   pinger_t* pinger;
 
@@ -156,8 +156,8 @@ static void pinger_new() {
 }
 
 
-static uv_buf alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf buf;
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  uv_buf_t buf;
   buf.base = (char*)malloc(size);
   buf.len = size;
   return buf;

@@ -32,11 +32,14 @@ RUNNER_LINKFLAGS=$(LINKFLAGS)
 RUNNER_LIBS=-lws2_32
 RUNNER_SRC=test/runner-win.c
 
-uv.a: uv-win.o 
-	$(AR) rcs uv.a uv-win.o
+uv.a: uv-win.o uv-common.o
+	$(AR) rcs uv.a uv-win.o uv-common.o
 
 uv-win.o: uv-win.c uv.h uv-win.h
 	$(CC) $(CFLAGS) -c uv-win.c -o uv-win.o
+
+uv-common.o: uv-common.c uv.h uv-win.h
+	$(CC) $(CFLAGS) -c uv-common.c -o uv-common.o
 
 distclean-platform:
 clean-platform:

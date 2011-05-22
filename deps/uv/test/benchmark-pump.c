@@ -41,11 +41,12 @@ static void maybe_connect_some();
 static uv_req_t* req_alloc();
 static void req_free(uv_req_t* uv_req);
 
-static uv_buf buf_alloc(uv_handle_t* handle, size_t size);
-static void buf_free(uv_buf uv_buf);
+static uv_buf_t buf_alloc(uv_handle_t* handle, size_t size);
+static void buf_free(uv_buf_t uv_buf_t);
 
 
-static struct sockaddr_in server_addr;
+static struct sockaddr_in listen_addr;
+static struct sockaddr_in connect_addr;
 
 static int64_t start_time;
 
@@ -65,6 +66,8 @@ static char write_buffer[WRITE_BUFFER_SIZE];
 static uv_handle_t read_handles[TARGET_CONNECTIONS];
 static uv_handle_t write_handles[TARGET_CONNECTIONS];
 
+static uv_handle_t timer_handle;
+
 
 static double gbit(int64_t bytes, int64_t passed_ms) {
   double gbits = ((double)bytes / (1024 * 1024 * 1024)) * 8;
@@ -72,21 +75,21 @@ static double gbit(int64_t bytes, int64_t passed_ms) {
 }
 
 
-static void show_stats(uv_req_t *req, int64_t skew, int status) {
-  int64_t msec = STATS_INTERVAL + skew;
+static void show_stats(uv_handle_t *handle, int status) {
+  int64_t diff;
 
 #if PRINT_STATS
   LOGF("connections: %d, read: %.1f gbit/s, write: %.1f gbit/s\n",
        read_sockets,
-       gbit(nrecv, msec),
-       gbit(nsent, msec));
+       gbit(nrecv, STATS_INTERVAL),
+       gbit(nsent, STATS_INTERVAL));
 #endif
 
   /* Exit if the show is over */
   if (!--stats_left) {
 
     uv_update_time();
-    int64_t diff = uv_now() - start_time;
+    diff = uv_now() - start_time;
 
     LOGF("pump_%d: %.1f gbit/s\n", read_sockets,
         gbit(nrecv_total, diff));
@@ -97,22 +100,6 @@ static void show_stats(uv_req_t *req, int64_t skew, int status) {
   /* Reset read and write counters */
   nrecv = 0;
   nsent = 0;
-
-  uv_timeout(req, (STATS_INTERVAL - skew > 0)
-                   ? STATS_INTERVAL - skew
-                   : 0);
-}
-
-
-static void start_stats_collection() {
-  uv_req_t* req = req_alloc();
-  int r;
-
-  /* Show-stats timeout */
-  stats_left = STATS_COUNT;
-  uv_req_init(req, NULL, (void*)show_stats);
-  r = uv_timeout(req, STATS_INTERVAL);
-  ASSERT(r == 0);
 }
 
 
@@ -121,7 +108,20 @@ void close_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void read_cb(uv_handle_t* handle, int bytes, uv_buf buf) {
+static void start_stats_collection() {
+  uv_req_t* req = req_alloc();
+  int r;
+
+  /* Show-stats timer */
+  stats_left = STATS_COUNT;
+  r = uv_timer_init(&timer_handle, close_cb, NULL);
+  ASSERT(r == 0);
+  r = uv_timer_start(&timer_handle, show_stats, STATS_INTERVAL, STATS_INTERVAL);
+  ASSERT(r == 0);
+}
+
+
+static void read_cb(uv_handle_t* handle, int bytes, uv_buf_t buf) {
   ASSERT(bytes >= 0);
 
   buf_free(buf);
@@ -132,7 +132,7 @@ static void read_cb(uv_handle_t* handle, int bytes, uv_buf buf) {
 
 
 static void write_cb(uv_req_t *req, int status) {
-  uv_buf* buf = (uv_buf*) req->data;
+  uv_buf_t* buf = (uv_buf_t*) req->data;
 
   ASSERT(status == 0);
 
@@ -147,7 +147,7 @@ static void write_cb(uv_req_t *req, int status) {
 
 static void do_write(uv_handle_t* handle) {
   uv_req_t* req;
-  uv_buf buf;
+  uv_buf_t buf;
   int r;
 
   buf.base = (char*) &write_buffer;
@@ -207,7 +207,7 @@ static void maybe_connect_some() {
   while (max_connect_socket < TARGET_CONNECTIONS &&
          max_connect_socket < write_sockets + MAX_SIMULTANEOUS_CONNECTS) {
     do_connect(&write_handles[max_connect_socket++],
-               (struct sockaddr*) &server_addr);
+               (struct sockaddr*) &connect_addr);
   }
 }
 
@@ -237,11 +237,13 @@ BENCHMARK_IMPL(pump) {
 
   uv_init(buf_alloc);
 
+  listen_addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
+  connect_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+
   /* Server */
-  server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
   r = uv_tcp_init(&server, close_cb, NULL);
   ASSERT(r == 0);
-  r = uv_bind(&server, (struct sockaddr*) &server_addr);
+  r = uv_bind(&server, (struct sockaddr*) &listen_addr);
   ASSERT(r == 0);
   r = uv_listen(&server, TARGET_CONNECTIONS, accept_cb);
   ASSERT(r == 0);
@@ -298,7 +300,7 @@ static void req_free(uv_req_t* uv_req) {
  */
 
 typedef struct buf_list_s {
-  uv_buf uv_buf;
+  uv_buf_t uv_buf_t;
   struct buf_list_s* next;
 } buf_list_t;
 
@@ -306,25 +308,25 @@ typedef struct buf_list_s {
 static buf_list_t* buf_freelist = NULL;
 
 
-static uv_buf buf_alloc(uv_handle_t* handle, size_t size) {
+static uv_buf_t buf_alloc(uv_handle_t* handle, size_t size) {
   buf_list_t* buf;
 
   buf = buf_freelist;
   if (buf != NULL) {
     buf_freelist = buf->next;
-    return buf->uv_buf;
+    return buf->uv_buf_t;
   }
 
   buf = (buf_list_t*) malloc(size + sizeof *buf);
-  buf->uv_buf.len = (unsigned int)size;
-  buf->uv_buf.base = ((char*) buf) + sizeof *buf;
+  buf->uv_buf_t.len = (unsigned int)size;
+  buf->uv_buf_t.base = ((char*) buf) + sizeof *buf;
 
-  return buf->uv_buf;
+  return buf->uv_buf_t;
 }
 
 
-static void buf_free(uv_buf uv_buf) {
-  buf_list_t* buf = (buf_list_t*) (uv_buf.base - sizeof *buf);
+static void buf_free(uv_buf_t uv_buf_t) {
+  buf_list_t* buf = (buf_list_t*) (uv_buf_t.base - sizeof *buf);
 
   buf->next = buf_freelist;
   buf_freelist = buf;

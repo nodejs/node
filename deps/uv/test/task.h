@@ -27,8 +27,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define TEST_PORT 8123
-#define TEST_PORT_2 8124
+#define TEST_PORT 9123
+#define TEST_PORT_2 9124
 
 
 /* Log to stderr. */

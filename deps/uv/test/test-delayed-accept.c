@@ -43,42 +43,49 @@ static void close_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void do_accept(uv_req_t* req, int64_t skew, int status) {
+static void do_accept(uv_handle_t* timer_handle, int status) {
   uv_handle_t* server;
   uv_handle_t* accepted_handle = (uv_handle_t*)malloc(sizeof *accepted_handle);
   int r;
 
-  ASSERT(req != NULL);
+  ASSERT(timer_handle != NULL);
   ASSERT(status == 0);
   ASSERT(accepted_handle != NULL);
 
-  server = (uv_handle_t*)req->data;
+  server = (uv_handle_t*)timer_handle->data;
   r = uv_accept(server, accepted_handle, close_cb, NULL);
   ASSERT(r == 0);
 
   do_accept_called++;
 
   /* Immediately close the accepted handle. */
-  uv_close(accepted_handle);
+  r = uv_close(accepted_handle);
+  ASSERT(r == 0);
 
   /* After accepting the two clients close the server handle */
   if (do_accept_called == 2) {
-    uv_close(server);
+    r = uv_close(server);
+    ASSERT(r == 0);
   }
 
-  free(req);
+  /* Dispose the timer. */
+  r = uv_close(timer_handle);
+  ASSERT(r == 0);
 }
 
 
 static void accept_cb(uv_handle_t* handle) {
-  uv_req_t* timeout_req = (uv_req_t*)malloc(sizeof *timeout_req);
+  int r;
+  uv_handle_t* timer_handle;
 
-  ASSERT(timeout_req != NULL);
+  timer_handle = (uv_handle_t*)malloc(sizeof *timer_handle);
+  ASSERT(timer_handle != NULL);
 
   /* Accept the client after 1 second */
-  uv_req_init(timeout_req, NULL, &do_accept);
-  timeout_req->data = (void*)handle;
-  uv_timeout(timeout_req, 1000);
+  r = uv_timer_init(timer_handle, close_cb, (void*)handle);
+  ASSERT(r == 0);
+  r = uv_timer_start(timer_handle, do_accept, 1000, 0);
+  ASSERT(r == 0);
 
   accept_cb_called++;
 }
@@ -102,7 +109,7 @@ static void start_server() {
 }
 
 
-static void read_cb(uv_handle_t* handle, int nread, uv_buf buf) {
+static void read_cb(uv_handle_t* handle, int nread, uv_buf_t buf) {
   /* The server will not send anything, it should close gracefully. */
   ASSERT(handle != NULL);
   ASSERT(nread == -1);
@@ -151,8 +158,8 @@ static void client_connect() {
 }
 
 
-static uv_buf alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf buf;
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
+  uv_buf_t buf;
   buf.base = (char*)malloc(size);
   buf.len = size;
   return buf;
@@ -173,7 +180,7 @@ TEST_IMPL(delayed_accept) {
   ASSERT(accept_cb_called == 2);
   ASSERT(do_accept_called == 2);
   ASSERT(connect_cb_called == 2);
-  ASSERT(close_cb_called == 5);
+  ASSERT(close_cb_called == 7);
 
   return 0;
 }

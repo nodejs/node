@@ -35,11 +35,14 @@ RUNNER_LINKFLAGS=$(LINKFLAGS) -pthread
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: uv-unix.o ev/ev.o
-	$(AR) rcs uv.a uv-unix.o ev/ev.o
+uv.a: uv-unix.o uv-common.o ev/ev.o
+	$(AR) rcs uv.a uv-unix.o uv-common.o ev/ev.o
 
 uv-unix.o: uv-unix.c uv.h uv-unix.h
 	$(CC) $(CFLAGS) -c uv-unix.c -o uv-unix.o
+
+uv-common.o: uv-common.c uv.h uv-unix.h
+	$(CC) $(CFLAGS) -c uv-common.c -o uv-common.o
 
 ev/ev.o: ev/config.h ev/ev.c
 	$(MAKE) -C ev
