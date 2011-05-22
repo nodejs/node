@@ -104,12 +104,13 @@ when the server has been bound.
 Start a server listening for connections on the given file descriptor.
 
 This file descriptor must have already had the `bind(2)` and `listen(2)` system
-calls invoked on it.
+calls invoked on it.  Additionally, it must be set non-blocking; try
+`fcntl(fd, F_SETFL, O_NONBLOCK)`.
 
 #### server.pause(msecs)
 
-Stop accepting connections for the given number of milliseconds (default is 
-one second).  This could be useful for throttling new connections against 
+Stop accepting connections for the given number of milliseconds (default is
+one second).  This could be useful for throttling new connections against
 DoS attacks or other oversubscription.
 
 #### server.close()
