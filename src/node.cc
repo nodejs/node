@@ -216,8 +216,10 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
   // there is nothing left to do in the event loop and libev will exit. The
   // ev_prepare callback isn't called before exiting. Thus we start this
   // tick_spinner to keep the event loop alive long enough to handle it.
-  uv_idle_start(&tick_spinner, Spin);
-  uv_ref();
+  if (!uv_is_active(&tick_spinner)) {
+    uv_idle_start(&tick_spinner, Spin);
+    uv_ref();
+  }
   return Undefined();
 }
 
@@ -227,8 +229,10 @@ static void Tick(void) {
   if (!need_tick_cb) return;
 
   need_tick_cb = false;
-  uv_idle_stop(&tick_spinner);
-  uv_unref();
+  if (uv_is_active(&tick_spinner)) {
+    uv_idle_stop(&tick_spinner);
+    uv_unref();
+  }
 
   HandleScope scope;
 
@@ -2369,9 +2373,12 @@ char** Init(int argc, char *argv[]) {
   ev_timer_init(&node::gc_timer, node::CheckStatus, 5., 5.);
 
 
-  // Setup the EIO thread pool
-  { // It requires 3, yes 3, watchers.
+  // Setup the EIO thread pool. It requires 3, yes 3, watchers.
+  {
     ev_idle_init(&node::eio_poller, node::DoPoll);
+    // TODO Probably don't need to start this each time.
+    // Avoids failing on test/simple/test-eio-race3.js though
+    ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
 
     ev_async_init(&node::eio_want_poll_notifier, node::WantPollNotifier);
     ev_async_start(EV_DEFAULT_UC_ &node::eio_want_poll_notifier);
@@ -2459,10 +2466,6 @@ int Start(int argc, char *argv[]) {
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
   Load(process);
-
-  // TODO Probably don't need to start this each time.
-  // Avoids failing on test/simple/test-eio-race3.js though
-  ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
 
   // All our arguments are loaded. We've evaluated all of the scripts. We
   // might even have created TCP servers. Now we enter the main eventloop. If
