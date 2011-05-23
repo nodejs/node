@@ -1677,8 +1677,10 @@ class Cipher : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Cipher ()
-  {
+  ~Cipher () {
+    if (initialised_) {
+      EVP_CIPHER_CTX_cleanup(&ctx);
+    }
   }
 
  private:
@@ -2126,7 +2128,11 @@ class Decipher : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Decipher () { }
+  ~Decipher () {
+    if (initialised_) {
+      EVP_CIPHER_CTX_cleanup(&ctx);
+    }
+  }
 
  private:
 
@@ -2316,7 +2322,11 @@ class Hmac : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Hmac () { }
+  ~Hmac () {
+    if (initialised_) {
+      HMAC_CTX_cleanup(&ctx);
+    }
+  }
 
  private:
 
@@ -2472,7 +2482,11 @@ class Hash : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Hash () { }
+  ~Hash () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
 
  private:
 
@@ -2677,7 +2691,11 @@ class Sign : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Sign () { }
+  ~Sign () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
 
  private:
 
@@ -2893,7 +2911,11 @@ class Verify : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Verify () { }
+  ~Verify () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
 
  private:
 
