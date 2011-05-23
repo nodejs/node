@@ -25,7 +25,7 @@
 #include <node.h>
 #include <node_object_wrap.h>
 #include <v8.h>
-#include <ev.h>
+#include <uv.h>
 
 namespace node {
 

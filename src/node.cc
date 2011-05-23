@@ -27,6 +27,7 @@
 #include <node_dtrace.h>
 
 #include <locale.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <strings.h>
@@ -119,9 +120,9 @@ static uv_handle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
-static ev_async eio_want_poll_notifier;
-static ev_async eio_done_poll_notifier;
-static ev_idle  eio_poller;
+static uv_handle_t eio_want_poll_notifier;
+static uv_handle_t eio_done_poll_notifier;
+static uv_handle_t eio_poller;
 
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
@@ -134,9 +135,9 @@ static char getbuf[PATH_MAX + 1];
 //
 // A rather convoluted algorithm has been devised to determine when Node is
 // idle. You'll have to figure it out for yourself.
-static ev_check gc_check;
-static ev_idle  gc_idle;
-static ev_timer gc_timer;
+static uv_handle_t gc_check;
+static uv_handle_t gc_idle;
+static uv_handle_t gc_timer;
 bool need_gc;
 
 
@@ -144,42 +145,40 @@ bool need_gc;
 #define GC_WAIT_TIME 5.
 #define RPM_SAMPLES 100
 #define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
-static ev_tstamp tick_times[RPM_SAMPLES];
+static int64_t tick_times[RPM_SAMPLES];
 static int tick_time_head;
 
+static void CheckStatus(uv_handle_t* watcher, int status);
+
 static void StartGCTimer () {
-  if (!ev_is_active(&gc_timer)) {
-    ev_timer_start(EV_DEFAULT_UC_ &gc_timer);
-    ev_unref(EV_DEFAULT_UC);
+  if (!uv_is_active(&gc_timer)) {
+    uv_timer_start(&node::gc_timer, node::CheckStatus, 5., 5.);
   }
 }
 
 static void StopGCTimer () {
-  if (ev_is_active(&gc_timer)) {
-    ev_ref(EV_DEFAULT_UC);
-    ev_timer_stop(EV_DEFAULT_UC_ &gc_timer);
+  if (uv_is_active(&gc_timer)) {
+    uv_timer_stop(&gc_timer);
   }
 }
 
-static void Idle(EV_P_ ev_idle *watcher, int revents) {
+static void Idle(uv_handle_t* watcher, int status) {
   assert(watcher == &gc_idle);
-  assert(revents == EV_IDLE);
 
   //fprintf(stderr, "idle\n");
 
   if (V8::IdleNotification()) {
-    ev_idle_stop(EV_A_ watcher);
+    uv_idle_stop(watcher);
     StopGCTimer();
   }
 }
 
 
 // Called directly after every call to select() (or epoll, or whatever)
-static void Check(EV_P_ ev_check *watcher, int revents) {
+static void Check(uv_handle_t* watcher, int status) {
   assert(watcher == &gc_check);
-  assert(revents == EV_CHECK);
 
-  tick_times[tick_time_head] = ev_now(EV_DEFAULT_UC);
+  tick_times[tick_time_head] = uv_now();
   tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
 
   StartGCTimer();
@@ -198,7 +197,7 @@ static void Check(EV_P_ ev_check *watcher, int revents) {
   // Otherwise start the gc!
 
   //fprintf(stderr, "start idle 2\n");
-  ev_idle_start(EV_A_ &gc_idle);
+  uv_idle_start(&node::gc_idle, node::Idle);
 }
 
 
@@ -270,42 +269,42 @@ static void CheckTick(uv_handle_t* handle, int status) {
 }
 
 
-static void DoPoll(EV_P_ ev_idle *watcher, int revents) {
+static void DoPoll(uv_handle_t* watcher, int status) {
   assert(watcher == &eio_poller);
-  assert(revents == EV_IDLE);
 
   //printf("eio_poller\n");
 
-  if (eio_poll() != -1) {
+  if (eio_poll() != -1 && uv_is_active(&eio_poller)) {
     //printf("eio_poller stop\n");
-    ev_idle_stop(EV_DEFAULT_UC_ watcher);
+    uv_idle_stop(watcher);
+    uv_unref();
   }
 }
 
 
 // Called from the main thread.
-static void WantPollNotifier(EV_P_ ev_async *watcher, int revents) {
+static void WantPollNotifier(uv_handle_t* watcher, int status) {
   assert(watcher == &eio_want_poll_notifier);
-  assert(revents == EV_ASYNC);
 
   //printf("want poll notifier\n");
 
-  if (eio_poll() == -1) {
+  if (eio_poll() == -1 && !uv_is_active(&eio_poller)) {
     //printf("eio_poller start\n");
-    ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+    uv_idle_start(&eio_poller, node::DoPoll);
+    uv_ref();
   }
 }
 
 
-static void DonePollNotifier(EV_P_ ev_async *watcher, int revents) {
+static void DonePollNotifier(uv_handle_t* watcher, int revents) {
   assert(watcher == &eio_done_poll_notifier);
-  assert(revents == EV_ASYNC);
 
   //printf("done poll notifier\n");
 
-  if (eio_poll() != -1) {
+  if (eio_poll() != -1 && uv_is_active(&eio_poller)) {
     //printf("eio_poller stop\n");
-    ev_idle_stop(EV_DEFAULT_UC_ &eio_poller);
+    uv_idle_stop(&eio_poller);
+    uv_unref();
   }
 }
 
@@ -314,14 +313,14 @@ static void DonePollNotifier(EV_P_ ev_async *watcher, int revents) {
 // request (that is, one of the node.fs.* functions) has completed.
 static void EIOWantPoll(void) {
   // Signal the main thread that eio_poll need to be processed.
-  ev_async_send(EV_DEFAULT_UC_ &eio_want_poll_notifier);
+  uv_async_send(&eio_want_poll_notifier);
 }
 
 
 static void EIODonePoll(void) {
   // Signal the main thread that we should stop calling eio_poll().
   // from the idle watcher.
-  ev_async_send(EV_DEFAULT_UC_ &eio_done_poll_notifier);
+  uv_async_send(&eio_done_poll_notifier);
 }
 
 
@@ -1508,28 +1507,27 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
 }
 
 
-static void CheckStatus(EV_P_ ev_timer *watcher, int revents) {
+static void CheckStatus(uv_handle_t* watcher, int status) {
   assert(watcher == &gc_timer);
-  assert(revents == EV_TIMEOUT);
 
   // check memory
-  if (!ev_is_active(&gc_idle)) {
+  if (!uv_is_active(&gc_idle)) {
     HeapStatistics stats;
     V8::GetHeapStatistics(&stats);
     if (stats.total_heap_size() > 1024 * 1024 * 128) {
       // larger than 128 megs, just start the idle watcher
-      ev_idle_start(EV_A_ &gc_idle);
+      uv_idle_start(&node::gc_idle, node::Idle);
       return;
     }
   }
 
-  double d = ev_now(EV_DEFAULT_UC) - TICK_TIME(3);
+  double d = uv_now() - TICK_TIME(3);
 
   //printfb("timer d = %f\n", d);
 
   if (d  >= GC_WAIT_TIME - 1.) {
     //fprintf(stderr, "start idle\n");
-    ev_idle_start(EV_A_ &gc_idle);
+    uv_idle_start(&node::gc_idle, node::Idle);
   }
 }
 
@@ -1784,12 +1782,11 @@ void FatalException(TryCatch &try_catch) {
 }
 
 
-static ev_async debug_watcher;
+static uv_handle_t debug_watcher;
 
-static void DebugMessageCallback(EV_P_ ev_async *watcher, int revents) {
+static void DebugMessageCallback(uv_handle_t* watcher, int status) {
   HandleScope scope;
   assert(watcher == &debug_watcher);
-  assert(revents == EV_ASYNC);
   Debug::ProcessDebugMessages();
 }
 
@@ -1799,7 +1796,7 @@ static void DebugMessageDispatch(void) {
 
   // Send a signal to our main thread saying that it should enter V8 to
   // handle the message.
-  ev_async_send(EV_DEFAULT_UC_ &debug_watcher);
+  uv_async_send(&debug_watcher);
 }
 
 static void DebugBreakMessageHandler(const Debug::Message& message) {
@@ -1989,8 +1986,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   versions->Set(String::NewSymbol("node"), String::New(NODE_VERSION+1));
   versions->Set(String::NewSymbol("v8"), String::New(V8::GetVersion()));
   versions->Set(String::NewSymbol("ares"), String::New(ARES_VERSION_STR));
-  snprintf(buf, 20, "%d.%d", ev_version_major(), ev_version_minor());
-  versions->Set(String::NewSymbol("ev"), String::New(buf));
+  snprintf(buf, 20, "%d.%d", UV_VERSION_MAJOR, UV_VERSION_MINOR);
+  versions->Set(String::NewSymbol("uv"), String::New(buf));
 #ifdef HAVE_OPENSSL
   // Stupid code to slice out the version string.
   int c, l = strlen(OPENSSL_VERSION_TEXT);
@@ -2365,28 +2362,26 @@ char** Init(int argc, char *argv[]) {
   uv_idle_init(&node::tick_spinner, NULL, NULL);
   uv_unref();
 
-  ev_check_init(&node::gc_check, node::Check);
-  ev_check_start(EV_DEFAULT_UC_ &node::gc_check);
-  ev_unref(EV_DEFAULT_UC);
+  uv_check_init(&node::gc_check, NULL, NULL);
+  uv_check_start(&node::gc_check, node::Check);
+  uv_unref();
 
-  ev_idle_init(&node::gc_idle, node::Idle);
-  ev_timer_init(&node::gc_timer, node::CheckStatus, 5., 5.);
+  uv_idle_init(&node::gc_idle, NULL, NULL);
+  uv_unref();
 
+  uv_timer_init(&node::gc_timer, NULL, NULL);
+  uv_unref();
 
   // Setup the EIO thread pool. It requires 3, yes 3, watchers.
   {
-    ev_idle_init(&node::eio_poller, node::DoPoll);
-    // TODO Probably don't need to start this each time.
-    // Avoids failing on test/simple/test-eio-race3.js though
-    ev_idle_start(EV_DEFAULT_UC_ &eio_poller);
+    uv_idle_init(&node::eio_poller, NULL, NULL);
+    uv_idle_start(&eio_poller, node::DoPoll);
 
-    ev_async_init(&node::eio_want_poll_notifier, node::WantPollNotifier);
-    ev_async_start(EV_DEFAULT_UC_ &node::eio_want_poll_notifier);
-    ev_unref(EV_DEFAULT_UC);
+    uv_async_init(&node::eio_want_poll_notifier, node::WantPollNotifier, NULL, NULL);
+    uv_unref();
 
-    ev_async_init(&node::eio_done_poll_notifier, node::DonePollNotifier);
-    ev_async_start(EV_DEFAULT_UC_ &node::eio_done_poll_notifier);
-    ev_unref(EV_DEFAULT_UC);
+    uv_async_init(&node::eio_done_poll_notifier, node::DonePollNotifier, NULL, NULL);
+    uv_unref();
 
     eio_init(node::EIOWantPoll, node::EIODonePoll);
     // Don't handle more than 10 reqs on each eio_poll(). This is to avoid
@@ -2397,20 +2392,16 @@ char** Init(int argc, char *argv[]) {
   V8::SetFatalErrorHandler(node::OnFatalError);
 
 
-  // Initialize the async watcher for receiving messages from the debug
-  // thread and marshal it into the main thread. DebugMessageCallback()
-  // is called from the main thread to execute a random bit of javascript
-  // - which will give V8 control so it can handle whatever new message
-  // had been received on the debug thread.
-  ev_async_init(&node::debug_watcher, node::DebugMessageCallback);
-  ev_set_priority(&node::debug_watcher, EV_MAXPRI);
   // Set the callback DebugMessageDispatch which is called from the debug
   // thread.
   Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
-  // Start the async watcher.
-  ev_async_start(EV_DEFAULT_UC_ &node::debug_watcher);
+  // Initialize the async watcher. DebugMessageCallback() is called from the
+  // main thread to execute a random bit of javascript - which will give V8
+  // control so it can handle whatever new message had been received on the
+  // debug thread.
+  uv_async_init(&node::debug_watcher, node::DebugMessageCallback, NULL, NULL);
   // unref it so that we exit the event loop despite it being active.
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref();
 
 
   // If the --debug flag was specified then initialize the debug thread.
@@ -2470,7 +2461,7 @@ int Start(int argc, char *argv[]) {
   // All our arguments are loaded. We've evaluated all of the scripts. We
   // might even have created TCP servers. Now we enter the main eventloop. If
   // there are no watchers on the loop (except for the ones that were
-  // ev_unref'd) then this function exits. As long as there are active
+  // uv_unref'd) then this function exits. As long as there are active
   // watchers, it blocks.
   uv_run();
 

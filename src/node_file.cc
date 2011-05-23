@@ -88,7 +88,7 @@ static int After(eio_req *req) {
 
   Persistent<Function> *callback = cb_unwrap(req->data);
 
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref();
 
   // there is always at least one argument. "error"
   int argc = 1;
@@ -213,7 +213,7 @@ static int After(eio_req *req) {
   eio_req *req = eio_##func(__VA_ARGS__, EIO_PRI_DEFAULT, After,  \
     cb_persist(callback));                                        \
   assert(req);                                                    \
-  ev_ref(EV_DEFAULT_UC);                                          \
+  uv_ref();                                          \
   return Undefined();
 
 static Handle<Value> Close(const Arguments& args) {

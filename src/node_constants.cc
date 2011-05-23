@@ -21,7 +21,7 @@
 
 #include <node_constants.h>
 
-#include <ev.h>
+#include <uv.h>
 
 #include <errno.h>
 #include <unistd.h>
@@ -44,9 +44,6 @@ namespace node {
 using namespace v8;
 
 void DefineConstants(Handle<Object> target) {
-  NODE_DEFINE_CONSTANT(target, EV_MINPRI);
-  NODE_DEFINE_CONSTANT(target, EV_MAXPRI);
-
   // file access modes
   NODE_DEFINE_CONSTANT(target, O_RDONLY);
   NODE_DEFINE_CONSTANT(target, O_WRONLY);

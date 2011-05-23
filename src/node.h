@@ -22,7 +22,7 @@
 #ifndef SRC_NODE_H_
 #define SRC_NODE_H_
 
-#include <ev.h>
+#include <uv.h>
 #include <eio.h>
 #include <v8.h>
 #include <sys/types.h> /* struct stat */
