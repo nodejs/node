@@ -77,12 +77,7 @@ static void repeat_2_cb(uv_handle_t* handle, int status) {
   repeat_2_cb_called++;
 
   if (uv_timer_get_repeat(handle) == 0) {
-    /* XXX Libev does considers the timer active here.
-     * I'm not saying it must be this way, but we should consider what
-     * exactly the semantics of uv_is_active() should be. Is a timer that's
-     * initialized but stopped active?
-     */
-    ASSERT(uv_is_active(handle));
+    ASSERT(!uv_is_active(handle));
     uv_close(handle);
     return;
   }

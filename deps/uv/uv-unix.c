@@ -1092,10 +1092,17 @@ int uv_idle_stop(uv_handle_t* handle) {
 
 int uv_is_active(uv_handle_t* handle) {
   switch (handle->type) {
+    case UV_TIMER:
+      return ev_is_active(&handle->timer_watcher);
+
     case UV_PREPARE:
+      return ev_is_active(&handle->prepare_watcher);
+
     case UV_CHECK:
+      return ev_is_active(&handle->check_watcher);
+
     case UV_IDLE:
-      return ev_is_active(handle);
+      return ev_is_active(&handle->idle_watcher);
 
     default:
       return 1;
