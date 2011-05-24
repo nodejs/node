@@ -440,7 +440,7 @@ static void tty_watcher_arm() {
   HANDLE old_wait_handle = tty_wait_handle;
   tty_wait_handle = NULL;
 
-  assert(tty_watcher_active);  
+  assert(tty_watcher_active);
 
   if (!RegisterWaitForSingleObject(&tty_wait_handle, tty_handle, tty_want_poll, NULL,
       INFINITE, WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE)) {
@@ -512,7 +512,7 @@ static void tty_poll(uv_handle_t* handle, int status) {
     numev = 0;
   }
 
-  for (i = numev; i > 0 && 
+  for (i = numev; i > 0 &&
       tty_watcher_active; i--) {
     if (!ReadConsoleInputW(tty_handle, &input, 1, &read)) {
       tty_emit_error(ErrnoException(GetLastError(), "ReadConsoleInputW"));
