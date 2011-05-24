@@ -625,7 +625,7 @@ def build_uv(bld):
     bld.env_of_name('debug').append_value("LINKFLAGS_UV", t)
 
   bld.install_files('${PREFIX}/include/node/', 'deps/uv/*.h')
-  bld.install_files('${PREFIX}/include/node/', 'deps/uv/ev/*.h')
+  bld.install_files('${PREFIX}/include/node/ev', 'deps/uv/ev/*.h')
 
 
 def build(bld):
