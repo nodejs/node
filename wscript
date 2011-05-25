@@ -835,6 +835,7 @@ def build(bld):
     src/node_os.cc
     src/node_dtrace.cc
     src/node_string.cc
+    src/timer_wrap.cc
   """
 
   if sys.platform.startswith("win32"):

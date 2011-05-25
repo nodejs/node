@@ -34,5 +34,6 @@ NODE_EXT_LIST_ITEM(node_http_parser)
 NODE_EXT_LIST_ITEM(node_signal_watcher)
 NODE_EXT_LIST_ITEM(node_stdio)
 NODE_EXT_LIST_ITEM(node_os)
+NODE_EXT_LIST_ITEM(node_timer_wrap)
 NODE_EXT_LIST_END
 
