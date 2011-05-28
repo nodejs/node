@@ -75,7 +75,7 @@
       // Main entry point into most programs:
       process.nextTick(Module.runMain);
 
-    } else if (process._eval) {
+    } else if (process._eval != null) {
       // User passed '-e' or '--eval' arguments to Node.
       var Module = NativeModule.require('module');
       var rv = new Module()._compile('return eval(process._eval)', 'eval');

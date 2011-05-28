@@ -47,3 +47,9 @@ child.exec(nodejs + ' --eval "require(\'./test/simple/test-cli-eval.js\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
     });
+
+// empty program should do nothing
+child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
+  assert.equal(stdout, 'undefined\n');
+  assert.equal(stderr, '');
+});
