@@ -14,28 +14,13 @@
 //   we're done with a handle - external resources can be freed.
 //
 // - Reusable?
-
-
-// Target API:
 //
-//  var socket = new Timer2();
-//  socket.init();
+// - The uv_close_cb is used to free the c++ object. The close callback
+//   is not made into javascript land.
 //
-//  var req = new Req();
-//  req.init(socket);
-//  req.onclose = function(status) {
-//    if (s) {
-//      console.error("failed to connect: %s", errno);
-//    } else {
-//      console.error("connected!");
-//    }
-//  })
-//
-//  var r = socket.connect(req, "127.0.0.1", 8000);
-//
-//  if (r) {
-//    console.error("got error: %s", errno);
-//  }
+// - uv_ref, uv_unref counts are managed at this layer to avoid needless
+//   js/c++ boundary crossing. At the javascript layer that should all be
+//   taken care of.
 
 
 #define UNWRAP \
@@ -136,6 +121,7 @@ class TimerWrap {
   }
 
   TimerWrap(Handle<Object> object) {
+    active_ = false;
     int r = uv_timer_init(&handle_, OnClose, this);
     assert(r == 0); // How do we proxy this error up to javascript?
                     // Suggestion: uv_timer_init() returns void.
@@ -143,12 +129,39 @@ class TimerWrap {
     assert(object->InternalFieldCount() > 0);
     object_ = v8::Persistent<v8::Object>::New(object);
     object_->SetPointerInInternalField(0, this);
+
+    // uv_timer_init adds a loop reference. (That is, it calls uv_ref.) This
+    // is not the behavior we want in Node. Timers should not increase the
+    // ref count of the loop except when active.
+    uv_unref();
   }
 
   ~TimerWrap() {
+    if (!active_) uv_ref();
     assert(!object_.IsEmpty());
     object_->SetPointerInInternalField(0, NULL);
     object_.Dispose();
+  }
+
+  void StateChange() {
+    bool was_active = active_;
+    active_ = uv_is_active(&handle_);
+
+    if (!was_active && active_) {
+      // If our state is changing from inactive to active, we
+      // increase the loop's reference count.
+      uv_ref();
+    } else if (was_active && !active_) {
+      // If our state is changing from active to inactive, we
+      // decrease the loop's reference count.
+      uv_unref();
+    }
+  }
+
+  // Free the C++ object on the close callback.
+  static void OnClose(uv_handle_t* handle, int status) {
+    TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
+    delete wrap;
   }
 
   static Handle<Value> Start(const Arguments& args) {
@@ -160,9 +173,11 @@ class TimerWrap {
     int64_t repeat = args[1]->IntegerValue();
 
     int r = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
-    // Can r ever be an error?
 
+    // Error starting the timer.
     if (r) SetErrno(uv_last_error().code);
+
+    wrap->StateChange();
 
     return scope.Close(Integer::New(r));
   }
@@ -173,9 +188,10 @@ class TimerWrap {
     UNWRAP
 
     int r = uv_timer_stop(&wrap->handle_);
-    // Can r ever be an error?
 
     if (r) SetErrno(uv_last_error().code);
+
+    wrap->StateChange();
 
     return scope.Close(Integer::New(r));
   }
@@ -189,6 +205,8 @@ class TimerWrap {
 
     if (r) SetErrno(uv_last_error().code);
 
+    wrap->StateChange();
+
     return scope.Close(Integer::New(r));
   }
 
@@ -201,6 +219,8 @@ class TimerWrap {
 
     uv_timer_set_repeat(&wrap->handle_, repeat);
 
+    wrap->StateChange();
+
     return scope.Close(Integer::New(0));
   }
 
@@ -212,6 +232,8 @@ class TimerWrap {
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
 
     if (repeat < 0) SetErrno(uv_last_error().code);
+
+    wrap->StateChange();
 
     return scope.Close(Integer::New(repeat));
   }
@@ -226,35 +248,29 @@ class TimerWrap {
 
     if (r) SetErrno(uv_last_error().code);
 
+    wrap->StateChange();
+
     return scope.Close(Integer::New(r));
   }
 
   static void OnTimeout(uv_handle_t* handle, int status) {
     HandleScope scope;
+
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     assert(wrap);
+
+    wrap->StateChange();
+
     Local<Value> argv[1] = { Integer::New(status) };
     MakeCallback(wrap->object_, "ontimeout", 1, argv);
   }
 
-  static void OnClose(uv_handle_t* handle, int status) {
-    HandleScope scope;
-
-    TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
-    Local<Value> argv[1] = { Integer::New(status) };
-    argv[0] = Integer::New(status);
-    MakeCallback(wrap->object_, "onclose", 1, argv);
-
-    // Close the scope before we destruct this object. Probably nothing is
-    // wrong if the scope is destroyed after, I just don't want the
-    // possibility of a bug.
-    scope.Close(v8::Undefined());
-
-    delete wrap;
-  }
-
   uv_handle_t handle_;
   Persistent<Object> object_;
+  // This member is set false initially. When the timer is turned
+  // on uv_ref is called. When the timer is turned off uv_unref is
+  // called. Used to mirror libev semantics.
+  bool active_;
 };
 
 
