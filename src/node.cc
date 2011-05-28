@@ -1090,6 +1090,42 @@ Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate>& t,
 }
 
 
+// MakeCallback may only be made directly off the event loop.
+// That is there can be no JavaScript stack frames underneath it.
+// (Is there any way to assert that?)
+//
+// Maybe make this a method of a node::Handle super class
+//
+void MakeCallback(Handle<Object> object,
+                  const char* method,
+                  int argc,
+                  Handle<Value> argv[]) {
+  HandleScope scope;
+
+  Local<Value> callback_v = object->Get(String::New(method)); 
+  assert(callback_v->IsFunction());
+  Local<Function> callback = Local<Function>::Cast(callback_v);
+
+  // TODO Hook for long stack traces to be made here.
+
+  TryCatch try_catch;
+
+  callback->Call(object, argc, argv);
+
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+}
+
+
+void SetErrno(uv_err_code code) {
+  uv_err_t err;
+  err.code = code;
+  Context::GetCurrent()->Global()->Set(String::NewSymbol("errno"),
+                                       String::NewSymbol(uv_err_name(err)));
+}
+
+
 enum encoding ParseEncoding(Handle<Value> encoding_v, enum encoding _default) {
   HandleScope scope;
 

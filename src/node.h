@@ -172,6 +172,11 @@ node_module_struct* get_builtin_module(const char *name);
 #define NODE_MODULE_DECL(modname) \
   extern node::node_module_struct modname ## _module;
 
+void SetErrno(uv_err_code code);
+void MakeCallback(v8::Handle<v8::Object> object,
+                  const char* method,
+                  int argc,
+                  v8::Handle<v8::Value> argv[]);
 
 }  // namespace node
 #endif  // SRC_NODE_H_
