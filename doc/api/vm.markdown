@@ -65,6 +65,45 @@ requires a separate process.
 In case of syntax error in `code`, `vm.runInNewContext` emits the syntax error to stderr
 and throws an exception.
 
+### vm.runInContext(code, context, [filename])
+
+`vm.runInContext` compiles `code` to run in context `context` as if it were loaded from `filename`,
+then runs it and returns the result. A (V8) context comprises a global object, together with a
+set of built-in objects and functions. Running code does not have access to local scope and
+the global object held within `context` will be used as the global object for `code`.
+`filename` is optional.
+
+Example: compile and execute code in a existing context.
+
+    var util = require('util'),
+        vm = require('vm'),
+        initSandbox = {
+          animal: 'cat',
+          count: 2
+        },
+        context = vm.createContext(initSandbox);
+
+    vm.runInContext('count += 1; name = "CATT"', context, 'myfile.vm');
+    console.log(util.inspect(context));
+
+    // { animal: 'cat', count: 3, name: 'CATT' }
+
+Note that `createContext` will perform a shallow clone of the supplied sandbox object in order to
+initialise the global object of the freshly constructed context.
+
+Note that running untrusted code is a tricky business requiring great care.  To prevent accidental
+global variable leakage, `vm.runInContext` is quite useful, but safely running untrusted code
+requires a separate process.
+
+In case of syntax error in `code`, `vm.runInContext` emits the syntax error to stderr
+and throws an exception.
+
+### vm.createContext([initSandbox])
+
+`vm.createContext` creates a new context which is suitable for use as the 2nd argument of a subsequent
+call to `vm.runInContext`. A (V8) context comprises a global object together with a set of
+build-in objects and functions. The optional argument `initSandbox` will be shallow-copied
+to seed the initial contents of the global object used by the context.
 
 ### vm.createScript(code, [filename])
 

@@ -46,6 +46,18 @@ assert.equal('lala', context.thing);
 // Issue GH-227:
 Script.runInNewContext('', null, 'some.js');
 
+// Issue GH-1140:
+common.debug('test runInContext signature');
+var gh1140Exception;
+try {
+    Script.runInContext('throw new Error()', context, 'expected-filename.js');
+}
+catch (e) {
+    gh1140Exception = e;
+    assert.ok(/expected-filename/.test(e.stack), 'expected appearance of filename in Error stack');
+}
+assert.ok(gh1140Exception, 'expected exception from runInContext signature test');
+
 // GH-558, non-context argument segfaults / raises assertion
 function isTypeError(o) {
   return o instanceof TypeError;
