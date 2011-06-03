@@ -108,7 +108,7 @@ The `output_decoding` specifies in what format to return the deciphered plaintex
 ### decipher.final(output_encoding='binary')
 
 Returns any remaining plaintext which is deciphered,
-with `output_encoding' being one of: `'binary'`, `'ascii'` or `'utf8'`.
+with `output_encoding` being one of: `'binary'`, `'ascii'` or `'utf8'`.
 
 
 ### crypto.createSign(algorithm)
