@@ -1,4 +1,4 @@
-/* Copyright 2009,2010 Ryan Dahl <ry@tinyclouds.org>
+/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -24,6 +24,8 @@
 extern "C" {
 #endif
 
+#define HTTP_PARSER_VERSION_MAJOR 1
+#define HTTP_PARSER_VERSION_MINOR 0
 
 #include <sys/types.h>
 #if defined(_WIN32) && !defined(__MINGW32__)
@@ -47,8 +49,6 @@ typedef int ssize_t;
  */
 #ifndef HTTP_PARSER_STRICT
 # define HTTP_PARSER_STRICT 1
-#else
-# define HTTP_PARSER_STRICT 0
 #endif
 
 
@@ -106,16 +106,29 @@ enum http_method
   , HTTP_NOTIFY
   , HTTP_SUBSCRIBE
   , HTTP_UNSUBSCRIBE
+  /* RFC-5789 */
+  , HTTP_PATCH
   };
 
 
 enum http_parser_type { HTTP_REQUEST, HTTP_RESPONSE, HTTP_BOTH };
 
 
+/* Flag values for http_parser.flags field */
+enum flags
+  { F_CHUNKED               = 1 << 0
+  , F_CONNECTION_KEEP_ALIVE = 1 << 1
+  , F_CONNECTION_CLOSE      = 1 << 2
+  , F_TRAILING              = 1 << 3
+  , F_UPGRADE               = 1 << 4
+  , F_SKIPBODY              = 1 << 5
+  };
+
+
 struct http_parser {
   /** PRIVATE **/
   unsigned char type : 2;
-  unsigned char flags : 6;
+  unsigned char flags : 6; /* F_* values from 'flags' enum; semi-public */
   unsigned char state;
   unsigned char header_state;
   unsigned char index;

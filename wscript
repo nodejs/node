@@ -143,6 +143,13 @@ def set_options(opt):
                 , dest='openssl_libpath'
                 )
 
+  opt.add_option( '--no-ssl2'
+                , action='store_true'
+                , default=False
+                , help="Disable OpenSSL v2"
+                , dest='openssl_nov2'
+                )
+
   opt.add_option( '--gdb'
                 , action='store_true'
                 , default=False
@@ -257,6 +264,11 @@ def configure(conf):
   if not Options.options.without_ssl:
     # Don't override explicitly supplied openssl paths with pkg-config results.
     explicit_openssl = o.openssl_includes or o.openssl_libpath
+
+    # Disable ssl v2 methods
+    if o.openssl_nov2:
+      conf.env.append_value("CPPFLAGS", "-DOPENSSL_NO_SSL2=1")
+
     if not explicit_openssl and conf.check_cfg(package='openssl',
                                                args='--cflags --libs',
                                                uselib_store='OPENSSL'):

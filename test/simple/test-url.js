@@ -166,12 +166,38 @@ var parseTests = {
   'file:///etc/passwd' : {
     'href': 'file:///etc/passwd',
     'protocol': 'file:',
-    'pathname': '///etc/passwd'
+    'pathname': '/etc/passwd',
+    'hostname': ''
+  },
+  'file://localhost/etc/passwd' : {
+    'href': 'file://localhost/etc/passwd',
+    'protocol': 'file:',
+    'pathname': '/etc/passwd',
+    'hostname': 'localhost'
+  },
+  'file://foo/etc/passwd' : {
+    'href': 'file://foo/etc/passwd',
+    'protocol': 'file:',
+    'pathname': '/etc/passwd',
+    'hostname': 'foo'
   },
   'file:///etc/node/' : {
     'href': 'file:///etc/node/',
     'protocol': 'file:',
-    'pathname': '///etc/node/'
+    'pathname': '/etc/node/',
+    'hostname': ''
+  },
+  'file://localhost/etc/node/' : {
+    'href': 'file://localhost/etc/node/',
+    'protocol': 'file:',
+    'pathname': '/etc/node/',
+    'hostname': 'localhost'
+  },
+  'file://foo/etc/node/' : {
+    'href': 'file://foo/etc/node/',
+    'protocol': 'file:',
+    'pathname': '/etc/node/',
+    'hostname': 'foo'
   },
   'http:/baz/../foo/bar' : {
     'href': 'http:/baz/../foo/bar',

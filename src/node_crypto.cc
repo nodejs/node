@@ -99,11 +99,23 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
     String::Utf8Value sslmethod(args[0]->ToString());
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
+#ifndef OPENSSL_NO_SSL2
       method = SSLv2_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
+#ifndef OPENSSL_NO_SSL2
       method = SSLv2_server_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
+#ifndef OPENSSL_NO_SSL2
       method = SSLv2_client_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
       method = SSLv3_method();
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
@@ -1827,8 +1839,10 @@ class Cipher : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Cipher ()
-  {
+  ~Cipher () {
+    if (initialised_) {
+      EVP_CIPHER_CTX_cleanup(&ctx);
+    }
   }
 
  private:
@@ -2276,7 +2290,11 @@ class Decipher : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Decipher () { }
+  ~Decipher () {
+    if (initialised_) {
+      EVP_CIPHER_CTX_cleanup(&ctx);
+    }
+  }
 
  private:
 
@@ -2466,7 +2484,11 @@ class Hmac : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Hmac () { }
+  ~Hmac () {
+    if (initialised_) {
+      HMAC_CTX_cleanup(&ctx);
+    }
+  }
 
  private:
 
@@ -2622,7 +2644,11 @@ class Hash : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Hash () { }
+  ~Hash () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
 
  private:
 
@@ -2827,7 +2853,11 @@ class Sign : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Sign () { }
+  ~Sign () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
 
  private:
 
@@ -3043,7 +3073,11 @@ class Verify : public ObjectWrap {
     initialised_ = false;
   }
 
-  ~Verify () { }
+  ~Verify () {
+    if (initialised_) {
+      EVP_MD_CTX_cleanup(&mdctx);
+    }
+  }
 
  private:
 
@@ -3576,16 +3610,12 @@ void InitCrypto(Handle<Object> target) {
   ERR_load_crypto_strings();
 
   // Turn off compression. Saves memory - do it in userland.
+#ifdef SSL_COMP_get_compression_methods
+  // Before OpenSSL 0.9.8 this was not possible.
   STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
-#if 0
-  if (comp_methods && sk_SSL_COMP_num(comp_methods) > 0) {
-    default_compression_method = sk_SSL_COMP_pop(comp_methods);
-    fprintf(stderr, "SSL_COMP_get_name %s\n",
-        SSL_COMP_get_name(default_compression_method->method));
-  }
-#endif
   sk_SSL_COMP_zero(comp_methods);
   assert(sk_SSL_COMP_num(comp_methods) == 0);
+#endif
 
   SecureContext::Initialize(target);
   Connection::Initialize(target);

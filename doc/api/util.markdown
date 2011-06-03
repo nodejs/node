@@ -16,7 +16,7 @@ output `string` immediately to `stderr`.
 
 Output with timestamp on `stdout`.
 
-    require('util').log('Timestmaped message.');
+    require('util').log('Timestamped message.');
 
 
 ### util.inspect(object, showHidden=false, depth=2)
