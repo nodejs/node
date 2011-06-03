@@ -98,11 +98,23 @@ Handle<Value> SecureContext::Init(const Arguments& args) {
     String::Utf8Value sslmethod(args[0]->ToString());
 
     if (strcmp(*sslmethod, "SSLv2_method") == 0) {
+#ifndef OPENSSL_NO_SSL2
       method = SSLv2_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv2_server_method") == 0) {
+#ifndef OPENSSL_NO_SSL2
       method = SSLv2_server_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv2_client_method") == 0) {
+#ifndef OPENSSL_NO_SSL2
       method = SSLv2_client_method();
+#else
+      return ThrowException(Exception::Error(String::New("SSLv2 methods disabled")));
+#endif
     } else if (strcmp(*sslmethod, "SSLv3_method") == 0) {
       method = SSLv3_method();
     } else if (strcmp(*sslmethod, "SSLv3_server_method") == 0) {
