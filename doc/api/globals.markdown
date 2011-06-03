@@ -32,6 +32,12 @@ To require modules. See the [Modules](modules.html#modules) section.
 Use the internal `require()` machinery to look up the location of a module,
 but rather than loading the module, just return the resolved filename.
 
+### require.cache
+
+Modules are cached in this object when they are required. By deleting a key
+value from this object, the next `require` will reload the module.
+
+
 ### require.paths
 
 An array of search paths for `require()`.  This array can be modified to add
