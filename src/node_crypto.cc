@@ -2948,16 +2948,12 @@ void InitCrypto(Handle<Object> target) {
   ERR_load_crypto_strings();
 
   // Turn off compression. Saves memory - do it in userland.
+#ifdef SSL_COMP_get_compression_methods
+  // Before OpenSSL 0.9.8 this was not possible.
   STACK_OF(SSL_COMP)* comp_methods = SSL_COMP_get_compression_methods();
-#if 0
-  if (comp_methods && sk_SSL_COMP_num(comp_methods) > 0) {
-    default_compression_method = sk_SSL_COMP_pop(comp_methods);
-    fprintf(stderr, "SSL_COMP_get_name %s\n",
-        SSL_COMP_get_name(default_compression_method->method));
-  }
-#endif
   sk_SSL_COMP_zero(comp_methods);
   assert(sk_SSL_COMP_num(comp_methods) == 0);
+#endif
 
   SecureContext::Initialize(target);
   Connection::Initialize(target);
