@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <node_dtrace.h>
+#include <strings.h>
 
 #ifdef HAVE_DTRACE
 #include "node_provider.h"
@@ -180,7 +181,7 @@ Handle<Value> DTRACE_NET_SOCKET_WRITE(const Arguments& args) {
 }
 
 Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
-  node_dtrace_http_request_t req;
+  node_dtrace_http_server_request_t req;
 
   if (!NODE_HTTP_SERVER_REQUEST_ENABLED())
     return Undefined();
@@ -188,9 +189,24 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
   HandleScope scope;
 
   Local<Object> arg0 = Local<Object>::Cast(args[0]);
+  Local<Object> headers;
 
+  bzero(&req, sizeof(req));
+  req._un.version = 1;
   SLURP_STRING(arg0, url, &req.url);
   SLURP_STRING(arg0, method, &req.method);
+
+  SLURP_OBJECT(arg0, headers, &headers);
+
+  if (!(headers)->IsObject())
+    return (ThrowException(Exception::Error(String::New("expected "
+      "object for request to contain string member headers"))));
+
+  Local<Value> strfwdfor = headers->Get(String::New("x-forwarded-for"));
+  String::Utf8Value fwdfor(strfwdfor->ToString());
+
+  if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == NULL)
+      req.forwardedFor = "";
 
   SLURP_CONNECTION(args[1], conn);
 
@@ -211,7 +227,7 @@ Handle<Value> DTRACE_HTTP_SERVER_RESPONSE(const Arguments& args) {
 }
 
 Handle<Value> DTRACE_HTTP_CLIENT_REQUEST(const Arguments& args) {
-  node_dtrace_http_request_t req;
+  node_dtrace_http_client_request_t req;
   char *header;
 
   if (!NODE_HTTP_CLIENT_REQUEST_ENABLED())

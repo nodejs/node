@@ -41,7 +41,11 @@ typedef struct {
 
 typedef struct {
 	int dummy;
-} node_dtrace_http_request_t;
+} node_dtrace_http_server_request_t;
+
+typedef struct {
+	int dummy;
+} node_dtrace_http_client_request_t;
 
 typedef struct {
 	int dummy;
@@ -56,12 +60,12 @@ provider node {
 	    (node_connection_t *c, int b);
 	probe net__socket__write(node_dtrace_connection_t *c, int b) :
 	    (node_connection_t *c, int b);
-	probe http__server__request(node_dtrace_http_request_t *h,
+	probe http__server__request(node_dtrace_http_server_request_t *h,
 	    node_dtrace_connection_t *c) :
 	    (node_http_request_t *h, node_connection_t *c);
 	probe http__server__response(node_dtrace_connection_t *c) :
 	    (node_connection_t *c);
-	probe http__client__request(node_dtrace_http_request_t *h,
+	probe http__client__request(node_dtrace_http_client_request_t *h,
 	    node_dtrace_connection_t *c) :
 	    (node_http_request_t *h, node_connection_t *c);
 	probe http__client__response(node_dtrace_connection_t *c) :
