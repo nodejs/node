@@ -114,15 +114,15 @@ static bool cov = false;
 static int debug_port=5858;
 static int max_stack_size = 0;
 
-static uv_handle_t check_tick_watcher;
-static uv_handle_t prepare_tick_watcher;
-static uv_handle_t tick_spinner;
+static uv_check_t check_tick_watcher;
+static uv_prepare_t prepare_tick_watcher;
+static uv_idle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
-static uv_handle_t eio_want_poll_notifier;
-static uv_handle_t eio_done_poll_notifier;
-static uv_handle_t eio_poller;
+static uv_async_t eio_want_poll_notifier;
+static uv_async_t eio_done_poll_notifier;
+static uv_idle_t eio_poller;
 
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
@@ -135,9 +135,9 @@ static char getbuf[PATH_MAX + 1];
 //
 // A rather convoluted algorithm has been devised to determine when Node is
 // idle. You'll have to figure it out for yourself.
-static uv_handle_t gc_check;
-static uv_handle_t gc_idle;
-static uv_handle_t gc_timer;
+static uv_check_t gc_check;
+static uv_idle_t gc_idle;
+static uv_timer_t gc_timer;
 bool need_gc;
 
 
@@ -151,24 +151,24 @@ static int tick_time_head;
 static void CheckStatus(uv_handle_t* watcher, int status);
 
 static void StartGCTimer () {
-  if (!uv_is_active(&gc_timer)) {
+  if (!uv_is_active((uv_handle_t*) &gc_timer)) {
     uv_timer_start(&node::gc_timer, node::CheckStatus, 5., 5.);
   }
 }
 
 static void StopGCTimer () {
-  if (uv_is_active(&gc_timer)) {
+  if (uv_is_active((uv_handle_t*) &gc_timer)) {
     uv_timer_stop(&gc_timer);
   }
 }
 
 static void Idle(uv_handle_t* watcher, int status) {
-  assert(watcher == &gc_idle);
+  assert((uv_idle_t*) watcher == &gc_idle);
 
   //fprintf(stderr, "idle\n");
 
   if (V8::IdleNotification()) {
-    uv_idle_stop(watcher);
+    uv_idle_stop(&gc_idle);
     StopGCTimer();
   }
 }
@@ -176,7 +176,7 @@ static void Idle(uv_handle_t* watcher, int status) {
 
 // Called directly after every call to select() (or epoll, or whatever)
 static void Check(uv_handle_t* watcher, int status) {
-  assert(watcher == &gc_check);
+  assert((uv_check_t*) watcher == &gc_check);
 
   tick_times[tick_time_head] = uv_now();
   tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
@@ -202,7 +202,7 @@ static void Check(uv_handle_t* watcher, int status) {
 
 
 static void Spin(uv_handle_t* handle, int status) {
-  assert(handle == &tick_spinner);
+  assert((uv_idle_t*) handle == &tick_spinner);
   assert(status == 0);
 }
 
@@ -215,7 +215,7 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
   // there is nothing left to do in the event loop and libev will exit. The
   // ev_prepare callback isn't called before exiting. Thus we start this
   // tick_spinner to keep the event loop alive long enough to handle it.
-  if (!uv_is_active(&tick_spinner)) {
+  if (!uv_is_active((uv_handle_t*) &tick_spinner)) {
     uv_idle_start(&tick_spinner, Spin);
     uv_ref();
   }
@@ -228,7 +228,7 @@ static void Tick(void) {
   if (!need_tick_cb) return;
 
   need_tick_cb = false;
-  if (uv_is_active(&tick_spinner)) {
+  if (uv_is_active((uv_handle_t*) &tick_spinner)) {
     uv_idle_stop(&tick_spinner);
     uv_unref();
   }
@@ -256,27 +256,27 @@ static void Tick(void) {
 
 
 static void PrepareTick(uv_handle_t* handle, int status) {
-  assert(handle == &prepare_tick_watcher);
+  assert((uv_prepare_t*) handle == &prepare_tick_watcher);
   assert(status == 0);
   Tick();
 }
 
 
 static void CheckTick(uv_handle_t* handle, int status) {
-  assert(handle == &check_tick_watcher);
+  assert((uv_check_t*) handle == &check_tick_watcher);
   assert(status == 0);
   Tick();
 }
 
 
 static void DoPoll(uv_handle_t* watcher, int status) {
-  assert(watcher == &eio_poller);
+  assert((uv_idle_t*) watcher == &eio_poller);
 
   //printf("eio_poller\n");
 
-  if (eio_poll() != -1 && uv_is_active(&eio_poller)) {
+  if (eio_poll() != -1 && uv_is_active((uv_handle_t*) &eio_poller)) {
     //printf("eio_poller stop\n");
-    uv_idle_stop(watcher);
+    uv_idle_stop(&eio_poller);
     uv_unref();
   }
 }
@@ -284,11 +284,11 @@ static void DoPoll(uv_handle_t* watcher, int status) {
 
 // Called from the main thread.
 static void WantPollNotifier(uv_handle_t* watcher, int status) {
-  assert(watcher == &eio_want_poll_notifier);
+  assert((uv_async_t*) watcher == &eio_want_poll_notifier);
 
   //printf("want poll notifier\n");
 
-  if (eio_poll() == -1 && !uv_is_active(&eio_poller)) {
+  if (eio_poll() == -1 && !uv_is_active((uv_handle_t*) &eio_poller)) {
     //printf("eio_poller start\n");
     uv_idle_start(&eio_poller, node::DoPoll);
     uv_ref();
@@ -297,11 +297,11 @@ static void WantPollNotifier(uv_handle_t* watcher, int status) {
 
 
 static void DonePollNotifier(uv_handle_t* watcher, int revents) {
-  assert(watcher == &eio_done_poll_notifier);
+  assert((uv_async_t*) watcher == &eio_done_poll_notifier);
 
   //printf("done poll notifier\n");
 
-  if (eio_poll() != -1 && uv_is_active(&eio_poller)) {
+  if (eio_poll() != -1 && uv_is_active((uv_handle_t*) &eio_poller)) {
     //printf("eio_poller stop\n");
     uv_idle_stop(&eio_poller);
     uv_unref();
@@ -1544,10 +1544,10 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
 
 
 static void CheckStatus(uv_handle_t* watcher, int status) {
-  assert(watcher == &gc_timer);
+  assert((uv_timer_t*) watcher == &gc_timer);
 
   // check memory
-  if (!uv_is_active(&gc_idle)) {
+  if (!uv_is_active((uv_handle_t*) &gc_idle)) {
     HeapStatistics stats;
     V8::GetHeapStatistics(&stats);
     if (stats.total_heap_size() > 1024 * 1024 * 128) {
@@ -1818,11 +1818,11 @@ void FatalException(TryCatch &try_catch) {
 }
 
 
-static uv_handle_t debug_watcher;
+static uv_async_t debug_watcher;
 
 static void DebugMessageCallback(uv_handle_t* watcher, int status) {
   HandleScope scope;
-  assert(watcher == &debug_watcher);
+  assert((uv_async_t*) watcher == &debug_watcher);
   Debug::ProcessDebugMessages();
 }
 
@@ -2468,17 +2468,8 @@ void EmitExit(v8::Handle<v8::Object> process) {
 }
 
 
-uv_buf_t UVAlloc(uv_handle_t* handle, size_t suggested_size) {
-  char* base = (char*)malloc(suggested_size);
-  uv_buf_t buf;
-  buf.base = base;
-  buf.len = suggested_size;
-  return buf;
-}
-
-
 int Start(int argc, char *argv[]) {
-  uv_init(UVAlloc);
+  uv_init();
   v8::V8::Initialize();
   v8::HandleScope handle_scope;
 

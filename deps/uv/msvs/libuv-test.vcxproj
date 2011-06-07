@@ -147,6 +147,7 @@
     <ClCompile Include="..\test\test-delayed-accept.c" />
     <ClCompile Include="..\test\test-callback-stack.c" />
     <ClCompile Include="..\test\test-connection-fail.c" />
+    <ClCompile Include="..\test\test-get-currentexe.c" />
     <ClCompile Include="..\test\test-fail-always.c" />
     <ClCompile Include="..\test\test-loop-handles.c" />
     <ClCompile Include="..\test\test-pass-always.c" />
@@ -154,6 +155,7 @@
     <ClCompile Include="..\test\runner-win.c" />
     <ClCompile Include="..\test\runner.c" />
     <ClCompile Include="..\test\test-bind-error.c" />
+    <ClCompile Include="..\test\test-shutdown-eof.c" />
     <ClCompile Include="..\test\test-tcp-writealot.c" />
     <ClCompile Include="..\test\test-timer-again.c" />
     <ClCompile Include="..\test\test-timer.c" />

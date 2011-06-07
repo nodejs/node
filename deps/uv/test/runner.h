@@ -79,6 +79,8 @@ int run_task(task_entry_t *test, int timeout, int benchmark_output);
 #define TEST_HELPER       HELPER_ENTRY
 #define BENCHMARK_HELPER  HELPER_ENTRY
 
+#define PATHMAX 1024
+extern char executable_path[PATHMAX];
 
 /*
  * Include platform-dependent definitions

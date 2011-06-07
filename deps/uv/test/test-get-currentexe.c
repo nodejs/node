@@ -19,22 +19,35 @@
  * IN THE SOFTWARE.
  */
 
-BENCHMARK_DECLARE (sizes)
-BENCHMARK_DECLARE (ping_pongs)
-BENCHMARK_DECLARE (pump100_client)
-BENCHMARK_DECLARE (pump1_client)
-HELPER_DECLARE    (pump_server)
-HELPER_DECLARE    (echo_server)
+#include "../uv.h"
+#include "task.h"
+#include <string.h>
 
-TASK_LIST_START
-  BENCHMARK_ENTRY  (sizes)
+#define PATHMAX 1024
+extern char executable_path[];
 
-  BENCHMARK_ENTRY  (ping_pongs)
-  BENCHMARK_HELPER (ping_pongs, echo_server)
+TEST_IMPL(get_currentexe) {
+  char buffer[PATHMAX];
+  size_t size;
+  char* match;
+  int r;
 
-  BENCHMARK_ENTRY  (pump100_client)
-  BENCHMARK_HELPER (pump100_client, pump_server)
+  size = sizeof(buffer) / sizeof(buffer[0]);
+  r = uv_get_exepath(buffer, &size);
+  ASSERT(!r);
 
-  BENCHMARK_ENTRY  (pump1_client)
-  BENCHMARK_HELPER (pump1_client, pump_server)
-TASK_LIST_END
+  match = strstr(buffer, executable_path);
+  /* Verify that the path returned from uv_get_exepath is a subdirectory of executable_path */
+  ASSERT(match && !strcmp(match, executable_path));
+  ASSERT(size == strlen(buffer));
+
+  /* Negative tests */
+  size = sizeof(buffer) / sizeof(buffer[0]);
+  r = uv_get_exepath(NULL, &size);
+  ASSERT(r == -1);
+
+  r = uv_get_exepath(buffer, NULL);
+  ASSERT(r == -1);
+
+  return 0;
+}

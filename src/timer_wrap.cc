@@ -108,7 +108,7 @@ class TimerWrap {
 
   void StateChange() {
     bool was_active = active_;
-    active_ = uv_is_active(&handle_);
+    active_ = uv_is_active((uv_handle_t*) &handle_);
 
     if (!was_active && active_) {
       // If our state is changing from inactive to active, we
@@ -207,7 +207,7 @@ class TimerWrap {
 
     UNWRAP
 
-    int r = uv_close(&wrap->handle_);
+    int r = uv_close((uv_handle_t*) &wrap->handle_);
 
     if (r) SetErrno(uv_last_error().code);
 
@@ -228,7 +228,7 @@ class TimerWrap {
     MakeCallback(wrap->object_, "ontimeout", 1, argv);
   }
 
-  uv_handle_t handle_;
+  uv_timer_t handle_;
   Persistent<Object> object_;
   // This member is set false initially. When the timer is turned
   // on uv_ref is called. When the timer is turned off uv_unref is

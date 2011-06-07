@@ -47,6 +47,8 @@ void platform_init(int argc, char **argv) {
   /* Disable stdio output buffering. */
   setvbuf(stdout, NULL, _IONBF, 0);
   setvbuf(stderr, NULL, _IONBF, 0);
+
+  strcpy(executable_path, argv[0]);
 }
 
 

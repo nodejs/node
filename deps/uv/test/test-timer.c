@@ -92,26 +92,19 @@ static void never_cb(uv_handle_t* handle, int status) {
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf_t buf = {0, 0};
-  FATAL("alloc should not be called");
-  return buf;
-}
-
-
 TEST_IMPL(timer) {
-  uv_handle_t *once;
-  uv_handle_t repeat, never;
+  uv_timer_t *once;
+  uv_timer_t repeat, never;
   int i, r;
 
-  uv_init(alloc_cb);
+  uv_init();
 
   start_time = uv_now();
   ASSERT(0 < start_time);
 
   /* Let 10 timers time out in 500 ms total. */
   for (i = 0; i < 10; i++) {
-    once = (uv_handle_t*)malloc(sizeof(*once));
+    once = (uv_timer_t*)malloc(sizeof(*once));
     ASSERT(once != NULL);
     r = uv_timer_init(once, once_close_cb, NULL);
     ASSERT(r == 0);

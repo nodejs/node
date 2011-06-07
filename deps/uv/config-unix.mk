@@ -21,7 +21,7 @@
 CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=
-CFLAGS=--std=gnu89 -g -DEV_MULTIPLICITY=0
+CFLAGS=--std=gnu89 -pedantic -Wno-variadic-macros -g -DEV_MULTIPLICITY=0
 LINKFLAGS=-lm
 
 ifeq (SunOS,$(uname_S))

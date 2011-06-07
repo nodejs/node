@@ -31,13 +31,14 @@ typedef struct {
 } write_req_t;
 
 
-static uv_handle_t server;
+static int server_closed;
+static uv_tcp_t server;
 
 
 static void after_write(uv_req_t* req, int status);
-static void after_read(uv_handle_t* handle, int nread, uv_buf_t buf);
+static void after_read(uv_tcp_t*, int nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer, int status);
-static void on_accept(uv_handle_t* handle);
+static void on_connection(uv_tcp_t*, int status);
 
 
 static void after_write(uv_req_t* req, int status) {
@@ -58,11 +59,13 @@ static void after_write(uv_req_t* req, int status) {
 
 
 static void after_shutdown(uv_req_t* req, int status) {
+  uv_close(req->handle);
   free(req);
 }
 
 
-static void after_read(uv_handle_t* handle, int nread, uv_buf_t buf) {
+static void after_read(uv_tcp_t* handle, int nread, uv_buf_t buf) {
+  int i;
   write_req_t *wr;
   uv_req_t* req;
 
@@ -75,7 +78,7 @@ static void after_read(uv_handle_t* handle, int nread, uv_buf_t buf) {
     }
 
     req = (uv_req_t*) malloc(sizeof *req);
-    uv_req_init(req, handle, after_shutdown);
+    uv_req_init(req, (uv_handle_t*)handle, after_shutdown);
     uv_shutdown(req);
 
     return;
@@ -87,9 +90,19 @@ static void after_read(uv_handle_t* handle, int nread, uv_buf_t buf) {
     return;
   }
 
+  /* Scan for the letter Q which signals that we should quit. */
+  if (!server_closed) {
+    for (i = 0; i < nread; i++) {
+      if (buf.base[i] == 'Q') {
+        uv_close((uv_handle_t*)&server);
+        server_closed = 1;
+      }
+    }
+  }
+
   wr = (write_req_t*) malloc(sizeof *wr);
 
-  uv_req_init(&wr->req, handle, after_write);
+  uv_req_init(&wr->req, (uv_handle_t*)handle, after_write);
   wr->buf.base = buf.base;
   wr->buf.len = nread;
   if (uv_write(&wr->req, &wr->buf, 1)) {
@@ -105,19 +118,33 @@ static void on_close(uv_handle_t* peer, int status) {
 }
 
 
-static void on_accept(uv_handle_t* server) {
-  uv_handle_t* handle = (uv_handle_t*) malloc(sizeof *handle);
+static uv_buf_t echo_alloc(uv_tcp_t* handle, size_t suggested_size) {
+  uv_buf_t buf;
+  buf.base = (char*) malloc(suggested_size);
+  buf.len = suggested_size;
+  return buf;
+}
 
-  if (uv_accept(server, handle, on_close, NULL)) {
-    FATAL("uv_accept failed");
-  }
 
-  uv_read_start(handle, after_read);
+static void on_connection(uv_tcp_t* server, int status) {
+  uv_tcp_t* handle;
+  int r;
+
+  ASSERT(status == 0);
+
+  handle = (uv_tcp_t*) malloc(sizeof *handle);
+  ASSERT(handle != NULL);
+
+  r = uv_accept(server, handle, on_close, NULL);
+  ASSERT(r == 0);
+
+  r = uv_read_start(handle, echo_alloc, after_read);
+  ASSERT(r == 0);
 }
 
 
 static void on_server_close(uv_handle_t* handle, int status) {
-  ASSERT(handle == &server);
+  ASSERT(handle == (uv_handle_t*)&server);
   ASSERT(status == 0);
 }
 
@@ -133,14 +160,14 @@ static int echo_start(int port) {
     return 1;
   }
 
-  r = uv_bind(&server, (struct sockaddr*) &addr);
+  r = uv_bind(&server, addr);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Bind error\n");
     return 1;
   }
 
-  r = uv_listen(&server, 128, on_accept);
+  r = uv_listen(&server, 128, on_connection);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Listen error\n");
@@ -151,25 +178,11 @@ static int echo_start(int port) {
 }
 
 
-static int echo_stop() {
-  return uv_close(&server);
-}
-
-
-static uv_buf_t echo_alloc(uv_handle_t* handle, size_t suggested_size) {
-  uv_buf_t buf;
-  buf.base = (char*) malloc(suggested_size);
-  buf.len = suggested_size;
-  return buf;
-}
-
-
 HELPER_IMPL(echo_server) {
-  uv_init(echo_alloc);
+  uv_init();
   if (echo_start(TEST_PORT))
     return 1;
 
-  fprintf(stderr, "Listening!\n");
   uv_run();
   return 0;
 }

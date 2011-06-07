@@ -24,7 +24,12 @@
 
 
 BENCHMARK_IMPL(sizes) {
-  LOGF("uv_handle_t: %lu bytes\n", sizeof(uv_handle_t));
   LOGF("uv_req_t: %lu bytes\n", sizeof(uv_req_t));
+  LOGF("uv_tcp_t: %lu bytes\n", sizeof(uv_tcp_t));
+  LOGF("uv_prepare_t: %lu bytes\n", sizeof(uv_prepare_t));
+  LOGF("uv_check_t: %lu bytes\n", sizeof(uv_check_t));
+  LOGF("uv_idle_t: %lu bytes\n", sizeof(uv_idle_t));
+  LOGF("uv_async_t: %lu bytes\n", sizeof(uv_async_t));
+  LOGF("uv_timer_t: %lu bytes\n", sizeof(uv_timer_t));
   return 0;
 }

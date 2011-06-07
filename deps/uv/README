@@ -6,7 +6,7 @@ http://nodejs.org/
 
 (This was previously called liboio)
 
-## Supported Platforms
+Supported Platforms:
 
 Microsoft Windows operating systems since Windows XP sp2. It can be built
 with either Visual Studio or MinGW.
@@ -14,16 +14,3 @@ with either Visual Studio or MinGW.
 Linux 2.6 and MacOS using the GCC toolchain.
 
 Solaris 121 and later using GCC toolchain.
-
-## Design
-
-The goal of this library is to provide high-concurrency high-performance I/O
-on all operating systems. This is a large undertaking. Some of the API
-decisions may seem arbitrary but are actually borne out of various specific
-platform issues.
-
-## uv_read_start(), uv_read_stop()
-
-Originally we wanted to provide a asynchronous read function that was
-similar to WSARecv().
-

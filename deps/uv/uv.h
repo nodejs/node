@@ -33,6 +33,11 @@ extern "C" {
 
 typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
+typedef struct uv_tcp_s uv_tcp_t;
+typedef struct uv_timer_s uv_timer_t;
+typedef struct uv_prepare_s uv_prepare_t;
+typedef struct uv_check_s uv_check_t;
+typedef struct uv_idle_s uv_idle_t;
 typedef struct uv_req_s uv_req_t;
 
 
@@ -51,12 +56,12 @@ typedef struct uv_req_s uv_req_t;
  * In the case of uv_read_cb the uv_buf_t returned should be freed by the
  * user.
  */
-typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
-typedef void (*uv_read_cb)(uv_handle_t *handle, int nread, uv_buf_t buf);
+typedef uv_buf_t (*uv_alloc_cb)(uv_tcp_t* tcp, size_t suggested_size);
+typedef void (*uv_read_cb)(uv_tcp_t* tcp, int nread, uv_buf_t buf);
 typedef void (*uv_write_cb)(uv_req_t* req, int status);
 typedef void (*uv_connect_cb)(uv_req_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_req_t* req, int status);
-typedef void (*uv_accept_cb)(uv_handle_t* handle);
+typedef void (*uv_connection_cb)(uv_tcp_t* server, int status);
 typedef void (*uv_close_cb)(uv_handle_t* handle, int status);
 /* TODO: do loop_cb and async_cb really need a status argument? */
 typedef void (*uv_loop_cb)(uv_handle_t* handle, int status);
@@ -142,69 +147,66 @@ struct uv_req_s {
   void* cb;
   void* data;
   /* private */
-  uv_req_private_fields
+  UV_REQ_PRIVATE_FIELDS
 };
-
-
-struct uv_handle_s {
-  /* read-only */
-  uv_handle_type type;
-  /* public */
-  uv_close_cb close_cb;
-  void* data;
-  /* number of bytes queued for writing */
-  size_t write_queue_size;
-  /* private */
-  uv_handle_private_fields
-};
-
-
-/* Most functions return boolean: 0 for success and -1 for failure.
- * On error the user should then call uv_last_error() to determine
- * the error code.
- */
-uv_err_t uv_last_error();
-char* uv_strerror(uv_err_t err);
-const char* uv_err_name(uv_err_t err);
-
-void uv_init(uv_alloc_cb alloc);
-int uv_run();
-
-/* Manually modify the event loop's reference count. Useful if the user wants
- * to have a handle or timeout that doesn't keep the loop alive.
- */
-void uv_ref();
-void uv_unref();
-
-void uv_update_time();
-int64_t uv_now();
-
-void uv_req_init(uv_req_t* req, uv_handle_t* handle, void* cb);
 
 /*
- * TODO:
- * - uv_(pipe|pipe_tty)_handle_init
- * - uv_bind_pipe(char* name)
- * - uv_continuous_read(uv_handle_t* handle, uv_continuous_read_cb* cb)
- * - A way to list cancelled uv_reqs after before/on uv_close_cb
+ * Initialize a request for use with uv_write, uv_shutdown, or uv_connect.
  */
+void uv_req_init(uv_req_t* req, uv_handle_t* handle, void* cb);
 
-/* TCP socket methods.
- * Handle and callback bust be set by calling uv_req_init.
+
+#define UV_HANDLE_FIELDS \
+  /* read-only */ \
+  uv_handle_type type; \
+  /* public */ \
+  uv_close_cb close_cb; \
+  void* data; \
+  /* private */ \
+  UV_HANDLE_PRIVATE_FIELDS \
+
+/* The abstract base class of all handles.  */
+struct uv_handle_s {
+  UV_HANDLE_FIELDS
+};
+
+/*
+ * Returns 1 if the prepare/check/idle handle has been started, 0 otherwise.
+ * For other handle types this always returns 1.
  */
-int uv_tcp_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
-int uv_bind(uv_handle_t* handle, struct sockaddr* addr);
+int uv_is_active(uv_handle_t* handle);
 
-int uv_connect(uv_req_t* req, struct sockaddr* addr);
+/*
+ * Request handle to be closed. close_cb will be called asynchronously after
+ * this call. This MUST be called on each handle before memory is released.
+ */
+int uv_close(uv_handle_t* handle);
+
+
+/*
+ * A subclass of uv_handle_t representing a TCP stream or TCP server. In the
+ * future this will probably be split into two classes - one a stream and
+ * the other a server.
+ */
+struct uv_tcp_s {
+  UV_HANDLE_FIELDS
+  size_t write_queue_size; /* number of bytes queued for writing */
+  UV_TCP_PRIVATE_FIELDS
+};
+
+int uv_tcp_init(uv_tcp_t* handle, uv_close_cb close_cb, void* data);
+
+int uv_bind(uv_tcp_t* handle, struct sockaddr_in);
+
+int uv_connect(uv_req_t* req, struct sockaddr_in);
+
 int uv_shutdown(uv_req_t* req);
 
-/* TCP server methods. */
-int uv_listen(uv_handle_t* handle, int backlog, uv_accept_cb cb);
+int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
 
-/* Call this after accept_cb. client does not need to be initialized. */
-int uv_accept(uv_handle_t* server, uv_handle_t* client,
+/* Call this after connection_cb. client does not need to be initialized. */
+int uv_accept(uv_tcp_t* server, uv_tcp_t* client,
     uv_close_cb close_cb, void* data);
-
 
 /* Read data from an incoming stream. The callback will be made several
  * several times until there is no more data to read or uv_read_stop is
@@ -215,81 +217,156 @@ int uv_accept(uv_handle_t* server, uv_handle_t* client,
  * eof; it happens when libuv requested a buffer through the alloc callback
  * but then decided that it didn't need that buffer.
  */
-int uv_read_start(uv_handle_t* handle, uv_read_cb cb);
-int uv_read_stop(uv_handle_t* handle);
+int uv_read_start(uv_tcp_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
+
+int uv_read_stop(uv_tcp_t*);
 
 int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt);
 
-/* Timer methods */
-int uv_timer_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
-int uv_timer_start(uv_handle_t* handle, uv_loop_cb cb, int64_t timeout, int64_t repeat);
-int uv_timer_stop(uv_handle_t* handle);
+
 /*
- * Stop the timer, and if it is repeating restart it using the repeat value 
+ * Subclass of uv_handle_t. libev wrapper. Every active prepare handle gets
+ * its callback called exactly once per loop iteration, just before the
+ * system blocks to wait for completed i/o.
+ */
+struct uv_prepare_s {
+  UV_HANDLE_FIELDS
+  UV_PREPARE_PRIVATE_FIELDS
+};
+
+int uv_prepare_init(uv_prepare_t* prepare, uv_close_cb close_cb, void* data);
+
+int uv_prepare_start(uv_prepare_t* prepare, uv_loop_cb cb);
+
+int uv_prepare_stop(uv_prepare_t* prepare);
+
+
+/*
+ * Subclass of uv_handle_t. libev wrapper. Every active check handle gets
+ * its callback called exactly once per loop iteration, just after the
+ * system returns from blocking.
+ */
+struct uv_check_s {
+  UV_HANDLE_FIELDS
+  UV_CHECK_PRIVATE_FIELDS
+};
+
+int uv_check_init(uv_check_t* check, uv_close_cb close_cb, void* data);
+
+int uv_check_start(uv_check_t* check, uv_loop_cb cb);
+
+int uv_check_stop(uv_check_t* check);
+
+
+/*
+ * Subclass of uv_handle_t. libev wrapper. Every active idle handle gets its
+ * callback called repeatedly until it is stopped. This happens after all
+ * other types of callbacks are processed.  When there are multiple "idle"
+ * handles active, their callbacks are called in turn.
+ */
+struct uv_idle_s {
+  UV_HANDLE_FIELDS
+  UV_IDLE_PRIVATE_FIELDS
+};
+
+int uv_idle_init(uv_idle_t* idle, uv_close_cb close_cb, void* data);
+
+int uv_idle_start(uv_idle_t* idle, uv_loop_cb cb);
+
+int uv_idle_stop(uv_idle_t* idle);
+
+
+/*
+ * Subclass of uv_handle_t. libev wrapper. uv_async_send wakes up the event
+ * loop and calls the async handle's callback There is no guarantee that
+ * every uv_async_send call leads to exactly one invocation of the callback;
+ * The only guarantee is that the callback function is  called at least once
+ * after the call to async_send. Unlike all other libuv functions,
+ * uv_async_send can be called from another thread.
+ */
+typedef struct {
+  UV_HANDLE_FIELDS
+  UV_ASYNC_PRIVATE_FIELDS
+} uv_async_t;
+
+int uv_async_init(uv_async_t* async, uv_async_cb async_cb,
+    uv_close_cb close_cb, void* data);
+
+int uv_async_send(uv_async_t* async);
+
+
+/*
+ * Subclass of uv_handle_t. Wraps libev's ev_timer watcher. Used to get
+ * woken up at a specified time in the future.
+ */
+struct uv_timer_s {
+  UV_HANDLE_FIELDS
+  UV_TIMER_PRIVATE_FIELDS
+};
+
+int uv_timer_init(uv_timer_t* timer, uv_close_cb close_cb, void* data);
+
+int uv_timer_start(uv_timer_t* timer, uv_loop_cb cb, int64_t timeout, int64_t repeat);
+
+int uv_timer_stop(uv_timer_t* timer);
+
+/*
+ * Stop the timer, and if it is repeating restart it using the repeat value
  * as the timeout. If the timer has never been started before it returns -1 and
  * sets the error to UV_EINVAL.
  */
-int uv_timer_again(uv_handle_t* handle);
+int uv_timer_again(uv_timer_t* timer);
+
 /*
  * Set the repeat value. Note that if the repeat value is set from a timer
  * callback it does not immediately take effect. If the timer was nonrepeating
  * before, it will have been stopped. If it was repeating, then the old repeat
  * value will have been used to schedule the next timeout.
  */
-void uv_timer_set_repeat(uv_handle_t* handle, int64_t repeat);
-int64_t uv_timer_get_repeat(uv_handle_t* handle);
+void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat);
 
-/* libev wrapper. Every active prepare handle gets its callback called
- * exactly once per loop iteration, just before the system blocks to wait
- * for completed i/o.
- */
-int uv_prepare_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
-int uv_prepare_start(uv_handle_t* handle, uv_loop_cb cb);
-int uv_prepare_stop(uv_handle_t* handle);
+int64_t uv_timer_get_repeat(uv_timer_t* timer);
 
-/* libev wrapper. Every active check handle gets its callback called exactly
- * once per loop iteration, just after the system returns from blocking.
- */
-int uv_check_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
-int uv_check_start(uv_handle_t* handle, uv_loop_cb cb);
-int uv_check_stop(uv_handle_t* handle);
 
-/* libev wrapper. Every active idle handle gets its callback called repeatedly until it is
- * stopped. This happens after all other types of callbacks are processed.
- * When there are multiple "idle" handles active, their callbacks are called
- * in turn.
+/*
+ * Most functions return boolean: 0 for success and -1 for failure.
+ * On error the user should then call uv_last_error() to determine
+ * the error code.
  */
-int uv_idle_init(uv_handle_t* handle, uv_close_cb close_cb, void* data);
-int uv_idle_start(uv_handle_t* handle, uv_loop_cb cb);
-int uv_idle_stop(uv_handle_t* handle);
+uv_err_t uv_last_error();
+char* uv_strerror(uv_err_t err);
+const char* uv_err_name(uv_err_t err);
 
-/* Returns 1 if the prepare/check/idle handle has been started, 0 otherwise.
- * For other handle types this always returns 1.
- */
-int uv_is_active(uv_handle_t* handle);
+void uv_init();
+int uv_run();
 
-/* libev wrapper. uv_async_send wakes up the event loop and calls the async
- * handle's callback There is no guarantee that every uv_async_send call
- * leads to exactly one invocation of the callback; The only guarantee is
- * that the callback function is  called at least once after the call to
- * async_send. Unlike everything else, uv_async_send can be called from
- * another thread.
- *
- * QUESTION(ryan) Can UV_ASYNC just use uv_loop_cb? Same signature on my
- * side.
+/*
+ * Manually modify the event loop's reference count. Useful if the user wants
+ * to have a handle or timeout that doesn't keep the loop alive.
  */
-int uv_async_init(uv_handle_t* handle, uv_async_cb async_cb,
-                   uv_close_cb close_cb, void* data);
-int uv_async_send(uv_handle_t* handle);
+void uv_ref();
+void uv_unref();
 
-/* Request handle to be closed. close_cb will be called
- * asynchronously after this call.
- */
-int uv_close(uv_handle_t* handle);
+void uv_update_time();
+int64_t uv_now();
 
 
 /* Utility */
 struct sockaddr_in uv_ip4_addr(char* ip, int port);
+
+/* Gets the executable path */
+int uv_get_exepath(char* buffer, size_t* size);
+
+
+/* the presence of this union forces similar struct layout */
+union uv_any_handle {
+  uv_tcp_t tcp;
+  uv_prepare_t prepare;
+  uv_check_t check;
+  uv_idle_t idle;
+  uv_async_t async;
+  uv_timer_t timer;
+};
 
 #ifdef __cplusplus
 }

@@ -37,10 +37,6 @@
 #include <sys/select.h>
 #include <pthread.h>
 
-#define PATHMAX 1024
-static char executable_path[PATHMAX] = { '\0' };
-
-
 #ifdef __APPLE__
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
 
@@ -84,7 +80,7 @@ int process_start(char* name, process_info_t* p) {
   p->terminated = 0;
   p->status = 0;
 
-  pid_t pid = vfork();
+  pid_t pid = fork();
 
   if (pid < 0) {
     perror("vfork");

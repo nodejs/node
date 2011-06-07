@@ -29,7 +29,7 @@ static int repeat_2_cb_called = 0;
 
 static int repeat_2_cb_allowed = 0;
 
-static uv_handle_t dummy, repeat_1, repeat_2;
+static uv_timer_t dummy, repeat_1, repeat_2;
 
 static int64_t start_time;
 
@@ -45,10 +45,10 @@ static void close_cb(uv_handle_t* handle, int status) {
 static void repeat_1_cb(uv_handle_t* handle, int status) {
   int r;
 
-  ASSERT(handle == &repeat_1);
+  ASSERT(handle == (uv_handle_t*)&repeat_1);
   ASSERT(status == 0);
 
-  ASSERT(uv_timer_get_repeat(handle) == 50);
+  ASSERT(uv_timer_get_repeat((uv_timer_t*)handle) == 50);
 
   LOGF("repeat_1_cb called after %ld ms\n", (long int)(uv_now() - start_time));
 
@@ -68,7 +68,7 @@ static void repeat_1_cb(uv_handle_t* handle, int status) {
 
 
 static void repeat_2_cb(uv_handle_t* handle, int status) {
-  ASSERT(handle == &repeat_2);
+  ASSERT(handle == (uv_handle_t*) &repeat_2);
   ASSERT(status == 0);
   ASSERT(repeat_2_cb_allowed);
 
@@ -76,31 +76,25 @@ static void repeat_2_cb(uv_handle_t* handle, int status) {
 
   repeat_2_cb_called++;
 
-  if (uv_timer_get_repeat(handle) == 0) {
+  if (uv_timer_get_repeat(&repeat_2) == 0) {
     ASSERT(!uv_is_active(handle));
     uv_close(handle);
     return;
   }
 
-  LOGF("uv_timer_get_repeat %ld ms\n", (long int)uv_timer_get_repeat(handle));
-  ASSERT(uv_timer_get_repeat(handle) == 100);
+  LOGF("uv_timer_get_repeat %ld ms\n",
+      (long int)uv_timer_get_repeat(&repeat_2));
+  ASSERT(uv_timer_get_repeat(&repeat_2) == 100);
 
   /* This shouldn't take effect immediately. */
   uv_timer_set_repeat(&repeat_2, 0);
 }
 
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf_t buf = {0, 0};
-  FATAL("alloc should not be called");
-  return buf;
-}
-
-
 TEST_IMPL(timer_again) {
   int r;
 
-  uv_init(alloc_cb);
+  uv_init();
 
   start_time = uv_now();
   ASSERT(0 < start_time);
