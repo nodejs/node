@@ -57,10 +57,6 @@
 #include <node_events.h>
 #include <node_cares.h>
 #include <node_file.h>
-#if 0
-// not in use
-# include <node_idle_watcher.h>
-#endif
 #include <node_http_parser.h>
 #include <node_signal_watcher.h>
 #include <node_stat_watcher.h>
