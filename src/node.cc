@@ -200,28 +200,6 @@ static void Check(uv_handle_t* watcher, int status) {
 }
 
 
-static void Spin(uv_handle_t* handle, int status) {
-  assert((uv_idle_t*) handle == &tick_spinner);
-  assert(status == 0);
-}
-
-
-static Handle<Value> NeedTickCallback(const Arguments& args) {
-  HandleScope scope;
-  need_tick_cb = true;
-  // TODO: this tick_spinner shouldn't be necessary. An ev_prepare should be
-  // sufficent, the problem is only in the case of the very last "tick" -
-  // there is nothing left to do in the event loop and libev will exit. The
-  // ev_prepare callback isn't called before exiting. Thus we start this
-  // tick_spinner to keep the event loop alive long enough to handle it.
-  if (!uv_is_active((uv_handle_t*) &tick_spinner)) {
-    uv_idle_start(&tick_spinner, Spin);
-    uv_ref();
-  }
-  return Undefined();
-}
-
-
 static void Tick(void) {
   // Avoid entering a V8 scope.
   if (!need_tick_cb) return;
@@ -251,6 +229,29 @@ static void Tick(void) {
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
   }
+}
+
+
+static void Spin(uv_handle_t* handle, int status) {
+  assert((uv_idle_t*) handle == &tick_spinner);
+  assert(status == 0);
+  Tick();
+}
+
+
+static Handle<Value> NeedTickCallback(const Arguments& args) {
+  HandleScope scope;
+  need_tick_cb = true;
+  // TODO: this tick_spinner shouldn't be necessary. An ev_prepare should be
+  // sufficent, the problem is only in the case of the very last "tick" -
+  // there is nothing left to do in the event loop and libev will exit. The
+  // ev_prepare callback isn't called before exiting. Thus we start this
+  // tick_spinner to keep the event loop alive long enough to handle it.
+  if (!uv_is_active((uv_handle_t*) &tick_spinner)) {
+    uv_idle_start(&tick_spinner, Spin);
+    uv_ref();
+  }
+  return Undefined();
 }
 
 
