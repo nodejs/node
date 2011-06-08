@@ -182,8 +182,6 @@ class TimerWrap {
 
     uv_timer_set_repeat(&wrap->handle_, repeat);
 
-    wrap->StateChange();
-
     return scope.Close(Integer::New(0));
   }
 
@@ -195,8 +193,6 @@ class TimerWrap {
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
 
     if (repeat < 0) SetErrno(uv_last_error().code);
-
-    wrap->StateChange();
 
     return scope.Close(Integer::New(repeat));
   }
