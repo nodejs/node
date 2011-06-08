@@ -842,7 +842,6 @@ def build(bld):
     src/node_file.cc
     src/node_signal_watcher.cc
     src/node_stat_watcher.cc
-    src/node_timer.cc
     src/node_script.cc
     src/node_os.cc
     src/node_dtrace.cc

@@ -64,7 +64,6 @@
 #include <node_http_parser.h>
 #include <node_signal_watcher.h>
 #include <node_stat_watcher.h>
-#include <node_timer.h>
 #include <node_child_process.h>
 #include <node_constants.h>
 #include <node_stdio.h>
@@ -1873,11 +1872,6 @@ static Handle<Value> Binding(const Arguments& args) {
   } else if (!strcmp(*module_v, "io_watcher")) {
     exports = Object::New();
     IOWatcher::Initialize(exports);
-    binding_cache->Set(module, exports);
-
-  } else if (!strcmp(*module_v, "timer")) {
-    exports = Object::New();
-    Timer::Initialize(exports);
     binding_cache->Set(module, exports);
 
   } else if (!strcmp(*module_v, "natives")) {
