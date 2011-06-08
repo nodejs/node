@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <node_dtrace.h>
-#include <strings.h>
+#include <string.h>
 
 #ifdef HAVE_DTRACE
 #include "node_provider.h"
@@ -191,7 +191,7 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
   Local<Object> arg0 = Local<Object>::Cast(args[0]);
   Local<Object> headers;
 
-  bzero(&req, sizeof(req));
+  memset(&req, 0, sizeof(req));
   req._un.version = 1;
   SLURP_STRING(arg0, url, &req.url);
   SLURP_STRING(arg0, method, &req.method);
@@ -206,7 +206,7 @@ Handle<Value> DTRACE_HTTP_SERVER_REQUEST(const Arguments& args) {
   String::Utf8Value fwdfor(strfwdfor->ToString());
 
   if (!strfwdfor->IsString() || (req.forwardedFor = *fwdfor) == NULL)
-      req.forwardedFor = "";
+    req.forwardedFor = const_cast<char*>("");
 
   SLURP_CONNECTION(args[1], conn);
 
