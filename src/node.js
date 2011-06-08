@@ -194,7 +194,10 @@
 
   startup.processStdio = function() {
     var binding = process.binding('stdio'),
-        net = NativeModule.require('net'),
+        // FIXME Remove conditional when net is supported again on windows.
+        net = (process.platform !== "win32")
+              ? NativeModule.require('net')
+              : undefined,
         fs = NativeModule.require('fs'),
         tty = NativeModule.require('tty');
 

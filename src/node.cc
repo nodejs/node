@@ -52,14 +52,18 @@
 
 #include <platform.h>
 #include <node_buffer.h>
-#include <node_io_watcher.h>
+#ifdef __POSIX__
+# include <node_io_watcher.h>
+#endif
 #include <node_net.h>
 #include <node_events.h>
 #include <node_cares.h>
 #include <node_file.h>
 #include <node_http_parser.h>
-#include <node_signal_watcher.h>
-#include <node_stat_watcher.h>
+#ifdef __POSIX__
+# include <node_signal_watcher.h>
+# include <node_stat_watcher.h>
+#endif
 #include <node_child_process.h>
 #include <node_constants.h>
 #include <node_stdio.h>
@@ -1865,10 +1869,12 @@ static Handle<Value> Binding(const Arguments& args) {
     DefineConstants(exports);
     binding_cache->Set(module, exports);
 
+#ifdef __POSIX__
   } else if (!strcmp(*module_v, "io_watcher")) {
     exports = Object::New();
     IOWatcher::Initialize(exports);
     binding_cache->Set(module, exports);
+#endif
 
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();

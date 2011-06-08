@@ -599,7 +599,7 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def sh_escape(s):
-  return s.replace("(","\\(").replace(")","\\)").replace(" ","\\ ")
+  return s.replace("\\", "\\\\").replace("(","\\(").replace(")","\\)").replace(" ","\\ ")
 
 def uv_cmd(bld, variant):
   srcdeps = join(bld.path.abspath(), "deps")
@@ -610,8 +610,11 @@ def uv_cmd(bld, variant):
   # build directory before each compile. This could be much improved by
   # modifying libuv's build to send object files to a separate directory.
   #
-  cmd = 'cp -r ' + sh_escape(srcdir)  + '/* ' + sh_escape(blddir) + \
-        ' &&  if [[ -z "$NODE_MAKE" ]]; then NODE_MAKE=make; fi; $NODE_MAKE -C ' + sh_escape(blddir)
+  cmd = 'cp -r ' + sh_escape(srcdir)  + '/* ' + sh_escape(blddir)
+  if not sys.platform.startswith('win32'):
+    cmd += ' && if [[ -z "$NODE_MAKE" ]]; then NODE_MAKE=make; fi; $NODE_MAKE -C ' + sh_escape(blddir)
+  else:
+    cmd += ' && make -C ' + sh_escape(blddir)
   return cmd
 
 
@@ -834,14 +837,9 @@ def build(bld):
     src/node_javascript.cc
     src/node_extensions.cc
     src/node_http_parser.cc
-    src/node_net.cc
-    src/node_io_watcher.cc
     src/node_constants.cc
-    src/node_cares.cc
     src/node_events.cc
     src/node_file.cc
-    src/node_signal_watcher.cc
-    src/node_stat_watcher.cc
     src/node_script.cc
     src/node_os.cc
     src/node_dtrace.cc
@@ -853,6 +851,11 @@ def build(bld):
     node.source += " src/node_stdio_win32.cc "
     node.source += " src/node_child_process_win32.cc "
   else:
+    node.source += " src/node_cares.cc "
+    node.source += " src/node_net.cc "
+    node.source += " src/node_signal_watcher.cc "
+    node.source += " src/node_stat_watcher.cc "
+    node.source += " src/node_io_watcher.cc "
     node.source += " src/node_stdio.cc "
     node.source += " src/node_child_process.cc "
 

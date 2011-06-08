@@ -24,10 +24,11 @@
 #include <node_child_process.h>
 
 #include <v8.h>
-#include <ev.h>
+#include <uv.h>
 #include <eio.h>
 
 #include <assert.h>
+#include <signal.h>
 #include <string.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -51,7 +52,7 @@ static Persistent<String> onexit_symbol;
 
 
 static struct watcher_status_struct {
-  ev_async async_watcher;
+  uv_async_t async_watcher;
   ChildProcess *child;
   HANDLE lock;
   int num_active;
@@ -350,14 +351,9 @@ void ChildProcess::close_stdio_handles(ChildProcess *child) {
 
 
 // Called from the main thread
-void ChildProcess::notify_exit(EV_P_ ev_async *ev, int revent) {
+void ChildProcess::notify_exit(uv_handle_t* watcher, int status) {
   // Get the child process, then release the lock
   ChildProcess *child = watcher_status.child;
-
-  // Stop the watcher if appropriate
-  if (!--watcher_status.num_active) {
-    ev_async_stop(EV_DEFAULT_UC_ &watcher_status.async_watcher);
-  }
 
   ReleaseSemaphore(watcher_status.lock, 1, NULL);
 
@@ -398,7 +394,7 @@ void ChildProcess::notify_spawn_failure(ChildProcess *child) {
 
   watcher_status.child = child;
 
-  ev_async_send(EV_DEFAULT_UC_ &watcher_status.async_watcher);
+  uv_async_send(&watcher_status.async_watcher);
 }
 
 
@@ -418,7 +414,7 @@ void CALLBACK ChildProcess::watch_wait_callback(void *data,
   assert(result == WAIT_OBJECT_0);
 
   watcher_status.child = child;
-  ev_async_send(EV_DEFAULT_UC_ &watcher_status.async_watcher);
+  uv_async_send(&watcher_status.async_watcher);
 }
 
 
@@ -810,11 +806,6 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   // Grab a reference so it doesn't get GC'ed
   child->Ref();
 
-  // Start the async watcher
-  if (!watcher_status.num_active++) {
-    ev_async_start(EV_DEFAULT_UC_ &watcher_status.async_watcher);
-  }
-
   eio_custom(do_spawn, EIO_PRI_DEFAULT, after_spawn, (void*)child);
 
   return scope.Close(result);
@@ -892,7 +883,7 @@ void ChildProcess::Initialize(Handle<Object> target) {
 
   target->Set(String::NewSymbol("ChildProcess"), t->GetFunction());
 
-  ev_async_init(EV_DEFAULT_UC_ &watcher_status.async_watcher, notify_exit);
+  uv_async_init(&watcher_status.async_watcher, notify_exit, NULL, NULL);
   watcher_status.lock = CreateSemaphore(NULL, 1, 1, NULL);
 }
 

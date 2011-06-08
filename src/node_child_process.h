@@ -26,7 +26,11 @@
 #include <node_object_wrap.h>
 
 #include <v8.h>
-#include <ev.h>
+#include <uv.h>
+
+#ifdef __POSIX__
+# include <ev.h>
+#endif
 
 #ifdef __MINGW32__
 # include <platform_win32.h> // HANDLE type
@@ -120,7 +124,7 @@ class ChildProcess : ObjectWrap {
   static void watch(ChildProcess *child);
   static void CALLBACK watch_wait_callback(void *data, BOOLEAN didTimeout);
   static void notify_spawn_failure(ChildProcess *child);
-  static void notify_exit(EV_P_ ev_async *ev, int revent);
+  static void notify_exit(uv_handle_t* watcher, int status);
   static int do_kill(ChildProcess *child, int sig);static void close_stdio_handles(ChildProcess *child);
 
   int pid_;
