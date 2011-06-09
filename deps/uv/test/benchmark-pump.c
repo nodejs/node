@@ -118,16 +118,13 @@ static void read_show_stats() {
 
 
 
-void write_sockets_close_cb(uv_handle_t* handle, int status) {
-  ASSERT(status == 0);
+void write_sockets_close_cb(uv_handle_t* handle) {
   /* If any client closes, the process is done. */
   exit(0);
 }
 
 
-void read_sockets_close_cb(uv_handle_t* handle, int status) {
-  ASSERT(status == 0);
-
+void read_sockets_close_cb(uv_handle_t* handle) {
   free(handle);
   read_sockets--;
 
@@ -136,7 +133,7 @@ void read_sockets_close_cb(uv_handle_t* handle, int status) {
    */
   if (uv_now() - start_time > 1000 && read_sockets == 0) {
     read_show_stats();
-    uv_close((uv_handle_t*)&server);
+    uv_close((uv_handle_t*)&server, NULL);
   }
 }
 
@@ -147,7 +144,7 @@ static void start_stats_collection() {
 
   /* Show-stats timer */
   stats_left = STATS_COUNT;
-  r = uv_timer_init(&timer_handle, NULL, NULL);
+  r = uv_timer_init(&timer_handle);
   ASSERT(r == 0);
   r = uv_timer_start(&timer_handle, show_stats, STATS_INTERVAL, STATS_INTERVAL);
   ASSERT(r == 0);
@@ -157,7 +154,7 @@ static void start_stats_collection() {
 }
 
 
-static void read_cb(uv_tcp_t* tcp, int bytes, uv_buf_t buf) {
+static void read_cb(uv_tcp_t* tcp, ssize_t bytes, uv_buf_t buf) {
   if (nrecv_total == 0) {
     ASSERT(start_time == 0);
     uv_update_time();
@@ -165,7 +162,7 @@ static void read_cb(uv_tcp_t* tcp, int bytes, uv_buf_t buf) {
   }
 
   if (bytes < 0) {
-    uv_close((uv_handle_t*)tcp);
+    uv_close((uv_handle_t*)tcp, read_sockets_close_cb);
     return;
   }
 
@@ -239,7 +236,7 @@ static void maybe_connect_some() {
          max_connect_socket < write_sockets + MAX_SIMULTANEOUS_CONNECTS) {
     tcp = &write_handles[max_connect_socket++];
 
-    r = uv_tcp_init(tcp, write_sockets_close_cb, NULL);
+    r = uv_tcp_init(tcp);
     ASSERT(r == 0);
 
     req = req_alloc();
@@ -259,7 +256,9 @@ static void connection_cb(uv_tcp_t* s, int status) {
 
   tcp = malloc(sizeof(uv_tcp_t));
 
-  r = uv_accept(s, tcp, read_sockets_close_cb, NULL);
+  uv_tcp_init(tcp);
+
+  r = uv_accept(s, tcp);
   ASSERT(r == 0);
 
   r = uv_read_start(tcp, buf_alloc, read_cb);
@@ -350,7 +349,7 @@ HELPER_IMPL(pump_server) {
   listen_addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
 
   /* Server */
-  r = uv_tcp_init(&server, NULL, NULL);
+  r = uv_tcp_init(&server);
   ASSERT(r == 0);
   r = uv_bind(&server, listen_addr);
   ASSERT(r == 0);

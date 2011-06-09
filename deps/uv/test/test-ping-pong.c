@@ -56,10 +56,9 @@ static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
 }
 
 
-static void pinger_on_close(uv_handle_t* handle, int status) {
+static void pinger_on_close(uv_handle_t* handle) {
   pinger_t* pinger = (pinger_t*)handle->data;
 
-  ASSERT(status == 0);
   ASSERT(NUM_PINGS == pinger->pongs);
 
   free(pinger);
@@ -93,7 +92,7 @@ static void pinger_write_ping(pinger_t* pinger) {
 }
 
 
-static void pinger_read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
+static void pinger_read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
   unsigned int i;
   pinger_t* pinger;
 
@@ -108,7 +107,7 @@ static void pinger_read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
       free(buf.base);
     }
 
-    uv_close((uv_handle_t*)(&pinger->tcp));
+    uv_close((uv_handle_t*)(&pinger->tcp), pinger_on_close);
 
     return;
   }
@@ -123,7 +122,7 @@ static void pinger_read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
       if (pinger->pongs < NUM_PINGS) {
         pinger_write_ping(pinger);
       } else {
-        uv_close((uv_handle_t*)(&pinger->tcp));
+        uv_close((uv_handle_t*)(&pinger->tcp), pinger_on_close);
         return;
       }
     }
@@ -152,7 +151,8 @@ static void pinger_new() {
   pinger->pongs = 0;
 
   /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_tcp_init(&pinger->tcp, pinger_on_close, (void*)pinger);
+  r = uv_tcp_init(&pinger->tcp);
+  pinger->tcp.data = pinger;
   ASSERT(!r);
 
   /* We are never doing multiple reads/connects at a time anyway. */

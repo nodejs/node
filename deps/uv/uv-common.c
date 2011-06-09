@@ -25,6 +25,14 @@
 #include <stddef.h> /* NULL */
 
 
+static uv_counters_t counters;
+
+
+uv_counters_t* const uv_counters() {
+  return &counters;
+}
+
+
 const char* uv_err_name(uv_err_t err) {
   switch (err.code) {
     case UV_UNKNOWN: return "UNKNOWN";

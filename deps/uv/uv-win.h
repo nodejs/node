@@ -55,13 +55,13 @@ typedef struct uv_buf_t {
 
 #define uv_tcp_connection_fields          \
   uv_alloc_cb alloc_cb;                   \
-  void* read_cb;                          \
+  uv_read_cb read_cb;                     \
   struct uv_req_s read_req;               \
   unsigned int write_reqs_pending;        \
   uv_req_t* shutdown_req;
 
 #define uv_tcp_server_fields              \
-  void *connection_cb;                    \
+  uv_connection_cb connection_cb;         \
   SOCKET accept_socket;                   \
   struct uv_req_s accept_req;             \
   char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32];
@@ -81,12 +81,12 @@ typedef struct uv_buf_t {
   RB_ENTRY(uv_timer_s) tree_entry;        \
   int64_t due;                            \
   int64_t repeat;                         \
-  void* timer_cb;
+  uv_loop_cb timer_cb;
 
 #define UV_LOOP_PRIVATE_FIELDS            \
   uv_handle_t* loop_prev;                 \
   uv_handle_t* loop_next;                 \
-  void* loop_cb;
+  uv_loop_cb loop_cb;
 
 #define UV_ASYNC_PRIVATE_FIELDS           \
   struct uv_req_s async_req;              \

@@ -442,7 +442,6 @@ def configure(conf):
   # LFS
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
-  conf.env.append_value('CPPFLAGS',  '-DEV_MULTIPLICITY=0')
 
   # Makes select on windows support more than 64 FDs
   if sys.platform.startswith("win32"):

@@ -45,7 +45,7 @@ static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
 }
 
 
-static void read_cb(uv_tcp_t* t, int nread, uv_buf_t buf) {
+static void read_cb(uv_tcp_t* t, ssize_t nread, uv_buf_t buf) {
   ASSERT(t == &tcp);
 
   if (!got_q) {
@@ -102,7 +102,7 @@ static void connect_cb(uv_req_t *req, int status) {
 }
 
 
-void tcp_close_cb(uv_handle_t* handle, int status) {
+void tcp_close_cb(uv_handle_t* handle) {
   ASSERT(handle == (uv_handle_t*) &tcp);
 
   ASSERT(called_connect_cb == 1);
@@ -114,7 +114,7 @@ void tcp_close_cb(uv_handle_t* handle, int status) {
 }
 
 
-void timer_close_cb(uv_handle_t* handle, int status) {
+void timer_close_cb(uv_handle_t* handle) {
   ASSERT(handle == (uv_handle_t*) &timer);
   called_timer_close_cb++;
 }
@@ -122,14 +122,14 @@ void timer_close_cb(uv_handle_t* handle, int status) {
 
 void timer_cb(uv_handle_t* handle, int status) {
   ASSERT(handle == (uv_handle_t*) &timer);
-  uv_close(handle);
+  uv_close(handle, timer_close_cb);
 
   /*
    * The most important assert of the test: we have not received
    * tcp_close_cb yet.
    */
   ASSERT(called_tcp_close_cb == 0);
-  uv_close((uv_handle_t*) &tcp);
+  uv_close((uv_handle_t*) &tcp, tcp_close_cb);
 
   called_timer_cb++;
 }
@@ -150,11 +150,11 @@ TEST_IMPL(shutdown_eof) {
   qbuf.base = "Q";
   qbuf.len = 1;
 
-  uv_timer_init(&timer, timer_close_cb, NULL);
+  uv_timer_init(&timer);
   uv_timer_start(&timer, timer_cb, 100, 0);
 
   server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
-  r = uv_tcp_init(&tcp, tcp_close_cb, NULL);
+  r = uv_tcp_init(&tcp);
   ASSERT(!r);
 
   uv_req_init(&connect_req, (uv_handle_t*) &tcp, connect_cb);

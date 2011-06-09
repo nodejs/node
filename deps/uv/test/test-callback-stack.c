@@ -52,8 +52,7 @@ static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
 }
 
 
-static void close_cb(uv_handle_t* handle, int status) {
-  ASSERT(status == 0);
+static void close_cb(uv_handle_t* handle) {
   ASSERT(nested == 0 && "close_cb must be called from a fresh stack");
 
   close_cb_called++;
@@ -68,7 +67,7 @@ static void shutdown_cb(uv_req_t* req, int status) {
 }
 
 
-static void read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
+static void read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
   ASSERT(nested == 0 && "read_cb must be called from a fresh stack");
 
   printf("Read. nread == %d\n", nread);
@@ -82,7 +81,7 @@ static void read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
     ASSERT(uv_last_error().code == UV_EOF);
 
     nested++;
-    if (uv_close((uv_handle_t*)tcp)) {
+    if (uv_close((uv_handle_t*)tcp, close_cb)) {
       FATAL("uv_close failed");
     }
     nested--;
@@ -127,7 +126,7 @@ static void timer_cb(uv_handle_t* handle, int status) {
 
   timer_cb_called++;
 
-  r = uv_close(handle);
+  r = uv_close(handle, close_cb);
   ASSERT(r == 0);
 }
 
@@ -145,7 +144,7 @@ static void write_cb(uv_req_t* req, int status) {
   /* back to our receive buffer when we start reading. This maximizes the */
   /* tempation for the backend to use dirty stack for calling read_cb. */
   nested++;
-  r = uv_timer_init(&timer, close_cb, NULL);
+  r = uv_timer_init(&timer);
   ASSERT(r == 0);
   r = uv_timer_start(&timer, timer_cb, 500, 0);
   ASSERT(r == 0);
@@ -185,7 +184,7 @@ TEST_IMPL(callback_stack) {
 
   uv_init();
 
-  if (uv_tcp_init(&client, &close_cb, NULL)) {
+  if (uv_tcp_init(&client)) {
     FATAL("uv_tcp_init failed");
   }
 

@@ -85,7 +85,8 @@ class TimerWrap {
 
   TimerWrap(Handle<Object> object) {
     active_ = false;
-    int r = uv_timer_init(&handle_, OnClose, this);
+    int r = uv_timer_init(&handle_);
+    handle_.data = this;
     assert(r == 0); // How do we proxy this error up to javascript?
                     // Suggestion: uv_timer_init() returns void.
     assert(object_.IsEmpty());
@@ -122,7 +123,7 @@ class TimerWrap {
   }
 
   // Free the C++ object on the close callback.
-  static void OnClose(uv_handle_t* handle, int status) {
+  static void OnClose(uv_handle_t* handle) {
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
     delete wrap;
   }
@@ -203,7 +204,7 @@ class TimerWrap {
 
     UNWRAP
 
-    int r = uv_close((uv_handle_t*) &wrap->handle_);
+    int r = uv_close((uv_handle_t*) &wrap->handle_, OnClose);
 
     if (r) SetErrno(uv_last_error().code);
 

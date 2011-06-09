@@ -57,15 +57,15 @@ typedef struct uv_req_s uv_req_t;
  * user.
  */
 typedef uv_buf_t (*uv_alloc_cb)(uv_tcp_t* tcp, size_t suggested_size);
-typedef void (*uv_read_cb)(uv_tcp_t* tcp, int nread, uv_buf_t buf);
+typedef void (*uv_read_cb)(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf);
 typedef void (*uv_write_cb)(uv_req_t* req, int status);
 typedef void (*uv_connect_cb)(uv_req_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_req_t* req, int status);
 typedef void (*uv_connection_cb)(uv_tcp_t* server, int status);
-typedef void (*uv_close_cb)(uv_handle_t* handle, int status);
+typedef void (*uv_close_cb)(uv_handle_t* handle);
 /* TODO: do loop_cb and async_cb really need a status argument? */
 typedef void (*uv_loop_cb)(uv_handle_t* handle, int status);
-typedef void (*uv_async_cb)(uv_handle_t* handle, int stats);
+typedef void (*uv_async_cb)(uv_handle_t* handle, int status);
 
 
 /* Expand this list if necessary. */
@@ -180,7 +180,7 @@ int uv_is_active(uv_handle_t* handle);
  * Request handle to be closed. close_cb will be called asynchronously after
  * this call. This MUST be called on each handle before memory is released.
  */
-int uv_close(uv_handle_t* handle);
+int uv_close(uv_handle_t* handle, uv_close_cb close_cb);
 
 
 /*
@@ -194,7 +194,7 @@ struct uv_tcp_s {
   UV_TCP_PRIVATE_FIELDS
 };
 
-int uv_tcp_init(uv_tcp_t* handle, uv_close_cb close_cb, void* data);
+int uv_tcp_init(uv_tcp_t* handle);
 
 int uv_bind(uv_tcp_t* handle, struct sockaddr_in);
 
@@ -204,9 +204,12 @@ int uv_shutdown(uv_req_t* req);
 
 int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
 
-/* Call this after connection_cb. client does not need to be initialized. */
-int uv_accept(uv_tcp_t* server, uv_tcp_t* client,
-    uv_close_cb close_cb, void* data);
+/* This call is used in conjunction with uv_listen() to accept incoming TCP
+ * connections. Call uv_accept after receiving a uv_connection_cb to accept
+ * the connection. Before calling uv_accept use uv_tcp_init() must be
+ * called on the client. Non-zero return value indicates an error.
+ */
+int uv_accept(uv_tcp_t* server, uv_tcp_t* client);
 
 /* Read data from an incoming stream. The callback will be made several
  * several times until there is no more data to read or uv_read_stop is
@@ -234,7 +237,7 @@ struct uv_prepare_s {
   UV_PREPARE_PRIVATE_FIELDS
 };
 
-int uv_prepare_init(uv_prepare_t* prepare, uv_close_cb close_cb, void* data);
+int uv_prepare_init(uv_prepare_t* prepare);
 
 int uv_prepare_start(uv_prepare_t* prepare, uv_loop_cb cb);
 
@@ -251,7 +254,7 @@ struct uv_check_s {
   UV_CHECK_PRIVATE_FIELDS
 };
 
-int uv_check_init(uv_check_t* check, uv_close_cb close_cb, void* data);
+int uv_check_init(uv_check_t* check);
 
 int uv_check_start(uv_check_t* check, uv_loop_cb cb);
 
@@ -269,7 +272,7 @@ struct uv_idle_s {
   UV_IDLE_PRIVATE_FIELDS
 };
 
-int uv_idle_init(uv_idle_t* idle, uv_close_cb close_cb, void* data);
+int uv_idle_init(uv_idle_t* idle);
 
 int uv_idle_start(uv_idle_t* idle, uv_loop_cb cb);
 
@@ -289,8 +292,7 @@ typedef struct {
   UV_ASYNC_PRIVATE_FIELDS
 } uv_async_t;
 
-int uv_async_init(uv_async_t* async, uv_async_cb async_cb,
-    uv_close_cb close_cb, void* data);
+int uv_async_init(uv_async_t* async, uv_async_cb async_cb);
 
 int uv_async_send(uv_async_t* async);
 
@@ -304,7 +306,7 @@ struct uv_timer_s {
   UV_TIMER_PRIVATE_FIELDS
 };
 
-int uv_timer_init(uv_timer_t* timer, uv_close_cb close_cb, void* data);
+int uv_timer_init(uv_timer_t* timer);
 
 int uv_timer_start(uv_timer_t* timer, uv_loop_cb cb, int64_t timeout, int64_t repeat);
 
@@ -367,6 +369,20 @@ union uv_any_handle {
   uv_async_t async;
   uv_timer_t timer;
 };
+
+/* Diagnostic counters */
+typedef struct {
+  uint64_t req_init;
+  uint64_t handle_init;
+  uint64_t tcp_init;
+  uint64_t prepare_init;
+  uint64_t check_init;
+  uint64_t idle_init;
+  uint64_t async_init;
+  uint64_t timer_init;
+} uv_counters_t;
+
+uv_counters_t* const uv_counters();
 
 #ifdef __cplusplus
 }

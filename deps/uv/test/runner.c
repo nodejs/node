@@ -77,7 +77,7 @@ int run_task(task_entry_t *test, int timeout, int benchmark_output) {
   }
 
   /* Wait a little bit to allow servers to start. Racy. */
-  uv_sleep(50);
+  uv_sleep(100);
 
   /* Start the main test process. */
   if (process_start(test->process_name, &processes[process_count]) == -1) {
@@ -155,8 +155,9 @@ finalize:
       break;
 
      default:
-      //LOGF("%s: ", test->task_name);
-      process_copy_output(main_process, fileno(stderr));
+      for (i = 0; i < process_count; i++) {
+        process_copy_output(&processes[i], fileno(stderr));
+      }
       break;
     }
   }

@@ -112,10 +112,8 @@ void thread3_entry(void *arg) {
 #endif
 
 
-static void close_cb(uv_handle_t* handle, int status) {
+static void close_cb(uv_handle_t* handle) {
   ASSERT(handle != NULL);
-  ASSERT(status == 0);
-
   close_cb_called++;
 }
 
@@ -129,7 +127,7 @@ static void async1_cb(uv_handle_t* handle, int status) {
 
   if (async1_cb_called > 2 && !async1_closed) {
     async1_closed = 1;
-    uv_close(handle);
+    uv_close(handle, close_cb);
   }
 }
 
@@ -174,7 +172,7 @@ static void prepare_cb(uv_handle_t* handle, int status) {
 #endif
 
     case 1:
-      r = uv_close(handle);
+      r = uv_close(handle, close_cb);
       ASSERT(r == 0);
       break;
 
@@ -191,12 +189,12 @@ TEST_IMPL(async) {
 
   uv_init();
 
-  r = uv_prepare_init(&prepare_handle, close_cb, NULL);
+  r = uv_prepare_init(&prepare_handle);
   ASSERT(r == 0);
   r = uv_prepare_start(&prepare_handle, prepare_cb);
   ASSERT(r == 0);
 
-  r = uv_async_init(&async1_handle, async1_cb, close_cb, NULL);
+  r = uv_async_init(&async1_handle, async1_cb);
   ASSERT(r == 0);
 
 #if 0

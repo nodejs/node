@@ -24,7 +24,7 @@ CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=.exe
 
-CFLAGS=-g --std=gnu89 -pedantic -Wno-variadic-macros
+CFLAGS=-g --std=gnu89 -Wno-variadic-macros
 LINKFLAGS=-lm
 
 RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE # Need _GNU_SOURCE for strdup?

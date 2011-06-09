@@ -53,9 +53,8 @@ static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
 }
 
 
-static void close_cb(uv_handle_t* handle, int status) {
+static void close_cb(uv_handle_t* handle) {
   ASSERT(handle != NULL);
-  ASSERT(status == 0);
 
   free(handle);
 
@@ -84,7 +83,7 @@ static void shutdown_cb(uv_req_t* req, int status) {
 }
 
 
-static void read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
+static void read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
   ASSERT(tcp != NULL);
 
   if (nread < 0) {
@@ -95,7 +94,7 @@ static void read_cb(uv_tcp_t* tcp, int nread, uv_buf_t buf) {
       free(buf.base);
     }
 
-    uv_close((uv_handle_t*)tcp);
+    uv_close((uv_handle_t*)tcp, close_cb);
     return;
   }
 
@@ -182,7 +181,7 @@ TEST_IMPL(tcp_writealot) {
 
   uv_init();
 
-  r = uv_tcp_init(client, close_cb, NULL);
+  r = uv_tcp_init(client);
   ASSERT(r == 0);
 
   uv_req_init(connect_req, (uv_handle_t*)client, connect_cb);

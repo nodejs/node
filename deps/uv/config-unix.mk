@@ -21,7 +21,7 @@
 CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=
-CFLAGS=--std=gnu89 -pedantic -Wno-variadic-macros -g -DEV_MULTIPLICITY=0
+CFLAGS=--std=gnu89 -Wno-variadic-macros -g
 LINKFLAGS=-lm
 
 ifeq (SunOS,$(uname_S))
@@ -48,7 +48,7 @@ ev/ev.o: ev/config.h ev/ev.c
 	$(MAKE) -C ev
 
 ev/config.h:
-	cd ev && CPPFLAGS=-DEV_MULTIPLICITY=0 ./configure
+	cd ev && ./configure
 
 clean-platform:
 	$(MAKE) -C ev clean

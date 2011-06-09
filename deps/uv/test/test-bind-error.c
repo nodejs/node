@@ -28,10 +28,8 @@
 static int close_cb_called = 0;
 
 
-static void close_cb(uv_handle_t* handle, int status) {
+static void close_cb(uv_handle_t* handle) {
   ASSERT(handle != NULL);
-  ASSERT(status == 0);
-
   close_cb_called++;
 }
 
@@ -43,12 +41,12 @@ TEST_IMPL(bind_error_addrinuse) {
 
   uv_init();
 
-  r = uv_tcp_init(&server1, close_cb, NULL);
+  r = uv_tcp_init(&server1);
   ASSERT(r == 0);
   r = uv_bind(&server1, addr);
   ASSERT(r == 0);
 
-  r = uv_tcp_init(&server2, close_cb, NULL);
+  r = uv_tcp_init(&server2);
   ASSERT(r == 0);
   r = uv_bind(&server2, addr);
   ASSERT(r == 0);
@@ -60,8 +58,8 @@ TEST_IMPL(bind_error_addrinuse) {
 
   ASSERT(uv_last_error().code == UV_EADDRINUSE);
 
-  uv_close((uv_handle_t*)&server1);
-  uv_close((uv_handle_t*)&server2);
+  uv_close((uv_handle_t*)&server1, close_cb);
+  uv_close((uv_handle_t*)&server2, close_cb);
 
   uv_run();
 
@@ -78,7 +76,7 @@ TEST_IMPL(bind_error_addrnotavail_1) {
 
   uv_init();
 
-  r = uv_tcp_init(&server, close_cb, NULL);
+  r = uv_tcp_init(&server);
   ASSERT(r == 0);
   r = uv_bind(&server, addr);
 
@@ -87,7 +85,7 @@ TEST_IMPL(bind_error_addrnotavail_1) {
     ASSERT(uv_last_error().code == UV_EADDRNOTAVAIL);
   }
 
-  uv_close((uv_handle_t*)&server);
+  uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run();
 
@@ -104,13 +102,13 @@ TEST_IMPL(bind_error_addrnotavail_2) {
 
   uv_init();
 
-  r = uv_tcp_init(&server, close_cb, NULL);
+  r = uv_tcp_init(&server);
   ASSERT(r == 0);
   r = uv_bind(&server, addr);
   ASSERT(r == -1);
   ASSERT(uv_last_error().code == UV_EADDRNOTAVAIL);
 
-  uv_close((uv_handle_t*)&server);
+  uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run();
 
@@ -130,14 +128,14 @@ TEST_IMPL(bind_error_fault) {
 
   uv_init();
 
-  r = uv_tcp_init(&server, close_cb, NULL);
+  r = uv_tcp_init(&server);
   ASSERT(r == 0);
   r = uv_bind(&server, *garbage_addr);
   ASSERT(r == -1);
 
   ASSERT(uv_last_error().code == UV_EFAULT);
 
-  uv_close((uv_handle_t*)&server);
+  uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run();
 
@@ -156,7 +154,7 @@ TEST_IMPL(bind_error_inval) {
 
   uv_init();
 
-  r = uv_tcp_init(&server, close_cb, NULL);
+  r = uv_tcp_init(&server);
   ASSERT(r == 0);
   r = uv_bind(&server, addr1);
   ASSERT(r == 0);
@@ -165,7 +163,7 @@ TEST_IMPL(bind_error_inval) {
 
   ASSERT(uv_last_error().code == UV_EINVAL);
 
-  uv_close((uv_handle_t*)&server);
+  uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run();
 
