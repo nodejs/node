@@ -40,6 +40,10 @@ NODE_EXT_LIST_ITEM(node_signal_watcher)
 #endif
 NODE_EXT_LIST_ITEM(node_stdio)
 NODE_EXT_LIST_ITEM(node_os)
+
+// libuv rewrite
 NODE_EXT_LIST_ITEM(node_timer_wrap)
+NODE_EXT_LIST_ITEM(node_tcp_wrap)
+
 NODE_EXT_LIST_END
 
