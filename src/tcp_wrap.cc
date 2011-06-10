@@ -49,20 +49,29 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 
+static Persistent<Function> constructor;
+static Persistent<String> deck;
 
 class TCPWrap {
  public:
+
   static void Initialize(Handle<Object> target) {
     HandleScope scope;
 
-    Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
-    constructor->InstanceTemplate()->SetInternalFieldCount(1);
-    constructor->SetClassName(String::NewSymbol("TCP"));
+    deck = Persistent<String>::New(String::New("deck"));
 
-    NODE_SET_PROTOTYPE_METHOD(constructor, "bind", Bind);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", Close);
+    Local<FunctionTemplate> t = FunctionTemplate::New(New);
+    t->SetClassName(String::NewSymbol("TCP"));
 
-    target->Set(String::NewSymbol("TCP"), constructor->GetFunction());
+    t->InstanceTemplate()->SetInternalFieldCount(1);
+
+    NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
+    NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
+    NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
+
+    constructor = Persistent<Function>::New(t->GetFunction());
+
+    target->Set(String::NewSymbol("TCP"), constructor);
   }
 
  private:
@@ -73,13 +82,14 @@ class TCPWrap {
     assert(args.IsConstructCall());
 
     HandleScope scope;
-    TCPWrap *wrap = new TCPWrap(args.This());
+    TCPWrap* wrap = new TCPWrap(args.This());
     assert(wrap);
 
     return scope.Close(args.This());
   }
 
   TCPWrap(Handle<Object> object) {
+    on_deck_ = false;
     int r = uv_tcp_init(&handle_);
     handle_.data = this;
     assert(r == 0); // How do we proxy this error up to javascript?
@@ -91,6 +101,17 @@ class TCPWrap {
   }
 
   ~TCPWrap() {
+    // If there was a client on deck then close it.
+    if (on_deck_) {
+      HandleScope scope;
+      Local<Value> client_v = object_->GetHiddenValue(deck);
+      assert(!client_v.IsEmpty());
+      Local<Object> client_obj = client_v->ToObject();
+      TCPWrap* client_wrap =
+          static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
+      uv_close((uv_handle_t*) &client_wrap->handle_, OnClose);
+    }
+
     assert(!object_.IsEmpty());
     object_->SetPointerInInternalField(0, NULL);
     object_.Dispose();
@@ -119,6 +140,74 @@ class TCPWrap {
     return scope.Close(Integer::New(r));
   }
 
+  static Handle<Value> Listen(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    int backlog = args[0]->Int32Value();
+
+    int r = uv_listen(&wrap->handle_, backlog, OnConnection);
+
+    // Error starting the tcp.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(Integer::New(r));
+  }
+
+  static void OnConnection(uv_tcp_t* handle, int status) {
+    HandleScope scope;
+
+    TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
+
+    assert(&wrap->handle_ == handle);
+
+    if (status != 0) {
+      // TODO Handle server error (call onerror?)
+      assert(0);
+      uv_close((uv_handle_t*) handle, OnClose);
+      return;
+    }
+
+    // Check the deck to see if we already have a client object that can
+    // be used. (The 'deck' terminology comes from baseball.)
+    Local<Object> client_obj;
+
+    if (wrap->on_deck_) {
+      Local<Value> client_v = wrap->object_->GetHiddenValue(deck);
+      assert(!client_v.IsEmpty());
+      client_obj = client_v->ToObject();
+    } else {
+      client_obj = constructor->NewInstance();
+    }
+
+    // Unwrap the client.
+    assert(client_obj->InternalFieldCount() > 0);
+    TCPWrap* client_wrap =
+        static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
+
+    int r = uv_accept(handle, &client_wrap->handle_);
+
+    if (r) {
+      uv_err_t err = uv_last_error();
+      if (err.code == UV_EAGAIN) {
+        // We need to retry in a bit. Put the client_obj on deck.
+        wrap->on_deck_ = true;
+        wrap->object_->SetHiddenValue(deck, client_obj);
+      } else {
+        // TODO handle real error!
+        assert(0);
+      }
+      return;
+    }
+
+    // Successful accept. Clear the deck and pass the client_obj to the user.
+    wrap->on_deck_ = false;
+    wrap->object_->DeleteHiddenValue(deck);
+    Local<Value> argv[1] = { client_obj };
+    MakeCallback(wrap->object_, "onconnection", 1, argv);
+  }
+
   // TODO: share me?
   static Handle<Value> Close(const Arguments& args) {
     HandleScope scope;
@@ -134,6 +223,7 @@ class TCPWrap {
 
   uv_tcp_t handle_;
   Persistent<Object> object_;
+  bool on_deck_;
 };
 
 
