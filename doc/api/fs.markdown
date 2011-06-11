@@ -398,6 +398,12 @@ Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
 
 `ReadStream` is a `Readable Stream`.
 
+### Event: 'open'
+
+`function (fd) { }`
+
+ `fd` is the file descriptor used by the ReadStream.
+
 ### fs.createReadStream(path, [options])
 
 Returns a new ReadStream object (See `Readable Stream`).
