@@ -883,7 +883,7 @@ void ChildProcess::Initialize(Handle<Object> target) {
 
   target->Set(String::NewSymbol("ChildProcess"), t->GetFunction());
 
-  uv_async_init(&watcher_status.async_watcher, notify_exit, NULL, NULL);
+  uv_async_init(&watcher_status.async_watcher, notify_exit);
   watcher_status.lock = CreateSemaphore(NULL, 1, 1, NULL);
 }
 

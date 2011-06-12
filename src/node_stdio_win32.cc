@@ -658,7 +658,7 @@ static Handle<Value> StopTTYWatcher(const Arguments& args) {
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
   init_scancode_table();
   
-  uv_async_init(&tty_avail_notifier, tty_poll, NULL, NULL);
+  uv_async_init(&tty_avail_notifier, tty_poll);
   uv_unref();
 
   name_symbol = NODE_PSYMBOL("name");
