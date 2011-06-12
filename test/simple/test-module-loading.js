@@ -187,6 +187,26 @@ try {
 assert.equal(require(loadOrder + 'file8').file8, 'file8/index.reg', msg);
 assert.equal(require(loadOrder + 'file9').file9, 'file9/index.reg2', msg);
 
+
+// test the async module definition pattern modules
+var amdFolder = '../fixtures/amd-modules';
+var amdreg = require(amdFolder + '/regular.js');
+assert.deepEqual(amdreg.ok, {ok: true}, 'regular amd module failed');
+
+// make sure they all get the same 'ok' object.
+var amdModuleExports = require(amdFolder + '/module-exports.js');
+assert.equal(amdModuleExports.ok, amdreg.ok, 'amd module.exports failed');
+
+var amdReturn = require(amdFolder + '/return.js');
+assert.equal(amdReturn.ok, amdreg.ok, 'amd return failed');
+
+var amdObj = require(amdFolder + '/object.js');
+assert.equal(amdObj.ok, amdreg.ok, 'amd object literal failed');
+
+var amdExtraArgs = require(amdFolder + '/extra-args.js');
+assert.equal(amdExtraArgs.ok, amdreg.ok, 'amd extra args failed');
+
+
 process.addListener('exit', function() {
   assert.ok(common.indirectInstanceOf(a.A, Function));
   assert.equal('A done', a.A());
