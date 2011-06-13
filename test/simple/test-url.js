@@ -79,7 +79,7 @@ var parseTests = {
     'protocol': 'http:',
     'host': 'x.com',
     'hostname': 'x.com',
-    'pathname': '/Y',
+    'pathname': '/Y'
   },
   // an unexpected invalid char in the hostname.
   'HtTp://x.y.cOm*a/b/c?d=e#f g<h>i' : {
@@ -113,7 +113,7 @@ var parseTests = {
   },
   'http://x/p/"quoted"': {
     'href': 'http://x/p/',
-    'protocol':'http:',
+    'protocol': 'http:',
     'host': 'x',
     'hostname': 'x',
     'pathname': '/p/'
@@ -274,6 +274,59 @@ var parseTests = {
     'search' : '?search=foo',
     'query' : 'search=foo',
     'hash' : '#bar'
+  },
+  // IDNA tests
+  'http://www.日本語.com/' : {
+    'href': 'http://www.xn--wgv71a119e.com/',
+    'protocol': 'http:',
+    'host': 'www.xn--wgv71a119e.com',
+    'hostname': 'www.xn--wgv71a119e.com',
+    'pathname': '/'
+  },
+  'http://example.Bücher.com/' : {
+    'href': 'http://example.xn--bcher-kva.com/',
+    'protocol': 'http:',
+    'host': 'example.xn--bcher-kva.com',
+    'hostname': 'example.xn--bcher-kva.com',
+    'pathname': '/'
+  },
+  'http://www.Äffchen.com/' : {
+    'href': 'http://www.xn--ffchen-9ta.com/',
+    'protocol': 'http:',
+    'host': 'www.xn--ffchen-9ta.com',
+    'hostname': 'www.xn--ffchen-9ta.com',
+    'pathname': '/'
+  },
+  'http://www.Äffchen.cOm*A/b/c?d=e#f g<h>i' : {
+    'href': 'http://www.xn--ffchen-9ta.com/*A/b/c?d=e#f',
+    'protocol': 'http:',
+    'host': 'www.xn--ffchen-9ta.com',
+    'hostname': 'www.xn--ffchen-9ta.com',
+    'pathname': '/*A/b/c',
+    'search': '?d=e',
+    'query': 'd=e',
+    'hash': '#f'
+  },
+  'http://SÉLIER.COM/' : {
+    'href': 'http://xn--slier-bsa.com/',
+    'protocol': 'http:',
+    'host': 'xn--slier-bsa.com',
+    'hostname': 'xn--slier-bsa.com',
+    'pathname': '/'
+  },
+  'http://ليهمابتكلموشعربي؟.ي؟/' : {
+    'href': 'http://xn--egbpdaj6bu4bxfgehfvwxn.xn--egb9f/',
+    'protocol': 'http:',
+    'host': 'xn--egbpdaj6bu4bxfgehfvwxn.xn--egb9f',
+    'hostname': 'xn--egbpdaj6bu4bxfgehfvwxn.xn--egb9f',
+    'pathname': '/'
+  },
+  'http://➡.ws/➡' : {
+    'href': 'http://xn--hgi.ws/➡',
+    'protocol': 'http:',
+    'host': 'xn--hgi.ws',
+    'hostname': 'xn--hgi.ws',
+    'pathname': '/➡'
   }
 };
 for (var u in parseTests) {
