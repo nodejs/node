@@ -33,9 +33,6 @@ namespace node {
  * object in javascript. The object is not totally opaque, one can access
  * individual bytes with [] and slice it into substrings or sub-buffers
  * without copying memory.
- *
- * // return an ascii encoded string - no memory is copied
- * buffer.asciiSlice(0, 3)
  */
 
 /*
