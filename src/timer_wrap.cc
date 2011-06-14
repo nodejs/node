@@ -102,9 +102,7 @@ class TimerWrap {
 
   ~TimerWrap() {
     if (!active_) uv_ref();
-    assert(!object_.IsEmpty());
-    object_->SetPointerInInternalField(0, NULL);
-    object_.Dispose();
+    assert(object_.IsEmpty());
   }
 
   void StateChange() {
@@ -209,6 +207,11 @@ class TimerWrap {
     if (r) SetErrno(uv_last_error().code);
 
     wrap->StateChange();
+
+    assert(!wrap->object_.IsEmpty());
+    wrap->object_->SetPointerInInternalField(0, NULL);
+    wrap->object_.Dispose();
+    wrap->object_.Clear();
 
     return scope.Close(Integer::New(r));
   }

@@ -97,9 +97,7 @@ class TCPWrap {
   }
 
   ~TCPWrap() {
-    assert(!object_.IsEmpty());
-    object_->SetPointerInInternalField(0, NULL);
-    object_.Dispose();
+    assert(object_.IsEmpty());
   }
 
   // Free the C++ object on the close callback.
@@ -181,6 +179,11 @@ class TCPWrap {
     int r = uv_close((uv_handle_t*) &wrap->handle_, OnClose);
 
     if (r) SetErrno(uv_last_error().code);
+
+    assert(!wrap->object_.IsEmpty());
+    wrap->object_->SetPointerInInternalField(0, NULL);
+    wrap->object_.Dispose();
+    wrap->object_.Clear();
 
     return scope.Close(Integer::New(r));
   }
