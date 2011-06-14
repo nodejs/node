@@ -1,6 +1,10 @@
 #include <v8.h>
 #include <uv.h>
 #include <node.h>
+#include <node_buffer.h>
+
+#define SLAB_SIZE (1024 * 1024)
+#define MIN(a, b) ((a) < (b) ? (a) : (b))
 
 // Rules:
 //
@@ -50,6 +54,12 @@ using v8::Arguments;
 using v8::Integer;
 
 static Persistent<Function> constructor;
+static size_t slab_used;
+static uv_tcp_t* handle_that_last_alloced;
+
+static Persistent<String> slab_sym;
+static Persistent<String> offset_sym;
+static Persistent<String> length_sym;
 
 class TCPWrap {
  public:
@@ -64,9 +74,15 @@ class TCPWrap {
 
     NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
     NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
+    NODE_SET_PROTOTYPE_METHOD(t, "readStart", ReadStart);
+    NODE_SET_PROTOTYPE_METHOD(t, "readStop", ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
     constructor = Persistent<Function>::New(t->GetFunction());
+
+    slab_sym = Persistent<String>::New(String::NewSymbol("slab"));
+    offset_sym = Persistent<String>::New(String::NewSymbol("offset"));
+    length_sym = Persistent<String>::New(String::NewSymbol("length"));
 
     target->Set(String::NewSymbol("TCP"), constructor);
   }
@@ -170,6 +186,120 @@ class TCPWrap {
     MakeCallback(wrap->object_, "onconnection", 1, argv);
   }
 
+  static Handle<Value> ReadStart(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    int r = uv_read_start(&wrap->handle_, OnAlloc, OnRead);
+
+    // Error starting the tcp.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(Integer::New(r));
+  }
+
+  static Handle<Value> ReadStop(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    int r = uv_read_stop(&wrap->handle_);
+
+    // Error starting the tcp.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(Integer::New(r));
+  }
+
+  static inline char* NewSlab(Handle<Object> global, Handle<Object> wrap_obj) {
+    Buffer* b = Buffer::New(SLAB_SIZE);
+    global->SetHiddenValue(slab_sym, b->handle_);
+    assert(Buffer::Length(b) == SLAB_SIZE);
+    slab_used = 0;
+    wrap_obj->SetHiddenValue(slab_sym, b->handle_);
+    return Buffer::Data(b);
+  }
+
+  static uv_buf_t OnAlloc(uv_tcp_t* handle, size_t suggested_size) {
+    HandleScope scope;
+
+    TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
+    assert(&wrap->handle_ == handle);
+
+    char* slab = NULL;
+
+    Handle<Object> global = Context::GetCurrent()->Global();
+    Local<Value> slab_v = global->GetHiddenValue(slab_sym);
+
+    if (slab_v.IsEmpty()) {
+      // No slab currently. Create a new one.
+      slab = NewSlab(global, wrap->object_);
+    } else {
+      // Use existing slab.
+      Local<Object> slab_obj = slab_v->ToObject();
+      slab = Buffer::Data(slab_obj);
+      assert(Buffer::Length(slab_obj) == SLAB_SIZE);
+      assert(SLAB_SIZE > slab_used);
+
+      // If less than 64kb is remaining on the slab allocate a new one.
+      if (SLAB_SIZE - slab_used < 64 * 1024) {
+        slab = NewSlab(global, wrap->object_);
+      } else {
+        wrap->object_->SetHiddenValue(slab_sym, slab_obj);
+      }
+    }
+
+    uv_buf_t buf;
+    buf.base = slab + slab_used;
+    buf.len = MIN(SLAB_SIZE - slab_used, suggested_size);
+
+    wrap->slab_offset_ = slab_used;
+    slab_used += buf.len;
+
+    handle_that_last_alloced = handle;
+
+    return buf;
+  }
+
+  static void OnRead(uv_tcp_t* handle, ssize_t nread, uv_buf_t buf) {
+    HandleScope scope;
+
+    TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
+
+    // Remove the reference to the slab to avoid memory leaks;
+    Local<Value> slab_v = wrap->object_->GetHiddenValue(slab_sym);
+    wrap->object_->SetHiddenValue(slab_sym, v8::Null());
+
+    if (nread < 0)  {
+      // EOF or Error
+      if (handle_that_last_alloced == handle) {
+        slab_used -= buf.len;
+      }
+
+      SetErrno(uv_last_error().code);
+      MakeCallback(wrap->object_, "onread", 0, NULL);
+      return;
+    }
+
+    assert(nread <= buf.len);
+
+    if (handle_that_last_alloced == handle) {
+      slab_used -= (buf.len - nread);
+    }
+
+    if (nread > 0) {
+      Local<Object> slice = Object::New();
+      slice->Set(slab_sym, slab_v);
+      slice->Set(offset_sym, Integer::New(wrap->slab_offset_));
+      slice->Set(length_sym, Integer::New(nread));
+
+      Local<Value> argv[1] = { slice };
+      MakeCallback(wrap->object_, "onread", 1, argv);
+    }
+  }
+
+
   // TODO: share me?
   static Handle<Value> Close(const Arguments& args) {
     HandleScope scope;
@@ -190,6 +320,7 @@ class TCPWrap {
 
   uv_tcp_t handle_;
   Persistent<Object> object_;
+  size_t slab_offset_;
 };
 
 
