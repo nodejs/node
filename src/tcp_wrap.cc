@@ -50,15 +50,12 @@ using v8::Arguments;
 using v8::Integer;
 
 static Persistent<Function> constructor;
-static Persistent<String> deck;
 
 class TCPWrap {
  public:
 
   static void Initialize(Handle<Object> target) {
     HandleScope scope;
-
-    deck = Persistent<String>::New(String::New("deck"));
 
     Local<FunctionTemplate> t = FunctionTemplate::New(New);
     t->SetClassName(String::NewSymbol("TCP"));
@@ -89,7 +86,6 @@ class TCPWrap {
   }
 
   TCPWrap(Handle<Object> object) {
-    on_deck_ = false;
     int r = uv_tcp_init(&handle_);
     handle_.data = this;
     assert(r == 0); // How do we proxy this error up to javascript?
@@ -101,17 +97,6 @@ class TCPWrap {
   }
 
   ~TCPWrap() {
-    // If there was a client on deck then close it.
-    if (on_deck_) {
-      HandleScope scope;
-      Local<Value> client_v = object_->GetHiddenValue(deck);
-      assert(!client_v.IsEmpty());
-      Local<Object> client_obj = client_v->ToObject();
-      TCPWrap* client_wrap =
-          static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
-      uv_close((uv_handle_t*) &client_wrap->handle_, OnClose);
-    }
-
     assert(!object_.IsEmpty());
     object_->SetPointerInInternalField(0, NULL);
     object_.Dispose();
@@ -169,41 +154,20 @@ class TCPWrap {
       return;
     }
 
-    // Check the deck to see if we already have a client object that can
-    // be used. (The 'deck' terminology comes from baseball.)
-    Local<Object> client_obj;
+    // Instanciate the client javascript object and handle.
+    Local<Object> client_obj = constructor->NewInstance();
 
-    if (wrap->on_deck_) {
-      Local<Value> client_v = wrap->object_->GetHiddenValue(deck);
-      assert(!client_v.IsEmpty());
-      client_obj = client_v->ToObject();
-    } else {
-      client_obj = constructor->NewInstance();
-    }
-
-    // Unwrap the client.
+    // Unwrap the client javascript object.
     assert(client_obj->InternalFieldCount() > 0);
     TCPWrap* client_wrap =
         static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
 
     int r = uv_accept(handle, &client_wrap->handle_);
 
-    if (r) {
-      uv_err_t err = uv_last_error();
-      if (err.code == UV_EAGAIN) {
-        // We need to retry in a bit. Put the client_obj on deck.
-        wrap->on_deck_ = true;
-        wrap->object_->SetHiddenValue(deck, client_obj);
-      } else {
-        // TODO handle real error!
-        assert(0);
-      }
-      return;
-    }
+    // uv_accept should always work.
+    assert(r == 0);
 
-    // Successful accept. Clear the deck and pass the client_obj to the user.
-    wrap->on_deck_ = false;
-    wrap->object_->DeleteHiddenValue(deck);
+    // Successful accept. Call the onconnection callback in JavaScript land.
     Local<Value> argv[1] = { client_obj };
     MakeCallback(wrap->object_, "onconnection", 1, argv);
   }
@@ -223,7 +187,6 @@ class TCPWrap {
 
   uv_tcp_t handle_;
   Persistent<Object> object_;
-  bool on_deck_;
 };
 
 
