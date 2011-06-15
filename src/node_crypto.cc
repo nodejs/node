@@ -42,10 +42,8 @@
     return ThrowException(Exception::TypeError(String::New("Not a string or buffer"))); \
   }
 
-static const char *RSA_PUB_KEY_PFX =  "-----BEGIN RSA PUBLIC KEY-----";
-static const char *DSA_PUB_KEY_PFX =  "-----BEGIN PUBLIC KEY-----";
-static const int RSA_PUB_KEY_PFX_LEN = strlen(RSA_PUB_KEY_PFX);
-static const int DSA_PUB_KEY_PFX_LEN = strlen(DSA_PUB_KEY_PFX);
+static const char *PUBLIC_KEY_PFX =  "-----BEGIN PUBLIC KEY-----";
+static const int PUBLIC_KEY_PFX_LEN = strlen(PUBLIC_KEY_PFX);
 
 namespace node {
 namespace crypto {
@@ -2776,10 +2774,8 @@ class Verify : public ObjectWrap {
       return 0;
     }
 
-    // Check if this is an RSA or DSA "raw" public key before trying
-    // X.509
-    if (strncmp(key_pem, RSA_PUB_KEY_PFX, RSA_PUB_KEY_PFX_LEN) == 0 ||
-        strncmp(key_pem, DSA_PUB_KEY_PFX, DSA_PUB_KEY_PFX_LEN) == 0) {
+    // Check if this is a PKCS#8 public key before trying as X.509
+    if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
       pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
       if (pkey == NULL) {
         ERR_print_errors_fp(stderr);
@@ -2801,8 +2797,6 @@ class Verify : public ObjectWrap {
     }
 
     r = EVP_VerifyFinal(&mdctx, sig, siglen, pkey);
-    if (r != 1)
-      ERR_print_errors_fp (stderr);
 
     if(pkey != NULL)
       EVP_PKEY_free (pkey);
