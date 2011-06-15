@@ -28,12 +28,17 @@ def configure(conf):
   if conf.check_cc(header_name="poll.h"):
     conf.check_cc(header_name="poll.h", function_name="poll")
 
-  conf.check_cc(header_name="sys/event.h")
-  conf.check_cc(header_name="sys/queue.h")
-  if PLATFORM_IS_DARWIN:
-    conf.check_cc(header_name="sys/event.h", function_name="kqueue")
-  else:
-    conf.check_cc(header_name="sys/queue.h", function_name="kqueue")
+  kqueue_headers = []
+  # On FreeBSD event.h is not selfcontained and requires types.h
+  event_headers = ["sys/types.h", "sys/event.h"]
+  if conf.check_cc(header_name=event_headers, define_name="HAVE_SYS_EVENT_H"):
+    kqueue_headers += event_headers
+
+  if conf.check_cc(header_name="sys/queue.h"):
+    kqueue_headers.append("sys/queue.h")
+
+  if kqueue_headers:
+    conf.check_cc(header_name=kqueue_headers, function_name="kqueue")
 
   if PLATFORM_IS_WIN32:
     # Windows has sys/select.h and select but this config line doesn't detect it properly
