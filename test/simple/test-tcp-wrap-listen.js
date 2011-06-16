@@ -27,13 +27,21 @@ server.onconnection = function(client) {
 
   client.readStart();
   client.pendingWrites = [];
-  client.onread = function(s) {
-    if (s) {
-      slice = s;
-      var req = client.write(s.slab, s.offset, s.length);
+  client.onread = function(buffer, offset, length) {
+    if (buffer) {
+      assert.ok(length > 0);
+
+      var req = client.write(buffer, offset, length);
       client.pendingWrites.push(req);
-      req.oncomplete = function() {
+
+      req.oncomplete = function(client_, req_, buffer_) {
         assert.equal(req, client.pendingWrites.shift());
+
+        // Check parameters.
+        assert.equal(client, client_);
+        assert.equal(req, req_);
+        assert.equal(buffer, buffer_);
+
         writeCount++;
         console.log("write " + writeCount);
         maybeCloseClient();
@@ -72,11 +80,6 @@ process.on('exit', function() {
   assert.equal(1, eofCount);
   assert.equal(1, writeCount);
   assert.equal(1, recvCount);
-  assert.ok(slice);
-  assert.ok(slice.slab);
-
-  var s = slice.slab.slice(slice.offset, slice.length, "ascii");
-  assert.equal("hello world", s);
 });
 
 

@@ -58,8 +58,6 @@ static size_t slab_used;
 static uv_tcp_t* handle_that_last_alloced;
 
 static Persistent<String> slab_sym;
-static Persistent<String> offset_sym;
-static Persistent<String> length_sym;
 static Persistent<String> buffer_sym;
 
 class TCPWrap;
@@ -104,8 +102,6 @@ class TCPWrap {
     constructor = Persistent<Function>::New(t->GetFunction());
 
     slab_sym = Persistent<String>::New(String::NewSymbol("slab"));
-    offset_sym = Persistent<String>::New(String::NewSymbol("offset"));
-    length_sym = Persistent<String>::New(String::NewSymbol("length"));
     buffer_sym = Persistent<String>::New(String::NewSymbol("buffer"));
 
     target->Set(String::NewSymbol("TCP"), constructor);
@@ -313,16 +309,14 @@ class TCPWrap {
     }
 
     if (nread > 0) {
-      Local<Object> slice = Object::New();
-      slice->Set(slab_sym, slab_v);
-      slice->Set(offset_sym, Integer::New(wrap->slab_offset_));
-      slice->Set(length_sym, Integer::New(nread));
-
-      Local<Value> argv[1] = { slice };
-      MakeCallback(wrap->object_, "onread", 1, argv);
+      Local<Value> argv[3] = {
+        slab_v,
+        Integer::New(wrap->slab_offset_),
+        Integer::New(nread)
+      };
+      MakeCallback(wrap->object_, "onread", 3, argv);
     }
   }
-
 
   // TODO: share me?
   static Handle<Value> Close(const Arguments& args) {
@@ -352,8 +346,13 @@ class TCPWrap {
       SetErrno(uv_last_error().code);
     }
 
-    Local<Value> argv[1] = { Local<Value>::New(wrap->object_) };
-    MakeCallback(req_wrap->object_, "oncomplete", 1, argv);
+    Local<Value> argv[3] = {
+      Local<Value>::New(wrap->object_),
+      Local<Value>::New(req_wrap->object_),
+      req_wrap->object_->GetHiddenValue(buffer_sym),
+    };
+ 
+    MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
 
     delete req_wrap;
   }
