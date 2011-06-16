@@ -404,12 +404,15 @@ class TCPWrap {
 
     int r = uv_write(&req_wrap->req_, &buf, 1);
 
-    // Error starting the TCP.
-    if (r) SetErrno(uv_last_error().code);
-
     wrap->UpdateWriteQueueSize();
 
-    return scope.Close(req_wrap->object_);
+    if (r) {
+      SetErrno(uv_last_error().code);
+      delete req_wrap;
+      return scope.Close(v8::Null());
+    } else {
+      return scope.Close(req_wrap->object_);
+    }
   }
 
   static void AfterConnect(uv_req_t* req, int status) {
@@ -451,9 +454,13 @@ class TCPWrap {
 
     int r = uv_connect(&req_wrap->req_, address);
 
-    if (r) SetErrno(uv_last_error().code);
-
-    return scope.Close(req_wrap->object_);
+    if (r) {
+      SetErrno(uv_last_error().code);
+      delete req_wrap;
+      return scope.Close(v8::Null());
+    } else {
+      return scope.Close(req_wrap->object_);
+    }
   }
 
   uv_tcp_t handle_;
