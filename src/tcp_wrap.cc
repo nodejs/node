@@ -60,6 +60,28 @@ static uv_tcp_t* handle_that_last_alloced;
 static Persistent<String> slab_sym;
 static Persistent<String> offset_sym;
 static Persistent<String> length_sym;
+static Persistent<String> buffer_sym;
+
+class TCPWrap;
+
+class ReqWrap {
+ public:
+  ReqWrap(uv_handle_t* handle, void* callback) {
+    HandleScope scope;
+    object_ = Persistent<Object>::New(Object::New());
+    uv_req_init(&req_, handle, callback);
+    req_.data = this;
+  }
+
+  ~ReqWrap() {
+    assert(!object_.IsEmpty());
+    object_.Dispose();
+    object_.Clear();
+  }
+
+  Persistent<Object> object_;
+  uv_req_t req_;
+};
 
 class TCPWrap {
  public:
@@ -76,6 +98,7 @@ class TCPWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
     NODE_SET_PROTOTYPE_METHOD(t, "readStart", ReadStart);
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", ReadStop);
+    NODE_SET_PROTOTYPE_METHOD(t, "write", Write);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
     constructor = Persistent<Function>::New(t->GetFunction());
@@ -83,6 +106,7 @@ class TCPWrap {
     slab_sym = Persistent<String>::New(String::NewSymbol("slab"));
     offset_sym = Persistent<String>::New(String::NewSymbol("offset"));
     length_sym = Persistent<String>::New(String::NewSymbol("length"));
+    buffer_sym = Persistent<String>::New(String::NewSymbol("buffer"));
 
     target->Set(String::NewSymbol("TCP"), constructor);
   }
@@ -318,9 +342,66 @@ class TCPWrap {
     return scope.Close(Integer::New(r));
   }
 
+  static void AfterWrite(uv_req_t* req, int status) {
+    ReqWrap* req_wrap = (ReqWrap*) req->data;
+    TCPWrap* wrap = (TCPWrap*) req->handle->data;
+
+    HandleScope scope;
+
+    if (status) {
+      SetErrno(uv_last_error().code);
+    }
+
+    Local<Value> argv[1] = { Local<Value>::New(wrap->object_) };
+    MakeCallback(req_wrap->object_, "oncomplete", 1, argv);
+
+    delete req_wrap;
+  }
+
+  static Handle<Value> Write(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    // The first argument is a buffer.
+    assert(Buffer::HasInstance(args[0]));
+    Local<Object> buffer_obj = args[0]->ToObject();
+
+    size_t offset = 0;
+    size_t length = Buffer::Length(buffer_obj);
+
+    if (args.Length() > 1) {
+      offset = args[1]->IntegerValue();
+    }
+
+    if (args.Length() > 2) {
+      length = args[2]->IntegerValue();
+    }
+
+    // I hate when people program C++ like it was C, and yet I do it too.
+    // I'm too lazy to come up with the perfect class hierarchy here. Let's
+    // just do some type munging.
+    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
+                                    (void*)AfterWrite);
+
+    req_wrap->object_->SetHiddenValue(buffer_sym, buffer_obj);
+
+    uv_buf_t buf;
+    buf.base = Buffer::Data(buffer_obj) + offset;
+    buf.len = length;
+
+    int r = uv_write(&req_wrap->req_, &buf, 1);
+
+    // Error starting the TCP.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(req_wrap->object_);
+  }
+
   uv_tcp_t handle_;
   Persistent<Object> object_;
   size_t slab_offset_;
+  friend class ReqWrap;
 };
 
 
