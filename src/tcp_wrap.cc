@@ -59,6 +59,7 @@ static uv_tcp_t* handle_that_last_alloced;
 
 static Persistent<String> slab_sym;
 static Persistent<String> buffer_sym;
+static Persistent<String> write_queue_size_sym;
 
 class TCPWrap;
 
@@ -104,6 +105,8 @@ class TCPWrap {
 
     slab_sym = Persistent<String>::New(String::NewSymbol("slab"));
     buffer_sym = Persistent<String>::New(String::NewSymbol("buffer"));
+    write_queue_size_sym =
+      Persistent<String>::New(String::NewSymbol("writeQueueSize"));
 
     target->Set(String::NewSymbol("TCP"), constructor);
   }
@@ -131,6 +134,8 @@ class TCPWrap {
     assert(object->InternalFieldCount() > 0);
     object_ = v8::Persistent<v8::Object>::New(object);
     object_->SetPointerInInternalField(0, this);
+
+    UpdateWriteQueueSize();
   }
 
   ~TCPWrap() {
@@ -141,6 +146,10 @@ class TCPWrap {
   static void OnClose(uv_handle_t* handle) {
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
     delete wrap;
+  }
+
+  inline void UpdateWriteQueueSize() {
+    object_->Set(write_queue_size_sym, Integer::New(handle_.write_queue_size));
   }
 
   static Handle<Value> Bind(const Arguments& args) {
@@ -347,6 +356,8 @@ class TCPWrap {
       SetErrno(uv_last_error().code);
     }
 
+    wrap->UpdateWriteQueueSize();
+
     Local<Value> argv[4] = {
       Integer::New(status),
       Local<Value>::New(wrap->object_),
@@ -395,6 +406,8 @@ class TCPWrap {
 
     // Error starting the TCP.
     if (r) SetErrno(uv_last_error().code);
+
+    wrap->UpdateWriteQueueSize();
 
     return scope.Close(req_wrap->object_);
   }

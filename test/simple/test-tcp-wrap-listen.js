@@ -16,6 +16,7 @@ var writeCount = 0;
 var recvCount = 0;
 
 server.onconnection = function(client) {
+  assert.equal(0, client.writeQueueSize);
   console.log("got connection");
 
   function maybeCloseClient() {
@@ -31,8 +32,13 @@ server.onconnection = function(client) {
     if (buffer) {
       assert.ok(length > 0);
 
+      assert.equal(0, client.writeQueueSize);
+
       var req = client.write(buffer, offset, length);
       client.pendingWrites.push(req);
+
+      console.log("client.writeQueueSize: " + client.writeQueueSize);
+      assert.equal(length, client.writeQueueSize);
 
       req.oncomplete = function(status, client_, req_, buffer_) {
         assert.equal(req, client.pendingWrites.shift());
@@ -42,6 +48,9 @@ server.onconnection = function(client) {
         assert.equal(client, client_);
         assert.equal(req, req_);
         assert.equal(buffer, buffer_);
+
+        console.log("client.writeQueueSize: " + client.writeQueueSize);
+        assert.equal(0, client.writeQueueSize);
 
         writeCount++;
         console.log("write " + writeCount);
