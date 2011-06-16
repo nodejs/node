@@ -99,6 +99,7 @@ class TCPWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "write", Write);
     NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
+    NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
     constructor = Persistent<Function>::New(t->GetFunction());
@@ -364,7 +365,7 @@ class TCPWrap {
       Local<Value>::New(req_wrap->object_),
       req_wrap->object_->GetHiddenValue(buffer_sym),
     };
- 
+
     MakeCallback(req_wrap->object_, "oncomplete", 4, argv);
 
     delete req_wrap;
@@ -430,7 +431,7 @@ class TCPWrap {
       Local<Value>::New(wrap->object_),
       Local<Value>::New(req_wrap->object_)
     };
- 
+
     MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
 
     delete req_wrap;
@@ -453,6 +454,46 @@ class TCPWrap {
                                     (void*)AfterConnect);
 
     int r = uv_connect(&req_wrap->req_, address);
+
+    if (r) {
+      SetErrno(uv_last_error().code);
+      delete req_wrap;
+      return scope.Close(v8::Null());
+    } else {
+      return scope.Close(req_wrap->object_);
+    }
+  }
+
+  static void AfterShutdown(uv_req_t* req, int status) {
+    ReqWrap* req_wrap = (ReqWrap*) req->data;
+    TCPWrap* wrap = (TCPWrap*) req->handle->data;
+
+    HandleScope scope;
+
+    if (status) {
+      SetErrno(uv_last_error().code);
+    }
+
+    Local<Value> argv[3] = {
+      Integer::New(status),
+      Local<Value>::New(wrap->object_),
+      Local<Value>::New(req_wrap->object_)
+    };
+
+    MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
+
+    delete req_wrap;
+  }
+
+  static Handle<Value> Shutdown(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
+                                    (void*)AfterShutdown);
+
+    int r = uv_shutdown(&req_wrap->req_);
 
     if (r) {
       SetErrno(uv_last_error().code);
