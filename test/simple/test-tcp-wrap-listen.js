@@ -34,10 +34,11 @@ server.onconnection = function(client) {
       var req = client.write(buffer, offset, length);
       client.pendingWrites.push(req);
 
-      req.oncomplete = function(client_, req_, buffer_) {
+      req.oncomplete = function(status, client_, req_, buffer_) {
         assert.equal(req, client.pendingWrites.shift());
 
         // Check parameters.
+        assert.equal(0, status);
         assert.equal(client, client_);
         assert.equal(req, req_);
         assert.equal(buffer, buffer_);

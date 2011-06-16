@@ -97,6 +97,7 @@ class TCPWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "readStart", ReadStart);
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "write", Write);
+    NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
 
     constructor = Persistent<Function>::New(t->GetFunction());
@@ -346,13 +347,14 @@ class TCPWrap {
       SetErrno(uv_last_error().code);
     }
 
-    Local<Value> argv[3] = {
+    Local<Value> argv[4] = {
+      Integer::New(status),
       Local<Value>::New(wrap->object_),
       Local<Value>::New(req_wrap->object_),
       req_wrap->object_->GetHiddenValue(buffer_sym),
     };
  
-    MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
+    MakeCallback(req_wrap->object_, "oncomplete", 4, argv);
 
     delete req_wrap;
   }
@@ -392,6 +394,50 @@ class TCPWrap {
     int r = uv_write(&req_wrap->req_, &buf, 1);
 
     // Error starting the TCP.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(req_wrap->object_);
+  }
+
+  static void AfterConnect(uv_req_t* req, int status) {
+    ReqWrap* req_wrap = (ReqWrap*) req->data;
+    TCPWrap* wrap = (TCPWrap*) req->handle->data;
+
+    HandleScope scope;
+
+    if (status) {
+      SetErrno(uv_last_error().code);
+    }
+
+    Local<Value> argv[3] = {
+      Integer::New(status),
+      Local<Value>::New(wrap->object_),
+      Local<Value>::New(req_wrap->object_)
+    };
+ 
+    MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
+
+    delete req_wrap;
+  }
+
+  static Handle<Value> Connect(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    String::AsciiValue ip_address(args[0]->ToString());
+    int port = args[1]->Int32Value();
+
+    struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
+
+    // I hate when people program C++ like it was C, and yet I do it too.
+    // I'm too lazy to come up with the perfect class hierarchy here. Let's
+    // just do some type munging.
+    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
+                                    (void*)AfterConnect);
+
+    int r = uv_connect(&req_wrap->req_, address);
+
     if (r) SetErrno(uv_last_error().code);
 
     return scope.Close(req_wrap->object_);
