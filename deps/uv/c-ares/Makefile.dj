@@ -1,0 +1,85 @@
+#
+# c-ares Makefile for djgpp/gcc/Watt-32.
+#   By Gisle Vanem <gvanem@broadpark.no> 2004.
+#
+
+
+TOPDIR = ..
+
+DEPEND_PREREQ = ares_config.h
+
+include ../packages/DOS/common.dj
+include Makefile.inc
+
+CFLAGS += -DWATT32 -Dselect=select_s
+
+LDFLAGS = -s
+
+ifeq ($(USE_CURLDEBUG),1)
+  EX_LIBS  = ../lib/libcurl.a
+  OBJ_HACK = $(OBJECTS)
+else
+  OBJ_HACK = libcares.a
+endif
+
+ifeq ($(USE_SSL),1)
+  EX_LIBS += $(OPENSSL_ROOT)/lib/libssl.a $(OPENSSL_ROOT)/lib/libcrypt.a
+endif
+
+ifeq ($(USE_ZLIB),1)
+  EX_LIBS += $(ZLIB_ROOT)/libz.a
+endif
+
+ifeq ($(USE_IDNA),1)
+  EX_LIBS += $(LIBIDN_ROOT)/lib/dj_obj/libidn.a -liconv
+endif
+
+EX_LIBS += $(WATT32_ROOT)/lib/libwatt.a
+
+OBJECTS = $(addprefix $(OBJ_DIR)/, $(CSOURCES:.c=.o))
+
+all: $(OBJ_DIR) ares_config.h libcares.a ahost.exe adig.exe acountry.exe
+	@echo Welcome to c-ares.
+
+libcares.a: $(OBJECTS)
+	ar rs $@ $?
+
+ares_config.h: config-dos.h
+	$(COPY) $^ $@
+
+ahost.exe: ahost.c $(OBJ_DIR)/ares_getopt.o $(OBJ_HACK)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(EX_LIBS)
+
+adig.exe: adig.c $(OBJ_DIR)/ares_getopt.o $(OBJ_HACK)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(EX_LIBS)
+
+acountry.exe: acountry.c $(OBJ_DIR)/ares_getopt.o $(OBJ_HACK)
+	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $^ $(EX_LIBS)
+
+# clean generated files
+#
+genclean:
+	- $(DELETE) ares_config.h
+
+# clean object files and subdir
+#
+objclean: genclean
+	- $(DELETE) $(OBJ_DIR)$(DS)*.o
+	- $(RMDIR) $(OBJ_DIR)
+
+# clean without removing built library and programs
+#
+clean: objclean
+	- $(DELETE) depend.dj
+
+# clean everything
+#
+realclean vclean: clean
+	- $(DELETE) libcares.a
+	- $(DELETE) acountry.exe
+	- $(DELETE) adig.exe
+	- $(DELETE) ahost.exe
+	- $(DELETE) libcares.a
+
+-include depend.dj
+

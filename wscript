@@ -382,25 +382,6 @@ def configure(conf):
                             libpath=v8_libpath):
         conf.fatal("Cannot find v8_g")
 
-  if sys.platform.startswith("win32"):
-    # On win32 CARES is always static, so we can call internal functions like ares_inet_pton et al. 
-    # CARES_STATICLIB must be defined or gcc will try to make DLL stub calls
-    conf.env.append_value('CPPFLAGS', '-DCARES_STATICLIB=1')
-    conf.sub_config('deps/c-ares')
-  elif conf.env['USE_SHARED_CARES']:
-    cares_includes = [];
-    if o.shared_cares_includes: cares_includes.append(o.shared_cares_includes);
-    cares_libpath = [];
-    if o.shared_cares_libpath: cares_libpath.append(o.shared_cares_libpath);
-    if not conf.check_cxx(lib='cares',
-                          header_name='ares.h',
-                          uselib_store='CARES',
-                          includes=cares_includes,
-                          libpath=cares_libpath):
-      conf.fatal("Cannot find c-ares")
-  else:
-    conf.sub_config('deps/c-ares')
-
   conf.define("HAVE_CONFIG_H", 1)
 
   if sys.platform.startswith("sunos"):
@@ -665,7 +646,6 @@ def build(bld):
   build_uv(bld)
 
   if not bld.env['USE_SHARED_V8']: build_v8(bld)
-  if not bld.env['USE_SHARED_CARES']: bld.add_subdirs('deps/c-ares')
 
 
   ### http_parser
@@ -876,8 +856,7 @@ def build(bld):
   if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '
 
   if not bld.env["USE_SHARED_CARES"]:
-    node.add_objects += ' cares '
-    node.includes += '  deps/c-ares deps/c-ares/' + bld.env['DEST_OS'] + '-' + bld.env['DEST_CPU']
+    node.includes += '  deps/uv/c-ares '
 
   if sys.platform.startswith('cygwin'):
     bld.env.append_value('LINKFLAGS', '-Wl,--export-all-symbols')

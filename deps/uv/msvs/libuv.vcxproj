@@ -130,6 +130,16 @@
     <None Include="..\Makefile" />
     <None Include="..\README" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="c-ares.vcxproj">
+      <Project>{2b6a4644-eba9-dfb5-af35-6c56edf05c7f}</Project>
+      <Private>true</Private>
+      <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+      <CopyLocalSatelliteAssemblies>false</CopyLocalSatelliteAssemblies>
+      <LinkLibraryDependencies>true</LinkLibraryDependencies>
+      <UseLibraryDependencyInputs>false</UseLibraryDependencyInputs>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

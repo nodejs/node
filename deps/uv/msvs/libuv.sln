@@ -7,6 +7,8 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libuv-test", "libuv-test.vc
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libuv-benchmark", "libuv-benchmark.vcxproj", "{6CCBDAFD-7A11-133D-357B-E2D2F4C621E4}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "c-ares", "c-ares.vcxproj", "{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Win32 = Debug|Win32
@@ -39,6 +41,14 @@ Global
 		{6CCBDAFD-7A11-133D-357B-E2D2F4C621E4}.Release|Win32.Build.0 = Release|Win32
 		{6CCBDAFD-7A11-133D-357B-E2D2F4C621E4}.Release|x64.ActiveCfg = Release|x64
 		{6CCBDAFD-7A11-133D-357B-E2D2F4C621E4}.Release|x64.Build.0 = Release|x64
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Debug|Win32.ActiveCfg = Debug|Win32
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Debug|Win32.Build.0 = Debug|Win32
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Debug|x64.ActiveCfg = Debug|x64
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Debug|x64.Build.0 = Debug|x64
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Release|Win32.ActiveCfg = Release|Win32
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Release|Win32.Build.0 = Release|Win32
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Release|x64.ActiveCfg = Release|x64
+		{2B6A4644-EBA9-DFB5-AF35-6C56EDF05C7F}.Release|x64.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

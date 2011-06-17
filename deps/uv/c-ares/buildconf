@@ -1,0 +1,117 @@
+#!/bin/sh
+
+#--------------------------------------------------------------------------
+# findtool works as 'which' but we use a different name to make it more
+# obvious we aren't using 'which'! ;-)
+#
+findtool(){
+  file="$1"
+
+  old_IFS=$IFS; IFS=':'
+  for path in $PATH
+  do
+    IFS=$old_IFS
+    # echo "checks for $file in $path" >&2
+    if test -f "$path/$file"; then
+      echo "$path/$file"
+      return
+    fi
+  done
+  IFS=$old_IFS
+}
+
+#--------------------------------------------------------------------------
+# removethis() removes all files and subdirectories with the given name,
+# inside and below the current subdirectory at invocation time.
+#
+removethis(){
+  if test "$#" = "1"; then
+    find . -depth -name $1 -print > buildconf.tmp.$$
+    while read fdname
+    do
+      if test -f "$fdname"; then
+        rm -f "$fdname"
+      elif test -d "$fdname"; then
+        rm -f -r "$fdname"
+      fi
+    done < buildconf.tmp.$$
+    rm -f buildconf.tmp.$$
+  fi
+}
+
+#--------------------------------------------------------------------------
+# Ensure that buildconf runs from the subdirectory where configure.ac lives
+#
+if test ! -f configure.ac ||
+  test ! -f ares_init.c ||
+  test ! -f m4/cares-functions.m4; then
+  echo "Can not run buildconf from outside of c-ares source subdirectory!"
+  echo "Change to the subdirectory where buildconf is found, and try again."
+  exit 1
+fi
+
+#--------------------------------------------------------------------------
+# this approach that tries 'glibtool' first is some kind of work-around for
+# some BSD-systems I believe that use to provide the GNU libtool named
+# glibtool, with 'libtool' being something completely different.
+libtool=`findtool glibtool 2>/dev/null`
+if test ! -x "$libtool"; then
+  libtool=`findtool ${LIBTOOL:-libtool}`
+fi
+
+if test -z "$LIBTOOLIZE"; then
+  # set the LIBTOOLIZE here so that glibtoolize is used if glibtool was found
+  # $libtool is already the full path
+  libtoolize="${libtool}ize"
+else
+  libtoolize=`findtool $LIBTOOLIZE`
+fi
+
+#--------------------------------------------------------------------------
+# Remove files generated on previous buildconf/configure run.
+#
+for fname in .deps \
+    .libs \
+    *.la \
+    *.lo \
+    *.a \
+    *.o \
+    Makefile \
+    Makefile.in \
+    aclocal.m4 \
+    aclocal.m4.bak \
+    ares_build.h \
+    ares_config.h \
+    ares_config.h.in \
+    autom4te.cache \
+    compile \
+    config.guess \
+    config.log \
+    config.lt \
+    config.status \
+    config.sub \
+    configure \
+    depcomp \
+    libcares.pc \
+    libtool \
+    libtool.m4 \
+    ltmain.sh \
+    ltoptions.m4 \
+    ltsugar.m4 \
+    ltversion.m4 \
+    lt~obsolete.m4 \
+    missing \
+    stamp-h1 \
+    stamp-h2 ; do
+  removethis "$fname"
+done
+
+#--------------------------------------------------------------------------
+# run the correct scripts now
+#
+
+${libtoolize} --copy --automake --force
+${ACLOCAL:-aclocal} -I m4 $ACLOCAL_FLAGS
+${AUTOHEADER:-autoheader}
+${AUTOCONF:-autoconf}
+${AUTOMAKE:-automake} --add-missing --copy

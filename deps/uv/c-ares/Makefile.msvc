@@ -1,0 +1,476 @@
+
+# Copyright (C) 2009-2010 by Daniel Stenberg
+#
+# Permission to use, copy, modify, and distribute this
+# software and its documentation for any purpose and without
+# fee is hereby granted, provided that the above copyright
+# notice appear in all copies and that both that copyright
+# notice and this permission notice appear in supporting
+# documentation, and that the name of M.I.T. not be used in
+# advertising or publicity pertaining to distribution of the
+# software without specific, written prior permission.
+# M.I.T. makes no representations about the suitability of
+# this software for any purpose.  It is provided "as is"
+# without express or implied warranty.
+
+# ------------------------------------------------------------------------------
+#
+# Makefile for building c-ares libraries and sample programs with MSVC.
+#
+# Usage: nmake /f makefile.msvc CFG=<config> <target>
+# 
+# <config> must be one of: [ lib-release | lib-debug | dll-release | dll-debug }
+# <target> must be one of: [ ALL | c-ares | acountry | adig | ahost | clean }
+# 
+# If a <target> other than ALL or clean is given, <config> becomes mandatory.
+# 
+# If neither <config> nor <target> are specified this results in
+# all targets being built for all <config> c-ares library types.
+#
+# This makefile must be processed from the subdir where it is located.
+#
+# All results are generated below a subdirectory named msvcXXX.
+#
+# ------------------------------------------------------------------------------
+
+NAME = cares
+
+# ------------------------------------------------
+# c-ares static and dynamic libraries common base
+# file names for release and debug configurations
+# ------------------------------------------------
+
+STA_LIB_REL = lib$(NAME)
+DYN_LIB_REL = $(NAME)
+STA_LIB_DBG = $(STA_LIB_REL)d
+DYN_LIB_DBG = $(DYN_LIB_REL)d
+
+# -------------------------------------------
+# Base names for c-ares DLL import libraries
+# -------------------------------------------
+
+IMP_LIB_REL = $(DYN_LIB_REL)
+IMP_LIB_DBG = $(DYN_LIB_DBG)
+
+# --------------------------
+# Runtime library selection
+# --------------------------
+
+RTLIB  = /MD
+RTLIBD = /MDd
+
+!IF "$(RTLIBCFG)" == "static"
+RTLIB  = /MT
+RTLIBD = /MTd
+!ENDIF
+
+# --------------------------------------------------------
+# Define USE_WATT32 to 1 to use the Watt-32 tcp/ip stack,
+# otherwise Winsock tcp/ip stack will be used as default.
+# --------------------------------------------------------
+
+USE_WATT32 = 0
+
+# -------------------------------------------
+# Detect NMAKE version deducing MSVC version
+# -------------------------------------------
+
+!IFNDEF _NMAKE_VER
+!  MESSAGE Macro _NMAKE_VER not defined.
+!  MESSAGE Use MSVC's NMAKE to process this makefile.
+!  ERROR   See previous message.
+!ENDIF
+
+!IF     "$(_NMAKE_VER)" == "6.00.8168.0"
+CC_VERS_NUM = 60
+!ELSEIF "$(_NMAKE_VER)" == "6.00.9782.0"
+CC_VERS_NUM = 60
+!ELSEIF "$(_NMAKE_VER)" == "7.00.9466"
+CC_VERS_NUM = 70
+!ELSEIF "$(_NMAKE_VER)" == "7.00.9955"
+CC_VERS_NUM = 70
+!ELSEIF "$(_NMAKE_VER)" == "7.10.3077"
+CC_VERS_NUM = 71
+!ELSEIF "$(_NMAKE_VER)" == "8.00.40607.16"
+CC_VERS_NUM = 80
+!ELSEIF "$(_NMAKE_VER)" == "8.00.50727.42"
+CC_VERS_NUM = 80
+!ELSEIF "$(_NMAKE_VER)" == "8.00.50727.762"
+CC_VERS_NUM = 80
+!ELSEIF "$(_NMAKE_VER)" == "9.00.21022.08"
+CC_VERS_NUM = 90
+!ELSEIF "$(_NMAKE_VER)" == "9.00.30729.01"
+CC_VERS_NUM = 90
+!ELSEIF "$(_NMAKE_VER)" == "10.00.20506.01"
+CC_VERS_NUM = 100
+!ELSEIF "$(_NMAKE_VER)" == "10.00.21003.01"
+CC_VERS_NUM = 100
+!ELSEIF "$(_NMAKE_VER)" == "10.00.30319.01"
+CC_VERS_NUM = 100
+!ELSE
+!  MESSAGE Unknown value for _NMAKE_VER macro: "$(_NMAKE_VER)"
+!  MESSAGE Please, report this condition on the c-ares development
+!  MESSAGE mailing list: http://cool.haxx.se/mailman/listinfo/c-ares/
+!  ERROR   See previous message.
+!ENDIF
+
+CC_VERS_STR = msvc$(CC_VERS_NUM)
+
+# ----------------------------------------------------
+# Verify that current subdir is the c-ares source one
+# ----------------------------------------------------
+
+!IF ! EXIST(.\ares_init.c)
+!  MESSAGE Can not process Makefile.msvc from outside of c-ares source subdirectory.
+!  MESSAGE Change to the subdirectory where Makefile.msvc is found, and try again.
+!  ERROR   See previous message.
+!ENDIF
+
+# ------------------------------------------------------------------
+# Base subdir is the common root from which other subdirs will hang,
+# the name depends on MSVC version being used when building c-ares.
+# ------------------------------------------------------------------
+
+BASE_DIR = .\$(CC_VERS_STR)
+
+# ----------------------------------------
+# Subdir holding sources for all projects
+# ----------------------------------------
+
+SRCDIR = .
+
+# -------------------------
+# Configuration validation
+# -------------------------
+
+VALID_CFGSET = FALSE
+!IF "$(CFG)" == "lib-release" || "$(CFG)" == "lib-debug" || \
+    "$(CFG)" == "dll-release" || "$(CFG)" == "dll-debug"
+VALID_CFGSET = TRUE
+!ENDIF
+
+!IF "$(VALID_CFGSET)" == "FALSE" && "$(CFG)" != ""
+!  MESSAGE MSVC c-ares makefile
+!  MESSAGE
+!  MESSAGE Usage: nmake /f makefile.msvc CFG=<config> <target>
+!  MESSAGE
+!  MESSAGE <config> must be one of: [ lib-release | lib-debug | dll-release | dll-debug }
+!  MESSAGE <target> must be one of: [ ALL | c-ares | acountry | adig | ahost | clean }
+!  MESSAGE
+!  MESSAGE If a <target> other than ALL or clean is given, <config> becomes mandatory.
+!  MESSAGE
+!  MESSAGE If neither <config> nor <target> are specified this results in
+!  MESSAGE all targets being built for all <config> c-ares library types.
+!  MESSAGE
+!  ERROR Choose a valid configuration.
+!ENDIF
+
+# --------------------------------------------------------
+# Project subdirs independent of configuration being used
+# --------------------------------------------------------
+
+CARES_DIR = $(BASE_DIR)\cares
+PROG1_DIR = $(BASE_DIR)\acountry
+PROG2_DIR = $(BASE_DIR)\adig
+PROG3_DIR = $(BASE_DIR)\ahost
+
+# ---------------------------------------------------
+# Subdirs which are configuration dependent are only
+# defined when a valid configuration has been given.
+# ---------------------------------------------------
+
+!IF "$(VALID_CFGSET)" == "TRUE"
+CARES_OUTDIR = $(CARES_DIR)\$(CFG)
+PROG1_OUTDIR = $(PROG1_DIR)\$(CFG)
+PROG2_OUTDIR = $(PROG2_DIR)\$(CFG)
+PROG3_OUTDIR = $(PROG3_DIR)\$(CFG)
+CARES_OBJDIR = $(CARES_OUTDIR)\obj
+PROG1_OBJDIR = $(PROG1_OUTDIR)\obj
+PROG2_OBJDIR = $(PROG2_OUTDIR)\obj
+PROG3_OBJDIR = $(PROG3_OUTDIR)\obj
+!ELSE
+!UNDEF CARES_OUTDIR
+!UNDEF PROG1_OUTDIR
+!UNDEF PROG2_OUTDIR
+!UNDEF PROG3_OUTDIR
+!UNDEF CARES_OBJDIR
+!UNDEF PROG1_OBJDIR
+!UNDEF PROG2_OBJDIR
+!UNDEF PROG3_OBJDIR
+!ENDIF
+
+# -------------------------------------
+# Settings that depend on tcp/ip stack
+# -------------------------------------
+
+!IF "$(USE_WATT32)" == "1"
+CFLAGS  = /UWIN32 /DWATT32 /I$(WATT_ROOT)\inc
+EX_LIBS_REL = $(WATT_ROOT)\lib\wattcpvc_imp.lib
+EX_LIBS_DBG = $(WATT_ROOT)\lib\wattcpvc_imp_d.lib
+!ELSE
+CFLAGS  = /DWIN32
+EX_LIBS_REL = ws2_32.lib advapi32.lib kernel32.lib
+EX_LIBS_DBG = ws2_32.lib advapi32.lib kernel32.lib
+!ENDIF
+
+# -----------------------------------------
+# Switches that depend on compiler version
+# -----------------------------------------
+
+!IF $(CC_VERS_NUM) == 60
+PDB_NONE            = /pdb:none
+PDBTYPE_CONSOLIDATE = /pdbtype:consolidate
+!ELSE
+!UNDEF PDB_NONE
+!UNDEF PDBTYPE_CONSOLIDATE
+!ENDIF
+
+!IF $(CC_VERS_NUM) <= 70
+RT_ERROR_CHECKING = /GZ
+!ELSE
+RT_ERROR_CHECKING = /RTCsu
+!ENDIF
+
+# ----------------------------
+# Assorted commands and flags
+# ----------------------------
+
+CC_CMD_REL = cl.exe /nologo $(RTLIB) /DNDEBUG /O2
+CC_CMD_DBG = cl.exe /nologo $(RTLIBD) /D_DEBUG /Od /Zi $(RT_ERROR_CHECKING)
+CC_CFLAGS  = $(CFLAGS) /I. /W3 /EHsc /FD
+
+RC_CMD_REL = rc.exe /l 0x409 /d "NDEBUG"
+RC_CMD_DBG = rc.exe /l 0x409 /d "_DEBUG"
+
+LINK_CMD_LIB = link.exe /lib /nologo
+LINK_CMD_DLL = link.exe /dll /nologo /incremental:no /fixed:no
+LINK_CMD_EXE = link.exe /nologo /incremental:no /fixed:no /subsystem:console
+
+LINK_CMD_EXE_REL = $(LINK_CMD_EXE) /release $(PDB_NONE)
+LINK_CMD_EXE_DBG = $(LINK_CMD_EXE) /debug $(PDBTYPE_CONSOLIDATE)
+
+# ---------------------------------
+# Configuration dependent settings
+# ---------------------------------
+
+!IF "$(CFG)" == "lib-release"
+CARES_TARGET = $(STA_LIB_REL).lib
+CARES_CFLAGS = /DCARES_BUILDING_LIBRARY /DCARES_STATICLIB
+CARES_LFLAGS =
+SPROG_CFLAGS = /DCARES_STATICLIB
+SPROG_LFLAGS = /libpath:$(CARES_OUTDIR) $(EX_LIBS_REL) $(STA_LIB_REL).lib
+CARES_LINK   = $(LINK_CMD_LIB)
+SPROG_LINK   = $(LINK_CMD_EXE_REL)
+CC_CMD       = $(CC_CMD_REL)
+!ENDIF
+
+!IF "$(CFG)" == "lib-debug"
+CARES_TARGET = $(STA_LIB_DBG).lib
+CARES_CFLAGS = /DCARES_BUILDING_LIBRARY /DCARES_STATICLIB /DDEBUGBUILD
+CARES_LFLAGS =
+SPROG_CFLAGS = /DCARES_STATICLIB
+SPROG_LFLAGS = /libpath:$(CARES_OUTDIR) $(EX_LIBS_DBG) $(STA_LIB_DBG).lib
+CARES_LINK   = $(LINK_CMD_LIB)
+SPROG_LINK   = $(LINK_CMD_EXE_DBG)
+CC_CMD       = $(CC_CMD_DBG)
+!ENDIF
+
+!IF "$(CFG)" == "dll-release"
+CARES_TARGET = $(DYN_LIB_REL).dll
+CARES_CFLAGS = /DCARES_BUILDING_LIBRARY
+CARES_LFLAGS = /release $(EX_LIBS_REL) /implib:$(CARES_OUTDIR)\$(IMP_LIB_REL).lib $(PDB_NONE)
+SPROG_CFLAGS =
+SPROG_LFLAGS = /libpath:$(CARES_OUTDIR) $(EX_LIBS_REL) $(IMP_LIB_REL).lib
+CARES_LINK   = $(LINK_CMD_DLL)
+SPROG_LINK   = $(LINK_CMD_EXE_REL)
+CC_CMD       = $(CC_CMD_REL)
+USE_RES_FILE = TRUE
+RC_CMD       = $(RC_CMD_REL)
+!ENDIF
+
+!IF "$(CFG)" == "dll-debug"
+CARES_TARGET = $(DYN_LIB_DBG).dll
+CARES_CFLAGS = /DCARES_BUILDING_LIBRARY /DDEBUGBUILD
+CARES_LFLAGS = /debug $(EX_LIBS_DBG) /implib:$(CARES_OUTDIR)\$(IMP_LIB_DBG).lib /pdb:$(CARES_OUTDIR)\$(DYN_LIB_DBG).pdb $(PDBTYPE_CONSOLIDATE)
+SPROG_CFLAGS =
+SPROG_LFLAGS = /libpath:$(CARES_OUTDIR) $(EX_LIBS_DBG) $(IMP_LIB_DBG).lib
+CARES_LINK   = $(LINK_CMD_DLL)
+SPROG_LINK   = $(LINK_CMD_EXE_DBG)
+CC_CMD       = $(CC_CMD_DBG)
+USE_RES_FILE = TRUE
+RC_CMD       = $(RC_CMD_DBG)
+!ENDIF
+
+# --------------------------------------------
+# Makefile.inc provides lists of source files
+# --------------------------------------------
+
+!INCLUDE .\Makefile.inc
+
+# ----------------------------
+# Build lists of object files
+# ----------------------------
+
+!IF "$(VALID_CFGSET)" == "TRUE"
+
+!IF [ECHO CARES_OBJS=^$(CARES_OBJDIR)\$(CSOURCES: = $(CARES_OBJDIR^)\) > .\cares_objs.inc] == 0
+!INCLUDE .\cares_objs.inc
+!IF [DEL .\cares_objs.inc]
+!ENDIF
+!ELSE
+!ERROR Problem generating CARES_OBJS list.
+!ENDIF
+CARES_OBJS = $(CARES_OBJS:.c=.obj)
+!IF "$(USE_RES_FILE)" == "TRUE"
+CARES_OBJS = $(CARES_OBJS) $(CARES_OBJDIR)\cares.res
+!ENDIF
+
+!IF [ECHO PROG1_OBJS=^$(PROG1_OBJDIR)\$(SAMPLESOURCES: = $(PROG1_OBJDIR^)\) > .\prog1_objs.inc] == 0
+!INCLUDE .\prog1_objs.inc
+!IF [DEL .\prog1_objs.inc]
+!ENDIF
+!ELSE
+!ERROR Problem generating PROG1_OBJS list.
+!ENDIF
+PROG1_OBJS = $(PROG1_OBJS:.c=.obj)
+PROG1_OBJS = $(PROG1_OBJS) $(PROG1_OBJDIR)\acountry.obj
+
+!IF [ECHO PROG2_OBJS=^$(PROG2_OBJDIR)\$(SAMPLESOURCES: = $(PROG2_OBJDIR^)\) > .\prog2_objs.inc] == 0
+!INCLUDE .\prog2_objs.inc
+!IF [DEL .\prog2_objs.inc]
+!ENDIF
+!ELSE
+!ERROR Problem generating PROG2_OBJS list.
+!ENDIF
+PROG2_OBJS = $(PROG2_OBJS:.c=.obj)
+PROG2_OBJS = $(PROG2_OBJS) $(PROG2_OBJDIR)\adig.obj
+
+!IF [ECHO PROG3_OBJS=^$(PROG3_OBJDIR)\$(SAMPLESOURCES: = $(PROG3_OBJDIR^)\) > .\prog3_objs.inc] == 0
+!INCLUDE .\prog3_objs.inc
+!IF [DEL .\prog3_objs.inc]
+!ENDIF
+!ELSE
+!ERROR Problem generating PROG3_OBJS list.
+!ENDIF
+PROG3_OBJS = $(PROG3_OBJS:.c=.obj)
+PROG3_OBJS = $(PROG3_OBJS) $(PROG3_OBJDIR)\ahost.obj
+
+!ENDIF
+
+# --------------------------------
+# Only our custom inference rules
+# --------------------------------
+
+.SUFFIXES:
+.SUFFIXES: .c .rc
+
+{$(SRCDIR)}.rc{$(CARES_OBJDIR)}.res:
+    $(RC_CMD) /Fo $@ $<
+
+{$(SRCDIR)}.c{$(CARES_OBJDIR)}.obj:
+    $(CC_CMD) $(CC_CFLAGS) $(CARES_CFLAGS) /Fo$@ /Fd$(@D)\ /c $<
+
+{$(SRCDIR)}.c{$(PROG1_OBJDIR)}.obj:
+    $(CC_CMD) $(CC_CFLAGS) $(SPROG_CFLAGS) /Fo$@ /Fd$(@D)\ /c $<
+
+{$(SRCDIR)}.c{$(PROG2_OBJDIR)}.obj:
+    $(CC_CMD) $(CC_CFLAGS) $(SPROG_CFLAGS) /Fo$@ /Fd$(@D)\ /c $<
+
+{$(SRCDIR)}.c{$(PROG3_OBJDIR)}.obj:
+    $(CC_CMD) $(CC_CFLAGS) $(SPROG_CFLAGS) /Fo$@ /Fd$(@D)\ /c $<
+
+# ------------------------------------------------------------- #
+# ------------------------------------------------------------- #
+# Default target when no CFG library type has been specified,   #
+# results in building target ALL for all c-ares library types.  #
+# ------------------------------------------------------------- #
+# ------------------------------------------------------------- #
+
+!IF "$(VALID_CFGSET)" == "FALSE"
+
+ALL:
+    $(MAKE) /f .\Makefile.msvc  CFG=lib-release  ALL
+    $(MAKE) /f .\Makefile.msvc  CFG=lib-debug    ALL
+    $(MAKE) /f .\Makefile.msvc  CFG=dll-release  ALL
+    $(MAKE) /f .\Makefile.msvc  CFG=dll-debug    ALL
+
+clean:
+    @-RMDIR /S /Q $(BASE_DIR) >NUL 2>&1
+
+!ENDIF
+
+# ---------------------------------------------------------------------
+# Targets only available when a proper CFG library type has been given
+# ---------------------------------------------------------------------
+
+!IF "$(VALID_CFGSET)" == "TRUE"
+
+ALL: c-ares acountry adig ahost
+    @
+
+c-ares: $(HHEADERS) $(CSOURCES) $(CARES_OBJDIR) $(CARES_OBJS) $(CARES_OUTDIR)
+    $(CARES_LINK) $(CARES_LFLAGS) /out:$(CARES_OUTDIR)\$(CARES_TARGET) $(CARES_OBJS)
+!   IF "$(USE_RES_FILE)" == "TRUE"
+    @if exist $(CARES_OUTDIR)\$(CARES_TARGET).manifest mt -nologo -manifest $(CARES_OUTDIR)\$(CARES_TARGET).manifest -outputresource:$(CARES_OUTDIR)\$(CARES_TARGET);2
+!   ENDIF
+
+acountry: c-ares acountry.c $(SAMPLESOURCES) $(SAMPLEHEADERS) $(PROG1_OBJDIR) $(PROG1_OBJS) $(PROG1_OUTDIR)
+    $(SPROG_LINK) $(SPROG_LFLAGS) /out:$(PROG1_OUTDIR)\acountry.exe $(PROG1_OBJS)
+    @if exist $(PROG1_OUTDIR)\acountry.exe.manifest mt -nologo -manifest $(PROG1_OUTDIR)\acountry.exe.manifest -outputresource:$(PROG1_OUTDIR)\acountry.exe;1
+
+adig: c-ares adig.c $(SAMPLESOURCES) $(SAMPLEHEADERS) $(PROG2_OBJDIR) $(PROG2_OBJS) $(PROG2_OUTDIR)
+    $(SPROG_LINK) $(SPROG_LFLAGS) /out:$(PROG2_OUTDIR)\adig.exe $(PROG2_OBJS)
+    @if exist $(PROG2_OUTDIR)\adig.exe.manifest mt -nologo -manifest $(PROG2_OUTDIR)\adig.exe.manifest -outputresource:$(PROG2_OUTDIR)\adig.exe;1
+
+ahost: c-ares ahost.c $(SAMPLESOURCES) $(SAMPLEHEADERS) $(PROG3_OBJDIR) $(PROG3_OBJS) $(PROG3_OUTDIR)
+    $(SPROG_LINK) $(SPROG_LFLAGS) /out:$(PROG3_OUTDIR)\ahost.exe $(PROG3_OBJS)
+    @if exist $(PROG3_OUTDIR)\ahost.exe.manifest mt -nologo -manifest $(PROG3_OUTDIR)\ahost.exe.manifest -outputresource:$(PROG3_OUTDIR)\ahost.exe;1
+
+$(CARES_OUTDIR): $(CARES_DIR)
+    @if not exist $(CARES_OUTDIR) mkdir $(CARES_OUTDIR)
+
+$(PROG1_OUTDIR): $(PROG1_DIR)
+    @if not exist $(PROG1_OUTDIR) mkdir $(PROG1_OUTDIR)
+
+$(PROG2_OUTDIR): $(PROG2_DIR)
+    @if not exist $(PROG2_OUTDIR) mkdir $(PROG2_OUTDIR)
+
+$(PROG3_OUTDIR): $(PROG3_DIR)
+    @if not exist $(PROG3_OUTDIR) mkdir $(PROG3_OUTDIR)
+
+$(CARES_OBJDIR): $(CARES_OUTDIR)
+    @if not exist $(CARES_OBJDIR) mkdir $(CARES_OBJDIR)
+
+$(PROG1_OBJDIR): $(PROG1_OUTDIR)
+    @if not exist $(PROG1_OBJDIR) mkdir $(PROG1_OBJDIR)
+
+$(PROG2_OBJDIR): $(PROG2_OUTDIR)
+    @if not exist $(PROG2_OBJDIR) mkdir $(PROG2_OBJDIR)
+
+$(PROG3_OBJDIR): $(PROG3_OUTDIR)
+    @if not exist $(PROG3_OBJDIR) mkdir $(PROG3_OBJDIR)
+
+clean:
+    @-RMDIR /S /Q $(CARES_OUTDIR) >NUL 2>&1
+    @-RMDIR /S /Q $(PROG1_OUTDIR) >NUL 2>&1
+    @-RMDIR /S /Q $(PROG2_OUTDIR) >NUL 2>&1
+    @-RMDIR /S /Q $(PROG3_OUTDIR) >NUL 2>&1
+
+!ENDIF
+
+$(BASE_DIR):
+    @if not exist $(BASE_DIR) mkdir $(BASE_DIR)
+
+$(CARES_DIR): $(BASE_DIR)
+    @if not exist $(CARES_DIR) mkdir $(CARES_DIR)
+
+$(PROG1_DIR): $(BASE_DIR)
+    @if not exist $(PROG1_DIR) mkdir $(PROG1_DIR)
+
+$(PROG2_DIR): $(BASE_DIR)
+    @if not exist $(PROG2_DIR) mkdir $(PROG2_DIR)
+
+$(PROG3_DIR): $(BASE_DIR)
+    @if not exist $(PROG3_DIR) mkdir $(PROG3_DIR)
+
+# End of Makefile.msvc

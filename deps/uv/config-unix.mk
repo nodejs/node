@@ -26,6 +26,22 @@ LINKFLAGS=-lm
 
 ifeq (SunOS,$(uname_S))
 LINKFLAGS+=-lsocket -lnsl
+UV_OS_FILE=uv-sunos.c
+endif
+
+ifeq (Darwin,$(uname_S))
+LINKFLAGS+=-framework CoreServices
+UV_OS_FILE=uv-darwin.c
+endif
+
+ifeq (Linux,$(uname_S))
+LINKFLAGS+=-lrt
+UV_OS_FILE=uv-linux.c
+endif
+
+ifeq (FreeBSD,$(uname_S))
+LINKFLAGS+=
+UV_OS_FILE=uv-freebsd.c
 endif
 
 # Need _GNU_SOURCE for strdup?
@@ -35,8 +51,11 @@ RUNNER_LINKFLAGS=$(LINKFLAGS) -pthread
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: uv-unix.o uv-common.o ev/ev.o
-	$(AR) rcs uv.a uv-unix.o uv-common.o ev/ev.o
+uv.a: uv-unix.o uv-common.o uv-platform.o ev/ev.o c-ares/ares_query.o
+	$(AR) rcs uv.a uv-unix.o uv-platform.o uv-common.o ev/ev.o c-ares/*.o
+
+uv-platform.o: $(UV_OS_FILE) uv.h uv-unix.h
+	$(CC) $(CFLAGS) -c $(UV_OS_FILE) -o uv-platform.o
 
 uv-unix.o: uv-unix.c uv.h uv-unix.h
 	$(CC) $(CFLAGS) -c uv-unix.c -o uv-unix.o
@@ -50,8 +69,18 @@ ev/ev.o: ev/config.h ev/ev.c
 ev/config.h:
 	cd ev && ./configure
 
+c-ares/Makefile:
+	cd c-ares && ./configure
+
+# Really we want to include all of the c-ares .o files in our uv.a static
+# library but let's just choose one as a dependency.
+c-ares/ares_query.o: c-ares/Makefile
+	$(MAKE) -C c-ares
+
 clean-platform:
 	$(MAKE) -C ev clean
+	$(MAKE) -C c-ares clean
 
 distclean-platform:
 	$(MAKE) -C ev distclean
+	$(MAKE) -C c-ares clean

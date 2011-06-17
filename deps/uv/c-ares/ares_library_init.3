@@ -1,0 +1,96 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\" Copyright (C) 2004-2009 by Daniel Stenberg
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_LIBRARY_INIT 3 "19 May 2009"
+.SH NAME
+ares_library_init \- c-ares library initialization
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B int ares_library_init(int \fIflags\fP)
+.PP
+.B cc file.c -lcares
+.fi
+.SH DESCRIPTION
+.PP
+The
+.B ares_library_init
+function performs initializations internally required by the c-ares
+library that must take place before any other function provided by
+c-ares can be used in a program.
+.PP
+This function must be called one time within the life of a program,
+before the program actually executes any other c-ares library function.
+Initializations done by this function remain effective until a
+call to \fIares_library_cleanup(3)\fP is performed.
+.PP
+Successive calls to this function do nothing, only the first call done
+when c-ares is in an uninitialized state is actually effective.
+.PP
+The
+.I flags
+parameter is a bit pattern that tells c-ares exactly which features
+should be initialized, as described below. Set the desired bits by
+ORing the values together. In normal operation you should specify
+\fIARES_LIB_INIT_ALL\fP. Don't use any other value unless you are
+familiar with it and trying to control some internal c-ares feature.
+.PP
+.B This function is not thread safe.
+You have to call it once the program has started, but this call must be done
+before the program starts any other thread. This is required to avoid
+potential race conditions in library initialization, and also due to the fact
+that \fIares_library_init(3)\fP might call functions from other libraries that
+are thread unsafe, and could conflict with any other thread that is already
+using these other libraries.
+.PP
+Win32/64 application DLLs shall not call \fIares_library_init(3)\fP from the
+DllMain function. Doing so will produce deadlocks and other problems.
+.SH FLAGS
+.TP 5
+.B ARES_LIB_INIT_ALL
+Initialize everything possible. This sets all known bits.
+.TP
+.B ARES_LIB_INIT_WIN32
+Initialize Win32/64 specific libraries.
+.TP
+.B ARES_LIB_INIT_NONE
+Initialize nothing extra. This sets no bit.
+.SH RETURN VALUE
+Upon successful completion, ares_library_init() will return 0.  Otherwise, a
+non-zero error number will be returned to indicate the error. Except for
+\fIares_strerror(3)\fP, you shall not call any other c-ares function upon
+\fIares_library_init(3)\fP failure.
+.SH AVAILABILITY
+This function was first introduced in c-ares version 1.7.0 along with the
+definition of preprocessor symbol \fICARES_HAVE_ARES_LIBRARY_INIT\fP as an
+indication of the availability of this function.
+.PP
+Since the introduction of this function it is absolutely mandatory to
+call it for any Win32/64 program using c-ares.
+.PP
+Non-Win32/64 systems can still use c-ares version 1.7.0 without calling
+\fIares_library_init(3)\fP due to the fact that \fIcurrently\fP it is nearly
+a do-nothing function on non-Win32/64 platforms at this point.
+.SH SEE ALSO
+.BR ares_library_cleanup(3),
+.BR ares_strerror(3)
+.SH AUTHOR
+Yang Tse
+.PP
+Copyright 1998 by the Massachusetts Institute of Technology.
+.br
+Copyright (C) 2004-2009 by Daniel Stenberg.

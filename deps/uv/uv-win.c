@@ -456,19 +456,10 @@ static uv_req_t* uv_remove_pending_req() {
 }
 
 
-static int uv_tcp_init_socket(uv_tcp_t* handle, SOCKET socket) {
+static int uv_tcp_set_socket(uv_tcp_t* handle, SOCKET socket) {
   DWORD yes = 1;
 
-  uv_counters()->handle_init++;
-  uv_counters()->tcp_init++;
-
-  handle->socket = socket;
-  handle->write_queue_size = 0;
-  handle->type = UV_TCP;
-  handle->flags = 0;
-  handle->reqs_pending = 0;
-  handle->error = uv_ok_;
-  handle->accept_socket = INVALID_SOCKET;
+  assert(handle->socket == INVALID_SOCKET);
 
   /* Set the socket to nonblocking mode */
   if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR) {
@@ -492,7 +483,7 @@ static int uv_tcp_init_socket(uv_tcp_t* handle, SOCKET socket) {
     return -1;
   }
 
-  uv_refs_++;
+  handle->socket = socket;
 
   return 0;
 }
@@ -508,16 +499,18 @@ static void uv_tcp_init_connection(uv_tcp_t* handle) {
 int uv_tcp_init(uv_tcp_t* handle) {
   SOCKET sock;
 
-  sock = socket(AF_INET, SOCK_STREAM, 0);
-  if (handle->socket == INVALID_SOCKET) {
-    uv_set_sys_error(WSAGetLastError());
-    return -1;
-  }
+  handle->socket = INVALID_SOCKET;
+  handle->write_queue_size = 0;
+  handle->type = UV_TCP;
+  handle->flags = 0;
+  handle->reqs_pending = 0;
+  handle->error = uv_ok_;
+  handle->accept_socket = INVALID_SOCKET;
 
-  if (uv_tcp_init_socket(handle, sock) == -1) {
-    closesocket(sock);
-    return -1;
-  }
+  uv_counters()->handle_init++;
+  uv_counters()->tcp_init++;
+
+  uv_refs_++;
 
   return 0;
 }
@@ -712,25 +705,28 @@ int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 }
 
 
-struct sockaddr_in uv_ip4_addr(char* ip, int port) {
-  struct sockaddr_in addr;
-
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = inet_addr(ip);
-
-  return addr;
-}
-
-
 int uv_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
   DWORD err;
   int r;
+  SOCKET sock;
   int addrsize = sizeof(struct sockaddr_in);
 
   if (addr.sin_family != AF_INET) {
     uv_set_sys_error(WSAEFAULT);
     return -1;
+  }
+
+  if (handle->socket == INVALID_SOCKET) {
+    sock = socket(AF_INET, SOCK_STREAM, 0);
+    if (sock == INVALID_SOCKET) {
+      uv_set_sys_error(WSAGetLastError());
+      return -1;
+    }
+
+    if (uv_tcp_set_socket(handle, sock) == -1) {
+      closesocket(sock);
+      return -1;
+    }
   }
 
   r = bind(handle->socket, (struct sockaddr*) &addr, addrsize);
@@ -878,12 +874,12 @@ int uv_accept(uv_tcp_t* server, uv_tcp_t* client) {
     return -1;
   }
 
-  if (uv_tcp_init_socket(client, server->accept_socket) == -1) {
+  if (uv_tcp_set_socket(client, server->accept_socket) == -1) {
     closesocket(server->accept_socket);
     rv = -1;
+  } else {
+    uv_tcp_init_connection(client);
   }
-
-  uv_tcp_init_connection(client);
 
   server->accept_socket = INVALID_SOCKET;
 
@@ -1756,4 +1752,9 @@ done:
   }
 
   return retVal;
+}
+
+
+uint64_t uv_get_hrtime(void) {
+  assert(0 && "implement me");
 }

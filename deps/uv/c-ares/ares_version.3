@@ -1,0 +1,40 @@
+.\"
+.\" Copyright 2004 by Daniel Stenberg
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_VERSION 3 "29 January 2004"
+.SH NAME
+ares_version \- Get the version number of the library
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B const char *ares_version(int *\fIversion\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_version
+function gets the library version as a string and optionally as an integer
+stored in the
+.IR version ,
+argument. If you pass a NULL, no integer is attempted to be returned.
+
+The integer is built up as 24bit number, with 8 separate bits used for major
+number, minor number and patch number. This makes a version string such as
+1.2.3 will be returned as the hexadecimal number 0x010203 (decimal 66051).
+.SH NOTES
+This function is not compatible with ares.
+.SH AUTHOR
+Daniel Stenberg
+

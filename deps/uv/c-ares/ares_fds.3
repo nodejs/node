@@ -1,0 +1,61 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_FDS 3 "23 July 1998"
+.SH NAME
+ares_fds \- Get file descriptors to select on for name service
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B int ares_fds(ares_channel \fIchannel\fP, fd_set *\fIread_fds\fP,
+.B	fd_set *\fIwrite_fds\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_fds
+function retrieves the set of file descriptors which the calling
+application should select on for reading and writing for the
+processing of name service queries pending on the name service channel
+identified by
+.IR channel .
+File descriptors will be set in the file descriptor sets pointed to by
+.I read_fds
+and
+.I write_fds
+as appropriate.  File descriptors already set in
+.I read_fds
+and
+.I write_fds
+will remain set; initialization of the file descriptor sets
+(using
+.BR FD_ZERO )
+is the responsibility of the caller.
+.SH RETURN VALUES
+.B ares_fds
+returns one greater than the number of the highest socket set in either
+.I read_fds
+or
+.IR write_fds .
+If no queries are active,
+.B ares_fds
+will return 0.
+.SH SEE ALSO
+.BR ares_timeout (3),
+.BR ares_process (3)
+.SH AUTHOR
+Greg Hudson, MIT Information Systems
+.br
+Copyright 1998 by the Massachusetts Institute of Technology.

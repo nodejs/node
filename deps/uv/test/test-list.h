@@ -27,6 +27,7 @@ TEST_DECLARE   (bind_error_addrnotavail_1)
 TEST_DECLARE   (bind_error_addrnotavail_2)
 TEST_DECLARE   (bind_error_fault)
 TEST_DECLARE   (bind_error_inval)
+TEST_DECLARE   (bind_localhost_ok)
 TEST_DECLARE   (connection_fail)
 TEST_DECLARE   (connection_fail_doesnt_auto_close)
 TEST_DECLARE   (shutdown_eof)
@@ -41,6 +42,7 @@ TEST_DECLARE   (prepare_ref)
 TEST_DECLARE   (check_ref)
 TEST_DECLARE   (async)
 TEST_DECLARE   (get_currentexe)
+TEST_DECLARE   (hrtime)
 TEST_DECLARE   (fail_always)
 TEST_DECLARE   (pass_always)
 HELPER_DECLARE (echo_server)
@@ -63,6 +65,8 @@ TASK_LIST_START
   TEST_ENTRY  (bind_error_fault)
 
   TEST_ENTRY  (bind_error_inval)
+
+  TEST_ENTRY  (bind_localhost_ok)
 
   TEST_ENTRY  (connection_fail)
   TEST_ENTRY  (connection_fail_doesnt_auto_close)
@@ -88,6 +92,8 @@ TASK_LIST_START
   TEST_ENTRY  (async)
 
   TEST_ENTRY  (get_currentexe)
+
+  TEST_ENTRY  (hrtime)
 
 #if 0
   /* These are for testing the test runner. */

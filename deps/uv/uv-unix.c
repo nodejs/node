@@ -122,17 +122,6 @@ static uv_err_t uv_err_new(uv_handle_t* handle, int sys_error) {
 }
 
 
-struct sockaddr_in uv_ip4_addr(char* ip, int port) {
-  struct sockaddr_in addr;
-
-  addr.sin_family = AF_INET;
-  addr.sin_port = htons(port);
-  addr.sin_addr.s_addr = inet_addr(ip);
-
-  return addr;
-}
-
-
 int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   uv_tcp_t* tcp;
   uv_async_t* async;
@@ -1241,61 +1230,6 @@ void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat) {
 int64_t uv_timer_get_repeat(uv_timer_t* timer) {
   assert(timer->type == UV_TIMER);
   return (int64_t)(1000 * timer->timer_watcher.repeat);
-}
-
-
-int uv_get_exepath(char* buffer, size_t* size) {
-  uint32_t usize;
-  int result;
-  char* path;
-  char* fullpath;
-
-  if (!buffer || !size) {
-    return -1;
-  }
-
-#if defined(__APPLE__)
-  usize = *size;
-  result = _NSGetExecutablePath(buffer, &usize);
-  if (result) return result;
-
-  path = (char*)malloc(2 * PATH_MAX);
-  fullpath = realpath(buffer, path);
-
-  if (fullpath == NULL) {
-    free(path);
-    return -1;
-  }
-
-  strncpy(buffer, fullpath, *size);
-  free(fullpath);
-  *size = strlen(buffer);
-  return 0;
-#elif defined(__linux__)
-  *size = readlink("/proc/self/exe", buffer, *size - 1);
-  if (*size <= 0) return -1;
-  buffer[*size] = '\0';
-  return 0;
-#elif defined(__FreeBSD__)
-  int mib[4];
-
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
-
-  size_t cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0) < 0) {
-	  *size = 0;
-	  return -1;
-  }
-  *size = strlen(buffer);
-
-  return 0;
-#else
-  assert(0 && "implement me");
-  /* Need to return argv[0] */
-#endif
 }
 
 

@@ -1,0 +1,146 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_QUERY 3 "24 July 1998"
+.SH NAME
+ares_query \- Initiate a single-question DNS query
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B typedef void (*ares_callback)(void *\fIarg\fP, int \fIstatus\fP,
+.B	int \fItimeouts\fP, unsigned char *\fIabuf\fP, int \fIalen\fP)
+.PP
+.B void ares_query(ares_channel \fIchannel\fP, const char *\fIname\fP,
+.B 	int \fIdnsclass\fP, int \fItype\fP, ares_callback \fIcallback\fP,
+.B	void *\fIarg\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_query
+function initiates a single-question DNS query on the name service
+channel identified by
+.IR channel .
+The parameter
+.I name
+gives the query name as a NUL-terminated C string of period-separated
+labels optionally ending with a period; periods and backslashes within
+a label must be escaped with a backslash.  The parameters
+.I dnsclass
+and
+.I type
+give the class and type of the query using the values defined in
+.BR <arpa/nameser.h> .
+When the query is complete or has failed, the ares library will invoke
+.IR callback .
+Completion or failure of the query may happen immediately, or may
+happen during a later call to
+.BR ares_process (3)
+or
+.BR ares_destroy (3).
+.PP
+The callback argument
+.I arg
+is copied from the
+.B ares_query
+argument
+.IR arg .
+The callback argument
+.I status
+indicates whether the query succeeded and, if not, how it failed.  It
+may have any of the following values:
+.TP 19
+.B ARES_SUCCESS
+The query completed successfully.
+.TP 19
+.B ARES_ENODATA
+The query completed but contains no answers.
+.TP 19
+.B ARES_EFORMERR
+The query completed but the server claims that the query was
+malformatted.
+.TP 19
+.B ARES_ESERVFAIL
+The query completed but the server claims to have experienced a
+failure.  (This code can only occur if the
+.B ARES_FLAG_NOCHECKRESP
+flag was specified at channel initialization time; otherwise, such
+responses are ignored at the
+.BR ares_send (3)
+level.)
+.TP 19
+.B ARES_ENOTFOUND
+The query completed but the queried-for domain name was not found.
+.TP 19
+.B ARES_ENOTIMP
+The query completed but the server does not implement the operation
+requested by the query.  (This code can only occur if the
+.B ARES_FLAG_NOCHECKRESP
+flag was specified at channel initialization time; otherwise, such
+responses are ignored at the
+.BR ares_send (3)
+level.)
+.TP 19
+.B ARES_EREFUSED
+The query completed but the server refused the query.  (This code can
+only occur if the
+.B ARES_FLAG_NOCHECKRESP
+flag was specified at channel initialization time; otherwise, such
+responses are ignored at the
+.BR ares_send (3)
+level.)
+.TP 19
+.B ARES_EBADNAME
+The query name
+.I name
+could not be encoded as a domain name, either because it contained a
+zero-length label or because it contained a label of more than 63
+characters.
+.TP 19
+.B ARES_ETIMEOUT
+No name servers responded within the timeout period.
+.TP 19
+.B ARES_ECONNREFUSED
+No name servers could be contacted.
+.TP 19
+.B ARES_ENOMEM
+Memory was exhausted.
+.TP 19
+.B ARES_EDESTRUCTION
+The name service channel
+.I channel
+is being destroyed; the query will not be completed.
+.PP
+The callback argument
+.I timeouts
+reports how many times a query timed out during the execution of the
+given request.
+.PP
+If the query completed (even if there was something wrong with it, as
+indicated by some of the above error codes), the callback argument
+.I abuf
+points to a result buffer of length
+.IR alen .
+If the query did not complete,
+.I abuf
+will be NULL and
+.I alen
+will be 0.
+.SH SEE ALSO
+.BR ares_process (3)
+.SH AUTHOR
+Greg Hudson, MIT Information Systems
+.br
+Copyright 1998 by the Massachusetts Institute of Technology.

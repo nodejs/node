@@ -1,0 +1,61 @@
+.\"
+.\" Copyright 1998 by the Massachusetts Institute of Technology.
+.\"
+.\" Permission to use, copy, modify, and distribute this
+.\" software and its documentation for any purpose and without
+.\" fee is hereby granted, provided that the above copyright
+.\" notice appear in all copies and that both that copyright
+.\" notice and this permission notice appear in supporting
+.\" documentation, and that the name of M.I.T. not be used in
+.\" advertising or publicity pertaining to distribution of the
+.\" software without specific, written prior permission.
+.\" M.I.T. makes no representations about the suitability of
+.\" this software for any purpose.  It is provided "as is"
+.\" without express or implied warranty.
+.\"
+.TH ARES_TIMEOUT 3 "25 July 1998"
+.SH NAME
+ares_fds \- Get file descriptors to select on for name service
+.SH SYNOPSIS
+.nf
+.B #include <ares.h>
+.PP
+.B struct timeval *ares_timeout(ares_channel \fIchannel\fP,
+.B	struct timeval *\fImaxtv\fP, struct timeval *\fItv\fP)
+.fi
+.SH DESCRIPTION
+The
+.B ares_timeout
+function determines the maximum time for which the caller should wait before
+invoking \fIares_process(3)\fP to process timeouts.  The parameter
+.I maxtv
+specifies a existing maximum timeout, or
+.B NULL
+if the caller does not wish to apply a maximum timeout.  The parameter
+.I tv
+must point to a writable buffer of type
+.BR "struct timeval" .
+It is valid for
+.I maxtv
+and
+.I tv
+to have the same value.
+.PP
+If no queries have timeouts pending sooner than the given maximum
+timeout,
+.B ares_timeout
+returns the value of
+.IR maxtv;
+otherwise
+.B ares_timeout
+stores the appropriate timeout value into the buffer pointed to by
+.I tv
+and returns the value of
+.IR tv .
+.SH SEE ALSO
+.BR ares_fds (3),
+.BR ares_process (3)
+.SH AUTHOR
+Greg Hudson, MIT Information Systems
+.br
+Copyright 1998 by the Massachusetts Institute of Technology.

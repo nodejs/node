@@ -24,7 +24,7 @@ CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=.exe
 
-CFLAGS=-g --std=gnu89 -Wno-variadic-macros
+CFLAGS=-g --std=gnu89 -Wno-variadic-macros -D_WIN32_WINNT=0x0501
 LINKFLAGS=-lm
 
 RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE # Need _GNU_SOURCE for strdup?
@@ -32,8 +32,9 @@ RUNNER_LINKFLAGS=$(LINKFLAGS)
 RUNNER_LIBS=-lws2_32
 RUNNER_SRC=test/runner-win.c
 
-uv.a: uv-win.o uv-common.o
+uv.a: uv-win.o uv-common.o c-ares/libcares.a
 	$(AR) rcs uv.a uv-win.o uv-common.o
+	$(AR) rs uv.a $(shell $(AR) -t c-ares/libcares.a | awk '{print "c-ares/" $$1}')
 
 uv-win.o: uv-win.c uv.h uv-win.h
 	$(CC) $(CFLAGS) -c uv-win.c -o uv-win.o
@@ -41,5 +42,11 @@ uv-win.o: uv-win.c uv.h uv-win.h
 uv-common.o: uv-common.c uv.h uv-win.h
 	$(CC) $(CFLAGS) -c uv-common.c -o uv-common.o
 
-distclean-platform:
+c-ares/libcares.a:
+	$(MAKE) -C c-ares -f Makefile.m32 libcares.a
+
 clean-platform:
+	$(MAKE) -C c-ares -f Makefile.m32 clean
+
+distclean-platform:
+	$(MAKE) -C c-ares -f Makefile.m32 distclean

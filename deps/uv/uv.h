@@ -28,8 +28,16 @@ extern "C" {
 #define UV_VERSION_MAJOR 0
 #define UV_VERSION_MINOR 1
 
+#define CARES_STATICLIB 1
+
 #include <stdint.h> /* int64_t */
 #include <sys/types.h> /* size_t */
+
+#include "c-ares/ares.h"
+
+#ifndef _SSIZE_T_
+typedef intptr_t ssize_t;
+#endif
 
 typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
@@ -208,6 +216,11 @@ int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
  * connections. Call uv_accept after receiving a uv_connection_cb to accept
  * the connection. Before calling uv_accept use uv_tcp_init() must be
  * called on the client. Non-zero return value indicates an error.
+ *
+ * When the uv_connection_cb is called it is guaranteed that uv_accept will
+ * complete successfully the first time. If you attempt to use it more than
+ * once, it may fail. It is suggested to only call uv_accept once per
+ * uv_connection_cb call.
  */
 int uv_accept(uv_tcp_t* server, uv_tcp_t* client);
 
@@ -224,6 +237,23 @@ int uv_read_start(uv_tcp_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
 
 int uv_read_stop(uv_tcp_t*);
 
+/* Write data to stream. Buffers are written in order. Example:
+ *
+ *   uv_buf_t a[] = {
+ *     { .base = "1", .len = 1 },
+ *     { .base = "2", .len = 1 }
+ *   };
+ *
+ *   uv_buf_t b[] = {
+ *     { .base = "3", .len = 1 },
+ *     { .base = "4", .len = 1 }
+ *   };
+ *
+ *   // writes "1234"
+ *   uv_write(req, a, 2);
+ *   uv_write(req, b, 2);
+ *
+ */
 int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt);
 
 
@@ -354,11 +384,10 @@ int64_t uv_now();
 
 
 /* Utility */
-struct sockaddr_in uv_ip4_addr(char* ip, int port);
+struct sockaddr_in uv_ip4_addr(const char* ip, int port);
 
 /* Gets the executable path */
 int uv_get_exepath(char* buffer, size_t* size);
-
 
 /* the presence of this union forces similar struct layout */
 union uv_any_handle {
@@ -382,7 +411,34 @@ typedef struct {
   uint64_t timer_init;
 } uv_counters_t;
 
-uv_counters_t* const uv_counters();
+uv_counters_t* uv_counters();
+
+#ifndef	SEC
+#define	SEC		1
+#endif
+
+#ifndef	MILLISEC
+#define	MILLISEC	1000
+#endif
+
+#ifndef	MICROSEC
+#define	MICROSEC	1000000
+#endif
+
+#ifndef	NANOSEC
+#define	NANOSEC		1000000000
+#endif
+
+/*
+ * Returns the current high-resolution real time. This is expressed in
+ * nanoseconds. It is relative to an arbitrary time in the past. It is not
+ * related to the time of day and therefore not subject to clock drift. The
+ * primary use is for measuring performance between intervals.
+ *
+ * Note not every platform can support nanosecond resolution; however, this
+ * value will always be in nanoseconds.
+ */
+extern uint64_t uv_get_hrtime(void);
 
 #ifdef __cplusplus
 }
