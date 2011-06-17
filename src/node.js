@@ -387,7 +387,19 @@
   var Script = process.binding('evals').NodeScript;
   var runInThisContext = Script.runInThisContext;
 
+  // A special hook to test the new platform layer. Use the command-line
+  // flag --use-uv to enable the libuv backend instead of the legacy
+  // backend.
+  function translateId(id) {
+    if (id == 'net') {
+      return process.useUV ? 'net_uv' : 'net_legacy';
+    } else {
+      return id;
+    }
+  }
+
   function NativeModule(id) {
+    id = translateId(id);
     this.filename = id + '.js';
     this.id = id;
     this.exports = {};
@@ -398,6 +410,8 @@
   NativeModule._cache = {};
 
   NativeModule.require = function(id) {
+    id = translateId(id);
+
     if (id == 'native_module') {
       return NativeModule;
     }
@@ -420,14 +434,17 @@
   };
 
   NativeModule.getCached = function(id) {
+    id = translateId(id);
     return NativeModule._cache[id];
   }
 
   NativeModule.exists = function(id) {
+    id = translateId(id);
     return (id in NativeModule._source);
   }
 
   NativeModule.getSource = function(id) {
+    id = translateId(id);
     return NativeModule._source[id];
   }
 

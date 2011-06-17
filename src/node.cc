@@ -123,6 +123,18 @@ static uv_async_t eio_want_poll_notifier;
 static uv_async_t eio_done_poll_notifier;
 static uv_idle_t eio_poller;
 
+
+// XXX use_uv defaults to false on POSIX platforms and to true on Windows
+// platforms. This can be set with "--use-uv" command-line flag. We intend
+// to remove the legacy backend once the libuv backend is passing all of the
+// tests.
+#ifdef __POSIX__
+static bool use_uv = false;
+#else
+static bool use_uv = true;
+#endif
+
+
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
 static char getbuf[PATH_MAX + 1];
@@ -2082,6 +2094,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
   process->Set(String::NewSymbol("cov"), cov ? True() : False());
+  process->Set(String::NewSymbol("useUV"), use_uv ? True() : False());
 
   // -e, --eval
   if (eval_string) {
@@ -2225,6 +2238,7 @@ static void PrintHelp() {
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
          "  --cov                code coverage; writes node-cov.json \n"
+         "  --use-uv             use the libuv backend\n"
          "\n"
          "Enviromental variables:\n"
          "NODE_PATH              ':'-separated list of directories\n"
@@ -2249,6 +2263,9 @@ static void ParseArgs(int argc, char **argv) {
       argv[i] = const_cast<char*>("");
     } else if (!strcmp(arg, "--cov")) {
       cov = true;
+      argv[i] = const_cast<char*>("");
+    } else if (!strcmp(arg, "--use-uv")) {
+      use_uv = true;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
