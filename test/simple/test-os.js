@@ -64,6 +64,9 @@ var interfaces = os.getNetworkInterfaces();
 console.error(interfaces);
 switch (platform) {
   case 'linux':
-    assert.equal('127.0.0.1', interfaces.lo.ip);
+    var filter = function(e) { return e.address == '127.0.0.1'; };
+    var actual = interfaces.lo.filter(filter);
+    var expected = [{ address: '127.0.0.1', family: 'IPv4', internal: true }];
+    assert.deepEqual(actual, expected);
     break;
 }
