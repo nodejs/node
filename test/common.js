@@ -68,10 +68,6 @@ process.on('exit', function() {
     knownGlobals.push(gc);
   }
 
-  if (global.__cov) {
-    knownGlobals.push(__cov);
-  }
-
   if (global.DTRACE_HTTP_SERVER_RESPONSE) {
     knownGlobals.push(DTRACE_HTTP_SERVER_RESPONSE);
     knownGlobals.push(DTRACE_HTTP_SERVER_REQUEST);
