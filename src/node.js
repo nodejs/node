@@ -353,8 +353,13 @@
     }
 
     var Module = NativeModule.require('module');
+    var path = NativeModule.require('path');
+    var cwd = process.cwd();
 
-    var rv = new Module()._compile('return eval(process._eval)', 'eval');
+    var module = new Module('eval');
+    module.filename = path.join(cwd, 'eval');
+    module.paths = Module._nodeModulePaths(cwd);
+    var rv = module._compile('return eval(process._eval)', 'eval');
     console.log(rv);
     return true;
   };
