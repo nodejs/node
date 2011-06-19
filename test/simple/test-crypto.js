@@ -128,6 +128,25 @@ txt += decipher.final('utf8');
 
 assert.equal(txt, plaintext, 'encryption and decryption');
 
+// encryption and decryption with Base64
+// reported in https://github.com/joyent/node/issues/738
+var plaintext =
+  '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
+  'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**';
+var cipher = crypto.createCipher('aes256', '0123456789abcdef');
+
+// encrypt plaintext which is in utf8 format
+// to a ciphertext which will be in Base64
+var ciph = cipher.update(plaintext, 'utf8', 'base64');
+ciph += cipher.final('base64');
+
+var decipher = crypto.createDecipher('aes256', '0123456789abcdef');
+var txt = decipher.update(ciph, 'base64', 'utf8');
+txt += decipher.final('utf8');
+
+assert.equal(txt, plaintext, 'encryption and decryption with Base64');
+
+
 // Test encyrption and decryption with explicit key and iv
 var encryption_key = '0123456789abcd0123456789';
 var iv = '12345678';
