@@ -375,7 +375,7 @@
   // backend.
   function translateId(id) {
     if (id == 'net') {
-      return process.useUV ? 'net_uv' : 'net_legacy';
+      return process.useUV || process.env.NODE_USE_UV ? 'net_uv' : 'net_legacy';
     } else {
       return id;
     }
