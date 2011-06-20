@@ -596,7 +596,7 @@ static Handle<Value> SendFile(const Arguments& args) {
     ssize_t sent = eio_sendfile_sync (out_fd, in_fd, in_offset, length);
     // XXX is this the right errno to use?
     if (sent < 0) return ThrowException(ErrnoException(errno));
-    return Integer::New(sent);
+    return scope.Close(Integer::New(sent));
   }
 }
 
