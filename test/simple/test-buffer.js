@@ -526,3 +526,30 @@ assert.equal(0xef, b[3]);
 assert.throws(function() {
   new Buffer('"pong"', 0, 6, 8031, '127.0.0.1')
 });
+
+// #1210 Test UTF-8 string includes null character
+var buf = new Buffer('\0');
+assert.equal(buf.length, 1);
+buf = new Buffer('\0\0');
+assert.equal(buf.length, 2);
+
+buf = new Buffer(2);
+var written = buf.write(''); // 0byte
+assert.equal(written, 0);
+written = buf.write('\0'); // 1byte (v8 adds null terminator)
+assert.equal(written, 1);
+written = buf.write('a\0'); // 1byte * 2
+assert.equal(written, 2);
+written = buf.write('あ'); // 3bytes
+assert.equal(written, 0);
+written = buf.write('\0あ'); // 1byte + 3bytes
+assert.equal(written, 1);
+written = buf.write('\0\0あ'); // 1byte * 2 + 3bytes
+assert.equal(written, 2);
+
+buf = new Buffer(10);
+written = buf.write('あいう'); // 3bytes * 3 (v8 adds null terminator)
+assert.equal(written, 9);
+written = buf.write('あいう\0'); // 3bytes * 3 + 1byte
+assert.equal(written, 10);
+

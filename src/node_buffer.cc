@@ -447,7 +447,15 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   size_t offset = args[1]->Uint32Value();
 
-  if (s->Length() > 0 && offset >= buffer->length_) {
+  int length = s->Length();
+
+  if (length == 0) {
+    constructor_template->GetFunction()->Set(chars_written_sym,
+                                             Integer::New(0));
+    return scope.Close(Integer::New(0));
+  }
+
+  if (length > 0 && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
@@ -468,7 +476,13 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(char_written));
 
-  if (written > 0 && p[written-1] == '\0') written--;
+  if (written > 0 && p[written-1] == '\0' && char_written == length) {
+    uint16_t last_char;
+    s->Write(&last_char, length - 1, 1, String::NO_HINTS);
+    if (last_char != 0 || written > s->Utf8Length()) {
+      written--;
+    }
+  }
 
   return scope.Close(Integer::New(written));
 }
