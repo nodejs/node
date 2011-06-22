@@ -561,13 +561,7 @@ ev_tstamp ev_now (EV_P); /* time w.r.t. timers and the eventloop, updated after 
 
 int ev_default_loop (unsigned int flags EV_CPP (= 0)); /* returns true when successful */
 
-EV_INLINE ev_tstamp
-ev_now (void)
-{
-  extern ev_tstamp ev_rt_now;
-
-  return ev_rt_now;
-}
+ev_tstamp ev_now (void);
 
 /* looks weird, but ev_is_default_loop (EV_A) still works if this exists */
 EV_INLINE int

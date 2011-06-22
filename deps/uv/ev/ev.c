@@ -730,6 +730,12 @@ typedef struct
 #else
 
   ev_tstamp ev_rt_now;
+
+  ev_tstamp ev_now (void)
+  {
+    return ev_rt_now;
+  }
+
   #define VAR(name,decl) static decl;
     #include "ev_vars.h"
   #undef VAR
