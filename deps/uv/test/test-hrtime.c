@@ -23,13 +23,21 @@
 #include "task.h"
 
 
+/*
+ * We expect the amount of time passed to be at least one us plus two system
+ * calls. Therefore checking that at least a microsecond has elapsed is safe.
+ */
 TEST_IMPL(hrtime) {
-  uint64_t a = uv_get_hrtime();
-  uv_sleep(1);
-  uint64_t b = uv_get_hrtime();
+  uint64_t a, b, diff;
 
-  uint64_t diff = b - a;
+  a = uv_get_hrtime();
+  uv_sleep(1);
+  b = uv_get_hrtime();
+
+  diff = b - a;
 
   printf("diff = %llu\n", diff);
-  ASSERT(b - a >= NANOSEC / MILLISEC);
+
+  ASSERT(diff >= NANOSEC / MICROSEC);
+  return 0;
 }

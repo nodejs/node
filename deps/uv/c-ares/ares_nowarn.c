@@ -19,19 +19,8 @@
 
 #include "ares_nowarn.h"
 
-#if (SIZEOF_INT == 2)
-#  define CARES_MASK_SINT  0x7FFF
-#  define CARES_MASK_UINT  0xFFFF
-#elif (SIZEOF_INT == 4)
-#  define CARES_MASK_SINT  0x7FFFFFFF
-#  define CARES_MASK_UINT  0xFFFFFFFF
-#elif (SIZEOF_INT == 8)
-#  define CARES_MASK_SINT  0x7FFFFFFFFFFFFFFF
-#  define CARES_MASK_UINT  0xFFFFFFFFFFFFFFFF
-#elif (SIZEOF_INT == 16)
-#  define CARES_MASK_SINT  0x7FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-#  define CARES_MASK_UINT  0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
-#endif
+#define CARES_MASK_UINT (~(unsigned int) 0)
+#define CARES_MASK_SINT (CARES_MASK_UINT >> 1)
 
 /*
 ** size_t to signed int

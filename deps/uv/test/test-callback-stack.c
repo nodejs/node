@@ -109,10 +109,10 @@ static void read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
 }
 
 
-static void timer_cb(uv_handle_t* handle, int status) {
+static void timer_cb(uv_timer_t* handle, int status) {
   int r;
 
-  ASSERT(handle == (uv_handle_t*)&timer);
+  ASSERT(handle == &timer);
   ASSERT(status == 0);
   ASSERT(nested == 0 && "timer_cb must be called from a fresh stack");
 
@@ -126,7 +126,7 @@ static void timer_cb(uv_handle_t* handle, int status) {
 
   timer_cb_called++;
 
-  r = uv_close(handle, close_cb);
+  r = uv_close((uv_handle_t*)handle, close_cb);
   ASSERT(r == 0);
 }
 

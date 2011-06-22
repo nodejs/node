@@ -42,7 +42,7 @@ static void once_close_cb(uv_handle_t* handle) {
 }
 
 
-static void once_cb(uv_handle_t* handle, int status) {
+static void once_cb(uv_timer_t* handle, int status) {
   printf("ONCE_CB %d\n", once_cb_called);
 
   ASSERT(handle != NULL);
@@ -50,7 +50,7 @@ static void once_cb(uv_handle_t* handle, int status) {
 
   once_cb_called++;
 
-  uv_close(handle, once_close_cb);
+  uv_close((uv_handle_t*)handle, once_close_cb);
 
   /* Just call this randomly for the code coverage. */
   uv_update_time();
@@ -66,7 +66,7 @@ static void repeat_close_cb(uv_handle_t* handle) {
 }
 
 
-static void repeat_cb(uv_handle_t* handle, int status) {
+static void repeat_cb(uv_timer_t* handle, int status) {
   printf("REPEAT_CB\n");
 
   ASSERT(handle != NULL);
@@ -75,12 +75,12 @@ static void repeat_cb(uv_handle_t* handle, int status) {
   repeat_cb_called++;
 
   if (repeat_cb_called == 5) {
-    uv_close(handle, repeat_close_cb);
+    uv_close((uv_handle_t*)handle, repeat_close_cb);
   }
 }
 
 
-static void never_cb(uv_handle_t* handle, int status) {
+static void never_cb(uv_timer_t* handle, int status) {
   FATAL("never_cb should never be called");
 }
 

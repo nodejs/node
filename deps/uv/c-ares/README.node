@@ -1,0 +1,21 @@
+Library: c-ares, DNS resolver
+
+Version: 1.7.3 (11 June, 2010)
+
+Authors: Greg Hudson, Daniel Stenberg
+
+License: MIT
+
+Notes:
+
+Just use waf instead of the autoconf based configure script. Delete most of
+the documentation and other files distributed with it. To upgrade, run
+./configure on linux, macintosh, solaris (and other supported platforms) and
+copy
+- ares_config.h
+- ares_setup.h
+- ares_build.h
+into the appropriate directory.
+
+
+

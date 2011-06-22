@@ -20,7 +20,10 @@
 
 #include "uv.h"
 
+#include <limits.h>
+#include <stdio.h>
 #include <stdint.h>
+#include <unistd.h>
 #include <sys/time.h>
 
 
@@ -29,8 +32,30 @@ uint64_t uv_get_hrtime() {
 }
 
 
+/*
+ * We could use a static buffer for the path manipulations that we need outside
+ * of the function, but this function could be called by multiple consumers and
+ * we don't want to potentially create a race condition in the use of snprintf.
+ */
 int uv_get_exepath(char* buffer, size_t* size) {
-  assert(0 && "implement me");
-  /* Need to return argv[0] */
-  return -1;
+  size_t res;
+  pid_t pid;
+  char buf[PATH_MAX];
+
+  if (buffer == NULL)
+    return (-1);
+
+  if (size == NULL)
+    return (-1);
+
+  pid = getpid();
+  (void) snprintf(buf, sizeof (buf), "/proc/%d/path/a.out", pid);
+  res = readlink(buf, buffer, *size - 1);
+
+  if (res < 0)
+    return (res);
+
+  buffer[res] = '\0';
+  *size = res;
+  return (0);
 }

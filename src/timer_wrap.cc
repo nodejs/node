@@ -216,7 +216,7 @@ class TimerWrap {
     return scope.Close(Integer::New(r));
   }
 
-  static void OnTimeout(uv_handle_t* handle, int status) {
+  static void OnTimeout(uv_timer_t* handle, int status) {
     HandleScope scope;
 
     TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);

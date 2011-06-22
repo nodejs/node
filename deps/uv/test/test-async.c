@@ -118,8 +118,8 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void async1_cb(uv_handle_t* handle, int status) {
-  ASSERT(handle == (uv_handle_t*)&async1_handle);
+static void async1_cb(uv_async_t* handle, int status) {
+  ASSERT(handle == &async1_handle);
   ASSERT(status == 0);
 
   async1_cb_called++;
@@ -127,7 +127,7 @@ static void async1_cb(uv_handle_t* handle, int status) {
 
   if (async1_cb_called > 2 && !async1_closed) {
     async1_closed = 1;
-    uv_close(handle, close_cb);
+    uv_close((uv_handle_t*)handle, close_cb);
   }
 }
 
@@ -147,10 +147,10 @@ static void async2_cb(uv_handle_t* handle, int status) {
 #endif
 
 
-static void prepare_cb(uv_handle_t* handle, int status) {
+static void prepare_cb(uv_prepare_t* handle, int status) {
   int r;
 
-  ASSERT(handle == (uv_handle_t*)&prepare_handle);
+  ASSERT(handle == &prepare_handle);
   ASSERT(status == 0);
 
   switch (prepare_cb_called) {
@@ -172,7 +172,7 @@ static void prepare_cb(uv_handle_t* handle, int status) {
 #endif
 
     case 1:
-      r = uv_close(handle, close_cb);
+      r = uv_close((uv_handle_t*)handle, close_cb);
       ASSERT(r == 0);
       break;
 

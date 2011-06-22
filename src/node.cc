@@ -158,7 +158,7 @@ bool need_gc;
 static int64_t tick_times[RPM_SAMPLES];
 static int tick_time_head;
 
-static void CheckStatus(uv_handle_t* watcher, int status);
+static void CheckStatus(uv_timer_t* watcher, int status);
 
 static void StartGCTimer () {
   if (!uv_is_active((uv_handle_t*) &gc_timer)) {
@@ -172,7 +172,7 @@ static void StopGCTimer () {
   }
 }
 
-static void Idle(uv_handle_t* watcher, int status) {
+static void Idle(uv_idle_t* watcher, int status) {
   assert((uv_idle_t*) watcher == &gc_idle);
 
   //fprintf(stderr, "idle\n");
@@ -185,8 +185,8 @@ static void Idle(uv_handle_t* watcher, int status) {
 
 
 // Called directly after every call to select() (or epoll, or whatever)
-static void Check(uv_handle_t* watcher, int status) {
-  assert((uv_check_t*) watcher == &gc_check);
+static void Check(uv_check_t* watcher, int status) {
+  assert(watcher == &gc_check);
 
   tick_times[tick_time_head] = uv_now();
   tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
@@ -243,7 +243,7 @@ static void Tick(void) {
 }
 
 
-static void Spin(uv_handle_t* handle, int status) {
+static void Spin(uv_idle_t* handle, int status) {
   assert((uv_idle_t*) handle == &tick_spinner);
   assert(status == 0);
   Tick();
@@ -266,22 +266,22 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
 }
 
 
-static void PrepareTick(uv_handle_t* handle, int status) {
-  assert((uv_prepare_t*) handle == &prepare_tick_watcher);
+static void PrepareTick(uv_prepare_t* handle, int status) {
+  assert(handle == &prepare_tick_watcher);
   assert(status == 0);
   Tick();
 }
 
 
-static void CheckTick(uv_handle_t* handle, int status) {
-  assert((uv_check_t*) handle == &check_tick_watcher);
+static void CheckTick(uv_check_t* handle, int status) {
+  assert(handle == &check_tick_watcher);
   assert(status == 0);
   Tick();
 }
 
 
-static void DoPoll(uv_handle_t* watcher, int status) {
-  assert((uv_idle_t*) watcher == &eio_poller);
+static void DoPoll(uv_idle_t* watcher, int status) {
+  assert(watcher == &eio_poller);
 
   //printf("eio_poller\n");
 
@@ -294,8 +294,8 @@ static void DoPoll(uv_handle_t* watcher, int status) {
 
 
 // Called from the main thread.
-static void WantPollNotifier(uv_handle_t* watcher, int status) {
-  assert((uv_async_t*) watcher == &eio_want_poll_notifier);
+static void WantPollNotifier(uv_async_t* watcher, int status) {
+  assert(watcher == &eio_want_poll_notifier);
 
   //printf("want poll notifier\n");
 
@@ -307,8 +307,8 @@ static void WantPollNotifier(uv_handle_t* watcher, int status) {
 }
 
 
-static void DonePollNotifier(uv_handle_t* watcher, int revents) {
-  assert((uv_async_t*) watcher == &eio_done_poll_notifier);
+static void DonePollNotifier(uv_async_t* watcher, int revents) {
+  assert(watcher == &eio_done_poll_notifier);
 
   //printf("done poll notifier\n");
 
@@ -1554,8 +1554,8 @@ v8::Handle<v8::Value> Exit(const v8::Arguments& args) {
 }
 
 
-static void CheckStatus(uv_handle_t* watcher, int status) {
-  assert((uv_timer_t*) watcher == &gc_timer);
+static void CheckStatus(uv_timer_t* watcher, int status) {
+  assert(watcher == &gc_timer);
 
   // check memory
   if (!uv_is_active((uv_handle_t*) &gc_idle)) {
@@ -1831,9 +1831,9 @@ void FatalException(TryCatch &try_catch) {
 
 static uv_async_t debug_watcher;
 
-static void DebugMessageCallback(uv_handle_t* watcher, int status) {
+static void DebugMessageCallback(uv_async_t* watcher, int status) {
   HandleScope scope;
-  assert((uv_async_t*) watcher == &debug_watcher);
+  assert(watcher == &debug_watcher);
   Debug::ProcessDebugMessages();
 }
 

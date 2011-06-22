@@ -218,6 +218,7 @@ int uv_tcp_init(uv_tcp_t* tcp) {
   tcp->fd = -1;
   tcp->delayed_error = 0;
   ngx_queue_init(&tcp->write_queue);
+  ngx_queue_init(&tcp->write_completed_queue);
   tcp->write_queue_size = 0;
 
   ev_init(&tcp->read_watcher, uv__tcp_io);
@@ -227,6 +228,7 @@ int uv_tcp_init(uv_tcp_t* tcp) {
   tcp->write_watcher.data = tcp;
 
   assert(ngx_queue_empty(&tcp->write_queue));
+  assert(ngx_queue_empty(&tcp->write_completed_queue));
   assert(tcp->write_queue_size == 0);
 
   return 0;
@@ -528,12 +530,14 @@ static void uv__drain(uv_tcp_t* tcp) {
 }
 
 
-void uv__write(uv_tcp_t* tcp) {
+/* On success returns NULL. On error returns a pointer to the write request
+ * which had the error.
+ */
+static uv_req_t* uv__write(uv_tcp_t* tcp) {
   uv_req_t* req;
   struct iovec* iov;
   int iovcnt;
   ssize_t n;
-  uv_write_cb cb;
 
   assert(tcp->fd >= 0);
 
@@ -543,8 +547,7 @@ void uv__write(uv_tcp_t* tcp) {
   req = uv_write_queue_head(tcp);
   if (!req) {
     assert(tcp->write_queue_size == 0);
-    uv__drain(tcp);
-    return;
+    return NULL;
   }
 
   assert(req->handle == (uv_handle_t*)tcp);
@@ -562,21 +565,16 @@ void uv__write(uv_tcp_t* tcp) {
 
   n = writev(tcp->fd, iov, iovcnt);
 
-  cb = (uv_write_cb)req->cb;
-
   if (n < 0) {
     if (errno != EAGAIN) {
-      uv_err_t err = uv_err_new((uv_handle_t*)tcp, errno);
-
-      if (cb) {
-        cb(req, -1);
-      }
-      return;
+      /* Error */
+      uv_err_new((uv_handle_t*)tcp, errno);
+      return req;
     }
   } else {
     /* Successful write */
 
-    /* The loop updates the counters. */
+    /* Update the counters. */
     while (n > 0) {
       uv_buf_t* buf = &(req->bufs[req->write_index]);
       size_t len = buf->len;
@@ -611,19 +609,13 @@ void uv__write(uv_tcp_t* tcp) {
           free(req->bufs); /* FIXME: we should not be allocing for each read */
           req->bufs = NULL;
 
-          /* NOTE: call callback AFTER freeing the request data. */
-          if (cb) {
-            cb(req, 0);
-          }
-
-          if (!ngx_queue_empty(&tcp->write_queue)) {
-            assert(tcp->write_queue_size > 0);
-          } else {
-            /* Write queue drained. */
-            uv__drain(tcp);
-          }
-
-          return;
+          /* Add it to the write_completed_queue where it will have its
+           * callback called in the near future.
+           * TODO: start trying to write the next request.
+           */
+          ngx_queue_insert_tail(&tcp->write_completed_queue, &req->queue);
+          ev_feed_event(EV_DEFAULT_ &tcp->write_watcher, EV_WRITE);
+          return NULL;
         }
       }
     }
@@ -632,9 +624,42 @@ void uv__write(uv_tcp_t* tcp) {
   /* Either we've counted n down to zero or we've got EAGAIN. */
   assert(n == 0 || n == -1);
 
-  /* We're not done yet. */
-  assert(ev_is_active(&tcp->write_watcher));
+  /* We're not done. */
   ev_io_start(EV_DEFAULT_ &tcp->write_watcher);
+
+  return NULL;
+}
+
+
+static void uv__write_callbacks(uv_tcp_t* tcp) {
+  uv_write_cb cb;
+  int callbacks_made = 0;
+  ngx_queue_t* q;
+  uv_req_t* req;
+
+  while (!ngx_queue_empty(&tcp->write_completed_queue)) {
+    /* Pop a req off write_completed_queue. */
+    q = ngx_queue_head(&tcp->write_completed_queue);
+    assert(q);
+    req = ngx_queue_data(q, struct uv_req_s, queue);
+    ngx_queue_remove(q);
+
+    cb = (uv_write_cb) req->cb;
+
+    /* NOTE: call callback AFTER freeing the request data. */
+    if (cb) {
+      cb(req, 0);
+    }
+
+    callbacks_made++;
+  }
+
+  assert(ngx_queue_empty(&tcp->write_completed_queue));
+
+  /* Write queue drained. */
+  if (!uv_write_queue_head(tcp)) {
+    uv__drain(tcp);
+  }
 }
 
 
@@ -727,7 +752,17 @@ void uv__tcp_io(EV_P_ ev_io* watcher, int revents) {
     }
 
     if (revents & EV_WRITE) {
-      uv__write(tcp);
+      uv_req_t* req = uv__write(tcp);
+      if (req) {
+        /* Error. Notify the user. */
+        uv_write_cb cb = (uv_write_cb) req->cb;
+
+        if (cb) {
+          cb(req, -1);
+        }
+      } else {
+        uv__write_callbacks(tcp);
+      }
     }
   }
 }
@@ -872,6 +907,7 @@ static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
  */
 int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt) {
   uv_tcp_t* tcp = (uv_tcp_t*)req->handle;
+  int empty_queue = (tcp->write_queue_size == 0);
   assert(tcp->fd >= 0);
 
   ngx_queue_init(&req->queue);
@@ -893,7 +929,29 @@ int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt) {
   assert(tcp->write_watcher.data == tcp);
   assert(tcp->write_watcher.fd == tcp->fd);
 
-  ev_io_start(EV_DEFAULT_ &tcp->write_watcher);
+  /* If the queue was empty when this function began, we should attempt to
+   * do the write immediately. Otherwise start the write_watcher and wait
+   * for the fd to become writable.
+   */
+  if (empty_queue) {
+    if (uv__write(tcp)) {
+      /* Error. uv_last_error has been set. */
+      return -1;
+    }
+  }
+
+  /* If the queue is now empty - we've flushed the request already. That
+   * means we need to make the callback. The callback can only be done on a
+   * fresh stack so we feed the event loop in order to service it.
+   */
+  if (ngx_queue_empty(&tcp->write_queue)) {
+    ev_feed_event(EV_DEFAULT_ &tcp->write_watcher, EV_WRITE);
+  } else {
+    /* Otherwise there is data to write - so we should wait for the file
+     * descriptor to become writable.
+     */
+    ev_io_start(EV_DEFAULT_ &tcp->write_watcher);
+  }
 
   return 0;
 }
@@ -967,7 +1025,7 @@ static void uv__prepare(EV_P_ ev_prepare* w, int revents) {
   uv_prepare_t* prepare = w->data;
 
   if (prepare->prepare_cb) {
-    prepare->prepare_cb((uv_handle_t*)prepare, 0);
+    prepare->prepare_cb(prepare, 0);
   }
 }
 
@@ -985,7 +1043,7 @@ int uv_prepare_init(uv_prepare_t* prepare) {
 }
 
 
-int uv_prepare_start(uv_prepare_t* prepare, uv_loop_cb cb) {
+int uv_prepare_start(uv_prepare_t* prepare, uv_prepare_cb cb) {
   int was_active = ev_is_active(&prepare->prepare_watcher);
 
   prepare->prepare_cb = cb;
@@ -1017,7 +1075,7 @@ static void uv__check(EV_P_ ev_check* w, int revents) {
   uv_check_t* check = w->data;
 
   if (check->check_cb) {
-    check->check_cb((uv_handle_t*)check, 0);
+    check->check_cb(check, 0);
   }
 }
 
@@ -1035,7 +1093,7 @@ int uv_check_init(uv_check_t* check) {
 }
 
 
-int uv_check_start(uv_check_t* check, uv_loop_cb cb) {
+int uv_check_start(uv_check_t* check, uv_check_cb cb) {
   int was_active = ev_is_active(&check->check_watcher);
 
   check->check_cb = cb;
@@ -1067,7 +1125,7 @@ static void uv__idle(EV_P_ ev_idle* w, int revents) {
   uv_idle_t* idle = (uv_idle_t*)(w->data);
 
   if (idle->idle_cb) {
-    idle->idle_cb((uv_handle_t*)idle, 0);
+    idle->idle_cb(idle, 0);
   }
 }
 
@@ -1086,7 +1144,7 @@ int uv_idle_init(uv_idle_t* idle) {
 }
 
 
-int uv_idle_start(uv_idle_t* idle, uv_loop_cb cb) {
+int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb) {
   int was_active = ev_is_active(&idle->idle_watcher);
 
   idle->idle_cb = cb;
@@ -1137,7 +1195,7 @@ static void uv__async(EV_P_ ev_async* w, int revents) {
   uv_async_t* async = w->data;
 
   if (async->async_cb) {
-    async->async_cb((uv_handle_t*)async, 0);
+    async->async_cb(async, 0);
   }
 }
 
@@ -1172,7 +1230,7 @@ static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
   }
 
   if (timer->timer_cb) {
-    timer->timer_cb((uv_handle_t*)timer, 0);
+    timer->timer_cb(timer, 0);
   }
 }
 
@@ -1188,7 +1246,7 @@ int uv_timer_init(uv_timer_t* timer) {
 }
 
 
-int uv_timer_start(uv_timer_t* timer, uv_loop_cb cb, int64_t timeout,
+int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
     int64_t repeat) {
   if (ev_is_active(&timer->timer_watcher)) {
     return -1;
@@ -1232,4 +1290,26 @@ int64_t uv_timer_get_repeat(uv_timer_t* timer) {
   return (int64_t)(1000 * timer->timer_watcher.repeat);
 }
 
+/* c-ares integration initialize and terminate */
+int uv_ares_init_options(ares_channel *channelptr,
+                        struct ares_options *options,
+                        int optmask) {
+  int r;
+  r = ares_init_options(channelptr, options, optmask);
+  return r;
+}
+
+void uv_ares_destroy(ares_channel channel) {
+  ares_destroy(channel);
+}
+
+
+/* stub implementation of uv_getaddrinfo */
+int uv_getaddrinfo(uv_getaddrinfo_t* handle,
+                   uv_getaddrinfo_cb getaddrinfo_cb,
+                   const char* node,
+                   const char* service,
+                   const struct addrinfo* hints) {
+  return -1;
+}
 

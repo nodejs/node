@@ -20,6 +20,56 @@
 
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
+ifdef MSVC
+uname_S := MINGW
+endif
+
+CPPFLAGS += -Ic-ares/
+CARES_OBJS =
+CARES_OBJS += c-ares/ares__close_sockets.o
+CARES_OBJS += c-ares/ares__get_hostent.o
+CARES_OBJS += c-ares/ares__read_line.o
+CARES_OBJS += c-ares/ares__timeval.o
+CARES_OBJS += c-ares/ares_cancel.o
+CARES_OBJS += c-ares/ares_data.o
+CARES_OBJS += c-ares/ares_destroy.o
+CARES_OBJS += c-ares/ares_expand_name.o
+CARES_OBJS += c-ares/ares_expand_string.o
+CARES_OBJS += c-ares/ares_fds.o
+CARES_OBJS += c-ares/ares_free_hostent.o
+CARES_OBJS += c-ares/ares_free_string.o
+CARES_OBJS += c-ares/ares_gethostbyaddr.o
+CARES_OBJS += c-ares/ares_gethostbyname.o
+CARES_OBJS += c-ares/ares_getnameinfo.o
+CARES_OBJS += c-ares/ares_getopt.o
+CARES_OBJS += c-ares/ares_getsock.o
+CARES_OBJS += c-ares/ares_init.o
+CARES_OBJS += c-ares/ares_library_init.o
+CARES_OBJS += c-ares/ares_llist.o
+CARES_OBJS += c-ares/ares_mkquery.o
+CARES_OBJS += c-ares/ares_nowarn.o
+CARES_OBJS += c-ares/ares_options.o
+CARES_OBJS += c-ares/ares_parse_a_reply.o
+CARES_OBJS += c-ares/ares_parse_aaaa_reply.o
+CARES_OBJS += c-ares/ares_parse_mx_reply.o
+CARES_OBJS += c-ares/ares_parse_ns_reply.o
+CARES_OBJS += c-ares/ares_parse_ptr_reply.o
+CARES_OBJS += c-ares/ares_parse_srv_reply.o
+CARES_OBJS += c-ares/ares_parse_txt_reply.o
+CARES_OBJS += c-ares/ares_process.o
+CARES_OBJS += c-ares/ares_query.o
+CARES_OBJS += c-ares/ares_search.o
+CARES_OBJS += c-ares/ares_send.o
+CARES_OBJS += c-ares/ares_strcasecmp.o
+CARES_OBJS += c-ares/ares_strdup.o
+CARES_OBJS += c-ares/ares_strerror.o
+CARES_OBJS += c-ares/ares_timeout.o
+CARES_OBJS += c-ares/ares_version.o
+CARES_OBJS += c-ares/ares_writev.o
+CARES_OBJS += c-ares/bitncmp.o
+CARES_OBJS += c-ares/inet_net_pton.o
+CARES_OBJS += c-ares/inet_ntop.o
+
 ifneq (,$(findstring MINGW,$(uname_S)))
 include config-mingw.mk
 else
@@ -27,20 +77,23 @@ include config-unix.mk
 endif
 
 TESTS=test/echo-server.c test/test-*.c
-BENCHMARKS=test/echo-server.c test/benchmark-*.c
+BENCHMARKS=test/echo-server.c test/dns-server.c test/benchmark-*.c
 
 all: uv.a test/run-tests test/run-benchmarks
 
+$(CARES_OBJS): %.o: %.c
+	$(CC) -o $*.o -c $(CFLAGS) $(CPPFLAGS) $< -DHAVE_CONFIG_H
+
 test/run-tests$(E): test/*.h test/run-tests.c $(RUNNER_SRC) test/runner-unix.c $(TESTS) uv.a
-	$(CC) $(RUNNER_CFLAGS) $(RUNNER_LINKFLAGS) -o test/run-tests test/run-tests.c \
+	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) $(RUNNER_LINKFLAGS) -o test/run-tests test/run-tests.c \
 		test/runner.c $(RUNNER_SRC) $(TESTS) uv.a $(RUNNER_LIBS)
 
 test/run-benchmarks$(E): test/*.h test/run-benchmarks.c test/runner.c $(RUNNER_SRC) $(BENCHMARKS) uv.a
-	$(CC) $(RUNNER_CFLAGS) $(RUNNER_LINKFLAGS) -o test/run-benchmarks test/run-benchmarks.c \
+	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) $(RUNNER_LINKFLAGS) -o test/run-benchmarks test/run-benchmarks.c \
 		 test/runner.c $(RUNNER_SRC) $(BENCHMARKS) uv.a $(RUNNER_LIBS)
 
 test/echo.o: test/echo.c test/echo.h
-	$(CC) $(CFLAGS) -c test/echo.c -o test/echo.o
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c test/echo.c -o test/echo.o
 
 
 .PHONY: clean clean-platform distclean distclean-platform test benchmark

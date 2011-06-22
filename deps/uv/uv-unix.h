@@ -26,7 +26,9 @@
 
 #include "ev/ev.h"
 
+#include <sys/types.h>
 #include <sys/socket.h>
+#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
 
@@ -64,37 +66,44 @@ typedef struct {
   uv_req_t *shutdown_req; \
   ev_io read_watcher; \
   ev_io write_watcher; \
-  ngx_queue_t write_queue;
+  ngx_queue_t write_queue; \
+  ngx_queue_t write_completed_queue;
 
 
 /* UV_PREPARE */ \
 #define UV_PREPARE_PRIVATE_FIELDS \
   ev_prepare prepare_watcher; \
-  uv_loop_cb prepare_cb;
+  uv_prepare_cb prepare_cb;
 
 
 /* UV_CHECK */
 #define UV_CHECK_PRIVATE_FIELDS \
   ev_check check_watcher; \
-  uv_loop_cb check_cb;
+  uv_check_cb check_cb;
 
 
 /* UV_IDLE */
 #define UV_IDLE_PRIVATE_FIELDS \
   ev_idle idle_watcher; \
-  uv_loop_cb idle_cb;
+  uv_idle_cb idle_cb;
 
 
 /* UV_ASYNC */
 #define UV_ASYNC_PRIVATE_FIELDS \
   ev_async async_watcher; \
-  uv_loop_cb async_cb;
+  uv_async_cb async_cb;
 
 
 /* UV_TIMER */
 #define UV_TIMER_PRIVATE_FIELDS \
   ev_timer timer_watcher; \
-  uv_loop_cb timer_cb;
+  uv_timer_cb timer_cb;
 
+
+#define UV_ARES_ACTION_PRIVATE_FIELDS /* TODO */
+
+#define UV_ARES_TASK_PRIVATE_FIELDS  /* TODO */
+
+#define UV_GETADDRINFO_PRIVATE_FIELDS /* TODO */
 
 #endif /* UV_UNIX_H */

@@ -172,6 +172,7 @@ TEST_IMPL(bind_error_inval) {
   return 0;
 }
 
+
 TEST_IMPL(bind_localhost_ok) {
   struct sockaddr_in addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
 
@@ -184,4 +185,6 @@ TEST_IMPL(bind_localhost_ok) {
   ASSERT(r == 0);
   r = uv_bind(&server, addr);
   ASSERT(r == 0);
+
+  return 0;
 }

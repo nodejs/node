@@ -77,7 +77,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\c-ares</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\c-ares;..\c-ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -87,20 +87,20 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\c-ares</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\c-ares;..\c-ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\c-ares</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\c-ares;..\c-ares\config_win32</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;CARES_BUILDING_LIBRARY;CARES_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
-      <AdditionalIncludeDirectories>..\c-ares</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\c-ares;..\c-ares\config_win32</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WIN32;_LIB;CARES_BUILDING_LIBRARY;CARES_STATICLIB;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ClCompile>
   </ItemDefinitionGroup>
@@ -151,7 +151,6 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\c-ares\ares.h" />
-    <ClInclude Include="..\c-ares\ares_build.h" />
     <ClInclude Include="..\c-ares\ares_data.h" />
     <ClInclude Include="..\c-ares\ares_dns.h" />
     <ClInclude Include="..\c-ares\ares_iphlpapi.h" />
@@ -168,6 +167,7 @@
     <ClInclude Include="..\c-ares\ares_writev.h" />
     <ClInclude Include="..\c-ares\bitncmp.h" />
     <ClInclude Include="..\c-ares\config-win32.h" />
+    <ClInclude Include="..\c-ares\config_win32\ares_config.h" />
     <ClInclude Include="..\c-ares\inet_net_pton.h" />
     <ClInclude Include="..\c-ares\inet_ntop.h" />
     <ClInclude Include="..\c-ares\nameser.h" />

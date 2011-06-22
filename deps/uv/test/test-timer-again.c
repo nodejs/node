@@ -41,10 +41,10 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void repeat_1_cb(uv_handle_t* handle, int status) {
+static void repeat_1_cb(uv_timer_t* handle, int status) {
   int r;
 
-  ASSERT(handle == (uv_handle_t*)&repeat_1);
+  ASSERT(handle == &repeat_1);
   ASSERT(status == 0);
 
   ASSERT(uv_timer_get_repeat((uv_timer_t*)handle) == 50);
@@ -57,7 +57,7 @@ static void repeat_1_cb(uv_handle_t* handle, int status) {
   ASSERT(r == 0);
 
   if (uv_now() >= start_time + 500) {
-    uv_close(handle, close_cb);
+    uv_close((uv_handle_t*)handle, close_cb);
     /* We're not calling uv_timer_again on repeat_2 any more, so after this */
     /* timer_2_cb is expected. */
     repeat_2_cb_allowed = 1;
@@ -66,8 +66,8 @@ static void repeat_1_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void repeat_2_cb(uv_handle_t* handle, int status) {
-  ASSERT(handle == (uv_handle_t*) &repeat_2);
+static void repeat_2_cb(uv_timer_t* handle, int status) {
+  ASSERT(handle == &repeat_2);
   ASSERT(status == 0);
   ASSERT(repeat_2_cb_allowed);
 
@@ -76,8 +76,8 @@ static void repeat_2_cb(uv_handle_t* handle, int status) {
   repeat_2_cb_called++;
 
   if (uv_timer_get_repeat(&repeat_2) == 0) {
-    ASSERT(!uv_is_active(handle));
-    uv_close(handle, close_cb);
+    ASSERT(!uv_is_active((uv_handle_t*)handle));
+    uv_close((uv_handle_t*)handle, close_cb);
     return;
   }
 

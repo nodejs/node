@@ -82,6 +82,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -97,6 +98,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -110,6 +112,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -126,6 +129,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -149,6 +153,9 @@
     <ClCompile Include="..\test\test-connection-fail.c" />
     <ClCompile Include="..\test\test-get-currentexe.c" />
     <ClCompile Include="..\test\test-fail-always.c" />
+    <ClCompile Include="..\test\test-gethostbyname.c" />
+    <ClCompile Include="..\test\test-getaddrinfo.c" />
+    <ClCompile Include="..\test\test-hrtime.c" />
     <ClCompile Include="..\test\test-loop-handles.c" />
     <ClCompile Include="..\test\test-pass-always.c" />
     <ClCompile Include="..\test\test-ping-pong.c" />

@@ -109,8 +109,8 @@ static int idle_2_is_active = 0;
 static int timer_cb_called = 0;
 
 
-static void timer_cb(uv_handle_t* handle, int status) {
-  ASSERT(handle == (uv_handle_t*)&timer_handle);
+static void timer_cb(uv_timer_t* handle, int status) {
+  ASSERT(handle == &timer_handle);
   ASSERT(status == 0);
 
   timer_cb_called++;
@@ -129,22 +129,22 @@ static void idle_2_close_cb(uv_handle_t* handle) {
 }
 
 
-static void idle_2_cb(uv_handle_t* handle, int status) {
+static void idle_2_cb(uv_idle_t* handle, int status) {
   int r;
 
   LOG("IDLE_2_CB\n");
 
-  ASSERT(handle == (uv_handle_t*)&idle_2_handle);
+  ASSERT(handle == &idle_2_handle);
   ASSERT(status == 0);
 
   idle_2_cb_called++;
 
-  r = uv_close(handle, idle_2_close_cb);
+  r = uv_close((uv_handle_t*)handle, idle_2_close_cb);
   ASSERT(r == 0);
 }
 
 
-static void idle_1_cb(uv_handle_t* handle, int status) {
+static void idle_1_cb(uv_idle_t* handle, int status) {
   int r;
 
   LOG("IDLE_1_CB\n");
@@ -207,12 +207,12 @@ static void prepare_2_close_cb(uv_handle_t* handle) {
 }
 
 
-static void check_cb(uv_handle_t* handle, int status) {
+static void check_cb(uv_check_t* handle, int status) {
   int i, r;
 
   LOG("CHECK_CB\n");
 
-  ASSERT(handle == (uv_handle_t*)&check_handle);
+  ASSERT(handle == &check_handle);
   ASSERT(status == 0);
 
   /* XXX
@@ -254,12 +254,12 @@ static void check_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void prepare_2_cb(uv_handle_t* handle, int status) {
+static void prepare_2_cb(uv_prepare_t* handle, int status) {
   int r;
 
   LOG("PREPARE_2_CB\n");
 
-  ASSERT(handle == (uv_handle_t*)&prepare_2_handle);
+  ASSERT(handle == &prepare_2_handle);
   ASSERT(status == 0);
 
   /* XXX ASSERT(idles_1_active == 0); */
@@ -278,12 +278,12 @@ static void prepare_2_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void prepare_1_cb(uv_handle_t* handle, int status) {
+static void prepare_1_cb(uv_prepare_t* handle, int status) {
   int r;
 
   LOG("PREPARE_1_CB\n");
 
-  ASSERT(handle == (uv_handle_t*)&prepare_1_handle);
+  ASSERT(handle == &prepare_1_handle);
   ASSERT(status == 0);
 
   /* XXX
