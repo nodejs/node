@@ -2486,10 +2486,12 @@ void EmitExit(v8::Handle<v8::Object> process) {
 
 int Start(int argc, char *argv[]) {
   uv_init();
+
+  // This needs to run *before* V8::Initialize()
+  argv = Init(argc, argv);
+
   v8::V8::Initialize();
   v8::HandleScope handle_scope;
-
-  argv = Init(argc, argv);
 
   // Create the one and only Context.
   Persistent<v8::Context> context = v8::Context::New();
