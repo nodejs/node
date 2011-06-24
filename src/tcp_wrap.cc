@@ -1,5 +1,3 @@
-#include <v8.h>
-#include <uv.h>
 #include <node.h>
 #include <node_buffer.h>
 
