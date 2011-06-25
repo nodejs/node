@@ -664,8 +664,8 @@ static Handle<Value> Open(const Arguments& args) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
   } else {
     int fd = open(*path, flags, mode);
-    SetCloseOnExec(fd);
     if (fd < 0) return ThrowException(ErrnoException(errno, NULL, "", *path));
+    SetCloseOnExec(fd);
     return scope.Close(Integer::New(fd));
   }
 }
