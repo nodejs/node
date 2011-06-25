@@ -30,6 +30,14 @@ var f = __filename;
 
 assert.equal(path.basename(f), 'test-path.js');
 assert.equal(path.basename(f, '.js'), 'test-path');
+
+// POSIX filenames may include control characters
+// c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
+if (!isWindows) {
+  var controlCharFilename = 'Icon' + String.fromCharCode(13);
+  assert.equal(path.basename('/a/b/' + controlCharFilename), controlCharFilename);
+}
+
 assert.equal(path.extname(f), '.js');
 assert.equal(path.dirname(f).substr(-11), isWindows ? 'test\\simple' : 'test/simple');
 assert.equal(path.dirname('/a/b/'), '/a');
