@@ -1,3 +1,7 @@
+In development, Version 0.5.1 (unstable)
+
+* #1233 Fix os.totalmem on FreeBSD amd64 (Artem Zaytsev)
+
 2011.07.05, Version 0.5.0 (unstable)
 
 * New non-default libuv backend to support IOCP on Windows.
