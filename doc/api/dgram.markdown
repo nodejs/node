@@ -186,7 +186,7 @@ packets will also be received on the local interface.
 
 Tells the kernel to join a multicast group with `IP_ADD_MEMBERSHIP` socket option.
 
-If `multicastAddress` is not specified, the OS will try to add membership to all valid
+If `multicastInterface` is not specified, the OS will try to add membership to all valid
 interfaces.
 
 ### dgram.dropMembership(multicastAddress, [multicastInterface])
@@ -196,5 +196,5 @@ Opposite of `addMembership` - tells the kernel to leave a multicast group with
 when the socket is closed or process terminates, so most apps will never need to call
 this.
 
-If `multicastAddress` is not specified, the OS will try to drop membership to all valid
+If `multicastInterface` is not specified, the OS will try to drop membership to all valid
 interfaces.
