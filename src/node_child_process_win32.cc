@@ -351,7 +351,7 @@ void ChildProcess::close_stdio_handles(ChildProcess *child) {
 
 
 // Called from the main thread
-void ChildProcess::notify_exit(uv_handle_t* watcher, int status) {
+void ChildProcess::notify_exit(uv_async_t* watcher, int status) {
   // Get the child process, then release the lock
   ChildProcess *child = watcher_status.child;
 
