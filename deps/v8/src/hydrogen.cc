@@ -113,6 +113,21 @@ void HBasicBlock::AddInstruction(HInstruction* instr) {
 }
 
 
+HDeoptimize* HBasicBlock::CreateDeoptimize() {
+  ASSERT(HasEnvironment());
+  HEnvironment* environment = last_environment();
+
+  HDeoptimize* instr = new HDeoptimize(environment->length());
+
+  for (int i = 0; i < environment->length(); i++) {
+    HValue* val = environment->values()->at(i);
+    instr->AddEnvironmentValue(val);
+  }
+
+  return instr;
+}
+
+
 HSimulate* HBasicBlock::CreateSimulate(int id) {
   ASSERT(HasEnvironment());
   HEnvironment* environment = last_environment();
@@ -2560,7 +2575,7 @@ void HGraphBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
   // If we have a non-smi compare clause, we deoptimize after trying
   // all the previous compares.
   if (num_smi_clauses < num_clauses) {
-    last_false_block->Finish(new HDeoptimize);
+    last_false_block->FinishExitWithDeoptimization();
   }
 
   // Build statement blocks, connect them to their comparison block and
@@ -3230,7 +3245,7 @@ void HGraphBuilder::HandlePolymorphicStoreNamedField(Assignment* expr,
     HSubgraph* default_graph = CreateBranchSubgraph(environment());
     { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->exit_block()->FinishExit(new HDeoptimize());
+        default_graph->exit_block()->FinishExitWithDeoptimization();
         default_graph->set_exit_block(NULL);
       } else {
         HInstruction* instr = BuildStoreNamedGeneric(object, name, value);
@@ -3567,7 +3582,7 @@ void HGraphBuilder::HandlePolymorphicLoadNamedField(Property* expr,
     HSubgraph* default_graph = CreateBranchSubgraph(environment());
     { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->exit_block()->FinishExit(new HDeoptimize());
+        default_graph->exit_block()->FinishExitWithDeoptimization();
         default_graph->set_exit_block(NULL);
       } else {
         HInstruction* instr = BuildLoadNamedGeneric(object, expr);
@@ -3928,7 +3943,7 @@ void HGraphBuilder::HandlePolymorphicCallNamed(Call* expr,
     HSubgraph* default_graph = CreateBranchSubgraph(environment());
     { SubgraphScope scope(this, default_graph);
       if (!needs_generic && FLAG_deoptimize_uncommon_cases) {
-        default_graph->exit_block()->FinishExit(new HDeoptimize());
+        default_graph->exit_block()->FinishExitWithDeoptimization();
         default_graph->set_exit_block(NULL);
       } else {
         HContext* context = new HContext;

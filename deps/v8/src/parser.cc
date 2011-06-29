@@ -3490,6 +3490,12 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
   while (!done) {
     Expression* argument = ParseAssignmentExpression(true, CHECK_OK);
     result->Add(argument);
+    if (result->length() > kMaxNumFunctionParameters) {
+      ReportMessageAt(scanner().location(), "too_many_arguments",
+                      Vector<const char*>::empty());
+      *ok = false;
+      return NULL;
+    }
     done = (peek() == Token::RPAREN);
     if (!done) Expect(Token::COMMA, CHECK_OK);
   }
