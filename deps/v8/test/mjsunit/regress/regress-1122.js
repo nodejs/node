@@ -25,12 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we can handle functions with up to 32766 arguments, and that
-// functions with more arguments throw an exception.
+// Test that we can handle function calls with up to 32766 arguments, and
+// that function calls with more arguments throw an exception.  Apply a
+// similar limit to the number of function parameters.
 
-// See http://code.google.com/p/v8/issues/detail?id=1122.
+// See http://code.google.com/p/v8/issues/detail?id=1122 and
+// http://code.google.com/p/v8/issues/detail?id=1413.
 
-function function_with_n_args(n) {
+function function_with_n_params_and_m_args(n, m) {
   test_prefix = 'prefix ';
   test_suffix = ' suffix';
   var source = 'test_prefix + (function f(';
@@ -39,7 +41,7 @@ function function_with_n_args(n) {
     source += 'arg' + arg;
   }
   source += ') { return arg' + (n - n % 2) / 2 + '; })(';
-  for (var arg = 0; arg < n ; arg++) {
+  for (var arg = 0; arg < m ; arg++) {
     if (arg != 0) source += ',';
     source += arg;
   }
@@ -47,9 +49,20 @@ function function_with_n_args(n) {
   return eval(source);
 }
 
-assertEquals('prefix 4000 suffix', function_with_n_args(8000));
-assertEquals('prefix 9000 suffix', function_with_n_args(18000));
-assertEquals('prefix 16000 suffix', function_with_n_args(32000));
+assertEquals('prefix 4000 suffix',
+             function_with_n_params_and_m_args(8000, 8000));
+assertEquals('prefix 3000 suffix',
+             function_with_n_params_and_m_args(6000, 8000));
+assertEquals('prefix 5000 suffix',
+             function_with_n_params_and_m_args(10000, 8000));
+assertEquals('prefix 9000 suffix',
+             function_with_n_params_and_m_args(18000, 18000));
+assertEquals('prefix 16000 suffix',
+             function_with_n_params_and_m_args(32000, 32000));
+assertEquals('prefix undefined suffix',
+             function_with_n_params_and_m_args(32000, 10000));
 
-assertThrows("function_with_n_args(35000)");
-assertThrows("function_with_n_args(100000)");
+assertThrows("function_with_n_params_and_m_args(35000, 35000)");
+assertThrows("function_with_n_params_and_m_args(100000, 100000)");
+assertThrows("function_with_n_params_and_m_args(35000, 30000)");
+assertThrows("function_with_n_params_and_m_args(30000, 35000)");

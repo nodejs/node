@@ -1,4 +1,38 @@
-2011.05.20, Version 0.4.8 (stable)
+2011.06.29, Version 0.4.9 (stable)
+
+* Improve documentation
+
+* #1095 error handling bug in stream.pipe() (Felix Geisendörfer)
+
+* #1097 Fix a few leaks in node_crypto.cc (Ben Noordhuis)
+
+* #562 #1078 Parse file:// urls properly (Ryan Petrello)
+
+* #880 Option to disable SSLv2 (Jérémy Lal)
+
+* #1087 Disabling SSL compression disabled with early OpenSSLs.
+
+* #1144 debugger: don't allow users to input non-valid commands
+  (Siddharth Mahendraker)
+
+* Perf improvement for util.inherits
+
+* #1166 Support for signature verification with RSA/DSA public keys
+  (Mark Cavage)
+
+* #1177 Remove node_modules lookup optimization to better support
+  nested project structures (Mathias Buus)
+
+* #1203 Add missing scope.Close to fs.sendfileSync
+
+* #1187 Support multiple 'link' headers
+
+* #1196 Fix -e/--eval can't load module from node_modules (Koichi Kobayashi)
+
+* Upgrade V8 to 3.1.8.25, upgrade http-parser.
+
+
+2011.05.20, Version 0.4.8 (stable), 7dd22c26e4365698dc3efddf138c4d399cb912c8
 
 * #974 Properly report traceless errors (isaacs)
 

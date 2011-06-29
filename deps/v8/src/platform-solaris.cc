@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -105,7 +105,8 @@ uint64_t OS::CpuFeaturesImpliedByPlatform() {
 
 
 int OS::ActivationFrameAlignment() {
-  return STACK_ALIGN;
+  // GCC generates code that requires 16 byte alignment such as movdqa.
+  return Max(STACK_ALIGN, 16);
 }
 
 

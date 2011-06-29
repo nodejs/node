@@ -19,11 +19,17 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-console.error(__filename);
-console.error(module.paths.join('\n')+'\n');
-// this should work, and get the one that doesn't throw
+var common = require('../common');
 var assert = require('assert');
-assert.equal(require('bar'), require('../bar.js'));
+var spawn = require('child_process').spawn;
+var path = require('path');
+var fs = require('fs');
 
-// this should work, and get the one in ./node_modules/asdf.js
-assert.equal(require('asdf'), require('./node_modules/asdf.js'));
+var options = {
+  cwd: common.fixturesDir
+};
+var child = spawn(process.execPath, ['-e', 'require("foo")'], options);
+child.on('exit', function(code) {
+  assert.equal(code, 0);
+});
+

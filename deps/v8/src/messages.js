@@ -211,6 +211,7 @@ function FormatMessage(message) {
       invalid_preparser_data:       ["Invalid preparser data for function ", "%0"],
       strict_mode_with:             ["Strict mode code may not include a with statement"],
       strict_catch_variable:        ["Catch variable may not be eval or arguments in strict mode"],
+      too_many_arguments:           ["Too many arguments in function call (only 32766 allowed)"],
       too_many_parameters:          ["Too many parameters in function definition"],
       strict_param_name:            ["Parameter name eval or arguments is not allowed in strict mode"],
       strict_param_dupe:            ["Strict mode function may not have duplicate parameter names"],

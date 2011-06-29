@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,10 +25,32 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var x  = 0;
-execScript('x = 1', 'javascript');
-assertEquals(1, x);
+// Flags: --expose-gc
 
-execScript('x = 2', 'JavaScript');
-assertEquals(2, x);
+// Create array large enough to span several page regions.
+var a = new Array(500);
 
+// Fill it with values.
+for (var i = 0; i < a.length; i++) a[i] = {idx:i};
+
+// Force it into oldspace.
+gc();
+gc();
+
+// Array should be in old space now. Store young object into array.
+// Region will be marked.
+a[0] = {idx:0};
+
+// Delete elements a[2] .. a[201]. Internally we will use
+// trimming of backing store. a[0] a[1] will be moved to
+// memory location previously occupied by a[200] a[201].
+a.splice(2, 200);
+
+// Force gc and heap verification.
+gc();
+
+// Try accessing a[0].idx. It will segfault if write-barrier was accidentally
+// omitted.
+assertEquals(0, a[0].idx);
+assertEquals(1, a[1].idx);
+assertEquals(202, a[2].idx);

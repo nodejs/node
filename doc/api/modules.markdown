@@ -68,8 +68,7 @@ parent directory of the current module, and adds `/node_modules`, and
 attempts to load the module from that location.
 
 If it is not found there, then it moves to the parent directory, and so
-on, until either the module is found, or the root of the tree is
-reached.
+on, until the root of the tree is reached.
 
 For example, if the file at `'/home/ry/projects/foo.js'` called
 `require('bar.js')`, then node would look in the following locations, in
@@ -82,28 +81,6 @@ this order:
 
 This allows programs to localize their dependencies, so that they do not
 clash.
-
-#### Optimizations to the `node_modules` Lookup Process
-
-When there are many levels of nested dependencies, it is possible for
-these file trees to get fairly long.  The following optimizations are thus
-made to the process.
-
-First, `/node_modules` is never appended to a folder already ending in
-`/node_modules`.
-
-Second, if the file calling `require()` is already inside a `node_modules`
-hierarchy, then the top-most `node_modules` folder is treated as the
-root of the search tree.
-
-For example, if the file at
-`'/home/ry/projects/foo/node_modules/bar/node_modules/baz/quux.js'`
-called `require('asdf.js')`, then node would search the following
-locations:
-
-* `/home/ry/projects/foo/node_modules/bar/node_modules/baz/node_modules/asdf.js`
-* `/home/ry/projects/foo/node_modules/bar/node_modules/asdf.js`
-* `/home/ry/projects/foo/node_modules/asdf.js`
 
 ### Folders as Modules
 
