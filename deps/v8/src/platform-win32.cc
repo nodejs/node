@@ -123,6 +123,15 @@ int strncasecmp(const char* s1, const char* s2, int n) {
 // the Microsoft Visual Studio C++ CRT.
 #ifdef __MINGW32__
 
+namespace v8 {
+namespace internal {
+
+intptr_t OS::MaxVirtualMemory() {
+  return 0;
+}
+}
+}
+
 int localtime_s(tm* out_tm, const time_t* time) {
   tm* posix_local_time_struct = localtime(time);
   if (posix_local_time_struct == NULL) return 1;
