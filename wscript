@@ -904,8 +904,6 @@ def build(bld):
   bld.install_files('${PREFIX}/include/node/c-ares', """
     deps/uv/c-ares/ares.h
     deps/uv/c-ares/ares_version.h
-    deps/uv/c-ares/ares_build.h
-    deps/uv/c-ares/ares_rules.h
   """)
 
   # Only install the man page if it exists.
