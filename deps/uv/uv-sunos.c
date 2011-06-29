@@ -27,7 +27,7 @@
 #include <sys/time.h>
 
 
-uint64_t uv_get_hrtime() {
+uint64_t uv_hrtime() {
   return (gethrtime());
 }
 
@@ -37,7 +37,7 @@ uint64_t uv_get_hrtime() {
  * of the function, but this function could be called by multiple consumers and
  * we don't want to potentially create a race condition in the use of snprintf.
  */
-int uv_get_exepath(char* buffer, size_t* size) {
+int uv_exepath(char* buffer, size_t* size) {
   size_t res;
   pid_t pid;
   char buf[PATH_MAX];

@@ -1,4 +1,5 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -18,32 +19,33 @@
  * IN THE SOFTWARE.
  */
 
+/*
+ * This file is private to libuv. It provides common functionality to both
+ * Windows and Unix backends.
+ */
+
+#ifndef UV_COMMON_H_
+#define UV_COMMON_H_
+
 #include "uv.h"
 
+/*
+ * Subclass of uv_handle_t. Used for integration of c-ares.
+ */
+typedef struct uv_ares_task_s uv_ares_task_t;
 
-int uv_exepath(char* buffer, size_t* size) {
-  uint32_t usize;
-  int result;
-  char* path;
-  char* fullpath;
+struct uv_ares_task_s {
+  UV_HANDLE_FIELDS
+  UV_ARES_TASK_PRIVATE_FIELDS
+  uv_ares_task_t* ares_prev;
+  uv_ares_task_t* ares_next;
+};
 
-  if (!buffer || !size) {
-    return -1;
-  }
 
-  int mib[4];
+void uv_remove_ares_handle(uv_ares_task_t* handle);
+uv_ares_task_t* uv_find_ares_handle(ares_socket_t sock);
+void uv_add_ares_handle(uv_ares_task_t* handle);
+int uv_ares_handles_empty();
 
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
 
-  size_t cb = *size;
-  if (sysctl(mib, 4, buffer, &cb, NULL, 0) < 0) {
-	  *size = 0;
-	  return -1;
-  }
-  *size = strlen(buffer);
-
-  return 0;
-}
+#endif /* UV_COMMON_H_ */

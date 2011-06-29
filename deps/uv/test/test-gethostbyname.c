@@ -35,41 +35,35 @@ int bynamecallbacksig;
 int ares_byaddrcallbacks;
 int byaddrcallbacksig;
 
-static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
-  uv_buf_t buf;
-  buf.base = (char*)malloc(size);
-  buf.len = size;
-  return buf;
-}
-
 static void aresbynamecallback( void *arg,
                           int status,
                           int timeouts,
                           struct hostent *hostent) {
-    int * iargs;
-    ASSERT(arg != NULL);
-    iargs = (int*)arg;
-    ASSERT(*iargs == bynamecallbacksig);
-    ASSERT(timeouts == 0);
+  int * iargs;
+  ASSERT(arg != NULL);
+  iargs = (int*)arg;
+  ASSERT(*iargs == bynamecallbacksig);
+  ASSERT(timeouts == 0);
 
-    ares_bynamecallbacks++;
+  printf("aresbynamecallback %d\n", ares_bynamecallbacks++);
 }
+
 
 static void aresbyaddrcallback( void *arg,
                           int status,
                           int timeouts,
                           struct hostent *hostent) {
-    int * iargs;
-    ASSERT(arg != NULL);
-    iargs = (int*)arg;
-    ASSERT(*iargs == byaddrcallbacksig);
-    ASSERT(timeouts == 0);
+  int * iargs;
+  ASSERT(arg != NULL);
+  iargs = (int*)arg;
+  ASSERT(*iargs == byaddrcallbacksig);
+  ASSERT(timeouts == 0);
 
-    ares_byaddrcallbacks++;
+  printf("aresbyaddrcallback %d\n", ares_byaddrcallbacks++);
 }
 
-static void prep_tcploopback()
-{
+
+static void prep_tcploopback() {
   /* for test, use echo server - TCP port TEST_PORT on loopback */
   struct sockaddr_in test_server = uv_ip4_addr("127.0.0.1", 0);
   int rc;
@@ -97,7 +91,7 @@ TEST_IMPL(gethostbyname) {
     return 1;
   }
 
-  uv_init(alloc_cb);
+  uv_init();
 
   printf("Start basic gethostbyname test\n");
   prep_tcploopback();

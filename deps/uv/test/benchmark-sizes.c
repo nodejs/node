@@ -31,7 +31,5 @@ BENCHMARK_IMPL(sizes) {
   LOGF("uv_idle_t: %u bytes\n", (unsigned int) sizeof(uv_idle_t));
   LOGF("uv_async_t: %u bytes\n", (unsigned int) sizeof(uv_async_t));
   LOGF("uv_timer_t: %u bytes\n", (unsigned int) sizeof(uv_timer_t));
-  LOGF("uv_ares_task_t: %u bytes\n", (unsigned int) sizeof(uv_ares_task_t));
-  LOGF("uv_ares_action_t: %u bytes\n", (unsigned int) sizeof(uv_ares_action_t));
   return 0;
 }

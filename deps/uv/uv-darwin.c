@@ -26,7 +26,7 @@
 #include <mach/mach_time.h>
 
 
-uint64_t uv_get_hrtime() {
+uint64_t uv_hrtime() {
   uint64_t time;
   Nanoseconds enano;
   time = mach_absolute_time(); 
@@ -35,7 +35,7 @@ uint64_t uv_get_hrtime() {
 }
 
 
-int uv_get_exepath(char* buffer, size_t* size) {
+int uv_exepath(char* buffer, size_t* size) {
   uint32_t usize;
   int result;
   char* path;

@@ -23,6 +23,16 @@
 #include "task.h"
 
 
+#ifndef MICROSEC
+# define MICROSEC 1000000
+#endif
+
+#ifndef NANOSEC
+# define NANOSEC 1000000000
+#endif
+
+
+
 /*
  * We expect the amount of time passed to be at least one us plus two system
  * calls. Therefore checking that at least a microsecond has elapsed is safe.
@@ -30,9 +40,9 @@
 TEST_IMPL(hrtime) {
   uint64_t a, b, diff;
 
-  a = uv_get_hrtime();
+  a = uv_hrtime();
   uv_sleep(1);
-  b = uv_get_hrtime();
+  b = uv_hrtime();
 
   diff = b - a;
 

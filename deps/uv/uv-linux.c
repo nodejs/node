@@ -28,14 +28,14 @@
  * There's probably some way to get time from Linux than gettimeofday(). What
  * it is, I don't know.
  */
-uint64_t uv_get_hrtime() {
+uint64_t uv_hrtime() {
   struct timespec ts;
   clock_gettime(CLOCK_MONOTONIC, &ts);
   return (ts.tv_sec * NANOSEC + ts.tv_nsec);
 }
 
 
-int uv_get_exepath(char* buffer, size_t* size) {
+int uv_exepath(char* buffer, size_t* size) {
   uint32_t usize;
   int result;
   char* path;

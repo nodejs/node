@@ -148,6 +148,7 @@
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="..\test\test-async.c" />
+    <ClCompile Include="..\test\test-bind6-error.c" />
     <ClCompile Include="..\test\test-delayed-accept.c" />
     <ClCompile Include="..\test\test-callback-stack.c" />
     <ClCompile Include="..\test\test-connection-fail.c" />

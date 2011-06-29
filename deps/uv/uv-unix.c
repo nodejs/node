@@ -19,6 +19,7 @@
  */
 
 #include "uv.h"
+#include "uv-common.h"
 
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* printf */
@@ -44,6 +45,18 @@
 
 static uv_err_t last_err;
 
+struct uv_ares_data_s {
+  ares_channel channel;
+  /*
+   * While the channel is active this timer is called once per second to be sure
+   * that we're always calling ares_process. See the warning above the
+   * definition of ares_timeout().
+   */
+  ev_timer timer;
+};
+
+static struct uv_ares_data_s ares_data;
+
 
 void uv__tcp_io(EV_P_ ev_io* watcher, int revents);
 void uv__next(EV_P_ ev_idle* watcher, int revents);
@@ -64,6 +77,30 @@ enum {
 
 void uv_flag_set(uv_handle_t* handle, int flag) {
   handle->flags |= flag;
+}
+
+
+/* TODO Share this code with Windows. */
+/* TODO Expose callback to user to handle fatal error like V8 does. */
+static void uv_fatal_error(const int errorno, const char* syscall) {
+  char* buf = NULL;
+  const char* errmsg;
+
+  if (buf) {
+    errmsg = buf;
+  } else {
+    errmsg = "Unknown error";
+  }
+
+  if (syscall) {
+    fprintf(stderr, "\nlibuv fatal error. %s: (%d) %s\n", syscall, errorno,
+        errmsg);
+  } else {
+    fprintf(stderr, "\nlibuv fatal error. (%d) %s\n", errorno, errmsg);
+  }
+
+  *((char*)NULL) = 0xff; /* Force debug break */
+  abort();
 }
 
 
@@ -235,13 +272,11 @@ int uv_tcp_init(uv_tcp_t* tcp) {
 }
 
 
-int uv_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
-  int addrsize = sizeof(struct sockaddr_in);
-  int domain = AF_INET;
+int uv__bind(uv_tcp_t* tcp, int domain, struct sockaddr* addr, int addrsize) {
   int r;
 
   if (tcp->fd <= 0) {
-    int fd = socket(AF_INET, SOCK_STREAM, 0);
+    int fd = socket(domain, SOCK_STREAM, 0);
 
     if (fd < 0) {
       uv_err_new((uv_handle_t*)tcp, errno);
@@ -256,12 +291,7 @@ int uv_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
 
   assert(tcp->fd >= 0);
 
-  if (addr.sin_family != AF_INET) {
-    uv_err_new((uv_handle_t*)tcp, EFAULT);
-    return -1;
-  }
-
-  r = bind(tcp->fd, (struct sockaddr*) &addr, addrsize);
+  r = bind(tcp->fd, addr, addrsize);
   tcp->delayed_error = 0;
 
   if (r) {
@@ -277,6 +307,26 @@ int uv_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
   }
 
   return 0;
+}
+
+
+int uv_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
+  if (addr.sin_family != AF_INET) {
+    uv_err_new((uv_handle_t*)tcp, EFAULT);
+    return -1;
+  }
+
+  return uv__bind(tcp, AF_INET, (struct sockaddr*)&addr, sizeof(struct sockaddr_in));
+}
+
+
+int uv_bind6(uv_tcp_t* tcp, struct sockaddr_in6 addr) {
+  if (addr.sin6_family != AF_INET6) {
+    uv_err_new((uv_handle_t*)tcp, EFAULT);
+    return -1;
+  }
+
+  return uv__bind(tcp, AF_INET6, (struct sockaddr*)&addr, sizeof(struct sockaddr_in6));
 }
 
 
@@ -313,8 +363,8 @@ int uv_tcp_open(uv_tcp_t* tcp, int fd) {
 
 void uv__server_io(EV_P_ ev_io* watcher, int revents) {
   int fd;
-  struct sockaddr addr;
-  socklen_t addrlen;
+  struct sockaddr_storage addr;
+  socklen_t addrlen = sizeof(struct sockaddr_storage);
   uv_tcp_t* tcp = watcher->data;
 
   assert(watcher == &tcp->read_watcher ||
@@ -330,7 +380,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
 
   while (1) {
     assert(tcp->accepted_fd < 0);
-    fd = accept(tcp->fd, &addr, &addrlen);
+    fd = accept(tcp->fd, (struct sockaddr*)&addr, &addrlen);
 
     if (fd < 0) {
       if (errno == EAGAIN) {
@@ -1290,17 +1340,145 @@ int64_t uv_timer_get_repeat(uv_timer_t* timer) {
   return (int64_t)(1000 * timer->timer_watcher.repeat);
 }
 
-/* c-ares integration initialize and terminate */
-int uv_ares_init_options(ares_channel *channelptr,
-                        struct ares_options *options,
-                        int optmask) {
-  int r;
-  r = ares_init_options(channelptr, options, optmask);
-  return r;
+
+/*
+ * This is called once per second by ares_data.timer. It is used to 
+ * constantly callback into c-ares for possibly processing timeouts.
+ */
+static void uv__ares_timeout(EV_P_ struct ev_timer* watcher, int revents) {
+  assert(watcher == &ares_data.timer);
+  assert(revents == EV_TIMER);
+  assert(!uv_ares_handles_empty());
+  ares_process_fd(ares_data.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
+
+static void uv__ares_io(EV_P_ struct ev_io* watcher, int revents) {
+  /* Reset the idle timer */
+  ev_timer_again(EV_A_ &ares_data.timer);
+
+  /* Process DNS responses */
+  ares_process_fd(ares_data.channel,
+      revents & EV_READ ? watcher->fd : ARES_SOCKET_BAD,
+      revents & EV_WRITE ? watcher->fd : ARES_SOCKET_BAD);
+}
+
+
+/* Allocates and returns a new uv_ares_task_t */
+static uv_ares_task_t* uv__ares_task_create(int fd) {
+  uv_ares_task_t* h = malloc(sizeof(uv_ares_task_t));
+
+  if (h == NULL) {
+    uv_fatal_error(ENOMEM, "malloc");
+  }
+
+  h->sock = fd;
+
+  ev_io_init(&h->read_watcher, uv__ares_io, fd, EV_READ);
+  ev_io_init(&h->write_watcher, uv__ares_io, fd, EV_WRITE);
+
+  h->read_watcher.data = h;
+  h->write_watcher.data = h;
+}
+
+
+/* Callback from ares when socket operation is started */
+static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
+    int read, int write) {
+  uv_ares_task_t* h = uv_find_ares_handle(sock);
+
+  if (read || write) {
+    if (!h) {
+      /* New socket */
+
+      /* If this is the first socket then start the timer. */
+      if (!ev_is_active(&ares_data.timer)) {
+        assert(uv_ares_handles_empty());
+        ev_timer_again(EV_DEFAULT_UC_ &ares_data.timer);
+      }
+
+      h = uv__ares_task_create(sock);
+      uv_add_ares_handle(h);
+    }
+
+    if (read) {
+      ev_io_start(EV_DEFAULT_UC_ &h->read_watcher);
+    } else {
+      ev_io_stop(EV_DEFAULT_UC_ &h->read_watcher);
+    }
+
+    if (write) {
+      ev_io_start(EV_DEFAULT_UC_ &h->write_watcher);
+    } else {
+      ev_io_stop(EV_DEFAULT_UC_ &h->write_watcher);
+    }
+
+  } else {
+    /*
+     * read == 0 and write == 0 this is c-ares's way of notifying us that
+     * the socket is now closed. We must free the data associated with
+     * socket.
+     */
+    assert(h && "When an ares socket is closed we should have a handle for it");
+
+    ev_io_stop(EV_DEFAULT_UC_ &h->read_watcher);
+    ev_io_stop(EV_DEFAULT_UC_ &h->write_watcher);
+
+    uv_remove_ares_handle(h);
+    free(h);
+
+    if (uv_ares_handles_empty()) {
+      ev_timer_stop(EV_DEFAULT_UC_ &ares_data.timer);
+    }
+  }
+}
+
+
+/* c-ares integration initialize and terminate */
+/* TODO: share this with windows? */
+int uv_ares_init_options(ares_channel *channelptr,
+                         struct ares_options *options,
+                         int optmask) {
+  int rc;
+
+  /* only allow single init at a time */
+  if (ares_data.channel != NULL) {
+    uv_err_new_artificial(NULL, UV_EALREADY);
+    return -1;
+  }
+
+  /* set our callback as an option */
+  options->sock_state_cb = uv__ares_sockstate_cb;
+  options->sock_state_cb_data = &ares_data;
+  optmask |= ARES_OPT_SOCK_STATE_CB;
+
+  /* We do the call to ares_init_option for caller. */
+  rc = ares_init_options(channelptr, options, optmask);
+
+  /* if success, save channel */
+  if (rc == ARES_SUCCESS) {
+    ares_data.channel = *channelptr;
+  }
+
+  /*
+   * Initialize the timeout timer. The timer won't be started until the
+   * first socket is opened.
+   */
+  ev_init(&ares_data.timer, uv__ares_timeout);
+  ares_data.timer.repeat = 1.0;
+
+  return rc;
+}
+
+
+/* TODO share this with windows? */
 void uv_ares_destroy(ares_channel channel) {
-  ares_destroy(channel);
+  /* only allow destroy if did init */
+  if (ares_data.channel != NULL) {
+    ev_timer_stop(EV_DEFAULT_UC_ &ares_data.timer);
+    ares_destroy(channel);
+    ares_data.channel = NULL;
+  }
 }
 
 

@@ -48,10 +48,6 @@ typedef struct uv_check_s uv_check_t;
 typedef struct uv_idle_s uv_idle_t;
 typedef struct uv_req_s uv_req_t;
 typedef struct uv_async_s uv_async_t;
-/* TODO: make private */
-typedef struct uv_ares_task_s uv_ares_task_t;
-/* TODO: make private */
-typedef struct uv_ares_action_s uv_ares_action_t;
 typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
 
 
@@ -223,6 +219,7 @@ struct uv_tcp_s {
 int uv_tcp_init(uv_tcp_t* handle);
 
 int uv_bind(uv_tcp_t* handle, struct sockaddr_in);
+int uv_bind6(uv_tcp_t* handle, struct sockaddr_in6);
 
 int uv_connect(uv_req_t* req, struct sockaddr_in);
 
@@ -378,25 +375,6 @@ void uv_timer_set_repeat(uv_timer_t* timer, int64_t repeat);
 int64_t uv_timer_get_repeat(uv_timer_t* timer);
 
 
-/*
- * Subclass of uv_handle_t. Used for integration of c-ares.
- * TODO: make private
- */
-struct uv_ares_task_s {
-  UV_HANDLE_FIELDS
-  UV_ARES_TASK_PRIVATE_FIELDS
-};
-
-
-/*
- * Subclass of uv_handle_t. Used for integration of c-ares.
- * TODO: make private
- */
-struct uv_ares_action_s {
-  UV_HANDLE_FIELDS
-  UV_ARES_ACTION_PRIVATE_FIELDS
-};
-
 /* c-ares integration initialize and terminate */
 int uv_ares_init_options(ares_channel *channelptr,
                         struct ares_options *options,
@@ -453,9 +431,22 @@ int64_t uv_now();
 
 /* Utility */
 struct sockaddr_in uv_ip4_addr(const char* ip, int port);
+struct sockaddr_in6 uv_ip6_addr(const char* ip, int port);
 
 /* Gets the executable path */
-int uv_get_exepath(char* buffer, size_t* size);
+int uv_exepath(char* buffer, size_t* size);
+
+/*
+ * Returns the current high-resolution real time. This is expressed in
+ * nanoseconds. It is relative to an arbitrary time in the past. It is not
+ * related to the time of day and therefore not subject to clock drift. The
+ * primary use is for measuring performance between intervals.
+ *
+ * Note not every platform can support nanosecond resolution; however, this
+ * value will always be in nanoseconds.
+ */
+extern uint64_t uv_hrtime(void);
+
 
 /* the presence of this union forces similar struct layout */
 union uv_any_handle {
@@ -465,8 +456,6 @@ union uv_any_handle {
   uv_idle_t idle;
   uv_async_t async;
   uv_timer_t timer;
-  uv_ares_task_t arest;
-  uv_ares_action_t aresa;
   uv_getaddrinfo_t getaddrinfo;
 };
 
@@ -483,35 +472,6 @@ typedef struct {
 } uv_counters_t;
 
 uv_counters_t* uv_counters();
-
-
-#ifndef SEC
-# define SEC 1
-#endif
-
-#ifndef MILLISEC
-# define MILLISEC 1000
-#endif
-
-#ifndef MICROSEC
-# define MICROSEC 1000000
-#endif
-
-#ifndef NANOSEC
-# define NANOSEC 1000000000
-#endif
-
-
-/*
- * Returns the current high-resolution real time. This is expressed in
- * nanoseconds. It is relative to an arbitrary time in the past. It is not
- * related to the time of day and therefore not subject to clock drift. The
- * primary use is for measuring performance between intervals.
- *
- * Note not every platform can support nanosecond resolution; however, this
- * value will always be in nanoseconds.
- */
-extern uint64_t uv_get_hrtime(void);
 
 #ifdef __cplusplus
 }

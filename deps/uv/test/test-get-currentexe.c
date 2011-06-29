@@ -33,20 +33,20 @@ TEST_IMPL(get_currentexe) {
   int r;
 
   size = sizeof(buffer) / sizeof(buffer[0]);
-  r = uv_get_exepath(buffer, &size);
+  r = uv_exepath(buffer, &size);
   ASSERT(!r);
 
   match = strstr(buffer, executable_path);
-  /* Verify that the path returned from uv_get_exepath is a subdirectory of executable_path */
+  /* Verify that the path returned from uv_exepath is a subdirectory of executable_path */
   ASSERT(match && !strcmp(match, executable_path));
   ASSERT(size == strlen(buffer));
 
   /* Negative tests */
   size = sizeof(buffer) / sizeof(buffer[0]);
-  r = uv_get_exepath(NULL, &size);
+  r = uv_exepath(NULL, &size);
   ASSERT(r == -1);
 
-  r = uv_get_exepath(buffer, NULL);
+  r = uv_exepath(buffer, NULL);
   ASSERT(r == -1);
 
   return 0;
