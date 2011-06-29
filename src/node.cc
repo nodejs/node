@@ -63,6 +63,7 @@
 #ifdef __POSIX__
 # include <node_signal_watcher.h>
 # include <node_stat_watcher.h>
+# include <node_timer.h>
 #endif
 #include <node_child_process.h>
 #include <node_constants.h>
@@ -1887,6 +1888,11 @@ static Handle<Value> Binding(const Arguments& args) {
     IOWatcher::Initialize(exports);
     binding_cache->Set(module, exports);
 #endif
+
+  } else if (!strcmp(*module_v, "timer")) {
+    exports = Object::New();
+    Timer::Initialize(exports);
+    binding_cache->Set(module, exports);
 
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
