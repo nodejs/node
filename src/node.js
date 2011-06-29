@@ -374,10 +374,17 @@
   // flag --use-uv to enable the libuv backend instead of the legacy
   // backend.
   function translateId(id) {
-    if (id == 'net') {
-      return process.useUV || process.env.NODE_USE_UV ? 'net_uv' : 'net_legacy';
-    } else {
-      return id;
+    var useUV = process.useUV || process.env.NODE_USE_UV;
+
+    switch (id) {
+      case 'net':
+        return useUV ? 'net_uv' : 'net_legacy';
+
+      case 'timers':
+        return useUV ? 'timers_uv' : 'timers_legacy';
+
+      default:
+        return id;
     }
   }
 
