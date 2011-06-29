@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -50,8 +50,6 @@ assertEquals(1, argc2(1));
 assertEquals(2, argc2(1, 2));
 assertEquals(3, argc2(1, 2, 3));
 
-
-
 var index;
 
 function argv0() {
@@ -95,3 +93,98 @@ assertEquals(9, argv2(7, 8, 9));
 // an unexpected number of arguments works.
 function f(a) { return arguments.length; };
 assertEquals(3, f(1, 2, 3));
+
+function f1(x, y) {
+  function g(a) {
+    a[0] = "three";
+    return a.length;
+  }
+  var l = g(arguments);
+  y = 5;
+  assertEquals(2, l);
+  assertEquals("three", x);
+  assertEquals(5, y);
+}
+f1(3, "five");
+
+
+function f2() {
+  if (arguments[0] > 0) {
+    return arguments.callee(arguments[0] - 1) + arguments[0];
+  }
+  return 0;
+}
+assertEquals(55, f2(10));
+
+
+function f3() {
+  assertEquals(0, arguments.length);
+}
+f3();
+
+
+function f4() {
+  var arguments = 0;
+  assertEquals(void 0, arguments.length);
+}
+f4();
+
+
+function f5(x, y, z) {
+  function g(a) {
+    x = "two";
+    y = "three";
+    a[1] = "drei";
+    a[2] = "fuenf";
+  };
+
+  g(arguments);
+  assertEquals("two", x);
+  assertEquals("drei", y);
+  assertEquals("fuenf", z);
+}
+f5(2, 3, 5);
+
+
+function f6(x, y) {
+  x = "x";
+  arguments[1] = "y";
+  return [arguments.length, arguments[0], y, arguments[2]];
+}
+
+assertArrayEquals([0, void 0, void 0, void 0], f6());
+assertArrayEquals([1, "x", void 0, void 0], f6(1));
+assertArrayEquals([2, "x", "y", void 0], f6(9, 17));
+assertArrayEquals([3, "x", "y", 7], f6(3, 5, 7));
+assertArrayEquals([4, "x", "y", "c"], f6("a", "b", "c", "d"));
+
+
+function list_args(a) {
+  assertEquals("function", typeof a.callee);
+  var result = [];
+  result.push(a.length);
+  for (i = 0; i < a.length; i++) result.push(a[i]);
+  return result;
+}
+
+
+function f1(x, y) {
+  function g(p) {
+    x = p;
+  }
+  g(y);
+  return list_args(arguments);
+}
+
+assertArrayEquals([0], f1());
+assertArrayEquals([1, void 0], f1(3));
+assertArrayEquals([2, 5, 5], f1(3, 5));
+assertArrayEquals([3, 5, 5, 7], f1(3, 5, 7));
+
+// Check out of bounds behavior.
+function arg_get(x) { return arguments[x]; }
+function arg_del(x) { return delete arguments[x]; }
+function arg_set(x) { return (arguments[x] = 117); }
+assertEquals(undefined, arg_get(0xFFFFFFFF));
+assertEquals(true, arg_del(0xFFFFFFFF));
+assertEquals(117, arg_set(0xFFFFFFFF));

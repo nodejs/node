@@ -62,7 +62,7 @@ var y = 44;
 
 function f_bound_this(z) {
   return z + this.y - this.x;
-} 
+}
 
 assertEquals(3, f_bound_this(1))
 f = f_bound_this.bind(obj);
@@ -75,7 +75,7 @@ assertEquals(0, f.length);
 
 // Test chained binds.
 
-// When only giving the thisArg, any number of binds should have 
+// When only giving the thisArg, any number of binds should have
 // the same effect.
 f = foo.bind(foo);
 assertEquals(3, f(1, 1, 1));
@@ -181,4 +181,3 @@ assertEquals(3, obj2.z);
 // Test instanceof obj2 is bar, not f.
 assertTrue(obj2 instanceof bar);
 assertFalse(obj2 instanceof f);
-

@@ -32,24 +32,31 @@
 namespace v8 {
 namespace internal {
 
+Counters::Counters() {
 #define HT(name, caption) \
-  HistogramTimer Counters::name = { #caption, NULL, false, 0, 0 }; \
-
-  HISTOGRAM_TIMER_LIST(HT)
-#undef SR
+    HistogramTimer name = { #caption, NULL, false, 0, 0 }; \
+    name##_ = name;
+    HISTOGRAM_TIMER_LIST(HT)
+#undef HT
 
 #define SC(name, caption) \
-  StatsCounter Counters::name = { "c:" #caption, NULL, false };
+    StatsCounter name = { "c:" #caption, NULL, false };\
+    name##_ = name;
 
-  STATS_COUNTER_LIST_1(SC)
-  STATS_COUNTER_LIST_2(SC)
+    STATS_COUNTER_LIST_1(SC)
+    STATS_COUNTER_LIST_2(SC)
 #undef SC
 
-StatsCounter Counters::state_counters[] = {
+  StatsCounter state_counters[] = {
 #define COUNTER_NAME(name) \
-  { "c:V8.State" #name, NULL, false },
-  STATE_TAG_LIST(COUNTER_NAME)
+    { "c:V8.State" #name, NULL, false },
+    STATE_TAG_LIST(COUNTER_NAME)
 #undef COUNTER_NAME
-};
+  };
+
+  for (int i = 0; i < kSlidingStateWindowCounterCount; ++i) {
+    state_counters_[i] = state_counters[i];
+  }
+}
 
 } }  // namespace v8::internal

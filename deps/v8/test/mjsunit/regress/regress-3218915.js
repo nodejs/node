@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Checks that comma expression in conditional context is processed correctly.
 
 function withCommaExpressionInConditional(x) {
@@ -36,7 +38,9 @@ function withCommaExpressionInConditional(x) {
   return (y = x + 1, y > 1) ? 'medium' : 'small';
 }
 
-for (var i = 0; i < 10000; i++) {
+for (var i = 0; i < 5; i++) {
   withCommaExpressionInConditional(i);
 }
+%OptimizeFunctionOnNextCall(withCommaExpressionInConditional);
+withCommaExpressionInConditional(i);
 withCommaExpressionInConditional("1")

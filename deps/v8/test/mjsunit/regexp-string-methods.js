@@ -28,18 +28,18 @@
 // Regexp shouldn't use String.prototype.slice()
 var s = new String("foo");
 assertEquals("f", s.slice(0,1));
-String.prototype.slice = function() { return "x"; }
+String.prototype.slice = function() { return "x"; };
 assertEquals("x", s.slice(0,1));
-assertEquals("g", /g/.exec("gg"));
+assertEquals(["g"], /g/.exec("gg"));
 
 // Regexp shouldn't use String.prototype.charAt()
 var f1 = new RegExp("f", "i");
-assertEquals("F", f1.exec("F"));
+assertEquals(["F"], f1.exec("F"));
 assertEquals("f", "foo".charAt(0));
 String.prototype.charAt = function(idx) { return 'g'; };
 assertEquals("g", "foo".charAt(0));
 var f2 = new RegExp("[g]", "i");
-assertEquals("G", f2.exec("G"));
+assertEquals(["G"], f2.exec("G"));
 assertTrue(f2.ignoreCase);
 
 // On the other hand test is defined in a semi-coherent way as a call to exec.
@@ -47,5 +47,5 @@ assertTrue(f2.ignoreCase);
 // We match other browsers in using the original value of RegExp.prototype.exec.
 // I.e., RegExp.prototype.test shouldn't use the current value of
 // RegExp.prototype.exec.
-RegExp.prototype.exec = function(string) { return 'x'; }
+RegExp.prototype.exec = function(string) { return 'x'; };
 assertFalse(/f/.test('x'));

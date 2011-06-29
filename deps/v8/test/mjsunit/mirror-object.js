@@ -38,7 +38,7 @@ function MirrorRefCache(json_refs) {
 
 MirrorRefCache.prototype.lookup = function(handle) {
   return this.refs_[handle];
-}
+};
 
 function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
   // Create mirror and JSON representation.
@@ -66,7 +66,7 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
   assertFalse(mirror.hasIndexedInterceptor(), 'No indexed interceptor expected');
 
   var names = mirror.propertyNames();
-  var properties = mirror.properties()
+  var properties = mirror.properties();
   assertEquals(names.length, properties.length);
   for (var i = 0; i < properties.length; i++) {
     assertTrue(properties[i] instanceof debug.Mirror, 'Unexpected mirror hierachy');
@@ -130,15 +130,20 @@ function testObjectMirror(obj, cls_name, ctor_name, hasSpecialProperties) {
           assertTrue(typeof(fromJSON.properties[i].attributes) === 'undefined', 'Unexpected serialized attributes');
         }
 
-        // Lookup the serialized object from the handle reference.        
+        // Lookup the serialized object from the handle reference.
         var o = refs.lookup(fromJSON.properties[i].ref);
         assertTrue(o != void 0, 'Referenced object is not serialized');
 
         assertEquals(properties[i].value().type(), o.type, 'Unexpected serialized property type for ' + name);
         if (properties[i].value().isPrimitive()) {
-          // Special check for NaN as NaN == NaN is false.
-          if (properties[i].value().isNumber() && isNaN(properties[i].value().value())) {
-            assertEquals('NaN', o.value, 'Unexpected serialized property value for ' + name);
+          if (properties[i].value().type() == "null" ||
+              properties[i].value().type() == "undefined") {
+            // Null and undefined has no value property.
+            assertFalse("value" in o, 'Unexpected value property for ' + name);
+          } else if (properties[i].value().type() == "number" &&
+                     !isFinite(properties[i].value().value())) {
+            assertEquals(String(properties[i].value().value()), o.value,
+                         'Unexpected serialized property value for ' + name);
           } else {
             assertEquals(properties[i].value().value(), o.value, 'Unexpected serialized property value for ' + name);
           }

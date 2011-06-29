@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,7 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --max-new-space-size=256
+// Flags: --max-new-space-size=256 --allow-natives-syntax
+
+function testFloor(expect, input) {
+  function test(n) {
+    return Math.floor(n);
+  }
+  assertEquals(expect, test(input));
+  assertEquals(expect, test(input));
+  assertEquals(expect, test(input));
+  %OptimizeFunctionOnNextCall(test);
+  assertEquals(expect, test(input));
+}
 
 function zero() {
   var x = 0.5;
@@ -33,82 +44,84 @@ function zero() {
 }
 
 function test() {
-  assertEquals(0, Math.floor(0));
-  assertEquals(0, Math.floor(zero()));
-  assertEquals(1/-0, 1/Math.floor(-0));  // 0 == -0, so we use reciprocals.
-  assertEquals(Infinity, Math.floor(Infinity));
-  assertEquals(-Infinity, Math.floor(-Infinity));
-  assertNaN(Math.floor(NaN));
+  testFloor(0, 0);
+  testFloor(0, zero());
+  testFloor(-0, -0);
+  testFloor(Infinity, Infinity);
+  testFloor(-Infinity, -Infinity);
+  testFloor(NaN, NaN);
 
-  assertEquals(0, Math.floor(0.1));
-  assertEquals(0, Math.floor(0.5));
-  assertEquals(0, Math.floor(0.7));
-  assertEquals(-1, Math.floor(-0.1));
-  assertEquals(-1, Math.floor(-0.5));
-  assertEquals(-1, Math.floor(-0.7));
-  assertEquals(1, Math.floor(1));
-  assertEquals(1, Math.floor(1.1));
-  assertEquals(1, Math.floor(1.5));
-  assertEquals(1, Math.floor(1.7));
-  assertEquals(-1, Math.floor(-1));
-  assertEquals(-2, Math.floor(-1.1));
-  assertEquals(-2, Math.floor(-1.5));
-  assertEquals(-2, Math.floor(-1.7));
+  testFloor(0, 0.1);
+  testFloor(0, 0.49999999999999994);
+  testFloor(0, 0.5);
+  testFloor(0, 0.7);
+  testFloor(-1, -0.1);
+  testFloor(-1, -0.49999999999999994);
+  testFloor(-1, -0.5);
+  testFloor(-1, -0.7);
+  testFloor(1, 1);
+  testFloor(1, 1.1);
+  testFloor(1, 1.5);
+  testFloor(1, 1.7);
+  testFloor(-1, -1);
+  testFloor(-2, -1.1);
+  testFloor(-2, -1.5);
+  testFloor(-2, -1.7);
 
-  assertEquals(0, Math.floor(Number.MIN_VALUE));
-  assertEquals(-1, Math.floor(-Number.MIN_VALUE));
-  assertEquals(Number.MAX_VALUE, Math.floor(Number.MAX_VALUE));
-  assertEquals(-Number.MAX_VALUE, Math.floor(-Number.MAX_VALUE));
-  assertEquals(Infinity, Math.floor(Infinity));
-  assertEquals(-Infinity, Math.floor(-Infinity));
+  testFloor(0, Number.MIN_VALUE);
+  testFloor(-1, -Number.MIN_VALUE);
+  testFloor(Number.MAX_VALUE, Number.MAX_VALUE);
+  testFloor(-Number.MAX_VALUE, -Number.MAX_VALUE);
+  testFloor(Infinity, Infinity);
+  testFloor(-Infinity, -Infinity);
 
   // 2^30 is a smi boundary.
   var two_30 = 1 << 30;
 
-  assertEquals(two_30, Math.floor(two_30));
-  assertEquals(two_30, Math.floor(two_30 + 0.1));
-  assertEquals(two_30, Math.floor(two_30 + 0.5));
-  assertEquals(two_30, Math.floor(two_30 + 0.7));
+  testFloor(two_30, two_30);
+  testFloor(two_30, two_30 + 0.1);
+  testFloor(two_30, two_30 + 0.5);
+  testFloor(two_30, two_30 + 0.7);
 
-  assertEquals(two_30 - 1, Math.floor(two_30 - 1));
-  assertEquals(two_30 - 1, Math.floor(two_30 - 1 + 0.1));
-  assertEquals(two_30 - 1, Math.floor(two_30 - 1 + 0.5));
-  assertEquals(two_30 - 1, Math.floor(two_30 - 1 + 0.7));
+  testFloor(two_30 - 1, two_30 - 1);
+  testFloor(two_30 - 1, two_30 - 1 + 0.1);
+  testFloor(two_30 - 1, two_30 - 1 + 0.5);
+  testFloor(two_30 - 1, two_30 - 1 + 0.7);
 
-  assertEquals(-two_30, Math.floor(-two_30));
-  assertEquals(-two_30, Math.floor(-two_30 + 0.1));
-  assertEquals(-two_30, Math.floor(-two_30 + 0.5));
-  assertEquals(-two_30, Math.floor(-two_30 + 0.7));
+  testFloor(-two_30, -two_30);
+  testFloor(-two_30, -two_30 + 0.1);
+  testFloor(-two_30, -two_30 + 0.5);
+  testFloor(-two_30, -two_30 + 0.7);
 
-  assertEquals(-two_30 + 1, Math.floor(-two_30 + 1));
-  assertEquals(-two_30 + 1, Math.floor(-two_30 + 1 + 0.1));
-  assertEquals(-two_30 + 1, Math.floor(-two_30 + 1 + 0.5));
-  assertEquals(-two_30 + 1, Math.floor(-two_30 + 1 + 0.7));
+  testFloor(-two_30 + 1, -two_30 + 1);
+  testFloor(-two_30 + 1, -two_30 + 1 + 0.1);
+  testFloor(-two_30 + 1, -two_30 + 1 + 0.5);
+  testFloor(-two_30 + 1, -two_30 + 1 + 0.7);
 
   // 2^52 is a precision boundary.
   var two_52 = (1 << 30) * (1 << 22);
 
-  assertEquals(two_52, Math.floor(two_52));
-  assertEquals(two_52, Math.floor(two_52 + 0.1));
+  testFloor(two_52, two_52);
+  testFloor(two_52, two_52 + 0.1);
   assertEquals(two_52, two_52 + 0.5);
-  assertEquals(two_52, Math.floor(two_52 + 0.5));
+  testFloor(two_52, two_52 + 0.5);
   assertEquals(two_52 + 1, two_52 + 0.7);
-  assertEquals(two_52 + 1, Math.floor(two_52 + 0.7));
+  testFloor(two_52 + 1, two_52 + 0.7);
 
-  assertEquals(two_52 - 1, Math.floor(two_52 - 1));
-  assertEquals(two_52 - 1, Math.floor(two_52 - 1 + 0.1));
-  assertEquals(two_52 - 1, Math.floor(two_52 - 1 + 0.5));
-  assertEquals(two_52 - 1, Math.floor(two_52 - 1 + 0.7));
+  testFloor(two_52 - 1, two_52 - 1);
+  testFloor(two_52 - 1, two_52 - 1 + 0.1);
+  testFloor(two_52 - 1, two_52 - 1 + 0.5);
+  testFloor(two_52 - 1, two_52 - 1 + 0.7);
 
-  assertEquals(-two_52, Math.floor(-two_52));
-  assertEquals(-two_52, Math.floor(-two_52 + 0.1));
-  assertEquals(-two_52, Math.floor(-two_52 + 0.5));
-  assertEquals(-two_52, Math.floor(-two_52 + 0.7));
+  testFloor(-two_52, -two_52);
+  testFloor(-two_52, -two_52 + 0.1);
+  testFloor(-two_52, -two_52 + 0.5);
+  testFloor(-two_52, -two_52 + 0.7);
 
-  assertEquals(-two_52 + 1, Math.floor(-two_52 + 1));
-  assertEquals(-two_52 + 1, Math.floor(-two_52 + 1 + 0.1));
-  assertEquals(-two_52 + 1, Math.floor(-two_52 + 1 + 0.5));
-  assertEquals(-two_52 + 1, Math.floor(-two_52 + 1 + 0.7));
+  testFloor(-two_52 + 1, -two_52 + 1);
+  testFloor(-two_52 + 1, -two_52 + 1 + 0.1);
+  testFloor(-two_52 + 1, -two_52 + 1 + 0.5);
+  testFloor(-two_52 + 1, -two_52 + 1 + 0.7);
 }
 
 

@@ -40,12 +40,12 @@ namespace internal {
   (entry(p0, p1, p2, p3, p4))
 
 typedef int (*regexp_matcher)(String*, int, const byte*,
-                              const byte*, int*, Address, int);
+                              const byte*, int*, Address, int, Isolate*);
 
 // Call the generated regexp code directly. The code at the entry address should
-// expect seven int/pointer sized arguments and return an int.
-#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6) \
-  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6))
+// expect eight int/pointer sized arguments and return an int.
+#define CALL_GENERATED_REGEXP_CODE(entry, p0, p1, p2, p3, p4, p5, p6, p7) \
+  (FUNCTION_CAST<regexp_matcher>(entry)(p0, p1, p2, p3, p4, p5, p6, p7))
 
 #define TRY_CATCH_FROM_ADDRESS(try_catch_address) \
   (reinterpret_cast<TryCatch*>(try_catch_address))
@@ -55,7 +55,8 @@ typedef int (*regexp_matcher)(String*, int, const byte*,
 // just use the C stack limit.
 class SimulatorStack : public v8::internal::AllStatic {
  public:
-  static inline uintptr_t JsLimitFromCLimit(uintptr_t c_limit) {
+  static inline uintptr_t JsLimitFromCLimit(Isolate* isolate,
+                                            uintptr_t c_limit) {
     return c_limit;
   }
 

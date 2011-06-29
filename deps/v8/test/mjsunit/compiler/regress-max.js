@@ -25,10 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test Math.max with negative zero as input.
-function f(x, y) { return Math.max(x, y) }
+for (var i = 0; i < 5; i++) Math.max(0, 0);
+%OptimizeFunctionOnNextCall(Math.max);
+Math.max(0, 0);
 
-for (var i = 0; i < 1000000; i++) f(0, 0);
-
-var r = f(-0, -0);
+var r = Math.max(-0, -0);
 assertEquals(-Infinity, 1 / r);

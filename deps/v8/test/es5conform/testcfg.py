@@ -73,7 +73,7 @@ class ES5ConformTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root):
     super(ES5ConformTestConfiguration, self).__init__(context, root)
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     tests = []
     current_root = join(self.root, 'data', 'TestCases')
     harness = []

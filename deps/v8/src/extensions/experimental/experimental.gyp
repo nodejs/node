@@ -37,16 +37,68 @@
       'target_name': 'i18n_api',
       'type': 'static_library',
       'sources': [
+        'break-iterator.cc',
+        'break-iterator.h',
+        'collator.cc',
+        'collator.h',
+        'datetime-format.cc',
+        'datetime-format.h',
         'i18n-extension.cc',
         'i18n-extension.h',
+        'i18n-locale.cc',
+        'i18n-locale.h',
+        'i18n-natives.h',
+        'i18n-utils.cc',
+        'i18n-utils.h',
+        'language-matcher.cc',
+        'language-matcher.h',
+        'number-format.cc',
+        'number-format.h',
+        '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
       ],
       'include_dirs': [
         '<(icu_src_dir)/public/common',
-        '../..',
+        # v8/ is root for all includes.
+        '../../..'
       ],
       'dependencies': [
         '<(icu_src_dir)/icu.gyp:*',
+        'js2c_i18n#host',
         '../../../tools/gyp/v8.gyp:v8',
+      ],
+      'direct_dependent_settings': {
+        # Adds -Iv8 for embedders.
+        'include_dirs': [
+          '../../..'
+        ],
+      },
+    },
+    {
+      'target_name': 'js2c_i18n',
+      'type': 'none',
+      'toolsets': ['host'],
+      'variables': {
+        'js_files': [
+          'i18n.js'
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'js2c_i18n',
+          'inputs': [
+            'i18n-js2c.py',
+            '<@(js_files)',
+          ],
+          'outputs': [
+            '<(SHARED_INTERMEDIATE_DIR)/i18n-js.cc',
+          ],
+          'action': [
+            'python',
+            'i18n-js2c.py',
+            '<@(_outputs)',
+            '<@(js_files)'
+          ],
+        },
       ],
     },
   ],  # targets

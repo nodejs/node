@@ -333,9 +333,9 @@ assertFalse(/f(o)$\1/.test('foo'), "backref detects at_end");
 
 // Check decimal escapes doesn't overflow.
 // (Note: \214 is interpreted as octal).
-assertEquals(/\2147483648/.exec("\x8c7483648"),
-             ["\x8c7483648"],
-             "Overflow decimal escape");
+assertArrayEquals(["\x8c7483648"],
+                  /\2147483648/.exec("\x8c7483648"),
+                  "Overflow decimal escape");
 
 
 // Check numbers in quantifiers doesn't overflow and doesn't throw on
@@ -435,8 +435,8 @@ assertEquals(0, re.lastIndex);
 re.lastIndex = 42;
 re.someOtherProperty = 42;
 re.someDeletableProperty = 42;
-re[37] = 37;  
-re[42] = 42;  
+re[37] = 37;
+re[42] = 42;
 
 re.compile("ra+", "i");
 assertEquals("ra+", re.source);
@@ -466,7 +466,7 @@ assertEquals(37, re.someOtherProperty);
 assertEquals(37, re[42]);
 
 // Test boundary-checks.
-function assertRegExpTest(re, input, test) { 
+function assertRegExpTest(re, input, test) {
   assertEquals(test, re.test(input), "test:" + re + ":" + input);
 }
 
@@ -525,7 +525,7 @@ for (var i = 0; i < 100; i++) {
   assertEquals(1, res.index);
   assertEquals("axyzb", res.input);
   assertEquals(undefined, res.foobar);
-  
+
   res.foobar = "Arglebargle";
   res[3] = "Glopglyf";
   assertEquals("Arglebargle", res.foobar);
@@ -534,18 +534,18 @@ for (var i = 0; i < 100; i++) {
 // Test that we perform the spec required conversions in the correct order.
 var log;
 var string = "the string";
-var fakeLastIndex = { 
-      valueOf: function() { 
+var fakeLastIndex = {
+      valueOf: function() {
         log.push("li");
         return 0;
-      } 
+      }
     };
-var fakeString = { 
+var fakeString = {
       toString: function() {
         log.push("ts");
         return string;
-      }, 
-      length: 0 
+      },
+      length: 0
     };
 
 var re = /str/;

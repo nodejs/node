@@ -72,6 +72,9 @@ static const RegList kCalleeSaved =
 
 static const int kNumCalleeSaved = 7 + kR9Available;
 
+// Double registers d8 to d15 are callee-saved.
+static const int kNumDoubleCalleeSaved = 8;
+
 
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
@@ -136,7 +139,7 @@ class JavaScriptFrameConstants : public AllStatic {
  public:
   // FP-relative.
   static const int kLocal0Offset = StandardFrameConstants::kExpressionsOffset;
-  static const int kSavedRegistersOffset = +2 * kPointerSize;
+  static const int kLastParameterOffset = +2 * kPointerSize;
   static const int kFunctionOffset = StandardFrameConstants::kMarkerOffset;
 
   // Caller SP-relative.

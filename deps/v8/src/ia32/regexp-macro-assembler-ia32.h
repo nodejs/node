@@ -80,7 +80,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
   virtual bool CheckSpecialCharacterClass(uc16 type, Label* on_no_match);
   virtual void Fail();
-  virtual Handle<Object> GetCode(Handle<String> source);
+  virtual Handle<HeapObject> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
@@ -126,6 +126,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kInputEnd + kPointerSize;
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
+  static const int kIsolate = kDirectCall + kPointerSize;
   // Below the frame pointer - local stack variables.
   // When adding local variables remember to push space for them in
   // the frame in GetCode.
@@ -167,7 +168,7 @@ class RegExpMacroAssemblerIA32: public NativeRegExpMacroAssembler {
 
   // Equivalent to a conditional branch to the label, unless the label
   // is NULL, in which case it is a conditional Backtrack.
-  void BranchOrBacktrack(Condition condition, Label* to, Hint hint = no_hint);
+  void BranchOrBacktrack(Condition condition, Label* to);
 
   // Call and return internally in the generated code in a way that
   // is GC-safe (i.e., doesn't leave absolute code addresses on the stack)

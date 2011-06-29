@@ -79,6 +79,8 @@ class ExternalReferenceEncoder {
   static bool Match(void* key1, void* key2) { return key1 == key2; }
 
   void Put(Address key, int index);
+
+  Isolate* isolate_;
 };
 
 
@@ -105,6 +107,8 @@ class ExternalReferenceDecoder {
   void Put(uint32_t key, Address value) {
     *Lookup(key) = value;
   }
+
+  Isolate* isolate_;
 };
 
 
@@ -246,10 +250,6 @@ class SerializerDeserializer: public ObjectVisitor {
   static inline bool SpaceIsPaged(int space) {
     return space >= FIRST_PAGED_SPACE && space <= LAST_PAGED_SPACE;
   }
-
-  static int partial_snapshot_cache_length_;
-  static const int kPartialSnapshotCacheCapacity = 1400;
-  static Object* partial_snapshot_cache_[];
 };
 
 
@@ -313,6 +313,9 @@ class Deserializer: public SerializerDeserializer {
   Address Allocate(int space_number, Space* space, int size);
   void ReadObject(int space_number, Space* space, Object** write_back);
 
+  // Cached current isolate.
+  Isolate* isolate_;
+
   // Keep track of the pages in the paged spaces.
   // (In large object space we are keeping track of individual objects
   // rather than pages.)  In new space we just need the address of the
@@ -320,7 +323,6 @@ class Deserializer: public SerializerDeserializer {
   List<Address> pages_[SerializerDeserializer::kNumberOfSpaces];
 
   SnapshotByteSource* source_;
-  static ExternalReferenceDecoder* external_reference_decoder_;
   // This is the address of the next object that will be allocated in each
   // space.  It is used to calculate the addresses of back-references.
   Address high_water_[LAST_SPACE + 1];
@@ -328,6 +330,8 @@ class Deserializer: public SerializerDeserializer {
   // is used to set the location of the new page when we encounter a
   // START_NEW_PAGE_SERIALIZATION tag.
   Address last_object_address_;
+
+  ExternalReferenceDecoder* external_reference_decoder_;
 
   DISALLOW_COPY_AND_ASSIGN(Deserializer);
 };
@@ -398,6 +402,7 @@ class SerializationAddressMapper {
 };
 
 
+// There can be only one serializer per V8 process.
 class Serializer : public SerializerDeserializer {
  public:
   explicit Serializer(SnapshotByteSink* sink);
@@ -539,7 +544,7 @@ class PartialSerializer : public Serializer {
     ASSERT(!o->IsScript());
     return o->IsString() || o->IsSharedFunctionInfo() ||
            o->IsHeapNumber() || o->IsCode() ||
-           o->map() == Heap::fixed_cow_array_map();
+           o->map() == HEAP->fixed_cow_array_map();
   }
 
  private:
@@ -555,7 +560,7 @@ class StartupSerializer : public Serializer {
     // strong roots have been serialized we can create a partial snapshot
     // which will repopulate the cache with objects neede by that partial
     // snapshot.
-    partial_snapshot_cache_length_ = 0;
+    Isolate::Current()->set_serialize_partial_snapshot_cache_length(0);
   }
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.

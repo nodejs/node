@@ -27,4 +27,4 @@
 
 // See http://code.google.com/p/v8/issues/detail?id=187
 
-assertEquals("f,", "foo".match(/(?:(?=(f)o)fx|)./));
+assertEquals(["f", undefined], "foo".match(/(?:(?=(f)o)fx|)./));

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that we can inline a call with a parameter.
 function TestInlineOneParam(o, p) {
   // Effect context.
@@ -42,7 +44,9 @@ function TestInlineOneParam(o, p) {
 var obj = {x:42};
 var o1 = {};
 o1.f = function(o) { return o.x; };
-for (var i = 0; i < 10000; i++) TestInlineOneParam(o1, obj);
+for (var i = 0; i < 5; i++) TestInlineOneParam(o1, obj);
+%OptimizeFunctionOnNextCall(TestInlineOneParam);
+TestInlineOneParam(o1, obj);
 TestInlineOneParam({f: o1.f}, {x:42});
 
 
@@ -76,5 +80,7 @@ function TestInlineTwoParams(o, p) {
 
 var o2 = {};
 o2.h = function(i, j) { return i < j; };
-for (var i = 0; i < 10000; i++) TestInlineTwoParams(o2, 42);
+for (var i = 0; i < 5; i++) TestInlineTwoParams(o2, 42);
+%OptimizeFunctionOnNextCall(TestInlineTwoParams);
+TestInlineTwoParams(o2, 42);
 TestInlineTwoParams({h: o2.h}, 42);

@@ -35,10 +35,11 @@
 using namespace v8::internal;
 
 TEST(List) {
+  v8::internal::V8::Initialize(NULL);
   List<AstNode*>* list = new List<AstNode*>(0);
   CHECK_EQ(0, list->length());
 
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
   AstNode* node = new EmptyStatement();
   list->Add(node);
   CHECK_EQ(1, list->length());

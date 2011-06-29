@@ -32,7 +32,6 @@
 #include "execution.h"
 #include "messages.h"
 #include "spaces-inl.h"
-#include "top.h"
 
 namespace v8 {
 namespace internal {
@@ -57,29 +56,24 @@ void MessageHandler::DefaultMessageReport(const MessageLocation* loc,
 }
 
 
-void MessageHandler::ReportMessage(const char* msg) {
-  PrintF("%s\n", msg);
-}
-
-
 Handle<JSMessageObject> MessageHandler::MakeMessageObject(
     const char* type,
     MessageLocation* loc,
     Vector< Handle<Object> > args,
     Handle<String> stack_trace,
     Handle<JSArray> stack_frames) {
-  Handle<String> type_handle = Factory::LookupAsciiSymbol(type);
+  Handle<String> type_handle = FACTORY->LookupAsciiSymbol(type);
   Handle<FixedArray> arguments_elements =
-      Factory::NewFixedArray(args.length());
+      FACTORY->NewFixedArray(args.length());
   for (int i = 0; i < args.length(); i++) {
     arguments_elements->set(i, *args[i]);
   }
   Handle<JSArray> arguments_handle =
-      Factory::NewJSArrayWithElements(arguments_elements);
+      FACTORY->NewJSArrayWithElements(arguments_elements);
 
   int start = 0;
   int end = 0;
-  Handle<Object> script_handle = Factory::undefined_value();
+  Handle<Object> script_handle = FACTORY->undefined_value();
   if (loc) {
     start = loc->start_pos();
     end = loc->end_pos();
@@ -87,15 +81,15 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
   }
 
   Handle<Object> stack_trace_handle = stack_trace.is_null()
-      ? Factory::undefined_value()
+      ? FACTORY->undefined_value()
       : Handle<Object>::cast(stack_trace);
 
   Handle<Object> stack_frames_handle = stack_frames.is_null()
-      ? Factory::undefined_value()
+      ? FACTORY->undefined_value()
       : Handle<Object>::cast(stack_frames);
 
   Handle<JSMessageObject> message =
-      Factory::NewJSMessageObject(type_handle,
+      FACTORY->NewJSMessageObject(type_handle,
                                   arguments_handle,
                                   start,
                                   end,
@@ -107,42 +101,63 @@ Handle<JSMessageObject> MessageHandler::MakeMessageObject(
 }
 
 
-void MessageHandler::ReportMessage(MessageLocation* loc,
+void MessageHandler::ReportMessage(Isolate* isolate,
+                                   MessageLocation* loc,
                                    Handle<Object> message) {
+  // We are calling into embedder's code which can throw exceptions.
+  // Thus we need to save current exception state, reset it to the clean one
+  // and ignore scheduled exceptions callbacks can throw.
+  Isolate::ExceptionScope exception_scope(isolate);
+  isolate->clear_pending_exception();
+  isolate->set_external_caught_exception(false);
+
   v8::Local<v8::Message> api_message_obj = v8::Utils::MessageToLocal(message);
 
-  v8::NeanderArray global_listeners(Factory::message_listeners());
+  v8::NeanderArray global_listeners(FACTORY->message_listeners());
   int global_length = global_listeners.length();
   if (global_length == 0) {
     DefaultMessageReport(loc, message);
+    if (isolate->has_scheduled_exception()) {
+      isolate->clear_scheduled_exception();
+    }
   } else {
     for (int i = 0; i < global_length; i++) {
       HandleScope scope;
       if (global_listeners.get(i)->IsUndefined()) continue;
       v8::NeanderObject listener(JSObject::cast(global_listeners.get(i)));
-      Handle<Proxy> callback_obj(Proxy::cast(listener.get(0)));
+      Handle<Foreign> callback_obj(Foreign::cast(listener.get(0)));
       v8::MessageCallback callback =
-          FUNCTION_CAST<v8::MessageCallback>(callback_obj->proxy());
+          FUNCTION_CAST<v8::MessageCallback>(callback_obj->address());
       Handle<Object> callback_data(listener.get(1));
-      callback(api_message_obj, v8::Utils::ToLocal(callback_data));
+      {
+        // Do not allow exceptions to propagate.
+        v8::TryCatch try_catch;
+        callback(api_message_obj, v8::Utils::ToLocal(callback_data));
+      }
+      if (isolate->has_scheduled_exception()) {
+        isolate->clear_scheduled_exception();
+      }
     }
   }
 }
 
 
 Handle<String> MessageHandler::GetMessage(Handle<Object> data) {
-  Handle<String> fmt_str = Factory::LookupAsciiSymbol("FormatMessage");
+  Handle<String> fmt_str = FACTORY->LookupAsciiSymbol("FormatMessage");
   Handle<JSFunction> fun =
-      Handle<JSFunction>(JSFunction::cast(
-          Top::builtins()->GetPropertyNoExceptionThrown(*fmt_str)));
+      Handle<JSFunction>(
+          JSFunction::cast(
+              Isolate::Current()->js_builtins_object()->
+              GetPropertyNoExceptionThrown(*fmt_str)));
   Object** argv[1] = { data.location() };
 
   bool caught_exception;
   Handle<Object> result =
-      Execution::TryCall(fun, Top::builtins(), 1, argv, &caught_exception);
+      Execution::TryCall(fun,
+          Isolate::Current()->js_builtins_object(), 1, argv, &caught_exception);
 
   if (caught_exception || !result->IsString()) {
-    return Factory::LookupAsciiSymbol("<error>");
+    return FACTORY->LookupAsciiSymbol("<error>");
   }
   Handle<String> result_string = Handle<String>::cast(result);
   // A string that has been obtained from JS code in this way is

@@ -79,36 +79,38 @@ assertTrue(typeof(A(10000)) == 'undefined');
 assertTrue(typeof(A(10000, 0)) == 'undefined');
 
 // String access.
-assertEquals(0, A('0'));
-assertEquals(0, A('0',1));
+assertEquals('0', A('0'));
+assertEquals('0', A('0',1));
 assertEquals(2, A('1',2));
 assertEquals(2, A('1',2,3,4,5));
 assertEquals(5, A('4',2,3,4,5));
-assertTrue(typeof A('1') == 'undefined');
-assertTrue(typeof A('3',2,1) == 'undefined');
+assertEquals('undefined', typeof A('1'));
+assertEquals('undefined', typeof A('3',2,1));
 assertEquals(A, A('callee'));
 assertEquals(1, A('length'));
 assertEquals(2, A('length',2));
 assertEquals(5, A('length',2,3,4,5));
 assertEquals({}.toString, A('toString'));
 assertEquals({}.isPrototypeOf, A('isPrototypeOf'));
-assertTrue(typeof A('xxx') == 'undefined');
+assertEquals('undefined', typeof A('xxx'));
 
 // Object access.
 function O(key) {
   return { toString: function() { return key; } };
 }
 
-assertEquals(0, A(O(0)));
-assertEquals(0, A(O(0),1));
+var O0 = O(0);
+assertSame(O0, A(O0));
+assertSame(O0, A(O0,1));
 assertEquals(2, A(O(1),2));
 assertEquals(2, A(O(1),2,3,4,5));
 assertEquals(5, A(O(4),2,3,4,5));
 assertTrue(typeof A(O(1)) == 'undefined');
 assertTrue(typeof A(O(3),2,1) == 'undefined');
 
-assertEquals(0, A(O('0')));
-assertEquals(0, A(O('0'),1));
+O0 = O('0');
+assertSame(O0, A(O0));
+assertSame(O0, A(O0,1));
 assertEquals(2, A(O('1'),2));
 assertEquals(2, A(O('1'),2,3,4,5));
 assertEquals(5, A(O('4'),2,3,4,5));

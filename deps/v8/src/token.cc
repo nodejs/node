@@ -32,21 +32,21 @@ namespace v8 {
 namespace internal {
 
 #define T(name, string, precedence) #name,
-const char* Token::name_[NUM_TOKENS] = {
+const char* const Token::name_[NUM_TOKENS] = {
   TOKEN_LIST(T, T, IGNORE_TOKEN)
 };
 #undef T
 
 
 #define T(name, string, precedence) string,
-const char* Token::string_[NUM_TOKENS] = {
+const char* const Token::string_[NUM_TOKENS] = {
   TOKEN_LIST(T, T, IGNORE_TOKEN)
 };
 #undef T
 
 
 #define T(name, string, precedence) precedence,
-int8_t Token::precedence_[NUM_TOKENS] = {
+const int8_t Token::precedence_[NUM_TOKENS] = {
   TOKEN_LIST(T, T, IGNORE_TOKEN)
 };
 #undef T

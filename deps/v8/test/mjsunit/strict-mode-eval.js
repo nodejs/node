@@ -42,36 +42,44 @@ eval_alias(code3);
 eval_alias(code4);
 
 function strict1() {
+  var exception = false;
   try {
     eval(code1);
-    assertUnreachable("did not throw exception");
   } catch (e) {
+    exception = true;
     assertInstanceof(e, SyntaxError);
   }
+  assertTrue(exception);
 
   function strict2() {
+    var exception = false;
     try {
       eval(code2);
-      assertUnreachable("did not throw exception");
     } catch (e) {
+      exception = true;
       assertInstanceof(e, SyntaxError);
     }
+    assertTrue(exception);
 
     function strict3() {
+      var exception = false;
       try {
         eval(code3);
-        assertUnreachable("did not throw exception");
       } catch (e) {
+        exception = true;
         assertInstanceof(e, SyntaxError);
       }
+      assertTrue(exception);
 
       function strict4() {
+        var exception = false;
         try {
           eval(code4);
-          assertUnreachable("did not throw exception");
         } catch (e) {
+          exception = true;
           assertInstanceof(e, SyntaxError);
         }
+        assertTrue(exception);
       }
       strict4();
     }

@@ -26,6 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #ifdef ENABLE_GDB_JIT_INTERFACE
+#include "v8.h"
 #include "gdb-jit.h"
 
 #include "bootstrapper.h"
@@ -643,7 +644,6 @@ class ELFSymbolTable : public ELFSection {
 
 class CodeDescription BASE_EMBEDDED {
  public:
-
 #ifdef V8_TARGET_ARCH_X64
   enum StackState {
     POST_RBP_PUSH,
@@ -1326,7 +1326,7 @@ static void UnregisterCodeEntry(JITCodeEntry* entry) {
 
 
 static JITCodeEntry* CreateELFObject(CodeDescription* desc) {
-  ZoneScope zone_scope(DELETE_ON_EXIT);
+  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
 
   ELF elf;
   Writer w(&elf);
@@ -1444,11 +1444,16 @@ static void AddUnwindInfo(CodeDescription *desc) {
 }
 
 
+Mutex* GDBJITInterface::mutex_ = OS::CreateMutex();
+
+
 void GDBJITInterface::AddCode(const char* name,
                               Code* code,
                               GDBJITInterface::CodeTag tag,
                               Script* script) {
   if (!FLAG_gdbjit) return;
+
+  ScopedLock lock(mutex_);
   AssertNoAllocation no_gc;
 
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
@@ -1517,6 +1522,7 @@ void GDBJITInterface::AddCode(GDBJITInterface::CodeTag tag, Code* code) {
 void GDBJITInterface::RemoveCode(Code* code) {
   if (!FLAG_gdbjit) return;
 
+  ScopedLock lock(mutex_);
   HashMap::Entry* e = GetEntries()->Lookup(code,
                                            HashForCodeObject(code),
                                            false);
@@ -1536,6 +1542,7 @@ void GDBJITInterface::RemoveCode(Code* code) {
 
 void GDBJITInterface::RegisterDetailedLineInfo(Code* code,
                                                GDBJITLineInfo* line_info) {
+  ScopedLock lock(mutex_);
   ASSERT(!IsLineInfoTagged(line_info));
   HashMap::Entry* e = GetEntries()->Lookup(code, HashForCodeObject(code), true);
   ASSERT(e->value == NULL);

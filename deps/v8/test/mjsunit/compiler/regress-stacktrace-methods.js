@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test stack traces with method calls.
 function Hest() {}
 function Svin() {}
@@ -39,9 +41,12 @@ var o = new Hest();
 var s = new Svin();
 var v = 0;
 
-for (var i = 0; i < 1000000; i++) {
+for (var i = 0; i < 5; i++) {
   o.one(s);
 }
+%OptimizeFunctionOnNextCall(Hest.prototype.one);
+%OptimizeFunctionOnNextCall(Hest.prototype.three);
+o.one(s);
 
 v = 42;
 
@@ -57,8 +62,8 @@ try {
   assertTrue(p1 != -1);
   assertTrue(p3 < p2);
   assertTrue(p2 < p1);
-  assertTrue(stack.indexOf("36:56") != -1);
-  assertTrue(stack.indexOf("32:51") != -1);
-  assertTrue(stack.indexOf("34:38") != -1);
-  assertTrue(stack.indexOf("49:5") != -1);
+  assertTrue(stack.indexOf("38:56") != -1);
+  assertTrue(stack.indexOf("34:51") != -1);
+  assertTrue(stack.indexOf("36:38") != -1);
+  assertTrue(stack.indexOf("54:5") != -1);
 }

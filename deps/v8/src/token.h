@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -167,8 +167,8 @@ namespace internal {
                                                                         \
   /* Future reserved words (ECMA-262, section 7.6.1.2). */              \
   T(FUTURE_RESERVED_WORD, NULL, 0)                                      \
+  T(FUTURE_STRICT_RESERVED_WORD, NULL, 0)                               \
   K(CONST, "const", 0)                                                  \
-  K(NATIVE, "native", 0)                                                \
                                                                         \
   /* Illegal token - not able to scan. */                               \
   T(ILLEGAL, "ILLEGAL", 0)                                              \
@@ -277,9 +277,9 @@ class Token {
   }
 
  private:
-  static const char* name_[NUM_TOKENS];
-  static const char* string_[NUM_TOKENS];
-  static int8_t precedence_[NUM_TOKENS];
+  static const char* const name_[NUM_TOKENS];
+  static const char* const string_[NUM_TOKENS];
+  static const int8_t precedence_[NUM_TOKENS];
   static const char token_type[NUM_TOKENS];
 };
 

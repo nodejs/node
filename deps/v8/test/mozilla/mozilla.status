@@ -206,6 +206,10 @@ ecma_3/RegExp/regress-85721: PASS || FAIL if $mode == debug
 # This section is for tests that fail in both V8 and JSC.  Thus they
 # have been determined to be incompatible between Mozilla and V8/JSC.
 
+# Fail because it calls builtins as functions and do not expect the
+# builtin to have undefined as the receiver.
+ecma/String/15.5.4.6-2: FAIL_OK
+
 # Fail because of toLowerCase and toUpperCase conversion.
 ecma/String/15.5.4.11-2: FAIL_OK
 ecma/String/15.5.4.11-5: FAIL_OK
@@ -325,11 +329,6 @@ js1_5/Regress/regress-234389: FAIL_OK
 js1_5/Regress/regress-320119: FAIL_OK
 
 
-# We do not recognize a multiline comment as newline character.
-# We are compatible with JSC.
-ecma_3/LexicalConventions/7.4-01: FAIL_OK
-
-
 # No support for toSource().
 js1_5/Regress/regress-248444: FAIL_OK
 js1_5/Regress/regress-313967-01: FAIL_OK
@@ -432,6 +431,14 @@ js1_2/regexp/RegExp_lastIndex: FAIL_OK
 js1_2/regexp/string_split: FAIL_OK
 
 
+# RegExps are not callable.
+js1_2/regexp/simple_form: FAIL_OK
+js1_2/regexp/regress-6359: FAIL_OK
+js1_2/regexp/regress-9141: FAIL_OK
+js1_5/Regress/regress-224956: FAIL_OK
+js1_5/Regress/regress-325925: FAIL_OK
+ecma_2/RegExp/regress-001: FAIL_OK
+
 # We do not check for bad surrogate pairs when quoting strings.
 js1_5/Regress/regress-315974: FAIL_OK
 
@@ -457,10 +464,6 @@ js1_5/Regress/regress-361617: FAIL_OK
 js1_5/Regress/regress-362583: FAIL_OK
 js1_5/extensions/regress-356378: FAIL_OK
 js1_5/extensions/regress-452178: FAIL_OK
-
-
-# 'native' *is* a keyword in V8.
-js1_5/Regress/regress-240317: FAIL_OK
 
 
 # Requires Mozilla-specific strict mode or options() function.
@@ -528,6 +531,12 @@ js1_5/Exceptions/regress-123002: FAIL_OK
 js1_5/LexicalConventions/regress-343675: FAIL_OK
 
 
+# Tests if future reserved keywords of ECMA-262, edition 3 emit warnings. We
+# implement the edition 5 behaviour and fail on use of edition 5 future reserved
+# keywords as identifiers.
+js1_5/Regress/regress-240317: FAIL_OK
+
+
 # Unsupported list comprehensions: [ ... for ... ] and for each.
 js1_5/Regress/regress-352009: FAIL_OK
 js1_5/Regress/regress-349648: FAIL_OK
@@ -587,29 +596,13 @@ js1_5/Regress/regress-416737-02: FAIL_OK
 js1_5/Array/regress-350256-02: FAIL
 
 
-# This fails because 'delete arguments[i]' does not disconnect the
-# argument from the arguments array.  See issue #900066.
-ecma_3/Function/regress-137181: FAIL
-
-
-# 'export' and 'import' are not keywords in V8.
-ecma_2/Exceptions/lexical-010: FAIL
-ecma_2/Exceptions/lexical-022: FAIL
-
-
-# Requires Mozilla-specific strict mode.
-ecma_2/Exceptions/lexical-011: FAIL
-ecma_2/Exceptions/lexical-014: FAIL
-ecma_2/Exceptions/lexical-016: FAIL
-ecma_2/Exceptions/lexical-021: FAIL
-ecma_2/LexicalConventions/keywords-001: FAIL
-js1_5/Regress/regress-306633: FAIL
-
-
 # This test seems designed to fail (it produces a 700Mbyte string).
 # We fail on out of memory.  The important thing is not to crash.
 js1_5/Regress/regress-303213: FAIL || TIMEOUT if $mode == debug
 
+# This test fails since we now throw in String.prototype.match when apply
+# is given null or undefined as this argument (and so does firefox nightly).
+js1_5/Regress/regress-295052: FAIL
 
 # Bug 1202592: New ecma_3/String/15.5.4.11 is failing.
 ecma_3/String/15.5.4.11: FAIL
@@ -672,7 +665,6 @@ js1_5/extensions/regress-352060: FAIL_OK
 js1_5/extensions/regress-352094: FAIL_OK
 js1_5/extensions/regress-352261: FAIL_OK
 js1_5/extensions/regress-352281: FAIL_OK
-js1_5/extensions/regress-352372: FAIL_OK
 js1_5/extensions/regress-352455: FAIL_OK
 js1_5/extensions/regress-352604: FAIL_OK
 js1_5/extensions/regress-353214: FAIL_OK
@@ -744,8 +736,6 @@ js1_5/extensions/regress-342960: FAIL_OK || TIMEOUT if $mode == debug
 # than it does in the 32-bit version when attempting to generate a huge
 # error message in debug mode.
 js1_5/extensions/regress-336410-1: FAIL_OK || TIMEOUT if ($mode == debug && $arch == x64)
-
-
 
 ##################### DECOMPILATION TESTS #####################
 

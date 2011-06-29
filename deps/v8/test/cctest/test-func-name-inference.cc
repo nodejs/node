@@ -1,4 +1,4 @@
-// Copyright 2007-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,6 +36,7 @@ using ::v8::internal::CStrVector;
 using ::v8::internal::Factory;
 using ::v8::internal::Handle;
 using ::v8::internal::Heap;
+using ::v8::internal::Isolate;
 using ::v8::internal::JSFunction;
 using ::v8::internal::Object;
 using ::v8::internal::Runtime;
@@ -77,15 +78,20 @@ static void CheckFunctionName(v8::Handle<v8::Script> script,
 
   // Find the position of a given func source substring in the source.
   Handle<String> func_pos_str =
-      Factory::NewStringFromAscii(CStrVector(func_pos_src));
-  int func_pos = Runtime::StringMatch(script_src, func_pos_str, 0);
+      FACTORY->NewStringFromAscii(CStrVector(func_pos_src));
+  int func_pos = Runtime::StringMatch(Isolate::Current(),
+                                      script_src,
+                                      func_pos_str,
+                                      0);
   CHECK_NE(0, func_pos);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Obtain SharedFunctionInfo for the function.
   Object* shared_func_info_ptr =
-      Runtime::FindSharedFunctionInfoInScript(i_script, func_pos);
-  CHECK(shared_func_info_ptr != Heap::undefined_value());
+      Runtime::FindSharedFunctionInfoInScript(Isolate::Current(),
+                                              i_script,
+                                              func_pos);
+  CHECK(shared_func_info_ptr != HEAP->undefined_value());
   Handle<SharedFunctionInfo> shared_func_info(
       SharedFunctionInfo::cast(shared_func_info_ptr));
 
@@ -274,4 +280,84 @@ TEST(Issue380) {
       "{return p}(\"if blah blah\",62,1976,\'a|b\'.split(\'|\'),0,{})\n"
       "}");
   CheckFunctionName(script, "return p", "");
+}
+
+
+TEST(MultipleAssignments) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "var fun1 = fun2 = function () { return 1; }\n"
+      "var bar1 = bar2 = bar3 = function () { return 2; }\n"
+      "foo1 = foo2 = function () { return 3; }\n"
+      "baz1 = baz2 = baz3 = function () { return 4; }");
+  CheckFunctionName(script, "return 1", "fun2");
+  CheckFunctionName(script, "return 2", "bar3");
+  CheckFunctionName(script, "return 3", "foo2");
+  CheckFunctionName(script, "return 4", "baz3");
+}
+
+
+TEST(AsConstructorParameter) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function Foo() {}\n"
+      "var foo = new Foo(function() { return 1; })\n"
+      "var bar = new Foo(function() { return 2; }, function() { return 3; })");
+  CheckFunctionName(script, "return 1", "");
+  CheckFunctionName(script, "return 2", "");
+  CheckFunctionName(script, "return 3", "");
+}
+
+
+TEST(FactoryHashmap) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function createMyObj() {\n"
+      "  var obj = {};\n"
+      "  obj[\"method1\"] = function() { return 1; }\n"
+      "  obj[\"method2\"] = function() { return 2; }\n"
+      "  return obj;\n"
+      "}");
+  CheckFunctionName(script, "return 1", "obj.method1");
+  CheckFunctionName(script, "return 2", "obj.method2");
+}
+
+
+TEST(FactoryHashmapVariable) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function createMyObj() {\n"
+      "  var obj = {};\n"
+      "  var methodName = \"method1\";\n"
+      "  obj[methodName] = function() { return 1; }\n"
+      "  methodName = \"method2\";\n"
+      "  obj[methodName] = function() { return 2; }\n"
+      "  return obj;\n"
+      "}");
+  // Can't infer function names statically.
+  CheckFunctionName(script, "return 1", "obj.(anonymous function)");
+  CheckFunctionName(script, "return 2", "obj.(anonymous function)");
+}
+
+
+TEST(FactoryHashmapConditional) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "function createMyObj() {\n"
+      "  var obj = {};\n"
+      "  obj[0 ? \"method1\" : \"method2\"] = function() { return 1; }\n"
+      "  return obj;\n"
+      "}");
+  // Can't infer the function name statically.
+  CheckFunctionName(script, "return 1", "obj.(anonymous function)");
 }

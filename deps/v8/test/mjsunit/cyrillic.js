@@ -187,9 +187,9 @@ for (var add_non_ascii_character_to_subject = 0;
       var ignore_case = (j == 0);
       var flag = ignore_case ? "i" : "";
       var re = new RegExp(mixed, flag);
-      assertEquals(ignore_case || (full && add_non_ascii_character_to_subject),
-                   re.test("A" + suffix),
-                   58 + flag + f);
+      var expected =
+          ignore_case || (full && !!add_non_ascii_character_to_subject);
+      assertEquals(expected, re.test("A" + suffix), 58 + flag + f);
       assertTrue(re.test("a" + suffix), 59 + flag + f);
       assertTrue(re.test("~" + suffix), 60 + flag + f);
       assertTrue(re.test(cyrillic.MIDDLE), 61 + flag + f);

@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,6 +31,7 @@
 
 #include "v8.h"
 
+#include "isolate.h"
 #include "token.h"
 #include "scanner.h"
 #include "parser.h"
@@ -136,8 +137,9 @@ TEST(ScanHTMLEndComments) {
   // Regression test. See:
   //    http://code.google.com/p/chromium/issues/detail?id=53548
   // Tests that --> is correctly interpreted as comment-to-end-of-line if there
-  // is only whitespace before it on the line, even after a multiline-comment
-  // comment. This was not the case if it occurred before the first real token
+  // is only whitespace before it on the line (with comments considered as
+  // whitespace, even a multiline-comment containing a newline).
+  // This was not the case if it occurred before the first real token
   // in the input.
   const char* tests[] = {
       // Before first real token.
@@ -151,15 +153,32 @@ TEST(ScanHTMLEndComments) {
       NULL
   };
 
+  const char* fail_tests[] = {
+      "x --> is eol-comment\nvar y = 37;\n",
+      "\"\\n\" --> is eol-comment\nvar y = 37;\n",
+      "x/* precomment */ --> is eol-comment\nvar y = 37;\n",
+      "x/* precomment\n */ --> is eol-comment\nvar y = 37;\n",
+      "var x = 42; --> is eol-comment\nvar y = 37;\n",
+      "var x = 42; /* precomment\n */ --> is eol-comment\nvar y = 37;\n",
+      NULL
+  };
+
   // Parser/Scanner needs a stack limit.
   int marker;
-  i::StackGuard::SetStackLimit(
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   for (int i = 0; tests[i]; i++) {
     v8::ScriptData* data =
         v8::ScriptData::PreCompile(tests[i], i::StrLength(tests[i]));
     CHECK(data != NULL && !data->HasError());
+    delete data;
+  }
+
+  for (int i = 0; fail_tests[i]; i++) {
+    v8::ScriptData* data =
+        v8::ScriptData::PreCompile(fail_tests[i], i::StrLength(fail_tests[i]));
+    CHECK(data == NULL || data->HasError());
     delete data;
   }
 }
@@ -184,7 +203,7 @@ TEST(Preparsing) {
   v8::Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
   int marker;
-  i::StackGuard::SetStackLimit(
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   // Source containing functions that might be lazily compiled  and all types
@@ -245,26 +264,26 @@ TEST(Preparsing) {
 
 TEST(StandAlonePreParser) {
   int marker;
-  i::StackGuard::SetStackLimit(
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* programs[] = {
       "{label: 42}",
       "var x = 42;",
       "function foo(x, y) { return x + y; }",
-      "native function foo(); return %ArgleBargle(glop);",
+      "%ArgleBargle(glop);",
       "var x = new new Function('this.x = 42');",
       NULL
   };
 
-  uintptr_t stack_limit = i::StackGuard::real_climit();
+  uintptr_t stack_limit = i::Isolate::Current()->stack_guard()->real_climit();
   for (int i = 0; programs[i]; i++) {
     const char* program = programs[i];
     i::Utf8ToUC16CharacterStream stream(
         reinterpret_cast<const i::byte*>(program),
         static_cast<unsigned>(strlen(program)));
     i::CompleteParserRecorder log;
-    i::V8JavaScriptScanner scanner;
+    i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
     scanner.Initialize(&stream);
 
     v8::preparser::PreParser::PreParseResult result =
@@ -281,7 +300,7 @@ TEST(StandAlonePreParser) {
 
 TEST(RegressChromium62639) {
   int marker;
-  i::StackGuard::SetStackLimit(
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* program = "var x = 'something';\n"
@@ -306,7 +325,7 @@ TEST(Regress928) {
   // the block could be lazily compiled, and an extra, unexpected,
   // entry was added to the data.
   int marker;
-  i::StackGuard::SetStackLimit(
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   const char* program =
@@ -342,7 +361,7 @@ TEST(Regress928) {
 
 TEST(PreParseOverflow) {
   int marker;
-  i::StackGuard::SetStackLimit(
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
@@ -351,13 +370,13 @@ TEST(PreParseOverflow) {
   memset(*program, '(', kProgramSize);
   program[kProgramSize] = '\0';
 
-  uintptr_t stack_limit = i::StackGuard::real_climit();
+  uintptr_t stack_limit = i::Isolate::Current()->stack_guard()->real_climit();
 
   i::Utf8ToUC16CharacterStream stream(
       reinterpret_cast<const i::byte*>(*program),
       static_cast<unsigned>(kProgramSize));
   i::CompleteParserRecorder log;
-  i::V8JavaScriptScanner scanner;
+  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
   scanner.Initialize(&stream);
 
 
@@ -405,10 +424,10 @@ void TestCharacterStream(const char* ascii_source,
   }
   i::Vector<const char> ascii_vector(ascii_source, static_cast<int>(length));
   i::Handle<i::String> ascii_string(
-      i::Factory::NewStringFromAscii(ascii_vector));
+      FACTORY->NewStringFromAscii(ascii_vector));
   TestExternalResource resource(*uc16_buffer, length);
   i::Handle<i::String> uc16_string(
-      i::Factory::NewExternalStringFromTwoByte(&resource));
+      FACTORY->NewExternalStringFromTwoByte(&resource));
 
   i::ExternalTwoByteStringUC16CharacterStream uc16_stream(
       i::Handle<i::ExternalTwoByteString>::cast(uc16_string), start, end);
@@ -575,7 +594,7 @@ void TestStreamScanner(i::UC16CharacterStream* stream,
                        i::Token::Value* expected_tokens,
                        int skip_pos = 0,  // Zero means not skipping.
                        int skip_to = 0) {
-  i::V8JavaScriptScanner scanner;
+  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
   scanner.Initialize(stream);
 
   int i = 0;
@@ -654,7 +673,7 @@ void TestScanRegExp(const char* re_source, const char* expected) {
   i::Utf8ToUC16CharacterStream stream(
        reinterpret_cast<const i::byte*>(re_source),
        static_cast<unsigned>(strlen(re_source)));
-  i::V8JavaScriptScanner scanner;
+  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
   scanner.Initialize(&stream);
 
   i::Token::Value start = scanner.peek();

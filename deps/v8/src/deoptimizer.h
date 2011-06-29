@@ -30,6 +30,7 @@
 
 #include "v8.h"
 
+#include "allocation.h"
 #include "macro-assembler.h"
 #include "zone-inl.h"
 
@@ -72,6 +73,31 @@ class OptimizedFunctionVisitor BASE_EMBEDDED {
 };
 
 
+class Deoptimizer;
+
+
+class DeoptimizerData {
+ public:
+  DeoptimizerData();
+  ~DeoptimizerData();
+
+ private:
+  LargeObjectChunk* eager_deoptimization_entry_code_;
+  LargeObjectChunk* lazy_deoptimization_entry_code_;
+  Deoptimizer* current_;
+
+  // List of deoptimized code which still have references from active stack
+  // frames. These code objects are needed by the deoptimizer when deoptimizing
+  // a frame for which the code object for the function function has been
+  // changed from the code present when deoptimizing was done.
+  DeoptimizingCodeListNode* deoptimizing_code_list_;
+
+  friend class Deoptimizer;
+
+  DISALLOW_COPY_AND_ASSIGN(DeoptimizerData);
+};
+
+
 class Deoptimizer : public Malloced {
  public:
   enum BailoutType {
@@ -86,8 +112,9 @@ class Deoptimizer : public Malloced {
                           BailoutType type,
                           unsigned bailout_id,
                           Address from,
-                          int fp_to_sp_delta);
-  static Deoptimizer* Grab();
+                          int fp_to_sp_delta,
+                          Isolate* isolate);
+  static Deoptimizer* Grab(Isolate* isolate);
 
   // Makes sure that there is enough room in the relocation
   // information of a code object to perform lazy deoptimization
@@ -153,9 +180,6 @@ class Deoptimizer : public Malloced {
                            unsigned node_id,
                            SharedFunctionInfo* shared);
 
-  static void Setup();
-  static void TearDown();
-
   // Code generation support.
   static int input_offset() { return OFFSET_OF(Deoptimizer, input_); }
   static int output_count_offset() {
@@ -163,7 +187,7 @@ class Deoptimizer : public Malloced {
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
 
-  static int GetDeoptimizedCodeCount();
+  static int GetDeoptimizedCodeCount(Isolate* isolate);
 
   static const int kNotDeoptimizationEntry = -1;
 
@@ -204,7 +228,8 @@ class Deoptimizer : public Malloced {
  private:
   static const int kNumberOfEntries = 4096;
 
-  Deoptimizer(JSFunction* function,
+  Deoptimizer(Isolate* isolate,
+              JSFunction* function,
               BailoutType type,
               unsigned bailout_id,
               Address from,
@@ -244,16 +269,7 @@ class Deoptimizer : public Malloced {
   static Code* FindDeoptimizingCodeFromAddress(Address addr);
   static void RemoveDeoptimizingCode(Code* code);
 
-  static LargeObjectChunk* eager_deoptimization_entry_code_;
-  static LargeObjectChunk* lazy_deoptimization_entry_code_;
-  static Deoptimizer* current_;
-
-  // List of deoptimized code which still have references from active stack
-  // frames. These code objects are needed by the deoptimizer when deoptimizing
-  // a frame for which the code object for the function function has been
-  // changed from the code present when deoptimizing was done.
-  static DeoptimizingCodeListNode* deoptimizing_code_list_;
-
+  Isolate* isolate_;
   JSFunction* function_;
   Code* optimized_code_;
   unsigned bailout_id_;
@@ -283,7 +299,9 @@ class FrameDescription {
                    JSFunction* function);
 
   void* operator new(size_t size, uint32_t frame_size) {
-    return malloc(size + frame_size);
+    // Subtracts kPointerSize, as the member frame_content_ already supplies
+    // the first element of the area to store the frame.
+    return malloc(size + frame_size - kPointerSize);
   }
 
   void operator delete(void* description) {
@@ -367,7 +385,7 @@ class FrameDescription {
   }
 
   static int frame_content_offset() {
-    return sizeof(FrameDescription);
+    return OFFSET_OF(FrameDescription, frame_content_);
   }
 
  private:
@@ -385,6 +403,10 @@ class FrameDescription {
   // Continuation is the PC where the execution continues after
   // deoptimizing.
   intptr_t continuation_;
+
+  // This must be at the end of the object as the object is allocated larger
+  // than it's definition indicate to extend this array.
+  intptr_t frame_content_[1];
 
   intptr_t* GetFrameSlotPointer(unsigned offset) {
     ASSERT(offset < frame_size_);
@@ -473,7 +495,7 @@ class Translation BASE_EMBEDDED {
 
   static int NumberOfOperandsFor(Opcode opcode);
 
-#ifdef OBJECT_PRINT
+#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
   static const char* StringFor(Opcode opcode);
 #endif
 
@@ -500,6 +522,78 @@ class DeoptimizingCodeListNode : public Malloced {
 
   // Next pointer for linked list.
   DeoptimizingCodeListNode* next_;
+};
+
+
+class SlotRef BASE_EMBEDDED {
+ public:
+  enum SlotRepresentation {
+    UNKNOWN,
+    TAGGED,
+    INT32,
+    DOUBLE,
+    LITERAL
+  };
+
+  SlotRef()
+      : addr_(NULL), representation_(UNKNOWN) { }
+
+  SlotRef(Address addr, SlotRepresentation representation)
+      : addr_(addr), representation_(representation) { }
+
+  explicit SlotRef(Object* literal)
+      : literal_(literal), representation_(LITERAL) { }
+
+  Handle<Object> GetValue() {
+    switch (representation_) {
+      case TAGGED:
+        return Handle<Object>(Memory::Object_at(addr_));
+
+      case INT32: {
+        int value = Memory::int32_at(addr_);
+        if (Smi::IsValid(value)) {
+          return Handle<Object>(Smi::FromInt(value));
+        } else {
+          return Isolate::Current()->factory()->NewNumberFromInt(value);
+        }
+      }
+
+      case DOUBLE: {
+        double value = Memory::double_at(addr_);
+        return Isolate::Current()->factory()->NewNumber(value);
+      }
+
+      case LITERAL:
+        return literal_;
+
+      default:
+        UNREACHABLE();
+        return Handle<Object>::null();
+    }
+  }
+
+  static void ComputeSlotMappingForArguments(JavaScriptFrame* frame,
+                                             int inlined_frame_index,
+                                             Vector<SlotRef>* args_slots);
+
+ private:
+  Address addr_;
+  Handle<Object> literal_;
+  SlotRepresentation representation_;
+
+  static Address SlotAddress(JavaScriptFrame* frame, int slot_index) {
+    if (slot_index >= 0) {
+      const int offset = JavaScriptFrameConstants::kLocal0Offset;
+      return frame->fp() + offset - (slot_index * kPointerSize);
+    } else {
+      const int offset = JavaScriptFrameConstants::kLastParameterOffset;
+      return frame->fp() + offset - ((slot_index + 1) * kPointerSize);
+    }
+  }
+
+  static SlotRef ComputeSlotForNextArgument(TranslationIterator* iterator,
+                                            DeoptimizationInputData* data,
+                                            JavaScriptFrame* frame);
 };
 
 

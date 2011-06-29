@@ -44,6 +44,9 @@ class NameConverter {
   virtual const char* NameOfAddress(byte* addr) const;
   virtual const char* NameOfConstant(byte* addr) const;
   virtual const char* NameInCode(byte* addr) const;
+
+ protected:
+  v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
 };
 
 

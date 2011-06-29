@@ -170,14 +170,16 @@ PropertyKind.Indexed = 2;
 
 // A copy of the PropertyType enum from global.h
 PropertyType = {};
-PropertyType.Normal             = 0;
-PropertyType.Field              = 1;
-PropertyType.ConstantFunction   = 2;
-PropertyType.Callbacks          = 3;
-PropertyType.Interceptor        = 4;
-PropertyType.MapTransition      = 5;
-PropertyType.ConstantTransition = 6;
-PropertyType.NullDescriptor     = 7;
+PropertyType.Normal                  = 0;
+PropertyType.Field                   = 1;
+PropertyType.ConstantFunction        = 2;
+PropertyType.Callbacks               = 3;
+PropertyType.Handler                 = 4;
+PropertyType.Interceptor             = 5;
+PropertyType.MapTransition           = 6;
+PropertyType.ExternalArrayTransition = 7;
+PropertyType.ConstantTransition      = 8;
+PropertyType.NullDescriptor          = 9;
 
 
 // Different attributes for a property.

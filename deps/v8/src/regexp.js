@@ -384,13 +384,13 @@ function RegExpMakeCaptureGetter(n) {
 // pairs for the match and all the captured substrings), the invariant is
 // that there are at least two capture indeces.  The array also contains
 // the subject string for the last successful match.
-var lastMatchInfo = [
+var lastMatchInfo = new InternalArray(
     2,                 // REGEXP_NUMBER_OF_CAPTURES
     "",                // Last subject.
     void 0,            // Last input - settable with RegExpSetInput.
     0,                 // REGEXP_FIRST_CAPTURE + 0
-    0,                 // REGEXP_FIRST_CAPTURE + 1
-];
+    0                  // REGEXP_FIRST_CAPTURE + 1
+);
 
 // Override last match info with an array of actual substrings.
 // Used internally by replace regexp with function.

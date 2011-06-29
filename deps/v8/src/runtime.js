@@ -49,41 +49,47 @@ const $Function = global.Function;
 const $Boolean = global.Boolean;
 const $NaN = 0/0;
 
-
-// ECMA-262, section 11.9.1, page 55.
+// ECMA-262 Section 11.9.3.
 function EQUALS(y) {
   if (IS_STRING(this) && IS_STRING(y)) return %StringEquals(this, y);
   var x = this;
 
-  // NOTE: We use iteration instead of recursion, because it is
-  // difficult to call EQUALS with the correct setting of 'this' in
-  // an efficient way.
   while (true) {
     if (IS_NUMBER(x)) {
-      if (y == null) return 1;  // not equal
-      return %NumberEquals(x, %ToNumber(y));
-    } else if (IS_STRING(x)) {
-      if (IS_STRING(y)) return %StringEquals(x, y);
-      if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
-      if (IS_BOOLEAN(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
-      if (y == null) return 1;  // not equal
-      y = %ToPrimitive(y, NO_HINT);
-    } else if (IS_BOOLEAN(x)) {
-      if (IS_BOOLEAN(y)) {
-        return %_ObjectEquals(x, y) ? 0 : 1;
+      while (true) {
+        if (IS_NUMBER(y)) return %NumberEquals(x, y);
+        if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        if (!IS_SPEC_OBJECT(y)) {
+          // String or boolean.
+          return %NumberEquals(x, %ToNumber(y));
+        }
+        y = %ToPrimitive(y, NO_HINT);
       }
-      if (y == null) return 1;  // not equal
-      return %NumberEquals(%ToNumber(x), %ToNumber(y));
-    } else if (x == null) {
-      // NOTE: This checks for both null and undefined.
-      return (y == null) ? 0 : 1;
+    } else if (IS_STRING(x)) {
+      while (true) {
+        if (IS_STRING(y)) return %StringEquals(x, y);
+        if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
+        if (IS_BOOLEAN(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
+        if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+        y = %ToPrimitive(y, NO_HINT);
+      }
+    } else if (IS_BOOLEAN(x)) {
+      if (IS_BOOLEAN(y)) return %_ObjectEquals(x, y) ? 0 : 1;
+      if (IS_NULL_OR_UNDEFINED(y)) return 1;
+      if (IS_NUMBER(y)) return %NumberEquals(%ToNumber(x), y);
+      if (IS_STRING(y)) return %NumberEquals(%ToNumber(x), %ToNumber(y));
+      // y is object.
+      x = %ToNumber(x);
+      y = %ToPrimitive(y, NO_HINT);
+    } else if (IS_NULL_OR_UNDEFINED(x)) {
+      return IS_NULL_OR_UNDEFINED(y) ? 0 : 1;
     } else {
-      // x is not a number, boolean, null or undefined.
-      if (y == null) return 1;  // not equal
+      // x is an object.
       if (IS_SPEC_OBJECT(y)) {
         return %_ObjectEquals(x, y) ? 0 : 1;
       }
-
+      if (IS_NULL_OR_UNDEFINED(y)) return 1;  // not equal
+      if (IS_BOOLEAN(y)) y = %ToNumber(y);
       x = %ToPrimitive(x, NO_HINT);
     }
   }
@@ -638,6 +644,6 @@ function DefaultString(x) {
 // NOTE: Setting the prototype for Array must take place as early as
 // possible due to code generation for array literals.  When
 // generating code for a array literal a boilerplate array is created
-// that is cloned when running the code.  It is essiential that the
+// that is cloned when running the code.  It is essential that the
 // boilerplate gets the right prototype.
 %FunctionSetPrototype($Array, new $Array(0));

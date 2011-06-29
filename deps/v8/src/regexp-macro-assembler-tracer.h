@@ -71,7 +71,7 @@ class RegExpMacroAssemblerTracer: public RegExpMacroAssembler {
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           Label* on_no_match);
   virtual void Fail();
-  virtual Handle<Object> GetCode(Handle<String> source);
+  virtual Handle<HeapObject> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);

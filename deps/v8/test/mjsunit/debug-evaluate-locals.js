@@ -33,33 +33,73 @@ listenerComplete = false;
 exception = false;
 
 
-function checkFrame0(name, value) {
-  assertTrue(name == 'a' || name == 'b');
-  if (name == 'a') {
-    assertEquals(1, value);
-  }
-  if (name == 'b') {
-    assertEquals(2, value);
+function h() {
+  var a = 1;
+  var b = 2;
+  debugger;  // Breakpoint.
+}
+
+function checkFrame0(frame) {
+  // Frame 0 (h) has normal variables a and b.
+  var count = frame.localCount();
+  assertEquals(2, count);
+  for (var i = 0; i < count; ++i) {
+    var name = frame.localName(i);
+    var value = frame.localValue(i).value();
+    if (name == 'a') {
+      assertEquals(1, value);
+    } else {
+      assertEquals('b', name);
+      assertEquals(2, value);
+    }
   }
 }
 
 
-function checkFrame1(name, value) {
-  assertTrue(name == '.arguments' || name == 'a');
-  if (name == 'a') {
-    assertEquals(3, value);
+function g() {
+  var a = 3;
+  eval("var b = 4;");
+  h();
+}
+
+function checkFrame1(frame) {
+  // Frame 1 (g) has normal variable a (and arguments).
+  var count = frame.localCount();
+  assertEquals(2, count);
+  for (var i = 0; i < count; ++i) {
+    var name = frame.localName(i);
+    var value = frame.localValue(i).value();
+    if (name == 'a') {
+      assertEquals(3, value);
+    } else {
+      assertEquals('arguments', name);
+    }
   }
 }
 
 
-function checkFrame2(name, value) {
-  assertTrue(name == '.arguments' || name == 'a' ||
-             name == 'arguments' || name == 'b');
-  if (name == 'a') {
-    assertEquals(5, value);
+function f() {
+  var a = 5;
+  var b = 0;
+  with ({b:6}) {
+    g();
   }
-  if (name == 'b') {
-    assertEquals(0, value);
+}
+
+function checkFrame2(frame) {
+  // Frame 2 (f) has normal variables a and b (and arguments).
+  var count = frame.localCount();
+  assertEquals(3, count);
+  for (var i = 0; i < count; ++i) {
+    var name = frame.localName(i);
+    var value = frame.localValue(i).value();
+    if (name == 'a') {
+      assertEquals(5, value);
+    } else if (name == 'b') {
+      assertEquals(0, value);
+    } else {
+      assertEquals('arguments', name);
+    }
   }
 }
 
@@ -68,23 +108,9 @@ function listener(event, exec_state, event_data, data) {
   try {
     if (event == Debug.DebugEvent.Break)
     {
-      // Frame 0 has normal variables a and b.
-      var frame0 = exec_state.frame(0);
-      checkFrame0(frame0.localName(0), frame0.localValue(0).value());
-      checkFrame0(frame0.localName(1), frame0.localValue(1).value());
-
-      // Frame 1 has normal variable a (and the .arguments variable).
-      var frame1 = exec_state.frame(1);
-      checkFrame1(frame1.localName(0), frame1.localValue(0).value());
-      checkFrame1(frame1.localName(1), frame1.localValue(1).value());
-
-      // Frame 2 has normal variables a and b (and both the .arguments and
-      // arguments variable).
-      var frame2 = exec_state.frame(2);
-      checkFrame2(frame2.localName(0), frame2.localValue(0).value());
-      checkFrame2(frame2.localName(1), frame2.localValue(1).value());
-      checkFrame2(frame2.localName(2), frame2.localValue(2).value());
-      checkFrame2(frame2.localName(3), frame2.localValue(3).value());
+      checkFrame0(exec_state.frame(0));
+      checkFrame1(exec_state.frame(1));
+      checkFrame2(exec_state.frame(2));
 
       // Evaluating a and b on frames 0, 1 and 2 produces 1, 2, 3, 4, 5 and 6.
       assertEquals(1, exec_state.frame(0).evaluate('a').value());
@@ -104,26 +130,6 @@ function listener(event, exec_state, event_data, data) {
 
 // Add the debug event listener.
 Debug.setListener(listener);
-
-function h() {
-  var a = 1;
-  var b = 2;
-  debugger;  // Breakpoint.
-};
-
-function g() {
-  var a = 3;
-  eval("var b = 4;");
-  h();
-};
-
-function f() {
-  var a = 5;
-  var b = 0;
-  with ({b:6}) {
-    g();
-  }
-};
 
 f();
 

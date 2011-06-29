@@ -107,6 +107,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
 
 
 void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
+  HandleScope scope;
   AssertNoAllocation no_allocation;
 
   if (!function->IsOptimized()) return;
@@ -191,8 +192,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  node->set_next(deoptimizing_code_list_);
-  deoptimizing_code_list_ = node;
+  DeoptimizerData* data = code->GetIsolate()->deoptimizer_data();
+  node->set_next(data->deoptimizing_code_list_);
+  data->deoptimizing_code_list_ = node;
 
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
@@ -201,6 +203,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
+#ifdef DEBUG
+    if (FLAG_print_code) {
+      code->PrintLn();
+    }
+#endif
   }
 }
 
@@ -354,13 +361,32 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 
   // There are no translation commands for the caller's pc and fp, the
   // context, and the function.  Set them up explicitly.
-  for (int i = 0; ok && i < 4; i++) {
+  for (int i = StandardFrameConstants::kCallerPCOffset;
+       ok && i >=  StandardFrameConstants::kMarkerOffset;
+       i -= kPointerSize) {
     intptr_t input_value = input_->GetFrameSlot(input_offset);
     if (FLAG_trace_osr) {
-      PrintF("    [esp + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d] (fixed part)\n",
+      const char* name = "UNKNOWN";
+      switch (i) {
+        case StandardFrameConstants::kCallerPCOffset:
+          name = "caller's pc";
+          break;
+        case StandardFrameConstants::kCallerFPOffset:
+          name = "fp";
+          break;
+        case StandardFrameConstants::kContextOffset:
+          name = "context";
+          break;
+        case StandardFrameConstants::kMarkerOffset:
+          name = "function";
+          break;
+      }
+      PrintF("    [rsp + %d] <- 0x%08" V8PRIxPTR " ; [rsp + %d] "
+             "(fixed part - %s)\n",
              output_offset,
              input_value,
-             input_offset);
+             input_offset,
+             name);
     }
     output_[0]->SetFrameSlot(output_offset, input_->GetFrameSlot(input_offset));
     input_offset -= kPointerSize;
@@ -387,7 +413,8 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
         optimized_code_->entry() + pc_offset);
     output_[0]->SetPc(pc);
   }
-  Code* continuation = Builtins::builtin(Builtins::NotifyOSR);
+  Code* continuation =
+      function->GetIsolate()->builtins()->builtin(Builtins::kNotifyOSR);
   output_[0]->SetContinuation(
       reinterpret_cast<intptr_t>(continuation->entry()));
 
@@ -559,8 +586,8 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // Set the continuation for the topmost frame.
   if (is_topmost) {
     Code* continuation = (bailout_type_ == EAGER)
-        ? Builtins::builtin(Builtins::NotifyDeoptimized)
-        : Builtins::builtin(Builtins::NotifyLazyDeoptimized);
+        ? isolate_->builtins()->builtin(Builtins::kNotifyDeoptimized)
+        : isolate_->builtins()->builtin(Builtins::kNotifyLazyDeoptimized);
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }
@@ -573,7 +600,6 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
 
 void Deoptimizer::EntryGenerator::Generate() {
   GeneratePrologue();
-  CpuFeatures::Scope scope(SSE2);
 
   // Save all general purpose registers before messing with them.
   const int kNumberOfRegisters = Register::kNumRegisters;
@@ -636,21 +662,26 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ neg(arg5);
 
   // Allocate a new deoptimizer object.
-  __ PrepareCallCFunction(5);
+  __ PrepareCallCFunction(6);
   __ movq(rax, Operand(rbp, JavaScriptFrameConstants::kFunctionOffset));
   __ movq(arg1, rax);
-  __ movq(arg2, Immediate(type()));
+  __ Set(arg2, type());
   // Args 3 and 4 are already in the right registers.
 
-  // On windows put the argument on the stack (PrepareCallCFunction have
-  // created space for this). On linux pass the argument in r8.
+  // On windows put the arguments on the stack (PrepareCallCFunction
+  // has created space for this). On linux pass the arguments in r8 and r9.
 #ifdef _WIN64
-  __ movq(Operand(rsp, 0 * kPointerSize), arg5);
+  __ movq(Operand(rsp, 4 * kPointerSize), arg5);
+  __ LoadAddress(arg5, ExternalReference::isolate_address());
+  __ movq(Operand(rsp, 5 * kPointerSize), arg5);
 #else
   __ movq(r8, arg5);
+  __ LoadAddress(r9, ExternalReference::isolate_address());
 #endif
 
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(), 5);
+  Isolate* isolate = masm()->isolate();
+
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
   __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
@@ -693,9 +724,11 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Compute the output frame in the deoptimizer.
   __ push(rax);
-  __ PrepareCallCFunction(1);
+  __ PrepareCallCFunction(2);
   __ movq(arg1, rax);
-  __ CallCFunction(ExternalReference::compute_output_frames_function(), 1);
+  __ LoadAddress(arg2, ExternalReference::isolate_address());
+  __ CallCFunction(
+      ExternalReference::compute_output_frames_function(isolate), 2);
   __ pop(rax);
 
   // Replace the current frame with the output frames.
@@ -753,12 +786,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   }
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address();
-  __ movq(r13, roots_address);
-
-  __ movq(kSmiConstantRegister,
-          reinterpret_cast<uint64_t>(Smi::FromInt(kSmiConstantRegisterValue)),
-          RelocInfo::NONE);
+  __ InitializeRootRegister();
+  __ InitializeSmiConstantRegister();
 
   // Return to the continuation point.
   __ ret(0);

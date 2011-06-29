@@ -27,16 +27,16 @@
 
 // Test that we don't cache the result of a regexp match across a
 // compile event.
-var re = /x/; 
+var re = /x/;
 assertEquals("a.yb", "axyb".replace(re, "."));
 
-re.compile("y")
+re.compile("y");
 assertEquals("ax.b", "axyb".replace(re, "."));
 
 re.compile("(x)");
 
-assertEquals("x,x", re.exec("axyb"));
+assertEquals(["x", "x"], re.exec("axyb"));
 
 re.compile("(y)");
 
-assertEquals("y,y", re.exec("axyb"));
+assertEquals(["y", "y"], re.exec("axyb"));

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function ArrayLength(a) { return a.length; }
 
 function Test(a0, a2, a5) {
@@ -36,7 +38,12 @@ function Test(a0, a2, a5) {
 var a0 = [];
 var a2 = [1,2];
 var a5 = [1,2,3,4,5];
-for (var i = 0; i < 10000000; i++) Test(a0, a2, a5);
+for (var i = 0; i < 5; i++) Test(a0, a2, a5);
+%OptimizeFunctionOnNextCall(ArrayLength);
+%OptimizeFunctionOnNextCall(Test);
+Test(a0, a2, a5);
 assertEquals("undefined", typeof(ArrayLength(0)));
-for (var i = 0; i < 10000000; i++) Test(a0, a2, a5);
+for (var i = 0; i < 5; i++) Test(a0, a2, a5);
+%OptimizeFunctionOnNextCall(Test);
+Test(a0, a2, a5);
 assertEquals(4, ArrayLength("hest"));

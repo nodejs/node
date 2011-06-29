@@ -30,6 +30,9 @@
 #ifndef V8_ATOMICOPS_INTERNALS_X86_GCC_H_
 #define V8_ATOMICOPS_INTERNALS_X86_GCC_H_
 
+namespace v8 {
+namespace internal {
+
 // This struct is not part of the public API of this module; clients may not
 // use it.
 // Features of this x86.  Values may not be correct before main() is run,
@@ -42,9 +45,6 @@ struct AtomicOps_x86CPUFeatureStruct {
 extern struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures;
 
 #define ATOMICOPS_COMPILER_BARRIER() __asm__ __volatile__("" : : : "memory")
-
-namespace v8 {
-namespace internal {
 
 // 32-bit low-level operations on any platform.
 

@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
-
 #include "../include/v8stdint.h"
 #include "globals.h"
 #include "checks.h"
@@ -37,7 +35,6 @@ namespace v8 {
 namespace internal {
 
 void* Malloced::New(size_t size) {
-  ASSERT(NativeAllocationChecker::allocation_allowed());
   void* result = malloc(size);
   if (result == NULL) {
     v8::internal::FatalProcessOutOfMemory("Malloced operator new");
@@ -100,85 +97,6 @@ char* StrNDup(const char* str, int n) {
   memcpy(result, str, length);
   result[length] = '\0';
   return result;
-}
-
-
-int NativeAllocationChecker::allocation_disallowed_ = 0;
-
-
-PreallocatedStorage PreallocatedStorage::in_use_list_(0);
-PreallocatedStorage PreallocatedStorage::free_list_(0);
-bool PreallocatedStorage::preallocated_ = false;
-
-
-void PreallocatedStorage::Init(size_t size) {
-  ASSERT(free_list_.next_ == &free_list_);
-  ASSERT(free_list_.previous_ == &free_list_);
-  PreallocatedStorage* free_chunk =
-      reinterpret_cast<PreallocatedStorage*>(new char[size]);
-  free_list_.next_ = free_list_.previous_ = free_chunk;
-  free_chunk->next_ = free_chunk->previous_ = &free_list_;
-  free_chunk->size_ = size - sizeof(PreallocatedStorage);
-  preallocated_ = true;
-}
-
-
-void* PreallocatedStorage::New(size_t size) {
-  if (!preallocated_) {
-    return FreeStoreAllocationPolicy::New(size);
-  }
-  ASSERT(free_list_.next_ != &free_list_);
-  ASSERT(free_list_.previous_ != &free_list_);
-
-  size = (size + kPointerSize - 1) & ~(kPointerSize - 1);
-  // Search for exact fit.
-  for (PreallocatedStorage* storage = free_list_.next_;
-       storage != &free_list_;
-       storage = storage->next_) {
-    if (storage->size_ == size) {
-      storage->Unlink();
-      storage->LinkTo(&in_use_list_);
-      return reinterpret_cast<void*>(storage + 1);
-    }
-  }
-  // Search for first fit.
-  for (PreallocatedStorage* storage = free_list_.next_;
-       storage != &free_list_;
-       storage = storage->next_) {
-    if (storage->size_ >= size + sizeof(PreallocatedStorage)) {
-      storage->Unlink();
-      storage->LinkTo(&in_use_list_);
-      PreallocatedStorage* left_over =
-          reinterpret_cast<PreallocatedStorage*>(
-              reinterpret_cast<char*>(storage + 1) + size);
-      left_over->size_ = storage->size_ - size - sizeof(PreallocatedStorage);
-      ASSERT(size + left_over->size_ + sizeof(PreallocatedStorage) ==
-             storage->size_);
-      storage->size_ = size;
-      left_over->LinkTo(&free_list_);
-      return reinterpret_cast<void*>(storage + 1);
-    }
-  }
-  // Allocation failure.
-  ASSERT(false);
-  return NULL;
-}
-
-
-// We don't attempt to coalesce.
-void PreallocatedStorage::Delete(void* p) {
-  if (p == NULL) {
-    return;
-  }
-  if (!preallocated_) {
-    FreeStoreAllocationPolicy::Delete(p);
-    return;
-  }
-  PreallocatedStorage* storage = reinterpret_cast<PreallocatedStorage*>(p) - 1;
-  ASSERT(storage->next_->previous_ == storage);
-  ASSERT(storage->previous_->next_ == storage);
-  storage->Unlink();
-  storage->LinkTo(&free_list_);
 }
 
 

@@ -311,10 +311,6 @@ static Handle<Value> GetStdout(int child_fd,
                                int read_timeout,
                                int total_timeout) {
   Handle<String> accumulator = String::Empty();
-  const char* source = "(function(a, b) { return a + b; })";
-  Handle<Value> cons_as_obj(Script::Compile(String::New(source))->Run());
-  Handle<Function> cons_function(Function::Cast(*cons_as_obj));
-  Handle<Value> cons_args[2];
 
   int fullness = 0;
   static const int kStdoutReadBufferSize = 4096;
@@ -350,12 +346,7 @@ static Handle<Value> GetStdout(int child_fd,
                    bytes_read + fullness :
                    LengthWithoutIncompleteUtf8(buffer, bytes_read + fullness);
       Handle<String> addition = String::New(buffer, length);
-      cons_args[0] = accumulator;
-      cons_args[1] = addition;
-      accumulator = Handle<String>::Cast(cons_function->Call(
-          Shell::utility_context()->Global(),
-          2,
-          cons_args));
+      accumulator = String::Concat(accumulator, addition);
       fullness = bytes_read + fullness - length;
       memcpy(buffer, buffer + length, fullness);
     }
@@ -375,7 +366,9 @@ static Handle<Value> GetStdout(int child_fd,
 // a parent process hangs on waiting while a child process is already a zombie.
 // See http://code.google.com/p/v8/issues/detail?id=401.
 #if defined(WNOWAIT) && !defined(ANDROID) && !defined(__APPLE__)
+#if !defined(__FreeBSD__)
 #define HAS_WAITID 1
+#endif
 #endif
 
 

@@ -30,7 +30,7 @@
 
 #include "cpu.h"
 #include "debug.h"
-#include "memory.h"
+#include "v8memory.h"
 
 namespace v8 {
 namespace internal {
@@ -61,9 +61,15 @@ void Assembler::emitw(uint16_t x) {
 }
 
 
-void Assembler::emit_code_target(Handle<Code> target, RelocInfo::Mode rmode) {
+void Assembler::emit_code_target(Handle<Code> target,
+                                 RelocInfo::Mode rmode,
+                                 unsigned ast_id) {
   ASSERT(RelocInfo::IsCodeTarget(rmode));
-  RecordRelocInfo(rmode);
+  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, ast_id);
+  } else {
+    RecordRelocInfo(rmode);
+  }
   int current = code_targets_.length();
   if (current > 0 && code_targets_.last().is_identical_to(target)) {
     // Optimization if we keep jumping to the same code target.
@@ -372,11 +378,12 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (Debug::has_break_points() &&
-             ((RelocInfo::IsJSReturn(mode) &&
+  // TODO(isolates): Get a cached isolate below.
+  } else if (((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence()))) {
+              IsPatchedDebugBreakSlotSequence())) &&
+             Isolate::Current()->debug()->has_break_points()) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
@@ -386,25 +393,25 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 
 
 template<typename StaticVisitor>
-void RelocInfo::Visit() {
+void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitPointer(target_object_address());
+    StaticVisitor::VisitPointer(heap, target_object_address());
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(this);
+    StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(this);
+    StaticVisitor::VisitGlobalPropertyCell(heap, this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (Debug::has_break_points() &&
+  } else if (heap->isolate()->debug()->has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(this);
+    StaticVisitor::VisitDebugTarget(heap, this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);

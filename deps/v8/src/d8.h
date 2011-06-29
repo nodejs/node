@@ -28,9 +28,9 @@
 #ifndef V8_D8_H_
 #define V8_D8_H_
 
+#include "allocation.h"
 #include "v8.h"
 #include "hashmap.h"
-
 
 namespace v8 {
 
@@ -104,6 +104,7 @@ class CounterMap {
     i::HashMap* map_;
     i::HashMap::Entry* entry_;
   };
+
  private:
   static int Hash(const char* name);
   static bool Match(void* key1, void* key2);
@@ -119,7 +120,6 @@ class Shell: public i::AllStatic {
                             bool report_exceptions);
   static const char* ToCString(const v8::String::Utf8Value& value);
   static void ReportException(TryCatch* try_catch);
-  static void Initialize();
   static void OnExit();
   static int* LookupCounter(const char* name);
   static void* CreateHistogram(const char* name,
@@ -129,8 +129,14 @@ class Shell: public i::AllStatic {
   static void AddHistogramSample(void* histogram, int sample);
   static void MapCounters(const char* name);
   static Handle<String> ReadFile(const char* name);
+  static void Initialize(bool test_shell);
+  static void RenewEvaluationContext();
+  static void InstallUtilityScript();
   static void RunShell();
+  static int RunScript(char* filename);
+  static int RunMain(int argc, char* argv[], bool* executed);
   static int Main(int argc, char* argv[]);
+  static Handle<ObjectTemplate> CreateGlobalTemplate();
   static Handle<Array> GetCompletions(Handle<String> text,
                                       Handle<String> full);
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -150,6 +156,15 @@ class Shell: public i::AllStatic {
   static Handle<Value> Read(const Arguments& args);
   static Handle<Value> ReadLine(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
+  static Handle<Value> Int8Array(const Arguments& args);
+  static Handle<Value> Uint8Array(const Arguments& args);
+  static Handle<Value> Int16Array(const Arguments& args);
+  static Handle<Value> Uint16Array(const Arguments& args);
+  static Handle<Value> Int32Array(const Arguments& args);
+  static Handle<Value> Uint32Array(const Arguments& args);
+  static Handle<Value> Float32Array(const Arguments& args);
+  static Handle<Value> Float64Array(const Arguments& args);
+  static Handle<Value> PixelArray(const Arguments& args);
   // The OS object on the global object contains methods for performing
   // operating system calls:
   //
@@ -187,10 +202,9 @@ class Shell: public i::AllStatic {
 
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
 
-  static Handle<Context> utility_context() { return utility_context_; }
-
   static const char* kHistoryFileName;
   static const char* kPrompt;
+
  private:
   static Persistent<Context> utility_context_;
   static Persistent<Context> evaluation_context_;
@@ -201,6 +215,10 @@ class Shell: public i::AllStatic {
   static CounterCollection* counters_;
   static i::OS::MemoryMappedFile* counters_file_;
   static Counter* GetCounter(const char* name, bool is_histogram);
+  static Handle<Value> CreateExternalArray(const Arguments& args,
+                                           ExternalArrayType type,
+                                           size_t element_size);
+  static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
 
 

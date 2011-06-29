@@ -30,7 +30,6 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
-
 ##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
@@ -113,5 +112,29 @@ regress/regress-1132: SKIP
 ##############################################################################
 [ $arch == mips ]
 
-# Skip all tests on MIPS.
-*: SKIP
+# Skip long-running tests.
+compiler/alloc-number: SKIP
+compiler/array-length: SKIP
+compiler/assignment-deopt: SKIP
+compiler/deopt-args: SKIP
+compiler/inline-compare: SKIP
+compiler/inline-global-access: SKIP
+compiler/optimized-function-calls: SKIP
+compiler/pic: SKIP
+compiler/property-calls: SKIP
+compiler/recursive-deopt: SKIP
+compiler/regress-4: SKIP
+compiler/regress-funcaller: SKIP
+compiler/regress-gvn: SKIP
+compiler/regress-rep-change: SKIP
+compiler/regress-arguments: SKIP
+compiler/regress-funarguments: SKIP
+compiler/regress-or: SKIP
+compiler/regress-3249650: SKIP
+compiler/simple-deopt: SKIP
+regress/regress-490: SKIP
+regress/regress-634: SKIP
+regress/regress-create-exception: SKIP
+regress/regress-3218915: SKIP
+regress/regress-3247124: SKIP
+

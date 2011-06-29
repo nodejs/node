@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #ifndef V8_SCOPEINFO_H_
 #define V8_SCOPEINFO_H_
 
+#include "allocation.h"
 #include "variables.h"
 #include "zone-inl.h"
 
@@ -92,6 +93,7 @@ class ScopeInfo BASE_EMBEDDED {
  private:
   Handle<String> function_name_;
   bool calls_eval_;
+  bool is_strict_mode_;
   List<Handle<String>, Allocator > parameters_;
   List<Handle<String>, Allocator > stack_slots_;
   List<Handle<String>, Allocator > context_slots_;
@@ -112,10 +114,8 @@ class SerializedScopeInfo : public FixedArray {
   // Does this scope call eval?
   bool CallsEval();
 
-  // Does this scope have an arguments shadow?
-  bool HasArgumentsShadow() {
-    return StackSlotIndex(Heap::arguments_shadow_symbol()) >= 0;
-  }
+  // Is this scope a strict mode scope?
+  bool IsStrictMode();
 
   // Return the number of stack slots for code.
   int NumberOfStackSlots();
@@ -173,28 +173,36 @@ class ContextSlotCache {
  public:
   // Lookup context slot index for (data, name).
   // If absent, kNotFound is returned.
-  static int Lookup(Object* data,
-                    String* name,
-                    Variable::Mode* mode);
+  int Lookup(Object* data,
+             String* name,
+             Variable::Mode* mode);
 
   // Update an element in the cache.
-  static void Update(Object* data,
-                     String* name,
-                     Variable::Mode mode,
-                     int slot_index);
+  void Update(Object* data,
+              String* name,
+              Variable::Mode mode,
+              int slot_index);
 
   // Clear the cache.
-  static void Clear();
+  void Clear();
 
   static const int kNotFound = -2;
  private:
+  ContextSlotCache() {
+    for (int i = 0; i < kLength; ++i) {
+      keys_[i].data = NULL;
+      keys_[i].name = NULL;
+      values_[i] = kNotFound;
+    }
+  }
+
   inline static int Hash(Object* data, String* name);
 
 #ifdef DEBUG
-  static void ValidateEntry(Object* data,
-                            String* name,
-                            Variable::Mode mode,
-                            int slot_index);
+  void ValidateEntry(Object* data,
+                     String* name,
+                     Variable::Mode mode,
+                     int slot_index);
 #endif
 
   static const int kLength = 256;
@@ -212,7 +220,7 @@ class ContextSlotCache {
       ASSERT(index == this->index());
     }
 
-    inline Value(uint32_t value) : value_(value) {}
+    explicit inline Value(uint32_t value) : value_(value) {}
 
     uint32_t raw() { return value_; }
 
@@ -228,8 +236,11 @@ class ContextSlotCache {
     uint32_t value_;
   };
 
-  static Key keys_[kLength];
-  static uint32_t values_[kLength];
+  Key keys_[kLength];
+  uint32_t values_[kLength];
+
+  friend class Isolate;
+  DISALLOW_COPY_AND_ASSIGN(ContextSlotCache);
 };
 
 

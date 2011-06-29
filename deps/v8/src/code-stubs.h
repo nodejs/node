@@ -28,35 +28,38 @@
 #ifndef V8_CODE_STUBS_H_
 #define V8_CODE_STUBS_H_
 
+#include "allocation.h"
 #include "globals.h"
 
 namespace v8 {
 namespace internal {
 
-// List of code stubs used on all platforms. The order in this list is important
-// as only the stubs up to and including Instanceof allows nested stub calls.
+// List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
-  V(GenericBinaryOp)                     \
-  V(TypeRecordingBinaryOp)               \
+  V(UnaryOp)                             \
+  V(BinaryOp)                            \
   V(StringAdd)                           \
-  V(StringCharAt)                        \
   V(SubString)                           \
   V(StringCompare)                       \
-  V(SmiOp)                               \
   V(Compare)                             \
   V(CompareIC)                           \
   V(MathPow)                             \
   V(TranscendentalCache)                 \
   V(Instanceof)                          \
+  /* All stubs above this line only exist in a few versions, which are  */  \
+  /* generated ahead of time.  Therefore compiling a call to one of     */  \
+  /* them can't cause a new stub to be compiled, so compiling a call to */  \
+  /* them is GC safe.  The ones below this line exist in many variants  */  \
+  /* so code compiling a call to one can cause a GC.  This means they   */  \
+  /* can't be called from other stubs, since stub generation code is    */  \
+  /* not GC safe.                                                       */  \
   V(ConvertToDouble)                     \
   V(WriteInt32ToHeapNumber)              \
-  V(IntegerMod)                          \
   V(StackCheck)                          \
   V(FastNewClosure)                      \
   V(FastNewContext)                      \
   V(FastCloneShallowArray)               \
-  V(GenericUnaryOp)                      \
   V(RevertToNumber)                      \
   V(ToBoolean)                           \
   V(ToNumber)                            \
@@ -67,7 +70,12 @@ namespace internal {
   V(NumberToString)                      \
   V(CEntry)                              \
   V(JSEntry)                             \
-  V(DebuggerStatement)
+  V(KeyedLoadFastElement)                \
+  V(KeyedStoreFastElement)               \
+  V(KeyedLoadExternalArray)              \
+  V(KeyedStoreExternalArray)             \
+  V(DebuggerStatement)                   \
+  V(StringDictionaryNegativeLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -81,10 +89,20 @@ namespace internal {
 #define CODE_STUB_LIST_ARM(V)
 #endif
 
+// List of code stubs only used on MIPS platforms.
+#ifdef V8_TARGET_ARCH_MIPS
+#define CODE_STUB_LIST_MIPS(V)  \
+  V(RegExpCEntry)               \
+  V(DirectCEntry)
+#else
+#define CODE_STUB_LIST_MIPS(V)
+#endif
+
 // Combined list of code stubs.
 #define CODE_STUB_LIST(V)            \
   CODE_STUB_LIST_ALL_PLATFORMS(V)    \
-  CODE_STUB_LIST_ARM(V)
+  CODE_STUB_LIST_ARM(V)              \
+  CODE_STUB_LIST_MIPS(V)
 
 // Mode to overwrite BinaryExpression values.
 enum OverwriteMode { NO_OVERWRITE, OVERWRITE_LEFT, OVERWRITE_RIGHT };
@@ -156,10 +174,10 @@ class CodeStub BASE_EMBEDDED {
   // lazily generated function should be fully optimized or not.
   virtual InLoopFlag InLoop() { return NOT_IN_LOOP; }
 
-  // GenericBinaryOpStub needs to override this.
+  // BinaryOpStub needs to override this.
   virtual int GetCodeKind();
 
-  // GenericBinaryOpStub needs to override this.
+  // BinaryOpStub needs to override this.
   virtual InlineCacheState GetICState() {
     return UNINITIALIZED;
   }
@@ -167,7 +185,11 @@ class CodeStub BASE_EMBEDDED {
   // Returns a name for logging/debugging purposes.
   virtual const char* GetName() { return MajorName(MajorKey(), false); }
 
-#ifdef DEBUG
+  // Returns whether the code generated for this stub needs to be allocated as
+  // a fixed (non-moveable) code object.
+  virtual bool NeedsImmovableCode() { return false; }
+
+  #ifdef DEBUG
   virtual void Print() { PrintF("%s\n", GetName()); }
 #endif
 
@@ -178,6 +200,7 @@ class CodeStub BASE_EMBEDDED {
            MajorKeyBits::encode(MajorKey());
   }
 
+  // See comment above, where Instanceof is defined.
   bool AllowsStubCalls() { return MajorKey() <= Instanceof; }
 
   class MajorKeyBits: public BitField<uint32_t, 0, kMajorBits> {};
@@ -251,7 +274,6 @@ class StackCheckStub : public CodeStub {
   void Generate(MacroAssembler* masm);
 
  private:
-
   const char* GetName() { return "StackCheckStub"; }
 
   Major MajorKey() { return StackCheck; }
@@ -274,12 +296,17 @@ class ToNumberStub: public CodeStub {
 
 class FastNewClosureStub : public CodeStub {
  public:
+  explicit FastNewClosureStub(StrictModeFlag strict_mode)
+    : strict_mode_(strict_mode) { }
+
   void Generate(MacroAssembler* masm);
 
  private:
   const char* GetName() { return "FastNewClosureStub"; }
   Major MajorKey() { return FastNewClosure; }
-  int MinorKey() { return 0; }
+  int MinorKey() { return strict_mode_; }
+
+  StrictModeFlag strict_mode_;
 };
 
 
@@ -373,54 +400,6 @@ class InstanceofStub: public CodeStub {
 };
 
 
-enum NegativeZeroHandling {
-  kStrictNegativeZero,
-  kIgnoreNegativeZero
-};
-
-
-enum UnaryOpFlags {
-  NO_UNARY_FLAGS = 0,
-  NO_UNARY_SMI_CODE_IN_STUB = 1 << 0
-};
-
-
-class GenericUnaryOpStub : public CodeStub {
- public:
-  GenericUnaryOpStub(Token::Value op,
-                     UnaryOverwriteMode overwrite,
-                     UnaryOpFlags flags,
-                     NegativeZeroHandling negative_zero = kStrictNegativeZero)
-      : op_(op),
-        overwrite_(overwrite),
-        include_smi_code_((flags & NO_UNARY_SMI_CODE_IN_STUB) == 0),
-        negative_zero_(negative_zero) { }
-
- private:
-  Token::Value op_;
-  UnaryOverwriteMode overwrite_;
-  bool include_smi_code_;
-  NegativeZeroHandling negative_zero_;
-
-  class OverwriteField: public BitField<UnaryOverwriteMode, 0, 1> {};
-  class IncludeSmiCodeField: public BitField<bool, 1, 1> {};
-  class NegativeZeroField: public BitField<NegativeZeroHandling, 2, 1> {};
-  class OpField: public BitField<Token::Value, 3, kMinorBits - 3> {};
-
-  Major MajorKey() { return GenericUnaryOp; }
-  int MinorKey() {
-    return OpField::encode(op_) |
-        OverwriteField::encode(overwrite_) |
-        IncludeSmiCodeField::encode(include_smi_code_) |
-        NegativeZeroField::encode(negative_zero_);
-  }
-
-  void Generate(MacroAssembler* masm);
-
-  const char* GetName();
-};
-
-
 class MathPowStub: public CodeStub {
  public:
   MathPowStub() {}
@@ -431,18 +410,6 @@ class MathPowStub: public CodeStub {
   virtual int MinorKey() { return 0; }
 
   const char* GetName() { return "MathPowStub"; }
-};
-
-
-class StringCharAtStub: public CodeStub {
- public:
-  StringCharAtStub() {}
-
- private:
-  Major MajorKey() { return StringCharAt; }
-  int MinorKey() { return 0; }
-
-  void Generate(MacroAssembler* masm);
 };
 
 
@@ -468,6 +435,8 @@ class ICCompareStub: public CodeStub {
 
   void GenerateSmis(MacroAssembler* masm);
   void GenerateHeapNumbers(MacroAssembler* masm);
+  void GenerateSymbols(MacroAssembler* masm);
+  void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
 
@@ -623,6 +592,8 @@ class CEntryStub : public CodeStub {
   Major MajorKey() { return CEntry; }
   int MinorKey();
 
+  bool NeedsImmovableCode();
+
   const char* GetName() { return "CEntryStub"; }
 };
 
@@ -661,7 +632,9 @@ class ArgumentsAccessStub: public CodeStub {
  public:
   enum Type {
     READ_ELEMENT,
-    NEW_OBJECT
+    NEW_NON_STRICT_FAST,
+    NEW_NON_STRICT_SLOW,
+    NEW_STRICT
   };
 
   explicit ArgumentsAccessStub(Type type) : type_(type) { }
@@ -674,7 +647,9 @@ class ArgumentsAccessStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
   void GenerateReadElement(MacroAssembler* masm);
-  void GenerateNewObject(MacroAssembler* masm);
+  void GenerateNewStrict(MacroAssembler* masm);
+  void GenerateNewNonStrictFast(MacroAssembler* masm);
+  void GenerateNewNonStrictSlow(MacroAssembler* masm);
 
   const char* GetName() { return "ArgumentsAccessStub"; }
 
@@ -765,8 +740,9 @@ class CallFunctionStub: public CodeStub {
   }
 
   InLoopFlag InLoop() { return in_loop_; }
-  bool ReceiverMightBeValue() {
-    return (flags_ & RECEIVER_MIGHT_BE_VALUE) != 0;
+
+  bool ReceiverMightBeImplicit() {
+    return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
   }
 };
 
@@ -943,6 +919,98 @@ class AllowStubCallsScope {
   bool previous_allow_;
 
   DISALLOW_COPY_AND_ASSIGN(AllowStubCallsScope);
+};
+
+#ifdef DEBUG
+#define DECLARE_ARRAY_STUB_PRINT(name) void Print() { PrintF(#name); }
+#else
+#define DECLARE_ARRAY_STUB_PRINT(name)
+#endif
+
+
+class KeyedLoadFastElementStub : public CodeStub {
+ public:
+  explicit KeyedLoadFastElementStub() {
+  }
+
+  Major MajorKey() { return KeyedLoadFastElement; }
+  int MinorKey() { return 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedLoadFastElementStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedLoadFastElementStub)
+};
+
+
+class KeyedStoreFastElementStub : public CodeStub {
+ public:
+  explicit KeyedStoreFastElementStub(bool is_js_array)
+      : is_js_array_(is_js_array) { }
+
+  Major MajorKey() { return KeyedStoreFastElement; }
+  int MinorKey() { return is_js_array_ ? 1 : 0; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedStoreFastElementStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedStoreFastElementStub)
+
+ private:
+  bool is_js_array_;
+};
+
+
+class KeyedLoadExternalArrayStub : public CodeStub {
+ public:
+  explicit KeyedLoadExternalArrayStub(JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) { }
+
+  Major MajorKey() { return KeyedLoadExternalArray; }
+  int MinorKey() { return elements_kind_; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedLoadExternalArrayStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedLoadExternalArrayStub)
+
+ protected:
+  JSObject::ElementsKind elements_kind_;
+};
+
+
+class KeyedStoreExternalArrayStub : public CodeStub {
+ public:
+  explicit KeyedStoreExternalArrayStub(JSObject::ElementsKind elements_kind)
+      : elements_kind_(elements_kind) { }
+
+  Major MajorKey() { return KeyedStoreExternalArray; }
+  int MinorKey() { return elements_kind_; }
+
+  void Generate(MacroAssembler* masm);
+
+  const char* GetName() { return "KeyedStoreExternalArrayStub"; }
+
+  DECLARE_ARRAY_STUB_PRINT(KeyedStoreExternalArrayStub)
+
+ protected:
+  JSObject::ElementsKind elements_kind_;
+};
+
+
+class ToBooleanStub: public CodeStub {
+ public:
+  explicit ToBooleanStub(Register tos) : tos_(tos) { }
+
+  void Generate(MacroAssembler* masm);
+
+ private:
+  Register tos_;
+  Major MajorKey() { return ToBoolean; }
+  int MinorKey() { return tos_.code(); }
 };
 
 } }  // namespace v8::internal

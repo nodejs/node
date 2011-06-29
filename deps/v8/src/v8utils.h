@@ -120,7 +120,9 @@ inline Vector< Handle<Object> > HandleVector(v8::internal::Handle<T>* elms,
 // Memory
 
 // Copies data from |src| to |dst|.  The data spans MUST not overlap.
-inline void CopyWords(Object** dst, Object** src, int num_words) {
+template <typename T>
+inline void CopyWords(T* dst, T* src, int num_words) {
+  STATIC_ASSERT(sizeof(T) == kPointerSize);
   ASSERT(Min(dst, src) + num_words <= Max(dst, src));
   ASSERT(num_words > 0);
 
@@ -254,51 +256,14 @@ class StringBuilder {
 };
 
 
-// Custom memcpy implementation for platforms where the standard version
-// may not be good enough.
-#if defined(V8_TARGET_ARCH_IA32)
-
-// The default memcpy on ia32 architectures is generally not as efficient
-// as possible. (If any further ia32 platforms are introduced where the
-// memcpy function is efficient, exclude them from this branch).
-
-typedef void (*MemCopyFunction)(void* dest, const void* src, size_t size);
-
-// Implemented in codegen-<arch>.cc.
-MemCopyFunction CreateMemCopyFunction();
-
-// Copy memory area to disjoint memory area.
-static inline void MemCopy(void* dest, const void* src, size_t size) {
-  static MemCopyFunction memcopy = CreateMemCopyFunction();
-  (*memcopy)(dest, src, size);
-#ifdef DEBUG
-  CHECK_EQ(0, memcmp(dest, src, size));
-#endif
-}
-
-// Limit below which the extra overhead of the MemCopy function is likely
-// to outweigh the benefits of faster copying.
-static const int kMinComplexMemCopy = 64;
-
-#else  // V8_TARGET_ARCH_IA32
-
-static inline void MemCopy(void* dest, const void* src, size_t size) {
-  memcpy(dest, src, size);
-}
-
-static const int kMinComplexMemCopy = 256;
-
-#endif  // V8_TARGET_ARCH_IA32
-
-
 // Copy from ASCII/16bit chars to ASCII/16bit chars.
 template <typename sourcechar, typename sinkchar>
 static inline void CopyChars(sinkchar* dest, const sourcechar* src, int chars) {
   sinkchar* limit = dest + chars;
 #ifdef V8_HOST_CAN_READ_UNALIGNED
   if (sizeof(*dest) == sizeof(*src)) {
-    if (chars >= static_cast<int>(kMinComplexMemCopy / sizeof(*dest))) {
-      MemCopy(dest, src, chars * sizeof(*dest));
+    if (chars >= static_cast<int>(OS::kMinComplexMemCopy / sizeof(*dest))) {
+      OS::MemCopy(dest, src, chars * sizeof(*dest));
       return;
     }
     // Number of characters in a uintptr_t.

@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that we can inline a function that returns the result of a
 // global variable load.
 var GLOBAL;
@@ -45,5 +47,7 @@ function TestInlineGlobalLoad(o) {
 
 var o = {};
 o.f = function() { return GLOBAL; };
-for (var i = 0; i < 10000000; i++) TestInlineGlobalLoad(o);
+for (var i = 0; i < 5; i++) TestInlineGlobalLoad(o);
+%OptimizeFunctionOnNextCall(TestInlineGlobalLoad);
+TestInlineGlobalLoad(o);
 TestInlineGlobalLoad({f: o.f});

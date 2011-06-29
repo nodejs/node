@@ -45,19 +45,21 @@ function testNoShadowing() {
     assertEquals(2, y);
     assertEquals('global', global_function());
     assertEquals('local', local_function());
+    var exception = false;
     try {
       const_uninitialized();
-      assertUnreachable();
     } catch(e) {
-      // Ignore.
+      exception = true;
     }
+    assertTrue(exception);
     assertEquals('const_global', const_initialized());
+    exception = false;
     try {
       local_const_uninitialized();
-      assertUnreachable();
     } catch(e) {
-      // Ignore.
+      exception = true;
     }
+    assertTrue(exception);
     assertEquals('const_local', local_const_initialized());
     function g() {
       assertEquals(1, x);
@@ -65,19 +67,21 @@ function testNoShadowing() {
       assertEquals(2, y);
       assertEquals('global', global_function());
       assertEquals('local', local_function());
+      var exception = false;
       try {
         const_uninitialized();
-        assertUnreachable();
       } catch(e) {
-        // Ignore.
+        exception = true;
       }
+      assertTrue(exception);
       assertEquals('const_global', const_initialized());
+      exception = false;
       try {
         local_const_uninitialized();
-        assertUnreachable();
       } catch(e) {
-        // Ignore.
+        exception = true;
       }
+      assertTrue(exception);
       assertEquals('const_local', local_const_initialized());
     }
     g();

@@ -25,77 +25,133 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-assertEquals(0, Math.round(0));
-assertEquals(-0, Math.round(-0));
-assertEquals(Infinity, Math.round(Infinity));
-assertEquals(-Infinity, Math.round(-Infinity));
-assertNaN(Math.round(NaN));
+// Flags: --allow-natives-syntax
 
-assertEquals(1, Math.round(0.5));
-assertEquals(1, Math.round(0.7));
-assertEquals(1, Math.round(1));
-assertEquals(1, Math.round(1.1));
-assertEquals(1, Math.round(1.49999));
-assertEquals(1/-0, 1/Math.round(-0.5));  // Test for -0 result.
-assertEquals(-1, Math.round(-0.5000000000000001));
-assertEquals(-1, Math.round(-0.7));
-assertEquals(-1, Math.round(-1));
-assertEquals(-1, Math.round(-1.1));
-assertEquals(-1, Math.round(-1.49999));
-assertEquals(-1, Math.round(-1.5));
+function testRound(expect, input) {
+  function doRound(input) {
+    return Math.round(input);
+  }
+  assertEquals(expect, doRound(input));
+  assertEquals(expect, doRound(input));
+  assertEquals(expect, doRound(input));
+  %OptimizeFunctionOnNextCall(doRound);
+  assertEquals(expect, doRound(input));
+}
 
-assertEquals(9007199254740990, Math.round(9007199254740990));
-assertEquals(9007199254740991, Math.round(9007199254740991));
-assertEquals(-9007199254740990, Math.round(-9007199254740990));
-assertEquals(-9007199254740991, Math.round(-9007199254740991));
-assertEquals(Number.MAX_VALUE, Math.round(Number.MAX_VALUE));
-assertEquals(-Number.MAX_VALUE, Math.round(-Number.MAX_VALUE));
+testRound(0, 0);
+testRound(-0, -0);
+testRound(Infinity, Infinity);
+testRound(-Infinity, -Infinity);
+testRound(NaN, NaN);
 
-assertEquals(536870911, Math.round(536870910.5));
-assertEquals(536870911, Math.round(536870911));
-assertEquals(536870911, Math.round(536870911.4));
-assertEquals(536870912, Math.round(536870911.5));
-assertEquals(536870912, Math.round(536870912));
-assertEquals(536870912, Math.round(536870912.4));
-assertEquals(536870913, Math.round(536870912.5));
-assertEquals(536870913, Math.round(536870913));
-assertEquals(536870913, Math.round(536870913.4));
-assertEquals(1073741823, Math.round(1073741822.5));
-assertEquals(1073741823, Math.round(1073741823));
-assertEquals(1073741823, Math.round(1073741823.4));
-assertEquals(1073741824, Math.round(1073741823.5));
-assertEquals(1073741824, Math.round(1073741824));
-assertEquals(1073741824, Math.round(1073741824.4));
-assertEquals(1073741825, Math.round(1073741824.5));
-assertEquals(2147483647, Math.round(2147483646.5));
-assertEquals(2147483647, Math.round(2147483647));
-assertEquals(2147483647, Math.round(2147483647.4));
-assertEquals(2147483648, Math.round(2147483647.5));
-assertEquals(2147483648, Math.round(2147483648));
-assertEquals(2147483648, Math.round(2147483648.4));
-assertEquals(2147483649, Math.round(2147483648.5));
+testRound(1, 0.5);
+testRound(1, 0.7);
+testRound(1, 1);
+testRound(1, 1.1);
+testRound(1, 1.49999);
+testRound(-0, -0.5);
+testRound(-1, -0.5000000000000001);
+testRound(-1, -0.7);
+testRound(-1, -1);
+testRound(-1, -1.1);
+testRound(-1, -1.49999);
+testRound(-1, -1.5);
+
+testRound(9007199254740990, 9007199254740990);
+testRound(9007199254740991, 9007199254740991);
+testRound(-9007199254740990, -9007199254740990);
+testRound(-9007199254740991, -9007199254740991);
+testRound(Number.MAX_VALUE, Number.MAX_VALUE);
+testRound(-Number.MAX_VALUE, -Number.MAX_VALUE);
+
+testRound(536870911, 536870910.5);
+testRound(536870911, 536870911);
+testRound(536870911, 536870911.4);
+testRound(536870912, 536870911.5);
+testRound(536870912, 536870912);
+testRound(536870912, 536870912.4);
+testRound(536870913, 536870912.5);
+testRound(536870913, 536870913);
+testRound(536870913, 536870913.4);
+testRound(1073741823, 1073741822.5);
+testRound(1073741823, 1073741823);
+testRound(1073741823, 1073741823.4);
+testRound(1073741824, 1073741823.5);
+testRound(1073741824, 1073741824);
+testRound(1073741824, 1073741824.4);
+testRound(1073741825, 1073741824.5);
+testRound(2147483647, 2147483646.5);
+testRound(2147483647, 2147483647);
+testRound(2147483647, 2147483647.4);
+testRound(2147483648, 2147483647.5);
+testRound(2147483648, 2147483648);
+testRound(2147483648, 2147483648.4);
+testRound(2147483649, 2147483648.5);
 
 // Tests based on WebKit LayoutTests
 
-assertEquals(0, Math.round(0.4));
-assertEquals(-0, Math.round(-0.4));
-assertEquals(-0, Math.round(-0.5));
-assertEquals(1, Math.round(0.6));
-assertEquals(-1, Math.round(-0.6));
-assertEquals(2, Math.round(1.5));
-assertEquals(2, Math.round(1.6));
-assertEquals(-2, Math.round(-1.6));
-assertEquals(8640000000000000, Math.round(8640000000000000));
-assertEquals(8640000000000001, Math.round(8640000000000001));
-assertEquals(8640000000000002, Math.round(8640000000000002));
-assertEquals(9007199254740990, Math.round(9007199254740990));
-assertEquals(9007199254740991, Math.round(9007199254740991));
-assertEquals(1.7976931348623157e+308, Math.round(1.7976931348623157e+308));
-assertEquals(-8640000000000000, Math.round(-8640000000000000));
-assertEquals(-8640000000000001, Math.round(-8640000000000001));
-assertEquals(-8640000000000002, Math.round(-8640000000000002));
-assertEquals(-9007199254740990, Math.round(-9007199254740990));
-assertEquals(-9007199254740991, Math.round(-9007199254740991));
-assertEquals(-1.7976931348623157e+308, Math.round(-1.7976931348623157e+308));
-assertEquals(Infinity, Math.round(Infinity));
-assertEquals(-Infinity, Math.round(-Infinity));
+testRound(0, 0.4);
+testRound(-0, -0.4);
+testRound(-0, -0.5);
+testRound(1, 0.6);
+testRound(-1, -0.6);
+testRound(2, 1.5);
+testRound(2, 1.6);
+testRound(-2, -1.6);
+testRound(8640000000000000, 8640000000000000);
+testRound(8640000000000001, 8640000000000001);
+testRound(8640000000000002, 8640000000000002);
+testRound(9007199254740990, 9007199254740990);
+testRound(9007199254740991, 9007199254740991);
+testRound(1.7976931348623157e+308, 1.7976931348623157e+308);
+testRound(-8640000000000000, -8640000000000000);
+testRound(-8640000000000001, -8640000000000001);
+testRound(-8640000000000002, -8640000000000002);
+testRound(-9007199254740990, -9007199254740990);
+testRound(-9007199254740991, -9007199254740991);
+testRound(-1.7976931348623157e+308, -1.7976931348623157e+308);
+testRound(Infinity, Infinity);
+testRound(-Infinity, -Infinity);
+
+  // Some special double number cases.
+var ulp = Math.pow(2, -1022 - 52);
+var max_denormal = (Math.pow(2, 52) - 1) * ulp;
+var min_normal = Math.pow(2, -1022);
+var max_fraction = Math.pow(2, 52) - 0.5;
+var min_nonfraction = Math.pow(2, 52);
+var max_non_infinite = Number.MAX_VALUE;
+
+var max_smi31 = Math.pow(2,30) - 1;
+var min_smi31 = -Math.pow(2,30);
+var max_smi32 = Math.pow(2,31) - 1;
+var min_smi32 = -Math.pow(2,31);
+
+testRound(0, ulp);
+testRound(0, max_denormal);
+testRound(0, min_normal);
+testRound(0, 0.49999999999999994);
+testRound(1, 0.5);
+testRound(Math.pow(2,52), max_fraction);
+testRound(min_nonfraction, min_nonfraction);
+testRound(max_non_infinite, max_non_infinite);
+
+testRound(max_smi31, max_smi31 - 0.5);
+testRound(max_smi31 + 1, max_smi31 + 0.5);
+testRound(max_smi32, max_smi32 - 0.5);
+testRound(max_smi32 + 1, max_smi32 + 0.5);
+
+testRound(-0, -ulp);
+testRound(-0, -max_denormal);
+testRound(-0, -min_normal);
+testRound(-0, -0.49999999999999994);
+testRound(-0, -0.5);
+testRound(-Math.pow(2,52)+1, -max_fraction);
+testRound(-min_nonfraction, -min_nonfraction);
+testRound(-max_non_infinite, -max_non_infinite);
+
+testRound(min_smi31, min_smi31 - 0.5);
+testRound(min_smi31 + 1, min_smi31 + 0.5);
+testRound(min_smi32, min_smi32 - 0.5);
+testRound(min_smi32 + 1, min_smi32 + 0.5);
+
+

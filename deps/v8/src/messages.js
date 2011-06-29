@@ -142,11 +142,13 @@ function FormatMessage(message) {
     kMessages = {
       // Error
       cyclic_proto:                 ["Cyclic __proto__ value"],
+      code_gen_from_strings:        ["Code generation from strings disallowed for this context"],
       // TypeError
       unexpected_token:             ["Unexpected token ", "%0"],
       unexpected_token_number:      ["Unexpected number"],
       unexpected_token_string:      ["Unexpected string"],
       unexpected_token_identifier:  ["Unexpected identifier"],
+      unexpected_reserved:          ["Unexpected reserved word"],
       unexpected_strict_reserved:   ["Unexpected strict mode reserved word"],
       unexpected_eos:               ["Unexpected end of input"],
       malformed_regexp:             ["Invalid regular expression: /", "%0", "/: ", "%1"],
@@ -189,7 +191,13 @@ function FormatMessage(message) {
       proto_object_or_null:         ["Object prototype may only be an Object or null"],
       property_desc_object:         ["Property description must be an object: ", "%0"],
       redefine_disallowed:          ["Cannot redefine property: ", "%0"],
-      define_disallowed:            ["Cannot define property, object is not extensible: ", "%0"],
+      define_disallowed:            ["Cannot define property:", "%0", ", object is not extensible."],
+      non_extensible_proto:         ["%0", " is not extensible"],
+      handler_non_object:           ["Proxy.", "%0", " called with non-object as handler"],
+      handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
+      proxy_prop_not_configurable:  ["Trap ", "%1", " of proxy handler ", "%0", " returned non-configurable descriptor for property ", "%2"],
+      proxy_non_object_prop_names:  ["Trap ", "%1", " returned non-object ", "%0"],
+      proxy_repeated_prop_name:     ["Trap ", "%1", " returned repeated property name ", "%2"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],
@@ -205,6 +213,7 @@ function FormatMessage(message) {
       invalid_json:                 ["String '", "%0", "' is not valid JSON"],
       circular_structure:           ["Converting circular structure to JSON"],
       obj_ctor_property_non_object: ["Object.", "%0", " called on non-object"],
+      called_on_null_or_undefined:  ["%0", " called on null or undefined"],
       array_indexof_not_defined:    ["Array.getIndexOf: Argument undefined"],
       object_not_extensible:        ["Can't add property ", "%0", ", object is not extensible"],
       illegal_access:               ["Illegal access"],
@@ -212,7 +221,8 @@ function FormatMessage(message) {
       strict_mode_with:             ["Strict mode code may not include a with statement"],
       strict_catch_variable:        ["Catch variable may not be eval or arguments in strict mode"],
       too_many_arguments:           ["Too many arguments in function call (only 32766 allowed)"],
-      too_many_parameters:          ["Too many parameters in function definition"],
+      too_many_parameters:          ["Too many parameters in function definition (only 32766 allowed)"],
+      too_many_variables:           ["Too many variables declared (only 32767 allowed)"],
       strict_param_name:            ["Parameter name eval or arguments is not allowed in strict mode"],
       strict_param_dupe:            ["Strict mode function may not have duplicate parameter names"],
       strict_var_name:              ["Variable name may not be eval or arguments in strict mode"],
@@ -231,6 +241,8 @@ function FormatMessage(message) {
       strict_function:              ["In strict mode code, functions can only be declared at top level or immediately within another function." ],
       strict_read_only_property:    ["Cannot assign to read only property '", "%0", "' of ", "%1"],
       strict_cannot_assign:         ["Cannot assign to read only '", "%0", "' in strict mode"],
+      strict_poison_pill:           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
+      strict_caller:                ["Illegal access to a strict mode caller function."],
     };
   }
   var message_type = %MessageGetType(message);
@@ -492,10 +504,24 @@ Script.prototype.nameOrSourceURL = function() {
   // because this file is being processed by js2c whose handling of spaces
   // in regexps is broken. Also, ['"] are excluded from allowed URLs to
   // avoid matches against sources that invoke evals with sourceURL.
-  var sourceUrlPattern =
-    /\/\/@[\040\t]sourceURL=[\040\t]*([^\s'"]*)[\040\t]*$/m;
-  var match = sourceUrlPattern.exec(this.source);
-  return match ? match[1] : this.name;
+  // A better solution would be to detect these special comments in
+  // the scanner/parser.
+  var source = ToString(this.source);
+  var sourceUrlPos = %StringIndexOf(source, "sourceURL=", 0);
+  if (sourceUrlPos > 4) {
+    var sourceUrlPattern =
+        /\/\/@[\040\t]sourceURL=[\040\t]*([^\s\'\"]*)[\040\t]*$/gm;
+    // Don't reuse lastMatchInfo here, so we create a new array with room
+    // for four captures (array with length one longer than the index
+    // of the fourth capture, where the numbering is zero-based).
+    var matchInfo = new InternalArray(CAPTURE(3) + 1);
+    var match =
+        %_RegExpExec(sourceUrlPattern, source, sourceUrlPos - 4, matchInfo);
+    if (match) {
+      return SubString(source, matchInfo[CAPTURE(2)], matchInfo[CAPTURE(3)]);
+    }
+  }
+  return this.name;
 }
 
 
@@ -659,18 +685,24 @@ function DefineOneShotAccessor(obj, name, fun) {
   // can't rely on 'this' being the same as 'obj'.
   var hasBeenSet = false;
   var value;
-  obj.__defineGetter__(name, function () {
+  function getter() {
     if (hasBeenSet) {
       return value;
     }
     hasBeenSet = true;
     value = fun(obj);
     return value;
-  });
-  obj.__defineSetter__(name, function (v) {
+  }
+  function setter(v) {
     hasBeenSet = true;
     value = v;
-  });
+  }
+  var desc = { get: getter,
+               set: setter,
+               enumerable: false,
+               configurable: true };
+  desc = ToPropertyDescriptor(desc);
+  DefineOwnProperty(obj, name, desc, true);
 }
 
 function CallSite(receiver, fun, pos) {
@@ -974,15 +1006,15 @@ function DefineError(f) {
   // overwriting allows leaks of error objects between script blocks
   // in the same context in a browser setting. Therefore we fix the
   // name.
-  %SetProperty(f.prototype, "name", name, READ_ONLY | DONT_DELETE);
+  %SetProperty(f.prototype, "name", name, DONT_ENUM | DONT_DELETE | READ_ONLY);
   %SetCode(f, function(m) {
     if (%_IsConstructCall()) {
       // Define all the expected properties directly on the error
       // object. This avoids going through getters and setters defined
       // on prototype objects.
-      %IgnoreAttributesAndSetProperty(this, 'stack', void 0);
-      %IgnoreAttributesAndSetProperty(this, 'arguments', void 0);
-      %IgnoreAttributesAndSetProperty(this, 'type', void 0);
+      %IgnoreAttributesAndSetProperty(this, 'stack', void 0, DONT_ENUM);
+      %IgnoreAttributesAndSetProperty(this, 'arguments', void 0, DONT_ENUM);
+      %IgnoreAttributesAndSetProperty(this, 'type', void 0, DONT_ENUM);
       if (m === kAddMessageAccessorsMarker) {
         // DefineOneShotAccessor always inserts a message property and
         // ignores setters.
@@ -990,7 +1022,10 @@ function DefineError(f) {
             return FormatMessage(%NewMessageObject(obj.type, obj.arguments));
         });
       } else if (!IS_UNDEFINED(m)) {
-        %IgnoreAttributesAndSetProperty(this, 'message', ToString(m));
+        %IgnoreAttributesAndSetProperty(this,
+                                        'message',
+                                        ToString(m),
+                                        DONT_ENUM);
       }
       captureStackTrace(this, f);
     } else {
@@ -1025,7 +1060,19 @@ DefineError(function URIError() { });
 $Error.captureStackTrace = captureStackTrace;
 
 // Setup extra properties of the Error.prototype object.
-$Error.prototype.message = '';
+function setErrorMessage() {
+  var desc = {value: '',
+              enumerable: false,
+              configurable: true,
+              writable: true };
+  DefineOwnProperty($Error.prototype,
+                    'message',
+                    ToPropertyDescriptor(desc),
+                    true);
+
+}
+
+setErrorMessage();
 
 // Global list of error objects visited during errorToString. This is
 // used to detect cycles in error toString formatting.
@@ -1050,6 +1097,10 @@ function errorToStringDetectCycle() {
 }
 
 function errorToString() {
+  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
+    throw MakeTypeError("called_on_null_or_undefined",
+                        ["Error.prototype.toString"]);
+  }
   // This helper function is needed because access to properties on
   // the builtins object do not work inside of a catch clause.
   function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }
@@ -1068,5 +1119,5 @@ function errorToString() {
 InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
-// Top::StackOverflow().
+// Isolate::StackOverflow().
 const kStackOverflowBoilerplate = MakeRangeError('stack_overflow', []);

@@ -684,7 +684,7 @@ function DateGetUTCDate() {
 
 // ECMA 262 - 15.9.5.16
 function DateGetDay() {
-  var t = %_ValueOf(this);
+  var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return t;
   return WeekDay(LocalTimeNoCheck(t));
 }
@@ -692,7 +692,7 @@ function DateGetDay() {
 
 // ECMA 262 - 15.9.5.17
 function DateGetUTCDay() {
-  var t = %_ValueOf(this);
+  var t = DATE_VALUE(this);
   if (NUMBER_IS_NAN(t)) return t;
   return WeekDay(t);
 }

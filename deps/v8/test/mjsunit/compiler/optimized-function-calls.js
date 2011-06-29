@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-gc
+// Flags: --allow-natives-syntax --expose-gc
 
 function f() {
   gc();
@@ -48,7 +48,9 @@ delete object.x;
 function call_f(o) {
   return o.f();
 }
-for (var i = 0; i < 10000000; i++) call_f(object);
+for (var i = 0; i < 5; i++) call_f(object);
+%OptimizeFunctionOnNextCall(call_f);
+call_f(object);
 
 
 // Check that nested global function calls work.

@@ -161,23 +161,20 @@ function TickProcessor(
           processor: this.processFunctionMove },
       'snapshot-pos': { parsers: [parseInt, parseInt],
           processor: this.processSnapshotPosition },
-      'tick': { parsers: [parseInt, parseInt, parseInt, parseInt, 'var-args'],
+      'tick': {
+          parsers: [parseInt, parseInt, parseInt,
+                    parseInt, parseInt, 'var-args'],
           processor: this.processTick },
       'heap-sample-begin': { parsers: [null, null, parseInt],
           processor: this.processHeapSampleBegin },
       'heap-sample-end': { parsers: [null, null],
           processor: this.processHeapSampleEnd },
-      'heap-js-prod-item': { parsers: [null, 'var-args'],
-          processor: this.processJSProducer },
       // Ignored events.
       'profiler': null,
       'function-creation': null,
       'function-move': null,
       'function-delete': null,
-      'heap-sample-stats': null,
       'heap-sample-item': null,
-      'heap-js-cons-item': null,
-      'heap-js-ret-item': null,
       // Obsolete row types.
       'code-allocate': null,
       'begin-code-region': null,
@@ -343,23 +340,35 @@ TickProcessor.prototype.includeTick = function(vmState) {
   return this.stateFilter_ == null || this.stateFilter_ == vmState;
 };
 
-
-TickProcessor.prototype.processTick = function(pc, sp, tos, vmState, stack) {
+TickProcessor.prototype.processTick = function(pc,
+                                               sp,
+                                               is_external_callback,
+                                               tos_or_external_callback,
+                                               vmState,
+                                               stack) {
   this.ticks_.total++;
   if (vmState == TickProcessor.VmStates.GC) this.ticks_.gc++;
   if (!this.includeTick(vmState)) {
     this.ticks_.excluded++;
     return;
   }
-
-  if (tos) {
-    var funcEntry = this.profile_.findEntry(tos);
+  if (is_external_callback) {
+    // Don't use PC when in external callback code, as it can point
+    // inside callback's code, and we will erroneously report
+    // that a callback calls itself. Instead we use tos_or_external_callback,
+    // as simply resetting PC will produce unaccounted ticks.
+    pc = tos_or_external_callback;
+    tos_or_external_callback = 0;
+  } else if (tos_or_external_callback) {
+    // Find out, if top of stack was pointing inside a JS function
+    // meaning that we have encountered a frameless invocation.
+    var funcEntry = this.profile_.findEntry(tos_or_external_callback);
     if (!funcEntry || !funcEntry.isJSFunction || !funcEntry.isJSFunction()) {
-      tos = 0;
+      tos_or_external_callback = 0;
     }
   }
 
-  this.profile_.recordTick(this.processStack(pc, tos, stack));
+  this.profile_.recordTick(this.processStack(pc, tos_or_external_callback, stack));
 };
 
 
@@ -384,17 +393,6 @@ TickProcessor.prototype.processHeapSampleEnd = function(space, state) {
 
   this.currentProducerProfile_ = null;
   this.generation_++;
-};
-
-
-TickProcessor.prototype.processJSProducer = function(constructor, stack) {
-  if (!this.currentProducerProfile_) return;
-  if (stack.length == 0) return;
-  var first = stack.shift();
-  var processedStack =
-      this.profile_.resolveAndFilterFuncs_(this.processStack(first, 0, stack));
-  processedStack.unshift(constructor);
-  this.currentProducerProfile_.addPath(processedStack);
 };
 
 

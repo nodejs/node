@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,11 +52,9 @@ static inline bool IsPowerOf2(T x) {
 
 
 // X must be a power of 2.  Returns the number of trailing zeros.
-template <typename T>
-static inline int WhichPowerOf2(T x) {
+static inline int WhichPowerOf2(uint32_t x) {
   ASSERT(IsPowerOf2(x));
   ASSERT(x != 0);
-  if (x < 0) return 31;
   int bits = 0;
 #ifdef DEBUG
   int original_x = x;
@@ -222,6 +220,11 @@ class BitField {
     return static_cast<uint32_t>(value) << shift;
   }
 
+  // Returns a uint32_t with the bit field value updated.
+  static uint32_t update(uint32_t previous, T value) {
+    return (previous & ~mask()) | encode(value);
+  }
+
   // Extracts the bit field from the value.
   static T decode(uint32_t value) {
     return static_cast<T>((value & mask()) >> shift);
@@ -248,6 +251,12 @@ static inline uint32_t ComputeIntegerHash(uint32_t key) {
   hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
   hash = hash ^ (hash >> 16);
   return hash;
+}
+
+
+static inline uint32_t ComputePointerHash(void* ptr) {
+  return ComputeIntegerHash(
+      static_cast<uint32_t>(reinterpret_cast<intptr_t>(ptr)));
 }
 
 
@@ -576,14 +585,7 @@ class Collector {
   }
 
   // Resets the collector to be empty.
-  virtual void Reset() {
-    for (int i = chunks_.length() - 1; i >= 0; i--) {
-      chunks_.at(i).Dispose();
-    }
-    chunks_.Rewind(0);
-    index_ = 0;
-    size_ = 0;
-  }
+  virtual void Reset();
 
   // Total number of elements added to collector so far.
   inline int size() { return size_; }
@@ -784,9 +786,41 @@ struct BitCastHelper<Dest, Source*> {
 };
 
 template <class Dest, class Source>
+INLINE(Dest BitCast(const Source& source));
+
+template <class Dest, class Source>
 inline Dest BitCast(const Source& source) {
   return BitCastHelper<Dest, Source>::cast(source);
 }
+
+
+template<typename ElementType, int NumElements>
+class EmbeddedContainer {
+ public:
+  EmbeddedContainer() : elems_() { }
+
+  int length() { return NumElements; }
+  ElementType& operator[](int i) {
+    ASSERT(i < length());
+    return elems_[i];
+  }
+
+ private:
+  ElementType elems_[NumElements];
+};
+
+
+template<typename ElementType>
+class EmbeddedContainer<ElementType, 0> {
+ public:
+  int length() { return 0; }
+  ElementType& operator[](int i) {
+    UNREACHABLE();
+    static ElementType t = 0;
+    return t;
+  }
+};
+
 
 } }  // namespace v8::internal
 

@@ -26,21 +26,31 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "v8.h"
-#include "top.h"
 #include "regexp-stack.h"
 
 namespace v8 {
 namespace internal {
 
-RegExpStack::RegExpStack() {
+RegExpStackScope::RegExpStackScope(Isolate* isolate)
+    : regexp_stack_(isolate->regexp_stack()) {
   // Initialize, if not already initialized.
-  RegExpStack::EnsureCapacity(0);
+  regexp_stack_->EnsureCapacity(0);
+}
+
+
+RegExpStackScope::~RegExpStackScope() {
+  ASSERT(Isolate::Current() == regexp_stack_->isolate_);
+  // Reset the buffer if it has grown.
+  regexp_stack_->Reset();
+}
+
+
+RegExpStack::RegExpStack()
+    : isolate_(NULL) {
 }
 
 
 RegExpStack::~RegExpStack() {
-  // Reset the buffer if it has grown.
-  RegExpStack::Reset();
 }
 
 
@@ -70,9 +80,9 @@ void RegExpStack::Reset() {
 
 
 void RegExpStack::ThreadLocal::Free() {
-  if (thread_local_.memory_size_ > 0) {
-    DeleteArray(thread_local_.memory_);
-    thread_local_ = ThreadLocal();
+  if (memory_size_ > 0) {
+    DeleteArray(memory_);
+    Clear();
   }
 }
 
@@ -97,7 +107,5 @@ Address RegExpStack::EnsureCapacity(size_t size) {
   return thread_local_.memory_ + thread_local_.memory_size_;
 }
 
-
-RegExpStack::ThreadLocal RegExpStack::thread_local_;
 
 }}  // namespace v8::internal

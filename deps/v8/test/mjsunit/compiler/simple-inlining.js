@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that we can inline a function that returns a constant.
 function TestInlineConstant(o) {
   // Effect context.
@@ -41,7 +43,9 @@ function TestInlineConstant(o) {
 
 var o1 = {};
 o1.f = function() { return 42; };
-for (var i = 0; i < 10000; i++) TestInlineConstant(o1);
+for (var i = 0; i < 5; i++) TestInlineConstant(o1);
+%OptimizeFunctionOnNextCall(TestInlineConstant);
+TestInlineConstant(o1);
 TestInlineConstant({f: o1.f});
 
 
@@ -61,7 +65,9 @@ function TestInlineThis(o) {
 
 var o2 = {};
 o2.g = function() { return this; };
-for (var i = 0; i < 10000; i++) TestInlineThis(o2);
+for (var i = 0; i < 5; i++) TestInlineThis(o2);
+%OptimizeFunctionOnNextCall(TestInlineThis);
+TestInlineThis(o2);
 TestInlineThis({g: o2.g});
 
 
@@ -81,7 +87,9 @@ function TestInlineThisX(o) {
 
 var o3 = {y:0,x:42};
 o3.h = function() { return this.x; };
-for (var i = 0; i < 10000; i++) TestInlineThisX(o3);
+for (var i = 0; i < 5; i++) TestInlineThisX(o3);
+%OptimizeFunctionOnNextCall(TestInlineThisX);
+TestInlineThisX(o3);
 TestInlineThisX({h: o3.h, x:42});
 
 
@@ -101,7 +109,9 @@ function TestInlineThisXLength(o) {
 
 var o4 = {x:[1,2,3]};
 o4.h = function() { return this.x.length; };
-for (var i = 0; i < 10000; i++) TestInlineThisXLength(o4);
+for (var i = 0; i < 5; i++) TestInlineThisXLength(o4);
+%OptimizeFunctionOnNextCall(TestInlineThisXLength);
+TestInlineThisXLength(o4);
 TestInlineThisXLength({h: o4.h, x:[1,2,3]});
 
 
@@ -122,7 +132,9 @@ function TestInlineThisXY(o) {
 var o6 = {y:42}
 var o5 = {e:o6};
 o5.h = function() { return this.e.y; };
-for (var i = 0; i < 10000; i++) TestInlineThisXY(o5);
+for (var i = 0; i < 5; i++) TestInlineThisXY(o5);
+%OptimizeFunctionOnNextCall(TestInlineThisXY);
+TestInlineThisXY(o5);
 TestInlineThisXY({h: o5.h, e:o6});
 
 
@@ -142,5 +154,7 @@ function TestInlineThisX0(o) {
 
 var o7 = {x:[42,43,44]};
 o7.foo = function() { return this.x[0]; };
-for (var i = 0; i < 10000; i++) TestInlineThisX0(o7);
+for (var i = 0; i < 5; i++) TestInlineThisX0(o7);
+%OptimizeFunctionOnNextCall(TestInlineThisX0);
+TestInlineThisX0(o7);
 TestInlineThisX0({foo: o7.foo, x:[42,0,0]});

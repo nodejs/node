@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -54,7 +54,6 @@
 // shared code:
 //   CodeGenerator
 //   ~CodeGenerator
-//   ProcessDeferred
 //   Generate
 //   ComputeLazyCompile
 //   BuildFunctionInfo
@@ -68,7 +67,6 @@
 //   CodeForDoWhileConditionPosition
 //   CodeForSourcePosition
 
-enum InitState { CONST_INIT, NOT_CONST_INIT };
 enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 
 #if V8_TARGET_ARCH_IA32
@@ -82,164 +80,5 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 #else
 #error Unsupported target architecture.
 #endif
-
-#include "register-allocator.h"
-
-namespace v8 {
-namespace internal {
-
-// Code generation can be nested.  Code generation scopes form a stack
-// of active code generators.
-class CodeGeneratorScope BASE_EMBEDDED {
- public:
-  explicit CodeGeneratorScope(CodeGenerator* cgen) {
-    previous_ = top_;
-    top_ = cgen;
-  }
-
-  ~CodeGeneratorScope() {
-    top_ = previous_;
-  }
-
-  static CodeGenerator* Current() {
-    ASSERT(top_ != NULL);
-    return top_;
-  }
-
- private:
-  static CodeGenerator* top_;
-  CodeGenerator* previous_;
-};
-
-
-#if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64
-
-// State of used registers in a virtual frame.
-class FrameRegisterState {
- public:
-  // Captures the current state of the given frame.
-  explicit FrameRegisterState(VirtualFrame* frame);
-
-  // Saves the state in the stack.
-  void Save(MacroAssembler* masm) const;
-
-  // Restores the state from the stack.
-  void Restore(MacroAssembler* masm) const;
-
- private:
-  // Constants indicating special actions.  They should not be multiples
-  // of kPointerSize so they will not collide with valid offsets from
-  // the frame pointer.
-  static const int kIgnore = -1;
-  static const int kPush = 1;
-
-  // This flag is ored with a valid offset from the frame pointer, so
-  // it should fit in the low zero bits of a valid offset.
-  static const int kSyncedFlag = 2;
-
-  int registers_[RegisterAllocator::kNumRegisters];
-};
-
-#elif V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_MIPS
-
-
-class FrameRegisterState {
- public:
-  inline FrameRegisterState(VirtualFrame frame) : frame_(frame) { }
-
-  inline const VirtualFrame* frame() const { return &frame_; }
-
- private:
-  VirtualFrame frame_;
-};
-
-#else
-
-#error Unsupported target architecture.
-
-#endif
-
-
-// RuntimeCallHelper implementation that saves/restores state of a
-// virtual frame.
-class VirtualFrameRuntimeCallHelper : public RuntimeCallHelper {
- public:
-  // Does not take ownership of |frame_state|.
-  explicit VirtualFrameRuntimeCallHelper(const FrameRegisterState* frame_state)
-      : frame_state_(frame_state) {}
-
-  virtual void BeforeCall(MacroAssembler* masm) const;
-
-  virtual void AfterCall(MacroAssembler* masm) const;
-
- private:
-  const FrameRegisterState* frame_state_;
-};
-
-
-// Deferred code objects are small pieces of code that are compiled
-// out of line. They are used to defer the compilation of uncommon
-// paths thereby avoiding expensive jumps around uncommon code parts.
-class DeferredCode: public ZoneObject {
- public:
-  DeferredCode();
-  virtual ~DeferredCode() { }
-
-  virtual void Generate() = 0;
-
-  MacroAssembler* masm() { return masm_; }
-
-  int statement_position() const { return statement_position_; }
-  int position() const { return position_; }
-
-  Label* entry_label() { return &entry_label_; }
-  Label* exit_label() { return &exit_label_; }
-
-#ifdef DEBUG
-  void set_comment(const char* comment) { comment_ = comment; }
-  const char* comment() const { return comment_; }
-#else
-  void set_comment(const char* comment) { }
-  const char* comment() const { return ""; }
-#endif
-
-  inline void Jump();
-  inline void Branch(Condition cc);
-  void BindExit() { masm_->bind(&exit_label_); }
-
-  const FrameRegisterState* frame_state() const { return &frame_state_; }
-
-  void SaveRegisters();
-  void RestoreRegisters();
-  void Exit();
-
-  // If this returns true then all registers will be saved for the duration
-  // of the Generate() call.  Otherwise the registers are not saved and the
-  // Generate() call must bracket runtime any runtime calls with calls to
-  // SaveRegisters() and RestoreRegisters().  In this case the Generate
-  // method must also call Exit() in order to return to the non-deferred
-  // code.
-  virtual bool AutoSaveAndRestore() { return true; }
-
- protected:
-  MacroAssembler* masm_;
-
- private:
-  int statement_position_;
-  int position_;
-
-  Label entry_label_;
-  Label exit_label_;
-
-  FrameRegisterState frame_state_;
-
-#ifdef DEBUG
-  const char* comment_;
-#endif
-  DISALLOW_COPY_AND_ASSIGN(DeferredCode);
-};
-
-
-} }  // namespace v8::internal
 
 #endif  // V8_CODEGEN_H_

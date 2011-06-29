@@ -38,11 +38,11 @@ namespace internal {
 // Public V8 debugger API message handler function. This function just delegates
 // to the debugger agent through it's data parameter.
 void DebuggerAgentMessageHandler(const v8::Debug::Message& message) {
-  DebuggerAgent::instance_->DebuggerMessage(message);
+  DebuggerAgent* agent = Isolate::Current()->debugger_agent_instance();
+  ASSERT(agent != NULL);
+  agent->DebuggerMessage(message);
 }
 
-// static
-DebuggerAgent* DebuggerAgent::instance_ = NULL;
 
 // Debugger agent main thread.
 void DebuggerAgent::Run() {
@@ -102,21 +102,22 @@ void DebuggerAgent::WaitUntilListening() {
   listening_->Wait();
 }
 
+static const char* kCreateSessionMessage =
+    "Remote debugging session already active\r\n";
+
 void DebuggerAgent::CreateSession(Socket* client) {
   ScopedLock with(session_access_);
 
   // If another session is already established terminate this one.
   if (session_ != NULL) {
-    static const char* message = "Remote debugging session already active\r\n";
-
-    client->Send(message, StrLength(message));
+    client->Send(kCreateSessionMessage, StrLength(kCreateSessionMessage));
     delete client;
     return;
   }
 
   // Create a new session and hook up the debug message handler.
   session_ = new DebuggerAgentSession(this, client);
-  v8::Debug::SetMessageHandler2(DebuggerAgentMessageHandler);
+  isolate_->debugger()->SetMessageHandler(DebuggerAgentMessageHandler);
   session_->Start();
 }
 
@@ -202,7 +203,9 @@ void DebuggerAgentSession::Run() {
 
     // Send the request received to the debugger.
     v8::Debug::SendCommand(reinterpret_cast<const uint16_t *>(temp.start()),
-                           len);
+                           len,
+                           NULL,
+                           reinterpret_cast<v8::Isolate*>(agent_->isolate()));
 
     if (is_closing_session) {
       // Session is closed.
@@ -224,8 +227,8 @@ void DebuggerAgentSession::Shutdown() {
 }
 
 
-const char* DebuggerAgentUtil::kContentLength = "Content-Length";
-int DebuggerAgentUtil::kContentLengthSize =
+const char* const DebuggerAgentUtil::kContentLength = "Content-Length";
+const int DebuggerAgentUtil::kContentLengthSize =
     StrLength(kContentLength);
 
 

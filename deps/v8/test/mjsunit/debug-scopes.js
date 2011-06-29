@@ -31,9 +31,9 @@
 
 
 // Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
+Debug = debug.Debug;
 
-var name;
+var test_name;
 var listener_delegate;
 var listener_called;
 var exception;
@@ -48,7 +48,7 @@ function listener(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break) {
       break_count++;
       listener_called = true;
-      listener_delegate(exec_state)
+      listener_delegate(exec_state);
     }
   } catch (e) {
     exception = e;
@@ -59,7 +59,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 
-// Initialize for a noew test.
+// Initialize for a new test.
 function BeginTest(name) {
   test_name = name;
   listener_delegate = null;
@@ -72,7 +72,7 @@ function BeginTest(name) {
 // Check result of a test.
 function EndTest() {
   assertTrue(listener_called, "listerner not called for " + test_name);
-  assertNull(exception, test_name)
+  assertNull(exception, test_name);
   end_test_count++;
 }
 
@@ -87,7 +87,9 @@ function CheckScopeChain(scopes, exec_state) {
 
     // Check the global object when hitting the global scope.
     if (scopes[i] == debug.ScopeType.Global) {
-      assertEquals(this, scope.scopeObject().value());
+      // Objects don't have same class (one is "global", other is "Object",
+      // so just check the properties directly.
+      assertPropertiesEqual(this, scope.scopeObject().value());
     }
   }
 
@@ -96,7 +98,7 @@ function CheckScopeChain(scopes, exec_state) {
 
   // Send a scopes request and check the result.
   var json;
-  request_json = '{"seq":0,"type":"request","command":"scopes"}'
+  var request_json = '{"seq":0,"type":"request","command":"scopes"}';
   var response_json = dcp.processDebugJSONRequest(request_json);
   var response = JSON.parse(response_json);
   assertEquals(scopes.length, response.body.scopes.length);
@@ -121,7 +123,7 @@ function CheckScopeChain(scopes, exec_state) {
 // Check that the content of the scope is as expected. For functions just check
 // that there is a function.
 function CheckScopeContent(content, number, exec_state) {
-  var scope = exec_state.frame().scope(number)
+  var scope = exec_state.frame().scope(number);
   var count = 0;
   for (var p in content) {
     var property_mirror = scope.scopeObject().property(p);
@@ -144,6 +146,10 @@ function CheckScopeContent(content, number, exec_state) {
   if (!scope.scopeObject().property('.catch-var').isUndefined()) {
     scope_size--;
   }
+  // Skip property with empty name.
+  if (!scope.scopeObject().property('').isUndefined()) {
+    scope_size--;
+  }
 
   if (count != scope_size) {
     print('Names found in scope:');
@@ -159,9 +165,9 @@ function CheckScopeContent(content, number, exec_state) {
 
   // Send a scope request for information on a single scope and check the
   // result.
-  request_json = '{"seq":0,"type":"request","command":"scope","arguments":{"number":'
+  var request_json = '{"seq":0,"type":"request","command":"scope","arguments":{"number":';
   request_json += scope.scopeIndex();
-  request_json += '}}'
+  request_json += '}}';
   var response_json = dcp.processDebugJSONRequest(request_json);
   var response = JSON.parse(response_json);
   assertEquals(scope.scopeType(), response.body.type);
@@ -191,8 +197,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
-}
-local_1()
+};
+local_1();
 EndTest();
 
 
@@ -207,8 +213,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 0, exec_state);
-}
-local_2(1)
+};
+local_2(1);
 EndTest();
 
 
@@ -224,8 +230,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,x:3}, 0, exec_state);
-}
-local_3(1)
+};
+local_3(1);
 EndTest();
 
 
@@ -242,8 +248,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4}, 0, exec_state);
-}
-local_4(1, 2)
+};
+local_4(1, 2);
 EndTest();
 
 
@@ -259,8 +265,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
-}
-local_5()
+};
+local_5();
 EndTest();
 
 
@@ -276,8 +282,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({i:5}, 0, exec_state);
-}
-local_6()
+};
+local_6();
 EndTest();
 
 
@@ -297,8 +303,8 @@ listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6}, 0, exec_state);
-}
-local_7(1, 2)
+};
+local_7(1, 2);
 EndTest();
 
 
@@ -316,8 +322,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
-}
-with_1()
+};
+with_1();
 EndTest();
 
 
@@ -339,8 +345,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({}, 1, exec_state);
-}
-with_2()
+};
+with_2();
 EndTest();
 
 
@@ -358,8 +364,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2}, 0, exec_state);
-}
-with_3()
+};
+with_3();
 EndTest();
 
 
@@ -381,8 +387,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:2,b:1}, 0, exec_state);
   CheckScopeContent({a:1,b:2}, 1, exec_state);
-}
-with_4()
+};
+with_4();
 EndTest();
 
 
@@ -407,8 +413,8 @@ listener_delegate = function(exec_state) {
   CheckScopeContent(with_object, 1, exec_state);
   assertEquals(exec_state.frame().scope(0).scopeObject(), exec_state.frame().scope(1).scopeObject());
   assertEquals(with_object, exec_state.frame().scope(1).scopeObject().value());
-}
-with_5()
+};
+with_5();
 EndTest();
 
 
@@ -429,8 +435,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
-}
-closure_1(1)()
+};
+closure_1(1)();
 EndTest();
 
 
@@ -454,8 +460,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,x:3}, 1, exec_state);
-}
-closure_2(1, 2)()
+};
+closure_2(1, 2)();
 EndTest();
 
 
@@ -480,8 +486,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4}, 1, exec_state);
-}
-closure_3(1, 2)()
+};
+closure_3(1, 2)();
 EndTest();
 
 
@@ -509,8 +515,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
-}
-closure_4(1, 2)()
+};
+closure_4(1, 2)();
 EndTest();
 
 
@@ -537,8 +543,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Closure,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,f:function(){}}, 1, exec_state);
-}
-closure_5(1, 2)()
+};
+closure_5(1, 2)();
 EndTest();
 
 
@@ -555,7 +561,7 @@ function closure_6(a, b) {
       debugger;
       some_global = a;
       return f;
-    }
+    };
   }
   return f(a, b);
 }
@@ -567,8 +573,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({a:1}, 1, exec_state);
   CheckScopeContent({f:function(){}}, 2, exec_state);
-}
-closure_6(1, 2)()
+};
+closure_6(1, 2)();
 EndTest();
 
 
@@ -589,7 +595,7 @@ function closure_7(a, b) {
       debugger;
       some_global = a;
       return f;
-    }
+    };
   }
   return f(a, b);
 }
@@ -602,8 +608,45 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({}, 0, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6}, 1, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 2, exec_state);
+};
+closure_7(1, 2)();
+EndTest();
+
+
+// Closure that may be optimized out.
+BeginTest("Closure 8");
+function closure_8() {
+  (function inner(x) {
+    debugger;
+  })(2);
 }
-closure_7(1, 2)()
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 2}, 0, exec_state);
+};
+closure_8();
+EndTest();
+
+
+BeginTest("Closure 9");
+function closure_9() {
+  eval("var y = 1;");
+  eval("var z = 1;");
+  (function inner(x) {
+    y++;
+    z++;
+    debugger;
+  })(2);
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+};
+closure_9();
 EndTest();
 
 
@@ -629,7 +672,7 @@ function the_full_monty(a, b) {
             return f;
           }
         }
-      }
+      };
     }
   }
   return f(a, b);
@@ -649,15 +692,90 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({j:13}, 3, exec_state);
   CheckScopeContent({a:1,b:2,x:9,y:10,i:11,j:12}, 4, exec_state);
   CheckScopeContent({a:1,b:2,x:3,y:4,i:5,j:6,f:function(){}}, 5, exec_state);
-}
-the_full_monty(1, 2)()
+};
+the_full_monty(1, 2)();
 EndTest();
+
+
+BeginTest("Closure inside With 1");
+function closure_in_with_1() {
+  with({x:1}) {
+    (function inner(x) {
+      debugger;
+    })(2);
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 2}, 0, exec_state);
+};
+closure_in_with_1();
+EndTest();
+
+
+BeginTest("Closure inside With 2");
+function closure_in_with_2() {
+  with({x:1}) {
+    (function inner(x) {
+      with({x:3}) {
+        debugger;
+      }
+    })(2);
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.With,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 3}, 0, exec_state);
+  CheckScopeContent({x: 2}, 1, exec_state);
+  CheckScopeContent({x: 1}, 2, exec_state);
+};
+closure_in_with_2();
+EndTest();
+
+
+BeginTest("Closure inside With 3");
+function createClosure(a) {
+   var b = a + 1;
+   return function closure() {
+     var c = b;
+     (function inner(x) {
+       with({x:c}) {
+         debugger;
+       }
+     })(2);
+   };
+}
+
+function closure_in_with_3() {
+  var f = createClosure(0);
+  f();
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.With,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Closure,
+                   debug.ScopeType.Global], exec_state);
+}
+closure_in_with_3();
+EndTest();
+
 
 // Test global scope.
 BeginTest("Global");
 listener_delegate = function(exec_state) {
   CheckScopeChain([debug.ScopeType.Global], exec_state);
-}
+};
 debugger;
 EndTest();
 
@@ -677,8 +795,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({e:'Exception'}, 0, exec_state);
-}
-catch_block_1()
+};
+catch_block_1();
 EndTest();
 
 
@@ -701,8 +819,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({n:10}, 0, exec_state);
   CheckScopeContent({e:'Exception'}, 1, exec_state);
-}
-catch_block_2()
+};
+catch_block_2();
 EndTest();
 
 
@@ -725,8 +843,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Global], exec_state);
   CheckScopeContent({e:'Exception'}, 0, exec_state);
   CheckScopeContent({y:78}, 1, exec_state);
-}
-catch_block_3()
+};
+catch_block_3();
 EndTest();
 
 
@@ -752,10 +870,12 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({n:10}, 0, exec_state);
   CheckScopeContent({e:'Exception'}, 1, exec_state);
   CheckScopeContent({y:98}, 2, exec_state);
-}
-catch_block_4()
+};
+catch_block_4();
 EndTest();
 
 
-assertEquals(begin_test_count, break_count, 'one or more tests did not enter the debugger');
-assertEquals(begin_test_count, end_test_count, 'one or more tests did not have its result checked');
+assertEquals(begin_test_count, break_count,
+             'one or more tests did not enter the debugger');
+assertEquals(begin_test_count, end_test_count,
+             'one or more tests did not have its result checked');

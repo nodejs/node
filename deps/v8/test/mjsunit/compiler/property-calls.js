@@ -25,12 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function f(o) { return o.g(); }
 function g() { return 42; }
 
 var object = { };
 object.g = g;
-for (var i = 0; i < 10000000; i++) f(object);
+for (var i = 0; i < 5; i++) f(object);
+%OptimizeFunctionOnNextCall(f);
+f(object);
 assertEquals(42, f(object));
 
 object = { g: function() { return 87; } };

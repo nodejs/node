@@ -54,7 +54,7 @@ assertEquals(Object.keys(function () {}), []);
 assertEquals('string', typeof(Object.keys([1])[0]));
 
 function argsTest(a, b, c) {
-  assertEquals([0, 1, 2], Object.keys(arguments));
+  assertEquals(['0', '1', '2'], Object.keys(arguments));
 }
 
 argsTest(1, 2, 3);

@@ -365,7 +365,7 @@ RegExpMacroAssembler::IrregexpImplementation
 }
 
 
-Handle<Object> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
+Handle<HeapObject> RegExpMacroAssemblerTracer::GetCode(Handle<String> source) {
   PrintF(" GetCode(%s);\n", *(source->ToCString()));
   return assembler_->GetCode(source);
 }

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,7 +36,7 @@ typedef bool (*NativeSourceCallback)(Vector<const char> name,
                                      int index);
 
 enum NativeType {
-  CORE, D8
+  CORE, EXPERIMENTAL, D8
 };
 
 template <NativeType type>
@@ -52,11 +52,15 @@ class NativesCollection {
   // non-debugger scripts have an index in the interval [GetDebuggerCount(),
   // GetNativesCount()).
   static int GetIndex(const char* name);
-  static Vector<const char> GetScriptSource(int index);
+  static int GetRawScriptsSize();
+  static Vector<const char> GetRawScriptSource(int index);
   static Vector<const char> GetScriptName(int index);
+  static Vector<const byte> GetScriptsSource();
+  static void SetRawScriptsSource(Vector<const char> raw_source);
 };
 
 typedef NativesCollection<CORE> Natives;
+typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
 
 } }  // namespace v8::internal
 

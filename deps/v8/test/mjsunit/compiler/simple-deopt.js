@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function f(x) {
   return ~x;
 }
@@ -59,7 +61,9 @@ obj.g = g;
 function k(o) {
   return o.g();
 }
-for (var i = 0; i < 1000000; i++) k(obj);
+for (var i = 0; i < 5; i++) k(obj);
+%OptimizeFunctionOnNextCall(k);
+k(obj);
 assertEquals(42, k(obj));
 assertEquals(87, k({g: function() { return 87; }}));
 
@@ -88,9 +92,11 @@ assertEquals('lit[42]', LiteralToStack(42));
 var str = "abc";
 var r;
 function CallCharAt(n) { return str.charAt(n); }
-for (var i = 0; i < 1000000; i++) {
+for (var i = 0; i < 5; i++) {
   r = CallCharAt(0);
 }
+%OptimizeFunctionOnNextCall(CallCharAt);
+r = CallCharAt(0);
 assertEquals("a", r);
 
 

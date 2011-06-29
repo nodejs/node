@@ -41,13 +41,14 @@ Address IC::address() {
   Address result = pc() - Assembler::kCallTargetAddressOffset;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
+  Debug* debug = Isolate::Current()->debug();
   // First check if any break points are active if not just return the address
   // of the call.
-  if (!Debug::has_break_points()) return result;
+  if (!debug->has_break_points()) return result;
 
   // At least one break point is active perform additional test to ensure that
   // break point locations are updated correctly.
-  if (Debug::IsDebugBreak(Assembler::target_address_at(result))) {
+  if (debug->IsDebugBreak(Assembler::target_address_at(result))) {
     // If the call site is a call to debug break then return the address in
     // the original code instead of the address in the running code. This will
     // cause the original code to be updated and keeps the breakpoint active in

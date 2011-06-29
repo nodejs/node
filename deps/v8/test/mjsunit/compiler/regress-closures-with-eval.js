@@ -25,12 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Verifies that closures in presence of eval work fine.
 function withEval(expr, filter) {
   function walk(v) {
     for (var i in v) {
       for (var i in v) {}
     }
+    %OptimizeFunctionOnNextCall(filter);
     return filter(v);
   }
 
@@ -46,6 +49,8 @@ function makeTagInfoJSON(n) {
 
 var expr = '([' + makeTagInfoJSON(128).join(', ') + '])'
 
-for (var n = 0; n < 300; n++) {
+for (var n = 0; n < 5; n++) {
   withEval(expr, function(a) { return a; });
 }
+%OptimizeFunctionOnNextCall(withEval);
+withEval(expr, function(a) { return a; });

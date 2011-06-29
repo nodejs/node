@@ -31,84 +31,206 @@
  * implementation of assertEquals.
  */
 
-assertTrue (void 0 == void 0, "void 0 == void 0");
-assertTrue (null == null,     "null == null");
-assertFalse(NaN == NaN,       "NaN == NaN");
-assertFalse(NaN == 0,         "NaN == 0");
-assertFalse(0 == NaN,         "0 == NaN");
-assertFalse(NaN == Infinity,  "NaN == Inf");
-assertFalse(Infinity == NaN,  "Inf == NaN");
+function testEqual(a, b) {
+  assertTrue(a == b);
+  assertTrue(b == a);
+  assertFalse(a != b);
+  assertFalse(b != a);
+}
 
-assertTrue(Number.MAX_VALUE == Number.MAX_VALUE, "MAX == MAX");
-assertTrue(Number.MIN_VALUE == Number.MIN_VALUE, "MIN == MIN");
-assertTrue(Infinity == Infinity,                 "Inf == Inf");
-assertTrue(-Infinity == -Infinity,               "-Inf == -Inf");
+function testNotEqual(a, b) {
+  assertFalse(a == b);
+  assertFalse(b == a);
+  assertTrue(a != b);
+  assertTrue(b != a);
+}
 
-assertTrue(0 == 0,   "0 == 0");
-assertTrue(0 == -0,  "0 == -0");
-assertTrue(-0 == 0,  "-0 == 0");
-assertTrue(-0 == -0, "-0 == -0");
+// Object where ToPrimitive returns value.
+function Wrapper(value) {
+  this.value = value;
+  this.valueOf = function () { return this.value; };
+}
 
-assertFalse(0.9 == 1,             "0.9 == 1");
-assertFalse(0.999999 == 1,        "0.999999 == 1");
-assertFalse(0.9999999999 == 1,    "0.9999999999 == 1");
-assertFalse(0.9999999999999 == 1, "0.9999999999999 == 1");
+// Object where ToPrimitive returns value by failover to toString when
+// valueOf isn't a function.
+function Wrapper2(value) {
+  this.value = value;
+  this.valueOf = null;
+  this.toString = function () { return this.value; };
+}
 
-assertTrue('hello' == 'hello', "'hello' == 'hello'");
 
-assertTrue (true == true,   "true == true");
-assertTrue (false == false, "false == false");
-assertFalse(true == false,  "true == false");
-assertFalse(false == true,  "false == true");
+// Compare values of same type.
 
-assertFalse(new Wrapper(null) == new Wrapper(null),   "new Wrapper(null) == new Wrapper(null)");
-assertFalse(new Boolean(true) == new Boolean(true),   "new Boolean(true) == new Boolean(true)");
-assertFalse(new Boolean(false) == new Boolean(false), "new Boolean(false) == new Boolean(false)");
+// Numbers are equal if same, unless NaN, which isn't equal to anything, and
+// +/-0 being equal.
+
+testNotEqual(NaN, NaN);
+testNotEqual(NaN, 0);
+testNotEqual(NaN, Infinity);
+
+testEqual(Number.MAX_VALUE, Number.MAX_VALUE);
+testEqual(Number.MIN_VALUE, Number.MIN_VALUE);
+testEqual(Infinity, Infinity);
+testEqual(-Infinity, -Infinity);
+
+testEqual(0, 0);
+testEqual(0, -0);
+testEqual(-0, -0);
+
+testNotEqual(0.9, 1);
+testNotEqual(0.999999, 1);
+testNotEqual(0.9999999999, 1);
+testNotEqual(0.9999999999999, 1);
+
+// Strings are equal if containing the same code points.
+
+testEqual('hello', 'hello');
+testEqual('hello', 'hel' + 'lo');
+testEqual('', '');
+testEqual('\u0020\x20', '  ');  // Escapes are not part of the value.
+
+// Booleans are equal if they are the same.
+
+testEqual(true, true);
+testEqual(false, false);
+testNotEqual(true, false);
+
+// Null and undefined are equal to themselves.
+
+testEqual(null, null);
+testEqual(undefined, undefined);
+
+// Objects are equal if they are the same object only.
+
+testEqual(Math, Math);
+testEqual(Object.prototype, Object.prototype);
+
 
 (function () {
   var x = new Wrapper(null);
   var y = x, z = x;
-  assertTrue(y == x);
+   testEqual(y, x);
 })();
 
 (function () {
   var x = new Boolean(true);
   var y = x, z = x;
-  assertTrue(y == x);
+   testEqual(y, x);
 })();
 
 (function () {
   var x = new Boolean(false);
   var y = x, z = x;
-  assertTrue(y == x);
+   testEqual(y, x);
 })();
 
-assertTrue(null == void 0,             "null == void 0");
-assertTrue(void 0 == null,             "void 0 == null");
-assertFalse(new Wrapper(null) == null, "new Wrapper(null) == null");
-assertFalse(null == new Wrapper(null), "null == new Wrapper(null)");
+// Test comparing values of different types.
 
-assertTrue(1 == '1',       "1 == '1");
-assertTrue(255 == '0xff',  "255 == '0xff'");
-assertTrue(0 == '\r',      "0 == '\\r'");
-assertTrue(1e19 == '1e19', "1e19 == '1e19'");
+// Null and undefined are equal to each-other, and to nothing else.
+testEqual(null, undefined);
+testEqual(undefined, null);
 
-assertTrue(new Boolean(true) == true,   "new Boolean(true) == true");
-assertTrue(new Boolean(false) == false, "new Boolean(false) == false");
-assertTrue(true == new Boolean(true),   "true == new Boolean(true)");
-assertTrue(false == new Boolean(false), "false == new Boolean(false)");
+testNotEqual(null, new Wrapper(null));
+testNotEqual(null, 0);
+testNotEqual(null, false);
+testNotEqual(null, "");
+testNotEqual(null, new Object());
+testNotEqual(undefined, new Wrapper(undefined));
+testNotEqual(undefined, 0);
+testNotEqual(undefined, false);
+testNotEqual(undefined, "");
+testNotEqual(undefined, new Object());
 
-assertTrue(Boolean(true) == true,   "Boolean(true) == true");
-assertTrue(Boolean(false) == false, "Boolean(false) == false");
-assertTrue(true == Boolean(true),   "true == Boolean(true)");
-assertTrue(false == Boolean(false), "false == Boolean(false)");
+// Numbers compared to Strings will convert the string to a number using
+// the internal ToNumber conversion.
 
-assertTrue(new Wrapper(true) == true,   "new Wrapper(true) == true");
-assertTrue(new Wrapper(false) == false, "new Wrapper(false) == false");
-assertTrue(true == new Wrapper(true),   "true = new Wrapper(true)");
-assertTrue(false == new Wrapper(false), "false = new Wrapper(false)");
+testEqual(1, '1');
+testEqual(255, '0xff');
+testEqual(0, '\r');  // ToNumber ignores tailing and trailing whitespace.
+testEqual(1e19, '1e19');
+testEqual(Infinity, "Infinity");
 
-function Wrapper(value) {
-  this.value = value;
-  this.valueOf = function () { return this.value; };
+// Booleans compared to anything else will be converted to numbers.
+testEqual(false, 0);
+testEqual(true, 1);
+testEqual(false, "0");  // String also converted to number.
+testEqual(true, "1");
+
+// Objects compared to Number or String (or Boolean, since that's converted
+// to Number too) is converted to primitive using ToPrimitive with NO HINT.
+// Having no hint means Date gets a string hint, and everything else gets
+// a number hint.
+
+testEqual(new Boolean(true), true);
+testEqual(new Boolean(true), 1);  // First to primtive boolean, then to number.
+testEqual(new Boolean(false), false);
+testEqual(new Boolean(false), 0);
+
+testEqual(new Wrapper(true), true);
+testEqual(new Wrapper(true), 1);
+testEqual(new Wrapper(false), false);
+testEqual(new Wrapper(false), 0);
+
+testEqual(new Wrapper2(true), true);
+testEqual(new Wrapper2(true), 1);
+testEqual(new Wrapper2(false), false);
+testEqual(new Wrapper2(false), 0);
+
+testEqual(new Number(1), true);
+testEqual(new Number(1), 1);
+testEqual(new Number(0), false);
+testEqual(new Number(0), 0);
+
+// Date objects convert to string, not number (and the string does not
+// convert to the number).
+testEqual(new Date(42), String(new Date(42)));
+testNotEqual(new Date(42), Number(new Date(42)));
+var dnow = new Date();
+testEqual(dnow, dnow);
+testEqual(dnow, String(dnow));
+testNotEqual(dnow, Number(dnow));
+
+// Doesn't just call toString, but uses ToPrimitive which tries toString first
+// and valueOf second.
+dnow.toString = null;
+testEqual(dnow, Number(dnow));
+dnow.valueOf = function () { return "42"; };
+testEqual(dnow, 42);
+dnow.toString = function () { return "1"; };
+testEqual(dnow, true);
+
+
+// Objects compared to other objects, or to null and undefined, are not
+// converted to primitive.
+testNotEqual(new Wrapper(null), new Wrapper(null));
+testNotEqual(new Boolean(true), new Boolean(true));
+testNotEqual(new Boolean(false), new Boolean(false));
+testNotEqual(new String("a"), new String("a"));
+testNotEqual(new Number(42), new Number(42));
+testNotEqual(new Date(42), new Date(42));
+testNotEqual(new Array(42), new Array(42));
+testNotEqual(new Object(), new Object());
+
+// Object that can't be converted to primitive.
+var badObject = {
+  valueOf: null,
+  toString: function() {
+    return this;  // Not primitive.
+  }
+};
+
+testEqual(badObject, badObject);
+testNotEqual(badObject, {});
+testNotEqual(badObject, null);
+testNotEqual(badObject, undefined);
+// Forcing conversion will throw.
+function testBadConversion(value) {
+  assertThrows(function() { return badObject == value; });
+  assertThrows(function() { return badObject != value; });
+  assertThrows(function() { return value == badObject; });
+  assertThrows(function() { return value != badObject; });
 }
+testBadConversion(0);
+testBadConversion("string");
+testBadConversion(true);

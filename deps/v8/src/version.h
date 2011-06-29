@@ -46,13 +46,17 @@ class Version {
   // Calculate the SONAME for the V8 shared library.
   static void GetSONAME(Vector<char> str);
 
+  static const char* GetVersion() { return version_string_; }
+
  private:
+  // NOTE: can't make these really const because of test-version.cc.
   static int major_;
   static int minor_;
   static int build_;
   static int patch_;
   static bool candidate_;
   static const char* soname_;
+  static const char* version_string_;
 
   // In test-version.cc.
   friend void SetVersion(int major, int minor, int build, int patch,

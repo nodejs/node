@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,15 +42,6 @@ class Rewriter {
   // Assumes code has been parsed and scopes have been analyzed.  Mutates the
   // AST, so the AST should not continue to be used in the case of failure.
   static bool Rewrite(CompilationInfo* info);
-
-  // Perform a suite of simple non-iterative analyses of the AST.  Mark
-  // expressions that are likely smis, expressions without side effects,
-  // expressions whose value will be converted to Int32, and expressions in a
-  // context where +0 and -0 are treated the same.
-  //
-  // Assumes code has been parsed and scopes have been analyzed.  Mutates the
-  // AST, so the AST should not continue to be used in the case of failure.
-  static bool Analyze(CompilationInfo* info);
 };
 
 

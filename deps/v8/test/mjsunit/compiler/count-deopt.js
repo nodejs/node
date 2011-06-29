@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test deopt with count operation on parameter.
 var max_smi = 1073741823;
 var o = {x:0};
@@ -44,12 +46,15 @@ o.x = "42";
 inc2(o);
 assertEquals(43, o.x);
 
-var s = max_smi - 10000;
+var s = max_smi - 10;
 o.x = s;
-for(var i = 0; i < 20000; i++) {
+for(var i = 0; i < 20; i++) {
   inc2(o);
+  if (i == 4) {
+    %OptimizeFunctionOnNextCall(inc2);
+  }
 }
-assertEquals(max_smi + 10000, o.x);
+assertEquals(max_smi + 10, o.x);
 
 
 // Test deopt with count operation on keyed property.
@@ -59,40 +64,52 @@ o = ["42"];
 inc3(o, 0);
 assertEquals(43, o[0]);
 
-var s = max_smi - 10000;
+var s = max_smi - 10;
 o[0] = s;
-for(var i = 0; i < 20000; i++) {
+for(var i = 0; i < 20; i++) {
   inc3(o, 0);
+  if (i == 4) {
+    %OptimizeFunctionOnNextCall(inc3);
+  }
 }
-assertEquals(max_smi + 10000, o[0]);
+assertEquals(max_smi + 10, o[0]);
 
 inc3(o,"0");
 
-assertEquals(max_smi + 10001, o[0]);
+assertEquals(max_smi + 11, o[0]);
 
 // Test bailout when accessing a non-existing array element.
 o[0] = 0;
-for(var i = 0; i < 10000; i++) {
+for(var i = 0; i < 5; i++) {
   inc3(o, 0);
 }
-inc3(o,1);
+%OptimizeFunctionOnNextCall(inc3);
+inc3(o, 0);
+inc3(o, 1);
 
 // Test bailout with count operation in a value context.
 function inc4(x,y) { return (x++) + y; }
-for (var i = 0; i < 100000; ++i) assertEquals(3, inc4(2, 1));
+for (var i = 0; i < 5; ++i) assertEquals(3, inc4(2, 1));
+%OptimizeFunctionOnNextCall(inc4);
+inc4(2, 1);
 assertEquals(3.1, inc4(2, 1.1));
 
 function inc5(x,y) { return (++x) + y; }
-for (var i = 0; i < 100000; ++i) assertEquals(4, inc5(2, 1));
+for (var i = 0; i < 5; ++i) assertEquals(4, inc5(2, 1));
+%OptimizeFunctionOnNextCall(inc5);
+assertEquals(4, inc5(2, 1));
 assertEquals(4.1, inc5(2, 1.1));
 assertEquals(4.1, inc5(2.1, 1));
 
 function inc6(o,y) { return (o.x++) + y; }
 o = {x:0};
-for (var i = 0; i < 10000; ++i) {
+for (var i = 0; i < 5; ++i) {
   o.x = 42;
   assertEquals(43, inc6(o, 1));
 }
+%OptimizeFunctionOnNextCall(inc6);
+o.x = 42;
+assertEquals(43, inc6(o, 1));
 o.x = 42;
 assertEquals(43.1, inc6(o, 1.1));
 o.x = 42.1;
@@ -100,10 +117,13 @@ assertEquals(43.1, inc6(o, 1));
 
 function inc7(o,y) { return (++o.x) + y; }
 o = {x:0};
-for (var i = 0; i < 10000; ++i) {
+for (var i = 0; i < 5; ++i) {
   o.x = 42;
   assertEquals(44, inc7(o, 1));
 }
+%OptimizeFunctionOnNextCall(inc7);
+o.x = 42;
+assertEquals(44, inc7(o, 1));
 o.x = 42;
 assertEquals(44.1, inc7(o, 1.1));
 o.x = 42.1;
@@ -111,10 +131,13 @@ assertEquals(44.1, inc7(o, 1));
 
 function inc8(o,y) { return (o[0]++) + y; }
 var q = [0];
-for (var i = 0; i < 100000; ++i) {
+for (var i = 0; i < 5; ++i) {
   q[0] = 42;
   assertEquals(43, inc8(q, 1));
 }
+%OptimizeFunctionOnNextCall(inc8);
+q[0] = 42;
+assertEquals(43, inc8(q, 1));
 q[0] = 42;
 assertEquals(43.1, inc8(q, 1.1));
 q[0] = 42.1;
@@ -122,10 +145,13 @@ assertEquals(43.1, inc8(q, 1));
 
 function inc9(o,y) { return (++o[0]) + y; }
 q = [0];
-for (var i = 0; i < 100000; ++i) {
+for (var i = 0; i < 5; ++i) {
   q[0] = 42;
   assertEquals(44, inc9(q, 1));
 }
+%OptimizeFunctionOnNextCall(inc9);
+q[0] = 42;
+assertEquals(44, inc9(q, 1));
 q[0] = 42;
 assertEquals(44.1, inc9(q, 1.1));
 q[0] = 42.1;
@@ -135,11 +161,15 @@ assertEquals(44.1, inc9(q, 1));
 function inc10(p) { return p.x++ }
 var g1 = {x:0};
 var g2 = {y:0, x:42}
-for (var i = 0; i < 10000; ++i) {
+for (var i = 0; i < 5; ++i) {
   g1.x = 42;
   assertEquals(42, inc10(g1));
   assertEquals(43, g1.x);
 }
+%OptimizeFunctionOnNextCall(inc10);
+g1.x = 42;
+assertEquals(42, inc10(g1));
+assertEquals(43, g1.x);
 assertEquals(42, inc10(g2));
 assertEquals(43, g2.x);
 

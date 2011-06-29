@@ -45,7 +45,7 @@ v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
   if (args.Length() >= 1 && args[0]->IsBoolean()) {
     compact = args[0]->BooleanValue();
   }
-  Heap::CollectAllGarbage(compact);
+  HEAP->CollectAllGarbage(compact);
   return v8::Undefined();
 }
 

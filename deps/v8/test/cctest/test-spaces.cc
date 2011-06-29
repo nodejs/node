@@ -65,6 +65,8 @@ TEST(Page) {
   Address page_start = RoundUp(start, Page::kPageSize);
 
   Page* p = Page::FromAddress(page_start);
+  // Initialized Page has heap pointer, normally set by memory_allocator.
+  p->heap_ = HEAP;
   CHECK(p->address() == page_start);
   CHECK(p->is_valid());
 
@@ -90,37 +92,45 @@ TEST(Page) {
 
 
 TEST(MemoryAllocator) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
+  OS::Setup();
+  Isolate* isolate = Isolate::Current();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(isolate->memory_allocator()->Setup(HEAP->MaxReserved(),
+                                           HEAP->MaxExecutableSize()));
 
-  OldSpace faked_space(Heap::MaxReserved(), OLD_POINTER_SPACE, NOT_EXECUTABLE);
+  OldSpace faked_space(HEAP,
+                       HEAP->MaxReserved(),
+                       OLD_POINTER_SPACE,
+                       NOT_EXECUTABLE);
   int total_pages = 0;
   int requested = MemoryAllocator::kPagesPerChunk;
   int allocated;
   // If we request n pages, we should get n or n - 1.
   Page* first_page =
-      MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
+      isolate->memory_allocator()->AllocatePages(
+          requested, &allocated, &faked_space);
   CHECK(first_page->is_valid());
   CHECK(allocated == requested || allocated == requested - 1);
   total_pages += allocated;
 
   Page* last_page = first_page;
   for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
-    CHECK(MemoryAllocator::IsPageInSpace(p, &faked_space));
+    CHECK(isolate->memory_allocator()->IsPageInSpace(p, &faked_space));
     last_page = p;
   }
 
   // Again, we should get n or n - 1 pages.
   Page* others =
-      MemoryAllocator::AllocatePages(requested, &allocated, &faked_space);
+      isolate->memory_allocator()->AllocatePages(
+          requested, &allocated, &faked_space);
   CHECK(others->is_valid());
   CHECK(allocated == requested || allocated == requested - 1);
   total_pages += allocated;
 
-  MemoryAllocator::SetNextPage(last_page, others);
+  isolate->memory_allocator()->SetNextPage(last_page, others);
   int page_count = 0;
   for (Page* p = first_page; p->is_valid(); p = p->next_page()) {
-    CHECK(MemoryAllocator::IsPageInSpace(p, &faked_space));
+    CHECK(isolate->memory_allocator()->IsPageInSpace(p, &faked_space));
     page_count++;
   }
   CHECK(total_pages == page_count);
@@ -131,31 +141,34 @@ TEST(MemoryAllocator) {
   // Freeing pages at the first chunk starting at or after the second page
   // should free the entire second chunk.  It will return the page it was passed
   // (since the second page was in the first chunk).
-  Page* free_return = MemoryAllocator::FreePages(second_page);
+  Page* free_return = isolate->memory_allocator()->FreePages(second_page);
   CHECK(free_return == second_page);
-  MemoryAllocator::SetNextPage(first_page, free_return);
+  isolate->memory_allocator()->SetNextPage(first_page, free_return);
 
   // Freeing pages in the first chunk starting at the first page should free
   // the first chunk and return an invalid page.
-  Page* invalid_page = MemoryAllocator::FreePages(first_page);
+  Page* invalid_page = isolate->memory_allocator()->FreePages(first_page);
   CHECK(!invalid_page->is_valid());
 
-  MemoryAllocator::TearDown();
+  isolate->memory_allocator()->TearDown();
 }
 
 
 TEST(NewSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
+  OS::Setup();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(Isolate::Current()->memory_allocator()->Setup(
+      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
 
-  NewSpace new_space;
+  NewSpace new_space(HEAP);
 
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * Heap::ReservedSemiSpaceSize());
+      Isolate::Current()->memory_allocator()->ReserveInitialChunk(
+          4 * HEAP->ReservedSemiSpaceSize());
   CHECK(chunk != NULL);
   Address start = RoundUp(static_cast<Address>(chunk),
-                          2 * Heap::ReservedSemiSpaceSize());
-  CHECK(new_space.Setup(start, 2 * Heap::ReservedSemiSpaceSize()));
+                          2 * HEAP->ReservedSemiSpaceSize());
+  CHECK(new_space.Setup(start, 2 * HEAP->ReservedSemiSpaceSize()));
   CHECK(new_space.HasBeenSetup());
 
   while (new_space.Available() >= Page::kMaxHeapObjectSize) {
@@ -165,24 +178,28 @@ TEST(NewSpace) {
   }
 
   new_space.TearDown();
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }
 
 
 TEST(OldSpace) {
-  CHECK(Heap::ConfigureHeapDefault());
-  CHECK(MemoryAllocator::Setup(Heap::MaxReserved(), Heap::MaxExecutableSize()));
+  OS::Setup();
+  CHECK(HEAP->ConfigureHeapDefault());
+  CHECK(Isolate::Current()->memory_allocator()->Setup(
+      HEAP->MaxReserved(), HEAP->MaxExecutableSize()));
 
-  OldSpace* s = new OldSpace(Heap::MaxOldGenerationSize(),
+  OldSpace* s = new OldSpace(HEAP,
+                             HEAP->MaxOldGenerationSize(),
                              OLD_POINTER_SPACE,
                              NOT_EXECUTABLE);
   CHECK(s != NULL);
 
   void* chunk =
-      MemoryAllocator::ReserveInitialChunk(4 * Heap::ReservedSemiSpaceSize());
+      Isolate::Current()->memory_allocator()->ReserveInitialChunk(
+          4 * HEAP->ReservedSemiSpaceSize());
   CHECK(chunk != NULL);
   Address start = static_cast<Address>(chunk);
-  size_t size = RoundUp(start, 2 * Heap::ReservedSemiSpaceSize()) - start;
+  size_t size = RoundUp(start, 2 * HEAP->ReservedSemiSpaceSize()) - start;
 
   CHECK(s->Setup(start, size));
 
@@ -192,14 +209,15 @@ TEST(OldSpace) {
 
   s->TearDown();
   delete s;
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }
 
 
 TEST(LargeObjectSpace) {
-  CHECK(Heap::Setup(false));
+  OS::Setup();
+  CHECK(HEAP->Setup(false));
 
-  LargeObjectSpace* lo = Heap::lo_space();
+  LargeObjectSpace* lo = HEAP->lo_space();
   CHECK(lo != NULL);
 
   Map* faked_map = reinterpret_cast<Map*>(HeapObject::FromAddress(0));
@@ -233,5 +251,5 @@ TEST(LargeObjectSpace) {
   lo->TearDown();
   delete lo;
 
-  MemoryAllocator::TearDown();
+  Isolate::Current()->memory_allocator()->TearDown();
 }

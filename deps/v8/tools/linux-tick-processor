@@ -3,12 +3,12 @@
 tools_path=`cd $(dirname "$0");pwd`
 if [ ! "$D8_PATH" ]; then
   d8_public=`which d8`
-  if [ $d8_public ]; then D8_PATH=$(dirname "$d8_public"); fi
+  if [ -x $d8_public ]; then D8_PATH=$(dirname "$d8_public"); fi
 fi
 [ "$D8_PATH" ] || D8_PATH=$tools_path/..
 d8_exec=$D8_PATH/d8
 
-if [ "$1" == "--no-build" ]; then
+if [ "$1" = "--no-build" ]; then
   shift
 else
 # compile d8 if it doesn't exist, assuming this script
@@ -16,14 +16,16 @@ else
   [ -x $d8_exec ] || scons -j4 -C $D8_PATH -Y $tools_path/.. d8
 fi
 
+
 # find the name of the log file to process, it must not start with a dash.
 log_file="v8.log"
 for arg in "$@"
 do
-  if [[ "${arg}" != -* ]]; then
+  if ! expr "X${arg}" : "^X-" > /dev/null; then
     log_file=${arg}
   fi
 done
+
 
 # nm spits out 'no symbols found' messages to stderr.
 cat $log_file | $d8_exec $tools_path/splaytree.js $tools_path/codemap.js \

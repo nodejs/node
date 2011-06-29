@@ -42,11 +42,12 @@ namespace v8 {
 namespace internal {
 
 void CPU::Setup() {
-  CpuFeatures::Clear();
-  CpuFeatures::Probe(true);
-  if (!CpuFeatures::IsSupported(SSE2) || Serializer::enabled()) {
-    V8::DisableCrankshaft();
-  }
+  CpuFeatures::Probe();
+}
+
+
+bool CPU::SupportsCrankshaft() {
+  return CpuFeatures::IsSupported(SSE2);
 }
 
 

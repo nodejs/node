@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,51 +29,67 @@
 
 #include "ast.h"
 #include "func-name-inferrer.h"
+#include "list-inl.h"
 
 namespace v8 {
 namespace internal {
+
+FuncNameInferrer::FuncNameInferrer(Isolate* isolate)
+    : isolate_(isolate),
+      entries_stack_(10),
+      names_stack_(5),
+      funcs_to_infer_(4) {
+}
 
 
 void FuncNameInferrer::PushEnclosingName(Handle<String> name) {
   // Enclosing name is a name of a constructor function. To check
   // that it is really a constructor, we check that it is not empty
   // and starts with a capital letter.
-  if (name->length() > 0 && Runtime::IsUpperCaseChar(name->Get(0))) {
-    names_stack_.Add(name);
+  if (name->length() > 0 && Runtime::IsUpperCaseChar(
+          isolate()->runtime_state(), name->Get(0))) {
+    names_stack_.Add(Name(name, kEnclosingConstructorName));
   }
 }
 
 
 void FuncNameInferrer::PushLiteralName(Handle<String> name) {
-  if (IsOpen() && !Heap::prototype_symbol()->Equals(*name)) {
-    names_stack_.Add(name);
+  if (IsOpen() && !isolate()->heap()->prototype_symbol()->Equals(*name)) {
+    names_stack_.Add(Name(name, kLiteralName));
   }
 }
 
 
 void FuncNameInferrer::PushVariableName(Handle<String> name) {
-  if (IsOpen() && !Heap::result_symbol()->Equals(*name)) {
-    names_stack_.Add(name);
+  if (IsOpen() && !isolate()->heap()->result_symbol()->Equals(*name)) {
+    names_stack_.Add(Name(name, kVariableName));
   }
 }
 
 
 Handle<String> FuncNameInferrer::MakeNameFromStack() {
-  if (names_stack_.is_empty()) {
-    return Factory::empty_string();
-  } else {
-    return MakeNameFromStackHelper(1, names_stack_.at(0));
-  }
+  return MakeNameFromStackHelper(0, isolate()->factory()->empty_string());
 }
 
 
 Handle<String> FuncNameInferrer::MakeNameFromStackHelper(int pos,
                                                          Handle<String> prev) {
-  if (pos >= names_stack_.length()) {
-    return prev;
+  if (pos >= names_stack_.length()) return prev;
+  if (pos < names_stack_.length() - 1 &&
+      names_stack_.at(pos).type == kVariableName &&
+      names_stack_.at(pos + 1).type == kVariableName) {
+    // Skip consecutive variable declarations.
+    return MakeNameFromStackHelper(pos + 1, prev);
   } else {
-    Handle<String> curr = Factory::NewConsString(dot_, names_stack_.at(pos));
-    return MakeNameFromStackHelper(pos + 1, Factory::NewConsString(prev, curr));
+    if (prev->length() > 0) {
+      Factory* factory = isolate()->factory();
+      Handle<String> curr = factory->NewConsString(
+          factory->dot_symbol(), names_stack_.at(pos).name);
+      return MakeNameFromStackHelper(pos + 1,
+                                     factory->NewConsString(prev, curr));
+    } else {
+      return MakeNameFromStackHelper(pos + 1, names_stack_.at(pos).name);
+    }
   }
 }
 

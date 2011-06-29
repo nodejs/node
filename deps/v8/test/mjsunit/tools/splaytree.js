@@ -81,13 +81,13 @@ function createSampleTree() {
 (function testSplay() {
   var tree = new SplayTree();
   tree.root_ = createSampleTree();
-  assertArrayEquals(['50', '30', '60', '10', '40', '90', '20', '70', '100', '15', '80'],
+  assertArrayEquals([50, 30, 60, 10, 40, 90, 20, 70, 100, 15, 80],
                     tree.exportValues());
   tree.splay_(50);
-  assertArrayEquals(['50', '30', '60', '10', '40', '90', '20', '70', '100', '15', '80'],
+  assertArrayEquals([50, 30, 60, 10, 40, 90, 20, 70, 100, 15, 80],
                     tree.exportValues());
   tree.splay_(80);
-  assertArrayEquals(['80', '60', '90', '50', '70', '100', '30', '10', '40', '20', '15'],
+  assertArrayEquals([80, 60, 90, 50, 70, 100, 30, 10, 40, 20, 15],
                     tree.exportValues());
 })();
 

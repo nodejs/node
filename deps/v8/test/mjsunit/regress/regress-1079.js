@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Getting the arguments property of an optimized function should not crash,
 // even if called through our optimized version of Function.prototype.apply.
 
@@ -39,7 +41,8 @@ function unoptimized() {
   }
 }
 
-for (var i = 0; i < 100000; ++i) {
+for (var i = 0; i < 5; ++i) {
   assertEquals(3, optimized(1, 2, 3).length);
 }
-
+%OptimizeFunctionOnNextCall(optimized);
+assertEquals(3, optimized(1, 2, 3).length);

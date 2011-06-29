@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function Load(o) {
   return o.outer.x | o.outer.inner.y;
 }
@@ -45,7 +47,9 @@ function LoadXY(x, y) {
   return Load(object);
 }
 
-for (var i = 0; i < 10000; i++) LoadXY(i, i);
+for (var i = 0; i < 5; i++) LoadXY(i, i);
+%OptimizeFunctionOnNextCall(LoadXY);
+LoadXY(6, 6);
 assertEquals(42 | 87, LoadXY(42, 87));
 assertEquals(42 | 87, LoadXY(42, 87));
 assertEquals(42 | 99, LoadXY(42, "99"));

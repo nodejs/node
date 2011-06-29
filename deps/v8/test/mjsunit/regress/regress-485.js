@@ -34,24 +34,6 @@ var global = this;
 var global2 = (function(){return this;})();
 assertEquals(global, global2, "direct call to local function returns global");
 
-var builtin = Object.prototype.valueOf;  // Builtin function that returns this.
-
-assertEquals(global, builtin(), "Direct call to builtin");
-
-assertEquals(global, builtin.call(), "call() to builtin");
-assertEquals(global, builtin.call(null), "call(null) to builtin");
-assertEquals(global, builtin.call(undefined), "call(undefined) to builtin");
-
-assertEquals(global, builtin.apply(), "apply() to builtin");
-assertEquals(global, builtin.apply(null), "apply(null) to builtin");
-assertEquals(global, builtin.apply(undefined), "apply(undefined) to builtin");
-
-assertEquals(global, builtin.call.call(builtin), "call.call() to builtin");
-assertEquals(global, builtin.call.apply(builtin), "call.apply() to builtin");
-assertEquals(global, builtin.apply.call(builtin), "apply.call() to builtin");
-assertEquals(global, builtin.apply.apply(builtin), "apply.apply() to builtin");
-
-
 // Builtin that depends on value of this to compute result.
 var builtin2 = Object.prototype.toString;
 

@@ -52,6 +52,12 @@ void LookupResult::Print(FILE* out) {
       GetTransitionMap()->Print(out);
       PrintF(out, "\n");
       break;
+    case EXTERNAL_ARRAY_TRANSITION:
+      PrintF(out, " -type = external array transition\n");
+      PrintF(out, " -map:\n");
+      GetTransitionMap()->Print(out);
+      PrintF(out, "\n");
+      break;
     case CONSTANT_FUNCTION:
       PrintF(out, " -type = constant function\n");
       PrintF(out, " -function:\n");
@@ -67,6 +73,9 @@ void LookupResult::Print(FILE* out) {
       PrintF(out, " -type = call backs\n");
       PrintF(out, " -callback object:\n");
       GetCallbackObject()->Print(out);
+      break;
+    case HANDLER:
+      PrintF(out, " -type = lookup proxy\n");
       break;
     case INTERCEPTOR:
       PrintF(out, " -type = lookup interceptor\n");

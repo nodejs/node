@@ -66,6 +66,7 @@
 #endif  // __MINGW32__
 #ifndef __MINGW32__
 #include <dbghelp.h>  // For SymLoadModule64 and al.
+#include <errno.h>  // For STRUNCATE
 #endif  // __MINGW32__
 #include <limits.h>  // For INT_MAX and al.
 #include <tlhelp32.h>  // For Module32First and al.

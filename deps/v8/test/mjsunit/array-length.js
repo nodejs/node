@@ -102,7 +102,7 @@ assertEquals('undefined', typeof a[Math.pow(2,32)-2], "top");
 
 
 var a = new Array();
-assertEquals(12, a.length = new Number(12));
+assertEquals(Object(12), a.length = new Number(12));
 assertEquals(12, a.length);
 
 

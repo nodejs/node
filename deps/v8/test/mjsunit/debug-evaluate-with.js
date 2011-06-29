@@ -42,13 +42,13 @@ function listener(event, exec_state, event_data, data) {
         // Break point in first with block.
         assertEquals(2, exec_state.frame(0).evaluate('a').value());
         assertEquals(2, exec_state.frame(0).evaluate('b').value());
-      } else {
+      } else if (breakPointCount == 2) {
         // Break point in second with block.
         assertEquals(3, exec_state.frame(0).evaluate('a').value());
         assertEquals(1, exec_state.frame(0).evaluate('b').value());
-
-        // Indicate that all was processed.
-        listenerComplete = true;
+      } else if (breakPointCount == 3) {
+        // Break point in eval with block.
+        assertEquals('local', exec_state.frame(0).evaluate('foo').value());
       }
     }
   } catch (e) {
@@ -72,6 +72,10 @@ function f() {
 };
 
 f();
+
+var foo = "global";
+eval("with({bar:'with'}) { (function g() { var foo = 'local'; debugger; })(); }");
+
 // Make sure that the debug event listener vas invoked.
-assertTrue(listenerComplete);
+assertEquals(3, breakPointCount);
 assertFalse(exception, "exception in listener")

@@ -55,7 +55,7 @@ assertEquals("-90", (-90).toString());
 assertEquals("-90.12", (-90.12).toString());
 assertEquals("-0.1", (-0.1).toString());
 assertEquals("-0.01", (-0.01).toString());
-assertEquals("-0.0123", (-0.0123).toString())
+assertEquals("-0.0123", (-0.0123).toString());
 assertEquals("-111111111111111110000", (-111111111111111111111).toString());
 assertEquals("-1.1111111111111111e+21", (-1111111111111111111111).toString());
 assertEquals("-1.1111111111111111e+22", (-11111111111111111111111).toString());
@@ -219,7 +219,7 @@ assertEquals("0.12312312312312299889", (0.123123123123123).toFixed(20));
 // Test that we round up even when the last digit generated is even.
 // dtoa does not do this in its original form.
 assertEquals("1", 0.5.toFixed(0), "0.5.toFixed(0)");
-assertEquals("-1", -0.5.toFixed(0), "-0.5.toFixed(0)");
+assertEquals("-1", (-0.5).toFixed(0), "(-0.5).toFixed(0)");
 assertEquals("1.3", 1.25.toFixed(1), "1.25.toFixed(1)");
 // This is bizare, but Spidermonkey and KJS behave the same.
 assertEquals("234.2040", (234.20405).toFixed(4), "234.2040.toFixed(4)");

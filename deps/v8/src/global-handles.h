@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,7 +28,9 @@
 #ifndef V8_GLOBAL_HANDLES_H_
 #define V8_GLOBAL_HANDLES_H_
 
-#include "list-inl.h"
+#include "../include/v8-profiler.h"
+
+#include "list.h"
 
 namespace v8 {
 namespace internal {
@@ -39,31 +41,84 @@ namespace internal {
 // At GC the destroyed global handles are removed from the free list
 // and deallocated.
 
-// Callback function on handling weak global handles.
-// typedef bool (*WeakSlotCallback)(Object** pointer);
-
 // An object group is treated like a single JS object: if one of object in
 // the group is alive, all objects in the same group are considered alive.
 // An object group is used to simulate object relationship in a DOM tree.
-class ObjectGroup : public Malloced {
+class ObjectGroup {
  public:
-  ObjectGroup() : objects_(4) {}
-  explicit ObjectGroup(size_t capacity)
-      : objects_(static_cast<int>(capacity)) { }
+  static ObjectGroup* New(Object*** handles,
+                          size_t length,
+                          v8::RetainedObjectInfo* info) {
+    ASSERT(length > 0);
+    ObjectGroup* group = reinterpret_cast<ObjectGroup*>(
+        malloc(OFFSET_OF(ObjectGroup, objects_[length])));
+    group->length_ = length;
+    group->info_ = info;
+    CopyWords(group->objects_, handles, static_cast<int>(length));
+    return group;
+  }
 
-  List<Object**> objects_;
+  void Dispose() {
+    if (info_ != NULL) info_->Dispose();
+    free(this);
+  }
+
+  size_t length_;
+  v8::RetainedObjectInfo* info_;
+  Object** objects_[1];  // Variable sized array.
+
+ private:
+  void* operator new(size_t size);
+  void operator delete(void* p);
+  ~ObjectGroup();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ObjectGroup);
+};
+
+
+// An implicit references group consists of two parts: a parent object and
+// a list of children objects.  If the parent is alive, all the children
+// are alive too.
+class ImplicitRefGroup {
+ public:
+  static ImplicitRefGroup* New(HeapObject** parent,
+                               Object*** children,
+                               size_t length) {
+    ASSERT(length > 0);
+    ImplicitRefGroup* group = reinterpret_cast<ImplicitRefGroup*>(
+        malloc(OFFSET_OF(ImplicitRefGroup, children_[length])));
+    group->parent_ = parent;
+    group->length_ = length;
+    CopyWords(group->children_, children, static_cast<int>(length));
+    return group;
+  }
+
+  void Dispose() {
+    free(this);
+  }
+
+  HeapObject** parent_;
+  size_t length_;
+  Object** children_[1];  // Variable sized array.
+
+ private:
+  void* operator new(size_t size);
+  void operator delete(void* p);
+  ~ImplicitRefGroup();
+  DISALLOW_IMPLICIT_CONSTRUCTORS(ImplicitRefGroup);
 };
 
 
 typedef void (*WeakReferenceGuest)(Object* object, void* parameter);
 
-class GlobalHandles : public AllStatic {
+class GlobalHandles {
  public:
+  ~GlobalHandles();
+
   // Creates a new global handle that is alive until Destroy is called.
-  static Handle<Object> Create(Object* value);
+  Handle<Object> Create(Object* value);
 
   // Destroy a global handle.
-  static void Destroy(Object** location);
+  void Destroy(Object** location);
 
   // Make the global handle weak and set the callback parameter for the
   // handle.  When the garbage collector recognizes that only weak global
@@ -71,23 +126,28 @@ class GlobalHandles : public AllStatic {
   // function is invoked (for each handle) with the handle and corresponding
   // parameter as arguments.  Note: cleared means set to Smi::FromInt(0). The
   // reason is that Smi::FromInt(0) does not change during garage collection.
-  static void MakeWeak(Object** location,
-                       void* parameter,
-                       WeakReferenceCallback callback);
+  void MakeWeak(Object** location,
+                void* parameter,
+                WeakReferenceCallback callback);
+
+  static void SetWrapperClassId(Object** location, uint16_t class_id);
 
   // Returns the current number of weak handles.
-  static int NumberOfWeakHandles() { return number_of_weak_handles_; }
+  int NumberOfWeakHandles() { return number_of_weak_handles_; }
 
-  static void RecordStats(HeapStats* stats);
+  void RecordStats(HeapStats* stats);
 
   // Returns the current number of weak handles to global objects.
   // These handles are also included in NumberOfWeakHandles().
-  static int NumberOfGlobalObjectWeakHandles() {
+  int NumberOfGlobalObjectWeakHandles() {
     return number_of_global_object_weak_handles_;
   }
 
   // Clear the weakness of a global handle.
-  static void ClearWeakness(Object** location);
+  void ClearWeakness(Object** location);
+
+  // Clear the weakness of a global handle.
+  void MarkIndependent(Object** location);
 
   // Tells whether global handle is near death.
   static bool IsNearDeath(Object** location);
@@ -97,82 +157,118 @@ class GlobalHandles : public AllStatic {
 
   // Process pending weak handles.
   // Returns true if next major GC is likely to collect more garbage.
-  static bool PostGarbageCollectionProcessing();
+  bool PostGarbageCollectionProcessing(GarbageCollector collector);
 
   // Iterates over all strong handles.
-  static void IterateStrongRoots(ObjectVisitor* v);
+  void IterateStrongRoots(ObjectVisitor* v);
 
   // Iterates over all handles.
-  static void IterateAllRoots(ObjectVisitor* v);
+  void IterateAllRoots(ObjectVisitor* v);
+
+  // Iterates over all handles that have embedder-assigned class ID.
+  void IterateAllRootsWithClassIds(ObjectVisitor* v);
 
   // Iterates over all weak roots in heap.
-  static void IterateWeakRoots(ObjectVisitor* v);
+  void IterateWeakRoots(ObjectVisitor* v);
 
   // Iterates over weak roots that are bound to a given callback.
-  static void IterateWeakRoots(WeakReferenceGuest f,
-                               WeakReferenceCallback callback);
+  void IterateWeakRoots(WeakReferenceGuest f,
+                        WeakReferenceCallback callback);
 
   // Find all weak handles satisfying the callback predicate, mark
   // them as pending.
-  static void IdentifyWeakHandles(WeakSlotCallback f);
+  void IdentifyWeakHandles(WeakSlotCallback f);
+
+  // NOTE: Three ...NewSpace... functions below are used during
+  // scavenge collections and iterate over sets of handles that are
+  // guaranteed to contain all handles holding new space objects (but
+  // may also include old space objects).
+
+  // Iterates over strong and dependent handles. See the node above.
+  void IterateNewSpaceStrongAndDependentRoots(ObjectVisitor* v);
+
+  // Finds weak independent handles satisfying the callback predicate
+  // and marks them as pending. See the note above.
+  void IdentifyNewSpaceWeakIndependentHandles(WeakSlotCallbackWithHeap f);
+
+  // Iterates over weak independent handles. See the note above.
+  void IterateNewSpaceWeakIndependentRoots(ObjectVisitor* v);
 
   // Add an object group.
-  // Should only used in GC callback function before a collection.
+  // Should be only used in GC callback function before a collection.
   // All groups are destroyed after a mark-compact collection.
-  static void AddGroup(Object*** handles, size_t length);
+  void AddObjectGroup(Object*** handles,
+                      size_t length,
+                      v8::RetainedObjectInfo* info);
+
+  // Add an implicit references' group.
+  // Should be only used in GC callback function before a collection.
+  // All groups are destroyed after a mark-compact collection.
+  void AddImplicitReferences(HeapObject** parent,
+                             Object*** children,
+                             size_t length);
 
   // Returns the object groups.
-  static List<ObjectGroup*>* ObjectGroups();
+  List<ObjectGroup*>* object_groups() { return &object_groups_; }
+
+  // Returns the implicit references' groups.
+  List<ImplicitRefGroup*>* implicit_ref_groups() {
+    return &implicit_ref_groups_;
+  }
 
   // Remove bags, this should only happen after GC.
-  static void RemoveObjectGroups();
+  void RemoveObjectGroups();
+  void RemoveImplicitRefGroups();
 
   // Tear down the global handle structure.
-  static void TearDown();
+  void TearDown();
+
+  Isolate* isolate() { return isolate_; }
 
 #ifdef DEBUG
-  static void PrintStats();
-  static void Print();
+  void PrintStats();
+  void Print();
 #endif
-  class Pool;
+
  private:
-  // Internal node structure, one for each global handle.
+  explicit GlobalHandles(Isolate* isolate);
+
+  // Internal node structures.
   class Node;
+  class NodeBlock;
+  class NodeIterator;
+
+  Isolate* isolate_;
 
   // Field always containing the number of weak and near-death handles.
-  static int number_of_weak_handles_;
+  int number_of_weak_handles_;
 
   // Field always containing the number of weak and near-death handles
   // to global objects.  These objects are also included in
   // number_of_weak_handles_.
-  static int number_of_global_object_weak_handles_;
+  int number_of_global_object_weak_handles_;
 
-  // Global handles are kept in a single linked list pointed to by head_.
-  static Node* head_;
-  static Node* head() { return head_; }
-  static void set_head(Node* value) { head_ = value; }
+  // List of all allocated node blocks.
+  NodeBlock* first_block_;
 
-  // Free list for DESTROYED global handles not yet deallocated.
-  static Node* first_free_;
-  static Node* first_free() { return first_free_; }
-  static void set_first_free(Node* value) { first_free_ = value; }
+  // List of node blocks with used nodes.
+  NodeBlock* first_used_block_;
 
-  // List of deallocated nodes.
-  // Deallocated nodes form a prefix of all the nodes and
-  // |first_deallocated| points to last deallocated node before
-  // |head|.  Those deallocated nodes are additionally linked
-  // by |next_free|:
-  //                                    1st deallocated  head
-  //                                           |          |
-  //                                           V          V
-  //    node          node        ...         node       node
-  //      .next      -> .next ->                .next ->
-  //   <- .next_free <- .next_free           <- .next_free
-  static Node* first_deallocated_;
-  static Node* first_deallocated() { return first_deallocated_; }
-  static void set_first_deallocated(Node* value) {
-    first_deallocated_ = value;
-  }
+  // Free list of nodes.
+  Node* first_free_;
+
+  // Contains all nodes holding new space objects. Note: when the list
+  // is accessed, some of the objects may have been promoted already.
+  List<Node*> new_space_nodes_;
+
+  int post_gc_processing_count_;
+
+  List<ObjectGroup*> object_groups_;
+  List<ImplicitRefGroup*> implicit_ref_groups_;
+
+  friend class Isolate;
+
+  DISALLOW_COPY_AND_ASSIGN(GlobalHandles);
 };
 
 

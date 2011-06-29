@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // An exception thrown in a function optimized by on-stack replacement (OSR)
 // should be able to construct a receiver from all optimized stack frames.
 
@@ -39,10 +41,22 @@ var o = new A();
 // inlined.
 function g() { try { return o.f(); } finally { }}
 
+// Optimization status (see runtime.cc):
+// 1 - yes, 2 - no, 3 - always, 4 - never.
+
 // This function should be optimized via OSR.
 function h() {
-  while(false) ;
-  for (var j = 0; j < 5000000; j++) g();
+  var optstatus = %GetOptimizationStatus(h);
+  if (optstatus == 4) {
+    // Optimizations are globally disabled; just run once.
+    g();
+  } else {
+    // Run for a bit as long as h is unoptimized.
+    while (%GetOptimizationStatus(h) == 2) {
+      for (var j = 0; j < 100; j++) g();
+    }
+    g();
+  }
 }
 
 h();

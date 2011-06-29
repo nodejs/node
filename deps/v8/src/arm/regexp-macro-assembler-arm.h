@@ -82,7 +82,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   virtual bool CheckSpecialCharacterClass(uc16 type,
                                           Label* on_no_match);
   virtual void Fail();
-  virtual Handle<Object> GetCode(Handle<String> source);
+  virtual Handle<HeapObject> GetCode(Handle<String> source);
   virtual void GoTo(Label* label);
   virtual void IfRegisterGE(int reg, int comparand, Label* if_ge);
   virtual void IfRegisterLT(int reg, int comparand, Label* if_lt);
@@ -127,6 +127,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   static const int kRegisterOutput = kSecondaryReturnAddress + kPointerSize;
   static const int kStackHighEnd = kRegisterOutput + kPointerSize;
   static const int kDirectCall = kStackHighEnd + kPointerSize;
+  static const int kIsolate = kDirectCall + kPointerSize;
 
   // Below the frame pointer.
   // Register parameters stored by setup code.

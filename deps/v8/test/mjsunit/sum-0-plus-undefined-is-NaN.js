@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 /**
  * @fileoverview Test addition of 0 and undefined.
  */
@@ -32,9 +34,11 @@
 function sum(a, b) { return a + b; }
 
 function test(x, y, expectNaN) {
-  for (var i = 0; i < 1000; i++) {
+  for (var i = 0; i < 5; i++) {
     assertEquals(expectNaN, isNaN(sum(x, y)));
   }
+  %OptimizeFunctionOnNextCall(sum);
+  assertEquals(expectNaN, isNaN(sum(x, y)));
 }
 
 test(0, 1, false);

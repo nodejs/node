@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Deoptimization of the key expression in an arguments access should see
 // the arguments object as the value of the receiver.
 
@@ -42,7 +44,9 @@ function test() {
 }
 
 // Run enough to optimize assuming global 'a' is a smi.
-for (var i = 0; i < 1000000; ++i) test(0);
+for (var i = 0; i < 10; ++i) test(0);
+%OptimizeFunctionOnNextCall(test);
+test(0);
 
 a = "hello";
 test(0);

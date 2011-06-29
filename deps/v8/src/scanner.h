@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -124,69 +124,6 @@ class ExternalTwoByteStringUC16CharacterStream: public UC16CharacterStream {
   }
   Handle<ExternalTwoByteString> source_;
   const uc16* raw_data_;  // Pointer to the actual array of characters.
-};
-
-
-// ----------------------------------------------------------------------------
-// V8JavaScriptScanner
-// JavaScript scanner getting its input from either a V8 String or a unicode
-// CharacterStream.
-
-class V8JavaScriptScanner : public JavaScriptScanner {
- public:
-  V8JavaScriptScanner();
-  void Initialize(UC16CharacterStream* source);
-};
-
-
-class JsonScanner : public Scanner {
- public:
-  JsonScanner();
-
-  void Initialize(UC16CharacterStream* source);
-
-  // Returns the next token.
-  Token::Value Next();
-
-  // Returns the value of a number token.
-  double number() {
-    return number_;
-  }
-
-
- protected:
-  // Skip past JSON whitespace (only space, tab, newline and carrige-return).
-  bool SkipJsonWhiteSpace();
-
-  // Scan a single JSON token. The JSON lexical grammar is specified in the
-  // ECMAScript 5 standard, section 15.12.1.1.
-  // Recognizes all of the single-character tokens directly, or calls a function
-  // to scan a number, string or identifier literal.
-  // The only allowed whitespace characters between tokens are tab,
-  // carriage-return, newline and space.
-  void ScanJson();
-
-  // A JSON number (production JSONNumber) is a subset of the valid JavaScript
-  // decimal number literals.
-  // It includes an optional minus sign, must have at least one
-  // digit before and after a decimal point, may not have prefixed zeros (unless
-  // the integer part is zero), and may include an exponent part (e.g., "e-10").
-  // Hexadecimal and octal numbers are not allowed.
-  Token::Value ScanJsonNumber();
-
-  // A JSON string (production JSONString) is subset of valid JavaScript string
-  // literals. The string must only be double-quoted (not single-quoted), and
-  // the only allowed backslash-escapes are ", /, \, b, f, n, r, t and
-  // four-digit hex escapes (uXXXX). Any other use of backslashes is invalid.
-  Token::Value ScanJsonString();
-
-  // Used to recognizes one of the literals "true", "false", or "null". These
-  // are the only valid JSON identifiers (productions JSONBooleanLiteral,
-  // JSONNullLiteral).
-  Token::Value ScanJsonIdentifier(const char* text, Token::Value token);
-
-  // Holds the value of a scanned number token.
-  double number_;
 };
 
 } }  // namespace v8::internal

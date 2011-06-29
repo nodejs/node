@@ -46,10 +46,16 @@ void List<T, P>::Add(const T& element) {
 
 template<typename T, class P>
 void List<T, P>::AddAll(const List<T, P>& other) {
-  int result_length = length_ + other.length_;
+  AddAll(other.ToVector());
+}
+
+
+template<typename T, class P>
+void List<T, P>::AddAll(const Vector<T>& other) {
+  int result_length = length_ + other.length();
   if (capacity_ < result_length) Resize(result_length);
-  for (int i = 0; i < other.length_; i++) {
-    data_[length_ + i] = other.data_[i];
+  for (int i = 0; i < other.length(); i++) {
+    data_[length_ + i] = other.at(i);
   }
   length_ = result_length;
 }

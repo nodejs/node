@@ -88,7 +88,8 @@ class ProducerThread: public i::Thread {
                  int records_per_chunk,
                  Record value,
                  i::Semaphore* finished)
-      : scq_(scq),
+      : Thread("producer"),
+        scq_(scq),
         records_per_chunk_(records_per_chunk),
         value_(value),
         finished_(finished) { }

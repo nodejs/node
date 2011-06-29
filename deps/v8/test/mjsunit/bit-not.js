@@ -68,6 +68,8 @@ testBitNot("-9.4", "string-9.4");
 // the fast path and just use the slow path instead.
 function TryToGC() {
   var x = 0x40000000;
+  // Put in an eval to foil Crankshaft.
+  eval("");
   for (var i = 0; i < 1000000; i++) {
     assertEquals(~0x40000000, ~x);
   }

@@ -273,28 +273,28 @@ class LiveObjectList {
   inline static void ProcessNonLive(HeapObject* obj) {}
   inline static void UpdateReferencesForScavengeGC() {}
 
-  inline static MaybeObject* Capture() { return Heap::undefined_value(); }
+  inline static MaybeObject* Capture() { return HEAP->undefined_value(); }
   inline static bool Delete(int id) { return false; }
   inline static MaybeObject* Dump(int id1,
                                   int id2,
                                   int start_idx,
                                   int dump_limit,
                                   Handle<JSObject> filter_obj) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
   inline static MaybeObject* Info(int start_idx, int dump_limit) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
   inline static MaybeObject* Summarize(int id1,
                                        int id2,
                                        Handle<JSObject> filter_obj) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   inline static void Reset() {}
-  inline static Object* GetObj(int obj_id) { return Heap::undefined_value(); }
+  inline static Object* GetObj(int obj_id) { return HEAP->undefined_value(); }
   inline static Object* GetObjId(Handle<String> address) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
   inline static MaybeObject* GetObjRetainers(int obj_id,
                                              Handle<JSObject> instance_filter,
@@ -302,15 +302,15 @@ class LiveObjectList {
                                              int start,
                                              int count,
                                              Handle<JSObject> filter_obj) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   inline static Object* GetPath(int obj_id1,
                                 int obj_id2,
                                 Handle<JSObject> instance_filter) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
-  inline static Object* PrintObj(int obj_id) { return Heap::undefined_value(); }
+  inline static Object* PrintObj(int obj_id) { return HEAP->undefined_value(); }
 };
 
 

@@ -28,7 +28,8 @@
 #ifndef V8_VM_STATE_H_
 #define V8_VM_STATE_H_
 
-#include "top.h"
+#include "allocation.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
@@ -36,15 +37,16 @@ namespace internal {
 class VMState BASE_EMBEDDED {
 #ifdef ENABLE_VMSTATE_TRACKING
  public:
-  inline explicit VMState(StateTag tag);
+  inline VMState(Isolate* isolate, StateTag tag);
   inline ~VMState();
 
  private:
+  Isolate* isolate_;
   StateTag previous_tag_;
 
 #else
  public:
-  explicit VMState(StateTag state) {}
+  VMState(Isolate* isolate, StateTag state) {}
 #endif
 };
 
@@ -52,13 +54,14 @@ class VMState BASE_EMBEDDED {
 class ExternalCallbackScope BASE_EMBEDDED {
 #ifdef ENABLE_LOGGING_AND_PROFILING
  public:
-  inline explicit ExternalCallbackScope(Address callback);
+  inline ExternalCallbackScope(Isolate* isolate, Address callback);
   inline ~ExternalCallbackScope();
  private:
+  Isolate* isolate_;
   Address previous_callback_;
 #else
  public:
-  explicit ExternalCallbackScope(Address callback) {}
+  ExternalCallbackScope(Isolate* isolate, Address callback) {}
 #endif
 };
 

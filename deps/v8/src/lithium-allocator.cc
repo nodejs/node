@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
 #include "lithium-allocator-inl.h"
 
 #include "hydrogen.h"
@@ -36,6 +37,8 @@
 #include "x64/lithium-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/lithium-mips.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -44,13 +47,18 @@ namespace v8 {
 namespace internal {
 
 
-#define DEFINE_OPERAND_CACHE(name, type)            \
-  name name::cache[name::kNumCachedOperands];       \
-  void name::SetupCache() {                         \
-    for (int i = 0; i < kNumCachedOperands; i++) {  \
-      cache[i].ConvertTo(type, i);                  \
-    }                                               \
-  }
+#define DEFINE_OPERAND_CACHE(name, type)                      \
+  name name::cache[name::kNumCachedOperands];                 \
+  void name::SetupCache() {                                   \
+    for (int i = 0; i < kNumCachedOperands; i++) {            \
+      cache[i].ConvertTo(type, i);                            \
+    }                                                         \
+  }                                                           \
+  static bool name##_initialize() {                           \
+    name::SetupCache();                                       \
+    return true;                                              \
+  }                                                           \
+  static bool name##_cache_initialized = name##_initialize();
 
 DEFINE_OPERAND_CACHE(LConstantOperand, CONSTANT_OPERAND)
 DEFINE_OPERAND_CACHE(LStackSlot,       STACK_SLOT)
@@ -295,6 +303,11 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
   // we need to split use positons in a special way.
   bool split_at_start = false;
 
+  if (current->start().Value() == position.Value()) {
+    // When splitting at start we need to locate the previous use interval.
+    current = first_interval_;
+  }
+
   while (current != NULL) {
     if (current->Contains(position)) {
       current->SplitAt(position);
@@ -343,6 +356,11 @@ void LiveRange::SplitAt(LifetimePosition position, LiveRange* result) {
     first_pos_ = NULL;
   }
   result->first_pos_ = use_after;
+
+  // Discard cached iteration state. It might be pointing
+  // to the use that no longer belongs to this live range.
+  last_processed_use_ = NULL;
+  current_interval_ = NULL;
 
   // Link the new live range in the chain before any of the other
   // ranges linked from the range before the split.
@@ -525,6 +543,24 @@ LifetimePosition LiveRange::FirstIntersection(LiveRange* other) {
 }
 
 
+LAllocator::LAllocator(int num_values, HGraph* graph)
+    : chunk_(NULL),
+      live_in_sets_(graph->blocks()->length()),
+      live_ranges_(num_values * 2),
+      fixed_live_ranges_(NULL),
+      fixed_double_live_ranges_(NULL),
+      unhandled_live_ranges_(num_values * 2),
+      active_live_ranges_(8),
+      inactive_live_ranges_(8),
+      reusable_slots_(8),
+      next_virtual_register_(num_values),
+      first_artificial_register_(num_values),
+      mode_(NONE),
+      num_registers_(-1),
+      graph_(graph),
+      has_osr_entry_(false) {}
+
+
 void LAllocator::InitializeLivenessAnalysis() {
   // Initialize the live_in sets for each block to NULL.
   int block_count = graph_->blocks()->length();
@@ -539,10 +575,10 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
   BitVector* live_out = new BitVector(next_virtual_register_);
 
   // Process all successor blocks.
-  HBasicBlock* successor = block->end()->FirstSuccessor();
-  while (successor != NULL) {
+  for (HSuccessorIterator it(block->end()); !it.Done(); it.Advance()) {
     // Add values live on entry to the successor. Note the successor's
     // live_in will not be computed yet for backwards edges.
+    HBasicBlock* successor = it.Current();
     BitVector* live_in = live_in_sets_[successor->block_id()];
     if (live_in != NULL) live_out->Union(*live_in);
 
@@ -556,11 +592,6 @@ BitVector* LAllocator::ComputeLiveOut(HBasicBlock* block) {
         live_out->Add(phi->OperandAt(index)->id());
       }
     }
-
-    // Check if we are done with second successor.
-    if (successor == block->end()->SecondSuccessor()) break;
-
-    successor = block->end()->SecondSuccessor();
   }
 
   return live_out;
@@ -618,11 +649,7 @@ LOperand* LAllocator::AllocateFixed(LUnallocated* operand,
 
 
 LiveRange* LAllocator::FixedLiveRangeFor(int index) {
-  if (index >= fixed_live_ranges_.length()) {
-    fixed_live_ranges_.AddBlock(NULL,
-                                index - fixed_live_ranges_.length() + 1);
-  }
-
+  ASSERT(index < Register::kNumAllocatableRegisters);
   LiveRange* result = fixed_live_ranges_[index];
   if (result == NULL) {
     result = new LiveRange(FixedLiveRangeID(index));
@@ -635,11 +662,7 @@ LiveRange* LAllocator::FixedLiveRangeFor(int index) {
 
 
 LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
-  if (index >= fixed_double_live_ranges_.length()) {
-    fixed_double_live_ranges_.AddBlock(NULL,
-                                index - fixed_double_live_ranges_.length() + 1);
-  }
-
+  ASSERT(index < DoubleRegister::kNumAllocatableRegisters);
   LiveRange* result = fixed_double_live_ranges_[index];
   if (result == NULL) {
     result = new LiveRange(FixedDoubleLiveRangeID(index));
@@ -649,6 +672,7 @@ LiveRange* LAllocator::FixedDoubleLiveRangeFor(int index) {
   }
   return result;
 }
+
 
 LiveRange* LAllocator::LiveRangeFor(int index) {
   if (index >= live_ranges_.length()) {
@@ -771,8 +795,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
                                         int gap_index) {
   // Handle fixed temporaries.
   if (first != NULL) {
-    for (TempIterator it(first); it.HasNext(); it.Advance()) {
-      LUnallocated* temp = LUnallocated::cast(it.Next());
+    for (TempIterator it(first); !it.Done(); it.Advance()) {
+      LUnallocated* temp = LUnallocated::cast(it.Current());
       if (temp->HasFixedPolicy()) {
         AllocateFixed(temp, gap_index - 1, false);
       }
@@ -813,8 +837,8 @@ void LAllocator::MeetConstraintsBetween(LInstruction* first,
 
   // Handle fixed input operands of second instruction.
   if (second != NULL) {
-    for (UseIterator it(second); it.HasNext(); it.Advance()) {
-      LUnallocated* cur_input = LUnallocated::cast(it.Next());
+    for (UseIterator it(second); !it.Done(); it.Advance()) {
+      LUnallocated* cur_input = LUnallocated::cast(it.Current());
       if (cur_input->HasFixedPolicy()) {
         LUnallocated* input_copy = cur_input->CopyUnconstrained();
         bool is_tagged = HasTaggedValue(cur_input->VirtualRegister());
@@ -949,8 +973,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           }
         }
 
-        for (UseIterator it(instr); it.HasNext(); it.Advance()) {
-          LOperand* input = it.Next();
+        for (UseIterator it(instr); !it.Done(); it.Advance()) {
+          LOperand* input = it.Current();
 
           LifetimePosition use_pos;
           if (input->IsUnallocated() &&
@@ -964,8 +988,8 @@ void LAllocator::ProcessInstructions(HBasicBlock* block, BitVector* live) {
           if (input->IsUnallocated()) live->Add(input->VirtualRegister());
         }
 
-        for (TempIterator it(instr); it.HasNext(); it.Advance()) {
-          LOperand* temp = it.Next();
+        for (TempIterator it(instr); !it.Done(); it.Advance()) {
+          LOperand* temp = it.Current();
           if (instr->IsMarkedAsCall()) {
             if (temp->IsRegister()) continue;
             if (temp->IsUnallocated()) {
@@ -1010,6 +1034,22 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       chunk_->AddGapMove(cur_block->last_instruction_index() - 1,
                          operand,
                          phi_operand);
+
+      // We are going to insert a move before the branch instruction.
+      // Some branch instructions (e.g. loops' back edges)
+      // can potentially cause a GC so they have a pointer map.
+      // By inserting a move we essentially create a copy of a
+      // value which is invisible to PopulatePointerMaps(), because we store
+      // it into a location different from the operand of a live range
+      // covering a branch instruction.
+      // Thus we need to manually record a pointer.
+      if (phi->representation().IsTagged()) {
+        LInstruction* branch =
+            InstructionAt(cur_block->last_instruction_index());
+        if (branch->HasPointerMap()) {
+          branch->pointer_map()->RecordPointer(phi_operand);
+        }
+      }
     }
 
     LiveRange* live_range = LiveRangeFor(phi->id());
@@ -1097,7 +1137,7 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
         // We are going to insert a move before the branch instruction.
         // Some branch instructions (e.g. loops' back edges)
         // can potentially cause a GC so they have a pointer map.
-        // By insterting a move we essentially create a copy of a
+        // By inserting a move we essentially create a copy of a
         // value which is invisible to PopulatePointerMaps(), because we store
         // it into a location different from the operand of a live range
         // covering a branch instruction.
@@ -1274,7 +1314,7 @@ void LAllocator::BuildLiveRanges() {
         found = true;
         int operand_index = iterator.Current();
         PrintF("Function: %s\n",
-               *graph_->info()->function()->debug_name()->ToCString());
+               *chunk_->info()->function()->debug_name()->ToCString());
         PrintF("Value %d used before first definition!\n", operand_index);
         LiveRange* range = LiveRangeFor(operand_index);
         PrintF("First use is at %d\n", range->first_pos()->pos().Value());
@@ -1436,7 +1476,7 @@ void LAllocator::AllocateDoubleRegisters() {
 
 void LAllocator::AllocateRegisters() {
   ASSERT(mode_ != NONE);
-  reusable_slots_.Clear();
+  ASSERT(unhandled_live_ranges_.is_empty());
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
     if (live_ranges_[i] != NULL) {
@@ -1448,6 +1488,7 @@ void LAllocator::AllocateRegisters() {
   SortUnhandled();
   ASSERT(UnhandledIsSorted());
 
+  ASSERT(reusable_slots_.is_empty());
   ASSERT(active_live_ranges_.is_empty());
   ASSERT(inactive_live_ranges_.is_empty());
 
@@ -1532,17 +1573,9 @@ void LAllocator::AllocateRegisters() {
     }
   }
 
-  active_live_ranges_.Clear();
-  inactive_live_ranges_.Clear();
-}
-
-
-void LAllocator::Setup() {
-  LConstantOperand::SetupCache();
-  LStackSlot::SetupCache();
-  LDoubleStackSlot::SetupCache();
-  LRegister::SetupCache();
-  LDoubleRegister::SetupCache();
+  reusable_slots_.Rewind(0);
+  active_live_ranges_.Rewind(0);
+  inactive_live_ranges_.Rewind(0);
 }
 
 
@@ -2001,12 +2034,12 @@ LifetimePosition LAllocator::FindOptimalSplitPos(LifetimePosition start,
   // We have no choice
   if (start_instr == end_instr) return end;
 
-  HBasicBlock* end_block = GetBlock(start);
-  HBasicBlock* start_block = GetBlock(end);
+  HBasicBlock* start_block = GetBlock(start);
+  HBasicBlock* end_block = GetBlock(end);
 
   if (end_block == start_block) {
-    // The interval is split in the same basic block. Split at latest possible
-    // position.
+    // The interval is split in the same basic block. Split at the latest
+    // possible position.
     return end;
   }
 
@@ -2017,7 +2050,9 @@ LifetimePosition LAllocator::FindOptimalSplitPos(LifetimePosition start,
     block = block->parent_loop_header();
   }
 
-  if (block == end_block) return end;
+  // We did not find any suitable outer loop. Split at the latest possible
+  // position unless end_block is a loop header itself.
+  if (block == end_block && !end_block->IsLoopHeader()) return end;
 
   return LifetimePosition::FromInstructionIndex(
       block->first_instruction_index());

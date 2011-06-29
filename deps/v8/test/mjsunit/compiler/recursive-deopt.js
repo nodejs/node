@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
 
 function f(n) {
   // Force deopt in both leaf case and when returning. To make
@@ -34,15 +35,11 @@ function f(n) {
   return f(n - 1) << one;
 }
 
-function RunTests() {
-  assertEquals(1 << 1, f(0));
-  assertEquals(1 << 2, f(1));
-  assertEquals(1 << 5, f(4));
-}
-
 
 var one = 1;
-for (var i = 0; i < 1000000; i++) RunTests();
+for (var i = 0; i < 5; i++) assertEquals(1 << 5, f(4));
+%OptimizeFunctionOnNextCall(f);
+assertEquals(1 << 5, f(4));
 
 var one = { valueOf: function() { return 1; } };
-for (var j = 0; j < 100000; j++) RunTests();
+assertEquals(1 << 5, f(4));

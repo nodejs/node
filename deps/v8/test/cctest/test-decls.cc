@@ -130,7 +130,7 @@ void DeclarationContext::Check(const char* source,
   InitializeIfNeeded();
   // A retry after a GC may pollute the counts, so perform gc now
   // to avoid that.
-  v8::internal::Heap::CollectGarbage(v8::internal::NEW_SPACE);
+  HEAP->CollectGarbage(v8::internal::NEW_SPACE);
   HandleScope scope;
   TryCatch catcher;
   catcher.SetVerbose(true);
