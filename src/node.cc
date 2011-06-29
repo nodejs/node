@@ -1890,10 +1890,12 @@ static Handle<Value> Binding(const Arguments& args) {
 #endif
 
   } else if (!strcmp(*module_v, "timer")) {
+#ifdef __POSIX__
     exports = Object::New();
     Timer::Initialize(exports);
     binding_cache->Set(module, exports);
 
+#endif
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
     DefineJavaScript(exports);
