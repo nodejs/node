@@ -147,17 +147,6 @@ function GlobalEval(x) {
 }
 
 
-// execScript for IE compatibility.
-function GlobalExecScript(expr, lang) {
-  // NOTE: We don't care about the character casing.
-  if (!lang || /javascript/i.test(lang)) {
-    var f = %CompileString(ToString(expr));
-    f.call(%GlobalReceiver(global));
-  }
-  return null;
-}
-
-
 // ----------------------------------------------------------------------------
 
 
@@ -177,8 +166,7 @@ function SetupGlobal() {
     "isFinite", GlobalIsFinite,
     "parseInt", GlobalParseInt,
     "parseFloat", GlobalParseFloat,
-    "eval", GlobalEval,
-    "execScript", GlobalExecScript
+    "eval", GlobalEval
   ));
 }
 

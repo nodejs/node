@@ -124,6 +124,10 @@ class HBasicBlock: public ZoneObject {
   void AddSimulate(int id) { AddInstruction(CreateSimulate(id)); }
   void AssignCommonDominator(HBasicBlock* other);
 
+  void FinishExitWithDeoptimization() {
+    FinishExit(CreateDeoptimize());
+  }
+
   // Add the inlined function exit sequence, adding an HLeaveInlined
   // instruction and updating the bailout environment.
   void AddLeaveInlined(HValue* return_value, HBasicBlock* target);
@@ -146,6 +150,7 @@ class HBasicBlock: public ZoneObject {
   void AddDominatedBlock(HBasicBlock* block);
 
   HSimulate* CreateSimulate(int id);
+  HDeoptimize* CreateDeoptimize();
 
   int block_id_;
   HGraph* graph_;

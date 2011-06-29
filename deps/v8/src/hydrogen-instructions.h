@@ -789,15 +789,33 @@ class HBlockEntry: public HTemplateInstruction<0> {
 };
 
 
-class HDeoptimize: public HTemplateControlInstruction<0> {
+class HDeoptimize: public HControlInstruction {
  public:
-  HDeoptimize() : HTemplateControlInstruction<0>(NULL, NULL) { }
+  explicit HDeoptimize(int environment_length)
+      : HControlInstruction(NULL, NULL),
+        values_(environment_length) { }
 
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::None();
   }
 
+  virtual int OperandCount() { return values_.length(); }
+  virtual HValue* OperandAt(int index) { return values_[index]; }
+
+  void AddEnvironmentValue(HValue* value) {
+    values_.Add(NULL);
+    SetOperandAt(values_.length() - 1, value);
+  }
+
   DECLARE_CONCRETE_INSTRUCTION(Deoptimize, "deoptimize")
+
+ protected:
+  virtual void InternalSetOperandAt(int index, HValue* value) {
+    values_[index] = value;
+  }
+
+ private:
+  ZoneList<HValue*> values_;
 };
 
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -223,10 +223,12 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   //
   // The encoding is as a signed value, with parameters and receiver using
   // the negative indices and locals the non-negative ones.
-  const int limit = LUnallocated::kMaxFixedIndices / 2;
+  const int parameter_limit = -LUnallocated::kMinFixedIndex;
+  const int locals_limit = LUnallocated::kMaxFixedIndex;
   Scope* scope = info->scope();
-  if ((scope->num_parameters() + 1) > limit ||
-      scope->num_stack_slots() > limit) {
+  if ((scope->num_parameters() + 1) > parameter_limit ||
+      (info->osr_ast_id() != AstNode::kNoNumber &&
+       scope->num_parameters() + 1 + scope->num_stack_slots() > locals_limit)) {
     AbortAndDisable(info);
     // True indicates the compilation pipeline is still going, not
     // necessarily that we optimized the code.

@@ -7233,6 +7233,9 @@ void CodeGenerator::EmitKeyedStore(StaticType* key_type,
 
     ASSERT(we_remembered_the_write_barrier);
 
+    // Make sure that r0 holds the value which is the result of the expression.
+    __ Move(r0, value);
+
     deferred->BindExit();
   } else {
     frame()->CallKeyedStoreIC(strict_mode_flag());

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,9 +25,21 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that 'this' is bound to the global object when using
-// execScript.
+// See: http://code.google.com/p/v8/issues/detail?id=1401
 
-var result;
-execScript("result = this");
-assertTrue(result === this);
+var bottom = 0;
+var sizes = new Array();
+
+for (i = 0; i < 10; i++) {
+  sizes[i] = 0;
+}
+
+function foo() {
+  var size = bottom + 1 + 10;
+  var t =  (sizes[++bottom] = size);
+  return t;
+}
+
+for (i = 0; i < 5; i++) {
+  assertEquals(i + 11, foo());
+}

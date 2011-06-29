@@ -1383,13 +1383,17 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
         // Fall through.
       case ObjectLiteral::Property::COMPUTED:
         if (key->handle()->IsSymbol()) {
-          VisitForAccumulatorValue(value);
-          __ Move(rcx, key->handle());
-          __ movq(rdx, Operand(rsp, 0));
           if (property->emit_store()) {
-            Handle<Code> ic(Builtins::builtin(Builtins::StoreIC_Initialize));
+            VisitForAccumulatorValue(value);
+            __ Move(rcx, key->handle());
+            __ movq(rdx, Operand(rsp, 0));
+            Handle<Code> ic(Builtins::builtin(
+                is_strict() ? Builtins::StoreIC_Initialize_Strict
+                            : Builtins::StoreIC_Initialize));
             EmitCallIC(ic, RelocInfo::CODE_TARGET);
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
+          } else {
+            VisitForEffect(value);
           }
           break;
         }
