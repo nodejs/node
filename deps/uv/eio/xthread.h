@@ -22,7 +22,9 @@ typedef int ssize_t
 #endif
 
 #define NTDDI_VERSION NTDDI_WIN2K // needed to get win2000 api calls
+#ifndef _WIN32_WINNT
 #define _WIN32_WINNT 0x400
+#endif
 #include <stdio.h>//D
 #include <fcntl.h>
 #include <io.h>

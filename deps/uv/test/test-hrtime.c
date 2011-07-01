@@ -41,7 +41,7 @@ TEST_IMPL(hrtime) {
   uint64_t a, b, diff;
 
   a = uv_hrtime();
-  uv_sleep(1);
+  uv_sleep(100);
   b = uv_hrtime();
 
   diff = b - a;
@@ -49,5 +49,6 @@ TEST_IMPL(hrtime) {
   printf("diff = %llu\n", diff);
 
   ASSERT(diff >= NANOSEC / MICROSEC);
+  ASSERT(diff > MICROSEC);
   return 0;
 }

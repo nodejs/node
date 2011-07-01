@@ -34,14 +34,25 @@ RUNNER_LINKFLAGS=$(LINKFLAGS)
 RUNNER_LIBS=-lws2_32
 RUNNER_SRC=test/runner-win.c
 
-uv.a: uv-win.o uv-common.o $(CARES_OBJS)
-	$(AR) rcs uv.a uv-win.o uv-common.o $(CARES_OBJS)
+uv.a: uv-win.o uv-common.o uv-eio.o eio/eio.o $(CARES_OBJS)
+	$(AR) rcs uv.a uv-win.o uv-common.o uv-eio.o eio/eio.o $(CARES_OBJS)
 
 uv-win.o: uv-win.c uv.h uv-win.h
 	$(CC) $(CFLAGS) -c uv-win.c -o uv-win.o
 
 uv-common.o: uv-common.c uv.h uv-win.h
 	$(CC) $(CFLAGS) -c uv-common.c -o uv-common.o
+
+EIO_CPPFLAGS += $(CPPFLAGS)
+EIO_CPPFLAGS += -DEIO_CONFIG_H=\"$(EIO_CONFIG)\"
+EIO_CPPFLAGS += -DEIO_STACKSIZE=65536
+EIO_CPPFLAGS += -D_GNU_SOURCE
+
+eio/eio.o: eio/eio.c
+	$(CC) $(EIO_CPPFLAGS) $(CFLAGS) -c eio/eio.c -o eio/eio.o
+
+uv-eio.o: uv-eio.c
+	$(CC) $(CPPFLAGS) -Ieio/ $(CFLAGS) -c uv-eio.c -o uv-eio.o
 
 clean-platform:
 	-rm -f c-ares/*.o
