@@ -52,10 +52,10 @@ static uv_tcp_t server;
 
 
 static void after_write(uv_req_t* req, int status);
-static void after_read(uv_tcp_t*, ssize_t nread, uv_buf_t buf);
+static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer);
 static void on_server_close(uv_handle_t* handle);
-static void on_connection(uv_tcp_t*, int status);
+static void on_connection(uv_handle_t*, int status);
 
 #define WRITE_BUF_LEN   (64*1024)
 #define DNSREC_LEN      (4)
@@ -115,7 +115,7 @@ static void addrsp(write_req_t* wr, char* hdr) {
   wr->buf.len += rsplen;
 }
 
-static void process_req(uv_tcp_t* handle, ssize_t nread, uv_buf_t buf) {
+static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
   write_req_t *wr;
   dnshandle* dns = (dnshandle*)handle;
   char hdrbuf[DNSREC_LEN];
@@ -216,7 +216,7 @@ static void process_req(uv_tcp_t* handle, ssize_t nread, uv_buf_t buf) {
   }
 }
 
-static void after_read(uv_tcp_t* handle, ssize_t nread, uv_buf_t buf) {
+static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
   uv_req_t* req;
 
   if (nread < 0) {
@@ -249,7 +249,7 @@ static void on_close(uv_handle_t* peer) {
 }
 
 
-static uv_buf_t buf_alloc(uv_tcp_t* handle, size_t suggested_size) {
+static uv_buf_t buf_alloc(uv_stream_t* handle, size_t suggested_size) {
   uv_buf_t buf;
   buf.base = (char*) malloc(suggested_size);
   buf.len = suggested_size;
@@ -257,7 +257,7 @@ static uv_buf_t buf_alloc(uv_tcp_t* handle, size_t suggested_size) {
 }
 
 
-static void on_connection(uv_tcp_t* server, int status) {
+static void on_connection(uv_handle_t* server, int status) {
   dnshandle* handle;
   int r;
 
@@ -273,10 +273,10 @@ static void on_connection(uv_tcp_t* server, int status) {
 
   uv_tcp_init((uv_tcp_t*)handle);
 
-  r = uv_accept(server, (uv_tcp_t*)handle);
+  r = uv_accept(server, (uv_stream_t*)handle);
   ASSERT(r == 0);
 
-  r = uv_read_start((uv_tcp_t*)handle, buf_alloc, after_read);
+  r = uv_read_start((uv_stream_t*)handle, buf_alloc, after_read);
   ASSERT(r == 0);
 }
 
@@ -297,14 +297,14 @@ static int dns_start(int port) {
     return 1;
   }
 
-  r = uv_bind(&server, addr);
+  r = uv_tcp_bind(&server, addr);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Bind error\n");
     return 1;
   }
 
-  r = uv_listen(&server, 128, on_connection);
+  r = uv_tcp_listen(&server, 128, on_connection);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Listen error\n");

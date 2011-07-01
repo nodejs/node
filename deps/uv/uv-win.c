@@ -229,16 +229,19 @@ struct uv_ares_action_s {
 
 void uv_ares_process(uv_ares_action_t* handle, uv_req_t* req);
 void uv_ares_task_cleanup(uv_ares_task_t* handle, uv_req_t* req);
+void uv_ares_poll(uv_timer_t* handle, int status);
 
 /* memory used per ares_channel */
 struct uv_ares_channel_s {
   ares_channel channel;
+  int activesockets;
+  uv_timer_t pollingtimer;
 };
 
 typedef struct uv_ares_channel_s uv_ares_channel_t;
 
 /* static data to hold single ares_channel */
-static uv_ares_channel_t uv_ares_data = { NULL };
+static uv_ares_channel_t uv_ares_data = { NULL, 0 };
 
 /* default timeout per socket request if ares does not specify value */
 /* use 20 sec */
@@ -797,7 +800,7 @@ int uv__bind(uv_tcp_t* handle, int domain, struct sockaddr* addr, int addrsize) 
 }
 
 
-int uv_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
+int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
   if (addr.sin_family != AF_INET) {
     uv_set_sys_error(WSAEFAULT);
     return -1;
@@ -807,7 +810,7 @@ int uv_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
 }
 
 
-int uv_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
+int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
   if (addr.sin6_family != AF_INET6) {
     uv_set_sys_error(WSAEFAULT);
     return -1;
@@ -904,7 +907,7 @@ static void uv_queue_read(uv_tcp_t* handle) {
 }
 
 
-int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
+int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   assert(backlog > 0);
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
@@ -934,32 +937,34 @@ int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
 }
 
 
-int uv_accept(uv_tcp_t* server, uv_tcp_t* client) {
+int uv_accept(uv_handle_t* server, uv_stream_t* client) {
   int rv = 0;
-
-  if (server->accept_socket == INVALID_SOCKET) {
+  uv_tcp_t* tcpServer = (uv_tcp_t*)server;
+  uv_tcp_t* tcpClient = (uv_tcp_t*)client;
+  
+  if (tcpServer->accept_socket == INVALID_SOCKET) {
     uv_set_sys_error(WSAENOTCONN);
     return -1;
   }
 
-  if (uv_tcp_set_socket(client, server->accept_socket) == -1) {
-    closesocket(server->accept_socket);
+  if (uv_tcp_set_socket(tcpClient, tcpServer->accept_socket) == -1) {
+    closesocket(tcpServer->accept_socket);
     rv = -1;
   } else {
-    uv_tcp_init_connection(client);
+    uv_tcp_init_connection(tcpClient);
   }
 
-  server->accept_socket = INVALID_SOCKET;
+  tcpServer->accept_socket = INVALID_SOCKET;
 
-  if (!(server->flags & UV_HANDLE_CLOSING)) {
-    uv_queue_accept(server);
+  if (!(tcpServer->flags & UV_HANDLE_CLOSING)) {
+    uv_queue_accept(tcpServer);
   }
 
   return rv;
 }
 
 
-int uv_read_start(uv_tcp_t* handle, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
+int uv_read_start(uv_stream_t* handle, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
   if (!(handle->flags & UV_HANDLE_CONNECTION)) {
     uv_set_sys_error(WSAEINVAL);
     return -1;
@@ -982,20 +987,20 @@ int uv_read_start(uv_tcp_t* handle, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
   /* If reading was stopped and then started again, there could stell be a */
   /* read request pending. */
   if (!(handle->read_req.flags & UV_REQ_PENDING))
-    uv_queue_read(handle);
+    uv_queue_read((uv_tcp_t*)handle);
 
   return 0;
 }
 
 
-int uv_read_stop(uv_tcp_t* handle) {
+int uv_read_stop(uv_stream_t* handle) {
   handle->flags &= ~UV_HANDLE_READING;
 
   return 0;
 }
 
 
-int uv_connect(uv_req_t* req, struct sockaddr_in addr) {
+int uv_tcp_connect(uv_req_t* req, struct sockaddr_in addr) {
   int addrsize = sizeof(struct sockaddr_in);
   BOOL success;
   DWORD bytes;
@@ -1014,7 +1019,7 @@ int uv_connect(uv_req_t* req, struct sockaddr_in addr) {
   }
 
   if (!(handle->flags & UV_HANDLE_BOUND) &&
-      uv_bind(handle, uv_addr_ip4_any_) < 0)
+      uv_tcp_bind(handle, uv_addr_ip4_any_) < 0)
     return -1;
 
   memset(&req->overlapped, 0, sizeof(req->overlapped));
@@ -1167,13 +1172,13 @@ static void uv_tcp_return_req(uv_tcp_t* handle, uv_req_t* req) {
         uv_last_error_ = req->error;
         buf.base = 0;
         buf.len = 0;
-        handle->read_cb(handle, -1, buf);
+        handle->read_cb((uv_stream_t*)handle, -1, buf);
         break;
       }
 
       /* Do nonblocking reads until the buffer is empty */
       while (handle->flags & UV_HANDLE_READING) {
-        buf = handle->alloc_cb(handle, 65536);
+        buf = handle->alloc_cb((uv_stream_t*)handle, 65536);
         assert(buf.len > 0);
         flags = 0;
         if (WSARecv(handle->socket,
@@ -1185,7 +1190,7 @@ static void uv_tcp_return_req(uv_tcp_t* handle, uv_req_t* req) {
                     NULL) != SOCKET_ERROR) {
           if (bytes > 0) {
             /* Successful read */
-            handle->read_cb(handle, bytes, buf);
+            handle->read_cb((uv_stream_t*)handle, bytes, buf);
             /* Read again only if bytes == buf.len */
             if (bytes < buf.len) {
               break;
@@ -1196,7 +1201,7 @@ static void uv_tcp_return_req(uv_tcp_t* handle, uv_req_t* req) {
             handle->flags |= UV_HANDLE_EOF;
             uv_last_error_.code = UV_EOF;
             uv_last_error_.sys_errno_ = ERROR_SUCCESS;
-            handle->read_cb(handle, -1, buf);
+            handle->read_cb((uv_stream_t*)handle, -1, buf);
             break;
           }
         } else {
@@ -1204,11 +1209,11 @@ static void uv_tcp_return_req(uv_tcp_t* handle, uv_req_t* req) {
           if (err == WSAEWOULDBLOCK) {
             /* Read buffer was completely empty, report a 0-byte read. */
             uv_set_sys_error(WSAEWOULDBLOCK);
-            handle->read_cb(handle, 0, buf);
+            handle->read_cb((uv_stream_t*)handle, 0, buf);
           } else {
             /* Ouch! serious error. */
             uv_set_sys_error(err);
-            handle->read_cb(handle, -1, buf);
+            handle->read_cb((uv_stream_t*)handle, -1, buf);
           }
           break;
         }
@@ -1231,7 +1236,7 @@ static void uv_tcp_return_req(uv_tcp_t* handle, uv_req_t* req) {
         handle->flags &= ~UV_HANDLE_LISTENING;
         if (handle->connection_cb) {
           uv_last_error_ = req->error;
-          handle->connection_cb(handle, -1);
+          handle->connection_cb((uv_handle_t*)handle, -1);
         }
         break;
       }
@@ -1244,7 +1249,7 @@ static void uv_tcp_return_req(uv_tcp_t* handle, uv_req_t* req) {
                      sizeof(handle->socket)) == 0) {
         /* Accept and SO_UPDATE_ACCEPT_CONTEXT were successful. */
         if (handle->connection_cb) {
-          handle->connection_cb(handle, 0);
+          handle->connection_cb((uv_handle_t*)handle, 0);
         }
       } else {
         /* Error related to accepted socket is ignored because the server */
@@ -1856,6 +1861,8 @@ VOID CALLBACK uv_ares_socksignal_tp(void* parameter, BOOLEAN timerfired) {
 void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int write) {
   /* look to see if we have a handle for this socket in our list */
   uv_ares_task_t* uv_handle_ares = uv_find_ares_handle(sock);
+  uv_ares_channel_t* uv_ares_data_ptr = (uv_ares_channel_t*)data;
+
   struct timeval tv;
   struct timeval* tvptr;
   int timeoutms = 0;
@@ -1911,7 +1918,7 @@ void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int write) {
       }
       uv_handle_ares->type = UV_ARES_TASK;
       uv_handle_ares->close_cb = NULL;
-      uv_handle_ares->data = ((uv_ares_channel_t*)data)->channel;
+      uv_handle_ares->data = uv_ares_data_ptr;
       uv_handle_ares->sock = sock;
       uv_handle_ares->h_wait = NULL;
       uv_handle_ares->flags = 0;
@@ -1930,20 +1937,24 @@ void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int write) {
       /* add handle to list */
       uv_add_ares_handle(uv_handle_ares);
       uv_refs_++;
-      tv.tv_sec = 0;
-      tvptr = ares_timeout(((uv_ares_channel_t*)data)->channel, NULL, &tv);
-      if (tvptr) {
-        timeoutms = (tvptr->tv_sec * 1000) + (tvptr->tv_usec / 1000);
-      } else {
-        timeoutms = ARES_TIMEOUT_MS;
+
+      /* 
+       * we have a single polling timer for all ares sockets.
+       * This is preferred to using ares_timeout. See ares_timeout.c warning.
+       * if timer is not running start it, and keep socket count
+       */
+      if (uv_ares_data_ptr->activesockets == 0) {
+        uv_timer_init(&uv_ares_data_ptr->pollingtimer);
+        uv_timer_start(&uv_ares_data_ptr->pollingtimer, uv_ares_poll, 1000L, 1000L);
       }
+      uv_ares_data_ptr->activesockets++;
 
       /* specify thread pool function to call when event is signaled */
       if (RegisterWaitForSingleObject(&uv_handle_ares->h_wait,
                                   uv_handle_ares->h_event,
                                   uv_ares_socksignal_tp,
                                   (void*)uv_handle_ares,
-                                  timeoutms,
+                                  INFINITE,
                                   WT_EXECUTEINWAITTHREAD) == 0) {
         uv_fatal_error(GetLastError(), "RegisterWaitForSingleObject");
       }
@@ -1958,8 +1969,9 @@ void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int write) {
 
 /* called via uv_poll when ares completion port signaled */
 void uv_ares_process(uv_ares_action_t* handle, uv_req_t* req) {
+  uv_ares_channel_t* uv_ares_data_ptr = (uv_ares_channel_t*)handle->data;
 
-  ares_process_fd( (ares_channel)handle->data,
+  ares_process_fd(uv_ares_data_ptr->channel,
                     handle->read ? handle->sock : INVALID_SOCKET,
                     handle->write ?  handle->sock : INVALID_SOCKET);
 
@@ -1969,16 +1981,25 @@ void uv_ares_process(uv_ares_action_t* handle, uv_req_t* req) {
 
 /* called via uv_poll when ares is finished with socket */
 void uv_ares_task_cleanup(uv_ares_task_t* handle, uv_req_t* req) {
-    /* check for event complete without waiting */
+  /* check for event complete without waiting */
   unsigned int signaled = WaitForSingleObject(handle->h_close_event, 0);
 
   if (signaled != WAIT_TIMEOUT) {
+    uv_ares_channel_t* uv_ares_data_ptr = (uv_ares_channel_t*)handle->data;
 
     uv_refs_--;
 
     /* close event handle and free uv handle memory */
     CloseHandle(handle->h_close_event);
     free(handle);
+
+    /* decrement active count. if it becomes 0 stop polling */
+    if (uv_ares_data_ptr->activesockets > 0) {
+      uv_ares_data_ptr->activesockets--;
+      if (uv_ares_data_ptr->activesockets == 0) {
+        uv_close((uv_handle_t*)&uv_ares_data_ptr->pollingtimer, NULL);
+      }
+    }
   } else {
     /* stil busy - repost and try again */
     if (!PostQueuedCompletionStatus(uv_iocp_,
@@ -1987,6 +2008,13 @@ void uv_ares_task_cleanup(uv_ares_task_t* handle, uv_req_t* req) {
                                     &req->overlapped)) {
       uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
     }
+  }
+}
+
+/* periodically call ares to check for timeouts */
+void uv_ares_poll(uv_timer_t* handle, int status) {
+  if (uv_ares_data.channel != NULL && uv_ares_data.activesockets > 0) {
+    ares_process_fd(uv_ares_data.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
   }
 }
 

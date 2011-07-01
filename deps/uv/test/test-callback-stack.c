@@ -43,7 +43,7 @@ static int bytes_received = 0;
 static int shutdown_cb_called = 0;
 
 
-static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
+static uv_buf_t alloc_cb(uv_stream_t* tcp, size_t size) {
   uv_buf_t buf;
   buf.len = size;
   buf.base = (char*) malloc(size);
@@ -67,7 +67,7 @@ static void shutdown_cb(uv_req_t* req, int status) {
 }
 
 
-static void read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   ASSERT(nested == 0 && "read_cb must be called from a fresh stack");
 
   printf("Read. nread == %d\n", nread);
@@ -119,7 +119,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
   puts("Timeout complete. Now read data...");
 
   nested++;
-  if (uv_read_start(&client, alloc_cb, read_cb)) {
+  if (uv_read_start((uv_stream_t*)&client, alloc_cb, read_cb)) {
     FATAL("uv_read_start failed");
   }
   nested--;
@@ -192,8 +192,8 @@ TEST_IMPL(callback_stack) {
 
   nested++;
   uv_req_init(&connect_req, (uv_handle_t*)&client, connect_cb);
-  if (uv_connect(&connect_req, addr)) {
-    FATAL("uv_connect failed");
+  if (uv_tcp_connect(&connect_req, addr)) {
+    FATAL("uv_tcp_connect failed");
   }
   nested--;
 

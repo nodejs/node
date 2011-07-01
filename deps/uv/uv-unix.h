@@ -55,11 +55,14 @@ typedef struct {
   ev_idle next_watcher;
 
 
+#define UV_STREAM_PRIVATE_FIELDS \
+  uv_read_cb read_cb; \
+  uv_alloc_cb alloc_cb;
+
+
 /* UV_TCP */
 #define UV_TCP_PRIVATE_FIELDS \
   int delayed_error; \
-  uv_read_cb read_cb; \
-  uv_alloc_cb alloc_cb; \
   uv_connection_cb connection_cb; \
   int accepted_fd; \
   uv_req_t *connect_req; \
@@ -99,14 +102,17 @@ typedef struct {
   ev_timer timer_watcher; \
   uv_timer_cb timer_cb;
 
-
-#define UV_ARES_ACTION_PRIVATE_FIELDS /* TODO */
-
 #define UV_ARES_TASK_PRIVATE_FIELDS \
   int sock; \
   ev_io read_watcher; \
   ev_io write_watcher;
 
-#define UV_GETADDRINFO_PRIVATE_FIELDS /* TODO */
+#define UV_GETADDRINFO_PRIVATE_FIELDS \
+  uv_getaddrinfo_cb cb; \
+  struct addrinfo* hints; \
+  char* hostname; \
+  char* service; \
+  struct addrinfo* res; \
+  int retcode;
 
 #endif /* UV_UNIX_H */

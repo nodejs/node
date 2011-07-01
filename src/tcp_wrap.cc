@@ -160,7 +160,7 @@ class TCPWrap {
     int port = args[1]->Int32Value();
 
     struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
-    int r = uv_bind(&wrap->handle_, address);
+    int r = uv_tcp_bind(&wrap->handle_, address);
 
     // Error starting the tcp.
     if (r) SetErrno(uv_last_error().code);
@@ -175,7 +175,7 @@ class TCPWrap {
 
     int backlog = args[0]->Int32Value();
 
-    int r = uv_listen(&wrap->handle_, backlog, OnConnection);
+    int r = uv_tcp_listen(&wrap->handle_, backlog, OnConnection);
 
     // Error starting the tcp.
     if (r) SetErrno(uv_last_error().code);
@@ -183,12 +183,12 @@ class TCPWrap {
     return scope.Close(Integer::New(r));
   }
 
-  static void OnConnection(uv_tcp_t* handle, int status) {
+  static void OnConnection(uv_handle_t* handle, int status) {
     HandleScope scope;
 
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
 
-    assert(&wrap->handle_ == handle);
+    assert(&wrap->handle_ == (uv_tcp_t*)handle);
 
     if (status != 0) {
       // TODO Handle server error (call onerror?)
@@ -205,7 +205,7 @@ class TCPWrap {
     TCPWrap* client_wrap =
         static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
 
-    int r = uv_accept(handle, &client_wrap->handle_);
+    int r = uv_accept(handle, (uv_stream_t*)&client_wrap->handle_);
 
     // uv_accept should always work.
     assert(r == 0);
@@ -220,7 +220,7 @@ class TCPWrap {
 
     UNWRAP
 
-    int r = uv_read_start(&wrap->handle_, OnAlloc, OnRead);
+    int r = uv_read_start((uv_stream_t*)&wrap->handle_, OnAlloc, OnRead);
 
     // Error starting the tcp.
     if (r) SetErrno(uv_last_error().code);
@@ -233,7 +233,7 @@ class TCPWrap {
 
     UNWRAP
 
-    int r = uv_read_stop(&wrap->handle_);
+    int r = uv_read_stop((uv_stream_t*)&wrap->handle_);
 
     // Error starting the tcp.
     if (r) SetErrno(uv_last_error().code);
@@ -250,11 +250,11 @@ class TCPWrap {
     return Buffer::Data(b);
   }
 
-  static uv_buf_t OnAlloc(uv_tcp_t* handle, size_t suggested_size) {
+  static uv_buf_t OnAlloc(uv_stream_t* handle, size_t suggested_size) {
     HandleScope scope;
 
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
-    assert(&wrap->handle_ == handle);
+    assert(&wrap->handle_ == (uv_tcp_t*)handle);
 
     char* slab = NULL;
 
@@ -286,12 +286,12 @@ class TCPWrap {
     wrap->slab_offset_ = slab_used;
     slab_used += buf.len;
 
-    handle_that_last_alloced = handle;
+    handle_that_last_alloced = (uv_tcp_t*)handle;
 
     return buf;
   }
 
-  static void OnRead(uv_tcp_t* handle, ssize_t nread, uv_buf_t buf) {
+  static void OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     HandleScope scope;
 
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
@@ -302,7 +302,7 @@ class TCPWrap {
 
     if (nread < 0)  {
       // EOF or Error
-      if (handle_that_last_alloced == handle) {
+      if (handle_that_last_alloced == (uv_tcp_t*)handle) {
         slab_used -= buf.len;
       }
 
@@ -313,7 +313,7 @@ class TCPWrap {
 
     assert(nread <= buf.len);
 
-    if (handle_that_last_alloced == handle) {
+    if (handle_that_last_alloced == (uv_tcp_t*)handle) {
       slab_used -= (buf.len - nread);
     }
 
@@ -451,7 +451,7 @@ class TCPWrap {
     ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
                                     (void*)AfterConnect);
 
-    int r = uv_connect(&req_wrap->req_, address);
+    int r = uv_tcp_connect(&req_wrap->req_, address);
 
     if (r) {
       SetErrno(uv_last_error().code);

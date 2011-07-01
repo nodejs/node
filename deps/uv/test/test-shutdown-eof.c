@@ -37,7 +37,7 @@ static int called_timer_close_cb;
 static int called_timer_cb;
 
 
-static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
+static uv_buf_t alloc_cb(uv_stream_t* tcp, size_t size) {
   uv_buf_t buf;
   buf.base = (char*)malloc(size);
   buf.len = size;
@@ -45,10 +45,10 @@ static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
 }
 
 
-static void read_cb(uv_tcp_t* t, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* t, ssize_t nread, uv_buf_t buf) {
   uv_err_t err = uv_last_error();
 
-  ASSERT(t == &tcp);
+  ASSERT((uv_tcp_t*)t == &tcp);
 
   if (nread == 0) {
     ASSERT(err.code == UV_EAGAIN);
@@ -92,7 +92,7 @@ static void connect_cb(uv_req_t *req, int status) {
   ASSERT(req == &connect_req);
 
   /* Start reading from our connection so we can receive the EOF.  */
-  uv_read_start(&tcp, alloc_cb, read_cb);
+  uv_read_start((uv_stream_t*)&tcp, alloc_cb, read_cb);
 
   /*
    * Write the letter 'Q' to gracefully kill the echo-server. This will not
@@ -166,7 +166,7 @@ TEST_IMPL(shutdown_eof) {
   ASSERT(!r);
 
   uv_req_init(&connect_req, (uv_handle_t*) &tcp, connect_cb);
-  r = uv_connect(&connect_req, server_addr);
+  r = uv_tcp_connect(&connect_req, server_addr);
   ASSERT(!r);
 
   uv_run();

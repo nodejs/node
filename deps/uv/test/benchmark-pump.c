@@ -35,13 +35,13 @@ static int TARGET_CONNECTIONS;
 #define STATS_COUNT                 5
 
 
-static void do_write(uv_tcp_t*);
+static void do_write(uv_stream_t*);
 static void maybe_connect_some();
 
 static uv_req_t* req_alloc();
 static void req_free(uv_req_t* uv_req);
 
-static uv_buf_t buf_alloc(uv_tcp_t*, size_t size);
+static uv_buf_t buf_alloc(uv_stream_t*, size_t size);
 static void buf_free(uv_buf_t uv_buf_t);
 
 
@@ -154,7 +154,7 @@ static void start_stats_collection() {
 }
 
 
-static void read_cb(uv_tcp_t* tcp, ssize_t bytes, uv_buf_t buf) {
+static void read_cb(uv_stream_t* tcp, ssize_t bytes, uv_buf_t buf) {
   if (nrecv_total == 0) {
     ASSERT(start_time == 0);
     uv_update_time();
@@ -183,11 +183,11 @@ static void write_cb(uv_req_t *req, int status) {
   nsent += sizeof write_buffer;
   nsent_total += sizeof write_buffer;
 
-  do_write((uv_tcp_t*)req->handle);
+  do_write((uv_stream_t*)req->handle);
 }
 
 
-static void do_write(uv_tcp_t* tcp) {
+static void do_write(uv_stream_t* tcp) {
   uv_req_t* req;
   uv_buf_t buf;
   int r;
@@ -221,7 +221,7 @@ static void connect_cb(uv_req_t* req, int status) {
 
     /* Yay! start writing */
     for (i = 0; i < write_sockets; i++) {
-      do_write(&write_handles[i]);
+      do_write((uv_stream_t*)&write_handles[i]);
     }
   }
 }
@@ -241,27 +241,27 @@ static void maybe_connect_some() {
 
     req = req_alloc();
     uv_req_init(req, (uv_handle_t*)tcp, connect_cb);
-    r = uv_connect(req, connect_addr);
+    r = uv_tcp_connect(req, connect_addr);
     ASSERT(r == 0);
   }
 }
 
 
-static void connection_cb(uv_tcp_t* s, int status) {
+static void connection_cb(uv_handle_t* s, int status) {
   uv_tcp_t* tcp;
   int r;
 
-  ASSERT(&server == s);
+  ASSERT(&server == (uv_tcp_t*)s);
   ASSERT(status == 0);
 
   tcp = malloc(sizeof(uv_tcp_t));
 
   uv_tcp_init(tcp);
 
-  r = uv_accept(s, tcp);
+  r = uv_accept(s, (uv_stream_t*)tcp);
   ASSERT(r == 0);
 
-  r = uv_read_start(tcp, buf_alloc, read_cb);
+  r = uv_read_start((uv_stream_t*)tcp, buf_alloc, read_cb);
   ASSERT(r == 0);
 
   read_sockets++;
@@ -317,7 +317,7 @@ typedef struct buf_list_s {
 static buf_list_t* buf_freelist = NULL;
 
 
-static uv_buf_t buf_alloc(uv_tcp_t* tcp, size_t size) {
+static uv_buf_t buf_alloc(uv_stream_t* tcp, size_t size) {
   buf_list_t* buf;
 
   buf = buf_freelist;
@@ -351,9 +351,9 @@ HELPER_IMPL(pump_server) {
   /* Server */
   r = uv_tcp_init(&server);
   ASSERT(r == 0);
-  r = uv_bind(&server, listen_addr);
+  r = uv_tcp_bind(&server, listen_addr);
   ASSERT(r == 0);
-  r = uv_listen(&server, MAX_WRITE_HANDLES, connection_cb);
+  r = uv_tcp_listen(&server, MAX_WRITE_HANDLES, connection_cb);
   ASSERT(r == 0);
 
   uv_run();

@@ -474,9 +474,6 @@
 /* Version number of package */
 #define VERSION "1.7.3"
 
-/* Define to avoid automatic inclusion of winsock.h */
-#define WIN32_LEAN_AND_MEAN 1
-
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
 #if defined AC_APPLE_UNIVERSAL_BUILD

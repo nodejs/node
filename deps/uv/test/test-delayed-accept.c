@@ -32,7 +32,7 @@ static int close_cb_called = 0;
 static int connect_cb_called = 0;
 
 
-static uv_buf_t alloc_cb(uv_tcp_t* tcp, size_t size) {
+static uv_buf_t alloc_cb(uv_stream_t* tcp, size_t size) {
   uv_buf_t buf;
   buf.base = (char*)malloc(size);
   buf.len = size;
@@ -65,7 +65,7 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
   tcpcnt = uv_counters()->tcp_init;
 
   server = (uv_tcp_t*)timer_handle->data;
-  r = uv_accept(server, accepted_handle);
+  r = uv_accept((uv_handle_t*)server, (uv_stream_t*)accepted_handle);
   ASSERT(r == 0);
 
   ASSERT(uv_counters()->tcp_init == tcpcnt);
@@ -88,7 +88,7 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
 }
 
 
-static void connection_cb(uv_tcp_t* tcp, int status) {
+static void connection_cb(uv_handle_t* tcp, int status) {
   int r;
   uv_timer_t* timer_handle;
 
@@ -122,15 +122,15 @@ static void start_server() {
   ASSERT(uv_counters()->tcp_init == 1);
   ASSERT(uv_counters()->handle_init == 1);
 
-  r = uv_bind(server, addr);
+  r = uv_tcp_bind(server, addr);
   ASSERT(r == 0);
 
-  r = uv_listen(server, 128, connection_cb);
+  r = uv_tcp_listen(server, 128, connection_cb);
   ASSERT(r == 0);
 }
 
 
-static void read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   /* The server will not send anything, it should close gracefully. */
 
   if (buf.base) {
@@ -157,7 +157,7 @@ static void connect_cb(uv_req_t* req, int status) {
 
   /* Not that the server will send anything, but otherwise we'll never know */
   /* when te server closes the connection. */
-  r = uv_read_start((uv_tcp_t*)(req->handle), alloc_cb, read_cb);
+  r = uv_read_start((uv_stream_t*)(req->handle), alloc_cb, read_cb);
   ASSERT(r == 0);
 
   connect_cb_called++;
@@ -179,7 +179,7 @@ static void client_connect() {
   ASSERT(r == 0);
 
   uv_req_init(connect_req, (uv_handle_t*)client, connect_cb);
-  r = uv_connect(connect_req, addr);
+  r = uv_tcp_connect(connect_req, addr);
   ASSERT(r == 0);
 }
 

@@ -52,10 +52,12 @@ typedef struct uv_buf_t {
   uv_err_t error;                         \
   struct uv_req_s* next_req;
 
-#define uv_tcp_connection_fields          \
+#define UV_STREAM_PRIVATE_FIELDS          \
   uv_alloc_cb alloc_cb;                   \
   uv_read_cb read_cb;                     \
   struct uv_req_s read_req;               \
+  
+#define uv_tcp_connection_fields          \
   unsigned int write_reqs_pending;        \
   uv_req_t* shutdown_req;
 
@@ -106,7 +108,6 @@ typedef struct uv_buf_t {
   uv_handle_t* endgame_next;              \
   unsigned int flags;                     \
   uv_err_t error;
-
 
 #define UV_ARES_TASK_PRIVATE_FIELDS       \
   struct uv_req_s ares_req;               \

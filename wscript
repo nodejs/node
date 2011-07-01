@@ -358,8 +358,6 @@ def configure(conf):
     if not conf.check(lib='kstat', uselib_store="KSTAT"):
       conf.fatal("Cannot find kstat library")
 
-  conf.sub_config('deps/libeio')
-
   if conf.env['USE_SHARED_V8']:
     v8_includes = [];
     if o.shared_v8_includes: v8_includes.append(o.shared_v8_includes);
@@ -418,8 +416,6 @@ def configure(conf):
       conf.env.append_value('CXXFLAGS', flags)
       conf.env.append_value('LINKFLAGS', flags)
 
-  # Needed for getaddrinfo in libeio
-  conf.env.append_value("CPPFLAGS", "-DX_STACKSIZE=%d" % (1024*64))
   # LFS
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
@@ -641,8 +637,6 @@ def build(bld):
   print "Parallel Jobs: " + str(Options.options.jobs)
   print "Product type: " + product_type
 
-  bld.add_subdirs('deps/libeio')
-
   build_uv(bld)
 
   if not bld.env['USE_SHARED_V8']: build_v8(bld)
@@ -804,7 +798,7 @@ def build(bld):
   node.name         = "node"
   node.target       = "node"
   node.uselib = 'RT OPENSSL CARES EXECINFO DL KVM SOCKET NSL KSTAT UTIL OPROFILE'
-  node.add_objects = 'eio http_parser'
+  node.add_objects = 'http_parser'
   if product_type_is_lib:
     node.install_path = '${LIBDIR}'
   else:
@@ -848,10 +842,10 @@ def build(bld):
 
   node.includes = """
     src/
-    deps/libeio
     deps/http_parser
     deps/uv
     deps/uv/ev
+    deps/uv/eio
   """
 
   if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '

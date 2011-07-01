@@ -20,6 +20,7 @@
 
 #include "uv.h"
 #include "uv-common.h"
+#include "uv-eio.h"
 
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* printf */
@@ -63,7 +64,6 @@ void uv__next(EV_P_ ev_idle* watcher, int revents);
 static void uv__tcp_connect(uv_tcp_t*);
 int uv_tcp_open(uv_tcp_t*, int fd);
 static void uv__finish_close(uv_handle_t* handle);
-
 
 /* flags */
 enum {
@@ -310,7 +310,7 @@ int uv__bind(uv_tcp_t* tcp, int domain, struct sockaddr* addr, int addrsize) {
 }
 
 
-int uv_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
+int uv_tcp_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
   if (addr.sin_family != AF_INET) {
     uv_err_new((uv_handle_t*)tcp, EFAULT);
     return -1;
@@ -320,7 +320,7 @@ int uv_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
 }
 
 
-int uv_bind6(uv_tcp_t* tcp, struct sockaddr_in6 addr) {
+int uv_tcp_bind6(uv_tcp_t* tcp, struct sockaddr_in6 addr) {
   if (addr.sin6_family != AF_INET6) {
     uv_err_new((uv_handle_t*)tcp, EFAULT);
     return -1;
@@ -391,12 +391,12 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
         return;
       } else {
         uv_err_new((uv_handle_t*)tcp, errno);
-        tcp->connection_cb(tcp, -1);
+        tcp->connection_cb((uv_handle_t*)tcp, -1);
       }
 
     } else {
       tcp->accepted_fd = fd;
-      tcp->connection_cb(tcp, 0);
+      tcp->connection_cb((uv_handle_t*)tcp, 0);
       if (tcp->accepted_fd >= 0) {
         /* The user hasn't yet accepted called uv_accept() */
         ev_io_stop(EV_DEFAULT_ &tcp->read_watcher);
@@ -407,26 +407,29 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
 }
 
 
-int uv_accept(uv_tcp_t* server, uv_tcp_t* client) {
-  if (server->accepted_fd < 0) {
-    uv_err_new((uv_handle_t*) server, EAGAIN);
+int uv_accept(uv_handle_t* server, uv_stream_t* client) {
+  uv_tcp_t* tcpServer = (uv_tcp_t*)server;
+  uv_tcp_t* tcpClient = (uv_tcp_t*)client;
+
+  if (tcpServer->accepted_fd < 0) {
+    uv_err_new(server, EAGAIN);
     return -1;
   }
 
-  if (uv_tcp_open(client, server->accepted_fd)) {
+  if (uv_tcp_open(tcpClient, tcpServer->accepted_fd)) {
     /* Ignore error for now */
-    server->accepted_fd = -1;
-    close(server->accepted_fd);
+    tcpServer->accepted_fd = -1;
+    close(tcpServer->accepted_fd);
     return -1;
   } else {
-    server->accepted_fd = -1;
-    ev_io_start(EV_DEFAULT_ &server->read_watcher);
+    tcpServer->accepted_fd = -1;
+    ev_io_start(EV_DEFAULT_ &tcpServer->read_watcher);
     return 0;
   }
 }
 
 
-int uv_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
+int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   int r;
 
   assert(tcp->fd >= 0);
@@ -723,7 +726,7 @@ void uv__read(uv_tcp_t* tcp) {
    */
   while (tcp->read_cb && uv_flag_is_set((uv_handle_t*)tcp, UV_READING)) {
     assert(tcp->alloc_cb);
-    buf = tcp->alloc_cb(tcp, 64 * 1024);
+    buf = tcp->alloc_cb((uv_stream_t*)tcp, 64 * 1024);
 
     assert(buf.len > 0);
     assert(buf.base);
@@ -740,12 +743,12 @@ void uv__read(uv_tcp_t* tcp) {
           ev_io_start(EV_DEFAULT_UC_ &tcp->read_watcher);
         }
         uv_err_new((uv_handle_t*)tcp, EAGAIN);
-        tcp->read_cb(tcp, 0, buf);
+        tcp->read_cb((uv_stream_t*)tcp, 0, buf);
         return;
       } else {
         /* Error. User should call uv_close(). */
         uv_err_new((uv_handle_t*)tcp, errno);
-        tcp->read_cb(tcp, -1, buf);
+        tcp->read_cb((uv_stream_t*)tcp, -1, buf);
         assert(!ev_is_active(&tcp->read_watcher));
         return;
       }
@@ -753,11 +756,11 @@ void uv__read(uv_tcp_t* tcp) {
       /* EOF */
       uv_err_new_artificial((uv_handle_t*)tcp, UV_EOF);
       ev_io_stop(EV_DEFAULT_UC_ &tcp->read_watcher);
-      tcp->read_cb(tcp, -1, buf);
+      tcp->read_cb((uv_stream_t*)tcp, -1, buf);
       return;
     } else {
       /* Successful read */
-      tcp->read_cb(tcp, nread, buf);
+      tcp->read_cb((uv_stream_t*)tcp, nread, buf);
     }
   }
 }
@@ -873,7 +876,7 @@ static void uv__tcp_connect(uv_tcp_t* tcp) {
 }
 
 
-int uv_connect(uv_req_t* req, struct sockaddr_in addr) {
+int uv_tcp_connect(uv_req_t* req, struct sockaddr_in addr) {
   uv_tcp_t* tcp = (uv_tcp_t*)req->handle;
   int addrsize;
   int r;
@@ -1027,7 +1030,9 @@ int64_t uv_now() {
 }
 
 
-int uv_read_start(uv_tcp_t* tcp, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
+int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
+  uv_tcp_t* tcp = (uv_tcp_t*)stream;
+
   /* The UV_READING flag is irrelevant of the state of the tcp - it just
    * expresses the desired state of the user.
    */
@@ -1052,7 +1057,9 @@ int uv_read_start(uv_tcp_t* tcp, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
 }
 
 
-int uv_read_stop(uv_tcp_t* tcp) {
+int uv_read_stop(uv_stream_t* stream) {
+  uv_tcp_t* tcp = (uv_tcp_t*)stream;
+
   uv_flag_unset((uv_handle_t*)tcp, UV_READING);
 
   ev_io_stop(EV_DEFAULT_UC_ &tcp->read_watcher);
@@ -1482,12 +1489,79 @@ void uv_ares_destroy(ares_channel channel) {
 }
 
 
+static int uv_getaddrinfo_done(eio_req* req) {
+  uv_getaddrinfo_t* handle = req->data;
+
+  uv_unref();
+
+  free(handle->hints);
+  free(handle->service);
+  free(handle->hostname);
+
+  if (handle->retcode != 0) {
+    /* TODO how to display gai error strings? */
+    uv_err_new(NULL, handle->retcode);
+  }
+
+  handle->cb(handle, handle->retcode, handle->res);
+
+  freeaddrinfo(handle->res);
+  handle->res = NULL;
+
+  return 0;
+}
+
+
+static int getaddrinfo_thread_proc(eio_req *req) {
+  uv_getaddrinfo_t* handle = req->data;
+
+  handle->retcode = getaddrinfo(handle->hostname,
+                                handle->service,
+                                &handle->hints,
+                                &handle->res);
+  return 0;
+}
+
+
 /* stub implementation of uv_getaddrinfo */
 int uv_getaddrinfo(uv_getaddrinfo_t* handle,
-                   uv_getaddrinfo_cb getaddrinfo_cb,
-                   const char* node,
+                   uv_getaddrinfo_cb cb,
+                   const char* hostname,
                    const char* service,
                    const struct addrinfo* hints) {
-  return -1;
+  uv_eio_init();
+
+  if (handle == NULL || cb == NULL ||
+      (hostname == NULL && service == NULL)) {
+    uv_err_new_artificial(NULL, UV_EINVAL);
+    return -1;
+  }
+
+  memset(handle, 0, sizeof(uv_getaddrinfo_t));
+
+  /* TODO don't alloc so much. */
+
+  if (hints) {
+    handle->hints = malloc(sizeof(struct addrinfo));
+    memcpy(&handle->hints, hints, sizeof(struct addrinfo));
+  }
+
+  /* TODO security! check lengths, check return values. */
+
+  handle->cb = cb;
+  handle->hostname = hostname ? strdup(hostname) : NULL;
+  handle->service = service ? strdup(service) : NULL;
+
+  /* TODO check handle->hostname == NULL */
+  /* TODO check handle->service == NULL */
+
+  uv_ref();
+
+  eio_req* req = eio_custom(getaddrinfo_thread_proc, EIO_PRI_DEFAULT,
+      uv_getaddrinfo_done, handle);
+  assert(req);
+  assert(req->data == handle);
+
+  return 0;
 }
 

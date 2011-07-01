@@ -41,6 +41,7 @@ typedef intptr_t ssize_t;
 
 typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
+typedef struct uv_stream_s uv_stream_t;
 typedef struct uv_tcp_s uv_tcp_t;
 typedef struct uv_timer_s uv_timer_t;
 typedef struct uv_prepare_s uv_prepare_t;
@@ -66,12 +67,12 @@ typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
  * In the case of uv_read_cb the uv_buf_t returned should be freed by the
  * user.
  */
-typedef uv_buf_t (*uv_alloc_cb)(uv_tcp_t* tcp, size_t suggested_size);
-typedef void (*uv_read_cb)(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf);
+typedef uv_buf_t (*uv_alloc_cb)(uv_stream_t* tcp, size_t suggested_size);
+typedef void (*uv_read_cb)(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf);
 typedef void (*uv_write_cb)(uv_req_t* req, int status);
 typedef void (*uv_connect_cb)(uv_req_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_req_t* req, int status);
-typedef void (*uv_connection_cb)(uv_tcp_t* server, int status);
+typedef void (*uv_connection_cb)(uv_handle_t* server, int status);
 typedef void (*uv_close_cb)(uv_handle_t* handle);
 typedef void (*uv_timer_cb)(uv_timer_t* handle, int status);
 /* TODO: do these really need a status argument? */
@@ -177,6 +178,8 @@ struct uv_req_s {
  */
 void uv_req_init(uv_req_t* req, uv_handle_t* handle, void* cb);
 
+int uv_shutdown(uv_req_t* req);
+
 
 #define UV_HANDLE_FIELDS \
   /* read-only */ \
@@ -205,31 +208,21 @@ int uv_is_active(uv_handle_t* handle);
 int uv_close(uv_handle_t* handle, uv_close_cb close_cb);
 
 
-/*
- * A subclass of uv_handle_t representing a TCP stream or TCP server. In the
- * future this will probably be split into two classes - one a stream and
- * the other a server.
- */
-struct uv_tcp_s {
+#define UV_STREAM_FIELDS \
+  /* number of bytes queued for writing */ \
+  size_t write_queue_size; \
+  /* private */ \
+  UV_STREAM_PRIVATE_FIELDS \
+
+/* The abstract base class for all streams. */
+struct uv_stream_s {
   UV_HANDLE_FIELDS
-  size_t write_queue_size; /* number of bytes queued for writing */
-  UV_TCP_PRIVATE_FIELDS
+  UV_STREAM_FIELDS
 };
 
-int uv_tcp_init(uv_tcp_t* handle);
-
-int uv_bind(uv_tcp_t* handle, struct sockaddr_in);
-int uv_bind6(uv_tcp_t* handle, struct sockaddr_in6);
-
-int uv_connect(uv_req_t* req, struct sockaddr_in);
-
-int uv_shutdown(uv_req_t* req);
-
-int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
-
-/* This call is used in conjunction with uv_listen() to accept incoming TCP
+/* This call is used in conjunction with uv_listen() to accept incoming
  * connections. Call uv_accept after receiving a uv_connection_cb to accept
- * the connection. Before calling uv_accept use uv_tcp_init() must be
+ * the connection. Before calling uv_accept use uv_*_init() must be
  * called on the client. Non-zero return value indicates an error.
  *
  * When the uv_connection_cb is called it is guaranteed that uv_accept will
@@ -237,7 +230,7 @@ int uv_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
  * once, it may fail. It is suggested to only call uv_accept once per
  * uv_connection_cb call.
  */
-int uv_accept(uv_tcp_t* server, uv_tcp_t* client);
+int uv_accept(uv_handle_t* server, uv_stream_t* client);
 
 /* Read data from an incoming stream. The callback will be made several
  * several times until there is no more data to read or uv_read_stop is
@@ -248,9 +241,9 @@ int uv_accept(uv_tcp_t* server, uv_tcp_t* client);
  * eof; it happens when libuv requested a buffer through the alloc callback
  * but then decided that it didn't need that buffer.
  */
-int uv_read_start(uv_tcp_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
+int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
 
-int uv_read_stop(uv_tcp_t*);
+int uv_read_stop(uv_stream_t*);
 
 /* Write data to stream. Buffers are written in order. Example:
  *
@@ -270,6 +263,27 @@ int uv_read_stop(uv_tcp_t*);
  *
  */
 int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt);
+
+
+/*
+ * A subclass of uv_stream_t representing a TCP stream or TCP server. In the
+ * future this will probably be split into two classes - one a stream and
+ * the other a server.
+ */
+struct uv_tcp_s {
+  UV_HANDLE_FIELDS
+  UV_STREAM_FIELDS
+  UV_TCP_PRIVATE_FIELDS
+};
+
+int uv_tcp_init(uv_tcp_t* handle);
+
+int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in);
+int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6);
+
+int uv_tcp_connect(uv_req_t* req, struct sockaddr_in);
+
+int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
 
 
 /*

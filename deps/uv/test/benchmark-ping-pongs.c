@@ -52,7 +52,7 @@ static int completed_pingers = 0;
 static int64_t start_time;
 
 
-static uv_buf_t buf_alloc(uv_tcp_t* tcp, size_t size) {
+static uv_buf_t buf_alloc(uv_stream_t* tcp, size_t size) {
   buf_t* ab;
 
   ab = buf_freelist;
@@ -125,7 +125,7 @@ static void pinger_shutdown_cb(uv_handle_t* handle, int status) {
 }
 
 
-static void pinger_read_cb(uv_tcp_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   unsigned int i;
   pinger_t* pinger;
 
@@ -171,7 +171,7 @@ static void pinger_connect_cb(uv_req_t *req, int status) {
 
   pinger_write_ping(pinger);
 
-  if (uv_read_start((uv_tcp_t*)(req->handle), buf_alloc, pinger_read_cb)) {
+  if (uv_read_start((uv_stream_t*)(req->handle), buf_alloc, pinger_read_cb)) {
     FATAL("uv_read_start failed");
   }
 }
@@ -198,8 +198,8 @@ static void pinger_new() {
   uv_req_init(&pinger->connect_req, (uv_handle_t*)&pinger->tcp,
       pinger_connect_cb);
 
-  uv_bind(&pinger->tcp, client_addr);
-  r = uv_connect(&pinger->connect_req, server_addr);
+  uv_tcp_bind(&pinger->tcp, client_addr);
+  r = uv_tcp_connect(&pinger->connect_req, server_addr);
   ASSERT(!r);
 }
 
