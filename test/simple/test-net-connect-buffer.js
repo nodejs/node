@@ -52,12 +52,14 @@ var tcp = net.Server(function(s) {
 tcp.listen(common.PORT, function () {
   var socket = net.Stream();
 
-  console.log('Connecting to socket');
+  console.log('Connecting to socket ');
 
   socket.connect(tcpPort, function() {
     console.log('socket connected');
     connectHappened = true;
   });
+
+  console.log('_connecting = ' + socket._connecting);
 
   assert.equal('opening', socket.readyState);
 
