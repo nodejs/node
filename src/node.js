@@ -28,6 +28,9 @@
   global = this;
 
   function startup() {
+
+    if (process.env.NODE_USE_UV == '1') process.useUV = true;
+
     startup.globalVariables();
     startup.globalTimeouts();
     startup.globalConsole();
@@ -374,14 +377,12 @@
   // flag --use-uv to enable the libuv backend instead of the legacy
   // backend.
   function translateId(id) {
-    var useUV = process.useUV || process.env.NODE_USE_UV;
-
     switch (id) {
       case 'net':
-        return useUV ? 'net_uv' : 'net_legacy';
+        return process.useUV ? 'net_uv' : 'net_legacy';
 
       case 'timers':
-        return useUV ? 'timers_uv' : 'timers_legacy';
+        return process.useUV ? 'timers_uv' : 'timers_legacy';
 
       default:
         return id;
