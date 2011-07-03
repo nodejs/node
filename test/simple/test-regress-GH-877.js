@@ -6,8 +6,6 @@ var N = 20;
 var responses = 0;
 var maxQueued = 0;
 
-debugger;
-
 var agent = http.getAgent('127.0.0.1', common.PORT);
 agent.maxSockets = 10;
 
@@ -22,8 +20,6 @@ server.listen(common.PORT, "127.0.0.1", function() {
       host: '127.0.0.1',
       port: common.PORT,
     };
-
-    debugger;
 
     var req = http.get(options, function(res) {
       if (++responses == N) {
