@@ -149,13 +149,13 @@ Markdown.prototype.split_blocks = function splitBlocks( input, startLine ) {
 
   var line_no = 1;
 
-  if ( ( m = (/^(\s*\n)/)(input) ) != null ) {
+  if ( ( m = /^(\s*\n)/.exec(input) ) != null ) {
     // skip (but count) leading blank lines
     line_no += count_lines( m[0] );
     re.lastIndex = m[0].length;
   }
 
-  while ( ( m = re(input) ) != null ) {
+  while ( ( m = re.exec(input) ) != null ) {
     blocks.push( mk_block( m[1], m[2], line_no ) );
     line_no += count_lines( m[0] );
   }
@@ -259,7 +259,7 @@ Markdown.prototype.loop_re_over_block = function( re, block, cb ) {
   var m,
       b = block.valueOf();
 
-  while ( b.length && (m = re(b) ) != null) {
+  while ( b.length && (m = re.exec(b) ) != null) {
     b = b.substr( m[0].length );
     cb.call(this, m);
   }
@@ -456,7 +456,7 @@ Markdown.dialects.Gruber = {
             ret = [];
 
         while ( blocks.length > 0 ) {
-          if ( re( blocks[0] ) ) {
+          if ( re.exec( blocks[0] ) ) {
             var b = blocks.shift(),
                 // Now remove that indent
                 x = b.replace( replace, "");
@@ -493,7 +493,7 @@ Markdown.dialects.Gruber = {
         if ( !m ) return undefined;
 
         function make_list( m ) {
-          var list = bullet_list( m[2] )
+          var list = bullet_list.exec( m[2] )
                    ? ["bulletlist"]
                    : ["numberlist"];
 
