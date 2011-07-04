@@ -408,6 +408,17 @@ assert.equal(dot[2], 0x2e);
 assert.equal(dot[3], 0x00);
 assert.equal(dot.toString('base64'), '//4uAA==');
 
+// Writing base64 at a position > 0 should not mangle the result.
+//
+// https://github.com/joyent/node/issues/402
+var segments = ['TWFkbmVzcz8h','IFRoaXM=','IGlz','IG5vZGUuanMh'];
+var buf = new Buffer(64);
+var pos = 0;
+
+for (var i = 0; i < segments.length; ++i) {
+  pos += b.write(segments[i], pos, 'base64');
+}
+assert.equal(b.toString('binary', 0, pos), 'Madness?! This is node.js!');
 
 // Creating buffers larger than pool size.
 var l = Buffer.poolSize + 5;
