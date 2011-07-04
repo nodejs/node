@@ -38,7 +38,7 @@ FILES_PATTERN = re.compile(r"//\s+Files:(.*)")
 class InternetTestCase(test.TestCase):
 
   def __init__(self, path, file, mode, context, config):
-    super(InternetTestCase, self).__init__(context, path)
+    super(InternetTestCase, self).__init__(context, path, mode)
     self.file = file
     self.config = config
     self.mode = mode
