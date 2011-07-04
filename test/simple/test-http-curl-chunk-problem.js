@@ -27,11 +27,18 @@ if (!process.versions.openssl) {
 // http://groups.google.com/group/nodejs/browse_thread/thread/f66cd3c960406919
 var common = require('../common');
 var assert = require('assert');
-var http = require('http'),
-    cp = require('child_process');
-
+var http = require('http');
+var cp = require('child_process');
+var fs = require('fs');
 
 var filename = require('path').join(common.tmpDir || '/tmp', 'big');
+
+// Clean up after ourselves. Leaving files around
+// in the tmp/ directory may break tests that depend
+// on a certain number of files being there.
+process.on('exit', function() {
+  fs.unlink(filename);
+});
 
 var count = 0;
 function maybeMakeRequest() {
