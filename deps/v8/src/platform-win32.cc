@@ -123,6 +123,15 @@ int strncasecmp(const char* s1, const char* s2, int n) {
 // the Microsoft Visual Studio C++ CRT.
 #ifdef __MINGW32__
 
+#ifndef _TRUNCATE
+# define _TRUNCATE 0
+#endif
+
+#ifndef STRUNCATE
+# define STRUNCATE 80
+#endif
+
+
 namespace v8 {
 namespace internal {
 
@@ -156,7 +165,6 @@ int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
   return _vsnprintf(buffer, sizeOfBuffer, format, argptr);
 }
-#define _TRUNCATE 0
 
 
 int strncpy_s(char* strDest, size_t numberOfElements,
