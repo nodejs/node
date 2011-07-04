@@ -27,16 +27,6 @@ var dns = require('dns');
 
 // Try resolution without callback
 
-dns.getHostByName('localhost', function(error, result) {
-  console.dir(result);
-  assert.deepEqual(['127.0.0.1'], result);
-});
-
-dns.getHostByName('127.0.0.1', function(error, result) {
-  console.dir(result);
-  assert.deepEqual(['127.0.0.1'], result);
-});
-
 dns.lookup(null, function(error, result, addressType) {
   assert.equal(null, result);
   assert.equal(4, addressType);

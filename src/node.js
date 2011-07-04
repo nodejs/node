@@ -390,6 +390,9 @@
       case 'timers':
         return process.useUV ? 'timers_uv' : 'timers_legacy';
 
+      case 'dns':
+        return process.useUV ? 'dns_uv' : 'dns_legacy';
+
       default:
         return id;
     }
