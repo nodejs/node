@@ -64,9 +64,15 @@ char** Platform::SetupArgs(int argc, char *argv[]) {
 
 
 void Platform::SetProcessTitle(char *title) {
+#ifdef PR_SET_NAME
   if (process_title) free(process_title);
   process_title = strdup(title);
   prctl(PR_SET_NAME, process_title);
+#else
+  Local<Value> ex = Exception::Error(
+    String::New("'process.title' is not writable on your system, sorry."));
+  ThrowException(ex); // Safe, this method is only called from the main thread.
+#endif
 }
 
 
