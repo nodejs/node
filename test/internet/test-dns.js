@@ -24,7 +24,8 @@ var assert = require('assert');
     net = require('net_uv');
     isIP = net.isIP,
     isIPv4 = net.isIPv4,
-    isIPv6 = net.isIPv6;
+    isIPv6 = net.isIPv6,
+    uv = process.useUV;
 
 var expected = 0,
     completed = 0,
@@ -58,10 +59,17 @@ function TEST(f) {
 
 
 process.on('exit', function() {
-  console.log(completed + " tests completed");
+  console.log(completed + ' tests completed (using libuv: ' + (!!uv) + ')');
   assert.equal(running, false);
   assert.strictEqual(expected, completed);
 });
+
+
+function checkWrap(req) {
+  if (uv) {
+    assert.ok(typeof req === 'object');
+  }
+}
 
 
 TEST(function test_resolve4(done) {
@@ -77,7 +85,7 @@ TEST(function test_resolve4(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -94,7 +102,7 @@ TEST(function test_resolve6(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -112,7 +120,7 @@ TEST(function test_reverse_ipv4(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -130,7 +138,7 @@ TEST(function test_reverse_ipv6(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -146,7 +154,7 @@ TEST(function test_reverse_bogus(done) {
   }
 
   assert.ok(error instanceof Error);
-  assert.strictEqual(error.errno, "ENOTIMP");
+  uv && assert.strictEqual(error.errno, 'ENOTIMP');
 
   done();
 });
@@ -172,7 +180,7 @@ TEST(function test_resolveMx(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -191,7 +199,7 @@ TEST(function test_resolveNs(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -206,8 +214,8 @@ TEST(function test_resolveSrv(done) {
       assert.ok(item);
       assert.ok(typeof item === 'object');
 
-      assert.ok(item.host);
-      assert.ok(typeof item.host === 'string');
+      assert.ok(item.name);
+      assert.ok(typeof item.name === 'string');
 
       assert.ok(typeof item.port === 'number');
       assert.ok(typeof item.priority === 'number');
@@ -217,7 +225,7 @@ TEST(function test_resolveSrv(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -236,7 +244,7 @@ TEST(function test_resolveCname(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -249,7 +257,7 @@ TEST(function test_lookup_ipv4_explicit(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -262,7 +270,7 @@ TEST(function test_lookup_ipv4_implicit(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -275,7 +283,7 @@ TEST(function test_lookup_ipv6_explicit(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -288,19 +296,20 @@ TEST(function test_lookup_ipv6_implicit(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
 TEST(function test_lookup_failure(done) {
   var req = dns.lookup('does.not.exist', 4, function(err, ip, family) {
     assert.ok(err instanceof Error);
-    assert.strictEqual(err.errno, 'ENOTFOUND');
+    assert.strictEqual(err.errno, dns.NOTFOUND)
+    uv && assert.strictEqual(err.errno, 'ENOTFOUND');
 
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
@@ -313,25 +322,25 @@ TEST(function test_lookup_null(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
 TEST(function test_lookup_ip_ipv4(done) {
-  var req = dns.lookup("127.0.0.1", function(err, ip, family) {
+  var req = dns.lookup('127.0.0.1', function(err, ip, family) {
     if (err) throw err;
-    assert.strictEqual(ip, "127.0.0.1");
+    assert.strictEqual(ip, '127.0.0.1');
     assert.strictEqual(family, 4);
 
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
 TEST(function test_lookup_ip_ipv6(done) {
-  var req = dns.lookup("::1", function(err, ip, family) {
+  var req = dns.lookup('::1', function(err, ip, family) {
     if (err) throw err;
     assert.ok(net.isIPv6(ip));
     assert.strictEqual(family, 6);
@@ -339,26 +348,26 @@ TEST(function test_lookup_ip_ipv6(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
 TEST(function test_lookup_localhost_ipv4(done) {
-  var req = dns.lookup("localhost", 4, function(err, ip, family) {
+  var req = dns.lookup('localhost', 4, function(err, ip, family) {
     if (err) throw err;
-    assert.strictEqual(ip, "127.0.0.1");
+    assert.strictEqual(ip, '127.0.0.1');
     assert.strictEqual(family, 4);
 
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 });
 
 
 /* Disabled because it appears to be not working on linux. */
 /* TEST(function test_lookup_localhost_ipv6(done) {
-  var req = dns.lookup("localhost", 6, function(err, ip, family) {
+  var req = dns.lookup('localhost', 6, function(err, ip, family) {
     if (err) throw err;
     assert.ok(net.isIPv6(ip));
     assert.strictEqual(family, 6);
@@ -366,5 +375,5 @@ TEST(function test_lookup_localhost_ipv4(done) {
     done();
   });
 
-  assert.ok(typeof req === 'object');
+  checkWrap(req);
 }); */

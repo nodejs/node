@@ -431,7 +431,7 @@ class QuerySrvWrap: public QueryWrap {
     }
 
     Local<Array> srv_records = Array::New();
-    Local<String> host_symbol = String::NewSymbol("host");
+    Local<String> name_symbol = String::NewSymbol("name");
     Local<String> port_symbol = String::NewSymbol("port");
     Local<String> priority_symbol = String::NewSymbol("priority");
     Local<String> weight_symbol = String::NewSymbol("weight");
@@ -440,7 +440,7 @@ class QuerySrvWrap: public QueryWrap {
          srv_current;
          srv_current = srv_current->next) {
       Local<Object> srv_record = Object::New();
-      srv_record->Set(host_symbol, String::New(srv_current->host));
+      srv_record->Set(name_symbol, String::New(srv_current->host));
       srv_record->Set(port_symbol, Integer::New(srv_current->port));
       srv_record->Set(priority_symbol, Integer::New(srv_current->priority));
       srv_record->Set(weight_symbol, Integer::New(srv_current->weight));
