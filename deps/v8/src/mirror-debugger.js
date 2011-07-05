@@ -1243,12 +1243,16 @@ const kFrameDetailsLocalCountIndex = 4;
 const kFrameDetailsSourcePositionIndex = 5;
 const kFrameDetailsConstructCallIndex = 6;
 const kFrameDetailsAtReturnIndex = 7;
-const kFrameDetailsDebuggerFrameIndex = 8;
+const kFrameDetailsFlagsIndex = 8;
 const kFrameDetailsFirstDynamicIndex = 9;
 
 const kFrameDetailsNameIndex = 0;
 const kFrameDetailsValueIndex = 1;
 const kFrameDetailsNameValueSize = 2;
+
+const kFrameDetailsFlagDebuggerFrame = 1;
+const kFrameDetailsFlagOptimizedFrame = 2;
+const kFrameDetailsFlagInlinedFrame = 4;
 
 /**
  * Wrapper for the frame details information retreived from the VM. The frame
@@ -1262,7 +1266,7 @@ const kFrameDetailsNameValueSize = 2;
  *     5: Source position
  *     6: Construct call
  *     7: Is at return
- *     8: Debugger frame
+ *     8: Flags (debugger frame, optimized frame, inlined frame)
  *     Arguments name, value
  *     Locals name, value
  *     Return value if any
@@ -1308,7 +1312,22 @@ FrameDetails.prototype.isAtReturn = function() {
 
 FrameDetails.prototype.isDebuggerFrame = function() {
   %CheckExecutionState(this.break_id_);
-  return this.details_[kFrameDetailsDebuggerFrameIndex];
+  var f = kFrameDetailsFlagDebuggerFrame;
+  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
+}
+
+
+FrameDetails.prototype.isOptimizedFrame = function() {
+  %CheckExecutionState(this.break_id_);
+  var f = kFrameDetailsFlagOptimizedFrame;
+  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
+}
+
+
+FrameDetails.prototype.isInlinedFrame = function() {
+  %CheckExecutionState(this.break_id_);
+  var f = kFrameDetailsFlagInlinedFrame;
+  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
 }
 
 
@@ -1444,6 +1463,16 @@ FrameMirror.prototype.isAtReturn = function() {
 
 FrameMirror.prototype.isDebuggerFrame = function() {
   return this.details_.isDebuggerFrame();
+};
+
+
+FrameMirror.prototype.isOptimizedFrame = function() {
+  return this.details_.isOptimizedFrame();
+};
+
+
+FrameMirror.prototype.isInlinedFrame = function() {
+  return this.details_.isInlinedFrame();
 };
 
 

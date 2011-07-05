@@ -52,8 +52,7 @@ CompilationCache::CompilationCache(Isolate* isolate)
       eval_global_(isolate, kEvalGlobalGenerations),
       eval_contextual_(isolate, kEvalContextualGenerations),
       reg_exp_(isolate, kRegExpGenerations),
-      enabled_(true),
-      eager_optimizing_set_(NULL) {
+      enabled_(true) {
   CompilationSubCache* subcaches[kSubCacheCount] =
     {&script_, &eval_global_, &eval_contextual_, &reg_exp_};
   for (int i = 0; i < kSubCacheCount; ++i) {
@@ -62,10 +61,7 @@ CompilationCache::CompilationCache(Isolate* isolate)
 }
 
 
-CompilationCache::~CompilationCache() {
-  delete eager_optimizing_set_;
-  eager_optimizing_set_ = NULL;
-}
+CompilationCache::~CompilationCache() {}
 
 
 static Handle<CompilationCacheTable> AllocateTable(Isolate* isolate, int size) {
@@ -454,47 +450,6 @@ void CompilationCache::PutRegExp(Handle<String> source,
   }
 
   reg_exp_.Put(source, flags, data);
-}
-
-
-static bool SourceHashCompare(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
-HashMap* CompilationCache::EagerOptimizingSet() {
-  if (eager_optimizing_set_ == NULL) {
-    eager_optimizing_set_ = new HashMap(&SourceHashCompare);
-  }
-  return eager_optimizing_set_;
-}
-
-
-bool CompilationCache::ShouldOptimizeEagerly(Handle<JSFunction> function) {
-  if (FLAG_opt_eagerly) return true;
-  uint32_t hash = function->SourceHash();
-  void* key = reinterpret_cast<void*>(hash);
-  return EagerOptimizingSet()->Lookup(key, hash, false) != NULL;
-}
-
-
-void CompilationCache::MarkForEagerOptimizing(Handle<JSFunction> function) {
-  uint32_t hash = function->SourceHash();
-  void* key = reinterpret_cast<void*>(hash);
-  EagerOptimizingSet()->Lookup(key, hash, true);
-}
-
-
-void CompilationCache::MarkForLazyOptimizing(Handle<JSFunction> function) {
-  uint32_t hash = function->SourceHash();
-  void* key = reinterpret_cast<void*>(hash);
-  EagerOptimizingSet()->Remove(key, hash);
-}
-
-
-void CompilationCache::ResetEagerOptimizingData() {
-  HashMap* set = EagerOptimizingSet();
-  if (set->occupancy() > 0) set->Clear();
 }
 
 

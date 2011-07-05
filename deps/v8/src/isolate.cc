@@ -1855,11 +1855,6 @@ void Isolate::Exit() {
 }
 
 
-void Isolate::ResetEagerOptimizingData() {
-  compilation_cache_->ResetEagerOptimizingData();
-}
-
-
 #ifdef DEBUG
 #define ISOLATE_FIELD_OFFSET(type, name, ignored)                       \
 const intptr_t Isolate::name##_debug_offset_ = OFFSET_OF(Isolate, name##_);

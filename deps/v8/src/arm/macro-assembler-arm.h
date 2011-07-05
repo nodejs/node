@@ -90,19 +90,19 @@ class MacroAssembler: public Assembler {
 
   // Jump, Call, and Ret pseudo instructions implementing inter-working.
   void Jump(Register target, Condition cond = al);
-  void Jump(byte* target, RelocInfo::Mode rmode, Condition cond = al);
+  void Jump(Address target, RelocInfo::Mode rmode, Condition cond = al);
   void Jump(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
   int CallSize(Register target, Condition cond = al);
   void Call(Register target, Condition cond = al);
-  int CallSize(byte* target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(byte* target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(Handle<Code> code, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  void Call(Address target, RelocInfo::Mode rmode, Condition cond = al);
+  int CallSize(Handle<Code> code,
+               RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+               unsigned ast_id = kNoASTId,
+               Condition cond = al);
   void Call(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            Condition cond = al);
-  void CallWithAstId(Handle<Code> code,
-            RelocInfo::Mode rmode,
-            unsigned ast_id,
+            RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+            unsigned ast_id = kNoASTId,
             Condition cond = al);
   void Ret(Condition cond = al);
 
@@ -1036,10 +1036,6 @@ class MacroAssembler: public Assembler {
                            int num_double_arguments);
 
   void Jump(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  int CallSize(intptr_t target, RelocInfo::Mode rmode, Condition cond = al);
-  void Call(intptr_t target,
-            RelocInfo::Mode rmode,
-            Condition cond = al);
 
   // Helper functions for generating invokes.
   void InvokePrologue(const ParameterCount& expected,

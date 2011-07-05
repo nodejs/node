@@ -148,7 +148,7 @@ tracker.AssertIsOptimized(f, false);
 tracker.AssertDeoptHappened(f, false);
 tracker.AssertDeoptCount(f, 0);
 
-for (var i = 0; i < 5; i++) f(1);
+for (var i = 0; i < 2; i++) f(1);
 
 tracker.AssertOptCount(f, 0);
 tracker.AssertIsOptimized(f, false);

@@ -375,10 +375,15 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
 
     v8::internal::EmbeddedVector<char, 128> decode_buffer;
     while (pc < end) {
-      pc += d.InstructionDecode(decode_buffer, pc);
-      CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
-      CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
-      CHECK(strstr(decode_buffer.start(), "0x178c29c") == NULL);
+      int num_const = d.ConstantPoolSizeAt(pc);
+      if (num_const >= 0) {
+        pc += num_const * kPointerSize;
+      } else {
+        pc += d.InstructionDecode(decode_buffer, pc);
+        CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);
+        CHECK(strstr(decode_buffer.start(), "push 0x178c29c") == NULL);
+        CHECK(strstr(decode_buffer.start(), "0x178c29c") == NULL);
+      }
     }
   }
 }

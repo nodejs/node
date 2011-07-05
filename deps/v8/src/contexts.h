@@ -225,7 +225,6 @@ class Context: public FixedArray {
     OPAQUE_REFERENCE_FUNCTION_INDEX,
     CONTEXT_EXTENSION_FUNCTION_INDEX,
     OUT_OF_MEMORY_INDEX,
-    MAP_CACHE_INDEX,
     CONTEXT_DATA_INDEX,
     ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
     DERIVED_GET_TRAP_INDEX,
@@ -234,6 +233,7 @@ class Context: public FixedArray {
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
     OPTIMIZED_FUNCTIONS_LIST,  // Weak.
+    MAP_CACHE_INDEX,  // Weak.
     NEXT_CONTEXT_LINK,  // Weak.
 
     // Total number of slots.

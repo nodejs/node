@@ -1367,7 +1367,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
-  Representation r = instr->hydrogen()->representation();
+  Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32()) {
     Register reg = ToRegister(instr->InputAt(0));
     __ test(reg, Operand(reg));
@@ -1380,7 +1380,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->InputAt(0));
-    if (instr->hydrogen()->type().IsBoolean()) {
+    if (instr->hydrogen()->value()->type().IsBoolean()) {
       __ cmp(reg, factory()->true_value());
       EmitBranch(true_block, false_block, equal);
     } else {
@@ -1474,32 +1474,6 @@ void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
 }
 
 
-void LCodeGen::DoCmpID(LCmpID* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
-  LOperand* result = instr->result();
-
-  Label unordered;
-  if (instr->is_double()) {
-    // Don't base result on EFLAGS when a NaN is involved. Instead
-    // jump to the unordered case, which produces a false value.
-    __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ j(parity_even, &unordered, Label::kNear);
-  } else {
-    EmitCmpI(left, right);
-  }
-
-  Label done;
-  Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  __ mov(ToRegister(result), factory()->true_value());
-  __ j(cc, &done, Label::kNear);
-
-  __ bind(&unordered);
-  __ mov(ToRegister(result), factory()->false_value());
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
@@ -1520,41 +1494,14 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCmpObjectEq(LCmpObjectEq* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register right = ToRegister(instr->InputAt(1));
-  Register result = ToRegister(instr->result());
-
-  __ cmp(left, Operand(right));
-  __ mov(result, factory()->true_value());
-  Label done;
-  __ j(equal, &done, Label::kNear);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   Register left = ToRegister(instr->InputAt(0));
-  Register right = ToRegister(instr->InputAt(1));
+  Operand right = ToOperand(instr->InputAt(1));
   int false_block = chunk_->LookupDestination(instr->false_block_id());
   int true_block = chunk_->LookupDestination(instr->true_block_id());
 
   __ cmp(left, Operand(right));
   EmitBranch(true_block, false_block, equal);
-}
-
-
-void LCodeGen::DoCmpConstantEq(LCmpConstantEq* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  Label done;
-  __ cmp(left, instr->hydrogen()->right());
-  __ mov(result, factory()->true_value());
-  __ j(equal, &done, Label::kNear);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
 }
 
 
@@ -1565,43 +1512,6 @@ void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
 
   __ cmp(left, instr->hydrogen()->right());
   EmitBranch(true_block, false_block, equal);
-}
-
-
-void LCodeGen::DoIsNull(LIsNull* instr) {
-  Register reg = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  // TODO(fsc): If the expression is known to be a smi, then it's
-  // definitely not null. Materialize false.
-
-  __ cmp(reg, factory()->null_value());
-  if (instr->is_strict()) {
-    __ mov(result, factory()->true_value());
-    Label done;
-    __ j(equal, &done, Label::kNear);
-    __ mov(result, factory()->false_value());
-    __ bind(&done);
-  } else {
-    Label true_value, false_value, done;
-    __ j(equal, &true_value, Label::kNear);
-    __ cmp(reg, factory()->undefined_value());
-    __ j(equal, &true_value, Label::kNear);
-    __ JumpIfSmi(reg, &false_value, Label::kNear);
-    // Check for undetectable objects by looking in the bit field in
-    // the map. The object has already been smi checked.
-    Register scratch = result;
-    __ mov(scratch, FieldOperand(reg, HeapObject::kMapOffset));
-    __ movzx_b(scratch, FieldOperand(scratch, Map::kBitFieldOffset));
-    __ test(scratch, Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, &true_value, Label::kNear);
-    __ bind(&false_value);
-    __ mov(result, factory()->false_value());
-    __ jmp(&done, Label::kNear);
-    __ bind(&true_value);
-    __ mov(result, factory()->true_value());
-    __ bind(&done);
-  }
 }
 
 
@@ -1658,25 +1568,6 @@ Condition LCodeGen::EmitIsObject(Register input,
 }
 
 
-void LCodeGen::DoIsObject(LIsObject* instr) {
-  Register reg = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  Label is_false, is_true, done;
-
-  Condition true_cond = EmitIsObject(reg, result, &is_false, &is_true);
-  __ j(true_cond, &is_true);
-
-  __ bind(&is_false);
-  __ mov(result, factory()->false_value());
-  __ jmp(&done);
-
-  __ bind(&is_true);
-  __ mov(result, factory()->true_value());
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register temp = ToRegister(instr->TempAt(0));
@@ -1692,19 +1583,6 @@ void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
 }
 
 
-void LCodeGen::DoIsSmi(LIsSmi* instr) {
-  Operand input = ToOperand(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  Label done;
-  __ mov(result, factory()->true_value());
-  __ JumpIfSmi(input, &done, Label::kNear);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
   Operand input = ToOperand(instr->InputAt(0));
 
@@ -1713,26 +1591,6 @@ void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
 
   __ test(input, Immediate(kSmiTagMask));
   EmitBranch(true_block, false_block, zero);
-}
-
-
-void LCodeGen::DoIsUndetectable(LIsUndetectable* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  Label false_label, done;
-  STATIC_ASSERT(kSmiTag == 0);
-  __ JumpIfSmi(input, &false_label, Label::kNear);
-  __ mov(result, FieldOperand(input, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(result, Map::kBitFieldOffset),
-            1 << Map::kIsUndetectable);
-  __ j(zero, &false_label, Label::kNear);
-  __ mov(result, factory()->true_value());
-  __ jmp(&done);
-  __ bind(&false_label);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
 }
 
 
@@ -1752,7 +1610,7 @@ void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
 }
 
 
-static InstanceType TestType(HHasInstanceType* instr) {
+static InstanceType TestType(HHasInstanceTypeAndBranch* instr) {
   InstanceType from = instr->from();
   InstanceType to = instr->to();
   if (from == FIRST_TYPE) return to;
@@ -1761,7 +1619,7 @@ static InstanceType TestType(HHasInstanceType* instr) {
 }
 
 
-static Condition BranchCondition(HHasInstanceType* instr) {
+static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
   InstanceType from = instr->from();
   InstanceType to = instr->to();
   if (from == to) return equal;
@@ -1769,24 +1627,6 @@ static Condition BranchCondition(HHasInstanceType* instr) {
   if (from == FIRST_TYPE) return below_equal;
   UNREACHABLE();
   return equal;
-}
-
-
-void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  Label done, is_false;
-  __ JumpIfSmi(input, &is_false, Label::kNear);
-  __ CmpObjectType(input, TestType(instr->hydrogen()), result);
-  __ j(NegateCondition(BranchCondition(instr->hydrogen())),
-       &is_false, Label::kNear);
-  __ mov(result, factory()->true_value());
-  __ jmp(&done, Label::kNear);
-  __ bind(&is_false);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
 }
 
 
@@ -1816,21 +1656,6 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
 
   __ mov(result, FieldOperand(input, String::kHashFieldOffset));
   __ IndexFromHash(result, result);
-}
-
-
-void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  __ mov(result, factory()->true_value());
-  __ test(FieldOperand(input, String::kHashFieldOffset),
-          Immediate(String::kContainsCachedArrayIndexMask));
-  Label done;
-  __ j(zero, &done, Label::kNear);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
 }
 
 
@@ -1901,29 +1726,6 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   // comparison.
   __ cmp(temp, class_name);
   // End with the answer in the z flag.
-}
-
-
-void LCodeGen::DoClassOfTest(LClassOfTest* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  ASSERT(input.is(result));
-  Register temp = ToRegister(instr->TempAt(0));
-  Handle<String> class_name = instr->hydrogen()->class_name();
-  Label done;
-  Label is_true, is_false;
-
-  EmitClassOfTest(&is_true, &is_false, class_name, input, temp, input);
-
-  __ j(not_equal, &is_false, Label::kNear);
-
-  __ bind(&is_true);
-  __ mov(result, factory()->true_value());
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&is_false);
-  __ mov(result, factory()->false_value());
-  __ bind(&done);
 }
 
 
@@ -3882,14 +3684,14 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
 
 void LCodeGen::DoCheckSmi(LCheckSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  __ test(ToRegister(input), Immediate(kSmiTagMask));
+  __ test(ToOperand(input), Immediate(kSmiTagMask));
   DeoptimizeIf(not_zero, instr->environment());
 }
 
 
 void LCodeGen::DoCheckNonSmi(LCheckNonSmi* instr) {
   LOperand* input = instr->InputAt(0);
-  __ test(ToRegister(input), Immediate(kSmiTagMask));
+  __ test(ToOperand(input), Immediate(kSmiTagMask));
   DeoptimizeIf(zero, instr->environment());
 }
 
@@ -3941,8 +3743,8 @@ void LCodeGen::DoCheckInstanceType(LCheckInstanceType* instr) {
 
 void LCodeGen::DoCheckFunction(LCheckFunction* instr) {
   ASSERT(instr->InputAt(0)->IsRegister());
-  Register reg = ToRegister(instr->InputAt(0));
-  __ cmp(reg, instr->hydrogen()->target());
+  Operand operand = ToOperand(instr->InputAt(0));
+  __ cmp(operand, instr->hydrogen()->target());
   DeoptimizeIf(not_equal, instr->environment());
 }
 
@@ -4189,29 +3991,6 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
 }
 
 
-void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  Label true_label;
-  Label false_label;
-  Label done;
-
-  Condition final_branch_condition = EmitTypeofIs(&true_label,
-                                                  &false_label,
-                                                  input,
-                                                  instr->type_literal());
-  __ j(final_branch_condition, &true_label, Label::kNear);
-  __ bind(&false_label);
-  __ mov(result, factory()->false_value());
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&true_label);
-  __ mov(result, factory()->true_value());
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoTypeofIsAndBranch(LTypeofIsAndBranch* instr) {
   Register input = ToRegister(instr->InputAt(0));
   int true_block = chunk_->LookupDestination(instr->true_block_id());
@@ -4289,24 +4068,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   }
 
   return final_branch_condition;
-}
-
-
-void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
-  Register result = ToRegister(instr->result());
-  Label true_label;
-  Label done;
-
-  EmitIsConstructCall(result);
-  __ j(equal, &true_label, Label::kNear);
-
-  __ mov(result, factory()->false_value());
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&true_label);
-  __ mov(result, factory()->true_value());
-
-  __ bind(&done);
 }
 
 

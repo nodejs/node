@@ -956,7 +956,7 @@ MaybeObject* LoadIC::Load(State state,
 
   // If we did not find a property, check if we need to throw an exception.
   if (!lookup.IsProperty()) {
-    if (FLAG_strict || IsContextual(object)) {
+    if (IsContextual(object)) {
       return ReferenceError("not_defined", name);
     }
     LOG(isolate(), SuspectReadEvent(*name, *object));
@@ -1097,16 +1097,6 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-String* KeyedLoadIC::GetStubNameForCache(IC::State ic_state) {
-  if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
-  } else {
-    ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedLoadElementPolymorphic_symbol();
-  }
-}
-
-
 MaybeObject* KeyedLoadIC::GetFastElementStubWithoutMapCheck(
     bool is_js_array) {
   return KeyedLoadFastElementStub().TryGetCode();
@@ -1230,10 +1220,8 @@ MaybeObject* KeyedLoadIC::Load(State state,
     LookupForRead(*object, *name, &lookup);
 
     // If we did not find a property, check if we need to throw an exception.
-    if (!lookup.IsProperty()) {
-      if (FLAG_strict || IsContextual(object)) {
-        return ReferenceError("not_defined", name);
-      }
+    if (!lookup.IsProperty() && IsContextual(object)) {
+      return ReferenceError("not_defined", name);
     }
 
     if (FLAG_use_ic) {
@@ -1636,18 +1624,14 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
                                   StrictModeFlag strict_mode,
                                   Code* generic_stub) {
   State ic_state = target()->ic_state();
-  Code* monomorphic_stub;
-  // Always compute the MONOMORPHIC stub, even if the MEGAMORPHIC stub ends up
-  // being used. This is necessary because the megamorphic stub needs to have
-  // access to more information than what is stored in the receiver map in some
-  // cases (external arrays need the array type from the MONOMORPHIC stub).
-  MaybeObject* maybe_stub = ComputeMonomorphicStub(receiver,
-                                                   is_store,
-                                                   strict_mode,
-                                                   generic_stub);
-  if (!maybe_stub->To(&monomorphic_stub)) return maybe_stub;
-
   if (ic_state == UNINITIALIZED || ic_state == PREMONOMORPHIC) {
+    Code* monomorphic_stub;
+    MaybeObject* maybe_stub = ComputeMonomorphicStub(receiver,
+                                                     is_store,
+                                                     strict_mode,
+                                                     generic_stub);
+    if (!maybe_stub->To(&monomorphic_stub)) return maybe_stub;
+
     return monomorphic_stub;
   }
   ASSERT(target() != generic_stub);
@@ -1698,9 +1682,9 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
   }
   // Build the MEGAMORPHIC stub.
   Code* stub;
-  maybe_stub = ConstructMegamorphicStub(&target_receiver_maps,
-                                        &handler_ics,
-                                        strict_mode);
+  MaybeObject* maybe_stub = ConstructMegamorphicStub(&target_receiver_maps,
+                                                     &handler_ics,
+                                                     strict_mode);
   if (!maybe_stub->To(&stub)) return maybe_stub;
   MaybeObject* maybe_update = cache->Update(&target_receiver_maps, flags, stub);
   if (maybe_update->IsFailure()) return maybe_update;
@@ -1716,22 +1700,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
     ASSERT(string_stub() != NULL);
     return string_stub();
   } else if (receiver_map->has_external_array_elements()) {
-    // Determine the array type from the default MONOMORPHIC already generated
-    // stub. There is no other way to determine the type of the external array
-    // directly from the receiver type.
-    Code::Kind kind = this->kind();
-    Code::Flags flags = Code::ComputeMonomorphicFlags(kind,
-                                                      NORMAL,
-                                                      strict_mode);
-    String* monomorphic_name = GetStubNameForCache(MONOMORPHIC);
-    Object* maybe_default_stub = receiver_map->FindInCodeCache(monomorphic_name,
-                                                               flags);
-    if (maybe_default_stub->IsUndefined()) {
-      return generic_stub;
-    }
-    Code* default_stub = Code::cast(maybe_default_stub);
-    Map* first_map = default_stub->FindFirstMap();
-    return GetExternalArrayStubWithoutMapCheck(first_map->elements_kind());
+    return GetExternalArrayStubWithoutMapCheck(receiver_map->elements_kind());
   } else if (receiver_map->has_fast_elements()) {
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
     return GetFastElementStubWithoutMapCheck(is_js_array);
@@ -1747,7 +1716,8 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
                                              Code* generic_stub) {
   Code* result = NULL;
   if (receiver->HasFastElements() ||
-      receiver->HasExternalArrayElements()) {
+      receiver->HasExternalArrayElements() ||
+      receiver->HasDictionaryElements()) {
     MaybeObject* maybe_stub =
         isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
             receiver, is_store, strict_mode);
@@ -1756,16 +1726,6 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
     result = generic_stub;
   }
   return result;
-}
-
-
-String* KeyedStoreIC::GetStubNameForCache(IC::State ic_state) {
-  if (ic_state == MONOMORPHIC) {
-    return isolate()->heap()->KeyedStoreElementMonomorphic_symbol();
-  } else {
-    ASSERT(ic_state == MEGAMORPHIC);
-    return isolate()->heap()->KeyedStoreElementPolymorphic_symbol();
-  }
 }
 
 
@@ -1856,6 +1816,7 @@ MaybeObject* KeyedStoreIC::Store(State state,
         stub = non_strict_arguments_stub();
       } else if (!force_generic) {
         if (key->IsSmi() && (target() != non_strict_arguments_stub())) {
+          HandleScope scope(isolate());
           MaybeObject* maybe_stub = ComputeStub(receiver,
                                                 true,
                                                 strict_mode,
@@ -2333,15 +2294,15 @@ RUNTIME_FUNCTION(MaybeObject*, UnaryOp_Patch) {
 
   HandleScope scope(isolate);
   Handle<Object> operand = args.at<Object>(0);
-  int key = args.smi_at(1);
-  Token::Value op = static_cast<Token::Value>(args.smi_at(2));
+  Token::Value op = static_cast<Token::Value>(args.smi_at(1));
+  UnaryOverwriteMode mode = static_cast<UnaryOverwriteMode>(args.smi_at(2));
   UnaryOpIC::TypeInfo previous_type =
       static_cast<UnaryOpIC::TypeInfo>(args.smi_at(3));
 
   UnaryOpIC::TypeInfo type = UnaryOpIC::GetTypeInfo(operand);
   type = UnaryOpIC::ComputeNewType(type, previous_type);
 
-  UnaryOpStub stub(key, type);
+  UnaryOpStub stub(op, mode, type);
   Handle<Code> code = stub.GetCode();
   if (!code.is_null()) {
     if (FLAG_trace_ic) {

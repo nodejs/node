@@ -3418,7 +3418,7 @@ class DeoptimizationInputData: public FixedArray {
   // Casting.
   static inline DeoptimizationInputData* cast(Object* obj);
 
-#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+#ifdef ENABLE_DISASSEMBLER
   void DeoptimizationInputDataPrint(FILE* out);
 #endif
 
@@ -3944,6 +3944,10 @@ class Map: public HeapObject {
     JSObject::ElementsKind kind(elements_kind());
     return kind >= JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
         kind <= JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+  }
+
+  inline bool has_dictionary_elements() {
+    return elements_kind() == JSObject::DICTIONARY_ELEMENTS;
   }
 
   // Tells whether the map is attached to SharedFunctionInfo
@@ -4923,9 +4927,6 @@ class JSFunction: public JSObject {
   // Tells whether or not the function is already marked for lazy
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
-
-  // Compute a hash code for the source code of this function.
-  uint32_t SourceHash();
 
   // Check whether or not this function is inlineable.
   bool IsInlineable();

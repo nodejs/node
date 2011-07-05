@@ -14659,3 +14659,28 @@ THREADED_TEST(ReadOnlyIndexedProperties) {
   obj->Set(v8_str("2000000000"), v8_str("foobar"));
   CHECK_EQ(v8_str("DONT_CHANGE"), obj->Get(v8_str("2000000000")));
 }
+
+
+THREADED_TEST(Regress1516) {
+  v8::HandleScope scope;
+
+  LocalContext context;
+  { v8::HandleScope temp_scope;
+    CompileRun("({'a': 0})");
+  }
+
+  int elements;
+  { i::MapCache* map_cache =
+        i::MapCache::cast(i::Isolate::Current()->context()->map_cache());
+    elements = map_cache->NumberOfElements();
+    CHECK_LE(1, elements);
+  }
+
+  i::Isolate::Current()->heap()->CollectAllGarbage(true);
+  { i::Object* raw_map_cache = i::Isolate::Current()->context()->map_cache();
+    if (raw_map_cache != i::Isolate::Current()->heap()->undefined_value()) {
+      i::MapCache* map_cache = i::MapCache::cast(raw_map_cache);
+      CHECK_GT(elements, map_cache->NumberOfElements());
+    }
+  }
+}

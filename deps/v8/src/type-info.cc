@@ -122,6 +122,7 @@ bool TypeFeedbackOracle::StoreIsMegamorphicWithTypeInfo(Expression* expr) {
     Builtins* builtins = Isolate::Current()->builtins();
     return code->is_keyed_store_stub() &&
         *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic) &&
+        *code != builtins->builtin(Builtins::kKeyedStoreIC_Generic_Strict) &&
         code->ic_state() == MEGAMORPHIC;
   }
   return false;

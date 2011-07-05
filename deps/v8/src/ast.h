@@ -772,20 +772,26 @@ class TryStatement: public Statement {
 
 class TryCatchStatement: public TryStatement {
  public:
-  TryCatchStatement(Block* try_block, Handle<String> name, Block* catch_block)
+  TryCatchStatement(Block* try_block,
+                    Scope* scope,
+                    Variable* variable,
+                    Block* catch_block)
       : TryStatement(try_block),
-        name_(name),
+        scope_(scope),
+        variable_(variable),
         catch_block_(catch_block) {
   }
 
   DECLARE_NODE_TYPE(TryCatchStatement)
 
+  Scope* scope() { return scope_; }
+  Variable* variable() { return variable_; }
   Block* catch_block() const { return catch_block_; }
-  Handle<String> name() const { return name_; }
   virtual bool IsInlineable() const;
 
  private:
-  Handle<String> name_;
+  Scope* scope_;
+  Variable* variable_;
   Block* catch_block_;
 };
 

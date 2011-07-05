@@ -1363,7 +1363,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
 
-  Representation r = instr->hydrogen()->representation();
+  Representation r = instr->hydrogen()->value()->representation();
   if (r.IsInteger32()) {
     Register reg = ToRegister(instr->InputAt(0));
     __ testl(reg, reg);
@@ -1376,7 +1376,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->InputAt(0));
-    HType type = instr->hydrogen()->type();
+    HType type = instr->hydrogen()->value()->type();
     if (type.IsBoolean()) {
       __ CompareRoot(reg, Heap::kTrueValueRootIndex);
       EmitBranch(true_block, false_block, equal);
@@ -1483,32 +1483,6 @@ void LCodeGen::EmitCmpI(LOperand* left, LOperand* right) {
 }
 
 
-void LCodeGen::DoCmpID(LCmpID* instr) {
-  LOperand* left = instr->InputAt(0);
-  LOperand* right = instr->InputAt(1);
-  LOperand* result = instr->result();
-
-  Label unordered;
-  if (instr->is_double()) {
-    // Don't base result on EFLAGS when a NaN is involved. Instead
-    // jump to the unordered case, which produces a false value.
-    __ ucomisd(ToDoubleRegister(left), ToDoubleRegister(right));
-    __ j(parity_even, &unordered, Label::kNear);
-  } else {
-    EmitCmpI(left, right);
-  }
-
-  Label done;
-  Condition cc = TokenToCondition(instr->op(), instr->is_double());
-  __ LoadRoot(ToRegister(result), Heap::kTrueValueRootIndex);
-  __ j(cc, &done, Label::kNear);
-
-  __ bind(&unordered);
-  __ LoadRoot(ToRegister(result), Heap::kFalseValueRootIndex);
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
   LOperand* left = instr->InputAt(0);
   LOperand* right = instr->InputAt(1);
@@ -1529,22 +1503,6 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCmpObjectEq(LCmpObjectEq* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register right = ToRegister(instr->InputAt(1));
-  Register result = ToRegister(instr->result());
-
-  Label different, done;
-  __ cmpq(left, right);
-  __ j(not_equal, &different, Label::kNear);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ jmp(&done, Label::kNear);
-  __ bind(&different);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
   Register left = ToRegister(instr->InputAt(0));
   Register right = ToRegister(instr->InputAt(1));
@@ -1556,19 +1514,6 @@ void LCodeGen::DoCmpObjectEqAndBranch(LCmpObjectEqAndBranch* instr) {
 }
 
 
-void LCodeGen::DoCmpConstantEq(LCmpConstantEq* instr) {
-  Register left = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  Label done;
-  __ cmpq(left, Immediate(instr->hydrogen()->right()));
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ j(equal, &done, Label::kNear);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
   Register left = ToRegister(instr->InputAt(0));
   int true_block = chunk_->LookupDestination(instr->true_block_id());
@@ -1576,50 +1521,6 @@ void LCodeGen::DoCmpConstantEqAndBranch(LCmpConstantEqAndBranch* instr) {
 
   __ cmpq(left, Immediate(instr->hydrogen()->right()));
   EmitBranch(true_block, false_block, equal);
-}
-
-
-void LCodeGen::DoIsNull(LIsNull* instr) {
-  Register reg = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  // If the expression is known to be a smi, then it's
-  // definitely not null. Materialize false.
-  // Consider adding other type and representation tests too.
-  if (instr->hydrogen()->value()->type().IsSmi()) {
-    __ LoadRoot(result, Heap::kFalseValueRootIndex);
-    return;
-  }
-
-  __ CompareRoot(reg, Heap::kNullValueRootIndex);
-  if (instr->is_strict()) {
-    ASSERT(Heap::kTrueValueRootIndex >= 0);
-    __ movl(result, Immediate(Heap::kTrueValueRootIndex));
-    Label load;
-    __ j(equal, &load, Label::kNear);
-    __ Set(result, Heap::kFalseValueRootIndex);
-    __ bind(&load);
-    __ LoadRootIndexed(result, result, 0);
-  } else {
-    Label false_value, true_value, done;
-    __ j(equal, &true_value, Label::kNear);
-    __ CompareRoot(reg, Heap::kUndefinedValueRootIndex);
-    __ j(equal, &true_value, Label::kNear);
-    __ JumpIfSmi(reg, &false_value, Label::kNear);
-    // Check for undetectable objects by looking in the bit field in
-    // the map. The object has already been smi checked.
-    Register scratch = result;
-    __ movq(scratch, FieldOperand(reg, HeapObject::kMapOffset));
-    __ testb(FieldOperand(scratch, Map::kBitFieldOffset),
-             Immediate(1 << Map::kIsUndetectable));
-    __ j(not_zero, &true_value, Label::kNear);
-    __ bind(&false_value);
-    __ LoadRoot(result, Heap::kFalseValueRootIndex);
-    __ jmp(&done, Label::kNear);
-    __ bind(&true_value);
-    __ LoadRoot(result, Heap::kTrueValueRootIndex);
-    __ bind(&done);
-  }
 }
 
 
@@ -1685,25 +1586,6 @@ Condition LCodeGen::EmitIsObject(Register input,
 }
 
 
-void LCodeGen::DoIsObject(LIsObject* instr) {
-  Register reg = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  Label is_false, is_true, done;
-
-  Condition true_cond = EmitIsObject(reg, &is_false, &is_true);
-  __ j(true_cond, &is_true);
-
-  __ bind(&is_false);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ jmp(&done);
-
-  __ bind(&is_true);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Register reg = ToRegister(instr->InputAt(0));
 
@@ -1715,22 +1597,6 @@ void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Condition true_cond = EmitIsObject(reg, false_label, true_label);
 
   EmitBranch(true_block, false_block, true_cond);
-}
-
-
-void LCodeGen::DoIsSmi(LIsSmi* instr) {
-  LOperand* input_operand = instr->InputAt(0);
-  Register result = ToRegister(instr->result());
-  if (input_operand->IsRegister()) {
-    Register input = ToRegister(input_operand);
-    __ CheckSmiToIndicator(result, input);
-  } else {
-    Operand input = ToOperand(instr->InputAt(0));
-    __ CheckSmiToIndicator(result, input);
-  }
-  // result is zero if input is a smi, and one otherwise.
-  ASSERT(Heap::kFalseValueRootIndex == Heap::kTrueValueRootIndex + 1);
-  __ LoadRootIndexed(result, result, Heap::kTrueValueRootIndex);
 }
 
 
@@ -1750,25 +1616,6 @@ void LCodeGen::DoIsSmiAndBranch(LIsSmiAndBranch* instr) {
 }
 
 
-void LCodeGen::DoIsUndetectable(LIsUndetectable* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  Label false_label, done;
-  __ JumpIfSmi(input, &false_label);
-  __ movq(result, FieldOperand(input, HeapObject::kMapOffset));
-  __ testb(FieldOperand(result, Map::kBitFieldOffset),
-           Immediate(1 << Map::kIsUndetectable));
-  __ j(zero, &false_label);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ jmp(&done);
-  __ bind(&false_label);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
-}
-
-
 void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
   Register input = ToRegister(instr->InputAt(0));
   Register temp = ToRegister(instr->TempAt(0));
@@ -1784,7 +1631,7 @@ void LCodeGen::DoIsUndetectableAndBranch(LIsUndetectableAndBranch* instr) {
 }
 
 
-static InstanceType TestType(HHasInstanceType* instr) {
+static InstanceType TestType(HHasInstanceTypeAndBranch* instr) {
   InstanceType from = instr->from();
   InstanceType to = instr->to();
   if (from == FIRST_TYPE) return to;
@@ -1793,7 +1640,7 @@ static InstanceType TestType(HHasInstanceType* instr) {
 }
 
 
-static Condition BranchCondition(HHasInstanceType* instr) {
+static Condition BranchCondition(HHasInstanceTypeAndBranch* instr) {
   InstanceType from = instr->from();
   InstanceType to = instr->to();
   if (from == to) return equal;
@@ -1801,25 +1648,6 @@ static Condition BranchCondition(HHasInstanceType* instr) {
   if (from == FIRST_TYPE) return below_equal;
   UNREACHABLE();
   return equal;
-}
-
-
-void LCodeGen::DoHasInstanceType(LHasInstanceType* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  __ testl(input, Immediate(kSmiTagMask));
-  Label done, is_false;
-  __ j(zero, &is_false);
-  __ CmpObjectType(input, TestType(instr->hydrogen()), result);
-  __ j(NegateCondition(BranchCondition(instr->hydrogen())),
-       &is_false, Label::kNear);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ jmp(&done, Label::kNear);
-  __ bind(&is_false);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
 }
 
 
@@ -1849,21 +1677,6 @@ void LCodeGen::DoGetCachedArrayIndex(LGetCachedArrayIndex* instr) {
   __ movl(result, FieldOperand(input, String::kHashFieldOffset));
   ASSERT(String::kHashShift >= kSmiTagSize);
   __ IndexFromHash(result, result);
-}
-
-
-void LCodeGen::DoHasCachedArrayIndex(LHasCachedArrayIndex* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-
-  ASSERT(instr->hydrogen()->value()->representation().IsTagged());
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ testl(FieldOperand(input, String::kHashFieldOffset),
-           Immediate(String::kContainsCachedArrayIndexMask));
-  Label done;
-  __ j(zero, &done, Label::kNear);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
 }
 
 
@@ -1932,29 +1745,6 @@ void LCodeGen::EmitClassOfTest(Label* is_true,
   ASSERT(class_name->IsSymbol());
   __ Cmp(temp, class_name);
   // End with the answer in the z flag.
-}
-
-
-void LCodeGen::DoClassOfTest(LClassOfTest* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  ASSERT(input.is(result));
-  Register temp = ToRegister(instr->TempAt(0));
-  Handle<String> class_name = instr->hydrogen()->class_name();
-  Label done;
-  Label is_true, is_false;
-
-  EmitClassOfTest(&is_true, &is_false, class_name, input, temp);
-
-  __ j(not_equal, &is_false);
-
-  __ bind(&is_true);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&is_false);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ bind(&done);
 }
 
 
@@ -4025,29 +3815,6 @@ void LCodeGen::DoTypeof(LTypeof* instr) {
 }
 
 
-void LCodeGen::DoTypeofIs(LTypeofIs* instr) {
-  Register input = ToRegister(instr->InputAt(0));
-  Register result = ToRegister(instr->result());
-  Label true_label;
-  Label false_label;
-  Label done;
-
-  Condition final_branch_condition = EmitTypeofIs(&true_label,
-                                                  &false_label,
-                                                  input,
-                                                  instr->type_literal());
-  __ j(final_branch_condition, &true_label);
-  __ bind(&false_label);
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&true_label);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-
-  __ bind(&done);
-}
-
-
 void LCodeGen::EmitPushTaggedOperand(LOperand* operand) {
   ASSERT(!operand->IsDoubleRegister());
   if (operand->IsConstantOperand()) {
@@ -4136,25 +3903,6 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
   }
 
   return final_branch_condition;
-}
-
-
-void LCodeGen::DoIsConstructCall(LIsConstructCall* instr) {
-  Register result = ToRegister(instr->result());
-  Label true_label;
-  Label done;
-
-  EmitIsConstructCall(result);
-  __ j(equal, &true_label, Label::kNear);
-
-  __ LoadRoot(result, Heap::kFalseValueRootIndex);
-  __ jmp(&done, Label::kNear);
-
-  __ bind(&true_label);
-  __ LoadRoot(result, Heap::kTrueValueRootIndex);
-
-
-  __ bind(&done);
 }
 
 

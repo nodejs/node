@@ -3628,17 +3628,14 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     movq(dst, rsi);
   }
 
-  // We should not have found a with or catch context by walking the context
-  // chain (i.e., the static scope chain and runtime context chain do not
-  // agree).  A variable occurring in such a scope should have slot type
-  // LOOKUP and not CONTEXT.
+  // We should not have found a with context by walking the context
+  // chain (i.e., the static scope chain and runtime context chain do
+  // not agree).  A variable occurring in such a scope should have
+  // slot type LOOKUP and not CONTEXT.
   if (emit_debug_code()) {
     CompareRoot(FieldOperand(dst, HeapObject::kMapOffset),
                 Heap::kWithContextMapRootIndex);
     Check(not_equal, "Variable resolved to with context.");
-    CompareRoot(FieldOperand(dst, HeapObject::kMapOffset),
-                Heap::kCatchContextMapRootIndex);
-    Check(not_equal, "Variable resolved to catch context.");
   }
 }
 

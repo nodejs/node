@@ -3031,11 +3031,33 @@ MaybeObject* JSObject::DeleteFastElement(uint32_t index) {
     if (!maybe->ToObject(&writable)) return maybe;
     backing_store = FixedArray::cast(writable);
   }
-  int length = IsJSArray()
+  uint32_t length = static_cast<uint32_t>(
+      IsJSArray()
       ? Smi::cast(JSArray::cast(this)->length())->value()
-      : backing_store->length();
-  if (index < static_cast<uint32_t>(length)) {
+      : backing_store->length());
+  if (index < length) {
     backing_store->set_the_hole(index);
+    // If an old space backing store is larger than a certain size and
+    // has too few used values, normalize it.
+    // To avoid doing the check on every delete we require at least
+    // one adjacent hole to the value being deleted.
+    Object* hole = heap->the_hole_value();
+    const int kMinLengthForSparsenessCheck = 64;
+    if (backing_store->length() >= kMinLengthForSparsenessCheck &&
+        !heap->InNewSpace(backing_store) &&
+        ((index > 0 && backing_store->get(index - 1) == hole) ||
+         (index + 1 < length && backing_store->get(index + 1) == hole))) {
+      int num_used = 0;
+      for (int i = 0; i < backing_store->length(); ++i) {
+        if (backing_store->get(i) != hole) ++num_used;
+        // Bail out early if more than 1/4 is used.
+        if (4 * num_used > backing_store->length()) break;
+      }
+      if (4 * num_used <= backing_store->length()) {
+        MaybeObject* result = NormalizeElements();
+        if (result->IsFailure()) return result;
+      }
+    }
   }
   return heap->true_value();
 }
@@ -6287,19 +6309,6 @@ void JSFunction::MarkForLazyRecompilation() {
 }
 
 
-uint32_t JSFunction::SourceHash() {
-  uint32_t hash = 0;
-  Object* script = shared()->script();
-  if (!script->IsUndefined()) {
-    Object* source = Script::cast(script)->source();
-    if (source->IsUndefined()) hash = String::cast(source)->Hash();
-  }
-  hash ^= ComputeIntegerHash(shared()->start_position_and_type());
-  hash += ComputeIntegerHash(shared()->end_position());
-  return hash;
-}
-
-
 bool JSFunction::IsInlineable() {
   if (IsBuiltin()) return false;
   SharedFunctionInfo* shared_info = shared();
@@ -6950,7 +6959,7 @@ Map* Code::FindFirstMap() {
 }
 
 
-#if defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
+#ifdef ENABLE_DISASSEMBLER
 
 void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
   disasm::NameConverter converter;
@@ -7098,10 +7107,6 @@ void DeoptimizationOutputData::DeoptimizationOutputDataPrint(FILE* out) {
   }
 }
 
-#endif  // defined(OBJECT_PRINT) || defined(ENABLE_DISASSEMBLER)
-
-
-#ifdef ENABLE_DISASSEMBLER
 
 // Identify kind of code.
 const char* Code::Kind2String(Kind kind) {
@@ -7191,6 +7196,9 @@ void Code::Disassemble(const char* name, FILE* out) {
     PrintF(out, "ic_in_loop = %d\n", ic_in_loop() == IN_LOOP);
     if (ic_state() == MONOMORPHIC) {
       PrintF(out, "type = %s\n", PropertyType2String(type()));
+    }
+    if (is_call_stub() || is_keyed_call_stub()) {
+      PrintF(out, "argc = %d\n", arguments_count());
     }
   }
   if ((name != NULL) && (name[0] != '\0')) {

@@ -4831,47 +4831,26 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  PauseProfilerEx(PROFILER_MODULE_CPU);
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->logger()->PauseProfiler();
 #endif
 }
 
 
 void V8::ResumeProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  ResumeProfilerEx(PROFILER_MODULE_CPU);
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->logger()->ResumeProfiler();
 #endif
 }
 
 
 bool V8::IsProfilerPaused() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  return LOGGER->GetActiveProfilerModules() & PROFILER_MODULE_CPU;
+  i::Isolate* isolate = i::Isolate::Current();
+  return isolate->logger()->IsProfilerPaused();
 #else
   return true;
-#endif
-}
-
-
-void V8::ResumeProfilerEx(int flags, int tag) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Isolate* isolate = i::Isolate::Current();
-  isolate->logger()->ResumeProfiler(flags, tag);
-#endif
-}
-
-
-void V8::PauseProfilerEx(int flags, int tag) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  LOGGER->PauseProfiler(flags, tag);
-#endif
-}
-
-
-int V8::GetActiveProfilerModules() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  return LOGGER->GetActiveProfilerModules();
-#else
-  return PROFILER_MODULE_NONE;
 #endif
 }
 

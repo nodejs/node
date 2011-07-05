@@ -498,6 +498,12 @@ class AstContext {
   // the instruction as value.
   virtual void ReturnInstruction(HInstruction* instr, int ast_id) = 0;
 
+  // Finishes the current basic block and materialize a boolean for
+  // value context, nothing for effect, generate a branch for test context.
+  // Call this function in tail position in the Visit functions for
+  // expressions.
+  virtual void ReturnControl(HControlInstruction* instr, int ast_id) = 0;
+
   void set_for_typeof(bool for_typeof) { for_typeof_ = for_typeof; }
   bool is_for_typeof() { return for_typeof_; }
 
@@ -532,6 +538,7 @@ class EffectContext: public AstContext {
 
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, int ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, int ast_id);
 };
 
 
@@ -544,6 +551,7 @@ class ValueContext: public AstContext {
 
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, int ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, int ast_id);
 
   bool arguments_allowed() { return flag_ == ARGUMENTS_ALLOWED; }
 
@@ -566,6 +574,7 @@ class TestContext: public AstContext {
 
   virtual void ReturnValue(HValue* value);
   virtual void ReturnInstruction(HInstruction* instr, int ast_id);
+  virtual void ReturnControl(HControlInstruction* instr, int ast_id);
 
   static TestContext* cast(AstContext* context) {
     ASSERT(context->IsTest());
@@ -706,6 +715,10 @@ class HGraphBuilder: public AstVisitor {
 
   void Bailout(const char* reason);
 
+  HBasicBlock* CreateJoin(HBasicBlock* first,
+                          HBasicBlock* second,
+                          int join_id);
+
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
@@ -778,10 +791,6 @@ class HGraphBuilder: public AstVisitor {
   void VisitLoopBody(Statement* body,
                      HBasicBlock* loop_entry,
                      BreakAndContinueInfo* break_info);
-
-  HBasicBlock* CreateJoin(HBasicBlock* first,
-                          HBasicBlock* second,
-                          int join_id);
 
   // Create a back edge in the flow graph.  body_exit is the predecessor
   // block and loop_entry is the successor block.  loop_successor is the

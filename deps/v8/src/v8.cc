@@ -100,42 +100,34 @@ void V8::TearDown() {
 }
 
 
-static uint32_t random_seed() {
-  if (FLAG_random_seed == 0) {
-    return random();
+static void seed_random(uint32_t* state) {
+  for (int i = 0; i < 2; ++i) {
+    state[i] = FLAG_random_seed;
+    while (state[i] == 0) {
+      state[i] = random();
+    }
   }
-  return FLAG_random_seed;
 }
 
 
-typedef struct {
-  uint32_t hi;
-  uint32_t lo;
-} random_state;
-
-
 // Random number generator using George Marsaglia's MWC algorithm.
-static uint32_t random_base(random_state *state) {
-  // Initialize seed using the system random(). If one of the seeds
-  // should ever become zero again, or if random() returns zero, we
-  // avoid getting stuck with zero bits in hi or lo by re-initializing
-  // them on demand.
-  if (state->hi == 0) state->hi = random_seed();
-  if (state->lo == 0) state->lo = random_seed();
+static uint32_t random_base(uint32_t* state) {
+  // Initialize seed using the system random().
+  // No non-zero seed will ever become zero again.
+  if (state[0] == 0) seed_random(state);
 
-  // Mix the bits.
-  state->hi = 36969 * (state->hi & 0xFFFF) + (state->hi >> 16);
-  state->lo = 18273 * (state->lo & 0xFFFF) + (state->lo >> 16);
-  return (state->hi << 16) + (state->lo & 0xFFFF);
+  // Mix the bits.  Never replaces state[i] with 0 if it is nonzero.
+  state[0] = 18273 * (state[0] & 0xFFFF) + (state[0] >> 16);
+  state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
+
+  return (state[0] << 14) + (state[1] & 0x3FFFF);
 }
 
 
 // Used by JavaScript APIs
 uint32_t V8::Random(Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
-  // TODO(isolates): move lo and hi to isolate
-  static random_state state = {0, 0};
-  return random_base(&state);
+  return random_base(isolate->random_seed());
 }
 
 
@@ -144,9 +136,7 @@ uint32_t V8::Random(Isolate* isolate) {
 // leaks that could be used in an exploit.
 uint32_t V8::RandomPrivate(Isolate* isolate) {
   ASSERT(isolate == Isolate::Current());
-  // TODO(isolates): move lo and hi to isolate
-  static random_state state = {0, 0};
-  return random_base(&state);
+  return random_base(isolate->private_random_seed());
 }
 
 

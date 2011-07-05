@@ -170,7 +170,7 @@ class HandleScope {
 void NormalizeProperties(Handle<JSObject> object,
                          PropertyNormalizationMode mode,
                          int expected_additional_properties);
-void NormalizeElements(Handle<JSObject> object);
+Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
 MUST_USE_RESULT Handle<NumberDictionary> NumberDictionarySet(

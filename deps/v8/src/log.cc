@@ -1362,18 +1362,14 @@ void Logger::TickEvent(TickSample* sample, bool overflow) {
 }
 
 
-int Logger::GetActiveProfilerModules() {
-  int result = PROFILER_MODULE_NONE;
-  if (profiler_ != NULL && !profiler_->paused()) {
-    result |= PROFILER_MODULE_CPU;
-  }
-  return result;
+bool Logger::IsProfilerPaused() {
+  return profiler_ == NULL || profiler_->paused();
 }
 
 
-void Logger::PauseProfiler(int flags, int tag) {
+void Logger::PauseProfiler() {
   if (!log_->IsEnabled()) return;
-  if (profiler_ != NULL && (flags & PROFILER_MODULE_CPU)) {
+  if (profiler_ != NULL) {
     // It is OK to have negative nesting.
     if (--cpu_profiler_nesting_ == 0) {
       profiler_->pause();
@@ -1388,18 +1384,12 @@ void Logger::PauseProfiler(int flags, int tag) {
       --logging_nesting_;
     }
   }
-  if (tag != 0) {
-    UncheckedIntEvent("close-tag", tag);
-  }
 }
 
 
-void Logger::ResumeProfiler(int flags, int tag) {
+void Logger::ResumeProfiler() {
   if (!log_->IsEnabled()) return;
-  if (tag != 0) {
-    UncheckedIntEvent("open-tag", tag);
-  }
-  if (profiler_ != NULL && (flags & PROFILER_MODULE_CPU)) {
+  if (profiler_ != NULL) {
     if (cpu_profiler_nesting_++ == 0) {
       ++logging_nesting_;
       if (FLAG_prof_lazy) {
@@ -1421,7 +1411,7 @@ void Logger::ResumeProfiler(int flags, int tag) {
 // This function can be called when Log's mutex is acquired,
 // either from main or Profiler's thread.
 void Logger::LogFailure() {
-  PauseProfiler(PROFILER_MODULE_CPU, 0);
+  PauseProfiler();
 }
 
 

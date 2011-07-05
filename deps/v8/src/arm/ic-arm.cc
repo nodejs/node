@@ -952,6 +952,9 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
   Register backing_store = parameter_map;
   __ ldr(backing_store, FieldMemOperand(parameter_map, kBackingStoreOffset));
+  Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
+  __ CheckMap(backing_store, scratch, fixed_array_map, slow_case,
+              DONT_DO_SMI_CHECK);
   __ ldr(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
   __ cmp(key, Operand(scratch));
   __ b(cs, slow_case);

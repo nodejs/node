@@ -554,12 +554,10 @@ void UnaryOpStub::Generate(MacroAssembler* masm) {
 
 void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   __ pop(ecx);  // Save return address.
-  __ push(eax);
-  // the argument is now on top.
-  // Push this stub's key. Although the operation and the type info are
-  // encoded into the key, the encoding is opaque, so push them too.
-  __ push(Immediate(Smi::FromInt(MinorKey())));
+
+  __ push(eax);  // the operand
   __ push(Immediate(Smi::FromInt(op_)));
+  __ push(Immediate(Smi::FromInt(mode_)));
   __ push(Immediate(Smi::FromInt(operand_type_)));
 
   __ push(ecx);  // Push return address.
@@ -567,8 +565,7 @@ void UnaryOpStub::GenerateTypeTransition(MacroAssembler* masm) {
   // Patch the caller to an appropriate specialized stub and return the
   // operation result to the caller of the stub.
   __ TailCallExternalReference(
-      ExternalReference(IC_Utility(IC::kUnaryOp_Patch),
-                        masm->isolate()), 4, 1);
+      ExternalReference(IC_Utility(IC::kUnaryOp_Patch), masm->isolate()), 4, 1);
 }
 
 

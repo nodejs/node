@@ -44,6 +44,9 @@ DeoptimizerData::DeoptimizerData() {
   lazy_deoptimization_entry_code_ = NULL;
   current_ = NULL;
   deoptimizing_code_list_ = NULL;
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  deoptimized_frame_info_ = NULL;
+#endif
 }
 
 
@@ -58,6 +61,16 @@ DeoptimizerData::~DeoptimizerData() {
   }
 }
 
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void DeoptimizerData::Iterate(ObjectVisitor* v) {
+  if (deoptimized_frame_info_ != NULL) {
+    deoptimized_frame_info_->Iterate(v);
+  }
+}
+#endif
+
+
 Deoptimizer* Deoptimizer::New(JSFunction* function,
                               BailoutType type,
                               unsigned bailout_id,
@@ -70,7 +83,8 @@ Deoptimizer* Deoptimizer::New(JSFunction* function,
                                              type,
                                              bailout_id,
                                              from,
-                                             fp_to_sp_delta);
+                                             fp_to_sp_delta,
+                                             NULL);
   ASSERT(isolate->deoptimizer_data()->current_ == NULL);
   isolate->deoptimizer_data()->current_ = deoptimizer;
   return deoptimizer;
@@ -86,6 +100,92 @@ Deoptimizer* Deoptimizer::Grab(Isolate* isolate) {
   return result;
 }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
+    JavaScriptFrame* frame,
+    int frame_index,
+    Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  ASSERT(frame->is_optimized());
+  ASSERT(isolate->deoptimizer_data()->deoptimized_frame_info_ == NULL);
+
+  // Get the function and code from the frame.
+  JSFunction* function = JSFunction::cast(frame->function());
+  Code* code = frame->LookupCode();
+  Address code_start_address = code->instruction_start();
+
+  // Locate the deoptimization point in the code. As we are at a call the
+  // return address must be at a place in the code with deoptimization support.
+  int deoptimization_index = Safepoint::kNoDeoptimizationIndex;
+  // Scope this as the safe point constructor will disallow allocation.
+  {
+    SafepointTable table(code);
+    for (unsigned i = 0; i < table.length(); ++i) {
+      Address address = code_start_address + table.GetPcOffset(i);
+      if (address == frame->pc()) {
+        SafepointEntry safepoint_entry = table.GetEntry(i);
+        ASSERT(safepoint_entry.deoptimization_index() !=
+               Safepoint::kNoDeoptimizationIndex);
+        deoptimization_index = safepoint_entry.deoptimization_index();
+        break;
+      }
+    }
+  }
+  ASSERT(deoptimization_index != Safepoint::kNoDeoptimizationIndex);
+
+  // Always use the actual stack slots when calculating the fp to sp
+  // delta adding two for the function and context.
+  unsigned stack_slots = code->stack_slots();
+  unsigned fp_to_sp_delta = ((stack_slots + 2) * kPointerSize);
+
+  Deoptimizer* deoptimizer = new Deoptimizer(isolate,
+                                             function,
+                                             Deoptimizer::DEBUGGER,
+                                             deoptimization_index,
+                                             frame->pc(),
+                                             fp_to_sp_delta,
+                                             code);
+  Address tos = frame->fp() - fp_to_sp_delta;
+  deoptimizer->FillInputFrame(tos, frame);
+
+  // Calculate the output frames.
+  Deoptimizer::ComputeOutputFrames(deoptimizer);
+
+  // Create the GC safe output frame information and register it for GC
+  // handling.
+  ASSERT_LT(frame_index, deoptimizer->output_count());
+  DeoptimizedFrameInfo* info =
+      new DeoptimizedFrameInfo(deoptimizer, frame_index);
+  isolate->deoptimizer_data()->deoptimized_frame_info_ = info;
+
+  // Get the "simulated" top and size for the requested frame.
+  Address top =
+      reinterpret_cast<Address>(deoptimizer->output_[frame_index]->GetTop());
+  unsigned size =
+      deoptimizer->output_[frame_index]->GetFrameSize() / kPointerSize;
+
+  // Done with the GC-unsafe frame descriptions. This re-enables allocation.
+  deoptimizer->DeleteFrameDescriptions();
+
+  // Allocate a heap number for the doubles belonging to this frame.
+  deoptimizer->MaterializeHeapNumbersForDebuggerInspectableFrame(
+      top, size, info);
+
+  // Finished using the deoptimizer instance.
+  delete deoptimizer;
+
+  return info;
+}
+
+
+void Deoptimizer::DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
+                                                 Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  ASSERT(isolate->deoptimizer_data()->deoptimized_frame_info_ == info);
+  delete info;
+  isolate->deoptimizer_data()->deoptimized_frame_info_ = NULL;
+}
+#endif
 
 void Deoptimizer::GenerateDeoptimizationEntries(MacroAssembler* masm,
                                                 int count,
@@ -209,18 +309,24 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
                          BailoutType type,
                          unsigned bailout_id,
                          Address from,
-                         int fp_to_sp_delta)
+                         int fp_to_sp_delta,
+                         Code* optimized_code)
     : isolate_(isolate),
       function_(function),
       bailout_id_(bailout_id),
       bailout_type_(type),
       from_(from),
       fp_to_sp_delta_(fp_to_sp_delta),
+      input_(NULL),
       output_count_(0),
       output_(NULL),
       deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
-    PrintF("**** DEOPT: ");
+    if (type == DEBUGGER) {
+      PrintF("**** DEOPT FOR DEBUGGER: ");
+    } else {
+      PrintF("**** DEOPT: ");
+    }
     function->PrintName();
     PrintF(" at bailout #%u, address 0x%" V8PRIxPTR ", frame size %d\n",
            bailout_id,
@@ -248,10 +354,16 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
     optimized_code_ = function_->code();
     ASSERT(optimized_code_->kind() == Code::OPTIMIZED_FUNCTION);
     ASSERT(!optimized_code_->contains(from));
+  } else if (type == DEBUGGER) {
+    optimized_code_ = optimized_code;
+    ASSERT(optimized_code_->contains(from));
   }
   ASSERT(HEAP->allow_allocation(false));
   unsigned size = ComputeInputFrameSize();
   input_ = new(size) FrameDescription(size, function);
+#ifdef DEBUG
+  input_->SetKind(Code::OPTIMIZED_FUNCTION);
+#endif
 }
 
 
@@ -417,6 +529,7 @@ void Deoptimizer::DoComputeOutputFrames() {
 
 
 void Deoptimizer::MaterializeHeapNumbers() {
+  ASSERT_NE(DEBUGGER, bailout_type_);
   for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
     HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
     Handle<Object> num = isolate_->factory()->NewNumber(d.value());
@@ -430,6 +543,35 @@ void Deoptimizer::MaterializeHeapNumbers() {
     Memory::Object_at(d.slot_address()) = *num;
   }
 }
+
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+void Deoptimizer::MaterializeHeapNumbersForDebuggerInspectableFrame(
+    Address top, intptr_t size, DeoptimizedFrameInfo* info) {
+  ASSERT_EQ(DEBUGGER, bailout_type_);
+  for (int i = 0; i < deferred_heap_numbers_.length(); i++) {
+    HeapNumberMaterializationDescriptor d = deferred_heap_numbers_[i];
+
+    // Check of the heap number to materialize actually belong to the frame
+    // being extracted.
+    Address slot = d.slot_address();
+    if (top <= slot && slot < top + size) {
+      Handle<Object> num = isolate_->factory()->NewNumber(d.value());
+      int expression_index = static_cast<int>(
+          info->expression_count_ - (slot - top) / kPointerSize - 1);
+      if (FLAG_trace_deopt) {
+        PrintF("Materializing a new heap number %p [%e] in slot %p"
+               "for expression stack index %d\n",
+               reinterpret_cast<void*>(*num),
+               d.value(),
+               d.slot_address(),
+               expression_index);
+      }
+      info->SetExpression(expression_index, *num);
+    }
+  }
+}
+#endif
 
 
 void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
@@ -972,15 +1114,29 @@ unsigned FrameDescription::GetOffsetFromSlotIndex(Deoptimizer* deoptimizer,
   if (slot_index >= 0) {
     // Local or spill slots. Skip the fixed part of the frame
     // including all arguments.
-    unsigned base = static_cast<unsigned>(
-        GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction()));
+    unsigned base =
+        GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
     return base - ((slot_index + 1) * kPointerSize);
   } else {
     // Incoming parameter.
-    unsigned base = static_cast<unsigned>(GetFrameSize() -
-        deoptimizer->ComputeIncomingArgumentSize(GetFunction()));
+    unsigned base = GetFrameSize() -
+        deoptimizer->ComputeIncomingArgumentSize(GetFunction());
     return base - ((slot_index + 1) * kPointerSize);
   }
+}
+
+
+unsigned FrameDescription::GetExpressionCount(Deoptimizer* deoptimizer) {
+  ASSERT_EQ(Code::FUNCTION, kind_);
+  unsigned size = GetFrameSize() - deoptimizer->ComputeFixedSize(GetFunction());
+  return size / kPointerSize;
+}
+
+
+Object* FrameDescription::GetExpression(Deoptimizer* deoptimizer, int index) {
+  ASSERT_EQ(Code::FUNCTION, kind_);
+  unsigned offset = GetOffsetFromSlotIndex(deoptimizer, index);
+  return reinterpret_cast<Object*>(*GetFrameSlotPointer(offset));
 }
 
 
@@ -1253,6 +1409,26 @@ void SlotRef::ComputeSlotMappingForArguments(JavaScriptFrame* frame,
   }
 
   UNREACHABLE();
+}
+
+
+DeoptimizedFrameInfo::DeoptimizedFrameInfo(
+    Deoptimizer* deoptimizer, int frame_index) {
+  FrameDescription* output_frame = deoptimizer->output_[frame_index];
+  expression_count_ = output_frame->GetExpressionCount(deoptimizer);
+  expression_stack_ = new Object*[expression_count_];
+  for (int i = 0; i < expression_count_; i++) {
+    SetExpression(i, output_frame->GetExpression(deoptimizer, i));
+  }
+}
+
+
+DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
+  delete expression_stack_;
+}
+
+void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
+  v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
 

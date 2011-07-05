@@ -43,6 +43,8 @@
 namespace v8 {
 namespace internal {
 
+class CompilationInfo;
+
 #define CODE_TAGS_LIST(V)                       \
   V(LOAD_IC)                                    \
   V(KEYED_LOAD_IC)                              \
@@ -113,11 +115,13 @@ class GDBJITInterface: public AllStatic {
   static void AddCode(const char* name,
                       Code* code,
                       CodeTag tag,
-                      Script* script = NULL);
+                      Script* script,
+                      CompilationInfo* info);
 
   static void AddCode(Handle<String> name,
                       Handle<Script> script,
-                      Handle<Code> code);
+                      Handle<Code> code,
+                      CompilationInfo* info);
 
   static void AddCode(CodeTag tag, String* name, Code* code);
 

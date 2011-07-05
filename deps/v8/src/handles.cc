@@ -214,9 +214,10 @@ void NormalizeProperties(Handle<JSObject> object,
 }
 
 
-void NormalizeElements(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->NormalizeElements());
+Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->NormalizeElements(),
+                     NumberDictionary);
 }
 
 

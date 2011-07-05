@@ -91,7 +91,7 @@ void MacroAssembler::Jump(intptr_t target, RelocInfo::Mode rmode,
 }
 
 
-void MacroAssembler::Jump(byte* target, RelocInfo::Mode rmode,
+void MacroAssembler::Jump(Address target, RelocInfo::Mode rmode,
                           Condition cond) {
   ASSERT(!RelocInfo::IsCodeTarget(rmode));
   Jump(reinterpret_cast<intptr_t>(target), rmode, cond);
@@ -118,10 +118,8 @@ int MacroAssembler::CallSize(Register target, Condition cond) {
 void MacroAssembler::Call(Register target, Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
+  Label start;
+  bind(&start);
 #if USE_BLX
   blx(target, cond);
 #else
@@ -129,34 +127,29 @@ void MacroAssembler::Call(Register target, Condition cond) {
   mov(lr, Operand(pc), LeaveCC, cond);
   mov(pc, Operand(target), LeaveCC, cond);
 #endif
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(target, cond), post_position);
-#endif
+  ASSERT_EQ(CallSize(target, cond), SizeOfCodeGeneratedSince(&start));
 }
 
 
 int MacroAssembler::CallSize(
-    intptr_t target, RelocInfo::Mode rmode, Condition cond) {
+    Address target, RelocInfo::Mode rmode, Condition cond) {
   int size = 2 * kInstrSize;
   Instr mov_instr = cond | MOV | LeaveCC;
-  if (!Operand(target, rmode).is_single_instruction(mov_instr)) {
+  intptr_t immediate = reinterpret_cast<intptr_t>(target);
+  if (!Operand(immediate, rmode).is_single_instruction(mov_instr)) {
     size += kInstrSize;
   }
   return size;
 }
 
 
-void MacroAssembler::Call(intptr_t target,
+void MacroAssembler::Call(Address target,
                           RelocInfo::Mode rmode,
                           Condition cond) {
   // Block constant pool for the call instruction sequence.
   BlockConstPoolScope block_const_pool(this);
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
+  Label start;
+  bind(&start);
 #if USE_BLX
   // On ARMv5 and after the recommended call sequence is:
   //  ldr ip, [pc, #...]
@@ -168,7 +161,7 @@ void MacroAssembler::Call(intptr_t target,
   // we have to do it explicitly.
   positions_recorder()->WriteRecordedPositions();
 
-  mov(ip, Operand(target, rmode));
+  mov(ip, Operand(reinterpret_cast<int32_t>(target), rmode));
   blx(ip, cond);
 
   ASSERT(kCallTargetAddressOffset == 2 * kInstrSize);
@@ -176,82 +169,36 @@ void MacroAssembler::Call(intptr_t target,
   // Set lr for return at current pc + 8.
   mov(lr, Operand(pc), LeaveCC, cond);
   // Emit a ldr<cond> pc, [pc + offset of target in constant pool].
-  mov(pc, Operand(target, rmode), LeaveCC, cond);
+  mov(pc, Operand(reinterpret_cast<int32_t>(target), rmode), LeaveCC, cond);
   ASSERT(kCallTargetAddressOffset == kInstrSize);
 #endif
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
-#endif
+  ASSERT_EQ(CallSize(target, rmode, cond), SizeOfCodeGeneratedSince(&start));
 }
 
 
-int MacroAssembler::CallSize(
-    byte* target, RelocInfo::Mode rmode, Condition cond) {
-  return CallSize(reinterpret_cast<intptr_t>(target), rmode);
-}
-
-
-void MacroAssembler::Call(
-    byte* target, RelocInfo::Mode rmode, Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
-  ASSERT(!RelocInfo::IsCodeTarget(rmode));
-  Call(reinterpret_cast<intptr_t>(target), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(target, rmode, cond), post_position);
-#endif
-}
-
-
-int MacroAssembler::CallSize(
-    Handle<Code> code, RelocInfo::Mode rmode, Condition cond) {
-  return CallSize(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-}
-
-
-void MacroAssembler::CallWithAstId(Handle<Code> code,
-                                   RelocInfo::Mode rmode,
-                                   unsigned ast_id,
-                                   Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
-  ASSERT(rmode == RelocInfo::CODE_TARGET_WITH_ID);
-  ASSERT(ast_id != kNoASTId);
-  ASSERT(ast_id_for_reloc_info_ == kNoASTId);
-  ast_id_for_reloc_info_ = ast_id;
-  // 'code' is always generated ARM code, never THUMB code
-  Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
-#endif
+int MacroAssembler::CallSize(Handle<Code> code,
+                             RelocInfo::Mode rmode,
+                             unsigned ast_id,
+                             Condition cond) {
+  return CallSize(reinterpret_cast<Address>(code.location()), rmode, cond);
 }
 
 
 void MacroAssembler::Call(Handle<Code> code,
                           RelocInfo::Mode rmode,
+                          unsigned ast_id,
                           Condition cond) {
-#ifdef DEBUG
-  int pre_position = pc_offset();
-#endif
-
+  Label start;
+  bind(&start);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
+  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+    ASSERT(ast_id_for_reloc_info_ == kNoASTId);
+    ast_id_for_reloc_info_ = ast_id;
+    rmode = RelocInfo::CODE_TARGET_WITH_ID;
+  }
   // 'code' is always generated ARM code, never THUMB code
-  Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond);
-
-#ifdef DEBUG
-  int post_position = pc_offset();
-  CHECK_EQ(pre_position + CallSize(code, rmode, cond), post_position);
-#endif
+  Call(reinterpret_cast<Address>(code.location()), rmode, cond);
+  ASSERT_EQ(CallSize(code, rmode, cond), SizeOfCodeGeneratedSince(&start));
 }
 
 
@@ -994,9 +941,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
     Handle<Code> adaptor =
         isolate()->builtins()->ArgumentsAdaptorTrampoline();
     if (flag == CALL_FUNCTION) {
-      call_wrapper.BeforeCall(CallSize(adaptor, RelocInfo::CODE_TARGET));
+      call_wrapper.BeforeCall(CallSize(adaptor));
       SetCallKind(r5, call_kind);
-      Call(adaptor, RelocInfo::CODE_TARGET);
+      Call(adaptor);
       call_wrapper.AfterCall();
       b(done);
     } else {
@@ -1719,7 +1666,7 @@ void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
   STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
-  ldrb(scratch, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  ldrb(scratch, FieldMemOperand(map, Map::kBitField2Offset));
   cmp(scratch, Operand(Map::kMaximumBitField2FastElementValue));
   b(hi, fail);
 }

@@ -203,7 +203,7 @@ void PrettyPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   Visit(node->try_block());
   Print(" catch (");
   const bool quote = false;
-  PrintLiteral(node->name(), quote);
+  PrintLiteral(node->variable()->name(), quote);
   Print(") ");
   Visit(node->catch_block());
 }
@@ -856,8 +856,9 @@ void AstPrinter::VisitForInStatement(ForInStatement* node) {
 void AstPrinter::VisitTryCatchStatement(TryCatchStatement* node) {
   IndentedScope indent(this, "TRY CATCH");
   PrintIndentedVisit("TRY", node->try_block());
-  const bool quote = false;
-  PrintLiteralIndented("CATCHVAR", node->name(), quote);
+  PrintLiteralWithModeIndented("CATCHVAR",
+                               node->variable(),
+                               node->variable()->name());
   PrintIndentedVisit("CATCH", node->catch_block());
 }
 
@@ -1244,7 +1245,7 @@ void JsonAstBuilder::VisitForInStatement(ForInStatement* stmt) {
 void JsonAstBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
   TagScope tag(this, "TryCatchStatement");
   { AttributesScope attributes(this);
-    AddAttribute("variable", stmt->name());
+    AddAttribute("variable", stmt->variable()->name());
   }
   Visit(stmt->try_block());
   Visit(stmt->catch_block());

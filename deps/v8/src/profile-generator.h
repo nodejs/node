@@ -973,9 +973,11 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   void SetRootShortcutReference(Object* child);
   void SetRootGcRootsReference();
   void SetGcRootsReference(Object* child);
+  void TagObject(Object* obj, const char* tag);
 
   HeapEntry* GetEntry(Object* obj);
 
+  Heap* heap_;
   HeapSnapshot* snapshot_;
   HeapSnapshotsCollection* collection_;
   SnapshottingProgressReportingInterface* progress_;

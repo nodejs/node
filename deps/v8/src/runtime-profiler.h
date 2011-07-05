@@ -37,7 +37,6 @@ namespace internal {
 class Isolate;
 class JSFunction;
 class Object;
-class PendingListNode;
 class Semaphore;
 
 class RuntimeProfiler {
@@ -52,7 +51,6 @@ class RuntimeProfiler {
   }
 
   void OptimizeNow();
-  void OptimizeSoon(JSFunction* function);
 
   void NotifyTick();
 
@@ -106,7 +104,7 @@ class RuntimeProfiler {
 
   static void HandleWakeUp(Isolate* isolate);
 
-  void Optimize(JSFunction* function, bool eager, int delay);
+  void Optimize(JSFunction* function);
 
   void AttemptOnStackReplacement(JSFunction* function);
 
@@ -118,30 +116,15 @@ class RuntimeProfiler {
 
   void AddSample(JSFunction* function, int weight);
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  void UpdateStateRatio(SamplerState current_state);
-#endif
-
   Isolate* isolate_;
 
   int sampler_threshold_;
   int sampler_threshold_size_factor_;
   int sampler_ticks_until_threshold_adjustment_;
 
-  // The ratio of ticks spent in JS code in percent.
-  Atomic32 js_ratio_;
-
   Object* sampler_window_[kSamplerWindowSize];
   int sampler_window_position_;
   int sampler_window_weight_[kSamplerWindowSize];
-
-  // Support for pending 'optimize soon' requests.
-  PendingListNode* optimize_soon_list_;
-
-  SamplerState state_window_[kStateWindowSize];
-  int state_window_position_;
-  int state_window_ticks_;
-  int state_counts_[2];
 
   // Possible state values:
   //   -1            => the profiler thread is waiting on the semaphore
@@ -159,7 +142,7 @@ class RuntimeProfiler {
 // Rate limiter intended to be used in the profiler thread.
 class RuntimeProfilerRateLimiter BASE_EMBEDDED {
  public:
-  RuntimeProfilerRateLimiter() : non_js_ticks_(0) { }
+  RuntimeProfilerRateLimiter() {}
 
   // Suspends the current thread (which must be the profiler thread)
   // when not executing JavaScript to minimize CPU usage. Returns
@@ -170,8 +153,6 @@ class RuntimeProfilerRateLimiter BASE_EMBEDDED {
   bool SuspendIfNecessary();
 
  private:
-  int non_js_ticks_;
-
   DISALLOW_COPY_AND_ASSIGN(RuntimeProfilerRateLimiter);
 };
 

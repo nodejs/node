@@ -1,3 +1,18 @@
+2011-07-04: Version 3.4.9
+
+        Added support for debugger inspection of locals in optimized frames
+        (issue 1140).
+
+        Fixed SConstruct to pass correct defines to samples/preparser when
+        building with library=shared.
+
+        Made date parser handle ES5 Date Time Strings correctly (issue 1498).
+
+        Fixed a bug in Object.defineProperty on the arguments object.
+
+        Performance improvements on all platforms.
+
+
 2011-06-29: Version 3.4.8
 
         Ensure 16-byte stack alignment on Solaris (issue 1505).
@@ -54,41 +69,41 @@
 
 2011-06-15: Version 3.4.4
 
-	Added snapshot compression support and --stress-opt flag to d8.
+        Added snapshot compression support and --stress-opt flag to d8.
 
- 	Improved performance of try/catch.
+        Improved performance of try/catch.
 
-	Several GYP-related changes: Added support for building Xcode project
-	files. Make the ARM simulator build with GYP again. Generate Makefiles
-	for all architectures on Linux.
+        Several GYP-related changes: Added support for building Xcode project
+        files. Make the ARM simulator build with GYP again. Generate Makefiles
+        for all architectures on Linux.
 
-	Fixed Array.prototype.{reduce,reduceRight} to pass undefined as the
-	receiver for strict mode callbacks. (issue 1436)
+        Fixed Array.prototype.{reduce,reduceRight} to pass undefined as the
+        receiver for strict mode callbacks. (issue 1436)
 
-	Fixed a bug where an array load was incorrectly hoisted by GVN.
+        Fixed a bug where an array load was incorrectly hoisted by GVN.
 
-	Handle 'undefined' correctly when === has been specialized for doubles.
-	(issue 1434)
+        Handle 'undefined' correctly when === has been specialized for doubles.
+        (issue 1434)
 
-	Corrected the limit of local variables in an optimized function from 64
-	to 63.
+        Corrected the limit of local variables in an optimized function from 64
+        to 63.
 
-	Correctly set ReadOnly flag on indexed properties when using the API Set
-	method. (issue 1470)
+        Correctly set ReadOnly flag on indexed properties when using the API Set
+        method. (issue 1470)
 
-	Give the correct error message when Object.isExtensible is called on a
-	non-object. (issue 1452)
+        Give the correct error message when Object.isExtensible is called on a
+        non-object. (issue 1452)
 
-	Added GetOwnPropertyNames method for Object in the API. Patch by Peter
-	Varga.
+        Added GetOwnPropertyNames method for Object in the API. Patch by Peter
+        Varga.
 
-	Do not redefine properties unneccesarily in seal and freeze. (issue
-	1447)
+        Do not redefine properties unneccesarily in seal and freeze. (issue
+        1447)
 
-	IsExecutionTerminating has an Isolate parameter now.
+        IsExecutionTerminating has an Isolate parameter now.
 
-	Distinguish keyed loads with a symbol key from fast elements loads,
-	avoiding some useless deoptimizations. (issue 1471)
+        Distinguish keyed loads with a symbol key from fast elements loads,
+        avoiding some useless deoptimizations. (issue 1471)
 
 
 2011-06-08: Version 3.4.3

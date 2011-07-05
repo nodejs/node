@@ -41,7 +41,7 @@ namespace internal {
 class FrameDescription;
 class TranslationIterator;
 class DeoptimizingCodeListNode;
-
+class DeoptimizedFrameInfo;
 
 class HeapNumberMaterializationDescriptor BASE_EMBEDDED {
  public:
@@ -81,10 +81,18 @@ class DeoptimizerData {
   DeoptimizerData();
   ~DeoptimizerData();
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  void Iterate(ObjectVisitor* v);
+#endif
+
  private:
   LargeObjectChunk* eager_deoptimization_entry_code_;
   LargeObjectChunk* lazy_deoptimization_entry_code_;
   Deoptimizer* current_;
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  DeoptimizedFrameInfo* deoptimized_frame_info_;
+#endif
 
   // List of deoptimized code which still have references from active stack
   // frames. These code objects are needed by the deoptimizer when deoptimizing
@@ -103,7 +111,10 @@ class Deoptimizer : public Malloced {
   enum BailoutType {
     EAGER,
     LAZY,
-    OSR
+    OSR,
+    // This last bailout type is not really a bailout, but used by the
+    // debugger to deoptimize stack frames to allow inspection.
+    DEBUGGER
   };
 
   int output_count() const { return output_count_; }
@@ -115,6 +126,16 @@ class Deoptimizer : public Malloced {
                           int fp_to_sp_delta,
                           Isolate* isolate);
   static Deoptimizer* Grab(Isolate* isolate);
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // The returned object with information on the optimized frame needs to be
+  // freed before another one can be generated.
+  static DeoptimizedFrameInfo* DebuggerInspectableFrame(JavaScriptFrame* frame,
+                                                        int frame_index,
+                                                        Isolate* isolate);
+  static void DeleteDebuggerInspectableFrame(DeoptimizedFrameInfo* info,
+                                             Isolate* isolate);
+#endif
 
   // Makes sure that there is enough room in the relocation
   // information of a code object to perform lazy deoptimization
@@ -171,6 +192,10 @@ class Deoptimizer : public Malloced {
   ~Deoptimizer();
 
   void MaterializeHeapNumbers();
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  void MaterializeHeapNumbersForDebuggerInspectableFrame(
+      Address top, intptr_t size, DeoptimizedFrameInfo* info);
+#endif
 
   static void ComputeOutputFrames(Deoptimizer* deoptimizer);
 
@@ -233,7 +258,8 @@ class Deoptimizer : public Malloced {
               BailoutType type,
               unsigned bailout_id,
               Address from,
-              int fp_to_sp_delta);
+              int fp_to_sp_delta,
+              Code* optimized_code);
   void DeleteFrameDescriptions();
 
   void DoComputeOutputFrames();
@@ -269,6 +295,11 @@ class Deoptimizer : public Malloced {
   static Code* FindDeoptimizingCodeFromAddress(Address addr);
   static void RemoveDeoptimizingCode(Code* code);
 
+  // Fill the input from from a JavaScript frame. This is used when
+  // the debugger needs to inspect an optimized frame. For normal
+  // deoptimizations the input frame is filled in generated code.
+  void FillInputFrame(Address tos, JavaScriptFrame* frame);
+
   Isolate* isolate_;
   JSFunction* function_;
   Code* optimized_code_;
@@ -290,6 +321,7 @@ class Deoptimizer : public Malloced {
 
   friend class FrameDescription;
   friend class DeoptimizingCodeListNode;
+  friend class DeoptimizedFrameInfo;
 };
 
 
@@ -308,7 +340,10 @@ class FrameDescription {
     free(description);
   }
 
-  intptr_t GetFrameSize() const { return frame_size_; }
+  uint32_t GetFrameSize() const {
+    ASSERT(static_cast<uint32_t>(frame_size_) == frame_size_);
+    return static_cast<uint32_t>(frame_size_);
+  }
 
   JSFunction* GetFunction() const { return function_; }
 
@@ -360,6 +395,17 @@ class FrameDescription {
 
   void SetContinuation(intptr_t pc) { continuation_ = pc; }
 
+#ifdef DEBUG
+  Code::Kind GetKind() const { return kind_; }
+  void SetKind(Code::Kind kind) { kind_ = kind; }
+#endif
+
+  // Get the expression stack height for a unoptimized frame.
+  unsigned GetExpressionCount(Deoptimizer* deoptimizer);
+
+  // Get the expression stack value for an unoptimized frame.
+  Object* GetExpression(Deoptimizer* deoptimizer, int index);
+
   static int registers_offset() {
     return OFFSET_OF(FrameDescription, registers_);
   }
@@ -391,6 +437,9 @@ class FrameDescription {
  private:
   static const uint32_t kZapUint32 = 0xbeeddead;
 
+  // Frame_size_ must hold a uint32_t value.  It is only a uintptr_t to
+  // keep the variable-size array frame_content_ of type intptr_t at
+  // the end of the structure aligned.
   uintptr_t frame_size_;  // Number of bytes.
   JSFunction* function_;
   intptr_t registers_[Register::kNumRegisters];
@@ -399,6 +448,9 @@ class FrameDescription {
   intptr_t pc_;
   intptr_t fp_;
   Smi* state_;
+#ifdef DEBUG
+  Code::Kind kind_;
+#endif
 
   // Continuation is the PC where the execution continues after
   // deoptimizing.
@@ -596,6 +648,42 @@ class SlotRef BASE_EMBEDDED {
                                             JavaScriptFrame* frame);
 };
 
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+// Class used to represent an unoptimized frame when the debugger
+// needs to inspect a frame that is part of an optimized frame. The
+// internally used FrameDescription objects are not GC safe so for use
+// by the debugger frame information is copied to an object of this type.
+class DeoptimizedFrameInfo : public Malloced {
+ public:
+  DeoptimizedFrameInfo(Deoptimizer* deoptimizer, int frame_index);
+  virtual ~DeoptimizedFrameInfo();
+
+  // GC support.
+  void Iterate(ObjectVisitor* v);
+
+  // Return the height of the expression stack.
+  int expression_count() { return expression_count_; }
+
+  // Get an expression from the expression stack.
+  Object* GetExpression(int index) {
+    ASSERT(0 <= index && index < expression_count());
+    return expression_stack_[index];
+  }
+
+ private:
+  // Set an expression on the expression stack.
+  void SetExpression(int index, Object* obj) {
+    ASSERT(0 <= index && index < expression_count());
+    expression_stack_[index] = obj;
+  }
+
+  int expression_count_;
+  Object** expression_stack_;
+
+  friend class Deoptimizer;
+};
+#endif
 
 } }  // namespace v8::internal
 

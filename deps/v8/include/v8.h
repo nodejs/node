@@ -2558,18 +2558,6 @@ typedef void (*GCCallback)();
 
 
 /**
- * Profiler modules.
- *
- * In V8, profiler consists of several modules. Each can be turned on / off
- * independently.
- */
-enum ProfilerModules {
-  PROFILER_MODULE_NONE            = 0,
-  PROFILER_MODULE_CPU             = 1
-};
-
-
-/**
  * Collection of V8 heap information.
  *
  * Instances of this class can be passed to v8::V8::HeapStatistics to
@@ -2994,40 +2982,6 @@ class V8EXPORT V8 {
    * Return whether profiler is currently paused.
    */
   static bool IsProfilerPaused();
-
-  /**
-   * Resumes specified profiler modules. Can be called several times to
-   * mark the opening of a profiler events block with the given tag.
-   *
-   * "ResumeProfiler" is equivalent to "ResumeProfilerEx(PROFILER_MODULE_CPU)".
-   * See ProfilerModules enum.
-   *
-   * \param flags Flags specifying profiler modules.
-   * \param tag Profile tag.
-   */
-  static void ResumeProfilerEx(int flags, int tag = 0);
-
-  /**
-   * Pauses specified profiler modules. Each call to "PauseProfilerEx" closes
-   * a block of profiler events opened by a call to "ResumeProfilerEx" with the
-   * same tag value. There is no need for blocks to be properly nested.
-   * The profiler is paused when the last opened block is closed.
-   *
-   * "PauseProfiler" is equivalent to "PauseProfilerEx(PROFILER_MODULE_CPU)".
-   * See ProfilerModules enum.
-   *
-   * \param flags Flags specifying profiler modules.
-   * \param tag Profile tag.
-   */
-  static void PauseProfilerEx(int flags, int tag = 0);
-
-  /**
-   * Returns active (resumed) profiler modules.
-   * See ProfilerModules enum.
-   *
-   * \returns active profiler modules.
-   */
-  static int GetActiveProfilerModules();
 
   /**
    * If logging is performed into a memory buffer (via --logfile=*), allows to

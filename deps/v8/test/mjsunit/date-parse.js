@@ -285,9 +285,9 @@ for (var i = 0; i < 24 * 365 * 100; i += 150) {
 
 // Negative tests.
 var testCasesNegative = [
-    'May 25 2008 1:30 (PM)) UTC',
-    'May 25 2008 1:30( )AM (PM)',
-    'May 25 2008 AAA (GMT)'];
+    'May 25 2008 1:30 (PM)) UTC',  // Bad unmatched ')' after number.
+    'May 25 2008 1:30( )AM (PM)',  // 
+    'May 25 2008 AAA (GMT)'];      // Unknown word after number.
 
 testCasesNegative.forEach(function (s) {
     assertTrue(isNaN(Date.parse(s)), s + " is not NaN.");
