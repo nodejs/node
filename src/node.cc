@@ -2241,11 +2241,12 @@ static void ParseDebugOpt(const char* arg) {
 }
 
 static void PrintHelp() {
-  printf("Usage: node [options] script.js [arguments] \n"
-         "       node debug script.js [arguments] \n"
+  printf("Usage: node [options] [ -e script | script.js ] [arguments] \n"
+         "       node debug [ -e script | script.js ] [arguments] \n"
          "\n"
          "Options:\n"
          "  -v, --version        print node's version\n"
+         "  -e, --eval script    evaluate script\n"
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"

@@ -65,6 +65,18 @@
       var d = NativeModule.require('_debugger');
       d.start();
 
+    } else if (process._eval != null) {
+      // User passed '-e' or '--eval' arguments to Node.
+      var Module = NativeModule.require('module');
+      var path = NativeModule.require('path');
+      var cwd = process.cwd();
+
+      var module = new Module('eval');
+      module.filename = path.join(cwd, 'eval');
+      module.paths = Module._nodeModulePaths(cwd);
+      var rv = module._compile('return eval(process._eval)', 'eval');
+      console.log(rv);
+
     } else if (process.argv[1]) {
       // make process.argv[1] into a full path
       if (!(/^http:\/\//).exec(process.argv[1])) {
@@ -77,18 +89,6 @@
       // test/simple/test-exception-handler2.js working.
       // Main entry point into most programs:
       process.nextTick(Module.runMain);
-
-    } else if (process._eval != null) {
-      // User passed '-e' or '--eval' arguments to Node.
-      var Module = NativeModule.require('module');
-      var path = NativeModule.require('path');
-      var cwd = process.cwd();
-
-      var module = new Module('eval');
-      module.filename = path.join(cwd, 'eval');
-      module.paths = Module._nodeModulePaths(cwd);
-      var rv = module._compile('return eval(process._eval)', 'eval');
-      console.log(rv);
 
     } else {
       var binding = process.binding('stdio');
