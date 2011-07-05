@@ -579,7 +579,9 @@ static void tty_poll(uv_async_t* handle, int status) {
   }
 
   // Rearm the watcher
-  tty_watcher_arm();
+  if (tty_watcher_active) {
+    tty_watcher_arm();
+  }
 
   // Emit fatal errors and unhandled error events
   if (try_catch.HasCaught()) {
