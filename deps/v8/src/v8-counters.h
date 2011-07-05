@@ -170,14 +170,10 @@ namespace internal {
   SC(named_load_inline_field, V8.NamedLoadInlineFast)                 \
   SC(keyed_load_inline_generic, V8.KeyedLoadInlineGeneric)            \
   SC(keyed_load_inline_fast, V8.KeyedLoadInlineFast)                  \
-  SC(named_load_full, V8.NamedLoadFull)                               \
-  SC(keyed_load_full, V8.KeyedLoadFull)                               \
   SC(keyed_store_inline_generic, V8.KeyedStoreInlineGeneric)          \
   SC(keyed_store_inline_fast, V8.KeyedStoreInlineFast)                \
   SC(named_store_inline_generic, V8.NamedStoreInlineGeneric)          \
   SC(named_store_inline_fast, V8.NamedStoreInlineFast)                \
-  SC(keyed_store_full, V8.KeyedStoreFull)                             \
-  SC(named_store_full, V8.NamedStoreFull)                             \
   SC(keyed_store_inline_miss, V8.KeyedStoreInlineMiss)                \
   SC(named_store_global_inline, V8.NamedStoreGlobalInline)            \
   SC(named_store_global_inline_miss, V8.NamedStoreGlobalInlineMiss)   \

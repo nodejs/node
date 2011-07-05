@@ -251,7 +251,9 @@ function StringReplace(search, replace) {
 
   // Compute the string to replace with.
   if (IS_FUNCTION(replace)) {
-    builder.add(%_CallFunction(%GetGlobalReceiver(),
+    var receiver =
+        %_IsNativeOrStrictMode(replace) ? void 0 : %GetGlobalReceiver();
+    builder.add(%_CallFunction(receiver,
                                search,
                                start,
                                subject,
@@ -418,7 +420,8 @@ function StringReplaceGlobalRegExpWithFunction(subject, regexp, replace) {
   if (NUMBER_OF_CAPTURES(lastMatchInfo) == 2) {
     var match_start = 0;
     var override = new InternalArray(null, 0, subject);
-    var receiver = %GetGlobalReceiver();
+    var receiver =
+        %_IsNativeOrStrictMode(replace) ? void 0 : %GetGlobalReceiver();
     while (i < len) {
       var elem = res[i];
       if (%_IsSmi(elem)) {
@@ -475,8 +478,10 @@ function StringReplaceNonGlobalRegExpWithFunction(subject, regexp, replace) {
     // No captures, only the match, which is always valid.
     var s = SubString(subject, index, endOfMatch);
     // Don't call directly to avoid exposing the built-in global object.
+    var receiver =
+        %_IsNativeOrStrictMode(replace) ? void 0 : %GetGlobalReceiver();
     replacement =
-        %_CallFunction(%GetGlobalReceiver(), s, index, subject, replace);
+        %_CallFunction(receiver, s, index, subject, replace);
   } else {
     var parameters = new InternalArray(m + 2);
     for (var j = 0; j < m; j++) {

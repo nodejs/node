@@ -411,6 +411,7 @@ Scope* Parser::NewScope(Scope* parent, Scope::Type type, bool inside_with) {
   return result;
 }
 
+
 // ----------------------------------------------------------------------------
 // Target is a support class to facilitate manipulation of the
 // Parser's target_stack_ (the stack of potential 'break' and
@@ -1301,13 +1302,14 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the calling function context.
   // Similarly, strict mode eval scope does not leak variable declarations to
   // the caller's scope so we declare all locals, too.
-  if (top_scope_->is_function_scope() ||
-      top_scope_->is_strict_mode_eval_scope()) {
+  Scope* declaration_scope = top_scope_->DeclarationScope();
+  if (declaration_scope->is_function_scope() ||
+      declaration_scope->is_strict_mode_eval_scope()) {
     // Declare the variable in the function scope.
-    var = top_scope_->LocalLookup(name);
+    var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = top_scope_->DeclareLocal(name, mode);
+      var = declaration_scope->DeclareLocal(name, mode);
     } else {
       // The name was declared before; check for conflicting
       // re-declarations. If the previous declaration was a const or the
@@ -1323,7 +1325,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
         Expression* expression =
             NewThrowTypeError(isolate()->factory()->redeclaration_symbol(),
                               type_string, name);
-        top_scope_->SetIllegalRedeclaration(expression);
+        declaration_scope->SetIllegalRedeclaration(expression);
       }
     }
   }
@@ -1344,14 +1346,18 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // semantic issue as long as we keep the source order, but it may be
   // a performance issue since it may lead to repeated
   // Runtime::DeclareContextSlot() calls.
-  VariableProxy* proxy = top_scope_->NewUnresolved(name, inside_with());
-  top_scope_->AddDeclaration(new(zone()) Declaration(proxy, mode, fun));
+  VariableProxy* proxy = declaration_scope->NewUnresolved(name, false);
+  declaration_scope->AddDeclaration(new(zone()) Declaration(proxy, mode, fun));
 
   // For global const variables we bind the proxy to a variable.
-  if (mode == Variable::CONST && top_scope_->is_global_scope()) {
+  if (mode == Variable::CONST && declaration_scope->is_global_scope()) {
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
-    var = new(zone()) Variable(top_scope_, name, Variable::CONST, true, kind);
+    var = new(zone()) Variable(declaration_scope,
+                               name,
+                               Variable::CONST,
+                               true,
+                               kind);
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -1407,7 +1413,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // isn't lazily compiled. The extension structures are only
   // accessible while parsing the first time not when reparsing
   // because of lazy compilation.
-  top_scope_->ForceEagerCompilation();
+  top_scope_->DeclarationScope()->ForceEagerCompilation();
 
   // Compute the function template for the native function.
   v8::Handle<v8::FunctionTemplate> fun_template =
@@ -1485,8 +1491,8 @@ Block* Parser::ParseVariableStatement(bool* ok) {
   // VariableStatement ::
   //   VariableDeclarations ';'
 
-  Expression* dummy;  // to satisfy the ParseVariableDeclarations() signature
-  Block* result = ParseVariableDeclarations(true, &dummy, CHECK_OK);
+  Handle<String> ignore;
+  Block* result = ParseVariableDeclarations(true, &ignore, CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
 }
@@ -1504,18 +1510,19 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 // to initialize it properly. This mechanism is used for the parsing
 // of 'for-in' loops.
 Block* Parser::ParseVariableDeclarations(bool accept_IN,
-                                         Expression** var,
+                                         Handle<String>* out,
                                          bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
   Variable::Mode mode = Variable::VAR;
   bool is_const = false;
+  Scope* declaration_scope = top_scope_->DeclarationScope();
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
     Consume(Token::CONST);
-    if (top_scope_->is_strict_mode()) {
+    if (declaration_scope->is_strict_mode()) {
       ReportMessage("strict_const", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -1540,18 +1547,18 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
   //
   // Create new block with one expected declaration.
   Block* block = new(zone()) Block(NULL, 1, true);
-  VariableProxy* last_var = NULL;  // the last variable declared
   int nvars = 0;  // the number of variables declared
+  Handle<String> name;
   do {
     if (fni_ != NULL) fni_->Enter();
 
     // Parse variable name.
     if (nvars > 0) Consume(Token::COMMA);
-    Handle<String> name = ParseIdentifier(CHECK_OK);
+    name = ParseIdentifier(CHECK_OK);
     if (fni_ != NULL) fni_->PushVariableName(name);
 
     // Strict mode variables may not be named eval or arguments
-    if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
+    if (declaration_scope->is_strict_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_var_name", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -1569,11 +1576,10 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     // If we have a const declaration, in an inner scope, the proxy is always
     // bound to the declared variable (independent of possibly surrounding with
     // statements).
-    last_var = Declare(name, mode, NULL,
-                       is_const /* always bound for CONST! */,
-                       CHECK_OK);
+    Declare(name, mode, NULL, is_const /* always bound for CONST! */,
+            CHECK_OK);
     nvars++;
-    if (top_scope_->num_var_or_const() > kMaxNumFunctionLocals) {
+    if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
       ReportMessageAt(scanner().location(), "too_many_variables",
                       Vector<const char*>::empty());
       *ok = false;
@@ -1589,10 +1595,10 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     //
     //    var v; v = x;
     //
-    // In particular, we need to re-lookup 'v' as it may be a
-    // different 'v' than the 'v' in the declaration (if we are inside
-    // a 'with' statement that makes a object property with name 'v'
-    // visible).
+    // In particular, we need to re-lookup 'v' (in top_scope_, not
+    // declaration_scope) as it may be a different 'v' than the 'v' in the
+    // declaration (e.g., if we are inside a 'with' statement or 'catch'
+    // block).
     //
     // However, note that const declarations are different! A const
     // declaration of the form:
@@ -1607,6 +1613,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     // one - there is no re-lookup (see the last parameter of the
     // Declare() call above).
 
+    Scope* initialization_scope = is_const ? declaration_scope : top_scope_;
     Expression* value = NULL;
     int position = -1;
     if (peek() == Token::ASSIGN) {
@@ -1647,7 +1654,7 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     // browsers where the global object (window) has lots of
     // properties defined in prototype objects.
 
-    if (top_scope_->is_global_scope()) {
+    if (initialization_scope->is_global_scope()) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments = new(zone()) ZoneList<Expression*>(3);
       // We have at least 1 parameter.
@@ -1670,8 +1677,10 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
       } else {
         // Add strict mode.
         // We may want to pass singleton to avoid Literal allocations.
-        arguments->Add(NewNumberLiteral(
-            top_scope_->is_strict_mode() ? kStrictMode : kNonStrictMode));
+        StrictModeFlag flag = initialization_scope->is_strict_mode()
+            ? kStrictMode
+            : kNonStrictMode;
+        arguments->Add(NewNumberLiteral(flag));
 
         // Be careful not to assign a value to the global variable if
         // we're in a with. The initialization value should not
@@ -1708,8 +1717,11 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     // the top context for variables). Sigh...
     if (value != NULL) {
       Token::Value op = (is_const ? Token::INIT_CONST : Token::INIT_VAR);
+      bool in_with = is_const ? false : inside_with();
+      VariableProxy* proxy =
+          initialization_scope->NewUnresolved(name, in_with);
       Assignment* assignment =
-          new(zone()) Assignment(op, last_var, value, position);
+          new(zone()) Assignment(op, proxy, value, position);
       if (block) {
         block->AddStatement(new(zone()) ExpressionStatement(assignment));
       }
@@ -1718,10 +1730,10 @@ Block* Parser::ParseVariableDeclarations(bool accept_IN,
     if (fni_ != NULL) fni_->Leave();
   } while (peek() == Token::COMMA);
 
-  if (!is_const && nvars == 1) {
-    // We have a single, non-const variable.
-    ASSERT(last_var != NULL);
-    *var = last_var;
+  // If there was a single non-const declaration, return it in the output
+  // parameter for possible use by for/in.
+  if (nvars == 1 && !is_const) {
+    *out = name;
   }
 
   return block;
@@ -1895,7 +1907,9 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // function. See ECMA-262, section 12.9, page 67.
   //
   // To be consistent with KJS we report the syntax error at runtime.
-  if (!top_scope_->is_function_scope()) {
+  Scope* declaration_scope = top_scope_->DeclarationScope();
+  if (declaration_scope->is_global_scope() ||
+      declaration_scope->is_eval_scope()) {
     Handle<String> type = isolate()->factory()->illegal_return_symbol();
     Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
     return new(zone()) ExpressionStatement(throw_error);
@@ -1922,7 +1936,7 @@ Block* Parser::WithHelper(Expression* obj, ZoneStringList* labels, bool* ok) {
   Statement* stat;
   { Target target(&this->target_stack_, &collector);
     with_nesting_level_++;
-    top_scope_->RecordWithStatement();
+    top_scope_->DeclarationScope()->RecordWithStatement();
     stat = ParseStatement(labels, CHECK_OK);
     with_nesting_level_--;
   }
@@ -2082,6 +2096,8 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   // block. Since we don't know yet if there will be a finally block, we
   // always collect the targets.
   TargetCollector catch_collector;
+  Scope* catch_scope = NULL;
+  Variable* catch_variable = NULL;
   Block* catch_block = NULL;
   Handle<String> name;
   if (tok == Token::CATCH) {
@@ -2108,10 +2124,16 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       TargetCollector inner_collector;
       { Target target(&this->target_stack_, &catch_collector);
         { Target target(&this->target_stack_, &inner_collector);
-          ++with_nesting_level_;
-          top_scope_->RecordWithStatement();
+          catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
+          if (top_scope_->is_strict_mode()) {
+            catch_scope->EnableStrictMode();
+          }
+          catch_variable = catch_scope->DeclareLocal(name, Variable::VAR);
+
+          Scope* saved_scope = top_scope_;
+          top_scope_ = catch_scope;
           inner_body = ParseBlock(NULL, CHECK_OK);
-          --with_nesting_level_;
+          top_scope_ = saved_scope;
         }
       }
 
@@ -2145,19 +2167,28 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   //   'try { try B0 catch B1 } finally B2'
 
   if (catch_block != NULL && finally_block != NULL) {
+    // If we have both, create an inner try/catch.
+    ASSERT(catch_scope != NULL && catch_variable != NULL);
     TryCatchStatement* statement =
-        new(zone()) TryCatchStatement(try_block, name, catch_block);
+        new(zone()) TryCatchStatement(try_block,
+                                      catch_scope,
+                                      catch_variable,
+                                      catch_block);
     statement->set_escaping_targets(try_collector.targets());
     try_block = new(zone()) Block(NULL, 1, false);
     try_block->AddStatement(statement);
-    catch_block = NULL;
+    catch_block = NULL;  // Clear to indicate it's been handled.
   }
 
   TryStatement* result = NULL;
   if (catch_block != NULL) {
     ASSERT(finally_block == NULL);
+    ASSERT(catch_scope != NULL && catch_variable != NULL);
     result =
-        new(zone()) TryCatchStatement(try_block, name, catch_block);
+        new(zone()) TryCatchStatement(try_block,
+                                      catch_scope,
+                                      catch_variable,
+                                      catch_block);
   } else {
     ASSERT(finally_block != NULL);
     result = new(zone()) TryFinallyStatement(try_block, finally_block);
@@ -2230,10 +2261,12 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::LPAREN, CHECK_OK);
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
-      Expression* each = NULL;
+      Handle<String> name;
       Block* variable_statement =
-          ParseVariableDeclarations(false, &each, CHECK_OK);
-      if (peek() == Token::IN && each != NULL) {
+          ParseVariableDeclarations(false, &name, CHECK_OK);
+
+      if (peek() == Token::IN && !name.is_null()) {
+        VariableProxy* each = top_scope_->NewUnresolved(name, inside_with());
         ForInStatement* loop = new(zone()) ForInStatement(labels);
         Target target(&this->target_stack_, loop);
 
@@ -2901,8 +2934,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
   switch (peek()) {
     case Token::THIS: {
       Consume(Token::THIS);
-      VariableProxy* recv = top_scope_->receiver();
-      result = recv;
+      result = new(zone()) VariableProxy(top_scope_->receiver());
       break;
     }
 
@@ -3762,7 +3794,7 @@ Expression* Parser::ParseV8Intrinsic(bool* ok) {
   if (extension_ != NULL) {
     // The extension structures are only accessible while parsing the
     // very first time not when reparsing because of lazy compilation.
-    top_scope_->ForceEagerCompilation();
+    top_scope_->DeclarationScope()->ForceEagerCompilation();
   }
 
   const Runtime::Function* function = Runtime::FunctionForSymbol(name);

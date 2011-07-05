@@ -90,9 +90,10 @@ class Scope: public ZoneObject {
   // Construction
 
   enum Type {
-    EVAL_SCOPE,     // the top-level scope for an 'eval' source
-    FUNCTION_SCOPE,  // the top-level scope for a function
-    GLOBAL_SCOPE    // the top-level scope for a program or a top-level eval
+    EVAL_SCOPE,      // The top-level scope for an eval source.
+    FUNCTION_SCOPE,  // The top-level scope for a function.
+    GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
+    CATCH_SCOPE      // The scope introduced by catch.
   };
 
   Scope(Scope* outer_scope, Type type);
@@ -202,6 +203,7 @@ class Scope: public ZoneObject {
   bool is_eval_scope() const { return type_ == EVAL_SCOPE; }
   bool is_function_scope() const { return type_ == FUNCTION_SCOPE; }
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
+  bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
   bool is_strict_mode() const { return strict_mode_; }
   bool is_strict_mode_eval_scope() const {
     return is_eval_scope() && is_strict_mode();
@@ -225,13 +227,8 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Accessors.
 
-  // A new variable proxy corresponding to the (function) receiver.
-  VariableProxy* receiver() const {
-    VariableProxy* proxy =
-        new VariableProxy(FACTORY->this_symbol(), true, false);
-    proxy->BindTo(receiver_);
-    return proxy;
-  }
+  // The variable corresponding the 'this' value.
+  Variable* receiver() { return receiver_; }
 
   // The variable holding the function literal for named function
   // literals, or NULL.
@@ -292,6 +289,10 @@ class Scope: public ZoneObject {
 
   // The number of contexts between this and scope; zero if this == scope.
   int ContextChainLength(Scope* scope);
+
+  // Find the first function, global, or eval scope.  This is the scope
+  // where var declarations will be hoisted to in the implementation.
+  Scope* DeclarationScope();
 
   // ---------------------------------------------------------------------------
   // Strict mode support.
@@ -367,6 +368,10 @@ class Scope: public ZoneObject {
   bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
 
+  // True if it doesn't need scope resolution (e.g., if the scope was
+  // constructed based on a serialized scope info or a catch context).
+  bool already_resolved_;
+
   // Computed as variables are declared.
   int num_var_or_const_;
 
@@ -376,7 +381,7 @@ class Scope: public ZoneObject {
 
   // Serialized scopes support.
   Handle<SerializedScopeInfo> scope_info_;
-  bool resolved() { return !scope_info_.is_null(); }
+  bool already_resolved() { return already_resolved_; }
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
@@ -412,7 +417,11 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
  private:
+  // Construct a function scope based on the scope info.
   Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info);
+
+  // Construct a catch scope with a binding for the name.
+  Scope(Scope* inner_scope, Handle<String> catch_variable_name);
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {

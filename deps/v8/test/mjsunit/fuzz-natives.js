@@ -167,7 +167,8 @@ var knownProblems = {
 
   "_SwapElements": true,
 
-  // Performance critical function which cannot afford type checks.
+  // Performance critical functions which cannot afford type checks.
+  "_IsNativeOrStrictMode": true,
   "_CallFunction": true,
 
   // Tries to allocate based on argument, and (correctly) throws

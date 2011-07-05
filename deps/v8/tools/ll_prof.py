@@ -631,10 +631,10 @@ class TraceReader(object):
   def ReadMmap(self, header, offset):
     mmap_info = PERF_MMAP_EVENT_BODY_DESC.Read(self.trace,
                                                offset + self.header_size)
-    # Read null-padded filename.
+    # Read null-terminated filename.
     filename = self.trace[offset + self.header_size + ctypes.sizeof(mmap_info):
-                          offset + header.size].rstrip(chr(0))
-    mmap_info.filename = filename
+                          offset + header.size]
+    mmap_info.filename = filename[:filename.find(chr(0))]
     return mmap_info
 
   def ReadSample(self, header, offset):

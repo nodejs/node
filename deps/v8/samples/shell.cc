@@ -498,12 +498,15 @@ void ExternalArrayWeakCallback(v8::Persistent<v8::Value> object, void* data) {
 v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
                                           v8::ExternalArrayType type,
                                           size_t element_size) {
-  ASSERT(element_size == 1 || element_size == 2 || element_size == 4 ||
+  assert(element_size == 1 ||
+         element_size == 2 ||
+         element_size == 4 ||
          element_size == 8);
   if (args.Length() != 1) {
     return v8::ThrowException(
         v8::String::New("Array constructor needs one parameter."));
   }
+  static const int kMaxLength = 0x3fffffff;
   size_t length = 0;
   if (args[0]->IsUint32()) {
     length = args[0]->Uint32Value();
@@ -513,7 +516,7 @@ v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
       return v8::ThrowException(
           v8::String::New("Array length must not be negative."));
     }
-    if (raw_length > v8::internal::ExternalArray::kMaxLength) {
+    if (raw_length > kMaxLength) {
       return v8::ThrowException(
           v8::String::New("Array length exceeds maximum length."));
     }
@@ -522,7 +525,7 @@ v8::Handle<v8::Value> CreateExternalArray(const v8::Arguments& args,
     return v8::ThrowException(
         v8::String::New("Array length must be a number."));
   }
-  if (length > static_cast<size_t>(v8::internal::ExternalArray::kMaxLength)) {
+  if (length > static_cast<size_t>(kMaxLength)) {
     return v8::ThrowException(
         v8::String::New("Array length exceeds maximum length."));
   }

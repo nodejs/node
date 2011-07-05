@@ -742,14 +742,15 @@ function ArraySort(comparefn) {
       else return x < y ? -1 : 1;
     };
   }
-  var global_receiver = %GetGlobalReceiver();
+  var receiver =
+      %_IsNativeOrStrictMode(comparefn) ? void 0 : %GetGlobalReceiver();
 
   function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
       for (var j = i - 1; j >= from; j--) {
         var tmp = a[j];
-        var order = %_CallFunction(global_receiver, tmp, element, comparefn);
+        var order = %_CallFunction(receiver, tmp, element, comparefn);
         if (order > 0) {
           a[j + 1] = tmp;
         } else {
@@ -771,14 +772,14 @@ function ArraySort(comparefn) {
     var v1 = a[to - 1];
     var middle_index = from + ((to - from) >> 1);
     var v2 = a[middle_index];
-    var c01 = %_CallFunction(global_receiver, v0, v1, comparefn);
+    var c01 = %_CallFunction(receiver, v0, v1, comparefn);
     if (c01 > 0) {
       // v1 < v0, so swap them.
       var tmp = v0;
       v0 = v1;
       v1 = tmp;
     } // v0 <= v1.
-    var c02 = %_CallFunction(global_receiver, v0, v2, comparefn);
+    var c02 = %_CallFunction(receiver, v0, v2, comparefn);
     if (c02 >= 0) {
       // v2 <= v0 <= v1.
       var tmp = v0;
@@ -787,7 +788,7 @@ function ArraySort(comparefn) {
       v1 = tmp;
     } else {
       // v0 <= v1 && v0 < v2
-      var c12 = %_CallFunction(global_receiver, v1, v2, comparefn);
+      var c12 = %_CallFunction(receiver, v1, v2, comparefn);
       if (c12 > 0) {
         // v0 <= v2 < v1
         var tmp = v1;
@@ -808,7 +809,7 @@ function ArraySort(comparefn) {
     // From i to high_start are elements that haven't been compared yet.
     partition: for (var i = low_end + 1; i < high_start; i++) {
       var element = a[i];
-      var order = %_CallFunction(global_receiver, element, pivot, comparefn);
+      var order = %_CallFunction(receiver, element, pivot, comparefn);
       if (order < 0) {
         %_SwapElements(a, i, low_end);
         low_end++;
@@ -817,7 +818,7 @@ function ArraySort(comparefn) {
           high_start--;
           if (high_start == i) break partition;
           var top_elem = a[high_start];
-          order = %_CallFunction(global_receiver, top_elem, pivot, comparefn);
+          order = %_CallFunction(receiver, top_elem, pivot, comparefn);
         } while (order > 0);
         %_SwapElements(a, i, high_start);
         if (order < 0) {

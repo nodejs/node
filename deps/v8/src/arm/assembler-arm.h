@@ -378,7 +378,6 @@ class Operand BASE_EMBEDDED {
   INLINE(explicit Operand(int32_t immediate,
          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
-  INLINE(explicit Operand(const char* s));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
 
@@ -1141,8 +1140,13 @@ class Assembler : public AssemblerBase {
   void jmp(Label* L) { b(L, al); }
 
   // Check the code size generated from label to here.
-  int InstructionsGeneratedSince(Label* l) {
-    return (pc_offset() - l->pos()) / kInstrSize;
+  int SizeOfCodeGeneratedSince(Label* label) {
+    return pc_offset() - label->pos();
+  }
+
+  // Check the number of instructions generated from label to here.
+  int InstructionsGeneratedSince(Label* label) {
+    return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
   // Check whether an immediate fits an addressing mode 1 instruction.

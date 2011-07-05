@@ -401,7 +401,7 @@ int FullCodeGenerator::SlotOffset(Slot* slot) {
   // Adjust by a (parameter or local) base offset.
   switch (slot->type()) {
     case Slot::PARAMETER:
-      offset += (scope()->num_parameters() + 1) * kPointerSize;
+      offset += (info_->scope()->num_parameters() + 1) * kPointerSize;
       break;
     case Slot::LOCAL:
       offset += JavaScriptFrameConstants::kLocal0Offset;
@@ -1106,7 +1106,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Extend the context before executing the catch block.
   { Comment cmnt(masm_, "[ Extend catch context");
-    __ Push(stmt->name());
+    __ Push(stmt->variable()->name());
     __ push(result_register());
     PushFunctionArgumentForContextAllocation();
     __ CallRuntime(Runtime::kPushCatchContext, 3);
@@ -1114,7 +1114,11 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
                       context_register());
   }
 
+  Scope* saved_scope = scope();
+  scope_ = stmt->scope();
+  ASSERT(scope_->declarations()->is_empty());
   Visit(stmt->catch_block());
+  scope_ = saved_scope;
   __ jmp(&done);
 
   // Try block code. Sets up the exception handler chain.

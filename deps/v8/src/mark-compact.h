@@ -306,6 +306,10 @@ class MarkCompactCollector {
   // flag on the marking stack.
   void RefillMarkingStack();
 
+  // After reachable maps have been marked process per context object
+  // literal map caches removing unmarked entries.
+  void ProcessMapCaches();
+
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);

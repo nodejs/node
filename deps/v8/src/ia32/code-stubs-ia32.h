@@ -62,16 +62,11 @@ class TranscendentalCacheStub: public CodeStub {
 
 class UnaryOpStub: public CodeStub {
  public:
-  UnaryOpStub(Token::Value op, UnaryOverwriteMode mode)
+  UnaryOpStub(Token::Value op,
+              UnaryOverwriteMode mode,
+              UnaryOpIC::TypeInfo operand_type = UnaryOpIC::UNINITIALIZED)
       : op_(op),
         mode_(mode),
-        operand_type_(UnaryOpIC::UNINITIALIZED),
-        name_(NULL) {
-  }
-
-  UnaryOpStub(int key, UnaryOpIC::TypeInfo operand_type)
-      : op_(OpBits::decode(key)),
-        mode_(ModeBits::decode(key)),
         operand_type_(operand_type),
         name_(NULL) {
   }
@@ -89,8 +84,7 @@ class UnaryOpStub: public CodeStub {
 
 #ifdef DEBUG
   void Print() {
-    PrintF("TypeRecordingUnaryOpStub %d (op %s), "
-           "(mode %d, runtime_type_info %s)\n",
+    PrintF("UnaryOpStub %d (op %s), (mode %d, runtime_type_info %s)\n",
            MinorKey(),
            Token::String(op_),
            static_cast<int>(mode_),

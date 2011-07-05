@@ -25,72 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Check the receiver for the sort and replace functions to
+// Array.prototype.sort and String.prototype.replace.
 
-#include "codegen.h"
-#include "deoptimizer.h"
-#include "full-codegen.h"
-#include "safepoint-table.h"
+var global = this;
+function strict() { "use strict"; assertEquals(void 0, this); }
+function non_strict() { assertEquals(global, this); }
 
-// Note: this file was taken from the X64 version. ARM has a partially working
-// lithium implementation, but for now it is not ported to mips.
+[1,2,3].sort(strict);
+[1,2,3].sort(non_strict);
 
-namespace v8 {
-namespace internal {
-
-
-int Deoptimizer::table_entry_size_ = 10;
-
-
-int Deoptimizer::patch_size() {
-  const int kCallInstructionSizeInWords = 3;
-  return kCallInstructionSizeInWords * Assembler::kInstrSize;
-}
-
-
-void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
-                                        Code* check_code,
-                                        Code* replacement_code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
-                                         Code* check_code,
-                                         Code* replacement_code) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeOsrOutputFrame() {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
-                                 int frame_index) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::EntryGenerator::Generate() {
-  UNIMPLEMENTED();
-}
-
-
-void Deoptimizer::TableEntryGenerator::GeneratePrologue() {
-  UNIMPLEMENTED();
-}
-
-
-} }  // namespace v8::internal
+"axc".replace("x", strict);
+"axc".replace("x", non_strict);

@@ -33,6 +33,7 @@
 #include "codegen.h"
 #include "compilation-cache.h"
 #include "debug.h"
+#include "deoptimizer.h"
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "liveobjectlist-inl.h"
@@ -4664,6 +4665,9 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->Iterate(v);
+  if (isolate_->deoptimizer_data() != NULL) {
+    isolate_->deoptimizer_data()->Iterate(v);
+  }
 #endif
   v->Synchronize("debug");
   isolate_->compilation_cache()->Iterate(v);

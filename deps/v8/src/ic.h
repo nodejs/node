@@ -358,8 +358,6 @@ class KeyedIC: public IC {
 
   virtual Code::Kind kind() const = 0;
 
-  virtual String* GetStubNameForCache(IC::State ic_state) = 0;
-
   MaybeObject* ComputeStub(JSObject* receiver,
                            bool is_store,
                            StrictModeFlag strict_mode,
@@ -425,8 +423,6 @@ class KeyedLoadIC: public KeyedIC {
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
-
-  virtual String* GetStubNameForCache(IC::State ic_state);
 
   virtual MaybeObject* ConstructMegamorphicStub(
       MapList* receiver_maps,
@@ -580,8 +576,6 @@ class KeyedStoreIC: public KeyedIC {
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
-
-  virtual String* GetStubNameForCache(IC::State ic_state);
 
   virtual MaybeObject* ConstructMegamorphicStub(
       MapList* receiver_maps,

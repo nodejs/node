@@ -383,6 +383,7 @@ class StandardFrame: public StackFrame {
   inline Object* GetExpression(int index) const;
   inline void SetExpression(int index, Object* value);
   int ComputeExpressionsCount() const;
+  static Object* GetExpression(Address fp, int index);
 
   virtual void SetCallerFp(Address caller_fp);
 
@@ -411,6 +412,7 @@ class StandardFrame: public StackFrame {
 
   // Returns the address of the n'th expression stack element.
   Address GetExpressionAddress(int n) const;
+  static Address GetExpressionAddress(Address fp, int n);
 
   // Determines if the n'th expression stack element is in a stack
   // handler or not. Requires traversing all handlers in this frame.
@@ -483,6 +485,7 @@ class JavaScriptFrame: public StandardFrame {
   // actual passed arguments are available in an arguments adaptor
   // frame below it on the stack.
   inline bool has_adapted_arguments() const;
+  int GetArgumentsLength() const;
 
   // Garbage collection support.
   virtual void Iterate(ObjectVisitor* v) const;
@@ -494,6 +497,9 @@ class JavaScriptFrame: public StandardFrame {
 
   // Determine the code for the frame.
   virtual Code* unchecked_code() const;
+
+  // Returns the levels of inlining for this frame.
+  virtual int GetInlineCount() { return 1; }
 
   // Return a list with JSFunctions of this frame.
   virtual void GetFunctions(List<JSFunction*>* functions);
@@ -532,6 +538,8 @@ class OptimizedFrame : public JavaScriptFrame {
 
   // GC support.
   virtual void Iterate(ObjectVisitor* v) const;
+
+  virtual int GetInlineCount();
 
   // Return a list with JSFunctions of this frame.
   // The functions are ordered bottom-to-top (i.e. functions.last()

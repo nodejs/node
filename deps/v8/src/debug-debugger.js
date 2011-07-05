@@ -2311,21 +2311,10 @@ DebugCommandProcessor.prototype.versionRequest_ = function(request, response) {
 
 
 DebugCommandProcessor.prototype.profileRequest_ = function(request, response) {
-  if (!request.arguments) {
-    return response.failed('Missing arguments');
-  }
-  var modules = parseInt(request.arguments.modules);
-  if (isNaN(modules)) {
-    return response.failed('Modules is not an integer');
-  }
-  var tag = parseInt(request.arguments.tag);
-  if (isNaN(tag)) {
-    tag = 0;
-  }
   if (request.arguments.command == 'resume') {
-    %ProfilerResume(modules, tag);
+    %ProfilerResume();
   } else if (request.arguments.command == 'pause') {
-    %ProfilerPause(modules, tag);
+    %ProfilerPause();
   } else {
     return response.failed('Unknown command');
   }

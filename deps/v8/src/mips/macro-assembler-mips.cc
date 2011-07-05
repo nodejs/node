@@ -2088,10 +2088,12 @@ void MacroAssembler::CallWithAstId(Handle<Code> code,
                                    Condition cond,
                                    Register r1,
                                    const Operand& r2) {
-  ASSERT(rmode == RelocInfo::CODE_TARGET_WITH_ID);
-  ASSERT(ast_id != kNoASTId);
-  ASSERT(ast_id_for_reloc_info_ == kNoASTId);
-  ast_id_for_reloc_info_ = ast_id;
+  ASSERT(RelocInfo::IsCodeTarget(rmode));
+  if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
+    ASSERT(ast_id_for_reloc_info_ == kNoASTId);
+    ast_id_for_reloc_info_ = ast_id;
+    rmode = RelocInfo::CODE_TARGET_WITH_ID;
+  }
   Call(reinterpret_cast<intptr_t>(code.location()), rmode, cond, r1, r2);
 }
 
@@ -3714,17 +3716,6 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
     // destination register in case we store into it (the write barrier
     // cannot be allowed to destroy the context in esi).
     Move(dst, cp);
-  }
-
-  // We should not have found a 'with' context by walking the context chain
-  // (i.e., the static scope chain and runtime context chain do not agree).
-  // A variable occurring in such a scope should have slot type LOOKUP and
-  // not CONTEXT.
-  if (emit_debug_code()) {
-    lw(t9, MemOperand(dst, Context::SlotOffset(Context::FCONTEXT_INDEX)));
-    Check(eq, "Yo dawg, I heard you liked function contexts "
-              "so I put function contexts in all your contexts",
-               dst, Operand(t9));
   }
 }
 

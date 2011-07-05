@@ -101,15 +101,17 @@ class JumpPatchSite BASE_EMBEDDED {
   }
 
   void EmitPatchInfo() {
-    int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
-    Register reg = Register::from_code(delta_to_patch_site / kImm16Mask);
-    __ andi(at, reg, delta_to_patch_site % kImm16Mask);
+    if (patch_site_.is_bound()) {
+      int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
+      Register reg = Register::from_code(delta_to_patch_site / kImm16Mask);
+      __ andi(at, reg, delta_to_patch_site % kImm16Mask);
 #ifdef DEBUG
-    info_emitted_ = true;
+      info_emitted_ = true;
 #endif
+    } else {
+      __ nop();  // Signals no inlined code.
+    }
   }
-
-  bool is_bound() const { return patch_site_.is_bound(); }
 
  private:
   MacroAssembler* masm_;
@@ -137,6 +139,7 @@ class JumpPatchSite BASE_EMBEDDED {
 void FullCodeGenerator::Generate(CompilationInfo* info) {
   ASSERT(info_ == NULL);
   info_ = info;
+  scope_ = info->scope();
   SetFunctionPosition(function());
   Comment cmnt(masm_, "[ function compiled by full code generator");
 
@@ -154,13 +157,13 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   if (info->is_strict_mode() || info->is_native()) {
     Label ok;
     __ Branch(&ok, eq, t1, Operand(zero_reg));
-    int receiver_offset = scope()->num_parameters() * kPointerSize;
+    int receiver_offset = info->scope()->num_parameters() * kPointerSize;
     __ LoadRoot(a2, Heap::kUndefinedValueRootIndex);
     __ sw(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
   }
 
-  int locals_count = scope()->num_stack_slots();
+  int locals_count = info->scope()->num_stack_slots();
 
   __ Push(ra, fp, cp, a1);
   if (locals_count > 0) {
@@ -180,7 +183,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
   bool function_in_register = true;
 
   // Possibly allocate a local context.
-  int heap_slots = scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
+  int heap_slots = info->scope()->num_heap_slots() - Context::MIN_CONTEXT_SLOTS;
   if (heap_slots > 0) {
     Comment cmnt(masm_, "[ Allocate local context");
     // Argument to NewContext is the function, which is in a1.
@@ -196,7 +199,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     // passed to us.  It's saved in the stack and kept live in cp.
     __ sw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
     // Copy any necessary parameters into the context.
-    int num_parameters = scope()->num_parameters();
+    int num_parameters = info->scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
       Slot* slot = scope()->parameter(i)->AsSlot();
       if (slot != NULL && slot->type() == Slot::CONTEXT) {
@@ -228,10 +231,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       __ mov(a3, a1);
     }
     // Receiver is just before the parameters on the caller's stack.
-    int offset = scope()->num_parameters() * kPointerSize;
+    int num_parameters = info->scope()->num_parameters();
+    int offset = num_parameters * kPointerSize;
     __ Addu(a2, fp,
            Operand(StandardFrameConstants::kCallerSPOffset + offset));
-    __ li(a1, Operand(Smi::FromInt(scope()->num_parameters())));
+    __ li(a1, Operand(Smi::FromInt(num_parameters)));
     __ Push(a3, a2, a1);
 
     // Arguments to ArgumentsAccessStub:
@@ -348,7 +352,7 @@ void FullCodeGenerator::EmitReturnSequence() {
     { Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
       // Here we use masm_-> instead of the __ macro to avoid the code coverage
       // tool from instrumenting as we rely on the code size here.
-      int32_t sp_delta = (scope()->num_parameters() + 1) * kPointerSize;
+      int32_t sp_delta = (info_->scope()->num_parameters() + 1) * kPointerSize;
       CodeGenerator::RecordPositions(masm_, function()->end_position() - 1);
       __ RecordJSReturn();
       masm_->mov(sp, fp);
@@ -716,10 +720,14 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         // context.
         ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
         if (FLAG_debug_code) {
-          // Check that we're not inside a 'with'.
-          __ lw(a1, ContextOperand(cp, Context::FCONTEXT_INDEX));
-          __ Check(eq, "Unexpected declaration in current context.",
-                   a1, Operand(cp));
+          // Check that we're not inside a with or catch context.
+          __ lw(a1, FieldMemOperand(cp, HeapObject::kMapOffset));
+          __ LoadRoot(t0, Heap::kWithContextMapRootIndex);
+          __ Check(ne, "Declaration in with context.",
+                   a1, Operand(t0));
+          __ LoadRoot(t0, Heap::kCatchContextMapRootIndex);
+          __ Check(ne, "Declaration in catch context.",
+                   a1, Operand(t0));
         }
         if (mode == Variable::CONST) {
           __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
@@ -790,7 +798,7 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
           : isolate()->builtins()->KeyedStoreIC_Initialize();
-      EmitCallIC(ic, RelocInfo::CODE_TARGET, AstNode::kNoNumber);
+      __ CallWithAstId(ic);
       // Value in v0 is ignored (declarations are statements).
     }
   }
@@ -865,7 +873,8 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     // Record position before stub call for type feedback.
     SetSourcePosition(clause->position());
     Handle<Code> ic = CompareIC::GetUninitialized(Token::EQ_STRICT);
-    EmitCallIC(ic, &patch_site, clause->CompareId());
+    __ CallWithAstId(ic, RelocInfo::CODE_TARGET, clause->CompareId());
+    patch_site.EmitPatchInfo();
 
     __ Branch(&next_test, ne, v0, Operand(zero_reg));
     __ Drop(1);  // Switch value is no longer needed.
@@ -1164,7 +1173,7 @@ void FullCodeGenerator::EmitLoadGlobalSlotCheckExtensions(
       ? RelocInfo::CODE_TARGET
       : RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  EmitCallIC(ic, mode, AstNode::kNoNumber);
+  __ CallWithAstId(ic, mode);
 }
 
 
@@ -1244,7 +1253,7 @@ void FullCodeGenerator::EmitDynamicLoadFromSlotFastCase(
           __ li(a0, Operand(key_literal->handle()));
           Handle<Code> ic =
               isolate()->builtins()->KeyedLoadIC_Initialize();
-          EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(property));
+          __ CallWithAstId(ic, RelocInfo::CODE_TARGET, GetPropertyId(property));
           __ Branch(done);
         }
       }
@@ -1266,7 +1275,7 @@ void FullCodeGenerator::EmitVariableLoad(Variable* var) {
     __ lw(a0, GlobalObjectOperand());
     __ li(a2, Operand(var->name()));
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-    EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT, AstNode::kNoNumber);
+    __ CallWithAstId(ic, RelocInfo::CODE_TARGET_CONTEXT);
     context()->Plug(v0);
 
   } else if (slot->type() == Slot::LOOKUP) {
@@ -1412,7 +1421,7 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
             Handle<Code> ic = is_strict_mode()
                 ? isolate()->builtins()->StoreIC_Initialize_Strict()
                 : isolate()->builtins()->StoreIC_Initialize();
-            EmitCallIC(ic, RelocInfo::CODE_TARGET, key->id());
+            __ CallWithAstId(ic, RelocInfo::CODE_TARGET, key->id());
             PrepareForBailoutForId(key->id(), NO_REGISTERS);
           } else {
             VisitForEffect(value);
@@ -1656,7 +1665,7 @@ void FullCodeGenerator::EmitNamedPropertyLoad(Property* prop) {
   __ li(a2, Operand(key->handle()));
   // Call load IC. It has arguments receiver and property name a0 and a2.
   Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
-  EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+  __ CallWithAstId(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
 }
 
 
@@ -1665,7 +1674,7 @@ void FullCodeGenerator::EmitKeyedPropertyLoad(Property* prop) {
   __ mov(a0, result_register());
   // Call keyed load IC. It has arguments key and receiver in a0 and a1.
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-  EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+  __ CallWithAstId(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
 }
 
 
@@ -1693,7 +1702,8 @@ void FullCodeGenerator::EmitInlineSmiBinaryOp(BinaryOperation* expr,
 
   __ bind(&stub_call);
   BinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), &patch_site, expr->id());
+  __ CallWithAstId(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  patch_site.EmitPatchInfo();
   __ jmp(&done);
 
   __ bind(&smi_case);
@@ -1774,7 +1784,9 @@ void FullCodeGenerator::EmitBinaryOp(BinaryOperation* expr,
   __ mov(a0, result_register());
   __ pop(a1);
   BinaryOpStub stub(op, mode);
-  EmitCallIC(stub.GetCode(), NULL, expr->id());
+  JumpPatchSite patch_site(masm_);    // unbound, signals no inlined smi code.
+  __ CallWithAstId(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  patch_site.EmitPatchInfo();
   context()->Plug(v0);
 }
 
@@ -1814,7 +1826,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->StoreIC_Initialize_Strict()
           : isolate()->builtins()->StoreIC_Initialize();
-      EmitCallIC(ic, RelocInfo::CODE_TARGET, AstNode::kNoNumber);
+      __ CallWithAstId(ic);
       break;
     }
     case KEYED_PROPERTY: {
@@ -1827,7 +1839,7 @@ void FullCodeGenerator::EmitAssignment(Expression* expr, int bailout_ast_id) {
       Handle<Code> ic = is_strict_mode()
         ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
         : isolate()->builtins()->KeyedStoreIC_Initialize();
-      EmitCallIC(ic, RelocInfo::CODE_TARGET, AstNode::kNoNumber);
+      __ CallWithAstId(ic);
       break;
     }
   }
@@ -1852,7 +1864,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
     Handle<Code> ic = is_strict_mode()
         ? isolate()->builtins()->StoreIC_Initialize_Strict()
         : isolate()->builtins()->StoreIC_Initialize();
-    EmitCallIC(ic, RelocInfo::CODE_TARGET_CONTEXT, AstNode::kNoNumber);
+    __ CallWithAstId(ic, RelocInfo::CODE_TARGET_CONTEXT);
 
   } else if (op == Token::INIT_CONST) {
     // Like var declarations, const declarations are hoisted to function
@@ -1873,17 +1885,7 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
         __ Branch(&skip, ne, a1, Operand(t0));
         __ sw(result_register(), MemOperand(fp, SlotOffset(slot)));
         break;
-      case Slot::CONTEXT: {
-        __ lw(a1, ContextOperand(cp, Context::FCONTEXT_INDEX));
-        __ lw(a2, ContextOperand(a1, slot->index()));
-        __ LoadRoot(t0, Heap::kTheHoleValueRootIndex);
-        __ Branch(&skip, ne, a2, Operand(t0));
-        __ sw(result_register(), ContextOperand(a1, slot->index()));
-        int offset = Context::SlotOffset(slot->index());
-        __ mov(a3, result_register());  // Preserve the stored value in v0.
-        __ RecordWrite(a1, Operand(offset), a3, a2);
-        break;
-      }
+      case Slot::CONTEXT:
       case Slot::LOOKUP:
         __ push(result_register());
         __ li(a0, Operand(slot->var()->name()));
@@ -1960,7 +1962,7 @@ void FullCodeGenerator::EmitNamedPropertyAssignment(Assignment* expr) {
   Handle<Code> ic = is_strict_mode()
         ? isolate()->builtins()->StoreIC_Initialize_Strict()
         : isolate()->builtins()->StoreIC_Initialize();
-  EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+  __ CallWithAstId(ic, RelocInfo::CODE_TARGET, expr->id());
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -2012,7 +2014,7 @@ void FullCodeGenerator::EmitKeyedPropertyAssignment(Assignment* expr) {
   Handle<Code> ic = is_strict_mode()
       ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
       : isolate()->builtins()->KeyedStoreIC_Initialize();
-  EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+  __ CallWithAstId(ic, RelocInfo::CODE_TARGET, expr->id());
 
   // If the assignment ends an initialization block, revert to fast case.
   if (expr->ends_initialization_block()) {
@@ -2065,7 +2067,7 @@ void FullCodeGenerator::EmitCallWithIC(Call* expr,
   InLoopFlag in_loop = (loop_depth() > 0) ? IN_LOOP : NOT_IN_LOOP;
   Handle<Code> ic =
       isolate()->stub_cache()->ComputeCallInitialize(arg_count, in_loop, mode);
-  EmitCallIC(ic, mode, expr->id());
+  __ CallWithAstId(ic, mode, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2099,7 +2101,7 @@ void FullCodeGenerator::EmitKeyedCallWithIC(Call* expr,
   Handle<Code> ic =
       isolate()->stub_cache()->ComputeKeyedCallInitialize(arg_count, in_loop);
   __ lw(a2, MemOperand(sp, (arg_count + 1) * kPointerSize));  // Key.
-  EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+  __ CallWithAstId(ic, RelocInfo::CODE_TARGET, expr->id());
   RecordJSReturnSite(expr);
   // Restore context register.
   __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2139,7 +2141,8 @@ void FullCodeGenerator::EmitResolvePossiblyDirectEval(ResolveEvalFlag flag,
   __ push(a1);
 
   // Push the receiver of the enclosing function and do runtime call.
-  __ lw(a1, MemOperand(fp, (2 + scope()->num_parameters()) * kPointerSize));
+  int receiver_offset = 2 + info_->scope()->num_parameters();
+  __ lw(a1, MemOperand(fp, receiver_offset * kPointerSize));
   __ push(a1);
   // Push the strict mode flag.
   __ li(a1, Operand(Smi::FromInt(strict_mode_flag())));
@@ -2280,7 +2283,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
     } else {
       // Call to a keyed property.
       // For a synthetic property use keyed load IC followed by function call,
-      // for a regular property use keyed EmitCallIC.
+      // for a regular property use EmitKeyedCallWithIC.
       if (prop->is_synthetic()) {
         // Do not visit the object and key subexpressions (they are shared
         // by all occurrences of the same rewritten parameter).
@@ -2298,7 +2301,7 @@ void FullCodeGenerator::VisitCall(Call* expr) {
         SetSourcePosition(prop->position());
 
         Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-        EmitCallIC(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
+        __ CallWithAstId(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
         __ lw(a1, GlobalObjectOperand());
         __ lw(a1, FieldMemOperand(a1, GlobalObject::kGlobalReceiverOffset));
         __ Push(v0, a1);  // Function, receiver.
@@ -2685,7 +2688,7 @@ void FullCodeGenerator::EmitArguments(ZoneList<Expression*>* args) {
   // parameter count in a0.
   VisitForAccumulatorValue(args->at(0));
   __ mov(a1, v0);
-  __ li(a0, Operand(Smi::FromInt(scope()->num_parameters())));
+  __ li(a0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
   ArgumentsAccessStub stub(ArgumentsAccessStub::READ_ELEMENT);
   __ CallStub(&stub);
   context()->Plug(v0);
@@ -2697,7 +2700,7 @@ void FullCodeGenerator::EmitArgumentsLength(ZoneList<Expression*>* args) {
 
   Label exit;
   // Get the number of formal parameters.
-  __ li(v0, Operand(Smi::FromInt(scope()->num_parameters())));
+  __ li(v0, Operand(Smi::FromInt(info_->scope()->num_parameters())));
 
   // Check if the calling frame is an arguments adaptor frame.
   __ lw(a2, MemOperand(fp, StandardFrameConstants::kCallerFPOffset));
@@ -3596,6 +3599,39 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 }
 
 
+void FullCodeGenerator::EmitIsNativeOrStrictMode(ZoneList<Expression*>* args) {
+  ASSERT(args->length() == 1);
+
+  // Load the function into v0.
+  VisitForAccumulatorValue(args->at(0));
+
+  // Prepare for the test.
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
+  // Test for strict mode function.
+  __ lw(a1, FieldMemOperand(v0, JSFunction::kSharedFunctionInfoOffset));
+  __ lw(a1, FieldMemOperand(a1, SharedFunctionInfo::kCompilerHintsOffset));
+  __ And(at, a1, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
+                               kSmiTagSize)));
+  __ Branch(if_true, ne, at, Operand(zero_reg));
+
+  // Test for native function.
+  __ And(at, a1, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
+  __ Branch(if_true, ne, at, Operand(zero_reg));
+
+  // Not native or strict-mode function.
+  __ Branch(if_false);
+
+  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  context()->Plug(if_true, if_false);
+}
+
+
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Handle<String> name = expr->name();
   if (name->length() > 0 && name->Get(0) == '_') {
@@ -3628,7 +3664,7 @@ void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
         isolate()->stub_cache()->ComputeCallInitialize(arg_count,
                                                        NOT_IN_LOOP,
                                                        mode);
-    EmitCallIC(ic, mode, expr->id());
+    __ CallWithAstId(ic, mode, expr->id());
     // Restore context register.
     __ lw(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
   } else {
@@ -3771,7 +3807,7 @@ void FullCodeGenerator::EmitUnaryOperation(UnaryOperation* expr,
   VisitForAccumulatorValue(expr->expression());
   SetSourcePosition(expr->position());
   __ mov(a0, result_register());
-  EmitCallIC(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
+  __ CallWithAstId(stub.GetCode(), RelocInfo::CODE_TARGET, expr->id());
   context()->Plug(v0);
 }
 
@@ -3882,7 +3918,8 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
   SetSourcePosition(expr->position());
 
   BinaryOpStub stub(Token::ADD, NO_OVERWRITE);
-  EmitCallIC(stub.GetCode(), &patch_site, expr->CountId());
+  __ CallWithAstId(stub.GetCode(), RelocInfo::CODE_TARGET, expr->CountId());
+  patch_site.EmitPatchInfo();
   __ bind(&done);
 
   // Store the value returned in v0.
@@ -3914,7 +3951,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->StoreIC_Initialize_Strict()
           : isolate()->builtins()->StoreIC_Initialize();
-      EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+      __ CallWithAstId(ic, RelocInfo::CODE_TARGET, expr->id());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -3932,7 +3969,7 @@ void FullCodeGenerator::VisitCountOperation(CountOperation* expr) {
       Handle<Code> ic = is_strict_mode()
           ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
           : isolate()->builtins()->KeyedStoreIC_Initialize();
-      EmitCallIC(ic, RelocInfo::CODE_TARGET, expr->id());
+      __ CallWithAstId(ic, RelocInfo::CODE_TARGET, expr->id());
       PrepareForBailoutForId(expr->AssignmentId(), TOS_REG);
       if (expr->is_postfix()) {
         if (!context()->IsEffect()) {
@@ -3956,7 +3993,7 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
     Handle<Code> ic = isolate()->builtins()->LoadIC_Initialize();
     // Use a regular load, not a contextual load, to avoid a reference
     // error.
-    EmitCallIC(ic, RelocInfo::CODE_TARGET, AstNode::kNoNumber);
+    __ CallWithAstId(ic);
     PrepareForBailout(expr, TOS_REG);
     context()->Plug(v0);
   } else if (proxy != NULL &&
@@ -4153,7 +4190,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       // Record position and call the compare IC.
       SetSourcePosition(expr->position());
       Handle<Code> ic = CompareIC::GetUninitialized(op);
-      EmitCallIC(ic, &patch_site, expr->id());
+      __ CallWithAstId(ic, RelocInfo::CODE_TARGET, expr->id());
+      patch_site.EmitPatchInfo();
       PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
       Split(cc, v0, Operand(zero_reg), if_true, if_false, fall_through);
     }
@@ -4212,70 +4250,6 @@ Register FullCodeGenerator::context_register() {
 }
 
 
-void FullCodeGenerator::EmitCallIC(Handle<Code> ic,
-                                   RelocInfo::Mode mode,
-                                   unsigned ast_id) {
-  ASSERT(mode == RelocInfo::CODE_TARGET ||
-         mode == RelocInfo::CODE_TARGET_CONTEXT);
-  Counters* counters = isolate()->counters();
-  switch (ic->kind()) {
-    case Code::LOAD_IC:
-      __ IncrementCounter(counters->named_load_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_LOAD_IC:
-      __ IncrementCounter(counters->keyed_load_full(), 1, a1, a2);
-      break;
-    case Code::STORE_IC:
-      __ IncrementCounter(counters->named_store_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_STORE_IC:
-      __ IncrementCounter(counters->keyed_store_full(), 1, a1, a2);
-    default:
-      break;
-  }
-  if (ast_id == kNoASTId || mode == RelocInfo::CODE_TARGET_CONTEXT) {
-    __ Call(ic, mode);
-  } else {
-    ASSERT(mode == RelocInfo::CODE_TARGET);
-    mode = RelocInfo::CODE_TARGET_WITH_ID;
-    __ CallWithAstId(ic, mode, ast_id);
-  }
-}
-
-
-void FullCodeGenerator::EmitCallIC(Handle<Code> ic,
-                                   JumpPatchSite* patch_site,
-                                   unsigned ast_id) {
-  Counters* counters = isolate()->counters();
-  switch (ic->kind()) {
-    case Code::LOAD_IC:
-      __ IncrementCounter(counters->named_load_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_LOAD_IC:
-      __ IncrementCounter(counters->keyed_load_full(), 1, a1, a2);
-      break;
-    case Code::STORE_IC:
-      __ IncrementCounter(counters->named_store_full(), 1, a1, a2);
-      break;
-    case Code::KEYED_STORE_IC:
-      __ IncrementCounter(counters->keyed_store_full(), 1, a1, a2);
-    default:
-      break;
-  }
-
-  if (ast_id == kNoASTId) {
-    __ Call(ic, RelocInfo::CODE_TARGET);
-  } else {
-    __ CallWithAstId(ic, RelocInfo::CODE_TARGET_WITH_ID, ast_id);
-  }
-  if (patch_site != NULL && patch_site->is_bound()) {
-    patch_site->EmitPatchInfo();
-  } else {
-    __ nop();  // Signals no inlined code.
-  }
-}
-
-
 void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
   ASSERT_EQ(POINTER_SIZE_ALIGN(frame_offset), frame_offset);
   __ sw(value, MemOperand(fp, frame_offset));
@@ -4284,6 +4258,27 @@ void FullCodeGenerator::StoreToFrameField(int frame_offset, Register value) {
 
 void FullCodeGenerator::LoadContextField(Register dst, int context_index) {
   __ lw(dst, ContextOperand(cp, context_index));
+}
+
+
+void FullCodeGenerator::PushFunctionArgumentForContextAllocation() {
+  Scope* declaration_scope = scope()->DeclarationScope();
+  if (declaration_scope->is_global_scope()) {
+    // Contexts nested in the global context have a canonical empty function
+    // as their closure, not the anonymous closure containing the global
+    // code.  Pass a smi sentinel and let the runtime look up the empty
+    // function.
+    __ li(at, Operand(Smi::FromInt(0)));
+  } else if (declaration_scope->is_eval_scope()) {
+    // Contexts created by a call to eval have the same closure as the
+    // context calling eval, not the anonymous closure containing the eval
+    // code.  Fetch it from the context.
+    __ lw(at, ContextOperand(cp, Context::CLOSURE_INDEX));
+  } else {
+    ASSERT(declaration_scope->is_function_scope());
+    __ lw(at, MemOperand(fp, JavaScriptFrameConstants::kFunctionOffset));
+  }
+  __ push(at);
 }
 
 

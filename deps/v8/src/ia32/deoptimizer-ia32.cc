@@ -348,6 +348,9 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   output_ = new FrameDescription*[1];
   output_[0] = new(output_frame_size) FrameDescription(
       output_frame_size, function_);
+#ifdef DEBUG
+  output_[0]->SetKind(Code::OPTIMIZED_FUNCTION);
+#endif
 
   // Clear the incoming parameters in the optimized frame to avoid
   // confusing the garbage collector.
@@ -461,6 +464,9 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new(output_frame_size) FrameDescription(output_frame_size, function);
+#ifdef DEBUG
+  output_frame->SetKind(Code::FUNCTION);
+#endif
 
   bool is_bottommost = (0 == frame_index);
   bool is_topmost = (output_count_ - 1 == frame_index);
@@ -587,7 +593,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   output_frame->SetState(Smi::FromInt(state));
 
   // Set the continuation for the topmost frame.
-  if (is_topmost) {
+  if (is_topmost && bailout_type_ != DEBUGGER) {
     Builtins* builtins = isolate_->builtins();
     Code* continuation = (bailout_type_ == EAGER)
         ? builtins->builtin(Builtins::kNotifyDeoptimized)
@@ -597,6 +603,27 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   }
 
   if (output_count_ - 1 == frame_index) iterator->Done();
+}
+
+
+void Deoptimizer::FillInputFrame(Address tos, JavaScriptFrame* frame) {
+  // Set the register values. The values are not important as there are no
+  // callee saved registers in JavaScript frames, so all registers are
+  // spilled. Registers ebp and esp are set to the correct values though.
+
+  for (int i = 0; i < Register::kNumRegisters; i++) {
+    input_->SetRegister(i, i * 4);
+  }
+  input_->SetRegister(esp.code(), reinterpret_cast<intptr_t>(frame->sp()));
+  input_->SetRegister(ebp.code(), reinterpret_cast<intptr_t>(frame->fp()));
+  for (int i = 0; i < DoubleRegister::kNumAllocatableRegisters; i++) {
+    input_->SetDoubleRegister(i, 0.0);
+  }
+
+  // Fill the frame content from the actual data on the frame.
+  for (unsigned i = 0; i < input_->GetFrameSize(); i += kPointerSize) {
+    input_->SetFrameSlot(i, Memory::uint32_at(tos + i));
+  }
 }
 
 

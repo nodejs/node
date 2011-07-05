@@ -251,7 +251,7 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
         !LoggerTestHelper::IsSamplerActive());
   LoggerTestHelper::ResetSamplesTaken();
 
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
+  LOGGER->ResumeProfiler();
   CHECK(LoggerTestHelper::IsSamplerActive());
 
   // Verify that the current map of compiled functions has been logged.
@@ -273,7 +273,7 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
     i::OS::Sleep(1);
   }
 
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
+  LOGGER->PauseProfiler();
   CHECK(i::RuntimeProfiler::IsEnabled() ||
         !LoggerTestHelper::IsSamplerActive());
 
@@ -614,99 +614,13 @@ TEST(LogAccessorCallbacks) {
 }
 
 
-TEST(LogTags) {
-  ScopedLoggerInitializer initialize_logger(false);
-  LogBufferMatcher matcher;
-
-  const char* open_tag = "open-tag,";
-  const char* close_tag = "close-tag,";
-
-  // Check compatibility with the old style behavior.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  CHECK_EQ(NULL, matcher.Find(open_tag));
-  CHECK_EQ(NULL, matcher.Find(close_tag));
-
-  const char* open_tag1 = "open-tag,1\n";
-  const char* close_tag1 = "close-tag,1\n";
-
-  // Check non-nested tag case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  CHECK_GT(matcher.GetNextChunk(), 0);
-  CHECK(matcher.IsInSequence(open_tag1, close_tag1));
-
-  const char* open_tag2 = "open-tag,2\n";
-  const char* close_tag2 = "close-tag,2\n";
-
-  // Check nested tags case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  CHECK_GT(matcher.GetNextChunk(), 0);
-  // open_tag1 < open_tag2 < close_tag2 < close_tag1
-  CHECK(matcher.IsInSequence(open_tag1, open_tag2));
-  CHECK(matcher.IsInSequence(open_tag2, close_tag2));
-  CHECK(matcher.IsInSequence(close_tag2, close_tag1));
-
-  // Check overlapped tags case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  CHECK_GT(matcher.GetNextChunk(), 0);
-  // open_tag1 < open_tag2 < close_tag1 < close_tag2
-  CHECK(matcher.IsInSequence(open_tag1, open_tag2));
-  CHECK(matcher.IsInSequence(open_tag2, close_tag1));
-  CHECK(matcher.IsInSequence(close_tag1, close_tag2));
-
-  const char* open_tag3 = "open-tag,3\n";
-  const char* close_tag3 = "close-tag,3\n";
-
-  // Check pausing overflow case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 3);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 3);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, LOGGER->GetActiveProfilerModules());
-  // Must be no tags, because logging must be disabled.
-  CHECK_EQ(NULL, matcher.Find(open_tag3));
-  CHECK_EQ(NULL, matcher.Find(close_tag3));
-}
-
-
 TEST(IsLoggingPreserved) {
   ScopedLoggerInitializer initialize_logger(false);
 
   CHECK(LOGGER->is_logging());
-  LOGGER->ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
+  LOGGER->ResumeProfiler();
   CHECK(LOGGER->is_logging());
-  LOGGER->PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
+  LOGGER->PauseProfiler();
   CHECK(LOGGER->is_logging());
 }
 

@@ -109,8 +109,6 @@ void CompilationInfo::DisableOptimization() {
 void CompilationInfo::AbortOptimization() {
   Handle<Code> code(shared_info()->code());
   SetCode(code);
-  Isolate* isolate = code->GetIsolate();
-  isolate->compilation_cache()->MarkForLazyOptimizing(closure());
 }
 
 
@@ -413,7 +411,8 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
         String::cast(script->name())));
     GDBJIT(AddCode(Handle<String>(String::cast(script->name())),
                    script,
-                   info->code()));
+                   info->code(),
+                   info));
   } else {
     PROFILE(isolate, CodeCreateEvent(
         info->is_eval()
@@ -422,7 +421,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
         *info->code(),
         *result,
         isolate->heap()->empty_string()));
-    GDBJIT(AddCode(Handle<String>(), script, info->code()));
+    GDBJIT(AddCode(Handle<String>(), script, info->code(), info));
   }
 
   // Hint to the runtime system used when allocating space for initial
@@ -618,6 +617,7 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
       RecordFunctionCompilation(Logger::LAZY_COMPILE_TAG, info, shared);
 
       if (info->IsOptimizing()) {
+        ASSERT(shared->scope_info() != SerializedScopeInfo::Empty());
         function->ReplaceCode(*code);
       } else {
         // Update the shared function info with the compiled code and the
@@ -659,9 +659,6 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
             CompilationInfo optimized(function);
             optimized.SetOptimizing(AstNode::kNoNumber);
             return CompileLazy(&optimized);
-          } else if (isolate->compilation_cache()->ShouldOptimizeEagerly(
-              function)) {
-            isolate->runtime_profiler()->OptimizeSoon(*function);
           }
         }
       }
@@ -788,7 +785,8 @@ void Compiler::RecordFunctionCompilation(Logger::LogEventsAndTags tag,
 
   GDBJIT(AddCode(Handle<String>(shared->DebugName()),
                  Handle<Script>(info->script()),
-                 Handle<Code>(info->code())));
+                 Handle<Code>(info->code()),
+                 info));
 }
 
 } }  // namespace v8::internal

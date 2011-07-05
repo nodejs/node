@@ -1694,6 +1694,8 @@ MaybeObject* KeyedLoadStubCompiler::ComputeSharedKeyedLoadElementStub(
   } else if (receiver_map->has_external_array_elements()) {
     JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
     maybe_stub = KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
+  } else if (receiver_map->has_dictionary_elements()) {
+    maybe_stub = isolate()->builtins()->builtin(Builtins::kKeyedLoadIC_Slow);
   } else {
     UNREACHABLE();
   }
@@ -1746,6 +1748,8 @@ MaybeObject* KeyedStoreStubCompiler::ComputeSharedKeyedStoreElementStub(
   } else if (receiver_map->has_external_array_elements()) {
     JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
     maybe_stub = KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
+  } else if (receiver_map->has_dictionary_elements()) {
+    maybe_stub = isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Slow);
   } else {
     UNREACHABLE();
   }

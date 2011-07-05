@@ -181,8 +181,8 @@ DECLARE_NOTARGET_PROTOTYPE(Ret)
 #undef DECLARE_BRANCH_PROTOTYPES
 
   void CallWithAstId(Handle<Code> code,
-                     RelocInfo::Mode rmode,
-                     unsigned ast_id,
+                     RelocInfo::Mode rmode = RelocInfo::CODE_TARGET,
+                     unsigned ast_id = kNoASTId,
                      Condition cond = al,
                      Register r1 = zero_reg,
                      const Operand& r2 = Operand(zero_reg));

@@ -203,7 +203,6 @@ DEFINE_bool(deopt, true, "support deoptimization")
 DEFINE_bool(trace_deopt, false, "trace deoptimization")
 
 // compiler.cc
-DEFINE_bool(strict, false, "strict error checking")
 DEFINE_int(min_preparse_length, 1024,
            "minimum length for automatic enable preparsing")
 DEFINE_bool(always_full_compiler, false,
@@ -372,6 +371,8 @@ DEFINE_bool(debug_script_collected_events, true,
 DEFINE_bool(gdbjit, false, "enable GDBJIT interface (disables compacting GC)")
 DEFINE_bool(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 DEFINE_bool(gdbjit_dump, false, "dump elf objects with debug info to disk")
+DEFINE_string(gdbjit_dump_filter, "",
+              "dump only objects containing this substring")
 
 //
 // Debug only flags

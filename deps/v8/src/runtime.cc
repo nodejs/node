@@ -3918,15 +3918,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       if (proto->IsNull()) return *obj_value;
       js_object = Handle<JSObject>::cast(proto);
     }
-    NormalizeElements(js_object);
-    Handle<NumberDictionary> dictionary(js_object->element_dictionary());
+    Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
     Handle<NumberDictionary> extended_dictionary =
         NumberDictionarySet(dictionary, index, obj_value, details);
     if (*extended_dictionary != *dictionary) {
-      js_object->set_elements(*extended_dictionary);
+      if (js_object->GetElementsKind() ==
+          JSObject::NON_STRICT_ARGUMENTS_ELEMENTS) {
+        FixedArray::cast(js_object->elements())->set(1, *extended_dictionary);
+      } else {
+        js_object->set_elements(*extended_dictionary);
+      }
     }
     return *obj_value;
   }
@@ -3981,8 +3985,7 @@ static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
                                               Handle<Object> value,
                                               PropertyAttributes attr) {
   // Normalize the elements to enable attributes on the property.
-  NormalizeElements(js_object);
-  Handle<NumberDictionary> dictionary(js_object->element_dictionary());
+  Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
   // Make sure that we never go back to fast case.
   dictionary->set_requires_slow_elements();
   PropertyDetails details = PropertyDetails(attr, NORMAL);
@@ -5742,6 +5745,27 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringTrim) {
 }
 
 
+void FindAsciiStringIndices(Vector<const char> subject,
+                            char pattern,
+                            ZoneList<int>* indices,
+                            unsigned int limit) {
+  ASSERT(limit > 0);
+  // Collect indices of pattern in subject using memchr.
+  // Stop after finding at most limit values.
+  const char* subject_start = reinterpret_cast<const char*>(subject.start());
+  const char* subject_end = subject_start + subject.length();
+  const char* pos = subject_start;
+  while (limit > 0) {
+    pos = reinterpret_cast<const char*>(
+        memchr(pos, pattern, subject_end - pos));
+    if (pos == NULL) return;
+    indices->Add(static_cast<int>(pos - subject_start));
+    pos++;
+    limit--;
+  }
+}
+
+
 template <typename SubjectChar, typename PatternChar>
 void FindStringIndices(Isolate* isolate,
                        Vector<const SubjectChar> subject,
@@ -5749,11 +5773,11 @@ void FindStringIndices(Isolate* isolate,
                        ZoneList<int>* indices,
                        unsigned int limit) {
   ASSERT(limit > 0);
-  // Collect indices of pattern in subject, and the end-of-string index.
+  // Collect indices of pattern in subject.
   // Stop after finding at most limit values.
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
   int pattern_length = pattern.length();
   int index = 0;
+  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
   while (limit > 0) {
     index = search.Search(subject, index);
     if (index < 0) return;
@@ -5796,11 +5820,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
     if (subject->IsAsciiRepresentation()) {
       Vector<const char> subject_vector = subject->ToAsciiVector();
       if (pattern->IsAsciiRepresentation()) {
-        FindStringIndices(isolate,
-                          subject_vector,
-                          pattern->ToAsciiVector(),
-                          &indices,
-                          limit);
+        Vector<const char> pattern_vector = pattern->ToAsciiVector();
+        if (pattern_vector.length() == 1) {
+          FindAsciiStringIndices(subject_vector,
+                                 pattern_vector[0],
+                                 &indices,
+                                 limit);
+        } else {
+          FindStringIndices(isolate,
+                            subject_vector,
+                            pattern_vector,
+                            &indices,
+                            limit);
+        }
       } else {
         FindStringIndices(isolate,
                           subject_vector,
@@ -7821,7 +7853,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NotifyDeoptimized) {
     }
   }
 
-  isolate->compilation_cache()->MarkForLazyOptimizing(function);
   if (type == Deoptimizer::EAGER) {
     RUNTIME_ASSERT(function->IsOptimized());
   } else {
@@ -9938,7 +9969,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameCount) {
     // If there is no JavaScript stack frame count is 0.
     return Smi::FromInt(0);
   }
-  for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) n++;
+
+  for (JavaScriptFrameIterator it(isolate, id); !it.done(); it.Advance()) {
+    n += it.frame()->GetInlineCount();
+  }
   return Smi::FromInt(n);
 }
 
@@ -9951,7 +9985,7 @@ static const int kFrameDetailsLocalCountIndex = 4;
 static const int kFrameDetailsSourcePositionIndex = 5;
 static const int kFrameDetailsConstructCallIndex = 6;
 static const int kFrameDetailsAtReturnIndex = 7;
-static const int kFrameDetailsDebuggerFrameIndex = 8;
+static const int kFrameDetailsFlagsIndex = 8;
 static const int kFrameDetailsFirstDynamicIndex = 9;
 
 // Return an array with frame details
@@ -9967,7 +10001,7 @@ static const int kFrameDetailsFirstDynamicIndex = 9;
 // 5: Source position
 // 6: Constructor call
 // 7: Is at return
-// 8: Debugger frame
+// 8: Flags
 // Arguments name, value
 // Locals name, value
 // Return value if any
@@ -9990,16 +10024,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     // If there are no JavaScript stack frames return undefined.
     return heap->undefined_value();
   }
+
+  int deoptimized_frame_index = -1;  // Frame index in optimized frame.
+  DeoptimizedFrameInfo* deoptimized_frame = NULL;
+
   int count = 0;
   JavaScriptFrameIterator it(isolate, id);
   for (; !it.done(); it.Advance()) {
-    if (count == index) break;
-    count++;
+    if (index < count + it.frame()->GetInlineCount()) break;
+    count += it.frame()->GetInlineCount();
   }
   if (it.done()) return heap->undefined_value();
 
-  bool is_optimized_frame =
-      it.frame()->LookupCode()->kind() == Code::OPTIMIZED_FUNCTION;
+  if (it.frame()->is_optimized()) {
+    deoptimized_frame_index =
+        it.frame()->GetInlineCount() - (index - count) - 1;
+    deoptimized_frame = Deoptimizer::DebuggerInspectableFrame(
+        it.frame(),
+        deoptimized_frame_index,
+        isolate);
+  }
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -10022,6 +10066,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
   Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
+  ASSERT(*scope_info != SerializedScopeInfo::Empty());
   ScopeInfo<> info(*scope_info);
 
   // Get the locals names and values into a temporary array.
@@ -10033,23 +10078,20 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       isolate->factory()->NewFixedArray(info.NumberOfLocals() * 2);
 
   // Fill in the values of the locals.
-  if (is_optimized_frame) {
-    // If we are inspecting an optimized frame use undefined as the
-    // value for all locals.
-    //
-    // TODO(1140): We should be able to get the correct values
-    // for locals in optimized frames.
-    for (int i = 0; i < info.NumberOfLocals(); i++) {
-      locals->set(i * 2, *info.LocalName(i));
-      locals->set(i * 2 + 1, isolate->heap()->undefined_value());
-    }
-  } else {
-    int i = 0;
-    for (; i < info.number_of_stack_slots(); ++i) {
-      // Use the value from the stack.
-      locals->set(i * 2, *info.LocalName(i));
+  int i = 0;
+  for (; i < info.number_of_stack_slots(); ++i) {
+    // Use the value from the stack.
+    locals->set(i * 2, *info.LocalName(i));
+    if (it.frame()->is_optimized()) {
+      // Get the value from the deoptimized frame.
+      locals->set(i * 2 + 1,
+                  deoptimized_frame->GetExpression(i));
+    } else {
+      // Get the value from the stack.
       locals->set(i * 2 + 1, it.frame()->GetExpression(i));
     }
+  }
+  if (i < info.NumberOfLocals()) {
     // Get the context containing declarations.
     Handle<Context> context(
         Context::cast(it.frame()->context())->declaration_context());
@@ -10064,7 +10106,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Check whether this frame is positioned at return. If not top
   // frame or if the frame is optimized it cannot be at a return.
   bool at_return = false;
-  if (!is_optimized_frame && index == 0) {
+  if (!it.frame()->is_optimized() && index == 0) {
     at_return = isolate->debug()->IsBreakAtReturn(it.frame());
   }
 
@@ -10145,10 +10187,21 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Add the at return information.
   details->set(kFrameDetailsAtReturnIndex, heap->ToBoolean(at_return));
 
-  // Add information on whether this frame is invoked in the debugger context.
-  details->set(kFrameDetailsDebuggerFrameIndex,
-               heap->ToBoolean(*save->context() ==
-                   *isolate->debug()->debug_context()));
+  // Add flags to indicate information on whether this frame is
+  //   bit 0: invoked in the debugger context.
+  //   bit 1: optimized frame.
+  //   bit 2: inlined in optimized frame
+  int flags = 0;
+  if (*save->context() == *isolate->debug()->debug_context()) {
+    flags |= 1 << 0;
+  }
+  if (it.frame()->is_optimized()) {
+    flags |= 1 << 1;
+    if (deoptimized_frame_index > 0) {
+      flags |= 1 << 2;
+    }
+  }
+  details->set(kFrameDetailsFlagsIndex, Smi::FromInt(flags));
 
   // Fill the dynamic part.
   int details_index = kFrameDetailsFirstDynamicIndex;
@@ -10167,7 +10220,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     //
     // TODO(3141533): We should be able to get the actual parameter
     // value for optimized frames.
-    if (!is_optimized_frame &&
+    if (!it.frame()->is_optimized() &&
         (i < it.frame()->ComputeParametersCount())) {
       details->set(details_index++, it.frame()->GetParameter(i));
     } else {
@@ -10202,6 +10255,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
         isolate->factory()->ToObject(receiver, calling_frames_global_context);
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
+
+  // Get rid of the calculated deoptimized frame if any.
+  if (deoptimized_frame != NULL) {
+    Deoptimizer::DeleteDebuggerInspectableFrame(deoptimized_frame,
+                                                isolate);
+  }
 
   ASSERT_EQ(details_size, details_index);
   return *isolate->factory()->NewJSArrayWithElements(details);
@@ -10263,7 +10322,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
   }
 
   // Second fill all stack locals.
-  for (int i = 0; i < scope_info.number_of_stack_slots(); i++) {
+  for (int i = 0; i < scope_info.number_of_stack_slots(); ++i) {
     RETURN_IF_EMPTY_HANDLE_VALUE(
         isolate,
         SetProperty(local_scope,
@@ -10274,37 +10333,40 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
         Handle<JSObject>());
   }
 
-  // Third fill all context locals.
-  Handle<Context> frame_context(Context::cast(frame->context()));
-  Handle<Context> function_context(frame_context->declaration_context());
-  if (!CopyContextLocalsToScopeObject(isolate,
-                                      serialized_scope_info, scope_info,
-                                      function_context, local_scope)) {
-    return Handle<JSObject>();
-  }
+  if (scope_info.number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
+    // Third fill all context locals.
+    Handle<Context> frame_context(Context::cast(frame->context()));
+    Handle<Context> function_context(frame_context->declaration_context());
+    if (!CopyContextLocalsToScopeObject(isolate,
+                                        serialized_scope_info, scope_info,
+                                        function_context, local_scope)) {
+      return Handle<JSObject>();
+    }
 
-  // Finally copy any properties from the function context extension. This will
-  // be variables introduced by eval.
-  if (function_context->closure() == *function) {
-    if (function_context->has_extension() &&
-        !function_context->IsGlobalContext()) {
-      Handle<JSObject> ext(JSObject::cast(function_context->extension()));
-      Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
-      for (int i = 0; i < keys->length(); i++) {
-        // Names of variables introduced by eval are strings.
-        ASSERT(keys->get(i)->IsString());
-        Handle<String> key(String::cast(keys->get(i)));
-        RETURN_IF_EMPTY_HANDLE_VALUE(
-            isolate,
-            SetProperty(local_scope,
-                        key,
-                        GetProperty(ext, key),
-                        NONE,
-                        kNonStrictMode),
-            Handle<JSObject>());
+    // Finally copy any properties from the function context extension.
+    // These will be variables introduced by eval.
+    if (function_context->closure() == *function) {
+      if (function_context->has_extension() &&
+          !function_context->IsGlobalContext()) {
+        Handle<JSObject> ext(JSObject::cast(function_context->extension()));
+        Handle<FixedArray> keys = GetKeysInFixedArrayFor(ext, INCLUDE_PROTOS);
+        for (int i = 0; i < keys->length(); i++) {
+          // Names of variables introduced by eval are strings.
+          ASSERT(keys->get(i)->IsString());
+          Handle<String> key(String::cast(keys->get(i)));
+          RETURN_IF_EMPTY_HANDLE_VALUE(
+              isolate,
+              SetProperty(local_scope,
+                          key,
+                          GetProperty(ext, key),
+                          NONE,
+                          kNonStrictMode),
+              Handle<JSObject>());
+        }
       }
     }
   }
+
   return local_scope;
 }
 
@@ -12074,22 +12136,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SummarizeLOL) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerResume) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  CONVERT_CHECKED(Smi, smi_tag, args[1]);
-  v8::V8::ResumeProfilerEx(smi_modules->value(), smi_tag->value());
+  v8::V8::ResumeProfiler();
   return isolate->heap()->undefined_value();
 }
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerPause) {
   NoHandleAllocation ha;
-  ASSERT(args.length() == 2);
-
-  CONVERT_CHECKED(Smi, smi_modules, args[0]);
-  CONVERT_CHECKED(Smi, smi_tag, args[1]);
-  v8::V8::PauseProfilerEx(smi_modules->value(), smi_tag->value());
+  v8::V8::PauseProfiler();
   return isolate->heap()->undefined_value();
 }
 
@@ -12450,6 +12504,28 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_IS_VAR) {
   return NULL;
 }
 
+
+#define ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(Name)        \
+  RUNTIME_FUNCTION(MaybeObject*, Runtime_Has##Name) {     \
+    CONVERT_CHECKED(JSObject, obj, args[0]);              \
+    return isolate->heap()->ToBoolean(obj->Has##Name());  \
+  }
+
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(FastDoubleElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(DictionaryElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalPixelElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalArrayElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalByteElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedByteElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalShortElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedShortElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalIntElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalUnsignedIntElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalFloatElements)
+ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION(ExternalDoubleElements)
+
+#undef ELEMENTS_KIND_CHECK_RUNTIME_FUNCTION
 
 // ----------------------------------------------------------------------------
 // Implementation of Runtime

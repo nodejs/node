@@ -28,6 +28,15 @@
 prefix sputnik
 def FAIL_OK = FAIL, OKAY
 
+############################### BUGS ###################################
+
+# A bound function should fail on access to 'caller' and 'arguments'.
+S15.3.4.5_A1: FAIL
+S15.3.4.5_A2: FAIL
+
+# '__proto__' should be treated as a normal property in JSON.
+S15.12.2_A1: FAIL
+
 ##################### DELIBERATE INCOMPATIBILITIES #####################
 
 # This tests precision of trignometric functions.  We're slightly off
@@ -40,6 +49,7 @@ S15.8.2.13_A23: PASS || FAIL_OK
 # We allow calls to regexp exec() with no arguments to fail for
 # compatibility reasons.
 S15.10.6.2_A1_T16: FAIL_OK
+S15.10.6.2_A12: FAIL_OK
 S15.10.6.3_A1_T16: FAIL_OK
 
 # We are silent in some regexp cases where the spec wants us to give
@@ -126,16 +136,8 @@ S15.5.4.11_D1.1_T3: PASS || FAIL_OK
 S12.6.4_D1: PASS || FAIL_OK
 
 # We allow function declarations within statements
-S12.5_A9_T1: FAIL_OK
-S12.5_A9_T2: FAIL_OK
-# S12.6.2_A13_T3: FAIL_OK
-# S12.5_A9_T3: FAIL_OK
-# S12.6.1_A13_T3: FAIL_OK
-S12.1_A1: FAIL_OK
 S12.6.2_A13_T1: FAIL_OK
 S12.6.2_A13_T2: FAIL_OK
-S12.6.1_A13_T1: FAIL_OK
-S12.6.1_A13_T2: FAIL_OK
 S12.6.4_A13_T1: FAIL_OK
 S12.6.4_A13_T2: FAIL_OK
 #S12.6.4_A13_T3: FAIL_OK
