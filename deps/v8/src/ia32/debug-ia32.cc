@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_IA32)
 
-#include "codegen.h"
+#include "codegen-inl.h"
 #include "debug.h"
 
 
@@ -49,8 +49,7 @@ bool BreakLocationIterator::IsDebugBreakAtReturn() {
 void BreakLocationIterator::SetDebugBreakAtReturn() {
   ASSERT(Assembler::kJSReturnSequenceLength >=
          Assembler::kCallInstructionLength);
-  Isolate* isolate = Isolate::Current();
-  rinfo()->PatchCodeWithCall(isolate->debug()->debug_break_return()->entry(),
+  rinfo()->PatchCodeWithCall(Debug::debug_break_return()->entry(),
       Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
@@ -79,9 +78,8 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() {
 
 void BreakLocationIterator::SetDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
-  Isolate* isolate = Isolate::Current();
   rinfo()->PatchCodeWithCall(
-      isolate->debug()->debug_break_slot()->entry(),
+      Debug::debug_break_slot()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
 }
 
@@ -128,7 +126,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
   __ Set(eax, Immediate(0));  // No arguments.
-  __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
+  __ mov(ebx, Immediate(ExternalReference::debug_break()));
 
   CEntryStub ceb(1);
   __ CallStub(&ceb);
@@ -163,7 +161,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // jumping to the target address intended by the caller and that was
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
+      ExternalReference(Debug_Address::AfterBreakTarget());
   __ jmp(Operand::StaticVariable(after_break_target));
 }
 
@@ -279,8 +277,7 @@ void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
 
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
-      ExternalReference(Debug_Address::RestarterFrameFunctionPointer(),
-                        masm->isolate());
+      ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
   __ mov(Operand::StaticVariable(restarter_frame_function_slot), Immediate(0));
 
   // We do not know our frame height, but set esp based on ebp.

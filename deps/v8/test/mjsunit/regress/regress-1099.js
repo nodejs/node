@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 // Test that LApplyArguments lithium instruction restores context after the call.
 
 function X() {
@@ -43,9 +41,6 @@ function Y(x) {
 
 var y = Y(X());
 
-for (var i = 0; i < 5; i++) {
+for (var i = 0; i < 1000000; i++) {
   assertTrue(y("foo"));
 }
-
-%OptimizeFunctionOnNextCall(y);
-assertTrue(y("foo"));

@@ -48,10 +48,8 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
-#include <sys/sysctl.h>
 #include <stdarg.h>
 #include <stdlib.h>
-#include <string.h>
 #include <errno.h>
 
 #undef MAP_TYPE
@@ -90,9 +88,6 @@ double ceiling(double x) {
 }
 
 
-static Mutex* limit_mutex = NULL;
-
-
 void OS::Setup() {
   // Seed the random number generator.
   // Convert the current time to a 64-bit integer first, before converting it
@@ -101,7 +96,6 @@ void OS::Setup() {
   // call this setup code within the same millisecond.
   uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
   srandom(static_cast<unsigned int>(seed));
-  limit_mutex = CreateMutex();
 }
 
 
@@ -115,9 +109,6 @@ static void* highest_ever_allocated = reinterpret_cast<void*>(0);
 
 
 static void UpdateAllocatedSpaceLimits(void* address, int size) {
-  ASSERT(limit_mutex != NULL);
-  ScopedLock lock(limit_mutex);
-
   lowest_ever_allocated = Min(lowest_ever_allocated, address);
   highest_ever_allocated =
       Max(highest_ever_allocated,
@@ -152,7 +143,7 @@ void* OS::Allocate(const size_t requested,
                      MAP_PRIVATE | MAP_ANON,
                      kMmapFd, kMmapFdOffset);
   if (mbase == MAP_FAILED) {
-    LOG(Isolate::Current(), StringEvent("OS::Allocate", "mmap failed"));
+    LOG(StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -267,8 +258,7 @@ void OS::LogSharedLibraryAddresses() {
     if (code_ptr == NULL) continue;
     const uintptr_t slide = _dyld_get_image_vmaddr_slide(i);
     const uintptr_t start = reinterpret_cast<uintptr_t>(code_ptr) + slide;
-    LOG(Isolate::Current(),
-        SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
+    LOG(SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 }
@@ -392,29 +382,61 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class Thread::PlatformData : public Malloced {
+class ThreadHandle::PlatformData : public Malloced {
  public:
-  PlatformData() : thread_(kNoThread) {}
+  explicit PlatformData(ThreadHandle::Kind kind) {
+    Initialize(kind);
+  }
+
+  void Initialize(ThreadHandle::Kind kind) {
+    switch (kind) {
+      case ThreadHandle::SELF: thread_ = pthread_self(); break;
+      case ThreadHandle::INVALID: thread_ = kNoThread; break;
+    }
+  }
   pthread_t thread_;  // Thread handle for pthread.
 };
 
-Thread::Thread(const Options& options)
-    : data_(new PlatformData),
-      stack_size_(options.stack_size) {
-  set_name(options.name);
+
+
+ThreadHandle::ThreadHandle(Kind kind) {
+  data_ = new PlatformData(kind);
 }
 
 
-Thread::Thread(const char* name)
-    : data_(new PlatformData),
-      stack_size_(0) {
+void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
+  data_->Initialize(kind);
+}
+
+
+ThreadHandle::~ThreadHandle() {
+  delete data_;
+}
+
+
+bool ThreadHandle::IsSelf() const {
+  return pthread_equal(data_->thread_, pthread_self());
+}
+
+
+bool ThreadHandle::IsValid() const {
+  return data_->thread_ != kNoThread;
+}
+
+
+Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
+  set_name("v8:<unknown>");
+}
+
+
+Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
   set_name(name);
 }
 
 
 Thread::~Thread() {
-  delete data_;
 }
+
 
 
 static void SetThreadName(const char* name) {
@@ -439,9 +461,9 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
-  thread->data()->thread_ = pthread_self();
+  thread->thread_handle_data()->thread_ = pthread_self();
   SetThreadName(thread->name());
-  ASSERT(thread->data()->thread_ != kNoThread);
+  ASSERT(thread->IsValid());
   thread->Run();
   return NULL;
 }
@@ -454,96 +476,21 @@ void Thread::set_name(const char* name) {
 
 
 void Thread::Start() {
-  pthread_attr_t* attr_ptr = NULL;
-  pthread_attr_t attr;
-  if (stack_size_ > 0) {
-    pthread_attr_init(&attr);
-    pthread_attr_setstacksize(&attr, static_cast<size_t>(stack_size_));
-    attr_ptr = &attr;
-  }
-  pthread_create(&data_->thread_, attr_ptr, ThreadEntry, this);
-  ASSERT(data_->thread_ != kNoThread);
+  pthread_create(&thread_handle_data()->thread_, NULL, ThreadEntry, this);
 }
 
 
 void Thread::Join() {
-  pthread_join(data_->thread_, NULL);
+  pthread_join(thread_handle_data()->thread_, NULL);
 }
-
-
-#ifdef V8_FAST_TLS_SUPPORTED
-
-static Atomic32 tls_base_offset_initialized = 0;
-intptr_t kMacTlsBaseOffset = 0;
-
-// It's safe to do the initialization more that once, but it has to be
-// done at least once.
-static void InitializeTlsBaseOffset() {
-  const size_t kBufferSize = 128;
-  char buffer[kBufferSize];
-  size_t buffer_size = kBufferSize;
-  int ctl_name[] = { CTL_KERN , KERN_OSRELEASE };
-  if (sysctl(ctl_name, 2, buffer, &buffer_size, NULL, 0) != 0) {
-    V8_Fatal(__FILE__, __LINE__, "V8 failed to get kernel version");
-  }
-  // The buffer now contains a string of the form XX.YY.ZZ, where
-  // XX is the major kernel version component.
-  // Make sure the buffer is 0-terminated.
-  buffer[kBufferSize - 1] = '\0';
-  char* period_pos = strchr(buffer, '.');
-  *period_pos = '\0';
-  int kernel_version_major =
-      static_cast<int>(strtol(buffer, NULL, 10));  // NOLINT
-  // The constants below are taken from pthreads.s from the XNU kernel
-  // sources archive at www.opensource.apple.com.
-  if (kernel_version_major < 11) {
-    // 8.x.x (Tiger), 9.x.x (Leopard), 10.x.x (Snow Leopard) have the
-    // same offsets.
-#if defined(V8_HOST_ARCH_IA32)
-    kMacTlsBaseOffset = 0x48;
-#else
-    kMacTlsBaseOffset = 0x60;
-#endif
-  } else {
-    // 11.x.x (Lion) changed the offset.
-    kMacTlsBaseOffset = 0;
-  }
-
-  Release_Store(&tls_base_offset_initialized, 1);
-}
-
-static void CheckFastTls(Thread::LocalStorageKey key) {
-  void* expected = reinterpret_cast<void*>(0x1234CAFE);
-  Thread::SetThreadLocal(key, expected);
-  void* actual = Thread::GetExistingThreadLocal(key);
-  if (expected != actual) {
-    V8_Fatal(__FILE__, __LINE__,
-             "V8 failed to initialize fast TLS on current kernel");
-  }
-  Thread::SetThreadLocal(key, NULL);
-}
-
-#endif  // V8_FAST_TLS_SUPPORTED
 
 
 Thread::LocalStorageKey Thread::CreateThreadLocalKey() {
-#ifdef V8_FAST_TLS_SUPPORTED
-  bool check_fast_tls = false;
-  if (tls_base_offset_initialized == 0) {
-    check_fast_tls = true;
-    InitializeTlsBaseOffset();
-  }
-#endif
   pthread_key_t key;
   int result = pthread_key_create(&key, NULL);
   USE(result);
   ASSERT(result == 0);
-  LocalStorageKey typed_key = static_cast<LocalStorageKey>(key);
-#ifdef V8_FAST_TLS_SUPPORTED
-  // If we just initialized fast TLS support, make sure it works.
-  if (check_fast_tls) CheckFastTls(typed_key);
-#endif
-  return typed_key;
+  return static_cast<LocalStorageKey>(key);
 }
 
 
@@ -648,111 +595,52 @@ Semaphore* OS::CreateSemaphore(int count) {
 
 class Sampler::PlatformData : public Malloced {
  public:
-  PlatformData() : profiled_thread_(mach_thread_self()) {}
-
-  ~PlatformData() {
-    // Deallocate Mach port for thread.
-    mach_port_deallocate(mach_task_self(), profiled_thread_);
+  explicit PlatformData(Sampler* sampler)
+      : sampler_(sampler),
+        task_self_(mach_task_self()),
+        profiled_thread_(0),
+        sampler_thread_(0) {
   }
 
-  thread_act_t profiled_thread() { return profiled_thread_; }
-
- private:
+  Sampler* sampler_;
   // Note: for profiled_thread_ Mach primitives are used instead of PThread's
   // because the latter doesn't provide thread manipulation primitives required.
   // For details, consult "Mac OS X Internals" book, Section 7.3.
+  mach_port_t task_self_;
   thread_act_t profiled_thread_;
-};
+  pthread_t sampler_thread_;
+  RuntimeProfilerRateLimiter rate_limiter_;
 
-class SamplerThread : public Thread {
- public:
-  explicit SamplerThread(int interval)
-      : Thread("SamplerThread"),
-        interval_(interval) {}
-
-  static void AddActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::AddActiveSampler(sampler);
-    if (instance_ == NULL) {
-      instance_ = new SamplerThread(sampler->interval());
-      instance_->Start();
-    } else {
-      ASSERT(instance_->interval_ == sampler->interval());
+  // Sampler thread handler.
+  void Runner() {
+    while (sampler_->IsActive()) {
+      if (rate_limiter_.SuspendIfNecessary()) continue;
+      Sample();
+      OS::Sleep(sampler_->interval_);
     }
   }
 
-  static void RemoveActiveSampler(Sampler* sampler) {
-    ScopedLock lock(mutex_);
-    SamplerRegistry::RemoveActiveSampler(sampler);
-    if (SamplerRegistry::GetState() == SamplerRegistry::HAS_NO_SAMPLERS) {
-      RuntimeProfiler::WakeUpRuntimeProfilerThreadBeforeShutdown();
-      instance_->Join();
-      delete instance_;
-      instance_ = NULL;
-    }
-  }
+  void Sample() {
+    if (sampler_->IsProfiling()) {
+      TickSample sample_obj;
+      TickSample* sample = CpuProfiler::TickSampleEvent();
+      if (sample == NULL) sample = &sample_obj;
 
-  // Implement Thread::Run().
-  virtual void Run() {
-    SamplerRegistry::State state;
-    while ((state = SamplerRegistry::GetState()) !=
-           SamplerRegistry::HAS_NO_SAMPLERS) {
-      bool cpu_profiling_enabled =
-          (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
-      bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
-      // When CPU profiling is enabled both JavaScript and C++ code is
-      // profiled. We must not suspend.
-      if (!cpu_profiling_enabled) {
-        if (rate_limiter_.SuspendIfNecessary()) continue;
-      }
-      if (cpu_profiling_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoCpuProfile, this)) {
-          return;
-        }
-      }
-      if (runtime_profiler_enabled) {
-        if (!SamplerRegistry::IterateActiveSamplers(&DoRuntimeProfile, NULL)) {
-          return;
-        }
-      }
-      OS::Sleep(interval_);
-    }
-  }
-
-  static void DoCpuProfile(Sampler* sampler, void* raw_sampler_thread) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    if (!sampler->IsProfiling()) return;
-    SamplerThread* sampler_thread =
-        reinterpret_cast<SamplerThread*>(raw_sampler_thread);
-    sampler_thread->SampleContext(sampler);
-  }
-
-  static void DoRuntimeProfile(Sampler* sampler, void* ignored) {
-    if (!sampler->isolate()->IsInitialized()) return;
-    sampler->isolate()->runtime_profiler()->NotifyTick();
-  }
-
-  void SampleContext(Sampler* sampler) {
-    thread_act_t profiled_thread = sampler->platform_data()->profiled_thread();
-    TickSample sample_obj;
-    TickSample* sample = CpuProfiler::TickSampleEvent(sampler->isolate());
-    if (sample == NULL) sample = &sample_obj;
-
-    if (KERN_SUCCESS != thread_suspend(profiled_thread)) return;
+      if (KERN_SUCCESS != thread_suspend(profiled_thread_)) return;
 
 #if V8_HOST_ARCH_X64
-    thread_state_flavor_t flavor = x86_THREAD_STATE64;
-    x86_thread_state64_t state;
-    mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
+      thread_state_flavor_t flavor = x86_THREAD_STATE64;
+      x86_thread_state64_t state;
+      mach_msg_type_number_t count = x86_THREAD_STATE64_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __r ## name
 #else
 #define REGISTER_FIELD(name) r ## name
 #endif  // __DARWIN_UNIX03
 #elif V8_HOST_ARCH_IA32
-    thread_state_flavor_t flavor = i386_THREAD_STATE;
-    i386_thread_state_t state;
-    mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
+      thread_state_flavor_t flavor = i386_THREAD_STATE;
+      i386_thread_state_t state;
+      mach_msg_type_number_t count = i386_THREAD_STATE_COUNT;
 #if __DARWIN_UNIX03
 #define REGISTER_FIELD(name) __e ## name
 #else
@@ -762,64 +650,81 @@ class SamplerThread : public Thread {
 #error Unsupported Mac OS X host architecture.
 #endif  // V8_HOST_ARCH
 
-    if (thread_get_state(profiled_thread,
-                         flavor,
-                         reinterpret_cast<natural_t*>(&state),
-                         &count) == KERN_SUCCESS) {
-      sample->state = sampler->isolate()->current_vm_state();
-      sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
-      sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
-      sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
-      sampler->SampleStack(sample);
-      sampler->Tick(sample);
+      if (thread_get_state(profiled_thread_,
+                           flavor,
+                           reinterpret_cast<natural_t*>(&state),
+                           &count) == KERN_SUCCESS) {
+        sample->state = Top::current_vm_state();
+        sample->pc = reinterpret_cast<Address>(state.REGISTER_FIELD(ip));
+        sample->sp = reinterpret_cast<Address>(state.REGISTER_FIELD(sp));
+        sample->fp = reinterpret_cast<Address>(state.REGISTER_FIELD(bp));
+        sampler_->SampleStack(sample);
+        sampler_->Tick(sample);
+      }
+      thread_resume(profiled_thread_);
     }
-    thread_resume(profiled_thread);
+    if (RuntimeProfiler::IsEnabled()) RuntimeProfiler::NotifyTick();
   }
-
-  const int interval_;
-  RuntimeProfilerRateLimiter rate_limiter_;
-
-  // Protects the process wide state below.
-  static Mutex* mutex_;
-  static SamplerThread* instance_;
-
-  DISALLOW_COPY_AND_ASSIGN(SamplerThread);
 };
 
 #undef REGISTER_FIELD
 
 
-Mutex* SamplerThread::mutex_ = OS::CreateMutex();
-SamplerThread* SamplerThread::instance_ = NULL;
+// Entry point for sampler thread.
+static void* SamplerEntry(void* arg) {
+  Sampler::PlatformData* data =
+      reinterpret_cast<Sampler::PlatformData*>(arg);
+  data->Runner();
+  return 0;
+}
 
 
-Sampler::Sampler(Isolate* isolate, int interval)
-    : isolate_(isolate),
-      interval_(interval),
+Sampler::Sampler(int interval)
+    : interval_(interval),
       profiling_(false),
       active_(false),
       samples_taken_(0) {
-  data_ = new PlatformData;
+  data_ = new PlatformData(this);
 }
 
 
 Sampler::~Sampler() {
-  ASSERT(!IsActive());
   delete data_;
 }
 
 
 void Sampler::Start() {
+  // Do not start multiple threads for the same sampler.
   ASSERT(!IsActive());
+  data_->profiled_thread_ = mach_thread_self();
+
+  // Create sampler thread with high priority.
+  // According to POSIX spec, when SCHED_FIFO policy is used, a thread
+  // runs until it exits or blocks.
+  pthread_attr_t sched_attr;
+  sched_param fifo_param;
+  pthread_attr_init(&sched_attr);
+  pthread_attr_setinheritsched(&sched_attr, PTHREAD_EXPLICIT_SCHED);
+  pthread_attr_setschedpolicy(&sched_attr, SCHED_FIFO);
+  fifo_param.sched_priority = sched_get_priority_max(SCHED_FIFO);
+  pthread_attr_setschedparam(&sched_attr, &fifo_param);
+
   SetActive(true);
-  SamplerThread::AddActiveSampler(this);
+  pthread_create(&data_->sampler_thread_, &sched_attr, SamplerEntry, data_);
 }
 
 
 void Sampler::Stop() {
-  ASSERT(IsActive());
-  SamplerThread::RemoveActiveSampler(this);
+  // Seting active to false triggers termination of the sampler
+  // thread.
   SetActive(false);
+
+  // Wait for sampler thread to terminate.
+  Top::WakeUpRuntimeProfilerThreadBeforeShutdown();
+  pthread_join(data_->sampler_thread_, NULL);
+
+  // Deallocate Mach port for thread.
+  mach_port_deallocate(data_->task_self_, data_->profiled_thread_);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

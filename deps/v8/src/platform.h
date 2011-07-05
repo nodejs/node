@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -114,7 +114,6 @@ int signbit(double x);
 #endif  // __GNUC__
 
 #include "atomicops.h"
-#include "platform-tls.h"
 #include "utils.h"
 #include "v8globals.h"
 
@@ -178,7 +177,7 @@ class OS {
   static bool Remove(const char* path);
 
   // Log file open mode is platform-dependent due to line ends issues.
-  static const char* const LogFileOpenMode;
+  static const char* LogFileOpenMode;
 
   // Print output to console. This is mostly used for debugging output.
   // On platforms that has standard terminal output, the output
@@ -288,43 +287,17 @@ class OS {
   // positions indicated by the members of the CpuFeature enum from globals.h
   static uint64_t CpuFeaturesImpliedByPlatform();
 
-  // Maximum size of the virtual memory.  0 means there is no artificial
-  // limit.
-  static intptr_t MaxVirtualMemory();
-
   // Returns the double constant NAN
   static double nan_value();
 
   // Support runtime detection of VFP3 on ARM CPUs.
   static bool ArmCpuHasFeature(CpuFeature feature);
 
-  // Support runtime detection of whether the hard float option of the
-  // EABI is used.
-  static bool ArmUsingHardFloat();
-
-  // Support runtime detection of FPU on MIPS CPUs.
-  static bool MipsCpuHasFeature(CpuFeature feature);
-
   // Returns the activation frame alignment constraint or zero if
   // the platform doesn't care. Guaranteed to be a power of two.
   static int ActivationFrameAlignment();
 
   static void ReleaseStore(volatile AtomicWord* ptr, AtomicWord value);
-
-#if defined(V8_TARGET_ARCH_IA32)
-  // Copy memory area to disjoint memory area.
-  static void MemCopy(void* dest, const void* src, size_t size);
-  // Limit below which the extra overhead of the MemCopy function is likely
-  // to outweigh the benefits of faster copying.
-  static const int kMinComplexMemCopy = 64;
-  typedef void (*MemCopyFunction)(void* dest, const void* src, size_t size);
-
-#else  // V8_TARGET_ARCH_IA32
-  static void MemCopy(void* dest, const void* src, size_t size) {
-    memcpy(dest, src, size);
-  }
-  static const int kMinComplexMemCopy = 256;
-#endif  // V8_TARGET_ARCH_IA32
 
  private:
   static const int msPerSecond = 1000;
@@ -362,6 +335,40 @@ class VirtualMemory {
   size_t size_;  // Size of the virtual memory.
 };
 
+
+// ----------------------------------------------------------------------------
+// ThreadHandle
+//
+// A ThreadHandle represents a thread identifier for a thread. The ThreadHandle
+// does not own the underlying os handle. Thread handles can be used for
+// refering to threads and testing equality.
+
+class ThreadHandle {
+ public:
+  enum Kind { SELF, INVALID };
+  explicit ThreadHandle(Kind kind);
+
+  // Destructor.
+  ~ThreadHandle();
+
+  // Test for thread running.
+  bool IsSelf() const;
+
+  // Test for valid thread handle.
+  bool IsValid() const;
+
+  // Get platform-specific data.
+  class PlatformData;
+  PlatformData* thread_handle_data() { return data_; }
+
+  // Initialize the handle to kind
+  void Initialize(Kind kind);
+
+ private:
+  PlatformData* data_;  // Captures platform dependent data.
+};
+
+
 // ----------------------------------------------------------------------------
 // Thread
 //
@@ -370,7 +377,7 @@ class VirtualMemory {
 // thread. The Thread object should not be deallocated before the thread has
 // terminated.
 
-class Thread {
+class Thread: public ThreadHandle {
  public:
   // Opaque data type for thread-local storage keys.
   // LOCAL_STORAGE_KEY_MIN_VALUE and LOCAL_STORAGE_KEY_MAX_VALUE are specified
@@ -381,15 +388,8 @@ class Thread {
     LOCAL_STORAGE_KEY_MAX_VALUE = kMaxInt
   };
 
-  struct Options {
-    Options() : name("v8:<unknown>"), stack_size(0) {}
-
-    const char* name;
-    int stack_size;
-  };
-
   // Create new thread.
-  explicit Thread(const Options& options);
+  Thread();
   explicit Thread(const char* name);
   virtual ~Thread();
 
@@ -421,37 +421,19 @@ class Thread {
     return GetThreadLocal(key) != NULL;
   }
 
-#ifdef V8_FAST_TLS_SUPPORTED
-  static inline void* GetExistingThreadLocal(LocalStorageKey key) {
-    void* result = reinterpret_cast<void*>(
-        InternalGetExistingThreadLocal(static_cast<intptr_t>(key)));
-    ASSERT(result == GetThreadLocal(key));
-    return result;
-  }
-#else
-  static inline void* GetExistingThreadLocal(LocalStorageKey key) {
-    return GetThreadLocal(key);
-  }
-#endif
-
   // A hint to the scheduler to let another thread run.
   static void YieldCPU();
-
 
   // The thread name length is limited to 16 based on Linux's implementation of
   // prctl().
   static const int kMaxThreadNameLength = 16;
-
-  class PlatformData;
-  PlatformData* data() { return data_; }
-
  private:
   void set_name(const char *name);
 
+  class PlatformData;
   PlatformData* data_;
 
   char name_[kMaxThreadNameLength];
-  int stack_size_;
 
   DISALLOW_COPY_AND_ASSIGN(Thread);
 };
@@ -486,12 +468,11 @@ class Mutex {
 // ----------------------------------------------------------------------------
 // ScopedLock
 //
-// Stack-allocated ScopedLocks provide block-scoped locking and
-// unlocking of a mutex.
+// Stack-allocated ScopedLocks provide block-scoped locking and unlocking
+// of a mutex.
 class ScopedLock {
  public:
   explicit ScopedLock(Mutex* mutex): mutex_(mutex) {
-    ASSERT(mutex_ != NULL);
     mutex_->Lock();
   }
   ~ScopedLock() {
@@ -587,30 +568,23 @@ class TickSample {
         sp(NULL),
         fp(NULL),
         tos(NULL),
-        frames_count(0),
-        has_external_callback(false) {}
+        frames_count(0) {}
   StateTag state;  // The state of the VM.
-  Address pc;      // Instruction pointer.
-  Address sp;      // Stack pointer.
-  Address fp;      // Frame pointer.
-  union {
-    Address tos;   // Top stack value (*sp).
-    Address external_callback;
-  };
+  Address pc;   // Instruction pointer.
+  Address sp;   // Stack pointer.
+  Address fp;   // Frame pointer.
+  Address tos;  // Top stack value (*sp).
   static const int kMaxFramesCount = 64;
   Address stack[kMaxFramesCount];  // Call stack.
-  int frames_count : 8;  // Number of captured frames.
-  bool has_external_callback : 1;
+  int frames_count;  // Number of captured frames.
 };
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 class Sampler {
  public:
   // Initialize sampler.
-  Sampler(Isolate* isolate, int interval);
+  explicit Sampler(int interval);
   virtual ~Sampler();
-
-  int interval() const { return interval_; }
 
   // Performs stack sampling.
   void SampleStack(TickSample* sample) {
@@ -634,16 +608,11 @@ class Sampler {
   // Whether the sampler is running (that is, consumes resources).
   bool IsActive() const { return NoBarrier_Load(&active_); }
 
-  Isolate* isolate() { return isolate_; }
-
   // Used in tests to make sure that stack sampling is performed.
   int samples_taken() const { return samples_taken_; }
   void ResetSamplesTaken() { samples_taken_ = 0; }
 
   class PlatformData;
-  PlatformData* data() { return data_; }
-
-  PlatformData* platform_data() { return data_; }
 
  protected:
   virtual void DoSampleStack(TickSample* sample) = 0;
@@ -652,7 +621,6 @@ class Sampler {
   void SetActive(bool value) { NoBarrier_Store(&active_, value); }
   void IncSamplesTaken() { if (++samples_taken_ < 0) samples_taken_ = 0; }
 
-  Isolate* isolate_;
   const int interval_;
   Atomic32 profiling_;
   Atomic32 active_;
@@ -660,7 +628,6 @@ class Sampler {
   int samples_taken_;  // Counts stack samples taken.
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
-
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

@@ -34,28 +34,20 @@ namespace v8 {
 namespace internal {
 
 
-Zone::Zone()
-    : zone_excess_limit_(256 * MB),
-      segment_bytes_allocated_(0),
-      position_(0),
-      limit_(0),
-      scope_nesting_(0),
-      segment_head_(NULL) {
-}
+Address Zone::position_ = 0;
+Address Zone::limit_ = 0;
+int Zone::zone_excess_limit_ = 256 * MB;
+int Zone::segment_bytes_allocated_ = 0;
 unsigned Zone::allocation_size_ = 0;
 
+bool AssertNoZoneAllocation::allow_allocation_ = true;
 
-ZoneScope::~ZoneScope() {
-  ASSERT_EQ(Isolate::Current(), isolate_);
-  if (ShouldDeleteOnExit()) isolate_->zone()->DeleteAll();
-  isolate_->zone()->scope_nesting_--;
-}
-
+int ZoneScope::nesting_ = 0;
 
 // Segments represent chunks of memory: They have starting address
 // (encoded in the this pointer) and a size in bytes. Segments are
 // chained together forming a LIFO structure with the newest segment
-// available as segment_head_. Segments are allocated using malloc()
+// available as Segment::head(). Segments are allocated using malloc()
 // and de-allocated using free().
 
 class Segment {
@@ -69,38 +61,45 @@ class Segment {
   Address start() const { return address(sizeof(Segment)); }
   Address end() const { return address(size_); }
 
+  static Segment* head() { return head_; }
+  static void set_head(Segment* head) { head_ = head; }
+
+  // Creates a new segment, sets it size, and pushes it to the front
+  // of the segment chain. Returns the new segment.
+  static Segment* New(int size) {
+    Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
+    Zone::adjust_segment_bytes_allocated(size);
+    if (result != NULL) {
+      result->next_ = head_;
+      result->size_ = size;
+      head_ = result;
+    }
+    return result;
+  }
+
+  // Deletes the given segment. Does not touch the segment chain.
+  static void Delete(Segment* segment, int size) {
+    Zone::adjust_segment_bytes_allocated(-size);
+    Malloced::Delete(segment);
+  }
+
+  static int bytes_allocated() { return bytes_allocated_; }
+
  private:
   // Computes the address of the nth byte in this segment.
   Address address(int n) const {
     return Address(this) + n;
   }
 
+  static Segment* head_;
+  static int bytes_allocated_;
   Segment* next_;
   int size_;
-
-  friend class Zone;
 };
 
 
-// Creates a new segment, sets it size, and pushes it to the front
-// of the segment chain. Returns the new segment.
-Segment* Zone::NewSegment(int size) {
-  Segment* result = reinterpret_cast<Segment*>(Malloced::New(size));
-  adjust_segment_bytes_allocated(size);
-  if (result != NULL) {
-    result->next_ = segment_head_;
-    result->size_ = size;
-    segment_head_ = result;
-  }
-  return result;
-}
-
-
-// Deletes the given segment. Does not touch the segment chain.
-void Zone::DeleteSegment(Segment* segment, int size) {
-  adjust_segment_bytes_allocated(-size);
-  Malloced::Delete(segment);
-}
+Segment* Segment::head_ = NULL;
+int Segment::bytes_allocated_ = 0;
 
 
 void Zone::DeleteAll() {
@@ -110,14 +109,14 @@ void Zone::DeleteAll() {
 #endif
 
   // Find a segment with a suitable size to keep around.
-  Segment* keep = segment_head_;
+  Segment* keep = Segment::head();
   while (keep != NULL && keep->size() > kMaximumKeptSegmentSize) {
     keep = keep->next();
   }
 
   // Traverse the chained list of segments, zapping (in debug mode)
   // and freeing every segment except the one we wish to keep.
-  Segment* current = segment_head_;
+  Segment* current = Segment::head();
   while (current != NULL) {
     Segment* next = current->next();
     if (current == keep) {
@@ -129,7 +128,7 @@ void Zone::DeleteAll() {
       // Zap the entire current segment (including the header).
       memset(current, kZapDeadByte, size);
 #endif
-      DeleteSegment(current, size);
+      Segment::Delete(current, size);
     }
     current = next;
   }
@@ -151,7 +150,7 @@ void Zone::DeleteAll() {
   }
 
   // Update the head segment to be the kept segment (if any).
-  segment_head_ = keep;
+  Segment::set_head(keep);
 }
 
 
@@ -165,7 +164,7 @@ Address Zone::NewExpand(int size) {
   // strategy, where we increase the segment size every time we expand
   // except that we employ a maximum segment size when we delete. This
   // is to avoid excessive malloc() and free() overhead.
-  Segment* head = segment_head_;
+  Segment* head = Segment::head();
   int old_size = (head == NULL) ? 0 : head->size();
   static const int kSegmentOverhead = sizeof(Segment) + kAlignment;
   int new_size = kSegmentOverhead + size + (old_size << 1);
@@ -178,7 +177,7 @@ Address Zone::NewExpand(int size) {
     // requested size.
     new_size = Max(kSegmentOverhead + size, kMaximumSegmentSize);
   }
-  Segment* segment = NewSegment(new_size);
+  Segment* segment = Segment::New(new_size);
   if (segment == NULL) {
     V8::FatalProcessOutOfMemory("Zone");
     return NULL;

@@ -73,15 +73,7 @@ function InstantiateFunction(data, name) {
       if (name) %FunctionSetName(fun, name);
       cache[serialNumber] = fun;
       var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
-      var attributes = %GetTemplateField(data, kApiPrototypeAttributesOffset);
-      if (attributes != NONE) {
-        %IgnoreAttributesAndSetProperty(
-            fun, "prototype",
-            prototype ? Instantiate(prototype) : {},
-            attributes);
-      } else {
-        fun.prototype = prototype ? Instantiate(prototype) : {};
-      }
+      fun.prototype = prototype ? Instantiate(prototype) : {};
       %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
       var parent = %GetTemplateField(data, kApiParentTemplateOffset);
       if (parent) {

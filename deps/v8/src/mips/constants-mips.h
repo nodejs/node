@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,36 +28,13 @@
 #ifndef  V8_MIPS_CONSTANTS_H_
 #define  V8_MIPS_CONSTANTS_H_
 
+#include "checks.h"
+
 // UNIMPLEMENTED_ macro for MIPS.
-#ifdef DEBUG
 #define UNIMPLEMENTED_MIPS()                                                  \
   v8::internal::PrintF("%s, \tline %d: \tfunction %s not implemented. \n",    \
                        __FILE__, __LINE__, __func__)
-#else
-#define UNIMPLEMENTED_MIPS()
-#endif
-
 #define UNSUPPORTED_MIPS() v8::internal::PrintF("Unsupported instruction.\n")
-
-
-#ifdef _MIPS_ARCH_MIPS32R2
-  #define mips32r2 1
-#else
-  #define mips32r2 0
-#endif
-
-
-#if(defined(__mips_hard_float) && __mips_hard_float != 0)
-// Use floating-point coprocessor instructions. This flag is raised when
-// -mhard-float is passed to the compiler.
-static const bool IsMipsSoftFloatABI = false;
-#elif(defined(__mips_soft_float) && __mips_soft_float != 0)
-// Not using floating-point coprocessor instructions. This flag is raised when
-// -msoft-float is passed to the compiler.
-static const bool IsMipsSoftFloatABI = true;
-#else
-static const bool IsMipsSoftFloatABI = true;
-#endif
 
 
 // Defines constants and accessor classes to assemble, disassemble and
@@ -67,11 +44,11 @@ static const bool IsMipsSoftFloatABI = true;
 //      Volume II: The MIPS32 Instruction Set
 // Try www.cs.cornell.edu/courses/cs3410/2008fa/MIPS_Vol2.pdf.
 
-namespace v8 {
-namespace internal {
+namespace assembler {
+namespace mips {
 
 // -----------------------------------------------------------------------------
-// Registers and FPURegisters.
+// Registers and FPURegister.
 
 // Number of general purpose registers.
 static const int kNumRegisters = 32;
@@ -84,36 +61,8 @@ static const int kNumSimuRegisters = 35;
 static const int kPCRegister = 34;
 
 // Number coprocessor registers.
-static const int kNumFPURegisters = 32;
+static const int kNumFPURegister = 32;
 static const int kInvalidFPURegister = -1;
-
-// FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
-static const int kFCSRRegister = 31;
-static const int kInvalidFPUControlRegister = -1;
-static const uint32_t kFPUInvalidResult = (uint32_t) (1 << 31) - 1;
-
-// FCSR constants.
-static const uint32_t kFCSRInexactFlagBit = 2;
-static const uint32_t kFCSRUnderflowFlagBit = 3;
-static const uint32_t kFCSROverflowFlagBit = 4;
-static const uint32_t kFCSRDivideByZeroFlagBit = 5;
-static const uint32_t kFCSRInvalidOpFlagBit = 6;
-
-static const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
-static const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
-static const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
-static const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
-static const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
-
-static const uint32_t kFCSRFlagMask =
-    kFCSRInexactFlagMask |
-    kFCSRUnderflowFlagMask |
-    kFCSROverflowFlagMask |
-    kFCSRDivideByZeroFlagMask |
-    kFCSRInvalidOpFlagMask;
-
-static const uint32_t kFCSRExceptionFlagMask =
-    kFCSRFlagMask ^ kFCSRInexactFlagMask;
 
 // Helper functions for converting between register numbers and names.
 class Registers {
@@ -133,12 +82,13 @@ class Registers {
   static const int32_t kMinValue = 0x80000000;
 
  private:
+
   static const char* names_[kNumSimuRegisters];
   static const RegisterAlias aliases_[];
 };
 
 // Helper functions for converting between register numbers and names.
-class FPURegisters {
+class FPURegister {
  public:
   // Return the name of the register.
   static const char* Name(int reg);
@@ -152,7 +102,8 @@ class FPURegisters {
   };
 
  private:
-  static const char* names_[kNumFPURegisters];
+
+  static const char* names_[kNumFPURegister];
   static const RegisterAlias aliases_[];
 };
 
@@ -163,24 +114,14 @@ class FPURegisters {
 // On MIPS all instructions are 32 bits.
 typedef int32_t Instr;
 
+typedef unsigned char byte_;
+
 // Special Software Interrupt codes when used in the presence of the MIPS
 // simulator.
 enum SoftwareInterruptCodes {
   // Transition to C code.
   call_rt_redirected = 0xfffff
 };
-
-// On MIPS Simulator breakpoints can have different codes:
-// - Breaks between 0 and kMaxWatchpointCode are treated as simple watchpoints,
-//   the simulator will run through them and print the registers.
-// - Breaks between kMaxWatchpointCode and kMaxStopCode are treated as stop()
-//   instructions (see Assembler::stop()).
-// - Breaks larger than kMaxStopCode are simple breaks, dropping you into the
-//   debugger.
-static const uint32_t kMaxWatchpointCode = 31;
-static const uint32_t kMaxStopCode = 127;
-STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
-
 
 // ----- Fields offset and length.
 static const int kOpcodeShift   = 26;
@@ -195,34 +136,22 @@ static const int kSaShift       = 6;
 static const int kSaBits        = 5;
 static const int kFunctionShift = 0;
 static const int kFunctionBits  = 6;
-static const int kLuiShift      = 16;
 
 static const int kImm16Shift = 0;
 static const int kImm16Bits  = 16;
 static const int kImm26Shift = 0;
 static const int kImm26Bits  = 26;
-static const int kImm28Shift = 0;
-static const int kImm28Bits  = 28;
 
 static const int kFsShift       = 11;
 static const int kFsBits        = 5;
 static const int kFtShift       = 16;
 static const int kFtBits        = 5;
-static const int kFdShift       = 6;
-static const int kFdBits        = 5;
-static const int kFCccShift     = 8;
-static const int kFCccBits      = 3;
-static const int kFBccShift     = 18;
-static const int kFBccBits      = 3;
-static const int kFBtrueShift   = 16;
-static const int kFBtrueBits    = 1;
 
-// ----- Miscellaneous useful masks.
+// ----- Miscellianous useful masks.
 // Instruction bit masks.
 static const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
 static const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
 static const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
-static const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
 static const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
 static const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
 static const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;
@@ -230,9 +159,9 @@ static const int  kSaFieldMask  = ((1 << kSaBits) - 1) << kSaShift;
 static const int  kFunctionFieldMask =
     ((1 << kFunctionBits) - 1) << kFunctionShift;
 // Misc masks.
-static const int  kHiMask       =   0xffff << 16;
-static const int  kLoMask       =   0xffff;
-static const int  kSignMask     =   0x80000000;
+static const int  HIMask        =   0xffff << 16;
+static const int  LOMask        =   0xffff;
+static const int  signMask      =   0x80000000;
 
 
 // ----- MIPS Opcodes and Function Fields.
@@ -258,27 +187,19 @@ enum Opcode {
   XORI      =   ((1 << 3) + 6) << kOpcodeShift,
   LUI       =   ((1 << 3) + 7) << kOpcodeShift,
 
-  COP1      =   ((2 << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class.
+  COP1      =   ((2 << 3) + 1) << kOpcodeShift,  // Coprocessor 1 class
   BEQL      =   ((2 << 3) + 4) << kOpcodeShift,
   BNEL      =   ((2 << 3) + 5) << kOpcodeShift,
   BLEZL     =   ((2 << 3) + 6) << kOpcodeShift,
   BGTZL     =   ((2 << 3) + 7) << kOpcodeShift,
 
   SPECIAL2  =   ((3 << 3) + 4) << kOpcodeShift,
-  SPECIAL3  =   ((3 << 3) + 7) << kOpcodeShift,
 
   LB        =   ((4 << 3) + 0) << kOpcodeShift,
-  LH        =   ((4 << 3) + 1) << kOpcodeShift,
-  LWL       =   ((4 << 3) + 2) << kOpcodeShift,
   LW        =   ((4 << 3) + 3) << kOpcodeShift,
   LBU       =   ((4 << 3) + 4) << kOpcodeShift,
-  LHU       =   ((4 << 3) + 5) << kOpcodeShift,
-  LWR       =   ((4 << 3) + 6) << kOpcodeShift,
   SB        =   ((5 << 3) + 0) << kOpcodeShift,
-  SH        =   ((5 << 3) + 1) << kOpcodeShift,
-  SWL       =   ((5 << 3) + 2) << kOpcodeShift,
   SW        =   ((5 << 3) + 3) << kOpcodeShift,
-  SWR       =   ((5 << 3) + 6) << kOpcodeShift,
 
   LWC1      =   ((6 << 3) + 1) << kOpcodeShift,
   LDC1      =   ((6 << 3) + 5) << kOpcodeShift,
@@ -295,12 +216,9 @@ enum SecondaryField {
   SLLV      =   ((0 << 3) + 4),
   SRLV      =   ((0 << 3) + 6),
   SRAV      =   ((0 << 3) + 7),
-  MOVCI     =   ((0 << 3) + 1),
 
   JR        =   ((1 << 3) + 0),
   JALR      =   ((1 << 3) + 1),
-  MOVZ      =   ((1 << 3) + 2),
-  MOVN      =   ((1 << 3) + 3),
   BREAK     =   ((1 << 3) + 5),
 
   MFHI      =   ((2 << 3) + 0),
@@ -332,12 +250,6 @@ enum SecondaryField {
 
   // SPECIAL2 Encoding of Function Field.
   MUL       =   ((0 << 3) + 2),
-  CLZ       =   ((4 << 3) + 0),
-  CLO       =   ((4 << 3) + 1),
-
-  // SPECIAL3 Encoding of Function Field.
-  EXT       =   ((0 << 3) + 0),
-  INS       =   ((0 << 3) + 4),
 
   // REGIMM  encoding of rt Field.
   BLTZ      =   ((0 << 3) + 0) << 16,
@@ -347,10 +259,8 @@ enum SecondaryField {
 
   // COP1 Encoding of rs Field.
   MFC1      =   ((0 << 3) + 0) << 21,
-  CFC1      =   ((0 << 3) + 2) << 21,
   MFHC1     =   ((0 << 3) + 3) << 21,
   MTC1      =   ((0 << 3) + 4) << 21,
-  CTC1      =   ((0 << 3) + 6) << 21,
   MTHC1     =   ((0 << 3) + 7) << 21,
   BC1       =   ((1 << 3) + 0) << 21,
   S         =   ((2 << 3) + 0) << 21,
@@ -359,46 +269,14 @@ enum SecondaryField {
   L         =   ((2 << 3) + 5) << 21,
   PS        =   ((2 << 3) + 6) << 21,
   // COP1 Encoding of Function Field When rs=S.
-  ROUND_L_S =   ((1 << 3) + 0),
-  TRUNC_L_S =   ((1 << 3) + 1),
-  CEIL_L_S  =   ((1 << 3) + 2),
-  FLOOR_L_S =   ((1 << 3) + 3),
-  ROUND_W_S =   ((1 << 3) + 4),
-  TRUNC_W_S =   ((1 << 3) + 5),
-  CEIL_W_S  =   ((1 << 3) + 6),
-  FLOOR_W_S =   ((1 << 3) + 7),
   CVT_D_S   =   ((4 << 3) + 1),
   CVT_W_S   =   ((4 << 3) + 4),
   CVT_L_S   =   ((4 << 3) + 5),
   CVT_PS_S  =   ((4 << 3) + 6),
   // COP1 Encoding of Function Field When rs=D.
-  ADD_D     =   ((0 << 3) + 0),
-  SUB_D     =   ((0 << 3) + 1),
-  MUL_D     =   ((0 << 3) + 2),
-  DIV_D     =   ((0 << 3) + 3),
-  SQRT_D    =   ((0 << 3) + 4),
-  ABS_D     =   ((0 << 3) + 5),
-  MOV_D     =   ((0 << 3) + 6),
-  NEG_D     =   ((0 << 3) + 7),
-  ROUND_L_D =   ((1 << 3) + 0),
-  TRUNC_L_D =   ((1 << 3) + 1),
-  CEIL_L_D  =   ((1 << 3) + 2),
-  FLOOR_L_D =   ((1 << 3) + 3),
-  ROUND_W_D =   ((1 << 3) + 4),
-  TRUNC_W_D =   ((1 << 3) + 5),
-  CEIL_W_D  =   ((1 << 3) + 6),
-  FLOOR_W_D =   ((1 << 3) + 7),
   CVT_S_D   =   ((4 << 3) + 0),
   CVT_W_D   =   ((4 << 3) + 4),
   CVT_L_D   =   ((4 << 3) + 5),
-  C_F_D     =   ((6 << 3) + 0),
-  C_UN_D    =   ((6 << 3) + 1),
-  C_EQ_D    =   ((6 << 3) + 2),
-  C_UEQ_D   =   ((6 << 3) + 3),
-  C_OLT_D   =   ((6 << 3) + 4),
-  C_ULT_D   =   ((6 << 3) + 5),
-  C_OLE_D   =   ((6 << 3) + 6),
-  C_ULE_D   =   ((6 << 3) + 7),
   // COP1 Encoding of Function Field When rs=W or L.
   CVT_S_W   =   ((4 << 3) + 0),
   CVT_D_W   =   ((4 << 3) + 1),
@@ -415,7 +293,7 @@ enum SecondaryField {
 // the 'U' prefix is used to specify unsigned comparisons.
 enum Condition {
   // Any value < 0 is considered no_condition.
-  kNoCondition  = -1,
+  no_condition  = -1,
 
   overflow      =  0,
   no_overflow   =  1,
@@ -436,118 +314,31 @@ enum Condition {
 
   cc_always     = 16,
 
-  // Aliases.
+  // aliases
   carry         = Uless,
   not_carry     = Ugreater_equal,
   zero          = equal,
   eq            = equal,
   not_zero      = not_equal,
   ne            = not_equal,
-  nz            = not_equal,
   sign          = negative,
   not_sign      = positive,
-  mi            = negative,
-  pl            = positive,
-  hi            = Ugreater,
-  ls            = Uless_equal,
-  ge            = greater_equal,
-  lt            = less,
-  gt            = greater,
-  le            = less_equal,
-  hs            = Ugreater_equal,
-  lo            = Uless,
-  al            = cc_always,
 
-  cc_default    = kNoCondition
+  cc_default    = no_condition
 };
-
-
-// Returns the equivalent of !cc.
-// Negation of the default kNoCondition (-1) results in a non-default
-// no_condition value (-2). As long as tests for no_condition check
-// for condition < 0, this will work as expected.
-inline Condition NegateCondition(Condition cc) {
-  ASSERT(cc != cc_always);
-  return static_cast<Condition>(cc ^ 1);
-}
-
-
-inline Condition ReverseCondition(Condition cc) {
-  switch (cc) {
-    case Uless:
-      return Ugreater;
-    case Ugreater:
-      return Uless;
-    case Ugreater_equal:
-      return Uless_equal;
-    case Uless_equal:
-      return Ugreater_equal;
-    case less:
-      return greater;
-    case greater:
-      return less;
-    case greater_equal:
-      return less_equal;
-    case less_equal:
-      return greater_equal;
-    default:
-      return cc;
-  };
-}
-
 
 // ----- Coprocessor conditions.
 enum FPUCondition {
-  F,    // False.
-  UN,   // Unordered.
-  EQ,   // Equal.
-  UEQ,  // Unordered or Equal.
-  OLT,  // Ordered or Less Than.
-  ULT,  // Unordered or Less Than.
-  OLE,  // Ordered or Less Than or Equal.
-  ULE   // Unordered or Less Than or Equal.
+  F,    // False
+  UN,   // Unordered
+  EQ,   // Equal
+  UEQ,  // Unordered or Equal
+  OLT,  // Ordered or Less Than
+  ULT,  // Unordered or Less Than
+  OLE,  // Ordered or Less Than or Equal
+  ULE   // Unordered or Less Than or Equal
 };
 
-
-// -----------------------------------------------------------------------------
-// Hints.
-
-// Branch hints are not used on the MIPS.  They are defined so that they can
-// appear in shared function signatures, but will be ignored in MIPS
-// implementations.
-enum Hint {
-  no_hint = 0
-};
-
-
-inline Hint NegateHint(Hint hint) {
-  return no_hint;
-}
-
-
-// -----------------------------------------------------------------------------
-// Specific instructions, constants, and masks.
-// These constants are declared in assembler-mips.cc, as they use named
-// registers and other constants.
-
-// addiu(sp, sp, 4) aka Pop() operation or part of Pop(r)
-// operations as post-increment of sp.
-extern const Instr kPopInstruction;
-// addiu(sp, sp, -4) part of Push(r) operation as pre-decrement of sp.
-extern const Instr kPushInstruction;
-// sw(r, MemOperand(sp, 0))
-extern const Instr kPushRegPattern;
-// lw(r, MemOperand(sp, 0))
-extern const Instr kPopRegPattern;
-extern const Instr kLwRegFpOffsetPattern;
-extern const Instr kSwRegFpOffsetPattern;
-extern const Instr kLwRegFpNegOffsetPattern;
-extern const Instr kSwRegFpNegOffsetPattern;
-// A mask for the Rt register for push, pop, lw, sw instructions.
-extern const Instr kRtMask;
-extern const Instr kLwSwInstrTypeMask;
-extern const Instr kLwSwInstrArgumentMask;
-extern const Instr kLwSwOffsetMask;
 
 // Break 0xfffff, reserved for redirected real time call.
 const Instr rtCallRedirInstr = SPECIAL | BREAK | call_rt_redirected << 6;
@@ -557,10 +348,10 @@ const Instr nopInstr = 0;
 class Instruction {
  public:
   enum {
-    kInstrSize = 4,
-    kInstrSizeLog2 = 2,
+    kInstructionSize = 4,
+    kInstructionSizeLog2 = 2,
     // On MIPS PC cannot actually be directly accessed. We behave as if PC was
-    // always the value of the current instruction being executed.
+    // always the value of the current instruction being exectued.
     kPCReadOffset = 0
   };
 
@@ -597,64 +388,45 @@ class Instruction {
 
 
   // Accessors for the different named fields used in the MIPS encoding.
-  inline Opcode OpcodeValue() const {
+  inline Opcode OpcodeField() const {
     return static_cast<Opcode>(
         Bits(kOpcodeShift + kOpcodeBits - 1, kOpcodeShift));
   }
 
-  inline int RsValue() const {
+  inline int RsField() const {
     ASSERT(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return Bits(kRsShift + kRsBits - 1, kRsShift);
   }
 
-  inline int RtValue() const {
+  inline int RtField() const {
     ASSERT(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return Bits(kRtShift + kRtBits - 1, kRtShift);
   }
 
-  inline int RdValue() const {
+  inline int RdField() const {
     ASSERT(InstructionType() == kRegisterType);
     return Bits(kRdShift + kRdBits - 1, kRdShift);
   }
 
-  inline int SaValue() const {
+  inline int SaField() const {
     ASSERT(InstructionType() == kRegisterType);
     return Bits(kSaShift + kSaBits - 1, kSaShift);
   }
 
-  inline int FunctionValue() const {
+  inline int FunctionField() const {
     ASSERT(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
     return Bits(kFunctionShift + kFunctionBits - 1, kFunctionShift);
   }
 
-  inline int FdValue() const {
-    return Bits(kFdShift + kFdBits - 1, kFdShift);
+  inline int FsField() const {
+    return Bits(kFsShift + kRsBits - 1, kFsShift);
   }
 
-  inline int FsValue() const {
-    return Bits(kFsShift + kFsBits - 1, kFsShift);
-  }
-
-  inline int FtValue() const {
-    return Bits(kFtShift + kFtBits - 1, kFtShift);
-  }
-
-  // Float Compare condition code instruction bits.
-  inline int FCccValue() const {
-    return Bits(kFCccShift + kFCccBits - 1, kFCccShift);
-  }
-
-  // Float Branch condition code instruction bits.
-  inline int FBccValue() const {
-    return Bits(kFBccShift + kFBccBits - 1, kFBccShift);
-  }
-
-  // Float Branch true/false instruction bit.
-  inline int FBtrueValue() const {
-    return Bits(kFBtrueShift + kFBtrueBits - 1, kFBtrueShift);
+  inline int FtField() const {
+    return Bits(kFtShift + kRsBits - 1, kFtShift);
   }
 
   // Return the fields at their original place in the instruction encoding.
@@ -665,11 +437,6 @@ class Instruction {
   inline int RsFieldRaw() const {
     ASSERT(InstructionType() == kRegisterType ||
            InstructionType() == kImmediateType);
-    return InstructionBits() & kRsFieldMask;
-  }
-
-  // Same as above function, but safe to call within InstructionType().
-  inline int RsFieldRawNoAssert() const {
     return InstructionBits() & kRsFieldMask;
   }
 
@@ -694,43 +461,43 @@ class Instruction {
   }
 
   // Get the secondary field according to the opcode.
-  inline int SecondaryValue() const {
+  inline int SecondaryField() const {
     Opcode op = OpcodeFieldRaw();
     switch (op) {
       case SPECIAL:
       case SPECIAL2:
-        return FunctionValue();
+        return FunctionField();
       case COP1:
-        return RsValue();
+        return RsField();
       case REGIMM:
-        return RtValue();
+        return RtField();
       default:
         return NULLSF;
     }
   }
 
-  inline int32_t Imm16Value() const {
+  inline int32_t Imm16Field() const {
     ASSERT(InstructionType() == kImmediateType);
     return Bits(kImm16Shift + kImm16Bits - 1, kImm16Shift);
   }
 
-  inline int32_t Imm26Value() const {
+  inline int32_t Imm26Field() const {
     ASSERT(InstructionType() == kJumpType);
     return Bits(kImm16Shift + kImm26Bits - 1, kImm26Shift);
   }
 
   // Say if the instruction should not be used in a branch delay slot.
-  bool IsForbiddenInBranchDelay() const;
+  bool IsForbiddenInBranchDelay();
   // Say if the instruction 'links'. eg: jal, bal.
-  bool IsLinkingInstruction() const;
+  bool IsLinkingInstruction();
   // Say if the instruction is a break or a trap.
-  bool IsTrap() const;
+  bool IsTrap();
 
   // Instructions are read of out a code stream. The only way to get a
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(byte_* pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 
@@ -743,23 +510,16 @@ class Instruction {
 // -----------------------------------------------------------------------------
 // MIPS assembly various constants.
 
-
-static const int kArgsSlotsSize  = 4 * Instruction::kInstrSize;
+static const int kArgsSlotsSize  = 4 * Instruction::kInstructionSize;
 static const int kArgsSlotsNum   = 4;
-// C/C++ argument slots size.
-static const int kCArgsSlotsSize = 4 * Instruction::kInstrSize;
-// JS argument slots size.
-static const int kJSArgsSlotsSize = 0 * Instruction::kInstrSize;
-// Assembly builtins argument slots size.
-static const int kBArgsSlotsSize = 0 * Instruction::kInstrSize;
 
-static const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
+static const int kBranchReturnOffset = 2 * Instruction::kInstructionSize;
 
-static const int kDoubleAlignmentBits = 3;
-static const int kDoubleAlignment = (1 << kDoubleAlignmentBits);
-static const int kDoubleAlignmentMask = kDoubleAlignment - 1;
+static const int kDoubleAlignment = 2 * 8;
+static const int kDoubleAlignmentMask = kDoubleAlignmentMask - 1;
 
 
-} }   // namespace v8::internal
+} }   // namespace assembler::mips
 
 #endif    // #ifndef V8_MIPS_CONSTANTS_H_
+

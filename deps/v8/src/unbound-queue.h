@@ -28,8 +28,6 @@
 #ifndef V8_UNBOUND_QUEUE_
 #define V8_UNBOUND_QUEUE_
 
-#include "allocation.h"
-
 namespace v8 {
 namespace internal {
 

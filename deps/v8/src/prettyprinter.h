@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,7 +28,6 @@
 #ifndef V8_PRETTYPRINTER_H_
 #define V8_PRETTYPRINTER_H_
 
-#include "allocation.h"
 #include "ast.h"
 
 namespace v8 {
@@ -105,13 +104,14 @@ class AstPrinter: public PrettyPrinter {
   void PrintLiteralIndented(const char* info, Handle<Object> value, bool quote);
   void PrintLiteralWithModeIndented(const char* info,
                                     Variable* var,
-                                    Handle<Object> value);
+                                    Handle<Object> value,
+                                    StaticType* type);
   void PrintLabelsIndented(const char* info, ZoneStringList* labels);
 
   void inc_indent() { indent_++; }
   void dec_indent() { indent_--; }
 
-  int indent_;
+  static int indent_;
 };
 
 

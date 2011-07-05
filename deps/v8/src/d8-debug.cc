@@ -272,7 +272,6 @@ RemoteDebuggerEvent* RemoteDebugger::GetEvent() {
 
 
 void RemoteDebugger::HandleMessageReceived(char* message) {
-  Locker lock;
   HandleScope scope;
 
   // Print the event details.
@@ -301,7 +300,6 @@ void RemoteDebugger::HandleMessageReceived(char* message) {
 
 
 void RemoteDebugger::HandleKeyboardCommand(char* command) {
-  Locker lock;
   HandleScope scope;
 
   // Convert the debugger command to a JSON debugger request.

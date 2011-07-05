@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
@@ -204,12 +204,11 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
     visitor->VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // TODO(isolates): Get a cached isolate below.
-  } else if (((RelocInfo::IsJSReturn(mode) &&
+  } else if (Debug::has_break_points() &&
+             ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence())) &&
-             Isolate::Current()->debug()->has_break_points()) {
+              IsPatchedDebugBreakSlotSequence()))) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
@@ -219,25 +218,25 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 
 
 template<typename StaticVisitor>
-void RelocInfo::Visit(Heap* heap) {
+void RelocInfo::Visit() {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitPointer(heap, target_object_address());
+    StaticVisitor::VisitPointer(target_object_address());
     CPU::FlushICache(pc_, sizeof(Address));
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(heap, this);
+    StaticVisitor::VisitCodeTarget(this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(heap, this);
+    StaticVisitor::VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
     CPU::FlushICache(pc_, sizeof(Address));
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (heap->isolate()->debug()->has_break_points() &&
+  } else if (Debug::has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(heap, this);
+    StaticVisitor::VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);
@@ -267,7 +266,7 @@ Immediate::Immediate(Label* internal_offset) {
 Immediate::Immediate(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!HEAP->InNewSpace(obj));
+  ASSERT(!Heap::InNewSpace(obj));
   if (obj->IsHeapObject()) {
     x_ = reinterpret_cast<intptr_t>(handle.location());
     rmode_ = RelocInfo::EMBEDDED_OBJECT;
@@ -300,7 +299,7 @@ void Assembler::emit(uint32_t x) {
 void Assembler::emit(Handle<Object> handle) {
   // Verify all Objects referred by code are NOT in new space.
   Object* obj = *handle;
-  ASSERT(!isolate()->heap()->InNewSpace(obj));
+  ASSERT(!Heap::InNewSpace(obj));
   if (obj->IsHeapObject()) {
     emit(reinterpret_cast<intptr_t>(handle.location()),
          RelocInfo::EMBEDDED_OBJECT);
@@ -311,12 +310,8 @@ void Assembler::emit(Handle<Object> handle) {
 }
 
 
-void Assembler::emit(uint32_t x, RelocInfo::Mode rmode, unsigned id) {
-  if (rmode == RelocInfo::CODE_TARGET && id != kNoASTId) {
-    RecordRelocInfo(RelocInfo::CODE_TARGET_WITH_ID, static_cast<intptr_t>(id));
-  } else if (rmode != RelocInfo::NONE) {
-    RecordRelocInfo(rmode);
-  }
+void Assembler::emit(uint32_t x, RelocInfo::Mode rmode) {
+  if (rmode != RelocInfo::NONE) RecordRelocInfo(rmode);
   emit(x);
 }
 
@@ -377,18 +372,6 @@ void Assembler::emit_disp(Label* L, Displacement::Type type) {
   Displacement disp(L, type);
   L->link_to(pc_offset());
   emit(static_cast<int>(disp.data()));
-}
-
-
-void Assembler::emit_near_disp(Label* L) {
-  byte disp = 0x00;
-  if (L->is_near_linked()) {
-    int offset = L->near_link_pos() - pc_offset();
-    ASSERT(is_int8(offset));
-    disp = static_cast<byte>(offset & 0xFF);
-  }
-  L->link_to(pc_offset(), Label::kNear);
-  *pc_++ = disp;
 }
 
 

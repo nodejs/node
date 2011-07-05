@@ -57,18 +57,21 @@ assertEquals("2:false", test2(), "test2");
 assertEquals(0, x, "test2");  // Global x is undisturbed.
 
 
-// Delete on a parameter.
+// Delete on an argument.  This hits the same code paths as test5 because
+// 'with' forces all parameters to be indirected through the arguments
+// object.
 function test3(value) {
   var status;
   with ({}) { status = delete value; }
   return value + ":" + status;
 }
 
-assertEquals("3:false", test3(3), "test3");
+assertEquals("undefined:true", test3(3), "test3");
 assertEquals(0, x, "test3");  // Global x is undisturbed.
 
 
-// Delete on a parameter found in an outer context.
+// Delete on an argument from an outer context.  This hits the same code
+// path as test2.
 function test4(value) {
   function f() {
     with ({}) { return delete value; }
@@ -81,14 +84,15 @@ assertEquals("4:false", test4(4), "test4");
 assertEquals(0, x, "test4");  // Global x is undisturbed.
 
 
-// Delete on a parameter, arguments object should be unaffected.
+// Delete on an argument found in the arguments object.  Such properties are
+// normally DONT_DELETE in JavaScript but deletion is allowed by V8.
 function test5(value) {
   var status;
   with ({}) { status = delete value; }
   return arguments[0] + ":" + status;
 }
 
-assertEquals("5:false", test5(5), "test5");
+assertEquals("undefined:true", test5(5), "test5");
 assertEquals(0, x, "test5");  // Global x is undisturbed.
 
 function test6(value) {
@@ -99,7 +103,7 @@ function test6(value) {
   return arguments[0] + ":" + status;
 }
 
-assertEquals("6:false", test6(6), "test6");
+assertEquals("undefined:true", test6(6), "test6");
 assertEquals(0, x, "test6");  // Global x is undisturbed.
 
 

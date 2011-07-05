@@ -38,10 +38,7 @@
         '../src',
       ],
       'defines': [
-        'ENABLE_LOGGING_AND_PROFILING',
         'ENABLE_DEBUGGER_SUPPORT',
-        'ENABLE_VMSTATE_TRACKING',
-        'V8_FAST_TLS',
       ],
       'sources': [
         'd8.cc',
@@ -52,9 +49,6 @@
         [ 'OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
           'sources': [ 'd8-posix.cc', ]
         }],
-        [ 'OS=="win"', {
-          'sources': [ 'd8-windows.cc', ]
-        }],
       ],
     },
     {
@@ -64,7 +58,6 @@
       'variables': {
         'js_files': [
           'd8.js',
-          'macros.py',
         ],
       },
       'actions': [
@@ -76,6 +69,7 @@
           ],
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
+            '<(SHARED_INTERMEDIATE_DIR)/d8-js-empty.cc',
           ],
           'action': [
             'python',

@@ -58,27 +58,25 @@ inline const char* StateToString(StateTag state) {
   }
 }
 
-
-VMState::VMState(Isolate* isolate, StateTag tag)
-    : isolate_(isolate), previous_tag_(isolate->current_vm_state()) {
+VMState::VMState(StateTag tag) : previous_tag_(Top::current_vm_state()) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
-    LOG(isolate, UncheckedStringEvent("Entering", StateToString(tag)));
-    LOG(isolate, UncheckedStringEvent("From", StateToString(previous_tag_)));
+    LOG(UncheckedStringEvent("Entering", StateToString(tag)));
+    LOG(UncheckedStringEvent("From", StateToString(previous_tag_)));
   }
 #endif
 
-  isolate_->SetCurrentVMState(tag);
+  Top::SetCurrentVMState(tag);
 
 #ifdef ENABLE_HEAP_PROTECTION
   if (FLAG_protect_heap) {
     if (tag == EXTERNAL) {
       // We are leaving V8.
       ASSERT(previous_tag_ != EXTERNAL);
-      isolate_->heap()->Protect();
+      Heap::Protect();
     } else if (previous_tag_ = EXTERNAL) {
       // We are entering V8.
-      isolate_->heap()->Unprotect();
+      Heap::Unprotect();
     }
   }
 #endif
@@ -88,29 +86,27 @@ VMState::VMState(Isolate* isolate, StateTag tag)
 VMState::~VMState() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_state_changes) {
-    LOG(isolate_,
-        UncheckedStringEvent("Leaving",
-                              StateToString(isolate_->current_vm_state())));
-    LOG(isolate_,
-        UncheckedStringEvent("To", StateToString(previous_tag_)));
+    LOG(UncheckedStringEvent("Leaving",
+                             StateToString(Top::current_vm_state())));
+    LOG(UncheckedStringEvent("To", StateToString(previous_tag_)));
   }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 #ifdef ENABLE_HEAP_PROTECTION
-  StateTag tag = isolate_->current_vm_state();
+  StateTag tag = Top::current_vm_state();
 #endif
 
-  isolate_->SetCurrentVMState(previous_tag_);
+  Top::SetCurrentVMState(previous_tag_);
 
 #ifdef ENABLE_HEAP_PROTECTION
   if (FLAG_protect_heap) {
     if (tag == EXTERNAL) {
       // We are reentering V8.
       ASSERT(previous_tag_ != EXTERNAL);
-      isolate_->heap()->Unprotect();
+      Heap::Unprotect();
     } else if (previous_tag_ == EXTERNAL) {
       // We are leaving V8.
-      isolate_->heap()->Protect();
+      Heap::Protect();
     }
   }
 #endif  // ENABLE_HEAP_PROTECTION
@@ -121,13 +117,13 @@ VMState::~VMState() {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-ExternalCallbackScope::ExternalCallbackScope(Isolate* isolate, Address callback)
-    : isolate_(isolate), previous_callback_(isolate->external_callback()) {
-  isolate_->set_external_callback(callback);
+ExternalCallbackScope::ExternalCallbackScope(Address callback)
+    : previous_callback_(Top::external_callback()) {
+  Top::set_external_callback(callback);
 }
 
 ExternalCallbackScope::~ExternalCallbackScope() {
-  isolate_->set_external_callback(previous_callback_);
+  Top::set_external_callback(previous_callback_);
 }
 
 #endif  // ENABLE_LOGGING_AND_PROFILING

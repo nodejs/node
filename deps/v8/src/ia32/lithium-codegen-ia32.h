@@ -56,7 +56,7 @@ class LCodeGen BASE_EMBEDDED {
         deoptimizations_(4),
         deoptimization_literals_(8),
         inlined_function_count_(0),
-        scope_(info->scope()),
+        scope_(chunk->graph()->info()->scope()),
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
@@ -68,10 +68,6 @@ class LCodeGen BASE_EMBEDDED {
 
   // Simple accessors.
   MacroAssembler* masm() const { return masm_; }
-  CompilationInfo* info() const { return info_; }
-  Isolate* isolate() const { return info_->isolate(); }
-  Factory* factory() const { return isolate()->factory(); }
-  Heap* heap() const { return isolate()->heap(); }
 
   // Support for converting LOperands to assembler types.
   Operand ToOperand(LOperand* op) const;
@@ -97,15 +93,13 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredNumberTagI(LNumberTagI* instr);
   void DoDeferredTaggedToI(LTaggedToI* instr);
   void DoDeferredMathAbsTaggedHeapNumber(LUnaryMathOperation* instr);
-  void DoDeferredStackCheck(LStackCheck* instr);
+  void DoDeferredStackCheck(LGoto* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
-  void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
   void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                         Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
-  void DoGap(LGap* instr);
 
   // Emit frame translation commands for an environment.
   void WriteTranslation(LEnvironment* environment, Translation* translation);
@@ -131,7 +125,7 @@ class LCodeGen BASE_EMBEDDED {
   bool is_aborted() const { return status_ == ABORTED; }
 
   int strict_mode_flag() const {
-    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
+    return info_->is_strict() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -148,8 +142,8 @@ class LCodeGen BASE_EMBEDDED {
                        Register temporary,
                        Register temporary2);
 
-  int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
-  int GetParameterCount() const { return scope()->num_parameters(); }
+  int StackSlotCount() const { return chunk()->spill_slot_count(); }
+  int ParameterCount() const { return scope()->num_parameters(); }
 
   void Abort(const char* format, ...);
   void Comment(const char* format, ...);
@@ -187,7 +181,7 @@ class LCodeGen BASE_EMBEDDED {
                        ContextMode context_mode,
                        SafepointMode safepoint_mode);
 
-  void CallRuntime(const Runtime::Function* fun,
+  void CallRuntime(Runtime::Function* fun,
                    int argc,
                    LInstruction* instr,
                    ContextMode context_mode);
@@ -196,7 +190,7 @@ class LCodeGen BASE_EMBEDDED {
                    int argc,
                    LInstruction* instr,
                    ContextMode context_mode) {
-    const Runtime::Function* function = Runtime::FunctionForId(id);
+    Runtime::Function* function = Runtime::FunctionForId(id);
     CallRuntime(function, argc, instr, context_mode);
   }
 
@@ -208,8 +202,7 @@ class LCodeGen BASE_EMBEDDED {
   // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
-                         LInstruction* instr,
-                         CallKind call_kind);
+                         LInstruction* instr);
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
@@ -230,9 +223,6 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   int ToInteger32(LConstantOperand* op) const;
-  Operand BuildExternalArrayOperand(LOperand* external_pointer,
-                                    LOperand* key,
-                                    JSObject::ElementsKind elements_kind);
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);
@@ -258,13 +248,10 @@ class LCodeGen BASE_EMBEDDED {
   void RecordPosition(int position);
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
-  void EmitGoto(int block);
+  void EmitGoto(int block, LDeferredCode* deferred_stack_check = NULL);
   void EmitBranch(int left_block, int right_block, Condition cc);
   void EmitCmpI(LOperand* left, LOperand* right);
-  void EmitNumberUntagD(Register input,
-                        XMMRegister result,
-                        bool deoptimize_on_undefined,
-                        LEnvironment* env);
+  void EmitNumberUntagD(Register input, XMMRegister result, LEnvironment* env);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
@@ -277,6 +264,7 @@ class LCodeGen BASE_EMBEDDED {
   // true and false label should be made, to optimize fallthrough.
   Condition EmitIsObject(Register input,
                          Register temp1,
+                         Register temp2,
                          Label* is_not_object,
                          Label* is_object);
 
@@ -284,10 +272,6 @@ class LCodeGen BASE_EMBEDDED {
   // Caller should branch on equal condition.
   void EmitIsConstructCall(Register temp);
 
-  void EmitLoadFieldOrConstantFunction(Register result,
-                                       Register object,
-                                       Handle<Map> type,
-                                       Handle<String> name);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;

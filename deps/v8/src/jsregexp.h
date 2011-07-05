@@ -28,7 +28,6 @@
 #ifndef V8_JSREGEXP_H_
 #define V8_JSREGEXP_H_
 
-#include "allocation.h"
 #include "macro-assembler.h"
 #include "zone-inl.h"
 
@@ -175,14 +174,6 @@ class RegExpImpl {
   static int IrregexpNumberOfRegisters(FixedArray* re);
   static ByteArray* IrregexpByteCode(FixedArray* re, bool is_ascii);
   static Code* IrregexpNativeCode(FixedArray* re, bool is_ascii);
-
-  // Limit the space regexps take up on the heap.  In order to limit this we
-  // would like to keep track of the amount of regexp code on the heap.  This
-  // is not tracked, however.  As a conservative approximation we track the
-  // total regexp code compiled including code that has subsequently been freed
-  // and the total executable memory at any point.
-  static const int kRegExpExecutableMemoryLimit = 16 * MB;
-  static const int kRegWxpCompiledLimit = 1 * MB;
 
  private:
   static String* last_ascii_string_;
@@ -1433,7 +1424,7 @@ class RegExpEngine: public AllStatic {
   struct CompilationResult {
     explicit CompilationResult(const char* error_message)
         : error_message(error_message),
-          code(HEAP->the_hole_value()),
+          code(Heap::the_hole_value()),
           num_registers(0) {}
     CompilationResult(Object* code, int registers)
       : error_message(NULL),
@@ -1456,16 +1447,16 @@ class RegExpEngine: public AllStatic {
 
 class OffsetsVector {
  public:
-  explicit inline OffsetsVector(int num_registers)
+  inline OffsetsVector(int num_registers)
       : offsets_vector_length_(num_registers) {
-    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
+    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
       vector_ = NewArray<int>(offsets_vector_length_);
     } else {
-      vector_ = Isolate::Current()->jsregexp_static_offsets_vector();
+      vector_ = static_offsets_vector_;
     }
   }
   inline ~OffsetsVector() {
-    if (offsets_vector_length_ > Isolate::kJSRegexpStaticOffsetsVectorSize) {
+    if (offsets_vector_length_ > kStaticOffsetsVectorSize) {
       DeleteArray(vector_);
       vector_ = NULL;
     }
@@ -1476,12 +1467,13 @@ class OffsetsVector {
   static const int kStaticOffsetsVectorSize = 50;
 
  private:
-  static Address static_offsets_vector_address(Isolate* isolate) {
-    return reinterpret_cast<Address>(isolate->jsregexp_static_offsets_vector());
+  static Address static_offsets_vector_address() {
+    return reinterpret_cast<Address>(&static_offsets_vector_);
   }
 
   int* vector_;
   int offsets_vector_length_;
+  static int static_offsets_vector_[kStaticOffsetsVectorSize];
 
   friend class ExternalReference;
 };

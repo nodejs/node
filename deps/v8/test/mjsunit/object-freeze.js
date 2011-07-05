@@ -32,25 +32,21 @@
 // Test that we throw an error if an object is not passed as argument.
 var non_objects = new Array(undefined, null, 1, -1, 0, 42.43);
 for (var key in non_objects) {
-  var exception = false;
   try {
     Object.freeze(non_objects[key]);
+    assertUnreachable();
   } catch(e) {
-    exception = true;
     assertTrue(/Object.freeze called on non-object/.test(e));
   }
-  assertTrue(exception);
 }
 
 for (var key in non_objects) {
-  exception = false;
   try {
     Object.isFrozen(non_objects[key]);
+    assertUnreachable();
   } catch(e) {
-    exception = true;
     assertTrue(/Object.isFrozen called on non-object/.test(e));
   }
-  assertTrue(exception);
 }
 
 // Test normal data properties.
@@ -74,8 +70,12 @@ Object.freeze(obj);
 assertFalse(Object.isExtensible(obj));
 assertTrue(Object.isFrozen(obj));
 
-obj.foo = 42;
-assertEquals(obj.foo, undefined);
+try {
+   obj.foo = 42;
+   assertUnreachable();
+} catch(e) {
+  assertTrue(/object is not extensible/.test(e));
+}
 
 desc = Object.getOwnPropertyDescriptor(obj, 'x');
 assertFalse(desc.writable);
@@ -88,7 +88,7 @@ assertFalse(desc.configurable);
 assertEquals("foobar", desc.value);
 
 // Make sure that even if we try overwrite a value that is not writable, it is
-// not changed.
+// not changed. 
 obj.x = "tete";
 assertEquals(42, obj.x);
 obj.x = { get: function() {return 43}, set: function() {} };
@@ -118,8 +118,12 @@ assertEquals(undefined, desc.value);
 assertEquals(set, desc.set);
 assertEquals(get, desc.get);
 
-obj2.foo = 42;
-assertEquals(obj2.foo, undefined);
+try {
+  obj2.foo = 42;
+  assertUnreachable();
+} catch(e) {
+  assertTrue(/object is not extensible/.test(e));
+}
 
 
 // Test freeze on arrays.

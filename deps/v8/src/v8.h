@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,10 +35,13 @@
 #if defined(GOOGLE3)
 // Google3 special flag handling.
 #if defined(DEBUG) && defined(NDEBUG)
-// V8 only uses DEBUG and whenever it is set we are building a debug
-// version of V8. We do not use NDEBUG and simply undef it here for
-// consistency.
+// If both are defined in Google3, then we are building an optimized v8 with
+// assertions enabled.
 #undef NDEBUG
+#elif !defined(DEBUG) && !defined(NDEBUG)
+// If neither is defined in Google3, then we are building a debug v8. Mark it
+// as such.
+#define DEBUG
 #endif
 #endif  // defined(GOOGLE3)
 
@@ -63,7 +66,6 @@
 #include "log-inl.h"
 #include "cpu-profiler-inl.h"
 #include "handles-inl.h"
-#include "isolate-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -82,8 +84,8 @@ class V8 : public AllStatic {
   static void TearDown();
   static bool IsRunning() { return is_running_; }
   static bool UseCrankshaft() { return use_crankshaft_; }
+  static void DisableCrankshaft() { use_crankshaft_ = false; }
   // To be dead you have to have lived
-  // TODO(isolates): move IsDead to Isolate.
   static bool IsDead() { return has_fatal_error_ || has_been_disposed_; }
   static void SetFatalError();
 
@@ -92,21 +94,18 @@ class V8 : public AllStatic {
                                       bool take_snapshot = false);
 
   // Random number generation support. Not cryptographically safe.
-  static uint32_t Random(Isolate* isolate);
+  static uint32_t Random();
   // We use random numbers internally in memory allocation and in the
   // compilers for security. In order to prevent information leaks we
   // use a separate random state for internal random number
   // generation.
-  static uint32_t RandomPrivate(Isolate* isolate);
-  static Object* FillHeapNumberWithRandom(Object* heap_number,
-                                          Isolate* isolate);
+  static uint32_t RandomPrivate();
+  static Object* FillHeapNumberWithRandom(Object* heap_number);
 
   // Idle notification directly from the API.
   static bool IdleNotification();
 
  private:
-  static void InitializeOncePerProcess();
-
   // True if engine is currently running
   static bool is_running_;
   // True if V8 has ever been run

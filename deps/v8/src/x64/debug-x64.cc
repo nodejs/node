@@ -29,8 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_X64)
 
-#include "assembler.h"
-#include "codegen.h"
+#include "codegen-inl.h"
 #include "debug.h"
 
 
@@ -50,8 +49,7 @@ bool BreakLocationIterator::IsDebugBreakAtReturn()  {
 void BreakLocationIterator::SetDebugBreakAtReturn()  {
   ASSERT(Assembler::kJSReturnSequenceLength >=
          Assembler::kCallInstructionLength);
-  rinfo()->PatchCodeWithCall(
-      Isolate::Current()->debug()->debug_break_return()->entry(),
+  rinfo()->PatchCodeWithCall(Debug::debug_break_return()->entry(),
       Assembler::kJSReturnSequenceLength - Assembler::kCallInstructionLength);
 }
 
@@ -81,7 +79,7 @@ bool BreakLocationIterator::IsDebugBreakAtSlot() {
 void BreakLocationIterator::SetDebugBreakAtSlot() {
   ASSERT(IsDebugBreakSlot());
   rinfo()->PatchCodeWithCall(
-      Isolate::Current()->debug()->debug_break_slot()->entry(),
+      Debug::debug_break_slot()->entry(),
       Assembler::kDebugBreakSlotLength - Assembler::kCallInstructionLength);
 }
 
@@ -130,7 +128,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
   __ Set(rax, 0);  // No arguments (argc == 0).
-  __ movq(rbx, ExternalReference::debug_break(masm->isolate()));
+  __ movq(rbx, ExternalReference::debug_break());
 
   CEntryStub ceb(1);
   __ CallStub(&ceb);
@@ -169,7 +167,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // jumping to the target address intended by the caller and that was
   // overwritten by the address of DebugBreakXXX.
   ExternalReference after_break_target =
-      ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
+      ExternalReference(Debug_Address::AfterBreakTarget());
   __ movq(kScratchRegister, after_break_target);
   __ jmp(Operand(kScratchRegister, 0));
 }
@@ -285,8 +283,7 @@ void Debug::GeneratePlainReturnLiveEdit(MacroAssembler* masm) {
 
 void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   ExternalReference restarter_frame_function_slot =
-      ExternalReference(Debug_Address::RestarterFrameFunctionPointer(),
-                        masm->isolate());
+      ExternalReference(Debug_Address::RestarterFrameFunctionPointer());
   __ movq(rax, restarter_frame_function_slot);
   __ movq(Operand(rax, 0), Immediate(0));
 

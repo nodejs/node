@@ -97,7 +97,7 @@ class UnicodeData {
  private:
   friend class Test;
   static int GetByteCount();
-  static const uchar kMaxCodePoint;
+  static uchar kMaxCodePoint;
 };
 
 // --- U t f   8 ---

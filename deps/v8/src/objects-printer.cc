@@ -88,8 +88,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayPrint(out);
       break;
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
-      ExternalPixelArray::cast(this)->ExternalPixelArrayPrint(out);
+    case PIXEL_ARRAY_TYPE:
+      PixelArray::cast(this)->PixelArrayPrint(out);
       break;
     case EXTERNAL_BYTE_ARRAY_TYPE:
       ExternalByteArray::cast(this)->ExternalByteArrayPrint(out);
@@ -113,9 +113,6 @@ void HeapObject::HeapObjectPrint(FILE* out) {
       break;
     case EXTERNAL_FLOAT_ARRAY_TYPE:
       ExternalFloatArray::cast(this)->ExternalFloatArrayPrint(out);
-      break;
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      ExternalDoubleArray::cast(this)->ExternalDoubleArrayPrint(out);
       break;
     case FILLER_TYPE:
       PrintF(out, "filler");
@@ -148,11 +145,8 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case CODE_TYPE:
       Code::cast(this)->CodePrint(out);
       break;
-    case JS_PROXY_TYPE:
-      JSProxy::cast(this)->JSProxyPrint(out);
-      break;
-    case FOREIGN_TYPE:
-      Foreign::cast(this)->ForeignPrint(out);
+    case PROXY_TYPE:
+      Proxy::cast(this)->ProxyPrint(out);
       break;
     case SHARED_FUNCTION_INFO_TYPE:
       SharedFunctionInfo::cast(this)->SharedFunctionInfoPrint(out);
@@ -183,8 +177,8 @@ void ByteArray::ByteArrayPrint(FILE* out) {
 }
 
 
-void ExternalPixelArray::ExternalPixelArrayPrint(FILE* out) {
-  PrintF(out, "external pixel array");
+void PixelArray::PixelArrayPrint(FILE* out) {
+  PrintF(out, "pixel array");
 }
 
 
@@ -220,11 +214,6 @@ void ExternalUnsignedIntArray::ExternalUnsignedIntArrayPrint(FILE* out) {
 
 void ExternalFloatArray::ExternalFloatArrayPrint(FILE* out) {
   PrintF(out, "external float array");
-}
-
-
-void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
-  PrintF(out, "external double array");
 }
 
 
@@ -282,8 +271,8 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
-    case EXTERNAL_PIXEL_ELEMENTS: {
-      ExternalPixelArray* p = ExternalPixelArray::cast(elements());
+    case PIXEL_ELEMENTS: {
+      PixelArray* p = PixelArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
         PrintF(out, "   %d: %d\n", i, p->get(i));
       }
@@ -341,25 +330,9 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
-    case EXTERNAL_DOUBLE_ELEMENTS: {
-      ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
-      for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "  %d: %f\n", i, p->get(i));
-      }
-      break;
-    }
     case DICTIONARY_ELEMENTS:
       elements()->Print(out);
       break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS: {
-      FixedArray* p = FixedArray::cast(elements());
-      for (int i = 2; i < p->length(); i++) {
-        PrintF(out, "   %d: ", i);
-        p->get(i)->ShortPrint(out);
-        PrintF(out, "\n");
-      }
-      break;
-    }
     default:
       UNREACHABLE();
       break;
@@ -399,7 +372,7 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_STRING_TYPE: return "EXTERNAL_STRING";
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
-    case EXTERNAL_PIXEL_ARRAY_TYPE: return "EXTERNAL_PIXEL_ARRAY";
+    case PIXEL_ARRAY_TYPE: return "PIXEL_ARRAY";
     case EXTERNAL_BYTE_ARRAY_TYPE: return "EXTERNAL_BYTE_ARRAY";
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
       return "EXTERNAL_UNSIGNED_BYTE_ARRAY";
@@ -410,7 +383,6 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
       return "EXTERNAL_UNSIGNED_INT_ARRAY";
     case EXTERNAL_FLOAT_ARRAY_TYPE: return "EXTERNAL_FLOAT_ARRAY";
-    case EXTERNAL_DOUBLE_ARRAY_TYPE: return "EXTERNAL_DOUBLE_ARRAY";
     case FILLER_TYPE: return "FILLER";
     case JS_OBJECT_TYPE: return "JS_OBJECT";
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE: return "JS_CONTEXT_EXTENSION_OBJECT";
@@ -420,19 +392,19 @@ static const char* TypeToString(InstanceType type) {
     case JS_FUNCTION_TYPE: return "JS_FUNCTION";
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
-    case JS_PROXY_TYPE: return "JS_PROXY";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
     case JS_BUILTINS_OBJECT_TYPE: return "JS_BUILTINS_OBJECT";
     case JS_GLOBAL_PROXY_TYPE: return "JS_GLOBAL_PROXY";
-    case FOREIGN_TYPE: return "FOREIGN";
+    case PROXY_TYPE: return "PROXY";
+    case LAST_STRING_TYPE: return "LAST_STRING_TYPE";
     case JS_MESSAGE_OBJECT_TYPE: return "JS_MESSAGE_OBJECT_TYPE";
 #define MAKE_STRUCT_CASE(NAME, Name, name) case NAME##_TYPE: return #NAME;
   STRUCT_LIST(MAKE_STRUCT_CASE)
 #undef MAKE_STRUCT_CASE
-    default: return "UNKNOWN";
   }
+  return "UNKNOWN";
 }
 
 
@@ -478,13 +450,6 @@ void CodeCache::CodeCachePrint(FILE* out) {
   default_cache()->ShortPrint(out);
   PrintF(out, "\n - normal_type_cache: ");
   normal_type_cache()->ShortPrint(out);
-}
-
-
-void PolymorphicCodeCache::PolymorphicCodeCachePrint(FILE* out) {
-  HeapObject::PrintHeader(out, "PolymorphicCodeCache");
-  PrintF(out, "\n - cache: ");
-  cache()->ShortPrint(out);
 }
 
 
@@ -547,15 +512,6 @@ void String::StringPrint(FILE* out) {
   }
 
   if (!StringShape(this).IsSymbol()) PrintF(out, "\"");
-}
-
-
-void JSProxy::JSProxyPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "JSProxy");
-  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
-  PrintF(out, " - handler = ");
-  handler()->Print(out);
-  PrintF(out, "\n");
 }
 
 
@@ -651,8 +607,8 @@ void Code::CodePrint(FILE* out) {
 }
 
 
-void Foreign::ForeignPrint(FILE* out) {
-  PrintF(out, "foreign address : %p", address());
+void Proxy::ProxyPrint(FILE* out) {
+  PrintF(out, "proxy to %p", proxy());
 }
 
 

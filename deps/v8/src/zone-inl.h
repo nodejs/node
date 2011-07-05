@@ -28,7 +28,6 @@
 #ifndef V8_ZONE_INL_H_
 #define V8_ZONE_INL_H_
 
-#include "isolate.h"
 #include "zone.h"
 #include "v8-counters.h"
 
@@ -36,19 +35,8 @@ namespace v8 {
 namespace internal {
 
 
-AssertNoZoneAllocation::AssertNoZoneAllocation()
-    : prev_(Isolate::Current()->zone_allow_allocation()) {
-  Isolate::Current()->set_zone_allow_allocation(false);
-}
-
-
-AssertNoZoneAllocation::~AssertNoZoneAllocation() {
-  Isolate::Current()->set_zone_allow_allocation(prev_);
-}
-
-
 inline void* Zone::New(int size) {
-  ASSERT(Isolate::Current()->zone_allow_allocation());
+  ASSERT(AssertNoZoneAllocation::allow_allocation());
   ASSERT(ZoneScope::nesting() > 0);
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
@@ -66,7 +54,7 @@ inline void* Zone::New(int size) {
 
 template <typename T>
 T* Zone::NewArray(int length) {
-  return static_cast<T*>(New(length * sizeof(T)));
+  return static_cast<T*>(Zone::New(length * sizeof(T)));
 }
 
 
@@ -77,7 +65,7 @@ bool Zone::excess_allocation() {
 
 void Zone::adjust_segment_bytes_allocated(int delta) {
   segment_bytes_allocated_ += delta;
-  isolate_->counters()->zone_segment_bytes()->Set(segment_bytes_allocated_);
+  Counters::zone_segment_bytes.Set(segment_bytes_allocated_);
 }
 
 
@@ -87,51 +75,6 @@ ZoneSplayTree<Config>::~ZoneSplayTree() {
   // in the destructor.  For a zone-allocated tree, nodes will be
   // freed by the Zone.
   SplayTree<Config, ZoneListAllocationPolicy>::ResetRoot();
-}
-
-
-// TODO(isolates): for performance reasons, this should be replaced with a new
-//                 operator that takes the zone in which the object should be
-//                 allocated.
-void* ZoneObject::operator new(size_t size) {
-  return ZONE->New(static_cast<int>(size));
-}
-
-void* ZoneObject::operator new(size_t size, Zone* zone) {
-  return zone->New(static_cast<int>(size));
-}
-
-
-inline void* ZoneListAllocationPolicy::New(int size) {
-  return ZONE->New(size);
-}
-
-
-template <typename T>
-void* ZoneList<T>::operator new(size_t size) {
-  return ZONE->New(static_cast<int>(size));
-}
-
-
-template <typename T>
-void* ZoneList<T>::operator new(size_t size, Zone* zone) {
-  return zone->New(static_cast<int>(size));
-}
-
-
-ZoneScope::ZoneScope(Isolate* isolate, ZoneScopeMode mode)
-    : isolate_(isolate), mode_(mode) {
-  isolate_->zone()->scope_nesting_++;
-}
-
-
-bool ZoneScope::ShouldDeleteOnExit() {
-  return isolate_->zone()->scope_nesting_ == 1 && mode_ == DELETE_ON_EXIT;
-}
-
-
-int ZoneScope::nesting() {
-  return Isolate::Current()->zone()->scope_nesting_;
 }
 
 

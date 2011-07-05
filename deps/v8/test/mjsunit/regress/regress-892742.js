@@ -26,23 +26,25 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 function f() {
-  return/* Counts as non-line-terminating whitespace */1;
+  return/* useless*/1;
 };
 
-// According to ECMA-262, this comment should be parsed as a
-// line terminator making g() return undefined.
+
+// According to ECMA-262, this comment should actually be parsed as a
+// line terminator making g() return undefined, but this is not the
+// way it's handled by Spidermonkey or KJS.
 function g() {
-  return/* Counts as line-terminator whitespace.
-          */2;
+  return/* useless
+         */2;
 };
 
 function h() {
-  return// Comment doesn't include line-terminator at end.
+  return// meaningful
       3;
 };
 
 
 assertEquals(1, f());
-assertEquals(undefined, g());
-assertEquals(undefined, h());
+assertEquals(2, g());
+assertTrue(typeof h() == 'undefined', 'h');
 

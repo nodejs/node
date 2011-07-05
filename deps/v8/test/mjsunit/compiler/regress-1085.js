@@ -25,14 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
 
 // Test correct checks for negative zero.
 // This test relies on specific type feedback for Math.min.
 function f(x) { return 1 / Math.min(1, x); }
 
-for (var i = 0; i < 5; ++i) f(1);
-%OptimizeFunctionOnNextCall(f);
-%OptimizeFunctionOnNextCall(Math.min);
+for (var i=0; i<1000000; i++) f(1);
 
 assertEquals(-Infinity, f(-0));

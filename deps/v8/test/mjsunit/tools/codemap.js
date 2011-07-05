@@ -157,7 +157,6 @@ function assertNoEntry(codeMap, addr) {
   codeMap.addStaticCode(0x15500, newCodeEntry(0x5000, 'lib2'));
   codeMap.addStaticCode(0x155500, newCodeEntry(0x10000, 'lib3'));
   var allStatics = codeMap.getAllStaticEntries();
-  allStatics = allStatics.map(String);
   allStatics.sort();
   assertEquals(['lib1: 3000', 'lib2: 5000', 'lib3: 10000'], allStatics);
 })();
@@ -169,15 +168,13 @@ function assertNoEntry(codeMap, addr) {
   codeMap.addCode(0x1700, newCodeEntry(0x100, 'code2'));
   codeMap.addCode(0x1900, newCodeEntry(0x50, 'code3'));
   var allDynamics = codeMap.getAllDynamicEntries();
-  allDynamics = allDynamics.map(String);
   allDynamics.sort();
   assertEquals(['code1: 200', 'code2: 100', 'code3: 50'], allDynamics);
   codeMap.deleteCode(0x1700);
   var allDynamics2 = codeMap.getAllDynamicEntries();
-  allDynamics2 = allDynamics2.map(String);
   allDynamics2.sort();
   assertEquals(['code1: 200', 'code3: 50'], allDynamics2);
   codeMap.deleteCode(0x1500);
   var allDynamics3 = codeMap.getAllDynamicEntries();
-  assertEquals(['code3: 50'], allDynamics3.map(String));
+  assertEquals(['code3: 50'], allDynamics3);
 })();

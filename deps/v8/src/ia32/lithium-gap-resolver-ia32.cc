@@ -25,10 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
-#if defined(V8_TARGET_ARCH_IA32)
-
 #include "ia32/lithium-gap-resolver-ia32.h"
 #include "ia32/lithium-codegen-ia32.h"
 
@@ -309,15 +305,12 @@ void LGapResolver::EmitMove(int index) {
     __ mov(dst, src);
 
   } else if (source->IsDoubleRegister()) {
+    ASSERT(destination->IsDoubleRegister() ||
+           destination->IsDoubleStackSlot());
     XMMRegister src = cgen_->ToDoubleRegister(source);
-    if (destination->IsDoubleRegister()) {
-      XMMRegister dst = cgen_->ToDoubleRegister(destination);
-      __ movaps(dst, src);
-    } else {
-      ASSERT(destination->IsDoubleStackSlot());
-      Operand dst = cgen_->ToOperand(destination);
-      __ movdbl(dst, src);
-    }
+    Operand dst = cgen_->ToOperand(destination);
+    __ movdbl(dst, src);
+
   } else if (source->IsDoubleStackSlot()) {
     ASSERT(destination->IsDoubleRegister() ||
            destination->IsDoubleStackSlot());
@@ -394,19 +387,13 @@ void LGapResolver::EmitSwap(int index) {
       __ mov(dst, tmp1);
       __ mov(src, tmp0);
     }
-  } else if (source->IsDoubleRegister() && destination->IsDoubleRegister()) {
-    // XMM register-register swap. We rely on having xmm0
-    // available as a fixed scratch register.
-    XMMRegister src = cgen_->ToDoubleRegister(source);
-    XMMRegister dst = cgen_->ToDoubleRegister(destination);
-    __ movaps(xmm0, src);
-    __ movaps(src, dst);
-    __ movaps(dst, xmm0);
 
   } else if (source->IsDoubleRegister() || destination->IsDoubleRegister()) {
-    // XMM register-memory swap.  We rely on having xmm0
+    // XMM register-register or register-memory.  We rely on having xmm0
     // available as a fixed scratch register.
-    ASSERT(source->IsDoubleStackSlot() || destination->IsDoubleStackSlot());
+    ASSERT(source->IsDoubleRegister() || source->IsDoubleStackSlot());
+    ASSERT(destination->IsDoubleRegister() ||
+           destination->IsDoubleStackSlot());
     XMMRegister reg = cgen_->ToDoubleRegister(source->IsDoubleRegister()
                                                   ? source
                                                   : destination);
@@ -471,5 +458,3 @@ void LGapResolver::EmitSwap(int index) {
 #undef __
 
 } }  // namespace v8::internal
-
-#endif  // V8_TARGET_ARCH_IA32

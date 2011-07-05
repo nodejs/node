@@ -203,12 +203,11 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     visitor->VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  // TODO(isolates): Get a cached isolate below.
-  } else if (((RelocInfo::IsJSReturn(mode) &&
+  } else if (Debug::has_break_points() &&
+             ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
-              IsPatchedDebugBreakSlotSequence())) &&
-             Isolate::Current()->debug()->has_break_points()) {
+              IsPatchedDebugBreakSlotSequence()))) {
     visitor->VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
@@ -218,23 +217,23 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
 
 
 template<typename StaticVisitor>
-void RelocInfo::Visit(Heap* heap) {
+void RelocInfo::Visit() {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitPointer(heap, target_object_address());
+    StaticVisitor::VisitPointer(target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
-    StaticVisitor::VisitCodeTarget(heap, this);
+    StaticVisitor::VisitCodeTarget(this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {
-    StaticVisitor::VisitGlobalPropertyCell(heap, this);
+    StaticVisitor::VisitGlobalPropertyCell(this);
   } else if (mode == RelocInfo::EXTERNAL_REFERENCE) {
     StaticVisitor::VisitExternalReference(target_reference_address());
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  } else if (heap->isolate()->debug()->has_break_points() &&
+  } else if (Debug::has_break_points() &&
              ((RelocInfo::IsJSReturn(mode) &&
               IsPatchedReturnSequence()) ||
              (RelocInfo::IsDebugBreakSlot(mode) &&
               IsPatchedDebugBreakSlotSequence()))) {
-    StaticVisitor::VisitDebugTarget(heap, this);
+    StaticVisitor::VisitDebugTarget(this);
 #endif
   } else if (mode == RelocInfo::RUNTIME_ENTRY) {
     StaticVisitor::VisitRuntimeEntry(this);

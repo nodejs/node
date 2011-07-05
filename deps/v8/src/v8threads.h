@@ -34,6 +34,8 @@ namespace internal {
 
 class ThreadState {
  public:
+  // Iterate over in-use states.
+  static ThreadState* FirstInUse();
   // Returns NULL after the last one.
   ThreadState* Next();
 
@@ -42,9 +44,11 @@ class ThreadState {
   void LinkInto(List list);
   void Unlink();
 
+  static ThreadState* GetFree();
+
   // Id of thread.
-  void set_id(ThreadId id) { id_ = id; }
-  ThreadId id() { return id_; }
+  void set_id(int id) { id_ = id; }
+  int id() { return id_; }
 
   // Should the thread be terminated when it is restored?
   bool terminate_on_restore() { return terminate_on_restore_; }
@@ -55,19 +59,23 @@ class ThreadState {
   // Get data area for archiving a thread.
   char* data() { return data_; }
  private:
-  explicit ThreadState(ThreadManager* thread_manager);
+  ThreadState();
 
   void AllocateSpace();
 
-  ThreadId id_;
+  int id_;
   bool terminate_on_restore_;
   char* data_;
   ThreadState* next_;
   ThreadState* previous_;
 
-  ThreadManager* thread_manager_;
-
-  friend class ThreadManager;
+  // In the following two lists there is always at least one object on the list.
+  // The first object is a flying anchor that is only there to simplify linking
+  // and unlinking.
+  // Head of linked list of free states.
+  static ThreadState* free_anchor_;
+  // Head of linked list of states in use.
+  static ThreadState* in_use_anchor_;
 };
 
 
@@ -78,60 +86,42 @@ class ThreadLocalTop;
 class ThreadVisitor {
  public:
   // ThreadLocalTop may be only available during this call.
-  virtual void VisitThread(Isolate* isolate, ThreadLocalTop* top) = 0;
+  virtual void VisitThread(ThreadLocalTop* top) = 0;
 
  protected:
   virtual ~ThreadVisitor() {}
 };
 
 
-class ThreadManager {
+class ThreadManager : public AllStatic {
  public:
-  void Lock();
-  void Unlock();
+  static void Lock();
+  static void Unlock();
 
-  void ArchiveThread();
-  bool RestoreThread();
-  void FreeThreadResources();
-  bool IsArchived();
+  static void ArchiveThread();
+  static bool RestoreThread();
+  static void FreeThreadResources();
+  static bool IsArchived();
 
-  void Iterate(ObjectVisitor* v);
-  void IterateArchivedThreads(ThreadVisitor* v);
-  bool IsLockedByCurrentThread() {
-    return mutex_owner_.Equals(ThreadId::Current());
-  }
+  static void Iterate(ObjectVisitor* v);
+  static void IterateArchivedThreads(ThreadVisitor* v);
+  static bool IsLockedByCurrentThread() { return mutex_owner_.IsSelf(); }
 
-  ThreadId CurrentId();
+  static int CurrentId();
+  static void AssignId();
+  static bool HasId();
 
-  void TerminateExecution(ThreadId thread_id);
+  static void TerminateExecution(int thread_id);
 
-  // Iterate over in-use states.
-  ThreadState* FirstThreadStateInUse();
-  ThreadState* GetFreeThreadState();
-
+  static const int kInvalidId = -1;
  private:
-  ThreadManager();
-  ~ThreadManager();
+  static void EagerlyArchiveThread();
 
-  void EagerlyArchiveThread();
-
-  Mutex* mutex_;
-  ThreadId mutex_owner_;
-  ThreadId lazily_archived_thread_;
-  ThreadState* lazily_archived_thread_state_;
-
-  // In the following two lists there is always at least one object on the list.
-  // The first object is a flying anchor that is only there to simplify linking
-  // and unlinking.
-  // Head of linked list of free states.
-  ThreadState* free_anchor_;
-  // Head of linked list of states in use.
-  ThreadState* in_use_anchor_;
-
-  Isolate* isolate_;
-
-  friend class Isolate;
-  friend class ThreadState;
+  static int last_id_;  // V8 threads are identified through an integer.
+  static Mutex* mutex_;
+  static ThreadHandle mutex_owner_;
+  static ThreadHandle lazily_archived_thread_;
+  static ThreadState* lazily_archived_thread_state_;
 };
 
 
@@ -152,15 +142,14 @@ class ContextSwitcher: public Thread {
   static void PreemptionReceived();
 
  private:
-  ContextSwitcher(Isolate* isolate, int every_n_ms);
-
-  Isolate* isolate() const { return isolate_; }
+  explicit ContextSwitcher(int every_n_ms);
 
   void Run();
 
   bool keep_going_;
   int sleep_ms_;
-  Isolate* isolate_;
+
+  static ContextSwitcher* singleton_;
 };
 
 } }  // namespace v8::internal

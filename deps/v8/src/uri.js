@@ -166,10 +166,7 @@ function URIDecodeOctets(octets, result, index) {
 // ECMA-262, section 15.1.3
 function Encode(uri, unescape) {
   var uriLength = uri.length;
-  // We are going to pass result to %StringFromCharCodeArray
-  // which does not expect any getters/setters installed
-  // on the incoming array.
-  var result = new InternalArray(uriLength);
+  var result = new $Array(uriLength);
   var index = 0;
   for (var k = 0; k < uriLength; k++) {
     var cc1 = uri.charCodeAt(k);
@@ -195,10 +192,7 @@ function Encode(uri, unescape) {
 // ECMA-262, section 15.1.3
 function Decode(uri, reserved) {
   var uriLength = uri.length;
-  // We are going to pass result to %StringFromCharCodeArray
-  // which does not expect any getters/setters installed
-  // on the incoming array.
-  var result = new InternalArray(uriLength);
+  var result = new $Array(uriLength);
   var index = 0;
   for (var k = 0; k < uriLength; k++) {
     var ch = uri.charAt(k);

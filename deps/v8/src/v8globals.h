@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -154,7 +154,7 @@ class Object;
 class MaybeObject;
 class OldSpace;
 class Property;
-class Foreign;
+class Proxy;
 class RegExpNode;
 struct RegExpCompileData;
 class RegExpTree;
@@ -184,8 +184,6 @@ class VirtualMemory;
 class Mutex;
 
 typedef bool (*WeakSlotCallback)(Object** pointer);
-
-typedef bool (*WeakSlotCallbackWithHeap)(Heap* heap, Object** pointer);
 
 // -----------------------------------------------------------------------------
 // Miscellaneous
@@ -220,12 +218,7 @@ enum GarbageCollector { SCAVENGER, MARK_COMPACTOR };
 
 enum Executability { NOT_EXECUTABLE, EXECUTABLE };
 
-enum VisitMode {
-  VISIT_ALL,
-  VISIT_ALL_IN_SCAVENGE,
-  VISIT_ALL_IN_SWEEP_NEWSPACE,
-  VISIT_ONLY_STRONG
-};
+enum VisitMode { VISIT_ALL, VISIT_ALL_IN_SCAVENGE, VISIT_ONLY_STRONG };
 
 // Flag indicating whether code is built into the VM (one of the natives files).
 enum NativesFlag { NOT_NATIVES_CODE, NATIVES_CODE };
@@ -310,9 +303,7 @@ enum InLoopFlag {
 
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
-  // Receiver might implicitly be the global objects. If it is, the
-  // hole is passed to the call function stub.
-  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0
+  RECEIVER_MIGHT_BE_VALUE = 1 << 0  // Receiver might not be a JSObject.
 };
 
 
@@ -327,16 +318,14 @@ enum InlineCacheHolderFlag {
 // Must fit in the BitField PropertyDetails::TypeField.
 // A copy of this is in mirror-debugger.js.
 enum PropertyType {
-  NORMAL                    = 0,  // only in slow mode
-  FIELD                     = 1,  // only in fast mode
-  CONSTANT_FUNCTION         = 2,  // only in fast mode
-  CALLBACKS                 = 3,
-  HANDLER                   = 4,  // only in lookup results, not in descriptors
-  INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
-  MAP_TRANSITION            = 6,  // only in fast mode
-  EXTERNAL_ARRAY_TRANSITION = 7,
-  CONSTANT_TRANSITION       = 8,  // only in fast mode
-  NULL_DESCRIPTOR           = 9,  // only in fast mode
+  NORMAL              = 0,  // only in slow mode
+  FIELD               = 1,  // only in fast mode
+  CONSTANT_FUNCTION   = 2,  // only in fast mode
+  CALLBACKS           = 3,
+  INTERCEPTOR         = 4,  // only in lookup results, not in descriptors.
+  MAP_TRANSITION      = 5,  // only in fast mode
+  CONSTANT_TRANSITION = 6,  // only in fast mode
+  NULL_DESCRIPTOR     = 7,  // only in fast mode
   // All properties before MAP_TRANSITION are real.
   FIRST_PHANTOM_PROPERTY_TYPE = MAP_TRANSITION,
   // There are no IC stubs for NULL_DESCRIPTORS. Therefore,
@@ -454,11 +443,11 @@ enum StateTag {
 #define TRACK_MEMORY(name) \
   void* operator new(size_t size) { \
     void* result = ::operator new(size); \
-    Logger::NewEventStatic(name, result, size); \
+    Logger::NewEvent(name, result, size); \
     return result; \
   } \
   void operator delete(void* object) { \
-    Logger::DeleteEventStatic(name, object); \
+    Logger::DeleteEvent(name, object); \
     ::operator delete(object); \
   }
 #else
@@ -478,33 +467,12 @@ enum CpuFeature { SSE4_1 = 32 + 19,  // x86
                   CPUID = 10,  // x86
                   VFP3 = 1,    // ARM
                   ARMv7 = 2,   // ARM
-                  SAHF = 0,    // x86
-                  FPU = 1};    // MIPS
+                  SAHF = 0};   // x86
 
 // The Strict Mode (ECMA-262 5th edition, 4.2.2).
 enum StrictModeFlag {
   kNonStrictMode,
-  kStrictMode,
-  // This value is never used, but is needed to prevent GCC 4.5 from failing
-  // to compile when we assert that a flag is either kNonStrictMode or
-  // kStrictMode.
-  kInvalidStrictFlag
-};
-
-
-// Used to specify if a macro instruction must perform a smi check on tagged
-// values.
-enum SmiCheckType {
-  DONT_DO_SMI_CHECK = 0,
-  DO_SMI_CHECK
-};
-
-
-// Used to specify whether a receiver is implicitly or explicitly
-// provided to a call.
-enum CallKind {
-  CALL_AS_METHOD = 0,
-  CALL_AS_FUNCTION
+  kStrictMode
 };
 
 } }  // namespace v8::internal

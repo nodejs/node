@@ -57,9 +57,6 @@
 
 #if defined(cpuid)        // initialize the struct only on x86
 
-namespace v8 {
-namespace internal {
-
 // Set the flags so that code will run correctly and conservatively, so even
 // if we haven't been initialized yet, we're probably single threaded, and our
 // default values should hopefully be pretty safe.
@@ -68,14 +65,8 @@ struct AtomicOps_x86CPUFeatureStruct AtomicOps_Internalx86CPUFeatures = {
   false,          // no SSE2
 };
 
-} }  // namespace v8::internal
-
-namespace {
-
 // Initialize the AtomicOps_Internalx86CPUFeatures struct.
-void AtomicOps_Internalx86CPUFeaturesInit() {
-  using v8::internal::AtomicOps_Internalx86CPUFeatures;
-
+static void AtomicOps_Internalx86CPUFeaturesInit() {
   uint32_t eax;
   uint32_t ebx;
   uint32_t ecx;
@@ -115,6 +106,8 @@ void AtomicOps_Internalx86CPUFeaturesInit() {
   // edx bit 26 is SSE2 which we use to tell use whether we can use mfence
   AtomicOps_Internalx86CPUFeatures.has_sse2 = ((edx >> 26) & 1);
 }
+
+namespace {
 
 class AtomicOpsx86Initializer {
  public:

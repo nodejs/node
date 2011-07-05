@@ -100,7 +100,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
         data, string->length());
     result = string->MakeExternal(resource);
     if (result && !string->IsSymbol()) {
-      HEAP->external_string_table()->AddString(*string);
+      i::ExternalStringTable::AddString(*string);
     }
     if (!result) delete resource;
   } else {
@@ -110,7 +110,7 @@ v8::Handle<v8::Value> ExternalizeStringExtension::Externalize(
         data, string->length());
     result = string->MakeExternal(resource);
     if (result && !string->IsSymbol()) {
-      HEAP->external_string_table()->AddString(*string);
+      i::ExternalStringTable::AddString(*string);
     }
     if (!result) delete resource;
   }

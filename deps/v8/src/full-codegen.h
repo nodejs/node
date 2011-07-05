@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,7 +30,6 @@
 
 #include "v8.h"
 
-#include "allocation.h"
 #include "ast.h"
 #include "code-stubs.h"
 #include "codegen.h"
@@ -80,7 +79,6 @@ class FullCodeGenerator: public AstVisitor {
   explicit FullCodeGenerator(MacroAssembler* masm)
       : masm_(masm),
         info_(NULL),
-        scope_(NULL),
         nesting_stack_(NULL),
         loop_depth_(0),
         context_(NULL),
@@ -114,7 +112,6 @@ class FullCodeGenerator: public AstVisitor {
   class TryFinally;
   class Finally;
   class ForIn;
-  class TestContext;
 
   class NestedStatement BASE_EMBEDDED {
    public:
@@ -153,11 +150,9 @@ class FullCodeGenerator: public AstVisitor {
       return stack_depth;
     }
     NestedStatement* outer() { return previous_; }
-
- protected:
+   protected:
     MacroAssembler* masm() { return codegen_->masm(); }
-
- private:
+   private:
     FullCodeGenerator* codegen_;
     NestedStatement* previous_;
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
@@ -300,27 +295,14 @@ class FullCodeGenerator: public AstVisitor {
   // Helper function to convert a pure value into a test context.  The value
   // is expected on the stack or the accumulator, depending on the platform.
   // See the platform-specific implementation for details.
-  void DoTest(Expression* condition,
-              Label* if_true,
-              Label* if_false,
-              Label* fall_through);
-  void DoTest(const TestContext* context);
+  void DoTest(Label* if_true, Label* if_false, Label* fall_through);
 
   // Helper function to split control flow and avoid a branch to the
   // fall-through label if it is set up.
-#ifdef V8_TARGET_ARCH_MIPS
-  void Split(Condition cc,
-             Register lhs,
-             const Operand&  rhs,
-             Label* if_true,
-             Label* if_false,
-             Label* fall_through);
-#else  // All non-mips arch.
   void Split(Condition cc,
              Label* if_true,
              Label* if_false,
              Label* fall_through);
-#endif  // V8_TARGET_ARCH_MIPS
 
   void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
   void Move(Register dst, Slot* source);
@@ -336,26 +318,32 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitForEffect(Expression* expr) {
     EffectContext context(this);
-    VisitInCurrentContext(expr);
+    HandleInNonTestContext(expr, NO_REGISTERS);
   }
 
   void VisitForAccumulatorValue(Expression* expr) {
     AccumulatorValueContext context(this);
-    VisitInCurrentContext(expr);
+    HandleInNonTestContext(expr, TOS_REG);
   }
 
   void VisitForStackValue(Expression* expr) {
     StackValueContext context(this);
-    VisitInCurrentContext(expr);
+    HandleInNonTestContext(expr, NO_REGISTERS);
   }
 
   void VisitForControl(Expression* expr,
                        Label* if_true,
                        Label* if_false,
                        Label* fall_through) {
-    TestContext context(this, expr, if_true, if_false, fall_through);
-    VisitInCurrentContext(expr);
+    TestContext context(this, if_true, if_false, fall_through);
+    VisitInTestContext(expr);
+    // Forwarding bailouts to children is a one shot operation. It
+    // should have been processed at this point.
+    ASSERT(forward_bailout_pending_ == NULL);
   }
+
+  void HandleInNonTestContext(Expression* expr, State state);
+  void VisitInTestContext(Expression* expr);
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
@@ -363,28 +351,15 @@ class FullCodeGenerator: public AstVisitor {
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
   // has been matched and all code generated; false otherwise.
-  bool TryLiteralCompare(CompareOperation* compare,
+  bool TryLiteralCompare(Token::Value op,
+                         Expression* left,
+                         Expression* right,
                          Label* if_true,
                          Label* if_false,
                          Label* fall_through);
 
-  // Platform-specific code for comparing the type of a value with
-  // a given literal string.
-  void EmitLiteralCompareTypeof(Expression* expr,
-                                Handle<String> check,
-                                Label* if_true,
-                                Label* if_false,
-                                Label* fall_through);
-
-  // Platform-specific code for strict equality comparison with
-  // the undefined value.
-  void EmitLiteralCompareUndefined(Expression* expr,
-                                   Label* if_true,
-                                   Label* if_false,
-                                   Label* fall_through);
-
   // Bailout support.
-  void PrepareForBailout(Expression* node, State state);
+  void PrepareForBailout(AstNode* node, State state);
   void PrepareForBailoutForId(int id, State state);
 
   // Record a call's return site offset, used to rebuild the frame if the
@@ -420,9 +395,9 @@ class FullCodeGenerator: public AstVisitor {
   void EmitReturnSequence();
 
   // Platform-specific code sequences for calls
-  void EmitCallWithStub(Call* expr, CallFunctionFlags flags);
+  void EmitCallWithStub(Call* expr);
   void EmitCallWithIC(Call* expr, Handle<Object> name, RelocInfo::Mode mode);
-  void EmitKeyedCallWithIC(Call* expr, Expression* key);
+  void EmitKeyedCallWithIC(Call* expr, Expression* key, RelocInfo::Mode mode);
 
   // Platform-specific code for inline runtime calls.
   InlineFunctionGenerator FindInlineFunctionGenerator(Runtime::FunctionId id);
@@ -470,13 +445,12 @@ class FullCodeGenerator: public AstVisitor {
 
   // Apply the compound assignment operator. Expects the left operand on top
   // of the stack and the right one in the accumulator.
-  void EmitBinaryOp(BinaryOperation* expr,
-                    Token::Value op,
+  void EmitBinaryOp(Token::Value op,
                     OverwriteMode mode);
 
   // Helper functions for generating inlined smi code for certain
   // binary operations.
-  void EmitInlineSmiBinaryOp(BinaryOperation* expr,
+  void EmitInlineSmiBinaryOp(Expression* expr,
                              Token::Value op,
                              OverwriteMode mode,
                              Expression* left,
@@ -527,15 +501,23 @@ class FullCodeGenerator: public AstVisitor {
 
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
-  bool is_strict_mode() { return function()->strict_mode(); }
+  bool is_strict() { return function()->strict_mode(); }
   StrictModeFlag strict_mode_flag() {
-    return is_strict_mode() ? kStrictMode : kNonStrictMode;
+    return is_strict() ? kStrictMode : kNonStrictMode;
   }
   FunctionLiteral* function() { return info_->function(); }
-  Scope* scope() { return scope_; }
+  Scope* scope() { return info_->scope(); }
 
   static Register result_register();
   static Register context_register();
+
+  // Helper for calling an IC stub.
+  void EmitCallIC(Handle<Code> ic, RelocInfo::Mode mode);
+
+  // Calling an IC stub with a patch site. Passing NULL for patch_site
+  // or non NULL patch_site which is not activated indicates no inlined smi code
+  // and emits a nop after the IC call.
+  void EmitCallIC(Handle<Code> ic, JumpPatchSite* patch_site);
 
   // Set fields in the stack frame. Offsets are the frame pointer relative
   // offsets defined in, e.g., StandardFrameConstants.
@@ -545,21 +527,12 @@ class FullCodeGenerator: public AstVisitor {
   // in v8::internal::Context.
   void LoadContextField(Register dst, int context_index);
 
-  // Push the function argument for the runtime functions PushWithContext
-  // and PushCatchContext.
-  void PushFunctionArgumentForContextAllocation();
-
   // AST node visit functions.
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
-
-  void EmitUnaryOperation(UnaryOperation* expr, const char* comment);
-
-  void VisitComma(BinaryOperation* expr);
-  void VisitLogicalExpression(BinaryOperation* expr);
-  void VisitArithmeticExpression(BinaryOperation* expr);
-  void VisitInCurrentContext(Expression* expr);
+  // Handles the shortcutted logical binary operations in VisitBinaryOperation.
+  void EmitLogicalOperation(BinaryOperation* expr);
 
   void VisitForTypeofValue(Expression* expr);
 
@@ -579,8 +552,6 @@ class FullCodeGenerator: public AstVisitor {
     virtual ~ExpressionContext() {
       codegen_->set_new_context(old_);
     }
-
-    Isolate* isolate() const { return codegen_->isolate(); }
 
     // Convert constant control flow (true or false) to the result expected for
     // this expression context.
@@ -607,6 +578,11 @@ class FullCodeGenerator: public AstVisitor {
     // context.
     virtual void DropAndPlug(int count, Register reg) const = 0;
 
+    // For shortcutting operations || and &&.
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const = 0;
+
     // Set up branch labels for a test expression.  The three Label** parameters
     // are output parameters.
     virtual void PrepareTest(Label* materialize_true,
@@ -615,13 +591,11 @@ class FullCodeGenerator: public AstVisitor {
                              Label** if_false,
                              Label** fall_through) const = 0;
 
+    virtual void HandleExpression(Expression* expr) const = 0;
+
     // Returns true if we are evaluating only for side effects (ie if the result
     // will be discarded).
     virtual bool IsEffect() const { return false; }
-
-    // Returns true if we are evaluating for the value (in accu/on stack).
-    virtual bool IsAccumulatorValue() const { return false; }
-    virtual bool IsStackValue() const { return false; }
 
     // Returns true if we are branching on the value rather than materializing
     // it.  Only used for asserts.
@@ -650,12 +624,15 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
-    virtual bool IsAccumulatorValue() const { return true; }
+    virtual void HandleExpression(Expression* expr) const;
   };
 
   class StackValueContext : public ExpressionContext {
@@ -671,23 +648,24 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
-    virtual bool IsStackValue() const { return true; }
+    virtual void HandleExpression(Expression* expr) const;
   };
 
   class TestContext : public ExpressionContext {
    public:
-    TestContext(FullCodeGenerator* codegen,
-                Expression* condition,
-                Label* true_label,
-                Label* false_label,
-                Label* fall_through)
+    explicit TestContext(FullCodeGenerator* codegen,
+                         Label* true_label,
+                         Label* false_label,
+                         Label* fall_through)
         : ExpressionContext(codegen),
-          condition_(condition),
           true_label_(true_label),
           false_label_(false_label),
           fall_through_(fall_through) { }
@@ -697,7 +675,6 @@ class FullCodeGenerator: public AstVisitor {
       return reinterpret_cast<const TestContext*>(context);
     }
 
-    Expression* condition() const { return condition_; }
     Label* true_label() const { return true_label_; }
     Label* false_label() const { return false_label_; }
     Label* fall_through() const { return fall_through_; }
@@ -710,15 +687,18 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
+    virtual void HandleExpression(Expression* expr) const;
     virtual bool IsTest() const { return true; }
 
    private:
-    Expression* condition_;
     Label* true_label_;
     Label* false_label_;
     Label* fall_through_;
@@ -737,17 +717,20 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
     virtual void DropAndPlug(int count, Register reg) const;
+    virtual void EmitLogicalLeft(BinaryOperation* expr,
+                                 Label* eval_right,
+                                 Label* done) const;
     virtual void PrepareTest(Label* materialize_true,
                              Label* materialize_false,
                              Label** if_true,
                              Label** if_false,
                              Label** fall_through) const;
+    virtual void HandleExpression(Expression* expr) const;
     virtual bool IsEffect() const { return true; }
   };
 
   MacroAssembler* masm_;
   CompilationInfo* info_;
-  Scope* scope_;
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;

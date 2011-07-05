@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -141,11 +141,9 @@ var knownProblems = {
   "EnableAccessChecks": true,
 
   // These functions should not be callable as runtime functions.
-  "NewFunctionContext": true,
+  "NewContext": true,
   "NewArgumentsFast": true,
-  "NewStrictArgumentsFast": true,
-  "PushWithContext": true,
-  "PushCatchContext": true,
+  "PushContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
   "NotifyDeoptimized": true,
@@ -167,8 +165,7 @@ var knownProblems = {
 
   "_SwapElements": true,
 
-  // Performance critical functions which cannot afford type checks.
-  "_IsNativeOrStrictMode": true,
+  // Performance critical function which cannot afford type checks.
   "_CallFunction": true,
 
   // Tries to allocate based on argument, and (correctly) throws

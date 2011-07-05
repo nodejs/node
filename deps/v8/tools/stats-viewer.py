@@ -104,12 +104,10 @@ class StatsViewer(object):
         sys.exit(1)
       maps_file = open(maps_name, "r")
       try:
-        self.data_name = None
-        for m in re.finditer(r"/dev/shm/\S*", maps_file.read()):
-          if os.path.exists(m.group(0)):
-            self.data_name = m.group(0)
-            break
-        if self.data_name is None:
+        m = re.search(r"/dev/shm/\S*", maps_file.read())
+        if m is not None and os.path.exists(m.group(0)):
+          self.data_name = m.group(0)
+        else:
           print "Can't find counter file in maps for PID %s." % self.data_name
           sys.exit(1)
       finally:
@@ -416,8 +414,7 @@ class ChromeCounterCollection(object):
   individual counters contained in the file."""
 
   _HEADER_SIZE = 4 * 4
-  _COUNTER_NAME_SIZE = 64
-  _THREAD_NAME_SIZE = 32
+  _NAME_SIZE = 32
 
   def __init__(self, data):
     """Create a new instance.
@@ -429,23 +426,22 @@ class ChromeCounterCollection(object):
     self.max_counters = data.IntAt(8)
     self.max_threads = data.IntAt(12)
     self.counter_names_offset = \
-        self._HEADER_SIZE + self.max_threads * (self._THREAD_NAME_SIZE + 2 * 4)
+        self._HEADER_SIZE + self.max_threads * (self._NAME_SIZE + 2 * 4)
     self.counter_values_offset = \
-        self.counter_names_offset + self.max_counters * self._COUNTER_NAME_SIZE
+        self.counter_names_offset + self.max_counters * self._NAME_SIZE
 
   def CountersInUse(self):
     """Return the number of counters in active use."""
     for i in xrange(self.max_counters):
-      name_offset = self.counter_names_offset + i * self._COUNTER_NAME_SIZE
-      if self.data.ByteAt(name_offset) == 0:
+      if self.data.ByteAt(self.counter_names_offset + i * self._NAME_SIZE) == 0:
         return i
     return self.max_counters
 
   def Counter(self, i):
     """Return the i'th counter."""
-    name_offset = self.counter_names_offset + i * self._COUNTER_NAME_SIZE
-    value_offset = self.counter_values_offset + i * self.max_threads * 4
-    return ChromeCounter(self.data, name_offset, value_offset)
+    return ChromeCounter(self.data,
+                         self.counter_names_offset + i * self._NAME_SIZE,
+                         self.counter_values_offset + i * self.max_threads * 4)
 
 
 def Main(data_file, name_filter):

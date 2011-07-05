@@ -25,8 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-
 // Test that we can inline a function that returns the result of
 // a compare operation.
 function TestInlineCompare(o) {
@@ -44,7 +42,5 @@ function TestInlineCompare(o) {
 
 var o = {};
 o.f = function() { return 0 === 1; };
-for (var i = 0; i < 5; i++) TestInlineCompare(o);
-%OptimizeFunctionOnNextCall(TestInlineCompare);
-TestInlineCompare(o);
+for (var i = 0; i < 10000000; i++) TestInlineCompare(o);
 TestInlineCompare({f: o.f});

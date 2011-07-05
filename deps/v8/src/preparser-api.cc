@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,14 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../include/v8-preparser.h"
-
 #include "globals.h"
 #include "checks.h"
 #include "allocation.h"
 #include "utils.h"
 #include "list.h"
 #include "scanner-base.h"
-#include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "preparser.h"
 
@@ -158,8 +156,21 @@ class InputStreamUTF16Buffer : public UC16CharacterStream {
 };
 
 
-// Functions declared by allocation.h and implemented in both api.cc (for v8)
-// or here (for a stand-alone preparser).
+class StandAloneJavaScriptScanner : public JavaScriptScanner {
+ public:
+  void Initialize(UC16CharacterStream* source) {
+    source_ = source;
+    Init();
+    // Skip initial whitespace allowing HTML comment ends just like
+    // after a newline and scan first token.
+    has_line_terminator_before_next_ = true;
+    SkipWhiteSpace();
+    Scan();
+  }
+};
+
+
+// Functions declared by allocation.h
 
 void FatalProcessOutOfMemory(const char* reason) {
   V8_Fatal(__FILE__, __LINE__, reason);
@@ -176,8 +187,7 @@ UnicodeInputStream::~UnicodeInputStream() { }
 PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::InputStreamUTF16Buffer buffer(input);
   uintptr_t stack_limit = reinterpret_cast<uintptr_t>(&buffer) - max_stack;
-  internal::UnicodeCache unicode_cache;
-  internal::JavaScriptScanner scanner(&unicode_cache);
+  internal::StandAloneJavaScriptScanner scanner;
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
   preparser::PreParser::PreParseResult result =

@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="Windows-1252"?>
+<VisualStudioPropertySheet
+	ProjectType="Visual C++"
+	Version="8.00"
+	Name="essential"
+	CharacterSet="1"
+	>
+	<Tool
+		Name="VCCLCompilerTool"
+		AdditionalIncludeDirectories="$(ProjectDir)\..\..\src;$(IntDir)\DerivedSources"
+		PreprocessorDefinitions="WIN32;_CRT_SECURE_NO_DEPRECATE;_CRT_NONSTDC_NO_DEPRECATE;_HAS_EXCEPTIONS=0;ENABLE_VMSTATE_TRACKING;ENABLE_LOGGING_AND_PROFILING;ENABLE_DEBUGGER_SUPPORT"
+		MinimalRebuild="false"
+		ExceptionHandling="0"
+		RuntimeTypeInfo="false"
+		WarningLevel="3"
+		WarnAsError="true"
+		Detect64BitPortabilityProblems="false"
+		DebugInformationFormat="3"
+		DisableSpecificWarnings="4351;4355;4800"
+		EnableFunctionLevelLinking="true"
+	/>
+	<Tool
+		Name="VCLibrarianTool"
+		OutputFile="$(OutDir)\lib\$(ProjectName).lib"
+	/>
+	<Tool
+		Name="VCLinkerTool"
+		GenerateDebugInformation="true"
+		MapFileName="$(OutDir)\$(TargetName).map"
+		ImportLibrary="$(OutDir)\lib\$(TargetName).lib"
+		FixedBaseAddress="1"
+		AdditionalOptions="/IGNORE:4221 /NXCOMPAT"
+	/>
+</VisualStudioPropertySheet>

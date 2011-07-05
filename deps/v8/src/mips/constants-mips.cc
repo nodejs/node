@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,12 +31,14 @@
 
 #include "constants-mips.h"
 
-namespace v8 {
-namespace internal {
+namespace assembler {
+namespace mips {
+
+namespace v8i = v8::internal;
 
 
 // -----------------------------------------------------------------------------
-// Registers.
+// Registers
 
 
 // These register names are defined in a way to match the native disassembler
@@ -100,20 +102,20 @@ int Registers::Number(const char* name) {
 }
 
 
-const char* FPURegisters::names_[kNumFPURegisters] = {
+const char* FPURegister::names_[kNumFPURegister] = {
   "f0", "f1", "f2", "f3", "f4", "f5", "f6", "f7", "f8", "f9", "f10", "f11",
   "f12", "f13", "f14", "f15", "f16", "f17", "f18", "f19", "f20", "f21",
   "f22", "f23", "f24", "f25", "f26", "f27", "f28", "f29", "f30", "f31"
 };
 
 // List of alias names which can be used when referring to MIPS registers.
-const FPURegisters::RegisterAlias FPURegisters::aliases_[] = {
+const FPURegister::RegisterAlias FPURegister::aliases_[] = {
   {kInvalidRegister, NULL}
 };
 
-const char* FPURegisters::Name(int creg) {
+const char* FPURegister::Name(int creg) {
   const char* result;
-  if ((0 <= creg) && (creg < kNumFPURegisters)) {
+  if ((0 <= creg) && (creg < kNumFPURegister)) {
     result = names_[creg];
   } else {
     result = "nocreg";
@@ -122,9 +124,9 @@ const char* FPURegisters::Name(int creg) {
 }
 
 
-int FPURegisters::Number(const char* name) {
+int FPURegister::Number(const char* name) {
   // Look through the canonical names.
-  for (int i = 0; i < kNumFPURegisters; i++) {
+  for (int i = 0; i < kNumSimuRegisters; i++) {
     if (strcmp(names_[i], name) == 0) {
       return i;
     }
@@ -145,10 +147,10 @@ int FPURegisters::Number(const char* name) {
 
 
 // -----------------------------------------------------------------------------
-// Instructions.
+// Instruction
 
-bool Instruction::IsForbiddenInBranchDelay() const {
-  const int op = OpcodeFieldRaw();
+bool Instruction::IsForbiddenInBranchDelay() {
+  int op = OpcodeFieldRaw();
   switch (op) {
     case J:
     case JAL:
@@ -187,18 +189,13 @@ bool Instruction::IsForbiddenInBranchDelay() const {
 }
 
 
-bool Instruction::IsLinkingInstruction() const {
-  const int op = OpcodeFieldRaw();
+bool Instruction::IsLinkingInstruction() {
+  int op = OpcodeFieldRaw();
   switch (op) {
     case JAL:
-    case REGIMM:
-      switch (RtFieldRaw()) {
-        case BGEZAL:
-        case BLTZAL:
-          return true;
-      default:
-        return false;
-      };
+    case BGEZAL:
+    case BLTZAL:
+      return true;
     case SPECIAL:
       switch (FunctionFieldRaw()) {
         case JALR:
@@ -212,7 +209,7 @@ bool Instruction::IsLinkingInstruction() const {
 }
 
 
-bool Instruction::IsTrap() const {
+bool Instruction::IsTrap() {
   if (OpcodeFieldRaw() != SPECIAL) {
     return false;
   } else {
@@ -267,9 +264,6 @@ Instruction::Type Instruction::InstructionType() const {
         case TLTU:
         case TEQ:
         case TNE:
-        case MOVZ:
-        case MOVN:
-        case MOVCI:
           return kRegisterType;
         default:
           UNREACHABLE();
@@ -278,30 +272,20 @@ Instruction::Type Instruction::InstructionType() const {
     case SPECIAL2:
       switch (FunctionFieldRaw()) {
         case MUL:
-        case CLZ:
           return kRegisterType;
         default:
           UNREACHABLE();
       };
       break;
-    case SPECIAL3:
+    case COP1:    // Coprocessor instructions
       switch (FunctionFieldRaw()) {
-        case INS:
-        case EXT:
-          return kRegisterType;
-        default:
-          UNREACHABLE();
-      };
-      break;
-    case COP1:    // Coprocessor instructions.
-      switch (RsFieldRawNoAssert()) {
-        case BC1:   // Branch on coprocessor condition.
+        case BC1:   // branch on coprocessor condition
           return kImmediateType;
         default:
           return kRegisterType;
       };
       break;
-    // 16 bits Immediate type instructions. eg: addi dest, src, imm16.
+    // 16 bits Immediate type instructions. eg: addi dest, src, imm16
     case REGIMM:
     case BEQ:
     case BNE:
@@ -320,23 +304,16 @@ Instruction::Type Instruction::InstructionType() const {
     case BLEZL:
     case BGTZL:
     case LB:
-    case LH:
-    case LWL:
     case LW:
     case LBU:
-    case LHU:
-    case LWR:
     case SB:
-    case SH:
-    case SWL:
     case SW:
-    case SWR:
     case LWC1:
     case LDC1:
     case SWC1:
     case SDC1:
       return kImmediateType;
-    // 26 bits immediate type instructions. eg: j imm26.
+    // 26 bits immediate type instructions. eg: j imm26
     case J:
     case JAL:
       return kJumpType;
@@ -346,7 +323,6 @@ Instruction::Type Instruction::InstructionType() const {
   return kUnsupported;
 }
 
-
-} }   // namespace v8::internal
+} }   // namespace assembler::mips
 
 #endif  // V8_TARGET_ARCH_MIPS

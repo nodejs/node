@@ -33,7 +33,7 @@
 
 // Global list of arrays visited during toString, toLocaleString and
 // join invocations.
-var visited_arrays = new InternalArray();
+var visited_arrays = new $Array();
 
 
 // Gets a sorted array of array keys.  Useful for operations on sparse
@@ -67,32 +67,13 @@ function GetSortedArrayKeys(array, intervals) {
 }
 
 
-function SparseJoinWithSeparator(array, len, convert, separator) {
-  var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
-  var totalLength = 0;
-  var elements = new InternalArray(keys.length * 2);
-  var previousKey = -1;
-  for (var i = 0; i < keys.length; i++) {
-    var key = keys[i];
-    if (key != previousKey) {  // keys may contain duplicates.
-      var e = array[key];
-      if (!IS_STRING(e)) e = convert(e);
-      elements[i * 2] = key;
-      elements[i * 2 + 1] = e;
-      previousKey = key;
-    }
-  }
-  return %SparseJoinWithSeparator(elements, len, separator);
-}
-
-
 // Optimized for sparse arrays if separator is ''.
 function SparseJoin(array, len, convert) {
   var keys = GetSortedArrayKeys(array, %GetArrayKeys(array, len));
   var last_key = -1;
   var keys_length = keys.length;
 
-  var elements = new InternalArray(keys_length);
+  var elements = new $Array(keys_length);
   var elements_length = 0;
 
   for (var i = 0; i < keys_length; i++) {
@@ -129,12 +110,8 @@ function Join(array, length, separator, convert) {
 
   // Attempt to convert the elements.
   try {
-    if (UseSparseVariant(array, length, is_array)) {
-      if (separator.length == 0) {
-        return SparseJoin(array, length, convert);
-      } else {
-        return SparseJoinWithSeparator(array, length, convert, separator);
-      }
+    if (UseSparseVariant(array, length, is_array) && (separator.length == 0)) {
+      return SparseJoin(array, length, convert);
     }
 
     // Fast case for one-element arrays.
@@ -145,15 +122,17 @@ function Join(array, length, separator, convert) {
     }
 
     // Construct an array for the elements.
-    var elements = new InternalArray(length);
+    var elements = new $Array(length);
 
     // We pull the empty separator check outside the loop for speed!
     if (separator.length == 0) {
       var elements_length = 0;
       for (var i = 0; i < length; i++) {
         var e = array[i];
-        if (!IS_STRING(e)) e = convert(e);
-        elements[elements_length++] = e;
+        if (!IS_UNDEFINED(e)) {
+          if (!IS_STRING(e)) e = convert(e);
+          elements[elements_length++] = e;
+        }
       }
       elements.length = elements_length;
       var result = %_FastAsciiArrayJoin(elements, '');
@@ -161,7 +140,7 @@ function Join(array, length, separator, convert) {
       return %StringBuilderConcat(elements, elements_length, '');
     }
     // Non-empty separator case.
-    // If the first element is a number then use the heuristic that the
+    // If the first element is a number then use the heuristic that the 
     // remaining elements are also likely to be numbers.
     if (!IS_NUMBER(array[0])) {
       for (var i = 0; i < length; i++) {
@@ -169,19 +148,18 @@ function Join(array, length, separator, convert) {
         if (!IS_STRING(e)) e = convert(e);
         elements[i] = e;
       }
-    } else {
+    } else { 
       for (var i = 0; i < length; i++) {
         var e = array[i];
-          if (IS_NUMBER(e)) {
-            e = %_NumberToString(e);
-          } else if (!IS_STRING(e)) {
-            e = convert(e);
-          }
+        if (IS_NUMBER(e)) elements[i] = %_NumberToString(e);
+        else {
+          if (!IS_STRING(e)) e = convert(e);
           elements[i] = e;
+        }
       }
-    }
+    }   
     var result = %_FastAsciiArrayJoin(elements, separator);
-    if (!IS_UNDEFINED(result)) return result;
+    if (!IS_UNDEFINED(result)) return result;   
 
     return %StringBuilderJoin(elements, length, separator);
   } finally {
@@ -193,7 +171,7 @@ function Join(array, length, separator, convert) {
 
 
 function ConvertToString(x) {
-  // Assumes x is a non-string.
+  // Assumes x is a non-string. 
   if (IS_NUMBER(x)) return %_NumberToString(x);
   if (IS_BOOLEAN(x)) return x ? 'true' : 'false';
   return (IS_NULL_OR_UNDEFINED(x)) ? '' : %ToString(%DefaultString(x));
@@ -263,7 +241,7 @@ function SmartSlice(array, start_i, del_count, len, deleted_elements) {
 // special array operations to handle sparse arrays in a sensible fashion.
 function SmartMove(array, start_i, del_count, len, num_additional_args) {
   // Move data to new array.
-  var new_array = new InternalArray(len - del_count + num_additional_args);
+  var new_array = new $Array(len - del_count + num_additional_args);
   var intervals = %GetArrayKeys(array, len);
   var length = intervals.length;
   for (var k = 0; k < length; k++) {
@@ -397,11 +375,6 @@ function ArrayToLocaleString() {
 
 
 function ArrayJoin(separator) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.join"]);
-  }
-
   if (IS_UNDEFINED(separator)) {
     separator = ',';
   } else if (!IS_STRING(separator)) {
@@ -418,11 +391,6 @@ function ArrayJoin(separator) {
 // Removes the last element from the array and returns it. See
 // ECMA-262, section 15.4.4.6.
 function ArrayPop() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.pop"]);
-  }
-
   var n = TO_UINT32(this.length);
   if (n == 0) {
     this.length = n;
@@ -439,11 +407,6 @@ function ArrayPop() {
 // Appends the arguments to the end of the array and returns the new
 // length of the array. See ECMA-262, section 15.4.4.7.
 function ArrayPush() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.push"]);
-  }
-
   var n = TO_UINT32(this.length);
   var m = %_ArgumentsLength();
   for (var i = 0; i < m; i++) {
@@ -455,13 +418,8 @@ function ArrayPush() {
 
 
 function ArrayConcat(arg1) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.concat"]);
-  }
-
   var arg_count = %_ArgumentsLength();
-  var arrays = new InternalArray(1 + arg_count);
+  var arrays = new $Array(1 + arg_count);
   arrays[0] = this;
   for (var i = 0; i < arg_count; i++) {
     arrays[i + 1] = %_Arguments(i);
@@ -516,11 +474,6 @@ function SparseReverse(array, len) {
 
 
 function ArrayReverse() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.reverse"]);
-  }
-
   var j = TO_UINT32(this.length) - 1;
 
   if (UseSparseVariant(this, j, IS_ARRAY(this))) {
@@ -552,11 +505,6 @@ function ArrayReverse() {
 
 
 function ArrayShift() {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.shift"]);
-  }
-
   var len = TO_UINT32(this.length);
 
   if (len === 0) {
@@ -578,11 +526,6 @@ function ArrayShift() {
 
 
 function ArrayUnshift(arg1) {  // length == 1
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.unshift"]);
-  }
-
   var len = TO_UINT32(this.length);
   var num_arguments = %_ArgumentsLength();
 
@@ -602,11 +545,6 @@ function ArrayUnshift(arg1) {  // length == 1
 
 
 function ArraySlice(start, end) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.slice"]);
-  }
-
   var len = TO_UINT32(this.length);
   var start_i = TO_INTEGER(start);
   var end_i = len;
@@ -631,9 +569,7 @@ function ArraySlice(start, end) {
 
   if (end_i < start_i) return result;
 
-  if (IS_ARRAY(this) &&
-      (end_i > 1000) &&
-      (%EstimateNumberOfElements(this) < end_i)) {
+  if (IS_ARRAY(this)) {
     SmartSlice(this, start_i, end_i - start_i, len, result);
   } else {
     SimpleSlice(this, start_i, end_i - start_i, len, result);
@@ -646,11 +582,6 @@ function ArraySlice(start, end) {
 
 
 function ArraySplice(start, delete_count) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.splice"]);
-  }
-
   var num_arguments = %_ArgumentsLength();
 
   var len = TO_UINT32(this.length);
@@ -722,11 +653,6 @@ function ArraySplice(start, delete_count) {
 
 
 function ArraySort(comparefn) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.sort"]);
-  }
-
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
@@ -742,15 +668,14 @@ function ArraySort(comparefn) {
       else return x < y ? -1 : 1;
     };
   }
-  var receiver =
-      %_IsNativeOrStrictMode(comparefn) ? void 0 : %GetGlobalReceiver();
+  var global_receiver = %GetGlobalReceiver();
 
   function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {
       var element = a[i];
       for (var j = i - 1; j >= from; j--) {
         var tmp = a[j];
-        var order = %_CallFunction(receiver, tmp, element, comparefn);
+        var order = %_CallFunction(global_receiver, tmp, element, comparefn);
         if (order > 0) {
           a[j + 1] = tmp;
         } else {
@@ -772,14 +697,14 @@ function ArraySort(comparefn) {
     var v1 = a[to - 1];
     var middle_index = from + ((to - from) >> 1);
     var v2 = a[middle_index];
-    var c01 = %_CallFunction(receiver, v0, v1, comparefn);
+    var c01 = %_CallFunction(global_receiver, v0, v1, comparefn);
     if (c01 > 0) {
       // v1 < v0, so swap them.
       var tmp = v0;
       v0 = v1;
       v1 = tmp;
     } // v0 <= v1.
-    var c02 = %_CallFunction(receiver, v0, v2, comparefn);
+    var c02 = %_CallFunction(global_receiver, v0, v2, comparefn);
     if (c02 >= 0) {
       // v2 <= v0 <= v1.
       var tmp = v0;
@@ -788,7 +713,7 @@ function ArraySort(comparefn) {
       v1 = tmp;
     } else {
       // v0 <= v1 && v0 < v2
-      var c12 = %_CallFunction(receiver, v1, v2, comparefn);
+      var c12 = %_CallFunction(global_receiver, v1, v2, comparefn);
       if (c12 > 0) {
         // v0 <= v2 < v1
         var tmp = v1;
@@ -809,7 +734,7 @@ function ArraySort(comparefn) {
     // From i to high_start are elements that haven't been compared yet.
     partition: for (var i = low_end + 1; i < high_start; i++) {
       var element = a[i];
-      var order = %_CallFunction(receiver, element, pivot, comparefn);
+      var order = %_CallFunction(global_receiver, element, pivot, comparefn);
       if (order < 0) {
         %_SwapElements(a, i, low_end);
         low_end++;
@@ -818,7 +743,7 @@ function ArraySort(comparefn) {
           high_start--;
           if (high_start == i) break partition;
           var top_elem = a[high_start];
-          order = %_CallFunction(receiver, top_elem, pivot, comparefn);
+          order = %_CallFunction(global_receiver, top_elem, pivot, comparefn);
         } while (order > 0);
         %_SwapElements(a, i, high_start);
         if (order < 0) {
@@ -989,11 +914,6 @@ function ArraySort(comparefn) {
 // preserving the semantics, since the calls to the receiver function can add
 // or delete elements from the array.
 function ArrayFilter(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.filter"]);
-  }
-
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
@@ -1005,9 +925,7 @@ function ArrayFilter(f, receiver) {
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      if (f.call(receiver, current, i, this)) {
-        result[result_length++] = current;
-      }
+      if (f.call(receiver, current, i, this)) result[result_length++] = current;
     }
   }
   return result;
@@ -1015,11 +933,6 @@ function ArrayFilter(f, receiver) {
 
 
 function ArrayForEach(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.forEach"]);
-  }
-
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
@@ -1038,11 +951,6 @@ function ArrayForEach(f, receiver) {
 // Executes the function once for each element present in the
 // array until it finds one where callback returns true.
 function ArraySome(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.some"]);
-  }
-
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
@@ -1060,11 +968,6 @@ function ArraySome(f, receiver) {
 
 
 function ArrayEvery(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.every"]);
-  }
-
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
@@ -1081,36 +984,24 @@ function ArrayEvery(f, receiver) {
 }
 
 function ArrayMap(f, receiver) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.map"]);
-  }
-
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = TO_UINT32(this.length);
-  var result = new $Array();
-  var accumulator = new InternalArray(length);
+  var result = new $Array(length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      accumulator[i] = f.call(receiver, current, i, this);
+      result[i] = f.call(receiver, current, i, this);
     }
   }
-  %MoveArrayContents(accumulator, result);
   return result;
 }
 
 
 function ArrayIndexOf(element, index) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.indexOf"]);
-  }
-
   var length = TO_UINT32(this.length);
   if (length == 0) return -1;
   if (IS_UNDEFINED(index)) {
@@ -1168,11 +1059,6 @@ function ArrayIndexOf(element, index) {
 
 
 function ArrayLastIndexOf(element, index) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.lastIndexOf"]);
-  }
-
   var length = TO_UINT32(this.length);
   if (length == 0) return -1;
   if (%_ArgumentsLength() < 2) {
@@ -1226,11 +1112,6 @@ function ArrayLastIndexOf(element, index) {
 
 
 function ArrayReduce(callback, current) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.reduce"]);
-  }
-
   if (!IS_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
@@ -1253,18 +1134,13 @@ function ArrayReduce(callback, current) {
   for (; i < length; i++) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(void 0, current, element, i, this);
+      current = callback.call(null, current, element, i, this);
     }
   }
   return current;
 }
 
 function ArrayReduceRight(callback, current) {
-  if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
-    throw MakeTypeError("called_on_null_or_undefined",
-                        ["Array.prototype.reduceRight"]);
-  }
-
   if (!IS_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
@@ -1284,7 +1160,7 @@ function ArrayReduceRight(callback, current) {
   for (; i >= 0; i--) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(void 0, current, element, i, this);
+      current = callback.call(null, current, element, i, this);
     }
   }
   return current;
@@ -1349,20 +1225,6 @@ function SetupArray() {
   ));
 
   %FinishArrayPrototypeSetup($Array.prototype);
-
-  // The internal Array prototype doesn't need to be fancy, since it's never
-  // exposed to user code, so no hidden prototypes or DONT_ENUM attributes
-  // are necessary.
-  // The null __proto__ ensures that we never inherit any user created
-  // getters or setters from, e.g., Object.prototype.
-  InternalArray.prototype.__proto__ = null;
-  // Adding only the functions that are actually used, and a toString.
-  InternalArray.prototype.join = getFunction("join", ArrayJoin);
-  InternalArray.prototype.pop = getFunction("pop", ArrayPop);
-  InternalArray.prototype.push = getFunction("push", ArrayPush);
-  InternalArray.prototype.toString = function() {
-    return "Internal Array, length " + this.length;
-  };
 }
 
 

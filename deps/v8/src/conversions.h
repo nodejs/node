@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,8 +27,6 @@
 
 #ifndef V8_CONVERSIONS_H_
 #define V8_CONVERSIONS_H_
-
-#include "scanner-base.h"
 
 namespace v8 {
 namespace internal {
@@ -93,26 +91,15 @@ static inline uint32_t NumberToUint32(Object* number);
 
 
 // Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(UnicodeCache* unicode_cache,
-                      String* str,
-                      int flags,
-                      double empty_string_val = 0);
-double StringToDouble(UnicodeCache* unicode_cache,
-                      Vector<const char> str,
-                      int flags,
-                      double empty_string_val = 0);
-double StringToDouble(UnicodeCache* unicode_cache,
-                      Vector<const uc16> str,
+double StringToDouble(String* str, int flags, double empty_string_val = 0);
+double StringToDouble(Vector<const char> str,
                       int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
-double StringToDouble(UnicodeCache* unicode_cache,
-                      const char* str,
-                      int flags,
-                      double empty_string_val = 0);
+double StringToDouble(const char* str, int flags, double empty_string_val = 0);
 
 // Converts a string into an integer.
-double StringToInt(UnicodeCache* unicode_cache, String* str, int radix);
+double StringToInt(String* str, int radix);
 
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.

@@ -38,27 +38,27 @@ namespace internal {
 // counters for monitoring.  Counters can be looked up and
 // manipulated by name.
 
-class StatsTable {
+class StatsTable : public AllStatic {
  public:
   // Register an application-defined function where
   // counters can be looked up.
-  void SetCounterFunction(CounterLookupCallback f) {
+  static void SetCounterFunction(CounterLookupCallback f) {
     lookup_function_ = f;
   }
 
   // Register an application-defined function to create
   // a histogram for passing to the AddHistogramSample function
-  void SetCreateHistogramFunction(CreateHistogramCallback f) {
+  static void SetCreateHistogramFunction(CreateHistogramCallback f) {
     create_histogram_function_ = f;
   }
 
   // Register an application-defined function to add a sample
   // to a histogram created with CreateHistogram function
-  void SetAddHistogramSampleFunction(AddHistogramSampleCallback f) {
+  static void SetAddHistogramSampleFunction(AddHistogramSampleCallback f) {
     add_histogram_sample_function_ = f;
   }
 
-  bool HasCounterFunction() const {
+  static bool HasCounterFunction() {
     return lookup_function_ != NULL;
   }
 
@@ -68,7 +68,7 @@ class StatsTable {
   // may receive a different location to store it's counter.
   // The return value must not be cached and re-used across
   // threads, although a single thread is free to cache it.
-  int* FindLocation(const char* name) {
+  static int* FindLocation(const char* name) {
     if (!lookup_function_) return NULL;
     return lookup_function_(name);
   }
@@ -78,31 +78,25 @@ class StatsTable {
   // function. min and max define the expected minimum and maximum
   // sample values. buckets is the maximum number of buckets
   // that the samples will be grouped into.
-  void* CreateHistogram(const char* name,
-                        int min,
-                        int max,
-                        size_t buckets) {
+  static void* CreateHistogram(const char* name,
+                               int min,
+                               int max,
+                               size_t buckets) {
     if (!create_histogram_function_) return NULL;
     return create_histogram_function_(name, min, max, buckets);
   }
 
   // Add a sample to a histogram created with the CreateHistogram
   // function.
-  void AddHistogramSample(void* histogram, int sample) {
+  static void AddHistogramSample(void* histogram, int sample) {
     if (!add_histogram_sample_function_) return;
     return add_histogram_sample_function_(histogram, sample);
   }
 
  private:
-  StatsTable();
-
-  CounterLookupCallback lookup_function_;
-  CreateHistogramCallback create_histogram_function_;
-  AddHistogramSampleCallback add_histogram_sample_function_;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(StatsTable);
+  static CounterLookupCallback lookup_function_;
+  static CreateHistogramCallback create_histogram_function_;
+  static AddHistogramSampleCallback add_histogram_sample_function_;
 };
 
 // StatsCounters are dynamically created values which can be tracked in
@@ -172,12 +166,9 @@ struct StatsCounter {
     if (lookup_done_)
       return ptr_;
     lookup_done_ = true;
-    ptr_ = FindLocationInStatsTable();
+    ptr_ = StatsTable::FindLocation(name_);
     return ptr_;
   }
-
- private:
-  int* FindLocationInStatsTable() const;
 };
 
 // StatsCounterTimer t = { { L"t:foo", NULL, false }, 0, 0 };
@@ -225,13 +216,10 @@ struct HistogramTimer {
   void* GetHistogram() {
     if (!lookup_done_) {
       lookup_done_ = true;
-      histogram_ = CreateHistogram();
+      histogram_ = StatsTable::CreateHistogram(name_, 0, 10000, 50);
     }
     return histogram_;
   }
-
- private:
-  void* CreateHistogram() const;
 };
 
 // Helper class for scoping a HistogramTimer.

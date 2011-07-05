@@ -28,7 +28,6 @@
 #include "v8.h"
 
 #include "log-utils.h"
-#include "string-stream.h"
 
 namespace v8 {
 namespace internal {
@@ -119,141 +118,50 @@ int LogDynamicBuffer::WriteInternal(const char* data, int data_size) {
   return data_size;
 }
 
+
+bool Log::is_stopped_ = false;
+Log::WritePtr Log::Write = NULL;
+FILE* Log::output_handle_ = NULL;
+FILE* Log::output_code_handle_ = NULL;
+LogDynamicBuffer* Log::output_buffer_ = NULL;
 // Must be the same message as in Logger::PauseProfiler.
-const char* const Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
-
-Log::Log(Logger* logger)
-  : write_to_file_(false),
-    is_stopped_(false),
-    output_handle_(NULL),
-    ll_output_handle_(NULL),
-    output_buffer_(NULL),
-    mutex_(NULL),
-    message_buffer_(NULL),
-    logger_(logger) {
-}
+const char* Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
+Mutex* Log::mutex_ = NULL;
+char* Log::message_buffer_ = NULL;
 
 
-static void AddIsolateIdIfNeeded(StringStream* stream) {
-  Isolate* isolate = Isolate::Current();
-  if (isolate->IsDefaultIsolate()) return;
-  stream->Add("isolate-%p-", isolate);
-}
-
-
-void Log::Initialize() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
+void Log::Init() {
   mutex_ = OS::CreateMutex();
   message_buffer_ = NewArray<char>(kMessageBufferSize);
-
-  // --log-all enables all the log flags.
-  if (FLAG_log_all) {
-    FLAG_log_runtime = true;
-    FLAG_log_api = true;
-    FLAG_log_code = true;
-    FLAG_log_gc = true;
-    FLAG_log_suspect = true;
-    FLAG_log_handles = true;
-    FLAG_log_regexp = true;
-  }
-
-  // --prof implies --log-code.
-  if (FLAG_prof) FLAG_log_code = true;
-
-  // --prof_lazy controls --log-code, implies --noprof_auto.
-  if (FLAG_prof_lazy) {
-    FLAG_log_code = false;
-    FLAG_prof_auto = false;
-  }
-
-  bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
-      || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
-      || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof;
-
-  bool open_log_file = start_logging || FLAG_prof_lazy;
-
-  // If we're logging anything, we need to open the log file.
-  if (open_log_file) {
-    if (strcmp(FLAG_logfile, "-") == 0) {
-      OpenStdout();
-    } else if (strcmp(FLAG_logfile, "*") == 0) {
-      OpenMemoryBuffer();
-    } else  {
-      if (strchr(FLAG_logfile, '%') != NULL ||
-          !Isolate::Current()->IsDefaultIsolate()) {
-        // If there's a '%' in the log file name we have to expand
-        // placeholders.
-        HeapStringAllocator allocator;
-        StringStream stream(&allocator);
-        AddIsolateIdIfNeeded(&stream);
-        for (const char* p = FLAG_logfile; *p; p++) {
-          if (*p == '%') {
-            p++;
-            switch (*p) {
-              case '\0':
-                // If there's a % at the end of the string we back up
-                // one character so we can escape the loop properly.
-                p--;
-                break;
-              case 't': {
-                // %t expands to the current time in milliseconds.
-                double time = OS::TimeCurrentMillis();
-                stream.Add("%.0f", FmtElm(time));
-                break;
-              }
-              case '%':
-                // %% expands (contracts really) to %.
-                stream.Put('%');
-                break;
-              default:
-                // All other %'s expand to themselves.
-                stream.Put('%');
-                stream.Put(*p);
-                break;
-            }
-          } else {
-            stream.Put(*p);
-          }
-        }
-        SmartPointer<const char> expanded = stream.ToCString();
-        OpenFile(*expanded);
-      } else {
-        OpenFile(FLAG_logfile);
-      }
-    }
-  }
-#endif
 }
 
 
 void Log::OpenStdout() {
   ASSERT(!IsEnabled());
   output_handle_ = stdout;
-  write_to_file_ = true;
+  Write = WriteToFile;
+  Init();
 }
 
 
-// Extension added to V8 log file name to get the low-level log name.
-static const char kLowLevelLogExt[] = ".ll";
-
-// File buffer size of the low-level log. We don't use the default to
-// minimize the associated overhead.
-static const int kLowLevelLogBufferSize = 2 * MB;
+static const char kCodeLogExt[] = ".code";
 
 
 void Log::OpenFile(const char* name) {
   ASSERT(!IsEnabled());
   output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
-  write_to_file_ = true;
   if (FLAG_ll_prof) {
-    // Open the low-level log file.
-    size_t len = strlen(name);
-    ScopedVector<char> ll_name(static_cast<int>(len + sizeof(kLowLevelLogExt)));
-    memcpy(ll_name.start(), name, len);
-    memcpy(ll_name.start() + len, kLowLevelLogExt, sizeof(kLowLevelLogExt));
-    ll_output_handle_ = OS::FOpen(ll_name.start(), OS::LogFileOpenMode);
-    setvbuf(ll_output_handle_, NULL, _IOFBF, kLowLevelLogBufferSize);
+    // Open a file for logging the contents of code objects so that
+    // they can be disassembled later.
+    size_t name_len = strlen(name);
+    ScopedVector<char> code_name(
+        static_cast<int>(name_len + sizeof(kCodeLogExt)));
+    memcpy(code_name.start(), name, name_len);
+    memcpy(code_name.start() + name_len, kCodeLogExt, sizeof(kCodeLogExt));
+    output_code_handle_ = OS::FOpen(code_name.start(), OS::LogFileOpenMode);
   }
+  Write = WriteToFile;
+  Init();
 }
 
 
@@ -262,20 +170,24 @@ void Log::OpenMemoryBuffer() {
   output_buffer_ = new LogDynamicBuffer(
       kDynamicBufferBlockSize, kMaxDynamicBufferSize,
       kDynamicBufferSeal, StrLength(kDynamicBufferSeal));
-  write_to_file_ = false;
+  Write = WriteToMemory;
+  Init();
 }
 
 
 void Log::Close() {
-  if (write_to_file_) {
+  if (Write == WriteToFile) {
     if (output_handle_ != NULL) fclose(output_handle_);
     output_handle_ = NULL;
-    if (ll_output_handle_ != NULL) fclose(ll_output_handle_);
-    ll_output_handle_ = NULL;
-  } else {
+    if (output_code_handle_ != NULL) fclose(output_code_handle_);
+    output_code_handle_ = NULL;
+  } else if (Write == WriteToMemory) {
     delete output_buffer_;
     output_buffer_ = NULL;
+  } else {
+    ASSERT(Write == NULL);
   }
+  Write = NULL;
 
   DeleteArray(message_buffer_);
   message_buffer_ = NULL;
@@ -288,7 +200,7 @@ void Log::Close() {
 
 
 int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
-  if (write_to_file_) return 0;
+  if (Write != WriteToMemory) return 0;
   ASSERT(output_buffer_ != NULL);
   ASSERT(from_pos >= 0);
   ASSERT(max_size >= 0);
@@ -308,16 +220,17 @@ int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 }
 
 
-LogMessageBuilder::LogMessageBuilder(Logger* logger)
-  : log_(logger->log_),
-    sl(log_->mutex_),
-    pos_(0) {
-  ASSERT(log_->message_buffer_ != NULL);
+LogMessageBuilder::WriteFailureHandler
+    LogMessageBuilder::write_failure_handler = NULL;
+
+
+LogMessageBuilder::LogMessageBuilder(): sl(Log::mutex_), pos_(0) {
+  ASSERT(Log::message_buffer_ != NULL);
 }
 
 
 void LogMessageBuilder::Append(const char* format, ...) {
-  Vector<char> buf(log_->message_buffer_ + pos_,
+  Vector<char> buf(Log::message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   va_list args;
   va_start(args, format);
@@ -328,7 +241,7 @@ void LogMessageBuilder::Append(const char* format, ...) {
 
 
 void LogMessageBuilder::AppendVA(const char* format, va_list args) {
-  Vector<char> buf(log_->message_buffer_ + pos_,
+  Vector<char> buf(Log::message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   int result = v8::internal::OS::VSNPrintF(buf, format, args);
 
@@ -344,7 +257,7 @@ void LogMessageBuilder::AppendVA(const char* format, va_list args) {
 
 void LogMessageBuilder::Append(const char c) {
   if (pos_ < Log::kMessageBufferSize) {
-    log_->message_buffer_[pos_++] = c;
+    Log::message_buffer_[pos_++] = c;
   }
   ASSERT(pos_ <= Log::kMessageBufferSize);
 }
@@ -365,7 +278,6 @@ void LogMessageBuilder::AppendAddress(Address addr) {
 
 
 void LogMessageBuilder::AppendDetailed(String* str, bool show_impl_info) {
-  if (str == NULL) return;
   AssertNoAllocation no_heap_allocation;  // Ensure string stay valid.
   int len = str->length();
   if (len > 0x1000)
@@ -403,7 +315,7 @@ void LogMessageBuilder::AppendStringPart(const char* str, int len) {
     ASSERT(len >= 0);
     if (len == 0) return;
   }
-  Vector<char> buf(log_->message_buffer_ + pos_,
+  Vector<char> buf(Log::message_buffer_ + pos_,
                    Log::kMessageBufferSize - pos_);
   OS::StrNCpy(buf, str, len);
   pos_ += len;
@@ -413,15 +325,11 @@ void LogMessageBuilder::AppendStringPart(const char* str, int len) {
 
 void LogMessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
-  const int written = log_->write_to_file_ ?
-      log_->WriteToFile(log_->message_buffer_, pos_) :
-      log_->WriteToMemory(log_->message_buffer_, pos_);
-  if (written != pos_) {
-    log_->stop();
-    log_->logger_->LogFailure();
+  const int written = Log::Write(Log::message_buffer_, pos_);
+  if (written != pos_ && write_failure_handler != NULL) {
+    write_failure_handler();
   }
 }
-
 
 #endif  // ENABLE_LOGGING_AND_PROFILING
 

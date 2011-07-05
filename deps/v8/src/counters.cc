@@ -28,22 +28,14 @@
 #include "v8.h"
 
 #include "counters.h"
-#include "isolate.h"
 #include "platform.h"
 
 namespace v8 {
 namespace internal {
 
-StatsTable::StatsTable()
-    : lookup_function_(NULL),
-      create_histogram_function_(NULL),
-      add_histogram_sample_function_(NULL) {}
-
-
-int* StatsCounter::FindLocationInStatsTable() const {
-  return Isolate::Current()->stats_table()->FindLocation(name_);
-}
-
+CounterLookupCallback StatsTable::lookup_function_ = NULL;
+CreateHistogramCallback StatsTable::create_histogram_function_ = NULL;
+AddHistogramSampleCallback StatsTable::add_histogram_sample_function_ = NULL;
 
 // Start the timer.
 void StatsCounterTimer::Start() {
@@ -79,15 +71,8 @@ void HistogramTimer::Stop() {
 
     // Compute the delta between start and stop, in milliseconds.
     int milliseconds = static_cast<int>(stop_time_ - start_time_) / 1000;
-    Isolate::Current()->stats_table()->
-        AddHistogramSample(histogram_, milliseconds);
+    StatsTable::AddHistogramSample(histogram_, milliseconds);
   }
-}
-
-
-void* HistogramTimer::CreateHistogram() const {
-  return Isolate::Current()->stats_table()->
-      CreateHistogram(name_, 0, 10000, 50);
 }
 
 } }  // namespace v8::internal

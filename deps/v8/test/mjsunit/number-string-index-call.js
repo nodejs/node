@@ -25,7 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --call_regexp
 var callbacks = [ function() {return 'foo'}, "nonobject", /abc/ ];
 assertEquals('foo', callbacks['0']());
 assertThrows("callbacks['1']()");
-assertThrows("callbacks['2']('abcdefg')");
+assertEquals('abc', callbacks['2']("abcdefg"));

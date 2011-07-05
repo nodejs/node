@@ -40,10 +40,10 @@ namespace v8 {
 namespace internal {
 
 
-typedef unibrow::Mapping<unibrow::Ecma262Canonicalize> Canonicalize;
+static unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize;
 
-static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
-                                 int from,
+
+static bool BackRefMatchesNoCase(int from,
                                  int current,
                                  int len,
                                  Vector<const uc16> subject) {
@@ -53,8 +53,8 @@ static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
     if (old_char == new_char) continue;
     unibrow::uchar old_string[1] = { old_char };
     unibrow::uchar new_string[1] = { new_char };
-    interp_canonicalize->get(old_char, '\0', old_string);
-    interp_canonicalize->get(new_char, '\0', new_string);
+    interp_canonicalize.get(old_char, '\0', old_string);
+    interp_canonicalize.get(new_char, '\0', new_string);
     if (old_string[0] != new_string[0]) {
       return false;
     }
@@ -63,8 +63,7 @@ static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
 }
 
 
-static bool BackRefMatchesNoCase(Canonicalize* interp_canonicalize,
-                                 int from,
+static bool BackRefMatchesNoCase(int from,
                                  int current,
                                  int len,
                                  Vector<const char> subject) {
@@ -151,11 +150,11 @@ static int32_t Load16Aligned(const byte* pc) {
 // matching terminates.
 class BacktrackStack {
  public:
-  explicit BacktrackStack(Isolate* isolate) : isolate_(isolate) {
-    if (isolate->irregexp_interpreter_backtrack_stack_cache() != NULL) {
+  explicit BacktrackStack() {
+    if (cache_ != NULL) {
       // If the cache is not empty reuse the previously allocated stack.
-      data_ = isolate->irregexp_interpreter_backtrack_stack_cache();
-      isolate->set_irregexp_interpreter_backtrack_stack_cache(NULL);
+      data_ = cache_;
+      cache_ = NULL;
     } else {
       // Cache was empty. Allocate a new backtrack stack.
       data_ = NewArray<int>(kBacktrackStackSize);
@@ -163,9 +162,9 @@ class BacktrackStack {
   }
 
   ~BacktrackStack() {
-    if (isolate_->irregexp_interpreter_backtrack_stack_cache() == NULL) {
+    if (cache_ == NULL) {
       // The cache is empty. Keep this backtrack stack around.
-      isolate_->set_irregexp_interpreter_backtrack_stack_cache(data_);
+      cache_ = data_;
     } else {
       // A backtrack stack was already cached, just release this one.
       DeleteArray(data_);
@@ -180,15 +179,16 @@ class BacktrackStack {
   static const int kBacktrackStackSize = 10000;
 
   int* data_;
-  Isolate* isolate_;
+  static int* cache_;
 
   DISALLOW_COPY_AND_ASSIGN(BacktrackStack);
 };
 
+int* BacktrackStack::cache_ = NULL;
+
 
 template <typename Char>
-static bool RawMatch(Isolate* isolate,
-                     const byte* code_base,
+static bool RawMatch(const byte* code_base,
                      Vector<const Char> subject,
                      int* registers,
                      int current,
@@ -197,7 +197,7 @@ static bool RawMatch(Isolate* isolate,
   // BacktrackStack ensures that the memory allocated for the backtracking stack
   // is returned to the system or cached if there is no stack being cached at
   // the moment.
-  BacktrackStack backtrack_stack(isolate);
+  BacktrackStack backtrack_stack;
   int* backtrack_stack_base = backtrack_stack.data();
   int* backtrack_sp = backtrack_stack_base;
   int backtrack_stack_space = backtrack_stack.max_size();
@@ -584,8 +584,7 @@ static bool RawMatch(Isolate* isolate,
           pc = code_base + Load32Aligned(pc + 4);
           break;
         } else {
-          if (BackRefMatchesNoCase(isolate->interp_canonicalize_mapping(),
-                                   from, current, len, subject)) {
+          if (BackRefMatchesNoCase(from, current, len, subject)) {
             current += len;
             pc += BC_CHECK_NOT_BACK_REF_NO_CASE_LENGTH;
           } else {
@@ -625,8 +624,7 @@ static bool RawMatch(Isolate* isolate,
 }
 
 
-bool IrregexpInterpreter::Match(Isolate* isolate,
-                                Handle<ByteArray> code_array,
+bool IrregexpInterpreter::Match(Handle<ByteArray> code_array,
                                 Handle<String> subject,
                                 int* registers,
                                 int start_position) {
@@ -638,8 +636,7 @@ bool IrregexpInterpreter::Match(Isolate* isolate,
   if (subject->IsAsciiRepresentation()) {
     Vector<const char> subject_vector = subject->ToAsciiVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
-    return RawMatch(isolate,
-                    code_base,
+    return RawMatch(code_base,
                     subject_vector,
                     registers,
                     start_position,
@@ -647,8 +644,7 @@ bool IrregexpInterpreter::Match(Isolate* isolate,
   } else {
     Vector<const uc16> subject_vector = subject->ToUC16Vector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
-    return RawMatch(isolate,
-                    code_base,
+    return RawMatch(code_base,
                     subject_vector,
                     registers,
                     start_position,

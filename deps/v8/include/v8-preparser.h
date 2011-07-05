@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -66,18 +66,17 @@
 
 namespace v8 {
 
-// The result of preparsing is either a stack overflow error, or an opaque
-// blob of data that can be passed back into the parser.
-class V8EXPORT PreParserData {
+
+class PreParserData {
  public:
   PreParserData(size_t size, const uint8_t* data)
       : data_(data), size_(size) { }
 
   // Create a PreParserData value where stack_overflow reports true.
-  static PreParserData StackOverflow() { return PreParserData(0, NULL); }
-
+  static PreParserData StackOverflow() { return PreParserData(NULL, 0); }
   // Whether the pre-parser stopped due to a stack overflow.
   // If this is the case, size() and data() should not be used.
+
   bool stack_overflow() { return size_ == 0u; }
 
   // The size of the data in bytes.
@@ -93,7 +92,7 @@ class V8EXPORT PreParserData {
 
 
 // Interface for a stream of Unicode characters.
-class V8EXPORT UnicodeInputStream {  // NOLINT - Thinks V8EXPORT is class name.
+class UnicodeInputStream {
  public:
   virtual ~UnicodeInputStream();
 

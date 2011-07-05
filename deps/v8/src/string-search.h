@@ -44,7 +44,7 @@ class StringSearchBase {
   // limit, we can fix the size of tables. For a needle longer than this limit,
   // search will not be optimal, since we only build tables for a suffix
   // of the string, but it is a safe approximation.
-  static const int kBMMaxShift = Isolate::kBMMaxShift;
+  static const int kBMMaxShift = 250;
 
   // Reduce alphabet to this size.
   // One of the tables used by Boyer-Moore and Boyer-Moore-Horspool has size
@@ -54,7 +54,7 @@ class StringSearchBase {
   // For needles using only characters in the same Unicode 256-code point page,
   // there is no search speed degradation.
   static const int kAsciiAlphabetSize = 128;
-  static const int kUC16AlphabetSize = Isolate::kUC16AlphabetSize;
+  static const int kUC16AlphabetSize = 256;
 
   // Bad-char shift table stored in the state. It's length is the alphabet size.
   // For patterns below this length, the skip length of Boyer-Moore is too short
@@ -69,16 +69,25 @@ class StringSearchBase {
     return String::IsAscii(string.start(), string.length());
   }
 
-  friend class Isolate;
+  // The following tables are shared by all searches.
+  // TODO(lrn): Introduce a way for a pattern to keep its tables
+  // between searches (e.g., for an Atom RegExp).
+
+  // Store for the BoyerMoore(Horspool) bad char shift table.
+  static int kBadCharShiftTable[kUC16AlphabetSize];
+  // Store for the BoyerMoore good suffix shift table.
+  static int kGoodSuffixShiftTable[kBMMaxShift + 1];
+  // Table used temporarily while building the BoyerMoore good suffix
+  // shift table.
+  static int kSuffixTable[kBMMaxShift + 1];
 };
 
 
 template <typename PatternChar, typename SubjectChar>
 class StringSearch : private StringSearchBase {
  public:
-  StringSearch(Isolate* isolate, Vector<const PatternChar> pattern)
-      : isolate_(isolate),
-        pattern_(pattern),
+  explicit StringSearch(Vector<const PatternChar> pattern)
+      : pattern_(pattern),
         start_(Max(0, pattern.length() - kBMMaxShift)) {
     if (sizeof(PatternChar) > sizeof(SubjectChar)) {
       if (!IsAsciiString(pattern_)) {
@@ -166,33 +175,24 @@ class StringSearch : private StringSearchBase {
     return bad_char_occurrence[equiv_class];
   }
 
-  // The following tables are shared by all searches.
-  // TODO(lrn): Introduce a way for a pattern to keep its tables
-  // between searches (e.g., for an Atom RegExp).
-
-  // Store for the BoyerMoore(Horspool) bad char shift table.
   // Return a table covering the last kBMMaxShift+1 positions of
   // pattern.
   int* bad_char_table() {
-    return isolate_->bad_char_shift_table();
+    return kBadCharShiftTable;
   }
 
-  // Store for the BoyerMoore good suffix shift table.
   int* good_suffix_shift_table() {
     // Return biased pointer that maps the range  [start_..pattern_.length()
     // to the kGoodSuffixShiftTable array.
-    return isolate_->good_suffix_shift_table() - start_;
+    return kGoodSuffixShiftTable - start_;
   }
 
-  // Table used temporarily while building the BoyerMoore good suffix
-  // shift table.
   int* suffix_table() {
     // Return biased pointer that maps the range  [start_..pattern_.length()
     // to the kSuffixTable array.
-    return isolate_->suffix_table() - start_;
+    return kSuffixTable - start_;
   }
 
-  Isolate* isolate_;
   // The pattern to search for.
   Vector<const PatternChar> pattern_;
   // Pointer to implementation of the search.
@@ -555,11 +555,10 @@ int StringSearch<PatternChar, SubjectChar>::InitialSearch(
 // object should be constructed once and the Search function then called
 // for each search.
 template <typename SubjectChar, typename PatternChar>
-static int SearchString(Isolate* isolate,
-                        Vector<const SubjectChar> subject,
+static int SearchString(Vector<const SubjectChar> subject,
                         Vector<const PatternChar> pattern,
                         int start_index) {
-  StringSearch<PatternChar, SubjectChar> search(isolate, pattern);
+  StringSearch<PatternChar, SubjectChar> search(pattern);
   return search.Search(subject, start_index);
 }
 

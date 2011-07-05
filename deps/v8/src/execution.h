@@ -28,8 +28,6 @@
 #ifndef V8_EXECUTION_H_
 #define V8_EXECUTION_H_
 
-#include "allocation.h"
-
 namespace v8 {
 namespace internal {
 
@@ -53,7 +51,7 @@ class Execution : public AllStatic {
   // *pending_exception tells whether the invoke resulted in
   // a pending exception.
   //
-  static Handle<Object> Call(Handle<Object> callable,
+  static Handle<Object> Call(Handle<JSFunction> func,
                              Handle<Object> receiver,
                              int argc,
                              Object*** args,
@@ -140,86 +138,79 @@ class Execution : public AllStatic {
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as functions.
   static Handle<Object> GetFunctionDelegate(Handle<Object> object);
-  static Handle<Object> TryGetFunctionDelegate(Handle<Object> object,
-                                               bool* has_pending_exception);
 
   // Get a function delegate (or undefined) for the given non-function
   // object. Used for support calling objects as constructors.
   static Handle<Object> GetConstructorDelegate(Handle<Object> object);
-  static Handle<Object> TryGetConstructorDelegate(Handle<Object> object,
-                                                  bool* has_pending_exception);
 };
 
 
 class ExecutionAccess;
-class Isolate;
 
 
 // StackGuard contains the handling of the limits that are used to limit the
 // number of nested invocations of JavaScript and the stack size used in each
 // invocation.
-class StackGuard {
+class StackGuard : public AllStatic {
  public:
   // Pass the address beyond which the stack should not grow.  The stack
   // is assumed to grow downwards.
-  void SetStackLimit(uintptr_t limit);
+  static void SetStackLimit(uintptr_t limit);
 
   // Threading support.
-  char* ArchiveStackGuard(char* to);
-  char* RestoreStackGuard(char* from);
-  static int ArchiveSpacePerThread() { return sizeof(ThreadLocal); }
-  void FreeThreadResources();
+  static char* ArchiveStackGuard(char* to);
+  static char* RestoreStackGuard(char* from);
+  static int ArchiveSpacePerThread();
+  static void FreeThreadResources();
   // Sets up the default stack guard for this thread if it has not
   // already been set up.
-  void InitThread(const ExecutionAccess& lock);
+  static void InitThread(const ExecutionAccess& lock);
   // Clears the stack guard for this thread so it does not look as if
   // it has been set up.
-  void ClearThread(const ExecutionAccess& lock);
+  static void ClearThread(const ExecutionAccess& lock);
 
-  bool IsStackOverflow();
-  bool IsPreempted();
-  void Preempt();
-  bool IsInterrupted();
-  void Interrupt();
-  bool IsTerminateExecution();
-  void TerminateExecution();
-  bool IsRuntimeProfilerTick();
-  void RequestRuntimeProfilerTick();
+  static bool IsStackOverflow();
+  static bool IsPreempted();
+  static void Preempt();
+  static bool IsInterrupted();
+  static void Interrupt();
+  static bool IsTerminateExecution();
+  static void TerminateExecution();
+  static bool IsRuntimeProfilerTick();
+  static void RequestRuntimeProfilerTick();
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  bool IsDebugBreak();
-  void DebugBreak();
-  bool IsDebugCommand();
-  void DebugCommand();
+  static bool IsDebugBreak();
+  static void DebugBreak();
+  static bool IsDebugCommand();
+  static void DebugCommand();
 #endif
-  void Continue(InterruptFlag after_what);
+  static void Continue(InterruptFlag after_what);
 
   // This provides an asynchronous read of the stack limits for the current
   // thread.  There are no locks protecting this, but it is assumed that you
   // have the global V8 lock if you are using multiple V8 threads.
-  uintptr_t climit() {
+  static uintptr_t climit() {
     return thread_local_.climit_;
   }
-  uintptr_t real_climit() {
+  static uintptr_t real_climit() {
     return thread_local_.real_climit_;
   }
-  uintptr_t jslimit() {
+  static uintptr_t jslimit() {
     return thread_local_.jslimit_;
   }
-  uintptr_t real_jslimit() {
+  static uintptr_t real_jslimit() {
     return thread_local_.real_jslimit_;
   }
-  Address address_of_jslimit() {
+  static Address address_of_jslimit() {
     return reinterpret_cast<Address>(&thread_local_.jslimit_);
   }
-  Address address_of_real_jslimit() {
+  static Address address_of_real_jslimit() {
     return reinterpret_cast<Address>(&thread_local_.real_jslimit_);
   }
 
  private:
-  StackGuard();
-
   // You should hold the ExecutionAccess lock when calling this method.
-  bool has_pending_interrupts(const ExecutionAccess& lock) {
+  static bool has_pending_interrupts(const ExecutionAccess& lock) {
     // Sanity check: We shouldn't be asking about pending interrupts
     // unless we're not postponing them anymore.
     ASSERT(!should_postpone_interrupts(lock));
@@ -227,20 +218,30 @@ class StackGuard {
   }
 
   // You should hold the ExecutionAccess lock when calling this method.
-  bool should_postpone_interrupts(const ExecutionAccess& lock) {
+  static bool should_postpone_interrupts(const ExecutionAccess& lock) {
     return thread_local_.postpone_interrupts_nesting_ > 0;
   }
 
   // You should hold the ExecutionAccess lock when calling this method.
-  inline void set_interrupt_limits(const ExecutionAccess& lock);
+  static void set_interrupt_limits(const ExecutionAccess& lock) {
+    // Ignore attempts to interrupt when interrupts are postponed.
+    if (should_postpone_interrupts(lock)) return;
+    thread_local_.jslimit_ = kInterruptLimit;
+    thread_local_.climit_ = kInterruptLimit;
+    Heap::SetStackLimits();
+  }
 
   // Reset limits to actual values. For example after handling interrupt.
   // You should hold the ExecutionAccess lock when calling this method.
-  inline void reset_limits(const ExecutionAccess& lock);
+  static void reset_limits(const ExecutionAccess& lock) {
+    thread_local_.jslimit_ = thread_local_.real_jslimit_;
+    thread_local_.climit_ = thread_local_.real_climit_;
+    Heap::SetStackLimits();
+  }
 
   // Enable or disable interrupts.
-  void EnableInterrupts();
-  void DisableInterrupts();
+  static void EnableInterrupts();
+  static void DisableInterrupts();
 
 #ifdef V8_TARGET_ARCH_X64
   static const uintptr_t kInterruptLimit = V8_UINT64_C(0xfffffffffffffffe);
@@ -255,10 +256,8 @@ class StackGuard {
     ThreadLocal() { Clear(); }
     // You should hold the ExecutionAccess lock when you call Initialize or
     // Clear.
+    void Initialize();
     void Clear();
-
-    // Returns true if the heap's stack limits should be set, false if not.
-    bool Initialize(Isolate* isolate);
 
     // The stack limit is split into a JavaScript and a C++ stack limit. These
     // two are the same except when running on a simulator where the C++ and
@@ -279,18 +278,44 @@ class StackGuard {
     int interrupt_flags_;
   };
 
-  // TODO(isolates): Technically this could be calculated directly from a
-  //                 pointer to StackGuard.
-  Isolate* isolate_;
-  ThreadLocal thread_local_;
+  static ThreadLocal thread_local_;
 
-  friend class Isolate;
   friend class StackLimitCheck;
   friend class PostponeInterruptsScope;
-
-  DISALLOW_COPY_AND_ASSIGN(StackGuard);
 };
 
+
+// Support for checking for stack-overflows in C++ code.
+class StackLimitCheck BASE_EMBEDDED {
+ public:
+  bool HasOverflowed() const {
+    // Stack has overflowed in C++ code only if stack pointer exceeds the C++
+    // stack guard and the limits are not set to interrupt values.
+    // TODO(214): Stack overflows are ignored if a interrupt is pending. This
+    // code should probably always use the initial C++ limit.
+    return (reinterpret_cast<uintptr_t>(this) < StackGuard::climit()) &&
+           StackGuard::IsStackOverflow();
+  }
+};
+
+
+// Support for temporarily postponing interrupts. When the outermost
+// postpone scope is left the interrupts will be re-enabled and any
+// interrupts that occurred while in the scope will be taken into
+// account.
+class PostponeInterruptsScope BASE_EMBEDDED {
+ public:
+  PostponeInterruptsScope() {
+    StackGuard::thread_local_.postpone_interrupts_nesting_++;
+    StackGuard::DisableInterrupts();
+  }
+
+  ~PostponeInterruptsScope() {
+    if (--StackGuard::thread_local_.postpone_interrupts_nesting_ == 0) {
+      StackGuard::EnableInterrupts();
+    }
+  }
+};
 
 } }  // namespace v8::internal
 

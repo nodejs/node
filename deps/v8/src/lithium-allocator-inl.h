@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,8 +36,6 @@
 #include "x64/lithium-x64.h"
 #elif V8_TARGET_ARCH_ARM
 #include "arm/lithium-arm.h"
-#elif V8_TARGET_ARCH_MIPS
-#include "mips/lithium-mips.h"
 #else
 #error "Unknown architecture."
 #endif
@@ -62,27 +60,27 @@ TempIterator::TempIterator(LInstruction* instr)
     : instr_(instr),
       limit_(instr->TempCount()),
       current_(0) {
-  SkipUninteresting();
+  current_ = AdvanceToNext(0);
 }
 
 
-bool TempIterator::Done() { return current_ >= limit_; }
+bool TempIterator::HasNext() { return current_ < limit_; }
 
 
-LOperand* TempIterator::Current() {
-  ASSERT(!Done());
+LOperand* TempIterator::Next() {
+  ASSERT(HasNext());
   return instr_->TempAt(current_);
 }
 
 
-void TempIterator::SkipUninteresting() {
-  while (current_ < limit_ && instr_->TempAt(current_) == NULL) ++current_;
+int TempIterator::AdvanceToNext(int start) {
+  while (start < limit_ && instr_->TempAt(start) == NULL) start++;
+  return start;
 }
 
 
 void TempIterator::Advance() {
-  ++current_;
-  SkipUninteresting();
+  current_ = AdvanceToNext(current_ + 1);
 }
 
 
@@ -90,29 +88,27 @@ InputIterator::InputIterator(LInstruction* instr)
     : instr_(instr),
       limit_(instr->InputCount()),
       current_(0) {
-  SkipUninteresting();
+  current_ = AdvanceToNext(0);
 }
 
 
-bool InputIterator::Done() { return current_ >= limit_; }
+bool InputIterator::HasNext() { return current_ < limit_; }
 
 
-LOperand* InputIterator::Current() {
-  ASSERT(!Done());
+LOperand* InputIterator::Next() {
+  ASSERT(HasNext());
   return instr_->InputAt(current_);
 }
 
 
 void InputIterator::Advance() {
-  ++current_;
-  SkipUninteresting();
+  current_ = AdvanceToNext(current_ + 1);
 }
 
 
-void InputIterator::SkipUninteresting() {
-  while (current_ < limit_ && instr_->InputAt(current_)->IsConstantOperand()) {
-    ++current_;
-  }
+int InputIterator::AdvanceToNext(int start) {
+  while (start < limit_ && instr_->InputAt(start)->IsConstantOperand()) start++;
+  return start;
 }
 
 
@@ -120,23 +116,23 @@ UseIterator::UseIterator(LInstruction* instr)
     : input_iterator_(instr), env_iterator_(instr->environment()) { }
 
 
-bool UseIterator::Done() {
-  return input_iterator_.Done() && env_iterator_.Done();
+bool UseIterator::HasNext() {
+  return input_iterator_.HasNext() || env_iterator_.HasNext();
 }
 
 
-LOperand* UseIterator::Current() {
-  ASSERT(!Done());
-  return input_iterator_.Done()
-      ? env_iterator_.Current()
-      : input_iterator_.Current();
+LOperand* UseIterator::Next() {
+  ASSERT(HasNext());
+  return input_iterator_.HasNext()
+      ? input_iterator_.Next()
+      : env_iterator_.Next();
 }
 
 
 void UseIterator::Advance() {
-  input_iterator_.Done()
-      ? env_iterator_.Advance()
-      : input_iterator_.Advance();
+  input_iterator_.HasNext()
+      ? input_iterator_.Advance()
+      : env_iterator_.Advance();
 }
 
 } }  // namespace v8::internal

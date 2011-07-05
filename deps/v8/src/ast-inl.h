@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,7 @@
 #include "v8.h"
 
 #include "ast.h"
-#include "scopes.h"
+#include "jump-target-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -62,7 +62,7 @@ BreakableStatement::BreakableStatement(ZoneStringList* labels, Type type)
 IterationStatement::IterationStatement(ZoneStringList* labels)
     : BreakableStatement(labels, TARGET_FOR_ANONYMOUS),
       body_(NULL),
-      continue_target_(),
+      continue_target_(JumpTarget::BIDIRECTIONAL),
       osr_entry_id_(GetNextId()) {
 }
 
@@ -99,11 +99,6 @@ ForStatement::ForStatement(ZoneStringList* labels)
 ForInStatement::ForInStatement(ZoneStringList* labels)
     : IterationStatement(labels), each_(NULL), enumerable_(NULL),
       assignment_id_(GetNextId()) {
-}
-
-
-bool FunctionLiteral::strict_mode() const {
-  return scope()->is_strict_mode();
 }
 
 

@@ -25,9 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that exceptions are not thrown when setting properties on object
-// that have only a getter in a prototype object, except when we are in strict
-// mode where exceptsions should be thrown.
+// Test that exceptions are thrown when setting properties on object
+// that have only a getter in a prototype object.
 
 var o = {};
 var p = {};
@@ -35,44 +34,25 @@ p.__defineGetter__('x', function(){});
 p.__defineGetter__(0, function(){});
 o.__proto__ = p;
 
-assertDoesNotThrow("o.x = 42");
-assertDoesNotThrow("o[0] = 42");
-
-assertThrows(function() { 'use strict'; o.x = 42; });
-assertThrows(function() { 'use strict'; o[0] = 42; });
+assertThrows("o.x = 42");
+assertThrows("o[0] = 42");
 
 function f() {
   with(o) {
     x = 42;
   }
 }
-
-assertDoesNotThrow(f);
+assertThrows("f()");
 
 __proto__ = p;
 function g() {
   eval('1');
   x = 42;
 }
-
-function g_strict() {
-  'use strict';
-  eval('1');
-  x = 42;
-}
-
-assertDoesNotThrow(g);
-assertThrows(g_strict);
+assertThrows("g()");
 
 __proto__ = p;
 function g2() {
   this[0] = 42;
 }
-
-function g2_strict() {
-  'use strict';
-  this[0] = 42;
-}
-
-assertDoesNotThrow(g2);
-assertThrows(g2_strict);
+assertThrows("g2()");

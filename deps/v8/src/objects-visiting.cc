@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -73,9 +73,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case FIXED_ARRAY_TYPE:
       return kVisitFixedArray;
 
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      return kVisitFixedDoubleArray;
-
     case ODDBALL_TYPE:
       return kVisitOddball;
 
@@ -91,15 +88,10 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case SHARED_FUNCTION_INFO_TYPE:
       return kVisitSharedFunctionInfo;
 
-    case JS_PROXY_TYPE:
-      return GetVisitorIdForSize(kVisitStruct,
-                                 kVisitStructGeneric,
-                                 JSProxy::kSize);
-
-    case FOREIGN_TYPE:
+    case PROXY_TYPE:
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,
-                                 Foreign::kSize);
+                                 Proxy::kSize);
 
     case FILLER_TYPE:
       return kVisitDataObjectGeneric;
@@ -121,7 +113,7 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
       return kVisitJSFunction;
 
     case HEAP_NUMBER_TYPE:
-    case EXTERNAL_PIXEL_ARRAY_TYPE:
+    case PIXEL_ARRAY_TYPE:
     case EXTERNAL_BYTE_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
     case EXTERNAL_SHORT_ARRAY_TYPE:
@@ -129,7 +121,6 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case EXTERNAL_INT_ARRAY_TYPE:
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
     case EXTERNAL_FLOAT_ARRAY_TYPE:
-    case EXTERNAL_DOUBLE_ARRAY_TYPE:
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,
                                  instance_size);

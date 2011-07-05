@@ -61,7 +61,7 @@ assertEquals("undefined", typeof(foo[3]), "out of range");
 assertEquals("undefined", typeof(foo[-2]), "negative index");
 
 var S = new String("foo");
-assertEquals(Object("foo"), S);
+assertEquals("foo", S);
 assertEquals("f", S[0], "string object");
 assertEquals("f", S["0"], "string object");
 S[0] = 'bente';
@@ -131,7 +131,7 @@ assertEquals(false, 3 in S);
 assertEquals(false, "3" in S);
 
 var N = new Number(43);
-assertEquals(Object(43), N);
+assertEquals(43, N);
 N[-2] = "Alpha";
 assertEquals("Alpha", N[-2]);
 N[0] = "Zappa";

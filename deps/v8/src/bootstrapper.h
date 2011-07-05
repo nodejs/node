@@ -29,148 +29,77 @@
 #ifndef V8_BOOTSTRAPPER_H_
 #define V8_BOOTSTRAPPER_H_
 
-#include "allocation.h"
-
 namespace v8 {
 namespace internal {
 
 
-// A SourceCodeCache uses a FixedArray to store pairs of
-// (AsciiString*, JSFunction*), mapping names of native code files
-// (runtime.js, etc.) to precompiled functions. Instead of mapping
-// names to functions it might make sense to let the JS2C tool
-// generate an index for each native JS file.
-class SourceCodeCache BASE_EMBEDDED {
+class BootstrapperActive BASE_EMBEDDED {
  public:
-  explicit SourceCodeCache(Script::Type type): type_(type), cache_(NULL) { }
+  BootstrapperActive() { nesting_++; }
+  ~BootstrapperActive() { nesting_--; }
 
-  void Initialize(bool create_heap_objects) {
-    cache_ = create_heap_objects ? HEAP->empty_fixed_array() : NULL;
-  }
-
-  void Iterate(ObjectVisitor* v) {
-    v->VisitPointer(BitCast<Object**, FixedArray**>(&cache_));
-  }
-
-  bool Lookup(Vector<const char> name, Handle<SharedFunctionInfo>* handle) {
-    for (int i = 0; i < cache_->length(); i+=2) {
-      SeqAsciiString* str = SeqAsciiString::cast(cache_->get(i));
-      if (str->IsEqualTo(name)) {
-        *handle = Handle<SharedFunctionInfo>(
-            SharedFunctionInfo::cast(cache_->get(i + 1)));
-        return true;
-      }
-    }
-    return false;
-  }
-
-  void Add(Vector<const char> name, Handle<SharedFunctionInfo> shared) {
-    HandleScope scope;
-    int length = cache_->length();
-    Handle<FixedArray> new_array =
-        FACTORY->NewFixedArray(length + 2, TENURED);
-    cache_->CopyTo(0, *new_array, 0, cache_->length());
-    cache_ = *new_array;
-    Handle<String> str = FACTORY->NewStringFromAscii(name, TENURED);
-    cache_->set(length, *str);
-    cache_->set(length + 1, *shared);
-    Script::cast(shared->script())->set_type(Smi::FromInt(type_));
-  }
+  // Support for thread preemption.
+  static int ArchiveSpacePerThread();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
 
  private:
-  Script::Type type_;
-  FixedArray* cache_;
-  DISALLOW_COPY_AND_ASSIGN(SourceCodeCache);
+  static bool IsActive() { return nesting_ != 0; }
+  static int nesting_;
+  friend class Bootstrapper;
 };
 
 
 // The Boostrapper is the public interface for creating a JavaScript global
 // context.
-class Bootstrapper {
+class Bootstrapper : public AllStatic {
  public:
   // Requires: Heap::Setup has been called.
-  void Initialize(bool create_heap_objects);
-  void TearDown();
+  static void Initialize(bool create_heap_objects);
+  static void TearDown();
 
   // Creates a JavaScript Global Context with initial object graph.
   // The returned value is a global handle casted to V8Environment*.
-  Handle<Context> CreateEnvironment(
-      Isolate* isolate,
+  static Handle<Context> CreateEnvironment(
       Handle<Object> global_object,
       v8::Handle<v8::ObjectTemplate> global_template,
       v8::ExtensionConfiguration* extensions);
 
   // Detach the environment from its outer global object.
-  void DetachGlobal(Handle<Context> env);
+  static void DetachGlobal(Handle<Context> env);
 
   // Reattach an outer global object to an environment.
-  void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
+  static void ReattachGlobal(Handle<Context> env, Handle<Object> global_object);
 
   // Traverses the pointers for memory management.
-  void Iterate(ObjectVisitor* v);
+  static void Iterate(ObjectVisitor* v);
 
   // Accessor for the native scripts source code.
-  Handle<String> NativesSourceLookup(int index);
+  static Handle<String> NativesSourceLookup(int index);
 
   // Tells whether bootstrapping is active.
-  bool IsActive() const { return nesting_ != 0; }
+  static bool IsActive() { return BootstrapperActive::IsActive(); }
 
   // Support for thread preemption.
   static int ArchiveSpacePerThread();
-  char* ArchiveState(char* to);
-  char* RestoreState(char* from);
-  void FreeThreadResources();
+  static char* ArchiveState(char* to);
+  static char* RestoreState(char* from);
+  static void FreeThreadResources();
 
   // This will allocate a char array that is deleted when V8 is shut down.
   // It should only be used for strictly finite allocations.
-  char* AllocateAutoDeletedArray(int bytes);
+  static char* AllocateAutoDeletedArray(int bytes);
 
   // Used for new context creation.
-  bool InstallExtensions(Handle<Context> global_context,
-                         v8::ExtensionConfiguration* extensions);
-
-  SourceCodeCache* extensions_cache() { return &extensions_cache_; }
-
- private:
-  typedef int NestingCounterType;
-  NestingCounterType nesting_;
-  SourceCodeCache extensions_cache_;
-  // This is for delete, not delete[].
-  List<char*>* delete_these_non_arrays_on_tear_down_;
-  // This is for delete[]
-  List<char*>* delete_these_arrays_on_tear_down_;
-
-  friend class BootstrapperActive;
-  friend class Isolate;
-  friend class NativesExternalStringResource;
-
-  Bootstrapper();
-
-  DISALLOW_COPY_AND_ASSIGN(Bootstrapper);
-};
-
-
-class BootstrapperActive BASE_EMBEDDED {
- public:
-  BootstrapperActive() {
-    ++Isolate::Current()->bootstrapper()->nesting_;
-  }
-
-  ~BootstrapperActive() {
-    --Isolate::Current()->bootstrapper()->nesting_;
-  }
-
- private:
-  DISALLOW_COPY_AND_ASSIGN(BootstrapperActive);
+  static bool InstallExtensions(Handle<Context> global_context,
+                                v8::ExtensionConfiguration* extensions);
 };
 
 
 class NativesExternalStringResource
     : public v8::String::ExternalAsciiStringResource {
  public:
-  NativesExternalStringResource(Bootstrapper* bootstrapper,
-                                const char* source,
-                                size_t length);
+  explicit NativesExternalStringResource(const char* source);
 
   const char* data() const {
     return data_;

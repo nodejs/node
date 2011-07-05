@@ -170,16 +170,14 @@ PropertyKind.Indexed = 2;
 
 // A copy of the PropertyType enum from global.h
 PropertyType = {};
-PropertyType.Normal                  = 0;
-PropertyType.Field                   = 1;
-PropertyType.ConstantFunction        = 2;
-PropertyType.Callbacks               = 3;
-PropertyType.Handler                 = 4;
-PropertyType.Interceptor             = 5;
-PropertyType.MapTransition           = 6;
-PropertyType.ExternalArrayTransition = 7;
-PropertyType.ConstantTransition      = 8;
-PropertyType.NullDescriptor          = 9;
+PropertyType.Normal             = 0;
+PropertyType.Field              = 1;
+PropertyType.ConstantFunction   = 2;
+PropertyType.Callbacks          = 3;
+PropertyType.Interceptor        = 4;
+PropertyType.MapTransition      = 5;
+PropertyType.ConstantTransition = 6;
+PropertyType.NullDescriptor     = 7;
 
 
 // Different attributes for a property.
@@ -1243,16 +1241,12 @@ const kFrameDetailsLocalCountIndex = 4;
 const kFrameDetailsSourcePositionIndex = 5;
 const kFrameDetailsConstructCallIndex = 6;
 const kFrameDetailsAtReturnIndex = 7;
-const kFrameDetailsFlagsIndex = 8;
+const kFrameDetailsDebuggerFrameIndex = 8;
 const kFrameDetailsFirstDynamicIndex = 9;
 
 const kFrameDetailsNameIndex = 0;
 const kFrameDetailsValueIndex = 1;
 const kFrameDetailsNameValueSize = 2;
-
-const kFrameDetailsFlagDebuggerFrame = 1;
-const kFrameDetailsFlagOptimizedFrame = 2;
-const kFrameDetailsFlagInlinedFrame = 4;
 
 /**
  * Wrapper for the frame details information retreived from the VM. The frame
@@ -1266,7 +1260,7 @@ const kFrameDetailsFlagInlinedFrame = 4;
  *     5: Source position
  *     6: Construct call
  *     7: Is at return
- *     8: Flags (debugger frame, optimized frame, inlined frame)
+ *     8: Debugger frame
  *     Arguments name, value
  *     Locals name, value
  *     Return value if any
@@ -1312,22 +1306,7 @@ FrameDetails.prototype.isAtReturn = function() {
 
 FrameDetails.prototype.isDebuggerFrame = function() {
   %CheckExecutionState(this.break_id_);
-  var f = kFrameDetailsFlagDebuggerFrame;
-  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
-}
-
-
-FrameDetails.prototype.isOptimizedFrame = function() {
-  %CheckExecutionState(this.break_id_);
-  var f = kFrameDetailsFlagOptimizedFrame;
-  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
-}
-
-
-FrameDetails.prototype.isInlinedFrame = function() {
-  %CheckExecutionState(this.break_id_);
-  var f = kFrameDetailsFlagInlinedFrame;
-  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
+  return this.details_[kFrameDetailsDebuggerFrameIndex];
 }
 
 
@@ -1463,16 +1442,6 @@ FrameMirror.prototype.isAtReturn = function() {
 
 FrameMirror.prototype.isDebuggerFrame = function() {
   return this.details_.isDebuggerFrame();
-};
-
-
-FrameMirror.prototype.isOptimizedFrame = function() {
-  return this.details_.isOptimizedFrame();
-};
-
-
-FrameMirror.prototype.isInlinedFrame = function() {
-  return this.details_.isInlinedFrame();
 };
 
 

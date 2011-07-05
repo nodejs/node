@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,31 +42,24 @@ static void WriteRinfo(RelocInfoWriter* writer,
 // Tests that writing both types of positions and then reading either
 // or both works as expected.
 TEST(Positions) {
-  const int code_size = 10 * KB;
-  int relocation_info_size = 10 * KB;
-  const int buffer_size = code_size + relocation_info_size;
-  SmartPointer<byte> buffer(new byte[buffer_size]);
+  const int instr_size = 10 << 10;
+  const int reloc_size = 10 << 10;
+  const int buf_size = instr_size + reloc_size;
+  SmartPointer<byte> buf(new byte[buf_size]);
+  byte* pc = *buf;
+  CodeDesc desc = { *buf, buf_size, instr_size, reloc_size, NULL };
 
-  byte* pc = *buffer;
-  byte* buffer_end = *buffer + buffer_size;
-
-  RelocInfoWriter writer(buffer_end, pc);
-  byte* relocation_info_end = buffer_end - relocation_info_size;
+  RelocInfoWriter writer(*buf + buf_size, pc);
   for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
     RelocInfo::Mode mode = (i % 2 == 0) ?
         RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
     WriteRinfo(&writer, pc, mode, pos);
-    CHECK(writer.pos() - RelocInfoWriter::kMaxSize >= relocation_info_end);
   }
-
-  relocation_info_size = static_cast<int>(buffer_end - writer.pos());
-  CodeDesc desc = { *buffer, buffer_size, code_size,
-                    relocation_info_size, NULL };
 
   // Read only (non-statement) positions.
   {
     RelocIterator it(desc, RelocInfo::ModeMask(RelocInfo::POSITION));
-    pc = *buffer;
+    pc = *buf;
     for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
       RelocInfo::Mode mode = (i % 2 == 0) ?
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
@@ -83,7 +76,7 @@ TEST(Positions) {
   // Read only statement positions.
   {
     RelocIterator it(desc, RelocInfo::ModeMask(RelocInfo::STATEMENT_POSITION));
-    pc = *buffer;
+    pc = *buf;
     for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
       RelocInfo::Mode mode = (i % 2 == 0) ?
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;
@@ -100,7 +93,7 @@ TEST(Positions) {
   // Read both types of positions.
   {
     RelocIterator it(desc, RelocInfo::kPositionMask);
-    pc = *buffer;
+    pc = *buf;
     for (int i = 0, pos = 0; i < 100; i++, pc += i, pos += i) {
       RelocInfo::Mode mode = (i % 2 == 0) ?
           RelocInfo::STATEMENT_POSITION : RelocInfo::POSITION;

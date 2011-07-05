@@ -33,9 +33,8 @@ namespace internal {
 
 // Storage for constants used by string-search.
 
-// Now in Isolate:
-// bad_char_shift_table()
-// good_suffix_shift_table()
-// suffix_table()
+int StringSearchBase::kBadCharShiftTable[kUC16AlphabetSize];
+int StringSearchBase::kGoodSuffixShiftTable[kBMMaxShift + 1];
+int StringSearchBase::kSuffixTable[kBMMaxShift + 1];
 
 }}  // namespace v8::internal

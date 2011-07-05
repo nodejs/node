@@ -60,7 +60,6 @@ namespace internal {
  * Each call to a public method should retain this convention.
  *
  * The stack will have the following structure:
- *  - fp[52]  Isolate* isolate   (Address of the current isolate)
  *  - fp[48]  direct_call  (if 1, direct call from JavaScript code,
  *                          if 0, call through the runtime system).
  *  - fp[44]  stack_area_base (High end of the memory area to use as
@@ -116,7 +115,7 @@ namespace internal {
 RegExpMacroAssemblerARM::RegExpMacroAssemblerARM(
     Mode mode,
     int registers_to_save)
-    : masm_(new MacroAssembler(Isolate::Current(), NULL, kRegExpCodeSize)),
+    : masm_(new MacroAssembler(NULL, kRegExpCodeSize)),
       mode_(mode),
       num_registers_(registers_to_save),
       num_saved_registers_(registers_to_save),
@@ -347,7 +346,7 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ sub(current_input_offset(), r2, end_of_input_address());
   } else {
     ASSERT(mode_ == UC16);
-    int argument_count = 4;
+    int argument_count = 3;
     __ PrepareCallCFunction(argument_count, r2);
 
     // r0 - offset of start of capture
@@ -358,7 +357,6 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     //   r0: Address byte_offset1 - Address captured substring's start.
     //   r1: Address byte_offset2 - Address of current character position.
     //   r2: size_t byte_length - length of capture in bytes(!)
-    //   r3: Isolate* isolate
 
     // Address of start of capture.
     __ add(r0, r0, Operand(end_of_input_address()));
@@ -368,11 +366,9 @@ void RegExpMacroAssemblerARM::CheckNotBackReferenceIgnoreCase(
     __ mov(r4, Operand(r1));
     // Address of current input position.
     __ add(r1, current_input_offset(), Operand(end_of_input_address()));
-    // Isolate.
-    __ mov(r3, Operand(ExternalReference::isolate_address()));
 
     ExternalReference function =
-        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
+        ExternalReference::re_case_insensitive_compare_uc16();
     __ CallCFunction(function, argument_count);
 
     // Check if function returned non-zero for success or zero for failure.
@@ -605,7 +601,7 @@ void RegExpMacroAssemblerARM::Fail() {
 }
 
 
-Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
+Handle<Object> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   // Finalize code - write the entry point code now we know how many
   // registers we need.
 
@@ -630,7 +626,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
   Label stack_ok;
 
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm_->isolate());
+      ExternalReference::address_of_stack_limit();
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ sub(r0, sp, r0, SetCC);
@@ -781,13 +777,12 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
     Label grow_failed;
 
     // Call GrowStack(backtrack_stackpointer(), &stack_base)
-    static const int num_arguments = 3;
+    static const int num_arguments = 2;
     __ PrepareCallCFunction(num_arguments, r0);
     __ mov(r0, backtrack_stackpointer());
     __ add(r1, frame_pointer(), Operand(kStackHighEnd));
-    __ mov(r2, Operand(ExternalReference::isolate_address()));
     ExternalReference grow_stack =
-        ExternalReference::re_grow_stack(masm_->isolate());
+      ExternalReference::re_grow_stack();
     __ CallCFunction(grow_stack, num_arguments);
     // If return NULL, we have failed to grow the stack, and
     // must exit with a stack-overflow exception.
@@ -809,11 +804,11 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
   CodeDesc code_desc;
   masm_->GetCode(&code_desc);
-  Handle<Code> code = FACTORY->NewCode(code_desc,
+  Handle<Code> code = Factory::NewCode(code_desc,
                                        Code::ComputeFlags(Code::REGEXP),
                                        masm_->CodeObject());
-  PROFILE(Isolate::Current(), RegExpCodeCreateEvent(*code, *source));
-  return Handle<HeapObject>::cast(code);
+  PROFILE(RegExpCodeCreateEvent(*code, *source));
+  return Handle<Object>::cast(code);
 }
 
 
@@ -899,12 +894,13 @@ void RegExpMacroAssemblerARM::PushBacktrack(Label* label) {
       constant_offset - offset_of_pc_register_read;
     ASSERT(pc_offset_of_constant < 0);
     if (is_valid_memory_offset(pc_offset_of_constant)) {
-      Assembler::BlockConstPoolScope block_const_pool(masm_);
+      masm_->BlockConstPoolBefore(masm_->pc_offset() + Assembler::kInstrSize);
       __ ldr(r0, MemOperand(pc, pc_offset_of_constant));
     } else {
       // Not a 12-bit offset, so it needs to be loaded from the constant
       // pool.
-      Assembler::BlockConstPoolScope block_const_pool(masm_);
+      masm_->BlockConstPoolBefore(
+          masm_->pc_offset() + 2 * Assembler::kInstrSize);
       __ mov(r0, Operand(pc_offset_of_constant + Assembler::kInstrSize));
       __ ldr(r0, MemOperand(pc, r0));
     }
@@ -1002,7 +998,7 @@ void RegExpMacroAssemblerARM::CallCheckStackGuardState(Register scratch) {
   __ mov(r1, Operand(masm_->CodeObject()));
   // r0 becomes return address pointer.
   ExternalReference stack_guard_check =
-      ExternalReference::re_check_stack_guard_state(masm_->isolate());
+      ExternalReference::re_check_stack_guard_state();
   CallCFunctionUsingStub(stack_guard_check, num_arguments);
 }
 
@@ -1017,10 +1013,8 @@ static T& frame_entry(Address re_frame, int frame_offset) {
 int RegExpMacroAssemblerARM::CheckStackGuardState(Address* return_address,
                                                   Code* re_code,
                                                   Address re_frame) {
-  Isolate* isolate = frame_entry<Isolate*>(re_frame, kIsolate);
-  ASSERT(isolate == Isolate::Current());
-  if (isolate->stack_guard()->IsStackOverflow()) {
-    isolate->StackOverflow();
+  if (StackGuard::IsStackOverflow()) {
+    Top::StackOverflow();
     return EXCEPTION;
   }
 
@@ -1164,7 +1158,7 @@ void RegExpMacroAssemblerARM::Pop(Register target) {
 void RegExpMacroAssemblerARM::CheckPreemption() {
   // Check for preemption.
   ExternalReference stack_limit =
-      ExternalReference::address_of_stack_limit(masm_->isolate());
+      ExternalReference::address_of_stack_limit();
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmp(sp, r0);
@@ -1174,7 +1168,7 @@ void RegExpMacroAssemblerARM::CheckPreemption() {
 
 void RegExpMacroAssemblerARM::CheckStackLimit() {
   ExternalReference stack_limit =
-      ExternalReference::address_of_regexp_stack_limit(masm_->isolate());
+      ExternalReference::address_of_regexp_stack_limit();
   __ mov(r0, Operand(stack_limit));
   __ ldr(r0, MemOperand(r0));
   __ cmp(backtrack_stackpointer(), Operand(r0));
@@ -1184,7 +1178,8 @@ void RegExpMacroAssemblerARM::CheckStackLimit() {
 
 void RegExpMacroAssemblerARM::EmitBacktrackConstantPool() {
   __ CheckConstPool(false, false);
-  Assembler::BlockConstPoolScope block_const_pool(masm_);
+  __ BlockConstPoolBefore(
+      masm_->pc_offset() + kBacktrackConstantPoolSize * Assembler::kInstrSize);
   backtrack_constant_pool_offset_ = masm_->pc_offset();
   for (int i = 0; i < kBacktrackConstantPoolSize; i++) {
     __ emit(0);

@@ -32,7 +32,6 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
-#include <new>
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
 #include "unbound-queue-inl.h"
@@ -42,8 +41,8 @@ namespace internal {
 
 void CodeCreateEventRecord::UpdateCodeMap(CodeMap* code_map) {
   code_map->AddCode(start, entry, size);
-  if (shared != NULL) {
-    entry->set_shared_id(code_map->GetSharedId(shared));
+  if (sfi_address != NULL) {
+    entry->set_shared_id(code_map->GetSFITag(sfi_address));
   }
 }
 
@@ -58,15 +57,28 @@ void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
-void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
+void SFIMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
   code_map->MoveCode(from, to);
+}
+
+
+TickSampleEventRecord* TickSampleEventRecord::init(void* value) {
+  TickSampleEventRecord* result =
+      reinterpret_cast<TickSampleEventRecord*>(value);
+  result->filler = 1;
+  ASSERT(result->filler != SamplingCircularQueue::kClear);
+  // Init the required fields only.
+  result->sample.pc = NULL;
+  result->sample.frames_count = 0;
+  return result;
 }
 
 
 TickSample* ProfilerEventsProcessor::TickSampleEvent() {
   generator_->Tick();
   TickSampleEventRecord* evt =
-      new(ticks_buffer_.Enqueue()) TickSampleEventRecord(enqueue_order_);
+      TickSampleEventRecord::init(ticks_buffer_.Enqueue());
+  evt->order = enqueue_order_;  // No increment!
   return &evt->sample;
 }
 

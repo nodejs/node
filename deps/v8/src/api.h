@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -53,8 +53,8 @@ class Consts {
 class NeanderObject {
  public:
   explicit NeanderObject(int size);
-  explicit inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
-  explicit inline NeanderObject(v8::internal::Object* obj);
+  inline NeanderObject(v8::internal::Handle<v8::internal::Object> obj);
+  inline NeanderObject(v8::internal::Object* obj);
   inline v8::internal::Object* get(int index);
   inline void set(int index, v8::internal::Object* value);
   inline v8::internal::Handle<v8::internal::JSObject> value() { return value_; }
@@ -69,7 +69,7 @@ class NeanderObject {
 class NeanderArray {
  public:
   NeanderArray();
-  explicit inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
+  inline NeanderArray(v8::internal::Handle<v8::internal::Object> obj);
   inline v8::internal::Handle<v8::internal::JSObject> value() {
     return obj_.value();
   }
@@ -115,14 +115,14 @@ void NeanderObject::set(int offset, v8::internal::Object* value) {
 template <typename T> static inline T ToCData(v8::internal::Object* obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
   return reinterpret_cast<T>(
-      reinterpret_cast<intptr_t>(v8::internal::Foreign::cast(obj)->address()));
+      reinterpret_cast<intptr_t>(v8::internal::Proxy::cast(obj)->proxy()));
 }
 
 
 template <typename T>
 static inline v8::internal::Handle<v8::internal::Object> FromCData(T obj) {
   STATIC_ASSERT(sizeof(T) == sizeof(v8::internal::Address));
-  return FACTORY->NewForeign(
+  return v8::internal::Factory::NewProxy(
       reinterpret_cast<v8::internal::Address>(reinterpret_cast<intptr_t>(obj)));
 }
 
@@ -157,6 +157,7 @@ class RegisteredExtension {
   RegisteredExtension* next_auto_;
   ExtensionTraversalState state_;
   static RegisteredExtension* first_extension_;
+  static RegisteredExtension* first_auto_extension_;
 };
 
 
@@ -182,7 +183,7 @@ class Utils {
   static inline Local<Array> ToLocal(
       v8::internal::Handle<v8::internal::JSArray> obj);
   static inline Local<External> ToLocal(
-      v8::internal::Handle<v8::internal::Foreign> obj);
+      v8::internal::Handle<v8::internal::Proxy> obj);
   static inline Local<Message> MessageToLocal(
       v8::internal::Handle<v8::internal::Object> obj);
   static inline Local<StackTrace> StackTraceToLocal(
@@ -236,7 +237,7 @@ class Utils {
       OpenHandle(const v8::Signature* sig);
   static inline v8::internal::Handle<v8::internal::TypeSwitchInfo>
       OpenHandle(const v8::TypeSwitch* that);
-  static inline v8::internal::Handle<v8::internal::Foreign>
+  static inline v8::internal::Handle<v8::internal::Proxy>
       OpenHandle(const v8::External* that);
 };
 
@@ -273,7 +274,7 @@ MAKE_TO_LOCAL(ToLocal, String, String)
 MAKE_TO_LOCAL(ToLocal, JSRegExp, RegExp)
 MAKE_TO_LOCAL(ToLocal, JSObject, Object)
 MAKE_TO_LOCAL(ToLocal, JSArray, Array)
-MAKE_TO_LOCAL(ToLocal, Foreign, External)
+MAKE_TO_LOCAL(ToLocal, Proxy, External)
 MAKE_TO_LOCAL(ToLocal, FunctionTemplateInfo, FunctionTemplate)
 MAKE_TO_LOCAL(ToLocal, ObjectTemplateInfo, ObjectTemplate)
 MAKE_TO_LOCAL(ToLocal, SignatureInfo, Signature)
@@ -311,7 +312,7 @@ MAKE_OPEN_HANDLE(Script, Object)
 MAKE_OPEN_HANDLE(Function, JSFunction)
 MAKE_OPEN_HANDLE(Message, JSObject)
 MAKE_OPEN_HANDLE(Context, Context)
-MAKE_OPEN_HANDLE(External, Foreign)
+MAKE_OPEN_HANDLE(External, Proxy)
 MAKE_OPEN_HANDLE(StackTrace, JSArray)
 MAKE_OPEN_HANDLE(StackFrame, JSObject)
 
@@ -320,101 +321,36 @@ MAKE_OPEN_HANDLE(StackFrame, JSObject)
 
 namespace internal {
 
-// Tracks string usage to help make better decisions when
-// externalizing strings.
-//
-// Implementation note: internally this class only tracks fresh
-// strings and keeps a single use counter for them.
-class StringTracker {
- public:
-  // Records that the given string's characters were copied to some
-  // external buffer. If this happens often we should honor
-  // externalization requests for the string.
-  void RecordWrite(Handle<String> string) {
-    Address address = reinterpret_cast<Address>(*string);
-    Address top = isolate_->heap()->NewSpaceTop();
-    if (IsFreshString(address, top)) {
-      IncrementUseCount(top);
-    }
-  }
-
-  // Estimates freshness and use frequency of the given string based
-  // on how close it is to the new space top and the recorded usage
-  // history.
-  inline bool IsFreshUnusedString(Handle<String> string) {
-    Address address = reinterpret_cast<Address>(*string);
-    Address top = isolate_->heap()->NewSpaceTop();
-    return IsFreshString(address, top) && IsUseCountLow(top);
-  }
-
- private:
-  StringTracker() : use_count_(0), last_top_(NULL), isolate_(NULL) { }
-
-  static inline bool IsFreshString(Address string, Address top) {
-    return top - kFreshnessLimit <= string && string <= top;
-  }
-
-  inline bool IsUseCountLow(Address top) {
-    if (last_top_ != top) return true;
-    return use_count_ < kUseLimit;
-  }
-
-  inline void IncrementUseCount(Address top) {
-    if (last_top_ != top) {
-      use_count_ = 0;
-      last_top_ = top;
-    }
-    ++use_count_;
-  }
-
-  // Single use counter shared by all fresh strings.
-  int use_count_;
-
-  // Last new space top when the use count above was valid.
-  Address last_top_;
-
-  Isolate* isolate_;
-
-  // How close to the new space top a fresh string has to be.
-  static const int kFreshnessLimit = 1024;
-
-  // The number of uses required to consider a string useful.
-  static const int kUseLimit = 32;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(StringTracker);
-};
-
-
 // This class is here in order to be able to declare it a friend of
 // HandleScope.  Moving these methods to be members of HandleScope would be
-// neat in some ways, but it would expose internal implementation details in
+// neat in some ways, but it would expose external implementation details in
 // our public header file, which is undesirable.
 //
-// An isolate has a single instance of this class to hold the current thread's
-// data. In multithreaded V8 programs this data is copied in and out of storage
+// There is a singleton instance of this class to hold the per-thread data.
+// For multithreaded V8 programs this data is copied in and out of storage
 // so that the currently executing thread always has its own copy of this
 // data.
 class HandleScopeImplementer {
  public:
-  explicit HandleScopeImplementer(Isolate* isolate)
-      : isolate_(isolate),
-        blocks_(0),
+
+  HandleScopeImplementer()
+      : blocks_(0),
         entered_contexts_(0),
         saved_contexts_(0),
         spare_(NULL),
         ignore_out_of_memory_(false),
         call_depth_(0) { }
 
+  static HandleScopeImplementer* instance();
+
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
-  char* RestoreThread(char* from);
-  char* ArchiveThread(char* to);
-  void FreeThreadResources();
+  static char* RestoreThread(char* from);
+  static char* ArchiveThread(char* to);
+  static void FreeThreadResources();
 
   // Garbage collection support.
-  void Iterate(v8::internal::ObjectVisitor* v);
+  static void Iterate(v8::internal::ObjectVisitor* v);
   static char* Iterate(v8::internal::ObjectVisitor* v, char* data);
 
 
@@ -466,7 +402,6 @@ class HandleScopeImplementer {
     ASSERT(call_depth_ == 0);
   }
 
-  Isolate* isolate_;
   List<internal::Object**> blocks_;
   // Used as a stack to keep track of entered contexts.
   List<Handle<Object> > entered_contexts_;

@@ -44,13 +44,13 @@ class StringCompareInput : public Comparator::Input {
  public:
   StringCompareInput(const char* s1, const char* s2) : s1_(s1), s2_(s2) {
   }
-  int GetLength1() {
+  int getLength1() {
     return StrLength(s1_);
   }
-  int GetLength2() {
+  int getLength2() {
     return StrLength(s2_);
   }
-  bool Equals(int index1, int index2) {
+  bool equals(int index1, int index2) {
     return s1_[index1] == s2_[index2];
   }
 
@@ -95,7 +95,7 @@ void CompareStringsOneWay(const char* s1, const char* s2,
                           int expected_diff_parameter = -1) {
   StringCompareInput input(s1, s2);
 
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
+  ZoneScope zone_scope(DELETE_ON_EXIT);
 
   DiffChunkStruct* first_chunk;
   ListDiffOutputWriter writer(&first_chunk);
@@ -158,7 +158,6 @@ void CompareStrings(const char* s1, const char* s2,
 // --- T h e   A c t u a l   T e s t s
 
 TEST(LiveEditDiffer) {
-  v8::internal::V8::Initialize(NULL);
   CompareStrings("zz1zzz12zz123zzz", "zzzzzzzzzz", 6);
   CompareStrings("zz1zzz12zz123zzz", "zz0zzz0zz0zzz", 9);
   CompareStrings("123456789", "987654321", 16);

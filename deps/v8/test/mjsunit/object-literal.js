@@ -105,7 +105,7 @@ assertFalse(a.a.b === b.a.b);
 assertFalse(a.a.c === b.a.c);
 
 
-// Test keywords are valid as property names in initializers and dot-access.
+// Test keywords valid as property names in initializers and dot-access.
 var keywords = [
   "break",
   "case",
@@ -124,6 +124,7 @@ var keywords = [
   "if",
   "in",
   "instanceof",
+  "native",
   "new",
   "null",
   "return",
@@ -136,18 +137,15 @@ var keywords = [
   "var",
   "void",
   "while",
-  "with"
+  "with",
 ];
 
 function testKeywordProperty(keyword) {
-  var exception = false;
   try {
     // Sanity check that what we get is a keyword.
     eval("var " + keyword + " = 42;");
-  } catch (e) {
-    exception = true;
-  }
-  assertTrue(exception);
+    assertUnreachable("Not a keyword: " + keyword);
+  } catch (e) { }
 
   // Simple property, read and write.
   var x = eval("({" + keyword + ": 42})");

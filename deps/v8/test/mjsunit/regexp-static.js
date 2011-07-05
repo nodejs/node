@@ -134,8 +134,7 @@ function f() { return RegExp.$1; };
 assertEquals('abcd', 'abcd'.replace(re, f));
 
 // lastParen where the last parenthesis didn't match.
-assertEquals(["foo",undefined], /foo(?:a(x))?/.exec("foobx"),
-             "lastParen setup");
+assertEquals("foo,", /foo(?:a(x))?/.exec("foobx"), "lastParen setup");
 assertEquals("", RegExp.lastParen, "lastParen");
 
 // The same test for $1 to $9.

@@ -87,11 +87,6 @@ class V8EXPORT Testing {
    * should be between 0 and one less than the result from GetStressRuns()
    */
   static void PrepareStressRun(int run);
-
-  /**
-   * Force deoptimization of all functions.
-   */
-  static void DeoptimizeAll();
 };
 
 

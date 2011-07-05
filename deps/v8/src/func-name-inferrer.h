@@ -31,8 +31,6 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
-
 // FuncNameInferrer is a stateful class that is used to perform name
 // inference for anonymous functions during static analysis of source code.
 // Inference is performed in cases when an anonymous function is assigned
@@ -45,7 +43,12 @@ class Isolate;
 // a name.
 class FuncNameInferrer : public ZoneObject {
  public:
-  explicit FuncNameInferrer(Isolate* isolate);
+  FuncNameInferrer()
+      : entries_stack_(10),
+        names_stack_(5),
+        funcs_to_infer_(4),
+        dot_(Factory::NewStringFromAscii(CStrVector("."))) {
+  }
 
   // Returns whether we have entered name collection state.
   bool IsOpen() const { return !entries_stack_.is_empty(); }
@@ -78,26 +81,13 @@ class FuncNameInferrer : public ZoneObject {
     }
   }
 
-  // Leaves names collection state.
+  // Infers a function name and leaves names collection state.
   void Leave() {
     ASSERT(IsOpen());
     names_stack_.Rewind(entries_stack_.RemoveLast());
   }
 
  private:
-  enum NameType {
-    kEnclosingConstructorName,
-    kLiteralName,
-    kVariableName
-  };
-  struct Name {
-    Name(Handle<String> name, NameType type) : name(name), type(type) { }
-    Handle<String> name;
-    NameType type;
-  };
-
-  Isolate* isolate() { return isolate_; }
-
   // Constructs a full name in dotted notation from gathered names.
   Handle<String> MakeNameFromStack();
 
@@ -107,10 +97,10 @@ class FuncNameInferrer : public ZoneObject {
   // Performs name inferring for added functions.
   void InferFunctionsNames();
 
-  Isolate* isolate_;
   ZoneList<int> entries_stack_;
-  ZoneList<Name> names_stack_;
+  ZoneList<Handle<String> > names_stack_;
   ZoneList<FunctionLiteral*> funcs_to_infer_;
+  Handle<String> dot_;
 
   DISALLOW_COPY_AND_ASSIGN(FuncNameInferrer);
 };

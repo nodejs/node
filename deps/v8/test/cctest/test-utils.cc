@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,9 +29,8 @@
 
 #include "v8.h"
 
-#include "cctest.h"
 #include "platform.h"
-#include "utils-inl.h"
+#include "cctest.h"
 
 using namespace v8::internal;
 
@@ -90,8 +89,8 @@ void TestMemCopy(Vector<byte> src,
   memset(dst.start(), 0xFF, dst.length());
   byte* to = dst.start() + 32 + destination_alignment;
   byte* from = src.start() + source_alignment;
-  int length = OS::kMinComplexMemCopy + length_alignment;
-  OS::MemCopy(to, from, static_cast<size_t>(length));
+  int length = kMinComplexMemCopy + length_alignment;
+  MemCopy(to, from, static_cast<size_t>(length));
   printf("[%d,%d,%d]\n",
          source_alignment, destination_alignment, length_alignment);
   for (int i = 0; i < length; i++) {
@@ -104,9 +103,8 @@ void TestMemCopy(Vector<byte> src,
 
 
 TEST(MemCopy) {
-  v8::V8::Initialize();
-  OS::Setup();
-  const int N = OS::kMinComplexMemCopy + 128;
+  V8::Initialize(NULL);
+  const int N = kMinComplexMemCopy + 128;
   Vector<byte> buffer1 = Vector<byte>::New(N);
   Vector<byte> buffer2 = Vector<byte>::New(N);
 

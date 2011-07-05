@@ -10,12 +10,8 @@ using namespace ::v8::internal;
 
 class SocketListenerThread : public Thread {
  public:
-  SocketListenerThread(int port, int data_size)
-      : Thread("SocketListenerThread"),
-        port_(port),
-        data_size_(data_size),
-        server_(NULL),
-        client_(NULL),
+  explicit SocketListenerThread(int port, int data_size)
+      : port_(port), data_size_(data_size), server_(NULL), client_(NULL),
         listening_(OS::CreateSemaphore(0)) {
     data_ = new char[data_size_];
   }
