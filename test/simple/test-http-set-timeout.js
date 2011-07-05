@@ -24,12 +24,11 @@ var assert = require('assert');
 var http = require('http');
 
 var server = http.createServer(function(req, res) {
-  console.log('got request. setting 100ms second timeout');
-  req.connection.setTimeout(100);
+  console.log('got request. setting 1 second timeout');
+  req.connection.setTimeout(500);
 
-  req.on('close', function(err) {
-    assert.strictEqual(err.code, 'timeout');
-
+  req.connection.addListener('timeout', function() {
+    req.connection.destroy();
     common.debug('TIMEOUT');
     server.close();
   });
