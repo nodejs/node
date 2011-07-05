@@ -119,7 +119,7 @@ function test(handler, request_generator, response_validator) {
   }
 
   function response_validator(server_response, client_got_eof, timed_out) {
-    var expected_response = ("HTTP/1.0 200 OK\r\n"
+    var expected_response = ("HTTP/1.1 200 OK\r\n"
         + "Content-Type: text/plain\r\n"
         + "Connection: close\r\n"
         + "\r\n"
