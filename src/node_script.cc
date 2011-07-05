@@ -50,6 +50,7 @@ class WrappedContext : ObjectWrap {
 
   Persistent<Context> GetV8Context();
   static Local<Object> NewInstance();
+  static bool InstanceOf(Handle<Value> value);
 
  protected:
 
@@ -107,6 +108,11 @@ void WrappedContext::Initialize(Handle<Object> target) {
 
   target->Set(String::NewSymbol("Context"),
               constructor_template->GetFunction());
+}
+
+
+bool WrappedContext::InstanceOf(Handle<Value> value) {
+  return !value.IsEmpty() && constructor_template->HasInstance(value);
 }
 
 
@@ -282,7 +288,9 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   }
 
   const int sandbox_index = input_flag == compileCode ? 1 : 0;
-  if (context_flag == userContext && args.Length() < (sandbox_index + 1)) {
+  if (context_flag == userContext
+    && !WrappedContext::InstanceOf(args[sandbox_index]))
+  {
     return ThrowException(Exception::TypeError(
           String::New("needs a 'context' argument.")));
   }

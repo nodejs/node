@@ -22,7 +22,8 @@
 var common = require('../common');
 var assert = require('assert');
 
-var Script = require('vm').Script;
+var vm = require('vm');
+var Script = vm.Script;
 var script = new Script('"passed";');
 
 common.debug('run in a new empty context');
@@ -44,3 +45,13 @@ assert.equal('lala', context.thing);
 
 // Issue GH-227:
 Script.runInNewContext('', null, 'some.js');
+
+// GH-558, non-context argument segfaults / raises assertion
+function isTypeError(o) {
+  return o instanceof TypeError;
+}
+
+[undefined, null, 0, 0.0, '', {}, []].forEach(function(e) {
+  assert.throws(function() { script.runInContext(e); }, isTypeError);
+  assert.throws(function() { vm.runInContext('', e); }, isTypeError);
+});
