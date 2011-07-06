@@ -131,17 +131,17 @@ function pingPongTest(port, host) {
 /* All are run at once, so run on different ports */
 if (!process.useUV) {
   // these tests will not run yet with net_uv TODO: remove when net_uv supports dns
-  pingPongTest(20997, '::1');
   pingPongTest('/tmp/pingpong.sock');
 }
 pingPongTest(20988);
 pingPongTest(20989, 'localhost');
+pingPongTest(20997, '::1');
 
 process.addListener('exit', function () {
   if (!process.useUV) {
     assert.equal(4, tests_run);
   } else {
-    assert.equal(2, tests_run);
+    assert.equal(3, tests_run);
   }
   console.log('done');
 });

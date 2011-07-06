@@ -99,6 +99,8 @@ class TCPWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
     NODE_SET_PROTOTYPE_METHOD(t, "shutdown", Shutdown);
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
+    NODE_SET_PROTOTYPE_METHOD(t, "bind6", Bind6);
+    NODE_SET_PROTOTYPE_METHOD(t, "connect6", Connect6);
 
     constructor = Persistent<Function>::New(t->GetFunction());
 
@@ -161,6 +163,23 @@ class TCPWrap {
 
     struct sockaddr_in address = uv_ip4_addr(*ip_address, port);
     int r = uv_tcp_bind(&wrap->handle_, address);
+
+    // Error starting the tcp.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(Integer::New(r));
+  }
+
+  static Handle<Value> Bind6(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    String::AsciiValue ip6_address(args[0]->ToString());
+    int port = args[1]->Int32Value();
+
+    struct sockaddr_in6 address = uv_ip6_addr(*ip6_address, port);
+    int r = uv_tcp_bind6(&wrap->handle_, address);
 
     // Error starting the tcp.
     if (r) SetErrno(uv_last_error().code);
@@ -452,6 +471,33 @@ class TCPWrap {
                                     (void*)AfterConnect);
 
     int r = uv_tcp_connect(&req_wrap->req_, address);
+
+    if (r) {
+      SetErrno(uv_last_error().code);
+      delete req_wrap;
+      return scope.Close(v8::Null());
+    } else {
+      return scope.Close(req_wrap->object_);
+    }
+  }
+
+  static Handle<Value> Connect6(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    String::AsciiValue ip_address(args[0]->ToString());
+    int port = args[1]->Int32Value();
+
+    struct sockaddr_in6 address = uv_ip6_addr(*ip_address, port);
+
+    // I hate when people program C++ like it was C, and yet I do it too.
+    // I'm too lazy to come up with the perfect class hierarchy here. Let's
+    // just do some type munging.
+    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
+                                    (void*)AfterConnect);
+
+    int r = uv_tcp_connect6(&req_wrap->req_, address);
 
     if (r) {
       SetErrno(uv_last_error().code);
