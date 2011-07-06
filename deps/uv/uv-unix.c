@@ -659,7 +659,9 @@ static uv_req_t* uv__write(uv_tcp_t* tcp) {
 
           /* Pop the req off tcp->write_queue. */
           ngx_queue_remove(&req->queue);
-          free(req->bufs); /* FIXME: we should not be allocing for each read */
+          if (req->bufs != req->bufsml) {
+            free(req->bufs);
+          }
           req->bufs = NULL;
 
           /* Add it to the write_completed_queue where it will have its
@@ -943,6 +945,13 @@ int uv_tcp_connect(uv_req_t* req, struct sockaddr_in addr) {
 }
 
 
+/* TODO: Implement IPv6 Connect for UNIX */
+int uv_tcp_connect6(uv_req_t* req, struct sockaddr_in6 addr) {
+  uv_err_new_artificial((uv_handle_t*)req->handle, UV_EAFNOSUPPORT);
+  return -1;
+}
+
+
 static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
   size_t total = 0;
   int i;
@@ -966,10 +975,18 @@ int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt) {
   ngx_queue_init(&req->queue);
   req->type = UV_WRITE;
 
-  /* TODO: Don't malloc for each write... */
-  req->bufs = malloc(sizeof(uv_buf_t) * bufcnt);
+
+  if (bufcnt < UV_REQ_BUFSML_SIZE) {
+    req->bufs = req->bufsml;
+  }
+  else {
+    req->bufs = malloc(sizeof(uv_buf_t) * bufcnt);
+  }
+
   memcpy(req->bufs, bufs, bufcnt * sizeof(uv_buf_t));
   req->bufcnt = bufcnt;
+
+  // fprintf(stderr, "cnt: %d bufs: %p bufsml: %p\n", bufcnt, req->bufs, req->bufsml);
 
   req->write_index = 0;
   tcp->write_queue_size += uv__buf_count(bufs, bufcnt);

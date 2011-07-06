@@ -139,6 +139,12 @@ static LPFN_ACCEPTEX                pAcceptEx;
 static LPFN_GETACCEPTEXSOCKADDRS    pGetAcceptExSockAddrs;
 static LPFN_DISCONNECTEX            pDisconnectEx;
 static LPFN_TRANSMITFILE            pTransmitFile;
+/* need IPv6 versions of winsock extension functions */
+static LPFN_CONNECTEX               pConnectEx6;
+static LPFN_ACCEPTEX                pAcceptEx6;
+static LPFN_GETACCEPTEXSOCKADDRS    pGetAcceptExSockAddrs6;
+static LPFN_DISCONNECTEX            pDisconnectEx6;
+static LPFN_TRANSMITFILE            pTransmitFile6;
 
 
 /*
@@ -157,6 +163,7 @@ static LPFN_TRANSMITFILE            pTransmitFile;
 #define UV_HANDLE_SHUT             0x0200
 #define UV_HANDLE_ENDGAME_QUEUED   0x0400
 #define UV_HANDLE_BIND_ERROR       0x1000
+#define UV_HANDLE_IPV6             0x2000
 
 /*
  * Private uv_req flags.
@@ -208,6 +215,7 @@ static int uv_refs_ = 0;
 
 /* Ip address used to bind to any port at any interface */
 static struct sockaddr_in uv_addr_ip4_any_;
+static struct sockaddr_in6 uv_addr_ip6_any_;
 
 
 /* A zero-size buffer for use by uv_read */
@@ -417,6 +425,7 @@ void uv_init() {
   int errorno;
   LARGE_INTEGER timer_frequency;
   SOCKET dummy;
+  SOCKET dummy6;
 
   /* Initialize winsock */
   errorno = WSAStartup(MAKEWORD(2, 2), &wsa_data);
@@ -426,6 +435,7 @@ void uv_init() {
 
   /* Set implicit binding address used by connectEx */
   uv_addr_ip4_any_ = uv_ip4_addr("0.0.0.0", 0);
+  uv_addr_ip6_any_ = uv_ip6_addr("::1", 0);
 
   /* Retrieve the needed winsock extension function pointers. */
   dummy = socket(AF_INET, SOCK_STREAM, IPPROTO_IP);
@@ -452,6 +462,33 @@ void uv_init() {
   if (closesocket(dummy) == SOCKET_ERROR) {
     uv_fatal_error(WSAGetLastError(), "closesocket");
   }
+
+/* need IPv6 versions of winsock extension functions */
+  dummy6 = socket(AF_INET6, SOCK_STREAM, IPPROTO_IP);
+  if (dummy == INVALID_SOCKET) {
+    uv_fatal_error(WSAGetLastError(), "socket");
+  }
+
+  uv_get_extension_function(dummy6,
+                            wsaid_connectex,
+                            (void**)&pConnectEx6);
+  uv_get_extension_function(dummy6,
+                            wsaid_acceptex,
+                            (void**)&pAcceptEx6);
+  uv_get_extension_function(dummy6,
+                            wsaid_getacceptexsockaddrs,
+                            (void**)&pGetAcceptExSockAddrs6);
+  uv_get_extension_function(dummy6,
+                            wsaid_disconnectex,
+                            (void**)&pDisconnectEx6);
+  uv_get_extension_function(dummy6,
+                            wsaid_transmitfile,
+                            (void**)&pTransmitFile6);
+
+  if (closesocket(dummy6) == SOCKET_ERROR) {
+    uv_fatal_error(WSAGetLastError(), "closesocket");
+  }
+
 
   /* Create an I/O completion port */
   uv_iocp_ = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
@@ -815,7 +852,7 @@ int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
     uv_set_sys_error(WSAEFAULT);
     return -1;
   }
-
+  handle->flags |= UV_HANDLE_IPV6;
   return uv__bind(handle, AF_INET6, (struct sockaddr*)&addr, sizeof(struct sockaddr_in6));
 }
 
@@ -825,6 +862,8 @@ static void uv_queue_accept(uv_tcp_t* handle) {
   BOOL success;
   DWORD bytes;
   SOCKET accept_socket;
+  short family;
+  LPFN_ACCEPTEX pAcceptExFamily;
 
   assert(handle->flags & UV_HANDLE_LISTENING);
   assert(handle->accept_socket == INVALID_SOCKET);
@@ -835,8 +874,17 @@ static void uv_queue_accept(uv_tcp_t* handle) {
   req->type = UV_ACCEPT;
   req->flags |= UV_REQ_PENDING;
 
+  /* choose family and extension function */
+  if ((handle->flags & UV_HANDLE_IPV6) != 0) {
+    family = AF_INET6;
+    pAcceptExFamily = pAcceptEx6;
+  } else {
+    family = AF_INET;
+    pAcceptExFamily = pAcceptEx;
+  }
+
   /* Open a socket for the accepted connection. */
-  accept_socket = socket(AF_INET, SOCK_STREAM, 0);
+  accept_socket = socket(family, SOCK_STREAM, 0);
   if (accept_socket == INVALID_SOCKET) {
     req->error = uv_new_sys_error(WSAGetLastError());
     uv_insert_pending_req(req);
@@ -846,14 +894,14 @@ static void uv_queue_accept(uv_tcp_t* handle) {
   /* Prepare the overlapped structure. */
   memset(&(req->overlapped), 0, sizeof(req->overlapped));
 
-  success = pAcceptEx(handle->socket,
-                      accept_socket,
-                      (void*)&handle->accept_buffer,
-                      0,
-                      sizeof(struct sockaddr_storage),
-                      sizeof(struct sockaddr_storage),
-                      &bytes,
-                      &req->overlapped);
+  success = pAcceptExFamily(handle->socket,
+                          accept_socket,
+                          (void*)&handle->accept_buffer,
+                          0,
+                          sizeof(struct sockaddr_storage),
+                          sizeof(struct sockaddr_storage),
+                          &bytes,
+                          &req->overlapped);
 
   if (!success && WSAGetLastError() != ERROR_IO_PENDING) {
     /* Make this req pending reporting an error. */
@@ -1026,6 +1074,51 @@ int uv_tcp_connect(uv_req_t* req, struct sockaddr_in addr) {
   req->type = UV_CONNECT;
 
   success = pConnectEx(handle->socket,
+                       (struct sockaddr*)&addr,
+                       addrsize,
+                       NULL,
+                       0,
+                       &bytes,
+                       &req->overlapped);
+
+  if (!success && WSAGetLastError() != ERROR_IO_PENDING) {
+    uv_set_sys_error(WSAGetLastError());
+    return -1;
+  }
+
+  req->flags |= UV_REQ_PENDING;
+  handle->reqs_pending++;
+
+  return 0;
+}
+
+
+int uv_tcp_connect6(uv_req_t* req, struct sockaddr_in6 addr) {
+  int addrsize = sizeof(struct sockaddr_in6);
+  BOOL success;
+  DWORD bytes;
+  uv_tcp_t* handle = (uv_tcp_t*)req->handle;
+
+  assert(!(req->flags & UV_REQ_PENDING));
+
+  if (handle->flags & UV_HANDLE_BIND_ERROR) {
+    uv_last_error_ = handle->error;
+    return -1;
+  }
+
+  if (addr.sin6_family != AF_INET6) {
+    uv_set_sys_error(WSAEFAULT);
+    return -1;
+  }
+
+  if (!(handle->flags & UV_HANDLE_BOUND) &&
+      uv_tcp_bind6(handle, uv_addr_ip6_any_) < 0)
+    return -1;
+
+  memset(&req->overlapped, 0, sizeof(req->overlapped));
+  req->type = UV_CONNECT;
+
+  success = pConnectEx6(handle->socket,
                        (struct sockaddr*)&addr,
                        addrsize,
                        NULL,

@@ -282,6 +282,7 @@ int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in);
 int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6);
 
 int uv_tcp_connect(uv_req_t* req, struct sockaddr_in);
+int uv_tcp_connect6(uv_req_t* req, struct sockaddr_in6);
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
 

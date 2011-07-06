@@ -39,13 +39,15 @@ typedef struct {
   size_t len;
 } uv_buf_t;
 
+#define UV_REQ_BUFSML_SIZE (4)
 
 #define UV_REQ_PRIVATE_FIELDS \
   int write_index; \
   ev_timer timer; \
   ngx_queue_t queue; \
   uv_buf_t* bufs; \
-  int bufcnt;
+  int bufcnt; \
+  uv_buf_t bufsml[UV_REQ_BUFSML_SIZE];
 
 
 /* TODO: union or classes please! */

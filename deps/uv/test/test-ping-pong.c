@@ -175,3 +175,40 @@ TEST_IMPL(ping_pong) {
 
   return 0;
 }
+
+
+/* same ping-pong test, but using IPv6 connection */
+static void pinger_v6_new() {
+  int r;
+  struct sockaddr_in6 server_addr = uv_ip6_addr("::1", TEST_PORT);
+  pinger_t *pinger;
+
+  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  pinger->state = 0;
+  pinger->pongs = 0;
+
+  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  r = uv_tcp_init(&pinger->tcp);
+  pinger->tcp.data = pinger;
+  ASSERT(!r);
+
+  /* We are never doing multiple reads/connects at a time anyway. */
+  /* so these handles can be pre-initialized. */
+  uv_req_init(&pinger->connect_req, (uv_handle_t*)(&pinger->tcp),
+      pinger_on_connect);
+
+  r = uv_tcp_connect6(&pinger->connect_req, server_addr);
+  ASSERT(!r);
+}
+
+
+TEST_IMPL(ping_pong_v6) {
+  uv_init();
+
+  pinger_v6_new();
+  uv_run();
+
+  ASSERT(completed_pingers == 1);
+
+  return 0;
+}

@@ -21,7 +21,7 @@
 CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=
-CFLAGS=--std=gnu89 -Wno-variadic-macros -g
+CFLAGS=--std=gnu89 -g
 LINKFLAGS=-lm
 
 CPPFLAGS += -D_LARGEFILE_SOURCE

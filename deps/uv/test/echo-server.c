@@ -34,6 +34,9 @@ typedef struct {
 static int server_closed;
 static uv_tcp_t server;
 
+static int server6_closed;
+static uv_tcp_t server6;
+
 
 static void after_write(uv_req_t* req, int status);
 static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
@@ -97,6 +100,8 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
       if (buf.base[i] == 'Q') {
         uv_close((uv_handle_t*)&server, on_server_close);
         server_closed = 1;
+        uv_close((uv_handle_t*)&server6, on_server_close);
+        server6_closed = 1;
       }
     }
   }
@@ -129,12 +134,18 @@ static void on_connection(uv_handle_t* server, int status) {
   uv_tcp_t* handle;
   int r;
 
+  if (status != 0) {
+    fprintf(stderr, "Connect error %d\n", uv_last_error());
+  }
   ASSERT(status == 0);
 
   handle = (uv_tcp_t*) malloc(sizeof *handle);
   ASSERT(handle != NULL);
 
   uv_tcp_init(handle);
+
+  /* associate server with stream */
+  handle->data = server;
 
   r = uv_accept(server, (uv_stream_t*)handle);
   ASSERT(r == 0);
@@ -145,12 +156,13 @@ static void on_connection(uv_handle_t* server, int status) {
 
 
 static void on_server_close(uv_handle_t* handle) {
-  ASSERT(handle == (uv_handle_t*)&server);
+  ASSERT(handle == (uv_handle_t*)&server || handle == (uv_handle_t*)&server6);
 }
 
 
 static int echo_start(int port) {
   struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", port);
+  struct sockaddr_in6 addr6 = uv_ip6_addr("::1", port);
   int r;
 
   r = uv_tcp_init(&server);
@@ -168,6 +180,27 @@ static int echo_start(int port) {
   }
 
   r = uv_tcp_listen(&server, 128, on_connection);
+  if (r) {
+    /* TODO: Error codes */
+    fprintf(stderr, "Listen error\n");
+    return 1;
+  }
+
+  r = uv_tcp_init(&server6);
+  if (r) {
+    /* TODO: Error codes */
+    fprintf(stderr, "Socket creation error\n");
+    return 1;
+  }
+
+  r = uv_tcp_bind6(&server6, addr6);
+  if (r) {
+    /* TODO: Error codes */
+    fprintf(stderr, "Bind6 error\n");
+    return 1;
+  }
+
+  r = uv_tcp_listen(&server6, 128, on_connection);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Listen error\n");
