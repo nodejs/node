@@ -152,16 +152,39 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
 }
 
 
+#define _TRUNCATE 0
+#define STRUNCATE 80
+
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
+  ASSERT(count == _TRUNCATE);
   return _vsnprintf(buffer, sizeOfBuffer, format, argptr);
 }
-#define _TRUNCATE 0
 
 
-int strncpy_s(char* strDest, size_t numberOfElements,
-              const char* strSource, size_t count) {
-  strncpy(strDest, strSource, count);
+int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
+  CHECK(source != NULL);
+  CHECK(dest != NULL);
+  CHECK_GT(dest_size, 0);
+
+  if (count == _TRUNCATE) {
+    while (dest_size > 0 && *source != 0) {
+      *(dest++) = *(source++);
+      --dest_size;
+    }
+    if (dest_size == 0) {
+      *(dest - 1) = 0;
+      return STRUNCATE;
+    }
+  } else {
+    while (dest_size > 0 && count > 0 && *source != 0) {
+      *(dest++) = *(source++);
+      --dest_size;
+      --count;
+    }
+  }
+  CHECK_GT(dest_size, 0);
+  *dest = 0;
   return 0;
 }
 
