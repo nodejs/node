@@ -59,6 +59,14 @@ LINKFLAGS+=
 UV_OS_FILE=uv-freebsd.c
 endif
 
+ifneq (,$(findstring CYGWIN,$(uname_S)))
+EV_CONFIG=config_cygwin.h
+EIO_CONFIG=config_cygwin.h
+CPPFLAGS += -Ic-ares/config_cygwin
+LINKFLAGS+=
+UV_OS_FILE=uv-cygwin.c
+endif
+
 # Need _GNU_SOURCE for strdup?
 RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE
 
