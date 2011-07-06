@@ -1,3 +1,58 @@
+2011.07.05, Version 0.5.0 (unstable)
+
+* New non-default libuv backend to support IOCP on Windows.
+  Use --use-uv to enable.
+
+* deprecate http.cat
+
+* docs improved.
+
+* add child_process.fork
+
+* add fs.utimes() and fs.futimes() support (Ben Noordhuis)
+
+* add process.uptime() (Tom Huges)
+
+* add path.relative (Tony Huang)
+
+* add os.getNetworkInterfaces()
+
+* add remoteAddress and remotePort for client TCP connections
+  (Brian White)
+
+* add secureOptions flag, setting ciphers,
+  SSL_OP_CRYPTOPRO_TLSEXT_BUG to TLS (Theo Schlossnagle)
+
+* add process.arch (Nathan Rajlich)
+
+* add reading/writing of floats and doubles from/to buffers (Brian White)
+
+* Allow script to be read from stdin
+
+* #477 add Buffer::fill method to do memset (Konstantin Käfer)
+
+* #573 Diffie-Hellman support to crypto module (Håvard Stranden)
+
+* #695 add 'hex' encoding to buffer (isaacs)
+
+* #851 Update how REPLServer uses contexts (Ben Weaver)
+
+* #853 add fs.lchow, fs.lchmod, fs.fchmod, fs.fchown (isaacs)
+
+* #889 Allow to remove all EventEmitter listeners at once
+  (Felix Geisendörfer)
+
+* #926 OpenSSL NPN support (Fedor Indutny)
+
+* #955 Change ^C handling in REPL (isaacs)
+
+* #979 add support for Unix Domain Sockets to HTTP (Mark Cavage)
+
+* #1173 #1170 add AMD, asynchronous module definition (isaacs)
+
+* DTrace probes: support X-Forwarded-For (Dave Pacheco)
+
+
 2011.06.29, Version 0.4.9 (stable)
 
 * Improve documentation
