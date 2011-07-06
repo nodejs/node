@@ -206,8 +206,12 @@ class TCPWrap {
     HandleScope scope;
 
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
-
     assert(&wrap->handle_ == (uv_tcp_t*)handle);
+
+    // We should not be getting this callback if someone as already called
+    // uv_close() on the handle. Since we've destroyed object_ at the same
+    // time as calling uv_close() we can test for this here.
+    assert(wrap->object_.IsEmpty() == false);
 
     if (status != 0) {
       // TODO Handle server error (call onerror?)
@@ -315,6 +319,11 @@ class TCPWrap {
 
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
 
+    // We should not be getting this callback if someone as already called
+    // uv_close() on the handle. Since we've destroyed object_ at the same
+    // time as calling uv_close() we can test for this here.
+    assert(wrap->object_.IsEmpty() == false);
+
     // Remove the reference to the slab to avoid memory leaks;
     Local<Value> slab_v = wrap->object_->GetHiddenValue(slab_sym);
     wrap->object_->SetHiddenValue(slab_sym, v8::Null());
@@ -369,6 +378,9 @@ class TCPWrap {
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
 
     HandleScope scope;
+
+    // The request object should still be there.
+    assert(req_wrap->object_.IsEmpty() == false);
 
     if (status) {
       SetErrno(uv_last_error().code);
@@ -438,6 +450,9 @@ class TCPWrap {
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
 
     HandleScope scope;
+
+    // The request object should still be there.
+    assert(req_wrap->object_.IsEmpty() == false);
 
     if (status) {
       SetErrno(uv_last_error().code);
@@ -511,6 +526,9 @@ class TCPWrap {
   static void AfterShutdown(uv_req_t* req, int status) {
     ReqWrap* req_wrap = (ReqWrap*) req->data;
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
+
+    // The request object should still be there.
+    assert(req_wrap->object_.IsEmpty() == false);
 
     HandleScope scope;
 
