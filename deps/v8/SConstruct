@@ -1425,7 +1425,7 @@ def BuildSpecific(env, mode, env_overrides, tools):
   preparser_object = preparser_env.SConscript(
     join('preparser', 'SConscript'),
     build_dir=join('obj', 'preparser', target_id),
-    exports='context',
+    exports='context tools',
     duplicate=False
   )
   preparser_name = join('obj', 'preparser', target_id, 'preparser')

@@ -26,10 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 from os.path import join
-Import('sample context')
+Import('sample context tools')
 
 def ConfigureObjectFiles():
-  env = Environment()
+  env = Environment(tools=tools)
   env.Replace(**context.flags['sample'])
   context.ApplyEnvOverrides(env)
   return env.Object(sample + '.cc')

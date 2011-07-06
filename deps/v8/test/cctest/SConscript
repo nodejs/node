@@ -29,7 +29,7 @@ import sys
 from os.path import join, dirname, abspath
 root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
-Import('context object_files')
+Import('context object_files tools')
 
 
 SOURCES = {
@@ -107,7 +107,7 @@ SOURCES = {
 
 def Build():
   cctest_files = context.GetRelevantSources(SOURCES)
-  env = Environment()
+  env = Environment(tools=tools)
   env.Replace(**context.flags['cctest'])
   context.ApplyEnvOverrides(env)
   # There seems to be a glitch in the way scons decides where to put
