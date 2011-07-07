@@ -568,6 +568,11 @@ def build_v8(bld):
     rule          = v8_cmd(bld, "default"),
     before        = "cxx",
     install_path  = None)
+
+  v8.env.env = dict(os.environ)
+  v8.env.env['CC'] = ' '.join(bld.env['CC'])
+  v8.env.env['CXX'] = ' '.join(bld.env['CXX'])
+
   v8.uselib = "EXECINFO"
   bld.env["CPPPATH_V8"] = "deps/v8/include"
   t = join(bld.srcnode.abspath(bld.env_of_name("default")), v8.target)
@@ -614,7 +619,9 @@ def build_uv(bld):
     rule = uv_cmd(bld, 'default')
   )
 
-  #bld.env["CPPPATH_UV"] = 'deps/uv/'
+  uv.env.env = dict(os.environ)
+  uv.env.env['CC'] = ' '.join(bld.env['CC'])
+  uv.env.env['CXX'] = ' '.join(bld.env['CXX'])
 
   t = join(bld.srcnode.abspath(bld.env_of_name("default")), uv.target)
   bld.env_of_name('default').append_value("LINKFLAGS_UV", t)
