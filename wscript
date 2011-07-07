@@ -570,8 +570,8 @@ def build_v8(bld):
     install_path  = None)
 
   v8.env.env = dict(os.environ)
-  v8.env.env['CC'] = ' '.join(bld.env['CC'])
-  v8.env.env['CXX'] = ' '.join(bld.env['CXX'])
+  v8.env.env['CC'] = sh_escape(bld.env['CC'][0])
+  v8.env.env['CXX'] = sh_escape(bld.env['CXX'][0])
 
   v8.uselib = "EXECINFO"
   bld.env["CPPPATH_V8"] = "deps/v8/include"
@@ -591,7 +591,10 @@ def build_v8(bld):
   bld.install_files('${PREFIX}/include/node/', 'deps/v8/include/*.h')
 
 def sh_escape(s):
-  return s.replace("\\", "\\\\").replace("(","\\(").replace(")","\\)").replace(" ","\\ ")
+  if sys.platform.startswith('win32'):
+    return '"' + s + '"'
+  else:
+    return s.replace("\\", "\\\\").replace("(","\\(").replace(")","\\)").replace(" ","\\ ")
 
 def uv_cmd(bld, variant):
   srcdeps = join(bld.path.abspath(), "deps")
@@ -620,8 +623,8 @@ def build_uv(bld):
   )
 
   uv.env.env = dict(os.environ)
-  uv.env.env['CC'] = ' '.join(bld.env['CC'])
-  uv.env.env['CXX'] = ' '.join(bld.env['CXX'])
+  uv.env.env['CC'] = sh_escape(bld.env['CC'][0])
+  uv.env.env['CXX'] = sh_escape(bld.env['CXX'][0])
 
   t = join(bld.srcnode.abspath(bld.env_of_name("default")), uv.target)
   bld.env_of_name('default').append_value("LINKFLAGS_UV", t)
