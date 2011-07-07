@@ -1,0 +1,303 @@
+=head1 NAME
+
+libeio - truly asynchronous POSIX I/O
+
+=head1 SYNOPSIS
+
+  #include <eio.h>
+
+=head1 DESCRIPTION
+
+The newest version of this document is also available as an html-formatted
+web page you might find easier to navigate when reading it for the first
+time: L<http://pod.tst.eu/http://cvs.schmorp.de/libeio/eio.pod>.
+
+Note that this library is a by-product of the C<IO::AIO> perl
+module, and many of the subtler points regarding requets lifetime
+and so on are only documented in its documentation at the
+moment: L<http://pod.tst.eu/http://cvs.schmorp.de/IO-AIO/AIO.pm>.
+
+=head2 FEATURES
+
+This library provides fully asynchronous versions of most POSIX functions
+dealign with I/O. Unlike most asynchronous libraries, this not only
+includes C<read> and C<write>, but also C<open>, C<stat>, C<unlink> and
+similar functions, as well as less rarely ones such as C<mknod>, C<futime>
+or C<readlink>.
+
+It also offers wrappers around C<sendfile> (Solaris, Linux, HP-UX and
+FreeBSD, with emulation on other platforms) and C<readahead> (Linux, with
+emulation elsewhere>).
+
+The goal is to enable you to write fully non-blocking programs. For
+example, in a game server, you would not want to freeze for a few seconds
+just because the server is running a backup and you happen to call
+C<readdir>.
+
+=head2 TIME REPRESENTATION
+
+Libeio represents time as a single floating point number, representing the
+(fractional) number of seconds since the (POSIX) epoch (somewhere near
+the beginning of 1970, details are complicated, don't ask). This type is
+called C<eio_tstamp>, but it is guarenteed to be of type C<double> (or
+better), so you can freely use C<double> yourself.
+
+Unlike the name component C<stamp> might indicate, it is also used for
+time differences throughout libeio.
+
+=head2 FORK SUPPORT
+
+Calling C<fork ()> is fully supported by this module. It is implemented in these steps:
+
+   1. wait till all requests in "execute" state have been handled
+      (basically requests that are already handed over to the kernel).
+   2. fork
+   3. in the parent, continue business as usual, done
+   4. in the child, destroy all ready and pending requests and free the
+      memory used by the worker threads. This gives you a fully empty
+      libeio queue.
+
+=head1 INITIALISATION/INTEGRATION
+
+Before you can call any eio functions you first have to initialise the
+library. The library integrates into any event loop, but can also be used
+without one, including in polling mode.
+
+You have to provide the necessary glue yourself, however.
+
+=over 4
+
+=item int eio_init (void (*want_poll)(void), void (*done_poll)(void))
+
+This function initialises the library. On success it returns C<0>, on
+failure it returns C<-1> and sets C<errno> appropriately.
+
+It accepts two function pointers specifying callbacks as argument, both of
+which can be C<0>, in which case the callback isn't called.
+
+=item want_poll callback
+
+The C<want_poll> callback is invoked whenever libeio wants attention (i.e.
+it wants to be polled by calling C<eio_poll>). It is "edge-triggered",
+that is, it will only be called once when eio wants attention, until all
+pending requests have been handled.
+
+This callback is called while locks are being held, so I<you must
+not call any libeio functions inside this callback>. That includes
+C<eio_poll>. What you should do is notify some other thread, or wake up
+your event loop, and then call C<eio_poll>.
+
+=item done_poll callback
+
+This callback is invoked when libeio detects that all pending requests
+have been handled. It is "edge-triggered", that is, it will only be
+called once after C<want_poll>. To put it differently, C<want_poll> and
+C<done_poll> are invoked in pairs: after C<want_poll> you have to call
+C<eio_poll ()> until either C<eio_poll> indicates that everything has been
+handled or C<done_poll> has been called, which signals the same.
+
+Note that C<eio_poll> might return after C<done_poll> and C<want_poll>
+have been called again, so watch out for races in your code.
+
+As with C<want_poll>, this callback is called while lcoks are being held,
+so you I<must not call any libeio functions form within this callback>.
+
+=item int eio_poll ()
+
+This function has to be called whenever there are pending requests that
+need finishing. You usually call this after C<want_poll> has indicated
+that you should do so, but you can also call this function regularly to
+poll for new results.
+
+If any request invocation returns a non-zero value, then C<eio_poll ()>
+immediately returns with that value as return value.
+
+Otherwise, if all requests could be handled, it returns C<0>. If for some
+reason not all requests have been handled, i.e. some are still pending, it
+returns C<-1>.
+
+=back
+
+For libev, you would typically use an C<ev_async> watcher: the
+C<want_poll> callback would invoke C<ev_async_send> to wake up the event
+loop. Inside the callback set for the watcher, one would call C<eio_poll
+()> (followed by C<ev_async_send> again if C<eio_poll> indicates that not
+all requests have been handled yet). The race is taken care of because
+libev resets/rearms the async watcher before calling your callback,
+and therefore, before calling C<eio_poll>. This might result in (some)
+spurious wake-ups, but is generally harmless.
+
+For most other event loops, you would typically use a pipe - the event
+loop should be told to wait for read readyness on the read end. In
+C<want_poll> you would write a single byte, in C<done_poll> you would try
+to read that byte, and in the callback for the read end, you would call
+C<eio_poll>. The race is avoided here because the event loop should invoke
+your callback again and again until the byte has been read (as the pipe
+read callback does not read it, only C<done_poll>).
+
+=head2 CONFIGURATION
+
+The functions in this section can sometimes be useful, but the default
+configuration will do in most case, so you should skip this section on
+first reading.
+
+=over 4
+
+=item eio_set_max_poll_time (eio_tstamp nseconds)
+
+This causes C<eio_poll ()> to return after it has detected that it was
+running for C<nsecond> seconds or longer (this number can be fractional).
+
+This can be used to limit the amount of time spent handling eio requests,
+for example, in interactive programs, you might want to limit this time to
+C<0.01> seconds or so.
+
+Note that:
+
+a) libeio doesn't know how long your request callbacks take, so the time
+spent in C<eio_poll> is up to one callback invocation longer then this
+interval.
+
+b) this is implemented by calling C<gettimeofday> after each request,
+which can be costly.
+
+c) at least one request will be handled.
+
+=item eio_set_max_poll_reqs (unsigned int nreqs)
+
+When C<nreqs> is non-zero, then C<eio_poll> will not handle more than
+C<nreqs> requests per invocation. This is a less costly way to limit the
+amount of work done by C<eio_poll> then setting a time limit.
+
+If you know your callbacks are generally fast, you could use this to
+encourage interactiveness in your programs by setting it to C<10>, C<100>
+or even C<1000>.
+
+=item eio_set_min_parallel (unsigned int nthreads)
+
+Make sure libeio can handle at least this many requests in parallel. It
+might be able handle more.
+
+=item eio_set_max_parallel (unsigned int nthreads)
+
+Set the maximum number of threads that libeio will spawn.
+
+=item eio_set_max_idle (unsigned int nthreads)
+
+Libeio uses threads internally to handle most requests, and will start and stop threads on demand.
+
+This call can be used to limit the number of idle threads (threads without
+work to do): libeio will keep some threads idle in preperation for more
+requests, but never longer than C<nthreads> threads.
+
+In addition to this, libeio will also stop threads when they are idle for
+a few seconds, regardless of this setting.
+
+=item unsigned int eio_nthreads ()
+
+Return the number of worker threads currently running.
+
+=item unsigned int eio_nreqs ()
+
+Return the number of requests currently handled by libeio. This is the
+total number of requests that have been submitted to libeio, but not yet
+destroyed.
+
+=item unsigned int eio_nready ()
+
+Returns the number of ready requests, i.e. requests that have been
+submitted but have not yet entered the execution phase.
+
+=item unsigned int eio_npending ()
+
+Returns the number of pending requests, i.e. requests that have been
+executed and have results, but have not been finished yet by a call to
+C<eio_poll>).
+
+=back
+
+
+=head1 ANATOMY OF AN EIO REQUEST
+
+#TODO
+
+
+=head1 HIGH LEVEL REQUEST API
+
+#TODO
+
+=back
+
+
+=head1 LOW LEVEL REQUEST API
+
+#TODO
+
+=head1 EMBEDDING
+
+Libeio can be embedded directly into programs. This functionality is not
+documented and not (yet) officially supported.
+
+Note that, when including C<libeio.m4>, you are responsible for defining
+the compilation environment (C<_LARGEFILE_SOURCE>, C<_GNU_SOURCE> etc.).
+
+If you need to know how, check the C<IO::AIO> perl module, which does
+exactly that.
+
+
+=head1 COMPILETIME CONFIGURATION
+
+These symbols, if used, must be defined when compiling F<eio.c>.
+
+=over 4
+
+=item EIO_STACKSIZE
+
+This symbol governs the stack size for each eio thread. Libeio itself
+was written to use very little stackspace, but when using C<EIO_CUSTOM>
+requests, you might want to increase this.
+
+If this symbol is undefined (the default) then libeio will use its default
+stack size (C<sizeof (long) * 4096> currently).  If it is defined, but
+C<0>, then the default operating system stack size will be used. In all
+other cases, the value must be an expression that evaluates to the desired
+stack size.
+
+=back
+
+
+=head1 PORTABILITY REQUIREMENTS
+
+In addition to a working ISO-C implementation, libeio relies on a few
+additional extensions:
+
+=over 4
+
+=item POSIX threads
+
+To be portable, this module uses threads, specifically, the POSIX threads
+library must be available (and working, which partially excludes many xBSD
+systems, where C<fork ()> is buggy).
+
+=item POSIX-compatible filesystem API
+
+This is actually a harder portability requirement: The libeio API is quite
+demanding regarding POSIX API calls (symlinks, user/group management
+etc.).
+
+=item C<double> must hold a time value in seconds with enough accuracy
+
+The type C<double> is used to represent timestamps. It is required to
+have at least 51 bits of mantissa (and 9 bits of exponent), which is good
+enough for at least into the year 4000. This requirement is fulfilled by
+implementations implementing IEEE 754 (basically all existing ones).
+
+=back
+
+If you know of other additional requirements drop me a note.
+
+
+=head1 AUTHOR
+
+Marc Lehmann <libeio@schmorp.de>.
+

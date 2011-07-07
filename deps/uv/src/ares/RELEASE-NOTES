@@ -1,0 +1,25 @@
+c-ares version 1.7.4
+
+Changed:
+
+ o local-bind: Support binding to local interface/IPs, see
+   ares_set_local_ip4, ares_set_local_ip6, ares_set_local_dev
+
+Fixed:
+
+ o memory leak in ares_getnameinfo
+ o add missing break that caused get_ares_servers to fail
+ o ares_parse_a_reply: fix CNAME response parsing
+ o init_by_options: don't copy an empty sortlist
+ o Replaced uint32_t with unsigned int to fix broken builds
+   on a couple of platforms
+ o Fix lookup with HOSTALIASES set
+ o adig: fix NAPTR parsing
+ o compiler warning cleanups
+
+Thanks go to these friendly people for their efforts and contributions:
+
+ Andrew C. Morrow, Ben Greear, Ben Noordhuis, Daniel Stenberg,
+ Guenter Knauf, Mike Crowe, Patrik Thunstrom, Yang Tse
+
+Have fun!
