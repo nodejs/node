@@ -485,11 +485,10 @@ def configure(conf):
   conf.set_env_name('debug', debug_env)
 
   if (sys.platform.startswith("win32")):
-    # Static pthread - crashes
-    #conf.env.append_value('LINKFLAGS', '../deps/pthreads-w32/libpthreadGC2.a')
-    #debug_env.append_value('LINKFLAGS', '../deps/pthreads-w32/libpthreadGC2d.a')
-    # Pthread dll
-    conf.env.append_value('LIB', 'pthread.dll')
+    # Static pthread
+    conf.env.append_value('LINKFLAGS', '../deps/pthread-win32/libpthreadGC2.a')
+    debug_env.append_value('LINKFLAGS', '../deps/pthread-win32/libpthreadGC2d.a')
+    conf.env.append_value('CPPFLAGS', "-DPTW32_STATIC_LIB")
 
   # Configure debug variant
   conf.setenv('debug')
@@ -625,6 +624,7 @@ def build_uv(bld):
   uv.env.env = dict(os.environ)
   uv.env.env['CC'] = sh_escape(bld.env['CC'][0])
   uv.env.env['CXX'] = sh_escape(bld.env['CXX'][0])
+  uv.env.env['CPPFLAGS'] = "-DPTW32_STATIC_LIB"
 
   t = join(bld.srcnode.abspath(bld.env_of_name("default")), uv.target)
   bld.env_of_name('default').append_value("LINKFLAGS_UV", t)
@@ -882,6 +882,11 @@ def build(bld):
     bld.env.append_value('LINKFLAGS', '-Wl,--out-implib,default/libnode.dll.a')
     bld.env.append_value('LINKFLAGS', '-Wl,--output-def,default/libnode.def')
     bld.install_files('${LIBDIR}', "build/default/libnode.*")
+
+  if (sys.platform.startswith("win32")):
+    # Static libgcc
+    bld.env.append_value('LINKFLAGS', '-static-libgcc')
+    bld.env.append_value('LINKFLAGS', '-static-libstdc++')
 
   def subflags(program):
     x = { 'CCFLAGS'   : " ".join(program.env["CCFLAGS"]).replace('"', '\\"')

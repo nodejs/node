@@ -42,6 +42,12 @@
 #ifdef __MINGW32__
 # include <platform_win32.h> /* winapi_perror() */
 # include <platform_win32_winsock.h> /* wsa_init() */
+# ifdef PTW32_STATIC_LIB
+extern "C" {
+  BOOL __cdecl pthread_win32_process_attach_np (void);
+  BOOL __cdecl pthread_win32_process_detach_np (void);
+}
+# endif
 #endif
 
 #ifdef __POSIX__
@@ -2485,6 +2491,11 @@ void EmitExit(v8::Handle<v8::Object> process) {
 
 
 int Start(int argc, char *argv[]) {
+
+#if defined __MINGW32__ && defined PTW32_STATIC_LIB
+  pthread_win32_process_attach_np();
+#endif
+
   uv_init();
 
   // This needs to run *before* V8::Initialize()
@@ -2517,6 +2528,11 @@ int Start(int argc, char *argv[]) {
   context.Dispose();
   V8::Dispose();
 #endif  // NDEBUG
+
+#if defined __MINGW32__ && defined PTW32_STATIC_LIB
+  pthread_win32_process_detach_np();
+#endif
+
   return 0;
 }
 
