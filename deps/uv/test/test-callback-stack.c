@@ -24,7 +24,7 @@
  * stack.
  */
 
-#include "../uv.h"
+#include "uv.h"
 #include "task.h"
 
 

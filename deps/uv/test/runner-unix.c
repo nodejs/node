@@ -331,5 +331,5 @@ int uv_wait_thread(uintptr_t thread_id) {
 
 /* Pause the calling thread for a number of milliseconds. */
 void uv_sleep(int msec) {
-  usleep(msec);
+  usleep(msec * 1000);
 }

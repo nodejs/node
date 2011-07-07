@@ -20,7 +20,7 @@
  */
 
 #include "task.h"
-#include "../uv.h"
+#include "uv.h"
 
 #include <math.h>
 #include <stdio.h>

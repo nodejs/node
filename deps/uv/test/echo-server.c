@@ -19,7 +19,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "../uv.h"
+#include "uv.h"
 #include "task.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -193,17 +193,18 @@ static int echo_start(int port) {
     return 1;
   }
 
+  /* IPv6 is optional as not all platforms support it */
   r = uv_tcp_bind6(&server6, addr6);
   if (r) {
-    /* TODO: Error codes */
-    fprintf(stderr, "Bind6 error\n");
-    return 1;
+    /* show message but return OK */
+    fprintf(stderr, "IPv6 not supported\n");
+    return 0;
   }
 
   r = uv_tcp_listen(&server6, 128, on_connection);
   if (r) {
     /* TODO: Error codes */
-    fprintf(stderr, "Listen error\n");
+    fprintf(stderr, "Listen error on IPv6\n");
     return 1;
   }
 

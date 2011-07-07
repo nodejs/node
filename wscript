@@ -608,7 +608,7 @@ def uv_cmd(bld, variant):
 def build_uv(bld):
   uv = bld.new_task_gen(
     name = 'uv',
-    source = 'deps/uv/uv.h',
+    source = 'deps/uv/include/uv.h',
     target = 'deps/uv/uv.a',
     before = "cxx",
     rule = uv_cmd(bld, 'default')
@@ -626,8 +626,13 @@ def build_uv(bld):
     t = join(bld.srcnode.abspath(bld.env_of_name("debug")), uv_debug.target)
     bld.env_of_name('debug').append_value("LINKFLAGS_UV", t)
 
-  bld.install_files('${PREFIX}/include/node/', 'deps/uv/*.h')
-  bld.install_files('${PREFIX}/include/node/ev', 'deps/uv/ev/*.h')
+  bld.install_files('${PREFIX}/include/node/', 'deps/uv/include/*.h')
+
+  bld.install_files('${PREFIX}/include/node/ev', 'deps/uv/src/ev/*.h')
+  bld.install_files('${PREFIX}/include/node/c-ares', """
+    deps/uv/include/ares.h
+    deps/uv/include/ares_version.h
+  """)
 
 
 def build(bld):
@@ -855,15 +860,11 @@ def build(bld):
   node.includes = """
     src/
     deps/http_parser
-    deps/uv
-    deps/uv/ev
-    deps/uv/eio
+    deps/uv/include
+    deps/uv/src/ev
   """
 
   if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '
-
-  if not bld.env["USE_SHARED_CARES"]:
-    node.includes += '  deps/uv/c-ares '
 
   if sys.platform.startswith('cygwin'):
     bld.env.append_value('LINKFLAGS', '-Wl,--export-all-symbols')
@@ -907,10 +908,6 @@ def build(bld):
     src/node_buffer.h
     src/node_events.h
     src/node_version.h
-  """)
-  bld.install_files('${PREFIX}/include/node/c-ares', """
-    deps/uv/c-ares/ares.h
-    deps/uv/c-ares/ares_version.h
   """)
 
   # Only install the man page if it exists.
