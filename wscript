@@ -872,6 +872,7 @@ def build(bld):
     deps/http_parser
     deps/uv/include
     deps/uv/src/ev
+    deps/uv/src/ares
   """
 
   if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '
