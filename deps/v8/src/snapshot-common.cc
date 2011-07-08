@@ -53,7 +53,7 @@ bool Snapshot::Initialize(const char* snapshot_file) {
     DeleteArray(str);
     return true;
   } else if (size_ > 0) {
-    Deserialize(data_, size_);
+    Deserialize(raw_data_, raw_size_);
     return true;
   }
   return false;
@@ -64,14 +64,15 @@ Handle<Context> Snapshot::NewContextFromSnapshot() {
   if (context_size_ == 0) {
     return Handle<Context>();
   }
-  Heap::ReserveSpace(new_space_used_,
+  HEAP->ReserveSpace(new_space_used_,
                      pointer_space_used_,
                      data_space_used_,
                      code_space_used_,
                      map_space_used_,
                      cell_space_used_,
                      large_space_used_);
-  SnapshotByteSource source(context_data_, context_size_);
+  SnapshotByteSource source(context_raw_data_,
+                            context_raw_size_);
   Deserializer deserializer(&source);
   Object* root;
   deserializer.DeserializePartial(&root);

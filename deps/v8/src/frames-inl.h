@@ -29,6 +29,8 @@
 #define V8_FRAMES_INL_H_
 
 #include "frames.h"
+#include "isolate.h"
+#include "v8memory.h"
 
 #if V8_TARGET_ARCH_IA32
 #include "ia32/frames-ia32.h"
@@ -86,8 +88,18 @@ inline Address* StackHandler::pc_address() const {
 }
 
 
+inline StackFrame::StackFrame(StackFrameIterator* iterator)
+    : iterator_(iterator), isolate_(iterator_->isolate()) {
+}
+
+
 inline StackHandler* StackFrame::top_handler() const {
   return iterator_->handler();
+}
+
+
+inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
+  return isolate->pc_to_code_cache()->GetCacheEntry(pc)->code;
 }
 
 
@@ -172,6 +184,13 @@ inline Object* JavaScriptFrame::function() const {
 
 
 template<typename Iterator>
+inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+    Isolate* isolate)
+    : iterator_(isolate) {
+  if (!done()) Advance();
+}
+
+template<typename Iterator>
 inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's
   // problematic that we can't use the safe-cast operator to cast to
@@ -185,11 +204,9 @@ inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
 
 template<typename Iterator>
 JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
-    StackFrame::Id id) {
-  while (!done()) {
-    Advance();
-    if (frame()->id() == id) return;
-  }
+    Isolate* isolate, StackFrame::Id id)
+    : iterator_(isolate) {
+  AdvanceToId(id);
 }
 
 
@@ -206,6 +223,15 @@ void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToArgumentsFrame() {
   if (!frame()->has_adapted_arguments()) return;
   iterator_.Advance();
   ASSERT(iterator_.frame()->is_arguments_adaptor());
+}
+
+
+template<typename Iterator>
+void JavaScriptFrameIteratorTemp<Iterator>::AdvanceToId(StackFrame::Id id) {
+  while (!done()) {
+    Advance();
+    if (frame()->id() == id) return;
+  }
 }
 
 

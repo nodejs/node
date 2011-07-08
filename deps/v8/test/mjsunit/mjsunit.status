@@ -1,4 +1,4 @@
-# Copyright 2008 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -30,6 +30,9 @@ prefix mjsunit
 # All tests in the bug directory are expected to fail.
 bugs: FAIL
 
+##############################################################################
+# Fails.
+regress/regress-1119: FAIL
 
 ##############################################################################
 # Too slow in debug mode with --stress-opt
@@ -113,5 +116,34 @@ regress/regress-1132: SKIP
 ##############################################################################
 [ $arch == mips ]
 
-# Skip all tests on MIPS.
-*: SKIP
+# Skip long-running tests.
+compiler/alloc-number: SKIP
+compiler/array-length: SKIP
+compiler/assignment-deopt: SKIP
+compiler/deopt-args: SKIP
+compiler/inline-compare: SKIP
+compiler/inline-global-access: SKIP
+compiler/optimized-function-calls: SKIP
+compiler/pic: SKIP
+compiler/property-calls: SKIP
+compiler/recursive-deopt: SKIP
+compiler/regress-4: SKIP
+compiler/regress-funcaller: SKIP
+compiler/regress-gvn: SKIP
+compiler/regress-rep-change: SKIP
+compiler/regress-arguments: SKIP
+compiler/regress-funarguments: SKIP
+compiler/regress-or: SKIP
+compiler/regress-3249650: SKIP
+compiler/simple-deopt: SKIP
+regress/regress-490: SKIP
+regress/regress-634: SKIP
+regress/regress-create-exception: SKIP
+regress/regress-3218915: SKIP
+regress/regress-3247124: SKIP
+
+
+[ $isolates ]
+# d8-os writes temporary files that might interfer with each other when running
+# in multible threads. Skip this if running with isolates testing.
+d8-os: SKIP

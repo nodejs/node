@@ -216,16 +216,26 @@ def reclaimed_bytes(row):
   return row['total_size_before'] - row['total_size_after']
 
 def other_scope(r):
-  return r['pause'] - r['mark'] - r['sweep'] - r['compact']
+  if r['gc'] == 's':
+    # there is no 'other' scope for scavenging collections.
+    return 0
+  return r['pause'] - r['mark'] - r['sweep'] - r['compact'] - r['external']
+
+def scavenge_scope(r):
+  if r['gc'] == 's':
+    return r['pause'] - r['external']
+  return 0
 
 plots = [
   [
     Set('style fill solid 0.5 noborder'),
     Set('style histogram rowstacked'),
     Set('style data histograms'),
-    Plot(Item('Marking', 'mark', lc = 'purple'),
+    Plot(Item('Scavenge', scavenge_scope, lc = 'green'),
+         Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
          Item('Compaction', 'compact', lc = 'red'),
+         Item('External', 'external', lc = '#489D43'),
          Item('Other', other_scope, lc = 'grey'))
   ],
   [
@@ -314,6 +324,10 @@ def process_trace(filename):
     stats(out, 'Mark', filter(lambda r: r['mark'] != 0, trace), 'mark')
     stats(out, 'Sweep', filter(lambda r: r['sweep'] != 0, trace), 'sweep')
     stats(out, 'Compact', filter(lambda r: r['compact'] != 0, trace), 'compact')
+    stats(out,
+          'External',
+          filter(lambda r: r['external'] != 0, trace),
+          'external')
     out.write('</table>')
     for chart in charts:
       out.write('<img src="%s">' % chart)

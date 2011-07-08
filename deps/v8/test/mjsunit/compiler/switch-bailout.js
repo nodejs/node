@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that bailing out of the optimized compilation doesn't mess with
 // the labels in the AST.
 function f(x) {
@@ -35,5 +37,7 @@ function f(x) {
   return 99;
 }
 
-for (var i = 0; i < 10000; i++) f("foo");
+for (var i = 0; i < 5; i++) f("foo");
+%OptimizeFunctionOnNextCall(f);
+f("foo");
 assertEquals(42, f("bar"));

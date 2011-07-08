@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #ifndef V8_HANDLES_H_
 #define V8_HANDLES_H_
 
+#include "allocation.h"
 #include "apiutils.h"
 
 namespace v8 {
@@ -44,6 +45,7 @@ class Handle {
  public:
   INLINE(explicit Handle(T** location)) { location_ = location; }
   INLINE(explicit Handle(T* obj));
+  INLINE(Handle(T* obj, Isolate* isolate));
 
   INLINE(Handle()) : location_(NULL) {}
 
@@ -82,7 +84,7 @@ class Handle {
   }
 
   static Handle<T> null() { return Handle<T>(); }
-  bool is_null() { return location_ == NULL; }
+  bool is_null() const { return location_ == NULL; }
 
   // Closes the given scope, but lets this handle escape. See
   // implementation in api.h.
@@ -107,34 +109,20 @@ class Handle {
 // for which the handle scope has been deleted is undefined.
 class HandleScope {
  public:
-  HandleScope() : prev_next_(current_.next), prev_limit_(current_.limit) {
-    current_.level++;
-  }
+  inline HandleScope();
+  explicit inline HandleScope(Isolate* isolate);
 
-  ~HandleScope() {
-    CloseScope();
-  }
+  inline ~HandleScope();
 
   // Counts the number of allocated handles.
   static int NumberOfHandles();
 
   // Creates a new handle with the given value.
   template <typename T>
-  static inline T** CreateHandle(T* value) {
-    internal::Object** cur = current_.next;
-    if (cur == current_.limit) cur = Extend();
-    // Update the current next field, set the value in the created
-    // handle, and return the result.
-    ASSERT(cur < current_.limit);
-    current_.next = cur + 1;
-
-    T** result = reinterpret_cast<T**>(cur);
-    *result = value;
-    return result;
-  }
+  static inline T** CreateHandle(T* value, Isolate* isolate);
 
   // Deallocates any extensions used by the current scope.
-  static void DeleteExtensions();
+  static void DeleteExtensions(Isolate* isolate);
 
   static Address current_next_address();
   static Address current_limit_address();
@@ -145,20 +133,9 @@ class HandleScope {
   // a Handle backed by the parent scope holding the
   // value of the argument handle.
   template <typename T>
-  Handle<T> CloseAndEscape(Handle<T> handle_value) {
-    T* value = *handle_value;
-    // Throw away all handles in the current scope.
-    CloseScope();
-    // Allocate one handle in the parent scope.
-    ASSERT(current_.level > 0);
-    Handle<T> result(CreateHandle<T>(value));
-    // Reinitialize the current scope (so that it's ready
-    // to be used or closed again).
-    prev_next_ = current_.next;
-    prev_limit_ = current_.limit;
-    current_.level++;
-    return result;
-  }
+  Handle<T> CloseAndEscape(Handle<T> handle_value);
+
+  Isolate* isolate() { return isolate_; }
 
  private:
   // Prevent heap allocation or illegal handle scopes.
@@ -167,21 +144,9 @@ class HandleScope {
   void* operator new(size_t size);
   void operator delete(void* size_t);
 
-  inline void CloseScope() {
-    current_.next = prev_next_;
-    current_.level--;
-    if (current_.limit != prev_limit_) {
-      current_.limit = prev_limit_;
-      DeleteExtensions();
-    }
-#ifdef DEBUG
-    ZapRange(prev_next_, prev_limit_);
-#endif
-  }
+  inline void CloseScope();
 
-  static v8::ImplementationUtilities::HandleScopeData current_;
-  // Holds values on entry. The prev_next_ value is never NULL
-  // on_entry, but is set to NULL when this scope is closed.
+  Isolate* isolate_;
   Object** prev_next_;
   Object** prev_limit_;
 
@@ -205,13 +170,14 @@ class HandleScope {
 void NormalizeProperties(Handle<JSObject> object,
                          PropertyNormalizationMode mode,
                          int expected_additional_properties);
-void NormalizeElements(Handle<JSObject> object);
+Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
 void TransformToFastProperties(Handle<JSObject> object,
                                int unused_property_fields);
-void NumberDictionarySet(Handle<NumberDictionary> dictionary,
-                         uint32_t index,
-                         Handle<Object> value,
-                         PropertyDetails details);
+MUST_USE_RESULT Handle<NumberDictionary> NumberDictionarySet(
+    Handle<NumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyDetails details);
 
 // Flattens a string.
 void FlattenString(Handle<String> str);
@@ -220,17 +186,17 @@ void FlattenString(Handle<String> str);
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
 
-Handle<Object> SetProperty(Handle<JSObject> object,
+Handle<Object> SetProperty(Handle<JSReceiver> object,
                            Handle<String> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict);
+                           StrictModeFlag strict_mode);
 
 Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
                            Handle<Object> value,
                            PropertyAttributes attributes,
-                           StrictModeFlag strict);
+                           StrictModeFlag strict_mode);
 
 Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> key,
@@ -262,21 +228,28 @@ Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
                                           Handle<String> key,
                                           Handle<Object> value,
                                           PropertyAttributes attributes,
-                                          StrictModeFlag strict);
+                                          StrictModeFlag strict_mode);
 
-Handle<Object> SetElement(Handle<JSObject> object,
-                          uint32_t index,
-                          Handle<Object> value);
+MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
+                                          uint32_t index,
+                                          Handle<Object> value,
+                                          StrictModeFlag strict_mode);
 
 Handle<Object> SetOwnElement(Handle<JSObject> object,
                              uint32_t index,
-                             Handle<Object> value);
+                             Handle<Object> value,
+                             StrictModeFlag strict_mode);
 
-Handle<Object> GetProperty(Handle<JSObject> obj,
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name);
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
+
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
+                           Handle<String> name,
+                           LookupResult* result);
+
 
 Handle<Object> GetElement(Handle<Object> obj,
                           uint32_t index);
@@ -368,6 +341,7 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 Handle<Object> SetPrototype(Handle<JSFunction> function,
                             Handle<Object> prototype);
 
+Handle<Object> PreventExtensions(Handle<JSObject> object);
 
 // Does lazy compilation of the given function. Returns true on success and
 // false if the compilation resulted in a stack overflow.
@@ -399,25 +373,6 @@ class NoHandleAllocation BASE_EMBEDDED {
   int level_;
 #endif
 };
-
-
-// ----------------------------------------------------------------------------
-
-
-// Stack allocated wrapper call for optimizing adding multiple
-// properties to an object.
-class OptimizedObjectForAddingMultipleProperties BASE_EMBEDDED {
- public:
-  OptimizedObjectForAddingMultipleProperties(Handle<JSObject> object,
-                                             int expected_property_count,
-                                             bool condition = true);
-  ~OptimizedObjectForAddingMultipleProperties();
- private:
-  bool has_been_transformed_;  // Tells whether the object has been transformed.
-  int unused_property_fields_;  // Captures the unused number of field.
-  Handle<JSObject> object_;    // The object being optimized.
-};
-
 
 } }  // namespace v8::internal
 

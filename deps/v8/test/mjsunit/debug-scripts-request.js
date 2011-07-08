@@ -71,7 +71,7 @@ function listener(event, exec_state, event_data, data) {
     testArguments(dcp, '{"types":2}', true);
     testArguments(dcp, '{"types":4}', true);
     testArguments(dcp, '{"types":7}', true);
-    testArguments(dcp, '{"types":0xFF}', true);
+    testArguments(dcp, '{"types":255}', true);
 
     // Test request for all scripts.
     var request = '{' + base_request + '}'

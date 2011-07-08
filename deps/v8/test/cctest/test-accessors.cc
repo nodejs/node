@@ -243,7 +243,7 @@ static v8::Handle<Value> CheckAccessorArgsCorrect(Local<String> name,
   ApiTestFuzzer::Fuzz();
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
-  i::Heap::CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(true);
   CHECK(info.This() == info.Holder());
   CHECK(info.Data()->Equals(v8::String::New("data")));
   return v8::Integer::New(17);
@@ -397,9 +397,9 @@ static v8::Handle<Value> StackCheck(Local<String> name,
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
     CHECK(i != 0 || (frame->type() == i::StackFrame::EXIT));
-    CHECK(frame->code()->IsCode());
+    i::Code* code = frame->LookupCode();
+    CHECK(code->IsCode());
     i::Address pc = frame->pc();
-    i::Code* code = frame->code();
     CHECK(code->contains(pc));
     iter.Advance();
   }

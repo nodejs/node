@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test fast div and mod.
 
 function divmod(div_func, mod_func, x, y) {
@@ -190,3 +192,113 @@ function negative_zero_modulus_test() {
 }
 
 negative_zero_modulus_test();
+
+
+function lithium_integer_mod() {
+  var left_operands = [
+    0,
+    305419896,  // 0x12345678
+  ];
+
+  // Test the standard lithium code for modulo opeartions.
+  var mod_func;
+  for (var i = 0; i < left_operands.length; i++) {
+    for (var j = 0; j < divisors.length; j++) {
+      mod_func = this.eval("(function(left) { return left % " + divisors[j]+ "; })");
+      assertEquals((mod_func)(left_operands[i]), left_operands[i] % divisors[j]);
+      assertEquals((mod_func)(-left_operands[i]), -left_operands[i] % divisors[j]);
+    }
+  }
+
+  var results_powers_of_two = [
+    // 0
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+    // 305419896 == 0x12345678
+    [0, 0, 0, 8, 24, 56, 120, 120, 120, 632, 1656, 1656, 5752, 5752, 22136, 22136, 22136, 22136, 284280, 284280, 1332856, 3430008, 3430008, 3430008, 3430008, 36984440, 36984440, 36984440, 305419896, 305419896, 305419896],
+  ];
+
+  // Test the lithium code for modulo operations with a variable power of two
+  // right hand side operand.
+  for (var i = 0; i < left_operands.length; i++) {
+    for (var j = 0; j < 31; j++) {
+      assertEquals(results_powers_of_two[i][j], left_operands[i] % (2 << j));
+      assertEquals(results_powers_of_two[i][j], left_operands[i] % -(2 << j));
+      assertEquals(-results_powers_of_two[i][j], -left_operands[i] % (2 << j));
+      assertEquals(-results_powers_of_two[i][j], -left_operands[i] % -(2 << j));
+    }
+  }
+
+  // Test the lithium code for modulo operations with a constant power of two
+  // right hand side operand.
+  for (var i = 0; i < left_operands.length; i++) {
+    // With positive left hand side operand.
+    assertEquals(results_powers_of_two[i][0], left_operands[i] % -(2 << 0));
+    assertEquals(results_powers_of_two[i][1], left_operands[i] % (2 << 1));
+    assertEquals(results_powers_of_two[i][2], left_operands[i] % -(2 << 2));
+    assertEquals(results_powers_of_two[i][3], left_operands[i] % (2 << 3));
+    assertEquals(results_powers_of_two[i][4], left_operands[i] % -(2 << 4));
+    assertEquals(results_powers_of_two[i][5], left_operands[i] % (2 << 5));
+    assertEquals(results_powers_of_two[i][6], left_operands[i] % -(2 << 6));
+    assertEquals(results_powers_of_two[i][7], left_operands[i] % (2 << 7));
+    assertEquals(results_powers_of_two[i][8], left_operands[i] % -(2 << 8));
+    assertEquals(results_powers_of_two[i][9], left_operands[i] % (2 << 9));
+    assertEquals(results_powers_of_two[i][10], left_operands[i] % -(2 << 10));
+    assertEquals(results_powers_of_two[i][11], left_operands[i] % (2 << 11));
+    assertEquals(results_powers_of_two[i][12], left_operands[i] % -(2 << 12));
+    assertEquals(results_powers_of_two[i][13], left_operands[i] % (2 << 13));
+    assertEquals(results_powers_of_two[i][14], left_operands[i] % -(2 << 14));
+    assertEquals(results_powers_of_two[i][15], left_operands[i] % (2 << 15));
+    assertEquals(results_powers_of_two[i][16], left_operands[i] % -(2 << 16));
+    assertEquals(results_powers_of_two[i][17], left_operands[i] % (2 << 17));
+    assertEquals(results_powers_of_two[i][18], left_operands[i] % -(2 << 18));
+    assertEquals(results_powers_of_two[i][19], left_operands[i] % (2 << 19));
+    assertEquals(results_powers_of_two[i][20], left_operands[i] % -(2 << 20));
+    assertEquals(results_powers_of_two[i][21], left_operands[i] % (2 << 21));
+    assertEquals(results_powers_of_two[i][22], left_operands[i] % -(2 << 22));
+    assertEquals(results_powers_of_two[i][23], left_operands[i] % (2 << 23));
+    assertEquals(results_powers_of_two[i][24], left_operands[i] % -(2 << 24));
+    assertEquals(results_powers_of_two[i][25], left_operands[i] % (2 << 25));
+    assertEquals(results_powers_of_two[i][26], left_operands[i] % -(2 << 26));
+    assertEquals(results_powers_of_two[i][27], left_operands[i] % (2 << 27));
+    assertEquals(results_powers_of_two[i][28], left_operands[i] % -(2 << 28));
+    assertEquals(results_powers_of_two[i][29], left_operands[i] % (2 << 29));
+    assertEquals(results_powers_of_two[i][30], left_operands[i] % -(2 << 30));
+    // With negative left hand side operand.
+    assertEquals(-results_powers_of_two[i][0], -left_operands[i] % -(2 << 0));
+    assertEquals(-results_powers_of_two[i][1], -left_operands[i] % (2 << 1));
+    assertEquals(-results_powers_of_two[i][2], -left_operands[i] % -(2 << 2));
+    assertEquals(-results_powers_of_two[i][3], -left_operands[i] % (2 << 3));
+    assertEquals(-results_powers_of_two[i][4], -left_operands[i] % -(2 << 4));
+    assertEquals(-results_powers_of_two[i][5], -left_operands[i] % (2 << 5));
+    assertEquals(-results_powers_of_two[i][6], -left_operands[i] % -(2 << 6));
+    assertEquals(-results_powers_of_two[i][7], -left_operands[i] % (2 << 7));
+    assertEquals(-results_powers_of_two[i][8], -left_operands[i] % -(2 << 8));
+    assertEquals(-results_powers_of_two[i][9], -left_operands[i] % (2 << 9));
+    assertEquals(-results_powers_of_two[i][10], -left_operands[i] % -(2 << 10));
+    assertEquals(-results_powers_of_two[i][11], -left_operands[i] % (2 << 11));
+    assertEquals(-results_powers_of_two[i][12], -left_operands[i] % -(2 << 12));
+    assertEquals(-results_powers_of_two[i][13], -left_operands[i] % (2 << 13));
+    assertEquals(-results_powers_of_two[i][14], -left_operands[i] % -(2 << 14));
+    assertEquals(-results_powers_of_two[i][15], -left_operands[i] % (2 << 15));
+    assertEquals(-results_powers_of_two[i][16], -left_operands[i] % -(2 << 16));
+    assertEquals(-results_powers_of_two[i][17], -left_operands[i] % (2 << 17));
+    assertEquals(-results_powers_of_two[i][18], -left_operands[i] % -(2 << 18));
+    assertEquals(-results_powers_of_two[i][19], -left_operands[i] % (2 << 19));
+    assertEquals(-results_powers_of_two[i][20], -left_operands[i] % -(2 << 20));
+    assertEquals(-results_powers_of_two[i][21], -left_operands[i] % (2 << 21));
+    assertEquals(-results_powers_of_two[i][22], -left_operands[i] % -(2 << 22));
+    assertEquals(-results_powers_of_two[i][23], -left_operands[i] % (2 << 23));
+    assertEquals(-results_powers_of_two[i][24], -left_operands[i] % -(2 << 24));
+    assertEquals(-results_powers_of_two[i][25], -left_operands[i] % (2 << 25));
+    assertEquals(-results_powers_of_two[i][26], -left_operands[i] % -(2 << 26));
+    assertEquals(-results_powers_of_two[i][27], -left_operands[i] % (2 << 27));
+    assertEquals(-results_powers_of_two[i][28], -left_operands[i] % -(2 << 28));
+    assertEquals(-results_powers_of_two[i][29], -left_operands[i] % (2 << 29));
+    assertEquals(-results_powers_of_two[i][30], -left_operands[i] % -(2 << 30));
+  }
+
+}
+
+lithium_integer_mod();
+%OptimizeFunctionOnNextCall(lithium_integer_mod)
+lithium_integer_mod();

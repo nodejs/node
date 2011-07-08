@@ -269,6 +269,7 @@ void InstructionTable::AddJumpConditionalShort() {
 
 static InstructionTable instruction_table;
 
+
 static InstructionDesc cmov_instructions[16] = {
   {"cmovo", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
   {"cmovno", TWO_OPERANDS_INSTR, REG_OPER_OP_ORDER, false},
@@ -451,9 +452,11 @@ void DisassemblerX64::AppendToBuffer(const char* format, ...) {
 
 int DisassemblerX64::PrintRightOperandHelper(
     byte* modrmp,
-    RegisterNameMapping register_name) {
+    RegisterNameMapping direct_register_name) {
   int mod, regop, rm;
   get_modrm(*modrmp, &mod, &regop, &rm);
+  RegisterNameMapping register_name = (mod == 3) ? direct_register_name :
+      &DisassemblerX64::NameOfCPURegister;
   switch (mod) {
     case 0:
       if ((rm & 7) == 5) {
@@ -648,6 +651,9 @@ int DisassemblerX64::PrintImmediateOp(byte* data) {
       break;
     case 2:
       mnem = "adc";
+      break;
+    case 3:
+      mnem = "sbb";
       break;
     case 4:
       mnem = "and";
@@ -1015,12 +1021,26 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         current += PrintRightOperand(current);
         AppendToBuffer(", %s, %d", NameOfCPURegister(regop), (*current) & 3);
         current += 1;
+      } else if (third_byte == 0x0b) {
+        get_modrm(*current, &mod, &regop, &rm);
+         // roundsd xmm, xmm/m64, imm8
+        AppendToBuffer("roundsd %s, ", NameOfCPURegister(regop));
+        current += PrintRightOperand(current);
+        AppendToBuffer(", %d", (*current) & 3);
+        current += 1;
       } else {
         UnimplementedInstruction();
       }
     } else {
       get_modrm(*current, &mod, &regop, &rm);
-      if (opcode == 0x6E) {
+      if (opcode == 0x28) {
+        AppendToBuffer("movapd %s, ", NameOfXMMRegister(regop));
+        current += PrintRightXMMOperand(current);
+      } else if (opcode == 0x29) {
+        AppendToBuffer("movapd ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(", %s", NameOfXMMRegister(regop));
+      } else if (opcode == 0x6E) {
         AppendToBuffer("mov%c %s,",
                        rex_w() ? 'q' : 'd',
                        NameOfXMMRegister(regop));
@@ -1028,7 +1048,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       } else if (opcode == 0x6F) {
         AppendToBuffer("movdqa %s,",
                        NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
       } else if (opcode == 0x7E) {
         AppendToBuffer("mov%c ",
                        rex_w() ? 'q' : 'd');
@@ -1036,13 +1056,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
       } else if (opcode == 0x7F) {
         AppendToBuffer("movdqa ");
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
         AppendToBuffer(", %s", NameOfXMMRegister(regop));
+      } else if (opcode == 0xD6) {
+        AppendToBuffer("movq ");
+        current += PrintRightXMMOperand(current);
+        AppendToBuffer(", %s", NameOfXMMRegister(regop));
+      } else if (opcode == 0x50) {
+        AppendToBuffer("movmskpd %s,", NameOfCPURegister(regop));
+        current += PrintRightXMMOperand(current);
       } else {
         const char* mnemonic = "?";
-        if (opcode == 0x50) {
-          mnemonic = "movmskpd";
-        } else  if (opcode == 0x54) {
+        if (opcode == 0x54) {
           mnemonic = "andpd";
         } else  if (opcode == 0x56) {
           mnemonic = "orpd";
@@ -1068,11 +1093,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       int mod, regop, rm;
       get_modrm(*current, &mod, &regop, &rm);
       if (opcode == 0x11) {
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
         AppendToBuffer(",%s", NameOfXMMRegister(regop));
       } else {
         AppendToBuffer("%s,", NameOfXMMRegister(regop));
-        current += PrintRightOperand(current);
+        current += PrintRightXMMOperand(current);
       }
     } else if (opcode == 0x2A) {
       // CVTSI2SD: integer to XMM double conversion.
@@ -1139,6 +1164,11 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       get_modrm(*current, &mod, &regop, &rm);
       AppendToBuffer("cvtss2sd %s,", NameOfXMMRegister(regop));
       current += PrintRightXMMOperand(current);
+    } else if (opcode == 0x7E) {
+      int mod, regop, rm;
+      get_modrm(*current, &mod, &regop, &rm);
+      AppendToBuffer("movq %s, ", NameOfXMMRegister(regop));
+      current += PrintRightXMMOperand(current);
     } else {
       UnimplementedInstruction();
     }
@@ -1156,6 +1186,22 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       current += 4;
     }  // else no immediate displacement.
     AppendToBuffer("nop");
+
+  } else if (opcode == 0x28) {
+    // movaps xmm, xmm/m128
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movaps %s, ", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
+
+  } else if (opcode == 0x29) {
+    // movaps xmm/m128, xmm
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("movaps ");
+    current += PrintRightXMMOperand(current);
+    AppendToBuffer(", %s", NameOfXMMRegister(regop));
+
   } else if (opcode == 0xA2 || opcode == 0x31) {
     // RDTSC or CPUID
     AppendToBuffer("%s", mnemonic);
@@ -1166,6 +1212,13 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     const InstructionDesc& idesc = cmov_instructions[condition];
     byte_size_operand_ = idesc.byte_size_operation;
     current += PrintOperands(idesc.mnem, idesc.op_order_, current);
+
+  } else if (opcode == 0x57) {
+    // xorps xmm, xmm/m128
+    int mod, regop, rm;
+    get_modrm(*current, &mod, &regop, &rm);
+    AppendToBuffer("xorps %s, ", NameOfXMMRegister(regop));
+    current += PrintRightXMMOperand(current);
 
   } else if ((opcode & 0xF0) == 0x80) {
     // Jcc: Conditional jump (branch).
@@ -1435,19 +1488,26 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
       {
         bool is_byte = *data == 0xC6;
         data++;
-
-        AppendToBuffer("mov%c ", is_byte ? 'b' : operand_size_code());
-        data += PrintRightOperand(data);
-        int32_t imm = is_byte ? *data : *reinterpret_cast<int32_t*>(data);
-        AppendToBuffer(",0x%x", imm);
-        data += is_byte ? 1 : 4;
+        if (is_byte) {
+          AppendToBuffer("movb ");
+          data += PrintRightByteOperand(data);
+          int32_t imm = *data;
+          AppendToBuffer(",0x%x", imm);
+          data++;
+        } else {
+          AppendToBuffer("mov%c ", operand_size_code());
+          data += PrintRightOperand(data);
+          int32_t imm = *reinterpret_cast<int32_t*>(data);
+          AppendToBuffer(",0x%x", imm);
+          data += 4;
+        }
       }
         break;
 
       case 0x80: {
         data++;
         AppendToBuffer("cmpb ");
-        data += PrintRightOperand(data);
+        data += PrintRightByteOperand(data);
         int32_t imm = *data;
         AppendToBuffer(",0x%x", imm);
         data++;
@@ -1461,9 +1521,15 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         int mod, regop, rm;
         data++;
         get_modrm(*data, &mod, &regop, &rm);
-        AppendToBuffer("mov%c ", is_byte ? 'b' : operand_size_code());
-        data += PrintRightOperand(data);
-        AppendToBuffer(",%s", NameOfCPURegister(regop));
+        if (is_byte) {
+          AppendToBuffer("movb ");
+          data += PrintRightByteOperand(data);
+          AppendToBuffer(",%s", NameOfByteCPURegister(regop));
+        } else {
+          AppendToBuffer("mov%c ", operand_size_code());
+          data += PrintRightOperand(data);
+          AppendToBuffer(",%s", NameOfCPURegister(regop));
+        }
       }
         break;
 
@@ -1486,20 +1552,51 @@ int DisassemblerX64::InstructionDecode(v8::internal::Vector<char> out_buffer,
         data++;
       }
         break;
-
+      case 0xB0:
+      case 0xB1:
+      case 0xB2:
+      case 0xB3:
+      case 0xB4:
+      case 0xB5:
+      case 0xB6:
+      case 0xB7:
+      case 0xB8:
+      case 0xB9:
+      case 0xBA:
+      case 0xBB:
+      case 0xBC:
+      case 0xBD:
+      case 0xBE:
+      case 0xBF: {
+        // mov reg8,imm8 or mov reg32,imm32
+        byte opcode = *data;
+        data++;
+        bool is_32bit = (opcode >= 0xB8);
+        int reg = (opcode & 0x7) | (rex_b() ? 8 : 0);
+        if (is_32bit) {
+          AppendToBuffer("mov%c %s, ",
+                         operand_size_code(),
+                         NameOfCPURegister(reg));
+          data += PrintImmediate(data, DOUBLEWORD_SIZE);
+        } else {
+          AppendToBuffer("movb %s, ",
+                         NameOfByteCPURegister(reg));
+          data += PrintImmediate(data, BYTE_SIZE);
+        }
+        break;
+      }
       case 0xFE: {
         data++;
         int mod, regop, rm;
         get_modrm(*data, &mod, &regop, &rm);
         if (regop == 1) {
           AppendToBuffer("decb ");
-          data += PrintRightOperand(data);
+          data += PrintRightByteOperand(data);
         } else {
           UnimplementedInstruction();
         }
-      }
         break;
-
+      }
       case 0x68:
         AppendToBuffer("push 0x%x", *reinterpret_cast<int32_t*>(data + 1));
         data += 5;
@@ -1652,9 +1749,8 @@ static const char* xmm_regs[16] = {
 
 
 const char* NameConverter::NameOfAddress(byte* addr) const {
-  static v8::internal::EmbeddedVector<char, 32> tmp_buffer;
-  v8::internal::OS::SNPrintF(tmp_buffer, "%p", addr);
-  return tmp_buffer.start();
+  v8::internal::OS::SNPrintF(tmp_buffer_, "%p", addr);
+  return tmp_buffer_.start();
 }
 
 

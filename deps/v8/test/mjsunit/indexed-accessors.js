@@ -81,10 +81,11 @@ testArray();
 expected[0] = 111;
 testArray();
 
-// Using a setter where only a getter is defined throws an exception.
+// Using a setter where only a getter is defined does not throw an exception,
+// unless we are in strict mode.
 var q = {};
 q.__defineGetter__('0', function() { return 42; });
-assertThrows('q[0] = 7');
+assertDoesNotThrow('q[0] = 7');
 
 // Using a getter where only a setter is defined returns undefined.
 var q1 = {};

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -78,11 +78,20 @@ enum ContextLookupFlags {
   V(INSTANTIATE_FUN_INDEX, JSFunction, instantiate_fun) \
   V(CONFIGURE_INSTANCE_FUN_INDEX, JSFunction, configure_instance_fun) \
   V(FUNCTION_MAP_INDEX, Map, function_map) \
+  V(STRICT_MODE_FUNCTION_MAP_INDEX, Map, strict_mode_function_map) \
   V(FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, function_without_prototype_map) \
+  V(STRICT_MODE_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX, Map, \
+    strict_mode_function_without_prototype_map) \
   V(FUNCTION_INSTANCE_MAP_INDEX, Map, function_instance_map) \
+  V(STRICT_MODE_FUNCTION_INSTANCE_MAP_INDEX, Map, \
+    strict_mode_function_instance_map) \
   V(JS_ARRAY_MAP_INDEX, Map, js_array_map)\
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
   V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
+  V(ALIASED_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
+    aliased_arguments_boilerplate) \
+  V(STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
+    strict_mode_arguments_boilerplate) \
   V(MESSAGE_LISTENERS_INDEX, JSObject, message_listeners) \
   V(MAKE_MESSAGE_FUN_INDEX, JSFunction, make_message_fun) \
   V(GET_STACK_TRACE_LINE_INDEX, JSFunction, get_stack_trace_line_fun) \
@@ -99,7 +108,10 @@ enum ContextLookupFlags {
   V(CONTEXT_EXTENSION_FUNCTION_INDEX, JSFunction, context_extension_function) \
   V(OUT_OF_MEMORY_INDEX, Object, out_of_memory) \
   V(MAP_CACHE_INDEX, Object, map_cache) \
-  V(CONTEXT_DATA_INDEX, Object, data)
+  V(CONTEXT_DATA_INDEX, Object, data) \
+  V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings) \
+  V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap) \
+  V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap)
 
 // JSFunctions are pairs (context, function code), sometimes also called
 // closures. A Context object is used to represent function contexts and
@@ -117,13 +129,6 @@ enum ContextLookupFlags {
 //                scope information, which in turn contains the names of
 //                statically allocated context slots. The names are needed
 //                for dynamic lookups in the presence of 'with' or 'eval'.
-//
-// [ fcontext  ]  A pointer to the innermost enclosing function context.
-//                It is the same for all contexts *allocated* inside a
-//                function, and the function context's fcontext points
-//                to itself. It is only needed for fast access of the
-//                function context (used for declarations, and static
-//                context slot access).
 //
 // [ previous  ]  A pointer to the previous context. It is NULL for
 //                function contexts, and non-NULL for 'with' contexts.
@@ -146,19 +151,6 @@ enum ContextLookupFlags {
 // (via static context addresses) or through 'eval' (dynamic context lookups).
 // Finally, the global context contains additional slots for fast access to
 // global properties.
-//
-// We may be able to simplify the implementation:
-//
-// - We may be able to get rid of 'fcontext': We can always use the fact that
-//   previous == NULL for function contexts and so we can search for them. They
-//   are only needed when doing dynamic declarations, and the context chains
-//   tend to be very very short (depth of nesting of 'with' statements). At
-//   the moment we also use it in generated code for context slot accesses -
-//   and there we don't want a loop because of code bloat - but we may not
-//   need it there after all (see comment in codegen_*.cc).
-//
-// - If we cannot get rid of fcontext, consider making 'previous' never NULL
-//   except for the global context. This could simplify Context::Lookup.
 
 class Context: public FixedArray {
  public:
@@ -172,21 +164,31 @@ class Context: public FixedArray {
   enum {
     // These slots are in all contexts.
     CLOSURE_INDEX,
-    FCONTEXT_INDEX,
     PREVIOUS_INDEX,
+    // The extension slot is used for either the global object (in global
+    // contexts), eval extension object (function contexts), subject of with
+    // (with contexts), or the variable name (catch contexts).
     EXTENSION_INDEX,
     GLOBAL_INDEX,
     MIN_CONTEXT_SLOTS,
+
+    // This slot holds the thrown value in catch contexts.
+    THROWN_OBJECT_INDEX = MIN_CONTEXT_SLOTS,
 
     // These slots are only in global contexts.
     GLOBAL_PROXY_INDEX = MIN_CONTEXT_SLOTS,
     SECURITY_TOKEN_INDEX,
     ARGUMENTS_BOILERPLATE_INDEX,
+    ALIASED_ARGUMENTS_BOILERPLATE_INDEX,
+    STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX,
     JS_ARRAY_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     FUNCTION_MAP_INDEX,
+    STRICT_MODE_FUNCTION_MAP_INDEX,
     FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
+    STRICT_MODE_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX,
     FUNCTION_INSTANCE_MAP_INDEX,
+    STRICT_MODE_FUNCTION_INSTANCE_MAP_INDEX,
     INITIAL_OBJECT_PROTOTYPE_INDEX,
     BOOLEAN_FUNCTION_INDEX,
     NUMBER_FUNCTION_INDEX,
@@ -223,12 +225,15 @@ class Context: public FixedArray {
     OPAQUE_REFERENCE_FUNCTION_INDEX,
     CONTEXT_EXTENSION_FUNCTION_INDEX,
     OUT_OF_MEMORY_INDEX,
-    MAP_CACHE_INDEX,
     CONTEXT_DATA_INDEX,
+    ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
+    DERIVED_GET_TRAP_INDEX,
+    DERIVED_SET_TRAP_INDEX,
 
     // Properties from here are treated as weak references by the full GC.
     // Scavenge treats them as strong references.
     OPTIMIZED_FUNCTIONS_LIST,  // Weak.
+    MAP_CACHE_INDEX,  // Weak.
     NEXT_CONTEXT_LINK,  // Weak.
 
     // Total number of slots.
@@ -241,9 +246,6 @@ class Context: public FixedArray {
   JSFunction* closure() { return JSFunction::cast(get(CLOSURE_INDEX)); }
   void set_closure(JSFunction* closure) { set(CLOSURE_INDEX, closure); }
 
-  Context* fcontext() { return Context::cast(get(FCONTEXT_INDEX)); }
-  void set_fcontext(Context* context) { set(FCONTEXT_INDEX, context); }
-
   Context* previous() {
     Object* result = unchecked_previous();
     ASSERT(IsBootstrappingOrContext(result));
@@ -251,14 +253,17 @@ class Context: public FixedArray {
   }
   void set_previous(Context* context) { set(PREVIOUS_INDEX, context); }
 
-  bool has_extension() { return unchecked_extension() != NULL; }
-  JSObject* extension() { return JSObject::cast(unchecked_extension()); }
-  void set_extension(JSObject* object) { set(EXTENSION_INDEX, object); }
+  bool has_extension() { return extension() != NULL; }
+  Object* extension() { return get(EXTENSION_INDEX); }
+  void set_extension(Object* object) { set(EXTENSION_INDEX, object); }
+
+  // Get the context where var declarations will be hoisted to, which
+  // may be the context itself.
+  Context* declaration_context();
 
   GlobalObject* global() {
     Object* result = get(GLOBAL_INDEX);
-    ASSERT(Heap::gc_state() != Heap::NOT_IN_GC ||
-           IsBootstrappingOrGlobalObject(result));
+    ASSERT(IsBootstrappingOrGlobalObject(result));
     return reinterpret_cast<GlobalObject*>(result);
   }
   void set_global(GlobalObject* global) { set(GLOBAL_INDEX, global); }
@@ -273,18 +278,27 @@ class Context: public FixedArray {
   // Compute the global context by traversing the context chain.
   Context* global_context();
 
-  // Tells if this is a function context (as opposed to a 'with' context).
-  bool is_function_context() { return unchecked_previous() == NULL; }
+  // Predicates for context types.  IsGlobalContext is defined on Object
+  // because we frequently have to know if arbitrary objects are global
+  // contexts.
+  bool IsFunctionContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->function_context_map();
+  }
+  bool IsCatchContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->catch_context_map();
+  }
+  bool IsWithContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->with_context_map();
+  }
 
   // Tells whether the global context is marked with out of memory.
-  bool has_out_of_memory() {
-    return global_context()->out_of_memory() == Heap::true_value();
-  }
+  inline bool has_out_of_memory();
 
   // Mark the global context with out of memory.
-  void mark_out_of_memory() {
-    global_context()->set_out_of_memory(Heap::true_value());
-  }
+  inline void mark_out_of_memory();
 
   // The exception holder is the object used as a with object in
   // the implementation of a catch block.
@@ -343,6 +357,11 @@ class Context: public FixedArray {
   // eval.
   bool GlobalIfNotShadowedByEval(Handle<String> name);
 
+  // Determine if any function scope in the context call eval and if
+  // any of those calls are in non-strict mode.
+  void ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
+                            bool* outer_scope_calls_non_strict_eval);
+
   // Code generation support.
   static int SlotOffset(int index) {
     return kHeaderSize + index * kPointerSize - kHeapObjectTag;
@@ -362,7 +381,6 @@ class Context: public FixedArray {
  private:
   // Unchecked access to the slots.
   Object* unchecked_previous() { return get(PREVIOUS_INDEX); }
-  Object* unchecked_extension() { return get(EXTENSION_INDEX); }
 
 #ifdef DEBUG
   // Bootstrapping-aware type checks.

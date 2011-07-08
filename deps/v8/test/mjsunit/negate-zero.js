@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 function IsNegativeZero(x) {
-  assertEquals(0, x);
+  assertTrue(x == 0);  // Is 0 or -0.
   var y = 1 / x;
   assertFalse(isFinite(y));
   return y < 0;

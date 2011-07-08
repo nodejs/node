@@ -33,15 +33,36 @@
 // NOTE these macros are used by the SCons build script so their names
 // cannot be changed without changing the SCons build script.
 #define MAJOR_VERSION     3
-#define MINOR_VERSION     1
-#define BUILD_NUMBER      8
-#define PATCH_LEVEL       25
-#define CANDIDATE_VERSION false
+#define MINOR_VERSION     4
+#define BUILD_NUMBER      10
+#define PATCH_LEVEL       0
+// Use 1 for candidates and 0 otherwise.
+// (Boolean macro values are not supported by all preprocessors.)
+#define IS_CANDIDATE_VERSION 0
 
 // Define SONAME to have the SCons build the put a specific SONAME into the
 // shared library instead the generic SONAME generated from the V8 version
 // number. This define is mainly used by the SCons build script.
 #define SONAME            ""
+
+#if IS_CANDIDATE_VERSION
+#define CANDIDATE_STRING " (candidate)"
+#else
+#define CANDIDATE_STRING ""
+#endif
+
+#define SX(x) #x
+#define S(x) SX(x)
+
+#if PATCH_LEVEL > 0
+#define VERSION_STRING                                                         \
+    S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER) "."              \
+        S(PATCH_LEVEL) CANDIDATE_STRING
+#else
+#define VERSION_STRING                                                         \
+    S(MAJOR_VERSION) "." S(MINOR_VERSION) "." S(BUILD_NUMBER)                  \
+        CANDIDATE_STRING
+#endif
 
 namespace v8 {
 namespace internal {
@@ -50,9 +71,9 @@ int Version::major_ = MAJOR_VERSION;
 int Version::minor_ = MINOR_VERSION;
 int Version::build_ = BUILD_NUMBER;
 int Version::patch_ = PATCH_LEVEL;
-bool Version::candidate_ = CANDIDATE_VERSION;
+bool Version::candidate_ = (IS_CANDIDATE_VERSION != 0);
 const char* Version::soname_ = SONAME;
-
+const char* Version::version_string_ = VERSION_STRING;
 
 // Calculate the V8 version string.
 void Version::GetString(Vector<char> str) {

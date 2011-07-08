@@ -25,11 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Deoptimization after a short-circuit logical operation in an effect
 // context should not see the value of the expression.
 function observe(x, y) { return x; }
 
 function test(x) { return observe(1, ((false || false), x + 1)); }
 
-for (var i = 0; i < 10000000; ++i) test(0);
+for (var i = 0; i < 5; ++i) test(0);
+%OptimizeFunctionOnNextCall(test);
+test(0);
+
 test("a");

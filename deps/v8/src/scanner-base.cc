@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,37 +35,10 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// Character predicates
-
-unibrow::Predicate<IdentifierStart, 128> ScannerConstants::kIsIdentifierStart;
-unibrow::Predicate<IdentifierPart, 128> ScannerConstants::kIsIdentifierPart;
-unibrow::Predicate<unibrow::WhiteSpace, 128> ScannerConstants::kIsWhiteSpace;
-unibrow::Predicate<unibrow::LineTerminator, 128>
-  ScannerConstants::kIsLineTerminator;
-
-StaticResource<ScannerConstants::Utf8Decoder> ScannerConstants::utf8_decoder_;
-
-// Compound predicates.
-
-bool ScannerConstants::IsIdentifier(unibrow::CharacterStream* buffer) {
-  // Checks whether the buffer contains an identifier (no escape).
-  if (!buffer->has_more()) return false;
-  if (!kIsIdentifierStart.get(buffer->GetNext())) {
-    return false;
-  }
-  while (buffer->has_more()) {
-    if (!kIsIdentifierPart.get(buffer->GetNext())) {
-      return false;
-    }
-  }
-  return true;
-}
-
-// ----------------------------------------------------------------------------
 // Scanner
 
-Scanner::Scanner()
-  : octal_pos_(kNoOctalLocation) { }
+Scanner::Scanner(UnicodeCache* unicode_cache)
+    : unicode_cache_(unicode_cache) { }
 
 
 uc32 Scanner::ScanHexEscape(uc32 c, int length) {
@@ -96,38 +69,30 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
 }
 
 
-// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
-// ECMA-262. Other JS VMs support them.
-uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
-  uc32 x = c - '0';
-  int i = 0;
-  for (; i < length; i++) {
-    int d = c0_ - '0';
-    if (d < 0 || d > 7) break;
-    int nx = x * 8 + d;
-    if (nx >= 256) break;
-    x = nx;
-    Advance();
-  }
-  // Anything excelt '\0' is an octal escape sequence, illegal in strict mode.
-  // Remember the position of octal escape sequences so that better error
-  // can be reported later (in strict mode).
-  if (c != '0' || i > 0) {
-    octal_pos_ = source_pos() - i - 1;     // Already advanced
-  }
-  return x;
-}
-
 
 // ----------------------------------------------------------------------------
 // JavaScriptScanner
 
-JavaScriptScanner::JavaScriptScanner() : Scanner() {}
+JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
+  : Scanner(scanner_contants), octal_pos_(Location::invalid()) { }
 
+
+void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
+  source_ = source;
+  // Need to capture identifiers in order to recognize "get" and "set"
+  // in object literals.
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
+}
 
 Token::Value JavaScriptScanner::Next() {
   current_ = next_;
   has_line_terminator_before_next_ = false;
+  has_multiline_comment_before_next_ = false;
   Scan();
   return current_.token;
 }
@@ -151,9 +116,9 @@ bool JavaScriptScanner::SkipWhiteSpace() {
   while (true) {
     // We treat byte-order marks (BOMs) as whitespace for better
     // compatibility with Spidermonkey and other JavaScript engines.
-    while (ScannerConstants::kIsWhiteSpace.get(c0_) || IsByteOrderMark(c0_)) {
+    while (unicode_cache_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
       // IsWhiteSpace() includes line terminators!
-      if (ScannerConstants::kIsLineTerminator.get(c0_)) {
+      if (unicode_cache_->IsLineTerminator(c0_)) {
         // Ignore line terminators, but remember them. This is necessary
         // for automatic semicolon insertion.
         has_line_terminator_before_next_ = true;
@@ -192,8 +157,8 @@ Token::Value JavaScriptScanner::SkipSingleLineComment() {
   // to be part of the single-line comment; it is recognized
   // separately by the lexical grammar and becomes part of the
   // stream of input elements for the syntactic grammar (see
-  // ECMA-262, section 7.4, page 12).
-  while (c0_ >= 0 && !ScannerConstants::kIsLineTerminator.get(c0_)) {
+  // ECMA-262, section 7.4).
+  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
     Advance();
   }
 
@@ -208,13 +173,14 @@ Token::Value JavaScriptScanner::SkipMultiLineComment() {
   while (c0_ >= 0) {
     char ch = c0_;
     Advance();
+    if (unicode_cache_->IsLineTerminator(ch)) {
+      // Following ECMA-262, section 7.4, a comment containing
+      // a newline will make the comment count as a line-terminator.
+      has_multiline_comment_before_next_ = true;
+    }
     // If we have reached the end of the multi-line comment, we
     // consume the '/' and insert a whitespace. This way all
-    // multi-line comments are treated as whitespace - even the ones
-    // containing line terminators. This contradicts ECMA-262, section
-    // 7.4, page 12, that says that multi-line comments containing
-    // line terminators should be treated as a line terminator, but it
-    // matches the behaviour of SpiderMonkey and KJS.
+    // multi-line comments are treated as whitespace.
     if (ch == '*' && c0_ == '/') {
       c0_ = ' ';
       return Token::WHITESPACE;
@@ -458,7 +424,7 @@ void JavaScriptScanner::Scan() {
         break;
 
       default:
-        if (ScannerConstants::kIsIdentifierStart.get(c0_)) {
+        if (unicode_cache_->IsIdentifierStart(c0_)) {
           token = ScanIdentifierOrKeyword();
         } else if (IsDecimalDigit(c0_)) {
           token = ScanNumber(false);
@@ -496,6 +462,7 @@ void JavaScriptScanner::SeekForward(int pos) {
     // of the end of a function (at the "}" token). It doesn't matter
     // whether there was a line terminator in the part we skip.
     has_line_terminator_before_next_ = false;
+    has_multiline_comment_before_next_ = false;
   }
   Scan();
 }
@@ -506,7 +473,7 @@ void JavaScriptScanner::ScanEscape() {
   Advance();
 
   // Skip escaped newlines.
-  if (ScannerConstants::kIsLineTerminator.get(c)) {
+  if (unicode_cache_->IsLineTerminator(c)) {
     // Allow CR+LF newlines in multiline string literals.
     if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
     // Allow LF+CR newlines in multiline string literals.
@@ -543,13 +510,38 @@ void JavaScriptScanner::ScanEscape() {
 }
 
 
+// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
+// ECMA-262. Other JS VMs support them.
+uc32 JavaScriptScanner::ScanOctalEscape(uc32 c, int length) {
+  uc32 x = c - '0';
+  int i = 0;
+  for (; i < length; i++) {
+    int d = c0_ - '0';
+    if (d < 0 || d > 7) break;
+    int nx = x * 8 + d;
+    if (nx >= 256) break;
+    x = nx;
+    Advance();
+  }
+  // Anything except '\0' is an octal escape sequence, illegal in strict mode.
+  // Remember the position of octal escape sequences so that an error
+  // can be reported later (in strict mode).
+  // We don't report the error immediately, because the octal escape can
+  // occur before the "use strict" directive.
+  if (c != '0' || i > 0) {
+    octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
+  }
+  return x;
+}
+
+
 Token::Value JavaScriptScanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
   LiteralScope literal(this);
   while (c0_ != quote && c0_ >= 0
-         && !ScannerConstants::kIsLineTerminator.get(c0_)) {
+         && !unicode_cache_->IsLineTerminator(c0_)) {
     uc32 c = c0_;
     Advance();
     if (c == '\\') {
@@ -587,6 +579,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   } else {
     // if the first character is '0' we must check for octals and hex
     if (c0_ == '0') {
+      int start_pos = source_pos();  // For reporting octal positions.
       AddLiteralCharAdvance();
 
       // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
@@ -611,7 +604,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
           }
           if (c0_  < '0' || '7'  < c0_) {
             // Octal literal finished.
-            octal_pos_ = next_.location.beg_pos;
+            octal_pos_ = Location(start_pos, source_pos());
             break;
           }
           AddLiteralCharAdvance();
@@ -648,7 +641,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
   // not be an identifier start or a decimal digit; see ECMA-262
   // section 7.8.3, page 17 (note that we read only one decimal digit
   // if the value is 0).
-  if (IsDecimalDigit(c0_) || ScannerConstants::kIsIdentifierStart.get(c0_))
+  if (IsDecimalDigit(c0_) || unicode_cache_->IsIdentifierStart(c0_))
     return Token::ILLEGAL;
 
   literal.Complete();
@@ -670,14 +663,14 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 
 
 Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
-  ASSERT(ScannerConstants::kIsIdentifierStart.get(c0_));
+  ASSERT(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
   KeywordMatcher keyword_match;
   // Scan identifier start character.
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
-    if (!ScannerConstants::kIsIdentifierStart.get(c)) return Token::ILLEGAL;
+    if (!unicode_cache_->IsIdentifierStart(c)) return Token::ILLEGAL;
     AddLiteralChar(c);
     return ScanIdentifierSuffix(&literal);
   }
@@ -690,7 +683,7 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
   }
 
   // Scan the rest of the identifier characters.
-  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ != '\\') {
       uc32 next_char = c0_;
       Advance();
@@ -708,11 +701,11 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
 
 Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
-  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
-      if (!ScannerConstants::kIsIdentifierPart.get(c)) return Token::ILLEGAL;
+      if (!unicode_cache_->IsIdentifierPart(c)) return Token::ILLEGAL;
       AddLiteralChar(c);
     } else {
       AddLiteralChar(c0_);
@@ -742,10 +735,10 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
     AddLiteralChar('=');
 
   while (c0_ != '/' || in_character_class) {
-    if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
+    if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
     if (c0_ == '\\') {  // Escape sequence.
       AddLiteralCharAdvance();
-      if (ScannerConstants::kIsLineTerminator.get(c0_) || c0_ < 0) return false;
+      if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
       AddLiteralCharAdvance();
       // If the escape allows more characters, i.e., \x??, \u????, or \c?,
       // only "safe" characters are allowed (letters, digits, underscore),
@@ -754,6 +747,9 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
       // worrying whether the following characters are part of the escape
       // or not, since any '/', '\\' or '[' is guaranteed to not be part
       // of the escape sequence.
+
+      // TODO(896): At some point, parse RegExps more throughly to capture
+      // octal esacpes in strict mode.
     } else {  // Unescaped character.
       if (c0_ == '[') in_character_class = true;
       if (c0_ == ']') in_character_class = false;
@@ -771,7 +767,7 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 bool JavaScriptScanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
-  while (ScannerConstants::kIsIdentifierPart.get(c0_)) {
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
@@ -803,7 +799,7 @@ KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
   { NULL,     I,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { "let",    KEYWORD_PREFIX, Token::FUTURE_RESERVED_WORD },
+  { "let",    KEYWORD_PREFIX, Token::FUTURE_STRICT_RESERVED_WORD },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
   { NULL,     N,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
@@ -816,7 +812,7 @@ KeywordMatcher::FirstState KeywordMatcher::first_states_[] = {
   { NULL,     V,              Token::ILLEGAL },
   { NULL,     W,              Token::ILLEGAL },
   { NULL,     UNMATCHABLE,    Token::ILLEGAL },
-  { "yield",  KEYWORD_PREFIX, Token::FUTURE_RESERVED_WORD }
+  { "yield",  KEYWORD_PREFIX, Token::FUTURE_STRICT_RESERVED_WORD }
 };
 
 
@@ -853,7 +849,7 @@ void KeywordMatcher::Step(unibrow::uchar input) {
     case C:
       if (MatchState(input, 'a', CA)) return;
       if (MatchKeywordStart(input, "class", 1,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_RESERVED_WORD)) return;
       if (MatchState(input, 'o', CO)) return;
       break;
     case CA:
@@ -879,14 +875,14 @@ void KeywordMatcher::Step(unibrow::uchar input) {
     case E:
       if (MatchKeywordStart(input, "else", 1, Token::ELSE)) return;
       if (MatchKeywordStart(input, "enum", 1,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_RESERVED_WORD)) return;
       if (MatchState(input, 'x', EX)) return;
       break;
     case EX:
       if (MatchKeywordStart(input, "export", 2,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_RESERVED_WORD)) return;
       if (MatchKeywordStart(input, "extends", 2,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_RESERVED_WORD)) return;
       break;
     case F:
       if (MatchKeywordStart(input, "false", 1, Token::FALSE_LITERAL)) return;
@@ -904,41 +900,40 @@ void KeywordMatcher::Step(unibrow::uchar input) {
       break;
     case IMP:
       if (MatchKeywordStart(input, "implements", 3,
-         Token::FUTURE_RESERVED_WORD )) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD )) return;
       if (MatchKeywordStart(input, "import", 3,
-         Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_RESERVED_WORD)) return;
       break;
     case IN:
       token_ = Token::IDENTIFIER;
       if (MatchKeywordStart(input, "interface", 2,
-         Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD)) return;
       if (MatchKeywordStart(input, "instanceof", 2, Token::INSTANCEOF)) return;
       break;
     case N:
-      if (MatchKeywordStart(input, "native", 1, Token::NATIVE)) return;
       if (MatchKeywordStart(input, "new", 1, Token::NEW)) return;
       if (MatchKeywordStart(input, "null", 1, Token::NULL_LITERAL)) return;
       break;
     case P:
       if (MatchKeywordStart(input, "package", 1,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD)) return;
       if (MatchState(input, 'r', PR)) return;
       if (MatchKeywordStart(input, "public", 1,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD)) return;
       break;
     case PR:
       if (MatchKeywordStart(input, "private", 2,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD)) return;
       if (MatchKeywordStart(input, "protected", 2,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD)) return;
       break;
     case S:
       if (MatchKeywordStart(input, "static", 1,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_STRICT_RESERVED_WORD)) return;
       if (MatchKeywordStart(input, "super", 1,
-          Token::FUTURE_RESERVED_WORD)) return;
+                            Token::FUTURE_RESERVED_WORD)) return;
       if (MatchKeywordStart(input, "switch", 1,
-          Token::SWITCH)) return;
+                            Token::SWITCH)) return;
       break;
     case T:
       if (MatchState(input, 'h', TH)) return;

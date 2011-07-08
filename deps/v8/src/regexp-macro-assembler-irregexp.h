@@ -106,7 +106,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
   virtual void IfRegisterEqPos(int register_index, Label* if_eq);
 
   virtual IrregexpImplementation Implementation();
-  virtual Handle<Object> GetCode(Handle<String> source);
+  virtual Handle<HeapObject> GetCode(Handle<String> source);
  private:
   void Expand();
   // Code and bitmap emission.

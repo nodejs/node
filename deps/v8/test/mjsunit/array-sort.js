@@ -70,30 +70,59 @@ function TestNumberSort() {
   a.sort();
   assertArrayEquals([-1000000000, -10000000000, -1000000001, 1000000000, 10000000000, 1000000001], a);
 
+  // Other cases are tested implicitly in TestSmiLexicographicCompare.
+}
 
-  for (var xb = 1; xb <= 1000 * 1000 * 1000; xb *= 10) {
+TestNumberSort();
+
+function TestSmiLexicographicCompare() {
+
+  assertFalse(%_IsSmi(2147483648), 'Update test for >32 bit Smi');
+
+  // Collect a list of interesting Smis.
+  var seen = {};
+  var smis = [];
+  function add(x) {
+    if (x | 0 == x) {
+      x = x | 0;  // Canonicalizes to Smi if 32-bit signed and fits in Smi.
+    }
+    if (%_IsSmi(x) && !seen[x]) {
+      seen[x] = 1;
+      smis.push(x);
+    }
+  }
+  function addSigned(x) {
+    add(x);
+    add(-x);
+  }
+
+  var BIGGER_THAN_ANY_SMI = 10 * 1000 * 1000 * 1000;
+  for (var xb = 1; xb <= BIGGER_THAN_ANY_SMI; xb *= 10) {
     for (var xf = 0; xf <= 9; xf++) {
       for (var xo = -1; xo <= 1; xo++) {
-        for (var yb = 1; yb <= 1000 * 1000 * 1000; yb *= 10) {
-          for (var yf = 0; yf <= 9; yf++) {
-            for (var yo = -1; yo <= 1; yo++) {
-              var x = xb * xf + xo;
-              var y = yb * yf + yo;
-              if (!%_IsSmi(x)) continue;
-              if (!%_IsSmi(y)) continue;
-              var lex = %SmiLexicographicCompare(x, y);
-              if (lex < 0) lex = -1;
-              if (lex > 0) lex = 1;
-              assertEquals(lex, (x == y) ? 0 : ((x + "") < (y + "") ? -1 : 1), x + " < " + y);
-            }
-          }
-        }
+        addSigned(xb * xf + xo);
       }
+    }
+  }
+
+  for (var yb = 1; yb <= BIGGER_THAN_ANY_SMI; yb *= 2) {
+    for (var yo = -2; yo <= 2; yo++) {
+      addSigned(yb + yo);
+    }
+  }
+
+  for (var i = 0; i < smis.length; i++) {
+    for (var j = 0; j < smis.length; j++) {
+      var x = smis[i];
+      var y = smis[j];
+      var lex = %SmiLexicographicCompare(x, y);
+      var expected = (x == y) ? 0 : ((x + "") < (y + "") ? -1 : 1);
+      assertEquals(lex, expected, x + " < " + y);
     }
   }
 }
 
-TestNumberSort();
+TestSmiLexicographicCompare();
 
 
 // Test lexicographical string sorting.

@@ -36,6 +36,8 @@
 #ifndef V8_CPU_H_
 #define V8_CPU_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
@@ -52,6 +54,8 @@ class CPU : public AllStatic {
  public:
   // Initializes the cpu architecture support. Called once at VM startup.
   static void Setup();
+
+  static bool SupportsCrankshaft();
 
   // Flush instruction cache.
   static void FlushICache(void* start, size_t size);

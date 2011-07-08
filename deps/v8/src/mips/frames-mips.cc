@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -37,57 +37,8 @@ namespace v8 {
 namespace internal {
 
 
-StackFrame::Type StackFrame::ComputeType(State* state) {
-  ASSERT(state->fp != NULL);
-  if (StandardFrame::IsArgumentsAdaptorFrame(state->fp)) {
-    return ARGUMENTS_ADAPTOR;
-  }
-  // The marker and function offsets overlap. If the marker isn't a
-  // smi then the frame is a JavaScript frame -- and the marker is
-  // really the function.
-  const int offset = StandardFrameConstants::kMarkerOffset;
-  Object* marker = Memory::Object_at(state->fp + offset);
-  if (!marker->IsSmi()) return JAVA_SCRIPT;
-  return static_cast<StackFrame::Type>(Smi::cast(marker)->value());
-}
-
-
 Address ExitFrame::ComputeStackPointer(Address fp) {
-  Address sp = fp + ExitFrameConstants::kSPDisplacement;
-  const int offset = ExitFrameConstants::kCodeOffset;
-  Object* code = Memory::Object_at(fp + offset);
-  bool is_debug_exit = code->IsSmi();
-  if (is_debug_exit) {
-    sp -= kNumJSCallerSaved * kPointerSize;
-  }
-  return sp;
-}
-
-
-void ExitFrame::Iterate(ObjectVisitor* v) const {
-  // Do nothing
-}
-
-
-int JavaScriptFrame::GetProvidedParametersCount() const {
-  return ComputeParametersCount();
-}
-
-
-Address JavaScriptFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED_MIPS();
-  return static_cast<Address>(NULL);  // UNIMPLEMENTED RETURN
-}
-
-
-Address ArgumentsAdaptorFrame::GetCallerStackPointer() const {
-  UNIMPLEMENTED_MIPS();
-  return static_cast<Address>(NULL);  // UNIMPLEMENTED RETURN
-}
-
-
-Address InternalFrame::GetCallerStackPointer() const {
-  return fp() + StandardFrameConstants::kCallerSPOffset;
+  return Memory::Address_at(fp + ExitFrameConstants::kSPOffset);
 }
 
 

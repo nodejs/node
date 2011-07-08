@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,9 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
-#include <limits.h>
+#include <limits>
 
-#include "v8.h"
+#ifndef V8_INFINITY
+#define V8_INFINITY std::numeric_limits<double>::infinity()
+#endif
+
+#include "utils.h"
 
 #include "strtod.h"
 #include "bignum.h"

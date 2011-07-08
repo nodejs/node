@@ -977,9 +977,14 @@ DebugRequest.prototype.breakCommandToJSONRequest_ = function(args) {
     // specification it is considered a function break point.
     pos = target.indexOf(':');
     if (pos > 0) {
-      type = 'script';
       var tmp = target.substring(pos + 1, target.length);
       target = target.substring(0, pos);
+      if (target[0] == '/' && target[target.length - 1] == '/') {
+        type = 'scriptRegExp';
+        target = target.substring(1, target.length - 1);
+      } else {
+        type = 'script';
+      }
 
       // Check for both line and column.
       pos = tmp.indexOf(':');
@@ -1983,6 +1988,9 @@ function DebugResponseDetails(response) {
           }
           if (breakpoint.script_name) {
               result += ' script_name=' + breakpoint.script_name;
+          }
+          if (breakpoint.script_regexp) {
+              result += ' script_regexp=' + breakpoint.script_regexp;
           }
           result += ' line=' + (breakpoint.line + 1);
           if (breakpoint.column != null) {

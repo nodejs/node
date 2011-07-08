@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test that we can inline a function that calls another function.
 function TestInlineX(o) {
   // Effect context.
@@ -42,7 +44,9 @@ function TestInlineX(o) {
 var o2 = {};
 o2.size = function() { return 42; }
 o2.g = function() { return this.size(); };
-for (var i = 0; i < 10000; i++) TestInlineX(o2);
+for (var i = 0; i < 5; i++) TestInlineX(o2);
+%OptimizeFunctionOnNextCall(TestInlineX);
+TestInlineX(o2);
 TestInlineX({g: o2.g, size:o2.size});
 
 
@@ -65,7 +69,9 @@ obj.foo = function() { return 42; }
 var o3 = {};
 o3.v = obj;
 o3.h = function() { return this.v.foo(); };
-for (var i = 0; i < 10000; i++) TestInlineX2(o3);
+for (var i = 0; i < 5; i++) TestInlineX2(o3);
+%OptimizeFunctionOnNextCall(TestInlineX2);
+TestInlineX2(o3);
 TestInlineX2({h: o3.h, v:obj});
 
 
@@ -89,5 +95,7 @@ var o3 = {};
 o3.v = obj;
 o3.f = function() { return this.v; }
 o3.h = function() { return this.f().g(); };
-for (var i = 0; i < 10000; i++) TestInlineFG(o3);
+for (var i = 0; i < 5; i++) TestInlineFG(o3);
+%OptimizeFunctionOnNextCall(TestInlineFG);
+TestInlineFG(o3);
 TestInlineFG({h: o3.h, f: o3.f, v:obj});

@@ -190,7 +190,7 @@ assertEquals(100, toNumber("000100"));
 assertEquals(Infinity,  toNumber("1e999"), "1e999");
 assertEquals(-Infinity, toNumber("-1e999"));
 assertEquals(0,         toNumber("1e-999"));
-assertEquals(0,         toNumber("-1e-999"));
+assertEquals(-0,        toNumber("-1e-999"));
 assertEquals(Infinity,  1 / toNumber("1e-999"), "1e-999");
 assertEquals(-Infinity, 1 / toNumber("-1e-999"));
 

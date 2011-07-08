@@ -25,6 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+#include "v8.h"
 #include "lithium.h"
 
 namespace v8 {
@@ -162,6 +163,32 @@ void LPointerMap::PrintTo(StringStream* stream) {
     pointer_operands_[i]->PrintTo(stream);
   }
   stream->Add("} @%d", position());
+}
+
+
+int ElementsKindToShiftSize(JSObject::ElementsKind elements_kind) {
+  switch (elements_kind) {
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      return 0;
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      return 1;
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+      return 2;
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+      return 3;
+    case JSObject::FAST_ELEMENTS:
+    case JSObject::DICTIONARY_ELEMENTS:
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      return kPointerSizeLog2;
+  }
+  UNREACHABLE();
+  return 0;
 }
 
 

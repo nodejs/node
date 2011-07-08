@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -72,6 +72,7 @@ namespace internal {
 struct Register {
   static const int kNumRegisters = 16;
   static const int kNumAllocatableRegisters = 8;
+  static const int kSizeInBytes = 4;
 
   static int ToAllocationIndex(Register reg) {
     ASSERT(reg.code() < kNumAllocatableRegisters);
@@ -166,13 +167,14 @@ struct SwVfpRegister {
 
 // Double word VFP register.
 struct DwVfpRegister {
-  // d0 has been excluded from allocation. This is following ia32
-  // where xmm0 is excluded. This should be revisited.
-  // Currently d0 is used as a scratch register.
-  // d1 has also been excluded from allocation to be used as a scratch
-  // register as well.
   static const int kNumRegisters = 16;
-  static const int kNumAllocatableRegisters = 15;
+  // A few double registers are reserved: one as a scratch register and one to
+  // hold 0.0, that does not fit in the immediate field of vmov instructions.
+  //  d14: 0.0
+  //  d15: scratch register.
+  static const int kNumReservedRegisters = 2;
+  static const int kNumAllocatableRegisters = kNumRegisters -
+      kNumReservedRegisters;
 
   static int ToAllocationIndex(DwVfpRegister reg) {
     ASSERT(reg.code() != 0);
@@ -187,6 +189,7 @@ struct DwVfpRegister {
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
+      "d0",
       "d1",
       "d2",
       "d3",
@@ -199,9 +202,7 @@ struct DwVfpRegister {
       "d10",
       "d11",
       "d12",
-      "d13",
-      "d14",
-      "d15"
+      "d13"
     };
     return names[index];
   }
@@ -302,6 +303,11 @@ const DwVfpRegister d13 = { 13 };
 const DwVfpRegister d14 = { 14 };
 const DwVfpRegister d15 = { 15 };
 
+// Aliases for double registers.
+const DwVfpRegister kFirstCalleeSavedDoubleReg = d8;
+const DwVfpRegister kLastCalleeSavedDoubleReg = d15;
+const DwVfpRegister kDoubleRegZero = d14;
+
 
 // Coprocessor register
 struct CRegister {
@@ -372,7 +378,6 @@ class Operand BASE_EMBEDDED {
   INLINE(explicit Operand(int32_t immediate,
          RelocInfo::Mode rmode = RelocInfo::NONE));
   INLINE(explicit Operand(const ExternalReference& f));
-  INLINE(explicit Operand(const char* s));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));
 
@@ -389,8 +394,11 @@ class Operand BASE_EMBEDDED {
   INLINE(bool is_reg() const);
 
   // Return true if this operand fits in one instruction so that no
-  // 2-instruction solution with a load into the ip register is necessary.
-  bool is_single_instruction() const;
+  // 2-instruction solution with a load into the ip register is necessary. If
+  // the instruction this operand is used for is a MOV or MVN instruction the
+  // actual instruction to use is required for this calculation. For other
+  // instructions instr is ignored.
+  bool is_single_instruction(Instr instr = 0) const;
   bool must_use_constant_pool() const;
 
   inline int32_t immediate() const {
@@ -447,6 +455,7 @@ class MemOperand BASE_EMBEDDED {
 
   Register rn() const { return rn_; }
   Register rm() const { return rm_; }
+  AddrMode am() const { return am_; }
 
   bool OffsetIsUint12Encodable() const {
     return offset_ >= 0 ? is_uint12(offset_) : is_uint12(-offset_);
@@ -469,43 +478,98 @@ class CpuFeatures : public AllStatic {
  public:
   // Detect features of the target CPU. Set safe defaults if the serializer
   // is enabled (snapshots must be portable).
-  static void Probe(bool portable);
+  static void Probe();
 
   // Check whether a feature is supported by the target CPU.
   static bool IsSupported(CpuFeature f) {
+    ASSERT(initialized_);
     if (f == VFP3 && !FLAG_enable_vfp3) return false;
     return (supported_ & (1u << f)) != 0;
   }
 
+#ifdef DEBUG
   // Check whether a feature is currently enabled.
   static bool IsEnabled(CpuFeature f) {
-    return (enabled_ & (1u << f)) != 0;
+    ASSERT(initialized_);
+    Isolate* isolate = Isolate::UncheckedCurrent();
+    if (isolate == NULL) {
+      // When no isolate is available, work as if we're running in
+      // release mode.
+      return IsSupported(f);
+    }
+    unsigned enabled = static_cast<unsigned>(isolate->enabled_cpu_features());
+    return (enabled & (1u << f)) != 0;
   }
+#endif
 
   // Enable a specified feature within a scope.
   class Scope BASE_EMBEDDED {
 #ifdef DEBUG
+
    public:
     explicit Scope(CpuFeature f) {
+      unsigned mask = 1u << f;
       ASSERT(CpuFeatures::IsSupported(f));
       ASSERT(!Serializer::enabled() ||
-             (found_by_runtime_probing_ & (1u << f)) == 0);
-      old_enabled_ = CpuFeatures::enabled_;
-      CpuFeatures::enabled_ |= 1u << f;
+             (CpuFeatures::found_by_runtime_probing_ & mask) == 0);
+      isolate_ = Isolate::UncheckedCurrent();
+      old_enabled_ = 0;
+      if (isolate_ != NULL) {
+        old_enabled_ = static_cast<unsigned>(isolate_->enabled_cpu_features());
+        isolate_->set_enabled_cpu_features(old_enabled_ | mask);
+      }
     }
-    ~Scope() { CpuFeatures::enabled_ = old_enabled_; }
+    ~Scope() {
+      ASSERT_EQ(Isolate::UncheckedCurrent(), isolate_);
+      if (isolate_ != NULL) {
+        isolate_->set_enabled_cpu_features(old_enabled_);
+      }
+    }
+
    private:
+    Isolate* isolate_;
     unsigned old_enabled_;
 #else
+
    public:
     explicit Scope(CpuFeature f) {}
 #endif
   };
 
+  class TryForceFeatureScope BASE_EMBEDDED {
+   public:
+    explicit TryForceFeatureScope(CpuFeature f)
+        : old_supported_(CpuFeatures::supported_) {
+      if (CanForce()) {
+        CpuFeatures::supported_ |= (1u << f);
+      }
+    }
+
+    ~TryForceFeatureScope() {
+      if (CanForce()) {
+        CpuFeatures::supported_ = old_supported_;
+      }
+    }
+
+   private:
+    static bool CanForce() {
+      // It's only safe to temporarily force support of CPU features
+      // when there's only a single isolate, which is guaranteed when
+      // the serializer is enabled.
+      return Serializer::enabled();
+    }
+
+    const unsigned old_supported_;
+  };
+
  private:
+#ifdef DEBUG
+  static bool initialized_;
+#endif
   static unsigned supported_;
-  static unsigned enabled_;
   static unsigned found_by_runtime_probing_;
+
+  DISALLOW_COPY_AND_ASSIGN(CpuFeatures);
 };
 
 
@@ -533,7 +597,7 @@ extern const Instr kAndBicFlip;
 
 
 
-class Assembler : public Malloced {
+class Assembler : public AssemblerBase {
  public:
   // Create an assembler. Instructions and relocation information are emitted
   // into a buffer, with the instructions starting from the beginning and the
@@ -548,8 +612,11 @@ class Assembler : public Malloced {
   // for code generation and assumes its size to be buffer_size. If the buffer
   // is too small, a fatal error occurs. No deallocation of the buffer is done
   // upon destruction of the assembler.
-  Assembler(void* buffer, int buffer_size);
+  Assembler(Isolate* isolate, void* buffer, int buffer_size);
   ~Assembler();
+
+  // Overrides the default provided by FLAG_debug_code.
+  void set_emit_debug_code(bool value) { emit_debug_code_ = value; }
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor
   // desc. GetCode() is idempotent; it returns the same result if no other
@@ -889,16 +956,6 @@ class Assembler : public Malloced {
   void ldc2(Coprocessor coproc, CRegister crd, Register base, int option,
             LFlag l = Short);  // v5 and above
 
-  void stc(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-           LFlag l = Short, Condition cond = al);
-  void stc(Coprocessor coproc, CRegister crd, Register base, int option,
-           LFlag l = Short, Condition cond = al);
-
-  void stc2(Coprocessor coproc, CRegister crd, const MemOperand& dst,
-            LFlag l = Short);  // v5 and above
-  void stc2(Coprocessor coproc, CRegister crd, Register base, int option,
-            LFlag l = Short);  // v5 and above
-
   // Support for VFP.
   // All these APIs support S0 to S31 and D0 to D15.
   // Currently these APIs do not support extended D registers, i.e, D16 to D31.
@@ -936,6 +993,30 @@ class Assembler : public Malloced {
   void vstr(const SwVfpRegister src,
             const MemOperand& dst,
             const Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            DwVfpRegister first,
+            DwVfpRegister last,
+            Condition cond = al);
+
+  void vldm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
+
+  void vstm(BlockAddrMode am,
+            Register base,
+            SwVfpRegister first,
+            SwVfpRegister last,
+            Condition cond = al);
 
   void vmov(const DwVfpRegister dst,
             double imm,
@@ -989,6 +1070,9 @@ class Assembler : public Malloced {
                     VFPConversionMode mode = kDefaultRoundToZero,
                     const Condition cond = al);
 
+  void vneg(const DwVfpRegister dst,
+            const DwVfpRegister src,
+            const Condition cond = al);
   void vabs(const DwVfpRegister dst,
             const DwVfpRegister src,
             const Condition cond = al);
@@ -1056,8 +1140,13 @@ class Assembler : public Malloced {
   void jmp(Label* L) { b(L, al); }
 
   // Check the code size generated from label to here.
-  int InstructionsGeneratedSince(Label* l) {
-    return (pc_offset() - l->pos()) / kInstrSize;
+  int SizeOfCodeGeneratedSince(Label* label) {
+    return pc_offset() - label->pos();
+  }
+
+  // Check the number of instructions generated from label to here.
+  int InstructionsGeneratedSince(Label* label) {
+    return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
   // Check whether an immediate fits an addressing mode 1 instruction.
@@ -1079,10 +1168,6 @@ class Assembler : public Malloced {
     DISALLOW_IMPLICIT_CONSTRUCTORS(BlockConstPoolScope);
   };
 
-  // Postpone the generation of the constant pool for the specified number of
-  // instructions.
-  void BlockConstPoolFor(int instructions);
-
   // Debugging
 
   // Mark address of the ExitJSFrame code.
@@ -1090,6 +1175,10 @@ class Assembler : public Malloced {
 
   // Mark address of a debug break slot.
   void RecordDebugBreakSlot();
+
+  // Record the AST id of the CallIC being compiled, so that it can be placed
+  // in the relocation information.
+  void RecordAstId(unsigned ast_id) { ast_id_for_reloc_info_ = ast_id; }
 
   // Record a comment relocation entry that can be used by a disassembler.
   // Use --code-comments to enable.
@@ -1105,12 +1194,6 @@ class Assembler : public Malloced {
   int pc_offset() const { return pc_ - buffer_; }
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
-
-  bool can_peephole_optimize(int instructions) {
-    if (!allow_peephole_optimization_) return false;
-    if (last_bound_pos_ > pc_offset() - instructions * kInstrSize) return false;
-    return reloc_info_writer.last_pc() <= pc_ - instructions * kInstrSize;
-  }
 
   // Read/patch instructions
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
@@ -1144,10 +1227,27 @@ class Assembler : public Malloced {
   static int GetCmpImmediateRawImmediate(Instr instr);
   static bool IsNop(Instr instr, int type = NON_MARKING_NOP);
 
-  // Check if is time to emit a constant pool for pending reloc info entries
+  // Constants in pools are accessed via pc relative addressing, which can
+  // reach +/-4KB thereby defining a maximum distance between the instruction
+  // and the accessed constant.
+  static const int kMaxDistToPool = 4*KB;
+  static const int kMaxNumPendingRelocInfo = kMaxDistToPool/kInstrSize;
+
+  // Postpone the generation of the constant pool for the specified number of
+  // instructions.
+  void BlockConstPoolFor(int instructions);
+
+  // Check if is time to emit a constant pool.
   void CheckConstPool(bool force_emit, bool require_jump);
 
  protected:
+  // Relocation for a type-recording IC has the AST id added to it.  This
+  // member variable is a way to pass the information from the call site to
+  // the relocation info.
+  unsigned ast_id_for_reloc_info_;
+
+  bool emit_debug_code() const { return emit_debug_code_; }
+
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
 
   // Read/patch instructions
@@ -1162,18 +1262,37 @@ class Assembler : public Malloced {
   // Patch branch instruction at pos to branch to given branch target pos
   void target_at_put(int pos, int target_pos);
 
-  // Block the emission of the constant pool before pc_offset
-  void BlockConstPoolBefore(int pc_offset) {
-    if (no_const_pool_before_ < pc_offset) no_const_pool_before_ = pc_offset;
+  // Prevent contant pool emission until EndBlockConstPool is called.
+  // Call to this function can be nested but must be followed by an equal
+  // number of call to EndBlockConstpool.
+  void StartBlockConstPool() {
+    if (const_pool_blocked_nesting_++ == 0) {
+      // Prevent constant pool checks happening by setting the next check to
+      // the biggest possible offset.
+      next_buffer_check_ = kMaxInt;
+    }
   }
 
-  void StartBlockConstPool() {
-    const_pool_blocked_nesting_++;
-  }
+  // Resume constant pool emission. Need to be called as many time as
+  // StartBlockConstPool to have an effect.
   void EndBlockConstPool() {
-    const_pool_blocked_nesting_--;
+    if (--const_pool_blocked_nesting_ == 0) {
+      // Check the constant pool hasn't been blocked for too long.
+      ASSERT((num_pending_reloc_info_ == 0) ||
+             (pc_offset() < (first_const_pool_use_ + kMaxDistToPool)));
+      // Two cases:
+      //  * no_const_pool_before_ >= next_buffer_check_ and the emission is
+      //    still blocked
+      //  * no_const_pool_before_ < next_buffer_check_ and the next emit will
+      //    trigger a check.
+      next_buffer_check_ = no_const_pool_before_;
+    }
   }
-  bool is_const_pool_blocked() const { return const_pool_blocked_nesting_ > 0; }
+
+  bool is_const_pool_blocked() const {
+    return (const_pool_blocked_nesting_ > 0) ||
+           (pc_offset() < no_const_pool_before_);
+  }
 
  private:
   // Code buffer:
@@ -1183,9 +1302,6 @@ class Assembler : public Malloced {
   // True if the assembler owns the buffer, false if buffer is external.
   bool own_buffer_;
 
-  // Buffer size and constant pool distance are checked together at regular
-  // intervals of kBufferCheckInterval emitted bytes
-  static const int kBufferCheckInterval = 1*KB/2;
   int next_buffer_check_;  // pc offset of next buffer check
 
   // Code generation
@@ -1210,40 +1326,41 @@ class Assembler : public Malloced {
   // expensive. By default we only check again once a number of instructions
   // has been generated. That also means that the sizing of the buffers is not
   // an exact science, and that we rely on some slop to not overrun buffers.
-  static const int kCheckConstIntervalInst = 32;
-  static const int kCheckConstInterval = kCheckConstIntervalInst * kInstrSize;
+  static const int kCheckPoolIntervalInst = 32;
+  static const int kCheckPoolInterval = kCheckPoolIntervalInst * kInstrSize;
 
 
-  // Pools are emitted after function return and in dead code at (more or less)
-  // regular intervals of kDistBetweenPools bytes
-  static const int kDistBetweenPools = 1*KB;
-
-  // Constants in pools are accessed via pc relative addressing, which can
-  // reach +/-4KB thereby defining a maximum distance between the instruction
-  // and the accessed constant. We satisfy this constraint by limiting the
-  // distance between pools.
-  static const int kMaxDistBetweenPools = 4*KB - 2*kBufferCheckInterval;
+  // Average distance beetween a constant pool and the first instruction
+  // accessing the constant pool. Longer distance should result in less I-cache
+  // pollution.
+  // In practice the distance will be smaller since constant pool emission is
+  // forced after function return and sometimes after unconditional branches.
+  static const int kAvgDistToPool = kMaxDistToPool - kCheckPoolInterval;
 
   // Emission of the constant pool may be blocked in some code sequences.
   int const_pool_blocked_nesting_;  // Block emission if this is not zero.
   int no_const_pool_before_;  // Block emission before this pc offset.
 
-  // Keep track of the last emitted pool to guarantee a maximal distance
-  int last_const_pool_end_;  // pc offset following the last constant pool
+  // Keep track of the first instruction requiring a constant pool entry
+  // since the previous constant pool was emitted.
+  int first_const_pool_use_;
 
   // Relocation info generation
   // Each relocation is encoded as a variable size value
   static const int kMaxRelocSize = RelocInfoWriter::kMaxSize;
   RelocInfoWriter reloc_info_writer;
+
   // Relocation info records are also used during code generation as temporary
   // containers for constants and code target addresses until they are emitted
   // to the constant pool. These pending relocation info records are temporarily
   // stored in a separate buffer until a constant pool is emitted.
   // If every instruction in a long sequence is accessing the pool, we need one
   // pending relocation entry per instruction.
-  static const int kMaxNumPRInfo = kMaxDistBetweenPools/kInstrSize;
-  RelocInfo prinfo_[kMaxNumPRInfo];  // the buffer of pending relocation info
-  int num_prinfo_;  // number of pending reloc info entries in the buffer
+
+  // the buffer of pending relocation info
+  RelocInfo pending_reloc_info_[kMaxNumPendingRelocInfo];
+  // number of pending reloc info entries in the buffer
+  int num_pending_reloc_info_;
 
   // The bound position, before this we cannot do instruction elimination.
   int last_bound_pos_;
@@ -1275,7 +1392,7 @@ class Assembler : public Malloced {
   friend class BlockConstPoolScope;
 
   PositionsRecorder positions_recorder_;
-  bool allow_peephole_optimization_;
+  bool emit_debug_code_;
   friend class PositionsRecorder;
   friend class EnsureSpace;
 };

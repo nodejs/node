@@ -28,6 +28,8 @@
 #ifndef V8_SPLAY_TREE_H_
 #define V8_SPLAY_TREE_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 

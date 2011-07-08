@@ -28,6 +28,8 @@
 #ifndef V8_GDB_JIT_H_
 #define V8_GDB_JIT_H_
 
+#include "allocation.h"
+
 //
 // Basic implementation of GDB JIT Interface client.
 // GBD JIT Interface is supported in GDB 7.0 and above.
@@ -40,6 +42,8 @@
 
 namespace v8 {
 namespace internal {
+
+class CompilationInfo;
 
 #define CODE_TAGS_LIST(V)                       \
   V(LOAD_IC)                                    \
@@ -111,11 +115,13 @@ class GDBJITInterface: public AllStatic {
   static void AddCode(const char* name,
                       Code* code,
                       CodeTag tag,
-                      Script* script = NULL);
+                      Script* script,
+                      CompilationInfo* info);
 
   static void AddCode(Handle<String> name,
                       Handle<Script> script,
-                      Handle<Code> code);
+                      Handle<Code> code,
+                      CompilationInfo* info);
 
   static void AddCode(CodeTag tag, String* name, Code* code);
 
@@ -126,6 +132,9 @@ class GDBJITInterface: public AllStatic {
   static void RemoveCode(Code* code);
 
   static void RegisterDetailedLineInfo(Code* code, GDBJITLineInfo* line_info);
+
+ private:
+  static Mutex* mutex_;
 };
 
 #define GDBJIT(action) GDBJITInterface::action

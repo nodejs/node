@@ -172,14 +172,6 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-34: FAIL_OK
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-35: FAIL_OK
 
-# Bad test - the spec does not say anything about throwing errors
-# on calling Array.prototype.indexOf with undefined as argument.
-chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-1: FAIL_OK
-
-# Bad test - the spec does not say anything about throwing errors
-# on calling Array.prototype.indexOf with null as argument.
-chapter15/15.4/15.4.4/15.4.4.14/15.4.4.14-1-2: FAIL_OK
-
 # Bad test - the test at the end should be "i === true".
 chapter15/15.4/15.4.4/15.4.4.17/15.4.4.17-8-10: FAIL_OK
 
@@ -203,10 +195,6 @@ chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: SKIP
 # Bad test - deleting the property on o in callbackfn will
 # have no effect on the actual array on which reduceRight is called.
 chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-7: FAIL_OK
-
-# We do not implement trim correctly on null and undefined.
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-1: FAIL
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-1-2: FAIL
 
 # We do not correctly recognize \uFEFF as whitespace
 chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL
@@ -239,20 +227,11 @@ chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 # Incorrect test - need double escape in eval.
 chapter07/7.8/7.8.4/7.8.4-1-s: FAIL
 
-# arguments[i] remains same after changing actual parameters in strict mode
-chapter10/10.6/10.6-10-c-ii-1-s: FAIL
-# arguments[i] doesn't map to actual parameters in strict mode
-chapter10/10.6/10.6-10-c-ii-2-s: FAIL
-
-# Accessing caller property of Arguments object throws TypeError in strict mode
-chapter10/10.6/10.6-13-b-1-s: FAIL
-# arguments.caller exists in strict mode
-chapter10/10.6/10.6-13-b-2-s: FAIL
 # arguments.caller is non-configurable in strict mode
+# Invalid test case. Checks for "writable == true" and presence of "put"..
 chapter10/10.6/10.6-13-b-3-s: FAIL
-# Accessing callee property of Arguments object throws TypeError in strict mode
-chapter10/10.6/10.6-13-c-1-s: FAIL
 # arguments.callee is non-configurable in strict mode
+# Invalid test case. Checks for "put" property accessor.
 chapter10/10.6/10.6-13-c-3-s: FAIL
 
 # simple assignment throws TypeError if LeftHandSide is a property reference

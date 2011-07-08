@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -38,13 +38,13 @@
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "messages.h"
+#include "natives.h"
 #include "parser.h"
 #include "platform.h"
 #include "profile-generator-inl.h"
 #include "runtime-profiler.h"
 #include "serialize.h"
 #include "snapshot.h"
-#include "top.h"
 #include "v8threads.h"
 #include "version.h"
 #include "vm-state-inl.h"
@@ -52,81 +52,81 @@
 #include "../include/v8-profiler.h"
 #include "../include/v8-testing.h"
 
-#define LOG_API(expr) LOG(ApiEntryCall(expr))
+#define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
 #ifdef ENABLE_VMSTATE_TRACKING
-#define ENTER_V8 ASSERT(i::V8::IsRunning()); i::VMState __state__(i::OTHER)
-#define LEAVE_V8 i::VMState __state__(i::EXTERNAL)
+#define ENTER_V8(isolate)                                        \
+  ASSERT((isolate)->IsInitialized());                           \
+  i::VMState __state__((isolate), i::OTHER)
+#define LEAVE_V8(isolate) \
+  i::VMState __state__((isolate), i::EXTERNAL)
 #else
-#define ENTER_V8 ((void) 0)
-#define LEAVE_V8 ((void) 0)
+#define ENTER_V8(isolate) ((void) 0)
+#define LEAVE_V8(isolate) ((void) 0)
 #endif
 
 namespace v8 {
 
-#define ON_BAILOUT(location, code)                                 \
-  if (IsDeadCheck(location) || v8::V8::IsExecutionTerminating()) { \
+#define ON_BAILOUT(isolate, location, code)                        \
+  if (IsDeadCheck(isolate, location) ||                            \
+      IsExecutionTerminatingCheck(isolate)) {                      \
     code;                                                          \
     UNREACHABLE();                                                 \
   }
 
 
-#define EXCEPTION_PREAMBLE()                                      \
-  thread_local.IncrementCallDepth();                              \
-  ASSERT(!i::Top::external_caught_exception());                   \
+#define EXCEPTION_PREAMBLE(isolate)                                         \
+  (isolate)->handle_scope_implementer()->IncrementCallDepth();              \
+  ASSERT(!(isolate)->external_caught_exception());                          \
   bool has_pending_exception = false
 
 
-#define EXCEPTION_BAILOUT_CHECK(value)                                         \
+#define EXCEPTION_BAILOUT_CHECK(isolate, value)                                \
   do {                                                                         \
-    thread_local.DecrementCallDepth();                                         \
+    i::HandleScopeImplementer* handle_scope_implementer =                      \
+        (isolate)->handle_scope_implementer();                                 \
+    handle_scope_implementer->DecrementCallDepth();                            \
     if (has_pending_exception) {                                               \
-      if (thread_local.CallDepthIsZero() && i::Top::is_out_of_memory()) {      \
-        if (!thread_local.ignore_out_of_memory())                              \
+      if (handle_scope_implementer->CallDepthIsZero() &&                       \
+          (isolate)->is_out_of_memory()) {                                     \
+        if (!handle_scope_implementer->ignore_out_of_memory())                 \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
-      bool call_depth_is_zero = thread_local.CallDepthIsZero();                \
-      i::Top::OptionalRescheduleException(call_depth_is_zero);                 \
+      bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero();   \
+      (isolate)->OptionalRescheduleException(call_depth_is_zero);              \
       return value;                                                            \
     }                                                                          \
   } while (false)
 
 
-#define API_ENTRY_CHECK(msg)                                                   \
+#define API_ENTRY_CHECK(isolate, msg)                                          \
   do {                                                                         \
     if (v8::Locker::IsActive()) {                                              \
-      ApiCheck(i::ThreadManager::IsLockedByCurrentThread(),                    \
+      ApiCheck(isolate->thread_manager()->IsLockedByCurrentThread(),           \
                msg,                                                            \
                "Entering the V8 API without proper locking in place");         \
     }                                                                          \
   } while (false)
 
 
-// --- D a t a   t h a t   i s   s p e c i f i c   t o   a   t h r e a d ---
-
-
-static i::HandleScopeImplementer thread_local;
-
-
 // --- E x c e p t i o n   B e h a v i o r ---
 
-
-static FatalErrorCallback exception_behavior = NULL;
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
 #ifdef ENABLE_VMSTATE_TRACKING
-  i::VMState __state__(i::OTHER);
+  i::VMState __state__(i::Isolate::Current(), i::OTHER);
 #endif
   API_Fatal(location, message);
 }
 
 
-static FatalErrorCallback& GetFatalErrorHandler() {
-  if (exception_behavior == NULL) {
-    exception_behavior = DefaultFatalErrorHandler;
+static FatalErrorCallback GetFatalErrorHandler() {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->exception_behavior() == NULL) {
+    isolate->set_exception_behavior(DefaultFatalErrorHandler);
   }
-  return exception_behavior;
+  return isolate->exception_behavior();
 }
 
 
@@ -175,8 +175,8 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.pending_global_handle_count = &pending_global_handle_count;
   int near_death_global_handle_count;
   heap_stats.near_death_global_handle_count = &near_death_global_handle_count;
-  int destroyed_global_handle_count;
-  heap_stats.destroyed_global_handle_count = &destroyed_global_handle_count;
+  int free_global_handle_count;
+  heap_stats.free_global_handle_count = &free_global_handle_count;
   intptr_t memory_allocator_size;
   heap_stats.memory_allocator_size = &memory_allocator_size;
   intptr_t memory_allocator_capacity;
@@ -189,20 +189,16 @@ void i::V8::FatalProcessOutOfMemory(const char* location, bool take_snapshot) {
   heap_stats.os_error = &os_error;
   int end_marker;
   heap_stats.end_marker = &end_marker;
-  i::Heap::RecordStats(&heap_stats, take_snapshot);
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->heap()->RecordStats(&heap_stats, take_snapshot);
   i::V8::SetFatalError();
   FatalErrorCallback callback = GetFatalErrorHandler();
   {
-    LEAVE_V8;
+    LEAVE_V8(isolate);
     callback(location, "Allocation failed - process out of memory");
   }
   // If the callback returns, we stop execution.
   UNREACHABLE();
-}
-
-
-void V8::SetFatalErrorHandler(FatalErrorCallback that) {
-  exception_behavior = that;
 }
 
 
@@ -252,9 +248,19 @@ static bool ReportEmptyHandle(const char* location) {
  * advantage over ON_BAILOUT that it actually initializes the VM if this has not
  * yet been done.
  */
-static inline bool IsDeadCheck(const char* location) {
-  return !i::V8::IsRunning()
+static inline bool IsDeadCheck(i::Isolate* isolate, const char* location) {
+  return !isolate->IsInitialized()
       && i::V8::IsDead() ? ReportV8Dead(location) : false;
+}
+
+
+static inline bool IsExecutionTerminatingCheck(i::Isolate* isolate) {
+  if (!isolate->IsInitialized()) return false;
+  if (isolate->has_scheduled_exception()) {
+    return isolate->scheduled_exception() ==
+        isolate->heap()->termination_exception();
+  }
+  return false;
 }
 
 
@@ -270,23 +276,176 @@ static inline bool EmptyCheck(const char* location, const v8::Data* obj) {
 // --- S t a t i c s ---
 
 
-static i::StringInputBuffer write_input_buffer;
-
-
-static inline bool EnsureInitialized(const char* location) {
-  if (i::V8::IsRunning()) {
-    return true;
-  }
-  if (IsDeadCheck(location)) {
-    return false;
-  }
-  return ApiCheck(v8::V8::Initialize(), location, "Error initializing V8");
+static bool InitializeHelper() {
+  if (i::Snapshot::Initialize()) return true;
+  return i::V8::Initialize(NULL);
 }
 
 
-ImplementationUtilities::HandleScopeData*
-    ImplementationUtilities::CurrentHandleScope() {
-  return &i::HandleScope::current_;
+static inline bool EnsureInitializedForIsolate(i::Isolate* isolate,
+                                               const char* location) {
+  if (IsDeadCheck(isolate, location)) return false;
+  if (isolate != NULL) {
+    if (isolate->IsInitialized()) return true;
+  }
+  ASSERT(isolate == i::Isolate::Current());
+  return ApiCheck(InitializeHelper(), location, "Error initializing V8");
+}
+
+// Some initializing API functions are called early and may be
+// called on a thread different from static initializer thread.
+// If Isolate API is used, Isolate::Enter() will initialize TLS so
+// Isolate::Current() works. If it's a legacy case, then the thread
+// may not have TLS initialized yet. However, in initializing APIs it
+// may be too early to call EnsureInitialized() - some pre-init
+// parameters still have to be configured.
+static inline i::Isolate* EnterIsolateIfNeeded() {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate != NULL)
+    return isolate;
+
+  i::Isolate::EnterDefaultIsolate();
+  isolate = i::Isolate::Current();
+  return isolate;
+}
+
+
+StartupDataDecompressor::StartupDataDecompressor()
+    : raw_data(i::NewArray<char*>(V8::GetCompressedStartupDataCount())) {
+  for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
+    raw_data[i] = NULL;
+  }
+}
+
+
+StartupDataDecompressor::~StartupDataDecompressor() {
+  for (int i = 0; i < V8::GetCompressedStartupDataCount(); ++i) {
+    i::DeleteArray(raw_data[i]);
+  }
+  i::DeleteArray(raw_data);
+}
+
+
+int StartupDataDecompressor::Decompress() {
+  int compressed_data_count = V8::GetCompressedStartupDataCount();
+  StartupData* compressed_data =
+      i::NewArray<StartupData>(compressed_data_count);
+  V8::GetCompressedStartupData(compressed_data);
+  for (int i = 0; i < compressed_data_count; ++i) {
+    char* decompressed = raw_data[i] =
+        i::NewArray<char>(compressed_data[i].raw_size);
+    if (compressed_data[i].compressed_size != 0) {
+      int result = DecompressData(decompressed,
+                                  &compressed_data[i].raw_size,
+                                  compressed_data[i].data,
+                                  compressed_data[i].compressed_size);
+      if (result != 0) return result;
+    } else {
+      ASSERT_EQ(0, compressed_data[i].raw_size);
+    }
+    compressed_data[i].data = decompressed;
+  }
+  V8::SetDecompressedStartupData(compressed_data);
+  return 0;
+}
+
+
+StartupData::CompressionAlgorithm V8::GetCompressedStartupDataAlgorithm() {
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  return StartupData::kBZip2;
+#else
+  return StartupData::kUncompressed;
+#endif
+}
+
+
+enum CompressedStartupDataItems {
+  kSnapshot = 0,
+  kSnapshotContext,
+  kLibraries,
+  kExperimentalLibraries,
+  kCompressedStartupDataCount
+};
+
+int V8::GetCompressedStartupDataCount() {
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  return kCompressedStartupDataCount;
+#else
+  return 0;
+#endif
+}
+
+
+void V8::GetCompressedStartupData(StartupData* compressed_data) {
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  compressed_data[kSnapshot].data =
+      reinterpret_cast<const char*>(i::Snapshot::data());
+  compressed_data[kSnapshot].compressed_size = i::Snapshot::size();
+  compressed_data[kSnapshot].raw_size = i::Snapshot::raw_size();
+
+  compressed_data[kSnapshotContext].data =
+      reinterpret_cast<const char*>(i::Snapshot::context_data());
+  compressed_data[kSnapshotContext].compressed_size =
+      i::Snapshot::context_size();
+  compressed_data[kSnapshotContext].raw_size = i::Snapshot::context_raw_size();
+
+  i::Vector<const i::byte> libraries_source = i::Natives::GetScriptsSource();
+  compressed_data[kLibraries].data =
+      reinterpret_cast<const char*>(libraries_source.start());
+  compressed_data[kLibraries].compressed_size = libraries_source.length();
+  compressed_data[kLibraries].raw_size = i::Natives::GetRawScriptsSize();
+
+  i::Vector<const i::byte> exp_libraries_source =
+      i::ExperimentalNatives::GetScriptsSource();
+  compressed_data[kExperimentalLibraries].data =
+      reinterpret_cast<const char*>(exp_libraries_source.start());
+  compressed_data[kExperimentalLibraries].compressed_size =
+      exp_libraries_source.length();
+  compressed_data[kExperimentalLibraries].raw_size =
+      i::ExperimentalNatives::GetRawScriptsSize();
+#endif
+}
+
+
+void V8::SetDecompressedStartupData(StartupData* decompressed_data) {
+#ifdef COMPRESS_STARTUP_DATA_BZ2
+  ASSERT_EQ(i::Snapshot::raw_size(), decompressed_data[kSnapshot].raw_size);
+  i::Snapshot::set_raw_data(
+      reinterpret_cast<const i::byte*>(decompressed_data[kSnapshot].data));
+
+  ASSERT_EQ(i::Snapshot::context_raw_size(),
+            decompressed_data[kSnapshotContext].raw_size);
+  i::Snapshot::set_context_raw_data(
+      reinterpret_cast<const i::byte*>(
+          decompressed_data[kSnapshotContext].data));
+
+  ASSERT_EQ(i::Natives::GetRawScriptsSize(),
+            decompressed_data[kLibraries].raw_size);
+  i::Vector<const char> libraries_source(
+      decompressed_data[kLibraries].data,
+      decompressed_data[kLibraries].raw_size);
+  i::Natives::SetRawScriptsSource(libraries_source);
+
+  ASSERT_EQ(i::ExperimentalNatives::GetRawScriptsSize(),
+            decompressed_data[kExperimentalLibraries].raw_size);
+  i::Vector<const char> exp_libraries_source(
+      decompressed_data[kExperimentalLibraries].data,
+      decompressed_data[kExperimentalLibraries].raw_size);
+  i::ExperimentalNatives::SetRawScriptsSource(exp_libraries_source);
+#endif
+}
+
+
+void V8::SetFatalErrorHandler(FatalErrorCallback that) {
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  isolate->set_exception_behavior(that);
+}
+
+
+void V8::SetAllowCodeGenerationFromStringsCallback(
+    AllowCodeGenerationFromStringsCallback callback) {
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  isolate->set_allow_code_gen_callback(callback);
 }
 
 
@@ -296,30 +455,6 @@ void ImplementationUtilities::ZapHandleRange(i::Object** begin,
   i::HandleScope::ZapRange(begin, end);
 }
 #endif
-
-
-v8::Handle<v8::Primitive> ImplementationUtilities::Undefined() {
-  if (!EnsureInitialized("v8::Undefined()")) return v8::Handle<v8::Primitive>();
-  return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::undefined_value()));
-}
-
-
-v8::Handle<v8::Primitive> ImplementationUtilities::Null() {
-  if (!EnsureInitialized("v8::Null()")) return v8::Handle<v8::Primitive>();
-  return v8::Handle<Primitive>(ToApi<Primitive>(i::Factory::null_value()));
-}
-
-
-v8::Handle<v8::Boolean> ImplementationUtilities::True() {
-  if (!EnsureInitialized("v8::True()")) return v8::Handle<v8::Boolean>();
-  return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::true_value()));
-}
-
-
-v8::Handle<v8::Boolean> ImplementationUtilities::False() {
-  if (!EnsureInitialized("v8::False()")) return v8::Handle<v8::Boolean>();
-  return v8::Handle<v8::Boolean>(ToApi<Boolean>(i::Factory::false_value()));
-}
 
 
 void V8::SetFlagsFromString(const char* str, int length) {
@@ -333,14 +468,17 @@ void V8::SetFlagsFromCommandLine(int* argc, char** argv, bool remove_flags) {
 
 
 v8::Handle<Value> ThrowException(v8::Handle<v8::Value> value) {
-  if (IsDeadCheck("v8::ThrowException()")) return v8::Handle<Value>();
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::ThrowException()")) {
+    return v8::Handle<Value>();
+  }
+  ENTER_V8(isolate);
   // If we're passed an empty handle, we throw an undefined exception
   // to deal more gracefully with out of memory situations.
   if (value.IsEmpty()) {
-    i::Top::ScheduleThrow(i::Heap::undefined_value());
+    isolate->ScheduleThrow(isolate->heap()->undefined_value());
   } else {
-    i::Top::ScheduleThrow(*Utils::OpenHandle(*value));
+    isolate->ScheduleThrow(*Utils::OpenHandle(*value));
   }
   return v8::Undefined();
 }
@@ -354,8 +492,8 @@ RegisteredExtension::RegisteredExtension(Extension* extension)
 
 
 void RegisteredExtension::Register(RegisteredExtension* that) {
-  that->next_ = RegisteredExtension::first_extension_;
-  RegisteredExtension::first_extension_ = that;
+  that->next_ = first_extension_;
+  first_extension_ = that;
 }
 
 
@@ -377,26 +515,42 @@ Extension::Extension(const char* name,
 
 
 v8::Handle<Primitive> Undefined() {
-  LOG_API("Undefined");
-  return ImplementationUtilities::Undefined();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!EnsureInitializedForIsolate(isolate, "v8::Undefined()")) {
+    return v8::Handle<v8::Primitive>();
+  }
+  return v8::Handle<Primitive>(ToApi<Primitive>(
+      isolate->factory()->undefined_value()));
 }
 
 
 v8::Handle<Primitive> Null() {
-  LOG_API("Null");
-  return ImplementationUtilities::Null();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!EnsureInitializedForIsolate(isolate, "v8::Null()")) {
+    return v8::Handle<v8::Primitive>();
+  }
+  return v8::Handle<Primitive>(
+      ToApi<Primitive>(isolate->factory()->null_value()));
 }
 
 
 v8::Handle<Boolean> True() {
-  LOG_API("True");
-  return ImplementationUtilities::True();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!EnsureInitializedForIsolate(isolate, "v8::True()")) {
+    return v8::Handle<Boolean>();
+  }
+  return v8::Handle<Boolean>(
+      ToApi<Boolean>(isolate->factory()->true_value()));
 }
 
 
 v8::Handle<Boolean> False() {
-  LOG_API("False");
-  return ImplementationUtilities::False();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!EnsureInitializedForIsolate(isolate, "v8::False()")) {
+    return v8::Handle<Boolean>();
+  }
+  return v8::Handle<Boolean>(
+      ToApi<Boolean>(isolate->factory()->false_value()));
 }
 
 
@@ -408,74 +562,96 @@ ResourceConstraints::ResourceConstraints()
 
 
 bool SetResourceConstraints(ResourceConstraints* constraints) {
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+
   int young_space_size = constraints->max_young_space_size();
   int old_gen_size = constraints->max_old_space_size();
   int max_executable_size = constraints->max_executable_size();
   if (young_space_size != 0 || old_gen_size != 0 || max_executable_size != 0) {
-    bool result = i::Heap::ConfigureHeap(young_space_size / 2,
-                                         old_gen_size,
-                                         max_executable_size);
+    // After initialization it's too late to change Heap constraints.
+    ASSERT(!isolate->IsInitialized());
+    bool result = isolate->heap()->ConfigureHeap(young_space_size / 2,
+                                                 old_gen_size,
+                                                 max_executable_size);
     if (!result) return false;
   }
   if (constraints->stack_limit() != NULL) {
     uintptr_t limit = reinterpret_cast<uintptr_t>(constraints->stack_limit());
-    i::StackGuard::SetStackLimit(limit);
+    isolate->stack_guard()->SetStackLimit(limit);
   }
   return true;
 }
 
 
 i::Object** V8::GlobalizeReference(i::Object** obj) {
-  if (IsDeadCheck("V8::Persistent::New")) return NULL;
-  LOG_API("Persistent::New");
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "V8::Persistent::New")) return NULL;
+  LOG_API(isolate, "Persistent::New");
   i::Handle<i::Object> result =
-      i::GlobalHandles::Create(*obj);
+      isolate->global_handles()->Create(*obj);
   return result.location();
 }
 
 
 void V8::MakeWeak(i::Object** object, void* parameters,
                   WeakReferenceCallback callback) {
-  LOG_API("MakeWeak");
-  i::GlobalHandles::MakeWeak(object, parameters, callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "MakeWeak");
+  isolate->global_handles()->MakeWeak(object, parameters,
+                                                    callback);
 }
 
 
 void V8::ClearWeak(i::Object** obj) {
-  LOG_API("ClearWeak");
-  i::GlobalHandles::ClearWeakness(obj);
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "ClearWeak");
+  isolate->global_handles()->ClearWeakness(obj);
+}
+
+
+void V8::MarkIndependent(i::Object** object) {
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "MakeIndependent");
+  isolate->global_handles()->MarkIndependent(object);
 }
 
 
 bool V8::IsGlobalNearDeath(i::Object** obj) {
-  LOG_API("IsGlobalNearDeath");
-  if (!i::V8::IsRunning()) return false;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "IsGlobalNearDeath");
+  if (!isolate->IsInitialized()) return false;
   return i::GlobalHandles::IsNearDeath(obj);
 }
 
 
 bool V8::IsGlobalWeak(i::Object** obj) {
-  LOG_API("IsGlobalWeak");
-  if (!i::V8::IsRunning()) return false;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "IsGlobalWeak");
+  if (!isolate->IsInitialized()) return false;
   return i::GlobalHandles::IsWeak(obj);
 }
 
 
 void V8::DisposeGlobal(i::Object** obj) {
-  LOG_API("DisposeGlobal");
-  if (!i::V8::IsRunning()) return;
-  i::GlobalHandles::Destroy(obj);
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "DisposeGlobal");
+  if (!isolate->IsInitialized()) return;
+  isolate->global_handles()->Destroy(obj);
 }
 
 // --- H a n d l e s ---
 
 
-HandleScope::HandleScope()
-    : prev_next_(i::HandleScope::current_.next),
-      prev_limit_(i::HandleScope::current_.limit),
-      is_closed_(false) {
-  API_ENTRY_CHECK("HandleScope::HandleScope");
-  i::HandleScope::current_.level++;
+HandleScope::HandleScope() {
+  i::Isolate* isolate = i::Isolate::Current();
+  API_ENTRY_CHECK(isolate, "HandleScope::HandleScope");
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+  isolate_ = isolate;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  is_closed_ = false;
+  current->level++;
 }
 
 
@@ -487,12 +663,15 @@ HandleScope::~HandleScope() {
 
 
 void HandleScope::Leave() {
-  i::HandleScope::current_.level--;
-  ASSERT(i::HandleScope::current_.level >= 0);
-  i::HandleScope::current_.next = prev_next_;
-  if (i::HandleScope::current_.limit != prev_limit_) {
-    i::HandleScope::current_.limit = prev_limit_;
-    i::HandleScope::DeleteExtensions();
+  ASSERT(isolate_ == i::Isolate::Current());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate_->handle_scope_data();
+  current->level--;
+  ASSERT(current->level >= 0);
+  current->next = prev_next_;
+  if (current->limit != prev_limit_) {
+    current->limit = prev_limit_;
+    i::HandleScope::DeleteExtensions(isolate_);
   }
 
 #ifdef DEBUG
@@ -502,70 +681,83 @@ void HandleScope::Leave() {
 
 
 int HandleScope::NumberOfHandles() {
+  EnsureInitializedForIsolate(
+      i::Isolate::Current(), "HandleScope::NumberOfHandles");
   return i::HandleScope::NumberOfHandles();
 }
 
 
-i::Object** v8::HandleScope::CreateHandle(i::Object* value) {
-  return i::HandleScope::CreateHandle(value);
+i::Object** HandleScope::CreateHandle(i::Object* value) {
+  return i::HandleScope::CreateHandle(value, i::Isolate::Current());
+}
+
+
+i::Object** HandleScope::CreateHandle(i::HeapObject* value) {
+  ASSERT(value->IsHeapObject());
+  return reinterpret_cast<i::Object**>(
+      i::HandleScope::CreateHandle(value, value->GetIsolate()));
 }
 
 
 void Context::Enter() {
-  if (IsDeadCheck("v8::Context::Enter()")) return;
-  ENTER_V8;
   i::Handle<i::Context> env = Utils::OpenHandle(this);
-  thread_local.EnterContext(env);
+  i::Isolate* isolate = env->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Context::Enter()")) return;
+  ENTER_V8(isolate);
 
-  thread_local.SaveContext(i::Top::context());
-  i::Top::set_context(*env);
+  isolate->handle_scope_implementer()->EnterContext(env);
+
+  isolate->handle_scope_implementer()->SaveContext(isolate->context());
+  isolate->set_context(*env);
 }
 
 
 void Context::Exit() {
-  if (!i::V8::IsRunning()) return;
-  if (!ApiCheck(thread_local.LeaveLastContext(),
+  // Exit is essentially a static function and doesn't use the
+  // receiver, so we have to get the current isolate from the thread
+  // local.
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return;
+
+  if (!ApiCheck(isolate->handle_scope_implementer()->LeaveLastContext(),
                 "v8::Context::Exit()",
                 "Cannot exit non-entered context")) {
     return;
   }
 
   // Content of 'last_context' could be NULL.
-  i::Context* last_context = thread_local.RestoreContext();
-  i::Top::set_context(last_context);
+  i::Context* last_context =
+      isolate->handle_scope_implementer()->RestoreContext();
+  isolate->set_context(last_context);
 }
 
 
 void Context::SetData(v8::Handle<String> data) {
-  if (IsDeadCheck("v8::Context::SetData()")) return;
-  ENTER_V8;
-  {
-    HandleScope scope;
-    i::Handle<i::Context> env = Utils::OpenHandle(this);
-    i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
-    ASSERT(env->IsGlobalContext());
-    if (env->IsGlobalContext()) {
-      env->set_data(*raw_data);
-    }
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Context::SetData()")) return;
+  i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
+  ASSERT(env->IsGlobalContext());
+  if (env->IsGlobalContext()) {
+    env->set_data(*raw_data);
   }
 }
 
 
 v8::Local<v8::Value> Context::GetData() {
-  if (IsDeadCheck("v8::Context::GetData()")) return v8::Local<Value>();
-  ENTER_V8;
-  i::Object* raw_result = NULL;
-  {
-    HandleScope scope;
-    i::Handle<i::Context> env = Utils::OpenHandle(this);
-    ASSERT(env->IsGlobalContext());
-    if (env->IsGlobalContext()) {
-      raw_result = env->data();
-    } else {
-      return Local<Value>();
-    }
+  i::Handle<i::Context> env = Utils::OpenHandle(this);
+  i::Isolate* isolate = env->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Context::GetData()")) {
+    return v8::Local<Value>();
   }
-  i::Handle<i::Object> result(raw_result);
+  i::Object* raw_result = NULL;
+  ASSERT(env->IsGlobalContext());
+  if (env->IsGlobalContext()) {
+    raw_result = env->data();
+  } else {
+    return Local<Value>();
+  }
+  i::Handle<i::Object> result(raw_result, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -576,7 +768,7 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
                 "Local scope has already been closed")) {
     return 0;
   }
-  LOG_API("CloseHandleScope");
+  LOG_API(isolate_, "CloseHandleScope");
 
   // Read the result before popping the handle block.
   i::Object* result = NULL;
@@ -605,10 +797,11 @@ i::Object** v8::HandleScope::RawClose(i::Object** value) {
 // NeanderObject constructor.  When you add one to the site calling the
 // constructor you should check that you ensured the VM was not dead first.
 NeanderObject::NeanderObject(int size) {
-  EnsureInitialized("v8::Nowhere");
-  ENTER_V8;
-  value_ = i::Factory::NewNeanderObject();
-  i::Handle<i::FixedArray> elements = i::Factory::NewFixedArray(size);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Nowhere");
+  ENTER_V8(isolate);
+  value_ = isolate->factory()->NewNeanderObject();
+  i::Handle<i::FixedArray> elements = isolate->factory()->NewFixedArray(size);
   value_->set_elements(*elements);
 }
 
@@ -644,7 +837,7 @@ void NeanderArray::add(i::Handle<i::Object> value) {
   int length = this->length();
   int size = obj_.size();
   if (length == size - 1) {
-    i::Handle<i::FixedArray> new_elms = i::Factory::NewFixedArray(2 * size);
+    i::Handle<i::FixedArray> new_elms = FACTORY->NewFixedArray(2 * size);
     for (int i = 0; i < length; i++)
       new_elms->set(i + 1, get(i));
     obj_.value()->set_elements(*new_elms);
@@ -670,9 +863,10 @@ static void InitializeTemplate(i::Handle<i::TemplateInfo> that, int type) {
 
 void Template::Set(v8::Handle<String> name, v8::Handle<Data> value,
                    v8::PropertyAttribute attribute) {
-  if (IsDeadCheck("v8::Template::Set()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Template::Set()")) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::Object> list(Utils::OpenHandle(this)->property_list());
   if (list->IsUndefined()) {
     list = NeanderArray().value();
@@ -690,14 +884,16 @@ static void InitializeFunctionTemplate(
       i::Handle<i::FunctionTemplateInfo> info) {
   info->set_tag(i::Smi::FromInt(Consts::FUNCTION_TEMPLATE));
   info->set_flag(0);
+  info->set_prototype_attributes(i::Smi::FromInt(v8::None));
 }
 
 
 Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
-  if (IsDeadCheck("v8::FunctionTemplate::PrototypeTemplate()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::PrototypeTemplate()")) {
     return Local<ObjectTemplate>();
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   i::Handle<i::Object> result(Utils::OpenHandle(this)->prototype_template());
   if (result->IsUndefined()) {
     result = Utils::OpenHandle(*ObjectTemplate::New());
@@ -708,28 +904,27 @@ Local<ObjectTemplate> FunctionTemplate::PrototypeTemplate() {
 
 
 void FunctionTemplate::Inherit(v8::Handle<FunctionTemplate> value) {
-  if (IsDeadCheck("v8::FunctionTemplate::Inherit()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::Inherit()")) return;
+  ENTER_V8(isolate);
   Utils::OpenHandle(this)->set_parent_template(*Utils::OpenHandle(*value));
 }
 
 
-// To distinguish the function templates, so that we can find them in the
-// function cache of the global context.
-static int next_serial_number = 0;
-
-
 Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
     v8::Handle<Value> data, v8::Handle<Signature> signature) {
-  EnsureInitialized("v8::FunctionTemplate::New()");
-  LOG_API("FunctionTemplate::New");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::FunctionTemplate::New()");
+  LOG_API(isolate, "FunctionTemplate::New");
+  ENTER_V8(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
+      isolate->factory()->NewStruct(i::FUNCTION_TEMPLATE_INFO_TYPE);
   i::Handle<i::FunctionTemplateInfo> obj =
       i::Handle<i::FunctionTemplateInfo>::cast(struct_obj);
   InitializeFunctionTemplate(obj);
-  obj->set_serial_number(i::Smi::FromInt(next_serial_number++));
+  int next_serial_number = isolate->next_serial_number();
+  isolate->set_next_serial_number(next_serial_number + 1);
+  obj->set_serial_number(i::Smi::FromInt(next_serial_number));
   if (callback != 0) {
     if (data.IsEmpty()) data = v8::Undefined();
     Utils::ToLocal(obj)->SetCallHandler(callback, data);
@@ -745,16 +940,17 @@ Local<FunctionTemplate> FunctionTemplate::New(InvocationCallback callback,
 
 Local<Signature> Signature::New(Handle<FunctionTemplate> receiver,
       int argc, Handle<FunctionTemplate> argv[]) {
-  EnsureInitialized("v8::Signature::New()");
-  LOG_API("Signature::New");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Signature::New()");
+  LOG_API(isolate, "Signature::New");
+  ENTER_V8(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::SIGNATURE_INFO_TYPE);
+      isolate->factory()->NewStruct(i::SIGNATURE_INFO_TYPE);
   i::Handle<i::SignatureInfo> obj =
       i::Handle<i::SignatureInfo>::cast(struct_obj);
   if (!receiver.IsEmpty()) obj->set_receiver(*Utils::OpenHandle(*receiver));
   if (argc > 0) {
-    i::Handle<i::FixedArray> args = i::Factory::NewFixedArray(argc);
+    i::Handle<i::FixedArray> args = isolate->factory()->NewFixedArray(argc);
     for (int i = 0; i < argc; i++) {
       if (!argv[i].IsEmpty())
         args->set(i, *Utils::OpenHandle(*argv[i]));
@@ -772,14 +968,15 @@ Local<TypeSwitch> TypeSwitch::New(Handle<FunctionTemplate> type) {
 
 
 Local<TypeSwitch> TypeSwitch::New(int argc, Handle<FunctionTemplate> types[]) {
-  EnsureInitialized("v8::TypeSwitch::New()");
-  LOG_API("TypeSwitch::New");
-  ENTER_V8;
-  i::Handle<i::FixedArray> vector = i::Factory::NewFixedArray(argc);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::TypeSwitch::New()");
+  LOG_API(isolate, "TypeSwitch::New");
+  ENTER_V8(isolate);
+  i::Handle<i::FixedArray> vector = isolate->factory()->NewFixedArray(argc);
   for (int i = 0; i < argc; i++)
     vector->set(i, *Utils::OpenHandle(*types[i]));
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::TYPE_SWITCH_INFO_TYPE);
+      isolate->factory()->NewStruct(i::TYPE_SWITCH_INFO_TYPE);
   i::Handle<i::TypeSwitchInfo> obj =
       i::Handle<i::TypeSwitchInfo>::cast(struct_obj);
   obj->set_types(*vector);
@@ -788,7 +985,9 @@ Local<TypeSwitch> TypeSwitch::New(int argc, Handle<FunctionTemplate> types[]) {
 
 
 int TypeSwitch::match(v8::Handle<Value> value) {
-  LOG_API("TypeSwitch::match");
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "TypeSwitch::match");
+  USE(isolate);
   i::Handle<i::Object> obj = Utils::OpenHandle(*value);
   i::Handle<i::TypeSwitchInfo> info = Utils::OpenHandle(this);
   i::FixedArray* types = i::FixedArray::cast(info->types());
@@ -800,19 +999,20 @@ int TypeSwitch::match(v8::Handle<Value> value) {
 }
 
 
-#define SET_FIELD_WRAPPED(obj, setter, cdata) do {  \
-    i::Handle<i::Object> proxy = FromCData(cdata);  \
-    (obj)->setter(*proxy);                          \
+#define SET_FIELD_WRAPPED(obj, setter, cdata) do {    \
+    i::Handle<i::Object> foreign = FromCData(cdata);  \
+    (obj)->setter(*foreign);                          \
   } while (false)
 
 
 void FunctionTemplate::SetCallHandler(InvocationCallback callback,
                                       v8::Handle<Value> data) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetCallHandler()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetCallHandler()")) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -829,7 +1029,7 @@ static i::Handle<i::AccessorInfo> MakeAccessorInfo(
       v8::Handle<Value> data,
       v8::AccessControl settings,
       v8::PropertyAttribute attributes) {
-  i::Handle<i::AccessorInfo> obj = i::Factory::NewAccessorInfo();
+  i::Handle<i::AccessorInfo> obj = FACTORY->NewAccessorInfo();
   ASSERT(getter != NULL);
   SET_FIELD_WRAPPED(obj, set_getter, getter);
   SET_FIELD_WRAPPED(obj, set_setter, setter);
@@ -851,11 +1051,13 @@ void FunctionTemplate::AddInstancePropertyAccessor(
       v8::Handle<Value> data,
       v8::AccessControl settings,
       v8::PropertyAttribute attributes) {
-  if (IsDeadCheck("v8::FunctionTemplate::AddInstancePropertyAccessor()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate,
+                  "v8::FunctionTemplate::AddInstancePropertyAccessor()")) {
     return;
   }
-  ENTER_V8;
-  HandleScope scope;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
 
   i::Handle<i::AccessorInfo> obj = MakeAccessorInfo(name,
                                                     getter, setter, data,
@@ -871,10 +1073,11 @@ void FunctionTemplate::AddInstancePropertyAccessor(
 
 
 Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
-  if (IsDeadCheck("v8::FunctionTemplate::InstanceTemplate()")
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::InstanceTemplate()")
       || EmptyCheck("v8::FunctionTemplate::InstanceTemplate()", this))
     return Local<ObjectTemplate>();
-  ENTER_V8;
+  ENTER_V8(isolate);
   if (Utils::OpenHandle(this)->instance_template()->IsUndefined()) {
     Local<ObjectTemplate> templ =
         ObjectTemplate::New(v8::Handle<FunctionTemplate>(this));
@@ -887,16 +1090,31 @@ Local<ObjectTemplate> FunctionTemplate::InstanceTemplate() {
 
 
 void FunctionTemplate::SetClassName(Handle<String> name) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetClassName()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetClassName()")) return;
+  ENTER_V8(isolate);
   Utils::OpenHandle(this)->set_class_name(*Utils::OpenHandle(*name));
 }
 
 
 void FunctionTemplate::SetHiddenPrototype(bool value) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetHiddenPrototype()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetHiddenPrototype()")) {
+    return;
+  }
+  ENTER_V8(isolate);
   Utils::OpenHandle(this)->set_hidden_prototype(value);
+}
+
+
+void FunctionTemplate::SetPrototypeAttributes(int attributes) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::FunctionTemplate::SetPrototypeAttributes()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  Utils::OpenHandle(this)->set_prototype_attributes(
+      i::Smi::FromInt(attributes));
 }
 
 
@@ -907,13 +1125,15 @@ void FunctionTemplate::SetNamedInstancePropertyHandler(
       NamedPropertyDeleter remover,
       NamedPropertyEnumerator enumerator,
       Handle<Value> data) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetNamedInstancePropertyHandler()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate,
+                  "v8::FunctionTemplate::SetNamedInstancePropertyHandler()")) {
     return;
   }
-  ENTER_V8;
-  HandleScope scope;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
+      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
@@ -936,14 +1156,15 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
-  if (IsDeadCheck(
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate,
         "v8::FunctionTemplate::SetIndexedInstancePropertyHandler()")) {
     return;
   }
-  ENTER_V8;
-  HandleScope scope;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::INTERCEPTOR_INFO_TYPE);
+      isolate->factory()->NewStruct(i::INTERCEPTOR_INFO_TYPE);
   i::Handle<i::InterceptorInfo> obj =
       i::Handle<i::InterceptorInfo>::cast(struct_obj);
 
@@ -962,13 +1183,15 @@ void FunctionTemplate::SetIndexedInstancePropertyHandler(
 void FunctionTemplate::SetInstanceCallAsFunctionHandler(
       InvocationCallback callback,
       Handle<Value> data) {
-  if (IsDeadCheck("v8::FunctionTemplate::SetInstanceCallAsFunctionHandler()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate,
+                  "v8::FunctionTemplate::SetInstanceCallAsFunctionHandler()")) {
     return;
   }
-  ENTER_V8;
-  HandleScope scope;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::CALL_HANDLER_INFO_TYPE);
+      isolate->factory()->NewStruct(i::CALL_HANDLER_INFO_TYPE);
   i::Handle<i::CallHandlerInfo> obj =
       i::Handle<i::CallHandlerInfo>::cast(struct_obj);
   SET_FIELD_WRAPPED(obj, set_callback, callback);
@@ -988,12 +1211,15 @@ Local<ObjectTemplate> ObjectTemplate::New() {
 
 Local<ObjectTemplate> ObjectTemplate::New(
       v8::Handle<FunctionTemplate> constructor) {
-  if (IsDeadCheck("v8::ObjectTemplate::New()")) return Local<ObjectTemplate>();
-  EnsureInitialized("v8::ObjectTemplate::New()");
-  LOG_API("ObjectTemplate::New");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::New()")) {
+    return Local<ObjectTemplate>();
+  }
+  EnsureInitializedForIsolate(isolate, "v8::ObjectTemplate::New()");
+  LOG_API(isolate, "ObjectTemplate::New");
+  ENTER_V8(isolate);
   i::Handle<i::Struct> struct_obj =
-      i::Factory::NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE);
+      isolate->factory()->NewStruct(i::OBJECT_TEMPLATE_INFO_TYPE);
   i::Handle<i::ObjectTemplateInfo> obj =
       i::Handle<i::ObjectTemplateInfo>::cast(struct_obj);
   InitializeTemplate(obj, Consts::OBJECT_TEMPLATE);
@@ -1022,9 +1248,10 @@ void ObjectTemplate::SetAccessor(v8::Handle<String> name,
                                  v8::Handle<Value> data,
                                  AccessControl settings,
                                  PropertyAttribute attribute) {
-  if (IsDeadCheck("v8::ObjectTemplate::SetAccessor()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetAccessor()")) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   EnsureConstructor(this);
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
@@ -1044,9 +1271,12 @@ void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
                                              NamedPropertyDeleter remover,
                                              NamedPropertyEnumerator enumerator,
                                              Handle<Value> data) {
-  if (IsDeadCheck("v8::ObjectTemplate::SetNamedPropertyHandler()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetNamedPropertyHandler()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   EnsureConstructor(this);
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
@@ -1061,9 +1291,10 @@ void ObjectTemplate::SetNamedPropertyHandler(NamedPropertyGetter getter,
 
 
 void ObjectTemplate::MarkAsUndetectable() {
-  if (IsDeadCheck("v8::ObjectTemplate::MarkAsUndetectable()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::MarkAsUndetectable()")) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   EnsureConstructor(this);
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
@@ -1077,13 +1308,16 @@ void ObjectTemplate::SetAccessCheckCallbacks(
       IndexedSecurityCallback indexed_callback,
       Handle<Value> data,
       bool turned_on_by_default) {
-  if (IsDeadCheck("v8::ObjectTemplate::SetAccessCheckCallbacks()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetAccessCheckCallbacks()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   EnsureConstructor(this);
 
   i::Handle<i::Struct> struct_info =
-      i::Factory::NewStruct(i::ACCESS_CHECK_INFO_TYPE);
+      isolate->factory()->NewStruct(i::ACCESS_CHECK_INFO_TYPE);
   i::Handle<i::AccessCheckInfo> info =
       i::Handle<i::AccessCheckInfo>::cast(struct_info);
 
@@ -1108,9 +1342,12 @@ void ObjectTemplate::SetIndexedPropertyHandler(
       IndexedPropertyDeleter remover,
       IndexedPropertyEnumerator enumerator,
       Handle<Value> data) {
-  if (IsDeadCheck("v8::ObjectTemplate::SetIndexedPropertyHandler()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetIndexedPropertyHandler()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   EnsureConstructor(this);
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
@@ -1126,9 +1363,13 @@ void ObjectTemplate::SetIndexedPropertyHandler(
 
 void ObjectTemplate::SetCallAsFunctionHandler(InvocationCallback callback,
                                               Handle<Value> data) {
-  if (IsDeadCheck("v8::ObjectTemplate::SetCallAsFunctionHandler()")) return;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate,
+                  "v8::ObjectTemplate::SetCallAsFunctionHandler()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   EnsureConstructor(this);
   i::FunctionTemplateInfo* constructor =
       i::FunctionTemplateInfo::cast(Utils::OpenHandle(this)->constructor());
@@ -1138,7 +1379,8 @@ void ObjectTemplate::SetCallAsFunctionHandler(InvocationCallback callback,
 
 
 int ObjectTemplate::InternalFieldCount() {
-  if (IsDeadCheck("v8::ObjectTemplate::InternalFieldCount()")) {
+  if (IsDeadCheck(Utils::OpenHandle(this)->GetIsolate(),
+                  "v8::ObjectTemplate::InternalFieldCount()")) {
     return 0;
   }
   return i::Smi::cast(Utils::OpenHandle(this)->internal_field_count())->value();
@@ -1146,13 +1388,16 @@ int ObjectTemplate::InternalFieldCount() {
 
 
 void ObjectTemplate::SetInternalFieldCount(int value) {
-  if (IsDeadCheck("v8::ObjectTemplate::SetInternalFieldCount()")) return;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::ObjectTemplate::SetInternalFieldCount()")) {
+    return;
+  }
   if (!ApiCheck(i::Smi::IsValid(value),
                 "v8::ObjectTemplate::SetInternalFieldCount()",
                 "Invalid internal field count")) {
     return;
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   if (value > 0) {
     // The internal field count is set by the constructor function's
     // construct code, so we ensure that there is a constructor
@@ -1200,7 +1445,7 @@ ScriptData* ScriptData::New(const char* data, int length) {
   }
   // Copy the data to align it.
   unsigned* deserialized_data = i::NewArray<unsigned>(deserialized_data_length);
-  i::MemCopy(deserialized_data, data, length);
+  i::OS::MemCopy(deserialized_data, data, length);
 
   return new i::ScriptDataImpl(
       i::Vector<unsigned>(deserialized_data, deserialized_data_length));
@@ -1214,9 +1459,10 @@ Local<Script> Script::New(v8::Handle<String> source,
                           v8::ScriptOrigin* origin,
                           v8::ScriptData* pre_data,
                           v8::Handle<String> script_data) {
-  ON_BAILOUT("v8::Script::New()", return Local<Script>());
-  LOG_API("Script::New");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::New()", return Local<Script>());
+  LOG_API(isolate, "Script::New");
+  ENTER_V8(isolate);
   i::Handle<i::String> str = Utils::OpenHandle(*source);
   i::Handle<i::Object> name_obj;
   int line_offset = 0;
@@ -1232,7 +1478,7 @@ Local<Script> Script::New(v8::Handle<String> source,
       column_offset = static_cast<int>(origin->ResourceColumnOffset()->Value());
     }
   }
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::ScriptDataImpl* pre_data_impl = static_cast<i::ScriptDataImpl*>(pre_data);
   // We assert that the pre-data is sane, even though we can actually
   // handle it if it turns out not to be in release mode.
@@ -1251,7 +1497,7 @@ Local<Script> Script::New(v8::Handle<String> source,
                            Utils::OpenHandle(*script_data),
                            i::NOT_NATIVES_CODE);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(Local<Script>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1267,9 +1513,10 @@ Local<Script> Script::Compile(v8::Handle<String> source,
                               v8::ScriptOrigin* origin,
                               v8::ScriptData* pre_data,
                               v8::Handle<String> script_data) {
-  ON_BAILOUT("v8::Script::Compile()", return Local<Script>());
-  LOG_API("Script::Compile");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::Compile()", return Local<Script>());
+  LOG_API(isolate, "Script::Compile");
+  ENTER_V8(isolate);
   Local<Script> generic = New(source, origin, pre_data, script_data);
   if (generic.IsEmpty())
     return generic;
@@ -1277,8 +1524,9 @@ Local<Script> Script::Compile(v8::Handle<String> source,
   i::Handle<i::SharedFunctionInfo> function =
       i::Handle<i::SharedFunctionInfo>(i::SharedFunctionInfo::cast(*obj));
   i::Handle<i::JSFunction> result =
-      i::Factory::NewFunctionFromSharedFunctionInfo(function,
-                                                    i::Top::global_context());
+      isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          function,
+          isolate->global_context());
   return Local<Script>(ToApi<Script>(result));
 }
 
@@ -1292,30 +1540,32 @@ Local<Script> Script::Compile(v8::Handle<String> source,
 
 
 Local<Value> Script::Run() {
-  ON_BAILOUT("v8::Script::Run()", return Local<Value>());
-  LOG_API("Script::Run");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::Run()", return Local<Value>());
+  LOG_API(isolate, "Script::Run");
+  ENTER_V8(isolate);
   i::Object* raw_result = NULL;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::Object> obj = Utils::OpenHandle(this);
     i::Handle<i::JSFunction> fun;
     if (obj->IsSharedFunctionInfo()) {
       i::Handle<i::SharedFunctionInfo>
-          function_info(i::SharedFunctionInfo::cast(*obj));
-      fun = i::Factory::NewFunctionFromSharedFunctionInfo(
-          function_info, i::Top::global_context());
+          function_info(i::SharedFunctionInfo::cast(*obj), isolate);
+      fun = isolate->factory()->NewFunctionFromSharedFunctionInfo(
+          function_info, isolate->global_context());
     } else {
-      fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj));
+      fun = i::Handle<i::JSFunction>(i::JSFunction::cast(*obj), isolate);
     }
-    EXCEPTION_PREAMBLE();
-    i::Handle<i::Object> receiver(i::Top::context()->global_proxy());
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> receiver(
+        isolate->context()->global_proxy(), isolate);
     i::Handle<i::Object> result =
         i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<Value>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
     raw_result = *result;
   }
-  i::Handle<i::Object> result(raw_result);
+  i::Handle<i::Object> result(raw_result, isolate);
   return Utils::ToLocal(result);
 }
 
@@ -1335,11 +1585,12 @@ static i::Handle<i::SharedFunctionInfo> OpenScript(Script* script) {
 
 
 Local<Value> Script::Id() {
-  ON_BAILOUT("v8::Script::Id()", return Local<Value>());
-  LOG_API("Script::Id");
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::Id()", return Local<Value>());
+  LOG_API(isolate, "Script::Id");
   i::Object* raw_id = NULL;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
     i::Handle<i::Script> script(i::Script::cast(function_info->script()));
     i::Handle<i::Object> id(script->id());
@@ -1351,10 +1602,11 @@ Local<Value> Script::Id() {
 
 
 void Script::SetData(v8::Handle<String> data) {
-  ON_BAILOUT("v8::Script::SetData()", return);
-  LOG_API("Script::SetData");
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Script::SetData()", return);
+  LOG_API(isolate, "Script::SetData");
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::SharedFunctionInfo> function_info = OpenScript(this);
     i::Handle<i::Object> raw_data = Utils::OpenHandle(*data);
     i::Handle<i::Script> script(i::Script::cast(function_info->script()));
@@ -1367,25 +1619,27 @@ void Script::SetData(v8::Handle<String> data) {
 
 
 v8::TryCatch::TryCatch()
-    : next_(i::Top::try_catch_handler_address()),
-      exception_(i::Heap::the_hole_value()),
+    : isolate_(i::Isolate::Current()),
+      next_(isolate_->try_catch_handler_address()),
+      exception_(isolate_->heap()->the_hole_value()),
       message_(i::Smi::FromInt(0)),
       is_verbose_(false),
       can_continue_(true),
       capture_message_(true),
       rethrow_(false) {
-  i::Top::RegisterTryCatchHandler(this);
+  isolate_->RegisterTryCatchHandler(this);
 }
 
 
 v8::TryCatch::~TryCatch() {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (rethrow_) {
     v8::HandleScope scope;
     v8::Local<v8::Value> exc = v8::Local<v8::Value>::New(Exception());
-    i::Top::UnregisterTryCatchHandler(this);
+    isolate_->UnregisterTryCatchHandler(this);
     v8::ThrowException(exc);
   } else {
-    i::Top::UnregisterTryCatchHandler(this);
+    isolate_->UnregisterTryCatchHandler(this);
   }
 }
 
@@ -1408,10 +1662,11 @@ v8::Handle<v8::Value> v8::TryCatch::ReThrow() {
 
 
 v8::Local<Value> v8::TryCatch::Exception() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught()) {
     // Check for out of memory exception.
     i::Object* exception = reinterpret_cast<i::Object*>(exception_);
-    return v8::Utils::ToLocal(i::Handle<i::Object>(exception));
+    return v8::Utils::ToLocal(i::Handle<i::Object>(exception, isolate_));
   } else {
     return v8::Local<Value>();
   }
@@ -1419,15 +1674,17 @@ v8::Local<Value> v8::TryCatch::Exception() const {
 
 
 v8::Local<Value> v8::TryCatch::StackTrace() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught()) {
     i::Object* raw_obj = reinterpret_cast<i::Object*>(exception_);
     if (!raw_obj->IsJSObject()) return v8::Local<Value>();
-    v8::HandleScope scope;
-    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj));
-    i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("stack");
-    if (!obj->HasProperty(*name))
-      return v8::Local<Value>();
-    return scope.Close(v8::Utils::ToLocal(i::GetProperty(obj, name)));
+    i::HandleScope scope(isolate_);
+    i::Handle<i::JSObject> obj(i::JSObject::cast(raw_obj), isolate_);
+    i::Handle<i::String> name = isolate_->factory()->LookupAsciiSymbol("stack");
+    if (!obj->HasProperty(*name)) return v8::Local<Value>();
+    i::Handle<i::Object> value = i::GetProperty(obj, name);
+    if (value.is_null()) return v8::Local<Value>();
+    return v8::Utils::ToLocal(scope.CloseAndEscape(value));
   } else {
     return v8::Local<Value>();
   }
@@ -1435,9 +1692,10 @@ v8::Local<Value> v8::TryCatch::StackTrace() const {
 
 
 v8::Local<v8::Message> v8::TryCatch::Message() const {
+  ASSERT(isolate_ == i::Isolate::Current());
   if (HasCaught() && message_ != i::Smi::FromInt(0)) {
     i::Object* message = reinterpret_cast<i::Object*>(message_);
-    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message));
+    return v8::Utils::MessageToLocal(i::Handle<i::Object>(message, isolate_));
   } else {
     return v8::Local<v8::Message>();
   }
@@ -1445,7 +1703,8 @@ v8::Local<v8::Message> v8::TryCatch::Message() const {
 
 
 void v8::TryCatch::Reset() {
-  exception_ = i::Heap::the_hole_value();
+  ASSERT(isolate_ == i::Isolate::Current());
+  exception_ = isolate_->heap()->the_hole_value();
   message_ = i::Smi::FromInt(0);
 }
 
@@ -1464,8 +1723,9 @@ void v8::TryCatch::SetCaptureMessage(bool value) {
 
 
 Local<String> Message::Get() const {
-  ON_BAILOUT("v8::Message::Get()", return Local<String>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Message::Get()", return Local<String>());
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::String> raw_result = i::MessageHandler::GetMessage(obj);
@@ -1475,10 +1735,11 @@ Local<String> Message::Get() const {
 
 
 v8::Handle<Value> Message::GetScriptResourceName() const {
-  if (IsDeadCheck("v8::Message::GetScriptResourceName()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetScriptResourceName()")) {
     return Local<String>();
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
@@ -1491,10 +1752,11 @@ v8::Handle<Value> Message::GetScriptResourceName() const {
 
 
 v8::Handle<Value> Message::GetScriptData() const {
-  if (IsDeadCheck("v8::Message::GetScriptResourceData()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetScriptResourceData()")) {
     return Local<Value>();
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
@@ -1507,10 +1769,11 @@ v8::Handle<Value> Message::GetScriptData() const {
 
 
 v8::Handle<v8::StackTrace> Message::GetStackTrace() const {
-  if (IsDeadCheck("v8::Message::GetStackTrace()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetStackTrace()")) {
     return Local<v8::StackTrace>();
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
@@ -1527,9 +1790,10 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                int argc,
                                                i::Object** argv[],
                                                bool* has_pending_exception) {
-  i::Handle<i::String> fmt_str = i::Factory::LookupAsciiSymbol(name);
+  i::Isolate* isolate = i::Isolate::Current();
+  i::Handle<i::String> fmt_str = isolate->factory()->LookupAsciiSymbol(name);
   i::Object* object_fun =
-      i::Top::builtins()->GetPropertyNoExceptionThrown(*fmt_str);
+      isolate->js_builtins_object()->GetPropertyNoExceptionThrown(*fmt_str);
   i::Handle<i::JSFunction> fun =
       i::Handle<i::JSFunction>(i::JSFunction::cast(object_fun));
   i::Handle<i::Object> value =
@@ -1543,7 +1807,7 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
                                                bool* has_pending_exception) {
   i::Object** argv[1] = { data.location() };
   return CallV8HeapFunction(name,
-                            i::Top::builtins(),
+                            i::Isolate::Current()->js_builtins_object(),
                             1,
                             argv,
                             has_pending_exception);
@@ -1551,23 +1815,25 @@ static i::Handle<i::Object> CallV8HeapFunction(const char* name,
 
 
 int Message::GetLineNumber() const {
-  ON_BAILOUT("v8::Message::GetLineNumber()", return kNoLineNumberInfo);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Message::GetLineNumber()", return kNoLineNumberInfo);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
 
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = CallV8HeapFunction("GetLineNumber",
                                                    Utils::OpenHandle(this),
                                                    &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(0);
+  EXCEPTION_BAILOUT_CHECK(isolate, 0);
   return static_cast<int>(result->Number());
 }
 
 
 int Message::GetStartPosition() const {
-  if (IsDeadCheck("v8::Message::GetStartPosition()")) return 0;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetStartPosition()")) return 0;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   return message->start_position();
@@ -1575,9 +1841,10 @@ int Message::GetStartPosition() const {
 
 
 int Message::GetEndPosition() const {
-  if (IsDeadCheck("v8::Message::GetEndPosition()")) return 0;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetEndPosition()")) return 0;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(Utils::OpenHandle(this));
   return message->end_position();
@@ -1585,31 +1852,35 @@ int Message::GetEndPosition() const {
 
 
 int Message::GetStartColumn() const {
-  if (IsDeadCheck("v8::Message::GetStartColumn()")) return kNoColumnInfo;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetStartColumn()")) {
+    return kNoColumnInfo;
+  }
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
       "GetPositionInLine",
       data_obj,
       &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(0);
+  EXCEPTION_BAILOUT_CHECK(isolate, 0);
   return static_cast<int>(start_col_obj->Number());
 }
 
 
 int Message::GetEndColumn() const {
-  if (IsDeadCheck("v8::Message::GetEndColumn()")) return kNoColumnInfo;
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Message::GetEndColumn()")) return kNoColumnInfo;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> data_obj = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> start_col_obj = CallV8HeapFunction(
       "GetPositionInLine",
       data_obj,
       &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(0);
+  EXCEPTION_BAILOUT_CHECK(isolate, 0);
   i::Handle<i::JSMessageObject> message =
       i::Handle<i::JSMessageObject>::cast(data_obj);
   int start = message->start_position();
@@ -1619,14 +1890,15 @@ int Message::GetEndColumn() const {
 
 
 Local<String> Message::GetSourceLine() const {
-  ON_BAILOUT("v8::Message::GetSourceLine()", return Local<String>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Message::GetSourceLine()", return Local<String>());
+  ENTER_V8(isolate);
   HandleScope scope;
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = CallV8HeapFunction("GetSourceLine",
                                                    Utils::OpenHandle(this),
                                                    &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::String>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::String>());
   if (result->IsString()) {
     return scope.Close(Utils::ToLocal(i::Handle<i::String>::cast(result)));
   } else {
@@ -1636,17 +1908,21 @@ Local<String> Message::GetSourceLine() const {
 
 
 void Message::PrintCurrentStackTrace(FILE* out) {
-  if (IsDeadCheck("v8::Message::PrintCurrentStackTrace()")) return;
-  ENTER_V8;
-  i::Top::PrintCurrentStackTrace(out);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Message::PrintCurrentStackTrace()")) return;
+  ENTER_V8(isolate);
+  isolate->PrintCurrentStackTrace(out);
 }
 
 
 // --- S t a c k T r a c e ---
 
 Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
-  if (IsDeadCheck("v8::StackTrace::GetFrame()")) return Local<StackFrame>();
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackTrace::GetFrame()")) {
+    return Local<StackFrame>();
+  }
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSArray> self = Utils::OpenHandle(this);
   i::Object* raw_object = self->GetElementNoExceptionThrown(index);
@@ -1656,25 +1932,30 @@ Local<StackFrame> StackTrace::GetFrame(uint32_t index) const {
 
 
 int StackTrace::GetFrameCount() const {
-  if (IsDeadCheck("v8::StackTrace::GetFrameCount()")) return -1;
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackTrace::GetFrameCount()")) return -1;
+  ENTER_V8(isolate);
   return i::Smi::cast(Utils::OpenHandle(this)->length())->value();
 }
 
 
 Local<Array> StackTrace::AsArray() {
-  if (IsDeadCheck("v8::StackTrace::AsArray()")) Local<Array>();
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackTrace::AsArray()")) Local<Array>();
+  ENTER_V8(isolate);
   return Utils::ToLocal(Utils::OpenHandle(this));
 }
 
 
 Local<StackTrace> StackTrace::CurrentStackTrace(int frame_limit,
     StackTraceOptions options) {
-  if (IsDeadCheck("v8::StackTrace::CurrentStackTrace()")) Local<StackTrace>();
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::StackTrace::CurrentStackTrace()")) {
+    Local<StackTrace>();
+  }
+  ENTER_V8(isolate);
   i::Handle<i::JSArray> stackTrace =
-      i::Top::CaptureCurrentStackTrace(frame_limit, options);
+      isolate->CaptureCurrentStackTrace(frame_limit, options);
   return Utils::StackTraceToLocal(stackTrace);
 }
 
@@ -1682,11 +1963,12 @@ Local<StackTrace> StackTrace::CurrentStackTrace(int frame_limit,
 // --- S t a c k F r a m e ---
 
 int StackFrame::GetLineNumber() const {
-  if (IsDeadCheck("v8::StackFrame::GetLineNumber()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetLineNumber()")) {
     return Message::kNoLineNumberInfo;
   }
-  ENTER_V8;
-  i::HandleScope scope;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> line = GetProperty(self, "lineNumber");
   if (!line->IsSmi()) {
@@ -1697,11 +1979,12 @@ int StackFrame::GetLineNumber() const {
 
 
 int StackFrame::GetColumn() const {
-  if (IsDeadCheck("v8::StackFrame::GetColumn()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetColumn()")) {
     return Message::kNoColumnInfo;
   }
-  ENTER_V8;
-  i::HandleScope scope;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> column = GetProperty(self, "column");
   if (!column->IsSmi()) {
@@ -1712,8 +1995,11 @@ int StackFrame::GetColumn() const {
 
 
 Local<String> StackFrame::GetScriptName() const {
-  if (IsDeadCheck("v8::StackFrame::GetScriptName()")) return Local<String>();
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetScriptName()")) {
+    return Local<String>();
+  }
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "scriptName");
@@ -1725,10 +2011,11 @@ Local<String> StackFrame::GetScriptName() const {
 
 
 Local<String> StackFrame::GetScriptNameOrSourceURL() const {
-  if (IsDeadCheck("v8::StackFrame::GetScriptNameOrSourceURL()")) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetScriptNameOrSourceURL()")) {
     return Local<String>();
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "scriptNameOrSourceURL");
@@ -1740,8 +2027,11 @@ Local<String> StackFrame::GetScriptNameOrSourceURL() const {
 
 
 Local<String> StackFrame::GetFunctionName() const {
-  if (IsDeadCheck("v8::StackFrame::GetFunctionName()")) return Local<String>();
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::GetFunctionName()")) {
+    return Local<String>();
+  }
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> name = GetProperty(self, "functionName");
@@ -1753,9 +2043,10 @@ Local<String> StackFrame::GetFunctionName() const {
 
 
 bool StackFrame::IsEval() const {
-  if (IsDeadCheck("v8::StackFrame::IsEval()")) return false;
-  ENTER_V8;
-  i::HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::IsEval()")) return false;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> is_eval = GetProperty(self, "isEval");
   return is_eval->IsTrue();
@@ -1763,9 +2054,10 @@ bool StackFrame::IsEval() const {
 
 
 bool StackFrame::IsConstructor() const {
-  if (IsDeadCheck("v8::StackFrame::IsConstructor()")) return false;
-  ENTER_V8;
-  i::HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::StackFrame::IsConstructor()")) return false;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> is_constructor = GetProperty(self, "isConstructor");
   return is_constructor->IsTrue();
@@ -1775,37 +2067,41 @@ bool StackFrame::IsConstructor() const {
 // --- D a t a ---
 
 bool Value::IsUndefined() const {
-  if (IsDeadCheck("v8::Value::IsUndefined()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsUndefined()")) {
+    return false;
+  }
   return Utils::OpenHandle(this)->IsUndefined();
 }
 
 
 bool Value::IsNull() const {
-  if (IsDeadCheck("v8::Value::IsNull()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsNull()")) return false;
   return Utils::OpenHandle(this)->IsNull();
 }
 
 
 bool Value::IsTrue() const {
-  if (IsDeadCheck("v8::Value::IsTrue()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsTrue()")) return false;
   return Utils::OpenHandle(this)->IsTrue();
 }
 
 
 bool Value::IsFalse() const {
-  if (IsDeadCheck("v8::Value::IsFalse()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsFalse()")) return false;
   return Utils::OpenHandle(this)->IsFalse();
 }
 
 
 bool Value::IsFunction() const {
-  if (IsDeadCheck("v8::Value::IsFunction()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsFunction()")) {
+    return false;
+  }
   return Utils::OpenHandle(this)->IsJSFunction();
 }
 
 
 bool Value::FullIsString() const {
-  if (IsDeadCheck("v8::Value::IsString()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsString()")) return false;
   bool result = Utils::OpenHandle(this)->IsString();
   ASSERT_EQ(result, QuickIsString());
   return result;
@@ -1813,37 +2109,41 @@ bool Value::FullIsString() const {
 
 
 bool Value::IsArray() const {
-  if (IsDeadCheck("v8::Value::IsArray()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsArray()")) return false;
   return Utils::OpenHandle(this)->IsJSArray();
 }
 
 
 bool Value::IsObject() const {
-  if (IsDeadCheck("v8::Value::IsObject()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsObject()")) return false;
   return Utils::OpenHandle(this)->IsJSObject();
 }
 
 
 bool Value::IsNumber() const {
-  if (IsDeadCheck("v8::Value::IsNumber()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsNumber()")) return false;
   return Utils::OpenHandle(this)->IsNumber();
 }
 
 
 bool Value::IsBoolean() const {
-  if (IsDeadCheck("v8::Value::IsBoolean()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsBoolean()")) {
+    return false;
+  }
   return Utils::OpenHandle(this)->IsBoolean();
 }
 
 
 bool Value::IsExternal() const {
-  if (IsDeadCheck("v8::Value::IsExternal()")) return false;
-  return Utils::OpenHandle(this)->IsProxy();
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsExternal()")) {
+    return false;
+  }
+  return Utils::OpenHandle(this)->IsForeign();
 }
 
 
 bool Value::IsInt32() const {
-  if (IsDeadCheck("v8::Value::IsInt32()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsInt32()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return true;
   if (obj->IsNumber()) {
@@ -1855,7 +2155,7 @@ bool Value::IsInt32() const {
 
 
 bool Value::IsUint32() const {
-  if (IsDeadCheck("v8::Value::IsUint32()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsUint32()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) return i::Smi::cast(*obj)->value() >= 0;
   if (obj->IsNumber()) {
@@ -1867,78 +2167,91 @@ bool Value::IsUint32() const {
 
 
 bool Value::IsDate() const {
-  if (IsDeadCheck("v8::Value::IsDate()")) return false;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsDate()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
-  return obj->HasSpecificClassOf(i::Heap::Date_symbol());
+  return obj->HasSpecificClassOf(isolate->heap()->Date_symbol());
 }
 
 
 bool Value::IsRegExp() const {
-  if (IsDeadCheck("v8::Value::IsRegExp()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsRegExp()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->IsJSRegExp();
 }
 
 
 Local<String> Value::ToString() const {
-  if (IsDeadCheck("v8::Value::ToString()")) return Local<String>();
-  LOG_API("ToString");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> str;
   if (obj->IsString()) {
     str = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToString()")) {
+      return Local<String>();
+    }
+    LOG_API(isolate, "ToString");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     str = i::Execution::ToString(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<String>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   }
   return Local<String>(ToApi<String>(str));
 }
 
 
 Local<String> Value::ToDetailString() const {
-  if (IsDeadCheck("v8::Value::ToDetailString()")) return Local<String>();
-  LOG_API("ToDetailString");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> str;
   if (obj->IsString()) {
     str = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToDetailString()")) {
+      return Local<String>();
+    }
+    LOG_API(isolate, "ToDetailString");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     str = i::Execution::ToDetailString(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<String>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<String>());
   }
   return Local<String>(ToApi<String>(str));
 }
 
 
 Local<v8::Object> Value::ToObject() const {
-  if (IsDeadCheck("v8::Value::ToObject()")) return Local<v8::Object>();
-  LOG_API("ToObject");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> val;
   if (obj->IsJSObject()) {
     val = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToObject()")) {
+      return Local<v8::Object>();
+    }
+    LOG_API(isolate, "ToObject");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     val = i::Execution::ToObject(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<v8::Object>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   }
   return Local<v8::Object>(ToApi<Object>(val));
 }
 
 
 Local<Boolean> Value::ToBoolean() const {
-  if (IsDeadCheck("v8::Value::ToBoolean()")) return Local<Boolean>();
-  LOG_API("ToBoolean");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsBoolean()) {
     return Local<Boolean>(ToApi<Boolean>(obj));
   } else {
-    ENTER_V8;
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToBoolean()")) {
+      return Local<Boolean>();
+    }
+    LOG_API(isolate, "ToBoolean");
+    ENTER_V8(isolate);
     i::Handle<i::Object> val = i::Execution::ToBoolean(obj);
     return Local<Boolean>(ToApi<Boolean>(val));
   }
@@ -1946,50 +2259,54 @@ Local<Boolean> Value::ToBoolean() const {
 
 
 Local<Number> Value::ToNumber() const {
-  if (IsDeadCheck("v8::Value::ToNumber()")) return Local<Number>();
-  LOG_API("ToNumber");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToNumber()")) {
+      return Local<Number>();
+    }
+    LOG_API(isolate, "ToNumber");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     num = i::Execution::ToNumber(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<Number>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Number>());
   }
   return Local<Number>(ToApi<Number>(num));
 }
 
 
 Local<Integer> Value::ToInteger() const {
-  if (IsDeadCheck("v8::Value::ToInteger()")) return Local<Integer>();
-  LOG_API("ToInteger");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToInteger()")) return Local<Integer>();
+    LOG_API(isolate, "ToInteger");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     num = i::Execution::ToInteger(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<Integer>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Integer>());
   }
   return Local<Integer>(ToApi<Integer>(num));
 }
 
 
 void External::CheckCast(v8::Value* that) {
-  if (IsDeadCheck("v8::External::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::External::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->IsProxy(),
+  ApiCheck(obj->IsForeign(),
            "v8::External::Cast()",
            "Could not convert to external");
 }
 
 
 void v8::Object::CheckCast(Value* that) {
-  if (IsDeadCheck("v8::Object::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Object::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSObject(),
            "v8::Object::Cast()",
@@ -1998,7 +2315,7 @@ void v8::Object::CheckCast(Value* that) {
 
 
 void v8::Function::CheckCast(Value* that) {
-  if (IsDeadCheck("v8::Function::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Function::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSFunction(),
            "v8::Function::Cast()",
@@ -2007,7 +2324,7 @@ void v8::Function::CheckCast(Value* that) {
 
 
 void v8::String::CheckCast(v8::Value* that) {
-  if (IsDeadCheck("v8::String::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::String::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsString(),
            "v8::String::Cast()",
@@ -2016,7 +2333,7 @@ void v8::String::CheckCast(v8::Value* that) {
 
 
 void v8::Number::CheckCast(v8::Value* that) {
-  if (IsDeadCheck("v8::Number::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Number::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsNumber(),
            "v8::Number::Cast()",
@@ -2025,7 +2342,7 @@ void v8::Number::CheckCast(v8::Value* that) {
 
 
 void v8::Integer::CheckCast(v8::Value* that) {
-  if (IsDeadCheck("v8::Integer::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Integer::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsNumber(),
            "v8::Integer::Cast()",
@@ -2034,7 +2351,7 @@ void v8::Integer::CheckCast(v8::Value* that) {
 
 
 void v8::Array::CheckCast(Value* that) {
-  if (IsDeadCheck("v8::Array::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Array::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSArray(),
            "v8::Array::Cast()",
@@ -2043,16 +2360,17 @@ void v8::Array::CheckCast(Value* that) {
 
 
 void v8::Date::CheckCast(v8::Value* that) {
-  if (IsDeadCheck("v8::Date::Cast()")) return;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Date::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
-  ApiCheck(obj->HasSpecificClassOf(i::Heap::Date_symbol()),
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Date_symbol()),
            "v8::Date::Cast()",
            "Could not convert to date");
 }
 
 
 void v8::RegExp::CheckCast(v8::Value* that) {
-  if (IsDeadCheck("v8::RegExp::Cast()")) return;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::RegExp::Cast()")) return;
   i::Handle<i::Object> obj = Utils::OpenHandle(that);
   ApiCheck(obj->IsJSRegExp(),
            "v8::RegExp::Cast()",
@@ -2061,13 +2379,14 @@ void v8::RegExp::CheckCast(v8::Value* that) {
 
 
 bool Value::BooleanValue() const {
-  if (IsDeadCheck("v8::Value::BooleanValue()")) return false;
-  LOG_API("BooleanValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsBoolean()) {
     return obj->IsTrue();
   } else {
-    ENTER_V8;
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::BooleanValue()")) return false;
+    LOG_API(isolate, "BooleanValue");
+    ENTER_V8(isolate);
     i::Handle<i::Object> value = i::Execution::ToBoolean(obj);
     return value->IsTrue();
   }
@@ -2075,34 +2394,38 @@ bool Value::BooleanValue() const {
 
 
 double Value::NumberValue() const {
-  if (IsDeadCheck("v8::Value::NumberValue()")) return i::OS::nan_value();
-  LOG_API("NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::NumberValue()")) {
+      return i::OS::nan_value();
+    }
+    LOG_API(isolate, "NumberValue");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     num = i::Execution::ToNumber(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(i::OS::nan_value());
+    EXCEPTION_BAILOUT_CHECK(isolate, i::OS::nan_value());
   }
   return num->Number();
 }
 
 
 int64_t Value::IntegerValue() const {
-  if (IsDeadCheck("v8::Value::IntegerValue()")) return 0;
-  LOG_API("IntegerValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsNumber()) {
     num = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::IntegerValue()")) return 0;
+    LOG_API(isolate, "IntegerValue");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     num = i::Execution::ToInteger(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(0);
+    EXCEPTION_BAILOUT_CHECK(isolate, 0);
   }
   if (num->IsSmi()) {
     return i::Smi::cast(*num)->value();
@@ -2113,52 +2436,55 @@ int64_t Value::IntegerValue() const {
 
 
 Local<Int32> Value::ToInt32() const {
-  if (IsDeadCheck("v8::Value::ToInt32()")) return Local<Int32>();
-  LOG_API("ToInt32");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToInt32()")) return Local<Int32>();
+    LOG_API(isolate, "ToInt32");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     num = i::Execution::ToInt32(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<Int32>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Int32>());
   }
   return Local<Int32>(ToApi<Int32>(num));
 }
 
 
 Local<Uint32> Value::ToUint32() const {
-  if (IsDeadCheck("v8::Value::ToUint32()")) return Local<Uint32>();
-  LOG_API("ToUInt32");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> num;
   if (obj->IsSmi()) {
     num = obj;
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::ToUint32()")) return Local<Uint32>();
+    LOG_API(isolate, "ToUInt32");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     num = i::Execution::ToUint32(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<Uint32>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
   }
   return Local<Uint32>(ToApi<Uint32>(num));
 }
 
 
 Local<Uint32> Value::ToArrayIndex() const {
-  if (IsDeadCheck("v8::Value::ToArrayIndex()")) return Local<Uint32>();
-  LOG_API("ToArrayIndex");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
     if (i::Smi::cast(*obj)->value() >= 0) return Utils::Uint32ToLocal(obj);
     return Local<Uint32>();
   }
-  ENTER_V8;
-  EXCEPTION_PREAMBLE();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::ToArrayIndex()")) return Local<Uint32>();
+  LOG_API(isolate, "ToArrayIndex");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> string_obj =
       i::Execution::ToString(obj, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<Uint32>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Uint32>());
   i::Handle<i::String> str = i::Handle<i::String>::cast(string_obj);
   uint32_t index;
   if (str->AsArrayIndex(&index)) {
@@ -2166,7 +2492,7 @@ Local<Uint32> Value::ToArrayIndex() const {
     if (index <= static_cast<uint32_t>(i::Smi::kMaxValue)) {
       value = i::Handle<i::Object>(i::Smi::FromInt(index));
     } else {
-      value = i::Factory::NewNumber(index);
+      value = isolate->factory()->NewNumber(index);
     }
     return Utils::Uint32ToLocal(value);
   }
@@ -2175,18 +2501,18 @@ Local<Uint32> Value::ToArrayIndex() const {
 
 
 int32_t Value::Int32Value() const {
-  if (IsDeadCheck("v8::Value::Int32Value()")) return 0;
-  LOG_API("Int32Value");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
   } else {
-    LOG_API("Int32Value (slow)");
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::Int32Value()")) return 0;
+    LOG_API(isolate, "Int32Value (slow)");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> num =
         i::Execution::ToInt32(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(0);
+    EXCEPTION_BAILOUT_CHECK(isolate, 0);
     if (num->IsSmi()) {
       return i::Smi::cast(*num)->value();
     } else {
@@ -2197,13 +2523,14 @@ int32_t Value::Int32Value() const {
 
 
 bool Value::Equals(Handle<Value> that) const {
-  if (IsDeadCheck("v8::Value::Equals()")
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::Equals()")
       || EmptyCheck("v8::Value::Equals()", this)
       || EmptyCheck("v8::Value::Equals()", that)) {
     return false;
   }
-  LOG_API("Equals");
-  ENTER_V8;
+  LOG_API(isolate, "Equals");
+  ENTER_V8(isolate);
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
   // If both obj and other are JSObjects, we'd better compare by identity
@@ -2213,21 +2540,22 @@ bool Value::Equals(Handle<Value> that) const {
     return *obj == *other;
   }
   i::Object** args[1] = { other.location() };
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result =
       CallV8HeapFunction("EQUALS", obj, 1, args, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return *result == i::Smi::FromInt(i::EQUAL);
 }
 
 
 bool Value::StrictEquals(Handle<Value> that) const {
-  if (IsDeadCheck("v8::Value::StrictEquals()")
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::StrictEquals()")
       || EmptyCheck("v8::Value::StrictEquals()", this)
       || EmptyCheck("v8::Value::StrictEquals()", that)) {
     return false;
   }
-  LOG_API("StrictEquals");
+  LOG_API(isolate, "StrictEquals");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::Object> other = Utils::OpenHandle(*that);
   // Must check HeapNumber first, since NaN !== NaN.
@@ -2253,17 +2581,18 @@ bool Value::StrictEquals(Handle<Value> that) const {
 
 
 uint32_t Value::Uint32Value() const {
-  if (IsDeadCheck("v8::Value::Uint32Value()")) return 0;
-  LOG_API("Uint32Value");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
   } else {
-    ENTER_V8;
-    EXCEPTION_PREAMBLE();
+    i::Isolate* isolate = i::Isolate::Current();
+    if (IsDeadCheck(isolate, "v8::Value::Uint32Value()")) return 0;
+    LOG_API(isolate, "Uint32Value");
+    ENTER_V8(isolate);
+    EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> num =
         i::Execution::ToUint32(obj, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(0);
+    EXCEPTION_BAILOUT_CHECK(isolate, 0);
     if (num->IsSmi()) {
       return i::Smi::cast(*num)->value();
     } else {
@@ -2275,13 +2604,14 @@ uint32_t Value::Uint32Value() const {
 
 bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
                      v8::PropertyAttribute attribs) {
-  ON_BAILOUT("v8::Object::Set()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Set()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::SetProperty(
       self,
       key_obj,
@@ -2289,24 +2619,26 @@ bool v8::Object::Set(v8::Handle<Value> key, v8::Handle<Value> value,
       static_cast<PropertyAttributes>(attribs),
       i::kNonStrictMode);
   has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
 
 
 bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
-  ON_BAILOUT("v8::Object::Set()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Set()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::SetElement(
       self,
       index,
-      value_obj);
+      value_obj,
+      i::kNonStrictMode);
   has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
 
@@ -2314,28 +2646,30 @@ bool v8::Object::Set(uint32_t index, v8::Handle<Value> value) {
 bool v8::Object::ForceSet(v8::Handle<Value> key,
                           v8::Handle<Value> value,
                           v8::PropertyAttribute attribs) {
-  ON_BAILOUT("v8::Object::ForceSet()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::ForceSet()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::ForceSetProperty(
       self,
       key_obj,
       value_obj,
       static_cast<PropertyAttributes>(attribs));
   has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
 
 
 bool v8::Object::ForceDelete(v8::Handle<Value> key) {
-  ON_BAILOUT("v8::Object::ForceDelete()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::ForceDelete()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
 
@@ -2343,42 +2677,46 @@ bool v8::Object::ForceDelete(v8::Handle<Value> key) {
   // as optimized code does not always handle access checks.
   i::Deoptimizer::DeoptimizeGlobalObject(*self);
 
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::ForceDeleteProperty(self, key_obj);
   has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return obj->IsTrue();
 }
 
 
 Local<Value> v8::Object::Get(v8::Handle<Value> key) {
-  ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Get()", return Local<v8::Value>());
+  ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = i::GetProperty(self, key_obj);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
 }
 
 
 Local<Value> v8::Object::Get(uint32_t index) {
-  ON_BAILOUT("v8::Object::Get()", return Local<v8::Value>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Get()", return Local<v8::Value>());
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = i::GetElement(self, index);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
 }
 
 
 Local<Value> v8::Object::GetPrototype() {
-  ON_BAILOUT("v8::Object::GetPrototype()", return Local<v8::Value>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetPrototype()",
+             return Local<v8::Value>());
+  ENTER_V8(isolate);
   i::Handle<i::Object> self = Utils::OpenHandle(this);
   i::Handle<i::Object> result = i::GetPrototype(self);
   return Utils::ToLocal(result);
@@ -2386,23 +2724,29 @@ Local<Value> v8::Object::GetPrototype() {
 
 
 bool v8::Object::SetPrototype(Handle<Value> value) {
-  ON_BAILOUT("v8::Object::SetPrototype()", return false);
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::SetPrototype()", return false);
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE();
+  // We do not allow exceptions thrown while setting the prototype
+  // to propagate outside.
+  TryCatch try_catch;
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = i::SetPrototype(self, value_obj);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
 
 
 Local<Object> v8::Object::FindInstanceInPrototypeChain(
     v8::Handle<FunctionTemplate> tmpl) {
-  ON_BAILOUT("v8::Object::FindInstanceInPrototypeChain()",
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::FindInstanceInPrototypeChain()",
              return Local<v8::Object>());
-  ENTER_V8;
+  ENTER_V8(isolate);
   i::JSObject* object = *Utils::OpenHandle(this);
   i::FunctionTemplateInfo* tmpl_info = *Utils::OpenHandle(*tmpl);
   while (!object->IsInstanceOf(tmpl_info)) {
@@ -2415,24 +2759,48 @@ Local<Object> v8::Object::FindInstanceInPrototypeChain(
 
 
 Local<Array> v8::Object::GetPropertyNames() {
-  ON_BAILOUT("v8::Object::GetPropertyNames()", return Local<v8::Array>());
-  ENTER_V8;
-  v8::HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetPropertyNames()",
+             return Local<v8::Array>());
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::FixedArray> value =
       i::GetKeysInFixedArrayFor(self, i::INCLUDE_PROTOS);
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
-  i::Handle<i::FixedArray> elms = i::Factory::CopyFixedArray(value);
-  i::Handle<i::JSArray> result = i::Factory::NewJSArrayWithElements(elms);
-  return scope.Close(Utils::ToLocal(result));
+  i::Handle<i::FixedArray> elms = isolate->factory()->CopyFixedArray(value);
+  i::Handle<i::JSArray> result =
+      isolate->factory()->NewJSArrayWithElements(elms);
+  return Utils::ToLocal(scope.CloseAndEscape(result));
+}
+
+
+Local<Array> v8::Object::GetOwnPropertyNames() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetOwnPropertyNames()",
+             return Local<v8::Array>());
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::FixedArray> value =
+      i::GetKeysInFixedArrayFor(self, i::LOCAL_ONLY);
+  // Because we use caching to speed up enumeration it is important
+  // to never change the result of the basic enumeration function so
+  // we clone the result.
+  i::Handle<i::FixedArray> elms = isolate->factory()->CopyFixedArray(value);
+  i::Handle<i::JSArray> result =
+      isolate->factory()->NewJSArrayWithElements(elms);
+  return Utils::ToLocal(scope.CloseAndEscape(result));
 }
 
 
 Local<String> v8::Object::ObjectProtoToString() {
-  ON_BAILOUT("v8::Object::ObjectProtoToString()", return Local<v8::String>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::ObjectProtoToString()",
+             return Local<v8::String>());
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
 
   i::Handle<i::Object> name(self->class_name());
@@ -2483,8 +2851,10 @@ Local<String> v8::Object::ObjectProtoToString() {
 
 
 Local<String> v8::Object::GetConstructorName() {
-  ON_BAILOUT("v8::Object::GetConstructorName()", return Local<v8::String>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetConstructorName()",
+             return Local<v8::String>());
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> name(self->constructor_name());
   return Utils::ToLocal(name);
@@ -2492,9 +2862,10 @@ Local<String> v8::Object::GetConstructorName() {
 
 
 bool v8::Object::Delete(v8::Handle<String> key) {
-  ON_BAILOUT("v8::Object::Delete()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Delete()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   return i::DeleteProperty(self, key_obj)->IsTrue();
@@ -2502,8 +2873,9 @@ bool v8::Object::Delete(v8::Handle<String> key) {
 
 
 bool v8::Object::Has(v8::Handle<String> key) {
-  ON_BAILOUT("v8::Object::Has()", return false);
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Has()", return false);
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   return self->HasProperty(*key_obj);
@@ -2511,8 +2883,10 @@ bool v8::Object::Has(v8::Handle<String> key) {
 
 
 bool v8::Object::Delete(uint32_t index) {
-  ON_BAILOUT("v8::Object::DeleteProperty()", return false);
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::DeleteProperty()",
+             return false);
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   return i::DeleteElement(self, index)->IsTrue();
@@ -2520,7 +2894,8 @@ bool v8::Object::Delete(uint32_t index) {
 
 
 bool v8::Object::Has(uint32_t index) {
-  ON_BAILOUT("v8::Object::HasProperty()", return false);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::HasProperty()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   return self->HasElement(index);
 }
@@ -2532,9 +2907,10 @@ bool Object::SetAccessor(Handle<String> name,
                          v8::Handle<Value> data,
                          AccessControl settings,
                          PropertyAttribute attributes) {
-  ON_BAILOUT("v8::Object::SetAccessor()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::SetAccessor()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::AccessorInfo> info = MakeAccessorInfo(name,
                                                      getter, setter, data,
                                                      settings, attributes);
@@ -2543,80 +2919,104 @@ bool Object::SetAccessor(Handle<String> name,
 }
 
 
+bool v8::Object::HasOwnProperty(Handle<String> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::HasOwnProperty()",
+             return false);
+  return Utils::OpenHandle(this)->HasLocalProperty(
+      *Utils::OpenHandle(*key));
+}
+
+
 bool v8::Object::HasRealNamedProperty(Handle<String> key) {
-  ON_BAILOUT("v8::Object::HasRealNamedProperty()", return false);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::HasRealNamedProperty()",
+             return false);
   return Utils::OpenHandle(this)->HasRealNamedProperty(
       *Utils::OpenHandle(*key));
 }
 
 
 bool v8::Object::HasRealIndexedProperty(uint32_t index) {
-  ON_BAILOUT("v8::Object::HasRealIndexedProperty()", return false);
+  ON_BAILOUT(Utils::OpenHandle(this)->GetIsolate(),
+             "v8::Object::HasRealIndexedProperty()",
+             return false);
   return Utils::OpenHandle(this)->HasRealElementProperty(index);
 }
 
 
 bool v8::Object::HasRealNamedCallbackProperty(Handle<String> key) {
-  ON_BAILOUT("v8::Object::HasRealNamedCallbackProperty()", return false);
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::HasRealNamedCallbackProperty()",
+             return false);
+  ENTER_V8(isolate);
   return Utils::OpenHandle(this)->HasRealNamedCallbackProperty(
       *Utils::OpenHandle(*key));
 }
 
 
 bool v8::Object::HasNamedLookupInterceptor() {
-  ON_BAILOUT("v8::Object::HasNamedLookupInterceptor()", return false);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::HasNamedLookupInterceptor()",
+             return false);
   return Utils::OpenHandle(this)->HasNamedInterceptor();
 }
 
 
 bool v8::Object::HasIndexedLookupInterceptor() {
-  ON_BAILOUT("v8::Object::HasIndexedLookupInterceptor()", return false);
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::HasIndexedLookupInterceptor()",
+             return false);
   return Utils::OpenHandle(this)->HasIndexedInterceptor();
+}
+
+
+static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
+                                        i::Handle<i::JSObject> receiver,
+                                        i::Handle<i::String> name,
+                                        i::LookupResult* lookup) {
+  if (!lookup->IsProperty()) {
+    // No real property was found.
+    return Local<Value>();
+  }
+
+  // If the property being looked up is a callback, it can throw
+  // an exception.
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> result = i::GetProperty(receiver, name, lookup);
+  has_pending_exception = result.is_null();
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+
+  return Utils::ToLocal(result);
 }
 
 
 Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
       Handle<String> key) {
-  ON_BAILOUT("v8::Object::GetRealNamedPropertyInPrototypeChain()",
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::GetRealNamedPropertyInPrototypeChain()",
              return Local<Value>());
-  ENTER_V8;
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
-  if (lookup.IsProperty()) {
-    PropertyAttributes attributes;
-    i::Object* property =
-        self_obj->GetProperty(*self_obj,
-                              &lookup,
-                              *key_obj,
-                              &attributes)->ToObjectUnchecked();
-    i::Handle<i::Object> result(property);
-    return Utils::ToLocal(result);
-  }
-  return Local<Value>();  // No real property was found in prototype chain.
+  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
 
 
 Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
-  ON_BAILOUT("v8::Object::GetRealNamedProperty()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetRealNamedProperty()",
+             return Local<Value>());
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
   i::LookupResult lookup;
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
-  if (lookup.IsProperty()) {
-    PropertyAttributes attributes;
-    i::Object* property =
-        self_obj->GetProperty(*self_obj,
-                              &lookup,
-                              *key_obj,
-                              &attributes)->ToObjectUnchecked();
-    i::Handle<i::Object> result(property);
-    return Utils::ToLocal(result);
-  }
-  return Local<Value>();  // No real property was found in prototype chain.
+  return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
 
 
@@ -2624,9 +3024,10 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
 // Because the object gets a new map, existing inline cache caching
 // the old map of this object will fail.
 void v8::Object::TurnOnAccessCheck() {
-  ON_BAILOUT("v8::Object::TurnOnAccessCheck()", return);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::TurnOnAccessCheck()", return);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
 
   // When turning on access checks for a global object deoptimize all functions
@@ -2634,7 +3035,7 @@ void v8::Object::TurnOnAccessCheck() {
   i::Deoptimizer::DeoptimizeGlobalObject(*obj);
 
   i::Handle<i::Map> new_map =
-    i::Factory::CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
+      isolate->factory()->CopyMapDropTransitions(i::Handle<i::Map>(obj->map()));
   new_map->set_is_access_check_needed(true);
   obj->set_map(*new_map);
 }
@@ -2646,21 +3047,50 @@ bool v8::Object::IsDirty() {
 
 
 Local<v8::Object> v8::Object::Clone() {
-  ON_BAILOUT("v8::Object::Clone()", return Local<Object>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::Clone()", return Local<Object>());
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::JSObject> result = i::Copy(self);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(Local<Object>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
 }
 
 
+static i::Context* GetCreationContext(i::JSObject* object) {
+  i::Object* constructor = object->map()->constructor();
+  i::JSFunction* function;
+  if (!constructor->IsJSFunction()) {
+    // API functions have null as a constructor,
+    // but any JSFunction knows its context immediately.
+    ASSERT(object->IsJSFunction() &&
+           i::JSFunction::cast(object)->shared()->IsApiFunction());
+    function = i::JSFunction::cast(object);
+  } else {
+    function = i::JSFunction::cast(constructor);
+  }
+  return function->context()->global_context();
+}
+
+
+Local<v8::Context> v8::Object::CreationContext() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate,
+             "v8::Object::CreationContext()", return Local<v8::Context>());
+  ENTER_V8(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Context* context = GetCreationContext(*self);
+  return Utils::ToLocal(i::Handle<i::Context>(context));
+}
+
+
 int v8::Object::GetIdentityHash() {
-  ON_BAILOUT("v8::Object::GetIdentityHash()", return 0);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetIdentityHash()", return 0);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props_obj(i::GetHiddenProperties(self, true));
   if (!hidden_props_obj->IsJSObject()) {
@@ -2671,7 +3101,7 @@ int v8::Object::GetIdentityHash() {
   }
   i::Handle<i::JSObject> hidden_props =
       i::Handle<i::JSObject>::cast(hidden_props_obj);
-  i::Handle<i::String> hash_symbol = i::Factory::identity_hash_symbol();
+  i::Handle<i::String> hash_symbol = isolate->factory()->identity_hash_symbol();
   if (hidden_props->HasLocalProperty(*hash_symbol)) {
     i::Handle<i::Object> hash = i::GetProperty(hidden_props, hash_symbol);
     CHECK(!hash.is_null());
@@ -2684,7 +3114,7 @@ int v8::Object::GetIdentityHash() {
   do {
     // Generate a random 32-bit hash value but limit range to fit
     // within a smi.
-    hash_value = i::V8::Random() & i::Smi::kMaxValue;
+    hash_value = i::V8::Random(self->GetIsolate()) & i::Smi::kMaxValue;
     attempts++;
   } while (hash_value == 0 && attempts < 30);
   hash_value = hash_value != 0 ? hash_value : 1;  // never return 0
@@ -2700,14 +3130,15 @@ int v8::Object::GetIdentityHash() {
 
 bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
                                 v8::Handle<v8::Value> value) {
-  ON_BAILOUT("v8::Object::SetHiddenValue()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::SetHiddenValue()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, true));
   i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
   i::Handle<i::Object> value_obj = Utils::OpenHandle(*value);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj = i::SetProperty(
       hidden_props,
       key_obj,
@@ -2715,24 +3146,26 @@ bool v8::Object::SetHiddenValue(v8::Handle<v8::String> key,
       static_cast<PropertyAttributes>(None),
       i::kNonStrictMode);
   has_pending_exception = obj.is_null();
-  EXCEPTION_BAILOUT_CHECK(false);
+  EXCEPTION_BAILOUT_CHECK(isolate, false);
   return true;
 }
 
 
 v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
-  ON_BAILOUT("v8::Object::GetHiddenValue()", return Local<v8::Value>());
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetHiddenValue()",
+             return Local<v8::Value>());
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
   if (hidden_props->IsUndefined()) {
     return v8::Local<v8::Value>();
   }
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> result = i::GetProperty(hidden_props, key_obj);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(v8::Local<v8::Value>());
+  EXCEPTION_BAILOUT_CHECK(isolate, v8::Local<v8::Value>());
   if (result->IsUndefined()) {
     return v8::Local<v8::Value>();
   }
@@ -2741,9 +3174,10 @@ v8::Local<v8::Value> v8::Object::GetHiddenValue(v8::Handle<v8::String> key) {
 
 
 bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
-  ON_BAILOUT("v8::DeleteHiddenValue()", return false);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::DeleteHiddenValue()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   i::Handle<i::Object> hidden_props(i::GetHiddenProperties(self, false));
   if (hidden_props->IsUndefined()) {
@@ -2755,11 +3189,44 @@ bool v8::Object::DeleteHiddenValue(v8::Handle<v8::String> key) {
 }
 
 
+namespace {
+
+void PrepareExternalArrayElements(i::Handle<i::JSObject> object,
+                                  void* data,
+                                  ExternalArrayType array_type,
+                                  int length) {
+  i::Isolate* isolate = object->GetIsolate();
+  i::Handle<i::ExternalArray> array =
+      isolate->factory()->NewExternalArray(length, array_type, data);
+
+  // If the object already has external elements, create a new, unique
+  // map if the element type is now changing, because assumptions about
+  // generated code based on the receiver's map will be invalid.
+  i::Handle<i::HeapObject> elements(object->elements());
+  bool cant_reuse_map =
+      elements->map()->IsUndefined() ||
+      !elements->map()->has_external_array_elements() ||
+      elements->map() != isolate->heap()->MapForExternalArrayType(array_type);
+  if (cant_reuse_map) {
+    i::Handle<i::Map> external_array_map =
+        isolate->factory()->GetExternalArrayElementsMap(
+            i::Handle<i::Map>(object->map()),
+            array_type,
+            object->HasFastProperties());
+    object->set_map(*external_array_map);
+  }
+  object->set_elements(*array);
+}
+
+}  // namespace
+
+
 void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
-  ON_BAILOUT("v8::SetElementsToPixelData()", return);
-  ENTER_V8;
-  HandleScope scope;
-  if (!ApiCheck(length <= i::PixelArray::kMaxLength,
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::SetElementsToPixelData()", return);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  if (!ApiCheck(length <= i::ExternalPixelArray::kMaxLength,
                 "v8::Object::SetIndexedPropertiesToPixelData()",
                 "length exceeds max acceptable value")) {
     return;
@@ -2770,26 +3237,25 @@ void v8::Object::SetIndexedPropertiesToPixelData(uint8_t* data, int length) {
                 "JSArray is not supported")) {
     return;
   }
-  i::Handle<i::PixelArray> pixels = i::Factory::NewPixelArray(length, data);
-  i::Handle<i::Map> pixel_array_map =
-      i::Factory::GetPixelArrayElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*pixel_array_map);
-  self->set_elements(*pixels);
+  PrepareExternalArrayElements(self, data, kExternalPixelArray, length);
 }
 
 
 bool v8::Object::HasIndexedPropertiesInPixelData() {
-  ON_BAILOUT("v8::HasIndexedPropertiesInPixelData()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  return self->HasPixelElements();
+  ON_BAILOUT(self->GetIsolate(), "v8::HasIndexedPropertiesInPixelData()",
+             return false);
+  return self->HasExternalPixelElements();
 }
 
 
 uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
-  ON_BAILOUT("v8::GetIndexedPropertiesPixelData()", return NULL);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  if (self->HasPixelElements()) {
-    return i::PixelArray::cast(self->elements())->external_pointer();
+  ON_BAILOUT(self->GetIsolate(), "v8::GetIndexedPropertiesPixelData()",
+             return NULL);
+  if (self->HasExternalPixelElements()) {
+    return i::ExternalPixelArray::cast(self->elements())->
+        external_pixel_pointer();
   } else {
     return NULL;
   }
@@ -2797,23 +3263,24 @@ uint8_t* v8::Object::GetIndexedPropertiesPixelData() {
 
 
 int v8::Object::GetIndexedPropertiesPixelDataLength() {
-  ON_BAILOUT("v8::GetIndexedPropertiesPixelDataLength()", return -1);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
-  if (self->HasPixelElements()) {
-    return i::PixelArray::cast(self->elements())->length();
+  ON_BAILOUT(self->GetIsolate(), "v8::GetIndexedPropertiesPixelDataLength()",
+             return -1);
+  if (self->HasExternalPixelElements()) {
+    return i::ExternalPixelArray::cast(self->elements())->length();
   } else {
     return -1;
   }
 }
 
-
 void v8::Object::SetIndexedPropertiesToExternalArrayData(
     void* data,
     ExternalArrayType array_type,
     int length) {
-  ON_BAILOUT("v8::SetIndexedPropertiesToExternalArrayData()", return);
-  ENTER_V8;
-  HandleScope scope;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::SetIndexedPropertiesToExternalArrayData()", return);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   if (!ApiCheck(length <= i::ExternalArray::kMaxLength,
                 "v8::Object::SetIndexedPropertiesToExternalArrayData()",
                 "length exceeds max acceptable value")) {
@@ -2825,25 +3292,24 @@ void v8::Object::SetIndexedPropertiesToExternalArrayData(
                 "JSArray is not supported")) {
     return;
   }
-  i::Handle<i::ExternalArray> array =
-      i::Factory::NewExternalArray(length, array_type, data);
-  i::Handle<i::Map> slow_map =
-      i::Factory::GetSlowElementsMap(i::Handle<i::Map>(self->map()));
-  self->set_map(*slow_map);
-  self->set_elements(*array);
+  PrepareExternalArrayElements(self, data, array_type, length);
 }
 
 
 bool v8::Object::HasIndexedPropertiesInExternalArrayData() {
-  ON_BAILOUT("v8::HasIndexedPropertiesInExternalArrayData()", return false);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  ON_BAILOUT(self->GetIsolate(),
+             "v8::HasIndexedPropertiesInExternalArrayData()",
+             return false);
   return self->HasExternalArrayElements();
 }
 
 
 void* v8::Object::GetIndexedPropertiesExternalArrayData() {
-  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayData()", return NULL);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  ON_BAILOUT(self->GetIsolate(),
+             "v8::GetIndexedPropertiesExternalArrayData()",
+             return NULL);
   if (self->HasExternalArrayElements()) {
     return i::ExternalArray::cast(self->elements())->external_pointer();
   } else {
@@ -2853,9 +3319,10 @@ void* v8::Object::GetIndexedPropertiesExternalArrayData() {
 
 
 ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
-  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayDataType()",
-             return static_cast<ExternalArrayType>(-1));
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  ON_BAILOUT(self->GetIsolate(),
+             "v8::GetIndexedPropertiesExternalArrayDataType()",
+             return static_cast<ExternalArrayType>(-1));
   switch (self->elements()->map()->instance_type()) {
     case i::EXTERNAL_BYTE_ARRAY_TYPE:
       return kExternalByteArray;
@@ -2871,6 +3338,10 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
       return kExternalUnsignedIntArray;
     case i::EXTERNAL_FLOAT_ARRAY_TYPE:
       return kExternalFloatArray;
+    case i::EXTERNAL_DOUBLE_ARRAY_TYPE:
+      return kExternalDoubleArray;
+    case i::EXTERNAL_PIXEL_ARRAY_TYPE:
+      return kExternalPixelArray;
     default:
       return static_cast<ExternalArrayType>(-1);
   }
@@ -2878,13 +3349,94 @@ ExternalArrayType v8::Object::GetIndexedPropertiesExternalArrayDataType() {
 
 
 int v8::Object::GetIndexedPropertiesExternalArrayDataLength() {
-  ON_BAILOUT("v8::GetIndexedPropertiesExternalArrayDataLength()", return 0);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  ON_BAILOUT(self->GetIsolate(),
+             "v8::GetIndexedPropertiesExternalArrayDataLength()",
+             return 0);
   if (self->HasExternalArrayElements()) {
     return i::ExternalArray::cast(self->elements())->length();
   } else {
     return -1;
   }
+}
+
+
+bool v8::Object::IsCallable() {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::IsCallable()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  if (obj->IsJSFunction()) return true;
+  return i::Execution::GetFunctionDelegate(obj)->IsJSFunction();
+}
+
+
+Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv, int argc,
+                                        v8::Handle<v8::Value> argv[]) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::CallAsFunction()",
+             return Local<v8::Value>());
+  LOG_API(isolate, "Object::CallAsFunction");
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>();
+  if (obj->IsJSFunction()) {
+    fun = i::Handle<i::JSFunction>::cast(obj);
+  } else {
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> delegate =
+        i::Execution::TryGetFunctionDelegate(obj, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+    fun = i::Handle<i::JSFunction>::cast(delegate);
+    recv_obj = obj;
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> returned =
+      i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  return Utils::ToLocal(scope.CloseAndEscape(returned));
+}
+
+
+Local<v8::Value> Object::CallAsConstructor(int argc,
+                                           v8::Handle<v8::Value> argv[]) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::CallAsConstructor()",
+             return Local<v8::Object>());
+  LOG_API(isolate, "Object::CallAsConstructor");
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
+  i::Object*** args = reinterpret_cast<i::Object***>(argv);
+  if (obj->IsJSFunction()) {
+    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(obj);
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> returned =
+        i::Execution::New(fun, argc, args, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+    return Utils::ToLocal(scope.CloseAndEscape(
+        i::Handle<i::JSObject>::cast(returned)));
+  }
+  EXCEPTION_PREAMBLE(isolate);
+  i::Handle<i::Object> delegate =
+      i::Execution::TryGetConstructorDelegate(obj, &has_pending_exception);
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+  if (!delegate->IsUndefined()) {
+    i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(delegate);
+    EXCEPTION_PREAMBLE(isolate);
+    i::Handle<i::Object> returned =
+        i::Execution::Call(fun, obj, argc, args, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+    ASSERT(!delegate->IsUndefined());
+    return Utils::ToLocal(scope.CloseAndEscape(returned));
+  }
+  return Local<v8::Object>();
 }
 
 
@@ -2895,37 +3447,40 @@ Local<v8::Object> Function::NewInstance() const {
 
 Local<v8::Object> Function::NewInstance(int argc,
                                         v8::Handle<v8::Value> argv[]) const {
-  ON_BAILOUT("v8::Function::NewInstance()", return Local<v8::Object>());
-  LOG_API("Function::NewInstance");
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Function::NewInstance()",
+             return Local<v8::Object>());
+  LOG_API(isolate, "Function::NewInstance");
+  ENTER_V8(isolate);
   HandleScope scope;
   i::Handle<i::JSFunction> function = Utils::OpenHandle(this);
   STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
   i::Object*** args = reinterpret_cast<i::Object***>(argv);
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned =
       i::Execution::New(function, argc, args, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::Object>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   return scope.Close(Utils::ToLocal(i::Handle<i::JSObject>::cast(returned)));
 }
 
 
 Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
                                 v8::Handle<v8::Value> argv[]) {
-  ON_BAILOUT("v8::Function::Call()", return Local<v8::Value>());
-  LOG_API("Function::Call");
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Function::Call()", return Local<v8::Value>());
+  LOG_API(isolate, "Function::Call");
+  ENTER_V8(isolate);
   i::Object* raw_result = NULL;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::JSFunction> fun = Utils::OpenHandle(this);
     i::Handle<i::Object> recv_obj = Utils::OpenHandle(*recv);
     STATIC_ASSERT(sizeof(v8::Handle<v8::Value>) == sizeof(i::Object**));
     i::Object*** args = reinterpret_cast<i::Object***>(argv);
-    EXCEPTION_PREAMBLE();
+    EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned =
         i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(Local<Object>());
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
     raw_result = *returned;
   }
   i::Handle<i::Object> result(raw_result);
@@ -2934,7 +3489,9 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
 
 
 void Function::SetName(v8::Handle<v8::String> name) {
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8(isolate);
+  USE(isolate);
   i::Handle<i::JSFunction> func = Utils::OpenHandle(this);
   func->shared()->set_name(*Utils::OpenHandle(*name));
 }
@@ -2973,81 +3530,17 @@ int Function::GetScriptLineNumber() const {
 }
 
 
-namespace {
-
-// Tracks string usage to help make better decisions when
-// externalizing strings.
-//
-// Implementation note: internally this class only tracks fresh
-// strings and keeps a single use counter for them.
-class StringTracker {
- public:
-  // Records that the given string's characters were copied to some
-  // external buffer. If this happens often we should honor
-  // externalization requests for the string.
-  static void RecordWrite(i::Handle<i::String> string) {
-    i::Address address = reinterpret_cast<i::Address>(*string);
-    i::Address top = i::Heap::NewSpaceTop();
-    if (IsFreshString(address, top)) {
-      IncrementUseCount(top);
-    }
-  }
-
-  // Estimates freshness and use frequency of the given string based
-  // on how close it is to the new space top and the recorded usage
-  // history.
-  static inline bool IsFreshUnusedString(i::Handle<i::String> string) {
-    i::Address address = reinterpret_cast<i::Address>(*string);
-    i::Address top = i::Heap::NewSpaceTop();
-    return IsFreshString(address, top) && IsUseCountLow(top);
-  }
-
- private:
-  static inline bool IsFreshString(i::Address string, i::Address top) {
-    return top - kFreshnessLimit <= string && string <= top;
-  }
-
-  static inline bool IsUseCountLow(i::Address top) {
-    if (last_top_ != top) return true;
-    return use_count_ < kUseLimit;
-  }
-
-  static inline void IncrementUseCount(i::Address top) {
-    if (last_top_ != top) {
-      use_count_ = 0;
-      last_top_ = top;
-    }
-    ++use_count_;
-  }
-
-  // How close to the new space top a fresh string has to be.
-  static const int kFreshnessLimit = 1024;
-
-  // The number of uses required to consider a string useful.
-  static const int kUseLimit = 32;
-
-  // Single use counter shared by all fresh strings.
-  static int use_count_;
-
-  // Last new space top when the use count above was valid.
-  static i::Address last_top_;
-};
-
-int StringTracker::use_count_ = 0;
-i::Address StringTracker::last_top_ = NULL;
-
-}  // namespace
-
-
 int String::Length() const {
-  if (IsDeadCheck("v8::String::Length()")) return 0;
-  return Utils::OpenHandle(this)->length();
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::Length()")) return 0;
+  return str->length();
 }
 
 
 int String::Utf8Length() const {
-  if (IsDeadCheck("v8::String::Utf8Length()")) return 0;
-  return Utils::OpenHandle(this)->Utf8Length();
+  i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::Utf8Length()")) return 0;
+  return str->Utf8Length();
 }
 
 
@@ -3055,11 +3548,13 @@ int String::WriteUtf8(char* buffer,
                       int capacity,
                       int* nchars_ref,
                       WriteHints hints) const {
-  if (IsDeadCheck("v8::String::WriteUtf8()")) return 0;
-  LOG_API("String::WriteUtf8");
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::WriteUtf8()")) return 0;
+  LOG_API(isolate, "String::WriteUtf8");
+  ENTER_V8(isolate);
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  StringTracker::RecordWrite(str);
+  isolate->string_tracker()->RecordWrite(str);
   if (hints & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
@@ -3110,12 +3605,14 @@ int String::WriteAscii(char* buffer,
                        int start,
                        int length,
                        WriteHints hints) const {
-  if (IsDeadCheck("v8::String::WriteAscii()")) return 0;
-  LOG_API("String::WriteAscii");
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::WriteAscii()")) return 0;
+  LOG_API(isolate, "String::WriteAscii");
+  ENTER_V8(isolate);
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  StringTracker::RecordWrite(str);
+  isolate->string_tracker()->RecordWrite(str);
   if (hints & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
@@ -3142,12 +3639,13 @@ int String::Write(uint16_t* buffer,
                   int start,
                   int length,
                   WriteHints hints) const {
-  if (IsDeadCheck("v8::String::Write()")) return 0;
-  LOG_API("String::Write");
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::Write()")) return 0;
+  LOG_API(isolate, "String::Write");
+  ENTER_V8(isolate);
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
-  StringTracker::RecordWrite(str);
+  isolate->string_tracker()->RecordWrite(str);
   if (hints & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
@@ -3166,15 +3664,20 @@ int String::Write(uint16_t* buffer,
 
 
 bool v8::String::IsExternal() const {
-  EnsureInitialized("v8::String::IsExternal()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::IsExternal()")) {
+    return false;
+  }
+  EnsureInitializedForIsolate(str->GetIsolate(), "v8::String::IsExternal()");
   return i::StringShape(*str).IsExternalTwoByte();
 }
 
 
 bool v8::String::IsExternalAscii() const {
-  EnsureInitialized("v8::String::IsExternalAscii()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(), "v8::String::IsExternalAscii()")) {
+    return false;
+  }
   return i::StringShape(*str).IsExternalAscii();
 }
 
@@ -3195,8 +3698,11 @@ void v8::String::VerifyExternalStringResource(
 
 v8::String::ExternalAsciiStringResource*
       v8::String::GetExternalAsciiStringResource() const {
-  EnsureInitialized("v8::String::GetExternalAsciiStringResource()");
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (IsDeadCheck(str->GetIsolate(),
+                  "v8::String::GetExternalAsciiStringResource()")) {
+    return NULL;
+  }
   if (i::StringShape(*str).IsExternalAscii()) {
     void* resource = i::Handle<i::ExternalAsciiString>::cast(str)->resource();
     return reinterpret_cast<ExternalAsciiStringResource*>(resource);
@@ -3207,21 +3713,21 @@ v8::String::ExternalAsciiStringResource*
 
 
 double Number::Value() const {
-  if (IsDeadCheck("v8::Number::Value()")) return 0;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Number::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->Number();
 }
 
 
 bool Boolean::Value() const {
-  if (IsDeadCheck("v8::Boolean::Value()")) return false;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Boolean::Value()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return obj->IsTrue();
 }
 
 
 int64_t Integer::Value() const {
-  if (IsDeadCheck("v8::Integer::Value()")) return 0;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Integer::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
@@ -3232,7 +3738,7 @@ int64_t Integer::Value() const {
 
 
 int32_t Int32::Value() const {
-  if (IsDeadCheck("v8::Int32::Value()")) return 0;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Int32::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
@@ -3243,7 +3749,7 @@ int32_t Int32::Value() const {
 
 
 uint32_t Uint32::Value() const {
-  if (IsDeadCheck("v8::Uint32::Value()")) return 0;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Uint32::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   if (obj->IsSmi()) {
     return i::Smi::cast(*obj)->value();
@@ -3254,15 +3760,19 @@ uint32_t Uint32::Value() const {
 
 
 int v8::Object::InternalFieldCount() {
-  if (IsDeadCheck("v8::Object::InternalFieldCount()")) return 0;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  if (IsDeadCheck(obj->GetIsolate(), "v8::Object::InternalFieldCount()")) {
+    return 0;
+  }
   return obj->GetInternalFieldCount();
 }
 
 
 Local<Value> v8::Object::CheckedGetInternalField(int index) {
-  if (IsDeadCheck("v8::Object::GetInternalField()")) return Local<Value>();
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  if (IsDeadCheck(obj->GetIsolate(), "v8::Object::GetInternalField()")) {
+    return Local<Value>();
+  }
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
                 "v8::Object::GetInternalField()",
                 "Reading internal field out of bounds")) {
@@ -3279,14 +3789,17 @@ Local<Value> v8::Object::CheckedGetInternalField(int index) {
 
 
 void v8::Object::SetInternalField(int index, v8::Handle<Value> value) {
-  if (IsDeadCheck("v8::Object::SetInternalField()")) return;
   i::Handle<i::JSObject> obj = Utils::OpenHandle(this);
+  i::Isolate* isolate = obj->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Object::SetInternalField()")) {
+    return;
+  }
   if (!ApiCheck(index < obj->GetInternalFieldCount(),
                 "v8::Object::SetInternalField()",
                 "Writing internal field out of bounds")) {
     return;
   }
-  ENTER_V8;
+  ENTER_V8(isolate);
   i::Handle<i::Object> val = Utils::OpenHandle(*value);
   obj->SetInternalField(index, *val);
 }
@@ -3310,15 +3823,17 @@ static i::Smi* EncodeAsSmi(void* ptr) {
 
 
 void v8::Object::SetPointerInInternalField(int index, void* value) {
-  ENTER_V8;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ENTER_V8(isolate);
   if (CanBeEncodedAsSmi(value)) {
     Utils::OpenHandle(this)->SetInternalField(index, EncodeAsSmi(value));
   } else {
     HandleScope scope;
-    i::Handle<i::Proxy> proxy =
-        i::Factory::NewProxy(reinterpret_cast<i::Address>(value), i::TENURED);
-    if (!proxy.is_null())
-        Utils::OpenHandle(this)->SetInternalField(index, *proxy);
+    i::Handle<i::Foreign> foreign =
+        isolate->factory()->NewForeign(
+            reinterpret_cast<i::Address>(value), i::TENURED);
+    if (!foreign.is_null())
+        Utils::OpenHandle(this)->SetInternalField(index, *foreign);
   }
   ASSERT_EQ(value, GetPointerFromInternalField(index));
 }
@@ -3326,15 +3841,23 @@ void v8::Object::SetPointerInInternalField(int index, void* value) {
 
 // --- E n v i r o n m e n t ---
 
+
 bool v8::V8::Initialize() {
-  if (i::V8::IsRunning()) return true;
-  HandleScope scope;
-  if (i::Snapshot::Initialize()) return true;
-  return i::V8::Initialize(NULL);
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  if (isolate != NULL && isolate->IsInitialized()) {
+    return true;
+  }
+  return InitializeHelper();
 }
 
 
 bool v8::V8::Dispose() {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
+                "v8::V8::Dispose()",
+                "Use v8::Isolate::Dispose() for a non-default isolate.")) {
+    return false;
+  }
   i::V8::TearDown();
   return true;
 }
@@ -3347,38 +3870,39 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
-  heap_statistics->set_total_heap_size(i::Heap::CommittedMemory());
+  i::Heap* heap = i::Isolate::Current()->heap();
+  heap_statistics->set_total_heap_size(heap->CommittedMemory());
   heap_statistics->set_total_heap_size_executable(
-      i::Heap::CommittedMemoryExecutable());
-  heap_statistics->set_used_heap_size(i::Heap::SizeOfObjects());
-  heap_statistics->set_heap_size_limit(i::Heap::MaxReserved());
+      heap->CommittedMemoryExecutable());
+  heap_statistics->set_used_heap_size(heap->SizeOfObjects());
+  heap_statistics->set_heap_size_limit(heap->MaxReserved());
 }
 
 
 bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
-  if (!i::V8::IsRunning()) return true;
+  if (!i::Isolate::Current()->IsInitialized()) return true;
   return i::V8::IdleNotification();
 }
 
 
 void v8::V8::LowMemoryNotification() {
-  if (!i::V8::IsRunning()) return;
-  i::Heap::CollectAllGarbage(true);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return;
+  isolate->heap()->CollectAllGarbage(true);
 }
 
 
 int v8::V8::ContextDisposedNotification() {
-  if (!i::V8::IsRunning()) return 0;
-  return i::Heap::NotifyContextDisposed();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return 0;
+  return isolate->heap()->NotifyContextDisposed();
 }
 
 
 const char* v8::V8::GetVersion() {
-  static v8::internal::EmbeddedVector<char, 128> buffer;
-  v8::internal::Version::GetString(buffer);
-  return buffer.start();
+  return i::Version::GetVersion();
 }
 
 
@@ -3398,14 +3922,15 @@ Persistent<Context> v8::Context::New(
     v8::ExtensionConfiguration* extensions,
     v8::Handle<ObjectTemplate> global_template,
     v8::Handle<Value> global_object) {
-  EnsureInitialized("v8::Context::New()");
-  LOG_API("Context::New");
-  ON_BAILOUT("v8::Context::New()", return Persistent<Context>());
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Context::New()");
+  LOG_API(isolate, "Context::New");
+  ON_BAILOUT(isolate, "v8::Context::New()", return Persistent<Context>());
 
   // Enter V8 via an ENTER_V8 scope.
   i::Handle<i::Context> env;
   {
-    ENTER_V8;
+    ENTER_V8(isolate);
     v8::Handle<ObjectTemplate> proxy_template = global_template;
     i::Handle<i::FunctionTemplateInfo> proxy_constructor;
     i::Handle<i::FunctionTemplateInfo> global_constructor;
@@ -3434,12 +3959,14 @@ Persistent<Context> v8::Context::New(
         proxy_constructor->set_needs_access_check(
             global_constructor->needs_access_check());
         global_constructor->set_needs_access_check(false);
-        global_constructor->set_access_check_info(i::Heap::undefined_value());
+        global_constructor->set_access_check_info(
+            isolate->heap()->undefined_value());
       }
     }
 
     // Create the environment.
-    env = i::Bootstrapper::CreateEnvironment(
+    env = isolate->bootstrapper()->CreateEnvironment(
+        isolate,
         Utils::OpenHandle(*global_object),
         proxy_template,
         extensions);
@@ -3453,7 +3980,7 @@ Persistent<Context> v8::Context::New(
       global_constructor->set_needs_access_check(
           proxy_constructor->needs_access_check());
     }
-    i::RuntimeProfiler::Reset();
+    isolate->runtime_profiler()->Reset();
   }
   // Leave V8.
 
@@ -3464,8 +3991,11 @@ Persistent<Context> v8::Context::New(
 
 
 void v8::Context::SetSecurityToken(Handle<Value> token) {
-  if (IsDeadCheck("v8::Context::SetSecurityToken()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::SetSecurityToken()")) {
+    return;
+  }
+  ENTER_V8(isolate);
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Handle<i::Object> token_handle = Utils::OpenHandle(*token);
   env->set_security_token(*token_handle);
@@ -3473,15 +4003,22 @@ void v8::Context::SetSecurityToken(Handle<Value> token) {
 
 
 void v8::Context::UseDefaultSecurityToken() {
-  if (IsDeadCheck("v8::Context::UseDefaultSecurityToken()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate,
+                  "v8::Context::UseDefaultSecurityToken()")) {
+    return;
+  }
+  ENTER_V8(isolate);
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   env->set_security_token(env->global());
 }
 
 
 Handle<Value> v8::Context::GetSecurityToken() {
-  if (IsDeadCheck("v8::Context::GetSecurityToken()")) return Handle<Value>();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetSecurityToken()")) {
+    return Handle<Value>();
+  }
   i::Handle<i::Context> env = Utils::OpenHandle(this);
   i::Object* security_token = env->security_token();
   i::Handle<i::Object> token_handle(security_token);
@@ -3496,13 +4033,17 @@ bool Context::HasOutOfMemoryException() {
 
 
 bool Context::InContext() {
-  return i::Top::context() != NULL;
+  return i::Isolate::Current()->context() != NULL;
 }
 
 
 v8::Local<v8::Context> Context::GetEntered() {
-  if (IsDeadCheck("v8::Context::GetEntered()")) return Local<Context>();
-  i::Handle<i::Object> last = thread_local.LastEnteredContext();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetEntered()")) {
+    return Local<Context>();
+  }
+  i::Handle<i::Object> last =
+      isolate->handle_scope_implementer()->LastEnteredContext();
   if (last.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(last);
   return Utils::ToLocal(context);
@@ -3510,8 +4051,11 @@ v8::Local<v8::Context> Context::GetEntered() {
 
 
 v8::Local<v8::Context> Context::GetCurrent() {
-  if (IsDeadCheck("v8::Context::GetCurrent()")) return Local<Context>();
-  i::Handle<i::Object> current = i::Top::global_context();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetCurrent()")) {
+    return Local<Context>();
+  }
+  i::Handle<i::Object> current = isolate->global_context();
   if (current.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(current);
   return Utils::ToLocal(context);
@@ -3519,8 +4063,12 @@ v8::Local<v8::Context> Context::GetCurrent() {
 
 
 v8::Local<v8::Context> Context::GetCalling() {
-  if (IsDeadCheck("v8::Context::GetCalling()")) return Local<Context>();
-  i::Handle<i::Object> calling = i::Top::GetCallingGlobalContext();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::GetCalling()")) {
+    return Local<Context>();
+  }
+  i::Handle<i::Object> calling =
+      isolate->GetCallingGlobalContext();
   if (calling.is_null()) return Local<Context>();
   i::Handle<i::Context> context = i::Handle<i::Context>::cast(calling);
   return Utils::ToLocal(context);
@@ -3528,7 +4076,9 @@ v8::Local<v8::Context> Context::GetCalling() {
 
 
 v8::Local<v8::Object> Context::Global() {
-  if (IsDeadCheck("v8::Context::Global()")) return Local<v8::Object>();
+  if (IsDeadCheck(i::Isolate::Current(), "v8::Context::Global()")) {
+    return Local<v8::Object>();
+  }
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
@@ -3538,73 +4088,101 @@ v8::Local<v8::Object> Context::Global() {
 
 
 void Context::DetachGlobal() {
-  if (IsDeadCheck("v8::Context::DetachGlobal()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::DetachGlobal()")) return;
+  ENTER_V8(isolate);
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Bootstrapper::DetachGlobal(context);
+  isolate->bootstrapper()->DetachGlobal(context);
 }
 
 
 void Context::ReattachGlobal(Handle<Object> global_object) {
-  if (IsDeadCheck("v8::Context::ReattachGlobal()")) return;
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::ReattachGlobal()")) return;
+  ENTER_V8(isolate);
   i::Object** ctx = reinterpret_cast<i::Object**>(this);
   i::Handle<i::Context> context =
       i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
-  i::Bootstrapper::ReattachGlobal(context, Utils::OpenHandle(*global_object));
+  isolate->bootstrapper()->ReattachGlobal(
+      context,
+      Utils::OpenHandle(*global_object));
+}
+
+
+void Context::AllowCodeGenerationFromStrings(bool allow) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Context::AllowCodeGenerationFromStrings()")) {
+    return;
+  }
+  ENTER_V8(isolate);
+  i::Object** ctx = reinterpret_cast<i::Object**>(this);
+  i::Handle<i::Context> context =
+      i::Handle<i::Context>::cast(i::Handle<i::Object>(ctx));
+  context->set_allow_code_gen_from_strings(
+      allow ? isolate->heap()->true_value() : isolate->heap()->false_value());
+}
+
+
+void V8::SetWrapperClassId(i::Object** global_handle, uint16_t class_id) {
+  i::GlobalHandles::SetWrapperClassId(global_handle, class_id);
 }
 
 
 Local<v8::Object> ObjectTemplate::NewInstance() {
-  ON_BAILOUT("v8::ObjectTemplate::NewInstance()", return Local<v8::Object>());
-  LOG_API("ObjectTemplate::NewInstance");
-  ENTER_V8;
-  EXCEPTION_PREAMBLE();
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::ObjectTemplate::NewInstance()",
+             return Local<v8::Object>());
+  LOG_API(isolate, "ObjectTemplate::NewInstance");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj =
       i::Execution::InstantiateObject(Utils::OpenHandle(this),
                                       &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::Object>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
   return Utils::ToLocal(i::Handle<i::JSObject>::cast(obj));
 }
 
 
 Local<v8::Function> FunctionTemplate::GetFunction() {
-  ON_BAILOUT("v8::FunctionTemplate::GetFunction()",
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::FunctionTemplate::GetFunction()",
              return Local<v8::Function>());
-  LOG_API("FunctionTemplate::GetFunction");
-  ENTER_V8;
-  EXCEPTION_PREAMBLE();
+  LOG_API(isolate, "FunctionTemplate::GetFunction");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj =
       i::Execution::InstantiateFunction(Utils::OpenHandle(this),
                                         &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::Function>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Function>());
   return Utils::ToLocal(i::Handle<i::JSFunction>::cast(obj));
 }
 
 
 bool FunctionTemplate::HasInstance(v8::Handle<v8::Value> value) {
-  ON_BAILOUT("v8::FunctionTemplate::HasInstanceOf()", return false);
+  ON_BAILOUT(i::Isolate::Current(), "v8::FunctionTemplate::HasInstanceOf()",
+             return false);
   i::Object* obj = *Utils::OpenHandle(*value);
   return obj->IsInstanceOf(*Utils::OpenHandle(this));
 }
 
 
 static Local<External> ExternalNewImpl(void* data) {
-  return Utils::ToLocal(i::Factory::NewProxy(static_cast<i::Address>(data)));
+  return Utils::ToLocal(FACTORY->NewForeign(static_cast<i::Address>(data)));
 }
 
 static void* ExternalValueImpl(i::Handle<i::Object> obj) {
-  return reinterpret_cast<void*>(i::Proxy::cast(*obj)->proxy());
+  return reinterpret_cast<void*>(i::Foreign::cast(*obj)->address());
 }
 
 
 Local<Value> v8::External::Wrap(void* data) {
+  i::Isolate* isolate = i::Isolate::Current();
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
-  LOG_API("External::Wrap");
-  EnsureInitialized("v8::External::Wrap()");
-  ENTER_V8;
+  LOG_API(isolate, "External::Wrap");
+  EnsureInitializedForIsolate(isolate, "v8::External::Wrap()");
+  ENTER_V8(isolate);
 
   v8::Local<v8::Value> result = CanBeEncodedAsSmi(data)
       ? Utils::ToLocal(i::Handle<i::Object>(EncodeAsSmi(data)))
@@ -3620,8 +4198,8 @@ void* v8::Object::SlowGetPointerFromInternalField(int index) {
   i::Object* value = obj->GetInternalField(index);
   if (value->IsSmi()) {
     return i::Internals::GetExternalPointerFromSmi(value);
-  } else if (value->IsProxy()) {
-    return reinterpret_cast<void*>(i::Proxy::cast(value)->proxy());
+  } else if (value->IsForeign()) {
+    return reinterpret_cast<void*>(i::Foreign::cast(value)->address());
   } else {
     return NULL;
   }
@@ -3629,12 +4207,12 @@ void* v8::Object::SlowGetPointerFromInternalField(int index) {
 
 
 void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
-  if (IsDeadCheck("v8::External::Unwrap()")) return 0;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::External::Unwrap()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(*wrapper);
   void* result;
   if (obj->IsSmi()) {
     result = i::Internals::GetExternalPointerFromSmi(*obj);
-  } else if (obj->IsProxy()) {
+  } else if (obj->IsForeign()) {
     result = ExternalValueImpl(obj);
   } else {
     result = NULL;
@@ -3646,58 +4224,65 @@ void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
 
 Local<External> v8::External::New(void* data) {
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
-  LOG_API("External::New");
-  EnsureInitialized("v8::External::New()");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "External::New");
+  EnsureInitializedForIsolate(isolate, "v8::External::New()");
+  ENTER_V8(isolate);
   return ExternalNewImpl(data);
 }
 
 
 void* External::Value() const {
-  if (IsDeadCheck("v8::External::Value()")) return 0;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::External::Value()")) return 0;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   return ExternalValueImpl(obj);
 }
 
 
 Local<String> v8::String::Empty() {
-  EnsureInitialized("v8::String::Empty()");
-  LOG_API("String::Empty()");
-  return Utils::ToLocal(i::Factory::empty_symbol());
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::Empty()");
+  LOG_API(isolate, "String::Empty()");
+  return Utils::ToLocal(isolate->factory()->empty_symbol());
 }
 
 
 Local<String> v8::String::New(const char* data, int length) {
-  EnsureInitialized("v8::String::New()");
-  LOG_API("String::New(char)");
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::New()");
+  LOG_API(isolate, "String::New(char)");
   if (length == 0) return Empty();
-  ENTER_V8;
+  ENTER_V8(isolate);
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
+      isolate->factory()->NewStringFromUtf8(
+          i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 
 
 Local<String> v8::String::Concat(Handle<String> left, Handle<String> right) {
-  EnsureInitialized("v8::String::New()");
-  LOG_API("String::New(char)");
-  ENTER_V8;
   i::Handle<i::String> left_string = Utils::OpenHandle(*left);
+  i::Isolate* isolate = left_string->GetIsolate();
+  EnsureInitializedForIsolate(isolate, "v8::String::New()");
+  LOG_API(isolate, "String::New(char)");
+  ENTER_V8(isolate);
   i::Handle<i::String> right_string = Utils::OpenHandle(*right);
-  i::Handle<i::String> result = i::Factory::NewConsString(left_string,
-                                                          right_string);
+  i::Handle<i::String> result = isolate->factory()->NewConsString(left_string,
+                                                                  right_string);
   return Utils::ToLocal(result);
 }
 
 
 Local<String> v8::String::NewUndetectable(const char* data, int length) {
-  EnsureInitialized("v8::String::NewUndetectable()");
-  LOG_API("String::NewUndetectable(char)");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
+  LOG_API(isolate, "String::NewUndetectable(char)");
+  ENTER_V8(isolate);
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromUtf8(i::Vector<const char>(data, length));
+      isolate->factory()->NewStringFromUtf8(
+          i::Vector<const char>(data, length));
   result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
@@ -3711,65 +4296,78 @@ static int TwoByteStringLength(const uint16_t* data) {
 
 
 Local<String> v8::String::New(const uint16_t* data, int length) {
-  EnsureInitialized("v8::String::New()");
-  LOG_API("String::New(uint16_)");
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::New()");
+  LOG_API(isolate, "String::New(uint16_)");
   if (length == 0) return Empty();
-  ENTER_V8;
+  ENTER_V8(isolate);
   if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
+      isolate->factory()->NewStringFromTwoByte(
+          i::Vector<const uint16_t>(data, length));
   return Utils::ToLocal(result);
 }
 
 
 Local<String> v8::String::NewUndetectable(const uint16_t* data, int length) {
-  EnsureInitialized("v8::String::NewUndetectable()");
-  LOG_API("String::NewUndetectable(uint16_)");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::NewUndetectable()");
+  LOG_API(isolate, "String::NewUndetectable(uint16_)");
+  ENTER_V8(isolate);
   if (length == -1) length = TwoByteStringLength(data);
   i::Handle<i::String> result =
-      i::Factory::NewStringFromTwoByte(i::Vector<const uint16_t>(data, length));
+      isolate->factory()->NewStringFromTwoByte(
+          i::Vector<const uint16_t>(data, length));
   result->MarkAsUndetectable();
   return Utils::ToLocal(result);
 }
 
 
-i::Handle<i::String> NewExternalStringHandle(
+i::Handle<i::String> NewExternalStringHandle(i::Isolate* isolate,
       v8::String::ExternalStringResource* resource) {
   i::Handle<i::String> result =
-      i::Factory::NewExternalStringFromTwoByte(resource);
+      isolate->factory()->NewExternalStringFromTwoByte(resource);
   return result;
 }
 
 
-i::Handle<i::String> NewExternalAsciiStringHandle(
+i::Handle<i::String> NewExternalAsciiStringHandle(i::Isolate* isolate,
       v8::String::ExternalAsciiStringResource* resource) {
   i::Handle<i::String> result =
-      i::Factory::NewExternalStringFromAscii(resource);
+      isolate->factory()->NewExternalStringFromAscii(resource);
   return result;
 }
 
 
 Local<String> v8::String::NewExternal(
       v8::String::ExternalStringResource* resource) {
-  EnsureInitialized("v8::String::NewExternal()");
-  LOG_API("String::NewExternal");
-  ENTER_V8;
-  i::Handle<i::String> result = NewExternalStringHandle(resource);
-  i::ExternalStringTable::AddString(*result);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
+  LOG_API(isolate, "String::NewExternal");
+  ENTER_V8(isolate);
+  i::Handle<i::String> result = NewExternalStringHandle(isolate, resource);
+  isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
 }
 
 
 bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
-  if (IsDeadCheck("v8::String::MakeExternal()")) return false;
-  if (this->IsExternal()) return false;  // Already an external string.
-  ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (StringTracker::IsFreshUnusedString(obj)) return false;
+  i::Isolate* isolate = obj->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::MakeExternal()")) return false;
+  if (i::StringShape(*obj).IsExternalTwoByte()) {
+    return false;  // Already an external string.
+  }
+  ENTER_V8(isolate);
+  if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
+  if (isolate->heap()->IsInGCPostProcessing()) {
+    return false;
+  }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
-    i::ExternalStringTable::AddString(*obj);
+    isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
 }
@@ -3777,34 +4375,46 @@ bool v8::String::MakeExternal(v8::String::ExternalStringResource* resource) {
 
 Local<String> v8::String::NewExternal(
       v8::String::ExternalAsciiStringResource* resource) {
-  EnsureInitialized("v8::String::NewExternal()");
-  LOG_API("String::NewExternal");
-  ENTER_V8;
-  i::Handle<i::String> result = NewExternalAsciiStringHandle(resource);
-  i::ExternalStringTable::AddString(*result);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::NewExternal()");
+  LOG_API(isolate, "String::NewExternal");
+  ENTER_V8(isolate);
+  i::Handle<i::String> result = NewExternalAsciiStringHandle(isolate, resource);
+  isolate->heap()->external_string_table()->AddString(*result);
   return Utils::ToLocal(result);
 }
 
 
 bool v8::String::MakeExternal(
     v8::String::ExternalAsciiStringResource* resource) {
-  if (IsDeadCheck("v8::String::MakeExternal()")) return false;
-  if (this->IsExternal()) return false;  // Already an external string.
-  ENTER_V8;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (StringTracker::IsFreshUnusedString(obj)) return false;
+  i::Isolate* isolate = obj->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::MakeExternal()")) return false;
+  if (i::StringShape(*obj).IsExternalTwoByte()) {
+    return false;  // Already an external string.
+  }
+  ENTER_V8(isolate);
+  if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
+  if (isolate->heap()->IsInGCPostProcessing()) {
+    return false;
+  }
   bool result = obj->MakeExternal(resource);
   if (result && !obj->IsSymbol()) {
-    i::ExternalStringTable::AddString(*obj);
+    isolate->heap()->external_string_table()->AddString(*obj);
   }
   return result;
 }
 
 
 bool v8::String::CanMakeExternal() {
-  if (IsDeadCheck("v8::String::CanMakeExternal()")) return false;
   i::Handle<i::String> obj = Utils::OpenHandle(this);
-  if (StringTracker::IsFreshUnusedString(obj)) return false;
+  i::Isolate* isolate = obj->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::String::CanMakeExternal()")) return false;
+  if (isolate->string_tracker()->IsFreshUnusedString(obj)) {
+    return false;
+  }
   int size = obj->Size();  // Byte size of the original string.
   if (size < i::ExternalString::kSize)
     return false;
@@ -3814,34 +4424,37 @@ bool v8::String::CanMakeExternal() {
 
 
 Local<v8::Object> v8::Object::New() {
-  EnsureInitialized("v8::Object::New()");
-  LOG_API("Object::New");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Object::New()");
+  LOG_API(isolate, "Object::New");
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> obj =
-      i::Factory::NewJSObject(i::Top::object_function());
+      isolate->factory()->NewJSObject(isolate->object_function());
   return Utils::ToLocal(obj);
 }
 
 
 Local<v8::Value> v8::Date::New(double time) {
-  EnsureInitialized("v8::Date::New()");
-  LOG_API("Date::New");
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Date::New()");
+  LOG_API(isolate, "Date::New");
   if (isnan(time)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     time = i::OS::nan_value();
   }
-  ENTER_V8;
-  EXCEPTION_PREAMBLE();
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> obj =
       i::Execution::NewDate(time, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::Value>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Value>());
   return Utils::ToLocal(obj);
 }
 
 
 double v8::Date::NumberValue() const {
-  if (IsDeadCheck("v8::Date::NumberValue()")) return 0;
-  LOG_API("Date::NumberValue");
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Date::NumberValue()")) return 0;
+  LOG_API(isolate, "Date::NumberValue");
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
   i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
   return jsvalue->value()->Number();
@@ -3849,16 +4462,18 @@ double v8::Date::NumberValue() const {
 
 
 void v8::Date::DateTimeConfigurationChangeNotification() {
-  ON_BAILOUT("v8::Date::DateTimeConfigurationChangeNotification()", return);
-  LOG_API("Date::DateTimeConfigurationChangeNotification");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Date::DateTimeConfigurationChangeNotification()",
+             return);
+  LOG_API(isolate, "Date::DateTimeConfigurationChangeNotification");
+  ENTER_V8(isolate);
 
-  HandleScope scope;
-
+  i::HandleScope scope(isolate);
   // Get the function ResetDateCache (defined in date-delay.js).
   i::Handle<i::String> func_name_str =
-      i::Factory::LookupAsciiSymbol("ResetDateCache");
-  i::MaybeObject* result = i::Top::builtins()->GetProperty(*func_name_str);
+      isolate->factory()->LookupAsciiSymbol("ResetDateCache");
+  i::MaybeObject* result =
+      isolate->js_builtins_object()->GetProperty(*func_name_str);
   i::Object* object_func;
   if (!result->ToObject(&object_func)) {
     return;
@@ -3870,9 +4485,11 @@ void v8::Date::DateTimeConfigurationChangeNotification() {
 
     // Call ResetDateCache(0 but expect no exceptions:
     bool caught_exception = false;
-    i::Handle<i::Object> result =
-        i::Execution::TryCall(func, i::Top::builtins(), 0, NULL,
-        &caught_exception);
+    i::Execution::TryCall(func,
+                          isolate->js_builtins_object(),
+                          0,
+                          NULL,
+                          &caught_exception);
   }
 }
 
@@ -3884,28 +4501,32 @@ static i::Handle<i::String> RegExpFlagsToString(RegExp::Flags flags) {
   if ((flags & RegExp::kMultiline) != 0) flags_buf[num_flags++] = 'm';
   if ((flags & RegExp::kIgnoreCase) != 0) flags_buf[num_flags++] = 'i';
   ASSERT(num_flags <= static_cast<int>(ARRAY_SIZE(flags_buf)));
-  return i::Factory::LookupSymbol(
+  return FACTORY->LookupSymbol(
       i::Vector<const char>(flags_buf, num_flags));
 }
 
 
 Local<v8::RegExp> v8::RegExp::New(Handle<String> pattern,
                                   Flags flags) {
-  EnsureInitialized("v8::RegExp::New()");
-  LOG_API("RegExp::New");
-  ENTER_V8;
-  EXCEPTION_PREAMBLE();
+  i::Isolate* isolate = Utils::OpenHandle(*pattern)->GetIsolate();
+  EnsureInitializedForIsolate(isolate, "v8::RegExp::New()");
+  LOG_API(isolate, "RegExp::New");
+  ENTER_V8(isolate);
+  EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::JSRegExp> obj = i::Execution::NewJSRegExp(
       Utils::OpenHandle(*pattern),
       RegExpFlagsToString(flags),
       &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(Local<v8::RegExp>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::RegExp>());
   return Utils::ToLocal(i::Handle<i::JSRegExp>::cast(obj));
 }
 
 
 Local<v8::String> v8::RegExp::GetSource() const {
-  if (IsDeadCheck("v8::RegExp::GetSource()")) return Local<v8::String>();
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::RegExp::GetSource()")) {
+    return Local<v8::String>();
+  }
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
   return Utils::ToLocal(i::Handle<i::String>(obj->Pattern()));
 }
@@ -3922,23 +4543,31 @@ REGEXP_FLAG_ASSERT_EQ(kMultiline, MULTILINE);
 #undef REGEXP_FLAG_ASSERT_EQ
 
 v8::RegExp::Flags v8::RegExp::GetFlags() const {
-  if (IsDeadCheck("v8::RegExp::GetFlags()")) return v8::RegExp::kNone;
+  if (IsDeadCheck(i::Isolate::Current(), "v8::RegExp::GetFlags()")) {
+    return v8::RegExp::kNone;
+  }
   i::Handle<i::JSRegExp> obj = Utils::OpenHandle(this);
   return static_cast<RegExp::Flags>(obj->GetFlags().value());
 }
 
 
 Local<v8::Array> v8::Array::New(int length) {
-  EnsureInitialized("v8::Array::New()");
-  LOG_API("Array::New");
-  ENTER_V8;
-  i::Handle<i::JSArray> obj = i::Factory::NewJSArray(length);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Array::New()");
+  LOG_API(isolate, "Array::New");
+  ENTER_V8(isolate);
+  int real_length = length > 0 ? length : 0;
+  i::Handle<i::JSArray> obj = isolate->factory()->NewJSArray(real_length);
+  i::Handle<i::Object> length_obj =
+      isolate->factory()->NewNumberFromInt(real_length);
+  obj->set_length(*length_obj);
   return Utils::ToLocal(obj);
 }
 
 
 uint32_t v8::Array::Length() const {
-  if (IsDeadCheck("v8::Array::Length()")) return 0;
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  if (IsDeadCheck(isolate, "v8::Array::Length()")) return 0;
   i::Handle<i::JSArray> obj = Utils::OpenHandle(this);
   i::Object* length = obj->length();
   if (length->IsSmi()) {
@@ -3950,7 +4579,8 @@ uint32_t v8::Array::Length() const {
 
 
 Local<Object> Array::CloneElementAt(uint32_t index) {
-  ON_BAILOUT("v8::Array::CloneElementAt()", return Local<Object>());
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Array::CloneElementAt()", return Local<Object>());
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   if (!self->HasFastElements()) {
     return Local<Object>();
@@ -3961,45 +4591,49 @@ Local<Object> Array::CloneElementAt(uint32_t index) {
     return Local<Object>();
   }
   i::Handle<i::JSObject> paragon_handle(i::JSObject::cast(paragon));
-  EXCEPTION_PREAMBLE();
-  ENTER_V8;
+  EXCEPTION_PREAMBLE(isolate);
+  ENTER_V8(isolate);
   i::Handle<i::JSObject> result = i::Copy(paragon_handle);
   has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(Local<Object>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
   return Utils::ToLocal(result);
 }
 
 
 Local<String> v8::String::NewSymbol(const char* data, int length) {
-  EnsureInitialized("v8::String::NewSymbol()");
-  LOG_API("String::NewSymbol(char)");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::String::NewSymbol()");
+  LOG_API(isolate, "String::NewSymbol(char)");
+  ENTER_V8(isolate);
   if (length == -1) length = i::StrLength(data);
   i::Handle<i::String> result =
-      i::Factory::LookupSymbol(i::Vector<const char>(data, length));
+      isolate->factory()->LookupSymbol(i::Vector<const char>(data, length));
   return Utils::ToLocal(result);
 }
 
 
 Local<Number> v8::Number::New(double value) {
-  EnsureInitialized("v8::Number::New()");
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Number::New()");
   if (isnan(value)) {
     // Introduce only canonical NaN value into the VM, to avoid signaling NaNs.
     value = i::OS::nan_value();
   }
-  ENTER_V8;
-  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  ENTER_V8(isolate);
+  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
   return Utils::NumberToLocal(result);
 }
 
 
 Local<Integer> v8::Integer::New(int32_t value) {
-  EnsureInitialized("v8::Integer::New()");
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  EnsureInitializedForIsolate(isolate, "v8::Integer::New()");
   if (i::Smi::IsValid(value)) {
-    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value)));
+    return Utils::IntegerToLocal(i::Handle<i::Object>(i::Smi::FromInt(value),
+                                                      isolate));
   }
-  ENTER_V8;
-  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  ENTER_V8(isolate);
+  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 
@@ -4009,27 +4643,30 @@ Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
   if (fits_into_int32_t) {
     return Integer::New(static_cast<int32_t>(value));
   }
-  ENTER_V8;
-  i::Handle<i::Object> result = i::Factory::NewNumber(value);
+  i::Isolate* isolate = i::Isolate::Current();
+  ENTER_V8(isolate);
+  i::Handle<i::Object> result = isolate->factory()->NewNumber(value);
   return Utils::IntegerToLocal(result);
 }
 
 
 void V8::IgnoreOutOfMemoryException() {
-  thread_local.set_ignore_out_of_memory(true);
+  EnterIsolateIfNeeded()->handle_scope_implementer()->set_ignore_out_of_memory(
+      true);
 }
 
 
 bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
-  EnsureInitialized("v8::V8::AddMessageListener()");
-  ON_BAILOUT("v8::V8::AddMessageListener()", return false);
-  ENTER_V8;
-  HandleScope scope;
-  NeanderArray listeners(i::Factory::message_listeners());
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::V8::AddMessageListener()");
+  ON_BAILOUT(isolate, "v8::V8::AddMessageListener()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  NeanderArray listeners(isolate->factory()->message_listeners());
   NeanderObject obj(2);
-  obj.set(0, *i::Factory::NewProxy(FUNCTION_ADDR(that)));
+  obj.set(0, *isolate->factory()->NewForeign(FUNCTION_ADDR(that)));
   obj.set(1, data.IsEmpty() ?
-             i::Heap::undefined_value() :
+             isolate->heap()->undefined_value() :
              *Utils::OpenHandle(*data));
   listeners.add(obj.value());
   return true;
@@ -4037,18 +4674,19 @@ bool V8::AddMessageListener(MessageCallback that, Handle<Value> data) {
 
 
 void V8::RemoveMessageListeners(MessageCallback that) {
-  EnsureInitialized("v8::V8::RemoveMessageListener()");
-  ON_BAILOUT("v8::V8::RemoveMessageListeners()", return);
-  ENTER_V8;
-  HandleScope scope;
-  NeanderArray listeners(i::Factory::message_listeners());
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::V8::RemoveMessageListener()");
+  ON_BAILOUT(isolate, "v8::V8::RemoveMessageListeners()", return);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  NeanderArray listeners(isolate->factory()->message_listeners());
   for (int i = 0; i < listeners.length(); i++) {
     if (listeners.get(i)->IsUndefined()) continue;  // skip deleted ones
 
     NeanderObject listener(i::JSObject::cast(listeners.get(i)));
-    i::Handle<i::Proxy> callback_obj(i::Proxy::cast(listener.get(0)));
-    if (callback_obj->proxy() == FUNCTION_ADDR(that)) {
-      listeners.set(i, i::Heap::undefined_value());
+    i::Handle<i::Foreign> callback_obj(i::Foreign::cast(listener.get(0)));
+    if (callback_obj->address() == FUNCTION_ADDR(that)) {
+      listeners.set(i, isolate->heap()->undefined_value());
     }
   }
 }
@@ -4058,7 +4696,7 @@ void V8::SetCaptureStackTraceForUncaughtExceptions(
       bool capture,
       int frame_limit,
       StackTrace::StackTraceOptions options) {
-  i::Top::SetCaptureStackTraceForUncaughtExceptions(
+  i::Isolate::Current()->SetCaptureStackTraceForUncaughtExceptions(
       capture,
       frame_limit,
       options);
@@ -4066,155 +4704,155 @@ void V8::SetCaptureStackTraceForUncaughtExceptions(
 
 
 void V8::SetCounterFunction(CounterLookupCallback callback) {
-  if (IsDeadCheck("v8::V8::SetCounterFunction()")) return;
-  i::StatsTable::SetCounterFunction(callback);
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  if (IsDeadCheck(isolate, "v8::V8::SetCounterFunction()")) return;
+  isolate->stats_table()->SetCounterFunction(callback);
 }
 
 void V8::SetCreateHistogramFunction(CreateHistogramCallback callback) {
-  if (IsDeadCheck("v8::V8::SetCreateHistogramFunction()")) return;
-  i::StatsTable::SetCreateHistogramFunction(callback);
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  if (IsDeadCheck(isolate, "v8::V8::SetCreateHistogramFunction()")) return;
+  isolate->stats_table()->SetCreateHistogramFunction(callback);
 }
 
 void V8::SetAddHistogramSampleFunction(AddHistogramSampleCallback callback) {
-  if (IsDeadCheck("v8::V8::SetAddHistogramSampleFunction()")) return;
-  i::StatsTable::SetAddHistogramSampleFunction(callback);
+  i::Isolate* isolate = EnterIsolateIfNeeded();
+  if (IsDeadCheck(isolate, "v8::V8::SetAddHistogramSampleFunction()")) return;
+  isolate->stats_table()->
+      SetAddHistogramSampleFunction(callback);
 }
 
 void V8::EnableSlidingStateWindow() {
-  if (IsDeadCheck("v8::V8::EnableSlidingStateWindow()")) return;
-  i::Logger::EnableSlidingStateWindow();
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::EnableSlidingStateWindow()")) return;
+  isolate->logger()->EnableSlidingStateWindow();
 }
 
 
 void V8::SetFailedAccessCheckCallbackFunction(
       FailedAccessCheckCallback callback) {
-  if (IsDeadCheck("v8::V8::SetFailedAccessCheckCallbackFunction()")) return;
-  i::Top::SetFailedAccessCheckCallback(callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::SetFailedAccessCheckCallbackFunction()")) {
+    return;
+  }
+  isolate->SetFailedAccessCheckCallback(callback);
+}
+
+void V8::AddObjectGroup(Persistent<Value>* objects,
+                        size_t length,
+                        RetainedObjectInfo* info) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddObjectGroup()")) return;
+  STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
+  isolate->global_handles()->AddObjectGroup(
+      reinterpret_cast<i::Object***>(objects), length, info);
 }
 
 
-void V8::AddObjectGroup(Persistent<Value>* objects, size_t length) {
-  if (IsDeadCheck("v8::V8::AddObjectGroup()")) return;
+void V8::AddImplicitReferences(Persistent<Object> parent,
+                               Persistent<Value>* children,
+                               size_t length) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddImplicitReferences()")) return;
   STATIC_ASSERT(sizeof(Persistent<Value>) == sizeof(i::Object**));
-  i::GlobalHandles::AddGroup(reinterpret_cast<i::Object***>(objects), length);
+  isolate->global_handles()->AddImplicitReferences(
+      i::Handle<i::HeapObject>::cast(Utils::OpenHandle(*parent)).location(),
+      reinterpret_cast<i::Object***>(children), length);
 }
 
 
 int V8::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
-  if (IsDeadCheck("v8::V8::AdjustAmountOfExternalAllocatedMemory()")) return 0;
-  return i::Heap::AdjustAmountOfExternalAllocatedMemory(change_in_bytes);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AdjustAmountOfExternalAllocatedMemory()")) {
+    return 0;
+  }
+  return isolate->heap()->AdjustAmountOfExternalAllocatedMemory(
+      change_in_bytes);
 }
 
 
 void V8::SetGlobalGCPrologueCallback(GCCallback callback) {
-  if (IsDeadCheck("v8::V8::SetGlobalGCPrologueCallback()")) return;
-  i::Heap::SetGlobalGCPrologueCallback(callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCPrologueCallback()")) return;
+  isolate->heap()->SetGlobalGCPrologueCallback(callback);
 }
 
 
 void V8::SetGlobalGCEpilogueCallback(GCCallback callback) {
-  if (IsDeadCheck("v8::V8::SetGlobalGCEpilogueCallback()")) return;
-  i::Heap::SetGlobalGCEpilogueCallback(callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::SetGlobalGCEpilogueCallback()")) return;
+  isolate->heap()->SetGlobalGCEpilogueCallback(callback);
 }
 
 
 void V8::AddGCPrologueCallback(GCPrologueCallback callback, GCType gc_type) {
-  if (IsDeadCheck("v8::V8::AddGCPrologueCallback()")) return;
-  i::Heap::AddGCPrologueCallback(callback, gc_type);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddGCPrologueCallback()")) return;
+  isolate->heap()->AddGCPrologueCallback(callback, gc_type);
 }
 
 
 void V8::RemoveGCPrologueCallback(GCPrologueCallback callback) {
-  if (IsDeadCheck("v8::V8::RemoveGCPrologueCallback()")) return;
-  i::Heap::RemoveGCPrologueCallback(callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::RemoveGCPrologueCallback()")) return;
+  isolate->heap()->RemoveGCPrologueCallback(callback);
 }
 
 
 void V8::AddGCEpilogueCallback(GCEpilogueCallback callback, GCType gc_type) {
-  if (IsDeadCheck("v8::V8::AddGCEpilogueCallback()")) return;
-  i::Heap::AddGCEpilogueCallback(callback, gc_type);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddGCEpilogueCallback()")) return;
+  isolate->heap()->AddGCEpilogueCallback(callback, gc_type);
 }
 
 
 void V8::RemoveGCEpilogueCallback(GCEpilogueCallback callback) {
-  if (IsDeadCheck("v8::V8::RemoveGCEpilogueCallback()")) return;
-  i::Heap::RemoveGCEpilogueCallback(callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::RemoveGCEpilogueCallback()")) return;
+  isolate->heap()->RemoveGCEpilogueCallback(callback);
 }
 
 
 void V8::AddMemoryAllocationCallback(MemoryAllocationCallback callback,
                                      ObjectSpace space,
                                      AllocationAction action) {
-  if (IsDeadCheck("v8::V8::AddMemoryAllocationCallback()")) return;
-  i::MemoryAllocator::AddMemoryAllocationCallback(callback,
-                                                  space,
-                                                  action);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddMemoryAllocationCallback()")) return;
+  isolate->memory_allocator()->AddMemoryAllocationCallback(
+      callback, space, action);
 }
 
 
 void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
-  if (IsDeadCheck("v8::V8::RemoveMemoryAllocationCallback()")) return;
-  i::MemoryAllocator::RemoveMemoryAllocationCallback(callback);
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::RemoveMemoryAllocationCallback()")) return;
+  isolate->memory_allocator()->RemoveMemoryAllocationCallback(
+      callback);
 }
 
 
 void V8::PauseProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  PauseProfilerEx(PROFILER_MODULE_CPU);
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->logger()->PauseProfiler();
 #endif
 }
 
 
 void V8::ResumeProfiler() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  ResumeProfilerEx(PROFILER_MODULE_CPU);
+  i::Isolate* isolate = i::Isolate::Current();
+  isolate->logger()->ResumeProfiler();
 #endif
 }
 
 
 bool V8::IsProfilerPaused() {
 #ifdef ENABLE_LOGGING_AND_PROFILING
-  return i::Logger::GetActiveProfilerModules() & PROFILER_MODULE_CPU;
+  i::Isolate* isolate = i::Isolate::Current();
+  return isolate->logger()->IsProfilerPaused();
 #else
   return true;
-#endif
-}
-
-
-void V8::ResumeProfilerEx(int flags, int tag) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  if (flags & PROFILER_MODULE_HEAP_SNAPSHOT) {
-    // Snapshot mode: resume modules, perform GC, then pause only
-    // those modules which haven't been started prior to making a
-    // snapshot.
-
-    // Make a GC prior to taking a snapshot.
-    i::Heap::CollectAllGarbage(false);
-    // Reset snapshot flag and CPU module flags.
-    flags &= ~(PROFILER_MODULE_HEAP_SNAPSHOT | PROFILER_MODULE_CPU);
-    const int current_flags = i::Logger::GetActiveProfilerModules();
-    i::Logger::ResumeProfiler(flags, tag);
-    i::Heap::CollectAllGarbage(false);
-    i::Logger::PauseProfiler(~current_flags & flags, tag);
-  } else {
-    i::Logger::ResumeProfiler(flags, tag);
-  }
-#endif
-}
-
-
-void V8::PauseProfilerEx(int flags, int tag) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  i::Logger::PauseProfiler(flags, tag);
-#endif
-}
-
-
-int V8::GetActiveProfilerModules() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  return i::Logger::GetActiveProfilerModules();
-#else
-  return PROFILER_MODULE_NONE;
 #endif
 }
 
@@ -4222,67 +4860,111 @@ int V8::GetActiveProfilerModules() {
 int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
 #ifdef ENABLE_LOGGING_AND_PROFILING
   ASSERT(max_size >= kMinimumSizeForLogLinesBuffer);
-  return i::Logger::GetLogLines(from_pos, dest_buf, max_size);
+  return LOGGER->GetLogLines(from_pos, dest_buf, max_size);
 #endif
   return 0;
 }
 
 
 int V8::GetCurrentThreadId() {
-  API_ENTRY_CHECK("V8::GetCurrentThreadId()");
-  EnsureInitialized("V8::GetCurrentThreadId()");
-  return i::Top::thread_id();
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "V8::GetCurrentThreadId()");
+  return isolate->thread_id().ToInteger();
 }
 
 
 void V8::TerminateExecution(int thread_id) {
-  if (!i::V8::IsRunning()) return;
-  API_ENTRY_CHECK("V8::GetCurrentThreadId()");
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return;
+  API_ENTRY_CHECK(isolate, "V8::TerminateExecution()");
   // If the thread_id identifies the current thread just terminate
   // execution right away.  Otherwise, ask the thread manager to
   // terminate the thread with the given id if any.
-  if (thread_id == i::Top::thread_id()) {
-    i::StackGuard::TerminateExecution();
+  i::ThreadId internal_tid = i::ThreadId::FromInteger(thread_id);
+  if (isolate->thread_id().Equals(internal_tid)) {
+    isolate->stack_guard()->TerminateExecution();
   } else {
-    i::ThreadManager::TerminateExecution(thread_id);
+    isolate->thread_manager()->TerminateExecution(internal_tid);
   }
 }
 
 
-void V8::TerminateExecution() {
-  if (!i::V8::IsRunning()) return;
-  i::StackGuard::TerminateExecution();
-}
-
-
-bool V8::IsExecutionTerminating() {
-  if (!i::V8::IsRunning()) return false;
-  if (i::Top::has_scheduled_exception()) {
-    return i::Top::scheduled_exception() == i::Heap::termination_exception();
+void V8::TerminateExecution(Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->TerminateExecution();
+  } else {
+    i::Isolate::GetDefaultIsolateStackGuard()->TerminateExecution();
   }
-  return false;
 }
 
 
-String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj) {
-  EnsureInitialized("v8::String::Utf8Value::Utf8Value()");
-  if (obj.IsEmpty()) {
-    str_ = NULL;
-    length_ = 0;
+bool V8::IsExecutionTerminating(Isolate* isolate) {
+  i::Isolate* i_isolate = isolate != NULL ?
+      reinterpret_cast<i::Isolate*>(isolate) : i::Isolate::Current();
+  return IsExecutionTerminatingCheck(i_isolate);
+}
+
+
+Isolate* Isolate::GetCurrent() {
+  i::Isolate* isolate = i::Isolate::UncheckedCurrent();
+  return reinterpret_cast<Isolate*>(isolate);
+}
+
+
+Isolate* Isolate::New() {
+  i::Isolate* isolate = new i::Isolate();
+  return reinterpret_cast<Isolate*>(isolate);
+}
+
+
+void Isolate::Dispose() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  if (!ApiCheck(!isolate->IsInUse(),
+                "v8::Isolate::Dispose()",
+                "Disposing the isolate that is entered by a thread.")) {
     return;
   }
-  ENTER_V8;
-  HandleScope scope;
+  isolate->TearDown();
+}
+
+
+void Isolate::Enter() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->Enter();
+}
+
+
+void Isolate::Exit() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->Exit();
+}
+
+
+void Isolate::SetData(void* data) {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  isolate->SetData(data);
+}
+
+void* Isolate::GetData() {
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
+  return isolate->GetData();
+}
+
+
+String::Utf8Value::Utf8Value(v8::Handle<v8::Value> obj)
+    : str_(NULL), length_(0) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::String::Utf8Value::Utf8Value()")) return;
+  if (obj.IsEmpty()) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  if (str.IsEmpty()) {
-    str_ = NULL;
-    length_ = 0;
-  } else {
-    length_ = str->Utf8Length();
-    str_ = i::NewArray<char>(length_ + 1);
-    str->WriteUtf8(str_);
-  }
+  if (str.IsEmpty()) return;
+  length_ = str->Utf8Length();
+  str_ = i::NewArray<char>(length_ + 1);
+  str->WriteUtf8(str_);
 }
 
 
@@ -4291,25 +4973,19 @@ String::Utf8Value::~Utf8Value() {
 }
 
 
-String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj) {
-  EnsureInitialized("v8::String::AsciiValue::AsciiValue()");
-  if (obj.IsEmpty()) {
-    str_ = NULL;
-    length_ = 0;
-    return;
-  }
-  ENTER_V8;
-  HandleScope scope;
+String::AsciiValue::AsciiValue(v8::Handle<v8::Value> obj)
+    : str_(NULL), length_(0) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::String::AsciiValue::AsciiValue()")) return;
+  if (obj.IsEmpty()) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  if (str.IsEmpty()) {
-    str_ = NULL;
-    length_ = 0;
-  } else {
-    length_ = str->Length();
-    str_ = i::NewArray<char>(length_ + 1);
-    str->WriteAscii(str_);
-  }
+  if (str.IsEmpty()) return;
+  length_ = str->Length();
+  str_ = i::NewArray<char>(length_ + 1);
+  str->WriteAscii(str_);
 }
 
 
@@ -4318,25 +4994,19 @@ String::AsciiValue::~AsciiValue() {
 }
 
 
-String::Value::Value(v8::Handle<v8::Value> obj) {
-  EnsureInitialized("v8::String::Value::Value()");
-  if (obj.IsEmpty()) {
-    str_ = NULL;
-    length_ = 0;
-    return;
-  }
-  ENTER_V8;
-  HandleScope scope;
+String::Value::Value(v8::Handle<v8::Value> obj)
+    : str_(NULL), length_(0) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::String::Value::Value()")) return;
+  if (obj.IsEmpty()) return;
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
   TryCatch try_catch;
   Handle<String> str = obj->ToString();
-  if (str.IsEmpty()) {
-    str_ = NULL;
-    length_ = 0;
-  } else {
-    length_ = str->Length();
-    str_ = i::NewArray<uint16_t>(length_ + 1);
-    str->Write(str_);
-  }
+  if (str.IsEmpty()) return;
+  length_ = str->Length();
+  str_ = i::NewArray<uint16_t>(length_ + 1);
+  str->Write(str_);
 }
 
 
@@ -4345,14 +5015,15 @@ String::Value::~Value() {
 }
 
 Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
-  LOG_API("RangeError");
-  ON_BAILOUT("v8::Exception::RangeError()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "RangeError");
+  ON_BAILOUT(isolate, "v8::Exception::RangeError()", return Local<Value>());
+  ENTER_V8(isolate);
   i::Object* error;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewRangeError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewRangeError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4360,14 +5031,16 @@ Local<Value> Exception::RangeError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
-  LOG_API("ReferenceError");
-  ON_BAILOUT("v8::Exception::ReferenceError()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "ReferenceError");
+  ON_BAILOUT(isolate, "v8::Exception::ReferenceError()", return Local<Value>());
+  ENTER_V8(isolate);
   i::Object* error;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewReferenceError(message);
+    i::Handle<i::Object> result =
+        isolate->factory()->NewReferenceError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4375,14 +5048,15 @@ Local<Value> Exception::ReferenceError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
-  LOG_API("SyntaxError");
-  ON_BAILOUT("v8::Exception::SyntaxError()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "SyntaxError");
+  ON_BAILOUT(isolate, "v8::Exception::SyntaxError()", return Local<Value>());
+  ENTER_V8(isolate);
   i::Object* error;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewSyntaxError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewSyntaxError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4390,14 +5064,15 @@ Local<Value> Exception::SyntaxError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
-  LOG_API("TypeError");
-  ON_BAILOUT("v8::Exception::TypeError()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "TypeError");
+  ON_BAILOUT(isolate, "v8::Exception::TypeError()", return Local<Value>());
+  ENTER_V8(isolate);
   i::Object* error;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewTypeError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewTypeError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4405,14 +5080,15 @@ Local<Value> Exception::TypeError(v8::Handle<v8::String> raw_message) {
 }
 
 Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
-  LOG_API("Error");
-  ON_BAILOUT("v8::Exception::Error()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  LOG_API(isolate, "Error");
+  ON_BAILOUT(isolate, "v8::Exception::Error()", return Local<Value>());
+  ENTER_V8(isolate);
   i::Object* error;
   {
-    HandleScope scope;
+    i::HandleScope scope(isolate);
     i::Handle<i::String> message = Utils::OpenHandle(*raw_message);
-    i::Handle<i::Object> result = i::Factory::NewError(message);
+    i::Handle<i::Object> result = isolate->factory()->NewError(message);
     error = *result;
   }
   i::Handle<i::Object> result(error);
@@ -4424,180 +5100,216 @@ Local<Value> Exception::Error(v8::Handle<v8::String> raw_message) {
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
-static v8::Debug::EventCallback event_callback = NULL;
-
 static void EventCallbackWrapper(const v8::Debug::EventDetails& event_details) {
-  if (event_callback) {
-    event_callback(event_details.GetEvent(),
-                   event_details.GetExecutionState(),
-                   event_details.GetEventData(),
-                   event_details.GetCallbackData());
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->debug_event_callback() != NULL) {
+    isolate->debug_event_callback()(event_details.GetEvent(),
+                                    event_details.GetExecutionState(),
+                                    event_details.GetEventData(),
+                                    event_details.GetCallbackData());
   }
 }
 
 
 bool Debug::SetDebugEventListener(EventCallback that, Handle<Value> data) {
-  EnsureInitialized("v8::Debug::SetDebugEventListener()");
-  ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener()");
+  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
+  ENTER_V8(isolate);
 
-  event_callback = that;
+  isolate->set_debug_event_callback(that);
 
-  HandleScope scope;
-  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
   if (that != NULL) {
-    proxy = i::Factory::NewProxy(FUNCTION_ADDR(EventCallbackWrapper));
+    foreign =
+        isolate->factory()->NewForeign(FUNCTION_ADDR(EventCallbackWrapper));
   }
-  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
+  isolate->debugger()->SetEventListener(foreign, Utils::OpenHandle(*data));
   return true;
 }
 
 
 bool Debug::SetDebugEventListener2(EventCallback2 that, Handle<Value> data) {
-  EnsureInitialized("v8::Debug::SetDebugEventListener2()");
-  ON_BAILOUT("v8::Debug::SetDebugEventListener2()", return false);
-  ENTER_V8;
-  HandleScope scope;
-  i::Handle<i::Object> proxy = i::Factory::undefined_value();
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetDebugEventListener2()");
+  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener2()", return false);
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::Object> foreign = isolate->factory()->undefined_value();
   if (that != NULL) {
-    proxy = i::Factory::NewProxy(FUNCTION_ADDR(that));
+    foreign = isolate->factory()->NewForeign(FUNCTION_ADDR(that));
   }
-  i::Debugger::SetEventListener(proxy, Utils::OpenHandle(*data));
+  isolate->debugger()->SetEventListener(foreign, Utils::OpenHandle(*data));
   return true;
 }
 
 
 bool Debug::SetDebugEventListener(v8::Handle<v8::Object> that,
                                   Handle<Value> data) {
-  ON_BAILOUT("v8::Debug::SetDebugEventListener()", return false);
-  ENTER_V8;
-  i::Debugger::SetEventListener(Utils::OpenHandle(*that),
-                                Utils::OpenHandle(*data));
+  i::Isolate* isolate = i::Isolate::Current();
+  ON_BAILOUT(isolate, "v8::Debug::SetDebugEventListener()", return false);
+  ENTER_V8(isolate);
+  isolate->debugger()->SetEventListener(Utils::OpenHandle(*that),
+                                                      Utils::OpenHandle(*data));
   return true;
 }
 
 
-void Debug::DebugBreak() {
-  if (!i::V8::IsRunning()) return;
-  i::StackGuard::DebugBreak();
+void Debug::DebugBreak(Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    reinterpret_cast<i::Isolate*>(isolate)->stack_guard()->DebugBreak();
+  } else {
+    i::Isolate::GetDefaultIsolateStackGuard()->DebugBreak();
+  }
 }
 
 
-void Debug::CancelDebugBreak() {
-  i::StackGuard::Continue(i::DEBUGBREAK);
+void Debug::CancelDebugBreak(Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->stack_guard()->Continue(i::DEBUGBREAK);
+  } else {
+    i::Isolate::GetDefaultIsolateStackGuard()->Continue(i::DEBUGBREAK);
+  }
 }
 
 
-void Debug::DebugBreakForCommand(ClientData* data) {
-  if (!i::V8::IsRunning()) return;
-  i::Debugger::EnqueueDebugCommand(data);
+void Debug::DebugBreakForCommand(ClientData* data, Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->debugger()->EnqueueDebugCommand(data);
+  } else {
+    i::Isolate::GetDefaultIsolateDebugger()->EnqueueDebugCommand(data);
+  }
 }
 
-
-static v8::Debug::MessageHandler message_handler = NULL;
 
 static void MessageHandlerWrapper(const v8::Debug::Message& message) {
-  if (message_handler) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate->message_handler()) {
     v8::String::Value json(message.GetJSON());
-    message_handler(*json, json.length(), message.GetClientData());
+    (isolate->message_handler())(*json, json.length(), message.GetClientData());
   }
 }
 
 
 void Debug::SetMessageHandler(v8::Debug::MessageHandler handler,
                               bool message_handler_thread) {
-  EnsureInitialized("v8::Debug::SetMessageHandler");
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
+  ENTER_V8(isolate);
+
   // Message handler thread not supported any more. Parameter temporally left in
-  // the API for client compatability reasons.
+  // the API for client compatibility reasons.
   CHECK(!message_handler_thread);
 
   // TODO(sgjesse) support the old message handler API through a simple wrapper.
-  message_handler = handler;
-  if (message_handler != NULL) {
-    i::Debugger::SetMessageHandler(MessageHandlerWrapper);
+  isolate->set_message_handler(handler);
+  if (handler != NULL) {
+    isolate->debugger()->SetMessageHandler(MessageHandlerWrapper);
   } else {
-    i::Debugger::SetMessageHandler(NULL);
+    isolate->debugger()->SetMessageHandler(NULL);
   }
 }
 
 
 void Debug::SetMessageHandler2(v8::Debug::MessageHandler2 handler) {
-  EnsureInitialized("v8::Debug::SetMessageHandler");
-  ENTER_V8;
-  i::Debugger::SetMessageHandler(handler);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetMessageHandler");
+  ENTER_V8(isolate);
+  isolate->debugger()->SetMessageHandler(handler);
 }
 
 
 void Debug::SendCommand(const uint16_t* command, int length,
-                        ClientData* client_data) {
-  if (!i::V8::IsRunning()) return;
-  i::Debugger::ProcessCommand(i::Vector<const uint16_t>(command, length),
-                              client_data);
+                        ClientData* client_data,
+                        Isolate* isolate) {
+  // If no isolate is supplied, use the default isolate.
+  if (isolate != NULL) {
+    i::Isolate* internal_isolate = reinterpret_cast<i::Isolate*>(isolate);
+    internal_isolate->debugger()->ProcessCommand(
+        i::Vector<const uint16_t>(command, length), client_data);
+  } else {
+    i::Isolate::GetDefaultIsolateDebugger()->ProcessCommand(
+        i::Vector<const uint16_t>(command, length), client_data);
+  }
 }
 
 
 void Debug::SetHostDispatchHandler(HostDispatchHandler handler,
                                    int period) {
-  EnsureInitialized("v8::Debug::SetHostDispatchHandler");
-  ENTER_V8;
-  i::Debugger::SetHostDispatchHandler(handler, period);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Debug::SetHostDispatchHandler");
+  ENTER_V8(isolate);
+  isolate->debugger()->SetHostDispatchHandler(handler, period);
 }
 
 
 void Debug::SetDebugMessageDispatchHandler(
     DebugMessageDispatchHandler handler, bool provide_locker) {
-  EnsureInitialized("v8::Debug::SetDebugMessageDispatchHandler");
-  ENTER_V8;
-  i::Debugger::SetDebugMessageDispatchHandler(handler, provide_locker);
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate,
+                              "v8::Debug::SetDebugMessageDispatchHandler");
+  ENTER_V8(isolate);
+  isolate->debugger()->SetDebugMessageDispatchHandler(
+      handler, provide_locker);
 }
 
 
 Local<Value> Debug::Call(v8::Handle<v8::Function> fun,
                          v8::Handle<v8::Value> data) {
-  if (!i::V8::IsRunning()) return Local<Value>();
-  ON_BAILOUT("v8::Debug::Call()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return Local<Value>();
+  ON_BAILOUT(isolate, "v8::Debug::Call()", return Local<Value>());
+  ENTER_V8(isolate);
   i::Handle<i::Object> result;
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   if (data.IsEmpty()) {
-    result = i::Debugger::Call(Utils::OpenHandle(*fun),
-                               i::Factory::undefined_value(),
-                               &has_pending_exception);
+    result = isolate->debugger()->Call(Utils::OpenHandle(*fun),
+                                       isolate->factory()->undefined_value(),
+                                       &has_pending_exception);
   } else {
-    result = i::Debugger::Call(Utils::OpenHandle(*fun),
-                               Utils::OpenHandle(*data),
-                               &has_pending_exception);
+    result = isolate->debugger()->Call(Utils::OpenHandle(*fun),
+                                       Utils::OpenHandle(*data),
+                                       &has_pending_exception);
   }
-  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
 }
 
 
 Local<Value> Debug::GetMirror(v8::Handle<v8::Value> obj) {
-  if (!i::V8::IsRunning()) return Local<Value>();
-  ON_BAILOUT("v8::Debug::GetMirror()", return Local<Value>());
-  ENTER_V8;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (!isolate->IsInitialized()) return Local<Value>();
+  ON_BAILOUT(isolate, "v8::Debug::GetMirror()", return Local<Value>());
+  ENTER_V8(isolate);
   v8::HandleScope scope;
-  i::Debug::Load();
-  i::Handle<i::JSObject> debug(i::Debug::debug_context()->global());
-  i::Handle<i::String> name = i::Factory::LookupAsciiSymbol("MakeMirror");
+  i::Debug* isolate_debug = isolate->debug();
+  isolate_debug->Load();
+  i::Handle<i::JSObject> debug(isolate_debug->debug_context()->global());
+  i::Handle<i::String> name =
+      isolate->factory()->LookupAsciiSymbol("MakeMirror");
   i::Handle<i::Object> fun_obj = i::GetProperty(debug, name);
   i::Handle<i::JSFunction> fun = i::Handle<i::JSFunction>::cast(fun_obj);
   v8::Handle<v8::Function> v8_fun = Utils::ToLocal(fun);
   const int kArgc = 1;
   v8::Handle<v8::Value> argv[kArgc] = { obj };
-  EXCEPTION_PREAMBLE();
+  EXCEPTION_PREAMBLE(isolate);
   v8::Handle<v8::Value> result = v8_fun->Call(Utils::ToLocal(debug),
                                               kArgc,
                                               argv);
-  EXCEPTION_BAILOUT_CHECK(Local<Value>());
+  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return scope.Close(result);
 }
 
 
 bool Debug::EnableAgent(const char* name, int port, bool wait_for_connection) {
-  return i::Debugger::StartAgent(name, port, wait_for_connection);
+  return i::Isolate::Current()->debugger()->StartAgent(name, port,
+                                                       wait_for_connection);
 }
 
 void Debug::ProcessDebugMessages() {
@@ -4605,389 +5317,568 @@ void Debug::ProcessDebugMessages() {
 }
 
 Local<Context> Debug::GetDebugContext() {
-  EnsureInitialized("v8::Debug::GetDebugContext()");
-  ENTER_V8;
-  return Utils::ToLocal(i::Debugger::GetDebugContext());
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::Debug::GetDebugContext()");
+  ENTER_V8(isolate);
+  return Utils::ToLocal(i::Isolate::Current()->debugger()->GetDebugContext());
 }
 
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 Handle<String> CpuProfileNode::GetFunctionName() const {
-  IsDeadCheck("v8::CpuProfileNode::GetFunctionName");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetFunctionName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   const i::CodeEntry* entry = node->entry();
   if (!entry->has_name_prefix()) {
     return Handle<String>(ToApi<String>(
-        i::Factory::LookupAsciiSymbol(entry->name())));
+        isolate->factory()->LookupAsciiSymbol(entry->name())));
   } else {
-    return Handle<String>(ToApi<String>(i::Factory::NewConsString(
-        i::Factory::LookupAsciiSymbol(entry->name_prefix()),
-        i::Factory::LookupAsciiSymbol(entry->name()))));
+    return Handle<String>(ToApi<String>(isolate->factory()->NewConsString(
+        isolate->factory()->LookupAsciiSymbol(entry->name_prefix()),
+        isolate->factory()->LookupAsciiSymbol(entry->name()))));
   }
+#else
+  return v8::String::Empty();
+#endif
 }
 
 
 Handle<String> CpuProfileNode::GetScriptResourceName() const {
-  IsDeadCheck("v8::CpuProfileNode::GetScriptResourceName");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptResourceName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       node->entry()->resource_name())));
+#else
+  return v8::String::Empty();
+#endif
 }
 
 
 int CpuProfileNode::GetLineNumber() const {
-  IsDeadCheck("v8::CpuProfileNode::GetLineNumber");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetLineNumber");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
+#else
+  return 0;
+#endif
 }
 
 
 double CpuProfileNode::GetTotalTime() const {
-  IsDeadCheck("v8::CpuProfileNode::GetTotalTime");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalTime");
   return reinterpret_cast<const i::ProfileNode*>(this)->GetTotalMillis();
+#else
+  return 0.0;
+#endif
 }
 
 
 double CpuProfileNode::GetSelfTime() const {
-  IsDeadCheck("v8::CpuProfileNode::GetSelfTime");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfTime");
   return reinterpret_cast<const i::ProfileNode*>(this)->GetSelfMillis();
+#else
+  return 0.0;
+#endif
 }
 
 
 double CpuProfileNode::GetTotalSamplesCount() const {
-  IsDeadCheck("v8::CpuProfileNode::GetTotalSamplesCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalSamplesCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();
+#else
+  return 0.0;
+#endif
 }
 
 
 double CpuProfileNode::GetSelfSamplesCount() const {
-  IsDeadCheck("v8::CpuProfileNode::GetSelfSamplesCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfSamplesCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
+#else
+  return 0.0;
+#endif
 }
 
 
 unsigned CpuProfileNode::GetCallUid() const {
-  IsDeadCheck("v8::CpuProfileNode::GetCallUid");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetCallUid");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
+#else
+  return 0;
+#endif
 }
 
 
 int CpuProfileNode::GetChildrenCount() const {
-  IsDeadCheck("v8::CpuProfileNode::GetChildrenCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetChildrenCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
+#else
+  return 0;
+#endif
 }
 
 
 const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
-  IsDeadCheck("v8::CpuProfileNode::GetChild");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfileNode::GetChild");
   const i::ProfileNode* child =
       reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
   return reinterpret_cast<const CpuProfileNode*>(child);
+#else
+  return NULL;
+#endif
+}
+
+
+void CpuProfile::Delete() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::Delete");
+  i::CpuProfiler::DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
+  if (i::CpuProfiler::GetProfilesCount() == 0 &&
+      !i::CpuProfiler::HasDetachedProfiles()) {
+    // If this was the last profile, clean up all accessory data as well.
+    i::CpuProfiler::DeleteAllProfiles();
+  }
+#endif
 }
 
 
 unsigned CpuProfile::GetUid() const {
-  IsDeadCheck("v8::CpuProfile::GetUid");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::GetUid");
   return reinterpret_cast<const i::CpuProfile*>(this)->uid();
+#else
+  return 0;
+#endif
 }
 
 
 Handle<String> CpuProfile::GetTitle() const {
-  IsDeadCheck("v8::CpuProfile::GetTitle");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::GetTitle");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       profile->title())));
+#else
+  return v8::String::Empty();
+#endif
 }
 
 
 const CpuProfileNode* CpuProfile::GetBottomUpRoot() const {
-  IsDeadCheck("v8::CpuProfile::GetBottomUpRoot");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::GetBottomUpRoot");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->bottom_up()->root());
+#else
+  return NULL;
+#endif
 }
 
 
 const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
-  IsDeadCheck("v8::CpuProfile::GetTopDownRoot");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfile::GetTopDownRoot");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->top_down()->root());
+#else
+  return NULL;
+#endif
 }
 
 
 int CpuProfiler::GetProfilesCount() {
-  IsDeadCheck("v8::CpuProfiler::GetProfilesCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::GetProfilesCount");
   return i::CpuProfiler::GetProfilesCount();
+#else
+  return 0;
+#endif
 }
 
 
 const CpuProfile* CpuProfiler::GetProfile(int index,
                                           Handle<Value> security_token) {
-  IsDeadCheck("v8::CpuProfiler::GetProfile");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::GetProfile");
   return reinterpret_cast<const CpuProfile*>(
       i::CpuProfiler::GetProfile(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           index));
+#else
+  return NULL;
+#endif
 }
 
 
 const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
                                            Handle<Value> security_token) {
-  IsDeadCheck("v8::CpuProfiler::FindProfile");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::FindProfile");
   return reinterpret_cast<const CpuProfile*>(
       i::CpuProfiler::FindProfile(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           uid));
+#else
+  return NULL;
+#endif
 }
 
 
 void CpuProfiler::StartProfiling(Handle<String> title) {
-  IsDeadCheck("v8::CpuProfiler::StartProfiling");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::StartProfiling");
   i::CpuProfiler::StartProfiling(*Utils::OpenHandle(*title));
+#endif
 }
 
 
 const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
                                              Handle<Value> security_token) {
-  IsDeadCheck("v8::CpuProfiler::StopProfiling");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::StopProfiling");
   return reinterpret_cast<const CpuProfile*>(
       i::CpuProfiler::StopProfiling(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           *Utils::OpenHandle(*title)));
+#else
+  return NULL;
+#endif
 }
 
 
+void CpuProfiler::DeleteAllProfiles() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::CpuProfiler::DeleteAllProfiles");
+  i::CpuProfiler::DeleteAllProfiles();
+#endif
+}
+
+
+#ifdef ENABLE_LOGGING_AND_PROFILING
 static i::HeapGraphEdge* ToInternal(const HeapGraphEdge* edge) {
   return const_cast<i::HeapGraphEdge*>(
       reinterpret_cast<const i::HeapGraphEdge*>(edge));
 }
+#endif
+
 
 HeapGraphEdge::Type HeapGraphEdge::GetType() const {
-  IsDeadCheck("v8::HeapGraphEdge::GetType");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphEdge::GetType");
   return static_cast<HeapGraphEdge::Type>(ToInternal(this)->type());
+#else
+  return static_cast<HeapGraphEdge::Type>(0);
+#endif
 }
 
 
 Handle<Value> HeapGraphEdge::GetName() const {
-  IsDeadCheck("v8::HeapGraphEdge::GetName");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphEdge::GetName");
   i::HeapGraphEdge* edge = ToInternal(this);
   switch (edge->type()) {
     case i::HeapGraphEdge::kContextVariable:
     case i::HeapGraphEdge::kInternal:
     case i::HeapGraphEdge::kProperty:
     case i::HeapGraphEdge::kShortcut:
-      return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+      return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
           edge->name())));
     case i::HeapGraphEdge::kElement:
     case i::HeapGraphEdge::kHidden:
-      return Handle<Number>(ToApi<Number>(i::Factory::NewNumberFromInt(
+      return Handle<Number>(ToApi<Number>(isolate->factory()->NewNumberFromInt(
           edge->index())));
     default: UNREACHABLE();
   }
-  return ImplementationUtilities::Undefined();
+#endif
+  return v8::Undefined();
 }
 
 
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
-  IsDeadCheck("v8::HeapGraphEdge::GetFromNode");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphEdge::GetFromNode");
   const i::HeapEntry* from = ToInternal(this)->From();
   return reinterpret_cast<const HeapGraphNode*>(from);
+#else
+  return NULL;
+#endif
 }
 
 
 const HeapGraphNode* HeapGraphEdge::GetToNode() const {
-  IsDeadCheck("v8::HeapGraphEdge::GetToNode");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphEdge::GetToNode");
   const i::HeapEntry* to = ToInternal(this)->to();
   return reinterpret_cast<const HeapGraphNode*>(to);
+#else
+  return NULL;
+#endif
 }
 
 
-static i::HeapGraphPath* ToInternal(const HeapGraphPath* path) {
-  return const_cast<i::HeapGraphPath*>(
-      reinterpret_cast<const i::HeapGraphPath*>(path));
-}
-
-
-int HeapGraphPath::GetEdgesCount() const {
-  return ToInternal(this)->path()->length();
-}
-
-
-const HeapGraphEdge* HeapGraphPath::GetEdge(int index) const {
-  return reinterpret_cast<const HeapGraphEdge*>(
-      ToInternal(this)->path()->at(index));
-}
-
-
-const HeapGraphNode* HeapGraphPath::GetFromNode() const {
-  return GetEdgesCount() > 0 ? GetEdge(0)->GetFromNode() : NULL;
-}
-
-
-const HeapGraphNode* HeapGraphPath::GetToNode() const {
-  const int count = GetEdgesCount();
-  return count > 0 ? GetEdge(count - 1)->GetToNode() : NULL;
-}
-
-
+#ifdef ENABLE_LOGGING_AND_PROFILING
 static i::HeapEntry* ToInternal(const HeapGraphNode* entry) {
   return const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(entry));
 }
+#endif
 
 
 HeapGraphNode::Type HeapGraphNode::GetType() const {
-  IsDeadCheck("v8::HeapGraphNode::GetType");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphNode::GetType");
   return static_cast<HeapGraphNode::Type>(ToInternal(this)->type());
+#else
+  return static_cast<HeapGraphNode::Type>(0);
+#endif
 }
 
 
 Handle<String> HeapGraphNode::GetName() const {
-  IsDeadCheck("v8::HeapGraphNode::GetName");
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphNode::GetName");
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       ToInternal(this)->name())));
+#else
+  return v8::String::Empty();
+#endif
 }
 
 
 uint64_t HeapGraphNode::GetId() const {
-  IsDeadCheck("v8::HeapGraphNode::GetId");
-  ASSERT(ToInternal(this)->snapshot()->type() != i::HeapSnapshot::kAggregated);
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphNode::GetId");
   return ToInternal(this)->id();
-}
-
-
-int HeapGraphNode::GetInstancesCount() const {
-  IsDeadCheck("v8::HeapGraphNode::GetInstancesCount");
-  ASSERT(ToInternal(this)->snapshot()->type() == i::HeapSnapshot::kAggregated);
-  return static_cast<int>(ToInternal(this)->id());
+#else
+  return 0;
+#endif
 }
 
 
 int HeapGraphNode::GetSelfSize() const {
-  IsDeadCheck("v8::HeapGraphNode::GetSelfSize");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapGraphNode::GetSelfSize");
   return ToInternal(this)->self_size();
+#else
+  return 0;
+#endif
 }
 
 
 int HeapGraphNode::GetRetainedSize(bool exact) const {
-  IsDeadCheck("v8::HeapSnapshot::GetRetainedSize");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
   return ToInternal(this)->RetainedSize(exact);
+#else
+  return 0;
+#endif
 }
 
 
 int HeapGraphNode::GetChildrenCount() const {
-  IsDeadCheck("v8::HeapSnapshot::GetChildrenCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetChildrenCount");
   return ToInternal(this)->children().length();
+#else
+  return 0;
+#endif
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
-  IsDeadCheck("v8::HeapSnapshot::GetChild");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetChild");
   return reinterpret_cast<const HeapGraphEdge*>(
       &ToInternal(this)->children()[index]);
+#else
+  return NULL;
+#endif
 }
 
 
 int HeapGraphNode::GetRetainersCount() const {
-  IsDeadCheck("v8::HeapSnapshot::GetRetainersCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainersCount");
   return ToInternal(this)->retainers().length();
+#else
+  return 0;
+#endif
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
-  IsDeadCheck("v8::HeapSnapshot::GetRetainer");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainer");
   return reinterpret_cast<const HeapGraphEdge*>(
       ToInternal(this)->retainers()[index]);
-}
-
-
-int HeapGraphNode::GetRetainingPathsCount() const {
-  IsDeadCheck("v8::HeapSnapshot::GetRetainingPathsCount");
-  return ToInternal(this)->GetRetainingPaths()->length();
-}
-
-
-const HeapGraphPath* HeapGraphNode::GetRetainingPath(int index) const {
-  IsDeadCheck("v8::HeapSnapshot::GetRetainingPath");
-  return reinterpret_cast<const HeapGraphPath*>(
-      ToInternal(this)->GetRetainingPaths()->at(index));
+#else
+  return NULL;
+#endif
 }
 
 
 const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
-  IsDeadCheck("v8::HeapSnapshot::GetDominatorNode");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetDominatorNode");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
+#else
+  return NULL;
+#endif
 }
 
 
-const HeapGraphNode* HeapSnapshotsDiff::GetAdditionsRoot() const {
-  IsDeadCheck("v8::HeapSnapshotsDiff::GetAdditionsRoot");
-  i::HeapSnapshotsDiff* diff =
-      const_cast<i::HeapSnapshotsDiff*>(
-          reinterpret_cast<const i::HeapSnapshotsDiff*>(this));
-  return reinterpret_cast<const HeapGraphNode*>(diff->additions_root());
-}
-
-
-const HeapGraphNode* HeapSnapshotsDiff::GetDeletionsRoot() const {
-  IsDeadCheck("v8::HeapSnapshotsDiff::GetDeletionsRoot");
-  i::HeapSnapshotsDiff* diff =
-      const_cast<i::HeapSnapshotsDiff*>(
-          reinterpret_cast<const i::HeapSnapshotsDiff*>(this));
-  return reinterpret_cast<const HeapGraphNode*>(diff->deletions_root());
-}
-
-
+#ifdef ENABLE_LOGGING_AND_PROFILING
 static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
   return const_cast<i::HeapSnapshot*>(
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 }
+#endif
+
+
+void HeapSnapshot::Delete() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::Delete");
+  if (i::HeapProfiler::GetSnapshotsCount() > 1) {
+    ToInternal(this)->Delete();
+  } else {
+    // If this is the last snapshot, clean up all accessory data as well.
+    i::HeapProfiler::DeleteAllSnapshots();
+  }
+#endif
+}
 
 
 HeapSnapshot::Type HeapSnapshot::GetType() const {
-  IsDeadCheck("v8::HeapSnapshot::GetType");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetType");
   return static_cast<HeapSnapshot::Type>(ToInternal(this)->type());
+#else
+  return static_cast<HeapSnapshot::Type>(0);
+#endif
 }
 
 
 unsigned HeapSnapshot::GetUid() const {
-  IsDeadCheck("v8::HeapSnapshot::GetUid");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetUid");
   return ToInternal(this)->uid();
+#else
+  return 0;
+#endif
 }
 
 
 Handle<String> HeapSnapshot::GetTitle() const {
-  IsDeadCheck("v8::HeapSnapshot::GetTitle");
-  return Handle<String>(ToApi<String>(i::Factory::LookupAsciiSymbol(
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetTitle");
+  return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       ToInternal(this)->title())));
+#else
+  return v8::String::Empty();
+#endif
 }
 
 
 const HeapGraphNode* HeapSnapshot::GetRoot() const {
-  IsDeadCheck("v8::HeapSnapshot::GetHead");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetHead");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->root());
+#else
+  return 0;
+#endif
 }
 
 
 const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
-  IsDeadCheck("v8::HeapSnapshot::GetNodeById");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
       ToInternal(this)->GetEntryById(id));
+#else
+  return NULL;
+#endif
 }
 
 
-const HeapSnapshotsDiff* HeapSnapshot::CompareWith(
-    const HeapSnapshot* snapshot) const {
-  IsDeadCheck("v8::HeapSnapshot::CompareWith");
-  return reinterpret_cast<const HeapSnapshotsDiff*>(
-      ToInternal(this)->CompareWith(ToInternal(snapshot)));
+int HeapSnapshot::GetNodesCount() const {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodesCount");
+  return ToInternal(this)->entries()->length();
+#else
+  return 0;
+#endif
+}
+
+
+const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::GetNode");
+  return reinterpret_cast<const HeapGraphNode*>(
+      ToInternal(this)->entries()->at(index));
+#else
+  return 0;
+#endif
 }
 
 
 void HeapSnapshot::Serialize(OutputStream* stream,
                              HeapSnapshot::SerializationFormat format) const {
-  IsDeadCheck("v8::HeapSnapshot::Serialize");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapSnapshot::Serialize");
   ApiCheck(format == kJSON,
            "v8::HeapSnapshot::Serialize",
            "Unknown serialization format");
@@ -4999,40 +5890,55 @@ void HeapSnapshot::Serialize(OutputStream* stream,
            "Invalid stream chunk size");
   i::HeapSnapshotJSONSerializer serializer(ToInternal(this));
   serializer.Serialize(stream);
+#endif
 }
 
 
 int HeapProfiler::GetSnapshotsCount() {
-  IsDeadCheck("v8::HeapProfiler::GetSnapshotsCount");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotsCount");
   return i::HeapProfiler::GetSnapshotsCount();
+#else
+  return 0;
+#endif
 }
 
 
 const HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-  IsDeadCheck("v8::HeapProfiler::GetSnapshot");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshot");
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::GetSnapshot(index));
+#else
+  return NULL;
+#endif
 }
 
 
 const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
-  IsDeadCheck("v8::HeapProfiler::FindSnapshot");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::FindSnapshot");
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::FindSnapshot(uid));
+#else
+  return NULL;
+#endif
 }
 
 
 const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
                                                HeapSnapshot::Type type,
                                                ActivityControl* control) {
-  IsDeadCheck("v8::HeapProfiler::TakeSnapshot");
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::TakeSnapshot");
   i::HeapSnapshot::Type internal_type = i::HeapSnapshot::kFull;
   switch (type) {
     case HeapSnapshot::kFull:
       internal_type = i::HeapSnapshot::kFull;
-      break;
-    case HeapSnapshot::kAggregated:
-      internal_type = i::HeapSnapshot::kAggregated;
       break;
     default:
       UNREACHABLE();
@@ -5040,9 +5946,29 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::TakeSnapshot(
           *Utils::OpenHandle(*title), internal_type, control));
+#else
+  return NULL;
+#endif
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
+
+void HeapProfiler::DeleteAllSnapshots() {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate* isolate = i::Isolate::Current();
+  IsDeadCheck(isolate, "v8::HeapProfiler::DeleteAllSnapshots");
+  i::HeapProfiler::DeleteAllSnapshots();
+#endif
+}
+
+
+void HeapProfiler::DefineWrapperClass(uint16_t class_id,
+                                      WrapperInfoCallback callback) {
+#ifdef ENABLE_LOGGING_AND_PROFILING
+  i::Isolate::Current()->heap_profiler()->DefineWrapperClass(class_id,
+                                                             callback);
+#endif
+}
+
 
 
 v8::Testing::StressType internal::Testing::stress_type_ =
@@ -5106,27 +6032,22 @@ void Testing::PrepareStressRun(int run) {
 }
 
 
-namespace internal {
-
-
-HandleScopeImplementer* HandleScopeImplementer::instance() {
-  return &thread_local;
+void Testing::DeoptimizeAll() {
+  internal::Deoptimizer::DeoptimizeAll();
 }
 
 
+namespace internal {
+
+
 void HandleScopeImplementer::FreeThreadResources() {
-  thread_local.Free();
+  Free();
 }
 
 
 char* HandleScopeImplementer::ArchiveThread(char* storage) {
-  return thread_local.ArchiveThreadHelper(storage);
-}
-
-
-char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
+      isolate_->handle_scope_data();
   handle_scope_data_ = *current;
   memcpy(storage, this, sizeof(*this));
 
@@ -5138,18 +6059,13 @@ char* HandleScopeImplementer::ArchiveThreadHelper(char* storage) {
 
 
 int HandleScopeImplementer::ArchiveSpacePerThread() {
-  return sizeof(thread_local);
+  return sizeof(HandleScopeImplementer);
 }
 
 
 char* HandleScopeImplementer::RestoreThread(char* storage) {
-  return thread_local.RestoreThreadHelper(storage);
-}
-
-
-char* HandleScopeImplementer::RestoreThreadHelper(char* storage) {
   memcpy(this, storage, sizeof(*this));
-  *v8::ImplementationUtilities::CurrentHandleScope() = handle_scope_data_;
+  *isolate_->handle_scope_data() = handle_scope_data_;
   return storage + ArchiveSpacePerThread();
 }
 
@@ -5175,16 +6091,16 @@ void HandleScopeImplementer::IterateThis(ObjectVisitor* v) {
 
 void HandleScopeImplementer::Iterate(ObjectVisitor* v) {
   v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
-  thread_local.handle_scope_data_ = *current;
-  thread_local.IterateThis(v);
+      isolate_->handle_scope_data();
+  handle_scope_data_ = *current;
+  IterateThis(v);
 }
 
 
 char* HandleScopeImplementer::Iterate(ObjectVisitor* v, char* storage) {
-  HandleScopeImplementer* thread_local =
+  HandleScopeImplementer* scope_implementer =
       reinterpret_cast<HandleScopeImplementer*>(storage);
-  thread_local->IterateThis(v);
+  scope_implementer->IterateThis(v);
   return storage + ArchiveSpacePerThread();
 }
 

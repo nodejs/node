@@ -28,11 +28,10 @@
 #ifndef V8_SAFEPOINT_TABLE_H_
 #define V8_SAFEPOINT_TABLE_H_
 
-#include "v8.h"
-
+#include "allocation.h"
 #include "heap.h"
+#include "v8memory.h"
 #include "zone.h"
-#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -226,6 +225,14 @@ class SafepointTableBuilder BASE_EMBEDDED {
     ASSERT(!deoptimization_info_.is_empty());
     int index = deoptimization_info_.length() - 1;
     deoptimization_info_[index].pc_after_gap = pc;
+  }
+
+  // Get the end pc offset of the last safepoint, including the code generated
+  // until the end of the gap following it.
+  unsigned GetPcAfterGap() {
+    int index = deoptimization_info_.length();
+    if (index == 0) return 0;
+    return deoptimization_info_[index - 1].pc_after_gap;
   }
 
   // Emit the safepoint table after the body. The number of bits per

@@ -19,13 +19,17 @@ d8
 d8_g
 shell
 shell_g
+/build/gyp
 /obj/
 /test/es5conform/data/
 /test/mozilla/data/
 /test/sputnik/sputniktests/
+/test/test262/data/
 /tools/oom_dump/oom_dump
 /tools/oom_dump/oom_dump.o
 /tools/visual_studio/Debug
 /tools/visual_studio/Release
 /xcodebuild/
 TAGS
+Makefile
+*.Makefile

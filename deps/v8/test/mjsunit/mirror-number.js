@@ -50,10 +50,10 @@ function testNumberMirror(n) {
   // Parse JSON representation and check.
   var fromJSON = eval('(' + json + ')');
   assertEquals('number', fromJSON.type);
-  if (!isNaN(n)) {
+  if (isFinite(n)) {
     assertEquals(n, fromJSON.value);
   } else {
-    // NaN values are encoded as strings.
+    // NaN and Infinity values are encoded as strings.
     assertTrue(typeof fromJSON.value == 'string');
     if (n === Infinity) {
       assertEquals('Infinity', fromJSON.value);

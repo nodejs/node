@@ -59,3 +59,24 @@ assertEquals("ReferenceError", ReferenceError.prototype.name);
 ReferenceError.prototype.name = "not a reference error";
 assertEquals("ReferenceError", ReferenceError.prototype.name);
 
+// Check that message and name are not enumerable on Error objects.
+var desc = Object.getOwnPropertyDescriptor(Error.prototype, 'name');
+assertFalse(desc['enumerable']);
+desc = Object.getOwnPropertyDescriptor(Error.prototype, 'message');
+assertFalse(desc['enumerable']);
+
+var e = new Error("foobar");
+desc = Object.getOwnPropertyDescriptor(e, 'message');
+assertFalse(desc['enumerable']);
+desc = Object.getOwnPropertyDescriptor(e, 'arguments');
+assertFalse(desc['enumerable']);
+desc = Object.getOwnPropertyDescriptor(e, 'type');
+assertFalse(desc['enumerable']);
+desc = Object.getOwnPropertyDescriptor(e, 'stack');
+assertFalse(desc['enumerable']);
+
+// name is not tested above, but in addition we should have no enumerable
+// properties, so we simply assert that.
+for (var v in e) {
+  assertUnreachable();
+}

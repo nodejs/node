@@ -26,13 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include "../include/v8stdint.h"
-#include "globals.h"
-#include "checks.h"
-#include "allocation.h"
-#include "utils.h"
-#include "list-inl.h"
-#include "hashmap.h"
+
+#include "preparse-data-format.h"
 #include "preparse-data.h"
+
+#include "checks.h"
+#include "globals.h"
+#include "hashmap.h"
 
 namespace v8 {
 namespace internal {
@@ -74,7 +74,7 @@ void FunctionLoggingParserRecorder::LogMessage(int start_pos,
   function_store_.Add((arg_opt == NULL) ? 0 : 1);
   STATIC_ASSERT(PreparseDataConstants::kMessageTextPos == 3);
   WriteString(CStrVector(message));
-  if (arg_opt) WriteString(CStrVector(arg_opt));
+  if (arg_opt != NULL) WriteString(CStrVector(arg_opt));
   is_recording_ = false;
 }
 

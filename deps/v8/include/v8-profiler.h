@@ -131,6 +131,16 @@ class V8EXPORT CpuProfile {
 
   /** Returns the root node of the top down call tree. */
   const CpuProfileNode* GetTopDownRoot() const;
+
+  /**
+   * Deletes the profile and removes it from CpuProfiler's list.
+   * All pointers to nodes previously returned become invalid.
+   * Profiles with the same uid but obtained using different
+   * security token are not deleted, but become inaccessible
+   * using FindProfile method. It is embedder's responsibility
+   * to call Delete on these profiles.
+   */
+  void Delete();
 };
 
 
@@ -181,6 +191,13 @@ class V8EXPORT CpuProfiler {
   static const CpuProfile* StopProfiling(
       Handle<String> title,
       Handle<Value> security_token = Handle<Value>());
+
+  /**
+   * Deletes all existing profiles, also cancelling all profiling
+   * activity.  All previously returned pointers to profiles and their
+   * contents become invalid after this call.
+   */
+  static void DeleteAllProfiles();
 };
 
 
@@ -189,7 +206,7 @@ class HeapGraphNode;
 
 /**
  * HeapSnapshotEdge represents a directed connection between heap
- * graph nodes: from retaners to retained nodes.
+ * graph nodes: from retainers to retained nodes.
  */
 class V8EXPORT HeapGraphEdge {
  public:
@@ -223,36 +240,21 @@ class V8EXPORT HeapGraphEdge {
 };
 
 
-class V8EXPORT HeapGraphPath {
- public:
-  /** Returns the number of edges in the path. */
-  int GetEdgesCount() const;
-
-  /** Returns an edge from the path. */
-  const HeapGraphEdge* GetEdge(int index) const;
-
-  /** Returns origin node. */
-  const HeapGraphNode* GetFromNode() const;
-
-  /** Returns destination node. */
-  const HeapGraphNode* GetToNode() const;
-};
-
-
 /**
  * HeapGraphNode represents a node in a heap graph.
  */
 class V8EXPORT HeapGraphNode {
  public:
   enum Type {
-    kHidden = 0,     // Hidden node, may be filtered when shown to user.
-    kArray = 1,      // An array of elements.
-    kString = 2,     // A string.
-    kObject = 3,     // A JS object (except for arrays and strings).
-    kCode = 4,       // Compiled code.
-    kClosure = 5,    // Function closure.
-    kRegExp = 6,     // RegExp.
-    kHeapNumber = 7  // Number stored in the heap.
+    kHidden = 0,      // Hidden node, may be filtered when shown to user.
+    kArray = 1,       // An array of elements.
+    kString = 2,      // A string.
+    kObject = 3,      // A JS object (except for arrays and strings).
+    kCode = 4,        // Compiled code.
+    kClosure = 5,     // Function closure.
+    kRegExp = 6,      // RegExp.
+    kHeapNumber = 7,  // Number stored in the heap.
+    kNative = 8       // Native object (not from V8 heap).
   };
 
   /** Returns node type (see HeapGraphNode::Type). */
@@ -267,16 +269,9 @@ class V8EXPORT HeapGraphNode {
 
   /**
    * Returns node id. For the same heap object, the id remains the same
-   * across all snapshots. Not applicable to aggregated heap snapshots
-   * as they only contain aggregated instances.
+   * across all snapshots.
    */
   uint64_t GetId() const;
-
-  /**
-   * Returns the number of instances. Only applicable to aggregated
-   * heap snapshots.
-   */
-  int GetInstancesCount() const;
 
   /** Returns node's own size, in bytes. */
   int GetSelfSize() const;
@@ -307,27 +302,11 @@ class V8EXPORT HeapGraphNode {
   /** Returns a retainer by index. */
   const HeapGraphEdge* GetRetainer(int index) const;
 
-  /** Returns the number of simple retaining paths from the root to the node. */
-  int GetRetainingPathsCount() const;
-
-  /** Returns a retaining path by index. */
-  const HeapGraphPath* GetRetainingPath(int index) const;
-
   /**
    * Returns a dominator node. This is the node that participates in every
    * path from the snapshot root to the current node.
    */
   const HeapGraphNode* GetDominatorNode() const;
-};
-
-
-class V8EXPORT HeapSnapshotsDiff {
- public:
-  /** Returns the root node for added nodes. */
-  const HeapGraphNode* GetAdditionsRoot() const;
-
-  /** Returns the root node for deleted nodes. */
-  const HeapGraphNode* GetDeletionsRoot() const;
 };
 
 
@@ -337,9 +316,7 @@ class V8EXPORT HeapSnapshotsDiff {
 class V8EXPORT HeapSnapshot {
  public:
   enum Type {
-    kFull = 0,       // Heap snapshot with all instances and references.
-    kAggregated = 1  // Snapshot doesn't contain individual heap entries,
-                     // instead they are grouped by constructor name.
+    kFull = 0  // Heap snapshot with all instances and references.
   };
   enum SerializationFormat {
     kJSON = 0  // See format description near 'Serialize' method.
@@ -360,17 +337,24 @@ class V8EXPORT HeapSnapshot {
   /** Returns a node by its id. */
   const HeapGraphNode* GetNodeById(uint64_t id) const;
 
+  /** Returns total nodes count in the snapshot. */
+  int GetNodesCount() const;
+
+  /** Returns a node by index. */
+  const HeapGraphNode* GetNode(int index) const;
+
   /**
-   * Returns a diff between this snapshot and another one. Only snapshots
-   * of the same type can be compared.
+   * Deletes the snapshot and removes it from HeapProfiler's list.
+   * All pointers to nodes, edges and paths previously returned become
+   * invalid.
    */
-  const HeapSnapshotsDiff* CompareWith(const HeapSnapshot* snapshot) const;
+  void Delete();
 
   /**
    * Prepare a serialized representation of the snapshot. The result
    * is written into the stream provided in chunks of specified size.
    * The total length of the serialized snapshot is unknown in
-   * advance, it is can be roughly equal to JS heap size (that means,
+   * advance, it can be roughly equal to JS heap size (that means,
    * it can be really big - tens of megabytes).
    *
    * For the JSON format, heap contents are represented as an object
@@ -392,11 +376,22 @@ class V8EXPORT HeapSnapshot {
 };
 
 
+class RetainedObjectInfo;
+
 /**
  * Interface for controlling heap profiling.
  */
 class V8EXPORT HeapProfiler {
  public:
+  /**
+   * Callback function invoked for obtaining RetainedObjectInfo for
+   * the given JavaScript wrapper object. It is prohibited to enter V8
+   * while the callback is running: only getters on the handle and
+   * GetPointerFromInternalField on the objects are allowed.
+   */
+  typedef RetainedObjectInfo* (*WrapperInfoCallback)
+      (uint16_t class_id, Handle<Value> wrapper);
+
   /** Returns the number of snapshots taken. */
   static int GetSnapshotsCount();
 
@@ -414,6 +409,87 @@ class V8EXPORT HeapProfiler {
       Handle<String> title,
       HeapSnapshot::Type type = HeapSnapshot::kFull,
       ActivityControl* control = NULL);
+
+  /**
+   * Deletes all snapshots taken. All previously returned pointers to
+   * snapshots and their contents become invalid after this call.
+   */
+  static void DeleteAllSnapshots();
+
+  /** Binds a callback to embedder's class ID. */
+  static void DefineWrapperClass(
+      uint16_t class_id,
+      WrapperInfoCallback callback);
+
+  /**
+   * Default value of persistent handle class ID. Must not be used to
+   * define a class. Can be used to reset a class of a persistent
+   * handle.
+   */
+  static const uint16_t kPersistentHandleNoClassId = 0;
+};
+
+
+/**
+ * Interface for providing information about embedder's objects
+ * held by global handles. This information is reported in two ways:
+ *
+ *  1. When calling AddObjectGroup, an embedder may pass
+ *     RetainedObjectInfo instance describing the group.  To collect
+ *     this information while taking a heap snapshot, V8 calls GC
+ *     prologue and epilogue callbacks.
+ *
+ *  2. When a heap snapshot is collected, V8 additionally
+ *     requests RetainedObjectInfos for persistent handles that
+ *     were not previously reported via AddObjectGroup.
+ *
+ * Thus, if an embedder wants to provide information about native
+ * objects for heap snapshots, he can do it in a GC prologue
+ * handler, and / or by assigning wrapper class ids in the following way:
+ *
+ *  1. Bind a callback to class id by calling DefineWrapperClass.
+ *  2. Call SetWrapperClassId on certain persistent handles.
+ *
+ * V8 takes ownership of RetainedObjectInfo instances passed to it and
+ * keeps them alive only during snapshot collection. Afterwards, they
+ * are freed by calling the Dispose class function.
+ */
+class V8EXPORT RetainedObjectInfo {  // NOLINT
+ public:
+  /** Called by V8 when it no longer needs an instance. */
+  virtual void Dispose() = 0;
+
+  /** Returns whether two instances are equivalent. */
+  virtual bool IsEquivalent(RetainedObjectInfo* other) = 0;
+
+  /**
+   * Returns hash value for the instance. Equivalent instances
+   * must have the same hash value.
+   */
+  virtual intptr_t GetHash() = 0;
+
+  /**
+   * Returns human-readable label. It must be a NUL-terminated UTF-8
+   * encoded string. V8 copies its contents during a call to GetLabel.
+   */
+  virtual const char* GetLabel() = 0;
+
+  /**
+   * Returns element count in case if a global handle retains
+   * a subgraph by holding one of its nodes.
+   */
+  virtual intptr_t GetElementCount() { return -1; }
+
+  /** Returns embedder's object size in bytes. */
+  virtual intptr_t GetSizeInBytes() { return -1; }
+
+ protected:
+  RetainedObjectInfo() {}
+  virtual ~RetainedObjectInfo() {}
+
+ private:
+  RetainedObjectInfo(const RetainedObjectInfo&);
+  RetainedObjectInfo& operator=(const RetainedObjectInfo&);
 };
 
 

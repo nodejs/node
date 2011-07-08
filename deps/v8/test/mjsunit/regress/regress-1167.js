@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Deoptimization after a logical not in an effect context should not see a
 // value for the logical not expression.
 function test0(n) {
@@ -68,5 +70,7 @@ function test2(x) {
                   x + 1));
 }
 
-for (var i = 0; i < 1000000; ++i) test2(0);
+for (var i = 0; i < 5; ++i) test2(0);
+%OptimizeFunctionOnNextCall(test2);
+test2(0);
 test2(test2);

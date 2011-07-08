@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 /**
  * @fileoverview Check all sorts of borderline cases for charCodeAt.
  */
@@ -159,9 +161,11 @@ function ConsNotSmiIndex() {
   assertTrue(isNaN(str.charCodeAt(0x7fffffff)));
 }
 
-for (var i = 0; i < 100000; i++) {
+for (var i = 0; i < 5; i++) {
   ConsNotSmiIndex();
 }
+%OptimizeFunctionOnNextCall(ConsNotSmiIndex);
+ConsNotSmiIndex();
 
 
 for (var i = 0; i != 10; i++) {
@@ -222,6 +226,8 @@ function directlyOnPrototype() {
   assertEquals(99, "c".x(0));
 }
 
-for (var i = 0; i < 10000; i++) {
+for (var i = 0; i < 5; i++) {
   directlyOnPrototype();
 }
+%OptimizeFunctionOnNextCall(directlyOnPrototype);
+directlyOnPrototype();

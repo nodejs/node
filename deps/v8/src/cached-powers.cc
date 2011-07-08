@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,10 +26,12 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
+#include <math.h>
 #include <limits.h>
 
-#include "v8.h"
-
+#include "../include/v8stdint.h"
+#include "globals.h"
+#include "checks.h"
 #include "cached-powers.h"
 
 namespace v8 {
@@ -147,7 +149,9 @@ void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
     DiyFp* power,
     int* decimal_exponent) {
   int kQ = DiyFp::kSignificandSize;
-  double k = ceiling((min_exponent + kQ - 1) * kD_1_LOG2_10);
+  // Some platforms return incorrect sign on 0 result. We can ignore that here,
+  // which means we can avoid depending on platform.h.
+  double k = ceil((min_exponent + kQ - 1) * kD_1_LOG2_10);
   int foo = kCachedPowersOffset;
   int index =
       (foo + static_cast<int>(k) - 1) / kDecimalExponentDistance + 1;

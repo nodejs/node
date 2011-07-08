@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Regression test for GVN on field loads.
 
 function bar() {}
@@ -58,8 +60,10 @@ a.p9 = "";
 a.p10 = "";
 a.p11 = "";
 a.foo = "foo";
-for (var i = 0; i < 100000; i++) {
+for (var i = 0; i < 5; i++) {
  test(a);
 }
+%OptimizeFunctionOnNextCall(test);
+test(a);
 
 test("");

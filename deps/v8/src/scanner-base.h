@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,14 +30,13 @@
 #ifndef V8_SCANNER_BASE_H_
 #define V8_SCANNER_BASE_H_
 
-#include "globals.h"
-#include "checks.h"
 #include "allocation.h"
+#include "char-predicates.h"
+#include "checks.h"
+#include "globals.h"
 #include "token.h"
 #include "unicode-inl.h"
-#include "char-predicates.h"
 #include "utils.h"
-#include "list-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -119,27 +118,33 @@ class UC16CharacterStream {
 };
 
 
+class UnicodeCache {
 // ---------------------------------------------------------------------
-// Constants used by scanners.
-
-class ScannerConstants : AllStatic {
+// Caching predicates used by scanners.
  public:
+  UnicodeCache() {}
   typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
 
-  static StaticResource<Utf8Decoder>* utf8_decoder() {
+  StaticResource<Utf8Decoder>* utf8_decoder() {
     return &utf8_decoder_;
   }
 
-  static unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
-  static unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
-  static unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
-  static unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
-
-  static bool IsIdentifier(unibrow::CharacterStream* buffer);
+  bool IsIdentifierStart(unibrow::uchar c) { return kIsIdentifierStart.get(c); }
+  bool IsIdentifierPart(unibrow::uchar c) { return kIsIdentifierPart.get(c); }
+  bool IsLineTerminator(unibrow::uchar c) { return kIsLineTerminator.get(c); }
+  bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
 
  private:
-  static StaticResource<Utf8Decoder> utf8_decoder_;
+
+  unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
+  unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
+  unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
+  unibrow::Predicate<unibrow::WhiteSpace, 128> kIsWhiteSpace;
+  StaticResource<Utf8Decoder> utf8_decoder_;
+
+  DISALLOW_COPY_AND_ASSIGN(UnicodeCache);
 };
+
 
 // ----------------------------------------------------------------------------
 // LiteralBuffer -  Collector of chars of literals.
@@ -238,6 +243,8 @@ class LiteralBuffer {
   bool is_ascii_;
   int position_;
   Vector<byte> backing_store_;
+
+  DISALLOW_COPY_AND_ASSIGN(LiteralBuffer);
 };
 
 
@@ -263,7 +270,7 @@ class Scanner {
     bool complete_;
   };
 
-  Scanner();
+  explicit Scanner(UnicodeCache* scanner_contants);
 
   // Returns the current token again.
   Token::Value current_token() { return current_.token; }
@@ -279,22 +286,16 @@ class Scanner {
       return beg_pos >= 0 && end_pos >= beg_pos;
     }
 
+    static Location invalid() { return Location(-1, -1); }
+
     int beg_pos;
     int end_pos;
   };
-
-  static Location NoLocation() {
-    return Location(-1, -1);
-  }
 
   // Returns the location information for the current token
   // (the token returned by Next()).
   Location location() const { return current_.location; }
   Location peek_location() const { return next_.location; }
-
-  // Returns the location of the last seen octal literal
-  int octal_position() const { return octal_pos_; }
-  void clear_octal_position() { octal_pos_ = -1; }
 
   // Returns the literal string, if any, for the current token (the
   // token returned by Next()). The string is 0-terminated and in
@@ -317,6 +318,16 @@ class Scanner {
   int literal_length() const {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->length();
+  }
+
+  bool literal_contains_escapes() const {
+    Location location = current_.location;
+    int source_length = (location.end_pos - location.beg_pos);
+    if (current_.token == Token::STRING) {
+      // Subtract delimiters.
+      source_length -= 2;
+    }
+    return current_.literal_chars->length() != source_length;
   }
 
   // Returns the literal string for the next token (the token that
@@ -410,13 +421,12 @@ class Scanner {
 
   uc32 ScanHexEscape(uc32 c, int length);
 
-  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  uc32 ScanOctalEscape(uc32 c, int length);
-
   // Return the current source position.
   int source_pos() {
     return source_->pos() - kCharacterLookaheadBufferSize;
   }
+
+  UnicodeCache* unicode_cache_;
 
   // Buffers collecting literal strings, numbers, etc.
   LiteralBuffer literal_buffer1_;
@@ -427,9 +437,6 @@ class Scanner {
 
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
-
-  // Start position of the octal literal last scanned.
-  int octal_pos_;
 
   // One Unicode character look-ahead; c0_ < 0 at the end of the input.
   uc32 c0_;
@@ -462,14 +469,18 @@ class JavaScriptScanner : public Scanner {
     bool complete_;
   };
 
-  JavaScriptScanner();
+  explicit JavaScriptScanner(UnicodeCache* scanner_contants);
+
+  void Initialize(UC16CharacterStream* source);
 
   // Returns the next token.
   Token::Value Next();
 
-  // Returns true if there was a line terminator before the peek'ed token.
-  bool has_line_terminator_before_next() const {
-    return has_line_terminator_before_next_;
+  // Returns true if there was a line terminator before the peek'ed token,
+  // possibly inside a multi-line comment.
+  bool HasAnyLineTerminatorBeforeNext() const {
+    return has_line_terminator_before_next_ ||
+           has_multiline_comment_before_next_;
   }
 
   // Scans the input as a regular expression pattern, previous
@@ -482,6 +493,13 @@ class JavaScriptScanner : public Scanner {
   // Tells whether the buffer contains an identifier (no escapes).
   // Used for checking if a property name is an identifier.
   static bool IsIdentifier(unibrow::CharacterStream* buffer);
+
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  uc32 ScanOctalEscape(uc32 c, int length);
+
+  // Returns the location of the last seen octal literal
+  Location octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = Location::invalid(); }
 
   // Seek forward to the given position.  This operation does not
   // work in general, for instance when there are pushed back
@@ -512,7 +530,16 @@ class JavaScriptScanner : public Scanner {
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
 
+  // Start position of the octal literal last scanned.
+  Location octal_pos_;
+
+  // Whether there is a line terminator whitespace character after
+  // the current token, and  before the next. Does not count newlines
+  // inside multiline comments.
   bool has_line_terminator_before_next_;
+  // Whether there is a multi-line comment that contains a
+  // line-terminator after the current token, and before the next.
+  bool has_multiline_comment_before_next_;
 };
 
 
@@ -522,14 +549,26 @@ class JavaScriptScanner : public Scanner {
 class KeywordMatcher {
 //  Incrementally recognize keywords.
 //
-//  Recognized keywords:
-//      break case catch const* continue debugger* default delete do else
-//      finally false for function if in instanceof native* new null
-//      return switch this throw true try typeof var void while with
+//  We distinguish between normal future reserved words and words that are
+//  considered to be future reserved words only in strict mode as required by
+//  ECMA-262 7.6.1.2.
 //
-//  *: Actually "future reserved keywords". These are the only ones we
-//     recognize, the remaining are allowed as identifiers.
-//     In ES5 strict mode, we should disallow all reserved keywords.
+//  Recognized as keywords:
+//      break, case, catch, const*, continue, debugger, default, delete, do,
+//      else, finally, false, for, function, if, in, instanceof, new, null,
+//      return, switch, this, throw, true, try, typeof, var, void, while, with.
+//
+//  Recognized as Future Reserved Keywords:
+//      class, enum, export, extends, import, super.
+//
+//  Recognized as Future Reserved Keywords (strict mode only):
+//      implements, interface, let, package, private, protected, public,
+//      static, yield.
+//
+//  *: Actually a "future reserved keyword". It's the only one we are
+//     recognizing outside of ES5 strict mode, the remaining are allowed
+//     as identifiers.
+//
  public:
   KeywordMatcher()
       : state_(INITIAL),

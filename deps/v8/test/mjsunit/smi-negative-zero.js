@@ -109,5 +109,5 @@ function foo(x) {
   return -x;
 }
 
-assertEquals(0, foo(x));
-assertEquals(0, foo(x));
+assertEquals(-0, foo(x));
+assertEquals(-0, foo(x));

@@ -50,20 +50,20 @@ f();
 var valueOfCount = 0;
 
 function g() {
-  const o = { valueOf: function() { valueOfCount++; return 42; } }
-  assertEquals(42, o);
+  const o = { valueOf: function() { valueOfCount++; return 42; } };
+  assertEquals(42, +o);
   assertEquals(1, valueOfCount);
   o++;
-  assertEquals(42, o);
+  assertEquals(42, +o);
   assertEquals(3, valueOfCount);
   ++o;
-  assertEquals(42, o);
+  assertEquals(42, +o);
   assertEquals(5, valueOfCount);
   o--;
-  assertEquals(42, o);
+  assertEquals(42, +o);
   assertEquals(7, valueOfCount);
   --o;
-  assertEquals(42, o);
+  assertEquals(42, +o);
   assertEquals(9, valueOfCount);
 }
 

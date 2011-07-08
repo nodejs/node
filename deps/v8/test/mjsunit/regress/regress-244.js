@@ -54,13 +54,14 @@ function run() {
   }
   for (var i = 0; i < kIllegalEncoded.length; i++) {
     var value = kIllegalEncoded[i];
-    var threw = false;
+    var exception = false;
     try {
       decodeURI(value);
-      assertUnreachable(value);
     } catch (e) {
+      exception = true;
       assertInstanceof(e, URIError);
     }
+    assertTrue(exception);
   }
 }
 

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,103 +27,77 @@
 
 #include <stdlib.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <string.h>
+
 #include "../include/v8stdint.h"
 #include "../include/v8-preparser.h"
-#include "unicode-inl.h"
 
-enum ResultCode { kSuccess = 0, kErrorReading = 1, kErrorWriting = 2 };
+#include "../src/preparse-data-format.h"
 
-namespace v8 {
-namespace internal {
+namespace i = v8::internal;
 
-// THIS FILE IS PROOF-OF-CONCEPT ONLY.
-// The final goal is a stand-alone preparser library.
+// This file is only used for testing the stand-alone preparser
+// library.
+// The first argument must be the path of a JavaScript source file, or
+// the flags "-e" and the next argument is then the source of a JavaScript
+// program.
+// Optionally this can be followed by the word "throws" (case sensitive),
+// which signals that the parsing is expected to throw - the default is
+// to expect the parsing to not throw.
+// The command line can further be followed by a message text (the
+// *type* of the exception to throw), and even more optionally, the
+// start and end position reported with the exception.
+//
+// This source file is preparsed and tested against the expectations, and if
+// successful, the resulting preparser data is written to stdout.
+// Diagnostic output is output on stderr.
+// The source file must contain only ASCII characters (UTF-8 isn't supported).
+// The file is read into memory, so it should have a reasonable size.
 
 
-class UTF8InputStream : public v8::UnicodeInputStream {
+// Adapts an ASCII string to the UnicodeInputStream interface.
+class AsciiInputStream : public v8::UnicodeInputStream {
  public:
-  UTF8InputStream(uint8_t* buffer, size_t length)
+  AsciiInputStream(const uint8_t* buffer, size_t length)
       : buffer_(buffer),
-        offset_(0),
-        pos_(0),
-        end_offset_(static_cast<int>(length)) { }
+        end_offset_(static_cast<int>(length)),
+        offset_(0) { }
 
-  virtual ~UTF8InputStream() { }
+  virtual ~AsciiInputStream() { }
 
   virtual void PushBack(int32_t ch) {
-    // Pushback assumes that the character pushed back is the
-    // one that was most recently read, and jumps back in the
-    // UTF-8 stream by the length of that character's encoding.
-    offset_ -= unibrow::Utf8::Length(ch);
-    pos_--;
+    offset_--;
 #ifdef DEBUG
-    if (static_cast<unsigned>(ch) <= unibrow::Utf8::kMaxOneByteChar) {
-      if (ch != buffer_[offset_]) {
-        fprintf(stderr, "Invalid pushback: '%c'.", ch);
-        exit(1);
-      }
-    } else {
-      unsigned tmp = 0;
-      if (static_cast<unibrow::uchar>(ch) !=
-          unibrow::Utf8::CalculateValue(buffer_ + offset_,
-                                        end_offset_ - offset_,
-                                        &tmp)) {
-        fprintf(stderr, "Invalid pushback: 0x%x.", ch);
-        exit(1);
-      }
+    if (offset_ < 0 ||
+        (ch != ((offset_ >= end_offset_) ? -1 : buffer_[offset_]))) {
+      fprintf(stderr, "Invalid pushback: '%c' at offset %d.", ch, offset_);
+      exit(1);
     }
 #endif
   }
 
   virtual int32_t Next() {
-    if (offset_ == end_offset_) return -1;
-    uint8_t first_char = buffer_[offset_];
-    if (first_char <= unibrow::Utf8::kMaxOneByteChar) {
-      pos_++;
-      offset_++;
-      return static_cast<int32_t>(first_char);
+    if (offset_ >= end_offset_) {
+      offset_++;  // Increment anyway to allow symmetric pushbacks.
+      return -1;
     }
-    unibrow::uchar codepoint =
-        unibrow::Utf8::CalculateValue(buffer_ + offset_,
-                                      end_offset_ - offset_,
-                                      &offset_);
-    pos_++;
-    return static_cast<int32_t>(codepoint);
+    uint8_t next_char = buffer_[offset_];
+#ifdef DEBUG
+    if (next_char > 0x7fu) {
+      fprintf(stderr, "Non-ASCII character in input: '%c'.", next_char);
+      exit(1);
+    }
+#endif
+    offset_++;
+    return static_cast<int32_t>(next_char);
   }
 
  private:
   const uint8_t* buffer_;
-  unsigned offset_;
-  unsigned pos_;
-  unsigned end_offset_;
+  const int end_offset_;
+  int offset_;
 };
-
-
-// Write a number to dest in network byte order.
-void WriteUInt32(FILE* dest, uint32_t value, bool* ok) {
-  for (int i = 3; i >= 0; i--) {
-    uint8_t byte = static_cast<uint8_t>(value >> (i << 3));
-    int result = fputc(byte, dest);
-    if (result == EOF) {
-      *ok = false;
-      return;
-    }
-  }
-}
-
-// Read number from FILE* in network byte order.
-uint32_t ReadUInt32(FILE* source, bool* ok) {
-  uint32_t n = 0;
-  for (int i = 0; i < 4; i++) {
-    int c = fgetc(source);
-    if (c == EOF) {
-      *ok = false;
-      return 0;
-    }
-    n = (n << 8) + static_cast<uint32_t>(c);
-  }
-  return n;
-}
 
 
 bool ReadBuffer(FILE* source, void* buffer, size_t length) {
@@ -138,69 +112,268 @@ bool WriteBuffer(FILE* dest, const void* buffer, size_t length) {
 }
 
 
+class PreparseDataInterpreter {
+ public:
+  PreparseDataInterpreter(const uint8_t* data, int length)
+      : data_(data), length_(length), message_(NULL) { }
+
+  ~PreparseDataInterpreter() {
+    if (message_ != NULL) delete[] message_;
+  }
+
+  bool valid() {
+    int header_length =
+      i::PreparseDataConstants::kHeaderSize * sizeof(int);  // NOLINT
+    return length_ >= header_length;
+  }
+
+  bool throws() {
+    return valid() &&
+        word(i::PreparseDataConstants::kHasErrorOffset) != 0;
+  }
+
+  const char* message() {
+    if (message_ != NULL) return message_;
+    if (!throws()) return NULL;
+    int text_pos = i::PreparseDataConstants::kHeaderSize +
+                   i::PreparseDataConstants::kMessageTextPos;
+    int length = word(text_pos);
+    char* buffer = new char[length + 1];
+    for (int i = 1; i <= length; i++) {
+      int character = word(text_pos + i);
+      buffer[i - 1] = character;
+    }
+    buffer[length] = '\0';
+    message_ = buffer;
+    return buffer;
+  }
+
+  int beg_pos() {
+    if (!throws()) return -1;
+    return word(i::PreparseDataConstants::kHeaderSize +
+                i::PreparseDataConstants::kMessageStartPos);
+  }
+
+  int end_pos() {
+    if (!throws()) return -1;
+    return word(i::PreparseDataConstants::kHeaderSize +
+                i::PreparseDataConstants::kMessageEndPos);
+  }
+
+ private:
+  int word(int offset) {
+    const int* word_data = reinterpret_cast<const int*>(data_);
+    if (word_data + offset < reinterpret_cast<const int*>(data_ + length_)) {
+      return word_data[offset];
+    }
+    return -1;
+  }
+
+  const uint8_t* const data_;
+  const int length_;
+  const char* message_;
+};
+
+
 template <typename T>
 class ScopedPointer {
  public:
+  explicit ScopedPointer() : pointer_(NULL) {}
   explicit ScopedPointer(T* pointer) : pointer_(pointer) {}
-  ~ScopedPointer() { delete[] pointer_; }
+  ~ScopedPointer() { if (pointer_ != NULL) delete[] pointer_; }
   T& operator[](int index) { return pointer_[index]; }
   T* operator*() { return pointer_ ;}
+  T* operator=(T* new_value) {
+    if (pointer_ != NULL) delete[] pointer_;
+    pointer_ = new_value;
+    return new_value;
+  }
  private:
   T* pointer_;
 };
 
 
-// Preparse input and output result on stdout.
-int PreParseIO(FILE* input) {
-  fprintf(stderr, "LOG: Enter parsing loop\n");
-  bool ok = true;
-  uint32_t length = ReadUInt32(input, &ok);
-  fprintf(stderr, "LOG: Input length: %d\n", length);
-  if (!ok) return kErrorReading;
-  ScopedPointer<uint8_t> buffer(new uint8_t[length]);
 
-  if (!ReadBuffer(input, *buffer, length)) {
-    return kErrorReading;
-  }
-  UTF8InputStream input_buffer(*buffer, static_cast<size_t>(length));
-
-  v8::PreParserData data =
-      v8::Preparse(&input_buffer, 64 * 1024 * sizeof(void*));  // NOLINT
-  if (data.stack_overflow()) {
-    fprintf(stderr, "LOG: Stack overflow\n");
-    fflush(stderr);
-    // Report stack overflow error/no-preparser-data.
-    WriteUInt32(stdout, 0, &ok);
-    if (!ok) return kErrorWriting;
-    return 0;
-  }
-
-  uint32_t size = data.size();
-  fprintf(stderr, "LOG: Success, data size: %u\n", size);
+void fail(v8::PreParserData* data, const char* message, ...) {
+  va_list args;
+  va_start(args, message);
+  vfprintf(stderr, message, args);
+  va_end(args);
   fflush(stderr);
-  WriteUInt32(stdout, size, &ok);
-  if (!ok) return kErrorWriting;
-  if (!WriteBuffer(stdout, data.data(), size)) {
-    return kErrorWriting;
+  // Print preparser data to stdout.
+  uint32_t size = data->size();
+  fprintf(stderr, "LOG: data size: %u\n", size);
+  if (!WriteBuffer(stdout, data->data(), size)) {
+    perror("ERROR: Writing data");
+    fflush(stderr);
   }
-  return 0;
+  exit(EXIT_FAILURE);
+};
+
+
+bool IsFlag(const char* arg) {
+  // Anything starting with '-' is considered a flag.
+  // It's summarily ignored for now.
+  return arg[0] == '-';
 }
 
-} }  // namespace v8::internal
+
+struct ExceptionExpectation {
+  ExceptionExpectation()
+      : throws(false), type(NULL), beg_pos(-1), end_pos(-1) { }
+  bool throws;
+  const char* type;
+  int beg_pos;
+  int end_pos;
+};
 
 
-int main(int argc, char* argv[]) {
-  FILE* input = stdin;
-  if (argc > 1) {
-    char* arg = argv[1];
-    input = fopen(arg, "rb");
-    if (input == NULL) return EXIT_FAILURE;
+void CheckException(v8::PreParserData* data,
+                    ExceptionExpectation* expects) {
+  PreparseDataInterpreter reader(data->data(), data->size());
+  if (expects->throws) {
+    if (!reader.throws()) {
+      if (expects->type == NULL) {
+        fail(data, "Didn't throw as expected\n");
+      } else {
+        fail(data, "Didn't throw \"%s\" as expected\n", expects->type);
+      }
+    }
+    if (expects->type != NULL) {
+      const char* actual_message = reader.message();
+      if (strcmp(expects->type, actual_message)) {
+        fail(data, "Wrong error message. Expected <%s>, found <%s> at %d..%d\n",
+             expects->type, actual_message, reader.beg_pos(), reader.end_pos());
+      }
+    }
+    if (expects->beg_pos >= 0) {
+      if (expects->beg_pos != reader.beg_pos()) {
+        fail(data, "Wrong error start position: Expected %i, found %i\n",
+             expects->beg_pos, reader.beg_pos());
+      }
+    }
+    if (expects->end_pos >= 0) {
+      if (expects->end_pos != reader.end_pos()) {
+        fail(data, "Wrong error end position: Expected %i, found %i\n",
+             expects->end_pos, reader.end_pos());
+      }
+    }
+  } else if (reader.throws()) {
+    const char* message = reader.message();
+    fail(data, "Throws unexpectedly with message: %s at location %d-%d\n",
+         message, reader.beg_pos(), reader.end_pos());
   }
-  int status = 0;
-  do {
-    status = v8::internal::PreParseIO(input);
-  } while (status == 0);
-  fprintf(stderr, "EXIT: Failure %d\n", status);
-  fflush(stderr);
-  return EXIT_FAILURE;
+}
+
+
+ExceptionExpectation ParseExpectation(int argc, const char* argv[]) {
+  ExceptionExpectation expects;
+
+  // Parse exception expectations from (the remainder of) the command line.
+  int arg_index = 0;
+  // Skip any flags.
+  while (argc > arg_index && IsFlag(argv[arg_index])) arg_index++;
+  if (argc > arg_index) {
+    if (strncmp("throws", argv[arg_index], 7)) {
+      // First argument after filename, if present, must be the verbatim
+      // "throws", marking that the preparsing should fail with an exception.
+      fail(NULL, "ERROR: Extra arguments not prefixed by \"throws\".\n");
+    }
+    expects.throws = true;
+    do {
+      arg_index++;
+    } while (argc > arg_index && IsFlag(argv[arg_index]));
+    if (argc > arg_index) {
+      // Next argument is the exception type identifier.
+      expects.type = argv[arg_index];
+      do {
+        arg_index++;
+      } while (argc > arg_index && IsFlag(argv[arg_index]));
+      if (argc > arg_index) {
+        expects.beg_pos = atoi(argv[arg_index]);  // NOLINT
+        do {
+          arg_index++;
+        } while (argc > arg_index && IsFlag(argv[arg_index]));
+        if (argc > arg_index) {
+          expects.end_pos = atoi(argv[arg_index]);  // NOLINT
+        }
+      }
+    }
+  }
+  return expects;
+}
+
+
+int main(int argc, const char* argv[]) {
+  // Parse command line.
+  // Format:  preparser (<scriptfile> | -e "<source>")
+  //                    ["throws" [<exn-type> [<start> [<end>]]]]
+  // Any flags (except an initial -s) are ignored.
+
+  // Check for mandatory filename argument.
+  int arg_index = 1;
+  if (argc <= arg_index) {
+    fail(NULL, "ERROR: No filename on command line.\n");
+  }
+  const uint8_t* source = NULL;
+  const char* filename = argv[arg_index];
+  if (!strcmp(filename, "-e")) {
+    arg_index++;
+    if (argc <= arg_index) {
+      fail(NULL, "ERROR: No source after -e on command line.\n");
+    }
+    source = reinterpret_cast<const uint8_t*>(argv[arg_index]);
+  }
+  // Check remainder of command line for exception expectations.
+  arg_index++;
+  ExceptionExpectation expects =
+      ParseExpectation(argc - arg_index, argv + arg_index);
+
+  ScopedPointer<uint8_t> buffer;
+  size_t length;
+
+  if (source == NULL) {
+    // Open JS file.
+    FILE* input = fopen(filename, "rb");
+    if (input == NULL) {
+      perror("ERROR: Error opening file");
+      fflush(stderr);
+      return EXIT_FAILURE;
+    }
+    // Find length of JS file.
+    if (fseek(input, 0, SEEK_END) != 0) {
+      perror("ERROR: Error during seek");
+      fflush(stderr);
+      return EXIT_FAILURE;
+    }
+    length = static_cast<size_t>(ftell(input));
+    rewind(input);
+    // Read JS file into memory buffer.
+    buffer = new uint8_t[length];
+    if (!ReadBuffer(input, *buffer, length)) {
+      perror("ERROR: Reading file");
+      fflush(stderr);
+      return EXIT_FAILURE;
+    }
+    fclose(input);
+    source = *buffer;
+  } else {
+    length = strlen(reinterpret_cast<const char*>(source));
+  }
+
+  // Preparse input file.
+  AsciiInputStream input_buffer(source, length);
+  size_t kMaxStackSize = 64 * 1024 * sizeof(void*);  // NOLINT
+  v8::PreParserData data = v8::Preparse(&input_buffer, kMaxStackSize);
+
+  // Fail if stack overflow.
+  if (data.stack_overflow()) {
+    fail(&data, "ERROR: Stack overflow\n");
+  }
+
+  // Check that the expected exception is thrown, if an exception is
+  // expected.
+  CheckException(&data, &expects);
+
+  return EXIT_SUCCESS;
 }

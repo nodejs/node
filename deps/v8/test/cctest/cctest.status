@@ -30,16 +30,8 @@ prefix cctest
 test-api/Bug*: FAIL
 
 ##############################################################################
-# BUG(281): This test fails on some Linuxes.
-test-debug/DebuggerAgent: PASS, (PASS || FAIL) if $system == linux
-
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
-
-# BUG(484): This test which we thought was originally corrected in r5236
-# is re-appearing. Disabled until bug in test is fixed. This only fails
-# when snapshot is on, so I am marking it PASS || FAIL
-test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
 
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
@@ -59,10 +51,11 @@ test-api/OutOfMemoryNested: SKIP
 test-log/ProfLazyMode: SKIP
 
 # BUG(945): Socket connect fails on ARM
+test-debug/DebuggerAgent: SKIP
 test-debug/DebuggerAgentProtocolOverflowHeader: SKIP
 test-sockets/Socket: SKIP
 
-# BUG(1075): Some deserialization tests fail om ARM
+# BUG(1075): Unresolved crashes.
 test-serialize/Deserialize: SKIP
 test-serialize/DeserializeFromSecondSerializationAndRunScript2: SKIP
 test-serialize/DeserializeAndRunScript2: SKIP
@@ -78,22 +71,5 @@ test-debug/DebugBreakLoop: SKIP
 
 ##############################################################################
 [ $arch == mips ]
-test-accessors: SKIP
-test-alloc: SKIP
-test-api: SKIP
-test-compiler: SKIP
-test-cpu-profiler: SKIP
-test-debug: SKIP
-test-decls: SKIP
-test-func-name-inference: SKIP
-test-heap: SKIP
-test-heap-profiler: SKIP
-test-log: SKIP
-test-log-utils: SKIP
-test-mark-compact: SKIP
-test-regexp: SKIP
+test-deoptimization: SKIP
 test-serialize: SKIP
-test-sockets: SKIP
-test-strings: SKIP
-test-threads: SKIP
-test-thread-termination: SKIP

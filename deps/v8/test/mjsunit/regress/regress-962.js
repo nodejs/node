@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function L(scope) { this.s = new Object(); }
 
 L.prototype.c = function() { return true; }
@@ -50,4 +52,6 @@ F.prototype.foo = function () {
 
 var ctx = new F;
 
-for (var i = 0; i < 10000; i++) ctx.foo();
+for (var i = 0; i < 5; i++) ctx.foo();
+%OptimizeFunctionOnNextCall(F.prototype.foo);
+ctx.foo();

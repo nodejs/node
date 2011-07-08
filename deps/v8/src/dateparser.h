@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,7 @@
 #ifndef V8_DATEPARSER_H_
 #define V8_DATEPARSER_H_
 
+#include "allocation.h"
 #include "char-predicates-inl.h"
 #include "scanner-base.h"
 
@@ -49,7 +50,7 @@ class DateParser : public AllStatic {
   // [7]: UTC offset in seconds, or null value if no timezone specified
   // If parsing fails, return false (content of output array is not defined).
   template <typename Char>
-  static bool Parse(Vector<Char> str, FixedArray* output);
+  static bool Parse(Vector<Char> str, FixedArray* output, UnicodeCache* cache);
 
   enum {
     YEAR, MONTH, DAY, HOUR, MINUTE, SECOND, MILLISECOND, UTC_OFFSET, OUTPUT_SIZE
@@ -60,41 +61,43 @@ class DateParser : public AllStatic {
   static inline bool Between(int x, int lo, int hi) {
     return static_cast<unsigned>(x - lo) <= static_cast<unsigned>(hi - lo);
   }
+
   // Indicates a missing value.
   static const int kNone = kMaxInt;
+
+  // Maximal number of digits used to build the value of a numeral.
+  // Remaining digits are ignored.
+  static const int kMaxSignificantDigits = 9;
 
   // InputReader provides basic string parsing and character classification.
   template <typename Char>
   class InputReader BASE_EMBEDDED {
    public:
-    explicit InputReader(Vector<Char> s)
+    InputReader(UnicodeCache* unicode_cache, Vector<Char> s)
         : index_(0),
           buffer_(s),
-          has_read_number_(false) {
+          unicode_cache_(unicode_cache) {
       Next();
     }
 
-    // Advance to the next character of the string.
-    void Next() { ch_ = (index_ < buffer_.length()) ? buffer_[index_++] : 0; }
+    int position() { return index_; }
 
-    // Read a string of digits as an unsigned number (cap just below kMaxInt).
-    int ReadUnsignedNumber() {
-      has_read_number_ = true;
-      int n;
-      for (n = 0; IsAsciiDigit() && n < kMaxInt / 10 - 1; Next()) {
-        n = n * 10 + ch_ - '0';
-      }
-      return n;
+    // Advance to the next character of the string.
+    void Next() {
+      ch_ = (index_ < buffer_.length()) ? buffer_[index_] : 0;
+      index_++;
     }
 
-    // Read a string of digits, take the first three or fewer as an unsigned
-    // number of milliseconds, and ignore any digits after the first three.
-    int ReadMilliseconds() {
-      has_read_number_ = true;
+    // Read a string of digits as an unsigned number. Cap value at
+    // kMaxSignificantDigits, but skip remaining digits if the numeral
+    // is longer.
+    int ReadUnsignedNumeral() {
       int n = 0;
-      int power;
-      for (power = 100; IsAsciiDigit(); Next(), power = power / 10) {
-        n = n + power * (ch_ - '0');
+      int i = 0;
+      while (IsAsciiDigit()) {
+        if (i < kMaxSignificantDigits) n = n * 10 + ch_ - '0';
+        i++;
+        Next();
       }
       return n;
     }
@@ -121,7 +124,7 @@ class DateParser : public AllStatic {
     }
 
     bool SkipWhiteSpace() {
-      if (ScannerConstants::kIsWhiteSpace.get(ch_)) {
+      if (unicode_cache_->IsWhiteSpace(ch_)) {
         Next();
         return true;
       }
@@ -149,17 +152,138 @@ class DateParser : public AllStatic {
     // Return 1 for '+' and -1 for '-'.
     int GetAsciiSignValue() const { return 44 - static_cast<int>(ch_); }
 
-    // Indicates whether any (possibly empty!) numbers have been read.
-    bool HasReadNumber() const { return has_read_number_; }
-
    private:
     int index_;
     Vector<Char> buffer_;
-    bool has_read_number_;
     uint32_t ch_;
+    UnicodeCache* unicode_cache_;
   };
 
-  enum KeywordType { INVALID, MONTH_NAME, TIME_ZONE_NAME, AM_PM };
+  enum KeywordType {
+      INVALID, MONTH_NAME, TIME_ZONE_NAME, TIME_SEPARATOR, AM_PM
+  };
+
+  struct DateToken {
+   public:
+    bool IsInvalid() { return tag_ == kInvalidTokenTag; }
+    bool IsUnknown() { return tag_ == kUnknownTokenTag; }
+    bool IsNumber() { return tag_ == kNumberTag; }
+    bool IsSymbol() { return tag_ == kSymbolTag; }
+    bool IsWhiteSpace() { return tag_ == kWhiteSpaceTag; }
+    bool IsEndOfInput() { return tag_ == kEndOfInputTag; }
+    bool IsKeyword() { return tag_ >= kKeywordTagStart; }
+
+    int length() { return length_; }
+
+    int number() {
+      ASSERT(IsNumber());
+      return value_;
+    }
+    KeywordType keyword_type() {
+      ASSERT(IsKeyword());
+      return static_cast<KeywordType>(tag_);
+    }
+    int keyword_value() {
+      ASSERT(IsKeyword());
+      return value_;
+    }
+    char symbol() {
+      ASSERT(IsSymbol());
+      return static_cast<char>(value_);
+    }
+    bool IsSymbol(char symbol) {
+      return IsSymbol() && this->symbol() == symbol;
+    }
+    bool IsKeywordType(KeywordType tag) {
+      return tag_ == tag;
+    }
+    bool IsFixedLengthNumber(int length) {
+      return IsNumber() && length_ == length;
+    }
+    bool IsAsciiSign() {
+      return tag_ == kSymbolTag && (value_ == '-' || value_ == '+');
+    }
+    int ascii_sign() {
+      ASSERT(IsAsciiSign());
+      return 44 - value_;
+    }
+    bool IsKeywordZ() {
+      return IsKeywordType(TIME_ZONE_NAME) && length_ == 1 && value_ == 0;
+    }
+    bool IsUnknown(int character) {
+      return IsUnknown() && value_ == character;
+    }
+    // Factory functions.
+    static DateToken Keyword(KeywordType tag, int value, int length) {
+      return DateToken(tag, length, value);
+    }
+    static DateToken Number(int value, int length) {
+      return DateToken(kNumberTag, length, value);
+    }
+    static DateToken Symbol(char symbol) {
+      return DateToken(kSymbolTag, 1, symbol);
+    }
+    static DateToken EndOfInput() {
+      return DateToken(kEndOfInputTag, 0, -1);
+    }
+    static DateToken WhiteSpace(int length) {
+      return DateToken(kWhiteSpaceTag, length, -1);
+    }
+    static DateToken Unknown() {
+      return DateToken(kUnknownTokenTag, 1, -1);
+    }
+    static DateToken Invalid() {
+      return DateToken(kInvalidTokenTag, 0, -1);
+    }
+   private:
+    enum TagType {
+      kInvalidTokenTag = -6,
+      kUnknownTokenTag = -5,
+      kWhiteSpaceTag = -4,
+      kNumberTag = -3,
+      kSymbolTag = -2,
+      kEndOfInputTag = -1,
+      kKeywordTagStart = 0
+    };
+    DateToken(int tag, int length, int value)
+        : tag_(tag),
+          length_(length),
+          value_(value) { }
+
+    int tag_;
+    int length_;  // Number of characters.
+    int value_;
+  };
+
+  template <typename Char>
+  class DateStringTokenizer {
+   public:
+    explicit DateStringTokenizer(InputReader<Char>* in)
+        : in_(in), next_(Scan()) { }
+    DateToken Next() {
+      DateToken result = next_;
+      next_ = Scan();
+      return result;
+    }
+
+    DateToken Peek() {
+      return next_;
+    }
+    bool SkipSymbol(char symbol) {
+      if (next_.IsSymbol(symbol)) {
+        next_ = Scan();
+        return true;
+      }
+      return false;
+    }
+   private:
+    DateToken Scan();
+
+    InputReader<Char>* in_;
+    DateToken next_;
+  };
+
+  static int ReadMilliseconds(DateToken number);
 
   // KeywordTable maps names of months, time zones, am/pm to numbers.
   class KeywordTable : public AllStatic {
@@ -198,6 +322,7 @@ class DateParser : public AllStatic {
     }
     bool IsUTC() const { return hour_ == 0 && minute_ == 0; }
     bool Write(FixedArray* output);
+    bool IsEmpty() { return hour_ == kNone; }
    private:
     int sign_;
     int hour_;
@@ -225,10 +350,10 @@ class DateParser : public AllStatic {
     bool Write(FixedArray* output);
 
     static bool IsMinute(int x) { return Between(x, 0, 59); }
-   private:
     static bool IsHour(int x) { return Between(x, 0, 23); }
-    static bool IsHour12(int x) { return Between(x, 0, 12); }
     static bool IsSecond(int x) { return Between(x, 0, 59); }
+   private:
+    static bool IsHour12(int x) { return Between(x, 0, 12); }
     static bool IsMillisecond(int x) { return Between(x, 0, 999); }
 
     static const int kSize = 4;
@@ -239,22 +364,42 @@ class DateParser : public AllStatic {
 
   class DayComposer BASE_EMBEDDED {
    public:
-    DayComposer() : index_(0), named_month_(kNone) {}
+    DayComposer() : index_(0), named_month_(kNone), is_iso_date_(false) {}
     bool IsEmpty() const { return index_ == 0; }
     bool Add(int n) {
-      return index_ < kSize ? (comp_[index_++] = n, true) : false;
+      if (index_ < kSize) {
+        comp_[index_] = n;
+        index_++;
+        return true;
+      }
+      return false;
     }
     void SetNamedMonth(int n) { named_month_ = n; }
     bool Write(FixedArray* output);
-   private:
+    void set_iso_date() { is_iso_date_ = true; }
     static bool IsMonth(int x) { return Between(x, 1, 12); }
     static bool IsDay(int x) { return Between(x, 1, 31); }
 
+   private:
     static const int kSize = 3;
     int comp_[kSize];
     int index_;
     int named_month_;
+    // If set, ensures that data is always parsed in year-month-date order.
+    bool is_iso_date_;
   };
+
+  // Tries to parse an ES5 Date Time String. Returns the next token
+  // to continue with in the legacy date string parser. If parsing is
+  // complete, returns DateToken::EndOfInput(). If terminally unsuccessful,
+  // returns DateToken::Invalid(). Otherwise parsing continues in the
+  // legacy parser.
+  template <typename Char>
+  static DateParser::DateToken ParseES5DateTime(
+      DateStringTokenizer<Char>* scanner,
+      DayComposer* day,
+      TimeComposer* time,
+      TimeZoneComposer* tz);
 };
 
 

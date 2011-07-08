@@ -57,7 +57,7 @@ class SputnikTestCase(test.TestCase):
 
   def AfterRun(self, result):
     # Dispose the temporary file if everything looks okay.
-    if not result.HasPreciousOutput(): self.tmpfile.Dispose()
+    if result is None or not result.HasPreciousOutput(): self.tmpfile.Dispose()
     self.tmpfile = None
 
   def GetCommand(self):
@@ -81,7 +81,7 @@ class SputnikTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root):
     super(SputnikTestConfiguration, self).__init__(context, root)
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     # Import the sputnik test runner script as a module
     testroot = join(self.root, 'sputniktests')
     modroot = join(testroot, 'tools')

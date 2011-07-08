@@ -30,6 +30,8 @@
 #include <readline/readline.h> // NOLINT
 #include <readline/history.h> // NOLINT
 
+// The readline includes leaves RETURN defined which breaks V8 compilation.
+#undef RETURN
 
 #include "d8.h"
 

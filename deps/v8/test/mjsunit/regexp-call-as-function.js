@@ -33,4 +33,4 @@ var regexp = /a(b)(c)/;
 var subject = "xyzabcde";
 var expected = 'abc,b,c';
 assertEquals(expected, String(regexp.exec(subject)));
-assertEquals(expected, String(regexp(subject)));
+assertThrows(function(){ regexp(subject); });

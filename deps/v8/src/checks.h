@@ -271,6 +271,8 @@ bool EnableSlowAsserts();
 #define ASSERT_EQ(v1, v2)    CHECK_EQ(v1, v2)
 #define ASSERT_NE(v1, v2)    CHECK_NE(v1, v2)
 #define ASSERT_GE(v1, v2)    CHECK_GE(v1, v2)
+#define ASSERT_LT(v1, v2)    CHECK_LT(v1, v2)
+#define ASSERT_LE(v1, v2)    CHECK_LE(v1, v2)
 #define SLOW_ASSERT(condition) if (EnableSlowAsserts()) CHECK(condition)
 #else
 #define ASSERT_RESULT(expr)     (expr)
@@ -278,6 +280,8 @@ bool EnableSlowAsserts();
 #define ASSERT_EQ(v1, v2)      ((void) 0)
 #define ASSERT_NE(v1, v2)      ((void) 0)
 #define ASSERT_GE(v1, v2)      ((void) 0)
+#define ASSERT_LT(v1, v2)      ((void) 0)
+#define ASSERT_LE(v1, v2)      ((void) 0)
 #define SLOW_ASSERT(condition) ((void) 0)
 #endif
 // Static asserts has no impact on runtime performance, so they can be

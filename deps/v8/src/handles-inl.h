@@ -29,17 +29,33 @@
 #ifndef V8_HANDLES_INL_H_
 #define V8_HANDLES_INL_H_
 
+#include "api.h"
 #include "apiutils.h"
 #include "handles.h"
-#include "api.h"
+#include "isolate.h"
 
 namespace v8 {
 namespace internal {
 
+inline Isolate* GetIsolateForHandle(Object* obj) {
+  return Isolate::Current();
+}
+
+inline Isolate* GetIsolateForHandle(HeapObject* obj) {
+  return obj->GetIsolate();
+}
+
 template<typename T>
 Handle<T>::Handle(T* obj) {
   ASSERT(!obj->IsFailure());
-  location_ = HandleScope::CreateHandle(obj);
+  location_ = HandleScope::CreateHandle(obj, GetIsolateForHandle(obj));
+}
+
+
+template<typename T>
+Handle<T>::Handle(T* obj, Isolate* isolate) {
+  ASSERT(!obj->IsFailure());
+  location_ = HandleScope::CreateHandle(obj, isolate);
 }
 
 
@@ -51,10 +67,91 @@ inline T* Handle<T>::operator*() const {
 }
 
 
+HandleScope::HandleScope() {
+  Isolate* isolate = Isolate::Current();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+  isolate_ = isolate;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
+}
+
+
+HandleScope::HandleScope(Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+  isolate_ = isolate;
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
+}
+
+
+HandleScope::~HandleScope() {
+  CloseScope();
+}
+
+void HandleScope::CloseScope() {
+  ASSERT(isolate_ == Isolate::Current());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate_->handle_scope_data();
+  current->next = prev_next_;
+  current->level--;
+  if (current->limit != prev_limit_) {
+    current->limit = prev_limit_;
+    DeleteExtensions(isolate_);
+  }
+#ifdef DEBUG
+  ZapRange(prev_next_, prev_limit_);
+#endif
+}
+
+
+template <typename T>
+Handle<T> HandleScope::CloseAndEscape(Handle<T> handle_value) {
+  T* value = *handle_value;
+  // Throw away all handles in the current scope.
+  CloseScope();
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate_->handle_scope_data();
+  // Allocate one handle in the parent scope.
+  ASSERT(current->level > 0);
+  Handle<T> result(CreateHandle<T>(value, isolate_));
+  // Reinitialize the current scope (so that it's ready
+  // to be used or closed again).
+  prev_next_ = current->next;
+  prev_limit_ = current->limit;
+  current->level++;
+  return result;
+}
+
+
+template <typename T>
+T** HandleScope::CreateHandle(T* value, Isolate* isolate) {
+  ASSERT(isolate == Isolate::Current());
+  v8::ImplementationUtilities::HandleScopeData* current =
+      isolate->handle_scope_data();
+
+  internal::Object** cur = current->next;
+  if (cur == current->limit) cur = Extend();
+  // Update the current next field, set the value in the created
+  // handle, and return the result.
+  ASSERT(cur < current->limit);
+  current->next = cur + 1;
+
+  T** result = reinterpret_cast<T**>(cur);
+  *result = value;
+  return result;
+}
+
+
 #ifdef DEBUG
 inline NoHandleAllocation::NoHandleAllocation() {
   v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
+      Isolate::Current()->handle_scope_data();
+
   // Shrink the current handle scope to make it impossible to do
   // handle allocations without an explicit handle scope.
   current->limit = current->next;
@@ -67,10 +164,10 @@ inline NoHandleAllocation::NoHandleAllocation() {
 inline NoHandleAllocation::~NoHandleAllocation() {
   // Restore state in current handle scope to re-enable handle
   // allocations.
-  v8::ImplementationUtilities::HandleScopeData* current =
-      v8::ImplementationUtilities::CurrentHandleScope();
-  ASSERT_EQ(0, current->level);
-  current->level = level_;
+  v8::ImplementationUtilities::HandleScopeData* data =
+      Isolate::Current()->handle_scope_data();
+  ASSERT_EQ(0, data->level);
+  data->level = level_;
 }
 #endif
 

@@ -29,61 +29,61 @@ static void SetUp() {
   // Log to memory buffer.
   i::FLAG_logfile = "*";
   i::FLAG_log = true;
-  Logger::Setup();
+  LOGGER->Setup();
 }
 
 static void TearDown() {
-  Logger::TearDown();
+  LOGGER->TearDown();
 }
 
 
 TEST(EmptyLog) {
   SetUp();
-  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 0));
-  CHECK_EQ(0, Logger::GetLogLines(100, NULL, 0));
-  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 100));
-  CHECK_EQ(0, Logger::GetLogLines(100, NULL, 100));
+  CHECK_EQ(0, LOGGER->GetLogLines(0, NULL, 0));
+  CHECK_EQ(0, LOGGER->GetLogLines(100, NULL, 0));
+  CHECK_EQ(0, LOGGER->GetLogLines(0, NULL, 100));
+  CHECK_EQ(0, LOGGER->GetLogLines(100, NULL, 100));
   TearDown();
 }
 
 
 TEST(GetMessages) {
   SetUp();
-  Logger::StringEvent("aaa", "bbb");
-  Logger::StringEvent("cccc", "dddd");
-  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 0));
+  LOGGER->StringEvent("aaa", "bbb");
+  LOGGER->StringEvent("cccc", "dddd");
+  CHECK_EQ(0, LOGGER->GetLogLines(0, NULL, 0));
   char log_lines[100];
   memset(log_lines, 0, sizeof(log_lines));
   // See Logger::StringEvent.
   const char* line_1 = "aaa,\"bbb\"\n";
   const int line_1_len = StrLength(line_1);
   // The exact size.
-  CHECK_EQ(line_1_len, Logger::GetLogLines(0, log_lines, line_1_len));
+  CHECK_EQ(line_1_len, LOGGER->GetLogLines(0, log_lines, line_1_len));
   CHECK_EQ(line_1, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   // A bit more than the first line length.
-  CHECK_EQ(line_1_len, Logger::GetLogLines(0, log_lines, line_1_len + 3));
+  CHECK_EQ(line_1_len, LOGGER->GetLogLines(0, log_lines, line_1_len + 3));
   log_lines[line_1_len] = '\0';
   CHECK_EQ(line_1, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   const char* line_2 = "cccc,\"dddd\"\n";
   const int line_2_len = StrLength(line_2);
   // Now start with line_2 beginning.
-  CHECK_EQ(0, Logger::GetLogLines(line_1_len, log_lines, 0));
-  CHECK_EQ(line_2_len, Logger::GetLogLines(line_1_len, log_lines, line_2_len));
+  CHECK_EQ(0, LOGGER->GetLogLines(line_1_len, log_lines, 0));
+  CHECK_EQ(line_2_len, LOGGER->GetLogLines(line_1_len, log_lines, line_2_len));
   CHECK_EQ(line_2, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   CHECK_EQ(line_2_len,
-           Logger::GetLogLines(line_1_len, log_lines, line_2_len + 3));
+           LOGGER->GetLogLines(line_1_len, log_lines, line_2_len + 3));
   CHECK_EQ(line_2, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   // Now get entire buffer contents.
   const char* all_lines = "aaa,\"bbb\"\ncccc,\"dddd\"\n";
   const int all_lines_len = StrLength(all_lines);
-  CHECK_EQ(all_lines_len, Logger::GetLogLines(0, log_lines, all_lines_len));
+  CHECK_EQ(all_lines_len, LOGGER->GetLogLines(0, log_lines, all_lines_len));
   CHECK_EQ(all_lines, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
-  CHECK_EQ(all_lines_len, Logger::GetLogLines(0, log_lines, all_lines_len + 3));
+  CHECK_EQ(all_lines_len, LOGGER->GetLogLines(0, log_lines, all_lines_len + 3));
   CHECK_EQ(all_lines, log_lines);
   memset(log_lines, 0, sizeof(log_lines));
   TearDown();
@@ -91,26 +91,26 @@ TEST(GetMessages) {
 
 
 static int GetLogLines(int start_pos, i::Vector<char>* buffer) {
-  return Logger::GetLogLines(start_pos, buffer->start(), buffer->length());
+  return LOGGER->GetLogLines(start_pos, buffer->start(), buffer->length());
 }
 
 
 TEST(BeyondWritePosition) {
   SetUp();
-  Logger::StringEvent("aaa", "bbb");
-  Logger::StringEvent("cccc", "dddd");
+  LOGGER->StringEvent("aaa", "bbb");
+  LOGGER->StringEvent("cccc", "dddd");
   // See Logger::StringEvent.
   const char* all_lines = "aaa,\"bbb\"\ncccc,\"dddd\"\n";
   const int all_lines_len = StrLength(all_lines);
   EmbeddedVector<char, 100> buffer;
   const int beyond_write_pos = all_lines_len;
-  CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos, buffer.start(), 1));
+  CHECK_EQ(0, LOGGER->GetLogLines(beyond_write_pos, buffer.start(), 1));
   CHECK_EQ(0, GetLogLines(beyond_write_pos, &buffer));
-  CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos + 1, buffer.start(), 1));
+  CHECK_EQ(0, LOGGER->GetLogLines(beyond_write_pos + 1, buffer.start(), 1));
   CHECK_EQ(0, GetLogLines(beyond_write_pos + 1, &buffer));
-  CHECK_EQ(0, Logger::GetLogLines(beyond_write_pos + 100, buffer.start(), 1));
+  CHECK_EQ(0, LOGGER->GetLogLines(beyond_write_pos + 100, buffer.start(), 1));
   CHECK_EQ(0, GetLogLines(beyond_write_pos + 100, &buffer));
-  CHECK_EQ(0, Logger::GetLogLines(10 * 1024 * 1024, buffer.start(), 1));
+  CHECK_EQ(0, LOGGER->GetLogLines(10 * 1024 * 1024, buffer.start(), 1));
   CHECK_EQ(0, GetLogLines(10 * 1024 * 1024, &buffer));
   TearDown();
 }
@@ -120,12 +120,12 @@ TEST(MemoryLoggingTurnedOff) {
   // Log to stdout
   i::FLAG_logfile = "-";
   i::FLAG_log = true;
-  Logger::Setup();
-  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 0));
-  CHECK_EQ(0, Logger::GetLogLines(100, NULL, 0));
-  CHECK_EQ(0, Logger::GetLogLines(0, NULL, 100));
-  CHECK_EQ(0, Logger::GetLogLines(100, NULL, 100));
-  Logger::TearDown();
+  LOGGER->Setup();
+  CHECK_EQ(0, LOGGER->GetLogLines(0, NULL, 0));
+  CHECK_EQ(0, LOGGER->GetLogLines(100, NULL, 0));
+  CHECK_EQ(0, LOGGER->GetLogLines(0, NULL, 100));
+  CHECK_EQ(0, LOGGER->GetLogLines(100, NULL, 100));
+  LOGGER->TearDown();
 }
 
 
@@ -139,12 +139,12 @@ namespace internal {
 
 class LoggerTestHelper : public AllStatic {
  public:
-  static bool IsSamplerActive() { return Logger::IsProfilerSamplerActive(); }
+  static bool IsSamplerActive() { return LOGGER->IsProfilerSamplerActive(); }
   static void ResetSamplesTaken() {
-    reinterpret_cast<Sampler*>(Logger::ticker_)->ResetSamplesTaken();
+    reinterpret_cast<Sampler*>(LOGGER->ticker_)->ResetSamplesTaken();
   }
   static bool has_samples_taken() {
-    return reinterpret_cast<Sampler*>(Logger::ticker_)->samples_taken() > 0;
+    return reinterpret_cast<Sampler*>(LOGGER->ticker_)->samples_taken() > 0;
   }
 };
 
@@ -166,13 +166,13 @@ class ScopedLoggerInitializer {
         need_to_set_up_logger_(i::V8::IsRunning()),
         scope_(),
         env_(v8::Context::New()) {
-    if (need_to_set_up_logger_) Logger::Setup();
+    if (need_to_set_up_logger_) LOGGER->Setup();
     env_->Enter();
   }
 
   ~ScopedLoggerInitializer() {
     env_->Exit();
-    Logger::TearDown();
+    LOGGER->TearDown();
     i::FLAG_prof_lazy = saved_prof_lazy_;
     i::FLAG_prof = saved_prof_;
     i::FLAG_prof_auto = saved_prof_auto_;
@@ -251,7 +251,7 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
         !LoggerTestHelper::IsSamplerActive());
   LoggerTestHelper::ResetSamplesTaken();
 
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
+  LOGGER->ResumeProfiler();
   CHECK(LoggerTestHelper::IsSamplerActive());
 
   // Verify that the current map of compiled functions has been logged.
@@ -273,7 +273,7 @@ static void CheckThatProfilerWorks(LogBufferMatcher* matcher) {
     i::OS::Sleep(1);
   }
 
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
+  LOGGER->PauseProfiler();
   CHECK(i::RuntimeProfiler::IsEnabled() ||
         !LoggerTestHelper::IsSamplerActive());
 
@@ -329,8 +329,8 @@ namespace {
 
 class LoopingThread : public v8::internal::Thread {
  public:
-  LoopingThread()
-      : v8::internal::Thread(),
+  explicit LoopingThread(v8::internal::Isolate* isolate)
+      : v8::internal::Thread(isolate),
         semaphore_(v8::internal::OS::CreateSemaphore(0)),
         run_(true) {
   }
@@ -369,9 +369,12 @@ class LoopingThread : public v8::internal::Thread {
 
 class LoopingJsThread : public LoopingThread {
  public:
+  explicit LoopingJsThread(v8::internal::Isolate* isolate)
+      : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
-    CHECK(v8::internal::ThreadManager::HasId());
+    CHECK(i::Isolate::Current() != NULL);
+    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
     SetV8ThreadId();
     while (IsRunning()) {
       v8::HandleScope scope;
@@ -392,11 +395,14 @@ class LoopingJsThread : public LoopingThread {
 
 class LoopingNonJsThread : public LoopingThread {
  public:
+  explicit LoopingNonJsThread(v8::internal::Isolate* isolate)
+      : LoopingThread(isolate) { }
   void RunLoop() {
     v8::Locker locker;
     v8::Unlocker unlocker;
     // Now thread has V8's id, but will not run VM code.
-    CHECK(v8::internal::ThreadManager::HasId());
+    CHECK(i::Isolate::Current() != NULL);
+    CHECK_GT(i::Isolate::Current()->thread_manager()->CurrentId(), 0);
     double i = 10;
     SignalRunning();
     while (IsRunning()) {
@@ -409,8 +415,8 @@ class LoopingNonJsThread : public LoopingThread {
 
 class TestSampler : public v8::internal::Sampler {
  public:
-  TestSampler()
-      : Sampler(0, true, true),
+  explicit TestSampler(v8::internal::Isolate* isolate)
+      : Sampler(isolate, 0, true, true),
         semaphore_(v8::internal::OS::CreateSemaphore(0)),
         was_sample_stack_called_(false) {
   }
@@ -441,14 +447,14 @@ TEST(ProfMultipleThreads) {
   TestSampler* sampler = NULL;
   {
     v8::Locker locker;
-    sampler = new TestSampler();
+    sampler = new TestSampler(v8::internal::Isolate::Current());
     sampler->Start();
     CHECK(sampler->IsActive());
   }
 
-  LoopingJsThread jsThread;
+  LoopingJsThread jsThread(v8::internal::Isolate::Current());
   jsThread.Start();
-  LoopingNonJsThread nonJsThread;
+  LoopingNonJsThread nonJsThread(v8::internal::Isolate::Current());
   nonJsThread.Start();
 
   CHECK(!sampler->WasSampleStackCalled());
@@ -515,7 +521,7 @@ TEST(Issue23768) {
   i_source->set_resource(NULL);
 
   // Must not crash.
-  i::Logger::LogCompiledFunctions();
+  LOGGER->LogCompiledFunctions();
 }
 
 
@@ -541,7 +547,7 @@ TEST(LogCallbacks) {
   initialize_logger.env()->Global()->Set(v8_str("Obj"), obj->GetFunction());
   CompileAndRunScript("Obj.prototype.method1.toString();");
 
-  i::Logger::LogCompiledFunctions();
+  LOGGER->LogCompiledFunctions();
   CHECK_GT(matcher.GetNextChunk(), 0);
 
   const char* callback_rec = "code-creation,Callback,";
@@ -584,7 +590,7 @@ TEST(LogAccessorCallbacks) {
   inst->SetAccessor(v8::String::New("prop1"), Prop1Getter, Prop1Setter);
   inst->SetAccessor(v8::String::New("prop2"), Prop2Getter);
 
-  i::Logger::LogAccessorCallbacks();
+  LOGGER->LogAccessorCallbacks();
   CHECK_GT(matcher.GetNextChunk(), 0);
   matcher.PrintBuffer();
 
@@ -608,118 +614,14 @@ TEST(LogAccessorCallbacks) {
 }
 
 
-TEST(LogTags) {
-  ScopedLoggerInitializer initialize_logger(false);
-  LogBufferMatcher matcher;
-
-  const char* open_tag = "open-tag,";
-  const char* close_tag = "close-tag,";
-
-  // Check compatibility with the old style behavior.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 0);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 0);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  CHECK_EQ(NULL, matcher.Find(open_tag));
-  CHECK_EQ(NULL, matcher.Find(close_tag));
-
-  const char* open_tag1 = "open-tag,1\n";
-  const char* close_tag1 = "close-tag,1\n";
-
-  // Check non-nested tag case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  CHECK_GT(matcher.GetNextChunk(), 0);
-  CHECK(matcher.IsInSequence(open_tag1, close_tag1));
-
-  const char* open_tag2 = "open-tag,2\n";
-  const char* close_tag2 = "close-tag,2\n";
-
-  // Check nested tags case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  CHECK_GT(matcher.GetNextChunk(), 0);
-  // open_tag1 < open_tag2 < close_tag2 < close_tag1
-  CHECK(matcher.IsInSequence(open_tag1, open_tag2));
-  CHECK(matcher.IsInSequence(open_tag2, close_tag2));
-  CHECK(matcher.IsInSequence(close_tag2, close_tag1));
-
-  // Check overlapped tags case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  CHECK_GT(matcher.GetNextChunk(), 0);
-  // open_tag1 < open_tag2 < close_tag1 < close_tag2
-  CHECK(matcher.IsInSequence(open_tag1, open_tag2));
-  CHECK(matcher.IsInSequence(open_tag2, close_tag1));
-  CHECK(matcher.IsInSequence(close_tag1, close_tag2));
-
-  const char* open_tag3 = "open-tag,3\n";
-  const char* close_tag3 = "close-tag,3\n";
-
-  // Check pausing overflow case.
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 2);
-  CHECK_EQ(v8::PROFILER_MODULE_CPU, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 3);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 3);
-  CHECK_EQ(v8::PROFILER_MODULE_NONE, Logger::GetActiveProfilerModules());
-  // Must be no tags, because logging must be disabled.
-  CHECK_EQ(NULL, matcher.Find(open_tag3));
-  CHECK_EQ(NULL, matcher.Find(close_tag3));
-}
-
-
 TEST(IsLoggingPreserved) {
   ScopedLoggerInitializer initialize_logger(false);
 
-  CHECK(Logger::is_logging());
-  Logger::ResumeProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK(Logger::is_logging());
-  Logger::PauseProfiler(v8::PROFILER_MODULE_CPU, 1);
-  CHECK(Logger::is_logging());
-
-  CHECK(Logger::is_logging());
-  Logger::ResumeProfiler(
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(Logger::is_logging());
-  Logger::PauseProfiler(
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(Logger::is_logging());
-
-  CHECK(Logger::is_logging());
-  Logger::ResumeProfiler(
-      v8::PROFILER_MODULE_CPU |
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(Logger::is_logging());
-  Logger::PauseProfiler(
-      v8::PROFILER_MODULE_CPU |
-      v8::PROFILER_MODULE_HEAP_STATS | v8::PROFILER_MODULE_JS_CONSTRUCTORS, 1);
-  CHECK(Logger::is_logging());
+  CHECK(LOGGER->is_logging());
+  LOGGER->ResumeProfiler();
+  CHECK(LOGGER->is_logging());
+  LOGGER->PauseProfiler();
+  CHECK(LOGGER->is_logging());
 }
 
 
@@ -1128,7 +1030,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
       "  obj.test =\n"
       "    (function a(j) { return function b() { return j; } })(100);\n"
       "})(this);");
-  i::Heap::CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 
   EmbeddedVector<char, 204800> buffer;
   int log_size;
@@ -1148,9 +1050,9 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   }
 
   // Iterate heap to find compiled functions, will write to log.
-  i::Logger::LogCompiledFunctions();
+  LOGGER->LogCompiledFunctions();
   char* new_log_start = buffer.start() + log_size;
-  const int new_log_size = Logger::GetLogLines(
+  const int new_log_size = LOGGER->GetLogLines(
       log_size, new_log_start, buffer.length() - log_size);
   CHECK_GT(new_log_size, 0);
   CHECK_GT(buffer.length(), log_size + new_log_size);
@@ -1184,7 +1086,7 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   CHECK(results_equal);
 
   env->Exit();
-  Logger::TearDown();
+  LOGGER->TearDown();
   i::FLAG_always_compact = saved_always_compact;
 }
 

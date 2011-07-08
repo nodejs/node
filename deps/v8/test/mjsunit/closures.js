@@ -25,10 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function runner(f, expected) {
-  for (var i = 0; i < 1000000; i++) {
-    assertEquals(expected, f.call(this));
-  }
+  assertEquals(expected, f.call(this));
 }
 
 function test(n) {
@@ -36,6 +36,8 @@ function test(n) {
     var result = n * 2 + arguments.length;
     return result;
   }
+  for (var i = 0; i < 5; ++i) MyFunction();
+  %OptimizeFunctionOnNextCall(MyFunction)
   runner(MyFunction, n * 2);
 }
 

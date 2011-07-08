@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Regression test for failure to deoptimize properly when the most recent
 // side effect occurred in a comma expression in an effect context.
 
@@ -40,7 +42,9 @@ function observe(x, y) { try {} finally {} return x; }
 function test(x) { return observe(this, ((0, side_effect()), x + 1)); }
 
 // Run test enough times to get it optimized.
-for (var i = 0; i < 1000000; ++i) test(0);
+for (var i = 0; i < 5; ++i) test(0);
+%OptimizeFunctionOnNextCall(test);
+test(0);
 
 // Force test to deopt.  If it behaves normally, it should return the global
 // object.  If the value of the call to side_effect() is lingering after the

@@ -73,11 +73,11 @@ function NonObjectReceiver(receiver) {
   return ReturnReceiver.apply(receiver, arguments);
 }
 
-assertEquals(42, NonObjectReceiver(42));
+assertEquals(Object(42), NonObjectReceiver(42));
 assertEquals("object", typeof NonObjectReceiver(42));
-assertTrue(NonObjectReceiver(42) instanceof Number);
-assertTrue(this === NonObjectReceiver(null));
-assertTrue(this === NonObjectReceiver(void 0));
+assertInstanceof(NonObjectReceiver(42), Number);
+assertSame(this, NonObjectReceiver(null));
+assertSame(this, NonObjectReceiver(void 0));
 
 
 function FunctionReceiver() {

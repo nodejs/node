@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,6 +28,8 @@
 #ifndef V8_HASHMAP_H_
 #define V8_HASHMAP_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
@@ -55,9 +57,9 @@ class HashMap {
 
   // initial_capacity is the size of the initial hash map;
   // it must be a power of 2 (and thus must not be 0).
-  HashMap(MatchFun match,
-          Allocator* allocator = &DefaultAllocator,
-          uint32_t initial_capacity = 8);
+  explicit HashMap(MatchFun match,
+                   Allocator* allocator = &DefaultAllocator,
+                   uint32_t initial_capacity = 8);
 
   ~HashMap();
 

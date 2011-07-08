@@ -38,7 +38,6 @@ assertTrue(hasBeenInvoked);
 var exception;
 try {
   eval("try { } catch (e) { var y = false; }");
-  assertUnreachable();
 } catch (e) {
   exception = e;
 }

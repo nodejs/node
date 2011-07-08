@@ -92,7 +92,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
   def __init__(self, context, root):
     super(MozillaTestConfiguration, self).__init__(context, root)
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     tests = []
     for test_dir in TEST_DIRS:
       current_root = join(self.root, 'data', test_dir)

@@ -46,8 +46,8 @@ assertFalse(AndBB(1, 0));
 assertFalse(AndBB(0, 1));
 assertFalse(AndBB(1, 1));
 
-assertFalse(AndBN(0, 0));
-assertTrue(AndBN(0, 1));
+assertEquals(0, AndBN(0, 0));
+assertEquals(1, AndBN(0, 1));
 assertFalse(AndBN(1, 0));
 assertEquals(1, AndBN(0, 1));
 assertEquals(2, AndBN(0, 2));

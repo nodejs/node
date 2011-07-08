@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,7 +29,7 @@
 
 #if defined(V8_TARGET_ARCH_ARM)
 
-#include "codegen-inl.h"
+#include "codegen.h"
 #include "debug.h"
 
 namespace v8 {
@@ -65,7 +65,7 @@ void BreakLocationIterator::SetDebugBreakAtReturn() {
   patcher.masm()->mov(v8::internal::lr, v8::internal::pc);
   patcher.masm()->ldr(v8::internal::pc, MemOperand(v8::internal::pc, -4));
 #endif
-  patcher.Emit(Debug::debug_break_return()->entry());
+  patcher.Emit(Isolate::Current()->debug()->debug_break_return()->entry());
   patcher.masm()->bkpt(0);
 }
 
@@ -115,7 +115,7 @@ void BreakLocationIterator::SetDebugBreakAtSlot() {
   patcher.masm()->mov(v8::internal::lr, v8::internal::pc);
   patcher.masm()->ldr(v8::internal::pc, MemOperand(v8::internal::pc, -4));
 #endif
-  patcher.Emit(Debug::debug_break_slot()->entry());
+  patcher.Emit(Isolate::Current()->debug()->debug_break_slot()->entry());
 }
 
 
@@ -159,7 +159,7 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
   __ mov(r0, Operand(0, RelocInfo::NONE));  // no arguments
-  __ mov(r1, Operand(ExternalReference::debug_break()));
+  __ mov(r1, Operand(ExternalReference::debug_break(masm->isolate())));
 
   CEntryStub ceb(1);
   __ CallStub(&ceb);
@@ -185,7 +185,9 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
   // Now that the break point has been handled, resume normal execution by
   // jumping to the target address intended by the caller and that was
   // overwritten by the address of DebugBreakXXX.
-  __ mov(ip, Operand(ExternalReference(Debug_Address::AfterBreakTarget())));
+  ExternalReference after_break_target =
+      ExternalReference(Debug_Address::AfterBreakTarget(), masm->isolate());
+  __ mov(ip, Operand(after_break_target));
   __ ldr(ip, MemOperand(ip));
   __ Jump(ip);
 }

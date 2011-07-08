@@ -1,4 +1,4 @@
-// Copyright 2006-2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,11 +29,21 @@
 #define V8_HEAP_INL_H_
 
 #include "heap.h"
+#include "isolate.h"
+#include "list-inl.h"
 #include "objects.h"
 #include "v8-counters.h"
 
 namespace v8 {
 namespace internal {
+
+void PromotionQueue::insert(HeapObject* target, int size) {
+  *(--rear_) = reinterpret_cast<intptr_t>(target);
+  *(--rear_) = size;
+  // Assert no overflow into live objects.
+  ASSERT(reinterpret_cast<Address>(rear_) >= HEAP->new_space()->top());
+}
+
 
 int Heap::MaxObjectSizeInPagedSpace() {
   return Page::kMaxHeapObjectSize;
@@ -146,8 +156,8 @@ MaybeObject* Heap::AllocateRaw(int size_in_bytes,
       Heap::allocation_timeout_-- <= 0) {
     return Failure::RetryAfterGC(space);
   }
-  Counters::objs_since_last_full.Increment();
-  Counters::objs_since_last_young.Increment();
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   MaybeObject* result;
   if (NEW_SPACE == space) {
@@ -214,8 +224,8 @@ void Heap::FinalizeExternalString(String* string) {
 
 MaybeObject* Heap::AllocateRawMap() {
 #ifdef DEBUG
-  Counters::objs_since_last_full.Increment();
-  Counters::objs_since_last_young.Increment();
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   MaybeObject* result = map_space_->AllocateRaw(Map::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
@@ -232,8 +242,8 @@ MaybeObject* Heap::AllocateRawMap() {
 
 MaybeObject* Heap::AllocateRawCell() {
 #ifdef DEBUG
-  Counters::objs_since_last_full.Increment();
-  Counters::objs_since_last_young.Increment();
+  isolate_->counters()->objs_since_last_full()->Increment();
+  isolate_->counters()->objs_since_last_young()->Increment();
 #endif
   MaybeObject* result = cell_space_->AllocateRaw(JSGlobalPropertyCell::kSize);
   if (result->IsFailure()) old_gen_exhausted_ = true;
@@ -341,7 +351,7 @@ void Heap::CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
        remaining--) {
     Memory::Object_at(dst) = Memory::Object_at(src);
 
-    if (Heap::InNewSpace(Memory::Object_at(dst))) {
+    if (InNewSpace(Memory::Object_at(dst))) {
       marks |= page->GetRegionMaskForAddress(dst);
     }
 
@@ -387,8 +397,13 @@ void Heap::MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
 }
 
 
+void Heap::ScavengePointer(HeapObject** p) {
+  ScavengeObject(p, *p);
+}
+
+
 void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
-  ASSERT(InFromSpace(object));
+  ASSERT(HEAP->InFromSpace(object));
 
   // We use the first word (where the map pointer usually is) of a heap
   // object to record the forwarding pointer.  A forwarding pointer can
@@ -461,10 +476,15 @@ void Heap::SetLastScriptId(Object* last_script_id) {
   roots_[kLastScriptIdRootIndex] = last_script_id;
 }
 
+Isolate* Heap::isolate() {
+  return reinterpret_cast<Isolate*>(reinterpret_cast<intptr_t>(this) -
+      reinterpret_cast<size_t>(reinterpret_cast<Isolate*>(4)->heap()) + 4);
+}
+
 
 #ifdef DEBUG
 #define GC_GREEDY_CHECK() \
-  if (FLAG_gc_greedy) v8::internal::Heap::GarbageCollectionGreedyCheck()
+  if (FLAG_gc_greedy) HEAP->GarbageCollectionGreedyCheck()
 #else
 #define GC_GREEDY_CHECK() { }
 #endif
@@ -477,7 +497,7 @@ void Heap::SetLastScriptId(Object* last_script_id) {
 // Warning: Do not use the identifiers __object__, __maybe_object__ or
 // __scope__ in a call to this macro.
 
-#define CALL_AND_RETRY(FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)         \
+#define CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, RETURN_VALUE, RETURN_EMPTY)\
   do {                                                                    \
     GC_GREEDY_CHECK();                                                    \
     MaybeObject* __maybe_object__ = FUNCTION_CALL;                        \
@@ -487,16 +507,16 @@ void Heap::SetLastScriptId(Object* last_script_id) {
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_0", true);\
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
-    Heap::CollectGarbage(                                                 \
-        Failure::cast(__maybe_object__)->allocation_space());             \
+    ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->     \
+                                    allocation_space());                  \
     __maybe_object__ = FUNCTION_CALL;                                     \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
     if (__maybe_object__->IsOutOfMemory()) {                              \
       v8::internal::V8::FatalProcessOutOfMemory("CALL_AND_RETRY_1", true);\
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
-    Counters::gc_last_resort_from_handles.Increment();                    \
-    Heap::CollectAllAvailableGarbage();                                   \
+    ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
+    ISOLATE->heap()->CollectAllAvailableGarbage();                        \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __maybe_object__ = FUNCTION_CALL;                                   \
@@ -511,14 +531,15 @@ void Heap::SetLastScriptId(Object* last_script_id) {
   } while (false)
 
 
-#define CALL_HEAP_FUNCTION(FUNCTION_CALL, TYPE)                \
-  CALL_AND_RETRY(FUNCTION_CALL,                                \
-                 return Handle<TYPE>(TYPE::cast(__object__)),  \
+#define CALL_HEAP_FUNCTION(ISOLATE, FUNCTION_CALL, TYPE)       \
+  CALL_AND_RETRY(ISOLATE,                                      \
+                 FUNCTION_CALL,                                \
+                 return Handle<TYPE>(TYPE::cast(__object__), ISOLATE),  \
                  return Handle<TYPE>())
 
 
-#define CALL_HEAP_FUNCTION_VOID(FUNCTION_CALL) \
-  CALL_AND_RETRY(FUNCTION_CALL, return, return)
+#define CALL_HEAP_FUNCTION_VOID(ISOLATE, FUNCTION_CALL) \
+  CALL_AND_RETRY(ISOLATE, FUNCTION_CALL, return, return)
 
 
 #ifdef DEBUG
@@ -534,7 +555,7 @@ inline bool Heap::allow_allocation(bool new_state) {
 
 void ExternalStringTable::AddString(String* string) {
   ASSERT(string->IsExternalString());
-  if (Heap::InNewSpace(string)) {
+  if (heap_->InNewSpace(string)) {
     new_space_strings_.Add(string);
   } else {
     old_space_strings_.Add(string);
@@ -559,12 +580,12 @@ void ExternalStringTable::Iterate(ObjectVisitor* v) {
 void ExternalStringTable::Verify() {
 #ifdef DEBUG
   for (int i = 0; i < new_space_strings_.length(); ++i) {
-    ASSERT(Heap::InNewSpace(new_space_strings_[i]));
-    ASSERT(new_space_strings_[i] != Heap::raw_unchecked_null_value());
+    ASSERT(heap_->InNewSpace(new_space_strings_[i]));
+    ASSERT(new_space_strings_[i] != HEAP->raw_unchecked_null_value());
   }
   for (int i = 0; i < old_space_strings_.length(); ++i) {
-    ASSERT(!Heap::InNewSpace(old_space_strings_[i]));
-    ASSERT(old_space_strings_[i] != Heap::raw_unchecked_null_value());
+    ASSERT(!heap_->InNewSpace(old_space_strings_[i]));
+    ASSERT(old_space_strings_[i] != HEAP->raw_unchecked_null_value());
   }
 #endif
 }
@@ -572,7 +593,7 @@ void ExternalStringTable::Verify() {
 
 void ExternalStringTable::AddOldString(String* string) {
   ASSERT(string->IsExternalString());
-  ASSERT(!Heap::InNewSpace(string));
+  ASSERT(!heap_->InNewSpace(string));
   old_space_strings_.Add(string);
 }
 
@@ -581,6 +602,100 @@ void ExternalStringTable::ShrinkNewStrings(int position) {
   new_space_strings_.Rewind(position);
   Verify();
 }
+
+
+void Heap::ClearInstanceofCache() {
+  set_instanceof_cache_function(the_hole_value());
+}
+
+
+Object* Heap::ToBoolean(bool condition) {
+  return condition ? true_value() : false_value();
+}
+
+
+void Heap::CompletelyClearInstanceofCache() {
+  set_instanceof_cache_map(the_hole_value());
+  set_instanceof_cache_function(the_hole_value());
+}
+
+
+MaybeObject* TranscendentalCache::Get(Type type, double input) {
+  SubCache* cache = caches_[type];
+  if (cache == NULL) {
+    caches_[type] = cache = new SubCache(type);
+  }
+  return cache->Get(input);
+}
+
+
+Address TranscendentalCache::cache_array_address() {
+  return reinterpret_cast<Address>(caches_);
+}
+
+
+double TranscendentalCache::SubCache::Calculate(double input) {
+  switch (type_) {
+    case ACOS:
+      return acos(input);
+    case ASIN:
+      return asin(input);
+    case ATAN:
+      return atan(input);
+    case COS:
+      return cos(input);
+    case EXP:
+      return exp(input);
+    case LOG:
+      return log(input);
+    case SIN:
+      return sin(input);
+    case TAN:
+      return tan(input);
+    default:
+      return 0.0;  // Never happens.
+  }
+}
+
+
+MaybeObject* TranscendentalCache::SubCache::Get(double input) {
+  Converter c;
+  c.dbl = input;
+  int hash = Hash(c);
+  Element e = elements_[hash];
+  if (e.in[0] == c.integers[0] &&
+      e.in[1] == c.integers[1]) {
+    ASSERT(e.output != NULL);
+    isolate_->counters()->transcendental_cache_hit()->Increment();
+    return e.output;
+  }
+  double answer = Calculate(input);
+  isolate_->counters()->transcendental_cache_miss()->Increment();
+  Object* heap_number;
+  { MaybeObject* maybe_heap_number =
+        isolate_->heap()->AllocateHeapNumber(answer);
+    if (!maybe_heap_number->ToObject(&heap_number)) return maybe_heap_number;
+  }
+  elements_[hash].in[0] = c.integers[0];
+  elements_[hash].in[1] = c.integers[1];
+  elements_[hash].output = heap_number;
+  return heap_number;
+}
+
+
+Heap* _inline_get_heap_() {
+  return HEAP;
+}
+
+
+void MarkCompactCollector::SetMark(HeapObject* obj) {
+  tracer_->increment_marked_count();
+#ifdef DEBUG
+  UpdateLiveObjectCount(obj);
+#endif
+  obj->SetMark();
+}
+
 
 } }  // namespace v8::internal
 

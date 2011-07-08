@@ -159,11 +159,18 @@ TEST(TerminateOnlyV8ThreadFromThreadItselfNoLoop) {
 
 
 class TerminatorThread : public v8::internal::Thread {
+ public:
+  explicit TerminatorThread(i::Isolate* isolate)
+      : Thread("TerminatorThread"),
+        isolate_(reinterpret_cast<v8::Isolate*>(isolate)) { }
   void Run() {
     semaphore->Wait();
-    CHECK(!v8::V8::IsExecutionTerminating());
-    v8::V8::TerminateExecution();
+    CHECK(!v8::V8::IsExecutionTerminating(isolate_));
+    v8::V8::TerminateExecution(isolate_);
   }
+
+ private:
+  v8::Isolate* isolate_;
 };
 
 
@@ -171,7 +178,7 @@ class TerminatorThread : public v8::internal::Thread {
 // from the side by another thread.
 TEST(TerminateOnlyV8ThreadFromOtherThread) {
   semaphore = v8::internal::OS::CreateSemaphore(0);
-  TerminatorThread thread;
+  TerminatorThread thread(i::Isolate::Current());
   thread.Start();
 
   v8::HandleScope scope;
@@ -193,6 +200,7 @@ TEST(TerminateOnlyV8ThreadFromOtherThread) {
 
 class LoopingThread : public v8::internal::Thread {
  public:
+  LoopingThread() : Thread("LoopingThread") { }
   void Run() {
     v8::Locker locker;
     v8::HandleScope scope;
@@ -216,29 +224,37 @@ class LoopingThread : public v8::internal::Thread {
 };
 
 
-// Test that multiple threads using V8 can be terminated from another
-// thread when using Lockers and preemption.
-TEST(TerminateMultipleV8Threads) {
+// Test that multiple threads using default isolate can be terminated
+// from another thread when using Lockers and preemption.
+TEST(TerminateMultipleV8ThreadsDefaultIsolate) {
   {
     v8::Locker locker;
     v8::V8::Initialize();
     v8::Locker::StartPreemption(1);
     semaphore = v8::internal::OS::CreateSemaphore(0);
   }
-  LoopingThread thread1;
-  thread1.Start();
-  LoopingThread thread2;
-  thread2.Start();
-  // Wait until both threads have signaled the semaphore.
-  semaphore->Wait();
-  semaphore->Wait();
+  const int kThreads = 2;
+  i::List<LoopingThread*> threads(kThreads);
+  for (int i = 0; i < kThreads; i++) {
+    threads.Add(new LoopingThread());
+  }
+  for (int i = 0; i < kThreads; i++) {
+    threads[i]->Start();
+  }
+  // Wait until all threads have signaled the semaphore.
+  for (int i = 0; i < kThreads; i++) {
+    semaphore->Wait();
+  }
   {
     v8::Locker locker;
-    v8::V8::TerminateExecution(thread1.GetV8ThreadId());
-    v8::V8::TerminateExecution(thread2.GetV8ThreadId());
+    for (int i = 0; i < kThreads; i++) {
+      v8::V8::TerminateExecution(threads[i]->GetV8ThreadId());
+    }
   }
-  thread1.Join();
-  thread2.Join();
+  for (int i = 0; i < kThreads; i++) {
+    threads[i]->Join();
+    delete threads[i];
+  }
 
   delete semaphore;
   semaphore = NULL;

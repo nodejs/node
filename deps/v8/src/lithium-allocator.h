@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,7 +30,7 @@
 
 #include "v8.h"
 
-#include "data-flow.h"
+#include "allocation.h"
 #include "lithium.h"
 #include "zone.h"
 
@@ -162,12 +162,12 @@ class LEnvironment;
 class TempIterator BASE_EMBEDDED {
  public:
   inline explicit TempIterator(LInstruction* instr);
-  inline bool HasNext();
-  inline LOperand* Next();
+  inline bool Done();
+  inline LOperand* Current();
   inline void Advance();
 
  private:
-  inline int AdvanceToNext(int start);
+  inline void SkipUninteresting();
   LInstruction* instr_;
   int limit_;
   int current_;
@@ -178,12 +178,12 @@ class TempIterator BASE_EMBEDDED {
 class InputIterator BASE_EMBEDDED {
  public:
   inline explicit InputIterator(LInstruction* instr);
-  inline bool HasNext();
-  inline LOperand* Next();
+  inline bool Done();
+  inline LOperand* Current();
   inline void Advance();
 
  private:
-  inline int AdvanceToNext(int start);
+  inline void SkipUninteresting();
   LInstruction* instr_;
   int limit_;
   int current_;
@@ -193,8 +193,8 @@ class InputIterator BASE_EMBEDDED {
 class UseIterator BASE_EMBEDDED {
  public:
   inline explicit UseIterator(LInstruction* instr);
-  inline bool HasNext();
-  inline LOperand* Next();
+  inline bool Done();
+  inline LOperand* Current();
   inline void Advance();
 
  private:
@@ -428,24 +428,8 @@ class GrowableBitVector BASE_EMBEDDED {
 
 class LAllocator BASE_EMBEDDED {
  public:
-  explicit LAllocator(int first_virtual_register, HGraph* graph)
-      : chunk_(NULL),
-        live_in_sets_(0),
-        live_ranges_(16),
-        fixed_live_ranges_(8),
-        fixed_double_live_ranges_(8),
-        unhandled_live_ranges_(8),
-        active_live_ranges_(8),
-        inactive_live_ranges_(8),
-        reusable_slots_(8),
-        next_virtual_register_(first_virtual_register),
-        first_artificial_register_(first_virtual_register),
-        mode_(NONE),
-        num_registers_(-1),
-        graph_(graph),
-        has_osr_entry_(false) {}
+  LAllocator(int first_virtual_register, HGraph* graph);
 
-  static void Setup();
   static void TraceAlloc(const char* msg, ...);
 
   // Lithium translation support.
@@ -468,10 +452,10 @@ class LAllocator BASE_EMBEDDED {
   void Allocate(LChunk* chunk);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
-  const ZoneList<LiveRange*>* fixed_live_ranges() const {
+  const Vector<LiveRange*>* fixed_live_ranges() const {
     return &fixed_live_ranges_;
   }
-  const ZoneList<LiveRange*>* fixed_double_live_ranges() const {
+  const Vector<LiveRange*>* fixed_double_live_ranges() const {
     return &fixed_double_live_ranges_;
   }
 
@@ -616,8 +600,10 @@ class LAllocator BASE_EMBEDDED {
   ZoneList<LiveRange*> live_ranges_;
 
   // Lists of live ranges
-  ZoneList<LiveRange*> fixed_live_ranges_;
-  ZoneList<LiveRange*> fixed_double_live_ranges_;
+  EmbeddedVector<LiveRange*, Register::kNumAllocatableRegisters>
+      fixed_live_ranges_;
+  EmbeddedVector<LiveRange*, DoubleRegister::kNumAllocatableRegisters>
+      fixed_double_live_ranges_;
   ZoneList<LiveRange*> unhandled_live_ranges_;
   ZoneList<LiveRange*> active_live_ranges_;
   ZoneList<LiveRange*> inactive_live_ranges_;

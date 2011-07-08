@@ -49,6 +49,7 @@
 // instantiate newly compiled functions.
 
 
+#include "allocation.h"
 #include "compiler.h"
 
 namespace v8 {
@@ -65,13 +66,18 @@ namespace internal {
 // also collects compiled function codes.
 class LiveEditFunctionTracker {
  public:
-  explicit LiveEditFunctionTracker(FunctionLiteral* fun);
+  explicit LiveEditFunctionTracker(Isolate* isolate, FunctionLiteral* fun);
   ~LiveEditFunctionTracker();
   void RecordFunctionInfo(Handle<SharedFunctionInfo> info,
                           FunctionLiteral* lit);
   void RecordRootFunctionInfo(Handle<Code> code);
 
-  static bool IsActive();
+  static bool IsActive(Isolate* isolate);
+
+ private:
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  Isolate* isolate_;
+#endif
 };
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -137,14 +143,13 @@ class LiveEdit : AllStatic {
 // A general-purpose comparator between 2 arrays.
 class Comparator {
  public:
-
   // Holds 2 arrays of some elements allowing to compare any pair of
   // element from the first array and element from the second array.
   class Input {
    public:
-    virtual int getLength1() = 0;
-    virtual int getLength2() = 0;
-    virtual bool equals(int index1, int index2) = 0;
+    virtual int GetLength1() = 0;
+    virtual int GetLength2() = 0;
+    virtual bool Equals(int index1, int index2) = 0;
 
    protected:
     virtual ~Input() {}

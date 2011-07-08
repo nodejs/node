@@ -65,8 +65,10 @@ function test(num) {
   assertEquals("  ", fcc(0x20 + 0.5, 0x20));
 
   var receiver = (num < 5) ? String : (num < 9) ? "dummy" : 42;
-  fcc2 = (num < 5) ? fcc : (num < 9) ? constFun("dummy") : constFun(42);
-  var expected = (num < 5) ? " " : (num < 9) ? "dummy" : 42;
+  fcc2 = (num < 5) ? fcc
+                   : (num < 9) ? constFun(Object("dummy"))
+                               : constFun(Object(42));
+  var expected = (num < 5) ? " " : (num < 9) ? Object("dummy") : Object(42);
   assertEquals(expected, receiver.fromCharCode(0x20));
   assertEquals(expected, receiver.fromCharCode(0x20 - 0x10000));
   assertEquals(expected, receiver.fromCharCode(0x20 + 0.5));

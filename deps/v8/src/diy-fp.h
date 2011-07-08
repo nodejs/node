@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -80,7 +80,7 @@ class DiyFp {
 
     // This method is mainly called for normalizing boundaries. In general
     // boundaries need to be shifted by 10 bits. We thus optimize for this case.
-    const uint64_t k10MSBits = V8_2PART_UINT64_C(0xFFC00000, 00000000);
+    const uint64_t k10MSBits = static_cast<uint64_t>(0x3FF) << 54;
     while ((f & k10MSBits) == 0) {
       f <<= 10;
       e -= 10;
@@ -106,7 +106,7 @@ class DiyFp {
   void set_e(int new_value) { e_ = new_value; }
 
  private:
-  static const uint64_t kUint64MSB = V8_2PART_UINT64_C(0x80000000, 00000000);
+  static const uint64_t kUint64MSB = static_cast<uint64_t>(1) << 63;
 
   uint64_t f_;
   int e_;

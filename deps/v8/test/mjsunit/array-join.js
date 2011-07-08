@@ -44,7 +44,8 @@ assertEquals('1,2********3********4********5,6********', a.join('********'));
 assertEquals('1,2**********3**********4**********5,6**********', a.join('**********'));
 
 // Replace array.prototype.toString.
-Array.prototype.toString = function() { return "array"; }
+var oldToString = Array.prototype.toString;
+Array.prototype.toString = function() { return "array"; };
 assertEquals('array34arrayarray', a.join(''));
 assertEquals('array*3*4*array*array', a.join('*'));
 assertEquals('array**3**4**array**array', a.join('**'));
@@ -52,7 +53,7 @@ assertEquals('array****3****4****array****array', a.join('****'));
 assertEquals('array********3********4********array********array', a.join('********'));
 assertEquals('array**********3**********4**********array**********array', a.join('**********'));
 
-Array.prototype.toString = function() { throw 42; }
+Array.prototype.toString = function() { throw 42; };
 assertThrows("a.join('')");
 assertThrows("a.join('*')");
 assertThrows("a.join('**')");
@@ -60,7 +61,7 @@ assertThrows("a.join('****')");
 assertThrows("a.join('********')");
 assertThrows("a.join('**********')");
 
-Array.prototype.toString = function() { return "array"; }
+Array.prototype.toString = function() { return "array"; };
 assertEquals('array34arrayarray', a.join(''));
 assertEquals('array*3*4*array*array', a.join('*'));
 assertEquals('array**3**4**array**array', a.join('**'));
@@ -68,3 +69,25 @@ assertEquals('array****3****4****array****array', a.join('****'));
 assertEquals('array********3********4********array********array', a.join('********'));
 assertEquals('array**********3**********4**********array**********array', a.join('**********'));
 
+// Restore original toString.
+delete Array.prototype.toString;
+if (Array.prototype.toString != oldToString) {
+  Array.prototype.toString = oldToString;
+}
+
+var a = new Array(123123123);
+assertEquals(123123122, String(a).length);
+assertEquals(123123122, a.join(",").length);
+assertEquals(246246244, a.join("oo").length);
+
+a = new Array(Math.pow(2,32) - 1);  // Max length.
+assertEquals("", a.join(""));
+a[123123123] = "o";
+a[1255215215] = "p";
+assertEquals("op", a.join(""));
+
+a = new Array(100001);
+for (var i = 0; i < a.length; i++) a[i] = undefined;
+a[5] = "ab";
+a[90000] = "cd";
+assertEquals("abcd", a.join(""));  // Must not throw.

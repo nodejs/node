@@ -124,7 +124,7 @@ class Code(object):
       self.callee_ticks = collections.defaultdict(lambda: 0)
     self.callee_ticks[callee] += 1
 
-  def PrintAnnotated(self, code_info, options):
+  def PrintAnnotated(self, arch, options):
     if self.self_ticks_map is None:
       ticks_map = []
     else:
@@ -135,7 +135,7 @@ class Code(object):
     ticks_offsets = [t[0] for t in ticks_map]
     ticks_counts = [t[1] for t in ticks_map]
     # Get a list of disassembled lines and their addresses.
-    lines = self._GetDisasmLines(code_info, options)
+    lines = self._GetDisasmLines(arch, options)
     if len(lines) == 0:
       return
     # Print annotated lines.
@@ -174,17 +174,17 @@ class Code(object):
       self.end_address - self.start_address,
       self.origin)
 
-  def _GetDisasmLines(self, code_info, options):
+  def _GetDisasmLines(self, arch, options):
     if self.origin == JS_ORIGIN or self.origin == JS_SNAPSHOT_ORIGIN:
       inplace = False
-      filename = options.log + ".code"
+      filename = options.log + ".ll"
     else:
       inplace = True
       filename = self.origin
     return disasm.GetDisasmLines(filename,
                                  self.origin_offset,
                                  self.end_address - self.start_address,
-                                 code_info.arch,
+                                 arch,
                                  inplace)
 
 
@@ -304,76 +304,102 @@ class CodeInfo(object):
     self.header_size = header_size
 
 
-class CodeLogReader(object):
-  """V8 code event log reader."""
+class SnapshotLogReader(object):
+  """V8 snapshot log reader."""
 
-  _CODE_INFO_RE = re.compile(
-    r"code-info,([^,]+),(\d+)")
+  _SNAPSHOT_CODE_NAME_RE = re.compile(
+    r"snapshot-code-name,(\d+),\"(.*)\"")
 
-  _CODE_CREATE_RE = re.compile(
-    r"code-creation,([^,]+),(0x[a-f0-9]+),(\d+),\"(.*)\"(?:,(0x[a-f0-9]+),([~*])?)?(?:,(\d+))?")
+  def __init__(self, log_name):
+    self.log_name = log_name
 
-  _CODE_MOVE_RE = re.compile(
-    r"code-move,(0x[a-f0-9]+),(0x[a-f0-9]+)")
+  def ReadNameMap(self):
+    log = open(self.log_name, "r")
+    try:
+      snapshot_pos_to_name = {}
+      for line in log:
+        match = SnapshotLogReader._SNAPSHOT_CODE_NAME_RE.match(line)
+        if match:
+          pos = int(match.group(1))
+          name = match.group(2)
+          snapshot_pos_to_name[pos] = name
+    finally:
+      log.close()
+    return snapshot_pos_to_name
 
-  _CODE_DELETE_RE = re.compile(
-    r"code-delete,(0x[a-f0-9]+)")
 
-  _SNAPSHOT_POS_RE = re.compile(
-    r"snapshot-pos,(0x[a-f0-9]+),(\d+)")
+class LogReader(object):
+  """V8 low-level (binary) log reader."""
 
-  _CODE_MOVING_GC = "code-moving-gc"
+  _ARCH_TO_POINTER_TYPE_MAP = {
+    "ia32": ctypes.c_uint32,
+    "arm": ctypes.c_uint32,
+    "x64": ctypes.c_uint64
+  }
 
-  def __init__(self, log_name, code_map, is_snapshot, snapshot_pos_to_name):
-    self.log = open(log_name, "r")
+  _CODE_CREATE_TAG = "C"
+  _CODE_MOVE_TAG = "M"
+  _CODE_DELETE_TAG = "D"
+  _SNAPSHOT_POSITION_TAG = "P"
+  _CODE_MOVING_GC_TAG = "G"
+
+  def __init__(self, log_name, code_map, snapshot_pos_to_name):
+    self.log_file = open(log_name, "r")
+    self.log = mmap.mmap(self.log_file.fileno(), 0, mmap.MAP_PRIVATE)
+    self.log_pos = 0
     self.code_map = code_map
-    self.is_snapshot = is_snapshot
     self.snapshot_pos_to_name = snapshot_pos_to_name
     self.address_to_snapshot_name = {}
 
-  def ReadCodeInfo(self):
-    line = self.log.readline() or ""
-    match = CodeLogReader._CODE_INFO_RE.match(line)
-    assert match, "No code info in log"
-    return CodeInfo(arch=match.group(1), header_size=int(match.group(2)))
+    self.arch = self.log[:self.log.find("\0")]
+    self.log_pos += len(self.arch) + 1
+    assert self.arch in LogReader._ARCH_TO_POINTER_TYPE_MAP, \
+        "Unsupported architecture %s" % self.arch
+    pointer_type = LogReader._ARCH_TO_POINTER_TYPE_MAP[self.arch]
 
-  def ReadUpToGC(self, code_info):
-    made_progress = False
-    code_header_size = code_info.header_size
-    while True:
-      line = self.log.readline()
-      if not line:
-        return made_progress
-      made_progress = True
+    self.code_create_struct = LogReader._DefineStruct([
+        ("name_size", ctypes.c_int32),
+        ("code_address", pointer_type),
+        ("code_size", ctypes.c_int32)])
 
-      if line.startswith(CodeLogReader._CODE_MOVING_GC):
+    self.code_move_struct = LogReader._DefineStruct([
+        ("from_address", pointer_type),
+        ("to_address", pointer_type)])
+
+    self.code_delete_struct = LogReader._DefineStruct([
+        ("address", pointer_type)])
+
+    self.snapshot_position_struct = LogReader._DefineStruct([
+        ("address", pointer_type),
+        ("position", ctypes.c_int32)])
+
+  def ReadUpToGC(self):
+    while self.log_pos < self.log.size():
+      tag = self.log[self.log_pos]
+      self.log_pos += 1
+
+      if tag == LogReader._CODE_MOVING_GC_TAG:
         self.address_to_snapshot_name.clear()
-        return made_progress
+        return
 
-      match = CodeLogReader._CODE_CREATE_RE.match(line)
-      if match:
-        start_address = int(match.group(2), 16) + code_header_size
-        end_address = start_address + int(match.group(3)) - code_header_size
+      if tag == LogReader._CODE_CREATE_TAG:
+        event = self.code_create_struct.from_buffer(self.log, self.log_pos)
+        self.log_pos += ctypes.sizeof(event)
+        start_address = event.code_address
+        end_address = start_address + event.code_size
         if start_address in self.address_to_snapshot_name:
           name = self.address_to_snapshot_name[start_address]
           origin = JS_SNAPSHOT_ORIGIN
         else:
-          tag = match.group(1)
-          optimization_status = match.group(6)
-          func_name = match.group(4)
-          if optimization_status:
-            name = "%s:%s%s" % (tag, optimization_status, func_name)
-          else:
-            name = "%s:%s" % (tag, func_name)
+          name = self.log[self.log_pos:self.log_pos + event.name_size]
           origin = JS_ORIGIN
-        if self.is_snapshot:
-          origin_offset = 0
-        else:
-          origin_offset = int(match.group(7))
+        self.log_pos += event.name_size
+        origin_offset = self.log_pos
+        self.log_pos += event.code_size
         code = Code(name, start_address, end_address, origin, origin_offset)
         conficting_code = self.code_map.Find(start_address)
         if conficting_code:
-          CodeLogReader._HandleCodeConflict(conficting_code, code)
+          LogReader._HandleCodeConflict(conficting_code, code)
           # TODO(vitalyr): this warning is too noisy because of our
           # attempts to reconstruct code log from the snapshot.
           # print >>sys.stderr, \
@@ -382,10 +408,11 @@ class CodeLogReader(object):
         self.code_map.Add(code)
         continue
 
-      match = CodeLogReader._CODE_MOVE_RE.match(line)
-      if match:
-        old_start_address = int(match.group(1), 16) + code_header_size
-        new_start_address = int(match.group(2), 16) + code_header_size
+      if tag == LogReader._CODE_MOVE_TAG:
+        event = self.code_move_struct.from_buffer(self.log, self.log_pos)
+        self.log_pos += ctypes.sizeof(event)
+        old_start_address = event.from_address
+        new_start_address = event.to_address
         if old_start_address == new_start_address:
           # Skip useless code move entries.
           continue
@@ -402,9 +429,10 @@ class CodeLogReader(object):
         self.code_map.Add(code)
         continue
 
-      match = CodeLogReader._CODE_DELETE_RE.match(line)
-      if match:
-        old_start_address = int(match.group(1), 16) + code_header_size
+      if tag == LogReader._CODE_DELETE_TAG:
+        event = self.code_delete_struct.from_buffer(self.log, self.log_pos)
+        self.log_pos += ctypes.sizeof(event)
+        old_start_address = event.address
         code = self.code_map.Find(old_start_address)
         if not code:
           print >>sys.stderr, "Warning: Not found %x" % old_start_address
@@ -414,39 +442,35 @@ class CodeLogReader(object):
         self.code_map.Remove(code)
         continue
 
-      match = CodeLogReader._SNAPSHOT_POS_RE.match(line)
-      if match:
-        start_address = int(match.group(1), 16) + code_header_size
-        snapshot_pos = int(match.group(2))
-        if self.is_snapshot:
-          code = self.code_map.Find(start_address)
-          if code:
-            assert code.start_address == start_address, \
-                "Inexact snapshot address %x for %s" % (start_address, code)
-            self.snapshot_pos_to_name[snapshot_pos] = code.name
-        else:
-          if snapshot_pos in self.snapshot_pos_to_name:
-            self.address_to_snapshot_name[start_address] = \
-                self.snapshot_pos_to_name[snapshot_pos]
+      if tag == LogReader._SNAPSHOT_POSITION_TAG:
+        event = self.snapshot_position_struct.from_buffer(self.log,
+                                                          self.log_pos)
+        self.log_pos += ctypes.sizeof(event)
+        start_address = event.address
+        snapshot_pos = event.position
+        if snapshot_pos in self.snapshot_pos_to_name:
+          self.address_to_snapshot_name[start_address] = \
+              self.snapshot_pos_to_name[snapshot_pos]
+        continue
+
+      assert False, "Unknown tag %s" % tag
 
   def Dispose(self):
     self.log.close()
+    self.log_file.close()
+
+  @staticmethod
+  def _DefineStruct(fields):
+    class Struct(ctypes.Structure):
+      _fields_ = fields
+    return Struct
 
   @staticmethod
   def _HandleCodeConflict(old_code, new_code):
     assert (old_code.start_address == new_code.start_address and
             old_code.end_address == new_code.end_address), \
         "Conficting code log entries %s and %s" % (old_code, new_code)
-    CodeLogReader._UpdateNames(old_code, new_code)
-
-  @staticmethod
-  def _UpdateNames(old_code, new_code):
     if old_code.name == new_code.name:
-      return
-    # Kludge: there are code objects with custom names that don't
-    # match their flags.
-    misnamed_code = set(["Builtin:CpuFeatures::Probe"])
-    if old_code.name in misnamed_code:
       return
     # Code object may be shared by a few functions. Collect the full
     # set of names.
@@ -607,10 +631,10 @@ class TraceReader(object):
   def ReadMmap(self, header, offset):
     mmap_info = PERF_MMAP_EVENT_BODY_DESC.Read(self.trace,
                                                offset + self.header_size)
-    # Read null-padded filename.
+    # Read null-terminated filename.
     filename = self.trace[offset + self.header_size + ctypes.sizeof(mmap_info):
-                          offset + header.size].rstrip(chr(0))
-    mmap_info.filename = filename
+                          offset + header.size]
+    mmap_info.filename = filename[:filename.find(chr(0))]
     return mmap_info
 
   def ReadSample(self, header, offset):
@@ -756,20 +780,24 @@ class LibraryRepo(object):
     return True
 
 
-def PrintReport(code_map, library_repo, code_info, options):
+def PrintReport(code_map, library_repo, arch, ticks, options):
   print "Ticks per symbol:"
   used_code = [code for code in code_map.UsedCode()]
   used_code.sort(key=lambda x: x.self_ticks, reverse=True)
   for i, code in enumerate(used_code):
-    print "%10d %s [%s]" % (code.self_ticks, code.FullName(), code.origin)
+    code_ticks = code.self_ticks
+    print "%10d %5.1f%% %s [%s]" % (code_ticks, 100. * code_ticks / ticks,
+                                    code.FullName(), code.origin)
     if options.disasm_all or i < options.disasm_top:
-      code.PrintAnnotated(code_info, options)
+      code.PrintAnnotated(arch, options)
   print
   print "Ticks per library:"
   mmap_infos = [m for m in library_repo.infos]
   mmap_infos.sort(key=lambda m: m.ticks, reverse=True)
   for mmap_info in mmap_infos:
-    print "%10d %s" % (mmap_info.ticks, mmap_info.unique_name)
+    mmap_ticks = mmap_info.ticks
+    print "%10d %5.1f%% %s" % (mmap_ticks, 100. * mmap_ticks / ticks,
+                               mmap_info.unique_name)
 
 
 def PrintDot(code_map, options):
@@ -825,11 +853,11 @@ if __name__ == "__main__":
 
   if not options.quiet:
     if options.snapshot:
-      print "V8 logs: %s, %s, %s.code" % (options.snapshot_log,
-                                          options.log,
-                                          options.log)
+      print "V8 logs: %s, %s, %s.ll" % (options.snapshot_log,
+                                        options.log,
+                                        options.log)
     else:
-      print "V8 log: %s, %s.code (no snapshot)" % (options.log, options.log)
+      print "V8 log: %s, %s.ll (no snapshot)" % (options.log, options.log)
     print "Perf trace file: %s" % options.trace
 
   # Stats.
@@ -840,30 +868,25 @@ if __name__ == "__main__":
   mmap_time = 0
   sample_time = 0
 
-  # Initialize the log reader and get the code info.
-  code_map = CodeMap()
-  snapshot_name_map = {}
-  log_reader = CodeLogReader(log_name=options.log,
-                             code_map=code_map,
-                             is_snapshot=False,
-                             snapshot_pos_to_name=snapshot_name_map)
-  code_info = log_reader.ReadCodeInfo()
-  if not options.quiet:
-    print "Generated code architecture: %s" % code_info.arch
-    print
-
   # Process the snapshot log to fill the snapshot name map.
+  snapshot_name_map = {}
   if options.snapshot:
-    snapshot_log_reader = CodeLogReader(log_name=options.snapshot_log,
-                                        code_map=CodeMap(),
-                                        is_snapshot=True,
-                                        snapshot_pos_to_name=snapshot_name_map)
-    while snapshot_log_reader.ReadUpToGC(code_info):
-      pass
+    snapshot_log_reader = SnapshotLogReader(log_name=options.snapshot_log)
+    snapshot_name_map = snapshot_log_reader.ReadNameMap()
+
+  # Initialize the log reader.
+  code_map = CodeMap()
+  log_reader = LogReader(log_name=options.log + ".ll",
+                         code_map=code_map,
+                         snapshot_pos_to_name=snapshot_name_map)
+  if not options.quiet:
+    print "Generated code architecture: %s" % log_reader.arch
+    print
+    sys.stdout.flush()
 
   # Process the code and trace logs.
   library_repo = LibraryRepo()
-  log_reader.ReadUpToGC(code_info)
+  log_reader.ReadUpToGC()
   trace_reader = TraceReader(options.trace)
   while True:
     header, offset = trace_reader.ReadEventHeader()
@@ -874,7 +897,7 @@ if __name__ == "__main__":
       start = time.time()
       mmap_info = trace_reader.ReadMmap(header, offset)
       if mmap_info.filename == V8_GC_FAKE_MMAP:
-        log_reader.ReadUpToGC(code_info)
+        log_reader.ReadUpToGC()
       else:
         library_repo.Load(mmap_info, code_map, options)
       mmap_time += time.time() - start
@@ -901,7 +924,7 @@ if __name__ == "__main__":
   if options.dot:
     PrintDot(code_map, options)
   else:
-    PrintReport(code_map, library_repo, code_info, options)
+    PrintReport(code_map, library_repo, log_reader.arch, ticks, options)
 
     if not options.quiet:
       print

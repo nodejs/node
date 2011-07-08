@@ -91,24 +91,24 @@ function listener(event, exec_state, event_data, data) {
       // parameter is passed.
       testRequest(
           dcp,
-          '{"expression":"this.longString","global":true,maxStringLength:-1}',
+          '{"expression":"this.longString","global":true,"maxStringLength":-1}',
           true,
           longString);
       testRequest(
           dcp,
-          '{"expression":"this.longString","global":true,maxStringLength:' +
+          '{"expression":"this.longString","global":true,"maxStringLength":' +
               longString.length + '}',
           true,
           longString);
       var truncatedStringSuffix = '... (length: ' + longString.length + ')';
       testRequest(
           dcp,
-          '{"expression":"this.longString","global":true,maxStringLength:0}',
+          '{"expression":"this.longString","global":true,"maxStringLength":0}',
           true,
           truncatedStringSuffix);
       testRequest(
           dcp,
-          '{"expression":"this.longString","global":true,maxStringLength:1}',
+          '{"expression":"this.longString","global":true,"maxStringLength":1}',
           true,
           longString.charAt(0) + truncatedStringSuffix);
       // Test that by default string is truncated to first 80 chars.

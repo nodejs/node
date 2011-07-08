@@ -103,7 +103,7 @@ class MessageTestConfiguration(test.TestConfiguration):
     else:
         return []
 
-  def ListTests(self, current_path, path, mode):
+  def ListTests(self, current_path, path, mode, variant_flags):
     mjsunit = [current_path + [t] for t in self.Ls(self.root)]
     regress = [current_path + ['regress', t] for t in self.Ls(join(self.root, 'regress'))]
     bugs = [current_path + ['bugs', t] for t in self.Ls(join(self.root, 'bugs'))]

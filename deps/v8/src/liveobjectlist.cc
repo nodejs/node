@@ -118,7 +118,7 @@ typedef int (*RawComparer)(const void*, const void*);
   v(Code, "meta: Code") \
   v(Map, "meta: Map") \
   v(Oddball, "Oddball") \
-  v(Proxy, "meta: Proxy") \
+  v(Foreign, "meta: Foreign") \
   v(SharedFunctionInfo, "meta: SharedFunctionInfo") \
   v(Struct, "meta: Struct") \
   \
@@ -592,16 +592,22 @@ static bool AddObjDetail(Handle<FixedArray> arr,
     return false;
   }
 
-  { MaybeObject* maybe_result =
-          detail->SetProperty(*id_sym, Smi::FromInt(obj_id), NONE);
+  { MaybeObject* maybe_result = detail->SetProperty(*id_sym,
+                                                    Smi::FromInt(obj_id),
+                                                    NONE,
+                                                    kNonStrictMode);
     if (maybe_result->IsFailure()) return false;
   }
-  { MaybeObject* maybe_result =
-          detail->SetProperty(*desc_sym, *desc, NONE);
+  { MaybeObject* maybe_result = detail->SetProperty(*desc_sym,
+                                                    *desc,
+                                                    NONE,
+                                                    kNonStrictMode);
     if (maybe_result->IsFailure()) return false;
   }
-  { MaybeObject* maybe_result =
-          detail->SetProperty(*size_sym, Smi::FromInt(size), NONE);
+  { MaybeObject* maybe_result = detail->SetProperty(*size_sym,
+                                                    Smi::FromInt(size),
+                                                    NONE,
+                                                    kNonStrictMode);
     if (maybe_result->IsFailure()) return false;
   }
 
@@ -1140,16 +1146,22 @@ MaybeObject* LiveObjectList::Capture() {
   Handle<JSObject> result = Factory::NewJSObject(Top::object_function());
   if (result->IsFailure()) return Object::cast(*result);
 
-  { MaybeObject* maybe_result =
-          result->SetProperty(*id_sym, Smi::FromInt(lol->id()), NONE);
+  { MaybeObject* maybe_result = result->SetProperty(*id_sym,
+                                                    Smi::FromInt(lol->id()),
+                                                    NONE,
+                                                    kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
   }
-  { MaybeObject* maybe_result =
-          result->SetProperty(*count_sym, Smi::FromInt(total_count), NONE);
+  { MaybeObject* maybe_result = result->SetProperty(*count_sym,
+                                                    Smi::FromInt(total_count),
+                                                    NONE,
+                                                    kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
   }
-  { MaybeObject* maybe_result =
-          result->SetProperty(*size_sym, Smi::FromInt(size), NONE);
+  { MaybeObject* maybe_result = result->SetProperty(*size_sym,
+                                                    Smi::FromInt(size),
+                                                    NONE,
+                                                    kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
   }
 
@@ -1285,19 +1297,28 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
 
   // Set the updated body.count.
   Handle<String> count_sym = Factory::LookupAsciiSymbol("count");
-  maybe_result = body->SetProperty(*count_sym, Smi::FromInt(count), NONE);
+  maybe_result = body->SetProperty(*count_sym,
+                                   Smi::FromInt(count),
+                                   NONE,
+                                   kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Set the updated body.size if appropriate.
   if (size >= 0) {
     Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
-    maybe_result = body->SetProperty(*size_sym, Smi::FromInt(size), NONE);
+    maybe_result = body->SetProperty(*size_sym,
+                                     Smi::FromInt(size),
+                                     NONE,
+                                     kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
   }
 
   // Set body.first_index.
   Handle<String> first_sym = Factory::LookupAsciiSymbol("first_index");
-  maybe_result = body->SetProperty(*first_sym, Smi::FromInt(start), NONE);
+  maybe_result = body->SetProperty(*first_sym,
+                                   Smi::FromInt(start),
+                                   NONE,
+                                   kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Allocate the JSArray of the elements.
@@ -1307,7 +1328,10 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
 
   // Set body.elements.
   Handle<String> elements_sym = Factory::LookupAsciiSymbol("elements");
-  maybe_result = body->SetProperty(*elements_sym, *elements, NONE);
+  maybe_result = body->SetProperty(*elements_sym,
+                                   *elements,
+                                   NONE,
+                                   kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   return *body;
@@ -1399,11 +1423,20 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
       Handle<String> desc = Factory::LookupAsciiSymbol(desc_cstr);
       int size = summary.Size(type);
 
-      maybe_result = detail->SetProperty(*desc_sym, *desc, NONE);
+      maybe_result = detail->SetProperty(*desc_sym,
+                                         *desc,
+                                         NONE,
+                                         kNonStrictMode);
       if (maybe_result->IsFailure()) return maybe_result;
-      maybe_result = detail->SetProperty(*count_sym, Smi::FromInt(count), NONE);
+      maybe_result = detail->SetProperty(*count_sym,
+                                         Smi::FromInt(count),
+                                         NONE,
+                                         kNonStrictMode);
       if (maybe_result->IsFailure()) return maybe_result;
-      maybe_result = detail->SetProperty(*size_sym, Smi::FromInt(size), NONE);
+      maybe_result = detail->SetProperty(*size_sym,
+                                         Smi::FromInt(size),
+                                         NONE,
+                                         kNonStrictMode);
       if (maybe_result->IsFailure()) return maybe_result;
 
       summary_arr->set(idx++, *detail);
@@ -1422,11 +1455,16 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   // Fill out the body object.
   int total_count = summary.total_count();
   int total_size = summary.total_size();
-  maybe_result =
-      body->SetProperty(*count_sym, Smi::FromInt(total_count), NONE);
+  maybe_result = body->SetProperty(*count_sym,
+                                   Smi::FromInt(total_count),
+                                   NONE,
+                                   kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
-  maybe_result = body->SetProperty(*size_sym, Smi::FromInt(total_size), NONE);
+  maybe_result = body->SetProperty(*size_sym,
+                                   Smi::FromInt(total_size),
+                                   NONE,
+                                   kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   if (is_tracking_roots) {
@@ -1435,15 +1473,22 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
     Handle<String> root_sym = Factory::LookupAsciiSymbol("found_root");
     Handle<String> weak_root_sym =
         Factory::LookupAsciiSymbol("found_weak_root");
-    maybe_result =
-        body->SetProperty(*root_sym, Smi::FromInt(found_root), NONE);
+    maybe_result = body->SetProperty(*root_sym,
+                                     Smi::FromInt(found_root),
+                                     NONE,
+                                     kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
-    maybe_result =
-        body->SetProperty(*weak_root_sym, Smi::FromInt(found_weak_root), NONE);
+    maybe_result = body->SetProperty(*weak_root_sym,
+                                     Smi::FromInt(found_weak_root),
+                                     NONE,
+                                     kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
   }
 
-  maybe_result = body->SetProperty(*summary_sym, *summary_obj, NONE);
+  maybe_result = body->SetProperty(*summary_sym,
+                                   *summary_obj,
+                                   NONE,
+                                   kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   return *body;
@@ -1501,13 +1546,20 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
       Handle<JSObject> detail = Factory::NewJSObject(Top::object_function());
       if (detail->IsFailure()) return Object::cast(*detail);
 
-      maybe_result =
-          detail->SetProperty(*id_sym, Smi::FromInt(lol->id()), NONE);
+      maybe_result = detail->SetProperty(*id_sym,
+                                         Smi::FromInt(lol->id()),
+                                         NONE,
+                                         kNonStrictMode);
       if (maybe_result->IsFailure()) return maybe_result;
-      maybe_result =
-          detail->SetProperty(*count_sym, Smi::FromInt(count), NONE);
+      maybe_result = detail->SetProperty(*count_sym,
+                                         Smi::FromInt(count),
+                                         NONE,
+                                         kNonStrictMode);
       if (maybe_result->IsFailure()) return maybe_result;
-      maybe_result = detail->SetProperty(*size_sym, Smi::FromInt(size), NONE);
+      maybe_result = detail->SetProperty(*size_sym,
+                                         Smi::FromInt(size),
+                                         NONE,
+                                         kNonStrictMode);
       if (maybe_result->IsFailure()) return maybe_result;
       list->set(idx++, *detail);
       dump_limit--;
@@ -1522,17 +1574,24 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
   Handle<JSObject> result = Factory::NewJSObject(Top::object_function());
   if (result->IsFailure()) return Object::cast(*result);
 
-  maybe_result =
-      result->SetProperty(*count_sym, Smi::FromInt(total_count), NONE);
+  maybe_result = result->SetProperty(*count_sym,
+                                     Smi::FromInt(total_count),
+                                     NONE,
+                                     kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   Handle<String> first_sym = Factory::LookupAsciiSymbol("first_index");
-  maybe_result =
-      result->SetProperty(*first_sym, Smi::FromInt(start_idx), NONE);
+  maybe_result = result->SetProperty(*first_sym,
+                                     Smi::FromInt(start_idx),
+                                     NONE,
+                                     kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   Handle<String> lists_sym = Factory::LookupAsciiSymbol("lists");
-  maybe_result = result->SetProperty(*lists_sym, *lols, NONE);
+  maybe_result = result->SetProperty(*lists_sym,
+                                     *lols,
+                                     NONE,
+                                     kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
   return *result;
@@ -1590,7 +1649,6 @@ Object* LiveObjectList::GetObjId(Handle<String> address) {
 // Helper class for copying HeapObjects.
 class LolVisitor: public ObjectVisitor {
  public:
-
   LolVisitor(HeapObject* target, Handle<HeapObject> handle_to_skip)
       : target_(target), handle_to_skip_(handle_to_skip), found_(false) {}
 
@@ -1880,7 +1938,10 @@ MaybeObject* LiveObjectList::GetObjRetainers(int obj_id,
     // Set body.id.
     Handle<JSObject> body = Handle<JSObject>(JSObject::cast(body_obj));
     Handle<String> id_sym = Factory::LookupAsciiSymbol("id");
-    maybe_result = body->SetProperty(*id_sym, Smi::FromInt(obj_id), NONE);
+    maybe_result = body->SetProperty(*id_sym,
+                                     Smi::FromInt(obj_id),
+                                     NONE,
+                                     kNonStrictMode);
     if (maybe_result->IsFailure()) return maybe_result;
 
     return *body;
@@ -2524,4 +2585,3 @@ void LiveObjectList::VerifyNotInFromSpace() {
 } }  // namespace v8::internal
 
 #endif  // LIVE_OBJECT_LIST
-

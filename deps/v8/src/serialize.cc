@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,7 @@
 
 #include "accessors.h"
 #include "api.h"
+#include "bootstrapper.h"
 #include "execution.h"
 #include "global-handles.h"
 #include "ic-inl.h"
@@ -38,8 +39,6 @@
 #include "serialize.h"
 #include "stub-cache.h"
 #include "v8threads.h"
-#include "top.h"
-#include "bootstrapper.h"
 
 namespace v8 {
 namespace internal {
@@ -68,9 +67,14 @@ static int* GetInternalPointer(StatsCounter* counter) {
 // hashmaps in ExternalReferenceEncoder and ExternalReferenceDecoder.
 class ExternalReferenceTable {
  public:
-  static ExternalReferenceTable* instance() {
-    if (!instance_) instance_ = new ExternalReferenceTable();
-    return instance_;
+  static ExternalReferenceTable* instance(Isolate* isolate) {
+    ExternalReferenceTable* external_reference_table =
+        isolate->external_reference_table();
+    if (external_reference_table == NULL) {
+      external_reference_table = new ExternalReferenceTable(isolate);
+      isolate->set_external_reference_table(external_reference_table);
+    }
+    return external_reference_table;
   }
 
   int size() const { return refs_.length(); }
@@ -84,9 +88,9 @@ class ExternalReferenceTable {
   int max_id(int code) { return max_id_[code]; }
 
  private:
-  static ExternalReferenceTable* instance_;
-
-  ExternalReferenceTable() : refs_(64) { PopulateTable(); }
+  explicit ExternalReferenceTable(Isolate* isolate) : refs_(64) {
+      PopulateTable(isolate);
+  }
   ~ExternalReferenceTable() { }
 
   struct ExternalReferenceEntry {
@@ -95,10 +99,13 @@ class ExternalReferenceTable {
     const char* name;
   };
 
-  void PopulateTable();
+  void PopulateTable(Isolate* isolate);
 
   // For a few types of references, we can get their address from their id.
-  void AddFromId(TypeCode type, uint16_t id, const char* name);
+  void AddFromId(TypeCode type,
+                 uint16_t id,
+                 const char* name,
+                 Isolate* isolate);
 
   // For other types of references, the caller will figure out the address.
   void Add(Address address, TypeCode type, uint16_t id, const char* name);
@@ -108,31 +115,30 @@ class ExternalReferenceTable {
 };
 
 
-ExternalReferenceTable* ExternalReferenceTable::instance_ = NULL;
-
-
 void ExternalReferenceTable::AddFromId(TypeCode type,
                                        uint16_t id,
-                                       const char* name) {
+                                       const char* name,
+                                       Isolate* isolate) {
   Address address;
   switch (type) {
     case C_BUILTIN: {
-      ExternalReference ref(static_cast<Builtins::CFunctionId>(id));
+      ExternalReference ref(static_cast<Builtins::CFunctionId>(id), isolate);
       address = ref.address();
       break;
     }
     case BUILTIN: {
-      ExternalReference ref(static_cast<Builtins::Name>(id));
+      ExternalReference ref(static_cast<Builtins::Name>(id), isolate);
       address = ref.address();
       break;
     }
     case RUNTIME_FUNCTION: {
-      ExternalReference ref(static_cast<Runtime::FunctionId>(id));
+      ExternalReference ref(static_cast<Runtime::FunctionId>(id), isolate);
       address = ref.address();
       break;
     }
     case IC_UTILITY: {
-      ExternalReference ref(IC_Utility(static_cast<IC::UtilityId>(id)));
+      ExternalReference ref(IC_Utility(static_cast<IC::UtilityId>(id)),
+                            isolate);
       address = ref.address();
       break;
     }
@@ -159,7 +165,7 @@ void ExternalReferenceTable::Add(Address address,
 }
 
 
-void ExternalReferenceTable::PopulateTable() {
+void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   for (int type_code = 0; type_code < kTypeCodeCount; type_code++) {
     max_id_[type_code] = 0;
   }
@@ -190,7 +196,7 @@ void ExternalReferenceTable::PopulateTable() {
 
 #define DEF_ENTRY_C(name, ignored) \
   { BUILTIN, \
-    Builtins::name, \
+    Builtins::k##name, \
     "Builtins::" #name },
 #define DEF_ENTRY_A(name, kind, state, extra) DEF_ENTRY_C(name, ignored)
 
@@ -220,24 +226,27 @@ void ExternalReferenceTable::PopulateTable() {
   };  // end of ref_table[].
 
   for (size_t i = 0; i < ARRAY_SIZE(ref_table); ++i) {
-    AddFromId(ref_table[i].type, ref_table[i].id, ref_table[i].name);
+    AddFromId(ref_table[i].type,
+              ref_table[i].id,
+              ref_table[i].name,
+              isolate);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Debug addresses
-  Add(Debug_Address(Debug::k_after_break_target_address).address(),
+  Add(Debug_Address(Debug::k_after_break_target_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_after_break_target_address << kDebugIdShift,
       "Debug::after_break_target_address()");
-  Add(Debug_Address(Debug::k_debug_break_slot_address).address(),
+  Add(Debug_Address(Debug::k_debug_break_slot_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_debug_break_slot_address << kDebugIdShift,
       "Debug::debug_break_slot_address()");
-  Add(Debug_Address(Debug::k_debug_break_return_address).address(),
+  Add(Debug_Address(Debug::k_debug_break_return_address).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_debug_break_return_address << kDebugIdShift,
       "Debug::debug_break_return_address()");
-  Add(Debug_Address(Debug::k_restarter_frame_function_pointer).address(),
+  Add(Debug_Address(Debug::k_restarter_frame_function_pointer).address(isolate),
       DEBUG_ADDRESS,
       Debug::k_restarter_frame_function_pointer << kDebugIdShift,
       "Debug::restarter_frame_function_pointer_address()");
@@ -245,14 +254,14 @@ void ExternalReferenceTable::PopulateTable() {
 
   // Stat counters
   struct StatsRefTableEntry {
-    StatsCounter* counter;
+    StatsCounter* (Counters::*counter)();
     uint16_t id;
     const char* name;
   };
 
-  static const StatsRefTableEntry stats_ref_table[] = {
+  const StatsRefTableEntry stats_ref_table[] = {
 #define COUNTER_ENTRY(name, caption) \
-  { &Counters::name, \
+  { &Counters::name,    \
     Counters::k_##name, \
     "Counters::" #name },
 
@@ -261,33 +270,28 @@ void ExternalReferenceTable::PopulateTable() {
 #undef COUNTER_ENTRY
   };  // end of stats_ref_table[].
 
+  Counters* counters = isolate->counters();
   for (size_t i = 0; i < ARRAY_SIZE(stats_ref_table); ++i) {
-    Add(reinterpret_cast<Address>(
-            GetInternalPointer(stats_ref_table[i].counter)),
+    Add(reinterpret_cast<Address>(GetInternalPointer(
+            (counters->*(stats_ref_table[i].counter))())),
         STATS_COUNTER,
         stats_ref_table[i].id,
         stats_ref_table[i].name);
   }
 
   // Top addresses
-  const char* top_address_format = "Top::%s";
 
   const char* AddressNames[] = {
-#define C(name) #name,
-    TOP_ADDRESS_LIST(C)
-    TOP_ADDRESS_LIST_PROF(C)
+#define C(name) "Isolate::" #name,
+    ISOLATE_ADDRESS_LIST(C)
+    ISOLATE_ADDRESS_LIST_PROF(C)
     NULL
 #undef C
   };
 
-  int top_format_length = StrLength(top_address_format) - 2;
-  for (uint16_t i = 0; i < Top::k_top_address_count; ++i) {
-    const char* address_name = AddressNames[i];
-    Vector<char> name =
-        Vector<char>::New(top_format_length + StrLength(address_name) + 1);
-    const char* chars = name.start();
-    OS::SNPrintF(name, top_address_format, address_name);
-    Add(Top::get_address_from_id((Top::AddressId)i), TOP_ADDRESS, i, chars);
+  for (uint16_t i = 0; i < Isolate::k_isolate_address_count; ++i) {
+    Add(isolate->get_address_from_id((Isolate::AddressId)i),
+        TOP_ADDRESS, i, AddressNames[i]);
   }
 
   // Accessors
@@ -300,143 +304,145 @@ void ExternalReferenceTable::PopulateTable() {
   ACCESSOR_DESCRIPTOR_LIST(ACCESSOR_DESCRIPTOR_DECLARATION)
 #undef ACCESSOR_DESCRIPTOR_DECLARATION
 
+  StubCache* stub_cache = isolate->stub_cache();
+
   // Stub cache tables
-  Add(SCTableReference::keyReference(StubCache::kPrimary).address(),
+  Add(stub_cache->key_reference(StubCache::kPrimary).address(),
       STUB_CACHE_TABLE,
       1,
       "StubCache::primary_->key");
-  Add(SCTableReference::valueReference(StubCache::kPrimary).address(),
+  Add(stub_cache->value_reference(StubCache::kPrimary).address(),
       STUB_CACHE_TABLE,
       2,
       "StubCache::primary_->value");
-  Add(SCTableReference::keyReference(StubCache::kSecondary).address(),
+  Add(stub_cache->key_reference(StubCache::kSecondary).address(),
       STUB_CACHE_TABLE,
       3,
       "StubCache::secondary_->key");
-  Add(SCTableReference::valueReference(StubCache::kSecondary).address(),
+  Add(stub_cache->value_reference(StubCache::kSecondary).address(),
       STUB_CACHE_TABLE,
       4,
       "StubCache::secondary_->value");
 
   // Runtime entries
-  Add(ExternalReference::perform_gc_function().address(),
+  Add(ExternalReference::perform_gc_function(isolate).address(),
       RUNTIME_ENTRY,
       1,
       "Runtime::PerformGC");
-  Add(ExternalReference::fill_heap_number_with_random_function().address(),
+  Add(ExternalReference::fill_heap_number_with_random_function(
+          isolate).address(),
       RUNTIME_ENTRY,
       2,
       "V8::FillHeapNumberWithRandom");
-
-  Add(ExternalReference::random_uint32_function().address(),
+  Add(ExternalReference::random_uint32_function(isolate).address(),
       RUNTIME_ENTRY,
       3,
       "V8::Random");
-
-  Add(ExternalReference::delete_handle_scope_extensions().address(),
+  Add(ExternalReference::delete_handle_scope_extensions(isolate).address(),
       RUNTIME_ENTRY,
       4,
       "HandleScope::DeleteExtensions");
 
   // Miscellaneous
-  Add(ExternalReference::the_hole_value_location().address(),
+  Add(ExternalReference::the_hole_value_location(isolate).address(),
       UNCLASSIFIED,
       2,
       "Factory::the_hole_value().location()");
-  Add(ExternalReference::roots_address().address(),
+  Add(ExternalReference::roots_address(isolate).address(),
       UNCLASSIFIED,
       3,
       "Heap::roots_address()");
-  Add(ExternalReference::address_of_stack_limit().address(),
+  Add(ExternalReference::address_of_stack_limit(isolate).address(),
       UNCLASSIFIED,
       4,
       "StackGuard::address_of_jslimit()");
-  Add(ExternalReference::address_of_real_stack_limit().address(),
+  Add(ExternalReference::address_of_real_stack_limit(isolate).address(),
       UNCLASSIFIED,
       5,
       "StackGuard::address_of_real_jslimit()");
 #ifndef V8_INTERPRETED_REGEXP
-  Add(ExternalReference::address_of_regexp_stack_limit().address(),
+  Add(ExternalReference::address_of_regexp_stack_limit(isolate).address(),
       UNCLASSIFIED,
       6,
       "RegExpStack::limit_address()");
-  Add(ExternalReference::address_of_regexp_stack_memory_address().address(),
+  Add(ExternalReference::address_of_regexp_stack_memory_address(
+          isolate).address(),
       UNCLASSIFIED,
       7,
       "RegExpStack::memory_address()");
-  Add(ExternalReference::address_of_regexp_stack_memory_size().address(),
+  Add(ExternalReference::address_of_regexp_stack_memory_size(isolate).address(),
       UNCLASSIFIED,
       8,
       "RegExpStack::memory_size()");
-  Add(ExternalReference::address_of_static_offsets_vector().address(),
+  Add(ExternalReference::address_of_static_offsets_vector(isolate).address(),
       UNCLASSIFIED,
       9,
       "OffsetsVector::static_offsets_vector");
 #endif  // V8_INTERPRETED_REGEXP
-  Add(ExternalReference::new_space_start().address(),
+  Add(ExternalReference::new_space_start(isolate).address(),
       UNCLASSIFIED,
       10,
       "Heap::NewSpaceStart()");
-  Add(ExternalReference::new_space_mask().address(),
+  Add(ExternalReference::new_space_mask(isolate).address(),
       UNCLASSIFIED,
       11,
       "Heap::NewSpaceMask()");
-  Add(ExternalReference::heap_always_allocate_scope_depth().address(),
+  Add(ExternalReference::heap_always_allocate_scope_depth(isolate).address(),
       UNCLASSIFIED,
       12,
       "Heap::always_allocate_scope_depth()");
-  Add(ExternalReference::new_space_allocation_limit_address().address(),
+  Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       UNCLASSIFIED,
       13,
       "Heap::NewSpaceAllocationLimitAddress()");
-  Add(ExternalReference::new_space_allocation_top_address().address(),
+  Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
       UNCLASSIFIED,
       14,
       "Heap::NewSpaceAllocationTopAddress()");
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Add(ExternalReference::debug_break().address(),
+  Add(ExternalReference::debug_break(isolate).address(),
       UNCLASSIFIED,
       15,
       "Debug::Break()");
-  Add(ExternalReference::debug_step_in_fp_address().address(),
+  Add(ExternalReference::debug_step_in_fp_address(isolate).address(),
       UNCLASSIFIED,
       16,
       "Debug::step_in_fp_addr()");
 #endif
-  Add(ExternalReference::double_fp_operation(Token::ADD).address(),
+  Add(ExternalReference::double_fp_operation(Token::ADD, isolate).address(),
       UNCLASSIFIED,
       17,
       "add_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::SUB).address(),
+  Add(ExternalReference::double_fp_operation(Token::SUB, isolate).address(),
       UNCLASSIFIED,
       18,
       "sub_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::MUL).address(),
+  Add(ExternalReference::double_fp_operation(Token::MUL, isolate).address(),
       UNCLASSIFIED,
       19,
       "mul_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::DIV).address(),
+  Add(ExternalReference::double_fp_operation(Token::DIV, isolate).address(),
       UNCLASSIFIED,
       20,
       "div_two_doubles");
-  Add(ExternalReference::double_fp_operation(Token::MOD).address(),
+  Add(ExternalReference::double_fp_operation(Token::MOD, isolate).address(),
       UNCLASSIFIED,
       21,
       "mod_two_doubles");
-  Add(ExternalReference::compare_doubles().address(),
+  Add(ExternalReference::compare_doubles(isolate).address(),
       UNCLASSIFIED,
       22,
       "compare_doubles");
 #ifndef V8_INTERPRETED_REGEXP
-  Add(ExternalReference::re_case_insensitive_compare_uc16().address(),
+  Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
       UNCLASSIFIED,
       23,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
-  Add(ExternalReference::re_check_stack_guard_state().address(),
+  Add(ExternalReference::re_check_stack_guard_state(isolate).address(),
       UNCLASSIFIED,
       24,
       "RegExpMacroAssembler*::CheckStackGuardState()");
-  Add(ExternalReference::re_grow_stack().address(),
+  Add(ExternalReference::re_grow_stack(isolate).address(),
       UNCLASSIFIED,
       25,
       "NativeRegExpMacroAssembler::GrowStack()");
@@ -446,15 +452,15 @@ void ExternalReferenceTable::PopulateTable() {
       "NativeRegExpMacroAssembler::word_character_map");
 #endif  // V8_INTERPRETED_REGEXP
   // Keyed lookup cache.
-  Add(ExternalReference::keyed_lookup_cache_keys().address(),
+  Add(ExternalReference::keyed_lookup_cache_keys(isolate).address(),
       UNCLASSIFIED,
       27,
       "KeyedLookupCache::keys()");
-  Add(ExternalReference::keyed_lookup_cache_field_offsets().address(),
+  Add(ExternalReference::keyed_lookup_cache_field_offsets(isolate).address(),
       UNCLASSIFIED,
       28,
       "KeyedLookupCache::field_offsets()");
-  Add(ExternalReference::transcendental_cache_array_address().address(),
+  Add(ExternalReference::transcendental_cache_array_address(isolate).address(),
       UNCLASSIFIED,
       29,
       "TranscendentalCache::caches()");
@@ -470,11 +476,11 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       32,
       "HandleScope::level");
-  Add(ExternalReference::new_deoptimizer_function().address(),
+  Add(ExternalReference::new_deoptimizer_function(isolate).address(),
       UNCLASSIFIED,
       33,
       "Deoptimizer::New()");
-  Add(ExternalReference::compute_output_frames_function().address(),
+  Add(ExternalReference::compute_output_frames_function(isolate).address(),
       UNCLASSIFIED,
       34,
       "Deoptimizer::ComputeOutputFrames()");
@@ -486,33 +492,38 @@ void ExternalReferenceTable::PopulateTable() {
       UNCLASSIFIED,
       36,
       "LDoubleConstant::one_half");
-  Add(ExternalReference::address_of_minus_zero().address(),
+  Add(ExternalReference::isolate_address().address(),
       UNCLASSIFIED,
       37,
+      "isolate");
+  Add(ExternalReference::address_of_minus_zero().address(),
+      UNCLASSIFIED,
+      38,
       "LDoubleConstant::minus_zero");
   Add(ExternalReference::address_of_negative_infinity().address(),
       UNCLASSIFIED,
-      38,
-      "LDoubleConstant::negative_infinity");
-  Add(ExternalReference::power_double_double_function().address(),
-      UNCLASSIFIED,
       39,
-      "power_double_double_function");
-  Add(ExternalReference::power_double_int_function().address(),
+      "LDoubleConstant::negative_infinity");
+  Add(ExternalReference::power_double_double_function(isolate).address(),
       UNCLASSIFIED,
       40,
-      "power_double_int_function");
-  Add(ExternalReference::arguments_marker_location().address(),
+      "power_double_double_function");
+  Add(ExternalReference::power_double_int_function(isolate).address(),
       UNCLASSIFIED,
       41,
+      "power_double_int_function");
+  Add(ExternalReference::arguments_marker_location(isolate).address(),
+      UNCLASSIFIED,
+      42,
       "Factory::arguments_marker().location()");
 }
 
 
 ExternalReferenceEncoder::ExternalReferenceEncoder()
-    : encodings_(Match) {
+    : encodings_(Match),
+      isolate_(Isolate::Current()) {
   ExternalReferenceTable* external_references =
-      ExternalReferenceTable::instance();
+      ExternalReferenceTable::instance(isolate_);
   for (int i = 0; i < external_references->size(); ++i) {
     Put(external_references->address(i), i);
   }
@@ -522,20 +533,22 @@ ExternalReferenceEncoder::ExternalReferenceEncoder()
 uint32_t ExternalReferenceEncoder::Encode(Address key) const {
   int index = IndexOf(key);
   ASSERT(key == NULL || index >= 0);
-  return index >=0 ? ExternalReferenceTable::instance()->code(index) : 0;
+  return index >=0 ?
+         ExternalReferenceTable::instance(isolate_)->code(index) : 0;
 }
 
 
 const char* ExternalReferenceEncoder::NameOfAddress(Address key) const {
   int index = IndexOf(key);
-  return index >=0 ? ExternalReferenceTable::instance()->name(index) : NULL;
+  return index >= 0 ?
+      ExternalReferenceTable::instance(isolate_)->name(index) : NULL;
 }
 
 
 int ExternalReferenceEncoder::IndexOf(Address key) const {
   if (key == NULL) return -1;
   HashMap::Entry* entry =
-      const_cast<HashMap &>(encodings_).Lookup(key, Hash(key), false);
+      const_cast<HashMap&>(encodings_).Lookup(key, Hash(key), false);
   return entry == NULL
       ? -1
       : static_cast<int>(reinterpret_cast<intptr_t>(entry->value));
@@ -549,9 +562,10 @@ void ExternalReferenceEncoder::Put(Address key, int index) {
 
 
 ExternalReferenceDecoder::ExternalReferenceDecoder()
-    : encodings_(NewArray<Address*>(kTypeCodeCount)) {
+    : encodings_(NewArray<Address*>(kTypeCodeCount)),
+      isolate_(Isolate::Current()) {
   ExternalReferenceTable* external_references =
-      ExternalReferenceTable::instance();
+      ExternalReferenceTable::instance(isolate_);
   for (int type = kFirstTypeCode; type < kTypeCodeCount; ++type) {
     int max = external_references->max_id(type) + 1;
     encodings_[type] = NewArray<Address>(max + 1);
@@ -572,10 +586,12 @@ ExternalReferenceDecoder::~ExternalReferenceDecoder() {
 
 bool Serializer::serialization_enabled_ = false;
 bool Serializer::too_late_to_enable_now_ = false;
-ExternalReferenceDecoder* Deserializer::external_reference_decoder_ = NULL;
 
 
-Deserializer::Deserializer(SnapshotByteSource* source) : source_(source) {
+Deserializer::Deserializer(SnapshotByteSource* source)
+    : isolate_(NULL),
+      source_(source),
+      external_reference_decoder_(NULL) {
 }
 
 
@@ -601,7 +617,6 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     high_water_[space_index] = address + size;
   } else {
     ASSERT(SpaceIsLarge(space_index));
-    ASSERT(size > Page::kPageSize - Page::kObjectStartOffset);
     LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
     if (space_index == kLargeData) {
@@ -655,27 +670,31 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
 
 
 void Deserializer::Deserialize() {
+  isolate_ = Isolate::Current();
   // Don't GC while deserializing - just expand the heap.
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
   LinearAllocationScope allocate_linearly;
   // No active threads.
-  ASSERT_EQ(NULL, ThreadState::FirstInUse());
+  ASSERT_EQ(NULL, isolate_->thread_manager()->FirstThreadStateInUse());
   // No active handles.
-  ASSERT(HandleScopeImplementer::instance()->blocks()->is_empty());
+  ASSERT(isolate_->handle_scope_implementer()->blocks()->is_empty());
   // Make sure the entire partial snapshot cache is traversed, filling it with
   // valid object pointers.
-  partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
+  isolate_->set_serialize_partial_snapshot_cache_length(
+      Isolate::kPartialSnapshotCacheCapacity);
   ASSERT_EQ(NULL, external_reference_decoder_);
   external_reference_decoder_ = new ExternalReferenceDecoder();
-  Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
-  Heap::IterateWeakRoots(this, VISIT_ALL);
+  isolate_->heap()->IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  isolate_->heap()->IterateWeakRoots(this, VISIT_ALL);
 
-  Heap::set_global_contexts_list(Heap::undefined_value());
+  isolate_->heap()->set_global_contexts_list(
+      isolate_->heap()->undefined_value());
 }
 
 
 void Deserializer::DeserializePartial(Object** root) {
+  isolate_ = Isolate::Current();
   // Don't GC while deserializing - just expand the heap.
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
@@ -689,7 +708,7 @@ void Deserializer::DeserializePartial(Object** root) {
 
 Deserializer::~Deserializer() {
   ASSERT(source_->AtEOF());
-  if (external_reference_decoder_ != NULL) {
+  if (external_reference_decoder_) {
     delete external_reference_decoder_;
     external_reference_decoder_ = NULL;
   }
@@ -720,9 +739,14 @@ void Deserializer::ReadObject(int space_number,
   Object** current = reinterpret_cast<Object**>(address);
   Object** limit = current + (size >> kPointerSizeLog2);
   if (FLAG_log_snapshot_positions) {
-    LOG(SnapshotPositionEvent(address, source_->position()));
+    LOG(isolate_, SnapshotPositionEvent(address, source_->position()));
   }
   ReadChunk(current, limit, space_number, address);
+#ifdef DEBUG
+  bool is_codespace = (space == HEAP->code_space()) ||
+      ((space == HEAP->lo_space()) && (space_number == kLargeCode));
+  ASSERT(HeapObject::FromAddress(address)->IsCode() == is_codespace);
+#endif
 }
 
 
@@ -732,20 +756,20 @@ void Deserializer::ReadObject(int space_number,
 #define ASSIGN_DEST_SPACE(space_number)                                        \
   Space* dest_space;                                                           \
   if (space_number == NEW_SPACE) {                                             \
-    dest_space = Heap::new_space();                                            \
+    dest_space = isolate->heap()->new_space();                                \
   } else if (space_number == OLD_POINTER_SPACE) {                              \
-    dest_space = Heap::old_pointer_space();                                    \
+    dest_space = isolate->heap()->old_pointer_space();                         \
   } else if (space_number == OLD_DATA_SPACE) {                                 \
-    dest_space = Heap::old_data_space();                                       \
+    dest_space = isolate->heap()->old_data_space();                            \
   } else if (space_number == CODE_SPACE) {                                     \
-    dest_space = Heap::code_space();                                           \
+    dest_space = isolate->heap()->code_space();                                \
   } else if (space_number == MAP_SPACE) {                                      \
-    dest_space = Heap::map_space();                                            \
+    dest_space = isolate->heap()->map_space();                                 \
   } else if (space_number == CELL_SPACE) {                                     \
-    dest_space = Heap::cell_space();                                           \
+    dest_space = isolate->heap()->cell_space();                                \
   } else {                                                                     \
     ASSERT(space_number >= LO_SPACE);                                          \
-    dest_space = Heap::lo_space();                                             \
+    dest_space = isolate->heap()->lo_space();                                  \
   }
 
 
@@ -756,6 +780,7 @@ void Deserializer::ReadChunk(Object** current,
                              Object** limit,
                              int source_space,
                              Address address) {
+  Isolate* const isolate = isolate_;
   while (current < limit) {
     int data = source_->Get();
     switch (data) {
@@ -784,14 +809,15 @@ void Deserializer::ReadChunk(Object** current,
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
             int root_id = source_->GetInt();                                   \
-            new_object = Heap::roots_address()[root_id];                       \
+            new_object = isolate->heap()->roots_address()[root_id];            \
           } else if (where == kPartialSnapshotCache) {                         \
             int cache_index = source_->GetInt();                               \
-            new_object = partial_snapshot_cache_[cache_index];                 \
+            new_object = isolate->serialize_partial_snapshot_cache()           \
+                [cache_index];                                                 \
           } else if (where == kExternalReference) {                            \
             int reference_id = source_->GetInt();                              \
-            Address address =                                                  \
-                external_reference_decoder_->Decode(reference_id);             \
+            Address address = external_reference_decoder_->                    \
+                Decode(reference_id);                                          \
             new_object = reinterpret_cast<Object*>(address);                   \
           } else if (where == kBackref) {                                      \
             emit_write_barrier =                                               \
@@ -829,7 +855,7 @@ void Deserializer::ReadChunk(Object** current,
           }                                                                    \
         }                                                                      \
         if (emit_write_barrier) {                                              \
-          Heap::RecordWrite(address, static_cast<int>(                         \
+          isolate->heap()->RecordWrite(address, static_cast<int>(              \
               reinterpret_cast<Address>(current) - address));                  \
         }                                                                      \
         if (!current_was_incremented) {                                        \
@@ -878,7 +904,7 @@ void Deserializer::ReadChunk(Object** current,
   CASE_STATEMENT(where, how, within, CODE_SPACE)                               \
   CASE_BODY(where, how, within, CODE_SPACE, kUnknownOffsetFromStart)           \
   CASE_STATEMENT(where, how, within, kLargeCode)                               \
-  CASE_BODY(where, how, within, LO_SPACE, kUnknownOffsetFromStart)
+  CASE_BODY(where, how, within, kLargeCode, kUnknownOffsetFromStart)
 
 #define EMIT_COMMON_REFERENCE_PATTERNS(pseudo_space_number,                    \
                                        space_number,                           \
@@ -991,9 +1017,11 @@ void Deserializer::ReadChunk(Object** current,
 
       case kNativesStringResource: {
         int index = source_->Get();
-        Vector<const char> source_vector = Natives::GetScriptSource(index);
+        Vector<const char> source_vector = Natives::GetRawScriptSource(index);
         NativesExternalStringResource* resource =
-            new NativesExternalStringResource(source_vector.start());
+            new NativesExternalStringResource(isolate->bootstrapper(),
+                                              source_vector.start(),
+                                              source_vector.length());
         *current++ = reinterpret_cast<Object*>(resource);
         break;
       }
@@ -1058,6 +1086,9 @@ Serializer::Serializer(SnapshotByteSink* sink)
       current_root_index_(0),
       external_reference_encoder_(new ExternalReferenceEncoder),
       large_object_total_(0) {
+  // The serializer is meant to be used only to generate initial heap images
+  // from a context in which there is only one isolate.
+  ASSERT(Isolate::Current()->IsDefaultIsolate());
   for (int i = 0; i <= LAST_SPACE; i++) {
     fullness_[i] = 0;
   }
@@ -1070,35 +1101,40 @@ Serializer::~Serializer() {
 
 
 void StartupSerializer::SerializeStrongReferences() {
+  Isolate* isolate = Isolate::Current();
   // No active threads.
-  CHECK_EQ(NULL, ThreadState::FirstInUse());
+  CHECK_EQ(NULL, Isolate::Current()->thread_manager()->FirstThreadStateInUse());
   // No active or weak handles.
-  CHECK(HandleScopeImplementer::instance()->blocks()->is_empty());
-  CHECK_EQ(0, GlobalHandles::NumberOfWeakHandles());
+  CHECK(isolate->handle_scope_implementer()->blocks()->is_empty());
+  CHECK_EQ(0, isolate->global_handles()->NumberOfWeakHandles());
   // We don't support serializing installed extensions.
-  for (RegisteredExtension* ext = RegisteredExtension::first_extension();
+  for (RegisteredExtension* ext = v8::RegisteredExtension::first_extension();
        ext != NULL;
        ext = ext->next()) {
     CHECK_NE(v8::INSTALLED, ext->state());
   }
-  Heap::IterateStrongRoots(this, VISIT_ONLY_STRONG);
+  HEAP->IterateStrongRoots(this, VISIT_ONLY_STRONG);
 }
 
 
 void PartialSerializer::Serialize(Object** object) {
   this->VisitPointer(object);
+  Isolate* isolate = Isolate::Current();
 
   // After we have done the partial serialization the partial snapshot cache
   // will contain some references needed to decode the partial snapshot.  We
   // fill it up with undefineds so it has a predictable length so the
   // deserialization code doesn't need to know the length.
-  for (int index = partial_snapshot_cache_length_;
-       index < kPartialSnapshotCacheCapacity;
+  for (int index = isolate->serialize_partial_snapshot_cache_length();
+       index < Isolate::kPartialSnapshotCacheCapacity;
        index++) {
-    partial_snapshot_cache_[index] = Heap::undefined_value();
-    startup_serializer_->VisitPointer(&partial_snapshot_cache_[index]);
+    isolate->serialize_partial_snapshot_cache()[index] =
+        isolate->heap()->undefined_value();
+    startup_serializer_->VisitPointer(
+        &isolate->serialize_partial_snapshot_cache()[index]);
   }
-  partial_snapshot_cache_length_ = kPartialSnapshotCacheCapacity;
+  isolate->set_serialize_partial_snapshot_cache_length(
+      Isolate::kPartialSnapshotCacheCapacity);
 }
 
 
@@ -1117,11 +1153,6 @@ void Serializer::VisitPointers(Object** start, Object** end) {
 }
 
 
-Object* SerializerDeserializer::partial_snapshot_cache_[
-    kPartialSnapshotCacheCapacity];
-int SerializerDeserializer::partial_snapshot_cache_length_ = 0;
-
-
 // This ensures that the partial snapshot cache keeps things alive during GC and
 // tracks their movement.  When it is called during serialization of the startup
 // snapshot the partial snapshot is empty, so nothing happens.  When the partial
@@ -1131,9 +1162,11 @@ int SerializerDeserializer::partial_snapshot_cache_length_ = 0;
 // deserialization we therefore need to visit the cache array.  This fills it up
 // with pointers to deserialized objects.
 void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
+  Isolate* isolate = Isolate::Current();
   visitor->VisitPointers(
-      &partial_snapshot_cache_[0],
-      &partial_snapshot_cache_[partial_snapshot_cache_length_]);
+      isolate->serialize_partial_snapshot_cache(),
+      &isolate->serialize_partial_snapshot_cache()[
+          isolate->serialize_partial_snapshot_cache_length()]);
 }
 
 
@@ -1141,33 +1174,39 @@ void SerializerDeserializer::Iterate(ObjectVisitor* visitor) {
 // the root iteration code (above) will iterate over array elements, writing the
 // references to deserialized objects in them.
 void SerializerDeserializer::SetSnapshotCacheSize(int size) {
-  partial_snapshot_cache_length_ = size;
+  Isolate::Current()->set_serialize_partial_snapshot_cache_length(size);
 }
 
 
 int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
-  for (int i = 0; i < partial_snapshot_cache_length_; i++) {
-    Object* entry = partial_snapshot_cache_[i];
+  Isolate* isolate = Isolate::Current();
+
+  for (int i = 0;
+       i < isolate->serialize_partial_snapshot_cache_length();
+       i++) {
+    Object* entry = isolate->serialize_partial_snapshot_cache()[i];
     if (entry == heap_object) return i;
   }
 
   // We didn't find the object in the cache.  So we add it to the cache and
   // then visit the pointer so that it becomes part of the startup snapshot
   // and we can refer to it from the partial snapshot.
-  int length = partial_snapshot_cache_length_;
-  CHECK(length < kPartialSnapshotCacheCapacity);
-  partial_snapshot_cache_[length] = heap_object;
-  startup_serializer_->VisitPointer(&partial_snapshot_cache_[length]);
+  int length = isolate->serialize_partial_snapshot_cache_length();
+  CHECK(length < Isolate::kPartialSnapshotCacheCapacity);
+  isolate->serialize_partial_snapshot_cache()[length] = heap_object;
+  startup_serializer_->VisitPointer(
+      &isolate->serialize_partial_snapshot_cache()[length]);
   // We don't recurse from the startup snapshot generator into the partial
   // snapshot generator.
-  ASSERT(length == partial_snapshot_cache_length_);
-  return partial_snapshot_cache_length_++;
+  ASSERT(length == isolate->serialize_partial_snapshot_cache_length());
+  isolate->set_serialize_partial_snapshot_cache_length(length + 1);
+  return length;
 }
 
 
 int PartialSerializer::RootIndex(HeapObject* heap_object) {
   for (int i = 0; i < Heap::kRootListLength; i++) {
-    Object* root = Heap::roots_address()[i];
+    Object* root = HEAP->roots_address()[i];
     if (root == heap_object) return i;
   }
   return kInvalidRootIndex;
@@ -1250,13 +1289,13 @@ void StartupSerializer::SerializeObject(
 
 
 void StartupSerializer::SerializeWeakReferences() {
-  for (int i = partial_snapshot_cache_length_;
-       i < kPartialSnapshotCacheCapacity;
+  for (int i = Isolate::Current()->serialize_partial_snapshot_cache_length();
+       i < Isolate::kPartialSnapshotCacheCapacity;
        i++) {
     sink_->Put(kRootArray + kPlain + kStartOfObject, "RootSerialization");
     sink_->PutInt(Heap::kUndefinedValueRootIndex, "root_index");
   }
-  Heap::IterateWeakRoots(this, VISIT_ALL);
+  HEAP->IterateWeakRoots(this, VISIT_ALL);
 }
 
 
@@ -1317,7 +1356,8 @@ void Serializer::ObjectSerializer::Serialize() {
              "ObjectSerialization");
   sink_->PutInt(size >> kObjectAlignmentBits, "Size in words");
 
-  LOG(SnapshotPositionEvent(object_->address(), sink_->Position()));
+  LOG(i::Isolate::Current(),
+      SnapshotPositionEvent(object_->address(), sink_->Position()));
 
   // Mark this object as already serialized.
   bool start_new_page;
@@ -1418,7 +1458,7 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
   Address references_start = reinterpret_cast<Address>(resource_pointer);
   OutputRawData(references_start);
   for (int i = 0; i < Natives::GetBuiltinsCount(); i++) {
-    Object* source = Heap::natives_source_cache()->get(i);
+    Object* source = HEAP->natives_source_cache()->get(i);
     if (!source->IsUndefined()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(source);
       typedef v8::String::ExternalAsciiStringResource Resource;
@@ -1468,7 +1508,7 @@ void Serializer::ObjectSerializer::OutputRawData(Address up_to) {
 int Serializer::SpaceOfObject(HeapObject* object) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     AllocationSpace s = static_cast<AllocationSpace>(i);
-    if (Heap::InSpace(object, s)) {
+    if (HEAP->InSpace(object, s)) {
       if (i == LO_SPACE) {
         if (object->IsCode()) {
           return kLargeCode;
@@ -1489,7 +1529,7 @@ int Serializer::SpaceOfObject(HeapObject* object) {
 int Serializer::SpaceOfAlreadySerializedObject(HeapObject* object) {
   for (int i = FIRST_SPACE; i <= LAST_SPACE; i++) {
     AllocationSpace s = static_cast<AllocationSpace>(i);
-    if (Heap::InSpace(object, s)) {
+    if (HEAP->InSpace(object, s)) {
       return i;
     }
   }

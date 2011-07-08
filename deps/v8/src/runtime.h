@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,6 +27,9 @@
 
 #ifndef V8_RUNTIME_H_
 #define V8_RUNTIME_H_
+
+#include "allocation.h"
+#include "zone.h"
 
 namespace v8 {
 namespace internal {
@@ -64,6 +67,7 @@ namespace internal {
   F(SpecialArrayFunctions, 1, 1) \
   F(GetGlobalReceiver, 0, 1) \
   \
+  F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
   F(SetHiddenPrototype, 2, 1) \
   \
@@ -78,14 +82,20 @@ namespace internal {
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
+  F(NewStrictArgumentsFast, 3, 1) \
   F(LazyCompile, 1, 1) \
   F(LazyRecompile, 1, 1) \
   F(NotifyDeoptimized, 1, 1) \
   F(NotifyOSR, 0, 1) \
-  F(DeoptimizeFunction, 1, 1)             \
+  F(DeoptimizeFunction, 1, 1) \
+  F(RunningInSimulator, 0, 1) \
+  F(OptimizeFunctionOnNextCall, 1, 1) \
+  F(GetOptimizationStatus, 1, 1) \
+  F(GetOptimizationCount, 1, 1) \
   F(CompileForOnStackReplacement, 1, 1) \
   F(SetNewFunctionAttributes, 1, 1) \
   F(AllocateInNewSpace, 1, 1) \
+  F(SetNativeFlag, 1, 1) \
   \
   /* Array join support */ \
   F(PushIfAbsent, 2, 1) \
@@ -107,6 +117,7 @@ namespace internal {
   F(URIUnescape, 1, 1) \
   F(QuoteJSONString, 1, 1) \
   F(QuoteJSONStringComma, 1, 1) \
+  F(QuoteJSONStringArray, 1, 1) \
   \
   F(NumberToString, 1, 1) \
   F(NumberToStringSkipCache, 1, 1) \
@@ -129,6 +140,7 @@ namespace internal {
   F(StringAdd, 2, 1) \
   F(StringBuilderConcat, 3, 1) \
   F(StringBuilderJoin, 3, 1) \
+  F(SparseJoinWithSeparator, 3, 1)            \
   \
   /* Bit operations */ \
   F(NumberOr, 2, 1) \
@@ -200,6 +212,7 @@ namespace internal {
   F(FunctionSetPrototype, 2, 1) \
   F(FunctionGetName, 1, 1) \
   F(FunctionSetName, 2, 1) \
+  F(FunctionSetBound, 1, 1) \
   F(FunctionRemovePrototype, 1, 1) \
   F(FunctionGetSourceCode, 1, 1) \
   F(FunctionGetScript, 1, 1) \
@@ -267,8 +280,10 @@ namespace internal {
   F(CreateArrayLiteral, 3, 1) \
   F(CreateArrayLiteralShallow, 3, 1) \
   \
-  /* Catch context extension objects */ \
-  F(CreateCatchExtensionObject, 2, 1) \
+  /* Harmony proxies */ \
+  F(CreateJSProxy, 2, 1) \
+  F(IsJSProxy, 1, 1) \
+  F(GetHandler, 1, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
@@ -282,9 +297,9 @@ namespace internal {
   F(PromoteScheduledException, 0, 1) \
   \
   /* Contexts */ \
-  F(NewContext, 1, 1) \
-  F(PushContext, 1, 1) \
-  F(PushCatchContext, 1, 1) \
+  F(NewFunctionContext, 1, 1) \
+  F(PushWithContext, 2, 1) \
+  F(PushCatchContext, 3, 1) \
   F(DeleteContextSlot, 2, 1) \
   F(LoadContextSlot, 2, 2) \
   F(LoadContextSlotNoReferenceError, 2, 2) \
@@ -319,7 +334,23 @@ namespace internal {
   F(MessageGetScript, 1, 1) \
   \
   /* Pseudo functions - handled as macros by parser */ \
-  F(IS_VAR, 1, 1)
+  F(IS_VAR, 1, 1) \
+  \
+  /* expose boolean functions from objects-inl.h */ \
+  F(HasFastElements, 1, 1) \
+  F(HasFastDoubleElements, 1, 1) \
+  F(HasDictionaryElements, 1, 1) \
+  F(HasExternalPixelElements, 1, 1) \
+  F(HasExternalArrayElements, 1, 1) \
+  F(HasExternalByteElements, 1, 1) \
+  F(HasExternalUnsignedByteElements, 1, 1) \
+  F(HasExternalShortElements, 1, 1) \
+  F(HasExternalUnsignedShortElements, 1, 1) \
+  F(HasExternalIntElements, 1, 1) \
+  F(HasExternalUnsignedIntElements, 1, 1) \
+  F(HasExternalFloatElements, 1, 1) \
+  F(HasExternalDoubleElements, 1, 1)
+
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
 #define RUNTIME_FUNCTION_LIST_DEBUGGER_SUPPORT(F) \
@@ -398,8 +429,8 @@ namespace internal {
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F) \
-  F(ProfilerResume, 2, 1) \
-  F(ProfilerPause, 2, 1)
+  F(ProfilerResume, 0, 1) \
+  F(ProfilerPause, 0, 1)
 #else
 #define RUNTIME_FUNCTION_LIST_PROFILER_SUPPORT(F)
 #endif
@@ -411,7 +442,6 @@ namespace internal {
 #else
 #define RUNTIME_FUNCTION_LIST_DEBUG(F)
 #endif
-
 
 // ----------------------------------------------------------------------------
 // RUNTIME_FUNCTION_LIST defines all runtime functions accessed
@@ -456,7 +486,8 @@ namespace internal {
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
-  F(FastAsciiArrayJoin, 2, 1)
+  F(FastAsciiArrayJoin, 2, 1)                                                \
+  F(IsNativeOrStrictMode, 1, 1)
 
 
 // ----------------------------------------------------------------------------
@@ -481,6 +512,48 @@ namespace internal {
 
 //---------------------------------------------------------------------------
 // Runtime provides access to all C++ runtime functions.
+
+class RuntimeState {
+ public:
+  StaticResource<StringInputBuffer>* string_input_buffer() {
+    return &string_input_buffer_;
+  }
+  unibrow::Mapping<unibrow::ToUppercase, 128>* to_upper_mapping() {
+    return &to_upper_mapping_;
+  }
+  unibrow::Mapping<unibrow::ToLowercase, 128>* to_lower_mapping() {
+    return &to_lower_mapping_;
+  }
+  StringInputBuffer* string_input_buffer_compare_bufx() {
+    return &string_input_buffer_compare_bufx_;
+  }
+  StringInputBuffer* string_input_buffer_compare_bufy() {
+    return &string_input_buffer_compare_bufy_;
+  }
+  StringInputBuffer* string_locale_compare_buf1() {
+    return &string_locale_compare_buf1_;
+  }
+  StringInputBuffer* string_locale_compare_buf2() {
+    return &string_locale_compare_buf2_;
+  }
+
+ private:
+  RuntimeState() {}
+  // Non-reentrant string buffer for efficient general use in the runtime.
+  StaticResource<StringInputBuffer> string_input_buffer_;
+  unibrow::Mapping<unibrow::ToUppercase, 128> to_upper_mapping_;
+  unibrow::Mapping<unibrow::ToLowercase, 128> to_lower_mapping_;
+  StringInputBuffer string_input_buffer_compare_bufx_;
+  StringInputBuffer string_input_buffer_compare_bufy_;
+  StringInputBuffer string_locale_compare_buf1_;
+  StringInputBuffer string_locale_compare_buf2_;
+
+  friend class Isolate;
+  friend class Runtime;
+
+  DISALLOW_COPY_AND_ASSIGN(RuntimeState);
+};
+
 
 class Runtime : public AllStatic {
  public:
@@ -525,57 +598,66 @@ class Runtime : public AllStatic {
   // retried with a new, empty StringDictionary, not with the same one.
   // Alternatively, heap initialization can be completely restarted.
   MUST_USE_RESULT static MaybeObject* InitializeIntrinsicFunctionNames(
-      Object* dictionary);
+      Heap* heap, Object* dictionary);
 
   // Get the intrinsic function with the given name, which must be a symbol.
-  static Function* FunctionForSymbol(Handle<String> name);
+  static const Function* FunctionForSymbol(Handle<String> name);
 
   // Get the intrinsic function with the given FunctionId.
-  static Function* FunctionForId(FunctionId id);
+  static const Function* FunctionForId(FunctionId id);
 
   // General-purpose helper functions for runtime system.
-  static int StringMatch(Handle<String> sub, Handle<String> pat, int index);
+  static int StringMatch(Isolate* isolate,
+                         Handle<String> sub,
+                         Handle<String> pat,
+                         int index);
 
-  static bool IsUpperCaseChar(uint16_t ch);
+  static bool IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch);
 
   // TODO(1240886): The following three methods are *not* handle safe,
   // but accept handle arguments. This seems fragile.
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
-  MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Handle<Object> object,
+  MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Isolate* isolate,
+                                                         Handle<Object> object,
                                                          uint32_t index);
   MUST_USE_RESULT static MaybeObject* GetElement(Handle<Object> object,
                                                  uint32_t index);
 
   MUST_USE_RESULT static MaybeObject* SetObjectProperty(
+      Isolate* isolate,
       Handle<Object> object,
       Handle<Object> key,
       Handle<Object> value,
       PropertyAttributes attr,
-      StrictModeFlag strict);
+      StrictModeFlag strict_mode);
 
   MUST_USE_RESULT static MaybeObject* ForceSetObjectProperty(
+      Isolate* isolate,
       Handle<JSObject> object,
       Handle<Object> key,
       Handle<Object> value,
       PropertyAttributes attr);
 
   MUST_USE_RESULT static MaybeObject* ForceDeleteObjectProperty(
+      Isolate* isolate,
       Handle<JSObject> object,
       Handle<Object> key);
 
-  MUST_USE_RESULT static MaybeObject* GetObjectProperty(Handle<Object> object,
-                                                        Handle<Object> key);
+  MUST_USE_RESULT static MaybeObject* GetObjectProperty(
+      Isolate* isolate,
+      Handle<Object> object,
+      Handle<Object> key);
 
   // This function is used in FunctionNameUsing* tests.
-  static Object* FindSharedFunctionInfoInScript(Handle<Script> script,
+  static Object* FindSharedFunctionInfoInScript(Isolate* isolate,
+                                                Handle<Script> script,
                                                 int position);
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);
 };
-
 
 } }  // namespace v8::internal
 

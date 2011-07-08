@@ -411,67 +411,77 @@ testReduce("reduceRight", "ArrayWithNonElementPropertiesReduceRight", 6,
 
 // Test error conditions:
 
+var exception = false;
 try {
   [1].reduce("not a function");
-  assertUnreachable("Reduce callback not a function not throwing");
 } catch (e) {
+  exception = true;
   assertTrue(e instanceof TypeError,
              "reduce callback not a function not throwing TypeError");
   assertEquals("called_non_callable", e.type,
                "reduce non function TypeError type");
 }
+assertTrue(exception);
 
+exception = false;
 try {
   [1].reduceRight("not a function");
-  assertUnreachable("ReduceRight callback not a function not throwing");
 } catch (e) {
+  exception = true;
   assertTrue(e instanceof TypeError,
              "reduceRight callback not a function not throwing TypeError");
   assertEquals("called_non_callable", e.type,
                "reduceRight non function TypeError type");
 }
+assertTrue(exception);
 
-
+exception = false;
 try {
   [].reduce(sum);
-  assertUnreachable("Reduce no initial value not throwing");
 } catch (e) {
+  exception = true;
   assertTrue(e instanceof TypeError,
              "reduce no initial value not throwing TypeError");
   assertEquals("reduce_no_initial", e.type,
                "reduce no initial TypeError type");
 }
+assertTrue(exception);
 
+exception = false;
 try {
   [].reduceRight(sum);
-  assertUnreachable("ReduceRight no initial value not throwing");
 } catch (e) {
+  exception = true;
   assertTrue(e instanceof TypeError,
              "reduceRight no initial value not throwing TypeError");
   assertEquals("reduce_no_initial", e.type,
                "reduceRight no initial TypeError type");
 }
+assertTrue(exception);
 
-
+exception = false;
 try {
   [,,,].reduce(sum);
-  assertUnreachable("Reduce sparse no initial value not throwing");
 } catch (e) {
+  exception = true;
   assertTrue(e instanceof TypeError,
              "reduce sparse no initial value not throwing TypeError");
   assertEquals("reduce_no_initial", e.type,
                "reduce no initial TypeError type");
 }
+assertTrue(exception);
 
+exception = false;
 try {
   [,,,].reduceRight(sum);
-  assertUnreachable("ReduceRight sparse no initial value not throwing");
 } catch (e) {
+  exception = true;
   assertTrue(e instanceof TypeError,
              "reduceRight sparse no initial value not throwing TypeError");
   assertEquals("reduce_no_initial", e.type,
                "reduceRight no initial TypeError type");
 }
+assertTrue(exception);
 
 
 // Array changing length
@@ -511,4 +521,3 @@ testReduce("reduce", "ArrayManipulationExtender", 10,
             [3, 3, 2, [1, 2, 3, 4, 4, 5], 6],
             [6, 4, 3, [1, 2, 3, 4, 4, 5, 6], 10],
            ], arr, extender, 0);
-

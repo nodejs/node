@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,8 +28,35 @@
 #ifndef V8_CONVERSIONS_H_
 #define V8_CONVERSIONS_H_
 
+#include <limits>
+
+#include "scanner-base.h"
+
 namespace v8 {
 namespace internal {
+
+// Maximum number of significant digits in decimal representation.
+// The longest possible double in decimal representation is
+// (2^53 - 1) * 2 ^ -1074 that is (2 ^ 53 - 1) * 5 ^ 1074 / 10 ^ 1074
+// (768 digits). If we parse a number whose first digits are equal to a
+// mean of 2 adjacent doubles (that could have up to 769 digits) the result
+// must be rounded to the bigger one unless the tail consists of zeros, so
+// we don't need to preserve all the digits.
+const int kMaxSignificantDigits = 772;
+
+static const double JUNK_STRING_VALUE =
+    std::numeric_limits<double>::quiet_NaN();
+
+static bool isDigit(int x, int radix) {
+  return (x >= '0' && x <= '9' && x < '0' + radix)
+      || (radix > 10 && x >= 'a' && x < 'a' + radix - 10)
+      || (radix > 10 && x >= 'A' && x < 'A' + radix - 10);
+}
+
+
+static double SignedZero(bool negative) {
+  return negative ? -0.0 : 0.0;
+}
 
 
 // The fast double-to-(unsigned-)int conversion routine does not guarantee
@@ -85,21 +112,20 @@ enum ConversionFlags {
 };
 
 
-// Convert from Number object to C integer.
-static inline int32_t NumberToInt32(Object* number);
-static inline uint32_t NumberToUint32(Object* number);
-
-
 // Converts a string into a double value according to ECMA-262 9.3.1
-double StringToDouble(String* str, int flags, double empty_string_val = 0);
-double StringToDouble(Vector<const char> str,
+double StringToDouble(UnicodeCache* unicode_cache,
+                      Vector<const char> str,
+                      int flags,
+                      double empty_string_val = 0);
+double StringToDouble(UnicodeCache* unicode_cache,
+                      Vector<const uc16> str,
                       int flags,
                       double empty_string_val = 0);
 // This version expects a zero-terminated character array.
-double StringToDouble(const char* str, int flags, double empty_string_val = 0);
-
-// Converts a string into an integer.
-double StringToInt(String* str, int radix);
+double StringToDouble(UnicodeCache* unicode_cache,
+                      const char* str,
+                      int flags,
+                      double empty_string_val = 0);
 
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.

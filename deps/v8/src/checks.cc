@@ -30,8 +30,8 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "top.h"
 
+// TODO(isolates): is it necessary to lift this?
 static int fatal_error_handler_nesting_depth = 0;
 
 // Contains protection against recursive calls (faults while handling faults).
@@ -52,7 +52,7 @@ extern "C" void V8_Fatal(const char* file, int line, const char* format, ...) {
   if (fatal_error_handler_nesting_depth < 3) {
     if (i::FLAG_stack_trace_on_abort) {
       // Call this one twice on double fault
-      i::Top::PrintStack();
+      i::Isolate::Current()->PrintStack();
     }
   }
   i::OS::Abort();

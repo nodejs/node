@@ -30,6 +30,7 @@
 
 #ifdef ENABLE_LOGGING_AND_PROFILING
 
+#include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
 #include "unbound-queue.h"
@@ -46,11 +47,11 @@ class HashMap;
 class ProfileGenerator;
 class TokenEnumerator;
 
-#define CODE_EVENTS_TYPE_LIST(V)                \
-  V(CODE_CREATION, CodeCreateEventRecord)       \
-  V(CODE_MOVE,     CodeMoveEventRecord)         \
-  V(CODE_DELETE,   CodeDeleteEventRecord)       \
-  V(SFI_MOVE,      SFIMoveEventRecord)
+#define CODE_EVENTS_TYPE_LIST(V)                                   \
+  V(CODE_CREATION,    CodeCreateEventRecord)                       \
+  V(CODE_MOVE,        CodeMoveEventRecord)                         \
+  V(CODE_DELETE,      CodeDeleteEventRecord)                       \
+  V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)
 
 
 class CodeEventRecord {
@@ -73,7 +74,7 @@ class CodeCreateEventRecord : public CodeEventRecord {
   Address start;
   CodeEntry* entry;
   unsigned size;
-  Address sfi_address;
+  Address shared;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };
@@ -96,7 +97,7 @@ class CodeDeleteEventRecord : public CodeEventRecord {
 };
 
 
-class SFIMoveEventRecord : public CodeEventRecord {
+class SharedFunctionInfoMoveEventRecord : public CodeEventRecord {
  public:
   Address from;
   Address to;
@@ -105,10 +106,14 @@ class SFIMoveEventRecord : public CodeEventRecord {
 };
 
 
-class TickSampleEventRecord BASE_EMBEDDED {
+class TickSampleEventRecord {
  public:
-  TickSampleEventRecord()
-      : filler(1) {
+  // The parameterless constructor is used when we dequeue data from
+  // the ticks buffer.
+  TickSampleEventRecord() { }
+  explicit TickSampleEventRecord(unsigned order)
+      : filler(1),
+        order(order) {
     ASSERT(filler != SamplingCircularQueue::kClear);
   }
 
@@ -124,8 +129,6 @@ class TickSampleEventRecord BASE_EMBEDDED {
   static TickSampleEventRecord* cast(void* value) {
     return reinterpret_cast<TickSampleEventRecord*>(value);
   }
-
-  INLINE(static TickSampleEventRecord* init(void* value));
 };
 
 
@@ -149,7 +152,7 @@ class ProfilerEventsProcessor : public Thread {
                        String* name,
                        String* resource_name, int line_number,
                        Address start, unsigned size,
-                       Address sfi_address);
+                       Address shared);
   void CodeCreateEvent(Logger::LogEventsAndTags tag,
                        const char* name,
                        Address start, unsigned size);
@@ -158,7 +161,7 @@ class ProfilerEventsProcessor : public Thread {
                        Address start, unsigned size);
   void CodeMoveEvent(Address from, Address to);
   void CodeDeleteEvent(Address from);
-  void SFIMoveEvent(Address from, Address to);
+  void SharedFunctionInfoMoveEvent(Address from, Address to);
   void RegExpCodeCreateEvent(Logger::LogEventsAndTags tag,
                              const char* prefix, String* name,
                              Address start, unsigned size);
@@ -196,21 +199,23 @@ class ProfilerEventsProcessor : public Thread {
 } }  // namespace v8::internal
 
 
-#define PROFILE(Call)                                  \
-  LOG(Call);                                           \
-  do {                                                 \
-    if (v8::internal::CpuProfiler::is_profiling()) {   \
-      v8::internal::CpuProfiler::Call;                 \
-    }                                                  \
+#define PROFILE(isolate, Call)                                \
+  LOG(isolate, Call);                                         \
+  do {                                                        \
+    if (v8::internal::CpuProfiler::is_profiling(isolate)) {   \
+      v8::internal::CpuProfiler::Call;                        \
+    }                                                         \
   } while (false)
 #else
-#define PROFILE(Call) LOG(Call)
+#define PROFILE(isolate, Call) LOG(isolate, Call)
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 namespace v8 {
 namespace internal {
 
+
+// TODO(isolates): isolatify this class.
 class CpuProfiler {
  public:
   static void Setup();
@@ -224,9 +229,12 @@ class CpuProfiler {
   static int GetProfilesCount();
   static CpuProfile* GetProfile(Object* security_token, int index);
   static CpuProfile* FindProfile(Object* security_token, unsigned uid);
+  static void DeleteAllProfiles();
+  static void DeleteProfile(CpuProfile* profile);
+  static bool HasDetachedProfiles();
 
   // Invoked from stack sampler (thread or signal handler.)
-  static TickSample* TickSampleEvent();
+  static TickSample* TickSampleEvent(Isolate* isolate);
 
   // Must be called via PROFILE macro, otherwise will crash when
   // profiling is not enabled.
@@ -251,10 +259,13 @@ class CpuProfiler {
   static void GetterCallbackEvent(String* name, Address entry_point);
   static void RegExpCodeCreateEvent(Code* code, String* source);
   static void SetterCallbackEvent(String* name, Address entry_point);
-  static void SFIMoveEvent(Address from, Address to);
+  static void SharedFunctionInfoMoveEvent(Address from, Address to);
 
-  static INLINE(bool is_profiling()) {
-    return NoBarrier_Load(&is_profiling_);
+  // TODO(isolates): this doesn't have to use atomics anymore.
+
+  static INLINE(bool is_profiling(Isolate* isolate)) {
+    CpuProfiler* profiler = isolate->cpu_profiler();
+    return profiler != NULL && NoBarrier_Load(&profiler->is_profiling_);
   }
 
  private:
@@ -266,6 +277,8 @@ class CpuProfiler {
   CpuProfile* StopCollectingProfile(const char* title);
   CpuProfile* StopCollectingProfile(Object* security_token, String* title);
   void StopProcessorIfLastProfile(const char* title);
+  void StopProcessor();
+  void ResetProfiles();
 
   CpuProfilesCollection* profiles_;
   unsigned next_profile_uid_;
@@ -273,12 +286,11 @@ class CpuProfiler {
   ProfileGenerator* generator_;
   ProfilerEventsProcessor* processor_;
   int saved_logging_nesting_;
-
-  static CpuProfiler* singleton_;
-  static Atomic32 is_profiling_;
+  bool need_to_stop_sampler_;
+  Atomic32 is_profiling_;
 
 #else
-  static INLINE(bool is_profiling()) { return false; }
+  static INLINE(bool is_profiling(Isolate* isolate)) { return false; }
 #endif  // ENABLE_LOGGING_AND_PROFILING
 
  private:

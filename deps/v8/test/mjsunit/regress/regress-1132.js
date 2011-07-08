@@ -41,8 +41,10 @@ function test() {
   }
 }
 
+var exception = false;
 try {
   test();
-  assertUnreachable();
 } catch (e) {
+  exception = true;
 }
+assertTrue(exception);

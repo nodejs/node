@@ -186,6 +186,11 @@ bool OS::ArmCpuHasFeature(CpuFeature feature) {
 }
 
 
+bool OS::ArmUsingHardFloat() {
+  UNIMPLEMENTED();
+}
+
+
 bool OS::IsOutsideAllocatedSpace(void* address) {
   UNIMPLEMENTED();
   return false;
@@ -299,9 +304,9 @@ bool VirtualMemory::Uncommit(void* address, size_t size) {
 }
 
 
-class ThreadHandle::PlatformData : public Malloced {
+class Thread::PlatformData : public Malloced {
  public:
-  explicit PlatformData(ThreadHandle::Kind kind) {
+  PlatformData() {
     UNIMPLEMENTED();
   }
 
@@ -309,50 +314,24 @@ class ThreadHandle::PlatformData : public Malloced {
 };
 
 
-ThreadHandle::ThreadHandle(Kind kind) {
-  UNIMPLEMENTED();
-  // Shared setup follows.
-  data_ = new PlatformData(kind);
-}
-
-
-void ThreadHandle::Initialize(ThreadHandle::Kind kind) {
+Thread::Thread(const Options& options)
+    : data_(new PlatformData()),
+      stack_size_(options.stack_size) {
+  set_name(options.name);
   UNIMPLEMENTED();
 }
 
 
-ThreadHandle::~ThreadHandle() {
-  UNIMPLEMENTED();
-  // Shared tear down follows.
-  delete data_;
-}
-
-
-bool ThreadHandle::IsSelf() const {
-  UNIMPLEMENTED();
-  return false;
-}
-
-
-bool ThreadHandle::IsValid() const {
-  UNIMPLEMENTED();
-  return false;
-}
-
-
-Thread::Thread() : ThreadHandle(ThreadHandle::INVALID) {
-  set_name("v8:<unknown>");
-  UNIMPLEMENTED();
-}
-
-
-Thread::Thread(const char* name) : ThreadHandle(ThreadHandle::INVALID) {
+Thread::Thread(const char* name)
+    : data_(new PlatformData()),
+      stack_size_(0) {
   set_name(name);
   UNIMPLEMENTED();
 }
 
 
 Thread::~Thread() {
+  delete data_;
   UNIMPLEMENTED();
 }
 

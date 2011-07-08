@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,6 +27,8 @@
 
 #ifndef V8_CHAR_PREDICATES_H_
 #define V8_CHAR_PREDICATES_H_
+
+#include "unicode.h"
 
 namespace v8 {
 namespace internal {

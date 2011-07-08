@@ -33,8 +33,6 @@
 namespace v8 {
 namespace internal {
 
-// The number of sub caches covering the different types to cache.
-static const int kSubCacheCount = 4;
 
 // The number of generations for each sub cache.
 // The number of ScriptGenerations is carefully chosen based on histograms.
@@ -47,162 +45,28 @@ static const int kRegExpGenerations = 2;
 // Initial size of each compilation cache table allocated.
 static const int kInitialCacheSize = 64;
 
-// Index for the first generation in the cache.
-static const int kFirstGeneration = 0;
 
-// The compilation cache consists of several generational sub-caches which uses
-// this class as a base class. A sub-cache contains a compilation cache tables
-// for each generation of the sub-cache. Since the same source code string has
-// different compiled code for scripts and evals, we use separate sub-caches
-// for different compilation modes, to avoid retrieving the wrong result.
-class CompilationSubCache {
- public:
-  explicit CompilationSubCache(int generations): generations_(generations) {
-    tables_ = NewArray<Object*>(generations);
+CompilationCache::CompilationCache(Isolate* isolate)
+    : isolate_(isolate),
+      script_(isolate, kScriptGenerations),
+      eval_global_(isolate, kEvalGlobalGenerations),
+      eval_contextual_(isolate, kEvalContextualGenerations),
+      reg_exp_(isolate, kRegExpGenerations),
+      enabled_(true) {
+  CompilationSubCache* subcaches[kSubCacheCount] =
+    {&script_, &eval_global_, &eval_contextual_, &reg_exp_};
+  for (int i = 0; i < kSubCacheCount; ++i) {
+    subcaches_[i] = subcaches[i];
   }
-
-  ~CompilationSubCache() { DeleteArray(tables_); }
-
-  // Get the compilation cache tables for a specific generation.
-  Handle<CompilationCacheTable> GetTable(int generation);
-
-  // Accessors for first generation.
-  Handle<CompilationCacheTable> GetFirstTable() {
-    return GetTable(kFirstGeneration);
-  }
-  void SetFirstTable(Handle<CompilationCacheTable> value) {
-    ASSERT(kFirstGeneration < generations_);
-    tables_[kFirstGeneration] = *value;
-  }
-
-  // Age the sub-cache by evicting the oldest generation and creating a new
-  // young generation.
-  void Age();
-
-  // GC support.
-  void Iterate(ObjectVisitor* v);
-  void IterateFunctions(ObjectVisitor* v);
-
-  // Clear this sub-cache evicting all its content.
-  void Clear();
-
-  // Remove given shared function info from sub-cache.
-  void Remove(Handle<SharedFunctionInfo> function_info);
-
-  // Number of generations in this sub-cache.
-  inline int generations() { return generations_; }
-
- private:
-  int generations_;  // Number of generations.
-  Object** tables_;  // Compilation cache tables - one for each generation.
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationSubCache);
-};
-
-
-// Sub-cache for scripts.
-class CompilationCacheScript : public CompilationSubCache {
- public:
-  explicit CompilationCacheScript(int generations)
-      : CompilationSubCache(generations) { }
-
-  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Object> name,
-                                    int line_offset,
-                                    int column_offset);
-  void Put(Handle<String> source, Handle<SharedFunctionInfo> function_info);
-
- private:
-  MUST_USE_RESULT MaybeObject* TryTablePut(
-      Handle<String> source, Handle<SharedFunctionInfo> function_info);
-
-  // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(
-      Handle<String> source, Handle<SharedFunctionInfo> function_info);
-
-  bool HasOrigin(Handle<SharedFunctionInfo> function_info,
-                 Handle<Object> name,
-                 int line_offset,
-                 int column_offset);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheScript);
-};
-
-
-// Sub-cache for eval scripts.
-class CompilationCacheEval: public CompilationSubCache {
- public:
-  explicit CompilationCacheEval(int generations)
-      : CompilationSubCache(generations) { }
-
-  Handle<SharedFunctionInfo> Lookup(Handle<String> source,
-                                    Handle<Context> context,
-                                    StrictModeFlag strict_mode);
-
-  void Put(Handle<String> source,
-           Handle<Context> context,
-           Handle<SharedFunctionInfo> function_info);
-
- private:
-  MUST_USE_RESULT MaybeObject* TryTablePut(
-      Handle<String> source,
-      Handle<Context> context,
-      Handle<SharedFunctionInfo> function_info);
-
-
-  // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(
-      Handle<String> source,
-      Handle<Context> context,
-      Handle<SharedFunctionInfo> function_info);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheEval);
-};
-
-
-// Sub-cache for regular expressions.
-class CompilationCacheRegExp: public CompilationSubCache {
- public:
-  explicit CompilationCacheRegExp(int generations)
-      : CompilationSubCache(generations) { }
-
-  Handle<FixedArray> Lookup(Handle<String> source, JSRegExp::Flags flags);
-
-  void Put(Handle<String> source,
-           JSRegExp::Flags flags,
-           Handle<FixedArray> data);
- private:
-  MUST_USE_RESULT MaybeObject* TryTablePut(Handle<String> source,
-                                           JSRegExp::Flags flags,
-                                           Handle<FixedArray> data);
-
-  // Note: Returns a new hash table if operation results in expansion.
-  Handle<CompilationCacheTable> TablePut(Handle<String> source,
-                                         JSRegExp::Flags flags,
-                                         Handle<FixedArray> data);
-
-  DISALLOW_IMPLICIT_CONSTRUCTORS(CompilationCacheRegExp);
-};
-
-
-// Statically allocate all the sub-caches.
-static CompilationCacheScript script(kScriptGenerations);
-static CompilationCacheEval eval_global(kEvalGlobalGenerations);
-static CompilationCacheEval eval_contextual(kEvalContextualGenerations);
-static CompilationCacheRegExp reg_exp(kRegExpGenerations);
-static CompilationSubCache* subcaches[kSubCacheCount] =
-    {&script, &eval_global, &eval_contextual, &reg_exp};
-
-
-// Current enable state of the compilation cache.
-static bool enabled = true;
-static inline bool IsEnabled() {
-  return FLAG_compilation_cache && enabled;
 }
 
 
-static Handle<CompilationCacheTable> AllocateTable(int size) {
-  CALL_HEAP_FUNCTION(CompilationCacheTable::Allocate(size),
+CompilationCache::~CompilationCache() {}
+
+
+static Handle<CompilationCacheTable> AllocateTable(Isolate* isolate, int size) {
+  CALL_HEAP_FUNCTION(isolate,
+                     CompilationCacheTable::Allocate(size),
                      CompilationCacheTable);
 }
 
@@ -211,16 +75,15 @@ Handle<CompilationCacheTable> CompilationSubCache::GetTable(int generation) {
   ASSERT(generation < generations_);
   Handle<CompilationCacheTable> result;
   if (tables_[generation]->IsUndefined()) {
-    result = AllocateTable(kInitialCacheSize);
+    result = AllocateTable(isolate(), kInitialCacheSize);
     tables_[generation] = *result;
   } else {
     CompilationCacheTable* table =
         CompilationCacheTable::cast(tables_[generation]);
-    result = Handle<CompilationCacheTable>(table);
+    result = Handle<CompilationCacheTable>(table, isolate());
   }
   return result;
 }
-
 
 void CompilationSubCache::Age() {
   // Age the generations implicitly killing off the oldest.
@@ -229,12 +92,12 @@ void CompilationSubCache::Age() {
   }
 
   // Set the first generation as unborn.
-  tables_[0] = Heap::undefined_value();
+  tables_[0] = isolate()->heap()->undefined_value();
 }
 
 
 void CompilationSubCache::IterateFunctions(ObjectVisitor* v) {
-  Object* undefined = Heap::raw_unchecked_undefined_value();
+  Object* undefined = isolate()->heap()->raw_unchecked_undefined_value();
   for (int i = 0; i < generations_; i++) {
     if (tables_[i] != undefined) {
       reinterpret_cast<CompilationCacheTable*>(tables_[i])->IterateElements(v);
@@ -249,20 +112,27 @@ void CompilationSubCache::Iterate(ObjectVisitor* v) {
 
 
 void CompilationSubCache::Clear() {
-  MemsetPointer(tables_, Heap::undefined_value(), generations_);
+  MemsetPointer(tables_, isolate()->heap()->undefined_value(), generations_);
 }
 
 
 void CompilationSubCache::Remove(Handle<SharedFunctionInfo> function_info) {
   // Probe the script generation tables. Make sure not to leak handles
   // into the caller's handle scope.
-  { HandleScope scope;
+  { HandleScope scope(isolate());
     for (int generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
       table->Remove(*function_info);
     }
   }
 }
+
+
+CompilationCacheScript::CompilationCacheScript(Isolate* isolate,
+                                               int generations)
+    : CompilationSubCache(isolate, generations),
+      script_histogram_(NULL),
+      script_histogram_initialized_(false) { }
 
 
 // We only re-use a cached function for some script source code if the
@@ -274,7 +144,7 @@ bool CompilationCacheScript::HasOrigin(
     int line_offset,
     int column_offset) {
   Handle<Script> script =
-      Handle<Script>(Script::cast(function_info->script()));
+      Handle<Script>(Script::cast(function_info->script()), isolate());
   // If the script name isn't set, the boilerplate script should have
   // an undefined name to have the same origin.
   if (name.is_null()) {
@@ -303,10 +173,10 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
 
   // Probe the script generation tables. Make sure not to leak handles
   // into the caller's handle scope.
-  { HandleScope scope;
+  { HandleScope scope(isolate());
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
-      Handle<Object> probe(table->Lookup(*source));
+      Handle<Object> probe(table->Lookup(*source), isolate());
       if (probe->IsSharedFunctionInfo()) {
         Handle<SharedFunctionInfo> function_info =
             Handle<SharedFunctionInfo>::cast(probe);
@@ -320,30 +190,34 @@ Handle<SharedFunctionInfo> CompilationCacheScript::Lookup(Handle<String> source,
     }
   }
 
-  static void* script_histogram = StatsTable::CreateHistogram(
-      "V8.ScriptCache",
-      0,
-      kScriptGenerations,
-      kScriptGenerations + 1);
+  if (!script_histogram_initialized_) {
+    script_histogram_ = isolate()->stats_table()->CreateHistogram(
+        "V8.ScriptCache",
+        0,
+        kScriptGenerations,
+        kScriptGenerations + 1);
+    script_histogram_initialized_ = true;
+  }
 
-  if (script_histogram != NULL) {
+  if (script_histogram_ != NULL) {
     // The level NUMBER_OF_SCRIPT_GENERATIONS is equivalent to a cache miss.
-    StatsTable::AddHistogramSample(script_histogram, generation);
+    isolate()->stats_table()->AddHistogramSample(script_histogram_, generation);
   }
 
   // Once outside the manacles of the handle scope, we need to recheck
   // to see if we actually found a cached script. If so, we return a
   // handle created in the caller's handle scope.
   if (result != NULL) {
-    Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result));
+    Handle<SharedFunctionInfo> shared(SharedFunctionInfo::cast(result),
+                                      isolate());
     ASSERT(HasOrigin(shared, name, line_offset, column_offset));
     // If the script was found in a later generation, we promote it to
     // the first generation to let it survive longer in the cache.
     if (generation != 0) Put(source, shared);
-    Counters::compilation_cache_hits.Increment();
+    isolate()->counters()->compilation_cache_hits()->Increment();
     return shared;
   } else {
-    Counters::compilation_cache_misses.Increment();
+    isolate()->counters()->compilation_cache_misses()->Increment();
     return Handle<SharedFunctionInfo>::null();
   }
 }
@@ -360,13 +234,15 @@ MaybeObject* CompilationCacheScript::TryTablePut(
 Handle<CompilationCacheTable> CompilationCacheScript::TablePut(
     Handle<String> source,
     Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(TryTablePut(source, function_info), CompilationCacheTable);
+  CALL_HEAP_FUNCTION(isolate(),
+                     TryTablePut(source, function_info),
+                     CompilationCacheTable);
 }
 
 
 void CompilationCacheScript::Put(Handle<String> source,
                                  Handle<SharedFunctionInfo> function_info) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   SetFirstTable(TablePut(source, function_info));
 }
 
@@ -380,7 +256,7 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
   // having cleared the cache.
   Object* result = NULL;
   int generation;
-  { HandleScope scope;
+  { HandleScope scope(isolate());
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
       result = table->LookupEval(*source, *context, strict_mode);
@@ -391,14 +267,14 @@ Handle<SharedFunctionInfo> CompilationCacheEval::Lookup(
   }
   if (result->IsSharedFunctionInfo()) {
     Handle<SharedFunctionInfo>
-        function_info(SharedFunctionInfo::cast(result));
+        function_info(SharedFunctionInfo::cast(result), isolate());
     if (generation != 0) {
       Put(source, context, function_info);
     }
-    Counters::compilation_cache_hits.Increment();
+    isolate()->counters()->compilation_cache_hits()->Increment();
     return function_info;
   } else {
-    Counters::compilation_cache_misses.Increment();
+    isolate()->counters()->compilation_cache_misses()->Increment();
     return Handle<SharedFunctionInfo>::null();
   }
 }
@@ -417,7 +293,8 @@ Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
     Handle<String> source,
     Handle<Context> context,
     Handle<SharedFunctionInfo> function_info) {
-  CALL_HEAP_FUNCTION(TryTablePut(source, context, function_info),
+  CALL_HEAP_FUNCTION(isolate(),
+                     TryTablePut(source, context, function_info),
                      CompilationCacheTable);
 }
 
@@ -425,7 +302,7 @@ Handle<CompilationCacheTable> CompilationCacheEval::TablePut(
 void CompilationCacheEval::Put(Handle<String> source,
                                Handle<Context> context,
                                Handle<SharedFunctionInfo> function_info) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   SetFirstTable(TablePut(source, context, function_info));
 }
 
@@ -437,7 +314,7 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
   // having cleared the cache.
   Object* result = NULL;
   int generation;
-  { HandleScope scope;
+  { HandleScope scope(isolate());
     for (generation = 0; generation < generations(); generation++) {
       Handle<CompilationCacheTable> table = GetTable(generation);
       result = table->LookupRegExp(*source, flags);
@@ -447,14 +324,14 @@ Handle<FixedArray> CompilationCacheRegExp::Lookup(Handle<String> source,
     }
   }
   if (result->IsFixedArray()) {
-    Handle<FixedArray> data(FixedArray::cast(result));
+    Handle<FixedArray> data(FixedArray::cast(result), isolate());
     if (generation != 0) {
       Put(source, flags, data);
     }
-    Counters::compilation_cache_hits.Increment();
+    isolate()->counters()->compilation_cache_hits()->Increment();
     return data;
   } else {
-    Counters::compilation_cache_misses.Increment();
+    isolate()->counters()->compilation_cache_misses()->Increment();
     return Handle<FixedArray>::null();
   }
 }
@@ -473,14 +350,16 @@ Handle<CompilationCacheTable> CompilationCacheRegExp::TablePut(
     Handle<String> source,
     JSRegExp::Flags flags,
     Handle<FixedArray> data) {
-  CALL_HEAP_FUNCTION(TryTablePut(source, flags, data), CompilationCacheTable);
+  CALL_HEAP_FUNCTION(isolate(),
+                     TryTablePut(source, flags, data),
+                     CompilationCacheTable);
 }
 
 
 void CompilationCacheRegExp::Put(Handle<String> source,
                                  JSRegExp::Flags flags,
                                  Handle<FixedArray> data) {
-  HandleScope scope;
+  HandleScope scope(isolate());
   SetFirstTable(TablePut(source, flags, data));
 }
 
@@ -488,9 +367,9 @@ void CompilationCacheRegExp::Put(Handle<String> source,
 void CompilationCache::Remove(Handle<SharedFunctionInfo> function_info) {
   if (!IsEnabled()) return;
 
-  eval_global.Remove(function_info);
-  eval_contextual.Remove(function_info);
-  script.Remove(function_info);
+  eval_global_.Remove(function_info);
+  eval_contextual_.Remove(function_info);
+  script_.Remove(function_info);
 }
 
 
@@ -502,7 +381,7 @@ Handle<SharedFunctionInfo> CompilationCache::LookupScript(Handle<String> source,
     return Handle<SharedFunctionInfo>::null();
   }
 
-  return script.Lookup(source, name, line_offset, column_offset);
+  return script_.Lookup(source, name, line_offset, column_offset);
 }
 
 
@@ -517,9 +396,9 @@ Handle<SharedFunctionInfo> CompilationCache::LookupEval(
 
   Handle<SharedFunctionInfo> result;
   if (is_global) {
-    result = eval_global.Lookup(source, context, strict_mode);
+    result = eval_global_.Lookup(source, context, strict_mode);
   } else {
-    result = eval_contextual.Lookup(source, context, strict_mode);
+    result = eval_contextual_.Lookup(source, context, strict_mode);
   }
   return result;
 }
@@ -531,7 +410,7 @@ Handle<FixedArray> CompilationCache::LookupRegExp(Handle<String> source,
     return Handle<FixedArray>::null();
   }
 
-  return reg_exp.Lookup(source, flags);
+  return reg_exp_.Lookup(source, flags);
 }
 
 
@@ -541,7 +420,7 @@ void CompilationCache::PutScript(Handle<String> source,
     return;
   }
 
-  script.Put(source, function_info);
+  script_.Put(source, function_info);
 }
 
 
@@ -553,11 +432,11 @@ void CompilationCache::PutEval(Handle<String> source,
     return;
   }
 
-  HandleScope scope;
+  HandleScope scope(isolate());
   if (is_global) {
-    eval_global.Put(source, context, function_info);
+    eval_global_.Put(source, context, function_info);
   } else {
-    eval_contextual.Put(source, context, function_info);
+    eval_contextual_.Put(source, context, function_info);
   }
 }
 
@@ -570,83 +449,45 @@ void CompilationCache::PutRegExp(Handle<String> source,
     return;
   }
 
-  reg_exp.Put(source, flags, data);
-}
-
-
-static bool SourceHashCompare(void* key1, void* key2) {
-  return key1 == key2;
-}
-
-
-static HashMap* EagerOptimizingSet() {
-  static HashMap map(&SourceHashCompare);
-  return &map;
-}
-
-
-bool CompilationCache::ShouldOptimizeEagerly(Handle<JSFunction> function) {
-  if (FLAG_opt_eagerly) return true;
-  uint32_t hash = function->SourceHash();
-  void* key = reinterpret_cast<void*>(hash);
-  return EagerOptimizingSet()->Lookup(key, hash, false) != NULL;
-}
-
-
-void CompilationCache::MarkForEagerOptimizing(Handle<JSFunction> function) {
-  uint32_t hash = function->SourceHash();
-  void* key = reinterpret_cast<void*>(hash);
-  EagerOptimizingSet()->Lookup(key, hash, true);
-}
-
-
-void CompilationCache::MarkForLazyOptimizing(Handle<JSFunction> function) {
-  uint32_t hash = function->SourceHash();
-  void* key = reinterpret_cast<void*>(hash);
-  EagerOptimizingSet()->Remove(key, hash);
-}
-
-
-void CompilationCache::ResetEagerOptimizingData() {
-  HashMap* set = EagerOptimizingSet();
-  if (set->occupancy() > 0) set->Clear();
+  reg_exp_.Put(source, flags, data);
 }
 
 
 void CompilationCache::Clear() {
   for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches[i]->Clear();
+    subcaches_[i]->Clear();
   }
 }
 
+
 void CompilationCache::Iterate(ObjectVisitor* v) {
   for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches[i]->Iterate(v);
+    subcaches_[i]->Iterate(v);
   }
 }
 
 
 void CompilationCache::IterateFunctions(ObjectVisitor* v) {
   for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches[i]->IterateFunctions(v);
+    subcaches_[i]->IterateFunctions(v);
   }
 }
 
 
 void CompilationCache::MarkCompactPrologue() {
   for (int i = 0; i < kSubCacheCount; i++) {
-    subcaches[i]->Age();
+    subcaches_[i]->Age();
   }
 }
 
 
 void CompilationCache::Enable() {
-  enabled = true;
+  enabled_ = true;
 }
 
 
 void CompilationCache::Disable() {
-  enabled = false;
+  enabled_ = false;
   Clear();
 }
 

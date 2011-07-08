@@ -39,38 +39,6 @@ namespace internal {
 // processing.
 void FatalProcessOutOfMemory(const char* message);
 
-// A class that controls whether allocation is allowed.  This is for
-// the C++ heap only!
-class NativeAllocationChecker {
- public:
-  typedef enum { ALLOW, DISALLOW } NativeAllocationAllowed;
-  explicit inline NativeAllocationChecker(NativeAllocationAllowed allowed)
-      : allowed_(allowed) {
-#ifdef DEBUG
-    if (allowed == DISALLOW) {
-      allocation_disallowed_++;
-    }
-#endif
-  }
-  ~NativeAllocationChecker() {
-#ifdef DEBUG
-    if (allowed_ == DISALLOW) {
-      allocation_disallowed_--;
-    }
-#endif
-    ASSERT(allocation_disallowed_ >= 0);
-  }
-  static inline bool allocation_allowed() {
-    return allocation_disallowed_ == 0;
-  }
- private:
-  // This static counter ensures that NativeAllocationCheckers can be nested.
-  static int allocation_disallowed_;
-  // This flag applies to this particular instance.
-  NativeAllocationAllowed allowed_;
-};
-
-
 // Superclass for classes managed with new & delete.
 class Malloced {
  public:
@@ -114,7 +82,6 @@ class AllStatic {
 
 template <typename T>
 static T* NewArray(int size) {
-  ASSERT(NativeAllocationChecker::allocation_allowed());
   T* result = new T[size];
   if (result == NULL) Malloced::FatalProcessOutOfMemory();
   return result;
@@ -146,27 +113,27 @@ class FreeStoreAllocationPolicy {
 // Allocation policy for allocating in preallocated space.
 // Used as an allocation policy for ScopeInfo when generating
 // stack traces.
-class PreallocatedStorage : public AllStatic {
+class PreallocatedStorage {
  public:
   explicit PreallocatedStorage(size_t size);
   size_t size() { return size_; }
-  static void* New(size_t size);
-  static void Delete(void* p);
 
-  // Preallocate a set number of bytes.
-  static void Init(size_t size);
+  // TODO(isolates): Get rid of these-- we'll have to change the allocator
+  //                 interface to include a pointer to an isolate to do this
+  //                 efficiently.
+  static inline void* New(size_t size);
+  static inline void Delete(void* p);
 
  private:
   size_t size_;
   PreallocatedStorage* previous_;
   PreallocatedStorage* next_;
-  static bool preallocated_;
-
-  static PreallocatedStorage in_use_list_;
-  static PreallocatedStorage free_list_;
 
   void LinkTo(PreallocatedStorage* other);
   void Unlink();
+
+  friend class Isolate;
+
   DISALLOW_IMPLICIT_CONSTRUCTORS(PreallocatedStorage);
 };
 

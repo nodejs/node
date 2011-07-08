@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,19 +27,24 @@
 
 // Test Math.sin and Math.cos.
 
-var input_sin = [0, Math.PI / 2];
-var input_cos = [0, Math.PI];
+function sinTest() {
+  assertEquals(0, Math.sin(0));
+  assertEquals(1, Math.sin(Math.PI / 2));
+}
 
-var output_sin = input_sin.map(Math.sin);
-var output_cos = input_cos.map(Math.cos);
+function cosTest() {
+  assertEquals(1, Math.cos(0));
+  assertEquals(-1, Math.cos(Math.PI));
+}
 
-var expected_sin = [0, 1];
-var expected_cos = [1, -1];
-
-assertArrayEquals(expected_sin, output_sin, "sine");
-assertArrayEquals(expected_cos, output_cos, "cosine");
+sinTest();
+cosTest();
 
 // By accident, the slow case for sine and cosine were both sine at
 // some point.  This is a regression test for that issue.
 var x = Math.pow(2, 70);
 assertTrue(Math.sin(x) != Math.cos(x));
+
+// Ensure that sine and log are not the same.
+x = 0.5;
+assertTrue(Math.sin(x) != Math.log(x));

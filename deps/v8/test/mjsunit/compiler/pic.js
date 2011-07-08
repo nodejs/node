@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function GetX(o) { return o.x; }
 function CallF(o) { return o.f(); }
 function SetX(o) { o.x = 42; }
@@ -53,11 +55,15 @@ o1.f = o2.f = o3.f = function() { return 99; }
 
 // Run the test until we're fairly sure we've optimized the
 // polymorphic property access.
-for (var i = 0; i < 1000000; i++) {
+for (var i = 0; i < 5; i++) {
   Test(o1);
   Test(o2);
   Test(o3);
 }
+%OptimizeFunctionOnNextCall(Test);
+Test(o1);
+Test(o2);
+Test(o3);
 
 // Make sure that the following doesn't crash.
 GetX(0);

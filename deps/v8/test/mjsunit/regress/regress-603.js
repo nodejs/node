@@ -29,21 +29,36 @@
 // not mess up the stack.
 // http://code.google.com/p/v8/issues/detail?id=603
 
-function test0() {
-  var re = /b../;
+var re = /b../;
+assertThrows(function() {
   return re('abcdefghijklm') + 'z';
-}
-assertEquals('bcdz', test0());
+});
 
 var re1 = /c../;
 re1.call = Function.prototype.call;
-var test1 = re1.call(null, 'abcdefghijklm') + 'z';
-assertEquals('cdez', test1);
+assertThrows(function() {
+  re1.call(null, 'abcdefghijklm') + 'z';
+});
 
 var re2 = /d../;
-var test2 = Function.prototype.call.call(re2, null, 'abcdefghijklm') + 'z';
-assertEquals('defz', test2);
+assertThrows(function() {
+  Function.prototype.call.call(re2, null, 'abcdefghijklm') + 'z';
+});
 
 var re3 = /e../;
-var test3 = Function.prototype.call.apply(re3, [null, 'abcdefghijklm']) + 'z';
-assertEquals('efgz', test3);
+assertThrows(function() {
+  Function.prototype.call.apply(
+      re3, [null, 'abcdefghijklm']) + 'z';
+});
+
+var re4 = /f../;
+assertThrows(function() {
+  Function.prototype.apply.call(
+      re4, null, ['abcdefghijklm']) + 'z';
+});
+
+var re5 = /g../;
+assertThrows(function() {
+  Function.prototype.apply.apply(
+      re4, [null, ['abcdefghijklm']]) + 'z';
+});

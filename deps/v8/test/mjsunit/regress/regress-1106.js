@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test for issue 1106, where the optimizing compiler broke when accessing
 // a property lying on a prototype of the global object, and that prototype
 // object was in dictionary mode.
@@ -37,14 +39,18 @@ x.foo = 5;
 
 function f() { return foo; }
 
-for (i=0 ; i < 100000; ++i) {
+for (i=0 ; i < 5; ++i) {
   assertEquals(5, f());
 }
+%OptimizeFunctionOnNextCall(f);
+assertEquals(5, f());
 
 // Test calls on functions defined in the prototype of the global object.
 x.gee = function() { return 42; }
 function g() { return gee(); }
 
-for (i=0 ; i < 100000; ++i) {
+for (i=0 ; i < 5; ++i) {
   assertEquals(42, g());
 }
+%OptimizeFunctionOnNextCall(g);
+assertEquals(42, g());

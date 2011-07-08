@@ -26,26 +26,26 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 assertEquals("[object global]", this.toString());
-assertEquals("[object global]", toString());
+assertEquals("[object Undefined]", toString());
 
 assertEquals("[object global]", eval("this.toString()"));
-assertEquals("[object global]", eval("toString()"));
+assertEquals("[object Undefined]", eval("toString()"));
 
 assertEquals("[object global]", eval("var f; this.toString()"));
-assertEquals("[object global]", eval("var f; toString()"));
+assertEquals("[object Undefined]", eval("var f; toString()"));
 
 
 function F(f) {
   assertEquals("[object global]", this.toString());
-  assertEquals("[object global]", toString());
+  assertEquals("[object Undefined]", toString());
 
   assertEquals("[object global]", eval("this.toString()"));
-  assertEquals("[object global]", eval("toString()"));
+  assertEquals("[object Undefined]", eval("toString()"));
 
   assertEquals("[object global]", eval("var f; this.toString()"));
-  assertEquals("[object global]", eval("var f; toString()"));
+  assertEquals("[object Undefined]", eval("var f; toString()"));
 
-  assertEquals("[object global]", eval("f()"));
+  assertEquals("[object Undefined]", eval("f()"));
 
   // Receiver should be the arguments object here.
   assertEquals("[object Arguments]", eval("arguments[0]()"));

@@ -35,22 +35,11 @@ Object.preventExtensions(obj1);
 
 // Make sure the is_extensible flag is set. 
 assertFalse(Object.isExtensible(obj1));
-// Try adding a new property.
-try {
-  obj1.x = 42;
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+obj1.x = 42;
 assertEquals(undefined, obj1.x);
 
 // Try adding a new element.
-try {
-  obj1[1] = 42;
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+obj1[1] = 42;
 assertEquals(undefined, obj1[1]);
 
 
@@ -64,25 +53,14 @@ assertTrue(Object.isExtensible(obj2));
 Object.preventExtensions(obj2);
 assertEquals(42, obj2.x);
 
-try {
-  obj2.y = 42;
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
-
+obj2.y = 42;
 // obj2.y should still be undefined.
 assertEquals(undefined, obj2.y);
 // Make sure we can still write values to obj.x.
 obj2.x = 43;
 assertEquals(43, obj2.x)
 
-try {
-  obj2.y = new function() { return 42; };
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+obj2.y = new function() { return 42; };
 // obj2.y should still be undefined.
 assertEquals(undefined, obj2.y);
 assertEquals(43, obj2.x)
@@ -97,12 +75,7 @@ try {
 assertEquals(undefined, obj2.y);
 assertEquals(43, obj2.x);
 
-try {
-  obj2[1] = 42;
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
-
+obj2[1] = 42;
 assertEquals(undefined, obj2[1]);
 
 var arr = new Array();
@@ -110,12 +83,7 @@ arr[1] = 10;
 
 Object.preventExtensions(arr);
 
-try {
-  arr[2] = 42;
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+arr[2] = 42;
 assertEquals(10, arr[1]);
 
 // We should still be able to change exiting elements.
@@ -134,12 +102,7 @@ var child = Object.create(parent);
 child.y = 42;
 
 // This should have no influence on the parent class.
-try {
-  parent.y = 29;
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+parent.y = 29;
 
 
 // Test that attributes on functions are also handled correctly.
@@ -149,9 +112,5 @@ function foo() {
 
 Object.preventExtensions(foo);
 
-try {
-  foo.x = 29;
-  assertUnreachable();
-} catch (e) {
-  assertTrue(/object is not extensible/.test(e));
-}
+foo.x = 29;
+assertEquals(undefined, foo.x);

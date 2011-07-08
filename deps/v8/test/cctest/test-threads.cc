@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "platform.h"
+#include "isolate.h"
 
 #include "cctest.h"
 
@@ -64,6 +65,7 @@ static Turn turn = FILL_CACHE;
 
 class ThreadA: public v8::internal::Thread {
  public:
+  ThreadA() : Thread("ThreadA") { }
   void Run() {
     v8::Locker locker;
     v8::HandleScope scope;
@@ -99,6 +101,7 @@ class ThreadA: public v8::internal::Thread {
 
 class ThreadB: public v8::internal::Thread {
  public:
+  ThreadB() : Thread("ThreadB") { }
   void Run() {
     do {
       {
@@ -108,7 +111,7 @@ class ThreadB: public v8::internal::Thread {
           v8::Context::Scope context_scope(v8::Context::New());
 
           // Clear the caches by forcing major GC.
-          v8::internal::Heap::CollectAllGarbage(false);
+          HEAP->CollectAllGarbage(false);
           turn = SECOND_TIME_FILL_CACHE;
           break;
         }
@@ -133,4 +136,56 @@ TEST(JSFunctionResultCachesInTwoThreads) {
   threadB.Join();
 
   CHECK_EQ(DONE, turn);
+}
+
+class ThreadIdValidationThread : public v8::internal::Thread {
+ public:
+  ThreadIdValidationThread(i::Thread* thread_to_start,
+                           i::List<i::ThreadId>* refs,
+                           unsigned int thread_no,
+                           i::Semaphore* semaphore)
+    : Thread("ThreadRefValidationThread"),
+      refs_(refs), thread_no_(thread_no), thread_to_start_(thread_to_start),
+      semaphore_(semaphore) {
+  }
+
+  void Run() {
+    i::ThreadId thread_id = i::ThreadId::Current();
+    for (int i = 0; i < thread_no_; i++) {
+      CHECK(!(*refs_)[i].Equals(thread_id));
+    }
+    CHECK(thread_id.IsValid());
+    (*refs_)[thread_no_] = thread_id;
+    if (thread_to_start_ != NULL) {
+      thread_to_start_->Start();
+    }
+    semaphore_->Signal();
+  }
+ private:
+  i::List<i::ThreadId>* refs_;
+  int thread_no_;
+  i::Thread* thread_to_start_;
+  i::Semaphore* semaphore_;
+};
+
+TEST(ThreadIdValidation) {
+  const int kNThreads = 100;
+  i::List<ThreadIdValidationThread*> threads(kNThreads);
+  i::List<i::ThreadId> refs(kNThreads);
+  i::Semaphore* semaphore = i::OS::CreateSemaphore(0);
+  ThreadIdValidationThread* prev = NULL;
+  for (int i = kNThreads - 1; i >= 0; i--) {
+    ThreadIdValidationThread* newThread =
+        new ThreadIdValidationThread(prev, &refs, i, semaphore);
+    threads.Add(newThread);
+    prev = newThread;
+    refs.Add(i::ThreadId::Invalid());
+  }
+  prev->Start();
+  for (int i = 0; i < kNThreads; i++) {
+    semaphore->Wait();
+  }
+  for (int i = 0; i < kNThreads; i++) {
+    delete threads[i];
+  }
 }

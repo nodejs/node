@@ -28,7 +28,7 @@
 // Test that installing a getter on the global object instead of a
 // normal property works.
 
-var x = 0;
+x = 0;
 
 function getX() { return x; }
 
@@ -41,7 +41,7 @@ for (var i = 0; i < 10; i++) {
 // Test that installing a setter on the global object instead of a
 // normal property works.
 
-var y = 0;
+y = 0;
 var setter_y;
 
 function setY(value) { y = value; }
@@ -67,6 +67,6 @@ for (var i = 0; i < 10; i++) {
   assertEquals(i < 5 ? 42 : 0, getZ());
   if (i == 4) {
     delete z;
-    var z = 0;
+    z = 0;
   }
 }

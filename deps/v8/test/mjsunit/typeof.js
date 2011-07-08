@@ -25,14 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// The type of a regular expression should be 'function', including in
+// The type of a regular expression should be 'object', including in
 // the context of string equality comparisons.
 
 var r = new RegExp;
-assertEquals('function', typeof r);
-assertTrue(typeof r == 'function');
+assertEquals('object', typeof r);
+assertTrue(typeof r == 'object');
+assertFalse(typeof r == 'function');
 
 function test(x, y) { return x == y; }
-assertFalse(test('object', typeof r));
-
-assertFalse(typeof r == 'object');
+assertTrue(test('object', typeof r));

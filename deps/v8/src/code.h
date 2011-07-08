@@ -28,6 +28,8 @@
 #ifndef V8_CODE_H_
 #define V8_CODE_H_
 
+#include "allocation.h"
+
 namespace v8 {
 namespace internal {
 
