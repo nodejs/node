@@ -84,6 +84,12 @@ static inline bool SetCloseOnExec(int fd) {
 #endif
 }
 
+#ifdef _LARGEFILE_SOURCE
+static inline int IsInt64(double x) {
+  return x == static_cast<double>(static_cast<int64_t>(x));
+}
+#endif
+
 
 static int After(eio_req *req) {
   HandleScope scope;
@@ -460,6 +466,20 @@ static Handle<Value> Rename(const Arguments& args) {
   }
 }
 
+#ifndef _LARGEFILE_SOURCE
+#define ASSERT_TRUNCATE_LENGTH(a) \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUInt32()) { \
+    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+  }
+#define GET_TRUNCATE_LENGTH(a) ((a)->UInt32Value())
+#else
+#define ASSERT_TRUNCATE_LENGTH(a) \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
+    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+  }
+#define GET_TRUNCATE_LENGTH(a) ((a)->IntegerValue())
+#endif
+
 static Handle<Value> Truncate(const Arguments& args) {
   HandleScope scope;
 
@@ -468,7 +488,9 @@ static Handle<Value> Truncate(const Arguments& args) {
   }
 
   int fd = args[0]->Int32Value();
-  off_t len = args[1]->Uint32Value();
+
+  ASSERT_TRUNCATE_LENGTH(args[1]);
+  off_t len = GET_TRUNCATE_LENGTH(args[1]);
 
   if (args[2]->IsFunction()) {
     ASYNC_CALL(ftruncate, args[2], fd, len)
@@ -670,7 +692,19 @@ static Handle<Value> Open(const Arguments& args) {
   }
 }
 
-#define GET_OFFSET(a) (a)->IsInt32() ? (a)->IntegerValue() : -1;
+#ifndef _LARGEFILE_SOURCE
+#define ASSERT_OFFSET(a) \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsInt32()) { \
+    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+  }
+#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->Int32Value() : -1)
+#else
+#define ASSERT_OFFSET(a) \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
+    return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
+  }
+#define GET_OFFSET(a) ((a)->IsNumber() ? (a)->IntegerValue() : -1)
+#endif
 
 // bytesWritten = write(fd, data, position, enc, callback)
 // Wrapper for write(2).
@@ -711,6 +745,7 @@ static Handle<Value> Write(const Arguments& args) {
           String::New("Length is extends beyond buffer")));
   }
 
+  ASSERT_OFFSET(args[4]);
   off_t pos = GET_OFFSET(args[4]);
 
   char * buf = (char*)buffer_data + off;
