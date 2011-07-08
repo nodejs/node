@@ -60,6 +60,13 @@ test-pummel: all
 test-internet: all
 	python tools/test.py internet
 
+test-uv: all
+	python tools/test.py \
+		simple/test-net-eaddrinuse \
+		simple/test-net-pingpong \
+		simple/test-net-reconnect
+
+
 build/default/node: all
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
