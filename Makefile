@@ -137,6 +137,7 @@ test-uv: all
 		simple/test-net-isip \
 		simple/test-net-keepalive \
 		simple/test-net-pingpong \
+		simple/test-net-reconnect \
 		simple/test-net-remote-address-port \
 		simple/test-net-server-try-ports \
 		simple/test-net-server-stream \
