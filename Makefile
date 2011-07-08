@@ -186,6 +186,16 @@ test-uv: all
 		simple/test-writeint \
 		simple/test-writeuint \
 		simple/test-zerolengthbufferbug \
+		pummel/test-http-client-reconnect-bug \
+		pummel/test-http-upload-timeout \
+		pummel/test-net-pause \
+		pummel/test-net-pingpong-delay \
+		pummel/test-net-timeout \
+		pummel/test-timers \
+		pummel/test-timer-wrap \
+		pummel/test-timer-wrap2 \
+		pummel/test-vm-memleak \
+		internet/test-dns \
 
 
 build/default/node: all
