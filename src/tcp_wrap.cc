@@ -292,7 +292,7 @@ class TCPWrap {
       Local<Object> slab_obj = slab_v->ToObject();
       slab = Buffer::Data(slab_obj);
       assert(Buffer::Length(slab_obj) == SLAB_SIZE);
-      assert(SLAB_SIZE > slab_used);
+      assert(SLAB_SIZE >= slab_used);
 
       // If less than 64kb is remaining on the slab allocate a new one.
       if (SLAB_SIZE - slab_used < 64 * 1024) {
