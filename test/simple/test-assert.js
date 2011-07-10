@@ -229,3 +229,34 @@ try {
 console.log('All OK');
 assert.ok(gotError);
 
+
+// #217
+function testAssertionMessage(actual, expected) {
+  try {
+    assert.equal(actual, '');
+  } catch (e) {
+    assert.equal(e.toString(),
+        ['AssertionError:', '""', '==', expected].join(' '));
+  }
+}
+testAssertionMessage(undefined, '"undefined"');
+testAssertionMessage(null, 'null');
+testAssertionMessage(true, 'true');
+testAssertionMessage(false, 'false');
+testAssertionMessage(0, '0');
+testAssertionMessage(100, '100');
+testAssertionMessage(NaN, '"NaN"');
+testAssertionMessage(Infinity, '"Infinity"');
+testAssertionMessage(-Infinity, '"-Infinity"');
+testAssertionMessage('', '""');
+testAssertionMessage('foo', '"foo"');
+testAssertionMessage([], '[]');
+testAssertionMessage([1,2,3], '[1,2,3]');
+testAssertionMessage(/a/, '"/a/"');
+testAssertionMessage(/abc/gim, '"/abc/gim"');
+testAssertionMessage(function f() {}, '"function f() {}"');
+testAssertionMessage({}, '{}');
+testAssertionMessage({a:undefined, b:null}, '{"a":"undefined","b":null}');
+testAssertionMessage({a:NaN, b:Infinity, c:-Infinity},
+    '{"a":"NaN","b":"Infinity","c":"-Infinity"}');
+
