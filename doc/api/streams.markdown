@@ -78,6 +78,8 @@ Connects this read stream to `destination` WriteStream. Incoming
 data on this stream gets written to `destination`. The destination and source
 streams are kept in sync by pausing and resuming as necessary.
 
+This function returns the `destination` stream.
+
 Emulating the Unix `cat` command:
 
     process.stdin.resume();
