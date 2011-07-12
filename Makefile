@@ -140,7 +140,8 @@ test-uv: all
 		simple/test-net-reconnect \
 		simple/test-net-remote-address-port \
 		simple/test-net-server-try-ports \
-		simple/test-net-server-stream \
+		simple/test-net-stream \
+		simple/test-net-socket-timeout \
 		simple/test-next-tick \
 		simple/test-next-tick-errors \
 		simple/test-next-tick-ordering \
