@@ -141,6 +141,7 @@ test-uv: all
 		simple/test-mkdir-rmdir \
 		simple/test-net-binary \
 		simple/test-net-can-reset-timeout \
+		simple/test-net-connect-buffer \
 		simple/test-net-create-connection \
 		simple/test-net-eaddrinuse \
 		simple/test-net-isip \
