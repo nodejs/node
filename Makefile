@@ -101,27 +101,36 @@ test-uv: all
 		simple/test-http-buffer-sanity \
 		simple/test-http-cat \
 		simple/test-http-chunked \
+		simple/test-http-client-abort \
 		simple/test-http-client-race \
 		simple/test-http-client-race-2 \
 		simple/test-http-client-upload \
 		simple/test-http-client-upload-buf \
 		simple/test-http-contentLength0 \
+		simple/test-http-default-encoding \
 		simple/test-http-dns-fail \
 		simple/test-http-eof-on-connect \
 		simple/test-http-exceptions \
 		simple/test-http-expect-continue \
+		simple/test-http-extra-response \
 		simple/test-http-head-request \
 		simple/test-http-head-response-has-no-body \
 		simple/test-http-keep-alive \
 		simple/test-http-keep-alive-close-on-header \
 		simple/test-http-malformed-request \
+		simple/test-http-many-keep-alive-connections \
+		simple/test-http-mutable-headers \
 		simple/test-http-parser \
 		simple/test-http-proxy \
+		simple/test-http-request-end \
+		simple/test-http-response-close \
+		simple/test-http-response-readable \
 		simple/test-http-server \
 		simple/test-http-server-multiheaders \
 		simple/test-http-set-cookies \
 		simple/test-http-set-timeout \
 		simple/test-http-set-trailers \
+		simple/test-http-upgrade-agent \
 		simple/test-http-upgrade-client \
 		simple/test-http-upgrade-client2 \
 		simple/test-http-upgrade-server \
