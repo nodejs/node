@@ -52,6 +52,9 @@ In busy processes, the programmer is _strongly encouraged_ to use the
 asynchronous versions of these calls. The synchronous versions will block
 the entire process until they complete--halting all connections.
 
+Relative path to filename can be used, remember however that this path will be relative
+to `process.cwd()`.
+
 ### fs.rename(path1, path2, [callback])
 
 Asynchronous rename(2). No arguments other than a possible exception are given
