@@ -207,6 +207,13 @@ var amdExtraArgs = require(amdFolder + '/extra-args.js');
 assert.equal(amdExtraArgs.ok, amdreg.ok, 'amd extra args failed');
 
 
+// make sure that module.require() is the same as
+// doing require() inside of that module.
+var parent = require('../fixtures/module-require/parent/');
+var child = require('../fixtures/module-require/child/');
+assert.equal(child.loaded, parent.loaded);
+
+
 process.addListener('exit', function() {
   assert.ok(common.indirectInstanceOf(a.A, Function));
   assert.equal('A done', a.A());
