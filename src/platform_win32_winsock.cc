@@ -404,8 +404,8 @@ error:
 static void wsa_init_proto_info_cache() {
   wsa_get_proto_info(AF_INET,  SOCK_STREAM, IPPROTO_TCP, &proto_info_cache[0]);
   wsa_get_proto_info(AF_INET,  SOCK_DGRAM,  IPPROTO_UDP, &proto_info_cache[1]);
-  wsa_get_proto_info(AF_INET6, SOCK_STREAM, IPPROTO_TCP, &proto_info_cache[2]);
-  wsa_get_proto_info(AF_INET6, SOCK_DGRAM,  IPPROTO_UDP, &proto_info_cache[3]);
+  //wsa_get_proto_info(AF_INET6, SOCK_STREAM, IPPROTO_TCP, &proto_info_cache[2]);
+  //wsa_get_proto_info(AF_INET6, SOCK_DGRAM,  IPPROTO_UDP, &proto_info_cache[3]);
 }
 
 
