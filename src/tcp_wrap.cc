@@ -66,7 +66,7 @@ class ReqWrap {
   ReqWrap(uv_handle_t* handle, void* callback) {
     HandleScope scope;
     object_ = Persistent<Object>::New(Object::New());
-    uv_req_init(&req_, handle, callback);
+    uv_req_init(&req_, handle, (void* (*)(void*))callback);
     req_.data = this;
   }
 

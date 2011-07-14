@@ -102,7 +102,7 @@ static void connect_cb(uv_req_t *req, int status) {
   uv_write(&write_req, &qbuf, 1);
 
   /* Shutdown our end of the connection.  */
-  uv_req_init(&shutdown_req, (uv_handle_t*)&tcp, shutdown_cb);
+  uv_req_init(&shutdown_req, (uv_handle_t*)&tcp, (void *(*)(void *))shutdown_cb);
   uv_shutdown(&shutdown_req);
 
   called_connect_cb++;
@@ -165,7 +165,7 @@ TEST_IMPL(shutdown_eof) {
   r = uv_tcp_init(&tcp);
   ASSERT(!r);
 
-  uv_req_init(&connect_req, (uv_handle_t*) &tcp, connect_cb);
+  uv_req_init(&connect_req, (uv_handle_t*) &tcp, (void *(*)(void *))connect_cb);
   r = uv_tcp_connect(&connect_req, server_addr);
   ASSERT(!r);
 

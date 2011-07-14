@@ -20,8 +20,8 @@
 
 # Use make -f Makefile.gcc PREFIX=i686-w64-mingw32-
 # for cross compilation
-CC ?= $(PREFIX)gcc
-AR ?= $(PREFIX)ar
+CC = $(PREFIX)gcc
+AR = $(PREFIX)ar
 E=.exe
 
 CFLAGS=$(CPPFLAGS) -g --std=gnu89 -D_WIN32_WINNT=0x0501 -Isrc/ares/config_win32

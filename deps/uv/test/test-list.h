@@ -19,8 +19,9 @@
  * IN THE SOFTWARE.
  */
 
-TEST_DECLARE   (ping_pong)
-TEST_DECLARE   (ping_pong_v6)
+TEST_DECLARE   (tcp_ping_pong)
+TEST_DECLARE   (tcp_ping_pong_v6)
+TEST_DECLARE   (pipe_ping_pong)
 TEST_DECLARE   (delayed_accept)
 TEST_DECLARE   (tcp_writealot)
 TEST_DECLARE   (bind_error_addrinuse)
@@ -52,22 +53,28 @@ TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_basic)
 TEST_DECLARE   (getaddrinfo_concurrent)
 TEST_DECLARE   (gethostbyname)
+TEST_DECLARE   (getsockname)
 TEST_DECLARE   (fail_always)
 TEST_DECLARE   (pass_always)
-HELPER_DECLARE (echo_server)
+HELPER_DECLARE (tcp4_echo_server)
+HELPER_DECLARE (tcp6_echo_server)
+HELPER_DECLARE (pipe_echo_server)
 
 
 TASK_LIST_START
-  TEST_ENTRY  (ping_pong)
-  TEST_HELPER (ping_pong, echo_server)
+  TEST_ENTRY  (tcp_ping_pong)
+  TEST_HELPER (tcp_ping_pong, tcp4_echo_server)
 
-  TEST_ENTRY  (ping_pong_v6)
-  TEST_HELPER (ping_pong_v6, echo_server)
+  TEST_ENTRY  (tcp_ping_pong_v6)
+  TEST_HELPER (tcp_ping_pong_v6, tcp6_echo_server)
+
+  TEST_ENTRY  (pipe_ping_pong)
+  TEST_HELPER (pipe_ping_pong, pipe_echo_server)
 
   TEST_ENTRY  (delayed_accept)
 
   TEST_ENTRY  (tcp_writealot)
-  TEST_HELPER (tcp_writealot, echo_server)
+  TEST_HELPER (tcp_writealot, tcp4_echo_server)
 
   TEST_ENTRY  (bind_error_addrinuse)
   TEST_ENTRY  (bind_error_addrnotavail_1)
@@ -86,10 +93,10 @@ TASK_LIST_START
   TEST_ENTRY  (connection_fail_doesnt_auto_close)
 
   TEST_ENTRY  (shutdown_eof)
-  TEST_HELPER (shutdown_eof, echo_server)
+  TEST_HELPER (shutdown_eof, tcp4_echo_server)
 
   TEST_ENTRY  (callback_stack)
-  TEST_HELPER (callback_stack, echo_server)
+  TEST_HELPER (callback_stack, tcp4_echo_server)
 
   TEST_ENTRY  (timer)
 
@@ -113,7 +120,9 @@ TASK_LIST_START
   TEST_ENTRY  (getaddrinfo_concurrent)
 
   TEST_ENTRY  (gethostbyname)
-  TEST_HELPER (gethostbyname, echo_server)
+  TEST_HELPER (gethostbyname, tcp4_echo_server)
+
+  TEST_ENTRY  (getsockname)
 
 #if 0
   /* These are for testing the test runner. */

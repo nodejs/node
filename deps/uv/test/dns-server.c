@@ -165,7 +165,7 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
           rec_remaining = ntohs(reclen_n) - (DNSREC_LEN - 2);
         }
       }
-          
+
       if (rec_remaining <= readbuf_remaining) {
         /* prepare reply */
         addrsp(wr, hdrbuf);

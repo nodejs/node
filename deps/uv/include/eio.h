@@ -176,7 +176,7 @@ enum
 enum
 {
   EIO_MCL_CURRENT = 1,
-  EIO_MCL_FUTURE  = 2,
+  EIO_MCL_FUTURE  = 2
 };
 
 /* request priorities */
@@ -184,7 +184,7 @@ enum
 enum {
   EIO_PRI_MIN     = -4,
   EIO_PRI_MAX     =  4,
-  EIO_PRI_DEFAULT =  0,
+  EIO_PRI_DEFAULT =  0
 };
 
 /* eio request structure */

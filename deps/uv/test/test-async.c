@@ -47,8 +47,6 @@ static uintptr_t thread3_id = 0;
 
 /* Thread 1 makes sure that async1_cb_called reaches 3 before exiting. */
 void thread1_entry(void *arg) {
-  int state = 0;
-
   uv_sleep(50);
 
   while (1) {

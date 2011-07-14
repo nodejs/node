@@ -99,7 +99,6 @@ static void uv_fatal_error(const int errorno, const char* syscall) {
     fprintf(stderr, "\nlibuv fatal error. (%d) %s\n", errorno, errmsg);
   }
 
-  *((char*)NULL) = 0xff; /* Force debug break */
   abort();
 }
 
@@ -169,8 +168,8 @@ int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   switch (handle->type) {
     case UV_TCP:
       tcp = (uv_tcp_t*) handle;
+      uv_read_stop((uv_stream_t*)tcp);
       ev_io_stop(EV_DEFAULT_ &tcp->write_watcher);
-      ev_io_stop(EV_DEFAULT_ &tcp->read_watcher);
       break;
 
     case UV_PREPARE:
@@ -633,7 +632,7 @@ static uv_req_t* uv__write(uv_tcp_t* tcp) {
     /* Successful write */
 
     /* Update the counters. */
-    while (n > 0) {
+    while (n >= 0) {
       uv_buf_t* buf = &(req->bufs[req->write_index]);
       size_t len = buf->len;
 
@@ -871,7 +870,7 @@ static void uv__tcp_connect(uv_tcp_t* tcp) {
     return;
   } else {
     /* Error */
-    uv_err_t err = uv_err_new((uv_handle_t*)tcp, error);
+    uv_err_new((uv_handle_t*)tcp, error);
 
     tcp->connect_req = NULL;
 
@@ -962,6 +961,27 @@ int uv_tcp_connect6(uv_req_t* req, struct sockaddr_in6 addr) {
 }
 
 
+int uv_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen) {
+  socklen_t socklen;
+  int saved_errno;
+
+  /* Don't clobber errno. */
+  saved_errno = errno;
+
+  /* sizeof(socklen_t) != sizeof(int) on some systems. */
+  socklen = (socklen_t)*namelen;
+
+  if (getsockname(handle->fd, name, &socklen) == -1) {
+    uv_err_new((uv_handle_t*)handle, errno);
+  } else {
+    *namelen = (int)socklen;
+  }
+
+  errno = saved_errno;
+  return 0;
+}
+
+
 static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
   size_t total = 0;
   int i;
@@ -996,7 +1016,9 @@ int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt) {
   memcpy(req->bufs, bufs, bufcnt * sizeof(uv_buf_t));
   req->bufcnt = bufcnt;
 
-  // fprintf(stderr, "cnt: %d bufs: %p bufsml: %p\n", bufcnt, req->bufs, req->bufsml);
+  /*
+   * fprintf(stderr, "cnt: %d bufs: %p bufsml: %p\n", bufcnt, req->bufs, req->bufsml);
+   */
 
   req->write_index = 0;
   tcp->write_queue_size += uv__buf_count(bufs, bufcnt);
@@ -1096,7 +1118,7 @@ int uv_read_stop(uv_stream_t* stream) {
 }
 
 
-void uv_req_init(uv_req_t* req, uv_handle_t* handle, void* cb) {
+void uv_req_init(uv_req_t* req, uv_handle_t* handle, void *(*cb)(void *)) {
   uv_counters()->req_init++;
   req->type = UV_UNKNOWN_REQ;
   req->cb = cb;
@@ -1166,7 +1188,7 @@ static void uv__check(EV_P_ ev_check* w, int revents) {
 
 int uv_check_init(uv_check_t* check) {
   uv__handle_init((uv_handle_t*)check, UV_CHECK);
-  uv_counters()->check_init;
+  uv_counters()->check_init++;
 
   ev_check_init(&check->check_watcher, uv__check);
   check->check_watcher.data = check;
@@ -1303,6 +1325,7 @@ int uv_async_init(uv_async_t* async, uv_async_cb async_cb) {
 
 int uv_async_send(uv_async_t* async) {
   ev_async_send(EV_DEFAULT_UC_ &async->async_watcher);
+  return 0;
 }
 
 
@@ -1413,6 +1436,8 @@ static uv_ares_task_t* uv__ares_task_create(int fd) {
 
   h->read_watcher.data = h;
   h->write_watcher.data = h;
+
+  return h;
 }
 
 
@@ -1544,7 +1569,7 @@ static int getaddrinfo_thread_proc(eio_req *req) {
 
   handle->retcode = getaddrinfo(handle->hostname,
                                 handle->service,
-                                &handle->hints,
+                                handle->hints,
                                 &handle->res);
   return 0;
 }
@@ -1556,6 +1581,7 @@ int uv_getaddrinfo(uv_getaddrinfo_t* handle,
                    const char* hostname,
                    const char* service,
                    const struct addrinfo* hints) {
+  eio_req* req;
   uv_eio_init();
 
   if (handle == NULL || cb == NULL ||
@@ -1584,7 +1610,7 @@ int uv_getaddrinfo(uv_getaddrinfo_t* handle,
 
   uv_ref();
 
-  eio_req* req = eio_custom(getaddrinfo_thread_proc, EIO_PRI_DEFAULT,
+  req = eio_custom(getaddrinfo_thread_proc, EIO_PRI_DEFAULT,
       uv_getaddrinfo_done, handle);
   assert(req);
   assert(req->data == handle);
@@ -1592,3 +1618,22 @@ int uv_getaddrinfo(uv_getaddrinfo_t* handle,
   return 0;
 }
 
+
+int uv_pipe_init(uv_pipe_t* handle) {
+  assert(0 && "implement me");
+}
+
+
+int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
+  assert(0 && "implement me");
+}
+
+
+int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb) {
+  assert(0 && "implement me");
+}
+
+
+int uv_pipe_connect(uv_req_t* req, const char* name) {
+  assert(0 && "implement me");
+}

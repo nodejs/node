@@ -24,8 +24,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-static char BUFFER[1024];
-
 static int connection_cb_called = 0;
 static int do_accept_called = 0;
 static int close_cb_called = 0;
@@ -52,8 +50,8 @@ static void close_cb(uv_handle_t* handle) {
 static void do_accept(uv_timer_t* timer_handle, int status) {
   uv_tcp_t* server;
   uv_tcp_t* accepted_handle = (uv_tcp_t*)malloc(sizeof *accepted_handle);
+  uint64_t tcpcnt;
   int r;
-  int tcpcnt;
 
   ASSERT(timer_handle != NULL);
   ASSERT(status == 0);
@@ -178,7 +176,7 @@ static void client_connect() {
   r = uv_tcp_init(client);
   ASSERT(r == 0);
 
-  uv_req_init(connect_req, (uv_handle_t*)client, connect_cb);
+  uv_req_init(connect_req, (uv_handle_t*)client, (void *(*)(void *))connect_cb);
   r = uv_tcp_connect(connect_req, addr);
   ASSERT(r == 0);
 }

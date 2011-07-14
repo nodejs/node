@@ -21,25 +21,35 @@
 
 BENCHMARK_DECLARE (sizes)
 BENCHMARK_DECLARE (ping_pongs)
-BENCHMARK_DECLARE (pump100_client)
-BENCHMARK_DECLARE (pump1_client)
+BENCHMARK_DECLARE (tcp_pump100_client)
+BENCHMARK_DECLARE (tcp_pump1_client)
+BENCHMARK_DECLARE (pipe_pump100_client)
+BENCHMARK_DECLARE (pipe_pump1_client)
 BENCHMARK_DECLARE (gethostbyname)
 BENCHMARK_DECLARE (getaddrinfo)
-HELPER_DECLARE    (pump_server)
-HELPER_DECLARE    (echo_server)
+HELPER_DECLARE    (tcp_pump_server)
+HELPER_DECLARE    (pipe_pump_server)
+HELPER_DECLARE    (tcp4_echo_server)
+HELPER_DECLARE    (pipe_echo_server)
 HELPER_DECLARE    (dns_server)
 
 TASK_LIST_START
   BENCHMARK_ENTRY  (sizes)
 
   BENCHMARK_ENTRY  (ping_pongs)
-  BENCHMARK_HELPER (ping_pongs, echo_server)
+  BENCHMARK_HELPER (ping_pongs, tcp4_echo_server)
 
-  BENCHMARK_ENTRY  (pump100_client)
-  BENCHMARK_HELPER (pump100_client, pump_server)
+  BENCHMARK_ENTRY  (tcp_pump100_client)
+  BENCHMARK_HELPER (tcp_pump100_client, tcp_pump_server)
 
-  BENCHMARK_ENTRY  (pump1_client)
-  BENCHMARK_HELPER (pump1_client, pump_server)
+  BENCHMARK_ENTRY  (tcp_pump1_client)
+  BENCHMARK_HELPER (tcp_pump1_client, tcp_pump_server)
+
+  BENCHMARK_ENTRY  (pipe_pump100_client)
+  BENCHMARK_HELPER (pipe_pump100_client, pipe_pump_server)
+
+  BENCHMARK_ENTRY  (pipe_pump1_client)
+  BENCHMARK_HELPER (pipe_pump1_client, pipe_pump_server)
 
   BENCHMARK_ENTRY  (gethostbyname)
   BENCHMARK_HELPER (gethostbyname, dns_server)

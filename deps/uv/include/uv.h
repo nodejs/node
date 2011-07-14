@@ -43,6 +43,7 @@ typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
 typedef struct uv_stream_s uv_stream_t;
 typedef struct uv_tcp_s uv_tcp_t;
+typedef struct uv_pipe_s uv_pipe_t;
 typedef struct uv_timer_s uv_timer_t;
 typedef struct uv_prepare_s uv_prepare_t;
 typedef struct uv_check_s uv_check_t;
@@ -124,7 +125,8 @@ typedef enum {
   UV_EAIFAMNOSUPPORT,
   UV_EAINONAME,
   UV_EAISERVICE,
-  UV_EAISOCKTYPE
+  UV_EAISOCKTYPE,
+  UV_ESHUTDOWN
 } uv_err_code;
 
 typedef enum {
@@ -138,8 +140,8 @@ typedef enum {
   UV_CHECK,
   UV_IDLE,
   UV_ASYNC,
-  UV_ARES,
   UV_ARES_TASK,
+  UV_ARES_EVENT,
   UV_GETADDRINFO
 } uv_handle_type;
 
@@ -150,7 +152,11 @@ typedef enum {
   UV_READ,
   UV_WRITE,
   UV_SHUTDOWN,
-  UV_WAKEUP
+  UV_WAKEUP,
+  /* TODO: remove the req suffix */
+  UV_ARES_EVENT_REQ,
+  UV_ARES_CLEANUP_REQ,
+  UV_GETADDRINFO_REQ
 } uv_req_type;
 
 
@@ -167,7 +173,7 @@ struct uv_req_s {
   uv_req_type type;
   /* public */
   uv_handle_t* handle;
-  void* cb;
+  void *(*cb)(void *);
   void* data;
   /* private */
   UV_REQ_PRIVATE_FIELDS
@@ -176,7 +182,7 @@ struct uv_req_s {
 /*
  * Initialize a request for use with uv_write, uv_shutdown, or uv_connect.
  */
-void uv_req_init(uv_req_t* req, uv_handle_t* handle, void* cb);
+void uv_req_init(uv_req_t* req, uv_handle_t* handle, void *(*cb)(void *));
 
 int uv_shutdown(uv_req_t* req);
 
@@ -188,7 +194,7 @@ int uv_shutdown(uv_req_t* req);
   uv_close_cb close_cb; \
   void* data; \
   /* private */ \
-  UV_HANDLE_PRIVATE_FIELDS \
+  UV_HANDLE_PRIVATE_FIELDS
 
 /* The abstract base class of all handles.  */
 struct uv_handle_s {
@@ -212,7 +218,7 @@ int uv_close(uv_handle_t* handle, uv_close_cb close_cb);
   /* number of bytes queued for writing */ \
   size_t write_queue_size; \
   /* private */ \
-  UV_STREAM_PRIVATE_FIELDS \
+  UV_STREAM_PRIVATE_FIELDS
 
 /* The abstract base class for all streams. */
 struct uv_stream_s {
@@ -285,6 +291,26 @@ int uv_tcp_connect(uv_req_t* req, struct sockaddr_in);
 int uv_tcp_connect6(uv_req_t* req, struct sockaddr_in6);
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
+
+int uv_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
+
+
+/*
+ * A subclass of uv_stream_t representing a pipe stream or pipe server.
+ */
+struct uv_pipe_s { 
+  UV_HANDLE_FIELDS 
+  UV_STREAM_FIELDS 
+  UV_PIPE_PRIVATE_FIELDS 
+};
+
+int uv_pipe_init(uv_pipe_t* handle);
+
+int uv_pipe_bind(uv_pipe_t* handle, const char* name);
+
+int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb);
+
+int uv_pipe_connect(uv_req_t* req, const char* name);
 
 
 /*
@@ -466,6 +492,7 @@ extern uint64_t uv_hrtime(void);
 /* the presence of this union forces similar struct layout */
 union uv_any_handle {
   uv_tcp_t tcp;
+  uv_pipe_t pipe;
   uv_prepare_t prepare;
   uv_check_t check;
   uv_idle_t idle;
@@ -478,7 +505,9 @@ union uv_any_handle {
 typedef struct {
   uint64_t req_init;
   uint64_t handle_init;
+  uint64_t stream_init;
   uint64_t tcp_init;
+  uint64_t pipe_init;
   uint64_t prepare_init;
   uint64_t check_init;
   uint64_t idle_init;
@@ -487,6 +516,18 @@ typedef struct {
 } uv_counters_t;
 
 uv_counters_t* uv_counters();
+
+
+/* Don't export the private CPP symbols. */
+#undef UV_REQ_PRIVATE_FIELDS
+#undef UV_STREAM_PRIVATE_FIELDS
+#undef UV_TCP_PRIVATE_FIELDS
+#undef UV_PREPARE_PRIVATE_FIELDS
+#undef UV_CHECK_PRIVATE_FIELDS
+#undef UV_IDLE_PRIVATE_FIELDS
+#undef UV_ASYNC_PRIVATE_FIELDS
+#undef UV_TIMER_PRIVATE_FIELDS
+#undef UV_GETADDRINFO_PRIVATE_FIELDS
 
 #ifdef __cplusplus
 }

@@ -26,102 +26,155 @@
 
 char executable_path[PATHMAX] = { '\0' };
 
-/* Start a specific process declared by TEST_ENTRY or TEST_HELPER. */
-/* Returns the exit code of the specific process. */
-int run_process(char* name) {
-  task_entry_t *test;
 
-  for (test = (task_entry_t*)&TASKS; test->main; test++) {
-    if (strcmp(name, test->process_name) == 0) {
-      return test->main();
-    }
-  }
-
-  LOGF("Test process %s not found!\n", name);
-  return 255;
+static void log_progress(int total, int passed, int failed, const char* name) {
+  LOGF("[%% %3d|+ %3d|- %3d]: %s", (passed + failed) / total * 100,
+      passed, failed, name);
 }
 
 
-/*
- * Runs all processes associated with a particular test or benchmark.
- * It returns 1 if the test succeeded, 0 if it failed.
- * If the test fails it prints diagnostic information.
- * If benchmark_output is nonzero, the output from the main process is
- * always shown.
- */
-int run_task(task_entry_t *test, int timeout, int benchmark_output) {
-  int i, result, success;
-  char errmsg[256];
-  task_entry_t *helper;
-  int process_count;
-  process_info_t processes[MAX_PROCESSES];
-  process_info_t *main_process;
+int run_tests(int timeout, int benchmark_output) {
+  int total, passed, failed;
+  task_entry_t* task;
 
-  success = 0;
-
-  process_count = 0;
-
-  /* Start all helpers for this test first. */
-  for (helper = (task_entry_t*)&TASKS; helper->main; helper++) {
-    if (helper->is_helper &&
-        strcmp(test->task_name, helper->task_name) == 0) {
-      if (process_start(helper->process_name, &processes[process_count]) == -1) {
-        snprintf((char*)&errmsg,
-                 sizeof(errmsg),
-                 "process `%s` failed to start.",
-                 helper->process_name);
-        goto finalize;
-      }
-      process_count++;
+  /* Count the number of tests. */
+  total = 0;
+  for (task = TASKS; task->main; task++) {
+    if (!task->is_helper) {
+      total++;
     }
   }
 
-  /* Wait a little bit to allow servers to start. Racy. */
-  uv_sleep(100);
+  /* Run all tests. */
+  passed = 0;
+  failed = 0;
+  for (task = TASKS; task->main; task++) {
+    if (task->is_helper) {
+      continue;
+    }
 
-  /* Start the main test process. */
-  if (process_start(test->process_name, &processes[process_count]) == -1) {
-    snprintf((char*)&errmsg, sizeof(errmsg), "process `%s` failed to start.",
-        test->process_name);
-    goto finalize;
+    rewind_cursor();
+    log_progress(total, passed, failed, task->task_name);
+
+    if (run_test(task->task_name, timeout, benchmark_output) == 0) {
+      passed++;
+    } else {
+      failed++;
+    }
   }
-  main_process = &processes[process_count];
-  process_count++;
 
-  /* Wait for the main process to terminate. */
-  result = process_wait(main_process, 1, timeout);
+  rewind_cursor();
+  log_progress(total, passed, failed, "Done.\n");
+
+  return 0;
+}
+
+
+int run_test(const char* test, int timeout, int benchmark_output) {
+  char errmsg[1024] = "no error";
+  process_info_t processes[1024];
+  process_info_t *main_proc;
+  task_entry_t* task;
+  int process_count;
+  int result;
+  int status;
+  int i;
+
+  status = 255;
+  process_count = 0;
+
+  /* Start the helpers first. */
+  for (task = TASKS; task->main; task++) {
+    if (strcmp(test, task->task_name) != 0) {
+      continue;
+    }
+
+    /* Skip the test itself. */
+    if (!task->is_helper) {
+      continue;
+    }
+
+    if (process_start(task->task_name,
+                      task->process_name,
+                      &processes[process_count]) == -1) {
+      snprintf(errmsg,
+               sizeof errmsg,
+               "Process `%s` failed to start.",
+               task->process_name);
+      goto out;
+    }
+
+    process_count++;
+  }
+
+  /* Give the helpers time to settle. Race-y, fix this. */
+  uv_sleep(250);
+
+  /* Now start the test itself. */
+  for (main_proc = NULL, task = TASKS; task->main; task++) {
+    if (strcmp(test, task->task_name) != 0) {
+      continue;
+    }
+
+    if (task->is_helper) {
+      continue;
+    }
+
+    if (process_start(task->task_name,
+                      task->process_name,
+                      &processes[process_count]) == -1) {
+      snprintf(errmsg,
+               sizeof errmsg,
+               "Process `%s` failed to start.",
+               task->process_name);
+      goto out;
+    }
+
+    main_proc = &processes[process_count];
+    process_count++;
+    break;
+  }
+
+  if (main_proc == NULL) {
+    snprintf(errmsg,
+             sizeof errmsg,
+             "No test with that name: %s",
+             test);
+    goto out;
+  }
+
+  result = process_wait(main_proc, 1, timeout);
   if (result == -1) {
     FATAL("process_wait failed");
   } else if (result == -2) {
-    snprintf((char*)&errmsg, sizeof(errmsg), "timeout.");
-    goto finalize;
+    /* Don't have to clean up the process, process_wait() has killed it. */
+    snprintf(errmsg,
+             sizeof errmsg,
+             "timeout");
+    goto out;
   }
 
-  /* Reap the main process. */
-  result = process_reap(main_process);
-  if (result != 0) {
-    snprintf((char*)&errmsg, sizeof(errmsg), "exit code %d.", result);
-    goto finalize;
+  status = process_reap(main_proc);
+  if (status != 0) {
+    snprintf(errmsg,
+             sizeof errmsg,
+             "exit code %d",
+             status);
   }
 
-  /* Yes! did it. */
-  success = 1;
-
-finalize:
-  /* Kill all (helper) processes that are still running. */
-  for (i = 0; i < process_count; i++) {
-    /* If terminate fails the process is probably already closed. */
+out:
+  /* Reap running processes except the main process, it's already dead. */
+  for (i = 0; i < process_count - 1; i++) {
     process_terminate(&processes[i]);
   }
 
-  /* Wait until all processes have really terminated. */
-  if (process_wait((process_info_t*)&processes, process_count, -1) < 0) {
+  if (process_wait(processes, process_count - 1, -1) < 0) {
     FATAL("process_wait failed");
   }
 
   /* Show error and output from processes if the test failed. */
-  if (!success) {
-    LOGF("\n`%s` failed: %s\n", test->task_name, errmsg);
+  if (status != 0) {
+    LOGF("\n`%s` failed: %s\n", test, errmsg);
 
     for (i = 0; i < process_count; i++) {
       switch (process_output_size(&processes[i])) {
@@ -145,13 +198,13 @@ finalize:
 
   /* In benchmark mode show concise output from the main process. */
   } else if (benchmark_output) {
-    switch (process_output_size(main_process)) {
+    switch (process_output_size(main_proc)) {
      case -1:
-      LOGF("%s: (unavailabe)\n", test->task_name);
+      LOGF("%s: (unavailabe)\n", test);
       break;
 
      case 0:
-      LOGF("%s: (no output)\n", test->task_name);
+      LOGF("%s: (no output)\n", test);
       break;
 
      default:
@@ -167,5 +220,23 @@ finalize:
     process_cleanup(&processes[i]);
   }
 
-  return success;
+  return status;
+}
+
+
+/* Returns the status code of the task part
+ * or 255 if no matching task was not found.
+ */
+int run_test_part(const char* test, const char* part) {
+  task_entry_t* task;
+
+  for (task = TASKS; task->main; task++) {
+    if (strcmp(test, task->task_name) == 0
+        && strcmp(part, task->process_name) == 0) {
+      return task->main();
+    }
+  }
+
+  LOGF("No test part with that name: %s:%s\n", test, part);
+  return 255;
 }

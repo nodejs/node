@@ -30,6 +30,17 @@
 #define TEST_PORT 9123
 #define TEST_PORT_2 9124
 
+#ifdef _WIN32
+# define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
+#else
+# /* TODO: define unix pipe name */
+# define TEST_PIPENAME ""
+#endif
+
+typedef enum {
+  TCP = 0,
+  PIPE
+} stream_type;
 
 /* Log to stderr. */
 #define LOG(...)    fprintf(stderr, "%s", __VA_ARGS__)

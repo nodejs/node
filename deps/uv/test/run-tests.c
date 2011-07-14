@@ -33,54 +33,15 @@
 #define TEST_TIMEOUT  5000
 
 
-static void log_progress(int total, int passed, int failed, char* name) {
-  LOGF("[%% %3d|+ %3d|- %3d]: %s", (passed + failed) / total * 100,
-      passed, failed, name);
-}
-
-
 int main(int argc, char **argv) {
-  int total, passed, failed;
-  task_entry_t* task;
-
   platform_init(argc, argv);
 
-  if (argc > 1) {
-    /* A specific process was requested. */
-    return run_process(argv[1]);
-
-  } else {
-    /* Count the number of tests. */
-    total = 0;
-    task = (task_entry_t*)&TASKS;
-    for (task = (task_entry_t*)&TASKS; task->main; task++) {
-      if (!task->is_helper) {
-        total++;
-      }
-    }
-
-    /* Run all tests. */
-    passed = 0;
-    failed = 0;
-    task = (task_entry_t*)&TASKS;
-    for (task = (task_entry_t*)&TASKS; task->main; task++) {
-      if (task->is_helper) {
-        continue;
-      }
-
-      rewind_cursor();
-      log_progress(total, passed, failed, task->task_name);
-
-      if (run_task(task, TEST_TIMEOUT, 0)) {
-        passed++;
-      } else {
-        failed++;
-      }
-    }
-
-    rewind_cursor();
-    log_progress(total, passed, failed, "Done.\n");
-
-    return 0;
+  switch (argc) {
+  case 1: return run_tests(TEST_TIMEOUT, 0);
+  case 2: return run_test(argv[1], TEST_TIMEOUT, 0);
+  case 3: return run_test_part(argv[1], argv[2]);
+  default:
+    LOGF("Too many arguments.\n");
+    return 1;
   }
 }

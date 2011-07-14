@@ -39,7 +39,10 @@ static char PING[] = "PING\n";
 typedef struct {
   int pongs;
   int state;
-  uv_tcp_t tcp;
+  union {
+    uv_tcp_t tcp;
+    uv_pipe_t pipe;
+  };
   uv_req_t connect_req;
   uv_req_t read_req;
   char read_buffer[BUFSIZE];
@@ -82,7 +85,8 @@ static void pinger_write_ping(pinger_t* pinger) {
   buf.len = strlen(PING);
 
   req = (uv_req_t*)malloc(sizeof(*req));
-  uv_req_init(req, (uv_handle_t*)(&pinger->tcp), pinger_after_write);
+  uv_req_init(req, (uv_handle_t*)(&pinger->tcp),
+      (void *(*)(void *))pinger_after_write);
 
   if (uv_write(req, &buf, 1)) {
     FATAL("uv_write failed");
@@ -92,11 +96,11 @@ static void pinger_write_ping(pinger_t* pinger) {
 }
 
 
-static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
+static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   unsigned int i;
   pinger_t* pinger;
 
-  pinger = (pinger_t*)tcp->data;
+  pinger = (pinger_t*)stream->data;
 
   if (nread < 0) {
     ASSERT(uv_last_error().code == UV_EOF);
@@ -141,44 +145,8 @@ static void pinger_on_connect(uv_req_t *req, int status) {
 }
 
 
-static void pinger_new() {
-  int r;
-  struct sockaddr_in server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
-  pinger_t *pinger;
-
-  pinger = (pinger_t*)malloc(sizeof(*pinger));
-  pinger->state = 0;
-  pinger->pongs = 0;
-
-  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_tcp_init(&pinger->tcp);
-  pinger->tcp.data = pinger;
-  ASSERT(!r);
-
-  /* We are never doing multiple reads/connects at a time anyway. */
-  /* so these handles can be pre-initialized. */
-  uv_req_init(&pinger->connect_req, (uv_handle_t*)(&pinger->tcp),
-      pinger_on_connect);
-
-  r = uv_tcp_connect(&pinger->connect_req, server_addr);
-  ASSERT(!r);
-}
-
-
-TEST_IMPL(ping_pong) {
-  uv_init();
-
-  pinger_new();
-  uv_run();
-
-  ASSERT(completed_pingers == 1);
-
-  return 0;
-}
-
-
 /* same ping-pong test, but using IPv6 connection */
-static void pinger_v6_new() {
+static void tcp_pinger_v6_new() {
   int r;
   struct sockaddr_in6 server_addr = uv_ip6_addr("::1", TEST_PORT);
   pinger_t *pinger;
@@ -195,17 +163,88 @@ static void pinger_v6_new() {
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
   uv_req_init(&pinger->connect_req, (uv_handle_t*)(&pinger->tcp),
-      pinger_on_connect);
+      (void *(*)(void *))pinger_on_connect);
 
   r = uv_tcp_connect6(&pinger->connect_req, server_addr);
   ASSERT(!r);
 }
 
 
-TEST_IMPL(ping_pong_v6) {
+static void tcp_pinger_new() {
+  int r;
+  struct sockaddr_in server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
+  pinger_t *pinger;
+
+  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  pinger->state = 0;
+  pinger->pongs = 0;
+
+  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  r = uv_tcp_init(&pinger->tcp);
+  pinger->tcp.data = pinger;
+  ASSERT(!r);
+
+  /* We are never doing multiple reads/connects at a time anyway. */
+  /* so these handles can be pre-initialized. */
+  uv_req_init(&pinger->connect_req, (uv_handle_t*)(&pinger->tcp),
+      (void *(*)(void *))pinger_on_connect);
+
+  r = uv_tcp_connect(&pinger->connect_req, server_addr);
+  ASSERT(!r);
+}
+
+
+static void pipe_pinger_new() {
+  int r;
+  pinger_t *pinger;
+
+  pinger = (pinger_t*)malloc(sizeof(*pinger));
+  pinger->state = 0;
+  pinger->pongs = 0;
+
+  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  r = uv_pipe_init(&pinger->pipe);
+  pinger->pipe.data = pinger;
+  ASSERT(!r);
+
+  /* We are never doing multiple reads/connects at a time anyway. */
+  /* so these handles can be pre-initialized. */
+  uv_req_init(&pinger->connect_req, (uv_handle_t*)(&pinger->pipe),
+      (void *(*)(void *))pinger_on_connect);
+
+  r = uv_pipe_connect(&pinger->connect_req, TEST_PIPENAME);
+  ASSERT(!r);
+}
+
+
+TEST_IMPL(tcp_ping_pong) {
   uv_init();
 
-  pinger_v6_new();
+  tcp_pinger_new();
+  uv_run();
+
+  ASSERT(completed_pingers == 1);
+
+  return 0;
+}
+
+
+TEST_IMPL(tcp_ping_pong_v6) {
+  uv_init();
+
+  tcp_pinger_v6_new();
+  uv_run();
+
+  ASSERT(completed_pingers == 1);
+
+  return 0;
+}
+
+
+TEST_IMPL(pipe_ping_pong) {
+  uv_init();
+
+  pipe_pinger_new();
   uv_run();
 
   ASSERT(completed_pingers == 1);

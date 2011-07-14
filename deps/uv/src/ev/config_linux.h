@@ -3,8 +3,11 @@
 
 #include <linux/version.h>
 
-#define LINUX_VERSION_CODE_FOR(major, minor, patch) (((major & 255) >> 16) | ((minor & 255) >> 8) | (patch & 255))
-#define LINUX_VERSION_AT_LEAST(major, minor, patch) (LINUX_VERSION_CODE_FOR(major, minor, patch) >= LINUX_VERSION_CODE)
+#define LINUX_VERSION_CODE_FOR(major, minor, patch) \
+  (((major & 255) << 16) | ((minor & 255) << 8) | (patch & 255))
+
+#define LINUX_VERSION_AT_LEAST(major, minor, patch) \
+  (LINUX_VERSION_CODE >= LINUX_VERSION_CODE_FOR(major, minor, patch))
 
 /* Define to 1 if you have the `clock_gettime' function. */
 /* #undef HAVE_CLOCK_GETTIME */

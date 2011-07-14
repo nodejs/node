@@ -20,7 +20,6 @@
 
 #include "uv.h"
 
-#include <limits.h>
 #include <stdio.h>
 #include <stdint.h>
 #include <unistd.h>
@@ -40,7 +39,7 @@ uint64_t uv_hrtime() {
 int uv_exepath(char* buffer, size_t* size) {
   size_t res;
   pid_t pid;
-  char buf[PATH_MAX];
+  char buf[128];
 
   if (buffer == NULL)
     return (-1);

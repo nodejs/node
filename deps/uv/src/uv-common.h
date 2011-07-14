@@ -29,6 +29,8 @@
 
 #include "uv.h"
 
+#define COUNTOF(a) (sizeof(a) / sizeof(a[0]))
+
 /*
  * Subclass of uv_handle_t. Used for integration of c-ares.
  */

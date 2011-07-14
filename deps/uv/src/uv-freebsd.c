@@ -20,28 +20,44 @@
 
 #include "uv.h"
 
+#include <string.h>
+#include <time.h>
+
+#include <sys/types.h>
+#include <sys/sysctl.h>
+
+#undef NANOSEC
+#define NANOSEC 1000000000
+
+uint64_t uv_hrtime(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (ts.tv_sec * NANOSEC + ts.tv_nsec);
+}
+
 
 int uv_exepath(char* buffer, size_t* size) {
   uint32_t usize;
   int result;
   char* path;
   char* fullpath;
+  int mib[4];
+  size_t cb;
 
   if (!buffer || !size) {
     return -1;
   }
 
-  int mib[4];
 
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
   mib[2] = KERN_PROC_PATHNAME;
   mib[3] = -1;
 
-  size_t cb = *size;
+  cb = *size;
   if (sysctl(mib, 4, buffer, &cb, NULL, 0) < 0) {
-	  *size = 0;
-	  return -1;
+    *size = 0;
+    return -1;
   }
   *size = strlen(buffer);
 

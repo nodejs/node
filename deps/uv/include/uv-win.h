@@ -31,6 +31,8 @@
 
 #include "tree.h"
 
+#define MAX_PIPENAME_LEN 256
+
 /**
  * It should be possible to cast uv_buf_t[] to WSABUF[]
  * see http://msdn.microsoft.com/en-us/library/ms741542(v=vs.85).aspx
@@ -39,6 +41,22 @@ typedef struct uv_buf_t {
   ULONG len;
   char* base;
 } uv_buf_t;
+
+/*
+ * Private uv_pipe_instance state.
+ */
+typedef enum {
+  UV_PIPEINSTANCE_CONNECTED = 0,
+  UV_PIPEINSTANCE_DISCONNECTED,
+  UV_PIPEINSTANCE_ACTIVE
+} uv_pipeinstance_state;
+
+/* Used to store active pipe instances inside a linked list. */
+typedef struct uv_pipe_instance_s {
+  HANDLE handle;
+  uv_pipeinstance_state state;
+  struct uv_pipe_instance_s* next;
+} uv_pipe_instance_t;
 
 #define UV_REQ_PRIVATE_FIELDS             \
   union {                                 \
@@ -52,30 +70,46 @@ typedef struct uv_buf_t {
   uv_err_t error;                         \
   struct uv_req_s* next_req;
 
-#define UV_STREAM_PRIVATE_FIELDS          \
-  uv_alloc_cb alloc_cb;                   \
-  uv_read_cb read_cb;                     \
-  struct uv_req_s read_req;               \
-  
-#define uv_tcp_connection_fields          \
+#define uv_stream_connection_fields       \
   unsigned int write_reqs_pending;        \
   uv_req_t* shutdown_req;
 
-#define uv_tcp_server_fields              \
-  uv_connection_cb connection_cb;         \
-  SOCKET accept_socket;                   \
-  struct uv_req_s accept_req;             \
-  char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32];
+#define uv_stream_server_fields           \
+  uv_connection_cb connection_cb;
+
+#define UV_STREAM_PRIVATE_FIELDS          \
+  unsigned int reqs_pending;              \
+  uv_alloc_cb alloc_cb;                   \
+  uv_read_cb read_cb;                     \
+  struct uv_req_s read_req;               \
+  union {                                 \
+    struct { uv_stream_connection_fields };  \
+    struct { uv_stream_server_fields     };  \
+  };
 
 #define UV_TCP_PRIVATE_FIELDS             \
-  unsigned int reqs_pending;              \
   union {                                 \
     SOCKET socket;                        \
     HANDLE handle;                        \
   };                                      \
+  SOCKET accept_socket;                   \
+  char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32]; \
+  struct uv_req_s accept_req;
+
+#define uv_pipe_server_fields             \
+    char* name;                           \
+    uv_pipe_instance_t* connections;      \
+    struct uv_req_s accept_reqs[4];
+
+#define uv_pipe_connection_fields         \
+    uv_pipe_t* server;                    \
+    uv_pipe_instance_t* connection;       \
+    uv_pipe_instance_t clientConnection;
+
+#define UV_PIPE_PRIVATE_FIELDS            \
   union {                                 \
-    struct { uv_tcp_connection_fields };  \
-    struct { uv_tcp_server_fields     };  \
+    struct { uv_pipe_server_fields };     \
+    struct { uv_pipe_connection_fields }; \
   };
 
 #define UV_TIMER_PRIVATE_FIELDS           \

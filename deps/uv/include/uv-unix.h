@@ -73,6 +73,11 @@ typedef struct {
   ev_io write_watcher; \
   ngx_queue_t write_queue; \
   ngx_queue_t write_completed_queue;
+  
+  
+/* UV_NAMED_PIPE */
+#define UV_PIPE_PRIVATE_TYPEDEF
+#define UV_PIPE_PRIVATE_FIELDS
 
 
 /* UV_PREPARE */ \

@@ -34,26 +34,14 @@
 
 
 int main(int argc, char **argv) {
-  task_entry_t *task;
-
   platform_init(argc, argv);
 
-  if (argc > 1) {
-    /* A specific process was requested. */
-    return run_process(argv[1]);
-
-  } else {
-    /* Run all benchmarks. */
-    task = (task_entry_t*)&TASKS;
-    for (task = (task_entry_t*)&TASKS; task->main; task++) {
-      if (task->is_helper) {
-        continue;
-      }
-
-      run_task(task, BENCHMARK_TIMEOUT, 1);
-    }
-    LOG("Done.\n");
-
-    return 0;
+  switch (argc) {
+  case 1: return run_tests(BENCHMARK_TIMEOUT, 1);
+  case 2: return run_test(argv[1], BENCHMARK_TIMEOUT, 1);
+  case 3: return run_test_part(argv[1], argv[2]);
+  default:
+    LOGF("Too many arguments.\n");
+    return 1;
   }
 }

@@ -82,7 +82,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\src\ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -98,7 +98,7 @@
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <Optimization>Disabled</Optimization>
-      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\src\ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -112,7 +112,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\src\ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <TargetMachine>MachineX86</TargetMachine>
@@ -129,7 +129,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <WarningLevel>Level3</WarningLevel>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
-      <AdditionalIncludeDirectories>..\c-ares\config_win32</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\include;..\src\ares\config_win32</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <GenerateDebugInformation>true</GenerateDebugInformation>
@@ -141,12 +141,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\test\echo-server.c" />
-    <ClCompile Include="..\test\runner-unix.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\test\test-async.c" />
     <ClCompile Include="..\test\test-bind6-error.c" />
     <ClCompile Include="..\test\test-delayed-accept.c" />
@@ -156,6 +150,7 @@
     <ClCompile Include="..\test\test-fail-always.c" />
     <ClCompile Include="..\test\test-gethostbyname.c" />
     <ClCompile Include="..\test\test-getaddrinfo.c" />
+    <ClCompile Include="..\test\test-getsockname.c" />
     <ClCompile Include="..\test\test-hrtime.c" />
     <ClCompile Include="..\test\test-loop-handles.c" />
     <ClCompile Include="..\test\test-pass-always.c" />
@@ -170,12 +165,6 @@
     <ClCompile Include="..\test\run-tests.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\test\runner-unix.h">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-    </ClInclude>
     <ClInclude Include="..\test\test-list.h" />
     <ClInclude Include="..\test\runner-win.h" />
     <ClInclude Include="..\test\runner.h" />
