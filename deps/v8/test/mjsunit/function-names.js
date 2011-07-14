@@ -128,6 +128,6 @@ var globalFunctions = [
     "encodeURI", "encodeURIComponent", "Error", "TypeError",
     "RangeError", "SyntaxError", "ReferenceError", "EvalError",
     "URIError", "isNaN", "isFinite", "parseInt", "parseFloat",
-    "eval"];
+    "eval", "execScript"];
 
 TestFunctionNames(this, globalFunctions);

@@ -52,7 +52,7 @@ per connection (in the case of keep-alive connections).
 
 ### Event: 'checkContinue'
 
-`function (request, response) {}`
+`function (request, response) { }`
 
 Emitted each time a request with an http Expect: 100-continue is received.
 If this event isn't listened for, the server will automatically respond
@@ -68,7 +68,7 @@ not be emitted.
 
 ### Event: 'upgrade'
 
-`function (request, socket, head)`
+`function (request, socket, head) { }`
 
 Emitted each time a client requests a http upgrade. If this event isn't
 listened for, then clients requesting an upgrade will have their connections
@@ -84,7 +84,7 @@ sent to the server on that socket.
 
 ### Event: 'clientError'
 
-`function (exception) {}`
+`function (exception) { }`
 
 If a client connection emits an 'error' event - it will forwarded here.
 
@@ -394,6 +394,10 @@ Options:
 - `path`: Request path. Should include query string and fragments if any.
    E.G. `'/index.html?page=12'`
 - `headers`: An object containing request headers.
+- `agent`: Controls `Agent` behavior. Possible values:
+ - `undefined` (default): use default `Agent` for this host and port.
+ - `Agent` object: explicitly use the passed in `Agent`.
+ - `false`: explicitly generate a new `Agent` for this host and port. `Agent` will not be re-used.
 
 `http.request()` returns an instance of the `http.ClientRequest`
 class. The `ClientRequest` instance is a writable stream. If one needs to
@@ -483,7 +487,7 @@ Options:
 
 ### Event: 'upgrade'
 
-`function (response, socket, head)`
+`function (response, socket, head) { }`
 
 Emitted each time a server responds to a request with an upgrade. If this
 event isn't being listened for, clients receiving an upgrade header will have
@@ -536,14 +540,6 @@ A client server pair that show you how to listen for the `upgrade` event using `
       });
     });
 
-
-### Event: 'continue'
-
-`function ()`
-
-Emitted when the server sends a '100 Continue' HTTP response, usually because
-the request contained 'Expect: 100-continue'. This is an instruction that
-the client should send the request body.
 
 ### agent.maxSockets
 
@@ -600,6 +596,14 @@ This is a `Writable Stream`.
 
 This is an `EventEmitter` with the following events:
 
+### Event: 'continue'
+
+`function () { }`
+
+Emitted when the server sends a '100 Continue' HTTP response, usually because
+the request contained 'Expect: 100-continue'. This is an instruction that
+the client should send the request body.
+
 ### Event 'response'
 
 `function (response) { }`
@@ -646,17 +650,26 @@ The response implements the `Readable Stream` interface.
 
 ### Event: 'data'
 
-`function (chunk) {}`
+`function (chunk) { }`
 
 Emitted when a piece of the message body is received.
 
 
 ### Event: 'end'
 
-`function () {}`
+`function () { }`
 
 Emitted exactly once for each message. No arguments. After
 emitted no other events will be emitted on the response.
+
+### Event: 'close'
+
+`function (err) { }`
+
+Indicates that the underlaying connection was terminated before
+`end` event was emitted.
+See [http.ServerRequest](#http.ServerRequest)'s `'close'` event for more
+information.
 
 ### response.statusCode
 

@@ -318,7 +318,6 @@ Because `module` provides a `filename` property (normally equivalent to
 `__filename`), the entry point of the current application can be obtained
 by checking `require.main.filename`.
 
-
 ## AMD Compatibility
 
 Node's modules have access to a function named `define`, which may be

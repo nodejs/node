@@ -35,7 +35,7 @@ Mark a time.
 Finish timer, record output. Example
 
     console.time('100-elements');
-    while (var i = 0; i < 100; i++) {
+    for (var i = 0; i < 100; i++) {
       ;
     }
     console.timeEnd('100-elements');
