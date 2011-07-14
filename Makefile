@@ -139,6 +139,7 @@ test-uv: all
 		simple/test-net-pingpong \
 		simple/test-net-reconnect \
 		simple/test-net-remote-address-port \
+		simple/test-net-server-max-connections \
 		simple/test-net-server-try-ports \
 		simple/test-net-stream \
 		simple/test-net-socket-timeout \
