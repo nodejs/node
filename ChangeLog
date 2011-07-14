@@ -1,8 +1,28 @@
-In development, Version 0.5.1 (unstable)
+2011.07.14, Version 0.5.1 (unstable)
 
 * #1233 Fix os.totalmem on FreeBSD amd64 (Artem Zaytsev)
 
-2011.07.05, Version 0.5.0 (unstable)
+* #1149 IDNA and Punycode support in url.parse
+  (Jeremy Selier, Ben Noordhuis, isaacs)
+
+* Export $CC and $CXX to uv and V8's build systems
+
+* Include pthread-win32 static libraries in build (Igor Zinkovsky)
+
+* #1199, #1094 Fix fs can't handle large file on 64bit platform (koichik)
+
+* #1281 Make require a public member of module (isaacs)
+
+* #1303 Stream.pipe returns the destination (Elijah Insua)
+
+* #1229 Addons should not -DEV_MULTIPLICITY=0 (Brian White)
+
+* libuv backend improvements
+
+* Upgrade V8 to 3.4.10
+
+
+2011.07.05, Version 0.5.0 (unstable), ae7ed8482ea7e53c59acbdf3cf0e0a0ae9d792cd
 
 * New non-default libuv backend to support IOCP on Windows.
   Use --use-uv to enable.

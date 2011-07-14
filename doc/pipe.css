@@ -97,3 +97,7 @@ a:hover { text-decoration: underline; }
 .desktops {
 	font-size: 14px;
 }
+
+.release {
+  margin: 0 0 0 2em;
+}
