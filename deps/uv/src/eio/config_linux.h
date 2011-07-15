@@ -9,6 +9,11 @@
 #define LINUX_VERSION_AT_LEAST(major, minor, patch) \
   (LINUX_VERSION_CODE >= LINUX_VERSION_CODE_FOR(major, minor, patch))
 
+#ifdef __GLIBC__
+#define GLIBC_VERSION_AT_LEAST(major, minor) \
+  (__GLIBC__ > major || (__GLIBC__ == major && __GLIBC_MINOR__ >= minor))
+#endif
+
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
@@ -46,7 +51,11 @@
 #define HAVE_STRING_H 1
 
 /* sync_file_range(2) is available */
+#ifdef __GLIBC__
+#define HAVE_SYNC_FILE_RANGE (LINUX_VERSION_AT_LEAST(2, 6, 17) && GLIBC_VERSION_AT_LEAST(2, 6))
+#else
 #define HAVE_SYNC_FILE_RANGE LINUX_VERSION_AT_LEAST(2, 6, 17)
+#endif
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
