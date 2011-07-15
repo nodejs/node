@@ -1,6 +1,21 @@
 #include <node.h>
 #include <node_buffer.h>
 
+// Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
+#ifdef __MINGW32__
+  extern "C" {
+#   include <inet_net_pton.h>
+#   include <inet_ntop.h>
+  }
+# define uv_inet_pton ares_inet_pton
+# define uv_inet_ntop ares_inet_ntop
+
+#else // __POSIX__
+# include <arpa/inet.h>
+# define uv_inet_pton inet_pton
+# define uv_inet_ntop inet_ntop
+#endif
+
 #define SLAB_SIZE (1024 * 1024)
 #define MIN(a, b) ((a) < (b) ? (a) : (b))
 
@@ -57,6 +72,9 @@ static uv_tcp_t* handle_that_last_alloced;
 
 static Persistent<String> slab_sym;
 static Persistent<String> buffer_sym;
+static Persistent<String> family_symbol;
+static Persistent<String> address_symbol;
+static Persistent<String> port_symbol;
 static Persistent<String> write_queue_size_sym;
 
 class TCPWrap;
@@ -113,6 +131,7 @@ class TCPWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "close", Close);
     NODE_SET_PROTOTYPE_METHOD(t, "bind6", Bind6);
     NODE_SET_PROTOTYPE_METHOD(t, "connect6", Connect6);
+    NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
 
     constructor = Persistent<Function>::New(t->GetFunction());
 
@@ -120,6 +139,10 @@ class TCPWrap {
     buffer_sym = Persistent<String>::New(String::NewSymbol("buffer"));
     write_queue_size_sym =
       Persistent<String>::New(String::NewSymbol("writeQueueSize"));
+
+    family_symbol = NODE_PSYMBOL("family");
+    address_symbol = NODE_PSYMBOL("address");
+    port_symbol = NODE_PSYMBOL("port");
 
     target->Set(String::NewSymbol("TCP"), constructor);
   }
@@ -171,6 +194,43 @@ class TCPWrap {
   inline void UpdateWriteQueueSize() {
     object_->Set(write_queue_size_sym, Integer::New(handle_.write_queue_size));
   }
+
+  static Handle<Value> GetSockName(const Arguments& args) {
+    HandleScope scope;
+    struct sockaddr address;
+    int family;
+    int port;
+    char ip[INET6_ADDRSTRLEN];
+
+    UNWRAP
+
+    int namelen = sizeof(address);
+    int r = uv_getsockname(&wrap->handle_, &address, &namelen);
+
+    Local<Object> sockname = Object::New();
+    if (r != 0) {
+      SetErrno(uv_last_error().code);
+    } else {
+      family = address.sa_family;
+      if (family == AF_INET) {
+        struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
+        uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
+        port = ntohs(addrin->sin_port);
+      } else if (family == AF_INET6) {
+        struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
+        uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
+        port = ntohs(addrin6->sin6_port);
+      }
+
+      sockname->Set(port_symbol, Integer::New(port));
+      sockname->Set(family_symbol, Integer::New(family));
+      sockname->Set(address_symbol, String::New(ip));
+    }
+
+    return scope.Close(sockname);
+
+  }
+
 
   static Handle<Value> Bind(const Arguments& args) {
     HandleScope scope;

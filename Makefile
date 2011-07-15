@@ -151,6 +151,7 @@ UVTEST += simple/test-net-keepalive
 UVTEST += simple/test-net-pingpong
 UVTEST += simple/test-net-reconnect
 UVTEST += simple/test-net-remote-address-port
+UVTEST += simple/test-net-server-bind
 UVTEST += simple/test-net-server-max-connections
 UVTEST += simple/test-net-server-try-ports
 UVTEST += simple/test-net-stream
