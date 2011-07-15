@@ -27,7 +27,7 @@
 
 
 typedef struct {
-  uv_req_t req;
+  uv_write_t req;
   uv_buf_t buf;
 } write_req_t;
 
@@ -51,7 +51,7 @@ static int server_closed;
 static uv_tcp_t server;
 
 
-static void after_write(uv_req_t* req, int status);
+static void after_write(uv_write_t* req, int status);
 static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer);
 static void on_server_close(uv_handle_t* handle);
@@ -67,7 +67,7 @@ unsigned char qrecord[] = {5, 'e', 'c', 'h', 'o', 's', 3, 's', 'r', 'v', 0, 0, 1
 unsigned char arecord[] = {0xc0, 0x0c, 0, 1, 0, 1, 0, 0, 5, 0xbd, 0, 4, 10, 0, 1, 1 };
 
 
-static void after_write(uv_req_t* req, int status) {
+static void after_write(uv_write_t* req, int status) {
   write_req_t* wr;
 
   if (status) {
@@ -84,8 +84,8 @@ static void after_write(uv_req_t* req, int status) {
 }
 
 
-static void after_shutdown(uv_req_t* req, int status) {
-  uv_close(req->handle, on_close);
+static void after_shutdown(uv_shutdown_t* req, int status) {
+  uv_close((uv_handle_t*) req->handle, on_close);
   free(req);
 }
 
@@ -116,7 +116,7 @@ static void addrsp(write_req_t* wr, char* hdr) {
 }
 
 static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-  write_req_t *wr;
+  write_req_t* wr;
   dnshandle* dns = (dnshandle*)handle;
   char hdrbuf[DNSREC_LEN];
   int hdrbuf_remaining = DNSREC_LEN;
@@ -127,7 +127,6 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
   int usingprev = 0;
 
   wr = (write_req_t*) malloc(sizeof *wr);
-  uv_req_init(&wr->req, (uv_handle_t*)handle, after_write);
   wr->buf.base = (char*)malloc(WRITE_BUF_LEN);
   wr->buf.len = 0;
 
@@ -197,7 +196,7 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
   /* send write buffer */
   if (wr->buf.len > 0) {
-    if (uv_write(&wr->req, &wr->buf, 1)) {
+    if (uv_write((uv_write_t*) &wr->req, handle, &wr->buf, 1, after_write)) {
       FATAL("uv_write failed");
     }
   }
@@ -217,7 +216,7 @@ static void process_req(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 }
 
 static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
-  uv_req_t* req;
+  uv_shutdown_t* req;
 
   if (nread < 0) {
     /* Error or EOF */
@@ -227,9 +226,8 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
       free(buf.base);
     }
 
-    req = (uv_req_t*) malloc(sizeof *req);
-    uv_req_init(req, (uv_handle_t*)handle, after_shutdown);
-    uv_shutdown(req);
+    req = malloc(sizeof *req);
+    uv_shutdown(req, handle, after_shutdown);
 
     return;
   }

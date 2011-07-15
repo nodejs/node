@@ -25,7 +25,7 @@
 #include <stdlib.h>
 
 typedef struct {
-  uv_req_t req;
+  uv_write_t req;
   uv_buf_t buf;
 } write_req_t;
 
@@ -35,14 +35,14 @@ static uv_tcp_t tcpServer;
 static uv_pipe_t pipeServer;
 static uv_handle_t* server;
 
-static void after_write(uv_req_t* req, int status);
+static void after_write(uv_write_t* req, int status);
 static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer);
 static void on_server_close(uv_handle_t* handle);
 static void on_connection(uv_handle_t*, int status);
 
 
-static void after_write(uv_req_t* req, int status) {
+static void after_write(uv_write_t* req, int status) {
   write_req_t* wr;
 
   if (status) {
@@ -59,8 +59,8 @@ static void after_write(uv_req_t* req, int status) {
 }
 
 
-static void after_shutdown(uv_req_t* req, int status) {
-  uv_close(req->handle, on_close);
+static void after_shutdown(uv_shutdown_t* req, int status) {
+  uv_close((uv_handle_t*)req->handle, on_close);
   free(req);
 }
 
@@ -68,7 +68,7 @@ static void after_shutdown(uv_req_t* req, int status) {
 static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
   int i;
   write_req_t *wr;
-  uv_req_t* req;
+  uv_shutdown_t* req;
 
   if (nread < 0) {
     /* Error or EOF */
@@ -78,9 +78,8 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
       free(buf.base);
     }
 
-    req = (uv_req_t*) malloc(sizeof *req);
-    uv_req_init(req, (uv_handle_t*)handle, (void *(*)(void *))after_shutdown);
-    uv_shutdown(req);
+    req = (uv_shutdown_t*) malloc(sizeof *req);
+    uv_shutdown(req, handle, after_shutdown);
 
     return;
   }
@@ -103,10 +102,9 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 
   wr = (write_req_t*) malloc(sizeof *wr);
 
-  uv_req_init(&wr->req, (uv_handle_t*)handle, (void *(*)(void *))after_write);
   wr->buf.base = buf.base;
   wr->buf.len = nread;
-  if (uv_write(&wr->req, &wr->buf, 1)) {
+  if (uv_write(&wr->req, handle, &wr->buf, 1, after_write)) {
     FATAL("uv_write failed");
   }
 }

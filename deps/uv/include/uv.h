@@ -48,10 +48,13 @@ typedef struct uv_timer_s uv_timer_t;
 typedef struct uv_prepare_s uv_prepare_t;
 typedef struct uv_check_s uv_check_t;
 typedef struct uv_idle_s uv_idle_t;
-typedef struct uv_req_s uv_req_t;
 typedef struct uv_async_s uv_async_t;
 typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
-
+/* Request types */
+typedef struct uv_req_s uv_req_t;
+typedef struct uv_shutdown_s uv_shutdown_t;
+typedef struct uv_write_s uv_write_t;
+typedef struct uv_connect_s uv_connect_t;
 
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
 # include "uv-unix.h"
@@ -70,9 +73,9 @@ typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
  */
 typedef uv_buf_t (*uv_alloc_cb)(uv_stream_t* tcp, size_t suggested_size);
 typedef void (*uv_read_cb)(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf);
-typedef void (*uv_write_cb)(uv_req_t* req, int status);
-typedef void (*uv_connect_cb)(uv_req_t* req, int status);
-typedef void (*uv_shutdown_cb)(uv_req_t* req, int status);
+typedef void (*uv_write_cb)(uv_write_t* req, int status);
+typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
+typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
 typedef void (*uv_connection_cb)(uv_handle_t* server, int status);
 typedef void (*uv_close_cb)(uv_handle_t* handle);
 typedef void (*uv_timer_cb)(uv_timer_t* handle, int status);
@@ -168,23 +171,34 @@ struct uv_err_s {
 };
 
 
-struct uv_req_s {
-  /* read-only */
-  uv_req_type type;
-  /* public */
-  uv_handle_t* handle;
-  void *(*cb)(void *);
-  void* data;
-  /* private */
+#define UV_REQ_FIELDS \
+  /* read-only */ \
+  uv_req_type type; \
+  /* public */ \
+  void* data; \
+  /* private */ \
   UV_REQ_PRIVATE_FIELDS
+
+/* Abstract base class of all requests. */
+struct uv_req_s {
+  UV_REQ_FIELDS
 };
 
-/*
- * Initialize a request for use with uv_write, uv_shutdown, or uv_connect.
- */
-void uv_req_init(uv_req_t* req, uv_handle_t* handle, void *(*cb)(void *));
 
-int uv_shutdown(uv_req_t* req);
+/*
+ * Shutdown the outgoing (write) side of a duplex stream. It waits for
+ * pending write requests to complete. The handle should refer to a
+ * initialized stream. req should be an uninitalized shutdown request
+ * struct. The cb is a called after shutdown is complete.
+ */
+struct uv_shutdown_s {
+  UV_REQ_FIELDS
+  uv_stream_t* handle;
+  uv_shutdown_cb cb;
+  UV_SHUTDOWN_PRIVATE_FIELDS
+};
+
+int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb);
 
 
 #define UV_HANDLE_FIELDS \
@@ -251,7 +265,8 @@ int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
 
 int uv_read_stop(uv_stream_t*);
 
-/* Write data to stream. Buffers are written in order. Example:
+/*
+ * Write data to stream. Buffers are written in order. Example:
  *
  *   uv_buf_t a[] = {
  *     { .base = "1", .len = 1 },
@@ -268,7 +283,15 @@ int uv_read_stop(uv_stream_t*);
  *   uv_write(req, b, 2);
  *
  */
-int uv_write(uv_req_t* req, uv_buf_t bufs[], int bufcnt);
+struct uv_write_s {
+  UV_REQ_FIELDS
+  uv_write_cb cb;
+  uv_stream_t* handle;
+  UV_WRITE_PRIVATE_FIELDS
+};
+
+int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
+    uv_write_cb cb);
 
 
 /*
@@ -287,8 +310,23 @@ int uv_tcp_init(uv_tcp_t* handle);
 int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in);
 int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6);
 
-int uv_tcp_connect(uv_req_t* req, struct sockaddr_in);
-int uv_tcp_connect6(uv_req_t* req, struct sockaddr_in6);
+/*
+ * uv_tcp_connect, uv_tcp_connect6
+ * These functions establish IPv4 and IPv6 TCP connections. Provide an
+ * initialized TCP handle and an uninitialized uv_connect_t*. The callback
+ * will be made when the connection is estabished.
+ */
+struct uv_connect_s {
+  UV_REQ_FIELDS
+  uv_connect_cb cb;
+  uv_stream_t* handle;
+  UV_CONNECT_PRIVATE_FIELDS
+};
+
+int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
+    struct sockaddr_in address, uv_connect_cb cb);
+int uv_tcp_connect6(uv_connect_t* req, uv_tcp_t* handle,
+    struct sockaddr_in6 address, uv_connect_cb cb);
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
 
@@ -298,10 +336,10 @@ int uv_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
 /*
  * A subclass of uv_stream_t representing a pipe stream or pipe server.
  */
-struct uv_pipe_s { 
-  UV_HANDLE_FIELDS 
-  UV_STREAM_FIELDS 
-  UV_PIPE_PRIVATE_FIELDS 
+struct uv_pipe_s {
+  UV_HANDLE_FIELDS
+  UV_STREAM_FIELDS
+  UV_PIPE_PRIVATE_FIELDS
 };
 
 int uv_pipe_init(uv_pipe_t* handle);
@@ -310,7 +348,8 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name);
 
 int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb);
 
-int uv_pipe_connect(uv_req_t* req, const char* name);
+int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
+    const char* name, uv_connect_cb cb);
 
 
 /*
@@ -489,7 +528,7 @@ int uv_exepath(char* buffer, size_t* size);
 extern uint64_t uv_hrtime(void);
 
 
-/* the presence of this union forces similar struct layout */
+/* the presence of these unions force similar struct layout */
 union uv_any_handle {
   uv_tcp_t tcp;
   uv_pipe_t pipe;
@@ -500,6 +539,14 @@ union uv_any_handle {
   uv_timer_t timer;
   uv_getaddrinfo_t getaddrinfo;
 };
+
+union uv_any_req {
+  uv_req_t req;
+  uv_write_t write;
+  uv_connect_t connect;
+  uv_shutdown_t shutdown;
+};
+
 
 /* Diagnostic counters */
 typedef struct {

@@ -27,7 +27,7 @@
 
 
 static uv_tcp_t tcp;
-static uv_req_t req;
+static uv_connect_t req;
 static int connect_cb_calls;
 static int close_cb_calls;
 
@@ -66,18 +66,18 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void on_connect_with_close(uv_req_t *req, int status) {
-  ASSERT(&tcp == (uv_tcp_t*) req->handle);
+static void on_connect_with_close(uv_connect_t *req, int status) {
+  ASSERT((uv_stream_t*) &tcp == req->handle);
   ASSERT(status == -1);
   ASSERT(uv_last_error().code == UV_ECONNREFUSED);
   connect_cb_calls++;
 
   ASSERT(close_cb_calls == 0);
-  uv_close(req->handle, on_close);
+  uv_close((uv_handle_t*)req->handle, on_close);
 }
 
 
-static void on_connect_without_close(uv_req_t *req, int status) {
+static void on_connect_without_close(uv_connect_t *req, int status) {
   ASSERT(status == -1);
   ASSERT(uv_last_error().code == UV_ECONNREFUSED);
   connect_cb_calls++;
@@ -103,10 +103,8 @@ void connection_fail(uv_connect_cb connect_cb) {
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  uv_req_init(&req, (uv_handle_t*)&tcp, (void *(*)(void *))connect_cb);
-
   uv_tcp_bind(&tcp, client_addr);
-  r = uv_tcp_connect(&req, server_addr);
+  r = uv_tcp_connect(&req, &tcp, server_addr, connect_cb);
   ASSERT(!r);
 
   uv_run();

@@ -34,8 +34,8 @@ typedef struct {
   int pongs;
   int state;
   uv_tcp_t tcp;
-  uv_req_t connect_req;
-  uv_req_t shutdown_req;
+  uv_connect_t connect_req;
+  uv_shutdown_t shutdown_req;
 } pinger_t;
 
 typedef struct buf_s {
@@ -90,7 +90,7 @@ static void pinger_close_cb(uv_handle_t* handle) {
 }
 
 
-static void pinger_write_cb(uv_req_t *req, int status) {
+static void pinger_write_cb(uv_write_t* req, int status) {
   ASSERT(status == 0);
 
   free(req);
@@ -98,22 +98,20 @@ static void pinger_write_cb(uv_req_t *req, int status) {
 
 
 static void pinger_write_ping(pinger_t* pinger) {
-  uv_req_t *req;
+  uv_write_t* req;
   uv_buf_t buf;
 
   buf.base = (char*)&PING;
   buf.len = strlen(PING);
 
-  req = (uv_req_t*)malloc(sizeof(*req));
-  uv_req_init(req, (uv_handle_t*)(&pinger->tcp), pinger_write_cb);
-
-  if (uv_write(req, &buf, 1)) {
+  req = malloc(sizeof *req);
+  if (uv_write(req, (uv_stream_t*) &pinger->tcp, &buf, 1, pinger_write_cb)) {
     FATAL("uv_write failed");
   }
 }
 
 
-static void pinger_shutdown_cb(uv_handle_t* handle, int status) {
+static void pinger_shutdown_cb(uv_shutdown_t* req, int status) {
   ASSERT(status == 0);
   pinger_shutdown_cb_called++;
 
@@ -151,8 +149,7 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
     if (pinger->state == 0) {
       pinger->pongs++;
       if (uv_now() - start_time > TIME) {
-        uv_req_init(&pinger->shutdown_req, (uv_handle_t*)tcp, pinger_shutdown_cb);
-        uv_shutdown(&pinger->shutdown_req);
+        uv_shutdown(&pinger->shutdown_req, (uv_stream_t*) tcp, pinger_shutdown_cb);
         break;
       } else {
         pinger_write_ping(pinger);
@@ -164,14 +161,14 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
 }
 
 
-static void pinger_connect_cb(uv_req_t *req, int status) {
+static void pinger_connect_cb(uv_connect_t* req, int status) {
   pinger_t *pinger = (pinger_t*)req->handle->data;
 
   ASSERT(status == 0);
 
   pinger_write_ping(pinger);
 
-  if (uv_read_start((uv_stream_t*)(req->handle), buf_alloc, pinger_read_cb)) {
+  if (uv_read_start(req->handle, buf_alloc, pinger_read_cb)) {
     FATAL("uv_read_start failed");
   }
 }
@@ -193,13 +190,9 @@ static void pinger_new() {
 
   pinger->tcp.data = pinger;
 
-  /* We are never doing multiple reads/connects at a time anyway. */
-  /* so these handles can be pre-initialized. */
-  uv_req_init(&pinger->connect_req, (uv_handle_t*)&pinger->tcp,
-      pinger_connect_cb);
-
   uv_tcp_bind(&pinger->tcp, client_addr);
-  r = uv_tcp_connect(&pinger->connect_req, server_addr);
+
+  r = uv_tcp_connect(&pinger->connect_req, &pinger->tcp, server_addr, pinger_connect_cb);
   ASSERT(!r);
 }
 

@@ -32,7 +32,9 @@ static const char MESSAGE[] = "Failure is for the weak. Everyone dies alone.";
 
 static uv_tcp_t client;
 static uv_timer_t timer;
-static uv_req_t connect_req, write_req, shutdown_req;
+static uv_connect_t connect_req;
+static uv_write_t write_req;
+static uv_shutdown_t shutdown_req;
 
 static int nested = 0;
 static int close_cb_called = 0;
@@ -59,7 +61,7 @@ static void close_cb(uv_handle_t* handle) {
 }
 
 
-static void shutdown_cb(uv_req_t* req, int status) {
+static void shutdown_cb(uv_shutdown_t* req, int status) {
   ASSERT(status == 0);
   ASSERT(nested == 0 && "shutdown_cb must be called from a fresh stack");
 
@@ -97,11 +99,10 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   /* from a fresh stack. */
   if (bytes_received == sizeof MESSAGE) {
     nested++;
-    uv_req_init(&shutdown_req, (uv_handle_t*)tcp, (void *(*)(void *))shutdown_cb);
 
     puts("Shutdown");
 
-    if (uv_shutdown(&shutdown_req)) {
+    if (uv_shutdown(&shutdown_req, (uv_stream_t*)tcp, shutdown_cb)) {
       FATAL("uv_shutdown failed");
     }
     nested--;
@@ -131,7 +132,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
 }
 
 
-static void write_cb(uv_req_t* req, int status) {
+static void write_cb(uv_write_t* req, int status) {
   int r;
 
   ASSERT(status == 0);
@@ -154,7 +155,7 @@ static void write_cb(uv_req_t* req, int status) {
 }
 
 
-static void connect_cb(uv_req_t* req, int status) {
+static void connect_cb(uv_connect_t* req, int status) {
   uv_buf_t buf;
 
   puts("Connected. Write some data to echo server...");
@@ -167,9 +168,7 @@ static void connect_cb(uv_req_t* req, int status) {
   buf.base = (char*) &MESSAGE;
   buf.len = sizeof MESSAGE;
 
-  uv_req_init(&write_req, req->handle, (void *(*)(void *))write_cb);
-
-  if (uv_write(&write_req, &buf, 1)) {
+  if (uv_write(&write_req, (uv_stream_t*)req->handle, &buf, 1, write_cb)) {
     FATAL("uv_write failed");
   }
 
@@ -191,10 +190,8 @@ TEST_IMPL(callback_stack) {
   puts("Connecting...");
 
   nested++;
-  uv_req_init(&connect_req, (uv_handle_t*)&client,
-      (void *(*)(void *))connect_cb);
 
-  if (uv_tcp_connect(&connect_req, addr)) {
+  if (uv_tcp_connect(&connect_req, &client, addr, connect_cb)) {
     FATAL("uv_tcp_connect failed");
   }
   nested--;

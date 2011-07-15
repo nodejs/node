@@ -61,24 +61,36 @@ static Persistent<String> write_queue_size_sym;
 
 class TCPWrap;
 
+template <typename T>
 class ReqWrap {
  public:
-  ReqWrap(uv_handle_t* handle, void* callback) {
+  ReqWrap() {
     HandleScope scope;
     object_ = Persistent<Object>::New(Object::New());
-    uv_req_init(&req_, handle, (void* (*)(void*))callback);
-    req_.data = this;
   }
 
   ~ReqWrap() {
+    // Assert that someone has called Dispatched()
+    assert(req_.data == this);
     assert(!object_.IsEmpty());
     object_.Dispose();
     object_.Clear();
   }
 
+  // Call this after the req has been dispatched.
+  void Dispatched() {
+    req_.data = this;
+  }
+
   Persistent<Object> object_;
-  uv_req_t req_;
+  T req_;
 };
+
+
+typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
+typedef class ReqWrap<uv_write_t> WriteWrap;
+typedef class ReqWrap<uv_connect_t> ConnectWrap;
+
 
 class TCPWrap {
  public:
@@ -373,8 +385,8 @@ class TCPWrap {
     return scope.Close(Integer::New(r));
   }
 
-  static void AfterWrite(uv_req_t* req, int status) {
-    ReqWrap* req_wrap = (ReqWrap*) req->data;
+  static void AfterWrite(uv_write_t* req, int status) {
+    WriteWrap* req_wrap = (WriteWrap*) req->data;
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
 
     HandleScope scope;
@@ -420,11 +432,7 @@ class TCPWrap {
       length = args[2]->IntegerValue();
     }
 
-    // I hate when people program C++ like it was C, and yet I do it too.
-    // I'm too lazy to come up with the perfect class hierarchy here. Let's
-    // just do some type munging.
-    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
-                                    (void*)AfterWrite);
+    WriteWrap* req_wrap = new WriteWrap();
 
     req_wrap->object_->SetHiddenValue(buffer_sym, buffer_obj);
 
@@ -432,7 +440,10 @@ class TCPWrap {
     buf.base = Buffer::Data(buffer_obj) + offset;
     buf.len = length;
 
-    int r = uv_write(&req_wrap->req_, &buf, 1);
+    int r = uv_write(&req_wrap->req_, (uv_stream_t*)&wrap->handle_, &buf, 1,
+        AfterWrite);
+
+    req_wrap->Dispatched();
 
     wrap->UpdateWriteQueueSize();
 
@@ -445,8 +456,8 @@ class TCPWrap {
     }
   }
 
-  static void AfterConnect(uv_req_t* req, int status) {
-    ReqWrap* req_wrap = (ReqWrap*) req->data;
+  static void AfterConnect(uv_connect_t* req, int status) {
+    ConnectWrap* req_wrap = (ConnectWrap*) req->data;
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
 
     HandleScope scope;
@@ -482,10 +493,12 @@ class TCPWrap {
     // I hate when people program C++ like it was C, and yet I do it too.
     // I'm too lazy to come up with the perfect class hierarchy here. Let's
     // just do some type munging.
-    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
-                                    (void*)AfterConnect);
+    ConnectWrap* req_wrap = new ConnectWrap();
+    
+    int r = uv_tcp_connect(&req_wrap->req_, &wrap->handle_, address,
+        AfterConnect);
 
-    int r = uv_tcp_connect(&req_wrap->req_, address);
+    req_wrap->Dispatched();
 
     if (r) {
       SetErrno(uv_last_error().code);
@@ -506,13 +519,12 @@ class TCPWrap {
 
     struct sockaddr_in6 address = uv_ip6_addr(*ip_address, port);
 
-    // I hate when people program C++ like it was C, and yet I do it too.
-    // I'm too lazy to come up with the perfect class hierarchy here. Let's
-    // just do some type munging.
-    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
-                                    (void*)AfterConnect);
+    ConnectWrap* req_wrap = new ConnectWrap();
 
-    int r = uv_tcp_connect6(&req_wrap->req_, address);
+    int r = uv_tcp_connect6(&req_wrap->req_, &wrap->handle_, address,
+        AfterConnect);
+
+    req_wrap->Dispatched();
 
     if (r) {
       SetErrno(uv_last_error().code);
@@ -523,8 +535,8 @@ class TCPWrap {
     }
   }
 
-  static void AfterShutdown(uv_req_t* req, int status) {
-    ReqWrap* req_wrap = (ReqWrap*) req->data;
+  static void AfterShutdown(uv_shutdown_t* req, int status) {
+    ReqWrap<uv_shutdown_t>* req_wrap = (ReqWrap<uv_shutdown_t>*) req->data;
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
 
     // The request object should still be there.
@@ -552,10 +564,12 @@ class TCPWrap {
 
     UNWRAP
 
-    ReqWrap* req_wrap = new ReqWrap((uv_handle_t*) &wrap->handle_,
-                                    (void*)AfterShutdown);
+    ShutdownWrap* req_wrap = new ShutdownWrap();
 
-    int r = uv_shutdown(&req_wrap->req_);
+    int r = uv_shutdown(&req_wrap->req_, (uv_stream_t*) &wrap->handle_,
+        AfterShutdown);
+
+    req_wrap->Dispatched();
 
     if (r) {
       SetErrno(uv_last_error().code);
@@ -569,7 +583,6 @@ class TCPWrap {
   uv_tcp_t handle_;
   Persistent<Object> object_;
   size_t slab_offset_;
-  friend class ReqWrap;
 };
 
 

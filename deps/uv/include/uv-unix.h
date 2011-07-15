@@ -41,13 +41,19 @@ typedef struct {
 
 #define UV_REQ_BUFSML_SIZE (4)
 
-#define UV_REQ_PRIVATE_FIELDS \
-  int write_index; \
-  ev_timer timer; \
+#define UV_REQ_PRIVATE_FIELDS  /* empty */
+
+#define UV_WRITE_PRIVATE_FIELDS \
   ngx_queue_t queue; \
+  int write_index; \
   uv_buf_t* bufs; \
   int bufcnt; \
   uv_buf_t bufsml[UV_REQ_BUFSML_SIZE];
+
+#define UV_SHUTDOWN_PRIVATE_FIELDS /* empty */
+
+#define UV_CONNECT_PRIVATE_FIELDS \
+  ngx_queue_t queue;
 
 
 /* TODO: union or classes please! */
@@ -67,8 +73,8 @@ typedef struct {
   int delayed_error; \
   uv_connection_cb connection_cb; \
   int accepted_fd; \
-  uv_req_t *connect_req; \
-  uv_req_t *shutdown_req; \
+  uv_connect_t *connect_req; \
+  uv_shutdown_t *shutdown_req; \
   ev_io read_watcher; \
   ev_io write_watcher; \
   ngx_queue_t write_queue; \

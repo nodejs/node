@@ -183,22 +183,22 @@ static void read_cb(uv_stream_t* stream, ssize_t bytes, uv_buf_t buf) {
 }
 
 
-static void write_cb(uv_req_t *req, int status) {
+static void write_cb(uv_write_t* req, int status) {
   uv_buf_t* buf = (uv_buf_t*) req->data;
 
   ASSERT(status == 0);
 
-  req_free(req);
+  req_free((uv_req_t*) req);
 
   nsent += sizeof write_buffer;
   nsent_total += sizeof write_buffer;
 
-  do_write((uv_stream_t*)req->handle);
+  do_write((uv_stream_t*) req->handle);
 }
 
 
 static void do_write(uv_stream_t* stream) {
-  uv_req_t* req;
+  uv_write_t* req;
   uv_buf_t buf;
   int r;
 
@@ -206,23 +206,21 @@ static void do_write(uv_stream_t* stream) {
   buf.len = sizeof write_buffer;
 
   while (stream->write_queue_size == 0) {
-    req = req_alloc();
-    uv_req_init(req, (uv_handle_t*)stream, write_cb);
-
-    r = uv_write(req, &buf, 1);
+    req = (uv_write_t*) req_alloc();
+    r = uv_write(req, stream, &buf, 1, write_cb);
     ASSERT(r == 0);
   }
 }
 
 
-static void connect_cb(uv_req_t* req, int status) {
+static void connect_cb(uv_connect_t* req, int status) {
   int i;
 
   if (status) LOG(uv_strerror(uv_last_error()));
   ASSERT(status == 0);
 
   write_sockets++;
-  req_free(req);
+  req_free((uv_req_t*) req);
 
   maybe_connect_some();
 
@@ -238,7 +236,7 @@ static void connect_cb(uv_req_t* req, int status) {
 
 
 static void maybe_connect_some() {
-  uv_req_t* req;
+  uv_connect_t* req;
   uv_tcp_t* tcp;
   uv_pipe_t* pipe;
   int r;
@@ -251,9 +249,8 @@ static void maybe_connect_some() {
       r = uv_tcp_init(tcp);
       ASSERT(r == 0);
 
-      req = req_alloc();
-      uv_req_init(req, (uv_handle_t*)tcp, connect_cb);
-      r = uv_tcp_connect(req, connect_addr);
+      req = (uv_connect_t*) req_alloc();
+      r = uv_tcp_connect(req, tcp, connect_addr, connect_cb);
       ASSERT(r == 0);
     } else {
       pipe = &pipe_write_handles[max_connect_socket++];
@@ -261,9 +258,8 @@ static void maybe_connect_some() {
       r = uv_pipe_init(pipe);
       ASSERT(r == 0);
 
-      req = req_alloc();
-      uv_req_init(req, (uv_handle_t*)pipe, connect_cb);
-      r = uv_pipe_connect(req, TEST_PIPENAME);
+      req = (uv_connect_t*) req_alloc();
+      r = uv_pipe_connect(req, pipe, TEST_PIPENAME, connect_cb);
       ASSERT(r == 0);
 
 #ifdef _WIN32
@@ -308,7 +304,7 @@ static void connection_cb(uv_handle_t* s, int status) {
  */
 
 typedef struct req_list_s {
-  uv_req_t uv_req;
+  union uv_any_req uv_req;
   struct req_list_s* next;
 } req_list_t;
 
