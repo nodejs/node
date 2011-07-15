@@ -21,7 +21,7 @@ elsewhere.
 
 - [mDNS/Zeroconf/Bonjour](http://github.com/agnat/node_mdns)
 
-- [RabbitMQ, AMQP](https://github.com/ry/node-amqp)
+- [RabbitMQ, AMQP](https://github.com/postwait/node-amqp)
 
 - [mysql](http://github.com/felixge/node-mysql)
 
