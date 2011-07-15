@@ -235,7 +235,8 @@ in pseudocode of what require.resolve does:
 
 If the `NODE_PATH` environment variable is set to a colon-delimited list
 of absolute paths, then node will search those paths for modules if they
-are not found elsewhere.
+are not found elsewhere.  (Note: On Windows, `NODE_PATH` is delimited by
+semicolons instead of colons.)
 
 Additionally, node will search in the following locations:
 
