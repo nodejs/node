@@ -45,17 +45,20 @@ fs.stat = function() {
 };
 
 // Load the module 'a' and 'http' once. It should become cached.
-require.paths.push(common.fixturesDir);
-require('a');
+require(common.fixturesDir + '/a');
+require('../fixtures/a.js');
+require('./../fixtures/a.js');
 require('http');
 
 console.log("counterBefore = %d", counter);
 var counterBefore = counter;
 
-// Now load the module a bunch of times.
+// Now load the module a bunch of times with equivalent paths.
 // stat should not be called.
 for (var i = 0; i < 100; i++) {
-  require('a');
+  require(common.fixturesDir + '/a');
+  require('../fixtures/a.js');
+  require('./../fixtures/a.js');
 }
 
 // Do the same with a built-in module
@@ -67,4 +70,3 @@ console.log("counterAfter = %d", counter);
 var counterAfter = counter;
 
 assert.equal(counterBefore, counterAfter);
-

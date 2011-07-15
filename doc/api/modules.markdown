@@ -231,77 +231,24 @@ in pseudocode of what require.resolve does:
        c. let I = I - 1
     6. return DIRS
 
-### Loading from the `require.paths` Folders
+### Loading from the global folders
 
-In node, `require.paths` is an array of strings that represent paths to
-be searched for modules when they are not prefixed with `'/'`, `'./'`, or
-`'../'`.  For example, if require.paths were set to:
+If the `NODE_PATH` environment variable is set to a colon-delimited list
+of absolute paths, then node will search those paths for modules if they
+are not found elsewhere.
 
-    [ '/home/micheil/.node_modules',
-      '/usr/local/lib/node_modules' ]
+Additionally, node will search in the following locations:
 
-Then calling `require('bar/baz.js')` would search the following
-locations:
+* 1: `$HOME/.node_modules`
+* 2: `$HOME/.node_libraries`
+* 3: `$PREFIX/lib/node`
 
-* 1: `'/home/micheil/.node_modules/bar/baz.js'`
-* 2: `'/usr/local/lib/node_modules/bar/baz.js'`
+Where `$HOME` is the user's home directory, and `PREFIX` is node's
+configured `installPrefix`.
 
-The `require.paths` array can be mutated at run time to alter this
-behavior.
-
-It is set initially from the `NODE_PATH` environment variable, which is
-a colon-delimited list of absolute paths.  In the previous example,
-the `NODE_PATH` environment variable might have been set to:
-
-    /home/micheil/.node_modules:/usr/local/lib/node_modules
-
-Loading from the `require.paths` locations is only performed if the
-module could not be found using the `node_modules` algorithm above.
-Global modules are lower priority than bundled dependencies.
-
-#### **Note:** Please Avoid Modifying `require.paths`
-
-`require.paths` may disappear in a future release.
-
-While it seemed like a good idea at the time, and enabled a lot of
-useful experimentation, in practice a mutable `require.paths` list is
-often a troublesome source of confusion and headaches.
-
-##### Setting `require.paths` to some other value does nothing.
-
-This does not do what one might expect:
-
-    require.paths = [ '/usr/lib/node' ];
-
-All that does is lose the reference to the *actual* node module lookup
-paths, and create a new reference to some other thing that isn't used
-for anything.
-
-##### Putting relative paths in `require.paths` is... weird.
-
-If you do this:
-
-    require.paths.push('./lib');
-
-then it does *not* add the full resolved path to where `./lib`
-is on the filesystem.  Instead, it literally adds `'./lib'`,
-meaning that if you do `require('y.js')` in `/a/b/x.js`, then it'll look
-in `/a/b/lib/y.js`.  If you then did `require('y.js')` in
-`/l/m/n/o/p.js`, then it'd look in `/l/m/n/o/lib/y.js`.
-
-In practice, people have used this as an ad hoc way to bundle
-dependencies, but this technique is brittle.
-
-##### Zero Isolation
-
-There is (by regrettable design), only one `require.paths` array used by
-all modules.
-
-As a result, if one node program comes to rely on this behavior, it may
-permanently and subtly alter the behavior of all other node programs in
-the same process.  As the application stack grows, we tend to assemble
-functionality, and those parts interact in ways that are difficult to
-predict.
+These are mostly for historic reasons.  You are highly encouraged to
+place your dependencies localy in `node_modules` folders.  They will be
+loaded faster, and more reliably.
 
 ### Accessing the main module
 

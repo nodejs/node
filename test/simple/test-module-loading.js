@@ -143,14 +143,13 @@ require.extensions['.test'] = function(module, filename) {
 };
 
 assert.equal(require('../fixtures/registerExt2').custom, 'passed');
-common.debug('load modules by absolute id, then change require.paths, ' +
-             'and load another module with the same absolute id.');
-// this will throw if it fails.
-var foo = require('../fixtures/require-path/p1/foo');
-assert.ok(foo.bar.expect === foo.bar.actual);
 
 assert.equal(require('../fixtures/foo').foo, 'ok',
              'require module with no extension');
+
+assert.throws(function() {
+  require.paths;
+}, /removed/, 'Accessing require.paths should throw.');
 
 // Should not attempt to load a directory
 try {
