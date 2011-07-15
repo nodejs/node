@@ -97,12 +97,14 @@ test-uv: all
 		simple/test-global \
 		simple/test-http \
 		simple/test-http-1.0 \
+		simple/test-http-abort-client \
 		simple/test-http-allow-req-after-204-res \
 		simple/test-http-blank-header \
 		simple/test-http-buffer-sanity \
 		simple/test-http-cat \
 		simple/test-http-chunked \
 		simple/test-http-client-abort \
+		simple/test-http-client-parse-error \
 		simple/test-http-client-race \
 		simple/test-http-client-race-2 \
 		simple/test-http-client-upload \
@@ -143,6 +145,7 @@ test-uv: all
 		simple/test-net-binary \
 		simple/test-net-can-reset-timeout \
 		simple/test-net-connect-buffer \
+		simple/test-net-connect-timeout \
 		simple/test-net-create-connection \
 		simple/test-net-eaddrinuse \
 		simple/test-net-isip \
@@ -202,6 +205,7 @@ test-uv: all
 		simple/test-zerolengthbufferbug \
 		pummel/test-http-client-reconnect-bug \
 		pummel/test-http-upload-timeout \
+		pummel/test-net-many-clients \
 		pummel/test-net-pause \
 		pummel/test-net-pingpong-delay \
 		pummel/test-net-timeout \

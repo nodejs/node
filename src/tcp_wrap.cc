@@ -158,6 +158,13 @@ class TCPWrap {
   // Free the C++ object on the close callback.
   static void OnClose(uv_handle_t* handle) {
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
+
+    // The wrap object should still be there.
+    assert(wrap->object_.IsEmpty() == false);
+
+    wrap->object_->SetPointerInInternalField(0, NULL);
+    wrap->object_.Dispose();
+    wrap->object_.Clear();
     delete wrap;
   }
 
@@ -221,14 +228,12 @@ class TCPWrap {
     assert(&wrap->handle_ == (uv_tcp_t*)handle);
 
     // We should not be getting this callback if someone as already called
-    // uv_close() on the handle. Since we've destroyed object_ at the same
-    // time as calling uv_close() we can test for this here.
+    // uv_close() on the handle.
     assert(wrap->object_.IsEmpty() == false);
 
     if (status != 0) {
-      // TODO Handle server error (call onerror?)
+      // TODO Handle server error (set errno and call onconnection with NULL)
       assert(0);
-      uv_close((uv_handle_t*) handle, OnClose);
       return;
     }
 
@@ -332,8 +337,7 @@ class TCPWrap {
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
 
     // We should not be getting this callback if someone as already called
-    // uv_close() on the handle. Since we've destroyed object_ at the same
-    // time as calling uv_close() we can test for this here.
+    // uv_close() on the handle.
     assert(wrap->object_.IsEmpty() == false);
 
     // Remove the reference to the slab to avoid memory leaks;
@@ -373,15 +377,16 @@ class TCPWrap {
 
     UNWRAP
 
+    assert(!wrap->object_.IsEmpty());
     int r = uv_close((uv_handle_t*) &wrap->handle_, OnClose);
 
-    if (r) SetErrno(uv_last_error().code);
+    if (r) {
+      SetErrno(uv_last_error().code);
 
-    assert(!wrap->object_.IsEmpty());
-    wrap->object_->SetPointerInInternalField(0, NULL);
-    wrap->object_.Dispose();
-    wrap->object_.Clear();
-
+      wrap->object_->SetPointerInInternalField(0, NULL);
+      wrap->object_.Dispose();
+      wrap->object_.Clear();
+    }
     return scope.Close(Integer::New(r));
   }
 
@@ -391,8 +396,9 @@ class TCPWrap {
 
     HandleScope scope;
 
-    // The request object should still be there.
+    // The wrap and request objects should still be there.
     assert(req_wrap->object_.IsEmpty() == false);
+    assert(wrap->object_.IsEmpty() == false);
 
     if (status) {
       SetErrno(uv_last_error().code);
@@ -462,8 +468,9 @@ class TCPWrap {
 
     HandleScope scope;
 
-    // The request object should still be there.
+    // The wrap and request objects should still be there.
     assert(req_wrap->object_.IsEmpty() == false);
+    assert(wrap->object_.IsEmpty() == false);
 
     if (status) {
       SetErrno(uv_last_error().code);
@@ -539,8 +546,9 @@ class TCPWrap {
     ReqWrap<uv_shutdown_t>* req_wrap = (ReqWrap<uv_shutdown_t>*) req->data;
     TCPWrap* wrap = (TCPWrap*) req->handle->data;
 
-    // The request object should still be there.
+    // The wrap and request objects should still be there.
     assert(req_wrap->object_.IsEmpty() == false);
+    assert(wrap->object_.IsEmpty() == false);
 
     HandleScope scope;
 
