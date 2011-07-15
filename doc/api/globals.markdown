@@ -20,6 +20,9 @@ The process object. See the [process object](process.html#process) section.
 
 Used to print to stdout and stderr. See the [stdio](stdio.html) section.
 
+### Buffer
+
+Used to handle binary data. See the [buffers](buffers.html) section.
 
 ### require()
 
