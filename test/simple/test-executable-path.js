@@ -30,13 +30,13 @@ var debugPath = path.normalize(path.join(__dirname, '..', '..',
 var defaultPath = path.normalize(path.join(__dirname, '..', '..',
                                            'build', 'default', 'node'));
 
-console.log('debugPath: ' + debugPath);
-console.log('defaultPath: ' + defaultPath);
-console.log('process.execPath: ' + process.execPath);
+console.error('debugPath: ' + debugPath);
+console.error('defaultPath: ' + defaultPath);
+console.error('process.execPath: ' + process.execPath);
 
 if (/node_g$/.test(process.execPath)) {
-  assert.equal(debugPath, process.execPath);
+  assert.ok(process.execPath.indexOf(debugPath) == 0);
 } else {
-  assert.equal(defaultPath, process.execPath);
+  assert.ok(process.execPath.indexOf(defaultPath) == 0);
 }
 

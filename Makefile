@@ -78,6 +78,7 @@ test-uv: all
 		simple/test-exception-handler \
 		simple/test-exception-handler2 \
 		simple/test-exception-handler \
+		simple/test-executable-path \
 		simple/test-file-read-noexist \
 		simple/test-file-write-stream \
 		simple/test-fs-fsync \
