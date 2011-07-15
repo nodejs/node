@@ -2115,7 +2115,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   size_t size = 2*PATH_MAX;
   char execPath[size];
-  if (Platform::GetExecutablePath(execPath, &size) != 0) {
+  if (uv_exepath(execPath, &size) != 0) {
     // as a last ditch effort, fallback on argv[0] ?
     process->Set(String::NewSymbol("execPath"), String::New(argv[0]));
   } else {

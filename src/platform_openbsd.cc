@@ -94,11 +94,6 @@ error:
 }
 
 
-int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  *size = 0;
-  return -1;
-}
-
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   Local<Object> cpuinfo;
   Local<Object> cputimes;

@@ -27,7 +27,6 @@
 #include <mach/task.h>
 #include <mach/mach.h>
 #include <mach/mach_host.h>
-#include <mach-o/dyld.h> /* _NSGetExecutablePath */
 #include <limits.h> /* PATH_MAX */
 
 #include <unistd.h>  // sysconf
@@ -89,24 +88,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
   return 0;
 }
 
-
-int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  uint32_t usize = *size;
-  int result = _NSGetExecutablePath(buffer, &usize);
-  if (result) return result;
-
-  char *path = new char[2*PATH_MAX];
-
-  char *fullpath = realpath(buffer, path);
-  if (fullpath == NULL) {
-    delete [] path;
-    return -1;
-  }
-  strncpy(buffer, fullpath, *size);
-  delete [] fullpath;
-  *size = strlen(buffer);
-  return 0;
-}
 
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   Local<Object> cpuinfo;

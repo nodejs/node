@@ -106,25 +106,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
 }
 
 
-int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  const char *execname = getexecname();
-  if (!execname) return -1;
-  if (execname[0] == '/') {
-    char *result = strncpy(buffer, execname, *size);
-    *size = strlen(result);
-  } else {
-    char *result = getcwd(buffer, *size);
-    if (!result) return -1;
-    result = strncat(buffer, "/", *size);
-    if (!result) return -1;
-    result = strncat(buffer, execname, *size);
-    if (!result) return -1;
-    *size = strlen(result);
-  }
-  return 0;
-}
-
-
 static Handle<Value> data_named(kstat_named_t *knp) {
   Handle<Value> val;
 

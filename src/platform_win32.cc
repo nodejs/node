@@ -231,12 +231,6 @@ double Platform::GetTotalMemory() {
 }
 
 
-int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  *size = 0;
-  return -1;
-}
-
-
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   return -1;
 }

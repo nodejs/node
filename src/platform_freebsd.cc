@@ -94,20 +94,6 @@ error:
 }
 
 
-int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  int mib[4];
-  mib[0] = CTL_KERN;
-  mib[1] = KERN_PROC;
-  mib[2] = KERN_PROC_PATHNAME;
-  mib[3] = -1;
-
-  if (sysctl(mib, 4, buffer, size, NULL, 0) == -1) {
-    return -1;
-  }
-  *size-=1;
-  return 0;
-}
-
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   Local<Object> cpuinfo;
   Local<Object> cputimes;

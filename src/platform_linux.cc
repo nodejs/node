@@ -181,13 +181,6 @@ error:
 }
 
 
-int Platform::GetExecutablePath(char* buffer, size_t* size) {
-  *size = readlink("/proc/self/exe", buffer, *size - 1);
-  if (*size <= 0) return -1;
-  buffer[*size] = '\0';
-  return 0;
-}
-
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   HandleScope scope;
   Local<Object> cpuinfo;
