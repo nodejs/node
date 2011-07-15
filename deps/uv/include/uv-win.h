@@ -62,6 +62,13 @@ typedef struct uv_buf_t {
 #define UV_SHUTDOWN_PRIVATE_FIELDS        \
   /* empty */
 
+#define UV_PRIVATE_REQ_TYPES              \
+  typedef struct uv_pipe_accept_s {       \
+    UV_REQ_FIELDS                         \
+    HANDLE pipeHandle;                    \
+    struct uv_pipe_accept_s* next_pending; \
+  } uv_pipe_accept_t;
+
 #define uv_stream_connection_fields       \
   unsigned int write_reqs_pending;        \
   uv_shutdown_t* shutdown_req;
@@ -90,12 +97,8 @@ typedef struct uv_buf_t {
 
 #define uv_pipe_server_fields             \
     char* name;                           \
-    struct uv_pipe_accept_s {             \
-      UV_REQ_FIELDS                       \
-      HANDLE pipeHandle;                  \
-      struct uv_pipe_accept_s* next_pending; \
-    } accept_reqs[4];                     \
-    struct uv_pipe_accept_s* pending_accepts;
+    uv_pipe_accept_t accept_reqs[4];      \
+    uv_pipe_accept_t* pending_accepts;
 
 #define uv_pipe_connection_fields         \
   HANDLE handle;

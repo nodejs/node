@@ -993,7 +993,7 @@ static void uv_tcp_queue_accept(uv_tcp_t* handle) {
 }
 
 
-static void uv_pipe_queue_accept(uv_pipe_t* handle, struct uv_pipe_accept_s* req) {
+static void uv_pipe_queue_accept(uv_pipe_t* handle, uv_pipe_accept_t* req) {
   HANDLE pipeHandle;
 
   assert(handle->flags & UV_HANDLE_LISTENING);
@@ -1173,7 +1173,7 @@ static int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
 
 static int uv_pipe_accept(uv_pipe_t* server, uv_pipe_t* client) {
   /* Find a connection instance that has been connected, but not yet accepted. */
-  struct uv_pipe_accept_s* req = server->pending_accepts;
+  uv_pipe_accept_t* req = server->pending_accepts;
 
   if (!req) {
     /* No valid connections found, so we error out. */
@@ -1847,7 +1847,7 @@ static void uv_process_pipe_write_req(uv_pipe_t* handle, uv_write_t* req) {
 
 
 static void uv_process_pipe_accept_req(uv_pipe_t* handle, uv_req_t* raw_req) {
-  struct uv_pipe_accept_s* req = (struct uv_pipe_accept_s*) raw_req;
+  uv_pipe_accept_t* req = (uv_pipe_accept_t*) raw_req;
 
   assert(handle->type == UV_NAMED_PIPE);
 
@@ -2981,7 +2981,7 @@ int uv_pipe_init(uv_pipe_t* handle) {
 /* TODO: make this work with UTF8 name */
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   int i;
-  struct uv_pipe_accept_s* req;
+  uv_pipe_accept_t* req;
 
   if (!name) {
     uv_set_sys_error(WSAEINVAL);

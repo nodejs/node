@@ -55,6 +55,8 @@ typedef struct {
 #define UV_CONNECT_PRIVATE_FIELDS \
   ngx_queue_t queue;
 
+#define UV_PRIVATE_REQ_TYPES /* empty */
+
 
 /* TODO: union or classes please! */
 #define UV_HANDLE_PRIVATE_FIELDS \
@@ -79,8 +81,8 @@ typedef struct {
   ev_io write_watcher; \
   ngx_queue_t write_queue; \
   ngx_queue_t write_completed_queue;
-  
-  
+
+
 /* UV_NAMED_PIPE */
 #define UV_PIPE_PRIVATE_TYPEDEF
 #define UV_PIPE_PRIVATE_FIELDS

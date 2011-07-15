@@ -185,6 +185,10 @@ struct uv_req_s {
 };
 
 
+/* Platform-specific request types */
+UV_PRIVATE_REQ_TYPES
+
+
 /*
  * Shutdown the outgoing (write) side of a duplex stream. It waits for
  * pending write requests to complete. The handle should refer to a
