@@ -632,6 +632,8 @@ def build_uv(bld):
   if bld.env["USE_DEBUG"]:
     uv_debug = uv.clone("debug")
     uv_debug.rule = uv_cmd(bld, 'debug')
+    uv_debug.env.env = dict(os.environ)
+    uv_debug.env.env['CPPFLAGS'] = "-DPTW32_STATIC_LIB"
 
     t = join(bld.srcnode.abspath(bld.env_of_name("debug")), uv_debug.target)
     bld.env_of_name('debug').append_value("LINKFLAGS_UV", t)
