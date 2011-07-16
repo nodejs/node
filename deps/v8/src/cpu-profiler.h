@@ -28,8 +28,6 @@
 #ifndef V8_CPU_PROFILER_H_
 #define V8_CPU_PROFILER_H_
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "allocation.h"
 #include "atomicops.h"
 #include "circular-queue.h"
@@ -206,9 +204,6 @@ class ProfilerEventsProcessor : public Thread {
       v8::internal::CpuProfiler::Call;                        \
     }                                                         \
   } while (false)
-#else
-#define PROFILE(isolate, Call) LOG(isolate, Call)
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 namespace v8 {
@@ -221,7 +216,6 @@ class CpuProfiler {
   static void Setup();
   static void TearDown();
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   static void StartProfiling(const char* title);
   static void StartProfiling(String* title);
   static CpuProfile* StopProfiling(const char* title);
@@ -288,10 +282,6 @@ class CpuProfiler {
   int saved_logging_nesting_;
   bool need_to_stop_sampler_;
   Atomic32 is_profiling_;
-
-#else
-  static INLINE(bool is_profiling(Isolate* isolate)) { return false; }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
  private:
   DISALLOW_COPY_AND_ASSIGN(CpuProfiler);

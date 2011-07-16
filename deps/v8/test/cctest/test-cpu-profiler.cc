@@ -2,8 +2,6 @@
 //
 // Tests of profiles generator and utilities.
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "v8.h"
 #include "cpu-profiler-inl.h"
 #include "cctest.h"
@@ -401,5 +399,3 @@ TEST(DeleteCpuProfileDifferentTokens) {
   CHECK_EQ(0, CpuProfiler::GetProfilesCount());
   CHECK_EQ(NULL, v8::CpuProfiler::FindProfile(uid3));
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING

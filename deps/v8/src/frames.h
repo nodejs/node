@@ -843,7 +843,6 @@ class SafeStackFrameIterator BASE_EMBEDDED {
 };
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 typedef JavaScriptFrameIteratorTemp<SafeStackFrameIterator>
     SafeJavaScriptFrameIterator;
 
@@ -855,7 +854,6 @@ class SafeStackTraceFrameIterator: public SafeJavaScriptFrameIterator {
                                        Address low_bound, Address high_bound);
   void Advance();
 };
-#endif
 
 
 class StackFrameLocator BASE_EMBEDDED {

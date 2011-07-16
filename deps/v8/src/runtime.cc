@@ -628,11 +628,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
   Object* obj = args[0];
-  obj = obj->GetPrototype();
-  while (obj->IsJSObject() &&
-         JSObject::cast(obj)->map()->is_hidden_prototype()) {
+  do {
     obj = obj->GetPrototype();
-  }
+  } while (obj->IsJSObject() &&
+           JSObject::cast(obj)->map()->is_hidden_prototype());
   return obj;
 }
 
@@ -10060,8 +10059,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   int position =
       it.frame()->LookupCode()->SourcePosition(it.frame()->pc());
 
-  // Check for constructor frame.
-  bool constructor = it.frame()->IsConstructor();
+  // Check for constructor frame. Inlined frames cannot be construct calls.
+  bool inlined_frame =
+      it.frame()->is_optimized() && deoptimized_frame_index != 0;
+  bool constructor = !inlined_frame && it.frame()->IsConstructor();
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
@@ -10151,8 +10152,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // Find the number of arguments to fill. At least fill the number of
   // parameters for the function and fill more if more parameters are provided.
   int argument_count = info.number_of_parameters();
-  if (argument_count < it.frame()->ComputeParametersCount()) {
-    argument_count = it.frame()->ComputeParametersCount();
+  if (it.frame()->is_optimized()) {
+    ASSERT_EQ(argument_count, deoptimized_frame->parameters_count());
+  } else {
+    if (argument_count < it.frame()->ComputeParametersCount()) {
+      argument_count = it.frame()->ComputeParametersCount();
+    }
   }
 
   // Calculate the size of the result.
@@ -10165,7 +10170,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
   // Add the function (same as in function frame).
-  details->set(kFrameDetailsFunctionIndex, it.frame()->function());
+  if (it.frame()->is_optimized()) {
+    // Get the function from the deoptimized frame.
+    details->set(kFrameDetailsFunctionIndex, deoptimized_frame->GetFunction());
+  } else {
+    // Get the function from the stack.
+    details->set(kFrameDetailsFunctionIndex, it.frame()->function());
+  }
 
   // Add the arguments count.
   details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(argument_count));
@@ -10215,16 +10226,17 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
       details->set(details_index++, heap->undefined_value());
     }
 
-    // Parameter value. If we are inspecting an optimized frame, use
-    // undefined as the value.
-    //
-    // TODO(3141533): We should be able to get the actual parameter
-    // value for optimized frames.
-    if (!it.frame()->is_optimized() &&
-        (i < it.frame()->ComputeParametersCount())) {
-      details->set(details_index++, it.frame()->GetParameter(i));
+    // Parameter value.
+    if (it.frame()->is_optimized()) {
+      // Get the value from the deoptimized frame.
+      details->set(details_index++, deoptimized_frame->GetParameter(i));
     } else {
-      details->set(details_index++, heap->undefined_value());
+      if (i < it.frame()->ComputeParametersCount()) {
+        // Get the value from the stack.
+        details->set(details_index++, it.frame()->GetParameter(i));
+      } else {
+        details->set(details_index++, heap->undefined_value());
+      }
     }
   }
 
@@ -12133,7 +12145,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SummarizeLOL) {
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerResume) {
   NoHandleAllocation ha;
   v8::V8::ResumeProfiler();
@@ -12147,7 +12158,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ProfilerPause) {
   return isolate->heap()->undefined_value();
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 // Finds the script object from the script data. NOTE: This operation uses
 // heap traversal to find the function generated for the source position

@@ -378,35 +378,6 @@ bool MemoryAllocator::InInitialChunk(Address address) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void MemoryAllocator::Protect(Address start, size_t size) {
-  OS::Protect(start, size);
-}
-
-
-void MemoryAllocator::Unprotect(Address start,
-                                size_t size,
-                                Executability executable) {
-  OS::Unprotect(start, size, executable);
-}
-
-
-void MemoryAllocator::ProtectChunkFromPage(Page* page) {
-  int id = GetChunkId(page);
-  OS::Protect(chunks_[id].address(), chunks_[id].size());
-}
-
-
-void MemoryAllocator::UnprotectChunkFromPage(Page* page) {
-  int id = GetChunkId(page);
-  OS::Unprotect(chunks_[id].address(), chunks_[id].size(),
-                chunks_[id].owner()->executable() == EXECUTABLE);
-}
-
-#endif
-
-
 // --------------------------------------------------------------------------
 // PagedSpace
 

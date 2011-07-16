@@ -37,6 +37,7 @@
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 
 #include <arpa/inet.h>
 #include <netinet/in.h>
@@ -130,12 +131,24 @@ int OS::GetLastError() {
 //
 
 FILE* OS::FOpen(const char* path, const char* mode) {
-  return fopen(path, mode);
+  FILE* file = fopen(path, mode);
+  if (file == NULL) return NULL;
+  struct stat file_stat;
+  if (fstat(fileno(file), &file_stat) != 0) return NULL;
+  bool is_regular_file = ((file_stat.st_mode & S_IFREG) != 0);
+  if (is_regular_file) return file;
+  fclose(file);
+  return NULL;
 }
 
 
 bool OS::Remove(const char* path) {
   return (remove(path) == 0);
+}
+
+
+FILE* OS::OpenTemporaryFile() {
+  return tmpfile();
 }
 
 

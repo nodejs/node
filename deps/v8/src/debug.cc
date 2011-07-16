@@ -1821,6 +1821,13 @@ void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
 bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
 
+  // If there are no break points this cannot be break at return, as
+  // the debugger statement and stack guard bebug break cannot be at
+  // return.
+  if (!has_break_points_) {
+    return false;
+  }
+
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =
       Handle<SharedFunctionInfo>(JSFunction::cast(frame->function())->shared());

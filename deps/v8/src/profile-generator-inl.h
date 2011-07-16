@@ -28,8 +28,6 @@
 #ifndef V8_PROFILE_GENERATOR_INL_H_
 #define V8_PROFILE_GENERATOR_INL_H_
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "profile-generator.h"
 
 namespace v8 {
@@ -122,7 +120,5 @@ uint64_t HeapEntry::id() {
 }
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 #endif  // V8_PROFILE_GENERATOR_INL_H_

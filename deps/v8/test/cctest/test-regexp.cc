@@ -41,19 +41,25 @@
 #ifdef V8_INTERPRETED_REGEXP
 #include "interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP
+#include "macro-assembler.h"
+#include "code.h"
 #ifdef V8_TARGET_ARCH_ARM
+#include "arm/assembler-arm.h"
 #include "arm/macro-assembler-arm.h"
 #include "arm/regexp-macro-assembler-arm.h"
 #endif
 #ifdef V8_TARGET_ARCH_MIPS
+#include "mips/assembler-mips.h"
 #include "mips/macro-assembler-mips.h"
 #include "mips/regexp-macro-assembler-mips.h"
 #endif
 #ifdef V8_TARGET_ARCH_X64
+#include "x64/assembler-x64.h"
 #include "x64/macro-assembler-x64.h"
 #include "x64/regexp-macro-assembler-x64.h"
 #endif
 #ifdef V8_TARGET_ARCH_IA32
+#include "ia32/assembler-ia32.h"
 #include "ia32/macro-assembler-ia32.h"
 #include "ia32/regexp-macro-assembler-ia32.h"
 #endif

@@ -169,8 +169,6 @@ void CodeGenerator::PrintCode(Handle<Code> code, CompilationInfo* info) {
 #endif  // ENABLE_DISASSEMBLER
 }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 static Vector<const char> kRegexp = CStrVector("regexp");
 
 bool CodeGenerator::ShouldGenerateLog(Expression* type) {
@@ -186,8 +184,6 @@ bool CodeGenerator::ShouldGenerateLog(Expression* type) {
   }
   return false;
 }
-
-#endif
 
 
 bool CodeGenerator::RecordPositions(MacroAssembler* masm,

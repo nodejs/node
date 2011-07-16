@@ -308,6 +308,13 @@ function ObjectLookupSetter(name) {
 function ObjectKeys(obj) {
   if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["keys"]);
+  if (%IsJSProxy(obj)) {
+    var handler = %GetHandler(obj);
+    var keys = handler.keys;
+    if (IS_UNDEFINED(keys)) keys = DerivedKeysTrap;
+    var names = %_CallFunction(handler, keys);
+    return ToStringArray(names);
+  }
   return %LocalKeys(obj);
 }
 
@@ -315,14 +322,14 @@ function ObjectKeys(obj) {
 // ES5 8.10.1.
 function IsAccessorDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return false;
-  return desc.hasGetter_ || desc.hasSetter_;
+  return desc.hasGetter() || desc.hasSetter();
 }
 
 
 // ES5 8.10.2.
 function IsDataDescriptor(desc) {
   if (IS_UNDEFINED(desc)) return false;
-  return desc.hasValue_ || desc.hasWritable_;
+  return desc.hasValue() || desc.hasWritable();
 }
 
 
@@ -351,6 +358,19 @@ function FromPropertyDescriptor(desc) {
   }
   obj.enumerable = desc.isEnumerable();
   obj.configurable = desc.isConfigurable();
+  return obj;
+}
+
+// Harmony Proxies
+function FromGenericPropertyDescriptor(desc) {
+  if (IS_UNDEFINED(desc)) return desc;
+  var obj = new $Object();
+  if (desc.hasValue()) obj.value = desc.getValue();
+  if (desc.hasWritable()) obj.writable = desc.isWritable();
+  if (desc.hasGetter()) obj.get = desc.getGet();
+  if (desc.hasSetter()) obj.set = desc.getSet();
+  if (desc.hasEnumerable()) obj.enumerable = desc.isEnumerable();
+  if (desc.hasConfigurable()) obj.configurable = desc.isConfigurable();
   return obj;
 }
 
@@ -404,15 +424,15 @@ function ToPropertyDescriptor(obj) {
 function ToCompletePropertyDescriptor(obj) {
   var desc = ToPropertyDescriptor(obj)
   if (IsGenericDescriptor(desc) || IsDataDescriptor(desc)) {
-    if (!("value" in desc)) desc.value = void 0;
-    if (!("writable" in desc)) desc.writable = false;
+    if (!desc.hasValue()) desc.setValue(void 0);
+    if (!desc.hasWritable()) desc.setWritable(false);
   } else {
     // Is accessor descriptor.
-    if (!("get" in desc)) desc.get = void 0;
-    if (!("set" in desc)) desc.set = void 0;
+    if (!desc.hasGetter()) desc.setGet(void 0);
+    if (!desc.hasSetter()) desc.setSet(void 0);
   }
-  if (!("enumerable" in desc)) desc.enumerable = false;
-  if (!("configurable" in desc)) desc.configurable = false;
+  if (!desc.hasEnumerable()) desc.setEnumerable(false);
+  if (!desc.hasConfigurable()) desc.setConfigurable(false);
   return desc;
 }
 
@@ -572,10 +592,10 @@ function GetProperty(obj, p) {
       throw MakeTypeError("handler_trap_missing",
                           [handler, "getPropertyDescriptor"]);
     }
-    var descriptor = getProperty.call(handler, p);
+    var descriptor = %_CallFunction(handler, p, getProperty);
     if (IS_UNDEFINED(descriptor)) return descriptor;
     var desc = ToCompletePropertyDescriptor(descriptor);
-    if (!desc.configurable) {
+    if (!desc.isConfigurable()) {
       throw MakeTypeError("proxy_prop_not_configurable",
                           [handler, "getPropertyDescriptor", p, descriptor]);
     }
@@ -595,7 +615,7 @@ function HasProperty(obj, p) {
     var handler = %GetHandler(obj);
     var has = handler.has;
     if (IS_UNDEFINED(has)) has = DerivedHasTrap;
-    return ToBoolean(has.call(handler, obj, p));
+    return ToBoolean(%_CallFunction(handler, obj, p, has));
   }
   var desc = GetProperty(obj, p);
   return IS_UNDEFINED(desc) ? false : true;
@@ -604,6 +624,23 @@ function HasProperty(obj, p) {
 
 // ES5 section 8.12.1.
 function GetOwnProperty(obj, p) {
+  if (%IsJSProxy(obj)) {
+    var handler = %GetHandler(obj);
+    var getOwnProperty = handler.getOwnPropertyDescriptor;
+    if (IS_UNDEFINED(getOwnProperty)) {
+      throw MakeTypeError("handler_trap_missing",
+                          [handler, "getOwnPropertyDescriptor"]);
+    }
+    var descriptor = %_CallFunction(handler, p, getOwnProperty);
+    if (IS_UNDEFINED(descriptor)) return descriptor;
+    var desc = ToCompletePropertyDescriptor(descriptor);
+    if (!desc.isConfigurable()) {
+      throw MakeTypeError("proxy_prop_not_configurable",
+                          [handler, "getOwnPropertyDescriptor", p, descriptor]);
+    }
+    return desc;
+  }
+
   // GetOwnProperty returns an array indexed by the constants
   // defined in macros.py.
   // If p is not a property on obj undefined is returned.
@@ -616,8 +653,32 @@ function GetOwnProperty(obj, p) {
 }
 
 
+// Harmony proxies.
+function DefineProxyProperty(obj, p, attributes, should_throw) {
+  var handler = %GetHandler(obj);
+  var defineProperty = handler.defineProperty;
+  if (IS_UNDEFINED(defineProperty)) {
+    throw MakeTypeError("handler_trap_missing", [handler, "defineProperty"]);
+  }
+  var result = %_CallFunction(handler, p, attributes, defineProperty);
+  if (!ToBoolean(result)) {
+    if (should_throw) {
+      throw MakeTypeError("handler_failed", [handler, "defineProperty"]);
+    } else {
+      return false;
+    }
+  }
+  return true;
+}
+
+
 // ES5 8.12.9.
 function DefineOwnProperty(obj, p, desc, should_throw) {
+  if (%IsJSProxy(obj)) {
+    var attributes = FromGenericPropertyDescriptor(desc);
+    return DefineProxyProperty(obj, p, attributes, should_throw);
+  }
+
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
   if (current_or_access === false) return void 0;
@@ -792,7 +853,8 @@ function ObjectGetPrototypeOf(obj) {
 // ES5 section 15.2.3.3
 function ObjectGetOwnPropertyDescriptor(obj, p) {
   if (!IS_SPEC_OBJECT(obj))
-    throw MakeTypeError("obj_ctor_property_non_object", ["getOwnPropertyDescriptor"]);
+    throw MakeTypeError("obj_ctor_property_non_object",
+                        ["getOwnPropertyDescriptor"]);
   var desc = GetOwnProperty(obj, p);
   return FromPropertyDescriptor(desc);
 }
@@ -831,7 +893,7 @@ function ObjectGetOwnPropertyNames(obj) {
       throw MakeTypeError("handler_trap_missing",
                           [handler, "getOwnPropertyNames"]);
     }
-    var names = getOwnPropertyNames.call(handler);
+    var names = %_CallFunction(handler, getOwnPropertyNames);
     return ToStringArray(names, "getOwnPropertyNames");
   }
 
@@ -900,8 +962,37 @@ function ObjectDefineProperty(obj, p, attributes) {
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperty"]);
   }
   var name = ToString(p);
-  var desc = ToPropertyDescriptor(attributes);
-  DefineOwnProperty(obj, name, desc, true);
+  if (%IsJSProxy(obj)) {
+    // Clone the attributes object for protection.
+    // TODO(rossberg): not spec'ed yet, so not sure if this should involve
+    // non-own properties as it does (or non-enumerable ones, as it doesn't?).
+    var attributesClone = {}
+    for (var a in attributes) {
+      attributesClone[a] = attributes[a];
+    }
+    DefineProxyProperty(obj, name, attributesClone, true);
+    // The following would implement the spec as in the current proposal,
+    // but after recent comments on es-discuss, is most likely obsolete.
+    /*
+    var defineObj = FromGenericPropertyDescriptor(desc);
+    var names = ObjectGetOwnPropertyNames(attributes);
+    var standardNames =
+      {value: 0, writable: 0, get: 0, set: 0, enumerable: 0, configurable: 0};
+    for (var i = 0; i < names.length; i++) {
+      var N = names[i];
+      if (!(%HasLocalProperty(standardNames, N))) {
+        var attr = GetOwnProperty(attributes, N);
+        DefineOwnProperty(descObj, N, attr, true);
+      }
+    }
+    // This is really confusing the types, but it is what the proxies spec
+    // currently requires:
+    desc = descObj;
+    */
+  } else {
+    var desc = ToPropertyDescriptor(attributes);
+    DefineOwnProperty(obj, name, desc, true);
+  }
   return obj;
 }
 

@@ -54,16 +54,11 @@
 
 #define LOG_API(isolate, expr) LOG(isolate, ApiEntryCall(expr))
 
-#ifdef ENABLE_VMSTATE_TRACKING
 #define ENTER_V8(isolate)                                        \
   ASSERT((isolate)->IsInitialized());                           \
   i::VMState __state__((isolate), i::OTHER)
 #define LEAVE_V8(isolate) \
   i::VMState __state__((isolate), i::EXTERNAL)
-#else
-#define ENTER_V8(isolate) ((void) 0)
-#define LEAVE_V8(isolate) ((void) 0)
-#endif
 
 namespace v8 {
 
@@ -114,9 +109,7 @@ namespace v8 {
 
 static void DefaultFatalErrorHandler(const char* location,
                                      const char* message) {
-#ifdef ENABLE_VMSTATE_TRACKING
   i::VMState __state__(i::Isolate::Current(), i::OTHER);
-#endif
   API_Fatal(location, message);
 }
 
@@ -4832,37 +4825,20 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
 
 
 void V8::PauseProfiler() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   isolate->logger()->PauseProfiler();
-#endif
 }
 
 
 void V8::ResumeProfiler() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   isolate->logger()->ResumeProfiler();
-#endif
 }
 
 
 bool V8::IsProfilerPaused() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   return isolate->logger()->IsProfilerPaused();
-#else
-  return true;
-#endif
-}
-
-
-int V8::GetLogLines(int from_pos, char* dest_buf, int max_size) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
-  ASSERT(max_size >= kMinimumSizeForLogLinesBuffer);
-  return LOGGER->GetLogLines(from_pos, dest_buf, max_size);
-#endif
-  return 0;
 }
 
 
@@ -5327,7 +5303,6 @@ Local<Context> Debug::GetDebugContext() {
 
 
 Handle<String> CpuProfileNode::GetFunctionName() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetFunctionName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
@@ -5340,117 +5315,77 @@ Handle<String> CpuProfileNode::GetFunctionName() const {
         isolate->factory()->LookupAsciiSymbol(entry->name_prefix()),
         isolate->factory()->LookupAsciiSymbol(entry->name()))));
   }
-#else
-  return v8::String::Empty();
-#endif
 }
 
 
 Handle<String> CpuProfileNode::GetScriptResourceName() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetScriptResourceName");
   const i::ProfileNode* node = reinterpret_cast<const i::ProfileNode*>(this);
   return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       node->entry()->resource_name())));
-#else
-  return v8::String::Empty();
-#endif
 }
 
 
 int CpuProfileNode::GetLineNumber() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetLineNumber");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->line_number();
-#else
-  return 0;
-#endif
 }
 
 
 double CpuProfileNode::GetTotalTime() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalTime");
   return reinterpret_cast<const i::ProfileNode*>(this)->GetTotalMillis();
-#else
-  return 0.0;
-#endif
 }
 
 
 double CpuProfileNode::GetSelfTime() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfTime");
   return reinterpret_cast<const i::ProfileNode*>(this)->GetSelfMillis();
-#else
-  return 0.0;
-#endif
 }
 
 
 double CpuProfileNode::GetTotalSamplesCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetTotalSamplesCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->total_ticks();
-#else
-  return 0.0;
-#endif
 }
 
 
 double CpuProfileNode::GetSelfSamplesCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetSelfSamplesCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->self_ticks();
-#else
-  return 0.0;
-#endif
 }
 
 
 unsigned CpuProfileNode::GetCallUid() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetCallUid");
   return reinterpret_cast<const i::ProfileNode*>(this)->entry()->GetCallUid();
-#else
-  return 0;
-#endif
 }
 
 
 int CpuProfileNode::GetChildrenCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetChildrenCount");
   return reinterpret_cast<const i::ProfileNode*>(this)->children()->length();
-#else
-  return 0;
-#endif
 }
 
 
 const CpuProfileNode* CpuProfileNode::GetChild(int index) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfileNode::GetChild");
   const i::ProfileNode* child =
       reinterpret_cast<const i::ProfileNode*>(this)->children()->at(index);
   return reinterpret_cast<const CpuProfileNode*>(child);
-#else
-  return NULL;
-#endif
 }
 
 
 void CpuProfile::Delete() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::Delete");
   i::CpuProfiler::DeleteProfile(reinterpret_cast<i::CpuProfile*>(this));
@@ -5459,153 +5394,109 @@ void CpuProfile::Delete() {
     // If this was the last profile, clean up all accessory data as well.
     i::CpuProfiler::DeleteAllProfiles();
   }
-#endif
 }
 
 
 unsigned CpuProfile::GetUid() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetUid");
   return reinterpret_cast<const i::CpuProfile*>(this)->uid();
-#else
-  return 0;
-#endif
 }
 
 
 Handle<String> CpuProfile::GetTitle() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTitle");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       profile->title())));
-#else
-  return v8::String::Empty();
-#endif
 }
 
 
 const CpuProfileNode* CpuProfile::GetBottomUpRoot() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetBottomUpRoot");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->bottom_up()->root());
-#else
-  return NULL;
-#endif
 }
 
 
 const CpuProfileNode* CpuProfile::GetTopDownRoot() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfile::GetTopDownRoot");
   const i::CpuProfile* profile = reinterpret_cast<const i::CpuProfile*>(this);
   return reinterpret_cast<const CpuProfileNode*>(profile->top_down()->root());
-#else
-  return NULL;
-#endif
 }
 
 
 int CpuProfiler::GetProfilesCount() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::GetProfilesCount");
   return i::CpuProfiler::GetProfilesCount();
-#else
-  return 0;
-#endif
 }
 
 
 const CpuProfile* CpuProfiler::GetProfile(int index,
                                           Handle<Value> security_token) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::GetProfile");
   return reinterpret_cast<const CpuProfile*>(
       i::CpuProfiler::GetProfile(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           index));
-#else
-  return NULL;
-#endif
 }
 
 
 const CpuProfile* CpuProfiler::FindProfile(unsigned uid,
                                            Handle<Value> security_token) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::FindProfile");
   return reinterpret_cast<const CpuProfile*>(
       i::CpuProfiler::FindProfile(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           uid));
-#else
-  return NULL;
-#endif
 }
 
 
 void CpuProfiler::StartProfiling(Handle<String> title) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::StartProfiling");
   i::CpuProfiler::StartProfiling(*Utils::OpenHandle(*title));
-#endif
 }
 
 
 const CpuProfile* CpuProfiler::StopProfiling(Handle<String> title,
                                              Handle<Value> security_token) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::StopProfiling");
   return reinterpret_cast<const CpuProfile*>(
       i::CpuProfiler::StopProfiling(
           security_token.IsEmpty() ? NULL : *Utils::OpenHandle(*security_token),
           *Utils::OpenHandle(*title)));
-#else
-  return NULL;
-#endif
 }
 
 
 void CpuProfiler::DeleteAllProfiles() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::CpuProfiler::DeleteAllProfiles");
   i::CpuProfiler::DeleteAllProfiles();
-#endif
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 static i::HeapGraphEdge* ToInternal(const HeapGraphEdge* edge) {
   return const_cast<i::HeapGraphEdge*>(
       reinterpret_cast<const i::HeapGraphEdge*>(edge));
 }
-#endif
 
 
 HeapGraphEdge::Type HeapGraphEdge::GetType() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetType");
   return static_cast<HeapGraphEdge::Type>(ToInternal(this)->type());
-#else
-  return static_cast<HeapGraphEdge::Type>(0);
-#endif
 }
 
 
 Handle<Value> HeapGraphEdge::GetName() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetName");
   i::HeapGraphEdge* edge = ToInternal(this);
@@ -5622,166 +5513,112 @@ Handle<Value> HeapGraphEdge::GetName() const {
           edge->index())));
     default: UNREACHABLE();
   }
-#endif
   return v8::Undefined();
 }
 
 
 const HeapGraphNode* HeapGraphEdge::GetFromNode() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetFromNode");
   const i::HeapEntry* from = ToInternal(this)->From();
   return reinterpret_cast<const HeapGraphNode*>(from);
-#else
-  return NULL;
-#endif
 }
 
 
 const HeapGraphNode* HeapGraphEdge::GetToNode() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphEdge::GetToNode");
   const i::HeapEntry* to = ToInternal(this)->to();
   return reinterpret_cast<const HeapGraphNode*>(to);
-#else
-  return NULL;
-#endif
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 static i::HeapEntry* ToInternal(const HeapGraphNode* entry) {
   return const_cast<i::HeapEntry*>(
       reinterpret_cast<const i::HeapEntry*>(entry));
 }
-#endif
 
 
 HeapGraphNode::Type HeapGraphNode::GetType() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetType");
   return static_cast<HeapGraphNode::Type>(ToInternal(this)->type());
-#else
-  return static_cast<HeapGraphNode::Type>(0);
-#endif
 }
 
 
 Handle<String> HeapGraphNode::GetName() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetName");
   return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       ToInternal(this)->name())));
-#else
-  return v8::String::Empty();
-#endif
 }
 
 
 uint64_t HeapGraphNode::GetId() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetId");
   return ToInternal(this)->id();
-#else
-  return 0;
-#endif
 }
 
 
 int HeapGraphNode::GetSelfSize() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapGraphNode::GetSelfSize");
   return ToInternal(this)->self_size();
-#else
-  return 0;
-#endif
 }
 
 
 int HeapGraphNode::GetRetainedSize(bool exact) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainedSize");
   return ToInternal(this)->RetainedSize(exact);
-#else
-  return 0;
-#endif
 }
 
 
 int HeapGraphNode::GetChildrenCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetChildrenCount");
   return ToInternal(this)->children().length();
-#else
-  return 0;
-#endif
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetChild(int index) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetChild");
   return reinterpret_cast<const HeapGraphEdge*>(
       &ToInternal(this)->children()[index]);
-#else
-  return NULL;
-#endif
 }
 
 
 int HeapGraphNode::GetRetainersCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainersCount");
   return ToInternal(this)->retainers().length();
-#else
-  return 0;
-#endif
 }
 
 
 const HeapGraphEdge* HeapGraphNode::GetRetainer(int index) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetRetainer");
   return reinterpret_cast<const HeapGraphEdge*>(
       ToInternal(this)->retainers()[index]);
-#else
-  return NULL;
-#endif
 }
 
 
 const HeapGraphNode* HeapGraphNode::GetDominatorNode() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetDominatorNode");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->dominator());
-#else
-  return NULL;
-#endif
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 static i::HeapSnapshot* ToInternal(const HeapSnapshot* snapshot) {
   return const_cast<i::HeapSnapshot*>(
       reinterpret_cast<const i::HeapSnapshot*>(snapshot));
 }
-#endif
 
 
 void HeapSnapshot::Delete() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::Delete");
   if (i::HeapProfiler::GetSnapshotsCount() > 1) {
@@ -5790,93 +5627,63 @@ void HeapSnapshot::Delete() {
     // If this is the last snapshot, clean up all accessory data as well.
     i::HeapProfiler::DeleteAllSnapshots();
   }
-#endif
 }
 
 
 HeapSnapshot::Type HeapSnapshot::GetType() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetType");
   return static_cast<HeapSnapshot::Type>(ToInternal(this)->type());
-#else
-  return static_cast<HeapSnapshot::Type>(0);
-#endif
 }
 
 
 unsigned HeapSnapshot::GetUid() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetUid");
   return ToInternal(this)->uid();
-#else
-  return 0;
-#endif
 }
 
 
 Handle<String> HeapSnapshot::GetTitle() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetTitle");
   return Handle<String>(ToApi<String>(isolate->factory()->LookupAsciiSymbol(
       ToInternal(this)->title())));
-#else
-  return v8::String::Empty();
-#endif
 }
 
 
 const HeapGraphNode* HeapSnapshot::GetRoot() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetHead");
   return reinterpret_cast<const HeapGraphNode*>(ToInternal(this)->root());
-#else
-  return 0;
-#endif
 }
 
 
 const HeapGraphNode* HeapSnapshot::GetNodeById(uint64_t id) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodeById");
   return reinterpret_cast<const HeapGraphNode*>(
       ToInternal(this)->GetEntryById(id));
-#else
-  return NULL;
-#endif
 }
 
 
 int HeapSnapshot::GetNodesCount() const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNodesCount");
   return ToInternal(this)->entries()->length();
-#else
-  return 0;
-#endif
 }
 
 
 const HeapGraphNode* HeapSnapshot::GetNode(int index) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::GetNode");
   return reinterpret_cast<const HeapGraphNode*>(
       ToInternal(this)->entries()->at(index));
-#else
-  return 0;
-#endif
 }
 
 
 void HeapSnapshot::Serialize(OutputStream* stream,
                              HeapSnapshot::SerializationFormat format) const {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapSnapshot::Serialize");
   ApiCheck(format == kJSON,
@@ -5890,49 +5697,35 @@ void HeapSnapshot::Serialize(OutputStream* stream,
            "Invalid stream chunk size");
   i::HeapSnapshotJSONSerializer serializer(ToInternal(this));
   serializer.Serialize(stream);
-#endif
 }
 
 
 int HeapProfiler::GetSnapshotsCount() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshotsCount");
   return i::HeapProfiler::GetSnapshotsCount();
-#else
-  return 0;
-#endif
 }
 
 
 const HeapSnapshot* HeapProfiler::GetSnapshot(int index) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::GetSnapshot");
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::GetSnapshot(index));
-#else
-  return NULL;
-#endif
 }
 
 
 const HeapSnapshot* HeapProfiler::FindSnapshot(unsigned uid) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::FindSnapshot");
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::FindSnapshot(uid));
-#else
-  return NULL;
-#endif
 }
 
 
 const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
                                                HeapSnapshot::Type type,
                                                ActivityControl* control) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::TakeSnapshot");
   i::HeapSnapshot::Type internal_type = i::HeapSnapshot::kFull;
@@ -5946,27 +5739,20 @@ const HeapSnapshot* HeapProfiler::TakeSnapshot(Handle<String> title,
   return reinterpret_cast<const HeapSnapshot*>(
       i::HeapProfiler::TakeSnapshot(
           *Utils::OpenHandle(*title), internal_type, control));
-#else
-  return NULL;
-#endif
 }
 
 
 void HeapProfiler::DeleteAllSnapshots() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate* isolate = i::Isolate::Current();
   IsDeadCheck(isolate, "v8::HeapProfiler::DeleteAllSnapshots");
   i::HeapProfiler::DeleteAllSnapshots();
-#endif
 }
 
 
 void HeapProfiler::DefineWrapperClass(uint16_t class_id,
                                       WrapperInfoCallback callback) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   i::Isolate::Current()->heap_profiler()->DefineWrapperClass(class_id,
                                                              callback);
-#endif
 }
 
 

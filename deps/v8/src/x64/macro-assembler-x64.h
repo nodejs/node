@@ -846,6 +846,15 @@ class MacroAssembler: public Assembler {
                               Label* miss);
 
 
+  void LoadFromNumberDictionary(Label* miss,
+                                Register elements,
+                                Register key,
+                                Register r0,
+                                Register r1,
+                                Register r2,
+                                Register result);
+
+
   // ---------------------------------------------------------------------------
   // Allocation support
 

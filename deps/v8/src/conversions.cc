@@ -430,24 +430,4 @@ char* DoubleToRadixCString(double value, int radix) {
   return builder.Finalize();
 }
 
-
-static Mutex* dtoa_lock_one = OS::CreateMutex();
-static Mutex* dtoa_lock_zero = OS::CreateMutex();
-
-
 } }  // namespace v8::internal
-
-
-extern "C" {
-void ACQUIRE_DTOA_LOCK(int n) {
-  ASSERT(n == 0 || n == 1);
-  (n == 0 ? v8::internal::dtoa_lock_zero : v8::internal::dtoa_lock_one)->Lock();
-}
-
-
-void FREE_DTOA_LOCK(int n) {
-  ASSERT(n == 0 || n == 1);
-  (n == 0 ? v8::internal::dtoa_lock_zero : v8::internal::dtoa_lock_one)->
-      Unlock();
-}
-}

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,6 +35,7 @@
 #include "execution.h"
 #include "factory.h"
 #include "flags.h"
+#include "frames-inl.h"
 #include "hashmap.h"
 #include "platform.h"
 #include "string-stream.h"

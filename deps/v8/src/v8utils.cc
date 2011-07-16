@@ -110,11 +110,11 @@ char* ReadLine(const char* prompt) {
 }
 
 
-char* ReadCharsFromFile(const char* filename,
+char* ReadCharsFromFile(FILE* file,
                         int* size,
                         int extra_space,
-                        bool verbose) {
-  FILE* file = OS::FOpen(filename, "rb");
+                        bool verbose,
+                        const char* filename) {
   if (file == NULL || fseek(file, 0, SEEK_END) != 0) {
     if (verbose) {
       OS::PrintError("Cannot read from file %s.\n", filename);
@@ -127,16 +127,26 @@ char* ReadCharsFromFile(const char* filename,
   rewind(file);
 
   char* result = NewArray<char>(*size + extra_space);
-  for (int i = 0; i < *size;) {
+  for (int i = 0; i < *size && feof(file) == 0;) {
     int read = static_cast<int>(fread(&result[i], 1, *size - i, file));
-    if (read <= 0) {
+    if (read != (*size - i) && ferror(file) != 0) {
       fclose(file);
       DeleteArray(result);
       return NULL;
     }
     i += read;
   }
-  fclose(file);
+  return result;
+}
+
+
+char* ReadCharsFromFile(const char* filename,
+                        int* size,
+                        int extra_space,
+                        bool verbose) {
+  FILE* file = OS::FOpen(filename, "rb");
+  char* result = ReadCharsFromFile(file, size, extra_space, verbose, filename);
+  if (file != NULL) fclose(file);
   return result;
 }
 
@@ -147,18 +157,34 @@ byte* ReadBytes(const char* filename, int* size, bool verbose) {
 }
 
 
+static Vector<const char> SetVectorContents(char* chars,
+                                            int size,
+                                            bool* exists) {
+  if (!chars) {
+    *exists = false;
+    return Vector<const char>::empty();
+  }
+  chars[size] = '\0';
+  *exists = true;
+  return Vector<const char>(chars, size);
+}
+
+
 Vector<const char> ReadFile(const char* filename,
                             bool* exists,
                             bool verbose) {
   int size;
   char* result = ReadCharsFromFile(filename, &size, 1, verbose);
-  if (!result) {
-    *exists = false;
-    return Vector<const char>::empty();
-  }
-  result[size] = '\0';
-  *exists = true;
-  return Vector<const char>(result, size);
+  return SetVectorContents(result, size, exists);
+}
+
+
+Vector<const char> ReadFile(FILE* file,
+                            bool* exists,
+                            bool verbose) {
+  int size;
+  char* result = ReadCharsFromFile(file, &size, 1, verbose, "");
+  return SetVectorContents(result, size, exists);
 }
 
 

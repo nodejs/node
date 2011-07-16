@@ -395,12 +395,11 @@ struct AccessorDescriptor {
 };
 
 
-// Logging and profiling.
-// A StateTag represents a possible state of the VM.  When compiled with
-// ENABLE_VMSTATE_TRACKING, the logger maintains a stack of these.
-// Creating a VMState object enters a state by pushing on the stack, and
-// destroying a VMState object leaves a state by popping the current state
-// from the stack.
+// Logging and profiling.  A StateTag represents a possible state of
+// the VM. The logger maintains a stack of these. Creating a VMState
+// object enters a state by pushing on the stack, and destroying a
+// VMState object leaves a state by popping the current state from the
+// stack.
 
 #define STATE_TAG_LIST(V) \
   V(JS)                   \

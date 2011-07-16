@@ -85,13 +85,9 @@ void ThreadLocalTop::InitializeInternal() {
 #ifdef USE_SIMULATOR
   simulator_ = NULL;
 #endif
-#ifdef ENABLE_LOGGING_AND_PROFILING
   js_entry_sp_ = NULL;
   external_callback_ = NULL;
-#endif
-#ifdef ENABLE_VMSTATE_TRACKING
   current_vm_state_ = EXTERNAL;
-#endif
   try_catch_handler_address_ = NULL;
   context_ = NULL;
   thread_id_ = ThreadId::Invalid();
@@ -1279,11 +1275,9 @@ Handle<Context> Isolate::GetCallingGlobalContext() {
 
 
 char* Isolate::ArchiveThread(char* to) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
     RuntimeProfiler::IsolateExitedJS(this);
   }
-#endif
   memcpy(to, reinterpret_cast<char*>(thread_local_top()),
          sizeof(ThreadLocalTop));
   InitializeThreadLocal();
@@ -1303,12 +1297,10 @@ char* Isolate::RestoreThread(char* from) {
   thread_local_top()->simulator_ = Simulator::current(this);
 #endif
 #endif
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (RuntimeProfiler::IsEnabled() && current_vm_state() == JS) {
     RuntimeProfiler::IsolateEnteredJS(this);
   }
   ASSERT(context() == NULL || context()->IsContext());
-#endif
   return from + sizeof(ThreadLocalTop);
 }
 
@@ -1627,7 +1619,6 @@ bool Isolate::PreInit() {
 #define C(name) isolate_addresses_[Isolate::k_##name] =                        \
     reinterpret_cast<Address>(name());
   ISOLATE_ADDRESS_LIST(C)
-  ISOLATE_ADDRESS_LIST_PROF(C)
 #undef C
 
   string_tracker_ = new StringTracker();

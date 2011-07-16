@@ -491,6 +491,7 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
   ASSERT(output.length() >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
     bool is_ascii = subject->IsAsciiRepresentation();
+    EnsureCompiledIrregexp(regexp, is_ascii);
     Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii), isolate);
     NativeRegExpMacroAssembler::Result res =
         NativeRegExpMacroAssembler::Match(code,

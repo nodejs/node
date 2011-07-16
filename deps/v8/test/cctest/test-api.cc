@@ -12633,9 +12633,10 @@ v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
                     stackTrace->GetFrame(0));
     checkStackFrame(origin, "foo", 6, 3, false, false,
                     stackTrace->GetFrame(1));
-    checkStackFrame(NULL, "", 1, 1, false, false,
+    // This is the source string inside the eval which has the call to foo.
+    checkStackFrame(NULL, "", 1, 5, false, false,
                     stackTrace->GetFrame(2));
-    // The last frame is an anonymous function that has the initial call.
+    // The last frame is an anonymous function which has the initial eval call.
     checkStackFrame(origin, "", 8, 7, false, false,
                     stackTrace->GetFrame(3));
 
@@ -12654,9 +12655,10 @@ v8::Handle<Value> AnalyzeStackInNativeCode(const v8::Arguments& args) {
     bool is_eval = false;
 #endif  // ENABLE_DEBUGGER_SUPPORT
 
-    checkStackFrame(NULL, "", 1, 1, is_eval, false,
+    // This is the source string inside the eval which has the call to baz.
+    checkStackFrame(NULL, "", 1, 5, is_eval, false,
                     stackTrace->GetFrame(2));
-    // The last frame is an anonymous function that has the initial call to foo.
+    // The last frame is an anonymous function which has the initial eval call.
     checkStackFrame(origin, "", 10, 1, false, false,
                     stackTrace->GetFrame(3));
 

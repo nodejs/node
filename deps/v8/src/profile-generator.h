@@ -28,8 +28,6 @@
 #ifndef V8_PROFILE_GENERATOR_H_
 #define V8_PROFILE_GENERATOR_H_
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "allocation.h"
 #include "hashmap.h"
 #include "../include/v8-profiler.h"
@@ -1125,7 +1123,5 @@ class HeapSnapshotJSONSerializer {
 String* GetConstructorNameForHeapProfile(JSObject* object);
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 #endif  // V8_PROFILE_GENERATOR_H_

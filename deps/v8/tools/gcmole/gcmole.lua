@@ -97,8 +97,6 @@ local function MakeClangCommandLine(plugin, plugin_args, triple, arch_define)
       .. (plugin_args or "")
       .. " -triple " .. triple
       .. " -D" .. arch_define
-      .. " -DENABLE_VMSTATE_TRACKING"
-      .. " -DENABLE_LOGGING_AND_PROFILING"
       .. " -DENABLE_DEBUGGER_SUPPORT"
       .. " -Isrc"
 end

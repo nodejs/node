@@ -43,6 +43,11 @@
 namespace v8 {
 namespace internal {
 
+static inline double JunkStringValue() {
+  return std::numeric_limits<double>::quiet_NaN();
+}
+
+
 // The fast double-to-unsigned-int conversion routine does not guarantee
 // rounding towards zero, or any reasonable value if the argument is larger
 // than what fits in an unsigned 32-bit integer.
@@ -151,7 +156,7 @@ static double InternalStringToIntDouble(UnicodeCache* unicode_cache,
           !AdvanceToNonspace(unicode_cache, &current, end)) {
         break;
       } else {
-        return JUNK_STRING_VALUE;
+        return JunkStringValue();
       }
     }
 
@@ -181,7 +186,7 @@ static double InternalStringToIntDouble(UnicodeCache* unicode_cache,
 
       if (!allow_trailing_junk &&
           AdvanceToNonspace(unicode_cache, &current, end)) {
-        return JUNK_STRING_VALUE;
+        return JunkStringValue();
       }
 
       int middle_value = (1 << (overflow_bits_count - 1));
@@ -229,7 +234,7 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
                                   EndMark end,
                                   int radix) {
   const bool allow_trailing_junk = true;
-  const double empty_string_val = JUNK_STRING_VALUE;
+  const double empty_string_val = JunkStringValue();
 
   if (!AdvanceToNonspace(unicode_cache, &current, end)) {
     return empty_string_val;
@@ -242,12 +247,12 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
     // Ignore leading sign; skip following spaces.
     ++current;
     if (current == end) {
-      return JUNK_STRING_VALUE;
+      return JunkStringValue();
     }
   } else if (*current == '-') {
     ++current;
     if (current == end) {
-      return JUNK_STRING_VALUE;
+      return JunkStringValue();
     }
     negative = true;
   }
@@ -260,7 +265,7 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
       if (*current == 'x' || *current == 'X') {
         radix = 16;
         ++current;
-        if (current == end) return JUNK_STRING_VALUE;
+        if (current == end) return JunkStringValue();
       } else {
         radix = 8;
         leading_zero = true;
@@ -275,14 +280,14 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
       if (current == end) return SignedZero(negative);
       if (*current == 'x' || *current == 'X') {
         ++current;
-        if (current == end) return JUNK_STRING_VALUE;
+        if (current == end) return JunkStringValue();
       } else {
         leading_zero = true;
       }
     }
   }
 
-  if (radix < 2 || radix > 36) return JUNK_STRING_VALUE;
+  if (radix < 2 || radix > 36) return JunkStringValue();
 
   // Skip leading zeros.
   while (*current == '0') {
@@ -292,7 +297,7 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
   }
 
   if (!leading_zero && !isDigit(*current, radix)) {
-    return JUNK_STRING_VALUE;
+    return JunkStringValue();
   }
 
   if (IsPowerOf2(radix)) {
@@ -340,7 +345,7 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
 
     if (!allow_trailing_junk &&
         AdvanceToNonspace(unicode_cache, &current, end)) {
-      return JUNK_STRING_VALUE;
+      return JunkStringValue();
     }
 
     ASSERT(buffer_pos < kBufferSize);
@@ -406,7 +411,7 @@ static double InternalStringToInt(UnicodeCache* unicode_cache,
 
   if (!allow_trailing_junk &&
       AdvanceToNonspace(unicode_cache, &current, end)) {
-    return JUNK_STRING_VALUE;
+    return JunkStringValue();
   }
 
   return negative ? -v : v;
@@ -456,22 +461,22 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
   if (*current == '+') {
     // Ignore leading sign.
     ++current;
-    if (current == end) return JUNK_STRING_VALUE;
+    if (current == end) return JunkStringValue();
   } else if (*current == '-') {
     ++current;
-    if (current == end) return JUNK_STRING_VALUE;
+    if (current == end) return JunkStringValue();
     negative = true;
   }
 
   static const char kInfinitySymbol[] = "Infinity";
   if (*current == kInfinitySymbol[0]) {
     if (!SubStringEquals(&current, end, kInfinitySymbol)) {
-      return JUNK_STRING_VALUE;
+      return JunkStringValue();
     }
 
     if (!allow_trailing_junk &&
         AdvanceToNonspace(unicode_cache, &current, end)) {
-      return JUNK_STRING_VALUE;
+      return JunkStringValue();
     }
 
     ASSERT(buffer_pos == 0);
@@ -489,7 +494,7 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
     if ((flags & ALLOW_HEX) && (*current == 'x' || *current == 'X')) {
       ++current;
       if (current == end || !isDigit(*current, 16)) {
-        return JUNK_STRING_VALUE;  // "0x".
+        return JunkStringValue();  // "0x".
       }
 
       return InternalStringToIntDouble<4>(unicode_cache,
@@ -529,13 +534,13 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
   }
 
   if (*current == '.') {
-    if (octal && !allow_trailing_junk) return JUNK_STRING_VALUE;
+    if (octal && !allow_trailing_junk) return JunkStringValue();
     if (octal) goto parsing_done;
 
     ++current;
     if (current == end) {
       if (significant_digits == 0 && !leading_zero) {
-        return JUNK_STRING_VALUE;
+        return JunkStringValue();
       } else {
         goto parsing_done;
       }
@@ -576,18 +581,18 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
     // If exponent < 0 then string was [+-]\.0*...
     // If significant_digits != 0 the string is not equal to 0.
     // Otherwise there are no digits in the string.
-    return JUNK_STRING_VALUE;
+    return JunkStringValue();
   }
 
   // Parse exponential part.
   if (*current == 'e' || *current == 'E') {
-    if (octal) return JUNK_STRING_VALUE;
+    if (octal) return JunkStringValue();
     ++current;
     if (current == end) {
       if (allow_trailing_junk) {
         goto parsing_done;
       } else {
-        return JUNK_STRING_VALUE;
+        return JunkStringValue();
       }
     }
     char sign = '+';
@@ -598,7 +603,7 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
         if (allow_trailing_junk) {
           goto parsing_done;
         } else {
-          return JUNK_STRING_VALUE;
+          return JunkStringValue();
         }
       }
     }
@@ -607,7 +612,7 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
       if (allow_trailing_junk) {
         goto parsing_done;
       } else {
-        return JUNK_STRING_VALUE;
+        return JunkStringValue();
       }
     }
 
@@ -631,7 +636,7 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
 
   if (!allow_trailing_junk &&
       AdvanceToNonspace(unicode_cache, &current, end)) {
-    return JUNK_STRING_VALUE;
+    return JunkStringValue();
   }
 
   parsing_done:

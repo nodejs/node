@@ -44,11 +44,6 @@
 namespace v8 {
 namespace internal {
 
-intptr_t OS::MaxVirtualMemory() {
-  return 0;
-}
-
-
 // Test for finite value - usually defined in math.h
 int isfinite(double x) {
   return _finite(x);
@@ -143,16 +138,39 @@ int fopen_s(FILE** pFile, const char* filename, const char* mode) {
 }
 
 
+#define _TRUNCATE 0
+#define STRUNCATE 80
+
 int _vsnprintf_s(char* buffer, size_t sizeOfBuffer, size_t count,
                  const char* format, va_list argptr) {
+  ASSERT(count == _TRUNCATE);
   return _vsnprintf(buffer, sizeOfBuffer, format, argptr);
 }
-#define _TRUNCATE 0
 
 
-int strncpy_s(char* strDest, size_t numberOfElements,
-              const char* strSource, size_t count) {
-  strncpy(strDest, strSource, count);
+int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
+  CHECK(source != NULL);
+  CHECK(dest != NULL);
+  CHECK_GT(dest_size, 0);
+
+  if (count == _TRUNCATE) {
+    while (dest_size > 0 && *source != 0) {
+      *(dest++) = *(source++);
+      --dest_size;
+    }
+    if (dest_size == 0) {
+      *(dest - 1) = 0;
+      return STRUNCATE;
+    }
+  } else {
+    while (dest_size > 0 && count > 0 && *source != 0) {
+      *(dest++) = *(source++);
+      --dest_size;
+      --count;
+    }
+  }
+  CHECK_GT(dest_size, 0);
+  *dest = 0;
   return 0;
 }
 
@@ -173,6 +191,11 @@ int random() {
 
 namespace v8 {
 namespace internal {
+
+intptr_t OS::MaxVirtualMemory() {
+  return 0;
+}
+
 
 double ceiling(double x) {
   return ceil(x);
@@ -717,6 +740,24 @@ bool OS::Remove(const char* path) {
 }
 
 
+FILE* OS::OpenTemporaryFile() {
+  // tmpfile_s tries to use the root dir, don't use it.
+  char tempPathBuffer[MAX_PATH];
+  DWORD path_result = 0;
+  path_result = GetTempPathA(MAX_PATH, tempPathBuffer);
+  if (path_result > MAX_PATH || path_result == 0) return NULL;
+  UINT name_result = 0;
+  char tempNameBuffer[MAX_PATH];
+  name_result = GetTempFileNameA(tempPathBuffer, "", 0, tempNameBuffer);
+  if (name_result == 0) return NULL;
+  FILE* result = FOpen(tempNameBuffer, "w+");  // Same mode as tmpfile uses.
+  if (result != NULL) {
+    Remove(tempNameBuffer);  // Delete on close.
+  }
+  return result;
+}
+
+
 // Open log file in binary mode to avoid /n -> /r/n conversion.
 const char* const OS::LogFileOpenMode = "wb";
 
@@ -914,25 +955,6 @@ void OS::Free(void* address, const size_t size) {
   VirtualFree(address, 0, MEM_RELEASE);
   USE(size);
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  // TODO(1240712): VirtualProtect has a return value which is ignored here.
-  DWORD old_protect;
-  VirtualProtect(address, size, PAGE_READONLY, &old_protect);
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  // TODO(1240712): VirtualProtect has a return value which is ignored here.
-  DWORD new_protect = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  DWORD old_protect;
-  VirtualProtect(address, size, new_protect, &old_protect);
-}
-
-#endif
 
 
 void OS::Sleep(int milliseconds) {
@@ -1835,8 +1857,6 @@ Socket* OS::CreateSocket() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 // ----------------------------------------------------------------------------
 // Win32 profiler support.
 
@@ -2011,6 +2031,5 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

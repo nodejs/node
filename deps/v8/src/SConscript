@@ -231,15 +231,11 @@ SOURCES = {
 PREPARSER_SOURCES = {
   'all': Split("""
     allocation.cc
-    bignum.cc
-    cached-powers.cc
-    conversions.cc
     hashmap.cc
     preparse-data.cc
     preparser.cc
     preparser-api.cc
     scanner-base.cc
-    strtod.cc
     token.cc
     unicode.cc
     utils.cc
@@ -317,10 +313,7 @@ def ConfigureObjectFiles():
   env.Replace(**context.flags['v8'])
   context.ApplyEnvOverrides(env)
   env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
-  if 'ENABLE_LOGGING_AND_PROFILING' in env['CPPDEFINES']:
-    env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
-  else:
-    env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET')
+  env['BUILDERS']['Snapshot'] = Builder(action='$SOURCE $TARGET --logfile "$LOGFILE" --log-snapshot-positions')
 
   def BuildJS2CEnv(type):
     js2c_env = { 'TYPE': type, 'COMPRESSION': 'off' }

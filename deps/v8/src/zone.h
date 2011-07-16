@@ -164,7 +164,7 @@ class AssertNoZoneAllocation {
 class ZoneListAllocationPolicy {
  public:
   // Allocate 'size' bytes of memory in the zone.
-  INLINE(static void* New(int size));
+  static void* New(int size);
 
   // De-allocation attempts are silently ignored.
   static void Delete(void* p) { }

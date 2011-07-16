@@ -78,7 +78,6 @@ class SlidingStateWindow;
 class Ticker;
 
 #undef LOG
-#ifdef ENABLE_LOGGING_AND_PROFILING
 #define LOG(isolate, Call)                          \
   do {                                              \
     v8::internal::Logger* logger =                  \
@@ -86,9 +85,6 @@ class Ticker;
     if (logger->is_logging())                       \
       logger->Call;                                 \
   } while (false)
-#else
-#define LOG(isolate, Call) ((void) 0)
-#endif
 
 #define LOG_EVENTS_AND_TAGS_LIST(V)                                     \
   V(CODE_CREATION_EVENT,            "code-creation")                    \
@@ -161,7 +157,9 @@ class Logger {
   Sampler* sampler();
 
   // Frees resources acquired in Setup.
-  void TearDown();
+  // When a temporary file is used for the log, returns its stream descriptor,
+  // leaving the file open.
+  FILE* TearDown();
 
   // Enable the computation of a sliding window of states.
   void EnableSlidingStateWindow();
@@ -272,7 +270,6 @@ class Logger {
   // Log an event reported from generated code
   void LogRuntime(Vector<const char> format, JSArray* args);
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   bool is_logging() {
     return logging_nesting_ > 0;
   }
@@ -283,10 +280,6 @@ class Logger {
   void PauseProfiler();
   void ResumeProfiler();
   bool IsProfilerPaused();
-
-  // If logging is performed into a memory buffer, allows to
-  // retrieve previously written messages. See v8.h.
-  int GetLogLines(int from_pos, char* dest_buf, int max_size);
 
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
@@ -424,9 +417,6 @@ class Logger {
   Address prev_code_;
 
   friend class CpuProfiler;
-#else
-  bool is_logging() { return false; }
-#endif
 };
 
 

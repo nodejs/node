@@ -3100,7 +3100,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   //  -- r1    : receiver
   // -----------------------------------
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedLoadElementStub(receiver_map);
+  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(r1,
                  r2,
@@ -3193,7 +3194,10 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- r3    : scratch
   // -----------------------------------
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedStoreElementStub(receiver_map);
+  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+  MaybeObject* maybe_stub =
+      KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(r2,
                  r3,
@@ -3386,6 +3390,53 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 
 #undef __
 #define __ ACCESS_MASM(masm)
+
+
+void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
+    MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- r0     : key
+  //  -- r1     : receiver
+  // -----------------------------------
+  Label slow, miss_force_generic;
+
+  Register key = r0;
+  Register receiver = r1;
+
+  __ JumpIfNotSmi(key, &miss_force_generic);
+  __ mov(r2, Operand(key, ASR, kSmiTagSize));
+  __ ldr(r4, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ LoadFromNumberDictionary(&slow, r4, key, r0, r2, r3, r5);
+  __ Ret();
+
+  __ bind(&slow);
+  __ IncrementCounter(
+      masm->isolate()->counters()->keyed_load_external_array_slow(),
+      1, r2, r3);
+
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- r0     : key
+  //  -- r1     : receiver
+  // -----------------------------------
+  Handle<Code> slow_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_Slow();
+  __ Jump(slow_ic, RelocInfo::CODE_TARGET);
+
+  // Miss case, call the runtime.
+  __ bind(&miss_force_generic);
+
+  // ---------- S t a t e --------------
+  //  -- lr     : return address
+  //  -- r0     : key
+  //  -- r1     : receiver
+  // -----------------------------------
+
+  Handle<Code> miss_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
+  __ Jump(miss_ic, RelocInfo::CODE_TARGET);
+}
 
 
 static bool IsElementTypeSigned(JSObject::ElementsKind elements_kind) {

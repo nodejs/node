@@ -61,9 +61,7 @@ static const int kSizeLimit = 1500;
 Atomic32 RuntimeProfiler::state_ = 0;
 // TODO(isolates): Create the semaphore lazily and clean it up when no
 // longer required.
-#ifdef ENABLE_LOGGING_AND_PROFILING
 Semaphore* RuntimeProfiler::semaphore_ = OS::CreateSemaphore(0);
-#endif
 
 #ifdef DEBUG
 bool RuntimeProfiler::has_been_globally_setup_ = false;
@@ -245,9 +243,7 @@ void RuntimeProfiler::OptimizeNow() {
 
 
 void RuntimeProfiler::NotifyTick() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   isolate_->stack_guard()->RequestRuntimeProfilerTick();
-#endif
 }
 
 
@@ -295,7 +291,6 @@ void RuntimeProfiler::UpdateSamplesAfterScavenge() {
 
 
 void RuntimeProfiler::HandleWakeUp(Isolate* isolate) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // The profiler thread must still be waiting.
   ASSERT(NoBarrier_Load(&state_) >= 0);
   // In IsolateEnteredJS we have already incremented the counter and
@@ -303,7 +298,6 @@ void RuntimeProfiler::HandleWakeUp(Isolate* isolate) {
   // to get the right count of active isolates.
   NoBarrier_AtomicIncrement(&state_, 1);
   semaphore_->Signal();
-#endif
 }
 
 
@@ -313,18 +307,15 @@ bool RuntimeProfiler::IsSomeIsolateInJS() {
 
 
 bool RuntimeProfiler::WaitForSomeIsolateToEnterJS() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   Atomic32 old_state = NoBarrier_CompareAndSwap(&state_, 0, -1);
   ASSERT(old_state >= -1);
   if (old_state != 0) return false;
   semaphore_->Wait();
-#endif
   return true;
 }
 
 
 void RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(Thread* thread) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // Do a fake increment. If the profiler is waiting on the semaphore,
   // the returned state is 0, which can be left as an initial state in
   // case profiling is restarted later. If the profiler is not
@@ -343,7 +334,6 @@ void RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(Thread* thread) {
   if (new_state != 0) {
     NoBarrier_AtomicIncrement(&state_, -1);
   }
-#endif
 }
 
 
@@ -365,11 +355,9 @@ void RuntimeProfiler::UpdateSamplesAfterCompact(ObjectVisitor* visitor) {
 
 
 bool RuntimeProfilerRateLimiter::SuspendIfNecessary() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (!RuntimeProfiler::IsSomeIsolateInJS()) {
     return RuntimeProfiler::WaitForSomeIsolateToEnterJS();
   }
-#endif
   return false;
 }
 

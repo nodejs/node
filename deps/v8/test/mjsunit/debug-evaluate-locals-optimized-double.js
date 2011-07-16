@@ -29,8 +29,10 @@
 // Get the Debug object exposed from the debug context global object.
 Debug = debug.Debug
 
-listenerComplete = false;
-exception = false;
+var listenerComplete = false;
+var exception = false;
+
+var testingConstructCall = false;
 
 
 function listener(event, exec_state, event_data, data) {
@@ -41,15 +43,37 @@ function listener(event, exec_state, event_data, data) {
 
       for (var i = 0; i < exec_state.frameCount(); i++) {
         var frame = exec_state.frame(i);
-        // All frames except the bottom one has normal variables a and b.
         if (i < exec_state.frameCount() - 1) {
+        // All frames except the bottom one has normal variables a and b.
           assertEquals('a', frame.localName(0));
           assertEquals('b', frame.localName(1));
           assertEquals(i * 2 + 1 + (i * 2 + 1) / 100,
                        frame.localValue(0).value());
           assertEquals(i * 2 + 2 + (i * 2 + 2) / 100,
                        frame.localValue(1).value());
+
+          // All frames except the bottom one has arguments variables x and y.
+          assertEquals('x', frame.argumentName(0));
+          assertEquals('y', frame.argumentName(1));
+          assertEquals((i + 1) * 2 + 1 + ((i + 1) * 2 + 1) / 100,
+                       frame.argumentValue(0).value());
+          assertEquals((i + 1) * 2 + 2 + ((i + 1) * 2 + 2) / 100,
+                       frame.argumentValue(1).value());
         }
+
+        // Check the frame function.
+        switch (i) {
+          case 0: assertEquals(h, frame.func().value()); break;
+          case 1: assertEquals(g3, frame.func().value()); break;
+          case 2: assertEquals(g2, frame.func().value()); break;
+          case 3: assertEquals(g1, frame.func().value()); break;
+          case 4: assertEquals(f, frame.func().value()); break;
+          case 5: break;
+          default: assertUnreachable();
+        }
+
+        // Check for construct call.
+        assertEquals(testingConstructCall && i == 4, frame.isConstructCall());
 
         // When function f is optimized (2 means YES, see runtime.cc) we
         // expect an optimized frame for f with g1, g2 and g3 inlined.
@@ -123,7 +147,10 @@ function f(x, y) {
   g1(a, b);
 };
 
+// Test calling f normally and as a constructor.
 f(11.11, 12.12);
+testingConstructCall = true;
+new f(11.11, 12.12);
 
 // Make sure that the debug event listener vas invoked.
 assertFalse(exception, "exception in listener " + exception)

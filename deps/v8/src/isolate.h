@@ -125,14 +125,8 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
   C(c_entry_fp_address)                    \
   C(context_address)                       \
   C(pending_exception_address)             \
-  C(external_caught_exception_address)
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
-#define ISOLATE_ADDRESS_LIST_PROF(C)       \
+  C(external_caught_exception_address)     \
   C(js_entry_sp_address)
-#else
-#define ISOLATE_ADDRESS_LIST_PROF(C)
-#endif
 
 
 // Platform-independent, reliable thread identifier.
@@ -252,14 +246,9 @@ class ThreadLocalTop BASE_EMBEDDED {
 #endif
 #endif  // USE_SIMULATOR
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
   Address external_callback_;  // the external callback we're currently in
-#endif
-
-#ifdef ENABLE_VMSTATE_TRACKING
   StateTag current_vm_state_;
-#endif
 
   // Generated code scratch locations.
   int32_t formal_count_;
@@ -313,18 +302,6 @@ class HashMap;
 
 #endif
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
-#define ISOLATE_LOGGING_INIT_LIST(V)                                           \
-  V(CpuProfiler*, cpu_profiler, NULL)                                          \
-  V(HeapProfiler*, heap_profiler, NULL)
-
-#else
-
-#define ISOLATE_LOGGING_INIT_LIST(V)
-
-#endif
-
 #define ISOLATE_INIT_ARRAY_LIST(V)                                             \
   /* SerializerDeserializer state. */                                          \
   V(Object*, serialize_partial_snapshot_cache, kPartialSnapshotCacheCapacity)  \
@@ -373,8 +350,9 @@ typedef List<HeapObject*, PreallocatedStorage> DebugObjectCache;
   /* SafeStackFrameIterator activations count. */                              \
   V(int, safe_stack_iterator_counter, 0)                                       \
   V(uint64_t, enabled_cpu_features, 0)                                         \
+  V(CpuProfiler*, cpu_profiler, NULL)                                          \
+  V(HeapProfiler*, heap_profiler, NULL)                                        \
   ISOLATE_PLATFORM_INIT_LIST(V)                                                \
-  ISOLATE_LOGGING_INIT_LIST(V)                                                 \
   ISOLATE_DEBUGGER_INIT_LIST(V)
 
 class Isolate {
@@ -445,7 +423,6 @@ class Isolate {
   enum AddressId {
 #define C(name) k_##name,
     ISOLATE_ADDRESS_LIST(C)
-    ISOLATE_ADDRESS_LIST_PROF(C)
 #undef C
     k_isolate_address_count
   };
@@ -620,7 +597,6 @@ class Isolate {
   }
   inline Address* handler_address() { return &thread_local_top_.handler_; }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // Bottom JS entry (see StackTracer::Trace in log.cc).
   static Address js_entry_sp(ThreadLocalTop* thread) {
     return thread->js_entry_sp_;
@@ -628,7 +604,6 @@ class Isolate {
   inline Address* js_entry_sp_address() {
     return &thread_local_top_.js_entry_sp_;
   }
-#endif
 
   // Generated code scratch locations.
   void* formal_count_address() { return &thread_local_top_.formal_count_; }
@@ -945,16 +920,13 @@ class Isolate {
 
   static const int kJSRegexpStaticOffsetsVectorSize = 50;
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   Address external_callback() {
     return thread_local_top_.external_callback_;
   }
   void set_external_callback(Address callback) {
     thread_local_top_.external_callback_ = callback;
   }
-#endif
 
-#ifdef ENABLE_VMSTATE_TRACKING
   StateTag current_vm_state() {
     return thread_local_top_.current_vm_state_;
   }
@@ -980,7 +952,6 @@ class Isolate {
     }
     thread_local_top_.current_vm_state_ = state;
   }
-#endif
 
   void SetData(void* data) { embedder_data_ = data; }
   void* GetData() { return embedder_data_; }
@@ -1355,11 +1326,5 @@ inline void Context::mark_out_of_memory() {
 
 
 } }  // namespace v8::internal
-
-// TODO(isolates): Get rid of these -inl.h includes and place them only where
-//                 they're needed.
-#include "allocation-inl.h"
-#include "zone-inl.h"
-#include "frames-inl.h"
 
 #endif  // V8_ISOLATE_H_

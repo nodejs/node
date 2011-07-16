@@ -823,14 +823,24 @@ class ParserFinder {
 // form expr.a = ...; expr.b = ...; etc.
 class InitializationBlockFinder : public ParserFinder {
  public:
-  InitializationBlockFinder()
-    : first_in_block_(NULL), last_in_block_(NULL), block_size_(0) {}
+  // We find and mark the initialization blocks in top level
+  // non-looping code only. This is because the optimization prevents
+  // reuse of the map transitions, so it should be used only for code
+  // that will only be run once.
+  InitializationBlockFinder(Scope* top_scope, Target* target)
+      : enabled_(top_scope->DeclarationScope()->is_global_scope() &&
+                 !IsLoopTarget(target)),
+        first_in_block_(NULL),
+        last_in_block_(NULL),
+        block_size_(0) {}
 
   ~InitializationBlockFinder() {
+    if (!enabled_) return;
     if (InBlock()) EndBlock();
   }
 
   void Update(Statement* stat) {
+    if (!enabled_) return;
     Assignment* assignment = AsAssignment(stat);
     if (InBlock()) {
       if (BlockContinues(assignment)) {
@@ -850,6 +860,14 @@ class InitializationBlockFinder : public ParserFinder {
   // be treated as an initialization block. Benchmarks show that
   // the overhead exceeds the savings below this limit.
   static const int kMinInitializationBlock = 3;
+
+  static bool IsLoopTarget(Target* target) {
+    while (target != NULL) {
+      if (target->node()->AsIterationStatement() != NULL) return true;
+      target = target->previous();
+    }
+    return false;
+  }
 
   // Returns true if the expressions appear to denote the same object.
   // In the context of initialization blocks, we only consider expressions
@@ -913,6 +931,7 @@ class InitializationBlockFinder : public ParserFinder {
 
   bool InBlock() { return first_in_block_ != NULL; }
 
+  const bool enabled_;
   Assignment* first_in_block_;
   Assignment* last_in_block_;
   int block_size_;
@@ -1078,7 +1097,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
   TargetScope scope(&this->target_stack_);
 
   ASSERT(processor != NULL);
-  InitializationBlockFinder block_finder;
+  InitializationBlockFinder block_finder(top_scope_, target_stack_);
   ThisNamedPropertyAssigmentFinder this_property_assignment_finder(isolate());
   bool directive_prologue = true;     // Parsing directive prologue.
 
@@ -1133,12 +1152,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
       }
     }
 
-    // We find and mark the initialization blocks on top level code only.
-    // This is because the optimization prevents reuse of the map transitions,
-    // so it should be used only for code that will only be run once.
-    if (top_scope_->is_global_scope()) {
-      block_finder.Update(stat);
-    }
+    block_finder.Update(stat);
     // Find and mark all assignments to named properties in this (this.x =)
     if (top_scope_->is_function_scope()) {
       this_property_assignment_finder.Update(top_scope_, stat);
@@ -1478,9 +1492,13 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
   Block* result = new(zone()) Block(labels, 16, false);
   Target target(&this->target_stack_, result);
   Expect(Token::LBRACE, CHECK_OK);
+  InitializationBlockFinder block_finder(top_scope_, target_stack_);
   while (peek() != Token::RBRACE) {
     Statement* stat = ParseStatement(NULL, CHECK_OK);
-    if (stat && !stat->IsEmpty()) result->AddStatement(stat);
+    if (stat && !stat->IsEmpty()) {
+      result->AddStatement(stat);
+      block_finder.Update(stat);
+    }
   }
   Expect(Token::RBRACE, CHECK_OK);
   return result;

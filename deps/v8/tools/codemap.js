@@ -211,6 +211,14 @@ CodeMap.prototype.getAllDynamicEntries = function() {
 
 
 /**
+ * Returns an array of pairs of all dynamic code entries and their addresses.
+ */
+CodeMap.prototype.getAllDynamicEntriesWithAddresses = function() {
+  return this.dynamics_.exportKeysAndValues();
+};
+
+
+/**
  * Returns an array of all static code entries.
  */
 CodeMap.prototype.getAllStaticEntries = function() {

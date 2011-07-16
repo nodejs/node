@@ -33,8 +33,6 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 class HeapSnapshot;
 class HeapSnapshotsCollection;
 
@@ -45,9 +43,6 @@ class HeapSnapshotsCollection;
       profiler->call;                                                        \
     }                                                                        \
   } while (false)
-#else
-#define HEAP_PROFILE(heap, call) ((void) 0)
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 // The HeapProfiler writes data to the log files, which can be postprocessed
 // to generate .hp files for use by the GHC/Valgrind tool hp2ps.
@@ -56,7 +51,6 @@ class HeapProfiler {
   static void Setup();
   static void TearDown();
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   static HeapSnapshot* TakeSnapshot(const char* name,
                                     int type,
                                     v8::ActivityControl* control);
@@ -93,8 +87,6 @@ class HeapProfiler {
   HeapSnapshotsCollection* snapshots_;
   unsigned next_snapshot_uid_;
   List<v8::HeapProfiler::WrapperInfoCallback> wrapper_callbacks_;
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 };
 
 } }  // namespace v8::internal

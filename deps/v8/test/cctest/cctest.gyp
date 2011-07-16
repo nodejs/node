@@ -71,7 +71,6 @@
         'test-lock.cc',
         'test-lockers.cc',
         'test-log.cc',
-        'test-log-utils.cc',
         'test-mark-compact.cc',
         'test-parsing.cc',
         'test-profile-generator.cc',

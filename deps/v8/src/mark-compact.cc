@@ -1661,31 +1661,34 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
 
     // Clear dead prototype transitions.
     int number_of_transitions = map->NumberOfProtoTransitions();
-    FixedArray* prototype_transitions = map->unchecked_prototype_transitions();
-    int new_number_of_transitions = 0;
-    const int header = Map::kProtoTransitionHeaderSize;
-    const int proto_offset =
-        header + Map::kProtoTransitionPrototypeOffset;
-    const int map_offset = header + Map::kProtoTransitionMapOffset;
-    const int step = Map::kProtoTransitionElementsPerEntry;
-    for (int i = 0; i < number_of_transitions; i++) {
-      Object* prototype = prototype_transitions->get(proto_offset + i * step);
-      Object* cached_map = prototype_transitions->get(map_offset + i * step);
-      if (HeapObject::cast(prototype)->IsMarked() &&
-          HeapObject::cast(cached_map)->IsMarked()) {
-        if (new_number_of_transitions != i) {
-          prototype_transitions->set_unchecked(
-              heap_,
-              proto_offset + new_number_of_transitions * step,
-              prototype,
-              UPDATE_WRITE_BARRIER);
-          prototype_transitions->set_unchecked(
-              heap_,
-              map_offset + new_number_of_transitions * step,
-              cached_map,
-              SKIP_WRITE_BARRIER);
+    if (number_of_transitions > 0) {
+      FixedArray* prototype_transitions =
+          map->unchecked_prototype_transitions();
+      int new_number_of_transitions = 0;
+      const int header = Map::kProtoTransitionHeaderSize;
+      const int proto_offset =
+          header + Map::kProtoTransitionPrototypeOffset;
+      const int map_offset = header + Map::kProtoTransitionMapOffset;
+      const int step = Map::kProtoTransitionElementsPerEntry;
+      for (int i = 0; i < number_of_transitions; i++) {
+        Object* prototype = prototype_transitions->get(proto_offset + i * step);
+        Object* cached_map = prototype_transitions->get(map_offset + i * step);
+        if (HeapObject::cast(prototype)->IsMarked() &&
+            HeapObject::cast(cached_map)->IsMarked()) {
+          if (new_number_of_transitions != i) {
+            prototype_transitions->set_unchecked(
+                heap_,
+                proto_offset + new_number_of_transitions * step,
+                prototype,
+                UPDATE_WRITE_BARRIER);
+            prototype_transitions->set_unchecked(
+                heap_,
+                map_offset + new_number_of_transitions * step,
+                cached_map,
+                SKIP_WRITE_BARRIER);
+          }
+          new_number_of_transitions++;
         }
-        new_number_of_transitions++;
       }
 
       // Fill slots that became free with undefined value.
@@ -3255,11 +3258,9 @@ void MarkCompactCollector::ReportDeleteIfNeeded(HeapObject* obj,
     GDBJITInterface::RemoveCode(reinterpret_cast<Code*>(obj));
   }
 #endif
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (obj->IsCode()) {
     PROFILE(isolate, CodeDeleteEvent(obj->address()));
   }
-#endif
 }
 
 

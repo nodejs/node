@@ -634,7 +634,7 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
   __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kConstructStubOffset));
   __ Addu(t9, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(Operand(t9));
+  __ Jump(t9);
 
   // a0: number of arguments
   // a1: called object
@@ -1075,8 +1075,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // Invoke the code and pass argc as a0.
   __ mov(a0, a3);
   if (is_construct) {
-    __ Call(masm->isolate()->builtins()->JSConstructCall(),
-            RelocInfo::CODE_TARGET);
+    __ Call(masm->isolate()->builtins()->JSConstructCall());
   } else {
     ParameterCount actual(a0);
     __ InvokeFunction(a1, actual, CALL_FUNCTION,

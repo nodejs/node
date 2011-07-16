@@ -41,6 +41,9 @@
 #include "natives.h"
 #include "platform.h"
 
+#if !defined(_WIN32) && !defined(_WIN64)
+#include <unistd.h>  // NOLINT
+#endif
 
 namespace v8 {
 
@@ -97,6 +100,8 @@ CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
 Persistent<Context> Shell::utility_context_;
 Persistent<Context> Shell::evaluation_context_;
+i::Mutex* Shell::context_mutex_(i::OS::CreateMutex());
+ShellOptions Shell::options;
 
 
 bool CounterMap::Match(void* key1, void* key2) {
@@ -119,6 +124,7 @@ bool Shell::ExecuteString(Handle<String> source,
                           bool report_exceptions) {
   HandleScope handle_scope;
   TryCatch try_catch;
+  options.script_executed = true;
   if (i::FLAG_debugger) {
     // When debugging make exceptions appear to be uncaught.
     try_catch.SetVerbose(true);
@@ -238,7 +244,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
     if (raw_length < 0) {
       return ThrowException(String::New("Array length must not be negative."));
     }
-    if (raw_length > v8::internal::ExternalArray::kMaxLength) {
+    if (raw_length > i::ExternalArray::kMaxLength) {
       return ThrowException(
           String::New("Array length exceeds maximum length."));
     }
@@ -246,7 +252,7 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   } else {
     return ThrowException(String::New("Array length must be a number."));
   }
-  if (length > static_cast<size_t>(internal::ExternalArray::kMaxLength)) {
+  if (length > static_cast<size_t>(i::ExternalArray::kMaxLength)) {
     return ThrowException(String::New("Array length exceeds maximum length."));
   }
   void* data = calloc(length, element_size);
@@ -540,7 +546,6 @@ void Shell::InstallUtilityScript() {
       shell_source_name.length());
   Handle<Script> script = Script::Compile(source, name);
   script->Run();
-
   // Mark the d8 shell script as native to avoid it showing up as normal source
   // in the debugger.
   i::Handle<i::Object> compiled_script = Utils::OpenHandle(*script);
@@ -550,6 +555,13 @@ void Shell::InstallUtilityScript() {
      : i::Handle<i::Script>(i::Script::cast(
          i::SharedFunctionInfo::cast(*compiled_script)->script()));
   script_object->set_type(i::Smi::FromInt(i::Script::TYPE_NATIVE));
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  // Start the in-process debugger if requested.
+  if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
+    v8::Debug::SetDebugEventListener(HandleDebugEvent);
+  }
+#endif
 }
 
 
@@ -625,7 +637,7 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
 }
 
 
-void Shell::Initialize(bool test_shell) {
+void Shell::Initialize() {
 #ifdef COMPRESS_STARTUP_DATA_BZ2
   BZip2Decompressor startup_data_decompressor;
   int bz2_result = startup_data_decompressor.Decompress();
@@ -645,7 +657,7 @@ void Shell::Initialize(bool test_shell) {
     V8::SetAddHistogramSampleFunction(AddHistogramSample);
   }
 
-  if (test_shell) return;
+  if (options.test_shell) return;
 
   Locker lock;
   HandleScope scope;
@@ -657,26 +669,17 @@ void Shell::Initialize(bool test_shell) {
   if (i::FLAG_debugger_agent) {
     v8::Debug::EnableAgent("d8 shell", i::FLAG_debugger_port, true);
   }
-
-  // Start the in-process debugger if requested.
-  if (i::FLAG_debugger && !i::FLAG_debugger_agent) {
-    v8::Debug::SetDebugEventListener(HandleDebugEvent);
-  }
 #endif
 }
 
 
-void Shell::RenewEvaluationContext() {
+Persistent<Context> Shell::CreateEvaluationContext() {
+  // This needs to be a critical section since this is not thread-safe
+  i::ScopedLock lock(context_mutex_);
   // Initialize the global objects
-  HandleScope scope;
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate();
-
-  // (Re-)create the evaluation context
-  if (!evaluation_context_.IsEmpty()) {
-    evaluation_context_.Dispose();
-  }
-  evaluation_context_ = Context::New(NULL, global_template);
-  Context::Scope utility_scope(evaluation_context_);
+  Persistent<Context> context = Context::New(NULL, global_template);
+  Context::Scope scope(context);
 
   i::JSArguments js_args = i::FLAG_js_arguments;
   i::Handle<i::FixedArray> arguments_array =
@@ -688,28 +691,27 @@ void Shell::RenewEvaluationContext() {
   }
   i::Handle<i::JSArray> arguments_jsarray =
       FACTORY->NewJSArrayWithElements(arguments_array);
-  evaluation_context_->Global()->Set(String::New("arguments"),
+  context->Global()->Set(String::New("arguments"),
                                      Utils::ToLocal(arguments_jsarray));
+  return context;
 }
 
 
 void Shell::OnExit() {
   if (i::FLAG_dump_counters) {
-    ::printf("+----------------------------------------+-------------+\n");
-    ::printf("| Name                                   | Value       |\n");
-    ::printf("+----------------------------------------+-------------+\n");
+    printf("+----------------------------------------+-------------+\n");
+    printf("| Name                                   | Value       |\n");
+    printf("+----------------------------------------+-------------+\n");
     for (CounterMap::Iterator i(counter_map_); i.More(); i.Next()) {
       Counter* counter = i.CurrentValue();
       if (counter->is_histogram()) {
-        ::printf("| c:%-36s | %11i |\n", i.CurrentKey(), counter->count());
-        ::printf("| t:%-36s | %11i |\n",
-                 i.CurrentKey(),
-                 counter->sample_total());
+        printf("| c:%-36s | %11i |\n", i.CurrentKey(), counter->count());
+        printf("| t:%-36s | %11i |\n", i.CurrentKey(), counter->sample_total());
       } else {
-        ::printf("| %-38s | %11i |\n", i.CurrentKey(), counter->count());
+        printf("| %-38s | %11i |\n", i.CurrentKey(), counter->count());
       }
     }
-    ::printf("+----------------------------------------+-------------+\n");
+    printf("+----------------------------------------+-------------+\n");
   }
   if (counters_file_ != NULL)
     delete counters_file_;
@@ -717,7 +719,8 @@ void Shell::OnExit() {
 
 
 static char* ReadChars(const char* name, int* size_out) {
-  v8::Unlocker unlocker;  // Release the V8 lock while reading files.
+  // Release the V8 lock while reading files.
+  v8::Unlocker unlocker(Isolate::GetCurrent());
   FILE* file = i::OS::FOpen(name, "rb");
   if (file == NULL) return NULL;
 
@@ -806,11 +809,6 @@ class ShellThread : public i::Thread {
 
 
 void ShellThread::Run() {
-  // Prepare the context for this thread.
-  Locker locker;
-  HandleScope scope;
-  Handle<ObjectTemplate> global_template = Shell::CreateGlobalTemplate();
-
   char* ptr = const_cast<char*>(files_.start());
   while ((ptr != NULL) && (*ptr != '\0')) {
     // For each newline-separated line.
@@ -822,7 +820,10 @@ void ShellThread::Run() {
       continue;
     }
 
-    Persistent<Context> thread_context = Context::New(NULL, global_template);
+    // Prepare the context for this thread.
+    Locker locker;
+    HandleScope scope;
+    Persistent<Context> thread_context = Shell::CreateEvaluationContext();
     Context::Scope context_scope(thread_context);
 
     while ((ptr != NULL) && (*ptr != '\0')) {
@@ -848,153 +849,296 @@ void ShellThread::Run() {
   }
 }
 
-int Shell::RunMain(int argc, char* argv[], bool* executed) {
-  // Default use preemption if threads are created.
-  bool use_preemption = true;
 
-  // Default to use lowest possible thread preemption interval to test as many
-  // edgecases as possible.
-  int preemption_interval = 1;
+void SourceGroup::ExitShell(int exit_code) {
+  // Use _exit instead of exit to avoid races between isolate
+  // threads and static destructors.
+  fflush(stdout);
+  fflush(stderr);
+  _exit(exit_code);
+}
 
+
+void SourceGroup::Execute() {
+  for (int i = begin_offset_; i < end_offset_; ++i) {
+    const char* arg = argv_[i];
+    if (strcmp(arg, "-e") == 0 && i + 1 < end_offset_) {
+      // Execute argument given to -e option directly.
+      HandleScope handle_scope;
+      Handle<String> file_name = String::New("unnamed");
+      Handle<String> source = String::New(argv_[i + 1]);
+      if (!Shell::ExecuteString(source, file_name, false, true)) {
+        ExitShell(1);
+        return;
+      }
+      ++i;
+    } else if (arg[0] == '-') {
+      // Ignore other options. They have been parsed already.
+    } else {
+      // Use all other arguments as names of files to load and run.
+      HandleScope handle_scope;
+      Handle<String> file_name = String::New(arg);
+      Handle<String> source = ReadFile(arg);
+      if (source.IsEmpty()) {
+        printf("Error reading '%s'\n", arg);
+        ExitShell(1);
+        return;
+      }
+      if (!Shell::ExecuteString(source, file_name, false, true)) {
+        ExitShell(1);
+        return;
+      }
+    }
+  }
+}
+
+
+Handle<String> SourceGroup::ReadFile(const char* name) {
+  FILE* file = fopen(name, "rb");
+  if (file == NULL) return Handle<String>();
+
+  fseek(file, 0, SEEK_END);
+  int size = ftell(file);
+  rewind(file);
+
+  char* chars = new char[size + 1];
+  chars[size] = '\0';
+  for (int i = 0; i < size;) {
+    int read = fread(&chars[i], 1, size - i, file);
+    i += read;
+  }
+  fclose(file);
+  Handle<String> result = String::New(chars, size);
+  delete[] chars;
+  return result;
+}
+
+
+i::Thread::Options SourceGroup::GetThreadOptions() {
+  i::Thread::Options options;
+  options.name = "IsolateThread";
+  // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
+  // which is not enough to parse the big literal expressions used in tests.
+  // The stack size should be at least StackGuard::kLimitSize + some
+  // OS-specific padding for thread startup code.
+  options.stack_size = 2 << 20;  // 2 Mb seems to be enough
+  return options;
+}
+
+
+void SourceGroup::ExecuteInThread() {
+  Isolate* isolate = Isolate::New();
+  do {
+    if (next_semaphore_ != NULL) next_semaphore_->Wait();
+    {
+      Isolate::Scope iscope(isolate);
+      Locker lock(isolate);
+      HandleScope scope;
+      Persistent<Context> context = Shell::CreateEvaluationContext();
+      {
+        Context::Scope cscope(context);
+        Execute();
+      }
+      context.Dispose();
+    }
+    if (done_semaphore_ != NULL) done_semaphore_->Signal();
+  } while (!Shell::options.last_run);
+  isolate->Dispose();
+}
+
+
+void SourceGroup::StartExecuteInThread() {
+  if (thread_ == NULL) {
+    thread_ = new IsolateThread(this);
+    thread_->Start();
+  }
+  next_semaphore_->Signal();
+}
+
+
+void SourceGroup::WaitForThread() {
+  if (thread_ == NULL) return;
+  if (Shell::options.last_run) {
+    thread_->Join();
+    thread_ = NULL;
+  } else {
+    done_semaphore_->Wait();
+  }
+}
+
+
+bool Shell::SetOptions(int argc, char* argv[]) {
+  for (int i = 0; i < argc; i++) {
+    if (strcmp(argv[i], "--stress-opt") == 0) {
+      options.stress_opt = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--stress-deopt") == 0) {
+      options.stress_deopt = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--noalways-opt") == 0) {
+      // No support for stressing if we can't use --always-opt.
+      options.stress_opt = false;
+      options.stress_deopt = false;
+    } else if (strcmp(argv[i], "--shell") == 0) {
+      options.interactive_shell = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--test") == 0) {
+      options.test_shell = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--preemption") == 0) {
+      options.use_preemption = true;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--no-preemption") == 0) {
+      options.use_preemption = false;
+      argv[i] = NULL;
+    } else if (strcmp(argv[i], "--preemption-interval") == 0) {
+      if (++i < argc) {
+        argv[i-1] = NULL;
+        char* end = NULL;
+        options.preemption_interval = strtol(argv[i], &end, 10);  // NOLINT
+        if (options.preemption_interval <= 0
+            || *end != '\0'
+            || errno == ERANGE) {
+          printf("Invalid value for --preemption-interval '%s'\n", argv[i]);
+          return false;
+        }
+        argv[i] = NULL;
+      } else {
+        printf("Missing value for --preemption-interval\n");
+        return false;
+      }
+    } else if (strcmp(argv[i], "-f") == 0) {
+      // Ignore any -f flags for compatibility with other stand-alone
+      // JavaScript engines.
+      continue;
+    } else if (strcmp(argv[i], "--isolate") == 0) {
+      options.num_isolates++;
+    }
+  }
+
+  // Run parallel threads if we are not using --isolate
+  for (int i = 1; i < argc; i++) {
+    if (argv[i] == NULL) continue;
+    if (strcmp(argv[i], "-p") == 0 && i + 1 < argc) {
+      if (options.num_isolates > 1) {
+        printf("-p is not compatible with --isolate\n");
+        return false;
+      }
+      argv[i] = NULL;
+      if (options.parallel_files == NULL) {
+        options.parallel_files = new i::List<i::Vector<const char> >();
+      }
+      int size = 0;
+      const char* files = ReadChars(argv[++i], &size);
+      if (files == NULL) {
+        printf("-p option incomplete\n");
+        return false;
+      }
+      argv[i] = NULL;
+      options.parallel_files->Add(i::Vector<const char>(files, size));
+    }
+  }
+
+  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
+
+  // set up isolated source groups
+  options.isolate_sources = new SourceGroup[options.num_isolates];
+  SourceGroup* current = options.isolate_sources;
+  current->Begin(argv, 1);
+  for (int i = 1; i < argc; i++) {
+    const char* str = argv[i];
+    if (strcmp(str, "--isolate") == 0) {
+      current->End(i);
+      current++;
+      current->Begin(argv, i + 1);
+    } else if (strncmp(argv[i], "--", 2) == 0) {
+      printf("Warning: unknown flag %s.\nTry --help for options\n", argv[i]);
+    }
+  }
+  current->End(argc);
+
+  return true;
+}
+
+
+int Shell::RunMain(int argc, char* argv[]) {
   i::List<i::Thread*> threads(1);
 
   {
-    // Since the thread below may spawn new threads accessing V8 holding the
-    // V8 lock here is mandatory.
-    Locker locker;
-    RenewEvaluationContext();
-    Context::Scope context_scope(evaluation_context_);
-    for (int i = 1; i < argc; i++) {
-      char* str = argv[i];
-      if (strcmp(str, "--preemption") == 0) {
-        use_preemption = true;
-      } else if (strcmp(str, "--no-preemption") == 0) {
-        use_preemption = false;
-      } else if (strcmp(str, "--preemption-interval") == 0) {
-        if (i + 1 < argc) {
-          char* end = NULL;
-          preemption_interval = strtol(argv[++i], &end, 10);  // NOLINT
-          if (preemption_interval <= 0 || *end != '\0' || errno == ERANGE) {
-            printf("Invalid value for --preemption-interval '%s'\n", argv[i]);
-            return 1;
-          }
-        } else {
-          printf("Missing value for --preemption-interval\n");
-          return 1;
-        }
-      } else if (strcmp(str, "-f") == 0) {
-        // Ignore any -f flags for compatibility with other stand-alone
-        // JavaScript engines.
-        continue;
-      } else if (strncmp(str, "--", 2) == 0) {
-        printf("Warning: unknown flag %s.\nTry --help for options\n", str);
-      } else if (strcmp(str, "-e") == 0 && i + 1 < argc) {
-        // Execute argument given to -e option directly.
-        v8::HandleScope handle_scope;
-        v8::Handle<v8::String> file_name = v8::String::New("unnamed");
-        v8::Handle<v8::String> source = v8::String::New(argv[++i]);
-        (*executed) = true;
-        if (!ExecuteString(source, file_name, false, true)) {
-          OnExit();
-          return 1;
-        }
-      } else if (strcmp(str, "-p") == 0 && i + 1 < argc) {
-        int size = 0;
-        const char* files = ReadChars(argv[++i], &size);
-        if (files == NULL) return 1;
-        ShellThread* thread =
-            new ShellThread(threads.length(),
-                            i::Vector<const char>(files, size));
+    if (options.parallel_files != NULL)
+      for (int i = 0; i < options.parallel_files->length(); i++) {
+        i::Vector<const char> files = options.parallel_files->at(i);
+        ShellThread* thread = new ShellThread(threads.length(), files);
         thread->Start();
         threads.Add(thread);
-        (*executed) = true;
-      } else {
-        // Use all other arguments as names of files to load and run.
-        HandleScope handle_scope;
-        Handle<String> file_name = v8::String::New(str);
-        Handle<String> source = ReadFile(str);
-        (*executed) = true;
-        if (source.IsEmpty()) {
-          printf("Error reading '%s'\n", str);
-          return 1;
-        }
-        if (!ExecuteString(source, file_name, false, true)) {
-          OnExit();
-          return 1;
-        }
       }
+
+    for (int i = 1; i < options.num_isolates; ++i) {
+      options.isolate_sources[i].StartExecuteInThread();
     }
 
+    Locker lock;
+    HandleScope scope;
+    Persistent<Context> context = CreateEvaluationContext();
+    {
+      Context::Scope cscope(context);
+      options.isolate_sources[0].Execute();
+    }
+    if (options.last_run) {
+      // Keep using the same context in the interactive shell
+      evaluation_context_ = context;
+    } else {
+      context.Dispose();
+    }
     // Start preemption if threads have been created and preemption is enabled.
-    if (threads.length() > 0 && use_preemption) {
-      Locker::StartPreemption(preemption_interval);
+    if (options.parallel_files != NULL
+        && threads.length() > 0
+        && options.use_preemption) {
+      Locker::StartPreemption(options.preemption_interval);
     }
   }
 
-  for (int i = 0; i < threads.length(); i++) {
-    i::Thread* thread = threads[i];
-    thread->Join();
-    delete thread;
+  for (int i = 1; i < options.num_isolates; ++i) {
+    options.isolate_sources[i].WaitForThread();
   }
+
+  if (options.parallel_files != NULL)
+    for (int i = 0; i < threads.length(); i++) {
+      i::Thread* thread = threads[i];
+      thread->Join();
+      delete thread;
+    }
+
   OnExit();
   return 0;
 }
 
 
 int Shell::Main(int argc, char* argv[]) {
-  // Figure out if we're requested to stress the optimization
-  // infrastructure by running tests multiple times and forcing
-  // optimization in the last run.
-  bool FLAG_stress_opt = false;
-  bool FLAG_stress_deopt = false;
-  bool FLAG_interactive_shell = false;
-  bool FLAG_test_shell = false;
-  bool script_executed = false;
-
-  for (int i = 0; i < argc; i++) {
-    if (strcmp(argv[i], "--stress-opt") == 0) {
-      FLAG_stress_opt = true;
-      argv[i] = NULL;
-    } else if (strcmp(argv[i], "--stress-deopt") == 0) {
-      FLAG_stress_deopt = true;
-      argv[i] = NULL;
-    } else if (strcmp(argv[i], "--noalways-opt") == 0) {
-      // No support for stressing if we can't use --always-opt.
-      FLAG_stress_opt = false;
-      FLAG_stress_deopt = false;
-    } else if (strcmp(argv[i], "--shell") == 0) {
-      FLAG_interactive_shell = true;
-      argv[i] = NULL;
-    } else if (strcmp(argv[i], "--test") == 0) {
-      FLAG_test_shell = true;
-      argv[i] = NULL;
-    }
-  }
-
-  v8::V8::SetFlagsFromCommandLine(&argc, argv, true);
-
-  Initialize(FLAG_test_shell);
+  if (!SetOptions(argc, argv)) return 1;
+  Initialize();
 
   int result = 0;
-  if (FLAG_stress_opt || FLAG_stress_deopt) {
-    v8::Testing::SetStressRunType(
-        FLAG_stress_opt ? v8::Testing::kStressTypeOpt
-            : v8::Testing::kStressTypeDeopt);
-    int stress_runs = v8::Testing::GetStressRuns();
+  if (options.stress_opt || options.stress_deopt) {
+    Testing::SetStressRunType(
+        options.stress_opt ? Testing::kStressTypeOpt
+                           : Testing::kStressTypeDeopt);
+    int stress_runs = Testing::GetStressRuns();
     for (int i = 0; i < stress_runs && result == 0; i++) {
       printf("============ Stress %d/%d ============\n", i + 1, stress_runs);
-      v8::Testing::PrepareStressRun(i);
-      result = RunMain(argc, argv, &script_executed);
+      Testing::PrepareStressRun(i);
+      options.last_run = (i == stress_runs - 1);
+      result = RunMain(argc, argv);
     }
     printf("======== Full Deoptimization =======\n");
-    v8::Testing::DeoptimizeAll();
+    Testing::DeoptimizeAll();
   } else {
-    result = RunMain(argc, argv, &script_executed);
+    result = RunMain(argc, argv);
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Run remote debugger if requested, but never on --test
-  if (i::FLAG_remote_debugger && !FLAG_test_shell) {
+  if (i::FLAG_remote_debugger && !options.test_shell) {
     InstallUtilityScript();
     RunRemoteDebugger(i::FLAG_debugger_port);
     return 0;
@@ -1003,12 +1147,15 @@ int Shell::Main(int argc, char* argv[]) {
 
   // Run interactive shell if explicitly requested or if no script has been
   // executed, but never on --test
-  if ((FLAG_interactive_shell || !script_executed) && !FLAG_test_shell) {
+
+  if (( options.interactive_shell
+      || !options.script_executed )
+      && !options.test_shell ) {
     InstallUtilityScript();
     RunShell();
   }
 
-  v8::V8::Dispose();
+  V8::Dispose();
 
   return result;
 }

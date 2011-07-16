@@ -30,8 +30,6 @@
 
 #include "cpu-profiler.h"
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include <new>
 #include "circular-queue-inl.h"
 #include "profile-generator-inl.h"
@@ -82,7 +80,5 @@ bool ProfilerEventsProcessor::FilterOutCodeCreateEvent(
 }
 
 } }  // namespace v8::internal
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 #endif  // V8_CPU_PROFILER_INL_H_

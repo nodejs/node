@@ -32,6 +32,8 @@
 #include "scopeinfo.h"
 #include "scopes.h"
 
+#include "allocation-inl.h"
+
 namespace v8 {
 namespace internal {
 

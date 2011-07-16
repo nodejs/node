@@ -33,101 +33,14 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 
-LogDynamicBuffer::LogDynamicBuffer(
-    int block_size, int max_size, const char* seal, int seal_size)
-    : block_size_(block_size),
-      max_size_(max_size - (max_size % block_size_)),
-      seal_(seal),
-      seal_size_(seal_size),
-      blocks_(max_size_ / block_size_ + 1),
-      write_pos_(0), block_index_(0), block_write_pos_(0), is_sealed_(false) {
-  ASSERT(BlocksCount() > 0);
-  AllocateBlock(0);
-  for (int i = 1; i < BlocksCount(); ++i) {
-    blocks_[i] = NULL;
-  }
-}
+const char* Log::kLogToTemporaryFile = "&";
 
-
-LogDynamicBuffer::~LogDynamicBuffer() {
-  for (int i = 0; i < BlocksCount(); ++i) {
-    DeleteArray(blocks_[i]);
-  }
-}
-
-
-int LogDynamicBuffer::Read(int from_pos, char* dest_buf, int buf_size) {
-  if (buf_size == 0) return 0;
-  int read_pos = from_pos;
-  int block_read_index = BlockIndex(from_pos);
-  int block_read_pos = PosInBlock(from_pos);
-  int dest_buf_pos = 0;
-  // Read until dest_buf is filled, or write_pos_ encountered.
-  while (read_pos < write_pos_ && dest_buf_pos < buf_size) {
-    const int read_size = Min(write_pos_ - read_pos,
-        Min(buf_size - dest_buf_pos, block_size_ - block_read_pos));
-    memcpy(dest_buf + dest_buf_pos,
-           blocks_[block_read_index] + block_read_pos, read_size);
-    block_read_pos += read_size;
-    dest_buf_pos += read_size;
-    read_pos += read_size;
-    if (block_read_pos == block_size_) {
-      block_read_pos = 0;
-      ++block_read_index;
-    }
-  }
-  return dest_buf_pos;
-}
-
-
-int LogDynamicBuffer::Seal() {
-  WriteInternal(seal_, seal_size_);
-  is_sealed_ = true;
-  return 0;
-}
-
-
-int LogDynamicBuffer::Write(const char* data, int data_size) {
-  if (is_sealed_) {
-    return 0;
-  }
-  if ((write_pos_ + data_size) <= (max_size_ - seal_size_)) {
-    return WriteInternal(data, data_size);
-  } else {
-    return Seal();
-  }
-}
-
-
-int LogDynamicBuffer::WriteInternal(const char* data, int data_size) {
-  int data_pos = 0;
-  while (data_pos < data_size) {
-    const int write_size =
-        Min(data_size - data_pos, block_size_ - block_write_pos_);
-    memcpy(blocks_[block_index_] + block_write_pos_, data + data_pos,
-           write_size);
-    block_write_pos_ += write_size;
-    data_pos += write_size;
-    if (block_write_pos_ == block_size_) {
-      block_write_pos_ = 0;
-      AllocateBlock(++block_index_);
-    }
-  }
-  write_pos_ += data_size;
-  return data_size;
-}
-
-// Must be the same message as in Logger::PauseProfiler.
-const char* const Log::kDynamicBufferSeal = "profiler,\"pause\"\n";
 
 Log::Log(Logger* logger)
-  : write_to_file_(false),
-    is_stopped_(false),
+  : is_stopped_(false),
     output_handle_(NULL),
     ll_output_handle_(NULL),
-    output_buffer_(NULL),
     mutex_(NULL),
     message_buffer_(NULL),
     logger_(logger) {
@@ -142,7 +55,6 @@ static void AddIsolateIdIfNeeded(StringStream* stream) {
 
 
 void Log::Initialize() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   mutex_ = OS::CreateMutex();
   message_buffer_ = NewArray<char>(kMessageBufferSize);
 
@@ -166,19 +78,19 @@ void Log::Initialize() {
     FLAG_prof_auto = false;
   }
 
-  bool start_logging = FLAG_log || FLAG_log_runtime || FLAG_log_api
+  bool open_log_file = FLAG_log || FLAG_log_runtime || FLAG_log_api
       || FLAG_log_code || FLAG_log_gc || FLAG_log_handles || FLAG_log_suspect
       || FLAG_log_regexp || FLAG_log_state_changes || FLAG_ll_prof;
-
-  bool open_log_file = start_logging || FLAG_prof_lazy;
 
   // If we're logging anything, we need to open the log file.
   if (open_log_file) {
     if (strcmp(FLAG_logfile, "-") == 0) {
       OpenStdout();
     } else if (strcmp(FLAG_logfile, "*") == 0) {
-      OpenMemoryBuffer();
-    } else  {
+      // Does nothing for now. Will be removed.
+    } else if (strcmp(FLAG_logfile, kLogToTemporaryFile) == 0) {
+      OpenTemporaryFile();
+    } else {
       if (strchr(FLAG_logfile, '%') != NULL ||
           !Isolate::Current()->IsDefaultIsolate()) {
         // If there's a '%' in the log file name we have to expand
@@ -222,14 +134,18 @@ void Log::Initialize() {
       }
     }
   }
-#endif
 }
 
 
 void Log::OpenStdout() {
   ASSERT(!IsEnabled());
   output_handle_ = stdout;
-  write_to_file_ = true;
+}
+
+
+void Log::OpenTemporaryFile() {
+  ASSERT(!IsEnabled());
+  output_handle_ = i::OS::OpenTemporaryFile();
 }
 
 
@@ -244,7 +160,6 @@ static const int kLowLevelLogBufferSize = 2 * MB;
 void Log::OpenFile(const char* name) {
   ASSERT(!IsEnabled());
   output_handle_ = OS::FOpen(name, OS::LogFileOpenMode);
-  write_to_file_ = true;
   if (FLAG_ll_prof) {
     // Open the low-level log file.
     size_t len = strlen(name);
@@ -257,25 +172,18 @@ void Log::OpenFile(const char* name) {
 }
 
 
-void Log::OpenMemoryBuffer() {
-  ASSERT(!IsEnabled());
-  output_buffer_ = new LogDynamicBuffer(
-      kDynamicBufferBlockSize, kMaxDynamicBufferSize,
-      kDynamicBufferSeal, StrLength(kDynamicBufferSeal));
-  write_to_file_ = false;
-}
-
-
-void Log::Close() {
-  if (write_to_file_) {
-    if (output_handle_ != NULL) fclose(output_handle_);
-    output_handle_ = NULL;
-    if (ll_output_handle_ != NULL) fclose(ll_output_handle_);
-    ll_output_handle_ = NULL;
-  } else {
-    delete output_buffer_;
-    output_buffer_ = NULL;
+FILE* Log::Close() {
+  FILE* result = NULL;
+  if (output_handle_ != NULL) {
+    if (strcmp(FLAG_logfile, kLogToTemporaryFile) != 0) {
+      fclose(output_handle_);
+    } else {
+      result = output_handle_;
+    }
   }
+  output_handle_ = NULL;
+  if (ll_output_handle_ != NULL) fclose(ll_output_handle_);
+  ll_output_handle_ = NULL;
 
   DeleteArray(message_buffer_);
   message_buffer_ = NULL;
@@ -284,27 +192,7 @@ void Log::Close() {
   mutex_ = NULL;
 
   is_stopped_ = false;
-}
-
-
-int Log::GetLogLines(int from_pos, char* dest_buf, int max_size) {
-  if (write_to_file_) return 0;
-  ASSERT(output_buffer_ != NULL);
-  ASSERT(from_pos >= 0);
-  ASSERT(max_size >= 0);
-  int actual_size = output_buffer_->Read(from_pos, dest_buf, max_size);
-  ASSERT(actual_size <= max_size);
-  if (actual_size == 0) return 0;
-
-  // Find previous log line boundary.
-  char* end_pos = dest_buf + actual_size - 1;
-  while (end_pos >= dest_buf && *end_pos != '\n') --end_pos;
-  actual_size = static_cast<int>(end_pos - dest_buf + 1);
-  // If the assertion below is hit, it means that there was no line end
-  // found --- something wrong has happened.
-  ASSERT(actual_size > 0);
-  ASSERT(actual_size <= max_size);
-  return actual_size;
+  return result;
 }
 
 
@@ -413,16 +301,12 @@ void LogMessageBuilder::AppendStringPart(const char* str, int len) {
 
 void LogMessageBuilder::WriteToLogFile() {
   ASSERT(pos_ <= Log::kMessageBufferSize);
-  const int written = log_->write_to_file_ ?
-      log_->WriteToFile(log_->message_buffer_, pos_) :
-      log_->WriteToMemory(log_->message_buffer_, pos_);
+  const int written = log_->WriteToFile(log_->message_buffer_, pos_);
   if (written != pos_) {
     log_->stop();
     log_->logger_->LogFailure();
   }
 }
 
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

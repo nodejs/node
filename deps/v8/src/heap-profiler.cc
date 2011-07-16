@@ -34,7 +34,6 @@ namespace v8 {
 namespace internal {
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 HeapProfiler::HeapProfiler()
     : snapshots_(new HeapSnapshotsCollection()),
       next_snapshot_uid_(1) {
@@ -52,28 +51,20 @@ void HeapProfiler::ResetSnapshots() {
 }
 
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
-
 void HeapProfiler::Setup() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   Isolate* isolate = Isolate::Current();
   if (isolate->heap_profiler() == NULL) {
     isolate->set_heap_profiler(new HeapProfiler());
   }
-#endif
 }
 
 
 void HeapProfiler::TearDown() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   Isolate* isolate = Isolate::Current();
   delete isolate->heap_profiler();
   isolate->set_heap_profiler(NULL);
-#endif
 }
 
-
-#ifdef ENABLE_LOGGING_AND_PROFILING
 
 HeapSnapshot* HeapProfiler::TakeSnapshot(const char* name,
                                          int type,
@@ -178,8 +169,6 @@ void HeapProfiler::DeleteAllSnapshots() {
 void HeapProfiler::ObjectMoveEvent(Address from, Address to) {
   snapshots_->ObjectMoveEvent(from, to);
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 } }  // namespace v8::internal

@@ -217,20 +217,6 @@ void OS::Free(void* buf, const size_t length) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  UNIMPLEMENTED();
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  UNIMPLEMENTED();
-}
-
-#endif
-
-
 void OS::Sleep(int milliseconds) {
   UNIMPLEMENTED();
 }
@@ -437,7 +423,6 @@ Semaphore* OS::CreateSemaphore(int count) {
   return new NullSemaphore(count);
 }
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 
 class ProfileSampler::PlatformData  : public Malloced {
  public:
@@ -472,6 +457,5 @@ void ProfileSampler::Stop() {
   UNIMPLEMENTED();
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

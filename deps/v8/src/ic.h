@@ -345,10 +345,8 @@ class KeyedIC: public IC {
   explicit KeyedIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {}
   virtual ~KeyedIC() {}
 
-  virtual MaybeObject* GetFastElementStubWithoutMapCheck(
-      bool is_js_array) = 0;
-
-  virtual MaybeObject* GetExternalArrayStubWithoutMapCheck(
+  virtual MaybeObject* GetElementStubWithoutMapCheck(
+      bool is_js_array,
       JSObject::ElementsKind elements_kind) = 0;
 
  protected:
@@ -373,8 +371,7 @@ class KeyedIC: public IC {
 
   MaybeObject* ComputeMonomorphicStubWithoutMapCheck(
       Map* receiver_map,
-      StrictModeFlag strict_mode,
-      Code* generic_stub);
+      StrictModeFlag strict_mode);
 
   MaybeObject* ComputeMonomorphicStub(JSObject* receiver,
                                       bool is_store,
@@ -415,10 +412,8 @@ class KeyedLoadIC: public KeyedIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
-  virtual MaybeObject* GetFastElementStubWithoutMapCheck(
-      bool is_js_array);
-
-  virtual MaybeObject* GetExternalArrayStubWithoutMapCheck(
+  virtual MaybeObject* GetElementStubWithoutMapCheck(
+      bool is_js_array,
       JSObject::ElementsKind elements_kind);
 
  protected:
@@ -568,10 +563,8 @@ class KeyedStoreIC: public KeyedIC {
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
   static void GenerateNonStrictArguments(MacroAssembler* masm);
 
-  virtual MaybeObject* GetFastElementStubWithoutMapCheck(
-      bool is_js_array);
-
-  virtual MaybeObject* GetExternalArrayStubWithoutMapCheck(
+  virtual MaybeObject* GetElementStubWithoutMapCheck(
+      bool is_js_array,
       JSObject::ElementsKind elements_kind);
 
  protected:

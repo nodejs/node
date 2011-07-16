@@ -2003,14 +2003,7 @@ class HCheckInstanceType: public HUnaryOperation {
   virtual void Verify();
 #endif
 
-  virtual HValue* Canonicalize() {
-    if (!value()->type().IsUninitialized() &&
-        value()->type().IsString() &&
-        check_ == IS_STRING) {
-      return NULL;
-    }
-    return this;
-  }
+  virtual HValue* Canonicalize();
 
   bool is_interval_check() const { return check_ <= LAST_INTERVAL_CHECK; }
   void GetCheckInterval(InstanceType* first, InstanceType* last);
@@ -3362,8 +3355,9 @@ class HLoadContextSlot: public HUnaryOperation {
 
 
 static inline bool StoringValueNeedsWriteBarrier(HValue* value) {
-  return !value->type().IsSmi() &&
-      !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
+  return !value->type().IsBoolean()
+      && !value->type().IsSmi()
+      && !(value->IsConstant() && HConstant::cast(value)->InOldSpace());
 }
 
 
