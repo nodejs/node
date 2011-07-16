@@ -38,10 +38,10 @@ per connection (in the case of keep-alive connections).
 
 ### Event: 'connection'
 
-`function (stream) { }`
+`function (socket) { }`
 
- When a new TCP stream is established. `stream` is an object of type
- `net.Stream`. Usually users will not want to access this event. The
+ When a new TCP stream is established. `socket` is an object of type
+ `net.Socket`. Usually users will not want to access this event. The
  `stream` can also be accessed at `request.connection`.
 
 ### Event: 'close'
@@ -239,7 +239,7 @@ Resumes a paused request.
 
 ### request.connection
 
-The `net.Stream` object associated with the connection.
+The `net.Socket` object associated with the connection.
 
 
 With HTTPS support, use request.connection.verifyPeer() and
