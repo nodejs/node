@@ -188,6 +188,9 @@ class AsciiStringAdapter: public v8::String::ExternalAsciiStringResource {
 Vector<const char> ReadFile(const char* filename,
                             bool* exists,
                             bool verbose = true);
+Vector<const char> ReadFile(FILE* file,
+                            bool* exists,
+                            bool verbose = true);
 
 
 

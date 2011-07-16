@@ -60,9 +60,7 @@ class CodeGenerator: public AstVisitor {
   // Print the code after compiling it.
   static void PrintCode(Handle<Code> code, CompilationInfo* info);
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   static bool ShouldGenerateLog(Expression* type);
-#endif
 
   static void SetFunctionInfo(Handle<JSFunction> fun,
                               FunctionLiteral* lit,

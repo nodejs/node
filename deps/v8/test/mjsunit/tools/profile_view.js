@@ -26,7 +26,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Load source code files from <project root>/tools.
-// Files: tools/consarray.js tools/profile.js tools/profile_view.js
+// Files: tools/codemap.js tools/consarray.js tools/profile.js
+// Files: tools/profile_view.js
 
 
 function createNode(name, time, opt_parent) {

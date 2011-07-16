@@ -380,12 +380,6 @@ class Space : public Malloced {
   // (e.g. see LargeObjectSpace).
   virtual intptr_t SizeOfObjects() { return Size(); }
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  virtual void Protect() = 0;
-  virtual void Unprotect() = 0;
-#endif
-
 #ifdef DEBUG
   virtual void Print() = 0;
 #endif
@@ -640,17 +634,6 @@ class MemoryAllocator {
                                   Page** first_page,
                                   Page** last_page,
                                   Page** last_page_in_use);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect a block of memory by marking it read-only/writable.
-  inline void Protect(Address start, size_t size);
-  inline void Unprotect(Address start, size_t size,
-                        Executability executable);
-
-  // Protect/unprotect a chunk given a page in the chunk.
-  inline void ProtectChunkFromPage(Page* page);
-  inline void UnprotectChunkFromPage(Page* page);
-#endif
 
 #ifdef DEBUG
   // Reports statistic info of the space.
@@ -1157,12 +1140,6 @@ class PagedSpace : public Space {
   // Ensures that the capacity is at least 'capacity'. Returns false on failure.
   bool EnsureCapacity(int capacity);
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  void Protect();
-  void Unprotect();
-#endif
-
 #ifdef DEBUG
   // Print meta info and objects in this space.
   virtual void Print();
@@ -1270,7 +1247,6 @@ class PagedSpace : public Space {
 };
 
 
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 class NumberAndSizeInfo BASE_EMBEDDED {
  public:
   NumberAndSizeInfo() : number_(0), bytes_(0) {}
@@ -1293,9 +1269,7 @@ class NumberAndSizeInfo BASE_EMBEDDED {
 
 
 // HistogramInfo class for recording a single "bar" of a histogram.  This
-// class is used for collecting statistics to print to stdout (when compiled
-// with DEBUG) or to the log file (when compiled with
-// ENABLE_LOGGING_AND_PROFILING).
+// class is used for collecting statistics to print to the log file.
 class HistogramInfo: public NumberAndSizeInfo {
  public:
   HistogramInfo() : NumberAndSizeInfo() {}
@@ -1306,7 +1280,6 @@ class HistogramInfo: public NumberAndSizeInfo {
  private:
   const char* name_;
 };
-#endif
 
 
 // -----------------------------------------------------------------------------
@@ -1391,12 +1364,6 @@ class SemiSpace : public Space {
   bool is_committed() { return committed_; }
   bool Commit();
   bool Uncommit();
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  virtual void Protect() {}
-  virtual void Unprotect() {}
-#endif
 
 #ifdef DEBUG
   virtual void Print();
@@ -1628,12 +1595,6 @@ class NewSpace : public Space {
   template <typename StringType>
   inline void ShrinkStringAtAllocationBoundary(String* string, int len);
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  virtual void Protect();
-  virtual void Unprotect();
-#endif
-
 #ifdef DEBUG
   // Verify the active semispace.
   virtual void Verify();
@@ -1641,7 +1602,6 @@ class NewSpace : public Space {
   virtual void Print() { to_space_.Print(); }
 #endif
 
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Iterates the active semispace to collect statistics.
   void CollectStatistics();
   // Reports previously collected statistics of the active semispace.
@@ -1654,7 +1614,6 @@ class NewSpace : public Space {
   // to space during a scavenge GC.
   void RecordAllocation(HeapObject* obj);
   void RecordPromotion(HeapObject* obj);
-#endif
 
   // Return whether the operation succeded.
   bool CommitFromSpaceIfNeeded() {
@@ -1683,10 +1642,8 @@ class NewSpace : public Space {
   AllocationInfo allocation_info_;
   AllocationInfo mc_forwarding_info_;
 
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   HistogramInfo* allocated_histogram_;
   HistogramInfo* promoted_histogram_;
-#endif
 
   // Implementation of AllocateRaw and MCAllocateRaw.
   MUST_USE_RESULT inline MaybeObject* AllocateRawInternal(
@@ -2295,12 +2252,6 @@ class LargeObjectSpace : public Space {
   // called after ReserveSpace has been called on the paged spaces, since they
   // may use some memory, leaving less for large objects.
   virtual bool ReserveSpace(int bytes);
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the space by marking it read-only/writable.
-  void Protect();
-  void Unprotect();
-#endif
 
 #ifdef DEBUG
   virtual void Verify();

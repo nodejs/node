@@ -179,7 +179,7 @@ void RegExpMacroAssemblerMIPS::Backtrack() {
   // Pop Code* offset from backtrack stack, add Code* and jump to location.
   Pop(a0);
   __ Addu(a0, a0, code_pointer());
-  __ Jump(Operand(a0));
+  __ Jump(a0);
 }
 
 
@@ -1238,7 +1238,7 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
   __ Call(t9);
   __ lw(ra, MemOperand(sp, 0));
   __ Addu(sp, sp, Operand(stack_alignment));
-  __ Jump(Operand(ra));
+  __ Jump(ra);
 }
 
 

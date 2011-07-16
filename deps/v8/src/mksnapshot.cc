@@ -296,10 +296,9 @@ class BZip2Decompressor : public StartupDataDecompressor {
 
 
 int main(int argc, char** argv) {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   // By default, log code create information in the snapshot.
   i::FLAG_log_code = true;
-#endif
+
   // Print the usage if an error occurs when parsing the command line
   // flags or if the help flag is set.
   int result = i::FlagList::SetFlagsFromCommandLine(&argc, argv, true);

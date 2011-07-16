@@ -2984,31 +2984,6 @@ class V8EXPORT V8 {
   static bool IsProfilerPaused();
 
   /**
-   * If logging is performed into a memory buffer (via --logfile=*), allows to
-   * retrieve previously written messages. This can be used for retrieving
-   * profiler log data in the application. This function is thread-safe.
-   *
-   * Caller provides a destination buffer that must exist during GetLogLines
-   * call. Only whole log lines are copied into the buffer.
-   *
-   * \param from_pos specified a point in a buffer to read from, 0 is the
-   *   beginning of a buffer. It is assumed that caller updates its current
-   *   position using returned size value from the previous call.
-   * \param dest_buf destination buffer for log data.
-   * \param max_size size of the destination buffer.
-   * \returns actual size of log data copied into buffer.
-   */
-  static int GetLogLines(int from_pos, char* dest_buf, int max_size);
-
-  /**
-   * The minimum allowed size for a log lines buffer.  If the size of
-   * the buffer given will not be enough to hold a line of the maximum
-   * length, an attempt to find a log line end in GetLogLines will
-   * fail, and an empty result will be returned.
-   */
-  static const int kMinimumSizeForLogLinesBuffer = 2048;
-
-  /**
    * Retrieve the V8 thread id of the calling thread.
    *
    * The thread id for a thread should only be retrieved after the V8

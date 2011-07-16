@@ -66,8 +66,7 @@ class UnaryOpStub: public CodeStub {
               UnaryOpIC::TypeInfo operand_type = UnaryOpIC::UNINITIALIZED)
       : op_(op),
         mode_(mode),
-        operand_type_(operand_type),
-        name_(NULL) {
+        operand_type_(operand_type) {
   }
 
  private:
@@ -77,19 +76,7 @@ class UnaryOpStub: public CodeStub {
   // Operand type information determined at runtime.
   UnaryOpIC::TypeInfo operand_type_;
 
-  char* name_;
-
-  const char* GetName();
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("UnaryOpStub %d (op %s), (mode %d, runtime_type_info %s)\n",
-           MinorKey(),
-           Token::String(op_),
-           static_cast<int>(mode_),
-           UnaryOpIC::GetName(operand_type_));
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 
   class ModeBits: public BitField<UnaryOverwriteMode, 0, 1> {};
   class OpBits: public BitField<Token::Value, 1, 7> {};
@@ -143,8 +130,7 @@ class BinaryOpStub: public CodeStub {
       : op_(op),
         mode_(mode),
         operands_type_(BinaryOpIC::UNINITIALIZED),
-        result_type_(BinaryOpIC::UNINITIALIZED),
-        name_(NULL) {
+        result_type_(BinaryOpIC::UNINITIALIZED) {
     use_fpu_ = CpuFeatures::IsSupported(FPU);
     ASSERT(OpBits::is_valid(Token::NUM_TOKENS));
   }
@@ -157,8 +143,7 @@ class BinaryOpStub: public CodeStub {
         mode_(ModeBits::decode(key)),
         use_fpu_(FPUBits::decode(key)),
         operands_type_(operands_type),
-        result_type_(result_type),
-        name_(NULL) { }
+        result_type_(result_type) { }
 
  private:
   enum SmiCodeGenerateHeapNumberResults {
@@ -174,20 +159,7 @@ class BinaryOpStub: public CodeStub {
   BinaryOpIC::TypeInfo operands_type_;
   BinaryOpIC::TypeInfo result_type_;
 
-  char* name_;
-
-  const char* GetName();
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("BinaryOpStub %d (op %s), "
-           "(mode %d, runtime_type_info %s)\n",
-           MinorKey(),
-           Token::String(op_),
-           static_cast<int>(mode_),
-           BinaryOpIC::GetName(operands_type_));
-  }
-#endif
+  virtual void PrintName(StringStream* stream);
 
   // Minor key encoding in 16 bits RRRTTTVOOOOOOOMM.
   class ModeBits: public BitField<OverwriteMode, 0, 2> {};
@@ -374,12 +346,6 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "WriteInt32ToHeapNumberStub"; }
-
-#ifdef DEBUG
-  void Print() { PrintF("WriteInt32ToHeapNumberStub\n"); }
-#endif
 };
 
 
@@ -406,14 +372,6 @@ class NumberToStringStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "NumberToStringStub"; }
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("NumberToStringStub\n");
-  }
-#endif
 };
 
 
@@ -431,8 +389,6 @@ class RegExpCEntryStub: public CodeStub {
   int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
-
-  const char* GetName() { return "RegExpCEntryStub"; }
 };
 
 // Trampoline stub to call into native code. To call safely into native code
@@ -453,8 +409,6 @@ class DirectCEntryStub: public CodeStub {
   int MinorKey() { return 0; }
 
   bool NeedsImmovableCode() { return true; }
-
-  const char* GetName() { return "DirectCEntryStub"; }
 };
 
 class FloatingPointHelper : public AllStatic {
@@ -635,13 +589,6 @@ class StringDictionaryLookupStub: public CodeStub {
   static const int kElementsStartOffset =
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
-
-
-#ifdef DEBUG
-  void Print() {
-    PrintF("StringDictionaryLookupStub\n");
-  }
-#endif
 
   Major MajorKey() { return StringDictionaryNegativeLookup; }
 

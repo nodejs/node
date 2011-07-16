@@ -33,69 +33,11 @@
 namespace v8 {
 namespace internal {
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 class Logger;
-
-// A memory buffer that increments its size as you write in it.  Size
-// is incremented with 'block_size' steps, never exceeding 'max_size'.
-// During growth, memory contents are never copied.  At the end of the
-// buffer an amount of memory specified in 'seal_size' is reserved.
-// When writing position reaches max_size - seal_size, buffer auto-seals
-// itself with 'seal' and allows no further writes. Data pointed by
-// 'seal' must be available during entire LogDynamicBuffer lifetime.
-//
-// An instance of this class is created dynamically by Log.
-class LogDynamicBuffer {
- public:
-  LogDynamicBuffer(
-      int block_size, int max_size, const char* seal, int seal_size);
-
-  ~LogDynamicBuffer();
-
-  // Reads contents of the buffer starting from 'from_pos'.  Upon
-  // return, 'dest_buf' is filled with the data. Actual amount of data
-  // filled is returned, it is <= 'buf_size'.
-  int Read(int from_pos, char* dest_buf, int buf_size);
-
-  // Writes 'data' to the buffer, making it larger if necessary.  If
-  // data is too big to fit in the buffer, it doesn't get written at
-  // all. In that case, buffer auto-seals itself and stops to accept
-  // any incoming writes. Returns amount of data written (it is either
-  // 'data_size', or 0, if 'data' is too big).
-  int Write(const char* data, int data_size);
-
- private:
-  void AllocateBlock(int index) {
-    blocks_[index] = NewArray<char>(block_size_);
-  }
-
-  int BlockIndex(int pos) const { return pos / block_size_; }
-
-  int BlocksCount() const { return BlockIndex(max_size_) + 1; }
-
-  int PosInBlock(int pos) const { return pos % block_size_; }
-
-  int Seal();
-
-  int WriteInternal(const char* data, int data_size);
-
-  const int block_size_;
-  const int max_size_;
-  const char* seal_;
-  const int seal_size_;
-  ScopedVector<char*> blocks_;
-  int write_pos_;
-  int block_index_;
-  int block_write_pos_;
-  bool is_sealed_;
-};
-
 
 // Functions and data for performing output of log messages.
 class Log {
  public:
-
   // Performs process-wide initialization.
   void Initialize();
 
@@ -103,18 +45,21 @@ class Log {
   void stop() { is_stopped_ = true; }
 
   // Frees all resources acquired in Initialize and Open... functions.
-  void Close();
-
-  // See description in include/v8.h.
-  int GetLogLines(int from_pos, char* dest_buf, int max_size);
+  // When a temporary file is used for the log, returns its stream descriptor,
+  // leaving the file open.
+  FILE* Close();
 
   // Returns whether logging is enabled.
   bool IsEnabled() {
-    return !is_stopped_ && (output_handle_ != NULL || output_buffer_ != NULL);
+    return !is_stopped_ && output_handle_ != NULL;
   }
 
   // Size of buffer used for formatting log messages.
-  static const int kMessageBufferSize = v8::V8::kMinimumSizeForLogLinesBuffer;
+  static const int kMessageBufferSize = 2048;
+
+  // This mode is only used in tests, as temporary files are automatically
+  // deleted on close and thus can't be accessed afterwards.
+  static const char* kLogToTemporaryFile;
 
  private:
   explicit Log(Logger* logger);
@@ -125,8 +70,8 @@ class Log {
   // Opens file for logging.
   void OpenFile(const char* name);
 
-  // Opens memory buffer for logging.
-  void OpenMemoryBuffer();
+  // Opens a temporary file for logging.
+  void OpenTemporaryFile();
 
   // Implementation of writing to a log file.
   int WriteToFile(const char* msg, int length) {
@@ -138,37 +83,15 @@ class Log {
     return length;
   }
 
-  // Implementation of writing to a memory buffer.
-  int WriteToMemory(const char* msg, int length) {
-    ASSERT(output_buffer_ != NULL);
-    return output_buffer_->Write(msg, length);
-  }
-
-  bool write_to_file_;
-
   // Whether logging is stopped (e.g. due to insufficient resources).
   bool is_stopped_;
 
-  // When logging is active, either output_handle_ or output_buffer_ is used
-  // to store a pointer to log destination. If logging was opened via OpenStdout
-  // or OpenFile, then output_handle_ is used. If logging was opened
-  // via OpenMemoryBuffer, then output_buffer_ is used.
-  // mutex_ should be acquired before using output_handle_ or output_buffer_.
+  // When logging is active output_handle_ is used to store a pointer to log
+  // destination.  mutex_ should be acquired before using output_handle_.
   FILE* output_handle_;
 
   // Used when low-level profiling is active.
   FILE* ll_output_handle_;
-
-  LogDynamicBuffer* output_buffer_;
-
-  // Size of dynamic buffer block (and dynamic buffer initial size).
-  static const int kDynamicBufferBlockSize = 65536;
-
-  // Maximum size of dynamic buffer.
-  static const int kMaxDynamicBufferSize = 50 * 1024 * 1024;
-
-  // Message to "seal" dynamic buffer with.
-  static const char* const kDynamicBufferSeal;
 
   // mutex_ is a Mutex used for enforcing exclusive
   // access to the formatting buffer and the log file or log memory buffer.
@@ -223,8 +146,6 @@ class LogMessageBuilder BASE_EMBEDDED {
   ScopedLock sl;
   int pos_;
 };
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal
 

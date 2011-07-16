@@ -779,8 +779,13 @@ class Assembler : public AssemblerBase {
   void fcmp(FPURegister src1, const double src2, FPUCondition cond);
 
   // Check the code size generated from label to here.
-  int InstructionsGeneratedSince(Label* l) {
-    return (pc_offset() - l->pos()) / kInstrSize;
+  int SizeOfCodeGeneratedSince(Label* label) {
+    return pc_offset() - label->pos();
+  }
+
+  // Check the number of instructions generated from label to here.
+  int InstructionsGeneratedSince(Label* label) {
+    return SizeOfCodeGeneratedSince(label) / kInstrSize;
   }
 
   // Class for scoping postponing the trampoline pool generation.

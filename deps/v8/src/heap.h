@@ -409,12 +409,6 @@ class Heap {
   // Uncommit unused semi space.
   bool UncommitFromSpace() { return new_space_.UncommitFromSpace(); }
 
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect the heap by marking all spaces read-only/writable.
-  void Protect();
-  void Unprotect();
-#endif
-
   // Allocates and initializes a new JavaScript object based on a
   // constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1052,10 +1046,8 @@ class Heap {
   void ZapFromSpace();
 #endif
 
-#if defined(ENABLE_LOGGING_AND_PROFILING)
   // Print short heap statistics.
   void PrintShortHeapStatistics();
-#endif
 
   // Makes a new symbol object
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -1514,11 +1506,9 @@ class Heap {
   // around a GC).
   inline void CompletelyClearInstanceofCache();
 
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
   void ReportStatisticsAfterGC();
-#endif
 
   // Slow part of scavenge object.
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);

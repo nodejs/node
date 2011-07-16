@@ -38,10 +38,7 @@
         '../src',
       ],
       'defines': [
-        'ENABLE_LOGGING_AND_PROFILING',
         'ENABLE_DEBUGGER_SUPPORT',
-        'ENABLE_VMSTATE_TRACKING',
-        'V8_FAST_TLS',
       ],
       'sources': [
         'd8.cc',

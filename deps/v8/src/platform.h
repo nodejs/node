@@ -177,6 +177,9 @@ class OS {
   static FILE* FOpen(const char* path, const char* mode);
   static bool Remove(const char* path);
 
+  // Opens a temporary file, the file is auto removed on close.
+  static FILE* OpenTemporaryFile();
+
   // Log file open mode is platform-dependent due to line ends issues.
   static const char* const LogFileOpenMode;
 
@@ -205,12 +208,6 @@ class OS {
   static void Free(void* address, const size_t size);
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
-
-#ifdef ENABLE_HEAP_PROTECTION
-  // Protect/unprotect a block of memory by marking it read-only/writable.
-  static void Protect(void* address, size_t size);
-  static void Unprotect(void* address, size_t size, bool is_executable);
-#endif
 
   // Returns an indication of whether a pointer is in a space that
   // has been allocated by Allocate().  This method may conservatively
@@ -603,7 +600,6 @@ class TickSample {
   bool has_external_callback : 1;
 };
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 class Sampler {
  public:
   // Initialize sampler.
@@ -661,8 +657,6 @@ class Sampler {
   DISALLOW_IMPLICIT_CONSTRUCTORS(Sampler);
 };
 
-
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal
 

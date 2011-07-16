@@ -46,24 +46,12 @@ prefix ietestcenter
 # Unanalyzed failures which may be bugs or deliberate differences
 #
 
-# BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
-#      Names in UTF8: class (class)
-7.6-30: FAIL
-# BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
-#      Names in UTF8: extends (extends)
-7.6-31: FAIL
-# BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
-#      Names in UTF8: \u0065\u006e\u0075\u006d (enum)
-7.6-32: FAIL
-# BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
-#      Names in UTF8: \u0073uper (super)
-7.6-33: FAIL
-# BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
-#      Names in UTF8: expor\u0074 (export)
-7.6-35: FAIL
-# BUG: 7.6 - SyntaxError expected: reserved words used as Identifier
-#      Names in UTF8: \u0069\u006d\u0070\u006f\u0072\u0074 (import)
-7.6-36: FAIL
+# Bug? Strict Mode - TypeError is thrown when changing the value of a Value
+#      Property of the Global Object under strict mode (NaN)
+10.2.1.1.3-4-16-s: FAIL
+# Bug? Strict Mode - TypeError is thrown when changing the value of a Value
+#      Property of the Global Object under strict mode (undefined)
+10.2.1.1.3-4-18-s: FAIL
 # Invalid test: https://bugs.ecmascript.org/show_bug.cgi?id=76
 10.4.2-2-c-1: FAIL
 # BUG: 11.8.2 Greater-than Operator - Partial left to right order enforced
@@ -93,6 +81,12 @@ prefix ietestcenter
 # BUG: 11.8.3 Less-than-or-equal Operator - Partial left to right order
 #      enforced when using Less-than-or-equal operator: valueOf <= valueOf
 11.8.3-5: FAIL
+# Bug? simple assignment throws TypeError if LeftHandSide is a readonly property
+#      in strict mode (Global.undefined)
+11.13.1-4-27-s: FAIL
+# Bug? simple assignment throws TypeError if LeftHandSide is a readonly property
+#      in strict mode (Global.Infinity)
+11.13.1-4-3-s: FAIL
 # BUG: Global.NaN is a data property with default attribute values
 15.1.1.1-0: FAIL
 # BUG: Global.Infinity is a data property with default attribute values
@@ -123,35 +117,6 @@ prefix ietestcenter
 # BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
 #      for properties on built-ins (RegExp.prototype.multiline)
 15.2.3.3-4-215: FAIL
-# Bug? Object.create - 'set' property of one property in 'Properties'
-#      is not present (8.10.5 step 8)
-# V8 throws.
-15.2.3.5-4-267: FAIL
-# Bug? Object.create - 'set' property of one property in 'Properties'
-#      is undefined (8.10.5 step 8.b)
-# V8 throws.
-15.2.3.5-4-292: FAIL
-# Bug? Object.defineProperty - 'set' property in 'Attributes' is not
-#      present (8.10.5 step 8)
-# V8 throws.
-15.2.3.6-3-236: FAIL
-# Bug? Object.defineProperty - 'set' property in 'Attributes' is own
-#      accessor property without a get function (8.10.5 step 8.a)
-# V8 throws.
-15.2.3.6-3-245: FAIL
-# Bug? Object.defineProperty - 'set' property in 'Attributes' is own
-#      accessor property(without a get function) that overrides an inherited
-#      accessor property (8.10.5 step 8.a)
-# V8 throws.
-15.2.3.6-3-246: FAIL
-# Bug? Object.defineProperty - 'set' property in 'Attributes' is an
-#      inherited accessor property without a get function (8.10.5 step 8.a)
-# V8 throws.
-15.2.3.6-3-247: FAIL
-# Bug? Object.defineProperty - value of 'set' property in 'Attributes'
-#      is undefined (8.10.5 step 8.b)
-# V8 throws.
-15.2.3.6-3-261: FAIL
 # Bug? Object.defineProperty - Update [[Enumerable]] attribute of 'name'
 #      property to true successfully when [[Enumerable]] attribute of 'name'
 #      is false and [[Configurable]] attribute of 'name' is true,  the 'desc'
@@ -464,11 +429,6 @@ prefix ietestcenter
 #      values of 'name' (15.4.5.1 step 4.c)
 15.2.3.6-4-209: FAIL
 # Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
-#      property, 'name' is accessor property and assignment to the accessor
-#      property, fails to convert accessor property from accessor property to
-#      data property (15.4.5.1 step 4.c)
-15.2.3.6-4-243-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
 #      property, name is accessor property and 'desc' is accessor descriptor,
 #      test updating the [[Enumerable]] attribute value of 'name' (15.4.5.1 step
 #      4.c)
@@ -493,18 +453,6 @@ prefix ietestcenter
 #      (15.4.5.1 step 4.e.ii)
 15.2.3.6-4-276: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own property which is defined in both
-#      [[ParameterMap]] of 'O' and 'O', and is deleted afterwards, and 'desc' is
-#      data descriptor, test 'name' is redefined in 'O' with all correct
-#      attribute values (10.6 [[DefineOwnProperty]] step 3)
-15.2.3.6-4-289-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own property which is defined in both
-#      [[ParameterMap]] of 'O' and 'O', is deleted afterwards, and 'desc' is
-#      accessor descriptor, test 'name' is redefined in 'O' with all correct
-#      attribute values (10.6 [[DefineOwnProperty]] step 3)
-15.2.3.6-4-290-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
 #      formal parameters, 'name' is own accessor property of 'O' which is also
 #      defined in [[ParameterMap]] of 'O', and 'desc' is accessor descriptor,
 #      test updating multiple attribute values of 'name' (10.6
@@ -516,6 +464,19 @@ prefix ietestcenter
 #      step 3)
 15.2.3.6-4-291: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
+#      formal parameters, 'name' is own property of 'O' which is also defined in
+#      [[ParameterMap]] of 'O', and 'desc' is data descriptor, test updating
+#      multiple attribute values of 'name' (10.6 [[DefineOwnProperty]] step 3
+#      and 5.b)
+15.2.3.6-4-292-1: FAIL
+# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
+#      formal parameters, 'name' is own data property of 'O' which is also
+#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
+#      updating the [[Value]] attribute value of 'name' which is defined as
+#      unwritable and non-configurable (10.6 [[DefineOwnProperty]] step 4 and
+#      step 5b)
+15.2.3.6-4-293-2: FAIL
+# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
 #      formal parameters, 'name' is own data property of 'O' which is also
 #      defined in [[ParameterMap]] of 'O', test TypeError is not thrown when
 #      updating the [[Value]] attribute value of 'name' which is defined as
@@ -523,39 +484,44 @@ prefix ietestcenter
 #      5.b)
 15.2.3.6-4-293-3: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own accessor property of 'O' which is also
+#      formal parameters, 'name' is own data property of 'O' which is also
 #      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
-#      updating the [[Get]] attribute value of 'name' which is defined as
-#      non-configurable (10.6 [[DefineOwnProperty]] step 4 and step 5a)
-15.2.3.6-4-297-1: FAIL
+#      updating the [[Writable]] attribute value of 'name' which is defined as
+#      non-configurable (10.6 [[DefineOwnProperty]] step 4 and 5b)
+15.2.3.6-4-294-1: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own accessor property of 'O' which is also
-#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
-#      updating the [[Set]] attribute value of 'name' which is defined as
-#      non-configurable (10.6 [[DefineOwnProperty]] steps 4 and 5a)
-15.2.3.6-4-298-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is own accessor property of 'O' which is also
+#      formal parameters, 'name' is own data property of 'O' which is also
 #      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
 #      updating the [[Enumerable]] attribute value of 'name' which is defined as
-#      non-configurable (10.6 [[DefineOwnProperty]] steps 4 and 5a)
-15.2.3.6-4-299-1: FAIL
+#      non-configurable (10.6 [[DefineOwnProperty]] step 4 and step 5b)
+15.2.3.6-4-295-1: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is an index named property of 'O', and 'desc'
-#      is data descriptor, test 'name' is defined in 'O' with all correct
-#      attribute values (10.6 [[DefineOwnProperty]] step 3)
-15.2.3.6-4-301-1: FAIL
-# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
-#      formal parameters, 'name' is an index named property of 'O' but not
-#      defined in [[ParameterMap]] of 'O', and 'desc' is accessor descriptor,
-#      test 'name' is defined in 'O' with all correct attribute values (10.6
-#      [[DefineOwnProperty]] step 3 and step 5a)
-15.2.3.6-4-302-1: FAIL
+#      formal parameters, 'name' is own data property of 'O' which is also
+#      defined in [[ParameterMap]] of 'O', test TypeError is thrown when
+#      updating the [[Configurable]] attribute value of 'name' which is defined
+#      as non-configurable (10.6 [[DefineOwnProperty]] step 4 and step 5b)
+15.2.3.6-4-296-1: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object, 'name' is an index
 #      named accessor property of 'O' but not defined in [[ParameterMap]] of
 #      'O', and 'desc' is accessor descriptor, test updating multiple attribute
 #      values of 'name' (10.6 [[DefineOwnProperty]] step 3)
 15.2.3.6-4-303: FAIL
+# Bug? ES5 Attributes - indexed property 'P' with attributes [[Writable]]: true,
+#      [[Enumerable]]: true, [[Configurable]]: false is writable using simple
+#      assignment, 'O' is an Arguments object
+15.2.3.6-4-333-11: FAIL
+# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
+#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
+#      accessor property, 'A' is an Array object (8.12.9 - step 9.b.i)
+15.2.3.6-4-360-1: FAIL
+# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
+#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
+#      accessor property, 'O' is an Arguments object (8.12.9 - step 9.b.i)
+15.2.3.6-4-360-6: FAIL
+# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
+#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
+#      accessor property, 'O' is the global object (8.12.9 - step 9.b.i)
+15.2.3.6-4-360-7: FAIL
 # Bug? ES5 Attributes - [[Value]] attribute of data property is the activex host
 #      object
 15.2.3.6-4-401: FAIL
@@ -575,17 +541,6 @@ prefix ietestcenter
 #      prototype has a property with the same name and [[Writable]] set to
 #      false(Function.prototype.bind)
 15.2.3.6-4-420: FAIL
-# Bug? ES5 Attributes - Fail to add property into object (Number instance)
-15.2.3.6-4-581: FAIL
-# Bug? ES5 Attributes - Fail to update value of property into of [[Proptotype]]
-#      internal property (JSON)
-15.2.3.6-4-586: FAIL
-# Bug? ES5 Attributes - Fail to update value of property of [[Proptotype]]
-#      internal property (Object.create)
-15.2.3.6-4-591: FAIL
-# Bug? ES5 Attributes - Fail to update value of property into of [[Proptotype]]
-#      internal property (Function.prototype.bind)
-15.2.3.6-4-596: FAIL
 # Bug? ES5 Attributes - all attributes in Array.prototype.indexOf are correct
 15.2.3.6-4-612: FAIL
 # Bug? ES5 Attributes - all attributes in Object.lastIndexOf are correct
@@ -611,20 +566,6 @@ prefix ietestcenter
 15.2.3.6-4-623: FAIL
 # Bug? ES5 Attributes - all attributes in Date.prototype.toJSON are correct
 15.2.3.6-4-624: FAIL
-# Bug? Object.defineProperties - argument 'Properties' is an Error object
-#      props.description = obj1;
-15.2.3.7-2-15: FAIL
-# Bug? Object.defineProperties - 'Properties' is an Error object which
-#      implements its own [[Get]] method to get enumerable own property
-#      props.description = obj1;
-15.2.3.7-5-a-16: FAIL
-# Bug? Object.defineProperties - 'set' property of 'descObj' is not present
-#      (8.10.5 step 8)
-15.2.3.7-5-b-227: FAIL
-# Bug? Object.defineProperties - 'descObj' is an Error object which implements
-#      its own [[Get]] method to get 'set' property (8.10.5 step 8.a)
-#      descObj.description = { value: 11 };
-15.2.3.7-5-b-248: FAIL
 # Bug? Object.defineProperties - 'O' is an Array, test the length property of
 #      'O' is own data property (15.4.5.1 step 1)
 15.2.3.7-6-a-112: FAIL
@@ -922,23 +863,48 @@ prefix ietestcenter
 #      'desc' is accessor descriptor, test updating multiple attribute values of
 #      'P' (10.6 [[DefineOwnProperty]] step 3)
 15.2.3.7-6-a-280: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
+#      property of 'O' which is also defined in [[ParameterMap]] of 'O', and
+#      'desc' is data descriptor, test updating multiple attribute values of 'P'
+#      (10.6 [[DefineOwnProperty]] step 3)
+15.2.3.7-6-a-281: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
+#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
+#      TypeError is thrown when updating the [[Value]] attribute value of 'P'
+#      whose writable and configurable attributes are false (10.6
+#      [[DefineOwnProperty]] step 4)
+15.2.3.7-6-a-282: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
+#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
+#      TypeError is thrown when updating the [[Writable]] attribute value of 'P'
+#      which is defined as non-configurable (10.6 [[DefineOwnProperty]] step 4)
+15.2.3.7-6-a-283: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
+#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
+#      TypeError is thrown when updating the [[Enumerable]] attribute value of
+#      'P' which is defined as non-configurable (10.6 [[DefineOwnProperty]] step
+#      4)
+15.2.3.7-6-a-284: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
+#      property of 'O' which is also defined in [[ParameterMap]] of 'O', test
+#      TypeError is thrown when updating the [[Configurable]] attribute value of
+#      'P' which is defined as non-configurable (10.6 [[DefineOwnProperty]] step
+#      4)
+15.2.3.7-6-a-285: FAIL
 # Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is an array
 #      index named accessor property of 'O' but not defined in [[ParameterMap]]
 #      of 'O', and 'desc' is accessor descriptor, test updating multiple
 #      attribute values of 'P' (10.6 [[DefineOwnProperty]] step 3)
 15.2.3.7-6-a-292: FAIL
-# Bug? Object.prototype.toString - '[object Undefined]' will be returned when
-#      'this' value is undefined
-15.2.4.2-1-1: FAIL
-# Bug? Object.prototype.toString - '[object Undefined]' will be returned when
-#      'this' value is undefined
-15.2.4.2-1-2: FAIL
-# Bug? Object.prototype.toString - '[object Null]' will be returned when 'this'
-#      value is null
-15.2.4.2-2-1: FAIL
-# Bug? Object.prototype.toString - '[object Null]' will be returned when 'this'
-#      value is null
-15.2.4.2-2-2: FAIL
+# Bug? Strict Mode - 'this' value is a string which cannot be converted to
+#      wrapper objects when the function is called with an array of arguments
+15.3.4.3-1-s: FAIL
+# Bug? Strict Mode - 'this' value is a number which cannot be converted to
+#      wrapper objects when the function is called with an array of arguments
+15.3.4.3-2-s: FAIL
+# Bug? Strict Mode - 'this' value is a boolean which cannot be converted to
+#      wrapper objects when the function is called with an array of arguments
+15.3.4.3-3-s: FAIL
 # Bug? Function.prototype.bind - [[Get]] attribute of 'caller' property in 'F'
 #      is thrower
 15.3.4.5-20-2: FAIL
@@ -951,16 +917,6 @@ prefix ietestcenter
 # Bug? Function.prototype.bind - [[Set]] attribute of 'arguments' property in
 #      'F' is thrower
 15.3.4.5-21-3: FAIL
-# Bug? Array.prototype.concat will concat an Array when index property
-#      (read-only) exists in Array.prototype (Step 5.c.i)
-15.4.4.4-5-c-i-1: FAIL
-# Bug? Array.prototype.indexOf applied to undefined throws a TypeError
-15.4.4.14-1-1: FAIL
-# Bug? Array.prototype.indexOf applied to null throws a TypeError
-15.4.4.14-1-2: FAIL
-# Bug? Array.prototype.indexOf - side effects produced by step 1 are visible
-#      when an exception occurs
-15.4.4.14-5-28: FAIL
 # Bug? Array.prototype.indexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.14-9-a-19: FAIL
@@ -983,13 +939,6 @@ prefix ietestcenter
 # Bug? Array.prototype.indexOf - terminates iteration on unhandled exception on
 #      an Array
 15.4.4.14-9-b-i-30: FAIL
-# Bug? Array.prototype.lastIndexOf applied to undefined throws a TypeError
-15.4.4.15-1-1: FAIL
-# Bug? Array.prototype.lastIndexOf applied to null throws a TypeError
-15.4.4.15-1-2: FAIL
-# Bug? Array.prototype.lastIndexOf - side effects produced by step 1 are visible
-#      when an exception occurs
-15.4.4.15-5-28: FAIL
 # Bug? Array.prototype.lastIndexOf - deleting property of prototype causes
 #      prototype index property not to be visited on an Array
 15.4.4.15-8-a-14: FAIL
@@ -1011,6 +960,12 @@ prefix ietestcenter
 # Bug? Array.prototype.lastIndexOf terminates iteration on unhandled exception
 #      on an Array
 15.4.4.15-8-b-i-30: FAIL
+# Bug? Array.prototype.every applied to boolean primitive
+15.4.4.16-1-3: FAIL
+# Bug? Array.prototype.every applied to number primitive
+15.4.4.16-1-5: FAIL
+# Bug? Array.prototype.every applied to string primitive
+15.4.4.16-1-7: FAIL
 # Bug? Array.prototype.every - side effects produced by step 2 are visible when
 #      an exception occurs
 15.4.4.16-4-8: FAIL
@@ -1048,6 +1003,12 @@ prefix ietestcenter
 # Bug? Array.prototype.every - element changed by getter on previous iterations
 #      is observed on an Array
 15.4.4.16-7-c-i-28: FAIL
+# Bug? Array.prototype.some applied to boolean primitive
+15.4.4.17-1-3: FAIL
+# Bug? Array.prototype.some applied to number primitive
+15.4.4.17-1-5: FAIL
+# Bug? Array.prototype.some applied to applied to string primitive
+15.4.4.17-1-7: FAIL
 # Bug? Array.prototype.some - side effects produced by step 2 are visible when
 #      an exception occurs
 15.4.4.17-4-8: FAIL
@@ -1085,6 +1046,12 @@ prefix ietestcenter
 # Bug? Array.prototype.some - element changed by getter on previous iterations
 #      is observed on an Array
 15.4.4.17-7-c-i-28: FAIL
+# Bug? Array.prototype.forEach applied to boolean primitive
+15.4.4.18-1-3: FAIL
+# Bug? Array.prototype.forEach applied to number primitive
+15.4.4.18-1-5: FAIL
+# Bug? Array.prototype.forEach applied to string primitive
+15.4.4.18-1-7: FAIL
 # Bug? Array.prototype.forEach - side effects produced by step 2 are visible
 #      when an exception occurs
 15.4.4.18-4-8: FAIL
@@ -1122,9 +1089,12 @@ prefix ietestcenter
 # Bug? Array.prototype.forEach - element changed by getter on previous
 #      iterations is observed on an Array
 15.4.4.18-7-c-i-28: FAIL
-# Bug? Array.prototype.map - applied to Array-like object, 'length' is an own
-#      data property that overrides an inherited accessor property
-15.4.4.19-2-5: FAIL
+# Bug? Array.prototype.map - applied to boolean primitive
+15.4.4.19-1-3: FAIL
+# Bug? Array.prototype.map - applied to number primitive
+15.4.4.19-1-5: FAIL
+# Bug? Array.prototype.map - applied to string primitive
+15.4.4.19-1-7: FAIL
 # Bug? Array.prototype.map - Side effects produced by step 2 are visible when an
 #      exception occurs
 15.4.4.19-4-8: FAIL
@@ -1162,6 +1132,12 @@ prefix ietestcenter
 # Bug? Array.prototype.map - element changed by getter on previous iterations is
 #      observed on an Array
 15.4.4.19-8-c-i-28: FAIL
+# Bug? Array.prototype.filter applied to boolean primitive
+15.4.4.20-1-3: FAIL
+# Bug? Array.prototype.filter applied to number primitive
+15.4.4.20-1-5: FAIL
+# Bug? Array.prototype.filter applied to string primitive
+15.4.4.20-1-7: FAIL
 # Bug? Array.prototype.filter - value of 'length' is a number (value is
 #      negative)
 15.4.4.20-3-7: FAIL
@@ -1207,9 +1183,6 @@ prefix ietestcenter
 # Bug? Array.prototype.filter - properties can be added to prototype after
 #      current position are visited on an Array-like object
 15.4.4.20-9-b-6: FAIL
-# Bug? Array.prototype.filter - properties can be added to prototype after
-#      current position are visited on an Array
-15.4.4.20-9-b-7: FAIL
 # Bug? Array.prototype.filter - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.20-9-b-16: FAIL
@@ -1241,6 +1214,12 @@ prefix ietestcenter
 # Bug? Array.prototype.filter - element changed by getter on previous iterations
 #      is observed on an Array
 15.4.4.20-9-c-i-28: FAIL
+# Bug? Array.prototype.reduce applied to boolean primitive
+15.4.4.21-1-3: FAIL
+# Bug? Array.prototype.reduce applied to number primitive
+15.4.4.21-1-5: FAIL
+# Bug? Array.prototype.reduce applied to string primitive
+15.4.4.21-1-7: FAIL
 # Bug? Array.prototype.reduce - value of 'length' is a number (value is
 #      negative)
 15.4.4.21-3-7: FAIL
@@ -1289,6 +1268,12 @@ prefix ietestcenter
 # Bug? Array.prototype.reduce - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.21-9-b-29: FAIL
+# Bug? Array.prototype.reduceRight applied to boolean primitive
+15.4.4.22-1-3: FAIL
+# Bug? Array.prototype.reduceRight applied to number primitive
+15.4.4.22-1-5: FAIL
+# Bug? Array.prototype.reduceRight applied to string primitive
+15.4.4.22-1-7: FAIL
 # Bug? Array.prototype.reduceRight - value of 'length' is a number (value is
 #      negative)
 15.4.4.22-3-7: FAIL
@@ -1378,10 +1363,6 @@ prefix ietestcenter
 # Bug? Array.prototype.reduceRight - modifications to length will change number
 #      of iterations
 15.4.4.22-9-9: FAIL
-# Bug? String.prototype.trim throws TypeError when string is undefined
-15.5.4.20-1-1: FAIL
-# Bug? String.prototype.trim throws TypeError when string is null
-15.5.4.20-1-2: FAIL
 # Bug? String.prototype.trim - 'S' is a string with all WhiteSpace
 15.5.4.20-3-2: FAIL
 # Bug? String.prototype.trim - 'S' is a string with all union of WhiteSpace and
@@ -1404,9 +1385,6 @@ prefix ietestcenter
 # Bug? String.prototype.trim handles whitepace and lineterminators
 #      (\\uFEFF\\uFEFF)
 15.5.4.20-4-34: FAIL
-# Bug? Date Time String Format - specified default values will be set for all
-#      optional fields(MM, DD, mm, ss and time zone) when they are absent
-15.9.1.15-1: FAIL
 # Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
 #      Date(1970, 0, -99999999, 0, 0, 0, -1), the time zone is UTC(0)
 15.9.5.43-0-8: FAIL

@@ -65,7 +65,6 @@ SOURCES = {
     'test-liveedit.cc',
     'test-lock.cc',
     'test-lockers.cc',
-    'test-log-utils.cc',
     'test-log.cc',
     'test-mark-compact.cc',
     'test-parsing.cc',

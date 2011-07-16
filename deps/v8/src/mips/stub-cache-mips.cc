@@ -3099,7 +3099,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   //  -- a1    : receiver
   // -----------------------------------
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedLoadElementStub(receiver_map);
+  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(a1,
                  a2,
@@ -3190,7 +3191,10 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- a3    : scratch
   // -----------------------------------
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedStoreElementStub(receiver_map);
+  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+  MaybeObject* maybe_stub =
+      KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(a2,
                  a3,
@@ -3388,6 +3392,54 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 
 #undef __
 #define __ ACCESS_MASM(masm)
+
+
+void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
+    MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- ra     : return address
+  //  -- a0     : key
+  //  -- a1     : receiver
+  // -----------------------------------
+  Label slow, miss_force_generic;
+
+  Register key = a0;
+  Register receiver = a1;
+
+  __ JumpIfNotSmi(key, &miss_force_generic);
+  __ lw(t0, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ sra(a2, a0, kSmiTagSize);
+  __ LoadFromNumberDictionary(&slow, t0, a0, v0, a2, a3, t1);
+  __ Ret();
+
+  // Slow case, key and receiver still in a0 and a1.
+  __ bind(&slow);
+  __ IncrementCounter(
+      masm->isolate()->counters()->keyed_load_external_array_slow(),
+      1, a2, a3);
+  // Entry registers are intact.
+  // ---------- S t a t e --------------
+  //  -- ra     : return address
+  //  -- a0     : key
+  //  -- a1     : receiver
+  // -----------------------------------
+  Handle<Code> slow_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_Slow();
+  __ Jump(slow_ic, RelocInfo::CODE_TARGET);
+
+  // Miss case, call the runtime.
+  __ bind(&miss_force_generic);
+
+  // ---------- S t a t e --------------
+  //  -- ra     : return address
+  //  -- a0     : key
+  //  -- a1     : receiver
+  // -----------------------------------
+
+  Handle<Code> miss_ic =
+     masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
+  __ Jump(miss_ic, RelocInfo::CODE_TARGET);
+}
 
 
 static bool IsElementTypeSigned(JSObject::ElementsKind elements_kind) {
@@ -4201,7 +4253,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   // have been verified by the caller to not be a smi.
 
   // Check that the key is a smi.
-  __ JumpIfNotSmi(a0, &miss_force_generic);
+  __ JumpIfNotSmi(key_reg, &miss_force_generic);
 
   // Get the elements array and make sure it is a fast element array, not 'cow'.
   __ lw(elements_reg,

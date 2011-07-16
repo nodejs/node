@@ -35,7 +35,6 @@ namespace v8 {
 namespace internal {
 
 class VMState BASE_EMBEDDED {
-#ifdef ENABLE_VMSTATE_TRACKING
  public:
   inline VMState(Isolate* isolate, StateTag tag);
   inline ~VMState();
@@ -43,26 +42,16 @@ class VMState BASE_EMBEDDED {
  private:
   Isolate* isolate_;
   StateTag previous_tag_;
-
-#else
- public:
-  VMState(Isolate* isolate, StateTag state) {}
-#endif
 };
 
 
 class ExternalCallbackScope BASE_EMBEDDED {
-#ifdef ENABLE_LOGGING_AND_PROFILING
  public:
   inline ExternalCallbackScope(Isolate* isolate, Address callback);
   inline ~ExternalCallbackScope();
  private:
   Isolate* isolate_;
   Address previous_callback_;
-#else
- public:
-  ExternalCallbackScope(Isolate* isolate, Address callback) {}
-#endif
 };
 
 } }  // namespace v8::internal

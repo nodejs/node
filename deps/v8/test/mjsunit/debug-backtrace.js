@@ -195,7 +195,7 @@ function listener(event, exec_state, event_data, data) {
       assertEquals("m", response.lookup(frame.func.ref).inferredName);
       assertFalse(frame.constructCall);
       assertEquals(35, frame.line);
-      assertEquals(2, frame.column);
+      assertEquals(6, frame.column);
       assertEquals(0, frame.arguments.length);
 
       json = '{"seq":0,"type":"request","command":"frame","arguments":{"number":3}}'
@@ -269,4 +269,3 @@ g();
 // Make sure that the debug event listener vas invoked.
 assertFalse(exception, "exception in listener");
 assertTrue(listenerCalled);
-

@@ -1343,6 +1343,100 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::LoadFromNumberDictionary(Label* miss,
+                                              Register elements,
+                                              Register key,
+                                              Register result,
+                                              Register t0,
+                                              Register t1,
+                                              Register t2) {
+  // Register use:
+  //
+  // elements - holds the slow-case elements of the receiver on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // key      - holds the smi key on entry.
+  //            Unchanged unless 'result' is the same register.
+  //
+  // result   - holds the result on exit if the load succeeded.
+  //            Allowed to be the same as 'key' or 'result'.
+  //            Unchanged on bailout so 'key' or 'result' can be used
+  //            in further computation.
+  //
+  // Scratch registers:
+  //
+  // t0 - holds the untagged key on entry and holds the hash once computed.
+  //
+  // t1 - used to hold the capacity mask of the dictionary
+  //
+  // t2 - used for the index into the dictionary.
+  Label done;
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  mvn(t1, Operand(t0));
+  add(t0, t1, Operand(t0, LSL, 15));
+  // hash = hash ^ (hash >> 12);
+  eor(t0, t0, Operand(t0, LSR, 12));
+  // hash = hash + (hash << 2);
+  add(t0, t0, Operand(t0, LSL, 2));
+  // hash = hash ^ (hash >> 4);
+  eor(t0, t0, Operand(t0, LSR, 4));
+  // hash = hash * 2057;
+  mov(t1, Operand(2057));
+  mul(t0, t0, t1);
+  // hash = hash ^ (hash >> 16);
+  eor(t0, t0, Operand(t0, LSR, 16));
+
+  // Compute the capacity mask.
+  ldr(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  mov(t1, Operand(t1, ASR, kSmiTagSize));  // convert smi to int
+  sub(t1, t1, Operand(1));
+
+  // Generate an unrolled loop that performs a few probes before giving up.
+  static const int kProbes = 4;
+  for (int i = 0; i < kProbes; i++) {
+    // Use t2 for index calculations and keep the hash intact in t0.
+    mov(t2, t0);
+    // Compute the masked index: (hash + i + i * i) & mask.
+    if (i > 0) {
+      add(t2, t2, Operand(NumberDictionary::GetProbeOffset(i)));
+    }
+    and_(t2, t2, Operand(t1));
+
+    // Scale the index by multiplying by the element size.
+    ASSERT(NumberDictionary::kEntrySize == 3);
+    add(t2, t2, Operand(t2, LSL, 1));  // t2 = t2 * 3
+
+    // Check if the key is identical to the name.
+    add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
+    ldr(ip, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
+    cmp(key, Operand(ip));
+    if (i != kProbes - 1) {
+      b(eq, &done);
+    } else {
+      b(ne, miss);
+    }
+  }
+
+  bind(&done);
+  // Check that the value is a normal property.
+  // t2: elements + (index * kPointerSize)
+  const int kDetailsOffset =
+      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+  ldr(t1, FieldMemOperand(t2, kDetailsOffset));
+  tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::mask())));
+  b(ne, miss);
+
+  // Get the value at the masked, scaled index and return.
+  const int kValueOffset =
+      NumberDictionary::kElementsStartOffset + kPointerSize;
+  ldr(result, FieldMemOperand(t2, kValueOffset));
+}
+
+
 void MacroAssembler::AllocateInNewSpace(int object_size,
                                         Register result,
                                         Register scratch1,

@@ -314,7 +314,11 @@ class SeparateIsolatesLocksNonexclusiveThread : public JoinableThread {
 
 // Run parallel threads that lock and access different isolates in parallel
 TEST(SeparateIsolatesLocksNonexclusive) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 50;
+#else
   const int kNThreads = 100;
+#endif
   v8::Isolate* isolate1 = v8::Isolate::New();
   v8::Isolate* isolate2 = v8::Isolate::New();
   i::List<JoinableThread*> threads(kNThreads);
@@ -383,7 +387,11 @@ class LockerUnlockerThread : public JoinableThread {
 
 // Use unlocker inside of a Locker, multiple threads.
 TEST(LockerUnlocker) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 50;
+#else
   const int kNThreads = 100;
+#endif
   i::List<JoinableThread*> threads(kNThreads);
   v8::Isolate* isolate = v8::Isolate::New();
   for (int i = 0; i < kNThreads; i++) {
@@ -431,7 +439,11 @@ class LockTwiceAndUnlockThread : public JoinableThread {
 
 // Use Unlocker inside two Lockers.
 TEST(LockTwiceAndUnlock) {
+#ifdef V8_TARGET_ARCH_ARM
+  const int kNThreads = 50;
+#else
   const int kNThreads = 100;
+#endif
   i::List<JoinableThread*> threads(kNThreads);
   v8::Isolate* isolate = v8::Isolate::New();
   for (int i = 0; i < kNThreads; i++) {

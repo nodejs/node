@@ -1024,7 +1024,7 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
         operand = chunk_->DefineConstantOperand(constant);
       } else {
         ASSERT(!op->EmitAtUses());
-        LUnallocated* unalloc = new LUnallocated(LUnallocated::NONE);
+        LUnallocated* unalloc = new LUnallocated(LUnallocated::ANY);
         unalloc->set_virtual_register(op->id());
         operand = unalloc;
       }

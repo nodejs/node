@@ -214,115 +214,6 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 }
 
 
-static void GenerateNumberDictionaryLoad(MacroAssembler* masm,
-                                         Label* miss,
-                                         Register elements,
-                                         Register key,
-                                         Register result,
-                                         Register reg0,
-                                         Register reg1,
-                                         Register reg2) {
-  // Register use:
-  //
-  // elements - holds the slow-case elements of the receiver on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  // key      - holds the smi key on entry.
-  //            Unchanged unless 'result' is the same register.
-  //
-  //
-  // result   - holds the result on exit if the load succeeded.
-  //            Allowed to be the same as 'key' or 'result'.
-  //            Unchanged on bailout so 'key' or 'result' can be used
-  //            in further computation.
-  //
-  // Scratch registers:
-  //
-  // reg0 - holds the untagged key on entry and holds the hash once computed.
-  //
-  // reg1 - Used to hold the capacity mask of the dictionary.
-  //
-  // reg2 - Used for the index into the dictionary.
-  // at   - Temporary (avoid MacroAssembler instructions also using 'at').
-  Label done;
-
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  __ nor(reg1, reg0, zero_reg);
-  __ sll(at, reg0, 15);
-  __ addu(reg0, reg1, at);
-
-  // hash = hash ^ (hash >> 12);
-  __ srl(at, reg0, 12);
-  __ xor_(reg0, reg0, at);
-
-  // hash = hash + (hash << 2);
-  __ sll(at, reg0, 2);
-  __ addu(reg0, reg0, at);
-
-  // hash = hash ^ (hash >> 4);
-  __ srl(at, reg0, 4);
-  __ xor_(reg0, reg0, at);
-
-  // hash = hash * 2057;
-  __ li(reg1, Operand(2057));
-  __ mul(reg0, reg0, reg1);
-
-  // hash = hash ^ (hash >> 16);
-  __ srl(at, reg0, 16);
-  __ xor_(reg0, reg0, at);
-
-  // Compute the capacity mask.
-  __ lw(reg1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
-  __ sra(reg1, reg1, kSmiTagSize);
-  __ Subu(reg1, reg1, Operand(1));
-
-  // Generate an unrolled loop that performs a few probes before giving up.
-  static const int kProbes = 4;
-  for (int i = 0; i < kProbes; i++) {
-    // Use reg2 for index calculations and keep the hash intact in reg0.
-    __ mov(reg2, reg0);
-    // Compute the masked index: (hash + i + i * i) & mask.
-    if (i > 0) {
-      __ Addu(reg2, reg2, Operand(NumberDictionary::GetProbeOffset(i)));
-    }
-    __ and_(reg2, reg2, reg1);
-
-    // Scale the index by multiplying by the element size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
-    __ sll(at, reg2, 1);  // 2x.
-    __ addu(reg2, reg2, at);  // reg2 = reg2 * 3.
-
-    // Check if the key is identical to the name.
-    __ sll(at, reg2, kPointerSizeLog2);
-    __ addu(reg2, elements, at);
-
-    __ lw(at, FieldMemOperand(reg2, NumberDictionary::kElementsStartOffset));
-    if (i != kProbes - 1) {
-      __ Branch(&done, eq, key, Operand(at));
-    } else {
-      __ Branch(miss, ne, key, Operand(at));
-    }
-  }
-
-  __ bind(&done);
-  // Check that the value is a normal property.
-  // reg2: elements + (index * kPointerSize).
-  const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
-  __ lw(reg1, FieldMemOperand(reg2, kDetailsOffset));
-  __ And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::mask())));
-  __ Branch(miss, ne, at, Operand(zero_reg));
-
-  // Get the value at the masked, scaled index and return.
-  const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
-  __ lw(result, FieldMemOperand(reg2, kValueOffset));
-}
-
-
 void LoadIC::GenerateArrayLength(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- a2    : name
@@ -751,7 +642,7 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   __ Branch(&slow_load, ne, a3, Operand(at));
   __ sra(a0, a2, kSmiTagSize);
   // a0: untagged index
-  GenerateNumberDictionaryLoad(masm, &slow_load, t0, a2, a1, a0, a3, t1);
+  __ LoadFromNumberDictionary(&slow_load, t0, a2, a1, a0, a3, t1);
   __ IncrementCounter(counters->keyed_call_generic_smi_dict(), 1, a0, a3);
   __ jmp(&do_call);
 
@@ -963,6 +854,9 @@ static MemOperand GenerateUnmappedArgumentsLookup(MacroAssembler* masm,
   const int kBackingStoreOffset = FixedArray::kHeaderSize + kPointerSize;
   Register backing_store = parameter_map;
   __ lw(backing_store, FieldMemOperand(parameter_map, kBackingStoreOffset));
+  Handle<Map> fixed_array_map(masm->isolate()->heap()->fixed_array_map());
+  __ CheckMap(backing_store, scratch, fixed_array_map, slow_case,
+              DONT_DO_SMI_CHECK);
   __ lw(scratch, FieldMemOperand(backing_store, FixedArray::kLengthOffset));
   __ Branch(slow_case, Ugreater_equal, key, Operand(scratch));
   __ li(scratch, Operand(kPointerSize >> 1));
@@ -1136,7 +1030,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ LoadRoot(at, Heap::kHashTableMapRootIndex);
   __ Branch(&slow, ne, a3, Operand(at));
   __ sra(a2, a0, kSmiTagSize);
-  GenerateNumberDictionaryLoad(masm, &slow, t0, a0, v0, a2, a3, t1);
+  __ LoadFromNumberDictionary(&slow, t0, a0, v0, a2, a3, t1);
   __ Ret();
 
   // Slow case, key and receiver still in a0 and a1.

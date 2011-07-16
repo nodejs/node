@@ -284,7 +284,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
   const char* AddressNames[] = {
 #define C(name) "Isolate::" #name,
     ISOLATE_ADDRESS_LIST(C)
-    ISOLATE_ADDRESS_LIST_PROF(C)
     NULL
 #undef C
   };

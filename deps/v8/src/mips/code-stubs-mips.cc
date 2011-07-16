@@ -305,12 +305,6 @@ class ConvertToDoubleStub : public CodeStub {
   }
 
   void Generate(MacroAssembler* masm);
-
-  const char* GetName() { return "ConvertToDoubleStub"; }
-
-#ifdef DEBUG
-  void Print() { PrintF("ConvertToDoubleStub\n"); }
-#endif
 };
 
 
@@ -396,11 +390,11 @@ void FloatingPointHelper::LoadSmis(MacroAssembler* masm,
     __ mov(scratch1, a0);
     ConvertToDoubleStub stub1(a3, a2, scratch1, scratch2);
     __ push(ra);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
     // Write Smi from a1 to a1 and a0 in double format.
     __ mov(scratch1, a1);
     ConvertToDoubleStub stub2(a1, a0, scratch1, scratch2);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(ra);
   }
 }
@@ -482,7 +476,7 @@ void FloatingPointHelper::LoadNumber(MacroAssembler* masm,
     __ mov(scratch1, object);
     ConvertToDoubleStub stub(dst2, dst1, scratch1, scratch2);
     __ push(ra);
-    __ Call(stub.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub.GetCode());
     __ pop(ra);
   }
 
@@ -1107,7 +1101,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ mov(t6, rhs);
     ConvertToDoubleStub stub1(a1, a0, t6, t5);
     __ push(ra);
-    __ Call(stub1.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub1.GetCode());
 
     __ pop(ra);
   }
@@ -1142,7 +1136,7 @@ static void EmitSmiNonsmiComparison(MacroAssembler* masm,
     __ mov(t6, lhs);
     ConvertToDoubleStub stub2(a3, a2, t6, t5);
     __ push(ra);
-    __ Call(stub2.GetCode(), RelocInfo::CODE_TARGET);
+    __ Call(stub2.GetCode());
     __ pop(ra);
     // Load rhs to a double in a1, a0.
     if (rhs.is(a0)) {
@@ -1803,25 +1797,17 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* UnaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
+void UnaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name = NULL;  // Make g++ happy.
   switch (mode_) {
     case UNARY_NO_OVERWRITE: overwrite_name = "Alloc"; break;
     case UNARY_OVERWRITE: overwrite_name = "Overwrite"; break;
   }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "UnaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               UnaryOpIC::GetName(operand_type_));
-  return name_;
+  stream->Add("UnaryOpStub_%s_%s_%s",
+              op_name,
+              overwrite_name,
+              UnaryOpIC::GetName(operand_type_));
 }
 
 
@@ -2160,12 +2146,7 @@ void BinaryOpStub::Generate(MacroAssembler* masm) {
 }
 
 
-const char* BinaryOpStub::GetName() {
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
+void BinaryOpStub::PrintName(StringStream* stream) {
   const char* op_name = Token::Name(op_);
   const char* overwrite_name;
   switch (mode_) {
@@ -2174,13 +2155,10 @@ const char* BinaryOpStub::GetName() {
     case OVERWRITE_LEFT: overwrite_name = "OverwriteLeft"; break;
     default: overwrite_name = "UnknownOverwrite"; break;
   }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "BinaryOpStub_%s_%s_%s",
-               op_name,
-               overwrite_name,
-               BinaryOpIC::GetName(operands_type_));
-  return name_;
+  stream->Add("BinaryOpStub_%s_%s_%s",
+              op_name,
+              overwrite_name,
+              BinaryOpIC::GetName(operands_type_));
 }
 
 
@@ -3749,24 +3727,22 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // 4 args slots
   // args
 
-  #ifdef ENABLE_LOGGING_AND_PROFILING
-    // If this is the outermost JS call, set js_entry_sp value.
-    Label non_outermost_js;
-    ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
-                                  masm->isolate());
-    __ li(t1, Operand(ExternalReference(js_entry_sp)));
-    __ lw(t2, MemOperand(t1));
-    __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
-    __ sw(fp, MemOperand(t1));
-    __ li(t0, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-    Label cont;
-    __ b(&cont);
-    __ nop();   // Branch delay slot nop.
-    __ bind(&non_outermost_js);
-    __ li(t0, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
-    __ bind(&cont);
-    __ push(t0);
-  #endif
+  // If this is the outermost JS call, set js_entry_sp value.
+  Label non_outermost_js;
+  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
+                                masm->isolate());
+  __ li(t1, Operand(ExternalReference(js_entry_sp)));
+  __ lw(t2, MemOperand(t1));
+  __ Branch(&non_outermost_js, ne, t2, Operand(zero_reg));
+  __ sw(fp, MemOperand(t1));
+  __ li(t0, Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  Label cont;
+  __ b(&cont);
+  __ nop();   // Branch delay slot nop.
+  __ bind(&non_outermost_js);
+  __ li(t0, Operand(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
+  __ bind(&cont);
+  __ push(t0);
 
   // Call a faked try-block that does the invoke.
   __ bal(&invoke);  // bal exposes branch delay slot.
@@ -3835,16 +3811,14 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ PopTryHandler();
 
   __ bind(&exit);  // v0 holds result
-  #ifdef ENABLE_LOGGING_AND_PROFILING
-    // Check if the current stack frame is marked as the outermost JS frame.
-    Label non_outermost_js_2;
-    __ pop(t1);
-    __ Branch(&non_outermost_js_2, ne, t1,
-              Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
-    __ li(t1, Operand(ExternalReference(js_entry_sp)));
-    __ sw(zero_reg, MemOperand(t1));
-    __ bind(&non_outermost_js_2);
-  #endif
+  // Check if the current stack frame is marked as the outermost JS frame.
+  Label non_outermost_js_2;
+  __ pop(t1);
+  __ Branch(&non_outermost_js_2, ne, t1,
+            Operand(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
+  __ li(t1, Operand(ExternalReference(js_entry_sp)));
+  __ sw(zero_reg, MemOperand(t1));
+  __ bind(&non_outermost_js_2);
 
   // Restore the top frame descriptors from the stack.
   __ pop(t1);
@@ -4592,10 +4566,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ movz(t9, t0, a0);  // If UC16 (a0 is 0), replace t9 w/kDataUC16CodeOffset.
 
   // Check that the irregexp code has been generated for the actual string
-  // encoding. If it has, the field contains a code object otherwise it
-  // contains the hole.
-  __ GetObjectType(t9, a0, a0);
-  __ Branch(&runtime, ne, a0, Operand(CODE_TYPE));
+  // encoding. If it has, the field contains a code object otherwise it contains
+  // a smi (code flushing support).
+  __ JumpIfSmi(t9, &runtime);
 
   // a3: encoding of subject string (1 if ASCII, 0 if two_byte);
   // t9: code
@@ -4947,16 +4920,9 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
 // Unfortunately you have to run without snapshots to see most of these
 // names in the profile since most compare stubs end up in the snapshot.
-const char* CompareStub::GetName() {
+void CompareStub::PrintName(StringStream* stream) {
   ASSERT((lhs_.is(a0) && rhs_.is(a1)) ||
          (lhs_.is(a1) && rhs_.is(a0)));
-
-  if (name_ != NULL) return name_;
-  const int kMaxNameLength = 100;
-  name_ = Isolate::Current()->bootstrapper()->AllocateAutoDeletedArray(
-      kMaxNameLength);
-  if (name_ == NULL) return "OOM";
-
   const char* cc_name;
   switch (cc_) {
     case lt: cc_name = "LT"; break;
@@ -4967,40 +4933,14 @@ const char* CompareStub::GetName() {
     case ne: cc_name = "NE"; break;
     default: cc_name = "UnknownCondition"; break;
   }
-
-  const char* lhs_name = lhs_.is(a0) ? "_a0" : "_a1";
-  const char* rhs_name = rhs_.is(a0) ? "_a0" : "_a1";
-
-  const char* strict_name = "";
-  if (strict_ && (cc_ == eq || cc_ == ne)) {
-    strict_name = "_STRICT";
-  }
-
-  const char* never_nan_nan_name = "";
-  if (never_nan_nan_ && (cc_ == eq || cc_ == ne)) {
-    never_nan_nan_name = "_NO_NAN";
-  }
-
-  const char* include_number_compare_name = "";
-  if (!include_number_compare_) {
-    include_number_compare_name = "_NO_NUMBER";
-  }
-
-  const char* include_smi_compare_name = "";
-  if (!include_smi_compare_) {
-    include_smi_compare_name = "_NO_SMI";
-  }
-
-  OS::SNPrintF(Vector<char>(name_, kMaxNameLength),
-               "CompareStub_%s%s%s%s%s%s",
-               cc_name,
-               lhs_name,
-               rhs_name,
-               strict_name,
-               never_nan_nan_name,
-               include_number_compare_name,
-               include_smi_compare_name);
-  return name_;
+  bool is_equality = cc_ == eq || cc_ == ne;
+  stream->Add("CompareStub_%s", cc_name);
+  stream->Add(lhs_.is(a0) ? "_a0" : "_a1");
+  stream->Add(rhs_.is(a0) ? "_a0" : "_a1");
+  if (strict_ && is_equality) stream->Add("_STRICT");
+  if (never_nan_nan_ && is_equality) stream->Add("_NO_NAN");
+  if (!include_number_compare_) stream->Add("_NO_NUMBER");
+  if (!include_smi_compare_) stream->Add("_NO_SMI");
 }
 
 

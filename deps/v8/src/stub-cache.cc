@@ -1686,23 +1686,6 @@ MaybeObject* KeyedLoadStubCompiler::GetCode(PropertyType type,
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::ComputeSharedKeyedLoadElementStub(
-    Map* receiver_map) {
-  MaybeObject* maybe_stub = NULL;
-  if (receiver_map->has_fast_elements()) {
-    maybe_stub = KeyedLoadFastElementStub().TryGetCode();
-  } else if (receiver_map->has_external_array_elements()) {
-    JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
-    maybe_stub = KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
-  } else if (receiver_map->has_dictionary_elements()) {
-    maybe_stub = isolate()->builtins()->builtin(Builtins::kKeyedLoadIC_Slow);
-  } else {
-    UNREACHABLE();
-  }
-  return maybe_stub;
-}
-
-
 MaybeObject* StoreStubCompiler::GetCode(PropertyType type, String* name) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(
       Code::STORE_IC, type, strict_mode_);
@@ -1739,21 +1722,9 @@ MaybeObject* KeyedStoreStubCompiler::GetCode(PropertyType type,
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::ComputeSharedKeyedStoreElementStub(
-    Map* receiver_map) {
-  MaybeObject* maybe_stub = NULL;
-  if (receiver_map->has_fast_elements()) {
-    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-    maybe_stub = KeyedStoreFastElementStub(is_js_array).TryGetCode();
-  } else if (receiver_map->has_external_array_elements()) {
-    JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
-    maybe_stub = KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
-  } else if (receiver_map->has_dictionary_elements()) {
-    maybe_stub = isolate()->builtins()->builtin(Builtins::kKeyedStoreIC_Slow);
-  } else {
-    UNREACHABLE();
-  }
-  return maybe_stub;
+void KeyedStoreStubCompiler::GenerateStoreDictionaryElement(
+    MacroAssembler* masm) {
+  KeyedStoreIC::GenerateSlow(masm);
 }
 
 

@@ -206,6 +206,7 @@ class LookupResult BASE_EMBEDDED {
     lookup_type_ = HANDLER_TYPE;
     holder_ = NULL;
     details_ = PropertyDetails(NONE, HANDLER);
+    cacheable_ = false;
   }
 
   void InterceptorResult(JSObject* holder) {

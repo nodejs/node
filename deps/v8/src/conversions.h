@@ -44,8 +44,6 @@ namespace internal {
 // we don't need to preserve all the digits.
 const int kMaxSignificantDigits = 772;
 
-static const double JUNK_STRING_VALUE =
-    std::numeric_limits<double>::quiet_NaN();
 
 static bool isDigit(int x, int radix) {
   return (x >= '0' && x <= '9' && x < '0' + radix)

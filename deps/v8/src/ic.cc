@@ -1097,15 +1097,10 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 }
 
 
-MaybeObject* KeyedLoadIC::GetFastElementStubWithoutMapCheck(
-    bool is_js_array) {
-  return KeyedLoadFastElementStub().TryGetCode();
-}
-
-
-MaybeObject* KeyedLoadIC::GetExternalArrayStubWithoutMapCheck(
+MaybeObject* KeyedLoadIC::GetElementStubWithoutMapCheck(
+    bool is_js_array,
     JSObject::ElementsKind elements_kind) {
-  return KeyedLoadExternalArrayStub(elements_kind).TryGetCode();
+  return KeyedLoadElementStub(elements_kind).TryGetCode();
 }
 
 
@@ -1675,7 +1670,7 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
   for (int i = 0; i < target_receiver_maps.length(); ++i) {
     Map* receiver_map(target_receiver_maps.at(i));
     MaybeObject* maybe_cached_stub = ComputeMonomorphicStubWithoutMapCheck(
-        receiver_map, strict_mode, generic_stub);
+        receiver_map, strict_mode);
     Code* cached_stub;
     if (!maybe_cached_stub->To(&cached_stub)) return maybe_cached_stub;
     handler_ics.Add(cached_stub);
@@ -1694,18 +1689,18 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
 
 MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
     Map* receiver_map,
-    StrictModeFlag strict_mode,
-    Code* generic_stub) {
+    StrictModeFlag strict_mode) {
   if ((receiver_map->instance_type() & kNotStringTag) == 0) {
     ASSERT(string_stub() != NULL);
     return string_stub();
-  } else if (receiver_map->has_external_array_elements()) {
-    return GetExternalArrayStubWithoutMapCheck(receiver_map->elements_kind());
-  } else if (receiver_map->has_fast_elements()) {
-    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-    return GetFastElementStubWithoutMapCheck(is_js_array);
   } else {
-    return generic_stub;
+    ASSERT(receiver_map->has_dictionary_elements() ||
+           receiver_map->has_fast_elements() ||
+           receiver_map->has_fast_double_elements() ||
+           receiver_map->has_external_array_elements());
+    bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
+    return GetElementStubWithoutMapCheck(is_js_array,
+                                         receiver_map->elements_kind());
   }
 }
 
@@ -1717,6 +1712,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
   Code* result = NULL;
   if (receiver->HasFastElements() ||
       receiver->HasExternalArrayElements() ||
+      receiver->HasFastDoubleElements() ||
       receiver->HasDictionaryElements()) {
     MaybeObject* maybe_stub =
         isolate()->stub_cache()->ComputeKeyedLoadOrStoreElement(
@@ -1729,15 +1725,10 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
 }
 
 
-MaybeObject* KeyedStoreIC::GetFastElementStubWithoutMapCheck(
-    bool is_js_array) {
-  return KeyedStoreFastElementStub(is_js_array).TryGetCode();
-}
-
-
-MaybeObject* KeyedStoreIC::GetExternalArrayStubWithoutMapCheck(
+MaybeObject* KeyedStoreIC::GetElementStubWithoutMapCheck(
+    bool is_js_array,
     JSObject::ElementsKind elements_kind) {
-  return KeyedStoreExternalArrayStub(elements_kind).TryGetCode();
+  return KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
 }
 
 

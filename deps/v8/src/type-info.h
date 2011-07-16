@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "globals.h"
-#include "zone.h"
 #include "zone-inl.h"
 
 namespace v8 {

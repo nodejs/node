@@ -1,3 +1,36 @@
+2011-07-13: Version 3.4.12
+
+        Added --prof profiling option to d8 shell.
+
+        Fixed a bug where reading a directory in d8 shell hangs (issue 1533).
+
+        Fixed a potential assertion failure in const declarations.
+
+        Fixed an assertion failure in descriptor arrays (issue 1526).
+
+        Enabled fast thread-local storage by default on supported platforms.
+
+        Improved reporting of source position for global variable loads
+        (issue 1527).
+
+
+2011-07-11: Version 3.4.11
+
+        Fixed MinGW32 build.
+
+        Fixed a GC bug with RegExp code flushing.
+
+        Implemented Object.defineProperty for proxies.
+
+        Fixed a bug in for/in iteration of arguments objects (issue 1531).
+
+        Added debugger support for inspecting optimized frames (issue 1140).
+
+        Allowed JSObject::PreventExtensions to work for arguments objects.
+
+        Bugfixes and performance work.
+
+
 2011-07-06: Version 3.4.10
 
         Fixed debugger not breaking on certain "if" statements (issue 1523).
@@ -36,7 +69,7 @@
 
         Ensure 16-byte stack alignment on Solaris (issue 1505).
 
-        Fix "illegal access" when calling parseInt with a radix 
+        Fix "illegal access" when calling parseInt with a radix
         that is not a smi. (issue 1246).
 
 

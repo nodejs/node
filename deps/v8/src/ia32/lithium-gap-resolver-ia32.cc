@@ -305,8 +305,13 @@ void LGapResolver::EmitMove(int index) {
   } else if (source->IsConstantOperand()) {
     ASSERT(destination->IsRegister() || destination->IsStackSlot());
     Immediate src = cgen_->ToImmediate(source);
-    Operand dst = cgen_->ToOperand(destination);
-    __ mov(dst, src);
+    if (destination->IsRegister()) {
+      Register dst = cgen_->ToRegister(destination);
+      __ Set(dst, src);
+    } else {
+      Operand dst = cgen_->ToOperand(destination);
+      __ Set(dst, src);
+    }
 
   } else if (source->IsDoubleRegister()) {
     XMMRegister src = cgen_->ToDoubleRegister(source);

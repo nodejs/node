@@ -2,8 +2,6 @@
 //
 // Tests for heap profiler
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include "v8.h"
 
 #include "cctest.h"
@@ -893,5 +891,3 @@ TEST(NodesIteration) {
   }
   CHECK_EQ(1, count);
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING

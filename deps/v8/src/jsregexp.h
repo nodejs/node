@@ -29,7 +29,6 @@
 #define V8_JSREGEXP_H_
 
 #include "allocation.h"
-#include "macro-assembler.h"
 #include "zone-inl.h"
 
 namespace v8 {

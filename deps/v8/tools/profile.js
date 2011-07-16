@@ -162,8 +162,16 @@ Profile.prototype.addFuncCode = function(
     // Function object has been overwritten with a new one.
     func.name = name;
   }
-  var entry = new Profile.DynamicFuncCodeEntry(size, type, func, state);
-  this.codeMap_.addCode(start, entry);
+  var entry = this.codeMap_.findDynamicEntryByStartAddress(start);
+  if (entry) {
+    if (entry.size === size && entry.func === func) {
+      // Entry state has changed.
+      entry.state = state;
+    }
+  } else {
+    entry = new Profile.DynamicFuncCodeEntry(size, type, func, state);
+    this.codeMap_.addCode(start, entry);
+  }
   return entry;
 };
 
@@ -374,6 +382,31 @@ Profile.prototype.getFlatProfile = function(opt_label) {
 
 
 /**
+ * Cleans up function entries that are not referenced by code entries.
+ */
+Profile.prototype.cleanUpFuncEntries = function() {
+  var referencedFuncEntries = [];
+  var entries = this.codeMap_.getAllDynamicEntriesWithAddresses();
+  for (var i = 0, l = entries.length; i < l; ++i) {
+    if (entries[i][1].constructor === Profile.FunctionEntry) {
+      entries[i][1].used = false;
+    }
+  }
+  for (var i = 0, l = entries.length; i < l; ++i) {
+    if ("func" in entries[i][1]) {
+      entries[i][1].func.used = true;
+    }
+  }
+  for (var i = 0, l = entries.length; i < l; ++i) {
+    if (entries[i][1].constructor === Profile.FunctionEntry &&
+        !entries[i][1].used) {
+      this.codeMap_.deleteCode(entries[i][0]);
+    }
+  }
+};
+
+
+/**
  * Creates a dynamic code entry.
  *
  * @param {number} size Code size.
@@ -405,6 +438,11 @@ Profile.DynamicCodeEntry.prototype.getRawName = function() {
 
 Profile.DynamicCodeEntry.prototype.isJSFunction = function() {
   return false;
+};
+
+
+Profile.DynamicCodeEntry.prototype.toString = function() {
+  return this.getName() + ': ' + this.size.toString(16);
 };
 
 
@@ -448,6 +486,11 @@ Profile.DynamicFuncCodeEntry.prototype.isJSFunction = function() {
 };
 
 
+Profile.DynamicFuncCodeEntry.prototype.toString = function() {
+  return this.getName() + ': ' + this.size.toString(16);
+};
+
+
 /**
  * Creates a shared function object entry.
  *
@@ -473,6 +516,7 @@ Profile.FunctionEntry.prototype.getName = function() {
   return name;
 };
 
+Profile.FunctionEntry.prototype.toString = CodeMap.CodeEntry.prototype.toString;
 
 /**
  * Constructs a call graph.

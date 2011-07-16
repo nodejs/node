@@ -2679,7 +2679,10 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- esp[0] : return address
   // -----------------------------------
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedStoreElementStub(receiver_map);
+  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  bool is_jsarray = receiver_map->instance_type() == JS_ARRAY_TYPE;
+  MaybeObject* maybe_stub =
+      KeyedStoreElementStub(is_jsarray, elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(edx,
                  Handle<Map>(receiver_map),
@@ -3137,7 +3140,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   //  -- esp[0] : return address
   // -----------------------------------
   Code* stub;
-  MaybeObject* maybe_stub = ComputeSharedKeyedLoadElementStub(receiver_map);
+  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(edx,
                  Handle<Map>(receiver_map),
@@ -3319,6 +3323,64 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
 
 #undef __
 #define __ ACCESS_MASM(masm)
+
+
+void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label slow, miss_force_generic;
+
+  // This stub is meant to be tail-jumped to, the receiver must already
+  // have been verified by the caller to not be a smi.
+  __ JumpIfNotSmi(eax, &miss_force_generic);
+  __ mov(ebx, eax);
+  __ SmiUntag(ebx);
+  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
+
+  // Push receiver on the stack to free up a register for the dictionary
+  // probing.
+  __ push(edx);
+  __ LoadFromNumberDictionary(&slow,
+                              ecx,
+                              eax,
+                              ebx,
+                              edx,
+                              edi,
+                              eax);
+  // Pop receiver before returning.
+  __ pop(edx);
+  __ ret(0);
+
+  __ bind(&slow);
+  __ pop(edx);
+
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  Handle<Code> slow_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_Slow();
+  __ jmp(slow_ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&miss_force_generic);
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+
+  Handle<Code> miss_force_generic_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
+  __ jmp(miss_force_generic_ic, RelocInfo::CODE_TARGET);
+}
 
 
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
@@ -3731,7 +3793,8 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
 void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
                                                       bool is_js_array) {
   // ----------- S t a t e -------------
-  //  -- eax    : key
+  //  -- eax    : value
+  //  -- ecx    : key
   //  -- edx    : receiver
   //  -- esp[0] : return address
   // -----------------------------------

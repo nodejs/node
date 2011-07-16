@@ -433,6 +433,16 @@ class MacroAssembler: public Assembler {
                               Register scratch,
                               Label* miss);
 
+
+  void LoadFromNumberDictionary(Label* miss,
+                                Register elements,
+                                Register key,
+                                Register result,
+                                Register t0,
+                                Register t1,
+                                Register t2);
+
+
   inline void MarkCode(NopMarkerTypes type) {
     nop(type);
   }

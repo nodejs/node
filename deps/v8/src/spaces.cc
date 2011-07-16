@@ -868,30 +868,6 @@ void PagedSpace::TearDown() {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void PagedSpace::Protect() {
-  Page* page = first_page_;
-  while (page->is_valid()) {
-    Isolate::Current()->memory_allocator()->ProtectChunkFromPage(page);
-    page = Isolate::Current()->memory_allocator()->
-        FindLastPageInSameChunk(page)->next_page();
-  }
-}
-
-
-void PagedSpace::Unprotect() {
-  Page* page = first_page_;
-  while (page->is_valid()) {
-    Isolate::Current()->memory_allocator()->UnprotectChunkFromPage(page);
-    page = Isolate::Current()->memory_allocator()->
-        FindLastPageInSameChunk(page)->next_page();
-  }
-}
-
-#endif
-
-
 void PagedSpace::MarkAllPagesClean() {
   PageIterator it(this, PageIterator::ALL_PAGES);
   while (it.has_next()) {
@@ -1196,7 +1172,6 @@ bool NewSpace::Setup(Address start, int size) {
   ASSERT(IsPowerOf2(maximum_semispace_capacity));
 
   // Allocate and setup the histogram arrays if necessary.
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   allocated_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
   promoted_histogram_ = NewArray<HistogramInfo>(LAST_TYPE + 1);
 
@@ -1204,7 +1179,6 @@ bool NewSpace::Setup(Address start, int size) {
                        promoted_histogram_[name].set_name(#name);
   INSTANCE_TYPE_LIST(SET_NAME)
 #undef SET_NAME
-#endif
 
   ASSERT(size == 2 * heap()->ReservedSemiSpaceSize());
   ASSERT(IsAddressAligned(start, size, 0));
@@ -1236,7 +1210,6 @@ bool NewSpace::Setup(Address start, int size) {
 
 
 void NewSpace::TearDown() {
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
   if (allocated_histogram_) {
     DeleteArray(allocated_histogram_);
     allocated_histogram_ = NULL;
@@ -1245,7 +1218,6 @@ void NewSpace::TearDown() {
     DeleteArray(promoted_histogram_);
     promoted_histogram_ = NULL;
   }
-#endif
 
   start_ = NULL;
   allocation_info_.top = NULL;
@@ -1256,24 +1228,6 @@ void NewSpace::TearDown() {
   to_space_.TearDown();
   from_space_.TearDown();
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void NewSpace::Protect() {
-  heap()->isolate()->memory_allocator()->Protect(ToSpaceLow(), Capacity());
-  heap()->isolate()->memory_allocator()->Protect(FromSpaceLow(), Capacity());
-}
-
-
-void NewSpace::Unprotect() {
-  heap()->isolate()->memory_allocator()->Unprotect(ToSpaceLow(), Capacity(),
-                                                   to_space_.executable());
-  heap()->isolate()->memory_allocator()->Unprotect(FromSpaceLow(), Capacity(),
-                                                   from_space_.executable());
-}
-
-#endif
 
 
 void NewSpace::Flip() {
@@ -1638,7 +1592,6 @@ static void ReportHistogram(bool print_spill) {
 
 
 // Support for statistics gathering for --heap-stats and --log-gc.
-#if defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 void NewSpace::ClearHistograms() {
   for (int i = 0; i <= LAST_TYPE; i++) {
     allocated_histogram_[i].clear();
@@ -1648,9 +1601,7 @@ void NewSpace::ClearHistograms() {
 
 // Because the copying collector does not touch garbage objects, we iterate
 // the new space before a collection to get a histogram of allocated objects.
-// This only happens (1) when compiled with DEBUG and the --heap-stats flag is
-// set, or when compiled with ENABLE_LOGGING_AND_PROFILING and the --log-gc
-// flag is set.
+// This only happens when --log-gc flag is set.
 void NewSpace::CollectStatistics() {
   ClearHistograms();
   SemiSpaceIterator it(this);
@@ -1659,7 +1610,6 @@ void NewSpace::CollectStatistics() {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
 static void DoReportStatistics(Isolate* isolate,
                                HistogramInfo* info, const char* description) {
   LOG(isolate, HeapSampleBeginEvent("NewSpace", description));
@@ -1686,7 +1636,6 @@ static void DoReportStatistics(Isolate* isolate,
   }
   LOG(isolate, HeapSampleEndEvent("NewSpace", description));
 }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 
 void NewSpace::ReportStatistics() {
@@ -1709,13 +1658,11 @@ void NewSpace::ReportStatistics() {
   }
 #endif  // DEBUG
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
   if (FLAG_log_gc) {
     Isolate* isolate = ISOLATE;
     DoReportStatistics(isolate, allocated_histogram_, "allocated");
     DoReportStatistics(isolate, promoted_histogram_, "promoted");
   }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 }
 
 
@@ -1733,7 +1680,6 @@ void NewSpace::RecordPromotion(HeapObject* obj) {
   promoted_histogram_[type].increment_number(1);
   promoted_histogram_[type].increment_bytes(obj->Size());
 }
-#endif  // defined(DEBUG) || defined(ENABLE_LOGGING_AND_PROFILING)
 
 
 // -----------------------------------------------------------------------------
@@ -2807,31 +2753,6 @@ void LargeObjectSpace::TearDown() {
   page_count_ = 0;
   objects_size_ = 0;
 }
-
-
-#ifdef ENABLE_HEAP_PROTECTION
-
-void LargeObjectSpace::Protect() {
-  LargeObjectChunk* chunk = first_chunk_;
-  while (chunk != NULL) {
-    heap()->isolate()->memory_allocator()->Protect(chunk->address(),
-                                                   chunk->size());
-    chunk = chunk->next();
-  }
-}
-
-
-void LargeObjectSpace::Unprotect() {
-  LargeObjectChunk* chunk = first_chunk_;
-  while (chunk != NULL) {
-    bool is_code = chunk->GetObject()->IsCode();
-    heap()->isolate()->memory_allocator()->Unprotect(chunk->address(),
-        chunk->size(), is_code ? EXECUTABLE : NOT_EXECUTABLE);
-    chunk = chunk->next();
-  }
-}
-
-#endif
 
 
 MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,

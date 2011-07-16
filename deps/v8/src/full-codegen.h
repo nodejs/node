@@ -444,7 +444,7 @@ class FullCodeGenerator: public AstVisitor {
                                        TypeofState typeof_state,
                                        Label* slow,
                                        Label* done);
-  void EmitVariableLoad(Variable* expr);
+  void EmitVariableLoad(VariableProxy* proxy);
 
   enum ResolveEvalFlag {
     SKIP_CONTEXT_LOOKUP,

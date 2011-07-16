@@ -27,8 +27,6 @@
 //
 // Tests of profiler-related functions from log.h
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 #include <stdlib.h>
 
 #include "v8.h"
@@ -413,5 +411,3 @@ TEST(JsEntrySp) {
   CompileRun("js_entry_sp_level2();");
   CHECK_EQ(0, GetJsEntrySp());
 }
-
-#endif  // ENABLE_LOGGING_AND_PROFILING

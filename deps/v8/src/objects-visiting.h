@@ -30,6 +30,22 @@
 
 #include "allocation.h"
 
+#if V8_TARGET_ARCH_IA32
+#include "ia32/assembler-ia32.h"
+#include "ia32/assembler-ia32-inl.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/assembler-x64.h"
+#include "x64/assembler-x64-inl.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/assembler-arm.h"
+#include "arm/assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/assembler-mips.h"
+#include "mips/assembler-mips-inl.h"
+#else
+#error Unsupported target architecture.
+#endif
+
 // This file provides base classes and auxiliary methods for defining
 // static object visitors used during GC.
 // Visiting HeapObject body with a normal ObjectVisitor requires performing

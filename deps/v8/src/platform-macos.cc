@@ -169,20 +169,6 @@ void OS::Free(void* address, const size_t size) {
 }
 
 
-#ifdef ENABLE_HEAP_PROTECTION
-
-void OS::Protect(void* address, size_t size) {
-  UNIMPLEMENTED();
-}
-
-
-void OS::Unprotect(void* address, size_t size, bool is_executable) {
-  UNIMPLEMENTED();
-}
-
-#endif
-
-
 void OS::Sleep(int milliseconds) {
   usleep(1000 * milliseconds);
 }
@@ -248,7 +234,6 @@ PosixMemoryMappedFile::~PosixMemoryMappedFile() {
 
 
 void OS::LogSharedLibraryAddresses() {
-#ifdef ENABLE_LOGGING_AND_PROFILING
   unsigned int images_count = _dyld_image_count();
   for (unsigned int i = 0; i < images_count; ++i) {
     const mach_header* header = _dyld_get_image_header(i);
@@ -270,7 +255,6 @@ void OS::LogSharedLibraryAddresses() {
     LOG(Isolate::Current(),
         SharedLibraryEvent(_dyld_get_image_name(i), start, start + size));
   }
-#endif  // ENABLE_LOGGING_AND_PROFILING
 }
 
 
@@ -644,8 +628,6 @@ Semaphore* OS::CreateSemaphore(int count) {
 }
 
 
-#ifdef ENABLE_LOGGING_AND_PROFILING
-
 class Sampler::PlatformData : public Malloced {
  public:
   PlatformData() : profiled_thread_(mach_thread_self()) {}
@@ -821,6 +803,5 @@ void Sampler::Stop() {
   SetActive(false);
 }
 
-#endif  // ENABLE_LOGGING_AND_PROFILING
 
 } }  // namespace v8::internal

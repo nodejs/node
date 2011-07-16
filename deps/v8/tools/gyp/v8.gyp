@@ -62,10 +62,7 @@
     ['use_system_v8==0', {
       'target_defaults': {
         'defines': [
-          'ENABLE_LOGGING_AND_PROFILING',
           'ENABLE_DEBUGGER_SUPPORT',
-          'ENABLE_VMSTATE_TRACKING',
-          'V8_FAST_TLS',
         ],
         'conditions': [
           ['OS!="mac"', {
@@ -286,6 +283,12 @@
           'conditions': [
             ['component=="shared_library"', {
               'conditions': [
+                # The ARM assembler assumes the host is 32 bits, so force building
+                # 32-bit host tools.
+                ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
                 ['OS=="win"', {
                   'defines': [
                     'BUILDING_V8_SHARED',
@@ -970,6 +973,12 @@
             ['OS=="win"', {
               # This could be gotten by not setting chromium_code, if that's OK.
               'defines': ['_CRT_SECURE_NO_WARNINGS'],
+            }],
+            # The ARM assembler assumes the host is 32 bits, so force building
+            # 32-bit host tools.
+            ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
+              'cflags': ['-m32'],
+              'ldflags': ['-m32'],
             }],
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [

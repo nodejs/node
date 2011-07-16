@@ -543,11 +543,6 @@ Handle<Object> SetAccessor(Handle<JSObject> obj, Handle<AccessorInfo> info) {
 // associated with the wrapper and get rid of both the wrapper and the
 // handle.
 static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
-#ifdef ENABLE_HEAP_PROTECTION
-  // Weak reference callbacks are called as if from outside V8.  We
-  // need to reeenter to unprotect the heap.
-  VMState state(OTHER);
-#endif
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();

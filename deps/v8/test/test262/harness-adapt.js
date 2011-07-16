@@ -43,7 +43,7 @@ var ES5Harness = (function() {
   }
 
   Test262Error.prototype.toString = function() {
-    return this.result + " " + error;
+    return this.result + " " + this.error;
   }
 
   function registerTest(test) {

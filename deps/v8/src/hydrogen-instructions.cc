@@ -784,6 +784,21 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
+HValue* HCheckInstanceType::Canonicalize() {
+  if (check_ == IS_STRING &&
+      !value()->type().IsUninitialized() &&
+      value()->type().IsString()) {
+    return NULL;
+  }
+  if (check_ == IS_SYMBOL &&
+      value()->IsConstant() &&
+      HConstant::cast(value())->handle()->IsSymbol()) {
+    return NULL;
+  }
+  return this;
+}
+
+
 void HCheckInstanceType::GetCheckInterval(InstanceType* first,
                                           InstanceType* last) {
   ASSERT(is_interval_check());

@@ -2770,10 +2770,13 @@ class Dictionary: public HashTable<Shape, Key> {
   // Returns the number of enumerable elements in the dictionary.
   int NumberOfEnumElements();
 
+  enum SortMode { UNSORTED, SORTED };
   // Copies keys to preallocated fixed array.
-  void CopyKeysTo(FixedArray* storage, PropertyAttributes filter);
+  void CopyKeysTo(FixedArray* storage,
+                  PropertyAttributes filter,
+                  SortMode sort_mode);
   // Fill in details for properties into storage.
-  void CopyKeysTo(FixedArray* storage);
+  void CopyKeysTo(FixedArray* storage, SortMode sort_mode);
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
