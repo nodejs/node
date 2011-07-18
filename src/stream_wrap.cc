@@ -1,5 +1,6 @@
 #include <node.h>
 #include <node_buffer.h>
+#include <handle_wrap.h>
 #include <stream_wrap.h>
 #include <req_wrap.h>
 
@@ -43,10 +44,10 @@ typedef class ReqWrap<uv_write_t> WriteWrap;
 
 static size_t slab_used;
 static uv_stream_t* handle_that_last_alloced;
-Persistent<String> slab_sym;
-Persistent<String> buffer_sym;
-Persistent<String> write_queue_size_sym;
-bool initialized;
+static Persistent<String> slab_sym;
+static Persistent<String> buffer_sym;
+static Persistent<String> write_queue_size_sym;
+static bool initialized;
 
 
 void StreamWrap::Initialize(Handle<Object> target) {
@@ -58,6 +59,8 @@ void StreamWrap::Initialize(Handle<Object> target) {
 
   HandleScope scope;
 
+  HandleWrap::Initialize(target);
+
   slab_sym = Persistent<String>::New(String::NewSymbol("slab"));
   buffer_sym = Persistent<String>::New(String::NewSymbol("buffer"));
   write_queue_size_sym =
@@ -65,37 +68,12 @@ void StreamWrap::Initialize(Handle<Object> target) {
 }
 
 
-StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream) {
-  HandleScope scope;
-
+StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
+    : HandleWrap(object, (uv_handle_t*)stream) {
   stream_ = stream;
   stream->data = this;
 
-  assert(object_.IsEmpty());
-  assert(object->InternalFieldCount() > 0);
-  object_ = v8::Persistent<v8::Object>::New(object);
-  object_->SetPointerInInternalField(0, this);
-
   UpdateWriteQueueSize();
-}
-
-
-StreamWrap::~StreamWrap() {
-  assert(object_.IsEmpty());
-}
-
-
-// Free the C++ object on the close callback.
-void StreamWrap::OnClose(uv_handle_t* handle) {
-  StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
-
-  // The wrap object should still be there.
-  assert(wrap->object_.IsEmpty() == false);
-
-  wrap->object_->SetPointerInInternalField(0, NULL);
-  wrap->object_.Dispose();
-  wrap->object_.Clear();
-  delete wrap;
 }
 
 
@@ -222,25 +200,6 @@ void StreamWrap::OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     };
     MakeCallback(wrap->object_, "onread", 3, argv);
   }
-}
-
-// TODO: share me?
-Handle<Value> StreamWrap::Close(const Arguments& args) {
-  HandleScope scope;
-
-  UNWRAP
-
-  assert(!wrap->object_.IsEmpty());
-  int r = uv_close((uv_handle_t*) wrap->stream_, OnClose);
-
-  if (r) {
-    SetErrno(uv_last_error().code);
-
-    wrap->object_->SetPointerInInternalField(0, NULL);
-    wrap->object_.Dispose();
-    wrap->object_.Clear();
-  }
-  return scope.Close(Integer::New(r));
 }
 
 

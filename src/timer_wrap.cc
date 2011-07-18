@@ -1,4 +1,5 @@
 #include <node.h>
+#include <handle_wrap.h>
 
 // Rules:
 //
@@ -48,21 +49,24 @@ using v8::Arguments;
 using v8::Integer;
 
 
-class TimerWrap {
+class TimerWrap : public HandleWrap {
  public:
   static void Initialize(Handle<Object> target) {
     HandleScope scope;
 
+    HandleWrap::Initialize(target);
+
     Local<FunctionTemplate> constructor = FunctionTemplate::New(New);
     constructor->InstanceTemplate()->SetInternalFieldCount(1);
     constructor->SetClassName(String::NewSymbol("Timer"));
+
+    NODE_SET_PROTOTYPE_METHOD(constructor, "close", HandleWrap::Close);
 
     NODE_SET_PROTOTYPE_METHOD(constructor, "start", Start);
     NODE_SET_PROTOTYPE_METHOD(constructor, "stop", Stop);
     NODE_SET_PROTOTYPE_METHOD(constructor, "setRepeat", SetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "getRepeat", GetRepeat);
     NODE_SET_PROTOTYPE_METHOD(constructor, "again", Again);
-    NODE_SET_PROTOTYPE_METHOD(constructor, "close", Close);
 
     target->Set(String::NewSymbol("Timer"), constructor->GetFunction());
   }
@@ -81,16 +85,11 @@ class TimerWrap {
     return scope.Close(args.This());
   }
 
-  TimerWrap(Handle<Object> object) {
+  TimerWrap(Handle<Object> object)
+      : HandleWrap(object, (uv_handle_t*) &handle_) {
     active_ = false;
     int r = uv_timer_init(&handle_);
     handle_.data = this;
-    assert(r == 0); // How do we proxy this error up to javascript?
-                    // Suggestion: uv_timer_init() returns void.
-    assert(object_.IsEmpty());
-    assert(object->InternalFieldCount() > 0);
-    object_ = v8::Persistent<v8::Object>::New(object);
-    object_->SetPointerInInternalField(0, this);
 
     // uv_timer_init adds a loop reference. (That is, it calls uv_ref.) This
     // is not the behavior we want in Node. Timers should not increase the
@@ -100,7 +99,6 @@ class TimerWrap {
 
   ~TimerWrap() {
     if (!active_) uv_ref();
-    assert(object_.IsEmpty());
   }
 
   void StateChange() {
@@ -116,12 +114,6 @@ class TimerWrap {
       // decrease the loop's reference count.
       uv_unref();
     }
-  }
-
-  // Free the C++ object on the close callback.
-  static void OnClose(uv_handle_t* handle) {
-    TimerWrap* wrap = static_cast<TimerWrap*>(handle->data);
-    delete wrap;
   }
 
   static Handle<Value> Start(const Arguments& args) {
@@ -194,26 +186,6 @@ class TimerWrap {
     return scope.Close(Integer::New(repeat));
   }
 
-  // TODO: share me?
-  static Handle<Value> Close(const Arguments& args) {
-    HandleScope scope;
-
-    UNWRAP
-
-    int r = uv_close((uv_handle_t*) &wrap->handle_, OnClose);
-
-    if (r) SetErrno(uv_last_error().code);
-
-    wrap->StateChange();
-
-    assert(!wrap->object_.IsEmpty());
-    wrap->object_->SetPointerInInternalField(0, NULL);
-    wrap->object_.Dispose();
-    wrap->object_.Clear();
-
-    return scope.Close(Integer::New(r));
-  }
-
   static void OnTimeout(uv_timer_t* handle, int status) {
     HandleScope scope;
 
@@ -227,7 +199,6 @@ class TimerWrap {
   }
 
   uv_timer_t handle_;
-  Persistent<Object> object_;
   // This member is set false initially. When the timer is turned
   // on uv_ref is called. When the timer is turned off uv_unref is
   // called. Used to mirror libev semantics.

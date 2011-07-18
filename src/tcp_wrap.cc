@@ -1,6 +1,7 @@
 #include <node.h>
 #include <node_buffer.h>
 #include <req_wrap.h>
+#include <handle_wrap.h>
 #include <stream_wrap.h>
 
 // Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
@@ -75,10 +76,11 @@ static Persistent<String> port_symbol;
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
 
-class TCPWrap : StreamWrap {
+class TCPWrap : public StreamWrap {
  public:
 
   static void Initialize(Handle<Object> target) {
+    HandleWrap::Initialize(target);
     StreamWrap::Initialize(target);
 
     HandleScope scope;
@@ -88,11 +90,12 @@ class TCPWrap : StreamWrap {
 
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
+    NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
+
     NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "write", StreamWrap::Write);
     NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
-    NODE_SET_PROTOTYPE_METHOD(t, "close", StreamWrap::Close);
 
     NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
     NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
