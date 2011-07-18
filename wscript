@@ -846,6 +846,7 @@ def build(bld):
     src/node_dtrace.cc
     src/node_string.cc
     src/timer_wrap.cc
+    src/stream_wrap.cc
     src/tcp_wrap.cc
     src/cares_wrap.cc
   """
