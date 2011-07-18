@@ -19,27 +19,6 @@
 # define uv_inet_ntop inet_ntop
 #endif
 
-// Rules:
-//
-// - Do not throw from handle methods. Set errno.
-//
-// - MakeCallback may only be made directly off the event loop.
-//   That is there can be no JavaScript stack frames underneith it.
-//   (Is there anyway to assert that?)
-//
-// - No use of v8::WeakReferenceCallback. The close callback signifies that
-//   we're done with a handle - external resources can be freed.
-//
-// - Reusable?
-//
-// - The uv_close_cb is used to free the c++ object. The close callback
-//   is not made into javascript land.
-//
-// - uv_ref, uv_unref counts are managed at this layer to avoid needless
-//   js/c++ boundary crossing. At the javascript layer that should all be
-//   taken care of.
-
-
 #define UNWRAP \
   assert(!args.Holder().IsEmpty()); \
   assert(args.Holder()->InternalFieldCount() > 0); \
