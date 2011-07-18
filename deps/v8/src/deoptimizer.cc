@@ -1462,7 +1462,7 @@ DeoptimizedFrameInfo::~DeoptimizedFrameInfo() {
 }
 
 void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
-  v->VisitPointer(reinterpret_cast<Object**>(&function_));
+  v->VisitPointer(BitCast<Object**>(&function_));
   v->VisitPointers(parameters_, parameters_ + parameters_count_);
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
