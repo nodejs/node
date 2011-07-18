@@ -67,25 +67,27 @@ typedef struct {
 
 #define UV_STREAM_PRIVATE_FIELDS \
   uv_read_cb read_cb; \
-  uv_alloc_cb alloc_cb;
-
-
-/* UV_TCP */
-#define UV_TCP_PRIVATE_FIELDS \
-  int delayed_error; \
-  uv_connection_cb connection_cb; \
-  int accepted_fd; \
+  uv_alloc_cb alloc_cb; \
   uv_connect_t *connect_req; \
   uv_shutdown_t *shutdown_req; \
   ev_io read_watcher; \
   ev_io write_watcher; \
   ngx_queue_t write_queue; \
-  ngx_queue_t write_completed_queue;
+  ngx_queue_t write_completed_queue; \
+  int delayed_error; \
+  uv_connection_cb connection_cb; \
+  int accepted_fd;
+
+
+/* UV_TCP */
+#define UV_TCP_PRIVATE_FIELDS
 
 
 /* UV_NAMED_PIPE */
 #define UV_PIPE_PRIVATE_TYPEDEF
-#define UV_PIPE_PRIVATE_FIELDS
+#define UV_PIPE_PRIVATE_FIELDS \
+  UV_TCP_PRIVATE_FIELDS \
+  const char* pipe_fname; /* strdup'ed */ \
 
 
 /* UV_PREPARE */ \

@@ -33,8 +33,7 @@
 #ifdef _WIN32
 # define TEST_PIPENAME "\\\\.\\pipe\\uv-test"
 #else
-# /* TODO: define unix pipe name */
-# define TEST_PIPENAME ""
+# define TEST_PIPENAME "/tmp/uv-test-sock"
 #endif
 
 typedef enum {

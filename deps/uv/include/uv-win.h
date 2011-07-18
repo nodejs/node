@@ -96,7 +96,6 @@ typedef struct uv_buf_t {
   struct uv_req_s accept_req;             \
 
 #define uv_pipe_server_fields             \
-    char* name;                           \
     uv_pipe_accept_t accept_reqs[4];      \
     uv_pipe_accept_t* pending_accepts;
 
@@ -104,6 +103,7 @@ typedef struct uv_buf_t {
   HANDLE handle;
 
 #define UV_PIPE_PRIVATE_FIELDS            \
+  char* name;                             \
   union {                                 \
     struct { uv_pipe_server_fields };     \
     struct { uv_pipe_connection_fields }; \

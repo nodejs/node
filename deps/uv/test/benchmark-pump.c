@@ -261,13 +261,6 @@ static void maybe_connect_some() {
       req = (uv_connect_t*) req_alloc();
       r = uv_pipe_connect(req, pipe, TEST_PIPENAME, connect_cb);
       ASSERT(r == 0);
-
-#ifdef _WIN32
-      /* HACK: This is temporary to give the pipes server enough time to create new handles.
-       * This will go away once uv_pipe_connect can deal with UV_EBUSY.
-       */
-      Sleep(1);
-#endif
     }
   }
 }
