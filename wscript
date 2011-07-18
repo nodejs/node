@@ -848,6 +848,7 @@ def build(bld):
     src/timer_wrap.cc
     src/stream_wrap.cc
     src/tcp_wrap.cc
+    src/pipe_wrap.cc
     src/cares_wrap.cc
   """
 

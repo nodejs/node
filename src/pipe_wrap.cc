@@ -1,0 +1,231 @@
+#include <node.h>
+#include <node_buffer.h>
+#include <req_wrap.h>
+#include <stream_wrap.h>
+
+// Rules:
+//
+// - Do not throw from handle methods. Set errno.
+//
+// - MakeCallback may only be made directly off the event loop.
+//   That is there can be no JavaScript stack frames underneith it.
+//   (Is there anyway to assert that?)
+//
+// - No use of v8::WeakReferenceCallback. The close callback signifies that
+//   we're done with a handle - external resources can be freed.
+//
+// - Reusable?
+//
+// - The uv_close_cb is used to free the c++ object. The close callback
+//   is not made into javascript land.
+//
+// - uv_ref, uv_unref counts are managed at this layer to avoid needless
+//   js/c++ boundary crossing. At the javascript layer that should all be
+//   taken care of.
+
+
+#define UNWRAP \
+  assert(!args.Holder().IsEmpty()); \
+  assert(args.Holder()->InternalFieldCount() > 0); \
+  PipeWrap* wrap =  \
+      static_cast<PipeWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
+  if (!wrap) { \
+    SetErrno(UV_EBADF); \
+    return scope.Close(Integer::New(-1)); \
+  }
+
+namespace node {
+
+using v8::Object;
+using v8::Handle;
+using v8::Local;
+using v8::Persistent;
+using v8::Value;
+using v8::HandleScope;
+using v8::FunctionTemplate;
+using v8::String;
+using v8::Function;
+using v8::TryCatch;
+using v8::Context;
+using v8::Arguments;
+using v8::Integer;
+
+static Persistent<Function> constructor;
+
+
+// TODO share with TCPWrap?
+typedef class ReqWrap<uv_connect_t> ConnectWrap;
+
+
+class PipeWrap : StreamWrap {
+ public:
+
+  static void Initialize(Handle<Object> target) {
+    StreamWrap::Initialize(target);
+
+    HandleScope scope;
+
+    Local<FunctionTemplate> t = FunctionTemplate::New(New);
+    t->SetClassName(String::NewSymbol("Pipe"));
+
+    t->InstanceTemplate()->SetInternalFieldCount(1);
+
+    NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
+    NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
+    NODE_SET_PROTOTYPE_METHOD(t, "write", StreamWrap::Write);
+    NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
+    NODE_SET_PROTOTYPE_METHOD(t, "close", StreamWrap::Close);
+
+    NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
+    NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
+    NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
+
+    constructor = Persistent<Function>::New(t->GetFunction());
+
+    target->Set(String::NewSymbol("Pipe"), constructor);
+  }
+
+ private:
+  static Handle<Value> New(const Arguments& args) {
+    // This constructor should not be exposed to public javascript.
+    // Therefore we assert that we are not trying to call this as a
+    // normal function.
+    assert(args.IsConstructCall());
+
+    HandleScope scope;
+    PipeWrap* wrap = new PipeWrap(args.This());
+    assert(wrap);
+
+    return scope.Close(args.This());
+  }
+
+  PipeWrap(Handle<Object> object) : StreamWrap(object,
+                                              (uv_stream_t*) &handle_) {
+    int r = uv_pipe_init(&handle_);
+    assert(r == 0); // How do we proxy this error up to javascript?
+                    // Suggestion: uv_pipe_init() returns void.
+  }
+
+  static Handle<Value> Bind(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    String::AsciiValue name(args[0]->ToString());
+
+    int r = uv_pipe_bind(&wrap->handle_, *name);
+
+    // Error starting the pipe.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(Integer::New(r));
+  }
+
+  static Handle<Value> Listen(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    int backlog = args[0]->Int32Value();
+
+    int r = uv_pipe_listen(&wrap->handle_, OnConnection);
+
+    // Error starting the pipe.
+    if (r) SetErrno(uv_last_error().code);
+
+    return scope.Close(Integer::New(r));
+  }
+
+  // TODO maybe share with TCPWrap?
+  static void OnConnection(uv_handle_t* handle, int status) {
+    HandleScope scope;
+
+    PipeWrap* wrap = static_cast<PipeWrap*>(handle->data);
+    assert(&wrap->handle_ == (uv_pipe_t*)handle);
+
+    // We should not be getting this callback if someone as already called
+    // uv_close() on the handle.
+    assert(wrap->object_.IsEmpty() == false);
+
+    if (status != 0) {
+      // TODO Handle server error (set errno and call onconnection with NULL)
+      assert(0);
+      return;
+    }
+
+    // Instanciate the client javascript object and handle.
+    Local<Object> client_obj = constructor->NewInstance();
+
+    // Unwrap the client javascript object.
+    assert(client_obj->InternalFieldCount() > 0);
+    PipeWrap* client_wrap =
+        static_cast<PipeWrap*>(client_obj->GetPointerFromInternalField(0));
+
+    int r = uv_accept(handle, (uv_stream_t*)&client_wrap->handle_);
+
+    // uv_accept should always work.
+    assert(r == 0);
+
+    // Successful accept. Call the onconnection callback in JavaScript land.
+    Local<Value> argv[1] = { client_obj };
+    MakeCallback(wrap->object_, "onconnection", 1, argv);
+  }
+
+  // TODO Maybe share this with TCPWrap?
+  static void AfterConnect(uv_connect_t* req, int status) {
+    ConnectWrap* req_wrap = (ConnectWrap*) req->data;
+    PipeWrap* wrap = (PipeWrap*) req->handle->data;
+
+    HandleScope scope;
+
+    // The wrap and request objects should still be there.
+    assert(req_wrap->object_.IsEmpty() == false);
+    assert(wrap->object_.IsEmpty() == false);
+
+    if (status) {
+      SetErrno(uv_last_error().code);
+    }
+
+    Local<Value> argv[3] = {
+      Integer::New(status),
+      Local<Value>::New(wrap->object_),
+      Local<Value>::New(req_wrap->object_)
+    };
+
+    MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
+
+    delete req_wrap;
+  }
+
+  static Handle<Value> Connect(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    String::AsciiValue name(args[0]->ToString());
+
+    ConnectWrap* req_wrap = new ConnectWrap();
+
+    int r = uv_pipe_connect(&req_wrap->req_,
+                            &wrap->handle_,
+                            *name,
+                            AfterConnect);
+
+    req_wrap->Dispatched();
+
+    if (r) {
+      SetErrno(uv_last_error().code);
+      delete req_wrap;
+      return scope.Close(v8::Null());
+    } else {
+      return scope.Close(req_wrap->object_);
+    }
+  }
+
+  uv_pipe_t handle_;
+};
+
+
+}  // namespace node
+
+NODE_MODULE(node_pipe_wrap, node::PipeWrap::Initialize);
