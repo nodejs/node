@@ -11,6 +11,8 @@ web_root = ryan@nodejs.org:~/web/nodejs.org/
 export NODE_MAKE := $(MAKE)
 
 all: program
+	@-ls -lh build/default/node
+	@-ls -lh build/debug/node_g || echo ""
 
 all-progress:
 	@$(WAF) -p build
