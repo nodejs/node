@@ -194,13 +194,8 @@ server.listen(1337, "127.0.0.1");
         But what about multiple-processor concurrency? Aren't threads
         necessary to scale programs to multi-core computers?
         </i>
-        Processes are necessary to scale to multi-core computers, not
-        memory-sharing threads. The fundamentals of scalable systems are
-        fast networking and non-blocking design&mdash;the rest is message
-        passing.  In future versions, Node will be able to fork new
-        processes (using the <a
-        href="http://www.whatwg.org/specs/web-workers/current-work/"> Web
-        Workers API </a>) which fits well into the current design.
+        You can start new processes via <code>child_process.fork()</code>
+        these other processes will be scheduled in parallel.
       </p>
 
       <p>
