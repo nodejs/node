@@ -1,6 +1,7 @@
 #include <node.h>
 #include <node_buffer.h>
 #include <req_wrap.h>
+#include <handle_wrap.h>
 #include <stream_wrap.h>
 
 // Rules:
@@ -70,11 +71,12 @@ class PipeWrap : StreamWrap {
 
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
+    NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
+
     NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "write", StreamWrap::Write);
     NODE_SET_PROTOTYPE_METHOD(t, "shutdown", StreamWrap::Shutdown);
-    NODE_SET_PROTOTYPE_METHOD(t, "close", StreamWrap::Close);
 
     NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
     NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
