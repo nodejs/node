@@ -839,7 +839,6 @@ def build(bld):
     src/node_extensions.cc
     src/node_http_parser.cc
     src/node_constants.cc
-    src/node_events.cc
     src/node_file.cc
     src/node_script.cc
     src/node_os.cc
@@ -927,7 +926,6 @@ def build(bld):
     src/node.h
     src/node_object_wrap.h
     src/node_buffer.h
-    src/node_events.h
     src/node_version.h
   """)
 

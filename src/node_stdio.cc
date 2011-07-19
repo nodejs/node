@@ -20,7 +20,6 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <node_stdio.h>
-#include <node_events.h>
 
 #include <unistd.h>
 #include <fcntl.h>

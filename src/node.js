@@ -27,9 +27,15 @@
 (function(process) {
   global = this;
 
+  var EventEmitter;
+
   function startup() {
 
     if (process.env.NODE_USE_UV == '1') process.useUV = true;
+
+    EventEmitter = NativeModule.require('events').EventEmitter;
+    process.__proto__ = EventEmitter.prototype;
+    process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
 
     startup.globalVariables();
     startup.globalTimeouts();
@@ -226,8 +232,7 @@
 
     // process.stderr
 
-    var events = NativeModule.require('events');
-    var stderr = process.stderr = new events.EventEmitter();
+    var stderr = process.stderr = new EventEmitter();
     stderr.writable = true;
     stderr.readable = false;
     stderr.write = process.binding('stdio').writeError;
@@ -276,7 +281,6 @@
   startup.processSignalHandlers = function() {
     // Load events module in order to access prototype elements on process like
     // process.addListener.
-    var events = NativeModule.require('events');
     var signalWatchers = {};
     var addListener = process.addListener;
     var removeListener = process.removeListener;

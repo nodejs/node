@@ -62,7 +62,6 @@ extern "C" {
 # include <node_io_watcher.h>
 #endif
 #include <node_net.h>
-#include <node_events.h>
 #include <node_cares.h>
 #include <node_file.h>
 #include <node_http_parser.h>
@@ -2022,7 +2021,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   int i, j;
 
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
-  node::EventEmitter::Initialize(process_template);
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
 
@@ -2146,10 +2144,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
 
   NODE_SET_METHOD(process, "binding", Binding);
-
-  // Assign the EventEmitter. It was created in main().
-  process->Set(String::NewSymbol("EventEmitter"),
-               EventEmitter::constructor_template->GetFunction());
 
   return process;
 }

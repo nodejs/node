@@ -23,7 +23,6 @@
 #define NODE_STAT_WATCHER_H_
 
 #include <node.h>
-#include <node_events.h>
 #include <ev.h>
 
 namespace node {
