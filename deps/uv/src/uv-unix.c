@@ -481,13 +481,26 @@ out:
 
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   int r;
-
-  assert(tcp->fd >= 0);
+  int fd;
 
   if (tcp->delayed_error) {
     uv_err_new((uv_handle_t*)tcp, tcp->delayed_error);
     return -1;
   }
+
+  if (tcp->fd <= 0) {
+    if ((fd = uv__socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+      uv_err_new((uv_handle_t*)tcp, errno);
+      return -1;
+    }
+
+    if (uv__stream_open(tcp, fd)) {
+      close(fd);
+      return -1;
+    }
+  }
+
+  assert(tcp->fd >= 0);
 
   r = listen(tcp->fd, backlog);
   if (r < 0) {

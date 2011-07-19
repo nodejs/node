@@ -188,3 +188,15 @@ TEST_IMPL(bind_localhost_ok) {
 
   return 0;
 }
+
+
+TEST_IMPL(listen_without_bind) {
+  int r;
+  uv_tcp_t server;
+
+  uv_init();
+  r = uv_tcp_init(&server);
+  ASSERT(r == 0);
+  r = uv_tcp_listen(&server, 128, NULL);
+  ASSERT(r == 0);
+}

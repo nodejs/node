@@ -95,13 +95,23 @@
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalIncludeDirectories>..\include;..\src\ares\config_win32</AdditionalIncludeDirectories>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
+    <Lib>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <AdditionalIncludeDirectories>..\include;..\src\ares\config_win32</AdditionalIncludeDirectories>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
+      <OmitFramePointers>true</OmitFramePointers>
     </ClCompile>
+    <Lib>
+      <LinkTimeCodeGeneration>true</LinkTimeCodeGeneration>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ProjectReference Include="c-ares.vcxproj">
@@ -115,7 +125,19 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\src\uv-common.c" />
-    <ClCompile Include="..\src\uv-win.c" />
+    <ClCompile Include="..\src\win\async.c" />
+    <ClCompile Include="..\src\win\cares.c" />
+    <ClCompile Include="..\src\win\core.c" />
+    <ClCompile Include="..\src\win\error.c" />
+    <ClCompile Include="..\src\win\getaddrinfo.c" />
+    <ClCompile Include="..\src\win\handle.c" />
+    <ClCompile Include="..\src\win\loop-watcher.c" />
+    <ClCompile Include="..\src\win\pipe.c" />
+    <ClCompile Include="..\src\win\req.c" />
+    <ClCompile Include="..\src\win\stream.c" />
+    <ClCompile Include="..\src\win\tcp.c" />
+    <ClCompile Include="..\src\win\timer.c" />
+    <ClCompile Include="..\src\win\util.c" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\include\ares.h" />
@@ -124,6 +146,11 @@
     <ClInclude Include="..\include\uv-win.h" />
     <ClInclude Include="..\include\uv.h" />
     <ClInclude Include="..\src\uv-common.h" />
+    <ClInclude Include="..\src\win\internal.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="..\config-mingw.mk" />
+    <None Include="..\Makefile" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

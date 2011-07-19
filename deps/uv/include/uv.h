@@ -514,8 +514,14 @@ int64_t uv_now();
 
 
 /* Utility */
+
+/* Convert string ip addresses to binary structures */
 struct sockaddr_in uv_ip4_addr(const char* ip, int port);
 struct sockaddr_in6 uv_ip6_addr(const char* ip, int port);
+
+/* Convert binary addresses to strings */
+int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size);
+int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 
 /* Gets the executable path */
 int uv_exepath(char* buffer, size_t* size);

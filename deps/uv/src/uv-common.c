@@ -29,6 +29,7 @@
 /* use inet_pton from c-ares if necessary */
 #include "ares_config.h"
 #include "ares/inet_net_pton.h"
+#include "ares/inet_ntop.h"
 
 /* list used for ares task handles */
 static uv_ares_task_t* uv_ares_handles_ = NULL;
@@ -109,6 +110,18 @@ struct sockaddr_in6 uv_ip6_addr(const char* ip, int port) {
   ares_inet_pton(AF_INET6, ip, &addr.sin6_addr);
 
   return addr;
+}
+
+
+int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size) {
+  char* d = ares_inet_ntop(AF_INET, &src->sin_addr, dst, size);
+  return d != dst;
+}
+
+
+int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size) {
+  char* d = ares_inet_ntop(AF_INET6, &src->sin6_addr, dst, size);
+  return d != dst;
 }
 
 

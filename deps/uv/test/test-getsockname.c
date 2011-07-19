@@ -151,6 +151,15 @@ static int tcp_listener(int port) {
     fprintf(stderr, "uv_getsockname error (listening) %d\n", uv_last_error().code);
   }
   ASSERT(r == 0);
+
+  char ip[20];
+  r = uv_ip4_name((struct sockaddr_in*)&sockname, ip, 20);
+  ASSERT(r == 0);
+  ASSERT(ip[0] == '0');
+  ASSERT(ip[1] == '.');
+  ASSERT(ip[2] == '0');
+  printf("sockname = %s\n", ip);
+
   getsocknamecount++;
 
   return 0;
