@@ -1904,7 +1904,7 @@ int uv_pipe_connect(uv_connect_t* req,
   status = 0;
 
 out:
-  uv__req_init((uv_req_t*)req);
+  if (0) uv__req_init((uv_req_t*)req);
   req->handle = (uv_stream_t*)handle;
   req->type = UV_CONNECT;
   req->cb = cb;
