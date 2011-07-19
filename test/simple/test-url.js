@@ -327,8 +327,17 @@ var parseTests = {
     'host': 'xn--hgi.ws',
     'hostname': 'xn--hgi.ws',
     'pathname': '/➡'
+  },
+  'http://bucket_name.s3.amazonaws.com/image.jpg': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'bucket_name.s3.amazonaws.com',
+    hostname: 'bucket_name.s3.amazonaws.com',
+    pathname: '/image.jpg',
+    href: 'http://bucket_name.s3.amazonaws.com/image.jpg'
   }
 };
+
 for (var u in parseTests) {
   var actual = url.parse(u),
       expected = parseTests[u];
