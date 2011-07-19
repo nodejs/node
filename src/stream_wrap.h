@@ -21,9 +21,9 @@ class StreamWrap : public HandleWrap {
   StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
   virtual ~StreamWrap() { }
   void StateChange() { }
+  void UpdateWriteQueueSize();
 
  private:
-  void UpdateWriteQueueSize();
   static inline char* NewSlab(v8::Handle<v8::Object> global, v8::Handle<v8::Object> wrap_obj);
 
   // Callbacks for libuv

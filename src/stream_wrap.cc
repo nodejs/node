@@ -72,12 +72,11 @@ StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
     : HandleWrap(object, (uv_handle_t*)stream) {
   stream_ = stream;
   stream->data = this;
-
-  UpdateWriteQueueSize();
 }
 
 
 void StreamWrap::UpdateWriteQueueSize() {
+  HandleScope scope;
   object_->Set(write_queue_size_sym, Integer::New(stream_->write_queue_size));
 }
 

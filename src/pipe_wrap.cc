@@ -85,6 +85,7 @@ class PipeWrap : StreamWrap {
     int r = uv_pipe_init(&handle_);
     assert(r == 0); // How do we proxy this error up to javascript?
                     // Suggestion: uv_pipe_init() returns void.
+    UpdateWriteQueueSize();
   }
 
   static Handle<Value> Bind(const Arguments& args) {

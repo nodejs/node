@@ -111,6 +111,7 @@ class TCPWrap : public StreamWrap {
     int r = uv_tcp_init(&handle_);
     assert(r == 0); // How do we proxy this error up to javascript?
                     // Suggestion: uv_tcp_init() returns void.
+    UpdateWriteQueueSize();
   }
 
   ~TCPWrap() {
