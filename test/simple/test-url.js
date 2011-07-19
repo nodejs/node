@@ -274,8 +274,17 @@ var parseTests = {
     'search' : '?search=foo',
     'query' : 'search=foo',
     'hash' : '#bar'
+  },
+  'http://bucket_name.s3.amazonaws.com/image.jpg': {
+    protocol: 'http:',
+    slashes: true,
+    host: 'bucket_name.s3.amazonaws.com',
+    hostname: 'bucket_name.s3.amazonaws.com',
+    pathname: '/image.jpg',
+    href: 'http://bucket_name.s3.amazonaws.com/image.jpg'
   }
 };
+
 for (var u in parseTests) {
   var actual = url.parse(u),
       expected = parseTests[u];
