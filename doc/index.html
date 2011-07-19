@@ -26,8 +26,8 @@
         <li><a href="#download">Download</a></li>
         <li><a href="https://github.com/joyent/node/wiki/ChangeLog">ChangeLog</a></li>
         <li><a href="#about">About</a></li>
-        <li><a href="http://nodejs.org/docs/v0.4.9/api">v0.4.9 docs</a></li>
-        <li><a href="http://nodejs.org/docs/v0.5.0/api">v0.5.0 docs</a></li>
+        <li><a href="http://nodejs.org/docs/v0.4.10/api">v0.4.10 docs</a></li>
+        <li><a href="http://nodejs.org/docs/v0.5.1/api">v0.5.1 docs</a></li>
         <br/>
         <li><a href="https://github.com/joyent/node/wiki">Wiki</a></li>
         <li><a href="http://blog.nodejs.org/">Blog</a></li>
@@ -110,17 +110,18 @@ server.listen(1337, "127.0.0.1");
         <a href="http://github.com/joyent/node/tree/master">git repo</a>
       </p>
 
-      <p>
-        2011.06.29 (stable)
-        <a href="http://nodejs.org/dist/node-v0.4.9.tar.gz">node-v0.4.9.tar.gz</a>
-        (<a href="http://nodejs.org/docs/v0.4.9/api/index.html">Documentation</a>)
-      </p>
+      <p>2011.07.19 v0.4.10 (stable)
+      <ul class="release">
+        <li><a href="http://nodejs.org/dist/node-v0.4.10.tar.gz"><code>node-v0.4.10.tar.gz</code> Source Code</a>
+        <li><a href="http://nodejs.org/docs/v0.4.10/api/index.html">Documentation</a>
+      </ul>
 
-      <p>
-        2011.07.05 (unstable)
-        <a href="http://nodejs.org/dist/node-v0.5.0.tar.gz">node-v0.5.0.tar.gz</a>
-        (<a href="http://nodejs.org/docs/v0.5.0/api/index.html">Documentation</a>)
-      </p>
+      <p>2011.07.14 v0.5.1 (unstable)
+      <ul class="release">
+        <li><a href="http://nodejs.org/dist/v0.5.1/node-v0.5.1.tar.gz"><code>node-v0.5.1.tar.gz</code> Source code</a>
+        <li><a href="http://nodejs.org/dist/v0.5.1/node.exe"><code>node.exe</code> Windows executable</a>
+        <li><a href="http://nodejs.org/docs/v0.5.1/api/index.html">Documentation</a>
+      </ul>
 
 
       <p>Historical: <a href="http://nodejs.org/dist">versions</a>, <a href="http://nodejs.org/docs">docs</a></p>
@@ -193,13 +194,8 @@ server.listen(1337, "127.0.0.1");
         But what about multiple-processor concurrency? Aren't threads
         necessary to scale programs to multi-core computers?
         </i>
-        Processes are necessary to scale to multi-core computers, not
-        memory-sharing threads. The fundamentals of scalable systems are
-        fast networking and non-blocking design&mdash;the rest is message
-        passing.  In future versions, Node will be able to fork new
-        processes (using the <a
-        href="http://www.whatwg.org/specs/web-workers/current-work/"> Web
-        Workers API </a>) which fits well into the current design.
+        You can start new processes via <code>child_process.fork()</code>
+        these other processes will be scheduled in parallel.
       </p>
 
       <p>

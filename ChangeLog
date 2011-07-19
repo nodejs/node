@@ -1,3 +1,30 @@
+2011.07.19, Version 0.4.10 (stable)
+
+* #394 Fix Buffer drops last null character in UTF-8
+
+* #829 Backport r8577 from V8 (Ben Noordhuis)
+
+* #877 Don't wait for HTTP Agent socket pool to establish connections. 
+
+* #915 Find kqueue on FreeBSD correctly (Brett Kiefer) 
+
+* #1085 HTTP: Fix race in abort/dispatch code (Stefan Rusu)
+
+* #1274 debugger improvement (Yoshihiro Kikuchi)
+
+* #1291 Properly respond to HEAD during end(body) hot path (Reid Burke)
+
+* #1304 TLS: Fix race in abort/connection code (Stefan Rusu)
+
+* #1360 Allow _ in url hostnames.
+
+* Revert 37d529f8 - unbreaks debugger command parsing.
+
+* Bring back global execScript
+
+* Doc improvements
+
+
 2011.06.29, Version 0.4.9 (stable)
 
 * Improve documentation
