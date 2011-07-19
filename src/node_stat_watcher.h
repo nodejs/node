@@ -28,14 +28,14 @@
 
 namespace node {
 
-class StatWatcher : EventEmitter {
+class StatWatcher : ObjectWrap {
  public:
   static void Initialize(v8::Handle<v8::Object> target);
 
  protected:
   static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
-  StatWatcher() : EventEmitter() {
+  StatWatcher() : ObjectWrap() {
     persistent_ = false;
     path_ = NULL;
     ev_init(&watcher_, StatWatcher::Callback);

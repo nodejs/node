@@ -31,20 +31,13 @@ using namespace v8;
 
 Persistent<FunctionTemplate> StatWatcher::constructor_template;
 
-static Persistent<String> change_symbol;
-static Persistent<String> stop_symbol;
-
 void StatWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(StatWatcher::New);
   constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->Inherit(EventEmitter::constructor_template);
   constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   constructor_template->SetClassName(String::NewSymbol("StatWatcher"));
-
-  change_symbol = NODE_PSYMBOL("change");
-  stop_symbol = NODE_PSYMBOL("stop");
 
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", StatWatcher::Start);
   NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", StatWatcher::Stop);
@@ -61,7 +54,7 @@ void StatWatcher::Callback(EV_P_ ev_stat *watcher, int revents) {
   Handle<Value> argv[2];
   argv[0] = Handle<Value>(BuildStatsObject(&watcher->attr));
   argv[1] = Handle<Value>(BuildStatsObject(&watcher->prev));
-  handler->Emit(change_symbol, 2, argv);
+  MakeCallback(handler->handle_, "onchange", 2, argv);
 }
 
 
@@ -113,7 +106,7 @@ Handle<Value> StatWatcher::Start(const Arguments& args) {
 Handle<Value> StatWatcher::Stop(const Arguments& args) {
   HandleScope scope;
   StatWatcher *handler = ObjectWrap::Unwrap<StatWatcher>(args.Holder());
-  handler->Emit(stop_symbol, 0, NULL);
+  MakeCallback(handler->handle_, "onstop", 0, NULL);
   handler->Stop();
   return Undefined();
 }
