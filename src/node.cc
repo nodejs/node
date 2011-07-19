@@ -157,8 +157,8 @@ static uv_timer_t gc_timer;
 bool need_gc;
 
 
-#define FAST_TICK 0.7
-#define GC_WAIT_TIME 5.
+#define FAST_TICK 700.
+#define GC_WAIT_TIME 5000.
 #define RPM_SAMPLES 100
 #define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
 static int64_t tick_times[RPM_SAMPLES];
@@ -168,7 +168,7 @@ static void CheckStatus(uv_timer_t* watcher, int status);
 
 static void StartGCTimer () {
   if (!uv_is_active((uv_handle_t*) &gc_timer)) {
-    uv_timer_start(&node::gc_timer, node::CheckStatus, 5., 5.);
+    uv_timer_start(&node::gc_timer, node::CheckStatus, 5000., 5000.);
   }
 }
 
@@ -180,8 +180,6 @@ static void StopGCTimer () {
 
 static void Idle(uv_idle_t* watcher, int status) {
   assert((uv_idle_t*) watcher == &gc_idle);
-
-  //fprintf(stderr, "idle\n");
 
   if (V8::IdleNotification()) {
     uv_idle_stop(&gc_idle);
