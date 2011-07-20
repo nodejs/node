@@ -545,6 +545,21 @@ relativeTests.forEach(function(relativeTest) {
 });
 
 
+// https://github.com/joyent/node/issues/568
+[
+  undefined,
+  null,
+  true,
+  false,
+  0.0,
+  0,
+  [],
+  {}
+].forEach(function(val) {
+  assert.throws(function() { url.parse(val); }, TypeError);
+});
+
+
 //
 // Tests below taken from Chiron
 // http://code.google.com/p/chironjs/source/browse/trunk/src/test/http/url.js
