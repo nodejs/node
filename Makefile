@@ -128,6 +128,7 @@ UVTEST += simple/test-http-proxy
 UVTEST += simple/test-http-request-end
 UVTEST += simple/test-http-response-close
 UVTEST += simple/test-http-response-readable
+UVTEST += simple/test-http-unix-socket
 UVTEST += simple/test-http-server
 UVTEST += simple/test-http-server-multiheaders
 UVTEST += simple/test-http-set-cookies
