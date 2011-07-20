@@ -208,7 +208,7 @@
     var binding = process.binding('stdio'),
         // FIXME Remove conditional when net is supported again on windows.
         net = (process.platform !== "win32")
-              ? NativeModule.require('net')
+              ? NativeModule.require('net_legacy') // fixme!
               : undefined,
         fs = NativeModule.require('fs'),
         tty = NativeModule.require('tty');
