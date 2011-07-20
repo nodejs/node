@@ -22,9 +22,8 @@
 #include "uv.h"
 #include "task.h"
 
-
-#ifndef MICROSEC
-# define MICROSEC 1000000
+#ifndef MILLISEC
+# define MILLISEC 1000
 #endif
 
 #ifndef NANOSEC
@@ -32,11 +31,6 @@
 #endif
 
 
-
-/*
- * We expect the amount of time passed to be at least one us plus two system
- * calls. Therefore checking that at least a microsecond has elapsed is safe.
- */
 TEST_IMPL(hrtime) {
   uint64_t a, b, diff;
 
@@ -46,9 +40,12 @@ TEST_IMPL(hrtime) {
 
   diff = b - a;
 
-  printf("diff = %llu\n", (unsigned long long int)diff);
+  printf("diff = %llu\n", (unsigned long long int) diff);
 
-  ASSERT(diff >= NANOSEC / MICROSEC);
-  ASSERT(diff > MICROSEC);
+  /* The windows Sleep() function has only a resolution of 10-20 ms. */
+  /* Check that the difference between the two hrtime values is somewhat in */
+  /* the range we expect it to be. */
+  ASSERT(diff > (uint64_t) 80 * NANOSEC / MILLISEC);
+  ASSERT(diff < (uint64_t) 120 * NANOSEC / MILLISEC);
   return 0;
 }

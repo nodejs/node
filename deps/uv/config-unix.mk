@@ -65,6 +65,8 @@ endif
 ifneq (,$(findstring CYGWIN,$(uname_S)))
 EV_CONFIG=config_cygwin.h
 EIO_CONFIG=config_cygwin.h
+# We drop the --std=c89, it hides CLOCK_MONOTONIC on cygwin
+CSTDFLAG = -D_GNU_SOURCE
 CPPFLAGS += -Isrc/ares/config_cygwin
 LINKFLAGS+=
 UV_OS_FILE=uv-cygwin.c

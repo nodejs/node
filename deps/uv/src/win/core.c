@@ -70,9 +70,6 @@ void uv_init() {
   /* Initialize winsock */
   uv_winsock_startup();
 
-  /* Initialize timers */
-  uv_timer_startup();
-
   /* Intialize event loop */
   uv_loop_init();
 }

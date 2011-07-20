@@ -114,13 +114,13 @@ struct sockaddr_in6 uv_ip6_addr(const char* ip, int port) {
 
 
 int uv_ip4_name(struct sockaddr_in* src, char* dst, size_t size) {
-  char* d = ares_inet_ntop(AF_INET, &src->sin_addr, dst, size);
+  const char* d = ares_inet_ntop(AF_INET, &src->sin_addr, dst, size);
   return d != dst;
 }
 
 
 int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size) {
-  char* d = ares_inet_ntop(AF_INET6, &src->sin6_addr, dst, size);
+  const char* d = ares_inet_ntop(AF_INET6, &src->sin6_addr, dst, size);
   return d != dst;
 }
 

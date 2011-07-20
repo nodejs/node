@@ -59,7 +59,9 @@ src/uv-eio.o: src/uv-eio.c
 clean-platform:
 	-rm -f src/ares/*.o
 	-rm -f src/eio/*.o
+	-rm -f src/win/*.o
 
 distclean-platform:
 	-rm -f src/ares/*.o
 	-rm -f src/eio/*.o
+	-rm -f src/win/*.o

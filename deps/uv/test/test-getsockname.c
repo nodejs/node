@@ -126,6 +126,7 @@ static int tcp_listener(int port) {
   struct sockaddr_in addr = uv_ip4_addr("0.0.0.0", port);
   struct sockaddr sockname;
   int namelen = sizeof(sockname);
+  char ip[20];
   int r;
 
   r = uv_tcp_init(&tcpServer);
@@ -152,7 +153,6 @@ static int tcp_listener(int port) {
   }
   ASSERT(r == 0);
 
-  char ip[20];
   r = uv_ip4_name((struct sockaddr_in*)&sockname, ip, 20);
   ASSERT(r == 0);
   ASSERT(ip[0] == '0');

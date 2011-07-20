@@ -199,4 +199,6 @@ TEST_IMPL(listen_without_bind) {
   ASSERT(r == 0);
   r = uv_tcp_listen(&server, 128, NULL);
   ASSERT(r == 0);
+
+  return 0;
 }

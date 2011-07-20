@@ -107,7 +107,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   /* Make our own copy of the pipe name */
-  handle->name = strdup(name);
+  handle->name = _strdup(name);
   if (!handle->name) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
@@ -198,7 +198,7 @@ int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   if (pipeHandle == INVALID_HANDLE_VALUE) {
     if (GetLastError() == ERROR_PIPE_BUSY) {
       /* Wait for the server to make a pipe instance available. */
-      handle->name = strdup(name);
+      handle->name = _strdup(name);
       if (!handle->name) {
         uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
       }

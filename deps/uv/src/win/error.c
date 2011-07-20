@@ -107,6 +107,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_TOO_MANY_OPEN_FILES:         return UV_EMFILE;
     case WSAEMFILE:                         return UV_EMFILE;
     case ERROR_OUTOFMEMORY:                 return UV_ENOMEM;
+    case ERROR_NOT_SUPPORTED:               return UV_ENOTSUP;
     case ERROR_INSUFFICIENT_BUFFER:         return UV_EINVAL;
     case ERROR_INVALID_FLAGS:               return UV_EBADF;
     case ERROR_INVALID_PARAMETER:           return UV_EINVAL;

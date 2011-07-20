@@ -30,10 +30,7 @@
 /*
  * Timers
  */
-
 RB_HEAD(uv_timer_tree_s, uv_timer_s);
-
-void uv_timer_startup();
 
 void uv_timer_endgame(uv_timer_t* handle);
 

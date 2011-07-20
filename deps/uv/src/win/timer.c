@@ -26,19 +26,30 @@
 #include "internal.h"
 #include "tree.h"
 
+#undef NANOSEC
+#define NANOSEC 1000000000
+
 
 /* The resolution of the high-resolution clock. */
 static int64_t uv_ticks_per_msec_ = 0;
-
+static uint64_t uv_hrtime_frequency_ = 0;
+static char uv_hrtime_initialized_ = 0;
 
 
 void uv_update_time() {
-  LARGE_INTEGER counter;
+  DWORD ticks = GetTickCount();
 
-  if (!QueryPerformanceCounter(&counter))
-    uv_fatal_error(GetLastError(), "QueryPerformanceCounter");
+  /* The assumption is made that LARGE_INTEGER.QuadPart has the same type */
+  /* LOOP->time, which happens to be. Is there any way to assert this? */
+  LARGE_INTEGER* time = (LARGE_INTEGER*) &LOOP->time;
 
-  LOOP->time = counter.QuadPart / uv_ticks_per_msec_;
+  /* If the timer has wrapped, add 1 to it's high-order dword. */
+  /* uv_poll must make sure that the timer can never overflow more than */
+  /* once between two subsequent uv_update_time calls. */
+  if (ticks < time->LowPart) {
+    time->HighPart += 1;
+  }
+  time->LowPart = ticks;
 }
 
 
@@ -48,18 +59,39 @@ int64_t uv_now() {
 
 
 uint64_t uv_hrtime(void) {
-  assert(0 && "implement me");
-  return 0;
-}
+  LARGE_INTEGER counter;
 
+  /* When called for the first time, obtain the high-resolution clock */
+  /* frequency. */
+  if (!uv_hrtime_initialized_) {
+    uv_hrtime_initialized_ = 1;
 
-void uv_timer_startup() {
-  LARGE_INTEGER timer_frequency;
+    if (!QueryPerformanceFrequency(&counter)) {
+      uv_hrtime_frequency_ = 0;
+      uv_set_sys_error(GetLastError());
+      return 0;
+    }
 
-  /* Initialize the event loop time */
-  if (!QueryPerformanceFrequency(&timer_frequency))
-    uv_fatal_error(GetLastError(), "QueryPerformanceFrequency");
-  uv_ticks_per_msec_ = timer_frequency.QuadPart / 1000;
+    uv_hrtime_frequency_ = counter.QuadPart;
+  }
+
+  /* If the performance frequency is zero, there's no support. */
+  if (!uv_hrtime_frequency_) {
+    uv_set_sys_error(ERROR_NOT_SUPPORTED);
+    return 0;
+  }
+
+  if (!QueryPerformanceCounter(&counter)) {
+    uv_set_sys_error(GetLastError());
+    return 0;
+  }
+
+  /* Because we have no guarantee about the order of magniture of the */
+  /* performance counter frequency, and there may not be much headroom to */
+  /* multiply by NANOSEC without overflowing, we use 128-bit math instead. */
+  return ((uint64_t) counter.LowPart * NANOSEC / uv_hrtime_frequency_) +
+         (((uint64_t) counter.HighPart * NANOSEC / uv_hrtime_frequency_)
+         << 32);
 }
 
 
@@ -187,10 +219,15 @@ DWORD uv_get_poll_timeout() {
     uv_update_time();
 
     delta = timer->due - LOOP->time;
-    if (delta >= UINT_MAX) {
-      /* Can't have a timeout greater than UINT_MAX, and a timeout value of */
-      /* UINT_MAX means infinite, so that's no good either. */
-      return UINT_MAX - 1;
+    if (delta >= UINT_MAX >> 1) {
+      /* A timeout value of UINT_MAX means infinite, so that's no good. But */
+      /* more importantly, there's always the risk that GetTickCount wraps. */
+      /* uv_update_time can detect this, but we must make sure that the */
+      /* tick counter never overflows twice between two subsequent */
+      /* uv_update_time calls. We do this by never sleeping more than half */
+      /* the time it takes to wrap  the counter - which is huge overkill, */
+      /* but hey, it's not so bad to wake up every 25 days. */
+      return UINT_MAX >> 1;
     } else if (delta < 0) {
       /* Negative timeout values are not allowed */
       return 0;
