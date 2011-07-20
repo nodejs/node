@@ -83,9 +83,7 @@ BENCHMARK_IMPL(getaddrinfo) {
   ASSERT(calls_initiated == TOTAL_CALLS);
   ASSERT(calls_completed == TOTAL_CALLS);
 
-  LOGF("getaddrinfo: %d calls in %d ms (%.0f requests/second)\n",
-       calls_completed,
-       (int) (end_time - start_time),
+  LOGF("getaddrinfo: %.0f req/s\n",
        (double) calls_completed / (double) (end_time - start_time) * 1000.0);
 
   return 0;

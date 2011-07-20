@@ -154,6 +154,7 @@ static uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case 0: return UV_OK;
     case EACCES: return UV_EACCESS;
+    case EBADF: return UV_EBADF;
     case EAGAIN: return UV_EAGAIN;
     case ECONNRESET: return UV_ECONNRESET;
     case EFAULT: return UV_EFAULT;
@@ -404,7 +405,6 @@ static int uv__stream_open(uv_stream_t* stream, int fd) {
 void uv__server_io(EV_P_ ev_io* watcher, int revents) {
   int fd;
   struct sockaddr_storage addr;
-  socklen_t addrlen = sizeof(struct sockaddr_storage);
   uv_stream_t* stream = watcher->data;
 
   assert(watcher == &stream->read_watcher ||
@@ -420,7 +420,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
 
   while (1) {
     assert(stream->accepted_fd < 0);
-    fd = accept(stream->fd, (struct sockaddr*)&addr, &addrlen);
+    fd = uv__accept(stream->fd, (struct sockaddr*)&addr, sizeof addr);
 
     if (fd < 0) {
       if (errno == EAGAIN) {
@@ -876,6 +876,8 @@ static void uv__stream_io(EV_P_ ev_io* watcher, int revents) {
   if (stream->connect_req) {
     uv__stream_connect(stream);
   } else {
+    assert(revents & (EV_READ | EV_WRITE));
+
     if (revents & EV_READ) {
       uv__read((uv_stream_t*)stream);
     }
@@ -1136,7 +1138,11 @@ int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
       && "uv_write (unix) does not yet support other types of streams");
 
   empty_queue = (stream->write_queue_size == 0);
-  assert(stream->fd >= 0);
+
+  if (stream->fd < 0) {
+    uv_err_new((uv_handle_t*)stream, EBADF);
+    return -1;
+  }
 
   ngx_queue_init(&req->queue);
   req->type = UV_WRITE;
@@ -1904,15 +1910,16 @@ int uv_pipe_connect(uv_connect_t* req,
   status = 0;
 
 out:
-  if (0) uv__req_init((uv_req_t*)req);
+  handle->delayed_error = status; /* Passed to callback. */
+  handle->connect_req = req;
   req->handle = (uv_stream_t*)handle;
   req->type = UV_CONNECT;
   req->cb = cb;
   ngx_queue_init(&req->queue);
 
-  if (cb) {
-    cb(req, status);
-  }
+  /* Run callback on next tick. */
+  ev_feed_event(EV_DEFAULT_ &handle->read_watcher, EV_CUSTOM);
+  assert(ev_is_pending(&handle->read_watcher));
 
   /* Mimic the Windows pipe implementation, always
    * return 0 and let the callback handle errors.

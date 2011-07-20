@@ -110,7 +110,8 @@ BENCHMARK_IMPL(gethostbyname) {
   if (ares_errors > 0) {
     printf("There were %d failures\n", ares_errors);
   }
-  LOGF("ares_gethostbyname: %d calls in %d ms \n", ares_callbacks, (int) (end_time - start_time));
+  LOGF("ares_gethostbyname: %.0f req/s\n",
+      1000.0 * ares_callbacks / (double)(end_time - start_time));
 
   return 0;
 }

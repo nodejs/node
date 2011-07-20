@@ -144,7 +144,6 @@
   <ItemGroup>
     <ClCompile Include="..\test\echo-server.c" />
     <ClCompile Include="..\test\test-async.c" />
-    <ClCompile Include="..\test\test-bind6-error.c" />
     <ClCompile Include="..\test\test-delayed-accept.c" />
     <ClCompile Include="..\test\test-callback-stack.c" />
     <ClCompile Include="..\test\test-connection-fail.c" />
@@ -159,8 +158,10 @@
     <ClCompile Include="..\test\test-ping-pong.c" />
     <ClCompile Include="..\test\runner-win.c" />
     <ClCompile Include="..\test\runner.c" />
-    <ClCompile Include="..\test\test-bind-error.c" />
+    <ClCompile Include="..\test\test-pipe-bind-error.c" />
     <ClCompile Include="..\test\test-shutdown-eof.c" />
+    <ClCompile Include="..\test\test-tcp-bind-error.c" />
+    <ClCompile Include="..\test\test-tcp-bind6-error.c" />
     <ClCompile Include="..\test\test-tcp-writealot.c" />
     <ClCompile Include="..\test\test-timer-again.c" />
     <ClCompile Include="..\test\test-timer.c" />

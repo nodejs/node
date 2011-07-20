@@ -34,6 +34,7 @@ static int completed_pingers = 0;
 #define BUFSIZE 10240
 
 static char PING[] = "PING\n";
+static int pinger_on_connect_count;
 
 
 typedef struct {
@@ -133,6 +134,8 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
 static void pinger_on_connect(uv_connect_t *req, int status) {
   pinger_t *pinger = (pinger_t*)req->handle->data;
 
+  pinger_on_connect_count++;
+
   ASSERT(status == 0);
 
   pinger_write_ping(pinger);
@@ -161,6 +164,9 @@ static void tcp_pinger_v6_new() {
   r = uv_tcp_connect6(&pinger->connect_req, &pinger->tcp, server_addr,
       pinger_on_connect);
   ASSERT(!r);
+
+  /* Synchronous connect callbacks are not allowed. */
+  ASSERT(pinger_on_connect_count == 0);
 }
 
 
@@ -180,8 +186,12 @@ static void tcp_pinger_new() {
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  r = uv_tcp_connect(&pinger->connect_req, &pinger->tcp, server_addr, pinger_on_connect);
+  r = uv_tcp_connect(&pinger->connect_req, &pinger->tcp, server_addr,
+      pinger_on_connect);
   ASSERT(!r);
+
+  /* Synchronous connect callbacks are not allowed. */
+  ASSERT(pinger_on_connect_count == 0);
 }
 
 
@@ -201,8 +211,12 @@ static void pipe_pinger_new() {
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
 
-  r = uv_pipe_connect(&pinger->connect_req, &pinger->pipe, TEST_PIPENAME, pinger_on_connect);
+  r = uv_pipe_connect(&pinger->connect_req, &pinger->pipe, TEST_PIPENAME,
+      pinger_on_connect);
   ASSERT(!r);
+
+  /* Synchronous connect callbacks are not allowed. */
+  ASSERT(pinger_on_connect_count == 0);
 }
 
 

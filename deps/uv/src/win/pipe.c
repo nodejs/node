@@ -485,7 +485,7 @@ int uv_pipe_write(uv_write_t* req, uv_pipe_t* handle, uv_buf_t bufs[], int bufcn
 
 
 void uv_process_pipe_read_req(uv_pipe_t* handle, uv_req_t* req) {
-  DWORD bytes, err, mode;
+  DWORD bytes, avail, err, mode;
   uv_buf_t buf;
 
   assert(handle->type == UV_NAMED_PIPE);
@@ -503,23 +503,22 @@ void uv_process_pipe_read_req(uv_pipe_t* handle, uv_req_t* req) {
       handle->read_cb((uv_stream_t*)handle, -1, buf);
     }
   } else {
-    /*
-      * Temporarily switch to non-blocking mode.
-      * This is so that ReadFile doesn't block if the read buffer is empty.
-      */
-    mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_NOWAIT;
-    if (!SetNamedPipeHandleState(handle->handle, &mode, NULL, NULL)) {
-      /* We can't continue processing this read. */
-      handle->flags &= ~UV_HANDLE_READING;
-      uv_set_sys_error(GetLastError());
-      buf.base = 0;
-      buf.len = 0;
-      handle->read_cb((uv_stream_t*)handle, -1, buf);
-    }
-
     /* Do non-blocking reads until the buffer is empty */
     while (handle->flags & UV_HANDLE_READING) {
-      buf = handle->alloc_cb((uv_stream_t*)handle, 65536);
+      if (!PeekNamedPipe(handle->handle,
+                         NULL,
+                         0,
+                         NULL,
+                         &avail,
+                         NULL)) {
+        uv_set_sys_error(GetLastError());
+        buf.base = 0;
+        buf.len = 0;
+        handle->read_cb((uv_stream_t*)handle, -1, buf);
+        break;
+      }
+
+      buf = handle->alloc_cb((uv_stream_t*)handle, avail);
       assert(buf.len > 0);
 
       if (ReadFile(handle->handle,
@@ -531,7 +530,7 @@ void uv_process_pipe_read_req(uv_pipe_t* handle, uv_req_t* req) {
           /* Successful read */
           handle->read_cb((uv_stream_t*)handle, bytes, buf);
           /* Read again only if bytes == buf.len */
-          if (bytes < buf.len) {
+          if (bytes <= buf.len) {
             break;
           }
         } else {
@@ -544,38 +543,17 @@ void uv_process_pipe_read_req(uv_pipe_t* handle, uv_req_t* req) {
           break;
         }
       } else {
-        err = GetLastError();
-        if (err == ERROR_NO_DATA) {
-          /* Read buffer was completely empty, report a 0-byte read. */
-          uv_set_sys_error(WSAEWOULDBLOCK);
-          handle->read_cb((uv_stream_t*)handle, 0, buf);
-        } else {
-          /* Ouch! serious error. */
-          uv_set_sys_error(err);
-          handle->read_cb((uv_stream_t*)handle, -1, buf);
-        }
+        /* Ouch! serious error. */
+        uv_set_sys_error(GetLastError());
+        handle->read_cb((uv_stream_t*)handle, -1, buf);
         break;
       }
     }
 
-    /* TODO: if the read callback stops reading we can't start reading again
-        because the pipe will still be in nowait mode. */
+    /* Post another 0-read if still reading and not closing. */
     if ((handle->flags & UV_HANDLE_READING) &&
         !(handle->flags & UV_HANDLE_READ_PENDING)) {
-      /* Switch back to blocking mode so that we can use IOCP for 0-reads */
-      mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT;
-      if (SetNamedPipeHandleState(handle->handle, &mode, NULL, NULL)) {
-        /* Post another 0-read */
-        uv_pipe_queue_read(handle);
-      } else {
-        /* Report and continue. */
-        /* We can't continue processing this read. */
-        handle->flags &= ~UV_HANDLE_READING;
-        uv_set_sys_error(GetLastError());
-        buf.base = 0;
-        buf.len = 0;
-        handle->read_cb((uv_stream_t*)handle, -1, buf);
-      }
+      uv_pipe_queue_read(handle);
     }
   }
 
