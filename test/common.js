@@ -28,6 +28,12 @@ exports.libDir = path.join(exports.testDir, '../lib');
 exports.tmpDir = path.join(exports.testDir, 'tmp');
 exports.PORT = 12346;
 
+if (process.platform == 'win32') {
+  exports.PIPE = '\\.\pipe\libuv-test';
+} else {
+  exports.PIPE = exports.tmpDir + '/test.sock';
+}
+
 var util = require('util');
 for (var i in util) exports[i] = util[i];
 //for (var i in exports) global[i] = exports[i];
