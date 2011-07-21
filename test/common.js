@@ -29,7 +29,7 @@ exports.tmpDir = path.join(exports.testDir, 'tmp');
 exports.PORT = 12346;
 
 if (process.platform == 'win32') {
-  exports.PIPE = '\\.\pipe\libuv-test';
+  exports.PIPE = '\\\\.\\pipe\\libuv-test';
 } else {
   exports.PIPE = exports.tmpDir + '/test.sock';
 }
