@@ -213,6 +213,13 @@ var child = require('../fixtures/module-require/child/');
 assert.equal(child.loaded, parent.loaded);
 
 
+// #1357 Loading JSON files with require()
+var json = require('../fixtures/packages/main/package.json');
+assert.deepEqual(json, { name: 'package-name',
+                         version: '1.2.3',
+                         main: 'package-main-module' });
+
+
 process.addListener('exit', function() {
   assert.ok(common.indirectInstanceOf(a.A, Function));
   assert.equal('A done', a.A());
