@@ -42,7 +42,7 @@ per connection (in the case of keep-alive connections).
 
  When a new TCP stream is established. `socket` is an object of type
  `net.Socket`. Usually users will not want to access this event. The
- `stream` can also be accessed at `request.connection`.
+ `socket` can also be accessed at `request.connection`.
 
 ### Event: 'close'
 
@@ -293,6 +293,9 @@ flushed.
 Example:
 
     response.statusCode = 404;
+
+After response header was sent to the client, this property indicates the
+status code which was sent out.
 
 ### response.setHeader(name, value)
 
