@@ -75,8 +75,12 @@ server.listen(common.PIPE, function() {
 });
 
 process.on('exit', function() {
-  server.close();
   assert.ok(status_ok);
   assert.ok(headers_ok);
   assert.ok(body_ok);
+
+  // Double close should throw. Follows net_legacy behaviour.
+  assert.throws(function() {
+    server.close();
+  });
 });
