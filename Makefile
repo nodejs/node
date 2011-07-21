@@ -144,6 +144,7 @@ UVTEST += simple/test-http-write-empty-string
 UVTEST += simple/test-http-wget
 UVTEST += simple/test-mkdir-rmdir
 UVTEST += simple/test-net-binary
+UVTEST += simple/test-net-pingpong
 UVTEST += simple/test-net-can-reset-timeout
 UVTEST += simple/test-net-connect-buffer
 UVTEST += simple/test-net-connect-timeout
