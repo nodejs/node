@@ -294,6 +294,7 @@ dist: doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
 	cp -r build/doc/api $(TARNAME)/doc/api
 	rm -rf $(TARNAME)/deps/v8/test # too big
+	rm -rf $(TARNAME)/doc/logos # too big
 	tar -cf $(TARNAME).tar $(TARNAME)
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
