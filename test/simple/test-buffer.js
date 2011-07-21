@@ -621,3 +621,50 @@ assert.equal(written, 9);
 written = buf.write('あいう\0'); // 3bytes * 3 + 1byte
 assert.equal(written, 10);
 
+// #243 Test write() with maxLength
+var buf = new Buffer(4);
+buf.fill(0xFF);
+var written = buf.write('abcd', 1, 2, 'utf8');
+console.log(buf);
+assert.equal(written, 2);
+assert.equal(buf[0], 0xFF);
+assert.equal(buf[1], 0x61);
+assert.equal(buf[2], 0x62);
+assert.equal(buf[3], 0xFF);
+
+buf.fill(0xFF);
+written = buf.write('abcd', 1, 4);
+console.log(buf);
+assert.equal(written, 3);
+assert.equal(buf[0], 0xFF);
+assert.equal(buf[1], 0x61);
+assert.equal(buf[2], 0x62);
+assert.equal(buf[3], 0x63);
+
+buf.fill(0xFF);
+written = buf.write('abcd', 'utf8', 1, 2);  // legacy style
+console.log(buf);
+assert.equal(written, 2);
+assert.equal(buf[0], 0xFF);
+assert.equal(buf[1], 0x61);
+assert.equal(buf[2], 0x62);
+assert.equal(buf[3], 0xFF);
+
+buf.fill(0xFF);
+written = buf.write('abcdef', 1, 2, 'hex');
+console.log(buf);
+assert.equal(written, 2);
+assert.equal(buf[0], 0xFF);
+assert.equal(buf[1], 0xAB);
+assert.equal(buf[2], 0xCD);
+assert.equal(buf[3], 0xFF);
+
+buf.fill(0xFF);
+written = buf.write('abcd', 0, 2, 'ucs2');
+console.log(buf);
+assert.equal(written, 2);
+assert.equal(buf[0], 0x61);
+assert.equal(buf[1], 0x00);
+assert.equal(buf[2], 0xFF);
+assert.equal(buf[3], 0xFF);
+

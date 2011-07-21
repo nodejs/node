@@ -47,12 +47,12 @@ Allocates a new buffer using an `array` of octets.
 
 Allocates a new buffer containing the given `str`.
 
-### buffer.write(string, offset=0, encoding='utf8')
+### buffer.write(string, offset=0, length=buffer.length-offset, encoding='utf8')
 
-Writes `string` to the buffer at `offset` using the given encoding. Returns
-number of octets written.  If `buffer` did not contain enough space to fit
-the entire string, it will write a partial amount of the string.
-The method will not write partial characters.
+Writes `string` to the buffer at `offset` using the given encoding. `length` is
+the number of bytes to write. Returns number of octets written. If `buffer` did
+not contain enough space to fit the entire string, it will write a partial
+amount of the string. The method will not write partial characters.
 
 Example: write a utf8 string into a buffer, then print it
 
