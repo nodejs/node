@@ -219,6 +219,18 @@ UVTEST += pummel/test-timer-wrap
 UVTEST += pummel/test-timer-wrap2
 UVTEST += pummel/test-vm-memleak
 UVTEST += internet/test-dns
+UVTEST += simple/test-tls-client-abort
+UVTEST += simple/test-tls-client-verify
+UVTEST += simple/test-tls-connect
+#UVTEST += simple/test-tls-ext-key-usage # broken
+UVTEST += simple/test-tls-junk-closes-server
+UVTEST += simple/test-tls-npn-server-client
+UVTEST += simple/test-tls-request-timeout
+#UVTEST += simple/test-tls-securepair-client # broken
+#UVTEST += simple/test-tls-securepair-server # broken
+#UVTEST += simple/test-tls-server-verify # broken
+UVTEST += simple/test-tls-set-encoding
+
 
 test-uv: all
 	NODE_USE_UV=1 python tools/test.py $(UVTEST)
