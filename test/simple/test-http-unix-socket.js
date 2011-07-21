@@ -24,8 +24,6 @@ var assert = require('assert');
 var fs = require('fs');
 var http = require('http');
 
-var SOCKET = common.tmpDir + '/http.sock';
-
 var status_ok  = false; // status code == 200?
 var headers_ok = false;
 var body_ok    = false;
@@ -39,10 +37,10 @@ var server = http.createServer(function(req, res) {
   res.end();
 });
 
-server.listen(SOCKET, function() {
+server.listen(common.PIPE, function() {
 
   var options = {
-    socketPath: SOCKET,
+    socketPath: common.PIPE,
     path: '/'
   };
 
@@ -74,12 +72,6 @@ server.listen(SOCKET, function() {
 
   req.end();
 
-});
-
-server.on('close', function() {
-  try {
-    fs.unlinkSync(SOCKET);
-  } catch (e) {}
 });
 
 process.on('exit', function() {
