@@ -870,13 +870,13 @@ static void uv__stream_io(EV_P_ ev_io* watcher, int revents) {
          stream->type == UV_NAMED_PIPE);
   assert(watcher == &stream->read_watcher ||
          watcher == &stream->write_watcher);
-  assert(stream->fd >= 0);
   assert(!uv_flag_is_set((uv_handle_t*)stream, UV_CLOSING));
 
   if (stream->connect_req) {
     uv__stream_connect(stream);
   } else {
     assert(revents & (EV_READ | EV_WRITE));
+    assert(stream->fd >= 0);
 
     if (revents & EV_READ) {
       uv__read((uv_stream_t*)stream);
@@ -908,7 +908,6 @@ static void uv__stream_connect(uv_stream_t* stream) {
   socklen_t errorsize = sizeof(int);
 
   assert(stream->type == UV_TCP || stream->type == UV_NAMED_PIPE);
-  assert(stream->fd >= 0);
   assert(req);
 
   if (stream->delayed_error) {
@@ -920,6 +919,7 @@ static void uv__stream_connect(uv_stream_t* stream) {
     stream->delayed_error = 0;
   } else {
     /* Normal situation: we need to get the socket error from the kernel. */
+    assert(stream->fd >= 0);
     getsockopt(stream->fd, SOL_SOCKET, SO_ERROR, &error, &errorsize);
   }
 
