@@ -145,7 +145,7 @@ int uv_run() {
 
     uv_prepare_invoke();
 
-    uv_poll(LOOP->idle_handles == NULL);
+    uv_poll(LOOP->idle_handles == NULL && LOOP->refs > 0);
 
     uv_check_invoke();
   }

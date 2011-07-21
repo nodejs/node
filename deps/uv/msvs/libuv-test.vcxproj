@@ -160,6 +160,7 @@
     <ClCompile Include="..\test\runner-win.c" />
     <ClCompile Include="..\test\runner.c" />
     <ClCompile Include="..\test\test-pipe-bind-error.c" />
+    <ClCompile Include="..\test\test-ref.c" />
     <ClCompile Include="..\test\test-shutdown-eof.c" />
     <ClCompile Include="..\test\test-tcp-bind-error.c" />
     <ClCompile Include="..\test\test-tcp-bind6-error.c" />

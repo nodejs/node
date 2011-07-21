@@ -88,6 +88,7 @@ static int uv__nonblock(int fd, int set) __attribute__((unused));
 
 static int uv__socket(int domain, int type, int protocol);
 static int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t len);
+static int uv__close(int fd);
 
 size_t uv__strlcpy(char* dst, const char* src, size_t size);
 
@@ -329,7 +330,7 @@ int uv__bind(uv_tcp_t* tcp, int domain, struct sockaddr* addr, int addrsize) {
 
     if (uv__stream_open((uv_stream_t*)tcp, fd)) {
       status = -2;
-      close(fd);
+      uv__close(fd);
       goto out;
     }
   }
@@ -464,7 +465,7 @@ int uv_accept(uv_handle_t* server, uv_stream_t* client) {
   if (uv__stream_open(streamClient, streamServer->accepted_fd)) {
     /* TODO handle error */
     streamServer->accepted_fd = -1;
-    close(streamServer->accepted_fd);
+    uv__close(streamServer->accepted_fd);
     goto out;
   }
 
@@ -494,7 +495,7 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
     }
 
     if (uv__stream_open((uv_stream_t*)tcp, fd)) {
-      close(fd);
+      uv__close(fd);
       return -1;
     }
   }
@@ -554,11 +555,11 @@ void uv__finish_close(uv_handle_t* handle) {
       assert(!ev_is_active(&stream->read_watcher));
       assert(!ev_is_active(&stream->write_watcher));
 
-      close(stream->fd);
+      uv__close(stream->fd);
       stream->fd = -1;
 
       if (stream->accepted_fd >= 0) {
-        close(stream->accepted_fd);
+        uv__close(stream->accepted_fd);
         stream->accepted_fd = -1;
       }
       break;
@@ -678,12 +679,14 @@ static uv_write_t* uv__write(uv_stream_t* stream) {
    * inside the iov each time we write. So there is no need to offset it.
    */
 
-  if (iovcnt == 1) {
-    n = write(stream->fd, iov[0].iov_base, iov[0].iov_len);
+  do {
+    if (iovcnt == 1) {
+      n = write(stream->fd, iov[0].iov_base, iov[0].iov_len);
+    } else {
+      n = writev(stream->fd, iov, iovcnt);
+    }
   }
-  else {
-    n = writev(stream->fd, iov, iovcnt);
-  }
+  while (n == -1 && errno == EINTR);
 
   if (n < 0) {
     if (errno != EAGAIN) {
@@ -799,7 +802,10 @@ static void uv__read(uv_stream_t* stream) {
 
     iov = (struct iovec*) &buf;
 
-    nread = read(stream->fd, buf.base, buf.len);
+    do {
+      nread = read(stream->fd, buf.base, buf.len);
+    }
+    while (nread == -1 && errno == EINTR);
 
     if (nread < 0) {
       /* Error */
@@ -964,7 +970,7 @@ static int uv__connect(uv_connect_t* req,
     }
 
     if (uv__stream_open(stream, sockfd)) {
-      close(sockfd);
+      uv__close(sockfd);
       return -2;
     }
   }
@@ -987,7 +993,10 @@ static int uv__connect(uv_connect_t* req,
 
   stream->connect_req = req;
 
-  r = connect(stream->fd, addr, addrlen);
+  do {
+    r = connect(stream->fd, addr, addrlen);
+  }
+  while (r == -1 && errno == EINTR);
 
   stream->delayed_error = 0;
 
@@ -1839,7 +1848,7 @@ out:
       /* unlink() before close() to avoid races. */
       unlink(name);
     }
-    close(sockfd);
+    uv__close(sockfd);
     free((void*)name);
   }
 
@@ -1875,6 +1884,7 @@ int uv_pipe_connect(uv_connect_t* req,
   int saved_errno;
   int sockfd;
   int status;
+  int r;
 
   saved_errno = errno;
   sockfd = -1;
@@ -1892,9 +1902,14 @@ int uv_pipe_connect(uv_connect_t* req,
   /* We don't check for EINPROGRESS. Think about it: the socket
    * is either there or not.
    */
-  if (connect(sockfd, (struct sockaddr*)&sun, sizeof sun) == -1) {
+  do {
+    r = connect(sockfd, (struct sockaddr*)&sun, sizeof sun);
+  }
+  while (r == -1 && errno == EINTR);
+
+  if (r == -1) {
     uv_err_new((uv_handle_t*)handle, errno);
-    close(sockfd);
+    uv__close(sockfd);
     goto out;
   }
 
@@ -1971,7 +1986,7 @@ static int uv__socket(int domain, int type, int protocol) {
   }
 
   if (uv__nonblock(sockfd, 1) == -1 || uv__cloexec(sockfd, 1) == -1) {
-    close(sockfd);
+    uv__close(sockfd);
     return -1;
   }
 
@@ -1981,22 +1996,40 @@ static int uv__socket(int domain, int type, int protocol) {
 
 
 static int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
-  return accept4(sockfd, saddr, &slen, SOCK_NONBLOCK | SOCK_CLOEXEC);
-#else
   int peerfd;
 
-  if ((peerfd = accept(sockfd, saddr, &slen)) == -1) {
-    return -1;
+  do {
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+    peerfd = accept4(sockfd, saddr, &slen, SOCK_NONBLOCK | SOCK_CLOEXEC);
+#else
+    if ((peerfd = accept(sockfd, saddr, &slen)) != -1) {
+      if (uv__cloexec(peerfd, 1) == -1 || uv__nonblock(peerfd, 1) == -1) {
+        uv__close(peerfd);
+        return -1;
+      }
+    }
+#endif
   }
-
-  if (uv__cloexec(peerfd, 1) == -1 || uv__nonblock(peerfd, 1) == -1) {
-    close(peerfd);
-    return -1;
-  }
+  while (peerfd == -1 && errno == EINTR);
 
   return peerfd;
-#endif
+}
+
+
+static int uv__close(int fd) {
+  int status;
+
+  /*
+   * Retry on EINTR. You may think this is academic but on linux
+   * and probably other Unices too, close(2) is interruptible.
+   * Failing to handle EINTR is a common source of fd leaks.
+   */
+  do {
+    status = close(fd);
+  }
+  while (status == -1 && errno == EINTR);
+
+  return status;
 }
 
 

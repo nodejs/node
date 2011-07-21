@@ -53,6 +53,7 @@ TEST_DECLARE   (idle_ref)
 TEST_DECLARE   (async_ref)
 TEST_DECLARE   (prepare_ref)
 TEST_DECLARE   (check_ref)
+TEST_DECLARE   (unref_in_prepare_cb)
 TEST_DECLARE   (async)
 TEST_DECLARE   (get_currentexe)
 TEST_DECLARE   (hrtime)
@@ -121,6 +122,7 @@ TASK_LIST_START
   TEST_ENTRY  (async_ref)
   TEST_ENTRY  (prepare_ref)
   TEST_ENTRY  (check_ref)
+  TEST_ENTRY  (unref_in_prepare_cb)
 
   TEST_ENTRY  (loop_handles)
 
