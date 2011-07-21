@@ -153,6 +153,7 @@
     <ClCompile Include="..\test\test-getaddrinfo.c" />
     <ClCompile Include="..\test\test-getsockname.c" />
     <ClCompile Include="..\test\test-hrtime.c" />
+    <ClCompile Include="..\test\test-idle.c" />
     <ClCompile Include="..\test\test-loop-handles.c" />
     <ClCompile Include="..\test\test-pass-always.c" />
     <ClCompile Include="..\test\test-ping-pong.c" />

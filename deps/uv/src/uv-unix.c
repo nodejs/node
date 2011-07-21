@@ -186,7 +186,7 @@ static uv_err_t uv_err_new(uv_handle_t* handle, int sys_error) {
 }
 
 
-int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
+void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   uv_tcp_t* tcp;
   uv_pipe_t* pipe;
   uv_async_t* async;
@@ -245,7 +245,6 @@ int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 
     default:
       assert(0);
-      return -1;
   }
 
   uv_flag_set(handle, UV_CLOSING);
@@ -254,8 +253,6 @@ int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   ev_idle_start(EV_DEFAULT_ &handle->next_watcher);
   ev_feed_event(EV_DEFAULT_ &handle->next_watcher, EV_IDLE);
   assert(ev_is_pending(&handle->next_watcher));
-
-  return 0;
 }
 
 

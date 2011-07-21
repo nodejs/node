@@ -132,3 +132,9 @@ void uv_set_sys_error(int sys_errno) {
   LOOP->last_error.code = uv_translate_sys_error(sys_errno);
   LOOP->last_error.sys_errno_ = sys_errno;
 }
+
+
+void uv_set_error(uv_err_code code, int sys_errno) {
+  LOOP->last_error.code = code;
+  LOOP->last_error.sys_errno_ = sys_errno;
+}

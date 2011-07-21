@@ -146,8 +146,6 @@ static void async2_cb(uv_handle_t* handle, int status) {
 
 
 static void prepare_cb(uv_prepare_t* handle, int status) {
-  int r;
-
   ASSERT(handle == &prepare_handle);
   ASSERT(status == 0);
 
@@ -170,8 +168,7 @@ static void prepare_cb(uv_prepare_t* handle, int status) {
 #endif
 
     case 1:
-      r = uv_close((uv_handle_t*)handle, close_cb);
-      ASSERT(r == 0);
+      uv_close((uv_handle_t*)handle, close_cb);
       break;
 
     default:

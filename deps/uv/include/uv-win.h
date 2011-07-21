@@ -103,7 +103,7 @@ typedef struct uv_buf_t {
   HANDLE handle;
 
 #define UV_PIPE_PRIVATE_FIELDS            \
-  char* name;                             \
+  wchar_t* name;                          \
   union {                                 \
     struct { uv_pipe_server_fields };     \
     struct { uv_pipe_connection_fields }; \

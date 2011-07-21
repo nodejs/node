@@ -71,18 +71,15 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
   do_accept_called++;
 
   /* Immediately close the accepted handle. */
-  r = uv_close((uv_handle_t*)accepted_handle, close_cb);
-  ASSERT(r == 0);
+  uv_close((uv_handle_t*)accepted_handle, close_cb);
 
   /* After accepting the two clients close the server handle */
   if (do_accept_called == 2) {
-    r = uv_close((uv_handle_t*)server, close_cb);
-    ASSERT(r == 0);
+    uv_close((uv_handle_t*)server, close_cb);
   }
 
   /* Dispose the timer. */
-  r = uv_close((uv_handle_t*)timer_handle, close_cb);
-  ASSERT(r == 0);
+  uv_close((uv_handle_t*)timer_handle, close_cb);
 }
 
 

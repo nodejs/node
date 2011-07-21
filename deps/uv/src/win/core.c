@@ -85,20 +85,24 @@ void uv_unref() {
 }
 
 
-static void uv_poll() {
+static void uv_poll(int block) {
   BOOL success;
-  DWORD bytes;
+  DWORD bytes, timeout;
   ULONG_PTR key;
   OVERLAPPED* overlapped;
   uv_req_t* req;
+
+  if (block) {
+    timeout = uv_get_poll_timeout();
+  } else {
+    timeout = 0;
+  }
 
   success = GetQueuedCompletionStatus(LOOP->iocp,
                                       &bytes,
                                       &key,
                                       &overlapped,
-                                      uv_get_poll_timeout());
-
-  uv_update_time();
+                                      timeout);
 
   if (overlapped) {
     /* Package was dequeued */
@@ -118,21 +122,21 @@ static void uv_poll() {
 
 
 int uv_run() {
-  while (1) {
+  while (LOOP->refs > 0) {
     uv_update_time();
     uv_process_timers();
 
-    /* Terrible: please fix me! */
-    while (LOOP->refs > 0 &&
-        (LOOP->idle_handles || LOOP->pending_reqs_tail || LOOP->endgame_handles)) {
-      /* Terrible: please fix me! */
-      while (LOOP->pending_reqs_tail || LOOP->endgame_handles) {
-        uv_process_endgames();
-        uv_process_reqs();
-      }
-
-      /* Call idle callbacks */
+    /* Call idle callbacks if nothing to do. */
+    if (LOOP->pending_reqs_tail == NULL && LOOP->endgame_handles == NULL) {
       uv_idle_invoke();
+    }
+
+    /* Completely flush all pending reqs and endgames. */
+    /* We do even when we just called the idle callbacks because those may */
+    /* have closed handles or started requests that short-circuited. */
+    while (LOOP->pending_reqs_tail || LOOP->endgame_handles) {
+      uv_process_endgames();
+      uv_process_reqs();
     }
 
     if (LOOP->refs <= 0) {
@@ -141,7 +145,7 @@ int uv_run() {
 
     uv_prepare_invoke();
 
-    uv_poll();
+    uv_poll(LOOP->idle_handles == NULL);
 
     uv_check_invoke();
   }

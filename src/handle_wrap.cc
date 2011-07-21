@@ -40,18 +40,11 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
   UNWRAP
 
   assert(!wrap->object_.IsEmpty());
-  int r = uv_close(wrap->handle__, OnClose);
+  uv_close(wrap->handle__, OnClose);
 
   wrap->StateChange();
 
-  if (r) {
-    SetErrno(uv_last_error().code);
-
-    wrap->object_->SetPointerInInternalField(0, NULL);
-    wrap->object_.Dispose();
-    wrap->object_.Clear();
-  }
-  return scope.Close(Integer::New(r));
+  return v8::Null();
 }
 
 

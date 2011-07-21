@@ -229,7 +229,7 @@ int uv_is_active(uv_handle_t* handle);
  * Request handle to be closed. close_cb will be called asynchronously after
  * this call. This MUST be called on each handle before memory is released.
  */
-int uv_close(uv_handle_t* handle, uv_close_cb close_cb);
+void uv_close(uv_handle_t* handle, uv_close_cb close_cb);
 
 
 #define UV_STREAM_FIELDS \

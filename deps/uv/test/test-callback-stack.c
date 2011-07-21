@@ -83,9 +83,7 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
     ASSERT(uv_last_error().code == UV_EOF);
 
     nested++;
-    if (uv_close((uv_handle_t*)tcp, close_cb)) {
-      FATAL("uv_close failed");
-    }
+    uv_close((uv_handle_t*)tcp, close_cb);
     nested--;
 
     return;
@@ -111,8 +109,6 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
 
 
 static void timer_cb(uv_timer_t* handle, int status) {
-  int r;
-
   ASSERT(handle == &timer);
   ASSERT(status == 0);
   ASSERT(nested == 0 && "timer_cb must be called from a fresh stack");
@@ -127,8 +123,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
 
   timer_cb_called++;
 
-  r = uv_close((uv_handle_t*)handle, close_cb);
-  ASSERT(r == 0);
+  uv_close((uv_handle_t*)handle, close_cb);
 }
 
 

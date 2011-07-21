@@ -40,12 +40,12 @@ int uv_is_active(uv_handle_t* handle) {
 
 
 /* TODO: integrate this with uv_close. */
-static int uv_close_error(uv_handle_t* handle, uv_err_t e) {
+static void uv_close_error(uv_handle_t* handle, uv_err_t e) {
   uv_tcp_t* tcp;
   uv_pipe_t* pipe;
 
   if (handle->flags & UV_HANDLE_CLOSING) {
-    return 0;
+    return;
   }
 
   handle->error = e;
@@ -66,7 +66,7 @@ static int uv_close_error(uv_handle_t* handle, uv_err_t e) {
       if (tcp->reqs_pending == 0) {
         uv_want_endgame(handle);
       }
-      return 0;
+      return;
 
     case UV_NAMED_PIPE:
       pipe = (uv_pipe_t*)handle;
@@ -75,45 +75,44 @@ static int uv_close_error(uv_handle_t* handle, uv_err_t e) {
       if (pipe->reqs_pending == 0) {
         uv_want_endgame(handle);
       }
-      return 0;
+      return;
 
     case UV_TIMER:
       uv_timer_stop((uv_timer_t*)handle);
       uv_want_endgame(handle);
-      return 0;
+      return;
 
     case UV_PREPARE:
       uv_prepare_stop((uv_prepare_t*)handle);
       uv_want_endgame(handle);
-      return 0;
+      return;
 
     case UV_CHECK:
       uv_check_stop((uv_check_t*)handle);
       uv_want_endgame(handle);
-      return 0;
+      return;
 
     case UV_IDLE:
       uv_idle_stop((uv_idle_t*)handle);
       uv_want_endgame(handle);
-      return 0;
+      return;
 
     case UV_ASYNC:
       if (!((uv_async_t*)handle)->async_sent) {
         uv_want_endgame(handle);
       }
-      return 0;
+      return;
 
     default:
       /* Not supported */
-      assert(0);
-      return -1;
+      abort();
   }
 }
 
 
-int uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
+void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   handle->close_cb = close_cb;
-  return uv_close_error(handle, uv_ok_);
+  uv_close_error(handle, uv_ok_);
 }
 
 
