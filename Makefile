@@ -167,6 +167,7 @@ UVTEST += simple/test-next-tick-ordering
 UVTEST += simple/test-next-tick-ordering2
 UVTEST += simple/test-next-tick-starvation
 UVTEST += simple/test-path
+UVTEST += simple/test-pipe-stream
 UVTEST += simple/test-pump-file2tcp
 UVTEST += simple/test-pump-file2tcp-noexist
 UVTEST += simple/test-punycode
