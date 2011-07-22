@@ -88,6 +88,13 @@ int run_test(const char* test, int timeout, int benchmark_output) {
   status = 255;
   process_count = 0;
 
+  /* If it's a helper the user asks for, start it directly. */
+  for (task = TASKS; task->main; task++) {
+    if (task->is_helper && strcmp(test, task->process_name) == 0) {
+      return task->main();
+    }
+  }
+
   /* Start the helpers first. */
   for (task = TASKS; task->main; task++) {
     if (strcmp(test, task->task_name) != 0) {

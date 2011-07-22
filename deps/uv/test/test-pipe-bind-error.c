@@ -28,8 +28,7 @@
 #ifdef _WIN32
 # define BAD_PIPENAME "bad-pipe"
 #else
-/* TODO: define a bad pipe name for unix (see pipe_bind_error_addrnotavail) */
-# define BAD_PIPENAME ""
+# define BAD_PIPENAME "/path/to/unix/socket/that/really/should/not/be/there"
 #endif
 
 
@@ -89,7 +88,7 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
   r = uv_pipe_bind(&server, BAD_PIPENAME);
 
   ASSERT(r == -1);
-  ASSERT(uv_last_error().code == UV_EADDRNOTAVAIL);
+  ASSERT(uv_last_error().code == UV_EACCESS);
 
   uv_close((uv_handle_t*)&server, close_cb);
 

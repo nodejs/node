@@ -152,7 +152,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
       handle->error = LOOP->last_error;
       handle->flags |= UV_HANDLE_BIND_ERROR;
     } else if (errno == ERROR_PATH_NOT_FOUND || errno == ERROR_INVALID_NAME) {
-      uv_set_error(UV_EADDRNOTAVAIL, errno);
+      uv_set_error(UV_EACCESS, errno);
     } else {
       uv_set_sys_error(errno);
     }
@@ -399,7 +399,6 @@ int uv_pipe_accept(uv_pipe_t* server, uv_pipe_t* client) {
   }
 
   /* Initialize the client handle and copy the pipeHandle to the client */
-  uv_pipe_init(client);
   uv_connection_init((uv_stream_t*) client);
   client->handle = req->pipeHandle;
 

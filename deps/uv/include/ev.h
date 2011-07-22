@@ -48,6 +48,12 @@
 
 EV_CPP(extern "C" {)
 
+#ifdef __GNUC__
+# define EV_MAYBE_UNUSED __attribute__ ((unused))
+#else
+# define EV_MAYBE_UNUSED
+#endif
+
 /*****************************************************************************/
 
 /* pre-4.0 compatibility */
@@ -539,7 +545,7 @@ void ev_set_syserr_cb (void (*cb)(const char *msg));
 struct ev_loop *ev_default_loop (unsigned int flags EV_CPP (= 0));
 
 EV_INLINE struct ev_loop *
-ev_default_loop_uc_ (void)
+EV_MAYBE_UNUSED ev_default_loop_uc_ (void)
 {
   extern struct ev_loop *ev_default_loop_ptr;
 
@@ -547,7 +553,7 @@ ev_default_loop_uc_ (void)
 }
 
 EV_INLINE int
-ev_is_default_loop (EV_P)
+EV_MAYBE_UNUSED ev_is_default_loop (EV_P)
 {
   return EV_A == EV_DEFAULT_UC;
 }
@@ -807,14 +813,14 @@ void ev_async_send     (EV_P_ ev_async *w);
   #define EVUNLOOP_ONE    EVBREAK_ONE
   #define EVUNLOOP_ALL    EVBREAK_ALL
   #if EV_PROTOTYPES
-    EV_INLINE void ev_loop   (EV_P_ int flags) { ev_run   (EV_A_ flags); }
-    EV_INLINE void ev_unloop (EV_P_ int how  ) { ev_break (EV_A_ how  ); }
-    EV_INLINE void ev_default_destroy (void) { ev_loop_destroy (EV_DEFAULT); }
-    EV_INLINE void ev_default_fork    (void) { ev_loop_fork    (EV_DEFAULT); }
+    EV_INLINE void EV_MAYBE_UNUSED ev_loop   (EV_P_ int flags) { ev_run   (EV_A_ flags); }
+    EV_INLINE void EV_MAYBE_UNUSED ev_unloop (EV_P_ int how  ) { ev_break (EV_A_ how  ); }
+    EV_INLINE void EV_MAYBE_UNUSED ev_default_destroy (void) { ev_loop_destroy (EV_DEFAULT); }
+    EV_INLINE void EV_MAYBE_UNUSED ev_default_fork    (void) { ev_loop_fork    (EV_DEFAULT); }
     #if EV_FEATURE_API
-      EV_INLINE unsigned int ev_loop_count  (EV_P) { return ev_iteration  (EV_A); }
-      EV_INLINE unsigned int ev_loop_depth  (EV_P) { return ev_depth      (EV_A); }
-      EV_INLINE void         ev_loop_verify (EV_P) {        ev_verify     (EV_A); }
+      EV_INLINE unsigned int EV_MAYBE_UNUSED ev_loop_count  (EV_P) { return ev_iteration  (EV_A); }
+      EV_INLINE unsigned int EV_MAYBE_UNUSED ev_loop_depth  (EV_P) { return ev_depth      (EV_A); }
+      EV_INLINE void         EV_MAYBE_UNUSED ev_loop_verify (EV_P) {        ev_verify     (EV_A); }
     #endif
   #endif
 #else

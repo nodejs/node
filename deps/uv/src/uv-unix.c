@@ -704,7 +704,7 @@ static uv_write_t* uv__write(uv_stream_t* stream) {
 
       assert(req->write_index < req->bufcnt);
 
-      if (n < len) {
+      if ((size_t)n < len) {
         buf->base += n;
         buf->len -= n;
         stream->write_queue_size -= n;
@@ -717,7 +717,7 @@ static uv_write_t* uv__write(uv_stream_t* stream) {
         /* Finished writing the buf at index req->write_index. */
         req->write_index++;
 
-        assert(n >= len);
+        assert((size_t)n >= len);
         n -= len;
 
         assert(stream->write_queue_size >= len);
@@ -1788,21 +1788,32 @@ int uv_pipe_init(uv_pipe_t* handle) {
 
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un sun;
+  const char* pipe_fname;
   int saved_errno;
   int sockfd;
   int status;
   int bound;
 
   saved_errno = errno;
+  pipe_fname = NULL;
   sockfd = -1;
   status = -1;
   bound = 0;
 
+  /* Already bound? */
+  if (handle->fd >= 0) {
+    uv_err_new_artificial((uv_handle_t*)handle, UV_EINVAL);
+    goto out;
+  }
+
   /* Make a copy of the file name, it outlives this function's scope. */
-  if ((name = (const char*)strdup(name)) == NULL) {
+  if ((pipe_fname = strdup(name)) == NULL) {
     uv_err_new((uv_handle_t*)handle, ENOMEM);
     goto out;
   }
+
+  /* We've got a copy, don't touch the original any more. */
+  name = NULL;
 
   if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     uv_err_new((uv_handle_t*)handle, errno);
@@ -1810,7 +1821,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   memset(&sun, 0, sizeof sun);
-  uv__strlcpy(sun.sun_path, name, sizeof(sun.sun_path));
+  uv__strlcpy(sun.sun_path, pipe_fname, sizeof(sun.sun_path));
   sun.sun_family = AF_UNIX;
 
   if (bind(sockfd, (struct sockaddr*)&sun, sizeof sun) == -1) {
@@ -1820,16 +1831,17 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
      * on EADDRINUSE. Unlinking and trying to bind again opens
      * a window for races with other threads and processes.
      */
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new((uv_handle_t*)handle, (errno == ENOENT) ? EACCES : errno);
     goto out;
 #else
     /*
      * Try to re-purpose the socket. This is a potential race window.
      */
     if (errno != EADDRINUSE
-        || unlink(name) == -1
+        || unlink(pipe_fname) == -1
         || bind(sockfd, (struct sockaddr*)&sun, sizeof sun) == -1) {
-      uv_err_new((uv_handle_t*)handle, errno);
+      /* Convert ENOENT to EACCES for compatibility with Windows. */
+      uv_err_new((uv_handle_t*)handle, (errno == ENOENT) ? EACCES : errno);
       goto out;
     }
 #endif
@@ -1837,7 +1849,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   bound = 1;
 
   /* Success. */
-  handle->pipe_fname = name; /* Is a strdup'ed copy. */
+  handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
   handle->fd = sockfd;
   status = 0;
 
@@ -1846,10 +1858,11 @@ out:
   if (status) {
     if (bound) {
       /* unlink() before close() to avoid races. */
-      unlink(name);
+      assert(pipe_fname != NULL);
+      unlink(pipe_fname);
     }
     uv__close(sockfd);
-    free((void*)name);
+    free((void*)pipe_fname);
   }
 
   errno = saved_errno;
@@ -1862,6 +1875,13 @@ int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb) {
   int status;
 
   saved_errno = errno;
+  status = -1;
+
+  if (handle->fd == -1) {
+    uv_err_new_artificial((uv_handle_t*)handle, UV_ENOTCONN);
+    goto out;
+  }
+  assert(handle->fd >= 0);
 
   if ((status = listen(handle->fd, SOMAXCONN)) == -1) {
     uv_err_new((uv_handle_t*)handle, errno);
@@ -1871,6 +1891,7 @@ int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb) {
     ev_io_start(EV_DEFAULT_ &handle->read_watcher);
   }
 
+out:
   errno = saved_errno;
   return status;
 }

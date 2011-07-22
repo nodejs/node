@@ -21,7 +21,7 @@
 CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=
-CSTDFLAG=--std=c89 -pedantic
+CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS=-g
 CPPFLAGS += -Isrc/ev
 LINKFLAGS=-lm
