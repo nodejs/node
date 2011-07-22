@@ -125,7 +125,7 @@ struct Register {
     return names[index];
   }
 
-  static Register toRegister(int code) {
+  static Register from_code(int code) {
     Register r = { code };
     return r;
   }

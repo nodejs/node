@@ -734,6 +734,7 @@ class LinuxMutex : public Mutex {
     ASSERT(result == 0);
     result = pthread_mutex_init(&mutex_, &attrs);
     ASSERT(result == 0);
+    USE(result);
   }
 
   virtual ~LinuxMutex() { pthread_mutex_destroy(&mutex_); }

@@ -217,6 +217,11 @@ void OS::Free(void* buf, const size_t length) {
 }
 
 
+void OS::Guard(void* address, const size_t size) {
+  UNIMPLEMENTED();
+}
+
+
 void OS::Sleep(int milliseconds) {
   UNIMPLEMENTED();
 }

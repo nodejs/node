@@ -2230,10 +2230,34 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
-Operand LCodeGen::BuildExternalArrayOperand(
+void LCodeGen::DoLoadKeyedFastDoubleElement(
+    LLoadKeyedFastDoubleElement* instr) {
+  Register elements = ToRegister(instr->elements());
+  XMMRegister result = ToDoubleRegister(instr->result());
+
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    int offset = FixedDoubleArray::kHeaderSize - kHeapObjectTag +
+        sizeof(kHoleNanLower32);
+    Operand hole_check_operand = BuildFastArrayOperand(
+        instr->elements(), instr->key(),
+        JSObject::FAST_DOUBLE_ELEMENTS,
+        offset);
+    __ cmp(hole_check_operand, Immediate(kHoleNanUpper32));
+    DeoptimizeIf(equal, instr->environment());
+  }
+
+  Operand double_load_operand = BuildFastArrayOperand(
+      instr->elements(), instr->key(), JSObject::FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+  __ movdbl(result, double_load_operand);
+}
+
+
+Operand LCodeGen::BuildFastArrayOperand(
     LOperand* external_pointer,
     LOperand* key,
-    JSObject::ElementsKind elements_kind) {
+    JSObject::ElementsKind elements_kind,
+    uint32_t offset) {
   Register external_pointer_reg = ToRegister(external_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
@@ -2241,10 +2265,11 @@ Operand LCodeGen::BuildExternalArrayOperand(
     if (constant_value & 0xF0000000) {
       Abort("array index constant value too big");
     }
-    return Operand(external_pointer_reg, constant_value * (1 << shift_size));
+    return Operand(external_pointer_reg,
+                   constant_value * (1 << shift_size) + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(external_pointer_reg, ToRegister(key), scale_factor, 0);
+    return Operand(external_pointer_reg, ToRegister(key), scale_factor, offset);
   }
 }
 
@@ -2252,8 +2277,8 @@ Operand LCodeGen::BuildExternalArrayOperand(
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   JSObject::ElementsKind elements_kind = instr->elements_kind();
-  Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
-                                            instr->key(), elements_kind));
+  Operand operand(BuildFastArrayOperand(instr->external_pointer(),
+                                        instr->key(), elements_kind, 0));
   if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
@@ -2790,7 +2815,8 @@ void LCodeGen::DoMathLog(LUnaryMathOperation* instr) {
   __ ucomisd(input_reg, xmm0);
   __ j(above, &positive, Label::kNear);
   __ j(equal, &zero, Label::kNear);
-  ExternalReference nan = ExternalReference::address_of_nan();
+  ExternalReference nan =
+      ExternalReference::address_of_canonical_non_hole_nan();
   __ movdbl(input_reg, Operand::StaticVariable(nan));
   __ jmp(&done, Label::kNear);
   __ bind(&zero);
@@ -3000,8 +3026,8 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
   JSObject::ElementsKind elements_kind = instr->elements_kind();
-  Operand operand(BuildExternalArrayOperand(instr->external_pointer(),
-                                            instr->key(), elements_kind));
+  Operand operand(BuildFastArrayOperand(instr->external_pointer(),
+                                        instr->key(), elements_kind, 0));
   if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
     __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
     __ movss(operand, xmm0);
@@ -3065,6 +3091,28 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
                         FixedArray::kHeaderSize));
     __ RecordWrite(elements, key, value);
   }
+}
+
+
+void LCodeGen::DoStoreKeyedFastDoubleElement(
+    LStoreKeyedFastDoubleElement* instr) {
+  XMMRegister value = ToDoubleRegister(instr->value());
+  Register elements = ToRegister(instr->elements());
+  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
+  Label have_value;
+
+  __ ucomisd(value, value);
+  __ j(parity_odd, &have_value);  // NaN.
+
+  ExternalReference canonical_nan_reference =
+      ExternalReference::address_of_canonical_non_hole_nan();
+  __ movdbl(value, Operand::StaticVariable(canonical_nan_reference));
+  __ bind(&have_value);
+
+  Operand double_store_operand = BuildFastArrayOperand(
+      instr->elements(), instr->key(), JSObject::FAST_DOUBLE_ELEMENTS,
+      FixedDoubleArray::kHeaderSize - kHeapObjectTag);
+  __ movdbl(double_store_operand, value);
 }
 
 
@@ -3451,7 +3499,8 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
     DeoptimizeIf(not_equal, env);
 
     // Convert undefined to NaN.
-    ExternalReference nan = ExternalReference::address_of_nan();
+    ExternalReference nan =
+        ExternalReference::address_of_canonical_non_hole_nan();
     __ movdbl(result_reg, Operand::StaticVariable(nan));
     __ jmp(&done, Label::kNear);
 

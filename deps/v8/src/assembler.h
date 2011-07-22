@@ -70,7 +70,8 @@ class DoubleConstant: public AllStatic {
   static const double zero;
   static const double uint8_max_value;
   static const double negative_infinity;
-  static const double nan;
+  static const double canonical_non_hole_nan;
+  static const double the_hole_nan;
 };
 
 
@@ -629,7 +630,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference address_of_zero();
   static ExternalReference address_of_uint8_max_value();
   static ExternalReference address_of_negative_infinity();
-  static ExternalReference address_of_nan();
+  static ExternalReference address_of_canonical_non_hole_nan();
+  static ExternalReference address_of_the_hole_nan();
 
   static ExternalReference math_sin_double_function(Isolate* isolate);
   static ExternalReference math_cos_double_function(Isolate* isolate);

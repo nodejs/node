@@ -291,6 +291,7 @@ class MinidumpReader(object):
     self.exception = None
     self.exception_context = None
     self.memory_list = None
+    self.memory_list64 = None
     self.thread_map = {}
     for d in directories:
       DebugPrint(d)
@@ -311,16 +312,17 @@ class MinidumpReader(object):
           self.thread_map[thread.id] = thread
       elif d.stream_type == MD_MEMORY_LIST_STREAM:
         print >>sys.stderr, "Warning: not a full minidump"
-        ml = MINIDUMP_MEMORY_LIST.Read(self.minidump, d.location.rva)
-        DebugPrint(ml)
-        for m in ml.ranges:
-          DebugPrint(m)
-      elif d.stream_type == MD_MEMORY_64_LIST_STREAM:
         assert self.memory_list is None
-        self.memory_list = MINIDUMP_MEMORY_LIST64.Read(
+        self.memory_list = MINIDUMP_MEMORY_LIST.Read(
           self.minidump, d.location.rva)
         assert ctypes.sizeof(self.memory_list) == d.location.data_size
         DebugPrint(self.memory_list)
+      elif d.stream_type == MD_MEMORY_64_LIST_STREAM:
+        assert self.memory_list64 is None
+        self.memory_list64 = MINIDUMP_MEMORY_LIST64.Read(
+          self.minidump, d.location.rva)
+        assert ctypes.sizeof(self.memory_list64) == d.location.data_size
+        DebugPrint(self.memory_list64)
 
   def IsValidAddress(self, address):
     return self.FindLocation(address) is not None
@@ -338,12 +340,16 @@ class MinidumpReader(object):
     return self.minidump[location:location + size]
 
   def FindLocation(self, address):
-    # TODO(vitalyr): only works for full minidumps (...64 structure variants).
     offset = 0
-    for r in self.memory_list.ranges:
-      if r.start <= address < r.start + r.size:
-        return self.memory_list.base_rva + offset + address - r.start
+    if self.memory_list64 is not None:
+      for r in self.memory_list64.ranges:
+        if r.start <= address < r.start + r.size:
+          return self.memory_list64.base_rva + offset + address - r.start
       offset += r.size
+    if self.memory_list is not None:
+      for r in self.memory_list.ranges:
+        if r.start <= address < r.start + r.memory.data_size:
+          return r.memory.rva + address - r.start
     return None
 
   def GetDisasmLines(self, address, size):

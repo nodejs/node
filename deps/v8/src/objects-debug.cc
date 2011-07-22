@@ -315,7 +315,8 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
     if (!is_the_hole(i)) {
       double value = get(i);
       ASSERT(!isnan(value) ||
-             BitCast<uint64_t>(value) == kCanonicalNonHoleNanInt64);
+             (BitCast<uint64_t>(value) ==
+              BitCast<uint64_t>(canonical_not_the_hole_nan_as_double())));
     }
   }
 }

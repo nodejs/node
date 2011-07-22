@@ -29,7 +29,21 @@ import sys
 from os.path import join, dirname, abspath
 root_dir = dirname(File('SConstruct').rfile().abspath)
 sys.path.append(join(root_dir, 'tools'))
+import js2c
 Import('context object_files tools')
+
+
+# Needed for test-log. Paths are relative to the cctest dir.
+JS_FILES_FOR_TESTS = [
+  '../../../tools/splaytree.js',
+  '../../../tools/codemap.js',
+  '../../../tools/csvparser.js',
+  '../../../tools/consarray.js',
+  '../../../tools/profile.js',
+  '../../../tools/profile_view.js',
+  '../../../tools/logreader.js',
+  'log-eq-of-logging-and-traversal.js',
+]
 
 
 SOURCES = {
@@ -109,9 +123,19 @@ def Build():
   env = Environment(tools=tools)
   env.Replace(**context.flags['cctest'])
   context.ApplyEnvOverrides(env)
+  env['BUILDERS']['JS2C'] = Builder(action=js2c.JS2C)
+
+  # Combine the JavaScript library files into a single C++ file and
+  # compile it.
+  js_files = [s for s in JS_FILES_FOR_TESTS]
+  js_files_src = env.JS2C(
+    ['js-files-for-cctest.cc'], js_files, **{'TYPE': 'TEST', 'COMPRESSION': 'off'})
+  js_files_obj = context.ConfigureObject(env, js_files_src, CPPPATH=['.'])
+
   # There seems to be a glitch in the way scons decides where to put
   # PDB files when compiling using MSVC so we specify it manually.
   # This should not affect any other platforms.
+  object_files.append(js_files_obj)
   return env.Program('cctest', ['cctest.cc', cctest_files, object_files],
       PDB='cctest.exe.pdb')
 

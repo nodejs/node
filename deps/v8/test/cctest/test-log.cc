@@ -12,6 +12,7 @@
 #include "v8.h"
 #include "log.h"
 #include "cpu-profiler.h"
+#include "natives.h"
 #include "v8threads.h"
 #include "v8utils.h"
 #include "cctest.h"
@@ -469,6 +470,8 @@ TEST(IsLoggingPreserved) {
 }
 
 
+typedef i::NativesCollection<i::TEST> TestSources;
+
 // Test that logging of code create / move / delete events
 // is equivalent to traversal of a resulting heap.
 TEST(EquivalenceOfLoggingAndTraversal) {
@@ -505,38 +508,25 @@ TEST(EquivalenceOfLoggingAndTraversal) {
   v8::Handle<v8::String> log_str = v8::String::New(log.start(), log.length());
   initialize_logger.env()->Global()->Set(v8_str("_log"), log_str);
 
-  const char* scripts[] = {
-    "tools/splaytree.js", "tools/codemap.js", "tools/csvparser.js",
-    "tools/consarray.js", "tools/profile.js", "tools/profile_view.js",
-    "tools/logreader.js", "test/cctest/log-eq-of-logging-and-traversal.js"
-  };
-  int scripts_count = sizeof(scripts) / sizeof(scripts[0]);
-  v8::Handle<v8::Value> last_result;
-  for (int i = 0; i < scripts_count; ++i) {
-    bool exists = true;
-    i::Vector<const char> source(i::ReadFile(scripts[i], &exists, true));
-    CHECK(exists);
-    CHECK_GT(source.length(), 0);
-    v8::Handle<v8::String> source_str =
-        v8::String::New(source.start(), source.length());
-    v8::TryCatch try_catch;
-    v8::Handle<v8::Script> script =
-        v8::Script::Compile(source_str, v8_str(scripts[i]));
-    if (script.IsEmpty()) {
-      v8::String::Utf8Value exception(try_catch.Exception());
-      printf("compile %s: %s\n", scripts[i], *exception);
-      CHECK(false);
-    }
-    last_result = script->Run();
-    if (last_result.IsEmpty()) {
-      v8::String::Utf8Value exception(try_catch.Exception());
-      printf("run %s: %s\n", scripts[i], *exception);
-      CHECK(false);
-    }
+  i::Vector<const unsigned char> source = TestSources::GetScriptsSource();
+  v8::Handle<v8::String> source_str = v8::String::New(
+      reinterpret_cast<const char*>(source.start()), source.length());
+  v8::TryCatch try_catch;
+  v8::Handle<v8::Script> script = v8::Script::Compile(source_str, v8_str(""));
+  if (script.IsEmpty()) {
+    v8::String::Utf8Value exception(try_catch.Exception());
+    printf("compile: %s\n", *exception);
+    CHECK(false);
+  }
+  v8::Handle<v8::Value> result = script->Run();
+  if (result.IsEmpty()) {
+    v8::String::Utf8Value exception(try_catch.Exception());
+    printf("run: %s\n", *exception);
+    CHECK(false);
   }
   // The result either be a "true" literal or problem description.
-  if (!last_result->IsTrue()) {
-    v8::Local<v8::String> s = last_result->ToString();
+  if (!result->IsTrue()) {
+    v8::Local<v8::String> s = result->ToString();
     i::ScopedVector<char> data(s->Length() + 1);
     CHECK_NE(NULL, data.start());
     s->WriteAscii(data.start());

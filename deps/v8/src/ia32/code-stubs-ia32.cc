@@ -4158,6 +4158,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
       masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+  __ SetCallKind(ecx, CALL_AS_METHOD);
   __ jmp(adaptor, RelocInfo::CODE_TARGET);
 }
 

@@ -1089,9 +1089,8 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(object, receiver, holder,
+                  scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
   __ Move(rax, Handle<Object>(value));
@@ -3584,6 +3583,57 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Label miss_force_generic, slow_allocate_heapnumber;
+
+  // This stub is meant to be tail-jumped to, the receiver must already
+  // have been verified by the caller to not be a smi.
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(rax, &miss_force_generic);
+
+  // Get the elements array.
+  __ movq(rcx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ AssertFastElements(rcx);
+
+  // Check that the key is within bounds.
+  __ SmiCompare(rax, FieldOperand(rcx, FixedArray::kLengthOffset));
+  __ j(above_equal, &miss_force_generic);
+
+  // Check for the hole
+  __ SmiToInteger32(kScratchRegister, rax);
+  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+  __ cmpl(FieldOperand(rcx, kScratchRegister, times_8, offset),
+          Immediate(kHoleNanUpper32));
+  __ j(equal, &miss_force_generic);
+
+  // Always allocate a heap number for the result.
+  __ movsd(xmm0, FieldOperand(rcx, kScratchRegister, times_8,
+                              FixedDoubleArray::kHeaderSize));
+  __ AllocateHeapNumber(rcx, rbx, &slow_allocate_heapnumber);
+  // Set the value.
+  __ movq(rax, rcx);
+  __ movsd(FieldOperand(rcx, HeapNumber::kValueOffset), xmm0);
+  __ ret(0);
+
+  __ bind(&slow_allocate_heapnumber);
+  Handle<Code> slow_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_Slow();
+  __ jmp(slow_ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&miss_force_generic);
+  Handle<Code> miss_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
+  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
+}
+
+
 void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
                                                       bool is_js_array) {
   // ----------- S t a t e -------------
@@ -3627,6 +3677,90 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   __ ret(0);
 
   // Handle store cache miss.
+  __ bind(&miss_force_generic);
+  Handle<Code> ic_force_generic =
+      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
+  __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
+}
+
+
+void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
+    MacroAssembler* masm,
+    bool is_js_array) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Label miss_force_generic, smi_value, is_nan, maybe_nan;
+  Label have_double_value, not_nan;
+
+  // This stub is meant to be tail-jumped to, the receiver must already
+  // have been verified by the caller to not be a smi.
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(rcx, &miss_force_generic);
+
+  // Get the elements array.
+  __ movq(rdi, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ AssertFastElements(rdi);
+
+  // Check that the key is within bounds.
+  if (is_js_array) {
+    __ SmiCompare(rcx, FieldOperand(rdx, JSArray::kLengthOffset));
+  } else {
+    __ SmiCompare(rcx, FieldOperand(rdi, FixedDoubleArray::kLengthOffset));
+  }
+  __ j(above_equal, &miss_force_generic);
+
+  // Handle smi values specially
+  __ JumpIfSmi(rax, &smi_value, Label::kNear);
+
+  __ CheckMap(rax,
+              masm->isolate()->factory()->heap_number_map(),
+              &miss_force_generic,
+              DONT_DO_SMI_CHECK);
+
+  // Double value, canonicalize NaN.
+  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
+  __ cmpl(FieldOperand(rax, offset),
+          Immediate(kNaNOrInfinityLowerBoundUpper32));
+  __ j(greater_equal, &maybe_nan, Label::kNear);
+
+  __ bind(&not_nan);
+  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ bind(&have_double_value);
+  __ SmiToInteger32(rcx, rcx);
+  __ movsd(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize),
+           xmm0);
+  __ ret(0);
+
+  __ bind(&maybe_nan);
+  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
+  // it's an Infinity, and the non-NaN code path applies.
+  __ j(greater, &is_nan, Label::kNear);
+  __ cmpl(FieldOperand(rax, HeapNumber::kValueOffset), Immediate(0));
+  __ j(zero, &not_nan);
+  __ bind(&is_nan);
+  // Convert all NaNs to the same canonical NaN value when they are stored in
+  // the double array.
+  __ Set(kScratchRegister, BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+  __ movq(xmm0, kScratchRegister);
+  __ jmp(&have_double_value, Label::kNear);
+
+  __ bind(&smi_value);
+  // Value is a smi. convert to a double and store.
+  __ SmiToInteger32(rax, rax);
+  __ push(rax);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(rax);
+  __ SmiToInteger32(rcx, rcx);
+  __ fstp_d(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize));
+  __ ret(0);
+
+  // Handle store cache miss, replacing the ic with the generic stub.
   __ bind(&miss_force_generic);
   Handle<Code> ic_force_generic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();

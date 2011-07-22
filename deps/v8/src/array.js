@@ -999,7 +999,7 @@ function ArrayFilter(f, receiver) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = ToUint32(this.length);
   var result = [];
   var result_length = 0;
   for (var i = 0; i < length; i++) {
@@ -1236,7 +1236,7 @@ function ArrayReduce(callback, current) {
   }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
-  var length = this.length;
+  var length = ToUint32(this.length);
   var i = 0;
 
   find_initial: if (%_ArgumentsLength() < 2) {
@@ -1268,7 +1268,7 @@ function ArrayReduceRight(callback, current) {
   if (!IS_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
-  var i = this.length - 1;
+  var i = ToUint32(this.length) - 1;
 
   find_initial: if (%_ArgumentsLength() < 2) {
     for (; i >= 0; i--) {

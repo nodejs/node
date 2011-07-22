@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1958,13 +1958,10 @@ void TextNode::GetQuickCheckDetails(QuickCheckDetails* details,
   ASSERT(characters_filled_in < details->characters());
   int characters = details->characters();
   int char_mask;
-  int char_shift;
   if (compiler->ascii()) {
     char_mask = String::kMaxAsciiCharCode;
-    char_shift = 8;
   } else {
     char_mask = String::kMaxUC16CharCode;
-    char_shift = 16;
   }
   for (int k = 0; k < elms_->length(); k++) {
     TextElement elm = elms_->at(k);
@@ -4888,7 +4885,6 @@ void TextNode::CalculateOffsets() {
       cp_offset += elm.data.u_atom->data().length();
     } else {
       cp_offset++;
-      Vector<const uc16> quarks = elm.data.u_atom->data();
     }
   }
 }
@@ -5326,8 +5322,6 @@ RegExpEngine::CompilationResult RegExpEngine::Compile(RegExpCompileData* data,
     const char* error_message = analysis.error_message();
     return CompilationResult(error_message);
   }
-
-  NodeInfo info = *node->info();
 
   // Create the correct assembler for the architecture.
 #ifndef V8_INTERPRETED_REGEXP

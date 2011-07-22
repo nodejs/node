@@ -1359,6 +1359,12 @@ class HeapNumber: public HeapObject {
 // JSObject and JSProxy.
 class JSReceiver: public HeapObject {
  public:
+  enum DeleteMode {
+    NORMAL_DELETION,
+    STRICT_DELETION,
+    FORCE_DELETION
+  };
+
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
@@ -1373,6 +1379,8 @@ class JSReceiver: public HeapObject {
                                            PropertyAttributes attributes,
                                            StrictModeFlag strict_mode);
 
+  MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
 
@@ -1386,14 +1394,8 @@ class JSReceiver: public HeapObject {
   PropertyAttributes GetLocalPropertyAttribute(String* name);
 
   // Can cause a GC.
-  bool HasProperty(String* name) {
-    return GetPropertyAttribute(name) != ABSENT;
-  }
-
-  // Can cause a GC.
-  bool HasLocalProperty(String* name) {
-    return GetLocalPropertyAttribute(name) != ABSENT;
-  }
+  inline bool HasProperty(String* name);
+  inline bool HasLocalProperty(String* name);
 
   // Return the object's prototype (might be Heap::null_value()).
   inline Object* GetPrototype();
@@ -1422,12 +1424,6 @@ class JSReceiver: public HeapObject {
 // caching.
 class JSObject: public JSReceiver {
  public:
-  enum DeleteMode {
-    NORMAL_DELETION,
-    STRICT_DELETION,
-    FORCE_DELETION
-  };
-
   enum ElementsKind {
     // The "fast" kind for tagged values. Must be first to make it possible
     // to efficiently check maps if they have fast elements.
@@ -2173,23 +2169,12 @@ class FixedDoubleArray: public FixedArrayBase {
     return kHeaderSize + length * kDoubleSize;
   }
 
-  // The following can't be declared inline as const static
-  // because they're 64-bit.
-  static uint64_t kCanonicalNonHoleNanLower32;
-  static uint64_t kCanonicalNonHoleNanInt64;
-  static uint64_t kHoleNanInt64;
+  // Code Generation support.
+  static int OffsetOfElementAt(int index) { return SizeFor(index); }
 
-  inline static bool is_the_hole_nan(double value) {
-    return BitCast<uint64_t, double>(value) == kHoleNanInt64;
-  }
-
-  inline static double hole_nan_as_double() {
-    return BitCast<double, uint64_t>(kHoleNanInt64);
-  }
-
-  inline static double canonical_not_the_hole_nan_as_double() {
-    return BitCast<double, uint64_t>(kCanonicalNonHoleNanInt64);
-  }
+  inline static bool is_the_hole_nan(double value);
+  inline static double hole_nan_as_double();
+  inline static double canonical_not_the_hole_nan_as_double();
 
   // Casting.
   static inline FixedDoubleArray* cast(Object* obj);
@@ -6487,19 +6472,31 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
+  // [padding]: The padding slot (unused, see below).
+  DECL_ACCESSORS(padding, Object)
+
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
+  bool HasPropertyWithHandler(String* name);
+
   MUST_USE_RESULT MaybeObject* SetPropertyWithHandler(
-      String* name_raw,
-      Object* value_raw,
+      String* name,
+      Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
 
+  MUST_USE_RESULT MaybeObject* DeletePropertyWithHandler(
+      String* name,
+      DeleteMode mode);
+
   MUST_USE_RESULT PropertyAttributes GetPropertyAttributeWithHandler(
       JSReceiver* receiver,
-      String* name_raw,
+      String* name,
       bool* has_exception);
+
+  // Turn this into an (empty) JSObject.
+  void Fix();
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -6512,9 +6509,14 @@ class JSProxy: public JSReceiver {
   void JSProxyVerify();
 #endif
 
-  // Layout description.
+  // Layout description. We add padding so that a proxy has the same
+  // size as a virgin JSObject. This is essential for becoming a JSObject
+  // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
-  static const int kSize = kHandlerOffset + kPointerSize;
+  static const int kPaddingOffset = kHandlerOffset + kPointerSize;
+  static const int kSize = kPaddingOffset + kPointerSize;
+
+  STATIC_CHECK(kSize == JSObject::kHeaderSize);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kHandlerOffset + kPointerSize,

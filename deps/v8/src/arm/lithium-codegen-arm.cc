@@ -2433,6 +2433,48 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 }
 
 
+void LCodeGen::DoLoadKeyedFastDoubleElement(
+    LLoadKeyedFastDoubleElement* instr) {
+  Register elements = ToRegister(instr->elements());
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  Register key = no_reg;
+  DwVfpRegister result = ToDoubleRegister(instr->result());
+  Register scratch = scratch0();
+
+  int shift_size =
+      ElementsKindToShiftSize(JSObject::FAST_DOUBLE_ELEMENTS);
+  int constant_key = 0;
+  if (key_is_constant) {
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort("array index constant value too big.");
+    }
+  } else {
+    key = ToRegister(instr->key());
+  }
+
+  Operand operand = key_is_constant
+      ? Operand(constant_key * (1 << shift_size) +
+                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
+      : Operand(key, LSL, shift_size);
+  __ add(elements, elements, operand);
+  if (!key_is_constant) {
+    __ add(elements, elements,
+           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+  }
+
+  if (instr->hydrogen()->RequiresHoleCheck()) {
+    // TODO(danno): If no hole check is required, there is no need to allocate
+    // elements into a temporary register, instead scratch can be used.
+    __ ldr(scratch, MemOperand(elements, sizeof(kHoleNanLower32)));
+    __ cmp(scratch, Operand(kHoleNanUpper32));
+    DeoptimizeIf(eq, instr->environment());
+  }
+
+  __ vldr(result, elements, 0);
+}
+
+
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   Register external_pointer = ToRegister(instr->external_pointer());
@@ -2453,9 +2495,10 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
   if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
       elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
-    DwVfpRegister result(ToDoubleRegister(instr->result()));
-    Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
-                                    : Operand(key, LSL, shift_size));
+    DwVfpRegister result = ToDoubleRegister(instr->result());
+    Operand operand = key_is_constant
+        ? Operand(constant_key * (1 << shift_size))
+        : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
     if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
       __ vldr(result.low(), scratch0(), 0);
@@ -2464,7 +2507,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
       __ vldr(result, scratch0(), 0);
     }
   } else {
-    Register result(ToRegister(instr->result()));
+    Register result = ToRegister(instr->result());
     MemOperand mem_operand(key_is_constant
         ? MemOperand(external_pointer, constant_key * (1 << shift_size))
         : MemOperand(external_pointer, key, LSL, shift_size));
@@ -3240,6 +3283,48 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
     __ add(key, scratch, Operand(FixedArray::kHeaderSize));
     __ RecordWrite(elements, key, value);
   }
+}
+
+
+void LCodeGen::DoStoreKeyedFastDoubleElement(
+    LStoreKeyedFastDoubleElement* instr) {
+  DwVfpRegister value = ToDoubleRegister(instr->value());
+  Register elements = ToRegister(instr->elements());
+  Register key = no_reg;
+  Register scratch = scratch0();
+  bool key_is_constant = instr->key()->IsConstantOperand();
+  int constant_key = 0;
+  Label not_nan;
+
+  // Calculate the effective address of the slot in the array to store the
+  // double value.
+  if (key_is_constant) {
+    constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
+    if (constant_key & 0xF0000000) {
+      Abort("array index constant value too big.");
+    }
+  } else {
+    key = ToRegister(instr->key());
+  }
+  int shift_size = ElementsKindToShiftSize(JSObject::FAST_DOUBLE_ELEMENTS);
+  Operand operand = key_is_constant
+      ? Operand(constant_key * (1 << shift_size) +
+                FixedDoubleArray::kHeaderSize - kHeapObjectTag)
+      : Operand(key, LSL, shift_size);
+  __ add(scratch, elements, operand);
+  if (!key_is_constant) {
+    __ add(scratch, scratch,
+           Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag));
+  }
+
+  // Check for NaN. All NaNs must be canonicalized.
+  __ VFPCompareAndSetFlags(value, value);
+
+  // Only load canonical NaN if the comparison above set the overflow.
+  __ Vmov(value, FixedDoubleArray::canonical_not_the_hole_nan_as_double(), vs);
+
+  __ bind(&not_nan);
+  __ vstr(value, scratch, 0);
 }
 
 

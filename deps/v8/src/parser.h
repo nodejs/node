@@ -668,9 +668,12 @@ class Parser {
   Expression* NewCall(Expression* expression,
                       ZoneList<Expression*>* arguments,
                       int pos) {
-    return new Call(expression, arguments, pos);
+    return new(zone()) Call(isolate(), expression, arguments, pos);
   }
 
+  inline Literal* NewLiteral(Handle<Object> handle) {
+    return new(zone()) Literal(isolate(), handle);
+  }
 
   // Create a number literal.
   Literal* NewNumberLiteral(double value);

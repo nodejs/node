@@ -441,6 +441,11 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateJSProxy(Object* handler,
                                                Object* prototype);
 
+  // Reinitialize a JSProxy into an (empty) JSObject.  The receiver
+  // must have the same size as an empty object.  The object is reinitialized
+  // and behaves as an object that has been freshly allocated.
+  MUST_USE_RESULT MaybeObject* ReinitializeJSProxyAsJSObject(JSProxy* object);
+
   // Reinitialize an JSGlobalProxy based on a constructor.  The object
   // must have the same size as objects allocated using the
   // constructor.  The object is reinitialized and behaves as an

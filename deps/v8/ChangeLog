@@ -1,3 +1,42 @@
+2011-07-20: Version 3.4.14
+
+        Fix the debugger for strict-mode functions. (Chromium issue 89236)
+
+        Add GetPropertyAttribute method for Object in the API. (Patch by Peter Varga)
+
+        Fix -Wunused-but-set-variable for gcc-4.6 on x64. (Issue 1291)
+
+
+2011-07-18: Version 3.4.13
+
+        Improved debugger support to allow inspection of optimized frames (issue
+        1140).
+
+        Fixed a bug in prototype transitions cache clearing introduced by r8165.
+
+        Fixed shortcutting bug in HInferRepresentation. Patch by Andy Wingo.
+
+        Fixed a memory leak in sample/shell.cc (dispose semaphores).
+
+        Simplified HClampToUint8. Patch by Andy Wingo.
+
+        Exposed APIs for detecting boxed primitives, native errors. Patch by
+        Luke Zarko.
+
+        Added map check for COW elements to crankshaft array handling code
+        (issue 1560).
+
+        Sample shell and (a light version of) D8 links against a shared library
+        now.
+
+        Fixed bug in array filter and reduce functions (issue 1559).
+
+        Avoid TLS load in AstNode constructor.
+
+        Introduced a random entropy source which can optionally be provided at
+        initialization. (Chromium issue 89462).
+
+
 2011-07-13: Version 3.4.12
 
         Added --prof profiling option to d8 shell.

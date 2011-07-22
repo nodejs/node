@@ -116,25 +116,27 @@ Variable* VariableMap::Lookup(Handle<String> name) {
 
 // Dummy constructor
 Scope::Scope(Type type)
-  : inner_scopes_(0),
-    variables_(false),
-    temps_(0),
-    params_(0),
-    unresolved_(0),
-    decls_(0),
-    already_resolved_(false) {
+    : isolate_(Isolate::Current()),
+      inner_scopes_(0),
+      variables_(false),
+      temps_(0),
+      params_(0),
+      unresolved_(0),
+      decls_(0),
+      already_resolved_(false) {
   SetDefaults(type, NULL, Handle<SerializedScopeInfo>::null());
 }
 
 
 Scope::Scope(Scope* outer_scope, Type type)
-  : inner_scopes_(4),
-    variables_(),
-    temps_(4),
-    params_(4),
-    unresolved_(16),
-    decls_(4),
-    already_resolved_(false) {
+    : isolate_(Isolate::Current()),
+      inner_scopes_(4),
+      variables_(),
+      temps_(4),
+      params_(4),
+      unresolved_(16),
+      decls_(4),
+      already_resolved_(false) {
   SetDefaults(type, outer_scope, Handle<SerializedScopeInfo>::null());
   // At some point we might want to provide outer scopes to
   // eval scopes (by walking the stack and reading the scope info).
@@ -145,13 +147,14 @@ Scope::Scope(Scope* outer_scope, Type type)
 
 
 Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
-  : inner_scopes_(4),
-    variables_(),
-    temps_(4),
-    params_(4),
-    unresolved_(16),
-    decls_(4),
-    already_resolved_(true) {
+    : isolate_(Isolate::Current()),
+      inner_scopes_(4),
+      variables_(),
+      temps_(4),
+      params_(4),
+      unresolved_(16),
+      decls_(4),
+      already_resolved_(true) {
   ASSERT(!scope_info.is_null());
   SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
   if (scope_info->HasHeapAllocatedLocals()) {
@@ -162,7 +165,8 @@ Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
 
 
 Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
-    : inner_scopes_(1),
+    : isolate_(Isolate::Current()),
+      inner_scopes_(1),
       variables_(),
       temps_(0),
       params_(0),
@@ -186,7 +190,7 @@ void Scope::SetDefaults(Type type,
                         Handle<SerializedScopeInfo> scope_info) {
   outer_scope_ = outer_scope;
   type_ = type;
-  scope_name_ = FACTORY->empty_symbol();
+  scope_name_ = isolate_->factory()->empty_symbol();
   dynamics_ = NULL;
   receiver_ = NULL;
   function_ = NULL;
@@ -295,9 +299,12 @@ void Scope::Initialize(bool inside_with) {
     receiver_ = outer_scope()->receiver();
   } else {
     Variable* var =
-        variables_.Declare(this, FACTORY->this_symbol(), Variable::VAR,
-                           false, Variable::THIS);
-    var->set_rewrite(new Slot(var, Slot::PARAMETER, -1));
+        variables_.Declare(this,
+                           isolate_->factory()->this_symbol(),
+                           Variable::VAR,
+                           false,
+                           Variable::THIS);
+    var->set_rewrite(NewSlot(var, Slot::PARAMETER, -1));
     receiver_ = var;
   }
 
@@ -305,8 +312,11 @@ void Scope::Initialize(bool inside_with) {
     // Declare 'arguments' variable which exists in all functions.
     // Note that it might never be accessed, in which case it won't be
     // allocated during variable allocation.
-    variables_.Declare(this, FACTORY->arguments_symbol(), Variable::VAR,
-                       true, Variable::ARGUMENTS);
+    variables_.Declare(this,
+                       isolate_->factory()->arguments_symbol(),
+                       Variable::VAR,
+                       true,
+                       Variable::ARGUMENTS);
   }
 }
 
@@ -320,7 +330,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
   //
   // We should never lookup 'arguments' in this scope as it is implicitly
   // present in every scope.
-  ASSERT(*name != *FACTORY->arguments_symbol());
+  ASSERT(*name != *isolate_->factory()->arguments_symbol());
   // There should be no local slot with the given name.
   ASSERT(scope_info_->StackSlotIndex(*name) < 0);
 
@@ -340,7 +350,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
 
   Variable* var =
       variables_.Declare(this, name, mode, true, Variable::NORMAL);
-  var->set_rewrite(new Slot(var, Slot::CONTEXT, index));
+  var->set_rewrite(NewSlot(var, Slot::CONTEXT, index));
   return var;
 }
 
@@ -397,7 +407,8 @@ VariableProxy* Scope::NewUnresolved(Handle<String> name,
   // the same name because they may be removed selectively via
   // RemoveUnresolved().
   ASSERT(!already_resolved());
-  VariableProxy* proxy = new VariableProxy(name, false, inside_with, position);
+  VariableProxy* proxy = new(isolate_->zone()) VariableProxy(
+      isolate_, name, false, inside_with, position);
   unresolved_.Add(proxy);
   return proxy;
 }
@@ -697,7 +708,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
     // Declare a new non-local.
     var = map->Declare(NULL, name, mode, true, Variable::NORMAL);
     // Allocate it by giving it a dynamic lookup.
-    var->set_rewrite(new Slot(var, Slot::LOOKUP, -1));
+    var->set_rewrite(NewSlot(var, Slot::LOOKUP, -1));
   }
   return var;
 }
@@ -943,26 +954,28 @@ bool Scope::MustAllocateInContext(Variable* var) {
 
 bool Scope::HasArgumentsParameter() {
   for (int i = 0; i < params_.length(); i++) {
-    if (params_[i]->name().is_identical_to(FACTORY->arguments_symbol()))
+    if (params_[i]->name().is_identical_to(
+            isolate_->factory()->arguments_symbol())) {
       return true;
+    }
   }
   return false;
 }
 
 
 void Scope::AllocateStackSlot(Variable* var) {
-  var->set_rewrite(new Slot(var, Slot::LOCAL, num_stack_slots_++));
+  var->set_rewrite(NewSlot(var, Slot::LOCAL, num_stack_slots_++));
 }
 
 
 void Scope::AllocateHeapSlot(Variable* var) {
-  var->set_rewrite(new Slot(var, Slot::CONTEXT, num_heap_slots_++));
+  var->set_rewrite(NewSlot(var, Slot::CONTEXT, num_heap_slots_++));
 }
 
 
 void Scope::AllocateParameterLocals() {
   ASSERT(is_function_scope());
-  Variable* arguments = LocalLookup(FACTORY->arguments_symbol());
+  Variable* arguments = LocalLookup(isolate_->factory()->arguments_symbol());
   ASSERT(arguments != NULL);  // functions have 'arguments' declared implicitly
 
   bool uses_nonstrict_arguments = false;
@@ -1009,7 +1022,7 @@ void Scope::AllocateParameterLocals() {
       } else {
         ASSERT(var->rewrite() == NULL || var->IsParameter());
         if (var->rewrite() == NULL) {
-          var->set_rewrite(new Slot(var, Slot::PARAMETER, i));
+          var->set_rewrite(NewSlot(var, Slot::PARAMETER, i));
         }
       }
     }
@@ -1020,7 +1033,7 @@ void Scope::AllocateParameterLocals() {
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
   ASSERT(var->rewrite() == NULL ||
-         !var->IsVariable(FACTORY->result_symbol()) ||
+         !var->IsVariable(isolate_->factory()->result_symbol()) ||
          var->AsSlot() == NULL ||
          var->AsSlot()->type() != Slot::LOCAL);
   if (var->rewrite() == NULL && MustAllocate(var)) {

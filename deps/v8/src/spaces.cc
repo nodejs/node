@@ -402,7 +402,9 @@ void MemoryAllocator::FreeRawMemory(void* mem,
                                     size_t length,
                                     Executability executable) {
 #ifdef DEBUG
-  ZapBlock(reinterpret_cast<Address>(mem), length);
+  // Do not try to zap the guard page.
+  size_t guard_size = (executable == EXECUTABLE) ? Page::kPageSize : 0;
+  ZapBlock(reinterpret_cast<Address>(mem) + guard_size, length - guard_size);
 #endif
   if (isolate_->code_range()->contains(static_cast<Address>(mem))) {
     isolate_->code_range()->FreeRawMemory(mem, length);
@@ -504,12 +506,26 @@ Page* MemoryAllocator::AllocatePages(int requested_pages,
   LOG(isolate_, NewEvent("PagedChunk", chunk, chunk_size));
 
   *allocated_pages = PagesInChunk(static_cast<Address>(chunk), chunk_size);
+
   // We may 'lose' a page due to alignment.
   ASSERT(*allocated_pages >= kPagesPerChunk - 1);
-  if (*allocated_pages == 0) {
-    FreeRawMemory(chunk, chunk_size, owner->executable());
+
+  size_t guard_size = (owner->executable() == EXECUTABLE) ? Page::kPageSize : 0;
+
+  // Check that we got at least one page that we can use.
+  if (*allocated_pages <= ((guard_size != 0) ? 1 : 0)) {
+    FreeRawMemory(chunk,
+                  chunk_size,
+                  owner->executable());
     LOG(isolate_, DeleteEvent("PagedChunk", chunk));
     return Page::FromAddress(NULL);
+  }
+
+  if (guard_size != 0) {
+    OS::Guard(chunk, guard_size);
+    chunk_size -= guard_size;
+    chunk = static_cast<Address>(chunk) + guard_size;
+    --*allocated_pages;
   }
 
   int chunk_id = Pop();
@@ -681,7 +697,8 @@ void MemoryAllocator::DeleteChunk(int chunk_id) {
     LOG(isolate_, DeleteEvent("PagedChunk", c.address()));
     ObjectSpace space = static_cast<ObjectSpace>(1 << c.owner_identity());
     size_t size = c.size();
-    FreeRawMemory(c.address(), size, c.executable());
+    size_t guard_size = (c.executable() == EXECUTABLE) ? Page::kPageSize : 0;
+    FreeRawMemory(c.address() - guard_size, size + guard_size, c.executable());
     PerformAllocationCallback(space, kAllocationActionFree, size);
   }
   c.init(NULL, 0, NULL);
@@ -2672,9 +2689,10 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
                                         Executability executable) {
   size_t requested = ChunkSizeFor(size_in_bytes);
   size_t size;
+  size_t guard_size = (executable == EXECUTABLE) ? Page::kPageSize : 0;
   Isolate* isolate = Isolate::Current();
   void* mem = isolate->memory_allocator()->AllocateRawMemory(
-      requested, &size, executable);
+      requested + guard_size, &size, executable);
   if (mem == NULL) return NULL;
 
   // The start of the chunk may be overlayed with a page so we have to
@@ -2682,11 +2700,17 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
   ASSERT((size & Page::kPageFlagMask) == 0);
 
   LOG(isolate, NewEvent("LargeObjectChunk", mem, size));
-  if (size < requested) {
+  if (size < requested + guard_size) {
     isolate->memory_allocator()->FreeRawMemory(
         mem, size, executable);
     LOG(isolate, DeleteEvent("LargeObjectChunk", mem));
     return NULL;
+  }
+
+  if (guard_size != 0) {
+    OS::Guard(mem, guard_size);
+    size -= guard_size;
+    mem = static_cast<Address>(mem) + guard_size;
   }
 
   ObjectSpace space = (executable == EXECUTABLE)
@@ -2742,9 +2766,11 @@ void LargeObjectSpace::TearDown() {
     ObjectSpace space = kObjectSpaceLoSpace;
     if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
     size_t size = chunk->size();
-    heap()->isolate()->memory_allocator()->FreeRawMemory(chunk->address(),
-                                                         size,
-                                                         executable);
+    size_t guard_size = (executable == EXECUTABLE) ? Page::kPageSize : 0;
+    heap()->isolate()->memory_allocator()->FreeRawMemory(
+        chunk->address() - guard_size,
+        size + guard_size,
+        executable);
     heap()->isolate()->memory_allocator()->PerformAllocationCallback(
         space, kAllocationActionFree, size);
   }
@@ -2941,10 +2967,15 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       objects_size_ -= object->Size();
       page_count_--;
       ObjectSpace space = kObjectSpaceLoSpace;
-      if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
-      heap()->isolate()->memory_allocator()->FreeRawMemory(chunk_address,
-                                                           chunk_size,
-                                                           executable);
+      size_t guard_size = 0;
+      if (executable == EXECUTABLE) {
+        space = kObjectSpaceCodeSpace;
+        guard_size = Page::kPageSize;
+      }
+      heap()->isolate()->memory_allocator()->FreeRawMemory(
+          chunk_address - guard_size,
+          chunk_size + guard_size,
+          executable);
       heap()->isolate()->memory_allocator()->PerformAllocationCallback(
           space, kAllocationActionFree, size_);
       LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk_address));

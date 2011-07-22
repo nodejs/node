@@ -1138,33 +1138,6 @@ prefix ietestcenter
 15.4.4.20-1-5: FAIL
 # Bug? Array.prototype.filter applied to string primitive
 15.4.4.20-1-7: FAIL
-# Bug? Array.prototype.filter - value of 'length' is a number (value is
-#      negative)
-15.4.4.20-3-7: FAIL
-# Bug? Array.prototype.filter - value of 'length' is a number (value is
-#      Infinity)
-# V8 timeout
-15.4.4.20-3-8: SKIP
-# Bug? Array.prototype.filter - 'length' is a string containing a negative
-#      number
-15.4.4.20-3-12: FAIL
-# Bug? Array.prototype.filter - 'length' is a string containing a decimal number
-15.4.4.20-3-13: FAIL
-# Bug? Array.prototype.filter - 'length' is a string containing +/-Infinity
-15.4.4.20-3-14: SKIP
-# Bug? Array.prototype.filter - value of 'length' is a positive non-integer,
-#      ensure truncation occurs in the proper direction
-# V8 timeout
-15.4.4.20-3-24: FAIL
-# Bug? Array.prototype.filter - value of 'length' is a negative non-integer,
-#      ensure truncation occurs in the proper direction
-15.4.4.20-3-25: FAIL
-# Bug? Array.prototype.filter - value of 'length' is boundary value (2^32)
-# V8 timeout
-15.4.4.20-3-28: SKIP
-# Bug? Array.prototype.filter - value of 'length' is boundary value (2^32 + 1)
-# V8 timeout
-15.4.4.20-3-29: SKIP
 # Bug? Array.prototype.filter - side effects produced by step 2 are visible when
 #      an exception occurs
 15.4.4.20-4-8: FAIL
@@ -1220,33 +1193,6 @@ prefix ietestcenter
 15.4.4.21-1-5: FAIL
 # Bug? Array.prototype.reduce applied to string primitive
 15.4.4.21-1-7: FAIL
-# Bug? Array.prototype.reduce - value of 'length' is a number (value is
-#      negative)
-15.4.4.21-3-7: FAIL
-# Bug? Array.prototype.reduce - value of 'length' is a number (value is
-#      Infinity)
-# V8 timeout.
-15.4.4.21-3-8: SKIP
-# Bug? Array.prototype.reduce - 'length' is a string containing a negative
-#      number
-15.4.4.21-3-12: FAIL
-# Bug? Array.prototype.reduce - 'length' is a string containing a decimal number
-15.4.4.21-3-13: FAIL
-# Bug? Array.prototype.reduce - 'length' is a string containing +/-Infinity
-# V8 timeout.
-15.4.4.21-3-14: SKIP
-# Bug? Array.prototype.reduce - value of 'length' is a positive non-integer,
-#      ensure truncation occurs in the proper direction
-15.4.4.21-3-24: FAIL
-# Bug? Array.prototype.reduce - value of 'length' is a negative non-integer,
-#      ensure truncation occurs in the proper direction
-15.4.4.21-3-25: FAIL
-# Bug? Array.prototype.reduce - value of 'length' is boundary value (2^32)
-# V8 timeout.
-15.4.4.21-3-28: SKIP
-# Bug? Array.prototype.reduce - value of 'length' is boundary value (2^32 + 1)
-# V8 timeout.
-15.4.4.21-3-29: SKIP
 # Bug? Array.prototype.reduce - side effects produced by step 2 are visible when
 #      an exception occurs
 15.4.4.21-4-8: FAIL
@@ -1274,36 +1220,6 @@ prefix ietestcenter
 15.4.4.22-1-5: FAIL
 # Bug? Array.prototype.reduceRight applied to string primitive
 15.4.4.22-1-7: FAIL
-# Bug? Array.prototype.reduceRight - value of 'length' is a number (value is
-#      negative)
-15.4.4.22-3-7: FAIL
-# Bug? Array.prototype.reduceRight - value of 'length' is a number (value is
-#      Infinity)
-# V8 timeout.
-15.4.4.22-3-8: SKIP
-# Bug? Array.prototype.reduceRight - value of 'length' is a string containing a
-#      negative number
-15.4.4.22-3-12: FAIL
-# Bug? Array.prototype.reduceRight - value of 'length' is a string containing a
-#      decimal number
-15.4.4.22-3-13: FAIL
-# Bug? Array.prototype.reduceRight - value of 'length' is a string containing
-#      +/-Infinity
-# V8 timeout.
-15.4.4.22-3-14: SKIP
-# Bug? Array.prototype.reduceRight - value of 'length' is a positive
-#      non-integer, ensure truncation occurs in the proper direction
-15.4.4.22-3-24: FAIL
-# Bug? Array.prototype.reduceRight - value of 'length' is a negative
-#      non-integer, ensure truncation occurs in the proper direction
-15.4.4.22-3-25: FAIL
-# Bug? Array.prototype.reduceRight - value of 'length' is boundary value (2^32)
-# V8 timeout.
-15.4.4.22-3-28: SKIP
-# Bug? Array.prototype.reduceRight - value of 'length' is boundary value (2^32 +
-#      1)
-# V8 timeout.
-15.4.4.22-3-29: SKIP
 # Bug? Array.prototype.reduceRight - side effects produced by step 2 are visible
 #      when an exception occurs
 15.4.4.22-4-8: FAIL

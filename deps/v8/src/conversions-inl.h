@@ -454,7 +454,6 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
   int significant_digits = 0;
   int insignificant_digits = 0;
   bool nonzero_digit_dropped = false;
-  bool fractional_part = false;
 
   bool negative = false;
 
@@ -557,10 +556,8 @@ static double InternalStringToDouble(UnicodeCache* unicode_cache,
       }
     }
 
-    // We don't emit a '.', but adjust the exponent instead.
-    fractional_part = true;
-
-    // There is a fractional part.
+    // There is a fractional part.  We don't emit a '.', but adjust the exponent
+    // instead.
     while (*current >= '0' && *current <= '9') {
       if (significant_digits < kMaxSignificantDigits) {
         ASSERT(buffer_pos < kBufferSize);

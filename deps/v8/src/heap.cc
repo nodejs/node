@@ -3267,14 +3267,13 @@ MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   MaybeObject* maybe_map_obj = AllocateMap(JS_PROXY_TYPE, JSProxy::kSize);
   if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
   map->set_prototype(prototype);
-  map->set_pre_allocated_property_fields(1);
-  map->set_inobject_properties(1);
 
   // Allocate the proxy object.
   Object* result;
   MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
   if (!maybe_result->ToObject(&result)) return maybe_result;
   JSProxy::cast(result)->set_handler(handler);
+  JSProxy::cast(result)->set_padding(Smi::FromInt(0));
   return result;
 }
 
@@ -3411,6 +3410,36 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
   }
   // Return the new clone.
   return clone;
+}
+
+
+MaybeObject* Heap::ReinitializeJSProxyAsJSObject(JSProxy* object) {
+  // Allocate fresh map.
+  // TODO(rossberg): Once we optimize proxies, cache these maps.
+  Map* map;
+  MaybeObject* maybe_map_obj =
+      AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
+
+  // Check that the receiver has the same size as a fresh object.
+  ASSERT(map->instance_size() == object->map()->instance_size());
+
+  map->set_prototype(object->map()->prototype());
+
+  // Allocate the backing storage for the properties.
+  int prop_size = map->unused_property_fields() - map->inobject_properties();
+  Object* properties;
+  { MaybeObject* maybe_properties = AllocateFixedArray(prop_size, TENURED);
+    if (!maybe_properties->ToObject(&properties)) return maybe_properties;
+  }
+
+  // Reset the map for the object.
+  object->set_map(map);
+
+  // Reinitialize the object from the constructor map.
+  InitializeJSObjectFromMap(JSObject::cast(object),
+                            FixedArray::cast(properties), map);
+  return object;
 }
 
 

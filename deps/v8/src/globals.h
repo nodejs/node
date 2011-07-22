@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -198,6 +198,8 @@ const int kIntSize      = sizeof(int);       // NOLINT
 const int kDoubleSize   = sizeof(double);    // NOLINT
 const int kIntptrSize   = sizeof(intptr_t);  // NOLINT
 const int kPointerSize  = sizeof(void*);     // NOLINT
+
+const int kDoubleSizeLog2 = 3;
 
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;

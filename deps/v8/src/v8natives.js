@@ -675,7 +675,8 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
   var result = %_CallFunction(handler, p, attributes, defineProperty);
   if (!ToBoolean(result)) {
     if (should_throw) {
-      throw MakeTypeError("handler_failed", [handler, "defineProperty"]);
+      throw MakeTypeError("handler_returned_false",
+                          [handler, "defineProperty"]);
     } else {
       return false;
     }
@@ -1032,10 +1033,29 @@ function ObjectDefineProperties(obj, properties) {
 }
 
 
+// Harmony proxies.
+function ProxyFix(obj) {
+  var handler = %GetHandler(obj);
+  var fix = handler.fix;
+  if (IS_UNDEFINED(fix)) {
+    throw MakeTypeError("handler_trap_missing", [handler, "fix"]);
+  }
+  var props = %_CallFunction(handler, fix);
+  if (IS_UNDEFINED(props)) {
+    throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
+  }
+  %Fix(obj);
+  ObjectDefineProperties(obj, props);
+}
+
+
 // ES5 section 15.2.3.8.
 function ObjectSeal(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["seal"]);
+  }
+  if (%IsJSProxy(obj)) {
+    ProxyFix(obj);
   }
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
@@ -1046,7 +1066,8 @@ function ObjectSeal(obj) {
       DefineOwnProperty(obj, name, desc, true);
     }
   }
-  return ObjectPreventExtension(obj);
+  %PreventExtensions(obj);
+  return obj;
 }
 
 
@@ -1054,6 +1075,9 @@ function ObjectSeal(obj) {
 function ObjectFreeze(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["freeze"]);
+  }
+  if (%IsJSProxy(obj)) {
+    ProxyFix(obj);
   }
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
@@ -1065,7 +1089,8 @@ function ObjectFreeze(obj) {
       DefineOwnProperty(obj, name, desc, true);
     }
   }
-  return ObjectPreventExtension(obj);
+  %PreventExtensions(obj);
+  return obj;
 }
 
 
@@ -1073,6 +1098,9 @@ function ObjectFreeze(obj) {
 function ObjectPreventExtension(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["preventExtension"]);
+  }
+  if (%IsJSProxy(obj)) {
+    ProxyFix(obj);
   }
   %PreventExtensions(obj);
   return obj;
@@ -1083,6 +1111,9 @@ function ObjectPreventExtension(obj) {
 function ObjectIsSealed(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isSealed"]);
+  }
+  if (%IsJSProxy(obj)) {
+    return false;
   }
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
@@ -1102,6 +1133,9 @@ function ObjectIsFrozen(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isFrozen"]);
   }
+  if (%IsJSProxy(obj)) {
+    return false;
+  }
   var names = ObjectGetOwnPropertyNames(obj);
   for (var i = 0; i < names.length; i++) {
     var name = names[i];
@@ -1120,6 +1154,9 @@ function ObjectIsFrozen(obj) {
 function ObjectIsExtensible(obj) {
   if (!IS_SPEC_OBJECT(obj)) {
     throw MakeTypeError("obj_ctor_property_non_object", ["isExtensible"]);
+  }
+  if (%IsJSProxy(obj)) {
+    return true;
   }
   return %IsExtensible(obj);
 }

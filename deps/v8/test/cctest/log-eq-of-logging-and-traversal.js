@@ -137,36 +137,38 @@ function RunTest() {
     return entityA.size === entityB.size && entityNamesEqual(entityA, entityB);
   }
 
-  var i = 0, j = 0, k = logging_entries.length, l = traversal_entries.length;
+  var l_pos = 0, t_pos = 0;
+  var l_len = logging_entries.length, t_len = traversal_entries.length;
   var comparison = [];
   var equal = true;
   // Do a merge-like comparison of entries. At the same address we expect to
   // find the same entries. We skip builtins during log parsing, but compiled
   // functions traversal may erroneously recognize them as functions, so we are
   // expecting more functions in traversal vs. logging.
-  while (i < k && j < l) {
-    var entryA = logging_entries[i], entryB = traversal_entries[j];
+  while (l_pos < l_len && t_pos < t_len) {
+    var entryA = logging_entries[l_pos];
+    var entryB = traversal_entries[t_pos];
     var cmp = addressComparator(entryA, entryB);
     var entityA = entryA[1], entityB = entryB[1];
     var address = entryA[0];
     if (cmp < 0) {
-      ++i;
+      ++l_pos;
       entityB = null;
     } else if (cmp > 0) {
-      ++j;
+      ++t_pos;
       entityA = null;
       address = entryB[0];
     } else {
-      ++i;
-      ++j;
+      ++l_pos;
+      ++t_pos;
     }
     var entities_equal = entitiesEqual(entityA, entityB);
     if (!entities_equal) equal = false;
     comparison.push([entities_equal, address, entityA, entityB]);
   }
-  if (i < k) equal = false;
-  while (i < k) {
-    var entryA = logging_entries[i++];
+  if (l_pos < l_len) equal = false;
+  while (l_pos < l_len) {
+    var entryA = logging_entries[l_pos++];
     comparison.push([false, entryA[0], entryA[1], null]);
   }
   return [equal, comparison];

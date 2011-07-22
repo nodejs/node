@@ -243,7 +243,14 @@ PREPARSER_SOURCES = {
 }
 
 
-D8_FILES = {
+D8_LIGHT_FILES = {
+  'all': [
+    'd8.cc'
+  ]
+}
+
+
+D8_FULL_FILES = {
   'all': [
     'd8.cc', 'd8-debug.cc'
   ],
@@ -323,11 +330,15 @@ def ConfigureObjectFiles():
 
   # Build the standard platform-independent source files.
   source_files = context.GetRelevantSources(SOURCES)
-
-  d8_files = context.GetRelevantSources(D8_FILES)
   d8_js = env.JS2C('d8-js.cc', 'd8.js', **{'TYPE': 'D8', 'COMPRESSION': 'off'})
   d8_js_obj = context.ConfigureObject(env, d8_js, CPPPATH=['.'])
-  d8_objs = [context.ConfigureObject(env, [d8_files]), d8_js_obj]
+  if context.options['library'] == 'shared':
+    d8_files = context.GetRelevantSources(D8_LIGHT_FILES)
+    d8_objs = []
+  else:
+    d8_files = context.GetRelevantSources(D8_FULL_FILES)
+    d8_objs = [d8_js_obj]
+  d8_objs.append(context.ConfigureObject(env, [d8_files]))
 
   # Combine the JavaScript library files into a single C++ file and
   # compile it.

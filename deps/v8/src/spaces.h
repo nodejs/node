@@ -647,13 +647,11 @@ class MemoryAllocator {
 #ifdef V8_TARGET_ARCH_X64
   static const int kPagesPerChunk = 32;
   // On 64 bit the chunk table consists of 4 levels of 4096-entry tables.
-  static const int kPagesPerChunkLog2 = 5;
   static const int kChunkTableLevels = 4;
   static const int kChunkTableBitsPerLevel = 12;
 #else
   static const int kPagesPerChunk = 16;
   // On 32 bit the chunk table consists of 2 levels of 256-entry tables.
-  static const int kPagesPerChunkLog2 = 4;
   static const int kChunkTableLevels = 2;
   static const int kChunkTableBitsPerLevel = 8;
 #endif
@@ -662,7 +660,6 @@ class MemoryAllocator {
   MemoryAllocator();
 
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
-  static const int kChunkSizeLog2 = kPagesPerChunkLog2 + kPageSizeBits;
 
   // Maximum space size in bytes.
   intptr_t capacity_;

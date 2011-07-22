@@ -3790,6 +3790,71 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
 }
 
 
+void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss_force_generic, slow_allocate_heapnumber;
+
+  // This stub is meant to be tail-jumped to, the receiver must already
+  // have been verified by the caller to not be a smi.
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(eax, &miss_force_generic);
+
+  // Get the elements array.
+  __ mov(ecx, FieldOperand(edx, JSObject::kElementsOffset));
+  __ AssertFastElements(ecx);
+
+  // Check that the key is within bounds.
+  __ cmp(eax, FieldOperand(ecx, FixedDoubleArray::kLengthOffset));
+  __ j(above_equal, &miss_force_generic);
+
+  // Check for the hole
+  uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
+  __ cmp(FieldOperand(ecx, eax, times_4, offset), Immediate(kHoleNanUpper32));
+  __ j(equal, &miss_force_generic);
+
+  // Always allocate a heap number for the result.
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ movdbl(xmm0, FieldOperand(ecx, eax, times_4,
+                                 FixedDoubleArray::kHeaderSize));
+  } else {
+    __ fld_d(FieldOperand(ecx, eax, times_4, FixedDoubleArray::kHeaderSize));
+  }
+  __ AllocateHeapNumber(ecx, ebx, edi, &slow_allocate_heapnumber);
+  // Set the value.
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ movdbl(FieldOperand(ecx, HeapNumber::kValueOffset), xmm0);
+  } else {
+    __ fstp_d(FieldOperand(ecx, HeapNumber::kValueOffset));
+  }
+  __ mov(eax, ecx);
+  __ ret(0);
+
+  __ bind(&slow_allocate_heapnumber);
+  // A value was pushed on the floating point stack before the allocation, if
+  // the allocation fails it needs to be removed.
+  if (!CpuFeatures::IsSupported(SSE2)) {
+    __ ffree();
+    __ fincstp();
+  }
+  Handle<Code> slow_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_Slow();
+  __ jmp(slow_ic, RelocInfo::CODE_TARGET);
+
+  __ bind(&miss_force_generic);
+  Handle<Code> miss_ic =
+      masm->isolate()->builtins()->KeyedLoadIC_MissForceGeneric();
+  __ jmp(miss_ic, RelocInfo::CODE_TARGET);
+}
+
+
 void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
                                                       bool is_js_array) {
   // ----------- S t a t e -------------
@@ -3829,6 +3894,98 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
   __ RecordWrite(edi, 0, edx, ecx);
 
   // Done.
+  __ ret(0);
+
+  // Handle store cache miss, replacing the ic with the generic stub.
+  __ bind(&miss_force_generic);
+  Handle<Code> ic_force_generic =
+      masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
+  __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
+}
+
+
+void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
+    MacroAssembler* masm,
+    bool is_js_array) {
+  // ----------- S t a t e -------------
+  //  -- eax    : value
+  //  -- ecx    : key
+  //  -- edx    : receiver
+  //  -- esp[0] : return address
+  // -----------------------------------
+  Label miss_force_generic, smi_value, is_nan, maybe_nan;
+  Label have_double_value, not_nan;
+
+  // This stub is meant to be tail-jumped to, the receiver must already
+  // have been verified by the caller to not be a smi.
+
+  // Check that the key is a smi.
+  __ JumpIfNotSmi(ecx, &miss_force_generic);
+
+  // Get the elements array.
+  __ mov(edi, FieldOperand(edx, JSObject::kElementsOffset));
+  __ AssertFastElements(edi);
+
+  if (is_js_array) {
+    // Check that the key is within bounds.
+    __ cmp(ecx, FieldOperand(edx, JSArray::kLengthOffset));  // smis.
+  } else {
+    // Check that the key is within bounds.
+    __ cmp(ecx, FieldOperand(edi, FixedArray::kLengthOffset));  // smis.
+  }
+  __ j(above_equal, &miss_force_generic);
+
+  __ JumpIfSmi(eax, &smi_value, Label::kNear);
+
+  __ CheckMap(eax,
+              masm->isolate()->factory()->heap_number_map(),
+              &miss_force_generic,
+              DONT_DO_SMI_CHECK);
+
+  // Double value, canonicalize NaN.
+  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
+  __ cmp(FieldOperand(eax, offset), Immediate(kNaNOrInfinityLowerBoundUpper32));
+  __ j(greater_equal, &maybe_nan, Label::kNear);
+
+  __ bind(&not_nan);
+  ExternalReference canonical_nan_reference =
+      ExternalReference::address_of_canonical_non_hole_nan();
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ movdbl(xmm0, FieldOperand(eax, HeapNumber::kValueOffset));
+    __ bind(&have_double_value);
+    __ movdbl(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize),
+              xmm0);
+    __ ret(0);
+  } else {
+    __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
+    __ bind(&have_double_value);
+    __ fstp_d(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize));
+    __ ret(0);
+  }
+
+  __ bind(&maybe_nan);
+  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
+  // it's an Infinity, and the non-NaN code path applies.
+  __ j(greater, &is_nan, Label::kNear);
+  __ cmp(FieldOperand(eax, HeapNumber::kValueOffset), Immediate(0));
+  __ j(zero, &not_nan);
+  __ bind(&is_nan);
+  if (CpuFeatures::IsSupported(SSE2)) {
+    CpuFeatures::Scope use_sse2(SSE2);
+    __ movdbl(xmm0, Operand::StaticVariable(canonical_nan_reference));
+  } else {
+    __ fld_d(Operand::StaticVariable(canonical_nan_reference));
+  }
+  __ jmp(&have_double_value, Label::kNear);
+
+  __ bind(&smi_value);
+  // Value is a smi. convert to a double and store.
+  __ SmiUntag(eax);
+  __ push(eax);
+  __ fild_s(Operand(esp, 0));
+  __ pop(eax);
+  __ fstp_d(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize));
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.

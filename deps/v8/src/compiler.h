@@ -173,9 +173,12 @@ class CompilationInfo BASE_EMBEDDED {
 
   void Initialize(Mode mode) {
     mode_ = V8::UseCrankshaft() ? mode : NONOPT;
-    if (!shared_info_.is_null()) {
-      if (shared_info_->strict_mode()) MarkAsStrictMode();
-      if (shared_info_->native()) MarkAsNative();
+    ASSERT(!script_.is_null());
+    if (script_->type()->value() == Script::TYPE_NATIVE) {
+      MarkAsNative();
+    }
+    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
+      MarkAsStrictMode();
     }
   }
 

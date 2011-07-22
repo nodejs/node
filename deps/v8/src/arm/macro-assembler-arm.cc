@@ -192,13 +192,13 @@ void MacroAssembler::Call(Handle<Code> code,
   bind(&start);
   ASSERT(RelocInfo::IsCodeTarget(rmode));
   if (rmode == RelocInfo::CODE_TARGET && ast_id != kNoASTId) {
-    ASSERT(ast_id_for_reloc_info_ == kNoASTId);
-    ast_id_for_reloc_info_ = ast_id;
+    SetRecordedAstId(ast_id);
     rmode = RelocInfo::CODE_TARGET_WITH_ID;
   }
   // 'code' is always generated ARM code, never THUMB code
   Call(reinterpret_cast<Address>(code.location()), rmode, cond);
-  ASSERT_EQ(CallSize(code, rmode, cond), SizeOfCodeGeneratedSince(&start));
+  ASSERT_EQ(CallSize(code, rmode, ast_id, cond),
+            SizeOfCodeGeneratedSince(&start));
 }
 
 
@@ -1862,7 +1862,7 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond) {
   ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
-  Call(stub->GetCode(), RelocInfo::CODE_TARGET, cond);
+  Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond);
 }
 
 
@@ -1872,7 +1872,8 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond) {
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  Call(Handle<Code>(Code::cast(result)), RelocInfo::CODE_TARGET, cond);
+  Handle<Code> code(Code::cast(result));
+  Call(code, RelocInfo::CODE_TARGET, kNoASTId, cond);
   return result;
 }
 
@@ -2546,6 +2547,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
     push(elements);
     ldr(elements, FieldMemOperand(elements, HeapObject::kMapOffset));
     LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+    cmp(elements, ip);
+    b(eq, &ok);
+    LoadRoot(ip, Heap::kFixedDoubleArrayMapRootIndex);
     cmp(elements, ip);
     b(eq, &ok);
     LoadRoot(ip, Heap::kFixedCOWArrayMapRootIndex);
