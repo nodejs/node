@@ -1,4 +1,27 @@
-2011.07.14, Version 0.5.1 (unstable)
+2011.07.22, Version 0.5.2 (unstable)
+
+* libuv improvements; named pipe support
+
+* #1242 check for SSL_COMP_get_compression_methods() (Ben Noordhuis)
+
+* #1348 remove require.paths (isaacs)
+
+* #1349 Delimit NODE_PATH with ; on Windows (isaacs)
+
+* #1335 Remove EventEmitter from C++
+
+* #1357 Load json files with require() (isaacs)
+
+* #1374 fix setting ServerResponse.statusCode in writeHead (Trent Mick)
+
+* Fixed: GC was being run too often.
+
+* Upgrade V8 to 3.4.14
+
+* doc improvements
+
+
+2011.07.14, Version 0.5.1 (unstable), f8bfa54d0fa509f9242637bef2869a1b1e842ec8
 
 * #1233 Fix os.totalmem on FreeBSD amd64 (Artem Zaytsev)
 
