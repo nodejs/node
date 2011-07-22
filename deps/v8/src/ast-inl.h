@@ -37,68 +37,76 @@ namespace v8 {
 namespace internal {
 
 
-SwitchStatement::SwitchStatement(ZoneStringList* labels)
-    : BreakableStatement(labels, TARGET_FOR_ANONYMOUS),
+SwitchStatement::SwitchStatement(Isolate* isolate,
+                                 ZoneStringList* labels)
+    : BreakableStatement(isolate, labels, TARGET_FOR_ANONYMOUS),
       tag_(NULL), cases_(NULL) {
 }
 
 
-Block::Block(ZoneStringList* labels, int capacity, bool is_initializer_block)
-    : BreakableStatement(labels, TARGET_FOR_NAMED_ONLY),
+Block::Block(Isolate* isolate,
+             ZoneStringList* labels,
+             int capacity,
+             bool is_initializer_block)
+    : BreakableStatement(isolate, labels, TARGET_FOR_NAMED_ONLY),
       statements_(capacity),
       is_initializer_block_(is_initializer_block) {
 }
 
 
-BreakableStatement::BreakableStatement(ZoneStringList* labels, Type type)
+BreakableStatement::BreakableStatement(Isolate* isolate,
+                                       ZoneStringList* labels,
+                                       Type type)
     : labels_(labels),
       type_(type),
-      entry_id_(GetNextId()),
-      exit_id_(GetNextId()) {
+      entry_id_(GetNextId(isolate)),
+      exit_id_(GetNextId(isolate)) {
   ASSERT(labels == NULL || labels->length() > 0);
 }
 
 
-IterationStatement::IterationStatement(ZoneStringList* labels)
-    : BreakableStatement(labels, TARGET_FOR_ANONYMOUS),
+IterationStatement::IterationStatement(Isolate* isolate, ZoneStringList* labels)
+    : BreakableStatement(isolate, labels, TARGET_FOR_ANONYMOUS),
       body_(NULL),
       continue_target_(),
-      osr_entry_id_(GetNextId()) {
+      osr_entry_id_(GetNextId(isolate)) {
 }
 
 
-DoWhileStatement::DoWhileStatement(ZoneStringList* labels)
-    : IterationStatement(labels),
+DoWhileStatement::DoWhileStatement(Isolate* isolate, ZoneStringList* labels)
+    : IterationStatement(isolate, labels),
       cond_(NULL),
       condition_position_(-1),
-      continue_id_(GetNextId()),
-      back_edge_id_(GetNextId()) {
+      continue_id_(GetNextId(isolate)),
+      back_edge_id_(GetNextId(isolate)) {
 }
 
 
-WhileStatement::WhileStatement(ZoneStringList* labels)
-    : IterationStatement(labels),
+WhileStatement::WhileStatement(Isolate* isolate, ZoneStringList* labels)
+    : IterationStatement(isolate, labels),
       cond_(NULL),
       may_have_function_literal_(true),
-      body_id_(GetNextId()) {
+      body_id_(GetNextId(isolate)) {
 }
 
 
-ForStatement::ForStatement(ZoneStringList* labels)
-    : IterationStatement(labels),
+ForStatement::ForStatement(Isolate* isolate, ZoneStringList* labels)
+    : IterationStatement(isolate, labels),
       init_(NULL),
       cond_(NULL),
       next_(NULL),
       may_have_function_literal_(true),
       loop_variable_(NULL),
-      continue_id_(GetNextId()),
-      body_id_(GetNextId()) {
+      continue_id_(GetNextId(isolate)),
+      body_id_(GetNextId(isolate)) {
 }
 
 
-ForInStatement::ForInStatement(ZoneStringList* labels)
-    : IterationStatement(labels), each_(NULL), enumerable_(NULL),
-      assignment_id_(GetNextId()) {
+ForInStatement::ForInStatement(Isolate* isolate, ZoneStringList* labels)
+    : IterationStatement(isolate, labels),
+      each_(NULL),
+      enumerable_(NULL),
+      assignment_id_(GetNextId(isolate)) {
 }
 
 

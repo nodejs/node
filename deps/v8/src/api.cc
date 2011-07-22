@@ -2167,6 +2167,65 @@ bool Value::IsDate() const {
 }
 
 
+bool Value::IsStringObject() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsStringObject()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->HasSpecificClassOf(isolate->heap()->String_symbol());
+}
+
+
+bool Value::IsNumberObject() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsNumberObject()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->HasSpecificClassOf(isolate->heap()->Number_symbol());
+}
+
+
+static i::Object* LookupBuiltin(i::Isolate* isolate,
+                                const char* builtin_name) {
+  i::Handle<i::String> symbol =
+      isolate->factory()->LookupAsciiSymbol(builtin_name);
+  i::Handle<i::JSBuiltinsObject> builtins = isolate->js_builtins_object();
+  return builtins->GetPropertyNoExceptionThrown(*symbol);
+}
+
+
+static bool CheckConstructor(i::Isolate* isolate,
+                             i::Handle<i::JSObject> obj,
+                             const char* class_name) {
+  return obj->map()->constructor() == LookupBuiltin(isolate, class_name);
+}
+
+
+bool Value::IsNativeError() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsNativeError()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  if (obj->IsJSObject()) {
+    i::Handle<i::JSObject> js_obj(i::JSObject::cast(*obj));
+    return CheckConstructor(isolate, js_obj, "$Error") ||
+        CheckConstructor(isolate, js_obj, "$EvalError") ||
+        CheckConstructor(isolate, js_obj, "$RangeError") ||
+        CheckConstructor(isolate, js_obj, "$ReferenceError") ||
+        CheckConstructor(isolate, js_obj, "$SyntaxError") ||
+        CheckConstructor(isolate, js_obj, "$TypeError") ||
+        CheckConstructor(isolate, js_obj, "$URIError");
+  } else {
+    return false;
+  }
+}
+
+
+bool Value::IsBooleanObject() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::Value::IsBooleanObject()")) return false;
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  return obj->HasSpecificClassOf(isolate->heap()->Boolean_symbol());
+}
+
+
 bool Value::IsRegExp() const {
   if (IsDeadCheck(i::Isolate::Current(), "v8::Value::IsRegExp()")) return false;
   i::Handle<i::Object> obj = Utils::OpenHandle(this);
@@ -2359,6 +2418,36 @@ void v8::Date::CheckCast(v8::Value* that) {
   ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Date_symbol()),
            "v8::Date::Cast()",
            "Could not convert to date");
+}
+
+
+void v8::StringObject::CheckCast(v8::Value* that) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::StringObject::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->String_symbol()),
+           "v8::StringObject::Cast()",
+           "Could not convert to StringObject");
+}
+
+
+void v8::NumberObject::CheckCast(v8::Value* that) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::NumberObject::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Number_symbol()),
+           "v8::NumberObject::Cast()",
+           "Could not convert to NumberObject");
+}
+
+
+void v8::BooleanObject::CheckCast(v8::Value* that) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::BooleanObject::Cast()")) return;
+  i::Handle<i::Object> obj = Utils::OpenHandle(that);
+  ApiCheck(obj->HasSpecificClassOf(isolate->heap()->Boolean_symbol()),
+           "v8::BooleanObject::Cast()",
+           "Could not convert to BooleanObject");
 }
 
 
@@ -2702,6 +2791,26 @@ Local<Value> v8::Object::Get(uint32_t index) {
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
+}
+
+
+PropertyAttribute v8::Object::GetPropertyAttributes(v8::Handle<Value> key) {
+  i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
+  ON_BAILOUT(isolate, "v8::Object::GetPropertyAttribute()",
+             return static_cast<PropertyAttribute>(NONE));
+  ENTER_V8(isolate);
+  i::HandleScope scope(isolate);
+  i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  i::Handle<i::Object> key_obj = Utils::OpenHandle(*key);
+  if (!key_obj->IsString()) {
+    EXCEPTION_PREAMBLE(isolate);
+    key_obj = i::Execution::ToString(key_obj, &has_pending_exception);
+    EXCEPTION_BAILOUT_CHECK(isolate, static_cast<PropertyAttribute>(NONE));
+  }
+  i::Handle<i::String> key_string = i::Handle<i::String>::cast(key_obj);
+  PropertyAttributes result = self->GetPropertyAttribute(*key_string);
+  if (result == ABSENT) return static_cast<PropertyAttribute>(NONE);
+  return static_cast<PropertyAttribute>(result);
 }
 
 
@@ -3844,6 +3953,11 @@ bool v8::V8::Initialize() {
 }
 
 
+void v8::V8::SetEntropySource(EntropySource source) {
+  i::V8::SetEntropySource(source);
+}
+
+
 bool v8::V8::Dispose() {
   i::Isolate* isolate = i::Isolate::Current();
   if (!ApiCheck(isolate != NULL && isolate->IsDefaultIsolate(),
@@ -4424,6 +4538,73 @@ Local<v8::Object> v8::Object::New() {
   i::Handle<i::JSObject> obj =
       isolate->factory()->NewJSObject(isolate->object_function());
   return Utils::ToLocal(obj);
+}
+
+
+Local<v8::Value> v8::NumberObject::New(double value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::NumberObject::New()");
+  LOG_API(isolate, "NumberObject::New");
+  ENTER_V8(isolate);
+  i::Handle<i::Object> number = isolate->factory()->NewNumber(value);
+  i::Handle<i::Object> obj = isolate->factory()->ToObject(number);
+  return Utils::ToLocal(obj);
+}
+
+
+double v8::NumberObject::NumberValue() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::NumberObject::NumberValue()")) return 0;
+  LOG_API(isolate, "NumberObject::NumberValue");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  return jsvalue->value()->Number();
+}
+
+
+Local<v8::Value> v8::BooleanObject::New(bool value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::BooleanObject::New()");
+  LOG_API(isolate, "BooleanObject::New");
+  ENTER_V8(isolate);
+  i::Handle<i::Object> boolean(value ? isolate->heap()->true_value()
+                                     : isolate->heap()->false_value());
+  i::Handle<i::Object> obj = isolate->factory()->ToObject(boolean);
+  return Utils::ToLocal(obj);
+}
+
+
+bool v8::BooleanObject::BooleanValue() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::BooleanObject::BooleanValue()")) return 0;
+  LOG_API(isolate, "BooleanObject::BooleanValue");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  return jsvalue->value()->IsTrue();
+}
+
+
+Local<v8::Value> v8::StringObject::New(Handle<String> value) {
+  i::Isolate* isolate = i::Isolate::Current();
+  EnsureInitializedForIsolate(isolate, "v8::StringObject::New()");
+  LOG_API(isolate, "StringObject::New");
+  ENTER_V8(isolate);
+  i::Handle<i::Object> obj =
+      isolate->factory()->ToObject(Utils::OpenHandle(*value));
+  return Utils::ToLocal(obj);
+}
+
+
+Local<v8::String> v8::StringObject::StringValue() const {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::StringObject::StringValue()")) {
+    return Local<v8::String>();
+  }
+  LOG_API(isolate, "StringObject::StringValue");
+  i::Handle<i::Object> obj = Utils::OpenHandle(this);
+  i::Handle<i::JSValue> jsvalue = i::Handle<i::JSValue>::cast(obj);
+  return Utils::ToLocal(
+      i::Handle<i::String>(i::String::cast(jsvalue->value())));
 }
 
 

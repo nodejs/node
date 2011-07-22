@@ -44,17 +44,44 @@ function listener(event, exec_state, event_data, data) {
       for (var i = 0; i < exec_state.frameCount(); i++) {
         var frame = exec_state.frame(i);
         if (i < exec_state.frameCount() - 1) {
+          var expected_a = i * 2 + 1;
+          var expected_b = i * 2 + 2;
+          var expected_x = (i + 1) * 2 + 1;
+          var expected_y = (i + 1) * 2 + 2;
+
           // All frames except the bottom one has normal variables a and b.
           assertEquals('a', frame.localName(0));
           assertEquals('b', frame.localName(1));
-          assertEquals(i * 2 + 1, frame.localValue(0).value());
-          assertEquals(i * 2 + 2, frame.localValue(1).value());
+          assertEquals(expected_a, frame.localValue(0).value());
+          assertEquals(expected_b, frame.localValue(1).value());
 
           // All frames except the bottom one has arguments variables x and y.
           assertEquals('x', frame.argumentName(0));
           assertEquals('y', frame.argumentName(1));
-          assertEquals((i + 1) * 2 + 1, frame.argumentValue(0).value());
-          assertEquals((i + 1) * 2 + 2, frame.argumentValue(1).value());
+          assertEquals(expected_x, frame.argumentValue(0).value());
+          assertEquals(expected_y, frame.argumentValue(1).value());
+
+          // All frames except the bottom one have two scopes.
+          assertEquals(2, frame.scopeCount());
+          assertEquals(debug.ScopeType.Local, frame.scope(0).scopeType());
+          assertEquals(debug.ScopeType.Global, frame.scope(1).scopeType());
+          assertEquals(expected_a, frame.scope(0).scopeObject().value()['a']);
+          assertEquals(expected_b, frame.scope(0).scopeObject().value()['b']);
+          assertEquals(expected_x, frame.scope(0).scopeObject().value()['x']);
+          assertEquals(expected_y, frame.scope(0).scopeObject().value()['y']);
+
+          // Evaluate in the inlined frame.
+          assertEquals(expected_a, frame.evaluate('a').value());
+          assertEquals(expected_x, frame.evaluate('x').value());
+          assertEquals(expected_x, frame.evaluate('arguments[0]').value());
+          assertEquals(expected_a + expected_b + expected_x + expected_y,
+                       frame.evaluate('a + b + x + y').value());
+          assertEquals(expected_x + expected_y,
+                       frame.evaluate('arguments[0] + arguments[1]').value());
+        } else {
+          // The bottom frame only have the global scope.
+          assertEquals(1, frame.scopeCount());
+          assertEquals(debug.ScopeType.Global, frame.scope(0).scopeType());
         }
 
         // Check the frame function.
@@ -71,12 +98,13 @@ function listener(event, exec_state, event_data, data) {
         // Check for construct call.
         assertEquals(testingConstructCall && i == 4, frame.isConstructCall());
 
-        // When function f is optimized (2 means YES, see runtime.cc) we
+        // When function f is optimized (1 means YES, see runtime.cc) we
         // expect an optimized frame for f with g1, g2 and g3 inlined.
-        if (%GetOptimizationStatus(f) == 2) {
+        if (%GetOptimizationStatus(f) == 1) {
           if (i == 1 || i == 2 || i == 3) {
             assertTrue(frame.isOptimizedFrame());
             assertTrue(frame.isInlinedFrame());
+            assertEquals(4 - i, frame.inlinedFrameIndex());
           } else if (i == 4) {
             assertTrue(frame.isOptimizedFrame());
             assertFalse(frame.isInlinedFrame());

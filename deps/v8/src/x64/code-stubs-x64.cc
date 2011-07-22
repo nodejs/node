@@ -2529,6 +2529,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 #else
   // Already there in AMD64 calling convention.
   ASSERT(arg1.is(rdi));
+  USE(arg1);
 #endif
 
   // Locate the code entry and call it.
@@ -3198,6 +3199,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
   __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION);
   Handle<Code> adaptor =
       Isolate::Current()->builtins()->ArgumentsAdaptorTrampoline();
+  __ SetCallKind(rcx, CALL_AS_METHOD);
   __ Jump(adaptor, RelocInfo::CODE_TARGET);
 }
 

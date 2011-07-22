@@ -284,6 +284,7 @@ namespace internal {
   F(CreateJSProxy, 2, 1) \
   F(IsJSProxy, 1, 1) \
   F(GetHandler, 1, 1) \
+  F(Fix, 1, 1) \
   \
   /* Statements */ \
   F(NewClosure, 3, 1) \
@@ -372,7 +373,7 @@ namespace internal {
   F(GetFrameCount, 1, 1) \
   F(GetFrameDetails, 2, 1) \
   F(GetScopeCount, 2, 1) \
-  F(GetScopeDetails, 3, 1) \
+  F(GetScopeDetails, 4, 1) \
   F(DebugPrintScopes, 0, 1) \
   F(GetThreadCount, 1, 1) \
   F(GetThreadDetails, 2, 1) \
@@ -385,7 +386,7 @@ namespace internal {
   F(IsBreakOnException, 1, 1) \
   F(PrepareStep, 3, 1) \
   F(ClearStepping, 0, 1) \
-  F(DebugEvaluate, 5, 1) \
+  F(DebugEvaluate, 6, 1) \
   F(DebugEvaluateGlobal, 4, 1) \
   F(DebugGetLoadedScripts, 0, 1) \
   F(DebugReferencedBy, 3, 1) \
@@ -636,7 +637,7 @@ class Runtime : public AllStatic {
 
   MUST_USE_RESULT static MaybeObject* ForceDeleteObjectProperty(
       Isolate* isolate,
-      Handle<JSObject> object,
+      Handle<JSReceiver> object,
       Handle<Object> key);
 
   MUST_USE_RESULT static MaybeObject* GetObjectProperty(

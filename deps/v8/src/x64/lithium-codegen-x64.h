@@ -215,10 +215,11 @@ class LCodeGen BASE_EMBEDDED {
 
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
-  Operand BuildExternalArrayOperand(
+  Operand BuildFastArrayOperand(
       LOperand* external_pointer,
       LOperand* key,
-      JSObject::ElementsKind elements_kind);
+      JSObject::ElementsKind elements_kind,
+      uint32_t offset);
 
   // Specific math operations - used from DoUnaryMathOperation.
   void EmitIntegerMathAbs(LUnaryMathOperation* instr);

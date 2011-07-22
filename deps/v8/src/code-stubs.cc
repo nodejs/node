@@ -250,7 +250,7 @@ void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
       KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
       break;
     case JSObject::FAST_DOUBLE_ELEMENTS:
-      UNIMPLEMENTED();
+      KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(masm);
       break;
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
@@ -279,7 +279,8 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
       KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
       break;
     case JSObject::FAST_DOUBLE_ELEMENTS:
-      UNIMPLEMENTED();
+      KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
+                                                             is_js_array_);
       break;
     case JSObject::EXTERNAL_BYTE_ELEMENTS:
     case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:

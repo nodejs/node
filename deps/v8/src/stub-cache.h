@@ -662,6 +662,8 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
   static void GenerateLoadFastElement(MacroAssembler* masm);
 
+  static void GenerateLoadFastDoubleElement(MacroAssembler* masm);
+
   static void GenerateLoadDictionaryElement(MacroAssembler* masm);
 
  private:
@@ -716,6 +718,9 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   static void GenerateStoreFastElement(MacroAssembler* masm,
                                        bool is_js_array);
+
+  static void GenerateStoreFastDoubleElement(MacroAssembler* masm,
+                                             bool is_js_array);
 
   static void GenerateStoreExternalArray(MacroAssembler* masm,
                                          JSObject::ElementsKind elements_kind);

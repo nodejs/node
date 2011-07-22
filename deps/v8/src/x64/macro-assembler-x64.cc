@@ -385,6 +385,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
                 Heap::kFixedArrayMapRootIndex);
     j(equal, &ok, Label::kNear);
     CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
+                Heap::kFixedDoubleArrayMapRootIndex);
+    j(equal, &ok, Label::kNear);
+    CompareRoot(FieldOperand(elements, HeapObject::kMapOffset),
                 Heap::kFixedCOWArrayMapRootIndex);
     j(equal, &ok, Label::kNear);
     Abort("JSObject with fast elements map has slow elements");

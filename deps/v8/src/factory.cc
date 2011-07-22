@@ -892,6 +892,13 @@ Handle<JSProxy> Factory::NewJSProxy(Handle<Object> handler,
 }
 
 
+void Factory::BecomeJSObject(Handle<JSProxy> object) {
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      isolate()->heap()->ReinitializeJSProxyAsJSObject(*object));
+}
+
+
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,

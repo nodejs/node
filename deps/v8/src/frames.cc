@@ -371,7 +371,6 @@ Code* StackFrame::GetSafepointData(Isolate* isolate,
                                    unsigned* stack_slots) {
   PcToCodeCache::PcToCodeCacheEntry* entry =
       isolate->pc_to_code_cache()->GetCacheEntry(pc);
-  SafepointEntry cached_safepoint_entry = entry->safepoint_entry;
   if (!entry->safepoint_entry.is_valid()) {
     entry->safepoint_entry = entry->code->GetSafepointEntry(pc);
     ASSERT(entry->safepoint_entry.is_valid());

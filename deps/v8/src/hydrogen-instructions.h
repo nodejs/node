@@ -131,6 +131,7 @@ class LChunkBuilder;
   V(LoadFunctionPrototype)                     \
   V(LoadGlobalCell)                            \
   V(LoadGlobalGeneric)                         \
+  V(LoadKeyedFastDoubleElement)                \
   V(LoadKeyedFastElement)                      \
   V(LoadKeyedGeneric)                          \
   V(LoadKeyedSpecializedArrayElement)          \
@@ -156,6 +157,7 @@ class LChunkBuilder;
   V(StoreContextSlot)                          \
   V(StoreGlobalCell)                           \
   V(StoreGlobalGeneric)                        \
+  V(StoreKeyedFastDoubleElement)               \
   V(StoreKeyedFastElement)                     \
   V(StoreKeyedGeneric)                         \
   V(StoreKeyedSpecializedArrayElement)         \
@@ -588,9 +590,9 @@ class HValue: public ZoneObject {
   // it would otherwise output what should be a minus zero as an int32 zero.
   // If the operation also exists in a form that takes int32 and outputs int32
   // then the operation should return its input value so that we can propagate
-  // back.  There are two operations that need to propagate back to more than
-  // one input.  They are phi and binary add.  They always return NULL and
-  // expect the caller to take care of things.
+  // back.  There are three operations that need to propagate back to more than
+  // one input.  They are phi and binary div and mul.  They always return NULL
+  // and expect the caller to take care of things.
   virtual HValue* EnsureAndPropagateNotMinusZero(BitVector* visited) {
     visited->Add(id());
     return NULL;
@@ -1123,40 +1125,19 @@ class HChange: public HUnaryOperation {
 class HClampToUint8: public HUnaryOperation {
  public:
   explicit HClampToUint8(HValue* value)
-      : HUnaryOperation(value),
-        input_rep_(Representation::None()) {
-    SetFlag(kFlexibleRepresentation);
-    set_representation(Representation::Tagged());
+      : HUnaryOperation(value) {
+    set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
   }
 
   virtual Representation RequiredInputRepresentation(int index) const {
-    return input_rep_;
-  }
-
-  virtual Representation InferredRepresentation() {
-    // TODO(danno): Inference on input types should happen separately from
-    // return representation.
-    Representation new_rep = value()->representation();
-    if (input_rep_.IsNone()) {
-      if (!new_rep.IsNone()) {
-        input_rep_ = new_rep;
-        return Representation::Integer32();
-      } else {
-        return Representation::None();
-      }
-    } else {
-      return Representation::Integer32();
-    }
+    return Representation::None();
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ClampToUint8)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
-
- private:
-  Representation input_rep_;
 };
 
 
@@ -3540,6 +3521,37 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
 };
 
 
+class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
+ public:
+  HLoadKeyedFastDoubleElement(HValue* elements, HValue* key) {
+    SetOperandAt(0, elements);
+    SetOperandAt(1, key);
+    set_representation(Representation::Double());
+    SetFlag(kDependsOnArrayElements);
+    SetFlag(kUseGVN);
+  }
+
+  HValue* elements() { return OperandAt(0); }
+  HValue* key() { return OperandAt(1); }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    // The key is supposed to be Integer32.
+    return index == 0
+      ? Representation::Tagged()
+      : Representation::Integer32();
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  bool RequiresHoleCheck() const;
+
+  DECLARE_CONCRETE_INSTRUCTION(LoadKeyedFastDoubleElement)
+
+ protected:
+  virtual bool DataEquals(HValue* other) { return true; }
+};
+
+
 class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
@@ -3722,6 +3734,41 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement)
+};
+
+
+class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
+ public:
+  HStoreKeyedFastDoubleElement(HValue* elements,
+                               HValue* key,
+                               HValue* val) {
+    SetOperandAt(0, elements);
+    SetOperandAt(1, key);
+    SetOperandAt(2, val);
+    SetFlag(kChangesArrayElements);
+  }
+
+  virtual Representation RequiredInputRepresentation(int index) const {
+    if (index == 1) {
+      return Representation::Integer32();
+    } else if (index == 2) {
+      return Representation::Double();
+    } else {
+      return Representation::Tagged();
+    }
+  }
+
+  HValue* elements() { return OperandAt(0); }
+  HValue* key() { return OperandAt(1); }
+  HValue* value() { return OperandAt(2); }
+
+  bool NeedsWriteBarrier() {
+    return StoringValueNeedsWriteBarrier(value());
+  }
+
+  virtual void PrintDataTo(StringStream* stream);
+
+  DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastDoubleElement)
 };
 
 

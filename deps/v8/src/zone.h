@@ -74,6 +74,8 @@ class Zone {
 
   inline void adjust_segment_bytes_allocated(int delta);
 
+  inline Isolate* isolate() { return isolate_; }
+
   static unsigned allocation_size_;
 
  private:

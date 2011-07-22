@@ -110,6 +110,7 @@ enum ContextLookupFlags {
   V(MAP_CACHE_INDEX, Object, map_cache) \
   V(CONTEXT_DATA_INDEX, Object, data) \
   V(ALLOW_CODE_GEN_FROM_STRINGS_INDEX, Object, allow_code_gen_from_strings) \
+  V(DERIVED_HAS_TRAP_INDEX, JSFunction, derived_has_trap) \
   V(DERIVED_GET_TRAP_INDEX, JSFunction, derived_get_trap) \
   V(DERIVED_SET_TRAP_INDEX, JSFunction, derived_set_trap)
 
@@ -227,6 +228,7 @@ class Context: public FixedArray {
     OUT_OF_MEMORY_INDEX,
     CONTEXT_DATA_INDEX,
     ALLOW_CODE_GEN_FROM_STRINGS_INDEX,
+    DERIVED_HAS_TRAP_INDEX,
     DERIVED_GET_TRAP_INDEX,
     DERIVED_SET_TRAP_INDEX,
 

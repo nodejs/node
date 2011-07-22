@@ -26,12 +26,14 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'variables': {
+    'console%': '',
+  },
   'targets': [
     {
       'target_name': 'd8',
       'type': 'executable',
       'dependencies': [
-        'd8_js2c#host',
         '../tools/gyp/v8.gyp:v8',
       ],
       'include_dirs+': [
@@ -42,15 +44,24 @@
       ],
       'sources': [
         'd8.cc',
-        'd8-debug.cc',
-        '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc',
       ],
       'conditions': [
-        [ 'OS=="linux" or OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
-          'sources': [ 'd8-posix.cc', ]
-        }],
-        [ 'OS=="win"', {
-          'sources': [ 'd8-windows.cc', ]
+        [ 'component!="shared_library"', {
+          'dependencies': [ 'd8_js2c#host', ], 
+          'sources': [ 'd8-debug.cc', '<(SHARED_INTERMEDIATE_DIR)/d8-js.cc', ],
+          'conditions': [
+            [ 'console=="readline"', {
+              'libraries': [ '-lreadline', ],
+              'sources': [ 'd8-readline.cc' ],
+            }],
+            [ '(OS=="linux" or OS=="mac" or OS=="freebsd" \
+              or OS=="openbsd" or OS=="solaris")', {
+              'sources': [ 'd8-posix.cc', ]
+            }],
+            [ 'OS=="win"', {
+              'sources': [ 'd8-windows.cc', ]
+            }],
+          ],
         }],
       ],
     },

@@ -1250,9 +1250,9 @@ const kFrameDetailsNameIndex = 0;
 const kFrameDetailsValueIndex = 1;
 const kFrameDetailsNameValueSize = 2;
 
-const kFrameDetailsFlagDebuggerFrame = 1;
-const kFrameDetailsFlagOptimizedFrame = 2;
-const kFrameDetailsFlagInlinedFrame = 4;
+const kFrameDetailsFlagDebuggerFrameMask = 1 << 0;
+const kFrameDetailsFlagOptimizedFrameMask = 1 << 1;
+const kFrameDetailsFlagInlinedFrameIndexMask = 7 << 2;
 
 /**
  * Wrapper for the frame details information retreived from the VM. The frame
@@ -1266,7 +1266,7 @@ const kFrameDetailsFlagInlinedFrame = 4;
  *     5: Source position
  *     6: Construct call
  *     7: Is at return
- *     8: Flags (debugger frame, optimized frame, inlined frame)
+ *     8: Flags (debugger frame, optimized frame, inlined frame index)
  *     Arguments name, value
  *     Locals name, value
  *     Return value if any
@@ -1312,22 +1312,27 @@ FrameDetails.prototype.isAtReturn = function() {
 
 FrameDetails.prototype.isDebuggerFrame = function() {
   %CheckExecutionState(this.break_id_);
-  var f = kFrameDetailsFlagDebuggerFrame;
+  var f = kFrameDetailsFlagDebuggerFrameMask;
   return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
 }
 
 
 FrameDetails.prototype.isOptimizedFrame = function() {
   %CheckExecutionState(this.break_id_);
-  var f = kFrameDetailsFlagOptimizedFrame;
+  var f = kFrameDetailsFlagOptimizedFrameMask;
   return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
 }
 
 
 FrameDetails.prototype.isInlinedFrame = function() {
+  return this.inlinedFrameIndex() > 0;
+}
+
+
+FrameDetails.prototype.inlinedFrameIndex = function() {
   %CheckExecutionState(this.break_id_);
-  var f = kFrameDetailsFlagInlinedFrame;
-  return (this.details_[kFrameDetailsFlagsIndex] & f) == f;
+  var f = kFrameDetailsFlagInlinedFrameIndexMask;
+  return (this.details_[kFrameDetailsFlagsIndex] & f) >> 2
 }
 
 
@@ -1476,6 +1481,11 @@ FrameMirror.prototype.isInlinedFrame = function() {
 };
 
 
+FrameMirror.prototype.inlinedFrameIndex = function() {
+  return this.details_.inlinedFrameIndex();
+};
+
+
 FrameMirror.prototype.argumentCount = function() {
   return this.details_.argumentCount();
 };
@@ -1565,8 +1575,12 @@ FrameMirror.prototype.scope = function(index) {
 
 
 FrameMirror.prototype.evaluate = function(source, disable_break, opt_context_object) {
-  var result = %DebugEvaluate(this.break_id_, this.details_.frameId(),
-                              source, Boolean(disable_break), opt_context_object);
+  var result = %DebugEvaluate(this.break_id_,
+                              this.details_.frameId(),
+                              this.details_.inlinedFrameIndex(),
+                              source,
+                              Boolean(disable_break),
+                              opt_context_object);
   return MakeMirror(result);
 };
 
@@ -1591,8 +1605,10 @@ FrameMirror.prototype.invocationText = function() {
     // Try to find the function as a property in the receiver. Include the
     // prototype chain in the lookup.
     var property = GetUndefinedMirror();
-    if (!receiver.isUndefined()) {
-      for (var r = receiver; !r.isNull() && property.isUndefined(); r = r.protoObject()) {
+    if (receiver.isObject()) {
+      for (var r = receiver;
+           !r.isNull() && property.isUndefined();
+           r = r.protoObject()) {
         property = r.lookupProperty(func);
       }
     }
@@ -1719,6 +1735,7 @@ function ScopeDetails(frame, index) {
   this.break_id_ = frame.break_id_;
   this.details_ = %GetScopeDetails(frame.break_id_,
                                    frame.details_.frameId(),
+                                   frame.details_.inlinedFrameIndex(),
                                    index);
 }
 

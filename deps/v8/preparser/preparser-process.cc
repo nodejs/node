@@ -208,7 +208,7 @@ void fail(v8::PreParserData* data, const char* message, ...) {
     fflush(stderr);
   }
   exit(EXIT_FAILURE);
-};
+}
 
 
 bool IsFlag(const char* arg) {

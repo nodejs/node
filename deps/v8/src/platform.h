@@ -206,6 +206,10 @@ class OS {
                         size_t* allocated,
                         bool is_executable);
   static void Free(void* address, const size_t size);
+
+  // Assign memory as a guard page so that access will cause an exception.
+  static void Guard(void* address, const size_t size);
+
   // Get the Alignment guaranteed by Allocate().
   static size_t AllocateAlignment();
 

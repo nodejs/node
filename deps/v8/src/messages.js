@@ -195,7 +195,8 @@ function FormatMessage(message) {
       non_extensible_proto:         ["%0", " is not extensible"],
       handler_non_object:           ["Proxy.", "%0", " called with non-object as handler"],
       handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
-      handler_failed:               ["Proxy handler ", "%0", " returned false for '", "%1", "' trap"],
+      handler_returned_false:       ["Proxy handler ", "%0", " returned false for '", "%1", "' trap"],
+      handler_returned_undefined:   ["Proxy handler ", "%0", " returned undefined for '", "%1", "' trap"],
       proxy_prop_not_configurable:  ["Trap ", "%1", " of proxy handler ", "%0", " returned non-configurable descriptor for property ", "%2"],
       proxy_non_object_prop_names:  ["Trap ", "%1", " returned non-object ", "%0"],
       proxy_repeated_prop_name:     ["Trap ", "%1", " returned repeated property name ", "%2"],
@@ -1050,13 +1051,15 @@ function captureStackTrace(obj, cons_opt) {
 
 $Math.__proto__ = global.Object.prototype;
 
-DefineError(function Error() { });
-DefineError(function TypeError() { });
-DefineError(function RangeError() { });
-DefineError(function SyntaxError() { });
-DefineError(function ReferenceError() { });
-DefineError(function EvalError() { });
-DefineError(function URIError() { });
+// DefineError is a native function. Use explicit receiver. Otherwise
+// the receiver will be 'undefined'.
+this.DefineError(function Error() { });
+this.DefineError(function TypeError() { });
+this.DefineError(function RangeError() { });
+this.DefineError(function SyntaxError() { });
+this.DefineError(function ReferenceError() { });
+this.DefineError(function EvalError() { });
+this.DefineError(function URIError() { });
 
 $Error.captureStackTrace = captureStackTrace;
 

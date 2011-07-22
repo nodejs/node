@@ -37,11 +37,11 @@ namespace v8 {
 namespace internal {
 
 AstSentinels::AstSentinels()
-    : this_proxy_(true),
-      identifier_proxy_(false),
-      valid_left_hand_side_sentinel_(),
-      this_property_(&this_proxy_, NULL, 0),
-      call_sentinel_(NULL, NULL, 0) {
+    : this_proxy_(Isolate::Current(), true),
+      identifier_proxy_(Isolate::Current(), false),
+      valid_left_hand_side_sentinel_(Isolate::Current()),
+      this_property_(Isolate::Current(), &this_proxy_, NULL, 0),
+      call_sentinel_(Isolate::Current(), NULL, NULL, 0) {
 }
 
 
@@ -72,8 +72,9 @@ CountOperation* ExpressionStatement::StatementAsCountOperation() {
 }
 
 
-VariableProxy::VariableProxy(Variable* var)
-    : name_(var->name()),
+VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
+    : Expression(isolate),
+      name_(var->name()),
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       inside_with_(false),
@@ -83,26 +84,29 @@ VariableProxy::VariableProxy(Variable* var)
 }
 
 
-VariableProxy::VariableProxy(Handle<String> name,
+VariableProxy::VariableProxy(Isolate* isolate,
+                             Handle<String> name,
                              bool is_this,
                              bool inside_with,
                              int position)
-  : name_(name),
-    var_(NULL),
-    is_this_(is_this),
-    inside_with_(inside_with),
-    is_trivial_(false),
-    position_(position) {
+    : Expression(isolate),
+      name_(name),
+      var_(NULL),
+      is_this_(is_this),
+      inside_with_(inside_with),
+      is_trivial_(false),
+      position_(position) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());
 }
 
 
-VariableProxy::VariableProxy(bool is_this)
-  : var_(NULL),
-    is_this_(is_this),
-    inside_with_(false),
-    is_trivial_(false) {
+VariableProxy::VariableProxy(Isolate* isolate, bool is_this)
+    : Expression(isolate),
+      var_(NULL),
+      is_this_(is_this),
+      inside_with_(false),
+      is_trivial_(false) {
 }
 
 
@@ -120,17 +124,19 @@ void VariableProxy::BindTo(Variable* var) {
 }
 
 
-Assignment::Assignment(Token::Value op,
+Assignment::Assignment(Isolate* isolate,
+                       Token::Value op,
                        Expression* target,
                        Expression* value,
                        int pos)
-    : op_(op),
+    : Expression(isolate),
+      op_(op),
       target_(target),
       value_(value),
       pos_(pos),
       binary_operation_(NULL),
       compound_load_id_(kNoNumber),
-      assignment_id_(GetNextId()),
+      assignment_id_(GetNextId(isolate)),
       block_start_(false),
       block_end_(false),
       is_monomorphic_(false),
@@ -138,8 +144,12 @@ Assignment::Assignment(Token::Value op,
   ASSERT(Token::IsAssignmentOp(op));
   if (is_compound()) {
     binary_operation_ =
-        new BinaryOperation(binary_op(), target, value, pos + 1);
-    compound_load_id_ = GetNextId();
+        new(isolate->zone()) BinaryOperation(isolate,
+                                             binary_op(),
+                                             target,
+                                             value,
+                                             pos + 1);
+    compound_load_id_ = GetNextId(isolate);
   }
 }
 
@@ -186,8 +196,9 @@ ObjectLiteral::Property::Property(Literal* key, Expression* value) {
 
 
 ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
+  Isolate* isolate = Isolate::Current();
   emit_store_ = true;
-  key_ = new Literal(value->name());
+  key_ = new(isolate->zone()) Literal(isolate, value->name());
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
 }
@@ -1190,15 +1201,16 @@ RegExpAlternative::RegExpAlternative(ZoneList<RegExpTree*>* nodes)
 }
 
 
-CaseClause::CaseClause(Expression* label,
+CaseClause::CaseClause(Isolate* isolate,
+                       Expression* label,
                        ZoneList<Statement*>* statements,
                        int pos)
     : label_(label),
       statements_(statements),
       position_(pos),
       compare_type_(NONE),
-      compare_id_(AstNode::GetNextId()),
-      entry_id_(AstNode::GetNextId()) {
+      compare_id_(AstNode::GetNextId(isolate)),
+      entry_id_(AstNode::GetNextId(isolate)) {
 }
 
 } }  // namespace v8::internal

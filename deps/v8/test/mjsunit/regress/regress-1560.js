@@ -25,43 +25,44 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_NATIVES_H_
-#define V8_NATIVES_H_
+// Flags: --allow-natives-syntax --expose-gc
 
-namespace v8 {
-namespace internal {
+function mkCOWArray() {
+  var a = [''];
+  assertEquals('', a[0]);
+  return a;
+}
 
-typedef bool (*NativeSourceCallback)(Vector<const char> name,
-                                     Vector<const char> source,
-                                     int index);
+function mkArray() {
+  var a = [];
+  a[0] = '';
+  return a;
+}
 
-enum NativeType {
-  CORE, EXPERIMENTAL, D8, TEST
-};
+function mkNumberDictionary() {
+  var a = new Array();
+  a[0] = '';
+  a[100000] = '';
+  return a;
+}
 
-template <NativeType type>
-class NativesCollection {
- public:
-  // Number of built-in scripts.
-  static int GetBuiltinsCount();
-  // Number of debugger implementation scripts.
-  static int GetDebuggerCount();
+function write(a, i) { a[i] = "bazinga!"; }
 
-  // These are used to access built-in scripts.  The debugger implementation
-  // scripts have an index in the interval [0, GetDebuggerCount()).  The
-  // non-debugger scripts have an index in the interval [GetDebuggerCount(),
-  // GetNativesCount()).
-  static int GetIndex(const char* name);
-  static int GetRawScriptsSize();
-  static Vector<const char> GetRawScriptSource(int index);
-  static Vector<const char> GetScriptName(int index);
-  static Vector<const byte> GetScriptsSource();
-  static void SetRawScriptsSource(Vector<const char> raw_source);
-};
+function test(factories, w) {
+  factories.forEach(function(f) { w(f(), 0); });
+  factories.forEach(function(f) { w(f(), 0); });
+      %OptimizeFunctionOnNextCall(w);
+  factories.forEach(function(f) { w(f(), 0); });
+}
 
-typedef NativesCollection<CORE> Natives;
-typedef NativesCollection<EXPERIMENTAL> ExperimentalNatives;
+// Monomorphic case.
+for (var i = 0; i < 5; i++) write(mkArray(), 0);
+%OptimizeFunctionOnNextCall(write);
+write(mkCOWArray(), 0);
+var failure = mkCOWArray();
 
-} }  // namespace v8::internal
-
-#endif  // V8_NATIVES_H_
+// Cleanup, then polymorphic case.
+%DeoptimizeFunction(write);
+gc();
+test([mkArray, mkNumberDictionary], write);
+test([mkArray, mkNumberDictionary, mkCOWArray], write);

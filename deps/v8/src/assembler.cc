@@ -1,4 +1,4 @@
-// Copyright (c) 1994-2006 Sun Microsystems Inc.
+// Copyright (c) 2011 Sun Microsystems Inc.
 // All Rights Reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -71,7 +71,8 @@ const double DoubleConstant::one_half = 0.5;
 const double DoubleConstant::minus_zero = -0.0;
 const double DoubleConstant::uint8_max_value = 255;
 const double DoubleConstant::zero = 0.0;
-const double DoubleConstant::nan = OS::nan_value();
+const double DoubleConstant::canonical_non_hole_nan = OS::nan_value();
+const double DoubleConstant::the_hole_nan = BitCast<double>(kHoleNanInt64);
 const double DoubleConstant::negative_infinity = -V8_INFINITY;
 const char* RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
@@ -921,9 +922,15 @@ ExternalReference ExternalReference::address_of_negative_infinity() {
 }
 
 
-ExternalReference ExternalReference::address_of_nan() {
+ExternalReference ExternalReference::address_of_canonical_non_hole_nan() {
   return ExternalReference(reinterpret_cast<void*>(
-      const_cast<double*>(&DoubleConstant::nan)));
+      const_cast<double*>(&DoubleConstant::canonical_non_hole_nan)));
+}
+
+
+ExternalReference ExternalReference::address_of_the_hole_nan() {
+  return ExternalReference(reinterpret_cast<void*>(
+      const_cast<double*>(&DoubleConstant::the_hole_nan)));
 }
 
 

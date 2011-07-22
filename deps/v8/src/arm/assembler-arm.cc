@@ -326,7 +326,7 @@ Assembler::Assembler(Isolate* arg_isolate, void* buffer, int buffer_size)
   no_const_pool_before_ = 0;
   first_const_pool_use_ = -1;
   last_bound_pos_ = 0;
-  ast_id_for_reloc_info_ = kNoASTId;
+  ClearRecordedAstId();
 }
 
 
@@ -2537,9 +2537,8 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      ASSERT(ast_id_for_reloc_info_ != kNoASTId);
-      RelocInfo reloc_info_with_ast_id(pc_, rmode, ast_id_for_reloc_info_);
-      ast_id_for_reloc_info_ = kNoASTId;
+      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId());
+      ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {
       reloc_info_writer.Write(&rinfo);

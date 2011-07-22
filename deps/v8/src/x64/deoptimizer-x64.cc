@@ -128,7 +128,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Address instruction_start = function->code()->instruction_start();
   Address jump_table_address =
       instruction_start + function->code()->safepoint_table_offset();
+#ifdef DEBUG
   Address previous_pc = instruction_start;
+#endif
 
   SafepointTableDeoptimiztionEntryIterator deoptimizations(function->code());
   Address entry_pc = NULL;
@@ -157,12 +159,16 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
       CodePatcher patcher(call_address, Assembler::kCallInstructionLength);
       patcher.masm()->Call(GetDeoptimizationEntry(deoptimization_index, LAZY),
                            RelocInfo::NONE);
+#ifdef DEBUG
       previous_pc = call_end_address;
+#endif
     } else {
       // Not room enough for a long Call instruction. Write a short call
       // instruction to a long jump placed elsewhere in the code.
+#ifdef DEBUG
       Address short_call_end_address =
           call_address + MacroAssembler::kShortCallInstructionLength;
+#endif
       ASSERT(next_pc >= short_call_end_address);
 
       // Write jump in jump-table.
@@ -177,7 +183,9 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
       CodePatcher call_patcher(call_address,
                                MacroAssembler::kShortCallInstructionLength);
       call_patcher.masm()->call(jump_table_address);
+#ifdef DEBUG
       previous_pc = short_call_end_address;
+#endif
     }
 
     // Continue with next deoptimization entry.
@@ -643,7 +651,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   // We push all registers onto the stack, even though we do not need
   // to restore all later.
   for (int i = 0; i < kNumberOfRegisters; i++) {
-    Register r = Register::toRegister(i);
+    Register r = Register::from_code(i);
     __ push(r);
   }
 
@@ -801,12 +809,12 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Restore the registers from the stack.
   for (int i = kNumberOfRegisters - 1; i >= 0 ; i--) {
-    Register r = Register::toRegister(i);
+    Register r = Register::from_code(i);
     // Do not restore rsp, simply pop the value into the next register
     // and overwrite this afterwards.
     if (r.is(rsp)) {
       ASSERT(i > 0);
-      r = Register::toRegister(i - 1);
+      r = Register::from_code(i - 1);
     }
     __ pop(r);
   }

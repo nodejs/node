@@ -33,6 +33,7 @@
 #include <errno.h>
 #include <time.h>
 
+#include <sys/mman.h>
 #include <sys/socket.h>
 #include <sys/resource.h>
 #include <sys/time.h>
@@ -42,6 +43,8 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
+
+#undef MAP_TYPE
 
 #if defined(ANDROID)
 #define LOG_TAG "v8"
@@ -64,6 +67,12 @@ intptr_t OS::MaxVirtualMemory() {
   int result = getrlimit(RLIMIT_DATA, &limit);
   if (result != 0) return 0;
   return limit.rlim_cur;
+}
+
+
+// Create guard pages.
+void OS::Guard(void* address, const size_t size) {
+  mprotect(address, size, PROT_NONE);
 }
 
 

@@ -686,7 +686,6 @@ FullCodeGenerator::InlineFunctionGenerator
 
 void FullCodeGenerator::EmitInlineRuntimeCall(CallRuntime* node) {
   ZoneList<Expression*>* args = node->arguments();
-  Handle<String> name = node->name();
   const Runtime::Function* function = node->function();
   ASSERT(function != NULL);
   ASSERT(function->intrinsic_type == Runtime::INLINE);

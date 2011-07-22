@@ -615,6 +615,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetHandler) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSProxy, proxy, args[0]);
+  proxy->Fix();
+  return proxy;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
@@ -3872,7 +3880,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
        || result.type() == CONSTANT_FUNCTION)) {
     Object* ok;
     { MaybeObject* maybe_ok =
-          obj->DeleteProperty(name, JSObject::NORMAL_DELETION);
+          obj->DeleteProperty(name, JSReceiver::NORMAL_DELETION);
       if (!maybe_ok->ToObject(&ok)) return maybe_ok;
     }
   }
@@ -4126,24 +4134,25 @@ MaybeObject* Runtime::ForceSetObjectProperty(Isolate* isolate,
 
 
 MaybeObject* Runtime::ForceDeleteObjectProperty(Isolate* isolate,
-                                                Handle<JSObject> js_object,
+                                                Handle<JSReceiver> receiver,
                                                 Handle<Object> key) {
   HandleScope scope(isolate);
 
   // Check if the given key is an array index.
   uint32_t index;
-  if (key->ToArrayIndex(&index)) {
+  if (receiver->IsJSObject() && key->ToArrayIndex(&index)) {
     // In Firefox/SpiderMonkey, Safari and Opera you can access the
     // characters of a string using [] notation.  In the case of a
     // String object we just need to redirect the deletion to the
     // underlying string if the index is in range.  Since the
     // underlying string does nothing with the deletion, we can ignore
     // such deletions.
-    if (js_object->IsStringObjectWithCharacterAt(index)) {
+    if (receiver->IsStringObjectWithCharacterAt(index)) {
       return isolate->heap()->true_value();
     }
 
-    return js_object->DeleteElement(index, JSObject::FORCE_DELETION);
+    return JSObject::cast(*receiver)->DeleteElement(
+        index, JSReceiver::FORCE_DELETION);
   }
 
   Handle<String> key_string;
@@ -4158,7 +4167,7 @@ MaybeObject* Runtime::ForceDeleteObjectProperty(Isolate* isolate,
   }
 
   key_string->TryFlatten();
-  return js_object->DeleteProperty(*key_string, JSObject::FORCE_DELETION);
+  return receiver->DeleteProperty(*key_string, JSReceiver::FORCE_DELETION);
 }
 
 
@@ -4237,12 +4246,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteProperty) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 3);
 
-  CONVERT_CHECKED(JSObject, object, args[0]);
+  CONVERT_CHECKED(JSReceiver, object, args[0]);
   CONVERT_CHECKED(String, key, args[1]);
   CONVERT_SMI_ARG_CHECKED(strict, 2);
   return object->DeleteProperty(key, (strict == kStrictMode)
-                                      ? JSObject::STRICT_DELETION
-                                      : JSObject::NORMAL_DELETION);
+                                      ? JSReceiver::STRICT_DELETION
+                                      : JSReceiver::NORMAL_DELETION);
 }
 
 
@@ -4306,11 +4315,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_HasProperty) {
   NoHandleAllocation na;
   ASSERT(args.length() == 2);
 
-  // Only JS objects can have properties.
-  if (args[0]->IsJSObject()) {
-    JSObject* object = JSObject::cast(args[0]);
+  // Only JS receivers can have properties.
+  if (args[0]->IsJSReceiver()) {
+    JSReceiver* receiver = JSReceiver::cast(args[0]);
     CONVERT_CHECKED(String, key, args[1]);
-    if (object->HasProperty(key)) return isolate->heap()->true_value();
+    if (receiver->HasProperty(key)) return isolate->heap()->true_value();
   }
   return isolate->heap()->false_value();
 }
@@ -8198,9 +8207,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   // index is non-negative.
   Handle<JSObject> object = Handle<JSObject>::cast(holder);
   if (index >= 0) {
-    return object->DeleteElement(index, JSObject::NORMAL_DELETION);
+    return object->DeleteElement(index, JSReceiver::NORMAL_DELETION);
   } else {
-    return object->DeleteProperty(*name, JSObject::NORMAL_DELETION);
+    return object->DeleteProperty(*name, JSReceiver::NORMAL_DELETION);
   }
 }
 
@@ -9976,6 +9985,71 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameCount) {
 }
 
 
+class FrameInspector {
+ public:
+  FrameInspector(JavaScriptFrame* frame,
+                 int inlined_frame_index,
+                 Isolate* isolate)
+      : frame_(frame), deoptimized_frame_(NULL), isolate_(isolate) {
+    // Calculate the deoptimized frame.
+    if (frame->is_optimized()) {
+      deoptimized_frame_ = Deoptimizer::DebuggerInspectableFrame(
+          frame, inlined_frame_index, isolate);
+    }
+    has_adapted_arguments_ = frame_->has_adapted_arguments();
+    is_optimized_ = frame_->is_optimized();
+  }
+
+  ~FrameInspector() {
+    // Get rid of the calculated deoptimized frame if any.
+    if (deoptimized_frame_ != NULL) {
+      Deoptimizer::DeleteDebuggerInspectableFrame(deoptimized_frame_,
+                                                  isolate_);
+    }
+  }
+
+  int GetParametersCount() {
+    return is_optimized_
+        ? deoptimized_frame_->parameters_count()
+        : frame_->ComputeParametersCount();
+  }
+  int expression_count() { return deoptimized_frame_->expression_count(); }
+  Object* GetFunction() {
+    return is_optimized_
+        ? deoptimized_frame_->GetFunction()
+        : frame_->function();
+  }
+  Object* GetParameter(int index) {
+    return is_optimized_
+        ? deoptimized_frame_->GetParameter(index)
+        : frame_->GetParameter(index);
+  }
+  Object* GetExpression(int index) {
+    return is_optimized_
+        ? deoptimized_frame_->GetExpression(index)
+        : frame_->GetExpression(index);
+  }
+
+  // To inspect all the provided arguments the frame might need to be
+  // replaced with the arguments frame.
+  void SetArgumentsFrame(JavaScriptFrame* frame) {
+    ASSERT(has_adapted_arguments_);
+    frame_ = frame;
+    is_optimized_ = frame_->is_optimized();
+    ASSERT(!is_optimized_);
+  }
+
+ private:
+  JavaScriptFrame* frame_;
+  DeoptimizedFrameInfo* deoptimized_frame_;
+  Isolate* isolate_;
+  bool is_optimized_;
+  bool has_adapted_arguments_;
+
+  DISALLOW_COPY_AND_ASSIGN(FrameInspector);
+};
+
+
 static const int kFrameDetailsFrameIdIndex = 0;
 static const int kFrameDetailsReceiverIndex = 1;
 static const int kFrameDetailsFunctionIndex = 2;
@@ -10024,8 +10098,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     return heap->undefined_value();
   }
 
-  int deoptimized_frame_index = -1;  // Frame index in optimized frame.
-  DeoptimizedFrameInfo* deoptimized_frame = NULL;
+  int inlined_frame_index = 0;  // Inlined frame index in optimized frame.
 
   int count = 0;
   JavaScriptFrameIterator it(isolate, id);
@@ -10036,13 +10109,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   if (it.done()) return heap->undefined_value();
 
   if (it.frame()->is_optimized()) {
-    deoptimized_frame_index =
+    inlined_frame_index =
         it.frame()->GetInlineCount() - (index - count) - 1;
-    deoptimized_frame = Deoptimizer::DebuggerInspectableFrame(
-        it.frame(),
-        deoptimized_frame_index,
-        isolate);
   }
+  FrameInspector frame_inspector(it.frame(), inlined_frame_index, isolate);
 
   // Traverse the saved contexts chain to find the active context for the
   // selected frame.
@@ -10061,12 +10131,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
 
   // Check for constructor frame. Inlined frames cannot be construct calls.
   bool inlined_frame =
-      it.frame()->is_optimized() && deoptimized_frame_index != 0;
+      it.frame()->is_optimized() && inlined_frame_index != 0;
   bool constructor = !inlined_frame && it.frame()->IsConstructor();
 
   // Get scope info and read from it for local variable information.
   Handle<JSFunction> function(JSFunction::cast(it.frame()->function()));
-  Handle<SerializedScopeInfo> scope_info(function->shared()->scope_info());
+  Handle<SharedFunctionInfo> shared(function->shared());
+  Handle<SerializedScopeInfo> scope_info(shared->scope_info());
   ASSERT(*scope_info != SerializedScopeInfo::Empty());
   ScopeInfo<> info(*scope_info);
 
@@ -10083,14 +10154,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   for (; i < info.number_of_stack_slots(); ++i) {
     // Use the value from the stack.
     locals->set(i * 2, *info.LocalName(i));
-    if (it.frame()->is_optimized()) {
-      // Get the value from the deoptimized frame.
-      locals->set(i * 2 + 1,
-                  deoptimized_frame->GetExpression(i));
-    } else {
-      // Get the value from the stack.
-      locals->set(i * 2 + 1, it.frame()->GetExpression(i));
-    }
+    locals->set(i * 2 + 1, frame_inspector.GetExpression(i));
   }
   if (i < info.NumberOfLocals()) {
     // Get the context containing declarations.
@@ -10147,18 +10211,22 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // the provided parameters whereas the function frame always have the number
   // of arguments matching the functions parameters. The rest of the
   // information (except for what is collected above) is the same.
-  it.AdvanceToArgumentsFrame();
+  if (it.frame()->has_adapted_arguments()) {
+    it.AdvanceToArgumentsFrame();
+    frame_inspector.SetArgumentsFrame(it.frame());
+  }
 
   // Find the number of arguments to fill. At least fill the number of
   // parameters for the function and fill more if more parameters are provided.
   int argument_count = info.number_of_parameters();
-  if (it.frame()->is_optimized()) {
-    ASSERT_EQ(argument_count, deoptimized_frame->parameters_count());
-  } else {
-    if (argument_count < it.frame()->ComputeParametersCount()) {
-      argument_count = it.frame()->ComputeParametersCount();
-    }
+  if (argument_count < frame_inspector.GetParametersCount()) {
+    argument_count = frame_inspector.GetParametersCount();
   }
+#ifdef DEBUG
+  if (it.frame()->is_optimized()) {
+    ASSERT_EQ(argument_count, frame_inspector.GetParametersCount());
+  }
+#endif
 
   // Calculate the size of the result.
   int details_size = kFrameDetailsFirstDynamicIndex +
@@ -10170,13 +10238,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   details->set(kFrameDetailsFrameIdIndex, *frame_id);
 
   // Add the function (same as in function frame).
-  if (it.frame()->is_optimized()) {
-    // Get the function from the deoptimized frame.
-    details->set(kFrameDetailsFunctionIndex, deoptimized_frame->GetFunction());
-  } else {
-    // Get the function from the stack.
-    details->set(kFrameDetailsFunctionIndex, it.frame()->function());
-  }
+  details->set(kFrameDetailsFunctionIndex, frame_inspector.GetFunction());
 
   // Add the arguments count.
   details->set(kFrameDetailsArgumentCountIndex, Smi::FromInt(argument_count));
@@ -10208,9 +10270,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   }
   if (it.frame()->is_optimized()) {
     flags |= 1 << 1;
-    if (deoptimized_frame_index > 0) {
-      flags |= 1 << 2;
-    }
+    flags |= inlined_frame_index << 2;
   }
   details->set(kFrameDetailsFlagsIndex, Smi::FromInt(flags));
 
@@ -10227,16 +10287,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
     }
 
     // Parameter value.
-    if (it.frame()->is_optimized()) {
-      // Get the value from the deoptimized frame.
-      details->set(details_index++, deoptimized_frame->GetParameter(i));
+    if (i < it.frame()->ComputeParametersCount()) {
+      // Get the value from the stack.
+      details->set(details_index++, frame_inspector.GetParameter(i));
     } else {
-      if (i < it.frame()->ComputeParametersCount()) {
-        // Get the value from the stack.
-        details->set(details_index++, it.frame()->GetParameter(i));
-      } else {
-        details->set(details_index++, heap->undefined_value());
-      }
+      details->set(details_index++, heap->undefined_value());
     }
   }
 
@@ -10254,10 +10309,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
   // THIS MUST BE DONE LAST SINCE WE MIGHT ADVANCE
   // THE FRAME ITERATOR TO WRAP THE RECEIVER.
   Handle<Object> receiver(it.frame()->receiver(), isolate);
-  if (!receiver->IsJSObject()) {
-    // If the receiver is NOT a JSObject we have hit an optimization
-    // where a value object is not converted into a wrapped JS objects.
-    // To hide this optimization from the debugger, we wrap the receiver
+  if (!receiver->IsJSObject() && !shared->strict_mode() && !shared->native()) {
+    // If the receiver is not a JSObject and the function is not a
+    // builtin or strict-mode we have hit an optimization where a
+    // value object is not converted into a wrapped JS objects. To
+    // hide this optimization from the debugger, we wrap the receiver
     // by creating correct wrapper object based on the calling frame's
     // global context.
     it.Advance();
@@ -10267,12 +10323,6 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetFrameDetails) {
         isolate->factory()->ToObject(receiver, calling_frames_global_context);
   }
   details->set(kFrameDetailsReceiverIndex, *receiver);
-
-  // Get rid of the calculated deoptimized frame if any.
-  if (deoptimized_frame != NULL) {
-    Deoptimizer::DeleteDebuggerInspectableFrame(deoptimized_frame,
-                                                isolate);
-  }
 
   ASSERT_EQ(details_size, details_index);
   return *isolate->factory()->NewJSArrayWithElements(details);
@@ -10309,12 +10359,15 @@ static bool CopyContextLocalsToScopeObject(
 
 // Create a plain JSObject which materializes the local scope for the specified
 // frame.
-static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
-                                              JavaScriptFrame* frame) {
+static Handle<JSObject> MaterializeLocalScope(
+    Isolate* isolate,
+    JavaScriptFrame* frame,
+    int inlined_frame_index) {
   Handle<JSFunction> function(JSFunction::cast(frame->function()));
   Handle<SharedFunctionInfo> shared(function->shared());
   Handle<SerializedScopeInfo> serialized_scope_info(shared->scope_info());
   ScopeInfo<> scope_info(*serialized_scope_info);
+  FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
 
   // Allocate and initialize a JSObject with all the arguments, stack locals
   // heap locals and extension properties of the debugged function.
@@ -10327,7 +10380,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
         isolate,
         SetProperty(local_scope,
                     scope_info.parameter_name(i),
-                    Handle<Object>(frame->GetParameter(i), isolate),
+                    Handle<Object>(frame_inspector.GetParameter(i)),
                     NONE,
                     kNonStrictMode),
         Handle<JSObject>());
@@ -10339,7 +10392,7 @@ static Handle<JSObject> MaterializeLocalScope(Isolate* isolate,
         isolate,
         SetProperty(local_scope,
                     scope_info.stack_slot_name(i),
-                    Handle<Object>(frame->GetExpression(i), isolate),
+                    Handle<Object>(frame_inspector.GetExpression(i)),
                     NONE,
                     kNonStrictMode),
         Handle<JSObject>());
@@ -10459,9 +10512,12 @@ class ScopeIterator {
     ScopeTypeCatch
   };
 
-  ScopeIterator(Isolate* isolate, JavaScriptFrame* frame)
+  ScopeIterator(Isolate* isolate,
+                JavaScriptFrame* frame,
+                int inlined_frame_index)
     : isolate_(isolate),
       frame_(frame),
+      inlined_frame_index_(inlined_frame_index),
       function_(JSFunction::cast(frame->function())),
       context_(Context::cast(frame->context())),
       local_done_(false),
@@ -10546,7 +10602,7 @@ class ScopeIterator {
         return Handle<JSObject>(CurrentContext()->global());
       case ScopeIterator::ScopeTypeLocal:
         // Materialize the content of the local scope into a JSObject.
-        return MaterializeLocalScope(isolate_, frame_);
+        return MaterializeLocalScope(isolate_, frame_, inlined_frame_index_);
       case ScopeIterator::ScopeTypeWith:
         // Return the with object.
         return Handle<JSObject>(JSObject::cast(CurrentContext()->extension()));
@@ -10626,6 +10682,7 @@ class ScopeIterator {
  private:
   Isolate* isolate_;
   JavaScriptFrame* frame_;
+  int inlined_frame_index_;
   Handle<JSFunction> function_;
   Handle<Context> context_;
   bool local_done_;
@@ -10654,7 +10711,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeCount) {
 
   // Count the visible scopes.
   int n = 0;
-  for (ScopeIterator it(isolate, frame); !it.Done(); it.Next()) {
+  for (ScopeIterator it(isolate, frame, 0);
+       !it.Done();
+       it.Next()) {
     n++;
   }
 
@@ -10669,14 +10728,15 @@ static const int kScopeDetailsSize = 2;
 // Return an array with scope details
 // args[0]: number: break id
 // args[1]: number: frame index
-// args[2]: number: scope index
+// args[2]: number: inlined frame index
+// args[3]: number: scope index
 //
 // The array returned contains the following information:
 // 0: Scope type
 // 1: Scope object
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
   HandleScope scope(isolate);
-  ASSERT(args.length() == 3);
+  ASSERT(args.length() == 4);
 
   // Check arguments.
   Object* check;
@@ -10685,7 +10745,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
     if (!maybe_check->ToObject(&check)) return maybe_check;
   }
   CONVERT_CHECKED(Smi, wrapped_id, args[1]);
-  CONVERT_NUMBER_CHECKED(int, index, Int32, args[2]);
+  CONVERT_NUMBER_CHECKED(int, inlined_frame_index, Int32, args[2]);
+  CONVERT_NUMBER_CHECKED(int, index, Int32, args[3]);
 
   // Get the frame where the debugging is performed.
   StackFrame::Id id = UnwrapFrameId(wrapped_id);
@@ -10694,7 +10755,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScopeDetails) {
 
   // Find the requested scope.
   int n = 0;
-  ScopeIterator it(isolate, frame);
+  ScopeIterator it(isolate, frame, inlined_frame_index);
   for (; !it.Done() && n < index; it.Next()) {
     n++;
   }
@@ -10724,7 +10785,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugPrintScopes) {
   // Print the scopes for the top frame.
   StackFrameLocator locator;
   JavaScriptFrame* frame = locator.FindJavaScriptFrame(0);
-  for (ScopeIterator it(isolate, frame); !it.Done(); it.Next()) {
+  for (ScopeIterator it(isolate, frame, 0);
+       !it.Done();
+       it.Next()) {
     it.DebugPrint();
   }
 #endif
@@ -11117,6 +11180,7 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
 // Runtime_DebugEvaluate.
 static Handle<Object> GetArgumentsObject(Isolate* isolate,
                                          JavaScriptFrame* frame,
+                                         int inlined_frame_index,
                                          Handle<JSFunction> function,
                                          Handle<SerializedScopeInfo> scope_info,
                                          const ScopeInfo<>* sinfo,
@@ -11128,6 +11192,7 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   if (sinfo->number_of_stack_slots() > 0) {
     index = scope_info->StackSlotIndex(isolate->heap()->arguments_symbol());
     if (index != -1) {
+      CHECK(false);
       return Handle<Object>(frame->GetExpression(index), isolate);
     }
   }
@@ -11140,7 +11205,9 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
     }
   }
 
-  const int length = frame->ComputeParametersCount();
+  FrameInspector frame_inspector(frame, inlined_frame_index, isolate);
+
+  int length = frame_inspector.GetParametersCount();
   Handle<JSObject> arguments =
       isolate->factory()->NewArgumentsObject(function, length);
   Handle<FixedArray> array = isolate->factory()->NewFixedArray(length);
@@ -11148,7 +11215,7 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   AssertNoAllocation no_gc;
   WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < length; i++) {
-    array->set(i, frame->GetParameter(i), mode);
+    array->set(i, frame_inspector.GetParameter(i), mode);
   }
   arguments->set_elements(*array);
   return arguments;
@@ -11175,7 +11242,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
 
   // Check the execution state and decode arguments frame and source to be
   // evaluated.
-  ASSERT(args.length() == 5);
+  ASSERT(args.length() == 6);
   Object* check_result;
   { MaybeObject* maybe_check_result = Runtime_CheckExecutionState(
       RUNTIME_ARGUMENTS(isolate, args));
@@ -11184,9 +11251,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
     }
   }
   CONVERT_CHECKED(Smi, wrapped_id, args[1]);
-  CONVERT_ARG_CHECKED(String, source, 2);
-  CONVERT_BOOLEAN_CHECKED(disable_break, args[3]);
-  Handle<Object> additional_context(args[4]);
+  CONVERT_NUMBER_CHECKED(int, inlined_frame_index, Int32, args[2]);
+  CONVERT_ARG_CHECKED(String, source, 3);
+  CONVERT_BOOLEAN_CHECKED(disable_break, args[4]);
+  Handle<Object> additional_context(args[5]);
 
   // Handle the processing of break.
   DisableBreak disable_break_save(disable_break);
@@ -11226,7 +11294,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
 #endif
 
   // Materialize the content of the local scope into a JSObject.
-  Handle<JSObject> local_scope = MaterializeLocalScope(isolate, frame);
+  Handle<JSObject> local_scope = MaterializeLocalScope(
+      isolate, frame, inlined_frame_index);
   RETURN_IF_EMPTY_HANDLE(isolate, local_scope);
 
   // Allocate a new context for the debug evaluation and set the extension
@@ -11275,7 +11344,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugEvaluate) {
                       &has_pending_exception);
   if (has_pending_exception) return Failure::Exception();
 
-  Handle<Object> arguments = GetArgumentsObject(isolate, frame,
+  Handle<Object> arguments = GetArgumentsObject(isolate,
+                                                frame, inlined_frame_index,
                                                 function, scope_info,
                                                 &sinfo, function_context);
 
@@ -12214,8 +12284,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetScript) {
 // call to this function is encountered it is skipped.  The seen_caller
 // in/out parameter is used to remember if the caller has been seen
 // yet.
-static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
-    bool* seen_caller) {
+static bool ShowFrameInStackTrace(StackFrame* raw_frame,
+                                  Object* caller,
+                                  bool* seen_caller) {
   // Only display JS frames.
   if (!raw_frame->is_java_script())
     return false;
@@ -12228,11 +12299,25 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame, Object* caller,
     *seen_caller = true;
     return false;
   }
-  // Skip all frames until we've seen the caller.  Also, skip the most
-  // obvious builtin calls.  Some builtin calls (such as Number.ADD
-  // which is invoked using 'call') are very difficult to recognize
-  // so we're leaving them in for now.
-  return *seen_caller && !frame->receiver()->IsJSBuiltinsObject();
+  // Skip all frames until we've seen the caller.
+  if (!(*seen_caller)) return false;
+  // Also, skip the most obvious builtin calls. We recognize builtins
+  // as (1) functions called with the builtins object as the receiver and
+  // as (2) functions from native scripts called with undefined as the
+  // receiver (direct calls to helper functions in the builtins
+  // code). Some builtin calls (such as Number.ADD which is invoked
+  // using 'call') are very difficult to recognize so we're leaving
+  // them in for now.
+  if (frame->receiver()->IsJSBuiltinsObject()) {
+    return false;
+  }
+  JSFunction* fun = JSFunction::cast(raw_fun);
+  Object* raw_script = fun->shared()->script();
+  if (frame->receiver()->IsUndefined() && raw_script->IsScript()) {
+    int script_type = Script::cast(raw_script)->type()->value();
+    return script_type != Script::TYPE_NATIVE;
+  }
+  return true;
 }
 
 

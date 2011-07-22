@@ -2044,6 +2044,9 @@ void MacroAssembler::AssertFastElements(Register elements) {
         Immediate(factory->fixed_array_map()));
     j(equal, &ok);
     cmp(FieldOperand(elements, HeapObject::kMapOffset),
+        Immediate(factory->fixed_double_array_map()));
+    j(equal, &ok);
+    cmp(FieldOperand(elements, HeapObject::kMapOffset),
         Immediate(factory->fixed_cow_array_map()));
     j(equal, &ok);
     Abort("JSObject with fast elements map has slow elements");

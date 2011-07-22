@@ -50,6 +50,9 @@ bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 bool V8::use_crankshaft_ = true;
 
+static Mutex* entropy_mutex = OS::CreateMutex();
+static EntropySource entropy_source;
+
 
 bool V8::Initialize(Deserializer* des) {
   InitializeOncePerProcess();
@@ -102,8 +105,14 @@ void V8::TearDown() {
 
 static void seed_random(uint32_t* state) {
   for (int i = 0; i < 2; ++i) {
-    state[i] = FLAG_random_seed;
-    while (state[i] == 0) {
+    if (FLAG_random_seed != 0) {
+      state[i] = FLAG_random_seed;
+    } else if (entropy_source != NULL) {
+      uint32_t val;
+      ScopedLock lock(entropy_mutex);
+      entropy_source(reinterpret_cast<unsigned char*>(&val), sizeof(uint32_t));
+      state[i] = val;
+    } else {
       state[i] = random();
     }
   }
@@ -121,6 +130,11 @@ static uint32_t random_base(uint32_t* state) {
   state[1] = 36969 * (state[1] & 0xFFFF) + (state[1] >> 16);
 
   return (state[0] << 14) + (state[1] & 0x3FFFF);
+}
+
+
+void V8::SetEntropySource(EntropySource source) {
+  entropy_source = source;
 }
 
 
