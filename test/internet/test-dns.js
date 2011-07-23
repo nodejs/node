@@ -25,7 +25,7 @@ var assert = require('assert');
     isIP = net.isIP,
     isIPv4 = net.isIPv4,
     isIPv6 = net.isIPv6,
-    uv = process.useUV;
+    uv = process.features.uv;
 
 var expected = 0,
     completed = 0,

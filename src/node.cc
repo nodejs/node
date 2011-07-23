@@ -2013,6 +2013,19 @@ static Handle<Array> EnvEnumerator(const AccessorInfo& info) {
 }
 
 
+static Handle<Object> GetFeatures() {
+  HandleScope scope;
+
+  Local<Object> obj = Object::New();
+  obj->Set(String::NewSymbol("uv"), Boolean::New(use_uv));
+  obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv
+  obj->Set(String::NewSymbol("tls"),
+      Boolean::New(get_builtin_module("crypto") != NULL));
+
+  return scope.Close(obj);
+}
+
+
 Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   HandleScope scope;
 
@@ -2102,7 +2115,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   process->Set(String::NewSymbol("ENV"), ENV);
 
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
-  process->Set(String::NewSymbol("useUV"), use_uv ? True() : False());
+  process->Set(String::NewSymbol("features"), GetFeatures());
 
   // -e, --eval
   if (eval_string) {

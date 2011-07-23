@@ -31,7 +31,7 @@
 
   function startup() {
 
-    if (process.env.NODE_USE_UV == '1') process.useUV = true;
+    if (process.env.NODE_USE_UV == '1') process.features.uv = true;
 
     EventEmitter = NativeModule.require('events').EventEmitter;
     process.__proto__ = EventEmitter.prototype;
@@ -389,13 +389,13 @@
   function translateId(id) {
     switch (id) {
       case 'net':
-        return process.useUV ? 'net_uv' : 'net_legacy';
+        return process.features.uv ? 'net_uv' : 'net_legacy';
 
       case 'timers':
-        return process.useUV ? 'timers_uv' : 'timers_legacy';
+        return process.features.uv ? 'timers_uv' : 'timers_legacy';
 
       case 'dns':
-        return process.useUV ? 'dns_uv' : 'dns_legacy';
+        return process.features.uv ? 'dns_uv' : 'dns_legacy';
 
       default:
         return id;
