@@ -244,7 +244,7 @@ Additionally, node will search in the following locations:
 * 2: `$HOME/.node_libraries`
 * 3: `$PREFIX/lib/node`
 
-Where `$HOME` is the user's home directory, and `PREFIX` is node's
+Where `$HOME` is the user's home directory, and `$PREFIX` is node's
 configured `installPrefix`.
 
 These are mostly for historic reasons.  You are highly encouraged to

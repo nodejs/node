@@ -41,16 +41,6 @@ Modules are cached in this object when they are required. By deleting a key
 value from this object, the next `require` will reload the module.
 
 
-### require.paths
-
-An array of search paths for `require()`.  This array can be modified to add
-custom paths.
-
-Example: add a new path to the beginning of the search list
-
-    require.paths.unshift('/usr/local/node');
-
-
 ### __filename
 
 The filename of the script being executed.  This is the absolute path, and not necessarily
