@@ -323,6 +323,14 @@ The string representation of the remote IP address. For example,
 The numeric representation of the remote port. For example,
 `80` or `21`.
 
+#### socket.bytesRead
+
+The amount of received bytes.
+
+#### socket.bytesWritten
+
+The amount of bytes sent.
+
 
 
 #### Event: 'connect'
