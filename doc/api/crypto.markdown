@@ -76,12 +76,23 @@ Calculates the digest of all of the passed data to the hmac.
 The `encoding` can be `'hex'`, `'binary'` or `'base64'`.
 
 
-### crypto.createCipher(algorithm, key)
+### crypto.createCipher(algorithm, password)
 
-Creates and returns a cipher object, with the given algorithm and key.
+Creates and returns a cipher object, with the given algorithm and password.
 
 `algorithm` is dependent on OpenSSL, examples are `'aes192'`, etc.
-On recent releases, `openssl list-cipher-algorithms` will display the available cipher algorithms.
+On recent releases, `openssl list-cipher-algorithms` will display the
+available cipher algorithms.
+`password` is used to derive key and IV, which must be `'binary'` encoded
+string (See the [Buffers](buffers.html) for more information).
+
+### crypto.createCipheriv(algorithm, key, iv)
+
+Creates and returns a cipher object, with the given algorithm, key and iv.
+
+`algorithm` is the same as the `createCipher()`. `key` is a raw key used in
+algorithm. `iv` is an Initialization vector. `key` and `iv` must be `'binary'`
+encoded string (See the [Buffers](buffers.html) for more information).
 
 ### cipher.update(data, input_encoding='binary', output_encoding='binary')
 
@@ -95,10 +106,15 @@ Returns the enciphered contents, and can be called many times with new data as i
 
 Returns any remaining enciphered contents, with `output_encoding` being one of: `'binary'`, `'base64'` or `'hex'`.
 
-### crypto.createDecipher(algorithm, key)
+### crypto.createDecipher(algorithm, password)
 
 Creates and returns a decipher object, with the given algorithm and key.
-This is the mirror of the cipher object above.
+This is the mirror of the [createCipher()](#crypto.createCipher) above.
+
+### crypto.createDecipheriv(algorithm, key, iv)
+
+Creates and returns a decipher object, with the given algorithm, key and iv.
+This is the mirror of the [createCipheriv()](#crypto.createCipheriv) above.
 
 ### decipher.update(data, input_encoding='binary', output_encoding='binary')
 
