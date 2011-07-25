@@ -394,10 +394,10 @@ Options:
 - `path`: Request path. Should include query string and fragments if any.
    E.G. `'/index.html?page=12'`
 - `headers`: An object containing request headers.
-- `agent`: Controls `Agent` behavior. Possible values:
+- `agent`: Controls `Agent` behavior. When an Agent is used request will default to Connection:keep-alive. Possible values:
  - `undefined` (default): use default `Agent` for this host and port.
  - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: explicitly generate a new `Agent` for this host and port. `Agent` will not be re-used.
+ - `false`: opts out of connection pooling with an Agent, defaults request to Connection:close.
 
 `http.request()` returns an instance of the `http.ClientRequest`
 class. The `ClientRequest` instance is a writable stream. If one needs to
@@ -472,87 +472,22 @@ Example:
 
 
 ## http.Agent
-## http.getAgent(options)
 
-`http.request()` uses a special `Agent` for managing multiple connections to
-an HTTP server. Normally `Agent` instances should not be exposed to user
-code, however in certain situations it's useful to check the status of the
-agent. The `http.getAgent()` function allows you to access the agents.
+## http.globalAgent
 
-Options:
-
-- `host`: A domain name or IP address of the server to issue the request to.
-- `port`: Port of remote server.
-- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
-
-### Event: 'upgrade'
-
-`function (response, socket, head) { }`
-
-Emitted each time a server responds to a request with an upgrade. If this
-event isn't being listened for, clients receiving an upgrade header will have
-their connections closed.
-
-A client server pair that show you how to listen for the `upgrade` event using `http.getAgent`:
-
-    var http = require('http');
-    var net = require('net');
-
-    // Create an HTTP server
-    var srv = http.createServer(function (req, res) {
-      res.writeHead(200, {'Content-Type': 'text/plain'});
-      res.end('okay');
-    });
-    srv.on('upgrade', function(req, socket, upgradeHead) {
-      socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
-                   'Upgrade: WebSocket\r\n' +
-                   'Connection: Upgrade\r\n' +
-                   '\r\n\r\n');
-
-      socket.ondata = function(data, start, end) {
-        socket.write(data.toString('utf8', start, end), 'utf8'); // echo back
-      };
-    });
-
-    // now that server is running
-    srv.listen(1337, '127.0.0.1', function() {
-
-      // make a request
-      var agent = http.getAgent('127.0.0.1', 1337);
-
-      var options = {
-        agent: agent,
-        port: 1337,
-        host: '127.0.0.1',
-        headers: {
-          'Connection': 'Upgrade',
-          'Upgrade': 'websocket'
-        }
-      };
-
-      var req = http.request(options);
-      req.end();
-
-      agent.on('upgrade', function(res, socket, upgradeHead) {
-        console.log('got upgraded!');
-        socket.end();
-        process.exit(0);
-      });
-    });
-
+Global instance of Agent which is used as the default for all http client requests.
 
 ### agent.maxSockets
 
-By default set to 5. Determines how many concurrent sockets the agent can have open.
+By default set to 5. Determines how many concurrent sockets the agent can have open per host.
 
 ### agent.sockets
 
-An array of sockets currently in use by the Agent. Do not modify.
+An object which contains arrays of sockets currently in use by the Agent. Do not modify.
 
-### agent.queue
+### agent.requests
 
-A queue of requests waiting to be sent to sockets.
-
+An object which contains queues of requests that have not yet been assigned to sockets. Do not modify.
 
 
 ## http.ClientRequest
@@ -596,14 +531,6 @@ This is a `Writable Stream`.
 
 This is an `EventEmitter` with the following events:
 
-### Event: 'continue'
-
-`function () { }`
-
-Emitted when the server sends a '100 Continue' HTTP response, usually because
-the request contained 'Expect: 100-continue'. This is an instruction that
-the client should send the request body.
-
 ### Event 'response'
 
 `function (response) { }`
@@ -611,6 +538,77 @@ the client should send the request body.
 Emitted when a response is received to this request. This event is emitted only once. The
 `response` argument will be an instance of `http.ClientResponse`.
 
+Options:
+
+- `host`: A domain name or IP address of the server to issue the request to.
+- `port`: Port of remote server.
+- `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
+
+### Event: 'socket'
+
+`function (socket) { }`
+
+Emitted after a socket is assigned to this request.
+
+### Event: 'upgrade'
+
+`function (response, socket, head) { }`
+
+Emitted each time a server responds to a request with an upgrade. If this
+event isn't being listened for, clients receiving an upgrade header will have
+their connections closed.
+
+A client server pair that show you how to listen for the `upgrade` event using `http.getAgent`:
+
+    var http = require('http');
+    var net = require('net');
+
+    // Create an HTTP server
+    var srv = http.createServer(function (req, res) {
+      res.writeHead(200, {'Content-Type': 'text/plain'});
+      res.end('okay');
+    });
+    srv.on('upgrade', function(req, socket, upgradeHead) {
+      socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
+                   'Upgrade: WebSocket\r\n' +
+                   'Connection: Upgrade\r\n' +
+                   '\r\n\r\n');
+
+      socket.ondata = function(data, start, end) {
+        socket.write(data.toString('utf8', start, end), 'utf8'); // echo back
+      };
+    });
+
+    // now that server is running
+    srv.listen(1337, '127.0.0.1', function() {
+
+      // make a request
+      var options = {
+        port: 1337,
+        host: '127.0.0.1',
+        headers: {
+          'Connection': 'Upgrade',
+          'Upgrade': 'websocket'
+        }
+      };
+
+      var req = http.request(options);
+      req.end();
+
+      req.on('upgrade', function(res, socket, upgradeHead) {
+        console.log('got upgraded!');
+        socket.end();
+        process.exit(0);
+      });
+    });
+
+### Event: 'continue'
+
+`function ()`
+
+Emitted when the server sends a '100 Continue' HTTP response, usually because
+the request contained 'Expect: 100-continue'. This is an instruction that
+the client should send the request body.
 
 ### request.write(chunk, encoding='utf8')
 
