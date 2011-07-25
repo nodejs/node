@@ -1,9 +1,0 @@
-version=@VERSION@
-prefix=@PREFIX@
-libdir=${prefix}/lib
-includedir=${prefix}/include/node
-
-Name: nodejs
-Description: Evented I/O for V8 JavaScript.
-Version: ${version}
-Cflags: -I${includedir}
