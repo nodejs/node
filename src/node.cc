@@ -139,6 +139,8 @@ static bool use_uv = false;
 static bool use_uv = true;
 #endif
 
+// disabled by default for now
+static bool use_http2 = false;
 
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
@@ -2018,6 +2020,7 @@ static Handle<Object> GetFeatures() {
 
   Local<Object> obj = Object::New();
   obj->Set(String::NewSymbol("uv"), Boolean::New(use_uv));
+  obj->Set(String::NewSymbol("http2"), Boolean::New(use_http2));
   obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv
   obj->Set(String::NewSymbol("tls"),
       Boolean::New(get_builtin_module("crypto") != NULL));
@@ -2256,6 +2259,7 @@ static void PrintHelp() {
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
          "  --use-uv             use the libuv backend\n"
+         "  --use-http2          use the new and improved http library\n"
          "\n"
          "Enviromental variables:\n"
          "NODE_PATH              ':'-separated list of directories\n"
@@ -2279,6 +2283,9 @@ static void ParseArgs(int argc, char **argv) {
       argv[i] = const_cast<char*>("");
     } else if (!strcmp(arg, "--use-uv")) {
       use_uv = true;
+      argv[i] = const_cast<char*>("");
+    } else if (!strcmp(arg, "--use-http2")) {
+      use_http2 = true;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);
