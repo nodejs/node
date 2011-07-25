@@ -80,8 +80,7 @@
       var module = new Module('eval');
       module.filename = path.join(cwd, 'eval');
       module.paths = Module._nodeModulePaths(cwd);
-      var rv = module._compile('return eval(process._eval)', 'eval');
-      console.log(rv);
+      module._compile('eval(process._eval)', 'eval');
 
     } else if (process.argv[1]) {
       // make process.argv[1] into a full path

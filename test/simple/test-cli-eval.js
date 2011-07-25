@@ -30,10 +30,16 @@ if (module.parent) {
   process.exit(42);
 }
 
-// assert that the result of the final expression is written to stdout
-child.exec(nodejs + ' --eval "1337; 42"',
+// assert that nothing is written to stdout
+child.exec(nodejs + ' --eval 42',
     function(err, stdout, stderr) {
-      assert.equal(parseInt(stdout), 42);
+      assert.equal(stdout, '');
+    });
+
+// assert that nothing is written to stdout
+child.exec(nodejs + ' --eval console.log(42)',
+    function(err, stdout, stderr) {
+      assert.equal(stdout, '');
     });
 
 // assert that module loading works
@@ -50,6 +56,6 @@ child.exec(nodejs + ' --eval "require(\'./test/simple/test-cli-eval.js\')"',
 
 // empty program should do nothing
 child.exec(nodejs + ' -e ""', function(status, stdout, stderr) {
-  assert.equal(stdout, 'undefined\n');
+  assert.equal(stdout, '');
   assert.equal(stderr, '');
 });
