@@ -21,7 +21,7 @@
 
 
 #include <node.h>
-#include <platform.h>
+#include "platform.h"
 
 #include <v8.h>
 

@@ -47,7 +47,7 @@
 # include <grp.h> /* getgrnam() */
 #endif
 
-#include <platform.h>
+#include "platform.h"
 #include <node_buffer.h>
 #include <node_io_watcher.h>
 #include <node_net.h>

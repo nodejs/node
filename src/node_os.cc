@@ -22,7 +22,7 @@
 
 #include <node.h>
 #include <node_os.h>
-#include <platform.h>
+#include "platform.h"
 
 #include <v8.h>
 
