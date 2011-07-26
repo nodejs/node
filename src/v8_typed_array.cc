@@ -152,6 +152,7 @@ class TypedArray {
 
     static BatchedMethods methods[] = {
       { "set", &TypedArray<TBytes, TEAType>::set },
+      { "slice", &TypedArray<TBytes, TEAType>::subarray },
       { "subarray", &TypedArray<TBytes, TEAType>::subarray },
     };
 
