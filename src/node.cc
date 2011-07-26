@@ -56,7 +56,7 @@ extern "C" {
 # include <grp.h> /* getgrnam() */
 #endif
 
-#include <platform.h>
+#include "platform.h"
 #include <node_buffer.h>
 #ifdef __POSIX__
 # include <node_io_watcher.h>
