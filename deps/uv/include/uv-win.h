@@ -158,5 +158,7 @@ typedef struct uv_buf_t {
   struct addrinfoW* res;                  \
   int retcode;
 
+#define UV_PROCESS_PRIVATE_FIELDS         \
+
 int uv_utf16_to_utf8(wchar_t* utf16Buffer, size_t utf16Size, char* utf8Buffer, size_t utf8Size);
 int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer, size_t utf16Size);

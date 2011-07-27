@@ -133,6 +133,7 @@
     <ClCompile Include="..\src\win\handle.c" />
     <ClCompile Include="..\src\win\loop-watcher.c" />
     <ClCompile Include="..\src\win\pipe.c" />
+    <ClCompile Include="..\src\win\process.c" />
     <ClCompile Include="..\src\win\req.c" />
     <ClCompile Include="..\src\win\stdio.c" />
     <ClCompile Include="..\src\win\stream.c" />
