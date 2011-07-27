@@ -51,9 +51,9 @@ TEST_IMPL(tcp_bind6_error_addrinuse) {
   r = uv_tcp_bind6(&server2, addr);
   ASSERT(r == 0);
 
-  r = uv_tcp_listen(&server1, 128, NULL);
+  r = uv_listen((uv_stream_t*)&server1, 128, NULL);
   ASSERT(r == 0);
-  r = uv_tcp_listen(&server2, 128, NULL);
+  r = uv_listen((uv_stream_t*)&server2, 128, NULL);
   ASSERT(r == -1);
 
   ASSERT(uv_last_error().code == UV_EADDRINUSE);

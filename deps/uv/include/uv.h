@@ -50,6 +50,7 @@ typedef struct uv_check_s uv_check_t;
 typedef struct uv_idle_s uv_idle_t;
 typedef struct uv_async_s uv_async_t;
 typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
+typedef struct uv_process_s uv_process_t;
 /* Request types */
 typedef struct uv_req_s uv_req_t;
 typedef struct uv_shutdown_s uv_shutdown_t;
@@ -76,7 +77,7 @@ typedef void (*uv_read_cb)(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf);
 typedef void (*uv_write_cb)(uv_write_t* req, int status);
 typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
-typedef void (*uv_connection_cb)(uv_handle_t* server, int status);
+typedef void (*uv_connection_cb)(uv_stream_t* server, int status);
 typedef void (*uv_close_cb)(uv_handle_t* handle);
 typedef void (*uv_timer_cb)(uv_timer_t* handle, int status);
 /* TODO: do these really need a status argument? */
@@ -85,6 +86,7 @@ typedef void (*uv_prepare_cb)(uv_prepare_t* handle, int status);
 typedef void (*uv_check_cb)(uv_check_t* handle, int status);
 typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
 typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* handle, int status, struct addrinfo* res);
+typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
 
 
 /* Expand this list if necessary. */
@@ -145,7 +147,8 @@ typedef enum {
   UV_ASYNC,
   UV_ARES_TASK,
   UV_ARES_EVENT,
-  UV_GETADDRINFO
+  UV_GETADDRINFO,
+  UV_PROCESS
 } uv_handle_type;
 
 typedef enum {
@@ -244,6 +247,8 @@ struct uv_stream_s {
   UV_STREAM_FIELDS
 };
 
+int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb);
+
 /* This call is used in conjunction with uv_listen() to accept incoming
  * connections. Call uv_accept after receiving a uv_connection_cb to accept
  * the connection. Before calling uv_accept use uv_*_init() must be
@@ -254,7 +259,7 @@ struct uv_stream_s {
  * once, it may fail. It is suggested to only call uv_accept once per
  * uv_connection_cb call.
  */
-int uv_accept(uv_handle_t* server, uv_stream_t* client);
+int uv_accept(uv_stream_t* server, uv_stream_t* client);
 
 /* Read data from an incoming stream. The callback will be made several
  * several times until there is no more data to read or uv_read_stop is
@@ -268,6 +273,14 @@ int uv_accept(uv_handle_t* server, uv_stream_t* client);
 int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
 
 int uv_read_stop(uv_stream_t*);
+
+typedef enum {
+  UV_STDIN = 0,
+  UV_STDOUT,
+  UV_STDERR
+} uv_std_type;
+
+uv_stream_t* uv_std_handle(uv_std_type type);
 
 /*
  * Write data to stream. Buffers are written in order. Example:
@@ -332,8 +345,6 @@ int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
 int uv_tcp_connect6(uv_connect_t* req, uv_tcp_t* handle,
     struct sockaddr_in6 address, uv_connect_cb cb);
 
-int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb);
-
 int uv_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
 
 
@@ -349,8 +360,6 @@ struct uv_pipe_s {
 int uv_pipe_init(uv_pipe_t* handle);
 
 int uv_pipe_bind(uv_pipe_t* handle, const char* name);
-
-int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb);
 
 int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb);
@@ -489,6 +498,41 @@ struct uv_getaddrinfo_s {
                     const char* service,
                     const struct addrinfo* hints);
 
+/*
+ * Child process. Subclass of uv_handle_t.
+ */
+typedef struct uv_process_options_s {
+  uv_exit_cb exit_cb;
+  const char* file;
+  char** args;
+  char** env;
+  char* cwd;
+  /*
+   * The user should supply pointers to uninitialized uv_pipe_t structs for
+   * stdio. They will be initialized by uv_spawn. The user is reponsible for
+   * calling uv_close on them.
+   */
+  uv_pipe_t* stdin_stream;
+  uv_pipe_t* stdout_stream;
+  uv_pipe_t* stderr_stream;
+} uv_process_options_t;
+
+struct uv_process_s {
+  UV_HANDLE_FIELDS
+  uv_exit_cb exit_cb;
+  int pid;
+  UV_PROCESS_PRIVATE_FIELDS
+};
+
+/* Initializes uv_process_t and starts the process. */
+int uv_spawn(uv_process_t*, uv_process_options_t options);
+
+/*
+ * Kills the process with the specified signal. The user must still
+ * call uv_close on the process.
+ */
+int uv_process_kill(uv_process_t*, int signum);
+
 
 /*
  * Most functions return boolean: 0 for success and -1 for failure.
@@ -570,6 +614,7 @@ typedef struct {
   uint64_t idle_init;
   uint64_t async_init;
   uint64_t timer_init;
+  uint64_t process_init;
 } uv_counters_t;
 
 uv_counters_t* uv_counters();

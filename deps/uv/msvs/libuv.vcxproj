@@ -134,6 +134,7 @@
     <ClCompile Include="..\src\win\loop-watcher.c" />
     <ClCompile Include="..\src\win\pipe.c" />
     <ClCompile Include="..\src\win\req.c" />
+    <ClCompile Include="..\src\win\stdio.c" />
     <ClCompile Include="..\src\win\stream.c" />
     <ClCompile Include="..\src\win\tcp.c" />
     <ClCompile Include="..\src\win\timer.c" />

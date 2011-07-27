@@ -46,6 +46,23 @@ int uv_pipe_init(uv_pipe_t* handle) {
 }
 
 
+int uv_pipe_init_with_handle(uv_pipe_t* handle, HANDLE pipeHandle) {
+  int err = uv_pipe_init(handle);
+
+  if (!err) {
+    /* 
+     * At this point we don't know whether the pipe will be used as a client
+     * or a server.  So, we assume that it will be a client until 
+     * uv_listen is called.
+     */
+    handle->handle = pipeHandle;
+    handle->flags |= UV_HANDLE_GIVEN_OS_HANDLE;
+  }
+
+  return err;
+}
+
+
 static int uv_set_pipe_handle(uv_pipe_t* handle, HANDLE pipeHandle) {
   DWORD mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT;
 
@@ -89,6 +106,10 @@ void uv_pipe_endgame(uv_pipe_t* handle) {
 
     if (handle->close_cb) {
       handle->close_cb((uv_handle_t*)handle);
+    }
+
+    if (handle->flags & UV_HANDLE_UV_ALLOCED) {
+      free(handle);
     }
 
     uv_unref();
@@ -407,7 +428,8 @@ int uv_pipe_accept(uv_pipe_t* server, uv_pipe_t* client) {
   req->next_pending = NULL;
   req->pipeHandle = INVALID_HANDLE_VALUE;
 
-  if (!(server->flags & UV_HANDLE_CLOSING)) {
+  if (!(server->flags & UV_HANDLE_CLOSING) &&
+      !(server->flags & UV_HANDLE_GIVEN_OS_HANDLE)) {
     uv_pipe_queue_accept(server, req, FALSE);
   }
 
@@ -416,15 +438,18 @@ int uv_pipe_accept(uv_pipe_t* server, uv_pipe_t* client) {
 
 
 /* Starts listening for connections for the given pipe. */
-int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb) {
+int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   int i, errno;
+  uv_pipe_accept_t* req;
+  HANDLE pipeHandle;
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
     LOOP->last_error = handle->error;
     return -1;
   }
 
-  if (!(handle->flags & UV_HANDLE_BOUND)) {
+  if (!(handle->flags & UV_HANDLE_BOUND) && 
+      !(handle->flags & UV_HANDLE_GIVEN_OS_HANDLE)) {
     uv_set_error(UV_ENOTCONN, 0);
     return -1;
   }
@@ -435,7 +460,8 @@ int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb) {
     return -1;
   }
 
-  if (!(handle->flags & UV_HANDLE_PIPESERVER)) {
+  if (!(handle->flags & UV_HANDLE_PIPESERVER) && 
+      !(handle->flags & UV_HANDLE_GIVEN_OS_HANDLE)) {
     uv_set_error(UV_ENOTSUP, 0);
     return -1;
   }
@@ -443,11 +469,30 @@ int uv_pipe_listen(uv_pipe_t* handle, uv_connection_cb cb) {
   handle->flags |= UV_HANDLE_LISTENING;
   handle->connection_cb = cb;
 
-  /* First pipe handle should have already been created in uv_pipe_bind */
-  assert(handle->accept_reqs[0].pipeHandle != INVALID_HANDLE_VALUE);
+  if (handle->flags & UV_HANDLE_GIVEN_OS_HANDLE) {
+    handle->flags |= UV_HANDLE_PIPESERVER;
+    pipeHandle = handle->handle;
+    assert(pipeHandle != INVALID_HANDLE_VALUE);
+    req = &handle->accept_reqs[0];
+    uv_req_init((uv_req_t*) req);
+    req->pipeHandle = pipeHandle;
+    req->type = UV_ACCEPT;
+    req->data = handle;
+    req->next_pending = NULL;
 
-  for (i = 0; i < COUNTOF(handle->accept_reqs); i++) {
-    uv_pipe_queue_accept(handle, &handle->accept_reqs[i], i == 0);
+    if (uv_set_pipe_handle(handle, pipeHandle)) {
+      uv_set_sys_error(GetLastError());
+      return -1;
+    }
+
+    uv_pipe_queue_accept(handle, req, TRUE);
+  } else {
+    /* First pipe handle should have already been created in uv_pipe_bind */
+    assert(handle->accept_reqs[0].pipeHandle != INVALID_HANDLE_VALUE);
+
+    for (i = 0; i < COUNTOF(handle->accept_reqs); i++) {
+      uv_pipe_queue_accept(handle, &handle->accept_reqs[i], i == 0);
+    }
   }
 
   return 0;
@@ -678,14 +723,15 @@ void uv_process_pipe_accept_req(uv_pipe_t* handle, uv_req_t* raw_req) {
     handle->pending_accepts = req;
 
     if (handle->connection_cb) {
-      handle->connection_cb((uv_handle_t*)handle, 0);
+      handle->connection_cb((uv_stream_t*)handle, 0);
     }
   } else {
     if (req->pipeHandle != INVALID_HANDLE_VALUE) {
       CloseHandle(req->pipeHandle);
       req->pipeHandle = INVALID_HANDLE_VALUE;
     }
-    if (!(handle->flags & UV_HANDLE_CLOSING)) {
+    if (!(handle->flags & UV_HANDLE_CLOSING) &&
+        !(handle->flags & UV_HANDLE_GIVEN_OS_HANDLE)) {
       uv_pipe_queue_accept(handle, req, FALSE);
     }
   }

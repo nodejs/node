@@ -67,7 +67,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
 }
 
 
-static void on_connection(uv_handle_t* server, int status) {
+static void on_connection(uv_stream_t* server, int status) {
   struct sockaddr sockname;
   int namelen = sizeof(sockname);
   uv_handle_t* handle;
@@ -141,7 +141,7 @@ static int tcp_listener(int port) {
     return 1;
   }
 
-  r = uv_tcp_listen(&tcpServer, 128, on_connection);
+  r = uv_listen((uv_stream_t*)&tcpServer, 128, on_connection);
   if (r) {
     fprintf(stderr, "Listen error\n");
     return 1;

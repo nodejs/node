@@ -55,7 +55,7 @@ static void after_write(uv_write_t* req, int status);
 static void after_read(uv_stream_t*, ssize_t nread, uv_buf_t buf);
 static void on_close(uv_handle_t* peer);
 static void on_server_close(uv_handle_t* handle);
-static void on_connection(uv_handle_t*, int status);
+static void on_connection(uv_stream_t*, int status);
 
 #define WRITE_BUF_LEN   (64*1024)
 #define DNSREC_LEN      (4)
@@ -255,7 +255,7 @@ static uv_buf_t buf_alloc(uv_stream_t* handle, size_t suggested_size) {
 }
 
 
-static void on_connection(uv_handle_t* server, int status) {
+static void on_connection(uv_stream_t* server, int status) {
   dnshandle* handle;
   int r;
 
@@ -302,7 +302,7 @@ static int dns_start(int port) {
     return 1;
   }
 
-  r = uv_tcp_listen(&server, 128, on_connection);
+  r = uv_listen((uv_stream_t*)&server, 128, on_connection);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Listen error\n");

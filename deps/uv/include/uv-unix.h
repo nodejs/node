@@ -132,4 +132,7 @@ typedef struct {
   struct addrinfo* res; \
   int retcode;
 
+#define UV_PROCESS_PRIVATE_FIELDS \
+  ev_child child_watcher;
+
 #endif /* UV_UNIX_H */

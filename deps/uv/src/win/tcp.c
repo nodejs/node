@@ -842,7 +842,7 @@ void uv_process_tcp_accept_req(uv_tcp_t* handle, uv_req_t* req) {
       handle->flags &= ~UV_HANDLE_LISTENING;
       if (handle->connection_cb) {
         LOOP->last_error = req->error;
-        handle->connection_cb((uv_handle_t*)handle, -1);
+        handle->connection_cb((uv_stream_t*)handle, -1);
       }
     }
   } else if (req->error.code == UV_OK &&
@@ -853,7 +853,7 @@ void uv_process_tcp_accept_req(uv_tcp_t* handle, uv_req_t* req) {
                   sizeof(handle->socket)) == 0) {
     /* Accept and SO_UPDATE_ACCEPT_CONTEXT were successful. */
     if (handle->connection_cb) {
-      handle->connection_cb((uv_handle_t*)handle, 0);
+      handle->connection_cb((uv_stream_t*)handle, 0);
     }
   } else {
     /* Error related to accepted socket is ignored because the server */

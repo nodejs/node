@@ -19,42 +19,57 @@
  * IN THE SOFTWARE.
  */
 
-#include <stdio.h>
+#include <assert.h>
 #include <string.h>
 
-#include "runner.h"
-#include "task.h"
-
-/* Actual tests and helpers are defined in test-list.h */
-#include "test-list.h"
+#include "uv.h"
+#include "../uv-common.h"
+#include "internal.h"
 
 
-/* The time in milliseconds after which a single test times out. */
-#define TEST_TIMEOUT  5000
+static uv_pipe_t* uv_make_pipe_for_std_handle(HANDLE handle) {
+  uv_pipe_t* pipe = NULL;
 
-
-int main(int argc, char **argv) {
-  int i;
-
-  platform_init(argc, argv);
-
-  switch (argc) {
-  case 1: return run_tests(TEST_TIMEOUT, 0);
-  case 2: {
-    if (strcmp(argv[1], "spawn_helper1") == 0) {
-      return 1;
-    }
-
-    if (strcmp(argv[1], "spawn_helper2") == 0) {
-      printf("hello world\n");
-      return 1;
-    }
-
-    return run_test(argv[1], TEST_TIMEOUT, 0);
+  pipe = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
+  if (!pipe) {
+    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
-  case 3: return run_test_part(argv[1], argv[2]);
-  default:
-    LOGF("Too many arguments.\n");
-    return 1;
+
+  if (uv_pipe_init_with_handle(pipe, handle)) {
+    free(pipe);
+    return NULL;
+  }
+
+  pipe->flags |= UV_HANDLE_UV_ALLOCED;
+  return pipe;
+}
+
+
+uv_stream_t* uv_std_handle(uv_std_type type) {
+  HANDLE handle;
+
+  switch (type) {
+    case UV_STDIN:
+      handle = GetStdHandle(STD_INPUT_HANDLE);
+      if (handle == INVALID_HANDLE_VALUE) {
+        return NULL;
+      }
+
+      /* Assume only named pipes for now. */
+      return (uv_stream_t*)uv_make_pipe_for_std_handle(handle);
+      break;
+
+    case UV_STDOUT:
+      return NULL;
+      break;
+
+    case UV_STDERR:
+      return NULL;
+      break;
+
+    default:
+      assert(0);
+      uv_set_error(UV_EINVAL, 0);
+      return NULL;
   }
 }

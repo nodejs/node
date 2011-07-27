@@ -63,7 +63,7 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
   tcpcnt = uv_counters()->tcp_init;
 
   server = (uv_tcp_t*)timer_handle->data;
-  r = uv_accept((uv_handle_t*)server, (uv_stream_t*)accepted_handle);
+  r = uv_accept((uv_stream_t*)server, (uv_stream_t*)accepted_handle);
   ASSERT(r == 0);
 
   ASSERT(uv_counters()->tcp_init == tcpcnt);
@@ -83,7 +83,7 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
 }
 
 
-static void connection_cb(uv_handle_t* tcp, int status) {
+static void connection_cb(uv_stream_t* tcp, int status) {
   int r;
   uv_timer_t* timer_handle;
 
@@ -120,7 +120,7 @@ static void start_server() {
   r = uv_tcp_bind(server, addr);
   ASSERT(r == 0);
 
-  r = uv_tcp_listen(server, 128, connection_cb);
+  r = uv_listen((uv_stream_t*)server, 128, connection_cb);
   ASSERT(r == 0);
 }
 
