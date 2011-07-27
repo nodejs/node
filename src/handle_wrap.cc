@@ -50,13 +50,21 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
 
 HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
   handle__ = h;
-  h->data = this;
+  if (h) {
+    h->data = this;
+  }
 
   HandleScope scope;
   assert(object_.IsEmpty());
   assert(object->InternalFieldCount() > 0);
   object_ = v8::Persistent<v8::Object>::New(object);
   object_->SetPointerInInternalField(0, this);
+}
+
+
+void HandleWrap::SetHandle(uv_handle_t* h) {
+  handle__ = h;
+  h->data = this;
 }
 
 

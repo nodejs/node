@@ -45,7 +45,7 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 
-static Persistent<Function> constructor;
+Persistent<Function> tcpConstructor;
 
 static Persistent<String> family_symbol;
 static Persistent<String> address_symbol;
@@ -83,13 +83,13 @@ class TCPWrap : public StreamWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "connect6", Connect6);
     NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
 
-    constructor = Persistent<Function>::New(t->GetFunction());
+    tcpConstructor = Persistent<Function>::New(t->GetFunction());
 
     family_symbol = NODE_PSYMBOL("family");
     address_symbol = NODE_PSYMBOL("address");
     port_symbol = NODE_PSYMBOL("port");
 
-    target->Set(String::NewSymbol("TCP"), constructor);
+    target->Set(String::NewSymbol("TCP"), tcpConstructor);
   }
 
  private:
@@ -221,7 +221,7 @@ class TCPWrap : public StreamWrap {
     }
 
     // Instanciate the client javascript object and handle.
-    Local<Object> client_obj = constructor->NewInstance();
+    Local<Object> client_obj = tcpConstructor->NewInstance();
 
     // Unwrap the client javascript object.
     assert(client_obj->InternalFieldCount() > 0);

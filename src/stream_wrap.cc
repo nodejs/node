@@ -71,7 +71,16 @@ void StreamWrap::Initialize(Handle<Object> target) {
 StreamWrap::StreamWrap(Handle<Object> object, uv_stream_t* stream)
     : HandleWrap(object, (uv_handle_t*)stream) {
   stream_ = stream;
-  stream->data = this;
+  if (stream) {
+    stream->data = this;
+  }
+}
+
+
+void StreamWrap::SetHandle(uv_handle_t* h) {
+  HandleWrap::SetHandle(h);
+  stream_ = (uv_stream_t*)h;
+  stream_->data = this;
 }
 
 

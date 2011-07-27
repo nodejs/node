@@ -9,6 +9,8 @@ namespace node {
 
 class StreamWrap : public HandleWrap {
  public:
+  uv_stream_t* GetStream() { return stream_; }
+
   static void Initialize(v8::Handle<v8::Object> target);
 
   // JavaScript functions
@@ -20,6 +22,7 @@ class StreamWrap : public HandleWrap {
  protected:
   StreamWrap(v8::Handle<v8::Object> object, uv_stream_t* stream);
   virtual ~StreamWrap() { }
+  virtual void SetHandle(uv_handle_t* h);
   void StateChange() { }
   void UpdateWriteQueueSize();
 

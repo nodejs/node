@@ -867,6 +867,7 @@ def build(bld):
     src/tcp_wrap.cc
     src/pipe_wrap.cc
     src/cares_wrap.cc
+    src/stdio_wrap.cc
   """
 
   if sys.platform.startswith("win32"):

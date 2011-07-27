@@ -30,7 +30,7 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 
-static Persistent<Function> constructor;
+Persistent<Function> pipeConstructor;
 
 
 // TODO share with TCPWrap?
@@ -61,9 +61,9 @@ class PipeWrap : StreamWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
     NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
 
-    constructor = Persistent<Function>::New(t->GetFunction());
+    pipeConstructor = Persistent<Function>::New(t->GetFunction());
 
-    target->Set(String::NewSymbol("Pipe"), constructor);
+    target->Set(String::NewSymbol("Pipe"), pipeConstructor);
   }
 
  private:
@@ -137,7 +137,7 @@ class PipeWrap : StreamWrap {
     }
 
     // Instanciate the client javascript object and handle.
-    Local<Object> client_obj = constructor->NewInstance();
+    Local<Object> client_obj = pipeConstructor->NewInstance();
 
     // Unwrap the client javascript object.
     assert(client_obj->InternalFieldCount() > 0);
