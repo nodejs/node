@@ -111,7 +111,7 @@ class PipeWrap : StreamWrap {
 
     int backlog = args[0]->Int32Value();
 
-    int r = uv_pipe_listen(&wrap->handle_, OnConnection);
+    int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
 
     // Error starting the pipe.
     if (r) SetErrno(uv_last_error().code);
@@ -120,7 +120,7 @@ class PipeWrap : StreamWrap {
   }
 
   // TODO maybe share with TCPWrap?
-  static void OnConnection(uv_handle_t* handle, int status) {
+  static void OnConnection(uv_stream_t* handle, int status) {
     HandleScope scope;
 
     PipeWrap* wrap = static_cast<PipeWrap*>(handle->data);

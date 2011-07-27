@@ -196,7 +196,7 @@ class TCPWrap : public StreamWrap {
 
     int backlog = args[0]->Int32Value();
 
-    int r = uv_tcp_listen(&wrap->handle_, backlog, OnConnection);
+    int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
 
     // Error starting the tcp.
     if (r) SetErrno(uv_last_error().code);
@@ -204,7 +204,7 @@ class TCPWrap : public StreamWrap {
     return scope.Close(Integer::New(r));
   }
 
-  static void OnConnection(uv_handle_t* handle, int status) {
+  static void OnConnection(uv_stream_t* handle, int status) {
     HandleScope scope;
 
     TCPWrap* wrap = static_cast<TCPWrap*>(handle->data);
