@@ -1265,6 +1265,10 @@ eio__scandir (eio_req *req, etp_worker *self)
   X_LOCK (wrklock);
   /* the corresponding closedir is in ETP_WORKER_CLEAR */
   self->dirp = dirp = opendir (req->ptr1);
+
+  if (req->flags & EIO_FLAG_PTR1_FREE)
+    free (req->ptr1);
+
   req->flags |= EIO_FLAG_PTR1_FREE | EIO_FLAG_PTR2_FREE;
   req->ptr1 = dents = flags ? malloc (dentalloc * sizeof (eio_dirent)) : 0;
   req->ptr2 = names = malloc (namesalloc);
