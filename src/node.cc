@@ -2343,19 +2343,20 @@ static void EnableDebug(bool wait_connect) {
 static volatile bool hit_signal;
 
 
-static void EnableDebugSignalHandler(int signal) {
-  // This is signal safe.
-  hit_signal = true;
-  v8::Debug::DebugBreak();
-}
-
-
 static void DebugSignalCB(const Debug::EventDetails& details) {
   if (hit_signal && details.GetEvent() == v8::Break) {
     hit_signal = false;
     fprintf(stderr, "Hit SIGUSR1 - starting debugger agent.\n");
     EnableDebug(false);
   }
+}
+
+
+static void EnableDebugSignalHandler(int signal) {
+  // This is signal safe.
+  hit_signal = true;
+  v8::Debug::SetDebugEventListener2(DebugSignalCB);
+  v8::Debug::DebugBreak();
 }
 
 
@@ -2480,7 +2481,6 @@ char** Init(int argc, char *argv[]) {
   } else {
 #ifdef __POSIX__
     RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
-    Debug::SetDebugEventListener2(DebugSignalCB);
 #endif // __POSIX__
   }
 
