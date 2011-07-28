@@ -41,7 +41,6 @@ var expected = [
   'NativeModule events',
   'NativeModule buffer',
   'Binding buffer',
-  'NativeModule buffer_ieee754', // FIXME should not be loading
   'NativeModule assert',
   'NativeModule util',
   'Binding stdio',
@@ -70,8 +69,6 @@ expected = expected.concat([
   'Binding io_watcher',
   'NativeModule tty',
   'NativeModule tty_posix', // FIXME branch on win32 here.
-  'NativeModule child_process', // FIXME should not be loading
-  'Binding child_process' // FIXME should not be loading
 ]);
 
 checkExpected();
