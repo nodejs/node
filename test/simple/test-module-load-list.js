@@ -58,18 +58,33 @@ checkExpected();
 // Now do the test again after we console.log something.
 console.log("load console.log");
 
-expected = expected.concat([
-  'NativeModule console',
-  'NativeModule net_legacy',
-  'NativeModule timers_legacy',
-  'Binding timer',
-  'NativeModule _linklist',
-  'Binding net',
-  'NativeModule freelist',
-  'Binding io_watcher',
-  'NativeModule tty',
-  'NativeModule tty_posix', // FIXME branch on win32 here.
-]);
+if (!process.features.uv)  {
+  expected = expected.concat([
+    'NativeModule console',
+    'NativeModule net_legacy',
+    'NativeModule timers_legacy',
+    'Binding timer',
+    'NativeModule _linklist',
+    'Binding net',
+    'NativeModule freelist',
+    'Binding io_watcher',
+    'NativeModule tty',
+    'NativeModule tty_posix', // FIXME branch on win32 here.
+  ]);
+} else {
+  expected = expected.concat([
+    'NativeModule console',
+    'NativeModule net_legacy',
+    'NativeModule timers_uv',
+    'Binding timer_wrap',
+    'NativeModule _linklist',
+    'Binding net',
+    'NativeModule freelist',
+    'Binding io_watcher',
+    'NativeModule tty',
+    'NativeModule tty_posix' 
+  ]);
+}
 
 checkExpected();
 
