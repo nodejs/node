@@ -157,6 +157,11 @@ class Connection : ObjectWrap {
       SSL_free(ssl_);
       ssl_ = NULL;
     }
+
+#ifdef OPENSSL_NPN_NEGOTIATED
+    if (!npnProtos_.IsEmpty()) npnProtos_.Dispose();
+    if (!selectedNPNProto_.IsEmpty()) selectedNPNProto_.Dispose();
+#endif
   }
 
  private:
