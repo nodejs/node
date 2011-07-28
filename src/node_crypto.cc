@@ -61,11 +61,14 @@ static Persistent<String> name_symbol;
 static Persistent<String> version_symbol;
 static Persistent<String> ext_key_usage_symbol;
 
+static Persistent<FunctionTemplate> secure_context_constructor;
 
 void SecureContext::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(SecureContext::New);
+  secure_context_constructor = Persistent<FunctionTemplate>::New(t);
+
   t->InstanceTemplate()->SetInternalFieldCount(1);
   t->SetClassName(String::NewSymbol("SecureContext"));
 
@@ -585,6 +588,12 @@ void Connection::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setNPNProtocols", Connection::SetNPNProtocols);
 #endif
 
+
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  NODE_SET_PROTOTYPE_METHOD(t, "getServername", Connection::GetServername);
+  NODE_SET_PROTOTYPE_METHOD(t, "setSNICallback",  Connection::SetSNICallback);
+#endif
+
   target->Set(String::NewSymbol("Connection"), t->GetFunction());
 }
 
@@ -704,6 +713,56 @@ int Connection::SelectNextProtoCallback_(SSL *s,
 }                                  
 #endif
 
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+int Connection::SelectSNIContextCallback_(SSL *s, int *ad, void* arg) {
+  HandleScope scope;
+
+  Connection *p = static_cast<Connection*> SSL_get_app_data(s);
+
+  const char* servername = SSL_get_servername(s, TLSEXT_NAMETYPE_host_name);
+
+  if (servername) {
+    if (!p->servername_.IsEmpty()) {
+      p->servername_.Dispose();
+    }
+    p->servername_ = Persistent<String>::New(String::New(servername));
+
+    // Call sniCallback_ and use it's return value as context
+    if (!p->sniCallback_.IsEmpty()) {
+      if (!p->sniContext_.IsEmpty()) {
+        p->sniContext_.Dispose();
+      }
+
+      // Get callback init args
+      Local<Value> argv[1] = {*p->servername_};
+      Local<Function> callback = *p->sniCallback_;
+
+      TryCatch try_catch;
+
+      // Call it
+      Local<Value> ret = callback->Call(Context::GetCurrent()->Global(),
+                                        1,
+                                        argv);
+
+      if (try_catch.HasCaught()) {
+        FatalException(try_catch);
+      }
+
+      // If ret is SecureContext
+      if (secure_context_constructor->HasInstance(ret)) {
+        p->sniContext_ = Persistent<Value>::New(ret);
+        SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(
+                                Local<Object>::Cast(ret));
+        SSL_set_SSL_CTX(s, sc->ctx_);
+      } else {
+        return SSL_TLSEXT_ERR_NOACK;
+      }
+    }
+  }
+
+  return SSL_TLSEXT_ERR_OK;
+}
+#endif
 
 Handle<Value> Connection::New(const Arguments& args) {
   HandleScope scope;
@@ -724,8 +783,9 @@ Handle<Value> Connection::New(const Arguments& args) {
   p->bio_read_ = BIO_new(BIO_s_mem());
   p->bio_write_ = BIO_new(BIO_s_mem());
 
-#ifdef OPENSSL_NPN_NEGOTIATED
   SSL_set_app_data(p->ssl_, p);
+
+#ifdef OPENSSL_NPN_NEGOTIATED
   if (is_server) {
     // Server should advertise NPN protocols
     SSL_CTX_set_next_protos_advertised_cb(sc->ctx_,
@@ -737,6 +797,15 @@ Handle<Value> Connection::New(const Arguments& args) {
     SSL_CTX_set_next_proto_select_cb(sc->ctx_,
                                      SelectNextProtoCallback_,
                                      NULL);
+  }
+#endif
+
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+  if (is_server) {
+    SSL_CTX_set_tlsext_servername_callback(sc->ctx_, SelectSNIContextCallback_);
+  } else {
+    String::Utf8Value servername(args[2]->ToString());
+    SSL_set_tlsext_host_name(p->ssl_, *servername);
   }
 #endif
 
@@ -1333,6 +1402,39 @@ Handle<Value> Connection::SetNPNProtocols(const Arguments& args) {
 };
 #endif
 
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+Handle<Value> Connection::GetServername(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (ss->is_server_ && !ss->servername_.IsEmpty()) {
+    return ss->servername_;
+  } else {
+    return False();
+  }
+}
+
+Handle<Value> Connection::SetSNICallback(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (args.Length() < 1 || !args[0]->IsFunction()) {
+    return ThrowException(Exception::Error(String::New(
+           "Must give a Function as first argument")));
+  }
+
+  // Release old handle
+  if (!ss->sniCallback_.IsEmpty()) {
+    ss->sniCallback_.Dispose();
+  }
+  ss->sniCallback_ = Persistent<Function>::New(
+                            Local<Function>::Cast(args[0]));
+
+  return True();
+}
+#endif
 
 static void HexEncode(unsigned char *md_value,
                       int md_len,

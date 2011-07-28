@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (!process.features.tls_npn) {
+if (!process.features.tls_sni) {
   console.error("Skipping because node compiled without OpenSSL or " +
                 "with old OpenSSL version.");
   process.exit(0);
@@ -40,42 +40,56 @@ function loadPEM(n) {
 
 var serverOptions = {
   key: loadPEM('agent2-key'),
-  cert: loadPEM('agent2-cert'),
-  crl: loadPEM('ca2-crl'),
-  NPNProtocols: ['a', 'b', 'c']
+  cert: loadPEM('agent2-cert')
 };
 
+var SNIContexts = {
+  'a.example.com': {
+    key: loadPEM('agent1-key'),
+    cert: loadPEM('agent1-cert')
+  },
+  'asterisk.test.com': {
+    key: loadPEM('agent3-key'),
+    cert: loadPEM('agent3-cert')
+  }
+};
+
+
 var clientsOptions = [{
-  key: serverOptions.key,
-  cert: serverOptions.cert,
-  crl: serverOptions.crl,
-  NPNProtocols: ['a', 'b', 'c']
+  key: loadPEM('agent1-key'),
+  cert: loadPEM('agent1-cert'),
+  ca: [loadPEM('ca1-cert')],
+  servername: 'a.example.com'
 },{
-  key: serverOptions.key,
-  cert: serverOptions.cert,
-  crl: serverOptions.crl,
-  NPNProtocols: ['c', 'b', 'e']
+  key: loadPEM('agent2-key'),
+  cert: loadPEM('agent2-cert'),
+  ca: [loadPEM('ca2-cert')],
+  servername: 'b.test.com'
 },{
-  key: serverOptions.key,
-  cert: serverOptions.cert,
-  crl: serverOptions.crl,
-  NPNProtocols: ['first-priority-unsupported', 'x', 'y']
+  key: loadPEM('agent3-key'),
+  cert: loadPEM('agent3-cert'),
+  ca: [loadPEM('ca1-cert')],
+  servername: 'c.wrong.com'
 }];
 
 var serverPort = common.PORT;
 
 var serverResults = [],
-    clientsResults = [];
+    clientResults = [];
 
 var server = tls.createServer(serverOptions, function(c) {
-  serverResults.push(c.npnProtocol);
+  serverResults.push(c.servername);
 });
+
+server.addContext('a.example.com', SNIContexts['a.example.com']);
+server.addContext('*.test.com', SNIContexts['asterisk.test.com']);
+
 server.listen(serverPort, startTest);
 
 function startTest() {
   function connectClient(options, callback) {
     var client = tls.connect(serverPort, 'localhost', options, function() {
-      clientsResults.push(client.npnProtocol);
+      clientResults.push(client.authorized);
       client.destroy();
 
       callback();
@@ -92,8 +106,7 @@ function startTest() {
 };
 
 process.on('exit', function() {
-  assert.equal(serverResults[0], clientsResults[0]);
-  assert.equal(serverResults[1], clientsResults[1]);
-  assert.equal(serverResults[2], 'first-priority-unsupported');
-  assert.equal(clientsResults[2], false);
+  assert.deepEqual(serverResults, ['a.example.com', 'b.test.com',
+                                   'c.wrong.com']);
+  assert.deepEqual(clientResults, [true, true, false]);
 });

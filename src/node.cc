@@ -142,6 +142,18 @@ static bool use_uv = true;
 // disabled by default for now
 static bool use_http2 = false;
 
+#ifdef OPENSSL_NPN_NEGOTIATED
+static bool use_npn = true;
+#else
+static bool use_npn = false;
+#endif
+
+#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
+static bool use_sni = true;
+#else
+static bool use_sni = false;
+#endif
+
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
 static char getbuf[PATH_MAX + 1];
@@ -2031,6 +2043,8 @@ static Handle<Object> GetFeatures() {
   obj->Set(String::NewSymbol("uv"), Boolean::New(use_uv));
   obj->Set(String::NewSymbol("http2"), Boolean::New(use_http2));
   obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv
+  obj->Set(String::NewSymbol("tls_npn"), Boolean::New(use_npn));
+  obj->Set(String::NewSymbol("tls_sni"), Boolean::New(use_sni));
   obj->Set(String::NewSymbol("tls"),
       Boolean::New(get_builtin_module("crypto") != NULL));
 
