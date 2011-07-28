@@ -47,9 +47,7 @@ if(OPENSSL_FOUND)
   set(extra_libs ${extra_libs} ${OPENSSL_LIBRARIES})
 endif()
 
-include("cmake/libc-ares.cmake")
-include("cmake/libev.cmake")
+include("cmake/libuv.cmake")
 include("cmake/libv8.cmake")
 
-add_subdirectory(deps/libeio)
 add_subdirectory(deps/http_parser)

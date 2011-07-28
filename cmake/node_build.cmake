@@ -6,8 +6,8 @@ set(macros_file ${PROJECT_BINARY_DIR}/macros.py)
 
 # replace debug(x) and assert(x) with nothing in release build
 if(${CMAKE_BUILD_TYPE} MATCHES Release)
-  file(APPEND ${macros_file} "macro debug(x) = ;\n")
-  file(APPEND ${macros_file} "macro assert(x) = ;\n")
+  file(APPEND ${macros_file} "macro debug(x) = void(0);\n")
+  file(APPEND ${macros_file} "macro assert(x) = void(0);\n")
 endif()
 
 if(NOT DTRACE)
@@ -21,16 +21,20 @@ if(NOT DTRACE)
     DTRACE_NET_SOCKET_READ
     DTRACE_NET_SOCKET_WRITE)
   foreach(probe ${dtrace_probes})
-    file(APPEND ${macros_file} "macro ${probe}(x) = ;\n")
+    file(APPEND ${macros_file} "macro ${probe}(x) = void(0);\n")
   endforeach()
 endif()
+
+# Sort the JS files being built into natives so that the build is
+# deterministic
+list(SORT js2c_files)
 
 # include macros file in generation
 set(js2c_files ${js2c_files} ${macros_file})
 
 add_custom_command(
   OUTPUT ${PROJECT_BINARY_DIR}/src/node_natives.h
-  COMMAND ${PYTHON_EXECUTABLE} tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
+  COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
   DEPENDS ${js2c_files})
 
 set(node_platform_src "src/platform_${node_platform}.cc")
@@ -48,21 +52,28 @@ set(node_sources
   src/node_javascript.cc
   src/node_extensions.cc
   src/node_http_parser.cc
-  src/node_net.cc
-  src/node_io_watcher.cc
-  src/node_child_process.cc
   src/node_constants.cc
-  src/node_cares.cc
-  src/node_events.cc
   src/node_file.cc
-  src/node_signal_watcher.cc
-  src/node_stat_watcher.cc
-  src/node_stdio.cc
-  src/node_timer.cc
   src/node_script.cc
   src/node_os.cc
   src/node_dtrace.cc
   src/node_string.cc
+  src/timer_wrap.cc
+  src/handle_wrap.cc
+  src/stream_wrap.cc
+  src/tcp_wrap.cc
+  src/pipe_wrap.cc
+  src/cares_wrap.cc
+  src/stdio_wrap.cc
+  src/process_wrap.cc
+  src/node_cares.cc
+  src/node_net.cc
+  src/node_signal_watcher.cc
+  src/node_stat_watcher.cc
+  src/node_io_watcher.cc
+  src/node_stdio.cc
+  src/node_child_process.cc
+  src/node_timer.cc
   src/node_natives.h
   ${node_extra_src})
 
@@ -86,8 +97,7 @@ include_directories(
   deps/libeio
   deps/http_parser
   ${V8_INCLUDE_DIR}
-  ${LIBEV_INCLUDE_DIR}
-  ${LIBCARES_INCLUDE_DIR}
+  ${LIBUV_INCLUDE_DIR}
 
   ${PROJECT_BINARY_DIR}
   ${PROJECT_BINARY_DIR}/src
@@ -105,9 +115,7 @@ endif()
 add_executable(node ${node_sources})
 set_target_properties(node PROPERTIES DEBUG_POSTFIX "_g")
 target_link_libraries(node
-  ev
-  eio
-  cares
+  uv
   http_parser
   ${V8_LIBRARY_PATH}
   ${CMAKE_THREAD_LIBS_INIT}
@@ -134,9 +142,8 @@ install(FILES
   src/node.h
   src/node_object_wrap.h
   src/node_buffer.h
-  src/node_events.h
   src/node_version.h
   ${PROJECT_BINARY_DIR}/src/node_config.h
 
-  DESTINATION include/node
+  DESTINATION ${NODE_INCLUDE_PREFIX}/include/node
 )

@@ -2,6 +2,10 @@
 # package
 #
 
+# Allow absolute paths when installing
+# see http://www.cmake.org/pipermail/cmake/2008-July/022958.html
+set(CPACK_SET_DESTDIR "ON")
+
 if(${node_platform} MATCHES darwin)
   set(CPACK_GENERATOR "TGZ;PackageMaker")
   # CPack requires the files to end in .txt
@@ -24,7 +28,7 @@ set(CPACK_PACKAGE_DESCRIPTION "Evented I/O for V8 JavaScript.
  presents the event loop as a language construct instead of as a library.")
 set(CPACK_DEBIAN_PACKAGE_DESCRIPTION "${CPACK_PACKAGE_DESCRIPTION}")
 set(CPACK_DEBIAN_PACKAGE_SECTION "web")
-file(READ ${PROJECT_SOURCE_DIR}/src/node_version.h node_version_h LIMIT 1024 OFFSET 0)
+file(READ ${PROJECT_SOURCE_DIR}/src/node_version.h node_version_h OFFSET 0)
 string(REGEX REPLACE ".*NODE_MAJOR_VERSION[ ]*([0-9]+).*" "\\1" CPACK_PACKAGE_VERSION_MAJOR "${node_version_h}")
 string(REGEX REPLACE ".*NODE_MINOR_VERSION[ ]*([0-9]+).*" "\\1" CPACK_PACKAGE_VERSION_MINOR "${node_version_h}")
 string(REGEX REPLACE ".*NODE_PATCH_VERSION[ ]*([0-9]+).*" "\\1" CPACK_PACKAGE_VERSION_PATCH "${node_version_h}")
