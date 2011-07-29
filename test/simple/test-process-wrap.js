@@ -19,35 +19,45 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var common = require('../common');
+var assert = require('assert');
+var Process = process.binding('process_wrap').Process;
+var Pipe = process.binding('pipe_wrap').Pipe;
+var pipe = new Pipe();
+var p = new Process();
 
-NODE_EXT_LIST_START
-NODE_EXT_LIST_ITEM(node_buffer)
-#ifdef __POSIX__
-NODE_EXT_LIST_ITEM(node_cares)
-#endif
-NODE_EXT_LIST_ITEM(node_child_process)
-#ifdef HAVE_OPENSSL
-NODE_EXT_LIST_ITEM(node_crypto)
-#endif
-NODE_EXT_LIST_ITEM(node_evals)
-NODE_EXT_LIST_ITEM(node_fs)
-#ifdef __POSIX__
-NODE_EXT_LIST_ITEM(node_net)
-#endif
-NODE_EXT_LIST_ITEM(node_http_parser)
-#ifdef __POSIX__
-NODE_EXT_LIST_ITEM(node_signal_watcher)
-#endif
-NODE_EXT_LIST_ITEM(node_stdio)
-NODE_EXT_LIST_ITEM(node_os)
+var processExited = false;
+var gotPipeEOF = false;
+var gotPipeData = false;
 
-// libuv rewrite
-NODE_EXT_LIST_ITEM(node_timer_wrap)
-NODE_EXT_LIST_ITEM(node_tcp_wrap)
-NODE_EXT_LIST_ITEM(node_pipe_wrap)
-NODE_EXT_LIST_ITEM(node_cares_wrap)
-NODE_EXT_LIST_ITEM(node_stdio_wrap)
-NODE_EXT_LIST_ITEM(node_process_wrap)
+p.onexit = function() {
+  console.log("exit");
+  p.close();
+  pipe.readStart();
 
-NODE_EXT_LIST_END
+  processExited = true;
+}
 
+pipe.onread = function(b, off, len) {
+  assert.ok(processExited);
+  if (b) {
+    gotPipeData = true;
+    console.log("read %d", len);
+  } else {
+    gotPipeEOF = true;
+    pipe.close();
+  }
+}
+
+p.spawn({
+  file: process.execPath,
+  args: [ process.execPath, "-v" ],
+  stdoutStream: pipe
+});
+
+
+process.on('exit', function() {
+  assert.ok(processExited);
+  assert.ok(gotPipeEOF);
+  assert.ok(gotPipeData);
+});
