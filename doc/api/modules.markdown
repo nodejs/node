@@ -266,38 +266,6 @@ Because `module` provides a `filename` property (normally equivalent to
 `__filename`), the entry point of the current application can be obtained
 by checking `require.main.filename`.
 
-## AMD Compatibility
-
-Node's modules have access to a function named `define`, which may be
-used to specify the module's return value.  This is not necessary in node
-programs, but is present in the node API in order to provide
-compatibility with module loaders that use the Asynchronous Module
-Definition pattern.
-
-The example module above could be structured like so:
-
-    define(function (require, exports, module) {
-      var PI = Math.PI;
-
-      exports.area = function (r) {
-        return PI * r * r;
-      };
-
-      exports.circumference = function (r) {
-        return 2 * PI * r;
-      };
-    });
-
-* Only the last argument to `define()` matters.  Other module loaders
-  sometimes use a `define(id, [deps], cb)` pattern, but since this is
-  not relevant in node programs, the other arguments are ignored.
-* If the `define` callback returns a value other than `undefined`, then
-  that value is assigned to `module.exports`.
-* **Important**: Despite being called "AMD", the node module loader **is
-  in fact synchronous**, and using `define()` does not change this fact.
-  Node executes the callback immediately, so please plan your programs
-  accordingly.
-
 ## Addenda: Package Manager Tips
 
 The semantics of Node's `require()` function were designed to be general
