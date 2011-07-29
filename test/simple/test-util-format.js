@@ -19,56 +19,28 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var writeError = process.binding('stdio').writeError;
+var common = require('../common');
+var assert = require('assert');
 var util = require('util');
 
-exports.log = function() {
-  process.stdout.write(util.format.apply(this, arguments) + '\n');
-};
+assert.equal(util.format(), '');
+assert.equal(util.format(''), '');
+assert.equal(util.format([]), '[]');
+assert.equal(util.format({}), '{}');
+assert.equal(util.format(null), 'null');
+assert.equal(util.format(true), 'true');
+assert.equal(util.format(false), 'false');
+assert.equal(util.format('test'), 'test');
 
+// CHECKME this is for console.log() compatibility - but is it *right*?
+assert.equal(util.format('foo', 'bar', 'baz'), 'foo bar baz');
 
-exports.info = exports.log;
+assert.equal(util.format('%d', 42.0), '42');
+assert.equal(util.format('%d', 42), '42');
+assert.equal(util.format('%s', 42), '42');
+assert.equal(util.format('%j', 42), '42');
 
-
-exports.warn = function() {
-  writeError(util.format.apply(this, arguments) + '\n');
-};
-
-
-exports.error = exports.warn;
-
-
-exports.dir = function(object) {
-  process.stdout.write(util.inspect(object) + '\n');
-};
-
-
-var times = {};
-exports.time = function(label) {
-  times[label] = Date.now();
-};
-
-
-exports.timeEnd = function(label) {
-  var duration = Date.now() - times[label];
-  exports.log('%s: %dms', label, duration);
-};
-
-
-exports.trace = function(label) {
-  // TODO probably can to do this better with V8's debug object once that is
-  // exposed.
-  var err = new Error;
-  err.name = 'Trace';
-  err.message = label || '';
-  Error.captureStackTrace(err, arguments.callee);
-  console.error(err.stack);
-};
-
-
-exports.assert = function(expression) {
-  if (!expression) {
-    var arr = Array.prototype.slice.call(arguments, 1);
-    require('assert').ok(false, util.format.apply(this, arr));
-  }
-};
+assert.equal(util.format('%d', '42.0'), '42');
+assert.equal(util.format('%d', '42'), '42');
+assert.equal(util.format('%s', '42'), '42');
+assert.equal(util.format('%j', '42'), '"42"');
