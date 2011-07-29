@@ -114,6 +114,8 @@ TEST_IMPL(spawn_stdout) {
   uv_init();
 
   init_process_options("spawn_helper2");
+
+  uv_pipe_init(&out);
   options.stdout_stream = &out;
 
   r = uv_spawn(&process, options);

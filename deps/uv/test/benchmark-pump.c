@@ -149,7 +149,6 @@ void read_sockets_close_cb(uv_handle_t* handle) {
 
 
 static void start_stats_collection() {
-  uv_req_t* req = req_alloc();
   int r;
 
   /* Show-stats timer */
@@ -184,8 +183,6 @@ static void read_cb(uv_stream_t* stream, ssize_t bytes, uv_buf_t buf) {
 
 
 static void write_cb(uv_write_t* req, int status) {
-  uv_buf_t* buf = (uv_buf_t*) req->data;
-
   ASSERT(status == 0);
 
   req_free((uv_req_t*) req);

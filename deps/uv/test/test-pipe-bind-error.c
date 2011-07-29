@@ -64,7 +64,7 @@ TEST_IMPL(pipe_bind_error_addrinuse) {
   r = uv_listen((uv_stream_t*)&server2, SOMAXCONN, NULL);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error().code == UV_EADDRINUSE);
+  ASSERT(uv_last_error().code == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server1, close_cb);
   uv_close((uv_handle_t*)&server2, close_cb);
@@ -136,7 +136,7 @@ TEST_IMPL(pipe_listen_without_bind) {
   r = uv_listen((uv_stream_t*)&server, SOMAXCONN, NULL);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error().code == UV_ENOTCONN);
+  ASSERT(uv_last_error().code == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 

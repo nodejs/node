@@ -508,9 +508,8 @@ typedef struct uv_process_options_s {
   char** env;
   char* cwd;
   /*
-   * The user should supply pointers to uninitialized uv_pipe_t structs for
-   * stdio. They will be initialized by uv_spawn. The user is reponsible for
-   * calling uv_close on them.
+   * The user should supply pointers to initialized uv_pipe_t structs for
+   * stdio. The user is reponsible for calling uv_close on them.
    */
   uv_pipe_t* stdin_stream;
   uv_pipe_t* stdout_stream;
