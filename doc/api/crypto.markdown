@@ -57,6 +57,8 @@ This can be called many times with new data as it is streamed.
 Calculates the digest of all of the passed data to be hashed.
 The `encoding` can be `'hex'`, `'binary'` or `'base64'`.
 
+Note: `hash` object can not be used after `digest()` method been called.
+
 
 ### crypto.createHmac(algorithm, key)
 
@@ -74,6 +76,8 @@ This can be called many times with new data as it is streamed.
 
 Calculates the digest of all of the passed data to the hmac.
 The `encoding` can be `'hex'`, `'binary'` or `'base64'`.
+
+Note: `hmac` object can not be used after `digest()` method been called.
 
 
 ### crypto.createCipher(algorithm, password)
@@ -106,6 +110,9 @@ Returns the enciphered contents, and can be called many times with new data as i
 
 Returns any remaining enciphered contents, with `output_encoding` being one of: `'binary'`, `'base64'` or `'hex'`.
 
+Note: `cipher` object can not be used after `final()` method been called.
+
+
 ### crypto.createDecipher(algorithm, password)
 
 Creates and returns a decipher object, with the given algorithm and key.
@@ -126,6 +133,8 @@ The `output_decoding` specifies in what format to return the deciphered plaintex
 Returns any remaining plaintext which is deciphered,
 with `output_encoding` being one of: `'binary'`, `'ascii'` or `'utf8'`.
 
+Note: `decipher` object can not be used after `final()` method been called.
+
 
 ### crypto.createSign(algorithm)
 
@@ -144,6 +153,9 @@ Calculates the signature on all the updated data passed through the signer.
 `private_key` is a string containing the PEM encoded private key for signing.
 
 Returns the signature in `output_format` which can be `'binary'`, `'hex'` or `'base64'`.
+
+Note: `signer` object can not be used after `sign()` method been called.
+
 
 ### crypto.createVerify(algorithm)
 
@@ -164,3 +176,6 @@ signature for the data, in the `signature_format` which can be `'binary'`,
 `'hex'` or `'base64'`.
 
 Returns true or false depending on the validity of the signature for the data and public key.
+
+Note: `verifier` object can not be used after `verify()` method been called.
+
