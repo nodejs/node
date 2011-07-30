@@ -42,13 +42,21 @@ defaults to `localhost`.) `options` should be an object which specifies
     omitted several well known "root" CAs will be used, like VeriSign.
     These are used to authorize connections.
 
+  - `NPNProtocols`: An array of string or `Buffer` containing supported NPN
+    protocols. `Buffer` should have following format: `0x04hello0x5world`, where
+    first byte is next protocol name's length. (Passing array should usually be
+    much simplier: `['hello', 'world']`.)
+
+  - `servername`: Servername for SNI (Server Name Indication) TLS extension.
+
 `tls.connect()` returns a cleartext `CryptoStream` object.
 
 After the TLS/SSL handshake the `callback` is called. The `callback` will be
 called no matter if the server's certificate was authorized or not. It is up
 to the user to test `s.authorized` to see if the server certificate was
 signed by one of the specified CAs. If `s.authorized === false` then the error
-can be found in `s.authorizationError`.
+can be found in `s.authorizationError`. Also if NPN was used - you can check
+`s.npnProtocol` for negotiated protocol.
 
 
 ### STARTTLS
@@ -61,7 +69,14 @@ piped to the socket, the plaintext stream is what the user interacts with therea
 
 [Here is some code that does it.](http://gist.github.com/848444)
 
+### NPN and SNI
 
+NPN (Next Protocol Negotitation) and SNI (Server Name Indication) are TLS
+handshake extensions allowing you:
+
+  * NPN - to use one TLS server for multiple protocols (HTTP, SPDY)
+  * SNI - to use one TLS server for multiple hostnames with different SSL
+    certificates.
 
 
 ### tls.Server
@@ -115,6 +130,16 @@ has these possibilities:
     which is not authorized with the list of supplied CAs. This option only
     has an effect if `requestCert` is `true`. Default: `false`.
 
+  - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
+    should be ordered by their priority).
+
+  - `SNICallback`: A function that will be called if client supports SNI TLS
+    extension. Only one argument will be passed to it: `servername`. And
+    `SNICallback` should return SecureContext instance.
+    (You can use `crypto.createCredentials(...).context` to get proper
+    SecureContext). If `SNICallback` wasn't provided - default callback with
+    high-level API will be used (see below).
+
 
 #### Event: 'secureConnection'
 
@@ -129,7 +154,10 @@ client has verified by one of the supplied certificate authorities for the
 server. If `cleartextStream.authorized` is false, then
 `cleartextStream.authorizationError` is set to describe how authorization
 failed. Implied but worth mentioning: depending on the settings of the TLS
-server, unauthorized connections may be accepted.
+server, you unauthorized connections may be accepted.
+`cleartextStream.npnProtocol` is a string containing selected NPN protocol.
+`cleartextStream.servername` is a string containing servername requested with
+SNI.
 
 
 #### server.listen(port, [host], [callback])
@@ -150,6 +178,11 @@ Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `'close'`
 event.
 
+#### server.addContext(hostname, credentials)
+
+Add secure context that will be used if client request's SNI hostname is
+matching passed `hostname` (wildcards can be used). `credentials` can contain
+`key`, `cert` and `ca`.
 
 #### server.maxConnections
 
