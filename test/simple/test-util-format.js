@@ -44,3 +44,6 @@ assert.equal(util.format('%d', '42.0'), '42');
 assert.equal(util.format('%d', '42'), '42');
 assert.equal(util.format('%s', '42'), '42');
 assert.equal(util.format('%j', '42'), '"42"');
+
+assert.equal(util.format('%%s%s', 'foo'), '%sfoo');
+
