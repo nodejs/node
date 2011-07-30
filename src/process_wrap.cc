@@ -2,6 +2,7 @@
 #include <handle_wrap.h>
 #include <pipe_wrap.h>
 #include <string.h>
+#include <stdlib.h>
 
 #define UNWRAP \
   assert(!args.Holder().IsEmpty()); \
