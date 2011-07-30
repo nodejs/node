@@ -156,7 +156,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 
 double Platform::GetFreeMemory() {
   double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  unsigned long info;
+  unsigned int info = 0;
   size_t size = sizeof(info);
 
   if (sysctlbyname("vm.stats.vm.v_free_count", &info, &size, NULL, 0) < 0) {
