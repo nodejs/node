@@ -178,21 +178,28 @@ static Handle<Value> IsATTY(const Arguments& args) {
 /* Whether stdio is currently in raw mode */
 /* -1 means that it has not been set */
 static int rawMode = -1;
-
+static DWORD naturalMode = 0;
 
 static void setRawMode(int newMode) {
-  DWORD flags;
+  DWORD flags = 0;
   BOOL result;
+
+  if(rawMode == -1) {
+    GetConsoleMode((HANDLE)_get_osfhandle(STDIN_FILENO), &naturalMode);
+  }
+
+  flags |= (naturalMode & ENABLE_QUICK_EDIT_MODE);
+  flags |= flags ? ENABLE_EXTENDED_FLAGS : 0;
 
   if (newMode != rawMode) {
     if (newMode) {
       // raw input
-      flags = ENABLE_WINDOW_INPUT;
+      flags |= ENABLE_WINDOW_INPUT;
     } else {
       // input not raw, but still processing enough messages to make the
       // tty watcher work (this mode is not the windows default)
-      flags = ENABLE_ECHO_INPUT | ENABLE_INSERT_MODE | ENABLE_LINE_INPUT |
-          ENABLE_PROCESSED_INPUT | ENABLE_WINDOW_INPUT;
+      flags |= ENABLE_ECHO_INPUT | ENABLE_INSERT_MODE | ENABLE_LINE_INPUT |
+          ENABLE_EXTENDED_FLAGS | ENABLE_PROCESSED_INPUT | ENABLE_WINDOW_INPUT;
     }
 
     result = SetConsoleMode((HANDLE)_get_osfhandle(STDIN_FILENO), flags);
