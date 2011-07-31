@@ -234,8 +234,9 @@ UVTEST += simple/test-tls-request-timeout
 UVTEST += simple/test-tls-set-encoding
 
 # child_process
-UVTEST += simple/test-child-process-exit-code.js
-UVTEST += simple/test-child-process-buffering.js
+UVTEST += simple/test-child-process-exit-code
+UVTEST += simple/test-child-process-buffering
+UVTEST += simple/test-child-process-exec-cwd
 
 
 test-uv: all

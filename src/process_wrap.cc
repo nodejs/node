@@ -106,7 +106,7 @@ class ProcessWrap : public HandleWrap {
     // options.cwd
     Local<Value> cwd_v = js_options->Get(String::New("cwd"));
     if (!cwd_v.IsEmpty() && cwd_v->IsString()) {
-      String::Utf8Value cwd(js_options->ToString());
+      String::Utf8Value cwd(cwd_v->ToString());
       options.cwd = strdup(*cwd);
     }
 
