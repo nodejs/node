@@ -237,6 +237,7 @@ UVTEST += simple/test-tls-set-encoding
 UVTEST += simple/test-child-process-exit-code
 UVTEST += simple/test-child-process-buffering
 UVTEST += simple/test-child-process-exec-cwd
+UVTEST += simple/test-child-process-cwd
 
 
 test-uv: all
