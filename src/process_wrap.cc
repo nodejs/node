@@ -149,6 +149,8 @@ class ProcessWrap : public HandleWrap {
     wrap->SetHandle((uv_handle_t*)&wrap->process_);
     assert(wrap->process_.data == wrap);
 
+    wrap->object_->Set(String::New("pid"), Integer::New(wrap->process_.pid));
+
     if (options.args) {
       for (int i = 0; options.args[i]; i++) free(options.args[i]);
       delete [] options.args;

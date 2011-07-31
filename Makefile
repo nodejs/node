@@ -233,6 +233,10 @@ UVTEST += simple/test-tls-request-timeout
 #UVTEST += simple/test-tls-server-verify # broken
 UVTEST += simple/test-tls-set-encoding
 
+# child_process
+UVTEST += simple/test-child-process-exit-code.js
+UVTEST += simple/test-child-process-buffering.js
+
 
 test-uv: all
 	NODE_USE_UV=1 python tools/test.py $(UVTEST)

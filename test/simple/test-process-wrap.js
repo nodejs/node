@@ -30,10 +30,13 @@ var processExited = false;
 var gotPipeEOF = false;
 var gotPipeData = false;
 
-p.onexit = function() {
+p.onexit = function(exitCode, signal) {
   console.log("exit");
   p.close();
   pipe.readStart();
+
+  assert.equal(0, exitCode);
+  assert.equal(0, signal);
 
   processExited = true;
 }

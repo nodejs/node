@@ -411,6 +411,10 @@
       case 'net':
         return process.features.uv ? 'net_uv' : 'net_legacy';
 
+      case 'child_process':
+        return process.features.uv ? 'child_process_uv' :
+                                     'child_process_legacy';
+
       case 'timers':
         return process.features.uv ? 'timers_uv' : 'timers_legacy';
 
