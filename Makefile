@@ -229,7 +229,7 @@ UVTEST += simple/test-tls-junk-closes-server
 UVTEST += simple/test-tls-npn-server-client
 UVTEST += simple/test-tls-request-timeout
 #UVTEST += simple/test-tls-securepair-client # broken
-#UVTEST += simple/test-tls-securepair-server # broken
+UVTEST += simple/test-tls-securepair-server 
 #UVTEST += simple/test-tls-server-verify # broken
 UVTEST += simple/test-tls-set-encoding
 
