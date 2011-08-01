@@ -27,6 +27,7 @@ BENCHMARK_DECLARE (pipe_pump100_client)
 BENCHMARK_DECLARE (pipe_pump1_client)
 BENCHMARK_DECLARE (gethostbyname)
 BENCHMARK_DECLARE (getaddrinfo)
+BENCHMARK_DECLARE (spawn)
 HELPER_DECLARE    (tcp_pump_server)
 HELPER_DECLARE    (pipe_pump_server)
 HELPER_DECLARE    (tcp4_echo_server)
@@ -55,4 +56,6 @@ TASK_LIST_START
   BENCHMARK_HELPER (gethostbyname, dns_server)
 
   BENCHMARK_ENTRY  (getaddrinfo)
+
+  BENCHMARK_ENTRY  (spawn)
 TASK_LIST_END

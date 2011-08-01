@@ -159,10 +159,7 @@ typedef enum {
   UV_WRITE,
   UV_SHUTDOWN,
   UV_WAKEUP,
-  /* TODO: remove the req suffix */
-  UV_ARES_EVENT_REQ,
-  UV_ARES_CLEANUP_REQ,
-  UV_GETADDRINFO_REQ
+  UV_REQ_TYPE_PRIVATE
 } uv_req_type;
 
 
@@ -620,6 +617,7 @@ uv_counters_t* uv_counters();
 
 
 /* Don't export the private CPP symbols. */
+#undef UV_REQ_TYPE_PRIVATE
 #undef UV_REQ_PRIVATE_FIELDS
 #undef UV_STREAM_PRIVATE_FIELDS
 #undef UV_TCP_PRIVATE_FIELDS

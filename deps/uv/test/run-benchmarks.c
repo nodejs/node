@@ -38,7 +38,14 @@ int main(int argc, char **argv) {
 
   switch (argc) {
   case 1: return run_tests(BENCHMARK_TIMEOUT, 1);
-  case 2: return run_test(argv[1], BENCHMARK_TIMEOUT, 1);
+  case 2: {
+    if (strcmp(argv[1], "spawn_helper") == 0) {
+      printf("hello world\n");
+      return 42;
+    }
+
+    return run_test(argv[1], BENCHMARK_TIMEOUT, 1);
+  }
   case 3: return run_test_part(argv[1], argv[2]);
   default:
     LOGF("Too many arguments.\n");

@@ -27,6 +27,7 @@
 static int close_cb_called;
 static int exit_cb_called;
 static uv_process_t process;
+static uv_timer_t timer;
 static uv_process_options_t options = { 0 };
 static char exepath[1024];
 static size_t exepath_size = 1024;
@@ -73,6 +74,12 @@ void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
 }
 
 
+void write_cb(uv_write_t* req, int status) {
+  ASSERT(status == 0);
+  uv_close((uv_handle_t*)req->handle, close_cb);
+}
+
+
 static void init_process_options(char* test) {
   /* Note spawn_helper1 defined in test/run-tests.c */
   int r = uv_exepath(exepath, &exepath_size);
@@ -84,6 +91,12 @@ static void init_process_options(char* test) {
   options.file = exepath;
   options.args = args;
   options.exit_cb = exit_cb;
+}
+
+
+static void timer_cb(uv_timer_t* handle, int status) {
+  uv_process_kill(&process, 0);
+  uv_close((uv_handle_t*)handle, close_cb);
 }
 
 
@@ -129,7 +142,73 @@ TEST_IMPL(spawn_stdout) {
 
   ASSERT(exit_cb_called == 1);
   ASSERT(close_cb_called == 2); /* Once for process once for the pipe. */
-  ASSERT(strcmp("hello world\n", output) == 0);
+  printf("output is: %s", output);
+  ASSERT(strcmp("hello world\n", output) == 0 || strcmp("hello world\r\n", output) == 0);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_stdin) {
+int r;
+  uv_pipe_t out;
+  uv_pipe_t in;
+  uv_write_t write_req;
+  uv_buf_t buf;
+  char buffer[] = "hello-from-spawn_stdin";
+
+  uv_init();
+
+  init_process_options("spawn_helper3");
+
+  uv_pipe_init(&out);
+  uv_pipe_init(&in);
+  options.stdout_stream = &out;
+  options.stdin_stream = &in;
+
+  r = uv_spawn(&process, options);
+  ASSERT(r == 0);
+
+  buf.base = buffer;
+  buf.len = sizeof(buffer);
+  r = uv_write(&write_req, (uv_stream_t*)&in, &buf, 1, write_cb);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  r = uv_run();
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 3); /* Once for process twice for the pipe. */
+  ASSERT(strcmp(buffer, output) == 0);
+
+  return 0;
+}
+
+
+TEST_IMPL(spawn_and_kill) {
+  int r;
+
+  uv_init();
+
+  init_process_options("spawn_helper4");
+
+  r = uv_spawn(&process, options);
+  ASSERT(r == 0);
+
+  r = uv_timer_init(&timer);
+  ASSERT(r == 0);
+
+  r = uv_timer_start(&timer, timer_cb, 1000, 0);
+  ASSERT(r == 0);
+
+  r = uv_run();
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 2); /* Once for process and once for timer. */
 
   return 0;
 }
