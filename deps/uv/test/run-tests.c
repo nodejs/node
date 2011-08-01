@@ -32,43 +32,47 @@
 /* The time in milliseconds after which a single test times out. */
 #define TEST_TIMEOUT  5000
 
+static int maybe_run_test(int argc, char **argv);
+
 
 int main(int argc, char **argv) {
   int i;
-  char buffer[32];
 
   platform_init(argc, argv);
 
   switch (argc) {
   case 1: return run_tests(TEST_TIMEOUT, 0);
-  case 2: {
-    if (strcmp(argv[1], "spawn_helper1") == 0) {
-      return 1;
-    }
-
-    if (strcmp(argv[1], "spawn_helper2") == 0) {
-      printf("hello world\n");
-      return 1;
-    }
-
-    if (strcmp(argv[1], "spawn_helper3") == 0) {
-      fgets(buffer, sizeof(buffer) - 1, stdin);
-      buffer[sizeof(buffer) - 1] = '\0';
-      fputs(buffer, stdout);
-      return 1;
-    }
-
-    if (strcmp(argv[1], "spawn_helper4") == 0) {
-      // sleep
-      uv_sleep(10000);
-      return 100;
-    }
-
-    return run_test(argv[1], TEST_TIMEOUT, 0);
-  }
+  case 2: return maybe_run_test(argc, argv);
   case 3: return run_test_part(argv[1], argv[2]);
   default:
     LOGF("Too many arguments.\n");
     return 1;
   }
+}
+
+
+static int maybe_run_test(int argc, char **argv) {
+  if (strcmp(argv[1], "spawn_helper1") == 0) {
+    return 1;
+  }
+
+  if (strcmp(argv[1], "spawn_helper2") == 0) {
+    printf("hello world\n");
+    return 1;
+  }
+
+  if (strcmp(argv[1], "spawn_helper3") == 0) {
+    char buffer[256];
+    fgets(buffer, sizeof(buffer) - 1, stdin);
+    buffer[sizeof(buffer) - 1] = '\0';
+    fputs(buffer, stdout);
+    return 1;
+  }
+
+  if (strcmp(argv[1], "spawn_helper4") == 0) {
+    uv_sleep(10000);
+    return 1;
+  }
+
+  return run_test(argv[1], TEST_TIMEOUT, 0);
 }

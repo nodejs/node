@@ -42,6 +42,7 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <limits.h> /* PATH_MAX */
+#include <sys/uio.h> /* writev */
 
 #ifdef __sun
 # include <sys/types.h>
@@ -108,7 +109,7 @@ int uv_flock_destroy(uv_flock_t* lock);
 
 void uv__req_init(uv_req_t*);
 void uv__next(EV_P_ ev_idle* watcher, int revents);
-static int uv__stream_open(uv_stream_t*, int fd);
+static int uv__stream_open(uv_stream_t*, int fd, int flags);
 static void uv__finish_close(uv_handle_t* handle);
 static uv_err_t uv_err_new(uv_handle_t* handle, int sys_error);
 
@@ -142,7 +143,9 @@ enum {
   UV_CLOSED   = 0x00000002, /* close(2) finished. */
   UV_READING  = 0x00000004, /* uv_read_start() called. */
   UV_SHUTTING = 0x00000008, /* uv_shutdown() called but not complete. */
-  UV_SHUT     = 0x00000010  /* Write side closed. */
+  UV_SHUT     = 0x00000010, /* Write side closed. */
+  UV_READABLE = 0x00000020, /* The stream is readable */
+  UV_WRITABLE = 0x00000040  /* The stream is writable */
 };
 
 
@@ -369,7 +372,7 @@ static int uv__bind(uv_tcp_t* tcp, int domain, struct sockaddr* addr,
       goto out;
     }
 
-    if (uv__stream_open((uv_stream_t*)tcp, fd)) {
+    if (uv__stream_open((uv_stream_t*)tcp, fd, UV_READABLE | UV_WRITABLE)) {
       status = -2;
       uv__close(fd);
       goto out;
@@ -417,11 +420,13 @@ int uv_tcp_bind6(uv_tcp_t* tcp, struct sockaddr_in6 addr) {
 }
 
 
-static int uv__stream_open(uv_stream_t* stream, int fd) {
+static int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
   socklen_t yes;
 
   assert(fd >= 0);
   stream->fd = fd;
+
+  uv_flag_set((uv_handle_t*)stream, flags);
 
   /* Reuse the port address if applicable. */
   yes = 1;
@@ -505,7 +510,8 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     goto out;
   }
 
-  if (uv__stream_open(streamClient, streamServer->accepted_fd)) {
+  if (uv__stream_open(streamClient, streamServer->accepted_fd,
+        UV_READABLE | UV_WRITABLE)) {
     /* TODO handle error */
     streamServer->accepted_fd = -1;
     uv__close(streamServer->accepted_fd);
@@ -550,7 +556,7 @@ static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
       return -1;
     }
 
-    if (uv__stream_open((uv_stream_t*)tcp, fd)) {
+    if (uv__stream_open((uv_stream_t*)tcp, fd, UV_READABLE)) {
       uv__close(fd);
       return -1;
     }
@@ -898,29 +904,30 @@ static void uv__read(uv_stream_t* stream) {
 }
 
 
-int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
-  uv_tcp_t* tcp = (uv_tcp_t*)handle;
-  assert((handle->type == UV_TCP || handle->type == UV_NAMED_PIPE)
-      && "uv_shutdown (unix) only supports uv_tcp_t right now");
-  assert(tcp->fd >= 0);
+int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
+  assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE) &&
+         "uv_shutdown (unix) only supports uv_handle_t right now");
+  assert(stream->fd >= 0);
 
-  /* Initialize request */
-  uv__req_init((uv_req_t*)req);
-  req->handle = handle;
-  req->cb = cb;
-
-  if (uv_flag_is_set((uv_handle_t*)tcp, UV_SHUT) ||
-      uv_flag_is_set((uv_handle_t*)tcp, UV_CLOSED) ||
-      uv_flag_is_set((uv_handle_t*)tcp, UV_CLOSING)) {
+  if (!uv_flag_is_set((uv_handle_t*)stream, UV_WRITABLE) ||
+      uv_flag_is_set((uv_handle_t*)stream, UV_SHUT) ||
+      uv_flag_is_set((uv_handle_t*)stream, UV_CLOSED) ||
+      uv_flag_is_set((uv_handle_t*)stream, UV_CLOSING)) {
+    uv_err_new((uv_handle_t*)stream, EINVAL);
     return -1;
   }
 
-  tcp->shutdown_req = req;
+  /* Initialize request */
+  uv__req_init((uv_req_t*)req);
+  req->handle = stream;
+  req->cb = cb;
+
+  stream->shutdown_req = req;
   req->type = UV_SHUTDOWN;
 
-  uv_flag_set((uv_handle_t*)tcp, UV_SHUTTING);
+  uv_flag_set((uv_handle_t*)stream, UV_SHUTTING);
 
-  ev_io_start(EV_DEFAULT_UC_ &tcp->write_watcher);
+  ev_io_start(EV_DEFAULT_UC_ &stream->write_watcher);
 
   return 0;
 }
@@ -1029,7 +1036,7 @@ static int uv__connect(uv_connect_t* req,
       return -1;
     }
 
-    if (uv__stream_open(stream, sockfd)) {
+    if (uv__stream_open(stream, sockfd, UV_READABLE | UV_WRITABLE)) {
       uv__close(sockfd);
       return -2;
     }
@@ -1924,7 +1931,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Success. */
   handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
-  handle->pipe_flock = pipe_flock;
   handle->fd = sockfd;
   status = 0;
 
@@ -2357,7 +2363,8 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
     assert(stdin_pipe[0] >= 0);
     uv__close(stdin_pipe[0]);
     uv__nonblock(stdin_pipe[1], 1);
-    uv__stream_open((uv_stream_t*)options.stdin_stream, stdin_pipe[1]);
+    uv__stream_open((uv_stream_t*)options.stdin_stream, stdin_pipe[1],
+        UV_WRITABLE);
   }
 
   if (stdout_pipe[0] >= 0) {
@@ -2365,7 +2372,8 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
     assert(stdout_pipe[1] >= 0);
     uv__close(stdout_pipe[1]);
     uv__nonblock(stdout_pipe[0], 1);
-    uv__stream_open((uv_stream_t*)options.stdout_stream, stdout_pipe[0]);
+    uv__stream_open((uv_stream_t*)options.stdout_stream, stdout_pipe[0],
+        UV_READABLE);
   }
 
   if (stderr_pipe[0] >= 0) {
@@ -2373,7 +2381,8 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
     assert(stderr_pipe[1] >= 0);
     uv__close(stderr_pipe[1]);
     uv__nonblock(stderr_pipe[0], 1);
-    uv__stream_open((uv_stream_t*)options.stderr_stream, stderr_pipe[0]);
+    uv__stream_open((uv_stream_t*)options.stderr_stream, stderr_pipe[0],
+        UV_READABLE);
   }
 
   return 0;

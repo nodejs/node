@@ -41,8 +41,7 @@
   }
 
 
-static const wchar_t DEFAULT_PATH[1] = L"";
-static const wchar_t DEFAULT_PATH_EXT[20] = L".COM;.EXE;.BAT;.CMD";
+static const wchar_t DEFAULT_PATH_EXT[10] = L".COM;.EXE";
 
 
 static void uv_process_init(uv_process_t* handle) {
@@ -408,10 +407,8 @@ static wchar_t* make_program_args(char** args) {
   * The way windows takes environment variables is different than what C does;
   * Windows wants a contiguous block of null-terminated strings, terminated
   * with an additional null.
-  * Get a pointer to the pathext and path environment variables as well,
-  * because search_path needs it. These are just pointers into env_win.
   */
-wchar_t* make_program_env(char** env_block, const wchar_t **path,  const wchar_t **path_ext) {
+wchar_t* make_program_env(char** env_block) {
   wchar_t* dst;
   wchar_t* ptr;
   char** env;
@@ -434,14 +431,6 @@ wchar_t* make_program_env(char** env_block, const wchar_t **path,  const wchar_t
     if (!len) {
       free(dst);
       return NULL;
-    }
-
-    /* Try to get a pointer to PATH and PATHEXT */
-    if (_wcsnicmp(L"PATH=", ptr, 5) == 0) {
-      *path = ptr + 5;
-    }
-    if (_wcsnicmp(L"PATHEXT=", ptr, 8) == 0) {
-      *path_ext = ptr + 8;
     }
   }
 
@@ -636,8 +625,7 @@ done:
 
 int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   int err, i;
-  const wchar_t* path = NULL;
-  const wchar_t* path_ext = NULL;
+  wchar_t* path;
   int size;
   wchar_t* application_path, *application, *arguments, *env, *cwd;
   STARTUPINFOW startup;
@@ -648,7 +636,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   process->exit_cb = options.exit_cb;
   UTF8_TO_UTF16(options.file, application);
   arguments = options.args ? make_program_args(options.args) : NULL;
-  env = options.env ? make_program_env(options.env, &path, &path_ext) : NULL;
+  env = options.env ? make_program_env(options.env) : NULL;
 
   if (options.cwd) {
     UTF8_TO_UTF16(options.cwd, cwd);
@@ -667,10 +655,19 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
     }
   }
 
+  /* Get PATH env. variable. */
+  size = GetEnvironmentVariableW(L"PATH", NULL, 0) + 1;
+  path = (wchar_t*)malloc(size * sizeof(wchar_t));
+  if (!path) {
+    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+  }
+  GetEnvironmentVariableW(L"PATH", path, size * sizeof(wchar_t));
+  path[size - 1] = L'\0';
+
   application_path = search_path(application, 
                                  cwd,
-                                 path ? path : DEFAULT_PATH,
-                                 path_ext ? path_ext : DEFAULT_PATH_EXT);
+                                 path,
+                                 DEFAULT_PATH_EXT);
 
   if (!application_path) {
     uv_set_error(UV_EINVAL, 0);
@@ -680,9 +677,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
   /* Create stdio pipes. */
   if (options.stdin_stream) {
-    err = uv_create_stdio_pipe_pair(options.stdin_stream,
-        &process->stdio_pipes[0].child_pipe, PIPE_ACCESS_OUTBOUND,
-        GENERIC_READ | FILE_WRITE_ATTRIBUTES);
+    err = uv_create_stdio_pipe_pair(options.stdin_stream, &process->stdio_pipes[0].child_pipe, PIPE_ACCESS_OUTBOUND, GENERIC_READ | FILE_WRITE_ATTRIBUTES);
     if (err) {
       goto done;
     }
@@ -691,9 +686,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   }
 
   if (options.stdout_stream) {
-    err = uv_create_stdio_pipe_pair(options.stdout_stream,
-        &process->stdio_pipes[1].child_pipe, PIPE_ACCESS_INBOUND,
-        GENERIC_WRITE);
+    err = uv_create_stdio_pipe_pair(options.stdout_stream, &process->stdio_pipes[1].child_pipe, PIPE_ACCESS_INBOUND, GENERIC_WRITE);
     if (err) {
       goto done;
     }
@@ -702,9 +695,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   }
 
   if (options.stderr_stream) {
-    err = uv_create_stdio_pipe_pair(options.stderr_stream,
-        &process->stdio_pipes[2].child_pipe, PIPE_ACCESS_INBOUND,
-        GENERIC_WRITE);
+    err = uv_create_stdio_pipe_pair(options.stderr_stream, &process->stdio_pipes[2].child_pipe, PIPE_ACCESS_INBOUND, GENERIC_WRITE);
     if (err) {
       goto done;
     }
@@ -759,6 +750,7 @@ done:
   free(arguments);
   free(cwd);
   free(env);
+  free(path);
 
   if (err) {
     for (i = 0; i < COUNTOF(process->stdio_pipes); i++) {
