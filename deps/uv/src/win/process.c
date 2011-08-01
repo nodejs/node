@@ -680,7 +680,9 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
   /* Create stdio pipes. */
   if (options.stdin_stream) {
-    err = uv_create_stdio_pipe_pair(options.stdin_stream, &process->stdio_pipes[0].child_pipe, PIPE_ACCESS_OUTBOUND, GENERIC_READ | FILE_WRITE_ATTRIBUTES);
+    err = uv_create_stdio_pipe_pair(options.stdin_stream,
+        &process->stdio_pipes[0].child_pipe, PIPE_ACCESS_OUTBOUND,
+        GENERIC_READ | FILE_WRITE_ATTRIBUTES);
     if (err) {
       goto done;
     }
@@ -689,7 +691,9 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   }
 
   if (options.stdout_stream) {
-    err = uv_create_stdio_pipe_pair(options.stdout_stream, &process->stdio_pipes[1].child_pipe, PIPE_ACCESS_INBOUND, GENERIC_WRITE);
+    err = uv_create_stdio_pipe_pair(options.stdout_stream,
+        &process->stdio_pipes[1].child_pipe, PIPE_ACCESS_INBOUND,
+        GENERIC_WRITE);
     if (err) {
       goto done;
     }
@@ -698,7 +702,9 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   }
 
   if (options.stderr_stream) {
-    err = uv_create_stdio_pipe_pair(options.stderr_stream, &process->stdio_pipes[2].child_pipe, PIPE_ACCESS_INBOUND, GENERIC_WRITE);
+    err = uv_create_stdio_pipe_pair(options.stderr_stream,
+        &process->stdio_pipes[2].child_pipe, PIPE_ACCESS_INBOUND,
+        GENERIC_WRITE);
     if (err) {
       goto done;
     }
