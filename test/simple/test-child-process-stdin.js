@@ -28,6 +28,10 @@ var cat = spawn('cat');
 cat.stdin.write('hello');
 cat.stdin.write(' ');
 cat.stdin.write('world');
+
+assert.ok(cat.stdin.writable);
+assert.ok(!cat.stdin.readable);
+
 cat.stdin.end();
 
 var response = '';
