@@ -241,6 +241,7 @@ UVTEST += simple/test-child-process-cwd
 UVTEST += simple/test-child-process-env
 UVTEST += simple/test-child-process-stdin
 UVTEST += simple/test-child-process-ipc
+UVTEST += simple/test-child-process-deprecated-api
 
 
 test-uv: all
