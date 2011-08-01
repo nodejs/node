@@ -57,8 +57,10 @@ checkExpected();
 
 // Now do the test again after we console.log something.
 console.log("load console.log");
+console.error("load console.error");
 
 if (!process.features.uv)  {
+  // legacy
   expected = expected.concat([
     'NativeModule console',
     'NativeModule net_legacy',
@@ -69,23 +71,37 @@ if (!process.features.uv)  {
     'NativeModule freelist',
     'Binding io_watcher',
     'NativeModule tty',
-    'NativeModule tty_posix', // FIXME branch on win32 here.
+    'NativeModule tty_posix',
+    'NativeModule readline'
   ]);
 } else {
-  expected = expected.concat([
-    'NativeModule console',
-    'NativeModule net_legacy',
-    'NativeModule timers_uv',
-    'Binding timer_wrap',
-    'NativeModule _linklist',
-    'Binding net',
-    'NativeModule freelist',
-    'Binding io_watcher',
-    'NativeModule tty',
-    'NativeModule tty_posix' 
-  ]);
+  if (process.platform == 'win32') {
+    // win32
+    expected = expected.concat([
+      'NativeModule console',
+      'NativeModule tty',
+      'NativeModule tty_win32',
+      'NativeModule readline'
+    ]);
+  } else {
+    // unix libuv backend.
+    expected = expected.concat([
+      'NativeModule console',
+      'NativeModule net_legacy',
+      'NativeModule timers_uv',
+      'Binding timer_wrap',
+      'NativeModule _linklist',
+      'Binding net',
+      'NativeModule freelist',
+      'Binding io_watcher',
+      'NativeModule tty',
+      'NativeModule tty_posix',
+      'NativeModule readline'
+    ]);
+  }
 }
+
+console.error(process.moduleLoadList)
 
 checkExpected();
 
-console.log(process.moduleLoadList);
