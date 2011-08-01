@@ -239,6 +239,8 @@ UVTEST += simple/test-child-process-buffering
 UVTEST += simple/test-child-process-exec-cwd
 UVTEST += simple/test-child-process-cwd
 UVTEST += simple/test-child-process-env
+UVTEST += simple/test-child-process-stdin
+UVTEST += simple/test-child-process-ipc
 
 
 test-uv: all
