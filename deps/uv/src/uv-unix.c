@@ -1924,6 +1924,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Success. */
   handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
+  handle->pipe_flock = pipe_flock;
   handle->fd = sockfd;
   status = 0;
 
