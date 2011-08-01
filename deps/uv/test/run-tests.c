@@ -52,8 +52,9 @@ int main(int argc, char **argv) {
     }
 
     if (strcmp(argv[1], "spawn_helper3") == 0) {
-      gets(buffer);
-      printf(buffer);
+      fgets(buffer, sizeof(buffer) - 1, stdin);
+      buffer[sizeof(buffer) - 1] = '\0';
+      fputs(buffer, stdout);
       return 1;
     }
 

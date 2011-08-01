@@ -1838,6 +1838,7 @@ int uv_pipe_init(uv_pipe_t* handle) {
   ev_init(&handle->read_watcher, uv__stream_io);
   handle->write_watcher.data = handle;
   handle->read_watcher.data = handle;
+  handle->accepted_fd = -1;
   handle->fd = -1;
 
   ngx_queue_init(&handle->write_completed_queue);
@@ -2308,17 +2309,17 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
   if (pid == 0) {
     if (stdin_pipe[0] >= 0) {
-      close(stdin_pipe[1]);
+      uv__close(stdin_pipe[1]);
       dup2(stdin_pipe[0],  STDIN_FILENO);
     }
 
     if (stdout_pipe[1] >= 0) {
-      close(stdout_pipe[0]);
+      uv__close(stdout_pipe[0]);
       dup2(stdout_pipe[1], STDOUT_FILENO);
     }
 
     if (stderr_pipe[1] >= 0) {
-      close(stderr_pipe[0]);
+      uv__close(stderr_pipe[0]);
       dup2(stderr_pipe[1], STDERR_FILENO);
     }
 
@@ -2353,7 +2354,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   if (stdin_pipe[1] >= 0) {
     assert(options.stdin_stream);
     assert(stdin_pipe[0] >= 0);
-    close(stdin_pipe[0]);
+    uv__close(stdin_pipe[0]);
     uv__nonblock(stdin_pipe[1], 1);
     uv__stream_open((uv_stream_t*)options.stdin_stream, stdin_pipe[1]);
   }
@@ -2361,7 +2362,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   if (stdout_pipe[0] >= 0) {
     assert(options.stdout_stream);
     assert(stdout_pipe[1] >= 0);
-    close(stdout_pipe[1]);
+    uv__close(stdout_pipe[1]);
     uv__nonblock(stdout_pipe[0], 1);
     uv__stream_open((uv_stream_t*)options.stdout_stream, stdout_pipe[0]);
   }
@@ -2369,7 +2370,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   if (stderr_pipe[0] >= 0) {
     assert(options.stderr_stream);
     assert(stderr_pipe[1] >= 0);
-    close(stderr_pipe[1]);
+    uv__close(stderr_pipe[1]);
     uv__nonblock(stderr_pipe[0], 1);
     uv__stream_open((uv_stream_t*)options.stderr_stream, stderr_pipe[0]);
   }
@@ -2378,12 +2379,12 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
 error:
   uv_err_new((uv_handle_t*)process, errno);
-  close(stdin_pipe[0]);
-  close(stdin_pipe[1]);
-  close(stdout_pipe[0]);
-  close(stdout_pipe[1]);
-  close(stderr_pipe[0]);
-  close(stderr_pipe[1]);
+  uv__close(stdin_pipe[0]);
+  uv__close(stdin_pipe[1]);
+  uv__close(stdout_pipe[0]);
+  uv__close(stdout_pipe[1]);
+  uv__close(stderr_pipe[0]);
+  uv__close(stderr_pipe[1]);
   return -1;
 }
 
