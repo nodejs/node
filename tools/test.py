@@ -1148,6 +1148,8 @@ def BuildOptions():
   result.add_option("--simulator", help="Run tests with architecture simulator",
       default='none')
   result.add_option("--special-command", default=None)
+  result.add_option("--use-http2", help="Pass --use-http2 switch to node",
+      default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
@@ -1306,10 +1308,18 @@ def Main():
   shell = abspath(options.shell)
   buildspace = dirname(shell)
 
-  context = Context(workspace, buildspace, VERBOSE,
+  processor = GetSpecialCommandProcessor(options.special_command)
+  if options.use_http2:
+    def wrap(processor):
+      return lambda args: processor(args[:1] + ['--use-http2'] + args[1:])
+    processor = wrap(processor)
+
+  context = Context(workspace,
+                    buildspace,
+                    VERBOSE,
                     shell,
                     options.timeout,
-                    GetSpecialCommandProcessor(options.special_command),
+                    processor,
                     options.suppress_dialogs,
                     options.store_unexpected_output)
   # First build the required targets
