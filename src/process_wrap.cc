@@ -113,7 +113,7 @@ class ProcessWrap : public HandleWrap {
     }
 
     // options.env
-    Local<Value> env_v = js_options->Get(String::New("env"));
+    Local<Value> env_v = js_options->Get(String::New("envPairs"));
     if (!env_v.IsEmpty() && env_v->IsArray()) {
       Local<Array> env = Local<Array>::Cast(env_v);
       int envc = env->Length();

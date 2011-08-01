@@ -238,6 +238,7 @@ UVTEST += simple/test-child-process-exit-code
 UVTEST += simple/test-child-process-buffering
 UVTEST += simple/test-child-process-exec-cwd
 UVTEST += simple/test-child-process-cwd
+UVTEST += simple/test-child-process-env
 
 
 test-uv: all
