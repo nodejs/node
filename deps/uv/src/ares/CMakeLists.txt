@@ -1,27 +1,22 @@
-cmake_minimum_required(VERSION 2.6)
-
-project(ares)
-
-string(TOLOWER ${CMAKE_SYSTEM_NAME} ares_platform)
-
-include_directories(config_${ares_platform})
+include_directories(${CMAKE_CURRENT_SOURCE_DIR})
+include_directories(${node_platform}-${cares_arch})
 add_definitions(-DHAVE_CONFIG_H=1)
 
 include(CheckLibraryExists)
 check_library_exists(socket socket "" HAVE_SOCKET_LIB)
 check_library_exists(nsl gethostbyname "" HAVE_NSL_LIB)
 
-file(GLOB ares_source *.c)
-add_library(ares ${ares_source})
+file(GLOB lib_sources *.c)
+add_library(cares ${lib_sources})
 
-if(HAVE_SOCKET_LIB)
-  set(ares_libs ${ares_libs} socket)
+if(${HAVE_SOCKET_LIB})
+  set(cares_libs ${cares_libs} socket)
 endif()
 
-if(HAVE_NSL_LIB)
-  set(ares_libs ${ares_libs} nsl)
+if(${HAVE_NSL_LIB})
+  set(cares_libs ${cares_libs} nsl)
 endif()
 
-if(ares_libs)
-  target_link_libraries(ares ${ares_libs})
+if(cares_libs)
+  target_link_libraries(cares ${cares_libs})
 endif()
