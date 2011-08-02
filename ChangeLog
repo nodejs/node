@@ -1,4 +1,45 @@
-2011.07.22, Version 0.5.2 (unstable)
+2011.08.01, Version 0.5.3 (unstable)
+
+* Fix crypto encryption/decryption with Base64. (SAWADA Tadashi)
+
+* #243 Add an optional length argument to Buffer.write() (koichik)
+
+* #657 convert nonbuffer data to string in fs.writeFile/Sync
+  (Daniel Pihlström)
+
+* Add process.features, remove process.useUV (Ben Noordhuis)
+
+* #324 Fix crypto hmac to accept binary keys + add test cases from rfc 2202
+  and 4231 (Stefan Bühler)
+
+* Add Socket::bytesRead, Socket::bytesWritten (Alexander Uvarov)
+
+* #572 Don't print result of --eval in CLI (Ben Noordhuis)
+
+* #1223 Fix http.ClientRequest crashes if end() was called twice (koichik)
+
+* #1383 Emit 'close' after all connections have closed (Felix Geisendörfer)
+
+* Add sprintf-like util.format() function (Ben Noordhuis)
+
+* Add support for TLS SNI (Fedor Indutny)
+
+* New http agent implementation. Off by default the command line flag
+  --use-http2 will enable it. "make test-http2" will run the tests
+	for the new implementation. (Mikeal Rogers)
+
+* Revert AMD compatibility. (isaacs)
+
+* Windows: improvements, child_process support.
+
+* Remove pkg-config file.
+
+* Fix startup time regressions.
+
+* doc improvements
+
+
+2011.07.22, Version 0.5.2 (unstable), 08ffce1a00dde1199174b390a64a90b60768ddf5
 
 * libuv improvements; named pipe support
 
