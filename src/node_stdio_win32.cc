@@ -25,6 +25,7 @@
 #include <v8.h>
 
 #include <errno.h>
+#include <fcntl.h>
 #include <io.h>
 
 #include <platform_win32.h>
@@ -662,6 +663,11 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   
   uv_async_init(&tty_avail_notifier, tty_poll);
   uv_unref();
+
+  /* Set stdio streams to binary mode. */
+  _setmode(_fileno(stdin), _O_BINARY);
+  _setmode(_fileno(stdout), _O_BINARY);
+  _setmode(_fileno(stderr), _O_BINARY);
 
   name_symbol = NODE_PSYMBOL("name");
   shift_symbol = NODE_PSYMBOL("shift");
