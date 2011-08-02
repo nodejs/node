@@ -230,10 +230,10 @@
 
 * http response.readable should be false after 'end' #867 (Abe Fettig)
 
-* Implemenet os.cpus() and os.uptime() on Solaris (Scott McWhirter)
+* Implement os.cpus() and os.uptime() on Solaris (Scott McWhirter)
 
 * fs.ReadStream: Allow omission of end option for range reads #801
-	(Felix Geisendörfer)
+	(Felix Geisendörfer)
 
 * Buffer.write() with UCS-2 should not be write partial char
 	#916 (koichik)
@@ -319,11 +319,11 @@
 * Pragma HTTP header comma separation
 
 * In addition to 'aborted' emit 'close' from incoming requests
-  (Felix Geisendörfer)
+  (Felix Geisendörfer)
 
 * Fix memleak in vm.runInNewContext
 
-* Do not cache modules that throw exceptions (Felix Geisendörfer)
+* Do not cache modules that throw exceptions (Felix Geisendörfer)
 
 * Build system changes for libnode (Aria Stewart)
 
@@ -341,7 +341,7 @@
 
 * URL parse more safely (isaacs)
 
-* Expose errno with a string for dns/cares (Felix Geisendörfer)
+* Expose errno with a string for dns/cares (Felix Geisendörfer)
 
 * Fix tty.setWindowSize
 
@@ -365,7 +365,7 @@
 
 * Improve V8 support for Cygwin (Bert Belder)
 
-* Fix fs.open param parsing. (Felix Geisendörfer)
+* Fix fs.open param parsing. (Felix Geisendörfer)
 
 * Fixed null signal.
 
@@ -496,12 +496,12 @@
 * Allow third party hooks before main module load.
   (See 496be457b6a2bc5b01ec13644b9c9783976159b2)
 
-* Don't stat() on cached modules. (Felix Geisendörfer)
+* Don't stat() on cached modules. (Felix Geisendörfer)
 
 
 2011.01.08, Version 0.3.4 (unstable)
 
-* Primordal mingw build (Bert Belder)
+* Primordial mingw build (Bert Belder)
 
 * HTTPS server
 
@@ -531,7 +531,7 @@
   functions for OSX, Linux, and Cygwin. (Brian White)
 
 * Fix REPL syntax error bug (GH-543), improve how REPL commands are
-  evaulated.
+  evaluated.
 
 * Use process.stdin instead of process.openStdin().
 
@@ -572,7 +572,7 @@
 
 2010.11.16, Version 0.3.1 (unstable), ce9a54aa1fbf709dd30316af8a2f14d83150e947
 
-* TLS improvments (Paul Querna)
+* TLS improvements (Paul Querna)
   - Centralize error handling in SecureStream
   - Add SecurePair for handling of a ssl/tls stream.
 
@@ -634,9 +634,9 @@
 
 2010.10.23, Version 0.3.0 (unstable) 1582cfebd6719b2d2373547994b3dca5c8c569c0
 
-* Bugfix: Do not spin on aceept() with EMFILE
+* Bugfix: Do not spin on accept() with EMFILE
 
-* Improvments to readline.js (Trent Mick, Johan Euphrosine, Brian White)
+* Improvements to readline.js (Trent Mick, Johan Euphrosine, Brian White)
 
 * Safe constructors (missing 'new' doesn't segfault)
 
@@ -672,7 +672,7 @@
 
 * Commas last in sys.inspect
 
-* Constatnts moved from process object to require('constants')
+* Constants moved from process object to require('constants')
 
 * Fix parsing of linux memory (Vitali Lovich)
 

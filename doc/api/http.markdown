@@ -42,7 +42,7 @@ per connection (in the case of keep-alive connections).
 
  When a new TCP stream is established. `socket` is an object of type
  `net.Socket`. Usually users will not want to access this event. The
- `stream` can also be accessed at `request.connection`.
+ `socket` can also be accessed at `request.connection`.
 
 ### Event: 'close'
 
@@ -283,6 +283,8 @@ Note: that Content-Length is given in bytes not characters. The above example
 works because the string `'hello world'` contains only single byte characters.
 If the body contains higher coded characters then `Buffer.byteLength()`
 should be used to determine the number of bytes in a given encoding.
+And Node does not check whether Content-Length and the length of the body
+which has been transmitted are equal or not.
 
 ### response.statusCode
 
@@ -293,6 +295,9 @@ flushed.
 Example:
 
     response.statusCode = 404;
+
+After response header was sent to the client, this property indicates the
+status code which was sent out.
 
 ### response.setHeader(name, value)
 
@@ -528,6 +533,8 @@ event, the entire body will be caught.
     });
 
 This is a `Writable Stream`.
+Note: Node does not check whether Content-Length and the length of the body
+which has been transmitted are equal or not.
 
 This is an `EventEmitter` with the following events:
 
