@@ -52,7 +52,7 @@ var gotUpgrade = false;
 
 srv.listen(common.PORT, '127.0.0.1', function() {
 
-  var hc = http.createClient(common.PORT, '127.0.0.1');
+  var hc = http.createClient(common.PORT, '127.0.0.1').request('GET', '/');
   hc.addListener('upgrade', function(res, socket, upgradeHead) {
     // XXX: This test isn't fantastic, as it assumes that the entire response
     //      from the server will arrive in a single data callback
@@ -69,7 +69,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
 
     gotUpgrade = true;
   });
-  hc.request('GET', '/').end();
+  hc.end();
 });
 
 process.addListener('exit', function() {

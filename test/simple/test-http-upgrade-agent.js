@@ -52,12 +52,6 @@ var gotUpgrade = false;
 
 srv.listen(common.PORT, '127.0.0.1', function() {
 
-  var agent = http.getAgent({
-    host: '127.0.0.1',
-    port: common.PORT
-  });
-  assert.ok(agent);
-
   var options = {
     port: common.PORT,
     host: '127.0.0.1',
@@ -69,7 +63,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
   var req = http.request(options);
   req.end();
 
-  agent.on('upgrade', function(res, socket, upgradeHead) {
+  req.on('upgrade', function(res, socket, upgradeHead) {
     // XXX: This test isn't fantastic, as it assumes that the entire response
     //      from the server will arrive in a single data callback
     assert.equal(upgradeHead, 'nurtzo');
@@ -79,11 +73,16 @@ srv.listen(common.PORT, '127.0.0.1', function() {
                             'connection': 'upgrade',
                             'upgrade': 'websocket' };
     assert.deepEqual(expectedHeaders, res.headers);
-
-    socket.end();
-    srv.close();
-
-    gotUpgrade = true;
+    assert.equal(http.globalAgent.sockets[options.host+':'+options.port].length, 1);
+    
+    process.nextTick(function () {
+      // Make sure this request got removed from the pool.
+      assert.equal(http.globalAgent.sockets[options.host+':'+options.port].length, 0);
+      socket.end();
+      srv.close();
+      
+      gotUpgrade = true;
+    })
   });
 
 });

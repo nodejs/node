@@ -6,7 +6,7 @@ var N = 20;
 var responses = 0;
 var maxQueued = 0;
 
-var agent = http.getAgent('127.0.0.1', common.PORT);
+var agent = http.globalAgent;
 agent.maxSockets = 10;
 
 var server = http.createServer(function (req, res) {
@@ -29,12 +29,12 @@ server.listen(common.PORT, "127.0.0.1", function() {
 
     assert.equal(req.agent, agent);
 
-    console.log('Socket: ' + agent.sockets.length +
+    console.log('Socket: ' + agent.sockets['127.0.0.1:'+common.PORT].length +
                 '/' + agent.maxSockets +
-                ' queued: '+ agent.queue.length);
+                ' queued: '+ (agent.requests['127.0.0.1:'+common.PORT] ? agent.requests['127.0.0.1:'+common.PORT].length : 0));
 
-    if (maxQueued < agent.queue.length)  {
-      maxQueued = agent.queue.length;
+    if (maxQueued < (agent.requests['127.0.0.1:'+common.PORT] ? agent.requests['127.0.0.1:'+common.PORT].length : 0))  {
+      maxQueued = (agent.requests['127.0.0.1:'+common.PORT] ? agent.requests['127.0.0.1:'+common.PORT].length : 0);
     }
   }
 });

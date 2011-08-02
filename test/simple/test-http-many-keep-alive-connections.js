@@ -52,9 +52,6 @@ server.listen(common.PORT, function() {
       if (++responses < expected) {
         callee();
       } else {
-        request.agent.sockets.forEach(function(socket) {
-          socket.end();
-        });
         server.close();
       }
     });

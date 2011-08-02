@@ -35,34 +35,42 @@ var server = http.createServer(function(req, res) {
 
 var connectCount = 0;
 
+
 server.listen(common.PORT, function() {
-  var client = http.createClient(common.PORT);
-
-  client.addListener('connect', function() {
-    common.error('CONNECTED');
-    connectCount++;
+  var agent = new http.Agent({maxSockets:1})
+  var request = http.request({method:'GET', path:'/', headers:headers, port:common.PORT, agent:agent}, function () {
+    assert.equal(1, agent.sockets['localhost:'+common.PORT].length)
   });
-
-  var request = client.request('GET', '/', headers);
+  request.on('socket', function (s) {
+    s.on('connect', function () {
+      connectCount++;
+    })
+  })
   request.end();
-  request.addListener('response', function(response) {
-    common.error('response start');
-
-
+  
+  request = http.request({method:'GET', path:'/', headers:headers, port:common.PORT, agent:agent}, function () {
+    assert.equal(1, agent.sockets['localhost:'+common.PORT].length)
+  });
+  request.on('socket', function (s) {
+    s.on('connect', function () {
+      connectCount++;
+    })
+  })
+  request.end();
+  request = http.request({method:'GET', path:'/', headers:headers, port:common.PORT, agent:agent}, function(response) {
     response.addListener('end', function() {
-      common.error('response end');
-      var req = client.request('GET', '/', headers);
-      req.addListener('response', function(response) {
-        response.addListener('end', function() {
-          client.end();
-          server.close();
-        });
-      });
-      req.end();
+      assert.equal(1, agent.sockets['localhost:'+common.PORT].length)
+      server.close();
     });
   });
+  request.on('socket', function (s) {
+    s.on('connect', function () {
+      connectCount++;
+    })
+  })
+  request.end();
 });
 
 process.addListener('exit', function() {
-  assert.equal(2, connectCount);
+  assert.equal(3, connectCount);
 });

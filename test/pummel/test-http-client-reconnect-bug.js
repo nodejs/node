@@ -37,11 +37,14 @@ server.on('listening', function() {
   var client = http.createClient(common.PORT);
 
   client.addListener('error', function(err) {
+    // We should receive one error
     console.log('ERROR! ' + err.message);
     errorCount++;
   });
 
   client.addListener('end', function() {
+    // When we remove the old Client interface this will most likely have to be
+    // changed.
     console.log('EOF!');
     eofCount++;
   });
