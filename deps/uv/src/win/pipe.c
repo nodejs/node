@@ -147,6 +147,7 @@ static int uv_set_pipe_handle(uv_pipe_t* handle, HANDLE pipeHandle) {
 void uv_pipe_endgame(uv_pipe_t* handle) {
   uv_err_t err;
   int status;
+  unsigned int uv_alloced;
 
   if (handle->flags & UV_HANDLE_SHUTTING &&
       !(handle->flags & UV_HANDLE_SHUT) &&
@@ -167,11 +168,15 @@ void uv_pipe_endgame(uv_pipe_t* handle) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
     handle->flags |= UV_HANDLE_CLOSED;
 
+    /* Remember the state of this flag because the close callback is */
+    /* allowed to clobber or free the handle's memory */
+    uv_alloced = handle->flags & UV_HANDLE_UV_ALLOCED;
+
     if (handle->close_cb) {
       handle->close_cb((uv_handle_t*)handle);
     }
 
-    if (handle->flags & UV_HANDLE_UV_ALLOCED) {
+    if (uv_alloced) {
       free(handle);
     }
 
