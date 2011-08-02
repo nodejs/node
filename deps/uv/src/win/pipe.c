@@ -32,29 +32,8 @@
 static char uv_zero_[] = "";
 
 
-int uv_unique_pipe_name(char* name, size_t size) {
-  unsigned char* guid_str = NULL;   
-  GUID guid;
-  int err;
-
-  if (CoCreateGuid(&guid) != S_OK) {
-    err = -1;
-    goto done;
-  }
-
-  if (UuidToStringA(&guid, &guid_str) != ERROR_SUCCESS) {
-    err = -1;
-    goto done;
-  }
-
-  _snprintf(name, size, "\\\\.\\pipe\\uv\\%s", guid_str);
-  err = 0;
-
-done:
-  if (guid_str) {
-    RpcStringFreeA(&guid_str);
-  }
-  return err;
+static void uv_unique_pipe_name(char* ptr, char* name, size_t size) {
+  _snprintf(name, size, "\\\\.\\pipe\\uv\\%p-%d", ptr, GetCurrentProcessId());
 }
 
 
@@ -92,26 +71,36 @@ int uv_pipe_init_with_handle(uv_pipe_t* handle, HANDLE pipeHandle) {
 
 int uv_stdio_pipe_server(uv_pipe_t* handle, DWORD access, char* name, size_t nameSize) {
   HANDLE pipeHandle;
+  int errno;
   int err;
+  char* ptr = (char*)handle;
 
-  err = uv_unique_pipe_name(name, nameSize);
-  if (err) {
-    goto done;
-  }
+  while (TRUE) {
+    uv_unique_pipe_name(ptr, name, nameSize);
 
-  pipeHandle = CreateNamedPipeA(name,
-                                access | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
-                                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
-                                1,
-                                65536,
-                                65536,
-                                0,
-                                NULL);
+    pipeHandle = CreateNamedPipeA(name,
+                                  access | FILE_FLAG_OVERLAPPED | FILE_FLAG_FIRST_PIPE_INSTANCE,
+                                  PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                                  1,
+                                  65536,
+                                  65536,
+                                  0,
+                                  NULL);
 
-  if (pipeHandle == INVALID_HANDLE_VALUE) {
-    uv_set_sys_error(GetLastError());
-    err = -1;
-    goto done;
+    if (pipeHandle != INVALID_HANDLE_VALUE) {
+      /* No name collisions.  We're done. */
+      break;
+    }
+
+    errno = GetLastError();
+    if (errno != ERROR_PIPE_BUSY && errno != ERROR_ACCESS_DENIED) {
+      uv_set_sys_error(errno);
+      err = -1;
+      goto done;
+    }
+
+    /* Pipe name collision.  Increment the pointer and try again. */
+    ptr++;
   }
 
   if (CreateIoCompletionPort(pipeHandle,

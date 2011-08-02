@@ -166,7 +166,6 @@ int uv_pipe_init_with_handle(uv_pipe_t* handle, HANDLE pipeHandle);
 int uv_stdio_pipe_server(uv_pipe_t* handle, DWORD access, char* name, size_t nameSize);
 void close_pipe(uv_pipe_t* handle, int* status, uv_err_t* err);
 void uv_pipe_endgame(uv_pipe_t* handle);
-int uv_unique_pipe_name(char* name, size_t size);
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
 int uv_pipe_accept(uv_pipe_t* server, uv_pipe_t* client);

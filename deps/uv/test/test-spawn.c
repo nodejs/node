@@ -226,3 +226,47 @@ TEST_IMPL(spawn_and_kill) {
   return 0;
 }
 
+
+#ifdef _WIN32
+TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
+  int r;
+  uv_pipe_t out;
+  char name[64];
+  HANDLE pipe_handle;
+
+  uv_init();
+
+  init_process_options("spawn_helper2", exit_cb);
+
+  uv_pipe_init(&out);
+  options.stdout_stream = &out;
+
+  /* Create a pipe that'll cause a collision. */
+  _snprintf(name, sizeof(name), "\\\\.\\pipe\\uv\\%p-%d", &out, GetCurrentProcessId());
+  pipe_handle = CreateNamedPipeA(name,
+                                PIPE_ACCESS_INBOUND | FILE_FLAG_OVERLAPPED,
+                                PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT,
+                                10,
+                                65536,
+                                65536,
+                                0,
+                                NULL);
+  ASSERT(pipe_handle != INVALID_HANDLE_VALUE);
+
+  r = uv_spawn(&process, options);
+  ASSERT(r == 0);
+
+  r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
+  ASSERT(r == 0);
+
+  r = uv_run();
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 2); /* Once for process once for the pipe. */
+  printf("output is: %s", output);
+  ASSERT(strcmp("hello world\n", output) == 0 || strcmp("hello world\r\n", output) == 0);
+
+  return 0;
+}
+#endif

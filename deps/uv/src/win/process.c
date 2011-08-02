@@ -496,16 +496,16 @@ wchar_t* make_program_env(char** env_block) {
 }
 
 
-/* 
- * Called on Windows thread-pool thread to indicate that 
- * a child process has exited. 
+/*
+ * Called on Windows thread-pool thread to indicate that
+ * a child process has exited.
  */
 static void CALLBACK exit_wait_callback(void* data, BOOLEAN didTimeout) {
   uv_process_t* process = (uv_process_t*)data;
-  
+
   assert(didTimeout == FALSE);
   assert(process);
-  
+
   memset(&process->exit_req.overlapped, 0, sizeof(process->exit_req.overlapped));
 
   /* Post completed */
@@ -518,13 +518,13 @@ static void CALLBACK exit_wait_callback(void* data, BOOLEAN didTimeout) {
 }
 
 
-/* 
- * Called on Windows thread-pool thread to indicate that 
- * UnregisterWaitEx has completed. 
+/*
+ * Called on Windows thread-pool thread to indicate that
+ * UnregisterWaitEx has completed.
  */
 static void CALLBACK close_wait_callback(void* data, BOOLEAN didTimeout) {
   uv_process_t* process = (uv_process_t*)data;
-  
+
   assert(didTimeout == FALSE);
   assert(process);
 
@@ -537,6 +537,54 @@ static void CALLBACK close_wait_callback(void* data, BOOLEAN didTimeout) {
                                   &process->close_req.overlapped)) {
     uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
   }
+}
+
+
+/*
+ * Called on windows thread pool when CreateProcess failed. It writes an error
+ * message to the process' intended stderr and then posts a PROCESS_EXIT
+ * packet to the completion port.
+ */
+static DWORD WINAPI spawn_failure(void* data) {
+  char syscall[] = "CreateProcessW: ";
+  char unknown[] = "unknown error\n";
+  uv_process_t* process = (uv_process_t*) data;
+  HANDLE child_stderr = process->stdio_pipes[2].child_pipe;
+  char* buf = NULL;
+  DWORD count, written;
+
+  WriteFile(child_stderr, syscall, sizeof(syscall) - 1, &written, NULL);
+
+  count = FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER |
+                         FORMAT_MESSAGE_FROM_SYSTEM |
+                         FORMAT_MESSAGE_IGNORE_INSERTS,
+                         NULL,
+                         process->spawn_errno,
+                         MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+                         (LPSTR) &buf,
+                         0,
+                         NULL);
+
+  if (buf != NULL && count > 0) {
+    WriteFile(child_stderr, buf, count, &written, NULL);
+    LocalFree(buf);
+  } else {
+    WriteFile(child_stderr, unknown, sizeof(unknown) - 1, &written, NULL);
+  }
+
+  FlushFileBuffers(child_stderr);
+
+  memset(&process->exit_req.overlapped, 0, sizeof(process->exit_req.overlapped));
+
+  /* Post completed */
+  if (!PostQueuedCompletionStatus(LOOP->iocp,
+                                  0,
+                                  0,
+                                  &process->exit_req.overlapped)) {
+    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
+  }
+
+  return 0;
 }
 
 
@@ -559,15 +607,18 @@ void uv_process_proc_exit(uv_process_t* handle) {
     handle->wait_handle = INVALID_HANDLE_VALUE;
   }
 
-  /* Clean-up the process handle. */
   if (handle->process_handle != INVALID_HANDLE_VALUE) {
     /* Get the exit code. */
     if (!GetExitCodeProcess(handle->process_handle, &exit_code)) {
-      exit_code = 1;
+      exit_code = 127;
     }
 
+    /* Clean-up the process handle. */
     CloseHandle(handle->process_handle);
     handle->process_handle = INVALID_HANDLE_VALUE;
+  } else {
+    /* The process never even started in the first place. */
+    exit_code = 127;
   }
 
   /* Fire the exit callback. */
@@ -618,10 +669,10 @@ static int uv_create_stdio_pipe_pair(uv_pipe_t* server_pipe, HANDLE* child_pipe,
   char pipe_name[64];
   DWORD mode = PIPE_TYPE_BYTE | PIPE_READMODE_BYTE | PIPE_WAIT;
 
-  if (server_pipe->type != UV_NAMED_PIPE) { 
+  if (server_pipe->type != UV_NAMED_PIPE) {
     uv_set_error(UV_EINVAL, 0);
     err = -1;
-    goto done; 
+    goto done;
   }
 
   /* Create server pipe handle. */
@@ -681,13 +732,13 @@ done:
 
 
 int uv_spawn(uv_process_t* process, uv_process_options_t options) {
-  int err, i;
+  int err = 0, i;
   wchar_t* path;
   int size;
   wchar_t* application_path, *application, *arguments, *env, *cwd;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
- 
+
   uv_process_init(process);
 
   process->exit_cb = options.exit_cb;
@@ -721,15 +772,15 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   GetEnvironmentVariableW(L"PATH", path, size * sizeof(wchar_t));
   path[size - 1] = L'\0';
 
-  application_path = search_path(application, 
+  application_path = search_path(application,
                                  cwd,
                                  path,
                                  DEFAULT_PATH_EXT);
 
   if (!application_path) {
-    uv_set_error(UV_EINVAL, 0);
-    err = -1;
-    goto done;
+    /* CreateProcess will fail, but this allows us to pass this error to */
+    /* the user asynchronously. */
+    application_path = application;
   }
 
   /* Create stdio pipes. */
@@ -771,39 +822,45 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   startup.hStdOutput = process->stdio_pipes[1].child_pipe;
   startup.hStdError = process->stdio_pipes[2].child_pipe;
 
-  if (!CreateProcessW(application_path,
-                      arguments,
-                      NULL,
-                      NULL,
-                      1,
-                      CREATE_UNICODE_ENVIRONMENT,
-                      env,
-                      cwd,
-                      &startup,
-                      &info)) {
-    uv_set_sys_error(GetLastError());
-    err = -1;
-    goto done;
-  }
+  if (CreateProcessW(application_path,
+                     arguments,
+                     NULL,
+                     NULL,
+                     1,
+                     CREATE_UNICODE_ENVIRONMENT,
+                     env,
+                     cwd,
+                     &startup,
+                     &info)) {
+    /* Spawn succeeded */
+    process->process_handle = info.hProcess;
+    process->pid = info.dwProcessId;
 
-  process->process_handle = info.hProcess;
-  process->pid = info.dwProcessId;
-  
-  /* Setup notifications for when the child process exits. */
-  if (!RegisterWaitForSingleObject(&process->wait_handle, process->process_handle,
-      exit_wait_callback, (void*)process, INFINITE,
-      WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE)) {
-    uv_set_sys_error(GetLastError());
-    err = -1;
-    goto done;
-  }
+    /* Setup notifications for when the child process exits. */
+    if (!RegisterWaitForSingleObject(&process->wait_handle, process->process_handle,
+        exit_wait_callback, (void*)process, INFINITE,
+        WT_EXECUTEINWAITTHREAD | WT_EXECUTEONLYONCE)) {
+      uv_fatal_error(GetLastError(), "RegisterWaitForSingleObject");
+    }
 
-  CloseHandle(info.hThread);
-  err = 0;
+    CloseHandle(info.hThread);
+
+  } else {
+    /* CreateProcessW failed, but this failure should be delivered */
+    /* asynchronously to retain unix compatibility. So pretent spawn */
+    /* succeeded, and start a thread instead that prints an error */
+    /* to the child's intended stderr. */
+    process->spawn_errno = GetLastError();
+    if (!QueueUserWorkItem(spawn_failure, process, WT_EXECUTEDEFAULT)) {
+      uv_fatal_error(GetLastError(), "QueueUserWorkItem");
+    }
+  }
 
 done:
-  free(application_path);
   free(application);
+  if (application_path != application) {
+    free(application_path);
+  }
   free(arguments);
   free(cwd);
   free(env);
