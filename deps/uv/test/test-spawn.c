@@ -58,11 +58,10 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
   exit_cb_called++;
 #ifdef _WIN32
   ASSERT(exit_status == 1);
-  ASSERT(term_signal == 0);
 #else
   ASSERT(exit_status == 0);
-  ASSERT(term_signal == 15);
 #endif
+  ASSERT(term_signal == 15);
   uv_close((uv_handle_t*)process, close_cb);
 }
 

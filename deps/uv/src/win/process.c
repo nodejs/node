@@ -76,6 +76,48 @@ static void uv_process_init(uv_process_t* handle) {
 
 
 /*
+ * Quotes command line arguments
+ * Returns a pointer to the end (next char to be written) of the buffer
+ */
+static wchar_t* quote_cmd_arg(wchar_t *source, wchar_t *target,
+    wchar_t terminator) {
+  int len = wcslen(source),
+      i;
+
+  // Check if the string must be quoted;
+  // if unnecessary, don't do it, it may only confuse older programs.
+  if (len == 0) {
+    goto quote;
+  }
+  for (i = 0; i < len; i++) {
+    if (source[i] == L' ' || source[i] == L'"') {
+      goto quote;
+    }
+  }
+
+  // No quotation needed
+  wcsncpy(target, source, len);
+  target += len;
+  *(target++) = terminator;
+  return target;
+
+quote:
+  // Quote
+  *(target++) = L'"';
+  for (i = 0; i < len; i++) {
+    if (source[i] == L'"' || source[i] == L'\\') {
+      *(target++) = '\\';
+    }
+    *(target++) = source[i];
+  }
+  *(target++) = L'"';
+  *(target++) = terminator;
+
+  return target;
+}
+
+
+/*
  * Path search functions
  */
 
@@ -369,12 +411,20 @@ static wchar_t* make_program_args(char** args) {
   size_t size = 0;
   size_t len;
   int arg_count = 0;
+  wchar_t* buffer;
+  int arg_size;
+  int buffer_size = 0;
 
   /* Count the required size. */
   for (arg = args; *arg; arg++) {
-    size += (uv_utf8_to_utf16(*arg, NULL, 0) * sizeof(wchar_t));
+    arg_size = uv_utf8_to_utf16(*arg, NULL, 0) * sizeof(wchar_t);
+    size += arg_size;
+    buffer_size = arg_size > buffer_size ? arg_size : buffer_size;
     arg_count++;
   }
+
+  /* Adjust for potential quotes. */
+  size += arg_count * 2;
 
   /* Arguments are separated with a space. */
   if (arg_count > 0) {
@@ -386,21 +436,28 @@ static wchar_t* make_program_args(char** args) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
-  ptr = dst;
-  for (arg = args; *arg; arg++, ptr += len) {
-    len = uv_utf8_to_utf16(*arg, ptr, (size_t)(size - (ptr - dst)));
-    if (!len) {
-      free(dst);
-      return NULL;
-    }
-
-    if (*(arg + 1)) {
-      /* Replace with a space if there are more args. */
-      *((ptr + len) - 1) = L' ';
-    }
+  buffer = (wchar_t*)malloc(buffer_size);
+  if (!buffer) {
+    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
+  ptr = dst;
+  for (arg = args; *arg; arg++) {
+    len = uv_utf8_to_utf16(*arg, buffer, (size_t)(size - (ptr - dst)));
+    if (!len) {
+      goto error;
+    }
+
+    ptr = quote_cmd_arg(buffer, ptr, *(arg + 1) ? L' ' : L'\0');
+  }
+
+  free(buffer);
   return dst;
+
+error:
+  free(dst);
+  free(buffer);
+  return NULL;
 }
 
 /*
