@@ -424,7 +424,7 @@ static wchar_t* make_program_args(char** args) {
   }
 
   /* Adjust for potential quotes. */
-  size += arg_count * 2;
+  size *= 2;
 
   /* Arguments are separated with a space. */
   if (arg_count > 0) {
