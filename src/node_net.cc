@@ -36,7 +36,6 @@
 
 #ifdef __MINGW32__
 # include <platform_win32.h>
-# include <platform_win32_winsock.h>
 #endif
 
 #ifdef __POSIX__

@@ -31,7 +31,6 @@
 
 #ifdef __MINGW32__
 # include "platform.h"
-# include <platform_win32_winsock.h> // htons, htonl
 #endif
 
 #ifdef __POSIX__

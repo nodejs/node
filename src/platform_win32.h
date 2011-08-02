@@ -57,6 +57,7 @@
 #endif
 
 #include <windows.h>
+#include <winsock2.h>
 
 namespace node {
 

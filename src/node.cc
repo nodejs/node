@@ -41,7 +41,6 @@
 
 #ifdef __MINGW32__
 # include <platform_win32.h> /* winapi_perror() */
-# include <platform_win32_winsock.h> /* wsa_init() */
 # ifdef PTW32_STATIC_LIB
 extern "C" {
   BOOL __cdecl pthread_win32_process_attach_np (void);
@@ -2443,11 +2442,6 @@ char** Init(int argc, char *argv[]) {
   RegisterSignalHandler(SIGINT, SignalExit);
   RegisterSignalHandler(SIGTERM, SignalExit);
 #endif // __POSIX__
-
-#ifdef __MINGW32__
-  // Initialize winsock and soem related caches
-  wsa_init();
-#endif // __MINGW32__
 
   uv_prepare_init(&node::prepare_tick_watcher);
   uv_prepare_start(&node::prepare_tick_watcher, PrepareTick);
