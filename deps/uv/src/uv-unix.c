@@ -35,7 +35,6 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/file.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/un.h>
@@ -65,7 +64,6 @@
 extern char **environ;
 # endif
 
-
 static uv_err_t last_err;
 
 struct uv_ares_data_s {
@@ -79,33 +77,6 @@ struct uv_ares_data_s {
 };
 
 static struct uv_ares_data_s ares_data;
-
-typedef struct {
-  const char* lockfile;
-  int lockfd;
-} uv_flock_t;
-
-
-/* Create a new advisory file lock for `filename`.
- * Call `uv_flock_acquire()` to actually acquire the lock.
- */
-int uv_flock_init(uv_flock_t* lock, const char* filename);
-
-/* Try to acquire the file lock. Returns 0 on success, -1 on error.
- * Does not wait for the lock to be released if it is held by another process.
- *
- * If `locked` is not NULL, the memory pointed it points to is set to 1 if
- * the file is locked by another process. Only relevant in error scenarios.
- */
-int uv_flock_acquire(uv_flock_t* lock, int* locked);
-
-/* Release the file lock. Returns 0 on success, -1 on error.
- */
-int uv_flock_release(uv_flock_t* lock);
-
-/* Destroy the file lock. Releases the file lock and associated resources.
- */
-int uv_flock_destroy(uv_flock_t* lock);
 
 void uv__req_init(uv_req_t*);
 void uv__next(EV_P_ ev_idle* watcher, int revents);
@@ -1838,7 +1809,6 @@ int uv_pipe_init(uv_pipe_t* handle) {
   uv_counters()->pipe_init++;
 
   handle->type = UV_NAMED_PIPE;
-  handle->pipe_flock = NULL; /* Only set by listener. */
   handle->pipe_fname = NULL; /* Only set by listener. */
 
   ev_init(&handle->write_watcher, uv__stream_io);
@@ -1858,7 +1828,6 @@ int uv_pipe_init(uv_pipe_t* handle) {
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un sun;
   const char* pipe_fname;
-  uv_flock_t* pipe_flock;
   int saved_errno;
   int locked;
   int sockfd;
@@ -1867,7 +1836,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   saved_errno = errno;
   pipe_fname = NULL;
-  pipe_flock = NULL;
   sockfd = -1;
   status = -1;
   bound = 0;
@@ -1886,20 +1854,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* We've got a copy, don't touch the original any more. */
   name = NULL;
-
-  /* Create and acquire a file lock for this UNIX socket. */
-  if ((pipe_flock = malloc(sizeof *pipe_flock)) == NULL
-      || uv_flock_init(pipe_flock, pipe_fname) == -1) {
-    uv_err_new((uv_handle_t*)handle, ENOMEM);
-    goto out;
-  }
-
-  if (uv_flock_acquire(pipe_flock, &locked) == -1) {
-    /* Another process holds the lock so the socket is in use. */
-    uv_err_new_artificial((uv_handle_t*)handle,
-                          locked ? UV_EADDRINUSE : UV_EACCESS);
-    goto out;
-  }
 
   if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
     uv_err_new((uv_handle_t*)handle, errno);
@@ -1931,7 +1885,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Success. */
   handle->pipe_fname = pipe_fname; /* Is a strdup'ed copy. */
-  handle->pipe_flock = pipe_flock;
   handle->fd = sockfd;
   status = 0;
 
@@ -1944,10 +1897,6 @@ out:
       unlink(pipe_fname);
     }
     uv__close(sockfd);
-
-    if (pipe_flock) {
-      uv_flock_destroy(pipe_flock);
-    }
 
     free((void*)pipe_fname);
   }
@@ -2003,11 +1952,6 @@ static int uv_pipe_cleanup(uv_pipe_t* handle) {
      */
     unlink(handle->pipe_fname);
     free((void*)handle->pipe_fname);
-  }
-
-  if (handle->pipe_flock) {
-    uv_flock_destroy((uv_flock_t*)handle->pipe_flock);
-    free(handle->pipe_flock);
   }
 
   errno = saved_errno;
@@ -2236,6 +2180,7 @@ size_t uv__strlcpy(char* dst, const char* src, size_t size) {
 
 uv_stream_t* uv_std_handle(uv_std_type type) {
   assert(0 && "implement me");
+  return NULL;
 }
 
 
@@ -2409,126 +2354,4 @@ int uv_process_kill(uv_process_t* process, int signum) {
   } else {
     return 0;
   }
-}
-
-
-#define LOCKFILE_SUFFIX ".lock"
-int uv_flock_init(uv_flock_t* lock, const char* filename) {
-  int saved_errno;
-  int status;
-  char* lockfile;
-
-  saved_errno = errno;
-  status = -1;
-
-  lock->lockfd = -1;
-  lock->lockfile = NULL;
-
-  if ((lockfile = malloc(strlen(filename) + sizeof LOCKFILE_SUFFIX)) == NULL) {
-    goto out;
-  }
-
-  strcpy(lockfile, filename);
-  strcat(lockfile, LOCKFILE_SUFFIX);
-  lock->lockfile = lockfile;
-  status = 0;
-
-out:
-  errno = saved_errno;
-  return status;
-}
-#undef LOCKFILE_SUFFIX
-
-
-int uv_flock_acquire(uv_flock_t* lock, int* locked_p) {
-  char buf[32];
-  int saved_errno;
-  int status;
-  int lockfd;
-  int locked;
-
-  saved_errno = errno;
-  status = -1;
-  lockfd = -1;
-  locked = 0;
-
-  do {
-    lockfd = open(lock->lockfile, O_WRONLY | O_CREAT, 0666);
-  }
-  while (lockfd == -1 && errno == EINTR);
-
-  if (lockfd == -1) {
-    goto out;
-  }
-
-  do {
-    status = flock(lockfd, LOCK_EX | LOCK_NB);
-  }
-  while (status == -1 && errno == EINTR);
-
-  if (status == -1) {
-    locked = (errno == EAGAIN); /* Lock is held by another process. */
-    goto out;
-  }
-
-  snprintf(buf, sizeof buf, "%d\n", getpid());
-  do {
-    status = write(lockfd, buf, strlen(buf));
-  }
-  while (status == -1 && errno == EINTR);
-
-  lock->lockfd = lockfd;
-  status = 0;
-
-out:
-  if (status) {
-    uv__close(lockfd);
-  }
-
-  if (locked_p) {
-    *locked_p = locked;
-  }
-
-  errno = saved_errno;
-  return status;
-}
-
-
-int uv_flock_release(uv_flock_t* lock) {
-  int saved_errno;
-  int status;
-
-  saved_errno = errno;
-  status = -1;
-
-  if (unlink(lock->lockfile) == -1) {
-    /* Now what? */
-    goto out;
-  }
-
-  uv__close(lock->lockfd);
-  lock->lockfd = -1;
-  status = 0;
-
-out:
-  errno = saved_errno;
-  return status;
-}
-
-
-int uv_flock_destroy(uv_flock_t* lock) {
-  int saved_errno;
-  int status;
-
-  saved_errno = errno;
-  status = unlink(lock->lockfile);
-
-  uv__close(lock->lockfd);
-  lock->lockfd = -1;
-
-  free((void*)lock->lockfile);
-  lock->lockfile = NULL;
-
-  errno = saved_errno;
-  return status;
 }
