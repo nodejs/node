@@ -35,8 +35,8 @@ uninstall:
 test: all
 	python tools/test.py --mode=release simple message
 
-test-http2: all
-	python tools/test.py --mode=release --use-http2 simple message
+test-http1: all
+	python tools/test.py --mode=release --use-http1 simple message
 
 test-valgrind: all
 	python tools/test.py --mode=release --valgrind simple message
@@ -44,8 +44,8 @@ test-valgrind: all
 test-all: all
 	python tools/test.py --mode=debug,release
 
-test-all-http2: all
-	python tools/test.py --mode=debug,release --use-http2
+test-all-http1: all
+	python tools/test.py --mode=debug,release --use-http1
 
 test-all-valgrind: all
 	python tools/test.py --mode=debug,release --valgrind

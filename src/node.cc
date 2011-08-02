@@ -139,7 +139,7 @@ static bool use_uv = true;
 #endif
 
 // disabled by default for now
-static bool use_http2 = false;
+static bool use_http1 = false;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 static bool use_npn = true;
@@ -2040,7 +2040,7 @@ static Handle<Object> GetFeatures() {
 
   Local<Object> obj = Object::New();
   obj->Set(String::NewSymbol("uv"), Boolean::New(use_uv));
-  obj->Set(String::NewSymbol("http2"), Boolean::New(use_http2));
+  obj->Set(String::NewSymbol("http1"), Boolean::New(use_http1));
   obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv
   obj->Set(String::NewSymbol("tls_npn"), Boolean::New(use_npn));
   obj->Set(String::NewSymbol("tls_sni"), Boolean::New(use_sni));
@@ -2285,7 +2285,7 @@ static void PrintHelp() {
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
          "  --use-uv             use the libuv backend\n"
-         "  --use-http2          use the new and improved http library\n"
+         "  --use-http1          use the legacy http library\n"
          "\n"
          "Enviromental variables:\n"
          "NODE_PATH              ':'-separated list of directories\n"
@@ -2310,8 +2310,8 @@ static void ParseArgs(int argc, char **argv) {
     } else if (!strcmp(arg, "--use-uv")) {
       use_uv = true;
       argv[i] = const_cast<char*>("");
-    } else if (!strcmp(arg, "--use-http2")) {
-      use_http2 = true;
+    } else if (!strcmp(arg, "--use-http1")) {
+      use_http1 = true;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);

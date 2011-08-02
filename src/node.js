@@ -32,7 +32,7 @@
   function startup() {
 
     if (process.env.NODE_USE_UV == '1') process.features.uv = true;
-    if (process.env.NODE_USE_HTTP2 == '1') process.features.http2 = true;
+    if (process.env.NODE_USE_HTTP1 == '1') process.features.http1 = true;
 
     EventEmitter = NativeModule.require('events').EventEmitter;
     process.__proto__ = EventEmitter.prototype;
@@ -403,10 +403,10 @@
   function translateId(id) {
     switch (id) {
       case 'http':
-        return process.features.http2 ? 'http2' : 'http';
+        return process.features.http1 ? 'http' : 'http2';
 
       case 'https':
-        return process.features.http2 ? 'https2' : 'https';
+        return process.features.http1 ? 'https' : 'https2';
 
       case 'net':
         return process.features.uv ? 'net_uv' : 'net_legacy';
