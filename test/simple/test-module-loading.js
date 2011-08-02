@@ -221,3 +221,8 @@ process.addListener('exit', function() {
 
   console.log('exit');
 });
+
+
+// #1440 Loading files with a byte order marker.
+assert.equal(42, require('../fixtures/utf8-bom.js'));
+assert.equal(42, require('../fixtures/utf8-bom.json'));
