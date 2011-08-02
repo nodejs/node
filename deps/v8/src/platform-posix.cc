@@ -70,10 +70,12 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
+#ifndef __CYGWIN__
 // Create guard pages.
 void OS::Guard(void* address, const size_t size) {
   mprotect(address, size, PROT_NONE);
 }
+#endif  // __CYGWIN__
 
 
 // ----------------------------------------------------------------------------
