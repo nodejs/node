@@ -3846,7 +3846,7 @@ ev_walk (EV_P_ int types, void (*cb)(EV_P_ int type, void *w))
 
 #if EV_IDLE_ENABLE
   if (types & EV_IDLE)
-    for (j = NUMPRI; i--; )
+    for (j = NUMPRI; j--; )
       for (i = idlecnt [j]; i--; )
         cb (EV_A_ EV_IDLE, idles [j][i]);
 #endif
