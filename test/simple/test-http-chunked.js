@@ -37,16 +37,23 @@ var server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain; charset=utf8'});
   res.end(UTF8_STRING, 'utf8');
 });
-server.listen(common.PORT);
+server.listen(common.PORT, function() {
+  var data = '';
+  var get = http.get({path:'/', host:'localhost', port:common.PORT}, function (x) {
+    x.setEncoding('utf8')
+    x.on('data', function (c) {data += c});
+    x.on('error', function (e) {
+      throw e;
+    })
+    x.on('end', function () {
+      assert.equal('string', typeof data);
+      console.log('here is the response:');
+      assert.equal(UTF8_STRING, data);
+      console.log(data);
+      server.close();
+    })
+  })
+  get.on('error', function (e) {throw e});
+  get.end();
 
-server.addListener('listening', function() {
-  http.cat('http://127.0.0.1:' + common.PORT + '/', 'utf8',
-           function(err, data) {
-             if (err) throw err;
-             assert.equal('string', typeof data);
-             console.log('here is the response:');
-             assert.equal(UTF8_STRING, data);
-             console.log(data);
-             server.close();
-           });
 });

@@ -41,10 +41,11 @@ server.listen(common.PORT, function() {
     throw new Error('Timeout was not sucessful');
   }, 2000);
 
-  var url = 'http://localhost:' + common.PORT + '/';
-
-  http.cat(url, 'utf8', function(err, content) {
+  var x = http.get({port:common.PORT, path:'/'});
+  x.on('error', function () {
     clearTimeout(errorTimer);
     console.log('HTTP REQUEST COMPLETE (this is good)');
-  });
+  })
+  x.end();
+
 });
