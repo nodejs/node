@@ -29,11 +29,25 @@ var termSignal;
 var gotStdoutEOF = false;
 var gotStderrEOF = false;
 
+var ping = "42\n";
+
 var cat = spawn('cat');
 
+//
+// This test sends a signal to a child process.
+//
+// There is a potential race here where the signal is delivered
+// after the fork() but before execve(). IOW, the signal is sent
+// before the child process has truly been started.
+//
+// So we wait for a sign of life from the child (the ping response)
+// before sending the signal.
+//
+cat.stdin.write(ping);
 
 cat.stdout.addListener('data', function(chunk) {
-  assert.ok(false);
+  assert.equal(chunk.toString(), ping);
+  cat.kill();
 });
 
 cat.stdout.addListener('end', function() {
@@ -52,8 +66,6 @@ cat.addListener('exit', function(code, signal) {
   exitCode = code;
   termSignal = signal;
 });
-
-cat.kill();
 
 process.addListener('exit', function() {
   assert.strictEqual(exitCode, null);
