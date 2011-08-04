@@ -71,6 +71,25 @@ Examples:
     // if currently in /home/myself/node, it returns
     '/home/myself/node/wwwroot/static_files/gif/image.gif'
 
+### path.relative(from, to)
+
+Solve the relative path from `from` to `to`.
+
+Sometimes we've got two absolute pathes, and we need to calculate the relative path from one to another.
+It's accually the reverse transform of path.resolve, which means we assume:
+
+    path.resolve(from, path.relative(from, to)) == path.resolve(to)
+
+Examples:
+
+    path.relative('C:\\orandea\\test\\aaa', 'C:\\orandea\\impl\\bbb')
+    // returns
+    '..\\..\\impl\\bbb'
+
+    path.relative('/data/orandea/test/aaa', '/data/orandea/impl/bbb')
+    // returns
+    '../../impl/bbb'
+
 ### path.dirname(p)
 
 Return the directory name of a path.  Similar to the Unix `dirname` command.
