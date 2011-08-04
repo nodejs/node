@@ -26,6 +26,7 @@
       },
       'defines': [ 'HTTP_PARSER_STRICT=0' ],
       'sources': [ './http_parser.c', ],
+<<<<<<< HEAD
       'conditions': [
         ['OS=="win"', {
           'msvs_settings': {
@@ -37,6 +38,8 @@
           },
         }]
       ],
+=======
+>>>>>>> WIP
     },
 
     {

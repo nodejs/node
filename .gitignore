@@ -1,9 +1,9 @@
+
 .waf*
 tags
 .lock-wscript
 *.pyc
 doc/api.xml
-tools/nodejs.pc
 tmp/
 node
 node_g
@@ -16,4 +16,6 @@ gyp-mac-tool
 gyp/all.Makefile
 gyp/js2c.host.mk
 gyp/node.target.mk
+gyp/node_js2c.host.mk
 out/
+Makefile

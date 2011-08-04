@@ -4,8 +4,9 @@
       'target_name': 'node',
       'type': 'executable',
       'dependencies': [
-#        '../deps/http_parser/http_parser.gyp:http_parser',
+        '../deps/http_parser/http_parser.gyp:http_parser',
         '../deps/v8/tools/gyp/v8.gyp:v8_snapshot',
+        '../deps/uv/build/all.gyp:uv',
         'node_js2c#host'
       ],
       'include_dirs': [ 'src' ],
