@@ -193,7 +193,7 @@ class ProcessWrap : public HandleWrap {
 
     Local<Value> argv[2] = {
       Integer::New(exit_status),
-      Integer::New(term_signal)
+      String::New(signo_string(term_signal))
     };
 
     MakeCallback(wrap->object_, "onexit", 2, argv);
