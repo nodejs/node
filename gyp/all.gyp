@@ -13,6 +13,8 @@
   'variables': {
     'v8_use_snapshot': 'true',
     'target_arch': 'x64',
+    'node_use_dtrace': 'false',
+    'node_use_openssl': 'true'
   },
 
   'targets': [
@@ -24,9 +26,14 @@
         '../deps/http_parser/http_parser.gyp:http_parser',
         '../deps/v8/tools/gyp/v8.gyp:v8',
         '../deps/uv/build/all.gyp:uv',
-        'node_js2c#host'
+        'node_js2c#host',
       ],
-      'include_dirs': [ 'src' ],
+
+      'include_dirs': [
+        '../src',
+        '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
+      ],
+
       'sources': [
         '../src/cares_wrap.cc',
         '../src/handle_wrap.cc',
@@ -48,12 +55,28 @@
         '../src/stream_wrap.cc',
         '../src/tcp_wrap.cc',
         '../src/timer_wrap.cc',
+        '../src/process_wrap.cc',
+      ],
+
+      'defines': [
+        'ARCH="<(target_arch)"',
+        'PLATFORM="<(OS)"',
+        '_LARGEFILE_SOURCE',
+        '_FILE_OFFSET_BITS=64',
       ],
 
       'conditions': [
+        [ 'node_use_openssl=="true"', {
+          'libraries': [ '-lssl', '-lcrypto' ],
+          'defines': [ 'HAVE_OPENSSL=1' ]
+        }, {
+          'defines': [ 'HAVE_OPENSSL=0' ]
+        }],
+
         [ 'OS=="win"', {
           'defines': [
-            'PTW32_STATIC_LIB'
+            'PTW32_STATIC_LIB',
+            'FD_SETSIZE=1024'
           ],
           'libraries': [
             '-lws2_32',
@@ -65,6 +88,7 @@
             '../src/node_stdio_win32.cc'
           ]
         },{ # POSIX
+          'defines': [ '__POSIX__' ],
           'sources': [
             '../src/node_cares.cc',
             '../src/node_net.cc',
@@ -77,10 +101,8 @@
           ]
         }],
         [ 'OS=="mac"', {
-          'sources': [
-            '../src/platform_darwin.cc', 
-            '../src/platform_darwin_proctitle.cc'
-          ]
+          'sources': [ '../src/platform_darwin.cc' ],
+          'libraries': [ '-framework Carbon' ],
         }]
       ]
     },
@@ -135,22 +157,42 @@
           '../lib/vm.js',
         ],
       },
+
       'actions': [
         {
           'action_name': 'node_js2c',
+
           'inputs': [
             '../tools/js2c.py',
             '<@(library_files)',
           ],
+
           'outputs': [
             '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
           ],
-          'action': [
-            'python',
-            '../tools/js2c.py',
-            '<@(_outputs)',
-            '<@(library_files)'
-          ],
+
+          # FIXME can the following conditions be shorted by just setting
+          # macros.py into some variable which then gets included in the
+          # action?
+
+          'conditions': [
+            [ 'node_use_dtrace=="true"', {
+              'action': [
+                'python',
+                '../tools/js2c.py',
+                '<@(_outputs)',
+                '<@(library_files)'
+              ],
+            }, { # No Dtrace
+              'action': [
+                'python',
+                '../tools/js2c.py',
+                '<@(_outputs)',
+                '<@(library_files)',
+                '../src/macros.py'
+              ],
+            }]
+          ]
         },
       ],
     }, # end node_js2c

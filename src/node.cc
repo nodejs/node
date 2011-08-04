@@ -2068,8 +2068,10 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // process.version
   process->Set(String::NewSymbol("version"), String::New(NODE_VERSION));
 
+#ifdef NODE_PREFIX
   // process.installPrefix
   process->Set(String::NewSymbol("installPrefix"), String::New(NODE_PREFIX));
+#endif
 
   // process.moduleLoadList
   module_load_list = Persistent<Array>::New(Array::New());
@@ -2317,8 +2319,12 @@ static void ParseArgs(int argc, char **argv) {
       printf("%s\n", NODE_VERSION);
       exit(0);
     } else if (strcmp(arg, "--vars") == 0) {
+#ifdef NODE_PREFIX
       printf("NODE_PREFIX: %s\n", NODE_PREFIX);
+#endif
+#ifdef NODE_CFLAGS
       printf("NODE_CFLAGS: %s\n", NODE_CFLAGS);
+#endif
       exit(0);
     } else if (strstr(arg, "--max-stack-size=") == arg) {
       const char *p = 0;
