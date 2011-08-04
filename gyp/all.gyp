@@ -1,11 +1,28 @@
 {
+  'target_defaults': {
+    'configurations': {
+      'Debug': {
+        'defines': [ 'DEBUG', '_DEBUG' ]
+      },
+      'Release': {
+        'defines': [ 'NDEBUG' ]
+      }
+    }
+  },
+
+  'variables': {
+    'v8_use_snapshot': 'true',
+    'target_arch': 'x64',
+  },
+
   'targets': [
     {
       'target_name': 'node',
       'type': 'executable',
+
       'dependencies': [
         '../deps/http_parser/http_parser.gyp:http_parser',
-        '../deps/v8/tools/gyp/v8.gyp:v8_snapshot',
+        '../deps/v8/tools/gyp/v8.gyp:v8',
         '../deps/uv/build/all.gyp:uv',
         'node_js2c#host'
       ],
