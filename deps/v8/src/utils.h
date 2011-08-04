@@ -30,6 +30,7 @@
 
 #include <stdlib.h>
 #include <string.h>
+#include <climits>
 
 #include "globals.h"
 #include "checks.h"
@@ -883,6 +884,30 @@ class SimpleStringBuilder {
   bool is_finalized() const { return position_ < 0; }
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
+};
+
+
+// A poor man's version of STL's bitset: A bit set of enums E (without explicit
+// values), fitting into an integral type T.
+template <class E, class T = int>
+class EnumSet {
+ public:
+  explicit EnumSet(T bits = 0) : bits_(bits) {}
+  bool IsEmpty() const { return bits_ == 0; }
+  bool Contains(E element) const { return (bits_ & Mask(element)) != 0; }
+  void Add(E element) { bits_ |= Mask(element); }
+  void Remove(E element) { bits_ &= ~Mask(element); }
+  T ToIntegral() const { return bits_; }
+
+ private:
+  T Mask(E element) const {
+    // The strange typing in ASSERT is necessary to avoid stupid warnings, see:
+    // http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43680
+    ASSERT(element < static_cast<int>(sizeof(T) * CHAR_BIT));
+    return 1 << element;
+  }
+
+  T bits_;
 };
 
 } }  // namespace v8::internal

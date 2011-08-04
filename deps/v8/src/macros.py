@@ -44,7 +44,7 @@ const kApiSerialNumberOffset        = 2;
 const kApiConstructorOffset         = 2;
 const kApiPrototypeTemplateOffset   = 5;
 const kApiParentTemplateOffset      = 6;
-const kApiPrototypeAttributesOffset = 15;
+const kApiFlagOffset                = 14;
 
 const NO_HINT     = 0;
 const NUMBER_HINT = 1;
@@ -65,6 +65,7 @@ const msPerMonth       = 2592000000;
 
 # For apinatives.js
 const kUninitialized = -1;
+const kReadOnlyPrototypeBit = 3;  # For FunctionTemplateInfo, matches objects.h
 
 # Note: kDayZeroInJulianDay = ToJulianDay(1970, 0, 1).
 const kInvalidDate        = 'Invalid Date';

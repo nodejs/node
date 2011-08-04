@@ -3981,10 +3981,12 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   __ bind(&smi_value);
   // Value is a smi. convert to a double and store.
-  __ SmiUntag(eax);
-  __ push(eax);
+  // Preserve original value.
+  __ mov(edx, eax);
+  __ SmiUntag(edx);
+  __ push(edx);
   __ fild_s(Operand(esp, 0));
-  __ pop(eax);
+  __ pop(edx);
   __ fstp_d(FieldOperand(edi, ecx, times_4, FixedDoubleArray::kHeaderSize));
   __ ret(0);
 

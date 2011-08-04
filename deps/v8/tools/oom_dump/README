@@ -16,7 +16,9 @@ put a soft link into /usr/lib directory).
 
 Next step is to build v8.  Note: you should build x64 version of v8,
 if you're on 64-bit platform, otherwise you would get a link error when
-building oom_dump.
+building oom_dump.  Also, if you are testing against an older version of chrome
+you should build the corresponding version of V8 to make sure that the type-id 
+enum have the correct values.
 
 The last step is to build oom_dump itself.  The following command should work:
 

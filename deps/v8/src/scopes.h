@@ -357,11 +357,17 @@ class Scope: public ZoneObject {
   // Illegal redeclaration.
   Expression* illegal_redecl_;
 
-  // Scope-specific information.
-  bool scope_inside_with_;  // this scope is inside a 'with' of some outer scope
-  bool scope_contains_with_;  // this scope contains a 'with' statement
-  bool scope_calls_eval_;  // this scope contains an 'eval' call
-  bool strict_mode_;  // this scope is a strict mode scope
+  // Scope-specific information computed during parsing.
+  //
+  // This scope is inside a 'with' of some outer scope.
+  bool scope_inside_with_;
+  // This scope contains a 'with' statement.
+  bool scope_contains_with_;
+  // This scope or a nested catch scope or with scope contain an 'eval' call. At
+  // the 'eval' call site this scope is the declaration scope.
+  bool scope_calls_eval_;
+  // This scope is a strict mode scope.
+  bool strict_mode_;
 
   // Computed via PropagateScopeInfo.
   bool outer_scope_calls_eval_;

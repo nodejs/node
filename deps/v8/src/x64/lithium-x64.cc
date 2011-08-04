@@ -1036,7 +1036,11 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
         : instr->SecondSuccessor();
     return new LGoto(successor->block_id());
   }
-  return new LBranch(UseRegisterAtStart(v));
+  LInstruction* branch = new LBranch(UseRegister(v));
+  // When we handle all cases, we never deopt, so we don't need to assign the
+  // environment then.
+  bool all_cases_handled = instr->expected_input_types().IsAll();
+  return all_cases_handled ? branch : AssignEnvironment(branch);
 }
 
 

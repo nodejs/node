@@ -88,7 +88,8 @@ void IC::TraceIC(const char* type,
       // function and the original code.
       JSFunction* function = JSFunction::cast(frame->function());
       function->PrintName();
-      int code_offset = address() - js_code->instruction_start();
+      int code_offset =
+          static_cast<int>(address() - js_code->instruction_start());
       PrintF("+%d", code_offset);
     } else {
       PrintF("<unknown>");
@@ -309,6 +310,7 @@ void IC::Clear(Address address) {
     case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
     case Code::COMPARE_IC:
+    case Code::TO_BOOLEAN_IC:
       // Clearing these is tricky and does not
       // make any performance difference.
       return;
@@ -840,14 +842,6 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 
   return TypeError("property_not_function", object, key);
 }
-
-
-#ifdef DEBUG
-#define TRACE_IC_NAMED(msg, name) \
-  if (FLAG_trace_ic) PrintF(msg, *(name)->ToCString())
-#else
-#define TRACE_IC_NAMED(msg, name)
-#endif
 
 
 MaybeObject* LoadIC::Load(State state,
@@ -2503,6 +2497,31 @@ RUNTIME_FUNCTION(Code*, CompareIC_Miss) {
   CompareIC ic(isolate, static_cast<Token::Value>(args.smi_at(2)));
   ic.UpdateCaches(args.at<Object>(0), args.at<Object>(1));
   return ic.target();
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, ToBoolean_Patch) {
+  ASSERT(args.length() == 3);
+
+  HandleScope scope(isolate);
+  Handle<Object> object = args.at<Object>(0);
+  Register tos = Register::from_code(args.smi_at(1));
+  ToBooleanStub::Types old_types(args.smi_at(2));
+
+  ToBooleanStub::Types new_types(old_types);
+  bool to_boolean_value = new_types.Record(object);
+  old_types.TraceTransition(new_types);
+
+  ToBooleanStub stub(tos, new_types);
+  Handle<Code> code = stub.GetCode();
+  ToBooleanIC ic(isolate);
+  ic.patch(*code);
+  return Smi::FromInt(to_boolean_value ? 1 : 0);
+}
+
+
+void ToBooleanIC::patch(Code* code) {
+  set_target(code);
 }
 
 

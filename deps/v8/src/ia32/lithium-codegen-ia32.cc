@@ -1393,44 +1393,135 @@ void LCodeGen::DoBranch(LBranch* instr) {
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->InputAt(0));
-    if (instr->hydrogen()->value()->type().IsBoolean()) {
+    HType type = instr->hydrogen()->value()->type();
+    if (type.IsBoolean()) {
       __ cmp(reg, factory()->true_value());
       EmitBranch(true_block, false_block, equal);
+    } else if (type.IsSmi()) {
+      __ test(reg, Operand(reg));
+      EmitBranch(true_block, false_block, not_equal);
     } else {
       Label* true_label = chunk_->GetAssemblyLabel(true_block);
       Label* false_label = chunk_->GetAssemblyLabel(false_block);
 
-      __ cmp(reg, factory()->undefined_value());
-      __ j(equal, false_label);
-      __ cmp(reg, factory()->true_value());
-      __ j(equal, true_label);
-      __ cmp(reg, factory()->false_value());
-      __ j(equal, false_label);
-      __ test(reg, Operand(reg));
-      __ j(equal, false_label);
-      __ JumpIfSmi(reg, true_label);
+      ToBooleanStub::Types expected = instr->hydrogen()->expected_input_types();
+      // Avoid deopts in the case where we've never executed this path before.
+      if (expected.IsEmpty()) expected = ToBooleanStub::all_types();
 
-      // Test for double values. Zero is false.
-      Label call_stub;
-      __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
-             factory()->heap_number_map());
-      __ j(not_equal, &call_stub, Label::kNear);
-      __ fldz();
-      __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
-      __ FCmp();
-      __ j(zero, false_label);
-      __ jmp(true_label);
+      if (expected.Contains(ToBooleanStub::UNDEFINED)) {
+        // undefined -> false.
+        __ cmp(reg, factory()->undefined_value());
+        __ j(equal, false_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen undefined for the first time -> deopt.
+        __ cmp(reg, factory()->undefined_value());
+        DeoptimizeIf(equal, instr->environment());
+      }
 
-      // The conversion stub doesn't cause garbage collections so it's
-      // safe to not record a safepoint after the call.
-      __ bind(&call_stub);
-      ToBooleanStub stub(eax);
-      __ pushad();
-      __ push(reg);
-      __ CallStub(&stub);
-      __ test(eax, Operand(eax));
-      __ popad();
-      EmitBranch(true_block, false_block, not_zero);
+      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
+        // true -> true.
+        __ cmp(reg, factory()->true_value());
+        __ j(equal, true_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a boolean for the first time -> deopt.
+        __ cmp(reg, factory()->true_value());
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
+        // false -> false.
+        __ cmp(reg, factory()->false_value());
+        __ j(equal, false_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a boolean for the first time -> deopt.
+        __ cmp(reg, factory()->false_value());
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
+        // 'null' -> false.
+        __ cmp(reg, factory()->null_value());
+        __ j(equal, false_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen null for the first time -> deopt.
+        __ cmp(reg, factory()->null_value());
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::SMI)) {
+        // Smis: 0 -> false, all other -> true.
+        __ test(reg, Operand(reg));
+        __ j(equal, false_label);
+        __ JumpIfSmi(reg, true_label);
+      } else if (expected.NeedsMap()) {
+        // If we need a map later and have a Smi -> deopt.
+        __ test(reg, Immediate(kSmiTagMask));
+        DeoptimizeIf(zero, instr->environment());
+      }
+
+      Register map = no_reg;
+      if (expected.NeedsMap()) {
+        map = ToRegister(instr->TempAt(0));
+        ASSERT(!map.is(reg));
+        __ mov(map, FieldOperand(reg, HeapObject::kMapOffset));
+        // Everything with a map could be undetectable, so check this now.
+        __ test_b(FieldOperand(map, Map::kBitFieldOffset),
+                  1 << Map::kIsUndetectable);
+        // Undetectable -> false.
+        __ j(not_zero, false_label);
+      }
+
+      if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
+        // spec object -> true.
+        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+        __ j(above_equal, true_label);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a spec object for the first time -> deopt.
+        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+        DeoptimizeIf(above_equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::STRING)) {
+        // String value -> false iff empty.
+        Label not_string;
+        __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+        __ j(above_equal, &not_string, Label::kNear);
+        __ cmp(FieldOperand(reg, String::kLengthOffset), Immediate(0));
+        __ j(not_zero, true_label);
+        __ jmp(false_label);
+        __ bind(&not_string);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a string for the first time -> deopt
+        __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+        DeoptimizeIf(below, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
+        // heap number -> false iff +0, -0, or NaN.
+        Label not_heap_number;
+        __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+               factory()->heap_number_map());
+        __ j(not_equal, &not_heap_number, Label::kNear);
+        __ fldz();
+        __ fld_d(FieldOperand(reg, HeapNumber::kValueOffset));
+        __ FCmp();
+        __ j(zero, false_label);
+        __ jmp(true_label);
+        __ bind(&not_heap_number);
+      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // We've seen a heap number for the first time -> deopt.
+        __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
+               factory()->heap_number_map());
+        DeoptimizeIf(equal, instr->environment());
+      }
+
+      if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
+        // internal objects -> true
+        __ jmp(true_label);
+      } else {
+        // We've seen something for the first time -> deopt.
+        DeoptimizeIf(no_condition, instr->environment());
+      }
     }
   }
 }
@@ -2232,7 +2323,6 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
 
 void LCodeGen::DoLoadKeyedFastDoubleElement(
     LLoadKeyedFastDoubleElement* instr) {
-  Register elements = ToRegister(instr->elements());
   XMMRegister result = ToDoubleRegister(instr->result());
 
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -3097,7 +3187,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 void LCodeGen::DoStoreKeyedFastDoubleElement(
     LStoreKeyedFastDoubleElement* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
-  Register elements = ToRegister(instr->elements());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Label have_value;
 

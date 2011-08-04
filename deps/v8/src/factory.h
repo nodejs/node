@@ -58,6 +58,8 @@ class Factory {
 
   Handle<StringDictionary> NewStringDictionary(int at_least_space_for);
 
+  Handle<ObjectHashTable> NewObjectHashTable(int at_least_space_for);
+
   Handle<DescriptorArray> NewDescriptorArray(int number_of_descriptors);
   Handle<DeoptimizationInputData> NewDeoptimizationInputData(
       int deopt_entry_count,

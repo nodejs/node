@@ -166,7 +166,8 @@ class JsonParser BASE_EMBEDDED {
 template <bool seq_ascii>
 Handle<Object> JsonParser<seq_ascii>::ParseJson(Handle<String> source) {
   isolate_ = source->map()->isolate();
-  source_ = Handle<String>(source->TryFlattenGetString());
+  FlattenString(source);
+  source_ = source;
   source_length_ = source_->length();
 
   // Optimized fast case where we only have ASCII characters.

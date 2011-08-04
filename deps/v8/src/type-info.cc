@@ -439,6 +439,12 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(
 }
 
 
+byte TypeFeedbackOracle::ToBooleanTypes(unsigned ast_id) {
+  Handle<Object> object = GetInfo(ast_id);
+  return object->IsCode() ? Handle<Code>::cast(object)->to_boolean_state() : 0;
+}
+
+
 // Things are a bit tricky here: The iterator for the RelocInfos and the infos
 // themselves are not GC-safe, so we first get all infos, then we create the
 // dictionary (possibly triggering GC), and finally we relocate the collected
@@ -523,6 +529,7 @@ void TypeFeedbackOracle::ProcessTarget(unsigned ast_id, Code* target) {
     case Code::UNARY_OP_IC:
     case Code::BINARY_OP_IC:
     case Code::COMPARE_IC:
+    case Code::TO_BOOLEAN_IC:
       SetInfo(ast_id, target);
       break;
 

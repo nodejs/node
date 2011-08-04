@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -137,4 +137,15 @@ TEST(Clear) {
   CHECK_EQ(4, list.length());
   list.Clear();
   CHECK_EQ(0, list.length());
+}
+
+
+TEST(DeleteEmpty) {
+  {
+    List<int>* list = new List<int>(0);
+    delete list;
+  }
+  {
+    List<int> list(0);
+  }
 }

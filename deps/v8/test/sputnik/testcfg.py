@@ -101,7 +101,7 @@ class SputnikTestConfiguration(test.TestConfiguration):
     return result
 
   def GetBuildRequirements(self):
-    return ['sample', 'sample=shell']
+    return ['d8']
 
   def GetTestStatus(self, sections, defs):
     status_file = join(self.root, 'sputnik.status')

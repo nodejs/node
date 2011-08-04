@@ -125,7 +125,7 @@ class MozillaTestConfiguration(test.TestConfiguration):
     return tests
 
   def GetBuildRequirements(self):
-    return ['sample', 'sample=shell']
+    return ['d8']
 
   def GetTestStatus(self, sections, defs):
     status_file = join(self.root, 'mozilla.status')

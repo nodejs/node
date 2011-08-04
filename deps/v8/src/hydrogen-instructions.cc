@@ -862,19 +862,10 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange() {
-  if (representation().IsTagged()) {
-    // Tagged values are always in int32 range when converted to integer,
-    // but they can contain -0.
-    Range* result = new Range();
-    result->set_can_be_minus_zero(true);
-    return result;
-  } else if (representation().IsNone()) {
-    return NULL;
-  } else {
-    // Untagged integer32 cannot be -0 and we don't compute ranges for
-    // untagged doubles.
-    return new Range();
-  }
+  // Untagged integer32 cannot be -0, all other representations can.
+  Range* result = new Range();
+  result->set_can_be_minus_zero(!representation().IsInteger32());
+  return result;
 }
 
 
@@ -1224,6 +1215,30 @@ Range* HSar::InferRange() {
           : new Range();
       result->Sar(c->Integer32Value());
       return result;
+    }
+  }
+  return HValue::InferRange();
+}
+
+
+Range* HShr::InferRange() {
+  if (right()->IsConstant()) {
+    HConstant* c = HConstant::cast(right());
+    if (c->HasInteger32Value()) {
+      int shift_count = c->Integer32Value() & 0x1f;
+      if (left()->range()->CanBeNegative()) {
+        // Only compute bounds if the result always fits into an int32.
+        return (shift_count >= 1)
+            ? new Range(0, static_cast<uint32_t>(0xffffffff) >> shift_count)
+            : new Range();
+      } else {
+        // For positive inputs we can use the >> operator.
+        Range* result = (left()->range() != NULL)
+            ? left()->range()->Copy()
+            : new Range();
+        result->Sar(c->Integer32Value());
+        return result;
+      }
     }
   }
   return HValue::InferRange();
@@ -1798,11 +1813,6 @@ void HSimulate::Verify() {
 }
 
 
-void HBoundsCheck::Verify() {
-  HInstruction::Verify();
-}
-
-
 void HCheckSmi::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
@@ -1810,18 +1820,6 @@ void HCheckSmi::Verify() {
 
 
 void HCheckNonSmi::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckInstanceType::Verify() {
-  HInstruction::Verify();
-  ASSERT(HasNoUses());
-}
-
-
-void HCheckMap::Verify() {
   HInstruction::Verify();
   ASSERT(HasNoUses());
 }

@@ -437,6 +437,7 @@ void FullCodeGenerator::AccumulatorValueContext::Plug(Register reg) const {
 
 void FullCodeGenerator::StackValueContext::Plug(Register reg) const {
   __ push(reg);
+  codegen()->increment_stack_height();
 }
 
 
@@ -450,11 +451,13 @@ void FullCodeGenerator::TestContext::Plug(Register reg) const {
 
 void FullCodeGenerator::EffectContext::PlugTOS() const {
   __ Drop(1);
+  codegen()->decrement_stack_height();
 }
 
 
 void FullCodeGenerator::AccumulatorValueContext::PlugTOS() const {
   __ pop(result_register());
+  codegen()->decrement_stack_height();
 }
 
 
@@ -465,6 +468,7 @@ void FullCodeGenerator::StackValueContext::PlugTOS() const {
 void FullCodeGenerator::TestContext::PlugTOS() const {
   // For simplicity we always test the accumulator register.
   __ pop(result_register());
+  codegen()->decrement_stack_height();
   codegen()->PrepareForBailoutBeforeSplit(TOS_REG, false, NULL, NULL);
   codegen()->DoTest(this);
 }
@@ -960,6 +964,7 @@ void FullCodeGenerator::VisitEnterWithContextStatement(
   VisitForStackValue(stmt->expression());
   PushFunctionArgumentForContextAllocation();
   __ CallRuntime(Runtime::kPushWithContext, 2);
+  decrement_stack_height();
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
@@ -1128,8 +1133,10 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   {
     TryCatch try_block(this, &catch_entry);
     __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
+    increment_stack_height(StackHandlerConstants::kSize / kPointerSize);
     Visit(stmt->try_block());
     __ PopTryHandler();
+    decrement_stack_height(StackHandlerConstants::kSize / kPointerSize);
   }
   __ bind(&done);
 }
@@ -1161,6 +1168,10 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // cooked before GC.
   Label finally_entry;
   Label try_handler_setup;
+  const int original_stack_height = stack_height();
+  const int finally_block_stack_height = original_stack_height + 2;
+  const int try_block_stack_height = original_stack_height + 4;
+  STATIC_ASSERT(StackHandlerConstants::kSize / kPointerSize == 4);
 
   // Setup the try-handler chain. Use a call to
   // Jump to try-handler setup and try-block code. Use call to put try-handler
@@ -1182,6 +1193,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     // Finally block implementation.
     Finally finally_block(this);
     EnterFinallyBlock();
+    set_stack_height(finally_block_stack_height);
     Visit(stmt->finally_block());
     ExitFinallyBlock();  // Return to the calling code.
   }
@@ -1191,8 +1203,10 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     // Setup try handler (stack pointer registers).
     TryFinally try_block(this, &finally_entry);
     __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
+    set_stack_height(try_block_stack_height);
     Visit(stmt->try_block());
     __ PopTryHandler();
+    set_stack_height(original_stack_height);
   }
   // Execute the finally block on the way out.  Clobber the unpredictable
   // value in the accumulator with one that's safe for GC.  The finally
@@ -1222,6 +1236,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
   __ bind(&true_case);
   SetExpressionPosition(expr->then_expression(),
                         expr->then_expression_position());
+  int start_stack_height = stack_height();
   if (context()->IsTest()) {
     const TestContext* for_test = TestContext::cast(context());
     VisitForControl(expr->then_expression(),
@@ -1235,6 +1250,7 @@ void FullCodeGenerator::VisitConditional(Conditional* expr) {
 
   PrepareForBailoutForId(expr->ElseId(), NO_REGISTERS);
   __ bind(&false_case);
+  set_stack_height(start_stack_height);
   if (context()->IsTest()) ForwardBailoutToChild(expr);
   SetExpressionPosition(expr->else_expression(),
                         expr->else_expression_position());
@@ -1275,8 +1291,11 @@ void FullCodeGenerator::VisitSharedFunctionInfoLiteral(
 
 void FullCodeGenerator::VisitThrow(Throw* expr) {
   Comment cmnt(masm_, "[ Throw");
+  // Throw has no effect on the stack height or the current expression context.
+  // Usually the expression context is null, because throw is a statement.
   VisitForStackValue(expr->exception());
   __ CallRuntime(Runtime::kThrow, 1);
+  decrement_stack_height();
   // Never returns here.
 }
 

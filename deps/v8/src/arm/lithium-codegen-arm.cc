@@ -1560,7 +1560,7 @@ void LCodeGen::DoBranch(LBranch* instr) {
     // Test the double value. Zero and NaN are false.
     __ VFPCompareAndLoadFlags(reg, 0.0, scratch);
     __ tst(scratch, Operand(kVFPZConditionFlagBit | kVFPVConditionFlagBit));
-    EmitBranch(true_block, false_block, ne);
+    EmitBranch(true_block, false_block, eq);
   } else {
     ASSERT(r.IsTagged());
     Register reg = ToRegister(instr->InputAt(0));
@@ -4070,7 +4070,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   // conversions.
   __ cmp(input_reg, Operand(factory()->undefined_value()));
   DeoptimizeIf(ne, instr->environment());
-  __ movt(input_reg, 0);
+  __ mov(result_reg, Operand(0));
   __ jmp(&done);
 
   // Heap number

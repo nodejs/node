@@ -329,4 +329,78 @@ void CallFunctionStub::PrintName(StringStream* stream) {
   stream->Add("CallFunctionStub_Args%d%s%s", argc_, in_loop_name, flags_name);
 }
 
+
+void ToBooleanStub::PrintName(StringStream* stream) {
+  stream->Add("ToBooleanStub_");
+  types_.Print(stream);
+}
+
+
+void ToBooleanStub::Types::Print(StringStream* stream) const {
+  if (IsEmpty()) stream->Add("None");
+  if (Contains(UNDEFINED)) stream->Add("Undefined");
+  if (Contains(BOOLEAN)) stream->Add("Bool");
+  if (Contains(SMI)) stream->Add("Smi");
+  if (Contains(NULL_TYPE)) stream->Add("Null");
+  if (Contains(SPEC_OBJECT)) stream->Add("SpecObject");
+  if (Contains(STRING)) stream->Add("String");
+  if (Contains(HEAP_NUMBER)) stream->Add("HeapNumber");
+  if (Contains(INTERNAL_OBJECT)) stream->Add("InternalObject");
+}
+
+
+void ToBooleanStub::Types::TraceTransition(Types to) const {
+  if (!FLAG_trace_ic) return;
+  char buffer[100];
+  NoAllocationStringAllocator allocator(buffer,
+                                        static_cast<unsigned>(sizeof(buffer)));
+  StringStream stream(&allocator);
+  stream.Add("[ToBooleanIC (");
+  Print(&stream);
+  stream.Add("->");
+  to.Print(&stream);
+  stream.Add(")]\n");
+  stream.OutputToStdOut();
+}
+
+
+bool ToBooleanStub::Types::Record(Handle<Object> object) {
+  if (object->IsUndefined()) {
+    Add(UNDEFINED);
+    return false;
+  } else if (object->IsBoolean()) {
+    Add(BOOLEAN);
+    return object->IsTrue();
+  } else if (object->IsNull()) {
+    Add(NULL_TYPE);
+    return false;
+  } else if (object->IsSmi()) {
+    Add(SMI);
+    return Smi::cast(*object)->value() != 0;
+  } else if (object->IsSpecObject()) {
+    Add(SPEC_OBJECT);
+    return !object->IsUndetectableObject();
+  } else if (object->IsString()) {
+    Add(STRING);
+    return !object->IsUndetectableObject() &&
+        String::cast(*object)->length() != 0;
+  } else if (object->IsHeapNumber()) {
+    Add(HEAP_NUMBER);
+    double value = HeapNumber::cast(*object)->value();
+    return !object->IsUndetectableObject() && value != 0 && !isnan(value);
+  } else {
+    Add(INTERNAL_OBJECT);
+    return !object->IsUndetectableObject();
+  }
+}
+
+
+bool ToBooleanStub::Types::NeedsMap() const {
+  return Contains(ToBooleanStub::SPEC_OBJECT)
+      || Contains(ToBooleanStub::STRING)
+      || Contains(ToBooleanStub::HEAP_NUMBER)
+      || Contains(ToBooleanStub::INTERNAL_OBJECT);
+}
+
+
 } }  // namespace v8::internal

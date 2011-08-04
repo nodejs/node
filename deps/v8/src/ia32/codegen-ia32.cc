@@ -255,6 +255,7 @@ OS::MemCopyFunction CreateMemCopyFunction() {
   ASSERT(desc.reloc_size == 0);
 
   CPU::FlushICache(buffer, actual_size);
+  OS::ProtectCode(buffer, actual_size);
   return FUNCTION_CAST<OS::MemCopyFunction>(buffer);
 }
 

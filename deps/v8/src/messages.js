@@ -195,6 +195,7 @@ function FormatMessage(message) {
       non_extensible_proto:         ["%0", " is not extensible"],
       handler_non_object:           ["Proxy.", "%0", " called with non-object as handler"],
       handler_trap_missing:         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
+      handler_trap_must_be_callable: ["Proxy handler ", "%0", " has non-callable '", "%1", "' trap"],
       handler_returned_false:       ["Proxy handler ", "%0", " returned false for '", "%1", "' trap"],
       handler_returned_undefined:   ["Proxy handler ", "%0", " returned undefined for '", "%1", "' trap"],
       proxy_prop_not_configurable:  ["Trap ", "%1", " of proxy handler ", "%0", " returned non-configurable descriptor for property ", "%2"],

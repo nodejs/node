@@ -3752,10 +3752,11 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
 
   __ bind(&smi_value);
   // Value is a smi. convert to a double and store.
-  __ SmiToInteger32(rax, rax);
-  __ push(rax);
+  // Preserve original value.
+  __ SmiToInteger32(rdx, rax);
+  __ push(rdx);
   __ fild_s(Operand(rsp, 0));
-  __ pop(rax);
+  __ pop(rdx);
   __ SmiToInteger32(rcx, rcx);
   __ fstp_d(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize));
   __ ret(0);

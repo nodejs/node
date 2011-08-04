@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,10 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-var x  = 0;
-execScript('x = 1', 'javascript');
-assertEquals(1, x);
+// Flags: --allow-natives-syntax
 
-execScript('x = 2', 'JavaScript');
-assertEquals(2, x);
+function f(restIsArray, rest) {
+  var arr;
+  if (typeof rest === "object" && (rest instanceof Array)) {
+    arr = rest;
+  } else {
+    arr = arguments;
+  }
+  var i = arr.length;
+  while (--i >= 0) arr[i];
+  var arrIsArguments = (arr[1] !== rest);
+  assertEquals(restIsArray, arrIsArguments);
+}
 
+f(false, 'b', 'c');
+f(false, 'b', 'c');
+f(false, 'b', 'c');
+%OptimizeFunctionOnNextCall(f);
+f(true, ['b', 'c']);

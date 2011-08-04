@@ -83,6 +83,7 @@ class FullCodeGenerator: public AstVisitor {
         scope_(NULL),
         nesting_stack_(NULL),
         loop_depth_(0),
+        stack_height_(0),
         context_(NULL),
         bailout_entries_(0),
         stack_checks_(2),  // There's always at least one.
@@ -519,6 +520,35 @@ class FullCodeGenerator: public AstVisitor {
     loop_depth_--;
   }
 
+#if defined(V8_TARGET_ARCH_IA32)
+  int stack_height() { return stack_height_; }
+  void set_stack_height(int depth) { stack_height_ = depth; }
+  void increment_stack_height() { stack_height_++; }
+  void increment_stack_height(int delta) { stack_height_ += delta; }
+  void decrement_stack_height() {
+    if (FLAG_verify_stack_height) {
+      ASSERT(stack_height_ > 0);
+    }
+    stack_height_--;
+  }
+  void decrement_stack_height(int delta) {
+    stack_height_-= delta;
+    if (FLAG_verify_stack_height) {
+      ASSERT(stack_height_ >= 0);
+    }
+  }
+  // Call this function only if FLAG_verify_stack_height is true.
+  void verify_stack_height();  // Generates a runtime check of esp - ebp.
+#else
+  int stack_height() { return 0; }
+  void set_stack_height(int depth) {}
+  void increment_stack_height() {}
+  void increment_stack_height(int delta) {}
+  void decrement_stack_height() {}
+  void decrement_stack_height(int delta) {}
+  void verify_stack_height() {}
+#endif  // V8_TARGET_ARCH_IA32
+
   MacroAssembler* masm() { return masm_; }
 
   class ExpressionContext;
@@ -578,6 +608,10 @@ class FullCodeGenerator: public AstVisitor {
 
     virtual ~ExpressionContext() {
       codegen_->set_new_context(old_);
+      if (FLAG_verify_stack_height) {
+        ASSERT_EQ(expected_stack_height_, codegen()->stack_height());
+        codegen()->verify_stack_height();
+      }
     }
 
     Isolate* isolate() const { return codegen_->isolate(); }
@@ -631,6 +665,7 @@ class FullCodeGenerator: public AstVisitor {
     FullCodeGenerator* codegen() const { return codegen_; }
     MacroAssembler* masm() const { return masm_; }
     MacroAssembler* masm_;
+    int expected_stack_height_;  // The expected stack height esp - ebp on exit.
 
    private:
     const ExpressionContext* old_;
@@ -640,7 +675,9 @@ class FullCodeGenerator: public AstVisitor {
   class AccumulatorValueContext : public ExpressionContext {
    public:
     explicit AccumulatorValueContext(FullCodeGenerator* codegen)
-        : ExpressionContext(codegen) { }
+        : ExpressionContext(codegen) {
+      expected_stack_height_ = codegen->stack_height();
+    }
 
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
@@ -661,7 +698,9 @@ class FullCodeGenerator: public AstVisitor {
   class StackValueContext : public ExpressionContext {
    public:
     explicit StackValueContext(FullCodeGenerator* codegen)
-        : ExpressionContext(codegen) { }
+        : ExpressionContext(codegen) {
+      expected_stack_height_ = codegen->stack_height() + 1;
+    }
 
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
@@ -690,7 +729,9 @@ class FullCodeGenerator: public AstVisitor {
           condition_(condition),
           true_label_(true_label),
           false_label_(false_label),
-          fall_through_(fall_through) { }
+          fall_through_(fall_through) {
+      expected_stack_height_ = codegen->stack_height();
+    }
 
     static const TestContext* cast(const ExpressionContext* context) {
       ASSERT(context->IsTest());
@@ -727,7 +768,10 @@ class FullCodeGenerator: public AstVisitor {
   class EffectContext : public ExpressionContext {
    public:
     explicit EffectContext(FullCodeGenerator* codegen)
-        : ExpressionContext(codegen) { }
+        : ExpressionContext(codegen) {
+      expected_stack_height_ = codegen->stack_height();
+    }
+
 
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
@@ -751,6 +795,7 @@ class FullCodeGenerator: public AstVisitor {
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;
+  int stack_height_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;

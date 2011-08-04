@@ -2755,7 +2755,7 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
           Handle<String> name = callee->name();
           Variable* var = top_scope_->Lookup(name);
           if (var == NULL) {
-            top_scope_->RecordEvalCall();
+            top_scope_->DeclarationScope()->RecordEvalCall();
           }
         }
         result = NewCall(result, args, pos);
@@ -3641,7 +3641,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
   }
 
   int num_parameters = 0;
-  Scope* scope = NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
+  // Function declarations are hoisted.
+  Scope* scope = (type == DECLARATION)
+      ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE, false)
+      : NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
   ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
   int materialized_literal_count;
   int expected_property_count;
@@ -3715,36 +3718,43 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> var_name,
                                  RelocInfo::kNoPosition)));
     }
 
-    // Determine if the function will be lazily compiled. The mode can
-    // only be PARSE_LAZILY if the --lazy flag is true.
+    // Determine if the function will be lazily compiled. The mode can only
+    // be PARSE_LAZILY if the --lazy flag is true.  We will not lazily
+    // compile if we do not have preparser data for the function.
     bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
                                top_scope_->outer_scope()->is_global_scope() &&
                                top_scope_->HasTrivialOuterContext() &&
-                               !parenthesized_function_);
+                               !parenthesized_function_ &&
+                               pre_data() != NULL);
     parenthesized_function_ = false;  // The bit was set for this function only.
 
-    int function_block_pos = scanner().location().beg_pos;
-    if (is_lazily_compiled && pre_data() != NULL) {
+    if (is_lazily_compiled) {
+      int function_block_pos = scanner().location().beg_pos;
       FunctionEntry entry = pre_data()->GetFunctionEntry(function_block_pos);
       if (!entry.is_valid()) {
-        ReportInvalidPreparseData(name, CHECK_OK);
+        // There is no preparser data for the function, we will not lazily
+        // compile after all.
+        is_lazily_compiled = false;
+      } else {
+        end_pos = entry.end_pos();
+        if (end_pos <= function_block_pos) {
+          // End position greater than end of stream is safe, and hard to check.
+          ReportInvalidPreparseData(name, CHECK_OK);
+        }
+        isolate()->counters()->total_preparse_skipped()->Increment(
+            end_pos - function_block_pos);
+        // Seek to position just before terminal '}'.
+        scanner().SeekForward(end_pos - 1);
+        materialized_literal_count = entry.literal_count();
+        expected_property_count = entry.property_count();
+        if (entry.strict_mode()) top_scope_->EnableStrictMode();
+        only_simple_this_property_assignments = false;
+        this_property_assignments = isolate()->factory()->empty_fixed_array();
+        Expect(Token::RBRACE, CHECK_OK);
       }
-      end_pos = entry.end_pos();
-      if (end_pos <= function_block_pos) {
-        // End position greater than end of stream is safe, and hard to check.
-        ReportInvalidPreparseData(name, CHECK_OK);
-      }
-      isolate()->counters()->total_preparse_skipped()->Increment(
-          end_pos - function_block_pos);
-      // Seek to position just before terminal '}'.
-      scanner().SeekForward(end_pos - 1);
-      materialized_literal_count = entry.literal_count();
-      expected_property_count = entry.property_count();
-      if (entry.strict_mode()) top_scope_->EnableStrictMode();
-      only_simple_this_property_assignments = false;
-      this_property_assignments = isolate()->factory()->empty_fixed_array();
-      Expect(Token::RBRACE, CHECK_OK);
-    } else {
+    }
+
+    if (!is_lazily_compiled) {
       ParseSourceElements(body, Token::RBRACE, CHECK_OK);
 
       materialized_literal_count = lexical_scope.materialized_literal_count();

@@ -238,10 +238,14 @@ class HGraph: public ZoneObject {
   void OrderBlocks();
   void AssignDominators();
   void ReplaceCheckedValues();
-  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
+  void PropagateDeoptimizingMark();
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
+  bool CheckPhis();
+
+  // Returns false if there are phi-uses of hole values comming
+  // from uninitialized consts.
   bool CollectPhis();
 
   Handle<Code> Compile(CompilationInfo* info);
@@ -293,6 +297,7 @@ class HGraph: public ZoneObject {
   HConstant* GetConstant(SetOncePointer<HConstant>* pointer,
                          Object* value);
 
+  void MarkAsDeoptimizingRecursively(HBasicBlock* block);
   void InsertTypeConversions(HInstruction* instr);
   void PropagateMinusZeroChecks(HValue* value, BitVector* visited);
   void RecursivelyMarkPhiDeoptimizeOnUndefined(HPhi* phi);
@@ -719,6 +724,8 @@ class HGraphBuilder: public AstVisitor {
                           HBasicBlock* second,
                           int join_id);
 
+  TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
+
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
@@ -747,7 +754,6 @@ class HGraphBuilder: public AstVisitor {
   CompilationInfo* info() const {
     return function_state()->compilation_info();
   }
-  TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
 
   AstContext* call_context() const {
     return function_state()->call_context();

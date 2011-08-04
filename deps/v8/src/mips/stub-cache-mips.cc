@@ -4459,11 +4459,18 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   } else {
     destination = FloatingPointHelper::kCoreRegisters;
   }
-  __ SmiUntag(value_reg, value_reg);
+
+  Register untagged_value = receiver_reg;
+  __ SmiUntag(untagged_value, value_reg);
   FloatingPointHelper::ConvertIntToDouble(
-      masm, value_reg, destination,
-      f0, mantissa_reg, exponent_reg,  // These are: double_dst, dst1, dst2.
-      scratch4, f2);  // These are: scratch2, single_scratch.
+      masm,
+      untagged_value,
+      destination,
+      f0,
+      mantissa_reg,
+      exponent_reg,
+      scratch4,
+      f2);
   if (destination == FloatingPointHelper::kFPURegisters) {
     CpuFeatures::Scope scope(FPU);
     __ sdc1(f0, MemOperand(scratch, 0));

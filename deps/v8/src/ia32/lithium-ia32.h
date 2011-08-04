@@ -876,10 +876,11 @@ class LConstantT: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LBranch: public LControlInstruction<1, 0> {
+class LBranch: public LControlInstruction<1, 1> {
  public:
-  explicit LBranch(LOperand* value) {
+  explicit LBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(Branch, "branch")

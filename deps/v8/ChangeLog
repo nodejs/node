@@ -1,8 +1,51 @@
+2011-08-03: Version 3.5.3
+
+        MIPS: Port of fix to ClassOf check from ARM.
+        Patch from Paul Lind <plind44@gmail.com>.
+
+        Stopped using mprotect on Cygwin.
+        Avoided uninitialized member warning on gcc 4.3.4
+        Both patches by Bert Belder.
+
+        Bug fixes and performance improvements on all platforms.
+
+
+2011-08-01: Version 3.5.2
+
+        Performance improvements on all platforms.
+
+
+2011-07-28: Version 3.5.1
+
+        Fixed setting the readonly flag on the prototype property using the
+        API call FunctionTemplate::SetPrototypeAttributes (issue 1539).
+
+        Changed the tools/test.py script to use d8 instead of shell for
+        testing.
+
+        Fixed crash in ToBooleanStub when GC happens during invocation.
+
+        Enabled automatic unboxing of double arrays.
+
+        Performance improvements on all platforms.
+
+
+2011-07-25: Version 3.5.0
+
+        Implemented Object.prototype.{hasOwnProperty, propertyIsEnumerable} for
+        proxies.
+
+        Removed logging to memory support.
+
+        Bugfixes and performance work.
+
+
 2011-07-20: Version 3.4.14
 
         Fix the debugger for strict-mode functions. (Chromium issue 89236)
 
-        Add GetPropertyAttribute method for Object in the API. (Patch by Peter Varga)
+        Add GetPropertyAttribute method for Object in the API. (Patch by 
+        Peter Varga)
 
         Fix -Wunused-but-set-variable for gcc-4.6 on x64. (Issue 1291)
 

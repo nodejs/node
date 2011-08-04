@@ -59,7 +59,8 @@ namespace internal {
   ICU(StoreInterceptorProperty)                       \
   ICU(UnaryOp_Patch)                                  \
   ICU(BinaryOp_Patch)                                 \
-  ICU(CompareIC_Miss)
+  ICU(CompareIC_Miss)                                 \
+  ICU(ToBoolean_Patch)
 //
 // IC is the base class for LoadIC, StoreIC, CallIC, KeyedLoadIC,
 // and KeyedStoreIC.
@@ -719,6 +720,15 @@ class CompareIC: public IC {
 
   Token::Value op_;
 };
+
+
+class ToBooleanIC: public IC {
+ public:
+  explicit ToBooleanIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) { }
+
+  void patch(Code* code);
+};
+
 
 // Helper for BinaryOpIC and CompareIC.
 void PatchInlinedSmiCode(Address address);

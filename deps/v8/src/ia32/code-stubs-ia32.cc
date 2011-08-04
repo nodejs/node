@@ -236,69 +236,153 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
 }
 
 
-// The stub returns zero for false, and a non-zero value for true.
+// The stub expects its argument on the stack and returns its result in tos_:
+// zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
-  Label false_result, true_result, not_string;
+  Label patch;
   Factory* factory = masm->isolate()->factory();
+  const Register argument = eax;
   const Register map = edx;
 
-  __ mov(eax, Operand(esp, 1 * kPointerSize));
+  if (!types_.IsEmpty()) {
+    __ mov(argument, Operand(esp, 1 * kPointerSize));
+  }
 
   // undefined -> false
-  __ cmp(eax, factory->undefined_value());
-  __ j(equal, &false_result);
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
 
   // Boolean -> its value
-  __ cmp(eax, factory->false_value());
-  __ j(equal, &false_result);
-  __ cmp(eax, factory->true_value());
-  __ j(equal, &true_result);
-
-  // Smis: 0 -> false, all other -> true
-  __ test(eax, Operand(eax));
-  __ j(zero, &false_result);
-  __ JumpIfSmi(eax, &true_result);
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
 
   // 'null' -> false.
-  __ cmp(eax, factory->null_value());
-  __ j(equal, &false_result, Label::kNear);
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
 
-  // Get the map of the heap object.
-  __ mov(map, FieldOperand(eax, HeapObject::kMapOffset));
+  if (types_.Contains(SMI)) {
+    // Smis: 0 -> false, all other -> true
+    Label not_smi;
+    __ JumpIfNotSmi(argument, &not_smi, Label::kNear);
+    // argument contains the correct return value already
+    if (!tos_.is(argument)) {
+      __ mov(tos_, argument);
+    }
+    __ ret(1 * kPointerSize);
+    __ bind(&not_smi);
+  } else if (types_.NeedsMap()) {
+    // If we need a map later and have a Smi -> patch.
+    __ JumpIfSmi(argument, &patch, Label::kNear);
+  }
 
-  // Undetectable -> false.
-  __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-            1 << Map::kIsUndetectable);
-  __ j(not_zero, &false_result, Label::kNear);
+  if (types_.NeedsMap()) {
+    __ mov(map, FieldOperand(argument, HeapObject::kMapOffset));
 
-  // JavaScript object -> true.
-  __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-  __ j(above_equal, &true_result, Label::kNear);
+    // Everything with a map could be undetectable, so check this now.
+    __ test_b(FieldOperand(map, Map::kBitFieldOffset),
+              1 << Map::kIsUndetectable);
+    // Undetectable -> false.
+    Label not_undetectable;
+    __ j(zero, &not_undetectable, Label::kNear);
+    __ Set(tos_, Immediate(0));
+    __ ret(1 * kPointerSize);
+    __ bind(&not_undetectable);
+  }
 
-  // String value -> false iff empty.
-  __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-  __ j(above_equal, &not_string, Label::kNear);
-  __ cmp(FieldOperand(eax, String::kLengthOffset), Immediate(0));
-  __ j(zero, &false_result, Label::kNear);
-  __ jmp(&true_result, Label::kNear);
+  if (types_.Contains(SPEC_OBJECT)) {
+    // spec object -> true.
+    Label not_js_object;
+    __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+    __ j(below, &not_js_object, Label::kNear);
+    __ Set(tos_, Immediate(1));
+    __ ret(1 * kPointerSize);
+    __ bind(&not_js_object);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a spec object for the first time -> patch.
+    __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
+    __ j(above_equal, &patch, Label::kNear);
+  }
 
-  __ bind(&not_string);
-  // HeapNumber -> false iff +0, -0, or NaN.
-  __ cmp(map, factory->heap_number_map());
-  __ j(not_equal, &true_result, Label::kNear);
-  __ fldz();
-  __ fld_d(FieldOperand(eax, HeapNumber::kValueOffset));
-  __ FCmp();
-  __ j(zero, &false_result, Label::kNear);
-  // Fall through to |true_result|.
+  if (types_.Contains(STRING)) {
+    // String value -> false iff empty.
+    Label not_string;
+    __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+    __ j(above_equal, &not_string, Label::kNear);
+    __ mov(tos_, FieldOperand(argument, String::kLengthOffset));
+    __ ret(1 * kPointerSize);  // the string length is OK as the return value
+    __ bind(&not_string);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a string for the first time -> patch
+    __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
+    __ j(below, &patch, Label::kNear);
+  }
 
-  // Return 1/0 for true/false in tos_.
-  __ bind(&true_result);
-  __ mov(tos_, 1);
-  __ ret(1 * kPointerSize);
-  __ bind(&false_result);
-  __ mov(tos_, 0);
-  __ ret(1 * kPointerSize);
+  if (types_.Contains(HEAP_NUMBER)) {
+    // heap number -> false iff +0, -0, or NaN.
+    Label not_heap_number, false_result;
+    __ cmp(map, factory->heap_number_map());
+    __ j(not_equal, &not_heap_number, Label::kNear);
+    __ fldz();
+    __ fld_d(FieldOperand(argument, HeapNumber::kValueOffset));
+    __ FCmp();
+    __ j(zero, &false_result, Label::kNear);
+    __ Set(tos_, Immediate(1));
+    __ ret(1 * kPointerSize);
+    __ bind(&false_result);
+    __ Set(tos_, Immediate(0));
+    __ ret(1 * kPointerSize);
+    __ bind(&not_heap_number);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a heap number for the first time -> patch
+    __ cmp(map, factory->heap_number_map());
+    __ j(equal, &patch, Label::kNear);
+  }
+
+  if (types_.Contains(INTERNAL_OBJECT)) {
+    // internal objects -> true
+    __ Set(tos_, Immediate(1));
+    __ ret(1 * kPointerSize);
+  }
+
+  if (!types_.IsAll()) {
+    __ bind(&patch);
+    GenerateTypeTransition(masm);
+  }
+}
+
+
+void ToBooleanStub::CheckOddball(MacroAssembler* masm,
+                                 Type type,
+                                 Heap::RootListIndex value,
+                                 bool result,
+                                 Label* patch) {
+  const Register argument = eax;
+  if (types_.Contains(type)) {
+    // If we see an expected oddball, return its ToBoolean value tos_.
+    Label different_value;
+    __ CompareRoot(argument, value);
+    __ j(not_equal, &different_value, Label::kNear);
+    __ Set(tos_, Immediate(result ? 1 : 0));
+    __ ret(1 * kPointerSize);
+    __ bind(&different_value);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // If we see an unexpected oddball and handle internal objects, we must
+    // patch because the code for internal objects doesn't handle it explictly.
+    __ CompareRoot(argument, value);
+    __ j(equal, patch);
+  }
+}
+
+
+void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
+  __ pop(ecx);  // Get return address, operand is now on top of stack.
+  __ push(Immediate(Smi::FromInt(tos_.code())));
+  __ push(Immediate(Smi::FromInt(types_.ToByte())));
+  __ push(ecx);  // Push return address.
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
+      3,
+      1);
 }
 
 

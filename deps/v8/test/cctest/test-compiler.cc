@@ -377,7 +377,7 @@ static void CheckCodeForUnsafeLiteral(Handle<JSFunction> f) {
     while (pc < end) {
       int num_const = d.ConstantPoolSizeAt(pc);
       if (num_const >= 0) {
-        pc += num_const * kPointerSize;
+        pc += (num_const + 1) * kPointerSize;
       } else {
         pc += d.InstructionDecode(decode_buffer, pc);
         CHECK(strstr(decode_buffer.start(), "mov eax,0x178c29c") == NULL);

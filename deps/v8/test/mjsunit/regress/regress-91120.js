@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,9 +25,24 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that 'this' is bound to the global object when using
-// execScript.
+// We intend that the function declaration for g inside catch is hoisted to
+// function f's scope.  Invoke it before try/catch, in the try block, in the
+// catch block, after try/catch, and outside f, and verify that it has
+// access to the proper binding of x.
+var x = 'global';
 
-var result;
-execScript("result = this");
-assertTrue(result === this);
+function f() {
+  var x = 'function';
+  assertEquals('function', g());
+  try {
+    assertEquals('function', g());
+    throw 'catch';
+  } catch (x) {
+    function g() { return x; }
+    assertEquals('function', g());
+  }
+  assertEquals('function', g());
+  return g;
+}
+
+assertEquals('function', f()());

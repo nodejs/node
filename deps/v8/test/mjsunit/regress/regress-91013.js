@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,27 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
+// Test that KeyedStore stub for unboxed double arrays backing store
+// correctly returns stored value as the result.
 
-#include "v8.h"
+// Flags: --allow-natives-syntax --unbox-double-arrays
 
-#include "ast.h"
-#include "cctest.h"
+// Create array with unboxed double array backing store.
+var i = 100000;
+var a = new Array(i);
+for (var j = 0; j < i; j++) {
+  a[j] = 0.5;
+}
 
-using namespace v8::internal;
+assertTrue(%HasFastDoubleElements(a));
 
-TEST(List) {
-  v8::internal::V8::Initialize(NULL);
-  List<AstNode*>* list = new List<AstNode*>(0);
-  CHECK_EQ(0, list->length());
+// Store some smis into it.
+for (var j = 0; j < 10; j++) {
+  assertEquals(j, a[j] = j);
+}
 
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  AstNode* node = new(ZONE) EmptyStatement();
-  list->Add(node);
-  CHECK_EQ(1, list->length());
-  CHECK_EQ(node, list->at(0));
-  CHECK_EQ(node, list->last());
-
-  const int kElements = 100;
-  for (int i = 0; i < kElements; i++) {
-    list->Add(node);
-  }
-  CHECK_EQ(1 + kElements, list->length());
-
-  list->Clear();
-  CHECK_EQ(0, list->length());
-  delete list;
+// Store some heap numbers into it.
+for (var j = 0; j < 10; j++) {
+  var v = j + 0.5;
+  assertEquals(v, a[j] = v);
 }

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,34 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
+// ARM's code generator for LBranch had a bug, swapping the true/false
+// branches when the representation of the condition is a double.
 
-#include "ast.h"
-#include "cctest.h"
-
-using namespace v8::internal;
-
-TEST(List) {
-  v8::internal::V8::Initialize(NULL);
-  List<AstNode*>* list = new List<AstNode*>(0);
-  CHECK_EQ(0, list->length());
-
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  AstNode* node = new(ZONE) EmptyStatement();
-  list->Add(node);
-  CHECK_EQ(1, list->length());
-  CHECK_EQ(node, list->at(0));
-  CHECK_EQ(node, list->last());
-
-  const int kElements = 100;
-  for (int i = 0; i < kElements; i++) {
-    list->Add(node);
-  }
-  CHECK_EQ(1 + kElements, list->length());
-
-  list->Clear();
-  CHECK_EQ(0, list->length());
-  delete list;
+function foo() {
+  return Math.sqrt(2.6415) ? 88 : 99;
 }
+
+assertEquals(88, foo());
+assertEquals(88, foo());
+%OptimizeFunctionOnNextCall(foo)
+assertEquals(88, foo());

@@ -3388,17 +3388,22 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
               object_size);
   }
 
-  FixedArray* elements = FixedArray::cast(source->elements());
+  FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
   if (elements->length() > 0) {
     Object* elem;
-    { MaybeObject* maybe_elem =
-          (elements->map() == fixed_cow_array_map()) ?
-          elements : CopyFixedArray(elements);
+    { MaybeObject* maybe_elem;
+      if (elements->map() == fixed_cow_array_map()) {
+        maybe_elem = FixedArray::cast(elements);
+      } else if (source->HasFastDoubleElements()) {
+        maybe_elem = CopyFixedDoubleArray(FixedDoubleArray::cast(elements));
+      } else {
+        maybe_elem = CopyFixedArray(FixedArray::cast(elements));
+      }
       if (!maybe_elem->ToObject(&elem)) return maybe_elem;
     }
-    JSObject::cast(clone)->set_elements(FixedArray::cast(elem));
+    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem));
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
@@ -3754,6 +3759,23 @@ MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) result->set(i, src->get(i), mode);
   return result;
+}
+
+
+MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
+                                               Map* map) {
+  int len = src->length();
+  Object* obj;
+  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(len, NOT_TENURED);
+    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  }
+  HeapObject* dst = HeapObject::cast(obj);
+  dst->set_map(map);
+  CopyBlock(
+      dst->address() + FixedDoubleArray::kLengthOffset,
+      src->address() + FixedDoubleArray::kLengthOffset,
+      FixedDoubleArray::SizeFor(len) - FixedDoubleArray::kLengthOffset);
+  return obj;
 }
 
 

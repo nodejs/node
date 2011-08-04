@@ -2231,11 +2231,10 @@ class V8EXPORT FunctionTemplate : public Template {
   void SetHiddenPrototype(bool value);
 
   /**
-   * Sets the property attributes of the 'prototype' property of functions
-   * created from this FunctionTemplate. Can be any combination of ReadOnly,
-   * DontEnum and DontDelete.
+   * Sets the ReadOnly flag in the attributes of the 'prototype' property
+   * of functions created from this FunctionTemplate to true.
    */
-  void SetPrototypeAttributes(int attributes);
+  void ReadOnlyPrototype();
 
   /**
    * Returns true if the given object is an instance of this function

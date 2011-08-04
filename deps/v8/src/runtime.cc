@@ -219,8 +219,20 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
       }
       break;
     }
-    default:
-      UNREACHABLE();
+    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      UNIMPLEMENTED();
+      break;
+    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case JSObject::FAST_DOUBLE_ELEMENTS:
+      // No contained objects, nothing to do.
       break;
   }
   return copy;
@@ -619,7 +631,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Fix) {
   ASSERT(args.length() == 1);
   CONVERT_CHECKED(JSProxy, proxy, args[0]);
   proxy->Fix();
-  return proxy;
+  return isolate->heap()->undefined_value();
 }
 
 
@@ -1666,7 +1678,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExec) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpConstructResult) {
   ASSERT(args.length() == 3);
   CONVERT_SMI_ARG_CHECKED(elements_count, 0);
-  if (elements_count > JSArray::kMaxFastElementsLength) {
+  if (elements_count < 0 ||
+      elements_count > FixedArray::kMaxLength ||
+      !Smi::IsValid(elements_count)) {
     return isolate->ThrowIllegalOperation();
   }
   Object* new_object;
@@ -1965,6 +1979,61 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetPrototype) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   return args[0];  // return TOS
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionSetReadOnlyPrototype) {
+  NoHandleAllocation ha;
+  RUNTIME_ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunction, function, args[0]);
+
+  MaybeObject* maybe_name =
+      isolate->heap()->AllocateStringFromAscii(CStrVector("prototype"));
+  String* name;
+  if (!maybe_name->To(&name)) return maybe_name;
+
+  if (function->HasFastProperties()) {
+    // Construct a new field descriptor with updated attributes.
+    DescriptorArray* instance_desc = function->map()->instance_descriptors();
+    int index = instance_desc->Search(name);
+    ASSERT(index != DescriptorArray::kNotFound);
+    PropertyDetails details(instance_desc->GetDetails(index));
+    CallbacksDescriptor new_desc(name,
+        instance_desc->GetValue(index),
+        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
+        details.index());
+    // Construct a new field descriptors array containing the new descriptor.
+    Object* descriptors_unchecked;
+    { MaybeObject* maybe_descriptors_unchecked =
+        instance_desc->CopyInsert(&new_desc, REMOVE_TRANSITIONS);
+      if (!maybe_descriptors_unchecked->ToObject(&descriptors_unchecked)) {
+        return maybe_descriptors_unchecked;
+      }
+    }
+    DescriptorArray* new_descriptors =
+        DescriptorArray::cast(descriptors_unchecked);
+    // Create a new map featuring the new field descriptors array.
+    Object* map_unchecked;
+    { MaybeObject* maybe_map_unchecked = function->map()->CopyDropDescriptors();
+      if (!maybe_map_unchecked->ToObject(&map_unchecked)) {
+        return maybe_map_unchecked;
+      }
+    }
+    Map* new_map = Map::cast(map_unchecked);
+    new_map->set_instance_descriptors(new_descriptors);
+    function->set_map(new_map);
+  } else {  // Dictionary properties.
+    // Directly manipulate the property details.
+    int entry = function->property_dictionary()->FindEntry(name);
+    ASSERT(entry != StringDictionary::kNotFound);
+    PropertyDetails details = function->property_dictionary()->DetailsAt(entry);
+    PropertyDetails new_details(
+        static_cast<PropertyAttributes>(details.attributes() | READ_ONLY),
+        details.type(),
+        details.index());
+    function->property_dictionary()->DetailsAtPut(entry, new_details);
+  }
+  return function;
 }
 
 
@@ -4463,7 +4532,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
   for (int i = 0; i < length; i++) {
     jsproto->GetLocalPropertyNames(*names,
                                    i == 0 ? 0 : local_property_count[i - 1]);
-    if (!GetHiddenProperties(jsproto, false)->IsUndefined()) {
+    if (jsproto->HasHiddenProperties()) {
       proto_with_hidden_properties++;
     }
     if (i < length - 1) {
@@ -9521,6 +9590,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   if (new_elements->map() == isolate->heap()->fixed_array_map() ||
       new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
     maybe_new_map = to->map()->GetFastElementsMap();
+  } else if (new_elements->map() ==
+             isolate->heap()->fixed_double_array_map()) {
+    maybe_new_map = to->map()->GetFastDoubleElementsMap();
   } else {
     maybe_new_map = to->map()->GetSlowElementsMap();
   }
@@ -9608,12 +9680,13 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
     }
     return *isolate->factory()->NewJSArrayWithElements(keys);
   } else {
-    ASSERT(array->HasFastElements());
+    ASSERT(array->HasFastElements() || array->HasFastDoubleElements());
     Handle<FixedArray> single_interval = isolate->factory()->NewFixedArray(2);
     // -1 means start of array.
     single_interval->set(0, Smi::FromInt(-1));
+    FixedArrayBase* elements = FixedArrayBase::cast(array->elements());
     uint32_t actual_length =
-        static_cast<uint32_t>(FixedArray::cast(array->elements())->length());
+        static_cast<uint32_t>(elements->length());
     uint32_t min_length = actual_length < length ? actual_length : length;
     Handle<Object> length_object =
         isolate->factory()->NewNumber(static_cast<double>(min_length));
@@ -11192,7 +11265,6 @@ static Handle<Object> GetArgumentsObject(Isolate* isolate,
   if (sinfo->number_of_stack_slots() > 0) {
     index = scope_info->StackSlotIndex(isolate->heap()->arguments_symbol());
     if (index != -1) {
-      CHECK(false);
       return Handle<Object>(frame->GetExpression(index), isolate);
     }
   }

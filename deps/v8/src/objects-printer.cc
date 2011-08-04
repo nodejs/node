@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -282,6 +282,19 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
+    case FAST_DOUBLE_ELEMENTS: {
+      // Print in array notation for non-sparse arrays.
+      FixedDoubleArray* p = FixedDoubleArray::cast(elements());
+      for (int i = 0; i < p->length(); i++) {
+        if (p->is_the_hole(i)) {
+          PrintF(out, "   %d: <the hole>", i);
+        } else {
+          PrintF(out, "   %d: %g", i, p->get(i));
+        }
+        PrintF(out, "\n");
+      }
+      break;
+    }
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* p = ExternalPixelArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
@@ -360,9 +373,6 @@ void JSObject::PrintElements(FILE* out) {
       }
       break;
     }
-    default:
-      UNREACHABLE();
-      break;
   }
 }
 
@@ -547,6 +557,21 @@ void String::StringPrint(FILE* out) {
   }
 
   if (!StringShape(this).IsSymbol()) PrintF(out, "\"");
+}
+
+
+// This method is only meant to be called from gdb for debugging purposes.
+// Since the string can also be in two-byte encoding, non-ascii characters
+// will be ignored in the output.
+char* String::ToAsciiArray() {
+  // Static so that subsequent calls frees previously allocated space.
+  // This also means that previous results will be overwritten.
+  static char* buffer = NULL;
+  if (buffer != NULL) free(buffer);
+  buffer = new char[length()+1];
+  WriteToFlat(this, buffer, 0, length());
+  buffer[length()] = 0;
+  return buffer;
 }
 
 

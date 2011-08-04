@@ -3560,6 +3560,68 @@ THREADED_TEST(IndexedInterceptorWithIndexedAccessor) {
 }
 
 
+static v8::Handle<Value> UnboxedDoubleIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index < 25) {
+    return v8::Handle<Value>(v8_num(index));
+  }
+  return v8::Handle<Value>();
+}
+
+
+static v8::Handle<Value> UnboxedDoubleIndexedPropertySetter(
+    uint32_t index,
+    Local<Value> value,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index < 25) {
+    return v8::Handle<Value>(v8_num(index));
+  }
+  return v8::Handle<Value>();
+}
+
+
+Handle<v8::Array> UnboxedDoubleIndexedPropertyEnumerator(
+    const AccessorInfo& info) {
+  // Force the list of returned keys to be stored in a FastDoubleArray.
+  Local<Script> indexed_property_names_script = Script::Compile(v8_str(
+      "keys = new Array(); keys[125000] = 1;"
+      "for(i = 0; i < 80000; i++) { keys[i] = i; };"
+      "keys.length = 25; keys;"));
+  Local<Value> result = indexed_property_names_script->Run();
+  return Local<v8::Array>(::v8::Array::Cast(*result));
+}
+
+
+// Make sure that the the interceptor code in the runtime properly handles
+// merging property name lists for double-array-backed arrays.
+THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(UnboxedDoubleIndexedPropertyGetter,
+                                   UnboxedDoubleIndexedPropertySetter,
+                                   0,
+                                   0,
+                                   UnboxedDoubleIndexedPropertyEnumerator);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  // When obj is created, force it to be Stored in a FastDoubleArray.
+  Local<Script> create_unboxed_double_script = Script::Compile(v8_str(
+      "obj[125000] = 1; for(i = 0; i < 80000; i+=2) { obj[i] = i; } "
+      "key_count = 0; "
+      "for (x in obj) {key_count++;};"
+      "obj;"));
+  Local<Value> result = create_unboxed_double_script->Run();
+  CHECK(result->ToObject()->HasRealIndexedProperty(2000));
+  Local<Script> key_count_check = Script::Compile(v8_str(
+      "key_count;"));
+  result = key_count_check->Run();
+  CHECK_EQ(v8_num(40013), result);
+}
+
+
 static v8::Handle<Value> IdentityIndexedPropertyGetter(
     uint32_t index,
     const AccessorInfo& info) {
@@ -6993,53 +7055,34 @@ THREADED_TEST(SetPrototype) {
 }
 
 
-THREADED_TEST(SetPrototypeProperties) {
+THREADED_TEST(FunctionReadOnlyPrototype) {
   v8::HandleScope handle_scope;
   LocalContext context;
 
   Local<v8::FunctionTemplate> t1 = v8::FunctionTemplate::New();
-  t1->SetPrototypeAttributes(v8::DontDelete);
+  t1->PrototypeTemplate()->Set(v8_str("x"), v8::Integer::New(42));
+  t1->ReadOnlyPrototype();
   context->Global()->Set(v8_str("func1"), t1->GetFunction());
+  // Configured value of ReadOnly flag.
   CHECK(CompileRun(
       "(function() {"
       "  descriptor = Object.getOwnPropertyDescriptor(func1, 'prototype');"
-      "  return (descriptor['writable'] == true) &&"
-      "         (descriptor['enumerable'] == true) &&"
-      "         (descriptor['configurable'] == false);"
+      "  return (descriptor['writable'] == false);"
       "})()")->BooleanValue());
+  CHECK_EQ(42, CompileRun("func1.prototype.x")->Int32Value());
+  CHECK_EQ(42,
+           CompileRun("func1.prototype = {}; func1.prototype.x")->Int32Value());
 
   Local<v8::FunctionTemplate> t2 = v8::FunctionTemplate::New();
-  t2->SetPrototypeAttributes(v8::DontEnum);
+  t2->PrototypeTemplate()->Set(v8_str("x"), v8::Integer::New(42));
   context->Global()->Set(v8_str("func2"), t2->GetFunction());
+  // Default value of ReadOnly flag.
   CHECK(CompileRun(
       "(function() {"
       "  descriptor = Object.getOwnPropertyDescriptor(func2, 'prototype');"
-      "  return (descriptor['writable'] == true) &&"
-      "         (descriptor['enumerable'] == false) &&"
-      "         (descriptor['configurable'] == true);"
+      "  return (descriptor['writable'] == true);"
       "})()")->BooleanValue());
-
-  Local<v8::FunctionTemplate> t3 = v8::FunctionTemplate::New();
-  t3->SetPrototypeAttributes(v8::ReadOnly);
-  context->Global()->Set(v8_str("func3"), t3->GetFunction());
-  CHECK(CompileRun(
-      "(function() {"
-      "  descriptor = Object.getOwnPropertyDescriptor(func3, 'prototype');"
-      "  return (descriptor['writable'] == false) &&"
-      "         (descriptor['enumerable'] == true) &&"
-      "         (descriptor['configurable'] == true);"
-      "})()")->BooleanValue());
-
-  Local<v8::FunctionTemplate> t4 = v8::FunctionTemplate::New();
-  t4->SetPrototypeAttributes(v8::ReadOnly | v8::DontEnum | v8::DontDelete);
-  context->Global()->Set(v8_str("func4"), t4->GetFunction());
-  CHECK(CompileRun(
-      "(function() {"
-      "  descriptor = Object.getOwnPropertyDescriptor(func4, 'prototype');"
-      "  return (descriptor['writable'] == false) &&"
-      "         (descriptor['enumerable'] == false) &&"
-      "         (descriptor['configurable'] == false);"
-      "})()")->BooleanValue());
+  CHECK_EQ(42, CompileRun("func2.prototype.x")->Int32Value());
 }
 
 
@@ -10620,17 +10663,16 @@ TEST(PreCompileInvalidPreparseDataError) {
            *exception_value);
 
   try_catch.Reset();
+
   // Overwrite function bar's start position with 200.  The function entry
-  // will not be found when searching for it by position.
+  // will not be found when searching for it by position and we should fall
+  // back on eager compilation.
   sd = v8::ScriptData::PreCompile(script, i::StrLength(script));
   sd_data = reinterpret_cast<unsigned*>(const_cast<char*>(sd->Data()));
   sd_data[kHeaderSize + 1 * kFunctionEntrySize + kFunctionEntryStartOffset] =
       200;
   compiled_script = Script::New(source, NULL, sd);
-  CHECK(try_catch.HasCaught());
-  String::AsciiValue second_exception_value(try_catch.Message()->Get());
-  CHECK_EQ("Uncaught SyntaxError: Invalid preparser data for function bar",
-           *second_exception_value);
+  CHECK(!try_catch.HasCaught());
 
   delete sd;
 }

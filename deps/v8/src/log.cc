@@ -1400,6 +1400,7 @@ void Logger::LogCodeObject(Object* object) {
       case Code::UNARY_OP_IC:   // fall through
       case Code::BINARY_OP_IC:   // fall through
       case Code::COMPARE_IC:  // fall through
+      case Code::TO_BOOLEAN_IC:  // fall through
       case Code::STUB:
         description =
             CodeStub::MajorName(CodeStub::GetMajorKey(code_object), true);

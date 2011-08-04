@@ -2761,7 +2761,7 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Objects with a non-function constructor have class 'Object'.
   __ bind(&non_function_constructor);
-  __ LoadRoot(v0, Heap::kfunction_class_symbolRootIndex);
+  __ LoadRoot(v0, Heap::kObject_symbolRootIndex);
   __ jmp(&done);
 
   // Non-JS objects have class null.

@@ -136,6 +136,10 @@ function DerivedHasTrap(name) {
   return !!this.getPropertyDescriptor(name)
 }
 
+function DerivedHasOwnTrap(name) {
+  return !!this.getOwnPropertyDescriptor(name)
+}
+
 function DerivedKeysTrap() {
   var names = this.getOwnPropertyNames()
   var enumerableNames = []
