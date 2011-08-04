@@ -1,0 +1,25 @@
+#!/usr/bin/python
+import glob
+import os
+import shlex
+import sys
+
+script_dir = os.path.dirname(__file__)
+uv_root = os.path.normpath(os.path.join(script_dir, os.pardir))
+
+sys.path.insert(0, os.path.join(uv_root, 'build', 'gyp', 'pylib'))
+import gyp
+
+
+def run_gyp(args):
+  rc = gyp.main(args)
+  if rc != 0:
+    print 'Error running GYP'
+    sys.exit(rc)
+
+if __name__ == '__main__':
+  args = sys.argv[1:]
+  args.append(os.path.join(script_dir, 'all.gyp'))
+  args.append('--depth=' + uv_root)
+  gyp_args = list(args)
+  run_gyp(gyp_args)
