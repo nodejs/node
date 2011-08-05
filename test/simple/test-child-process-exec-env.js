@@ -25,6 +25,7 @@ var exec = require('child_process').exec;
 var success_count = 0;
 var error_count = 0;
 var response = '';
+var child;
 
 function after(err, stdout, stderr) {
   if (err) {
@@ -39,7 +40,11 @@ function after(err, stdout, stderr) {
   }
 }
 
-var child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
+if (process.platform !== 'win32') {
+  child = exec('/usr/bin/env', { env: { 'HELLO': 'WORLD' } }, after);
+} else {
+  child = exec('set', { env: { 'HELLO': 'WORLD' } }, after);
+}
 
 child.stdout.setEncoding('utf8');
 child.stdout.addListener('data', function(chunk) {
