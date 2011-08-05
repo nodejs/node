@@ -4,6 +4,36 @@ These functions are in the module `'util'`. Use `require('util')` to access
 them.
 
 
+### util.format()
+
+Returns a formatted string using the first argument as a `printf`-like format.
+
+The first argument is a string that contains zero or more *placeholders*.
+Each placeholder is replaced with the converted value from its corresponding
+argument. Supported placeholders are:
+
+* `%s` - String.
+* `%d` - Number (both integer and float).
+* `%j` - JSON.
+* `%%` - single percent sign (`'%'`). This does not consume an argument.
+
+If the placeholder does not have a corresponding argument, `undefined` is used.
+
+    util.format('%s:%s', 'foo'); // 'foo:undefined'
+
+If there are more arguments than placeholders, the extra arguments are
+converted to strings with `util.inspect()` and these strings are concatenated,
+delimited by a space.
+
+    util.format('%s:%s', 'foo', 'bar', 'baz'); // 'foo:bar baz'
+
+If the first argument is not a format string then `util.format()` returns
+a string that is the concatenation of all its arguments separated by spaces.
+Each argument is converted to a string with `util.inspect()`.
+
+    util.format(1, 2, 3); // '1 2 3'
+
+
 ### util.debug(string)
 
 A synchronous output function. Will block the process and
