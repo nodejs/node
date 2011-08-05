@@ -23,6 +23,6 @@ if __name__ == '__main__':
   args.append('--depth=' + node_root)
   args.append('-Dtarget_arch=x64')
   args.append('-Dcomponent=static_library')
-  args.append('-Dlibrary_library')
+  args.append('-Dlibrary=static_library')
   gyp_args = list(args)
   run_gyp(gyp_args)

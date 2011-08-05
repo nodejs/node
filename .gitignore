@@ -13,10 +13,11 @@ node_g
 /.cproject
 
 gyp-mac-tool
-build/all.Makefile
-build/js2c.host.mk
-build/node.target.mk
-build/node_js2c.host.mk
-build/node_js2c.target.mk
+gyp/gyp
+gyp/node.Makefile
+gyp/js2c.host.mk
+gyp/node.target.mk
+gyp/node_js2c.host.mk
+gyp/node_js2c.target.mk
 out/
 Makefile
