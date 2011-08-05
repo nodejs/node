@@ -7,7 +7,7 @@ import sys
 script_dir = os.path.dirname(__file__)
 node_root = os.path.normpath(os.path.join(script_dir, os.pardir))
 
-sys.path.insert(0, os.path.join(node_root, 'build', 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join(node_root, 'gyp', 'gyp', 'pylib'))
 import gyp
 
 
