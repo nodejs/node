@@ -520,7 +520,7 @@ do { \
         } else if (addrlen == sizeof(struct sockaddr_un)) { \
           /* first byte is '\0' and all remaining bytes are name;
            * it is not NUL-terminated and may contain embedded NULs */ \
-          (info)->Set(address_symbol, String::New(au->sun_path + 1, sizeof(au->sun_path - 1))); \
+          (info)->Set(address_symbol, String::New(au->sun_path + 1, sizeof(au->sun_path) - 1)); \
         } else { \
           (info)->Set(address_symbol, String::New(au->sun_path)); \
         } \
