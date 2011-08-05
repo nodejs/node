@@ -22,8 +22,6 @@
       ],
       'sources': [
         '../src/uv-common.c',
-        '../src/uv-eio.c',
-        '../src/eio/eio.c',
         '../src/ares/ares__close_sockets.c',
         '../src/ares/ares__get_hostent.c',
         '../src/ares/ares__read_line.c',
@@ -74,9 +72,8 @@
             '../src/ares/config_win32'
           ],
           'sources': [ '../src/ares/windows_port.c' ],
-          'libraries': [ '-lws2_32', '-lm' ],
           'defines': [
-            '_WIN32_WINNT=0x0501',
+            '_WIN32_WINNT=0x0502',
             'EIO_STACKSIZE=262144',
             '_GNU_SOURCE',
           ],
@@ -100,13 +97,15 @@
         }, { # Not Windows i.e. POSIX
           'cflags': [
             '-g',
-            '--std=c89',
+            '--std=gnu89',
             '-pedantic',
             '-Wall',
             '-Wextra',
             '-Wno-unused-parameter'
           ],
           'sources': [
+            '../src/uv-eio.c',
+            '../src/eio/eio.c',
             '../src/uv-unix.c',
             '../src/ev/ev.c',
           ],
@@ -132,7 +131,18 @@
             'EIO_CONFIG_H="config_darwin.h"',
           ]
         }],
-        # TODO add OS=='linux', OS=='sun'
+        [ 'OS=="linux"', {
+          'include_dirs': [ '../src/ares/config_linux' ],
+          'sources': [ '../src/uv-linux.c' ],
+          'defines': [
+            'EV_CONFIG_H="config_linux.h"',
+            'EIO_CONFIG_H="config_linux.h"',
+          ],
+          'direct_dependent_settings': {
+            'libraries': [ '-lrt' ],
+          },
+        }],
+        # TODO add OS=='sun'
       ]
     },
 
@@ -170,9 +180,10 @@
       ],
       'conditions': [
         [ 'OS=="win"', {
-          'sources': [ '../test/runner-win.c' ] 
+          'sources': [ '../test/runner-win.c' ],
+          'libraries': [ 'ws2_32.lib' ]
         }, { # POSIX
-          'cflags': [ '_GNU_SOURCE' ],
+          'defines': [ '_GNU_SOURCE' ],
           'ldflags': [ '-pthread' ],
           'sources': [ '../test/runner-unix.c' ] 
         }]
@@ -197,9 +208,10 @@
       ],
       'conditions': [
         [ 'OS=="win"', {
-          'sources': [ '../test/runner-win.c' ] 
+          'sources': [ '../test/runner-win.c' ],
+          'libraries': [ 'ws2_32.lib' ]
         }, { # POSIX
-          'cflags': [ '_GNU_SOURCE' ],
+          'defines': [ '_GNU_SOURCE' ],
           'ldflags': [ '-pthread' ],
           'sources': [ '../test/runner-unix.c' ] 
         }]
