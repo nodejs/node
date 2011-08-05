@@ -42,6 +42,14 @@
 #include <arpa/inet.h>
 #include <limits.h> /* PATH_MAX */
 #include <sys/uio.h> /* writev */
+#include <poll.h>
+
+#ifdef __linux__
+#include <linux/version.h>
+/* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
+#define HAVE_PIPE2 \
+  defined(LINUX_VERSION_CODE) && defined(__GLIBC_PREREQ) && LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9))
+#endif
 
 #ifdef __sun
 # include <sys/types.h>
@@ -2218,6 +2226,9 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   int stdin_pipe[2] = { -1, -1 };
   int stdout_pipe[2] = { -1, -1 };
   int stderr_pipe[2] = { -1, -1 };
+  int signal_pipe[2] = { -1, -1 };
+  struct pollfd pfd;
+  int status;
   pid_t pid;
 
   uv__handle_init((uv_handle_t*)process, UV_PROCESS);
@@ -2258,7 +2269,48 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
     }
   }
 
+  /* This pipe is used by the parent to wait until
+   * the child has called `execve()`. We need this
+   * to avoid the following race condition:
+   *
+   *    if ((pid = fork()) > 0) {
+   *      kill(pid, SIGTERM);
+   *    }
+   *    else if (pid == 0) {
+   *      execve("/bin/cat", argp, envp);
+   *    }
+   *
+   * The parent sends a signal immediately after forking.
+   * Since the child may not have called `execve()` yet,
+   * there is no telling what process receives the signal,
+   * our fork or /bin/cat.
+   *
+   * To avoid ambiguity, we create a pipe with both ends
+   * marked close-on-exec. Then, after the call to `fork()`,
+   * the parent polls the read end until it sees POLLHUP.
+   */
+#ifdef HAVE_PIPE2
+  if (pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK) < 0) {
+    goto error;
+  }
+#else
+  if (pipe(signal_pipe) < 0) {
+    goto error;
+  }
+  uv__cloexec(signal_pipe[0]);
+  uv__cloexec(signal_pipe[1]);
+  uv__nonblock(signal_pipe[0]);
+  uv__nonblock(signal_pipe[1]);
+#endif
+
   pid = fork();
+
+  if (pid == -1) {
+    uv__close(signal_pipe[0]);
+    uv__close(signal_pipe[1]);
+    environ = save_our_env;
+    goto error;
+  }
 
   if (pid == 0) {
     if (stdin_pipe[0] >= 0) {
@@ -2287,16 +2339,31 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
     perror("execvp()");
     _exit(127);
     /* Execution never reaches here. */
-  } else if (pid == -1) {
-    /* Restore environment. */
-    environ = save_our_env;
-    goto error;
   }
 
   /* Parent. */
 
   /* Restore environment. */
   environ = save_our_env;
+
+  /* POLLHUP signals child has exited or execve()'d. */
+  uv__close(signal_pipe[1]);
+  do {
+    pfd.fd = signal_pipe[0];
+    pfd.events = POLLIN|POLLHUP;
+    pfd.revents = 0;
+    errno = 0, status = poll(&pfd, 1, -1);
+  }
+  while (status == -1 && (errno == EINTR || errno == ENOMEM));
+
+  uv__close(signal_pipe[0]);
+
+  assert((status == 1)
+      && "poll() on pipe read end failed");
+  assert((pfd.revents & POLLIN) == 0
+      && "unexpected POLLIN on pipe read end");
+  assert((pfd.revents & POLLHUP) == POLLHUP
+      && "no POLLHUP on pipe read end");
 
   process->pid = pid;
 
