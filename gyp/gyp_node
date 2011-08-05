@@ -19,7 +19,7 @@ def run_gyp(args):
 
 if __name__ == '__main__':
   args = sys.argv[1:]
-  args.append(os.path.join(script_dir, 'node.gyp'))
+  args.append(os.path.join(script_dir, 'all.gyp'))
   args.append('--depth=' + node_root)
   args.append('-Dtarget_arch=x64')
   args.append('-Dcomponent=static_library')
