@@ -2,6 +2,10 @@
 # package
 #
 
+# Allow absolute paths when installing
+# see http://www.cmake.org/pipermail/cmake/2008-July/022958.html
+set(CPACK_SET_DESTDIR "ON")
+
 if(${node_platform} MATCHES darwin)
   set(CPACK_GENERATOR "TGZ;PackageMaker")
   # CPack requires the files to end in .txt

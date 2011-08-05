@@ -6,8 +6,8 @@ set(macros_file ${PROJECT_BINARY_DIR}/macros.py)
 
 # replace debug(x) and assert(x) with nothing in release build
 if(${CMAKE_BUILD_TYPE} MATCHES Release)
-  file(APPEND ${macros_file} "macro debug(x) = ;\n")
-  file(APPEND ${macros_file} "macro assert(x) = ;\n")
+  file(APPEND ${macros_file} "macro debug(x) = void(0);\n")
+  file(APPEND ${macros_file} "macro assert(x) = void(0);\n")
 endif()
 
 if(NOT DTRACE)
@@ -21,16 +21,20 @@ if(NOT DTRACE)
     DTRACE_NET_SOCKET_READ
     DTRACE_NET_SOCKET_WRITE)
   foreach(probe ${dtrace_probes})
-    file(APPEND ${macros_file} "macro ${probe}(x) = ;\n")
+    file(APPEND ${macros_file} "macro ${probe}(x) = void(0);\n")
   endforeach()
 endif()
+
+# Sort the JS files being built into natives so that the build is
+# deterministic
+list(SORT js2c_files)
 
 # include macros file in generation
 set(js2c_files ${js2c_files} ${macros_file})
 
 add_custom_command(
   OUTPUT ${PROJECT_BINARY_DIR}/src/node_natives.h
-  COMMAND ${PYTHON_EXECUTABLE} tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
+  COMMAND ${PYTHON_EXECUTABLE} ${PROJECT_BINARY_DIR}/tools/js2c.py ${PROJECT_BINARY_DIR}/src/node_natives.h ${js2c_files}
   DEPENDS ${js2c_files})
 
 set(node_platform_src "src/platform_${node_platform}.cc")
@@ -138,5 +142,5 @@ install(FILES
   src/node_version.h
   ${PROJECT_BINARY_DIR}/src/node_config.h
 
-  DESTINATION include/node
+  DESTINATION ${NODE_INCLUDE_PREFIX}/include/node
 )
