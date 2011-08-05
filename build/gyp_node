@@ -1,0 +1,28 @@
+#!/usr/bin/python
+import glob
+import os
+import shlex
+import sys
+
+script_dir = os.path.dirname(__file__)
+node_root = os.path.normpath(os.path.join(script_dir, os.pardir))
+
+sys.path.insert(0, os.path.join(node_root, 'build', 'gyp', 'pylib'))
+import gyp
+
+
+def run_gyp(args):
+  rc = gyp.main(args)
+  if rc != 0:
+    print 'Error running GYP'
+    sys.exit(rc)
+
+if __name__ == '__main__':
+  args = sys.argv[1:]
+  args.append(os.path.join(script_dir, 'node.gyp'))
+  args.append('--depth=' + node_root)
+  args.append('-Dtarget_arch=x64')
+  args.append('-Dcomponent=static_library')
+  args.append('-Dlibrary_library')
+  gyp_args = list(args)
+  run_gyp(gyp_args)
