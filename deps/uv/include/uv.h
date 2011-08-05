@@ -504,6 +504,7 @@ typedef struct uv_process_options_s {
   char** args;
   char** env;
   char* cwd;
+  int windows_verbatim_arguments;
   /*
    * The user should supply pointers to initialized uv_pipe_t structs for
    * stdio. The user is reponsible for calling uv_close on them.

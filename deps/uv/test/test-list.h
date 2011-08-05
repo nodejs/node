@@ -69,6 +69,7 @@ TEST_DECLARE   (spawn_stdin)
 TEST_DECLARE   (spawn_and_kill)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
+TEST_DECLARE   (argument_escaping)
 #endif
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
@@ -153,6 +154,7 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_and_kill)
 #ifdef _WIN32
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
+  TEST_ENTRY  (argument_escaping)
 #endif
 
 #if 0

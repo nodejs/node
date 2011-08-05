@@ -76,48 +76,6 @@ static void uv_process_init(uv_process_t* handle) {
 
 
 /*
- * Quotes command line arguments
- * Returns a pointer to the end (next char to be written) of the buffer
- */
-static wchar_t* quote_cmd_arg(wchar_t *source, wchar_t *target,
-    wchar_t terminator) {
-  int len = wcslen(source),
-      i;
-
-  // Check if the string must be quoted;
-  // if unnecessary, don't do it, it may only confuse older programs.
-  if (len == 0) {
-    goto quote;
-  }
-  for (i = 0; i < len; i++) {
-    if (source[i] == L' ' || source[i] == L'"') {
-      goto quote;
-    }
-  }
-
-  // No quotation needed
-  wcsncpy(target, source, len);
-  target += len;
-  *(target++) = terminator;
-  return target;
-
-quote:
-  // Quote
-  *(target++) = L'"';
-  for (i = 0; i < len; i++) {
-    if (source[i] == L'"' || source[i] == L'\\') {
-      *(target++) = '\\';
-    }
-    *(target++) = source[i];
-  }
-  *(target++) = L'"';
-  *(target++) = terminator;
-
-  return target;
-}
-
-
-/*
  * Path search functions
  */
 
@@ -403,8 +361,83 @@ static wchar_t* search_path(const wchar_t *file,
   return result;
 }
 
+/*
+ * Quotes command line arguments
+ * Returns a pointer to the end (next char to be written) of the buffer
+ */
+wchar_t* quote_cmd_arg(const wchar_t *source, wchar_t *target) {
+  int len = wcslen(source),
+      i, quote_hit;
+  wchar_t* start;
 
-static wchar_t* make_program_args(char** args) {
+  /* 
+   * Check if the string must be quoted;
+   * if unnecessary, don't do it, it may only confuse older programs.
+   */
+  if (len == 0) {
+    return target;
+  }
+
+  if (NULL == wcspbrk(source, L" \t\"")) {
+    /* No quotation needed */
+    wcsncpy(target, source, len);
+    target += len;
+    return target;
+  }
+
+  if (NULL == wcspbrk(source, L"\"\\")) {
+    /* 
+     * No embedded double quotes or backlashes, so I can just wrap
+     * quote marks around the whole thing.
+     */
+    *(target++) = L'"';
+    wcsncpy(target, source, len);
+    target += len;
+    *(target++) = L'"';
+    return target;
+  }
+
+  /*
+   * Expected intput/output:
+   *   input : hello"world
+   *   output: "hello\"world"
+   *   input : hello""world
+   *   output: "hello\"\"world"
+   *   input : hello\world
+   *   output: hello\world
+   *   input : hello\\world
+   *   output: hello\\world
+   *   input : hello\"world
+   *   output: "hello\\\"world"
+   *   input : hello\\"world
+   *   output: "hello\\\\\"world"
+   *   input : hello world\
+   *   output: "hello world\"
+   */
+
+  *(target++) = L'"';
+  start = target;
+  quote_hit = 1;
+
+  for (i = len; i > 0; --i) {
+    *(target++) = source[i - 1];
+
+    if (quote_hit && source[i - 1] == L'\\') {
+      *(target++) = L'\\';
+    } else if(source[i - 1] == L'"') {
+      quote_hit = 1;
+      *(target++) = L'\\';
+    } else {
+      quote_hit = 0;
+    }
+  }
+  target[0] = L'\0';
+  wcsrev(start);
+  *(target++) = L'"';
+  return target;
+}
+
+wchar_t* make_program_args(char** args, int verbatim_arguments) {
   wchar_t* dst;
   wchar_t* ptr;
   char** arg;
@@ -423,13 +456,9 @@ static wchar_t* make_program_args(char** args) {
     arg_count++;
   }
 
-  /* Adjust for potential quotes. */
-  size *= 2;
-
-  /* Arguments are separated with a space. */
-  if (arg_count > 0) {
-    size += arg_count - 1;
-  }
+  /* Adjust for potential quotes. Also assume the worst-case scenario 
+  /* that every character needs escaping, so we need twice as much space. */
+  size = size * 2 + arg_count * 2;
 
   dst = (wchar_t*)malloc(size);
   if (!dst) {
@@ -447,8 +476,13 @@ static wchar_t* make_program_args(char** args) {
     if (!len) {
       goto error;
     }
-
-    ptr = quote_cmd_arg(buffer, ptr, *(arg + 1) ? L' ' : L'\0');
+    if (verbatim_arguments) {
+      wcscpy(ptr, buffer);
+      ptr += len - 1;
+    } else {
+      ptr = quote_cmd_arg(buffer, ptr);
+    }
+    *ptr++ = *(arg + 1) ? L' ' : L'\0';
   }
 
   free(buffer);
@@ -743,7 +777,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
   process->exit_cb = options.exit_cb;
   UTF8_TO_UTF16(options.file, application);
-  arguments = options.args ? make_program_args(options.args) : NULL;
+  arguments = options.args ? make_program_args(options.args, options.windows_verbatim_arguments) : NULL;
   env = options.env ? make_program_env(options.env) : NULL;
 
   if (options.cwd) {
