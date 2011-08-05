@@ -2297,10 +2297,10 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   if (pipe(signal_pipe) < 0) {
     goto error;
   }
-  uv__cloexec(signal_pipe[0]);
-  uv__cloexec(signal_pipe[1]);
-  uv__nonblock(signal_pipe[0]);
-  uv__nonblock(signal_pipe[1]);
+  uv__cloexec(signal_pipe[0], 1);
+  uv__cloexec(signal_pipe[1], 1);
+  uv__nonblock(signal_pipe[0], 1);
+  uv__nonblock(signal_pipe[1], 1);
 #endif
 
   pid = fork();
