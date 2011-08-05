@@ -38,9 +38,6 @@ The externally maintained libraries used by Node are:
   - WAF build system, located at tools/waf. WAF is copyright Thomas Nagy,
     and released under the MIT license.
 
-  - The SCONS build system, located at tools/scons. SCONS is copyright
-    the SCONS Foundation and released under the MIT license.
-
   - C-Ares, an asynchronous DNS client, located at deps/c-ares. C-Ares is
     copyright the Massachusetts Institute of Technology, authored by
     Greg Hudson, Daniel Stenberg and others, and released under the MIT
