@@ -13,10 +13,9 @@ node_g
 /.cproject
 
 gyp-mac-tool
-gyp/gyp
-gyp/all.Makefile
-gyp/all.target.mk
-gyp/node_js2c.host.mk
-gyp/node_js2c.target.mk
+tools/gyp
+tools/all.Makefile
+tools/all.target.mk
+tools/node_js2c.host.mk
+tools/node_js2c.target.mk
 out/
-Makefile
