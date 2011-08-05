@@ -159,6 +159,17 @@
       },
 
       'actions': [
+
+#        {
+#          'action_name': 'test',
+#          'inputs': [],
+#          'outputs': [],
+#          'action': [
+#            'python',
+#            '../tools/test.py',
+#          ],
+#        },
+
         {
           'action_name': 'node_js2c',
 
