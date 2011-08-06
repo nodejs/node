@@ -23,6 +23,10 @@
 #include "node.h"
 #include "node_version.h"
 #include <string.h>
+#include <stdio.h>
+#if defined(_MSC_VER)
+#define snprintf _snprintf
+#endif
 
 #undef NODE_EXT_LIST_START
 #undef NODE_EXT_LIST_ITEM

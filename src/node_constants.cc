@@ -24,17 +24,19 @@
 #include <uv.h>
 
 #include <errno.h>
+#if !defined(_MSC_VER)
 #include <unistd.h>
+#endif
 #include <fcntl.h>
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
 # include <platform_win32.h>
 #endif
 
-#ifdef HAVE_OPENSSL
+#if HAVE_OPENSSL
 # include <openssl/ssl.h>
 #endif
 
@@ -52,8 +54,13 @@ void DefineConstants(Handle<Object> target) {
   NODE_DEFINE_CONSTANT(target, S_IFREG);
   NODE_DEFINE_CONSTANT(target, S_IFDIR);
   NODE_DEFINE_CONSTANT(target, S_IFCHR);
+#ifdef S_IFBLK
   NODE_DEFINE_CONSTANT(target, S_IFBLK);
+#endif
+
+#ifdef S_IFIFO
   NODE_DEFINE_CONSTANT(target, S_IFIFO);
+#endif
 
 #ifdef S_IFLNK
   NODE_DEFINE_CONSTANT(target, S_IFLNK);

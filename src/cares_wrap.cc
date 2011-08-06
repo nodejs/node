@@ -23,14 +23,14 @@
 #include <node.h>
 #include <uv.h>
 
-#if defined(__OpenBSD__) || defined(__MINGW32__)
+#if defined(__OpenBSD__) || defined(__MINGW32__) || defined(_MSC_VER)
 # include <nameser.h>
 #else
 # include <arpa/nameser.h>
 #endif
 
 // Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
   extern "C" {
 #   include <inet_net_pton.h>
 #   include <inet_ntop.h>
@@ -170,10 +170,12 @@ class QueryWrap {
   // Subclasses should implement the appropriate Send method.
   virtual int Send(const char* name) {
     assert(0);
+    return 0;
   }
 
   virtual int Send(const char* name, int family) {
     assert(0);
+    return 0;
   }
 
  protected:

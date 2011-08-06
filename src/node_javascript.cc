@@ -24,7 +24,9 @@
 #include "node_natives.h"
 #include "node_string.h"
 #include <string.h>
+#if !defined(_MSC_VER)
 #include <strings.h>
+#endif
 
 using namespace v8;
 
