@@ -24,7 +24,7 @@ The parser extracts the following information from HTTP messages:
   * Response status code
   * Transfer-Encoding
   * HTTP version
-  * Request path, query string, fragment
+  * Request URL
   * Message body
 
 
@@ -126,7 +126,7 @@ There are two types of callbacks:
 * notification `typedef int (*http_cb) (http_parser*);`
     Callbacks: on_message_begin, on_headers_complete, on_message_complete.
 * data `typedef int (*http_data_cb) (http_parser*, const char *at, size_t length);`
-    Callbacks: (requests only) on_path, on_query_string, on_uri, on_fragment,
+    Callbacks: (requests only) on_uri,
                (common) on_header_field, on_header_value, on_body;
 
 Callbacks must return 0 on success. Returning a non-zero value indicates

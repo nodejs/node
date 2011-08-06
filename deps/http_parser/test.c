@@ -44,10 +44,7 @@ struct message {
   enum http_parser_type type;
   enum http_method method;
   int status_code;
-  char request_path[MAX_ELEMENT_SIZE];
   char request_url[MAX_ELEMENT_SIZE];
-  char fragment[MAX_ELEMENT_SIZE];
-  char query_string[MAX_ELEMENT_SIZE];
   char body[MAX_ELEMENT_SIZE];
   size_t body_size;
   int num_headers;
@@ -55,7 +52,7 @@ struct message {
   char headers [MAX_HEADERS][2][MAX_ELEMENT_SIZE];
   int should_keep_alive;
 
-  int upgrade;
+  const char *upgrade; // upgraded body
 
   unsigned short http_major;
   unsigned short http_minor;
@@ -86,9 +83,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/test"
   ,.request_url= "/test"
   ,.num_headers= 3
   ,.headers=
@@ -117,9 +111,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/favicon.ico"
   ,.request_url= "/favicon.ico"
   ,.num_headers= 8
   ,.headers=
@@ -146,9 +137,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/dumbfuck"
   ,.request_url= "/dumbfuck"
   ,.num_headers= 1
   ,.headers=
@@ -167,9 +155,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= "page=1"
-  ,.fragment= "posts-17408"
-  ,.request_path= "/forums/1/topics/2375"
   /* XXX request url does include fragment? */
   ,.request_url= "/forums/1/topics/2375?page=1#posts-17408"
   ,.num_headers= 0
@@ -186,9 +171,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/get_no_headers_no_body/world"
   ,.request_url= "/get_no_headers_no_body/world"
   ,.num_headers= 0
   ,.body= ""
@@ -205,9 +187,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/get_one_header_no_body"
   ,.request_url= "/get_one_header_no_body"
   ,.num_headers= 1
   ,.headers=
@@ -228,9 +207,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/get_funky_content_length_body_hello"
   ,.request_url= "/get_funky_content_length_body_hello"
   ,.num_headers= 1
   ,.headers=
@@ -253,9 +229,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
-  ,.query_string= "q=search"
-  ,.fragment= "hey"
-  ,.request_path= "/post_identity_body_world"
   ,.request_url= "/post_identity_body_world?q=search#hey"
   ,.num_headers= 3
   ,.headers=
@@ -280,9 +253,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/post_chunked_all_your_base"
   ,.request_url= "/post_chunked_all_your_base"
   ,.num_headers= 1
   ,.headers=
@@ -306,9 +276,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/two_chunks_mult_zero_end"
   ,.request_url= "/two_chunks_mult_zero_end"
   ,.num_headers= 1
   ,.headers=
@@ -334,9 +301,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/chunked_w_trailing_headers"
   ,.request_url= "/chunked_w_trailing_headers"
   ,.num_headers= 3
   ,.headers=
@@ -362,9 +326,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_POST
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/chunked_w_bullshit_after_length"
   ,.request_url= "/chunked_w_bullshit_after_length"
   ,.num_headers= 1
   ,.headers=
@@ -382,9 +343,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= "foo=\"bar\""
-  ,.fragment= ""
-  ,.request_path= "/with_\"stupid\"_quotes"
   ,.request_url= "/with_\"stupid\"_quotes?foo=\"bar\""
   ,.num_headers= 0
   ,.headers= { }
@@ -408,9 +366,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/test"
   ,.request_url= "/test"
   ,.num_headers= 3
   ,.headers= { { "Host", "0.0.0.0:5000" }
@@ -431,9 +386,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= "foo=bar?baz"
-  ,.fragment= ""
-  ,.request_path= "/test.cgi"
   ,.request_url= "/test.cgi?foo=bar?baz"
   ,.num_headers= 0
   ,.headers= {}
@@ -452,9 +404,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/test"
   ,.request_url= "/test"
   ,.num_headers= 0
   ,.headers= { }
@@ -473,17 +422,15 @@ const struct message requests[] =
          "Sec-WebSocket-Key1: 4 @1  46546xW%0l 1 5\r\n"
          "Origin: http://example.com\r\n"
          "\r\n"
+         "Hot diggity dogg"
   ,.should_keep_alive= TRUE
   ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/demo"
   ,.request_url= "/demo"
   ,.num_headers= 7
-  ,.upgrade=1
+  ,.upgrade="Hot diggity dogg"
   ,.headers= { { "Host", "example.com" }
              , { "Connection", "Upgrade" }
              , { "Sec-WebSocket-Key2", "12998 5 Y3 1  .P00" }
@@ -502,17 +449,16 @@ const struct message requests[] =
          "User-agent: Mozilla/1.1N\r\n"
          "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
          "\r\n"
+         "some data\r\n"
+         "and yet even more data"
   ,.should_keep_alive= FALSE
   ,.message_complete_on_eof= FALSE
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_CONNECT
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= ""
   ,.request_url= "0-home0.netscape.com:443"
   ,.num_headers= 2
-  ,.upgrade=1
+  ,.upgrade="some data\r\nand yet even more data"
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
              , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
              }
@@ -529,9 +475,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_REPORT
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/test"
   ,.request_url= "/test"
   ,.num_headers= 0
   ,.headers= {}
@@ -548,9 +491,6 @@ const struct message requests[] =
   ,.http_major= 0
   ,.http_minor= 9
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/"
   ,.request_url= "/"
   ,.num_headers= 0
   ,.headers= {}
@@ -570,9 +510,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_MSEARCH
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "*"
   ,.request_url= "*"
   ,.num_headers= 3
   ,.headers= { { "HOST", "239.255.255.250:1900" }
@@ -581,6 +518,32 @@ const struct message requests[] =
              }
   ,.body= ""
   }
+
+#define LINE_FOLDING_IN_HEADER 20
+, {.name= "line folding in header value"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET / HTTP/1.1\r\n"
+         "Line1:   abc\r\n"
+         "\tdef\r\n"
+         " ghi\r\n"
+         "\t\tjkl\r\n"
+         "  mno \r\n"
+         "\t \tqrs\r\n"
+         "Line2: \t line2\t\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.request_url= "/"
+  ,.num_headers= 2
+  ,.headers= { { "Line1", "abcdefghijklmno qrs" }
+             , { "Line2", "line2\t" }
+             }
+  ,.body= ""
+  }
+
 
 #define QUERY_TERMINATED_HOST 21
 , {.name= "host terminated by a query string"
@@ -592,9 +555,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= "hail=all"
-  ,.fragment= ""
-  ,.request_path= ""
   ,.request_url= "http://hypnotoad.org?hail=all"
   ,.num_headers= 0
   ,.headers= { }
@@ -611,9 +571,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= "hail=all"
-  ,.fragment= ""
-  ,.request_path= ""
   ,.request_url= "http://hypnotoad.org:1234?hail=all"
   ,.num_headers= 0
   ,.headers= { }
@@ -630,9 +587,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= ""
   ,.request_url= "http://hypnotoad.org:1234"
   ,.num_headers= 0
   ,.headers= { }
@@ -651,9 +605,6 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_GET
-  ,.query_string= "q=1"
-  ,.fragment= "narf"
-  ,.request_path= "/δ¶/δt/pope"
   ,.request_url= "/δ¶/δt/pope?q=1#narf"
   ,.num_headers= 1
   ,.headers= { {"Host", "github.com" }
@@ -673,12 +624,9 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 0
   ,.method= HTTP_CONNECT
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= ""
   ,.request_url= "home_0.netscape.com:443"
   ,.num_headers= 2
-  ,.upgrade=1
+  ,.upgrade=""
   ,.headers= { { "User-agent", "Mozilla/1.1N" }
              , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
              }
@@ -701,18 +649,35 @@ const struct message requests[] =
   ,.http_major= 1
   ,.http_minor= 1
   ,.method= HTTP_PATCH
-  ,.query_string= ""
-  ,.fragment= ""
-  ,.request_path= "/file.txt"
   ,.request_url= "/file.txt"
   ,.num_headers= 4
-  ,.upgrade=0
   ,.headers= { { "Host", "www.example.com" }
              , { "Content-Type", "application/example" }
              , { "If-Match", "\"e0023aa4e\"" }
              , { "Content-Length", "10" }
              }
   ,.body= "cccccccccc"
+  }
+
+#define CONNECT_CAPS_REQUEST 27
+, {.name = "connect caps request"
+  ,.type= HTTP_REQUEST
+  ,.raw= "CONNECT HOME0.NETSCAPE.COM:443 HTTP/1.0\r\n"
+         "User-agent: Mozilla/1.1N\r\n"
+         "Proxy-authorization: basic aGVsbG86d29ybGQ=\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 0
+  ,.method= HTTP_CONNECT
+  ,.request_url= "HOME0.NETSCAPE.COM:443"
+  ,.num_headers= 2
+  ,.upgrade=""
+  ,.headers= { { "User-agent", "Mozilla/1.1N" }
+             , { "Proxy-authorization", "basic aGVsbG86d29ybGQ=" }
+             }
+  ,.body= ""
   }
 
 , {.name= NULL } /* sentinel */
@@ -1081,34 +1046,10 @@ const struct message responses[] =
 };
 
 int
-request_path_cb (http_parser *p, const char *buf, size_t len)
-{
-  assert(p == parser);
-  strncat(messages[num_messages].request_path, buf, len);
-  return 0;
-}
-
-int
 request_url_cb (http_parser *p, const char *buf, size_t len)
 {
   assert(p == parser);
   strncat(messages[num_messages].request_url, buf, len);
-  return 0;
-}
-
-int
-query_string_cb (http_parser *p, const char *buf, size_t len)
-{
-  assert(p == parser);
-  strncat(messages[num_messages].query_string, buf, len);
-  return 0;
-}
-
-int
-fragment_cb (http_parser *p, const char *buf, size_t len)
-{
-  assert(p == parser);
-  strncat(messages[num_messages].fragment, buf, len);
   return 0;
 }
 
@@ -1205,10 +1146,7 @@ static http_parser_settings settings =
   {.on_message_begin = message_begin_cb
   ,.on_header_field = header_field_cb
   ,.on_header_value = header_value_cb
-  ,.on_path = request_path_cb
   ,.on_url = request_url_cb
-  ,.on_fragment = fragment_cb
-  ,.on_query_string = query_string_cb
   ,.on_body = body_cb
   ,.on_headers_complete = headers_complete_cb
   ,.on_message_complete = message_complete_cb
@@ -1218,10 +1156,7 @@ static http_parser_settings settings_count_body =
   {.on_message_begin = message_begin_cb
   ,.on_header_field = header_field_cb
   ,.on_header_value = header_value_cb
-  ,.on_path = request_path_cb
   ,.on_url = request_url_cb
-  ,.on_fragment = fragment_cb
-  ,.on_query_string = query_string_cb
   ,.on_body = count_body_cb
   ,.on_headers_complete = headers_complete_cb
   ,.on_message_complete = message_complete_cb
@@ -1231,10 +1166,7 @@ static http_parser_settings settings_null =
   {.on_message_begin = 0
   ,.on_header_field = 0
   ,.on_header_value = 0
-  ,.on_path = 0
   ,.on_url = 0
-  ,.on_fragment = 0
-  ,.on_query_string = 0
   ,.on_body = 0
   ,.on_headers_complete = 0
   ,.on_message_complete = 0
@@ -1284,7 +1216,13 @@ check_str_eq (const struct message *m,
               const char *prop,
               const char *expected,
               const char *found) {
-  if (0 != strcmp(expected, found)) {
+  if ((expected == NULL) != (found == NULL)) {
+    printf("\n*** Error: %s in '%s' ***\n\n", prop, m->name);
+    printf("expected %s\n", (expected == NULL) ? "NULL" : expected);
+    printf("   found %s\n", (found == NULL) ? "NULL" : found);
+    return 0;
+  }
+  if (expected != NULL && 0 != strcmp(expected, found)) {
     printf("\n*** Error: %s in '%s' ***\n\n", prop, m->name);
     printf("expected '%s'\n", expected);
     printf("   found '%s'\n", found);
@@ -1337,9 +1275,6 @@ message_eq (int index, const struct message *expected)
   assert(m->message_complete_cb_called);
 
 
-  MESSAGE_CHECK_STR_EQ(expected, m, request_path);
-  MESSAGE_CHECK_STR_EQ(expected, m, query_string);
-  MESSAGE_CHECK_STR_EQ(expected, m, fragment);
   MESSAGE_CHECK_STR_EQ(expected, m, request_url);
   if (expected->body_size) {
     MESSAGE_CHECK_NUM_EQ(expected, m, body_size);
@@ -1357,13 +1292,81 @@ message_eq (int index, const struct message *expected)
     if (!r) return 0;
   }
 
+  MESSAGE_CHECK_STR_EQ(expected, m, upgrade);
+
   return 1;
+}
+
+/* Given a sequence of varargs messages, return the number of them that the
+ * parser should successfully parse, taking into account that upgraded
+ * messages prevent all subsequent messages from being parsed.
+ */
+size_t
+count_parsed_messages(const size_t nmsgs, ...) {
+  size_t i;
+  va_list ap;
+
+  va_start(ap, nmsgs);
+
+  for (i = 0; i < nmsgs; i++) {
+    struct message *m = va_arg(ap, struct message *);
+
+    if (m->upgrade) {
+      va_end(ap);
+      return i + 1;
+    }
+  }
+
+  va_end(ap);
+  return nmsgs;
+}
+
+/* Given a sequence of bytes and the number of these that we were able to
+ * parse, verify that upgrade bodies are correct.
+ */
+void
+upgrade_message_fix(char *body, const size_t nread, const size_t nmsgs, ...) {
+  va_list ap;
+  size_t i;
+  size_t off = 0;
+ 
+  va_start(ap, nmsgs);
+
+  for (i = 0; i < nmsgs; i++) {
+    struct message *m = va_arg(ap, struct message *);
+
+    off += strlen(m->raw);
+
+    if (m->upgrade) {
+      off -= strlen(m->upgrade);
+
+      /* Check the portion of the response after its specified upgrade */
+      if (!check_str_eq(m, "upgrade", body + off, body + nread)) {
+        exit(1);
+      }
+
+      /* Fix up the response so that message_eq() will verify the beginning
+       * of the upgrade */
+      *(body + nread + strlen(m->upgrade)) = '\0';
+      messages[num_messages -1 ].upgrade = body + nread;
+
+      va_end(ap);
+      return;
+    }
+  }
+
+  va_end(ap);
+  printf("\n\n*** Error: expected a message with upgrade ***\n");
+
+  exit(1);
 }
 
 static void
 print_error (const char *raw, size_t error_location)
 {
-  fprintf(stderr, "\n*** parse error ***\n\n");
+  fprintf(stderr, "\n*** %s:%d -- %s ***\n\n",
+          "http_parser.c", HTTP_PARSER_ERRNO_LINE(parser),
+          http_errno_description(HTTP_PARSER_ERRNO(parser)));
 
   int this_line = 0, char_len = 0;
   size_t i, j, len = strlen(raw), error_location_line = 0;
@@ -1418,7 +1421,10 @@ test_message (const struct message *message)
     if (msg1len) {
       read = parse(msg1, msg1len);
 
-      if (message->upgrade && parser->upgrade) goto test;
+      if (message->upgrade && parser->upgrade) {
+        messages[num_messages - 1].upgrade = msg1 + read;
+        goto test;
+      }
 
       if (read != msg1len) {
         print_error(msg1, read);
@@ -1429,7 +1435,10 @@ test_message (const struct message *message)
 
     read = parse(msg2, msg2len);
 
-    if (message->upgrade && parser->upgrade) goto test;
+    if (message->upgrade && parser->upgrade) {
+      messages[num_messages - 1].upgrade = msg2 + read;
+      goto test;
+    }
 
     if (read != msg2len) {
       print_error(msg2, read);
@@ -1437,8 +1446,6 @@ test_message (const struct message *message)
     }
 
     read = parse(NULL, 0);
-
-    if (message->upgrade && parser->upgrade) goto test;
 
     if (read != 0) {
       print_error(message->raw, read);
@@ -1495,21 +1502,32 @@ test_message_count_body (const struct message *message)
 }
 
 void
-test_simple (const char *buf, int should_pass)
+test_simple (const char *buf, enum http_errno err_expected)
 {
   parser_init(HTTP_REQUEST);
 
   size_t parsed;
   int pass;
+  enum http_errno err;
+
   parsed = parse(buf, strlen(buf));
   pass = (parsed == strlen(buf));
+  err = HTTP_PARSER_ERRNO(parser);
   parsed = parse(NULL, 0);
   pass &= (parsed == 0);
 
   parser_free();
 
-  if (pass != should_pass) {
-    fprintf(stderr, "\n*** test_simple expected %s ***\n\n%s", should_pass ? "success" : "error", buf);
+  /* In strict mode, allow us to pass with an unexpected HPE_STRICT as
+   * long as the caller isn't expecting success.
+   */
+#if HTTP_PARSER_STRICT
+  if (err_expected != err && err_expected != HPE_OK && err != HPE_STRICT) {
+#else
+  if (err_expected != err) {
+#endif
+    fprintf(stderr, "\n*** test_simple expected %s, but saw %s ***\n\n%s\n",
+        http_errno_name(err_expected), http_errno_name(err), buf);
     exit(1);
   }
 }
@@ -1526,10 +1544,14 @@ test_header_overflow_error (int req)
   assert(parsed == strlen(buf));
 
   buf = "header-key: header-value\r\n";
+  size_t buflen = strlen(buf);
+
   int i;
   for (i = 0; i < 10000; i++) {
-    if (http_parser_execute(&parser, &settings_null, buf, strlen(buf)) != strlen(buf)) {
+    parsed = http_parser_execute(&parser, &settings_null, buf, buflen);
+    if (parsed != buflen) {
       //fprintf(stderr, "error found on iter %d\n", i);
+      assert(HTTP_PARSER_ERRNO(&parser) == HPE_HEADER_OVERFLOW);
       return;
     }
   }
@@ -1574,12 +1596,7 @@ test_no_overflow_long_body (int req, size_t length)
 void
 test_multiple3 (const struct message *r1, const struct message *r2, const struct message *r3)
 {
-  int message_count = 1;
-  if (!r1->upgrade) {
-    message_count++;
-    if (!r2->upgrade) message_count++;
-  }
-  int has_upgrade = (message_count < 3 || r3->upgrade);
+  int message_count = count_parsed_messages(3, r1, r2, r3);
 
   char total[ strlen(r1->raw)
             + strlen(r2->raw)
@@ -1598,7 +1615,10 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
 
   read = parse(total, strlen(total));
 
-  if (has_upgrade && parser->upgrade) goto test;
+  if (parser->upgrade) {
+    upgrade_message_fix(total, read, 3, r1, r2, r3);
+    goto test;
+  }
 
   if (read != strlen(total)) {
     print_error(total, read);
@@ -1606,8 +1626,6 @@ test_multiple3 (const struct message *r1, const struct message *r2, const struct
   }
 
   read = parse(NULL, 0);
-
-  if (has_upgrade && parser->upgrade) goto test;
 
   if (read != 0) {
     print_error(total, read);
@@ -1622,12 +1640,8 @@ test:
   }
 
   if (!message_eq(0, r1)) exit(1);
-  if (message_count > 1) {
-    if (!message_eq(1, r2)) exit(1);
-    if (message_count > 2) {
-      if (!message_eq(2, r3)) exit(1);
-    }
-  }
+  if (message_count > 1 && !message_eq(1, r2)) exit(1);
+  if (message_count > 2 && !message_eq(2, r3)) exit(1);
 
   parser_free();
 }
@@ -1656,6 +1670,7 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
   int ops = 0 ;
 
   size_t buf1_len, buf2_len, buf3_len;
+  int message_count = count_parsed_messages(3, r1, r2, r3);
 
   int i,j,type_both;
   for (type_both = 0; type_both < 2; type_both ++ ) {
@@ -1684,27 +1699,27 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
 
         read = parse(buf1, buf1_len);
 
-        if (r3->upgrade && parser->upgrade) goto test;
+        if (parser->upgrade) goto test;
 
         if (read != buf1_len) {
           print_error(buf1, read);
           goto error;
         }
 
-        read = parse(buf2, buf2_len);
+        read += parse(buf2, buf2_len);
 
-        if (r3->upgrade && parser->upgrade) goto test;
+        if (parser->upgrade) goto test;
 
-        if (read != buf2_len) {
+        if (read != buf1_len + buf2_len) {
           print_error(buf2, read);
           goto error;
         }
 
-        read = parse(buf3, buf3_len);
+        read += parse(buf3, buf3_len);
 
-        if (r3->upgrade && parser->upgrade) goto test;
+        if (parser->upgrade) goto test;
 
-        if (read != buf3_len) {
+        if (read != buf1_len + buf2_len + buf3_len) {
           print_error(buf3, read);
           goto error;
         }
@@ -1712,9 +1727,13 @@ test_scan (const struct message *r1, const struct message *r2, const struct mess
         parse(NULL, 0);
 
 test:
+        if (parser->upgrade) {
+          upgrade_message_fix(total, read, 3, r1, r2, r3);
+        }
 
-        if (3 != num_messages) {
-          fprintf(stderr, "\n\nParser didn't see 3 messages only %d\n", num_messages);
+        if (message_count != num_messages) {
+          fprintf(stderr, "\n\nParser didn't see %d messages only %d\n",
+            message_count, num_messages);
           goto error;
         }
 
@@ -1723,12 +1742,12 @@ test:
           goto error;
         }
 
-        if (!message_eq(1, r2)) {
+        if (message_count > 1 && !message_eq(1, r2)) {
           fprintf(stderr, "\n\nError matching messages[1] in test_scan.\n");
           goto error;
         }
 
-        if (!message_eq(2, r3)) {
+        if (message_count > 2 && !message_eq(2, r3)) {
           fprintf(stderr, "\n\nError matching messages[2] in test_scan.\n");
           goto error;
         }
@@ -1868,13 +1887,13 @@ main (void)
 
   /// REQUESTS
 
-  test_simple("hello world", 0);
-  test_simple("GET / HTP/1.1\r\n\r\n", 0);
+  test_simple("hello world", HPE_INVALID_METHOD);
+  test_simple("GET / HTP/1.1\r\n\r\n", HPE_INVALID_VERSION);
 
 
-  test_simple("ASDF / HTTP/1.1\r\n\r\n", 0);
-  test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", 0);
-  test_simple("GETA / HTTP/1.1\r\n\r\n", 0);
+  test_simple("ASDF / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
+  test_simple("PROPPATCHA / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
+  test_simple("GETA / HTTP/1.1\r\n\r\n", HPE_INVALID_METHOD);
 
   // Well-formed but incomplete
   test_simple("GET / HTTP/1.1\r\n"
@@ -1882,7 +1901,7 @@ main (void)
               "Content-Length: 6\r\n"
               "\r\n"
               "fooba",
-              0);
+              HPE_OK);
 
   static const char *all_methods[] = {
     "DELETE",
@@ -1900,12 +1919,31 @@ main (void)
     "PROPFIND",
     "PROPPATCH",
     "UNLOCK",
+    "REPORT",
+    "MKACTIVITY",
+    "CHECKOUT",
+    "MERGE",
+    "M-SEARCH",
+    "NOTIFY",
+    "SUBSCRIBE",
+    "UNSUBSCRIBE",
+    "PATCH",
     0 };
   const char **this_method;
   for (this_method = all_methods; *this_method; this_method++) {
     char buf[200];
     sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
-    test_simple(buf, 1);
+    test_simple(buf, HPE_OK);
+  }
+
+  static const char *bad_methods[] = {
+      "C******",
+      "M****",
+      0 };
+  for (this_method = bad_methods; *this_method; this_method++) {
+    char buf[200];
+    sprintf(buf, "%s / HTTP/1.1\r\n\r\n", *this_method);
+    test_simple(buf, HPE_UNKNOWN);
   }
 
   const char *dumbfuck2 =
@@ -1943,7 +1981,7 @@ main (void)
     "\tRA==\r\n"
     "\t-----END CERTIFICATE-----\r\n"
     "\r\n";
-  test_simple(dumbfuck2, 0);
+  test_simple(dumbfuck2, HPE_OK);
 
 #if 0
   // NOTE(Wed Nov 18 11:57:27 CET 2009) this seems okay. we just read body
