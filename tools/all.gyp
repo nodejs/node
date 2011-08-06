@@ -1,18 +1,31 @@
 {
   'target_defaults': {
+    'default_configuration': 'Debug',
     'configurations': {
+      # TODO: hoist these out and put them somewhere common, because
+      #       RuntimeLibrary MUST MATCH across the entire project
       'Debug': {
-        'defines': [ 'DEBUG', '_DEBUG' ]
+        'defines': [ 'DEBUG', '_DEBUG' ],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'RuntimeLibrary': 1, # static debug
+          }
+        }
       },
       'Release': {
-        'defines': [ 'NDEBUG' ]
+        'defines': [ 'NDEBUG' ],
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'RuntimeLibrary': 0, # static release
+          }
+        }
       }
-    }
+    },
   },
 
   'variables': {
     'v8_use_snapshot': 'true',
-    'target_arch': 'x64',
+    'target_arch': 'ia32',
     'node_use_dtrace': 'false',
     'node_use_openssl': 'true'
   },
@@ -31,6 +44,7 @@
 
       'include_dirs': [
         '../src',
+        '../deps/uv/src/ares',
         '<(SHARED_INTERMEDIATE_DIR)' # for node_natives.h
       ],
 
@@ -40,7 +54,6 @@
         '../src/node.cc',
         '../src/node_buffer.cc',
         '../src/node_constants.cc',
-        '../src/node_crypto.cc',
         '../src/node_dtrace.cc',
         '../src/node_extensions.cc',
         '../src/node_file.cc',
@@ -68,25 +81,33 @@
       'conditions': [
         [ 'node_use_openssl=="true"', {
           'libraries': [ '-lssl', '-lcrypto' ],
-          'defines': [ 'HAVE_OPENSSL=1' ]
+          'defines': [ 'HAVE_OPENSSL=1' ],
+          'sources': [ '../src/node_crypto.cc' ],
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]
         }],
 
         [ 'OS=="win"', {
+          # until we figure out a good way to get openssl into the build system
+          'node_use_openssl': 'false',
           'defines': [
-            'PTW32_STATIC_LIB',
+            'PTW32_STATIC_LIB', # we'll need to add pthread-win32 and build/depend on that.
             'FD_SETSIZE=1024'
           ],
           'libraries': [
-            '-lws2_32',
-            '-lwinmm',
-            '../deps/pthread-win32/libpthreadGC2.a',
+            '-lws2_32.lib',
+            '-lwinmm.lib',
           ],
           'sources': [
             '../src/platform_win32.cc',
-            '../src/node_stdio_win32.cc'
-          ]
+            '../src/node_stdio_win32.cc',
+            '../deps/uv/src/eio/eio.c', # file operations depend on eio to link. uv contains eio in unix builds, but not win32. So we need to compile it here instead.
+          ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              'WarningLevel': '3',
+            },
+          },
         },{ # POSIX
           'defines': [ '__POSIX__' ],
           'sources': [
@@ -203,7 +224,8 @@
                 '../src/macros.py'
               ],
             }]
-          ]
+          ],
+          'msvs_cygwin_shell': 0,
         },
       ],
     }, # end node_js2c

@@ -56,7 +56,7 @@ generator_default_variables = {
     # of the warnings.
 
     # TODO(jeanluc)  I had:  'LIB_DIR': '$(OutDir)lib',
-    'LIB_DIR': '$(OutDir)/lib',
+    #'LIB_DIR': '$(OutDir)/lib',
     'RULE_INPUT_ROOT': '$(InputName)',
     'RULE_INPUT_EXT': '$(InputExt)',
     'RULE_INPUT_NAME': '$(InputFileName)',
@@ -575,7 +575,18 @@ def _GenerateExternalRules(rules, output_dir, spec,
          'IntDir=$(IntDir)',
          '-j', '${NUMBER_OF_PROCESSORS_PLUS_1}',
          '-f', filename]
-  cmd = _BuildCommandLineForRuleRaw(spec, cmd, True, False, True)
+
+  # Currently this weird argument munging is used to duplicate the way a
+  # python script would need to be run as part of the chrome tree.
+  # Eventually we should add some sort of rule_default option to set this
+  # per project. For now the behavior chrome needs is the default.
+  mcs = rule.get('msvs_cygwin_shell')
+  if mcs is None:
+    mcs = int(spec.get('msvs_cygwin_shell', 1))
+  elif isinstance(mcs, str):
+    mcs = int(mcs)
+  quote_cmd = int(rule.get('msvs_quote_cmd', 1))
+  cmd = _BuildCommandLineForRuleRaw(spec, cmd, mcs, False, quote_cmd)
   # Insert makefile as 0'th input, so it gets the action attached there,
   # as this is easier to understand from in the IDE.
   all_inputs = list(all_inputs)
@@ -1095,7 +1106,7 @@ def _GetOutputFilePathAndTool(spec):
       # TODO(jeanluc) If we want to avoid the MSB8012 warnings in
       # VisualStudio 2010, we will have to change the value of $(OutDir)
       # to contain the \lib suffix, rather than doing it as below.
-      'static_library': ('VCLibrarianTool', 'Lib', '$(OutDir)\\lib\\', '.lib'),
+      'static_library': ('VCLibrarianTool', 'Lib', '$(OutDir)\\', '.lib'),
       'dummy_executable': ('VCLinkerTool', 'Link', '$(IntDir)\\', '.junk'),
   }
   output_file_props = output_file_map.get(spec['type'])

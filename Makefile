@@ -6,6 +6,9 @@ all: out/Makefile
 out/Makefile:
 	tools/gyp_node -f make
 
+clean:
+	rm -rf out
+
 distclean:
 	rm -rf out
 
