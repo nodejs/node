@@ -90,12 +90,21 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     return;
   }
 
-  /* Scan for the letter Q which signals that we should quit. */
+  /* 
+   * Scan for the letter Q which signals that we should quit the server.
+   * If we get QS it means close the stream.
+   */
   if (!server_closed) {
     for (i = 0; i < nread; i++) {
       if (buf.base[i] == 'Q') {
-        uv_close(server, on_server_close);
-        server_closed = 1;
+        if (i + 1 < nread && buf.base[i + 1] == 'S') {
+          free(buf.base);
+          uv_close((uv_handle_t*)handle, NULL);
+          return;
+        } else {
+          uv_close(server, on_server_close);
+          server_closed = 1;
+        }
       }
     }
   }
@@ -187,7 +196,7 @@ static int tcp4_echo_start(int port) {
     return 1;
   }
 
-  r = uv_listen((uv_stream_t*)&tcpServer, 128, on_connection);
+  r = uv_listen((uv_stream_t*)&tcpServer, SOMAXCONN, on_connection);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Listen error\n");
@@ -220,7 +229,7 @@ static int tcp6_echo_start(int port) {
     return 0;
   }
 
-  r = uv_listen((uv_stream_t*)&tcpServer, 128, on_connection);
+  r = uv_listen((uv_stream_t*)&tcpServer, SOMAXCONN, on_connection);
   if (r) {
     /* TODO: Error codes */
     fprintf(stderr, "Listen error\n");

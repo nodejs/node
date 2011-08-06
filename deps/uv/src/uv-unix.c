@@ -62,6 +62,7 @@
 
 #if defined(__FreeBSD__)
 #include <sys/sysctl.h>
+#include <sys/wait.h>
 #endif
 
 
@@ -2360,8 +2361,6 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
   assert((status == 1)
       && "poll() on pipe read end failed");
-  assert((pfd.revents & POLLIN) == 0
-      && "unexpected POLLIN on pipe read end");
   assert((pfd.revents & POLLHUP) == POLLHUP
       && "no POLLHUP on pipe read end");
 

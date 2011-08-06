@@ -202,6 +202,7 @@
         '../test/benchmark-ares.c',
         '../test/benchmark-getaddrinfo.c',
         '../test/benchmark-ping-pongs.c',
+        '../test/benchmark-pound.c',
         '../test/benchmark-pump.c',
         '../test/benchmark-sizes.c',
         '../test/benchmark-spawn.c'

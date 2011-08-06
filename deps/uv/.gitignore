@@ -7,12 +7,5 @@
 *.orig
 *.sdf
 *.suo
-Makefile
-out/
-build/gyp
-build/all.Makefile
-build/all.xcodeproj/
-build/run-tests.target.mk
-build/run-benchmarks.target.mk
-build/uv.target.mk
-gyp-mac-tool
+/out/
+/build/gyp

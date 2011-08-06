@@ -4,9 +4,11 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* fdatasync(2) is not available on 10.5 but is on 10.6 
- * How should we deal with this? */
-/* #define HAVE_FDATASYNC 0 */
+/* fallocate(2) is available */
+/* #undef HAVE_FALLOCATE */
+
+/* fdatasync(2) is available */
+#define HAVE_FDATASYNC 1
 
 /* futimes(2) is available */
 #define HAVE_FUTIMES 1
@@ -16,6 +18,15 @@
 
 /* Define to 1 if you have the <memory.h> header file. */
 #define HAVE_MEMORY_H 1
+
+/* posix_fadvise(2) is available */
+/* #undef HAVE_POSIX_FADVISE */
+
+/* posix_madvise(2) is available */
+#define HAVE_POSIX_MADVISE 1
+
+/* prctl(PR_SET_NAME) is available */
+/* #undef HAVE_PRCTL_SET_NAME */
 
 /* pread(2) and pwrite(2) are available */
 #define HAVE_PREADWRITE 1
@@ -41,14 +52,26 @@
 /* sync_file_range(2) is available */
 /* #undef HAVE_SYNC_FILE_RANGE */
 
+/* Define to 1 if you have the <sys/prctl.h> header file. */
+/* #undef HAVE_SYS_PRCTL_H */
+
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #define HAVE_SYS_STAT_H 1
+
+/* syscall(__NR_syncfs) is available */
+/* #undef HAVE_SYS_SYNCFS */
+
+/* Define to 1 if you have the <sys/syscall.h> header file. */
+#define HAVE_SYS_SYSCALL_H 1
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1
+
+/* utimes(2) is available */
+#define HAVE_UTIMES 1
 
 /* Define to the sub-directory in which libtool stores uninstalled libraries.
    */
@@ -78,5 +101,37 @@
 /* Define to 1 if you have the ANSI C header files. */
 #define STDC_HEADERS 1
 
+/* Enable extensions on AIX 3, Interix.  */
+#ifndef _ALL_SOURCE
+# define _ALL_SOURCE 1
+#endif
+/* Enable GNU extensions on systems that have them.  */
+#ifndef _GNU_SOURCE
+# define _GNU_SOURCE 1
+#endif
+/* Enable threading extensions on Solaris.  */
+#ifndef _POSIX_PTHREAD_SEMANTICS
+# define _POSIX_PTHREAD_SEMANTICS 1
+#endif
+/* Enable extensions on HP NonStop.  */
+#ifndef _TANDEM_SOURCE
+# define _TANDEM_SOURCE 1
+#endif
+/* Enable general extensions on Solaris.  */
+#ifndef __EXTENSIONS__
+# define __EXTENSIONS__ 1
+#endif
+
+
 /* Version number of package */
 #define VERSION "1.0"
+
+/* Define to 1 if on MINIX. */
+/* #undef _MINIX */
+
+/* Define to 2 if the system does not provide POSIX.1 features except with
+   this defined. */
+/* #undef _POSIX_1_SOURCE */
+
+/* Define to 1 if you need to in order for `stat' and other things to work. */
+/* #undef _POSIX_SOURCE */

@@ -4,12 +4,25 @@ all platform differences in this library.
 
 http://nodejs.org/
 
-(This was previously called liboio)
+= Build Instructions
 
-Supported Platforms:
+The build system requires python and subversion.
+
+On Unix systems just type
+
+    make
+
+On Windows you can generate the MSVS solution files by running
+
+    create-msvs-files.bat
+
+Open build/all.sln afterwards.
+
+
+= Supported Platforms
 
 Microsoft Windows operating systems since Windows XP sp2. It can be built
-with either Visual Studio or MinGW.
+with either Visual Studio.
 
 Linux 2.6 and MacOS using the GCC toolchain.
 

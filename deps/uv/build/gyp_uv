@@ -6,9 +6,14 @@ import sys
 
 script_dir = os.path.dirname(__file__)
 uv_root = os.path.normpath(os.path.join(script_dir, os.pardir))
+print("uv_root " + uv_root)
 
 sys.path.insert(0, os.path.join(uv_root, 'build', 'gyp', 'pylib'))
 import gyp
+
+# Directory within which we want all generated files (including Makefiles)
+# to be written.
+output_dir = os.path.join(os.path.abspath(uv_root), 'out')
 
 
 def run_gyp(args):
@@ -19,7 +24,19 @@ def run_gyp(args):
 
 if __name__ == '__main__':
   args = sys.argv[1:]
+
   args.append(os.path.join(script_dir, 'all.gyp'))
+
   args.append('--depth=' + uv_root)
+
+  # There's a bug with windows which doesn't allow this feature.
+  if sys.platform != 'win32':
+
+    # Tell gyp to write the Makefiles into output_dir
+    args.extend(['--generator-output', output_dir])
+
+    # Tell make to write its output into the same dir
+    args.extend(['-Goutput_dir=' + output_dir])
+
   gyp_args = list(args)
   run_gyp(gyp_args)

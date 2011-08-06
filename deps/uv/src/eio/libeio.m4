@@ -1,3 +1,7 @@
+dnl openbsd in it's neverending brokenness requires stdint.h for intptr_t,
+dnl but that header isn't very portable...
+AC_CHECK_HEADERS([stdint.h sys/syscall.h sys/prctl.h])
+
 AC_SEARCH_LIBS(
    pthread_create,
    [pthread pthreads pthreadVC2],
@@ -118,6 +122,41 @@ int main (void)
 }
 ],ac_cv_sync_file_range=yes,ac_cv_sync_file_range=no)])
 test $ac_cv_sync_file_range = yes && AC_DEFINE(HAVE_SYNC_FILE_RANGE, 1, sync_file_range(2) is available)
+
+AC_CACHE_CHECK(for fallocate, ac_cv_fallocate, [AC_LINK_IFELSE([
+#include <fcntl.h>
+int main (void)
+{
+   int fd = 0;
+   int mode = 0;
+   off_t offset = 1;
+   off_t len = 1;
+   int res;
+   res = fallocate (fd, mode, offset, len);
+   return 0;
+}
+],ac_cv_fallocate=yes,ac_cv_fallocate=no)])
+test $ac_cv_fallocate = yes && AC_DEFINE(HAVE_FALLOCATE, 1, fallocate(2) is available)
+
+AC_CACHE_CHECK(for sys_syncfs, ac_cv_sys_syncfs, [AC_LINK_IFELSE([
+#include <unistd.h>
+#include <sys/syscall.h>
+int main (void)
+{
+  int res = syscall (__NR_syncfs, (int)0);
+}
+],ac_cv_sys_syncfs=yes,ac_cv_sys_syncfs=no)])
+test $ac_cv_sys_syncfs = yes && AC_DEFINE(HAVE_SYS_SYNCFS, 1, syscall(__NR_syncfs) is available)
+
+AC_CACHE_CHECK(for prctl_set_name, ac_cv_prctl_set_name, [AC_LINK_IFELSE([
+#include <sys/prctl.h>
+int main (void)
+{
+  char name[] = "test123";
+  int res = prctl (PR_SET_NAME, (unsigned long)name, 0, 0, 0);
+}
+],ac_cv_prctl_set_name=yes,ac_cv_prctl_set_name=no)])
+test $ac_cv_prctl_set_name = yes && AC_DEFINE(HAVE_PRCTL_SET_NAME, 1, prctl(PR_SET_NAME) is available)
 
 dnl #############################################################################
 dnl # these checks exist for the benefit of IO::AIO
