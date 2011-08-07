@@ -2,6 +2,8 @@ BUILDTYPE ?= Release
 
 all: out/Makefile
 	$(MAKE) -C out BUILDTYPE=$(BUILDTYPE)
+	-ln -fs out/Release/node node
+	-ln -fs out/Debug/node node_g
 
 out/Release/node: all
 
