@@ -200,6 +200,57 @@ static void eio_destroy (eio_req *req);
   #define D_NAME(entp) entp.cFileName
   #define D_TYPE(entp) (entp.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY ? DT_DIR : DT_REG)
 
+#include <sys/utime.h>
+#define utime(path, times)   _utime(path, times)
+#define utimbuf              _utimbuf
+
+#if defined(_MSC_VER) || defined(_MSC_EXTENSIONS)
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000Ui64
+#else
+  #define DELTA_EPOCH_IN_MICROSECS  11644473600000000ULL
+#endif
+
+struct timezone 
+{
+  int  tz_minuteswest; /* minutes W of Greenwich */
+  int  tz_dsttime;     /* type of dst correction */
+};
+
+static int gettimeofday(struct timeval *tv, struct timezone *tz)
+{
+  FILETIME ft;
+  unsigned __int64 tmpres = 0;
+  static int tzflag;
+
+  if (NULL != tv)
+  {
+    GetSystemTimeAsFileTime(&ft);
+
+    tmpres |= ft.dwHighDateTime;
+    tmpres <<= 32;
+    tmpres |= ft.dwLowDateTime;
+
+    /*converting file time to unix epoch*/
+    tmpres -= DELTA_EPOCH_IN_MICROSECS; 
+    tmpres /= 10;  /*convert into microseconds*/
+    tv->tv_sec = (long)(tmpres / 1000000UL);
+    tv->tv_usec = (long)(tmpres % 1000000UL);
+  }
+
+  if (NULL != tz)
+  {
+    if (!tzflag)
+    {
+      _tzset();
+      tzflag++;
+    }
+    tz->tz_minuteswest = _timezone / 60;
+    tz->tz_dsttime = _daylight;
+  }
+
+  return 0;
+}
+
 #else
 
   #include <sys/time.h>
@@ -912,7 +963,7 @@ int eio_poll (void)
 # define pread  eio__pread
 # define pwrite eio__pwrite
 
-static eio_ssize_t
+eio_ssize_t
 eio__pread (int fd, void *buf, size_t count, off_t offset)
 {
   eio_ssize_t res;
@@ -928,7 +979,7 @@ eio__pread (int fd, void *buf, size_t count, off_t offset)
   return res;
 }
 
-static eio_ssize_t
+eio_ssize_t
 eio__pwrite (int fd, void *buf, size_t count, off_t offset)
 {
   eio_ssize_t res;
@@ -2116,21 +2167,21 @@ eio_execute (etp_worker *self, eio_req *req)
 
       case EIO_CHOWN:     req->result = chown     (req->ptr1, req->int2, req->int3); break;
       case EIO_FCHOWN:    req->result = fchown    (req->int1, req->int2, req->int3); break;
-      case EIO_CHMOD:     req->result = chmod     (req->ptr1, (mode_t)req->int2); break;
-      case EIO_FCHMOD:    req->result = fchmod    (req->int1, (mode_t)req->int2); break;
+      case EIO_CHMOD:     req->result = chmod     (req->ptr1, (eio_mode_t)req->int2); break;
+      case EIO_FCHMOD:    req->result = fchmod    (req->int1, (eio_mode_t)req->int2); break;
       case EIO_TRUNCATE:  req->result = truncate  (req->ptr1, req->offs); break;
       case EIO_FTRUNCATE: req->result = ftruncate (req->int1, req->offs); break;
 
-      case EIO_OPEN:      req->result = open      (req->ptr1, req->int1, (mode_t)req->int2); break;
+      case EIO_OPEN:      req->result = open      (req->ptr1, req->int1, (eio_mode_t)req->int2); break;
       case EIO_CLOSE:     req->result = close     (req->int1); break;
       case EIO_DUP2:      req->result = dup2      (req->int1, req->int2); break;
       case EIO_UNLINK:    req->result = unlink    (req->ptr1); break;
       case EIO_RMDIR:     req->result = rmdir     (req->ptr1); break;
-      case EIO_MKDIR:     req->result = mkdir     (req->ptr1, (mode_t)req->int2); break;
+      case EIO_MKDIR:     req->result = mkdir     (req->ptr1, (eio_mode_t)req->int2); break;
       case EIO_RENAME:    req->result = rename    (req->ptr1, req->ptr2); break;
       case EIO_LINK:      req->result = link      (req->ptr1, req->ptr2); break;
       case EIO_SYMLINK:   req->result = symlink   (req->ptr1, req->ptr2); break;
-      case EIO_MKNOD:     req->result = mknod     (req->ptr1, (mode_t)req->int2, (dev_t)req->offs); break;
+      case EIO_MKNOD:     req->result = mknod     (req->ptr1, (eio_mode_t)req->int2, (dev_t)req->offs); break;
 
       case EIO_REALPATH:  eio__realpath (req, self); break;
 
@@ -2311,7 +2362,7 @@ eio_req *eio_ftruncate (int fd, off_t offset, int pri, eio_cb cb, void *data)
   REQ (EIO_FTRUNCATE); req->int1 = fd; req->offs = offset; SEND;
 }
 
-eio_req *eio_fchmod (int fd, mode_t mode, int pri, eio_cb cb, void *data)
+eio_req *eio_fchmod (int fd, eio_mode_t mode, int pri, eio_cb cb, void *data)
 {
   REQ (EIO_FCHMOD); req->int1 = fd; req->int2 = (long)mode; SEND;
 }
@@ -2331,7 +2382,7 @@ eio_req *eio_sendfile (int out_fd, int in_fd, off_t in_offset, size_t length, in
   REQ (EIO_SENDFILE); req->int1 = out_fd; req->int2 = in_fd; req->offs = in_offset; req->size = length; SEND;
 }
 
-eio_req *eio_open (const char *path, int flags, mode_t mode, int pri, eio_cb cb, void *data)
+eio_req *eio_open (const char *path, int flags, eio_mode_t mode, int pri, eio_cb cb, void *data)
 {
   REQ (EIO_OPEN); PATH; req->int1 = flags; req->int2 = (long)mode; SEND;
 }
@@ -2351,12 +2402,12 @@ eio_req *eio_chown (const char *path, eio_uid_t uid, eio_gid_t gid, int pri, eio
   REQ (EIO_CHOWN); PATH; req->int2 = (long)uid; req->int3 = (long)gid; SEND;
 }
 
-eio_req *eio_chmod (const char *path, mode_t mode, int pri, eio_cb cb, void *data)
+eio_req *eio_chmod (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data)
 {
   REQ (EIO_CHMOD); PATH; req->int2 = (long)mode; SEND;
 }
 
-eio_req *eio_mkdir (const char *path, mode_t mode, int pri, eio_cb cb, void *data)
+eio_req *eio_mkdir (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data)
 {
   REQ (EIO_MKDIR); PATH; req->int2 = (long)mode; SEND;
 }
@@ -2407,7 +2458,7 @@ eio_req *eio_readdir (const char *path, int flags, int pri, eio_cb cb, void *dat
   REQ (EIO_READDIR); PATH; req->int1 = flags; SEND;
 }
 
-eio_req *eio_mknod (const char *path, mode_t mode, dev_t dev, int pri, eio_cb cb, void *data)
+eio_req *eio_mknod (const char *path, eio_mode_t mode, dev_t dev, int pri, eio_cb cb, void *data)
 {
   REQ (EIO_MKNOD); PATH; req->int2 = (long)mode; req->offs = (off_t)dev; SEND;
 }

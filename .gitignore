@@ -19,3 +19,18 @@ tools/all.target.mk
 tools/node_js2c.host.mk
 tools/node_js2c.target.mk
 out/
+
+# various stuff that VC++ produces/uses
+Debug/
+Release/
+*.sln
+*.suo
+*.vcproj
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+UpgradeLog*.XML
+_UpgradeReport_Files/
+ipch/
+*.sdf
+*.opensdf

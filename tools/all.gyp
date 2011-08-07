@@ -9,18 +9,34 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'RuntimeLibrary': 1, # static debug
-          }
-        }
+          },
+        },
       },
       'Release': {
         'defines': [ 'NDEBUG' ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'RuntimeLibrary': 0, # static release
-          }
-        }
+          },
+        },
       }
     },
+    'msvs_settings': {
+      'VCCLCompilerTool': {
+      },
+      'VCLibrarianTool': {
+      },
+      'VCLinkerTool': {
+        'GenerateDebugInformation': 'true',
+      },
+    },
+    'conditions': [
+      ['OS == "win"', {
+        'defines': [
+          'WIN32'
+        ],
+      }]
+    ],
   },
 
   'variables': {
@@ -88,20 +104,33 @@
         }],
 
         [ 'OS=="win"', {
-          # until we figure out a good way to get openssl into the build system
+          'dependencies': [
+            '../deps/uv/deps/pthread-win32/build/all.gyp:pthread-win32',
+          ],
+          # openssl is not built using gyp, and needs to be 
+          # built separately and placed outside the hierarchy.
+          # the dependencies aren't set up yet to put it in 
+          # place, so I'm going to force it off indiscrimately
+          # for the time being. Because the above condition has
+          # already kicked in, it's not enough simply to turn
+          # 'node_use_openssl' off; I need to undo its effects
           'node_use_openssl': 'false',
-          'defines': [
-            'PTW32_STATIC_LIB', # we'll need to add pthread-win32 and build/depend on that.
-            'FD_SETSIZE=1024'
-          ],
-          'libraries': [
-            '-lws2_32.lib',
-            '-lwinmm.lib',
-          ],
+          'defines!': [ 'HAVE_OPENSSL=1' ],
+          'defines': [ 'HAVE_OPENSSL=0' ],
+          'libraries!': [ '-lssl', '-lcrypto' ],
+          'sources!': [ '../src/node_crypto.cc' ],
           'sources': [
             '../src/platform_win32.cc',
             '../src/node_stdio_win32.cc',
             '../deps/uv/src/eio/eio.c', # file operations depend on eio to link. uv contains eio in unix builds, but not win32. So we need to compile it here instead.
+          ],
+          'defines': [
+            'PTW32_STATIC_LIB', # we'll need to add pthread-win32 and build/depend on that.
+            'FD_SETSIZE=1024',
+          ],
+          'libraries': [
+            '-lws2_32.lib',
+            '-lwinmm.lib',
           ],
           'msvs_settings': {
             'VCCLCompilerTool': {

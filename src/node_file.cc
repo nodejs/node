@@ -602,7 +602,7 @@ static Handle<Value> MKDir(const Arguments& args) {
   }
 
   String::Utf8Value path(args[0]->ToString());
-  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  eio_mode_t mode = static_cast<eio_mode_t>(args[1]->Int32Value());
 
   if (args[2]->IsFunction()) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
@@ -714,7 +714,7 @@ static Handle<Value> Open(const Arguments& args) {
 
   String::Utf8Value path(args[0]->ToString());
   int flags = args[1]->Int32Value();
-  mode_t mode = static_cast<mode_t>(args[2]->Int32Value());
+  eio_mode_t mode = static_cast<eio_mode_t>(args[2]->Int32Value());
 
   if (args[3]->IsFunction()) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
@@ -875,7 +875,7 @@ static Handle<Value> Chmod(const Arguments& args) {
     return THROW_BAD_ARGS;
   }
   String::Utf8Value path(args[0]->ToString());
-  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  eio_mode_t mode = static_cast<eio_mode_t>(args[1]->Int32Value());
 
   if(args[2]->IsFunction()) {
     ASYNC_CALL(chmod, args[2], *path, mode);

@@ -9,18 +9,34 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'RuntimeLibrary': 1, # static debug
-          }
-        }
+          },
+        },
       },
       'Release': {
         'defines': [ 'NDEBUG' ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'RuntimeLibrary': 0, # static release
-          }
-        }
+          },
+        },
       }
     },
+    'msvs_settings': {
+      'VCCLCompilerTool': {
+      },
+      'VCLibrarianTool': {
+      },
+      'VCLinkerTool': {
+        'GenerateDebugInformation': 'true',
+      },
+    },
+    'conditions': [
+      ['OS == "win"', {
+        'defines': [
+          'WIN32'
+        ],
+      }]
+    ],
   },
 
   'targets': [
