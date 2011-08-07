@@ -33,7 +33,13 @@
     'conditions': [
       ['OS == "win"', {
         'defines': [
-          'WIN32'
+          'WIN32',
+          # we don't really want VC++ warning us about
+          # how dangerous C functions are...
+          '_CRT_SECURE_NO_DEPRECATE',
+          # ... or that C implementations shouldn't use
+          # POSIX names
+          '_CRT_NONSTDC_NO_DEPRECATE',
         ],
       }]
     ],
