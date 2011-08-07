@@ -110,6 +110,8 @@ static void eio_destroy (eio_req *req);
 
 #ifdef _WIN32
 
+  #include <direct.h>
+
   #undef PAGESIZE
   #define PAGESIZE 4096 /* GetSystemInfo? */
 
@@ -139,6 +141,9 @@ static void eio_destroy (eio_req *req);
   #define readlink(path,buf,s) EIO_ENOSYS ()
   #define statvfs(path,buf)    EIO_ENOSYS ()
   #define fstatvfs(fd,buf)     EIO_ENOSYS ()
+
+  #define getcwd(buf,s)        _getcwd(buf, s)
+  #define rmdir(path)          _rmdir(path)
 
   /* rename() uses MoveFile, which fails to overwrite */
   #define rename(old,neu)      eio__rename (old, neu)
