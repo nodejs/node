@@ -122,11 +122,14 @@
           'sources': [
             '../src/platform_win32.cc',
             '../src/node_stdio_win32.cc',
-            '../deps/uv/src/eio/eio.c', # file operations depend on eio to link. uv contains eio in unix builds, but not win32. So we need to compile it here instead.
+            # file operations depend on eio to link. uv contains eio in unix builds, but not win32. So we need to compile it here instead.
+            '../deps/uv/src/eio/eio.c',
           ],
           'defines': [
-            'PTW32_STATIC_LIB', # we'll need to add pthread-win32 and build/depend on that.
+            'PTW32_STATIC_LIB',
             'FD_SETSIZE=1024',
+            # we need to use node's preferred "win32" rather than gyp's preferred "win"
+            'PLATFORM="win32"',
           ],
           'libraries': [
             '-lws2_32.lib',
