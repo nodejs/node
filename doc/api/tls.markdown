@@ -129,7 +129,7 @@ client has verified by one of the supplied certificate authorities for the
 server. If `cleartextStream.authorized` is false, then
 `cleartextStream.authorizationError` is set to describe how authorization
 failed. Implied but worth mentioning: depending on the settings of the TLS
-server, you unauthorized connections may be accepted.
+server, unauthorized connections may be accepted.
 
 
 #### server.listen(port, [host], [callback])
