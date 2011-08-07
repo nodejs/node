@@ -1,0 +1,260 @@
+/* for running tests */
+CCFLAGS 	= -g 
+_MT		== 1
+_timeb	== timeb
+_ftime	== ftime 
+
+.SOURCE:	tests
+/*
+:PACKAGE:	pthread
+*/
+
+set keepgoing
+
+":test:" : .MAKE .OPERATOR
+	local I
+	$(<:D:B:S=.pass) : .IMPLICIT $(>:D:B:S=.pass)
+	for I $(<) $(>)
+		$(I:D:B:S=.pass) : .VIRTUAL .FORCE $(I)
+			$(>)
+	end
+sizes::		sizes.c
+loadfree::	loadfree.c
+mutex1::	mutex1.c
+mutex1e::	mutex1e.c
+mutex1n::	mutex1n.c
+mutex1r::	mutex1r.c
+mutex2::	mutex2.c
+mutex2r::	mutex2r.c
+mutex2e::	mutex2e.c
+exit1::	exit1.c
+condvar1::	condvar1.c
+condvar1_1::	condvar1_1.c
+condvar1_2::	condvar1_2.c
+self1::		self1.c
+condvar2::	condvar2.c
+condvar2_1::	condvar2_1.c
+condvar3_1::	condvar3_1.c
+condvar3_2::	condvar3_2.c
+condvar3_3::	condvar3_3.c
+create1.::	create1.c
+create2.::	create2.c
+cancel1::	cancel1.c
+cancel2::	cancel2.c
+mutex3::	mutex3.c
+mutex3r::	mutex3r.c
+mutex3e::	mutex3e.c
+mutex4::	mutex4.c
+mutex5::	mutex5.c
+mutex6::	mutex6.c
+mutex6e::	mutex6e.c
+mutex6n::	mutex6n.c
+mutex6r::	mutex6r.c
+mutex7::	mutex7.c
+mutex6s::	mutex6s.c
+mutex6rs::	mutex6rs.c
+mutex6es::	mutex6es.c
+mutex7e::	mutex7e.c
+mutex7n::	mutex7n.c
+mutex7r::	mutex7r.c
+mutex8::	mutex8.c
+mutex8e::	mutex8e.c
+mutex8n::	mutex8n.c
+mutex8r::	mutex8r.c
+equal1::	equal1.c
+exit2::		exit2.c
+exit3::		exit3.c
+exit4::		exit4.c
+exit5::		exit5.c
+join0::		join0.c
+join1::		join1.c
+join2::		join2.c
+join3::		join3.c
+kill1::		kill1.c
+count1::	count1.c
+once1::		once1.c
+tsd1::		tsd1.c
+self2::		self2.c
+eyal1::		eyal1.c
+condvar3::	condvar3.c
+condvar4::	condvar4.c
+condvar5::	condvar5.c
+condvar6::	condvar6.c
+condvar7::	condvar7.c
+condvar8::	condvar8.c
+condvar9::	condvar9.c
+errno1::	errno1.c
+reuse1.::	reuse1.c
+reuse2.::	reuse2.c
+rwlock1::	rwlock1.c
+rwlock2::	rwlock2.c
+rwlock3::	rwlock3.c
+rwlock4::	rwlock4.c
+rwlock5::	rwlock5.c
+rwlock6::	rwlock6.c
+rwlock7::	rwlock7.c
+rwlock8::	rwlock8.c
+rwlock2_t::	rwlock2_t.c
+rwlock3_t::	rwlock3_t.c
+rwlock4_t::	rwlock4_t.c
+rwlock5_t::	rwlock5_t.c
+rwlock6_t::	rwlock6_t.c
+rwlock6_t2::	rwlock6_t2.c
+semaphore1::	semaphore1.c
+semaphore2::	semaphore2.c
+semaphore3::	semaphore3.c
+context1::	context1.c
+cancel3::	cancel3.c
+cancel4::	cancel4.c
+cancel5::	cancel5.c
+cancel6a::	cancel6a.c
+cancel6d::	cancel6d.c
+cancel7::	cancel7.c
+cleanup0::	cleanup0.c
+cleanup1::	cleanup1.c
+cleanup2::	cleanup2.c
+cleanup3::	cleanup3.c
+priority1::     priority1.c
+priority2::     priority2.c
+inherit1::      inherit1.c
+spin1::         spin1.c
+spin2::         spin2.c
+spin3::         spin3.c
+spin4::         spin4.c
+barrier1::      barrier1.c
+barrier2::      barrier2.c
+barrier3::      barrier3.c
+barrier4::      barrier4.c
+barrier5::      barrier5.c
+exception1::	exception1.c
+exception2::	exception2.c
+exception3::	exception3.c
+benchtest1::    benchtest1.c
+benchtest2::    benchtest2.c
+benchtest3::    benchtest3.c
+benchtest4::    benchtest4.c
+benchtest5::    benchtest5.c
+valid1::	valid1.c
+valid2::	valid2.c
+cancel9::	cancel9.c
+
+sizes:		:test:	sizes
+loadfree:	:test:
+mutex5		:test:	loadfree
+mutex1		:test:	loadfree
+mutex1n		:test:	loadfree
+mutex1r		:test:	loadfree
+mutex1e		:test:	loadfree
+semaphore1	:test:	loadfree
+semaphore2	:test:	loadfree
+semaphore3	:test:	loadfree
+mutex2		:test:	loadfree
+mutex2r		:test:	loadfree
+mutex2e		:test:	loadfree
+exit1		:test:	loadfree
+condvar1	:test:	loadfree
+kill1		:test:	loadfree
+condvar1_1	:test:	condvar1
+condvar1_2	:test:	join2
+self1		:test:	loadfree
+condvar2	:test:	condvar1
+condvar2_1	:test:	condvar2
+create1 	:test:	mutex2
+create2 	:test:	create1
+reuse1 		:test:	create2
+reuse2 		:test:	reuse1
+cancel1		:test:	create1
+cancel2		:test:	cancel1
+mutex3		:test:	create1
+mutex3r		:test:	create1
+mutex3e		:test:	create1
+mutex4		:test:	mutex3
+mutex6		:test:	mutex4
+mutex6n		:test:	mutex4
+mutex6e		:test:	mutex4
+mutex6r		:test:	mutex4
+mutex6s		:test:	mutex6
+mutex6rs	:test:	mutex6r
+mutex6es	:test:	mutex6e
+mutex7		:test:	mutex6
+mutex7n		:test:	mutex6n
+mutex7e		:test:	mutex6e
+mutex7r		:test:	mutex6r
+mutex8		:test:	mutex7
+mutex8n		:test:	mutex7n
+mutex8e		:test:	mutex7e
+mutex8r		:test:	mutex7r
+equal1		:test:	create1
+exit2		:test:	create1
+exit3		:test:	create1
+exit4		:test:	kill1
+exit5		:test:	exit4
+join0		:test:	create1
+join1		:test:	create1
+join2		:test:	create1
+join3		:test:	join2
+count1		:test:	join1
+once1		:test:	create1
+tsd1		:test:	join1
+self2		:test:	create1
+eyal1		:test:	tsd1
+condvar3	:test:	create1
+condvar3_1	:test:	condvar3
+condvar3_2	:test:	condvar3_1
+condvar3_3	:test:	condvar3_2
+condvar4	:test:	create1
+condvar5	:test:	condvar4
+condvar6	:test:	condvar5
+condvar7	:test:	condvar6	cleanup1
+condvar8	:test:	condvar7
+condvar9	:test:	condvar8
+errno1		:test:	mutex3
+rwlock1		:test:	condvar6
+rwlock2		:test:	rwlock1
+rwlock3		:test:	rwlock2
+rwlock4		:test:	rwlock3
+rwlock5		:test:	rwlock4
+rwlock6		:test:	rwlock5
+rwlock7		:test:	rwlock6
+rwlock8		:test:	rwlock7
+rwlock2_t	:test:	rwlock2
+rwlock3_t	:test:	rwlock2_t
+rwlock4_t	:test:	rwlock3_t
+rwlock5_t	:test:	rwlock4_t
+rwlock6_t	:test:	rwlock5_t
+rwlock6_t2	:test:	rwlock6_t
+context1	:test:	cancel2
+cancel3		:test:	context1
+cancel4		:test:	cancel3
+cancel5		:test:	cancel3
+cancel6a	:test:	cancel3
+cancel6d	:test:	cancel3
+cancel7		:test:	kill1
+cleanup0	:test:	cancel5
+cleanup1	:test:	cleanup0
+cleanup2	:test:	cleanup1
+cleanup3	:test:	cleanup2
+priority1       :test:  join1
+priority2       :test:  priority1
+inherit1        :test:  join1
+spin1           :test:
+spin2           :test:  spin1.c
+spin3           :test:  spin2.c
+spin4           :test:  spin3.c
+barrier1        :test:
+barrier2        :test:  barrier1.c
+barrier3        :test:  barrier2.c
+barrier4        :test:  barrier3.c
+barrier5        :test:  barrier4.c
+benchtest1      :test:  mutex3
+benchtest2      :test:  benchtest1
+benchtest3      :test:  benchtest2
+benchtest4      :test:  benchtest3
+benchtest5      :test:  benchtest4
+exception1	:test:	cancel4
+exception2	:test:	exception1
+exception3	:test:	exception2
+exit4		:test:	exit3
+valid1		:test:	join1
+valid2		:test:	valid1
+cancel9		:test:	cancel8

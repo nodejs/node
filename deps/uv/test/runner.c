@@ -258,3 +258,54 @@ int run_test_part(const char* test, const char* part) {
   LOGF("No test part with that name: %s:%s\n", test, part);
   return 255;
 }
+
+
+static int compare_task(const void* va, const void* vb) {
+  const task_entry_t* a = va;
+  const task_entry_t* b = vb;
+  return strcmp(a->task_name, b->task_name);
+}
+
+
+static int find_helpers(const task_entry_t* task, const task_entry_t** helpers) {
+  const task_entry_t* helper;
+  int n_helpers;
+
+  for (n_helpers = 0, helper = TASKS; helper->main; helper++) {
+    if (helper->is_helper && strcmp(helper->task_name, task->task_name) == 0) {
+      *helpers++ = helper;
+      n_helpers++;
+    }
+  }
+
+  return n_helpers;
+}
+
+
+void print_tests(FILE* stream) {
+  const task_entry_t* helpers[1024];
+  const task_entry_t* task;
+  int n_helpers;
+  int n_tasks;
+  int i;
+
+  for (n_tasks = 0, task = TASKS; task->main; n_tasks++, task++);
+  qsort(TASKS, n_tasks, sizeof(TASKS[0]), compare_task);
+
+  for (task = TASKS; task->main; task++) {
+    if (task->is_helper) {
+      continue;
+    }
+
+    n_helpers = find_helpers(task, helpers);
+    if (n_helpers) {
+      printf("%-25s (helpers:", task->task_name);
+      for (i = 0; i < n_helpers; i++) {
+        printf(" %s", helpers[i]->process_name);
+      }
+      printf(")\n");
+    } else {
+      printf("%s\n", task->task_name);
+    }
+  }
+}

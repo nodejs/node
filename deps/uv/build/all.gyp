@@ -17,6 +17,7 @@
       'direct_dependent_settings': {
         'include_dirs': [ '../include' ],
       },
+
       'defines': [
         'HAVE_CONFIG_H'
       ],
@@ -68,6 +69,12 @@
       ],
       'conditions': [
         [ 'OS=="win"', {
+          'dependencies': [
+            '../deps/pthread-win32/build/all.gyp:pthread-win32'
+          ],
+          'export_dependent_settings': [
+            '../deps/pthread-win32/build/all.gyp:pthread-win32'
+          ],
           'include_dirs': [
             '../src/ares/config_win32'
           ],

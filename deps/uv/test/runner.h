@@ -22,6 +22,8 @@
 #ifndef RUNNER_H_
 #define RUNNER_H_
 
+#include <stdio.h> /* FILE */
+
 
 /*
  * The maximum number of processes (main + helpers) that a test / benchmark
@@ -102,6 +104,12 @@ int run_test(const char* test, int timeout, int benchmark_output);
  * Run a test part, i.e. the test or one of its helpers.
  */
 int run_test_part(const char* test, const char* part);
+
+
+/*
+ * Print tests in sorted order to `stream`. Used by `./run-tests --list`.
+ */
+void print_tests(FILE* stream);
 
 
 /*

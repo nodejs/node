@@ -1,0 +1,268 @@
+# This makefile is compatible with BCB make.  Use "make -fBMakefile" to compile.
+# 
+# The variables $DLLDEST and $LIBDEST hold the destination directories for the
+# dll and the lib, respectively. Probably all that needs to change is $DEVROOT.
+#
+# Currently only the recommended pthreadBC.dll is built by this makefile.
+#
+
+
+DLL_VER	= 2
+
+DEVROOT	= .
+
+DLLDEST	= $(DEVROOT)\DLL
+LIBDEST	= $(DEVROOT)\DLL
+
+DLLS	= pthreadBC$(DLL_VER).dll
+
+OPTIM	= /O2
+
+RC	= brcc32
+RCFLAGS	= -i.
+
+CFLAGS	= /q /I. /D_WIN32_WINNT=0x400 /DHAVE_PTW32_CONFIG_H=1 /4 /tWD /tWM \
+	  /w-aus /w-asc /w-par
+
+#C cleanup code
+BCFLAGS	= $(PTW32_FLAGS) $(CFLAGS)
+
+# Agregate modules for inlinability
+DLL_OBJS	= \
+		attr.obj \
+		barrier.obj \
+		cancel.obj \
+		cleanup.obj \
+		condvar.obj \
+		create.obj \
+		dll.obj \
+		errno.obj \
+		exit.obj \
+		fork.obj \
+		global.obj \
+		misc.obj \
+		mutex.obj \
+		nonportable.obj \
+		private.obj \
+		rwlock.obj \
+		sched.obj \
+		semaphore.obj \
+		signal.obj \
+		spin.obj \
+		sync.obj \
+		tsd.obj
+
+INCL	= config.h implement.h semaphore.h pthread.h need_errno.h
+
+ATTR_SRCS	= \
+		pthread_attr_init.c \
+		pthread_attr_destroy.c \
+		pthread_attr_getdetachstate.c \
+		pthread_attr_setdetachstate.c \
+		pthread_attr_getstackaddr.c \
+		pthread_attr_setstackaddr.c \
+		pthread_attr_getstacksize.c \
+		pthread_attr_setstacksize.c \
+		pthread_attr_getscope.c \
+		pthread_attr_setscope.c
+
+BARRIER_SRCS = \
+		pthread_barrier_init.c \
+		pthread_barrier_destroy.c \
+		pthread_barrier_wait.c \
+		pthread_barrierattr_init.c \
+		pthread_barrierattr_destroy.c \
+		pthread_barrierattr_setpshared.c \
+		pthread_barrierattr_getpshared.c
+
+CANCEL_SRCS	= \
+		pthread_setcancelstate.c \
+		pthread_setcanceltype.c \
+		pthread_testcancel.c \
+		pthread_cancel.c 
+
+CONDVAR_SRCS	= \
+		ptw32_cond_check_need_init.c \
+		pthread_condattr_destroy.c \
+		pthread_condattr_getpshared.c \
+		pthread_condattr_init.c \
+		pthread_condattr_setpshared.c \
+		pthread_cond_destroy.c \
+		pthread_cond_init.c \
+		pthread_cond_signal.c \
+		pthread_cond_wait.c
+
+EXIT_SRCS	= \
+		pthread_exit.c
+
+MISC_SRCS	= \
+		pthread_equal.c \
+		pthread_getconcurrency.c \
+		pthread_once.c \
+		pthread_self.c \
+		pthread_setconcurrency.c \
+		ptw32_calloc.c \
+		ptw32_MCS_lock.c \
+		ptw32_new.c \
+		w32_CancelableWait.c
+
+MUTEX_SRCS	= \
+		ptw32_mutex_check_need_init.c \
+		pthread_mutex_init.c \
+		pthread_mutex_destroy.c \
+		pthread_mutexattr_init.c \
+		pthread_mutexattr_destroy.c \
+		pthread_mutexattr_getpshared.c \
+		pthread_mutexattr_setpshared.c \
+		pthread_mutexattr_settype.c \
+		pthread_mutexattr_gettype.c \
+		pthread_mutexattr_setrobust.c \
+		pthread_mutexattr_getrobust.c \
+		pthread_mutex_lock.c \
+		pthread_mutex_timedlock.c \
+		pthread_mutex_unlock.c \
+		pthread_mutex_trylock.c \
+		pthread_mutex_consistent.c
+
+NONPORTABLE_SRCS = \
+		pthread_mutexattr_setkind_np.c \
+		pthread_mutexattr_getkind_np.c \
+		pthread_getw32threadhandle_np.c \
+		pthread_delay_np.c \
+		pthread_num_processors_np.c \
+		pthread_win32_attach_detach_np.c \
+		pthread_timechange_handler_np.c 
+
+PRIVATE_SRCS	= \
+		ptw32_is_attr.c \
+		ptw32_processInitialize.c \
+		ptw32_processTerminate.c \
+		ptw32_threadStart.c \
+		ptw32_threadDestroy.c \
+		ptw32_tkAssocCreate.c \
+		ptw32_tkAssocDestroy.c \
+		ptw32_callUserDestroyRoutines.c \
+		ptw32_timespec.c \
+		ptw32_relmillisecs.c \
+		ptw32_throw.c \
+		ptw32_getprocessors.c
+
+RWLOCK_SRCS	= \
+		ptw32_rwlock_check_need_init.c \
+		ptw32_rwlock_cancelwrwait.c \
+		pthread_rwlock_init.c \
+		pthread_rwlock_destroy.c \
+		pthread_rwlockattr_init.c \
+		pthread_rwlockattr_destroy.c \
+		pthread_rwlockattr_getpshared.c \
+		pthread_rwlockattr_setpshared.c \
+		pthread_rwlock_rdlock.c \
+		pthread_rwlock_timedrdlock.c \
+		pthread_rwlock_wrlock.c \
+		pthread_rwlock_timedwrlock.c \
+		pthread_rwlock_unlock.c \
+		pthread_rwlock_tryrdlock.c \
+		pthread_rwlock_trywrlock.c
+
+SCHED_SRCS	= \
+		pthread_attr_setschedpolicy.c \
+		pthread_attr_getschedpolicy.c \
+		pthread_attr_setschedparam.c \
+		pthread_attr_getschedparam.c \
+		pthread_attr_setinheritsched.c \
+		pthread_attr_getinheritsched.c \
+		pthread_setschedparam.c \
+		pthread_getschedparam.c \
+		sched_get_priority_max.c \
+		sched_get_priority_min.c \
+		sched_setscheduler.c \
+		sched_getscheduler.c \
+		sched_yield.c
+
+SEMAPHORE_SRCS = \
+		sem_init.c \
+		sem_destroy.c \
+		sem_trywait.c \
+		sem_timedwait.c \
+		sem_wait.c \
+		sem_post.c \
+		sem_post_multiple.c \
+		sem_getvalue.c \
+		sem_open.c \
+		sem_close.c \
+		sem_unlink.c
+
+SPIN_SRCS	= \
+		ptw32_spinlock_check_need_init.c \
+		pthread_spin_init.c \
+		pthread_spin_destroy.c \
+		pthread_spin_lock.c \
+		pthread_spin_unlock.c \
+		pthread_spin_trylock.c
+
+SYNC_SRCS	= \
+		pthread_detach.c \
+		pthread_join.c
+
+TSD_SRCS	= \
+		pthread_key_create.c \
+		pthread_key_delete.c \
+		pthread_setspecific.c \
+		pthread_getspecific.c
+
+
+all: clean $(DLLS)
+
+realclean: clean
+	if exist pthread*.dll del pthread*.dll
+	if exist pthread*.lib del pthread*.lib
+	if exist *.stamp del *.stamp
+
+clean:
+	if exist *.obj del *.obj
+	if exist *.ilk del *.ilk
+	if exist *.ilc del *.ilc
+	if exist *.ild del *.ild
+	if exist *.ilf del *.ilf
+	if exist *.ils del *.ils
+	if exist *.tds del *.tds
+	if exist *.pdb del *.pdb
+	if exist *.exp del *.exp
+	if exist *.map del *.map
+	if exist *.o del *.o
+	if exist *.i del *.i
+	if exist *.res del *.res
+
+
+install: $(DLLS)
+	copy pthread*.dll $(DLLDEST)
+	copy pthread*.lib $(LIBDEST)
+
+$(DLLS): $(DLL_OBJS) version.res
+	ilink32 /Tpd /Gi c0d32x.obj $(DLL_OBJS), \
+		$@, ,\
+		cw32mti.lib import32.lib, ,\
+		version.res
+
+.c.obj:
+	$(CC) $(OPTIM) $(BCFLAGS) -c $<
+
+.rc.res:
+	$(RC) $(RCFLAGS) $<
+
+attr.obj:	attr.c $(ATTR_SRCS) $(INCL)
+barrier.obj:	barrier.c $(BARRIER_SRCS) $(INCL)
+cancel.obj:	cancel.c $(CANCEL_SRCS) $(INCL)
+condvar.obj:	condvar.c $(CONDVAR_SRCS) $(INCL)
+exit.obj:	exit.c $(EXIT_SRCS) $(INCL)
+misc.obj:	misc.c $(MISC_SRCS) $(INCL)
+mutex.obj:	mutex.c $(MUTEX_SRCS) $(INCL)
+nonportable.obj:	nonportable.c $(NONPORTABLE_SRCS) $(INCL)
+private.obj:	private.c $(PRIVATE_SRCS) $(INCL)
+rwlock.obj:	rwlock.c $(RWLOCK_SRCS) $(INCL)
+sched.obj:	sched.c $(SCHED_SRCS) $(INCL)
+semaphore.obj:	semaphore.c $(SEMAPHORE_SRCS) $(INCL)
+spin.obj:	spin.c $(SPIN_SRCS) $(INCL)
+sync.obj:	sync.c $(SYNC_SRCS) $(INCL)
+tsd.obj:	tsd.c $(TSD_SRCS) $(INCL)
+version.res:	version.rc $(INCL)

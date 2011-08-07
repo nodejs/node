@@ -33,11 +33,10 @@
 #define TEST_TIMEOUT  5000
 
 static int maybe_run_test(int argc, char **argv);
+static void list_all_tests(void);
 
 
 int main(int argc, char **argv) {
-  int i;
-
   platform_init(argc, argv);
 
   switch (argc) {
@@ -52,6 +51,11 @@ int main(int argc, char **argv) {
 
 
 static int maybe_run_test(int argc, char **argv) {
+  if (strcmp(argv[1], "--list") == 0) {
+    print_tests(stdout);
+    return 0;
+  }
+
   if (strcmp(argv[1], "spawn_helper1") == 0) {
     return 1;
   }

@@ -1,0 +1,5 @@
+CVS
+*.obj
+*.dll
+*.lib
+*.res

@@ -129,11 +129,6 @@ enum {
 };
 
 
-void uv_flag_set(uv_handle_t* handle, int flag) {
-  handle->flags |= flag;
-}
-
-
 /* TODO Share this code with Windows. */
 /* TODO Expose callback to user to handle fatal error like V8 does. */
 static void uv_fatal_error(const int errorno, const char* syscall) {
@@ -164,16 +159,6 @@ uv_err_t uv_last_error() {
 
 char* uv_strerror(uv_err_t err) {
   return strerror(err.sys_errno_);
-}
-
-
-void uv_flag_unset(uv_handle_t* handle, int flag) {
-  handle->flags = handle->flags & ~flag;
-}
-
-
-int uv_flag_is_set(uv_handle_t* handle, int flag) {
-  return (handle->flags & flag) != 0;
 }
 
 
@@ -271,7 +256,7 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
       assert(0);
   }
 
-  uv_flag_set(handle, UV_CLOSING);
+  handle->flags |= UV_CLOSING;
 
   /* This is used to call the on_close callback in the next loop. */
   ev_idle_start(EV_DEFAULT_ &handle->next_watcher);
@@ -406,7 +391,7 @@ static int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
   assert(fd >= 0);
   stream->fd = fd;
 
-  uv_flag_set((uv_handle_t*)stream, flags);
+  ((uv_handle_t*)stream)->flags |= flags;
 
   /* Reuse the port address if applicable. */
   yes = 1;
@@ -437,7 +422,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
          watcher == &stream->write_watcher);
   assert(revents == EV_READ);
 
-  assert(!uv_flag_is_set((uv_handle_t*)stream, UV_CLOSING));
+  assert(!(((uv_handle_t*)stream)->flags & UV_CLOSING));
 
   if (stream->accepted_fd >= 0) {
     ev_io_stop(EV_DEFAULT_ &stream->read_watcher);
@@ -562,9 +547,9 @@ static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
 
 void uv__finish_close(uv_handle_t* handle) {
-  assert(uv_flag_is_set(handle, UV_CLOSING));
-  assert(!uv_flag_is_set(handle, UV_CLOSED));
-  uv_flag_set(handle, UV_CLOSED);
+  assert(handle->flags & UV_CLOSING);
+  assert(!(handle->flags & UV_CLOSED));
+  handle->flags |= UV_CLOSED;
 
   switch (handle->type) {
     case UV_PREPARE:
@@ -654,7 +639,7 @@ void uv__next(EV_P_ ev_idle* watcher, int revents) {
   /* For now this function is only to handle the closing event, but we might
    * put more stuff here later.
    */
-  assert(uv_flag_is_set(handle, UV_CLOSING));
+  assert(handle->flags & UV_CLOSING);
   uv__finish_close(handle);
 }
 
@@ -668,9 +653,9 @@ static void uv__drain(uv_stream_t* stream) {
   ev_io_stop(EV_DEFAULT_ &stream->write_watcher);
 
   /* Shutdown? */
-  if (uv_flag_is_set((uv_handle_t*)stream, UV_SHUTTING) &&
-      !uv_flag_is_set((uv_handle_t*)stream, UV_CLOSING) &&
-      !uv_flag_is_set((uv_handle_t*)stream, UV_SHUT)) {
+  if ((((uv_handle_t*)stream)->flags & UV_SHUTTING) &&
+      !(((uv_handle_t*)stream)->flags & UV_CLOSING) &&
+      !(((uv_handle_t*)stream)->flags & UV_SHUT)) {
     assert(stream->shutdown_req);
 
     req = stream->shutdown_req;
@@ -683,7 +668,7 @@ static void uv__drain(uv_stream_t* stream) {
       }
     } else {
       uv_err_new((uv_handle_t*)stream, 0);
-      uv_flag_set((uv_handle_t*)stream, UV_SHUT);
+      ((uv_handle_t*) stream)->flags |= UV_SHUT;
       if (req->cb) {
         req->cb(req, 0);
       }
@@ -839,7 +824,7 @@ static void uv__read(uv_stream_t* stream) {
   /* XXX: Maybe instead of having UV_READING we just test if
    * tcp->read_cb is NULL or not?
    */
-  while (stream->read_cb && uv_flag_is_set((uv_handle_t*)stream, UV_READING)) {
+  while (stream->read_cb && ((uv_handle_t*)stream)->flags & UV_READING) {
     assert(stream->alloc_cb);
     buf = stream->alloc_cb(stream, 64 * 1024);
 
@@ -857,7 +842,7 @@ static void uv__read(uv_stream_t* stream) {
       /* Error */
       if (errno == EAGAIN) {
         /* Wait for the next one. */
-        if (uv_flag_is_set((uv_handle_t*)stream, UV_READING)) {
+        if (((uv_handle_t*)stream)->flags & UV_READING) {
           ev_io_start(EV_DEFAULT_UC_ &stream->read_watcher);
         }
         uv_err_new((uv_handle_t*)stream, EAGAIN);
@@ -889,10 +874,10 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
          "uv_shutdown (unix) only supports uv_handle_t right now");
   assert(stream->fd >= 0);
 
-  if (!uv_flag_is_set((uv_handle_t*)stream, UV_WRITABLE) ||
-      uv_flag_is_set((uv_handle_t*)stream, UV_SHUT) ||
-      uv_flag_is_set((uv_handle_t*)stream, UV_CLOSED) ||
-      uv_flag_is_set((uv_handle_t*)stream, UV_CLOSING)) {
+  if (!(((uv_handle_t*)stream)->flags & UV_WRITABLE) ||
+      ((uv_handle_t*)stream)->flags & UV_SHUT ||
+      ((uv_handle_t*)stream)->flags & UV_CLOSED ||
+      ((uv_handle_t*)stream)->flags & UV_CLOSING) {
     uv_err_new((uv_handle_t*)stream, EINVAL);
     return -1;
   }
@@ -905,7 +890,8 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   stream->shutdown_req = req;
   req->type = UV_SHUTDOWN;
 
-  uv_flag_set((uv_handle_t*)stream, UV_SHUTTING);
+  ((uv_handle_t*)stream)->flags |= UV_SHUTTING;
+
 
   ev_io_start(EV_DEFAULT_UC_ &stream->write_watcher);
 
@@ -920,7 +906,7 @@ static void uv__stream_io(EV_P_ ev_io* watcher, int revents) {
          stream->type == UV_NAMED_PIPE);
   assert(watcher == &stream->read_watcher ||
          watcher == &stream->write_watcher);
-  assert(!uv_flag_is_set((uv_handle_t*)stream, UV_CLOSING));
+  assert(!(((uv_handle_t*)stream)->flags & UV_CLOSING));
 
   if (stream->connect_req) {
     uv__stream_connect(stream);
@@ -1280,7 +1266,7 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
   /* The UV_READING flag is irrelevant of the state of the tcp - it just
    * expresses the desired state of the user.
    */
-  uv_flag_set((uv_handle_t*)stream, UV_READING);
+  ((uv_handle_t*)stream)->flags |= UV_READING;
 
   /* TODO: try to do the read inline? */
   /* TODO: keep track of tcp state. If we've gotten a EOF then we should
@@ -1303,7 +1289,7 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
 int uv_read_stop(uv_stream_t* stream) {
   uv_tcp_t* tcp = (uv_tcp_t*)stream;
 
-  uv_flag_unset((uv_handle_t*)tcp, UV_READING);
+  ((uv_handle_t*)tcp)->flags &= ~UV_READING;
 
   ev_io_stop(EV_DEFAULT_UC_ &tcp->read_watcher);
   tcp->read_cb = NULL;
@@ -1756,14 +1742,13 @@ static int uv_getaddrinfo_done(eio_req* req) {
 }
 
 
-static int getaddrinfo_thread_proc(eio_req *req) {
+static void getaddrinfo_thread_proc(eio_req *req) {
   uv_getaddrinfo_t* handle = req->data;
 
   handle->retcode = getaddrinfo(handle->hostname,
                                 handle->service,
                                 handle->hints,
                                 &handle->res);
-  return 0;
 }
 
 
