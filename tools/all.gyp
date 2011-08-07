@@ -9,6 +9,7 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'RuntimeLibrary': 1, # static debug
+            'Optimization': 0, # /Od, no optimization
           },
         },
       },
@@ -17,12 +18,25 @@
         'msvs_settings': {
           'VCCLCompilerTool': {
             'RuntimeLibrary': 0, # static release
+            'Optimization': 3, # /Ox, full optimization
+            'FavorSizeOrSpeed': 1, # /Ot, favour speed over size
+            'InlineFunctionExpansion': 2, # /Ob2, inline anything eligible
+            'WholeProgramOptimization': 'true', # /GL, whole program optimization, needed for LTCG
+          },
+          'VCLinkerTool': {
+            'LinkTimeCodeGeneration': 1, # link-time code generation
           },
         },
       }
     },
     'msvs_settings': {
       'VCCLCompilerTool': {
+        'StringPooling': 'true', # pool string literals
+        'DebugInformationFormat': 3, # Generate a PDB
+        'AdditionalOptions': [
+          '/MP', # compile across multiple CPUs, VC2008 setting
+        ],
+        'MultiProcessorCompilation': 'true', # compile across multiple CPUs, VC2010 setting
       },
       'VCLibrarianTool': {
       },
