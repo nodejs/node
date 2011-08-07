@@ -47,3 +47,12 @@ assert.equal(util.format('%j', '42'), '"42"');
 
 assert.equal(util.format('%%s%s', 'foo'), '%sfoo');
 
+assert.equal(util.format('%s'), '%s');
+assert.equal(util.format('%s', undefined), 'undefined');
+assert.equal(util.format('%s', 'foo'), 'foo');
+assert.equal(util.format('%s:%s'), '%s:%s');
+assert.equal(util.format('%s:%s', undefined), 'undefined:%s');
+assert.equal(util.format('%s:%s', 'foo'), 'foo:%s');
+assert.equal(util.format('%s:%s', 'foo', 'bar'), 'foo:bar');
+assert.equal(util.format('%s:%s', 'foo', 'bar', 'baz'), 'foo:bar baz');
+

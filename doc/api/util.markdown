@@ -17,9 +17,10 @@ argument. Supported placeholders are:
 * `%j` - JSON.
 * `%%` - single percent sign (`'%'`). This does not consume an argument.
 
-If the placeholder does not have a corresponding argument, `undefined` is used.
+If the placeholder does not have a corresponding argument, the placeholder is
+not replaced.
 
-    util.format('%s:%s', 'foo'); // 'foo:undefined'
+    util.format('%s:%s', 'foo'); // 'foo:%s'
 
 If there are more arguments than placeholders, the extra arguments are
 converted to strings with `util.inspect()` and these strings are concatenated,
