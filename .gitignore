@@ -12,13 +12,7 @@ node_g
 /.project
 /.cproject
 
-gyp-mac-tool
-tools/gyp
-tools/all.Makefile
-tools/all.target.mk
-tools/node_js2c.host.mk
-tools/node_js2c.target.mk
-out/
+/out
 
 # various stuff that VC++ produces/uses
 Debug/
@@ -36,3 +30,5 @@ ipch/
 *.opensdf
 
 /options.gypi
+*-nodegyp*
+/gyp-mac-tool
