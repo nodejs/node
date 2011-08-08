@@ -5,8 +5,8 @@ var ASSERT = require('assert');
 
 function test() {
   var buffer = new Buffer(16);
-  buffer.writeDouble(2.225073858507201e-308, 0, 'big');
-  buffer.writeDouble(2.225073858507201e-308, 8, 'little');
+  buffer.writeDouble(2.225073858507201e-308, 0, true);
+  buffer.writeDouble(2.225073858507201e-308, 8, false);
   ASSERT.equal(0x00, buffer[0]);
   ASSERT.equal(0x0f, buffer[1]);
   ASSERT.equal(0xff, buffer[2]);
@@ -24,8 +24,8 @@ function test() {
   ASSERT.equal(0x0f, buffer[14]);
   ASSERT.equal(0x00, buffer[15]);
 
-  buffer.writeDouble(1.0000000000000004, 0, 'big');
-  buffer.writeDouble(1.0000000000000004, 8, 'little');
+  buffer.writeDouble(1.0000000000000004, 0, true);
+  buffer.writeDouble(1.0000000000000004, 8, false);
   ASSERT.equal(0x3f, buffer[0]);
   ASSERT.equal(0xf0, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);
@@ -43,8 +43,8 @@ function test() {
   ASSERT.equal(0xf0, buffer[14]);
   ASSERT.equal(0x3f, buffer[15]);
 
-  buffer.writeDouble(-2, 0, 'big');
-  buffer.writeDouble(-2, 8, 'little');
+  buffer.writeDouble(-2, 0, true);
+  buffer.writeDouble(-2, 8, false);
   ASSERT.equal(0xc0, buffer[0]);
   ASSERT.equal(0x00, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);
@@ -62,8 +62,8 @@ function test() {
   ASSERT.equal(0x00, buffer[14]);
   ASSERT.equal(0xc0, buffer[15]);
 
-  buffer.writeDouble(1.7976931348623157e+308, 0, 'big');
-  buffer.writeDouble(1.7976931348623157e+308, 8, 'little');
+  buffer.writeDouble(1.7976931348623157e+308, 0, true);
+  buffer.writeDouble(1.7976931348623157e+308, 8, false);
   ASSERT.equal(0x7f, buffer[0]);
   ASSERT.equal(0xef, buffer[1]);
   ASSERT.equal(0xff, buffer[2]);
@@ -81,8 +81,8 @@ function test() {
   ASSERT.equal(0xef, buffer[14]);
   ASSERT.equal(0x7f, buffer[15]);
 
-  buffer.writeDouble(0*-1, 0, 'big');
-  buffer.writeDouble(0*-1, 8, 'little');
+  buffer.writeDouble(0*-1, 0, true);
+  buffer.writeDouble(0*-1, 8, false);
   ASSERT.equal(0x80, buffer[0]);
   ASSERT.equal(0x00, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);

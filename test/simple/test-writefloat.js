@@ -5,8 +5,8 @@ var ASSERT = require('assert');
 
 function test() {
   var buffer = new Buffer(8);
-  buffer.writeFloat(1, 0, 'big');
-  buffer.writeFloat(1, 4, 'little');
+  buffer.writeFloat(1, 0, true);
+  buffer.writeFloat(1, 4, false);
   ASSERT.equal(0x3f, buffer[0]);
   ASSERT.equal(0x80, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);
@@ -16,8 +16,8 @@ function test() {
   ASSERT.equal(0x80, buffer[6]);
   ASSERT.equal(0x3f, buffer[7]);
 
-  buffer.writeFloat(1.793662034335766e-43, 0, 'big');
-  buffer.writeFloat(1.793662034335766e-43, 4, 'little');
+  buffer.writeFloat(1.793662034335766e-43, 0, true);
+  buffer.writeFloat(1.793662034335766e-43, 4, false);
   ASSERT.equal(0x00, buffer[0]);
   ASSERT.equal(0x00, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);
@@ -27,8 +27,8 @@ function test() {
   ASSERT.equal(0x00, buffer[6]);
   ASSERT.equal(0x00, buffer[7]);
 
-  buffer.writeFloat(1/3, 0, 'big');
-  buffer.writeFloat(1/3, 4, 'little');
+  buffer.writeFloat(1/3, 0, true);
+  buffer.writeFloat(1/3, 4, false);
   ASSERT.equal(0x3e, buffer[0]);
   ASSERT.equal(0xaa, buffer[1]);
   ASSERT.equal(0xaa, buffer[2]);
@@ -38,8 +38,8 @@ function test() {
   ASSERT.equal(0xaa, buffer[6]);
   ASSERT.equal(0x3e, buffer[7]);
 
-  buffer.writeFloat(3.4028234663852886e+38, 0, 'big');
-  buffer.writeFloat(3.4028234663852886e+38, 4, 'little');
+  buffer.writeFloat(3.4028234663852886e+38, 0, true);
+  buffer.writeFloat(3.4028234663852886e+38, 4, false);
   ASSERT.equal(0x7f, buffer[0]);
   ASSERT.equal(0x7f, buffer[1]);
   ASSERT.equal(0xff, buffer[2]);
@@ -49,8 +49,8 @@ function test() {
   ASSERT.equal(0x7f, buffer[6]);
   ASSERT.equal(0x7f, buffer[7]);
 
-  buffer.writeFloat(0*-1, 0, 'big');
-  buffer.writeFloat(0*-1, 4, 'little');
+  buffer.writeFloat(0*-1, 0, true);
+  buffer.writeFloat(0*-1, 4, false);
   ASSERT.equal(0x80, buffer[0]);
   ASSERT.equal(0x00, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);
