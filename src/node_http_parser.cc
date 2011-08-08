@@ -27,8 +27,12 @@
 
 #include <http_parser.h>
 
-#include <strings.h>  /* strcasecmp() */
 #include <string.h>  /* strdup() */
+#if !defined(_MSC_VER)
+#include <strings.h>  /* strcasecmp() */
+#else
+#define strcasecmp _stricmp
+#endif
 #include <stdlib.h>  /* free() */
 
 // This is a binding to http_parser (http://github.com/ry/http-parser)

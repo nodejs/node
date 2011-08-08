@@ -1599,7 +1599,7 @@ static int AfterResolve(eio_req *req) {
 }
 
 
-static int Resolve(eio_req *req) {
+static void Resolve(eio_req *req) {
   // Note: this function is executed in the thread pool! CAREFUL
   struct resolve_request * rreq = (struct resolve_request *) req->data;
 
@@ -1612,7 +1612,6 @@ static int Resolve(eio_req *req) {
                             NULL,
                             &hints,
                             &(rreq->address_list));
-  return 0;
 }
 
 

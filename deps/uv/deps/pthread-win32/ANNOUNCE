@@ -1,0 +1,482 @@
+	     PTHREADS-WIN32 RELEASE 2.9.0 (2007-??-??)
+	     -----------------------------------------
+	 Web Site: http://sources.redhat.com/pthreads-win32/
+	FTP Site: ftp://sources.redhat.com/pub/pthreads-win32
+	 Maintainer: Ross Johnson <rpj@callisto.canberra.edu.au>
+
+
+We are pleased to announce the availability of a new release of
+Pthreads-win32, an Open Source Software implementation of the
+Threads component of the POSIX 1003.1 2001 Standard for Microsoft's
+Win32 environment. Some functions from other sections of POSIX
+1003.1 2001 are also supported including semaphores and scheduling
+functions.
+
+Some common non-portable functions are also implemented for
+additional compatibility, as are a few functions specific
+to pthreads-win32 for easier integration with Win32 applications.
+
+Pthreads-win32 is free software, distributed under the GNU Lesser
+General Public License (LGPL).
+
+
+Acknowledgements
+----------------
+This library is based originally on a Win32 pthreads
+implementation contributed by John Bossom <John.Bossom@cognos.com>.
+
+The implementation of Condition Variables uses algorithms developed
+by Alexander Terekhov and Louis Thomas.
+
+The implementation of POSIX mutexes has been improved by Thomas Pfaff
+and later by Alexander Terekhov.
+
+The implementation of Spinlocks and Barriers was contributed
+by Ross Johnson.
+
+The implementation of read/write locks was contributed by
+Aurelio Medina and improved by Alexander Terekhov.
+
+Many others have contributed significant time and effort to solve crutial
+problems in order to make the library workable, robust and reliable.
+
+Thanks to Xavier Leroy for granting permission to use and modify his
+LinuxThreads manual pages.
+
+Thanks to The Open Group for making the Single Unix Specification
+publicly available - many of the manual pages included in the package
+were extracted from it.
+
+There is also a separate CONTRIBUTORS file. This file and others are
+on the web site:
+
+	http://sources.redhat.com/pthreads-win32
+
+As much as possible, the ChangeLog file acknowledges contributions to the
+code base in more detail.
+
+
+Changes since the last release
+------------------------------
+These are now documented in the NEWS file.
+See the ChangeLog file also.
+
+
+Known Bugs
+----------
+These are now documented in the BUGS file.
+
+
+Level of standards conformance
+------------------------------
+
+The following POSIX 1003.1 2001 options are defined and set to 200112L:
+
+      _POSIX_THREADS
+      _POSIX_THREAD_SAFE_FUNCTIONS
+      _POSIX_THREAD_ATTR_STACKSIZE
+      _POSIX_THREAD_PRIORITY_SCHEDULING
+      _POSIX_SEMAPHORES
+      _POSIX_READER_WRITER_LOCKS
+      _POSIX_SPIN_LOCKS
+      _POSIX_BARRIERS
+
+
+The following POSIX 1003.1 2001 options are defined and set to -1:
+
+      _POSIX_THREAD_ATTR_STACKADDR
+      _POSIX_THREAD_PRIO_INHERIT
+      _POSIX_THREAD_PRIO_PROTECT
+      _POSIX_THREAD_PROCESS_SHARED
+
+
+The following POSIX 1003.1 2001 limits are defined and set:
+
+      _POSIX_THREAD_THREADS_MAX
+      _POSIX_SEM_VALUE_MAX
+      _POSIX_SEM_NSEMS_MAX
+      _POSIX_THREAD_KEYS_MAX
+      _POSIX_THREAD_DESTRUCTOR_ITERATIONS
+      PTHREAD_STACK_MIN
+      PTHREAD_THREADS_MAX
+      SEM_VALUE_MAX
+      SEM_NSEMS_MAX
+      PTHREAD_KEYS_MAX
+      PTHREAD_DESTRUCTOR_ITERATIONS
+
+
+The following functions are implemented:
+
+      ---------------------------
+      PThreads
+      ---------------------------
+      pthread_attr_init
+      pthread_attr_destroy
+      pthread_attr_getdetachstate
+      pthread_attr_getstackaddr
+      pthread_attr_getstacksize
+      pthread_attr_setdetachstate
+      pthread_attr_setstackaddr
+      pthread_attr_setstacksize
+
+      pthread_create
+      pthread_detach
+      pthread_equal
+      pthread_exit
+      pthread_join
+      pthread_once
+      pthread_self
+
+      pthread_cancel
+      pthread_cleanup_pop
+      pthread_cleanup_push
+      pthread_setcancelstate
+      pthread_setcanceltype
+      pthread_testcancel
+
+      ---------------------------
+      Thread Specific Data
+      ---------------------------
+      pthread_key_create
+      pthread_key_delete
+      pthread_setspecific
+      pthread_getspecific
+
+      ---------------------------
+      Mutexes
+      ---------------------------
+      pthread_mutexattr_init
+      pthread_mutexattr_destroy
+      pthread_mutexattr_getpshared
+      pthread_mutexattr_setpshared
+      pthread_mutexattr_gettype
+      pthread_mutexattr_settype (types: PTHREAD_MUTEX_DEFAULT
+					PTHREAD_MUTEX_NORMAL
+					PTHREAD_MUTEX_ERRORCHECK
+					PTHREAD_MUTEX_RECURSIVE  )
+      pthread_mutexattr_getrobust
+      pthread_mutexattr_setrobust (values: PTHREAD_MUTEX_STALLED
+                                           PTHREAD_MUTEX_ROBUST)
+      pthread_mutex_init
+      pthread_mutex_destroy
+      pthread_mutex_lock
+      pthread_mutex_trylock
+      pthread_mutex_timedlock
+      pthread_mutex_unlock
+      pthread_mutex_consistent
+
+      ---------------------------
+      Condition Variables
+      ---------------------------
+      pthread_condattr_init
+      pthread_condattr_destroy
+      pthread_condattr_getpshared
+      pthread_condattr_setpshared
+
+      pthread_cond_init
+      pthread_cond_destroy
+      pthread_cond_wait
+      pthread_cond_timedwait
+      pthread_cond_signal
+      pthread_cond_broadcast
+
+      ---------------------------
+      Read/Write Locks
+      ---------------------------
+      pthread_rwlock_init
+      pthread_rwlock_destroy
+      pthread_rwlock_tryrdlock
+      pthread_rwlock_trywrlock
+      pthread_rwlock_rdlock
+      pthread_rwlock_timedrdlock
+      pthread_rwlock_rwlock
+      pthread_rwlock_timedwrlock
+      pthread_rwlock_unlock
+      pthread_rwlockattr_init
+      pthread_rwlockattr_destroy
+      pthread_rwlockattr_getpshared
+      pthread_rwlockattr_setpshared
+
+      ---------------------------
+      Spin Locks
+      ---------------------------
+      pthread_spin_init
+      pthread_spin_destroy
+      pthread_spin_lock
+      pthread_spin_unlock
+      pthread_spin_trylock
+
+      ---------------------------
+      Barriers
+      ---------------------------
+      pthread_barrier_init
+      pthread_barrier_destroy
+      pthread_barrier_wait
+      pthread_barrierattr_init
+      pthread_barrierattr_destroy
+      pthread_barrierattr_getpshared
+      pthread_barrierattr_setpshared
+
+      ---------------------------
+      Semaphores
+      ---------------------------
+      sem_init
+      sem_destroy
+      sem_post
+      sem_wait
+      sem_trywait
+      sem_timedwait
+      sem_getvalue	     (# free if +ve, # of waiters if -ve)
+      sem_open		     (returns an error ENOSYS)
+      sem_close 	     (returns an error ENOSYS)
+      sem_unlink	     (returns an error ENOSYS)
+
+      ---------------------------
+      RealTime Scheduling
+      ---------------------------
+      pthread_attr_getschedparam
+      pthread_attr_setschedparam
+      pthread_attr_getinheritsched
+      pthread_attr_setinheritsched
+      pthread_attr_getschedpolicy (only supports SCHED_OTHER)
+      pthread_attr_setschedpolicy (only supports SCHED_OTHER)
+      pthread_getschedparam
+      pthread_setschedparam
+      pthread_getconcurrency
+      pthread_setconcurrency
+      pthread_attr_getscope
+      pthread_attr_setscope  (only supports PTHREAD_SCOPE_SYSTEM)
+      sched_get_priority_max
+      sched_get_priority_min
+      sched_rr_get_interval  (returns an error ENOTSUP)
+      sched_setscheduler     (only supports SCHED_OTHER)
+      sched_getscheduler     (only supports SCHED_OTHER)
+      sched_yield
+
+      ---------------------------
+      Signals
+      ---------------------------
+      pthread_sigmask
+      pthread_kill           (only supports zero sig value,
+                              for thread validity checking)
+
+      ---------------------------
+      Non-portable routines (see the README.NONPORTABLE file for usage)
+      ---------------------------
+      pthread_getw32threadhandle_np
+      pthread_timechange_handler_np
+      pthread_delay_np
+      pthread_getunique_np
+      pthread_mutexattr_getkind_np
+      pthread_mutexattr_setkind_np	(types: PTHREAD_MUTEX_FAST_NP,
+						PTHREAD_MUTEX_ERRORCHECK_NP,
+						PTHREAD_MUTEX_RECURSIVE_NP,
+						PTHREAD_MUTEX_ADAPTIVE_NP,
+						PTHREAD_MUTEX_TIMED_NP)
+      pthread_num_processors_np
+      pthread_win32_process_attach_np	(Required when statically linking
+                                         the library)
+      pthread_win32_process_detach_np	(Required when statically linking
+                                         the library)
+      pthread_win32_thread_attach_np	(Required when statically linking
+                                         the library)
+      pthread_win32_thread_detach_np	(Required when statically linking
+                                         the library)
+
+      ---------------------------
+      Static Initializers
+      ---------------------------
+      PTHREAD_ONCE_INIT
+      PTHREAD_MUTEX_INITIALIZER
+      PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+      PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+      PTHREAD_ERRORCHECK_MUTEX_INITIALIZER
+      PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
+      PTHREAD_COND_INITIALIZER
+      PTHREAD_RWLOCK_INITIALIZER
+      PTHREAD_SPINLOCK_INITIALIZER
+
+
+The library includes two non-API functions for creating cancellation
+points in applications and libraries:
+      
+      pthreadCancelableWait
+      pthreadCancelableTimedWait
+
+      
+The following functions are not implemented:
+
+      ---------------------------
+      RealTime Scheduling
+      ---------------------------
+      pthread_mutex_getprioceiling
+      pthread_mutex_setprioceiling
+      pthread_mutex_attr_getprioceiling
+      pthread_mutex_attr_getprotocol
+      pthread_mutex_attr_setprioceiling
+      pthread_mutex_attr_setprotocol
+
+      ---------------------------
+      Fork Handlers
+      ---------------------------
+      pthread_atfork
+
+      ---------------------------
+      Stdio
+      --------------------------- 
+      flockfile
+      ftrylockfile
+      funlockfile
+      getc_unlocked
+      getchar_unlocked	
+      putc_unlocked
+      putchar_unlocked
+
+      ---------------------------
+      Thread-Safe C Runtime Library
+      ---------------------------
+      readdir_r
+      getgrgid_r
+      getgrnam_r
+      getpwuid_r
+      getpwnam_r
+      
+      ---------------------------
+      Signals
+      ---------------------------
+      sigtimedwait
+      sigwait
+      sigwaitinfo
+
+      ---------------------------
+      General
+      ---------------------------
+      sysconf      
+
+      ---------------------------
+      Thread-Safe C Runtime Library (macros)
+      ---------------------------
+      strtok_r
+      asctime_r
+      ctime_r
+      gmtime_r
+      localtime_r
+      rand_r
+
+
+Availability
+------------ 
+
+The prebuilt DLL, export libs (for both MSVC and Mingw32), and the header
+files (pthread.h, semaphore.h, sched.h) are available along with the
+complete source code.
+
+The source code can be found at:
+
+	ftp://sources.redhat.com/pub/pthreads-win32
+
+and as individual source code files at
+
+	ftp://sources.redhat.com/pub/pthreads-win32/source
+
+The pre-built DLL, export libraries and include files can be found at:
+
+	ftp://sources.redhat.com/pub/pthreads-win32/dll-latest
+
+
+      
+Mailing List 
+------------  
+      
+There is a mailing list for discussing pthreads on Win32. To join,
+send email to:
+
+	pthreads-win32-subscribe@sourceware.cygnus.com
+      
+
+Application Development Environments
+------------------------------------
+
+See the README file for more information.
+      
+MSVC:
+MSVC using SEH works. Distribute pthreadVSE.dll with your application.
+MSVC using C++ EH works. Distribute pthreadVCE.dll with your application.
+MSVC using C setjmp/longjmp works. Distribute pthreadVC.dll with your application.
+
+
+Mingw32:
+See the FAQ, Questions 6 and 10.
+
+Mingw using C++ EH works. Distribute pthreadGCE.dll with your application.
+Mingw using C setjmp/longjmp works. Distribute pthreadGC.dll with your application.
+
+
+Cygwin: (http://sourceware.cygnus.com/cygwin/)
+Developers using Cygwin do not need pthreads-win32 since it has POSIX threads
+support. Refer to its documentation for details and extent.
+
+
+UWIN:
+UWIN is a complete Unix-like environment for Windows from AT&T. Pthreads-win32
+doesn't currently support UWIN (and vice versa), but that may change in the
+future.
+
+Generally:
+For convenience, the following pre-built files are available on the FTP site
+(see Availability above):
+
+	pthread.h	- for POSIX threads
+	semaphore.h	- for POSIX semaphores
+	sched.h 	- for POSIX scheduling
+	pthreadVCE.dll	- built with MSVC++ compiler using C++ EH
+	pthreadVCE.lib
+	pthreadVC.dll	- built with MSVC compiler using C setjmp/longjmp
+	pthreadVC.lib
+	pthreadVSE.dll	- built with MSVC compiler using SEH
+	pthreadVSE.lib
+	pthreadGCE.dll	- built with Mingw32 G++ 2.95.2-1
+	pthreadGC.dll	- built with Mingw32 GCC 2.95.2-1 using setjmp/longjmp
+	libpthreadGCE.a - derived from pthreadGCE.dll
+	libpthreadGC.a	- derived from pthreadGC.dll
+	gcc.dll 	- needed if distributing applications that use
+			  pthreadGCE.dll (but see the FAQ Q 10 for the latest
+			  related information)
+
+These are the only files you need in order to build POSIX threads
+applications for Win32 using either MSVC or Mingw32.
+
+See the FAQ file in the source tree for additional information.
+
+
+Documentation
+-------------
+
+For the authoritative reference, see the online POSIX
+standard reference at:
+
+       http://www.OpenGroup.org
+
+For POSIX Thread API programming, several reference books are
+available:
+
+       Programming with POSIX Threads
+       David R. Butenhof
+       Addison-Wesley (pub)
+
+       Pthreads Programming
+       By Bradford Nichols, Dick Buttlar & Jacqueline Proulx Farrell
+       O'Reilly (pub)
+
+On the web: see the links at the bottom of the pthreads-win32 site:
+
+       http://sources.redhat.com/pthreads-win32/
+
+       Currently, there is no documentation included in the package apart
+       from the copious comments in the source code.
+
+
+
+Enjoy!
+
+Ross Johnson

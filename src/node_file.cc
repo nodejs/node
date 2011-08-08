@@ -28,17 +28,28 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#if !defined(_MSC_VER)
 #include <sys/time.h>
 #include <dirent.h>
+#endif
 #include <fcntl.h>
 #include <stdlib.h>
+#if !defined(_MSC_VER)
 #include <unistd.h>
+#else
+#include <direct.h>
+#define chdir _chdir
+#define rmdir _rmdir
+#define mkdir _mkdir
+#include <io.h>
+#define ftruncate _chsize
+#endif
 #include <assert.h>
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
 
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
 # include <platform_win32.h>
 #endif
 
@@ -49,7 +60,7 @@
 
 /* HACK to use pread/pwrite from eio because MINGW32 doesn't have it */
 /* TODO fixme */
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
 # define pread  eio__pread
 # define pwrite eio__pwrite
 #endif
@@ -515,7 +526,7 @@ static Handle<Value> Fdatasync(const Arguments& args) {
   } else {
 #if HAVE_FDATASYNC
     int ret = fdatasync(fd);
-#elif defined(__MINGW32__)
+#elif defined(__MINGW32__) || defined(_MSC_VER)
     int ret = FlushFileBuffers((HANDLE)_get_osfhandle(fd)) ? 0 : -1;
 #else
     int ret = fsync(fd);
@@ -537,7 +548,7 @@ static Handle<Value> Fsync(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(fsync, args[1], fd)
   } else {
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
     int ret = FlushFileBuffers((HANDLE)_get_osfhandle(fd)) ? 0 : -1;
 #else
     int ret = fsync(fd);
@@ -591,12 +602,12 @@ static Handle<Value> MKDir(const Arguments& args) {
   }
 
   String::Utf8Value path(args[0]->ToString());
-  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  eio_mode_t mode = static_cast<eio_mode_t>(args[1]->Int32Value());
 
   if (args[2]->IsFunction()) {
     ASYNC_CALL(mkdir, args[2], *path, mode)
   } else {
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
     int ret = mkdir(*path);
 #else
     int ret = mkdir(*path, mode);
@@ -644,25 +655,48 @@ static Handle<Value> ReadDir(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(readdir, args[1], *path, 0 /*flags*/)
   } else {
+#if defined(__POSIX__)
     DIR *dir = opendir(*path);
     if (!dir) return ThrowException(ErrnoException(errno, NULL, "", *path));
-
     struct dirent *ent;
+#else
+    WIN32_FIND_DATAA ent = {0};
+    size_t len = strlen(*path);
+    const char* fmt = !len                                                  ? "./*"
+                    : ((*path)[len - 1] == '/' || (*path)[len - 1] == '\\') ? "%s*"
+                    :                                                         "%s\\*";
+    char* path2 = new char[len + 4];
+    sprintf(path2, fmt, *path);
+    HANDLE dir = FindFirstFileA(path2, &ent);
+    delete [] path2;
+    if(dir == INVALID_HANDLE_VALUE) return ThrowException(ErrnoException(GetLastError(), "FindFirstFileA", "", path2));
+#endif
 
     Local<Array> files = Array::New();
     char *name;
     int i = 0;
 
+#if defined(__POSIX__)
     while ((ent = readdir(dir))) {
       name = ent->d_name;
-
+#else
+    do {
+      name = ent.cFileName;
+#endif
       if (name[0] != '.' || (name[1] && (name[1] != '.' || name[2]))) {
         files->Set(Integer::New(i), String::New(name));
         i++;
       }
     }
+#if !defined(__POSIX__)
+    while(FindNextFileA(dir, &ent));
+#endif
 
+#if defined(__POSIX__)
     closedir(dir);
+#else
+    FindClose(dir);
+#endif
 
     return scope.Close(files);
   }
@@ -680,7 +714,7 @@ static Handle<Value> Open(const Arguments& args) {
 
   String::Utf8Value path(args[0]->ToString());
   int flags = args[1]->Int32Value();
-  mode_t mode = static_cast<mode_t>(args[2]->Int32Value());
+  eio_mode_t mode = static_cast<eio_mode_t>(args[2]->Int32Value());
 
   if (args[3]->IsFunction()) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
@@ -841,7 +875,7 @@ static Handle<Value> Chmod(const Arguments& args) {
     return THROW_BAD_ARGS;
   }
   String::Utf8Value path(args[0]->ToString());
-  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  eio_mode_t mode = static_cast<eio_mode_t>(args[1]->Int32Value());
 
   if(args[2]->IsFunction()) {
     ASYNC_CALL(chmod, args[2], *path, mode);

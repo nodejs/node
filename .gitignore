@@ -1,10 +1,9 @@
-build
+
 .waf*
 tags
 .lock-wscript
 *.pyc
 doc/api.xml
-tools/nodejs.pc
 tmp/
 node
 node_g
@@ -12,3 +11,24 @@ node_g
 .benchmark_reports
 /.project
 /.cproject
+
+/out
+
+# various stuff that VC++ produces/uses
+Debug/
+Release/
+*.sln
+*.suo
+*.vcproj
+*.vcxproj
+*.vcxproj.user
+*.vcxproj.filters
+UpgradeLog*.XML
+_UpgradeReport_Files/
+ipch/
+*.sdf
+*.opensdf
+
+/options.gypi
+*-nodegyp*
+/gyp-mac-tool

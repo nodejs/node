@@ -5,7 +5,7 @@
 #include <stream_wrap.h>
 
 // Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
-#ifdef __MINGW32__
+#if defined(__MINGW32__) || defined(_MSC_VER)
   extern "C" {
 #   include <inet_net_pton.h>
 #   include <inet_ntop.h>

@@ -2,7 +2,7 @@
 #define XTHREAD_H_
 
 /* whether word reads are potentially non-atomic.
- * this is conservatice, likely most arches this runs
+ * this is conservative, likely most arches this runs
  * on have atomic word read/writes.
  */
 #ifndef WORDACCESS_UNSAFE
@@ -17,14 +17,6 @@
 
 #ifdef _WIN32
 
-#ifndef __MINGW32__
-typedef int ssize_t
-#endif
-
-#define NTDDI_VERSION NTDDI_WIN2K // needed to get win2000 api calls
-#ifndef _WIN32_WINNT
-#define _WIN32_WINNT 0x400
-#endif
 #include <stdio.h>//D
 #include <fcntl.h>
 #include <io.h>
@@ -34,18 +26,20 @@ typedef int ssize_t
 #include <windows.h>
 #include <pthread.h>
 #define sigset_t int
+#define sigfillset(a)
 #define pthread_sigmask(a,b,c)
 #define sigaddset(a,b)
 #define sigemptyset(s)
-#define sigfillset(s)
 
 typedef pthread_mutex_t xmutex_t;
 #define X_MUTEX_INIT           PTHREAD_MUTEX_INITIALIZER
+#define X_MUTEX_CREATE(mutex)  pthread_mutex_init (&(mutex), 0)
 #define X_LOCK(mutex)          pthread_mutex_lock (&(mutex))
 #define X_UNLOCK(mutex)        pthread_mutex_unlock (&(mutex))
 
 typedef pthread_cond_t xcond_t;
 #define X_COND_INIT                     PTHREAD_COND_INITIALIZER
+#define X_COND_CREATE(cond)		pthread_cond_init (&(cond), 0)
 #define X_COND_SIGNAL(cond)             pthread_cond_signal (&(cond))
 #define X_COND_WAIT(cond,mutex)         pthread_cond_wait (&(cond), &(mutex))
 #define X_COND_TIMEDWAIT(cond,mutex,to) pthread_cond_timedwait (&(cond), &(mutex), &(to))
@@ -100,18 +94,27 @@ thread_create (xthread_t *tid, void *(*proc)(void *), void *arg)
 
 typedef pthread_mutex_t xmutex_t;
 #if __linux && defined (PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP)
-# define X_MUTEX_INIT PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+# define X_MUTEX_INIT		PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+# define X_MUTEX_CREATE(mutex)						\
+  do {									\
+    pthread_mutexattr_t attr;						\
+    pthread_mutexattr_init (&attr);					\
+    pthread_mutexattr_settype (&attr, PTHREAD_MUTEX_ADAPTIVE_NP);	\
+    pthread_mutex_init (&(mutex), &attr);				\
+  } while (0)
 #else
-# define X_MUTEX_INIT PTHREAD_MUTEX_INITIALIZER
+# define X_MUTEX_INIT		PTHREAD_MUTEX_INITIALIZER
+# define X_MUTEX_CREATE(mutex)	pthread_mutex_init (&(mutex), 0)
 #endif
-#define X_LOCK(mutex)   pthread_mutex_lock   (&(mutex))
-#define X_UNLOCK(mutex) pthread_mutex_unlock (&(mutex))
+#define X_LOCK(mutex)		pthread_mutex_lock   (&(mutex))
+#define X_UNLOCK(mutex)		pthread_mutex_unlock (&(mutex))
 
 typedef pthread_cond_t xcond_t;
-#define X_COND_INIT PTHREAD_COND_INITIALIZER
-#define X_COND_SIGNAL(cond) pthread_cond_signal (&(cond))
-#define X_COND_WAIT(cond,mutex) pthread_cond_wait (&(cond), &(mutex))
-#define X_COND_TIMEDWAIT(cond,mutex,to) pthread_cond_timedwait (&(cond), &(mutex), &(to))
+#define X_COND_INIT			PTHREAD_COND_INITIALIZER
+#define X_COND_CREATE(cond)		pthread_cond_init (&(cond), 0)
+#define X_COND_SIGNAL(cond)		pthread_cond_signal (&(cond))
+#define X_COND_WAIT(cond,mutex)		pthread_cond_wait (&(cond), &(mutex))
+#define X_COND_TIMEDWAIT(cond,mutex,to)	pthread_cond_timedwait (&(cond), &(mutex), &(to))
 
 typedef pthread_t xthread_t;
 #define X_THREAD_PROC(name) static void *name (void *thr_arg)
@@ -122,8 +125,8 @@ typedef pthread_t xthread_t;
 # define PTHREAD_STACK_MIN 0
 #endif
 
-#ifndef X_STACKSIZE
-# define X_STACKSIZE sizeof (long) * 4096
+#ifndef XTHREAD_STACKSIZE
+# define XTHREAD_STACKSIZE sizeof (void *) * 4096
 #endif
 
 static int

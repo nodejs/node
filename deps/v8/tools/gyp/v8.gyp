@@ -26,6 +26,11 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'includes': [
+    '../../build/common.gypi',
+    '../../build/v8-features.gypi',
+  ],
+
   'variables': {
     'use_system_v8%': 0,
     'msvs_use_common_release': 0,
@@ -374,6 +379,7 @@
                 '<@(mksnapshot_flags)',
                 '<@(_outputs)'
               ],
+              'msvs_cygwin_shell': 0,
             },
           ],
         },
@@ -912,6 +918,7 @@
                 '<(v8_compress_startup_data)',
                 '<@(library_files)'
               ],
+              'msvs_cygwin_shell': 0,
             },
             {
               'action_name': 'js2c_experimental',
@@ -930,6 +937,7 @@
                 '<(v8_compress_startup_data)',
                 '<@(experimental_library_files)'
               ],
+              'msvs_cygwin_shell': 0,
             },
           ],
         },

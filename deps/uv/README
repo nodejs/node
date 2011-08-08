@@ -4,13 +4,42 @@ all platform differences in this library.
 
 http://nodejs.org/
 
-(This was previously called liboio)
+= Build Instructions
 
-Supported Platforms:
+For GCC (including MinGW) there are two methods building: via normal
+makefiles or via GYP. GYP is a meta-build system which can generate MSVS,
+Makefile, and XCode backends. It is best used for integration into other
+projects.  The old (more stable) system is using Makefiles.
 
-Microsoft Windows operating systems since Windows XP sp2. It can be built
+To build via Makefile simply execute:
+
+    make
+
+To build with Visual Studio run the create-msvs-files.bat file which will
+checkout the GYP code into build/gyp and generate the build/all.sln and
+related files.
+
+To have GYP generate build script for another system you will need to
+checkout GYP into the project tree manually:
+
+    svn co http://gyp.googlecode.com/svn/trunk build/gyp
+
+And then run 
+
+    ./build/gyp_uv -f make
+
+or 
+
+    ./build/gyp_uv -f xcode
+
+
+= Supported Platforms
+
+Microsoft Windows operating systems since Windows XP SP2. It can be built
 with either Visual Studio or MinGW.
 
-Linux 2.6 and MacOS using the GCC toolchain.
+Linux 2.6 using the GCC toolchain.
+
+MacOS using the GCC or XCode toolchain.
 
 Solaris 121 and later using GCC toolchain.

@@ -59,10 +59,16 @@
 #include <windows.h>
 #include <winsock2.h>
 
+#if defined(_MSC_VER)
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+#endif
+
 namespace node {
 
-#define NO_IMPL_MSG(name...) \
-    fprintf(stderr, "Not implemented: %s\n", #name);
+#define NO_IMPL_MSG(...) \
+    fprintf(stderr, "Not implemented: %s\n", #__VA_ARGS__);
 
 const char *winapi_strerror(const int errorno);
 void winapi_perror(const char* prefix);

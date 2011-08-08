@@ -1,7 +1,7 @@
 /*
  * libeio API header
  *
- * Copyright (c) 2007,2008,2009,2010 Marc Alexander Lehmann <libeio@schmorp.de>
+ * Copyright (c) 2007,2008,2009,2010,2011 Marc Alexander Lehmann <libeio@schmorp.de>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without modifica-
@@ -45,16 +45,8 @@ extern "C" {
 #endif
 
 #include <stddef.h>
+#include <signal.h>
 #include <sys/types.h>
-
-#ifdef __OpenBSD__
-# include <inttypes.h>
-#endif
-
-#ifdef _WIN32
-# define uid_t int
-# define gid_t int
-#endif
 
 typedef struct eio_req    eio_req;
 typedef struct eio_dirent eio_dirent;
@@ -67,10 +59,33 @@ typedef int (*eio_cb)(eio_req *req);
 
 #ifndef EIO_STRUCT_STAT
 # ifdef _WIN32
-#   define EIO_STRUCT_STAT struct _stati64
+#  define EIO_STRUCT_STAT struct _stati64
+#  define EIO_STRUCT_STATI64
 # else
-#   define EIO_STRUCT_STAT struct stat
+#  define EIO_STRUCT_STAT struct stat
 # endif
+#endif
+
+#ifdef _WIN32
+  typedef int      eio_uid_t;
+  typedef int      eio_gid_t;
+  typedef int      eio_mode_t;
+  #ifdef __MINGW32__ /* no intptr_t */
+    typedef ssize_t  eio_ssize_t;
+  #else
+    typedef intptr_t eio_ssize_t; /* or SSIZE_T */
+  #endif
+  #if __GNUC__
+    typedef long long eio_ino_t;
+  #else
+    typedef __int64   eio_ino_t; /* unsigned not supported by msvc */
+  #endif
+#else
+  typedef uid_t    eio_uid_t;
+  typedef gid_t    eio_gid_t;
+  typedef ssize_t  eio_ssize_t;
+  typedef ino_t    eio_ino_t;
+  typedef mode_t   eio_mode_t;
 #endif
 
 #ifndef EIO_STRUCT_STATVFS
@@ -119,7 +134,7 @@ struct eio_dirent
   unsigned short namelen; /* size of filename without trailing 0 */
   unsigned char type; /* one of EIO_DT_* */
   signed char score; /* internal use */
-  ino_t inode; /* the inode number, if available, otherwise unspecified */
+  eio_ino_t inode; /* the inode number, if available, otherwise unspecified */
 };
 
 /* eio_msync flags */
@@ -131,14 +146,12 @@ enum
 };
 
 /* eio_mtouch flags */
-
 enum
 {
   EIO_MT_MODIFY     = 1
 };
 
 /* eio_sync_file_range flags */
-
 enum
 {
   EIO_SYNC_FILE_RANGE_WAIT_BEFORE = 1,
@@ -146,10 +159,16 @@ enum
   EIO_SYNC_FILE_RANGE_WAIT_AFTER  = 4
 };
 
-typedef double eio_tstamp; /* feel free to use double in your code directly */
+/* eio_fallocate flags */
+enum
+{
+  EIO_FALLOC_FL_KEEP_SIZE = 1 /* MUST match the value in linux/falloc.h */
+};
+
+/* timestamps and differences - feel free to use double in your code directly */
+typedef double eio_tstamp;
 
 /* the eio request structure */
-
 enum
 {
   EIO_CUSTOM,
@@ -162,12 +181,12 @@ enum
   EIO_UTIME, EIO_FUTIME,
   EIO_CHMOD, EIO_FCHMOD,
   EIO_CHOWN, EIO_FCHOWN,
-  EIO_SYNC, EIO_FSYNC, EIO_FDATASYNC,
-  EIO_MSYNC, EIO_MTOUCH, EIO_SYNC_FILE_RANGE,
+  EIO_SYNC, EIO_FSYNC, EIO_FDATASYNC, EIO_SYNCFS,
+  EIO_MSYNC, EIO_MTOUCH, EIO_SYNC_FILE_RANGE, EIO_FALLOCATE,
   EIO_MLOCK, EIO_MLOCKALL,
   EIO_UNLINK, EIO_RMDIR, EIO_MKDIR, EIO_RENAME,
   EIO_MKNOD, EIO_READDIR,
-  EIO_LINK, EIO_SYMLINK, EIO_READLINK,
+  EIO_LINK, EIO_SYMLINK, EIO_READLINK, EIO_REALPATH,
   EIO_GROUP, EIO_NOP,
   EIO_BUSY
 };
@@ -176,7 +195,7 @@ enum
 enum
 {
   EIO_MCL_CURRENT = 1,
-  EIO_MCL_FUTURE  = 2
+  EIO_MCL_FUTURE  = 2,
 };
 
 /* request priorities */
@@ -184,7 +203,7 @@ enum
 enum {
   EIO_PRI_MIN     = -4,
   EIO_PRI_MAX     =  4,
-  EIO_PRI_DEFAULT =  0
+  EIO_PRI_DEFAULT =  0,
 };
 
 /* eio request structure */
@@ -194,9 +213,9 @@ struct eio_req
 {
   eio_req volatile *next; /* private ETP */
 
-  ssize_t result;  /* result of syscall, e.g. result = read (... */
-  off_t offs;      /* read, write, truncate, readahead, sync_file_range: file offset */
-  size_t size;     /* read, write, readahead, sendfile, msync, mlock, sync_file_range: length */
+  eio_ssize_t result;  /* result of syscall, e.g. result = read (... */
+  off_t offs;      /* read, write, truncate, readahead, sync_file_range, fallocate: file offset, mknod: dev_t */
+  size_t size;     /* read, write, readahead, sendfile, msync, mlock, sync_file_range, fallocate: length */
   void *ptr1;      /* all applicable requests: pathname, old name; readdir: optional eio_dirents */
   void *ptr2;      /* all applicable requests: new name or memory buffer; readdir: name strings */
   eio_tstamp nv1;  /* utime, futime: atime; busy: sleep time */
@@ -204,16 +223,22 @@ struct eio_req
 
   int type;        /* EIO_xxx constant ETP */
   int int1;        /* all applicable requests: file descriptor; sendfile: output fd; open, msync, mlockall, readdir: flags */
-  long int2;       /* chown, fchown: uid; sendfile: input fd; open, chmod, mkdir, mknod: file mode, sync_file_range: flags */
-  long int3;       /* chown, fchown: gid; mknod: dev_t */
+  long int2;       /* chown, fchown: uid; sendfile: input fd; open, chmod, mkdir, mknod: file mode, sync_file_range, fallocate: flags */
+  long int3;       /* chown, fchown: gid */
   int errorno;     /* errno value on syscall return */
+
+#if __i386 || __amd64
+  unsigned char cancelled;
+#else
+  sig_atomic_t cancelled;
+#endif
 
   unsigned char flags; /* private */
   signed char pri;     /* the priority */
 
   void *data;
   eio_cb finish;
-  void (*destroy)(eio_req *req); /* called when requets no longer needed */
+  void (*destroy)(eio_req *req); /* called when request no longer needed */
   void (*feed)(eio_req *req);    /* only used for group requests */
 
   EIO_REQ_MEMBERS
@@ -223,10 +248,9 @@ struct eio_req
 
 /* _private_ request flags */
 enum {
-  EIO_FLAG_CANCELLED = 0x01, /* request was cancelled */
-  EIO_FLAG_PTR1_FREE = 0x02, /* need to free(ptr1) */
-  EIO_FLAG_PTR2_FREE = 0x04, /* need to free(ptr2) */
-  EIO_FLAG_GROUPADD  = 0x08  /* some request was added to the group */
+  EIO_FLAG_PTR1_FREE = 0x01, /* need to free(ptr1) */
+  EIO_FLAG_PTR2_FREE = 0x02, /* need to free(ptr2) */
+  EIO_FLAG_GROUPADD  = 0x04  /* some request was added to the group */
 };
 
 /* undocumented/unsupported/private helper */
@@ -254,14 +278,15 @@ void eio_set_max_poll_reqs (unsigned int nreqs);
 void eio_set_min_parallel (unsigned int nthreads);
 void eio_set_max_parallel (unsigned int nthreads);
 void eio_set_max_idle     (unsigned int nthreads);
+void eio_set_idle_timeout (unsigned int seconds);
 
 unsigned int eio_nreqs    (void); /* number of requests in-flight */
 unsigned int eio_nready   (void); /* number of not-yet handled requests */
-unsigned int eio_npending (void); /* numbe rof finished but unhandled requests */
+unsigned int eio_npending (void); /* number of finished but unhandled requests */
 unsigned int eio_nthreads (void); /* number of worker threads in use currently */
 
 /*****************************************************************************/
-/* convinience wrappers */
+/* convenience wrappers */
 
 #ifndef EIO_NO_WRAPPERS
 eio_req *eio_nop       (int pri, eio_cb cb, void *data); /* does nothing except go through the whole process */
@@ -269,11 +294,13 @@ eio_req *eio_busy      (eio_tstamp delay, int pri, eio_cb cb, void *data); /* ti
 eio_req *eio_sync      (int pri, eio_cb cb, void *data);
 eio_req *eio_fsync     (int fd, int pri, eio_cb cb, void *data);
 eio_req *eio_fdatasync (int fd, int pri, eio_cb cb, void *data);
+eio_req *eio_syncfs    (int fd, int pri, eio_cb cb, void *data);
 eio_req *eio_msync     (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data);
 eio_req *eio_mtouch    (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data);
 eio_req *eio_mlock     (void *addr, size_t length, int pri, eio_cb cb, void *data);
 eio_req *eio_mlockall  (int flags, int pri, eio_cb cb, void *data);
 eio_req *eio_sync_file_range (int fd, off_t offset, size_t nbytes, unsigned int flags, int pri, eio_cb cb, void *data);
+eio_req *eio_fallocate (int fd, int mode, off_t offset, size_t len, int pri, eio_cb cb, void *data);
 eio_req *eio_close     (int fd, int pri, eio_cb cb, void *data);
 eio_req *eio_readahead (int fd, off_t offset, size_t length, int pri, eio_cb cb, void *data);
 eio_req *eio_read      (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data);
@@ -282,28 +309,29 @@ eio_req *eio_fstat     (int fd, int pri, eio_cb cb, void *data); /* stat buffer=
 eio_req *eio_fstatvfs  (int fd, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
 eio_req *eio_futime    (int fd, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data);
 eio_req *eio_ftruncate (int fd, off_t offset, int pri, eio_cb cb, void *data);
-eio_req *eio_fchmod    (int fd, mode_t mode, int pri, eio_cb cb, void *data);
-eio_req *eio_fchown    (int fd, uid_t uid, gid_t gid, int pri, eio_cb cb, void *data);
+eio_req *eio_fchmod    (int fd, eio_mode_t mode, int pri, eio_cb cb, void *data);
+eio_req *eio_fchown    (int fd, eio_uid_t uid, eio_gid_t gid, int pri, eio_cb cb, void *data);
 eio_req *eio_dup2      (int fd, int fd2, int pri, eio_cb cb, void *data);
 eio_req *eio_sendfile  (int out_fd, int in_fd, off_t in_offset, size_t length, int pri, eio_cb cb, void *data);
-eio_req *eio_open      (const char *path, int flags, mode_t mode, int pri, eio_cb cb, void *data);
+eio_req *eio_open      (const char *path, int flags, eio_mode_t mode, int pri, eio_cb cb, void *data);
 eio_req *eio_utime     (const char *path, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data);
 eio_req *eio_truncate  (const char *path, off_t offset, int pri, eio_cb cb, void *data);
-eio_req *eio_chown     (const char *path, uid_t uid, gid_t gid, int pri, eio_cb cb, void *data);
-eio_req *eio_chmod     (const char *path, mode_t mode, int pri, eio_cb cb, void *data);
-eio_req *eio_mkdir     (const char *path, mode_t mode, int pri, eio_cb cb, void *data);
+eio_req *eio_chown     (const char *path, eio_uid_t uid, eio_gid_t gid, int pri, eio_cb cb, void *data);
+eio_req *eio_chmod     (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data);
+eio_req *eio_mkdir     (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data);
 eio_req *eio_readdir   (const char *path, int flags, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
 eio_req *eio_rmdir     (const char *path, int pri, eio_cb cb, void *data);
 eio_req *eio_unlink    (const char *path, int pri, eio_cb cb, void *data);
 eio_req *eio_readlink  (const char *path, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
+eio_req *eio_realpath  (const char *path, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
 eio_req *eio_stat      (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
 eio_req *eio_lstat     (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
 eio_req *eio_statvfs   (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
-eio_req *eio_mknod     (const char *path, mode_t mode, dev_t dev, int pri, eio_cb cb, void *data);
+eio_req *eio_mknod     (const char *path, eio_mode_t mode, dev_t dev, int pri, eio_cb cb, void *data);
 eio_req *eio_link      (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
 eio_req *eio_symlink   (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
 eio_req *eio_rename    (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
-eio_req *eio_custom    (eio_cb execute, int pri, eio_cb cb, void *data);
+eio_req *eio_custom    (void (*execute)(eio_req *), int pri, eio_cb cb, void *data);
 #endif
 
 /*****************************************************************************/
@@ -319,7 +347,7 @@ void eio_grp_cancel    (eio_req *grp); /* cancels all sub requests but not the g
 /* request api */
 
 /* true if the request was cancelled, useful in the invoke callback */
-#define EIO_CANCELLED(req)   ((req)->flags & EIO_FLAG_CANCELLED)
+#define EIO_CANCELLED(req)   ((req)->cancelled)
 
 #define EIO_RESULT(req)      ((req)->result)
 /* returns a pointer to the result buffer allocated by eio */
@@ -332,21 +360,13 @@ void eio_grp_cancel    (eio_req *grp); /* cancels all sub requests but not the g
 void eio_submit (eio_req *req);
 /* cancel a request as soon fast as possible, if possible */
 void eio_cancel (eio_req *req);
-/* destroy a request that has never been submitted */
-void eio_destroy (eio_req *req);
 
 /*****************************************************************************/
-/* convinience functions */
+/* convenience functions */
 
-ssize_t eio_sendfile_sync (int ofd, int ifd, off_t offset, size_t count);
-
-/*****************************************************************************/
-/* export these so node_file can use these function instead of pread/write */
-
-#if !HAVE_PREADWRITE
-ssize_t eio__pread (int fd, void *buf, size_t count, off_t offset);
-ssize_t eio__pwrite (int fd, void *buf, size_t count, off_t offset);
-#endif
+eio_ssize_t eio_sendfile_sync (int ofd, int ifd, off_t offset, size_t count);
+eio_ssize_t eio__pread        (int fd, void *buf, size_t count, off_t offset);
+eio_ssize_t eio__pwrite       (int fd, void *buf, size_t count, off_t offset);
 
 #ifdef __cplusplus
 }

@@ -26,15 +26,15 @@ var path = require('path');
 var isDebug = (process.version.indexOf('debug') >= 0);
 
 var debugPath = path.normalize(path.join(__dirname, '..', '..',
-                                         'build', 'debug', 'node_g'));
+                                         'out', 'Debug', 'node'));
 var defaultPath = path.normalize(path.join(__dirname, '..', '..',
-                                           'build', 'default', 'node'));
+                                           'out', 'Release', 'node'));
 
 console.error('debugPath: ' + debugPath);
 console.error('defaultPath: ' + defaultPath);
 console.error('process.execPath: ' + process.execPath);
 
-if (/node_g$/.test(process.execPath)) {
+if (isDebug) {
   assert.ok(process.execPath.indexOf(debugPath) == 0);
 } else {
   assert.ok(process.execPath.indexOf(defaultPath) == 0);

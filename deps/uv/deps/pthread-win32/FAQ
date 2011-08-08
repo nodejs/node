@@ -1,0 +1,451 @@
+		  =========================================
+		  PTHREADS-WIN32 Frequently Asked Questions
+		  =========================================
+
+INDEX
+-----
+
+Q 1	What is it?
+
+Q 2	Which of the several dll versions do I use?
+	or,
+	What are all these pthread*.dll and pthread*.lib files?
+
+Q 3	What is the library naming convention?
+
+Q 4	Cleanup code default style or: it used to work when I built
+	the library myself, but now it doesn't - why?
+
+Q 5	Why is the default library version now less exception-friendly?
+
+Q 6	Should I use Cygwin or Mingw32 as a development environment?
+
+Q 7	Now that pthreads-win32 builds under Mingw32, why do I get
+	memory access violations (segfaults)?
+
+Q 8	How do I use pthread.dll for Win32 (Visual C++ 5.0)
+
+Q 9	Cancelation doesn't work for me, why?
+
+Q 10	How do I generate pthreadGCE.dll and libpthreadw32.a for use
+	with Mingw32?
+
+Q 11    Why isn't pthread_t defined as a scalar (e.g. pointer or int)
+        like it is for other POSIX threads implementations?
+
+=============================================================================
+
+Q 1	What is it?
+---
+
+Pthreads-win32 is an Open Source Software implementation of the
+Threads component of the POSIX 1003.1c 1995 Standard for Microsoft's
+Win32 environment. Some functions from POSIX 1003.1b are also
+supported including semaphores. Other related functions include
+the set of read-write lock functions. The library also supports
+some of the functionality of the Open Group's Single Unix
+specification, version 2, namely mutex types.
+
+See the file "ANNOUNCE" for more information including standards
+conformance details and list of supported routines.
+
+
+------------------------------------------------------------------------------
+
+Q 2	Which of the several dll versions do I use?
+---	or,
+	What are all these pthread*.dll and pthread*.lib files?
+
+Simply, you only use one of them, but you need to choose carefully.
+
+The most important choice you need to make is whether to use a
+version that uses exceptions internally, or not (there are versions
+of the library that use exceptions as part of the thread
+cancelation and cleanup implementation, and one that uses
+setjmp/longjmp instead).
+
+There is some contension amongst POSIX threads experts as
+to how POSIX threads cancelation and exit should work
+with languages that include exceptions and handlers, e.g.
+C++ and even C (Microsoft's Structured Exceptions).
+
+The issue is: should cancelation of a thread in, say,
+a C++ application cause object destructors and C++ exception
+handlers to be invoked as the stack unwinds during thread
+exit, or not?
+
+There seems to be more opinion in favour of using the
+standard C version of the library (no EH) with C++ applications
+since this appears to be the assumption commercial pthreads
+implementations make. Therefore, if you use an EH version
+of pthreads-win32 then you may be under the illusion that
+your application will be portable, when in fact it is likely to
+behave very differently linked with other pthreads libraries.
+
+Now you may be asking: why have you kept the EH versions of
+the library?
+
+There are a couple of reasons:
+- there is division amongst the experts and so the code may
+  be needed in the future. (Yes, it's in the repository and we
+  can get it out anytime in the future, but ...)
+- pthreads-win32 is one of the few implementations, and possibly
+  the only freely available one, that has EH versions. It may be
+  useful to people who want to play with or study application
+  behaviour under these conditions.
+
+
+------------------------------------------------------------------------------
+
+Q 3	What is the library naming convention?
+---
+
+Because the library is being built using various exception
+handling schemes and compilers - and because the library
+may not work reliably if these are mixed in an application,
+each different version of the library has it's own name.
+
+Note 1: the incompatibility is really between EH implementations
+of the different compilers. It should be possible to use the
+standard C version from either compiler with C++ applications
+built with a different compiler. If you use an EH version of
+the library, then you must use the same compiler for the
+application. This is another complication and dependency that
+can be avoided by using only the standard C library version.
+
+Note 2: if you use a standard C pthread*.dll with a C++
+application, then any functions that you define that are
+intended to be called via pthread_cleanup_push() must be
+__cdecl.
+
+Note 3: the intention is to also name either the VC or GC
+version (it should be arbitrary) as pthread.dll, including
+pthread.lib and libpthread.a as appropriate.
+
+In general:
+	pthread[VG]{SE,CE,C}.dll
+	pthread[VG]{SE,CE,C}.lib
+
+where:
+	[VG] indicates the compiler
+	V	- MS VC
+	G	- GNU C
+
+	{SE,CE,C} indicates the exception handling scheme
+	SE	- Structured EH
+	CE	- C++ EH
+	C	- no exceptions - uses setjmp/longjmp
+
+For example:
+	pthreadVSE.dll	(MSVC/SEH)
+	pthreadGCE.dll	(GNUC/C++ EH)
+	pthreadGC.dll	(GNUC/not dependent on exceptions)
+
+The GNU library archive file names have changed to:
+
+	libpthreadGCE.a
+	libpthreadGC.a
+
+
+------------------------------------------------------------------------------
+
+Q 4	Cleanup code default style or: it used to work when I built
+---	the library myself, but now it doesn't - why?
+
+Up to and including snapshot 2001-07-12, if not defined, the cleanup
+style was determined automatically from the compiler used, and one
+of the following was defined accordingly:
+
+	__CLEANUP_SEH	MSVC only
+	__CLEANUP_CXX	C++, including MSVC++, GNU G++
+	__CLEANUP_C		C, including GNU GCC, not MSVC
+
+These defines determine the style of cleanup (see pthread.h) and,
+most importantly, the way that cancelation and thread exit (via
+pthread_exit) is performed (see the routine ptw32_throw() in private.c).
+
+In short, the exceptions versions of the library throw an exception
+when a thread is canceled or exits (via pthread_exit()), which is
+caught by a handler in the thread startup routine, so that the
+the correct stack unwinding occurs regardless of where the thread
+is when it's canceled or exits via pthread_exit().
+
+After snapshot 2001-07-12, unless your build explicitly defines (e.g.
+via a compiler option) __CLEANUP_SEH, __CLEANUP_CXX, or __CLEANUP_C, then
+the build now ALWAYS defaults to __CLEANUP_C style cleanup. This style
+uses setjmp/longjmp in the cancelation and pthread_exit implementations,
+and therefore won't do stack unwinding even when linked to applications
+that have it (e.g. C++ apps). This is for consistency with most/all
+commercial Unix POSIX threads implementations.
+
+Although it was not clearly documented before, it is still necessary to
+build your application using the same __CLEANUP_* define as was
+used for the version of the library that you link with, so that the
+correct parts of pthread.h are included. That is, the possible
+defines require the following library versions:
+
+	__CLEANUP_SEH	pthreadVSE.dll
+	__CLEANUP_CXX	pthreadVCE.dll or pthreadGCE.dll
+	__CLEANUP_C		pthreadVC.dll or pthreadGC.dll
+
+THE POINT OF ALL THIS IS: if you have not been defining one of these
+explicitly, then the defaults have been set according to the compiler
+and language you are using, as described at the top of this
+section.
+
+THIS NOW CHANGES, as has been explained above. For example:
+
+If you were building your application with MSVC++ i.e. using C++
+exceptions (rather than SEH) and not explicitly defining one of
+__CLEANUP_*, then __CLEANUP_C++ was defined for you in pthread.h.
+You should have been linking with pthreadVCE.dll, which does
+stack unwinding.
+
+If you now build your application as you had before, pthread.h will now
+set __CLEANUP_C as the default style, and you will need to link
+with pthreadVC.dll. Stack unwinding will now NOT occur when a
+thread is canceled, nor when the thread calls pthread_exit().
+
+Your application will now most likely behave differently to previous
+versions, and in non-obvious ways. Most likely is that local
+objects may not be destroyed or cleaned up after a thread
+is canceled.
+
+If you want the same behaviour as before, then you must now define
+__CLEANUP_C++ explicitly using a compiler option and link with
+pthreadVCE.dll as you did before.
+
+
+------------------------------------------------------------------------------
+
+Q 5	Why is the default library version now less exception-friendly?
+---
+
+Because most commercial Unix POSIX threads implementations don't allow you to
+choose to have stack unwinding. (Compaq's TRU64 Unix is possibly an exception.)
+
+Therefore, providing it in pthread-win32 as a default could be dangerous
+and non-portable. We still provide the choice but you must now consciously
+make it.
+
+WHY NOT REMOVE THE EXCEPTIONS VERSIONS OF THE LIBRARY ALTOGETHER?
+There are a few reasons:
+- because there are well respected POSIX threads people who believe
+  that POSIX threads implementations should be exceptions-aware and
+  do the expected thing in that context. (There are equally respected
+  people who believe it should not be easily accessible, if it's there
+  at all.)
+- because pthreads-win32 is one of the few implementations that has
+  the choice, perhaps the only freely available one, and so offers
+  a laboratory to people who may want to explore the effects;
+- although the code will always be around somewhere for anyone who
+  wants it, once it's removed from the current version it will not be
+  nearly as visible to people who may have a use for it.
+
+
+------------------------------------------------------------------------------
+
+Q 6	Should I use Cygwin or Mingw32 as a development environment?
+---
+
+Important: see Q7 also.
+
+Use Mingw32 with the MSVCRT library to build applications that use
+the pthreads DLL.
+
+Cygwin's own internal support for POSIX threads is growing.
+Consult that project's documentation for more information.
+
+------------------------------------------------------------------------------
+
+Q 7	Now that pthreads-win32 builds under Mingw32, why do I get
+---	memory access violations (segfaults)?
+
+The latest Mingw32 package has thread-safe exception handling (see Q10).
+Also, see Q6 above.
+
+------------------------------------------------------------------------------
+
+Q 8	How do I use pthread.dll for Win32 (Visual C++ 5.0)
+---	
+
+>
+> I'm a "rookie" when it comes to your pthread implementation.	I'm currently
+> desperately trying to install the prebuilt .dll file into my MSVC compiler.
+> Could you please provide me with explicit instructions on how to do this (or
+> direct me to a resource(s) where I can acquire such information)?
+>
+> Thank you,
+>
+
+You should have a .dll, .lib, .def, and three .h files. It is recommended
+that you use pthreadVC.dll, rather than pthreadVCE.dll or pthreadVSE.dll
+(see Q2 above).
+
+The .dll can go in any directory listed in your PATH environment
+variable, so putting it into C:\WINDOWS should work.
+
+The .lib file can go in any directory listed in your LIB environment
+variable.
+
+The .h files can go in any directory listed in your INCLUDE
+environment variable.
+
+Or you might prefer to put the .lib and .h files into a new directory
+and add its path to LIB and INCLUDE. You can probably do this easiest
+by editing the file:-
+
+C:\Program Files\DevStudio\vc\bin\vcvars32.bat
+
+The .def file isn't used by anything in the pre-compiled version but 
+is included for information.
+
+Cheers.
+Ross
+
+------------------------------------------------------------------------------
+
+Q 9	Cancelation doesn't work for me, why?
+---
+
+> I'm investigating a problem regarding thread cancelation. The thread I want
+> to cancel has PTHREAD_CANCEL_ASYNCHRONOUS, however, this piece of code
+> blocks on the join():
+>
+>		if ((retv = Pthread_cancel( recvThread )) == 0)
+>		{
+>			retv = Pthread_join( recvThread, 0 );
+>		}
+>
+> Pthread_* are just macro's; they call pthread_*.
+>
+> The thread recvThread seems to block on a select() call. It doesn't get
+> cancelled.
+>
+> Two questions:
+>
+> 1) is this normal behaviour?
+>
+> 2) if not, how does the cancel mechanism work? I'm not very familliar to
+> win32 programming, so I don't really understand how the *Event() family of
+> calls work.
+
+The answer to your first question is, normal POSIX behaviour would  
+be to asynchronously cancel the thread. However, even that doesn't
+guarantee cancelation as the standard only says it should be
+cancelled as soon as possible.
+
+Snapshot 99-11-02 or earlier only partially supports asynchronous cancellation.
+Snapshots since then simulate async cancelation by poking the address of
+a cancelation routine into the PC of the threads context. This requires
+the thread to be resumed in some way for the cancelation to actually
+proceed. This is not true async cancelation, but it is as close as we've
+been able to get to it.
+
+If the thread you're trying to cancel is blocked (for instance, it could be
+waiting for data from the network), it will only get cancelled when it unblocks
+(when the data arrives). For true pre-emptive cancelation in these cases,
+pthreads-win32 from snapshot 2004-05-16 can automatically recognise and use the
+QueueUserAPCEx package by Panagiotis E. Hadjidoukas. This package is available
+from the pthreads-win32 ftp site and is included in the pthreads-win32
+self-unpacking zip from 2004-05-16 onwards.
+
+Using deferred cancelation would normally be the way to go, however,
+even though the POSIX threads standard lists a number of C library
+functions that are defined as deferred cancelation points, there is
+no hookup between those which are provided by Windows and the
+pthreads-win32 library.
+
+Incidently, it's worth noting for code portability that the older POSIX
+threads standards cancelation point lists didn't include "select" because
+(as I read in Butenhof) it wasn't part of POSIX. However, it does appear in
+the SUSV3.
+
+Effectively, the only mandatory cancelation points that pthreads-win32
+recognises are those the library implements itself, ie.
+	
+	pthread_testcancel
+	pthread_cond_wait
+	pthread_cond_timedwait
+	pthread_join
+	sem_wait
+	sem_timedwait
+	pthread_delay_np
+
+The following routines from the non-mandatory list in SUSV3 are
+cancelation points in pthreads-win32:
+
+	pthread_rwlock_wrlock
+	pthread_rwlock_timedwrlock
+
+The following routines from the non-mandatory list in SUSV3 are not
+cancelation points in pthreads-win32:
+
+	pthread_rwlock_rdlock
+	pthread_rwlock_timedrdlock
+
+Pthreads-win32 also provides two functions that allow you to create
+cancelation points within your application, but only for cases where
+a thread is going to block on a Win32 handle. These are:
+
+	pthreadCancelableWait(HANDLE waitHandle) /* Infinite wait */
+ 
+	pthreadCancelableTimedWait(HANDLE waitHandle, DWORD timeout)
+
+------------------------------------------------------------------------------
+ 
+
+Q 10	How do I create thread-safe applications using
+----	pthreadGCE.dll, libpthreadw32.a and Mingw32?
+
+This should not be a problem with recent versions of MinGW32.
+
+For early versions, see Thomas Pfaff's email at:
+http://sources.redhat.com/ml/pthreads-win32/2002/msg00000.html
+------------------------------------------------------------------------------
+
+Q 11    Why isn't pthread_t defined as a scalar (e.g. pointer or int)
+        like it is for other POSIX threads implementations?
+----
+
+Originally pthread_t was defined as a pointer (to the opaque pthread_t_
+struct) and later it was changed to a struct containing the original
+pointer plus a sequence counter. This is allowed under both the original
+POSIX Threads Standard and the current Single Unix Specification.
+
+When pthread_t is a simple pointer to a struct some very difficult to
+debug problems arise from the process of freeing and later allocing
+thread structs because new pthread_t handles can acquire the identity of
+previously detached threads. The change to a struct was made, along with
+some changes to their internal managment, in order to guarantee (for
+practical applications) that the pthread_t handle will be unique over the
+life of the running process.
+
+Where application code attempts to compare one pthread_t against another
+directly, a compiler error will be emitted because structs can't be
+compared at that level. This should signal a potentially serious problem
+in the code design, which would go undetected if pthread_t was a scalar.
+
+The POSIX Threading API provides a function named pthread_equal() to
+compare pthread_t thread handles.
+
+Other pthreads implementations, such as Sun's, use an int as the handle
+but do guarantee uniqueness within the process scope. Win32 scalar typed
+thread handles also guarantee uniqueness in system scope. It wasn't clear
+how well the internal management of these handles would scale as the
+number of threads and the fragmentation of the sequence numbering
+increased for applications where thousands or millions of threads are
+created and detached over time. The current management of threads within
+pthreads-win32 using structs for pthread_t, and reusing without ever
+freeing them, reduces the management time overheads to a constant, which
+could be important given that pthreads-win32 threads are built on top of
+Win32 threads and will therefore include that management overhead on top
+of their own. The cost is that the memory resources used for thread
+handles will remain at the peak level until the process exits.
+
+While it may be inconvenient for developers to be forced away from making
+assumptions about the internals of pthread_t, the advantage for the
+future development of pthread-win32, as well as those applications that
+use it and other pthread implementations, is that the library is free to
+change pthread_t internals and management as better methods arise.
+

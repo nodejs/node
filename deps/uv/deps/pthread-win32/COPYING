@@ -1,0 +1,150 @@
+	pthreads-win32 - a POSIX threads library for Microsoft Windows
+
+
+This file is Copyrighted
+------------------------
+
+    This file is covered under the following Copyright:
+
+	Copyright (C) 2001,2006 Ross P. Johnson
+	All rights reserved.
+
+	Everyone is permitted to copy and distribute verbatim copies
+	of this license document, but changing it is not allowed.
+
+Pthreads-win32 is covered by the GNU Lesser General Public License
+------------------------------------------------------------------
+
+    Pthreads-win32 is open software; you can redistribute it and/or
+    modify it under the terms of the GNU Lesser General Public License
+    as published by the Free Software Foundation version 2.1 of the
+    License.
+
+    Pthreads-win32 is several binary link libraries, several modules,
+    associated interface definition files and scripts used to control
+    its compilation and installation.
+
+    Pthreads-win32 is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU Lesser General Public License for more details.
+
+    A copy of the GNU Lesser General Public License is distributed with
+    pthreads-win32 under the filename:
+
+	    COPYING.LIB
+
+    You should have received a copy of the version 2.1 GNU Lesser General
+    Public License with pthreads-win32; if not, write to:
+
+	    Free Software Foundation, Inc.
+	    59 Temple Place
+	    Suite 330
+	    Boston, MA	02111-1307
+	    USA
+
+    The contact addresses for pthreads-win32 is as follows:
+
+        Web:	http://sources.redhat.com/pthreads-win32
+        Email:  Ross Johnson
+                Please use: Firstname.Lastname@homemail.com.au
+
+
+
+Pthreads-win32 copyrights and exception files
+---------------------------------------------
+
+    With the exception of the files listed below, Pthreads-win32
+    is covered under the following GNU Lesser General Public License
+    Copyrights:
+
+	Pthreads-win32 - POSIX Threads Library for Win32
+	Copyright(C) 1998 John E. Bossom
+	Copyright(C) 1999,2006 Pthreads-win32 contributors
+
+	The current list of contributors is contained
+        in the file CONTRIBUTORS included with the source
+	code distribution. The current list of CONTRIBUTORS
+	can also be seen at the following WWW location:
+        http://sources.redhat.com/pthreads-win32/contributors.html
+
+    Contact Email: Ross Johnson
+                   Please use: Firstname.Lastname@homemail.com.au
+
+    These files are not covered under one of the Copyrights listed above:
+
+            COPYING
+	    COPYING.LIB
+            tests/rwlock7.c
+
+    This file, COPYING, is distributed under the Copyright found at the
+    top of this file.  It is important to note that you may distribute
+    verbatim copies of this file but you may not modify this file.
+
+    The file COPYING.LIB, which contains a copy of the version 2.1
+    GNU Lesser General Public License, is itself copyrighted by the
+    Free Software Foundation, Inc.  Please note that the Free Software
+    Foundation, Inc. does NOT have a copyright over Pthreads-win32,
+    only the COPYING.LIB that is supplied with pthreads-win32.
+
+    The file tests/rwlock7.c is derived from code written by
+    Dave Butenhof for his book 'Programming With POSIX(R) Threads'.
+    The original code was obtained by free download from his website
+    http://home.earthlink.net/~anneart/family/Threads/source.html
+    and did not contain a copyright or author notice. It is assumed to
+    be freely distributable.
+
+    In all cases one may use and distribute these exception files freely.
+    And because one may freely distribute the LGPL covered files, the
+    entire pthreads-win32 source may be freely used and distributed.
+
+
+
+General Copyleft and License info
+---------------------------------
+
+    For general information on Copylefts, see:
+
+	http://www.gnu.org/copyleft/
+
+    For information on GNU Lesser General Public Licenses, see:
+
+	http://www.gnu.org/copyleft/lesser.html
+	http://www.gnu.org/copyleft/lesser.txt
+
+
+Why pthreads-win32 did not use the GNU General Public License
+-------------------------------------------------------------
+
+    The goal of the pthreads-win32 project has been to
+    provide a quality and complete implementation of the POSIX
+    threads API for Microsoft Windows within the limits imposed
+    by virtue of it being a stand-alone library and not
+    linked directly to other POSIX compliant libraries. For
+    example, some functions and features, such as those based
+    on POSIX signals, are missing.
+
+    Pthreads-win32 is a library, available in several different
+    versions depending on supported compilers, and may be used
+    as a dynamically linked module or a statically linked set of
+    binary modules. It is not an application on it's own.
+
+    It was fully intended that pthreads-win32 be usable with
+    commercial software not covered by either the GPL or the LGPL
+    licenses. Pthreads-win32 has many contributors to it's
+    code base, many of whom have done so because they have
+    used the library in commercial or proprietry software
+    projects.
+
+    Releasing pthreads-win32 under the LGPL ensures that the
+    library can be used widely, while at the same time ensures
+    that bug fixes and improvements to the pthreads-win32 code
+    itself is returned to benefit all current and future users
+    of the library.
+
+    Although pthreads-win32 makes it possible for applications
+    that use POSIX threads to be ported to Win32 platforms, the
+    broader goal of the project is to encourage the use of open
+    standards, and in particular, to make it just a little easier
+    for developers writing Win32 applications to consider
+    widening the potential market for their products.

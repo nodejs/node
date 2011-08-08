@@ -238,6 +238,8 @@ int ares_parse_a_reply(const unsigned char *abuf, int alen,
                   for (i = 0; i < naddrs; i++)
                     hostent->h_addr_list[i] = (char *) &addrs[i];
                   hostent->h_addr_list[naddrs] = NULL;
+                  if (!naddrs && addrs)
+                    free(addrs);
                   *host = hostent;
                   return ARES_SUCCESS;
                 }
