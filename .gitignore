@@ -34,3 +34,5 @@ _UpgradeReport_Files/
 ipch/
 *.sdf
 *.opensdf
+
+/options.gypi

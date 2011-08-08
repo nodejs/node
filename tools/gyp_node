@@ -23,6 +23,11 @@ def run_gyp(args):
 if __name__ == '__main__':
   args = sys.argv[1:]
   args.append(os.path.join(script_dir, 'all.gyp'))
+
+  options_fn = os.path.abspath(os.path.join(node_root, 'options.gypi'))
+  if os.path.exists(options_fn):
+    args.extend(['-I', options_fn])
+
   args.append('--depth=' + node_root)
 
   if sys.platform != 'win32':
@@ -36,4 +41,5 @@ if __name__ == '__main__':
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
   gyp_args = list(args)
+  print gyp_args
   run_gyp(gyp_args)
