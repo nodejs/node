@@ -33,7 +33,7 @@ if (process.platform == 'win32') {
   dir = 'c:\\windows';
 } else {
   pwdcommand = 'pwd'; 
-  dir = '/etc';
+  dir = '/dev';
 }
 
 var child = exec(pwdcommand, {cwd: dir}, function(err, stdout, stderr) {
