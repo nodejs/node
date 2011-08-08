@@ -9,3 +9,8 @@
 *.suo
 /out/
 /build/gyp
+
+/test/run-tests
+/test/run-tests.dSYM
+/test/run-benchmarks
+/test/run-benchmarks.dSYM
