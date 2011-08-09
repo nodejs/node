@@ -169,7 +169,7 @@ function tcp_test() {
         { client: client_tcp, send: 'a += 1\n',
           expect: ('12346' + '\n' + prompt_tcp) },
         { client: client_tcp,
-          send: 'require(\'' + moduleFilename + '\').number\n',
+          send: 'require(' + JSON.stringify(moduleFilename) + ').number\n',
           expect: ('42' + '\n' + prompt_tcp) }
       ]);
     });
