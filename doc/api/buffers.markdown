@@ -470,3 +470,7 @@ given it will fill the entire buffer.
     var b = new Buffer(50);
     b.fill("h");
 
+### INSPECT_MAX_BYTES
+
+How many bytes will be returned when `b.inspect()` is called. This can
+be overriden by user modules.
