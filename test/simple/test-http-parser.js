@@ -58,16 +58,8 @@ parser.onURL = function(b, off, len) {
   callbacks++;
 };
 
-parser.onPath = function(b, off, length) {
-  console.log('path [' + off + ', ' + length + ']');
-  var path = b.toString('ascii', off, off + length);
-  console.log('path = "' + path + '"');
-  assert.equal('/hello', path);
-  callbacks++;
-};
-
 parser.execute(buffer, 0, request.length);
-assert.equal(4, callbacks);
+assert.equal(3, callbacks);
 
 //
 // Check that if we throw an error in the callbacks that error will be
