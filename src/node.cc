@@ -1444,13 +1444,15 @@ static Handle<Value> Cwd(const Arguments& args) {
 }
 
 
-#ifdef __POSIX__
+#ifndef __POSIX__
+# define umask _umask
+#endif
 
-static Handle<Value> Umask(const Arguments& args){
+static Handle<Value> Umask(const Arguments& args) {
   HandleScope scope;
   unsigned int old;
 
-  if(args.Length() < 1 || args[0]->IsUndefined()) {
+  if (args.Length() < 1 || args[0]->IsUndefined()) {
     old = umask(0);
     umask((mode_t)old);
 
@@ -1484,12 +1486,15 @@ static Handle<Value> Umask(const Arguments& args){
 }
 
 
+#ifdef __POSIX__
+
 static Handle<Value> GetUid(const Arguments& args) {
   HandleScope scope;
   assert(args.Length() == 0);
   int uid = getuid();
   return scope.Close(Integer::New(uid));
 }
+
 
 static Handle<Value> GetGid(const Arguments& args) {
   HandleScope scope;
@@ -1538,6 +1543,7 @@ static Handle<Value> SetGid(const Arguments& args) {
   return Undefined();
 }
 
+
 static Handle<Value> SetUid(const Arguments& args) {
   HandleScope scope;
 
@@ -1576,6 +1582,7 @@ static Handle<Value> SetUid(const Arguments& args) {
   }
   return Undefined();
 }
+
 
 #endif // __POSIX__
 
@@ -2187,6 +2194,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
 
+  NODE_SET_METHOD(process, "umask", Umask);
+
 #ifdef __POSIX__
   NODE_SET_METHOD(process, "getuid", GetUid);
   NODE_SET_METHOD(process, "setuid", SetUid);
@@ -2194,7 +2203,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "setgid", SetGid);
   NODE_SET_METHOD(process, "getgid", GetGid);
 
-  NODE_SET_METHOD(process, "umask", Umask);
   NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "_kill", Kill);
 #endif // __POSIX__

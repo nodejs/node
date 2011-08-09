@@ -22,7 +22,14 @@
 var common = require('../common');
 var assert = require('assert');
 
-var mask = '0664';
+// Note in Windows one can only set the "user" bits.
+var mask;
+if (process.platform == 'win32') {
+  mask = '0600';
+} else {
+  mask = '0664';
+}
+
 var old = process.umask(mask);
 
 assert.equal(parseInt(mask, 8), process.umask(old));
