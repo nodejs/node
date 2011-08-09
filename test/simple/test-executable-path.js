@@ -26,9 +26,9 @@ var path = require('path');
 var isDebug = (process.version.indexOf('debug') >= 0);
 
 var debugPath = path.normalize(path.join(__dirname, '..', '..',
-                                         'out', 'Debug', 'node'));
+                                         'build', 'debug', 'node'));
 var defaultPath = path.normalize(path.join(__dirname, '..', '..',
-                                           'out', 'Release', 'node'));
+                                           'build', 'default', 'node'));
 
 console.error('debugPath: ' + debugPath);
 console.error('defaultPath: ' + defaultPath);
