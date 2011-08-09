@@ -236,7 +236,7 @@ function testAssertionMessage(actual, expected) {
     assert.equal(actual, '');
   } catch (e) {
     assert.equal(e.toString(),
-        ['AssertionError:', '""', '==', expected].join(' '));
+        ['AssertionError:', expected, '==', '""'].join(' '));
   }
 }
 testAssertionMessage(undefined, '"undefined"');
