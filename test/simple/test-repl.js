@@ -27,11 +27,11 @@ common.globalCheck = false;
 var net = require('net'),
     repl = require('repl'),
     message = 'Read, Eval, Print Loop',
-    unix_socket_path = '/tmp/node-repl-sock',
     prompt_unix = 'node via Unix socket> ',
     prompt_tcp = 'node via TCP socket> ',
     prompt_multiline = '... ',
     server_tcp, server_unix, client_tcp, client_unix, timer;
+
 
 // absolute path to test/fixtures/a.js
 var moduleFilename = require('path').join(common.fixturesDir, 'a');
@@ -144,7 +144,6 @@ function error_test() {
 function tcp_test() {
   server_tcp = net.createServer(function(socket) {
     assert.strictEqual(server_tcp, socket.server);
-    assert.strictEqual(server_tcp.type, 'tcp4');
 
     socket.addListener('end', function() {
       socket.end();
@@ -208,7 +207,6 @@ function tcp_test() {
 function unix_test() {
   server_unix = net.createServer(function(socket) {
     assert.strictEqual(server_unix, socket.server);
-    assert.strictEqual(server_unix.type, 'unix');
 
     socket.addListener('end', function() {
       socket.end();
@@ -220,7 +218,7 @@ function unix_test() {
   server_unix.addListener('listening', function() {
     var read_buffer = '';
 
-    client_unix = net.createConnection(unix_socket_path);
+    client_unix = net.createConnection(common.PIPE);
 
     client_unix.addListener('connect', function() {
       assert.equal(true, client_unix.readable);
@@ -268,7 +266,7 @@ function unix_test() {
     });
   });
 
-  server_unix.listen(unix_socket_path);
+  server_unix.listen(common.PIPE);
 }
 
 unix_test();
