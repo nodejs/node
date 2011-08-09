@@ -317,8 +317,6 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
     uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
   }
 
-  handle->reqs_pending++;
-
   return 0;
 }
 
@@ -362,6 +360,8 @@ int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
         errno = GetLastError();
         goto error;
       }
+
+      handle->reqs_pending++;
 
       return 0;
     }

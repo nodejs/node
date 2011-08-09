@@ -46,7 +46,6 @@ src/uv-common.o: src/uv-common.c include/uv.h include/uv-win.h
 	$(CC) $(CFLAGS) -c src/uv-common.c -o src/uv-common.o
 
 EIO_CPPFLAGS += $(CPPFLAGS)
-EIO_CPPFLAGS += -DEIO_CONFIG_H=\"$(EIO_CONFIG)\"
 EIO_CPPFLAGS += -DEIO_STACKSIZE=65536
 EIO_CPPFLAGS += -D_GNU_SOURCE
 
