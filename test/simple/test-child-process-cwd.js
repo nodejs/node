@@ -33,13 +33,10 @@ var returns = 0;
     (after removing traling whitespace)
 */
 function testCwd(options, forCode, forData) {
-  var child, data = '';
+  var data = '';
 
-  if (process.platform == "win32") {
-    child = spawn('cmd.exe', ['/c', 'cd'], options);
-  } else {
-    child = spawn('pwd', [], options);
-  }
+  var child = common.spawnPwd(options);
+
   child.stdout.setEncoding('utf8');
 
   child.stdout.addListener('data', function(chunk) {

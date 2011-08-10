@@ -28,7 +28,7 @@ var pwd_called = false;
 
 function pwd(callback) {
   var output = '';
-  var child = spawn('pwd');
+  var child = common.spawnPwd();
 
   child.stdout.setEncoding('utf8');
   child.stdout.addListener('data', function(s) {
