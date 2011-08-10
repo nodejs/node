@@ -1107,7 +1107,7 @@ void InitFs(Handle<Object> target) {
   StatWatcher::Initialize(target);
 #endif
 
-#ifdef __MINGW32__
+#ifndef __POSIX__
   // Open files in binary mode by default
   _fmode = _O_BINARY;
 #endif
