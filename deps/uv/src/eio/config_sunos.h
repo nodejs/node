@@ -7,6 +7,9 @@
 /* fdatasync(2) is available */
 #define HAVE_FDATASYNC 1
 
+/* utimes(2) is available */
+#define HAVE_UTIMES 1
+
 /* futimes(2) is available */
 /* #undef HAVE_FUTIMES */
 

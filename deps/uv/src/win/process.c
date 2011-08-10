@@ -28,6 +28,16 @@
 #include <stdlib.h>
 #include <windows.h>
 
+typedef struct env_var {
+  const char* narrow;
+  const wchar_t* wide;
+  int len; /* including null or '=' */
+  int supplied;
+  int value_len;
+} env_var_t;
+
+#define E_V(str) { ##str"=", L##str, sizeof(##str), 0, 0 }
+
 #define UTF8_TO_UTF16(s, t)                               \
   size = uv_utf8_to_utf16(s, NULL, 0) * sizeof(wchar_t);  \
   t = (wchar_t*)malloc(size);                             \
@@ -361,6 +371,7 @@ static wchar_t* search_path(const wchar_t *file,
   return result;
 }
 
+
 /*
  * Quotes command line arguments
  * Returns a pointer to the end (next char to be written) of the buffer
@@ -437,6 +448,7 @@ wchar_t* quote_cmd_arg(const wchar_t *source, wchar_t *target) {
   return target;
 }
 
+
 wchar_t* make_program_args(char** args, int verbatim_arguments) {
   wchar_t* dst;
   wchar_t* ptr;
@@ -494,23 +506,69 @@ error:
   return NULL;
 }
 
+
 /*
-  * The way windows takes environment variables is different than what C does;
-  * Windows wants a contiguous block of null-terminated strings, terminated
-  * with an additional null.
-  */
+ * If we learn that people are passing in huge environment blocks
+ * then we should probably qsort() the array and then bsearch()
+ * to see if it contains this variable. But there are ownership
+ * issues associated with that solution; this is the caller's 
+ * char**, and modifying it is rude.
+ */
+static void check_required_vars_contains_var(env_var_t* required, int size, const char* var) {
+  int i;
+  for (i = 0; i < size; ++i) {
+    if (_strnicmp(required[i].narrow, var, required[i].len) == 0) {
+      required[i].supplied =  1;
+      return;
+    }
+  }
+}
+
+
+/*
+ * The way windows takes environment variables is different than what C does;
+ * Windows wants a contiguous block of null-terminated strings, terminated
+ * with an additional null.
+ * 
+ * Windows has a few "essential" environment variables. winsock will fail
+ * to initialize if SYSTEMROOT is not defined; some APIs make reference to
+ * TEMP. SYSTEMDRIVE is probably also important. We therefore ensure that
+ * these get defined if the input environment block does not contain any
+ * values for them.
+ */
 wchar_t* make_program_env(char** env_block) {
   wchar_t* dst;
   wchar_t* ptr;
   char** env;
   int env_len = 1 * sizeof(wchar_t); /* room for closing null */
   int len;
+  int i;
+  DWORD var_size;
+
+  env_var_t required_vars[] = {
+    E_V("SYSTEMROOT"),
+    E_V("SYSTEMDRIVE"),
+    E_V("TEMP"),
+  };
 
   for (env = env_block; *env; env++) {
+    check_required_vars_contains_var(required_vars, COUNTOF(required_vars), *env);
     env_len += (uv_utf8_to_utf16(*env, NULL, 0) * sizeof(wchar_t));
   }
 
-  dst = (wchar_t*)malloc(env_len);
+  for (i = 0; i < COUNTOF(required_vars); ++i) {
+    if (!required_vars[i].supplied) {
+      env_len += required_vars[i].len * sizeof(wchar_t);
+      var_size = GetEnvironmentVariableW(required_vars[i].wide, NULL, 0);
+      if (var_size == 0) {
+        uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
+      }
+      required_vars[i].value_len = (int)var_size;
+      env_len += (int)var_size * sizeof(wchar_t);
+    }
+  }
+
+  dst = malloc(env_len);
   if (!dst) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
@@ -522,6 +580,19 @@ wchar_t* make_program_env(char** env_block) {
     if (!len) {
       free(dst);
       return NULL;
+    }
+  }
+
+  for (i = 0; i < COUNTOF(required_vars); ++i) {
+    if (!required_vars[i].supplied) {
+      wcscpy(ptr, required_vars[i].wide);
+      ptr += required_vars[i].len - 1;
+      *ptr++ = L'=';
+      var_size = GetEnvironmentVariableW(required_vars[i].wide, ptr, required_vars[i].value_len);
+      if (var_size == 0) {
+        uv_fatal_error(GetLastError(), "GetEnvironmentVariableW");
+      }
+      ptr += required_vars[i].value_len;
     }
   }
 

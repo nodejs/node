@@ -340,6 +340,53 @@ TEST_IMPL(argument_escaping) {
   ASSERT(wcscmp(verbatim_output, L"cmd.exe /c c:\\path\\to\\node.exe --eval \"require('c:\\\\path\\\\to\\\\test.js')\"") == 0);
   ASSERT(wcscmp(non_verbatim_output, L"cmd.exe /c \"c:\\path\\to\\node.exe --eval \\\"require('c:\\\\path\\\\to\\\\test.js')\\\"\"") == 0);
 
+  free(verbatim_output);
+  free(non_verbatim_output);
+
+  return 0;
+}
+
+wchar_t* make_program_env(char** env_block);
+
+TEST_IMPL(environment_creation) {
+  int i;
+  char* environment[] = {
+    "FOO=BAR",
+    "SYSTEM=ROOT", /* substring of a supplied var name */
+    "SYSTEMROOTED=OMG", /* supplied var name is a substring */
+    "TEMP=C:\\Temp",
+    "BAZ=QUX",
+    NULL
+  };
+
+  wchar_t expected[512];
+  wchar_t* ptr = expected;
+  wchar_t* result;
+  wchar_t* str;
+
+  for (i = 0; i < sizeof(environment) / sizeof(environment[0]) - 1; i++) {
+    ptr += uv_utf8_to_utf16(environment[i], ptr, expected + sizeof(expected) - ptr);
+  }
+
+  memcpy(ptr, L"SYSTEMROOT=", sizeof(L"SYSTEMROOT="));
+  ptr += sizeof(L"SYSTEMROOT=")/sizeof(wchar_t) - 1;
+  ptr += GetEnvironmentVariableW(L"SYSTEMROOT", ptr, expected + sizeof(expected) - ptr);
+  ++ptr;
+
+  memcpy(ptr, L"SYSTEMDRIVE=", sizeof(L"SYSTEMDRIVE="));
+  ptr += sizeof(L"SYSTEMDRIVE=")/sizeof(wchar_t) - 1;
+  ptr += GetEnvironmentVariableW(L"SYSTEMDRIVE", ptr, expected + sizeof(expected) - ptr);
+  ++ptr;
+  *ptr = '\0';
+  
+  result = make_program_env(environment);
+
+  for (str = result; *str; str += wcslen(str) + 1) {
+    wprintf(L"%s\n", str);
+  }
+
+  ASSERT(wcscmp(expected, result) == 0);
+ 
   return 0;
 }
 #endif

@@ -14,3 +14,14 @@
 /test/run-tests.dSYM
 /test/run-benchmarks
 /test/run-benchmarks.dSYM
+
+*.sln
+*.vcproj
+*.vcxproj
+*.vcxproj.filters
+*.vcxproj.user
+_UpgradeReport_Files/
+UpgradeLog*.XML
+build/Debug
+build/Release
+build/ipch

@@ -5,8 +5,7 @@ import shlex
 import sys
 
 script_dir = os.path.dirname(__file__)
-uv_root = os.path.normpath(os.path.join(script_dir, os.pardir))
-print("uv_root " + uv_root)
+uv_root = os.path.abspath(script_dir)
 
 sys.path.insert(0, os.path.join(uv_root, 'build', 'gyp', 'pylib'))
 import gyp

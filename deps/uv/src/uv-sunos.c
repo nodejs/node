@@ -37,7 +37,7 @@ uint64_t uv_hrtime() {
  * we don't want to potentially create a race condition in the use of snprintf.
  */
 int uv_exepath(char* buffer, size_t* size) {
-  size_t res;
+  ssize_t res;
   pid_t pid;
   char buf[128];
 

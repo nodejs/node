@@ -192,7 +192,9 @@ static void eio_destroy (eio_req *req);
   }
 
   /* POSIX API only */
-  #define CreateHardLink(neu,old,flags) 0
+  #ifndef CreateHardLink
+  # define CreateHardLink(neu,old,flags) 0
+  #endif
   #define CreateSymbolicLink(neu,old,flags) 0
 
   struct statvfs

@@ -199,19 +199,31 @@ static uv_err_t uv_err_new(uv_handle_t* handle, int sys_error) {
 
 
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
-  uv_tcp_t* tcp;
-  uv_pipe_t* pipe;
   uv_async_t* async;
   uv_timer_t* timer;
+  uv_stream_t* stream;
   uv_process_t* process;
 
   handle->close_cb = close_cb;
 
   switch (handle->type) {
+    case UV_NAMED_PIPE:
+      uv_pipe_cleanup((uv_pipe_t*)handle);
+      /* Fall through. */
+
     case UV_TCP:
-      tcp = (uv_tcp_t*) handle;
-      uv_read_stop((uv_stream_t*)tcp);
-      ev_io_stop(EV_DEFAULT_ &tcp->write_watcher);
+      stream = (uv_stream_t*)handle;
+
+      uv_read_stop(stream);
+      ev_io_stop(EV_DEFAULT_ &stream->write_watcher);
+
+      uv__close(stream->fd);
+      stream->fd = -1;
+
+      if (stream->accepted_fd >= 0) {
+        uv__close(stream->accepted_fd);
+        stream->accepted_fd = -1;
+      }
       break;
 
     case UV_PREPARE:
@@ -238,13 +250,6 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
         ev_ref(EV_DEFAULT_UC);
       }
       ev_timer_stop(EV_DEFAULT_ &timer->timer_watcher);
-      break;
-
-    case UV_NAMED_PIPE:
-      pipe = (uv_pipe_t*)handle;
-      uv_pipe_cleanup(pipe);
-      uv_read_stop((uv_stream_t*)handle);
-      ev_io_stop(EV_DEFAULT_ &pipe->write_watcher);
       break;
 
     case UV_PROCESS:
@@ -574,23 +579,9 @@ void uv__finish_close(uv_handle_t* handle) {
 
     case UV_NAMED_PIPE:
     case UV_TCP:
-    {
-      uv_stream_t* stream;
-
-      stream = (uv_stream_t*)handle;
-
-      assert(!ev_is_active(&stream->read_watcher));
-      assert(!ev_is_active(&stream->write_watcher));
-
-      uv__close(stream->fd);
-      stream->fd = -1;
-
-      if (stream->accepted_fd >= 0) {
-        uv__close(stream->accepted_fd);
-        stream->accepted_fd = -1;
-      }
+      assert(!ev_is_active(&((uv_stream_t*)handle)->read_watcher));
+      assert(!ev_is_active(&((uv_stream_t*)handle)->write_watcher));
       break;
-    }
 
     case UV_PROCESS:
       assert(!ev_is_active(&((uv_process_t*)handle)->child_watcher));
@@ -874,10 +865,10 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
          "uv_shutdown (unix) only supports uv_handle_t right now");
   assert(stream->fd >= 0);
 
-  if (!(((uv_handle_t*)stream)->flags & UV_WRITABLE) ||
-      ((uv_handle_t*)stream)->flags & UV_SHUT ||
-      ((uv_handle_t*)stream)->flags & UV_CLOSED ||
-      ((uv_handle_t*)stream)->flags & UV_CLOSING) {
+  if (!(stream->flags & UV_WRITABLE) ||
+      stream->flags & UV_SHUT ||
+      stream->flags & UV_CLOSED ||
+      stream->flags & UV_CLOSING) {
     uv_err_new((uv_handle_t*)stream, EINVAL);
     return -1;
   }
@@ -1990,9 +1981,8 @@ int uv_pipe_connect(uv_connect_t* req,
     goto out;
   }
 
-  handle->fd = sockfd;
-  ev_io_init(&handle->read_watcher, uv__stream_io, sockfd, EV_READ);
-  ev_io_init(&handle->write_watcher, uv__stream_io, sockfd, EV_WRITE);
+  uv__stream_open((uv_stream_t*)handle, sockfd, UV_READABLE | UV_WRITABLE);
+
   ev_io_start(EV_DEFAULT_ &handle->read_watcher);
   ev_io_start(EV_DEFAULT_ &handle->write_watcher);
 
