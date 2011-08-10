@@ -2633,6 +2633,7 @@ int Start(int argc, char *argv[]) {
   argv = Init(argc, argv);
 
   v8::V8::Initialize();
+  v8::Locker locker;
   v8::HandleScope handle_scope;
 
   // Create the one and only Context.
