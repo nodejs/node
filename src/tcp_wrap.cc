@@ -214,27 +214,29 @@ class TCPWrap : public StreamWrap {
     // uv_close() on the handle.
     assert(wrap->object_.IsEmpty() == false);
 
-    if (status != 0) {
-      // TODO Handle server error (set errno and call onconnection with NULL)
-      assert(0);
-      return;
+    Handle<Value> argv[1];
+
+    if (status == 0) {
+      // Instantiate the client javascript object and handle.
+      Local<Object> client_obj = tcpConstructor->NewInstance();
+
+      // Unwrap the client javascript object.
+      assert(client_obj->InternalFieldCount() > 0);
+      TCPWrap* client_wrap =
+          static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
+
+      int r = uv_accept(handle, (uv_stream_t*)&client_wrap->handle_);
+
+      // uv_accept should always work.
+      assert(r == 0);
+
+      // Successful accept. Call the onconnection callback in JavaScript land.
+      argv[0] = client_obj;
+    } else {
+      SetErrno(uv_last_error().code);
+      argv[0] = v8::Null();
     }
 
-    // Instanciate the client javascript object and handle.
-    Local<Object> client_obj = tcpConstructor->NewInstance();
-
-    // Unwrap the client javascript object.
-    assert(client_obj->InternalFieldCount() > 0);
-    TCPWrap* client_wrap =
-        static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
-
-    int r = uv_accept(handle, (uv_stream_t*)&client_wrap->handle_);
-
-    // uv_accept should always work.
-    assert(r == 0);
-
-    // Successful accept. Call the onconnection callback in JavaScript land.
-    Local<Value> argv[1] = { client_obj };
     MakeCallback(wrap->object_, "onconnection", 1, argv);
   }
 
