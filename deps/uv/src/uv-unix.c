@@ -427,14 +427,17 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
          watcher == &stream->write_watcher);
   assert(revents == EV_READ);
 
-  assert(!(((uv_handle_t*)stream)->flags & UV_CLOSING));
+  assert(!(stream->flags & UV_CLOSING));
 
   if (stream->accepted_fd >= 0) {
     ev_io_stop(EV_DEFAULT_ &stream->read_watcher);
     return;
   }
 
-  while (1) {
+  /* connection_cb can close the server socket while we're
+   * in the loop so check it on each iteration.
+   */
+  while (stream->fd != -1) {
     assert(stream->accepted_fd < 0);
     fd = uv__accept(stream->fd, (struct sockaddr*)&addr, sizeof addr);
 
@@ -449,7 +452,6 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
         uv_err_new((uv_handle_t*)stream, errno);
         stream->connection_cb((uv_stream_t*)stream, -1);
       }
-
     } else {
       stream->accepted_fd = fd;
       stream->connection_cb((uv_stream_t*)stream, 0);
@@ -897,7 +899,7 @@ static void uv__stream_io(EV_P_ ev_io* watcher, int revents) {
          stream->type == UV_NAMED_PIPE);
   assert(watcher == &stream->read_watcher ||
          watcher == &stream->write_watcher);
-  assert(!(((uv_handle_t*)stream)->flags & UV_CLOSING));
+  assert(!(stream->flags & UV_CLOSING));
 
   if (stream->connect_req) {
     uv__stream_connect(stream);
@@ -985,10 +987,6 @@ static int uv__connect(uv_connect_t* req,
 
   if (stream->fd <= 0) {
     if ((sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0)) == -1) {
-
-    }
-
-    if (sockfd < 0) {
       uv_err_new((uv_handle_t*)stream, errno);
       return -1;
     }
@@ -2064,6 +2062,8 @@ static int uv__socket(int domain, int type, int protocol) {
 
 static int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
   int peerfd;
+
+  assert(sockfd >= 0);
 
   do {
 #if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
