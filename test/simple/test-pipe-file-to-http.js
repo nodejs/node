@@ -58,7 +58,9 @@ var server = http.createServer(function(req, res) {
 server.listen(common.PORT);
 
 server.on('listening', function() {
-  var cmd = 'dd if=/dev/zero of="' + filename + '" bs=1024 count=10240';
+  var cmd = common.ddCommand(filename, 10240);
+  console.log("dd command: ", cmd);
+
   cp.exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;
     makeRequest();

@@ -55,11 +55,13 @@ function maybeMakeRequest() {
 }
 
 
-cp.exec('dd if=/dev/zero of="' + filename + '" bs=1024 count=10240',
-        function(err, stdout, stderr) {
-          if (err) throw err;
-          maybeMakeRequest();
-        });
+var ddcmd = common.ddCommand(filename, 10240);
+console.log("dd command: ", ddcmd);
+
+cp.exec(ddcmd, function(err, stdout, stderr) {
+  if (err) throw err;
+  maybeMakeRequest();
+});
 
 
 var server = http.createServer(function(req, res) {
