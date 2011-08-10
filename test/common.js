@@ -54,6 +54,11 @@ exports.indirectInstanceOf = function(obj, cls) {
 
 exports.ddCommand = function(filename, kilobytes) {
   if (process.platform == 'win32') {
+    // 'fsutil file createnew' cannot be used on an existing file. If it
+    // already exists delete it.
+    if (require('path').existsSync(filename)) {
+      require('fs').unlinkSync(filename);
+    }
     return 'fsutil.exe file createnew "' + filename + '" ' + (kilobytes * 1024);
   } else {
     return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
