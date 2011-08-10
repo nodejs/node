@@ -185,6 +185,7 @@ UVTEST += simple/test-readdouble
 UVTEST += simple/test-readfloat
 UVTEST += simple/test-readint
 UVTEST += simple/test-readuint
+UVTEST += simple/test-regress-GH-746
 UVTEST += simple/test-regress-GH-819
 UVTEST += simple/test-regress-GH-897
 UVTEST += simple/test-regression-object-prototype

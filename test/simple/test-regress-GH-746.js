@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// Just test that destroying stdin doesn't mess up listening on a server.
+// This is a regression test for GH-746.
+
 var common = require('../common');
 var assert = require('assert');
 var net = require('net');
@@ -36,7 +39,6 @@ var server = net.createServer(function(socket) {
 
 server.listen(common.PORT, function() {
   console.log('listening...');
-  assert.equal(server.fd, 0);
 
   net.createConnection(common.PORT);
 });
