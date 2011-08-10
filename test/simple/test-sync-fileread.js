@@ -24,6 +24,6 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
-var fixture = path.join(__dirname, '../fixtures/x.txt');
+var fixture = path.join(__dirname, '../fixtures/x.bin');
 
 assert.equal('xyz\n', fs.readFileSync(fixture));
