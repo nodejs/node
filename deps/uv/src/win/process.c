@@ -36,7 +36,7 @@ typedef struct env_var {
   int value_len;
 } env_var_t;
 
-#define E_V(str) { str "=", L"" str, sizeof(str), 0, 0 }
+#define E_V(str) { str "=", L##str, sizeof(str), 0, 0 }
 
 #define UTF8_TO_UTF16(s, t)                               \
   size = uv_utf8_to_utf16(s, NULL, 0) * sizeof(wchar_t);  \

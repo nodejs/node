@@ -331,20 +331,20 @@ static int uv__bind(uv_tcp_t* tcp, int domain, struct sockaddr* addr,
     int addrsize) {
   int saved_errno;
   int status;
-  int fd;
 
   saved_errno = errno;
   status = -1;
 
-  if (tcp->fd <= 0) {
-    if ((fd = uv__socket(domain, SOCK_STREAM, 0)) == -1) {
+  if (tcp->fd < 0) {
+    if ((tcp->fd = uv__socket(domain, SOCK_STREAM, 0)) == -1) {
       uv_err_new((uv_handle_t*)tcp, errno);
       goto out;
     }
 
-    if (uv__stream_open((uv_stream_t*)tcp, fd, UV_READABLE | UV_WRITABLE)) {
+    if (uv__stream_open((uv_stream_t*)tcp, tcp->fd, UV_READABLE | UV_WRITABLE)) {
+      uv__close(tcp->fd);
+      tcp->fd = -1;
       status = -2;
-      uv__close(fd);
       goto out;
     }
   }
@@ -515,21 +515,21 @@ int uv_listen(uv_stream_t* stream, int backlog, uv_connection_cb cb) {
 
 static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   int r;
-  int fd;
 
   if (tcp->delayed_error) {
     uv_err_new((uv_handle_t*)tcp, tcp->delayed_error);
     return -1;
   }
 
-  if (tcp->fd <= 0) {
-    if ((fd = uv__socket(AF_INET, SOCK_STREAM, 0)) == -1) {
+  if (tcp->fd < 0) {
+    if ((tcp->fd = uv__socket(AF_INET, SOCK_STREAM, 0)) == -1) {
       uv_err_new((uv_handle_t*)tcp, errno);
       return -1;
     }
 
-    if (uv__stream_open((uv_stream_t*)tcp, fd, UV_READABLE)) {
-      uv__close(fd);
+    if (uv__stream_open((uv_stream_t*)tcp, tcp->fd, UV_READABLE)) {
+      uv__close(tcp->fd);
+      tcp->fd = -1;
       return -1;
     }
   }
