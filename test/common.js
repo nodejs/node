@@ -56,7 +56,6 @@ exports.ddCommand = function(filename, kilobytes) {
   if (process.platform == 'win32') {
     return 'fsutil.exe file createnew "' + filename + '" ' + (kilobytes * 1024);
   } else {
-    var blocks = Integer(size / 1024);
     return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
   }
 };
