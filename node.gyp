@@ -74,7 +74,7 @@
       'dependencies': [
         'deps/http_parser/http_parser.gyp:http_parser',
         'deps/v8/tools/gyp/v8.gyp:v8',
-        'deps/uv/build/all.gyp:uv',
+        'deps/uv/all.gyp:uv',
         'node_js2c#host',
       ],
 

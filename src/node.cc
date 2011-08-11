@@ -49,6 +49,9 @@
 #define getcwd _getcwd
 #include <process.h>
 #define getpid _getpid
+#include <io.h>
+#define umask _umask
+typedef int mode_t;
 #endif
 #include <errno.h>
 #include <sys/types.h>
@@ -1442,11 +1445,6 @@ static Handle<Value> Cwd(const Arguments& args) {
 
   return scope.Close(cwd);
 }
-
-
-#ifndef __POSIX__
-# define umask _umask
-#endif
 
 static Handle<Value> Umask(const Arguments& args) {
   HandleScope scope;
