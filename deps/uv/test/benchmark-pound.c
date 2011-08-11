@@ -25,6 +25,7 @@
 /* Update this is you're going to run > 1000 concurrent requests. */
 #define MAX_CONNS 1000
 
+#undef NANOSEC
 #define NANOSEC ((uint64_t)10e8)
 
 /* Base class for tcp_conn_rec and pipe_conn_rec.
