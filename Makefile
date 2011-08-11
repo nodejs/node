@@ -177,6 +177,7 @@ UVTEST += simple/test-module-load-list
 UVTEST += simple/test-path
 UVTEST += simple/test-pipe-stream
 UVTEST += simple/test-pipe-file-to-http
+UVTEST += simple/test-process-env
 UVTEST += simple/test-pump-file2tcp
 UVTEST += simple/test-pump-file2tcp-noexist
 UVTEST += simple/test-punycode

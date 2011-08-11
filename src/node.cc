@@ -2002,13 +2002,23 @@ static Handle<Value> EnvGetterWarn(Local<String> property,
 static Handle<Value> EnvSetter(Local<String> property,
                                Local<Value> value,
                                const AccessorInfo& info) {
+  HandleScope scope;
   String::Utf8Value key(property);
   String::Utf8Value val(value);
+
 #ifdef __POSIX__
   setenv(*key, *val, 1);
 #else  // __WIN32__
-  NO_IMPL_MSG(setenv)
+  int n = key.length() + val.length() + 2;
+  char* pair = new char[n];
+  snprintf(pair, n, "%s=%s", *key, *val);
+  int r = _putenv(pair);
+  if (r) {
+    fprintf(stderr, "error putenv: '%s'\n", pair);
+  }
+  delete [] pair;
 #endif
+
   return value;
 }
 
@@ -2026,15 +2036,26 @@ static Handle<Integer> EnvQuery(Local<String> property,
 
 static Handle<Boolean> EnvDeleter(Local<String> property,
                                   const AccessorInfo& info) {
+  HandleScope scope;
+
   String::Utf8Value key(property);
+
   if (getenv(*key)) {
 #ifdef __POSIX__
     unsetenv(*key);	// prototyped as `void unsetenv(const char*)` on some platforms
 #else
-    NO_IMPL_MSG(unsetenv)
+    int n = key.length() + 2;
+    char* pair = new char[n];
+    snprintf(pair, n, "%s=", *key);
+    int r = _putenv(pair);
+    if (r) {
+      fprintf(stderr, "error unsetenv: '%s'\n", pair);
+    }
+    delete [] pair;
 #endif
     return True();
   }
+
   return False();
 }
 
