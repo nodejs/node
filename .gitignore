@@ -12,6 +12,7 @@ node_g
 /.project
 /.cproject
 
+/build
 /out
 
 # various stuff that VC++ produces/uses
