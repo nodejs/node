@@ -167,6 +167,7 @@ static uv_err_code uv_translate_sys_error(int sys_errno) {
     case 0: return UV_OK;
     case EACCES: return UV_EACCESS;
     case EBADF: return UV_EBADF;
+    case EPIPE: return UV_EPIPE;
     case EAGAIN: return UV_EAGAIN;
     case ECONNRESET: return UV_ECONNRESET;
     case EFAULT: return UV_EFAULT;
