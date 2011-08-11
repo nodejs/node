@@ -3,13 +3,13 @@ var assert = require('assert');
 
 var net = require('net');
 
-var conns = 0;
+var conns = 0, conns_closed = 0;
 
 var server = net.createServer(function(socket) {
   conns++;
   assert.equal('127.0.0.1', socket.remoteAddress);
   socket.on('end', function() {
-    server.close();
+    if (++conns_closed == 2) server.close();
   });
 });
 
