@@ -233,3 +233,8 @@ or `'base64'`.
 
 Sets the Diffie-Hellman private key. Key encoding can be `'binary'`, `'hex'`, or `'base64'`.
 
+### pbkdf2(password, salt, iterations, keylen, callback)
+
+Asynchronous PBKDF2 applies pseudorandom function HMAC-SHA1 to derive
+a key of given length from the given password, salt and iterations.
+The callback gets two arguments `(err, derivedKey)`.

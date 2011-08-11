@@ -388,3 +388,25 @@ assert.equal(rsaSignature, '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7
 
 rsaVerify.update(rsaPubPem);
 assert.equal(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), 1);
+
+// Test PBKDF2 with RFC 6070 test vectors (except #4)
+
+crypto.pbkdf2('password', 'salt', 1, 20, function (err, result) {
+  assert.equal(result, '\x0c\x60\xc8\x0f\x96\x1f\x0e\x71\xf3\xa9\xb5\x24\xaf\x60\x12\x06\x2f\xe0\x37\xa6', 'pbkdf1 test vector 1');
+});
+
+crypto.pbkdf2('password', 'salt', 2, 20, function (err, result) {
+  assert.equal(result, '\xea\x6c\x01\x4d\xc7\x2d\x6f\x8c\xcd\x1e\xd9\x2a\xce\x1d\x41\xf0\xd8\xde\x89\x57', 'pbkdf1 test vector 2');
+});
+
+crypto.pbkdf2('password', 'salt', 4096, 20, function (err, result) {
+  assert.equal(result, '\x4b\x00\x79\x01\xb7\x65\x48\x9a\xbe\xad\x49\xd9\x26\xf7\x21\xd0\x65\xa4\x29\xc1', 'pbkdf1 test vector 3');
+});
+
+crypto.pbkdf2('passwordPASSWORDpassword', 'saltSALTsaltSALTsaltSALTsaltSALTsalt', 4096, 25, function (err, result) {
+  assert.equal(result, '\x3d\x2e\xec\x4f\xe4\x1c\x84\x9b\x80\xc8\xd8\x36\x62\xc0\xe4\x4a\x8b\x29\x1a\x96\x4c\xf2\xf0\x70\x38', 'pbkdf1 test vector 5');
+});
+
+crypto.pbkdf2('pass\0word', 'sa\0lt', 4096, 16, function (err, result) {
+  assert.equal(result, '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34\x25\xe0\xc3', 'pbkdf1 test vector 6');
+});

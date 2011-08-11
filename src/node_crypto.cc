@@ -3752,6 +3752,123 @@ class DiffieHellman : public ObjectWrap {
   DH* dh;
 };
 
+struct pbkdf2_req {
+  int err;
+  char* pass;
+  size_t passlen;
+  char* salt;
+  size_t saltlen;
+  size_t iter;
+  char* key;
+  size_t keylen;
+  Persistent<Function> callback;
+};
+
+void
+EIO_PBKDF2(eio_req* req) {
+  pbkdf2_req* request = (pbkdf2_req*)req->data;
+  request->err = PKCS5_PBKDF2_HMAC_SHA1(
+    request->pass,
+    request->passlen,
+    (unsigned char*)request->salt,
+    request->saltlen,
+    request->iter,
+    request->keylen,
+    (unsigned char*)request->key);
+  memset(request->pass, 0, request->passlen);
+  memset(request->salt, 0, request->saltlen);
+}
+
+int
+EIO_PBKDF2After(eio_req* req) {
+  HandleScope scope;
+
+  ev_unref(EV_DEFAULT_UC);
+
+  pbkdf2_req* request = (pbkdf2_req*)req->data;
+  Handle<Value> argv[2];
+  if (request->err) {
+    argv[0] = Undefined();
+    argv[1] = Encode(request->key, request->keylen, BINARY);
+    memset(request->key, 0, request->keylen);
+  } else {
+    argv[0] = Exception::Error(String::New("PBKDF2 error"));
+    argv[1] = Undefined();
+  }
+
+  TryCatch try_catch;
+
+  request->callback->Call(Context::GetCurrent()->Global(), 2, argv);
+
+  if (try_catch.HasCaught())
+    FatalException(try_catch);
+
+  delete[] request->pass;
+  delete[] request->salt;
+  delete[] request->key;
+  request->callback.Dispose();
+
+  delete request;
+
+  return 0;
+}
+
+Handle<Value>
+PBKDF2(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 5)
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
+
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  ssize_t passlen = DecodeBytes(args[0], BINARY);
+  if (passlen < 0)
+    return ThrowException(Exception::TypeError(String::New("Bad password")));
+  char* pass = new char[passlen];
+  ssize_t pass_written = DecodeWrite(pass, passlen, args[0], BINARY);
+  assert(pass_written == passlen);
+
+  ASSERT_IS_STRING_OR_BUFFER(args[1]);
+  ssize_t saltlen = DecodeBytes(args[1], BINARY);
+  if (saltlen < 0)
+    return ThrowException(Exception::TypeError(String::New("Bad salt")));
+  char* salt = new char[saltlen];
+  ssize_t salt_written = DecodeWrite(salt, saltlen, args[1], BINARY);
+  assert(salt_written == saltlen);
+
+  if (!args[2]->IsNumber())
+    return ThrowException(Exception::TypeError(String::New("Iterations not a number")));
+  ssize_t iter = args[2]->Int32Value();
+  if (iter < 0)
+    return ThrowException(Exception::TypeError(String::New("Bad iterations")));
+
+  if (!args[3]->IsNumber())
+    return ThrowException(Exception::TypeError(String::New("Key length not a number")));
+  ssize_t keylen = args[3]->Int32Value();
+  if (keylen < 0)
+    return ThrowException(Exception::TypeError(String::New("Bad key length")));
+  char* key = new char[keylen];
+
+  if (!args[4]->IsFunction())
+    return ThrowException(Exception::TypeError(String::New("Callback not a function")));
+  Local<Function> callback = Local<Function>::Cast(args[4]);
+
+  pbkdf2_req* request = new pbkdf2_req;
+  request->err = 0;
+  request->pass = pass;
+  request->passlen = passlen;
+  request->salt = salt;
+  request->saltlen = saltlen;
+  request->iter = iter;
+  request->key = key;
+  request->keylen = keylen;
+  request->callback = Persistent<Function>::New(callback);
+
+  eio_custom(EIO_PBKDF2, EIO_PRI_DEFAULT, EIO_PBKDF2After, request);
+  ev_ref(EV_DEFAULT_UC);
+
+  return Undefined();
+}
 
 void InitCrypto(Handle<Object> target) {
   HandleScope scope;
@@ -3784,6 +3901,8 @@ void InitCrypto(Handle<Object> target) {
   Hash::Initialize(target);
   Sign::Initialize(target);
   Verify::Initialize(target);
+
+  NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
 
   subject_symbol    = NODE_PSYMBOL("subject");
   issuer_symbol     = NODE_PSYMBOL("issuer");
