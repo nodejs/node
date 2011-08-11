@@ -34,6 +34,13 @@
     if (process.env.NODE_USE_UV == '1') process.features.uv = true;
     if (process.env.NODE_USE_HTTP1 == '1') process.features.http1 = true;
 
+    // make sure --use-uv is propagated to child processes
+    if (process.features.uv) {
+      process.env.NODE_USE_UV = '1';
+    } else {
+      delete process.env.NODE_USE_UV;
+    }
+
     EventEmitter = NativeModule.require('events').EventEmitter;
     process.__proto__ = EventEmitter.prototype;
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
