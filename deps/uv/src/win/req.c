@@ -110,6 +110,13 @@ void uv_process_reqs() {
         DELEGATE_STREAM_REQ((uv_connect_t*) req, connect, handle);
         break;
 
+      case UV_SHUTDOWN:
+        /* Tcp shutdown requests don't come here. */
+        assert(((uv_shutdown_t*) req)->handle->type == UV_NAMED_PIPE);
+        uv_process_pipe_shutdown_req(
+            (uv_pipe_t*) ((uv_shutdown_t*) req)->handle, req);
+        break;
+
       case UV_WAKEUP:
         uv_process_async_wakeup_req((uv_async_t*) req->data, req);
         break;
