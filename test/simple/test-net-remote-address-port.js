@@ -28,6 +28,6 @@ server.listen(common.PORT, 'localhost', function() {
   });
 });
 
-process.exit(function() {
+process.on('exit', function() {
   assert.equal(2, conns);
 });
