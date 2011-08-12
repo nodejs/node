@@ -1,4 +1,29 @@
-2011.08.01, Version 0.5.3 (unstable)
+2011.08.12, Version 0.5.4 (unstable)
+
+* libuv/Windows compatibility improvements
+
+* Build on Microsoft Visual Studio via GYP. Use generate-projects.bat in the
+  to build sln files. (Peter Bright, Igor Zinkovsky)
+
+* Make Mikeal's HTTP agent client the default. Use old HTTP client with
+  --use-http1
+
+* Fixes https host header default port handling. (Mikeal Rogers)
+
+* #1440 strip byte order marker when loading *.js and *.json files 
+  (Ben Noordhuis)
+
+* #1434 Improve util.format() compatibility with browser. (Koichi Kobayashi)
+
+* Provide unchecked uint entry points for integer Buffer.read/writeInt
+  methods. (Robert Mustacchi)
+
+* CMake improvements (Tom Huges)
+
+* Upgrade V8 to 3.5.4.
+
+
+2011.08.01, Version 0.5.3 (unstable), 4585330afef44ddfb6a4054bd9b0f190b352628b
 
 * Fix crypto encryption/decryption with Base64. (SAWADA Tadashi)
 
