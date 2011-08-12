@@ -105,6 +105,7 @@
         'src/tcp_wrap.cc',
         'src/timer_wrap.cc',
         'src/process_wrap.cc',
+        'src/v8_typed_array.cc',
       ],
 
       'defines': [
