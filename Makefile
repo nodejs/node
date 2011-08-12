@@ -119,6 +119,7 @@ UVTEST += simple/test-http-contentLength0
 UVTEST += simple/test-http-curl-chunk-problem
 UVTEST += simple/test-http-default-encoding
 UVTEST += simple/test-http-dns-fail
+UVTEST += simple/test-http-dns-error
 UVTEST += simple/test-http-eof-on-connect
 UVTEST += simple/test-http-exceptions
 UVTEST += simple/test-http-expect-continue
