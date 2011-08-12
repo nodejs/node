@@ -142,6 +142,7 @@
             'src/win/handle.c',
             'src/win/internal.h',
             'src/win/loop-watcher.c',
+            'src/win/ntdll.h',
             'src/win/pipe.c',
             'src/win/process.c',
             'src/win/req.c',
@@ -150,6 +151,7 @@
             'src/win/tcp.c',
             'src/win/timer.c',
             'src/win/util.c',
+            'src/win/winapi.c',
           ]
         }, { # Not Windows i.e. POSIX
           'cflags': [

@@ -11,8 +11,10 @@
 /build/gyp
 
 /test/run-tests
+/test/run-tests.exe
 /test/run-tests.dSYM
 /test/run-benchmarks
+/test/run-benchmarks.exe
 /test/run-benchmarks.dSYM
 
 *.sln
@@ -22,6 +24,6 @@
 *.vcxproj.user
 _UpgradeReport_Files/
 UpgradeLog*.XML
-build/Debug
-build/Release
-build/ipch
+Debug
+Release
+ipch

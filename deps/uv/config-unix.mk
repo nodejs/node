@@ -74,8 +74,14 @@ endif
 
 # Need _GNU_SOURCE for strdup?
 RUNNER_CFLAGS=$(CFLAGS) -D_GNU_SOURCE
+RUNNER_LINKFLAGS=$(LINKFLAGS)
 
-RUNNER_LINKFLAGS=$(LINKFLAGS) -pthreads
+ifeq (SunOS,$(uname_S))
+RUNNER_LINKFLAGS += -pthreads
+else
+RUNNER_LINKFLAGS += -pthread
+endif
+
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 

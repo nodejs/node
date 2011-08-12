@@ -24,7 +24,9 @@
 
 #include "uv.h"
 #include "../uv-common.h"
+
 #include "tree.h"
+#include "ntdll.h"
 
 
 /*
@@ -232,6 +234,15 @@ uv_err_code uv_translate_sys_error(int sys_errno);
 uv_err_t uv_new_sys_error(int sys_errno);
 void uv_set_sys_error(int sys_errno);
 void uv_set_error(uv_err_code code, int sys_errno);
+
+
+/*
+ * Windows api functions that we need to retrieve dynamically
+ */
+void uv_winapi_init();
+
+extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
+extern sNtQueryInformationFile pNtQueryInformationFile;
 
 
 #endif /* UV_WIN_INTERNAL_H_ */

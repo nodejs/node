@@ -48,8 +48,12 @@
 #include <linux/version.h>
 /* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
 #define HAVE_PIPE2 \
-  defined(LINUX_VERSION_CODE) && defined(__GLIBC_PREREQ) && LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9))
+  defined(LINUX_VERSION_CODE) && defined(__GLIBC_PREREQ) && \
+  LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 27) && __GLIBC_PREREQ(2, 9))
 #endif
+
+/* XXX disabling HAVE_PIPE2 for now can't compile on 2.6.18 */
+#undef HAVE_PIPE2
 
 #ifdef __sun
 # include <sys/types.h>

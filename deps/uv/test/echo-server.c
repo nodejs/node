@@ -90,7 +90,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
     return;
   }
 
-  /* 
+  /*
    * Scan for the letter Q which signals that we should quit the server.
    * If we get QS it means close the stream.
    */
@@ -99,7 +99,7 @@ static void after_read(uv_stream_t* handle, ssize_t nread, uv_buf_t buf) {
       if (buf.base[i] == 'Q') {
         if (i + 1 < nread && buf.base[i + 1] == 'S') {
           free(buf.base);
-          uv_close((uv_handle_t*)handle, NULL);
+          uv_close((uv_handle_t*)handle, on_close);
           return;
         } else {
           uv_close(server, on_server_close);

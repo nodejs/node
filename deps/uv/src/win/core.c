@@ -70,6 +70,9 @@ void uv_init() {
   /* Initialize winsock */
   uv_winsock_startup();
 
+  /* Fetch winapi function pointers */
+  uv_winapi_init();
+
   /* Intialize event loop */
   uv_loop_init();
 }

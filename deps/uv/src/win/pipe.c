@@ -173,15 +173,48 @@ void uv_pipe_endgame(uv_pipe_t* handle) {
   int status;
   unsigned int uv_alloced;
   DWORD result;
+  uv_shutdown_t* req;
+  NTSTATUS nt_status;
+  IO_STATUS_BLOCK io_status;
+  FILE_PIPE_LOCAL_INFORMATION pipe_info;
+
 
   if (handle->flags & UV_HANDLE_SHUTTING &&
       !(handle->flags & UV_HANDLE_SHUT) &&
       handle->write_reqs_pending == 0) {
+    req = handle->shutdown_req;
 
-    /* TODO: Try to avoid using the thread pool. Maybe we can somehow figure */
-    /* out how much data is left in the kernel buffer? */
+    /* Try to avoid flushing the pipe buffer in the thread pool. */
+    nt_status = pNtQueryInformationFile(handle->handle,
+                                        &io_status,
+                                        &pipe_info,
+                                        sizeof pipe_info,
+                                        FilePipeLocalInformation);
+
+    if (nt_status != STATUS_SUCCESS) {
+      /* Failure */
+      handle->flags &= ~UV_HANDLE_SHUTTING;
+      if (req->cb) {
+        uv_set_sys_error(pRtlNtStatusToDosError(nt_status));
+        req->cb(req, -1);
+      }
+      DECREASE_PENDING_REQ_COUNT(handle);
+      return;
+    }
+
+    if (pipe_info.OutboundQuota == pipe_info.WriteQuotaAvailable) {
+      /* Short-circuit, no need to call FlushFileBuffers. */
+      handle->flags |= UV_HANDLE_SHUT;
+      if (req->cb) {
+        req->cb(req, 0);
+      }
+      DECREASE_PENDING_REQ_COUNT(handle);
+      return;
+    }
+
+    /* Run FlushFileBuffers in the thhead pool. */
     result = QueueUserWorkItem(pipe_shutdown_thread_proc,
-                               handle->shutdown_req,
+                               req,
                                WT_EXECUTELONGFUNCTION);
     if (result) {
       /* Mark the handle as shut now to avoid going through this again. */
@@ -189,13 +222,14 @@ void uv_pipe_endgame(uv_pipe_t* handle) {
 
     } else {
       /* Failure. */
-      uv_set_sys_error(GetLastError());
-      handle->shutdown_req->cb(handle->shutdown_req, -1);
       handle->flags &= ~UV_HANDLE_SHUTTING;
+      if (req->cb) {
+        uv_set_sys_error(GetLastError());
+        req->cb(req, -1);
+      }
       DECREASE_PENDING_REQ_COUNT(handle);
+      return;
     }
-
-    return;
   }
 
   if (handle->flags & UV_HANDLE_CLOSING &&
@@ -333,6 +367,8 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
     if (pipeHandle != INVALID_HANDLE_VALUE) {
       break;
     }
+
+    SwitchToThread();
   }
 
   if (pipeHandle != INVALID_HANDLE_VALUE && !uv_set_pipe_handle(handle, pipeHandle)) {
@@ -754,7 +790,7 @@ void uv_process_pipe_read_req(uv_pipe_t* handle, uv_req_t* req) {
       }
 
       if (avail == 0) {
-        // Nothing to read after all
+        /* There is nothing to read after all. */
         break;
       }
 
@@ -863,7 +899,7 @@ void uv_process_pipe_shutdown_req(uv_pipe_t* handle, uv_shutdown_t* req) {
   handle->handle = INVALID_HANDLE_VALUE;
 
   if (req->cb) {
-    ((uv_shutdown_cb) req->cb)(req, 0);
+    req->cb(req, 0);
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
