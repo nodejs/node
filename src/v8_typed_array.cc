@@ -357,11 +357,11 @@ class TypedArray {
 
     if (begin < 0) begin = length + begin;
     if (begin < 0) begin = 0;
-    if (begin > length) begin = length;
+    if ((unsigned)begin > length) begin = length;
 
     if (end < 0) end = length + end;
     if (end < 0) end = 0;
-    if (end > length) end = length;
+    if ((unsigned)end > length) end = length;
 
     if (begin > end) begin = end;
 
@@ -585,7 +585,7 @@ class DataView {
 
   // TODO(deanm): This isn't beautiful or optimal.
   static void swizzle(char* buf, size_t len) {
-    for (int i = 0; i < len / 2; ++i) {
+    for (size_t i = 0; i < len / 2; ++i) {
       char t = buf[i];
       buf[i] = buf[len - i - 1];
       buf[len - i - 1] = t;
@@ -625,7 +625,7 @@ class DataView {
     int size = args.This()->GetIndexedPropertiesExternalArrayDataLength() *
                element_size;
 
-    if (index + sizeof(T) > size)  // TODO(deanm): integer overflow.
+    if (index + sizeof(T) > (unsigned)size)  // TODO(deanm): integer overflow.
       return ThrowError("Index out of range.");
 
     void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
@@ -645,7 +645,7 @@ class DataView {
     int size = args.This()->GetIndexedPropertiesExternalArrayDataLength() *
                element_size;
 
-    if (index + sizeof(T) > size)  // TODO(deanm): integer overflow.
+    if (index + sizeof(T) > (unsigned)size)  // TODO(deanm): integer overflow.
       return ThrowError("Index out of range.");
 
     void* ptr = args.This()->GetIndexedPropertiesExternalArrayData();
