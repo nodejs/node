@@ -35,6 +35,7 @@
 #ifndef V8_OBJECTS_INL_H_
 #define V8_OBJECTS_INL_H_
 
+#include "elements.h"
 #include "objects.h"
 #include "contexts.h"
 #include "conversions-inl.h"
@@ -477,6 +478,12 @@ bool Object::IsJSProxy() {
 bool Object::IsJSFunctionProxy() {
   return Object::IsHeapObject() &&
       HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_PROXY_TYPE;
+}
+
+
+bool Object::IsJSWeakMap() {
+  return Object::IsJSObject() &&
+      HeapObject::cast(this)->map()->instance_type() == JS_WEAK_MAP_TYPE;
 }
 
 
@@ -1416,6 +1423,8 @@ int JSObject::GetHeaderSize() {
       return JSValue::kSize;
     case JS_ARRAY_TYPE:
       return JSValue::kSize;
+    case JS_WEAK_MAP_TYPE:
+      return JSWeakMap::kSize;
     case JS_REGEXP_TYPE:
       return JSValue::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
@@ -1603,6 +1612,7 @@ Object* FixedArray::get(int index) {
 
 void FixedArray::set(int index, Smi* value) {
   ASSERT(map() != HEAP->fixed_cow_array_map());
+  ASSERT(index >= 0 && index < this->length());
   ASSERT(reinterpret_cast<Object*>(value)->IsSmi());
   int offset = kHeaderSize + index * kPointerSize;
   WRITE_FIELD(this, offset, value);
@@ -1635,13 +1645,22 @@ inline double FixedDoubleArray::canonical_not_the_hole_nan_as_double() {
 }
 
 
-double FixedDoubleArray::get(int index) {
+double FixedDoubleArray::get_scalar(int index) {
   ASSERT(map() != HEAP->fixed_cow_array_map() &&
          map() != HEAP->fixed_array_map());
   ASSERT(index >= 0 && index < this->length());
   double result = READ_DOUBLE_FIELD(this, kHeaderSize + index * kDoubleSize);
   ASSERT(!is_the_hole_nan(result));
   return result;
+}
+
+
+MaybeObject* FixedDoubleArray::get(int index) {
+  if (is_the_hole(index)) {
+    return GetHeap()->the_hole_value();
+  } else {
+    return GetHeap()->NumberFromDouble(get_scalar(index));
+  }
 }
 
 
@@ -2066,6 +2085,7 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
+CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
 CAST_ACCESSOR(ExternalArray)
@@ -2369,10 +2389,15 @@ uint8_t* ExternalPixelArray::external_pixel_pointer() {
 }
 
 
-uint8_t ExternalPixelArray::get(int index) {
+uint8_t ExternalPixelArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint8_t* ptr = external_pixel_pointer();
   return ptr[index];
+}
+
+
+MaybeObject* ExternalPixelArray::get(int index) {
+  return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
@@ -2395,10 +2420,15 @@ void ExternalArray::set_external_pointer(void* value, WriteBarrierMode mode) {
 }
 
 
-int8_t ExternalByteArray::get(int index) {
+int8_t ExternalByteArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   int8_t* ptr = static_cast<int8_t*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalByteArray::get(int index) {
+  return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
@@ -2409,10 +2439,15 @@ void ExternalByteArray::set(int index, int8_t value) {
 }
 
 
-uint8_t ExternalUnsignedByteArray::get(int index) {
+uint8_t ExternalUnsignedByteArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint8_t* ptr = static_cast<uint8_t*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalUnsignedByteArray::get(int index) {
+  return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
@@ -2423,10 +2458,15 @@ void ExternalUnsignedByteArray::set(int index, uint8_t value) {
 }
 
 
-int16_t ExternalShortArray::get(int index) {
+int16_t ExternalShortArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   int16_t* ptr = static_cast<int16_t*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalShortArray::get(int index) {
+  return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
@@ -2437,10 +2477,15 @@ void ExternalShortArray::set(int index, int16_t value) {
 }
 
 
-uint16_t ExternalUnsignedShortArray::get(int index) {
+uint16_t ExternalUnsignedShortArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint16_t* ptr = static_cast<uint16_t*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalUnsignedShortArray::get(int index) {
+  return Smi::FromInt(static_cast<int>(get_scalar(index)));
 }
 
 
@@ -2451,10 +2496,15 @@ void ExternalUnsignedShortArray::set(int index, uint16_t value) {
 }
 
 
-int32_t ExternalIntArray::get(int index) {
+int32_t ExternalIntArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   int32_t* ptr = static_cast<int32_t*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalIntArray::get(int index) {
+    return GetHeap()->NumberFromInt32(get_scalar(index));
 }
 
 
@@ -2465,10 +2515,15 @@ void ExternalIntArray::set(int index, int32_t value) {
 }
 
 
-uint32_t ExternalUnsignedIntArray::get(int index) {
+uint32_t ExternalUnsignedIntArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   uint32_t* ptr = static_cast<uint32_t*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalUnsignedIntArray::get(int index) {
+    return GetHeap()->NumberFromUint32(get_scalar(index));
 }
 
 
@@ -2479,10 +2534,15 @@ void ExternalUnsignedIntArray::set(int index, uint32_t value) {
 }
 
 
-float ExternalFloatArray::get(int index) {
+float ExternalFloatArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   float* ptr = static_cast<float*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalFloatArray::get(int index) {
+    return GetHeap()->NumberFromDouble(get_scalar(index));
 }
 
 
@@ -2493,10 +2553,15 @@ void ExternalFloatArray::set(int index, float value) {
 }
 
 
-double ExternalDoubleArray::get(int index) {
+double ExternalDoubleArray::get_scalar(int index) {
   ASSERT((index >= 0) && (index < this->length()));
   double* ptr = static_cast<double*>(external_pointer());
   return ptr[index];
+}
+
+
+MaybeObject* ExternalDoubleArray::get(int index) {
+    return GetHeap()->NumberFromDouble(get_scalar(index));
 }
 
 
@@ -3469,35 +3534,14 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-BOOL_ACCESSORS(SharedFunctionInfo,
-               compiler_hints,
-               strict_mode,
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, strict_mode,
                kStrictModeFunction)
-
-
-bool SharedFunctionInfo::native() {
-  return BooleanBit::get(compiler_hints(), kNative);
-}
-
-
-void SharedFunctionInfo::set_native(bool value) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kNative,
-                                     value));
-}
-
-
-bool SharedFunctionInfo::bound() {
-  return BooleanBit::get(compiler_hints(), kBoundFunction);
-}
-
-
-void SharedFunctionInfo::set_bound(bool value) {
-  set_compiler_hints(BooleanBit::set(compiler_hints(),
-                                     kBoundFunction,
-                                     value));
-}
-
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
+               name_should_print_as_anonymous,
+               kNameShouldPrintAsAnonymous)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, bound, kBoundFunction)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -3796,6 +3840,15 @@ ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
 ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
 
 
+ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)
+ACCESSORS_GCSAFE(JSWeakMap, next, Object, kNextOffset)
+
+
+ObjectHashTable* JSWeakMap::unchecked_table() {
+  return reinterpret_cast<ObjectHashTable*>(READ_FIELD(this, kTableOffset));
+}
+
+
 Address Foreign::address() {
   return AddressFrom<Address>(READ_INTPTR_FIELD(this, kAddressOffset));
 }
@@ -3978,6 +4031,11 @@ JSObject::ElementsKind JSObject::GetElementsKind() {
           elements()->IsDictionary()) ||
          (kind > DICTIONARY_ELEMENTS));
   return kind;
+}
+
+
+ElementsAccessor* JSObject::GetElementsAccessor() {
+  return ElementsAccessor::ForKind(GetElementsKind());
 }
 
 
@@ -4396,6 +4454,11 @@ uint32_t ObjectHashTableShape::HashForObject(JSObject* key, Object* other) {
 
 MaybeObject* ObjectHashTableShape::AsObject(JSObject* key) {
   return key;
+}
+
+
+void ObjectHashTable::RemoveEntry(int entry) {
+  RemoveEntry(entry, GetHeap());
 }
 
 

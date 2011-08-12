@@ -84,7 +84,7 @@ namespace v8 {
     if (has_pending_exception) {                                               \
       if (handle_scope_implementer->CallDepthIsZero() &&                       \
           (isolate)->is_out_of_memory()) {                                     \
-        if (!handle_scope_implementer->ignore_out_of_memory())                 \
+        if (!(isolate)->ignore_out_of_memory())                                \
           i::V8::FatalProcessOutOfMemory(NULL);                                \
       }                                                                        \
       bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero();   \
@@ -4259,8 +4259,8 @@ static void* ExternalValueImpl(i::Handle<i::Object> obj) {
 Local<Value> v8::External::Wrap(void* data) {
   i::Isolate* isolate = i::Isolate::Current();
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
-  LOG_API(isolate, "External::Wrap");
   EnsureInitializedForIsolate(isolate, "v8::External::Wrap()");
+  LOG_API(isolate, "External::Wrap");
   ENTER_V8(isolate);
 
   v8::Local<v8::Value> result = CanBeEncodedAsSmi(data)
@@ -4304,8 +4304,8 @@ void* v8::External::FullUnwrap(v8::Handle<v8::Value> wrapper) {
 Local<External> v8::External::New(void* data) {
   STATIC_ASSERT(sizeof(data) == sizeof(i::Address));
   i::Isolate* isolate = i::Isolate::Current();
-  LOG_API(isolate, "External::New");
   EnsureInitializedForIsolate(isolate, "v8::External::New()");
+  LOG_API(isolate, "External::New");
   ENTER_V8(isolate);
   return ExternalNewImpl(data);
 }
@@ -4797,8 +4797,7 @@ Local<Integer> Integer::NewFromUnsigned(uint32_t value) {
 
 
 void V8::IgnoreOutOfMemoryException() {
-  EnterIsolateIfNeeded()->handle_scope_implementer()->set_ignore_out_of_memory(
-      true);
+  EnterIsolateIfNeeded()->set_ignore_out_of_memory(true);
 }
 
 

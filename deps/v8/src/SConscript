@@ -32,6 +32,7 @@ sys.path.append(join(root_dir, 'tools'))
 import js2c
 Import('context')
 Import('tools')
+Import('d8_env')
 
 
 SOURCES = {
@@ -65,6 +66,7 @@ SOURCES = {
     disassembler.cc
     diy-fp.cc
     dtoa.cc
+    elements.cc
     execution.cc
     factory.cc
     flags.cc
@@ -307,6 +309,7 @@ debug-debugger.js
 
 EXPERIMENTAL_LIBRARY_FILES = '''
 proxy.js
+weakmap.js
 '''.split()
 
 
@@ -338,7 +341,7 @@ def ConfigureObjectFiles():
   else:
     d8_files = context.GetRelevantSources(D8_FULL_FILES)
     d8_objs = [d8_js_obj]
-  d8_objs.append(context.ConfigureObject(env, [d8_files]))
+  d8_objs.append(context.ConfigureObject(d8_env, [d8_files]))
 
   # Combine the JavaScript library files into a single C++ file and
   # compile it.

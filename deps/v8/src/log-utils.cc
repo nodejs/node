@@ -34,7 +34,7 @@ namespace v8 {
 namespace internal {
 
 
-const char* Log::kLogToTemporaryFile = "&";
+const char* const Log::kLogToTemporaryFile = "&";
 
 
 Log::Log(Logger* logger)

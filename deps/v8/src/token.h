@@ -41,7 +41,6 @@ namespace internal {
 //
 //   T: Non-keyword tokens
 //   K: Keyword tokens
-//   F: Future (reserved) keyword tokens
 
 // IGNORE_TOKEN is a convenience macro that can be supplied as
 // an argument (at any position) for a TOKEN_LIST call. It does
@@ -49,7 +48,7 @@ namespace internal {
 
 #define IGNORE_TOKEN(name, string, precedence)
 
-#define TOKEN_LIST(T, K, F)                                             \
+#define TOKEN_LIST(T, K)                                                \
   /* End of source indicator. */                                        \
   T(EOS, "EOS", 0)                                                      \
                                                                         \
@@ -182,7 +181,7 @@ class Token {
   // All token values.
 #define T(name, string, precedence) name,
   enum Value {
-    TOKEN_LIST(T, T, IGNORE_TOKEN)
+    TOKEN_LIST(T, T)
     NUM_TOKENS
   };
 #undef T

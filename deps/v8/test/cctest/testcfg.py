@@ -48,7 +48,11 @@ class CcTestCase(test.TestCase):
     return self.path[-1]
 
   def BuildCommand(self, name):
-    serialization_file = join('obj', 'test', self.mode, 'serdes')
+    serialization_file = ''
+    if exists(join(self.context.buildspace, 'obj', 'test', self.mode)):
+      serialization_file = join('obj', 'test', self.mode, 'serdes')
+    else:
+      serialization_file = join('obj', 'serdes')
     serialization_file += '_' + self.GetName()
     serialization_file = join(self.context.buildspace, serialization_file)
     serialization_file += ''.join(self.variant_flags).replace('-', '_')
@@ -78,10 +82,15 @@ class CcTestConfiguration(test.TestConfiguration):
     return ['cctests']
 
   def ListTests(self, current_path, path, mode, variant_flags):
-    executable = join('obj', 'test', mode, 'cctest')
+    executable = 'cctest'
     if utils.IsWindows():
       executable += '.exe'
     executable = join(self.context.buildspace, executable)
+    if not exists(executable):
+      executable = join('obj', 'test', mode, 'cctest')
+      if utils.IsWindows():
+        executable += '.exe'
+      executable = join(self.context.buildspace, executable)
     output = test.Execute([executable, '--list'], self.context)
     if output.exit_code != 0:
       print output.stdout

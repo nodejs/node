@@ -248,12 +248,19 @@ class SourceProcessor(SourceFileProcessor):
   def IgnoreDir(self, name):
     return (super(SourceProcessor, self).IgnoreDir(name)
               or (name == 'third_party')
+              or (name == 'gyp')
+              or (name == 'out')
               or (name == 'obj'))
 
-  IGNORE_COPYRIGHTS = ['earley-boyer.js', 'raytrace.js', 'crypto.js',
-      'libraries.cc', 'libraries-empty.cc', 'jsmin.py', 'regexp-pcre.js']
-  IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js',
-      'html-comments.js']
+  IGNORE_COPYRIGHTS = ['cpplint.py',
+                       'earley-boyer.js',
+                       'raytrace.js',
+                       'crypto.js',
+                       'libraries.cc',
+                       'libraries-empty.cc',
+                       'jsmin.py',
+                       'regexp-pcre.js']
+  IGNORE_TABS = IGNORE_COPYRIGHTS + ['unicode-test.js', 'html-comments.js']
 
   def ProcessContents(self, name, contents):
     result = True

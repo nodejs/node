@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -30,6 +30,7 @@
     'library%': 'static_library',
     'component%': 'static_library',
     'visibility%': 'hidden',
+    'msvs_multi_core_compile%': '1',
     'variables': {
       'conditions': [
         [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
@@ -46,23 +47,41 @@
     'host_arch%': '<(host_arch)',
     'target_arch%': '<(host_arch)',
     'v8_target_arch%': '<(target_arch)',
+    'v8_enable_debugger_support%': 1,
+    'conditions': [
+      ['(target_arch=="arm" and host_arch!="arm") or \
+        (target_arch=="x64" and host_arch!="x64")', {
+        'want_separate_host_toolset': 1,
+      }, {
+        'want_separate_host_toolset': 0,
+      }],
+    ],
   },
   'target_defaults': {
     'default_configuration': 'Debug',
+    'conditions': [
+      ['v8_enable_debugger_support==1', {
+          'defines': ['ENABLE_DEBUGGER_SUPPORT',],
+        },
+      ],
+    ],
     'configurations': {
       'Debug': {
         'cflags': [ '-g', '-O0' ],
-        'defines': [ 'ENABLE_DISASSEMBLER', 'DEBUG' ],
+        'defines': [ 'ENABLE_DISASSEMBLER', 'DEBUG', 'V8_ENABLE_CHECKS',
+                     'OBJECT_PRINT' ],
       },
       'Release': {
-        'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
+        'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections',
+                    '-ffunction-sections' ],
       },
     },
   },
   'conditions': [
     [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
       'target_defaults': {
-        'cflags': [ '-Wall', '-pthread', '-fno-rtti', '-fno-exceptions' ],
+        'cflags': [ '-Wall', '-pthread', '-fno-rtti', '-fno-exceptions',
+                    '-pedantic' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
           [ 'target_arch=="ia32"', {

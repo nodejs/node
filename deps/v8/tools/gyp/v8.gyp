@@ -26,11 +26,6 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
-  'includes': [
-    '../../build/common.gypi',
-    '../../build/v8-features.gypi',
-  ],
-
   'variables': {
     'use_system_v8%': 0,
     'msvs_use_common_release': 0,
@@ -59,6 +54,12 @@
     # well when compiling for the ARM target.
     'v8_use_arm_eabi_hardfloat%': 'false',
 
+    'v8_enable_debugger_support%': 1,
+
+    # Chrome needs this definition unconditionally. For standalone V8 builds,
+    # it's handled in common.gypi.
+    'want_separate_host_toolset%': 1,
+
     'v8_use_snapshot%': 'true',
     'host_os%': '<(OS)',
     'v8_use_liveobjectlist%': 'false',
@@ -66,10 +67,11 @@
   'conditions': [
     ['use_system_v8==0', {
       'target_defaults': {
-        'defines': [
-          'ENABLE_DEBUGGER_SUPPORT',
-        ],
         'conditions': [
+          ['v8_enable_debugger_support==1', {
+              'defines': ['ENABLE_DEBUGGER_SUPPORT',],
+            },
+          ],
           ['OS!="mac"', {
             # TODO(mark): The OS!="mac" conditional is temporary. It can be
             # removed once the Mac Chromium build stops setting target_arch to
@@ -101,6 +103,13 @@
                     'defines': [
                       'USE_EABI_HARDFLOAT=1',
                       'CAN_USE_VFP_INSTRUCTIONS',
+                    ],
+                    'cflags': [
+                      '-mfloat-abi=hard',
+                    ],
+                  }, {
+                    'defines': [
+                      'USE_EABI_HARDFLOAT=0',
                     ],
                   }],
                 ],
@@ -154,11 +163,19 @@
               },
               'VCLinkerTool': {
                 'LinkIncremental': '2',
+                # For future reference, the stack size needs to be increased
+                # when building for Windows 64-bit, otherwise some test cases
+                # can cause stack overflow.
+                # 'StackReserveSize': '297152',
               },
             },
             'conditions': [
              ['OS=="freebsd" or OS=="openbsd"', {
                'cflags': [ '-I/usr/local/include' ],
+             }],
+             ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+               'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
+                           '-Wnon-virtual-dtor' ],
              }],
            ],
           },
@@ -224,6 +241,10 @@
                     'OptimizeReferences': '2',
                     'OptimizeForWindows98': '1',
                     'EnableCOMDATFolding': '2',
+                    # For future reference, the stack size needs to be
+                    # increased when building for Windows 64-bit, otherwise
+                    # some test cases can cause stack overflow.
+                    # 'StackReserveSize': '297152',
                   },
                 },
               }],
@@ -234,8 +255,12 @@
       'targets': [
         {
           'target_name': 'v8',
-          'toolsets': ['host', 'target'],
           'conditions': [
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+            }, {
+              'toolsets': ['target'],
+            }],
             ['v8_use_snapshot=="true"', {
               'dependencies': ['v8_snapshot'],
             },
@@ -277,23 +302,33 @@
           ],
           'direct_dependent_settings': {
             'include_dirs': [
-               '../../include',
+              '../../include',
             ],
           },
         },
         {
           'target_name': 'v8_snapshot',
           'type': '<(library)',
-          'toolsets': ['host', 'target'],
           'conditions': [
-            ['component=="shared_library"', {
-              'conditions': [
-                # The ARM assembler assumes the host is 32 bits, so force building
-                # 32-bit host tools.
-                ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+              'dependencies': ['mksnapshot#host', 'js2c#host'],
+            }, {
+              'toolsets': ['target'],
+              'dependencies': ['mksnapshot', 'js2c'],
+            }],
+            # The ARM assembler assumes the host is 32 bits,
+            # so force building 32-bit host tools.
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
                   'cflags': ['-m32'],
                   'ldflags': ['-m32'],
                 }],
+              ],
+            }],
+            ['component=="shared_library"', {
+              'conditions': [
                 ['OS=="win"', {
                   'defines': [
                     'BUILDING_V8_SHARED',
@@ -317,8 +352,6 @@
             }],
           ],
           'dependencies': [
-            'mksnapshot#host',
-            'js2c#host',
             'v8_base',
           ],
           'include_dirs+': [
@@ -379,16 +412,13 @@
                 '<@(mksnapshot_flags)',
                 '<@(_outputs)'
               ],
-              'msvs_cygwin_shell': 0,
             },
           ],
         },
         {
           'target_name': 'v8_nosnapshot',
           'type': '<(library)',
-          'toolsets': ['host', 'target'],
           'dependencies': [
-            'js2c#host',
             'v8_base',
           ],
           'include_dirs+': [
@@ -400,11 +430,22 @@
             '../../src/snapshot-empty.cc',
           ],
           'conditions': [
-            # The ARM assembler assumes the host is 32 bits, so force building
-            # 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
+            # The ARM assembler assumes the host is 32 bits,
+            # so force building 32-bit host tools.
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
+            }],
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+              'dependencies': ['js2c#host'],
+            }, {
+              'toolsets': ['target'],
+              'dependencies': ['js2c'],
             }],
             ['component=="shared_library"', {
               'defines': [
@@ -417,7 +458,6 @@
         {
           'target_name': 'v8_base',
           'type': '<(library)',
-          'toolsets': ['host', 'target'],
           'include_dirs+': [
             '../../src',
           ],
@@ -494,6 +534,8 @@
             '../../src/diy-fp.cc',
             '../../src/diy-fp.h',
             '../../src/double.h',
+            '../../src/elements.cc',
+            '../../src/elements.h',
             '../../src/execution.cc',
             '../../src/execution.h',
             '../../src/factory.cc',
@@ -616,7 +658,6 @@
             '../../src/scopes.h',
             '../../src/serialize.cc',
             '../../src/serialize.h',
-            '../../src/shell.h',
             '../../src/small-pointer-list.h',
             '../../src/smart-pointer.h',
             '../../src/snapshot-common.cc',
@@ -672,10 +713,12 @@
             '../../src/extensions/gc-extension.h',
           ],
           'conditions': [
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+            }, {
+              'toolsets': ['target'],
+            }],
             ['v8_target_arch=="arm"', {
-              'include_dirs+': [
-                '../../src/arm',
-              ],
               'sources': [
                 '../../src/arm/assembler-arm-inl.h',
                 '../../src/arm/assembler-arm.cc',
@@ -711,16 +754,17 @@
               'conditions': [
                 # The ARM assembler assumes the host is 32 bits,
                 # so force building 32-bit host tools.
-                ['host_arch=="x64" and _toolset=="host"', {
-                  'cflags': ['-m32'],
-                  'ldflags': ['-m32'],
-                }]
-              ]
+                ['host_arch=="x64"', {
+                  'target_conditions': [
+                    ['_toolset=="host"', {
+                      'cflags': ['-m32'],
+                      'ldflags': ['-m32'],
+                    }],
+                  ],
+                }],
+              ],
             }],
             ['v8_target_arch=="ia32" or v8_target_arch=="mac" or OS=="mac"', {
-              'include_dirs+': [
-                '../../src/ia32',
-              ],
               'sources': [
                 '../../src/ia32/assembler-ia32-inl.h',
                 '../../src/ia32/assembler-ia32.cc',
@@ -752,9 +796,6 @@
               ],
             }],
             ['v8_target_arch=="x64" or v8_target_arch=="mac" or OS=="mac"', {
-              'include_dirs+': [
-                '../../src/x64',
-              ],
               'sources': [
                 '../../src/x64/assembler-x64-inl.h',
                 '../../src/x64/assembler-x64.cc',
@@ -787,10 +828,6 @@
             }],
             ['OS=="linux"', {
                 'link_settings': {
-                  'libraries': [
-                    # Needed for clock_gettime() used by src/platform-linux.cc.
-                    '-lrt',
-                  ],
                   'conditions': [
                     ['v8_compress_startup_data=="bz2"', {
                       'libraries': [
@@ -876,7 +913,13 @@
         {
           'target_name': 'js2c',
           'type': 'none',
-          'toolsets': ['host'],
+          'conditions': [
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }, {
+              'toolsets': ['target'],
+            }],
+          ],
           'variables': {
             'library_files': [
               '../../src/runtime.js',
@@ -896,8 +939,9 @@
               '../../src/macros.py',
             ],
             'experimental_library_files': [
-              '../../src/proxy.js',
               '../../src/macros.py',
+              '../../src/proxy.js',
+              '../../src/weakmap.js',
             ],
           },
           'actions': [
@@ -918,7 +962,6 @@
                 '<(v8_compress_startup_data)',
                 '<@(library_files)'
               ],
-              'msvs_cygwin_shell': 0,
             },
             {
               'action_name': 'js2c_experimental',
@@ -937,14 +980,12 @@
                 '<(v8_compress_startup_data)',
                 '<@(experimental_library_files)'
               ],
-              'msvs_cygwin_shell': 0,
             },
           ],
         },
         {
           'target_name': 'mksnapshot',
           'type': 'executable',
-          'toolsets': ['host'],
           'dependencies': [
             'v8_nosnapshot',
           ],
@@ -955,11 +996,20 @@
             '../../src/mksnapshot.cc',
           ],
           'conditions': [
-            # The ARM assembler assumes the host is 32 bits, so force building
-            # 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }, {
+              'toolsets': ['target'],
+            }],
+            # The ARM assembler assumes the host is 32 bits,
+            # so force building 32-bit host tools.
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
             }],
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
@@ -970,7 +1020,6 @@
         {
           'target_name': 'v8_shell',
           'type': 'executable',
-          'toolsets': ['host'],
           'dependencies': [
             'v8'
           ],
@@ -978,20 +1027,41 @@
             '../../samples/shell.cc',
           ],
           'conditions': [
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }, {
+              'toolsets': ['target'],
+            }],
             ['OS=="win"', {
               # This could be gotten by not setting chromium_code, if that's OK.
               'defines': ['_CRT_SECURE_NO_WARNINGS'],
-            }],
-            # The ARM assembler assumes the host is 32 bits, so force building
-            # 32-bit host tools.
-            ['v8_target_arch=="arm" and host_arch=="x64" and _toolset=="host"', {
-              'cflags': ['-m32'],
-              'ldflags': ['-m32'],
             }],
             ['v8_compress_startup_data=="bz2"', {
               'libraries': [
                 '-lbz2',
               ]}],
+          ],
+        },
+        {
+          'target_name': 'preparser_lib',
+          'type': '<(library)',
+          'include_dirs+': [
+            '../../src',
+          ],
+          'sources': [
+            '../../src/allocation.cc',
+            '../../src/bignum.cc',
+            '../../src/cached-powers.cc',
+            '../../src/conversions.cc',
+            '../../src/hashmap.cc',
+            '../../src/preparse-data.cc',
+            '../../src/preparser.cc',
+            '../../src/preparser-api.cc',
+            '../../src/scanner-base.cc',
+            '../../src/strtod.cc',
+            '../../src/token.cc',
+            '../../src/unicode.cc',
+            '../../src/utils.cc',
           ],
         },
       ],
@@ -1000,7 +1070,23 @@
         {
           'target_name': 'v8',
           'type': 'settings',
-          'toolsets': ['host', 'target'],
+          'conditions': [
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host', 'target'],
+            }, {
+              'toolsets': ['target'],
+            }],
+            # The ARM assembler assumes the host is 32 bits,
+            # so force building 32-bit host tools.
+            ['v8_target_arch=="arm" and host_arch=="x64"', {
+              'target_conditions': [
+                ['_toolset=="host"', {
+                  'cflags': ['-m32'],
+                  'ldflags': ['-m32'],
+                }],
+              ],
+            }],
+          ],
           'link_settings': {
             'libraries': [
               '-lv8',
@@ -1010,7 +1096,13 @@
         {
           'target_name': 'v8_shell',
           'type': 'none',
-          'toolsets': ['host'],
+          'conditions': [
+            ['want_separate_host_toolset==1', {
+              'toolsets': ['host'],
+            }, {
+              'toolsets': ['target'],
+            }],
+          ],
           'dependencies': [
             'v8'
           ],

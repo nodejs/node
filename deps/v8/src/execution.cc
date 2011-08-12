@@ -132,7 +132,7 @@ static Handle<Object> Invoke(bool construct,
   if (*has_pending_exception) {
     isolate->ReportPendingMessages();
     if (isolate->pending_exception() == Failure::OutOfMemoryException()) {
-      if (!isolate->handle_scope_implementer()->ignore_out_of_memory()) {
+      if (!isolate->ignore_out_of_memory()) {
         V8::FatalProcessOutOfMemory("JS", true);
       }
     }

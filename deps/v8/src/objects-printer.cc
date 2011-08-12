@@ -151,6 +151,9 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyPrint(out);
       break;
+    case JS_WEAK_MAP_TYPE:
+      JSWeakMap::cast(this)->JSWeakMapPrint(out);
+      break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignPrint(out);
       break;
@@ -289,7 +292,7 @@ void JSObject::PrintElements(FILE* out) {
         if (p->is_the_hole(i)) {
           PrintF(out, "   %d: <the hole>", i);
         } else {
-          PrintF(out, "   %d: %g", i, p->get(i));
+          PrintF(out, "   %d: %g", i, p->get_scalar(i));
         }
         PrintF(out, "\n");
       }
@@ -298,14 +301,14 @@ void JSObject::PrintElements(FILE* out) {
     case EXTERNAL_PIXEL_ELEMENTS: {
       ExternalPixelArray* p = ExternalPixelArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, p->get(i));
+        PrintF(out, "   %d: %d\n", i, p->get_scalar(i));
       }
       break;
     }
     case EXTERNAL_BYTE_ELEMENTS: {
       ExternalByteArray* p = ExternalByteArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get(i)));
+        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
       }
       break;
     }
@@ -313,14 +316,14 @@ void JSObject::PrintElements(FILE* out) {
       ExternalUnsignedByteArray* p =
           ExternalUnsignedByteArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get(i)));
+        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
       }
       break;
     }
     case EXTERNAL_SHORT_ELEMENTS: {
       ExternalShortArray* p = ExternalShortArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get(i)));
+        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
       }
       break;
     }
@@ -328,14 +331,14 @@ void JSObject::PrintElements(FILE* out) {
       ExternalUnsignedShortArray* p =
           ExternalUnsignedShortArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get(i)));
+        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
       }
       break;
     }
     case EXTERNAL_INT_ELEMENTS: {
       ExternalIntArray* p = ExternalIntArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get(i)));
+        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
       }
       break;
     }
@@ -343,21 +346,21 @@ void JSObject::PrintElements(FILE* out) {
       ExternalUnsignedIntArray* p =
           ExternalUnsignedIntArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get(i)));
+        PrintF(out, "   %d: %d\n", i, static_cast<int>(p->get_scalar(i)));
       }
       break;
     }
     case EXTERNAL_FLOAT_ELEMENTS: {
       ExternalFloatArray* p = ExternalFloatArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "   %d: %f\n", i, p->get(i));
+        PrintF(out, "   %d: %f\n", i, p->get_scalar(i));
       }
       break;
     }
     case EXTERNAL_DOUBLE_ELEMENTS: {
       ExternalDoubleArray* p = ExternalDoubleArray::cast(elements());
       for (int i = 0; i < p->length(); i++) {
-        PrintF(out, "  %d: %f\n", i, p->get(i));
+        PrintF(out, "  %d: %f\n", i, p->get_scalar(i));
       }
       break;
     }
@@ -431,6 +434,7 @@ static const char* TypeToString(InstanceType type) {
     case CODE_TYPE: return "CODE";
     case JS_ARRAY_TYPE: return "JS_ARRAY";
     case JS_PROXY_TYPE: return "JS_PROXY";
+    case JS_WEAK_MAP_TYPE: return "JS_WEAK_MAP";
     case JS_REGEXP_TYPE: return "JS_REGEXP";
     case JS_VALUE_TYPE: return "JS_VALUE";
     case JS_GLOBAL_OBJECT_TYPE: return "JS_GLOBAL_OBJECT";
@@ -580,6 +584,16 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
+  PrintF(out, "\n");
+}
+
+
+void JSWeakMap::JSWeakMapPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "JSWeakMap");
+  PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - number of elements = %d\n", table()->NumberOfElements());
+  PrintF(out, " - table = ");
+  table()->ShortPrint(out);
   PrintF(out, "\n");
 }
 

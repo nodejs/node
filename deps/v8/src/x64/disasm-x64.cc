@@ -58,7 +58,7 @@ struct ByteMnemonic {
 };
 
 
-static ByteMnemonic two_operands_instr[] = {
+static const ByteMnemonic two_operands_instr[] = {
   { 0x00, BYTE_OPER_REG_OP_ORDER, "add" },
   { 0x01, OPER_REG_OP_ORDER,      "add" },
   { 0x02, BYTE_REG_OPER_OP_ORDER, "add" },
@@ -105,7 +105,7 @@ static ByteMnemonic two_operands_instr[] = {
 };
 
 
-static ByteMnemonic zero_operands_instr[] = {
+static const ByteMnemonic zero_operands_instr[] = {
   { 0xC3, UNSET_OP_ORDER, "ret" },
   { 0xC9, UNSET_OP_ORDER, "leave" },
   { 0xF4, UNSET_OP_ORDER, "hlt" },
@@ -125,14 +125,14 @@ static ByteMnemonic zero_operands_instr[] = {
 };
 
 
-static ByteMnemonic call_jump_instr[] = {
+static const ByteMnemonic call_jump_instr[] = {
   { 0xE8, UNSET_OP_ORDER, "call" },
   { 0xE9, UNSET_OP_ORDER, "jmp" },
   { -1, UNSET_OP_ORDER, "" }
 };
 
 
-static ByteMnemonic short_immediate_instr[] = {
+static const ByteMnemonic short_immediate_instr[] = {
   { 0x05, UNSET_OP_ORDER, "add" },
   { 0x0D, UNSET_OP_ORDER, "or" },
   { 0x15, UNSET_OP_ORDER, "adc" },
@@ -145,7 +145,7 @@ static ByteMnemonic short_immediate_instr[] = {
 };
 
 
-static const char* conditional_code_suffix[] = {
+static const char* const conditional_code_suffix[] = {
   "o", "no", "c", "nc", "z", "nz", "na", "a",
   "s", "ns", "pe", "po", "l", "ge", "le", "g"
 };
@@ -193,7 +193,7 @@ class InstructionTable {
   InstructionDesc instructions_[256];
   void Clear();
   void Init();
-  void CopyTable(ByteMnemonic bm[], InstructionType type);
+  void CopyTable(const ByteMnemonic bm[], InstructionType type);
   void SetTableRange(InstructionType type, byte start, byte end, bool byte_size,
                      const char* mnem);
   void AddJumpConditionalShort();
@@ -228,7 +228,8 @@ void InstructionTable::Init() {
 }
 
 
-void InstructionTable::CopyTable(ByteMnemonic bm[], InstructionType type) {
+void InstructionTable::CopyTable(const ByteMnemonic bm[],
+                                 InstructionType type) {
   for (int i = 0; bm[i].b >= 0; i++) {
     InstructionDesc* id = &instructions_[bm[i].b];
     id->mnem = bm[i].mnem;

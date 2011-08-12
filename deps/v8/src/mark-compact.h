@@ -193,6 +193,11 @@ class MarkCompactCollector {
   inline bool is_code_flushing_enabled() const { return code_flusher_ != NULL; }
   void EnableCodeFlushing(bool enable);
 
+  inline Object* encountered_weak_maps() { return encountered_weak_maps_; }
+  inline void set_encountered_weak_maps(Object* weak_map) {
+    encountered_weak_maps_ = weak_map;
+  }
+
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -328,6 +333,16 @@ class MarkCompactCollector {
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveTransitions();
+
+  // Mark all values associated with reachable keys in weak maps encountered
+  // so far.  This might push new object or even new weak maps onto the
+  // marking stack.
+  void ProcessWeakMaps();
+
+  // After all reachable objects have been marked those weak map entries
+  // with an unreachable key are removed from all encountered weak maps.
+  // The linked list of all encountered weak maps is destroyed.
+  void ClearWeakMaps();
 
   // -----------------------------------------------------------------------
   // Phase 2: Sweeping to clear mark bits and free non-live objects for
@@ -499,6 +514,7 @@ class MarkCompactCollector {
   Heap* heap_;
   MarkingStack marking_stack_;
   CodeFlusher* code_flusher_;
+  Object* encountered_weak_maps_;
 
   friend class Heap;
   friend class OverflowedObjectsScanner;

@@ -27,7 +27,7 @@
 
 import test
 import os
-from os.path import join, dirname, exists
+from os.path import join, dirname, exists, isfile
 import platform
 import utils
 import re
@@ -122,10 +122,15 @@ class PreparserTestConfiguration(test.TestConfiguration):
          {"Test": Test, "Template": Template}, {})
 
   def ListTests(self, current_path, path, mode, variant_flags):
-    executable = join('obj', 'preparser', mode, 'preparser')
+    executable = 'preparser'
     if utils.IsWindows():
       executable += '.exe'
     executable = join(self.context.buildspace, executable)
+    if not isfile(executable):
+      executable = join('obj', 'preparser', mode, 'preparser')
+      if utils.IsWindows():
+        executable += '.exe'
+      executable = join(self.context.buildspace, executable)
     expectations = self.GetExpectations()
     result = []
     # Find all .js files in tests/preparser directory.

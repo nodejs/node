@@ -94,6 +94,11 @@ bool Locker::IsLocked(v8::Isolate* isolate) {
 }
 
 
+bool Locker::IsActive() {
+  return active_;
+}
+
+
 Locker::~Locker() {
   ASSERT(isolate_->thread_manager()->IsLockedByCurrentThread());
   if (has_lock_) {

@@ -862,10 +862,19 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange() {
-  // Untagged integer32 cannot be -0, all other representations can.
-  Range* result = new Range();
-  result->set_can_be_minus_zero(!representation().IsInteger32());
-  return result;
+  if (representation().IsTagged()) {
+    // Tagged values are always in int32 range when converted to integer,
+    // but they can contain -0.
+    Range* result = new Range();
+    result->set_can_be_minus_zero(true);
+    return result;
+  } else if (representation().IsNone()) {
+    return NULL;
+  } else {
+    // Untagged integer32 cannot be -0 and we don't compute ranges for
+    // untagged doubles.
+    return new Range();
+  }
 }
 
 

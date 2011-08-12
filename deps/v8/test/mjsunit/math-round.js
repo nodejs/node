@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -43,21 +43,6 @@ testRound(-0, -0);
 testRound(Infinity, Infinity);
 testRound(-Infinity, -Infinity);
 testRound(NaN, NaN);
-
-// Regression test for a bug where a negative zero coming from Math.round
-// was not properly handled by other operations.
-function roundsum(i, n) {
-  var ret = Math.round(n);
-  while (--i > 0) {
-    ret += Math.round(n);
-  }
-  return ret;
-}
-assertEquals(-0, roundsum(1, -0));
-%OptimizeFunctionOnNextCall(roundsum);
-// The optimized function will deopt.  Run it with enough iterations to try
-// to optimize via OSR (triggering the bug).
-assertEquals(-0, roundsum(100000, -0));
 
 testRound(1, 0.5);
 testRound(1, 0.7);

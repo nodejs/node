@@ -30,6 +30,9 @@
 // implemented on Windows, and even if it were then many of the things
 // we are calling would not be available.
 
+var TEST_DIR = "d8-os-test-directory-" + ((Math.random() * (1<<30)) | 0);
+
+
 function arg_error(str) {
   try {
     eval(str);
@@ -53,95 +56,97 @@ function str_error(str) {
 if (this.os && os.system) {
   try {
     // Delete the dir if it is lying around from last time.
-    os.system("ls", ["d8-os-test-directory"]);
-    os.system("rm", ["-r", "d8-os-test-directory"]);
+    os.system("ls", [TEST_DIR]);
+    os.system("rm", ["-r", TEST_DIR]);
   } catch (e) {
   }
-  os.mkdirp("d8-os-test-directory");
-  os.chdir("d8-os-test-directory");
-  // Check the chdir worked.
-  os.system('ls', ['../d8-os-test-directory']);
-  // Simple create dir.
-  os.mkdirp("dir");
-  // Create dir in dir.
-  os.mkdirp("dir/foo");
-  // Check that they are there.
-  os.system('ls', ['dir/foo']);
-  // Check that we can detect when something is not there.
-  assertThrows("os.system('ls', ['dir/bar']);", "dir not there");
-  // Check that mkdirp makes intermediate directories.
-  os.mkdirp("dir2/foo");
-  os.system("ls", ["dir2/foo"]);
-  // Check that mkdirp doesn't mind if the dir is already there.
-  os.mkdirp("dir2/foo");
-  os.mkdirp("dir2/foo/");
-  // Check that mkdirp can cope with trailing /
-  os.mkdirp("dir3/");
-  os.system("ls", ["dir3"]);
-  // Check that we get an error if the name is taken by a file.
-  os.system("sh", ["-c", "echo foo > file1"]);
-  os.system("ls", ["file1"]);
-  assertThrows("os.mkdirp('file1');", "mkdir over file1");
-  assertThrows("os.mkdirp('file1/foo');", "mkdir over file2");
-  assertThrows("os.mkdirp('file1/');", "mkdir over file3");
-  assertThrows("os.mkdirp('file1/foo/');", "mkdir over file4");
-  // Create a dir we cannot read.
-  os.mkdirp("dir4", 0);
-  // This test fails if you are root since root can read any dir.
-  assertThrows("os.chdir('dir4');", "chdir dir4 I");
-  os.rmdir("dir4");
-  assertThrows("os.chdir('dir4');", "chdir dir4 II");
-  // Set umask.
-  var old_umask = os.umask(0777);
-  // Create a dir we cannot read.
-  os.mkdirp("dir5");
-  // This test fails if you are root since root can read any dir.
-  assertThrows("os.chdir('dir5');", "cd dir5 I");
-  os.rmdir("dir5");
-  assertThrows("os.chdir('dir5');", "chdir dir5 II");
-  os.umask(old_umask);
-
-  os.mkdirp("hest/fisk/../fisk/ged");
-  os.system("ls", ["hest/fisk/ged"]);
-
-  os.setenv("FOO", "bar");
-  var environment = os.system("printenv");
-  assertTrue(/FOO=bar/.test(environment));
-
-  // Check we time out.
-  var have_sleep = true;
-  var have_echo = true;
+  os.mkdirp(TEST_DIR);
+  os.chdir(TEST_DIR);
   try {
-    os.system("ls", ["/bin/sleep"]);
-  } catch (e) {
-    have_sleep = false;
-  }
-  try {
-    os.system("ls", ["/bin/echo"]);
-  } catch (e) {
-    have_echo = false;
-  }
-  if (have_sleep) {
-    assertThrows("os.system('sleep', ['2000'], 200);", "sleep 1");
+    // Check the chdir worked.
+    os.system('ls', ['../' + TEST_DIR]);
+    // Simple create dir.
+    os.mkdirp("dir");
+    // Create dir in dir.
+    os.mkdirp("dir/foo");
+    // Check that they are there.
+    os.system('ls', ['dir/foo']);
+    // Check that we can detect when something is not there.
+    assertThrows("os.system('ls', ['dir/bar']);", "dir not there");
+    // Check that mkdirp makes intermediate directories.
+    os.mkdirp("dir2/foo");
+    os.system("ls", ["dir2/foo"]);
+    // Check that mkdirp doesn't mind if the dir is already there.
+    os.mkdirp("dir2/foo");
+    os.mkdirp("dir2/foo/");
+    // Check that mkdirp can cope with trailing /
+    os.mkdirp("dir3/");
+    os.system("ls", ["dir3"]);
+    // Check that we get an error if the name is taken by a file.
+    os.system("sh", ["-c", "echo foo > file1"]);
+    os.system("ls", ["file1"]);
+    assertThrows("os.mkdirp('file1');", "mkdir over file1");
+    assertThrows("os.mkdirp('file1/foo');", "mkdir over file2");
+    assertThrows("os.mkdirp('file1/');", "mkdir over file3");
+    assertThrows("os.mkdirp('file1/foo/');", "mkdir over file4");
+    // Create a dir we cannot read.
+    os.mkdirp("dir4", 0);
+    // This test fails if you are root since root can read any dir.
+    assertThrows("os.chdir('dir4');", "chdir dir4 I");
+    os.rmdir("dir4");
+    assertThrows("os.chdir('dir4');", "chdir dir4 II");
+    // Set umask.
+    var old_umask = os.umask(0777);
+    // Create a dir we cannot read.
+    os.mkdirp("dir5");
+    // This test fails if you are root since root can read any dir.
+    assertThrows("os.chdir('dir5');", "cd dir5 I");
+    os.rmdir("dir5");
+    assertThrows("os.chdir('dir5');", "chdir dir5 II");
+    os.umask(old_umask);
 
-    // Check we time out with total time.
-    assertThrows("os.system('sleep', ['2000'], -1, 200);", "sleep 2");
+    os.mkdirp("hest/fisk/../fisk/ged");
+    os.system("ls", ["hest/fisk/ged"]);
 
-    // Check that -1 means no timeout.
-    os.system('sleep', ['1'], -1, -1);
+    os.setenv("FOO", "bar");
+    var environment = os.system("printenv");
+    assertTrue(/FOO=bar/.test(environment));
 
-  }
+    // Check we time out.
+    var have_sleep = true;
+    var have_echo = true;
+    try {
+      os.system("ls", ["/bin/sleep"]);
+    } catch (e) {
+      have_sleep = false;
+    }
+    try {
+      os.system("ls", ["/bin/echo"]);
+    } catch (e) {
+      have_echo = false;
+    }
+    if (have_sleep) {
+      assertThrows("os.system('sleep', ['2000'], 200);", "sleep 1");
 
-  // Check that we don't fill up the process table with zombies.
-  // Disabled because it's too slow.
-  if (have_echo) {
-    //for (var i = 0; i < 65536; i++) {
+      // Check we time out with total time.
+      assertThrows("os.system('sleep', ['2000'], -1, 200);", "sleep 2");
+
+      // Check that -1 means no timeout.
+      os.system('sleep', ['1'], -1, -1);
+
+    }
+
+    // Check that we don't fill up the process table with zombies.
+    // Disabled because it's too slow.
+    if (have_echo) {
+      //for (var i = 0; i < 65536; i++) {
       assertEquals("baz\n", os.system("echo", ["baz"]));
-    //}
+      //}
+    }
+  } finally {
+    os.chdir("..");
+    os.system("rm", ["-r", TEST_DIR]);
   }
-
-  os.chdir("..");
-  os.system("rm", ["-r", "d8-os-test-directory"]);
 
   // Too few args.
   arg_error("os.umask();");

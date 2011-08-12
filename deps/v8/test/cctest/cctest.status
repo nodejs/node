@@ -38,6 +38,9 @@ test-api/ApplyInterruption: PASS || TIMEOUT
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
 
+# We do not yet shrink weak maps after they have been emptied by the GC
+test-weakmaps/Shrinking: FAIL
+
 ##############################################################################
 [ $arch == arm ]
 

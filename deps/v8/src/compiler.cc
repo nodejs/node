@@ -736,6 +736,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_start_position(lit->start_position());
   function_info->set_end_position(lit->end_position());
   function_info->set_is_expression(lit->is_expression());
+  function_info->set_is_anonymous(lit->is_anonymous());
   function_info->set_is_toplevel(is_toplevel);
   function_info->set_inferred_name(*lit->inferred_name());
   function_info->SetThisPropertyAssignmentsInfo(

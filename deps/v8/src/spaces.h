@@ -408,6 +408,8 @@ class Space : public Malloced {
 // manages a range of virtual memory.
 class CodeRange {
  public:
+  explicit CodeRange(Isolate* isolate);
+
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
   // Returns false on failure.
@@ -417,9 +419,9 @@ class CodeRange {
   // manage it.
   void TearDown();
 
-  bool exists() { return code_range_ != NULL; }
+  bool exists() { return this != NULL && code_range_ != NULL; }
   bool contains(Address address) {
-    if (code_range_ == NULL) return false;
+    if (this == NULL || code_range_ == NULL) return false;
     Address start = static_cast<Address>(code_range_->address());
     return start <= address && address < start + code_range_->size();
   }
@@ -432,7 +434,7 @@ class CodeRange {
   void FreeRawMemory(void* buf, size_t length);
 
  private:
-  CodeRange();
+  Isolate* isolate_;
 
   // The reserved range of virtual memory that all code objects are put in.
   VirtualMemory* code_range_;
@@ -466,10 +468,6 @@ class CodeRange {
   static int CompareFreeBlockAddress(const FreeBlock* left,
                                      const FreeBlock* right);
 
-  friend class Isolate;
-
-  Isolate* isolate_;
-
   DISALLOW_COPY_AND_ASSIGN(CodeRange);
 };
 
@@ -500,6 +498,8 @@ class CodeRange {
 
 class MemoryAllocator {
  public:
+  explicit MemoryAllocator(Isolate* isolate);
+
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
   bool Setup(intptr_t max_capacity, intptr_t capacity_executable);
@@ -657,9 +657,9 @@ class MemoryAllocator {
 #endif
 
  private:
-  MemoryAllocator();
-
   static const int kChunkSize = kPagesPerChunk * Page::kPageSize;
+
+  Isolate* isolate_;
 
   // Maximum space size in bytes.
   intptr_t capacity_;
@@ -752,10 +752,6 @@ class MemoryAllocator {
                            size_t chunk_size,
                            Page* prev,
                            Page** last_page_in_use);
-
-  friend class Isolate;
-
-  Isolate* isolate_;
 
   DISALLOW_COPY_AND_ASSIGN(MemoryAllocator);
 };

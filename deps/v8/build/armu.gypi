@@ -32,5 +32,5 @@
     'armv7': 1,
     'arm_neon': 0,
     'arm_fpu': 'vfpv3',
-  }
+  },
 }

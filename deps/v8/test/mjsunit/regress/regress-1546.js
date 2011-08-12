@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -24,32 +24,9 @@
 // THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-//
-// A simple interactive shell.  Enable with --shell.
 
-#ifndef V8_SHELL_H_
-#define V8_SHELL_H_
+// See: http://code.google.com/p/v8/issues/detail?id=1546
 
-#include "../public/debug.h"
-
-namespace v8 {
-namespace internal {
-
-// Debug event handler for interactive debugging.
-void handle_debug_event(v8::DebugEvent event,
-                        v8::Handle<v8::Object> exec_state,
-                        v8::Handle<v8::Object> event_data,
-                        v8::Handle<Value> data);
-
-
-class Shell {
- public:
-  static void PrintObject(v8::Handle<v8::Value> obj);
-  // Run the read-eval loop, executing code in the specified
-  // environment.
-  static void Run(v8::Handle<v8::Context> context);
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_SHELL_H_
+// Should't throw. Scanner incorrectly truncated to char before comparing
+// with "*", so it ended the comment early.
+eval("/*\u822a/ */");

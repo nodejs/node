@@ -1711,6 +1711,12 @@ class Throw: public Expression {
 
 class FunctionLiteral: public Expression {
  public:
+  enum Type {
+    ANONYMOUS_EXPRESSION,
+    NAMED_EXPRESSION,
+    DECLARATION
+  };
+
   FunctionLiteral(Isolate* isolate,
                   Handle<String> name,
                   Scope* scope,
@@ -1722,7 +1728,7 @@ class FunctionLiteral: public Expression {
                   int num_parameters,
                   int start_position,
                   int end_position,
-                  bool is_expression,
+                  Type type,
                   bool has_duplicate_parameters)
       : Expression(isolate),
         name_(name),
@@ -1738,7 +1744,8 @@ class FunctionLiteral: public Expression {
         end_position_(end_position),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
-        is_expression_(is_expression),
+        is_expression_(type != DECLARATION),
+        is_anonymous_(type == ANONYMOUS_EXPRESSION),
         pretenure_(false),
         has_duplicate_parameters_(has_duplicate_parameters) {
   }
@@ -1753,6 +1760,7 @@ class FunctionLiteral: public Expression {
   int start_position() const { return start_position_; }
   int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
+  bool is_anonymous() const { return is_anonymous_; }
   bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
@@ -1797,6 +1805,7 @@ class FunctionLiteral: public Expression {
   int function_token_position_;
   Handle<String> inferred_name_;
   bool is_expression_;
+  bool is_anonymous_;
   bool pretenure_;
   bool has_duplicate_parameters_;
 };

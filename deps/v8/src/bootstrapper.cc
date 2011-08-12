@@ -199,6 +199,7 @@ class Genesis BASE_EMBEDDED {
   // New context initialization.  Used for creating a context from scratch.
   void InitializeGlobal(Handle<GlobalObject> inner_global,
                         Handle<JSFunction> empty_function);
+  void InitializeExperimentalGlobal();
   // Installs the contents of the native .js files on the global objects.
   // Used for creating a context from scratch.
   void InstallNativeFunctions();
@@ -1190,6 +1191,21 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 }
 
 
+void Genesis::InitializeExperimentalGlobal() {
+  Isolate* isolate = this->isolate();
+  Handle<JSObject> global = Handle<JSObject>(global_context()->global());
+
+  // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
+  // longer need to live behind a flag, so WeakMap gets added to the snapshot.
+  if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
+    Handle<JSFunction> weakmap_fun =
+        InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                        isolate->initial_object_prototype(),
+                        Builtins::kIllegal, true);
+  }
+}
+
+
 bool Genesis::CompileBuiltin(Isolate* isolate, int index) {
   Vector<const char> name = Natives::GetScriptName(index);
   Handle<String> source_code =
@@ -1678,6 +1694,11 @@ bool Genesis::InstallExperimentalNatives() {
     if (FLAG_harmony_proxies &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
                "native proxy.js") == 0) {
+      if (!CompileExperimentalBuiltin(isolate(), i)) return false;
+    }
+    if (FLAG_harmony_weakmaps &&
+        strcmp(ExperimentalNatives::GetScriptName(i).start(),
+               "native weakmap.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
@@ -2169,7 +2190,8 @@ Genesis::Genesis(Isolate* isolate,
     isolate->counters()->contexts_created_from_scratch()->Increment();
   }
 
-  // Install experimental natives.
+  // Initialize experimental globals and install experimental natives.
+  InitializeExperimentalGlobal();
   if (!InstallExperimentalNatives()) return;
 
   result_ = global_context_;

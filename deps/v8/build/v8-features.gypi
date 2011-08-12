@@ -89,6 +89,13 @@
                   'USE_EABI_HARDFLOAT=1',
                   'CAN_USE_VFP_INSTRUCTIONS',
                 ],
+                'cflags': [
+                  '-mfloat-abi=hard',
+                ],
+              }, {
+                'defines': [
+                  'USE_EABI_HARDFLOAT=0',
+                ],
               }],
             ],
           }],

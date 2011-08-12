@@ -96,7 +96,8 @@ SOURCES = {
     'test-threads.cc',
     'test-unbound-queue.cc',
     'test-utils.cc',
-    'test-version.cc'
+    'test-version.cc',
+    'test-weakmaps.cc'
   ],
   'arch:arm':  [
     'test-assembler-arm.cc',

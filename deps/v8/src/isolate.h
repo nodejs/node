@@ -256,6 +256,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
+  // Whether out of memory exceptions should be ignored.
+  bool ignore_out_of_memory_;
+
  private:
   void InitializeInternal();
 
@@ -446,6 +449,13 @@ class Isolate {
     return reinterpret_cast<Isolate*>(Thread::GetThreadLocal(isolate_key_));
   }
 
+  // Usually called by Init(), but can be called early e.g. to allow
+  // testing components that require logging but not the whole
+  // isolate.
+  //
+  // Safe to call more than once.
+  void InitializeLoggingAndCounters();
+
   bool Init(Deserializer* des);
 
   bool IsInitialized() { return state_ == INITIALIZED; }
@@ -498,9 +508,11 @@ class Isolate {
   // switched to non-legacy behavior).
   static void EnterDefaultIsolate();
 
-  // Debug.
   // Mutex for serializing access to break control structures.
   Mutex* break_access() { return break_access_; }
+
+  // Mutex for serializing access to debugger.
+  Mutex* debugger_access() { return debugger_access_; }
 
   Address get_address_from_id(AddressId id);
 
@@ -661,6 +673,12 @@ class Isolate {
   // Tells whether the current context has experienced an out of memory
   // exception.
   bool is_out_of_memory();
+  bool ignore_out_of_memory() {
+    return thread_local_top_.ignore_out_of_memory_;
+  }
+  void set_ignore_out_of_memory(bool value) {
+    thread_local_top_.ignore_out_of_memory_ = value;
+  }
 
   void PrintCurrentStackTrace(FILE* out);
   void PrintStackTrace(FILE* out, char* thread_data);
@@ -769,14 +787,24 @@ class Isolate {
 #undef GLOBAL_CONTEXT_FIELD_ACCESSOR
 
   Bootstrapper* bootstrapper() { return bootstrapper_; }
-  Counters* counters() { return counters_; }
+  Counters* counters() {
+    // Call InitializeLoggingAndCounters() if logging is needed before
+    // the isolate is fully initialized.
+    ASSERT(counters_ != NULL);
+    return counters_;
+  }
   CodeRange* code_range() { return code_range_; }
   RuntimeProfiler* runtime_profiler() { return runtime_profiler_; }
   CompilationCache* compilation_cache() { return compilation_cache_; }
-  Logger* logger() { return logger_; }
+  Logger* logger() {
+    // Call InitializeLoggingAndCounters() if logging is needed before
+    // the isolate is fully initialized.
+    ASSERT(logger_ != NULL);
+    return logger_;
+  }
   StackGuard* stack_guard() { return &stack_guard_; }
   Heap* heap() { return &heap_; }
-  StatsTable* stats_table() { return stats_table_; }
+  StatsTable* stats_table();
   StubCache* stub_cache() { return stub_cache_; }
   DeoptimizerData* deoptimizer_data() { return deoptimizer_data_; }
   ThreadLocalTop* thread_local_top() { return &thread_local_top_; }
@@ -877,8 +905,14 @@ class Isolate {
   void PreallocatedStorageInit(size_t size);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  Debugger* debugger() { return debugger_; }
-  Debug* debug() { return debug_; }
+  Debugger* debugger() {
+    if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
+    return debugger_;
+  }
+  Debug* debug() {
+    if (!NoBarrier_Load(&debugger_initialized_)) InitializeDebugger();
+    return debug_;
+  }
 #endif
 
   inline bool DebuggerHasBreakPoints();
@@ -1010,8 +1044,6 @@ class Isolate {
   static Isolate* default_isolate_;
   static ThreadDataTable* thread_data_table_;
 
-  bool PreInit();
-
   void Deinit();
 
   static void SetIsolateThreadLocals(Isolate* isolate,
@@ -1019,7 +1051,6 @@ class Isolate {
 
   enum State {
     UNINITIALIZED,    // Some components may not have been allocated.
-    PREINITIALIZED,   // Components have been allocated but not initialized.
     INITIALIZED       // All components are fully initialized.
   };
 
@@ -1063,6 +1094,8 @@ class Isolate {
 
   void PropagatePendingExceptionToExternalTryCatch();
 
+  void InitializeDebugger();
+
   int stack_trace_nesting_level_;
   StringStream* incomplete_message_;
   // The preallocated memory thread singleton.
@@ -1076,6 +1109,8 @@ class Isolate {
   Counters* counters_;
   CodeRange* code_range_;
   Mutex* break_access_;
+  Atomic32 debugger_initialized_;
+  Mutex* debugger_access_;
   Heap heap_;
   Logger* logger_;
   StackGuard stack_guard_;
@@ -1165,6 +1200,7 @@ class Isolate {
   friend class Simulator;
   friend class StackGuard;
   friend class ThreadId;
+  friend class TestMemoryAllocatorScope;
   friend class v8::Isolate;
   friend class v8::Locker;
   friend class v8::Unlocker;

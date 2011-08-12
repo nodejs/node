@@ -267,7 +267,7 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                seq_sub->ToUC16Vector(),
                                needle->ToUC16Vector(),
                                index)));
-    if (index == -1) return FACTORY->null_value();
+    if (index == -1) return isolate->factory()->null_value();
   }
   ASSERT(last_match_info->HasFastElements());
 

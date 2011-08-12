@@ -76,6 +76,10 @@ int ThreadId::GetCurrentThreadId() {
 
 ThreadLocalTop::ThreadLocalTop() {
   InitializeInternal();
+  // This flag may be set using v8::V8::IgnoreOutOfMemoryException()
+  // before an isolate is initialized. The initialize methods below do
+  // not touch it to preserve its value.
+  ignore_out_of_memory_ = false;
 }
 
 
@@ -382,7 +386,6 @@ void Isolate::EnsureDefaultIsolate() {
   if (Thread::GetThreadLocal(isolate_key_) == NULL) {
     Thread::SetThreadLocal(isolate_key_, default_isolate_);
   }
-  CHECK(default_isolate_->PreInit());
 }
 
 
@@ -654,6 +657,7 @@ void Isolate::PrintStack() {
     incomplete_message_ = &accumulator;
     PrintStack(&accumulator);
     accumulator.OutputToStdOut();
+    InitializeLoggingAndCounters();
     accumulator.Log();
     incomplete_message_ = NULL;
     stack_trace_nesting_level_ = 0;
@@ -1375,11 +1379,15 @@ Isolate::Isolate()
       bootstrapper_(NULL),
       runtime_profiler_(NULL),
       compilation_cache_(NULL),
-      counters_(new Counters()),
+      counters_(NULL),
       code_range_(NULL),
+      // Must be initialized early to allow v8::SetResourceConstraints calls.
       break_access_(OS::CreateMutex()),
-      logger_(new Logger()),
-      stats_table_(new StatsTable()),
+      debugger_initialized_(false),
+      // Must be initialized early to allow v8::Debug calls.
+      debugger_access_(OS::CreateMutex()),
+      logger_(NULL),
+      stats_table_(NULL),
       stub_cache_(NULL),
       deoptimizer_data_(NULL),
       capture_stack_trace_for_uncaught_exceptions_(false),
@@ -1510,7 +1518,7 @@ void Isolate::Deinit() {
     logger_->TearDown();
 
     // The default isolate is re-initializable due to legacy API.
-    state_ = PREINITIALIZED;
+    state_ = UNINITIALIZED;
   }
 }
 
@@ -1592,58 +1600,6 @@ Isolate::~Isolate() {
 }
 
 
-bool Isolate::PreInit() {
-  if (state_ != UNINITIALIZED) return true;
-
-  TRACE_ISOLATE(preinit);
-
-  ASSERT(Isolate::Current() == this);
-#ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_ = new Debug(this);
-  debugger_ = new Debugger(this);
-#endif
-
-  memory_allocator_ = new MemoryAllocator();
-  memory_allocator_->isolate_ = this;
-  code_range_ = new CodeRange();
-  code_range_->isolate_ = this;
-
-  // Safe after setting Heap::isolate_, initializing StackGuard and
-  // ensuring that Isolate::Current() == this.
-  heap_.SetStackLimits();
-
-#ifdef DEBUG
-  DisallowAllocationFailure disallow_allocation_failure;
-#endif
-
-#define C(name) isolate_addresses_[Isolate::k_##name] =                        \
-    reinterpret_cast<Address>(name());
-  ISOLATE_ADDRESS_LIST(C)
-#undef C
-
-  string_tracker_ = new StringTracker();
-  string_tracker_->isolate_ = this;
-  compilation_cache_ = new CompilationCache(this);
-  transcendental_cache_ = new TranscendentalCache();
-  keyed_lookup_cache_ = new KeyedLookupCache();
-  context_slot_cache_ = new ContextSlotCache();
-  descriptor_lookup_cache_ = new DescriptorLookupCache();
-  unicode_cache_ = new UnicodeCache();
-  pc_to_code_cache_ = new PcToCodeCache(this);
-  write_input_buffer_ = new StringInputBuffer();
-  global_handles_ = new GlobalHandles(this);
-  bootstrapper_ = new Bootstrapper();
-  handle_scope_implementer_ = new HandleScopeImplementer(this);
-  stub_cache_ = new StubCache(this);
-  ast_sentinels_ = new AstSentinels();
-  regexp_stack_ = new RegExpStack();
-  regexp_stack_->isolate_ = this;
-
-  state_ = PREINITIALIZED;
-  return true;
-}
-
-
 void Isolate::InitializeThreadLocal() {
   thread_local_top_.isolate_ = this;
   thread_local_top_.Initialize();
@@ -1680,19 +1636,71 @@ void Isolate::PropagatePendingExceptionToExternalTryCatch() {
 }
 
 
+void Isolate::InitializeLoggingAndCounters() {
+  if (logger_ == NULL) {
+    logger_ = new Logger;
+  }
+  if (counters_ == NULL) {
+    counters_ = new Counters;
+  }
+}
+
+
+void Isolate::InitializeDebugger() {
+#ifdef ENABLE_DEBUGGER_SUPPORT
+  ScopedLock lock(debugger_access_);
+  if (NoBarrier_Load(&debugger_initialized_)) return;
+  InitializeLoggingAndCounters();
+  debug_ = new Debug(this);
+  debugger_ = new Debugger(this);
+  Release_Store(&debugger_initialized_, true);
+#endif
+}
+
+
 bool Isolate::Init(Deserializer* des) {
   ASSERT(state_ != INITIALIZED);
-
+  ASSERT(Isolate::Current() == this);
   TRACE_ISOLATE(init);
-
-  bool create_heap_objects = des == NULL;
 
 #ifdef DEBUG
   // The initialization process does not handle memory exhaustion.
   DisallowAllocationFailure disallow_allocation_failure;
 #endif
 
-  if (state_ == UNINITIALIZED && !PreInit()) return false;
+  InitializeLoggingAndCounters();
+
+  InitializeDebugger();
+
+  memory_allocator_ = new MemoryAllocator(this);
+  code_range_ = new CodeRange(this);
+
+  // Safe after setting Heap::isolate_, initializing StackGuard and
+  // ensuring that Isolate::Current() == this.
+  heap_.SetStackLimits();
+
+#define C(name) isolate_addresses_[Isolate::k_##name] =                        \
+    reinterpret_cast<Address>(name());
+  ISOLATE_ADDRESS_LIST(C)
+#undef C
+
+  string_tracker_ = new StringTracker();
+  string_tracker_->isolate_ = this;
+  compilation_cache_ = new CompilationCache(this);
+  transcendental_cache_ = new TranscendentalCache();
+  keyed_lookup_cache_ = new KeyedLookupCache();
+  context_slot_cache_ = new ContextSlotCache();
+  descriptor_lookup_cache_ = new DescriptorLookupCache();
+  unicode_cache_ = new UnicodeCache();
+  pc_to_code_cache_ = new PcToCodeCache(this);
+  write_input_buffer_ = new StringInputBuffer();
+  global_handles_ = new GlobalHandles(this);
+  bootstrapper_ = new Bootstrapper();
+  handle_scope_implementer_ = new HandleScopeImplementer(this);
+  stub_cache_ = new StubCache(this);
+  ast_sentinels_ = new AstSentinels();
+  regexp_stack_ = new RegExpStack();
+  regexp_stack_->isolate_ = this;
 
   // Enable logging before setting up the heap
   logger_->Setup();
@@ -1715,7 +1723,8 @@ bool Isolate::Init(Deserializer* des) {
     stack_guard_.InitThread(lock);
   }
 
-  // Setup the object heap
+  // Setup the object heap.
+  const bool create_heap_objects = (des == NULL);
   ASSERT(!heap_.HasBeenSetup());
   if (!heap_.Setup(create_heap_objects)) {
     V8::SetFatalError();
@@ -1775,6 +1784,16 @@ bool Isolate::Init(Deserializer* des) {
 }
 
 
+// Initialized lazily to allow early
+// v8::V8::SetAddHistogramSampleFunction calls.
+StatsTable* Isolate::stats_table() {
+  if (stats_table_ == NULL) {
+    stats_table_ = new StatsTable;
+  }
+  return stats_table_;
+}
+
+
 void Isolate::Enter() {
   Isolate* current_isolate = NULL;
   PerIsolateThreadData* current_data = CurrentPerIsolateThreadData();
@@ -1813,8 +1832,6 @@ void Isolate::Enter() {
   entry_stack_ = item;
 
   SetIsolateThreadLocals(this, data);
-
-  CHECK(PreInit());
 
   // In case it's the first time some thread enters the isolate.
   set_thread_id(data->thread_id());

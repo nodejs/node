@@ -200,7 +200,7 @@ void Decoder::PrintDRegister(int reg) {
 
 // These shift names are defined in a way to match the native disassembler
 // formatting. See for example the command "objdump -d <binary file>".
-static const char* shift_names[kNumberOfShifts] = {
+static const char* const shift_names[kNumberOfShifts] = {
   "lsl", "lsr", "asr", "ror"
 };
 

@@ -201,6 +201,7 @@ function FormatMessage(message) {
       proxy_prop_not_configurable:  ["Trap ", "%1", " of proxy handler ", "%0", " returned non-configurable descriptor for property ", "%2"],
       proxy_non_object_prop_names:  ["Trap ", "%1", " returned non-object ", "%0"],
       proxy_repeated_prop_name:     ["Trap ", "%1", " returned repeated property name ", "%2"],
+      invalid_weakmap_key:          ["Invalid value used as weak map key"],
       // RangeError
       invalid_array_length:         ["Invalid array length"],
       stack_overflow:               ["Maximum call stack size exceeded"],

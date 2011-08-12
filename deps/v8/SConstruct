@@ -153,13 +153,19 @@ LIBRARY_FLAGS = {
         }
       },
       'armeabi:softfp' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=0'],
+        'vfp3:on': {
+          'CPPDEFINES' : ['CAN_USE_VFP_INSTRUCTIONS']
+        },
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=softfp'],
         }
       },
       'armeabi:hard' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1'],
+        'vfp3:on': {
+          'CPPDEFINES' : ['CAN_USE_VFP_INSTRUCTIONS']
+        },
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
@@ -436,7 +442,7 @@ CCTEST_EXTRA_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES':   ['V8_TARGET_ARCH_X64'],
-      'LINKFLAGS': ['/STACK:2091752']
+      'LINKFLAGS': ['/STACK:2097152']
     },
   }
 }
@@ -496,7 +502,10 @@ SAMPLE_FLAGS = {
         }
       },
       'armeabi:hard' : {
-        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1', 'CAN_USE_VFP_INSTRUCTIONS'],
+        'CPPDEFINES' : ['USE_EABI_HARDFLOAT=1'],
+        'vfp3:on': {
+          'CPPDEFINES' : ['CAN_USE_VFP_INSTRUCTIONS']
+        },
         'simulator:none': {
           'CCFLAGS':     ['-mfloat-abi=hard'],
         }
@@ -601,7 +610,7 @@ SAMPLE_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
-      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2097152']
     },
     'mode:debug': {
       'CCFLAGS':    ['/Od'],
@@ -756,7 +765,7 @@ PREPARSER_FLAGS = {
     },
     'arch:x64': {
       'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
-      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2091752']
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2097152']
     },
     'mode:debug': {
       'CCFLAGS':    ['/Od'],
@@ -822,6 +831,57 @@ D8_FLAGS = {
   'msvc': {
     'all': {
       'LIBS': ['winmm', 'ws2_32']
+    },
+    'verbose:off': {
+      'CCFLAGS': ['/nologo'],
+      'LINKFLAGS': ['/NOLOGO']
+    },
+    'verbose:on': {
+      'LINKFLAGS': ['/VERBOSE']
+    },
+    'prof:on': {
+      'LINKFLAGS': ['/MAP']
+    },
+    'mode:release': {
+      'CCFLAGS':   ['/O2'],
+      'LINKFLAGS': ['/OPT:REF', '/OPT:ICF'],
+      'msvcrt:static': {
+        'CCFLAGS': ['/MT']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS': ['/MD']
+      },
+      'msvcltcg:on': {
+        'CCFLAGS':      ['/GL'],
+        'pgo:off': {
+          'LINKFLAGS':    ['/LTCG'],
+        },
+      },
+      'pgo:instrument': {
+        'LINKFLAGS':    ['/LTCG:PGI']
+      },
+      'pgo:optimize': {
+        'LINKFLAGS':    ['/LTCG:PGO']
+      }
+    },
+    'arch:ia32': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_IA32', 'WIN32'],
+      'LINKFLAGS': ['/MACHINE:X86']
+    },
+    'arch:x64': {
+      'CPPDEFINES': ['V8_TARGET_ARCH_X64', 'WIN32'],
+      'LINKFLAGS': ['/MACHINE:X64', '/STACK:2097152']
+    },
+    'mode:debug': {
+      'CCFLAGS':    ['/Od'],
+      'LINKFLAGS':  ['/DEBUG'],
+      'CPPDEFINES': ['DEBUG'],
+      'msvcrt:static': {
+        'CCFLAGS':  ['/MTd']
+      },
+      'msvcrt:shared': {
+        'CCFLAGS':  ['/MDd']
+      }
     }
   }
 }
@@ -1039,6 +1099,12 @@ SIMPLE_OPTIONS = {
     'default': 'off',
     'help': 'compress startup data (snapshot) [Linux only]'
   },
+  'vfp3': {
+    'values': ['on', 'off'],
+    'default': 'on',
+    'help': 'use vfp3 instructions when building the snapshot [Arm only]'
+  },
+
 }
 
 ALL_OPTIONS = dict(PLATFORM_OPTIONS, **SIMPLE_OPTIONS)
@@ -1343,10 +1409,12 @@ def BuildSpecific(env, mode, env_overrides, tools):
     env['SONAME'] = soname
 
   # Build the object files by invoking SCons recursively.
+  d8_env = Environment(tools=tools)
+  d8_env.Replace(**context.flags['d8'])
   (object_files, shell_files, mksnapshot, preparser_files) = env.SConscript(
     join('src', 'SConscript'),
     build_dir=join('obj', target_id),
-    exports='context tools',
+    exports='context tools d8_env',
     duplicate=False
   )
 
@@ -1375,8 +1443,6 @@ def BuildSpecific(env, mode, env_overrides, tools):
   context.library_targets.append(library)
   context.library_targets.append(preparser_library)
 
-  d8_env = Environment(tools=tools)
-  d8_env.Replace(**context.flags['d8'])
   context.ApplyEnvOverrides(d8_env)
   if context.options['library'] == 'static':
     shell = d8_env.Program('d8' + suffix, object_files + shell_files)

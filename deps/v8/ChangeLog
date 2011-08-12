@@ -1,3 +1,21 @@
+2011-08-10: Version 3.5.4
+
+        Added a preliminary implementation of ES Harmony weak maps.  Weak
+        maps can be enabled by the flag --harmony-weakmaps.
+
+        Introduced a toplevel Makefile to support GYP-based building.  GYP
+        can be obtained from http://gyp.googlecode.com.
+
+        Fixed a bug in the length property of functions created by
+        Function.prototype.bind.
+
+        Reduced malloc heap allocation on process startup.
+
+        Several important code generation bug fixes.
+
+        Performance improvements on all platforms.
+
+
 2011-08-03: Version 3.5.3
 
         MIPS: Port of fix to ClassOf check from ARM.

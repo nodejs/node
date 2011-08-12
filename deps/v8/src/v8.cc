@@ -28,6 +28,7 @@
 #include "v8.h"
 
 #include "isolate.h"
+#include "elements.h"
 #include "bootstrapper.h"
 #include "debug.h"
 #include "deoptimizer.h"
@@ -212,6 +213,8 @@ void V8::InitializeOncePerProcess() {
 
   // Peephole optimization might interfere with deoptimization.
   FLAG_peephole_optimization = !use_crankshaft_;
+
+  ElementsAccessor::InitializeOncePerProcess();
 }
 
 } }  // namespace v8::internal

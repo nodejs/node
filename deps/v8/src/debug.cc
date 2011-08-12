@@ -1965,7 +1965,7 @@ void Debug::AfterGarbageCollection() {
 
 
 Debugger::Debugger(Isolate* isolate)
-    : debugger_access_(OS::CreateMutex()),
+    : debugger_access_(isolate->debugger_access()),
       event_listener_(Handle<Object>()),
       event_listener_data_(Handle<Object>()),
       compiling_natives_(false),
@@ -1987,8 +1987,6 @@ Debugger::Debugger(Isolate* isolate)
 
 
 Debugger::~Debugger() {
-  delete debugger_access_;
-  debugger_access_ = 0;
   delete dispatch_handler_access_;
   dispatch_handler_access_ = 0;
   delete command_received_;

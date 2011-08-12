@@ -38,7 +38,7 @@ namespace v8 {
 namespace internal {
 
 
-int Deoptimizer::table_entry_size_ = 10;
+const int Deoptimizer::table_entry_size_ = 10;
 
 
 int Deoptimizer::patch_size() {
@@ -605,8 +605,6 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
     output_frame->SetContinuation(
         reinterpret_cast<intptr_t>(continuation->entry()));
   }
-
-  if (output_count_ - 1 == frame_index) iterator->Done();
 }
 
 

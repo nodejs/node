@@ -148,12 +148,12 @@ PageIterator::PageIterator(PagedSpace* space, Mode mode) : space_(space) {
 // CodeRange
 
 
-CodeRange::CodeRange()
-    : code_range_(NULL),
+CodeRange::CodeRange(Isolate* isolate)
+    : isolate_(isolate),
+      code_range_(NULL),
       free_list_(0),
       allocation_list_(0),
-      current_allocation_block_index_(0),
-      isolate_(NULL) {
+      current_allocation_block_index_(0) {
 }
 
 
@@ -279,8 +279,9 @@ void CodeRange::TearDown() {
 const int kEstimatedNumberOfChunks = 270;
 
 
-MemoryAllocator::MemoryAllocator()
-    : capacity_(0),
+MemoryAllocator::MemoryAllocator(Isolate* isolate)
+    : isolate_(isolate),
+      capacity_(0),
       capacity_executable_(0),
       size_(0),
       size_executable_(0),
@@ -288,8 +289,7 @@ MemoryAllocator::MemoryAllocator()
       chunks_(kEstimatedNumberOfChunks),
       free_chunk_ids_(kEstimatedNumberOfChunks),
       max_nof_chunks_(0),
-      top_(0),
-      isolate_(NULL) {
+      top_(0) {
 }
 
 

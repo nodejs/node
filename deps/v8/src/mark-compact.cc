@@ -64,13 +64,15 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       live_bytes_(0),
 #endif
       heap_(NULL),
-      code_flusher_(NULL) { }
+      code_flusher_(NULL),
+      encountered_weak_maps_(NULL) { }
 
 
 void MarkCompactCollector::CollectGarbage() {
   // Make sure that Prepare() has been called. The individual steps below will
   // update the state as they proceed.
   ASSERT(state_ == PREPARE_GC);
+  ASSERT(encountered_weak_maps_ == Smi::FromInt(0));
 
   // Prepare has selected whether to compact the old generation or not.
   // Tell the tracer.
@@ -79,6 +81,8 @@ void MarkCompactCollector::CollectGarbage() {
   MarkLiveObjects();
 
   if (FLAG_collect_maps) ClearNonLiveTransitions();
+
+  ClearWeakMaps();
 
   SweepLargeObjectSpace();
 
@@ -407,6 +411,8 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     table_.Register(kVisitSeqAsciiString, &DataObjectVisitor::Visit);
     table_.Register(kVisitSeqTwoByteString, &DataObjectVisitor::Visit);
 
+    table_.Register(kVisitJSWeakMap, &VisitJSWeakMap);
+
     table_.Register(kVisitOddball,
                     &FixedBodyVisitor<StaticMarkingVisitor,
                                       Oddball::BodyDescriptor,
@@ -555,6 +561,34 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   typedef FlexibleBodyVisitor<StaticMarkingVisitor,
                               StructBodyDescriptor,
                               void> StructObjectVisitor;
+
+  static void VisitJSWeakMap(Map* map, HeapObject* object) {
+    MarkCompactCollector* collector = map->heap()->mark_compact_collector();
+    JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(object);
+
+    // Enqueue weak map in linked list of encountered weak maps.
+    ASSERT(weak_map->next() == Smi::FromInt(0));
+    weak_map->set_next(collector->encountered_weak_maps());
+    collector->set_encountered_weak_maps(weak_map);
+
+    // Skip visiting the backing hash table containing the mappings.
+    int object_size = JSWeakMap::BodyDescriptor::SizeOf(map, object);
+    BodyVisitorBase<StaticMarkingVisitor>::IteratePointers(
+        map->heap(),
+        object,
+        JSWeakMap::BodyDescriptor::kStartOffset,
+        JSWeakMap::kTableOffset);
+    BodyVisitorBase<StaticMarkingVisitor>::IteratePointers(
+        map->heap(),
+        object,
+        JSWeakMap::kTableOffset + kPointerSize,
+        object_size);
+
+    // Mark the backing hash table without pushing it on the marking stack.
+    ASSERT(!weak_map->unchecked_table()->IsMarked());
+    ASSERT(weak_map->unchecked_table()->map()->IsMarked());
+    collector->SetMark(weak_map->unchecked_table());
+  }
 
   static void VisitCode(Map* map, HeapObject* object) {
     reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>(
@@ -1369,20 +1403,26 @@ void MarkCompactCollector::MarkImplicitRefGroups() {
 // marking stack have been marked, or are overflowed in the heap.
 void MarkCompactCollector::EmptyMarkingStack() {
   while (!marking_stack_.is_empty()) {
-    HeapObject* object = marking_stack_.Pop();
-    ASSERT(object->IsHeapObject());
-    ASSERT(heap()->Contains(object));
-    ASSERT(object->IsMarked());
-    ASSERT(!object->IsOverflowed());
+    while (!marking_stack_.is_empty()) {
+      HeapObject* object = marking_stack_.Pop();
+      ASSERT(object->IsHeapObject());
+      ASSERT(heap()->Contains(object));
+      ASSERT(object->IsMarked());
+      ASSERT(!object->IsOverflowed());
 
-    // Because the object is marked, we have to recover the original map
-    // pointer and use it to mark the object's body.
-    MapWord map_word = object->map_word();
-    map_word.ClearMark();
-    Map* map = map_word.ToMap();
-    MarkObject(map);
+      // Because the object is marked, we have to recover the original map
+      // pointer and use it to mark the object's body.
+      MapWord map_word = object->map_word();
+      map_word.ClearMark();
+      Map* map = map_word.ToMap();
+      MarkObject(map);
 
-    StaticMarkingVisitor::IterateBody(map, object);
+      StaticMarkingVisitor::IterateBody(map, object);
+    }
+
+    // Process encountered weak maps, mark objects only reachable by those
+    // weak maps and repeat until fix-point is reached.
+    ProcessWeakMaps();
   }
 }
 
@@ -1733,6 +1773,45 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       current = reinterpret_cast<Map*>(next);
     }
   }
+}
+
+
+void MarkCompactCollector::ProcessWeakMaps() {
+  Object* weak_map_obj = encountered_weak_maps();
+  while (weak_map_obj != Smi::FromInt(0)) {
+    ASSERT(HeapObject::cast(weak_map_obj)->IsMarked());
+    JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
+    ObjectHashTable* table = weak_map->unchecked_table();
+    for (int i = 0; i < table->Capacity(); i++) {
+      if (HeapObject::cast(table->KeyAt(i))->IsMarked()) {
+        Object* value = table->get(table->EntryToValueIndex(i));
+        StaticMarkingVisitor::MarkObjectByPointer(heap(), &value);
+        table->set_unchecked(heap(),
+                             table->EntryToValueIndex(i),
+                             value,
+                             UPDATE_WRITE_BARRIER);
+      }
+    }
+    weak_map_obj = weak_map->next();
+  }
+}
+
+
+void MarkCompactCollector::ClearWeakMaps() {
+  Object* weak_map_obj = encountered_weak_maps();
+  while (weak_map_obj != Smi::FromInt(0)) {
+    ASSERT(HeapObject::cast(weak_map_obj)->IsMarked());
+    JSWeakMap* weak_map = reinterpret_cast<JSWeakMap*>(weak_map_obj);
+    ObjectHashTable* table = weak_map->unchecked_table();
+    for (int i = 0; i < table->Capacity(); i++) {
+      if (!HeapObject::cast(table->KeyAt(i))->IsMarked()) {
+        table->RemoveEntry(i, heap());
+      }
+    }
+    weak_map_obj = weak_map->next();
+    weak_map->set_next(Smi::FromInt(0));
+  }
+  set_encountered_weak_maps(Smi::FromInt(0));
 }
 
 // -------------------------------------------------------------------------

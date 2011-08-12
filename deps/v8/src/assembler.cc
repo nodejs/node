@@ -74,7 +74,7 @@ const double DoubleConstant::zero = 0.0;
 const double DoubleConstant::canonical_non_hole_nan = OS::nan_value();
 const double DoubleConstant::the_hole_nan = BitCast<double>(kHoleNanInt64);
 const double DoubleConstant::negative_infinity = -V8_INFINITY;
-const char* RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
+const char* const RelocInfo::kFillerCommentString = "DEOPTIMIZATION PADDING";
 
 // -----------------------------------------------------------------------------
 // Implementation of AssemblerBase

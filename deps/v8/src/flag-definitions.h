@@ -98,6 +98,7 @@ private:
 
 // Flags for experimental language features.
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
+DEFINE_bool(harmony_weakmaps, false, "enable harmony weak maps")
 
 // Flags for experimental implementation features.
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")

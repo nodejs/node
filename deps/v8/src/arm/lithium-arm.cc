@@ -1039,7 +1039,13 @@ LInstruction* LChunkBuilder::DoBranch(HBranch* instr) {
         : instr->SecondSuccessor();
     return new LGoto(successor->block_id());
   }
-  return new LBranch(UseRegisterAtStart(v));
+  LInstruction* branch = new LBranch(UseRegister(v));
+  // When we handle all cases, we never deopt, so we don't need to assign the
+  // environment then. Note that we map the "empty" case to the "all" case in
+  // the code generator.
+  ToBooleanStub::Types types = instr->expected_input_types();
+  bool all_cases_handled = types.IsAll() || types.IsEmpty();
+  return all_cases_handled ? branch : AssignEnvironment(branch);
 }
 
 

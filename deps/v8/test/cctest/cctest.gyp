@@ -79,6 +79,7 @@
         'test-log.cc',
         'test-mark-compact.cc',
         'test-parsing.cc',
+        'test-platform-tls.cc',
         'test-profile-generator.cc',
         'test-regexp.cc',
         'test-reloc-info.cc',

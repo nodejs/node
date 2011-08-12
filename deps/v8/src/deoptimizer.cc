@@ -1183,11 +1183,11 @@ void TranslationBuffer::Add(int32_t value) {
 
 
 int32_t TranslationIterator::Next() {
-  ASSERT(HasNext());
   // Run through the bytes until we reach one with a least significant
   // bit of zero (marks the end).
   uint32_t bits = 0;
   for (int i = 0; true; i += 7) {
+    ASSERT(HasNext());
     uint8_t next = buffer_->get(index_++);
     bits |= (next >> 1) << i;
     if ((next & 1) == 0) break;
@@ -1438,6 +1438,7 @@ void SlotRef::ComputeSlotMappingForArguments(JavaScriptFrame* frame,
   UNREACHABLE();
 }
 
+#ifdef ENABLE_DEBUGGER_SUPPORT
 
 DeoptimizedFrameInfo::DeoptimizedFrameInfo(
     Deoptimizer* deoptimizer, int frame_index) {
@@ -1467,5 +1468,6 @@ void DeoptimizedFrameInfo::Iterate(ObjectVisitor* v) {
   v->VisitPointers(expression_stack_, expression_stack_ + expression_count_);
 }
 
+#endif  // ENABLE_DEBUGGER_SUPPORT
 
 } }  // namespace v8::internal

@@ -291,8 +291,8 @@ TEST(LocalHandles) {
 
 
 TEST(GlobalHandles) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   Handle<Object> h1;
   Handle<Object> h2;
@@ -339,8 +339,8 @@ static void TestWeakGlobalHandleCallback(v8::Persistent<v8::Value> handle,
 
 
 TEST(WeakGlobalHandlesScavenge) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   WeakPointerCleared = false;
 
@@ -377,8 +377,8 @@ TEST(WeakGlobalHandlesScavenge) {
 
 
 TEST(WeakGlobalHandlesMark) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   WeakPointerCleared = false;
 
@@ -416,8 +416,8 @@ TEST(WeakGlobalHandlesMark) {
 }
 
 TEST(DeleteWeakGlobalHandle) {
-  GlobalHandles* global_handles = Isolate::Current()->global_handles();
   InitializeVM();
+  GlobalHandles* global_handles = Isolate::Current()->global_handles();
 
   WeakPointerCleared = false;
 

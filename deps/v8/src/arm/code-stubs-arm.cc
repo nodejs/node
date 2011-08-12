@@ -1603,83 +1603,139 @@ void CompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-// The stub returns zero for false, and a non-zero value for true.
+// The stub expects its argument in the tos_ register and returns its result in
+// it, too: zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses VFP3 instructions.
   CpuFeatures::Scope scope(VFP3);
 
-  Label false_result, true_result, not_string;
+  Label patch;
   const Register map = r9.is(tos_) ? r7 : r9;
 
-  // undefined -> false
-  __ LoadRoot(ip, Heap::kUndefinedValueRootIndex);
-  __ cmp(tos_, ip);
-  __ b(eq, &false_result);
+  // undefined -> false.
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
 
-  // Boolean -> its value
-  __ LoadRoot(ip, Heap::kFalseValueRootIndex);
-  __ cmp(tos_, ip);
-  __ b(eq, &false_result);
-  __ LoadRoot(ip, Heap::kTrueValueRootIndex);
-  __ cmp(tos_, ip);
-  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
-  // return true if the equal condition is satisfied.
-  __ Ret(eq);
+  // Boolean -> its value.
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
 
-  // Smis: 0 -> false, all other -> true
-  __ tst(tos_, tos_);
-  __ b(eq, &false_result);
-  __ tst(tos_, Operand(kSmiTagMask));
-  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
-  // return true if the not equal condition is satisfied.
-  __ Ret(eq);
+  // 'null' -> false.
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
 
-  // 'null' -> false
-  __ LoadRoot(ip, Heap::kNullValueRootIndex);
-  __ cmp(tos_, ip);
-  __ b(eq, &false_result);
+  if (types_.Contains(SMI)) {
+    // Smis: 0 -> false, all other -> true
+    __ tst(tos_, Operand(kSmiTagMask));
+    // tos_ contains the correct return value already
+    __ Ret(eq);
+  } else if (types_.NeedsMap()) {
+    // If we need a map later and have a Smi -> patch.
+    __ JumpIfSmi(tos_, &patch);
+  }
 
-  // Get the map of the heap object.
-  __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
+  if (types_.NeedsMap()) {
+    __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
 
-  // Undetectable -> false.
-  __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
-  __ tst(ip, Operand(1 << Map::kIsUndetectable));
-  __ b(&false_result, ne);
+    // Everything with a map could be undetectable, so check this now.
+    __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
+    __ tst(ip, Operand(1 << Map::kIsUndetectable));
+    // Undetectable -> false.
+    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+    __ Ret(ne);
+  }
 
-  // JavaScript object -> true.
-  __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
-  // "tos_" is a register and contains a non-zero value. Hence we implicitly
-  // return true if the greater than condition is satisfied.
-  __ Ret(ge);
+  if (types_.Contains(SPEC_OBJECT)) {
+    // Spec object -> true.
+    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
+    // tos_ contains the correct non-zero return value already.
+    __ Ret(ge);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a spec object for the first time -> patch.
+    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
+    __ b(ge, &patch);
+  }
 
-  // String value -> false iff empty.
+  if (types_.Contains(STRING)) {
+    // String value -> false iff empty.
   __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
-  __ b(&not_string, ge);
-  __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset));
-  // Return string length as boolean value, i.e. return false iff length is 0.
-  __ Ret();
+  __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset), lt);
+  __ Ret(lt);  // the string length is OK as the return value
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a string for the first time -> patch
+    __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
+    __ b(lt, &patch);
+  }
 
-  __ bind(&not_string);
-  // HeapNumber -> false iff +0, -0, or NaN.
-  __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-  __ b(&true_result, ne);
-  __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
-  __ VFPCompareAndSetFlags(d1, 0.0);
-  // "tos_" is a register, and contains a non zero value by default.
-  // Hence we only need to overwrite "tos_" with zero to return false for
-  // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
-  __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);  // for FP_ZERO
-  __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
-  __ Ret();
+  if (types_.Contains(HEAP_NUMBER)) {
+    // Heap number -> false iff +0, -0, or NaN.
+    Label not_heap_number;
+    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+    __ b(ne, &not_heap_number);
+    __ vldr(d1, FieldMemOperand(tos_, HeapNumber::kValueOffset));
+    __ VFPCompareAndSetFlags(d1, 0.0);
+    // "tos_" is a register, and contains a non zero value by default.
+    // Hence we only need to overwrite "tos_" with zero to return false for
+    // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
+    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);  // for FP_ZERO
+    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
+    __ Ret();
+    __ bind(&not_heap_number);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // We've seen a heap number for the first time -> patch
+    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
+    __ b(eq, &patch);
+  }
 
-  // Return 1/0 for true/false in tos_.
-  __ bind(&true_result);
-  __ mov(tos_, Operand(1, RelocInfo::NONE));
-  __ Ret();
-  __ bind(&false_result);
-  __ mov(tos_, Operand(0, RelocInfo::NONE));
-  __ Ret();
+  if (types_.Contains(INTERNAL_OBJECT)) {
+    // Internal objects -> true.
+    __ mov(tos_, Operand(1, RelocInfo::NONE));
+    __ Ret();
+  }
+
+  if (!types_.IsAll()) {
+    __ bind(&patch);
+    GenerateTypeTransition(masm);
+  }
+}
+
+
+void ToBooleanStub::CheckOddball(MacroAssembler* masm,
+                                 Type type,
+                                 Heap::RootListIndex value,
+                                 bool result,
+                                 Label* patch) {
+  if (types_.Contains(type)) {
+    // If we see an expected oddball, return its ToBoolean value tos_.
+    __ LoadRoot(ip, value);
+    __ cmp(tos_, ip);
+    // The value of a root is never NULL, so we can avoid loading a non-null
+    // value into tos_ when we want to return 'true'.
+    if (!result) {
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);
+    }
+    __ Ret(eq);
+  } else if (types_.Contains(INTERNAL_OBJECT)) {
+    // If we see an unexpected oddball and handle internal objects, we must
+    // patch because the code for internal objects doesn't handle it explictly.
+    __ LoadRoot(ip, value);
+    __ cmp(tos_, ip);
+    __ b(eq, patch);
+  }
+}
+
+
+void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
+  if (!tos_.is(r3)) {
+    __ mov(r3, Operand(tos_));
+  }
+  __ mov(r2, Operand(Smi::FromInt(tos_.code())));
+  __ mov(r1, Operand(Smi::FromInt(types_.ToByte())));
+  __ Push(r3, r2, r1);
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
+      3,
+      1);
 }
 
 

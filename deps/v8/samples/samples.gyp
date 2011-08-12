@@ -1,4 +1,4 @@
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -26,23 +26,24 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'target_defaults': {
+    'type': 'executable',
+    'dependencies': [
+      '../tools/gyp/v8.gyp:v8',
+    ],
+    'include_dirs': [
+      '../include',
+    ],
+  },
   'targets': [
     {
       'target_name': 'shell',
-      'type': 'executable',
-      'dependencies': [
-        '../tools/gyp/v8.gyp:v8',
-      ],
       'sources': [
         'shell.cc',
       ],
     },
     {
       'target_name': 'process',
-      'type': 'executable',
-      'dependencies': [
-        '../tools/gyp/v8.gyp:v8',
-      ],
       'sources': [
         'process.cc',
       ],
