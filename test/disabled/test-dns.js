@@ -60,9 +60,12 @@ while (i--) {
 }
 
 // CNAME should resolve
+var resolveCNAME = 'before';
 dns.resolve('labs.nrcmedia.nl', 'CNAME', function(err, result) {
   assert.deepEqual(result, ['nrcmedia.nl']);
+  assert.equal(resolveCNAME, 'beforeafter');
 });
+resolveCNAME += 'after';
 
 // CNAME should not resolve
 dns.resolve('nrcmedia.nl', 'CNAME', function(err, result) {
@@ -74,6 +77,7 @@ function checkDnsRecord(host, record) {
       myRecord = record;
   return function(err, stdout) {
     var expected = [];
+    var footprints = 'before';
     if (stdout.length)
       expected = stdout.substr(0, stdout.length - 1).split('\n');
 
@@ -94,6 +98,7 @@ function checkDnsRecord(host, record) {
 
             child_process.exec(reverseCmd, checkReverse(ip));
           }
+          assert.equal(footprints, 'beforeafter');
         });
         break;
       case 'MX':
@@ -106,6 +111,7 @@ function checkDnsRecord(host, record) {
             strResult.push(result[ll].priority + ' ' + result[ll].exchange);
           }
           cmpResults(expected, strResult, ttl, cname);
+          assert.equal(footprints, 'beforeafter');
         });
         break;
       case 'TXT':
@@ -118,6 +124,7 @@ function checkDnsRecord(host, record) {
             strResult.push('"' + result[ll] + '"');
           }
           cmpResults(expected, strResult, ttl, cname);
+          assert.equal(footprints, 'beforeafter');
         });
         break;
       case 'SRV':
@@ -133,9 +140,11 @@ function checkDnsRecord(host, record) {
                            result[ll].name);
           }
           cmpResults(expected, strResult, ttl, cname);
+          assert.equal(footprints, 'beforeafter');
         });
         break;
     }
+    footprints += 'after';
   }
 }
 
@@ -174,3 +183,46 @@ function cmpResults(expected, result, ttl, cname) {
                 ' was equal to expected ' + expected[ll]);
   }
 }
+
+// #1164
+var getHostByName = 'before';
+dns.getHostByName('localhost', function() {
+  assert.equal(getHostByName, 'beforeafter');
+});
+getHostByName += 'after';
+
+var getHostByAddr = 'before';
+dns.getHostByAddr('127.0.0.1', function() {
+  assert.equal(getHostByAddr, 'beforeafter');
+});
+getHostByAddr += 'after';
+
+var lookupEmpty = 'before';
+dns.lookup('', function() {
+  assert.equal(lookupEmpty, 'beforeafter');
+});
+lookupEmpty += 'after';
+
+var lookupIp = 'before';
+dns.lookup('127.0.0.1', function() {
+  assert.equal(lookupIp, 'beforeafter');
+});
+lookupIp += 'after';
+
+var lookupIp4 = 'before';
+dns.lookup('127.0.0.1', 4, function() {
+  assert.equal(lookupIp4, 'beforeafter');
+});
+lookupIp4 += 'after';
+
+var lookupIp6 = 'before';
+dns.lookup('ietf.org', 6, function() {
+  assert.equal(lookupIp6, 'beforeafter');
+});
+lookupIp6 += 'after';
+
+var lookupLocal = 'before';
+dns.lookup('localhost', function() {
+  assert.equal(lookupLocal, 'beforeafter');
+});
+lookupLocal += 'after';

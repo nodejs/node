@@ -78,7 +78,10 @@ function mkListener() {
 
     if (receivedMessages.length == sendMessages.length) {
       listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
-      listenSocket.close();
+      process.nextTick(function() { // TODO should be changed to below.
+      // listenSocket.dropMembership(LOCAL_BROADCAST_HOST, function() {
+        listenSocket.close();
+      });
     }
   });
 
