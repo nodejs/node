@@ -388,7 +388,7 @@ value in milliseconds. The default is `{ persistent: true, interval: 0 }`.
 The `listener` gets two arguments the current stat object and the previous
 stat object:
 
-    fs.watchFile(f, function (curr, prev) {
+    fs.watchFile('message.text', function (curr, prev) {
       console.log('the current mtime is: ' + curr.mtime);
       console.log('the previous mtime was: ' + prev.mtime);
     });
