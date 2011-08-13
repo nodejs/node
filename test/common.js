@@ -110,6 +110,19 @@ process.on('exit', function() {
     knownGlobals.push(DTRACE_NET_SOCKET_WRITE);
   }
 
+  if (global.ArrayBuffer) {
+    knownGlobals.push(ArrayBuffer);
+    knownGlobals.push(Int8Array);
+    knownGlobals.push(Uint8Array);
+    knownGlobals.push(Int16Array);
+    knownGlobals.push(Uint16Array);
+    knownGlobals.push(Int32Array);
+    knownGlobals.push(Uint32Array);
+    knownGlobals.push(Float32Array);
+    knownGlobals.push(Float64Array);
+    knownGlobals.push(DataView);
+  }
+
   for (var x in global) {
     var found = false;
 
