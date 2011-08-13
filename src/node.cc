@@ -1690,6 +1690,7 @@ typedef void (*extInit)(Handle<Object> exports);
 // DLOpen is node.dlopen(). Used to load 'module.node' dynamically shared
 // objects.
 Handle<Value> DLOpen(const v8::Arguments& args) {
+  node_module_struct compat_mod;
   HandleScope scope;
 
   if (args.Length() < 2) return Undefined();
@@ -1732,10 +1733,13 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   // Get the init() function from the dynamically shared object.
   node_module_struct *mod = static_cast<node_module_struct *>(dlsym(handle, symstr));
   free(symstr);
+  symstr = NULL;
+
   // Error out if not found.
   if (mod == NULL) {
     /* Start Compatibility hack: Remove once everyone is using NODE_MODULE macro */
-    node_module_struct compat_mod;
+    memset(&compat_mod, 0, sizeof compat_mod);
+
     mod = &compat_mod;
     mod->version = NODE_MODULE_VERSION;
 
