@@ -1,48 +1,8 @@
 {
-  'target_defaults': {
-    'default_configuration': 'Debug',
-    'configurations': {
-      # TODO: hoist these out and put them somewhere common, because
-      #       RuntimeLibrary MUST MATCH across the entire project
-      'Debug': {
-        'defines': [ 'DEBUG', '_DEBUG' ],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'RuntimeLibrary': 1, # static debug
-          },
-        },
-      },
-      'Release': {
-        'defines': [ 'NDEBUG' ],
-        'msvs_settings': {
-          'VCCLCompilerTool': {
-            'RuntimeLibrary': 0, # static release
-          },
-        },
-      }
-    },
-    'msvs_settings': {
-      'VCCLCompilerTool': {
-      },
-      'VCLibrarianTool': {
-      },
-      'VCLinkerTool': {
-        'GenerateDebugInformation': 'true',
-      },
-    },
-    'conditions': [
-      ['OS == "win"', {
-        'defines': [
-          'WIN32'
-        ],
-      }]
-    ],
-  },
-
   'targets': [
     {
       'target_name': 'uv',
-      'type': 'static_library',
+      'type': '<(library)',
       'include_dirs': [ 'include' ],
       'direct_dependent_settings': {
         'include_dirs': [ 'include' ],
@@ -152,7 +112,12 @@
             'src/win/timer.c',
             'src/win/util.c',
             'src/win/winapi.c',
-          ]
+          ],
+          'link_settings': {
+            'libraries': [
+              '-lws2_32.lib',
+            ],
+          },
         }, { # Not Windows i.e. POSIX
           'cflags': [
             '-g',
@@ -281,7 +246,12 @@
             'test/runner-unix.h',
           ]
         }]
-      ]
+      ],
+      'msvs-settings': {
+        'VCLinkerTool': {
+          'SubSystem': 1, # /subsystem:console
+        },
+      },
     },
 
     {
@@ -319,7 +289,12 @@
             'test/runner-unix.h',
           ]
         }]
-      ]
+      ],
+      'msvs-settings': {
+        'VCLinkerTool': {
+          'SubSystem': 1, # /subsystem:console
+        },
+      },
     }
   ]
 }
