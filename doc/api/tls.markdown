@@ -43,7 +43,7 @@ defaults to `localhost`.) `options` should be an object which specifies
     These are used to authorize connections.
 
   - `NPNProtocols`: An array of string or `Buffer` containing supported NPN
-    protocols. `Buffer` should have following format: `0x04hello0x5world`, where
+    protocols. `Buffer` should have following format: `0x05hello0x05world`, where
     first byte is next protocol name's length. (Passing array should usually be
     much simplier: `['hello', 'world']`.)
 
