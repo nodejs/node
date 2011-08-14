@@ -37,12 +37,7 @@ var gotResponse = false;
 var resBodySize = 0;
 
 server.listen(common.PORT, function() {
-  var client = http.createClient(common.PORT);
-
-  var req = client.request('GET', '/');
-  req.end();
-
-  req.on('response', function(res) {
+  http.get({ port: common.PORT }, function(res) {
     gotResponse = true;
 
     res.on('data', function(d) {
@@ -59,5 +54,4 @@ process.on('exit', function() {
   assert.ok(gotResponse);
   assert.equal(0, resBodySize);
 });
-
 

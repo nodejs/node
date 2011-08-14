@@ -33,10 +33,7 @@ var s = http.createServer(function(req, res) {
 });
 s.listen(common.PORT, function() {
 
-  var r = http.createClient(common.PORT);
-  var request = r.request('GET', '/');
-
-  request.on('response', function(response) {
+  var request = http.request({ port: common.PORT }, function(response) {
     console.log('STATUS: ' + response.statusCode);
     s.close();
   });

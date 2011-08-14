@@ -37,16 +37,18 @@ var server = http.createServer(function(req, res) {
 var gotEnd = false;
 
 server.listen(common.PORT, function() {
-  var client = http.createClient(common.PORT);
-  var request = client.request('HEAD', '/');
-  request.end();
-  request.addListener('response', function(response) {
+  var request = http.request({
+    port:   common.PORT,
+    method: 'HEAD',
+    path:   '/'
+  }, function(response) {
     common.error('response start');
     response.addListener('end', function() {
       common.error('response end');
       gotEnd = true;
     });
   });
+  request.end();
 });
 
 process.addListener('exit', function() {

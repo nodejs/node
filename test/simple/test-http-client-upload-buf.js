@@ -46,15 +46,11 @@ var server = http.createServer(function(req, res) {
 server.listen(common.PORT);
 
 server.addListener('listening', function() {
-  var client = http.createClient(common.PORT);
-  var req = client.request('POST', '/');
-
-  req.write(new Buffer(N));
-  req.end();
-
-  common.error('client finished sending request');
-
-  req.addListener('response', function(res) {
+  var req = http.request({
+    port:   common.PORT,
+    method: 'POST',
+    path:   '/'
+  }, function(res) {
     res.setEncoding('utf8');
     res.addListener('data', function(chunk) {
       console.log(chunk);
@@ -64,6 +60,11 @@ server.addListener('listening', function() {
       server.close();
     });
   });
+
+  req.write(new Buffer(N));
+  req.end();
+
+  common.error('client finished sending request');
 });
 
 process.addListener('exit', function() {

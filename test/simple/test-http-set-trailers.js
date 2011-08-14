@@ -96,11 +96,7 @@ server.addListener('listening', function() {
 
 // now, see if the client sees the trailers.
 server.addListener('listening', function() {
-  var client = http.createClient(common.PORT);
-  var req = client.request('/hello', {});
-  req.end();
-  outstanding_reqs++;
-  req.addListener('response', function(res) {
+  http.get({ port: common.PORT, path: '/hello', headers: {} }, function(res) {
     res.addListener('end', function() {
       //console.log(res.trailers);
       assert.ok('x-foo' in res.trailers, 'Client doesn\'t see trailers.');
@@ -111,4 +107,5 @@ server.addListener('listening', function() {
       }
     });
   });
+  outstanding_reqs++;
 });

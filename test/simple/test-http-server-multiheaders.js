@@ -40,18 +40,20 @@ var srv = http.createServer(function(req, res) {
 });
 
 srv.listen(common.PORT, function() {
-  var hc = http.createClient(common.PORT, 'localhost');
-  var hr = hc.request('/',
-      [
-        ['accept', 'abc'],
-        ['accept', 'def'],
-        ['Accept', 'ghijklmnopqrst'],
-        ['host', 'foo'],
-        ['Host', 'bar'],
-        ['hOst', 'baz'],
-        ['x-foo', 'bingo'],
-        ['x-bar', 'banjo'],
-        ['x-bar', 'bango']
-      ]);
-  hr.end();
+  http.get({
+    host: 'localhost',
+    port: common.PORT,
+    path: '/',
+    headers: [
+      ['accept', 'abc'],
+      ['accept', 'def'],
+      ['Accept', 'ghijklmnopqrst'],
+      ['host', 'foo'],
+      ['Host', 'bar'],
+      ['hOst', 'baz'],
+      ['x-foo', 'bingo'],
+      ['x-bar', 'banjo'],
+      ['x-bar', 'bango']
+    ]
+  });
 });

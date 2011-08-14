@@ -39,9 +39,7 @@ var body1 = '';
 var body2 = '';
 
 server.addListener('listening', function() {
-  var client = http.createClient(common.PORT);
-
-  var req1 = client.request('/1');
+  var req1 = http.request({ port: common.PORT, path: '/1' });
   req1.end();
   req1.addListener('response', function(res1) {
     res1.setEncoding('utf8');
@@ -51,7 +49,7 @@ server.addListener('listening', function() {
     });
 
     res1.addListener('end', function() {
-      var req2 = client.request('/2');
+      var req2 = http.request({ port: common.PORT, path: '/2' });
       req2.end();
       req2.addListener('response', function(res2) {
         res2.setEncoding('utf8');

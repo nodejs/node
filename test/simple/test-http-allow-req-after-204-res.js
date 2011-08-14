@@ -38,14 +38,15 @@ var server = http.createServer(function(req, res) {
   res.end();
 });
 
-var client = http.createClient(common.PORT);
-
 function nextRequest() {
   var method = methods.shift();
   console.error('writing request: %s', method);
 
-  var request = client.request(method, '/');
-  request.on('response', function(response) {
+  var request = http.request({
+    port:   common.PORT,
+    method: method,
+    path:   '/'
+  }, function(response) {
     response.on('end', function() {
       if (methods.length == 0) {
         console.error('close server');

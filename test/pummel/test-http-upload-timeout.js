@@ -48,8 +48,11 @@ server.listen(common.PORT, '127.0.0.1', function() {
     connections++;
 
     setTimeout(function() {
-      var client = http.createClient(common.PORT),
-          request = client.request('POST', '/');
+      var request = http.request({
+        port: common.PORT,
+        method: 'POST',
+        path:   '/'
+      });
 
       function ping() {
         var nextPing = (Math.random() * 900).toFixed();

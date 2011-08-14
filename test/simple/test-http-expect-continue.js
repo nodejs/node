@@ -51,9 +51,11 @@ server.listen(common.PORT);
 
 
 server.addListener('listening', function() {
-  var client = http.createClient(common.PORT);
-  var req = client.request('POST', '/world', {
-    'Expect': '100-continue'
+  var req = http.request({
+    port:    common.PORT,
+    method:  'POST',
+    path:    '/world',
+    headers: { 'Expect': '100-continue' }
   });
   common.debug('Client sending request...');
   outstanding_reqs++;

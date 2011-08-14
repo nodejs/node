@@ -43,11 +43,7 @@ server.addListener('listening', function() {
   //
   // one set-cookie header
   //
-  var client = http.createClient(common.PORT);
-  var req = client.request('GET', '/one');
-  req.end();
-
-  req.addListener('response', function(res) {
+  http.get({ port: common.PORT, path: '/one' }, function(res) {
     // set-cookie headers are always return in an array.
     // even if there is only one.
     assert.deepEqual(['A'], res.headers['set-cookie']);
@@ -66,11 +62,7 @@ server.addListener('listening', function() {
 
   // two set-cookie headers
 
-  var client = http.createClient(common.PORT);
-  var req = client.request('GET', '/two');
-  req.end();
-
-  req.addListener('response', function(res) {
+  http.get({ port: common.PORT, path: '/two' }, function(res) {
     assert.deepEqual(['A', 'B'], res.headers['set-cookie']);
     assert.equal('text/plain', res.headers['content-type']);
 

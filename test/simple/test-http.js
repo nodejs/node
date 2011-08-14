@@ -64,10 +64,13 @@ var server = http.Server(function(req, res) {
 server.listen(common.PORT);
 
 server.addListener('listening', function() {
-  var client = http.createClient(common.PORT);
-  var req = client.request('/hello', {'Accept': '*/*', 'Foo': 'bar'});
-  req.end();
-  req.addListener('response', function(res) {
+  var agent = new http.Agent({ port: common.PORT, maxSockets: 1 });
+  http.get({
+    port: common.PORT,
+    path: '/hello',
+    headers: {'Accept': '*/*', 'Foo': 'bar'},
+    agent: agent
+  }, function(res) {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;
     res.setEncoding('utf8');
@@ -76,15 +79,19 @@ server.addListener('listening', function() {
   });
 
   setTimeout(function() {
-    req = client.request('POST', '/world');
-    req.end();
-    req.addListener('response', function(res) {
+    var req = http.request({
+      port: common.PORT,
+      method: 'POST',
+      path:   '/world',
+      agent:  agent
+    }, function(res) {
       assert.equal(200, res.statusCode);
       responses_recvd += 1;
       res.setEncoding('utf8');
       res.addListener('data', function(chunk) { body1 += chunk; });
       common.debug('Got /world response');
     });
+    req.end();
   }, 1);
 });
 

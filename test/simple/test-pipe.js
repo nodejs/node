@@ -107,12 +107,12 @@ function startClient() {
 
   console.log('Making request');
 
-  var client = http.createClient(common.PORT);
-  var req = client.request('GET', '/', { 'content-length': buffer.length });
-  req.write(buffer);
-  req.end();
-
-  req.on('response', function(res) {
+  var req = http.request({
+    port:    common.PORT,
+    method:  'GET',
+    path:    '/',
+    headers: { 'content-length': buffer.length }
+  }, function(res) {
     console.log('Got response');
     res.setEncoding('utf8');
     res.on('data', function(string) {
@@ -120,6 +120,8 @@ function startClient() {
       gotThanks = true;
     });
   });
+  req.write(buffer);
+  req.end();
 }
 
 process.on('exit', function() {

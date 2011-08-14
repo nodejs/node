@@ -37,10 +37,11 @@ server.listen(common.PORT);
 var responseComplete = false;
 
 server.addListener('listening', function() {
-  var req = http.createClient(common.PORT).request('HEAD', '/');
-  common.error('req');
-  req.end();
-  req.addListener('response', function(res) {
+  var req = http.request({
+    port: common.PORT,
+    method: 'HEAD',
+    path: '/'
+  }, function(res) {
     common.error('response');
     res.addListener('end', function() {
       common.error('response end');
@@ -48,6 +49,8 @@ server.addListener('listening', function() {
       responseComplete = true;
     });
   });
+  common.error('req');
+  req.end();
 });
 
 process.addListener('exit', function() {

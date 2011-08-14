@@ -68,11 +68,12 @@ var gotThanks = false;
 web.listen(common.PORT, function() {
   console.log('Making request');
 
-  var client = http.createClient(common.PORT);
-  var req = client.request('GET', '/', { 'content-length': buffer.length });
-  req.end(buffer);
-
-  req.on('response', function(res) {
+  var req = http.request({
+    port:    common.PORT,
+    method:  'GET',
+    path:    '/',
+    headers: { 'content-length': buffer.length }
+  }, function(res) {
     console.log('Got response');
     res.setEncoding('utf8');
     res.on('data', function(string) {
@@ -80,6 +81,7 @@ web.listen(common.PORT, function() {
       gotThanks = true;
     });
   });
+  req.end(buffer);
 });
 
 

@@ -43,12 +43,12 @@ var backend = http.createServer(function(req, res) {
   res.end();
 });
 
-var proxy_client = http.createClient(BACKEND_PORT);
 var proxy = http.createServer(function(req, res) {
   common.debug('proxy req headers: ' + JSON.stringify(req.headers));
-  var proxy_req = proxy_client.request(url.parse(req.url).pathname);
-  proxy_req.end();
-  proxy_req.addListener('response', function(proxy_res) {
+  var proxy_req = http.get({
+    port: BACKEND_PORT,
+    path: url.parse(req.url).pathname
+  }, function(proxy_res) {
 
     common.debug('proxy res headers: ' + JSON.stringify(proxy_res.headers));
 
@@ -76,10 +76,10 @@ function startReq() {
   nlistening++;
   if (nlistening < 2) return;
 
-  var client = http.createClient(PROXY_PORT);
-  var req = client.request('/test');
-  common.debug('client req');
-  req.addListener('response', function(res) {
+  var client = http.get({
+    port: PROXY_PORT,
+    path: '/test'
+  }, function(res) {
     common.debug('got res');
     assert.equal(200, res.statusCode);
 
@@ -95,7 +95,7 @@ function startReq() {
       common.debug('closed both');
     });
   });
-  req.end();
+  common.debug('client req');
 }
 
 common.debug('listen proxy');

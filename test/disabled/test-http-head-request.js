@@ -42,9 +42,11 @@ server.listen(common.PORT);
 var gotEnd = false;
 
 server.addListener('listening', function() {
-  var client = http.createClient(common.PORT);
-  var request = client.request('HEAD', '/');
-  request.addListener('response', function(response) {
+  var request = http.request({
+    port:   common.PORT,
+    method: 'HEAD',
+    path:   '/'
+  }, function(response) {
     console.log('got response');
     response.addListener('data', function() {
       process.exit(2);
