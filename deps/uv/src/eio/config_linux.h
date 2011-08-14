@@ -2,17 +2,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 #include <linux/version.h>
-
-#define LINUX_VERSION_CODE_FOR(major, minor, patch) \
-  (((major & 255) << 16) | ((minor & 255) << 8) | (patch & 255))
-
-#define LINUX_VERSION_AT_LEAST(major, minor, patch) \
-  (LINUX_VERSION_CODE >= LINUX_VERSION_CODE_FOR(major, minor, patch))
-
-#ifdef __GLIBC__
-#define GLIBC_VERSION_AT_LEAST(major, minor) \
-  (__GLIBC__ > major || (__GLIBC__ == major && __GLIBC_MINOR__ >= minor))
-#endif
+#include <features.h>
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -53,11 +43,11 @@
 /* Define to 1 if you have the <string.h> header file. */
 #define HAVE_STRING_H 1
 
-/* sync_file_range(2) is available */
-#ifdef __GLIBC__
-#define HAVE_SYNC_FILE_RANGE (LINUX_VERSION_AT_LEAST(2, 6, 17) && GLIBC_VERSION_AT_LEAST(2, 6))
+/* sync_file_range(2) is available if kernel >= 2.6.17 and glibc >= 2.6 */
+#if LINUX_VERSION_CODE >= 0x020611 && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 6
+#define HAVE_SYNC_FILE_RANGE 1
 #else
-#define HAVE_SYNC_FILE_RANGE LINUX_VERSION_AT_LEAST(2, 6, 17)
+#define HAVE_SYNC_FILE_RANGE 0
 #endif
 
 /* Define to 1 if you have the <sys/stat.h> header file. */
