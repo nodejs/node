@@ -126,7 +126,7 @@ buffer object.  It does not change when the contents of the buffer are changed.
 
 ### buffer.copy(targetBuffer, targetStart=0, sourceStart=0, sourceEnd=buffer.length)
 
-Does a memcpy() between buffers.
+Does copy between buffers. The source and target regions can be overlapped.
 
 Example: build two Buffers, then copy `buf1` from byte 16 through byte 19
 into `buf2`, starting at the 8th byte in `buf2`.
