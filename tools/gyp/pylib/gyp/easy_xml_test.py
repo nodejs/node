@@ -17,75 +17,85 @@ class TestSequenceFunctions(unittest.TestCase):
     self.stderr = StringIO.StringIO()
 
   def test_EasyXml_simple(self):
-    xml = easy_xml.EasyXml('test')
-    self.assertEqual(str(xml), '<?xml version="1.0" ?><test/>')
+    self.assertEqual(
+      easy_xml.XmlToString(['test']),
+      '<?xml version="1.0" encoding="utf-8"?><test/>')
+
+    self.assertEqual(
+      easy_xml.XmlToString(['test'], encoding='Windows-1252'),
+      '<?xml version="1.0" encoding="Windows-1252"?><test/>')
 
   def test_EasyXml_simple_with_attributes(self):
-    xml = easy_xml.EasyXml('test2', {'a': 'value1', 'b': 'value2'})
-    self.assertEqual(str(xml),
-                     '<?xml version="1.0" ?><test2 a="value1" b="value2"/>')
+    self.assertEqual(
+      easy_xml.XmlToString(['test2', {'a': 'value1', 'b': 'value2'}]),
+      '<?xml version="1.0" encoding="utf-8"?><test2 a="value1" b="value2"/>')
 
-  def test_EasyXml_add_node(self):
-    # We want to create:
-    target = ('<?xml version="1.0" ?>'
-        '<test3>'
-          '<GrandParent>'
-            '<Parent1>'
-               '<Child/>'
-            '</Parent1>'
-            '<Parent2/>'
-          '</GrandParent>'
-        '</test3>')
+  def test_EasyXml_escaping(self):
+    original = '<test>\'"\r&\nfoo'
+    converted = '&lt;test&gt;&apos;&quot;&#xD;&amp;&#xA;foo'
+    self.assertEqual(
+      easy_xml.XmlToString(['test3', {'a': original}, original]),
+      '<?xml version="1.0" encoding="utf-8"?><test3 a="%s">%s</test3>' %
+      (converted, converted))
 
-    # Do it the hard way first:
-    xml = easy_xml.EasyXml('test3')
-    grand_parent = xml.AppendNode(xml.Root(), ['GrandParent'])
-    parent1 = xml.AppendNode(grand_parent, ['Parent1'])
-    parent2 = xml.AppendNode(grand_parent, ['Parent2'])
-    xml.AppendNode(parent1, ['Child'])
-    self.assertEqual(str(xml), target)
+  def test_EasyXml_pretty(self):
+    self.assertEqual(
+      easy_xml.XmlToString(
+          ['test3',
+            ['GrandParent',
+              ['Parent1',
+                ['Child']
+              ],
+              ['Parent2']
+            ]
+          ],
+          pretty=True),
+      '<?xml version="1.0" encoding="utf-8"?>\n'
+      '<test3>\n'
+      '  <GrandParent>\n'
+      '    <Parent1>\n'
+      '      <Child/>\n'
+      '    </Parent1>\n'
+      '    <Parent2/>\n'
+      '  </GrandParent>\n'
+      '</test3>\n')
 
-    # Do it the easier way:
-    xml = easy_xml.EasyXml('test3')
-    xml.AppendNode(xml.Root(),
-        ['GrandParent',
-            ['Parent1', ['Child']],
-            ['Parent2']])
-    self.assertEqual(str(xml), target)
 
   def test_EasyXml_complex(self):
     # We want to create:
-    target = ('<?xml version="1.0" ?>'
-        '<Project>'
-          '<PropertyGroup Label="Globals">'
-            '<ProjectGuid>{D2250C20-3A94-4FB9-AF73-11BC5B73884B}</ProjectGuid>'
-            '<Keyword>Win32Proj</Keyword>'
-            '<RootNamespace>automated_ui_tests</RootNamespace>'
-          '</PropertyGroup>'
-          '<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props"/>'
-          '<PropertyGroup Condition="\'$(Configuration)|$(Platform)\'==\''
-                                      'Debug|Win32\'" Label="Configuration">'
-            '<ConfigurationType>Application</ConfigurationType>'
-            '<CharacterSet>Unicode</CharacterSet>'
-          '</PropertyGroup>'
-        '</Project>')
+    target = (
+      '<?xml version="1.0" encoding="utf-8"?>'
+      '<Project>'
+        '<PropertyGroup Label="Globals">'
+          '<ProjectGuid>{D2250C20-3A94-4FB9-AF73-11BC5B73884B}</ProjectGuid>'
+          '<Keyword>Win32Proj</Keyword>'
+          '<RootNamespace>automated_ui_tests</RootNamespace>'
+        '</PropertyGroup>'
+        '<Import Project="$(VCTargetsPath)\\Microsoft.Cpp.props"/>'
+        '<PropertyGroup '
+            'Condition="&apos;$(Configuration)|$(Platform)&apos;=='
+                       '&apos;Debug|Win32&apos;" Label="Configuration">'
+          '<ConfigurationType>Application</ConfigurationType>'
+          '<CharacterSet>Unicode</CharacterSet>'
+        '</PropertyGroup>'
+      '</Project>')
 
-    xml = easy_xml.EasyXml('Project')
-    xml.AppendChildren(xml.Root(), [
-        ['PropertyGroup', {'Label': 'Globals'},
+    xml = easy_xml.XmlToString(
+        ['Project',
+          ['PropertyGroup', {'Label': 'Globals'},
             ['ProjectGuid', '{D2250C20-3A94-4FB9-AF73-11BC5B73884B}'],
             ['Keyword', 'Win32Proj'],
             ['RootNamespace', 'automated_ui_tests']
-        ],
-        ['Import', {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.props'}],
-        ['PropertyGroup',
+          ],
+          ['Import', {'Project': '$(VCTargetsPath)\\Microsoft.Cpp.props'}],
+          ['PropertyGroup',
             {'Condition': "'$(Configuration)|$(Platform)'=='Debug|Win32'",
-                'Label': 'Configuration'},
+             'Label': 'Configuration'},
             ['ConfigurationType', 'Application'],
             ['CharacterSet', 'Unicode']
-        ]
-    ])
-    self.assertEqual(str(xml), target)
+          ]
+        ])
+    self.assertEqual(xml, target)
 
 
 if __name__ == '__main__':

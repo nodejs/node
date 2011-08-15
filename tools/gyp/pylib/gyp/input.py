@@ -413,7 +413,7 @@ def LoadTargetBuildFile(build_file_path, data, aux_data, variables, includes,
         index = index + 1
     else:
       raise Exception, \
-            "Unable to find targets in build file %s" % os.path.abspath(build_file_path)
+            "Unable to find targets in build file %s" % build_file_path
 
     # No longer needed.
     del build_file_data['target_defaults']

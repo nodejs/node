@@ -368,7 +368,7 @@ command_changed = $(or $(subst $(cmd_$(1)),,$(cmd_$(call replace_spaces,$@))),\\
 # so we can check their command lines.
 #   $? -- new prerequisites
 #   $| -- order-only dependencies
-prereq_changed = $(filter-out $|,$?)
+prereq_changed = $(filter-out FORCE_DO_CMD,$(filter-out $|,$?))
 
 # do_cmd: run a command via the above cmd_foo names, if necessary.
 # Should always run for a given target to handle command-line changes.
@@ -454,90 +454,11 @@ SHARED_HEADER_SUFFIX_RULES_COMMENT1 = ("""\
 # Suffix rules, putting all outputs into $(obj).
 """)
 
-SHARED_HEADER_SUFFIX_RULES_SRCDIR = {
-    '.c': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.c FORCE_DO_CMD
-	@$(call do_cmd,cc,1)
-"""),
-    '.s': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.s FORCE_DO_CMD
-	@$(call do_cmd,cc,1)
-"""),
-    '.S': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.S FORCE_DO_CMD
-	@$(call do_cmd,cc,1)
-"""),
-    '.cpp': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.cpp FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.cc': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.cc FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.cxx': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.cxx FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.m': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.m FORCE_DO_CMD
-	@$(call do_cmd,objc,1)
-"""),
-    '.mm': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(srcdir)/%.mm FORCE_DO_CMD
-	@$(call do_cmd,objcxx,1)
-"""),
-}
 
 SHARED_HEADER_SUFFIX_RULES_COMMENT2 = ("""\
 # Try building from generated source, too.
 """)
 
-SHARED_HEADER_SUFFIX_RULES_OBJDIR1 = {
-    '.c': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj).$(TOOLSET)/%.c FORCE_DO_CMD
-	@$(call do_cmd,cc,1)
-"""),
-    '.cc': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj).$(TOOLSET)/%.cc FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.cpp': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj).$(TOOLSET)/%.cpp FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.m': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj).$(TOOLSET)/%.m FORCE_DO_CMD
-	@$(call do_cmd,objc,1)
-"""),
-    '.mm': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj).$(TOOLSET)/%.mm FORCE_DO_CMD
-	@$(call do_cmd,objcxx,1)
-"""),
-}
-
-SHARED_HEADER_SUFFIX_RULES_OBJDIR2 = {
-    '.c': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj)/%.c FORCE_DO_CMD
-	@$(call do_cmd,cc,1)
-"""),
-    '.cc': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj)/%.cc FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.cpp': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj)/%.cpp FORCE_DO_CMD
-	@$(call do_cmd,cxx,1)
-"""),
-    '.m': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj)/%.m FORCE_DO_CMD
-	@$(call do_cmd,objc,1)
-"""),
-    '.mm': ("""\
-$(obj).$(TOOLSET)/$(TARGET)/%.o: $(obj)/%.mm FORCE_DO_CMD
-	@$(call do_cmd,objcxx,1)
-"""),
-}
 
 SHARED_FOOTER = """\
 # "all" is a concatenation of the "all" targets from all the included
@@ -700,7 +621,7 @@ class XcodeSettings(object):
     assert self._IsBundle()
     return self.GetPerTargetSetting('FRAMEWORK_VERSION', default='A')
 
-  def _GetBundleExtension(self):
+  def GetWrapperExtension(self):
     """Returns the bundle extension (.app, .framework, .plugin, etc).  Only
     valid for bundles."""
     assert self._IsBundle()
@@ -714,12 +635,15 @@ class XcodeSettings(object):
       assert False, "Don't know extension for '%s', target '%s'" % (
           self.spec['type'], self.spec['target_name'])
 
-  def GetBundleName(self):
+  def GetProductName(self):
+    """Returns PRODUCT_NAME."""
+    return self.spec.get('product_name', self.spec['target_name'])
+
+  def GetWrapperName(self):
     """Returns the directory name of the bundle represented by this target.
     Only valid for bundles."""
     assert self._IsBundle()
-    return self.spec.get('product_name',
-                         self.spec['target_name']) + self._GetBundleExtension()
+    return self.GetProductName() + self.GetWrapperExtension()
 
   def GetBundleContentsFolderPath(self):
     """Returns the qualified path to the bundle's contents folder. E.g.
@@ -727,10 +651,10 @@ class XcodeSettings(object):
     assert self._IsBundle()
     if self.spec['type'] == 'shared_library':
       return os.path.join(
-          self.GetBundleName(), 'Versions', self.GetFrameworkVersion())
+          self.GetWrapperName(), 'Versions', self.GetFrameworkVersion())
     else:
       # loadable_modules have a 'Contents' folder like executables.
-      return os.path.join(self.GetBundleName(), 'Contents')
+      return os.path.join(self.GetWrapperName(), 'Contents')
 
   def GetBundleResourceFolder(self):
     """Returns the qualified path to the bundle's resource folder. E.g.
@@ -826,10 +750,8 @@ class XcodeSettings(object):
     self._WarnUnimplemented('ARCHS')
     self._WarnUnimplemented('COPY_PHASE_STRIP')
     self._WarnUnimplemented('DEPLOYMENT_POSTPROCESSING')
-    self._WarnUnimplemented('DYLIB_INSTALL_NAME_BASE')
     self._WarnUnimplemented('INFOPLIST_PREPROCESS')
     self._WarnUnimplemented('INFOPLIST_PREPROCESSOR_DEFINITIONS')
-    self._WarnUnimplemented('LD_DYLIB_INSTALL_NAME')
     self._WarnUnimplemented('STRIPFLAGS')
     self._WarnUnimplemented('STRIP_INSTALLED_PRODUCT')
 
@@ -931,6 +853,39 @@ class XcodeSettings(object):
     ldflags.append('-L' + generator_default_variables['LIB_DIR'])
     ldflags.append('-L' + generator_default_variables['PRODUCT_DIR'])
 
+    install_name = self.GetPerTargetSetting('LD_DYLIB_INSTALL_NAME')
+    if install_name:
+      # Hardcode support for the variables used in chromium for now, to unblock
+      # people using the make build.
+      if '$' in install_name:
+        assert install_name == ('$(DYLIB_INSTALL_NAME_BASE:standardizepath)/'
+            '$(WRAPPER_NAME)/$(PRODUCT_NAME)'), (
+            'Variables in LD_DYLIB_INSTALL_NAME are not generally supported yet'
+            ' in target \'%s\' (got \'%s\')' %
+                (self.spec['target_name'], install_name))
+        install_base = self.GetPerTargetSetting('DYLIB_INSTALL_NAME_BASE')
+        # I'm not quite sure what :standardizepath does. Just call normpath(),
+        # but don't let @executable_path/../foo collapse to foo
+        prefix, rest = '', install_base
+        if install_base.startswith('@'):
+          prefix, rest = install_base.split('/', 1)
+        rest = os.path.normpath(rest)  # :standardizepath
+        install_base = os.path.join(prefix, rest)
+
+        install_name = install_name.replace(
+            '$(DYLIB_INSTALL_NAME_BASE:standardizepath)', install_base)
+        install_name = install_name.replace(
+            '$(WRAPPER_NAME)', self.GetWrapperName())
+        install_name = install_name.replace(
+            '$(PRODUCT_NAME)', self.GetProductName())
+
+      install_name = QuoteSpaces(install_name)
+      ldflags.append('-install_name ' + install_name)
+    elif self.GetPerTargetSetting('DYLIB_INSTALL_NAME_BASE'):
+      # LD_DYLIB_INSTALL_NAME defaults to
+      # $(DYLIB_INSTALL_NAME_BASE:standardizepath)/$(EXECUTABLE_PATH).
+      print 'Warning: DYLIB_INSTALL_NAME_BASE is not fully implemented.'
+
     self.configname = None
     return ldflags
 
@@ -946,7 +901,7 @@ class XcodeSettings(object):
       else:
         assert result == self.xcode_settings[configname].get(setting, None), (
             "Expected per-target setting for '%s', got per-config setting "
-            "(target %s" % (setting, spec['target_name']))
+            "(target %s)" % (setting, spec['target_name']))
     if result is None:
       return default
     return result
@@ -1057,6 +1012,28 @@ class MakefileWriter:
     # Keep track of the total number of outputs for this makefile.
     self._num_outputs = 0
 
+    self.suffix_rules_srcdir = {}
+    self.suffix_rules_objdir1 = {}
+    self.suffix_rules_objdir2 = {}
+
+    # Generate suffix rules for all compilable extensions.
+    for ext in COMPILABLE_EXTENSIONS.keys():
+      # Suffix rules for source folder.
+      self.suffix_rules_srcdir.update({ext: ("""\
+$(obj).$(TOOLSET)/$(TARGET)/%%.o: $(srcdir)/%%%s FORCE_DO_CMD
+	@$(call do_cmd,%s,1)
+""" % (ext, COMPILABLE_EXTENSIONS[ext]))})
+
+      # Suffix rules for generated source files.
+      self.suffix_rules_objdir1.update({ext: ("""\
+$(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj).$(TOOLSET)/%%%s FORCE_DO_CMD
+	@$(call do_cmd,%s,1)
+""" % (ext, COMPILABLE_EXTENSIONS[ext]))})
+      self.suffix_rules_objdir2.update({ext: ("""\
+$(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
+	@$(call do_cmd,%s,1)
+""" % (ext, COMPILABLE_EXTENSIONS[ext]))})
+
 
   def NumOutputs(self):
     return self._num_outputs
@@ -1165,15 +1142,15 @@ class MakefileWriter:
         self.WriteLn(SHARED_HEADER_SUFFIX_RULES_COMMENT1)
         extensions = set([os.path.splitext(s)[1] for s in sources])
         for ext in extensions:
-          if ext in SHARED_HEADER_SUFFIX_RULES_SRCDIR:
-            self.WriteLn(SHARED_HEADER_SUFFIX_RULES_SRCDIR[ext])
+          if ext in self.suffix_rules_srcdir:
+            self.WriteLn(self.suffix_rules_srcdir[ext])
         self.WriteLn(SHARED_HEADER_SUFFIX_RULES_COMMENT2)
         for ext in extensions:
-          if ext in SHARED_HEADER_SUFFIX_RULES_OBJDIR1:
-            self.WriteLn(SHARED_HEADER_SUFFIX_RULES_OBJDIR1[ext])
+          if ext in self.suffix_rules_objdir1:
+            self.WriteLn(self.suffix_rules_objdir1[ext])
         for ext in extensions:
-          if ext in SHARED_HEADER_SUFFIX_RULES_OBJDIR2:
-            self.WriteLn(SHARED_HEADER_SUFFIX_RULES_OBJDIR2[ext])
+          if ext in self.suffix_rules_objdir2:
+            self.WriteLn(self.suffix_rules_objdir2[ext])
         self.WriteLn('# End of this set of suffix rules')
 
         # Add dependency from bundle to bundle binary.
@@ -1672,7 +1649,7 @@ class MakefileWriter:
     """Return the 'output' (full output path) to a bundle output directory."""
     assert self.is_mac_bundle
     path = generator_default_variables['PRODUCT_DIR']
-    return os.path.join(path, self.xcode_settings.GetBundleName())
+    return os.path.join(path, self.xcode_settings.GetWrapperName())
 
 
   def ComputeMacBundleBinaryOutput(self, spec):
@@ -1735,7 +1712,12 @@ class MakefileWriter:
         if self.flavor == 'mac':
           ldflags = self.xcode_settings.GetLdflags(self, configname)
         else:
-          ldflags = config.get('ldflags')
+          ldflags = config.get('ldflags', [])
+          # Compute an rpath for this output if needed.
+          if any(dep.endswith('.so') for dep in deps):
+            # We want to get the literal string "$ORIGIN" into the link command,
+            # so we need lots of escaping.
+            ldflags.append(r'-Wl,-rpath=\$$ORIGIN/lib.%s/' % self.toolset)
         self.WriteList(ldflags, 'LDFLAGS_%s' % configname)
       libraries = spec.get('libraries')
       if libraries:

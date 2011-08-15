@@ -10,8 +10,7 @@ import common
 import os
 import re
 import socket # for gethostname
-import xml.dom
-import xml_fix
+import gyp.easy_xml as easy_xml
 
 
 #------------------------------------------------------------------------------
@@ -56,49 +55,18 @@ def _QuoteWin32CommandLineArgs(args):
 class Writer(object):
   """Visual Studio XML user user file writer."""
 
-  def __init__(self, user_file_path, version):
+  def __init__(self, user_file_path, version, name):
     """Initializes the user file.
 
     Args:
       user_file_path: Path to the user file.
+      version: Version info.
+      name: Name of the user file.
     """
     self.user_file_path = user_file_path
     self.version = version
-    self.doc = None
-
-  def Create(self, name):
-    """Creates the user file document.
-
-    Args:
-      name: Name of the user file.
-    """
     self.name = name
-
-    # Create XML doc
-    xml_impl = xml.dom.getDOMImplementation()
-    self.doc = xml_impl.createDocument(None, 'VisualStudioUserFile', None)
-
-    # Add attributes to root element
-    self.n_root = self.doc.documentElement
-    self.n_root.setAttribute('Version', self.version.ProjectVersion())
-    self.n_root.setAttribute('Name', self.name)
-
-    # Add configurations section
-    self.n_configs = self.doc.createElement('Configurations')
-    self.n_root.appendChild(self.n_configs)
-
-  def _AddConfigToNode(self, parent, config_type, config_name):
-    """Adds a configuration to the parent node.
-
-    Args:
-      parent: Destination node.
-      config_type: Type of configuration node.
-      config_name: Configuration name.
-    """
-    # Add configuration node and its attributes
-    n_config = self.doc.createElement(config_type)
-    n_config.setAttribute('Name', config_name)
-    parent.appendChild(n_config)
+    self.configurations = {}
 
   def AddConfig(self, name):
     """Adds a configuration to the project.
@@ -106,8 +74,7 @@ class Writer(object):
     Args:
       name: Configuration name.
     """
-    self._AddConfigToNode(self.n_configs, 'Configuration', name)
-
+    self.configurations[name] = ['Configuration', {'Name': name}]
 
   def AddDebugSettings(self, config_name, command, environment = {},
                        working_directory=""):
@@ -121,62 +88,61 @@ class Writer(object):
     """
     command = _QuoteWin32CommandLineArgs(command)
 
-    n_cmd = self.doc.createElement('DebugSettings')
     abs_command = _FindCommandInPath(command[0])
-    n_cmd.setAttribute('Command', abs_command)
-    n_cmd.setAttribute('WorkingDirectory', working_directory)
-    n_cmd.setAttribute('CommandArguments', " ".join(command[1:]))
-    n_cmd.setAttribute('RemoteMachine', socket.gethostname())
 
     if environment and isinstance(environment, dict):
-      n_cmd.setAttribute('Environment',
-                         " ".join(['%s="%s"' % (key, val)
-                                   for (key,val) in environment.iteritems()]))
+      env_list = ['%s="%s"' % (key, val)
+                  for (key,val) in environment.iteritems()]
+      environment = ' '.join(env_list)
     else:
-      n_cmd.setAttribute('Environment', '')
+      environment = ''
 
-    n_cmd.setAttribute('EnvironmentMerge', 'true')
-
-    # Currently these are all "dummy" values that we're just setting
-    # in the default manner that MSVS does it.  We could use some of
-    # these to add additional capabilities, I suppose, but they might
-    # not have parity with other platforms then.
-    n_cmd.setAttribute('Attach', 'false')
-    n_cmd.setAttribute('DebuggerType', '3') # 'auto' debugger
-    n_cmd.setAttribute('Remote', '1')
-    n_cmd.setAttribute('RemoteCommand', '')
-    n_cmd.setAttribute('HttpUrl', '')
-    n_cmd.setAttribute('PDBPath', '')
-    n_cmd.setAttribute('SQLDebugging', '')
-    n_cmd.setAttribute('DebuggerFlavor', '0')
-    n_cmd.setAttribute('MPIRunCommand', '')
-    n_cmd.setAttribute('MPIRunArguments', '')
-    n_cmd.setAttribute('MPIRunWorkingDirectory', '')
-    n_cmd.setAttribute('ApplicationCommand', '')
-    n_cmd.setAttribute('ApplicationArguments', '')
-    n_cmd.setAttribute('ShimCommand', '')
-    n_cmd.setAttribute('MPIAcceptMode', '')
-    n_cmd.setAttribute('MPIAcceptFilter', '')
+    n_cmd = ['DebugSettings',
+             {'Command': abs_command,
+              'WorkingDirectory': working_directory,
+              'CommandArguments': " ".join(command[1:]),
+              'RemoteMachine': socket.gethostname(),
+              'Environment': environment,
+              'EnvironmentMerge': 'true',
+              # Currently these are all "dummy" values that we're just setting
+              # in the default manner that MSVS does it.  We could use some of
+              # these to add additional capabilities, I suppose, but they might
+              # not have parity with other platforms then.
+              'Attach': 'false',
+              'DebuggerType': '3',  # 'auto' debugger
+              'Remote': '1',
+              'RemoteCommand': '',
+              'HttpUrl': '',
+              'PDBPath': '',
+              'SQLDebugging': '',
+              'DebuggerFlavor': '0',
+              'MPIRunCommand': '',
+              'MPIRunArguments': '',
+              'MPIRunWorkingDirectory': '',
+              'ApplicationCommand': '',
+              'ApplicationArguments': '',
+              'ShimCommand': '',
+              'MPIAcceptMode': '',
+              'MPIAcceptFilter': ''
+             }]
 
     # Find the config, and add it if it doesn't exist.
-    found = False
-    for config in self.n_configs.childNodes:
-      if config.getAttribute("Name") == config_name:
-        found = True
-
-    if not found:
+    if config_name not in self.configurations:
       self.AddConfig(config_name)
 
     # Add the DebugSettings onto the appropriate config.
-    for config in self.n_configs.childNodes:
-      if config.getAttribute("Name") == config_name:
-        config.appendChild(n_cmd)
-        break
+    self.configurations[config_name].append(n_cmd)
 
-  def Write(self, writer=common.WriteOnDiff):
+  def WriteIfChanged(self):
     """Writes the user file."""
-    f = writer(self.user_file_path)
-    self.doc.writexml(f, encoding='Windows-1252', addindent='  ', newl='\r\n')
-    f.close()
+    configs = ['Configurations']
+    for config, spec in sorted(self.configurations.iteritems()):
+      configs.append(spec)
 
-#------------------------------------------------------------------------------
+    content = ['VisualStudioUserFile',
+               {'Version': self.version.ProjectVersion(),
+                'Name': self.name
+               },
+               configs]
+    easy_xml.WriteXmlIfChanged(content, self.user_file_path,
+                               encoding="Windows-1252")
