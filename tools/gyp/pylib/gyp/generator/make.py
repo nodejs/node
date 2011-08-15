@@ -1239,12 +1239,11 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteLn('quiet_cmd_%s = ACTION %s $@' % (name, name))
       if len(dirs) > 0:
         command = 'mkdir -p %s' % ' '.join(dirs) + '; ' + command
+
+      cd_action = 'cd %s; ' % Sourceify(self.path or '.')
+
       # Set LD_LIBRARY_PATH in case the action runs an executable from this
       # build which links to shared libs from this build.
-      if self.path:
-        cd_action = 'cd %s; ' % Sourceify(self.path)
-      else:
-        cd_action = ''
       # actions run on the host, so they should in theory only use host
       # libraries, but until everything is made cross-compile safe, also use
       # target libraries.
@@ -1350,10 +1349,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         mkdirs = ''
         if len(dirs) > 0:
           mkdirs = 'mkdir -p %s; ' % ' '.join(dirs)
-        if self.path:
-          cd_action = 'cd %s; ' % Sourceify(self.path)
-        else:
-          cd_action = ''
+        cd_action = 'cd %s; ' % Sourceify(self.path or '.')
         # Set LD_LIBRARY_PATH in case the rule runs an executable from this
         # build which links to shared libs from this build.
         # rules run on the host, so they should in theory only use host
