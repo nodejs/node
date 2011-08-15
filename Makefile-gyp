@@ -1,13 +1,13 @@
 BUILDTYPE ?= Release
 
 all: out/Makefile
-	$(MAKE) -f Makefile-nodegyp BUILDTYPE=$(BUILDTYPE)
+	$(MAKE) -C out BUILDTYPE=$(BUILDTYPE)
 	-ln -fs out/Release/node node
 	-ln -fs out/Debug/node node_g
 
 out/Release/node: all
 
-out/Makefile: node.gyp deps/uv/build/all.gyp 
+out/Makefile: node.gyp deps/uv/uv.gyp
 	tools/gyp_node -f make
 
 clean:
