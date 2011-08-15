@@ -73,30 +73,30 @@ given to the completion callback.
 
 Synchronous ftruncate(2).
 
-### fs.chown(path, mode, [callback])
+### fs.chown(path, uid, gid, [callback])
 
 Asycnronous chown(2). No arguments other than a possible exception are given
 to the completion callback.
 
-### fs.chownSync(path, mode)
+### fs.chownSync(path, uid, gid)
 
 Synchronous chown(2).
 
-### fs.fchown(path, mode, [callback])
+### fs.fchown(path, uid, gid, [callback])
 
 Asycnronous fchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
-### fs.fchownSync(path, mode)
+### fs.fchownSync(path, uid, gid)
 
 Synchronous fchown(2).
 
-### fs.lchown(path, mode, [callback])
+### fs.lchown(path, uid, gid, [callback])
 
 Asycnronous lchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
-### fs.lchownSync(path, mode)
+### fs.lchownSync(path, uid, gid)
 
 Synchronous lchown(2).
 
