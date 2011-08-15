@@ -3783,7 +3783,7 @@ int
 EIO_PBKDF2After(eio_req* req) {
   HandleScope scope;
 
-  ev_unref(EV_DEFAULT_UC);
+  uv_unref();
 
   pbkdf2_req* request = (pbkdf2_req*)req->data;
   Handle<Value> argv[2];
@@ -3865,7 +3865,7 @@ PBKDF2(const Arguments& args) {
   request->callback = Persistent<Function>::New(callback);
 
   eio_custom(EIO_PBKDF2, EIO_PRI_DEFAULT, EIO_PBKDF2After, request);
-  ev_ref(EV_DEFAULT_UC);
+  uv_ref();
 
   return Undefined();
 }
