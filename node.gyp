@@ -47,6 +47,38 @@
         'src/process_wrap.cc',
         'src/v8_typed_array.cc',
         'src/udp_wrap.cc',
+        # headers to make for a more pleasant IDE experience
+        'src/handle_wrap.h',
+        'src/node.h',
+        'src/node_buffer.h',
+        'src/node_cares.h',
+        'src/node_child_process.h',
+        'src/node_constants.h',
+        'src/node_crypto.h',
+        'src/node_dtrace.h',
+        'src/node_extensions.h',
+        'src/node_file.h',
+        'src/node_http_parser.h',
+        'src/node_javascript.h',
+        'src/node_net.h',
+        'src/node_os.h',
+        'src/node_root_certs.h',
+        'src/node_script.h',
+        'src/node_stdio.h',
+        'src/node_string.h',
+        'src/node_version.h',
+        'src/pipe_wrap.h',
+        'src/platform.h',
+        'src/req_wrap.h',
+        'src/stream_wrap.h',
+        'src/v8_typed_array.h',
+        'deps/uv/src/eio/ecb.h',
+        'deps/uv/include/eio.h',
+        'deps/http_parser/http_parser.h',
+        'deps/v8/include/v8.h',
+        'deps/v8/include/v8-debug.h',
+        'deps/uv/src/eio/xthread.h',
+        '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
       ],
 
       'defines': [
@@ -65,6 +97,12 @@
           'defines': [ 'HAVE_OPENSSL=0' ]
         }],
 
+        [ 'node_use_dtrace=="true"', {
+          'sources': [
+            'src/node_provider.h', # why does this get generated into src and not SHARED_INTERMEDIATE_DIR?
+          ],
+        }],
+
         [ 'OS=="win"', {
           'dependencies': [
             'deps/uv/deps/pthread-win32/pthread-win32.gyp:pthread-win32',
@@ -74,6 +112,8 @@
             'src/node_stdio_win32.cc',
             # file operations depend on eio to link. uv contains eio in unix builds, but not win32. So we need to compile it here instead.
             'deps/uv/src/eio/eio.c',
+            # headers to make for a more pleasant IDE experience
+            'src/platform_win32.h',
           ],
           'defines': [
             'PTW32_STATIC_LIB',
