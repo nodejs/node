@@ -29,6 +29,7 @@ import gyp.system_test
 import os.path
 import os
 import sys
+import stat
 
 # Debugging-related imports -- remove me once we're solid.
 import code
@@ -2311,8 +2312,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     if os.path.exists(mactool_path):
       os.remove(mactool_path)
     CopyMacTool(mactool_path)
-    os.chmod(mactool_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IWGRP |
-        stat.S_IROTH | stat.S_IWOTH)  # Make file executable.
+    os.chmod(mactool_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IXGRP |
+        stat.S_IROTH | stat.S_IXOTH)  # Make file executable.
 
   # Find the list of targets that derive from the gyp file(s) being built.
   needed_targets = set()
