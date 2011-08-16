@@ -108,6 +108,12 @@
         [ 'OS=="mac"', {
           'sources': [ 'src/platform_darwin.cc' ],
           'libraries': [ '-framework Carbon' ],
+        }],
+        [ 'OS=="linux"', {
+          'sources': [ 'src/platform_linux.cc' ],
+          'libraries': [
+            '-lutil' # needed for openpty
+          ],
         }]
       ],
       'msvs-settings': {
