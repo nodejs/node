@@ -2311,7 +2311,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     if os.path.exists(mactool_path):
       os.remove(mactool_path)
     CopyMacTool(mactool_path)
-    os.chmod(mactool_path, 0o755)  # Make file executable.
+    os.chmod(mactool_path, stat.S_IRWXU | stat.S_IRGRP | stat.S_IWGRP |
+        stat.S_IROTH | stat.S_IWOTH)  # Make file executable.
 
   # Find the list of targets that derive from the gyp file(s) being built.
   needed_targets = set()
