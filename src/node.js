@@ -92,10 +92,8 @@
 
     } else if (process.argv[1]) {
       // make process.argv[1] into a full path
-      if (!(/^http:\/\//).exec(process.argv[1])) {
-        var path = NativeModule.require('path');
-        process.argv[1] = path.resolve(process.argv[1]);
-      }
+      var path = NativeModule.require('path');
+      process.argv[1] = path.resolve(process.argv[1]);
 
       var Module = NativeModule.require('module');
       // REMOVEME: nextTick should not be necessary. This hack to get
