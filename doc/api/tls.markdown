@@ -49,12 +49,12 @@ defaults to `localhost`.) `options` should be an object which specifies
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
-`tls.connect()` returns a cleartext `CryptoStream` object.
+`tls.connect()` returns a [CleartextStream](#tls.CleartextStream) object.
 
 After the TLS/SSL handshake the `callback` is called. The `callback` will be
 called no matter if the server's certificate was authorized or not. It is up
-to the user to test `s.authorized` to see if the server certificate was
-signed by one of the specified CAs. If `s.authorized === false` then the error
+to the user to test `s.authorized` to see if the server certificate was signed
+by one of the specified CAs. If `s.authorized === false` then the error
 can be found in `s.authorizationError`. Also if NPN was used - you can check
 `s.npnProtocol` for negotiated protocol.
 
@@ -64,11 +64,13 @@ can be found in `s.authorizationError`. Also if NPN was used - you can check
 In the v0.4 branch no function exists for starting a TLS session on an
 already existing TCP connection.  This is possible it just requires a bit of
 work. The technique is to use `tls.createSecurePair()` which returns two
-streams: an encrypted stream and a plaintext stream. The encrypted stream is then
-piped to the socket, the plaintext stream is what the user interacts with thereafter.
+streams: an encrypted stream and a cleartext stream. The encrypted stream is
+then piped to the socket, the cleartext stream is what the user interacts with
+thereafter.
 
 [Here is some code that does it.](http://gist.github.com/848444)
 
+<<<<<<< HEAD
 ### NPN and SNI
 
 NPN (Next Protocol Negotitation) and SNI (Server Name Indication) are TLS
@@ -77,7 +79,38 @@ handshake extensions allowing you:
   * NPN - to use one TLS server for multiple protocols (HTTP, SPDY)
   * SNI - to use one TLS server for multiple hostnames with different SSL
     certificates.
+=======
+### pair = tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
 
+Creates a new secure pair object with two streams, one of which reads/writes
+encrypted data, and one reads/writes cleartext data.
+Generally the encrypted one is piped to/from an incoming encrypted data stream,
+and the cleartext one is used as a replacement for the initial encrypted stream.
+>>>>>>> origin/v0.4
+
+ - `credentials`: A credentials object from crypto.createCredentials( ... )
+
+ - `isServer`: A boolean indicating whether this tls connection should be
+   opened as a server or a client.
+
+ - `requestCert`: A boolean indicating whether a server should request a
+   certificate from a connecting client. Only applies to server connections.
+
+ - `rejectUnauthorized`: A boolean indicating whether a server should
+   automatically reject clients with invalid certificates. Only applies to
+   servers with `requestCert` enabled.
+
+`tls.createSecurePair()` returns a SecurePair object with
+[cleartext](#tls.CleartextStream) and `encrypted` stream properties.
+
+#### Event: 'secure'
+
+The event is emitted from the SecurePair once the pair has successfully
+established a secure connection.
+
+Similarly to the checking for the server 'secureConnection' event,
+pair.cleartext.authorized should be checked to confirm whether the certificate
+used properly authorized.
 
 ### tls.Server
 
@@ -146,8 +179,9 @@ has these possibilities:
 `function (cleartextStream) {}`
 
 This event is emitted after a new connection has been successfully
-handshaked. The argument is a duplex instance of `stream.Stream`. It has all
-the common stream methods and events.
+handshaked. The argument is a instance of
+[CleartextStream](#tls.CleartextStream). It has all the common stream methods
+and events.
 
 `cleartextStream.authorized` is a boolean value which indicates if the
 client has verified by one of the supplied certificate authorities for the
@@ -186,8 +220,57 @@ matching passed `hostname` (wildcards can be used). `credentials` can contain
 
 #### server.maxConnections
 
-Set this property to reject connections when the server's connection count gets high.
+Set this property to reject connections when the server's connection count
+gets high.
 
 #### server.connections
 
 The number of concurrent connections on the server.
+
+
+### tls.CleartextStream
+
+This is a stream on top of the *Encrypted* stream that makes it possible to
+read/write an encrypted data as a cleartext data.
+
+This instance implements a duplex [Stream](streams.html#streams) interfaces.
+It has all the common stream methods and events.
+
+#### cleartextStream.authorized
+
+A boolean that is `true` if the peer certificate was signed by one of the
+specified CAs, otherwise `false`
+
+#### cleartextStream.authorizationError
+
+The reason why the peer's certificate has not been verified. This property
+becomes available only when `cleartextStream.authorized === false`.
+
+#### cleartextStream.getPeerCertificate()
+
+Returns an object representing the peer's certicicate. The returned object has
+some properties corresponding to the field of the certificate.
+
+Example:
+
+    { subject: 
+       { C: 'UK',
+         ST: 'Acknack Ltd',
+         L: 'Rhys Jones',
+         O: 'node.js',
+         OU: 'Test TLS Certificate',
+         CN: 'localhost' },
+      issuer: 
+       { C: 'UK',
+         ST: 'Acknack Ltd',
+         L: 'Rhys Jones',
+         O: 'node.js',
+         OU: 'Test TLS Certificate',
+         CN: 'localhost' },
+      valid_from: 'Nov 11 09:52:22 2009 GMT',
+      valid_to: 'Nov  6 09:52:22 2029 GMT',
+      fingerprint: '2A:7A:C2:DD:E5:F9:CC:53:72:35:99:7A:02:5A:71:38:52:EC:8A:DF' }
+
+If the peer does not provide a certificate, it returns `null` or an empty
+object.
+
