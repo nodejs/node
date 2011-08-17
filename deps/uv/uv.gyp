@@ -163,23 +163,6 @@
             'src/unix/ev/ev_vars.h',
             'src/unix/ev/ev_wrap.h',
             'src/unix/ev/event.h',
-            # TODO: conditionally include the following based on OS?
-            'src/ares/config_cygwin/ares_config.h',
-            'src/ares/config_darwin/ares_config.h',
-            'src/ares/config_freebsd/ares_config.h',
-            'src/ares/config_linux/ares_config.h',
-            'src/ares/config_openbsd/ares_config.h',
-            'src/ares/config_sunos/ares_config.h',
-            'src/unix/eio/config_cygwin.h',
-            'src/unix/eio/config_darwin.h',
-            'src/unix/eio/config_freebsd.h',
-            'src/unix/eio/config_linux.h',
-            'src/unix/eio/config_sunos.h',
-            'src/unix/ev/config_cygwin.h',
-            'src/unix/ev/config_darwin.h',
-            'src/unix/ev/config_freebsd.h',
-            'src/unix/ev/config_linux.h',
-            'src/unix/ev/config_sunos.h',
           ],
           'include_dirs': [ 'src/unix/ev', ],
           'defines': [
@@ -228,6 +211,14 @@
             'libraries': [ '-lrt' ],
           },
         }],
+        [ 'OS=="freebsd"', {
+          'include_dirs': [ 'src/ares/config_freebsd' ],
+          'sources': [ 'src/unix/freebsd.c' ],
+          'defines': [
+            'EV_CONFIG_H="config_freebsd.h"',
+            'EIO_CONFIG_H="config_freebsd.h"',
+          ],
+        }],
       ]
     },
 
@@ -269,6 +260,7 @@
         'test/test-threadpool.c',
         'test/test-timer-again.c',
         'test/test-timer.c',
+        'test/test-tty.c',
         'test/test-udp-dgram-too-big.c',
         'test/test-udp-ipv6.c',
         'test/test-udp-send-and-recv.c',
