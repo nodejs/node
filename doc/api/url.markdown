@@ -42,10 +42,16 @@ string will not be in the parsed object. Examples are shown for the URL
 
 The following methods are provided by the URL module:
 
-### url.parse(urlStr, parseQueryString=false)
+### url.parse(urlStr, parseQueryString=false, slashesDenoteHost=false)
 
-Take a URL string, and return an object.  Pass `true` as the second argument to also parse
+Take a URL string, and return an object.
+
+Pass `true` as the second argument to also parse
 the query string using the `querystring` module.
+
+Pass `true` as the third argument to treat `//foo/bar` as
+`{ host: 'foo', pathname: '/bar' }` rather than
+`{ pathname: '//foo/bar' }`.
 
 ### url.format(urlObj)
 
