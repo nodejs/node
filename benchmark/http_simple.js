@@ -39,7 +39,7 @@ var server = http.createServer(function (req, res) {
   var command = commands[1];
   var body = "";
   var arg = commands[2];
-  var chunked = (commands[3] === "chunked");
+  var n_chunks = parseInt(commands[3], 10);
   var status = 200;
 
   if (command == "bytes") {
@@ -82,17 +82,27 @@ var server = http.createServer(function (req, res) {
     body = "not found\n";
   }
 
-  if (chunked) {
+  // example: http://localhost:port/bytes/512/4
+  // sends a 512 byte body in 4 chunks of 128 bytes
+  if (n_chunks > 0) {
     res.writeHead(status, { "Content-Type": "text/plain",
                             "Transfer-Encoding": "chunked" });
+    // send body in chunks
+    var len = body.length;
+    var step = ~~(len / n_chunks) || len;
+
+    for (var i = 0; i < len; i += step) {
+      res.write(body.slice(i, i + step));
+    }
+
+    res.end();
   } else {
     var content_length = body.length.toString();
 
     res.writeHead(status, { "Content-Type": "text/plain",
                             "Content-Length": content_length });
+    res.end(body);
   }
-
-  res.end(body);
 
 });
 
