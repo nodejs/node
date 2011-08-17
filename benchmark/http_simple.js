@@ -39,6 +39,7 @@ var server = http.createServer(function (req, res) {
   var command = commands[1];
   var body = "";
   var arg = commands[2];
+  var chunked = (commands[3] === "chunked");
   var status = 200;
 
   if (command == "bytes") {
@@ -81,10 +82,16 @@ var server = http.createServer(function (req, res) {
     body = "not found\n";
   }
 
-  var content_length = body.length.toString();
+  if (chunked) {
+    res.writeHead(status, { "Content-Type": "text/plain",
+                            "Transfer-Encoding": "chunked" });
+  } else {
+    var content_length = body.length.toString();
 
-  res.writeHead(status, { "Content-Type": "text/plain",
-                          "Content-Length": content_length });
+    res.writeHead(status, { "Content-Type": "text/plain",
+                            "Content-Length": content_length });
+  }
+
   res.end(body);
 
 });
