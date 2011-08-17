@@ -192,7 +192,14 @@
             '-ldl',
             '-lutil' # needed for openpty
           ],
-        }]
+        }],
+        [ 'OS=="freebsd"', {
+          'sources': [ 'src/platform_freebsd.cc' ],
+          'libraries': [
+            '-lutil',
+            '-lkvm',
+          ],
+        }],
       ],
       'msvs-settings': {
         'VCLinkerTool': {
