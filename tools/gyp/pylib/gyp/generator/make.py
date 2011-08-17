@@ -64,6 +64,8 @@ def GetFlavor(params):
   flavors = {
     'darwin': 'mac',
     'sunos5': 'solaris',
+    'freebsd7': 'freebsd',
+    'freebsd8': 'freebsd',
   }
   flavor = flavors.get(sys.platform, 'linux')
   return params.get('flavor', flavor)
@@ -2531,6 +2533,10 @@ def GenerateOutput(target_list, target_dicts, data, params):
         'flock': './gyp-sun-tool flock',
         'flock_index': 2,
         'extra_commands': SHARED_HEADER_SUN_COMMANDS,
+    })
+  elif flavor == 'freebsd':
+    header_params.update({
+        'flock': 'lockf',
     })
 
   if flavor == 'android':
