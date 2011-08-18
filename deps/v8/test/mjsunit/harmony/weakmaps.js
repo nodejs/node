@@ -139,6 +139,23 @@ assertTrue(WeakMap.prototype.has instanceof Function)
 assertTrue(WeakMap.prototype.delete instanceof Function)
 
 
+// Regression test for issue 1617: The prototype of the WeakMap constructor
+// needs to be unique (i.e. different from the one of the Object constructor).
+assertFalse(WeakMap.prototype === Object.prototype);
+var o = Object.create({});
+assertFalse("get" in o);
+assertFalse("set" in o);
+assertEquals(undefined, o.get);
+assertEquals(undefined, o.set);
+var o = Object.create({}, { myValue: {
+  value: 10,
+  enumerable: false,
+  configurable: true,
+  writable: true
+}});
+assertEquals(10, o.myValue);
+
+
 // Stress Test
 // There is a proposed stress-test available at the es-discuss mailing list
 // which cannot be reasonably automated.  Check it out by hand if you like:

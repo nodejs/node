@@ -908,7 +908,6 @@ class ToBooleanStub: public CodeStub {
     SPEC_OBJECT,
     STRING,
     HEAP_NUMBER,
-    INTERNAL_OBJECT,
     NUMBER_OF_TYPES
   };
 
@@ -922,7 +921,6 @@ class ToBooleanStub: public CodeStub {
     explicit Types(byte bits) : set_(bits) {}
 
     bool IsEmpty() const { return set_.IsEmpty(); }
-    bool IsAll() const { return ToByte() == ((1 << NUMBER_OF_TYPES) - 1); }
     bool Contains(Type type) const { return set_.Contains(type); }
     void Add(Type type) { set_.Add(type); }
     byte ToByte() const { return set_.ToIntegral(); }
@@ -930,6 +928,7 @@ class ToBooleanStub: public CodeStub {
     void TraceTransition(Types to) const;
     bool Record(Handle<Object> object);
     bool NeedsMap() const;
+    bool CanBeUndetectable() const;
 
    private:
     EnumSet<Type, byte> set_;
@@ -956,8 +955,7 @@ class ToBooleanStub: public CodeStub {
   void CheckOddball(MacroAssembler* masm,
                     Type type,
                     Heap::RootListIndex value,
-                    bool result,
-                    Label* patch);
+                    bool result);
   void GenerateTypeTransition(MacroAssembler* masm);
 
   Register tos_;

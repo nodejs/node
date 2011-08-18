@@ -107,7 +107,7 @@ class SerializedScopeInfo : public FixedArray {
  public :
 
   static SerializedScopeInfo* cast(Object* object) {
-    ASSERT(object->IsFixedArray());
+    ASSERT(object->IsSerializedScopeInfo());
     return reinterpret_cast<SerializedScopeInfo*>(object);
   }
 

@@ -197,13 +197,17 @@ void Processor::VisitBreakStatement(BreakStatement* node) {
 }
 
 
+void Processor::VisitWithStatement(WithStatement* node) {
+  bool set_after_body = is_set_;
+  Visit(node->statement());
+  is_set_ = is_set_ && set_after_body;
+}
+
+
 // Do nothing:
 void Processor::VisitDeclaration(Declaration* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
 void Processor::VisitReturnStatement(ReturnStatement* node) {}
-void Processor::VisitEnterWithContextStatement(
-    EnterWithContextStatement* node) {
-}
 void Processor::VisitExitContextStatement(ExitContextStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
 

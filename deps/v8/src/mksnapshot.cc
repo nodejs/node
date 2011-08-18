@@ -40,8 +40,6 @@
 #include "serialize.h"
 #include "list.h"
 
-// use explicit namespace to avoid clashing with types in namespace v8
-namespace i = v8::internal;
 using namespace v8;
 
 static const unsigned int kMaxCounters = 256;

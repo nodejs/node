@@ -1,3 +1,31 @@
+2011-08-17: Version 3.5.6
+
+        Fixed issue that could cause crashes when running with --heap-stats.
+
+        Fixed compilation on Linux 2.6.9 and older.
+
+        Fixed live-object-list to work with isolates.
+
+        Fixed memory leaks in zones and isolates.
+
+        Fixed a performance regression for TypedArrays on x64.
+
+        Stability improvements on all platforms.
+
+
+2011-08-15: Version 3.5.5
+
+        Fixed bugs involving negative zero and the optimizing compiler.
+
+        Fixed optimized version of Function.apply(x, arguments). (issue 1592)
+
+        Eliminated uses of deprecated ARM instructions.
+
+        Sped up Math.floor by using SSE 4.1 roundsd instruction on ia32.
+
+        Removed restriction on the size of disassembled code that is printed.
+
+
 2011-08-10: Version 3.5.4
 
         Added a preliminary implementation of ES Harmony weak maps.  Weak

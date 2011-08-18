@@ -121,10 +121,11 @@ static const int kSafepointRegisterStackIndexMap[kNumRegs] = {
 
 class StackHandlerConstants : public AllStatic {
  public:
-  static const int kNextOffset  = 0 * kPointerSize;
-  static const int kStateOffset = 1 * kPointerSize;
-  static const int kFPOffset    = 2 * kPointerSize;
-  static const int kPCOffset    = 3 * kPointerSize;
+  static const int kNextOffset    = 0 * kPointerSize;
+  static const int kStateOffset   = 1 * kPointerSize;
+  static const int kContextOffset = 2 * kPointerSize;
+  static const int kFPOffset      = 3 * kPointerSize;
+  static const int kPCOffset      = 4 * kPointerSize;
 
   static const int kSize = kPCOffset + kPointerSize;
 };

@@ -313,7 +313,7 @@ Handle<SerializedScopeInfo> ScopeInfo<Allocator>::Serialize() {
                stack_slots_.length();
 
   Handle<SerializedScopeInfo> data(
-      SerializedScopeInfo::cast(*FACTORY->NewFixedArray(length, TENURED)));
+      SerializedScopeInfo::cast(*FACTORY->NewSerializedScopeInfo(length)));
   AssertNoAllocation nogc;
 
   Object** p0 = data->data_start();

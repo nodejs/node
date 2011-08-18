@@ -593,6 +593,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ vstm(db_w, sp, first, last);
 
   // Push all 16 registers (needed to populate FrameDescription::registers_).
+  // TODO(1588) Note that using pc with stm is deprecated, so we should perhaps
+  // handle this a bit differently.
   __ stm(db_w, sp, restored_regs  | sp.bit() | lr.bit() | pc.bit());
 
   const int kSavedRegistersAreaSize =

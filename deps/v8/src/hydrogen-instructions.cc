@@ -635,6 +635,12 @@ void HBinaryCall::PrintDataTo(StringStream* stream) {
 }
 
 
+void HBoundsCheck::PrintDataTo(StringStream* stream) {
+  index()->PrintNameTo(stream);
+  stream->Add(" ");
+  length()->PrintNameTo(stream);
+}
+
 void HCallConstantFunction::PrintDataTo(StringStream* stream) {
   if (IsApplyFunction()) {
     stream->Add("optimized apply ");
@@ -862,19 +868,10 @@ void HInstanceOf::PrintDataTo(StringStream* stream) {
 
 
 Range* HValue::InferRange() {
-  if (representation().IsTagged()) {
-    // Tagged values are always in int32 range when converted to integer,
-    // but they can contain -0.
-    Range* result = new Range();
-    result->set_can_be_minus_zero(true);
-    return result;
-  } else if (representation().IsNone()) {
-    return NULL;
-  } else {
-    // Untagged integer32 cannot be -0 and we don't compute ranges for
-    // untagged doubles.
-    return new Range();
-  }
+  // Untagged integer32 cannot be -0, all other representations can.
+  Range* result = new Range();
+  result->set_can_be_minus_zero(!representation().IsInteger32());
+  return result;
 }
 
 
@@ -1370,6 +1367,20 @@ bool HLoadNamedFieldPolymorphic::DataEquals(HValue* value) {
     if (!found) return false;
   }
   return true;
+}
+
+
+void HLoadNamedFieldPolymorphic::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" .");
+  stream->Add(*String::cast(*name())->ToCString());
+}
+
+
+void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" .");
+  stream->Add(*String::cast(*name())->ToCString());
 }
 
 

@@ -1102,7 +1102,13 @@ void MacroAssembler::DebugBreak() {
 void MacroAssembler::PushTryHandler(CodeLocation try_location,
                                     HandlerType type) {
   // Adjust this code if not the case.
-  ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
+
   // The pc (return address) is passed in register lr.
   if (try_location == IN_JAVASCRIPT) {
     if (type == TRY_CATCH_HANDLER) {
@@ -1110,14 +1116,10 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     } else {
       mov(r3, Operand(StackHandler::TRY_FINALLY));
     }
-    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
-           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
-           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-    stm(db_w, sp, r3.bit() | fp.bit() | lr.bit());
+    stm(db_w, sp, r3.bit() | cp.bit() | fp.bit() | lr.bit());
     // Save the current handler as the next handler.
     mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
     ldr(r1, MemOperand(r3));
-    ASSERT(StackHandlerConstants::kNextOffset == 0);
     push(r1);
     // Link this handler as the new current one.
     str(sp, MemOperand(r3));
@@ -1127,16 +1129,13 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     // The frame pointer does not point to a JS frame so we save NULL
     // for fp. We expect the code throwing an exception to check fp
     // before dereferencing it to restore the context.
-    mov(ip, Operand(0, RelocInfo::NONE));  // To save a NULL frame pointer.
-    mov(r6, Operand(StackHandler::ENTRY));
-    ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize
-           && StackHandlerConstants::kFPOffset == 2 * kPointerSize
-           && StackHandlerConstants::kPCOffset == 3 * kPointerSize);
-    stm(db_w, sp, r6.bit() | ip.bit() | lr.bit());
+    mov(r5, Operand(StackHandler::ENTRY));  // State.
+    mov(r6, Operand(Smi::FromInt(0)));  // Indicates no context.
+    mov(r7, Operand(0, RelocInfo::NONE));  // NULL frame pointer.
+    stm(db_w, sp, r5.bit() | r6.bit() | r7.bit() | lr.bit());
     // Save the current handler as the next handler.
     mov(r7, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
     ldr(r6, MemOperand(r7));
-    ASSERT(StackHandlerConstants::kNextOffset == 0);
     push(r6);
     // Link this handler as the new current one.
     str(sp, MemOperand(r7));
@@ -1145,7 +1144,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
 
 void MacroAssembler::PopTryHandler() {
-  ASSERT_EQ(0, StackHandlerConstants::kNextOffset);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r1);
   mov(ip, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
   add(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
@@ -1154,39 +1153,40 @@ void MacroAssembler::PopTryHandler() {
 
 
 void MacroAssembler::Throw(Register value) {
+  // Adjust this code if not the case.
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
   // r0 is expected to hold the exception.
   if (!value.is(r0)) {
     mov(r0, value);
   }
 
-  // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
   // Drop the sp to the top of the handler.
   mov(r3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
   ldr(sp, MemOperand(r3));
 
-  // Restore the next handler and frame pointer, discard handler state.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
+  // Restore the next handler.
   pop(r2);
   str(r2, MemOperand(r3));
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  ldm(ia_w, sp, r3.bit() | fp.bit());  // r3: discarded state.
 
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  cmp(fp, Operand(0, RelocInfo::NONE));
-  // Set cp to NULL if fp is NULL.
-  mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  // Restore cp otherwise.
-  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+  // Restore context and frame pointer, discard state (r3).
+  ldm(ia_w, sp, r3.bit() | cp.bit() | fp.bit());
+
+  // If the handler is a JS frame, restore the context to the frame.
+  // (r3 == ENTRY) == (fp == 0) == (cp == 0), so we could test any
+  // of them.
+  cmp(r3, Operand(StackHandler::ENTRY));
+  str(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+
 #ifdef DEBUG
   if (emit_debug_code()) {
     mov(lr, Operand(pc));
   }
 #endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   pop(pc);
 }
 
@@ -1194,8 +1194,12 @@ void MacroAssembler::Throw(Register value) {
 void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
                                       Register value) {
   // Adjust this code if not the case.
-  STATIC_ASSERT(StackHandlerConstants::kSize == 4 * kPointerSize);
-
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kStateOffset == 1 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kContextOffset == 2 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 3 * kPointerSize);
+  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
   // r0 is expected to hold the exception.
   if (!value.is(r0)) {
     mov(r0, value);
@@ -1220,7 +1224,6 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   bind(&done);
 
   // Set the top handler address to next handler past the current ENTRY handler.
-  STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(r2);
   str(r2, MemOperand(r3));
 
@@ -1242,26 +1245,17 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
 
   // Stack layout at this point. See also StackHandlerConstants.
   // sp ->   state (ENTRY)
+  //         cp
   //         fp
   //         lr
 
-  // Discard handler state (r2 is not used) and restore frame pointer.
-  STATIC_ASSERT(StackHandlerConstants::kFPOffset == 2 * kPointerSize);
-  ldm(ia_w, sp, r2.bit() | fp.bit());  // r2: discarded state.
-  // Before returning we restore the context from the frame pointer if
-  // not NULL.  The frame pointer is NULL in the exception handler of a
-  // JS entry frame.
-  cmp(fp, Operand(0, RelocInfo::NONE));
-  // Set cp to NULL if fp is NULL.
-  mov(cp, Operand(0, RelocInfo::NONE), LeaveCC, eq);
-  // Restore cp otherwise.
-  ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset), ne);
+  // Restore context and frame pointer, discard state (r2).
+  ldm(ia_w, sp, r2.bit() | cp.bit() | fp.bit());
 #ifdef DEBUG
   if (emit_debug_code()) {
     mov(lr, Operand(pc));
   }
 #endif
-  STATIC_ASSERT(StackHandlerConstants::kPCOffset == 3 * kPointerSize);
   pop(pc);
 }
 

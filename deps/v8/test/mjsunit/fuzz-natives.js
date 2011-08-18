@@ -146,6 +146,7 @@ var knownProblems = {
   "NewStrictArgumentsFast": true,
   "PushWithContext": true,
   "PushCatchContext": true,
+  "PushBlockContext": true,
   "LazyCompile": true,
   "LazyRecompile": true,
   "NotifyDeoptimized": true,

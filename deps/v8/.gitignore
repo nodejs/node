@@ -21,6 +21,7 @@ shell
 shell_g
 /build/gyp
 /obj/
+/out/
 /test/es5conform/data/
 /test/mozilla/data/
 /test/sputnik/sputniktests/

@@ -44,8 +44,6 @@ using ::v8::Function;
 using ::v8::AccessorInfo;
 using ::v8::Extension;
 
-namespace i = ::v8::internal;
-
 static v8::Handle<Value> handle_property(Local<String> name,
                                          const AccessorInfo&) {
   ApiTestFuzzer::Fuzz();

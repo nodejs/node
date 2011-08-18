@@ -34,6 +34,7 @@
 #include "macro-assembler.h"
 #include "objects.h"
 #include "objects-visiting.h"
+#include "scopeinfo.h"
 
 namespace v8 {
 namespace internal {
@@ -287,6 +288,19 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateWithContext(*function, *previous, *extension),
+      Context);
+}
+
+
+Handle<Context> Factory::NewBlockContext(
+    Handle<JSFunction> function,
+    Handle<Context> previous,
+    Handle<SerializedScopeInfo> scope_info) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateBlockContext(*function,
+                                              *previous,
+                                              *scope_info),
       Context);
 }
 
@@ -731,6 +745,14 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
   ASSERT(!function->has_initial_map());
   ASSERT(!function->has_prototype());
   return function;
+}
+
+
+Handle<SerializedScopeInfo> Factory::NewSerializedScopeInfo(int length) {
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateSerializedScopeInfo(length),
+      SerializedScopeInfo);
 }
 
 

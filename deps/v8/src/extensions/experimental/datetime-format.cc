@@ -135,7 +135,7 @@ v8::Handle<v8::Value> DateTimeFormat::GetMonths(const v8::Arguments& args) {
 v8::Handle<v8::Value> DateTimeFormat::GetWeekdays(const v8::Arguments& args) {
   icu::SimpleDateFormat* date_format = UnpackDateTimeFormat(args.Holder());
   if (!date_format) {
-    ThrowUnexpectedObjectError();
+    return ThrowUnexpectedObjectError();
   }
 
   const icu::DateFormatSymbols* symbols = date_format->getDateFormatSymbols();

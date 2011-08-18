@@ -27,10 +27,11 @@
 
 // Flags: --max-new-space-size=256 --allow-natives-syntax
 
+var test_id = 0;
+
 function testFloor(expect, input) {
-  function test(n) {
-    return Math.floor(n);
-  }
+  var test = new Function('n',
+                          '"' + (test_id++) + '";return Math.floor(n)');
   assertEquals(expect, test(input));
   assertEquals(expect, test(input));
   assertEquals(expect, test(input));
@@ -50,6 +51,17 @@ function test() {
   testFloor(Infinity, Infinity);
   testFloor(-Infinity, -Infinity);
   testFloor(NaN, NaN);
+
+  // Ensure that a negative zero coming from Math.floor is properly handled
+  // by other operations.
+  function ifloor(x) {
+    return 1 / Math.floor(x);
+  }
+  assertEquals(-Infinity, ifloor(-0));
+  assertEquals(-Infinity, ifloor(-0));
+  assertEquals(-Infinity, ifloor(-0));
+  %OptimizeFunctionOnNextCall(ifloor);
+  assertEquals(-Infinity, ifloor(-0));
 
   testFloor(0, 0.1);
   testFloor(0, 0.49999999999999994);
@@ -129,3 +141,19 @@ function test() {
 for (var i = 0; i < 500; i++) {
   test();
 }
+
+
+// Regression test for a bug where a negative zero coming from Math.floor
+// was not properly handled by other operations.
+function floorsum(i, n) {
+  var ret = Math.floor(n);
+  while (--i > 0) {
+    ret += Math.floor(n);
+  }
+  return ret;
+}
+assertEquals(-0, floorsum(1, -0));
+%OptimizeFunctionOnNextCall(floorsum);
+// The optimized function will deopt.  Run it with enough iterations to try
+// to optimize via OSR (triggering the bug).
+assertEquals(-0, floorsum(100000, -0));

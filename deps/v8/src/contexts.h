@@ -295,6 +295,10 @@ class Context: public FixedArray {
     Map* map = this->map();
     return map == map->GetHeap()->with_context_map();
   }
+  bool IsBlockContext() {
+    Map* map = this->map();
+    return map == map->GetHeap()->block_context_map();
+  }
 
   // Tells whether the global context is marked with out of memory.
   inline bool has_out_of_memory();

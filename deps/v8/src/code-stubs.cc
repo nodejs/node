@@ -340,12 +340,11 @@ void ToBooleanStub::Types::Print(StringStream* stream) const {
   if (IsEmpty()) stream->Add("None");
   if (Contains(UNDEFINED)) stream->Add("Undefined");
   if (Contains(BOOLEAN)) stream->Add("Bool");
-  if (Contains(SMI)) stream->Add("Smi");
   if (Contains(NULL_TYPE)) stream->Add("Null");
+  if (Contains(SMI)) stream->Add("Smi");
   if (Contains(SPEC_OBJECT)) stream->Add("SpecObject");
   if (Contains(STRING)) stream->Add("String");
   if (Contains(HEAP_NUMBER)) stream->Add("HeapNumber");
-  if (Contains(INTERNAL_OBJECT)) stream->Add("InternalObject");
 }
 
 
@@ -385,12 +384,14 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
     return !object->IsUndetectableObject() &&
         String::cast(*object)->length() != 0;
   } else if (object->IsHeapNumber()) {
+    ASSERT(!object->IsUndetectableObject());
     Add(HEAP_NUMBER);
     double value = HeapNumber::cast(*object)->value();
-    return !object->IsUndetectableObject() && value != 0 && !isnan(value);
+    return value != 0 && !isnan(value);
   } else {
-    Add(INTERNAL_OBJECT);
-    return !object->IsUndetectableObject();
+    // We should never see an internal object at runtime here!
+    UNREACHABLE();
+    return true;
   }
 }
 
@@ -398,8 +399,13 @@ bool ToBooleanStub::Types::Record(Handle<Object> object) {
 bool ToBooleanStub::Types::NeedsMap() const {
   return Contains(ToBooleanStub::SPEC_OBJECT)
       || Contains(ToBooleanStub::STRING)
-      || Contains(ToBooleanStub::HEAP_NUMBER)
-      || Contains(ToBooleanStub::INTERNAL_OBJECT);
+      || Contains(ToBooleanStub::HEAP_NUMBER);
+}
+
+
+bool ToBooleanStub::Types::CanBeUndetectable() const {
+  return Contains(ToBooleanStub::SPEC_OBJECT)
+      || Contains(ToBooleanStub::STRING);
 }
 
 

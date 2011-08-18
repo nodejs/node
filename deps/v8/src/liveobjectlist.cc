@@ -36,11 +36,12 @@
 #include "global-handles.h"
 #include "heap.h"
 #include "inspector.h"
+#include "isolate.h"
 #include "list-inl.h"
 #include "liveobjectlist-inl.h"
 #include "string-stream.h"
-#include "top.h"
 #include "v8utils.h"
+#include "v8conversions.h"
 
 namespace v8 {
 namespace internal {
@@ -109,7 +110,7 @@ typedef int (*RawComparer)(const void*, const void*);
   \
   v(Context, "meta: Context") \
   v(ByteArray, "meta: ByteArray") \
-  v(PixelArray, "meta: PixelArray") \
+  v(ExternalPixelArray, "meta: PixelArray") \
   v(ExternalArray, "meta: ExternalArray") \
   v(FixedArray, "meta: FixedArray") \
   v(String, "String") \
@@ -211,8 +212,9 @@ static AllocationSpace FindSpaceFor(String* space_str) {
 
 
 static bool InSpace(AllocationSpace space, HeapObject *heap_obj) {
+  Heap* heap = ISOLATE->heap();
   if (space != LO_SPACE) {
-    return Heap::InSpace(heap_obj, space);
+    return heap->InSpace(heap_obj, space);
   }
 
   // This is an optimization to speed up the check for an object in the LO
@@ -224,11 +226,11 @@ static bool InSpace(AllocationSpace space, HeapObject *heap_obj) {
   int first_space = static_cast<int>(FIRST_SPACE);
   int last_space = static_cast<int>(LO_SPACE);
   for (int sp = first_space; sp < last_space; sp++) {
-    if (Heap::InSpace(heap_obj, static_cast<AllocationSpace>(sp))) {
+    if (heap->InSpace(heap_obj, static_cast<AllocationSpace>(sp))) {
       return false;
     }
   }
-  SLOW_ASSERT(Heap::InSpace(heap_obj, LO_SPACE));
+  SLOW_ASSERT(heap->InSpace(heap_obj, LO_SPACE));
   return true;
 }
 
@@ -285,7 +287,7 @@ LolFilter::LolFilter(Handle<JSObject> filter_obj)
 
 
 void LolFilter::InitTypeFilter(Handle<JSObject> filter_obj) {
-  Handle<String> type_sym = Factory::LookupAsciiSymbol("type");
+  Handle<String> type_sym = FACTORY->LookupAsciiSymbol("type");
   MaybeObject* maybe_result = filter_obj->GetProperty(*type_sym);
   Object* type_obj;
   if (maybe_result->ToObject(&type_obj)) {
@@ -301,7 +303,7 @@ void LolFilter::InitTypeFilter(Handle<JSObject> filter_obj) {
 
 
 void LolFilter::InitSpaceFilter(Handle<JSObject> filter_obj) {
-  Handle<String> space_sym = Factory::LookupAsciiSymbol("space");
+  Handle<String> space_sym = FACTORY->LookupAsciiSymbol("space");
   MaybeObject* maybe_result = filter_obj->GetProperty(*space_sym);
   Object* space_obj;
   if (maybe_result->ToObject(&space_obj)) {
@@ -317,7 +319,7 @@ void LolFilter::InitSpaceFilter(Handle<JSObject> filter_obj) {
 
 
 void LolFilter::InitPropertyFilter(Handle<JSObject> filter_obj) {
-  Handle<String> prop_sym = Factory::LookupAsciiSymbol("prop");
+  Handle<String> prop_sym = FACTORY->LookupAsciiSymbol("prop");
   MaybeObject* maybe_result = filter_obj->GetProperty(*prop_sym);
   Object* prop_obj;
   if (maybe_result->ToObject(&prop_obj)) {
@@ -571,7 +573,9 @@ static bool AddObjDetail(Handle<FixedArray> arr,
                          Handle<JSObject> detail,
                          Handle<String> desc,
                          Handle<Object> error) {
-  detail = Factory::NewJSObject(Top::object_function());
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  detail = factory->NewJSObject(isolate->object_function());
   if (detail->IsFailure()) {
     error = detail;
     return false;
@@ -586,7 +590,7 @@ static bool AddObjDetail(Handle<FixedArray> arr,
     desc_str = buffer;
     size = obj->Size();
   }
-  desc = Factory::NewStringFromAscii(CStrVector(desc_str));
+  desc = factory->NewStringFromAscii(CStrVector(desc_str));
   if (desc->IsFailure()) {
     error = desc;
     return false;
@@ -663,10 +667,13 @@ class LolDumpWriter: public DumpWriter {
     int index = 0;
     int count = 0;
 
+    Isolate* isolate = Isolate::Current();
+    Factory* factory = isolate->factory();
+
     // Prefetch some needed symbols.
-    Handle<String> id_sym = Factory::LookupAsciiSymbol("id");
-    Handle<String> desc_sym = Factory::LookupAsciiSymbol("desc");
-    Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
+    Handle<String> id_sym = factory->LookupAsciiSymbol("id");
+    Handle<String> desc_sym = factory->LookupAsciiSymbol("desc");
+    Handle<String> size_sym = factory->LookupAsciiSymbol("size");
 
     // Fill the array with the lol object details.
     Handle<JSObject> detail;
@@ -1089,7 +1096,9 @@ static int CountHeapObjects() {
 
 // Captures a current snapshot of all objects in the heap.
 MaybeObject* LiveObjectList::Capture() {
-  HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  HandleScope scope(isolate);
 
   // Count the number of objects in the heap.
   int total_count = CountHeapObjects();
@@ -1139,11 +1148,11 @@ MaybeObject* LiveObjectList::Capture() {
 #endif
   }
 
-  Handle<String> id_sym = Factory::LookupAsciiSymbol("id");
-  Handle<String> count_sym = Factory::LookupAsciiSymbol("count");
-  Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
+  Handle<String> id_sym = factory->LookupAsciiSymbol("id");
+  Handle<String> count_sym = factory->LookupAsciiSymbol("count");
+  Handle<String> size_sym = factory->LookupAsciiSymbol("size");
 
-  Handle<JSObject> result = Factory::NewJSObject(Top::object_function());
+  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (result->IsFailure()) return Object::cast(*result);
 
   { MaybeObject* maybe_result = result->SetProperty(*id_sym,
@@ -1259,7 +1268,10 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
                                          int start,
                                          int dump_limit,
                                          LolFilter* filter) {
-  HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+
+  HandleScope scope(isolate);
 
   // Calculate the number of entries of the dump.
   int count = -1;
@@ -1277,7 +1289,7 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
   }
 
   // Allocate an array to hold the result.
-  Handle<FixedArray> elements_arr = Factory::NewFixedArray(dump_limit);
+  Handle<FixedArray> elements_arr = factory->NewFixedArray(dump_limit);
   if (elements_arr->IsFailure()) return Object::cast(*elements_arr);
 
   // Fill in the dump.
@@ -1292,11 +1304,11 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
   MaybeObject* maybe_result;
 
   // Allocate the result body.
-  Handle<JSObject> body = Factory::NewJSObject(Top::object_function());
+  Handle<JSObject> body = factory->NewJSObject(isolate->object_function());
   if (body->IsFailure()) return Object::cast(*body);
 
   // Set the updated body.count.
-  Handle<String> count_sym = Factory::LookupAsciiSymbol("count");
+  Handle<String> count_sym = factory->LookupAsciiSymbol("count");
   maybe_result = body->SetProperty(*count_sym,
                                    Smi::FromInt(count),
                                    NONE,
@@ -1305,7 +1317,7 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
 
   // Set the updated body.size if appropriate.
   if (size >= 0) {
-    Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
+    Handle<String> size_sym = factory->LookupAsciiSymbol("size");
     maybe_result = body->SetProperty(*size_sym,
                                      Smi::FromInt(size),
                                      NONE,
@@ -1314,7 +1326,7 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
   }
 
   // Set body.first_index.
-  Handle<String> first_sym = Factory::LookupAsciiSymbol("first_index");
+  Handle<String> first_sym = factory->LookupAsciiSymbol("first_index");
   maybe_result = body->SetProperty(*first_sym,
                                    Smi::FromInt(start),
                                    NONE,
@@ -1322,12 +1334,12 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Allocate the JSArray of the elements.
-  Handle<JSObject> elements = Factory::NewJSObject(Top::array_function());
+  Handle<JSObject> elements = factory->NewJSObject(isolate->array_function());
   if (elements->IsFailure()) return Object::cast(*elements);
   Handle<JSArray>::cast(elements)->SetContent(*elements_arr);
 
   // Set body.elements.
-  Handle<String> elements_sym = Factory::LookupAsciiSymbol("elements");
+  Handle<String> elements_sym = factory->LookupAsciiSymbol("elements");
   maybe_result = body->SetProperty(*elements_sym,
                                    *elements,
                                    NONE,
@@ -1381,6 +1393,9 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   LiveObjectSummary summary(filter);
   writer->Write(&summary);
 
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+
   // The result body will look like this:
   // body: {
   //   count: <total_count>,
@@ -1398,21 +1413,21 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   // }
 
   // Prefetch some needed symbols.
-  Handle<String> desc_sym = Factory::LookupAsciiSymbol("desc");
-  Handle<String> count_sym = Factory::LookupAsciiSymbol("count");
-  Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
-  Handle<String> summary_sym = Factory::LookupAsciiSymbol("summary");
+  Handle<String> desc_sym = factory->LookupAsciiSymbol("desc");
+  Handle<String> count_sym = factory->LookupAsciiSymbol("count");
+  Handle<String> size_sym = factory->LookupAsciiSymbol("size");
+  Handle<String> summary_sym = factory->LookupAsciiSymbol("summary");
 
   // Allocate the summary array.
   int entries_count = summary.GetNumberOfEntries();
   Handle<FixedArray> summary_arr =
-      Factory::NewFixedArray(entries_count);
+      factory->NewFixedArray(entries_count);
   if (summary_arr->IsFailure()) return Object::cast(*summary_arr);
 
   int idx = 0;
   for (int i = 0; i < LiveObjectSummary::kNumberOfEntries; i++) {
     // Allocate the summary record.
-    Handle<JSObject> detail = Factory::NewJSObject(Top::object_function());
+    Handle<JSObject> detail = factory->NewJSObject(isolate->object_function());
     if (detail->IsFailure()) return Object::cast(*detail);
 
     // Fill in the summary record.
@@ -1420,7 +1435,7 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
     int count = summary.Count(type);
     if (count) {
       const char* desc_cstr = GetObjectTypeDesc(type);
-      Handle<String> desc = Factory::LookupAsciiSymbol(desc_cstr);
+      Handle<String> desc = factory->LookupAsciiSymbol(desc_cstr);
       int size = summary.Size(type);
 
       maybe_result = detail->SetProperty(*desc_sym,
@@ -1444,12 +1459,13 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   }
 
   // Wrap the summary fixed array in a JS array.
-  Handle<JSObject> summary_obj = Factory::NewJSObject(Top::array_function());
+  Handle<JSObject> summary_obj =
+    factory->NewJSObject(isolate->array_function());
   if (summary_obj->IsFailure()) return Object::cast(*summary_obj);
   Handle<JSArray>::cast(summary_obj)->SetContent(*summary_arr);
 
   // Create the body object.
-  Handle<JSObject> body = Factory::NewJSObject(Top::object_function());
+  Handle<JSObject> body = factory->NewJSObject(isolate->object_function());
   if (body->IsFailure()) return Object::cast(*body);
 
   // Fill out the body object.
@@ -1470,9 +1486,9 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   if (is_tracking_roots) {
     int found_root = summary.found_root();
     int found_weak_root = summary.found_weak_root();
-    Handle<String> root_sym = Factory::LookupAsciiSymbol("found_root");
+    Handle<String> root_sym = factory->LookupAsciiSymbol("found_root");
     Handle<String> weak_root_sym =
-        Factory::LookupAsciiSymbol("found_weak_root");
+        factory->LookupAsciiSymbol("found_weak_root");
     maybe_result = body->SetProperty(*root_sym,
                                      Smi::FromInt(found_root),
                                      NONE,
@@ -1499,7 +1515,10 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
 // Note: only dumps the section starting at start_idx and only up to
 // dump_limit entries.
 MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
-  HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+
+  HandleScope scope(isolate);
   MaybeObject* maybe_result;
 
   int total_count = LiveObjectList::list_count();
@@ -1519,13 +1538,13 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
   }
 
   // Allocate an array to hold the result.
-  Handle<FixedArray> list = Factory::NewFixedArray(dump_count);
+  Handle<FixedArray> list = factory->NewFixedArray(dump_count);
   if (list->IsFailure()) return Object::cast(*list);
 
   // Prefetch some needed symbols.
-  Handle<String> id_sym = Factory::LookupAsciiSymbol("id");
-  Handle<String> count_sym = Factory::LookupAsciiSymbol("count");
-  Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
+  Handle<String> id_sym = factory->LookupAsciiSymbol("id");
+  Handle<String> count_sym = factory->LookupAsciiSymbol("count");
+  Handle<String> size_sym = factory->LookupAsciiSymbol("size");
 
   // Fill the array with the lol details.
   int idx = 0;
@@ -1543,7 +1562,8 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
       int size;
       count = lol->GetTotalObjCountAndSize(&size);
 
-      Handle<JSObject> detail = Factory::NewJSObject(Top::object_function());
+      Handle<JSObject> detail =
+          factory->NewJSObject(isolate->object_function());
       if (detail->IsFailure()) return Object::cast(*detail);
 
       maybe_result = detail->SetProperty(*id_sym,
@@ -1568,10 +1588,10 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
   }
 
   // Return the result as a JS array.
-  Handle<JSObject> lols = Factory::NewJSObject(Top::array_function());
+  Handle<JSObject> lols = factory->NewJSObject(isolate->array_function());
   Handle<JSArray>::cast(lols)->SetContent(*list);
 
-  Handle<JSObject> result = Factory::NewJSObject(Top::object_function());
+  Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (result->IsFailure()) return Object::cast(*result);
 
   maybe_result = result->SetProperty(*count_sym,
@@ -1580,14 +1600,14 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
                                      kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
-  Handle<String> first_sym = Factory::LookupAsciiSymbol("first_index");
+  Handle<String> first_sym = factory->LookupAsciiSymbol("first_index");
   maybe_result = result->SetProperty(*first_sym,
                                      Smi::FromInt(start_idx),
                                      NONE,
                                      kNonStrictMode);
   if (maybe_result->IsFailure()) return maybe_result;
 
-  Handle<String> lists_sym = Factory::LookupAsciiSymbol("lists");
+  Handle<String> lists_sym = factory->LookupAsciiSymbol("lists");
   maybe_result = result->SetProperty(*lists_sym,
                                      *lols,
                                      NONE,
@@ -1618,7 +1638,7 @@ Object* LiveObjectList::GetObj(int obj_id) {
   if (element != NULL) {
     return Object::cast(element->obj_);
   }
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -1639,8 +1659,11 @@ Object* LiveObjectList::GetObjId(Handle<String> address) {
   SmartPointer<char> addr_str =
       address->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
 
+  Isolate* isolate = Isolate::Current();
+
   // Extract the address value from the string.
-  int value = static_cast<int>(StringToInt(*address, 16));
+  int value =
+      static_cast<int>(StringToInt(isolate->unicode_cache(), *address, 16));
   Object* obj = reinterpret_cast<Object*>(value);
   return Smi::FromInt(GetObjId(obj));
 }
@@ -1760,10 +1783,13 @@ int LiveObjectList::GetRetainers(Handle<HeapObject> target,
   Handle<String> desc;
   Handle<HeapObject> retainer;
 
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+
   // Prefetch some needed symbols.
-  Handle<String> id_sym = Factory::LookupAsciiSymbol("id");
-  Handle<String> desc_sym = Factory::LookupAsciiSymbol("desc");
-  Handle<String> size_sym = Factory::LookupAsciiSymbol("size");
+  Handle<String> id_sym = factory->LookupAsciiSymbol("id");
+  Handle<String> desc_sym = factory->LookupAsciiSymbol("desc");
+  Handle<String> size_sym = factory->LookupAsciiSymbol("size");
 
   NoHandleAllocation ha;
   int count = 0;
@@ -1774,7 +1800,7 @@ int LiveObjectList::GetRetainers(Handle<HeapObject> target,
 
   // Iterate roots.
   LolVisitor lol_visitor(*target, target);
-  Heap::IterateStrongRoots(&lol_visitor, VISIT_ALL);
+  isolate->heap()->IterateStrongRoots(&lol_visitor, VISIT_ALL);
   if (!AddRootRetainerIfFound(lol_visitor,
                               filter,
                               summary,
@@ -1794,7 +1820,7 @@ int LiveObjectList::GetRetainers(Handle<HeapObject> target,
   }
 
   lol_visitor.reset();
-  Heap::IterateWeakRoots(&lol_visitor, VISIT_ALL);
+  isolate->heap()->IterateWeakRoots(&lol_visitor, VISIT_ALL);
   if (!AddRootRetainerIfFound(lol_visitor,
                               filter,
                               summary,
@@ -1903,11 +1929,15 @@ MaybeObject* LiveObjectList::GetObjRetainers(int obj_id,
                                              int start,
                                              int dump_limit,
                                              Handle<JSObject> filter_obj) {
-  HandleScope scope;
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+
+  HandleScope scope(isolate);
 
   // Get the target object.
   HeapObject* heap_obj = HeapObject::cast(GetObj(obj_id));
-  if (heap_obj == Heap::undefined_value()) {
+  if (heap_obj == heap->undefined_value()) {
     return heap_obj;
   }
 
@@ -1915,7 +1945,7 @@ MaybeObject* LiveObjectList::GetObjRetainers(int obj_id,
 
   // Get the constructor function for context extension and arguments array.
   JSObject* arguments_boilerplate =
-      Top::context()->global_context()->arguments_boilerplate();
+      isolate->context()->global_context()->arguments_boilerplate();
   JSFunction* arguments_function =
       JSFunction::cast(arguments_boilerplate->map()->constructor());
 
@@ -1937,7 +1967,7 @@ MaybeObject* LiveObjectList::GetObjRetainers(int obj_id,
 
     // Set body.id.
     Handle<JSObject> body = Handle<JSObject>(JSObject::cast(body_obj));
-    Handle<String> id_sym = Factory::LookupAsciiSymbol("id");
+    Handle<String> id_sym = factory->LookupAsciiSymbol("id");
     maybe_result = body->SetProperty(*id_sym,
                                      Smi::FromInt(obj_id),
                                      NONE,
@@ -1952,12 +1982,16 @@ MaybeObject* LiveObjectList::GetObjRetainers(int obj_id,
 Object* LiveObjectList::PrintObj(int obj_id) {
   Object* obj = GetObj(obj_id);
   if (!obj) {
-    return Heap::undefined_value();
+    return HEAP->undefined_value();
   }
 
   EmbeddedVector<char, 128> temp_filename;
   static int temp_count = 0;
   const char* path_prefix = ".";
+
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
 
   if (FLAG_lol_workdir) {
     path_prefix = FLAG_lol_workdir;
@@ -1987,13 +2021,13 @@ Object* LiveObjectList::PrintObj(int obj_id) {
   if (resource->exists() && !resource->is_empty()) {
     ASSERT(resource->IsAscii());
     Handle<String> dump_string =
-        Factory::NewExternalStringFromAscii(resource);
-    ExternalStringTable::AddString(*dump_string);
+        factory->NewExternalStringFromAscii(resource);
+    heap->external_string_table()->AddString(*dump_string);
     return *dump_string;
   } else {
     delete resource;
   }
-  return Heap::undefined_value();
+  return HEAP->undefined_value();
 }
 
 
@@ -2081,6 +2115,10 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
 
   FILE* f = OS::FOpen(temp_filename.start(), "w+");
 
+  Isolate* isolate = Isolate::Current();
+  Factory* factory = isolate->factory();
+  Heap* heap = isolate->heap();
+
   // Save the previous verbosity.
   bool prev_verbosity = FLAG_use_verbose_printer;
   FLAG_use_verbose_printer = false;
@@ -2096,15 +2134,14 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
       // Check for ObjectGroups that references this object.
       // TODO(mlam): refactor this to be more modular.
       {
-        List<ObjectGroup*>* groups = GlobalHandles::ObjectGroups();
+        List<ObjectGroup*>* groups = isolate->global_handles()->object_groups();
         for (int i = 0; i < groups->length(); i++) {
           ObjectGroup* group = groups->at(i);
           if (group == NULL) continue;
 
           bool found_group = false;
-          List<Object**>& objects = group->objects_;
-          for (int j = 0; j < objects.length(); j++) {
-            Object* object = *objects[j];
+          for (size_t j = 0; j < group->length_; j++) {
+            Object* object = *(group->objects_[j]);
             HeapObject* hobj = HeapObject::cast(object);
             if (obj2 == hobj) {
               found_group = true;
@@ -2117,8 +2154,8 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
                    "obj %p is a member of object group %p {\n",
                    reinterpret_cast<void*>(obj2),
                    reinterpret_cast<void*>(group));
-            for (int j = 0; j < objects.length(); j++) {
-              Object* object = *objects[j];
+            for (size_t j = 0; j < group->length_; j++) {
+              Object* object = *(group->objects_[j]);
               if (!object->IsHeapObject()) continue;
 
               HeapObject* hobj = HeapObject::cast(object);
@@ -2143,12 +2180,12 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
       }
 
       PrintF(f, "path from roots to obj %p\n", reinterpret_cast<void*>(obj2));
-      Heap::IterateRoots(&tracer, VISIT_ONLY_STRONG);
+      heap->IterateRoots(&tracer, VISIT_ONLY_STRONG);
       found = tracer.found();
 
       if (!found) {
         PrintF(f, "  No paths found. Checking symbol tables ...\n");
-        SymbolTable* symbol_table = Heap::raw_unchecked_symbol_table();
+        SymbolTable* symbol_table = HEAP->raw_unchecked_symbol_table();
         tracer.VisitPointers(reinterpret_cast<Object**>(&symbol_table),
                              reinterpret_cast<Object**>(&symbol_table)+1);
         found = tracer.found();
@@ -2161,7 +2198,7 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
       if (!found) {
         PrintF(f, "  No paths found. Checking weak roots ...\n");
         // Check weak refs next.
-        GlobalHandles::IterateWeakRoots(&tracer);
+        isolate->global_handles()->IterateWeakRoots(&tracer);
         found = tracer.found();
       }
 
@@ -2191,13 +2228,13 @@ Object* LiveObjectList::GetPathPrivate(HeapObject* obj1, HeapObject* obj2) {
   if (resource->exists() && !resource->is_empty()) {
     ASSERT(resource->IsAscii());
     Handle<String> path_string =
-        Factory::NewExternalStringFromAscii(resource);
-    ExternalStringTable::AddString(*path_string);
+        factory->NewExternalStringFromAscii(resource);
+    heap->external_string_table()->AddString(*path_string);
     return *path_string;
   } else {
     delete resource;
   }
-  return Heap::undefined_value();
+  return heap->undefined_value();
 }
 
 
@@ -2210,13 +2247,13 @@ Object* LiveObjectList::GetPath(int obj_id1,
   HeapObject* obj1 = NULL;
   if (obj_id1 != 0) {
     obj1 = HeapObject::cast(GetObj(obj_id1));
-    if (obj1 == Heap::undefined_value()) {
+    if (obj1 == HEAP->undefined_value()) {
       return obj1;
     }
   }
 
   HeapObject* obj2 = HeapObject::cast(GetObj(obj_id2));
-  if (obj2 == Heap::undefined_value()) {
+  if (obj2 == HEAP->undefined_value()) {
     return obj2;
   }
 
@@ -2570,12 +2607,13 @@ void LiveObjectList::Verify(bool match_heap_exactly) {
 void LiveObjectList::VerifyNotInFromSpace() {
   OS::Print("VerifyNotInFromSpace() ...\n");
   LolIterator it(NULL, last());
+  Heap* heap = ISOLATE->heap();
   int i = 0;
   for (it.Init(); !it.Done(); it.Next()) {
     HeapObject* heap_obj = it.Obj();
-    if (Heap::InFromSpace(heap_obj)) {
+    if (heap->InFromSpace(heap_obj)) {
       OS::Print(" ERROR: VerifyNotInFromSpace: [%d] obj %p in From space %p\n",
-                i++, heap_obj, Heap::new_space()->FromSpaceLow());
+                i++, heap_obj, heap->new_space()->FromSpaceLow());
     }
   }
 }

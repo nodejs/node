@@ -65,6 +65,7 @@ inline Heap* _inline_get_heap_();
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
+  V(Map, serialized_scope_info_map, SerializedScopeInfoMap)                    \
   V(Map, fixed_cow_array_map, FixedCOWArrayMap)                                \
   V(Map, fixed_double_array_map, FixedDoubleArrayMap)                          \
   V(Object, no_interceptor_result_sentinel, NoInterceptorResultSentinel)       \
@@ -111,6 +112,7 @@ inline Heap* _inline_get_heap_();
   V(Map, function_context_map, FunctionContextMap)                             \
   V(Map, catch_context_map, CatchContextMap)                                   \
   V(Map, with_context_map, WithContextMap)                                     \
+  V(Map, block_context_map, BlockContextMap)                                   \
   V(Map, code_map, CodeMap)                                                    \
   V(Map, oddball_map, OddballMap)                                              \
   V(Map, global_property_cell_map, GlobalPropertyCellMap)                      \
@@ -160,6 +162,7 @@ inline Heap* _inline_get_heap_();
   V(length_symbol, "length")                                             \
   V(name_symbol, "name")                                                 \
   V(native_symbol, "native")                                             \
+  V(null_symbol, "null")                                                 \
   V(number_symbol, "number")                                             \
   V(Number_symbol, "Number")                                             \
   V(nan_symbol, "NaN")                                                   \
@@ -220,7 +223,8 @@ inline Heap* _inline_get_heap_();
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
   V(dot_symbol, ".")                                                     \
-  V(anonymous_function_symbol, "(anonymous function)")
+  V(anonymous_function_symbol, "(anonymous function)")                   \
+  V(block_scope_symbol, ".block")
 
 // Forward declarations.
 class GCTracer;
@@ -483,6 +487,9 @@ class Heap {
   // Allocates an empty code cache.
   MUST_USE_RESULT MaybeObject* AllocateCodeCache();
 
+  // Allocates a serialized scope info.
+  MUST_USE_RESULT MaybeObject* AllocateSerializedScopeInfo(int length);
+
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
 
@@ -667,6 +674,11 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateWithContext(JSFunction* function,
                                                    Context* previous,
                                                    JSObject* extension);
+
+  // Allocate a block context.
+  MUST_USE_RESULT MaybeObject* AllocateBlockContext(JSFunction* function,
+                                                    Context* previous,
+                                                    SerializedScopeInfo* info);
 
   // Allocates a new utility object in the old generation.
   MUST_USE_RESULT MaybeObject* AllocateStruct(InstanceType type);

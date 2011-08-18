@@ -4853,7 +4853,9 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Typeof) {
         return isolate->heap()->boolean_symbol();
       }
       if (heap_obj->IsNull()) {
-        return isolate->heap()->object_symbol();
+        return FLAG_harmony_typeof
+            ? isolate->heap()->null_symbol()
+            : isolate->heap()->object_symbol();
       }
       ASSERT(heap_obj->IsUndefined());
       return isolate->heap()->undefined_symbol();
@@ -8314,6 +8316,30 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_PushCatchContext) {
 }
 
 
+RUNTIME_FUNCTION(MaybeObject*, Runtime_PushBlockContext) {
+  NoHandleAllocation ha;
+  ASSERT(args.length() == 2);
+  SerializedScopeInfo* scope_info = SerializedScopeInfo::cast(args[0]);
+  JSFunction* function;
+  if (args[1]->IsSmi()) {
+    // A smi sentinel indicates a context nested inside global code rather
+    // than some function.  There is a canonical empty function that can be
+    // gotten from the global context.
+    function = isolate->context()->global_context()->closure();
+  } else {
+    function = JSFunction::cast(args[1]);
+  }
+  Context* context;
+  MaybeObject* maybe_context =
+      isolate->heap()->AllocateBlockContext(function,
+                                            isolate->context(),
+                                            scope_info);
+  if (!maybe_context->To(&context)) return maybe_context;
+  isolate->set_context(context);
+  return context;
+}
+
+
 RUNTIME_FUNCTION(MaybeObject*, Runtime_DeleteContextSlot) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 2);
@@ -9654,7 +9680,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_MoveArrayContents) {
   ASSERT(args.length() == 2);
   CONVERT_CHECKED(JSArray, from, args[0]);
   CONVERT_CHECKED(JSArray, to, args[1]);
-  HeapObject* new_elements = from->elements();
+  FixedArrayBase* new_elements = from->elements();
   MaybeObject* maybe_new_map;
   if (new_elements->map() == isolate->heap()->fixed_array_map() ||
       new_elements->map() == isolate->heap()->fixed_cow_array_map()) {
@@ -10639,6 +10665,34 @@ static Handle<JSObject> MaterializeCatchScope(Isolate* isolate,
 }
 
 
+// Create a plain JSObject which materializes the block scope for the specified
+// block context.
+static Handle<JSObject> MaterializeBlockScope(
+    Isolate* isolate,
+    Handle<Context> context) {
+  ASSERT(context->IsBlockContext());
+  Handle<SerializedScopeInfo> serialized_scope_info(
+      SerializedScopeInfo::cast(context->extension()));
+  ScopeInfo<> scope_info(*serialized_scope_info);
+
+  // Allocate and initialize a JSObject with all the arguments, stack locals
+  // heap locals and extension properties of the debugged function.
+  Handle<JSObject> block_scope =
+      isolate->factory()->NewJSObject(isolate->object_function());
+
+  // Fill all context locals.
+  if (scope_info.number_of_context_slots() > Context::MIN_CONTEXT_SLOTS) {
+    if (!CopyContextLocalsToScopeObject(isolate,
+                                        serialized_scope_info, scope_info,
+                                        context, block_scope)) {
+      return Handle<JSObject>();
+    }
+  }
+
+  return block_scope;
+}
+
+
 // Iterate over the actual scopes visible from a stack frame. All scopes are
 // backed by an actual context except the local scope, which is inserted
 // "artifically" in the context chain.
@@ -10649,7 +10703,8 @@ class ScopeIterator {
     ScopeTypeLocal,
     ScopeTypeWith,
     ScopeTypeClosure,
-    ScopeTypeCatch
+    ScopeTypeCatch,
+    ScopeTypeBlock
   };
 
   ScopeIterator(Isolate* isolate,
@@ -10675,8 +10730,10 @@ class ScopeIterator {
     } else if (context_->IsFunctionContext()) {
       at_local_ = true;
     } else if (context_->closure() != *function_) {
-      // The context_ is a with or catch block from the outer function.
-      ASSERT(context_->IsWithContext() || context_->IsCatchContext());
+      // The context_ is a block or with or catch block from the outer function.
+      ASSERT(context_->IsWithContext() ||
+             context_->IsCatchContext() ||
+             context_->IsBlockContext());
       at_local_ = true;
     }
   }
@@ -10731,6 +10788,9 @@ class ScopeIterator {
     if (context_->IsCatchContext()) {
       return ScopeTypeCatch;
     }
+    if (context_->IsBlockContext()) {
+      return ScopeTypeBlock;
+    }
     ASSERT(context_->IsWithContext());
     return ScopeTypeWith;
   }
@@ -10751,6 +10811,8 @@ class ScopeIterator {
       case ScopeIterator::ScopeTypeClosure:
         // Materialize the content of the closure scope into a JSObject.
         return MaterializeClosure(isolate_, CurrentContext());
+      case ScopeIterator::ScopeTypeBlock:
+        return MaterializeBlockScope(isolate_, CurrentContext());
     }
     UNREACHABLE();
     return Handle<JSObject>();
@@ -11307,7 +11369,18 @@ static Handle<Context> CopyWithContextChain(Isolate* isolate,
                                             new_previous,
                                             name,
                                             thrown_object);
+  } else if (current->IsBlockContext()) {
+    Handle<SerializedScopeInfo> scope_info(
+        SerializedScopeInfo::cast(current->extension()));
+    new_current =
+        isolate->factory()->NewBlockContext(function, new_previous, scope_info);
+    // Copy context slots.
+    int num_context_slots = scope_info->NumberOfContextSlots();
+    for (int i = Context::MIN_CONTEXT_SLOTS; i < num_context_slots; ++i) {
+      new_current->set(i, current->get(i));
+    }
   } else {
+    ASSERT(current->IsWithContext());
     Handle<JSObject> extension(JSObject::cast(current->extension()));
     new_current =
         isolate->factory()->NewWithContext(function, new_previous, extension);

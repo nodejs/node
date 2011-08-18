@@ -190,9 +190,19 @@ function run_test(test_func, array, expected_result) {
   gc();  // Makes V8 forget about type information for test_func.
 }
 
+function run_bounds_test(test_func, array, expected_result) {
+  assertEquals(undefined, a[kElementCount]);
+  a[kElementCount] = 456;
+  assertEquals(undefined, a[kElementCount]);
+  assertEquals(undefined, a[kElementCount+1]);
+  a[kElementCount+1] = 456;
+  assertEquals(undefined, a[kElementCount+1]);
+}
+
 for (var t = 0; t < types.length; t++) {
   var type = types[t];
   var a = new type(kElementCount);
+
   for (var i = 0; i < kElementCount; i++) {
     a[i] = i;
   }
@@ -220,6 +230,16 @@ for (var t = 0; t < types.length; t++) {
     assertTrue(delete a.length);
     a.length = 2;
     assertEquals(2, a.length);
+
+    // Make sure bounds checks are handled correctly for external arrays.
+    run_bounds_test(a);
+    run_bounds_test(a);
+    run_bounds_test(a);
+    %OptimizeFunctionOnNextCall(run_bounds_test);
+    run_bounds_test(a);
+    %DeoptimizeFunction(run_bounds_test);
+    gc();  // Makes V8 forget about type information for test_func.
+
   }
 
   function array_load_set_smi_check(a) {

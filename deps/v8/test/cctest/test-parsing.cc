@@ -40,8 +40,6 @@
 #include "preparser.h"
 #include "cctest.h"
 
-namespace i = ::v8::internal;
-
 TEST(ScanKeywords) {
   struct KeywordToken {
     const char* keyword;
@@ -66,6 +64,8 @@ TEST(ScanKeywords) {
     {
       i::Utf8ToUC16CharacterStream stream(keyword, length);
       i::JavaScriptScanner scanner(&unicode_cache);
+      // The scanner should parse 'let' as Token::LET for this test.
+      scanner.SetHarmonyBlockScoping(true);
       scanner.Initialize(&stream);
       CHECK_EQ(key_token.token, scanner.Next());
       CHECK_EQ(i::Token::EOS, scanner.Next());
@@ -289,7 +289,7 @@ TEST(RegressChromium62639) {
   i::Utf8ToUC16CharacterStream stream(reinterpret_cast<const i::byte*>(program),
                                       static_cast<unsigned>(strlen(program)));
   i::ScriptDataImpl* data =
-      i::ParserApi::PreParse(&stream, NULL);
+      i::ParserApi::PreParse(&stream, NULL, false);
   CHECK(data->HasError());
   delete data;
 }
@@ -313,7 +313,7 @@ TEST(Regress928) {
   i::Utf8ToUC16CharacterStream stream(reinterpret_cast<const i::byte*>(program),
                                       static_cast<unsigned>(strlen(program)));
   i::ScriptDataImpl* data =
-      i::ParserApi::PartialPreParse(&stream, NULL);
+      i::ParserApi::PartialPreParse(&stream, NULL, false);
   CHECK(!data->HasError());
 
   data->Initialize();

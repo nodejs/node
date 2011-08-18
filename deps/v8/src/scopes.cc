@@ -146,7 +146,9 @@ Scope::Scope(Scope* outer_scope, Type type)
 }
 
 
-Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
+Scope::Scope(Scope* inner_scope,
+             Type type,
+             Handle<SerializedScopeInfo> scope_info)
     : isolate_(Isolate::Current()),
       inner_scopes_(4),
       variables_(),
@@ -156,7 +158,7 @@ Scope::Scope(Scope* inner_scope, Handle<SerializedScopeInfo> scope_info)
       decls_(4),
       already_resolved_(true) {
   ASSERT(!scope_info.is_null());
-  SetDefaults(FUNCTION_SCOPE, NULL, scope_info);
+  SetDefaults(type, NULL, scope_info);
   if (scope_info->HasHeapAllocatedLocals()) {
     num_heap_slots_ = scope_info_->NumberOfContextSlots();
   }
@@ -232,8 +234,13 @@ Scope* Scope::DeserializeScopeChain(CompilationInfo* info,
       if (context->IsFunctionContext()) {
         SerializedScopeInfo* scope_info =
             context->closure()->shared()->scope_info();
-        current_scope =
-            new Scope(current_scope, Handle<SerializedScopeInfo>(scope_info));
+        current_scope = new Scope(current_scope, FUNCTION_SCOPE,
+            Handle<SerializedScopeInfo>(scope_info));
+      } else if (context->IsBlockContext()) {
+        SerializedScopeInfo* scope_info =
+            SerializedScopeInfo::cast(context->extension());
+        current_scope = new Scope(current_scope, BLOCK_SCOPE,
+            Handle<SerializedScopeInfo>(scope_info));
       } else {
         ASSERT(context->IsCatchContext());
         String* name = String::cast(context->extension());
@@ -294,10 +301,13 @@ void Scope::Initialize(bool inside_with) {
   // instead load them directly from the stack. Currently, the only
   // such parameter is 'this' which is passed on the stack when
   // invoking scripts
-  if (is_catch_scope()) {
+  if (is_catch_scope() || is_block_scope()) {
     ASSERT(outer_scope() != NULL);
     receiver_ = outer_scope()->receiver();
   } else {
+    ASSERT(is_function_scope() ||
+           is_global_scope() ||
+           is_eval_scope());
     Variable* var =
         variables_.Declare(this,
                            isolate_->factory()->this_symbol(),
@@ -387,7 +397,9 @@ Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
-  ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+  ASSERT(mode == Variable::VAR ||
+         mode == Variable::CONST ||
+         mode == Variable::LET);
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }
@@ -559,10 +571,19 @@ int Scope::ContextChainLength(Scope* scope) {
 
 Scope* Scope::DeclarationScope() {
   Scope* scope = this;
-  while (scope->is_catch_scope()) {
+  while (scope->is_catch_scope() ||
+         scope->is_block_scope()) {
     scope = scope->outer_scope();
   }
   return scope;
+}
+
+
+Handle<SerializedScopeInfo> Scope::GetSerializedScopeInfo() {
+  if (scope_info_.is_null()) {
+    scope_info_ = SerializedScopeInfo::Create(this);
+  }
+  return scope_info_;
 }
 
 
@@ -573,6 +594,7 @@ static const char* Header(Scope::Type type) {
     case Scope::FUNCTION_SCOPE: return "function";
     case Scope::GLOBAL_SCOPE: return "global";
     case Scope::CATCH_SCOPE: return "catch";
+    case Scope::BLOCK_SCOPE: return "block";
   }
   UNREACHABLE();
   return NULL;
@@ -598,9 +620,11 @@ static void PrintVar(PrettyPrinter* printer, int indent, Variable* var) {
     PrintF(";  // ");
     if (var->rewrite() != NULL) {
       PrintF("%s, ", printer->Print(var->rewrite()));
-      if (var->is_accessed_from_inner_scope()) PrintF(", ");
+      if (var->is_accessed_from_inner_function_scope()) PrintF(", ");
     }
-    if (var->is_accessed_from_inner_scope()) PrintF("inner scope access");
+    if (var->is_accessed_from_inner_function_scope()) {
+      PrintF("inner scope access");
+    }
     PrintF("\n");
   }
 }
@@ -721,7 +745,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
 // another variable that is introduced dynamically via an 'eval' call
 // or a 'with' statement).
 Variable* Scope::LookupRecursive(Handle<String> name,
-                                 bool inner_lookup,
+                                 bool from_inner_function,
                                  Variable** invalidated_local) {
   // If we find a variable, but the current scope calls 'eval', the found
   // variable may not be the correct one (the 'eval' may introduce a
@@ -737,7 +761,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     // (Even if there is an 'eval' in this scope which introduces the
     // same variable again, the resulting variable remains the same.
     // Note that enclosing 'with' statements are handled at the call site.)
-    if (!inner_lookup)
+    if (!from_inner_function)
       return var;
 
   } else {
@@ -753,7 +777,10 @@ Variable* Scope::LookupRecursive(Handle<String> name,
       var = function_;
 
     } else if (outer_scope_ != NULL) {
-      var = outer_scope_->LookupRecursive(name, true, invalidated_local);
+      var = outer_scope_->LookupRecursive(
+          name,
+          is_function_scope() || from_inner_function,
+          invalidated_local);
       // We may have found a variable in an outer scope. However, if
       // the current scope is inside a 'with', the actual variable may
       // be a property introduced via the 'with' statement. Then, the
@@ -770,8 +797,8 @@ Variable* Scope::LookupRecursive(Handle<String> name,
   ASSERT(var != NULL);
 
   // If this is a lookup from an inner scope, mark the variable.
-  if (inner_lookup) {
-    var->MarkAsAccessedFromInnerScope();
+  if (from_inner_function) {
+    var->MarkAsAccessedFromInnerFunctionScope();
   }
 
   // If the variable we have found is just a guess, invalidate the
@@ -922,11 +949,12 @@ bool Scope::MustAllocate(Variable* var) {
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
   if ((var->is_this() || var->name()->length() > 0) &&
-      (var->is_accessed_from_inner_scope() ||
+      (var->is_accessed_from_inner_function_scope() ||
        scope_calls_eval_ ||
        inner_scope_calls_eval_ ||
        scope_contains_with_ ||
-       is_catch_scope())) {
+       is_catch_scope() ||
+       is_block_scope())) {
     var->set_is_used(true);
   }
   // Global variables do not need to be allocated.
@@ -943,8 +971,8 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // Exceptions: temporary variables are never allocated in a context;
   // catch-bound variables are always allocated in a context.
   if (var->mode() == Variable::TEMPORARY) return false;
-  if (is_catch_scope()) return true;
-  return var->is_accessed_from_inner_scope() ||
+  if (is_catch_scope() || is_block_scope()) return true;
+  return var->is_accessed_from_inner_function_scope() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||
       scope_contains_with_ ||
@@ -1010,7 +1038,7 @@ void Scope::AllocateParameterLocals() {
     if (uses_nonstrict_arguments) {
       // Give the parameter a use from an inner scope, to force allocation
       // to the context.
-      var->MarkAsAccessedFromInnerScope();
+      var->MarkAsAccessedFromInnerFunctionScope();
     }
 
     if (MustAllocate(var)) {

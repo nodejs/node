@@ -1198,10 +1198,9 @@ void Genesis::InitializeExperimentalGlobal() {
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
   // longer need to live behind a flag, so WeakMap gets added to the snapshot.
   if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
-    Handle<JSFunction> weakmap_fun =
-        InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                        isolate->initial_object_prototype(),
-                        Builtins::kIllegal, true);
+    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                    isolate->initial_object_prototype(),
+                    Builtins::kIllegal, true);
   }
 }
 
@@ -1587,8 +1586,6 @@ bool Genesis::InstallNatives() {
   global_context()->set_string_function_prototype_map(
       HeapObject::cast(string_function->initial_map()->prototype())->map());
 
-  InstallBuiltinFunctionIds();
-
   // Install Function.prototype.call and apply.
   { Handle<String> key = factory()->function_class_symbol();
     Handle<JSFunction> function =
@@ -1621,6 +1618,8 @@ bool Genesis::InstallNatives() {
     call->shared()->set_length(1);
     apply->shared()->set_length(2);
   }
+
+  InstallBuiltinFunctionIds();
 
   // Create a constructor for RegExp results (a variant of Array that
   // predefines the two properties index and match).

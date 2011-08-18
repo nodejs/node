@@ -41,6 +41,7 @@ const char* Variable::Mode2String(Mode mode) {
   switch (mode) {
     case VAR: return "VAR";
     case CONST: return "CONST";
+    case LET: return "LET";
     case DYNAMIC: return "DYNAMIC";
     case DYNAMIC_GLOBAL: return "DYNAMIC_GLOBAL";
     case DYNAMIC_LOCAL: return "DYNAMIC_LOCAL";
@@ -92,7 +93,7 @@ Variable::Variable(Scope* scope,
     local_if_not_shadowed_(NULL),
     rewrite_(NULL),
     is_valid_LHS_(is_valid_LHS),
-    is_accessed_from_inner_scope_(false),
+    is_accessed_from_inner_function_scope_(false),
     is_used_(false) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());

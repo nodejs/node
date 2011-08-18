@@ -94,12 +94,6 @@ class RuntimeProfiler {
 
  private:
   static const int kSamplerWindowSize = 16;
-  static const int kStateWindowSize = 128;
-
-  enum SamplerState {
-    IN_NON_JS_STATE = 0,
-    IN_JS_STATE = 1
-  };
 
   static void HandleWakeUp(Isolate* isolate);
 

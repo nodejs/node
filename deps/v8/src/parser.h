@@ -164,12 +164,14 @@ class ParserApi {
 
   // Generic preparser generating full preparse data.
   static ScriptDataImpl* PreParse(UC16CharacterStream* source,
-                                  v8::Extension* extension);
+                                  v8::Extension* extension,
+                                  bool harmony_block_scoping);
 
   // Preparser that only does preprocessing that makes sense if only used
   // immediately after.
   static ScriptDataImpl* PartialPreParse(UC16CharacterStream* source,
-                                         v8::Extension* extension);
+                                         v8::Extension* extension,
+                                         bool harmony_block_scoping);
 };
 
 // ----------------------------------------------------------------------------
@@ -435,6 +437,7 @@ class Parser {
   void ReportMessageAt(Scanner::Location loc,
                        const char* message,
                        Vector<Handle<String> > args);
+  void SetHarmonyBlockScoping(bool block_scoping);
 
  private:
   // Limit on number of function parameters is chosen arbitrarily.
@@ -449,6 +452,12 @@ class Parser {
   enum Mode {
     PARSE_LAZILY,
     PARSE_EAGERLY
+  };
+
+  enum VariableDeclarationContext {
+    kSourceElement,
+    kStatement,
+    kForStatement
   };
 
   Isolate* isolate() { return isolate_; }
@@ -479,12 +488,15 @@ class Parser {
   // for failure at the call sites.
   void* ParseSourceElements(ZoneList<Statement*>* processor,
                             int end_token, bool* ok);
+  Statement* ParseSourceElement(ZoneStringList* labels, bool* ok);
   Statement* ParseStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
-  Block* ParseVariableStatement(bool* ok);
-  Block* ParseVariableDeclarations(bool accept_IN,
+  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
+  Block* ParseVariableStatement(VariableDeclarationContext var_context,
+                                bool* ok);
+  Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
                                    Handle<String>* out,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,
@@ -493,7 +505,6 @@ class Parser {
   Statement* ParseContinueStatement(bool* ok);
   Statement* ParseBreakStatement(ZoneStringList* labels, bool* ok);
   Statement* ParseReturnStatement(bool* ok);
-  Block* WithHelper(Expression* obj, ZoneStringList* labels, bool* ok);
   Statement* ParseWithStatement(ZoneStringList* labels, bool* ok);
   CaseClause* ParseCaseClause(bool* default_seen_ptr, bool* ok);
   SwitchStatement* ParseSwitchStatement(ZoneStringList* labels, bool* ok);
@@ -715,6 +726,7 @@ class Parser {
   // Heuristically that means that the function will be called immediately,
   // so never lazily compile it.
   bool parenthesized_function_;
+  bool harmony_block_scoping_;
 
   friend class LexicalScope;
 };

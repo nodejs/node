@@ -168,6 +168,7 @@ namespace internal {
   T(FUTURE_RESERVED_WORD, NULL, 0)                                      \
   T(FUTURE_STRICT_RESERVED_WORD, NULL, 0)                               \
   K(CONST, "const", 0)                                                  \
+  K(LET, "let", 0)                                                      \
                                                                         \
   /* Illegal token - not able to scan. */                               \
   T(ILLEGAL, "ILLEGAL", 0)                                              \

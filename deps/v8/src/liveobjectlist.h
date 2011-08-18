@@ -237,10 +237,10 @@ class UpdateLiveObjectListVisitor: public ObjectVisitor {
   // to live new space objects, and not actually keep them alive.
   void UpdatePointer(Object** p) {
     Object* object = *p;
-    if (!Heap::InNewSpace(object)) return;
+    if (!HEAP->InNewSpace(object)) return;
 
     HeapObject* heap_obj = HeapObject::cast(object);
-    ASSERT(Heap::InFromSpace(heap_obj));
+    ASSERT(HEAP->InFromSpace(heap_obj));
 
     // We use the first word (where the map pointer usually is) of a heap
     // object to record the forwarding pointer.  A forwarding pointer can

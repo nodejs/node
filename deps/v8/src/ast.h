@@ -60,7 +60,7 @@ namespace internal {
   V(ContinueStatement)                          \
   V(BreakStatement)                             \
   V(ReturnStatement)                            \
-  V(EnterWithContextStatement)                  \
+  V(WithStatement)                              \
   V(ExitContextStatement)                       \
   V(SwitchStatement)                            \
   V(DoWhileStatement)                           \
@@ -359,9 +359,13 @@ class Block: public BreakableStatement {
   ZoneList<Statement*>* statements() { return &statements_; }
   bool is_initializer_block() const { return is_initializer_block_; }
 
+  Scope* block_scope() const { return block_scope_; }
+  void set_block_scope(Scope* block_scope) { block_scope_ = block_scope; }
+
  private:
   ZoneList<Statement*> statements_;
   bool is_initializer_block_;
+  Scope* block_scope_;
 };
 
 
@@ -371,9 +375,11 @@ class Declaration: public AstNode {
       : proxy_(proxy),
         mode_(mode),
         fun_(fun) {
-    ASSERT(mode == Variable::VAR || mode == Variable::CONST);
+    ASSERT(mode == Variable::VAR ||
+           mode == Variable::CONST ||
+           mode == Variable::LET);
     // At the moment there are no "const functions"'s in JavaScript...
-    ASSERT(fun == NULL || mode == Variable::VAR);
+    ASSERT(fun == NULL || mode == Variable::VAR || mode == Variable::LET);
   }
 
   DECLARE_NODE_TYPE(Declaration)
@@ -627,19 +633,21 @@ class ReturnStatement: public Statement {
 };
 
 
-class EnterWithContextStatement: public Statement {
+class WithStatement: public Statement {
  public:
-  explicit EnterWithContextStatement(Expression* expression)
-      : expression_(expression) { }
+  WithStatement(Expression* expression, Statement* statement)
+      : expression_(expression), statement_(statement) { }
 
-  DECLARE_NODE_TYPE(EnterWithContextStatement)
+  DECLARE_NODE_TYPE(WithStatement)
 
   Expression* expression() const { return expression_; }
+  Statement* statement() const { return statement_; }
 
   virtual bool IsInlineable() const;
 
  private:
   Expression* expression_;
+  Statement* statement_;
 };
 
 

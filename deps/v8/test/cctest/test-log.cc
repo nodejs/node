@@ -23,8 +23,6 @@ using v8::internal::EmbeddedVector;
 using v8::internal::Logger;
 using v8::internal::StrLength;
 
-namespace i = v8::internal;
-
 namespace {
 
 class ScopedLoggerInitializer {

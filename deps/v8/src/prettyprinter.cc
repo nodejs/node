@@ -123,11 +123,11 @@ void PrettyPrinter::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void PrettyPrinter::VisitEnterWithContextStatement(
-    EnterWithContextStatement* node) {
-  Print("<enter with context> (");
+void PrettyPrinter::VisitWithStatement(WithStatement* node) {
+  Print("with (");
   Visit(node->expression());
   Print(") ");
+  Visit(node->statement());
 }
 
 
@@ -798,9 +798,10 @@ void AstPrinter::VisitReturnStatement(ReturnStatement* node) {
 }
 
 
-void AstPrinter::VisitEnterWithContextStatement(
-    EnterWithContextStatement* node) {
-  PrintIndentedVisit("ENTER WITH CONTEXT", node->expression());
+void AstPrinter::VisitWithStatement(WithStatement* node) {
+  IndentedScope indent(this, "WITH");
+  PrintIndentedVisit("OBJECT", node->expression());
+  PrintIndentedVisit("BODY", node->statement());
 }
 
 
@@ -1194,10 +1195,10 @@ void JsonAstBuilder::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void JsonAstBuilder::VisitEnterWithContextStatement(
-    EnterWithContextStatement* stmt) {
-  TagScope tag(this, "EnterWithContextStatement");
+void JsonAstBuilder::VisitWithStatement(WithStatement* stmt) {
+  TagScope tag(this, "WithStatement");
   Visit(stmt->expression());
+  Visit(stmt->statement());
 }
 
 

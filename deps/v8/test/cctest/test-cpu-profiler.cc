@@ -7,8 +7,6 @@
 #include "cctest.h"
 #include "../include/v8-profiler.h"
 
-namespace i = v8::internal;
-
 using i::CodeEntry;
 using i::CpuProfile;
 using i::CpuProfiler;

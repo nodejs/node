@@ -33,14 +33,13 @@ const $WeakMap = global.WeakMap;
 
 // -------------------------------------------------------------------
 
-// Set the WeakMap function and constructor.
-%SetCode($WeakMap, function(x) {
+function WeakMapConstructor() {
   if (%_IsConstructCall()) {
     %WeakMapInitialize(this);
   } else {
     return new $WeakMap();
   }
-});
+}
 
 
 function WeakMapGet(key) {
@@ -82,6 +81,12 @@ function WeakMapDelete(key) {
 // -------------------------------------------------------------------
 
 function SetupWeakMap() {
+  // Setup the WeakMap constructor function.
+  %SetCode($WeakMap, WeakMapConstructor);
+
+  // Setup the WeakMap prototype object.
+  %FunctionSetPrototype($WeakMap, new $WeakMap());
+
   // Setup the non-enumerable functions on the WeakMap prototype object.
   InstallFunctionsOnHiddenPrototype($WeakMap.prototype, DONT_ENUM, $Array(
     "get", WeakMapGet,

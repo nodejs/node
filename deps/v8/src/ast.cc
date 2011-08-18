@@ -426,7 +426,7 @@ bool ForInStatement::IsInlineable() const {
 }
 
 
-bool EnterWithContextStatement::IsInlineable() const {
+bool WithStatement::IsInlineable() const {
   return false;
 }
 

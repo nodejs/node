@@ -75,9 +75,8 @@ class ElementsAccessorBase : public ElementsAccessor {
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
                                        uint32_t index) {
-    if (index < ElementsAccessorSubclass::GetLength(obj)) {
-      BackingStoreClass* backing_store =
-          ElementsAccessorSubclass::GetBackingStore(obj);
+    BackingStoreClass* backing_store = BackingStoreClass::cast(obj->elements());
+    if (index < ElementsAccessorSubclass::GetLength(backing_store)) {
       return backing_store->get(index);
     }
     return obj->GetHeap()->the_hole_value();
@@ -87,39 +86,39 @@ class ElementsAccessorBase : public ElementsAccessor {
                               uint32_t index,
                               JSReceiver::DeleteMode mode) = 0;
 
-  virtual MaybeObject* AddJSArrayKeysToFixedArray(JSArray* other,
-                                                  FixedArray* keys) {
-    int len0 = keys->length();
+  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
+                                               FixedArray* to) {
+    int len0 = to->length();
 #ifdef DEBUG
     if (FLAG_enable_slow_asserts) {
       for (int i = 0; i < len0; i++) {
-        ASSERT(keys->get(i)->IsString() || keys->get(i)->IsNumber());
+        ASSERT(!to->get(i)->IsTheHole());
       }
     }
 #endif
-    int len1 = ElementsAccessorSubclass::GetCapacity(other);
+    BackingStoreClass* backing_store = BackingStoreClass::cast(from);
+    int len1 = ElementsAccessorSubclass::GetCapacity(backing_store);
 
     // Optimize if 'other' is empty.
-    // We cannot optimize if 'this' is empty, as other may have holes
-    // or non keys.
-    if (len1 == 0) return keys;
+    // We cannot optimize if 'this' is empty, as other may have holes.
+    if (len1 == 0) return to;
 
     // Compute how many elements are not in other.
     int extra = 0;
     for (int y = 0; y < len1; y++) {
       Object* value;
       MaybeObject* maybe_value =
-          ElementsAccessorSubclass::GetElementAtCapacityIndex(other, y);
+          ElementsAccessorSubclass::GetElementAtCapacityIndex(backing_store, y);
       if (!maybe_value->ToObject(&value)) return maybe_value;
-      if (!value->IsTheHole() && !HasKey(keys, value)) extra++;
+      if (!value->IsTheHole() && !HasKey(to, value)) extra++;
     }
 
-    if (extra == 0) return keys;
+    if (extra == 0) return to;
 
     // Allocate the result
     FixedArray* result;
     MaybeObject* maybe_obj =
-        other->GetHeap()->AllocateFixedArray(len0 + extra);
+        backing_store->GetHeap()->AllocateFixedArray(len0 + extra);
     if (!maybe_obj->To<FixedArray>(&result)) return maybe_obj;
 
     // Fill in the content
@@ -127,20 +126,19 @@ class ElementsAccessorBase : public ElementsAccessor {
       AssertNoAllocation no_gc;
       WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
       for (int i = 0; i < len0; i++) {
-        Object* e = keys->get(i);
+        Object* e = to->get(i);
         ASSERT(e->IsString() || e->IsNumber());
         result->set(i, e, mode);
       }
     }
-    // Fill in the extra keys.
+    // Fill in the extra values.
     int index = 0;
     for (int y = 0; y < len1; y++) {
       MaybeObject* maybe_value =
-          ElementsAccessorSubclass::GetElementAtCapacityIndex(other, y);
+          ElementsAccessorSubclass::GetElementAtCapacityIndex(backing_store, y);
       Object* value;
       if (!maybe_value->ToObject(&value)) return maybe_value;
-      if (!value->IsTheHole() && !HasKey(keys, value)) {
-        ASSERT(value->IsString() || value->IsNumber());
+      if (!value->IsTheHole() && !HasKey(to, value)) {
         result->set(len0 + index, value);
         index++;
       }
@@ -149,23 +147,18 @@ class ElementsAccessorBase : public ElementsAccessor {
     return result;
   }
 
-  static uint32_t GetCapacity(JSObject* obj) {
-    return ElementsAccessorSubclass::GetBackingStore(obj)->length();
+  static uint32_t GetLength(BackingStoreClass* backing_store) {
+    return backing_store->length();
   }
 
-  static MaybeObject* GetElementAtCapacityIndex(JSObject* obj, int index) {
-    BackingStoreClass* backing_store =
-        ElementsAccessorSubclass::GetBackingStore(obj);
+  static uint32_t GetCapacity(BackingStoreClass* backing_store) {
+    return GetLength(backing_store);
+  }
+
+  static MaybeObject* GetElementAtCapacityIndex(
+      BackingStoreClass* backing_store,
+      int index) {
     return backing_store->get(index);
-  }
-
- protected:
-  static BackingStoreClass* GetBackingStore(JSObject* obj) {
-    return BackingStoreClass::cast(obj->elements());
-  }
-
-  static uint32_t GetLength(JSObject* obj) {
-    return ElementsAccessorSubclass::GetBackingStore(obj)->length();
   }
 
  private:
@@ -255,9 +248,8 @@ class ExternalElementsAccessor
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
                                        uint32_t index) {
-    if (index < ExternalElementsAccessorSubclass::GetLength(obj)) {
-      ExternalArray* backing_store =
-          ExternalElementsAccessorSubclass::GetBackingStore(obj);
+    ExternalArray* backing_store = ExternalArray::cast(obj->elements());
+    if (index < ExternalElementsAccessorSubclass::GetLength(backing_store)) {
       return backing_store->get(index);
     } else {
       return obj->GetHeap()->undefined_value();
@@ -412,16 +404,16 @@ class DictionaryElementsAccessor
                                       index);
   }
 
-  static uint32_t GetCapacity(JSObject* obj) {
-    return obj->element_dictionary()->Capacity();
+  static uint32_t GetCapacity(NumberDictionary* dict) {
+    return dict->Capacity();
   }
 
-  static MaybeObject* GetElementAtCapacityIndex(JSObject* obj, int index) {
-    NumberDictionary* dict = obj->element_dictionary();
+  static MaybeObject* GetElementAtCapacityIndex(NumberDictionary* dict,
+                                                int index) {
     if (dict->IsKey(dict->KeyAt(index))) {
       return dict->ValueAt(index);
     } else {
-      return obj->GetHeap()->the_hole_value();
+      return dict->GetHeap()->the_hole_value();
     }
   }
 };
@@ -434,7 +426,7 @@ class NonStrictArgumentsElementsAccessor
   virtual MaybeObject* GetWithReceiver(JSObject* obj,
                                        Object* receiver,
                                        uint32_t index) {
-    FixedArray* parameter_map = GetBackingStore(obj);
+    FixedArray* parameter_map = FixedArray::cast(obj->elements());
     uint32_t length = parameter_map->length();
     Object* probe =
         (index < length - 2) ? parameter_map->get(index + 2) : NULL;
@@ -482,13 +474,13 @@ class NonStrictArgumentsElementsAccessor
     return obj->GetHeap()->true_value();
   }
 
-  static uint32_t GetCapacity(JSObject* obj) {
+  static uint32_t GetCapacity(FixedArray* obj) {
     // TODO(danno): Return max of parameter map length or backing store
     // capacity.
     return 0;
   }
 
-  static MaybeObject* GetElementAtCapacityIndex(JSObject* obj, int index) {
+  static MaybeObject* GetElementAtCapacityIndex(FixedArray* obj, int index) {
     // TODO(danno): Return either value from parameter map of backing
     // store value at index.
     return obj->GetHeap()->the_hole_value();

@@ -49,7 +49,10 @@ function Instantiate(data, name) {
       return InstantiateFunction(data, name);
     case kNewObjectTag:
       var Constructor = %GetTemplateField(data, kApiConstructorOffset);
-      var result = Constructor ? new (Instantiate(Constructor))() : {};
+      // Note: Do not directly use a function template as a condition, our
+      // internal ToBoolean doesn't handle that!
+      var result = typeof Constructor === 'undefined' ?
+          {} : new (Instantiate(Constructor))();
       ConfigureTemplateInstance(result, data);
       result = %ToFastProperties(result);
       return result;
@@ -74,13 +77,18 @@ function InstantiateFunction(data, name) {
       cache[serialNumber] = fun;
       var prototype = %GetTemplateField(data, kApiPrototypeTemplateOffset);
       var flags = %GetTemplateField(data, kApiFlagOffset);
-      fun.prototype = prototype ? Instantiate(prototype) : {};
+      // Note: Do not directly use an object template as a condition, our
+      // internal ToBoolean doesn't handle that!
+      fun.prototype = typeof prototype === 'undefined' ?
+          {} : Instantiate(prototype);
       if (flags & (1 << kReadOnlyPrototypeBit)) {
         %FunctionSetReadOnlyPrototype(fun);
       }
       %SetProperty(fun.prototype, "constructor", fun, DONT_ENUM);
       var parent = %GetTemplateField(data, kApiParentTemplateOffset);
-      if (parent) {
+      // Note: Do not directly use a function template as a condition, our
+      // internal ToBoolean doesn't handle that!
+      if (!(typeof parent === 'undefined')) {
         var parent_fun = Instantiate(parent);
         fun.prototype.__proto__ = parent_fun.prototype;
       }

@@ -35,6 +35,7 @@
 #include "macro-assembler.h"
 #include "prettyprinter.h"
 #include "scopes.h"
+#include "scopeinfo.h"
 #include "stub-cache.h"
 
 namespace v8 {
@@ -90,8 +91,7 @@ void BreakableStatementChecker::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void BreakableStatementChecker::VisitEnterWithContextStatement(
-    EnterWithContextStatement* stmt) {
+void BreakableStatementChecker::VisitWithStatement(WithStatement* stmt) {
   Visit(stmt->expression());
 }
 
@@ -317,7 +317,6 @@ unsigned FullCodeGenerator::EmitStackCheckTable() {
   // field, and then a sequence of entries.  Each entry is a pair of AST id
   // and code-relative pc offset.
   masm()->Align(kIntSize);
-  masm()->RecordComment("[ Stack check table");
   unsigned offset = masm()->pc_offset();
   unsigned length = stack_checks_.length();
   __ dd(length);
@@ -325,7 +324,6 @@ unsigned FullCodeGenerator::EmitStackCheckTable() {
     __ dd(stack_checks_[i].id);
     __ dd(stack_checks_[i].pc_and_state);
   }
-  masm()->RecordComment("]");
   return offset;
 }
 
@@ -847,8 +845,23 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   Breakable nested_statement(this, stmt);
   SetStatementPosition(stmt);
 
+  Scope* saved_scope = scope();
+  if (stmt->block_scope() != NULL) {
+    { Comment cmnt(masm_, "[ Extend block context");
+      scope_ = stmt->block_scope();
+      __ Push(scope_->GetSerializedScopeInfo());
+      PushFunctionArgumentForContextAllocation();
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
+      StoreToFrameField(StandardFrameConstants::kContextOffset,
+                        context_register());
+    }
+    { Comment cmnt(masm_, "[ Declarations");
+      VisitDeclarations(scope_->declarations());
+    }
+  }
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   VisitStatements(stmt->statements());
+  scope_ = saved_scope;
   __ bind(nested_statement.break_target());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
@@ -900,16 +913,24 @@ void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
   SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
+  int context_length = 0;
   // When continuing, we clobber the unpredictable value in the accumulator
   // with one that's safe for GC.  If we hit an exit from the try block of
   // try...finally on our way out, we will unconditionally preserve the
   // accumulator on the stack.
   ClearAccumulator();
   while (!current->IsContinueTarget(stmt->target())) {
-    stack_depth = current->Exit(stack_depth);
-    current = current->outer();
+    current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
+  if (context_length > 0) {
+    while (context_length > 0) {
+      LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+      --context_length;
+    }
+    StoreToFrameField(StandardFrameConstants::kContextOffset,
+                      context_register());
+  }
 
   Iteration* loop = current->AsIteration();
   __ jmp(loop->continue_target());
@@ -921,16 +942,24 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
   SetStatementPosition(stmt);
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
+  int context_length = 0;
   // When breaking, we clobber the unpredictable value in the accumulator
   // with one that's safe for GC.  If we hit an exit from the try block of
   // try...finally on our way out, we will unconditionally preserve the
   // accumulator on the stack.
   ClearAccumulator();
   while (!current->IsBreakTarget(stmt->target())) {
-    stack_depth = current->Exit(stack_depth);
-    current = current->outer();
+    current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
+  if (context_length > 0) {
+    while (context_length > 0) {
+      LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+      --context_length;
+    }
+    StoreToFrameField(StandardFrameConstants::kContextOffset,
+                      context_register());
+  }
 
   Breakable* target = current->AsBreakable();
   __ jmp(target->break_target());
@@ -946,9 +975,9 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
   // Exit all nested statements.
   NestedStatement* current = nesting_stack_;
   int stack_depth = 0;
+  int context_length = 0;
   while (current != NULL) {
-    stack_depth = current->Exit(stack_depth);
-    current = current->outer();
+    current = current->Exit(&stack_depth, &context_length);
   }
   __ Drop(stack_depth);
 
@@ -956,15 +985,23 @@ void FullCodeGenerator::VisitReturnStatement(ReturnStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitEnterWithContextStatement(
-    EnterWithContextStatement* stmt) {
-  Comment cmnt(masm_, "[ EnterWithContextStatement");
+void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
+  Comment cmnt(masm_, "[ WithStatement");
   SetStatementPosition(stmt);
 
   VisitForStackValue(stmt->expression());
   PushFunctionArgumentForContextAllocation();
   __ CallRuntime(Runtime::kPushWithContext, 2);
   decrement_stack_height();
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
+
+  { WithOrCatch body(this);
+    Visit(stmt->statement());
+  }
+
+  // Pop context.
+  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+  // Update local stack frame context field.
   StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
 }
 
@@ -1124,7 +1161,9 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   Scope* saved_scope = scope();
   scope_ = stmt->scope();
   ASSERT(scope_->declarations()->is_empty());
-  Visit(stmt->catch_block());
+  { WithOrCatch body(this);
+    Visit(stmt->catch_block());
+  }
   scope_ = saved_scope;
   __ jmp(&done);
 
@@ -1170,8 +1209,8 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   Label try_handler_setup;
   const int original_stack_height = stack_height();
   const int finally_block_stack_height = original_stack_height + 2;
-  const int try_block_stack_height = original_stack_height + 4;
-  STATIC_ASSERT(StackHandlerConstants::kSize / kPointerSize == 4);
+  const int try_block_stack_height = original_stack_height + 5;
+  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
 
   // Setup the try-handler chain. Use a call to
   // Jump to try-handler setup and try-block code. Use call to put try-handler
@@ -1300,20 +1339,33 @@ void FullCodeGenerator::VisitThrow(Throw* expr) {
 }
 
 
-int FullCodeGenerator::TryFinally::Exit(int stack_depth) {
+FullCodeGenerator::NestedStatement* FullCodeGenerator::TryFinally::Exit(
+    int* stack_depth,
+    int* context_length) {
   // The macros used here must preserve the result register.
-  __ Drop(stack_depth);
+  __ Drop(*stack_depth);
   __ PopTryHandler();
+  *stack_depth = 0;
+
+  Register context = FullCodeGenerator::context_register();
+  while (*context_length > 0) {
+    codegen_->LoadContextField(context, Context::PREVIOUS_INDEX);
+    --(*context_length);
+  }
+
   __ Call(finally_entry_);
-  return 0;
+  return previous_;
 }
 
 
-int FullCodeGenerator::TryCatch::Exit(int stack_depth) {
+FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
+    int* stack_depth,
+    int* context_length) {
   // The macros used here must preserve the result register.
-  __ Drop(stack_depth);
+  __ Drop(*stack_depth);
   __ PopTryHandler();
-  return 0;
+  *stack_depth = 0;
+  return previous_;
 }
 
 

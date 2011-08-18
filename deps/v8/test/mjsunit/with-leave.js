@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -59,3 +59,162 @@ try {
 }
 assertTrue(caught);
 
+
+// We want to test the context chain shape.  In each of the tests cases
+// below, the outer with is to force a runtime lookup of the identifier 'x'
+// to actually verify that the inner context has been discarded.  A static
+// lookup of 'x' might accidentally succeed.
+with ({x: 'outer'}) {
+  label: {
+    with ({x: 'inner'}) {
+      break label;
+    }
+  }
+  assertEquals('outer', x);
+}
+
+
+with ({x: 'outer'}) {
+  label: {
+    with ({x: 'middle'}) {
+      with ({x: 'inner'}) {
+        break label;
+      }
+    }
+  }
+  assertEquals('outer', x);
+}
+
+
+with ({x: 'outer'}) {
+  for (var i = 0; i < 10; ++i) {
+    with ({x: 'inner' + i}) {
+      continue;
+    }
+  }
+  assertEquals('outer', x);
+}
+
+
+with ({x: 'outer'}) {
+  label: for (var i = 0; i < 10; ++i) {
+    with ({x: 'middle' + i}) {
+      for (var j = 0; j < 10; ++j) {
+        with ({x: 'inner' + j}) {
+          continue label;
+        }
+      }
+    }
+  }
+  assertEquals('outer', x);
+}
+
+
+with ({x: 'outer'}) {
+  try {
+    with ({x: 'inner'}) {
+      throw 0;
+    }
+  } catch (e) {
+    assertEquals('outer', x);
+  }
+}
+
+
+with ({x: 'outer'}) {
+  try {
+    with ({x: 'middle'}) {
+      with ({x: 'inner'}) {
+        throw 0;
+      }
+    }
+  } catch (e) {
+    assertEquals('outer', x);
+  }
+}
+
+
+try {
+  with ({x: 'outer'}) {
+    try {
+      with ({x: 'inner'}) {
+        throw 0;
+      }
+    } finally {
+      assertEquals('outer', x);
+    }
+  }
+} catch (e) {
+  if (e instanceof MjsUnitAssertionError) throw e;
+}
+
+
+try {
+  with ({x: 'outer'}) {
+    try {
+      with ({x: 'middle'}) {
+        with ({x: 'inner'}) {
+          throw 0;
+        }
+      }
+    } finally {
+      assertEquals('outer', x);
+    }
+  }
+} catch (e) {
+  if (e instanceof MjsUnitAssertionError) throw e;
+}
+
+
+// Verify that the context is correctly set in the stack frame after exiting
+// from with.
+function f() {}
+
+with ({x: 'outer'}) {
+  label: {
+    with ({x: 'inner'}) {
+      break label;
+    }
+  }
+  f();  // The context could be restored from the stack after the call.
+  assertEquals('outer', x);
+}
+
+
+with ({x: 'outer'}) {
+  for (var i = 0; i < 10; ++i) {
+    with ({x: 'inner' + i}) {
+      continue;
+    }
+  }
+  f();
+  assertEquals('outer', x);
+}
+
+
+with ({x: 'outer'}) {
+  try {
+    with ({x: 'inner'}) {
+      throw 0;
+    }
+  } catch (e) {
+    f();
+    assertEquals('outer', x);
+  }
+}
+
+
+try {
+  with ({x: 'outer'}) {
+    try {
+      with ({x: 'inner'}) {
+        throw 0;
+      }
+    } finally {
+      f();
+      assertEquals('outer', x);
+    }
+  }
+} catch (e) {
+  if (e instanceof MjsUnitAssertionError) throw e;
+}

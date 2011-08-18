@@ -103,7 +103,8 @@ Debug.ScopeType = { Global: 0,
                     Local: 1,
                     With: 2,
                     Closure: 3,
-                    Catch: 4 };
+                    Catch: 4,
+                    Block: 5 };
 
 
 // Current debug state.

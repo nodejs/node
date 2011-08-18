@@ -1211,17 +1211,11 @@ void LCodeGen::DoJSArrayLength(LJSArrayLength* instr) {
 }
 
 
-void LCodeGen::DoFixedArrayLength(LFixedArrayLength* instr) {
+void LCodeGen::DoFixedArrayBaseLength(
+    LFixedArrayBaseLength* instr) {
   Register result = ToRegister(instr->result());
   Register array = ToRegister(instr->InputAt(0));
-  __ mov(result, FieldOperand(array, FixedArray::kLengthOffset));
-}
-
-
-void LCodeGen::DoExternalArrayLength(LExternalArrayLength* instr) {
-  Register result = ToRegister(instr->result());
-  Register array = ToRegister(instr->InputAt(0));
-  __ mov(result, FieldOperand(array, ExternalArray::kLengthOffset));
+  __ mov(result, FieldOperand(array, FixedArrayBase::kLengthOffset));
 }
 
 
@@ -1412,40 +1406,19 @@ void LCodeGen::DoBranch(LBranch* instr) {
         // undefined -> false.
         __ cmp(reg, factory()->undefined_value());
         __ j(equal, false_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen undefined for the first time -> deopt.
-        __ cmp(reg, factory()->undefined_value());
-        DeoptimizeIf(equal, instr->environment());
       }
-
       if (expected.Contains(ToBooleanStub::BOOLEAN)) {
         // true -> true.
         __ cmp(reg, factory()->true_value());
         __ j(equal, true_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a boolean for the first time -> deopt.
-        __ cmp(reg, factory()->true_value());
-        DeoptimizeIf(equal, instr->environment());
-      }
-
-      if (expected.Contains(ToBooleanStub::BOOLEAN)) {
         // false -> false.
         __ cmp(reg, factory()->false_value());
         __ j(equal, false_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a boolean for the first time -> deopt.
-        __ cmp(reg, factory()->false_value());
-        DeoptimizeIf(equal, instr->environment());
       }
-
       if (expected.Contains(ToBooleanStub::NULL_TYPE)) {
         // 'null' -> false.
         __ cmp(reg, factory()->null_value());
         __ j(equal, false_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen null for the first time -> deopt.
-        __ cmp(reg, factory()->null_value());
-        DeoptimizeIf(equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::SMI)) {
@@ -1459,26 +1432,24 @@ void LCodeGen::DoBranch(LBranch* instr) {
         DeoptimizeIf(zero, instr->environment());
       }
 
-      Register map = no_reg;
+      Register map = no_reg;  // Keep the compiler happy.
       if (expected.NeedsMap()) {
         map = ToRegister(instr->TempAt(0));
         ASSERT(!map.is(reg));
         __ mov(map, FieldOperand(reg, HeapObject::kMapOffset));
-        // Everything with a map could be undetectable, so check this now.
-        __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-                  1 << Map::kIsUndetectable);
-        // Undetectable -> false.
-        __ j(not_zero, false_label);
+
+        if (expected.CanBeUndetectable()) {
+          // Undetectable -> false.
+          __ test_b(FieldOperand(map, Map::kBitFieldOffset),
+                    1 << Map::kIsUndetectable);
+          __ j(not_zero, false_label);
+        }
       }
 
       if (expected.Contains(ToBooleanStub::SPEC_OBJECT)) {
         // spec object -> true.
         __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
         __ j(above_equal, true_label);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a spec object for the first time -> deopt.
-        __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-        DeoptimizeIf(above_equal, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::STRING)) {
@@ -1490,10 +1461,6 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(not_zero, true_label);
         __ jmp(false_label);
         __ bind(&not_string);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a string for the first time -> deopt
-        __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-        DeoptimizeIf(below, instr->environment());
       }
 
       if (expected.Contains(ToBooleanStub::HEAP_NUMBER)) {
@@ -1508,20 +1475,10 @@ void LCodeGen::DoBranch(LBranch* instr) {
         __ j(zero, false_label);
         __ jmp(true_label);
         __ bind(&not_heap_number);
-      } else if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // We've seen a heap number for the first time -> deopt.
-        __ cmp(FieldOperand(reg, HeapObject::kMapOffset),
-               factory()->heap_number_map());
-        DeoptimizeIf(equal, instr->environment());
       }
 
-      if (expected.Contains(ToBooleanStub::INTERNAL_OBJECT)) {
-        // internal objects -> true
-        __ jmp(true_label);
-      } else {
-        // We've seen something for the first time -> deopt.
-        DeoptimizeIf(no_condition, instr->environment());
-      }
+      // We've seen something for the first time -> deopt.
+      DeoptimizeIf(no_condition, instr->environment());
     }
   }
 }
@@ -2302,16 +2259,13 @@ void LCodeGen::DoAccessArgumentsAt(LAccessArgumentsAt* instr) {
 
 
 void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
-  Register elements = ToRegister(instr->elements());
-  Register key = ToRegister(instr->key());
   Register result = ToRegister(instr->result());
-  ASSERT(result.is(elements));
 
   // Load the result.
-  __ mov(result, FieldOperand(elements,
-                              key,
-                              times_pointer_size,
-                              FixedArray::kHeaderSize));
+  __ mov(result,
+         BuildFastArrayOperand(instr->elements(), instr->key(),
+                               JSObject::FAST_ELEMENTS,
+                               FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Check for the hole value.
   if (instr->hydrogen()->RequiresHoleCheck()) {
@@ -2344,22 +2298,22 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
 
 
 Operand LCodeGen::BuildFastArrayOperand(
-    LOperand* external_pointer,
+    LOperand* elements_pointer,
     LOperand* key,
     JSObject::ElementsKind elements_kind,
     uint32_t offset) {
-  Register external_pointer_reg = ToRegister(external_pointer);
+  Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
   if (key->IsConstantOperand()) {
     int constant_value = ToInteger32(LConstantOperand::cast(key));
     if (constant_value & 0xF0000000) {
       Abort("array index constant value too big");
     }
-    return Operand(external_pointer_reg,
+    return Operand(elements_pointer_reg,
                    constant_value * (1 << shift_size) + offset);
   } else {
     ScaleFactor scale_factor = static_cast<ScaleFactor>(shift_size);
-    return Operand(external_pointer_reg, ToRegister(key), scale_factor, offset);
+    return Operand(elements_pointer_reg, ToRegister(key), scale_factor, offset);
   }
 }
 
@@ -2756,23 +2710,53 @@ void LCodeGen::DoMathFloor(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
   Register output_reg = ToRegister(instr->result());
   XMMRegister input_reg = ToDoubleRegister(instr->value());
-  __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
-  __ ucomisd(input_reg, xmm_scratch);
 
-  if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
-    DeoptimizeIf(below_equal, instr->environment());
+  if (CpuFeatures::IsSupported(SSE4_1)) {
+    CpuFeatures::Scope scope(SSE4_1);
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      // Deoptimize on negative zero.
+      Label non_zero;
+      __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
+      __ ucomisd(input_reg, xmm_scratch);
+      __ j(not_equal, &non_zero, Label::kNear);
+      __ movmskpd(output_reg, input_reg);
+      __ test(output_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ bind(&non_zero);
+    }
+    __ roundsd(xmm_scratch, input_reg, Assembler::kRoundDown);
+    __ cvttsd2si(output_reg, Operand(xmm_scratch));
+    // Overflow is signalled with minint.
+    __ cmp(output_reg, 0x80000000u);
+    DeoptimizeIf(equal, instr->environment());
   } else {
+    Label done;
+    // Deoptimize on negative numbers.
+    __ xorps(xmm_scratch, xmm_scratch);  // Zero the register.
+    __ ucomisd(input_reg, xmm_scratch);
     DeoptimizeIf(below, instr->environment());
+
+    if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
+      // Check for negative zero.
+      Label positive_sign;
+      __ j(above, &positive_sign, Label::kNear);
+      __ movmskpd(output_reg, input_reg);
+      __ test(output_reg, Immediate(1));
+      DeoptimizeIf(not_zero, instr->environment());
+      __ Set(output_reg, Immediate(0));
+      __ jmp(&done, Label::kNear);
+      __ bind(&positive_sign);
+    }
+
+    // Use truncating instruction (OK because input is positive).
+    __ cvttsd2si(output_reg, Operand(input_reg));
+
+    // Overflow is signalled with minint.
+    __ cmp(output_reg, 0x80000000u);
+    DeoptimizeIf(equal, instr->environment());
+    __ bind(&done);
   }
-
-  // Use truncating instruction (OK because input is positive).
-  __ cvttsd2si(output_reg, Operand(input_reg));
-
-  // Overflow is signalled with minint.
-  __ cmp(output_reg, 0x80000000u);
-  DeoptimizeIf(equal, instr->environment());
 }
-
 
 void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   XMMRegister xmm_scratch = xmm0;
@@ -2783,12 +2767,10 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   // xmm_scratch = 0.5
   ExternalReference one_half = ExternalReference::address_of_one_half();
   __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
-
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_half);
   // input = input + 0.5
   __ addsd(input_reg, xmm_scratch);
-
 
   // Compute Math.floor(value + 0.5).
   // Use truncating instruction (OK because input is positive).
@@ -3108,8 +3090,14 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 
 
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
-  __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
-  DeoptimizeIf(above_equal, instr->environment());
+  if (instr->index()->IsConstantOperand()) {
+    __ cmp(ToOperand(instr->length()),
+           ToImmediate(LConstantOperand::cast(instr->index())));
+    DeoptimizeIf(below_equal, instr->environment());
+  } else {
+    __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
+    DeoptimizeIf(above_equal, instr->environment());
+  }
 }
 
 
@@ -4200,6 +4188,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
     __ cmp(input, factory()->false_value());
     final_branch_condition = equal;
 
+  } else if (FLAG_harmony_typeof && type_name->Equals(heap()->null_symbol())) {
+    __ cmp(input, factory()->null_value());
+    final_branch_condition = equal;
+
   } else if (type_name->Equals(heap()->undefined_symbol())) {
     __ cmp(input, factory()->undefined_value());
     __ j(equal, true_label);
@@ -4218,8 +4210,10 @@ Condition LCodeGen::EmitTypeofIs(Label* true_label,
 
   } else if (type_name->Equals(heap()->object_symbol())) {
     __ JumpIfSmi(input, false_label);
-    __ cmp(input, factory()->null_value());
-    __ j(equal, true_label);
+    if (!FLAG_harmony_typeof) {
+      __ cmp(input, factory()->null_value());
+      __ j(equal, true_label);
+    }
     __ CmpObjectType(input, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE, input);
     __ j(below, false_label);
     __ CmpInstanceType(input, LAST_NONCALLABLE_SPEC_OBJECT_TYPE);

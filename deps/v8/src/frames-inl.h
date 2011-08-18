@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -67,6 +67,7 @@ inline bool StackHandler::includes(Address address) const {
 
 
 inline void StackHandler::Iterate(ObjectVisitor* v, Code* holder) const {
+  v->VisitPointer(context_address());
   StackFrame::IteratePc(v, pc_address(), holder);
 }
 
@@ -79,6 +80,12 @@ inline StackHandler* StackHandler::FromAddress(Address address) {
 inline StackHandler::State StackHandler::state() const {
   const int offset = StackHandlerConstants::kStateOffset;
   return static_cast<State>(Memory::int_at(address() + offset));
+}
+
+
+inline Object** StackHandler::context_address() const {
+  const int offset = StackHandlerConstants::kContextOffset;
+  return reinterpret_cast<Object**>(address() + offset);
 }
 
 

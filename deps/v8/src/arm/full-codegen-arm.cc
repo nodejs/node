@@ -742,9 +742,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ mov(r2, Operand(variable->name()));
         // Declaration nodes are always introduced in one of two modes.
         ASSERT(mode == Variable::VAR ||
-               mode == Variable::CONST);
-        PropertyAttributes attr =
-            (mode == Variable::VAR) ? NONE : READ_ONLY;
+               mode == Variable::CONST ||
+               mode == Variable::LET);
+        PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
         __ mov(r1, Operand(Smi::FromInt(attr)));
         // Push initial value, if any.
         // Note: For variables we must not push an initial value (such as
@@ -4030,6 +4030,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     __ b(eq, if_true);
     __ CompareRoot(r0, Heap::kFalseValueRootIndex);
     Split(eq, if_true, if_false, fall_through);
+  } else if (FLAG_harmony_typeof &&
+             check->Equals(isolate()->heap()->null_symbol())) {
+    __ CompareRoot(r0, Heap::kNullValueRootIndex);
+    Split(eq, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->undefined_symbol())) {
     __ CompareRoot(r0, Heap::kUndefinedValueRootIndex);
     __ b(eq, if_true);
@@ -4047,8 +4051,10 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
 
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(r0, if_false);
-    __ CompareRoot(r0, Heap::kNullValueRootIndex);
-    __ b(eq, if_true);
+    if (!FLAG_harmony_typeof) {
+      __ CompareRoot(r0, Heap::kNullValueRootIndex);
+      __ b(eq, if_true);
+    }
     // Check for JS objects => true.
     __ CompareObjectType(r0, r0, r1, FIRST_NONCALLABLE_SPEC_OBJECT_TYPE);
     __ b(lt, if_false);

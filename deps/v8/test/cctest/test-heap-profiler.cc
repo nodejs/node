@@ -10,8 +10,6 @@
 #include "utils-inl.h"
 #include "../include/v8-profiler.h"
 
-namespace i = v8::internal;
-
 namespace {
 
 class NamedEntriesDetector {

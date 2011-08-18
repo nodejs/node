@@ -3494,7 +3494,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   __ lw(t1, FieldMemOperand(a3, ExternalArray::kLengthOffset));
   __ sra(t2, key, kSmiTagSize);
   // Unsigned comparison catches both negative and too-large values.
-  __ Branch(&miss_force_generic, Uless, t1, Operand(t2));
+  __ Branch(&miss_force_generic, Ugreater_equal, key, Operand(t1));
 
   __ lw(a3, FieldMemOperand(a3, ExternalArray::kExternalPointerOffset));
   // a3: base pointer of external storage
@@ -3822,16 +3822,16 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
 
-  __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
-
-  // Check that the key is a smi.
+    // Check that the key is a smi.
   __ JumpIfNotSmi(key, &miss_force_generic);
+
+  __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
   // Check that the index is in range.
   __ SmiUntag(t0, key);
   __ lw(t1, FieldMemOperand(a3, ExternalArray::kLengthOffset));
   // Unsigned comparison catches both negative and too-large values.
-  __ Branch(&miss_force_generic, Ugreater_equal, t0, Operand(t1));
+  __ Branch(&miss_force_generic, Ugreater_equal, key, Operand(t1));
 
   // Handle both smis and HeapNumbers in the fast path. Go to the
   // runtime for all other kinds of values.

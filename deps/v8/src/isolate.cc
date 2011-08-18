@@ -1533,6 +1533,9 @@ void Isolate::SetIsolateThreadLocals(Isolate* isolate,
 Isolate::~Isolate() {
   TRACE_ISOLATE(destructor);
 
+  // Has to be called while counters_ are still alive.
+  zone_.DeleteKeptSegment();
+
   delete unicode_cache_;
   unicode_cache_ = NULL;
 
@@ -1590,6 +1593,9 @@ Isolate::~Isolate() {
   code_range_ = NULL;
   delete global_handles_;
   global_handles_ = NULL;
+
+  delete external_reference_table_;
+  external_reference_table_ = NULL;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   delete debugger_;

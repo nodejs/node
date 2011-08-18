@@ -1141,7 +1141,17 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
             }
           } else if (*data == 0x3A) {
             data++;
-            if (*data == 0x16) {
+            if (*data == 0x0B) {
+              data++;
+              int mod, regop, rm;
+              get_modrm(*data, &mod, &regop, &rm);
+              int8_t imm8 = static_cast<int8_t>(data[1]);
+              AppendToBuffer("roundsd %s,%s,%d",
+                             NameOfXMMRegister(regop),
+                             NameOfXMMRegister(rm),
+                             static_cast<int>(imm8));
+              data += 2;
+            } else if (*data == 0x16) {
               data++;
               int mod, regop, rm;
               get_modrm(*data, &mod, &regop, &rm);

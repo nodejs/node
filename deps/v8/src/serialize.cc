@@ -62,57 +62,15 @@ static int* GetInternalPointer(StatsCounter* counter) {
 }
 
 
-// ExternalReferenceTable is a helper class that defines the relationship
-// between external references and their encodings. It is used to build
-// hashmaps in ExternalReferenceEncoder and ExternalReferenceDecoder.
-class ExternalReferenceTable {
- public:
-  static ExternalReferenceTable* instance(Isolate* isolate) {
-    ExternalReferenceTable* external_reference_table =
-        isolate->external_reference_table();
-    if (external_reference_table == NULL) {
-      external_reference_table = new ExternalReferenceTable(isolate);
-      isolate->set_external_reference_table(external_reference_table);
-    }
-    return external_reference_table;
+ExternalReferenceTable* ExternalReferenceTable::instance(Isolate* isolate) {
+  ExternalReferenceTable* external_reference_table =
+      isolate->external_reference_table();
+  if (external_reference_table == NULL) {
+    external_reference_table = new ExternalReferenceTable(isolate);
+    isolate->set_external_reference_table(external_reference_table);
   }
-
-  int size() const { return refs_.length(); }
-
-  Address address(int i) { return refs_[i].address; }
-
-  uint32_t code(int i) { return refs_[i].code; }
-
-  const char* name(int i) { return refs_[i].name; }
-
-  int max_id(int code) { return max_id_[code]; }
-
- private:
-  explicit ExternalReferenceTable(Isolate* isolate) : refs_(64) {
-      PopulateTable(isolate);
-  }
-  ~ExternalReferenceTable() { }
-
-  struct ExternalReferenceEntry {
-    Address address;
-    uint32_t code;
-    const char* name;
-  };
-
-  void PopulateTable(Isolate* isolate);
-
-  // For a few types of references, we can get their address from their id.
-  void AddFromId(TypeCode type,
-                 uint16_t id,
-                 const char* name,
-                 Isolate* isolate);
-
-  // For other types of references, the caller will figure out the address.
-  void Add(Address address, TypeCode type, uint16_t id, const char* name);
-
-  List<ExternalReferenceEntry> refs_;
-  int max_id_[kTypeCodeCount];
-};
+  return external_reference_table;
+}
 
 
 void ExternalReferenceTable::AddFromId(TypeCode type,

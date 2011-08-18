@@ -676,9 +676,11 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
+#ifdef PR_SET_NAME
   prctl(PR_SET_NAME,
         reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
         0, 0, 0);
+#endif
   thread->data()->thread_ = pthread_self();
   ASSERT(thread->data()->thread_ != kNoThread);
   thread->Run();

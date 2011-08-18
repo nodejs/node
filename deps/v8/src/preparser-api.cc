@@ -28,6 +28,7 @@
 #include "../include/v8-preparser.h"
 
 #include "globals.h"
+#include "flags.h"
 #include "checks.h"
 #include "allocation.h"
 #include "utils.h"

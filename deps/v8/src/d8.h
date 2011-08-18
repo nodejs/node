@@ -39,10 +39,6 @@
 
 namespace v8 {
 
-#ifndef V8_SHARED
-namespace i = v8::internal;
-#endif  // V8_SHARED
-
 
 #ifndef V8_SHARED
 // A single counter in a counter collection.

@@ -249,20 +249,20 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   }
 
   // undefined -> false
-  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
 
   // Boolean -> its value
-  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
-  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
 
   // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
 
   if (types_.Contains(SMI)) {
     // Smis: 0 -> false, all other -> true
     Label not_smi;
     __ JumpIfNotSmi(argument, &not_smi, Label::kNear);
-    // argument contains the correct return value already
+    // argument contains the correct return value already.
     if (!tos_.is(argument)) {
       __ mov(tos_, argument);
     }
@@ -276,15 +276,16 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   if (types_.NeedsMap()) {
     __ mov(map, FieldOperand(argument, HeapObject::kMapOffset));
 
-    // Everything with a map could be undetectable, so check this now.
-    __ test_b(FieldOperand(map, Map::kBitFieldOffset),
-              1 << Map::kIsUndetectable);
-    // Undetectable -> false.
-    Label not_undetectable;
-    __ j(zero, &not_undetectable, Label::kNear);
-    __ Set(tos_, Immediate(0));
-    __ ret(1 * kPointerSize);
-    __ bind(&not_undetectable);
+    if (types_.CanBeUndetectable()) {
+      __ test_b(FieldOperand(map, Map::kBitFieldOffset),
+                1 << Map::kIsUndetectable);
+      // Undetectable -> false.
+      Label not_undetectable;
+      __ j(zero, &not_undetectable, Label::kNear);
+      __ Set(tos_, Immediate(0));
+      __ ret(1 * kPointerSize);
+      __ bind(&not_undetectable);
+    }
   }
 
   if (types_.Contains(SPEC_OBJECT)) {
@@ -292,13 +293,12 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     Label not_js_object;
     __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
     __ j(below, &not_js_object, Label::kNear);
-    __ Set(tos_, Immediate(1));
+    // argument contains the correct return value already.
+    if (!tos_.is(argument)) {
+      __ Set(tos_, Immediate(1));
+    }
     __ ret(1 * kPointerSize);
     __ bind(&not_js_object);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a spec object for the first time -> patch.
-    __ CmpInstanceType(map, FIRST_SPEC_OBJECT_TYPE);
-    __ j(above_equal, &patch, Label::kNear);
   }
 
   if (types_.Contains(STRING)) {
@@ -309,10 +309,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ mov(tos_, FieldOperand(argument, String::kLengthOffset));
     __ ret(1 * kPointerSize);  // the string length is OK as the return value
     __ bind(&not_string);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a string for the first time -> patch
-    __ CmpInstanceType(map, FIRST_NONSTRING_TYPE);
-    __ j(below, &patch, Label::kNear);
   }
 
   if (types_.Contains(HEAP_NUMBER)) {
@@ -324,50 +320,42 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ fld_d(FieldOperand(argument, HeapNumber::kValueOffset));
     __ FCmp();
     __ j(zero, &false_result, Label::kNear);
-    __ Set(tos_, Immediate(1));
+    // argument contains the correct return value already.
+    if (!tos_.is(argument)) {
+      __ Set(tos_, Immediate(1));
+    }
     __ ret(1 * kPointerSize);
     __ bind(&false_result);
     __ Set(tos_, Immediate(0));
     __ ret(1 * kPointerSize);
     __ bind(&not_heap_number);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a heap number for the first time -> patch
-    __ cmp(map, factory->heap_number_map());
-    __ j(equal, &patch, Label::kNear);
   }
 
-  if (types_.Contains(INTERNAL_OBJECT)) {
-    // internal objects -> true
-    __ Set(tos_, Immediate(1));
-    __ ret(1 * kPointerSize);
-  }
-
-  if (!types_.IsAll()) {
-    __ bind(&patch);
-    GenerateTypeTransition(masm);
-  }
+  __ bind(&patch);
+  GenerateTypeTransition(masm);
 }
 
 
 void ToBooleanStub::CheckOddball(MacroAssembler* masm,
                                  Type type,
                                  Heap::RootListIndex value,
-                                 bool result,
-                                 Label* patch) {
+                                 bool result) {
   const Register argument = eax;
   if (types_.Contains(type)) {
     // If we see an expected oddball, return its ToBoolean value tos_.
     Label different_value;
     __ CompareRoot(argument, value);
     __ j(not_equal, &different_value, Label::kNear);
-    __ Set(tos_, Immediate(result ? 1 : 0));
+    if (!result) {
+      // If we have to return zero, there is no way around clearing tos_.
+      __ Set(tos_, Immediate(0));
+    } else if (!tos_.is(argument)) {
+      // If we have to return non-zero, we can re-use the argument if it is the
+      // same register as the result, because we never see Smi-zero here.
+      __ Set(tos_, Immediate(1));
+    }
     __ ret(1 * kPointerSize);
     __ bind(&different_value);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // If we see an unexpected oddball and handle internal objects, we must
-    // patch because the code for internal objects doesn't handle it explictly.
-    __ CompareRoot(argument, value);
-    __ j(equal, patch);
   }
 }
 

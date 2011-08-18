@@ -47,8 +47,8 @@ class ElementsAccessor {
                               uint32_t index,
                               JSReceiver::DeleteMode mode) = 0;
 
-  virtual MaybeObject* AddJSArrayKeysToFixedArray(JSArray* other,
-                                                  FixedArray* keys) = 0;
+  virtual MaybeObject* AddElementsToFixedArray(FixedArrayBase* from,
+                                               FixedArray* to) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
   static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {

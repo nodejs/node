@@ -171,12 +171,12 @@ template <class T> class Handle {
   /**
    * Creates an empty handle.
    */
-  inline Handle();
+  inline Handle() : val_(0) {}
 
   /**
    * Creates a new handle for the specified value.
    */
-  inline explicit Handle(T* val) : val_(val) { }
+  inline explicit Handle(T* val) : val_(val) {}
 
   /**
    * Creates a handle for the contents of the specified handle.  This
@@ -203,14 +203,14 @@ template <class T> class Handle {
    */
   inline bool IsEmpty() const { return val_ == 0; }
 
-  inline T* operator->() const { return val_; }
-
-  inline T* operator*() const { return val_; }
-
   /**
    * Sets the handle to be empty. IsEmpty() will then return true.
    */
-  inline void Clear() { this->val_ = 0; }
+  inline void Clear() { val_ = 0; }
+
+  inline T* operator->() const { return val_; }
+
+  inline T* operator*() const { return val_; }
 
   /**
    * Checks whether two handles are the same.
@@ -3824,10 +3824,6 @@ class Internals {
 };
 
 }  // namespace internal
-
-
-template <class T>
-Handle<T>::Handle() : val_(0) { }
 
 
 template <class T>

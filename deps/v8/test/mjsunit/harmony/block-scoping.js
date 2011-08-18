@@ -1,0 +1,216 @@
+// Copyright 2011 the V8 project authors. All rights reserved.
+// Redistribution and use in source and binary forms, with or without
+// modification, are permitted provided that the following conditions are
+// met:
+//
+//     * Redistributions of source code must retain the above copyright
+//       notice, this list of conditions and the following disclaimer.
+//     * Redistributions in binary form must reproduce the above
+//       copyright notice, this list of conditions and the following
+//       disclaimer in the documentation and/or other materials provided
+//       with the distribution.
+//     * Neither the name of Google Inc. nor the names of its
+//       contributors may be used to endorse or promote products derived
+//       from this software without specific prior written permission.
+//
+// THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+// "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+// LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+// A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+// OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+// SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+// LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+// DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+// THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+// (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+// OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+// Flags: --allow-natives-syntax --harmony-block-scoping
+// Test functionality of block scopes.
+
+// Hoisting of var declarations.
+function f1() {
+  {
+    var x = 1;
+    var y;
+  }
+  assertEquals(1, x)
+  assertEquals(undefined, y)
+}
+f1();
+
+
+// Dynamic lookup in and through block contexts.
+function f2(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    assertEquals(1, eval('one'));
+    assertEquals(2, eval('x'));
+    assertEquals(3, eval('y'));
+    assertEquals(4, eval('z'));
+  }
+}
+f2(1);
+
+
+// Lookup in and through block contexts.
+function f3(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    assertEquals(1, one);
+    assertEquals(2, x);
+    assertEquals(3, y);
+    assertEquals(4, z);
+  }
+}
+f3(1);
+
+
+// Dynamic lookup from closure.
+function f4(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    function f() {
+      assertEquals(1, eval('one'));
+      assertEquals(2, eval('x'));
+      assertEquals(3, eval('y'));
+      assertEquals(4, eval('z'));
+    };
+  }
+}
+f4(1);
+
+
+// Lookup from closure.
+function f5(one) {
+  var x = one + 1;
+  let y = one + 2;
+  {
+    let z = one + 3;
+    function f() {
+      assertEquals(1, one);
+      assertEquals(2, x);
+      assertEquals(3, y);
+      assertEquals(4, z);
+    };
+  }
+}
+f5(1);
+
+
+// Return from block.
+function f6() {
+  let x = 1;
+  {
+    let y = 2;
+    return x + y;
+  }
+}
+assertEquals(3, f6(6));
+
+
+// Variable shadowing and lookup.
+function f7(a) {
+  let b = 1;
+  var c = 1;
+  var d = 1;
+  { // let variables shadowing argument, let and var variables
+    let a = 2;
+    let b = 2;
+    let c = 2;
+    assertEquals(2,a);
+    assertEquals(2,b);
+    assertEquals(2,c);
+  }
+  try {
+    throw 'stuff1';
+  } catch (a) {
+    assertEquals('stuff1',a);
+    // catch variable shadowing argument
+    a = 2;
+    assertEquals(2,a);
+    {
+      // let variable shadowing catch variable
+      let a = 3;
+      assertEquals(3,a);
+      try {
+        throw 'stuff2';
+      } catch (a) {
+        assertEquals('stuff2',a);
+        // catch variable shadowing let variable
+        a = 4;
+        assertEquals(4,a);
+      }
+      assertEquals(3,a);
+    }
+    assertEquals(2,a);
+  }
+  try {
+    throw 'stuff3';
+  } catch (c) {
+    // catch variable shadowing var variable
+    assertEquals('stuff3',c);
+    try {
+      throw 'stuff4';
+    } catch(c) {
+      assertEquals('stuff4',c);
+      // catch variable shadowing catch variable
+      c = 3;
+      assertEquals(3,c);
+    }
+    (function(c) {
+      // argument shadowing catch variable
+      c = 3;
+      assertEquals(3,c);
+    })();
+    assertEquals('stuff3', c);
+    (function() {
+      // var variable shadowing catch variable
+      var c = 3;
+    })();
+    assertEquals('stuff3', c);
+    c = 2;
+  }
+  assertEquals(1,c);
+  (function(a,b,c) {
+    // arguments shadowing argument, let and var variable
+    a = 2;
+    b = 2;
+    c = 2;
+    assertEquals(2,a);
+    assertEquals(2,b);
+    assertEquals(2,c);
+    // var variable shadowing var variable
+    var d = 2;
+  })(1,1);
+  assertEquals(1,a);
+  assertEquals(1,b);
+  assertEquals(1,c);
+  assertEquals(1,d);
+}
+f7(1);
+
+
+// Ensure let variables are block local and var variables function local.
+function f8() {
+  var let_accessors = [];
+  var var_accessors = [];
+  for (var i = 0; i < 10; i++) {
+    let x = i;
+    var y = i;
+    let_accessors[i] = function() { return x; }
+    var_accessors[i] = function() { return y; }
+  }
+  for (var j = 0; j < 10; j++) {
+    y = j + 10;
+    assertEquals(j, let_accessors[j]());
+    assertEquals(y, var_accessors[j]());
+  }
+}
+f8();

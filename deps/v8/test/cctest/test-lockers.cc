@@ -54,10 +54,6 @@ using ::v8::String;
 using ::v8::Value;
 using ::v8::V8;
 
-namespace i = ::i;
-
-
-
 
 // Migrating an isolate
 class KangarooThread : public v8::internal::Thread {

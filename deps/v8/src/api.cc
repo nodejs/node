@@ -35,6 +35,7 @@
 #include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
+#include "flags.h"
 #include "global-handles.h"
 #include "heap-profiler.h"
 #include "messages.h"
@@ -1405,7 +1406,7 @@ void ObjectTemplate::SetInternalFieldCount(int value) {
 ScriptData* ScriptData::PreCompile(const char* input, int length) {
   i::Utf8ToUC16CharacterStream stream(
       reinterpret_cast<const unsigned char*>(input), length);
-  return i::ParserApi::PreParse(&stream, NULL);
+  return i::ParserApi::PreParse(&stream, NULL, i::FLAG_harmony_block_scoping);
 }
 
 
@@ -1414,10 +1415,10 @@ ScriptData* ScriptData::PreCompile(v8::Handle<String> source) {
   if (str->IsExternalTwoByteString()) {
     i::ExternalTwoByteStringUC16CharacterStream stream(
       i::Handle<i::ExternalTwoByteString>::cast(str), 0, str->length());
-    return i::ParserApi::PreParse(&stream, NULL);
+    return i::ParserApi::PreParse(&stream, NULL, i::FLAG_harmony_block_scoping);
   } else {
     i::GenericStringUC16CharacterStream stream(str, 0, str->length());
-    return i::ParserApi::PreParse(&stream, NULL);
+    return i::ParserApi::PreParse(&stream, NULL, i::FLAG_harmony_block_scoping);
   }
 }
 
@@ -3163,10 +3164,9 @@ static i::Context* GetCreationContext(i::JSObject* object) {
   i::Object* constructor = object->map()->constructor();
   i::JSFunction* function;
   if (!constructor->IsJSFunction()) {
-    // API functions have null as a constructor,
+    // Functions have null as a constructor,
     // but any JSFunction knows its context immediately.
-    ASSERT(object->IsJSFunction() &&
-           i::JSFunction::cast(object)->shared()->IsApiFunction());
+    ASSERT(object->IsJSFunction());
     function = i::JSFunction::cast(object);
   } else {
     function = i::JSFunction::cast(constructor);

@@ -54,8 +54,6 @@ using v8::internal::JSFunction;
 using v8::internal::StackTracer;
 using v8::internal::TickSample;
 
-namespace i = v8::internal;
-
 
 static v8::Persistent<v8::Context> env;
 

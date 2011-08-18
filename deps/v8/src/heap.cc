@@ -1745,6 +1745,12 @@ bool Heap::CreateInitialMaps() {
   set_fixed_cow_array_map(Map::cast(obj));
   ASSERT(fixed_array_map() != fixed_cow_array_map());
 
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_serialized_scope_info_map(Map::cast(obj));
+
   { MaybeObject* maybe_obj = AllocateMap(HEAP_NUMBER_TYPE, HeapNumber::kSize);
     if (!maybe_obj->ToObject(&obj)) return false;
   }
@@ -1905,6 +1911,12 @@ bool Heap::CreateInitialMaps() {
     if (!maybe_obj->ToObject(&obj)) return false;
   }
   set_with_context_map(Map::cast(obj));
+
+  { MaybeObject* maybe_obj =
+        AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_block_context_map(Map::cast(obj));
 
   { MaybeObject* maybe_obj =
         AllocateMap(FIXED_ARRAY_TYPE, kVariableSizeSentinel);
@@ -4014,6 +4026,37 @@ MaybeObject* Heap::AllocateWithContext(JSFunction* function,
   context->set_extension(extension);
   context->set_global(previous->global());
   return context;
+}
+
+
+MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
+                                        Context* previous,
+                                        SerializedScopeInfo* scope_info) {
+  Object* result;
+  { MaybeObject* maybe_result =
+        AllocateFixedArray(scope_info->NumberOfContextSlots());
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  // TODO(keuchel): properly initialize context slots.
+  Context* context = reinterpret_cast<Context*>(result);
+  context->set_map(block_context_map());
+  context->set_closure(function);
+  context->set_previous(previous);
+  context->set_extension(scope_info);
+  context->set_global(previous->global());
+  return context;
+}
+
+
+MaybeObject* Heap::AllocateSerializedScopeInfo(int length) {
+  Object* result;
+  { MaybeObject* maybe_result = AllocateFixedArray(length, TENURED);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+  SerializedScopeInfo* scope_info =
+      reinterpret_cast<SerializedScopeInfo*>(result);
+  scope_info->set_map(serialized_scope_info_map());
+  return scope_info;
 }
 
 

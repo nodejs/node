@@ -104,8 +104,7 @@ class LChunkBuilder;
   V(Div)                                       \
   V(ElementsKind)                              \
   V(EnterInlined)                              \
-  V(ExternalArrayLength)                       \
-  V(FixedArrayLength)                          \
+  V(FixedArrayBaseLength)                      \
   V(ForceRepresentation)                       \
   V(FunctionLiteral)                           \
   V(GetCachedArrayIndex)                       \
@@ -1702,9 +1701,9 @@ class HJSArrayLength: public HTemplateInstruction<2> {
 };
 
 
-class HFixedArrayLength: public HUnaryOperation {
+class HFixedArrayBaseLength: public HUnaryOperation {
  public:
-  explicit HFixedArrayLength(HValue* value) : HUnaryOperation(value) {
+  explicit HFixedArrayBaseLength(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
     SetFlag(kDependsOnArrayLengths);
@@ -1714,28 +1713,7 @@ class HFixedArrayLength: public HUnaryOperation {
     return Representation::Tagged();
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(FixedArrayLength)
-
- protected:
-  virtual bool DataEquals(HValue* other) { return true; }
-};
-
-
-class HExternalArrayLength: public HUnaryOperation {
- public:
-  explicit HExternalArrayLength(HValue* value) : HUnaryOperation(value) {
-    set_representation(Representation::Integer32());
-    // The result of this instruction is idempotent as long as its inputs don't
-    // change.  The length of a pixel array cannot change once set, so it's not
-    // necessary to introduce a kDependsOnArrayLengths or any other dependency.
-    SetFlag(kUseGVN);
-  }
-
-  virtual Representation RequiredInputRepresentation(int index) const {
-    return Representation::Tagged();
-  }
-
-  DECLARE_CONCRETE_INSTRUCTION(ExternalArrayLength)
+  DECLARE_CONCRETE_INSTRUCTION(FixedArrayBaseLength)
 
  protected:
   virtual bool DataEquals(HValue* other) { return true; }
@@ -2470,6 +2448,8 @@ class HBoundsCheck: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Integer32();
   }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   HValue* index() { return OperandAt(0); }
   HValue* length() { return OperandAt(1); }
@@ -3438,6 +3418,8 @@ class HLoadNamedFieldPolymorphic: public HTemplateInstruction<2> {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedFieldPolymorphic)
 
   static const int kMaxLoadPolymorphism = 4;
@@ -3470,6 +3452,8 @@ class HLoadNamedGeneric: public HTemplateInstruction<2> {
   virtual Representation RequiredInputRepresentation(int index) const {
     return Representation::Tagged();
   }
+
+  virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(LoadNamedGeneric)
 

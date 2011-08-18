@@ -740,6 +740,7 @@ Persistent<Context> Shell::CreateEvaluationContext() {
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate();
   Persistent<Context> context = Context::New(NULL, global_template);
+  ASSERT(!context.IsEmpty());
   Context::Scope scope(context);
 
 #ifndef V8_SHARED

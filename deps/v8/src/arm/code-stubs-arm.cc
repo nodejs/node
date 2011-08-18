@@ -1613,14 +1613,14 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   const Register map = r9.is(tos_) ? r7 : r9;
 
   // undefined -> false.
-  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false, &patch);
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
 
   // Boolean -> its value.
-  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false, &patch);
-  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true, &patch);
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
 
   // 'null' -> false.
-  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false, &patch);
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
 
   if (types_.Contains(SMI)) {
     // Smis: 0 -> false, all other -> true
@@ -1635,12 +1635,13 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   if (types_.NeedsMap()) {
     __ ldr(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
 
-    // Everything with a map could be undetectable, so check this now.
-    __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
-    __ tst(ip, Operand(1 << Map::kIsUndetectable));
-    // Undetectable -> false.
-    __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
-    __ Ret(ne);
+    if (types_.CanBeUndetectable()) {
+      __ ldrb(ip, FieldMemOperand(map, Map::kBitFieldOffset));
+      __ tst(ip, Operand(1 << Map::kIsUndetectable));
+      // Undetectable -> false.
+      __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, ne);
+      __ Ret(ne);
+    }
   }
 
   if (types_.Contains(SPEC_OBJECT)) {
@@ -1648,10 +1649,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
     // tos_ contains the correct non-zero return value already.
     __ Ret(ge);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a spec object for the first time -> patch.
-    __ CompareInstanceType(map, ip, FIRST_SPEC_OBJECT_TYPE);
-    __ b(ge, &patch);
   }
 
   if (types_.Contains(STRING)) {
@@ -1659,10 +1656,6 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
   __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
   __ ldr(tos_, FieldMemOperand(tos_, String::kLengthOffset), lt);
   __ Ret(lt);  // the string length is OK as the return value
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a string for the first time -> patch
-    __ CompareInstanceType(map, ip, FIRST_NONSTRING_TYPE);
-    __ b(lt, &patch);
   }
 
   if (types_.Contains(HEAP_NUMBER)) {
@@ -1679,30 +1672,17 @@ void ToBooleanStub::Generate(MacroAssembler* masm) {
     __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, vs);  // for FP_NAN
     __ Ret();
     __ bind(&not_heap_number);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // We've seen a heap number for the first time -> patch
-    __ CompareRoot(map, Heap::kHeapNumberMapRootIndex);
-    __ b(eq, &patch);
   }
 
-  if (types_.Contains(INTERNAL_OBJECT)) {
-    // Internal objects -> true.
-    __ mov(tos_, Operand(1, RelocInfo::NONE));
-    __ Ret();
-  }
-
-  if (!types_.IsAll()) {
-    __ bind(&patch);
-    GenerateTypeTransition(masm);
-  }
+  __ bind(&patch);
+  GenerateTypeTransition(masm);
 }
 
 
 void ToBooleanStub::CheckOddball(MacroAssembler* masm,
                                  Type type,
                                  Heap::RootListIndex value,
-                                 bool result,
-                                 Label* patch) {
+                                 bool result) {
   if (types_.Contains(type)) {
     // If we see an expected oddball, return its ToBoolean value tos_.
     __ LoadRoot(ip, value);
@@ -1713,12 +1693,6 @@ void ToBooleanStub::CheckOddball(MacroAssembler* masm,
       __ mov(tos_, Operand(0, RelocInfo::NONE), LeaveCC, eq);
     }
     __ Ret(eq);
-  } else if (types_.Contains(INTERNAL_OBJECT)) {
-    // If we see an unexpected oddball and handle internal objects, we must
-    // patch because the code for internal objects doesn't handle it explictly.
-    __ LoadRoot(ip, value);
-    __ cmp(tos_, ip);
-    __ b(eq, patch);
   }
 }
 
@@ -6341,12 +6315,8 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
 
 void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
                                     ExternalReference function) {
-  __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
-                     RelocInfo::CODE_TARGET));
   __ mov(r2, Operand(function));
-  // Push return address (accessible to GC through exit frame pc).
-  __ str(pc, MemOperand(sp, 0));
-  __ Jump(r2);  // Call the api function.
+  GenerateCall(masm, r2);
 }
 
 
@@ -6355,8 +6325,14 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
   __ mov(lr, Operand(reinterpret_cast<intptr_t>(GetCode().location()),
                      RelocInfo::CODE_TARGET));
   // Push return address (accessible to GC through exit frame pc).
-  __ str(pc, MemOperand(sp, 0));
+  // Note that using pc with str is deprecated.
+  Label start;
+  __ bind(&start);
+  __ add(ip, pc, Operand(Assembler::kInstrSize));
+  __ str(ip, MemOperand(sp, 0));
   __ Jump(target);  // Call the C++ function.
+  ASSERT_EQ(Assembler::kInstrSize + Assembler::kPcLoadDelta,
+            masm->SizeOfCodeGeneratedSince(&start));
 }
 
 

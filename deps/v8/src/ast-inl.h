@@ -50,7 +50,8 @@ Block::Block(Isolate* isolate,
              bool is_initializer_block)
     : BreakableStatement(isolate, labels, TARGET_FOR_NAMED_ONLY),
       statements_(capacity),
-      is_initializer_block_(is_initializer_block) {
+      is_initializer_block_(is_initializer_block),
+      block_scope_(NULL) {
 }
 
 

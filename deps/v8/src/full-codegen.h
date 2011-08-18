@@ -140,25 +140,19 @@ class FullCodeGenerator: public AstVisitor {
     virtual bool IsContinueTarget(Statement* target) { return false; }
     virtual bool IsBreakTarget(Statement* target) { return false; }
 
-    // Generate code to leave the nested statement. This includes
-    // cleaning up any stack elements in use and restoring the
-    // stack to the expectations of the surrounding statements.
-    // Takes a number of stack elements currently on top of the
-    // nested statement's stack, and returns a number of stack
-    // elements left on top of the surrounding statement's stack.
-    // The generated code must preserve the result register (which
-    // contains the value in case of a return).
-    virtual int Exit(int stack_depth) {
-      // Default implementation for the case where there is
-      // nothing to clean up.
-      return stack_depth;
+    // Notify the statement that we are exiting it via break, continue, or
+    // return and give it a chance to generate cleanup code.  Return the
+    // next outer statement in the nesting stack.  We accumulate in
+    // *stack_depth the amount to drop the stack and in *context_length the
+    // number of context chain links to unwind as we traverse the nesting
+    // stack from an exit to its target.
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
+      return previous_;
     }
-    NestedStatement* outer() { return previous_; }
 
  protected:
     MacroAssembler* masm() { return codegen_->masm(); }
 
- private:
     FullCodeGenerator* codegen_;
     NestedStatement* previous_;
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
@@ -207,7 +201,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual ~TryCatch() {}
     virtual TryCatch* AsTryCatch() { return this; }
     Label* catch_entry() { return catch_entry_; }
-    virtual int Exit(int stack_depth);
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length);
    private:
     Label* catch_entry_;
     DISALLOW_COPY_AND_ASSIGN(TryCatch);
@@ -221,7 +215,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual ~TryFinally() {}
     virtual TryFinally* AsTryFinally() { return this; }
     Label* finally_entry() { return finally_entry_; }
-    virtual int Exit(int stack_depth);
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length);
    private:
     Label* finally_entry_;
     DISALLOW_COPY_AND_ASSIGN(TryFinally);
@@ -235,8 +229,9 @@ class FullCodeGenerator: public AstVisitor {
     explicit Finally(FullCodeGenerator* codegen) : NestedStatement(codegen) { }
     virtual ~Finally() {}
     virtual Finally* AsFinally() { return this; }
-    virtual int Exit(int stack_depth) {
-      return stack_depth + kFinallyStackElementCount;
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
+      *stack_depth += kFinallyStackElementCount;
+      return previous_;
     }
    private:
     // Number of extra stack slots occupied during a finally block.
@@ -254,12 +249,30 @@ class FullCodeGenerator: public AstVisitor {
         : Iteration(codegen, statement) { }
     virtual ~ForIn() {}
     virtual ForIn* AsForIn() { return this; }
-    virtual int Exit(int stack_depth) {
-      return stack_depth + kForInStackElementCount;
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
+      *stack_depth += kForInStackElementCount;
+      return previous_;
     }
    private:
     static const int kForInStackElementCount = 5;
     DISALLOW_COPY_AND_ASSIGN(ForIn);
+  };
+
+
+  // A WithOrCatch represents being inside the body of a with or catch
+  // statement.  Exiting the body needs to remove a link from the context
+  // chain.
+  class WithOrCatch : public NestedStatement {
+   public:
+    explicit WithOrCatch(FullCodeGenerator* codegen)
+        : NestedStatement(codegen) {
+    }
+    virtual ~WithOrCatch() {}
+
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
+      ++(*context_length);
+      return previous_;
+    }
   };
 
   // The forward bailout stack keeps track of the expressions that can

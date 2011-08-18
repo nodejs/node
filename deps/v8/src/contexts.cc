@@ -109,7 +109,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
     }
 
     // Check extension/with/global object.
-    if (context->has_extension()) {
+    if (!context->IsBlockContext() && context->has_extension()) {
       if (context->IsCatchContext()) {
         // Catch contexts have the variable name in the extension slot.
         if (name->Equals(String::cast(context->extension()))) {
@@ -121,6 +121,9 @@ Handle<Object> Context::Lookup(Handle<String> name,
           return context;
         }
       } else {
+        ASSERT(context->IsGlobalContext() ||
+               context->IsFunctionContext() ||
+               context->IsWithContext());
         // Global, function, and with contexts may have an object in the
         // extension slot.
         Handle<JSObject> extension(JSObject::cast(context->extension()),
@@ -145,11 +148,20 @@ Handle<Object> Context::Lookup(Handle<String> name,
       }
     }
 
-    // Only functions can have locals, parameters, and a function name.
-    if (context->IsFunctionContext()) {
+    // Check serialized scope information of functions and blocks. Only
+    // functions can have parameters, and a function name.
+    if (context->IsFunctionContext() || context->IsBlockContext()) {
       // We may have context-local slots.  Check locals in the context.
-      Handle<SerializedScopeInfo> scope_info(
-          context->closure()->shared()->scope_info(), isolate);
+      Handle<SerializedScopeInfo> scope_info;
+      if (context->IsFunctionContext()) {
+        scope_info = Handle<SerializedScopeInfo>(
+            context->closure()->shared()->scope_info(), isolate);
+      } else {
+        ASSERT(context->IsBlockContext());
+        scope_info = Handle<SerializedScopeInfo>(
+            SerializedScopeInfo::cast(context->extension()), isolate);
+      }
+
       Variable::Mode mode;
       int index = scope_info->ContextSlotIndex(*name, &mode);
       ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
@@ -168,6 +180,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
         switch (mode) {
           case Variable::INTERNAL:  // Fall through.
           case Variable::VAR:
+          case Variable::LET:
             *attributes = NONE;
             break;
           case Variable::CONST:
