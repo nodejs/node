@@ -1,0 +1,50 @@
+From owner-cypherpunks@toad.com Mon Sep 25 10:50:51 1995
+Received: from minbne.mincom.oz.au by orb.mincom.oz.au with SMTP id AA10562
+  (5.65c/IDA-1.4.4 for eay); Wed, 27 Sep 1995 19:41:55 +1000
+Received: by minbne.mincom.oz.au id AA19958
+  (5.65c/IDA-1.4.4 for eay@orb.mincom.oz.au); Wed, 27 Sep 1995 19:34:59 +1000
+Received: from relay3.UU.NET by bunyip.cc.uq.oz.au with SMTP (PP);
+          Wed, 27 Sep 1995 19:13:05 +1000
+Received: from toad.com by relay3.UU.NET with SMTP id QQzizb16156;
+          Wed, 27 Sep 1995 04:48:46 -0400
+Received: by toad.com id AA07905; Tue, 26 Sep 95 06:31:45 PDT
+Received: from by toad.com id AB07851; Tue, 26 Sep 95 06:31:40 PDT
+Received: from servo.qualcomm.com (servo.qualcomm.com [129.46.128.14]) 
+          by cygnus.com (8.6.12/8.6.9) with ESMTP id RAA18442 
+          for <cypherpunks@toad.com>; Mon, 25 Sep 1995 17:52:47 -0700
+Received: (karn@localhost) by servo.qualcomm.com (8.6.12/QC-BSD-2.5.1) 
+          id RAA14732; Mon, 25 Sep 1995 17:50:51 -0700
+Date: Mon, 25 Sep 1995 17:50:51 -0700
+From: Phil Karn <karn@qualcomm.com>
+Message-Id: <199509260050.RAA14732@servo.qualcomm.com>
+To: cypherpunks@toad.com, ipsec-dev@eit.com
+Subject: Primality verification needed
+Sender: owner-cypherpunks@toad.com
+Precedence: bulk
+Status: RO
+X-Status: 
+
+Hi. I've generated a 2047-bit "strong" prime number that I would like to
+use with Diffie-Hellman key exchange. I assert that not only is this number
+'p' prime, but so is (p-1)/2.
+
+I've used the mpz_probab_prime() function in the Gnu Math Package (GMP) version
+1.3.2 to test this number. This function uses the Miller-Rabin primality test.
+However, to increase my confidence that this number really is a strong prime,
+I'd like to ask others to confirm it with other tests. Here's the number in hex:
+
+72a925f760b2f954ed287f1b0953f3e6aef92e456172f9fe86fdd8822241b9c9788fbc289982743e
+fbcd2ccf062b242d7a567ba8bbb40d79bca7b8e0b6c05f835a5b938d985816bc648985adcff5402a
+a76756b36c845a840a1d059ce02707e19cf47af0b5a882f32315c19d1b86a56c5389c5e9bee16b65
+fde7b1a8d74a7675de9b707d4c5a4633c0290c95ff30a605aeb7ae864ff48370f13cf01d49adb9f2
+3d19a439f753ee7703cf342d87f431105c843c78ca4df639931f3458fae8a94d1687e99a76ed99d0
+ba87189f42fd31ad8262c54a8cf5914ae6c28c540d714a5f6087a171fb74f4814c6f968d72386ef3
+56a05180c3bec7ddd5ef6fe76b1f717b
+
+The generator, g, for this prime is 2.
+
+Thanks!
+
+Phil Karn
+
+

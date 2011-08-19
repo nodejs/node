@@ -1,0 +1,24 @@
+;
+; Transfer vector for VAX shareable image
+;
+	.TITLE ENGINE
+	.IDENT /ENGINE/
+;
+; Define macro to assist in building transfer vector entries.  Each entry
+; should take no more than 8 bytes.
+;
+	.MACRO FTRANSFER_ENTRY routine
+	.ALIGN QUAD
+	.TRANSFER routine
+	.MASK	routine
+	JMP	routine+2
+	.ENDM FTRANSFER_ENTRY
+;
+; Place entries in own program section.
+;
+	.PSECT $$ENGINE,QUAD,PIC,USR,CON,REL,LCL,SHR,EXE,RD,NOWRT
+ENGINE_xfer:
+	FTRANSFER_ENTRY bind_engine
+	FTRANSFER_ENTRY v_check
+	.BLKB 32768-<.-ENGINE_xfer>	; 64 pages total.
+	.END

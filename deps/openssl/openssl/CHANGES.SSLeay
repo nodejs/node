@@ -1,0 +1,968 @@
+This file contains the changes for the SSLeay library up to version
+0.9.0b. For later changes, see the file "CHANGES".
+
+  SSLeay CHANGES
+  ______________
+
+Changes between 0.8.x and 0.9.0b
+
+10-Apr-1998
+
+I said the next version would go out at easter, and so it shall.
+I expect a 0.9.1 will follow with portability fixes in the next few weeks.
+
+This is a quick, meet the deadline.  Look to ssl-users for comments on what
+is new etc.
+
+eric (about to go bushwalking for the 4 day easter break :-)
+
+16-Mar-98
+    - Patch for Cray T90 from Wayne Schroeder <schroede@SDSC.EDU>
+    - Lots and lots of changes
+
+29-Jan-98
+    - ASN1_BIT_STRING_set_bit()/ASN1_BIT_STRING_get_bit() from
+      Goetz Babin-Ebell <babinebell@trustcenter.de>.
+    - SSL_version() now returns SSL2_VERSION, SSL3_VERSION or
+      TLS1_VERSION.
+
+7-Jan-98
+    - Finally reworked the cipher string to ciphers again, so it
+      works correctly
+    - All the app_data stuff is now ex_data with funcion calls to access.
+      The index is supplied by a function and 'methods' can be setup
+      for the types that are called on XXX_new/XXX_free.  This lets
+      applications get notified on creation and destruction.  Some of
+      the RSA methods could be implemented this way and I may do so.
+    - Oh yes, SSL under perl5 is working at the basic level.
+
+15-Dec-97
+    - Warning - the gethostbyname cache is not fully thread safe,
+      but it should work well enough.
+    - Major internal reworking of the app_data stuff.  More functions
+      but if you were accessing ->app_data directly, things will
+      stop working.
+    - The perlv5 stuff is working.  Currently on message digests,
+      ciphers and the bignum library.
+
+9-Dec-97
+    - Modified re-negotiation so that server initated re-neg
+      will cause a SSL_read() to return -1 should retry.
+      The danger otherwise was that the server and the
+      client could end up both trying to read when using non-blocking
+      sockets.
+
+4-Dec-97
+    - Lots of small changes
+    - Fix for binaray mode in Windows for the FILE BIO, thanks to
+      Bob Denny <rdenny@dc3.com>
+
+17-Nov-97
+    - Quite a few internal cleanups, (removal of errno, and using macros
+      defined in e_os.h).
+    - A bug in ca.c, pointed out by yasuyuki-ito@d-cruise.co.jp, where
+      the automactic naming out output files was being stuffed up.
+
+29-Oct-97
+    - The Cast5 cipher has been added.  MD5 and SHA-1 are now in assember
+      for x86.
+
+21-Oct-97
+    - Fixed a bug in the BIO_gethostbyname() cache.
+
+15-Oct-97
+    - cbc mode for blowfish/des/3des is now in assember.  Blowfish asm
+      has also been improved.  At this point in time, on the pentium,
+      md5 is %80 faster, the unoptimesed sha-1 is %79 faster,
+      des-cbc is %28 faster, des-ede3-cbc is %9 faster and blowfish-cbc
+      is %62 faster.
+
+12-Oct-97
+    - MEM_BUF_grow() has been fixed so that it always sets the buf->length
+      to the value we are 'growing' to.  Think of MEM_BUF_grow() as the
+      way to set the length value correctly.
+
+10-Oct-97
+    - I now hash for certificate lookup on the raw DER encoded RDN (md5).
+      This breaks things again :-(.  This is efficent since I cache
+      the DER encoding of the RDN.
+    - The text DN now puts in the numeric OID instead of UNKNOWN.
+    - req can now process arbitary OIDs in the config file.
+    - I've been implementing md5 in x86 asm, much faster :-).
+    - Started sha1 in x86 asm, needs more work.
+    - Quite a few speedups in the BN stuff.  RSA public operation
+      has been made faster by caching the BN_MONT_CTX structure.
+      The calulating of the Ai where A*Ai === 1 mod m was rather
+      expensive.  Basically a 40-50% speedup on public operations.
+      The RSA speedup is now 15% on pentiums and %20 on pentium
+      pro.
+
+30-Sep-97
+    - After doing some profiling, I added x86 adm for bn_add_words(),
+      which just adds 2 arrays of longs together.  A %10 speedup
+      for 512 and 1024 bit RSA on the pentium pro.
+
+29-Sep-97
+    - Converted the x86 bignum assembler to us the perl scripts
+      for generation.
+
+23-Sep-97
+    - If SSL_set_session() is passed a NULL session, it now clears the
+      current session-id.
+
+22-Sep-97
+    - Added a '-ss_cert file' to apps/ca.c.  This will sign selfsigned
+      certificates.
+    - Bug in crypto/evp/encode.c where by decoding of 65 base64
+      encoded lines, one line at a time (via a memory BIO) would report
+      EOF after the first line was decoded.
+    - Fix in X509_find_by_issuer_and_serial() from
+      Dr Stephen Henson <shenson@bigfoot.com>
+
+19-Sep-97
+    - NO_FP_API and NO_STDIO added.
+    - Put in sh config command.  It auto runs Configure with the correct
+      parameters.
+
+18-Sep-97
+    - Fix x509.c so if a DSA cert has different parameters to its parent,
+      they are left in place.  Not tested yet.
+
+16-Sep-97
+    - ssl_create_cipher_list() had some bugs, fixes from
+      Patrick Eisenacher <eisenach@stud.uni-frankfurt.de>
+    - Fixed a bug in the Base64 BIO, where it would return 1 instead
+      of -1 when end of input was encountered but should retry.
+      Basically a Base64/Memory BIO interaction problem.
+    - Added a HMAC set of functions in preporarion for TLS work.
+
+15-Sep-97
+    - Top level makefile tweak - Cameron Simpson <cs@zip.com.au>
+    - Prime generation spead up %25 (512 bit prime, pentium pro linux)
+      by using montgomery multiplication in the prime number test.
+
+11-Sep-97
+    - Ugly bug in ssl3_write_bytes().  Basically if application land
+      does a SSL_write(ssl,buf,len) where len > 16k, the SSLv3 write code
+      did not check the size and tried to copy the entire buffer.
+      This would tend to cause memory overwrites since SSLv3 has
+      a maximum packet size of 16k.  If your program uses
+      buffers <= 16k, you would probably never see this problem.
+    - Fixed a new errors that were cause by malloc() not returning
+      0 initialised memory..
+    - SSL_OP_NETSCAPE_CA_DN_BUG was being switched on when using
+      SSL_CTX_set_options(ssl_ctx,SSL_OP_ALL); which was a bad thing
+      since this flags stops SSLeay being able to handle client
+      cert requests correctly.
+
+08-Sep-97
+    - SSL_SESS_CACHE_NO_INTERNAL_LOOKUP option added.  When switched
+      on, the SSL server routines will not use a SSL_SESSION that is
+      held in it's cache.  This in intended to be used with the session-id
+      callbacks so that while the session-ids are still stored in the
+      cache, the decision to use them and how to look them up can be
+      done by the callbacks.  The are the 'new', 'get' and 'remove'
+      callbacks.  This can be used to determine the session-id
+      to use depending on information like which port/host the connection
+      is coming from.  Since the are also SSL_SESSION_set_app_data() and
+      SSL_SESSION_get_app_data() functions, the application can hold
+      information against the session-id as well.
+
+03-Sep-97
+    - Added lookup of CRLs to the by_dir method,
+      X509_load_crl_file() also added.  Basically it means you can
+      lookup CRLs via the same system used to lookup certificates.
+    - Changed things so that the X509_NAME structure can contain
+      ASN.1 BIT_STRINGS which is required for the unique
+      identifier OID.
+    - Fixed some problems with the auto flushing of the session-id
+      cache.  It was not occuring on the server side.
+
+02-Sep-97
+    - Added SSL_CTX_sess_cache_size(SSL_CTX *ctx,unsigned long size)
+      which is the maximum number of entries allowed in the
+      session-id cache.  This is enforced with a simple FIFO list.
+      The default size is 20*1024 entries which is rather large :-).
+      The Timeout code is still always operating.
+
+01-Sep-97
+    - Added an argument to all the 'generate private key/prime`
+      callbacks.  It is the last parameter so this should not
+      break existing code but it is needed for C++.
+    - Added the BIO_FLAGS_BASE64_NO_NL flag for the BIO_f_base64()
+      BIO.  This lets the BIO read and write base64 encoded data
+      without inserting or looking for '\n' characters.  The '-A'
+      flag turns this on when using apps/enc.c.
+    - RSA_NO_PADDING added to help BSAFE functionality.  This is a
+      very dangerous thing to use, since RSA private key
+      operations without random padding bytes (as PKCS#1 adds) can
+      be attacked such that the private key can be revealed.
+    - ASN.1 bug and rc2-40-cbc and rc4-40 added by
+      Dr Stephen Henson <shenson@bigfoot.com>
+
+31-Aug-97 (stuff added while I was away)    
+    - Linux pthreads by Tim Hudson (tjh@cryptsoft.com).
+    - RSA_flags() added allowing bypass of pub/priv match check
+      in ssl/ssl_rsa.c - Tim Hudson.
+    - A few minor bugs.
+
+SSLeay 0.8.1 released.
+
+19-Jul-97
+    - Server side initated dynamic renegotiation is broken.  I will fix
+      it when I get back from holidays.
+
+15-Jul-97
+    - Quite a few small changes.
+    - INVALID_SOCKET usage cleanups from Alex Kiernan <alex@hisoft.co.uk>
+
+09-Jul-97
+    - Added 2 new values to the SSL info callback.
+      SSL_CB_START which is passed when the SSL protocol is started
+      and SSL_CB_DONE when it has finished sucsessfully.
+
+08-Jul-97
+    - Fixed a few bugs problems in apps/req.c and crypto/asn1/x_pkey.c
+      that related to DSA public/private keys.
+    - Added all the relevent PEM and normal IO functions to support
+      reading and writing RSAPublic keys.
+    - Changed makefiles to use ${AR} instead of 'ar r'
+
+07-Jul-97
+    - Error in ERR_remove_state() that would leave a dangling reference
+      to a free()ed location - thanks to Alex Kiernan <alex@hisoft.co.uk>
+    - s_client now prints the X509_NAMEs passed from the server
+      when requesting a client cert.
+    - Added a ssl->type, which is one of SSL_ST_CONNECT or
+      SSL_ST_ACCEPT.  I had to add it so I could tell if I was
+      a connect or an accept after the handshake had finished.
+    - SSL_get_client_CA_list(SSL *s) now returns the CA names
+      passed by the server if called by a client side SSL.
+
+05-Jul-97
+    - Bug in X509_NAME_get_text_by_OBJ(), looking starting at index
+      0, not -1 :-(  Fix from Tim Hudson (tjh@cryptsoft.com).
+
+04-Jul-97
+    - Fixed some things in X509_NAME_add_entry(), thanks to
+      Matthew Donald <matthew@world.net>.
+    - I had a look at the cipher section and though that it was a
+      bit confused, so I've changed it.
+    - I was not setting up the RC4-64-MD5 cipher correctly.  It is
+      a MS special that appears in exported MS Money.
+    - Error in all my DH ciphers.  Section 7.6.7.3 of the SSLv3
+      spec.  I was missing the two byte length header for the
+      ClientDiffieHellmanPublic value.  This is a packet sent from
+      the client to the server.  The SSL_OP_SSLEAY_080_CLIENT_DH_BUG
+      option will enable SSLeay server side SSLv3 accept either
+      the correct or my 080 packet format.
+    - Fixed a few typos in crypto/pem.org.
+
+02-Jul-97
+    - Alias mapping for EVP_get_(digest|cipher)byname is now
+      performed before a lookup for actual cipher.  This means
+      that an alias can be used to 're-direct' a cipher or a
+      digest.
+    - ASN1_read_bio() had a bug that only showed up when using a
+      memory BIO.  When EOF is reached in the memory BIO, it is
+      reported as a -1 with BIO_should_retry() set to true.
+
+01-Jul-97
+    - Fixed an error in X509_verify_cert() caused by my
+      miss-understanding how 'do { contine } while(0);' works.
+      Thanks to Emil Sit <sit@mit.edu> for educating me :-)
+
+30-Jun-97
+    - Base64 decoding error.  If the last data line did not end with
+      a '=', sometimes extra data would be returned.
+    - Another 'cut and paste' bug in x509.c related to setting up the
+      STDout BIO.
+
+27-Jun-97
+    - apps/ciphers.c was not printing due to an editing error.
+    - Alex Kiernan <alex@hisoft.co.uk> send in a nice fix for
+      a library build error in util/mk1mf.pl
+
+26-Jun-97
+    - Still did not have the auto 'experimental' code removal
+      script correct.
+    - A few header tweaks for Watcom 11.0 under Win32 from
+      Rolf Lindemann <Lindemann@maz-hh.de>
+    - 0 length OCTET_STRING bug in asn1_parse
+    - A minor fix with an non-existent function in the MS .def files.
+    - A few changes to the PKCS7 stuff.
+
+25-Jun-97
+    SSLeay 0.8.0 finally it gets released.
+
+24-Jun-97
+    Added a SSL_OP_EPHEMERAL_RSA option which causes all SSLv3 RSA keys to
+    use a temporary RSA key.  This is experimental and needs some more work.
+    Fixed a few Win16 build problems.
+
+23-Jun-97
+    SSLv3 bug. I was not doing the 'lookup' of the CERT structure
+    correctly. I was taking the SSL->ctx->default_cert when I should
+    have been using SSL->cert. The bug was in ssl/s3_srvr.c
+
+20-Jun-97
+    X509_ATTRIBUTES were being encoded wrongly by apps/reg.c and the
+    rest of the library. Even though I had the code required to do
+    it correctly, apps/req.c was doing the wrong thing.  I have fixed
+    and tested everything.
+
+    Missing a few #ifdef FIONBIO sections in crypto/bio/bss_acpt.c.
+
+19-Jun-97
+    Fixed a bug in the SSLv2 server side first packet handling. When
+    using the non-blocking test BIO, the ssl->s2->first_packet flag
+    was being reset when a would-block failure occurred when reading
+    the first 5 bytes of the first packet. This caused the checking
+    logic to run at the wrong time and cause an error.
+
+    Fixed a problem with specifying cipher. If RC4-MD5 were used,
+    only the SSLv3 version would be picked up.  Now this will pick
+    up both SSLv2 and SSLv3 versions. This required changing the
+    SSL_CIPHER->mask values so that they only mask the ciphers,
+    digests, authentication, export type and key-exchange algorithms.
+
+    I found that when a SSLv23 session is established, a reused
+    session, of type SSLv3 was attempting to write the SSLv2 
+    ciphers, which were invalid. The SSL_METHOD->put_cipher_by_char 
+    method has been modified so it will only write out cipher which
+    that method knows about.  
+
+
+ Changes between 0.8.0 and 0.8.1
+
+  *) Mostly bug fixes. 
+     There is an Ephemeral DH cipher problem which is fixed.
+
+ SSLeay 0.8.0
+
+This version of SSLeay has quite a lot of things different from the
+previous version.
+
+Basically check all callback parameters, I will be producing documentation
+about how to use things in th future.  Currently I'm just getting 080 out
+the door.  Please not that there are several ways to do everything, and
+most of the applications in the apps directory are hybrids, some using old
+methods and some using new methods.
+
+Have a look in demos/bio for some very simple programs and
+apps/s_client.c and apps/s_server.c for some more advanced versions.
+Notes are definitly needed but they are a week or so away.
+
+Anyway, some quick nots from Tim Hudson (tjh@cryptsoft.com)
+---
+Quick porting notes for moving from SSLeay-0.6.x to SSLeay-0.8.x to
+get those people that want to move to using the new code base off to
+a quick start.
+
+Note that Eric has tidied up a lot of the areas of the API that were
+less than desirable and renamed quite a few things (as he had to break
+the API in lots of places anyrate). There are a whole pile of additional
+functions for making dealing with (and creating) certificates a lot
+cleaner.
+
+01-Jul-97
+Tim Hudson
+tjh@cryptsoft.com
+
+---8<---
+
+To maintain code that uses both SSLeay-0.6.x and SSLeay-0.8.x you could
+use something like the following (assuming you #include "crypto.h" which
+is something that you really should be doing).
+
+#if SSLEAY_VERSION_NUMBER >= 0x0800
+#define SSLEAY8
+#endif
+
+buffer.h -> splits into buffer.h and bio.h so you need to include bio.h
+            too if you are working with BIO internal stuff (as distinct
+        from simply using the interface in an opaque manner)
+
+#include "bio.h"    - required along with "buffer.h" if you write
+              your own BIO routines as the buffer and bio
+              stuff that was intermixed has been separated
+              out 
+            
+envelope.h -> evp.h  (which should have been done ages ago)
+
+Initialisation ... don't forget these or you end up with code that
+is missing the bits required to do useful things (like ciphers):
+
+SSLeay_add_ssl_algorithms()
+(probably also want SSL_load_error_strings() too but you should have
+ already had that call in place)
+
+SSL_CTX_new()   - requires an extra method parameter
+              SSL_CTX_new(SSLv23_method()) 
+              SSL_CTX_new(SSLv2_method()) 
+              SSL_CTX_new(SSLv3_method()) 
+
+          OR to only have the server or the client code
+              SSL_CTX_new(SSLv23_server_method()) 
+              SSL_CTX_new(SSLv2_server_method()) 
+              SSL_CTX_new(SSLv3_server_method()) 
+          or  
+              SSL_CTX_new(SSLv23_client_method()) 
+              SSL_CTX_new(SSLv2_client_method()) 
+              SSL_CTX_new(SSLv3_client_method()) 
+
+SSL_set_default_verify_paths() ... renamed to the more appropriate
+SSL_CTX_set_default_verify_paths()
+
+If you want to use client certificates then you have to add in a bit
+of extra stuff in that a SSLv3 server sends a list of those CAs that
+it will accept certificates from ... so you have to provide a list to
+SSLeay otherwise certain browsers will not send client certs.
+
+SSL_CTX_set_client_CA_list(ctx,SSL_load_client_CA_file(s_cert_file));
+
+
+X509_NAME_oneline(X)    -> X509_NAME_oneline(X,NULL,0)  
+               or provide a buffer and size to copy the
+               result into
+
+X509_add_cert ->  X509_STORE_add_cert (and you might want to read the
+          notes on X509_NAME structure changes too)
+
+
+VERIFICATION CODE
+=================
+
+The codes have all be renamed from VERIFY_ERR_* to X509_V_ERR_* to
+more accurately reflect things.
+
+The verification callback args are now packaged differently so that
+extra fields for verification can be added easily in future without
+having to break things by adding extra parameters each release :-)
+
+X509_cert_verify_error_string -> X509_verify_cert_error_string
+
+
+BIO INTERNALS
+=============
+
+Eric has fixed things so that extra flags can be introduced in
+the BIO layer in future without having to play with all the BIO
+modules by adding in some macros.
+
+The ugly stuff using 
+    b->flags ~= (BIO_FLAGS_RW|BIO_FLAGS_SHOULD_RETRY)
+becomes
+    BIO_clear_retry_flags(b)
+
+    b->flags |= (BIO_FLAGS_READ|BIO_FLAGS_SHOULD_RETRY)
+becomes
+    BIO_set_retry_read(b)
+
+Also ... BIO_get_retry_flags(b), BIO_set_flags(b)
+
+
+
+OTHER THINGS
+============
+
+X509_NAME has been altered so that it isn't just a STACK ... the STACK
+is now in the "entries" field ... and there are a pile of nice functions
+for getting at the details in a much cleaner manner.
+
+SSL_CTX has been altered ... "cert" is no longer a direct member of this
+structure ... things are now down under "cert_store" (see x509_vfy.h) and
+things are no longer in a CERTIFICATE_CTX but instead in a X509_STORE.
+If your code "knows" about this level of detail then it will need some 
+surgery.
+
+If you depending on the incorrect spelling of a number of the error codes
+then you will have to change your code as these have been fixed.
+
+ENV_CIPHER "type" got renamed to "nid" and as that is what it actually
+has been all along so this makes things clearer.
+ify_cert_error_string(ctx->error));
+
+SSL_R_NO_CIPHER_WE_TRUST -> SSL_R_NO_CIPHER_LIST
+            and SSL_R_REUSE_CIPHER_LIST_NOT_ZERO
+
+
+
+ Changes between 0.7.x and 0.8.0
+  
+  *) There have been lots of changes, mostly the addition of SSLv3.
+     There have been many additions from people and amongst
+     others, C2Net has assisted greatly.
+ 
+ Changes between 0.7.x and 0.7.x
+
+  *) Internal development version only
+
+SSLeay 0.6.6 13-Jan-1997
+
+The main additions are
+
+- assember for x86 DES improvments.
+  From 191,000 per second on a pentium 100, I now get 281,000.  The inner
+  loop and the IP/FP modifications are from
+  Svend Olaf Mikkelsen <svolaf@inet.uni-c.dk>.  Many thanks for his
+  contribution.
+- The 'DES macros' introduced in 0.6.5 now have 3 types.
+  DES_PTR1, DES_PTR2 and 'normal'.  As per before, des_opts reports which
+  is best and there is a summery of mine in crypto/des/options.txt
+- A few bug fixes.
+- Added blowfish.  It is not used by SSL but all the other stuff that
+  deals with ciphers can use it in either ecb, cbc, cfb64 or ofb64 modes.
+  There are 3 options for optimising Blowfish.  BF_PTR, BF_PTR2 and 'normal'.
+  BF_PTR2 is pentium/x86 specific.  The correct option is setup in
+  the 'Configure' script.
+- There is now a 'get client certificate' callback which can be
+  'non-blocking'.  If more details are required, let me know.  It will
+  documented more in SSLv3 when I finish it.
+- Bug fixes from 0.6.5 including the infamous 'ca' bug.  The 'make test'
+  now tests the ca program.
+- Lots of little things modified and tweaked.
+
+ SSLeay 0.6.5
+
+After quite some time (3 months), the new release.  I have been very busy
+for the last few months and so this is mostly bug fixes and improvments.
+
+The main additions are
+
+- assember for x86 DES.  For all those gcc based systems, this is a big
+  improvement.  From 117,000 DES operation a second on a pentium 100,
+  I now get 191,000.  I have also reworked the C version so it
+  now gives 148,000 DESs per second.  
+- As mentioned above, the inner DES macros now have some more variant that
+  sometimes help, sometimes hinder performance.  There are now 3 options
+  DES_PTR (ptr vs array lookup), DES_UNROLL (full vs partial loop unrolling)
+  and DES_RISC (a more register intensive version of the inner macro).
+  The crypto/des/des_opts.c program, when compiled and run, will give
+  an indication of the correct options to use.
+- The BIO stuff has been improved.  Read doc/bio.doc.  There are now
+  modules for encryption and base64 encoding and a BIO_printf() function.
+- The CA program will accept simple one line X509v3 extensions in the
+  ssleay.cnf file.  Have a look at the example.  Currently this just
+  puts the text into the certificate as an OCTET_STRING so currently
+  the more advanced X509v3 data types are not handled but this is enough
+  for the netscape extensions.
+- There is the start of a nicer higher level interface to the X509
+  strucutre.
+- Quite a lot of bug fixes.
+- CRYPTO_malloc_init()  (or CRYPTO_set_mem_functions()) can be used
+  to define the malloc(), free() and realloc() routines to use
+  (look in crypto/crypto.h).  This is mostly needed for Windows NT/95 when
+  using DLLs and mixing CRT libraries.
+
+In general, read the 'VERSION' file for changes and be aware that some of
+the new stuff may not have been tested quite enough yet, so don't just plonk
+in SSLeay 0.6.5 when 0.6.4 used to work and expect nothing to break.
+
+SSLeay 0.6.4 30/08/96 eay
+
+I've just finished some test builds on Windows NT, Windows 3.1, Solaris 2.3,
+Solaris 2.5, Linux, IRIX, HPUX 10 and everthing seems to work :-).
+
+The main changes in this release
+
+- Thread safe.  have a read of doc/threads.doc and play in the mt directory.
+  For anyone using 0.6.3 with threads, I found 2 major errors so consider
+  moving to 0.6.4.  I have a test program that builds under NT and
+  solaris.
+- The get session-id callback has changed.  Have a read of doc/callback.doc.
+- The X509_cert_verify callback (the SSL_verify callback) now
+  has another argument.  Have a read of doc/callback.doc
+- 'ca -preserve', sign without re-ordering the DN.  Not tested much.
+- VMS support.
+- Compile time memory leak detection can now be built into SSLeay.
+  Read doc/memory.doc
+- CONF routines now understand '\', '\n', '\r' etc.  What this means is that
+  the  SPKAC object mentioned in doc/ns-ca.doc can be on multiple lines.
+- 'ssleay ciphers' added, lists the default cipher list for SSLeay.
+- RC2 key setup is now compatable with Netscape.
+- Modifed server side of SSL implementation, big performance difference when
+      using session-id reuse.
+
+0.6.3
+
+Bug fixes and the addition of some nice stuff to the 'ca' program.
+Have a read of doc/ns-ca.doc for how hit has been modified so
+it can be driven from a CGI script.  The CGI script is not provided,
+but that is just being left as an excersize for the reader :-).
+
+0.6.2
+
+This is most bug fixes and functionality improvements.
+
+Additions are
+- More thread debugging patches, the thread stuff is still being
+  tested, but for those keep to play with stuff, have a look in
+  crypto/cryptlib.c.  The application needs to define 1 (or optionaly
+  a second) callback that is used to implement locking.  Compiling
+  with LOCK_DEBUG spits out lots of locking crud :-).
+  This is what I'm currently working on.
+- SSL_CTX_set_default_passwd_cb() can be used to define the callback
+  function used in the SSL*_file() functions used to load keys.  I was
+  always of the opinion that people should call
+  PEM_read_RSAPrivateKey() and pass the callback they want to use, but
+  it appears they just want to use the SSL_*_file() function() :-(.
+- 'enc' now has a -kfile so a key can be read from a file.  This is
+  mostly used so that the passwd does not appear when using 'ps',
+  which appears imposible to stop under solaris.
+- X509v3 certificates now work correctly.  I even have more examples
+  in my tests :-).  There is now a X509_EXTENSION type that is used in
+  X509v3 certificates and CRLv2.
+- Fixed that signature type error :-(
+- Fixed quite a few potential memory leaks and problems when reusing
+  X509, CRL and REQ structures.
+- EVP_set_pw_prompt() now sets the library wide default password
+  prompt.
+- The 'pkcs7' command will now, given the -print_certs flag, output in
+  pem format, all certificates and CRL contained within.  This is more
+  of a pre-emtive thing for the new verisign distribution method.  I
+  should also note, that this also gives and example in code, of how
+  to do this :-), or for that matter, what is involved in going the
+  other way (list of certs and crl -> pkcs7).
+- Added RSA's DESX to the DES library.  It is also available via the
+  EVP_desx_cbc() method and via 'enc desx'. 
+
+SSLeay 0.6.1
+
+The main functional changes since 0.6.0 are as follows
+- Bad news, the Microsoft 060 DLL's are not compatable, but the good news is
+  that from now on, I'll keep the .def numbers the same so they will be.
+- RSA private key operations are about 2 times faster that 0.6.0
+- The SSL_CTX now has more fields so default values can be put against
+  it.  When an SSL structure is created, these default values are used
+  but can be overwritten.  There are defaults for cipher, certificate,
+  private key, verify mode and callback.  This means SSL session
+  creation can now be
+  ssl=SSL_new()
+  SSL_set_fd(ssl,sock);
+  SSL_accept(ssl)
+  ....
+  All the other uglyness with having to keep a global copy of the
+  private key and certificate/verify mode in the server is now gone.
+- ssl/ssltest.c - one process talking SSL to its self for testing.
+- Storage of Session-id's can be controled via a session_cache_mode
+  flag.  There is also now an automatic default flushing of 
+  old session-id's.
+- The X509_cert_verify() function now has another parameter, this
+  should not effect most people but it now means that the reason for
+  the failure to verify is now available via SSL_get_verify_result(ssl).
+  You don't have to use a global variable.
+- SSL_get_app_data() and SSL_set_app_data() can be used to keep some
+  application data against the SSL structure.  It is upto the application
+  to free the data.  I don't use it, but it is available.
+- SSL_CTX_set_cert_verify_callback() can be used to specify a
+  verify callback function that completly replaces my certificate
+  verification code.  Xcert should be able to use this :-).
+  The callback is of the form int app_verify_callback(arg,ssl,cert).
+  This needs to be documented more.
+- I have started playing with shared library builds, have a look in
+  the shlib directory.  It is very simple.  If you need a numbered
+  list of functions, have a look at misc/crypto.num and misc/ssl.num.
+- There is some stuff to do locking to make the library thread safe.
+  I have only started this stuff and have not finished.  If anyone is
+  keen to do so, please send me the patches when finished.
+
+So I have finally made most of the additions to the SSL interface that
+I thought were needed.
+
+There will probably be a pause before I make any non-bug/documentation
+related changes to SSLeay since I'm feeling like a bit of a break.
+
+eric - 12 Jul 1996
+I saw recently a comment by some-one that we now seem to be entering
+the age of perpetual Beta software.
+Pioneered by packages like linux but refined to an art form by
+netscape.
+
+I too wish to join this trend with the anouncement of SSLeay 0.6.0 :-).
+
+There are quite a large number of sections that are 'works in
+progress' in this package.  I will also list the major changes and
+what files you should read.
+
+BIO - this is the new IO structure being used everywhere in SSLeay.  I
+started out developing this because of microsoft, I wanted a mechanism
+to callback to the application for all IO, so Windows 3.1 DLL
+perversion could be hidden from me and the 15 different ways to write
+to a file under NT would also not be dictated by me at library build
+time.  What the 'package' is is an API for a data structure containing
+functions.  IO interfaces can be written to conform to the
+specification.  This in not intended to hide the underlying data type
+from the application, but to hide it from SSLeay :-).
+I have only really finished testing the FILE * and socket/fd modules.
+There are also 'filter' BIO's.  Currently I have only implemented
+message digests, and it is in use in the dgst application.  This
+functionality will allow base64/encrypto/buffering modules to be
+'push' into a BIO without it affecting the semantics.  I'm also
+working on an SSL BIO which will hide the SSL_accept()/SLL_connet()
+from an event loop which uses the interface.
+It is also possible to 'attach' callbacks to a BIO so they get called
+before and after each operation, alowing extensive debug output
+to be generated (try running dgst with -d).
+
+Unfortunaly in the conversion from 0.5.x to 0.6.0, quite a few
+functions that used to take FILE *, now take BIO *.
+The wrappers are easy to write
+
+function_fp(fp,x)
+FILE *fp;
+    {
+    BIO *b;
+    int ret;
+
+    if ((b=BIO_new(BIO_s_file())) == NULL) error.....
+    BIO_set_fp(b,fp,BIO_NOCLOSE);
+    ret=function_bio(b,x);
+    BIO_free(b);
+    return(ret);
+    }
+Remember, there are no functions that take FILE * in SSLeay when
+compiled for Windows 3.1 DLL's.
+
+--
+I have added a general EVP_PKEY type that can hold a public/private
+key.  This is now what is used by the EVP_ functions and is passed
+around internally.  I still have not done the PKCS#8 stuff, but
+X509_PKEY is defined and waiting :-)
+
+--
+For a full function name listings, have a look at ms/crypt32.def and
+ms/ssl32.def.  These are auto-generated but are complete.
+Things like ASN1_INTEGER_get() have been added and are in here if you
+look.  I have renamed a few things, again, have a look through the
+function list and you will probably find what you are after.  I intend
+to at least put a one line descrition for each one.....
+
+--
+Microsoft - thats what this release is about, read the MICROSOFT file.
+
+--
+Multi-threading support.  I have started hunting through the code and
+flaging where things need to be done.  In a state of work but high on
+the list.
+
+--
+For random numbers, edit e_os.h and set DEVRANDOM (it's near the top)
+be be you random data device, otherwise 'RFILE' in e_os.h
+will be used, in your home directory.  It will be updated
+periodically.  The environment variable RANDFILE will override this
+choice and read/write to that file instead.  DEVRANDOM is used in
+conjunction to the RFILE/RANDFILE.  If you wish to 'seed' the random
+number generator, pick on one of these files.
+
+--
+
+The list of things to read and do
+
+dgst -d
+s_client -state (this uses a callback placed in the SSL state loop and
+        will be used else-where to help debug/monitor what
+        is happening.)
+
+doc/why.doc
+doc/bio.doc <- hmmm, needs lots of work.
+doc/bss_file.doc <- one that is working :-)
+doc/session.doc <- it has changed
+doc/speed.doc
+ also play with ssleay version -a.  I have now added a SSLeay()
+ function that returns a version number, eg 0600 for this release
+ which is primarily to be used to check DLL version against the
+ application.
+util/*  Quite a few will not interest people, but some may, like
+ mk1mf.pl, mkdef.pl,
+util/do_ms.sh
+
+try
+cc -Iinclude -Icrypto -c crypto/crypto.c
+cc -Iinclude -Issl -c ssl/ssl.c
+You have just built the SSLeay libraries as 2 object files :-)
+
+Have a general rummage around in the bin stall directory and look at
+what is in there, like CA.sh and c_rehash
+
+There are lots more things but it is 12:30am on a Friday night and I'm
+heading home :-).
+
+eric 22-Jun-1996
+This version has quite a few major bug fixes and improvements.  It DOES NOT
+do SSLv3 yet.
+
+The main things changed
+- A Few days ago I added the s_mult application to ssleay which is
+  a demo of an SSL server running in an event loop type thing.
+  It supports non-blocking IO, I have finally gotten it right, SSL_accept()
+  can operate in non-blocking IO mode, look at the code to see how :-).
+  Have a read of doc/s_mult as well.  This program leaks memory and
+  file descriptors everywhere but I have not cleaned it up yet.
+  This is a demo of how to do non-blocking IO.
+- The SSL session management has been 'worked over' and there is now
+  quite an expansive set of functions to manipulate them.  Have a read of
+  doc/session.doc for some-things I quickly whipped up about how it now works.
+  This assume you know the SSLv2 protocol :-)
+- I can now read/write the netscape certificate format, use the
+  -inform/-outform  'net' options to the x509 command.  I have not put support
+  for this type in the other demo programs, but it would be easy to add.
+- asn1parse and 'enc' have been modified so that when reading base64
+  encoded files (pem format), they do not require '-----BEGIN' header lines.
+  The 'enc' program had a buffering bug fixed, it can be used as a general
+  base64 -> binary -> base64 filter by doing 'enc -a -e' and 'enc -a -d'
+  respecivly.  Leaving out the '-a' flag in this case makes the 'enc' command
+  into a form of 'cat'.
+- The 'x509' and 'req' programs have been fixed and modified a little so
+  that they generate self-signed certificates correctly.  The test
+  script actually generates a 'CA' certificate and then 'signs' a
+  'user' certificate.  Have a look at this shell script (test/sstest)
+  to see how things work, it tests most possible combinations of what can
+  be done.
+- The 'SSL_set_pref_cipher()' function has been 'fixed' and the prefered name
+  of SSL_set_cipher_list() is now the correct API (stops confusion :-).
+  If this function is used in the client, only the specified ciphers can
+  be used, with preference given to the order the ciphers were listed.
+  For the server, if this is used, only the specified ciphers will be used
+  to accept connections.  If this 'option' is not used, a default set of
+  ciphers will be used.  The SSL_CTX_set_cipher_list(SSL_CTX *ctx) sets this
+  list for all ciphers started against the SSL_CTX.  So the order is
+  SSL cipher_list, if not present, SSL_CTX cipher list, if not
+  present, then the library default.
+  What this means is that normally ciphers like
+  NULL-MD5 will never be used.  The only way this cipher can be used
+  for both ends to specify to use it.
+  To enable or disable ciphers in the library at build time, modify the
+  first field for the cipher in the ssl_ciphers array in ssl/ssl_lib.c.
+  This file also contains the 'pref_cipher' list which is the default
+  cipher preference order.
+- I'm not currently sure if the 'rsa -inform net' and the 'rsa -outform net'
+  options work.  They should, and they enable loading and writing the
+  netscape rsa private key format.  I will be re-working this section of
+  SSLeay for the next version.  What is currently in place is a quick and
+  dirty hack.
+- I've re-written parts of the bignum library.  This gives speedups
+  for all platforms.  I now provide assembler for use under Windows NT.
+  I have not tested the Windows 3.1 assembler but it is quite simple code.
+  This gives RSAprivate_key operation encryption times of 0.047s (512bit key)
+  and 0.230s (1024bit key) on a pentium 100 which I consider reasonable.
+  Basically the times available under linux/solaris x86 can be achieve under
+  Windows NT.  I still don't know how these times compare to RSA's BSAFE
+  library but I have been emailing with people and with their help, I should
+  be able to get my library's quite a bit faster still (more algorithm changes).
+  The object file crypto/bn/asm/x86-32.obj should be used when linking
+  under NT.
+- 'make makefile.one' in the top directory will generate a single makefile
+  called 'makefile.one'  This makefile contains no perl references and
+  will build the SSLeay library into the 'tmp' and 'out' directories.
+  util/mk1mf.pl >makefile.one is how this makefile is
+  generated.  The mk1mf.pl command take several option to generate the
+  makefile for use with cc, gcc, Visual C++ and Borland C++.  This is
+  still under development.  I have only build .lib's for NT and MSDOS
+  I will be working on this more.  I still need to play with the
+  correct compiler setups for these compilers and add some more stuff but
+  basically if you just want to compile the library
+  on a 'non-unix' platform, this is a very very good file to start with :-).
+  Have a look in the 'microsoft' directory for my current makefiles.
+  I have not yet modified things to link with sockets under Windows NT.
+  You guys should be able to do this since this is actually outside of the
+  SSLeay scope :-).  I will be doing it for myself soon.
+  util/mk1mf.pl takes quite a few options including no-rc, rsaref  and no-sock
+  to build without RC2/RC4, to require RSAref for linking, and to
+  build with no socket code.
+
+- Oh yes, the cipher that was reported to be compatible with RSA's RC2 cipher
+  that was posted to sci.crypt has been added to the library and SSL.
+  I take the view that if RC2 is going to be included in a standard,
+  I'll include the cipher to make my package complete.
+  There are NO_RC2, NO_RC4 and NO_IDEA macros to remove these ciphers
+  at compile time.  I have not tested this recently but it should all work
+  and if you are in the USA and don't want RSA threatening to sue you,
+  you could probably remove the RC4/RC2 code inside these sections.
+  I may in the future include a perl script that does this code
+  removal automatically for those in the USA :-).
+- I have removed all references to sed in the makefiles.  So basically,
+  the development environment requires perl and sh.  The build environment
+  does not (use the makefile.one makefile).
+  The Configure script still requires perl, this will probably stay that way
+  since I have perl for Windows NT :-).
+
+eric (03-May-1996)
+
+PS Have a look in the VERSION file for more details on the changes and
+   bug fixes.
+I have fixed a few bugs, added alpha and x86 assembler and generally cleaned
+things up.  This version will be quite stable, mostly because I'm on
+holidays until 10-March-1996.  For any problems in the interum, send email
+to Tim Hudson <tjh@mincom.oz.au>.
+
+SSLeay 0.5.0
+
+12-12-95
+This is going out before it should really be released.
+
+I leave for 11 weeks holidays on the 22-12-95 and so I either sit on
+this for 11 weeks or get things out.  It is still going to change a
+lot in the next week so if you do grab this version, please test and
+give me feed back ASAP, inculuding questions on how to do things with
+the library.  This will prompt me to write documentation so I don't
+have to answer the same question again :-).
+
+This 'pre' release version is for people who are interested in the
+library.  The applications will have to be changed to use
+the new version of the SSL interface.  I intend to finish more
+documentation before I leave but until then, look at the programs in
+the apps directory.  As far as code goes, it is much much nicer than
+the old version.
+
+The current library works, has no memory leaks (as far as I can tell)
+and is far more bug free that 0.4.5d.  There are no global variable of
+consequence (I believe) and I will produce some documentation that
+tell where to look for those people that do want to do multi-threaded
+stuff.
+
+There should be more documentation.  Have a look in the
+doc directory.  I'll be adding more before I leave, it is a start
+by mostly documents the crypto library.  Tim Hudson will update
+the web page ASAP.  The spelling and grammar are crap but
+it is better than nothing :-)
+
+Reasons to start playing with version 0.5.0
+- All the programs in the apps directory build into one ssleay binary.
+- There is a new version of the 'req' program that generates certificate
+  requests, there is even documentation for this one :-)
+- There is a demo certification authorithy program.  Currently it will
+  look at the simple database and update it.  It will generate CRL from
+  the data base.  You need to edit the database by hand to revoke a
+  certificate, it is my aim to use perl5/Tk but I don't have time to do
+  this right now.  It will generate the certificates but the management
+  scripts still need to be written.  This is not a hard task.
+- Things have been cleaned up alot.
+- Have a look at the enc and dgst programs in the apps directory.
+- It supports v3 of x509 certiticates.
+
+
+Major things missing.
+- I have been working on (and thinging about) the distributed x509
+  hierachy problem.  I have not had time to put my solution in place.
+  It will have to wait until I come back.
+- I have not put in CRL checking in the certificate verification but
+  it would not be hard to do.  I was waiting until I could generate my
+  own CRL (which has only been in the last week) and I don't have time
+  to put it in correctly.
+- Montgomery multiplication need to be implemented.  I know the
+  algorithm, just ran out of time.
+- PKCS#7.  I can load and write the DER version.  I need to re-work
+  things to support BER (if that means nothing, read the ASN1 spec :-).
+- Testing of the higher level digital envelope routines.  I have not
+  played with the *_seal() and *_open() type functions.  They are
+  written but need testing.  The *_sign() and *_verify() functions are
+  rock solid. 
+- PEM.  Doing this and PKCS#7 have been dependant on the distributed
+  x509 heirachy problem.  I started implementing my ideas, got
+  distracted writing a CA program and then ran out of time.  I provide
+  the functionality of RSAref at least.
+- Re work the asm. code for the x86.  I've changed by low level bignum
+  interface again, so I really need to tweak the x86 stuff.  gcc is
+  good enough for the other boxes.
+

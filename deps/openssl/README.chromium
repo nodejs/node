@@ -1,0 +1,48 @@
+Name: openssl
+URL: http://openssl.org/source/
+Version: 0.9.8o
+License: BSDish
+License File: openssl/LICENSE
+
+Description:
+This is OpenSSL, the standard SSL/TLS library, which is used only for testing.
+It's an unmodified, upstream source except for the patches listed below.
+
+
+Patches are applied in this order:
+
+missing_stddef.patch
+
+Add stddef.h to header files which use size_t, otherwise apps that include
+those headers get compiler errors.
+
+
+handshake_cutthrough.patch
+
+Enables SSL3+ clients to send application data immediately following the
+Finished message even when negotiating full-handshakes.  With this patch,
+clients can negotiate SSL connections in 1-RTT even when performing
+full-handshakes.
+
+
+next_proto_neg.patch
+
+Adds next-protocol-negotation support:
+  http://tools.ietf.org/html/draft-agl-tls-nextprotoneg-00
+
+EXPERIMENTAL: this patches uses extension and handshake numbers that are not
+assigned by IANA.
+
+This patch implements server and client side support. Additionally, it includes
+code that assumes the structure of the 'opaque' protocol strings in the draft.
+
+
+snap_start.patch
+
+Adds server-side support for Snap Start. This allows for 0-RTT handshakes in
+the case that the application protocol involves the client side speaking first.
+
+http://tools.ietf.org/html/draft-agl-tls-snapstart-00
+
+EXPERIMENTAL: this patches uses an extension number that is not assigned by
+IANA.

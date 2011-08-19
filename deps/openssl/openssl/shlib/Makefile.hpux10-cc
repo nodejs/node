@@ -1,0 +1,34 @@
+# Makefile.hpux-cc
+
+major=0.9.8
+
+slib=libssl
+sh_slib=$(slib).sl.$(major)
+
+clib=libcrypto
+sh_clib=$(clib).sl.$(major)
+
+all : $(clib).sl $(slib).sl
+
+
+$(clib)_pic.a : $(clib).a
+	echo "Copying $? to $@"
+	cp -p $? $@
+
+$(slib)_pic.a : $(slib).a
+	echo "Copying $? to $@"
+	cp -p $? $@
+
+$(sh_clib) : $(clib)_pic.a
+	ld -b -s -z +h $@ -o $@ -Fl $(clib)_pic.a -ldld -lc 
+
+$(clib).sl : $(sh_clib)
+	rm -f $@
+	ln -s $? $@
+
+$(sh_slib) : $(slib)_pic.a $(clib).sl
+	ld -b -s -z +h $@ -o $@ -Fl $(slib)_pic.a -ldld -lc
+        
+$(slib).sl : $(sh_slib)
+	rm -f $@
+	ln -s $? $@

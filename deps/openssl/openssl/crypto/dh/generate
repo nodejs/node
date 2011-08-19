@@ -1,0 +1,65 @@
+From: stewarts@ix.netcom.com (Bill Stewart)
+Newsgroups: sci.crypt
+Subject: Re: Diffie-Hellman key exchange
+Date: Wed, 11 Oct 1995 23:08:28 GMT
+Organization: Freelance Information Architect
+Lines: 32
+Message-ID: <45hir2$7l8@ixnews7.ix.netcom.com>
+References: <458rhn$76m$1@mhadf.production.compuserve.com>
+NNTP-Posting-Host: ix-pl4-16.ix.netcom.com
+X-NETCOM-Date: Wed Oct 11  4:09:22 PM PDT 1995
+X-Newsreader: Forte Free Agent 1.0.82
+
+Kent Briggs <72124.3234@CompuServe.COM> wrote:
+
+>I have a copy of the 1976 IEEE article describing the
+>Diffie-Hellman public key exchange algorithm: y=a^x mod q.  I'm
+>looking for sources that give examples of secure a,q pairs and
+>possible some source code that I could examine.
+
+q should be prime, and ideally should be a "strong prime",
+which means it's of the form 2n+1 where n is also prime.
+q also needs to be long enough to prevent the attacks LaMacchia and
+Odlyzko described (some variant on a factoring attack which generates
+a large pile of simultaneous equations and then solves them);
+long enough is about the same size as factoring, so 512 bits may not
+be secure enough for most applications.  (The 192 bits used by
+"secure NFS" was certainly not long enough.)
+
+a should be a generator for q, which means it needs to be
+relatively prime to q-1.   Usually a small prime like 2, 3 or 5 will
+work.  
+
+....
+
+Date: Tue, 26 Sep 1995 13:52:36 MST
+From: "Richard Schroeppel" <rcs@cs.arizona.edu>
+To: karn
+Cc: ho@cs.arizona.edu
+Subject: random large primes
+
+Since your prime is really random, proving it is hard.
+My personal limit on rigorously proved primes is ~350 digits.
+If you really want a proof, we should talk to Francois Morain,
+or the Australian group.
+
+If you want 2 to be a generator (mod P), then you need it
+to be a non-square.  If (P-1)/2 is also prime, then
+non-square == primitive-root for bases << P.
+
+In the case at hand, this means 2 is a generator iff P = 11 (mod 24).
+If you want this, you should restrict your sieve accordingly.
+
+3 is a generator iff P = 5 (mod 12).
+
+5 is a generator iff P = 3 or 7 (mod 10).
+
+2 is perfectly usable as a base even if it's a non-generator, since
+it still covers half the space of possible residues.  And an
+eavesdropper can always determine the low-bit of your exponent for
+a generator anyway.
+
+Rich  rcs@cs.arizona.edu
+
+
+

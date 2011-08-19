@@ -1,0 +1,254 @@
+An initial review of the OpenSSL code was done to determine how many 
+global variables where present.  The idea was to determine the amount of 
+work required to pull the globals into an instance data structure in 
+order to build a Library NLM for NetWare.  This file contains the results 
+of the review.  Each file is listed along with the globals in the file.  
+The initial review was done very quickly so this list is probably
+not a comprehensive list.
+
+
+cryptlib.c
+===========================================
+
+static STACK *app_locks=NULL;
+
+static STACK_OF(CRYPTO_dynlock) *dyn_locks=NULL;
+
+static void (MS_FAR *locking_callback)(int mode,int type,
+   const char *file,int line)=NULL;
+static int (MS_FAR *add_lock_callback)(int *pointer,int amount,
+   int type,const char *file,int line)=NULL;
+static unsigned long (MS_FAR *id_callback)(void)=NULL;
+static struct CRYPTO_dynlock_value *(MS_FAR *dynlock_create_callback)
+   (const char *file,int line)=NULL;
+static void (MS_FAR *dynlock_lock_callback)(int mode,
+   struct CRYPTO_dynlock_value *l, const char *file,int line)=NULL;
+static void (MS_FAR *dynlock_destroy_callback)(struct CRYPTO_dynlock_value *l,
+   const char *file,int line)=NULL;
+
+
+mem.c
+===========================================
+static int allow_customize = 1;      /* we provide flexible functions for */
+static int allow_customize_debug = 1;/* exchanging memory-related functions at
+
+/* may be changed as long as `allow_customize' is set */
+static void *(*malloc_locked_func)(size_t)  = malloc;
+static void (*free_locked_func)(void *)     = free;
+static void *(*malloc_func)(size_t)         = malloc;
+static void *(*realloc_func)(void *, size_t)= realloc;
+static void (*free_func)(void *)            = free;
+
+/* use default functions from mem_dbg.c */
+static void (*malloc_debug_func)(void *,int,const char *,int,int)
+   = CRYPTO_dbg_malloc;
+static void (*realloc_debug_func)(void *,void *,int,const char *,int,int)
+   = CRYPTO_dbg_realloc;
+static void (*free_debug_func)(void *,int) = CRYPTO_dbg_free;
+static void (*set_debug_options_func)(long) = CRYPTO_dbg_set_options;
+static long (*get_debug_options_func)(void) = CRYPTO_dbg_get_options;
+
+
+mem_dbg.c
+===========================================
+static int mh_mode=CRYPTO_MEM_CHECK_OFF;
+static unsigned long order = 0; /* number of memory requests */
+static LHASH *mh=NULL; /* hash-table of memory requests (address as key) */
+
+static LHASH *amih=NULL; /* hash-table with those app_mem_info_st's */
+static long options =             /* extra information to be recorded */
+static unsigned long disabling_thread = 0;
+
+
+err.c
+===========================================
+static LHASH *error_hash=NULL;
+static LHASH *thread_hash=NULL;
+
+several files have routines with static "init" to track if error strings
+   have been loaded ( may not want seperate error strings for each process )
+   The "init" variable can't be left "global" because the error has is a ptr
+   that is malloc'ed.  The malloc'ed error has is dependant on the "init"
+   vars.
+
+   files:
+      pem_err.c
+      cpt_err.c
+      pk12err.c
+      asn1_err.c
+      bio_err.c
+      bn_err.c
+      buf_err.c
+      comp_err.c
+      conf_err.c
+      cpt_err.c
+      dh_err.c
+      dsa_err.c
+      dso_err.c
+      evp_err.c
+      obj_err.c
+      pkcs7err.c
+      rand_err.c
+      rsa_err.c
+      rsar_err.c
+      ssl_err.c
+      x509_err.c
+      v3err.c
+		err.c
+
+These file have similar "init" globals but they are for other stuff not
+error strings:
+
+		bn_lib.c
+		ecc_enc.c
+		s23_clnt.c
+		s23_meth.c
+		s23_srvr.c
+		s2_clnt.c
+		s2_lib.c
+		s2_meth.c
+		s2_srvr.c
+		s3_clnt.c
+		s3_lib.c
+		s3_srvr.c
+		t1_clnt.c
+		t1_meth.c
+		t1_srvr.c
+
+rand_lib.c
+===========================================
+static RAND_METHOD *rand_meth= &rand_ssleay_meth;
+
+md_rand.c
+===========================================
+static int state_num=0,state_index=0;
+static unsigned char state[STATE_SIZE+MD_DIGEST_LENGTH];
+static unsigned char md[MD_DIGEST_LENGTH];
+static long md_count[2]={0,0};
+static double entropy=0;
+static int initialized=0;
+
+/* This should be set to 1 only when ssleay_rand_add() is called inside
+   an already locked state, so it doesn't try to lock and thereby cause
+   a hang.  And it should always be reset back to 0 before unlocking. */
+static int add_do_not_lock=0;
+
+obj_dat.c
+============================================
+static int new_nid=NUM_NID;
+static LHASH *added=NULL;
+
+b_sock.c
+===========================================
+static unsigned long BIO_ghbn_hits=0L;
+static unsigned long BIO_ghbn_miss=0L;
+static struct ghbn_cache_st
+   {
+   char name[129];
+   struct hostent *ent;
+   unsigned long order;
+   } ghbn_cache[GHBN_NUM];
+
+static int wsa_init_done=0;
+
+
+bio_lib.c
+===========================================
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *bio_meth=NULL;
+static int bio_meth_num=0;
+
+
+bn_lib.c
+========================================
+static int bn_limit_bits=0;
+static int bn_limit_num=8;        /* (1<<bn_limit_bits) */
+static int bn_limit_bits_low=0;
+static int bn_limit_num_low=8;    /* (1<<bn_limit_bits_low) */
+static int bn_limit_bits_high=0;
+static int bn_limit_num_high=8;   /* (1<<bn_limit_bits_high) */
+static int bn_limit_bits_mont=0;
+static int bn_limit_num_mont=8;   /* (1<<bn_limit_bits_mont) */
+
+conf_lib.c
+========================================
+static CONF_METHOD *default_CONF_method=NULL;
+
+dh_lib.c
+========================================
+static DH_METHOD *default_DH_method;
+static int dh_meth_num = 0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *dh_meth = NULL;
+
+dsa_lib.c
+========================================
+static DSA_METHOD *default_DSA_method;
+static int dsa_meth_num = 0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *dsa_meth = NULL;
+
+dso_lib.c
+========================================
+static DSO_METHOD *default_DSO_meth = NULL;
+
+rsa_lib.c
+========================================
+static RSA_METHOD *default_RSA_meth=NULL;
+static int rsa_meth_num=0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *rsa_meth=NULL;
+
+x509_trs.c
+=======================================
+static int (*default_trust)(int id, X509 *x, int flags) = obj_trust;
+static STACK_OF(X509_TRUST) *trtable = NULL;
+
+x509_req.c
+=======================================
+static int *ext_nids = ext_nid_list;
+
+o_names.c
+======================================
+static LHASH *names_lh=NULL;
+static STACK_OF(NAME_FUNCS) *name_funcs_stack;
+static int free_type;
+static int names_type_num=OBJ_NAME_TYPE_NUM;
+
+
+th-lock.c - NEED to add support for locking for NetWare
+==============================================
+static long *lock_count;
+(other platform specific globals)
+
+x_x509.c
+==============================================
+static int x509_meth_num = 0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *x509_meth = NULL;
+
+
+evp_pbe.c
+============================================
+static STACK *pbe_algs;
+
+evp_key.c
+============================================
+static char prompt_string[80];
+
+ssl_ciph.c
+============================================
+static STACK_OF(SSL_COMP) *ssl_comp_methods=NULL;
+
+ssl_lib.c
+=============================================
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *ssl_meth=NULL;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *ssl_ctx_meth=NULL;
+static int ssl_meth_num=0;
+static int ssl_ctx_meth_num=0;
+
+ssl_sess.c
+=============================================
+static int ssl_session_num=0;
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *ssl_session_meth=NULL;
+
+x509_vfy.c
+============================================
+static STACK_OF(CRYPTO_EX_DATA_FUNCS) *x509_store_ctx_method=NULL;
+static int x509_store_ctx_num=0;
+

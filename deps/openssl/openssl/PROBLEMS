@@ -1,0 +1,197 @@
+* System libcrypto.dylib and libssl.dylib are used by system ld on MacOS X.
+
+
+    NOTE: The problem described here only applies when OpenSSL isn't built
+    with shared library support (i.e. without the "shared" configuration
+    option).  If you build with shared library support, you will have no
+    problems as long as you set up DYLD_LIBRARY_PATH properly at all times.
+
+
+This is really a misfeature in ld, which seems to look for .dylib libraries
+along the whole library path before it bothers looking for .a libraries.  This
+means that -L switches won't matter unless OpenSSL is built with shared
+library support.
+
+The workaround may be to change the following lines in apps/Makefile and
+test/Makefile:
+
+  LIBCRYPTO=-L.. -lcrypto
+  LIBSSL=-L.. -lssl
+
+to:
+
+  LIBCRYPTO=../libcrypto.a
+  LIBSSL=../libssl.a
+
+It's possible that something similar is needed for shared library support
+as well.  That hasn't been well tested yet.
+
+
+Another solution that many seem to recommend is to move the libraries
+/usr/lib/libcrypto.0.9.dylib, /usr/lib/libssl.0.9.dylib to a different
+directory, build and install OpenSSL and anything that depends on your
+build, then move libcrypto.0.9.dylib and libssl.0.9.dylib back to their
+original places.  Note that the version numbers on those two libraries
+may differ on your machine.
+
+
+As long as Apple doesn't fix the problem with ld, this problem building
+OpenSSL will remain as is.
+
+
+* Parallell make leads to errors
+
+While running tests, running a parallell make is a bad idea.  Many test
+scripts use the same name for output and input files, which means different
+will interfere with each other and lead to test failure.
+
+The solution is simple for now: don't run parallell make when testing.
+
+
+* Bugs in gcc triggered
+
+- According to a problem report, there are bugs in gcc 3.0 that are
+  triggered by some of the code in OpenSSL, more specifically in
+  PEM_get_EVP_CIPHER_INFO().  The triggering code is the following:
+
+	header+=11;
+	if (*header != '4') return(0); header++;
+	if (*header != ',') return(0); header++;
+
+  What happens is that gcc might optimize a little too agressively, and
+  you end up with an extra incrementation when *header != '4'.
+
+  We recommend that you upgrade gcc to as high a 3.x version as you can.
+
+- According to multiple problem reports, some of our message digest
+  implementations trigger bug[s] in code optimizer in gcc 3.3 for sparc64
+  and gcc 2.96 for ppc. Former fails to complete RIPEMD160 test, while
+  latter - SHA one.
+
+  The recomendation is to upgrade your compiler. This naturally applies to
+  other similar cases.
+
+- There is a subtle Solaris x86-specific gcc run-time environment bug, which
+  "falls between" OpenSSL [0.9.8 and later], Solaris ld and GCC. The bug
+  manifests itself as Segmentation Fault upon early application start-up.
+  The problem can be worked around by patching the environment according to
+  http://www.openssl.org/~appro/values.c.
+
+* solaris64-sparcv9-cc SHA-1 performance with WorkShop 6 compiler.
+
+As subject suggests SHA-1 might perform poorly (4 times slower)
+if compiled with WorkShop 6 compiler and -xarch=v9. The cause for
+this seems to be the fact that compiler emits multiplication to
+perform shift operations:-( To work the problem around configure
+with './Configure solaris64-sparcv9-cc -DMD32_REG_T=int'.
+
+* Problems with hp-parisc2-cc target when used with "no-asm" flag
+
+When using the hp-parisc2-cc target, wrong bignum code is generated.
+This is due to the SIXTY_FOUR_BIT build being compiled with the +O3
+aggressive optimization.
+The problem manifests itself by the BN_kronecker test hanging in an
+endless loop. Reason: the BN_kronecker test calls BN_generate_prime()
+which itself hangs. The reason could be tracked down to the bn_mul_comba8()
+function in bn_asm.c. At some occasions the higher 32bit value of r[7]
+is off by 1 (meaning: calculated=shouldbe+1). Further analysis failed,
+as no debugger support possible at +O3 and additional fprintf()'s
+introduced fixed the bug, therefore it is most likely a bug in the
+optimizer.
+The bug was found in the BN_kronecker test but may also lead to
+failures in other parts of the code.
+(See Ticket #426.)
+
+Workaround: modify the target to +O2 when building with no-asm.
+
+* Problems building shared libraries on SCO OpenServer Release 5.0.6
+  with gcc 2.95.3
+
+The symptoms appear when running the test suite, more specifically
+test/ectest, with the following result:
+
+OSSL_LIBPATH="`cd ..; pwd`"; LD_LIBRARY_PATH="$OSSL_LIBPATH:$LD_LIBRARY_PATH"; DYLD_LIBRARY_PATH="$OSSL_LIBPATH:$DYLD_LIBRARY_PATH"; SHLIB_PATH="$OSSL_LIBPATH:$SHLIB_PATH"; LIBPATH="$OSSL_LIBPATH:$LIBPATH"; if [ "debug-sco5-gcc" = "Cygwin" ]; then PATH="${LIBPATH}:$PATH"; fi; export LD_LIBRARY_PATH DYLD_LIBRARY_PATH SHLIB_PATH LIBPATH PATH; ./ectest
+ectest.c:186: ABORT
+
+The cause of the problem seems to be that isxdigit(), called from
+BN_hex2bn(), returns 0 on a perfectly legitimate hex digit.  Further
+investigation shows that any of the isxxx() macros return 0 on any
+input.  A direct look in the information array that the isxxx() use,
+called __ctype, shows that it contains all zeroes...
+
+Taking a look at the newly created libcrypto.so with nm, one can see
+that the variable __ctype is defined in libcrypto's .bss (which
+explains why it is filled with zeroes):
+
+$ nm -Pg libcrypto.so | grep __ctype
+__ctype B 0011659c
+__ctype2 U         
+
+Curiously, __ctype2 is undefined, in spite of being declared in
+/usr/include/ctype.h in exactly the same way as __ctype.
+
+Any information helping to solve this issue would be deeply
+appreciated.
+
+NOTE: building non-shared doesn't come with this problem.
+
+* ULTRIX build fails with shell errors, such as "bad substitution"
+  and "test: argument expected"
+
+The problem is caused by ULTRIX /bin/sh supporting only original
+Bourne shell syntax/semantics, and the trouble is that the vast
+majority is so accustomed to more modern syntax, that very few
+people [if any] would recognize the ancient syntax even as valid.
+This inevitably results in non-trivial scripts breaking on ULTRIX,
+and OpenSSL isn't an exclusion. Fortunately there is workaround,
+hire /bin/ksh to do the job /bin/sh fails to do.
+
+1. Trick make(1) to use /bin/ksh by setting up following environ-
+   ment variables *prior* you execute ./Configure and make:
+
+	PROG_ENV=POSIX
+	MAKESHELL=/bin/ksh
+	export PROG_ENV MAKESHELL
+
+   or if your shell is csh-compatible:
+
+	setenv PROG_ENV POSIX
+	setenv MAKESHELL /bin/ksh
+
+2. Trick /bin/sh to use alternative expression evaluator. Create
+   following 'test' script for example in /tmp:
+
+	#!/bin/ksh
+	${0##*/} "$@"
+
+   Then 'chmod a+x /tmp/test; ln /tmp/test /tmp/[' and *prepend*
+   your $PATH with chosen location, e.g. PATH=/tmp:$PATH. Alter-
+   natively just replace system /bin/test and /bin/[ with the
+   above script.
+
+* hpux64-ia64-cc fails blowfish test.
+
+Compiler bug, presumably at particular patch level. It should be noted
+that same compiler generates correct 32-bit code, a.k.a. hpux-ia64-cc
+target. Drop optimization level to +O2 when compiling 64-bit bf_skey.o.
+
+* no-engines generates errors.
+
+Unfortunately, the 'no-engines' configuration option currently doesn't
+work properly.  Use 'no-hw' and you'll will at least get no hardware
+support.  We'll see how we fix that on OpenSSL versions past 0.9.8.
+
+* 'make test' fails in BN_sqr [commonly with "error 139" denoting SIGSEGV]
+  if elder GNU binutils were deployed to link shared libcrypto.so.
+
+As subject suggests the failure is caused by a bug in elder binutils,
+either as or ld, and was observed on FreeBSD and Linux. There are two
+options. First is naturally to upgrade binutils, the second one - to
+reconfigure with additional no-sse2 [or 386] option passed to ./config.
+
+* If configured with ./config no-dso, toolkit still gets linked with -ldl,
+  which most notably poses a problem when linking with dietlibc.
+
+We don't have framework to associate -ldl with no-dso, therefore the only
+way is to edit Makefile right after ./config no-dso and remove -ldl from
+EX_LIBS line.

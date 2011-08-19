@@ -1,0 +1,34 @@
+From Maurice Gittens <mgittens@gits.nl>
+--
+	Example programs, demonstrating some basic SSLeay crypto library
+	operations, to help you not to make the same mistakes I did. 
+
+	The following files are present.
+	- loadkeys.c 	Demonstrates the loading and of public and 
+			private keys.
+	- loadkeys.h   	The interface for loadkeys.c
+	- example1.c    Demonstrates the sealing and opening API's
+	- example2.c  	Demonstrates rsa encryption and decryption
+	- example3.c    Demonstrates the use of symmetric block ciphers
+	- example4.c	Demonstrates base64 and decoding 		
+	- Makefile	A makefile you probably will have to adjust for
+			your environment
+	- README	this file
+
+
+	The programs were written by Maurice Gittens <mgittens@gits.nl>
+	with the necesary help from Eric Young <eay@cryptsoft.com> 
+	
+	You may do as you please with these programs, but please don't
+	pretend that you wrote them. 
+
+	To be complete: If you use these programs you acknowlegde that
+	you are aware that there is NO warranty of any kind associated
+	with these programs. I don't even claim that the programs work,
+	they are provided AS-IS.
+
+ 	January 1997
+
+	Maurice	
+
+

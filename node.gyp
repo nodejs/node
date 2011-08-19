@@ -3,7 +3,7 @@
     'v8_use_snapshot': 'true',
     'target_arch': 'ia32',
     'node_use_dtrace': 'false',
-    'node_use_openssl': 'true'
+    'node_use_openssl%': 'true'
   },
 
   'targets': [
@@ -57,9 +57,9 @@
 
       'conditions': [
         [ 'node_use_openssl=="true"', {
-          'libraries': [ '-lssl', '-lcrypto' ],
           'defines': [ 'HAVE_OPENSSL=1' ],
           'sources': [ 'src/node_crypto.cc' ],
+          'dependencies': [ './deps/openssl/openssl.gyp:openssl' ]
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]
         }],
@@ -68,18 +68,6 @@
           'dependencies': [
             'deps/uv/deps/pthread-win32/pthread-win32.gyp:pthread-win32',
           ],
-          # openssl is not built using gyp, and needs to be 
-          # built separately and placed outside the hierarchy.
-          # the dependencies aren't set up yet to put it in 
-          # place, so I'm going to force it off indiscrimately
-          # for the time being. Because the above condition has
-          # already kicked in, it's not enough simply to turn
-          # 'node_use_openssl' off; I need to undo its effects
-          'node_use_openssl': 'false',
-          'defines!': [ 'HAVE_OPENSSL=1' ],
-          'defines': [ 'HAVE_OPENSSL=0' ],
-          'libraries!': [ '-lssl', '-lcrypto' ],
-          'sources!': [ 'src/node_crypto.cc' ],
           'sources': [
             'src/platform_win32.cc',
             'src/node_stdio_win32.cc',

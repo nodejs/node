@@ -1,0 +1,780 @@
+commit ca77729f0395a16f08ff5d54968e05dbd84b331f
+Author: Adam Langley <agl@chromium.org>
+Date:   Thu Nov 4 16:09:48 2010 -0400
+
+    snap_start.patch
+
+diff --git a/apps/s_server.c b/apps/s_server.c
+index c4e19c9..37db8f9 100644
+--- a/apps/s_server.c
++++ b/apps/s_server.c
+@@ -802,6 +802,7 @@ int MAIN(int argc, char *argv[])
+         tlsextctx tlsextcbp = {NULL, NULL, SSL_TLSEXT_ERR_ALERT_WARNING};
+ 	const char *next_proto_neg_in = NULL;
+ 	tlsextnextprotoctx next_proto;
++	char snapstart = 0;
+ #endif
+ 
+ #if !defined(OPENSSL_NO_SSL2) && !defined(OPENSSL_NO_SSL3)
+@@ -1105,6 +1106,10 @@ int MAIN(int argc, char *argv[])
+ 			if (--argc < 1) goto bad;
+ 			next_proto_neg_in = *(++argv);
+ 			}
++		else if	(strcmp(*argv,"-snapstart") == 0)
++			{
++			snapstart = 1;
++			}
+ #endif
+ #ifndef OPENSSL_NO_JPAKE
+ 		else if (strcmp(*argv,"-jpake") == 0)
+@@ -1389,6 +1394,11 @@ bad:
+ 		}
+ #endif 
+ 
++	if (snapstart)
++		{
++		static const unsigned char orbit[8] = {1, 2, 3, 4, 5, 6, 7, 8};
++		SSL_CTX_set_snap_start_orbit(ctx, orbit);
++		}
+ 
+ #ifndef OPENSSL_NO_DH
+ 	if (!no_dhe)
+@@ -2031,6 +2041,7 @@ static int init_ssl_connection(SSL *con)
+ 	unsigned next_proto_neg_len;
+ #endif
+ 
++again:
+ 	if ((i=SSL_accept(con)) <= 0)
+ 		{
+ 		if (BIO_sock_should_retry(i))
+@@ -2039,6 +2050,12 @@ static int init_ssl_connection(SSL *con)
+ 			return(1);
+ 			}
+ 
++		if (SSL_get_error(con, i) == SSL_ERROR_SERVER_RANDOM_VALIDATION_PENDING)
++			{
++			SSL_set_suggested_server_random_validity(con, 1);
++			goto again;
++			}
++
+ 		BIO_printf(bio_err,"ERROR\n");
+ 		verify_error=SSL_get_verify_result(con);
+ 		if (verify_error != X509_V_OK)
+@@ -2224,6 +2241,9 @@ static int www_body(char *hostname, int s, unsigned char *context)
+ 			case SSL_ERROR_WANT_READ:
+ 			case SSL_ERROR_WANT_X509_LOOKUP:
+ 				continue;
++			case SSL_ERROR_SERVER_RANDOM_VALIDATION_PENDING:
++				SSL_set_suggested_server_random_validity(con, 1);
++				continue;
+ 			case SSL_ERROR_SYSCALL:
+ 			case SSL_ERROR_SSL:
+ 			case SSL_ERROR_ZERO_RETURN:
+diff --git a/ssl/s3_enc.c b/ssl/s3_enc.c
+index 06e5466..e32f97d 100644
+--- a/ssl/s3_enc.c
++++ b/ssl/s3_enc.c
+@@ -111,6 +111,7 @@
+ 
+ #include <stdio.h>
+ #include "ssl_locl.h"
++#include "fnv1a64.h"
+ #include <openssl/evp.h>
+ #include <openssl/md5.h>
+ 
+@@ -529,6 +530,11 @@ void ssl3_finish_mac(SSL *s, const unsigned char *buf, int len)
+ 	{
+ 	EVP_DigestUpdate(&(s->s3->finish_dgst1),buf,len);
+ 	EVP_DigestUpdate(&(s->s3->finish_dgst2),buf,len);
++	if (s->s3->snap_start_requested)
++		{
++		/* Compute Fowler-Noll-Vo (FNV) hash for Snap Start handshake */
++		fnv1a64_update((FNV1A64*) s->s3->response_hash, buf, len);
++		}
+ 	}
+ 
+ int ssl3_cert_verify_mac(SSL *s, EVP_MD_CTX *ctx, unsigned char *p)
+diff --git a/ssl/s3_lib.c b/ssl/s3_lib.c
+index 84bff8d..1058b4e 100644
+--- a/ssl/s3_lib.c
++++ b/ssl/s3_lib.c
+@@ -1701,6 +1701,12 @@ void ssl3_free(SSL *s)
+ 	pq_64bit_free(&(s->s3->rrec.seq_num));
+ 	pq_64bit_free(&(s->s3->wrec.seq_num));
+ 
++	if (s->s3->snap_start_client_hello.buf)
++		{
++		/* s->s3->snap_start_records, if set, uses the same buffer */
++		OPENSSL_free(s->s3->snap_start_client_hello.buf);
++		}
++
+ 	OPENSSL_cleanse(s->s3,sizeof *s->s3);
+ 	OPENSSL_free(s->s3);
+ 	s->s3=NULL;
+diff --git a/ssl/s3_pkt.c b/ssl/s3_pkt.c
+index 6853058..61774b2 100644
+--- a/ssl/s3_pkt.c
++++ b/ssl/s3_pkt.c
+@@ -120,8 +120,51 @@ static int do_ssl3_write(SSL *s, int type, const unsigned char *buf,
+ 			 unsigned int len, int create_empty_fragment);
+ static int ssl3_get_record(SSL *s);
+ 
++/* ssl3_read_snap_start_n reads from the opportunistic records contained within
++ * a Snap Start extension. |s->packet| and |s->packet_length| are set to frame
++ * a record within this area. Partial records are not allowed. The Snap Start
++ * records are held in |s->s3->snap_start_records| and the |left| member must
++ * be non-zero on entry.
++ *
++ * If |extend| is true then we'll expand the currently framed record by |n|
++ * bytes, otherwise we frame a new record. */
++static int ssl3_read_snap_start_n(SSL *s, int n, int extend)
++	{
++	if (!extend)
++		{
++		s->packet = s->s3->snap_start_records.buf + s->s3->snap_start_records.offset;
++		s->packet_length = 0;
++		}
++
++	if (s->s3->snap_start_records.left < n)
++		{
++		/* We aren't called unless .left is non-zero, therefore this
++		 * means that we wanted to read more than we have. Since
++		 * partial records aren't allowed, this is fatal. */
++		SSLerr(SSL_F_SSL3_READ_SNAP_START_N,SSL_R_BAD_PACKET_LENGTH);
++		return -1;
++		}
++
++	s->packet_length += n;
++	s->s3->snap_start_records.left -= n;
++	s->s3->snap_start_records.offset += n;
++
++	return n;
++	}
++
+ int ssl3_read_n(SSL *s, int n, int max, int extend)
+ 	{
++	if (s->s3->snap_start_records.left)
++		return ssl3_read_snap_start_n(s, n, extend);
++	else if (s->s3->snap_start_client_hello.buf && !extend)
++		{
++		/* If we started reading the opportunistic records then we know
++		 * that we didn't enter recovery. Thus it's safe to free the
++		 * copy of the ClientHello now because we'll not need it again. */
++		OPENSSL_free(s->s3->snap_start_client_hello.buf);
++		s->s3->snap_start_client_hello.buf = NULL;
++		}
++
+ 	/* If extend == 0, obtain new n-byte packet; if extend == 1, increase
+ 	 * packet by another n bytes.
+ 	 * The packet will be in the sub-array of s->s3->rbuf.buf specified
+diff --git a/ssl/s3_srvr.c b/ssl/s3_srvr.c
+index 8e0a504..315b8f3 100644
+--- a/ssl/s3_srvr.c
++++ b/ssl/s3_srvr.c
+@@ -144,6 +144,7 @@
+ #include <openssl/md5.h>
+ 
+ static SSL_METHOD *ssl3_get_server_method(int ver);
++static int ssl3_snap_start_evaluate_handshake(SSL* s);
+ #ifndef OPENSSL_NO_ECDH
+ static int nid2curve_id(int nid);
+ #endif
+@@ -300,10 +301,36 @@ int ssl3_accept(SSL *s)
+ 		case SSL3_ST_SW_SRVR_HELLO_A:
+ 		case SSL3_ST_SW_SRVR_HELLO_B:
+ 			ret=ssl3_send_server_hello(s);
++			if (ret == SERVER_RANDOM_VALIDATION_PENDING)
++				{
++				s->rwstate = SSL_SERVER_RANDOM_VALIDATE;
++				s->state = SSL3_ST_SW_SRVR_HELLO_A;
++				s->init_num = 0;
++				goto end;
++				}
+ 			if (ret <= 0) goto end;
+ #ifndef OPENSSL_NO_TLSEXT
++			if ((s->s3->tmp.new_cipher->algorithms & SSL_MKEY_MASK) != SSL_kRSA &&
++			    (s->s3->tmp.new_cipher->algorithms & SSL_MKEY_MASK) != SSL_kKRB5 &&
++			    (s->s3->tmp.new_cipher->algorithms & SSL_MKEY_MASK) != SSL_kDHr &&
++			    (s->s3->tmp.new_cipher->algorithms & SSL_MKEY_MASK) != SSL_kDHd &&
++			    (s->s3->tmp.new_cipher->algorithms & SSL_MKEY_MASK) != SSL_kECDH &&
++			    s->s3->snap_start_requested)
++				{
++				/* There's no point in carrying on with a Snap
++				 * Start handshake if we're using a cipher
++				 * suite which is going to send a
++				 * ServerKeyExchange message. */
++				ssl3_snap_start_reset_for_recovery(s);
++				s->state = SSL3_ST_SW_SRVR_HELLO_A;
++				break;
++				}
++
+ 			if (s->hit)
+ 				{
++				if (ssl3_snap_start_evaluate_handshake(s))
++					break;
++
+ 				if (s->tlsext_ticket_expected)
+ 					s->state=SSL3_ST_SW_SESSION_TICKET_A;
+ 				else
+@@ -440,8 +467,19 @@ int ssl3_accept(SSL *s)
+ 		case SSL3_ST_SW_SRVR_DONE_B:
+ 			ret=ssl3_send_server_done(s);
+ 			if (ret <= 0) goto end;
+-			s->s3->tmp.next_state=SSL3_ST_SR_CERT_A;
+-			s->state=SSL3_ST_SW_FLUSH;
++
++			if (s->s3->snap_start_requested)
++				{
++				if (ssl3_snap_start_evaluate_handshake(s))
++					break;
++				s->state = SSL3_ST_SR_CERT_A;
++				}
++			else
++				{
++					s->s3->tmp.next_state=SSL3_ST_SR_CERT_A;
++					s->state=SSL3_ST_SW_FLUSH;
++				}
++
+ 			s->init_num=0;
+ 			break;
+ 		
+@@ -1152,11 +1190,19 @@ int ssl3_send_server_hello(SSL *s)
+ 	if (s->state == SSL3_ST_SW_SRVR_HELLO_A)
+ 		{
+ 		buf=(unsigned char *)s->init_buf->data;
+-		p=s->s3->server_random;
+-		Time=(unsigned long)time(NULL);			/* Time */
+-		l2n(Time,p);
+-		if (RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-4) <= 0)
+-			return -1;
++		if (!s->s3->snap_start_requested)
++			{
++			p=s->s3->server_random;
++			Time=(unsigned long)time(NULL);			/* Time */
++			l2n(Time,p);
++			if (RAND_pseudo_bytes(p,SSL3_RANDOM_SIZE-4) <= 0)
++				return -1;
++			}
++		else if (s->s3->server_random_suggestion_valid == 0)
++			{
++			return SERVER_RANDOM_VALIDATION_PENDING;
++			}
++
+ 		/* Do the message type and length last */
+ 		d=p= &(buf[4]);
+ 
+@@ -2952,3 +2998,55 @@ int ssl3_send_cert_status(SSL *s)
+ 	return(ssl3_do_write(s,SSL3_RT_HANDSHAKE));
+ 	}
+ #endif
++
++/* ssl3_snap_start_evaluate_handshake verifies the Snap Start prediction (if
++ * this is a Snap Start handshake). If it returns non-zero, then we are
++ * entering recovery and |s->state| has been set accordingly. */
++static int ssl3_snap_start_evaluate_handshake(SSL* s)
++	{
++	unsigned char digest[8];
++
++	if (!s->s3->snap_start_requested)
++		return 0;
++
++	/* Drop the currently queued messages. Either we're entering recovery,
++	 * in which case they're wrong, or we're doing snap start, in which
++	 * case we don't want to send them. */
++	if (!ssl_init_wbio_buffer(s, 1 /* push new BIO */))
++		return -1;
++
++	fnv1a64_final(digest, (FNV1A64*) s->s3->response_hash);
++
++	/* Turn off FNV hashing of handshake messages. */
++	s->s3->snap_start_requested = 0;
++
++	if (memcmp(digest, s->s3->predicted_response_hash, sizeof(digest)) != 0)
++		{
++		/* The predicted handshake didn't match. */
++		ssl3_snap_start_reset_for_recovery(s);
++		s->state = SSL3_ST_SW_SRVR_HELLO_A;
++		return 1;
++		}
++
++	return 0;
++	}
++
++/* ssl3_snap_start_reset_for_recovery is called is called when a Snap Start
++ * handshake is impossible because either the application layer has rejected
++ * the client's suggested server random, or predicated_response_hash failed to
++ * match response_hash */
++int ssl3_snap_start_reset_for_recovery(SSL* s)
++	{
++	s->s3->snap_start_requested = 0;
++	s->s3->snap_start_records.left = 0;
++	s->init_num = 0;
++
++	/* Reset the handshake hash and hash in the original ClientHello. */
++	ssl3_init_finished_mac(s);
++	ssl3_finish_mac(s, s->s3->snap_start_client_hello.buf, s->s3->snap_start_client_hello.left);
++
++	OPENSSL_free(s->s3->snap_start_client_hello.buf);
++	s->s3->snap_start_client_hello.buf = NULL;
++
++	return 0;
++	}
+diff --git a/ssl/ssl.h b/ssl/ssl.h
+index dc8dff8..bbe2543 100644
+--- a/ssl/ssl.h
++++ b/ssl/ssl.h
+@@ -770,6 +770,11 @@ struct ssl_ctx_st
+ 
+ 	X509_VERIFY_PARAM *param;
+ 
++	/* The configured Snap Start orbit value, if set. */
++	char snap_start_orbit_valid;
++	unsigned char snap_start_orbit[8];
++
++
+ #if 0
+ 	int purpose;		/* Purpose setting */
+ 	int trust;		/* Trust setting */
+@@ -876,10 +881,14 @@ void SSL_CTX_set_cookie_generate_cb(SSL_CTX *ctx, int (*app_gen_cookie_cb)(SSL *
+ void SSL_CTX_set_cookie_verify_cb(SSL_CTX *ctx, int (*app_verify_cookie_cb)(SSL *ssl, unsigned char *cookie, unsigned int cookie_len));
+ void SSL_CTX_set_next_protos_advertised_cb(SSL_CTX *s, int (*cb) (SSL *ssl, const unsigned char **out, unsigned int *outlen, void *arg), void *arg);
+ void SSL_CTX_set_next_proto_select_cb(SSL_CTX *s, int (*cb) (SSL *ssl, unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, void *arg), void *arg);
++void SSL_CTX_set_snap_start_orbit(SSL_CTX *s, const unsigned char orbit[8]);
+ 
+ int SSL_select_next_proto(unsigned char **out, unsigned char *outlen, const unsigned char *in, unsigned int inlen, const unsigned char *client, unsigned int client_len);
+ void SSL_get0_next_proto_negotiated(const SSL *s, const unsigned char **data, unsigned *len);
+ 
++void SSL_get0_suggested_server_random(const SSL *s, const unsigned char **data, unsigned *len);
++void SSL_set_suggested_server_random_validity(SSL *s, char is_valid);
++
+ #define OPENSSL_NPN_UNSUPPORTED	0
+ #define OPENSSL_NPN_NEGOTIATED	1
+ #define OPENSSL_NPN_NO_OVERLAP	2
+@@ -888,12 +897,14 @@ void SSL_get0_next_proto_negotiated(const SSL *s, const unsigned char **data, un
+ #define SSL_WRITING	2
+ #define SSL_READING	3
+ #define SSL_X509_LOOKUP	4
++#define SSL_SERVER_RANDOM_VALIDATE	6
+ 
+ /* These will only be used when doing non-blocking IO */
+ #define SSL_want_nothing(s)	(SSL_want(s) == SSL_NOTHING)
+ #define SSL_want_read(s)	(SSL_want(s) == SSL_READING)
+ #define SSL_want_write(s)	(SSL_want(s) == SSL_WRITING)
+ #define SSL_want_x509_lookup(s)	(SSL_want(s) == SSL_X509_LOOKUP)
++#define SSL_want_server_random_validation(s)	(SSL_want(s) == SSL_SERVER_RANDOM_VALIDATE)
+ 
+ struct ssl_st
+ 	{
+@@ -1255,6 +1266,7 @@ size_t SSL_get_peer_finished(const SSL *s, void *buf, size_t count);
+ #define SSL_ERROR_ZERO_RETURN		6
+ #define SSL_ERROR_WANT_CONNECT		7
+ #define SSL_ERROR_WANT_ACCEPT		8
++#define SSL_ERROR_SERVER_RANDOM_VALIDATION_PENDING	10
+ 
+ #define SSL_CTRL_NEED_TMP_RSA			1
+ #define SSL_CTRL_SET_TMP_RSA			2
+@@ -1754,6 +1766,7 @@ void ERR_load_SSL_strings(void);
+ #define SSL_F_GET_SERVER_VERIFY				 110
+ #define SSL_F_I2D_SSL_SESSION				 111
+ #define SSL_F_READ_N					 112
++#define SSL_F_SSL3_READ_SNAP_START_N			 300
+ #define SSL_F_REQUEST_CERTIFICATE			 113
+ #define SSL_F_SERVER_FINISH				 239
+ #define SSL_F_SERVER_HELLO				 114
+@@ -1907,7 +1920,7 @@ void ERR_load_SSL_strings(void);
+ #define SSL_F_TLS1_ENC					 210
+ #define SSL_F_TLS1_SETUP_KEY_BLOCK			 211
+ #define SSL_F_WRITE_PENDING				 212
+-/* Next entry: 299 */
++/* Next entry: 300 */
+ 
+ /* Reason codes. */
+ #define SSL_R_APP_DATA_IN_HANDSHAKE			 100
+diff --git a/ssl/ssl3.h b/ssl/ssl3.h
+index 54b73b7..4a6e8cf 100644
+--- a/ssl/ssl3.h
++++ b/ssl/ssl3.h
+@@ -452,6 +452,48 @@ typedef struct ssl3_state_st
+         unsigned char previous_server_finished[EVP_MAX_MD_SIZE];
+         unsigned char previous_server_finished_len;
+         int send_connection_binding; /* TODOEKR */
++
++	/* Snap Start support (server-side only):
++	 *
++	 * Snap Start allows the client to 'suggest' the value of our random
++	 * nonce. Assuming that we accept this suggestion, then the client can
++	 * predict our exact reply and calculate a complete handshake based on
++	 * that. These opportunistic handshake messages are embedded in the
++	 * Snap Start extension, possibly including application data.
++	 *
++	 * (Note that if the handshake doesn't resume a session, the client
++	 * couldn't hope to predict the exact server reply unless it uses the
++	 * session ticket extension to suppress session ID generation.)
++	 *
++	 * All this allows for a TLS handshake that doesn't incur additional
++	 * latency if the client side sends application data first. */
++
++	/* Set if the client presented a Snap Start extension (empty or
++	 * otherwise and the SSL_CTX has a cell configured. Server side only. */
++	int snap_start_ext_seen;
++	/* Set if the client-suggested a server random value (which is stored
++	 * in |server_random|) */
++	char snap_start_requested;
++	/* Set if the appplication has indicated that the client's
++	 * server_random suggestion is acceptable (see
++	 * SSL_set_suggested_server_random_validity). If so, a Snap Start
++	 * handshake will be attempted. */
++	char server_random_suggestion_valid;
++	/* Client's predicted response_hash from client snap start extension.
++	 * Valid if |snap_start_requested| is set. */
++	unsigned char predicted_response_hash[8];
++	/* Actual server handshake message hash.  A Snap Start handshake is
++	 * possible only if predicated_response_hash matches this. */
++	unsigned char response_hash[8];
++	/* If we need to enter snap start recovery then we need to reset the
++	 * Finished hash with a different value for the ClientHello. Thus, we
++	 * need a copy of the whole ClientHello: */
++	SSL3_BUFFER snap_start_client_hello;
++	/* A snap start ClientHello can contain records embedded in an
++	 * extension. If we wish to read them then this points to the records
++	 * within |snap_start_client_hello|. */
++	SSL3_BUFFER snap_start_records;
++
+ 	} SSL3_STATE;
+ 
+ 
+diff --git a/ssl/ssl_lib.c b/ssl/ssl_lib.c
+index cfa70ec..88358fb 100644
+--- a/ssl/ssl_lib.c
++++ b/ssl/ssl_lib.c
+@@ -2119,6 +2119,9 @@ int SSL_get_error(const SSL *s,int i)
+ 			return(SSL_ERROR_SSL);
+ 		}
+ 
++	if ((i < 0) && SSL_want_server_random_validation(s))
++		return(SSL_ERROR_SERVER_RANDOM_VALIDATION_PENDING);
++
+ 	if ((i < 0) && SSL_want_read(s))
+ 		{
+ 		bio=SSL_get_rbio(s);
+@@ -2876,6 +2879,61 @@ void SSL_CTX_set_next_proto_select_cb(SSL_CTX *ctx, int (*cb) (SSL *s, unsigned
+ 	ctx->next_proto_select_cb = cb;
+ 	ctx->next_proto_select_cb_arg = arg;
+ 	}
++
++/* SSL_CTX_set_snap_start_orbit sets the orbit value which will be echoed back
++ * to the client and enables Snap Start for this context.
++ *
++ * An orbit value can be used to spatially partition the state needed to support
++ * Snap Start. See the comments above SSL_set_suggested_server_random_validity
++ * (below).  */
++void SSL_CTX_set_snap_start_orbit(SSL_CTX *ctx, const unsigned char orbit[8])
++	{
++	memcpy(ctx->snap_start_orbit, orbit, sizeof(ctx->snap_start_orbit));
++	ctx->snap_start_orbit_valid = 1;
++	}
++
++/* Once SSL_accept has returned with SSL_SERVER_RANDOM_VALIDATE, then one can
++ * call this function in order to get the client's suggested server random
++ * value. */
++void SSL_get0_suggested_server_random(const SSL* s, const unsigned char **data, unsigned *length)
++	{
++	if (!s->s3->snap_start_requested)
++		{
++		*data = NULL;
++		*length = 0;
++		return;
++		}
++	*length = 32;
++	*data = s->s3->server_random;
++	}
++
++/* SSL_set_suggested_server_random_validity passes judgement on a
++ * client-suggested random value (obtained from
++ * SSL_get0_suggested_server_random). Rejecting the value triggers a recovery,
++ * while accepting the value /may/ result in a successful Snap Start, as long
++ * as the client predicted the handshake correctly.
++ *
++ * In order to accept a random value the user must ensure that it has NEVER
++ * been used before by this server, or any server configured with any of the
++ * same certificates. It may reject more if necessary.
++ *
++ * The first four bytes of the random value contain a timestamp (UNIX seconds
++ * since the epoch) which can be used to manage a time window.  Additionally,
++ * the following eight bytes contain the orbit which which can also bound the
++ * state required if geographically separate servers share certificates.
++ *
++ * It's recommended that the time window have a maximum size, independent of
++ * the resources available, in order to prevent an attacker from arbitrarily
++ * delaying a Snap Start handshake.
++ */
++void SSL_set_suggested_server_random_validity(SSL *s, char is_valid)
++	{
++	if (is_valid)
++		s->s3->server_random_suggestion_valid = 1;
++	else
++		ssl3_snap_start_reset_for_recovery(s);
++	}
++
+ #endif
+ 
+ int SSL_cutthrough_complete(const SSL *s)
+diff --git a/ssl/ssl_locl.h b/ssl/ssl_locl.h
+index a9183ff..639a185 100644
+--- a/ssl/ssl_locl.h
++++ b/ssl/ssl_locl.h
+@@ -392,6 +392,11 @@
+ #define CERT_PRIVATE_KEY	2
+ */
+ 
++/* This can be returned from ssl3_send_server_hello to indicate that an
++ * offline validation of a client-suggested server_random needs to be
++ * performed. */
++#define SERVER_RANDOM_VALIDATION_PENDING -(TLSEXT_TYPE_snap_start)
++
+ #ifndef OPENSSL_NO_EC
+ /* From ECC-TLS draft, used in encoding the curve type in 
+  * ECParameters
+@@ -915,6 +920,7 @@ int ssl3_get_client_certificate(SSL *s);
+ int ssl3_get_client_key_exchange(SSL *s);
+ int ssl3_get_cert_verify(SSL *s);
+ int ssl3_get_next_proto(SSL *s);
++int ssl3_snap_start_reset_for_recovery(SSL* s);
+ 
+ int dtls1_send_hello_request(SSL *s);
+ int dtls1_send_server_hello(SSL *s);
+diff --git a/ssl/t1_lib.c b/ssl/t1_lib.c
+index fd35b18..ce33f16 100644
+--- a/ssl/t1_lib.c
++++ b/ssl/t1_lib.c
+@@ -62,6 +62,7 @@
+ #include <openssl/hmac.h>
+ #include <openssl/ocsp.h>
+ #include "ssl_locl.h"
++#include "fnv1a64.h"
+ 
+ const char tls1_version_str[]="TLSv1" OPENSSL_VERSION_PTEXT;
+ 
+@@ -368,6 +369,21 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
+ 			}
+ 		}
+ 
++	if (s->s3->snap_start_ext_seen)
++		{
++		if ((long)(limit - ret - 14) < 0) return NULL;
++		s2n(TLSEXT_TYPE_snap_start,ret);
++		s2n(10,ret); /* extension length */
++		memcpy(ret, s->ctx->snap_start_orbit, 8);
++		ret += 8;
++		/* This is the ciphersuite that we would pick in the event of a
++		 * Snap Start handshake. (Maybe the server wants to do EDH
++		 * unless the client is Snap Start capable). At the moment we
++		 * don't have any logic to pick a different cipher suite so we
++		 * repeat the choice from the ServerHello. */
++		s2n(s->s3->tmp.new_cipher->id & 0xffff,ret);
++		}
++
+ 	if ((extdatalen = ret-p-2)== 0) 
+ 		return p;
+ 
+@@ -375,6 +391,174 @@ unsigned char *ssl_add_serverhello_tlsext(SSL *s, unsigned char *p, unsigned cha
+ 	return ret;
+ 	}
+ 
++
++static int ssl_hash_snap_start_client_hello(SSL* s,
++					    const char* data,
++					    unsigned len,
++					    unsigned ext_len)
++	{
++	/* We walk the ClientHello from the beginning, writing
++	 * adjusted lengths into |b| and hashing as we go.
++	 *
++	 * The resulting ClientHello is going to be shorter by the length of
++	 * this extension, which is |ext_len + 4| (two bytes for the type and two for
++	 * the length). */
++
++	const unsigned char *p;
++	unsigned remaining;
++	unsigned char b[3], *c;
++	unsigned long l;
++
++	p = (unsigned char*) data;
++	remaining = len;
++	/* Handshake header: type */
++	if (!remaining)
++		return 0;
++	ssl3_finish_mac(s, p, 1);
++	p++;
++	remaining--;
++	/* Handshake header: length */
++	if (remaining < 3)
++		return 0;
++	n2l3(p, l);
++	l -= ext_len + 4;
++	c = b;
++	l2n3(l, c);
++	ssl3_finish_mac(s, b, 3);
++	remaining -= 3;
++	/* ClientHello: version and random */
++	if (remaining < 34)
++		return 0;
++	ssl3_finish_mac(s, p, 34);
++	p += 34;
++	remaining -= 34;
++	/* ClientHello: session id length */
++	if (!remaining)
++		return 0;
++	l = *p;
++	ssl3_finish_mac(s, p, 1);
++	p++;
++	remaining--;
++	/* ClientHello: session id */
++	if (remaining < l)
++		return 0;
++	ssl3_finish_mac(s, p, l);
++	p += l;
++	remaining -= l;
++	/* ClientHello: cipher suites length */
++	if (remaining < 2)
++		return 0;
++	ssl3_finish_mac(s, p, 2);
++	n2s(p, l);
++	remaining -= 2;
++	/* ClientHello: cipher suites */
++	if (remaining < l)
++		return 0;
++	ssl3_finish_mac(s, p, l);
++	p += l;
++	remaining -= l;
++	/* ClientHello: compression methods length */
++	if (!remaining)
++		return 0;
++	l = *p;
++	ssl3_finish_mac(s, p, 1);
++	p++;
++	remaining--;
++	/* ClientHello: compression methods */
++	if (remaining < l)
++		return 0;
++	ssl3_finish_mac(s, p, l);
++	p += l;
++	remaining -= l;
++	/* ClientHello: extensions length (must exist given that we're already
++	 * parsing the extensions from it */
++	if (remaining < 2)
++		return 0;
++	n2s(p, l);
++	remaining -= 2;
++	if (l != remaining || l < ext_len + 4)
++		return 0;
++	l -= ext_len + 4;
++	c = b;
++	s2n(l, c);
++	ssl3_finish_mac(s, b, 2);
++
++	while (remaining)
++		{
++		unsigned long extension_type, extension_len;
++		if (remaining < 4)
++			return 0;
++		n2s(p, extension_type);
++		n2s(p, extension_len);
++		remaining -= 4;
++		if (remaining < extension_len)
++			return 0;
++		if (extension_type != TLSEXT_TYPE_snap_start)
++			ssl3_finish_mac(s, p - 4, extension_len + 4);
++		p += extension_len;
++		remaining -= extension_len;
++		}
++
++	return 1;
++	}
++
++static char ssl_parse_snap_start_tlsext(SSL *s, const unsigned char *data, unsigned short len)
++	{
++	ptrdiff_t extension_offset = data - (unsigned char *) s->init_buf->data;
++
++	if (len > 0 && len < 36)
++		return 0;
++	s->s3->snap_start_ext_seen = 1;
++	if (len == 0)
++		return 1;
++
++	fnv1a64_init((FNV1A64*) s->s3->response_hash);
++
++	/* We need to make a copy of the ClientHello because we'll be hashing a
++	 * modified version. However, if we enter recovery then we need to hash
++	 * the unchanged message.
++	 *
++	 * We are adding 4 bytes to the length here because we're including the
++	 * handshake header. */
++	s->s3->snap_start_client_hello.left = s->init_num + 4;
++	s->s3->snap_start_client_hello.offset = 0;
++	s->s3->snap_start_client_hello.buf = OPENSSL_malloc(s->init_num + 4);
++	if (!s->s3->snap_start_client_hello.buf)
++		{
++		/* If we're out of memory then we pretend that we
++		 * didn't see the extension. */
++		s->s3->snap_start_ext_seen = 0;
++		return 1;
++		}
++
++	memcpy(s->s3->snap_start_client_hello.buf, s->init_buf->data, s->init_num + 4);
++	memcpy(s->s3->server_random, s->s3->client_random, 4); /* time */
++	memcpy(s->s3->server_random + 4, data, 28); /* orbit and random bytes */
++	memcpy(s->s3->predicted_response_hash, data + 28, 8);
++
++	/* Point snap_start_records to within the copy of the ClientHello */
++	s->s3->snap_start_records.offset = 0;
++	s->s3->snap_start_records.left = len - 36;
++	s->s3->snap_start_records.buf = s->s3->snap_start_client_hello.buf + extension_offset + 36;
++
++	/* Reset the handshake hash */
++	ssl3_init_finished_mac(s);
++
++	/* Need to hash the ClientHello as if the snap start extension wasn't
++	 * included. */
++	if (!ssl_hash_snap_start_client_hello(
++			s,
++			s->init_buf->data,
++			s->init_num + 4 /* four bytes of handshake header */,
++			len))
++		{
++		return 0;
++		}
++
++	s->s3->snap_start_requested = 1;
++	return 1;
++	}
++
+ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, int n, int *al)
+ 	{
+ 	unsigned short type;
+@@ -627,6 +811,12 @@ int ssl_parse_clienthello_tlsext(SSL *s, unsigned char **p, unsigned char *d, in
+ 			s->s3->next_proto_neg_seen = 1;
+ 			}
+ 
++		else if (type == TLSEXT_TYPE_snap_start && s->ctx->snap_start_orbit_valid)
++			{
++			if (ssl_parse_snap_start_tlsext(s, data, size) == 0)
++				return 0;
++			}
++
+ 		/* session ticket processed earlier */
+ 
+ 		data+=size;		
+diff --git a/ssl/tls1.h b/ssl/tls1.h
+index 71d76de..52ff325 100644
+--- a/ssl/tls1.h
++++ b/ssl/tls1.h
+@@ -120,6 +120,8 @@ extern "C" {
+ 
+ /* This is not an IANA defined extension number */
+ #define TLSEXT_TYPE_next_proto_neg		13172
++  /* http://tools.ietf.org/html/draft-agl-tls-snapstart-00 */
++#define TLSEXT_TYPE_snap_start			13174
+ 
+ /* NameType value from RFC 3546 */
+ #define TLSEXT_NAMETYPE_host_name 0

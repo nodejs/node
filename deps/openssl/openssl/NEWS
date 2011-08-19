@@ -1,0 +1,524 @@
+
+  NEWS
+  ====
+
+  This file gives a brief overview of the major changes between each OpenSSL
+  release. For more details please read the CHANGES file.
+
+  Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o:
+
+      o Fix for security issue CVE-2010-0742.
+      o Various DTLS fixes.
+      o Recognise SHA2 certificates if only SSL algorithms added.
+      o Fix for no-rc4 compilation.
+      o Chil ENGINE unload workaround.
+
+  Major changes between OpenSSL 0.9.8m and OpenSSL 0.9.8n:
+
+      o CFB cipher definition fixes.
+      o Fix security issues CVE-2010-0740 and CVE-2010-0433.
+
+  Major changes between OpenSSL 0.9.8l and OpenSSL 0.9.8m:
+
+      o Cipher definition fixes.
+      o Workaround for slow RAND_poll() on some WIN32 versions.
+      o Remove MD2 from algorithm tables.
+      o SPKAC handling fixes.
+      o Support for RFC5746 TLS renegotiation extension.
+      o Compression memory leak fixed.
+      o Compression session resumption fixed.
+      o Ticket and SNI coexistence fixes.
+      o Many fixes to DTLS handling. 
+
+  Major changes between OpenSSL 0.9.8k and OpenSSL 0.9.8l:
+
+      o Temporary work around for CVE-2009-3555: disable renegotiation.
+
+  Major changes between OpenSSL 0.9.8j and OpenSSL 0.9.8k:
+
+      o Fix various build issues.
+      o Fix security issues (CVE-2009-0590, CVE-2009-0591, CVE-2009-0789)
+
+  Major changes between OpenSSL 0.9.8i and OpenSSL 0.9.8j:
+
+      o Fix security issue (CVE-2008-5077)
+      o Merge FIPS 140-2 branch code.
+
+  Major changes between OpenSSL 0.9.8g and OpenSSL 0.9.8h:
+
+      o CryptoAPI ENGINE support.
+      o Various precautionary measures.
+      o Fix for bugs affecting certificate request creation.
+      o Support for local machine keyset attribute in PKCS#12 files.
+
+  Major changes between OpenSSL 0.9.8f and OpenSSL 0.9.8g:
+
+      o Backport of CMS functionality to 0.9.8.
+      o Fixes for bugs introduced with 0.9.8f.
+
+  Major changes between OpenSSL 0.9.8e and OpenSSL 0.9.8f:
+
+      o Add gcc 4.2 support.
+      o Add support for AES and SSE2 assembly lanugauge optimization
+        for VC++ build.
+      o Support for RFC4507bis and server name extensions if explicitly 
+        selected at compile time.
+      o DTLS improvements.
+      o RFC4507bis support.
+      o TLS Extensions support.
+
+  Major changes between OpenSSL 0.9.8d and OpenSSL 0.9.8e:
+
+      o Various ciphersuite selection fixes.
+      o RFC3779 support.
+
+  Major changes between OpenSSL 0.9.8c and OpenSSL 0.9.8d:
+
+      o Introduce limits to prevent malicious key DoS  (CVE-2006-2940)
+      o Fix security issues (CVE-2006-2937, CVE-2006-3737, CVE-2006-4343)
+      o Changes to ciphersuite selection algorithm
+
+  Major changes between OpenSSL 0.9.8b and OpenSSL 0.9.8c:
+
+      o Fix Daniel Bleichenbacher forged signature attack, CVE-2006-4339
+      o New cipher Camellia
+
+  Major changes between OpenSSL 0.9.8a and OpenSSL 0.9.8b:
+
+      o Cipher string fixes.
+      o Fixes for VC++ 2005.
+      o Updated ECC cipher suite support.
+      o New functions EVP_CIPHER_CTX_new() and EVP_CIPHER_CTX_free().
+      o Zlib compression usage fixes.
+      o Built in dynamic engine compilation support on Win32.
+      o Fixes auto dynamic engine loading in Win32.
+
+  Major changes between OpenSSL 0.9.8 and OpenSSL 0.9.8a:
+
+      o Fix potential SSL 2.0 rollback, CVE-2005-2969
+      o Extended Windows CE support
+
+  Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.8:
+
+      o Major work on the BIGNUM library for higher efficiency and to
+        make operations more streamlined and less contradictory.  This
+        is the result of a major audit of the BIGNUM library.
+      o Addition of BIGNUM functions for fields GF(2^m) and NIST
+        curves, to support the Elliptic Crypto functions.
+      o Major work on Elliptic Crypto; ECDH and ECDSA added, including
+        the use through EVP, X509 and ENGINE.
+      o New ASN.1 mini-compiler that's usable through the OpenSSL
+        configuration file.
+      o Added support for ASN.1 indefinite length constructed encoding.
+      o New PKCS#12 'medium level' API to manipulate PKCS#12 files.
+      o Complete rework of shared library construction and linking
+        programs with shared or static libraries, through a separate
+        Makefile.shared.
+      o Rework of the passing of parameters from one Makefile to another.
+      o Changed ENGINE framework to load dynamic engine modules
+        automatically from specifically given directories.
+      o New structure and ASN.1 functions for CertificatePair.
+      o Changed the ZLIB compression method to be stateful.
+      o Changed the key-generation and primality testing "progress"
+        mechanism to take a structure that contains the ticker
+        function and an argument.
+      o New engine module: GMP (performs private key exponentiation).
+      o New engine module: VIA PadLOck ACE extension in VIA C3
+        Nehemiah processors.
+      o Added support for IPv6 addresses in certificate extensions.
+        See RFC 1884, section 2.2.
+      o Added support for certificate policy mappings, policy
+        constraints and name constraints.
+      o Added support for multi-valued AVAs in the OpenSSL
+        configuration file.
+      o Added support for multiple certificates with the same subject
+        in the 'openssl ca' index file.
+      o Make it possible to create self-signed certificates using
+        'openssl ca -selfsign'.
+      o Make it possible to generate a serial number file with
+        'openssl ca -create_serial'.
+      o New binary search functions with extended functionality.
+      o New BUF functions.
+      o New STORE structure and library to provide an interface to all
+        sorts of data repositories.  Supports storage of public and
+        private keys, certificates, CRLs, numbers and arbitrary blobs.
+	This library is unfortunately unfinished and unused withing
+	OpenSSL.
+      o New control functions for the error stack.
+      o Changed the PKCS#7 library to support one-pass S/MIME
+        processing.
+      o Added the possibility to compile without old deprecated
+        functionality with the OPENSSL_NO_DEPRECATED macro or the
+        'no-deprecated' argument to the config and Configure scripts.
+      o Constification of all ASN.1 conversion functions, and other
+        affected functions.
+      o Improved platform support for PowerPC.
+      o New FIPS 180-2 algorithms (SHA-224, -256, -384 and -512).
+      o New X509_VERIFY_PARAM structure to support parametrisation
+        of X.509 path validation.
+      o Major overhaul of RC4 performance on Intel P4, IA-64 and
+        AMD64.
+      o Changed the Configure script to have some algorithms disabled
+        by default.  Those can be explicitely enabled with the new
+        argument form 'enable-xxx'.
+      o Change the default digest in 'openssl' commands from MD5 to
+        SHA-1.
+      o Added support for DTLS.
+      o New BIGNUM blinding.
+      o Added support for the RSA-PSS encryption scheme
+      o Added support for the RSA X.931 padding.
+      o Added support for BSD sockets on NetWare.
+      o Added support for files larger than 2GB.
+      o Added initial support for Win64.
+      o Added alternate pkg-config files.
+
+  Major changes between OpenSSL 0.9.7k and OpenSSL 0.9.7l:
+
+      o Introduce limits to prevent malicious key DoS  (CVE-2006-2940)
+      o Fix security issues (CVE-2006-2937, CVE-2006-3737, CVE-2006-4343)
+
+  Major changes between OpenSSL 0.9.7j and OpenSSL 0.9.7k:
+
+      o Fix Daniel Bleichenbacher forged signature attack, CVE-2006-4339
+
+  Major changes between OpenSSL 0.9.7i and OpenSSL 0.9.7j:
+
+      o Visual C++ 2005 fixes.
+      o Update Windows build system for FIPS.
+
+  Major changes between OpenSSL 0.9.7h and OpenSSL 0.9.7i:
+
+      o Give EVP_MAX_MD_SIZE it's old value, except for a FIPS build.
+
+  Major changes between OpenSSL 0.9.7g and OpenSSL 0.9.7h:
+
+      o Fix SSL 2.0 Rollback, CVE-2005-2969
+      o Allow use of fixed-length exponent on DSA signing
+      o Default fixed-window RSA, DSA, DH private-key operations
+
+  Major changes between OpenSSL 0.9.7f and OpenSSL 0.9.7g:
+
+      o More compilation issues fixed.
+      o Adaptation to more modern Kerberos API.
+      o Enhanced or corrected configuration for Solaris64, Mingw and Cygwin.
+      o Enhanced x86_64 assembler BIGNUM module.
+      o More constification.
+      o Added processing of proxy certificates (RFC 3820).
+
+  Major changes between OpenSSL 0.9.7e and OpenSSL 0.9.7f:
+
+      o Several compilation issues fixed.
+      o Many memory allocation failure checks added.
+      o Improved comparison of X509 Name type.
+      o Mandatory basic checks on certificates.
+      o Performance improvements.
+
+  Major changes between OpenSSL 0.9.7d and OpenSSL 0.9.7e:
+
+      o Fix race condition in CRL checking code.
+      o Fixes to PKCS#7 (S/MIME) code.
+
+  Major changes between OpenSSL 0.9.7c and OpenSSL 0.9.7d:
+
+      o Security: Fix Kerberos ciphersuite SSL/TLS handshaking bug
+      o Security: Fix null-pointer assignment in do_change_cipher_spec()
+      o Allow multiple active certificates with same subject in CA index
+      o Multiple X509 verification fixes
+      o Speed up HMAC and other operations
+
+  Major changes between OpenSSL 0.9.7b and OpenSSL 0.9.7c:
+
+      o Security: fix various ASN1 parsing bugs.
+      o New -ignore_err option to OCSP utility.
+      o Various interop and bug fixes in S/MIME code.
+      o SSL/TLS protocol fix for unrequested client certificates.
+
+  Major changes between OpenSSL 0.9.7a and OpenSSL 0.9.7b:
+
+      o Security: counter the Klima-Pokorny-Rosa extension of
+        Bleichbacher's attack 
+      o Security: make RSA blinding default.
+      o Configuration: Irix fixes, AIX fixes, better mingw support.
+      o Support for new platforms: linux-ia64-ecc.
+      o Build: shared library support fixes.
+      o ASN.1: treat domainComponent correctly.
+      o Documentation: fixes and additions.
+
+  Major changes between OpenSSL 0.9.7 and OpenSSL 0.9.7a:
+
+      o Security: Important security related bugfixes.
+      o Enhanced compatibility with MIT Kerberos.
+      o Can be built without the ENGINE framework.
+      o IA32 assembler enhancements.
+      o Support for new platforms: FreeBSD/IA64 and FreeBSD/Sparc64.
+      o Configuration: the no-err option now works properly.
+      o SSL/TLS: now handles manual certificate chain building.
+      o SSL/TLS: certain session ID malfunctions corrected.
+
+  Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.7:
+
+      o New library section OCSP.
+      o Complete rewrite of ASN1 code.
+      o CRL checking in verify code and openssl utility.
+      o Extension copying in 'ca' utility.
+      o Flexible display options in 'ca' utility.
+      o Provisional support for international characters with UTF8.
+      o Support for external crypto devices ('engine') is no longer
+        a separate distribution.
+      o New elliptic curve library section.
+      o New AES (Rijndael) library section.
+      o Support for new platforms: Windows CE, Tandem OSS, A/UX, AIX 64-bit,
+        Linux x86_64, Linux 64-bit on Sparc v9
+      o Extended support for some platforms: VxWorks
+      o Enhanced support for shared libraries.
+      o Now only builds PIC code when shared library support is requested.
+      o Support for pkg-config.
+      o Lots of new manuals.
+      o Makes symbolic links to or copies of manuals to cover all described
+        functions.
+      o Change DES API to clean up the namespace (some applications link also
+        against libdes providing similar functions having the same name).
+        Provide macros for backward compatibility (will be removed in the
+        future).
+      o Unify handling of cryptographic algorithms (software and engine)
+        to be available via EVP routines for asymmetric and symmetric ciphers.
+      o NCONF: new configuration handling routines.
+      o Change API to use more 'const' modifiers to improve error checking
+        and help optimizers.
+      o Finally remove references to RSAref.
+      o Reworked parts of the BIGNUM code.
+      o Support for new engines: Broadcom ubsec, Accelerated Encryption
+        Processing, IBM 4758.
+      o A few new engines added in the demos area.
+      o Extended and corrected OID (object identifier) table.
+      o PRNG: query at more locations for a random device, automatic query for
+        EGD style random sources at several locations.
+      o SSL/TLS: allow optional cipher choice according to server's preference.
+      o SSL/TLS: allow server to explicitly set new session ids.
+      o SSL/TLS: support Kerberos cipher suites (RFC2712).
+	Only supports MIT Kerberos for now.
+      o SSL/TLS: allow more precise control of renegotiations and sessions.
+      o SSL/TLS: add callback to retrieve SSL/TLS messages.
+      o SSL/TLS: support AES cipher suites (RFC3268).
+
+  Major changes between OpenSSL 0.9.6j and OpenSSL 0.9.6k:
+
+      o Security: fix various ASN1 parsing bugs.
+      o SSL/TLS protocol fix for unrequested client certificates.
+
+  Major changes between OpenSSL 0.9.6i and OpenSSL 0.9.6j:
+
+      o Security: counter the Klima-Pokorny-Rosa extension of
+        Bleichbacher's attack 
+      o Security: make RSA blinding default.
+      o Build: shared library support fixes.
+
+  Major changes between OpenSSL 0.9.6h and OpenSSL 0.9.6i:
+
+      o Important security related bugfixes.
+
+  Major changes between OpenSSL 0.9.6g and OpenSSL 0.9.6h:
+
+      o New configuration targets for Tandem OSS and A/UX.
+      o New OIDs for Microsoft attributes.
+      o Better handling of SSL session caching.
+      o Better comparison of distinguished names.
+      o Better handling of shared libraries in a mixed GNU/non-GNU environment.
+      o Support assembler code with Borland C.
+      o Fixes for length problems.
+      o Fixes for uninitialised variables.
+      o Fixes for memory leaks, some unusual crashes and some race conditions.
+      o Fixes for smaller building problems.
+      o Updates of manuals, FAQ and other instructive documents.
+
+  Major changes between OpenSSL 0.9.6f and OpenSSL 0.9.6g:
+
+      o Important building fixes on Unix.
+
+  Major changes between OpenSSL 0.9.6e and OpenSSL 0.9.6f:
+
+      o Various important bugfixes.
+
+  Major changes between OpenSSL 0.9.6d and OpenSSL 0.9.6e:
+
+      o Important security related bugfixes.
+      o Various SSL/TLS library bugfixes.
+
+  Major changes between OpenSSL 0.9.6c and OpenSSL 0.9.6d:
+
+      o Various SSL/TLS library bugfixes.
+      o Fix DH parameter generation for 'non-standard' generators.
+
+  Major changes between OpenSSL 0.9.6b and OpenSSL 0.9.6c:
+
+      o Various SSL/TLS library bugfixes.
+      o BIGNUM library fixes.
+      o RSA OAEP and random number generation fixes.
+      o Object identifiers corrected and added.
+      o Add assembler BN routines for IA64.
+      o Add support for OS/390 Unix, UnixWare with gcc, OpenUNIX 8,
+        MIPS Linux; shared library support for Irix, HP-UX.
+      o Add crypto accelerator support for AEP, Baltimore SureWare,
+        Broadcom and Cryptographic Appliance's keyserver
+        [in 0.9.6c-engine release].
+
+  Major changes between OpenSSL 0.9.6a and OpenSSL 0.9.6b:
+
+      o Security fix: PRNG improvements.
+      o Security fix: RSA OAEP check.
+      o Security fix: Reinsert and fix countermeasure to Bleichbacher's
+        attack.
+      o MIPS bug fix in BIGNUM.
+      o Bug fix in "openssl enc".
+      o Bug fix in X.509 printing routine.
+      o Bug fix in DSA verification routine and DSA S/MIME verification.
+      o Bug fix to make PRNG thread-safe.
+      o Bug fix in RAND_file_name().
+      o Bug fix in compatibility mode trust settings.
+      o Bug fix in blowfish EVP.
+      o Increase default size for BIO buffering filter.
+      o Compatibility fixes in some scripts.
+
+  Major changes between OpenSSL 0.9.6 and OpenSSL 0.9.6a:
+
+      o Security fix: change behavior of OpenSSL to avoid using
+        environment variables when running as root.
+      o Security fix: check the result of RSA-CRT to reduce the
+        possibility of deducing the private key from an incorrectly
+        calculated signature.
+      o Security fix: prevent Bleichenbacher's DSA attack.
+      o Security fix: Zero the premaster secret after deriving the
+        master secret in DH ciphersuites.
+      o Reimplement SSL_peek(), which had various problems.
+      o Compatibility fix: the function des_encrypt() renamed to
+        des_encrypt1() to avoid clashes with some Unixen libc.
+      o Bug fixes for Win32, HP/UX and Irix.
+      o Bug fixes in BIGNUM, SSL, PKCS#7, PKCS#12, X.509, CONF and
+        memory checking routines.
+      o Bug fixes for RSA operations in threaded environments.
+      o Bug fixes in misc. openssl applications.
+      o Remove a few potential memory leaks.
+      o Add tighter checks of BIGNUM routines.
+      o Shared library support has been reworked for generality.
+      o More documentation.
+      o New function BN_rand_range().
+      o Add "-rand" option to openssl s_client and s_server.
+
+  Major changes between OpenSSL 0.9.5a and OpenSSL 0.9.6:
+
+      o Some documentation for BIO and SSL libraries.
+      o Enhanced chain verification using key identifiers.
+      o New sign and verify options to 'dgst' application.
+      o Support for DER and PEM encoded messages in 'smime' application.
+      o New 'rsautl' application, low level RSA utility.
+      o MD4 now included.
+      o Bugfix for SSL rollback padding check.
+      o Support for external crypto devices [1].
+      o Enhanced EVP interface.
+
+    [1] The support for external crypto devices is currently a separate
+        distribution.  See the file README.ENGINE.
+
+  Major changes between OpenSSL 0.9.5 and OpenSSL 0.9.5a:
+
+      o Bug fixes for Win32, SuSE Linux, NeXTSTEP and FreeBSD 2.2.8 
+      o Shared library support for HPUX and Solaris-gcc
+      o Support of Linux/IA64
+      o Assembler support for Mingw32
+      o New 'rand' application
+      o New way to check for existence of algorithms from scripts
+
+  Major changes between OpenSSL 0.9.4 and OpenSSL 0.9.5:
+
+      o S/MIME support in new 'smime' command
+      o Documentation for the OpenSSL command line application
+      o Automation of 'req' application
+      o Fixes to make s_client, s_server work under Windows
+      o Support for multiple fieldnames in SPKACs
+      o New SPKAC command line utilty and associated library functions
+      o Options to allow passwords to be obtained from various sources
+      o New public key PEM format and options to handle it
+      o Many other fixes and enhancements to command line utilities
+      o Usable certificate chain verification
+      o Certificate purpose checking
+      o Certificate trust settings
+      o Support of authority information access extension
+      o Extensions in certificate requests
+      o Simplified X509 name and attribute routines
+      o Initial (incomplete) support for international character sets
+      o New DH_METHOD, DSA_METHOD and enhanced RSA_METHOD
+      o Read only memory BIOs and simplified creation function
+      o TLS/SSL protocol bugfixes: Accept TLS 'client hello' in SSL 3.0
+        record; allow fragmentation and interleaving of handshake and other
+        data
+      o TLS/SSL code now "tolerates" MS SGC
+      o Work around for Netscape client certificate hang bug
+      o RSA_NULL option that removes RSA patent code but keeps other
+        RSA functionality
+      o Memory leak detection now allows applications to add extra information
+        via a per-thread stack
+      o PRNG robustness improved
+      o EGD support
+      o BIGNUM library bug fixes
+      o Faster DSA parameter generation
+      o Enhanced support for Alpha Linux
+      o Experimental MacOS support
+
+  Major changes between OpenSSL 0.9.3 and OpenSSL 0.9.4:
+
+      o Transparent support for PKCS#8 format private keys: these are used
+        by several software packages and are more secure than the standard
+        form
+      o PKCS#5 v2.0 implementation
+      o Password callbacks have a new void * argument for application data
+      o Avoid various memory leaks
+      o New pipe-like BIO that allows using the SSL library when actual I/O
+        must be handled by the application (BIO pair)
+
+  Major changes between OpenSSL 0.9.2b and OpenSSL 0.9.3:
+      o Lots of enhancements and cleanups to the Configuration mechanism
+      o RSA OEAP related fixes
+      o Added `openssl ca -revoke' option for revoking a certificate
+      o Source cleanups: const correctness, type-safe stacks and ASN.1 SETs
+      o Source tree cleanups: removed lots of obsolete files
+      o Thawte SXNet, certificate policies and CRL distribution points
+        extension support
+      o Preliminary (experimental) S/MIME support
+      o Support for ASN.1 UTF8String and VisibleString
+      o Full integration of PKCS#12 code
+      o Sparc assembler bignum implementation, optimized hash functions
+      o Option to disable selected ciphers
+
+  Major changes between OpenSSL 0.9.1c and OpenSSL 0.9.2b:
+      o Fixed a security hole related to session resumption
+      o Fixed RSA encryption routines for the p < q case
+      o "ALL" in cipher lists now means "everything except NULL ciphers"
+      o Support for Triple-DES CBCM cipher
+      o Support of Optimal Asymmetric Encryption Padding (OAEP) for RSA
+      o First support for new TLSv1 ciphers
+      o Added a few new BIOs (syslog BIO, reliable BIO)
+      o Extended support for DSA certificate/keys.
+      o Extended support for Certificate Signing Requests (CSR)
+      o Initial support for X.509v3 extensions
+      o Extended support for compression inside the SSL record layer
+      o Overhauled Win32 builds
+      o Cleanups and fixes to the Big Number (BN) library
+      o Support for ASN.1 GeneralizedTime
+      o Splitted ASN.1 SETs from SEQUENCEs
+      o ASN1 and PEM support for Netscape Certificate Sequences
+      o Overhauled Perl interface
+      o Lots of source tree cleanups.
+      o Lots of memory leak fixes.
+      o Lots of bug fixes.
+
+  Major changes between SSLeay 0.9.0b and OpenSSL 0.9.1c:
+      o Integration of the popular NO_RSA/NO_DSA patches
+      o Initial support for compression inside the SSL record layer
+      o Added BIO proxy and filtering functionality
+      o Extended Big Number (BN) library
+      o Added RIPE MD160 message digest
+      o Addeed support for RC2/64bit cipher
+      o Extended ASN.1 parser routines
+      o Adjustations of the source tree for CVS
+      o Support for various new platforms
+

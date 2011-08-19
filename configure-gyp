@@ -3,8 +3,24 @@
 import optparse
 import os
 import json
+import sys
 
 root_dir = os.path.dirname(__file__)
+sys.path.insert(0, os.path.join(root_dir, 'deps', 'v8', 'tools'))
+import utils # GuessArchitecture
+
+def pkg_config(pkg):
+  cmd = os.popen('pkg-config --libs %s' % pkg, 'r')
+  libs = cmd.readline().strip()
+  ret = cmd.close()
+  if (ret): return 0
+
+  cmd = os.popen('pkg-config --cflags %s' % pkg, 'r')
+  cflags = cmd.readline().strip()
+  ret = cmd.close()
+  if (ret): return 0
+
+  return (libs, cflags)
 
 # parse our options
 parser = optparse.OptionParser()
@@ -14,6 +30,7 @@ parser.add_option("--debug", action="store_true", dest="debug",
 
 parser.add_option("--prefix", action="store", dest="prefix",
     help="Select the install prefix (defaults to /usr/local)")
+
 
 # TODO options to support for backwards compatibility
 #
@@ -74,6 +91,13 @@ output = {
     'node_prefix': options.prefix if options.prefix else ''
   }
 }
+
+out = pkg_config('openssl')
+if out:
+  output['variables']['node_use_openssl'] = 'true'
+  output['variables']['openssl_libs'] = '-lssl -lcrypto -lz' #out[0]
+  output['variables']['openssl_cflags'] = out[1]
+
 
 fn = os.path.join(root_dir, 'options.gypi')
 print "creating ", fn
