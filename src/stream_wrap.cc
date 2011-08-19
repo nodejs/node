@@ -129,11 +129,11 @@ inline char* StreamWrap::NewSlab(Handle<Object> global,
 }
 
 
-uv_buf_t StreamWrap::OnAlloc(uv_stream_t* handle, size_t suggested_size) {
+uv_buf_t StreamWrap::OnAlloc(uv_handle_t* handle, size_t suggested_size) {
   HandleScope scope;
 
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
-  assert(wrap->stream_ == handle);
+  assert(wrap->stream_ == reinterpret_cast<uv_stream_t*>(handle));
 
   char* slab = NULL;
 
@@ -165,7 +165,7 @@ uv_buf_t StreamWrap::OnAlloc(uv_stream_t* handle, size_t suggested_size) {
   wrap->slab_offset_ = slab_used;
   slab_used += buf.len;
 
-  handle_that_last_alloced = handle;
+  handle_that_last_alloced = reinterpret_cast<uv_stream_t*>(handle);
 
   return buf;
 }
