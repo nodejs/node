@@ -287,7 +287,8 @@ What platform you're running on. `'linux2'`, `'darwin'`, etc.
 
 ### process.memoryUsage()
 
-Returns an object describing the memory usage of the Node process.
+Returns an object describing the memory usage of the Node process
+measured in bytes.
 
     var util = require('util');
 
