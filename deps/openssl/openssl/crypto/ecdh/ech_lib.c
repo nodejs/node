@@ -96,7 +96,6 @@ const ECDH_METHOD *ECDH_get_default_method(void)
 
 int ECDH_set_method(EC_KEY *eckey, const ECDH_METHOD *meth)
 	{
-	const ECDH_METHOD *mtmp;
 	ECDH_DATA *ecdh;
 
 	ecdh = ecdh_check(eckey);
@@ -104,11 +103,6 @@ int ECDH_set_method(EC_KEY *eckey, const ECDH_METHOD *meth)
 	if (ecdh == NULL)
 		return 0;
 
-        mtmp = ecdh->meth;
-#if 0
-        if (mtmp->finish)
-		mtmp->finish(eckey);
-#endif
 #ifndef OPENSSL_NO_ENGINE
 	if (ecdh->engine)
 		{

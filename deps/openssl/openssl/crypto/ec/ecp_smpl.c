@@ -1406,6 +1406,9 @@ int ec_GFp_simple_cmp(const EC_GROUP *group, const EC_POINT *a, const EC_POINT *
 		{
 		return EC_POINT_is_at_infinity(group, b) ? 0 : 1;
 		}
+
+	if (EC_POINT_is_at_infinity(group, b))
+		return 1;
 	
 	if (a->Z_is_one && b->Z_is_one)
 		{

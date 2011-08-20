@@ -125,7 +125,7 @@ static void tls1_P_hash(const EVP_MD *md, const unsigned char *sec,
 			int sec_len, unsigned char *seed, int seed_len,
 			unsigned char *out, int olen)
 	{
-	int chunk,n;
+	int chunk;
 	unsigned int j;
 	HMAC_CTX ctx;
 	HMAC_CTX ctx_tmp;
@@ -143,7 +143,6 @@ static void tls1_P_hash(const EVP_MD *md, const unsigned char *sec,
 	HMAC_Update(&ctx,seed,seed_len);
 	HMAC_Final(&ctx,A1,&A1_len);
 
-	n=0;
 	for (;;)
 		{
 		HMAC_Init_ex(&ctx,NULL,0,NULL,NULL); /* re-init */
@@ -227,14 +226,14 @@ static void tls1_generate_key_block(SSL *s, unsigned char *km,
 int tls1_change_cipher_state(SSL *s, int which)
 	{
 	static const unsigned char empty[]="";
-	unsigned char *p,*key_block,*mac_secret;
+	unsigned char *p,*mac_secret;
 	unsigned char *exp_label,buf[TLS_MD_MAX_CONST_SIZE+
 		SSL3_RANDOM_SIZE*2];
 	unsigned char tmp1[EVP_MAX_KEY_LENGTH];
 	unsigned char tmp2[EVP_MAX_KEY_LENGTH];
 	unsigned char iv1[EVP_MAX_IV_LENGTH*2];
 	unsigned char iv2[EVP_MAX_IV_LENGTH*2];
-	unsigned char *ms,*key,*iv,*er1,*er2;
+	unsigned char *ms,*key,*iv;
 	int client_write;
 	EVP_CIPHER_CTX *dd;
 	const EVP_CIPHER *c;
@@ -251,9 +250,10 @@ int tls1_change_cipher_state(SSL *s, int which)
 #ifndef OPENSSL_NO_COMP
 	comp=s->s3->tmp.new_compression;
 #endif
-	key_block=s->s3->tmp.key_block;
 
 #ifdef KSSL_DEBUG
+	key_block=s->s3->tmp.key_block;
+
 	printf("tls1_change_cipher_state(which= %d) w/\n", which);
 	printf("\talg= %ld, comp= %p\n", s->s3->tmp.new_cipher->algorithms,
                 (void *)comp);
@@ -348,8 +348,6 @@ int tls1_change_cipher_state(SSL *s, int which)
 	               cl : SSL_C_EXPORT_KEYLENGTH(s->s3->tmp.new_cipher)) : cl;
 	/* Was j=(exp)?5:EVP_CIPHER_key_length(c); */
 	k=EVP_CIPHER_iv_length(c);
-	er1= &(s->s3->client_random[0]);
-	er2= &(s->s3->server_random[0]);
 	if (	(which == SSL3_CHANGE_CIPHER_CLIENT_WRITE) ||
 		(which == SSL3_CHANGE_CIPHER_SERVER_READ))
 		{
@@ -535,13 +533,11 @@ int tls1_enc(SSL *s, int send)
 	SSL3_RECORD *rec;
 	EVP_CIPHER_CTX *ds;
 	unsigned long l;
-	int bs,i,ii,j,k,n=0;
+	int bs,i,ii,j,k;
 	const EVP_CIPHER *enc;
 
 	if (send)
 		{
-		if (s->write_hash != NULL)
-			n=EVP_MD_size(s->write_hash);
 		ds=s->enc_write_ctx;
 		rec= &(s->s3->wrec);
 		if (s->enc_write_ctx == NULL)
@@ -551,8 +547,6 @@ int tls1_enc(SSL *s, int send)
 		}
 	else
 		{
-		if (s->read_hash != NULL)
-			n=EVP_MD_size(s->read_hash);
 		ds=s->enc_read_ctx;
 		rec= &(s->s3->rrec);
 		if (s->enc_read_ctx == NULL)

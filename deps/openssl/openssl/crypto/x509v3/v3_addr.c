@@ -177,12 +177,18 @@ static int i2r_address(BIO *out,
   unsigned char addr[ADDR_RAW_BUF_LEN];
   int i, n;
 
+  if (bs->length < 0)
+    return 0;
   switch (afi) {
   case IANA_AFI_IPV4:
+    if (bs->length > 4)
+      return 0;
     addr_expand(addr, bs, 4, fill);
     BIO_printf(out, "%d.%d.%d.%d", addr[0], addr[1], addr[2], addr[3]);
     break;
   case IANA_AFI_IPV6:
+    if (bs->length > 16)
+      return 0;
     addr_expand(addr, bs, 16, fill);
     for (n = 16; n > 1 && addr[n-1] == 0x00 && addr[n-2] == 0x00; n -= 2)
       ;

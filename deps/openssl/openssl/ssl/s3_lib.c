@@ -2586,8 +2586,8 @@ static int ssl3_read_internal(SSL *s, void *buf, int len, int peek)
 	if ((s->s3->flags & SSL3_FLAGS_POP_BUFFER) && (s->wbio == s->bbio))
 		{
 		/* Deal with an application that calls SSL_read() when handshake data
- 		 * is yet to be written.
- 		 */
+		 * is yet to be written.
+		 */
 		if (BIO_wpending(s->wbio) > 0)
 			{
 			s->rwstate=SSL_WRITING;

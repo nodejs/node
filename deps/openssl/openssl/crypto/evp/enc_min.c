@@ -279,6 +279,7 @@ skip_to_init:
 			case EVP_CIPH_OFB_MODE:
 
 			ctx->num = 0;
+			/* fall-through */
 
 			case EVP_CIPH_CBC_MODE:
 

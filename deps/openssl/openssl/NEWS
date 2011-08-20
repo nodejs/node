@@ -5,6 +5,19 @@
   This file gives a brief overview of the major changes between each OpenSSL
   release. For more details please read the CHANGES file.
 
+  Major changes between OpenSSL 0.9.8q and OpenSSL 0.9.8r:
+
+      o Fix for security issue CVE-2011-0014
+
+  Major changes between OpenSSL 0.9.8p and OpenSSL 0.9.8q:
+
+      o Fix for security issue CVE-2010-4180
+      o Fix for CVE-2010-4252
+
+  Major changes between OpenSSL 0.9.8o and OpenSSL 0.9.8p:
+
+      o Fix for security issue CVE-2010-3864.
+
   Major changes between OpenSSL 0.9.8n and OpenSSL 0.9.8o:
 
       o Fix for security issue CVE-2010-0742.
@@ -171,6 +184,11 @@
       o Added support for files larger than 2GB.
       o Added initial support for Win64.
       o Added alternate pkg-config files.
+
+  Major changes between OpenSSL 0.9.7l and OpenSSL 0.9.7m:
+
+      o FIPS 1.1.1 module linking.
+      o Various ciphersuite selection fixes.
 
   Major changes between OpenSSL 0.9.7k and OpenSSL 0.9.7l:
 

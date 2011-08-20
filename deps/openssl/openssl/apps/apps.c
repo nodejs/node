@@ -351,13 +351,12 @@ void program_name(char *in, char *out, int size)
 
 int chopup_args(ARGS *arg, char *buf, int *argc, char **argv[])
 	{
-	int num,len,i;
+	int num,i;
 	char *p;
 
 	*argc=0;
 	*argv=NULL;
 
-	len=strlen(buf);
 	i=0;
 	if (arg->count == 0)
 		{

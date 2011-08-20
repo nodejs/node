@@ -111,9 +111,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	DSA *dsa=NULL;
 	int i,badops=0,text=0;
 	BIO *in=NULL,*out=NULL;
@@ -278,7 +275,7 @@ bad:
 		}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if (need_rand)
@@ -357,12 +354,10 @@ bad:
 	if (C)
 		{
 		unsigned char *data;
-		int l,len,bits_p,bits_q,bits_g;
+		int l,len,bits_p;
 
 		len=BN_num_bytes(dsa->p);
 		bits_p=BN_num_bits(dsa->p);
-		bits_q=BN_num_bits(dsa->q);
-		bits_g=BN_num_bits(dsa->g);
 		data=(unsigned char *)OPENSSL_malloc(len+20);
 		if (data == NULL)
 			{

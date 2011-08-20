@@ -235,7 +235,7 @@ void EVP_DecodeInit(EVP_ENCODE_CTX *ctx)
 int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
 	     const unsigned char *in, int inl)
 	{
-	int seof= -1,eof=0,rv= -1,ret=0,i,v,tmp,n,ln,tmp2,exp_nl;
+	int seof= -1,eof=0,rv= -1,ret=0,i,v,tmp,n,ln,exp_nl;
 	unsigned char *d;
 
 	n=ctx->num;
@@ -319,7 +319,6 @@ int EVP_DecodeUpdate(EVP_ENCODE_CTX *ctx, unsigned char *out, int *outl,
 			 * lines.  We process the line and then need to
 			 * accept the '\n' */
 			if ((v != B64_EOF) && (n >= 64)) exp_nl=1;
-			tmp2=v;
 			if (n > 0)
 				{
 				v=EVP_DecodeBlock(out,d,n);

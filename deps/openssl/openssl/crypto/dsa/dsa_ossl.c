@@ -178,7 +178,8 @@ static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 	if (!BN_mod_mul(&xr,dsa->priv_key,r,dsa->q,ctx)) goto err;/* s = xr */
 	if (!BN_add(s, &xr, &m)) goto err;		/* s = m + xr */
 	if (BN_cmp(s,dsa->q) > 0)
-		BN_sub(s,s,dsa->q);
+		if (!BN_sub(s,s,dsa->q))
+			goto err;
 	if (!BN_mod_mul(s,s,kinv,dsa->q,ctx)) goto err;
 
 	ret=DSA_SIG_new();

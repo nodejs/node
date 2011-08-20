@@ -811,7 +811,6 @@ static DSA_SIG *cswift_dsa_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 	SW_PARAM sw_param;
 	SW_STATUS sw_status;
 	SW_LARGENUMBER arg, res;
-	unsigned char *ptr;
 	BN_CTX *ctx;
 	BIGNUM *dsa_p = NULL;
 	BIGNUM *dsa_q = NULL;
@@ -899,7 +898,6 @@ static DSA_SIG *cswift_dsa_sign(const unsigned char *dgst, int dlen, DSA *dsa)
 		goto err;
 		}
 	/* Convert the response */
-	ptr = (unsigned char *)result->d;
 	if((to_return = DSA_SIG_new()) == NULL)
 		goto err;
 	to_return->r = BN_bin2bn((unsigned char *)result->d, 20, NULL);

@@ -434,7 +434,6 @@ int PEM_do_header(EVP_CIPHER_INFO *cipher, unsigned char *data, long *plen,
 
 int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
 	{
-	int o;
 	const EVP_CIPHER *enc=NULL;
 	char *p,c;
 	char **header_pp = &header;
@@ -474,7 +473,6 @@ int PEM_get_EVP_CIPHER_INFO(char *header, EVP_CIPHER_INFO *cipher)
 		header++;
 		}
 	*header='\0';
-	o=OBJ_sn2nid(p);
 	cipher->cipher=enc=EVP_get_cipherbyname(p);
 	*header=c;
 	header++;

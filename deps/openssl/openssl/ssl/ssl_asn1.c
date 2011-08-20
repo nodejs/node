@@ -297,7 +297,7 @@ int i2d_SSL_SESSION(SSL_SESSION *in, unsigned char **pp)
 SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 	     long length)
 	{
-	int version,ssl_version=0,i;
+	int ssl_version=0,i;
 	long id;
 	ASN1_INTEGER ai,*aip;
 	ASN1_OCTET_STRING os,*osp;
@@ -311,7 +311,6 @@ SSL_SESSION *d2i_SSL_SESSION(SSL_SESSION **a, const unsigned char **pp,
 
 	ai.data=NULL; ai.length=0;
 	M_ASN1_D2I_get_x(ASN1_INTEGER,aip,d2i_ASN1_INTEGER);
-	version=(int)ASN1_INTEGER_get(aip);
 	if (ai.data != NULL) { OPENSSL_free(ai.data); ai.data=NULL; ai.length=0; }
 
 	/* we don't care about the version right now :-) */

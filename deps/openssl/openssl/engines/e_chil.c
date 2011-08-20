@@ -1080,11 +1080,11 @@ static int hwcrhk_mod_exp_mont(BIGNUM *r, const BIGNUM *a, const BIGNUM *p,
 static int hwcrhk_rsa_finish(RSA *rsa)
 	{
 	HWCryptoHook_RSAKeyHandle *hptr;
-	int ret;
+
 	hptr = RSA_get_ex_data(rsa, hndidx_rsa);
 	if (hptr)
                 {
-                ret = p_hwcrhk_RSAUnloadKey(*hptr, NULL);
+                p_hwcrhk_RSAUnloadKey(*hptr, NULL);
                 OPENSSL_free(hptr);
 		RSA_set_ex_data(rsa, hndidx_rsa, NULL);
                 }

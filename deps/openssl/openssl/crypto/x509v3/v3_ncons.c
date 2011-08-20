@@ -182,7 +182,6 @@ static int do_i2r_name_constraints(X509V3_EXT_METHOD *method,
 			print_nc_ipadd(bp, tree->base->d.ip);
 		else
 			GENERAL_NAME_print(bp, tree->base);
-		tree = sk_GENERAL_SUBTREE_value(trees, i);
 		BIO_puts(bp, "\n");
 		}
 	return 1;

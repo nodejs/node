@@ -1365,7 +1365,6 @@ int doit(SSL *s_ssl, SSL *c_ssl, long count)
 	BIO *c_bio=NULL;
 	BIO *s_bio=NULL;
 	int c_r,c_w,s_r,s_w;
-	int c_want,s_want;
 	int i,j;
 	int done=0;
 	int c_write,s_write;
@@ -1400,8 +1399,6 @@ int doit(SSL *s_ssl, SSL *c_ssl, long count)
 
 	c_r=0; s_r=1;
 	c_w=1; s_w=0;
-	c_want=W_WRITE;
-	s_want=0;
 	c_write=1,s_write=0;
 
 	/* We can always do writes */

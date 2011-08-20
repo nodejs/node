@@ -318,6 +318,7 @@ int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 	int ret = 0;
 	size_t i;
 	EC_POINT *p=NULL;
+	EC_POINT *acc = NULL;
 
 	if (ctx == NULL)
 		{
@@ -337,15 +338,16 @@ int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 		}
 
 	if ((p = EC_POINT_new(group)) == NULL) goto err;
+	if ((acc = EC_POINT_new(group)) == NULL) goto err;
 
-	if (!EC_POINT_set_to_infinity(group, r)) goto err;
+	if (!EC_POINT_set_to_infinity(group, acc)) goto err;
 
 	if (scalar)
 		{
 		if (!ec_GF2m_montgomery_point_multiply(group, p, scalar, group->generator, ctx)) goto err;
-		if (BN_is_negative(scalar)) 
+		if (BN_is_negative(scalar))
 			if (!group->meth->invert(group, p, ctx)) goto err;
-		if (!group->meth->add(group, r, r, p, ctx)) goto err;
+		if (!group->meth->add(group, acc, acc, p, ctx)) goto err;
 		}
 
 	for (i = 0; i < num; i++)
@@ -353,13 +355,16 @@ int ec_GF2m_simple_mul(const EC_GROUP *group, EC_POINT *r, const BIGNUM *scalar,
 		if (!ec_GF2m_montgomery_point_multiply(group, p, scalars[i], points[i], ctx)) goto err;
 		if (BN_is_negative(scalars[i]))
 			if (!group->meth->invert(group, p, ctx)) goto err;
-		if (!group->meth->add(group, r, r, p, ctx)) goto err;
+		if (!group->meth->add(group, acc, acc, p, ctx)) goto err;
 		}
+
+	if (!EC_POINT_copy(r, acc)) goto err;
 
 	ret = 1;
 
   err:
 	if (p) EC_POINT_free(p);
+	if (acc) EC_POINT_free(acc);
 	if (new_ctx != NULL)
 		BN_CTX_free(new_ctx);
 	return ret;

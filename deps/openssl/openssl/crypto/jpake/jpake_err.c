@@ -1,6 +1,6 @@
 /* crypto/jpake/jpake_err.c */
 /* ====================================================================
- * Copyright (c) 1999-2008 The OpenSSL Project.  All rights reserved.
+ * Copyright (c) 1999-2010 The OpenSSL Project.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -80,6 +80,8 @@ static ERR_STRING_DATA JPAKE_str_functs[]=
 
 static ERR_STRING_DATA JPAKE_str_reasons[]=
 	{
+{ERR_REASON(JPAKE_R_G_TO_THE_X3_IS_NOT_LEGAL),"g to the x3 is not legal"},
+{ERR_REASON(JPAKE_R_G_TO_THE_X4_IS_NOT_LEGAL),"g to the x4 is not legal"},
 {ERR_REASON(JPAKE_R_G_TO_THE_X4_IS_ONE)  ,"g to the x4 is one"},
 {ERR_REASON(JPAKE_R_HASH_OF_HASH_OF_KEY_MISMATCH),"hash of hash of key mismatch"},
 {ERR_REASON(JPAKE_R_HASH_OF_KEY_MISMATCH),"hash of key mismatch"},

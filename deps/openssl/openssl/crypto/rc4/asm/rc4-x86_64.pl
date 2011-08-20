@@ -167,7 +167,7 @@ $code.=<<___;
 	movzb	($dat,$XX[0]),$TX[0]#d
 	test	\$-8,$len
 	jz	.Lcloop1
-	cmp	\$0,260($dat)
+	cmpl	\$0,260($dat)
 	jnz	.Lcloop1
 	push	%rbx
 	jmp	.Lcloop8

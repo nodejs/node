@@ -27,6 +27,11 @@
 #include <node_root_certs.h>
 
 #include <string.h>
+#ifdef _MSC_VER
+#define snprintf _snprintf
+#define strcasecmp _stricmp
+#endif
+
 #include <stdlib.h>
 
 #include <errno.h>

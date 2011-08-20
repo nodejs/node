@@ -160,8 +160,8 @@ int RAND_poll(void)
          rdtsc
          mov tsc, eax        
       }
-#else
-      asm volatile("rdtsc":"=A" (tsc));
+#elif defined(__GNUC__) && __GNUC__>=2 && !defined(OPENSSL_NO_ASM) && !defined(OPENSSL_NO_INLINE_ASM)
+      asm volatile("rdtsc":"=a"(tsc)::"edx");
 #endif
 
       RAND_add(&tsc, sizeof(tsc), 1);

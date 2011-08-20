@@ -73,7 +73,6 @@ static int pk7_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
 	{
 	PKCS7 *p7 = (PKCS7 *)val;
 	BIO *tmpbio, *p7bio;
-	int r = 0;
 
 	if (!(flags & SMIME_DETACHED))
 		{
@@ -94,8 +93,6 @@ static int pk7_output_data(BIO *out, BIO *data, ASN1_VALUE *val, int flags,
 	/* Finalize structure */
 	if (PKCS7_dataFinal(p7, p7bio) <= 0)
 		goto err;
-
-	r = 1;
 
 	err:
 

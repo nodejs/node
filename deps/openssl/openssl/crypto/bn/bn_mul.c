@@ -551,7 +551,7 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n,
 	     int tna, int tnb, BN_ULONG *t)
 	{
 	int i,j,n2=n*2;
-	int c1,c2,neg,zero;
+	int c1,c2,neg;
 	BN_ULONG ln,lo,*p;
 
 # ifdef BN_COUNT
@@ -567,7 +567,7 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n,
 	/* r=(a[0]-a[1])*(b[1]-b[0]) */
 	c1=bn_cmp_part_words(a,&(a[n]),tna,n-tna);
 	c2=bn_cmp_part_words(&(b[n]),b,tnb,tnb-n);
-	zero=neg=0;
+	neg=0;
 	switch (c1*3+c2)
 		{
 	case -4:
@@ -575,7 +575,6 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n,
 		bn_sub_part_words(&(t[n]),b,      &(b[n]),tnb,n-tnb); /* - */
 		break;
 	case -3:
-		zero=1;
 		/* break; */
 	case -2:
 		bn_sub_part_words(t,      &(a[n]),a,      tna,tna-n); /* - */
@@ -585,7 +584,6 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n,
 	case -1:
 	case 0:
 	case 1:
-		zero=1;
 		/* break; */
 	case 2:
 		bn_sub_part_words(t,      a,      &(a[n]),tna,n-tna); /* + */
@@ -593,7 +591,6 @@ void bn_mul_part_recursive(BN_ULONG *r, BN_ULONG *a, BN_ULONG *b, int n,
 		neg=1;
 		break;
 	case 3:
-		zero=1;
 		/* break; */
 	case 4:
 		bn_sub_part_words(t,      a,      &(a[n]),tna,n-tna);
@@ -1012,7 +1009,6 @@ int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 		{
 		if (i >= -1 && i <= 1)
 			{
-			int sav_j =0;
 			/* Find out the power of two lower or equal
 			   to the longest of the two numbers */
 			if (i >= 0)
@@ -1023,7 +1019,6 @@ int BN_mul(BIGNUM *r, const BIGNUM *a, const BIGNUM *b, BN_CTX *ctx)
 				{
 				j = BN_num_bits_word((BN_ULONG)bl);
 				}
-			sav_j = j;
 			j = 1<<(j-1);
 			assert(j <= al || j <= bl);
 			k = j+j;

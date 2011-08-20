@@ -169,11 +169,13 @@ static void ec_pre_comp_clear_free(void *pre_)
 		EC_POINT **p;
 
 		for (p = pre->points; *p != NULL; p++)
+			{
 			EC_POINT_clear_free(*p);
-		OPENSSL_cleanse(pre->points, sizeof pre->points);
+			OPENSSL_cleanse(p, sizeof *p);
+			}
 		OPENSSL_free(pre->points);
 		}
-	OPENSSL_cleanse(pre, sizeof pre);
+	OPENSSL_cleanse(pre, sizeof *pre);
 	OPENSSL_free(pre);
 	}
 

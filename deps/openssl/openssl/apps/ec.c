@@ -85,9 +85,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 {
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE 	*e = NULL;
-#endif
 	int 	ret = 1;
 	EC_KEY 	*eckey = NULL;
 	const EC_GROUP *group;
@@ -254,7 +251,7 @@ bad:
 	ERR_load_crypto_strings();
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if(!app_passwd(bio_err, passargin, passargout, &passin, &passout)) 

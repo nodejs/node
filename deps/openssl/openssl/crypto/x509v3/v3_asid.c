@@ -61,7 +61,6 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <assert.h>
 #include "cryptlib.h"
 #include <openssl/conf.h>
 #include <openssl/asn1.h>
@@ -172,11 +171,11 @@ static int ASIdOrRange_cmp(const ASIdOrRange * const *a_,
 {
   const ASIdOrRange *a = *a_, *b = *b_;
 
-  assert((a->type == ASIdOrRange_id && a->u.id != NULL) ||
+  OPENSSL_assert((a->type == ASIdOrRange_id && a->u.id != NULL) ||
 	 (a->type == ASIdOrRange_range && a->u.range != NULL &&
 	  a->u.range->min != NULL && a->u.range->max != NULL));
 
-  assert((b->type == ASIdOrRange_id && b->u.id != NULL) ||
+  OPENSSL_assert((b->type == ASIdOrRange_id && b->u.id != NULL) ||
 	 (b->type == ASIdOrRange_range && b->u.range != NULL &&
 	  b->u.range->min != NULL && b->u.range->max != NULL));
 
@@ -215,7 +214,7 @@ int v3_asid_add_inherit(ASIdentifiers *asid, int which)
   if (*choice == NULL) {
     if ((*choice = ASIdentifierChoice_new()) == NULL)
       return 0;
-    assert((*choice)->u.inherit == NULL);
+    OPENSSL_assert((*choice)->u.inherit == NULL);
     if (((*choice)->u.inherit = ASN1_NULL_new()) == NULL)
       return 0;
     (*choice)->type = ASIdentifierChoice_inherit;
@@ -250,7 +249,7 @@ int v3_asid_add_id_or_range(ASIdentifiers *asid,
   if (*choice == NULL) {
     if ((*choice = ASIdentifierChoice_new()) == NULL)
       return 0;
-    assert((*choice)->u.asIdsOrRanges == NULL);
+    OPENSSL_assert((*choice)->u.asIdsOrRanges == NULL);
     (*choice)->u.asIdsOrRanges = sk_ASIdOrRange_new(ASIdOrRange_cmp);
     if ((*choice)->u.asIdsOrRanges == NULL)
       return 0;
@@ -286,7 +285,7 @@ static void extract_min_max(ASIdOrRange *aor,
 			    ASN1_INTEGER **min,
 			    ASN1_INTEGER **max)
 {
-  assert(aor != NULL && min != NULL && max != NULL);
+  OPENSSL_assert(aor != NULL && min != NULL && max != NULL);
   switch (aor->type) {
   case ASIdOrRange_id:
     *min = aor->u.id;
@@ -373,7 +372,7 @@ static int ASIdentifierChoice_is_canonical(ASIdentifierChoice *choice)
 int v3_asid_is_canonical(ASIdentifiers *asid)
 {
   return (asid == NULL ||
-	  (ASIdentifierChoice_is_canonical(asid->asnum) ||
+	  (ASIdentifierChoice_is_canonical(asid->asnum) &&
 	   ASIdentifierChoice_is_canonical(asid->rdi)));
 }
 
@@ -395,7 +394,7 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
   /*
    * We have a list.  Sort it.
    */
-  assert(choice->type == ASIdentifierChoice_asIdsOrRanges);
+  OPENSSL_assert(choice->type == ASIdentifierChoice_asIdsOrRanges);
   sk_ASIdOrRange_sort(choice->u.asIdsOrRanges);
 
   /*
@@ -413,7 +412,7 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
     /*
      * Make sure we're properly sorted (paranoia).
      */
-    assert(ASN1_INTEGER_cmp(a_min, b_min) <= 0);
+    OPENSSL_assert(ASN1_INTEGER_cmp(a_min, b_min) <= 0);
 
     /*
      * Check for overlaps.
@@ -472,7 +471,7 @@ static int ASIdentifierChoice_canonize(ASIdentifierChoice *choice)
     }
   }
 
-  assert(ASIdentifierChoice_is_canonical(choice)); /* Paranoia */
+  OPENSSL_assert(ASIdentifierChoice_is_canonical(choice)); /* Paranoia */
 
   ret = 1;
 
@@ -709,9 +708,9 @@ static int v3_asid_validate_path_internal(X509_STORE_CTX *ctx,
   int i, ret = 1, inherit_as = 0, inherit_rdi = 0;
   X509 *x = NULL;
 
-  assert(chain != NULL && sk_X509_num(chain) > 0);
-  assert(ctx != NULL || ext != NULL);
-  assert(ctx == NULL || ctx->verify_cb != NULL);
+  OPENSSL_assert(chain != NULL && sk_X509_num(chain) > 0);
+  OPENSSL_assert(ctx != NULL || ext != NULL);
+  OPENSSL_assert(ctx == NULL || ctx->verify_cb != NULL);
 
   /*
    * Figure out where to start.  If we don't have an extension to
@@ -723,7 +722,7 @@ static int v3_asid_validate_path_internal(X509_STORE_CTX *ctx,
   } else {
     i = 0;
     x = sk_X509_value(chain, i);
-    assert(x != NULL);
+    OPENSSL_assert(x != NULL);
     if ((ext = x->rfc3779_asid) == NULL)
       goto done;
   }
@@ -756,7 +755,7 @@ static int v3_asid_validate_path_internal(X509_STORE_CTX *ctx,
    */
   for (i++; i < sk_X509_num(chain); i++) {
     x = sk_X509_value(chain, i);
-    assert(x != NULL);
+    OPENSSL_assert(x != NULL);
     if (x->rfc3779_asid == NULL) {
       if (child_as != NULL || child_rdi != NULL)
 	validation_err(X509_V_ERR_UNNESTED_RESOURCE);

@@ -66,8 +66,6 @@
 extern "C" {
 #endif
 
-#include <stddef.h>
-
 #if defined(OPENSSL_NO_SHA) || (defined(OPENSSL_NO_SHA0) && defined(OPENSSL_NO_SHA1))
 #error SHA is disabled.
 #endif

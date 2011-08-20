@@ -127,7 +127,7 @@ STACK_OF(type) \
 	sk_is_sorted(CHECKED_PTR_OF(STACK_OF(type), st))
 
 #define	SKM_ASN1_SET_OF_d2i(type, st, pp, length, d2i_func, free_func, ex_tag, ex_class) \
-	(STACK_OF(type) *)d2i_ASN1_SET(CHECKED_PTR_OF(STACK_OF(type), st), \
+	(STACK_OF(type) *)d2i_ASN1_SET(CHECKED_PTR_OF(STACK_OF(type)*, st), \
 				pp, length, \
 				CHECKED_D2I_OF(type, d2i_func), \
 				CHECKED_SK_FREE_FUNC(type, free_func), \

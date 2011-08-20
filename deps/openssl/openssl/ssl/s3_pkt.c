@@ -154,6 +154,7 @@ static int ssl3_read_snap_start_n(SSL *s, int n, int extend)
 
 int ssl3_read_n(SSL *s, int n, int max, int extend)
 	{
+	int i,off,newb;
 	if (s->s3->snap_start_records.left)
 		return ssl3_read_snap_start_n(s, n, extend);
 	else if (s->s3->snap_start_client_hello.buf && !extend)
@@ -172,7 +173,6 @@ int ssl3_read_n(SSL *s, int n, int max, int extend)
 	 * (If s->read_ahead is set, 'max' bytes may be stored in rbuf
 	 * [plus s->packet_length bytes if extend == 1].)
 	 */
-	int i,off,newb;
 
 	if (!extend)
 		{

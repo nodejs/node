@@ -256,9 +256,6 @@ dtls1_process_buffered_records(SSL *s)
     item = pqueue_peek(s->d1->unprocessed_rcds.q);
     if (item)
         {
-        DTLS1_RECORD_DATA *rdata;
-        rdata = (DTLS1_RECORD_DATA *)item->data;
-        
         /* Check if epoch is current. */
         if (s->d1->unprocessed_rcds.epoch != s->d1->r_epoch)
             return(1);  /* Nothing to do. */
@@ -331,7 +328,7 @@ dtls1_get_buffered_record(SSL *s)
 static int
 dtls1_process_record(SSL *s)
 {
-    int i,al;
+    int al;
 	int clear=0;
     int enc_err;
 	SSL_SESSION *sess;
@@ -377,7 +374,8 @@ dtls1_process_record(SSL *s)
 			goto err;
 
 		/* otherwise enc_err == -1 */
-		goto err;
+		al=SSL_AD_BAD_RECORD_MAC;
+		goto f_err;
 		}
 
 #ifdef TLS_DEBUG
@@ -418,7 +416,7 @@ if (	(sess == NULL) ||
 #endif
 			}
 		rr->length-=mac_size;
-		i=s->method->ssl3_enc->mac(s,md,0);
+		s->method->ssl3_enc->mac(s,md,0);
 		if (memcmp(md,&(rr->data[rr->length]),mac_size) != 0)
 			{
 			goto err;
@@ -484,14 +482,12 @@ int dtls1_get_record(SSL *s)
 	int ssl_major,ssl_minor;
 	int i,n;
 	SSL3_RECORD *rr;
-	SSL_SESSION *sess;
 	unsigned char *p = NULL;
 	unsigned short version;
 	DTLS1_BITMAP *bitmap;
 	unsigned int is_next_epoch;
 
 	rr= &(s->s3->rrec);
-	sess=s->session;
 
     /* The epoch may have changed.  If so, process all the
      * pending records.  This is a non-blocking operation. */

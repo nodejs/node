@@ -673,7 +673,7 @@ static int RSA_eay_public_decrypt(int flen, const unsigned char *from,
 		rsa->_method_mod_n)) goto err;
 
 	if ((padding == RSA_X931_PADDING) && ((ret->d[0] & 0xf) != 12))
-		BN_sub(ret, rsa->n, ret);
+		if (!BN_sub(ret, rsa->n, ret)) goto err;
 
 	p=buf;
 	i=BN_bn2bin(ret,p);

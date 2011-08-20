@@ -89,9 +89,6 @@ int MAIN(int, char **);
 int MAIN(int argc, char **argv)
 	{
 	BN_GENCB cb;
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	DH *dh=NULL;
 	int ret=1,num=DEFBITS;
 	int g=2;
@@ -163,7 +160,7 @@ bad:
 		}
 		
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	out=BIO_new(BIO_s_file());

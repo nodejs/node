@@ -265,8 +265,8 @@ err:
 const char *RAND_file_name(char *buf, size_t size)
 	{
 	char *s=NULL;
-	int ok = 0;
 #ifdef __OpenBSD__
+	int ok = 0;
 	struct stat sb;
 #endif
 
@@ -294,7 +294,9 @@ const char *RAND_file_name(char *buf, size_t size)
 			BUF_strlcat(buf,"/",size);
 #endif
 			BUF_strlcat(buf,RFILE,size);
+#ifdef __OpenBSD__
 			ok = 1;
+#endif
 			}
 		else
 		  	buf[0] = '\0'; /* no file name */

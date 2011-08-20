@@ -304,7 +304,13 @@ int EC_KEY_check_key(const EC_KEY *eckey)
 		ECerr(EC_F_EC_KEY_CHECK_KEY, ERR_R_PASSED_NULL_PARAMETER);
 		return 0;
 		}
-	
+
+	if (EC_POINT_is_at_infinity(eckey->group, eckey->pub_key))
+		{
+		ECerr(EC_F_EC_KEY_CHECK_KEY, EC_R_POINT_AT_INFINITY);
+		goto err;
+		}
+
 	if ((ctx = BN_CTX_new()) == NULL)
 		goto err;
 	if ((point = EC_POINT_new(eckey->group)) == NULL)

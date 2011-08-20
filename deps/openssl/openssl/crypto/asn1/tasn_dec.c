@@ -166,7 +166,7 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 	int i;
 	int otag;
 	int ret = 0;
-	ASN1_VALUE *pchval, **pchptr, *ptmpval;
+	ASN1_VALUE **pchptr, *ptmpval;
 	if (!pval)
 		return 0;
 	if (aux && aux->asn1_cb)
@@ -317,7 +317,6 @@ int ASN1_item_ex_d2i(ASN1_VALUE **pval, const unsigned char **in, long len,
 			goto err;
 			}
 		/* CHOICE type, try each possibility in turn */
-		pchval = NULL;
 		p = *in;
 		for (i = 0, tt=it->templates; i < it->tcount; i++, tt++)
 			{

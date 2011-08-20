@@ -2,7 +2,57 @@
  OpenSSL CHANGES
  _______________
 
+ Changes between 0.9.8q and 0.9.8r [8 Feb 2011]
+
+  *) Fix parsing of OCSP stapling ClientHello extension.  CVE-2011-0014
+     [Neel Mehta, Adam Langley, Bodo Moeller (Google)]
+
+  *) Fix bug in string printing code: if *any* escaping is enabled we must
+     escape the escape character (backslash) or the resulting string is
+     ambiguous.
+     [Steve Henson]
+
+ Changes between 0.9.8p and 0.9.8q [2 Dec 2010]
+
+  *) Disable code workaround for ancient and obsolete Netscape browsers
+     and servers: an attacker can use it in a ciphersuite downgrade attack.
+     Thanks to Martin Rex for discovering this bug. CVE-2010-4180
+     [Steve Henson]
+
+  *) Fixed J-PAKE implementation error, originally discovered by
+     Sebastien Martini, further info and confirmation from Stefan
+     Arentz and Feng Hao. Note that this fix is a security fix. CVE-2010-4252
+     [Ben Laurie]
+
+ Changes between 0.9.8o and 0.9.8p [16 Nov 2010]
+
+  *) Fix extension code to avoid race conditions which can result in a buffer
+     overrun vulnerability: resumed sessions must not be modified as they can
+     be shared by multiple threads. CVE-2010-3864
+     [Steve Henson]
+
+  *) Fix for double free bug in ssl/s3_clnt.c CVE-2010-2939
+     [Steve Henson]
+
+  *) Don't reencode certificate when calculating signature: cache and use
+     the original encoding instead. This makes signature verification of
+     some broken encodings work correctly.
+     [Steve Henson]
+
+  *) ec2_GF2m_simple_mul bugfix: compute correct result if the output EC_POINT
+     is also one of the inputs.
+     [Emilia Käsper <emilia.kasper@esat.kuleuven.be> (Google)]
+
+  *) Don't repeatedly append PBE algorithms to table if they already exist.
+     Sort table on each new add. This effectively makes the table read only
+     after all algorithms are added and subsequent calls to PKCS12_pbe_add
+     etc are non-op.
+     [Steve Henson]
+
  Changes between 0.9.8n and 0.9.8o [01 Jun 2010]
+
+  [NB: OpenSSL 0.9.8o and later 0.9.8 patch levels were released after
+  OpenSSL 1.0.0.]
 
   *) Correct a typo in the CMS ASN1 module which can result in invalid memory
      access or freeing data twice (CVE-2010-0742)

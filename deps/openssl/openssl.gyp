@@ -8,17 +8,58 @@
       'target_name': 'openssl',
       'type': '<(library)',
       'defines': [
-        # ENGINESDIR must be defined if OPENSSLDIR is.
-        'ENGINESDIR="/dev/null"',
         'L_ENDIAN',
-        # Set to ubuntu default path for convenience. If necessary, override
-        # this at runtime with the SSL_CERT_DIR environment variable.
-        'OPENSSLDIR="/etc/ssl"',
+        'OPENSSLDIR="ssl"',
+        'ENGINESDIR="ssl/lib/engines"',
         'OPENSSL_THREADS',
         'PURIFY',
-        'TERMIO',
         '_REENTRANT',
       ],
+
+      'conditions': [
+        ['OS=="win"', {
+          'defines': [
+            'WIN32_LEAN_AND_MEAN',     # needed to avoid some name clashes that break the build.
+            'MK1MF_BUILD',             # trick buildinf.h into believing that we're building from nmake
+            'MK1MF_PLATFORM_VC_WIN32', # ditto
+          ],
+        }],
+        ['OS=="mac"', {
+          'defines': [
+            'TERMIOS'
+          ],
+        }],
+        ['OS=="linux"', {
+          'defines': [
+            'TERMIO',
+          ],
+        }],
+        ['target_arch=="ia32"', {
+          'include_dirs': [
+            'config/piii',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              'openssl/include',
+              'config/piii',
+            ],
+          },
+        }
+        # commented out until we have node producing 64-bit builds.
+        #, {
+        #  'include_dirs': [
+        #    'config/k8',
+        #  ],
+        #  'direct_dependent_settings': {
+        #    'include_dirs': [
+        #      'openssl/include',
+        #      'config/k8',
+        #    ],
+        #  },
+        #}
+        ],
+      ],
+
       'copts': [
         '-w',
         '-Wno-cast-qual',
@@ -587,33 +628,6 @@
         'openssl/crypto/asn1',
         'openssl/crypto/evp',
         'openssl/include',
-      ],
-      'conditions': [
-        ['OS=="mac"', {
-          'defines!': [ 'TERMIO' ],
-          'defines': [ 'TERMIOS' ],
-        }],
-        ['target_arch=="ia32"', {
-          'include_dirs': [
-            'config/piii',
-          ],
-          'direct_dependent_settings': {
-            'include_dirs': [
-              'openssl/include',
-              'config/piii',
-            ],
-          },
-        }, {
-          'include_dirs': [
-            'config/k8',
-          ],
-          'direct_dependent_settings': {
-            'include_dirs': [
-              'openssl/include',
-              'config/k8',
-            ],
-          },
-        }],
       ],
     },
   ],

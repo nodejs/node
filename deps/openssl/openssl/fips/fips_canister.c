@@ -19,6 +19,7 @@
 	(defined(__linux) && (defined(__arm) || defined(__arm__)))	|| \
 	(defined(__i386) || defined(__i386__))				|| \
 	(defined(__x86_64) || defined(__x86_64__))			|| \
+	defined(__ANDROID__)						|| \
 	(defined(vax) || defined(__vax__))
 #  define POINTER_TO_FUNCTION_IS_POINTER_TO_1ST_INSTRUCTION
 # endif

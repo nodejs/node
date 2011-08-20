@@ -72,8 +72,6 @@
 extern "C" {
 #endif
 
-#include <stddef.h>
-
 typedef struct MD2state_st
 	{
 	unsigned int num;

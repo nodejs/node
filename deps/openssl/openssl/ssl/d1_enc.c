@@ -131,13 +131,11 @@ int dtls1_enc(SSL *s, int send)
 	SSL3_RECORD *rec;
 	EVP_CIPHER_CTX *ds;
 	unsigned long l;
-	int bs,i,ii,j,k,n=0;
+	int bs,i,ii,j,k;
 	const EVP_CIPHER *enc;
 
 	if (send)
 		{
-		if (s->write_hash != NULL)
-			n=EVP_MD_size(s->write_hash);
 		ds=s->enc_write_ctx;
 		rec= &(s->s3->wrec);
 		if (s->enc_write_ctx == NULL)
@@ -158,8 +156,6 @@ int dtls1_enc(SSL *s, int send)
 		}
 	else
 		{
-		if (s->read_hash != NULL)
-			n=EVP_MD_size(s->read_hash);
 		ds=s->enc_read_ctx;
 		rec= &(s->s3->rrec);
 		if (s->enc_read_ctx == NULL)
@@ -224,11 +220,7 @@ int dtls1_enc(SSL *s, int send)
 		if (!send)
 			{
 			if (l == 0 || l%bs != 0)
-				{
-				SSLerr(SSL_F_DTLS1_ENC,SSL_R_BLOCK_CIPHER_PAD_IS_WRONG);
-				ssl3_send_alert(s,SSL3_AL_FATAL,SSL_AD_DECRYPTION_FAILED);
-				return 0;
-				}
+				return -1;
 			}
 		
 		EVP_Cipher(ds,rec->data,rec->input,l);

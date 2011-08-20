@@ -97,14 +97,8 @@ SSL_CIPHER *ssl23_get_cipher(unsigned int u)
  * available */
 SSL_CIPHER *ssl23_get_cipher_by_char(const unsigned char *p)
 	{
-	SSL_CIPHER c,*cp;
-	unsigned long id;
-	int n;
+	SSL_CIPHER *cp;
 
-	n=ssl3_num_ciphers();
-	id=0x03000000|((unsigned long)p[0]<<16L)|
-		((unsigned long)p[1]<<8L)|(unsigned long)p[2];
-	c.id=id;
 	cp=ssl3_get_cipher_by_char(p);
 #ifndef OPENSSL_NO_SSL2
 	if (cp == NULL)

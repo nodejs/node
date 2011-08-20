@@ -342,7 +342,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 	X509_ALGOR *enc_alg=NULL;
 	STACK_OF(X509_ALGOR) *md_sk=NULL;
 	STACK_OF(PKCS7_RECIP_INFO) *rsk=NULL;
-	X509_ALGOR *xalg=NULL;
 	PKCS7_RECIP_INFO *ri=NULL;
 
 	i=OBJ_obj2nid(p7->type);
@@ -365,7 +364,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			PKCS7err(PKCS7_F_PKCS7_DATADECODE,PKCS7_R_UNSUPPORTED_CIPHER_TYPE);
 			goto err;
 			}
-		xalg=p7->d.signed_and_enveloped->enc_data->algorithm;
 		break;
 	case NID_pkcs7_enveloped:
 		rsk=p7->d.enveloped->recipientinfo;
@@ -377,7 +375,6 @@ BIO *PKCS7_dataDecode(PKCS7 *p7, EVP_PKEY *pkey, BIO *in_bio, X509 *pcert)
 			PKCS7err(PKCS7_F_PKCS7_DATADECODE,PKCS7_R_UNSUPPORTED_CIPHER_TYPE);
 			goto err;
 			}
-		xalg=p7->d.enveloped->enc_data->algorithm;
 		break;
 	default:
 		PKCS7err(PKCS7_F_PKCS7_DATADECODE,PKCS7_R_UNSUPPORTED_CONTENT_TYPE);

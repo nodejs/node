@@ -66,8 +66,6 @@
 extern "C" {
 #endif
 
-#include <stddef.h>
-
 #ifdef OPENSSL_NO_MD4
 #error MD4 is disabled.
 #endif

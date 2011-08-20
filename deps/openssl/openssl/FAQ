@@ -52,6 +52,9 @@ OpenSSL  -  Frequently Asked Questions
 * Why does the OpenSSL test suite fail in sha512t on x86 CPU?
 * Why does compiler fail to compile sha512.c?
 * Test suite still fails, what to do?
+* I think I've found a bug, what should I do?
+* I'm SURE I've found a bug, how do I report it?
+* I've found a security issue, how do I report it?
 
 [PROG] Questions about programming with OpenSSL
 
@@ -79,7 +82,7 @@ OpenSSL  -  Frequently Asked Questions
 * Which is the current version of OpenSSL?
 
 The current version is available from <URL: http://www.openssl.org>.
-OpenSSL 1.0.0 was released on Mar 29th, 2010.
+OpenSSL 1.0.0d was released on Feb 8th, 2011.
 
 In addition to the current stable release, you can also access daily
 snapshots of the OpenSSL development version at <URL:
@@ -131,7 +134,7 @@ OpenSSL.  Information on the OpenSSL mailing lists is available from
 * Where can I get a compiled version of OpenSSL?
 
 You can finder pointers to binary distributions in
-http://www.openssl.org/related/binaries.html .
+<URL: http://www.openssl.org/related/binaries.html> .
 
 Some applications that use OpenSSL are distributed in binary form.
 When using such an application, you don't need to install OpenSSL
@@ -463,7 +466,7 @@ administrators.
 Other projects do have other policies so you can for example extract the CA
 bundle used by Mozilla and/or modssl as described in this article:
 
-  http://www.mail-archive.com/modssl-users@modssl.org/msg16980.html
+  <URL: http://www.mail-archive.com/modssl-users@modssl.org/msg16980.html>
 
 
 [BUILD] =======================================================================
@@ -505,7 +508,7 @@ when you run the test suite (using "make test").  The message returned is
 "bc: 1 not implemented".
 
 The best way to deal with this is to find another implementation of bc
-and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html
+and compile/install it.  GNU bc (see <URL: http://www.gnu.org/software/software.html>
 for download instructions) can be safely used, for example.
 
 
@@ -516,7 +519,7 @@ that the OpenSSL bntest throws at it.  This gets triggered when you run the
 test suite (using "make test").  The message returned is "bc: stack empty".
 
 The best way to deal with this is to find another implementation of bc
-and compile/install it.  GNU bc (see http://www.gnu.org/software/software.html
+and compile/install it.  GNU bc (see <URL: http://www.gnu.org/software/software.html>
 for download instructions) can be safely used, for example.
 
 
@@ -708,6 +711,46 @@ a compiler bug. Compiler bugs might appear in rather bizarre ways, they
 never make sense, and tend to emerge when you least expect them. In order
 to identify one, drop optimization level, e.g. by editing CFLAG line in
 top-level Makefile, recompile and re-run the test.
+
+* I think I've found a bug, what should I do?
+
+If you are a new user then it is quite likely you haven't found a bug and
+something is happening you aren't familiar with. Check this FAQ, the associated
+documentation and the mailing lists for similar queries. If you are still
+unsure whether it is a bug or not submit a query to the openssl-users mailing
+list.
+
+
+* I'm SURE I've found a bug, how do I report it?
+
+Bug reports with no security implications should be sent to the request
+tracker. This can be done by mailing the report to <rt@openssl.org> (or its
+alias <openssl-bugs@openssl.org>), please note that messages sent to the
+request tracker also appear in the public openssl-dev mailing list.
+
+The report should be in plain text. Any patches should be sent as
+plain text attachments because some mailers corrupt patches sent inline.
+If your issue affects multiple versions of OpenSSL check any patches apply
+cleanly and, if possible include patches to each affected version.
+
+The report should be given a meaningful subject line briefly summarising the
+issue. Just "bug in OpenSSL" or "bug in OpenSSL 0.9.8n" is not very helpful.
+
+By sending reports to the request tracker the bug can then be given a priority
+and assigned to the appropriate maintainer. The history of discussions can be
+accessed and if the issue has been addressed or a reason why not. If patches
+are only sent to openssl-dev they can be mislaid if a team member has to
+wade through months of old messages to review the discussion.
+
+See also <URL: http://www.openssl.org/support/rt.html>
+
+
+* I've found a security issue, how do I report it?
+
+If you think your bug has security implications then please send it to
+openssl-security@openssl.org if you don't get a prompt reply at least 
+acknowledging receipt then resend or mail it directly to one of the
+more active team members (e.g. Steve).
 
 [PROG] ========================================================================
 

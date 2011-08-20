@@ -283,23 +283,53 @@ int JPAKE_STEP1_generate(JPAKE_STEP1 *send, JPAKE_CTX *ctx)
     return 1;
     }
 
+/* g^x is a legal value */
+static int is_legal(const BIGNUM *gx, const JPAKE_CTX *ctx)
+    {
+    BIGNUM *t;
+    int res;
+    
+    if(BN_is_negative(gx) || BN_is_zero(gx) || BN_cmp(gx, ctx->p.p) >= 0)
+	return 0;
+
+    t = BN_new();
+    BN_mod_exp(t, gx, ctx->p.q, ctx->p.p, ctx->ctx);
+    res = BN_is_one(t);
+    BN_free(t);
+
+    return res;
+    }
+
 int JPAKE_STEP1_process(JPAKE_CTX *ctx, const JPAKE_STEP1 *received)
     {
-   /* verify their ZKP(xc) */
+    if(!is_legal(received->p1.gx, ctx))
+	{
+	JPAKEerr(JPAKE_F_JPAKE_STEP1_PROCESS, JPAKE_R_G_TO_THE_X3_IS_NOT_LEGAL);
+	return 0;
+	}
+
+    if(!is_legal(received->p2.gx, ctx))
+	{
+	JPAKEerr(JPAKE_F_JPAKE_STEP1_PROCESS, JPAKE_R_G_TO_THE_X4_IS_NOT_LEGAL);
+	return 0;
+	}
+
+
+    /* verify their ZKP(xc) */
     if(!verify_zkp(&received->p1, ctx->p.g, ctx))
 	{
 	JPAKEerr(JPAKE_F_JPAKE_STEP1_PROCESS, JPAKE_R_VERIFY_X3_FAILED);
 	return 0;
 	}
 
-   /* verify their ZKP(xd) */
+    /* verify their ZKP(xd) */
     if(!verify_zkp(&received->p2, ctx->p.g, ctx))
 	{
 	JPAKEerr(JPAKE_F_JPAKE_STEP1_PROCESS, JPAKE_R_VERIFY_X4_FAILED);
 	return 0;
 	}
 
-   /* g^xd != 1 */
+    /* g^xd != 1 */
     if(BN_is_one(received->p2.gx))
 	{
 	JPAKEerr(JPAKE_F_JPAKE_STEP1_PROCESS, JPAKE_R_G_TO_THE_X4_IS_ONE);

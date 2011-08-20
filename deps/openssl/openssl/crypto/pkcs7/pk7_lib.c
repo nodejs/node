@@ -558,7 +558,6 @@ X509 *PKCS7_cert_from_signer_info(PKCS7 *p7, PKCS7_SIGNER_INFO *si)
 int PKCS7_set_cipher(PKCS7 *p7, const EVP_CIPHER *cipher)
 	{
 	int i;
-	ASN1_OBJECT *objtmp;
 	PKCS7_ENC_CONTENT *ec;
 
 	i=OBJ_obj2nid(p7->type);
@@ -581,7 +580,6 @@ int PKCS7_set_cipher(PKCS7 *p7, const EVP_CIPHER *cipher)
 		PKCS7err(PKCS7_F_PKCS7_SET_CIPHER,PKCS7_R_CIPHER_HAS_NO_OBJECT_IDENTIFIER);
 		return(0);
 	}
-	objtmp = OBJ_nid2obj(i);
 
 	ec->cipher = cipher;
 	return 1;

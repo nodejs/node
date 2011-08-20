@@ -242,7 +242,7 @@ RSA *d2i_RSA_NET(RSA **a, const unsigned char **pp, long length,
 		 int sgckey)
 	{
 	RSA *ret=NULL;
-	const unsigned char *p, *kp;
+	const unsigned char *p;
 	NETSCAPE_ENCRYPTED_PKEY *enckey = NULL;
 
 	p = *pp;
@@ -265,7 +265,6 @@ RSA *d2i_RSA_NET(RSA **a, const unsigned char **pp, long length,
 		ASN1err(ASN1_F_D2I_RSA_NET,ASN1_R_UNSUPPORTED_ENCRYPTION_ALGORITHM);
 		goto err;
 	}
-	kp = enckey->enckey->digest->data;
 	if (cb == NULL)
 		cb=EVP_read_pw_string;
 	if ((ret=d2i_RSA_NET_2(a, enckey->enckey->digest,cb, sgckey)) == NULL) goto err;

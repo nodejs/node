@@ -36,7 +36,9 @@ may differ on your machine.
 
 
 As long as Apple doesn't fix the problem with ld, this problem building
-OpenSSL will remain as is.
+OpenSSL will remain as is. Well, the problem was addressed in 0.9.8f by
+passing -Wl,-search_paths_first, but it's unknown if the flag was
+supported from the initial MacOS X release.
 
 
 * Parallell make leads to errors

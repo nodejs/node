@@ -78,9 +78,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	DSA *dsa=NULL;
 	int ret=1;
 	char *outfile=NULL;
@@ -206,7 +203,7 @@ bad:
 		}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	if(!app_passwd(bio_err, NULL, passargout, NULL, &passout)) {

@@ -4,7 +4,7 @@
 ## Makefile for OpenSSL
 ##
 
-VERSION=0.9.8o
+VERSION=0.9.8r
 MAJOR=0
 MINOR=9.8
 SHLIB_VERSION_NUMBER=0.9.8
@@ -12,9 +12,9 @@ SHLIB_VERSION_HISTORY=
 SHLIB_MAJOR=0
 SHLIB_MINOR=9.8
 SHLIB_EXT=
-PLATFORM=dist
-OPTIONS= no-camellia no-capieng no-cms no-gmp no-jpake no-krb5 no-mdc2 no-montasm no-rc5 no-rfc3779 no-seed no-shared no-zlib no-zlib-dynamic
-CONFIGURE_ARGS=dist
+PLATFORM=VC-WIN32
+OPTIONS=--prefix=build\debug\lib no-camellia no-capieng no-cms no-gmp no-jpake no-krb5 no-mdc2 no-montasm no-rc5 no-rfc3779 no-seed no-shared no-zlib no-zlib-dynamic
+CONFIGURE_ARGS=VC-WIN32 --prefix=build\debug\lib no-zlib no-zlib-dynamic
 SHLIB_TARGET=
 
 # HERE indicates where this Makefile lives.  This can be used to indicate
@@ -26,10 +26,10 @@ HERE=.
 # for, say, /usr/ and yet have everything installed to /tmp/somedir/usr/.
 # Normally it is left empty.
 INSTALL_PREFIX=
-INSTALLTOP=/usr/local/ssl
+INSTALLTOP=build\debug\lib
 
 # Do not edit this manually. Use Configure --openssldir=DIR do change this!
-OPENSSLDIR=/usr/local/ssl
+OPENSSLDIR=build\debug\lib/build\debug\lib/ssl
 
 # NO_IDEA - Define to build without the IDEA algorithm
 # NO_RC4  - Define to build without the RC4 algorithm
@@ -59,8 +59,8 @@ OPENSSLDIR=/usr/local/ssl
 # equal 4.
 # PKCS1_CHECK - pkcs1 tests.
 
-CC= cc
-CFLAG= -O
+CC= cl
+CFLAG= -DOPENSSL_THREADS  -DDSO_WIN32 
 DEPFLAG= -DOPENSSL_NO_CAMELLIA -DOPENSSL_NO_CAPIENG -DOPENSSL_NO_CMS -DOPENSSL_NO_GMP -DOPENSSL_NO_JPAKE -DOPENSSL_NO_MDC2 -DOPENSSL_NO_RC5 -DOPENSSL_NO_RFC3779 -DOPENSSL_NO_SEED
 PEX_LIBS= 
 EX_LIBS= 
@@ -68,8 +68,8 @@ EXE_EXT=
 ARFLAGS= 
 AR= ar $(ARFLAGS) r
 ARD=ar $(ARFLAGS) d
-RANLIB= /usr/bin/ranlib
-PERL= /usr/bin/perl
+RANLIB= true
+PERL= perl
 TAR= tar
 TARFLAGS= --no-recursion
 MAKEDEPPROG=makedepend

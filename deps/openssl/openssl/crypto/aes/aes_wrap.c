@@ -85,9 +85,9 @@ int AES_wrap_key(AES_KEY *key, const unsigned char *iv,
 			A[7] ^= (unsigned char)(t & 0xff);
 			if (t > 0xff)	
 				{
-				A[6] ^= (unsigned char)((t & 0xff) >> 8);
-				A[5] ^= (unsigned char)((t & 0xff) >> 16);
-				A[4] ^= (unsigned char)((t & 0xff) >> 24);
+				A[6] ^= (unsigned char)((t >> 8) & 0xff);
+				A[5] ^= (unsigned char)((t >> 16) & 0xff);
+				A[4] ^= (unsigned char)((t >> 24) & 0xff);
 				}
 			memcpy(R, B + 8, 8);
 			}
@@ -119,9 +119,9 @@ int AES_unwrap_key(AES_KEY *key, const unsigned char *iv,
 			A[7] ^= (unsigned char)(t & 0xff);
 			if (t > 0xff)	
 				{
-				A[6] ^= (unsigned char)((t & 0xff) >> 8);
-				A[5] ^= (unsigned char)((t & 0xff) >> 16);
-				A[4] ^= (unsigned char)((t & 0xff) >> 24);
+				A[6] ^= (unsigned char)((t >> 8) & 0xff);
+				A[5] ^= (unsigned char)((t >> 16) & 0xff);
+				A[4] ^= (unsigned char)((t >> 24) & 0xff);
 				}
 			memcpy(B + 8, R, 8);
 			AES_decrypt(B, B, key);

@@ -166,7 +166,7 @@ IMPLEMENT_ssl3_meth_func(SSLv3_client_method,
 int ssl3_connect(SSL *s)
 	{
 	BUF_MEM *buf=NULL;
-	unsigned long Time=(unsigned long)time(NULL),l;
+	unsigned long Time=(unsigned long)time(NULL);
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
 	int ret= -1;
 	int new_state,state,skip=0;
@@ -365,7 +365,6 @@ int ssl3_connect(SSL *s)
 		case SSL3_ST_CW_KEY_EXCH_B:
 			ret=ssl3_send_client_key_exchange(s);
 			if (ret <= 0) goto end;
-			l=s->s3->tmp.new_cipher->algorithms;
 			/* EAY EAY EAY need to check for DH fix cert
 			 * sent back */
 			/* For TLS, cert_req is set to 2, so a cert chain
@@ -866,8 +865,11 @@ int ssl3_get_server_hello(SSL *s)
 		s->session->cipher_id = s->session->cipher->id;
 	if (s->hit && (s->session->cipher_id != c->id))
 		{
+/* Workaround is now obsolete */
+#if 0
 		if (!(s->options &
 			SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG))
+#endif
 			{
 			al=SSL_AD_ILLEGAL_PARAMETER;
 			SSLerr(SSL_F_SSL3_GET_SERVER_HELLO,SSL_R_OLD_SESSION_CIPHER_NOT_RETURNED);
@@ -1428,6 +1430,7 @@ int ssl3_get_key_exchange(SSL *s)
 		s->session->sess_cert->peer_ecdh_tmp=ecdh;
 		ecdh=NULL;
 		BN_CTX_free(bn_ctx);
+		bn_ctx = NULL;
 		EC_POINT_free(srvr_ecpoint);
 		srvr_ecpoint = NULL;
 		}

@@ -83,7 +83,6 @@ const ECDSA_METHOD *ECDSA_get_default_method(void)
 
 int ECDSA_set_method(EC_KEY *eckey, const ECDSA_METHOD *meth)
 {
-        const ECDSA_METHOD *mtmp;
 	ECDSA_DATA *ecdsa;
 
 	ecdsa = ecdsa_check(eckey);
@@ -91,7 +90,6 @@ int ECDSA_set_method(EC_KEY *eckey, const ECDSA_METHOD *meth)
 	if (ecdsa == NULL)
 		return 0;
 
-        mtmp = ecdsa->meth;
 #ifndef OPENSSL_NO_ENGINE
 	if (ecdsa->engine)
 	{

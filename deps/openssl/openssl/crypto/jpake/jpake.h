@@ -115,6 +115,8 @@ void ERR_load_JPAKE_strings(void);
 #define JPAKE_F_VERIFY_ZKP				 100
 
 /* Reason codes. */
+#define JPAKE_R_G_TO_THE_X3_IS_NOT_LEGAL		 108
+#define JPAKE_R_G_TO_THE_X4_IS_NOT_LEGAL		 109
 #define JPAKE_R_G_TO_THE_X4_IS_ONE			 105
 #define JPAKE_R_HASH_OF_HASH_OF_KEY_MISMATCH		 106
 #define JPAKE_R_HASH_OF_KEY_MISMATCH			 107

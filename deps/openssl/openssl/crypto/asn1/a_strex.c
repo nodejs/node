@@ -74,6 +74,11 @@
 
 #define CHARTYPE_BS_ESC		(ASN1_STRFLGS_ESC_2253 | CHARTYPE_FIRST_ESC_2253 | CHARTYPE_LAST_ESC_2253)
 
+#define ESC_FLAGS (ASN1_STRFLGS_ESC_2253 | \
+		  ASN1_STRFLGS_ESC_QUOTE | \
+		  ASN1_STRFLGS_ESC_CTRL | \
+		  ASN1_STRFLGS_ESC_MSB)
+
 
 /* Three IO functions for sending data to memory, a BIO and
  * and a FILE pointer.
@@ -147,6 +152,13 @@ static int do_esc_char(unsigned long c, unsigned char flags, char *do_quotes, ch
 		BIO_snprintf(tmphex, 11, "\\%02X", chtmp);
 		if(!io_ch(arg, tmphex, 3)) return -1;
 		return 3;
+	}
+	/* If we get this far and do any escaping at all must escape 
+	 * the escape character itself: backslash.
+	 */
+	if (chtmp == '\\' && flags & ESC_FLAGS) {
+		if(!io_ch(arg, "\\\\", 2)) return -1;
+		return 2;
 	}
 	if(!io_ch(arg, &chtmp, 1)) return -1;
 	return 1;
@@ -291,11 +303,6 @@ static const signed char tag2nbyte[] = {
 	-1, 1, -1,		/* 25-27 */
 	4, -1, 2		/* 28-30 */
 };
-
-#define ESC_FLAGS (ASN1_STRFLGS_ESC_2253 | \
-		  ASN1_STRFLGS_ESC_QUOTE | \
-		  ASN1_STRFLGS_ESC_CTRL | \
-		  ASN1_STRFLGS_ESC_MSB)
 
 /* This is the main function, print out an
  * ASN1_STRING taking note of various escape

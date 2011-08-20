@@ -81,7 +81,7 @@ int EVP_SignFinal(EVP_MD_CTX *ctx, unsigned char *sigret, unsigned int *siglen,
 	unsigned char m[EVP_MAX_MD_SIZE];
 	unsigned int m_len;
 	int i,ok=0,v;
-	MS_STATIC EVP_MD_CTX tmp_ctx;
+	EVP_MD_CTX tmp_ctx;
 
 	*siglen=0;
 	for (i=0; i<4; i++)

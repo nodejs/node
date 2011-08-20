@@ -110,7 +110,7 @@ int BIO_set(BIO *bio, BIO_METHOD *method)
 
 int BIO_free(BIO *a)
 	{
-	int ret=0,i;
+	int i;
 
 	if (a == NULL) return(0);
 
@@ -133,7 +133,7 @@ int BIO_free(BIO *a)
 	CRYPTO_free_ex_data(CRYPTO_EX_INDEX_BIO, a, &a->ex_data);
 
 	if ((a->method == NULL) || (a->method->destroy == NULL)) return(1);
-	ret=a->method->destroy(a);
+	a->method->destroy(a);
 	OPENSSL_free(a);
 	return(1);
 	}

@@ -144,7 +144,7 @@ IMPLEMENT_dtls1_meth_func(DTLSv1_client_method,
 int dtls1_connect(SSL *s)
 	{
 	BUF_MEM *buf=NULL;
-	unsigned long Time=(unsigned long)time(NULL),l;
+	unsigned long Time=(unsigned long)time(NULL);
 	void (*cb)(const SSL *ssl,int type,int val)=NULL;
 	int ret= -1;
 	int new_state,state,skip=0;;
@@ -374,7 +374,6 @@ int dtls1_connect(SSL *s)
 			dtls1_start_timer(s);
 			ret=dtls1_send_client_key_exchange(s);
 			if (ret <= 0) goto end;
-			l=s->s3->tmp.new_cipher->algorithms;
 			/* EAY EAY EAY need to check for DH fix cert
 			 * sent back */
 			/* For TLS, cert_req is set to 2, so a cert chain

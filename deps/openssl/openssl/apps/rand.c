@@ -77,9 +77,6 @@ int MAIN(int, char **);
 
 int MAIN(int argc, char **argv)
 	{
-#ifndef OPENSSL_NO_ENGINE
-	ENGINE *e = NULL;
-#endif
 	int i, r, ret = 1;
 	int badopt;
 	char *outfile = NULL;
@@ -178,7 +175,7 @@ int MAIN(int argc, char **argv)
 		}
 
 #ifndef OPENSSL_NO_ENGINE
-        e = setup_engine(bio_err, engine, 0);
+        setup_engine(bio_err, engine, 0);
 #endif
 
 	app_RAND_load_file(NULL, bio_err, (inrand != NULL));
