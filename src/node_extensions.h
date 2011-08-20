@@ -44,6 +44,7 @@ NODE_EXT_LIST_ITEM(node_os)
 // libuv rewrite
 NODE_EXT_LIST_ITEM(node_timer_wrap)
 NODE_EXT_LIST_ITEM(node_tcp_wrap)
+NODE_EXT_LIST_ITEM(node_udp_wrap)
 NODE_EXT_LIST_ITEM(node_pipe_wrap)
 NODE_EXT_LIST_ITEM(node_cares_wrap)
 NODE_EXT_LIST_ITEM(node_stdio_wrap)

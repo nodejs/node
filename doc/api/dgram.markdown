@@ -31,6 +31,11 @@ Creates a datagram socket of the specified types.  Valid types are:
 
 Takes an optional callback which is added as a listener for `message` events.
 
+Call `socket.bind` if you want to receive datagrams. `socket.bind()` will bind
+to the "all interfaces" address on a random port (it does the right thing for
+both `udp4` and `udp6` sockets). You can then retrieve the address and port
+with `socket.address().address` and `socket.address().port`.
+
 ### dgram.send(buf, offset, length, path, [callback])
 
 For Unix domain datagram sockets, the destination address is a pathname in the filesystem.
@@ -60,6 +65,10 @@ optional callback may be specified to detect any DNS errors and when `buf` may b
 re-used.  Note that DNS lookups will delay the time that a send takes place, at
 least until the next tick.  The only way to know for sure that a send has taken place
 is to use the callback.
+
+If the socket has not been previously bound with a call to `bind`, it's
+assigned a random port number and bound to the "all interfaces" address
+(0.0.0.0 for IPv4-only systems, ::0 for IPv6 and dual stack systems).
 
 Example of sending a UDP packet to a random port on `localhost`;
 
@@ -142,8 +151,7 @@ Example of a UDP server listening on port 41234:
 
 ### dgram.close()
 
-Close the underlying socket and stop listening for data on it.  UDP sockets
-automatically listen for messages, even if they did not call `bind()`.
+Close the underlying socket and stop listening for data on it.
 
 ### dgram.address()
 

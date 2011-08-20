@@ -425,6 +425,9 @@
       case 'timers':
         return process.features.uv ? 'timers_uv' : 'timers_legacy';
 
+      case 'dgram':
+        return process.features.uv ? 'dgram_uv' : 'dgram_legacy';
+
       case 'dns':
         return process.features.uv ? 'dns_uv' : 'dns_legacy';
 
