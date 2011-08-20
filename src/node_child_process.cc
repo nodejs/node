@@ -167,7 +167,13 @@ Handle<Value> ChildProcess::Spawn(const Arguments& args) {
   if (args[4]->IsArray()) {
     // Set the custom file descriptor values (if any) for the child process
     Local<Array> custom_fds_handle = Local<Array>::Cast(args[4]);
+
     int custom_fds_len = custom_fds_handle->Length();
+    // Bound by 3.
+    if (custom_fds_len > 3) {
+      custom_fds_len = 3;
+    }
+
     for (int i = 0; i < custom_fds_len; i++) {
       if (custom_fds_handle->Get(i)->IsUndefined()) continue;
       Local<Integer> fd = custom_fds_handle->Get(i)->ToInteger();
