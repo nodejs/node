@@ -86,12 +86,12 @@ $(CARES_OBJS): %.o: %.c
 	$(CC) -o $*.o -c $(CFLAGS) $(CPPFLAGS) $< -DHAVE_CONFIG_H
 
 test/run-tests$(E): test/*.h test/run-tests.c $(RUNNER_SRC) test/runner-unix.c $(TESTS) uv.a
-	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) $(RUNNER_LINKFLAGS) -o test/run-tests test/run-tests.c \
-		test/runner.c $(RUNNER_SRC) $(TESTS) uv.a $(RUNNER_LIBS)
+	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o test/run-tests test/run-tests.c \
+		test/runner.c $(RUNNER_SRC) $(TESTS) uv.a $(RUNNER_LIBS) $(RUNNER_LINKFLAGS)
 
 test/run-benchmarks$(E): test/*.h test/run-benchmarks.c test/runner.c $(RUNNER_SRC) $(BENCHMARKS) uv.a
-	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) $(RUNNER_LINKFLAGS) -o test/run-benchmarks test/run-benchmarks.c \
-		 test/runner.c $(RUNNER_SRC) $(BENCHMARKS) uv.a $(RUNNER_LIBS)
+	$(CC) $(CPPFLAGS) $(RUNNER_CFLAGS) -o test/run-benchmarks test/run-benchmarks.c \
+		 test/runner.c $(RUNNER_SRC) $(BENCHMARKS) uv.a $(RUNNER_LIBS) $(RUNNER_LINKFLAGS)
 
 test/echo.o: test/echo.c test/echo.h
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c test/echo.c -o test/echo.o

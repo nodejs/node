@@ -28,25 +28,42 @@
 
 sRtlNtStatusToDosError pRtlNtStatusToDosError;
 sNtQueryInformationFile pNtQueryInformationFile;
+sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
+sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 
 
 void uv_winapi_init() {
-  HMODULE module;
+  HMODULE ntdll_module;
+  HMODULE kernel32_module;
 
-  module = GetModuleHandleA("ntdll.dll");
-  if (module == NULL) {
+  ntdll_module = GetModuleHandleA("ntdll.dll");
+  if (ntdll_module == NULL) {
     uv_fatal_error(GetLastError(), "GetModuleHandleA");
   }
 
-  pRtlNtStatusToDosError = (sRtlNtStatusToDosError) GetProcAddress(module,
+  pRtlNtStatusToDosError = (sRtlNtStatusToDosError) GetProcAddress(
+      ntdll_module,
       "RtlNtStatusToDosError");
   if (pRtlNtStatusToDosError == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
 
-  pNtQueryInformationFile = (sNtQueryInformationFile) GetProcAddress(module,
+  pNtQueryInformationFile = (sNtQueryInformationFile) GetProcAddress(
+      ntdll_module,
       "NtQueryInformationFile");
   if (pNtQueryInformationFile == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
+
+  kernel32_module = GetModuleHandleA("kernel32.dll");
+  if (kernel32_module == NULL) {
+    uv_fatal_error(GetLastError(), "GetModuleHandleA");
+  }
+
+  pGetQueuedCompletionStatusEx = (sGetQueuedCompletionStatusEx) GetProcAddress(
+      kernel32_module,
+      "GetQueuedCompletionStatusEx");
+
+  pSetFileCompletionNotificationModes = (sSetFileCompletionNotificationModes)
+    GetProcAddress(kernel32_module, "SetFileCompletionNotificationModes");
 }

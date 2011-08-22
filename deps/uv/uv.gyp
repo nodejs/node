@@ -102,7 +102,6 @@
             'src/win/handle.c',
             'src/win/internal.h',
             'src/win/loop-watcher.c',
-            'src/win/ntdll.h',
             'src/win/pipe.c',
             'src/win/process.c',
             'src/win/req.c',
@@ -112,6 +111,9 @@
             'src/win/timer.c',
             'src/win/util.c',
             'src/win/winapi.c',
+            'src/win/winapi.h',
+            'src/win/winsock.c',
+            'src/win/winsock.h',
           ],
           'link_settings': {
             'libraries': [

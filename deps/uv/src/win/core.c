@@ -68,7 +68,7 @@ static void uv_loop_init() {
 
 void uv_init() {
   /* Initialize winsock */
-  uv_winsock_startup();
+  uv_winsock_init();
 
   /* Fetch winapi function pointers */
   uv_winapi_init();
@@ -124,33 +124,80 @@ static void uv_poll(int block) {
 }
 
 
+static void uv_poll_ex(int block) {
+  BOOL success;
+  DWORD timeout;
+  uv_req_t* req;
+  OVERLAPPED_ENTRY overlappeds[64];
+  ULONG count;
+  ULONG i;
+
+  if (block) {
+    timeout = uv_get_poll_timeout();
+  } else {
+    timeout = 0;
+  }
+
+  assert(pGetQueuedCompletionStatusEx);
+
+  success = pGetQueuedCompletionStatusEx(LOOP->iocp,
+                                         overlappeds,
+                                         COUNTOF(overlappeds),
+                                         &count,
+                                         timeout,
+                                         FALSE);
+  if (success) {
+    for (i = 0; i < count; i++) {
+      /* Package was dequeued */
+      req = uv_overlapped_to_req(overlappeds[i].lpOverlapped);
+      if (overlappeds[i].lpOverlapped->Internal != STATUS_SUCCESS) {
+        req->error = uv_new_sys_error(pRtlNtStatusToDosError(
+          overlappeds[i].lpOverlapped->Internal));
+      }
+      uv_insert_pending_req(req);
+    }
+  } else if (GetLastError() != WAIT_TIMEOUT) {
+    /* Serious error */
+    uv_fatal_error(GetLastError(), "GetQueuedCompletionStatusEx");
+  }
+}
+
+
+#define UV_LOOP(poll)                                                         \
+  while (LOOP->refs > 0) {                                                    \
+    uv_update_time();                                                         \
+    uv_process_timers();                                                      \
+                                                                              \
+    /* Call idle callbacks if nothing to do. */                               \
+    if (LOOP->pending_reqs_tail == NULL && LOOP->endgame_handles == NULL) {   \
+      uv_idle_invoke();                                                       \
+    }                                                                         \
+                                                                              \
+    /* Completely flush all pending reqs and endgames. */                     \
+    /* We do even when we just called the idle callbacks because those may */ \
+    /* have closed handles or started requests that short-circuited. */       \
+    while (LOOP->pending_reqs_tail || LOOP->endgame_handles) {                \
+      uv_process_endgames();                                                  \
+      uv_process_reqs();                                                      \
+    }                                                                         \
+                                                                              \
+    if (LOOP->refs <= 0) {                                                    \
+      break;                                                                  \
+    }                                                                         \
+                                                                              \
+    uv_prepare_invoke();                                                      \
+                                                                              \
+    poll(LOOP->idle_handles == NULL && LOOP->refs > 0);                       \
+                                                                              \
+    uv_check_invoke();                                                        \
+  }
+
+
 int uv_run() {
-  while (LOOP->refs > 0) {
-    uv_update_time();
-    uv_process_timers();
-
-    /* Call idle callbacks if nothing to do. */
-    if (LOOP->pending_reqs_tail == NULL && LOOP->endgame_handles == NULL) {
-      uv_idle_invoke();
-    }
-
-    /* Completely flush all pending reqs and endgames. */
-    /* We do even when we just called the idle callbacks because those may */
-    /* have closed handles or started requests that short-circuited. */
-    while (LOOP->pending_reqs_tail || LOOP->endgame_handles) {
-      uv_process_endgames();
-      uv_process_reqs();
-    }
-
-    if (LOOP->refs <= 0) {
-      break;
-    }
-
-    uv_prepare_invoke();
-
-    uv_poll(LOOP->idle_handles == NULL && LOOP->refs > 0);
-
-    uv_check_invoke();
+  if (pGetQueuedCompletionStatusEx) {
+    UV_LOOP(uv_poll_ex);
+  } else {
+    UV_LOOP(uv_poll);
   }
 
   assert(LOOP->refs == 0);

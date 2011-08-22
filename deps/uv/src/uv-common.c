@@ -43,6 +43,14 @@ uv_counters_t* uv_counters() {
 }
 
 
+uv_buf_t uv_buf_init(char* base, size_t len) {
+  uv_buf_t buf;
+  buf.base = base;
+  buf.len = len;
+  return buf;
+}
+
+
 const char* uv_err_name(uv_err_t err) {
   switch (err.code) {
     case UV_UNKNOWN: return "UNKNOWN";

@@ -103,12 +103,7 @@ int uv_async_send(uv_async_t* handle) {
   assert(!(handle->flags & UV_HANDLE_CLOSING));
 
   if (!uv_atomic_exchange_set(&handle->async_sent)) {
-    if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                    0,
-                                    0,
-                                    &handle->async_req.overlapped)) {
-      uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-    }
+    POST_COMPLETION_FOR_REQ(&handle->async_req);
   }
 
   return 0;

@@ -127,7 +127,7 @@ static void spawn() {
 
 
 BENCHMARK_IMPL(spawn) {
-  int r; 
+  int r;
   static int64_t start_time, end_time;
 
   uv_init();

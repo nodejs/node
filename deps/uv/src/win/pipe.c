@@ -157,20 +157,13 @@ static DWORD WINAPI pipe_shutdown_thread_proc(void* parameter) {
   FlushFileBuffers(handle->handle);
 
   /* Post completed */
-  if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                0,
-                                0,
-                                &req->overlapped)) {
-    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-  }
+  POST_COMPLETION_FOR_REQ(req);
 
   return 0;
 }
 
 
 void uv_pipe_endgame(uv_pipe_t* handle) {
-  uv_err_t err;
-  int status;
   unsigned int uv_alloced;
   DWORD result;
   uv_shutdown_t* req;
@@ -378,15 +371,8 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
     req->error = uv_new_sys_error(GetLastError());
   }
 
-  memset(&req->overlapped, 0, sizeof(req->overlapped));
-
   /* Post completed */
-  if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                0,
-                                0,
-                                &req->overlapped)) {
-    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-  }
+  POST_COMPLETION_FOR_REQ(req);
 
   return 0;
 }

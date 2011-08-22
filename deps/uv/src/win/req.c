@@ -114,7 +114,7 @@ void uv_process_reqs() {
         /* Tcp shutdown requests don't come here. */
         assert(((uv_shutdown_t*) req)->handle->type == UV_NAMED_PIPE);
         uv_process_pipe_shutdown_req(
-            (uv_pipe_t*) ((uv_shutdown_t*) req)->handle, req);
+            (uv_pipe_t*) ((uv_shutdown_t*) req)->handle, (uv_shutdown_t*) req);
         break;
 
       case UV_WAKEUP:

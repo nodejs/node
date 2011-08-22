@@ -19,20 +19,23 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_WIN_NTDLL_H_
-#define UV_WIN_NTDLL_H_
+#ifndef UV_WIN_WINAPI_H_
+#define UV_WIN_WINAPI_H_
 
 #include <windows.h>
 
 
+/*
+ * Ntdll headers
+ */
 #ifndef _NTDEF_
   typedef LONG NTSTATUS;
   typedef NTSTATUS *PNTSTATUS;
 #endif
 
-
-#define STATUS_SUCCESS ((NTSTATUS)0x0)
-
+#ifndef STATUS_SUCCESS
+  #define STATUS_SUCCESS ((NTSTATUS) 0x0)
+#endif
 
 typedef struct _IO_STATUS_BLOCK {
   union {
@@ -41,7 +44,6 @@ typedef struct _IO_STATUS_BLOCK {
   } DUMMYUNIONNAME;
   ULONG_PTR Information;
 } IO_STATUS_BLOCK, *PIO_STATUS_BLOCK;
-
 
 typedef struct _FILE_PIPE_LOCAL_INFORMATION {
   ULONG NamedPipeType;
@@ -55,7 +57,6 @@ typedef struct _FILE_PIPE_LOCAL_INFORMATION {
   ULONG NamedPipeState;
   ULONG NamedPipeEnd;
 } FILE_PIPE_LOCAL_INFORMATION, *PFILE_PIPE_LOCAL_INFORMATION;
-
 
 typedef enum _FILE_INFORMATION_CLASS {
   FileDirectoryInformation = 1,
@@ -116,7 +117,6 @@ typedef enum _FILE_INFORMATION_CLASS {
   FileMaximumInformation
 } FILE_INFORMATION_CLASS, *PFILE_INFORMATION_CLASS;
 
-
 typedef ULONG (NTAPI *sRtlNtStatusToDosError)
               (NTSTATUS Status);
 
@@ -127,4 +127,42 @@ typedef NTSTATUS (NTAPI *sNtQueryInformationFile)
                   ULONG Length,
                   FILE_INFORMATION_CLASS FileInformationClass);
 
-#endif /* UV_WIN_NTDLL_H_ */
+
+/*
+ * Kernel32 headers
+ */
+#define FILE_SKIP_COMPLETION_PORT_ON_SUCCESS    0x1
+#define FILE_SKIP_SET_EVENT_ON_HANDLE           0x2
+
+#ifdef __MINGW32__
+  typedef struct _OVERLAPPED_ENTRY {
+      ULONG_PTR lpCompletionKey;
+      LPOVERLAPPED lpOverlapped;
+      ULONG_PTR Internal;
+      DWORD dwNumberOfBytesTransferred;
+  } OVERLAPPED_ENTRY, *LPOVERLAPPED_ENTRY;
+#endif
+
+typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
+             (HANDLE CompletionPort,
+              LPOVERLAPPED_ENTRY lpCompletionPortEntries,
+              ULONG ulCount,
+              PULONG ulNumEntriesRemoved,
+              DWORD dwMilliseconds,
+              BOOL fAlertable);
+
+typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
+             (HANDLE FileHandle,
+              UCHAR Flags);
+
+
+/* Ntapi function pointers */
+extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
+extern sNtQueryInformationFile pNtQueryInformationFile;
+
+
+/* Kernel32 function pointers */
+extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
+extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
+
+#endif /* UV_WIN_WINAPI_H_ */

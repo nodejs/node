@@ -92,12 +92,7 @@ static void CALLBACK uv_ares_socksignal_tp(void* parameter, BOOLEAN timerfired) 
     uv_ares_req->data = selhandle;
 
     /* post ares needs to called */
-    if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                    0,
-                                    0,
-                                    &uv_ares_req->overlapped)) {
-      uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-    }
+    POST_COMPLETION_FOR_REQ(uv_ares_req);
   }
 }
 
@@ -148,12 +143,7 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int w
       uv_ares_req->data = uv_handle_ares;
 
       /* post ares done with socket - finish cleanup when all threads done. */
-      if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                      0,
-                                      0,
-                                      &uv_ares_req->overlapped)) {
-        uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-      }
+      POST_COMPLETION_FOR_REQ(uv_ares_req);
     } else {
       assert(0);
       uv_fatal_error(ERROR_INVALID_DATA, "ares_SockStateCB");
@@ -256,12 +246,7 @@ void uv_process_ares_cleanup_req(uv_ares_task_t* handle, uv_req_t* req) {
     }
   } else {
     /* stil busy - repost and try again */
-    if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                    0,
-                                    0,
-                                    &req->overlapped)) {
-      uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-    }
+    POST_COMPLETION_FOR_REQ(req);
   }
 }
 

@@ -44,7 +44,7 @@
 #define HAVE_STRING_H 1
 
 /* sync_file_range(2) is available if kernel >= 2.6.17 and glibc >= 2.6 */
-#if LINUX_VERSION_CODE >= 0x020611 && __GLIBC__ >= 2 && __GLIBC_MINOR__ >= 6
+#if LINUX_VERSION_CODE >= 0x020611 && __GLIBC_PREREQ(2, 6)
 #define HAVE_SYNC_FILE_RANGE 1
 #else
 #define HAVE_SYNC_FILE_RANGE 0

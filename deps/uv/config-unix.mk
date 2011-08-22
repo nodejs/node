@@ -32,7 +32,7 @@ CPPFLAGS += -D_FILE_OFFSET_BITS=64
 ifeq (SunOS,$(uname_S))
 EV_CONFIG=config_sunos.h
 EIO_CONFIG=config_sunos.h
-CPPFLAGS += -Isrc/ares/config_sunos -D__EXTENSIONS__
+CPPFLAGS += -Isrc/ares/config_sunos -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LINKFLAGS+=-lsocket -lnsl
 UV_OS_FILE=uv-sunos.c
 endif

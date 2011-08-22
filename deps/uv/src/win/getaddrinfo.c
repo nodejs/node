@@ -88,12 +88,7 @@ static DWORD WINAPI getaddrinfo_thread_proc(void* parameter) {
     handle->retcode = ret;
 
     /* post getaddrinfo completed */
-    if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                  0,
-                                  0,
-                                  &handle->getadddrinfo_req.overlapped)) {
-      uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-    }
+    POST_COMPLETION_FOR_REQ(&handle->getadddrinfo_req);
   }
 
   return 0;

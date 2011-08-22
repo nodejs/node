@@ -51,9 +51,6 @@ typedef struct env_var {
   }
 
 
-static const wchar_t DEFAULT_PATH_EXT[10] = L".COM;.EXE";
-
-
 static void uv_process_init(uv_process_t* handle) {
   handle->type = UV_PROCESS;
   handle->flags = 0;
@@ -153,10 +150,14 @@ static wchar_t* search_path_join_test(const wchar_t* dir,
   wcsncpy(result_pos, name, name_len);
   result_pos += name_len;
 
-  /* Copy extension */
   if (ext_len) {
-    result_pos[0] = L'.';
-    result_pos++;
+    /* Add a dot if the filename didn't end with one */
+    if (name_len && result_pos[-1] != '.') {
+      result_pos[0] = L'.';
+      result_pos++;
+    }
+
+    /* Copy extension */
     wcsncpy(result_pos, ext, ext_len);
     result_pos += ext_len;
   }
@@ -185,54 +186,39 @@ static wchar_t* path_search_walk_ext(const wchar_t *dir,
                                      int name_len,
                                      wchar_t *cwd,
                                      int cwd_len,
-                                     const wchar_t *path_ext,
                                      int name_has_ext) {
-  wchar_t* result = NULL;
+  wchar_t* result;
 
-  const wchar_t *ext_start,
-              *ext_end = path_ext;
-
-  /* If the name itself has a nonemtpy extension, try this extension first */
+  /* If the name itself has a nonempty extension, try this extension first */
   if (name_has_ext) {
     result = search_path_join_test(dir, dir_len,
                                    name, name_len,
                                    L"", 0,
                                    cwd, cwd_len);
+    if (result != NULL) {
+      return result;
+    }
   }
 
-  /* Add path_ext extensions and try to find a name that matches */
-  while (result == NULL) {
-    if (*ext_end == L'\0') {
-      break;
-    }
-
-    /* Skip the separator that ext_end now points to */
-    if (ext_end != path_ext) {
-      ext_end++;
-    }
-
-    /* Find the next dot in path_ext */
-    ext_start = wcschr(ext_end, L'.');
-    if (ext_start == NULL) {
-      break;
-    }
-
-    /* Skip the dot */
-    ext_start++;
-
-    /* Slice until we found a ; or alternatively a \0 */
-    ext_end = wcschr(ext_start, L';');
-    if (ext_end == NULL) {
-       ext_end = wcschr(ext_start, '\0');
-    }
-
-    result = search_path_join_test(dir, dir_len,
-                                   name, name_len,
-                                   ext_start, (ext_end - ext_start),
-                                   cwd, cwd_len);
+  /* Try .com extension */
+  result = search_path_join_test(dir, dir_len,
+                                 name, name_len,
+                                 L"com", 3,
+                                 cwd, cwd_len);
+  if (result != NULL) {
+    return result;
   }
 
-  return result;
+  /* Try .exe extension */
+  result = search_path_join_test(dir, dir_len,
+                                 name, name_len,
+                                 L"exe", 3,
+                                 cwd, cwd_len);
+  if (result != NULL) {
+    return result;
+  }
+
+  return NULL;
 }
 
 
@@ -243,34 +229,27 @@ static wchar_t* path_search_walk_ext(const wchar_t *dir,
  *
  * It tries to return an absolute filename.
  *
- * Furthermore, it tries to follow the semantics that cmd.exe uses as closely
- * as possible:
+ * Furthermore, it tries to follow the semantics that cmd.exe, with this
+ * exception that PATHEXT environment variable isn't used. Since CreateProcess
+ * can start only .com and .exe files, only those extensions are tried. This
+ * behavior equals that of msvcrt's spawn functions.
  *
  * - Do not search the path if the filename already contains a path (either
  *   relative or absolute).
- *     (but do use path_ext)
  *
  * - If there's really only a filename, check the current directory for file,
  *   then search all path directories.
  *
- * - If filename specifies has *any* extension, search for the file with the
+ * - If filename specified has *any* extension, search for the file with the
  *   specified extension first.
- *     (not necessary an executable one or one that appears in path_ext;
- *      *but* no extension or just a dot is *not* allowed)
  *
  * - If the literal filename is not found in a directory, try *appending*
- *   (not replacing) extensions from path_ext in the specified order.
- *     (an extension consisting of just a dot *may* appear in path_ext;
- *      unlike what happens if the specified filename ends with a dot,
- *      if path_ext specifies a single dot cmd.exe *does* look for an
- *      extension-less file)
+ *   (not replacing) .com first and then .exe.
  *
  * - The path variable may contain relative paths; relative paths are relative
  *   to the cwd.
  *
  * - Directories in path may or may not end with a trailing backslash.
- *
- * - Extensions path_ext portions must always start with a dot.
  *
  * - CMD does not trim leading/trailing whitespace from path/pathex entries
  *   nor from the environment variables as a whole.
@@ -281,13 +260,10 @@ static wchar_t* path_search_walk_ext(const wchar_t *dir,
  *   continue searching.
  *
  * TODO: correctly interpret UNC paths
- * TODO: check with cmd what should happen when a pathext entry does not start
- *       with a dot
  */
 static wchar_t* search_path(const wchar_t *file,
                             wchar_t *cwd,
-                            const wchar_t *path,
-                            const wchar_t *path_ext) {
+                            const wchar_t *path) {
   int file_has_dir;
   wchar_t* result = NULL;
   wchar_t *file_name_start;
@@ -320,12 +296,12 @@ static wchar_t* search_path(const wchar_t *file,
   name_has_ext = (dot != NULL && dot[1] != L'\0');
 
   if (file_has_dir) {
-    /* The file has a path inside, don't use path (but do use path_ex) */
+    /* The file has a path inside, don't use path */
     result = path_search_walk_ext(
         file, file_name_start - file,
         file_name_start, file_len - (file_name_start - file),
         cwd, cwd_len,
-        path_ext, name_has_ext);
+        name_has_ext);
 
   } else {
     const wchar_t *dir_start,
@@ -335,7 +311,7 @@ static wchar_t* search_path(const wchar_t *file,
     result = path_search_walk_ext(L"", 0,
                                   file, file_len,
                                   cwd, cwd_len,
-                                  path_ext, name_has_ext);
+                                  name_has_ext);
 
     while (result == NULL) {
       if (*dir_end == L'\0') {
@@ -364,7 +340,7 @@ static wchar_t* search_path(const wchar_t *file,
       result = path_search_walk_ext(dir_start, dir_end - dir_start,
                                     file, file_len,
                                     cwd, cwd_len,
-                                    path_ext, name_has_ext);
+                                    name_has_ext);
     }
   }
 
@@ -381,7 +357,7 @@ wchar_t* quote_cmd_arg(const wchar_t *source, wchar_t *target) {
       i, quote_hit;
   wchar_t* start;
 
-  /* 
+  /*
    * Check if the string must be quoted;
    * if unnecessary, don't do it, it may only confuse older programs.
    */
@@ -397,7 +373,7 @@ wchar_t* quote_cmd_arg(const wchar_t *source, wchar_t *target) {
   }
 
   if (NULL == wcspbrk(source, L"\"\\")) {
-    /* 
+    /*
      * No embedded double quotes or backlashes, so I can just wrap
      * quote marks around the whole thing.
      */
@@ -468,7 +444,7 @@ wchar_t* make_program_args(char** args, int verbatim_arguments) {
     arg_count++;
   }
 
-  /* Adjust for potential quotes. Also assume the worst-case scenario 
+  /* Adjust for potential quotes. Also assume the worst-case scenario
   /* that every character needs escaping, so we need twice as much space. */
   size = size * 2 + arg_count * 2;
 
@@ -511,7 +487,7 @@ error:
  * If we learn that people are passing in huge environment blocks
  * then we should probably qsort() the array and then bsearch()
  * to see if it contains this variable. But there are ownership
- * issues associated with that solution; this is the caller's 
+ * issues associated with that solution; this is the caller's
  * char**, and modifying it is rude.
  */
 static void check_required_vars_contains_var(env_var_t* required, int size, const char* var) {
@@ -529,7 +505,7 @@ static void check_required_vars_contains_var(env_var_t* required, int size, cons
  * The way windows takes environment variables is different than what C does;
  * Windows wants a contiguous block of null-terminated strings, terminated
  * with an additional null.
- * 
+ *
  * Windows has a few "essential" environment variables. winsock will fail
  * to initialize if SYSTEMROOT is not defined; some APIs make reference to
  * TEMP. SYSTEMDRIVE is probably also important. We therefore ensure that
@@ -611,15 +587,8 @@ static void CALLBACK exit_wait_callback(void* data, BOOLEAN didTimeout) {
   assert(didTimeout == FALSE);
   assert(process);
 
-  memset(&process->exit_req.overlapped, 0, sizeof(process->exit_req.overlapped));
-
   /* Post completed */
-  if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                  0,
-                                  0,
-                                  &process->exit_req.overlapped)) {
-    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-  }
+  POST_COMPLETION_FOR_REQ(&process->exit_req);
 }
 
 
@@ -633,15 +602,8 @@ static void CALLBACK close_wait_callback(void* data, BOOLEAN didTimeout) {
   assert(didTimeout == FALSE);
   assert(process);
 
-  memset(&process->close_req.overlapped, 0, sizeof(process->close_req.overlapped));
-
   /* Post completed */
-  if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                  0,
-                                  0,
-                                  &process->close_req.overlapped)) {
-    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-  }
+  POST_COMPLETION_FOR_REQ(&process->close_req);
 }
 
 
@@ -679,15 +641,8 @@ static DWORD WINAPI spawn_failure(void* data) {
 
   FlushFileBuffers(child_stderr);
 
-  memset(&process->exit_req.overlapped, 0, sizeof(process->exit_req.overlapped));
-
   /* Post completed */
-  if (!PostQueuedCompletionStatus(LOOP->iocp,
-                                  0,
-                                  0,
-                                  &process->exit_req.overlapped)) {
-    uv_fatal_error(GetLastError(), "PostQueuedCompletionStatus");
-  }
+  POST_COMPLETION_FOR_REQ(&process->exit_req);
 
   return 0;
 }
@@ -879,8 +834,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
 
   application_path = search_path(application,
                                  cwd,
-                                 path,
-                                 DEFAULT_PATH_EXT);
+                                 path);
 
   if (!application_path) {
     /* CreateProcess will fail, but this allows us to pass this error to */

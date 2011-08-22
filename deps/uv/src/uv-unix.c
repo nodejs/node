@@ -813,7 +813,6 @@ static void uv__write_callbacks(uv_stream_t* stream) {
 
 static void uv__read(uv_stream_t* stream) {
   uv_buf_t buf;
-  struct iovec* iov;
   ssize_t nread;
 
   /* XXX: Maybe instead of having UV_READING we just test if
@@ -825,8 +824,6 @@ static void uv__read(uv_stream_t* stream) {
 
     assert(buf.len > 0);
     assert(buf.base);
-
-    iov = (struct iovec*) &buf;
 
     do {
       nread = read(stream->fd, buf.base, buf.len);
@@ -1814,7 +1811,6 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   struct sockaddr_un sun;
   const char* pipe_fname;
   int saved_errno;
-  int locked;
   int sockfd;
   int status;
   int bound;
