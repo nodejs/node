@@ -46,11 +46,10 @@ The externally maintained libraries used by Node are:
     Greg Hudson, Daniel Stenberg and others, and released under the MIT
     license.
 
-  - Node, optionally, dynamically links to OpenSSL, cryptographic software
-    written by Eric Young (eay@cryptsoft.com) to provide SSL/TLS encryption.
-    OpenSSL is copyright The OpenSSL Project and released under the OpenSSL
-    license. OpenSSL is not included in the Node distribution.
-    See http://openssl.org/ for more information.
+  - Node, optionally, links to OpenSSL, it is located at deps/openssl.
+    OpenSSL is cryptographic software written by Eric Young
+    (eay@cryptsoft.com) to provide SSL/TLS encryption. OpenSSL is copyright
+    The OpenSSL Project and released under the OpenSSL license.
 
   - tools/doctool/markdown.js is copyright 2009-2010 Dominic Baggott and Ash
     Berli and released under the MIT license.
