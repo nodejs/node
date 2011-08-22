@@ -11,6 +11,7 @@ Prints to stdout with newline. This function can take multiple arguments in a
 
 If formating elements are not found in the first string then `util.inspect`
 is used on each argument.
+See [util.format()](util.html#util.format) for more infomation.
 
 ### console.info()
 
