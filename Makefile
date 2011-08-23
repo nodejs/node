@@ -12,7 +12,7 @@ export NODE_MAKE := $(MAKE)
 
 all: program
 	@-[ -f out/Release/node ] && ls -lh out/Release/node
-	@-[ -f out/Debug/node_g ] && ls -lh out/Debug/node_g
+	@-[ -f out/Debug/node ] && ls -lh out/Debug/node
 
 all-progress:
 	@$(WAF) -p build

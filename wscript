@@ -930,8 +930,9 @@ def build(bld):
 
   if bld.env["USE_DEBUG"]:
     node_g = node.clone("Debug")
-    node_g.target = "node_g"
+    node_g.target = "node"
     node_g.uselib += ' V8_G UV '
+    node_g.install_path = None
 
     node_conf_g = node_conf.clone("Debug")
     node_conf_g.dict = subflags(node_g)
@@ -973,13 +974,13 @@ def shutdown():
     if sys.platform.startswith("win32"):
       if os.path.exists('out/Release/node.exe'):
         os.system('cp out/Release/node.exe .')
-      if os.path.exists('out/Debug/node_g.exe'):
-        os.system('cp out/Debug/node_g.exe .')
+      if os.path.exists('out/Debug/node.exe'):
+        os.system('cp out/Debug/node.exe node_g.exe')
     else:
       if os.path.exists('out/Release/node') and not os.path.exists('node'):
         os.symlink('out/Release/node', 'node')
-      if os.path.exists('out/Debug/node_g') and not os.path.exists('node_g'):
-        os.symlink('out/Debug/node_g', 'node_g')
+      if os.path.exists('out/Debug/node') and not os.path.exists('node_g'):
+        os.symlink('out/Debug/node', 'node_g')
   else:
     if sys.platform.startswith("win32"):
       if os.path.exists('node.exe'): os.unlink('node.exe')
