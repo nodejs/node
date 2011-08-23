@@ -46,6 +46,10 @@
 
 #include <node_object_wrap.h>
 
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#endif
+
 #ifndef NODE_STRINGIFY
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n

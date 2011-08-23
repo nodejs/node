@@ -69,7 +69,6 @@ namespace node {
 
 using namespace v8;
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 #define THROW_BAD_ARGS \
   ThrowException(Exception::TypeError(String::New("Bad argument")))

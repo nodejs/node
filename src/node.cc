@@ -100,8 +100,6 @@ extern "C" {
 #include <node_script.h>
 #include <v8_typed_array.h>
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
-
 using namespace v8;
 
 # ifdef __APPLE__

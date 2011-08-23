@@ -83,8 +83,6 @@
 # define SHUT_RDWR SD_BOTH
 #endif
 
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof(*(a)))
-
 
 namespace node {
 
