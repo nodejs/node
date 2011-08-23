@@ -16,6 +16,10 @@
         '_REENTRANT',
       ],
 
+      'cflags!': [
+        '-ansi'
+      ],
+
       'conditions': [
         ['OS=="win"', {
           'defines': [
