@@ -506,7 +506,7 @@ def run_c_code(self, *k, **kw):
 	bld = Build.BuildContext()
 	bld.log = self.log
 	bld.all_envs.update(self.all_envs)
-	bld.all_envs['default'] = env
+	bld.all_envs['Release'] = env
 	bld.lst_variants = bld.all_envs.keys()
 	bld.load_dirs(dir, bdir)
 

@@ -85,7 +85,7 @@ class BuildContext(Utils.Context):
 		self.id_nodes = 0
 		self.idx = {}
 
-		# map names to environments, the 'default' must be defined
+		# map names to environments, the 'Release' must be defined
 		self.all_envs = {}
 
 		# ======================================= #
@@ -454,7 +454,7 @@ class BuildContext(Utils.Context):
 		* remove the signatures for the build files that have disappeared
 		* cache the results of os.listdir
 		* create the build folder equivalent (mkdir) for each variant
-		src/bar -> build/default/src/bar, build/release/src/bar
+		src/bar -> build/Release/src/bar, build/Debug/src/bar
 
 		when a folder in the source directory is removed, we do not check recursively
 		to remove the unused nodes. To do that, call 'waf clean' and build again.
@@ -564,7 +564,7 @@ class BuildContext(Utils.Context):
 				cache.__delitem__(nid)
 
 	def get_env(self):
-		return self.env_of_name('default')
+		return self.env_of_name('Release')
 	def set_env(self, name, val):
 		self.all_envs[name] = val
 

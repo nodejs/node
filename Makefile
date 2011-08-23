@@ -11,8 +11,8 @@ web_root = ryan@nodejs.org:~/web/nodejs.org/
 export NODE_MAKE := $(MAKE)
 
 all: program
-	@-[ -f build/default/node ] && ls -lh build/default/node
-	@-[ -f build/debug/node_g ] && ls -lh build/debug/node_g
+	@-[ -f build/Release/node ] && ls -lh build/Release/node
+	@-[ -f build/Debug/node_g ] && ls -lh build/Debug/node_g
 
 all-progress:
 	@$(WAF) -p build
@@ -265,7 +265,7 @@ test-uv-debug: all
 	NODE_USE_UV=1 python tools/test.py --mode=debug $(UVTEST)
 
 
-build/default/node: all
+build/Release/node: all
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix build/,$(apidoc_sources:.markdown=.html))
@@ -286,7 +286,7 @@ website_files = \
   build/doc/favicon.ico   \
 	build/doc/pipe.css
 
-doc: build/default/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
+doc: build/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -297,8 +297,8 @@ build/doc/api/assets/%: doc/api_assets/% build/doc/api/assets/
 build/doc/%: doc/%
 	cp $< $@
 
-build/doc/api/%.html: doc/api/%.markdown build/default/node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
-	build/default/node tools/doctool/doctool.js doc/template.html $< > $@
+build/doc/api/%.html: doc/api/%.markdown build/Release/node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
+	build/Release/node tools/doctool/doctool.js doc/template.html $< > $@
 
 build/doc/%:
 

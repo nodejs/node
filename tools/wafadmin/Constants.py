@@ -31,7 +31,7 @@ WAF_CONFIG_H       = 'config.h'
 SIG_NIL = 'iluvcuteoverload'
 
 VARIANT = '_VARIANT_'
-DEFAULT = 'default'
+DEFAULT = 'Release'
 
 SRCDIR  = 'srcdir'
 BLDDIR  = 'blddir'
