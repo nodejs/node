@@ -123,7 +123,6 @@
       ['OS=="mac"', {
         'xcode_settings': {
           'ALWAYS_SEARCH_USER_PATHS': 'NO',
-          'GCC_C_LANGUAGE_STANDARD': 'ansi',        # -ansi
           'GCC_CW_ASM_SYNTAX': 'NO',                # No -fasm-blocks
           'GCC_DYNAMIC_NO_PIC': 'NO',               # No -mdynamic-no-pic
                                                     # (Equivalent to -fPIC)
@@ -134,7 +133,6 @@
           'GCC_INLINES_ARE_PRIVATE_EXTERN': 'YES',
           'GCC_SYMBOLS_PRIVATE_EXTERN': 'YES',      # -fvisibility=hidden
           'GCC_THREADSAFE_STATICS': 'NO',           # -fno-threadsafe-statics
-          'GCC_TREAT_WARNINGS_AS_ERRORS': 'YES',    # -Werror
           'GCC_VERSION': '4.2',
           'GCC_WARN_ABOUT_MISSING_NEWLINE': 'YES',  # -Wnewline-eof
           'MACOSX_DEPLOYMENT_TARGET': '10.4',       # -mmacosx-version-min=10.4
@@ -148,7 +146,6 @@
             '-Wendif-labels',
             '-W',
             '-Wno-unused-parameter',
-            '-Wnon-virtual-dtor',
           ],
         },
         'target_conditions': [
