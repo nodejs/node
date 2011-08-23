@@ -100,6 +100,7 @@
         [ 'OS=="linux"', {
           'sources': [ 'src/platform_linux.cc' ],
           'libraries': [
+            '-ldl',
             '-lutil' # needed for openpty
           ],
         }]
