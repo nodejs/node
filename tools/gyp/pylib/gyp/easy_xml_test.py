@@ -6,7 +6,7 @@
 
 """ Unit tests for the easy_xml.py file. """
 
-import easy_xml
+import gyp.easy_xml as easy_xml
 import unittest
 import StringIO
 

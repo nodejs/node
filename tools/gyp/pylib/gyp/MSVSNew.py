@@ -213,20 +213,16 @@ class MSVSSolution:
       IndexError: An entry appears multiple times.
     """
     # Walk the entry tree and collect all the folders and projects.
-    all_entries = []
+    all_entries = set()
     entries_to_check = self.entries[:]
     while entries_to_check:
-      # Pop from the beginning of the list to preserve the user's order.
       e = entries_to_check.pop(0)
 
-      # A project or folder can only appear once in the solution's folder tree.
-      # This also protects from cycles.
+      # If this entry has been visited, nothing to do.
       if e in all_entries:
-        #raise IndexError('Entry "%s" appears more than once in solution' %
-        #                 e.name)
         continue
 
-      all_entries.append(e)
+      all_entries.add(e)
 
       # If this is a folder, check its entries too.
       if isinstance(e, MSVSFolder):

@@ -8,7 +8,7 @@
 
 import StringIO
 import unittest
-import MSVSSettings
+import gyp.MSVSSettings as MSVSSettings
 
 
 class TestSequenceFunctions(unittest.TestCase):
