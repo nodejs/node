@@ -11,8 +11,8 @@ web_root = ryan@nodejs.org:~/web/nodejs.org/
 export NODE_MAKE := $(MAKE)
 
 all: program
-	@-[ -f build/Release/node ] && ls -lh build/Release/node
-	@-[ -f build/Debug/node_g ] && ls -lh build/Debug/node_g
+	@-[ -f out/Release/node ] && ls -lh out/Release/node
+	@-[ -f out/Debug/node_g ] && ls -lh out/Debug/node_g
 
 all-progress:
 	@$(WAF) -p build
@@ -265,51 +265,51 @@ test-uv-debug: all
 	NODE_USE_UV=1 python tools/test.py --mode=debug $(UVTEST)
 
 
-build/Release/node: all
+out/Release/node: all
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
-apidocs = $(addprefix build/,$(apidoc_sources:.markdown=.html))
+apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html))
 
-apidoc_dirs = build/doc build/doc/api/ build/doc/api/assets
+apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
 
-apiassets = $(subst api_assets,api/assets,$(addprefix build/,$(wildcard doc/api_assets/*)))
+apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
 website_files = \
-	build/doc/index.html    \
-	build/doc/v0.4_announcement.html   \
-	build/doc/cla.html      \
-	build/doc/sh_main.js    \
-	build/doc/sh_javascript.min.js \
-	build/doc/sh_vim-dark.css \
-	build/doc/logo.png      \
-	build/doc/sponsored.png \
-  build/doc/favicon.ico   \
-	build/doc/pipe.css
+	out/doc/index.html    \
+	out/doc/v0.4_announcement.html   \
+	out/doc/cla.html      \
+	out/doc/sh_main.js    \
+	out/doc/sh_javascript.min.js \
+	out/doc/sh_vim-dark.css \
+	out/doc/logo.png      \
+	out/doc/sponsored.png \
+  out/doc/favicon.ico   \
+	out/doc/pipe.css
 
-doc: build/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
+doc: out/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
 
 $(apidoc_dirs):
 	mkdir -p $@
 
-build/doc/api/assets/%: doc/api_assets/% build/doc/api/assets/
+out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 	cp $< $@
 
-build/doc/%: doc/%
+out/doc/%: doc/%
 	cp $< $@
 
-build/doc/api/%.html: doc/api/%.markdown build/Release/node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
-	build/Release/node tools/doctool/doctool.js doc/template.html $< > $@
+out/doc/api/%.html: doc/api/%.markdown out/Release/node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
+	out/Release/node tools/doctool/doctool.js doc/template.html $< > $@
 
-build/doc/%:
+out/doc/%:
 
 website-upload: doc
-	scp -r build/doc/* $(web_root)
+	scp -r out/doc/* $(web_root)
 
-docopen: build/doc/api/all.html
-	-google-chrome build/doc/api/all.html
+docopen: out/doc/api/all.html
+	-google-chrome out/doc/api/all.html
 
 docclean:
-	-rm -rf build/doc
+	-rm -rf out/doc
 
 clean:
 	$(WAF) clean
@@ -317,7 +317,7 @@ clean:
 
 distclean: docclean
 	-find tools -name "*.pyc" | xargs rm -f
-	-rm -rf build/ node node_g
+	-rm -rf out/ node node_g
 
 check:
 	@tools/waf-light check
@@ -330,7 +330,7 @@ dist: doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
-	cp -r build/doc/api $(TARNAME)/doc/api
+	cp -r out/doc/api $(TARNAME)/doc/api
 	rm -rf $(TARNAME)/deps/v8/test # too big
 	rm -rf $(TARNAME)/doc/logos # too big
 	tar -cf $(TARNAME).tar $(TARNAME)

@@ -38,7 +38,7 @@ sys.path.append(sys.argv[0] + '/tools');
 import js2c
 
 srcdir = '.'
-blddir = 'build'
+blddir = 'out'
 supported_archs = ('arm', 'ia32', 'x64') # 'mips' supported by v8, but not node
 
 jobs=1
@@ -904,7 +904,7 @@ def build(bld):
     bld.env.append_value('LINKFLAGS', '-Wl,--export-all-symbols')
     bld.env.append_value('LINKFLAGS', '-Wl,--out-implib,default/libnode.dll.a')
     bld.env.append_value('LINKFLAGS', '-Wl,--output-def,default/libnode.def')
-    bld.install_files('${LIBDIR}', "build/Release/libnode.*")
+    bld.install_files('${LIBDIR}', "out/Release/libnode.*")
 
   if (sys.platform.startswith("win32")):
     # Static libgcc
@@ -971,15 +971,15 @@ def shutdown():
 
   elif not Options.commands['clean']:
     if sys.platform.startswith("win32"):
-      if os.path.exists('build/Release/node.exe'):
-        os.system('cp build/Release/node.exe .')
-      if os.path.exists('build/Debug/node_g.exe'):
-        os.system('cp build/Debug/node_g.exe .')
+      if os.path.exists('out/Release/node.exe'):
+        os.system('cp out/Release/node.exe .')
+      if os.path.exists('out/Debug/node_g.exe'):
+        os.system('cp out/Debug/node_g.exe .')
     else:
-      if os.path.exists('build/Release/node') and not os.path.exists('node'):
-        os.symlink('build/Release/node', 'node')
-      if os.path.exists('build/Debug/node_g') and not os.path.exists('node_g'):
-        os.symlink('build/Debug/node_g', 'node_g')
+      if os.path.exists('out/Release/node') and not os.path.exists('node'):
+        os.symlink('out/Release/node', 'node')
+      if os.path.exists('out/Debug/node_g') and not os.path.exists('node_g'):
+        os.symlink('out/Debug/node_g', 'node_g')
   else:
     if sys.platform.startswith("win32"):
       if os.path.exists('node.exe'): os.unlink('node.exe')
