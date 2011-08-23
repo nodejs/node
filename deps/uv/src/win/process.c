@@ -54,7 +54,6 @@ typedef struct env_var {
 static void uv_process_init(uv_process_t* handle) {
   handle->type = UV_PROCESS;
   handle->flags = 0;
-  handle->error = uv_ok_;
   handle->exit_cb = NULL;
   handle->pid = 0;
   handle->exit_signal = 0;

@@ -66,7 +66,7 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
 }
 
 
-uv_buf_t on_alloc(uv_stream_t* tcp, size_t suggested_size) {
+uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
   uv_buf_t buf;
   buf.base = output + output_used;
   buf.len = OUTPUT_SIZE - output_used;

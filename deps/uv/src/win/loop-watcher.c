@@ -44,7 +44,6 @@ void uv_loop_watcher_endgame(uv_handle_t* handle) {
   int uv_##name##_init(uv_##name##_t* handle) {                               \
     handle->type = UV_##NAME;                                                 \
     handle->flags = 0;                                                        \
-    handle->error = uv_ok_;                                                   \
                                                                               \
     uv_ref();                                                                 \
                                                                               \

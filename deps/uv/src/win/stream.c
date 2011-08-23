@@ -29,7 +29,6 @@
 void uv_stream_init(uv_stream_t* handle) {
   handle->write_queue_size = 0;
   handle->flags = 0;
-  handle->error = uv_ok_;
 
   uv_counters()->handle_init++;
   uv_counters()->stream_init++;

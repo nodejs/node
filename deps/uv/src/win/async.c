@@ -78,7 +78,6 @@ int uv_async_init(uv_async_t* handle, uv_async_cb async_cb) {
   handle->type = UV_ASYNC;
   handle->flags = 0;
   handle->async_sent = 0;
-  handle->error = uv_ok_;
   handle->async_cb = async_cb;
 
   req = &handle->async_req;

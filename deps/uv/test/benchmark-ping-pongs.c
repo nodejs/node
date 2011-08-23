@@ -52,7 +52,7 @@ static int completed_pingers = 0;
 static int64_t start_time;
 
 
-static uv_buf_t buf_alloc(uv_stream_t* tcp, size_t size) {
+static uv_buf_t buf_alloc(uv_handle_t* tcp, size_t size) {
   buf_t* ab;
 
   ab = buf_freelist;

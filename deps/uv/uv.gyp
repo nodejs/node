@@ -109,6 +109,7 @@
             'src/win/stream.c',
             'src/win/tcp.c',
             'src/win/timer.c',
+            'src/win/udp.c',
             'src/win/util.c',
             'src/win/winapi.c',
             'src/win/winapi.h',
@@ -232,6 +233,9 @@
         'test/test-tcp-writealot.c',
         'test/test-timer-again.c',
         'test/test-timer.c',
+        'test/test-udp-dgram-too-big.c',
+        'test/test-udp-ipv6.c',
+        'test/test-udp-send-and-recv.c',
       ],
       'conditions': [
         [ 'OS=="win"', {
@@ -269,6 +273,7 @@
         'test/benchmark-pump.c',
         'test/benchmark-sizes.c',
         'test/benchmark-spawn.c',
+        'test/benchmark-udp-packet-storm.c',
         'test/dns-server.c',
         'test/echo-server.c',
         'test/run-benchmarks.c',

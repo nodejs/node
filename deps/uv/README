@@ -24,13 +24,15 @@ checkout GYP into the project tree manually:
 
     svn co http://gyp.googlecode.com/svn/trunk build/gyp
 
-And then run 
+Unix users run
 
-    ./build/gyp_uv -f make
+    ./gyp_uv -f make
+    make
 
-or 
+Macintosh users run
 
-    ./build/gyp_uv -f xcode
+    ./gyp_uv -f xcode
+    xcodebuild -project uv.xcodeproj -configuration Release -target All
 
 
 = Supported Platforms

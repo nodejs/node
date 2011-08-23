@@ -117,7 +117,6 @@ int uv_timer_init(uv_timer_t* handle) {
 
   handle->type = UV_TIMER;
   handle->flags = 0;
-  handle->error = uv_ok_;
   handle->timer_cb = NULL;
   handle->repeat = 0;
 

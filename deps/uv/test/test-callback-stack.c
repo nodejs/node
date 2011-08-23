@@ -45,7 +45,7 @@ static int bytes_received = 0;
 static int shutdown_cb_called = 0;
 
 
-static uv_buf_t alloc_cb(uv_stream_t* tcp, size_t size) {
+static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
   uv_buf_t buf;
   buf.len = size;
   buf.base = (char*) malloc(size);

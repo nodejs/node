@@ -33,7 +33,7 @@ static uv_connect_t connect_req;
 static uv_tcp_t tcpServer;
 
 
-static uv_buf_t alloc(uv_stream_t* handle, size_t suggested_size) {
+static uv_buf_t alloc(uv_handle_t* handle, size_t suggested_size) {
   uv_buf_t buf;
   buf.base = (char*) malloc(suggested_size);
   buf.len = suggested_size;
@@ -89,7 +89,7 @@ static void on_connection(uv_stream_t* server, int status) {
   r = uv_accept(server, (uv_stream_t*)handle);
   ASSERT(r == 0);
 
-  status = uv_getsockname((uv_tcp_t*)handle, &sockname, &namelen);
+  status = uv_getsockname(handle, &sockname, &namelen);
   if (status != 0) {
     fprintf(stderr, "uv_getsockname error (accepted) %d\n", uv_last_error().code);
   }
@@ -110,7 +110,7 @@ static void on_connect(uv_connect_t* req, int status) {
 
   ASSERT(status == 0);
 
-  r = uv_getsockname(&tcp, &sockname, &namelen);
+  r = uv_getsockname((uv_handle_t*)&tcp, &sockname, &namelen);
   if (r != 0) {
     fprintf(stderr, "uv_getsockname error (connector) %d\n", uv_last_error().code);
   }
@@ -147,7 +147,7 @@ static int tcp_listener(int port) {
     return 1;
   }
 
-  r = uv_getsockname(&tcpServer, &sockname, &namelen);
+  r = uv_getsockname((uv_handle_t*)&tcpServer, &sockname, &namelen);
   if (r != 0) {
     fprintf(stderr, "uv_getsockname error (listening) %d\n", uv_last_error().code);
   }

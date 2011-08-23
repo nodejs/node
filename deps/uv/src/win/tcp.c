@@ -28,10 +28,13 @@
 
 /*
  * Threshold of active tcp streams for which to preallocate tcp read buffers.
+ * (Due to node slab allocator performing poorly under this pattern,
+ *  the optimization is temporarily disabled (threshold=0).  This will be
+ *  revisited once node allocator is improved.)
  */
-const unsigned int uv_active_tcp_streams_threshold = 50;
+const unsigned int uv_active_tcp_streams_threshold = 0;
 
-/* 
+/*
  * Number of simultaneous pending AcceptEx calls.
  */
 const unsigned int uv_simultaneous_server_accepts = 32;
@@ -171,7 +174,7 @@ static int uv__bind(uv_tcp_t* handle, int domain, struct sockaddr* addr, int add
     err = WSAGetLastError();
     if (err == WSAEADDRINUSE) {
       /* Some errors are not to be reported until connect() or listen() */
-      handle->error = uv_new_sys_error(err);
+      handle->bind_error = uv_new_sys_error(err);
       handle->flags |= UV_HANDLE_BIND_ERROR;
     } else {
       uv_set_sys_error(err);
@@ -232,7 +235,7 @@ static void uv_tcp_queue_accept(uv_tcp_t* handle, uv_tcp_accept_t* req) {
   /* Open a socket for the accepted connection. */
   accept_socket = socket(family, SOCK_STREAM, 0);
   if (accept_socket == INVALID_SOCKET) {
-    req->error = uv_new_sys_error(WSAGetLastError());
+    SET_REQ_ERROR(req, WSAGetLastError());
     uv_insert_pending_req((uv_req_t*)req);
     handle->reqs_pending++;
     return;
@@ -261,7 +264,7 @@ static void uv_tcp_queue_accept(uv_tcp_t* handle, uv_tcp_accept_t* req) {
     handle->reqs_pending++;
   } else {
     /* Make this req pending reporting an error. */
-    req->error = uv_new_sys_error(WSAGetLastError());
+    SET_REQ_ERROR(req, WSAGetLastError());
     uv_insert_pending_req((uv_req_t*)req);
     handle->reqs_pending++;
     /* Destroy the preallocated client socket. */
@@ -288,7 +291,7 @@ static void uv_tcp_queue_read(uv_tcp_t* handle) {
   */
   if (active_tcp_streams < uv_active_tcp_streams_threshold) {
     handle->flags &= ~UV_HANDLE_ZERO_READ;
-    handle->read_buffer = handle->alloc_cb((uv_stream_t*)handle, 65536);
+    handle->read_buffer = handle->alloc_cb((uv_handle_t*) handle, 65536);
     assert(handle->read_buffer.len > 0);
     buf = handle->read_buffer;
   } else {
@@ -318,7 +321,7 @@ static void uv_tcp_queue_read(uv_tcp_t* handle) {
     handle->reqs_pending++;
   } else {
     /* Make this req pending reporting an error. */
-    req->error = uv_new_sys_error(WSAGetLastError());
+    SET_REQ_ERROR(req, WSAGetLastError());
     uv_insert_pending_req(req);
     handle->reqs_pending++;
   }
@@ -332,7 +335,7 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   assert(backlog > 0);
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
-    LOOP->last_error = handle->error;
+    LOOP->last_error = handle->bind_error;
     return -1;
   }
 
@@ -449,7 +452,7 @@ int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
   DWORD bytes;
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
-    LOOP->last_error = handle->error;
+    LOOP->last_error = handle->bind_error;
     return -1;
   }
 
@@ -504,7 +507,7 @@ int uv_tcp_connect6(uv_connect_t* req, uv_tcp_t* handle,
   }
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
-    LOOP->last_error = handle->error;
+    LOOP->last_error = handle->bind_error;
     return -1;
   }
 
@@ -545,7 +548,7 @@ int uv_tcp_connect6(uv_connect_t* req, uv_tcp_t* handle,
 }
 
 
-int uv_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen) {
+int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen) {
   int result;
 
   if (handle->flags & UV_HANDLE_SHUTTING) {
@@ -622,11 +625,11 @@ void uv_process_tcp_read_req(uv_tcp_t* handle, uv_req_t* req) {
 
   handle->flags &= ~UV_HANDLE_READ_PENDING;
 
-  if (req->error.code != UV_OK) {
+  if (!REQ_SUCCESS(req)) {
     /* An error occurred doing the read. */
     if ((handle->flags & UV_HANDLE_READING)) {
       handle->flags &= ~UV_HANDLE_READING;
-      LOOP->last_error = req->error;
+      LOOP->last_error = GET_REQ_UV_SOCK_ERROR(req);
       buf = (handle->flags & UV_HANDLE_ZERO_READ) ?
             uv_buf_init(NULL, 0) : handle->read_buffer;
       handle->read_cb((uv_stream_t*)handle, -1, buf);
@@ -656,7 +659,7 @@ void uv_process_tcp_read_req(uv_tcp_t* handle, uv_req_t* req) {
 
     /* Do nonblocking reads until the buffer is empty */
     while (handle->flags & UV_HANDLE_READING) {
-      buf = handle->alloc_cb((uv_stream_t*)handle, 65536);
+      buf = handle->alloc_cb((uv_handle_t*) handle, 65536);
       assert(buf.len > 0);
       flags = 0;
       if (WSARecv(handle->socket,
@@ -715,7 +718,7 @@ void uv_process_tcp_write_req(uv_tcp_t* handle, uv_write_t* req) {
   handle->write_queue_size -= req->queued_bytes;
 
   if (req->cb) {
-    LOOP->last_error = req->error;
+    LOOP->last_error = GET_REQ_UV_SOCK_ERROR(req);
     ((uv_write_cb)req->cb)(req, LOOP->last_error.code == UV_OK ? 0 : -1);
   }
 
@@ -742,11 +745,11 @@ void uv_process_tcp_accept_req(uv_tcp_t* handle, uv_req_t* raw_req) {
     if (handle->flags & UV_HANDLE_LISTENING) {
       handle->flags &= ~UV_HANDLE_LISTENING;
       if (handle->connection_cb) {
-        LOOP->last_error = req->error;
+        LOOP->last_error = GET_REQ_UV_SOCK_ERROR(req);
         handle->connection_cb((uv_stream_t*)handle, -1);
       }
     }
-  } else if (req->error.code == UV_OK &&
+  } else if (REQ_SUCCESS(req) &&
       setsockopt(req->accept_socket,
                   SOL_SOCKET,
                   SO_UPDATE_ACCEPT_CONTEXT,
@@ -778,7 +781,7 @@ void uv_process_tcp_connect_req(uv_tcp_t* handle, uv_connect_t* req) {
   assert(handle->type == UV_TCP);
 
   if (req->cb) {
-    if (req->error.code == UV_OK) {
+    if (REQ_SUCCESS(req)) {
       if (setsockopt(handle->socket,
                       SOL_SOCKET,
                       SO_UPDATE_CONNECT_CONTEXT,
@@ -792,7 +795,7 @@ void uv_process_tcp_connect_req(uv_tcp_t* handle, uv_connect_t* req) {
         ((uv_connect_cb)req->cb)(req, -1);
       }
     } else {
-      LOOP->last_error = req->error;
+      LOOP->last_error = GET_REQ_UV_SOCK_ERROR(req);
       ((uv_connect_cb)req->cb)(req, -1);
     }
   }

@@ -111,10 +111,6 @@ static void uv_poll(int block) {
     /* Package was dequeued */
     req = uv_overlapped_to_req(overlapped);
 
-    if (!success) {
-      req->error = uv_new_sys_error(GetLastError());
-    }
-
     uv_insert_pending_req(req);
 
   } else if (GetLastError() != WAIT_TIMEOUT) {
@@ -150,10 +146,6 @@ static void uv_poll_ex(int block) {
     for (i = 0; i < count; i++) {
       /* Package was dequeued */
       req = uv_overlapped_to_req(overlappeds[i].lpOverlapped);
-      if (overlappeds[i].lpOverlapped->Internal != STATUS_SUCCESS) {
-        req->error = uv_new_sys_error(pRtlNtStatusToDosError(
-          overlappeds[i].lpOverlapped->Internal));
-      }
       uv_insert_pending_req(req);
     }
   } else if (GetLastError() != WAIT_TIMEOUT) {

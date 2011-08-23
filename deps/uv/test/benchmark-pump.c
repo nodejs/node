@@ -41,7 +41,7 @@ static void maybe_connect_some();
 static uv_req_t* req_alloc();
 static void req_free(uv_req_t* uv_req);
 
-static uv_buf_t buf_alloc(uv_stream_t*, size_t size);
+static uv_buf_t buf_alloc(uv_handle_t*, size_t size);
 static void buf_free(uv_buf_t uv_buf_t);
 
 
@@ -337,7 +337,7 @@ typedef struct buf_list_s {
 static buf_list_t* buf_freelist = NULL;
 
 
-static uv_buf_t buf_alloc(uv_stream_t* stream, size_t size) {
+static uv_buf_t buf_alloc(uv_handle_t* handle, size_t size) {
   buf_list_t* buf;
 
   buf = buf_freelist;

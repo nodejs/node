@@ -123,7 +123,7 @@ static void on_close(uv_handle_t* peer) {
 }
 
 
-static uv_buf_t echo_alloc(uv_stream_t* handle, size_t suggested_size) {
+static uv_buf_t echo_alloc(uv_handle_t* handle, size_t suggested_size) {
   return uv_buf_init(malloc(suggested_size), suggested_size);
 }
 

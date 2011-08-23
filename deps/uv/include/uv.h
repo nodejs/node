@@ -45,6 +45,7 @@ typedef struct uv_err_s uv_err_t;
 typedef struct uv_handle_s uv_handle_t;
 typedef struct uv_stream_s uv_stream_t;
 typedef struct uv_tcp_s uv_tcp_t;
+typedef struct uv_udp_s uv_udp_t;
 typedef struct uv_pipe_s uv_pipe_t;
 typedef struct uv_timer_s uv_timer_t;
 typedef struct uv_prepare_s uv_prepare_t;
@@ -58,6 +59,7 @@ typedef struct uv_req_s uv_req_t;
 typedef struct uv_shutdown_s uv_shutdown_t;
 typedef struct uv_write_s uv_write_t;
 typedef struct uv_connect_s uv_connect_t;
+typedef struct uv_udp_send_s uv_udp_send_t;
 
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
 # include "uv-unix.h"
@@ -106,8 +108,8 @@ int64_t uv_now();
  * In the case of uv_read_cb the uv_buf_t returned should be freed by the
  * user.
  */
-typedef uv_buf_t (*uv_alloc_cb)(uv_stream_t* tcp, size_t suggested_size);
-typedef void (*uv_read_cb)(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf);
+typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
+typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
 typedef void (*uv_write_cb)(uv_write_t* req, int status);
 typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
@@ -146,6 +148,7 @@ typedef enum {
   UV_EINVAL,
   UV_EISCONN,
   UV_EMFILE,
+  UV_EMSGSIZE,
   UV_ENETDOWN,
   UV_ENETUNREACH,
   UV_ENFILE,
@@ -172,6 +175,7 @@ typedef enum {
 typedef enum {
   UV_UNKNOWN_HANDLE = 0,
   UV_TCP,
+  UV_UDP,
   UV_NAMED_PIPE,
   UV_TTY,
   UV_FILE,
@@ -194,6 +198,7 @@ typedef enum {
   UV_WRITE,
   UV_SHUTDOWN,
   UV_WAKEUP,
+  UV_UDP_SEND,
   UV_REQ_TYPE_PRIVATE
 } uv_req_type;
 
@@ -415,7 +420,155 @@ struct uv_connect_s {
 };
 
 
-int uv_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
+int uv_getsockname(uv_handle_t* handle, struct sockaddr* name, int* namelen);
+
+
+/*
+ * UDP support.
+ */
+
+enum uv_udp_flags {
+  /* Disables dual stack mode. Used with uv_udp_bind6(). */
+  UV_UDP_IPV6ONLY = 1,
+  /*
+   * Indicates message was truncated because read buffer was too small. The
+   * remainder was discarded by the OS. Used in uv_udp_recv_cb.
+   */
+  UV_UDP_PARTIAL = 2
+};
+
+/*
+ * Called after a uv_udp_send() or uv_udp_send6(). status 0 indicates
+ * success otherwise error.
+ */
+typedef void (*uv_udp_send_cb)(uv_udp_send_t* req, int status);
+
+/*
+ * Callback that is invoked when a new UDP datagram is received.
+ *
+ *  handle  UDP handle.
+ *  nread   Number of bytes that have been received.
+ *          0 if there is no more data to read. You may
+ *          discard or repurpose the read buffer.
+ *          -1 if a transmission error was detected.
+ *  buf     uv_buf_t with the received data.
+ *  addr    struct sockaddr_in or struct sockaddr_in6.
+ *          Valid for the duration of the callback only.
+ *  flags   One or more OR'ed UV_UDP_* constants.
+ *          Right now only UV_UDP_PARTIAL is used.
+ */
+typedef void (*uv_udp_recv_cb)(uv_udp_t* handle, ssize_t nread, uv_buf_t buf,
+    struct sockaddr* addr, unsigned flags);
+
+/* uv_udp_t is a subclass of uv_handle_t */
+struct uv_udp_s {
+  UV_HANDLE_FIELDS
+  UV_UDP_PRIVATE_FIELDS
+};
+
+/* uv_udp_send_t is a subclass of uv_req_t */
+struct uv_udp_send_s {
+  UV_REQ_FIELDS
+  uv_udp_t* handle;
+  uv_udp_send_cb cb;
+  UV_UDP_SEND_PRIVATE_FIELDS
+};
+
+/*
+ * Initialize a new UDP handle. The actual socket is created lazily.
+ * Returns 0 on success.
+ */
+int uv_udp_init(uv_udp_t* handle);
+
+/*
+ * Bind to a IPv4 address and port.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  addr      struct sockaddr_in with the address and port to bind to.
+ *  flags     Unused.
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned flags);
+
+/*
+ * Bind to a IPv6 address and port.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  addr      struct sockaddr_in with the address and port to bind to.
+ *  flags     Should be 0 or UV_UDP_IPV6ONLY.
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags);
+
+/*
+ * Send data. If the socket has not previously been bound with `uv_udp_bind`
+ * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
+ * and a random port number.
+ *
+ * Arguments:
+ *  req       UDP request handle. Need not be initialized.
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  bufs      List of buffers to send.
+ *  bufcnt    Number of buffers in `bufs`.
+ *  addr      Address of the remote peer. See `uv_ip4_addr`.
+ *  send_cb   Callback to invoke when the data has been sent out.
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
+    int bufcnt, struct sockaddr_in addr, uv_udp_send_cb send_cb);
+
+/*
+ * Send data. If the socket has not previously been bound with `uv_udp_bind6`,
+ * it is bound to ::0 (the "all interfaces" address) and a random port number.
+ *
+ * Arguments:
+ *  req       UDP request handle. Need not be initialized.
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  bufs      List of buffers to send.
+ *  bufcnt    Number of buffers in `bufs`.
+ *  addr      Address of the remote peer. See `uv_ip6_addr`.
+ *  send_cb   Callback to invoke when the data has been sent out.
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
+    int bufcnt, struct sockaddr_in6 addr, uv_udp_send_cb send_cb);
+
+/*
+ * Send data. If the socket has not previously been bound with `uv_udp_bind`
+ * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
+ * and a random port number.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *  alloc_cb  Callback to invoke when temporary storage is needed.
+ *  recv_cb   Callback to invoke with received data.
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
+    uv_udp_recv_cb recv_cb);
+
+/*
+ * Stop listening for incoming datagrams.
+ *
+ * Arguments:
+ *  handle    UDP handle. Should have been initialized with `uv_udp_init`.
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_recv_stop(uv_udp_t* handle);
 
 
 /*
@@ -699,6 +852,7 @@ typedef struct {
   uint64_t handle_init;
   uint64_t stream_init;
   uint64_t tcp_init;
+  uint64_t udp_init;
   uint64_t pipe_init;
   uint64_t prepare_init;
   uint64_t check_init;

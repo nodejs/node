@@ -99,10 +99,14 @@
 #endif
 
 /*
- * MinGW is missing this too
+ * MinGW is missing these too
  */
 #ifndef SO_UPDATE_CONNECT_CONTEXT
-# define SO_UPDATE_CONNECT_CONTEXT   0x7010
+# define SO_UPDATE_CONNECT_CONTEXT 0x7010
+#endif
+
+#ifndef IPV6_V6ONLY
+  #define IPV6_V6ONLY 27
 #endif
 
 

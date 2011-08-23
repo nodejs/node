@@ -29,7 +29,7 @@
 void uv_req_init(uv_req_t* req) {
   uv_counters()->req_init++;
   req->type = UV_UNKNOWN_REQ;
-  req->error = uv_ok_;
+  SET_REQ_SUCCESS(req);
 }
 
 
@@ -115,6 +115,15 @@ void uv_process_reqs() {
         assert(((uv_shutdown_t*) req)->handle->type == UV_NAMED_PIPE);
         uv_process_pipe_shutdown_req(
             (uv_pipe_t*) ((uv_shutdown_t*) req)->handle, (uv_shutdown_t*) req);
+        break;
+
+      case UV_UDP_RECV:
+        uv_process_udp_recv_req((uv_udp_t*) req->data, req);
+        break;
+
+      case UV_UDP_SEND:
+        uv_process_udp_send_req(((uv_udp_send_t*) req)->handle,
+                                (uv_udp_send_t*) req);
         break;
 
       case UV_WAKEUP:

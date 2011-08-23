@@ -39,18 +39,33 @@ int uv_is_active(uv_handle_t* handle) {
 }
 
 
-/* TODO: integrate this with uv_close. */
-static void uv_close_error(uv_handle_t* handle, uv_err_t e) {
+int uv_getsockname(uv_handle_t* handle, struct sockaddr* name, int* namelen) {
+  switch (handle->type) {
+    case UV_TCP:
+      return uv_tcp_getsockname((uv_tcp_t*) handle, name, namelen);
+
+    case UV_UDP:
+      return uv_tcp_getsockname((uv_tcp_t*) handle, name, namelen);
+
+    default:
+      uv_set_sys_error(WSAENOTSOCK);
+      return -1;
+  }
+}
+
+
+void uv_close(uv_handle_t* handle, uv_close_cb cb) {
   uv_tcp_t* tcp;
   uv_pipe_t* pipe;
+  uv_udp_t* udp;
   uv_process_t* process;
 
   if (handle->flags & UV_HANDLE_CLOSING) {
     return;
   }
 
-  handle->error = e;
   handle->flags |= UV_HANDLE_CLOSING;
+  handle->close_cb = cb;
 
   /* Handle-specific close actions */
   switch (handle->type) {
@@ -74,6 +89,15 @@ static void uv_close_error(uv_handle_t* handle, uv_err_t e) {
       pipe->flags &= ~(UV_HANDLE_READING | UV_HANDLE_LISTENING);
       close_pipe(pipe, NULL, NULL);
       if (pipe->reqs_pending == 0) {
+        uv_want_endgame(handle);
+      }
+      return;
+
+    case UV_UDP:
+      udp = (uv_udp_t*) handle;
+      uv_udp_recv_stop(udp);
+      closesocket(udp->socket);
+      if (udp->reqs_pending == 0) {
         uv_want_endgame(handle);
       }
       return;
@@ -116,12 +140,6 @@ static void uv_close_error(uv_handle_t* handle, uv_err_t e) {
 }
 
 
-void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
-  handle->close_cb = close_cb;
-  uv_close_error(handle, uv_ok_);
-}
-
-
 void uv_want_endgame(uv_handle_t* handle) {
   if (!(handle->flags & UV_HANDLE_ENDGAME_QUEUED)) {
     handle->flags |= UV_HANDLE_ENDGAME_QUEUED;
@@ -148,6 +166,10 @@ void uv_process_endgames() {
 
       case UV_NAMED_PIPE:
         uv_pipe_endgame((uv_pipe_t*)handle);
+        break;
+
+      case UV_UDP:
+        uv_udp_endgame((uv_udp_t*) handle);
         break;
 
       case UV_TIMER:
