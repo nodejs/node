@@ -419,7 +419,7 @@ class Scanner {
     }
   }
 
-  uc32 ScanHexEscape(uc32 c, int length);
+  uc32 ScanHexNumber(int expected_length);
 
   // Return the current source position.
   int source_pos() {
@@ -537,6 +537,10 @@ class JavaScriptScanner : public Scanner {
   // Decodes a unicode escape-sequence which is part of an identifier.
   // If the escape sequence cannot be decoded the result is kBadChar.
   uc32 ScanIdentifierUnicodeEscape();
+  // Recognizes a uniocde escape-sequence and adds its characters,
+  // uninterpreted, to the current literal. Used for parsing RegExp
+  // flags.
+  bool ScanLiteralUnicodeEscape();
 
   // Start position of the octal literal last scanned.
   Location octal_pos_;

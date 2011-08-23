@@ -747,9 +747,9 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
         __ li(a2, Operand(variable->name()));
         // Declaration nodes are always introduced in one of two modes.
         ASSERT(mode == Variable::VAR ||
-               mode == Variable::CONST);
-        PropertyAttributes attr =
-            (mode == Variable::VAR) ? NONE : READ_ONLY;
+               mode == Variable::CONST ||
+               mode == Variable::LET);
+        PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
         __ li(a1, Operand(Smi::FromInt(attr)));
         // Push initial value, if any.
         // Note: For variables we must not push an initial value (such as
@@ -886,7 +886,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   __ bind(&next_test);
   __ Drop(1);  // Switch value is no longer needed.
   if (default_clause == NULL) {
-    __ Branch(nested_statement.break_target());
+    __ Branch(nested_statement.break_label());
   } else {
     __ Branch(default_clause->body_target());
   }
@@ -900,7 +900,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     VisitStatements(clause->statements());
   }
 
-  __ bind(nested_statement.break_target());
+  __ bind(nested_statement.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
@@ -1026,7 +1026,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Load the current count to a0, load the length to a1.
   __ lw(a0, MemOperand(sp, 0 * kPointerSize));
   __ lw(a1, MemOperand(sp, 1 * kPointerSize));
-  __ Branch(loop_statement.break_target(), hs, a0, Operand(a1));
+  __ Branch(loop_statement.break_label(), hs, a0, Operand(a1));
 
   // Get the current entry of the array into register a3.
   __ lw(a2, MemOperand(sp, 2 * kPointerSize));
@@ -1053,7 +1053,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(a3);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
   __ mov(a3, result_register());
-  __ Branch(loop_statement.continue_target(), eq, a3, Operand(zero_reg));
+  __ Branch(loop_statement.continue_label(), eq, a3, Operand(zero_reg));
 
   // Update the 'each' property or variable from the possibly filtered
   // entry in register a3.
@@ -1069,7 +1069,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Generate code for the going to the next element by incrementing
   // the index (smi) stored on top of the stack.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   __ pop(a0);
   __ Addu(a0, a0, Operand(Smi::FromInt(1)));
   __ push(a0);
@@ -1078,7 +1078,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ Branch(&loop);
 
   // Remove the pointers stored on the stack.
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   __ Drop(5);
 
   // Exit and decrement the loop depth.

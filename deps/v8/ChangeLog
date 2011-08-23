@@ -1,3 +1,12 @@
+2011-08-22: Version 3.5.7
+
+        Make scanner handle invalid unicode escapes in identifiers correctly.
+
+        Make regexp flag parsing stricter.
+
+        Fix several memory leaks.
+
+
 2011-08-17: Version 3.5.6
 
         Fixed issue that could cause crashes when running with --heap-stats.

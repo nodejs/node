@@ -41,12 +41,12 @@ Scanner::Scanner(UnicodeCache* unicode_cache)
     : unicode_cache_(unicode_cache) { }
 
 
-uc32 Scanner::ScanHexEscape(uc32 c, int length) {
-  ASSERT(length <= 4);  // prevent overflow
+uc32 Scanner::ScanHexNumber(int expected_length) {
+  ASSERT(expected_length <= 4);  // prevent overflow
 
-  uc32 digits[4];
+  uc32 digits[4] = { 0, 0, 0, 0 };
   uc32 x = 0;
-  for (int i = 0; i < length; i++) {
+  for (int i = 0; i < expected_length; i++) {
     digits[i] = c0_;
     int d = HexValue(c0_);
     if (d < 0) {
@@ -54,12 +54,11 @@ uc32 Scanner::ScanHexEscape(uc32 c, int length) {
       // should be illegal, but other JS VMs just return the
       // non-escaped version of the original character.
 
-      // Push back digits read, except the last one (in c0_).
+      // Push back digits that we have advanced past.
       for (int j = i-1; j >= 0; j--) {
         PushBack(digits[j]);
       }
-      // Notice: No handling of error - treat it as "\u"->"u".
-      return c;
+      return -1;
     }
     x = x * 16 + d;
     Advance();
@@ -640,9 +639,17 @@ void JavaScriptScanner::ScanEscape() {
     case 'n' : c = '\n'; break;
     case 'r' : c = '\r'; break;
     case 't' : c = '\t'; break;
-    case 'u' : c = ScanHexEscape(c, 4); break;
+    case 'u' : {
+      c = ScanHexNumber(4);
+      if (c < 0) c = 'u';
+      break;
+    }
     case 'v' : c = '\v'; break;
-    case 'x' : c = ScanHexEscape(c, 2); break;
+    case 'x' : {
+      c = ScanHexNumber(2);
+      if (c < 0) c = 'x';
+      break;
+    }
     case '0' :  // fall through
     case '1' :  // fall through
     case '2' :  // fall through
@@ -802,13 +809,11 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
 
 uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
   Advance();
-  if (c0_ != 'u') return unibrow::Utf8::kBadChar;
+  if (c0_ != 'u') return -1;
   Advance();
-  uc32 c = ScanHexEscape('u', 4);
-  // We do not allow a unicode escape sequence to start another
-  // unicode escape sequence.
-  if (c == '\\') return unibrow::Utf8::kBadChar;
-  return c;
+  uc32 result = ScanHexNumber(4);
+  if (result < 0) PushBack('u');
+  return result;
 }
 
 
@@ -926,7 +931,11 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
   if (c0_ == '\\') {
     uc32 c = ScanIdentifierUnicodeEscape();
     // Only allow legal identifier start characters.
-    if (!unicode_cache_->IsIdentifierStart(c)) return Token::ILLEGAL;
+    if (c < 0 ||
+        c == '\\' ||  // No recursive escapes.
+        !unicode_cache_->IsIdentifierStart(c)) {
+      return Token::ILLEGAL;
+    }
     AddLiteralChar(c);
     return ScanIdentifierSuffix(&literal);
   }
@@ -966,7 +975,11 @@ Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
     if (c0_ == '\\') {
       uc32 c = ScanIdentifierUnicodeEscape();
       // Only allow legal identifier part characters.
-      if (!unicode_cache_->IsIdentifierPart(c)) return Token::ILLEGAL;
+      if (c < 0 ||
+          c == '\\' ||
+          !unicode_cache_->IsIdentifierPart(c)) {
+        return Token::ILLEGAL;
+      }
       AddLiteralChar(c);
     } else {
       AddLiteralChar(c0_);
@@ -992,8 +1005,9 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
   // the scanner should pass uninterpreted bodies to the RegExp
   // constructor.
   LiteralScope literal(this);
-  if (seen_equal)
+  if (seen_equal) {
     AddLiteralChar('=');
+  }
 
   while (c0_ != '/' || in_character_class) {
     if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
@@ -1025,20 +1039,47 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 }
 
 
+bool JavaScriptScanner::ScanLiteralUnicodeEscape() {
+  ASSERT(c0_ == '\\');
+  uc32 chars_read[6] = {'\\', 'u', 0, 0, 0, 0};
+  Advance();
+  int i = 1;
+  if (c0_ == 'u') {
+    i++;
+    while (i < 6) {
+      Advance();
+      if (!IsHexDigit(c0_)) break;
+      chars_read[i] = c0_;
+      i++;
+    }
+  }
+  if (i < 6) {
+    // Incomplete escape. Undo all advances and return false.
+    while (i > 0) {
+      i--;
+      PushBack(chars_read[i]);
+    }
+    return false;
+  }
+  // Complete escape. Add all chars to current literal buffer.
+  for (int i = 0; i < 6; i++) {
+    AddLiteralChar(chars_read[i]);
+  }
+  return true;
+}
+
+
 bool JavaScriptScanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
   while (unicode_cache_->IsIdentifierPart(c0_)) {
-    if (c0_ == '\\') {
-      uc32 c = ScanIdentifierUnicodeEscape();
-      if (c != static_cast<uc32>(unibrow::Utf8::kBadChar)) {
-        // We allow any escaped character, unlike the restriction on
-        // IdentifierPart when it is used to build an IdentifierName.
-        AddLiteralChar(c);
-        continue;
+    if (c0_ != '\\') {
+      AddLiteralCharAdvance();
+    } else {
+      if (!ScanLiteralUnicodeEscape()) {
+        break;
       }
     }
-    AddLiteralCharAdvance();
   }
   literal.Complete();
 

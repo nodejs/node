@@ -246,9 +246,8 @@ ecma_3/Number/15.7.4.7-1: FAIL_OK
 ecma_3/Number/15.7.4.6-1: FAIL_OK
 
 #:=== RegExp:=== 
-# To be compatible with JSC we silently ignore flags that do not make
-# sense.  These tests expects us to throw exceptions.  
-ecma_3/RegExp/regress-57631: FAIL_OK
+# We don't match the syntax error message of Mozilla for invalid
+# RegExp flags.
 ecma_3/RegExp/15.10.4.1-6: FAIL_OK
 
 # PCRE doesn't allow subpattern nesting deeper than 200, this tests

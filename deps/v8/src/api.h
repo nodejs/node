@@ -406,6 +406,10 @@ class HandleScopeImplementer {
         spare_(NULL),
         call_depth_(0) { }
 
+  ~HandleScopeImplementer() {
+    DeleteArray(spare_);
+  }
+
   // Threading support for handle data.
   static int ArchiveSpacePerThread();
   char* RestoreThread(char* from);

@@ -862,7 +862,7 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   VisitStatements(stmt->statements());
   scope_ = saved_scope;
-  __ bind(nested_statement.break_target());
+  __ bind(nested_statement.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
@@ -932,8 +932,7 @@ void FullCodeGenerator::VisitContinueStatement(ContinueStatement* stmt) {
                       context_register());
   }
 
-  Iteration* loop = current->AsIteration();
-  __ jmp(loop->continue_target());
+  __ jmp(current->AsIteration()->continue_label());
 }
 
 
@@ -961,8 +960,7 @@ void FullCodeGenerator::VisitBreakStatement(BreakStatement* stmt) {
                       context_register());
   }
 
-  Breakable* target = current->AsBreakable();
-  __ jmp(target->break_target());
+  __ jmp(current->AsBreakable()->break_label());
 }
 
 
@@ -1030,12 +1028,12 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
 
   // Record the position of the do while condition and make sure it is
   // possible to break on the condition.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
   SetExpressionPosition(stmt->cond(), stmt->condition_position());
   VisitForControl(stmt->cond(),
                   &stack_check,
-                  loop_statement.break_target(),
+                  loop_statement.break_label(),
                   &stack_check);
 
   // Check stack before looping.
@@ -1045,7 +1043,7 @@ void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   __ jmp(&body);
 
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
 
@@ -1066,7 +1064,7 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
 
   // Emit the statement position here as this is where the while
   // statement code starts.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   SetStatementPosition(stmt);
 
   // Check stack before looping.
@@ -1075,11 +1073,11 @@ void FullCodeGenerator::VisitWhileStatement(WhileStatement* stmt) {
   __ bind(&test);
   VisitForControl(stmt->cond(),
                   &body,
-                  loop_statement.break_target(),
-                  loop_statement.break_target());
+                  loop_statement.break_label(),
+                  loop_statement.break_label());
 
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
 
@@ -1102,7 +1100,7 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   Visit(stmt->body());
 
   PrepareForBailoutForId(stmt->ContinueId(), NO_REGISTERS);
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   SetStatementPosition(stmt);
   if (stmt->next() != NULL) {
     Visit(stmt->next());
@@ -1119,14 +1117,14 @@ void FullCodeGenerator::VisitForStatement(ForStatement* stmt) {
   if (stmt->cond() != NULL) {
     VisitForControl(stmt->cond(),
                     &body,
-                    loop_statement.break_target(),
-                    loop_statement.break_target());
+                    loop_statement.break_label(),
+                    loop_statement.break_label());
   } else {
     __ jmp(&body);
   }
 
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   decrement_loop_depth();
 }
 
@@ -1144,7 +1142,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // to introduce a new scope to bind the catch variable and to remove
   // that scope again afterwards.
 
-  Label try_handler_setup, catch_entry, done;
+  Label try_handler_setup, done;
   __ Call(&try_handler_setup);
   // Try handler code, exception in result register.
 
@@ -1170,12 +1168,13 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_handler_setup);
   {
-    TryCatch try_block(this, &catch_entry);
+    const int delta = StackHandlerConstants::kSize / kPointerSize;
+    TryCatch try_block(this);
     __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER);
-    increment_stack_height(StackHandlerConstants::kSize / kPointerSize);
+    increment_stack_height(delta);
     Visit(stmt->try_block());
     __ PopTryHandler();
-    decrement_stack_height(StackHandlerConstants::kSize / kPointerSize);
+    decrement_stack_height(delta);
   }
   __ bind(&done);
 }
@@ -1208,9 +1207,6 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   Label finally_entry;
   Label try_handler_setup;
   const int original_stack_height = stack_height();
-  const int finally_block_stack_height = original_stack_height + 2;
-  const int try_block_stack_height = original_stack_height + 5;
-  STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
 
   // Setup the try-handler chain. Use a call to
   // Jump to try-handler setup and try-block code. Use call to put try-handler
@@ -1219,9 +1215,9 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   // Try handler code. Return address of call is pushed on handler stack.
   {
     // This code is only executed during stack-handler traversal when an
-    // exception is thrown. The execption is in the result register, which
+    // exception is thrown. The exception is in the result register, which
     // is retained by the finally block.
-    // Call the finally block and then rethrow the exception.
+    // Call the finally block and then rethrow the exception if it returns.
     __ Call(&finally_entry);
     __ push(result_register());
     __ CallRuntime(Runtime::kReThrow, 1);
@@ -1232,7 +1228,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
     // Finally block implementation.
     Finally finally_block(this);
     EnterFinallyBlock();
-    set_stack_height(finally_block_stack_height);
+    set_stack_height(original_stack_height + Finally::kElementCount);
     Visit(stmt->finally_block());
     ExitFinallyBlock();  // Return to the calling code.
   }
@@ -1240,9 +1236,10 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   __ bind(&try_handler_setup);
   {
     // Setup try handler (stack pointer registers).
+    const int delta = StackHandlerConstants::kSize / kPointerSize;
     TryFinally try_block(this, &finally_entry);
     __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER);
-    set_stack_height(try_block_stack_height);
+    set_stack_height(original_stack_height + delta);
     Visit(stmt->try_block());
     __ PopTryHandler();
     set_stack_height(original_stack_height);

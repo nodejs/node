@@ -30,6 +30,10 @@
 // We should now allow duplicates of flags.
 // (See http://code.google.com/p/v8/issues/detail?id=219)
 
+// This has been reversed by issue 1628, since other browsers have also
+// tightened their syntax.
+// (See http://code.google.com/p/v8/issues/detail?id=1628)
+
 // Base tests: we recognize the basic flags
 
 function assertFlags(re, global, multiline, ignoreCase) {
@@ -53,124 +57,92 @@ assertFlags(re, true, true, true)
 
 // Double i's
 
-re = /a/ii;
-assertFlags(re, false, false, true)
+assertThrows("/a/ii");
 
-re = /a/gii;
-assertFlags(re, true, false, true)
+assertThrows("/a/gii");
 
-re = /a/igi;
-assertFlags(re, true, false, true)
+assertThrows("/a/igi");
 
-re = /a/iig;
-assertFlags(re, true, false, true)
+assertThrows("/a/iig");
 
-re = /a/gimi;
-assertFlags(re, true, true, true)
+assertThrows("/a/gimi");
 
-re = /a/giim;
-assertFlags(re, true, true, true)
+assertThrows("/a/giim");
 
-re = /a/igim;
-assertFlags(re, true, true, true)
+assertThrows("/a/igim");
 
+assertThrows(function(){ return RegExp("a", "ii"); })
 
-re = RegExp("a", "ii");
-assertFlags(re, false, false, true)
+assertThrows(function(){ return RegExp("a", "gii"); })
 
-re = RegExp("a", "gii");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "igi"); })
 
-re = RegExp("a", "igi");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "iig"); })
 
-re = RegExp("a", "iig");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "gimi"); })
 
-re = RegExp("a", "gimi");
-assertFlags(re, true, true, true)
+assertThrows(function(){ return RegExp("a", "giim"); })
 
-re = RegExp("a", "giim");
-assertFlags(re, true, true, true)
-
-re = RegExp("a", "igim");
-assertFlags(re, true, true, true)
+assertThrows(function(){ return RegExp("a", "igim"); })
 
 // Tripple i's
 
-re = /a/iii;
-assertFlags(re, false, false, true)
+assertThrows("/a/iii");
 
-re = /a/giii;
-assertFlags(re, true, false, true)
+assertThrows("/a/giii");
 
-re = /a/igii;
-assertFlags(re, true, false, true)
+assertThrows("/a/igii");
 
-re = /a/iigi;
-assertFlags(re, true, false, true)
+assertThrows("/a/iigi");
 
-re = /a/iiig;
-assertFlags(re, true, false, true)
+assertThrows("/a/iiig");
 
-re = /a/miiig;
-assertFlags(re, true, true, true)
+assertThrows("/a/miiig");
 
+assertThrows(function(){ return RegExp("a", "iii"); })
 
-re = RegExp("a", "iii");
-assertFlags(re, false, false, true)
+assertThrows(function(){ return RegExp("a", "giii"); })
 
-re = RegExp("a", "giii");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "igii"); })
 
-re = RegExp("a", "igii");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "iigi"); })
 
-re = RegExp("a", "iigi");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "iiig"); })
 
-re = RegExp("a", "iiig");
-assertFlags(re, true, false, true)
+assertThrows(function(){ return RegExp("a", "miiig"); })
 
-re = RegExp("a", "miiig");
-assertFlags(re, true, true, true)
+// Illegal flags - valid flags late in string.
 
-// Illegal flags - flags late in string.
+assertThrows("/a/arglebargleglopglyf");
 
-re = /a/arglebargleglopglyf;
-assertFlags(re, true, false, false)
+assertThrows("/a/arglebargleglopglif");
 
-re = /a/arglebargleglopglif;
-assertFlags(re, true, false, true)
+assertThrows("/a/arglebargleglopglym");
 
-re = /a/arglebargleglopglym;
-assertFlags(re, true, true, false)
-
-re = /a/arglebargleglopglim;
-assertFlags(re, true, true, true)
+assertThrows("/a/arglebargleglopglim");
 
 // Case of flags still matters.
 
-re = /a/gmi;
+var re = /a/gmi;
 assertFlags(re, true, true, true)
 
-re = /a/Gmi;
-assertFlags(re, false, true, true)
+assertThrows("/a/Gmi");
 
-re = /a/gMi;
-assertFlags(re, true, false, true)
+assertThrows("/a/gMi");
 
-re = /a/gmI;
-assertFlags(re, true, true, false)
+assertThrows("/a/gmI");
 
-re = /a/GMi;
-assertFlags(re, false, false, true)
+assertThrows("/a/GMi");
 
-re = /a/GmI;
-assertFlags(re, false, true, false)
+assertThrows("/a/GmI");
 
-re = /a/gMI;
-assertFlags(re, true, false, false)
+assertThrows("/a/gMI");
 
-re = /a/GMI;
-assertFlags(re, false, false, false)
+assertThrows("/a/GMI");
+
+// Unicode escape sequences are not interpreted.
+
+assertThrows("/a/\\u0067");
+assertThrows("/a/\\u0069");
+assertThrows("/a/\\u006d");
+assertThrows("/a/\\u006D");

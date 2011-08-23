@@ -875,7 +875,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   __ bind(&next_test);
   __ Drop(1);  // Switch value is no longer needed.
   if (default_clause == NULL) {
-    __ jmp(nested_statement.break_target());
+    __ jmp(nested_statement.break_label());
   } else {
     __ jmp(default_clause->body_target());
   }
@@ -890,7 +890,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     VisitStatements(clause->statements());
   }
 
-  __ bind(nested_statement.break_target());
+  __ bind(nested_statement.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
@@ -1006,12 +1006,13 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
 
-  increment_stack_height(4);
+  // 1 ~ The object has already been pushed.
+  increment_stack_height(ForIn::kElementCount - 1);
   // Generate code for doing the condition check.
   __ bind(&loop);
   __ mov(eax, Operand(esp, 0 * kPointerSize));  // Get the current index.
   __ cmp(eax, Operand(esp, 1 * kPointerSize));  // Compare to the array length.
-  __ j(above_equal, loop_statement.break_target());
+  __ j(above_equal, loop_statement.break_label());
 
   // Get the current entry of the array into register ebx.
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
@@ -1035,7 +1036,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(ebx);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
   __ test(eax, Operand(eax));
-  __ j(equal, loop_statement.continue_target());
+  __ j(equal, loop_statement.continue_label());
   __ mov(ebx, Operand(eax));
 
   // Update the 'each' property or variable from the possibly filtered
@@ -1052,17 +1053,17 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Generate code for going to the next element by incrementing the
   // index (smi) stored on top of the stack.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   __ add(Operand(esp, 0 * kPointerSize), Immediate(Smi::FromInt(1)));
 
   EmitStackCheck(stmt);
   __ jmp(&loop);
 
   // Remove the pointers stored on the stack.
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   __ add(Operand(esp), Immediate(5 * kPointerSize));
 
-  decrement_stack_height(5);
+  decrement_stack_height(ForIn::kElementCount);
   // Exit and decrement the loop depth.
   __ bind(&exit);
   decrement_loop_depth();

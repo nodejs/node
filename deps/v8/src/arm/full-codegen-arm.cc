@@ -878,7 +878,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
   __ bind(&next_test);
   __ Drop(1);  // Switch value is no longer needed.
   if (default_clause == NULL) {
-    __ b(nested_statement.break_target());
+    __ b(nested_statement.break_label());
   } else {
     __ b(default_clause->body_target());
   }
@@ -892,7 +892,7 @@ void FullCodeGenerator::VisitSwitchStatement(SwitchStatement* stmt) {
     VisitStatements(clause->statements());
   }
 
-  __ bind(nested_statement.break_target());
+  __ bind(nested_statement.break_label());
   PrepareForBailoutForId(stmt->ExitId(), NO_REGISTERS);
 }
 
@@ -1023,7 +1023,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   // Load the current count to r0, load the length to r1.
   __ Ldrd(r0, r1, MemOperand(sp, 0 * kPointerSize));
   __ cmp(r0, r1);  // Compare to the array length.
-  __ b(hs, loop_statement.break_target());
+  __ b(hs, loop_statement.break_label());
 
   // Get the current entry of the array into register r3.
   __ ldr(r2, MemOperand(sp, 2 * kPointerSize));
@@ -1049,7 +1049,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(r3);  // Current entry.
   __ InvokeBuiltin(Builtins::FILTER_KEY, CALL_FUNCTION);
   __ mov(r3, Operand(r0), SetCC);
-  __ b(eq, loop_statement.continue_target());
+  __ b(eq, loop_statement.continue_label());
 
   // Update the 'each' property or variable from the possibly filtered
   // entry in register r3.
@@ -1065,7 +1065,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
 
   // Generate code for the going to the next element by incrementing
   // the index (smi) stored on top of the stack.
-  __ bind(loop_statement.continue_target());
+  __ bind(loop_statement.continue_label());
   __ pop(r0);
   __ add(r0, r0, Operand(Smi::FromInt(1)));
   __ push(r0);
@@ -1074,7 +1074,7 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ b(&loop);
 
   // Remove the pointers stored on the stack.
-  __ bind(loop_statement.break_target());
+  __ bind(loop_statement.break_label());
   __ Drop(5);
 
   // Exit and decrement the loop depth.

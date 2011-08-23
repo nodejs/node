@@ -305,7 +305,9 @@ ThreadManager::ThreadManager()
 
 
 ThreadManager::~ThreadManager() {
-  // TODO(isolates): Destroy mutexes.
+  delete mutex_;
+  delete free_anchor_;
+  delete in_use_anchor_;
 }
 
 

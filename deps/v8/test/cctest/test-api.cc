@@ -3617,6 +3617,52 @@ THREADED_TEST(IndexedInterceptorUnboxedDoubleWithIndexedAccessor) {
 }
 
 
+Handle<v8::Array> NonStrictArgsIndexedPropertyEnumerator(
+    const AccessorInfo& info) {
+  // Force the list of returned keys to be stored in a Arguments object.
+  Local<Script> indexed_property_names_script = Script::Compile(v8_str(
+      "function f(w,x) {"
+      " return arguments;"
+      "}"
+      "keys = f(0, 1, 2, 3);"
+      "keys;"));
+  Local<Value> result = indexed_property_names_script->Run();
+  return Local<v8::Array>(static_cast<v8::Array*>(::v8::Object::Cast(*result)));
+}
+
+
+static v8::Handle<Value> NonStrictIndexedPropertyGetter(
+    uint32_t index,
+    const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (index < 4) {
+    return v8::Handle<Value>(v8_num(index));
+  }
+  return v8::Handle<Value>();
+}
+
+
+// Make sure that the the interceptor code in the runtime properly handles
+// merging property name lists for non-string arguments arrays.
+THREADED_TEST(IndexedInterceptorNonStrictArgsWithIndexedAccessor) {
+  v8::HandleScope scope;
+  Local<ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetIndexedPropertyHandler(NonStrictIndexedPropertyGetter,
+                                   0,
+                                   0,
+                                   0,
+                                   NonStrictArgsIndexedPropertyEnumerator);
+  LocalContext context;
+  context->Global()->Set(v8_str("obj"), templ->NewInstance());
+  Local<Script> create_args_script =
+      Script::Compile(v8_str(
+          "var key_count = 0;"
+          "for (x in obj) {key_count++;} key_count;"));
+  Local<Value> result = create_args_script->Run();
+  CHECK_EQ(v8_num(4), result);
+}
+
+
 static v8::Handle<Value> IdentityIndexedPropertyGetter(
     uint32_t index,
     const AccessorInfo& info) {

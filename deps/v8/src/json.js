@@ -237,7 +237,7 @@ function BasicSerializeArray(value, stack, builder) {
     }
   }
   stack.pop();
-  builder.push("]"); 
+  builder.push("]");
 }
 
 

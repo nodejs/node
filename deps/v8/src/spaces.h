@@ -409,6 +409,7 @@ class Space : public Malloced {
 class CodeRange {
  public:
   explicit CodeRange(Isolate* isolate);
+  ~CodeRange() { TearDown(); }
 
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.

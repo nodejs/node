@@ -56,15 +56,6 @@ S15.10.6.3_A1_T16: FAIL_OK
 # errors, for compatibility.
 S15.10.2.11_A1_T2: FAIL
 S15.10.2.11_A1_T3: FAIL
-S15.10.4.1_A5_T1: FAIL
-S15.10.4.1_A5_T2: FAIL
-S15.10.4.1_A5_T3: FAIL
-S15.10.4.1_A5_T4: FAIL
-S15.10.4.1_A5_T5: FAIL
-S15.10.4.1_A5_T6: FAIL
-S15.10.4.1_A5_T7: FAIL
-S15.10.4.1_A5_T8: FAIL
-S15.10.4.1_A5_T9: FAIL
 
 # We are more lenient in which string character escapes we allow than
 # the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
@@ -98,6 +89,13 @@ S7.8.4_A7.2_T3: FAIL_OK
 S7.8.4_A7.4_T1: FAIL_OK
 S7.8.4_A4.3_T5: FAIL_OK
 S7.8.4_A7.2_T5: FAIL_OK
+
+# Sputnik expects unicode escape sequences in RegExp flags to be interpreted.
+# The specification requires them to be passed uninterpreted to the RegExp
+# constructor. We now implement that.
+S7.8.5_A3.1_T7: FAIL_OK
+S7.8.5_A3.1_T8: FAIL_OK
+S7.8.5_A3.1_T9: FAIL_OK
 
 # We allow some keywords to be used as identifiers.
 S7.5.3_A1.15: FAIL_OK

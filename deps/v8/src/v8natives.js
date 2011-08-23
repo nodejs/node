@@ -462,6 +462,7 @@ function PropertyDescriptor() {
 }
 
 PropertyDescriptor.prototype.__proto__ = null;
+
 PropertyDescriptor.prototype.toString = function() {
   return "[object PropertyDescriptor]";
 };
@@ -1015,24 +1016,27 @@ function ObjectDefineProperty(obj, p, attributes) {
 }
 
 
+function GetOwnEnumerablePropertyNames(properties) {
+  var names = new InternalArray();
+  for (var key in properties) {
+    if (%HasLocalProperty(properties, key)) {
+      names.push(key);
+    }
+  }
+  return names;
+}
+
+
 // ES5 section 15.2.3.7.
 function ObjectDefineProperties(obj, properties) {
   if (!IS_SPEC_OBJECT(obj))
     throw MakeTypeError("obj_ctor_property_non_object", ["defineProperties"]);
   var props = ToObject(properties);
-  var key_values = [];
-  for (var key in props) {
-    if (%HasLocalProperty(props, key)) {
-      key_values.push(key);
-      var value = props[key];
-      var desc = ToPropertyDescriptor(value);
-      key_values.push(desc);
-    }
-  }
-  for (var i = 0; i < key_values.length; i += 2) {
-    var key = key_values[i];
-    var desc = key_values[i + 1];
-    DefineOwnProperty(obj, key, desc, true);
+  var names = GetOwnEnumerablePropertyNames(props);
+  for (var i = 0; i < names.length; i++) {
+    var name = names[i];
+    var desc = ToPropertyDescriptor(props[name]);
+    DefineOwnProperty(obj, name, desc, true);
   }
   return obj;
 }

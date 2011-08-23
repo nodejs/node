@@ -50,24 +50,29 @@ function DoConstructRegExp(object, pattern, flags) {
   var global = false;
   var ignoreCase = false;
   var multiline = false;
-
   for (var i = 0; i < flags.length; i++) {
     var c = %_CallFunction(flags, i, StringCharAt);
     switch (c) {
       case 'g':
-        // Allow duplicate flags to be consistent with JSC and others.
+        if (global) {
+          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
+        }
         global = true;
         break;
       case 'i':
+        if (ignoreCase) {
+          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
+        }
         ignoreCase = true;
         break;
       case 'm':
+        if (multiline) {
+          throw MakeSyntaxError("invalid_regexp_flags", [flags]);
+        }
         multiline = true;
         break;
       default:
-        // Ignore flags that have no meaning to be consistent with
-        // JSC.
-        break;
+        throw MakeSyntaxError("invalid_regexp_flags", [flags]);
     }
   }
 

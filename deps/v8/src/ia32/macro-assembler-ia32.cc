@@ -69,8 +69,8 @@ void MacroAssembler::RecordWriteHelper(Register object,
 
   // Compute number of region covering addr. See Page::GetRegionNumberForAddress
   // method for more details.
-  and_(addr, Page::kPageAlignmentMask);
   shr(addr, Page::kRegionSizeLog2);
+  and_(addr, Page::kPageAlignmentMask >> Page::kRegionSizeLog2);
 
   // Set dirty mark for region.
   // Bit tests with a memory operand should be avoided on Intel processors,

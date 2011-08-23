@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,30 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// In Issue 87, we allowed unicode escape sequences in RegExp flags.
-// However, according to ES5, they should not be interpreted, but passed
-// verbatim to the RegExp constructor.
-// (On top of that, the original test was bugged and never tested anything).
-// The behavior was changed in r8969 to not interpret escapes, but this
-// test didn't test that, and only failed when making invalid flag characters
-// an error too.
+// Don't allow malformed unicode escape sequences in identifiers.
+// In strings and regexps we currently allow malformed unicode escape
+// sequences without throwing a SyntaxError. Instead "\u22gk" would
+// treat the "\u" as an identity escape, and evaluate to "u22gk".
+// Due to code sharing, we did the same in identifiers. This should
+// no longer be the case.
+// See: http://code.google.com/p/v8/issues/detail?id=1620
 
-assertThrows("/x/\\u0067");
-assertThrows("/x/\\u0069");
-assertThrows("/x/\\u006d");
+assertThrows("var \\u\\u\\u = 42;");
+assertThrows("var \\u41 = 42;");
+assertThrows("var \\u123 = 42;");
+eval("var \\u1234 = 42;");
+assertEquals(42, eval("\u1234"));
+assertThrows("var uuu = 42; var x = \\u\\u\\u");
 
-assertThrows("/x/\\u0067i");
-assertThrows("/x/\\u0069m");
-assertThrows("/x/\\u006dg");
+// Regressions introduced and fixed again while fixing the above.
 
-assertThrows("/x/m\\u0067");
-assertThrows("/x/g\\u0069");
-assertThrows("/x/i\\u006d");
+// Handle 0xFFFD correctly (it's a valid value, and shouldn't be used
+// to mark an error).
+assertEquals(0xFFFD, "\uFFFD".charCodeAt(0));
 
-assertThrows("/x/m\\u0067i");
-assertThrows("/x/g\\u0069m");
-assertThrows("/x/i\\u006dg");
-
-assertThrows("/x/\\u0068");
-assertThrows("/x/\\u0020");
+// Handle unicode escapes in regexp flags correctly.
+assertThrows("/x/g\\uim", SyntaxError);
+assertThrows("/x/g\\u2im", SyntaxError);
+assertThrows("/x/g\\u22im", SyntaxError);
+assertThrows("/x/g\\u222im", SyntaxError);
+assertThrows("/x/g\\\\u2222im", SyntaxError);

@@ -404,7 +404,7 @@ ScriptBreakPoint.prototype.matchesScript = function(script) {
       return this.script_name_ == script.nameOrSourceURL();
     } else if (this.type_ == Debug.ScriptBreakPointType.ScriptRegExp) {
       return this.script_regexp_object_.test(script.nameOrSourceURL());
-    } else { 
+    } else {
       throw new Error("Unexpected breakpoint type " + this.type_);
     }
   }
@@ -1579,7 +1579,7 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
     response.failed('Missing argument "type" or "target"');
     return;
   }
-  
+
   // Either function or script break point.
   var break_point_number;
   if (type == 'function') {
@@ -1623,10 +1623,10 @@ DebugCommandProcessor.prototype.setBreakPointRequest_ =
     break_point_number =
         Debug.setScriptBreakPointByName(target, line, column, condition,
                                         groupId);
-  } else if (type == 'scriptId') { 
+  } else if (type == 'scriptId') {
     break_point_number =
         Debug.setScriptBreakPointById(target, line, column, condition, groupId);
-  } else if (type == 'scriptRegExp') { 
+  } else if (type == 'scriptRegExp') {
     break_point_number =
         Debug.setScriptBreakPointByRegExp(target, line, column, condition,
                                           groupId);
@@ -1797,7 +1797,7 @@ DebugCommandProcessor.prototype.listBreakpointsRequest_ = function(request, resp
       description.type = 'scriptRegExp';
       description.script_regexp = break_point.script_regexp_object().source;
     } else {
-      throw new Error("Internal error: Unexpected breakpoint type: " + break_point.type()); 
+      throw new Error("Internal error: Unexpected breakpoint type: " + break_point.type());
     }
     array.push(description);
   }
@@ -1838,7 +1838,7 @@ DebugCommandProcessor.prototype.setExceptionBreakRequest_ =
     enabled = !Debug.isBreakOnException();
   } else if (type == 'uncaught') {
     enabled = !Debug.isBreakOnUncaughtException();
-  }  
+  }
 
   // Pull out and check the 'enabled' argument if present:
   if (!IS_UNDEFINED(request.arguments.enabled)) {
@@ -2022,22 +2022,22 @@ DebugCommandProcessor.prototype.evaluateRequest_ = function(request, response) {
   if (!IS_UNDEFINED(frame) && global) {
     return response.failed('Arguments "frame" and "global" are exclusive');
   }
-  
+
   var additional_context_object;
   if (additional_context) {
     additional_context_object = {};
     for (var i = 0; i < additional_context.length; i++) {
       var mapping = additional_context[i];
       if (!IS_STRING(mapping.name) || !IS_NUMBER(mapping.handle)) {
-        return response.failed("Context element #" + i + 
+        return response.failed("Context element #" + i +
             " must contain name:string and handle:number");
-      } 
+      }
       var context_value_mirror = LookupMirror(mapping.handle);
       if (!context_value_mirror) {
         return response.failed("Context object '" + mapping.name +
             "' #" + mapping.handle + "# not found");
       }
-      additional_context_object[mapping.name] = context_value_mirror.value(); 
+      additional_context_object[mapping.name] = context_value_mirror.value();
     }
   }
 

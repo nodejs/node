@@ -111,10 +111,7 @@ class FullCodeGenerator: public AstVisitor {
  private:
   class Breakable;
   class Iteration;
-  class TryCatch;
-  class TryFinally;
-  class Finally;
-  class ForIn;
+
   class TestContext;
 
   class NestedStatement BASE_EMBEDDED {
@@ -132,10 +129,6 @@ class FullCodeGenerator: public AstVisitor {
 
     virtual Breakable* AsBreakable() { return NULL; }
     virtual Iteration* AsIteration() { return NULL; }
-    virtual TryCatch* AsTryCatch() { return NULL; }
-    virtual TryFinally* AsTryFinally() { return NULL; }
-    virtual Finally* AsFinally() { return NULL; }
-    virtual ForIn* AsForIn() { return NULL; }
 
     virtual bool IsContinueTarget(Statement* target) { return false; }
     virtual bool IsBreakTarget(Statement* target) { return false; }
@@ -158,110 +151,102 @@ class FullCodeGenerator: public AstVisitor {
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
   };
 
+  // A breakable statement such as a block.
   class Breakable : public NestedStatement {
    public:
-    Breakable(FullCodeGenerator* codegen,
-              BreakableStatement* break_target)
-        : NestedStatement(codegen),
-          target_(break_target) {}
-    virtual ~Breakable() {}
-    virtual Breakable* AsBreakable() { return this; }
-    virtual bool IsBreakTarget(Statement* statement) {
-      return target_ == statement;
+    Breakable(FullCodeGenerator* codegen, BreakableStatement* statement)
+        : NestedStatement(codegen), statement_(statement) {
     }
-    BreakableStatement* statement() { return target_; }
-    Label* break_target() { return &break_target_label_; }
+    virtual ~Breakable() {}
+
+    virtual Breakable* AsBreakable() { return this; }
+    virtual bool IsBreakTarget(Statement* target) {
+      return statement() == target;
+    }
+
+    BreakableStatement* statement() { return statement_; }
+    Label* break_label() { return &break_label_; }
+
    private:
-    BreakableStatement* target_;
-    Label break_target_label_;
-    DISALLOW_COPY_AND_ASSIGN(Breakable);
+    BreakableStatement* statement_;
+    Label break_label_;
   };
 
+  // An iteration statement such as a while, for, or do loop.
   class Iteration : public Breakable {
    public:
-    Iteration(FullCodeGenerator* codegen,
-              IterationStatement* iteration_statement)
-        : Breakable(codegen, iteration_statement) {}
-    virtual ~Iteration() {}
-    virtual Iteration* AsIteration() { return this; }
-    virtual bool IsContinueTarget(Statement* statement) {
-      return this->statement() == statement;
+    Iteration(FullCodeGenerator* codegen, IterationStatement* statement)
+        : Breakable(codegen, statement) {
     }
-    Label* continue_target() { return &continue_target_label_; }
+    virtual ~Iteration() {}
+
+    virtual Iteration* AsIteration() { return this; }
+    virtual bool IsContinueTarget(Statement* target) {
+      return statement() == target;
+    }
+
+    Label* continue_label() { return &continue_label_; }
+
    private:
-    Label continue_target_label_;
-    DISALLOW_COPY_AND_ASSIGN(Iteration);
+    Label continue_label_;
   };
 
-  // The environment inside the try block of a try/catch statement.
+  // The try block of a try/catch statement.
   class TryCatch : public NestedStatement {
    public:
-    explicit TryCatch(FullCodeGenerator* codegen, Label* catch_entry)
-        : NestedStatement(codegen), catch_entry_(catch_entry) { }
+    explicit TryCatch(FullCodeGenerator* codegen) : NestedStatement(codegen) {
+    }
     virtual ~TryCatch() {}
-    virtual TryCatch* AsTryCatch() { return this; }
-    Label* catch_entry() { return catch_entry_; }
+
     virtual NestedStatement* Exit(int* stack_depth, int* context_length);
-   private:
-    Label* catch_entry_;
-    DISALLOW_COPY_AND_ASSIGN(TryCatch);
   };
 
-  // The environment inside the try block of a try/finally statement.
+  // The try block of a try/finally statement.
   class TryFinally : public NestedStatement {
    public:
-    explicit TryFinally(FullCodeGenerator* codegen, Label* finally_entry)
-        : NestedStatement(codegen), finally_entry_(finally_entry) { }
+    TryFinally(FullCodeGenerator* codegen, Label* finally_entry)
+        : NestedStatement(codegen), finally_entry_(finally_entry) {
+    }
     virtual ~TryFinally() {}
-    virtual TryFinally* AsTryFinally() { return this; }
-    Label* finally_entry() { return finally_entry_; }
+
     virtual NestedStatement* Exit(int* stack_depth, int* context_length);
+
    private:
     Label* finally_entry_;
-    DISALLOW_COPY_AND_ASSIGN(TryFinally);
   };
 
-  // A FinallyEnvironment represents being inside a finally block.
-  // Abnormal termination of the finally block needs to clean up
-  // the block's parameters from the stack.
+  // The finally block of a try/finally statement.
   class Finally : public NestedStatement {
    public:
+    static const int kElementCount = 2;
+
     explicit Finally(FullCodeGenerator* codegen) : NestedStatement(codegen) { }
     virtual ~Finally() {}
-    virtual Finally* AsFinally() { return this; }
+
     virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      *stack_depth += kFinallyStackElementCount;
+      *stack_depth += kElementCount;
       return previous_;
     }
-   private:
-    // Number of extra stack slots occupied during a finally block.
-    static const int kFinallyStackElementCount = 2;
-    DISALLOW_COPY_AND_ASSIGN(Finally);
   };
 
-  // A ForInEnvironment represents being inside a for-in loop.
-  // Abnormal termination of the for-in block needs to clean up
-  // the block's temporary storage from the stack.
+  // The body of a for/in loop.
   class ForIn : public Iteration {
    public:
-    ForIn(FullCodeGenerator* codegen,
-          ForInStatement* statement)
-        : Iteration(codegen, statement) { }
+    static const int kElementCount = 5;
+
+    ForIn(FullCodeGenerator* codegen, ForInStatement* statement)
+        : Iteration(codegen, statement) {
+    }
     virtual ~ForIn() {}
-    virtual ForIn* AsForIn() { return this; }
+
     virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
-      *stack_depth += kForInStackElementCount;
+      *stack_depth += kElementCount;
       return previous_;
     }
-   private:
-    static const int kForInStackElementCount = 5;
-    DISALLOW_COPY_AND_ASSIGN(ForIn);
   };
 
 
-  // A WithOrCatch represents being inside the body of a with or catch
-  // statement.  Exiting the body needs to remove a link from the context
-  // chain.
+  // The body of a with or catch.
   class WithOrCatch : public NestedStatement {
    public:
     explicit WithOrCatch(FullCodeGenerator* codegen)

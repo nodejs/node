@@ -656,10 +656,11 @@ MaybeObject* Object::GetElementWithReceiver(Object* receiver, uint32_t index) {
     }
 
     if (js_object->elements() != heap->empty_fixed_array()) {
-      MaybeObject* result = js_object->GetElementsAccessor()->GetWithReceiver(
+      MaybeObject* result = js_object->GetElementsAccessor()->Get(
+          js_object->elements(),
+          index,
           js_object,
-          receiver,
-          index);
+          receiver);
       if (result != heap->the_hole_value()) return result;
     }
   }
@@ -4466,20 +4467,6 @@ void CodeCacheHashTable::RemoveByIndex(int index) {
 }
 
 
-static bool HasKey(FixedArray* array, Object* key) {
-  int len0 = array->length();
-  for (int i = 0; i < len0; i++) {
-    Object* element = array->get(i);
-    if (element->IsSmi() && key->IsSmi() && (element == key)) return true;
-    if (element->IsString() &&
-        key->IsString() && String::cast(element)->Equals(String::cast(key))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-
 MaybeObject* PolymorphicCodeCache::Update(MapList* maps,
                                           Code::Flags flags,
                                           Code* code) {
@@ -4641,7 +4628,7 @@ MaybeObject* PolymorphicCodeCacheHashTable::Put(MapList* maps,
 MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
   ElementsAccessor* accessor = array->GetElementsAccessor();
   MaybeObject* maybe_result =
-      accessor->AddElementsToFixedArray(array->elements(), this);
+      accessor->AddElementsToFixedArray(array->elements(), this, array, array);
   FixedArray* result;
   if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
 #ifdef DEBUG
@@ -4657,55 +4644,19 @@ MaybeObject* FixedArray::AddKeysFromJSArray(JSArray* array) {
 
 
 MaybeObject* FixedArray::UnionOfKeys(FixedArray* other) {
-  int len0 = length();
+  ElementsAccessor* accessor = ElementsAccessor::ForArray(other);
+  MaybeObject* maybe_result =
+      accessor->AddElementsToFixedArray(other, this, NULL, NULL);
+  FixedArray* result;
+  if (!maybe_result->To<FixedArray>(&result)) return maybe_result;
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
-    for (int i = 0; i < len0; i++) {
-      ASSERT(get(i)->IsString() || get(i)->IsNumber());
+    for (int i = 0; i < result->length(); i++) {
+      Object* current = result->get(i);
+      ASSERT(current->IsNumber() || current->IsString());
     }
   }
 #endif
-  int len1 = other->length();
-  // Optimize if 'other' is empty.
-  // We cannot optimize if 'this' is empty, as other may have holes
-  // or non keys.
-  if (len1 == 0) return this;
-
-  // Compute how many elements are not in this.
-  int extra = 0;
-  for (int y = 0; y < len1; y++) {
-    Object* value = other->get(y);
-    if (!value->IsTheHole() && !HasKey(this, value)) extra++;
-  }
-
-  if (extra == 0) return this;
-
-  // Allocate the result
-  Object* obj;
-  { MaybeObject* maybe_obj = GetHeap()->AllocateFixedArray(len0 + extra);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-  // Fill in the content
-  AssertNoAllocation no_gc;
-  FixedArray* result = FixedArray::cast(obj);
-  WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
-  for (int i = 0; i < len0; i++) {
-    Object* e = get(i);
-    ASSERT(e->IsString() || e->IsNumber());
-    result->set(i, e, mode);
-  }
-  // Fill in the extra keys.
-  int index = 0;
-  for (int y = 0; y < len1; y++) {
-    Object* value = other->get(y);
-    if (!value->IsTheHole() && !HasKey(this, value)) {
-      Object* e = other->get(y);
-      ASSERT(e->IsString() || e->IsNumber());
-      result->set(len0 + index, e, mode);
-      index++;
-    }
-  }
-  ASSERT(extra == index);
   return result;
 }
 
@@ -8718,9 +8669,10 @@ MaybeObject* JSObject::GetElementWithInterceptor(Object* receiver,
 
   Heap* heap = holder_handle->GetHeap();
   ElementsAccessor* handler = holder_handle->GetElementsAccessor();
-  MaybeObject* raw_result = handler->GetWithReceiver(*holder_handle,
-                                                     *this_handle,
-                                                     index);
+  MaybeObject* raw_result = handler->Get(holder_handle->elements(),
+                                         index,
+                                         *holder_handle,
+                                         *this_handle);
   if (raw_result != heap->the_hole_value()) return raw_result;
 
   RETURN_IF_SCHEDULED_EXCEPTION(isolate);

@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,29 +25,12 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// In Issue 87, we allowed unicode escape sequences in RegExp flags.
-// However, according to ES5, they should not be interpreted, but passed
-// verbatim to the RegExp constructor.
-// (On top of that, the original test was bugged and never tested anything).
-// The behavior was changed in r8969 to not interpret escapes, but this
-// test didn't test that, and only failed when making invalid flag characters
-// an error too.
+// Test that overwriting Array.prototype.push does not make
+// Object.defineProperties misbehave.
 
-assertThrows("/x/\\u0067");
-assertThrows("/x/\\u0069");
-assertThrows("/x/\\u006d");
-
-assertThrows("/x/\\u0067i");
-assertThrows("/x/\\u0069m");
-assertThrows("/x/\\u006dg");
-
-assertThrows("/x/m\\u0067");
-assertThrows("/x/g\\u0069");
-assertThrows("/x/i\\u006d");
-
-assertThrows("/x/m\\u0067i");
-assertThrows("/x/g\\u0069m");
-assertThrows("/x/i\\u006dg");
-
-assertThrows("/x/\\u0068");
-assertThrows("/x/\\u0020");
+Array.prototype.push = 1;
+var desc = {foo: {value: 10}, bar: {get: function() {return 42; }}};
+var obj = {};
+var x = Object.defineProperties(obj, desc);
+assertEquals(x.foo, 10);
+assertEquals(x.bar, 42);
