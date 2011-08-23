@@ -191,6 +191,7 @@ UVTEST += simple/test-readuint
 UVTEST += simple/test-regress-GH-746
 UVTEST += simple/test-regress-GH-819
 UVTEST += simple/test-regress-GH-897
+UVTEST += simple/test-regress-GH-1531
 UVTEST += simple/test-regression-object-prototype
 UVTEST += simple/test-repl
 UVTEST += simple/test-require-cache
