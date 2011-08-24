@@ -372,7 +372,7 @@ void AddressToJS(Handle<Object> info,
   switch (addr->sa_family) {
   case AF_INET6:
     a6 = reinterpret_cast<const sockaddr_in6*>(addr);
-    inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
+    uv_inet_ntop(AF_INET6, &a6->sin6_addr, ip, sizeof ip);
     port = ntohs(a6->sin6_port);
     info->Set(address_symbol, String::New(ip));
     info->Set(port_symbol, Integer::New(port));
@@ -380,7 +380,7 @@ void AddressToJS(Handle<Object> info,
 
   case AF_INET:
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
-    inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
+    uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
     info->Set(address_symbol, String::New(ip));
     info->Set(port_symbol, Integer::New(port));

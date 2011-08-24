@@ -46,6 +46,7 @@
         'src/timer_wrap.cc',
         'src/process_wrap.cc',
         'src/v8_typed_array.cc',
+        'src/udp_wrap.cc',
       ],
 
       'defines': [
