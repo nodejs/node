@@ -1431,11 +1431,17 @@ static Handle<Value> SetMulticastTTL(const Arguments& args) {
       String::New("Argument must be a number")));
   }
 
-  int newttl = args[1]->Int32Value();
-  if (newttl < 0 || newttl > 255) {
+  int value = args[1]->Int32Value();
+  if (value < 0 || value > 255) {
     return ThrowException(Exception::TypeError(
       String::New("new MulticastTTL must be between 0 and 255")));
   }
+
+#ifdef __sun
+  unsigned char newttl = (unsigned char) value;
+#else
+  int newttl = value;
+#endif
 
   int r = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_TTL,
     reinterpret_cast<void*>(&newttl), sizeof(newttl));
@@ -1448,7 +1454,12 @@ static Handle<Value> SetMulticastTTL(const Arguments& args) {
 }
 
 static Handle<Value> SetMulticastLoopback(const Arguments& args) {
-  int flags, r;
+#ifdef __sun
+  unsigned char flags;
+#else
+  int flags;
+#endif
+  int r;
   HandleScope scope;
 
   FD_ARG(args[0])
