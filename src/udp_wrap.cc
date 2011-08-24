@@ -4,6 +4,8 @@
 #include <req_wrap.h>
 #include <handle_wrap.h>
 
+#include <stdlib.h>
+
 // Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
 // Clean this up in tcp_wrap.cc too.
 #if defined(__MINGW32__) || defined(_MSC_VER)
@@ -60,6 +62,9 @@ public:
 private:
   UDPWrap(Handle<Object> object);
   virtual ~UDPWrap();
+
+  static Handle<Value> DoBind(const Arguments& args, int family);
+  static Handle<Value> DoSend(const Arguments& args, int family);
 
   static uv_buf_t OnAlloc(uv_handle_t* handle, size_t suggested_size);
   static void OnSend(uv_udp_send_t* req, int status);
@@ -122,8 +127,9 @@ Handle<Value> UDPWrap::New(const Arguments& args) {
 }
 
 
-Handle<Value> UDPWrap::Bind(const Arguments& args) {
+Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
   HandleScope scope;
+  int r;
 
   UNWRAP
 
@@ -133,9 +139,19 @@ Handle<Value> UDPWrap::Bind(const Arguments& args) {
   String::Utf8Value address(args[0]->ToString());
   const int port = args[1]->Uint32Value();
   const int flags = args[2]->Uint32Value();
-  const sockaddr_in addr = uv_ip4_addr(*address, port);
 
-  int r = uv_udp_bind(&wrap->handle_, addr, flags);
+  switch (family) {
+  case AF_INET:
+    r = uv_udp_bind(&wrap->handle_, uv_ip4_addr(*address, port), flags);
+    break;
+  case AF_INET6:
+    r = uv_udp_bind6(&wrap->handle_, uv_ip6_addr(*address, port), flags);
+    break;
+  default:
+    assert(0 && "unexpected address family");
+    abort();
+  }
+
   if (r)
     SetErrno(uv_last_error().code);
 
@@ -143,14 +159,19 @@ Handle<Value> UDPWrap::Bind(const Arguments& args) {
 }
 
 
-Handle<Value> UDPWrap::Bind6(const Arguments& args) {
-  assert(0 && "implement me");
-  return Null();
+Handle<Value> UDPWrap::Bind(const Arguments& args) {
+  return DoBind(args, AF_INET);
 }
 
 
-Handle<Value> UDPWrap::Send(const Arguments& args) {
+Handle<Value> UDPWrap::Bind6(const Arguments& args) {
+  return DoBind(args, AF_INET6);
+}
+
+
+Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   HandleScope scope;
+  int r;
 
   // send(buffer, offset, length, port, address)
   assert(args.Length() == 5);
@@ -171,9 +192,21 @@ Handle<Value> UDPWrap::Send(const Arguments& args) {
 
   const unsigned short port = args[3]->Uint32Value();
   String::Utf8Value address(args[4]->ToString());
-  const sockaddr_in addr = uv_ip4_addr(*address, port);
 
-  int r = uv_udp_send(&req_wrap->req_, &wrap->handle_, &buf, 1, addr, OnSend);
+  switch (family) {
+  case AF_INET:
+    r = uv_udp_send(&req_wrap->req_, &wrap->handle_, &buf, 1,
+                    uv_ip4_addr(*address, port), OnSend);
+    break;
+  case AF_INET6:
+    r = uv_udp_send6(&req_wrap->req_, &wrap->handle_, &buf, 1,
+                     uv_ip6_addr(*address, port), OnSend);
+    break;
+  default:
+    assert(0 && "unexpected address family");
+    abort();
+  }
+
   req_wrap->Dispatched();
 
   if (r) {
@@ -187,9 +220,13 @@ Handle<Value> UDPWrap::Send(const Arguments& args) {
 }
 
 
+Handle<Value> UDPWrap::Send(const Arguments& args) {
+  return DoSend(args, AF_INET);
+}
+
+
 Handle<Value> UDPWrap::Send6(const Arguments& args) {
-  assert(0 && "implement me");
-  return Null();
+  return DoSend(args, AF_INET6);
 }
 
 
