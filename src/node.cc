@@ -2084,6 +2084,14 @@ static Handle<Object> GetFeatures() {
   HandleScope scope;
 
   Local<Object> obj = Object::New();
+  obj->Set(String::NewSymbol("debug"),
+#if defined(DEBUG) && DEBUG
+    True()
+#else
+    False()
+#endif
+  );
+
   obj->Set(String::NewSymbol("uv"), Boolean::New(use_uv));
   obj->Set(String::NewSymbol("http1"), Boolean::New(use_http1));
   obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv

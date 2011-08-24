@@ -23,7 +23,7 @@ var common = require('../common');
 var assert = require('assert');
 var path = require('path');
 
-var isDebug = (process.version.indexOf('debug') >= 0);
+var isDebug = process.features.debug;
 
 var debugPath = path.normalize(path.join(__dirname, '..', '..',
                                          'out', 'Debug', 'node'));
