@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// libuv-broken
+
+
 // Can't test this when 'make test' doesn't assign a tty to the stdout.
 // Yet another use-case for require('tty').spawn ?
 var common = require('../common');

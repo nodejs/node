@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// libuv-broken
+
+
 // There is a bug with 'openssl s_server' which makes it not flush certain
 // important events to stdout when done over a pipe. Therefore we skip this
 // test for all openssl versions less than 1.0.0.

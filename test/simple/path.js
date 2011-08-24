@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// libuv-broken
+
+
 // This is actually more a fixture than a test. It is used to make
 // sure that require('./path') and require('path') do different things.
 // It has to be in the same directory as the test 'test-module-loading.js'

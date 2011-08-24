@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// libuv-broken
+
+
 // Uploading a big file via HTTPS causes node to drop out of the event loop.
 // https://github.com/joyent/node/issues/892
 // In this test we set up an HTTPS in this process and launch a subprocess

@@ -19,6 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+// libuv-broken
+
+
 if (!process.features.tls_sni) {
   console.error("Skipping because node compiled without OpenSSL or " +
                 "with old OpenSSL version.");
