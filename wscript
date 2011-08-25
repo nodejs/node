@@ -894,6 +894,9 @@ def build(bld):
 
   if not bld.env["USE_SHARED_V8"]: node.includes += ' deps/v8/include '
 
+  if os.environ.has_key('RPATH'):
+    node.rpath = os.environ['RPATH']
+
   if sys.platform.startswith('cygwin'):
     bld.env.append_value('LINKFLAGS', '-Wl,--export-all-symbols')
     bld.env.append_value('LINKFLAGS', '-Wl,--out-implib,default/libnode.dll.a')
