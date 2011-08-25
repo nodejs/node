@@ -40,6 +40,19 @@ static char uv_zero_[] = "";
 static unsigned int active_udp_streams = 0;
 
 
+int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
+  int result;
+
+  result = getsockname(handle->socket, name, namelen);
+  if (result != 0) {
+    uv_set_sys_error(WSAGetLastError());
+    return -1;
+  }
+
+  return 0;
+}
+
+
 static int uv_udp_set_socket(uv_udp_t* handle, SOCKET socket) {
   DWORD yes = 1;
 
@@ -197,24 +210,6 @@ int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned int flags)
     uv_new_sys_error(WSAEAFNOSUPPORT);
     return -1;
   }
-}
-
-
-int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
-  int result;
-
-  if (handle->flags & UV_HANDLE_SHUTTING) {
-    uv_set_sys_error(WSAESHUTDOWN);
-    return -1;
-  }
-
-  result = getsockname(handle->socket, name, namelen);
-  if (result != 0) {
-    uv_set_sys_error(WSAGetLastError());
-    return -1;
-  }
-
-  return 0;
 }
 
 

@@ -45,7 +45,7 @@ int uv_getsockname(uv_handle_t* handle, struct sockaddr* name, int* namelen) {
       return uv_tcp_getsockname((uv_tcp_t*) handle, name, namelen);
 
     case UV_UDP:
-      return uv_tcp_getsockname((uv_tcp_t*) handle, name, namelen);
+      return uv_udp_getsockname((uv_udp_t*) handle, name, namelen);
 
     default:
       uv_set_sys_error(WSAENOTSOCK);
