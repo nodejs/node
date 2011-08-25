@@ -30,23 +30,15 @@ var fs = require('fs');
 var tls = require('tls');
 var path = require('path');
 
-(function() {
-  var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
-  var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
+var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
+var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-  var errorEmitted = false;
-
-  process.on('exit', function() {
-    assert.ok(!errorEmitted);
-  });
-
-  var conn = tls.connect(common.PORT, {cert:cert, key:key}, function() {
-    assert.ok(false); // callback should never be executed
-  });
+var conn = tls.connect(common.PORT, {cert:cert, key:key}, function() {
+  assert.ok(false); // callback should never be executed
+});
+conn.on('error', function() {
+});
+assert.doesNotThrow(function() {
   conn.destroy();
-
-  conn.on('error', function() {
-    errorEmitted = true;
-  });
-})();
+});
 
