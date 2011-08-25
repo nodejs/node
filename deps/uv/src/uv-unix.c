@@ -44,13 +44,25 @@
 #include <sys/uio.h> /* writev */
 #include <poll.h>
 
-#ifdef __linux__
+#if defined(__linux__)
+
 #include <linux/version.h>
+#include <features.h>
+
+#undef HAVE_PIPE2
+#undef HAVE_ACCEPT4
+
 /* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
-#if defined(LINUX_VERSION_CODE) && defined(__GLIBC_PREREQ) && LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9)
+#if LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9)
 #define HAVE_PIPE2
 #endif
+
+/* accept4() requires linux >= 2.6.28 and glib >= 2.10 */
+#if LINUX_VERSION_CODE >= 0x2061C && __GLIBC_PREREQ(2, 10)
+#define HAVE_ACCEPT4
 #endif
+
+#endif /* __linux__ */
 
 #ifdef __sun
 # include <sys/types.h>
@@ -2601,7 +2613,7 @@ static int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
   assert(sockfd >= 0);
 
   do {
-#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
+#if defined(HAVE_ACCEPT4)
     peerfd = accept4(sockfd, saddr, &slen, SOCK_NONBLOCK | SOCK_CLOEXEC);
 #else
     if ((peerfd = accept(sockfd, saddr, &slen)) != -1) {
