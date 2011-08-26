@@ -1,21 +1,33 @@
 Evented I/O for V8 javascript.
 ===
 
-To build:
+### To build:
+
+Unix/Macintosh:
 
     ./configure
     make
     make install
 
-To run the tests:
+Windows:
+
+    vcbuild.bat
+
+### To run the tests:
+
+Unix/Macintosh:
 
     make test
 
-To build the documentation:
+Windows:
+
+    vcbuild.bat test
+
+### To build the documentation:
 
     make doc
 
-To read the documentation:
+### To read the documentation:
 
     man doc/node.1
 
