@@ -1,4 +1,48 @@
-2011.08.12, Version 0.5.4 (unstable)
+2011.08.26, Version 0.5.5 (unstable)
+
+* typed arrays, implementation from Plesk
+
+* fix IP multicast on SunOS
+
+* fix DNS lookup order: IPv4 first, IPv6 second (--use-uv only)
+
+* remove support for UNIX datagram sockets (--use-uv only)
+
+* UDP support for Windows (Bert Belder)
+
+* #1572 improve tab completion for objects in the REPL (Nathan Rajlich)
+
+* #1563 fix buffer overflow in child_process module (reported by Dean McNamee)
+
+* #1546 fix performance regression in http module (reported by Brian Geffon)
+
+* #1491 add PBKDF2 crypto support (Glen Low)
+
+* #1447 remove deprecated http.cat() function (Mikeal Rogers)
+
+* #1140 fix incorrect dispatch of vm.runInContext's filename argument
+  (Antranig Basman)
+
+* #1140 document vm.runInContext() and vm.createContext() (Antranig Basman)
+
+* #1428 fix os.freemem() on 64 bits freebsd (Artem Zaytsev)
+
+* #1164 make all DNS lookups async, fixes uncatchable exceptions
+  (Koichi Kobayashi)
+
+* fix incorrect ssl shutdown check (Tom Hughes)
+
+* various cmake fixes (Tom Hughes)
+
+* improved documentation (Koichi Kobayashi, Logan Smyth, Fedor Indutny,
+  Mikeal Rogers, Maciej Małecki, Antranig Basman, Mickaël Delahaye)
+
+* upgrade libuv to commit 835782a
+
+* upgrade V8 to 3.5.8
+
+
+2011.08.12, Version 0.5.4 (unstable), cfba1f59224ff8602c3fe9145181cad4c6df89a9
 
 * libuv/Windows compatibility improvements
 
