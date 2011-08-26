@@ -133,9 +133,10 @@ typedef struct uv_buf_t {
     uv_pipe_accept_t* pending_accepts;
 
 #define uv_pipe_connection_fields         \
-  HANDLE handle;
+  uv_timer_t* eof_timer;
 
 #define UV_PIPE_PRIVATE_FIELDS            \
+  HANDLE handle;                          \
   wchar_t* name;                          \
   union {                                 \
     struct { uv_pipe_server_fields };     \

@@ -694,6 +694,7 @@ void uv_process_tcp_read_req(uv_tcp_t* handle, uv_req_t* req) {
         } else {
           /* Ouch! serious error. */
           uv_set_sys_error(err);
+          handle->flags &= ~UV_HANDLE_READING;
           handle->read_cb((uv_stream_t*)handle, -1, buf);
         }
         break;
