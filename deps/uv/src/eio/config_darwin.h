@@ -8,7 +8,11 @@
 /* #undef HAVE_FALLOCATE */
 
 /* fdatasync(2) is available */
+#if __ENVIRONMENT_MAC_OS_X_VERSION_MIN_REQUIRED__ >= 1060
 #define HAVE_FDATASYNC 1
+#else
+#define HAVE_FDATASYNC 0
+#endif
 
 /* futimes(2) is available */
 #define HAVE_FUTIMES 1
