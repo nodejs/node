@@ -5789,6 +5789,7 @@ class StringShape BASE_EMBEDDED {
   inline bool IsSequentialTwoByte();
   inline bool IsSymbol();
   inline StringRepresentationTag representation_tag();
+  inline uint32_t encoding_tag();
   inline uint32_t full_representation_tag();
   inline uint32_t size_tag();
 #ifdef DEBUG
@@ -5820,6 +5821,51 @@ class StringShape BASE_EMBEDDED {
 // All string values have a length field.
 class String: public HeapObject {
  public:
+  // Representation of the flat content of a String.
+  // A non-flat string doesn't have flat content.
+  // A flat string has content that's encoded as a sequence of either
+  // ASCII chars or two-byte UC16.
+  // Returned by String::GetFlatContent().
+  class FlatContent {
+   public:
+    // Returns true if the string is flat and this structure contains content.
+    bool IsFlat() { return state_ != NON_FLAT; }
+    // Returns true if the structure contains ASCII content.
+    bool IsAscii() { return state_ == ASCII; }
+    // Returns true if the structure contains two-byte content.
+    bool IsTwoByte() { return state_ == TWO_BYTE; }
+
+    // Return the ASCII content of the string. Only use if IsAscii() returns
+    // true.
+    Vector<const char> ToAsciiVector() {
+      ASSERT_EQ(ASCII, state_);
+      return Vector<const char>::cast(buffer_);
+    }
+    // Return the two-byte content of the string. Only use if IsTwoByte()
+    // returns true.
+    Vector<const uc16> ToUC16Vector() {
+      ASSERT_EQ(TWO_BYTE, state_);
+      return Vector<const uc16>::cast(buffer_);
+    }
+
+   private:
+    enum State { NON_FLAT, ASCII, TWO_BYTE };
+
+    // Constructors only used by String::GetFlatContent().
+    explicit FlatContent(Vector<const char> chars)
+        : buffer_(Vector<const byte>::cast(chars)),
+          state_(ASCII) { }
+    explicit FlatContent(Vector<const uc16> chars)
+        : buffer_(Vector<const byte>::cast(chars)),
+          state_(TWO_BYTE) { }
+    FlatContent() : buffer_(), state_(NON_FLAT) { }
+
+    Vector<const byte> buffer_;
+    State state_;
+
+    friend class String;
+  };
+
   // Get and set the length of the string.
   inline int length();
   inline void set_length(int value);
@@ -5831,10 +5877,10 @@ class String: public HeapObject {
   inline bool IsAsciiRepresentation();
   inline bool IsTwoByteRepresentation();
 
-  // Returns whether this string has ascii chars, i.e. all of them can
-  // be ascii encoded.  This might be the case even if the string is
+  // Returns whether this string has only ASCII chars, i.e. all of them can
+  // be ASCII encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
-  // two-byte external representations even for ascii data.
+  // two-byte external representations even for ASCII data.
   //
   // NOTE: this should be considered only a hint.  False negatives are
   // possible.
@@ -5868,8 +5914,12 @@ class String: public HeapObject {
   // string.
   inline String* TryFlattenGetString(PretenureFlag pretenure = NOT_TENURED);
 
-  Vector<const char> ToAsciiVector();
-  Vector<const uc16> ToUC16Vector();
+  // Tries to return the content of a flat string as a structure holding either
+  // a flat vector of char or of uc16.
+  // If the string isn't flat, and therefore doesn't have flat content, the
+  // returned structure will report so, and can't provide a vector of either
+  // kind.
+  FlatContent GetFlatContent();
 
   // Mark the string as an undetectable object. It only applies to
   // ascii and two byte string types.

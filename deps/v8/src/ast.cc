@@ -139,8 +139,7 @@ Assignment::Assignment(Isolate* isolate,
       assignment_id_(GetNextId(isolate)),
       block_start_(false),
       block_end_(false),
-      is_monomorphic_(false),
-      receiver_types_(NULL) {
+      is_monomorphic_(false) {
   ASSERT(Token::IsAssignmentOp(op));
   if (is_compound()) {
     binary_operation_ =
@@ -652,6 +651,7 @@ bool CountOperation::IsInlineable() const {
 void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   // Record type feedback from the oracle in the AST.
   is_monomorphic_ = oracle->LoadIsMonomorphicNormal(this);
+  receiver_types_.Clear();
   if (key()->IsPropertyName()) {
     if (oracle->LoadIsBuiltin(this, Builtins::kLoadIC_ArrayLength)) {
       is_array_length_ = true;
@@ -664,16 +664,15 @@ void Property::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
       Literal* lit_key = key()->AsLiteral();
       ASSERT(lit_key != NULL && lit_key->handle()->IsString());
       Handle<String> name = Handle<String>::cast(lit_key->handle());
-      ZoneMapList* types = oracle->LoadReceiverTypes(this, name);
-      receiver_types_ = types;
+      oracle->LoadReceiverTypes(this, name, &receiver_types_);
     }
   } else if (oracle->LoadIsBuiltin(this, Builtins::kKeyedLoadIC_String)) {
     is_string_access_ = true;
   } else if (is_monomorphic_) {
-    monomorphic_receiver_type_ = oracle->LoadMonomorphicReceiverType(this);
+    receiver_types_.Add(oracle->LoadMonomorphicReceiverType(this));
   } else if (oracle->LoadIsMegamorphicWithTypeInfo(this)) {
-    receiver_types_ = new ZoneMapList(kMaxKeyedPolymorphism);
-    oracle->CollectKeyedReceiverTypes(this->id(), receiver_types_);
+    receiver_types_.Reserve(kMaxKeyedPolymorphism);
+    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
   }
 }
 
@@ -682,30 +681,31 @@ void Assignment::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   Property* prop = target()->AsProperty();
   ASSERT(prop != NULL);
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
+  receiver_types_.Clear();
   if (prop->key()->IsPropertyName()) {
     Literal* lit_key = prop->key()->AsLiteral();
     ASSERT(lit_key != NULL && lit_key->handle()->IsString());
     Handle<String> name = Handle<String>::cast(lit_key->handle());
-    ZoneMapList* types = oracle->StoreReceiverTypes(this, name);
-    receiver_types_ = types;
+    oracle->StoreReceiverTypes(this, name, &receiver_types_);
   } else if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this));
   } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
-    receiver_types_ = new ZoneMapList(kMaxKeyedPolymorphism);
-    oracle->CollectKeyedReceiverTypes(this->id(), receiver_types_);
+    receiver_types_.Reserve(kMaxKeyedPolymorphism);
+    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
   }
 }
 
 
 void CountOperation::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
   is_monomorphic_ = oracle->StoreIsMonomorphicNormal(this);
+  receiver_types_.Clear();
   if (is_monomorphic_) {
     // Record receiver type for monomorphic keyed stores.
-    monomorphic_receiver_type_ = oracle->StoreMonomorphicReceiverType(this);
+    receiver_types_.Add(oracle->StoreMonomorphicReceiverType(this));
   } else if (oracle->StoreIsMegamorphicWithTypeInfo(this)) {
-    receiver_types_ = new ZoneMapList(kMaxKeyedPolymorphism);
-    oracle->CollectKeyedReceiverTypes(this->id(), receiver_types_);
+    receiver_types_.Reserve(kMaxKeyedPolymorphism);
+    oracle->CollectKeyedReceiverTypes(this->id(), &receiver_types_);
   }
 }
 
@@ -789,15 +789,14 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   Literal* key = property->key()->AsLiteral();
   ASSERT(key != NULL && key->handle()->IsString());
   Handle<String> name = Handle<String>::cast(key->handle());
-  receiver_types_ = oracle->CallReceiverTypes(this, name, call_kind);
+  receiver_types_.Clear();
+  oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
 #ifdef DEBUG
   if (FLAG_enable_slow_asserts) {
-    if (receiver_types_ != NULL) {
-      int length = receiver_types_->length();
-      for (int i = 0; i < length; i++) {
-        Handle<Map> map = receiver_types_->at(i);
-        ASSERT(!map.is_null() && *map != NULL);
-      }
+    int length = receiver_types_.length();
+    for (int i = 0; i < length; i++) {
+      Handle<Map> map = receiver_types_.at(i);
+      ASSERT(!map.is_null() && *map != NULL);
     }
   }
 #endif
@@ -805,9 +804,9 @@ void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
   check_type_ = oracle->GetCallCheckType(this);
   if (is_monomorphic_) {
     Handle<Map> map;
-    if (receiver_types_ != NULL && receiver_types_->length() > 0) {
+    if (receiver_types_.length() > 0) {
       ASSERT(check_type_ == RECEIVER_MAP_CHECK);
-      map = receiver_types_->at(0);
+      map = receiver_types_.at(0);
     } else {
       ASSERT(check_type_ != RECEIVER_MAP_CHECK);
       holder_ = Handle<JSObject>(

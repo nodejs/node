@@ -149,7 +149,7 @@ function StringLastIndexOf(pat /* position */) {  // length == 1
         position = 0;
       }
       if (position + patLength < subLength) {
-        index = position
+        index = position;
       }
     }
   }

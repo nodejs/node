@@ -1804,7 +1804,6 @@ Condition LCodeGen::EmitIsObject(Register input,
 void LCodeGen::DoIsObjectAndBranch(LIsObjectAndBranch* instr) {
   Register reg = ToRegister(instr->InputAt(0));
   Register temp1 = ToRegister(instr->TempAt(0));
-  Register temp2 = scratch0();
 
   int true_block = chunk_->LookupDestination(instr->true_block_id());
   int false_block = chunk_->LookupDestination(instr->false_block_id());
@@ -2759,7 +2758,6 @@ void LCodeGen::DoOuterContext(LOuterContext* instr) {
 
 
 void LCodeGen::DoGlobalObject(LGlobalObject* instr) {
-  Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
   __ ldr(result, ContextOperand(cp, Context::GLOBAL_INDEX));
 }
@@ -3965,7 +3963,6 @@ void LCodeGen::DoDoubleToI(LDoubleToI* instr) {
   Register scratch1 = scratch0();
   Register scratch2 = ToRegister(instr->TempAt(0));
   DwVfpRegister double_input = ToDoubleRegister(instr->InputAt(0));
-  DwVfpRegister double_scratch = double_scratch0();
   SwVfpRegister single_scratch = double_scratch0().low();
 
   Label done;

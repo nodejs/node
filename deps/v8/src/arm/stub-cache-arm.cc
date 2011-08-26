@@ -1183,9 +1183,8 @@ void StubCompiler::GenerateLoadConstant(JSObject* object,
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder,
-                      scratch1, scratch2, scratch3, name, miss);
+  CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3, name,
+                  miss);
 
   // Return the constant value.
   __ mov(r0, Operand(Handle<Object>(value)));

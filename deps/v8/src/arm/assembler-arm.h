@@ -377,6 +377,9 @@ class Operand BASE_EMBEDDED {
   // immediate
   INLINE(explicit Operand(int32_t immediate,
          RelocInfo::Mode rmode = RelocInfo::NONE));
+  INLINE(static Operand Zero()) {
+    return Operand(static_cast<int32_t>(0));
+  }
   INLINE(explicit Operand(const ExternalReference& f));
   explicit Operand(Handle<Object> handle);
   INLINE(explicit Operand(Smi* value));

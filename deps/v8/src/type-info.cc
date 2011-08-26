@@ -159,23 +159,26 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
 }
 
 
-ZoneMapList* TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
-                                                   Handle<String> name) {
+void TypeFeedbackOracle::LoadReceiverTypes(Property* expr,
+                                           Handle<String> name,
+                                           SmallMapList* types) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::LOAD_IC, NORMAL);
-  return CollectReceiverTypes(expr->id(), name, flags);
+  CollectReceiverTypes(expr->id(), name, flags, types);
 }
 
 
-ZoneMapList* TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
-                                                    Handle<String> name) {
+void TypeFeedbackOracle::StoreReceiverTypes(Assignment* expr,
+                                            Handle<String> name,
+                                            SmallMapList* types) {
   Code::Flags flags = Code::ComputeMonomorphicFlags(Code::STORE_IC, NORMAL);
-  return CollectReceiverTypes(expr->id(), name, flags);
+  CollectReceiverTypes(expr->id(), name, flags, types);
 }
 
 
-ZoneMapList* TypeFeedbackOracle::CallReceiverTypes(Call* expr,
-                                                   Handle<String> name,
-                                                   CallKind call_kind) {
+void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
+                                           Handle<String> name,
+                                           CallKind call_kind,
+                                           SmallMapList* types) {
   int arity = expr->arguments()->length();
 
   // Note: Currently we do not take string extra ic data into account
@@ -189,7 +192,7 @@ ZoneMapList* TypeFeedbackOracle::CallReceiverTypes(Call* expr,
                                                     OWN_MAP,
                                                     NOT_IN_LOOP,
                                                     arity);
-  return CollectReceiverTypes(expr->id(), name, flags);
+  CollectReceiverTypes(expr->id(), name, flags, types);
 }
 
 
@@ -391,36 +394,30 @@ TypeInfo TypeFeedbackOracle::IncrementType(CountOperation* expr) {
 }
 
 
-ZoneMapList* TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
-                                                      Handle<String> name,
-                                                      Code::Flags flags) {
+void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
+                                              Handle<String> name,
+                                              Code::Flags flags,
+                                              SmallMapList* types) {
   Isolate* isolate = Isolate::Current();
   Handle<Object> object = GetInfo(ast_id);
-  if (object->IsUndefined() || object->IsSmi()) return NULL;
+  if (object->IsUndefined() || object->IsSmi()) return;
 
   if (*object == isolate->builtins()->builtin(Builtins::kStoreIC_GlobalProxy)) {
     // TODO(fschneider): We could collect the maps and signal that
     // we need a generic store (or load) here.
     ASSERT(Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC);
-    return NULL;
   } else if (object->IsMap()) {
-    ZoneMapList* types = new ZoneMapList(1);
     types->Add(Handle<Map>::cast(object));
-    return types;
   } else if (Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
-    ZoneMapList* types = new ZoneMapList(4);
+    types->Reserve(4);
     ASSERT(object->IsCode());
     isolate->stub_cache()->CollectMatchingMaps(types, *name, flags);
-    return types->length() > 0 ? types : NULL;
-  } else {
-    return NULL;
   }
 }
 
 
-void TypeFeedbackOracle::CollectKeyedReceiverTypes(
-    unsigned ast_id,
-    ZoneMapList* types) {
+void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
+                                                   SmallMapList* types) {
   Handle<Object> object = GetInfo(ast_id);
   if (!object->IsCode()) return;
   Handle<Code> code = Handle<Code>::cast(object);

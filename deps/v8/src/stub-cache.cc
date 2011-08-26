@@ -29,6 +29,7 @@
 
 #include "api.h"
 #include "arguments.h"
+#include "ast.h"
 #include "code-stubs.h"
 #include "gdb-jit.h"
 #include "ic-inl.h"
@@ -1161,7 +1162,7 @@ void StubCache::Clear() {
 }
 
 
-void StubCache::CollectMatchingMaps(ZoneMapList* types,
+void StubCache::CollectMatchingMaps(SmallMapList* types,
                                     String* name,
                                     Code::Flags flags) {
   for (int i = 0; i < kPrimaryTableSize; i++) {

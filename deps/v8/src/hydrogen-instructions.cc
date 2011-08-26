@@ -641,6 +641,7 @@ void HBoundsCheck::PrintDataTo(StringStream* stream) {
   length()->PrintNameTo(stream);
 }
 
+
 void HCallConstantFunction::PrintDataTo(StringStream* stream) {
   if (IsApplyFunction()) {
     stream->Add("optimized apply ");
@@ -777,7 +778,7 @@ void HHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
 void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" == ");
-  stream->Add(type_literal_->ToAsciiVector());
+  stream->Add(type_literal_->GetFlatContent().ToAsciiVector());
 }
 
 
@@ -871,6 +872,21 @@ Range* HValue::InferRange() {
   // Untagged integer32 cannot be -0, all other representations can.
   Range* result = new Range();
   result->set_can_be_minus_zero(!representation().IsInteger32());
+  return result;
+}
+
+
+Range* HChange::InferRange() {
+  Range* input_range = value()->range();
+  if (from().IsInteger32() &&
+      to().IsTagged() &&
+      input_range != NULL && input_range->IsInSmiRange()) {
+    set_type(HType::Smi());
+  }
+  Range* result = (input_range != NULL)
+      ? input_range->Copy()
+      : HValue::InferRange();
+  if (to().IsInteger32()) result->set_can_be_minus_zero(false);
   return result;
 }
 
@@ -1220,6 +1236,7 @@ Range* HSar::InferRange() {
           ? left()->range()->Copy()
           : new Range();
       result->Sar(c->Integer32Value());
+      result->set_can_be_minus_zero(false);
       return result;
     }
   }
@@ -1243,6 +1260,7 @@ Range* HShr::InferRange() {
             ? left()->range()->Copy()
             : new Range();
         result->Sar(c->Integer32Value());
+        result->set_can_be_minus_zero(false);
         return result;
       }
     }
@@ -1259,6 +1277,7 @@ Range* HShl::InferRange() {
           ? left()->range()->Copy()
           : new Range();
       result->Shl(c->Integer32Value());
+      result->set_can_be_minus_zero(false);
       return result;
     }
   }
@@ -1306,7 +1325,7 @@ void HLoadNamedField::PrintDataTo(StringStream* stream) {
 
 HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
                                                        HValue* object,
-                                                       ZoneMapList* types,
+                                                       SmallMapList* types,
                                                        Handle<String> name)
     : types_(Min(types->length(), kMaxLoadPolymorphism)),
       name_(name),

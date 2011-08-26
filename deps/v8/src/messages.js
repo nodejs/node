@@ -57,11 +57,13 @@ function FormatString(format, message) {
   for (var i = 0; i < format.length; i++) {
     var str = format[i];
     for (arg_num = 0; arg_num < kReplacementMarkers.length; arg_num++) {
-      if (str !== kReplacementMarkers[arg_num]) continue;
-      try {
-        str = ToDetailString(args[arg_num]);
-      } catch (e) {
-        str = "#<error>";
+      if (str == kReplacementMarkers[arg_num]) {
+        try {
+          str = ToDetailString(args[arg_num]);
+        } catch (e) {
+          str = "#<error>";
+        }
+        break;
       }
     }
     result += str;

@@ -4129,11 +4129,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     default: {
       VisitForAccumulatorValue(expr->right());
       Condition cond = eq;
-      bool strict = false;
       switch (op) {
         case Token::EQ_STRICT:
-          strict = true;
-          // Fall through
         case Token::EQ:
           cond = eq;
           __ pop(r1);

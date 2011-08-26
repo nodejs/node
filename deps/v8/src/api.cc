@@ -3621,7 +3621,7 @@ int String::Utf8Length() const {
 int String::WriteUtf8(char* buffer,
                       int capacity,
                       int* nchars_ref,
-                      WriteHints hints) const {
+                      int options) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::WriteUtf8()")) return 0;
   LOG_API(isolate, "String::WriteUtf8");
@@ -3629,7 +3629,7 @@ int String::WriteUtf8(char* buffer,
   i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   i::Handle<i::String> str = Utils::OpenHandle(this);
   isolate->string_tracker()->RecordWrite(str);
-  if (hints & HINT_MANY_WRITES_EXPECTED) {
+  if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
     str->TryFlatten();
@@ -3669,7 +3669,8 @@ int String::WriteUtf8(char* buffer,
     }
   }
   if (nchars_ref != NULL) *nchars_ref = nchars;
-  if (i == len && (capacity == -1 || pos < capacity))
+  if (!(options & NO_NULL_TERMINATION) &&
+      (i == len && (capacity == -1 || pos < capacity)))
     buffer[pos++] = '\0';
   return pos;
 }
@@ -3678,7 +3679,7 @@ int String::WriteUtf8(char* buffer,
 int String::WriteAscii(char* buffer,
                        int start,
                        int length,
-                       WriteHints hints) const {
+                       int options) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::WriteAscii()")) return 0;
   LOG_API(isolate, "String::WriteAscii");
@@ -3687,7 +3688,7 @@ int String::WriteAscii(char* buffer,
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   isolate->string_tracker()->RecordWrite(str);
-  if (hints & HINT_MANY_WRITES_EXPECTED) {
+  if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
     str->TryFlatten();
@@ -3703,7 +3704,7 @@ int String::WriteAscii(char* buffer,
     if (c == '\0') c = ' ';
     buffer[i] = c;
   }
-  if (length == -1 || i < length)
+  if (!(options & NO_NULL_TERMINATION) && (length == -1 || i < length))
     buffer[i] = '\0';
   return i;
 }
@@ -3712,7 +3713,7 @@ int String::WriteAscii(char* buffer,
 int String::Write(uint16_t* buffer,
                   int start,
                   int length,
-                  WriteHints hints) const {
+                  int options) const {
   i::Isolate* isolate = Utils::OpenHandle(this)->GetIsolate();
   if (IsDeadCheck(isolate, "v8::String::Write()")) return 0;
   LOG_API(isolate, "String::Write");
@@ -3720,7 +3721,7 @@ int String::Write(uint16_t* buffer,
   ASSERT(start >= 0 && length >= -1);
   i::Handle<i::String> str = Utils::OpenHandle(this);
   isolate->string_tracker()->RecordWrite(str);
-  if (hints & HINT_MANY_WRITES_EXPECTED) {
+  if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
     str->TryFlatten();
@@ -3730,7 +3731,8 @@ int String::Write(uint16_t* buffer,
     end = str->length();
   if (end < 0) return 0;
   i::String::WriteToFlat(*str, buffer, start, end);
-  if (length == -1 || end - start < length) {
+  if (!(options & NO_NULL_TERMINATION) &&
+      (length == -1 || end - start < length)) {
     buffer[end - start] = '\0';
   }
   return end - start;
@@ -4118,7 +4120,7 @@ bool Context::InContext() {
 
 v8::Local<v8::Context> Context::GetEntered() {
   i::Isolate* isolate = i::Isolate::Current();
-  if (IsDeadCheck(isolate, "v8::Context::GetEntered()")) {
+  if (!EnsureInitializedForIsolate(isolate, "v8::Context::GetEntered()")) {
     return Local<Context>();
   }
   i::Handle<i::Object> last =

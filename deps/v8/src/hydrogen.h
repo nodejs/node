@@ -901,11 +901,11 @@ class HGraphBuilder: public AstVisitor {
   void HandlePolymorphicStoreNamedField(Assignment* expr,
                                         HValue* object,
                                         HValue* value,
-                                        ZoneMapList* types,
+                                        SmallMapList* types,
                                         Handle<String> name);
   void HandlePolymorphicCallNamed(Call* expr,
                                   HValue* receiver,
-                                  ZoneMapList* types,
+                                  SmallMapList* types,
                                   Handle<String> name);
   void HandleLiteralCompareTypeof(CompareOperation* compare_expr,
                                   Expression* expr,

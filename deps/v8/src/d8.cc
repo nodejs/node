@@ -1237,8 +1237,6 @@ int Shell::RunMain(int argc, char* argv[]) {
       thread->Join();
       delete thread;
     }
-
-  OnExit();
 #endif  // V8_SHARED
   return 0;
 }
@@ -1289,6 +1287,10 @@ int Shell::Main(int argc, char* argv[]) {
   }
 
   V8::Dispose();
+
+#ifndef V8_SHARED
+  OnExit();
+#endif  // V8_SHARED
 
   return result;
 }

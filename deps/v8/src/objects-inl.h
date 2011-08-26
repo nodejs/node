@@ -297,6 +297,11 @@ StringRepresentationTag StringShape::representation_tag() {
 }
 
 
+uint32_t StringShape::encoding_tag() {
+  return type_ & kStringEncodingMask;
+}
+
+
 uint32_t StringShape::full_representation_tag() {
   return (type_ & (kStringRepresentationMask | kStringEncodingMask));
 }

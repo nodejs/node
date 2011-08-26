@@ -921,6 +921,8 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
 
+  static String* GetConstructorName(JSObject* object);
+
   static HeapObject* const kInternalRootObject;
 
  private:
@@ -1118,9 +1120,6 @@ class HeapSnapshotJSONSerializer {
 
   DISALLOW_COPY_AND_ASSIGN(HeapSnapshotJSONSerializer);
 };
-
-
-String* GetConstructorNameForHeapProfile(JSObject* object);
 
 } }  // namespace v8::internal
 

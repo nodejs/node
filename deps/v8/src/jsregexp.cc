@@ -212,19 +212,7 @@ static void SetAtomLastCapture(FixedArray* array,
   RegExpImpl::SetCapture(array, 1, to);
 }
 
-  /* template <typename SubjectChar>, typename PatternChar>
-static int ReStringMatch(Vector<const SubjectChar> sub_vector,
-                         Vector<const PatternChar> pat_vector,
-                         int start_index) {
 
-  int pattern_length = pat_vector.length();
-  if (pattern_length == 0) return start_index;
-
-  int subject_length = sub_vector.length();
-  if (start_index + pattern_length > subject_length) return -1;
-  return SearchString(sub_vector, pat_vector, start_index);
-}
-  */
 Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
                                     Handle<String> subject,
                                     int index,
@@ -237,35 +225,39 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
   if (!subject->IsFlat()) FlattenString(subject);
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
   // Extract flattened substrings of cons strings before determining asciiness.
-  String* seq_sub = *subject;
-  if (seq_sub->IsConsString()) seq_sub = ConsString::cast(seq_sub)->first();
 
   String* needle = String::cast(re->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle->length();
+  ASSERT(needle->IsFlat());
 
   if (needle_len != 0) {
-    if (index + needle_len > subject->length())
-        return isolate->factory()->null_value();
+    if (index + needle_len > subject->length()) {
+      return isolate->factory()->null_value();
+    }
 
+    String::FlatContent needle_content = needle->GetFlatContent();
+    String::FlatContent subject_content = subject->GetFlatContent();
+    ASSERT(needle_content.IsFlat());
+    ASSERT(subject_content.IsFlat());
     // dispatch on type of strings
-    index = (needle->IsAsciiRepresentation()
-             ? (seq_sub->IsAsciiRepresentation()
+    index = (needle_content.IsAscii()
+             ? (subject_content.IsAscii()
                 ? SearchString(isolate,
-                               seq_sub->ToAsciiVector(),
-                               needle->ToAsciiVector(),
+                               subject_content.ToAsciiVector(),
+                               needle_content.ToAsciiVector(),
                                index)
                 : SearchString(isolate,
-                               seq_sub->ToUC16Vector(),
-                               needle->ToAsciiVector(),
+                               subject_content.ToUC16Vector(),
+                               needle_content.ToAsciiVector(),
                                index))
-             : (seq_sub->IsAsciiRepresentation()
+             : (subject_content.IsAscii()
                 ? SearchString(isolate,
-                               seq_sub->ToAsciiVector(),
-                               needle->ToUC16Vector(),
+                               subject_content.ToAsciiVector(),
+                               needle_content.ToUC16Vector(),
                                index)
                 : SearchString(isolate,
-                               seq_sub->ToUC16Vector(),
-                               needle->ToUC16Vector(),
+                               subject_content.ToUC16Vector(),
+                               needle_content.ToUC16Vector(),
                                index)));
     if (index == -1) return isolate->factory()->null_value();
   }

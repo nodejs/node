@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -635,8 +635,9 @@ bool IrregexpInterpreter::Match(Isolate* isolate,
   AssertNoAllocation a;
   const byte* code_base = code_array->GetDataStartAddress();
   uc16 previous_char = '\n';
-  if (subject->IsAsciiRepresentation()) {
-    Vector<const char> subject_vector = subject->ToAsciiVector();
+  String::FlatContent subject_content = subject->GetFlatContent();
+  if (subject_content.IsAscii()) {
+    Vector<const char> subject_vector = subject_content.ToAsciiVector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate,
                     code_base,
@@ -645,7 +646,8 @@ bool IrregexpInterpreter::Match(Isolate* isolate,
                     start_position,
                     previous_char);
   } else {
-    Vector<const uc16> subject_vector = subject->ToUC16Vector();
+    ASSERT(subject_content.IsTwoByte());
+    Vector<const uc16> subject_vector = subject_content.ToUC16Vector();
     if (start_position != 0) previous_char = subject_vector[start_position - 1];
     return RawMatch(isolate,
                     code_base,

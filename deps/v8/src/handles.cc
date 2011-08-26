@@ -617,15 +617,17 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> src,
   {
     AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid.
     // Dispatch on type of strings.
-    if (src->IsAsciiRepresentation()) {
+    String::FlatContent content = src->GetFlatContent();
+    ASSERT(content.IsFlat());
+    if (content.IsAscii()) {
       CalculateLineEnds(isolate,
                         &line_ends,
-                        src->ToAsciiVector(),
+                        content.ToAsciiVector(),
                         with_last_line);
     } else {
       CalculateLineEnds(isolate,
                         &line_ends,
-                        src->ToUC16Vector(),
+                        content.ToUC16Vector(),
                         with_last_line);
     }
   }

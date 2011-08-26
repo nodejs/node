@@ -200,10 +200,6 @@ class ZoneList: public List<T, ZoneListAllocationPolicy> {
 };
 
 
-// Introduce a convenience type for zone lists of map handles.
-typedef ZoneList<Handle<Map> > ZoneMapList;
-
-
 // ZoneScopes keep track of the current parsing and compilation
 // nesting and cleans up generated ASTs in the Zone when exiting the
 // outer-most scope.

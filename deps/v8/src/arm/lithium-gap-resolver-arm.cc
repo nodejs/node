@@ -254,7 +254,6 @@ void LGapResolver::EmitMove(int index) {
     } else {
       ASSERT(destination->IsStackSlot());
       ASSERT(!in_cycle_);  // Constant moves happen after all cycles are gone.
-      MemOperand destination_operand = cgen_->ToMemOperand(destination);
       __ mov(kSavedValueRegister, source_operand);
       __ str(kSavedValueRegister, cgen_->ToMemOperand(destination));
     }
@@ -265,8 +264,7 @@ void LGapResolver::EmitMove(int index) {
       __ vmov(cgen_->ToDoubleRegister(destination), source_register);
     } else {
       ASSERT(destination->IsDoubleStackSlot());
-      MemOperand destination_operand = cgen_->ToMemOperand(destination);
-      __ vstr(source_register, destination_operand);
+      __ vstr(source_register, cgen_->ToMemOperand(destination));
     }
 
   } else if (source->IsDoubleStackSlot()) {

@@ -5296,6 +5296,40 @@ THREADED_TEST(StringWrite) {
   CHECK_EQ(0, strncmp("d\1", buf, 2));
   uint16_t answer7[] = {'d', 0x101};
   CHECK_EQ(0, StrNCmp16(answer7, wbuf, 2));
+
+  memset(wbuf, 0x1, sizeof(wbuf));
+  wbuf[5] = 'X';
+  len = str->Write(wbuf, 0, 6, String::NO_NULL_TERMINATION);
+  CHECK_EQ(5, len);
+  CHECK_EQ('X', wbuf[5]);
+  uint16_t answer8a[] = {'a', 'b', 'c', 'd', 'e'};
+  uint16_t answer8b[] = {'a', 'b', 'c', 'd', 'e', '\0'};
+  CHECK_EQ(0, StrNCmp16(answer8a, wbuf, 5));
+  CHECK_NE(0, StrCmp16(answer8b, wbuf));
+  wbuf[5] = '\0';
+  CHECK_EQ(0, StrCmp16(answer8b, wbuf));
+
+  memset(buf, 0x1, sizeof(buf));
+  buf[5] = 'X';
+  len = str->WriteAscii(buf, 0, 6, String::NO_NULL_TERMINATION);
+  CHECK_EQ(5, len);
+  CHECK_EQ('X', buf[5]);
+  CHECK_EQ(0, strncmp("abcde", buf, 5));
+  CHECK_NE(0, strcmp("abcde", buf));
+  buf[5] = '\0';
+  CHECK_EQ(0, strcmp("abcde", buf));
+
+  memset(utf8buf, 0x1, sizeof(utf8buf));
+  utf8buf[8] = 'X';
+  len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen,
+                        String::NO_NULL_TERMINATION);
+  CHECK_EQ(8, len);
+  CHECK_EQ('X', utf8buf[8]);
+  CHECK_EQ(5, charlen);
+  CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203", 8));
+  CHECK_NE(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
+  utf8buf[8] = '\0';
+  CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
 }
 
 
@@ -13693,6 +13727,9 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
       "str2;";
   Local<Value> result = CompileRun(init_code);
 
+  Local<Value> indexof = CompileRun("str2.indexOf('els')");
+  Local<Value> lastindexof = CompileRun("str2.lastIndexOf('dab')");
+
   CHECK(result->IsString());
   i::Handle<i::String> string = v8::Utils::OpenHandle(String::Cast(*result));
   int length = string->length();
@@ -13757,6 +13794,10 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
   ExpectString("str2.substring(2, 20);", "elspendabelabelspe");
 
   ExpectString("str2.charAt(2);", "e");
+
+  ExpectObject("str2.indexOf('els');", indexof);
+
+  ExpectObject("str2.lastIndexOf('dab');", lastindexof);
 
   reresult = CompileRun("str2.charCodeAt(2);");
   CHECK_EQ(static_cast<int32_t>('e'), reresult->Int32Value());
