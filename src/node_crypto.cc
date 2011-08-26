@@ -50,6 +50,11 @@
 static const char *PUBLIC_KEY_PFX =  "-----BEGIN PUBLIC KEY-----";
 static const int PUBLIC_KEY_PFX_LEN = strlen(PUBLIC_KEY_PFX);
 
+static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
+                                 | ASN1_STRFLGS_ESC_MSB
+                                 | XN_FLAG_SEP_MULTILINE
+                                 | XN_FLAG_FN_SN;
+
 namespace node {
 namespace crypto {
 
@@ -1066,27 +1071,31 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
   Local<Object> info = Object::New();
   X509* peer_cert = SSL_get_peer_certificate(ss->ssl_);
   if (peer_cert != NULL) {
-    char* subject = X509_NAME_oneline(X509_get_subject_name(peer_cert), 0, 0);
-    if (subject != NULL) {
-      info->Set(subject_symbol, String::New(subject));
-      OPENSSL_free(subject);
-    }
-    char* issuer = X509_NAME_oneline(X509_get_issuer_name(peer_cert), 0, 0);
-    if (subject != NULL) {
-      info->Set(issuer_symbol, String::New(issuer));
-      OPENSSL_free(issuer);
-    }
-    char buf[256];
     BIO* bio = BIO_new(BIO_s_mem());
+    BUF_MEM* mem;
+    if (X509_NAME_print_ex(bio, X509_get_subject_name(peer_cert), 0,
+                           X509_NAME_FLAGS) > 0) {
+      BIO_get_mem_ptr(bio, &mem);
+      info->Set(subject_symbol, String::New(mem->data, mem->length));
+    }
+    (void) BIO_reset(bio);
+
+    if (X509_NAME_print_ex(bio, X509_get_issuer_name(peer_cert), 0,
+                           X509_NAME_FLAGS) > 0) {
+      BIO_get_mem_ptr(bio, &mem);
+      info->Set(issuer_symbol, String::New(mem->data, mem->length));
+    }
+    (void) BIO_reset(bio);
+
     ASN1_TIME_print(bio, X509_get_notBefore(peer_cert));
-    memset(buf, 0, sizeof(buf));
-    BIO_read(bio, buf, sizeof(buf) - 1);
-    info->Set(valid_from_symbol, String::New(buf));
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(valid_from_symbol, String::New(mem->data, mem->length));
+    (void) BIO_reset(bio);
+
     ASN1_TIME_print(bio, X509_get_notAfter(peer_cert));
-    memset(buf, 0, sizeof(buf));
-    BIO_read(bio, buf, sizeof(buf) - 1);
+    BIO_get_mem_ptr(bio, &mem);
+    info->Set(valid_to_symbol, String::New(mem->data, mem->length));
     BIO_free(bio);
-    info->Set(valid_to_symbol, String::New(buf));
 
     unsigned int md_size, i;
     unsigned char md[EVP_MAX_MD_SIZE];
@@ -1114,6 +1123,7 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
         peer_cert, NID_ext_key_usage, NULL, NULL);
     if (eku != NULL) {
       Local<Array> ext_key_usage = Array::New();
+      char buf[256];
 
       for (int i = 0; i < sk_ASN1_OBJECT_num(eku); i++) {
         memset(buf, 0, sizeof(buf));
