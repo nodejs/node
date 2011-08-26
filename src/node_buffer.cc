@@ -500,7 +500,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
 
   if (written > 0 && p[written-1] == '\0' && char_written == length) {
     uint16_t last_char;
-    s->Write(&last_char, length - 1, 1, String::NO_HINTS);
+    s->Write(&last_char, length - 1, 1, String::NO_OPTIONS);
     if (last_char != 0 || written > s->Utf8Length()) {
       written--;
     }
