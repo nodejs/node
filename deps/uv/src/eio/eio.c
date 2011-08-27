@@ -180,8 +180,8 @@ static void eio_destroy (eio_req *req);
   static int
   symlink (const char *old, const char *neu)
   {
-    #if WINVER >= 0x0600
-      if (CreateSymbolicLink (neu, old, 1))
+    #if 0 && WINVER >= 0x0600
+      if (CreateSymbolicLink (neu, old, SYMBOLIC_LINK_FLAG_DIRECTORY))
         return 0;
 
       if (CreateSymbolicLink (neu, old, 0))
