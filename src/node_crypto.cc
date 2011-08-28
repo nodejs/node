@@ -3770,7 +3770,7 @@ struct pbkdf2_req {
 };
 
 void
-EIO_PBKDF2(eio_req* req) {
+EIO_PBKDF2(uv_work_t* req) {
   pbkdf2_req* request = (pbkdf2_req*)req->data;
   request->err = PKCS5_PBKDF2_HMAC_SHA1(
     request->pass,
@@ -3784,13 +3784,13 @@ EIO_PBKDF2(eio_req* req) {
   memset(request->salt, 0, request->saltlen);
 }
 
-int
-EIO_PBKDF2After(eio_req* req) {
+void
+EIO_PBKDF2After(uv_work_t* req) {
   HandleScope scope;
 
-  uv_unref();
-
   pbkdf2_req* request = (pbkdf2_req*)req->data;
+  delete req;
+
   Handle<Value> argv[2];
   if (request->err) {
     argv[0] = Undefined();
@@ -3814,8 +3814,6 @@ EIO_PBKDF2After(eio_req* req) {
   request->callback.Dispose();
 
   delete request;
-
-  return 0;
 }
 
 Handle<Value>
@@ -3869,8 +3867,9 @@ PBKDF2(const Arguments& args) {
   request->keylen = keylen;
   request->callback = Persistent<Function>::New(callback);
 
-  eio_custom(EIO_PBKDF2, EIO_PRI_DEFAULT, EIO_PBKDF2After, request);
-  uv_ref();
+  uv_work_t* req = new uv_work_t();
+  uv_queue_work(req, EIO_PBKDF2, EIO_PBKDF2After);
+  req->data = request;
 
   return Undefined();
 }

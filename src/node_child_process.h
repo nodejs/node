@@ -119,8 +119,6 @@ class ChildProcess : ObjectWrap {
 #endif // __POSIX__
 
 #ifdef __MINGW32__
-  static int do_spawn(eio_req *req);
-  static int after_spawn(eio_req *req);
   static void watch(ChildProcess *child);
   static void CALLBACK watch_wait_callback(void *data, BOOLEAN didTimeout);
   static void notify_spawn_failure(ChildProcess *child);

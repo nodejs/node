@@ -72,12 +72,9 @@
         'src/req_wrap.h',
         'src/stream_wrap.h',
         'src/v8_typed_array.h',
-        'deps/uv/src/eio/ecb.h',
-        'deps/uv/include/eio.h',
         'deps/http_parser/http_parser.h',
         'deps/v8/include/v8.h',
         'deps/v8/include/v8-debug.h',
-        'deps/uv/src/eio/xthread.h',
         '<(SHARED_INTERMEDIATE_DIR)/node_natives.h',
       ],
 
@@ -104,19 +101,13 @@
         }],
 
         [ 'OS=="win"', {
-          'dependencies': [
-            'deps/uv/deps/pthread-win32/pthread-win32.gyp:pthread-win32',
-          ],
           'sources': [
             'src/platform_win32.cc',
             'src/node_stdio_win32.cc',
-            # file operations depend on eio to link. uv contains eio in unix builds, but not win32. So we need to compile it here instead.
-            'deps/uv/src/eio/eio.c',
             # headers to make for a more pleasant IDE experience
             'src/platform_win32.h',
           ],
           'defines': [
-            'PTW32_STATIC_LIB',
             'FD_SETSIZE=1024',
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
             'PLATFORM="win32"',

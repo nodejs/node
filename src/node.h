@@ -39,7 +39,6 @@
 #endif
 
 #include <uv.h>
-#include <eio.h>
 #include <v8.h>
 #include <sys/types.h> /* struct stat */
 #include <sys/stat.h>

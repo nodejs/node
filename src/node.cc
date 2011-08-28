@@ -141,10 +141,6 @@ static uv_idle_t tick_spinner;
 static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
-static uv_async_t eio_want_poll_notifier;
-static uv_async_t eio_done_poll_notifier;
-static uv_idle_t eio_poller;
-
 
 static bool use_uv = true;
 
@@ -305,62 +301,6 @@ static void CheckTick(uv_check_t* handle, int status) {
   assert(status == 0);
   Tick();
 }
-
-
-static void DoPoll(uv_idle_t* watcher, int status) {
-  assert(watcher == &eio_poller);
-
-  //printf("eio_poller\n");
-
-  if (eio_poll() != -1 && uv_is_active((uv_handle_t*) &eio_poller)) {
-    //printf("eio_poller stop\n");
-    uv_idle_stop(&eio_poller);
-    uv_unref();
-  }
-}
-
-
-// Called from the main thread.
-static void WantPollNotifier(uv_async_t* watcher, int status) {
-  assert(watcher == &eio_want_poll_notifier);
-
-  //printf("want poll notifier\n");
-
-  if (eio_poll() == -1 && !uv_is_active((uv_handle_t*) &eio_poller)) {
-    //printf("eio_poller start\n");
-    uv_idle_start(&eio_poller, node::DoPoll);
-    uv_ref();
-  }
-}
-
-
-static void DonePollNotifier(uv_async_t* watcher, int revents) {
-  assert(watcher == &eio_done_poll_notifier);
-
-  //printf("done poll notifier\n");
-
-  if (eio_poll() != -1 && uv_is_active((uv_handle_t*) &eio_poller)) {
-    //printf("eio_poller stop\n");
-    uv_idle_stop(&eio_poller);
-    uv_unref();
-  }
-}
-
-
-// EIOWantPoll() is called from the EIO thread pool each time an EIO
-// request (that is, one of the node.fs.* functions) has completed.
-static void EIOWantPoll(void) {
-  // Signal the main thread that eio_poll need to be processed.
-  uv_async_send(&eio_want_poll_notifier);
-}
-
-
-static void EIODonePoll(void) {
-  // Signal the main thread that we should stop calling eio_poll().
-  // from the idle watcher.
-  uv_async_send(&eio_done_poll_notifier);
-}
-
 
 static inline const char *errno_string(int errorno) {
 #define ERRNO_CASE(e)  case e: return #e;
@@ -2516,23 +2456,6 @@ char** Init(int argc, char *argv[]) {
 
   uv_timer_init(&node::gc_timer);
   uv_unref();
-
-  // Setup the EIO thread pool. It requires 3, yes 3, watchers.
-  {
-    uv_idle_init(&node::eio_poller);
-    uv_idle_start(&eio_poller, node::DoPoll);
-
-    uv_async_init(&node::eio_want_poll_notifier, node::WantPollNotifier);
-    uv_unref();
-
-    uv_async_init(&node::eio_done_poll_notifier, node::DonePollNotifier);
-    uv_unref();
-
-    eio_init(node::EIOWantPoll, node::EIODonePoll);
-    // Don't handle more than 10 reqs on each eio_poll(). This is to avoid
-    // race conditions. See test/simple/test-eio-race.js
-    eio_set_max_poll_reqs(10);
-  }
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 
