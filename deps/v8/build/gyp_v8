@@ -92,8 +92,8 @@ def additional_include_files(args=[]):
     if os.path.realpath(path) not in specified_includes:
       result.append(path)
 
-  # Always include common.gypi & features_override.gypi
-  AddInclude(os.path.join(script_dir, 'common.gypi'))
+  # Always include standalone.gypi
+  AddInclude(os.path.join(script_dir, 'standalone.gypi'))
 
   # Optionally add supplemental .gypi files if present.
   supplements = glob.glob(os.path.join(v8_root, '*', 'supplement.gypi'))

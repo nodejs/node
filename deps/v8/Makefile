@@ -31,40 +31,86 @@ CXX ?= "g++"  # For distcc: export CXX="distcc g++"
 LINK ?= "g++"
 OUTDIR ?= out
 TESTJOBS ?= -j16
-GYPFLAGS ?= -Dv8_can_use_vfp_instructions=true
+GYPFLAGS ?=
 
-# Architectures and modes to be compiled.
+# Special build flags. Use them like this: "make library=shared"
+
+# library=shared || component=shared_library
+ifeq ($(library), shared)
+  GYPFLAGS += -Dcomponent=shared_library
+endif
+ifdef component
+  GYPFLAGS += -Dcomponent=$(component)
+endif
+# console=readline
+ifdef console
+  GYPFLAGS += -Dconsole=$(console)
+endif
+# disassembler=on
+ifeq ($(disassembler), on)
+  GYPFLAGS += -Dv8_enable_disassembler=1
+endif
+# snapshot=off
+ifeq ($(snapshot), off)
+  GYPFLAGS += -Dv8_use_snapshot='false'
+endif
+# gdbjit=on
+ifeq ($(gdbjit), on)
+  GYPFLAGS += -Dv8_enable_gdbjit=1
+endif
+# liveobjectlist=on
+ifeq ($(liveobjectlist), on)
+  GYPFLAGS += -Dv8_use_liveobjectlist=true
+endif
+# vfp3=off
+ifeq ($(vfp3), off)
+  GYPFLAGS += -Dv8_can_use_vfp_instructions=false
+else
+  GYPFLAGS += -Dv8_can_use_vfp_instructions=true
+endif
+
+# ----------------- available targets: --------------------
+# - any arch listed in ARCHES (see below)
+# - any mode listed in MODES
+# - every combination <arch>.<mode>, e.g. "ia32.release"
+# - any of the above with .check appended, e.g. "ia32.release.check"
+# - default (no target specified): build all ARCHES and MODES
+# - "check": build all targets and run all tests
+# - "<arch>.clean" for any <arch> in ARCHES
+# - "clean": clean all ARCHES
+
+# ----------------- internal stuff ------------------------
+
+# Architectures and modes to be compiled. Consider these to be internal
+# variables, don't override them (use the targets instead).
 ARCHES = ia32 x64 arm
 MODES = release debug
 
 # List of files that trigger Makefile regeneration:
-GYPFILES = build/all.gyp build/common.gypi build/v8-features.gypi \
+GYPFILES = build/all.gyp build/common.gypi build/standalone.gypi \
            preparser/preparser.gyp samples/samples.gyp src/d8.gyp \
            test/cctest/cctest.gyp tools/gyp/v8.gyp
 
 # Generates all combinations of ARCHES and MODES, e.g. "ia32.release".
 BUILDS = $(foreach mode,$(MODES),$(addsuffix .$(mode),$(ARCHES)))
-CHECKS = $(addsuffix .check,$(BUILDS))
 # Generates corresponding test targets, e.g. "ia32.release.check".
+CHECKS = $(addsuffix .check,$(BUILDS))
+# File where previously used GYPFLAGS are stored.
+ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all release debug ia32 x64 arm $(BUILDS)
+.PHONY: all clean $(ENVFILE).new \
+        $(ARCHES) $(MODES) $(BUILDS) $(addsuffix .clean,$(ARCHES))
 
-# Target definitions. "all" is the default, you can specify any others on the
-# command line, e.g. "make ia32". Targets defined in $(BUILDS), e.g.
-# "ia32.debug", can also be specified.
-all: release debug
+# Target definitions. "all" is the default.
+all: $(MODES)
 
-release: $(addsuffix .release,$(ARCHES))
-
-debug: $(addsuffix .debug,$(ARCHES))
-
-ia32: $(addprefix ia32.,$(MODES))
-
-x64: $(addprefix x64.,$(MODES))
-
-arm: $(addprefix arm.,$(MODES))
-
+# Compile targets. MODES and ARCHES are convenience targets.
 .SECONDEXPANSION:
+$(MODES): $(addsuffix .$$@,$(ARCHES))
+
+$(ARCHES): $(addprefix $$@.,$(MODES))
+
+# Defines how to build a particular target (e.g. ia32.release).
 $(BUILDS): $(OUTDIR)/Makefile-$$(basename $$@)
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile-$(basename $@) \
 	         CXX="$(CXX)" LINK="$(LINK)" \
@@ -77,34 +123,49 @@ check: all
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)
 
 $(addsuffix .check,$(MODES)): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) --mode=$(basename $@)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --mode=$(basename $@)
 
 $(addsuffix .check,$(ARCHES)): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) --arch=$(basename $@)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch=$(basename $@)
 
 $(CHECKS): $$(basename $$@)
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) --arch-and-mode=$(basename $@)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
+	    --arch-and-mode=$(basename $@)
 
 # Clean targets. You can clean each architecture individually, or everything.
 $(addsuffix .clean,$(ARCHES)):
 	rm -f $(OUTDIR)/Makefile-$(basename $@)
 	rm -rf $(OUTDIR)/$(basename $@).release
 	rm -rf $(OUTDIR)/$(basename $@).debug
+	find $(OUTDIR) -regex '.*\(host\|target\)-$(basename $@)\.mk' -delete
 
 clean: $(addsuffix .clean,$(ARCHES))
 
 # GYP file generation targets.
-$(OUTDIR)/Makefile-ia32: $(GYPFILES)
+$(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/common.gypi --depth=. -Dtarget_arch=ia32 -S-ia32 \
-	              $(GYPFLAGS)
+	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=ia32 \
+	              -S-ia32 $(GYPFLAGS)
 
-$(OUTDIR)/Makefile-x64: $(GYPFILES)
+$(OUTDIR)/Makefile-x64: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/common.gypi --depth=. -Dtarget_arch=x64 -S-x64 \
-	              $(GYPFLAGS)
+	              -Ibuild/standalone.gypi --depth=. -Dtarget_arch=x64 \
+	              -S-x64 $(GYPFLAGS)
 
-$(OUTDIR)/Makefile-arm: $(GYPFILES) build/armu.gypi
+$(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/common.gypi --depth=. -Ibuild/armu.gypi -S-arm \
-	              $(GYPFLAGS)
+	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
+	              -S-arm $(GYPFLAGS)
+
+# Replaces the old with the new environment file if they're different, which
+# will trigger GYP to regenerate Makefiles.
+$(ENVFILE): $(ENVFILE).new
+	@if test -r $(ENVFILE) && cmp $(ENVFILE).new $(ENVFILE) >/dev/null; \
+	    then rm $(ENVFILE).new; \
+	    else mv $(ENVFILE).new $(ENVFILE); fi
+
+# Stores current GYPFLAGS in a file.
+$(ENVFILE).new:
+	@mkdir -p $(OUTDIR); echo "GYPFLAGS=$(GYPFLAGS)" > $(ENVFILE).new;

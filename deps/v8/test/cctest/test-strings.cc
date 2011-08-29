@@ -430,8 +430,7 @@ TEST(ExternalShortStringAdd) {
     "  return 0;"
     "};"
     "test()";
-  CHECK_EQ(0,
-           v8::Script::Compile(v8::String::New(source))->Run()->Int32Value());
+  CHECK_EQ(0, CompileRun(source)->Int32Value());
 }
 
 
@@ -480,4 +479,53 @@ TEST(CachedHashOverflow) {
                result->ToInt32()->Value());
     }
   }
+}
+
+
+TEST(SliceFromCons) {
+  FLAG_string_slices = true;
+  InitializeVM();
+  v8::HandleScope scope;
+  Handle<String> string =
+      FACTORY->NewStringFromAscii(CStrVector("parentparentparent"));
+  Handle<String> parent = FACTORY->NewConsString(string, string);
+  CHECK(parent->IsConsString());
+  CHECK(!parent->IsFlat());
+  Handle<String> slice = FACTORY->NewSubString(parent, 1, 25);
+  // After slicing, the original string becomes a flat cons.
+  CHECK(parent->IsFlat());
+  CHECK(slice->IsSlicedString());
+  CHECK_EQ(SlicedString::cast(*slice)->parent(),
+           ConsString::cast(*parent)->first());
+  CHECK(SlicedString::cast(*slice)->parent()->IsSeqString());
+  CHECK(slice->IsFlat());
+}
+
+
+TEST(TrivialSlice) {
+  // This tests whether a slice that contains the entire parent string
+  // actually creates a new string (it should not).
+  FLAG_string_slices = true;
+  InitializeVM();
+  HandleScope scope;
+  v8::Local<v8::Value> result;
+  Handle<String> string;
+  const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
+  const char* check = "str.slice(0,26)";
+  const char* crosscheck = "str.slice(1,25)";
+
+  CompileRun(init);
+
+  result = CompileRun(check);
+  CHECK(result->IsString());
+  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK(!string->IsSlicedString());
+
+  string = FACTORY->NewSubString(string, 0, 26);
+  CHECK(!string->IsSlicedString());
+  result = CompileRun(crosscheck);
+  CHECK(result->IsString());
+  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK(string->IsSlicedString());
+  CHECK_EQ("bcdefghijklmnopqrstuvwxy", *(string->ToCString()));
 }

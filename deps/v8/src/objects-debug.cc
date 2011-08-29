@@ -352,6 +352,31 @@ void String::StringVerify() {
   if (IsSymbol()) {
     CHECK(!HEAP->InNewSpace(this));
   }
+  if (IsConsString()) {
+    ConsString::cast(this)->ConsStringVerify();
+  } else if (IsSlicedString()) {
+    SlicedString::cast(this)->SlicedStringVerify();
+  }
+}
+
+
+void ConsString::ConsStringVerify() {
+  CHECK(this->first()->IsString());
+  CHECK(this->second() == GetHeap()->empty_string() ||
+        this->second()->IsString());
+  CHECK(this->length() >= String::kMinNonFlatLength);
+  if (this->IsFlat()) {
+    // A flat cons can only be created by String::SlowTryFlatten.
+    // Afterwards, the first part may be externalized.
+    CHECK(this->first()->IsSeqString() || this->first()->IsExternalString());
+  }
+}
+
+
+void SlicedString::SlicedStringVerify() {
+  CHECK(!this->parent()->IsConsString());
+  CHECK(!this->parent()->IsSlicedString());
+  CHECK(this->length() >= SlicedString::kMinLength);
 }
 
 

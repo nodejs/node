@@ -89,6 +89,7 @@
 //         - SeqString
 //           - SeqAsciiString
 //           - SeqTwoByteString
+//         - SlicedString
 //         - ConsString
 //         - ExternalString
 //           - ExternalAsciiString
@@ -283,6 +284,7 @@ static const int kVariableSizeSentinel = 0;
   V(ASCII_STRING_TYPE)                                                         \
   V(CONS_STRING_TYPE)                                                          \
   V(CONS_ASCII_STRING_TYPE)                                                    \
+  V(SLICED_STRING_TYPE)                                                        \
   V(EXTERNAL_STRING_TYPE)                                                      \
   V(EXTERNAL_STRING_WITH_ASCII_DATA_TYPE)                                      \
   V(EXTERNAL_ASCII_STRING_TYPE)                                                \
@@ -401,6 +403,14 @@ static const int kVariableSizeSentinel = 0;
     ConsString::kSize,                                                         \
     cons_ascii_string,                                                         \
     ConsAsciiString)                                                           \
+  V(SLICED_STRING_TYPE,                                                        \
+    SlicedString::kSize,                                                       \
+    sliced_string,                                                             \
+    SlicedString)                                                              \
+  V(SLICED_ASCII_STRING_TYPE,                                                  \
+    SlicedString::kSize,                                                       \
+    sliced_ascii_string,                                                       \
+    SlicedAsciiString)                                                         \
   V(EXTERNAL_STRING_TYPE,                                                      \
     ExternalTwoByteString::kSize,                                              \
     external_string,                                                           \
@@ -474,9 +484,17 @@ const uint32_t kStringRepresentationMask = 0x03;
 enum StringRepresentationTag {
   kSeqStringTag = 0x0,
   kConsStringTag = 0x1,
-  kExternalStringTag = 0x2
+  kExternalStringTag = 0x2,
+  kSlicedStringTag = 0x3
 };
-const uint32_t kIsConsStringMask = 0x1;
+const uint32_t kIsIndirectStringMask = 0x1;
+const uint32_t kIsIndirectStringTag = 0x1;
+STATIC_ASSERT((kSeqStringTag & kIsIndirectStringMask) == 0);
+STATIC_ASSERT((kExternalStringTag & kIsIndirectStringMask) == 0);
+STATIC_ASSERT(
+    (kConsStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
+STATIC_ASSERT(
+    (kSlicedStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 
 // If bit 7 is clear, then bit 3 indicates whether this two-byte
 // string actually contains ascii data.
@@ -511,6 +529,8 @@ enum InstanceType {
   ASCII_STRING_TYPE = kAsciiStringTag | kSeqStringTag,
   CONS_STRING_TYPE = kTwoByteStringTag | kConsStringTag,
   CONS_ASCII_STRING_TYPE = kAsciiStringTag | kConsStringTag,
+  SLICED_STRING_TYPE = kTwoByteStringTag | kSlicedStringTag,
+  SLICED_ASCII_STRING_TYPE = kAsciiStringTag | kSlicedStringTag,
   EXTERNAL_STRING_TYPE = kTwoByteStringTag | kExternalStringTag,
   EXTERNAL_STRING_WITH_ASCII_DATA_TYPE =
       kTwoByteStringTag | kExternalStringTag | kAsciiDataHintTag,
@@ -718,6 +738,7 @@ class MaybeObject BASE_EMBEDDED {
   V(SeqString)                                 \
   V(ExternalString)                            \
   V(ConsString)                                \
+  V(SlicedString)                              \
   V(ExternalTwoByteString)                     \
   V(ExternalAsciiString)                       \
   V(SeqTwoByteString)                          \
@@ -5783,6 +5804,8 @@ class StringShape BASE_EMBEDDED {
   inline bool IsSequential();
   inline bool IsExternal();
   inline bool IsCons();
+  inline bool IsSliced();
+  inline bool IsIndirect();
   inline bool IsExternalAscii();
   inline bool IsExternalTwoByte();
   inline bool IsSequentialAscii();
@@ -5874,14 +5897,19 @@ class String: public HeapObject {
   inline uint32_t hash_field();
   inline void set_hash_field(uint32_t value);
 
-  inline bool IsAsciiRepresentation();
-  inline bool IsTwoByteRepresentation();
-
   // Returns whether this string has only ASCII chars, i.e. all of them can
   // be ASCII encoded.  This might be the case even if the string is
   // two-byte.  Such strings may appear when the embedder prefers
   // two-byte external representations even for ASCII data.
-  //
+  inline bool IsAsciiRepresentation();
+  inline bool IsTwoByteRepresentation();
+
+  // Cons and slices have an encoding flag that may not represent the actual
+  // encoding of the underlying string.  This is taken into account here.
+  // Requires: this->IsFlat()
+  inline bool IsAsciiRepresentationUnderneath();
+  inline bool IsTwoByteRepresentationUnderneath();
+
   // NOTE: this should be considered only a hint.  False negatives are
   // possible.
   inline bool HasOnlyAsciiChars();
@@ -5920,6 +5948,10 @@ class String: public HeapObject {
   // returned structure will report so, and can't provide a vector of either
   // kind.
   FlatContent GetFlatContent();
+
+  // Returns the parent of a sliced string or first part of a flat cons string.
+  // Requires: StringShape(this).IsIndirect() && this->IsFlat()
+  inline String* GetUnderlying();
 
   // Mark the string as an undetectable object. It only applies to
   // ascii and two byte string types.
@@ -6349,8 +6381,66 @@ class ConsString: public String {
   typedef FixedBodyDescriptor<kFirstOffset, kSecondOffset + kPointerSize, kSize>
           BodyDescriptor;
 
+#ifdef DEBUG
+  void ConsStringVerify();
+#endif
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(ConsString);
+};
+
+
+// The Sliced String class describes strings that are substrings of another
+// sequential string.  The motivation is to save time and memory when creating
+// a substring.  A Sliced String is described as a pointer to the parent,
+// the offset from the start of the parent string and the length.  Using
+// a Sliced String therefore requires unpacking of the parent string and
+// adding the offset to the start address.  A substring of a Sliced String
+// are not nested since the double indirection is simplified when creating
+// such a substring.
+// Currently missing features are:
+//  - handling externalized parent strings
+//  - external strings as parent
+//  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
+class SlicedString: public String {
+ public:
+
+  inline String* parent();
+  inline void set_parent(String* parent);
+  inline int offset();
+  inline void set_offset(int offset);
+
+  // Dispatched behavior.
+  uint16_t SlicedStringGet(int index);
+
+  // Casting.
+  static inline SlicedString* cast(Object* obj);
+
+  // Layout description.
+  static const int kParentOffset = POINTER_SIZE_ALIGN(String::kSize);
+  static const int kOffsetOffset = kParentOffset + kPointerSize;
+  static const int kSize = kOffsetOffset + kPointerSize;
+
+  // Support for StringInputBuffer
+  inline const unibrow::byte* SlicedStringReadBlock(ReadBlockBuffer* buffer,
+                                                    unsigned* offset_ptr,
+                                                    unsigned chars);
+  inline void SlicedStringReadBlockIntoBuffer(ReadBlockBuffer* buffer,
+                                              unsigned* offset_ptr,
+                                              unsigned chars);
+  // Minimum length for a sliced string.
+  static const int kMinLength = 13;
+
+  typedef FixedBodyDescriptor<kParentOffset,
+                              kOffsetOffset + kPointerSize, kSize>
+          BodyDescriptor;
+
+#ifdef DEBUG
+  void SlicedStringVerify();
+#endif
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(SlicedString);
 };
 
 

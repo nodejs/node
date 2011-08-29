@@ -394,6 +394,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
                                       ConsString::BodyDescriptor,
                                       void>::Visit);
 
+    table_.Register(kVisitSlicedString,
+                    &FixedBodyVisitor<StaticMarkingVisitor,
+                                      SlicedString::BodyDescriptor,
+                                      void>::Visit);
 
     table_.Register(kVisitFixedArray,
                     &FlexibleBodyVisitor<StaticMarkingVisitor,

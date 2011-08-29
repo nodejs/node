@@ -3638,7 +3638,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       // __ mtc1(zero_reg, f1);  // MS 32-bits are all zero.
       // __ cvt_d_l(f0, f0); // Use 64 bit conv to get correct unsigned 32-bit.
 
-      __ Cvt_d_uw(f0, value);
+      __ Cvt_d_uw(f0, value, f22);
 
       __ sdc1(f0, MemOperand(v0, HeapNumber::kValueOffset - kHeapObjectTag));
 
@@ -4428,7 +4428,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ sw(mantissa_reg, FieldMemOperand(scratch, FixedDoubleArray::kHeaderSize));
   uint32_t offset = FixedDoubleArray::kHeaderSize + sizeof(kHoleNanLower32);
   __ sw(exponent_reg, FieldMemOperand(scratch, offset));
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, value_reg);  // In delay slot.
 
   __ bind(&maybe_nan);
   // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
@@ -4478,7 +4479,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
     __ sw(mantissa_reg, MemOperand(scratch, 0));
     __ sw(exponent_reg, MemOperand(scratch, Register::kSizeInBytes));
   }
-  __ Ret();
+  __ Ret(USE_DELAY_SLOT);
+  __ mov(v0, value_reg);  // In delay slot.
 
   // Handle store cache miss, replacing the ic with the generic stub.
   __ bind(&miss_force_generic);

@@ -58,6 +58,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
           return kVisitConsString;
         }
 
+      case kSlicedStringTag:
+        return kVisitSlicedString;
+
       case kExternalStringTag:
         return GetVisitorIdForSize(kVisitDataObject,
                                    kVisitDataObjectGeneric,

@@ -1290,6 +1290,10 @@ class ScavengingVisitor : public StaticVisitorBase {
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<ConsString::kSize>);
 
+    table_.Register(kVisitSlicedString,
+                    &ObjectEvacuationStrategy<POINTER_OBJECT>::
+                        template VisitSpecialized<SlicedString::kSize>);
+
     table_.Register(kVisitSharedFunctionInfo,
                     &ObjectEvacuationStrategy<POINTER_OBJECT>::
                         template VisitSpecialized<SharedFunctionInfo::kSize>);
@@ -2564,6 +2568,8 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
 
   // If the resulting string is small make a flat string.
   if (length < String::kMinNonFlatLength) {
+    // Note that neither of the two inputs can be a slice because:
+    STATIC_ASSERT(String::kMinNonFlatLength <= SlicedString::kMinLength);
     ASSERT(first->IsFlat());
     ASSERT(second->IsFlat());
     if (is_ascii) {
@@ -2655,24 +2661,69 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
   // Make an attempt to flatten the buffer to reduce access time.
   buffer = buffer->TryFlattenGetString();
 
-  Object* result;
-  { MaybeObject* maybe_result = buffer->IsAsciiRepresentation()
-                   ? AllocateRawAsciiString(length, pretenure )
-                   : AllocateRawTwoByteString(length, pretenure);
-    if (!maybe_result->ToObject(&result)) return maybe_result;
-  }
-  String* string_result = String::cast(result);
-  // Copy the characters into the new object.
-  if (buffer->IsAsciiRepresentation()) {
-    ASSERT(string_result->IsAsciiRepresentation());
-    char* dest = SeqAsciiString::cast(string_result)->GetChars();
-    String::WriteToFlat(buffer, dest, start, end);
-  } else {
-    ASSERT(string_result->IsTwoByteRepresentation());
-    uc16* dest = SeqTwoByteString::cast(string_result)->GetChars();
-    String::WriteToFlat(buffer, dest, start, end);
+  // TODO(1626): For now slicing external strings is not supported.  However,
+  // a flat cons string can have an external string as first part in some cases.
+  // Therefore we have to single out this case as well.
+  if (!FLAG_string_slices ||
+      (buffer->IsConsString() &&
+        (!buffer->IsFlat() ||
+         !ConsString::cast(buffer)->first()->IsSeqString())) ||
+      buffer->IsExternalString() ||
+      length < SlicedString::kMinLength ||
+      pretenure == TENURED) {
+    Object* result;
+    { MaybeObject* maybe_result = buffer->IsAsciiRepresentation()
+                     ? AllocateRawAsciiString(length, pretenure)
+                     : AllocateRawTwoByteString(length, pretenure);
+      if (!maybe_result->ToObject(&result)) return maybe_result;
+    }
+    String* string_result = String::cast(result);
+    // Copy the characters into the new object.
+    if (buffer->IsAsciiRepresentation()) {
+      ASSERT(string_result->IsAsciiRepresentation());
+      char* dest = SeqAsciiString::cast(string_result)->GetChars();
+      String::WriteToFlat(buffer, dest, start, end);
+    } else {
+      ASSERT(string_result->IsTwoByteRepresentation());
+      uc16* dest = SeqTwoByteString::cast(string_result)->GetChars();
+      String::WriteToFlat(buffer, dest, start, end);
+    }
+    return result;
   }
 
+  ASSERT(buffer->IsFlat());
+  ASSERT(!buffer->IsExternalString());
+#if DEBUG
+  buffer->StringVerify();
+#endif
+
+  Object* result;
+  { Map* map = buffer->IsAsciiRepresentation()
+                 ? sliced_ascii_string_map()
+                 : sliced_string_map();
+    MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+    if (!maybe_result->ToObject(&result)) return maybe_result;
+  }
+
+  AssertNoAllocation no_gc;
+  SlicedString* sliced_string = SlicedString::cast(result);
+  sliced_string->set_length(length);
+  sliced_string->set_hash_field(String::kEmptyHashField);
+  if (buffer->IsConsString()) {
+    ConsString* cons = ConsString::cast(buffer);
+    ASSERT(cons->second()->length() == 0);
+    sliced_string->set_parent(cons->first());
+    sliced_string->set_offset(start);
+  } else if (buffer->IsSlicedString()) {
+    // Prevent nesting sliced strings.
+    SlicedString* parent_slice = SlicedString::cast(buffer);
+    sliced_string->set_parent(parent_slice->parent());
+    sliced_string->set_offset(start + parent_slice->offset());
+  } else {
+    sliced_string->set_parent(buffer);
+    sliced_string->set_offset(start);
+  }
+  ASSERT(sliced_string->parent()->IsSeqString());
   return result;
 }
 

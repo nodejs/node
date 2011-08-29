@@ -26,6 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'includes': ['../build/common.gypi'],
   'variables': {
     'console%': '',
   },
@@ -36,6 +37,7 @@
       'dependencies': [
         '../tools/gyp/v8.gyp:v8',
       ],
+      # Generated source files need this explicitly:
       'include_dirs+': [
         '../src',
       ],

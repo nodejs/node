@@ -59,10 +59,10 @@ static const RegList kCalleeSaved =
   // Saved temporaries.
   1 << 16 | 1 << 17 | 1 << 18 | 1 << 19 |
   1 << 20 | 1 << 21 | 1 << 22 | 1 << 23 |
-  // gp, sp, fp.
-  1 << 28 | 1 << 29 | 1 << 30;
+  // fp.
+  1 << 30;
 
-static const int kNumCalleeSaved = 11;
+static const int kNumCalleeSaved = 9;
 
 
 // Number of registers for which space is reserved in safepoints. Must be a

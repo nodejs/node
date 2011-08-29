@@ -104,6 +104,7 @@ DEFINE_bool(harmony_block_scoping, false, "enable harmony block scoping")
 
 // Flags for experimental implementation features.
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
+DEFINE_bool(string_slices, false, "use string slices")
 
 // Flags for Crankshaft.
 #ifdef V8_TARGET_ARCH_MIPS

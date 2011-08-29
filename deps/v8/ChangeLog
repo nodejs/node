@@ -1,3 +1,12 @@
+2011-08-29: Version 3.5.9
+
+        Made FromPropertyDescriptor not trigger inherited setters.
+
+        Fixed .gyp files to work on the ARM simulator.
+
+        Fixed shared library build warnings for MSVS.
+
+
 2011-08-24: Version 3.5.8
 
         Added V8EXPORT attributes for v8::Array::CheckCast and

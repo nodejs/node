@@ -1231,21 +1231,14 @@ class Slot: public Expression {
 
 class Property: public Expression {
  public:
-  // Synthetic properties are property lookups introduced by the system,
-  // to objects that aren't visible to the user. Function calls to synthetic
-  // properties should use the global object as receiver, not the base object
-  // of the resolved Reference.
-  enum Type { NORMAL, SYNTHETIC };
   Property(Isolate* isolate,
            Expression* obj,
            Expression* key,
-           int pos,
-           Type type = NORMAL)
+           int pos)
       : Expression(isolate),
         obj_(obj),
         key_(key),
         pos_(pos),
-        type_(type),
         is_monomorphic_(false),
         is_array_length_(false),
         is_string_length_(false),
@@ -1260,7 +1253,6 @@ class Property: public Expression {
   Expression* obj() const { return obj_; }
   Expression* key() const { return key_; }
   virtual int position() const { return pos_; }
-  bool is_synthetic() const { return type_ == SYNTHETIC; }
 
   bool IsStringLength() const { return is_string_length_; }
   bool IsStringAccess() const { return is_string_access_; }
@@ -1276,7 +1268,6 @@ class Property: public Expression {
   Expression* obj_;
   Expression* key_;
   int pos_;
-  Type type_;
 
   SmallMapList receiver_types_;
   bool is_monomorphic_ : 1;

@@ -127,38 +127,38 @@ struct Register {
 
 const Register no_reg = { -1 };
 
-const Register zero_reg = { 0 };
-const Register at = { 1 };
-const Register v0 = { 2 };
-const Register v1 = { 3 };
-const Register a0 = { 4 };
+const Register zero_reg = { 0 };  // Always zero.
+const Register at = { 1 };   // at: Reserved for synthetic instructions.
+const Register v0 = { 2 };   // v0, v1: Used when returning multiple values
+const Register v1 = { 3 };   //   from subroutines.
+const Register a0 = { 4 };   // a0 - a4: Used to pass non-FP parameters.
 const Register a1 = { 5 };
 const Register a2 = { 6 };
 const Register a3 = { 7 };
-const Register t0 = { 8 };
-const Register t1 = { 9 };
-const Register t2 = { 10 };
+const Register t0 = { 8 };   // t0 - t9: Can be used without reservation, act
+const Register t1 = { 9 };   //   as temporary registers and are allowed to
+const Register t2 = { 10 };  //   be destroyed by subroutines.
 const Register t3 = { 11 };
 const Register t4 = { 12 };
 const Register t5 = { 13 };
 const Register t6 = { 14 };
 const Register t7 = { 15 };
-const Register s0 = { 16 };
-const Register s1 = { 17 };
-const Register s2 = { 18 };
-const Register s3 = { 19 };
-const Register s4 = { 20 };
+const Register s0 = { 16 };  // s0 - s7: Subroutine register variables.
+const Register s1 = { 17 };  //   Subroutines that write to these registers
+const Register s2 = { 18 };  //   must restore their values before exiting so
+const Register s3 = { 19 };  //   that the caller can expect the values to be
+const Register s4 = { 20 };  //   preserved.
 const Register s5 = { 21 };
 const Register s6 = { 22 };
 const Register s7 = { 23 };
 const Register t8 = { 24 };
 const Register t9 = { 25 };
-const Register k0 = { 26 };
-const Register k1 = { 27 };
-const Register gp = { 28 };
-const Register sp = { 29 };
-const Register s8_fp = { 30 };
-const Register ra = { 31 };
+const Register k0 = { 26 };  // k0, k1: Reserved for system calls and
+const Register k1 = { 27 };  // interrupt handlers.
+const Register gp = { 28 };  // gp: Reserved.
+const Register sp = { 29 };  // sp: Stack pointer.
+const Register s8_fp = { 30 };  // fp: Frame pointer.
+const Register ra = { 31 };  // ra: Return address pointer.
 
 
 int ToNumber(Register reg);

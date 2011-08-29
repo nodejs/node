@@ -26,10 +26,10 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 {
+  'includes': ['../../build/common.gypi'],
   'variables': {
     'generated_file': '<(SHARED_INTERMEDIATE_DIR)/resources.cc',
   },
-  'includes': [ '../../build/v8-features.gypi' ],
   'targets': [
     {
       'target_name': 'cctest',

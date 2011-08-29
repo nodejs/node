@@ -885,8 +885,8 @@ void KeyedLoadIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   MemOperand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, a0, a2, a3, &slow);
   __ lw(a2, unmapped_location);
-  __ Branch(&slow, eq, a2, Operand(a3));
   __ LoadRoot(a3, Heap::kTheHoleValueRootIndex);
+  __ Branch(&slow, eq, a2, Operand(a3));
   __ mov(v0, a2);
   __ Ret();
   __ bind(&slow);

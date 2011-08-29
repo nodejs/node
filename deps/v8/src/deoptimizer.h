@@ -336,6 +336,10 @@ class FrameDescription {
     return malloc(size + frame_size - kPointerSize);
   }
 
+  void operator delete(void* pointer, uint32_t frame_size) {
+    free(pointer);
+  }
+
   void operator delete(void* description) {
     free(description);
   }

@@ -65,7 +65,7 @@ namespace internal {
   F(ToSlowProperties, 1, 1) \
   F(FinishArrayPrototypeSetup, 1, 1) \
   F(SpecialArrayFunctions, 1, 1) \
-  F(GetGlobalReceiver, 0, 1) \
+  F(GetDefaultReceiver, 1, 1) \
   \
   F(GetPrototype, 1, 1) \
   F(IsInPrototypeChain, 2, 1) \
@@ -491,8 +491,7 @@ namespace internal {
   F(IsRegExpEquivalent, 2, 1)                                                \
   F(HasCachedArrayIndex, 1, 1)                                               \
   F(GetCachedArrayIndex, 1, 1)                                               \
-  F(FastAsciiArrayJoin, 2, 1)                                                \
-  F(IsNativeOrStrictMode, 1, 1)
+  F(FastAsciiArrayJoin, 2, 1)
 
 
 // ----------------------------------------------------------------------------

@@ -683,8 +683,18 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ClassOf) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetPrototype) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 1);
-  Object* obj = args[0];
+  CONVERT_CHECKED(JSReceiver, input_obj, args[0]);
+  Object* obj = input_obj;
+  // We don't expect access checks to be needed on JSProxy objects.
+  ASSERT(!obj->IsAccessCheckNeeded() || obj->IsJSObject());
   do {
+    if (obj->IsAccessCheckNeeded() &&
+        !isolate->MayNamedAccess(JSObject::cast(obj),
+                                 isolate->heap()->Proto_symbol(),
+                                 v8::ACCESS_GET)) {
+      isolate->ReportFailedAccessCheck(JSObject::cast(obj), v8::ACCESS_GET);
+      return isolate->heap()->undefined_value();
+    }
     obj = obj->GetPrototype();
   } while (obj->IsJSObject() &&
            JSObject::cast(obj)->map()->is_hidden_prototype());
@@ -1856,10 +1866,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_GetGlobalReceiver) {
-  // Returns a real global receiver, not one of builtins object.
+RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
+  NoHandleAllocation handle_free;
+  ASSERT(args.length() == 1);
+  CONVERT_CHECKED(JSFunction, function, args[0]);
+  SharedFunctionInfo* shared = function->shared();
+  if (shared->native() || shared->strict_mode()) {
+    return isolate->heap()->undefined_value();
+  }
+  // Returns undefined for strict or native functions, or
+  // the associated global receiver for "normal" functions.
+
   Context* global_context =
-      isolate->context()->global()->global_context();
+      function->context()->global()->global_context();
   return global_context->global()->global_receiver();
 }
 
@@ -3664,7 +3683,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RegExpExecMultiple) {
   HandleScope handles(isolate);
 
   CONVERT_ARG_CHECKED(String, subject, 1);
-  if (!subject->IsFlat()) { FlattenString(subject); }
+  if (!subject->IsFlat()) FlattenString(subject);
   CONVERT_ARG_CHECKED(JSRegExp, regexp, 0);
   CONVERT_ARG_CHECKED(JSArray, last_match_info, 2);
   CONVERT_ARG_CHECKED(JSArray, result_array, 3);

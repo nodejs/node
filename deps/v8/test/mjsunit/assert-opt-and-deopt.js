@@ -54,7 +54,7 @@ OptTracker.OptimizationState = {
  * that you later want to track de/optimizations for. It is necessary because
  * tests are sometimes executed several times in a row, and you want to
  * disregard counts from previous runs.
- */ 
+ */
 OptTracker.prototype.CheckpointOptCount = function(func) {
   this.opt_counts_[func] = %GetOptimizationCount(func);
 };
@@ -148,7 +148,7 @@ tracker.AssertIsOptimized(f, false);
 tracker.AssertDeoptHappened(f, false);
 tracker.AssertDeoptCount(f, 0);
 
-for (var i = 0; i < 2; i++) f(1);
+f(1);
 
 tracker.AssertOptCount(f, 0);
 tracker.AssertIsOptimized(f, false);

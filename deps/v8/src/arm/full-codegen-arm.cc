@@ -47,7 +47,6 @@ namespace internal {
 
 
 static unsigned GetPropertyId(Property* property) {
-  if (property->is_synthetic()) return AstNode::kNoNumber;
   return property->id();
 }
 
@@ -694,104 +693,73 @@ void FullCodeGenerator::EmitDeclaration(Variable* variable,
   Comment cmnt(masm_, "[ Declaration");
   ASSERT(variable != NULL);  // Must have been resolved.
   Slot* slot = variable->AsSlot();
-  Property* prop = variable->AsProperty();
-
-  if (slot != NULL) {
-    switch (slot->type()) {
-      case Slot::PARAMETER:
-      case Slot::LOCAL:
-        if (mode == Variable::CONST) {
-          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-          __ str(ip, MemOperand(fp, SlotOffset(slot)));
-        } else if (function != NULL) {
-          VisitForAccumulatorValue(function);
-          __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
-        }
-        break;
-
-      case Slot::CONTEXT:
-        // We bypass the general EmitSlotSearch because we know more about
-        // this specific context.
-
-        // The variable in the decl always resides in the current function
-        // context.
-        ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
-        if (FLAG_debug_code) {
-          // Check that we're not inside a with or catch context.
-          __ ldr(r1, FieldMemOperand(cp, HeapObject::kMapOffset));
-          __ CompareRoot(r1, Heap::kWithContextMapRootIndex);
-          __ Check(ne, "Declaration in with context.");
-          __ CompareRoot(r1, Heap::kCatchContextMapRootIndex);
-          __ Check(ne, "Declaration in catch context.");
-        }
-        if (mode == Variable::CONST) {
-          __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
-          __ str(ip, ContextOperand(cp, slot->index()));
-          // No write barrier since the_hole_value is in old space.
-        } else if (function != NULL) {
-          VisitForAccumulatorValue(function);
-          __ str(result_register(), ContextOperand(cp, slot->index()));
-          int offset = Context::SlotOffset(slot->index());
-          // We know that we have written a function, which is not a smi.
-          __ mov(r1, Operand(cp));
-          __ RecordWrite(r1, Operand(offset), r2, result_register());
-        }
-        break;
-
-      case Slot::LOOKUP: {
-        __ mov(r2, Operand(variable->name()));
-        // Declaration nodes are always introduced in one of two modes.
-        ASSERT(mode == Variable::VAR ||
-               mode == Variable::CONST ||
-               mode == Variable::LET);
-        PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
-        __ mov(r1, Operand(Smi::FromInt(attr)));
-        // Push initial value, if any.
-        // Note: For variables we must not push an initial value (such as
-        // 'undefined') because we may have a (legal) redeclaration and we
-        // must not destroy the current value.
-        if (mode == Variable::CONST) {
-          __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
-          __ Push(cp, r2, r1, r0);
-        } else if (function != NULL) {
-          __ Push(cp, r2, r1);
-          // Push initial value for function declaration.
-          VisitForStackValue(function);
-        } else {
-          __ mov(r0, Operand(Smi::FromInt(0)));  // No initial value!
-          __ Push(cp, r2, r1, r0);
-        }
-        __ CallRuntime(Runtime::kDeclareContextSlot, 4);
-        break;
+  ASSERT(slot != NULL);
+  switch (slot->type()) {
+    case Slot::PARAMETER:
+    case Slot::LOCAL:
+      if (mode == Variable::CONST) {
+        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+        __ str(ip, MemOperand(fp, SlotOffset(slot)));
+      } else if (function != NULL) {
+        VisitForAccumulatorValue(function);
+        __ str(result_register(), MemOperand(fp, SlotOffset(slot)));
       }
-    }
+      break;
 
-  } else if (prop != NULL) {
-    // A const declaration aliasing a parameter is an illegal redeclaration.
-    ASSERT(mode != Variable::CONST);
-    if (function != NULL) {
-      // We are declaring a function that rewrites to a property.
-      // Use (keyed) IC to set the initial value.  We cannot visit the
-      // rewrite because it's shared and we risk recording duplicate AST
-      // IDs for bailouts from optimized code.
-      ASSERT(prop->obj()->AsVariableProxy() != NULL);
-      { AccumulatorValueContext for_object(this);
-        EmitVariableLoad(prop->obj()->AsVariableProxy());
+    case Slot::CONTEXT:
+      // We bypass the general EmitSlotSearch because we know more about
+      // this specific context.
+
+      // The variable in the decl always resides in the current function
+      // context.
+      ASSERT_EQ(0, scope()->ContextChainLength(variable->scope()));
+      if (FLAG_debug_code) {
+        // Check that we're not inside a with or catch context.
+        __ ldr(r1, FieldMemOperand(cp, HeapObject::kMapOffset));
+        __ CompareRoot(r1, Heap::kWithContextMapRootIndex);
+        __ Check(ne, "Declaration in with context.");
+        __ CompareRoot(r1, Heap::kCatchContextMapRootIndex);
+        __ Check(ne, "Declaration in catch context.");
       }
+      if (mode == Variable::CONST) {
+        __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+        __ str(ip, ContextOperand(cp, slot->index()));
+        // No write barrier since the_hole_value is in old space.
+      } else if (function != NULL) {
+        VisitForAccumulatorValue(function);
+        __ str(result_register(), ContextOperand(cp, slot->index()));
+        int offset = Context::SlotOffset(slot->index());
+        // We know that we have written a function, which is not a smi.
+        __ mov(r1, Operand(cp));
+        __ RecordWrite(r1, Operand(offset), r2, result_register());
+      }
+      break;
 
-      __ push(r0);
-      VisitForAccumulatorValue(function);
-      __ pop(r2);
-
-      ASSERT(prop->key()->AsLiteral() != NULL &&
-             prop->key()->AsLiteral()->handle()->IsSmi());
-      __ mov(r1, Operand(prop->key()->AsLiteral()->handle()));
-
-      Handle<Code> ic = is_strict_mode()
-          ? isolate()->builtins()->KeyedStoreIC_Initialize_Strict()
-          : isolate()->builtins()->KeyedStoreIC_Initialize();
-      __ Call(ic);
-      // Value in r0 is ignored (declarations are statements).
+    case Slot::LOOKUP: {
+      __ mov(r2, Operand(variable->name()));
+      // Declaration nodes are always introduced in one of two modes.
+      ASSERT(mode == Variable::VAR ||
+             mode == Variable::CONST ||
+             mode == Variable::LET);
+      PropertyAttributes attr = (mode == Variable::CONST) ? READ_ONLY : NONE;
+      __ mov(r1, Operand(Smi::FromInt(attr)));
+      // Push initial value, if any.
+      // Note: For variables we must not push an initial value (such as
+      // 'undefined') because we may have a (legal) redeclaration and we
+      // must not destroy the current value.
+      if (mode == Variable::CONST) {
+        __ LoadRoot(r0, Heap::kTheHoleValueRootIndex);
+        __ Push(cp, r2, r1, r0);
+      } else if (function != NULL) {
+        __ Push(cp, r2, r1);
+        // Push initial value for function declaration.
+        VisitForStackValue(function);
+      } else {
+        __ mov(r0, Operand(Smi::FromInt(0)));  // No initial value!
+        __ Push(cp, r2, r1, r0);
+      }
+      __ CallRuntime(Runtime::kDeclareContextSlot, 4);
+      break;
     }
   }
 }
@@ -2272,36 +2240,10 @@ void FullCodeGenerator::VisitCall(Call* expr) {
       EmitCallWithIC(expr, key->handle(), RelocInfo::CODE_TARGET);
     } else {
       // Call to a keyed property.
-      // For a synthetic property use keyed load IC followed by function call,
-      // for a regular property use EmitKeyedCallWithIC.
-      if (prop->is_synthetic()) {
-        // Do not visit the object and key subexpressions (they are shared
-        // by all occurrences of the same rewritten parameter).
-        ASSERT(prop->obj()->AsVariableProxy() != NULL);
-        ASSERT(prop->obj()->AsVariableProxy()->var()->AsSlot() != NULL);
-        Slot* slot = prop->obj()->AsVariableProxy()->var()->AsSlot();
-        MemOperand operand = EmitSlotSearch(slot, r1);
-        __ ldr(r1, operand);
-
-        ASSERT(prop->key()->AsLiteral() != NULL);
-        ASSERT(prop->key()->AsLiteral()->handle()->IsSmi());
-        __ mov(r0, Operand(prop->key()->AsLiteral()->handle()));
-
-        // Record source code position for IC call.
-        SetSourcePosition(prop->position());
-
-        Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Initialize();
-        __ Call(ic, RelocInfo::CODE_TARGET, GetPropertyId(prop));
-        __ ldr(r1, GlobalObjectOperand());
-        __ ldr(r1, FieldMemOperand(r1, GlobalObject::kGlobalReceiverOffset));
-        __ Push(r0, r1);  // Function, receiver.
-        EmitCallWithStub(expr, NO_CALL_FUNCTION_FLAGS);
-      } else {
-        { PreservePositionScope scope(masm()->positions_recorder());
-          VisitForStackValue(prop->obj());
-        }
-        EmitKeyedCallWithIC(expr, prop->key());
+      { PreservePositionScope scope(masm()->positions_recorder());
+        VisitForStackValue(prop->obj());
       }
+      EmitKeyedCallWithIC(expr, prop->key());
     }
   } else {
     { PreservePositionScope scope(masm()->positions_recorder());
@@ -3580,39 +3522,6 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(ZoneList<Expression*>* args) {
 }
 
 
-void FullCodeGenerator::EmitIsNativeOrStrictMode(ZoneList<Expression*>* args) {
-  ASSERT(args->length() == 1);
-
-  // Load the function into r0.
-  VisitForAccumulatorValue(args->at(0));
-
-  // Prepare for the test.
-  Label materialize_true, materialize_false;
-  Label* if_true = NULL;
-  Label* if_false = NULL;
-  Label* fall_through = NULL;
-  context()->PrepareTest(&materialize_true, &materialize_false,
-                         &if_true, &if_false, &fall_through);
-
-  // Test for strict mode function.
-  __ ldr(r1, FieldMemOperand(r0, JSFunction::kSharedFunctionInfoOffset));
-  __ ldr(r1, FieldMemOperand(r1, SharedFunctionInfo::kCompilerHintsOffset));
-  __ tst(r1, Operand(1 << (SharedFunctionInfo::kStrictModeFunction +
-                           kSmiTagSize)));
-  __ b(ne, if_true);
-
-  // Test for native function.
-  __ tst(r1, Operand(1 << (SharedFunctionInfo::kNative + kSmiTagSize)));
-  __ b(ne, if_true);
-
-  // Not native or strict-mode function.
-  __ b(if_false);
-
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  context()->Plug(if_true, if_false);
-}
-
-
 void FullCodeGenerator::VisitCallRuntime(CallRuntime* expr) {
   Handle<String> name = expr->name();
   if (name->length() > 0 && name->Get(0) == '_') {
@@ -3664,18 +3573,12 @@ void FullCodeGenerator::VisitUnaryOperation(UnaryOperation* expr) {
       Variable* var = expr->expression()->AsVariableProxy()->AsVariable();
 
       if (prop != NULL) {
-        if (prop->is_synthetic()) {
-          // Result of deleting parameters is false, even when they rewrite
-          // to accesses on the arguments object.
-          context()->Plug(false);
-        } else {
-          VisitForStackValue(prop->obj());
-          VisitForStackValue(prop->key());
-          __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
-          __ push(r1);
-          __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
-          context()->Plug(r0);
-        }
+        VisitForStackValue(prop->obj());
+        VisitForStackValue(prop->key());
+        __ mov(r1, Operand(Smi::FromInt(strict_mode_flag())));
+        __ push(r1);
+        __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION);
+        context()->Plug(r0);
       } else if (var != NULL) {
         // Delete of an unqualified identifier is disallowed in strict mode
         // but "delete this" is.

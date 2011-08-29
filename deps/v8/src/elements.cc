@@ -590,6 +590,7 @@ ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
     default:
       UNREACHABLE();
       return NULL;
+      break;
   }
 }
 

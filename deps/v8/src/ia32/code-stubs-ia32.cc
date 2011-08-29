@@ -493,10 +493,10 @@ static void IntegerConvert(MacroAssembler* masm,
     __ cmp(Operand(scratch2), Immediate(non_smi_exponent));
     // If we have a match of the int32-but-not-Smi exponent then skip some
     // logic.
-    __ j(equal, &right_exponent);
+    __ j(equal, &right_exponent, Label::kNear);
     // If the exponent is higher than that then go to slow case.  This catches
     // numbers that don't fit in a signed int32, infinities and NaNs.
-    __ j(less, &normal_exponent);
+    __ j(less, &normal_exponent, Label::kNear);
 
     {
       // Handle a big exponent.  The only reason we have this code is that the
@@ -525,9 +525,9 @@ static void IntegerConvert(MacroAssembler* masm,
       __ or_(ecx, Operand(scratch2));
       // We have the answer in ecx, but we may need to negate it.
       __ test(scratch, Operand(scratch));
-      __ j(positive, &done);
+      __ j(positive, &done, Label::kNear);
       __ neg(ecx);
-      __ jmp(&done);
+      __ jmp(&done, Label::kNear);
     }
 
     __ bind(&normal_exponent);
@@ -540,7 +540,7 @@ static void IntegerConvert(MacroAssembler* masm,
         (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
     __ sub(Operand(scratch2), Immediate(zero_exponent));
     // ecx already has a Smi zero.
-    __ j(less, &done);
+    __ j(less, &done, Label::kNear);
 
     // We have a shifted exponent between 0 and 30 in scratch2.
     __ shr(scratch2, HeapNumber::kExponentShift);
@@ -765,7 +765,7 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
 
     Label slow_allocate_heapnumber, heapnumber_allocated;
     __ AllocateHeapNumber(eax, ebx, ecx, &slow_allocate_heapnumber);
-    __ jmp(&heapnumber_allocated);
+    __ jmp(&heapnumber_allocated, Label::kNear);
 
     __ bind(&slow_allocate_heapnumber);
     __ EnterInternalFrame();
@@ -1442,14 +1442,14 @@ void BinaryOpStub::GenerateBothStringStub(MacroAssembler* masm) {
   Register right = eax;
 
   // Test if left operand is a string.
-  __ JumpIfSmi(left, &call_runtime);
+  __ JumpIfSmi(left, &call_runtime, Label::kNear);
   __ CmpObjectType(left, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &call_runtime);
+  __ j(above_equal, &call_runtime, Label::kNear);
 
   // Test if right operand is a string.
-  __ JumpIfSmi(right, &call_runtime);
+  __ JumpIfSmi(right, &call_runtime, Label::kNear);
   __ CmpObjectType(right, FIRST_NONSTRING_TYPE, ecx);
-  __ j(above_equal, &call_runtime);
+  __ j(above_equal, &call_runtime, Label::kNear);
 
   StringAddStub string_add_stub(NO_STRING_CHECK_IN_STUB);
   GenerateRegisterArgsPush(masm);
@@ -1563,7 +1563,7 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
-        __ j(negative, &non_smi_result);
+        __ j(negative, &non_smi_result, Label::kNear);
       }
       // Tag smi result and return.
       __ SmiTag(eax);
@@ -1777,7 +1777,7 @@ void BinaryOpStub::GenerateHeapNumberStub(MacroAssembler* masm) {
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
-        __ j(negative, &non_smi_result);
+        __ j(negative, &non_smi_result, Label::kNear);
       }
       // Tag smi result and return.
       __ SmiTag(eax);
@@ -1976,7 +1976,7 @@ void BinaryOpStub::GenerateGeneric(MacroAssembler* masm) {
       } else {
         // Check if result fits in a smi.
         __ cmp(eax, 0xc0000000);
-        __ j(negative, &non_smi_result);
+        __ j(negative, &non_smi_result, Label::kNear);
       }
       // Tag smi result and return.
       __ SmiTag(eax);
@@ -2451,7 +2451,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   Label load_arg2, done;
 
   // Test if arg1 is a Smi.
-  __ JumpIfNotSmi(edx, &arg1_is_object);
+  __ JumpIfNotSmi(edx, &arg1_is_object, Label::kNear);
 
   __ SmiUntag(edx);
   __ jmp(&load_arg2);
@@ -2477,7 +2477,7 @@ void FloatingPointHelper::LoadUnknownsAsIntegers(MacroAssembler* masm,
   __ bind(&load_arg2);
 
   // Test if arg2 is a Smi.
-  __ JumpIfNotSmi(eax, &arg2_is_object);
+  __ JumpIfNotSmi(eax, &arg2_is_object, Label::kNear);
 
   __ SmiUntag(eax);
   __ mov(ecx, eax);
@@ -2867,7 +2867,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
 
   // Check that the key is a smi.
   Label slow;
-  __ JumpIfNotSmi(edx, &slow);
+  __ JumpIfNotSmi(edx, &slow, Label::kNear);
 
   // Check if the calling frame is an arguments adaptor frame.
   Label adaptor;
@@ -2880,7 +2880,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   // through register eax. Use unsigned comparison to get negative
   // check for free.
   __ cmp(edx, Operand(eax));
-  __ j(above_equal, &slow);
+  __ j(above_equal, &slow, Label::kNear);
 
   // Read the argument from the stack and return it.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -2896,7 +2896,7 @@ void ArgumentsAccessStub::GenerateReadElement(MacroAssembler* masm) {
   __ bind(&adaptor);
   __ mov(ecx, Operand(ebx, ArgumentsAdaptorFrameConstants::kLengthOffset));
   __ cmp(edx, Operand(ecx));
-  __ j(above_equal, &slow);
+  __ j(above_equal, &slow, Label::kNear);
 
   // Read the argument from the stack and return it.
   STATIC_ASSERT(kSmiTagSize == 1);
@@ -3175,11 +3175,11 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   __ mov(edx, Operand(ebp, StandardFrameConstants::kCallerFPOffset));
   __ mov(ecx, Operand(edx, StandardFrameConstants::kContextOffset));
   __ cmp(Operand(ecx), Immediate(Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR)));
-  __ j(equal, &adaptor_frame);
+  __ j(equal, &adaptor_frame, Label::kNear);
 
   // Get the length from the frame.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
-  __ jmp(&try_allocate);
+  __ jmp(&try_allocate, Label::kNear);
 
   // Patch the arguments.length and the parameters pointer.
   __ bind(&adaptor_frame);
@@ -3225,7 +3225,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // If there are no actual arguments, we're done.
   Label done;
   __ test(ecx, Operand(ecx));
-  __ j(zero, &done);
+  __ j(zero, &done, Label::kNear);
 
   // Get the parameters pointer from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
@@ -3371,6 +3371,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmp(edx, Operand(eax));
   __ j(greater, &runtime);
 
+  // Reset offset for possibly sliced string.
+  __ Set(edi, Immediate(0));
   // ecx: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
   Label seq_ascii_string, seq_two_byte_string, check_code;
@@ -3381,36 +3383,45 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ and_(ebx,
           kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask);
   STATIC_ASSERT((kStringTag | kSeqStringTag | kTwoByteStringTag) == 0);
-  __ j(zero, &seq_two_byte_string);
+  __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be a flat ascii string.
-  __ test(Operand(ebx),
+  __ and_(Operand(ebx),
           Immediate(kIsNotStringMask | kStringRepresentationMask));
-  __ j(zero, &seq_ascii_string);
+  __ j(zero, &seq_ascii_string, Label::kNear);
 
-  // Check for flat cons string.
+  // Check for flat cons string or sliced string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  STATIC_ASSERT(kExternalStringTag != 0);
-  STATIC_ASSERT((kConsStringTag & kExternalStringTag) == 0);
-  __ test(Operand(ebx),
-          Immediate(kIsNotStringMask | kExternalStringTag));
-  __ j(not_zero, &runtime);
-  // String is a cons string.
-  __ mov(edx, FieldOperand(eax, ConsString::kSecondOffset));
-  __ cmp(Operand(edx), factory->empty_string());
+  // In the case of a sliced string its offset has to be taken into account.
+  Label cons_string, check_encoding;
+  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
+  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  __ cmp(Operand(ebx), Immediate(kExternalStringTag));
+  __ j(less, &cons_string);
+  __ j(equal, &runtime);
+
+  // String is sliced.
+  __ mov(edi, FieldOperand(eax, SlicedString::kOffsetOffset));
+  __ mov(eax, FieldOperand(eax, SlicedString::kParentOffset));
+  // edi: offset of sliced string, smi-tagged.
+  // eax: parent string.
+  __ jmp(&check_encoding, Label::kNear);
+  // String is a cons string, check whether it is flat.
+  __ bind(&cons_string);
+  __ cmp(FieldOperand(eax, ConsString::kSecondOffset), factory->empty_string());
   __ j(not_equal, &runtime);
   __ mov(eax, FieldOperand(eax, ConsString::kFirstOffset));
+  __ bind(&check_encoding);
   __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  // String is a cons string with empty second part.
-  // eax: first part of cons string.
-  // ebx: map of first part of cons string.
-  // Is first part a flat two byte string?
+  // eax: first part of cons string or parent of sliced string.
+  // ebx: map of first part of cons string or map of parent of sliced string.
+  // Is first part of cons or parent of slice a flat two byte string?
   __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
             kStringRepresentationMask | kStringEncodingMask);
   STATIC_ASSERT((kSeqStringTag | kTwoByteStringTag) == 0);
-  __ j(zero, &seq_two_byte_string);
+  __ j(zero, &seq_two_byte_string, Label::kNear);
   // Any other flat string must be ascii.
   __ test_b(FieldOperand(ebx, Map::kInstanceTypeOffset),
             kStringRepresentationMask);
@@ -3420,14 +3431,14 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // eax: subject string (flat ascii)
   // ecx: RegExp data (FixedArray)
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataAsciiCodeOffset));
-  __ Set(edi, Immediate(1));  // Type is ascii.
-  __ jmp(&check_code);
+  __ Set(ecx, Immediate(1));  // Type is ascii.
+  __ jmp(&check_code, Label::kNear);
 
   __ bind(&seq_two_byte_string);
   // eax: subject string (flat two byte)
   // ecx: RegExp data (FixedArray)
   __ mov(edx, FieldOperand(ecx, JSRegExp::kDataUC16CodeOffset));
-  __ Set(edi, Immediate(0));  // Type is two byte.
+  __ Set(ecx, Immediate(0));  // Type is two byte.
 
   __ bind(&check_code);
   // Check that the irregexp code has been generated for the actual string
@@ -3437,7 +3448,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // eax: subject string
   // edx: code
-  // edi: encoding of subject string (1 if ascii, 0 if two_byte);
+  // ecx: encoding of subject string (1 if ascii, 0 if two_byte);
   // Load used arguments before starting to push arguments for call to native
   // RegExp code to avoid handling changing stack height.
   __ mov(ebx, Operand(esp, kPreviousIndexOffset));
@@ -3446,7 +3457,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // eax: subject string
   // ebx: previous index
   // edx: code
-  // edi: encoding of subject string (1 if ascii 0 if two_byte);
+  // ecx: encoding of subject string (1 if ascii 0 if two_byte);
   // All checks done. Now push arguments for native regexp code.
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->regexp_entry_native(), 1);
@@ -3463,23 +3474,47 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(Operand(esp, 6 * kPointerSize), Immediate(1));
 
   // Argument 6: Start (high end) of backtracking stack memory area.
-  __ mov(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_address));
-  __ add(ecx, Operand::StaticVariable(address_of_regexp_stack_memory_size));
-  __ mov(Operand(esp, 5 * kPointerSize), ecx);
+  __ mov(esi, Operand::StaticVariable(address_of_regexp_stack_memory_address));
+  __ add(esi, Operand::StaticVariable(address_of_regexp_stack_memory_size));
+  __ mov(Operand(esp, 5 * kPointerSize), esi);
 
   // Argument 5: static offsets vector buffer.
   __ mov(Operand(esp, 4 * kPointerSize),
          Immediate(ExternalReference::address_of_static_offsets_vector(
              masm->isolate())));
 
+  // Argument 2: Previous index.
+  __ mov(Operand(esp, 1 * kPointerSize), ebx);
+
+  // Argument 1: Original subject string.
+  // The original subject is in the previous stack frame. Therefore we have to
+  // use ebp, which points exactly to one pointer size below the previous esp.
+  // (Because creating a new stack frame pushes the previous ebp onto the stack
+  // and thereby moves up esp by one kPointerSize.)
+  __ mov(esi, Operand(ebp, kSubjectOffset + kPointerSize));
+  __ mov(Operand(esp, 0 * kPointerSize), esi);
+
+  // esi: original subject string
+  // eax: underlying subject string
+  // ebx: previous index
+  // ecx: encoding of subject string (1 if ascii 0 if two_byte);
+  // edx: code
   // Argument 4: End of string data
   // Argument 3: Start of string data
-  Label setup_two_byte, setup_rest;
-  __ test(edi, Operand(edi));
-  __ mov(edi, FieldOperand(eax, String::kLengthOffset));
-  __ j(zero, &setup_two_byte, Label::kNear);
+  // Prepare start and end index of the input.
+  // Load the length from the original sliced string if that is the case.
+  __ mov(esi, FieldOperand(esi, String::kLengthOffset));
+  __ add(esi, Operand(edi));  // Calculate input end wrt offset.
   __ SmiUntag(edi);
-  __ lea(ecx, FieldOperand(eax, edi, times_1, SeqAsciiString::kHeaderSize));
+  __ add(ebx, Operand(edi));  // Calculate input start wrt offset.
+
+  // ebx: start index of the input string
+  // esi: end index of the input string
+  Label setup_two_byte, setup_rest;
+  __ test(ecx, Operand(ecx));
+  __ j(zero, &setup_two_byte, Label::kNear);
+  __ SmiUntag(esi);
+  __ lea(ecx, FieldOperand(eax, esi, times_1, SeqAsciiString::kHeaderSize));
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_1, SeqAsciiString::kHeaderSize));
   __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
@@ -3487,19 +3522,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   __ bind(&setup_two_byte);
   STATIC_ASSERT(kSmiTag == 0);
-  STATIC_ASSERT(kSmiTagSize == 1);  // edi is smi (powered by 2).
-  __ lea(ecx, FieldOperand(eax, edi, times_1, SeqTwoByteString::kHeaderSize));
+  STATIC_ASSERT(kSmiTagSize == 1);  // esi is smi (powered by 2).
+  __ lea(ecx, FieldOperand(eax, esi, times_1, SeqTwoByteString::kHeaderSize));
   __ mov(Operand(esp, 3 * kPointerSize), ecx);  // Argument 4.
   __ lea(ecx, FieldOperand(eax, ebx, times_2, SeqTwoByteString::kHeaderSize));
   __ mov(Operand(esp, 2 * kPointerSize), ecx);  // Argument 3.
 
   __ bind(&setup_rest);
-
-  // Argument 2: Previous index.
-  __ mov(Operand(esp, 1 * kPointerSize), ebx);
-
-  // Argument 1: Subject string.
-  __ mov(Operand(esp, 0 * kPointerSize), eax);
 
   // Locate the code entry and call it.
   __ add(Operand(edx), Immediate(Code::kHeaderSize - kHeapObjectTag));
@@ -3539,7 +3568,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // by javascript code.
   __ cmp(eax, factory->termination_exception());
   Label throw_termination_exception;
-  __ j(equal, &throw_termination_exception);
+  __ j(equal, &throw_termination_exception, Label::kNear);
 
   // Handle normal exception by following handler chain.
   __ Throw(eax);
@@ -3822,16 +3851,16 @@ static int NegativeComparisonResult(Condition cc) {
 void CompareStub::Generate(MacroAssembler* masm) {
   ASSERT(lhs_.is(no_reg) && rhs_.is(no_reg));
 
-  Label check_unequal_objects, done;
+  Label check_unequal_objects;
 
   // Compare two smis if required.
   if (include_smi_compare_) {
     Label non_smi, smi_done;
     __ mov(ecx, Operand(edx));
     __ or_(ecx, Operand(eax));
-    __ JumpIfNotSmi(ecx, &non_smi);
+    __ JumpIfNotSmi(ecx, &non_smi, Label::kNear);
     __ sub(edx, Operand(eax));  // Return on the result of the subtraction.
-    __ j(no_overflow, &smi_done);
+    __ j(no_overflow, &smi_done, Label::kNear);
     __ not_(edx);  // Correct sign in case of overflow. edx is never 0 here.
     __ bind(&smi_done);
     __ mov(eax, edx);
@@ -3953,7 +3982,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
            Immediate(masm->isolate()->factory()->heap_number_map()));
     // If heap number, handle it in the slow case.
-    __ j(equal, &slow);
+    __ j(equal, &slow, Label::kNear);
     // Return non-equal (ebx is not zero)
     __ mov(eax, ebx);
     __ ret(0);
@@ -4004,7 +4033,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ ucomisd(xmm0, xmm1);
 
       // Don't base result on EFLAGS when a NaN is involved.
-      __ j(parity_even, &unordered);
+      __ j(parity_even, &unordered, Label::kNear);
       // Return a result of -1, 0, or 1, based on EFLAGS.
       __ mov(eax, 0);  // equal
       __ mov(ecx, Immediate(Smi::FromInt(1)));
@@ -4020,12 +4049,12 @@ void CompareStub::Generate(MacroAssembler* masm) {
       __ FCmp();
 
       // Don't base result on EFLAGS when a NaN is involved.
-      __ j(parity_even, &unordered);
+      __ j(parity_even, &unordered, Label::kNear);
 
       Label below_label, above_label;
       // Return a result of -1, 0, or 1, based on EFLAGS.
-      __ j(below, &below_label);
-      __ j(above, &above_label);
+      __ j(below, &below_label, Label::kNear);
+      __ j(above, &above_label, Label::kNear);
 
       __ Set(eax, Immediate(0));
       __ ret(0);
@@ -4340,7 +4369,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   // If the returned exception is RETRY_AFTER_GC continue at retry label
   STATIC_ASSERT(Failure::RETRY_AFTER_GC == 0);
   __ test(eax, Immediate(((1 << kFailureTypeTagSize) - 1) << kFailureTagSize));
-  __ j(zero, &retry);
+  __ j(zero, &retry, Label::kNear);
 
   // Special handling of out of memory exceptions.
   __ cmp(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
@@ -4460,11 +4489,11 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
                                 masm->isolate());
   __ cmp(Operand::StaticVariable(js_entry_sp), Immediate(0));
-  __ j(not_equal, &not_outermost_js);
+  __ j(not_equal, &not_outermost_js, Label::kNear);
   __ mov(Operand::StaticVariable(js_entry_sp), ebp);
   __ push(Immediate(Smi::FromInt(StackFrame::OUTERMOST_JSENTRY_FRAME)));
   Label cont;
-  __ jmp(&cont);
+  __ jmp(&cont, Label::kNear);
   __ bind(&not_outermost_js);
   __ push(Immediate(Smi::FromInt(StackFrame::INNER_JSENTRY_FRAME)));
   __ bind(&cont);
@@ -4705,26 +4734,26 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   __ bind(&not_js_object);
   // Before null, smi and string value checks, check that the rhs is a function
   // as for a non-function rhs an exception needs to be thrown.
-  __ JumpIfSmi(function, &slow);
+  __ JumpIfSmi(function, &slow, Label::kNear);
   __ CmpObjectType(function, JS_FUNCTION_TYPE, scratch);
-  __ j(not_equal, &slow);
+  __ j(not_equal, &slow, Label::kNear);
 
   // Null is not instance of anything.
   __ cmp(object, factory->null_value());
-  __ j(not_equal, &object_not_null);
+  __ j(not_equal, &object_not_null, Label::kNear);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null);
   // Smi values is not instance of anything.
-  __ JumpIfNotSmi(object, &object_not_null_or_smi);
+  __ JumpIfNotSmi(object, &object_not_null_or_smi, Label::kNear);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
   __ bind(&object_not_null_or_smi);
   // String values is not instance of anything.
   Condition is_string = masm->IsObjectStringType(object, scratch, scratch);
-  __ j(NegateCondition(is_string), &slow);
+  __ j(NegateCondition(is_string), &slow, Label::kNear);
   __ Set(eax, Immediate(Smi::FromInt(1)));
   __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
 
@@ -4811,6 +4840,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   Label flat_string;
   Label ascii_string;
   Label got_char_code;
+  Label sliced_string;
 
   // If the receiver is a smi trigger the non-string case.
   STATIC_ASSERT(kSmiTag == 0);
@@ -4841,31 +4871,45 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ j(zero, &flat_string);
 
   // Handle non-flat strings.
-  __ test(result_, Immediate(kIsConsStringMask));
-  __ j(zero, &call_runtime_);
+  __ and_(result_, kStringRepresentationMask);
+  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
+  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  __ cmp(result_, kExternalStringTag);
+  __ j(greater, &sliced_string, Label::kNear);
+  __ j(equal, &call_runtime_);
 
   // ConsString.
   // Check whether the right hand side is the empty string (i.e. if
   // this is really a flat string in a cons string). If that is not
   // the case we would rather go to the runtime system now to flatten
   // the string.
+  Label assure_seq_string;
   __ cmp(FieldOperand(object_, ConsString::kSecondOffset),
          Immediate(masm->isolate()->factory()->empty_string()));
   __ j(not_equal, &call_runtime_);
   // Get the first of the two strings and load its instance type.
   __ mov(object_, FieldOperand(object_, ConsString::kFirstOffset));
+  __ jmp(&assure_seq_string, Label::kNear);
+
+  // SlicedString, unpack and add offset.
+  __ bind(&sliced_string);
+  __ add(scratch_, FieldOperand(object_, SlicedString::kOffsetOffset));
+  __ mov(object_, FieldOperand(object_, SlicedString::kParentOffset));
+
+  // Assure that we are dealing with a sequential string. Go to runtime if not.
+  __ bind(&assure_seq_string);
   __ mov(result_, FieldOperand(object_, HeapObject::kMapOffset));
   __ movzx_b(result_, FieldOperand(result_, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ test(result_, Immediate(kStringRepresentationMask));
   __ j(not_zero, &call_runtime_);
+  __ jmp(&flat_string, Label::kNear);
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
   STATIC_ASSERT(kAsciiStringTag != 0);
   __ test(result_, Immediate(kStringEncodingMask));
-  __ j(not_zero, &ascii_string);
+  __ j(not_zero, &ascii_string, Label::kNear);
 
   // 2-byte string.
   // Load the 2-byte character code into the result register.
@@ -4873,7 +4917,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ movzx_w(result_, FieldOperand(object_,
                                    scratch_, times_1,  // Scratch is smi-tagged.
                                    SeqTwoByteString::kHeaderSize));
-  __ jmp(&got_char_code);
+  __ jmp(&got_char_code, Label::kNear);
 
   // ASCII string.
   // Load the byte into the result register.
@@ -5185,6 +5229,8 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ and_(ecx, kStringRepresentationMask);
   __ cmp(ecx, kExternalStringTag);
   __ j(equal, &string_add_runtime);
+  // We cannot encounter sliced strings here since:
+  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
   // Now check if both strings are ascii strings.
   // eax: first string
   // ebx: length of resulting flat string as a smi
@@ -5596,6 +5642,9 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
 void SubStringStub::Generate(MacroAssembler* masm) {
   Label runtime;
 
+  if (FLAG_string_slices) {
+    __ jmp(&runtime);
+  }
   // Stack frame on entry.
   //  esp[0]: return address
   //  esp[4]: to

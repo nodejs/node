@@ -742,8 +742,7 @@ function ArraySort(comparefn) {
       else return x < y ? -1 : 1;
     };
   }
-  var receiver =
-      %_IsNativeOrStrictMode(comparefn) ? void 0 : %GetGlobalReceiver();
+  var receiver = %GetDefaultReceiver(comparefn);
 
   function InsertionSort(a, from, to) {
     for (var i = from + 1; i < to; i++) {

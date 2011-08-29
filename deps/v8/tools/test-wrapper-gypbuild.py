@@ -213,6 +213,7 @@ def Main():
       print ">>> running tests for %s.%s" % (arch, mode)
       shell = workspace + '/' + options.outdir + '/' + arch + '.' + mode + "/d8"
       child = subprocess.Popen(' '.join(args_for_children +
+                                        ['--arch=' + arch] +
                                         ['--mode=' + mode] +
                                         ['--shell=' + shell]),
                                shell=True,

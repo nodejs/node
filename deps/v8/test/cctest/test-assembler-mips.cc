@@ -1083,17 +1083,17 @@ TEST(MIPS13) {
     CpuFeatures::Scope scope(FPU);
 
     __ sw(t0, MemOperand(a0, OFFSET_OF(T, cvt_small_in)));
-    __ Cvt_d_uw(f10, t0);
+    __ Cvt_d_uw(f10, t0, f22);
     __ sdc1(f10, MemOperand(a0, OFFSET_OF(T, cvt_small_out)));
 
-    __ Trunc_uw_d(f10, f10);
+    __ Trunc_uw_d(f10, f10, f22);
     __ swc1(f10, MemOperand(a0, OFFSET_OF(T, trunc_small_out)));
 
     __ sw(t0, MemOperand(a0, OFFSET_OF(T, cvt_big_in)));
-    __ Cvt_d_uw(f8, t0);
+    __ Cvt_d_uw(f8, t0, f22);
     __ sdc1(f8, MemOperand(a0, OFFSET_OF(T, cvt_big_out)));
 
-    __ Trunc_uw_d(f8, f8);
+    __ Trunc_uw_d(f8, f8, f22);
     __ swc1(f8, MemOperand(a0, OFFSET_OF(T, trunc_big_out)));
 
     __ jr(ra);

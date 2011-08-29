@@ -120,27 +120,31 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
   String* subject_ptr = *subject;
   // Character offsets into string.
   int start_offset = previous_index;
-  int end_offset = subject_ptr->length();
+  int char_length = subject_ptr->length() - start_offset;
+  int slice_offset = 0;
 
-  // The string has been flattened, so it it is a cons string it contains the
+  // The string has been flattened, so if it is a cons string it contains the
   // full string in the first part.
   if (StringShape(subject_ptr).IsCons()) {
     ASSERT_EQ(0, ConsString::cast(subject_ptr)->second()->length());
     subject_ptr = ConsString::cast(subject_ptr)->first();
+  } else if (StringShape(subject_ptr).IsSliced()) {
+    SlicedString* slice = SlicedString::cast(subject_ptr);
+    subject_ptr = slice->parent();
+    slice_offset = slice->offset();
   }
   // Ensure that an underlying string has the same ascii-ness.
   bool is_ascii = subject_ptr->IsAsciiRepresentation();
   ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
   // String is now either Sequential or External
   int char_size_shift = is_ascii ? 0 : 1;
-  int char_length = end_offset - start_offset;
 
   const byte* input_start =
-      StringCharacterPosition(subject_ptr, start_offset);
+      StringCharacterPosition(subject_ptr, start_offset + slice_offset);
   int byte_length = char_length << char_size_shift;
   const byte* input_end = input_start + byte_length;
   Result res = Execute(*regexp_code,
-                       subject_ptr,
+                       *subject,
                        start_offset,
                        input_start,
                        input_end,
@@ -152,7 +156,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
 
 NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Execute(
     Code* code,
-    String* input,
+    String* input,  // This needs to be the unpacked (sliced, cons) string.
     int start_offset,
     const byte* input_start,
     const byte* input_end,

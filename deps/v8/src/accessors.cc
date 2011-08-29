@@ -680,6 +680,51 @@ static MaybeObject* CheckNonStrictCallerOrThrow(
 }
 
 
+class FrameFunctionIterator {
+ public:
+  FrameFunctionIterator(Isolate* isolate, const AssertNoAllocation& promise)
+      : frame_iterator_(isolate),
+        functions_(2),
+        index_(0) {
+    GetFunctions();
+  }
+  JSFunction* next() {
+    if (functions_.length() == 0) return NULL;
+    JSFunction* next_function = functions_[index_];
+    index_--;
+    if (index_ < 0) {
+      GetFunctions();
+    }
+    return next_function;
+  }
+
+  // Iterate through functions until the first occurence of 'function'.
+  // Returns true if 'function' is found, and false if the iterator ends
+  // without finding it.
+  bool Find(JSFunction* function) {
+    JSFunction* next_function;
+    do {
+      next_function = next();
+      if (next_function == function) return true;
+    } while (next_function != NULL);
+    return false;
+  }
+ private:
+  void GetFunctions() {
+    functions_.Rewind(0);
+    if (frame_iterator_.done()) return;
+    JavaScriptFrame* frame = frame_iterator_.frame();
+    frame->GetFunctions(&functions_);
+    ASSERT(functions_.length() > 0);
+    frame_iterator_.Advance();
+    index_ = functions_.length() - 1;
+  }
+  JavaScriptFrameIterator frame_iterator_;
+  List<JSFunction*> functions_;
+  int index_;
+};
+
+
 MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   Isolate* isolate = Isolate::Current();
   HandleScope scope(isolate);
@@ -689,38 +734,30 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
   if (!found_it) return isolate->heap()->undefined_value();
   Handle<JSFunction> function(holder, isolate);
 
-  List<JSFunction*> functions(2);
-  for (JavaScriptFrameIterator it(isolate); !it.done(); it.Advance()) {
-    JavaScriptFrame* frame = it.frame();
-    frame->GetFunctions(&functions);
-    for (int i = functions.length() - 1; i >= 0; i--) {
-      if (functions[i] == *function) {
-        // Once we have found the frame, we need to go to the caller
-        // frame. This may require skipping through a number of top-level
-        // frames, e.g. frames for scripts not functions.
-        if (i > 0) {
-          ASSERT(!functions[i - 1]->shared()->is_toplevel());
-          return CheckNonStrictCallerOrThrow(isolate, functions[i - 1]);
-        } else {
-          for (it.Advance(); !it.done(); it.Advance()) {
-            frame = it.frame();
-            functions.Rewind(0);
-            frame->GetFunctions(&functions);
-            if (!functions.last()->shared()->is_toplevel()) {
-              return CheckNonStrictCallerOrThrow(isolate, functions.last());
-            }
-            ASSERT(functions.length() == 1);
-          }
-          if (it.done()) return isolate->heap()->null_value();
-          break;
-        }
-      }
-    }
-    functions.Rewind(0);
+  FrameFunctionIterator it(isolate, no_alloc);
+
+  // Find the function from the frames.
+  if (!it.Find(*function)) {
+    // No frame corresponding to the given function found. Return null.
+    return isolate->heap()->null_value();
   }
 
-  // No frame corresponding to the given function found. Return null.
-  return isolate->heap()->null_value();
+  // Find previously called non-toplevel function.
+  JSFunction* caller;
+  do {
+    caller = it.next();
+    if (caller == NULL) return isolate->heap()->null_value();
+  } while (caller->shared()->is_toplevel());
+
+  // If caller is a built-in function and caller's caller is also built-in,
+  // use that instead.
+  JSFunction* potential_caller = caller;
+  while (potential_caller != NULL && potential_caller->IsBuiltin()) {
+    caller = potential_caller;
+    potential_caller = it.next();
+  }
+
+  return CheckNonStrictCallerOrThrow(isolate, caller);
 }
 
 

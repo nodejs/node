@@ -34,13 +34,19 @@ RegExp();
 
 // Count script types.
 var named_native_count = 0;
+var named_native_names = {};
 var extension_count = 0;
 var normal_count = 0;
 var scripts = Debug.scripts();
 for (i = 0; i < scripts.length; i++) {
   if (scripts[i].type == Debug.ScriptType.Native) {
     if (scripts[i].name) {
-      named_native_count++;
+      // TODO(1641): Remove check for equally named native scripts once the
+      // underlying issue is fixed.
+      if (!named_native_names[scripts[i].name]) {
+        named_native_names[scripts[i].name] = true;
+        named_native_count++;
+      }
     }
   } else if (scripts[i].type == Debug.ScriptType.Extension) {
     extension_count++;

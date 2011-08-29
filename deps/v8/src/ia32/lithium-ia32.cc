@@ -2058,8 +2058,8 @@ LInstruction* LChunkBuilder::DoStringAdd(HStringAdd* instr) {
 
 
 LInstruction* LChunkBuilder::DoStringCharCodeAt(HStringCharCodeAt* instr) {
-  LOperand* string = UseRegister(instr->string());
-  LOperand* index = UseRegisterOrConstant(instr->index());
+  LOperand* string = UseTempRegister(instr->string());
+  LOperand* index = UseTempRegister(instr->index());
   LOperand* context = UseAny(instr->context());
   LStringCharCodeAt* result = new LStringCharCodeAt(context, string, index);
   return AssignEnvironment(AssignPointerMap(DefineAsRegister(result)));

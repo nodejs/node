@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --string-slices --expose-externalize-string
+
 var s = 'abcdefghijklmn';
 assertEquals(s, s.substr());
 assertEquals(s, s.substr(0));
@@ -70,7 +72,7 @@ for (var i = 0; i < 25; i++) {
 }
 /x/.exec(x);  // Try to force a flatten.
 for (var i = 5; i < 25; i++) {
-  for (var j = 0; j < 25; j++) {
+  for (var j = 12; j < 25; j++) {
     var z = x.substring(i, i+j);
     var w = Math.random() * 42;  // Allocate something new in new-space.
     assertEquals(j, z.length);
@@ -79,8 +81,6 @@ for (var i = 5; i < 25; i++) {
     }
   }
 }
-
-
 // Then two-byte strings.
 x = "UC16\u2028";  // Non-ascii char forces two-byte string.
 for (var i = 0; i < 25; i++) {
@@ -97,7 +97,6 @@ for (var i = 5; i < 25; i++) {
     }
   }
 }
-
 
 // Keep creating strings to to force allocation failure on substring creation.
 var x = "0123456789ABCDEF";
@@ -152,3 +151,48 @@ for (var i = 63; i >= 0; i--) {
   assertEquals(xl - offset, z.length);
   offset -= i;
 }
+
+// Test charAt for different strings.
+function f(s1, s2, s3, i) {
+  assertEquals(String.fromCharCode(97+i%11), s1.charAt(i%11));
+  assertEquals(String.fromCharCode(97+i%11), s2.charAt(i%11));
+  assertEquals(String.fromCharCode(98+i%11), s3.charAt(i%11));
+  assertEquals(String.fromCharCode(101), s3.charAt(3));
+}
+
+flat = "abcdefghijkl12345";
+cons = flat + flat.toUpperCase();
+slice = "abcdefghijklmn12345".slice(1, -1);
+for ( var i = 0; i < 1000; i++) {
+  f(flat, cons, slice, i);
+}
+flat = "abcdefghijkl1\u20232345";
+cons = flat + flat.toUpperCase();
+slice = "abcdefghijklmn1\u20232345".slice(1, -1);
+for ( var i = 0; i < 1000; i++) {
+  f(flat, cons, slice, i);
+}
+
+// Concatenate substrings.
+var ascii = 'abcdefghijklmnop';
+var utf = '\u03B1\u03B2\u03B3\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9\u03BA\u03BB';
+assertEquals("klmno", ascii.substring(10,15) + ascii.substring(16));
+assertEquals("\u03B4\u03B7", utf.substring(3,4) + utf.substring(6,7));
+assertEquals("klp", ascii.substring(10,12) + ascii.substring(15,16));
+assertEquals("\u03B1\u03B4\u03B5", utf.substring(0,1) + utf.substring(5,3));
+assertEquals("", ascii.substring(16) + utf.substring(16));
+assertEquals("bcdef\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9",
+    ascii.substring(1,6) + utf.substring(3,9));
+assertEquals("\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9abcdefghijklmnop",
+    utf.substring(3,9) + ascii);
+assertEquals("\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7",
+    utf.substring(5,1) + utf.substring(3,7));
+
+/*
+// Externalizing strings.
+var a = "123456789qwertyuiopasdfghjklzxcvbnm";
+var b = a.slice(1,-1);
+assertEquals(a.slice(1,-1), b);
+externalizeString(a);
+assertEquals(a.slice(1,-1), b);
+*/

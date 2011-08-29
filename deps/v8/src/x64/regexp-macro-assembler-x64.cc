@@ -1170,12 +1170,13 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   }
 
   // Prepare for possible GC.
-  HandleScope handles;
+  HandleScope handles(isolate);
   Handle<Code> code_handle(re_code);
 
   Handle<String> subject(frame_entry<String*>(re_frame, kInputString));
+
   // Current string.
-  bool is_ascii = subject->IsAsciiRepresentation();
+  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
 
   ASSERT(re_code->instruction_start() <= *return_address);
   ASSERT(*return_address <=
@@ -1193,8 +1194,20 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
     return EXCEPTION;
   }
 
+  Handle<String> subject_tmp = subject;
+  int slice_offset = 0;
+
+  // Extract the underlying string and the slice offset.
+  if (StringShape(*subject_tmp).IsCons()) {
+    subject_tmp = Handle<String>(ConsString::cast(*subject_tmp)->first());
+  } else if (StringShape(*subject_tmp).IsSliced()) {
+    SlicedString* slice = SlicedString::cast(*subject_tmp);
+    subject_tmp = Handle<String>(slice->parent());
+    slice_offset = slice->offset();
+  }
+
   // String might have changed.
-  if (subject->IsAsciiRepresentation() != is_ascii) {
+  if (subject_tmp->IsAsciiRepresentation() != is_ascii) {
     // If we changed between an ASCII and an UC16 string, the specialized
     // code cannot be used, and we need to restart regexp matching from
     // scratch (including, potentially, compiling a new version of the code).
@@ -1205,8 +1218,8 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   // be a sequential or external string with the same content.
   // Update the start and end pointers in the stack frame to the current
   // location (whether it has actually moved or not).
-  ASSERT(StringShape(*subject).IsSequential() ||
-      StringShape(*subject).IsExternal());
+  ASSERT(StringShape(*subject_tmp).IsSequential() ||
+      StringShape(*subject_tmp).IsExternal());
 
   // The original start address of the characters to match.
   const byte* start_address = frame_entry<const byte*>(re_frame, kInputStart);
@@ -1214,7 +1227,8 @@ int RegExpMacroAssemblerX64::CheckStackGuardState(Address* return_address,
   // Find the current start address of the same character at the current string
   // position.
   int start_index = frame_entry<int>(re_frame, kStartIndex);
-  const byte* new_address = StringCharacterPosition(*subject, start_index);
+  const byte* new_address = StringCharacterPosition(*subject_tmp,
+                                                    start_index + slice_offset);
 
   if (start_address != new_address) {
     // If there is a difference, update the object pointer and start and end

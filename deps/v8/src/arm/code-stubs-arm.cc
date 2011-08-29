@@ -4367,6 +4367,8 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ cmp(r2, Operand(r0, ASR, kSmiTagSize));
   __ b(gt, &runtime);
 
+  // Reset offset for possibly sliced string.
+  __ mov(r9, Operand(0));
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
   // Check the representation and encoding of the subject string.
@@ -4374,33 +4376,45 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ ldr(r0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
   // First check for flat string.
-  __ tst(r0, Operand(kIsNotStringMask | kStringRepresentationMask));
+  __ and_(r1, r0, Operand(kIsNotStringMask | kStringRepresentationMask), SetCC);
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
   __ b(eq, &seq_string);
 
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
-  // Check for flat cons string.
+  // Check for flat cons string or sliced string.
   // A flat cons string is a cons string where the second part is the empty
   // string. In that case the subject string is just the first part of the cons
   // string. Also in this case the first part of the cons string is known to be
   // a sequential string or an external string.
-  STATIC_ASSERT(kExternalStringTag !=0);
-  STATIC_ASSERT((kConsStringTag & kExternalStringTag) == 0);
-  __ tst(r0, Operand(kIsNotStringMask | kExternalStringTag));
-  __ b(ne, &runtime);
+  // In the case of a sliced string its offset has to be taken into account.
+  Label cons_string, check_encoding;
+  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
+  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  __ cmp(r1, Operand(kExternalStringTag));
+  __ b(lt, &cons_string);
+  __ b(eq, &runtime);
+
+  // String is sliced.
+  __ ldr(r9, FieldMemOperand(subject, SlicedString::kOffsetOffset));
+  __ mov(r9, Operand(r9, ASR, kSmiTagSize));
+  __ ldr(subject, FieldMemOperand(subject, SlicedString::kParentOffset));
+  // r9: offset of sliced string, smi-tagged.
+  __ jmp(&check_encoding);
+  // String is a cons string, check whether it is flat.
+  __ bind(&cons_string);
   __ ldr(r0, FieldMemOperand(subject, ConsString::kSecondOffset));
   __ LoadRoot(r1, Heap::kEmptyStringRootIndex);
   __ cmp(r0, r1);
   __ b(ne, &runtime);
   __ ldr(subject, FieldMemOperand(subject, ConsString::kFirstOffset));
+  // Is first part of cons or parent of slice a flat string?
+  __ bind(&check_encoding);
   __ ldr(r0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ ldrb(r0, FieldMemOperand(r0, Map::kInstanceTypeOffset));
-  // Is first part a flat string?
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(r0, Operand(kStringRepresentationMask));
   __ b(ne, &runtime);
-
   __ bind(&seq_string);
   // subject: Subject string
   // regexp_data: RegExp data (FixedArray)
@@ -4466,21 +4480,30 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // For arguments 4 and 3 get string length, calculate start of string data and
   // calculate the shift of the index (0 for ASCII and 1 for two byte).
-  __ ldr(r0, FieldMemOperand(subject, String::kLengthOffset));
-  __ mov(r0, Operand(r0, ASR, kSmiTagSize));
   STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ add(r9, subject, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ add(r8, subject, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
   __ eor(r3, r3, Operand(1));
-  // Argument 4 (r3): End of string data
-  // Argument 3 (r2): Start of string data
+  // Load the length from the original subject string from the previous stack
+  // frame. Therefore we have to use fp, which points exactly to two pointer
+  // sizes below the previous sp. (Because creating a new stack frame pushes
+  // the previous fp onto the stack and moves up sp by 2 * kPointerSize.)
+  __ ldr(r0, MemOperand(fp, kSubjectOffset + 2 * kPointerSize));
+  // If slice offset is not 0, load the length from the original sliced string.
+  // Argument 4, r3: End of string data
+  // Argument 3, r2: Start of string data
+  // Prepare start and end index of the input.
+  __ add(r9, r8, Operand(r9, LSL, r3));
   __ add(r2, r9, Operand(r1, LSL, r3));
-  __ add(r3, r9, Operand(r0, LSL, r3));
+
+  __ ldr(r8, FieldMemOperand(r0, String::kLengthOffset));
+  __ mov(r8, Operand(r8, ASR, kSmiTagSize));
+  __ add(r3, r9, Operand(r8, LSL, r3));
 
   // Argument 2 (r1): Previous index.
   // Already there
 
   // Argument 1 (r0): Subject string.
-  __ mov(r0, subject);
+  // Already there
 
   // Locate the code entry and call it.
   __ add(r7, r7, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -4497,12 +4520,12 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Check the result.
   Label success;
 
-  __ cmp(r0, Operand(NativeRegExpMacroAssembler::SUCCESS));
+  __ cmp(subject, Operand(NativeRegExpMacroAssembler::SUCCESS));
   __ b(eq, &success);
   Label failure;
-  __ cmp(r0, Operand(NativeRegExpMacroAssembler::FAILURE));
+  __ cmp(subject, Operand(NativeRegExpMacroAssembler::FAILURE));
   __ b(eq, &failure);
-  __ cmp(r0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
+  __ cmp(subject, Operand(NativeRegExpMacroAssembler::EXCEPTION));
   // If not exception it can only be retry. Handle that in the runtime system.
   __ b(ne, &runtime);
   // Result must now be exception. If there is no pending exception already a
@@ -4514,18 +4537,18 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ mov(r2, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                        isolate)));
   __ ldr(r0, MemOperand(r2, 0));
-  __ cmp(r0, r1);
+  __ cmp(subject, r1);
   __ b(eq, &runtime);
 
   __ str(r1, MemOperand(r2, 0));  // Clear pending exception.
 
   // Check if the exception is a termination. If so, throw as uncatchable.
   __ LoadRoot(ip, Heap::kTerminationExceptionRootIndex);
-  __ cmp(r0, ip);
+  __ cmp(subject, ip);
   Label termination_exception;
   __ b(eq, &termination_exception);
 
-  __ Throw(r0);  // Expects thrown value in r0.
+  __ Throw(subject);  // Expects thrown value in r0.
 
   __ bind(&termination_exception);
   __ ThrowUncatchable(TERMINATION, r0);  // Expects thrown value in r0.
@@ -4803,6 +4826,7 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   Label flat_string;
   Label ascii_string;
   Label got_char_code;
+  Label sliced_string;
 
   // If the receiver is a smi trigger the non-string case.
   __ JumpIfSmi(object_, receiver_not_string_);
@@ -4832,7 +4856,11 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   __ b(eq, &flat_string);
 
   // Handle non-flat strings.
-  __ tst(result_, Operand(kIsConsStringMask));
+  __ and_(result_, result_, Operand(kStringRepresentationMask));
+  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
+  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  __ cmp(result_, Operand(kExternalStringTag));
+  __ b(gt, &sliced_string);
   __ b(eq, &call_runtime_);
 
   // ConsString.
@@ -4840,15 +4868,26 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
   // this is really a flat string in a cons string). If that is not
   // the case we would rather go to the runtime system now to flatten
   // the string.
+  Label assure_seq_string;
   __ ldr(result_, FieldMemOperand(object_, ConsString::kSecondOffset));
   __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
   __ cmp(result_, Operand(ip));
   __ b(ne, &call_runtime_);
   // Get the first of the two strings and load its instance type.
   __ ldr(object_, FieldMemOperand(object_, ConsString::kFirstOffset));
+  __ jmp(&assure_seq_string);
+
+  // SlicedString, unpack and add offset.
+  __ bind(&sliced_string);
+  __ ldr(result_, FieldMemOperand(object_, SlicedString::kOffsetOffset));
+  __ add(scratch_, scratch_, result_);
+  __ ldr(object_, FieldMemOperand(object_, SlicedString::kParentOffset));
+
+  // Assure that we are dealing with a sequential string. Go to runtime if not.
+  __ bind(&assure_seq_string);
   __ ldr(result_, FieldMemOperand(object_, HeapObject::kMapOffset));
   __ ldrb(result_, FieldMemOperand(result_, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
+  // Check that parent is not an external string. Go to runtime otherwise.
   STATIC_ASSERT(kSeqStringTag == 0);
   __ tst(result_, Operand(kStringRepresentationMask));
   __ b(ne, &call_runtime_);
@@ -5428,10 +5467,17 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Check bounds and smi-ness.
   Register to = r6;
   Register from = r7;
+
+  if (FLAG_string_slices) {
+    __ nop(0);  // Jumping as first instruction would crash the code generation.
+    __ jmp(&runtime);
+  }
+
   __ Ldrd(to, from, MemOperand(sp, kToOffset));
   STATIC_ASSERT(kFromOffset == kToOffset + 4);
   STATIC_ASSERT(kSmiTag == 0);
   STATIC_ASSERT(kSmiTagSize + kSmiShiftSize == 1);
+
   // I.e., arithmetic shift right by one un-smi-tags.
   __ mov(r2, Operand(to, ASR, 1), SetCC);
   __ mov(r3, Operand(from, ASR, 1), SetCC, cc);
@@ -5440,7 +5486,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ b(mi, &runtime);  // From is negative.
 
   // Both to and from are smis.
-
   __ sub(r2, r2, Operand(r3), SetCC);
   __ b(mi, &runtime);  // Fail if from > to.
   // Special handling of sub-strings of length 1 and 2. One character strings

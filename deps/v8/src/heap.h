@@ -88,6 +88,8 @@ inline Heap* _inline_get_heap_();
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, cons_string_map, ConsStringMap)                                       \
   V(Map, cons_ascii_string_map, ConsAsciiStringMap)                            \
+  V(Map, sliced_string_map, SlicedStringMap)                                   \
+  V(Map, sliced_ascii_string_map, SlicedAsciiStringMap)                        \
   V(Map, ascii_symbol_map, AsciiSymbolMap)                                     \
   V(Map, cons_symbol_map, ConsSymbolMap)                                       \
   V(Map, cons_ascii_symbol_map, ConsAsciiSymbolMap)                            \

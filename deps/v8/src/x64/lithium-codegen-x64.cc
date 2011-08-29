@@ -3200,95 +3200,80 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
   };
 
   Register string = ToRegister(instr->string());
-  Register index = no_reg;
-  int const_index = -1;
-  if (instr->index()->IsConstantOperand()) {
-    const_index = ToInteger32(LConstantOperand::cast(instr->index()));
-    STATIC_ASSERT(String::kMaxLength <= Smi::kMaxValue);
-    if (!Smi::IsValid(const_index)) {
-      // Guaranteed to be out of bounds because of the assert above.
-      // So the bounds check that must dominate this instruction must
-      // have deoptimized already.
-      if (FLAG_debug_code) {
-        __ Abort("StringCharCodeAt: out of bounds index.");
-      }
-      // No code needs to be generated.
-      return;
-    }
-  } else {
-    index = ToRegister(instr->index());
-  }
+  Register index = ToRegister(instr->index());
   Register result = ToRegister(instr->result());
 
   DeferredStringCharCodeAt* deferred =
       new DeferredStringCharCodeAt(this, instr);
 
-  Label flat_string, ascii_string, done;
-
   // Fetch the instance type of the receiver into result register.
   __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
 
-  // We need special handling for non-sequential strings.
-  STATIC_ASSERT(kSeqStringTag == 0);
-  __ testb(result, Immediate(kStringRepresentationMask));
-  __ j(zero, &flat_string, Label::kNear);
+  // We need special handling for indirect strings.
+  Label check_sequential;
+  __ testb(result, Immediate(kIsIndirectStringMask));
+  __ j(zero, &check_sequential, Label::kNear);
 
-  // Handle cons strings and go to deferred code for the rest.
-  __ testb(result, Immediate(kIsConsStringMask));
-  __ j(zero, deferred->entry());
+  // Dispatch on the indirect string shape: slice or cons.
+  Label cons_string;
+  const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
+  ASSERT(IsPowerOf2(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
+  __ testb(result, Immediate(kSlicedNotConsMask));
+  __ j(zero, &cons_string, Label::kNear);
 
-  // ConsString.
+  // Handle slices.
+  Label indirect_string_loaded;
+  __ SmiToInteger32(result, FieldOperand(string, SlicedString::kOffsetOffset));
+  __ addq(index, result);
+  __ movq(string, FieldOperand(string, SlicedString::kParentOffset));
+  __ jmp(&indirect_string_loaded, Label::kNear);
+
+  // Handle conses.
   // Check whether the right hand side is the empty string (i.e. if
   // this is really a flat string in a cons string). If that is not
   // the case we would rather go to the runtime system now to flatten
   // the string.
+  __ bind(&cons_string);
   __ CompareRoot(FieldOperand(string, ConsString::kSecondOffset),
                  Heap::kEmptyStringRootIndex);
   __ j(not_equal, deferred->entry());
-  // Get the first of the two strings and load its instance type.
   __ movq(string, FieldOperand(string, ConsString::kFirstOffset));
+
+  __ bind(&indirect_string_loaded);
   __ movq(result, FieldOperand(string, HeapObject::kMapOffset));
   __ movzxbl(result, FieldOperand(result, Map::kInstanceTypeOffset));
-  // If the first cons component is also non-flat, then go to runtime.
+
+  // Check whether the string is sequential. The only non-sequential
+  // shapes we support have just been unwrapped above.
+  __ bind(&check_sequential);
   STATIC_ASSERT(kSeqStringTag == 0);
   __ testb(result, Immediate(kStringRepresentationMask));
   __ j(not_zero, deferred->entry());
 
-  // Check for ASCII or two-byte string.
-  __ bind(&flat_string);
+  // Dispatch on the encoding: ASCII or two-byte.
+  Label ascii_string;
   STATIC_ASSERT(kAsciiStringTag != 0);
   __ testb(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string, Label::kNear);
 
   // Two-byte string.
   // Load the two-byte character code into the result register.
+  Label done;
   STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize == 1);
-  if (instr->index()->IsConstantOperand()) {
-    __ movzxwl(result,
-               FieldOperand(string,
-                            SeqTwoByteString::kHeaderSize +
-                            (kUC16Size * const_index)));
-  } else {
-    __ movzxwl(result, FieldOperand(string,
-                                    index,
-                                    times_2,
-                                    SeqTwoByteString::kHeaderSize));
-  }
+  __ movzxwl(result, FieldOperand(string,
+                                  index,
+                                  times_2,
+                                  SeqTwoByteString::kHeaderSize));
   __ jmp(&done, Label::kNear);
 
   // ASCII string.
   // Load the byte into the result register.
   __ bind(&ascii_string);
-  if (instr->index()->IsConstantOperand()) {
-    __ movzxbl(result, FieldOperand(string,
-                                    SeqAsciiString::kHeaderSize + const_index));
-  } else {
-    __ movzxbl(result, FieldOperand(string,
-                                    index,
-                                    times_1,
-                                    SeqAsciiString::kHeaderSize));
-  }
+  __ movzxbl(result, FieldOperand(string,
+                                  index,
+                                  times_1,
+                                  SeqAsciiString::kHeaderSize));
   __ bind(&done);
   __ bind(deferred->exit());
 }

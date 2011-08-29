@@ -224,7 +224,6 @@ Handle<Object> RegExpImpl::AtomExec(Handle<JSRegExp> re,
 
   if (!subject->IsFlat()) FlattenString(subject);
   AssertNoAllocation no_heap_allocation;  // ensure vectors stay valid
-  // Extract flattened substrings of cons strings before determining asciiness.
 
   String* needle = String::cast(re->DataAt(JSRegExp::kAtomPatternIndex));
   int needle_len = needle->length();
@@ -347,10 +346,7 @@ bool RegExpImpl::CompileIrregexp(Handle<JSRegExp> re, bool is_ascii) {
   JSRegExp::Flags flags = re->GetFlags();
 
   Handle<String> pattern(re->Pattern());
-  if (!pattern->IsFlat()) {
-    FlattenString(pattern);
-  }
-
+  if (!pattern->IsFlat()) FlattenString(pattern);
   RegExpCompileData compile_data;
   FlatStringReader reader(isolate, pattern);
   if (!RegExpParser::ParseRegExp(&reader, flags.is_multiline(),
@@ -434,22 +430,12 @@ void RegExpImpl::IrregexpInitialize(Handle<JSRegExp> re,
 
 int RegExpImpl::IrregexpPrepare(Handle<JSRegExp> regexp,
                                 Handle<String> subject) {
-  if (!subject->IsFlat()) {
-    FlattenString(subject);
-  }
+  if (!subject->IsFlat()) FlattenString(subject);
+
   // Check the asciiness of the underlying storage.
-  bool is_ascii;
-  {
-    AssertNoAllocation no_gc;
-    String* sequential_string = *subject;
-    if (subject->IsConsString()) {
-      sequential_string = ConsString::cast(*subject)->first();
-    }
-    is_ascii = sequential_string->IsAsciiRepresentation();
-  }
-  if (!EnsureCompiledIrregexp(regexp, is_ascii)) {
-    return -1;
-  }
+  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
+  if (!EnsureCompiledIrregexp(regexp, is_ascii)) return -1;
+
 #ifdef V8_INTERPRETED_REGEXP
   // Byte-code regexp needs space allocated for all its registers.
   return IrregexpNumberOfRegisters(FixedArray::cast(regexp->data()));
@@ -474,15 +460,11 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
   ASSERT(index <= subject->length());
   ASSERT(subject->IsFlat());
 
-  // A flat ASCII string might have a two-byte first part.
-  if (subject->IsConsString()) {
-    subject = Handle<String>(ConsString::cast(*subject)->first(), isolate);
-  }
+  bool is_ascii = subject->IsAsciiRepresentationUnderneath();
 
 #ifndef V8_INTERPRETED_REGEXP
   ASSERT(output.length() >= (IrregexpNumberOfCaptures(*irregexp) + 1) * 2);
   do {
-    bool is_ascii = subject->IsAsciiRepresentation();
     EnsureCompiledIrregexp(regexp, is_ascii);
     Handle<Code> code(IrregexpNativeCode(*irregexp, is_ascii), isolate);
     NativeRegExpMacroAssembler::Result res =
@@ -510,13 +492,13 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
     // being internal and external, and even between being ASCII and UC16,
     // but the characters are always the same).
     IrregexpPrepare(regexp, subject);
+    is_ascii = subject->IsAsciiRepresentationUnderneath();
   } while (true);
   UNREACHABLE();
   return RE_EXCEPTION;
 #else  // V8_INTERPRETED_REGEXP
 
   ASSERT(output.length() >= IrregexpNumberOfRegisters(*irregexp));
-  bool is_ascii = subject->IsAsciiRepresentation();
   // We must have done EnsureCompiledIrregexp, so we can get the number of
   // registers.
   int* register_vector = output.start();

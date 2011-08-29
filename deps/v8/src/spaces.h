@@ -200,9 +200,9 @@ class Page {
 
   inline void SetIsLargeObjectPage(bool is_large_object_page);
 
-  inline bool IsPageExecutable();
+  inline Executability PageExecutability();
 
-  inline void SetIsPageExecutable(bool is_page_executable);
+  inline void SetPageExecutability(Executability executable);
 
   // Returns the offset of a given address to this page.
   INLINE(int Offset(Address a)) {
@@ -2144,7 +2144,7 @@ class LargeObjectChunk {
   static LargeObjectChunk* New(int size_in_bytes, Executability executable);
 
   // Free the memory associated with the chunk.
-  inline void Free(Executability executable);
+  void Free(Executability executable);
 
   // Interpret a raw address as a large object chunk.
   static LargeObjectChunk* FromAddress(Address address) {
@@ -2154,13 +2154,17 @@ class LargeObjectChunk {
   // Returns the address of this chunk.
   Address address() { return reinterpret_cast<Address>(this); }
 
+  Page* GetPage() {
+    return Page::FromAddress(RoundUp(address(), Page::kPageSize));
+  }
+
   // Accessors for the fields of the chunk.
   LargeObjectChunk* next() { return next_; }
   void set_next(LargeObjectChunk* chunk) { next_ = chunk; }
   size_t size() { return size_ & ~Page::kPageFlagMask; }
 
   // Compute the start address in the chunk.
-  inline Address GetStartAddress();
+  Address GetStartAddress() { return GetPage()->ObjectAreaStart(); }
 
   // Returns the object in this chunk.
   HeapObject* GetObject() { return HeapObject::FromAddress(GetStartAddress()); }

@@ -152,6 +152,7 @@ class ZoneObject {
   // ZoneObjects should never be deleted individually; use
   // Zone::DeleteAll() to delete all zone objects in one go.
   void operator delete(void*, size_t) { UNREACHABLE(); }
+  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
 
@@ -197,6 +198,9 @@ class ZoneList: public List<T, ZoneListAllocationPolicy> {
       : List<T, ZoneListAllocationPolicy>(other.length()) {
     AddAll(other);
   }
+
+  void operator delete(void* pointer) { UNREACHABLE(); }
+  void operator delete(void* pointer, Zone* zone) { UNREACHABLE(); }
 };
 
 

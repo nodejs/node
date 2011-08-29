@@ -5074,19 +5074,13 @@ void HGraphBuilder::VisitDelete(UnaryOperation* expr) {
     // The subexpression does not have side effects.
     return ast_context()->ReturnValue(graph()->GetConstantFalse());
   } else if (prop != NULL) {
-    if (prop->is_synthetic()) {
-      // Result of deleting parameters is false, even when they rewrite
-      // to accesses on the arguments object.
-      return ast_context()->ReturnValue(graph()->GetConstantFalse());
-  } else {
-      CHECK_ALIVE(VisitForValue(prop->obj()));
-      CHECK_ALIVE(VisitForValue(prop->key()));
-      HValue* key = Pop();
-      HValue* obj = Pop();
-      HValue* context = environment()->LookupContext();
-      HDeleteProperty* instr = new(zone()) HDeleteProperty(context, obj, key);
-      return ast_context()->ReturnInstruction(instr, expr->id());
-    }
+    CHECK_ALIVE(VisitForValue(prop->obj()));
+    CHECK_ALIVE(VisitForValue(prop->key()));
+    HValue* key = Pop();
+    HValue* obj = Pop();
+    HValue* context = environment()->LookupContext();
+    HDeleteProperty* instr = new(zone()) HDeleteProperty(context, obj, key);
+    return ast_context()->ReturnInstruction(instr, expr->id());
   } else if (var->is_global()) {
     Bailout("delete with global variable");
   } else {
@@ -6219,11 +6213,6 @@ void HGraphBuilder::GenerateGetCachedArrayIndex(CallRuntime* call) {
 
 void HGraphBuilder::GenerateFastAsciiArrayJoin(CallRuntime* call) {
   return Bailout("inlined runtime function: FastAsciiArrayJoin");
-}
-
-
-void HGraphBuilder::GenerateIsNativeOrStrictMode(CallRuntime* call) {
-  return Bailout("inlined runtime function: IsNativeOrStrictMode");
 }
 
 

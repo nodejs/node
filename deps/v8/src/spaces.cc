@@ -2722,9 +2722,23 @@ LargeObjectChunk* LargeObjectChunk::New(int size_in_bytes,
 
   LargeObjectChunk* chunk = reinterpret_cast<LargeObjectChunk*>(mem);
   chunk->size_ = size;
-  Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
-  page->heap_ = isolate->heap();
+  chunk->GetPage()->heap_ = isolate->heap();
   return chunk;
+}
+
+
+void LargeObjectChunk::Free(Executability executable) {
+  size_t guard_size = (executable == EXECUTABLE) ? Page::kPageSize : 0;
+  ObjectSpace space =
+      (executable == EXECUTABLE) ? kObjectSpaceCodeSpace : kObjectSpaceLoSpace;
+  // Do not access instance fields after FreeRawMemory!
+  Address my_address = address();
+  size_t my_size = size();
+  Isolate* isolate = GetPage()->heap_->isolate();
+  MemoryAllocator* a = isolate->memory_allocator();
+  a->FreeRawMemory(my_address - guard_size, my_size + guard_size, executable);
+  a->PerformAllocationCallback(space, kAllocationActionFree, my_size);
+  LOG(isolate, DeleteEvent("LargeObjectChunk", my_address));
 }
 
 
@@ -2760,25 +2774,9 @@ void LargeObjectSpace::TearDown() {
   while (first_chunk_ != NULL) {
     LargeObjectChunk* chunk = first_chunk_;
     first_chunk_ = first_chunk_->next();
-    LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk->address()));
-    Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
-    Executability executable =
-        page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
-    ObjectSpace space = kObjectSpaceLoSpace;
-    if (executable == EXECUTABLE) space = kObjectSpaceCodeSpace;
-    size_t size = chunk->size();
-    size_t guard_size = (executable == EXECUTABLE) ? Page::kPageSize : 0;
-    heap()->isolate()->memory_allocator()->FreeRawMemory(
-        chunk->address() - guard_size,
-        size + guard_size,
-        executable);
-    heap()->isolate()->memory_allocator()->PerformAllocationCallback(
-        space, kAllocationActionFree, size);
+    chunk->Free(chunk->GetPage()->PageExecutability());
   }
-
-  size_ = 0;
-  page_count_ = 0;
-  objects_size_ = 0;
+  Setup();
 }
 
 
@@ -2806,14 +2804,14 @@ MaybeObject* LargeObjectSpace::AllocateRawInternal(int requested_size,
   first_chunk_ = chunk;
 
   // Initialize page header.
-  Page* page = Page::FromAddress(RoundUp(chunk->address(), Page::kPageSize));
+  Page* page = chunk->GetPage();
   Address object_address = page->ObjectAreaStart();
 
   // Clear the low order bit of the second word in the page to flag it as a
   // large object page.  If the chunk_size happened to be written there, its
   // low order bit should already be clear.
   page->SetIsLargeObjectPage(true);
-  page->SetIsPageExecutable(executable);
+  page->SetPageExecutability(executable);
   page->SetRegionMarks(Page::kAllRegionsCleanMarks);
   return HeapObject::FromAddress(object_address);
 }
@@ -2944,14 +2942,8 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
       previous = current;
       current = current->next();
     } else {
-      Page* page = Page::FromAddress(RoundUp(current->address(),
-                                     Page::kPageSize));
-      Executability executable =
-          page->IsPageExecutable() ? EXECUTABLE : NOT_EXECUTABLE;
-      Address chunk_address = current->address();
-      size_t chunk_size = current->size();
-
       // Cut the chunk out from the chunk list.
+      LargeObjectChunk* current_chunk = current;
       current = current->next();
       if (previous == NULL) {
         first_chunk_ = current;
@@ -2964,22 +2956,10 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
           object, heap()->isolate());
       LiveObjectList::ProcessNonLive(object);
 
-      size_ -= static_cast<int>(chunk_size);
+      size_ -= static_cast<int>(current_chunk->size());
       objects_size_ -= object->Size();
       page_count_--;
-      ObjectSpace space = kObjectSpaceLoSpace;
-      size_t guard_size = 0;
-      if (executable == EXECUTABLE) {
-        space = kObjectSpaceCodeSpace;
-        guard_size = Page::kPageSize;
-      }
-      heap()->isolate()->memory_allocator()->FreeRawMemory(
-          chunk_address - guard_size,
-          chunk_size + guard_size,
-          executable);
-      heap()->isolate()->memory_allocator()->PerformAllocationCallback(
-          space, kAllocationActionFree, size_);
-      LOG(heap()->isolate(), DeleteEvent("LargeObjectChunk", chunk_address));
+      current_chunk->Free(current_chunk->GetPage()->PageExecutability());
     }
   }
 }

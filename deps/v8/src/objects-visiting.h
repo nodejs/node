@@ -115,6 +115,7 @@ class StaticVisitorBase : public AllStatic {
     kVisitStructGeneric,
 
     kVisitConsString,
+    kVisitSlicedString,
     kVisitOddball,
     kVisitCode,
     kVisitMap,
@@ -297,6 +298,11 @@ class StaticNewSpaceVisitor : public StaticVisitorBase {
     table_.Register(kVisitConsString,
                     &FixedBodyVisitor<StaticVisitor,
                                       ConsString::BodyDescriptor,
+                                      int>::Visit);
+
+    table_.Register(kVisitSlicedString,
+                    &FixedBodyVisitor<StaticVisitor,
+                                      SlicedString::BodyDescriptor,
                                       int>::Visit);
 
     table_.Register(kVisitFixedArray,
