@@ -51,6 +51,10 @@
     ],
   },
 
+  'includes': [
+    './options.gypi'
+  ],
+
   'targets': [
     {
       'target_name': 'node',
@@ -136,7 +140,10 @@
         [ 'node_use_openssl=="true"', {
           'defines': [ 'HAVE_OPENSSL=1' ],
           'sources': [ 'src/node_crypto.cc' ],
-          'dependencies': [ './deps/openssl/openssl.gyp:openssl' ]
+          'conditions': [
+            [ 'node_use_system_openssl=="false"', {
+              'dependencies': [ './deps/openssl/openssl.gyp:openssl' ],
+            }]]
         }, {
           'defines': [ 'HAVE_OPENSSL=0' ]
         }],
