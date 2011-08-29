@@ -146,15 +146,7 @@ static uv_async_t eio_done_poll_notifier;
 static uv_idle_t eio_poller;
 
 
-// XXX use_uv defaults to false on POSIX platforms and to true on Windows
-// platforms. This can be set with "--use-uv" command-line flag. We intend
-// to remove the legacy backend once the libuv backend is passing all of the
-// tests.
-#ifdef __POSIX__
-static bool use_uv = false;
-#else
 static bool use_uv = true;
-#endif
 
 // disabled by default for now
 static bool use_http1 = false;
@@ -2341,7 +2333,7 @@ static void PrintHelp() {
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
-         "  --use-uv             use the libuv backend\n"
+         "  --use-legacy         use the legacy backend (default: libuv)\n"
          "  --use-http1          use the legacy http library\n"
          "\n"
          "Enviromental variables:\n"
@@ -2364,8 +2356,8 @@ static void ParseArgs(int argc, char **argv) {
     if (strstr(arg, "--debug") == arg) {
       ParseDebugOpt(arg);
       argv[i] = const_cast<char*>("");
-    } else if (!strcmp(arg, "--use-uv")) {
-      use_uv = true;
+    } else if (!strcmp(arg, "--use-legacy")) {
+      use_uv = false;
       argv[i] = const_cast<char*>("");
     } else if (!strcmp(arg, "--use-http1")) {
       use_http1 = true;
