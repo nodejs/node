@@ -72,6 +72,11 @@ TEST_DECLARE   (spawn_exit_code)
 TEST_DECLARE   (spawn_stdout)
 TEST_DECLARE   (spawn_stdin)
 TEST_DECLARE   (spawn_and_kill)
+TEST_DECLARE   (fs_file_async)
+TEST_DECLARE   (fs_file_sync)
+TEST_DECLARE   (fs_async_dir)
+TEST_DECLARE   (fs_async_sendfile)
+TEST_DECLARE   (threadpool_queue_work_simple)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -169,6 +174,13 @@ TASK_LIST_START
   TEST_ENTRY  (argument_escaping)
   TEST_ENTRY  (environment_creation)
 #endif
+
+  TEST_ENTRY  (fs_file_async)
+  TEST_ENTRY  (fs_file_sync)
+  TEST_ENTRY  (fs_async_dir)
+  TEST_ENTRY  (fs_async_sendfile)
+
+  TEST_ENTRY  (threadpool_queue_work_simple)
 
 #if 0
   /* These are for testing the test runner. */

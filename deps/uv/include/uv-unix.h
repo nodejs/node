@@ -25,6 +25,7 @@
 #include "ngx-queue.h"
 
 #include "ev.h"
+#include "eio.h"
 
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -38,6 +39,8 @@ typedef struct {
   char* base;
   size_t len;
 } uv_buf_t;
+
+typedef int uv_file;
 
 #define UV_REQ_BUFSML_SIZE (4)
 
@@ -154,5 +157,10 @@ typedef struct {
 
 #define UV_PROCESS_PRIVATE_FIELDS \
   ev_child child_watcher;
+
+#define UV_FS_PRIVATE_FIELDS \
+  eio_req* eio;
+
+#define UV_WORK_PRIVATE_FIELDS 
 
 #endif /* UV_UNIX_H */

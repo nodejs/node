@@ -19,42 +19,41 @@
  * IN THE SOFTWARE.
  */
 
-/*
- * This file is private to libuv. It provides common functionality to both
- * Windows and Unix backends.
- */
-
-#ifndef UV_COMMON_H_
-#define UV_COMMON_H_
-
 #include "uv.h"
+#include "task.h"
 
-#define COUNTOF(a) (sizeof(a) / sizeof(a[0]))
-
-/* Used for the uv_fs_ functions */
-#define SET_REQ_RESULT(req, result)                                         \
-  req->result = result;                                                     \
-  if (result == -1) {                                                       \
-    req->errorno = errno;                                                   \
-  }
-
-/*
- * Subclass of uv_handle_t. Used for integration of c-ares.
- */
-typedef struct uv_ares_task_s uv_ares_task_t;
-
-struct uv_ares_task_s {
-  UV_HANDLE_FIELDS
-  UV_ARES_TASK_PRIVATE_FIELDS
-  uv_ares_task_t* ares_prev;
-  uv_ares_task_t* ares_next;
-};
+static int work_cb_count;
+static int after_work_cb_count;
+static uv_work_t work_req;
+static char data;
 
 
-void uv_remove_ares_handle(uv_ares_task_t* handle);
-uv_ares_task_t* uv_find_ares_handle(ares_socket_t sock);
-void uv_add_ares_handle(uv_ares_task_t* handle);
-int uv_ares_handles_empty();
+static void work_cb(uv_work_t* req) {
+  ASSERT(req == &work_req);
+  ASSERT(req->data == &data);
+  work_cb_count++;
+}
 
 
-#endif /* UV_COMMON_H_ */
+static void after_work_cb(uv_work_t* req) {
+  ASSERT(req == &work_req);
+  ASSERT(req->data == &data);
+  after_work_cb_count++;
+}
+
+
+TEST_IMPL(threadpool_queue_work_simple) {
+  int r;
+
+  uv_init();
+
+  work_req.data = &data;
+  r = uv_queue_work(&work_req, work_cb, after_work_cb);
+  ASSERT(r == 0);
+  uv_run();
+
+  ASSERT(work_cb_count == 1);
+  ASSERT(after_work_cb_count == 1);
+
+  return 0;
+}

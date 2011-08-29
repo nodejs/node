@@ -19,42 +19,51 @@
  * IN THE SOFTWARE.
  */
 
-/*
- * This file is private to libuv. It provides common functionality to both
- * Windows and Unix backends.
- */
-
-#ifndef UV_COMMON_H_
-#define UV_COMMON_H_
+#include <assert.h>
 
 #include "uv.h"
+#include "internal.h"
 
-#define COUNTOF(a) (sizeof(a) / sizeof(a[0]))
 
-/* Used for the uv_fs_ functions */
-#define SET_REQ_RESULT(req, result)                                         \
-  req->result = result;                                                     \
-  if (result == -1) {                                                       \
-    req->errorno = errno;                                                   \
+static void uv_work_req_init(uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb) {
+  uv_req_init((uv_req_t*) req);
+  req->type = UV_WORK;
+  req->work_cb = work_cb;
+  req->after_work_cb = after_work_cb;
+  memset(&req->overlapped, 0, sizeof(req->overlapped));
+}
+
+
+static DWORD WINAPI uv_work_thread_proc(void* parameter) {
+  uv_work_t* req = (uv_work_t*)parameter;
+
+  assert(req != NULL);
+  assert(req->type == UV_WORK);
+  assert(req->work_cb);
+
+  req->work_cb(req);
+
+  POST_COMPLETION_FOR_REQ(req);
+
+  return 0;
+}
+
+
+int uv_queue_work(uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb) {
+  uv_work_req_init(req, work_cb, after_work_cb);
+
+  if (!QueueUserWorkItem(&uv_work_thread_proc, req, WT_EXECUTELONGFUNCTION)) {
+    uv_set_sys_error(GetLastError());
+    return -1;
   }
 
-/*
- * Subclass of uv_handle_t. Used for integration of c-ares.
- */
-typedef struct uv_ares_task_s uv_ares_task_t;
-
-struct uv_ares_task_s {
-  UV_HANDLE_FIELDS
-  UV_ARES_TASK_PRIVATE_FIELDS
-  uv_ares_task_t* ares_prev;
-  uv_ares_task_t* ares_next;
-};
+  uv_ref();
+  return 0;
+}
 
 
-void uv_remove_ares_handle(uv_ares_task_t* handle);
-uv_ares_task_t* uv_find_ares_handle(ares_socket_t sock);
-void uv_add_ares_handle(uv_ares_task_t* handle);
-int uv_ares_handles_empty();
-
-
-#endif /* UV_COMMON_H_ */
+void uv_process_work_req(uv_work_t* req) {
+  assert(req->after_work_cb);
+  req->after_work_cb(req);
+  uv_unref();
+}

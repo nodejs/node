@@ -23,8 +23,7 @@
 #endif
 
 #include "uv.h"
-#include "uv-common.h"
-#include "uv-eio.h"
+#include "unix/internal.h"
 
 #include <stddef.h> /* NULL */
 #include <stdio.h> /* printf */
@@ -100,11 +99,9 @@ struct uv_ares_data_s {
 
 static struct uv_ares_data_s ares_data;
 
-void uv__req_init(uv_req_t*);
 void uv__next(EV_P_ ev_idle* watcher, int revents);
 static int uv__stream_open(uv_stream_t*, int fd, int flags);
 static void uv__finish_close(uv_handle_t* handle);
-static uv_err_t uv_err_new(uv_handle_t* handle, int sys_error);
 
 static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
 static int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
@@ -141,13 +138,9 @@ static int uv__udp_send(uv_udp_send_t* req,
 #define __attribute__(a)
 #endif
 
-/* Unused on systems that support O_CLOEXEC, SOCK_CLOEXEC, etc. */
-static int uv__cloexec(int fd, int set) __attribute__((unused));
-static int uv__nonblock(int fd, int set) __attribute__((unused));
 
 static int uv__socket(int domain, int type, int protocol);
 static int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t len);
-static int uv__close(int fd);
 
 size_t uv__strlcpy(char* dst, const char* src, size_t size);
 
@@ -226,7 +219,7 @@ static uv_err_t uv_err_new_artificial(uv_handle_t* handle, int code) {
 }
 
 
-static uv_err_t uv_err_new(uv_handle_t* handle, int sys_error) {
+uv_err_t uv_err_new(uv_handle_t* handle, int sys_error) {
   uv_err_t err;
   err.sys_errno_ = sys_error;
   err.code = uv_translate_sys_error(sys_error);
@@ -2630,7 +2623,7 @@ static int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t slen) {
 }
 
 
-static int uv__close(int fd) {
+int uv__close(int fd) {
   int status;
 
   /*
@@ -2647,7 +2640,7 @@ static int uv__close(int fd) {
 }
 
 
-static int uv__nonblock(int fd, int set) {
+int uv__nonblock(int fd, int set) {
   int flags;
 
   if ((flags = fcntl(fd, F_GETFL)) == -1) {
@@ -2668,7 +2661,7 @@ static int uv__nonblock(int fd, int set) {
 }
 
 
-static int uv__cloexec(int fd, int set) {
+int uv__cloexec(int fd, int set) {
   int flags;
 
   if ((flags = fcntl(fd, F_GETFD)) == -1) {
@@ -2961,3 +2954,4 @@ int uv_process_kill(uv_process_t* process, int signum) {
     return 0;
   }
 }
+

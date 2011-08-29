@@ -85,15 +85,18 @@ endif
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: src/uv-unix.o src/uv-common.o src/uv-platform.o src/ev/ev.o src/uv-eio.o src/eio/eio.o $(CARES_OBJS)
-	$(AR) rcs uv.a src/uv-unix.o src/uv-platform.o src/uv-common.o src/uv-eio.o src/ev/ev.o \
+uv.a: src/uv-unix.o src/unix/fs.o src/uv-common.o src/uv-platform.o src/ev/ev.o src/uv-eio.o src/eio/eio.o $(CARES_OBJS)
+	$(AR) rcs uv.a src/uv-unix.o src/unix/fs.o src/uv-platform.o src/uv-common.o src/uv-eio.o src/ev/ev.o \
 		src/eio/eio.o $(CARES_OBJS)
 
 src/uv-platform.o: src/$(UV_OS_FILE) include/uv.h include/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/$(UV_OS_FILE) -o src/uv-platform.o
 
-src/uv-unix.o: src/uv-unix.c include/uv.h include/uv-unix.h
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Ieio $(CFLAGS) -c src/uv-unix.c -o src/uv-unix.o
+src/uv-unix.o: src/uv-unix.c include/uv.h include/uv-unix.h src/unix/internal.h
+	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc  $(CFLAGS) -c src/uv-unix.c -o src/uv-unix.o
+
+src/unix/fs.o: src/unix/fs.c include/uv.h include/uv-unix.h src/unix/internal.h
+	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc/ $(CFLAGS) -c src/unix/fs.c -o src/unix/fs.o
 
 src/uv-common.o: src/uv-common.c include/uv.h include/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/uv-common.c -o src/uv-common.o

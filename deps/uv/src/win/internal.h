@@ -252,6 +252,19 @@ void uv_process_getaddrinfo_req(uv_getaddrinfo_t* handle, uv_req_t* req);
 
 
 /*
+ * FS
+ */
+void uv_fs_init();
+void uv_process_fs_req(uv_fs_t* req);
+
+
+/*
+ * Threadpool
+ */
+void uv_process_work_req(uv_work_t* req);
+
+
+/*
  * Error handling
  */
 extern const uv_err_t uv_ok_;

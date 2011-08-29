@@ -73,6 +73,9 @@ void uv_init() {
   /* Fetch winapi function pointers */
   uv_winapi_init();
 
+  /* Initialize FS */
+  uv_fs_init();
+
   /* Intialize event loop */
   uv_loop_init();
 }

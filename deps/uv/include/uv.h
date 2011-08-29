@@ -60,6 +60,8 @@ typedef struct uv_shutdown_s uv_shutdown_t;
 typedef struct uv_write_s uv_write_t;
 typedef struct uv_connect_s uv_connect_t;
 typedef struct uv_udp_send_s uv_udp_send_t;
+typedef struct uv_fs_s uv_fs_t;
+typedef struct uv_work_s uv_work_t;
 
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
 # include "uv-unix.h"
@@ -123,6 +125,9 @@ typedef void (*uv_check_cb)(uv_check_t* handle, int status);
 typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
 typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* handle, int status, struct addrinfo* res);
 typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
+typedef void (*uv_fs_cb)(uv_fs_t* req);
+typedef void (*uv_work_cb)(uv_work_t* req);
+typedef void (*uv_after_work_cb)(uv_work_t* req);
 
 
 /* Expand this list if necessary. */
@@ -199,6 +204,8 @@ typedef enum {
   UV_SHUTDOWN,
   UV_WAKEUP,
   UV_UDP_SEND,
+  UV_FS,
+  UV_WORK,
   UV_REQ_TYPE_PRIVATE
 } uv_req_type;
 
@@ -801,6 +808,91 @@ int uv_spawn(uv_process_t*, uv_process_options_t options);
 int uv_process_kill(uv_process_t*, int signum);
 
 
+/*
+ * uv_work_t is a subclass of uv_req_t
+ */
+struct uv_work_s {
+  UV_REQ_FIELDS
+  uv_work_cb work_cb;
+  uv_after_work_cb after_work_cb;
+  UV_WORK_PRIVATE_FIELDS
+};
+
+/* Queues a work request to execute asynchronously on the thread pool. */
+int uv_queue_work(uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb);
+
+
+typedef enum {
+  UV_FS_UNKNOWN = -1,
+  UV_FS_CUSTOM,
+  UV_FS_OPEN,
+  UV_FS_CLOSE,
+  UV_FS_READ,
+  UV_FS_WRITE,
+  UV_FS_SENDFILE,
+  UV_FS_STAT,
+  UV_FS_LSTAT,
+  UV_FS_FSTAT,
+  UV_FS_FTRUNCATE,
+  UV_FS_UTIME,
+  UV_FS_FUTIME,
+  UV_FS_CHMOD,
+  UV_FS_FCHMOD,
+  UV_FS_FSYNC,
+  UV_FS_FDATASYNC,
+  UV_FS_UNLINK,
+  UV_FS_RMDIR,
+  UV_FS_MKDIR,
+  UV_FS_RENAME,
+  UV_FS_READDIR,
+  UV_FS_LINK,
+  UV_FS_SYMLINK,
+  UV_FS_READLINK,
+  UV_FS_CHOWN,
+  UV_FS_FCHOWN
+} uv_fs_type;
+
+/*
+ * uv_fs_t is a subclass of uv_req_t
+ */
+struct uv_fs_s {
+  UV_REQ_FIELDS
+  uv_fs_type fs_type;
+  uv_fs_cb cb;
+  ssize_t result;
+  void* ptr;
+  int errorno;
+  UV_FS_PRIVATE_FIELDS
+};
+
+void uv_fs_req_cleanup(uv_fs_t* req);
+int uv_fs_close(uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_open(uv_fs_t* req, const char* path, int flags, int mode, uv_fs_cb cb);
+int uv_fs_read(uv_fs_t* req, uv_file file, void* buf, size_t length, off_t offset, uv_fs_cb cb);
+int uv_fs_unlink(uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_write(uv_fs_t* req, uv_file file, void* buf, size_t length, off_t offset, uv_fs_cb cb);
+int uv_fs_mkdir(uv_fs_t* req, const char* path, int mode, uv_fs_cb cb);
+int uv_fs_rmdir(uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_readdir(uv_fs_t* req, const char* path, int flags, uv_fs_cb cb);
+int uv_fs_stat(uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_fstat(uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_rename(uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb);
+int uv_fs_fsync(uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_fdatasync(uv_fs_t* req, uv_file file, uv_fs_cb cb);
+int uv_fs_ftruncate(uv_fs_t* req, uv_file file, off_t offset, uv_fs_cb cb);
+int uv_fs_sendfile(uv_fs_t* req, uv_file out_fd, uv_file in_fd, off_t in_offset, size_t length, uv_fs_cb cb);
+int uv_fs_chmod(uv_fs_t* req, const char* path, int mode, uv_fs_cb cb);
+int uv_fs_utime(uv_fs_t* req, const char* path, double atime, double mtime, uv_fs_cb cb);
+int uv_fs_futime(uv_fs_t* req, uv_file file, double atime, double mtime, uv_fs_cb cb);
+int uv_fs_lstat(uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_link(uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb);
+int uv_fs_symlink(uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb);
+int uv_fs_readlink(uv_fs_t* req, const char* path, uv_fs_cb cb);
+int uv_fs_fchmod(uv_fs_t* req, uv_file file, int mode, uv_fs_cb cb);
+int uv_fs_chown(uv_fs_t* req, const char* path, int uid, int gid, uv_fs_cb cb);
+int uv_fs_fchown(uv_fs_t* req, uv_file file, int uid, int gid, uv_fs_cb cb);
+
+
 /* Utility */
 
 /* Convert string ip addresses to binary structures */
@@ -843,6 +935,8 @@ union uv_any_req {
   uv_write_t write;
   uv_connect_t connect;
   uv_shutdown_t shutdown;
+  uv_fs_t fs_req;
+  uv_work_t work_req;
 };
 
 
@@ -876,6 +970,8 @@ uv_counters_t* uv_counters();
 #undef UV_ASYNC_PRIVATE_FIELDS
 #undef UV_TIMER_PRIVATE_FIELDS
 #undef UV_GETADDRINFO_PRIVATE_FIELDS
+#undef UV_FS_REQ_PRIVATE_FIELDS
+#undef UV_WORK_PRIVATE_FIELDS
 
 #ifdef __cplusplus
 }

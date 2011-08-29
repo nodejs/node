@@ -15,9 +15,12 @@ To build via Makefile simply execute:
 
     make
 
-To build with Visual Studio run the create-msvs-files.bat file which will
-checkout the GYP code into build/gyp and generate the build/all.sln and
+To build with Visual Studio run the vcbuilds.bat file which will
+checkout the GYP code into build/gyp and generate the uv.sln and
 related files.
+
+Windows users can also build from cmd-line using msbuild.  This is 
+done by running vcbuild.bat from Visual Studio command prompt.
 
 To have GYP generate build script for another system you will need to
 checkout GYP into the project tree manually:
