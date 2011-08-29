@@ -588,6 +588,9 @@ void Connection::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "clearPending", Connection::ClearPending);
   NODE_SET_PROTOTYPE_METHOD(t, "encPending", Connection::EncPending);
   NODE_SET_PROTOTYPE_METHOD(t, "getPeerCertificate", Connection::GetPeerCertificate);
+  NODE_SET_PROTOTYPE_METHOD(t, "getSession", Connection::GetSession);
+  NODE_SET_PROTOTYPE_METHOD(t, "setSession", Connection::SetSession);
+  NODE_SET_PROTOTYPE_METHOD(t, "isSessionReused", Connection::IsSessionReused);
   NODE_SET_PROTOTYPE_METHOD(t, "isInitFinished", Connection::IsInitFinished);
   NODE_SET_PROTOTYPE_METHOD(t, "verifyError", Connection::VerifyError);
   NODE_SET_PROTOTYPE_METHOD(t, "getCurrentCipher", Connection::GetCurrentCipher);
@@ -1174,6 +1177,91 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
   }
   return scope.Close(info);
 }
+
+Handle<Value> Connection::GetSession(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (ss->ssl_ == NULL) return Undefined();
+
+  SSL_SESSION* sess = SSL_get_session(ss->ssl_);
+  if (!sess) return Undefined();
+
+  int slen = i2d_SSL_SESSION(sess, NULL);
+  assert(slen > 0);
+
+  Local<Value> s;
+
+  if (slen > 0) {
+    void* pp = malloc(slen);
+    if (pp)
+    {
+      unsigned char* p = (unsigned char*)pp;
+      i2d_SSL_SESSION(sess, &p);
+      s = Encode(pp, slen, BINARY);
+      free(pp);
+    }
+    else
+      return False();
+  }
+  else
+    return False();
+
+  return scope.Close(s);
+}
+
+Handle<Value> Connection::SetSession(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (args.Length() < 1 || !args[0]->IsString()) {
+    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
+    return ThrowException(exception);
+  }
+
+  ASSERT_IS_STRING_OR_BUFFER(args[0]);
+  ssize_t slen = DecodeBytes(args[0], BINARY);
+
+  if (slen < 0) {
+    Local<Value> exception = Exception::TypeError(String::New("Bad argument"));
+    return ThrowException(exception);
+  }
+
+  char* sbuf = new char[slen];
+
+  ssize_t wlen = DecodeWrite(sbuf, slen, args[0], BINARY);
+  assert(wlen == slen);
+
+  const unsigned char* p = (unsigned char*) sbuf;
+  SSL_SESSION* sess = d2i_SSL_SESSION(NULL, &p, wlen);
+
+  delete [] sbuf;
+
+  if (!sess)
+    return Undefined();
+
+  int r = SSL_set_session(ss->ssl_, sess);
+  SSL_SESSION_free(sess);
+
+  if (!r) {
+    Local<String> eStr = String::New("SSL_set_session error");
+    return ThrowException(Exception::Error(eStr));
+  }
+
+  return True();
+}
+
+Handle<Value> Connection::IsSessionReused(const Arguments& args) {
+  HandleScope scope;
+
+  Connection *ss = Connection::Unwrap(args);
+
+  if (ss->ssl_ == NULL) return False();
+  return SSL_session_reused(ss->ssl_) ? True() : False();
+}
+
 
 Handle<Value> Connection::Start(const Arguments& args) {
   HandleScope scope;
