@@ -1,6 +1,7 @@
 BUILDTYPE ?= Release
 
 all: out/Makefile
+	tools/gyp_node -f make
 	$(MAKE) -C out BUILDTYPE=$(BUILDTYPE)
 	-ln -fs out/Release/node node
 	-ln -fs out/Debug/node node_g
@@ -8,7 +9,6 @@ all: out/Makefile
 out/Release/node: all
 
 out/Makefile: node.gyp deps/uv/uv.gyp
-	tools/gyp_node -f make
 
 clean:
 	rm -rf out
