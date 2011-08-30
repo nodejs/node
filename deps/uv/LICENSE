@@ -38,11 +38,3 @@ The externally maintained libraries used by libuv are:
 
   - libeio, located at eio/ is copyright Marc Alexander Lehmann, and
     dual-licensed under the MIT license and GPL2.
-
-  - deps/pthread-win32 is a POSIX threads library for
-    Microsoft Windows and is used for the Windows build and statically
-    linked into the Node executable. This software is freely available at
-    http://sourceware.org/pthreads-win32/ It is Copyright 1998 John E.
-    Bossom and 1999,2006 Pthreads-win32 contributors and licensed under the
-    LGPL. See deps/pthread-win32/COPYING.LIB for more details.
-

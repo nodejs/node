@@ -819,7 +819,8 @@ struct uv_work_s {
 };
 
 /* Queues a work request to execute asynchronously on the thread pool. */
-int uv_queue_work(uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb);
+int uv_queue_work(uv_work_t* req, uv_work_cb work_cb,
+    uv_after_work_cb after_work_cb);
 
 
 typedef enum {

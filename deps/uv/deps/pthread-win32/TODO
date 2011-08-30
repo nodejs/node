@@ -1,7 +1,0 @@
-                   Things that aren't done yet
-                   ---------------------------
-
-1. Implement PTHREAD_PROCESS_SHARED for semaphores, mutexes,
-   condition variables, read/write locks, barriers.
-
-

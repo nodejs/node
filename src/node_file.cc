@@ -195,13 +195,10 @@ static int After(eio_req *req) {
           for (int i = 0; i < nnames; i++) {
             Local<String> name = String::New(namebuf);
             names->Set(Integer::New(i), name);
-#ifndef NDEBUG
             namebuf += strlen(namebuf);
             assert(*namebuf == '\0');
             namebuf += 1;
-#else
             namebuf += strlen(namebuf) + 1;
-#endif
           }
 
           argv[1] = names;
