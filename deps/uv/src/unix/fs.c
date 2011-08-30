@@ -304,6 +304,7 @@ int uv_fs_readdir(uv_fs_t* req, const char* path, int flags, uv_fs_cb cb) {
   int r;
   struct dirent* entry;
   size_t size = 0;
+  size_t d_namlen = 0;
 
   uv_fs_req_init(req, UV_FS_READDIR, cb);
 
@@ -325,11 +326,12 @@ int uv_fs_readdir(uv_fs_t* req, const char* path, int flags, uv_fs_cb cb) {
     }
 
     while ((entry = readdir(dir))) {
-      req->ptr = realloc(req->ptr, size + entry->d_namlen + 1);
+      d_namlen = strlen(entry->d_name);
+      req->ptr = realloc(req->ptr, size + d_namlen + 1);
       /* TODO check ENOMEM */
       /* TODO skip . and .. */
-      memcpy((char*)req->ptr + size, entry->d_name, entry->d_namlen);
-      size += entry->d_namlen;
+      memcpy((char*)req->ptr + size, entry->d_name, d_namlen);
+      size += d_namlen;
       ((char*)req->ptr)[size] = '\0';
       size++;
     }

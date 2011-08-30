@@ -2,12 +2,7 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
 #include <linux/version.h>
-
-#define LINUX_VERSION_CODE_FOR(major, minor, patch) \
-  (((major & 255) << 16) | ((minor & 255) << 8) | (patch & 255))
-
-#define LINUX_VERSION_AT_LEAST(major, minor, patch) \
-  (LINUX_VERSION_CODE >= LINUX_VERSION_CODE_FOR(major, minor, patch))
+#include <features.h>
 
 /* Define to 1 if you have the `clock_gettime' function. */
 /* #undef HAVE_CLOCK_GETTIME */
@@ -18,14 +13,26 @@
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
 
-/* Define to 1 if you have the `epoll_ctl' function. */
+/* epoll_ctl(2) is available if kernel >= 2.6.9 and glibc >= 2.4 */
+#if LINUX_VERSION_CODE >= 0x020609 && __GLIBC_PREREQ(2, 4)
 #define HAVE_EPOLL_CTL 1
+#else
+#define HAVE_EPOLL_CTL 0
+#endif
 
-/* Define to 1 if you have the `eventfd' function. */
-#define HAVE_EVENTFD LINUX_VERSION_AT_LEAST(2, 6, 22)
+/* eventfd(2) is available if kernel >= 2.6.22 and glibc >= 2.8 */
+#if LINUX_VERSION_CODE >= 0x020616 && __GLIBC_PREREQ(2, 8)
+#define HAVE_EVENTFD 1
+#else
+#define HAVE_EVENTFD 0
+#endif
 
-/* Define to 1 if you have the `inotify_init' function. */
-#define HAVE_INOTIFY_INIT LINUX_VERSION_AT_LEAST(2, 6, 13)
+/* inotify_init(2) is available if kernel >= 2.6.13 and glibc >= 2.4 */
+#if LINUX_VERSION_CODE >= 0x02060d && __GLIBC_PREREQ(2, 4)
+#define HAVE_INOTIFY_INIT 1
+#else
+#define HAVE_INOTIFY_INIT 0
+#endif
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -60,8 +67,12 @@
 /* Define to 1 if you have the `select' function. */
 #define HAVE_SELECT 1
 
-/* Define to 1 if you have the `signalfd' function. */
-#define HAVE_SIGNALFD LINUX_VERSION_AT_LEAST(2, 6, 22)
+/* signalfd(2) is available if kernel >= 2.6.22 and glibc >= 2.8 */
+#if LINUX_VERSION_CODE >= 0x020616 && __GLIBC_PREREQ(2, 8)
+#define HAVE_SIGNALFD 1
+#else
+#define HAVE_SIGNALFD 0
+#endif
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #define HAVE_STDINT_H 1
