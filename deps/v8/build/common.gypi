@@ -207,7 +207,7 @@
             'cflags': [ '-I/usr/local/include' ],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-            'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wall', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor' ],
           }],
         ],
