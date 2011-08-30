@@ -528,6 +528,49 @@ int uv_fs_readdir(uv_fs_t* req, const char* path, int flags, uv_fs_cb cb) {
 }
 
 
+int uv_fs_lstat(uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+//  uv_fs_readlink, uv_fs_fchmod, uv_fs_chown, uv_fs_fchown
+int uv_fs_link(uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+int uv_fs_symlink(uv_fs_t* req, const char* path, const char* new_path, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+int uv_fs_readlink(uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+int uv_fs_fchmod(uv_fs_t* req, uv_file file, int mode, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+int uv_fs_chown(uv_fs_t* req, const char* path, int uid, int gid, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+int uv_fs_fchown(uv_fs_t* req, uv_file file, int uid, int gid, uv_fs_cb cb) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
 int uv_fs_stat(uv_fs_t* req, const char* path, uv_fs_cb cb) {
   int len = strlen(path);
   char* path2 = NULL;
