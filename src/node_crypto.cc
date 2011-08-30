@@ -1092,23 +1092,27 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
 
     char buf[256];
     bio = NULL;
-    ASN1_OBJECT *oid;
-    oid = OBJ_txt2obj("2.5.29.17", 1); // OID 2.5.29.17 is Subject AltName
-    int count = 0, j;
-    count = X509_get_ext_count(peer_cert);
-    for (j = 0; j < count; j++) {
-        X509_EXTENSION *ext = X509_get_ext(peer_cert, j);
-        if (OBJ_cmp(ext->object, oid) == 0) {
-            bio = BIO_new(BIO_s_mem());
-            if (X509V3_EXT_print(bio, ext, 0, 0) == 1) {
-                memset(buf, 0, sizeof(buf));
-                BIO_read(bio, buf, sizeof(buf) - 1);
-                info->Set(subjectaltname_symbol, String::New(buf));
-            }
-            BIO_vfree(bio);
-            break;
-        }
+
+    int index = X509_get_ext_by_NID(peer_cert, NID_subject_alt_name, -1);
+    if (index >= 0) {
+      X509_EXTENSION* ext;
+      BUF_MEM* mem;
+      int rv;
+
+      bio = BIO_new(BIO_s_mem());
+
+      ext = X509_get_ext(peer_cert, index);
+      assert(ext != NULL);
+
+      rv = X509V3_EXT_print(bio, ext, 0, 0);
+      assert(rv == 1);
+
+      BIO_get_mem_ptr(bio, &mem);
+      info->Set(subjectaltname_symbol, String::New(mem->data, mem->length));
+
+      BIO_free(bio);
     }
+    (void) BIO_reset(bio);
 
     EVP_PKEY *pkey = NULL;
     RSA *rsa = NULL;
