@@ -88,6 +88,11 @@
         'DataExecutionPrevention': 2, # enable DEP
         'AllowIsolation': 'true',
         'SuppressStartupBanner': 'true',
+        'target_conditions': [
+          ['_type=="executable"', {
+            'SubSystem': 1, # console executable
+          }],
+        ],
       },
     },
     'conditions': [
