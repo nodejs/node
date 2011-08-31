@@ -35,13 +35,14 @@ The arguments for this method change the type of connection:
 
   Creates unix socket connection to `path`
 
-The `callback` parameter will be added as an listener for the 'connect` event.
+The `callback` parameter will be added as an listener for the `'connect'` event.
 
 ---
 
 ### net.Server
 
 This class is used to create a TCP or UNIX server.
+A server is a `net.Socket` that can listen for new incoming connections.
 
 Here is an example of a echo server which listens for connections
 on port 8124:
@@ -66,20 +67,18 @@ Use `nc` to connect to a UNIX domain socket server:
 
     nc -U /tmp/echo.sock
 
-`net.Server` is an `EventEmitter` with the following events:
-
 #### server.listen(port, [host], [callback])
 
 Begin accepting connections on the specified `port` and `host`.  If the
 `host` is omitted, the server will accept connections directed to any
-IPv4 address (`INADDR_ANY`).
+IPv4 address (`INADDR_ANY`). A port value of zero will assign a random port.
 
 This function is asynchronous. The last parameter `callback` will be called
 when the server has been bound.
 
-One issue some users run into is getting `EADDRINUSE` errors. Meaning
+One issue some users run into is getting `EADDRINUSE` errors. This means that
 another server is already running on the requested port. One way of handling this
-would be to wait a second and the try again. This can be done with
+would be to wait a second and then try again. This can be done with
 
     server.on('error', function (e) {
       if (e.code == 'EADDRINUSE') {
@@ -149,6 +148,15 @@ Set this property to reject connections when the server's connection count gets 
 
 The number of concurrent connections on the server.
 
+
+`net.Server` is an `EventEmitter` with the following events:
+
+#### Event: 'listening'
+
+`function () {}`
+
+Emitted when the server has been bound after calling `server.listen`.
+
 #### Event: 'connection'
 
 `function (socket) {}`
@@ -162,16 +170,21 @@ Emitted when a new connection is made. `socket` is an instance of
 
 Emitted when the server closes.
 
+#### Event: 'error'
+
+`function (exception) {}`
+
+Emitted when an error occurs.  The `'close'` event will be called directly
+following this event.  See example in discussion of `server.listen`.
+
 ---
 
 ### net.Socket
 
-This object is an abstraction of of a TCP or UNIX socket.  `net.Socket`
+This object is an abstraction of a TCP or UNIX socket.  `net.Socket`
 instances implement a duplex Stream interface.  They can be created by the
 user and used as a client (with `connect()`) or they can be created by Node
 and passed to the user through the `'connection'` event of a server.
-
-`net.Socket` instances are EventEmitters with the following events:
 
 #### new net.Socket([options])
 
@@ -212,7 +225,7 @@ event.
 #### socket.bufferSize
 
 `net.Socket` has the property that `socket.write()` always works. This is to
-help users get up an running quickly. The computer cannot necessarily keep up
+help users get up and running quickly. The computer cannot always keep up
 with the amount of data that is written to a socket - the network connection simply
 might be too slow. Node will internally queue up the data written to a socket and
 send it out over the wire when it is possible. (Internally it is polling on
@@ -225,7 +238,7 @@ written, but the buffer may contain strings, and the strings are lazily
 encoded, so the exact number of bytes is not known.)
 
 Users who experience large or growing `bufferSize` should attempt to
-"throttle" the data flows in their program with `pause()` and resume()`.
+"throttle" the data flows in their program with `pause()` and `resume()`.
 
 
 #### socket.setEncoding(encoding=null)
@@ -260,7 +273,7 @@ event on the other end.
 
 #### socket.end([data], [encoding])
 
-Half-closes the socket. I.E., it sends a FIN packet. It is possible the
+Half-closes the socket. i.e., it sends a FIN packet. It is possible the
 server will still send some data.
 
 If `data` is specified, it is equivalent to calling `socket.write(data, encoding)`
@@ -332,12 +345,13 @@ The amount of received bytes.
 The amount of bytes sent.
 
 
+`net.Socket` instances are EventEmitters with the following events:
 
 #### Event: 'connect'
 
 `function () { }`
 
-Emitted when a socket connection successfully is established.
+Emitted when a socket connection is successfully established.
 See `connect()`.
 
 #### Event: 'data'
@@ -376,6 +390,8 @@ See also: `socket.setTimeout()`
 `function () { }`
 
 Emitted when the write buffer becomes empty. Can be used to throttle uploads.
+
+See also: the return values of `socket.write()`
 
 #### Event: 'error'
 

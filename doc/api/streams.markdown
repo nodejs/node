@@ -112,7 +112,7 @@ A `Writable Stream` has the following methods, members, and events.
 
 `function () { }`
 
-Emitted after a `write()` method was called that returned `false` to
+After a `write()` method returned `false`, this event is emitted to
 indicate that it is safe to write again.
 
 ### Event: 'error'
@@ -159,6 +159,7 @@ Same as the above except with a raw buffer.
 ### stream.end()
 
 Terminates the stream with EOF or FIN.
+This call will allow queued write data to be sent before closing the stream.
 
 ### stream.end(string, encoding)
 
@@ -172,6 +173,7 @@ Same as above but with a `buffer`.
 ### stream.destroy()
 
 Closes the underlying file descriptor. Stream will not emit any more events.
+Any queued write data will not be sent.
 
 ### stream.destroySoon()
 

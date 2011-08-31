@@ -1,13 +1,19 @@
 ## Path
 
-This module contains utilities for dealing with file paths.  Use
-`require('path')` to use it.  It provides the following methods:
+This module contains utilities for handling and transforming file
+paths.  Almost all these methods perform only string transformations.
+The file system is not consulted to check whether paths are valid.
+
+`path.exists` and `path.existsSync` are the exceptions, and should
+logically be found in the fs module as they do access the file system.
+
+Use `require('path')` to use this module.  The following methods are provided:
 
 ### path.normalize(p)
 
 Normalize a string path, taking care of `'..'` and `'.'` parts.
 
-When multiple slashes are found, they're replaces by a single one;
+When multiple slashes are found, they're replaced by a single one;
 when the path contains a trailing slash, it is preserved.
 On windows backslashes are used. 
 
@@ -75,8 +81,9 @@ Examples:
 
 Solve the relative path from `from` to `to`.
 
-Sometimes we've got two absolute pathes, and we need to calculate the relative path from one to another.
-It's accually the reverse transform of path.resolve, which means we assume:
+At times we have two absolute paths, and we need to derive the relative
+path from one to the other.  This is actually the reverse transform of
+`path.resolve`, which means we see that:
 
     path.resolve(from, path.relative(from, to)) == path.resolve(to)
 
@@ -116,13 +123,18 @@ Example:
 
 ### path.extname(p)
 
-Return the extension of the path.  Everything after the last '.' in the last portion
-of the path.  If there is no '.' in the last portion of the path or the only '.' is
-the first character, then it returns an empty string.  Examples:
+Return the extension of the path, from the last '.' to end of string
+in the last portion of the path.  If there is no '.' in the last portion
+of the path or the first character of it is '.', then it returns
+an empty string.  Examples:
 
     path.extname('index.html')
     // returns
     '.html'
+
+    path.extname('index.')
+    // returns
+    '.'
 
     path.extname('index')
     // returns
@@ -130,8 +142,8 @@ the first character, then it returns an empty string.  Examples:
 
 ### path.exists(p, [callback])
 
-Test whether or not the given path exists.  Then, call the `callback` argument
-with either true or false. Example:
+Test whether or not the given path exists by checking with the file system.
+Then call the `callback` argument with either true or false.  Example:
 
     path.exists('/etc/passwd', function (exists) {
       util.debug(exists ? "it's there" : "no passwd!");

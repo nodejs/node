@@ -1,6 +1,6 @@
 ## Global Objects
 
-These object are available in all modules. Some of these objects aren't
+These objects are available in all modules. Some of these objects aren't
 actually in the global scope but in the module scope - this will be noted.
 
 ### global
@@ -43,8 +43,10 @@ value from this object, the next `require` will reload the module.
 
 ### __filename
 
-The filename of the script being executed.  This is the absolute path, and not necessarily
-the same filename passed in as a command line argument.
+The filename of the code being executed.  This is the resolved absolute path
+of this code file.  For a main program this is not necessarily the same
+filename used in the command line.  The value inside a module is the path
+to that module file.
 
 Example: running `node example.js` from `/Users/mjr`
 
@@ -55,7 +57,7 @@ Example: running `node example.js` from `/Users/mjr`
 
 ### __dirname
 
-The dirname of the script being executed.
+The name of the directory that the currently executing script resides in.
 
 Example: running `node example.js` from `/Users/mjr`
 

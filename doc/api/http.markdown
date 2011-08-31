@@ -31,7 +31,7 @@ This is an `EventEmitter` with the following events:
 
 `function (request, response) { }`
 
-Emitted each time there is request. Note that there may be multiple requests
+Emitted each time there is a request. Note that there may be multiple requests
 per connection (in the case of keep-alive connections).
  `request` is an instance of `http.ServerRequest` and `response` is
  an instance of `http.ServerResponse`
@@ -302,7 +302,7 @@ status code which was sent out.
 ### response.setHeader(name, value)
 
 Sets a single header value for implicit headers.  If this header already exists
-in the to-be-sent headers, it's value will be replaced.  Use an array of strings
+in the to-be-sent headers, its value will be replaced.  Use an array of strings
 here if you need to send multiple headers with the same name.
 
 Example:

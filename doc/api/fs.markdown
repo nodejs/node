@@ -9,6 +9,9 @@ The arguments passed to the completion callback depend on the method, but the
 first argument is always reserved for an exception. If the operation was
 completed successfully, then the first argument will be `null` or `undefined`.
 
+When using the synchronous form any exceptions are immediately thrown.
+You can use try/catch to handle exceptions or allow them to bubble up.
+
 Here is an example of the asynchronous version:
 
     var fs = require('fs');
@@ -75,7 +78,7 @@ Synchronous ftruncate(2).
 
 ### fs.chown(path, uid, gid, [callback])
 
-Asycnronous chown(2). No arguments other than a possible exception are given
+Asynchronous chown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ### fs.chownSync(path, uid, gid)
@@ -84,7 +87,7 @@ Synchronous chown(2).
 
 ### fs.fchown(path, uid, gid, [callback])
 
-Asycnronous fchown(2). No arguments other than a possible exception are given
+Asynchronous fchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ### fs.fchownSync(path, uid, gid)
@@ -93,7 +96,7 @@ Synchronous fchown(2).
 
 ### fs.lchown(path, uid, gid, [callback])
 
-Asycnronous lchown(2). No arguments other than a possible exception are given
+Asynchronous lchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
 ### fs.lchownSync(path, uid, gid)
@@ -194,16 +197,16 @@ Synchronous symlink(2).
 ### fs.readlink(path, [callback])
 
 Asynchronous readlink(2). The callback gets two arguments `(err,
-resolvedPath)`.
+linkString)`.
 
 ### fs.readlinkSync(path)
 
-Synchronous readlink(2). Returns the resolved path.
+Synchronous readlink(2). Returns the symbolic link's string value.
 
 ### fs.realpath(path, [callback])
 
 Asynchronous realpath(2).  The callback gets two arguments `(err,
-resolvedPath)`.
+resolvedPath)`.  May use `process.cwd` to resolve relative paths.
 
 ### fs.realpathSync(path)
 
@@ -316,7 +319,7 @@ current position.
 See pwrite(2).
 
 The callback will be given three arguments `(err, written, buffer)` where `written`
-specifies how many _bytes_ were written into `buffer`.
+specifies how many _bytes_ were written from `buffer`.
 
 Note that it is unsafe to use `fs.write` multiple times on the same file
 without waiting for the callback. For this scenario,
@@ -329,7 +332,7 @@ written.
 
 ### fs.writeSync(fd, str, position, encoding='utf8')
 
-Synchronous version of string-based `fs.write()`. Returns the number of bytes
+Synchronous version of string-based `fs.write()`. Returns the number of _bytes_
 written.
 
 ### fs.read(fd, buffer, offset, length, position, [callback])
