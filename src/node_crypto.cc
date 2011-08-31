@@ -1090,16 +1090,10 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
     }
     (void) BIO_reset(bio);
 
-    char buf[256];
-    bio = NULL;
-
     int index = X509_get_ext_by_NID(peer_cert, NID_subject_alt_name, -1);
     if (index >= 0) {
       X509_EXTENSION* ext;
-      BUF_MEM* mem;
       int rv;
-
-      bio = BIO_new(BIO_s_mem());
 
       ext = X509_get_ext(peer_cert, index);
       assert(ext != NULL);
@@ -1110,29 +1104,23 @@ Handle<Value> Connection::GetPeerCertificate(const Arguments& args) {
       BIO_get_mem_ptr(bio, &mem);
       info->Set(subjectaltname_symbol, String::New(mem->data, mem->length));
 
-      BIO_free(bio);
+      (void) BIO_reset(bio);
     }
-    (void) BIO_reset(bio);
 
     EVP_PKEY *pkey = NULL;
     RSA *rsa = NULL;
     if( NULL != (pkey = X509_get_pubkey(peer_cert))
         && NULL != (rsa = EVP_PKEY_get1_RSA(pkey)) ) {
-        bio = BIO_new(BIO_s_mem());
         BN_print(bio, rsa->n);
-        memset(buf, 0, sizeof(buf));
-        BIO_read(bio, buf, sizeof(buf) - 1);
-        info->Set(modulus_symbol, String::New(buf) );
-        BIO_free(bio);
+        BIO_get_mem_ptr(bio, &mem);
+        info->Set(modulus_symbol, String::New(mem->data, mem->length) );
+        (void) BIO_reset(bio);
 
-        bio = BIO_new(BIO_s_mem());
         BN_print(bio, rsa->e);
-        memset(buf, 0, sizeof(buf));
-        BIO_read(bio, buf, sizeof(buf) - 1);
-        info->Set(exponent_symbol, String::New(buf) );
-        BIO_free(bio);
+        BIO_get_mem_ptr(bio, &mem);
+        info->Set(exponent_symbol, String::New(mem->data, mem->length) );
+        (void) BIO_reset(bio);
     }
-    (void) BIO_reset(bio);
 
     ASN1_TIME_print(bio, X509_get_notBefore(peer_cert));
     BIO_get_mem_ptr(bio, &mem);
