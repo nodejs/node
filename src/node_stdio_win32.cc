@@ -470,7 +470,7 @@ static void tty_watcher_start() {
   assert(tty_watcher_initialized);
   if (!tty_watcher_active) {
     tty_watcher_active = true;
-    uv_ref();
+    uv_ref(uv_default_loop());
     tty_watcher_arm();
   }
 }
@@ -479,7 +479,7 @@ static void tty_watcher_start() {
 static void tty_watcher_stop() {
   if (tty_watcher_active) {
     tty_watcher_active = false;
-    uv_unref();
+    uv_unref(uv_default_loop());
     tty_watcher_disarm();
   }
 }
@@ -661,8 +661,8 @@ static Handle<Value> StopTTYWatcher(const Arguments& args) {
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
   init_scancode_table();
   
-  uv_async_init(&tty_avail_notifier, tty_poll);
-  uv_unref();
+  uv_async_init(uv_default_loop(), &tty_avail_notifier, tty_poll);
+  uv_unref(uv_default_loop());
 
   /* Set stdio streams to binary mode. */
   _setmode(_fileno(stdin), _O_BINARY);
