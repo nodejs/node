@@ -26,14 +26,15 @@
 #include "internal.h"
 
 
-void uv_stream_init(uv_stream_t* handle) {
+void uv_stream_init(uv_loop_t* loop, uv_stream_t* handle) {
   handle->write_queue_size = 0;
+  handle->loop = loop;
   handle->flags = 0;
 
-  uv_counters()->handle_init++;
-  uv_counters()->stream_init++;
+  loop->counters.handle_init++;
+  loop->counters.stream_init++;
 
-  uv_ref();
+  uv_ref(loop);
 }
 
 
@@ -41,7 +42,7 @@ void uv_connection_init(uv_stream_t* handle) {
   handle->flags |= UV_HANDLE_CONNECTION;
   handle->write_reqs_pending = 0;
 
-  uv_req_init((uv_req_t*) &(handle->read_req));
+  uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
   handle->read_req.type = UV_READ;
   handle->read_req.data = handle;
 }
@@ -75,7 +76,8 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
 }
 
 
-int uv_read_start(uv_stream_t* handle, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
+int uv_read_start(uv_stream_t* handle, uv_alloc_cb alloc_cb,
+    uv_read_cb read_cb) {
   switch (handle->type) {
     case UV_TCP:
       return uv_tcp_read_start((uv_tcp_t*)handle, alloc_cb, read_cb);
@@ -97,31 +99,35 @@ int uv_read_stop(uv_stream_t* handle) {
 
 int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
     uv_write_cb cb) {
+  uv_loop_t* loop = handle->loop;
+
   switch (handle->type) {
     case UV_TCP:
-      return uv_tcp_write(req, (uv_tcp_t*) handle, bufs, bufcnt, cb);
+      return uv_tcp_write(loop, req, (uv_tcp_t*) handle, bufs, bufcnt, cb);
     case UV_NAMED_PIPE:
-      return uv_pipe_write(req, (uv_pipe_t*) handle, bufs, bufcnt, cb);
+      return uv_pipe_write(loop, req, (uv_pipe_t*) handle, bufs, bufcnt, cb);
     default:
       assert(0);
-      uv_set_sys_error(WSAEINVAL);
+      uv_set_sys_error(loop, WSAEINVAL);
       return -1;
   }
 }
 
 
 int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
+  uv_loop_t* loop = handle->loop;
+
   if (!(handle->flags & UV_HANDLE_CONNECTION)) {
-    uv_set_sys_error(WSAEINVAL);
+    uv_set_sys_error(loop, WSAEINVAL);
     return -1;
   }
 
   if (handle->flags & UV_HANDLE_SHUTTING) {
-    uv_set_sys_error(WSAESHUTDOWN);
+    uv_set_sys_error(loop, WSAESHUTDOWN);
     return -1;
   }
 
-  uv_req_init((uv_req_t*) req);
+  uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_SHUTDOWN;
   req->handle = handle;
   req->cb = cb;
@@ -130,7 +136,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle, uv_shutdown_cb cb) {
   handle->shutdown_req = req;
   handle->reqs_pending++;
 
-  uv_want_endgame((uv_handle_t*)handle);
+  uv_want_endgame(loop, (uv_handle_t*)handle);
 
   return 0;
 }

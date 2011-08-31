@@ -29,7 +29,7 @@
 #include <uv.h>
 
 #ifdef __POSIX__
-# include <ev.h>
+# include <uv-private/ev.h>
 #endif
 
 #ifdef __MINGW32__

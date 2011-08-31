@@ -23,7 +23,7 @@
 #define NODE_IO_H_
 
 #include <node_object_wrap.h>
-#include <ev.h>
+#include <uv-private/ev.h>
 
 namespace node {
 

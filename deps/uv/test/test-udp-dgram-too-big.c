@@ -50,7 +50,7 @@ static void send_cb(uv_udp_send_t* req, int status) {
   CHECK_HANDLE(req->handle);
 
   ASSERT(status == -1);
-  ASSERT(uv_last_error().code == UV_EMSGSIZE);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EMSGSIZE);
 
   uv_close((uv_handle_t*)req->handle, close_cb);
   send_cb_called++;
@@ -67,7 +67,7 @@ TEST_IMPL(udp_dgram_too_big) {
 
   uv_init();
 
-  r = uv_udp_init(&handle_);
+  r = uv_udp_init(uv_default_loop(), &handle_);
   ASSERT(r == 0);
 
   buf = uv_buf_init(dgram, sizeof dgram);
@@ -79,7 +79,7 @@ TEST_IMPL(udp_dgram_too_big) {
   ASSERT(close_cb_called == 0);
   ASSERT(send_cb_called == 0);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(send_cb_called == 1);
   ASSERT(close_cb_called == 1);

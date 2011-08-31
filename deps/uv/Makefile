@@ -24,7 +24,7 @@ ifdef MSVC
 uname_S := MINGW
 endif
 
-CPPFLAGS += -Iinclude
+CPPFLAGS += -Iinclude -Iinclude/uv-private
 
 CARES_OBJS =
 CARES_OBJS += src/ares/ares__close_sockets.o

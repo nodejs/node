@@ -211,7 +211,7 @@ static void Idle(uv_idle_t* watcher, int status) {
 static void Check(uv_check_t* watcher, int status) {
   assert(watcher == &gc_check);
 
-  tick_times[tick_time_head] = uv_now();
+  tick_times[tick_time_head] = uv_now(uv_default_loop());
   tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
 
   StartGCTimer();
@@ -241,7 +241,7 @@ static void Tick(void) {
   need_tick_cb = false;
   if (uv_is_active((uv_handle_t*) &tick_spinner)) {
     uv_idle_stop(&tick_spinner);
-    uv_unref();
+    uv_unref(uv_default_loop());
   }
 
   HandleScope scope;
@@ -283,7 +283,7 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
   // tick_spinner to keep the event loop alive long enough to handle it.
   if (!uv_is_active((uv_handle_t*) &tick_spinner)) {
     uv_idle_start(&tick_spinner, Spin);
-    uv_ref();
+    uv_ref(uv_default_loop());
   }
   return Undefined();
 }
@@ -1537,7 +1537,7 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
     }
   }
 
-  double d = uv_now() - TICK_TIME(3);
+  double d = uv_now(uv_default_loop()) - TICK_TIME(3);
 
   //printfb("timer d = %f\n", d);
 
@@ -2436,26 +2436,26 @@ char** Init(int argc, char *argv[]) {
   RegisterSignalHandler(SIGTERM, SignalExit);
 #endif // __POSIX__
 
-  uv_prepare_init(&node::prepare_tick_watcher);
+  uv_prepare_init(uv_default_loop(), &node::prepare_tick_watcher);
   uv_prepare_start(&node::prepare_tick_watcher, PrepareTick);
-  uv_unref();
+  uv_unref(uv_default_loop());
 
-  uv_check_init(&node::check_tick_watcher);
+  uv_check_init(uv_default_loop(), &node::check_tick_watcher);
   uv_check_start(&node::check_tick_watcher, node::CheckTick);
-  uv_unref();
+  uv_unref(uv_default_loop());
 
-  uv_idle_init(&node::tick_spinner);
-  uv_unref();
+  uv_idle_init(uv_default_loop(), &node::tick_spinner);
+  uv_unref(uv_default_loop());
 
-  uv_check_init(&node::gc_check);
+  uv_check_init(uv_default_loop(), &node::gc_check);
   uv_check_start(&node::gc_check, node::Check);
-  uv_unref();
+  uv_unref(uv_default_loop());
 
-  uv_idle_init(&node::gc_idle);
-  uv_unref();
+  uv_idle_init(uv_default_loop(), &node::gc_idle);
+  uv_unref(uv_default_loop());
 
-  uv_timer_init(&node::gc_timer);
-  uv_unref();
+  uv_timer_init(uv_default_loop(), &node::gc_timer);
+  uv_unref(uv_default_loop());
 
   V8::SetFatalErrorHandler(node::OnFatalError);
 
@@ -2467,9 +2467,10 @@ char** Init(int argc, char *argv[]) {
   // main thread to execute a random bit of javascript - which will give V8
   // control so it can handle whatever new message had been received on the
   // debug thread.
-  uv_async_init(&node::debug_watcher, node::DebugMessageCallback);
+  uv_async_init(uv_default_loop(), &node::debug_watcher,
+      node::DebugMessageCallback);
   // unref it so that we exit the event loop despite it being active.
-  uv_unref();
+  uv_unref(uv_default_loop());
 
 
   // If the --debug flag was specified then initialize the debug thread.
@@ -2529,7 +2530,7 @@ int Start(int argc, char *argv[]) {
   // there are no watchers on the loop (except for the ones that were
   // uv_unref'd) then this function exits. As long as there are active
   // watchers, it blocks.
-  uv_run();
+  uv_run(uv_default_loop());
 
   EmitExit(process);
 

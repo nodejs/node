@@ -48,7 +48,7 @@ static uv_buf_t alloc_cb(uv_handle_t* handle, size_t size) {
 
 
 static void read_cb(uv_stream_t* t, ssize_t nread, uv_buf_t buf) {
-  uv_err_t err = uv_last_error();
+  uv_err_t err = uv_last_error(uv_default_loop());
 
   ASSERT((uv_tcp_t*)t == &tcp);
 
@@ -158,17 +158,17 @@ TEST_IMPL(shutdown_eof) {
   qbuf.base = "Q";
   qbuf.len = 1;
 
-  uv_timer_init(&timer);
+  uv_timer_init(uv_default_loop(), &timer);
   uv_timer_start(&timer, timer_cb, 100, 0);
 
   server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
-  r = uv_tcp_init(&tcp);
+  r = uv_tcp_init(uv_default_loop(), &tcp);
   ASSERT(!r);
 
   r = uv_tcp_connect(&connect_req, &tcp, server_addr, connect_cb);
   ASSERT(!r);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(called_connect_cb == 1);
   ASSERT(called_shutdown_cb == 1);

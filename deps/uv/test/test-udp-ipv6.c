@@ -104,7 +104,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
 
   addr6 = uv_ip6_addr("::0", TEST_PORT);
 
-  r = uv_udp_init(&server);
+  r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
   r = uv_udp_bind6(&server, addr6, bind_flags);
@@ -113,7 +113,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   r = uv_udp_recv_start(&server, alloc_cb, recv_cb);
   ASSERT(r == 0);
 
-  r = uv_udp_init(&client);
+  r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
   buf = uv_buf_init("PING", 4);
@@ -122,7 +122,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   r = uv_udp_send(&req_, &client, &buf, 1, addr, send_cb);
   ASSERT(r == 0);
 
-  r = uv_timer_init(&timeout);
+  r = uv_timer_init(uv_default_loop(), &timeout);
   ASSERT(r == 0);
 
   r = uv_timer_start(&timeout, timeout_cb, 500, 0);
@@ -132,7 +132,7 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   ASSERT(send_cb_called == 0);
   ASSERT(recv_cb_called == 0);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(close_cb_called == 3);
 }

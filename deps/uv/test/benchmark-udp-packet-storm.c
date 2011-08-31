@@ -37,6 +37,8 @@
 
 #define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
 
+static uv_loop_t* loop;
+
 static int n_senders_;
 static int n_receivers_;
 static uv_udp_t senders[MAX_SENDERS];
@@ -91,7 +93,7 @@ static void recv_cb(uv_udp_t* handle,
     return;
 
   if (nread == -1) {
-    ASSERT(uv_last_error().code == UV_EINTR); /* FIXME change error code */
+    ASSERT(uv_last_error(loop).code == UV_EINTR); /* FIXME change error code */
     return;
   }
 
@@ -133,24 +135,25 @@ static int do_packet_storm(int n_senders, int n_receivers) {
   ASSERT(n_receivers <= MAX_RECEIVERS);
 
   uv_init();
+  loop = uv_default_loop();
 
   n_senders_ = n_senders;
   n_receivers_ = n_receivers;
 
-  r = uv_timer_init(&timeout);
+  r = uv_timer_init(loop, &timeout);
   ASSERT(r == 0);
 
   r = uv_timer_start(&timeout, timeout_cb, TEST_DURATION, 0);
   ASSERT(r == 0);
 
   /* Timer should not keep loop alive. */
-  uv_unref();
+  uv_unref(loop);
 
   for (i = 0; i < n_receivers; i++) {
     struct sockaddr_in addr;
     handle = &receivers[i];
 
-    r = uv_udp_init(handle);
+    r = uv_udp_init(loop, handle);
     ASSERT(r == 0);
 
     addr = uv_ip4_addr("0.0.0.0", BASE_PORT + i);
@@ -171,7 +174,7 @@ static int do_packet_storm(int n_senders, int n_receivers) {
   for (i = 0; i < n_senders; i++) {
     handle = &senders[i];
 
-    r = uv_udp_init(handle);
+    r = uv_udp_init(loop, handle);
     ASSERT(r == 0);
 
     req = malloc(sizeof(*req) + sizeof(*ss));
@@ -185,7 +188,7 @@ static int do_packet_storm(int n_senders, int n_receivers) {
     req->data = ss;
   }
 
-  uv_run();
+  uv_run(loop);
 
   printf("udp_packet_storm_%dv%d: %.0f/s received, %.0f/s sent\n",
          n_receivers,

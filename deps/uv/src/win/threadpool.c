@@ -25,9 +25,11 @@
 #include "internal.h"
 
 
-static void uv_work_req_init(uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb) {
-  uv_req_init((uv_req_t*) req);
+static void uv_work_req_init(uv_loop_t* loop, uv_work_t* req,
+    uv_work_cb work_cb, uv_after_work_cb after_work_cb) {
+  uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_WORK;
+  req->loop = loop;
   req->work_cb = work_cb;
   req->after_work_cb = after_work_cb;
   memset(&req->overlapped, 0, sizeof(req->overlapped));
@@ -36,6 +38,7 @@ static void uv_work_req_init(uv_work_t* req, uv_work_cb work_cb, uv_after_work_c
 
 static DWORD WINAPI uv_work_thread_proc(void* parameter) {
   uv_work_t* req = (uv_work_t*)parameter;
+  uv_loop_t* loop = req->loop;
 
   assert(req != NULL);
   assert(req->type == UV_WORK);
@@ -43,27 +46,28 @@ static DWORD WINAPI uv_work_thread_proc(void* parameter) {
 
   req->work_cb(req);
 
-  POST_COMPLETION_FOR_REQ(req);
+  POST_COMPLETION_FOR_REQ(loop, req);
 
   return 0;
 }
 
 
-int uv_queue_work(uv_work_t* req, uv_work_cb work_cb, uv_after_work_cb after_work_cb) {
-  uv_work_req_init(req, work_cb, after_work_cb);
+int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb,
+    uv_after_work_cb after_work_cb) {
+  uv_work_req_init(loop, req, work_cb, after_work_cb);
 
   if (!QueueUserWorkItem(&uv_work_thread_proc, req, WT_EXECUTELONGFUNCTION)) {
-    uv_set_sys_error(GetLastError());
+    uv_set_sys_error(loop, GetLastError());
     return -1;
   }
 
-  uv_ref();
+  uv_ref(loop);
   return 0;
 }
 
 
-void uv_process_work_req(uv_work_t* req) {
+void uv_process_work_req(uv_loop_t* loop, uv_work_t* req) {
   assert(req->after_work_cb);
   req->after_work_cb(req);
-  uv_unref();
+  uv_unref(loop);
 }

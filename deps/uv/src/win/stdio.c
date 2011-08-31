@@ -27,7 +27,7 @@
 #include "internal.h"
 
 
-static uv_pipe_t* uv_make_pipe_for_std_handle(HANDLE handle) {
+static uv_pipe_t* uv_make_pipe_for_std_handle(uv_loop_t* loop, HANDLE handle) {
   uv_pipe_t* pipe = NULL;
 
   pipe = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
@@ -35,7 +35,7 @@ static uv_pipe_t* uv_make_pipe_for_std_handle(HANDLE handle) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }
 
-  if (uv_pipe_init_with_handle(pipe, handle)) {
+  if (uv_pipe_init_with_handle(loop, pipe, handle)) {
     free(pipe);
     return NULL;
   }
@@ -45,7 +45,7 @@ static uv_pipe_t* uv_make_pipe_for_std_handle(HANDLE handle) {
 }
 
 
-uv_stream_t* uv_std_handle(uv_std_type type) {
+uv_stream_t* uv_std_handle(uv_loop_t* loop, uv_std_type type) {
   HANDLE handle;
 
   switch (type) {
@@ -56,7 +56,7 @@ uv_stream_t* uv_std_handle(uv_std_type type) {
       }
 
       /* Assume only named pipes for now. */
-      return (uv_stream_t*)uv_make_pipe_for_std_handle(handle);
+      return (uv_stream_t*)uv_make_pipe_for_std_handle(loop, handle);
       break;
 
     case UV_STDOUT:
@@ -69,7 +69,7 @@ uv_stream_t* uv_std_handle(uv_std_type type) {
 
     default:
       assert(0);
-      uv_set_error(UV_EINVAL, 0);
+      uv_set_error(loop, UV_EINVAL, 0);
       return NULL;
   }
 }

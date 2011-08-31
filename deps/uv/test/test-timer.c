@@ -53,7 +53,7 @@ static void once_cb(uv_timer_t* handle, int status) {
   uv_close((uv_handle_t*)handle, once_close_cb);
 
   /* Just call this randomly for the code coverage. */
-  uv_update_time();
+  uv_update_time(uv_default_loop());
 }
 
 
@@ -92,35 +92,35 @@ TEST_IMPL(timer) {
 
   uv_init();
 
-  start_time = uv_now();
+  start_time = uv_now(uv_default_loop());
   ASSERT(0 < start_time);
 
   /* Let 10 timers time out in 500 ms total. */
   for (i = 0; i < 10; i++) {
     once = (uv_timer_t*)malloc(sizeof(*once));
     ASSERT(once != NULL);
-    r = uv_timer_init(once);
+    r = uv_timer_init(uv_default_loop(), once);
     ASSERT(r == 0);
     r = uv_timer_start(once, once_cb, i * 50, 0);
     ASSERT(r == 0);
   }
 
   /* The 11th timer is a repeating timer that runs 4 times */
-  r = uv_timer_init(&repeat);
+  r = uv_timer_init(uv_default_loop(), &repeat);
   ASSERT(r == 0);
   r = uv_timer_start(&repeat, repeat_cb, 100, 100);
   ASSERT(r == 0);
 
   /* The 12th timer should not do anything. */
-  r = uv_timer_init(&never);
+  r = uv_timer_init(uv_default_loop(), &never);
   ASSERT(r == 0);
   r = uv_timer_start(&never, never_cb, 100, 100);
   ASSERT(r == 0);
   r = uv_timer_stop(&never);
   ASSERT(r == 0);
-  uv_unref();
+  uv_unref(uv_default_loop());
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(once_cb_called == 10);
   ASSERT(once_close_cb_called == 10);
@@ -128,7 +128,7 @@ TEST_IMPL(timer) {
   ASSERT(repeat_cb_called == 5);
   ASSERT(repeat_close_cb_called == 1);
 
-  ASSERT(500 <= uv_now() - start_time);
+  ASSERT(500 <= uv_now(uv_default_loop()) - start_time);
 
   return 0;
 }

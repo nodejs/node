@@ -3878,7 +3878,7 @@ PBKDF2(const Arguments& args) {
   request->callback = Persistent<Function>::New(callback);
 
   uv_work_t* req = new uv_work_t();
-  uv_queue_work(req, EIO_PBKDF2, EIO_PBKDF2After);
+  uv_queue_work(uv_default_loop(), req, EIO_PBKDF2, EIO_PBKDF2After);
   req->data = request;
 
   return Undefined();

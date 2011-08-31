@@ -67,22 +67,26 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 }
 
 
-uv_err_t uv_last_error() {
-  return LOOP->last_error;
+uv_err_t uv_last_error(uv_loop_t* loop) {
+  return loop->last_error;
 }
 
 
+/* TODO: thread safety */
+static char* last_err_str_ = NULL;
+
 char* uv_strerror(uv_err_t err) {
-  if (LOOP->err_str != NULL) {
-    LocalFree(LOOP->err_str);
+  if (last_err_str_ != NULL) {
+    LocalFree(last_err_str_);
   }
 
   FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
       FORMAT_MESSAGE_IGNORE_INSERTS, NULL, err.sys_errno_,
-      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR)&LOOP->err_str, 0, NULL);
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPSTR) &last_err_str_, 0,
+      NULL);
 
-  if (LOOP->err_str) {
-    return LOOP->err_str;
+  if (last_err_str_) {
+    return last_err_str_;
   } else {
     return "Unknown error";
   }
@@ -134,13 +138,13 @@ uv_err_t uv_new_sys_error(int sys_errno) {
 }
 
 
-void uv_set_sys_error(int sys_errno) {
-  LOOP->last_error.code = uv_translate_sys_error(sys_errno);
-  LOOP->last_error.sys_errno_ = sys_errno;
+void uv_set_sys_error(uv_loop_t* loop, int sys_errno) {
+  loop->last_error.code = uv_translate_sys_error(sys_errno);
+  loop->last_error.sys_errno_ = sys_errno;
 }
 
 
-void uv_set_error(uv_err_code code, int sys_errno) {
-  LOOP->last_error.code = code;
-  LOOP->last_error.sys_errno_ = sys_errno;
+void uv_set_error(uv_loop_t* loop, uv_err_code code, int sys_errno) {
+  loop->last_error.code = code;
+  loop->last_error.sys_errno_ = sys_errno;
 }

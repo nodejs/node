@@ -38,41 +38,34 @@ struct uv_ares_action_s {
 };
 
 
-/* memory used per ares_channel */
-typedef struct uv_ares_channel_s {
-  ares_channel channel;
-  int activesockets;
-  uv_timer_t pollingtimer;
-} uv_ares_channel_t;
-
-
-/* static data to hold single ares_channel */
-static uv_ares_channel_t uv_ares_data = { NULL, 0 };
-
-
 /* default timeout per socket request if ares does not specify value */
 /* use 20 sec */
 #define ARES_TIMEOUT_MS            20000
 
 
 /* thread pool callback when socket is signalled */
-static void CALLBACK uv_ares_socksignal_tp(void* parameter, BOOLEAN timerfired) {
+static void CALLBACK uv_ares_socksignal_tp(void* parameter,
+    BOOLEAN timerfired) {
   WSANETWORKEVENTS network_events;
   uv_ares_task_t* sockhandle;
   uv_ares_action_t* selhandle;
   uv_req_t* uv_ares_req;
+  uv_loop_t* loop;
 
   assert(parameter != NULL);
 
   if (parameter != NULL) {
-    sockhandle = (uv_ares_task_t*)parameter;
+    sockhandle = (uv_ares_task_t*) parameter;
+    loop = sockhandle->loop;
 
     /* clear socket status for this event */
     /* do not fail if error, thread may run after socket close */
-    /* The code assumes that c-ares will write all pending data in the callback,
-       unless the socket would block. We can clear the state here to avoid unecessary
-       signals. */
-    WSAEnumNetworkEvents(sockhandle->sock, sockhandle->h_event, &network_events);
+    /* The code assumes that c-ares will write all pending data in the */
+    /* callback, unless the socket would block. We can clear the state here */
+    /* to avoid unecessary signals. */
+    WSAEnumNetworkEvents(sockhandle->sock,
+                         sockhandle->h_event,
+                         &network_events);
 
     /* setup new handle */
     selhandle = (uv_ares_action_t*)malloc(sizeof(uv_ares_action_t));
@@ -83,47 +76,53 @@ static void CALLBACK uv_ares_socksignal_tp(void* parameter, BOOLEAN timerfired) 
     selhandle->close_cb = NULL;
     selhandle->data = sockhandle->data;
     selhandle->sock = sockhandle->sock;
-    selhandle->read = (network_events.lNetworkEvents & (FD_READ | FD_CONNECT)) ? 1 : 0;
-    selhandle->write = (network_events.lNetworkEvents & (FD_WRITE | FD_CONNECT)) ? 1 : 0;
+    selhandle->read =
+        (network_events.lNetworkEvents & (FD_READ | FD_CONNECT)) ? 1 : 0;
+    selhandle->write =
+        (network_events.lNetworkEvents & (FD_WRITE | FD_CONNECT)) ? 1 : 0;
 
     uv_ares_req = &selhandle->ares_req;
-    uv_req_init(uv_ares_req);
+    uv_req_init(loop, uv_ares_req);
     uv_ares_req->type = UV_ARES_EVENT_REQ;
     uv_ares_req->data = selhandle;
 
     /* post ares needs to called */
-    POST_COMPLETION_FOR_REQ(uv_ares_req);
+    POST_COMPLETION_FOR_REQ(loop, uv_ares_req);
   }
 }
 
 
 /* periodically call ares to check for timeouts */
 static void uv_ares_poll(uv_timer_t* handle, int status) {
-  if (uv_ares_data.channel != NULL && uv_ares_data.activesockets > 0) {
-    ares_process_fd(uv_ares_data.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+  uv_loop_t* loop = handle->loop;
+  if (loop->ares_channel != NULL && loop->ares_active_sockets > 0) {
+    ares_process_fd(loop->ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
   }
 }
 
 
 /* callback from ares when socket operation is started */
-static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int write) {
+static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read,
+    int write) {
   /* look to see if we have a handle for this socket in our list */
-  uv_ares_task_t* uv_handle_ares = uv_find_ares_handle(sock);
-  uv_ares_channel_t* uv_ares_data_ptr = (uv_ares_channel_t*)data;
+  uv_loop_t* loop = (uv_loop_t*) data;
+  uv_ares_task_t* uv_handle_ares = uv_find_ares_handle(loop, sock);
 
   int timeoutms = 0;
 
   if (read == 0 && write == 0) {
     /* if read and write are 0, cleanup existing data */
-    /* The code assumes that c-ares does a callback with read = 0 and write = 0
-       when the socket is closed. After we recieve this we stop monitoring the socket. */
+    /* The code assumes that c-ares does a callback with read = 0 and */
+    /* write = 0 when the socket is closed. After we recieve this we stop */
+    /* monitoring the socket. */
     if (uv_handle_ares != NULL) {
       uv_req_t* uv_ares_req;
 
       uv_handle_ares->h_close_event = CreateEvent(NULL, FALSE, FALSE, NULL);
       /* remove Wait */
       if (uv_handle_ares->h_wait) {
-        UnregisterWaitEx(uv_handle_ares->h_wait, uv_handle_ares->h_close_event);
+        UnregisterWaitEx(uv_handle_ares->h_wait,
+                         uv_handle_ares->h_close_event);
         uv_handle_ares->h_wait = NULL;
       }
 
@@ -138,12 +137,12 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int w
 
       /* Post request to cleanup the Task */
       uv_ares_req = &uv_handle_ares->ares_req;
-      uv_req_init(uv_ares_req);
+      uv_req_init(loop, uv_ares_req);
       uv_ares_req->type = UV_ARES_CLEANUP_REQ;
       uv_ares_req->data = uv_handle_ares;
 
       /* post ares done with socket - finish cleanup when all threads done. */
-      POST_COMPLETION_FOR_REQ(uv_ares_req);
+      POST_COMPLETION_FOR_REQ(loop, uv_ares_req);
     } else {
       assert(0);
       uv_fatal_error(ERROR_INVALID_DATA, "ares_SockStateCB");
@@ -160,7 +159,7 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int w
       }
       uv_handle_ares->type = UV_ARES_TASK;
       uv_handle_ares->close_cb = NULL;
-      uv_handle_ares->data = uv_ares_data_ptr;
+      uv_handle_ares->data = loop;
       uv_handle_ares->sock = sock;
       uv_handle_ares->h_wait = NULL;
       uv_handle_ares->flags = 0;
@@ -172,24 +171,26 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int w
       }
 
       /* tie event to socket */
-      if (SOCKET_ERROR == WSAEventSelect(sock, uv_handle_ares->h_event, FD_READ | FD_WRITE | FD_CONNECT)) {
+      if (SOCKET_ERROR == WSAEventSelect(sock,
+                                         uv_handle_ares->h_event,
+                                         FD_READ | FD_WRITE | FD_CONNECT)) {
         uv_fatal_error(WSAGetLastError(), "WSAEventSelect");
       }
 
       /* add handle to list */
-      uv_add_ares_handle(uv_handle_ares);
-      uv_ref();
+      uv_add_ares_handle(loop, uv_handle_ares);
+      uv_ref(loop);
 
       /*
        * we have a single polling timer for all ares sockets.
        * This is preferred to using ares_timeout. See ares_timeout.c warning.
        * if timer is not running start it, and keep socket count
        */
-      if (uv_ares_data_ptr->activesockets == 0) {
-        uv_timer_init(&uv_ares_data_ptr->pollingtimer);
-        uv_timer_start(&uv_ares_data_ptr->pollingtimer, uv_ares_poll, 1000L, 1000L);
+      if (loop->ares_active_sockets == 0) {
+        uv_timer_init(loop, &loop->ares_polling_timer);
+        uv_timer_start(&loop->ares_polling_timer, uv_ares_poll, 1000L, 1000L);
       }
-      uv_ares_data_ptr->activesockets++;
+      loop->ares_active_sockets++;
 
       /* specify thread pool function to call when event is signaled */
       if (RegisterWaitForSingleObject(&uv_handle_ares->h_wait,
@@ -211,12 +212,11 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read, int w
 
 
 /* called via uv_poll when ares completion port signaled */
-void uv_process_ares_event_req(uv_ares_action_t* handle, uv_req_t* req) {
-  uv_ares_channel_t* uv_ares_data_ptr = (uv_ares_channel_t*)handle->data;
-
-  ares_process_fd(uv_ares_data_ptr->channel,
-                    handle->read ? handle->sock : INVALID_SOCKET,
-                    handle->write ?  handle->sock : INVALID_SOCKET);
+void uv_process_ares_event_req(uv_loop_t* loop, uv_ares_action_t* handle,
+    uv_req_t* req) {
+  ares_process_fd(loop->ares_channel,
+                  handle->read ? handle->sock : INVALID_SOCKET,
+                  handle->write ?  handle->sock : INVALID_SOCKET);
 
   /* release handle for select here  */
   free(handle);
@@ -224,47 +224,47 @@ void uv_process_ares_event_req(uv_ares_action_t* handle, uv_req_t* req) {
 
 
 /* called via uv_poll when ares is finished with socket */
-void uv_process_ares_cleanup_req(uv_ares_task_t* handle, uv_req_t* req) {
+void uv_process_ares_cleanup_req(uv_loop_t* loop, uv_ares_task_t* handle,
+    uv_req_t* req) {
   /* check for event complete without waiting */
   unsigned int signaled = WaitForSingleObject(handle->h_close_event, 0);
 
   if (signaled != WAIT_TIMEOUT) {
-    uv_ares_channel_t* uv_ares_data_ptr = (uv_ares_channel_t*)handle->data;
-
-    uv_unref();
+    uv_unref(loop);
 
     /* close event handle and free uv handle memory */
     CloseHandle(handle->h_close_event);
     free(handle);
 
     /* decrement active count. if it becomes 0 stop polling */
-    if (uv_ares_data_ptr->activesockets > 0) {
-      uv_ares_data_ptr->activesockets--;
-      if (uv_ares_data_ptr->activesockets == 0) {
-        uv_close((uv_handle_t*)&uv_ares_data_ptr->pollingtimer, NULL);
+    if (loop->ares_active_sockets > 0) {
+      loop->ares_active_sockets--;
+      if (loop->ares_active_sockets == 0) {
+        uv_close((uv_handle_t*) &loop->ares_polling_timer, NULL);
       }
     }
   } else {
     /* stil busy - repost and try again */
-    POST_COMPLETION_FOR_REQ(req);
+    POST_COMPLETION_FOR_REQ(loop, req);
   }
 }
 
 
 /* set ares SOCK_STATE callback to our handler */
-int uv_ares_init_options(ares_channel *channelptr,
-                        struct ares_options *options,
-                        int optmask) {
+int uv_ares_init_options(uv_loop_t* loop,
+                         ares_channel *channelptr,
+                         struct ares_options *options,
+                         int optmask) {
   int rc;
 
   /* only allow single init at a time */
-  if (uv_ares_data.channel != NULL) {
+  if (loop->ares_channel != NULL) {
     return UV_EALREADY;
   }
 
   /* set our callback as an option */
   options->sock_state_cb = uv_ares_sockstate_cb;
-  options->sock_state_cb_data = &uv_ares_data;
+  options->sock_state_cb_data = loop;
   optmask |= ARES_OPT_SOCK_STATE_CB;
 
   /* We do the call to ares_init_option for caller. */
@@ -272,7 +272,7 @@ int uv_ares_init_options(ares_channel *channelptr,
 
   /* if success, save channel */
   if (rc == ARES_SUCCESS) {
-    uv_ares_data.channel = *channelptr;
+    loop->ares_channel = *channelptr;
   }
 
   return rc;
@@ -280,10 +280,10 @@ int uv_ares_init_options(ares_channel *channelptr,
 
 
 /* release memory */
-void uv_ares_destroy(ares_channel channel) {
+void uv_ares_destroy(uv_loop_t* loop, ares_channel channel) {
   /* only allow destroy if did init */
-  if (uv_ares_data.channel != NULL) {
+  if (loop->ares_channel != NULL) {
     ares_destroy(channel);
-    uv_ares_data.channel = NULL;
+    loop->ares_channel = NULL;
   }
 }

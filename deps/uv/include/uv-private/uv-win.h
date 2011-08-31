@@ -44,6 +44,40 @@ typedef struct uv_buf_t {
 
 typedef int uv_file;
 
+RB_HEAD(uv_timer_tree_s, uv_timer_s);
+
+#define UV_LOOP_PRIVATE_FIELDS                                                \
+    /* The loop's I/O completion port */                                      \
+  HANDLE iocp;                                                                \
+  /* Reference count that keeps the event loop alive */                       \
+  int refs;                                                                   \
+  /* The current time according to the event loop. in msecs. */               \
+  int64_t time;                                                               \
+  /* Tail of a single-linked circular queue of pending reqs. If the queue */  \
+  /* is empty, tail_ is NULL. If there is only one item, */                   \
+  /* tail_->next_req == tail_ */                                              \
+  uv_req_t* pending_reqs_tail;                                                \
+  /* Head of a single-linked list of closed handles */                        \
+  uv_handle_t* endgame_handles;                                               \
+  /* The head of the timers tree */                                           \
+  struct uv_timer_tree_s timers;                                              \
+    /* Lists of active loop (prepare / check / idle) watchers */              \
+  uv_prepare_t* prepare_handles;                                              \
+  uv_check_t* check_handles;                                                  \
+  uv_idle_t* idle_handles;                                                    \
+  /* This pointer will refer to the prepare/check/idle handle whose */        \
+  /* callback is scheduled to be called next. This is needed to allow */      \
+  /* safe removal from one of the lists above while that list being */        \
+  /* iterated over. */                                                        \
+  uv_prepare_t* next_prepare_handle;                                          \
+  uv_check_t* next_check_handle;                                              \
+  uv_idle_t* next_idle_handle;                                                \
+  ares_channel ares_channel;                                                  \
+  int ares_active_sockets;                                                    \
+  uv_timer_t ares_polling_timer;                                              \
+  /* Last error code */                                                       \
+  uv_err_t last_error;
+
 #define UV_REQ_TYPE_PRIVATE               \
   /* TODO: remove the req suffix */       \
   UV_ARES_EVENT_REQ,                      \
@@ -227,5 +261,7 @@ typedef int uv_file;
 
 #define UV_WORK_PRIVATE_FIELDS            \
 
-int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size, char* utf8Buffer, size_t utf8Size);
-int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer, size_t utf16Size);
+int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
+    char* utf8Buffer, size_t utf8Size);
+int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer,
+    size_t utf16Size);

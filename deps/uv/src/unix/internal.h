@@ -27,7 +27,7 @@
 
 int uv__close(int fd);
 void uv__req_init(uv_req_t*);
-uv_err_t uv_err_new(uv_handle_t* handle, int sys_error);
+uv_err_t uv_err_new(uv_loop_t* loop, int sys_error);
 int uv__nonblock(int fd, int set) __attribute__((unused));
 int uv__cloexec(int fd, int set) __attribute__((unused));
 

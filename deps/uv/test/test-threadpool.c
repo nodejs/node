@@ -48,9 +48,9 @@ TEST_IMPL(threadpool_queue_work_simple) {
   uv_init();
 
   work_req.data = &data;
-  r = uv_queue_work(&work_req, work_cb, after_work_cb);
+  r = uv_queue_work(uv_default_loop(), &work_req, work_cb, after_work_cb);
   ASSERT(r == 0);
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(work_cb_count == 1);
   ASSERT(after_work_cb_count == 1);

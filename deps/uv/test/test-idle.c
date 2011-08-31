@@ -62,17 +62,18 @@ TEST_IMPL(idle_starvation) {
 
   uv_init();
 
-  r = uv_idle_init(&idle_handle);
+
+  r = uv_idle_init(uv_default_loop(), &idle_handle);
   ASSERT(r == 0);
   r = uv_idle_start(&idle_handle, idle_cb);
   ASSERT(r == 0);
 
-  r = uv_timer_init(&timer_handle);
+  r = uv_timer_init(uv_default_loop(), &timer_handle);
   ASSERT(r == 0);
   r = uv_timer_start(&timer_handle, timer_cb, 50, 0);
   ASSERT(r == 0);
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(idle_cb_called > 0);

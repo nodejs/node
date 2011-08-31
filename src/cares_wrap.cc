@@ -576,7 +576,7 @@ static void Initialize(Handle<Object> target) {
   assert(r == ARES_SUCCESS);
 
   struct ares_options options;
-  uv_ares_init_options(&ares_channel, &options, 0);
+  uv_ares_init_options(uv_default_loop(), &ares_channel, &options, 0);
   assert(r == 0);
 
   NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);

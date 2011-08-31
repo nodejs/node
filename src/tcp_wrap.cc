@@ -108,7 +108,7 @@ class TCPWrap : public StreamWrap {
 
   TCPWrap(Handle<Object> object) : StreamWrap(object,
                                               (uv_stream_t*) &handle_) {
-    int r = uv_tcp_init(&handle_);
+    int r = uv_tcp_init(uv_default_loop(), &handle_);
     assert(r == 0); // How do we proxy this error up to javascript?
                     // Suggestion: uv_tcp_init() returns void.
     UpdateWriteQueueSize();
@@ -134,7 +134,7 @@ class TCPWrap : public StreamWrap {
 
     Local<Object> sockname = Object::New();
     if (r != 0) {
-      SetErrno(uv_last_error().code);
+      SetErrno(uv_last_error(uv_default_loop()).code);
     } else {
       family = address.sa_family;
       if (family == AF_INET) {
@@ -169,7 +169,7 @@ class TCPWrap : public StreamWrap {
     int r = uv_tcp_bind(&wrap->handle_, address);
 
     // Error starting the tcp.
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     return scope.Close(Integer::New(r));
   }
@@ -186,7 +186,7 @@ class TCPWrap : public StreamWrap {
     int r = uv_tcp_bind6(&wrap->handle_, address);
 
     // Error starting the tcp.
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     return scope.Close(Integer::New(r));
   }
@@ -201,7 +201,7 @@ class TCPWrap : public StreamWrap {
     int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
 
     // Error starting the tcp.
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     return scope.Close(Integer::New(r));
   }
@@ -235,7 +235,7 @@ class TCPWrap : public StreamWrap {
       // Successful accept. Call the onconnection callback in JavaScript land.
       argv[0] = client_obj;
     } else {
-      SetErrno(uv_last_error().code);
+      SetErrno(uv_last_error(uv_default_loop()).code);
       argv[0] = v8::Null();
     }
 
@@ -253,7 +253,7 @@ class TCPWrap : public StreamWrap {
     assert(wrap->object_.IsEmpty() == false);
 
     if (status) {
-      SetErrno(uv_last_error().code);
+      SetErrno(uv_last_error(uv_default_loop()).code);
     }
 
     Local<Value> argv[3] = {
@@ -288,7 +288,7 @@ class TCPWrap : public StreamWrap {
     req_wrap->Dispatched();
 
     if (r) {
-      SetErrno(uv_last_error().code);
+      SetErrno(uv_last_error(uv_default_loop()).code);
       delete req_wrap;
       return scope.Close(v8::Null());
     } else {
@@ -314,7 +314,7 @@ class TCPWrap : public StreamWrap {
     req_wrap->Dispatched();
 
     if (r) {
-      SetErrno(uv_last_error().code);
+      SetErrno(uv_last_error(uv_default_loop()).code);
       delete req_wrap;
       return scope.Close(v8::Null());
     } else {

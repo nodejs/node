@@ -32,37 +32,49 @@
 
 
 /* The only event loop we support right now */
-uv_loop_t uv_main_loop_;
+static uv_loop_t uv_default_loop_;
+static int uv_default_loop_initialized_ = 0;
 
 
-static void uv_loop_init() {
+static void uv_loop_init(uv_loop_t* loop) {
   /* Create an I/O completion port */
-  LOOP->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
-  if (LOOP->iocp == NULL) {
+  loop->iocp = CreateIoCompletionPort(INVALID_HANDLE_VALUE, NULL, 0, 1);
+  if (loop->iocp == NULL) {
     uv_fatal_error(GetLastError(), "CreateIoCompletionPort");
   }
 
-  LOOP->refs = 0;
+  loop->refs = 0;
 
-  uv_update_time();
+  uv_update_time(loop);
 
-  LOOP->pending_reqs_tail = NULL;
+  loop->pending_reqs_tail = NULL;
 
-  LOOP->endgame_handles = NULL;
+  loop->endgame_handles = NULL;
 
-  RB_INIT(&LOOP->timers);
+  RB_INIT(&loop->timers);
 
-  LOOP->check_handles = NULL;
-  LOOP->prepare_handles = NULL;
-  LOOP->idle_handles = NULL;
+  loop->check_handles = NULL;
+  loop->prepare_handles = NULL;
+  loop->idle_handles = NULL;
 
-  LOOP->next_prepare_handle = NULL;
-  LOOP->next_check_handle = NULL;
-  LOOP->next_idle_handle = NULL;
+  loop->next_prepare_handle = NULL;
+  loop->next_check_handle = NULL;
+  loop->next_idle_handle = NULL;
 
-  LOOP->last_error = uv_ok_;
+  loop->ares_active_sockets = 0;
+  loop->ares_channel = NULL;
 
-  LOOP->err_str = NULL;
+  loop->last_error = uv_ok_;
+}
+
+
+uv_loop_t* uv_default_loop() {
+  if (!uv_default_loop_initialized_) {
+    uv_loop_init(&uv_default_loop_);
+    uv_default_loop_initialized_ = 1;
+  }
+
+  return &uv_default_loop_;
 }
 
 
@@ -75,23 +87,20 @@ void uv_init() {
 
   /* Initialize FS */
   uv_fs_init();
-
-  /* Intialize event loop */
-  uv_loop_init();
 }
 
 
-void uv_ref() {
-  LOOP->refs++;
+void uv_ref(uv_loop_t* loop) {
+  loop->refs++;
 }
 
 
-void uv_unref() {
-  LOOP->refs--;
+void uv_unref(uv_loop_t* loop) {
+  loop->refs--;
 }
 
 
-static void uv_poll(int block) {
+static void uv_poll(uv_loop_t* loop, int block) {
   BOOL success;
   DWORD bytes, timeout;
   ULONG_PTR key;
@@ -99,12 +108,12 @@ static void uv_poll(int block) {
   uv_req_t* req;
 
   if (block) {
-    timeout = uv_get_poll_timeout();
+    timeout = uv_get_poll_timeout(loop);
   } else {
     timeout = 0;
   }
 
-  success = GetQueuedCompletionStatus(LOOP->iocp,
+  success = GetQueuedCompletionStatus(loop->iocp,
                                       &bytes,
                                       &key,
                                       &overlapped,
@@ -114,7 +123,7 @@ static void uv_poll(int block) {
     /* Package was dequeued */
     req = uv_overlapped_to_req(overlapped);
 
-    uv_insert_pending_req(req);
+    uv_insert_pending_req(loop, req);
 
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
@@ -123,7 +132,7 @@ static void uv_poll(int block) {
 }
 
 
-static void uv_poll_ex(int block) {
+static void uv_poll_ex(uv_loop_t* loop, int block) {
   BOOL success;
   DWORD timeout;
   uv_req_t* req;
@@ -132,14 +141,14 @@ static void uv_poll_ex(int block) {
   ULONG i;
 
   if (block) {
-    timeout = uv_get_poll_timeout();
+    timeout = uv_get_poll_timeout(loop);
   } else {
     timeout = 0;
   }
 
   assert(pGetQueuedCompletionStatusEx);
 
-  success = pGetQueuedCompletionStatusEx(LOOP->iocp,
+  success = pGetQueuedCompletionStatusEx(loop->iocp,
                                          overlappeds,
                                          COUNTOF(overlappeds),
                                          &count,
@@ -149,7 +158,7 @@ static void uv_poll_ex(int block) {
     for (i = 0; i < count; i++) {
       /* Package was dequeued */
       req = uv_overlapped_to_req(overlappeds[i].lpOverlapped);
-      uv_insert_pending_req(req);
+      uv_insert_pending_req(loop, req);
     }
   } else if (GetLastError() != WAIT_TIMEOUT) {
     /* Serious error */
@@ -158,43 +167,44 @@ static void uv_poll_ex(int block) {
 }
 
 
-#define UV_LOOP(poll)                                                         \
-  while (LOOP->refs > 0) {                                                    \
-    uv_update_time();                                                         \
-    uv_process_timers();                                                      \
+#define UV_LOOP(loop, poll)                                                   \
+  while ((loop)->refs > 0) {                                                  \
+    uv_update_time((loop));                                                   \
+    uv_process_timers((loop));                                                \
                                                                               \
     /* Call idle callbacks if nothing to do. */                               \
-    if (LOOP->pending_reqs_tail == NULL && LOOP->endgame_handles == NULL) {   \
-      uv_idle_invoke();                                                       \
+    if ((loop)->pending_reqs_tail == NULL &&                                  \
+        (loop)->endgame_handles == NULL) {                                    \
+      uv_idle_invoke((loop));                                                 \
     }                                                                         \
                                                                               \
     /* Completely flush all pending reqs and endgames. */                     \
     /* We do even when we just called the idle callbacks because those may */ \
     /* have closed handles or started requests that short-circuited. */       \
-    while (LOOP->pending_reqs_tail || LOOP->endgame_handles) {                \
-      uv_process_endgames();                                                  \
-      uv_process_reqs();                                                      \
+    while ((loop)->pending_reqs_tail || (loop)->endgame_handles) {            \
+      uv_process_endgames((loop));                                            \
+      uv_process_reqs((loop));                                                \
     }                                                                         \
                                                                               \
-    if (LOOP->refs <= 0) {                                                    \
+    if ((loop)->refs <= 0) {                                                  \
       break;                                                                  \
     }                                                                         \
                                                                               \
-    uv_prepare_invoke();                                                      \
+    uv_prepare_invoke((loop));                                                \
                                                                               \
-    poll(LOOP->idle_handles == NULL && LOOP->refs > 0);                       \
+    poll((loop), (loop)->idle_handles == NULL && (loop)->refs > 0);           \
                                                                               \
-    uv_check_invoke();                                                        \
+    uv_check_invoke((loop));                                                  \
   }
 
 
-int uv_run() {
+int uv_run(uv_loop_t* loop) {
   if (pGetQueuedCompletionStatusEx) {
-    UV_LOOP(uv_poll_ex);
+    UV_LOOP(loop, uv_poll_ex);
   } else {
-    UV_LOOP(uv_poll);
+    UV_LOOP(loop, uv_poll);
   }
 
-  assert(LOOP->refs == 0);
+  assert(loop->refs == 0);
   return 0;
 }

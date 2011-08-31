@@ -27,13 +27,27 @@
 #include "internal.h"
 
 
-int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size, char* utf8Buffer, size_t utf8Size) {
-  return WideCharToMultiByte(CP_UTF8, 0, utf16Buffer, utf16Size, utf8Buffer, utf8Size, NULL, NULL);
+int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
+    char* utf8Buffer, size_t utf8Size) {
+  return WideCharToMultiByte(CP_UTF8,
+                             0,
+                             utf16Buffer,
+                             utf16Size,
+                             utf8Buffer,
+                             utf8Size,
+                             NULL,
+                             NULL);
 }
 
 
-int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer, size_t utf16Size) {
-  return MultiByteToWideChar(CP_UTF8, 0, utf8Buffer, -1, utf16Buffer, utf16Size);
+int uv_utf8_to_utf16(const char* utf8Buffer, wchar_t* utf16Buffer,
+    size_t utf16Size) {
+  return MultiByteToWideChar(CP_UTF8,
+                             0,
+                             utf8Buffer,
+                             -1,
+                             utf16Buffer,
+                             utf16Size);
 }
 
 
@@ -55,7 +69,7 @@ int uv_exepath(char* buffer, size_t* size) {
   /* Get the path as UTF-16 */
   utf16Size = GetModuleFileNameW(NULL, utf16Buffer, *size - 1);
   if (utf16Size <= 0) {
-    uv_set_sys_error(GetLastError());
+    /* uv_set_sys_error(loop, GetLastError()); */
     retVal = -1;
     goto done;
   }
@@ -65,7 +79,7 @@ int uv_exepath(char* buffer, size_t* size) {
   /* Convert to UTF-8 */
   *size = uv_utf16_to_utf8(utf16Buffer, utf16Size, buffer, *size);
   if (!*size) {
-    uv_set_sys_error(GetLastError());
+    /* uv_set_sys_error(loop, GetLastError()); */
     retVal = -1;
     goto done;
   }

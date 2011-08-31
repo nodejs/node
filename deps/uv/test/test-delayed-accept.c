@@ -57,16 +57,16 @@ static void do_accept(uv_timer_t* timer_handle, int status) {
   ASSERT(status == 0);
   ASSERT(accepted_handle != NULL);
 
-  uv_tcp_init(accepted_handle);
+  uv_tcp_init(uv_default_loop(), accepted_handle);
 
-  /* Test to that uv_counters()->tcp_init does not increase across the uv_accept. */
-  tcpcnt = uv_counters()->tcp_init;
+  /* Test to that uv_default_loop()->counters.tcp_init does not increase across the uv_accept. */
+  tcpcnt = uv_default_loop()->counters.tcp_init;
 
   server = (uv_tcp_t*)timer_handle->data;
   r = uv_accept((uv_stream_t*)server, (uv_stream_t*)accepted_handle);
   ASSERT(r == 0);
 
-  ASSERT(uv_counters()->tcp_init == tcpcnt);
+  ASSERT(uv_default_loop()->counters.tcp_init == tcpcnt);
 
   do_accept_called++;
 
@@ -93,7 +93,7 @@ static void connection_cb(uv_stream_t* tcp, int status) {
   ASSERT(timer_handle != NULL);
 
   /* Accept the client after 1 second */
-  r = uv_timer_init(timer_handle);
+  r = uv_timer_init(uv_default_loop(), timer_handle);
   ASSERT(r == 0);
 
   timer_handle->data = tcp;
@@ -112,10 +112,10 @@ static void start_server() {
 
   ASSERT(server != NULL);
 
-  r = uv_tcp_init(server);
+  r = uv_tcp_init(uv_default_loop(), server);
   ASSERT(r == 0);
-  ASSERT(uv_counters()->tcp_init == 1);
-  ASSERT(uv_counters()->handle_init == 1);
+  ASSERT(uv_default_loop()->counters.tcp_init == 1);
+  ASSERT(uv_default_loop()->counters.handle_init == 1);
 
   r = uv_tcp_bind(server, addr);
   ASSERT(r == 0);
@@ -134,11 +134,11 @@ static void read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
 
   if (nread != -1) {
     ASSERT(nread == 0);
-    ASSERT(uv_last_error().code == UV_EAGAIN);
+    ASSERT(uv_last_error(uv_default_loop()).code == UV_EAGAIN);
   } else {
     ASSERT(tcp != NULL);
     ASSERT(nread == -1);
-    ASSERT(uv_last_error().code == UV_EOF);
+    ASSERT(uv_last_error(uv_default_loop()).code == UV_EOF);
     uv_close((uv_handle_t*)tcp, close_cb);
   }
 }
@@ -170,7 +170,7 @@ static void client_connect() {
   ASSERT(client != NULL);
   ASSERT(connect_req != NULL);
 
-  r = uv_tcp_init(client);
+  r = uv_tcp_init(uv_default_loop(), client);
   ASSERT(r == 0);
 
   r = uv_tcp_connect(connect_req, client, addr, connect_cb);
@@ -187,7 +187,7 @@ TEST_IMPL(delayed_accept) {
   client_connect();
   client_connect();
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(connection_cb_called == 2);
   ASSERT(do_accept_called == 2);

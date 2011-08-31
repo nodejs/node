@@ -32,6 +32,8 @@
 
 const char* name = "localhost";
 
+static uv_loop_t* loop;
+
 static uv_getaddrinfo_t handles[CONCURRENT_CALLS];
 
 static int calls_initiated = 0;
@@ -58,7 +60,7 @@ static void getaddrinfo_initiate(uv_getaddrinfo_t* handle) {
 
   calls_initiated++;
 
-  r = uv_getaddrinfo(handle, &getaddrinfo_cb, name, NULL, NULL);
+  r = uv_getaddrinfo(loop, handle, &getaddrinfo_cb, name, NULL, NULL);
   ASSERT(r == 0);
 }
 
@@ -66,19 +68,20 @@ static void getaddrinfo_initiate(uv_getaddrinfo_t* handle) {
 BENCHMARK_IMPL(getaddrinfo) {
   int i;
 
-  uv_init();
+  uv_init(loop);
+  loop = uv_default_loop();
 
-  uv_update_time();
-  start_time = uv_now();
+  uv_update_time(loop);
+  start_time = uv_now(loop);
 
   for (i = 0; i < CONCURRENT_CALLS; i++) {
     getaddrinfo_initiate(&handles[i]);
   }
 
-  uv_run();
+  uv_run(loop);
 
-  uv_update_time();
-  end_time = uv_now();
+  uv_update_time(loop);
+  end_time = uv_now(loop);
 
   ASSERT(calls_initiated == TOTAL_CALLS);
   ASSERT(calls_completed == TOTAL_CALLS);

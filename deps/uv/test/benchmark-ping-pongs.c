@@ -46,6 +46,8 @@ typedef struct buf_s {
 
 static char PING[] = "PING\n";
 
+static uv_loop_t* loop;
+
 static buf_t* buf_freelist = NULL;
 static int pinger_shutdown_cb_called;
 static int completed_pingers = 0;
@@ -130,7 +132,7 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
   pinger = (pinger_t*)tcp->data;
 
   if (nread < 0) {
-    ASSERT(uv_last_error().code == UV_EOF);
+    ASSERT(uv_last_error(loop).code == UV_EOF);
 
     if (buf.base) {
       buf_free(buf);
@@ -148,7 +150,7 @@ static void pinger_read_cb(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
     pinger->state = (pinger->state + 1) % (sizeof(PING) - 1);
     if (pinger->state == 0) {
       pinger->pongs++;
-      if (uv_now() - start_time > TIME) {
+      if (uv_now(loop) - start_time > TIME) {
         uv_shutdown(&pinger->shutdown_req, (uv_stream_t*) tcp, pinger_shutdown_cb);
         break;
       } else {
@@ -185,7 +187,7 @@ static void pinger_new() {
   pinger->pongs = 0;
 
   /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_tcp_init(&pinger->tcp);
+  r = uv_tcp_init(loop, &pinger->tcp);
   ASSERT(!r);
 
   pinger->tcp.data = pinger;
@@ -199,10 +201,12 @@ static void pinger_new() {
 
 BENCHMARK_IMPL(ping_pongs) {
   uv_init();
-  start_time = uv_now();
+  loop = uv_default_loop();
+
+  start_time = uv_now(loop);
 
   pinger_new();
-  uv_run();
+  uv_run(loop);
 
   ASSERT(completed_pingers == 1);
 

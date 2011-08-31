@@ -42,6 +42,16 @@ typedef struct {
 
 typedef int uv_file;
 
+#define UV_LOOP_PRIVATE_FIELDS \
+  ares_channel channel; \
+  /* \
+   * While the channel is active this timer is called once per second to be \
+   * sure that we're always calling ares_process. See the warning above the \
+   * definition of ares_timeout(). \
+   */ \
+  ev_timer timer; \
+  struct ev_loop* ev;
+
 #define UV_REQ_BUFSML_SIZE (4)
 
 #define UV_REQ_PRIVATE_FIELDS  /* empty */

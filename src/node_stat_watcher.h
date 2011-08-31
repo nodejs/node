@@ -23,7 +23,7 @@
 #define NODE_STAT_WATCHER_H_
 
 #include <node.h>
-#include <ev.h>
+#include <uv-private/ev.h>
 
 namespace node {
 

@@ -40,12 +40,13 @@ static char uv_zero_[] = "";
 static unsigned int active_udp_streams = 0;
 
 
-int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
+int uv_udp_getsockname(uv_loop_t* loop, uv_udp_t* handle,
+    struct sockaddr* name, int* namelen) {
   int result;
 
   result = getsockname(handle->socket, name, namelen);
   if (result != 0) {
-    uv_set_sys_error(WSAGetLastError());
+    uv_set_sys_error(loop, WSAGetLastError());
     return -1;
   }
 
@@ -53,37 +54,38 @@ int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
 }
 
 
-static int uv_udp_set_socket(uv_udp_t* handle, SOCKET socket) {
+static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
+    SOCKET socket) {
   DWORD yes = 1;
 
   assert(handle->socket == INVALID_SOCKET);
 
   /* Set the socket to nonblocking mode */
   if (ioctlsocket(socket, FIONBIO, &yes) == SOCKET_ERROR) {
-    uv_set_sys_error(WSAGetLastError());
+    uv_set_sys_error(loop, WSAGetLastError());
     return -1;
   }
 
   /* Make the socket non-inheritable */
   if (!SetHandleInformation((HANDLE)socket, HANDLE_FLAG_INHERIT, 0)) {
-    uv_set_sys_error(GetLastError());
+    uv_set_sys_error(loop, GetLastError());
     return -1;
   }
 
   /* Associate it with the I/O completion port. */
   /* Use uv_handle_t pointer as completion key. */
   if (CreateIoCompletionPort((HANDLE)socket,
-                             LOOP->iocp,
+                             loop->iocp,
                              (ULONG_PTR)socket,
                              0) == NULL) {
-    uv_set_sys_error(GetLastError());
+    uv_set_sys_error(loop, GetLastError());
     return -1;
   }
 
   if (pSetFileCompletionNotificationModes) {
-    if (!pSetFileCompletionNotificationModes((HANDLE)socket, FILE_SKIP_SET_EVENT_ON_HANDLE |
-       FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
-      uv_set_sys_error(GetLastError());
+    if (!pSetFileCompletionNotificationModes((HANDLE)socket,
+       FILE_SKIP_SET_EVENT_ON_HANDLE | FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
+      uv_set_sys_error(loop, GetLastError());
       return -1;
     }
 
@@ -96,26 +98,27 @@ static int uv_udp_set_socket(uv_udp_t* handle, SOCKET socket) {
 }
 
 
-int uv_udp_init(uv_udp_t* handle) {
+int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
   handle->type = UV_UDP;
   handle->socket = INVALID_SOCKET;
   handle->reqs_pending = 0;
+  handle->loop = loop;
   handle->flags = 0;
 
-  uv_req_init((uv_req_t*) &(handle->recv_req));
+  uv_req_init(loop, (uv_req_t*) &(handle->recv_req));
   handle->recv_req.type = UV_UDP_RECV;
   handle->recv_req.data = handle;
 
-  uv_ref();
+  uv_ref(loop);
 
-  uv_counters()->handle_init++;
-  uv_counters()->udp_init++;
+  loop->counters.handle_init++;
+  loop->counters.udp_init++;
 
   return 0;
 }
 
 
-void uv_udp_endgame(uv_udp_t* handle) {
+void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
   if (handle->flags & UV_HANDLE_CLOSING &&
       handle->reqs_pending == 0) {
     assert(!(handle->flags & UV_HANDLE_CLOSED));
@@ -125,30 +128,31 @@ void uv_udp_endgame(uv_udp_t* handle) {
       handle->close_cb((uv_handle_t*)handle);
     }
 
-    uv_unref();
+    uv_unref(loop);
   }
 }
 
 
 static int uv__bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
     int addrsize, unsigned int flags) {
+  uv_loop_t* loop = handle->loop;
   DWORD err;
   int r;
   SOCKET sock;
 
   if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
     /* UV_UDP_IPV6ONLY is supported only for IPV6 sockets */
-    uv_set_sys_error(UV_EINVAL);
+    uv_set_sys_error(loop, UV_EINVAL);
   }
 
   if (handle->socket == INVALID_SOCKET) {
     sock = socket(domain, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET) {
-      uv_set_sys_error(WSAGetLastError());
+      uv_set_sys_error(loop, WSAGetLastError());
       return -1;
     }
 
-    if (uv_udp_set_socket(handle, sock) == -1) {
+    if (uv_udp_set_socket(loop, handle, sock) == -1) {
       closesocket(sock);
       return -1;
     }
@@ -162,14 +166,18 @@ static int uv__bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
     /* TODO: how to handle errors? This may fail if there is no ipv4 stack */
     /* available, or when run on XP/2003 which have no support for dualstack */
     /* sockets. For now we're silently ignoring the error. */
-    setsockopt(sock, IPPROTO_IPV6, IPV6_V6ONLY, (const char*) &off, sizeof off);
+    setsockopt(sock,
+               IPPROTO_IPV6,
+               IPV6_V6ONLY,
+               (const char*) &off,
+               sizeof off);
   }
 
   r = bind(handle->socket, addr, addrsize);
 
   if (r == SOCKET_ERROR) {
     err = WSAGetLastError();
-    uv_set_sys_error(WSAGetLastError());
+    uv_set_sys_error(loop, WSAGetLastError());
     return -1;
   }
 
@@ -179,9 +187,12 @@ static int uv__bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
 }
 
 
-int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned int flags) {
+int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
+    unsigned int flags) {
+  uv_loop_t* loop = handle->loop;
+
   if (addr.sin_family != AF_INET) {
-    uv_set_sys_error(WSAEFAULT);
+    uv_set_sys_error(loop, WSAEFAULT);
     return -1;
   }
 
@@ -193,9 +204,12 @@ int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned int flags) {
 }
 
 
-int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned int flags) {
+int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
+    unsigned int flags) {
+  uv_loop_t* loop = handle->loop;
+
   if (addr.sin6_family != AF_INET6) {
-    uv_set_sys_error(WSAEFAULT);
+    uv_set_sys_error(loop, WSAEFAULT);
     return -1;
   }
 
@@ -213,7 +227,7 @@ int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned int flags)
 }
 
 
-static void uv_udp_queue_recv(uv_udp_t* handle) {
+static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
   uv_req_t* req;
   uv_buf_t buf;
   DWORD bytes, flags;
@@ -256,7 +270,7 @@ static void uv_udp_queue_recv(uv_udp_t* handle) {
       handle->flags |= UV_HANDLE_READ_PENDING;
       req->overlapped.InternalHigh = bytes;
       handle->reqs_pending++;
-      uv_insert_pending_req(req);
+      uv_insert_pending_req(loop, req);
     } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
       /* The req will be processed with IOCP. */
       handle->flags |= UV_HANDLE_READ_PENDING;
@@ -264,7 +278,7 @@ static void uv_udp_queue_recv(uv_udp_t* handle) {
     } else {
       /* Make this req pending reporting an error. */
       SET_REQ_ERROR(req, WSAGetLastError());
-      uv_insert_pending_req(req);
+      uv_insert_pending_req(loop, req);
       handle->reqs_pending++;
     }
 #if 0
@@ -288,7 +302,7 @@ static void uv_udp_queue_recv(uv_udp_t* handle) {
       handle->flags |= UV_HANDLE_READ_PENDING;
       req->overlapped.InternalHigh = bytes;
       handle->reqs_pending++;
-      uv_insert_pending_req(req);
+      uv_insert_pending_req(loop, req);
     } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
       /* The req will be processed with IOCP. */
       handle->flags |= UV_HANDLE_READ_PENDING;
@@ -296,7 +310,7 @@ static void uv_udp_queue_recv(uv_udp_t* handle) {
     } else {
       /* Make this req pending reporting an error. */
       SET_REQ_ERROR(req, WSAGetLastError());
-      uv_insert_pending_req(req);
+      uv_insert_pending_req(loop, req);
       handle->reqs_pending++;
     }
   }
@@ -304,9 +318,12 @@ static void uv_udp_queue_recv(uv_udp_t* handle) {
 }
 
 
-int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb, uv_udp_recv_cb recv_cb) {
+int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb,
+    uv_udp_recv_cb recv_cb) {
+  uv_loop_t* loop = handle->loop;
+
   if (handle->flags & UV_HANDLE_READING) {
-    uv_set_sys_error(WSAEALREADY);
+    uv_set_sys_error(loop, WSAEALREADY);
     return -1;
   }
 
@@ -324,7 +341,7 @@ int uv_udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloc_cb, uv_udp_recv_cb rec
   /* If reading was stopped and then started again, there could stell be a */
   /* recv request pending. */
   if (!(handle->flags & UV_HANDLE_READ_PENDING))
-    uv_udp_queue_recv(handle);
+    uv_udp_queue_recv(loop, handle);
 
   return 0;
 }
@@ -342,6 +359,7 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 
 int uv_udp_connect6(uv_connect_t* req, uv_udp_t* handle,
     struct sockaddr_in6 address, uv_connect_cb cb) {
+  uv_loop_t* loop = handle->loop;
   int addrsize = sizeof(struct sockaddr_in6);
   BOOL success;
   DWORD bytes;
@@ -352,7 +370,7 @@ int uv_udp_connect6(uv_connect_t* req, uv_udp_t* handle,
   }
 
   if (address.sin6_family != AF_INET6) {
-    uv_set_sys_error(WSAEFAULT);
+    uv_set_sys_error(loop, WSAEFAULT);
     return -1;
   }
 
@@ -360,7 +378,7 @@ int uv_udp_connect6(uv_connect_t* req, uv_udp_t* handle,
       uv_udp_bind6(handle, uv_addr_ip6_any_, 0) < 0)
     return -1;
 
-  uv_req_init((uv_req_t*) req);
+  uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_CONNECT;
   req->handle = (uv_stream_t*) handle;
   req->cb = cb;
@@ -376,11 +394,11 @@ int uv_udp_connect6(uv_connect_t* req, uv_udp_t* handle,
 
   if (UV_SUCCEEDED_WITHOUT_IOCP(success)) {
     handle->reqs_pending++;
-    uv_insert_pending_req((uv_req_t*)req);
+    uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(success)) {
     handle->reqs_pending++;
   } else {
-    uv_set_sys_error(WSAGetLastError());
+    uv_set_sys_error(loop, WSAGetLastError());
     return -1;
   }
 
@@ -390,9 +408,10 @@ int uv_udp_connect6(uv_connect_t* req, uv_udp_t* handle,
 
 static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     int bufcnt, struct sockaddr* addr, int addr_len, uv_udp_send_cb cb) {
+  uv_loop_t* loop = handle->loop;
   DWORD result, bytes;
 
-  uv_req_init((uv_req_t*) req);
+  uv_req_init(loop, (uv_req_t*) req);
   req->type = UV_UDP_SEND;
   req->handle = handle;
   req->cb = cb;
@@ -412,14 +431,14 @@ static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     /* Request completed immediately. */
     req->queued_bytes = 0;
     handle->reqs_pending++;
-    uv_insert_pending_req((uv_req_t*)req);
+    uv_insert_pending_req(loop, (uv_req_t*)req);
   } else if (UV_SUCCEEDED_WITH_IOCP(result == 0)) {
     /* Request queued by the kernel. */
     req->queued_bytes = uv_count_bufs(bufs, bufcnt);
     handle->reqs_pending++;
   } else {
     /* Send failed due to an error. */
-    uv_set_sys_error(WSAGetLastError());
+    uv_set_sys_error(loop, WSAGetLastError());
     return -1;
   }
 
@@ -463,7 +482,8 @@ int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
 }
 
 
-void uv_process_udp_recv_req(uv_udp_t* handle, uv_req_t* req) {
+void uv_process_udp_recv_req(uv_loop_t* loop, uv_udp_t* handle,
+    uv_req_t* req) {
   uv_buf_t buf;
   int partial;
 
@@ -475,7 +495,7 @@ void uv_process_udp_recv_req(uv_udp_t* handle, uv_req_t* req) {
       GET_REQ_STATUS(req) != STATUS_RECEIVE_EXPEDITED) {
     /* An error occurred doing the read. */
     if ((handle->flags & UV_HANDLE_READING)) {
-      LOOP->last_error = GET_REQ_UV_SOCK_ERROR(req);
+      loop->last_error = GET_REQ_UV_SOCK_ERROR(req);
       uv_udp_recv_stop(handle);
 #if 0
       buf = (handle->flags & UV_HANDLE_ZERO_READ) ?
@@ -532,11 +552,11 @@ void uv_process_udp_recv_req(uv_udp_t* handle, uv_req_t* req) {
     } else {
       err = WSAGetLastError();
       if (err == WSAEWOULDBLOCK) {
-        uv_set_sys_error(WSAEWOULDBLOCK);
+        uv_set_sys_error(loop, WSAEWOULDBLOCK);
         handle->recv_cb(handle, 0, buf, NULL, 0);
       } else {
         /* Ouch! serious error. */
-        uv_set_sys_error(err);
+        uv_set_sys_error(loop, err);
         handle->recv_cb(handle, -1, buf, NULL, 0);
       }
     }
@@ -547,21 +567,22 @@ done:
   /* Post another read if still reading and not closing. */
   if ((handle->flags & UV_HANDLE_READING) &&
       !(handle->flags & UV_HANDLE_READ_PENDING)) {
-    uv_udp_queue_recv(handle);
+    uv_udp_queue_recv(loop, handle);
   }
 
   DECREASE_PENDING_REQ_COUNT(handle);
 }
 
 
-void uv_process_udp_send_req(uv_udp_t* handle, uv_udp_send_t* req) {
+void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
+    uv_udp_send_t* req) {
   assert(handle->type == UV_UDP);
 
   if (req->cb) {
     if (REQ_SUCCESS(req)) {
       req->cb(req, 0);
     } else {
-      LOOP->last_error = GET_REQ_UV_SOCK_ERROR(req);
+      loop->last_error = GET_REQ_UV_SOCK_ERROR(req);
       req->cb(req, -1);
     }
   }

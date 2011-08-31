@@ -65,6 +65,8 @@ typedef struct {
 
 static char buffer[] = "QS";
 
+static uv_loop_t* loop;
+
 static tcp_conn_rec tcp_conns[MAX_CONNS];
 static pipe_conn_rec pipe_conns[MAX_CONNS];
 
@@ -89,7 +91,7 @@ static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
 
 static void after_write(uv_write_t* req, int status) {
   if (status != 0) {
-    fprintf(stderr, "write error %s\n", uv_err_name(uv_last_error()));
+    fprintf(stderr, "write error %s\n", uv_err_name(uv_last_error(loop)));
     uv_close((uv_handle_t*)req->handle, close_cb);
     conns_failed++;
     return;
@@ -134,7 +136,7 @@ static void connect_cb(uv_connect_t* req, int status) {
 
 static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   conn_rec* p = (conn_rec*)stream->data;
-  uv_err_t err = uv_last_error();
+  uv_err_t err = uv_last_error(loop);
 
   ASSERT(stream != NULL);
 
@@ -150,7 +152,7 @@ static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
     } else if (err.code == UV_ECONNRESET) {
       conns_failed++;
     } else {
-      fprintf(stderr, "read error %s\n", uv_err_name(uv_last_error()));
+      fprintf(stderr, "read error %s\n", uv_err_name(uv_last_error(loop)));
       ASSERT(0);
     }
   }
@@ -167,7 +169,7 @@ static void close_cb(uv_handle_t* handle) {
   printf("close_cb %d\n", p->i);
 #endif
 
-  if (uv_now() - start < 10000) {
+  if (uv_now(loop) - start < 10000) {
     p->make_connect(p);
   }
 }
@@ -195,7 +197,7 @@ static void tcp_make_connect(conn_rec* p) {
   struct sockaddr_in addr;
   int r;
 
-  r = uv_tcp_init((uv_tcp_t*)&p->stream);
+  r = uv_tcp_init(loop, (uv_tcp_t*)&p->stream);
   ASSERT(r == 0);
 
   addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
@@ -203,7 +205,7 @@ static void tcp_make_connect(conn_rec* p) {
   r = uv_tcp_connect(&((tcp_conn_rec*)p)->conn_req, (uv_tcp_t*)&p->stream, addr, connect_cb);
   if (r) {
     fprintf(stderr, "uv_tcp_connect error %s\n",
-        uv_err_name(uv_last_error()));
+        uv_err_name(uv_last_error(loop)));
     ASSERT(0);
   }
 
@@ -220,13 +222,13 @@ static void tcp_make_connect(conn_rec* p) {
 static void pipe_make_connect(conn_rec* p) {
   int r;
 
-  r = uv_pipe_init((uv_pipe_t*)&p->stream);
+  r = uv_pipe_init(loop, (uv_pipe_t*)&p->stream);
   ASSERT(r == 0);
 
   r = uv_pipe_connect(&((pipe_conn_rec*)p)->conn_req, (uv_pipe_t*)&p->stream, TEST_PIPENAME, connect_cb);
   if (r) {
     fprintf(stderr, "uv_tcp_connect error %s\n",
-        uv_err_name(uv_last_error()));
+        uv_err_name(uv_last_error(loop)));
     ASSERT(0);
   }
 
@@ -276,9 +278,10 @@ static int pound_it(int concurrency,
   uint64_t end_time;
 
   uv_init();
+  loop = uv_default_loop();
 
-  uv_update_time();
-  start = uv_now();
+  uv_update_time(loop);
+  start = uv_now(loop);
 
   /* Run benchmark for at least five seconds. */
   start_time = uv_hrtime();
@@ -288,7 +291,7 @@ static int pound_it(int concurrency,
   r = do_connect(concurrency, make_connect, arg);
   ASSERT(!r);
 
-  uv_run();
+  uv_run(loop);
 
   end_time = uv_hrtime();
 

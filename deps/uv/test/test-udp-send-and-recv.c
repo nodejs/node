@@ -172,7 +172,7 @@ TEST_IMPL(udp_send_and_recv) {
 
   uv_init();
 
-  r = uv_udp_init(&server);
+  r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 
   r = uv_udp_bind(&server, addr, 0);
@@ -183,7 +183,7 @@ TEST_IMPL(udp_send_and_recv) {
 
   addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
 
-  r = uv_udp_init(&client);
+  r = uv_udp_init(uv_default_loop(), &client);
   ASSERT(r == 0);
 
   /* client sends "PING", expects "PONG" */
@@ -198,7 +198,7 @@ TEST_IMPL(udp_send_and_recv) {
   ASSERT(sv_send_cb_called == 0);
   ASSERT(sv_recv_cb_called == 0);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(cl_send_cb_called == 1);
   ASSERT(cl_recv_cb_called == 1);

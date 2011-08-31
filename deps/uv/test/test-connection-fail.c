@@ -69,7 +69,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
 static void on_connect_with_close(uv_connect_t *req, int status) {
   ASSERT((uv_stream_t*) &tcp == req->handle);
   ASSERT(status == -1);
-  ASSERT(uv_last_error().code == UV_ECONNREFUSED);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ECONNREFUSED);
   connect_cb_calls++;
 
   ASSERT(close_cb_calls == 0);
@@ -79,7 +79,7 @@ static void on_connect_with_close(uv_connect_t *req, int status) {
 
 static void on_connect_without_close(uv_connect_t *req, int status) {
   ASSERT(status == -1);
-  ASSERT(uv_last_error().code == UV_ECONNREFUSED);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_ECONNREFUSED);
   connect_cb_calls++;
 
   uv_timer_start(&timer, timer_cb, 100, 0);
@@ -98,7 +98,7 @@ void connection_fail(uv_connect_cb connect_cb) {
   server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
 
   /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_tcp_init(&tcp);
+  r = uv_tcp_init(uv_default_loop(), &tcp);
   ASSERT(!r);
 
   /* We are never doing multiple reads/connects at a time anyway. */
@@ -107,7 +107,7 @@ void connection_fail(uv_connect_cb connect_cb) {
   r = uv_tcp_connect(&req, &tcp, server_addr, connect_cb);
   ASSERT(!r);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(connect_cb_calls == 1);
   ASSERT(close_cb_calls == 1);
@@ -138,7 +138,8 @@ TEST_IMPL(connection_fail) {
 TEST_IMPL(connection_fail_doesnt_auto_close) {
   uv_init();
 
-  uv_timer_init(&timer);
+
+  uv_timer_init(uv_default_loop(), &timer);
 
   connection_fail(on_connect_without_close);
 

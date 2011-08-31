@@ -184,12 +184,12 @@ TEST_IMPL(async) {
 
   uv_init();
 
-  r = uv_prepare_init(&prepare_handle);
+  r = uv_prepare_init(uv_default_loop(), &prepare_handle);
   ASSERT(r == 0);
   r = uv_prepare_start(&prepare_handle, prepare_cb);
   ASSERT(r == 0);
 
-  r = uv_async_init(&async1_handle, async1_cb);
+  r = uv_async_init(uv_default_loop(), &async1_handle, async1_cb);
   ASSERT(r == 0);
 
 #if 0
@@ -197,7 +197,7 @@ TEST_IMPL(async) {
   ASSERT(r == 0);
 #endif
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   r = uv_wait_thread(thread1_id);

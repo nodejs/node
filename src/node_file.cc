@@ -203,14 +203,14 @@ struct fs_req_wrap {
 
 #define ASYNC_CALL(func, callback, ...)                           \
   uv_fs_t* req = new uv_fs_t();                                   \
-  int r = uv_fs_##func(req, __VA_ARGS__, After);                  \
+  int r = uv_fs_##func(uv_default_loop(), req, __VA_ARGS__, After); \
   assert(r == 0);                                                 \
   req->data = cb_persist(callback);                               \
   return Undefined();
 
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
-  uv_fs_##func(&req_wrap.req, __VA_ARGS__, NULL);                 \
+  uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
   if (req_wrap.req.result == -1) {                                \
     return ThrowException(                                        \
       ErrnoException(req_wrap.req.errorno, #func, "", path));     \

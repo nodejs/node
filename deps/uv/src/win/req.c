@@ -26,8 +26,8 @@
 #include "internal.h"
 
 
-void uv_req_init(uv_req_t* req) {
-  uv_counters()->req_init++;
+void uv_req_init(uv_loop_t* loop, uv_req_t* req) {
+  loop->counters.req_init++;
   req->type = UV_UNKNOWN_REQ;
   SET_REQ_SUCCESS(req);
 }
@@ -38,29 +38,29 @@ uv_req_t* uv_overlapped_to_req(OVERLAPPED* overlapped) {
 }
 
 
-void uv_insert_pending_req(uv_req_t* req) {
+void uv_insert_pending_req(uv_loop_t* loop, uv_req_t* req) {
   req->next_req = NULL;
-  if (LOOP->pending_reqs_tail) {
-    req->next_req = LOOP->pending_reqs_tail->next_req;
-    LOOP->pending_reqs_tail->next_req = req;
-    LOOP->pending_reqs_tail = req;
+  if (loop->pending_reqs_tail) {
+    req->next_req = loop->pending_reqs_tail->next_req;
+    loop->pending_reqs_tail->next_req = req;
+    loop->pending_reqs_tail = req;
   } else {
     req->next_req = req;
-    LOOP->pending_reqs_tail = req;
+    loop->pending_reqs_tail = req;
   }
 }
 
 
-static uv_req_t* uv_remove_pending_req() {
+static uv_req_t* uv_remove_pending_req(uv_loop_t* loop) {
   uv_req_t* req;
 
-  if (LOOP->pending_reqs_tail) {
-    req = LOOP->pending_reqs_tail->next_req;
+  if (loop->pending_reqs_tail) {
+    req = loop->pending_reqs_tail->next_req;
 
-    if (req == LOOP->pending_reqs_tail) {
-      LOOP->pending_reqs_tail = NULL;
+    if (req == loop->pending_reqs_tail) {
+      loop->pending_reqs_tail = NULL;
     } else {
-      LOOP->pending_reqs_tail->next_req = req->next_req;
+      loop->pending_reqs_tail->next_req = req->next_req;
     }
 
     return req;
@@ -72,15 +72,19 @@ static uv_req_t* uv_remove_pending_req() {
 }
 
 
-#define DELEGATE_STREAM_REQ(req, method, handle_at)                           \
+#define DELEGATE_STREAM_REQ(loop, req, method, handle_at)                     \
   do {                                                                        \
     switch (((uv_handle_t*) (req)->handle_at)->type) {                        \
       case UV_TCP:                                                            \
-        uv_process_tcp_##method##_req((uv_tcp_t*) ((req)->handle_at), req);   \
+        uv_process_tcp_##method##_req(loop,                                   \
+                                      (uv_tcp_t*) ((req)->handle_at),         \
+                                      req);                                   \
         break;                                                                \
                                                                               \
       case UV_NAMED_PIPE:                                                     \
-        uv_process_pipe_##method##_req((uv_pipe_t*) ((req)->handle_at), req); \
+        uv_process_pipe_##method##_req(loop,                                  \
+                                       (uv_pipe_t*) ((req)->handle_at),       \
+                                       req);                                  \
         break;                                                                \
                                                                               \
       default:                                                                \
@@ -89,73 +93,76 @@ static uv_req_t* uv_remove_pending_req() {
   } while (0)
 
 
-void uv_process_reqs() {
+void uv_process_reqs(uv_loop_t* loop) {
   uv_req_t* req;
 
-  while (req = uv_remove_pending_req()) {
+  while (req = uv_remove_pending_req(loop)) {
     switch (req->type) {
       case UV_READ:
-        DELEGATE_STREAM_REQ(req, read, data);
+        DELEGATE_STREAM_REQ(loop, req, read, data);
         break;
 
       case UV_WRITE:
-        DELEGATE_STREAM_REQ((uv_write_t*) req, write, handle);
+        DELEGATE_STREAM_REQ(loop, (uv_write_t*) req, write, handle);
         break;
 
       case UV_ACCEPT:
-        DELEGATE_STREAM_REQ(req, accept, data);
+        DELEGATE_STREAM_REQ(loop, req, accept, data);
         break;
 
       case UV_CONNECT:
-        DELEGATE_STREAM_REQ((uv_connect_t*) req, connect, handle);
+        DELEGATE_STREAM_REQ(loop, (uv_connect_t*) req, connect, handle);
         break;
 
       case UV_SHUTDOWN:
         /* Tcp shutdown requests don't come here. */
         assert(((uv_shutdown_t*) req)->handle->type == UV_NAMED_PIPE);
         uv_process_pipe_shutdown_req(
-            (uv_pipe_t*) ((uv_shutdown_t*) req)->handle, (uv_shutdown_t*) req);
+            loop,
+            (uv_pipe_t*) ((uv_shutdown_t*) req)->handle,
+            (uv_shutdown_t*) req);
         break;
 
       case UV_UDP_RECV:
-        uv_process_udp_recv_req((uv_udp_t*) req->data, req);
+        uv_process_udp_recv_req(loop, (uv_udp_t*) req->data, req);
         break;
 
       case UV_UDP_SEND:
-        uv_process_udp_send_req(((uv_udp_send_t*) req)->handle,
+        uv_process_udp_send_req(loop,
+                                ((uv_udp_send_t*) req)->handle,
                                 (uv_udp_send_t*) req);
         break;
 
       case UV_WAKEUP:
-        uv_process_async_wakeup_req((uv_async_t*) req->data, req);
+        uv_process_async_wakeup_req(loop, (uv_async_t*) req->data, req);
         break;
 
       case UV_ARES_EVENT_REQ:
-        uv_process_ares_event_req((uv_ares_action_t*) req->data, req);
+        uv_process_ares_event_req(loop, (uv_ares_action_t*) req->data, req);
         break;
 
       case UV_ARES_CLEANUP_REQ:
-        uv_process_ares_cleanup_req((uv_ares_task_t*) req->data, req);
+        uv_process_ares_cleanup_req(loop, (uv_ares_task_t*) req->data, req);
         break;
 
       case UV_GETADDRINFO_REQ:
-        uv_process_getaddrinfo_req((uv_getaddrinfo_t*) req->data, req);
+        uv_process_getaddrinfo_req(loop, (uv_getaddrinfo_t*) req->data, req);
         break;
 
       case UV_PROCESS_EXIT:
-        uv_process_proc_exit((uv_process_t*) req->data);
+        uv_process_proc_exit(loop, (uv_process_t*) req->data);
         break;
 
       case UV_PROCESS_CLOSE:
-        uv_process_proc_close((uv_process_t*) req->data);
+        uv_process_proc_close(loop, (uv_process_t*) req->data);
         break;
 
       case UV_FS:
-        uv_process_fs_req((uv_fs_t*) req);
+        uv_process_fs_req(loop, (uv_fs_t*) req);
         break;
 
       case UV_WORK:
-        uv_process_work_req((uv_work_t*) req);
+        uv_process_work_req(loop, (uv_work_t*) req);
         break;
 
       default:

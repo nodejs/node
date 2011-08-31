@@ -67,17 +67,17 @@ class TimerWrap : public HandleWrap {
   TimerWrap(Handle<Object> object)
       : HandleWrap(object, (uv_handle_t*) &handle_) {
     active_ = false;
-    int r = uv_timer_init(&handle_);
+    int r = uv_timer_init(uv_default_loop(), &handle_);
     handle_.data = this;
 
     // uv_timer_init adds a loop reference. (That is, it calls uv_ref.) This
     // is not the behavior we want in Node. Timers should not increase the
     // ref count of the loop except when active.
-    uv_unref();
+    uv_unref(uv_default_loop());
   }
 
   ~TimerWrap() {
-    if (!active_) uv_ref();
+    if (!active_) uv_ref(uv_default_loop());
   }
 
   void StateChange() {
@@ -87,11 +87,11 @@ class TimerWrap : public HandleWrap {
     if (!was_active && active_) {
       // If our state is changing from inactive to active, we
       // increase the loop's reference count.
-      uv_ref();
+      uv_ref(uv_default_loop());
     } else if (was_active && !active_) {
       // If our state is changing from active to inactive, we
       // decrease the loop's reference count.
-      uv_unref();
+      uv_unref(uv_default_loop());
     }
   }
 
@@ -106,7 +106,7 @@ class TimerWrap : public HandleWrap {
     int r = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
 
     // Error starting the timer.
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     wrap->StateChange();
 
@@ -120,7 +120,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_stop(&wrap->handle_);
 
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     wrap->StateChange();
 
@@ -134,7 +134,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_again(&wrap->handle_);
 
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     wrap->StateChange();
 
@@ -160,7 +160,7 @@ class TimerWrap : public HandleWrap {
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
 
-    if (repeat < 0) SetErrno(uv_last_error().code);
+    if (repeat < 0) SetErrno(uv_last_error(uv_default_loop()).code);
 
     return scope.Close(Integer::New(repeat));
   }

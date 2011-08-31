@@ -74,7 +74,7 @@ static void prep_tcploopback() {
   options.tcp_port = htons(TEST_PORT);
   options.flags = ARES_FLAG_USEVC;
 
-  rc = uv_ares_init_options(&channel, &options, optmask);
+  rc = uv_ares_init_options(uv_default_loop(), &channel, &options, optmask);
 
   ASSERT(rc == ARES_SUCCESS);
 }
@@ -104,11 +104,11 @@ TEST_IMPL(gethostbyname) {
                     AF_INET,
                     &aresbynamecallback,
                     &bynamecallbacksig);
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(ares_bynamecallbacks == 1);
 
-  uv_ares_destroy(channel);
+  uv_ares_destroy(uv_default_loop(), channel);
   printf("Done basic gethostbyname test\n");
 
 
@@ -125,7 +125,7 @@ TEST_IMPL(gethostbyname) {
                     AF_INET,
                     &aresbynamecallback,
                     &bynamecallbacksig);
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(ares_bynamecallbacks == 1);
 
@@ -143,11 +143,11 @@ TEST_IMPL(gethostbyname) {
                     &aresbyaddrcallback,
                     &byaddrcallbacksig);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(ares_byaddrcallbacks == 1);
 
-  uv_ares_destroy(channel);
+  uv_ares_destroy(uv_default_loop(), channel);
   printf("Done gethostbyname and gethostbyaddr sequential test\n");
 
 
@@ -179,13 +179,13 @@ TEST_IMPL(gethostbyname) {
                     &aresbyaddrcallback,
                     &byaddrcallbacksig);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(ares_bynamecallbacks == 1);
   ASSERT(ares_byaddrcallbacks == 1);
 
 
-  uv_ares_destroy(channel);
+  uv_ares_destroy(uv_default_loop(), channel);
   printf("Done gethostbyname and gethostbyaddr concurrent test\n");
 
   return 0;

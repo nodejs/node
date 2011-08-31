@@ -38,11 +38,6 @@
     req->errorno = errno;                                                   \
   }
 
-/*
- * Subclass of uv_handle_t. Used for integration of c-ares.
- */
-typedef struct uv_ares_task_s uv_ares_task_t;
-
 struct uv_ares_task_s {
   UV_HANDLE_FIELDS
   UV_ARES_TASK_PRIVATE_FIELDS
@@ -52,9 +47,12 @@ struct uv_ares_task_s {
 
 
 void uv_remove_ares_handle(uv_ares_task_t* handle);
-uv_ares_task_t* uv_find_ares_handle(ares_socket_t sock);
-void uv_add_ares_handle(uv_ares_task_t* handle);
-int uv_ares_handles_empty();
+uv_ares_task_t* uv_find_ares_handle(uv_loop_t*, ares_socket_t sock);
+
+/* TODO Rename to uv_ares_task_init? */
+void uv_add_ares_handle(uv_loop_t* loop, uv_ares_task_t* handle);
+
+int uv_ares_handles_empty(uv_loop_t* loop);
 
 
 #endif /* UV_COMMON_H_ */

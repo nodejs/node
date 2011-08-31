@@ -69,7 +69,7 @@ class StdIOWrap : StreamWrap {
 
     assert(stdHandleType == UV_STDIN || stdHandleType == UV_STDOUT || stdHandleType == UV_STDERR);
 
-    uv_stream_t* stdHandle = uv_std_handle(stdHandleType);
+    uv_stream_t* stdHandle = uv_std_handle(uv_default_loop(), stdHandleType);
     if (stdHandle) {
       HandleScope scope;
       StdIOWrap* wrap = new StdIOWrap(args.This());
@@ -98,7 +98,7 @@ class StdIOWrap : StreamWrap {
     int r = uv_listen(wrap->handle_, SOMAXCONN, OnConnection);
 
     // Error starting the pipe.
-    if (r) SetErrno(uv_last_error().code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
 
     return scope.Close(Integer::New(r));
   }

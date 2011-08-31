@@ -153,7 +153,7 @@ static void idle_1_cb(uv_idle_t* handle, int status) {
 
   /* Init idle_2 and make it active */
   if (!idle_2_is_active) {
-    r = uv_idle_init(&idle_2_handle);
+    r = uv_idle_init(uv_default_loop(), &idle_2_handle);
     ASSERT(r == 0);
     r = uv_idle_start(&idle_2_handle, idle_2_cb);
     ASSERT(r == 0);
@@ -301,23 +301,24 @@ TEST_IMPL(loop_handles) {
 
   uv_init();
 
-  r = uv_prepare_init(&prepare_1_handle);
+
+  r = uv_prepare_init(uv_default_loop(), &prepare_1_handle);
   ASSERT(r == 0);
   r = uv_prepare_start(&prepare_1_handle, prepare_1_cb);
   ASSERT(r == 0);
 
-  r = uv_check_init(&check_handle);
+  r = uv_check_init(uv_default_loop(), &check_handle);
   ASSERT(r == 0);
   r = uv_check_start(&check_handle, check_cb);
   ASSERT(r == 0);
 
   /* initialize only, prepare_2 is started by prepare_1_cb */
-  r = uv_prepare_init(&prepare_2_handle);
+  r = uv_prepare_init(uv_default_loop(), &prepare_2_handle);
   ASSERT(r == 0);
 
   for (i = 0; i < IDLE_COUNT; i++) {
     /* initialize only, idle_1 handles are started by check_cb */
-    r = uv_idle_init(&idle_1_handles[i]);
+    r = uv_idle_init(uv_default_loop(), &idle_1_handles[i]);
     ASSERT(r == 0);
   }
 
@@ -325,13 +326,13 @@ TEST_IMPL(loop_handles) {
 
   /* the timer callback is there to keep the event loop polling */
   /* unref it as it is not supposed to keep the loop alive */
-  r = uv_timer_init(&timer_handle);
+  r = uv_timer_init(uv_default_loop(), &timer_handle);
   ASSERT(r == 0);
   r = uv_timer_start(&timer_handle, timer_cb, TIMEOUT, TIMEOUT);
   ASSERT(r == 0);
-  uv_unref();
+  uv_unref(uv_default_loop());
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(loop_iteration == ITERATIONS);

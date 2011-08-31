@@ -9,5 +9,5 @@
  * safe to call more than once.
  * TODO: uv_eio_deinit
  */
-void uv_eio_init(void);
+void uv_eio_init(uv_loop_t*);
 #endif

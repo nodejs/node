@@ -75,7 +75,7 @@ uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
 
 
 void on_read(uv_stream_t* tcp, ssize_t nread, uv_buf_t buf) {
-  uv_err_t err = uv_last_error();
+  uv_err_t err = uv_last_error(uv_default_loop());
 
   if (nread > 0) {
     output_used += nread;
@@ -120,10 +120,10 @@ TEST_IMPL(spawn_exit_code) {
 
   init_process_options("spawn_helper1", exit_cb);
 
-  r = uv_spawn(&process, options);
+  r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 1);
@@ -141,16 +141,16 @@ TEST_IMPL(spawn_stdout) {
 
   init_process_options("spawn_helper2", exit_cb);
 
-  uv_pipe_init(&out);
+  uv_pipe_init(uv_default_loop(), &out);
   options.stdout_stream = &out;
 
-  r = uv_spawn(&process, options);
+  r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
 
   r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
   ASSERT(r == 0);
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 1);
@@ -174,12 +174,12 @@ int r;
 
   init_process_options("spawn_helper3", exit_cb);
 
-  uv_pipe_init(&out);
-  uv_pipe_init(&in);
+  uv_pipe_init(uv_default_loop(), &out);
+  uv_pipe_init(uv_default_loop(), &in);
   options.stdout_stream = &out;
   options.stdin_stream = &in;
 
-  r = uv_spawn(&process, options);
+  r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
 
   buf.base = buffer;
@@ -190,7 +190,7 @@ int r;
   r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
   ASSERT(r == 0);
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 1);
@@ -208,16 +208,16 @@ TEST_IMPL(spawn_and_kill) {
 
   init_process_options("spawn_helper4", kill_cb);
 
-  r = uv_spawn(&process, options);
+  r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
 
-  r = uv_timer_init(&timer);
+  r = uv_timer_init(uv_default_loop(), &timer);
   ASSERT(r == 0);
 
   r = uv_timer_start(&timer, timer_cb, 500, 0);
   ASSERT(r == 0);
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 1);
@@ -238,7 +238,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
 
   init_process_options("spawn_helper2", exit_cb);
 
-  uv_pipe_init(&out);
+  uv_pipe_init(uv_default_loop(), &out);
   options.stdout_stream = &out;
 
   /* Create a pipe that'll cause a collision. */
@@ -253,13 +253,13 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
                                 NULL);
   ASSERT(pipe_handle != INVALID_HANDLE_VALUE);
 
-  r = uv_spawn(&process, options);
+  r = uv_spawn(uv_default_loop(), &process, options);
   ASSERT(r == 0);
 
   r = uv_read_start((uv_stream_t*) &out, on_alloc, on_read);
   ASSERT(r == 0);
 
-  r = uv_run();
+  r = uv_run(uv_default_loop());
   ASSERT(r == 0);
 
   ASSERT(exit_cb_called == 1);

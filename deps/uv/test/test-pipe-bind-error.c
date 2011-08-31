@@ -47,29 +47,30 @@ TEST_IMPL(pipe_bind_error_addrinuse) {
 
   uv_init();
 
-  r = uv_pipe_init(&server1);
+
+  r = uv_pipe_init(uv_default_loop(), &server1);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server1, TEST_PIPENAME);
   ASSERT(r == 0);
 
-  r = uv_pipe_init(&server2);
+  r = uv_pipe_init(uv_default_loop(), &server2);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server2, TEST_PIPENAME);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error().code == UV_EADDRINUSE);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EADDRINUSE);
 
   r = uv_listen((uv_stream_t*)&server1, SOMAXCONN, NULL);
   ASSERT(r == 0);
   r = uv_listen((uv_stream_t*)&server2, SOMAXCONN, NULL);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error().code == UV_EINVAL);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server1, close_cb);
   uv_close((uv_handle_t*)&server2, close_cb);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(close_cb_called == 2);
 
@@ -83,16 +84,17 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
 
   uv_init();
 
-  r = uv_pipe_init(&server);
+
+  r = uv_pipe_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server, BAD_PIPENAME);
 
   ASSERT(r == -1);
-  ASSERT(uv_last_error().code == UV_EACCESS);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EACCESS);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(close_cb_called == 1);
 
@@ -106,18 +108,19 @@ TEST_IMPL(pipe_bind_error_inval) {
 
   uv_init();
 
-  r = uv_pipe_init(&server);
+
+  r = uv_pipe_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server, TEST_PIPENAME);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server, TEST_PIPENAME_2);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error().code == UV_EINVAL);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(close_cb_called == 1);
 
@@ -131,16 +134,17 @@ TEST_IMPL(pipe_listen_without_bind) {
 
   uv_init();
 
-  r = uv_pipe_init(&server);
+
+  r = uv_pipe_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_listen((uv_stream_t*)&server, SOMAXCONN, NULL);
   ASSERT(r == -1);
 
-  ASSERT(uv_last_error().code == UV_EINVAL);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
-  uv_run();
+  uv_run(uv_default_loop());
 
   ASSERT(close_cb_called == 1);
 

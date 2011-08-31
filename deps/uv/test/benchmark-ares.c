@@ -26,6 +26,8 @@
 #include <stdio.h>
 #include <string.h> /* strlen */
 
+static uv_loop_t* loop;
+
 ares_channel channel;
 struct ares_options options;
 int optmask;
@@ -67,7 +69,7 @@ static void prep_tcploopback()
   options.tcp_port = htons(TEST_PORT_2);
   options.flags = ARES_FLAG_USEVC;
 
-  rc = uv_ares_init_options(&channel, &options, optmask);
+  rc = uv_ares_init_options(loop, &channel, &options, optmask);
 
   ASSERT(rc == ARES_SUCCESS);
 }
@@ -85,11 +87,13 @@ BENCHMARK_IMPL(gethostbyname) {
   }
 
   uv_init();
+  loop = uv_default_loop();
+
   ares_callbacks = 0;
   ares_errors = 0;
 
-  uv_update_time();
-  start_time = uv_now();
+  uv_update_time(loop);
+  start_time = uv_now(loop);
 
   prep_tcploopback();
 
@@ -101,11 +105,11 @@ BENCHMARK_IMPL(gethostbyname) {
                       &argument);
   }
 
-  uv_run();
+  uv_run(loop);
 
-  uv_ares_destroy(channel);
+  uv_ares_destroy(loop, channel);
 
-  end_time = uv_now();
+  end_time = uv_now(loop);
 
   if (ares_errors > 0) {
     printf("There were %d failures\n", ares_errors);

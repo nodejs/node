@@ -23,7 +23,7 @@ AR = $(PREFIX)ar
 E=
 CSTDFLAG=--std=c89 -pedantic -Wall -Wextra -Wno-unused-parameter
 CFLAGS=-g
-CPPFLAGS += -Isrc/ev
+CPPFLAGS += -Isrc/unix/ev
 LINKFLAGS=-lm
 
 CPPFLAGS += -D_LARGEFILE_SOURCE
@@ -34,7 +34,7 @@ EV_CONFIG=config_sunos.h
 EIO_CONFIG=config_sunos.h
 CPPFLAGS += -Isrc/ares/config_sunos -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LINKFLAGS+=-lsocket -lnsl
-UV_OS_FILE=uv-sunos.c
+UV_OS_FILE=sunos.c
 endif
 
 ifeq (Darwin,$(uname_S))
@@ -42,7 +42,7 @@ EV_CONFIG=config_darwin.h
 EIO_CONFIG=config_darwin.h
 CPPFLAGS += -Isrc/ares/config_darwin
 LINKFLAGS+=-framework CoreServices
-UV_OS_FILE=uv-darwin.c
+UV_OS_FILE=darwin.c
 endif
 
 ifeq (Linux,$(uname_S))
@@ -51,7 +51,7 @@ EIO_CONFIG=config_linux.h
 CSTDFLAG += -D_XOPEN_SOURCE=600
 CPPFLAGS += -Isrc/ares/config_linux
 LINKFLAGS+=-lrt
-UV_OS_FILE=uv-linux.c
+UV_OS_FILE=linux.c
 endif
 
 ifeq (FreeBSD,$(uname_S))
@@ -59,7 +59,7 @@ EV_CONFIG=config_freebsd.h
 EIO_CONFIG=config_freebsd.h
 CPPFLAGS += -Isrc/ares/config_freebsd
 LINKFLAGS+=
-UV_OS_FILE=uv-freebsd.c
+UV_OS_FILE=freebsd.c
 endif
 
 ifneq (,$(findstring CYGWIN,$(uname_S)))
@@ -69,7 +69,7 @@ EIO_CONFIG=config_cygwin.h
 CSTDFLAG = -D_GNU_SOURCE
 CPPFLAGS += -Isrc/ares/config_cygwin
 LINKFLAGS+=
-UV_OS_FILE=uv-cygwin.c
+UV_OS_FILE=cygwin.c
 endif
 
 # Need _GNU_SOURCE for strdup?
@@ -85,24 +85,24 @@ endif
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: src/uv-unix.o src/unix/fs.o src/uv-common.o src/uv-platform.o src/ev/ev.o src/uv-eio.o src/eio/eio.o $(CARES_OBJS)
-	$(AR) rcs uv.a src/uv-unix.o src/unix/fs.o src/uv-platform.o src/uv-common.o src/uv-eio.o src/ev/ev.o \
-		src/eio/eio.o $(CARES_OBJS)
+uv.a: src/uv-unix.o src/unix/fs.o src/uv-common.o src/uv-platform.o src/unix/ev/ev.o src/unix/uv-eio.o src/unix/eio/eio.o $(CARES_OBJS)
+	$(AR) rcs uv.a src/uv-unix.o src/unix/fs.o src/uv-platform.o src/uv-common.o src/unix/uv-eio.o src/unix/ev/ev.o \
+		src/unix/eio/eio.o $(CARES_OBJS)
 
-src/uv-platform.o: src/$(UV_OS_FILE) include/uv.h include/uv-unix.h
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/$(UV_OS_FILE) -o src/uv-platform.o
+src/uv-platform.o: src/unix/$(UV_OS_FILE) include/uv.h include/uv-private/uv-unix.h
+	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/unix/$(UV_OS_FILE) -o src/uv-platform.o
 
-src/uv-unix.o: src/uv-unix.c include/uv.h include/uv-unix.h src/unix/internal.h
+src/uv-unix.o: src/uv-unix.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc  $(CFLAGS) -c src/uv-unix.c -o src/uv-unix.o
 
-src/unix/fs.o: src/unix/fs.c include/uv.h include/uv-unix.h src/unix/internal.h
+src/unix/fs.o: src/unix/fs.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc/ $(CFLAGS) -c src/unix/fs.c -o src/unix/fs.o
 
-src/uv-common.o: src/uv-common.c include/uv.h include/uv-unix.h
+src/uv-common.o: src/uv-common.c include/uv.h include/uv-private/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/uv-common.c -o src/uv-common.o
 
-src/ev/ev.o: src/ev/ev.c
-	$(CC) $(CPPFLAGS) $(CFLAGS) -c src/ev/ev.c -o src/ev/ev.o -DEV_CONFIG_H=\"$(EV_CONFIG)\"
+src/unix/ev/ev.o: src/unix/ev/ev.c
+	$(CC) $(CPPFLAGS) $(CFLAGS) -c src/unix/ev/ev.c -o src/unix/ev/ev.o -DEV_CONFIG_H=\"$(EV_CONFIG)\"
 
 
 EIO_CPPFLAGS += $(CPPFLAGS)
@@ -110,21 +110,23 @@ EIO_CPPFLAGS += -DEIO_CONFIG_H=\"$(EIO_CONFIG)\"
 EIO_CPPFLAGS += -DEIO_STACKSIZE=262144
 EIO_CPPFLAGS += -D_GNU_SOURCE
 
-src/eio/eio.o: src/eio/eio.c
-	$(CC) $(EIO_CPPFLAGS) $(CFLAGS) -c src/eio/eio.c -o src/eio/eio.o
+src/unix/eio/eio.o: src/unix/eio/eio.c
+	$(CC) $(EIO_CPPFLAGS) $(CFLAGS) -c src/unix/eio/eio.c -o src/unix/eio/eio.o
 
-src/uv-eio.o: src/uv-eio.c
-	$(CC) $(CPPFLAGS) -Isrc/eio/ $(CSTDFLAG) $(CFLAGS) -c src/uv-eio.c -o src/uv-eio.o
+src/unix/uv-eio.o: src/unix/uv-eio.c
+	$(CC) $(CPPFLAGS) -Isrc/unix/eio/ $(CSTDFLAG) $(CFLAGS) -c src/unix/uv-eio.c -o src/unix/uv-eio.o
 
 
 clean-platform:
 	-rm -f src/ares/*.o
-	-rm -f src/ev/*.o
-	-rm -f src/eio/*.o
+	-rm -f src/unix/ev/*.o
+	-rm -f src/unix/eio/*.o
+	-rm -f src/unix/*.o
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM
 
 distclean-platform:
 	-rm -f src/ares/*.o
-	-rm -f src/ev/*.o
-	-rm -f src/eio/*.o
+	-rm -f src/unix/ev/*.o
+	-rm -f src/unix/*.o
+	-rm -f src/unix/eio/*.o
 	-rm -rf test/run-tests.dSYM run-benchmarks.dSYM

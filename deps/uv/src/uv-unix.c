@@ -85,19 +85,10 @@
 extern char **environ;
 # endif
 
-static uv_err_t last_err;
+#define container_of ngx_queue_data
 
-struct uv_ares_data_s {
-  ares_channel channel;
-  /*
-   * While the channel is active this timer is called once per second to be sure
-   * that we're always calling ares_process. See the warning above the
-   * definition of ares_timeout().
-   */
-  ev_timer timer;
-};
-
-static struct uv_ares_data_s ares_data;
+static uv_loop_t default_loop_struct;
+static uv_loop_t* default_loop_ptr;
 
 void uv__next(EV_P_ ev_idle* watcher, int revents);
 static int uv__stream_open(uv_stream_t*, int fd, int flags);
@@ -157,6 +148,16 @@ enum {
 };
 
 
+void uv_init() {
+  default_loop_ptr = &default_loop_struct;
+#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+  default_loop_struct.ev = ev_default_loop(EVBACKEND_KQUEUE);
+#else
+  default_loop_struct.ev = ev_default_loop(EVFLAG_AUTO);
+#endif
+}
+
+
 /* TODO Share this code with Windows. */
 /* TODO Expose callback to user to handle fatal error like V8 does. */
 static void uv_fatal_error(const int errorno, const char* syscall) {
@@ -180,8 +181,8 @@ static void uv_fatal_error(const int errorno, const char* syscall) {
 }
 
 
-uv_err_t uv_last_error() {
-  return last_err;
+uv_err_t uv_last_error(uv_loop_t* loop) {
+  return loop->last_err;
 }
 
 
@@ -210,20 +211,20 @@ static uv_err_code uv_translate_sys_error(int sys_errno) {
 }
 
 
-static uv_err_t uv_err_new_artificial(uv_handle_t* handle, int code) {
+static uv_err_t uv_err_new_artificial(uv_loop_t* loop, int code) {
   uv_err_t err;
   err.sys_errno_ = 0;
   err.code = code;
-  last_err = err;
+  loop->last_err = err;
   return err;
 }
 
 
-uv_err_t uv_err_new(uv_handle_t* handle, int sys_error) {
+uv_err_t uv_err_new(uv_loop_t* loop, int sys_error) {
   uv_err_t err;
   err.sys_errno_ = sys_error;
   err.code = uv_translate_sys_error(sys_error);
-  last_err = err;
+  loop->last_err = err;
   return err;
 }
 
@@ -246,7 +247,7 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
       stream = (uv_stream_t*)handle;
 
       uv_read_stop(stream);
-      ev_io_stop(EV_DEFAULT_ &stream->write_watcher);
+      ev_io_stop(stream->loop->ev, &stream->write_watcher);
 
       uv__close(stream->fd);
       stream->fd = -1;
@@ -282,21 +283,21 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 
     case UV_ASYNC:
       async = (uv_async_t*)handle;
-      ev_async_stop(EV_DEFAULT_ &async->async_watcher);
-      ev_ref(EV_DEFAULT_UC);
+      ev_async_stop(async->loop->ev, &async->async_watcher);
+      ev_ref(async->loop->ev);
       break;
 
     case UV_TIMER:
       timer = (uv_timer_t*)handle;
       if (ev_is_active(&timer->timer_watcher)) {
-        ev_ref(EV_DEFAULT_UC);
+        ev_ref(timer->loop->ev);
       }
-      ev_timer_stop(EV_DEFAULT_ &timer->timer_watcher);
+      ev_timer_stop(timer->loop->ev, &timer->timer_watcher);
       break;
 
     case UV_PROCESS:
       process = (uv_process_t*)handle;
-      ev_child_stop(EV_DEFAULT_UC_ &process->child_watcher);
+      ev_child_stop(process->loop->ev, &process->child_watcher);
       break;
 
     default:
@@ -306,31 +307,44 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   handle->flags |= UV_CLOSING;
 
   /* This is used to call the on_close callback in the next loop. */
-  ev_idle_start(EV_DEFAULT_ &handle->next_watcher);
-  ev_feed_event(EV_DEFAULT_ &handle->next_watcher, EV_IDLE);
+  ev_idle_start(handle->loop->ev, &handle->next_watcher);
+  ev_feed_event(handle->loop->ev, &handle->next_watcher, EV_IDLE);
   assert(ev_is_pending(&handle->next_watcher));
 }
 
 
-void uv_init() {
-  /* Initialize the default ev loop. */
-#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-  ev_default_loop(EVBACKEND_KQUEUE);
-#else
-  ev_default_loop(EVFLAG_AUTO);
-#endif
+uv_loop_t* uv_loop_new() {
+  uv_loop_t* loop = calloc(1, sizeof(uv_loop_t));
+  loop->ev = ev_loop_new(0);
+  return loop;
 }
 
 
-int uv_run() {
-  ev_run(EV_DEFAULT_ 0);
+void uv_loop_delete(uv_loop_t* loop) {
+  uv_ares_destroy(loop, loop->channel);
+  ev_loop_destroy(loop->ev);
+  free(loop);
+}
+
+
+uv_loop_t* uv_default_loop() {
+  return default_loop_ptr;
+}
+
+
+
+
+int uv_run(uv_loop_t* loop) {
+  ev_run(loop->ev, 0);
   return 0;
 }
 
 
-static void uv__handle_init(uv_handle_t* handle, uv_handle_type type) {
-  uv_counters()->handle_init++;
+static void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle,
+    uv_handle_type type) {
+  loop->counters.handle_init++;
 
+  handle->loop = loop;
   handle->type = type;
   handle->flags = 0;
 
@@ -338,7 +352,7 @@ static void uv__handle_init(uv_handle_t* handle, uv_handle_type type) {
   handle->next_watcher.data = handle;
 
   /* Ref the loop until this handle is closed. See uv__finish_close. */
-  ev_ref(EV_DEFAULT_UC);
+  ev_ref(loop->ev);
 }
 
 
@@ -353,7 +367,7 @@ static void uv__udp_watcher_start(uv_udp_t* handle, ev_io* w) {
   w->data = handle;
   ev_set_cb(w, uv__udp_io);
   ev_io_set(w, handle->fd, flags);
-  ev_io_start(EV_DEFAULT_UC_ w);
+  ev_io_start(handle->loop->ev, w);
 }
 
 
@@ -365,7 +379,7 @@ static void uv__udp_watcher_stop(uv_udp_t* handle, ev_io* w) {
 
   flags = (w == &handle->read_watcher ? EV_READ : EV_WRITE);
 
-  ev_io_stop(EV_DEFAULT_UC_ w);
+  ev_io_stop(handle->loop->ev, w);
   ev_io_set(w, -1, flags);
   ev_set_cb(w, NULL);
   w->data = (void*)0xDEADBABE;
@@ -385,7 +399,7 @@ static void uv__udp_destroy(uv_udp_t* handle) {
     req = ngx_queue_data(q, uv_udp_send_t, queue);
     if (req->send_cb) {
       /* FIXME proper error code like UV_EABORTED */
-      uv_err_new_artificial((uv_handle_t*)handle, UV_EINTR);
+      uv_err_new_artificial(handle->loop, UV_EINTR);
       req->send_cb(req, -1);
     }
   }
@@ -488,7 +502,7 @@ static void uv__udp_run_completed(uv_udp_t* handle) {
       req->send_cb(req, 0);
     }
     else {
-      uv_err_new((uv_handle_t*)handle, -req->status);
+      uv_err_new(handle->loop, -req->status);
       req->send_cb(req, -1);
     }
   }
@@ -524,11 +538,11 @@ static void uv__udp_recvmsg(uv_udp_t* handle) {
 
     if (nread == -1) {
       if (errno == EAGAIN || errno == EWOULDBLOCK) {
-        uv_err_new((uv_handle_t*)handle, EAGAIN);
+        uv_err_new(handle->loop, EAGAIN);
         handle->recv_cb(handle, 0, buf, NULL, 0);
       }
       else {
-        uv_err_new((uv_handle_t*)handle, errno);
+        uv_err_new(handle->loop, errno);
         handle->recv_cb(handle, -1, buf, NULL, 0);
       }
     }
@@ -564,7 +578,7 @@ static void uv__udp_sendmsg(uv_udp_t* handle) {
 
   if (!ngx_queue_empty(&handle->write_completed_queue)) {
     /* Schedule completion callbacks. */
-    ev_feed_event(EV_DEFAULT_ &handle->write_watcher, EV_WRITE);
+    ev_feed_event(handle->loop->ev, &handle->write_watcher, EV_WRITE);
   }
   else if (ngx_queue_empty(&handle->write_queue)) {
     /* Pending queue and completion queue empty, stop watcher. */
@@ -605,24 +619,24 @@ static int uv__udp_bind(uv_udp_t* handle,
 
   /* Check for bad flags. */
   if (flags & ~UV_UDP_IPV6ONLY) {
-    uv_err_new((uv_handle_t*)handle, EINVAL);
+    uv_err_new(handle->loop, EINVAL);
     goto out;
   }
 
   /* Cannot set IPv6-only mode on non-IPv6 socket. */
   if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
-    uv_err_new((uv_handle_t*)handle, EINVAL);
+    uv_err_new(handle->loop, EINVAL);
     goto out;
   }
 
   /* Check for already active socket. */
   if (handle->fd != -1) {
-    uv_err_new_artificial((uv_handle_t*)handle, UV_EALREADY);
+    uv_err_new_artificial(handle->loop, UV_EALREADY);
     goto out;
   }
 
   if ((fd = uv__socket(domain, SOCK_DGRAM, 0)) == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
     goto out;
   }
 
@@ -630,7 +644,7 @@ static int uv__udp_bind(uv_udp_t* handle,
 #ifdef IPV6_V6ONLY
     yes = 1;
     if (setsockopt(fd, IPPROTO_IPV6, IPV6_V6ONLY, &yes, sizeof yes) == -1) {
-      uv_err_new((uv_handle_t*)handle, errno);
+      uv_err_new(handle->loop, errno);
       goto out;
     }
 #else
@@ -640,7 +654,7 @@ static int uv__udp_bind(uv_udp_t* handle,
   }
 
   if (bind(fd, addr, len) == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
     goto out;
   }
 
@@ -704,7 +718,7 @@ static int uv__udp_send(uv_udp_send_t* req,
     return -1;
 
   /* Don't use uv__req_init(), it zeroes the data field. */
-  uv_counters()->req_init++;
+  handle->loop->counters.req_init++;
 
   memcpy(&req->addr, addr, addrlen);
   req->addrlen = addrlen;
@@ -717,7 +731,7 @@ static int uv__udp_send(uv_udp_send_t* req,
     req->bufs = req->bufsml;
   }
   else if ((req->bufs = malloc(bufcnt * sizeof(bufs[0]))) == NULL) {
-    uv_err_new((uv_handle_t*)handle, ENOMEM);
+    uv_err_new(handle->loop, ENOMEM);
     return -1;
   }
   memcpy(req->bufs, bufs, bufcnt * sizeof(bufs[0]));
@@ -729,11 +743,11 @@ static int uv__udp_send(uv_udp_send_t* req,
 }
 
 
-int uv_udp_init(uv_udp_t* handle) {
+int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
   memset(handle, 0, sizeof *handle);
 
-  uv__handle_init((uv_handle_t*)handle, UV_UDP);
-  uv_counters()->udp_init++;
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_UDP);
+  loop->counters.udp_init++;
 
   handle->fd = -1;
   ngx_queue_init(&handle->write_queue);
@@ -797,12 +811,12 @@ int uv_udp_recv_start(uv_udp_t* handle,
                       uv_alloc_cb alloc_cb,
                       uv_udp_recv_cb recv_cb) {
   if (alloc_cb == NULL || recv_cb == NULL) {
-    uv_err_new_artificial((uv_handle_t*)handle, UV_EINVAL);
+    uv_err_new_artificial(handle->loop, UV_EINVAL);
     return -1;
   }
 
   if (ev_is_active(&handle->read_watcher)) {
-    uv_err_new_artificial((uv_handle_t*)handle, UV_EALREADY);
+    uv_err_new_artificial(handle->loop, UV_EALREADY);
     return -1;
   }
 
@@ -825,9 +839,9 @@ int uv_udp_recv_stop(uv_udp_t* handle) {
 }
 
 
-int uv_tcp_init(uv_tcp_t* tcp) {
-  uv__handle_init((uv_handle_t*)tcp, UV_TCP);
-  uv_counters()->tcp_init++;
+int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
+  uv__handle_init(loop, (uv_handle_t*)tcp, UV_TCP);
+  loop->counters.tcp_init++;
 
   tcp->alloc_cb = NULL;
   tcp->connect_req = NULL;
@@ -864,7 +878,7 @@ static int uv__tcp_bind(uv_tcp_t* tcp,
 
   if (tcp->fd < 0) {
     if ((tcp->fd = uv__socket(domain, SOCK_STREAM, 0)) == -1) {
-      uv_err_new((uv_handle_t*)tcp, errno);
+      uv_err_new(tcp->loop, errno);
       goto out;
     }
 
@@ -883,7 +897,7 @@ static int uv__tcp_bind(uv_tcp_t* tcp,
     if (errno == EADDRINUSE) {
       tcp->delayed_error = errno;
     } else {
-      uv_err_new((uv_handle_t*)tcp, errno);
+      uv_err_new(tcp->loop, errno);
       goto out;
     }
   }
@@ -897,7 +911,7 @@ out:
 
 int uv_tcp_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
   if (addr.sin_family != AF_INET) {
-    uv_err_new((uv_handle_t*)tcp, EFAULT);
+    uv_err_new(tcp->loop, EFAULT);
     return -1;
   }
 
@@ -910,7 +924,7 @@ int uv_tcp_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
 
 int uv_tcp_bind6(uv_tcp_t* tcp, struct sockaddr_in6 addr) {
   if (addr.sin6_family != AF_INET6) {
-    uv_err_new((uv_handle_t*)tcp, EFAULT);
+    uv_err_new(tcp->loop, EFAULT);
     return -1;
   }
 
@@ -933,7 +947,7 @@ static int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
   yes = 1;
   if (stream->type == UV_TCP
       && setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-    uv_err_new((uv_handle_t*)stream, errno);
+    uv_err_new(stream->loop, errno);
     return -1;
   }
 
@@ -961,7 +975,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
   assert(!(stream->flags & UV_CLOSING));
 
   if (stream->accepted_fd >= 0) {
-    ev_io_stop(EV_DEFAULT_ &stream->read_watcher);
+    ev_io_stop(EV_A, &stream->read_watcher);
     return;
   }
 
@@ -980,7 +994,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
         /* TODO special trick. unlock reserved socket, accept, close. */
         return;
       } else {
-        uv_err_new((uv_handle_t*)stream, errno);
+        uv_err_new(stream->loop, errno);
         stream->connection_cb((uv_stream_t*)stream, -1);
       }
     } else {
@@ -988,7 +1002,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
       stream->connection_cb((uv_stream_t*)stream, 0);
       if (stream->accepted_fd >= 0) {
         /* The user hasn't yet accepted called uv_accept() */
-        ev_io_stop(EV_DEFAULT_ &stream->read_watcher);
+        ev_io_stop(stream->loop->ev, &stream->read_watcher);
         return;
       }
     }
@@ -1002,6 +1016,9 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   int saved_errno;
   int status;
 
+  /* TODO document this */
+  assert(server->loop == client->loop);
+
   saved_errno = errno;
   status = -1;
 
@@ -1009,7 +1026,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   streamClient = (uv_stream_t*)client;
 
   if (streamServer->accepted_fd < 0) {
-    uv_err_new((uv_handle_t*)server, EAGAIN);
+    uv_err_new(server->loop, EAGAIN);
     goto out;
   }
 
@@ -1021,7 +1038,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
     goto out;
   }
 
-  ev_io_start(EV_DEFAULT_ &streamServer->read_watcher);
+  ev_io_start(streamServer->loop->ev, &streamServer->read_watcher);
   streamServer->accepted_fd = -1;
   status = 0;
 
@@ -1048,13 +1065,13 @@ static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   int r;
 
   if (tcp->delayed_error) {
-    uv_err_new((uv_handle_t*)tcp, tcp->delayed_error);
+    uv_err_new(tcp->loop, tcp->delayed_error);
     return -1;
   }
 
   if (tcp->fd < 0) {
     if ((tcp->fd = uv__socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-      uv_err_new((uv_handle_t*)tcp, errno);
+      uv_err_new(tcp->loop, errno);
       return -1;
     }
 
@@ -1069,7 +1086,7 @@ static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
   r = listen(tcp->fd, backlog);
   if (r < 0) {
-    uv_err_new((uv_handle_t*)tcp, errno);
+    uv_err_new(tcp->loop, errno);
     return -1;
   }
 
@@ -1078,13 +1095,15 @@ static int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   /* Start listening for connections. */
   ev_io_set(&tcp->read_watcher, tcp->fd, EV_READ);
   ev_set_cb(&tcp->read_watcher, uv__server_io);
-  ev_io_start(EV_DEFAULT_ &tcp->read_watcher);
+  ev_io_start(tcp->loop->ev, &tcp->read_watcher);
 
   return 0;
 }
 
 
 void uv__finish_close(uv_handle_t* handle) {
+  uv_loop_t* loop = handle->loop;
+
   assert(handle->flags & UV_CLOSING);
   assert(!(handle->flags & UV_CLOSED));
   handle->flags |= UV_CLOSED;
@@ -1132,13 +1151,13 @@ void uv__finish_close(uv_handle_t* handle) {
       break;
   }
 
-  ev_idle_stop(EV_DEFAULT_ &handle->next_watcher);
+  ev_idle_stop(loop->ev, &handle->next_watcher);
 
   if (handle->close_cb) {
     handle->close_cb(handle);
   }
 
-  ev_unref(EV_DEFAULT_UC);
+  ev_unref(loop->ev);
 }
 
 
@@ -1181,7 +1200,7 @@ static void uv__drain(uv_stream_t* stream) {
   assert(!uv_write_queue_head(stream));
   assert(stream->write_queue_size == 0);
 
-  ev_io_stop(EV_DEFAULT_ &stream->write_watcher);
+  ev_io_stop(stream->loop->ev, &stream->write_watcher);
 
   /* Shutdown? */
   if ((stream->flags & UV_SHUTTING) &&
@@ -1193,12 +1212,12 @@ static void uv__drain(uv_stream_t* stream) {
 
     if (shutdown(stream->fd, SHUT_WR)) {
       /* Error. Report it. User should call uv_close(). */
-      uv_err_new((uv_handle_t*)stream, errno);
+      uv_err_new(stream->loop, errno);
       if (req->cb) {
         req->cb(req, -1);
       }
     } else {
-      uv_err_new((uv_handle_t*)stream, 0);
+      uv_err_new(stream->loop, 0);
       ((uv_handle_t*) stream)->flags |= UV_SHUT;
       if (req->cb) {
         req->cb(req, 0);
@@ -1253,7 +1272,7 @@ static uv_write_t* uv__write(uv_stream_t* stream) {
   if (n < 0) {
     if (errno != EAGAIN) {
       /* Error */
-      uv_err_new((uv_handle_t*)stream, errno);
+      uv_err_new(stream->loop, errno);
       return req;
     }
   } else {
@@ -1301,7 +1320,7 @@ static uv_write_t* uv__write(uv_stream_t* stream) {
            * TODO: start trying to write the next request.
            */
           ngx_queue_insert_tail(&stream->write_completed_queue, &req->queue);
-          ev_feed_event(EV_DEFAULT_ &stream->write_watcher, EV_WRITE);
+          ev_feed_event(stream->loop->ev, &stream->write_watcher, EV_WRITE);
           return NULL;
         }
       }
@@ -1312,7 +1331,7 @@ static uv_write_t* uv__write(uv_stream_t* stream) {
   assert(n == 0 || n == -1);
 
   /* We're not done. */
-  ev_io_start(EV_DEFAULT_ &stream->write_watcher);
+  ev_io_start(stream->loop->ev, &stream->write_watcher);
 
   return NULL;
 }
@@ -1350,6 +1369,7 @@ static void uv__write_callbacks(uv_stream_t* stream) {
 static void uv__read(uv_stream_t* stream) {
   uv_buf_t buf;
   ssize_t nread;
+  struct ev_loop* ev = stream->loop->ev;
 
   /* XXX: Maybe instead of having UV_READING we just test if
    * tcp->read_cb is NULL or not?
@@ -1372,22 +1392,22 @@ static void uv__read(uv_stream_t* stream) {
       if (errno == EAGAIN) {
         /* Wait for the next one. */
         if (stream->flags & UV_READING) {
-          ev_io_start(EV_DEFAULT_UC_ &stream->read_watcher);
+          ev_io_start(ev, &stream->read_watcher);
         }
-        uv_err_new((uv_handle_t*)stream, EAGAIN);
+        uv_err_new(stream->loop, EAGAIN);
         stream->read_cb(stream, 0, buf);
         return;
       } else {
         /* Error. User should call uv_close(). */
-        uv_err_new((uv_handle_t*)stream, errno);
+        uv_err_new(stream->loop, errno);
         stream->read_cb(stream, -1, buf);
         assert(!ev_is_active(&stream->read_watcher));
         return;
       }
     } else if (nread == 0) {
       /* EOF */
-      uv_err_new_artificial((uv_handle_t*)stream, UV_EOF);
-      ev_io_stop(EV_DEFAULT_UC_ &stream->read_watcher);
+      uv_err_new_artificial(stream->loop, UV_EOF);
+      ev_io_stop(ev, &stream->read_watcher);
       stream->read_cb(stream, -1, buf);
       return;
     } else {
@@ -1407,7 +1427,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
       stream->flags & UV_SHUT ||
       stream->flags & UV_CLOSED ||
       stream->flags & UV_CLOSING) {
-    uv_err_new((uv_handle_t*)stream, EINVAL);
+    uv_err_new(stream->loop, EINVAL);
     return -1;
   }
 
@@ -1422,7 +1442,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   ((uv_handle_t*)stream)->flags |= UV_SHUTTING;
 
 
-  ev_io_start(EV_DEFAULT_UC_ &stream->write_watcher);
+  ev_io_start(stream->loop->ev, &stream->write_watcher);
 
   return 0;
 }
@@ -1489,7 +1509,7 @@ static void uv__stream_connect(uv_stream_t* stream) {
   }
 
   if (!error) {
-    ev_io_start(EV_DEFAULT_ &stream->read_watcher);
+    ev_io_start(stream->loop->ev, &stream->read_watcher);
 
     /* Successful connection */
     stream->connect_req = NULL;
@@ -1502,7 +1522,7 @@ static void uv__stream_connect(uv_stream_t* stream) {
     return;
   } else {
     /* Error */
-    uv_err_new((uv_handle_t*)stream, error);
+    uv_err_new(stream->loop, error);
 
     stream->connect_req = NULL;
     if (req->cb) {
@@ -1523,7 +1543,7 @@ static int uv__connect(uv_connect_t* req,
 
   if (stream->fd <= 0) {
     if ((sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0)) == -1) {
-      uv_err_new((uv_handle_t*)stream, errno);
+      uv_err_new(stream->loop, errno);
       return -1;
     }
 
@@ -1540,12 +1560,12 @@ static int uv__connect(uv_connect_t* req,
   ngx_queue_init(&req->queue);
 
   if (stream->connect_req) {
-    uv_err_new((uv_handle_t*)stream, EALREADY);
+    uv_err_new(stream->loop, EALREADY);
     return -1;
   }
 
   if (stream->type != UV_TCP) {
-    uv_err_new((uv_handle_t*)stream, ENOTSOCK);
+    uv_err_new(stream->loop, ENOTSOCK);
     return -1;
   }
 
@@ -1569,16 +1589,16 @@ static int uv__connect(uv_connect_t* req,
         break;
 
       default:
-        uv_err_new((uv_handle_t*)stream, errno);
+        uv_err_new(stream->loop, errno);
         return -1;
     }
   }
 
   assert(stream->write_watcher.data == stream);
-  ev_io_start(EV_DEFAULT_ &stream->write_watcher);
+  ev_io_start(stream->loop->ev, &stream->write_watcher);
 
   if (stream->delayed_error) {
-    ev_feed_event(EV_DEFAULT_ &stream->write_watcher, EV_WRITE);
+    ev_feed_event(stream->loop->ev, &stream->write_watcher, EV_WRITE);
   }
 
   return 0;
@@ -1596,12 +1616,12 @@ int uv_tcp_connect(uv_connect_t* req,
   status = -1;
 
   if (handle->type != UV_TCP) {
-    uv_err_new((uv_handle_t*)handle, EINVAL);
+    uv_err_new(handle->loop, EINVAL);
     goto out;
   }
 
   if (address.sin_family != AF_INET) {
-    uv_err_new((uv_handle_t*)handle, EINVAL);
+    uv_err_new(handle->loop, EINVAL);
     goto out;
   }
 
@@ -1628,12 +1648,12 @@ int uv_tcp_connect6(uv_connect_t* req,
   status = -1;
 
   if (handle->type != UV_TCP) {
-    uv_err_new((uv_handle_t*)handle, EINVAL);
+    uv_err_new(handle->loop, EINVAL);
     goto out;
   }
 
   if (address.sin6_family != AF_INET6) {
-    uv_err_new((uv_handle_t*)handle, EINVAL);
+    uv_err_new(handle->loop, EINVAL);
     goto out;
   }
 
@@ -1660,7 +1680,7 @@ int uv_getsockname(uv_handle_t* handle, struct sockaddr* name, int* namelen) {
   socklen = (socklen_t)*namelen;
 
   if (getsockname(handle->fd, name, &socklen) == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
   } else {
     *namelen = (int)socklen;
   }
@@ -1704,7 +1724,7 @@ int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
   empty_queue = (stream->write_queue_size == 0);
 
   if (stream->fd < 0) {
-    uv_err_new((uv_handle_t*)stream, EBADF);
+    uv_err_new(stream->loop, EBADF);
     return -1;
   }
 
@@ -1753,35 +1773,35 @@ int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
    * fresh stack so we feed the event loop in order to service it.
    */
   if (ngx_queue_empty(&stream->write_queue)) {
-    ev_feed_event(EV_DEFAULT_ &stream->write_watcher, EV_WRITE);
+    ev_feed_event(stream->loop->ev, &stream->write_watcher, EV_WRITE);
   } else {
     /* Otherwise there is data to write - so we should wait for the file
      * descriptor to become writable.
      */
-    ev_io_start(EV_DEFAULT_ &stream->write_watcher);
+    ev_io_start(stream->loop->ev, &stream->write_watcher);
   }
 
   return 0;
 }
 
 
-void uv_ref() {
-  ev_ref(EV_DEFAULT_UC);
+void uv_ref(uv_loop_t* loop) {
+  ev_ref(loop->ev);
 }
 
 
-void uv_unref() {
-  ev_unref(EV_DEFAULT_UC);
+void uv_unref(uv_loop_t* loop) {
+  ev_unref(loop->ev);
 }
 
 
-void uv_update_time() {
-  ev_now_update(EV_DEFAULT_UC);
+void uv_update_time(uv_loop_t* loop) {
+  ev_now_update(loop->ev);
 }
 
 
-int64_t uv_now() {
-  return (int64_t)(ev_now(EV_DEFAULT_UC) * 1000);
+int64_t uv_now(uv_loop_t* loop) {
+  return (int64_t)(ev_now(loop->ev) * 1000);
 }
 
 
@@ -1789,7 +1809,7 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
   assert(stream->type == UV_TCP || stream->type == UV_NAMED_PIPE);
 
   if (stream->flags & UV_CLOSING) {
-    uv_err_new((uv_handle_t*)stream, EINVAL);
+    uv_err_new(stream->loop, EINVAL);
     return -1;
   }
 
@@ -1811,7 +1831,7 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
   /* These should have been set by uv_tcp_init. */
   assert(stream->read_watcher.cb == uv__stream_io);
 
-  ev_io_start(EV_DEFAULT_UC_ &stream->read_watcher);
+  ev_io_start(stream->loop->ev, &stream->read_watcher);
   return 0;
 }
 
@@ -1821,7 +1841,7 @@ int uv_read_stop(uv_stream_t* stream) {
 
   ((uv_handle_t*)tcp)->flags &= ~UV_READING;
 
-  ev_io_stop(EV_DEFAULT_UC_ &tcp->read_watcher);
+  ev_io_stop(tcp->loop->ev, &tcp->read_watcher);
   tcp->read_cb = NULL;
   tcp->alloc_cb = NULL;
   return 0;
@@ -1829,7 +1849,7 @@ int uv_read_stop(uv_stream_t* stream) {
 
 
 void uv__req_init(uv_req_t* req) {
-  uv_counters()->req_init++;
+  /* loop->counters.req_init++; */
   req->type = UV_UNKNOWN_REQ;
   req->data = NULL;
 }
@@ -1844,9 +1864,9 @@ static void uv__prepare(EV_P_ ev_prepare* w, int revents) {
 }
 
 
-int uv_prepare_init(uv_prepare_t* prepare) {
-  uv__handle_init((uv_handle_t*)prepare, UV_PREPARE);
-  uv_counters()->prepare_init++;
+int uv_prepare_init(uv_loop_t* loop, uv_prepare_t* prepare) {
+  uv__handle_init(loop, (uv_handle_t*)prepare, UV_PREPARE);
+  loop->counters.prepare_init++;
 
   ev_prepare_init(&prepare->prepare_watcher, uv__prepare);
   prepare->prepare_watcher.data = prepare;
@@ -1862,10 +1882,10 @@ int uv_prepare_start(uv_prepare_t* prepare, uv_prepare_cb cb) {
 
   prepare->prepare_cb = cb;
 
-  ev_prepare_start(EV_DEFAULT_UC_ &prepare->prepare_watcher);
+  ev_prepare_start(prepare->loop->ev, &prepare->prepare_watcher);
 
   if (!was_active) {
-    ev_unref(EV_DEFAULT_UC);
+    ev_unref(prepare->loop->ev);
   }
 
   return 0;
@@ -1875,10 +1895,10 @@ int uv_prepare_start(uv_prepare_t* prepare, uv_prepare_cb cb) {
 int uv_prepare_stop(uv_prepare_t* prepare) {
   int was_active = ev_is_active(&prepare->prepare_watcher);
 
-  ev_prepare_stop(EV_DEFAULT_UC_ &prepare->prepare_watcher);
+  ev_prepare_stop(prepare->loop->ev, &prepare->prepare_watcher);
 
   if (was_active) {
-    ev_ref(EV_DEFAULT_UC);
+    ev_ref(prepare->loop->ev);
   }
   return 0;
 }
@@ -1894,9 +1914,9 @@ static void uv__check(EV_P_ ev_check* w, int revents) {
 }
 
 
-int uv_check_init(uv_check_t* check) {
-  uv__handle_init((uv_handle_t*)check, UV_CHECK);
-  uv_counters()->check_init++;
+int uv_check_init(uv_loop_t* loop, uv_check_t* check) {
+  uv__handle_init(loop, (uv_handle_t*)check, UV_CHECK);
+  loop->counters.check_init++;
 
   ev_check_init(&check->check_watcher, uv__check);
   check->check_watcher.data = check;
@@ -1912,10 +1932,10 @@ int uv_check_start(uv_check_t* check, uv_check_cb cb) {
 
   check->check_cb = cb;
 
-  ev_check_start(EV_DEFAULT_UC_ &check->check_watcher);
+  ev_check_start(check->loop->ev, &check->check_watcher);
 
   if (!was_active) {
-    ev_unref(EV_DEFAULT_UC);
+    ev_unref(check->loop->ev);
   }
 
   return 0;
@@ -1925,10 +1945,10 @@ int uv_check_start(uv_check_t* check, uv_check_cb cb) {
 int uv_check_stop(uv_check_t* check) {
   int was_active = ev_is_active(&check->check_watcher);
 
-  ev_check_stop(EV_DEFAULT_UC_ &check->check_watcher);
+  ev_check_stop(check->loop->ev, &check->check_watcher);
 
   if (was_active) {
-    ev_ref(EV_DEFAULT_UC);
+    ev_ref(check->loop->ev);
   }
 
   return 0;
@@ -1945,9 +1965,9 @@ static void uv__idle(EV_P_ ev_idle* w, int revents) {
 
 
 
-int uv_idle_init(uv_idle_t* idle) {
-  uv__handle_init((uv_handle_t*)idle, UV_IDLE);
-  uv_counters()->idle_init++;
+int uv_idle_init(uv_loop_t* loop, uv_idle_t* idle) {
+  uv__handle_init(loop, (uv_handle_t*)idle, UV_IDLE);
+  loop->counters.idle_init++;
 
   ev_idle_init(&idle->idle_watcher, uv__idle);
   idle->idle_watcher.data = idle;
@@ -1962,10 +1982,10 @@ int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb) {
   int was_active = ev_is_active(&idle->idle_watcher);
 
   idle->idle_cb = cb;
-  ev_idle_start(EV_DEFAULT_UC_ &idle->idle_watcher);
+  ev_idle_start(idle->loop->ev, &idle->idle_watcher);
 
   if (!was_active) {
-    ev_unref(EV_DEFAULT_UC);
+    ev_unref(idle->loop->ev);
   }
 
   return 0;
@@ -1975,10 +1995,10 @@ int uv_idle_start(uv_idle_t* idle, uv_idle_cb cb) {
 int uv_idle_stop(uv_idle_t* idle) {
   int was_active = ev_is_active(&idle->idle_watcher);
 
-  ev_idle_stop(EV_DEFAULT_UC_ &idle->idle_watcher);
+  ev_idle_stop(idle->loop->ev, &idle->idle_watcher);
 
   if (was_active) {
-    ev_ref(EV_DEFAULT_UC);
+    ev_ref(idle->loop->ev);
   }
 
   return 0;
@@ -2014,9 +2034,9 @@ static void uv__async(EV_P_ ev_async* w, int revents) {
 }
 
 
-int uv_async_init(uv_async_t* async, uv_async_cb async_cb) {
-  uv__handle_init((uv_handle_t*)async, UV_ASYNC);
-  uv_counters()->async_init++;
+int uv_async_init(uv_loop_t* loop, uv_async_t* async, uv_async_cb async_cb) {
+  uv__handle_init(loop, (uv_handle_t*)async, UV_ASYNC);
+  loop->counters.async_init++;
 
   ev_async_init(&async->async_watcher, uv__async);
   async->async_watcher.data = async;
@@ -2024,15 +2044,15 @@ int uv_async_init(uv_async_t* async, uv_async_cb async_cb) {
   async->async_cb = async_cb;
 
   /* Note: This does not have symmetry with the other libev wrappers. */
-  ev_async_start(EV_DEFAULT_UC_ &async->async_watcher);
-  ev_unref(EV_DEFAULT_UC);
+  ev_async_start(loop->ev, &async->async_watcher);
+  ev_unref(loop->ev);
 
   return 0;
 }
 
 
 int uv_async_send(uv_async_t* async) {
-  ev_async_send(EV_DEFAULT_UC_ &async->async_watcher);
+  ev_async_send(async->loop->ev, &async->async_watcher);
   return 0;
 }
 
@@ -2041,7 +2061,7 @@ static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
   uv_timer_t* timer = w->data;
 
   if (!ev_is_active(w)) {
-    ev_ref(EV_DEFAULT_UC);
+    ev_ref(EV_A);
   }
 
   if (timer->timer_cb) {
@@ -2050,9 +2070,9 @@ static void uv__timer_cb(EV_P_ ev_timer* w, int revents) {
 }
 
 
-int uv_timer_init(uv_timer_t* timer) {
-  uv__handle_init((uv_handle_t*)timer, UV_TIMER);
-  uv_counters()->timer_init++;
+int uv_timer_init(uv_loop_t* loop, uv_timer_t* timer) {
+  uv__handle_init(loop, (uv_handle_t*)timer, UV_TIMER);
+  loop->counters.timer_init++;
 
   ev_init(&timer->timer_watcher, uv__timer_cb);
   timer->timer_watcher.data = timer;
@@ -2069,29 +2089,29 @@ int uv_timer_start(uv_timer_t* timer, uv_timer_cb cb, int64_t timeout,
 
   timer->timer_cb = cb;
   ev_timer_set(&timer->timer_watcher, timeout / 1000.0, repeat / 1000.0);
-  ev_timer_start(EV_DEFAULT_UC_ &timer->timer_watcher);
-  ev_unref(EV_DEFAULT_UC);
+  ev_timer_start(timer->loop->ev, &timer->timer_watcher);
+  ev_unref(timer->loop->ev);
   return 0;
 }
 
 
 int uv_timer_stop(uv_timer_t* timer) {
   if (ev_is_active(&timer->timer_watcher)) {
-    ev_ref(EV_DEFAULT_UC);
+    ev_ref(timer->loop->ev);
   }
 
-  ev_timer_stop(EV_DEFAULT_UC_ &timer->timer_watcher);
+  ev_timer_stop(timer->loop->ev, &timer->timer_watcher);
   return 0;
 }
 
 
 int uv_timer_again(uv_timer_t* timer) {
   if (!ev_is_active(&timer->timer_watcher)) {
-    uv_err_new((uv_handle_t*)timer, EINVAL);
+    uv_err_new(timer->loop, EINVAL);
     return -1;
   }
 
-  ev_timer_again(EV_DEFAULT_UC_ &timer->timer_watcher);
+  ev_timer_again(timer->loop->ev, &timer->timer_watcher);
   return 0;
 }
 
@@ -2107,23 +2127,28 @@ int64_t uv_timer_get_repeat(uv_timer_t* timer) {
 
 
 /*
- * This is called once per second by ares_data.timer. It is used to
+ * This is called once per second by loop->timer. It is used to
  * constantly callback into c-ares for possibly processing timeouts.
  */
-static void uv__ares_timeout(EV_P_ struct ev_timer* watcher, int revents) {
-  assert(watcher == &ares_data.timer);
+static void uv__ares_timeout(struct ev_loop* ev, struct ev_timer* watcher,
+    int revents) {
+  uv_loop_t* loop = container_of(ev, uv_loop_t, ev);
+  assert(watcher == &loop->timer);
   assert(revents == EV_TIMER);
-  assert(!uv_ares_handles_empty());
-  ares_process_fd(ares_data.channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+  assert(!uv_ares_handles_empty(loop));
+  ares_process_fd(loop->channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
 }
 
 
-static void uv__ares_io(EV_P_ struct ev_io* watcher, int revents) {
+static void uv__ares_io(struct ev_loop* ev, struct ev_io* watcher,
+    int revents) {
+  uv_loop_t* loop = container_of(ev, uv_loop_t, ev);
+
   /* Reset the idle timer */
-  ev_timer_again(EV_A_ &ares_data.timer);
+  ev_timer_again(ev, &loop->timer);
 
   /* Process DNS responses */
-  ares_process_fd(ares_data.channel,
+  ares_process_fd(loop->channel,
       revents & EV_READ ? watcher->fd : ARES_SOCKET_BAD,
       revents & EV_WRITE ? watcher->fd : ARES_SOCKET_BAD);
 }
@@ -2152,32 +2177,35 @@ static uv_ares_task_t* uv__ares_task_create(int fd) {
 /* Callback from ares when socket operation is started */
 static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
     int read, int write) {
-  uv_ares_task_t* h = uv_find_ares_handle(sock);
+  uv_loop_t* loop = data;
+  uv_ares_task_t* h;
+
+  h = uv_find_ares_handle(loop, sock);
 
   if (read || write) {
     if (!h) {
       /* New socket */
 
       /* If this is the first socket then start the timer. */
-      if (!ev_is_active(&ares_data.timer)) {
-        assert(uv_ares_handles_empty());
-        ev_timer_again(EV_DEFAULT_UC_ &ares_data.timer);
+      if (!ev_is_active(&loop->timer)) {
+        assert(uv_ares_handles_empty(loop));
+        ev_timer_again(loop->ev, &loop->timer);
       }
 
       h = uv__ares_task_create(sock);
-      uv_add_ares_handle(h);
+      uv_add_ares_handle(loop, h);
     }
 
     if (read) {
-      ev_io_start(EV_DEFAULT_UC_ &h->read_watcher);
+      ev_io_start(loop->ev, &h->read_watcher);
     } else {
-      ev_io_stop(EV_DEFAULT_UC_ &h->read_watcher);
+      ev_io_stop(loop->ev, &h->read_watcher);
     }
 
     if (write) {
-      ev_io_start(EV_DEFAULT_UC_ &h->write_watcher);
+      ev_io_start(loop->ev, &h->write_watcher);
     } else {
-      ev_io_stop(EV_DEFAULT_UC_ &h->write_watcher);
+      ev_io_stop(loop->ev, &h->write_watcher);
     }
 
   } else {
@@ -2188,14 +2216,14 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
      */
     assert(h && "When an ares socket is closed we should have a handle for it");
 
-    ev_io_stop(EV_DEFAULT_UC_ &h->read_watcher);
-    ev_io_stop(EV_DEFAULT_UC_ &h->write_watcher);
+    ev_io_stop(loop->ev, &h->read_watcher);
+    ev_io_stop(loop->ev, &h->write_watcher);
 
     uv_remove_ares_handle(h);
     free(h);
 
-    if (uv_ares_handles_empty()) {
-      ev_timer_stop(EV_DEFAULT_UC_ &ares_data.timer);
+    if (uv_ares_handles_empty(loop)) {
+      ev_timer_stop(loop->ev, &loop->timer);
     }
   }
 }
@@ -2203,20 +2231,19 @@ static void uv__ares_sockstate_cb(void* data, ares_socket_t sock,
 
 /* c-ares integration initialize and terminate */
 /* TODO: share this with windows? */
-int uv_ares_init_options(ares_channel *channelptr,
-                         struct ares_options *options,
-                         int optmask) {
+int uv_ares_init_options(uv_loop_t* loop, ares_channel *channelptr,
+    struct ares_options *options, int optmask) {
   int rc;
 
   /* only allow single init at a time */
-  if (ares_data.channel != NULL) {
-    uv_err_new_artificial(NULL, UV_EALREADY);
+  if (loop->channel != NULL) {
+    uv_err_new_artificial(loop, UV_EALREADY);
     return -1;
   }
 
   /* set our callback as an option */
   options->sock_state_cb = uv__ares_sockstate_cb;
-  options->sock_state_cb_data = &ares_data;
+  options->sock_state_cb_data = loop;
   optmask |= ARES_OPT_SOCK_STATE_CB;
 
   /* We do the call to ares_init_option for caller. */
@@ -2224,27 +2251,27 @@ int uv_ares_init_options(ares_channel *channelptr,
 
   /* if success, save channel */
   if (rc == ARES_SUCCESS) {
-    ares_data.channel = *channelptr;
+    loop->channel = *channelptr;
   }
 
   /*
    * Initialize the timeout timer. The timer won't be started until the
    * first socket is opened.
    */
-  ev_init(&ares_data.timer, uv__ares_timeout);
-  ares_data.timer.repeat = 1.0;
+  ev_init(&loop->timer, uv__ares_timeout);
+  loop->timer.repeat = 1.0;
 
   return rc;
 }
 
 
 /* TODO share this with windows? */
-void uv_ares_destroy(ares_channel channel) {
+void uv_ares_destroy(uv_loop_t* loop, ares_channel channel) {
   /* only allow destroy if did init */
-  if (ares_data.channel != NULL) {
-    ev_timer_stop(EV_DEFAULT_UC_ &ares_data.timer);
+  if (loop->channel != NULL) {
+    ev_timer_stop(loop->ev, &loop->timer);
     ares_destroy(channel);
-    ares_data.channel = NULL;
+    loop->channel = NULL;
   }
 }
 
@@ -2252,7 +2279,7 @@ void uv_ares_destroy(ares_channel channel) {
 static int uv_getaddrinfo_done(eio_req* req) {
   uv_getaddrinfo_t* handle = req->data;
 
-  uv_unref();
+  uv_unref(handle->loop);
 
   free(handle->hints);
   free(handle->service);
@@ -2260,7 +2287,7 @@ static int uv_getaddrinfo_done(eio_req* req) {
 
   if (handle->retcode != 0) {
     /* TODO how to display gai error strings? */
-    uv_err_new(NULL, handle->retcode);
+    uv_err_new(handle->loop, handle->retcode);
   }
 
   handle->cb(handle, handle->retcode, handle->res);
@@ -2283,17 +2310,18 @@ static void getaddrinfo_thread_proc(eio_req *req) {
 
 
 /* stub implementation of uv_getaddrinfo */
-int uv_getaddrinfo(uv_getaddrinfo_t* handle,
+int uv_getaddrinfo(uv_loop_t* loop, 
+                   uv_getaddrinfo_t* handle,
                    uv_getaddrinfo_cb cb,
                    const char* hostname,
                    const char* service,
                    const struct addrinfo* hints) {
   eio_req* req;
-  uv_eio_init();
+  uv_eio_init(loop);
 
   if (handle == NULL || cb == NULL ||
       (hostname == NULL && service == NULL)) {
-    uv_err_new_artificial(NULL, UV_EINVAL);
+    uv_err_new_artificial(loop, UV_EINVAL);
     return -1;
   }
 
@@ -2308,6 +2336,7 @@ int uv_getaddrinfo(uv_getaddrinfo_t* handle,
 
   /* TODO security! check lengths, check return values. */
 
+  handle->loop = loop;
   handle->cb = cb;
   handle->hostname = hostname ? strdup(hostname) : NULL;
   handle->service = service ? strdup(service) : NULL;
@@ -2315,7 +2344,7 @@ int uv_getaddrinfo(uv_getaddrinfo_t* handle,
   /* TODO check handle->hostname == NULL */
   /* TODO check handle->service == NULL */
 
-  uv_ref();
+  uv_ref(loop);
 
   req = eio_custom(getaddrinfo_thread_proc, EIO_PRI_DEFAULT,
       uv_getaddrinfo_done, handle);
@@ -2326,11 +2355,11 @@ int uv_getaddrinfo(uv_getaddrinfo_t* handle,
 }
 
 
-int uv_pipe_init(uv_pipe_t* handle) {
+int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle) {
   memset(handle, 0, sizeof *handle);
 
-  uv__handle_init((uv_handle_t*)handle, UV_NAMED_PIPE);
-  uv_counters()->pipe_init++;
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_NAMED_PIPE);
+  loop->counters.pipe_init++;
 
   handle->type = UV_NAMED_PIPE;
   handle->pipe_fname = NULL; /* Only set by listener. */
@@ -2365,13 +2394,13 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Already bound? */
   if (handle->fd >= 0) {
-    uv_err_new_artificial((uv_handle_t*)handle, UV_EINVAL);
+    uv_err_new_artificial(handle->loop, UV_EINVAL);
     goto out;
   }
 
   /* Make a copy of the file name, it outlives this function's scope. */
   if ((pipe_fname = strdup(name)) == NULL) {
-    uv_err_new((uv_handle_t*)handle, ENOMEM);
+    uv_err_new(handle->loop, ENOMEM);
     goto out;
   }
 
@@ -2379,7 +2408,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   name = NULL;
 
   if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
     goto out;
   }
 
@@ -2400,7 +2429,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
         || unlink(pipe_fname) == -1
         || bind(sockfd, (struct sockaddr*)&sun, sizeof sun) == -1) {
       /* Convert ENOENT to EACCES for compatibility with Windows. */
-      uv_err_new((uv_handle_t*)handle, (errno == ENOENT) ? EACCES : errno);
+      uv_err_new(handle->loop, (errno == ENOENT) ? EACCES : errno);
       goto out;
     }
   }
@@ -2437,17 +2466,17 @@ static int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   status = -1;
 
   if (handle->fd == -1) {
-    uv_err_new_artificial((uv_handle_t*)handle, UV_EINVAL);
+    uv_err_new_artificial(handle->loop, UV_EINVAL);
     goto out;
   }
   assert(handle->fd >= 0);
 
   if ((status = listen(handle->fd, backlog)) == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
   } else {
     handle->connection_cb = cb;
     ev_io_init(&handle->read_watcher, uv__pipe_accept, handle->fd, EV_READ);
-    ev_io_start(EV_DEFAULT_ &handle->read_watcher);
+    ev_io_start(handle->loop->ev, &handle->read_watcher);
   }
 
 out:
@@ -2497,7 +2526,7 @@ int uv_pipe_connect(uv_connect_t* req,
   status = -1;
 
   if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
     goto out;
   }
 
@@ -2514,15 +2543,15 @@ int uv_pipe_connect(uv_connect_t* req,
   while (r == -1 && errno == EINTR);
 
   if (r == -1) {
-    uv_err_new((uv_handle_t*)handle, errno);
+    uv_err_new(handle->loop, errno);
     uv__close(sockfd);
     goto out;
   }
 
   uv__stream_open((uv_stream_t*)handle, sockfd, UV_READABLE | UV_WRITABLE);
 
-  ev_io_start(EV_DEFAULT_ &handle->read_watcher);
-  ev_io_start(EV_DEFAULT_ &handle->write_watcher);
+  ev_io_start(handle->loop->ev, &handle->read_watcher);
+  ev_io_start(handle->loop->ev, &handle->write_watcher);
 
   status = 0;
 
@@ -2535,7 +2564,7 @@ out:
   ngx_queue_init(&req->queue);
 
   /* Run callback on next tick. */
-  ev_feed_event(EV_DEFAULT_ &handle->read_watcher, EV_CUSTOM);
+  ev_feed_event(handle->loop->ev, &handle->read_watcher, EV_CUSTOM);
   assert(ev_is_pending(&handle->read_watcher));
 
   /* Mimic the Windows pipe implementation, always
@@ -2564,14 +2593,14 @@ static void uv__pipe_accept(EV_P_ ev_io* watcher, int revents) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       assert(0 && "EAGAIN on uv__accept(pipefd)");
     } else {
-      uv_err_new((uv_handle_t*)pipe, errno);
+      uv_err_new(pipe->loop, errno);
     }
   } else {
     pipe->accepted_fd = sockfd;
     pipe->connection_cb((uv_stream_t*)pipe, 0);
     if (pipe->accepted_fd == sockfd) {
       /* The user hasn't yet accepted called uv_accept() */
-      ev_io_stop(EV_DEFAULT_ &pipe->read_watcher);
+      ev_io_stop(pipe->loop->ev, &pipe->read_watcher);
     }
   }
 
@@ -2702,7 +2731,7 @@ size_t uv__strlcpy(char* dst, const char* src, size_t size) {
 }
 
 
-uv_stream_t* uv_std_handle(uv_std_type type) {
+uv_stream_t* uv_std_handle(uv_loop_t* loop, uv_std_type type) {
   assert(0 && "implement me");
   return NULL;
 }
@@ -2736,7 +2765,8 @@ static void uv__chld(EV_P_ ev_child* watcher, int revents) {
 # define SPAWN_WAIT_EXEC 1
 #endif
 
-int uv_spawn(uv_process_t* process, uv_process_options_t options) {
+int uv_spawn(uv_loop_t* loop, uv_process_t* process,
+    uv_process_options_t options) {
   /*
    * Save environ in the case that we get it clobbered
    * by the child process.
@@ -2752,8 +2782,8 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   int status;
   pid_t pid;
 
-  uv__handle_init((uv_handle_t*)process, UV_PROCESS);
-  uv_counters()->process_init++;
+  uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
+  loop->counters.process_init++;
 
   process->exit_cb = options.exit_cb;
 
@@ -2900,7 +2930,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   process->pid = pid;
 
   ev_child_init(&process->child_watcher, uv__chld, pid, 0);
-  ev_child_start(EV_DEFAULT_UC_ &process->child_watcher);
+  ev_child_start(process->loop->ev, &process->child_watcher);
   process->child_watcher.data = process;
 
   if (stdin_pipe[1] >= 0) {
@@ -2933,7 +2963,7 @@ int uv_spawn(uv_process_t* process, uv_process_options_t options) {
   return 0;
 
 error:
-  uv_err_new((uv_handle_t*)process, errno);
+  uv_err_new(process->loop, errno);
   uv__close(stdin_pipe[0]);
   uv__close(stdin_pipe[1]);
   uv__close(stdout_pipe[0]);
@@ -2948,7 +2978,7 @@ int uv_process_kill(uv_process_t* process, int signum) {
   int r = kill(process->pid, signum);
 
   if (r) {
-    uv_err_new((uv_handle_t*)process, errno);
+    uv_err_new(process->loop, errno);
     return -1;
   } else {
     return 0;
