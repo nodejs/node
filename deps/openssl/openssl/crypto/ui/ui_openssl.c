@@ -122,7 +122,6 @@
  * sigaction and fileno included. -pedantic would be more appropriate for
  * the intended purposes, but we can't prevent users from adding -ansi.
  */
-#define _POSIX_C_SOURCE 1
 #include <signal.h>
 #include <stdio.h>
 #include <string.h>
@@ -175,6 +174,12 @@
 /* There are 5 types of terminal interface supported,
  * TERMIO, TERMIOS, VMS, MSDOS and SGTTY
  */
+
+#if defined(__sun) && !defined(TERMIOS)
+# define TERMIOS
+# undef  TERMIO
+# undef  SGTTY
+#endif
 
 #if defined(__sgi) && !defined(TERMIOS)
 # define TERMIOS
