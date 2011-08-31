@@ -29,12 +29,22 @@ LINKFLAGS=-lm
 CPPFLAGS += -D_LARGEFILE_SOURCE
 CPPFLAGS += -D_FILE_OFFSET_BITS=64
 
+OBJS += src/unix/core.o
+OBJS += src/unix/fs.o
+OBJS += src/unix/cares.o
+OBJS += src/unix/udp.o
+OBJS += src/unix/error.o
+OBJS += src/unix/process.o
+OBJS += src/unix/tcp.o
+OBJS += src/unix/pipe.o
+OBJS += src/unix/stream.o
+
 ifeq (SunOS,$(uname_S))
 EV_CONFIG=config_sunos.h
 EIO_CONFIG=config_sunos.h
 CPPFLAGS += -Isrc/ares/config_sunos -D__EXTENSIONS__ -D_XOPEN_SOURCE=500
 LINKFLAGS+=-lsocket -lnsl
-UV_OS_FILE=sunos.c
+OBJS += src/unix/sunos.o
 endif
 
 ifeq (Darwin,$(uname_S))
@@ -42,7 +52,7 @@ EV_CONFIG=config_darwin.h
 EIO_CONFIG=config_darwin.h
 CPPFLAGS += -Isrc/ares/config_darwin
 LINKFLAGS+=-framework CoreServices
-UV_OS_FILE=darwin.c
+OBJS += src/unix/darwin.o
 endif
 
 ifeq (Linux,$(uname_S))
@@ -51,7 +61,7 @@ EIO_CONFIG=config_linux.h
 CSTDFLAG += -D_XOPEN_SOURCE=600
 CPPFLAGS += -Isrc/ares/config_linux
 LINKFLAGS+=-lrt
-UV_OS_FILE=linux.c
+OBJS += src/unix/linux.o
 endif
 
 ifeq (FreeBSD,$(uname_S))
@@ -59,7 +69,7 @@ EV_CONFIG=config_freebsd.h
 EIO_CONFIG=config_freebsd.h
 CPPFLAGS += -Isrc/ares/config_freebsd
 LINKFLAGS+=
-UV_OS_FILE=freebsd.c
+OBJS += src/unix/freebsd.o
 endif
 
 ifneq (,$(findstring CYGWIN,$(uname_S)))
@@ -69,7 +79,7 @@ EIO_CONFIG=config_cygwin.h
 CSTDFLAG = -D_GNU_SOURCE
 CPPFLAGS += -Isrc/ares/config_cygwin
 LINKFLAGS+=
-UV_OS_FILE=cygwin.c
+OBJS += src/unix/cygwin.o
 endif
 
 # Need _GNU_SOURCE for strdup?
@@ -85,18 +95,11 @@ endif
 RUNNER_LIBS=
 RUNNER_SRC=test/runner-unix.c
 
-uv.a: src/uv-unix.o src/unix/fs.o src/uv-common.o src/uv-platform.o src/unix/ev/ev.o src/unix/uv-eio.o src/unix/eio/eio.o $(CARES_OBJS)
-	$(AR) rcs uv.a src/uv-unix.o src/unix/fs.o src/uv-platform.o src/uv-common.o src/unix/uv-eio.o src/unix/ev/ev.o \
-		src/unix/eio/eio.o $(CARES_OBJS)
+uv.a: $(OBJS) src/uv-common.o src/unix/ev/ev.o src/unix/uv-eio.o src/unix/eio/eio.o $(CARES_OBJS)
+	$(AR) rcs uv.a $(OBJS) src/uv-common.o src/unix/uv-eio.o src/unix/ev/ev.o src/unix/eio/eio.o $(CARES_OBJS)
 
-src/uv-platform.o: src/unix/$(UV_OS_FILE) include/uv.h include/uv-private/uv-unix.h
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/unix/$(UV_OS_FILE) -o src/uv-platform.o
-
-src/uv-unix.o: src/uv-unix.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc  $(CFLAGS) -c src/uv-unix.c -o src/uv-unix.o
-
-src/unix/fs.o: src/unix/fs.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
-	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc/ $(CFLAGS) -c src/unix/fs.c -o src/unix/fs.o
+src/unix/%.o: src/unix/%.c include/uv.h include/uv-private/uv-unix.h src/unix/internal.h
+	$(CC) $(CSTDFLAG) $(CPPFLAGS) -Isrc  $(CFLAGS) -c $< -o $@
 
 src/uv-common.o: src/uv-common.c include/uv.h include/uv-private/uv-unix.h
 	$(CC) $(CSTDFLAG) $(CPPFLAGS) $(CFLAGS) -c src/uv-common.c -o src/uv-common.o

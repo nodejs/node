@@ -75,7 +75,6 @@ static void prep_tcploopback() {
   options.flags = ARES_FLAG_USEVC;
 
   rc = uv_ares_init_options(uv_default_loop(), &channel, &options, optmask);
-
   ASSERT(rc == ARES_SUCCESS);
 }
 

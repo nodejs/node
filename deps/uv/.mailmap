@@ -1,0 +1,7 @@
+# update AUTHORS with:
+#   git log --all --reverse --format='%aN <%aE>' | perl -ne 'BEGIN{print "# Authors ordered by first contribution.\n"} print unless $h{$_}; $h{$_} = 1' > AUTHORS
+<rm@joyent.com> <rm@fingolfin.org>
+<ryan@joyent.com> <ry@tinyclouds.org>
+<bertbelder@gmail.com> <info@2bs.nl>
+<alan@prettyrobots.com> <alan@blogometer.com>
+San-Tai Hsu <vanilla@fatpipi.com>
