@@ -150,7 +150,10 @@ def configure_node(o):
   o['variables']['node_use_dtrace'] = 'true' if options.with_dtrace else 'false'
   o['variables']['host_arch'] = host_arch()
   o['variables']['target_arch'] = target_arch()
-  o['variables']['visibility'] = '' # -fvisibility=hidden doesn't work with older gccs
+
+  # TODO move to node.gyp
+  if sys.platform == 'sunos5':
+    o['variables']['visibility'] = '' # FIXME -fvisibility=hidden, should be a gcc check
 
 
 def configure_libz(o):
