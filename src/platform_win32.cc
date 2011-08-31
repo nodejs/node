@@ -198,18 +198,46 @@ const char* Platform::GetProcessTitle(int *len) {
 
 
 int Platform::GetMemory(size_t *rss, size_t *vsize) {
-  *rss = 0;
-  *vsize = 0;
+
+  HANDLE current_process = GetCurrentProcess();
+  PROCESS_MEMORY_COUNTERS pmc;
+
+  if ( !GetProcessMemoryInfo( current_process, &pmc, sizeof(pmc)) )
+  {
+    winapi_perror("GetProcessMemoryInfo");
+  }
+
+  *rss = pmc.WorkingSetSize;
+  *vsize = 0; // FIXME
+
   return 0;
 }
 
 
 double Platform::GetFreeMemory() {
-  return -1;
+
+  MEMORYSTATUSEX memory_status;
+  memory_status.dwLength = sizeof(memory_status);
+
+  if(!GlobalMemoryStatusEx(&memory_status))
+  {
+     winapi_perror("GlobalMemoryStatusEx");
+  }
+
+  return (double)memory_status.ullAvailPhys;
 }
 
 double Platform::GetTotalMemory() {
-  return -1;
+
+  MEMORYSTATUSEX memory_status;
+  memory_status.dwLength = sizeof(memory_status);
+
+  if(!GlobalMemoryStatusEx(&memory_status))
+  {
+    winapi_perror("GlobalMemoryStatusEx");
+  }
+
+  return (double)memory_status.ullTotalPhys;
 }
 
 
@@ -219,7 +247,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 
 
 double Platform::GetUptimeImpl() {
-  return -1;
+  return (double)GetTickCount()/1000.0;
 }
 
 int Platform::GetLoadAvg(Local<Array> *loads) {
