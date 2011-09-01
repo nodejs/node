@@ -28,6 +28,7 @@
 #include <mswsock.h>
 #include <ws2tcpip.h>
 #include <windows.h>
+#include <sys/stat.h>
 
 #include "tree.h"
 
@@ -246,6 +247,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define UV_FS_PRIVATE_FIELDS              \
   int flags;                              \
+  struct _stat stat;                      \
   void* arg0;                             \
   union {                                 \
     struct {                              \

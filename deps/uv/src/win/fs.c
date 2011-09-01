@@ -234,17 +234,11 @@ done:
 void fs__stat(uv_fs_t* req, const char* path) {
   int result;
 
-  req->ptr = malloc(sizeof(struct _stat));
-  if (!req->ptr) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
-
-  result = _stat(path, (struct _stat*)req->ptr);
+  result = _stat(path, &req->stat);
   if (result == -1) {
-    free(req->ptr);
     req->ptr = NULL;
   } else {
-    req->flags |= UV_FS_FREE_PTR;
+    req->ptr = &req->stat;
   }
 
   SET_REQ_RESULT(req, result);
@@ -254,17 +248,11 @@ void fs__stat(uv_fs_t* req, const char* path) {
 void fs__fstat(uv_fs_t* req, uv_file file) {
   int result;
 
-  req->ptr = malloc(sizeof(struct _stat));
-  if (!req->ptr) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
-
-  result = _fstat(file, (struct _stat*)req->ptr);
+  result = _fstat(file, &req->stat);
   if (result == -1) {
-    free(req->ptr);
     req->ptr = NULL;
   } else {
-    req->flags |= UV_FS_FREE_PTR;
+    req->ptr = &req->stat;
   }
 
   SET_REQ_RESULT(req, result);
@@ -807,8 +795,9 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
 
   if (req->flags & UV_FS_FREE_PTR && req->ptr) {
     free(req->ptr);
-    req->ptr = NULL;
   }
+
+  req->ptr = NULL;
 
   if (req->flags & UV_FS_ASYNC_QUEUED) {
     uv_unref(loop);

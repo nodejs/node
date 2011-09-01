@@ -75,14 +75,14 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
   }
 
   if (pSetFileCompletionNotificationModes) {
-    if (!pSetFileCompletionNotificationModes((HANDLE) socket,
+    if (pSetFileCompletionNotificationModes((HANDLE) socket,
         FILE_SKIP_SET_EVENT_ON_HANDLE |
         FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
+      handle->flags |= UV_HANDLE_SYNC_BYPASS_IOCP;
+    } else if (GetLastError() != ERROR_INVALID_FUNCTION) {
       uv_set_sys_error(loop, GetLastError());
       return -1;
     }
-
-    handle->flags |= UV_HANDLE_SYNC_BYPASS_IOCP;
   }
 
   handle->socket = socket;

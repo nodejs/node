@@ -81,28 +81,36 @@ static int uv__fs_after(eio_req* eio) {
   req->result = req->eio->result;
   req->errorno = req->eio->errorno;
 
-  if (req->fs_type == UV_FS_READDIR) {
-    /*
-     * XXX This is pretty bad.
-     * We alloc and copy the large null termiated string list from libeio.
-     * This is done because libeio is going to free eio->ptr2 after this
-     * callback. We must keep it until uv_fs_req_cleanup. If we get rid of
-     * libeio this can be avoided.
-     */
-    buflen = 0;
-    name = req->eio->ptr2;
-    for (i = 0; i < req->result; i++) {
-      namelen = strlen(name);
-      buflen += namelen + 1;
-      /* TODO check ENOMEM */
-      name += namelen;
-      assert(*name == '\0');
-      name++;
-    }
-    req->ptr = malloc(buflen);
-    memcpy(req->ptr, req->eio->ptr2, buflen);
-  } else if (req->fs_type == UV_FS_STAT || req->fs_type == UV_FS_LSTAT) {
-    req->ptr = req->eio->ptr2;
+  switch (req->fs_type) {
+    case UV_FS_READDIR:
+      /*
+       * XXX This is pretty bad.
+       * We alloc and copy the large null termiated string list from libeio.
+       * This is done because libeio is going to free eio->ptr2 after this
+       * callback. We must keep it until uv_fs_req_cleanup. If we get rid of
+       * libeio this can be avoided.
+       */
+      buflen = 0;
+      name = req->eio->ptr2;
+      for (i = 0; i < req->result; i++) {
+        namelen = strlen(name);
+        buflen += namelen + 1;
+        /* TODO check ENOMEM */
+        name += namelen;
+        assert(*name == '\0');
+        name++;
+      }
+      req->ptr = malloc(buflen);
+      memcpy(req->ptr, req->eio->ptr2, buflen);
+      break;
+    case UV_FS_STAT:
+    case UV_FS_LSTAT:
+    case UV_FS_FSTAT:
+      req->ptr = req->eio->ptr2;
+      break;
+
+    default:
+      break;
   }
 
   uv_unref(req->loop);
@@ -398,8 +406,31 @@ int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
 
 
 int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  uv_fs_req_init(loop, req, UV_FS_FSTAT, cb);
+
+  if (cb) {
+    /* async */
+    uv_ref(loop);
+    req->eio = eio_fstat(file, EIO_PRI_DEFAULT, uv__fs_after, req);
+
+    if (!req->eio) {
+      uv_err_new(loop, ENOMEM);
+      return -1;
+    }
+
+  } else {
+    /* sync */
+    req->result = fstat(file, &req->statbuf);
+
+    if (req->result < 0) {
+      uv_err_new(loop, errno);
+      return -1;
+    }
+
+    req->ptr = &req->statbuf;
+  }
+
+  return 0;
 }
 
 

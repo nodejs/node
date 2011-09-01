@@ -57,6 +57,7 @@ static int fsync_cb_count;
 static int fdatasync_cb_count;
 static int ftruncate_cb_count;
 static int sendfile_cb_count;
+static int fstat_cb_count;
 
 static uv_loop_t* loop;
 
@@ -86,6 +87,15 @@ static void unlink_cb(uv_fs_t* req) {
   ASSERT(req->result != -1);
   unlink_cb_count++;
   uv_fs_req_cleanup(req);
+}
+
+static void fstat_cb(uv_fs_t* req) {
+  struct stat* s = req->ptr;
+  ASSERT(req->fs_type == UV_FS_FSTAT);
+  ASSERT(req->result == 0);
+  ASSERT(s->st_size == sizeof(test_buf));
+  uv_fs_req_cleanup(req);
+  fstat_cb_count++;
 }
 
 
@@ -486,10 +496,10 @@ TEST_IMPL(fs_async_dir) {
 
 TEST_IMPL(fs_async_sendfile) {
   int f, r;
-
-  /* Setup. */
   struct stat s1, s2;
 
+  /* Setup. */
+  uv_init();
   unlink("test_file");
   unlink("test_file2");
 
@@ -509,7 +519,6 @@ TEST_IMPL(fs_async_sendfile) {
   ASSERT(r == 0);
 
   /* Test starts here. */
-  uv_init();
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &open_req1, "test_file", O_RDWR, 0, NULL);
@@ -544,6 +553,61 @@ TEST_IMPL(fs_async_sendfile) {
   /* Cleanup. */
   unlink("test_file");
   unlink("test_file2");
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_fstat) {
+  int r;
+  uv_fs_t req;
+  uv_file file;
+
+  /* Setup. */
+  unlink("test_file");
+
+  uv_init();
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop, &req, "test_file", O_RDWR | O_CREAT, 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  file = req.result;
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_write(loop, &req, file, test_buf, sizeof(test_buf), -1, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_fstat(loop, &req, file, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  struct stat* s = req.ptr;
+  ASSERT(s->st_size == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  /* Now do the uv_fs_fstat call asynchronously */
+  r = uv_fs_fstat(loop, &req, file, fstat_cb);
+  ASSERT(r == 0);
+  uv_run(loop);
+  ASSERT(fstat_cb_count == 1);
+
+
+  r = uv_fs_close(loop, &req, file, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  /*
+   * Run the loop just to check we don't have make any extranious uv_ref()
+   * calls. This should drop out immediately.
+   */
+  uv_run(loop);
+
+  /* Cleanup. */
+  unlink("test_file");
 
   return 0;
 }
