@@ -553,3 +553,9 @@ assert.equal(written, 9);
 written = buf.write('あいう\0'); // 3bytes * 3 + 1byte
 assert.equal(written, 10);
 
+// test for buffer overrun
+buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
+var sub = buf.slice(0, 4);         // length: 4
+written = sub.write('12345', 'binary');
+assert.equal(written, 4);
+assert.equal(buf[4], 0);

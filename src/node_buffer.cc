@@ -667,9 +667,11 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
 
   char *p = (char*)buffer->data_ + offset;
 
-  size_t towrite = MIN((unsigned long) s->Length(), buffer->length_ - offset);
+  size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
+                                             : args[2]->Uint32Value();
+  max_length = MIN(s->Length(), MIN(buffer->length_ - offset, max_length));
 
-  int written = DecodeWrite(p, towrite, s, BINARY);
+  int written = DecodeWrite(p, max_length, s, BINARY);
   return scope.Close(Integer::New(written));
 }
 
