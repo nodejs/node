@@ -57,6 +57,20 @@ Pass `true` as the third argument to treat `//foo/bar` as
 
 Take a parsed URL object, and return a formatted URL string.
 
+* `href` will be ignored.
+* `protocol`is treated the same with or without the trailing `:` (colon).
+  * The protocols `http`, `https`, `ftp`, `gopher`, `file` will be postfixed with `://` (colon-slash-slash).
+  * All other protocols `mailto`, `xmpp`, `aim`, `sftp`, `foo`, etc will be postfixed with `:` (colon)
+* `auth` will only be used if `host` is absent.
+* `hostname` will only be used if `host` is absent.
+* `port` will only be used if `host` is absent.
+* `host` will be used in place of `auth`, `hostname`, and `port`
+* `pathname` is treated the same with or without the leading `/` (slash)
+* `search` will be used in place of `query`
+* `query` (object; see `querystring`) will only be used if `search` is absent.
+* `search` is treated the same with or without the leading `?` (question mark)
+* `hash` is treated the same with or without the leading `#` (pound sign, anchor)
+
 ### url.resolve(from, to)
 
 Take a base URL, and a href URL, and resolve them as a browser would for an anchor tag.
