@@ -58,6 +58,8 @@ static int fdatasync_cb_count;
 static int ftruncate_cb_count;
 static int sendfile_cb_count;
 static int fstat_cb_count;
+static int chmod_cb_count;
+static int fchmod_cb_count;
 
 static uv_loop_t* loop;
 
@@ -79,6 +81,40 @@ static uv_fs_t sendfile_req;
 
 static char buf[32];
 static char test_buf[] = "test-buffer\n";
+
+
+void check_permission(const char* filename, int mode) {
+  int r;
+  uv_fs_t req;
+  struct stat* s;
+
+  r = uv_fs_stat(uv_default_loop(), &req, filename, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+
+  s = req.ptr;
+  ASSERT((s->st_mode & 0777) == mode);
+
+  uv_fs_req_cleanup(&req);
+}
+
+
+static void fchmod_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_FCHMOD);
+  ASSERT(req->result == 0);
+  fchmod_cb_count++;
+  uv_fs_req_cleanup(req);
+  check_permission("test_file", 0600);
+}
+
+
+static void chmod_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_CHMOD);
+  ASSERT(req->result == 0);
+  chmod_cb_count++;
+  uv_fs_req_cleanup(req);
+  check_permission("test_file", 0200);
+}
 
 
 static void unlink_cb(uv_fs_t* req) {
@@ -599,6 +635,72 @@ TEST_IMPL(fs_fstat) {
   ASSERT(r == 0);
   ASSERT(req.result == 0);
   uv_fs_req_cleanup(&req);
+
+  /*
+   * Run the loop just to check we don't have make any extranious uv_ref()
+   * calls. This should drop out immediately.
+   */
+  uv_run(loop);
+
+  /* Cleanup. */
+  unlink("test_file");
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_chmod) {
+  int r;
+  uv_fs_t req;
+  uv_file file;
+
+  /* Setup. */
+  unlink("test_file");
+
+  uv_init();
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop, &req, "test_file", O_RDWR | O_CREAT, 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  file = req.result;
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_write(loop, &req, file, test_buf, sizeof(test_buf), -1, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  /* Make the file write-only */
+  r = uv_fs_chmod(loop, &req, "test_file", 0200, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  check_permission("test_file", 0200);
+
+  /* Make the file read+write with sync uv_fs_fchmod */
+  r = uv_fs_fchmod(loop, &req, file, 0600, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  check_permission("test_file", 0600);
+
+  /* async chmod */
+  r = uv_fs_chmod(loop, &req, "test_file", 0200, chmod_cb);
+  ASSERT(r == 0);
+  uv_run(loop);
+  ASSERT(chmod_cb_count == 1);
+
+  /* async fchmod */
+  r = uv_fs_fchmod(loop, &req, file, 0600, fchmod_cb);
+  ASSERT(r == 0);
+  uv_run(loop);
+  ASSERT(fchmod_cb_count == 1);
+
+  close(file);
 
   /*
    * Run the loop just to check we don't have make any extranious uv_ref()

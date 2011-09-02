@@ -31,6 +31,33 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <utime.h>
+
+
+#define ARGS1(a)       (a)
+#define ARGS2(a,b)     (a), (b)
+#define ARGS3(a,b,c)   (a), (b), (c)
+#define ARGS4(a,b,c,d) (a), (b), (c), (d)
+
+#define WRAP_EIO(type, eiofunc, func, args) \
+  uv_fs_req_init(loop, req, type, cb); \
+  if (cb) { \
+    /* async */ \
+    uv_ref(loop); \
+    req->eio = eiofunc(args, EIO_PRI_DEFAULT, uv__fs_after, req); \
+    if (!req->eio) { \
+      uv_err_new(loop, ENOMEM); \
+      return -1; \
+    } \
+  } else { \
+    /* sync */ \
+    req->result = func(args); \
+    if (req->result) { \
+      uv_err_new(loop, errno); \
+      return -1; \
+    }  \
+  } \
+  return 0;
 
 
 static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req, uv_fs_type fs_type,
@@ -122,24 +149,7 @@ static int uv__fs_after(eio_req* eio) {
 
 
 int uv_fs_close(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_CLOSE, cb);
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_close(file, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-  } else {
-    /* sync */
-    if ((req->result = uv__close(file))) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_CLOSE, eio_close, close, ARGS1(file));
 }
 
 
@@ -203,28 +213,7 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
 
 
 int uv_fs_unlink(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_UNLINK, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_unlink(path, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = unlink(path);
-
-    if (req->result) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_UNLINK, eio_unlink, unlink, ARGS1(path))
 }
 
 
@@ -260,54 +249,12 @@ int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, void* buf,
 
 int uv_fs_mkdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
     uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_MKDIR, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_mkdir(path, mode, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = mkdir(path, mode);
-
-    if (req->result < 0) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_MKDIR, eio_mkdir, mkdir, ARGS2(path, mode))
 }
 
 
 int uv_fs_rmdir(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_RMDIR, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_rmdir(path, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = rmdir(path);
-
-    if (req->result < 0) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_RMDIR, eio_rmdir, rmdir, ARGS1(path))
 }
 
 
@@ -436,149 +383,50 @@ int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
 
 int uv_fs_rename(uv_loop_t* loop, uv_fs_t* req, const char* path, const char* new_path,
     uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_RENAME, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_rename(path, new_path, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = rename(path, new_path);
-
-    if (req->result) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_RENAME, eio_rename, rename, ARGS2(path, new_path))
 }
 
 
 int uv_fs_fsync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_FSYNC, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_fsync(file, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = fsync(file);
-
-    if (req->result) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_FSYNC, eio_fsync, fsync, ARGS1(file))
 }
 
 
 int uv_fs_fdatasync(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_FDATASYNC, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_fdatasync(file, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = fdatasync(file);
-
-    if (req->result) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_FDATASYNC, eio_fdatasync, fdatasync, ARGS1(file))
 }
 
 
 int uv_fs_ftruncate(uv_loop_t* loop, uv_fs_t* req, uv_file file, off_t offset,
     uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_FTRUNCATE, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_ftruncate(file, offset, EIO_PRI_DEFAULT, uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = ftruncate(file, offset);
-
-    if (req->result) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_FTRUNCATE, eio_ftruncate, ftruncate, ARGS2(file, offset))
 }
 
 
 int uv_fs_sendfile(uv_loop_t* loop, uv_fs_t* req, uv_file out_fd, uv_file in_fd,
     off_t in_offset, size_t length, uv_fs_cb cb) {
-  uv_fs_req_init(loop, req, UV_FS_SENDFILE, cb);
-
-  if (cb) {
-    /* async */
-    uv_ref(loop);
-    req->eio = eio_sendfile(out_fd, in_fd, in_offset, length, EIO_PRI_DEFAULT,
-        uv__fs_after, req);
-    if (!req->eio) {
-      uv_err_new(loop, ENOMEM);
-      return -1;
-    }
-
-  } else {
-    /* sync */
-    req->result = eio_sendfile_sync(out_fd, in_fd, in_offset, length);
-
-    if (req->result) {
-      uv_err_new(loop, errno);
-      return -1;
-    }
-  }
-
-  return 0;
+  WRAP_EIO(UV_FS_SENDFILE, eio_sendfile, eio_sendfile_sync,
+      ARGS4(out_fd, in_fd, in_offset, length))
 }
 
 
 int uv_fs_chmod(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
     uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_CHMOD, eio_chmod, chmod, ARGS2(path, mode))
+}
+
+
+static int _utime(const char* path, double atime, double mtime) {
+  struct utimbuf buf;
+  buf.actime = atime;
+  buf.modtime = mtime;
+  return utime(path, &buf);
 }
 
 
 int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
     double mtime, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_UTIME, eio_utime, _utime, ARGS3(path, atime, mtime))
 }
 
 
@@ -637,15 +485,13 @@ int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
 
 int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path,
     const char* new_path, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_LINK, eio_link, link, ARGS2(path, new_path))
 }
 
 
 int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     const char* new_path, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_SYMLINK, eio_symlink, symlink, ARGS2(path, new_path))
 }
 
 
@@ -658,22 +504,19 @@ int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
 
 int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file, int mode,
     uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_FCHMOD, eio_fchmod, fchmod, ARGS2(file, mode))
 }
 
 
 int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, int uid,
     int gid, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_CHOWN, eio_chown, chown, ARGS3(path, uid, gid))
 }
 
 
 int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, int uid, int gid,
     uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  WRAP_EIO(UV_FS_FCHOWN, eio_fchown, fchown, ARGS3(file, uid, gid))
 }
 
 
