@@ -33,6 +33,7 @@
 #endif
 
 #include <platform_win32.h>
+#include <psapi.h>
 
 namespace node {
 

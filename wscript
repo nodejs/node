@@ -491,6 +491,7 @@ def configure(conf):
     conf.env.append_value('LINKFLAGS', '-pg')
 
   if sys.platform.startswith("win32"):
+    conf.env.append_value('LIB', 'psapi')
     conf.env.append_value('LIB', 'ws2_32')
     conf.env.append_value('LIB', 'winmm')
 

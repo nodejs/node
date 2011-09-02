@@ -112,6 +112,7 @@
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
             'PLATFORM="win32"',
           ],
+          'libraries': [ '-lpsapi.lib' ]
         },{ # POSIX
           'defines': [ '__POSIX__' ],
           'sources': [
