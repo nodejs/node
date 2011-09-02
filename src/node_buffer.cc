@@ -555,6 +555,10 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
                               0,
                               max_length,
                               String::HINT_MANY_WRITES_EXPECTED);
+
+  constructor_template->GetFunction()->Set(chars_written_sym,
+                                           Integer::New(written));
+
   return scope.Close(Integer::New(written));
 }
 
@@ -642,6 +646,9 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
     *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
   }
 
+  constructor_template->GetFunction()->Set(chars_written_sym,
+                                           Integer::New(s.length()));
+
   return scope.Close(Integer::New(dst - start));
 }
 
@@ -672,6 +679,10 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
   max_length = MIN(s->Length(), MIN(buffer->length_ - offset, max_length));
 
   int written = DecodeWrite(p, max_length, s, BINARY);
+
+  constructor_template->GetFunction()->Set(chars_written_sym,
+                                           Integer::New(written));
+
   return scope.Close(Integer::New(written));
 }
 
