@@ -641,6 +641,13 @@
                 ],
               }
             ],
+            ['OS=="solaris"', {
+                'sources': [
+                  '../../src/platform-solaris.cc',
+                  '../../src/platform-posix.cc'
+                ],
+              }
+            ],
             ['OS=="mac"', {
               'sources': [
                 '../../src/platform-macos.cc',
