@@ -339,7 +339,6 @@ static Handle<Value> Stat(const Arguments& args) {
   }
 }
 
-#ifdef __POSIX__
 static Handle<Value> LStat(const Arguments& args) {
   HandleScope scope;
 
@@ -356,7 +355,6 @@ static Handle<Value> LStat(const Arguments& args) {
     return scope.Close(BuildStatsObject((NODE_STAT_STRUCT*)SYNC_REQ.ptr));
   }
 }
-#endif // __POSIX__
 
 static Handle<Value> FStat(const Arguments& args) {
   HandleScope scope;
@@ -807,7 +805,6 @@ static Handle<Value> Chmod(const Arguments& args) {
 }
 
 
-#ifdef __POSIX__
 /* fs.fchmod(fd, mode);
  * Wrapper for fchmod(1) / EIO_FCHMOD
  */
@@ -827,10 +824,8 @@ static Handle<Value> FChmod(const Arguments& args) {
     return Undefined();
   }
 }
-#endif // __POSIX__
 
 
-#ifdef __POSIX__
 /* fs.chown(path, uid, gid);
  * Wrapper for chown(1) / EIO_CHOWN
  */
@@ -856,10 +851,8 @@ static Handle<Value> Chown(const Arguments& args) {
     return Undefined();
   }
 }
-#endif // __POSIX__
 
 
-#ifdef __POSIX__
 /* fs.fchown(fd, uid, gid);
  * Wrapper for fchown(1) / EIO_FCHOWN
  */
@@ -885,7 +878,7 @@ static Handle<Value> FChown(const Arguments& args) {
     return Undefined();
   }
 }
-#endif // __POSIX__
+
 
 static Handle<Value> UTimes(const Arguments& args) {
   HandleScope scope;
@@ -949,9 +942,7 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "sendfile", SendFile);
   NODE_SET_METHOD(target, "readdir", ReadDir);
   NODE_SET_METHOD(target, "stat", Stat);
-#ifdef __POSIX__
   NODE_SET_METHOD(target, "lstat", LStat);
-#endif // __POSIX__
   NODE_SET_METHOD(target, "fstat", FStat);
 #ifdef __POSIX__
   NODE_SET_METHOD(target, "link", Link);
@@ -962,7 +953,6 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "write", Write);
 
   NODE_SET_METHOD(target, "chmod", Chmod);
-#ifdef __POSIX__
   NODE_SET_METHOD(target, "fchmod", FChmod);
   //NODE_SET_METHOD(target, "lchmod", LChmod);
 
@@ -970,7 +960,6 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "fchown", FChown);
   //NODE_SET_METHOD(target, "lchown", LChown);
 
-#endif // __POSIX__
   NODE_SET_METHOD(target, "utimes", UTimes);
   NODE_SET_METHOD(target, "futimes", FUTimes);
 
