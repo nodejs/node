@@ -492,8 +492,11 @@ def configure(conf):
 
   if sys.platform.startswith("win32"):
     conf.env.append_value('LIB', 'psapi')
-    conf.env.append_value('LIB', 'ws2_32')
     conf.env.append_value('LIB', 'winmm')
+    # This enforces ws2_32 to be linked after crypto, otherwise the linker
+    # will run into undefined references from libcrypto.a
+    if not Options.options.use_openssl:
+      conf.env.append_value('LIB', 'ws2_32')
 
   conf.env.append_value('CPPFLAGS', '-Wno-unused-parameter');
   conf.env.append_value('CPPFLAGS', '-D_FORTIFY_SOURCE=2');
