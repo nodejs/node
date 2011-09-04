@@ -4096,6 +4096,14 @@ typedef struct _FILE_PIPE_LOCAL_INFORMATION {
   ULONG NamedPipeEnd;
 } FILE_PIPE_LOCAL_INFORMATION, *PFILE_PIPE_LOCAL_INFORMATION;
 
+typedef struct _FILE_BASIC_INFORMATION {
+  LARGE_INTEGER CreationTime;
+  LARGE_INTEGER LastAccessTime;
+  LARGE_INTEGER LastWriteTime;
+  LARGE_INTEGER ChangeTime;
+  DWORD FileAttributes;
+} FILE_BASIC_INFORMATION, *PFILE_BASIC_INFORMATION;
+
 typedef enum _FILE_INFORMATION_CLASS {
   FileDirectoryInformation = 1,
   FileFullDirectoryInformation,
@@ -4165,6 +4173,12 @@ typedef NTSTATUS (NTAPI *sNtQueryInformationFile)
                   ULONG Length,
                   FILE_INFORMATION_CLASS FileInformationClass);
 
+typedef NTSTATUS (NTAPI *sNtSetInformationFile)
+                 (HANDLE FileHandle,
+                  PIO_STATUS_BLOCK IoStatusBlock,
+                  PVOID FileInformation,
+                  ULONG Length,
+                  FILE_INFORMATION_CLASS FileInformationClass);
 
 /*
  * Kernel32 headers
@@ -4197,6 +4211,7 @@ typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
 /* Ntapi function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
 extern sNtQueryInformationFile pNtQueryInformationFile;
+extern sNtSetInformationFile pNtSetInformationFile;
 
 
 /* Kernel32 function pointers */

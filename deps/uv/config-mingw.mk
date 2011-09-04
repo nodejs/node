@@ -36,24 +36,18 @@ RUNNER_LINKFLAGS=$(LINKFLAGS)
 RUNNER_LIBS=-lws2_32
 RUNNER_SRC=test/runner-win.c
 
-uv.a: $(WIN_OBJS) src/uv-common.o src/uv-eio.o src/eio/eio.o $(CARES_OBJS)
-	$(AR) rcs uv.a src/win/*.o src/uv-common.o src/uv-eio.o src/eio/eio.o $(CARES_OBJS)
+uv.a: $(WIN_OBJS) src/uv-common.o $(CARES_OBJS)
+	$(AR) rcs uv.a src/win/*.o src/uv-common.o $(CARES_OBJS)
 
 src/win/%.o: src/win/%.c src/win/internal.h
 	$(CC) $(CFLAGS) -o $@ -c $<
 
-src/uv-common.o: src/uv-common.c include/uv.h include/uv-win.h
+src/uv-common.o: src/uv-common.c include/uv.h include/uv-private/uv-win.h
 	$(CC) $(CFLAGS) -c src/uv-common.c -o src/uv-common.o
 
 EIO_CPPFLAGS += $(CPPFLAGS)
 EIO_CPPFLAGS += -DEIO_STACKSIZE=65536
 EIO_CPPFLAGS += -D_GNU_SOURCE
-
-src/eio/eio.o: src/eio/eio.c
-	$(CC) $(EIO_CPPFLAGS) $(CFLAGS) -c src/eio/eio.c -o src/eio/eio.o
-
-src/uv-eio.o: src/uv-eio.c
-	$(CC) $(CPPFLAGS) -Isrc/eio/ $(CFLAGS) -c src/uv-eio.c -o src/uv-eio.o
 
 clean-platform:
 	-rm -f src/ares/*.o

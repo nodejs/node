@@ -78,6 +78,7 @@ TEST_DECLARE   (fs_async_dir)
 TEST_DECLARE   (fs_async_sendfile)
 TEST_DECLARE   (fs_fstat)
 TEST_DECLARE   (fs_chmod)
+TEST_DECLARE   (fs_chown)
 TEST_DECLARE   (threadpool_queue_work_simple)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
@@ -183,6 +184,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_async_sendfile)
   TEST_ENTRY  (fs_fstat)
   TEST_ENTRY  (fs_chmod)
+  TEST_ENTRY  (fs_chown)
 
   TEST_ENTRY  (threadpool_queue_work_simple)
 

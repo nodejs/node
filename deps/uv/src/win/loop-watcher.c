@@ -49,7 +49,7 @@ void uv_loop_watcher_endgame(uv_loop_t* loop, uv_handle_t* handle) {
     uv_ref(loop);                                                             \
                                                                               \
     loop->counters.handle_init++;                                             \
-    loop->counters.##name##_init++;                                           \
+    loop->counters.name##_init++;                                             \
                                                                               \
     return 0;                                                                 \
   }                                                                           \

@@ -323,6 +323,50 @@ void fs__chmod(uv_fs_t* req, const char* path, int mode) {
 }
 
 
+void fs__fchmod(uv_fs_t* req, uv_file file, int mode) {
+  int result;
+  HANDLE handle;
+  NTSTATUS nt_status;
+  IO_STATUS_BLOCK io_status;
+  FILE_BASIC_INFORMATION file_info;
+
+  handle = (HANDLE)_get_osfhandle(file);
+
+  nt_status = pNtQueryInformationFile(handle,
+                                      &io_status,
+                                      &file_info,
+                                      sizeof file_info,
+                                      FileBasicInformation);
+
+  if (nt_status != STATUS_SUCCESS) {
+    result = -1;
+    goto done;
+  }
+
+  if (mode & _S_IWRITE) {
+    file_info.FileAttributes &= ~FILE_ATTRIBUTE_READONLY;
+  } else {
+    file_info.FileAttributes |= FILE_ATTRIBUTE_READONLY;
+  }
+
+  nt_status = pNtSetInformationFile(handle,
+                                    &io_status,
+                                    &file_info,
+                                    sizeof file_info,
+                                    FileBasicInformation);
+
+  if (nt_status != STATUS_SUCCESS) {
+    result = -1;
+    goto done;
+  }
+
+  result = 0;
+
+done:
+  SET_REQ_RESULT(req, result);
+}
+
+
 void fs__utime(uv_fs_t* req, const char* path, double atime, double mtime) {
   int result;
   struct _utimbuf b = {(time_t)atime, (time_t)mtime};
@@ -336,6 +380,11 @@ void fs__futime(uv_fs_t* req, uv_file file, double atime, double mtime) {
   struct _utimbuf b = {(time_t)atime, (time_t)mtime};
   result = _futime(file, &b);
   SET_REQ_RESULT(req, result);
+}
+
+
+void fs__nop(uv_fs_t* req) {
+  req->result = 0;
 }
 
 
@@ -380,6 +429,7 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
       fs__readdir(req, (const char*)req->arg0, (int)req->arg1);
       break;
     case UV_FS_STAT:
+    case UV_FS_LSTAT:
       fs__stat(req, (const char*)req->arg0);
       break;
     case UV_FS_FSTAT:
@@ -405,11 +455,18 @@ static DWORD WINAPI uv_fs_thread_proc(void* parameter) {
     case UV_FS_CHMOD:
       fs__chmod(req, (const char*)req->arg0, (int)req->arg1);
       break;
+    case UV_FS_FCHMOD:
+      fs__fchmod(req, (uv_file)req->arg0, (int)req->arg1);
+      break;
     case UV_FS_UTIME:
       fs__utime(req, (const char*)req->arg0, req->arg4, req->arg5);
       break;
     case UV_FS_FUTIME:
       fs__futime(req, (uv_file)req->arg0, req->arg4, req->arg5);
+      break;
+    case UV_FS_CHOWN:
+    case UV_FS_FCHOWN:
+      fs__nop(req);
       break;
     default:
       assert(!"bad uv_fs_type");
@@ -544,13 +601,6 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
 }
 
 
-int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
-}
-
-
-//  uv_fs_readlink, uv_fs_fchmod, uv_fs_chown, uv_fs_fchown
 int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path,
     const char* new_path, uv_fs_cb cb) {
   assert(0 && "implement me");
@@ -572,24 +622,34 @@ int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
 }
 
 
-int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file, int mode,
-    uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
-}
-
-
 int uv_fs_chown(uv_loop_t* loop, uv_fs_t* req, const char* path, int uid,
     int gid, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  if (cb) {
+    uv_fs_req_init_async(loop, req, UV_FS_CHOWN, cb);
+    WRAP_REQ_ARGS3(req, path, uid, gid);
+    STRDUP_ARG(req, 0);
+    QUEUE_FS_TP_JOB(loop, req);
+  } else {
+    uv_fs_req_init_sync(loop, req, UV_FS_CHOWN);
+    fs__nop(req);
+  }
+
+  return 0;
 }
 
 
 int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, int uid,
     int gid, uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  if (cb) {
+    uv_fs_req_init_async(loop, req, UV_FS_FCHOWN, cb);
+    WRAP_REQ_ARGS3(req, file, uid, gid);
+    QUEUE_FS_TP_JOB(loop, req);
+  } else {
+    uv_fs_req_init_sync(loop, req, UV_FS_FCHOWN);
+    fs__nop(req);
+  }
+
+  return 0;
 }
 
 
@@ -620,6 +680,44 @@ int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
     QUEUE_FS_TP_JOB(loop, req);
   } else {
     uv_fs_req_init_sync(loop, req, UV_FS_STAT);
+    fs__stat(req, path2 ? path2 : path);
+    if (path2) {
+      free(path2);
+    }
+  }
+
+  return 0;
+}
+
+
+/* TODO: add support for links. */
+int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
+  int len = strlen(path);
+  char* path2 = NULL;
+  int has_backslash = (path[len - 1] == '\\' || path[len - 1] == '/');
+
+  if (path[len - 1] == '\\' || path[len - 1] == '/') {
+    path2 = strdup(path);
+    if (!path2) {
+      uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+    }
+
+    path2[len - 1] = '\0';
+  }
+
+  if (cb) {
+    uv_fs_req_init_async(loop, req, UV_FS_LSTAT, cb);
+    if (path2) {
+      WRAP_REQ_ARGS1(req, path2);
+      req->flags |= UV_FS_FREE_ARG0;
+    } else {
+      WRAP_REQ_ARGS1(req, path);
+      STRDUP_ARG(req, 0);
+    }
+
+    QUEUE_FS_TP_JOB(loop, req);
+  } else {
+    uv_fs_req_init_sync(loop, req, UV_FS_LSTAT);
     fs__stat(req, path2 ? path2 : path);
     if (path2) {
       free(path2);
@@ -729,6 +827,21 @@ int uv_fs_chmod(uv_loop_t* loop, uv_fs_t* req, const char* path, int mode,
   } else {
     uv_fs_req_init_sync(loop, req, UV_FS_CHMOD);
     fs__chmod(req, path, mode);
+  }
+
+  return 0;
+}
+
+
+int uv_fs_fchmod(uv_loop_t* loop, uv_fs_t* req, uv_file file, int mode,
+    uv_fs_cb cb) {
+  if (cb) {
+    uv_fs_req_init_async(loop, req, UV_FS_FCHMOD, cb);
+    WRAP_REQ_ARGS2(req, file, mode);
+    QUEUE_FS_TP_JOB(loop, req);
+  } else {
+    uv_fs_req_init_sync(loop, req, UV_FS_FCHMOD);
+    fs__fchmod(req, file, mode);
   }
 
   return 0;

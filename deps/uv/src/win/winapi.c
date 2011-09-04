@@ -28,6 +28,7 @@
 
 sRtlNtStatusToDosError pRtlNtStatusToDosError;
 sNtQueryInformationFile pNtQueryInformationFile;
+sNtSetInformationFile pNtSetInformationFile;
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 
@@ -52,6 +53,13 @@ void uv_winapi_init() {
       ntdll_module,
       "NtQueryInformationFile");
   if (pNtQueryInformationFile == NULL) {
+    uv_fatal_error(GetLastError(), "GetProcAddress");
+  }
+
+  pNtSetInformationFile = (sNtSetInformationFile) GetProcAddress(
+      ntdll_module,
+      "NtSetInformationFile");
+  if (pNtSetInformationFile == NULL) {
     uv_fatal_error(GetLastError(), "GetProcAddress");
   }
 
