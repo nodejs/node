@@ -815,7 +815,7 @@ static Handle<Value> FChmod(const Arguments& args) {
     return THROW_BAD_ARGS;
   }
   int fd = args[0]->Int32Value();
-  mode_t mode = static_cast<mode_t>(args[1]->Int32Value());
+  int mode = static_cast<int>(args[1]->Int32Value());
 
   if(args[2]->IsFunction()) {
     ASYNC_CALL(fchmod, args[2], fd, mode);
@@ -841,8 +841,8 @@ static Handle<Value> Chown(const Arguments& args) {
   }
 
   String::Utf8Value path(args[0]->ToString());
-  uid_t uid = static_cast<uid_t>(args[1]->Int32Value());
-  gid_t gid = static_cast<gid_t>(args[2]->Int32Value());
+  int uid = static_cast<int>(args[1]->Int32Value());
+  int gid = static_cast<int>(args[2]->Int32Value());
 
   if (args[3]->IsFunction()) {
     ASYNC_CALL(chown, args[3], *path, uid, gid);
@@ -868,8 +868,8 @@ static Handle<Value> FChown(const Arguments& args) {
   }
 
   int fd = args[0]->Int32Value();
-  uid_t uid = static_cast<uid_t>(args[1]->Int32Value());
-  gid_t gid = static_cast<gid_t>(args[2]->Int32Value());
+  int uid = static_cast<int>(args[1]->Int32Value());
+  int gid = static_cast<int>(args[2]->Int32Value());
 
   if (args[3]->IsFunction()) {
     ASYNC_CALL(fchown, args[3], fd, uid, gid);
