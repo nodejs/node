@@ -53,8 +53,19 @@ echo Project files generated.
 @rem Skip project generation if requested.
 if defined nobuild goto run
 
-if not defined VCINSTALLDIR echo Build skipped. To build, this file needs to run from VS cmd prompt.& goto run
+@rem Bail out early if not running in VS build env.
+if defined VCINSTALLDIR goto msbuild-found
+if not defined VS100COMNTOOLS goto msbuild-not-found
+if not exist "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat" goto msbuild-not-found
+call "%VS100COMNTOOLS%\..\..\vc\vcvarsall.bat"
+if not defined VCINSTALLDIR goto msbuild-not-found
+goto msbuild-found
 
+:msbuild-not-found
+echo Build skipped. To build, this file needs to run from VS cmd prompt.
+goto run
+
+:msbuild-found
 @rem Build the sln with msbuild.
 msbuild node.sln /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
