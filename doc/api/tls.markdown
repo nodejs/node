@@ -70,7 +70,6 @@ thereafter.
 
 [Here is some code that does it.](http://gist.github.com/848444)
 
-<<<<<<< HEAD
 ### NPN and SNI
 
 NPN (Next Protocol Negotitation) and SNI (Server Name Indication) are TLS
@@ -79,14 +78,13 @@ handshake extensions allowing you:
   * NPN - to use one TLS server for multiple protocols (HTTP, SPDY)
   * SNI - to use one TLS server for multiple hostnames with different SSL
     certificates.
-=======
+
 ### pair = tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
 
 Creates a new secure pair object with two streams, one of which reads/writes
 encrypted data, and one reads/writes cleartext data.
 Generally the encrypted one is piped to/from an incoming encrypted data stream,
 and the cleartext one is used as a replacement for the initial encrypted stream.
->>>>>>> origin/v0.4
 
  - `credentials`: A credentials object from crypto.createCredentials( ... )
 
