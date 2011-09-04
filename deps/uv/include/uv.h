@@ -415,6 +415,8 @@ int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle);
 
 int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in);
 int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6);
+int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
+int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
 
 /*
  * uv_tcp_connect, uv_tcp_connect6
@@ -434,9 +436,6 @@ struct uv_connect_s {
   uv_stream_t* handle;
   UV_CONNECT_PRIVATE_FIELDS
 };
-
-
-int uv_getsockname(uv_handle_t* handle, struct sockaddr* name, int* namelen);
 
 
 /*
@@ -521,6 +520,7 @@ int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned flags);
  *  0 on success, -1 on error.
  */
 int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags);
+int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen);
 
 /*
  * Send data. If the socket has not previously been bound with `uv_udp_bind`

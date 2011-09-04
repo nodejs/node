@@ -40,9 +40,15 @@ static char uv_zero_[] = "";
 static unsigned int active_udp_streams = 0;
 
 
-int uv_udp_getsockname(uv_loop_t* loop, uv_udp_t* handle,
-    struct sockaddr* name, int* namelen) {
+int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
+    int* namelen) {
+  uv_loop_t* loop = handle->loop;
   int result;
+
+  if (!(handle->flags & UV_HANDLE_BOUND)) {
+    uv_set_sys_error(loop, WSAEINVAL);
+    return -1;
+  }
 
   result = getsockname(handle->socket, name, namelen);
   if (result != 0) {

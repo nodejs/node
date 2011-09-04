@@ -117,6 +117,8 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_NETWORK_UNREACHABLE:         return UV_ENETUNREACH;
     case WSAENETUNREACH:                    return UV_ENETUNREACH;
     case ERROR_OUTOFMEMORY:                 return UV_ENOMEM;
+    case ERROR_NOT_CONNECTED:               return UV_ENOTCONN;
+    case WSAENOTCONN:                       return UV_ENOTCONN;
     case ERROR_NOT_SUPPORTED:               return UV_ENOTSUP;
     case ERROR_INSUFFICIENT_BUFFER:         return UV_EINVAL;
     case ERROR_INVALID_FLAGS:               return UV_EBADF;

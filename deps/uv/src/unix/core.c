@@ -300,27 +300,6 @@ void uv__next(EV_P_ ev_idle* watcher, int revents) {
 }
 
 
-int uv_getsockname(uv_handle_t* handle, struct sockaddr* name, int* namelen) {
-  socklen_t socklen;
-  int saved_errno;
-
-  /* Don't clobber errno. */
-  saved_errno = errno;
-
-  /* sizeof(socklen_t) != sizeof(int) on some systems. */
-  socklen = (socklen_t)*namelen;
-
-  if (getsockname(handle->fd, name, &socklen) == -1) {
-    uv_err_new(handle->loop, errno);
-  } else {
-    *namelen = (int)socklen;
-  }
-
-  errno = saved_errno;
-  return 0;
-}
-
-
 void uv_ref(uv_loop_t* loop) {
   ev_ref(loop->ev);
 }

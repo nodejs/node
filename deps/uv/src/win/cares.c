@@ -95,8 +95,8 @@ static void CALLBACK uv_ares_socksignal_tp(void* parameter,
 /* periodically call ares to check for timeouts */
 static void uv_ares_poll(uv_timer_t* handle, int status) {
   uv_loop_t* loop = handle->loop;
-  if (loop->ares_channel != NULL && loop->ares_active_sockets > 0) {
-    ares_process_fd(loop->ares_channel, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
+  if (loop->ares_chan != NULL && loop->ares_active_sockets > 0) {
+    ares_process_fd(loop->ares_chan, ARES_SOCKET_BAD, ARES_SOCKET_BAD);
   }
 }
 
@@ -214,7 +214,7 @@ static void uv_ares_sockstate_cb(void *data, ares_socket_t sock, int read,
 /* called via uv_poll when ares completion port signaled */
 void uv_process_ares_event_req(uv_loop_t* loop, uv_ares_action_t* handle,
     uv_req_t* req) {
-  ares_process_fd(loop->ares_channel,
+  ares_process_fd(loop->ares_chan,
                   handle->read ? handle->sock : INVALID_SOCKET,
                   handle->write ?  handle->sock : INVALID_SOCKET);
 
@@ -258,7 +258,7 @@ int uv_ares_init_options(uv_loop_t* loop,
   int rc;
 
   /* only allow single init at a time */
-  if (loop->ares_channel != NULL) {
+  if (loop->ares_chan != NULL) {
     return UV_EALREADY;
   }
 
@@ -272,7 +272,7 @@ int uv_ares_init_options(uv_loop_t* loop,
 
   /* if success, save channel */
   if (rc == ARES_SUCCESS) {
-    loop->ares_channel = *channelptr;
+    loop->ares_chan = *channelptr;
   }
 
   return rc;
@@ -282,8 +282,8 @@ int uv_ares_init_options(uv_loop_t* loop,
 /* release memory */
 void uv_ares_destroy(uv_loop_t* loop, ares_channel channel) {
   /* only allow destroy if did init */
-  if (loop->ares_channel != NULL) {
+  if (loop->ares_chan != NULL) {
     ares_destroy(channel);
-    loop->ares_channel = NULL;
+    loop->ares_chan = NULL;
   }
 }

@@ -30,6 +30,7 @@
 #include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 
 /* TODO Expose callback to user to handle fatal error like V8 does. */
@@ -79,6 +80,7 @@ static uv_err_code uv_translate_sys_error(int sys_errno) {
     case ECONNREFUSED: return UV_ECONNREFUSED;
     case EADDRINUSE: return UV_EADDRINUSE;
     case EADDRNOTAVAIL: return UV_EADDRNOTAVAIL;
+    case ENOTCONN: return UV_ENOTCONN;
     default: return UV_UNKNOWN;
   }
 }

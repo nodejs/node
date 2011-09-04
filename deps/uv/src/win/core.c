@@ -62,7 +62,7 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->next_idle_handle = NULL;
 
   loop->ares_active_sockets = 0;
-  loop->ares_channel = NULL;
+  loop->ares_chan = NULL;
 
   loop->last_error = uv_ok_;
 }
