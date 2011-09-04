@@ -264,9 +264,9 @@ Handle<Value> UDPWrap::GetSockName(const Arguments& args) {
   UNWRAP
 
   int addrlen = sizeof(address);
-  int r = uv_getsockname(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
-                         reinterpret_cast<sockaddr*>(&address),
-                         &addrlen);
+  int r = uv_udp_getsockname(&wrap->handle_,
+                             reinterpret_cast<sockaddr*>(&address),
+                             &addrlen);
 
   if (r == 0) {
     Local<Object> sockname = Object::New();

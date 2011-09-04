@@ -128,9 +128,9 @@ class TCPWrap : public StreamWrap {
     UNWRAP
 
     int addrlen = sizeof(address);
-    int r = uv_getsockname(reinterpret_cast<uv_handle_t*>(&wrap->handle_),
-                           reinterpret_cast<sockaddr*>(&address),
-                           &addrlen);
+    int r = uv_tcp_getsockname(&wrap->handle_,
+                               reinterpret_cast<sockaddr*>(&address),
+                               &addrlen);
 
     Local<Object> sockname = Object::New();
     if (r != 0) {
