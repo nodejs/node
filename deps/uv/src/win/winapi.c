@@ -31,6 +31,7 @@ sNtQueryInformationFile pNtQueryInformationFile;
 sNtSetInformationFile pNtSetInformationFile;
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
+sCreateSymbolicLinkA pCreateSymbolicLinkA;
 
 
 void uv_winapi_init() {
@@ -74,4 +75,7 @@ void uv_winapi_init() {
 
   pSetFileCompletionNotificationModes = (sSetFileCompletionNotificationModes)
     GetProcAddress(kernel32_module, "SetFileCompletionNotificationModes");
+
+  pCreateSymbolicLinkA = (sCreateSymbolicLinkA)
+    GetProcAddress(kernel32_module, "CreateSymbolicLinkA");
 }

@@ -4075,6 +4075,33 @@
           (FACILITY_NTWIN32 << 16) | ERROR_SEVERITY_ERROR)))
 #endif
 
+/* from ntifs.h */
+typedef struct _REPARSE_DATA_BUFFER {
+  ULONG  ReparseTag;
+  USHORT ReparseDataLength;
+  USHORT Reserved;
+  union {
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      ULONG Flags;
+      WCHAR PathBuffer[1];
+    } SymbolicLinkReparseBuffer;
+    struct {
+      USHORT SubstituteNameOffset;
+      USHORT SubstituteNameLength;
+      USHORT PrintNameOffset;
+      USHORT PrintNameLength;
+      WCHAR PathBuffer[1];
+    } MountPointReparseBuffer;
+    struct {
+      UCHAR  DataBuffer[1];
+    } GenericReparseBuffer;
+  } DUMMYUNIONNAME;
+} REPARSE_DATA_BUFFER, *PREPARSE_DATA_BUFFER;
+
 typedef struct _IO_STATUS_BLOCK {
   union {
     NTSTATUS Status;
@@ -4186,6 +4213,8 @@ typedef NTSTATUS (NTAPI *sNtSetInformationFile)
 #define FILE_SKIP_COMPLETION_PORT_ON_SUCCESS    0x1
 #define FILE_SKIP_SET_EVENT_ON_HANDLE           0x2
 
+#define SYMBOLIC_LINK_FLAG_DIRECTORY            0x1
+
 #ifdef __MINGW32__
   typedef struct _OVERLAPPED_ENTRY {
       ULONG_PTR lpCompletionKey;
@@ -4207,6 +4236,11 @@ typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
              (HANDLE FileHandle,
               UCHAR Flags);
 
+typedef BOOLEAN (WINAPI* sCreateSymbolicLinkA)
+                (LPCSTR lpSymlinkFileName,
+                 LPCSTR lpTargetFileName,
+                 DWORD dwFlags);
+
 
 /* Ntapi function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
@@ -4217,5 +4251,6 @@ extern sNtSetInformationFile pNtSetInformationFile;
 /* Kernel32 function pointers */
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
+extern sCreateSymbolicLinkA pCreateSymbolicLinkA;
 
 #endif /* UV_WIN_WINAPI_H_ */

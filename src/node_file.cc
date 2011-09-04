@@ -384,10 +384,13 @@ static Handle<Value> Symlink(const Arguments& args) {
   String::Utf8Value dest(args[0]->ToString());
   String::Utf8Value path(args[1]->ToString());
 
+  // Just set to zero for now. Support UV_FS_SYMLINK_DIR in the future.
+  int flags = 0;
+
   if (args[2]->IsFunction()) {
-    ASYNC_CALL(symlink, args[2], *dest, *path)
+    ASYNC_CALL(symlink, args[2], *dest, *path, flags)
   } else {
-    SYNC_CALL(symlink, *path, *dest, *path)
+    SYNC_CALL(symlink, *path, *dest, *path, flags)
     return Undefined();
   }
 }

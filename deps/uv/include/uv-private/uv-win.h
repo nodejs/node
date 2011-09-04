@@ -247,6 +247,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define UV_FS_PRIVATE_FIELDS              \
   int flags;                              \
+  int last_error;                         \
   struct _stat stat;                      \
   void* arg0;                             \
   union {                                 \

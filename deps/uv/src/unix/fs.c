@@ -112,7 +112,7 @@ static int uv__fs_after(eio_req* eio) {
     case UV_FS_READDIR:
       /*
        * XXX This is pretty bad.
-       * We alloc and copy the large null termiated string list from libeio.
+       * We alloc and copy the large null terminated string list from libeio.
        * This is done because libeio is going to free eio->ptr2 after this
        * callback. We must keep it until uv_fs_req_cleanup. If we get rid of
        * libeio this can be avoided.
@@ -130,10 +130,29 @@ static int uv__fs_after(eio_req* eio) {
       req->ptr = malloc(buflen);
       memcpy(req->ptr, req->eio->ptr2, buflen);
       break;
+
     case UV_FS_STAT:
     case UV_FS_LSTAT:
     case UV_FS_FSTAT:
       req->ptr = req->eio->ptr2;
+      break;
+
+    case UV_FS_READLINK:
+      if (req->result == -1) {
+        req->ptr = NULL;
+      } else {
+        assert(req->result > 0);
+
+        if ((name = realloc(req->eio->ptr2, req->result + 1)) == NULL) {
+          /* Not enough memory. Reuse buffer, chop off last byte. */
+          name = req->eio->ptr2;
+          req->result--;
+        }
+
+        name[req->result] = '\0';
+        req->ptr = name;
+        req->result = 0;
+      }
       break;
 
     default:
@@ -490,15 +509,62 @@ int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path,
 
 
 int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
-    const char* new_path, uv_fs_cb cb) {
+    const char* new_path, int flags, uv_fs_cb cb) {
   WRAP_EIO(UV_FS_SYMLINK, eio_symlink, symlink, ARGS2(path, new_path))
 }
 
 
 int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     uv_fs_cb cb) {
-  assert(0 && "implement me");
-  return -1;
+  size_t size;
+  int status;
+  char* buf;
+
+  status = -1;
+
+  uv_fs_req_init(loop, req, UV_FS_READLINK, cb);
+
+  if (cb) {
+    if ((req->eio = eio_readlink(path, EIO_PRI_DEFAULT, uv__fs_after, req))) {
+      uv_ref(loop);
+      return 0;
+    } else {
+      uv_err_new(loop, ENOMEM);
+      return -1;
+    }
+  } else {
+    /* pathconf(_PC_PATH_MAX) may return -1 to signify that path
+     * lengths have no upper limit or aren't suitable for malloc'ing.
+     */
+    if ((size = pathconf(path, _PC_PATH_MAX)) == -1) {
+#if defined(PATH_MAX)
+      size = PATH_MAX;
+#else
+      size = 4096;
+#endif
+    }
+
+    if ((buf = malloc(size + 1)) == NULL) {
+      uv_err_new(loop, ENOMEM);
+      return -1;
+    }
+
+    if ((size = readlink(path, buf, size)) == -1) {
+      req->errorno = errno;
+      req->result = -1;
+      free(buf);
+    } else {
+      /* Cannot conceivably fail since it shrinks the buffer. */
+      buf = realloc(buf, size + 1);
+      buf[size] = '\0';
+      req->result = 0;
+      req->ptr = buf;
+    }
+
+    return 0;
+  }
+
+  assert(0 && "unreachable");
 }
 
 

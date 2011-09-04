@@ -25,6 +25,7 @@
 #include "uv.h"
 #include "task.h"
 
+#include <errno.h>
 #include <string.h> /* memset */
 #include <fcntl.h>
 #include <sys/stat.h>
@@ -62,6 +63,9 @@ static int chmod_cb_count;
 static int fchmod_cb_count;
 static int chown_cb_count;
 static int fchown_cb_count;
+static int link_cb_count;
+static int symlink_cb_count;
+static int readlink_cb_count;
 
 static uv_loop_t* loop;
 
@@ -108,6 +112,29 @@ void check_permission(const char* filename, int mode) {
   uv_fs_req_cleanup(&req);
 }
 
+
+static void link_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_LINK);
+  ASSERT(req->result == 0);
+  link_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
+
+static void symlink_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_SYMLINK);
+  ASSERT(req->result == 0);
+  symlink_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
+static void readlink_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_READLINK);
+  ASSERT(req->result == 0);
+  ASSERT(strcmp(req->ptr, "test_file_symlink2") == 0);
+  readlink_cb_count++;
+  uv_fs_req_cleanup(req);
+}
 
 static void fchmod_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_FCHMOD);
@@ -297,9 +324,8 @@ static void readdir_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_READDIR);
   ASSERT(req->result == 2);
   ASSERT(req->ptr);
-  ASSERT(strcmp((const char*)req->ptr, "file1") == 0);
-  ASSERT(strcmp((char*)req->ptr + strlen((const char*)req->ptr) + 1,
-                "file2") == 0);
+  ASSERT(memcmp(req->ptr, "file1\0file2\0", 12) == 0
+      || memcmp(req->ptr, "file2\0file1\0", 12) == 0);
   readdir_cb_count++;
   uv_fs_req_cleanup(req);
   ASSERT(!req->ptr);
@@ -734,6 +760,7 @@ TEST_IMPL(fs_chmod) {
   ASSERT(r == 0);
   uv_run(loop);
   ASSERT(chmod_cb_count == 1);
+  chmod_cb_count = 0; /* reset for the next test */
 #endif
 
   /* async chmod */
@@ -818,6 +845,209 @@ TEST_IMPL(fs_chown) {
 
   /* Cleanup. */
   unlink("test_file");
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_link) {
+  int r;
+  uv_fs_t req;
+  uv_file file;
+  uv_file link;
+
+  /* Setup. */
+  unlink("test_file");
+  unlink("test_file_link");
+  unlink("test_file_link2");
+
+  uv_init();
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop, &req, "test_file", O_RDWR | O_CREAT,
+      S_IWRITE | S_IREAD, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  file = req.result;
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_write(loop, &req, file, test_buf, sizeof(test_buf), -1, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  close(file);
+
+  /* sync link */
+  r = uv_fs_link(loop, &req, "test_file", "test_file_link", NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_open(loop, &req, "test_file_link", O_RDWR, 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  link = req.result;
+  uv_fs_req_cleanup(&req);
+
+  memset(buf, 0, sizeof(buf));
+  r = uv_fs_read(loop, &req, link, buf, sizeof(buf), 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  ASSERT(strcmp(buf, test_buf) == 0);
+
+  close(link);
+
+  /* async link */
+  r = uv_fs_link(loop, &req, "test_file", "test_file_link2", link_cb);
+  ASSERT(r == 0);
+  uv_run(loop);
+  ASSERT(link_cb_count == 1);
+
+  r = uv_fs_open(loop, &req, "test_file_link2", O_RDWR, 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  link = req.result;
+  uv_fs_req_cleanup(&req);
+
+  memset(buf, 0, sizeof(buf));
+  r = uv_fs_read(loop, &req, link, buf, sizeof(buf), 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  ASSERT(strcmp(buf, test_buf) == 0);
+
+  close(link);
+
+  /*
+   * Run the loop just to check we don't have make any extraneous uv_ref()
+   * calls. This should drop out immediately.
+   */
+  uv_run(loop);
+
+  /* Cleanup. */
+  unlink("test_file");
+  unlink("test_file_link");
+  unlink("test_file_link2");
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_symlink) {
+  int r;
+  uv_fs_t req;
+  uv_file file;
+  uv_file link;
+
+  /* Setup. */
+  unlink("test_file");
+  unlink("test_file_symlink");
+  unlink("test_file_symlink2");
+  unlink("test_file_symlink_symlink");
+  unlink("test_file_symlink2_symlink");
+
+  uv_init();
+
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop, &req, "test_file", O_RDWR | O_CREAT,
+      S_IWRITE | S_IREAD, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  file = req.result;
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_write(loop, &req, file, test_buf, sizeof(test_buf), -1, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result == sizeof(test_buf));
+  uv_fs_req_cleanup(&req);
+
+  close(file);
+
+  /* sync symlink */
+  r = uv_fs_symlink(loop, &req, "test_file", "test_file_symlink", 0, NULL);
+  ASSERT(r == 0);
+#ifdef _WIN32
+  if (req.result == -1) {
+    if (req.errorno == ENOTSUP) {
+      /*
+       * Windows doesn't support symlinks on older versions.
+       * We just pass the test and bail out early if we get ENOTSUP.
+       */
+      return 0;
+    } else if (uv_last_error(loop).sys_errno_ == ERROR_PRIVILEGE_NOT_HELD) {
+      /* 
+       * Creating a symlink is only allowed when running elevated.
+       * We pass the test and bail out early if we get ERROR_PRIVILEGE_NOT_HELD.
+       */
+      return 0;
+    }
+  }
+#endif
+  ASSERT(req.result == 0);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_open(loop, &req, "test_file_symlink", O_RDWR, 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  link = req.result;
+  uv_fs_req_cleanup(&req);
+
+  memset(buf, 0, sizeof(buf));
+  r = uv_fs_read(loop, &req, link, buf, sizeof(buf), 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  ASSERT(strcmp(buf, test_buf) == 0);
+
+  close(link);
+
+  r = uv_fs_symlink(loop, &req, "test_file_symlink", "test_file_symlink_symlink", 0, NULL);
+  ASSERT(r == 0);
+  r = uv_fs_readlink(loop, &req, "test_file_symlink_symlink", NULL);
+  ASSERT(r == 0);
+  ASSERT(strcmp(req.ptr, "test_file_symlink") == 0);
+  uv_fs_req_cleanup(&req);
+
+  /* async link */
+  r = uv_fs_symlink(loop, &req, "test_file", "test_file_symlink2", 0, symlink_cb);
+  ASSERT(r == 0);
+  uv_run(loop);
+  ASSERT(symlink_cb_count == 1);
+
+  r = uv_fs_open(loop, &req, "test_file_symlink2", O_RDWR, 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  link = req.result;
+  uv_fs_req_cleanup(&req);
+
+  memset(buf, 0, sizeof(buf));
+  r = uv_fs_read(loop, &req, link, buf, sizeof(buf), 0, NULL);
+  ASSERT(r == 0);
+  ASSERT(req.result != -1);
+  ASSERT(strcmp(buf, test_buf) == 0);
+
+  close(link);
+
+  r = uv_fs_symlink(loop, &req, "test_file_symlink2", "test_file_symlink2_symlink", 0, NULL);
+  ASSERT(r == 0);
+  r = uv_fs_readlink(loop, &req, "test_file_symlink2_symlink", readlink_cb);
+  ASSERT(r == 0);
+  uv_run(loop);
+  ASSERT(readlink_cb_count == 1);
+
+  /*
+   * Run the loop just to check we don't have make any extraneous uv_ref()
+   * calls. This should drop out immediately.
+   */
+  uv_run(loop);
+
+  /* Cleanup. */
+  unlink("test_file");
+  unlink("test_file_symlink");
+  unlink("test_file_symlink_symlink");
+  unlink("test_file_symlink2");
+  unlink("test_file_symlink2_symlink");
 
   return 0;
 }

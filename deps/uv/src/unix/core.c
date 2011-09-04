@@ -323,7 +323,6 @@ int64_t uv_now(uv_loop_t* loop) {
 void uv__req_init(uv_req_t* req) {
   /* loop->counters.req_init++; */
   req->type = UV_UNKNOWN_REQ;
-  req->data = NULL;
 }
 
 
