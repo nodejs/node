@@ -26,6 +26,7 @@ class ReqWrap {
 
   v8::Persistent<v8::Object> object_;
   T req_;
+  void* data_;
 };
 
 

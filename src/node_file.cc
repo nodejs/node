@@ -19,12 +19,13 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include <node.h>
-#include <node_file.h>
-#include <node_buffer.h>
+#include "node.h"
+#include "node_file.h"
+#include "node_buffer.h"
 #ifdef __POSIX__
-# include <node_stat_watcher.h>
+# include "node_stat_watcher.h"
 #endif
+#include "req_wrap.h"
 
 #include <fcntl.h>
 #include <sys/types.h>
@@ -48,9 +49,12 @@ using namespace v8;
 #define THROW_BAD_ARGS \
   ThrowException(Exception::TypeError(String::New("Bad argument")))
 
+typedef class ReqWrap<uv_fs_t> FSReqWrap;
+
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
 static Persistent<String> buf_symbol;
+static Persistent<String> callback_sym;
 
 static inline bool SetCloseOnExec(int fd) {
 #ifdef __POSIX__
@@ -71,8 +75,11 @@ static inline int IsInt64(double x) {
 static void After(uv_fs_t *req) {
   HandleScope scope;
 
-  Persistent<Function> *callback = cb_unwrap(req->data);
-
+  FSReqWrap* req_wrap = (FSReqWrap*) req->data;
+  assert(&req_wrap->req_ == req);
+  Local<Value> callback_v = req_wrap->object_->Get(callback_sym);
+  assert(callback_v->IsFunction());
+  Local<Function> callback = Local<Function>::Cast(callback_v);
 
   // there is always at least one argument. "error"
   int argc = 1;
@@ -185,19 +192,18 @@ static void After(uv_fs_t *req) {
 
   TryCatch try_catch;
 
-  (*callback)->Call(v8::Context::GetCurrent()->Global(), argc, argv);
+  callback->Call(v8::Context::GetCurrent()->Global(), argc, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
   }
 
-  // Dispose of the persistent handle
-  cb_destroy(callback);
-
-  uv_fs_req_cleanup(req);
-  delete req;
+  uv_fs_req_cleanup(&req_wrap->req_);
+  delete req_wrap;
 }
 
+// This struct is only used on sync fs calls.
+// For async calls FSReqWrap is used.
 struct fs_req_wrap {
   fs_req_wrap() {}
   ~fs_req_wrap() { uv_fs_req_cleanup(&req); }
@@ -208,11 +214,13 @@ struct fs_req_wrap {
 };
 
 #define ASYNC_CALL(func, callback, ...)                           \
-  uv_fs_t* req = new uv_fs_t();                                   \
-  int r = uv_fs_##func(uv_default_loop(), req, __VA_ARGS__, After); \
+  FSReqWrap* req_wrap = new FSReqWrap();                          \
+  int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
+      __VA_ARGS__, After);                                        \
   assert(r == 0);                                                 \
-  req->data = cb_persist(callback);                               \
-  return Undefined();
+  req_wrap->object_->Set(callback_sym, callback);                 \
+  req_wrap->Dispatched();                                         \
+  return scope.Close(req_wrap->object_);
 
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
@@ -982,6 +990,8 @@ void InitFs(Handle<Object> target) {
   target->Set(String::NewSymbol("Stats"),
                stats_constructor_template->GetFunction());
   File::Initialize(target);
+
+  callback_sym = NODE_PSYMBOL("callback");
 
 #ifdef __POSIX__
   StatWatcher::Initialize(target);
