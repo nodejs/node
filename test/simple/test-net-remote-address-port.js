@@ -8,6 +8,8 @@ var conns = 0, conns_closed = 0;
 var server = net.createServer(function(socket) {
   conns++;
   assert.equal('127.0.0.1', socket.remoteAddress);
+  assert.ok(socket.remotePort);
+  assert.notEqual(socket.remotePort, common.PORT);
   socket.on('end', function() {
     if (++conns_closed == 2) server.close();
   });

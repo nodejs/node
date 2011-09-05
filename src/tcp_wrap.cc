@@ -82,6 +82,7 @@ class TCPWrap : public StreamWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "bind6", Bind6);
     NODE_SET_PROTOTYPE_METHOD(t, "connect6", Connect6);
     NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
+    NODE_SET_PROTOTYPE_METHOD(t, "getpeername", GetPeerName);
 
     tcpConstructor = Persistent<Function>::New(t->GetFunction());
 
@@ -153,7 +154,44 @@ class TCPWrap : public StreamWrap {
     }
 
     return scope.Close(sockname);
+  }
 
+
+  static Handle<Value> GetPeerName(const Arguments& args) {
+    HandleScope scope;
+    struct sockaddr address;
+    int family;
+    int port;
+    char ip[INET6_ADDRSTRLEN];
+
+    UNWRAP
+
+    int addrlen = sizeof(address);
+    int r = uv_tcp_getpeername(&wrap->handle_,
+                               reinterpret_cast<sockaddr*>(&address),
+                               &addrlen);
+
+    Local<Object> sockname = Object::New();
+    if (r != 0) {
+      SetErrno(uv_last_error(uv_default_loop()).code);
+    } else {
+      family = address.sa_family;
+      if (family == AF_INET) {
+        struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
+        uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
+        port = ntohs(addrin->sin_port);
+      } else if (family == AF_INET6) {
+        struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
+        uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
+        port = ntohs(addrin6->sin6_port);
+      }
+
+      sockname->Set(port_symbol, Integer::New(port));
+      sockname->Set(family_symbol, Integer::New(family));
+      sockname->Set(address_symbol, String::New(ip));
+    }
+
+    return scope.Close(sockname);
   }
 
 
