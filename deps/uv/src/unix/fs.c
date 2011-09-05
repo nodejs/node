@@ -305,6 +305,7 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     DIR* dir = opendir(path);
     if (!dir) {
       uv_err_new(loop, errno);
+      req->result = -1;
       return -1;
     }
 
@@ -333,6 +334,7 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
     r = closedir(dir);
     if (r) {
       uv_err_new(loop, errno);
+      req->result = -1;
       return -1;
     }
   }

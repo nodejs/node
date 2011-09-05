@@ -86,11 +86,14 @@ static void After(uv_fs_t *req) {
   if (req->result == -1) {
     // If the request doesn't have a path parameter set.
     
-    // XXX if (!req->arg0) {
+    if (!req->path) {
       argv[0] = ErrnoException(req->errorno);
-    // XXX } else {
-    // XXX   argv[0] = ErrnoException(req->errorno, NULL, "", static_cast<const char*>(req->arg0));
-    // XXX}
+    } else {
+      argv[0] = ErrnoException(req->errorno,
+                               NULL,
+                               "",
+                               static_cast<const char*>(req->path));
+    }
   } else {
     // error value is empty or null for non-error.
     argv[0] = Local<Value>::New(Null());
@@ -214,7 +217,7 @@ struct fs_req_wrap {
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
   uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
-  if (req_wrap.req.result == -1) {                                \
+  if (req_wrap.req.result < 0) {                                  \
     return ThrowException(                                        \
       ErrnoException(req_wrap.req.errorno, #func, "", path));     \
   }
@@ -334,7 +337,7 @@ static Handle<Value> Stat(const Arguments& args) {
   if (args[1]->IsFunction()) {
     ASYNC_CALL(stat, args[1], *path)
   } else {
-    SYNC_CALL(stat, 0, *path)
+    SYNC_CALL(stat, *path, *path)
     return scope.Close(BuildStatsObject((NODE_STAT_STRUCT*)SYNC_REQ.ptr));
   }
 }
