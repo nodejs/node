@@ -36,7 +36,7 @@
 # include <io.h>
 # define unlink _unlink
 # define rmdir _rmdir
-# define stat _stat
+# define stat _stati64
 # define open _open
 # define write _write
 # define lseek _lseek
@@ -550,8 +550,12 @@ TEST_IMPL(fs_async_dir) {
 
   /* sync uv_fs_readdir */
   r = uv_fs_readdir(loop, &readdir_req, "test_dir", 0, NULL);
-  readdir_cb(&readdir_req);
-
+  ASSERT(readdir_req.result == 2);
+  ASSERT(readdir_req.ptr);
+  ASSERT(memcmp(readdir_req.ptr, "file1\0file2\0", 12) == 0
+      || memcmp(readdir_req.ptr, "file2\0file1\0", 12) == 0);
+  uv_fs_req_cleanup(&readdir_req);
+  ASSERT(!readdir_req.ptr);
 
   r = uv_fs_stat(loop, &stat_req, "test_dir", stat_cb);
   ASSERT(r == 0);
