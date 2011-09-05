@@ -240,6 +240,8 @@ static void open_cb(uv_fs_t* req) {
     ASSERT(0);
   }
   open_cb_count++;
+  ASSERT(req->path);
+  ASSERT(memcmp(req->path, "test_file2\0", 11) == 0);
   uv_fs_req_cleanup(req);
   memset(buf, 0, sizeof(buf));
   r = uv_fs_read(loop, &read_req, open_req1.result, buf, sizeof(buf), -1,
@@ -306,6 +308,8 @@ static void mkdir_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_MKDIR);
   ASSERT(req->result != -1);
   mkdir_cb_count++;
+  ASSERT(req->path);
+  ASSERT(memcmp(req->path, "test_dir\0", 9) == 0);
   uv_fs_req_cleanup(req);
 }
 
@@ -315,6 +319,8 @@ static void rmdir_cb(uv_fs_t* req) {
   ASSERT(req->fs_type == UV_FS_RMDIR);
   ASSERT(req->result != -1);
   rmdir_cb_count++;
+  ASSERT(req->path);
+  ASSERT(memcmp(req->path, "test_dir\0", 9) == 0);
   uv_fs_req_cleanup(req);
 }
 
@@ -327,6 +333,8 @@ static void readdir_cb(uv_fs_t* req) {
   ASSERT(memcmp(req->ptr, "file1\0file2\0", 12) == 0
       || memcmp(req->ptr, "file2\0file1\0", 12) == 0);
   readdir_cb_count++;
+  ASSERT(req->path);
+  ASSERT(memcmp(req->path, "test_dir\0", 9) == 0);
   uv_fs_req_cleanup(req);
   ASSERT(!req->ptr);
 }
@@ -543,6 +551,7 @@ TEST_IMPL(fs_async_dir) {
   /* sync uv_fs_readdir */
   r = uv_fs_readdir(loop, &readdir_req, "test_dir", 0, NULL);
   readdir_cb(&readdir_req);
+
 
   r = uv_fs_stat(loop, &stat_req, "test_dir", stat_cb);
   ASSERT(r == 0);

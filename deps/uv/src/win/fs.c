@@ -97,6 +97,7 @@ static void uv_fs_req_init_async(uv_loop_t* loop, uv_fs_t* req,
   req->cb = cb;
   req->result = 0;
   req->ptr = NULL;
+  req->path = NULL; /* TODO https://github.com/joyent/libuv/issues/177 */
   req->errorno = 0;
   req->last_error = 0;
   memset(&req->overlapped, 0, sizeof(req->overlapped));
@@ -115,12 +116,119 @@ static void uv_fs_req_init_sync(uv_loop_t* loop, uv_fs_t* req,
   req->errorno = 0;
 }
 
+/* this is where the CRT stores the current umask */
+extern int _umaskval;
 
 void fs__open(uv_fs_t* req, const char* path, int flags, int mode) {
-  int result = _open(path, flags, mode);
+  DWORD access;
+  DWORD share;
+  SECURITY_ATTRIBUTES sa;
+  DWORD disposition;
+  DWORD attributes;
+  HANDLE file;
+  int result;
+
+  /* convert flags and mode to CreateFile parameters */
+  switch (flags & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
+  case _O_RDONLY:
+    access = GENERIC_READ;
+    break;
+  case _O_WRONLY:
+    access = GENERIC_WRITE;
+    break;
+  case _O_RDWR:
+    access = GENERIC_READ | GENERIC_WRITE;
+    break;
+  default:
+    result  = -1;
+    goto end;
+  }
+
+  /*
+   * Here is where we deviate significantly from what CRT's _open()
+   * does. We indiscriminately use all the sharing modes, to match
+   * UNIX semantics. In particular, this ensures that the file can
+   * be deleted even whilst it's open, fixing issue #1449.
+   */
+  share = FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE;
+
+  sa.nLength = sizeof(SECURITY_ATTRIBUTES);
+  sa.lpSecurityDescriptor = NULL;
+  if (flags & _O_NOINHERIT) {
+    sa.bInheritHandle = FALSE;
+  } else {
+    sa.bInheritHandle = TRUE;
+  }
+
+  switch (flags & (_O_CREAT | _O_EXCL | _O_TRUNC)) {
+  case 0:
+  case _O_EXCL:
+    disposition = OPEN_EXISTING;
+    break;
+  case _O_CREAT:
+    disposition = OPEN_ALWAYS;
+    break;
+  case _O_CREAT | _O_EXCL:
+  case _O_CREAT | _O_TRUNC | _O_EXCL:
+    disposition = CREATE_NEW;
+    break;
+  case _O_TRUNC:
+  case _O_TRUNC | _O_EXCL:
+    disposition = TRUNCATE_EXISTING;
+    break;
+  case _O_CREAT | _O_TRUNC:
+    disposition = CREATE_ALWAYS;
+    break;
+  default:
+    result = -1;
+    goto end;
+  }
+
+  attributes = FILE_ATTRIBUTE_NORMAL;
+  if (flags & _O_CREAT) {
+    if (!((mode & ~_umaskval) & _S_IWRITE)) {
+      attributes |= FILE_ATTRIBUTE_READONLY;
+    }
+  }
+
+  if (flags & _O_TEMPORARY ) {
+    attributes |= FILE_FLAG_DELETE_ON_CLOSE | FILE_ATTRIBUTE_TEMPORARY;
+    access |= DELETE;
+  }
+
+  if (flags & _O_SHORT_LIVED) {
+    attributes |= FILE_ATTRIBUTE_TEMPORARY;
+  }
+
+  switch (flags & (_O_SEQUENTIAL | _O_RANDOM)) {
+  case 0:
+    break;
+  case _O_SEQUENTIAL:
+    attributes |= FILE_FLAG_SEQUENTIAL_SCAN;
+    break;
+  case _O_RANDOM:
+    attributes |= FILE_FLAG_RANDOM_ACCESS;
+    break;
+  default:
+    result = -1;
+    goto end;
+  }
+
+  file = CreateFileA(path,
+                     access,
+                     share,
+                     &sa,
+                     disposition,
+                     attributes,
+                     NULL);
+  if (file == INVALID_HANDLE_VALUE) {
+    result = -1;
+    goto end;
+  }
+  result = _open_osfhandle((intptr_t)file, flags);
+end:
   SET_REQ_RESULT(req, result);
 }
-
 
 void fs__close(uv_fs_t* req, uv_file file) {
   int result = _close(file);
