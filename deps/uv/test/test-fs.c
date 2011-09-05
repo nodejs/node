@@ -540,6 +540,10 @@ TEST_IMPL(fs_async_dir) {
   uv_run(loop);
   ASSERT(readdir_cb_count == 1);
 
+  /* sync uv_fs_readdir */
+  r = uv_fs_readdir(loop, &readdir_req, "test_dir", 0, NULL);
+  readdir_cb(&readdir_req);
+
   r = uv_fs_stat(loop, &stat_req, "test_dir", stat_cb);
   ASSERT(r == 0);
   uv_run(loop);

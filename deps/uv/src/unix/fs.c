@@ -303,15 +303,26 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
       return -1;
     }
 
+    /* req->result stores number of entries */
+    req->result = 0;
+
     while ((entry = readdir(dir))) {
       d_namlen = strlen(entry->d_name);
+
+      /* Skip . and .. */
+      if ((d_namlen == 1 && entry->d_name[0] == '.') ||
+          (d_namlen == 2 && entry->d_name[0] == '.' &&
+           entry->d_name[1] == '.')) {
+        continue;
+      }
+
       req->ptr = realloc(req->ptr, size + d_namlen + 1);
       /* TODO check ENOMEM */
-      /* TODO skip . and .. */
       memcpy((char*)req->ptr + size, entry->d_name, d_namlen);
       size += d_namlen;
       ((char*)req->ptr)[size] = '\0';
       size++;
+      req->result++;
     }
 
     r = closedir(dir);
