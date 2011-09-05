@@ -32,9 +32,9 @@
 #define COUNTOF(a) (sizeof(a) / sizeof(a[0]))
 
 /* Used for the uv_fs_ functions */
-#define SET_REQ_RESULT(req, result)                                         \
-  req->result = result;                                                     \
-  if (result == -1) {                                                       \
+#define SET_REQ_RESULT(req, result_value)                                   \
+  req->result = (result_value);                                             \
+  if (req->result == -1) {                                                  \
     req->errorno = errno;                                                   \
   }
 

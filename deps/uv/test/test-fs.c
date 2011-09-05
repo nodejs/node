@@ -360,6 +360,41 @@ static void sendfile_cb(uv_fs_t* req) {
 }
 
 
+static void open_noent_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_OPEN);
+  ASSERT(req->errorno == UV_ENOENT);
+  ASSERT(req->result == -1);
+  open_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
+
+TEST_IMPL(fs_file_noent) {
+  uv_fs_t req;
+  int r;
+
+  uv_init();
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop, &req, "does_not_exist", O_RDONLY, 0, NULL);
+  ASSERT(r == -1);
+  ASSERT(req.result == -1);
+  ASSERT(uv_last_error(loop).code == UV_ENOENT);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_open(loop, &req, "does_not_exist", O_RDONLY, 0, open_noent_cb);
+  ASSERT(r == 0);
+
+  ASSERT(open_cb_count == 0);
+  uv_run(loop);
+  ASSERT(open_cb_count == 1);
+
+  /* TODO add EACCES test */
+
+  return 0;
+}
+
+
 TEST_IMPL(fs_file_async) {
   int r;
 

@@ -25,6 +25,32 @@
 #include "uv-common.h"
 #include "uv-eio.h"
 
+#if defined(__linux__)
+
+#include <linux/version.h>
+#include <features.h>
+
+#undef HAVE_FUTIMES
+#undef HAVE_PIPE2
+#undef HAVE_ACCEPT4
+
+/* futimes() requires linux >= 2.6.22 and glib >= 2.6 */
+#if LINUX_VERSION_CODE >= 0x20616 && __GLIBC_PREREQ(2, 6)
+#define HAVE_FUTIMES
+#endif
+
+/* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
+#if LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9)
+#define HAVE_PIPE2
+#endif
+
+/* accept4() requires linux >= 2.6.28 and glib >= 2.10 */
+#if LINUX_VERSION_CODE >= 0x2061C && __GLIBC_PREREQ(2, 10)
+#define HAVE_ACCEPT4
+#endif
+
+#endif /* __linux__ */
+
 /* flags */
 enum {
   UV_CLOSING  = 0x00000001, /* uv_close() called but not finished. */
@@ -48,6 +74,7 @@ int uv__cloexec(int fd, int set) __attribute__((unused));
 int uv__socket(int domain, int type, int protocol);
 
 /* error */
+uv_err_code uv_translate_sys_error(int sys_errno);
 uv_err_t uv_err_new(uv_loop_t* loop, int sys_error);
 uv_err_t uv_err_new_artificial(uv_loop_t* loop, int code);
 void uv_fatal_error(const int errorno, const char* syscall);

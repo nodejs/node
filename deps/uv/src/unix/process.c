@@ -26,6 +26,7 @@
 #include <assert.h>
 #include <errno.h>
 #include <sys/wait.h>
+#include <fcntl.h> /* O_CLOEXEC, O_NONBLOCK */
 #include <poll.h>
 #include <unistd.h>
 #include <stdio.h>

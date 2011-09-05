@@ -18,10 +18,6 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE /* O_CLOEXEC, accept4(), etc. */
-#endif
-
 #include "uv.h"
 #include "unix/internal.h"
 
@@ -41,26 +37,6 @@
 #include <arpa/inet.h>
 #include <limits.h> /* PATH_MAX */
 #include <sys/uio.h> /* writev */
-
-#if defined(__linux__)
-
-#include <linux/version.h>
-#include <features.h>
-
-#undef HAVE_PIPE2
-#undef HAVE_ACCEPT4
-
-/* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
-#if LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9)
-#define HAVE_PIPE2
-#endif
-
-/* accept4() requires linux >= 2.6.28 and glib >= 2.10 */
-#if LINUX_VERSION_CODE >= 0x2061C && __GLIBC_PREREQ(2, 10)
-#define HAVE_ACCEPT4
-#endif
-
-#endif /* __linux__ */
 
 #ifdef __sun
 # include <sys/types.h>

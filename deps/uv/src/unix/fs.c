@@ -32,6 +32,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <utime.h>
+#include <sys/time.h>
 
 
 #define ARGS1(a)       (a)
@@ -43,12 +44,12 @@
   uv_fs_req_init(loop, req, type, path, cb); \
   if (cb) { \
     /* async */ \
-    uv_ref(loop); \
     req->eio = eiofunc(args, EIO_PRI_DEFAULT, uv__fs_after, req); \
     if (!req->eio) { \
       uv_err_new(loop, ENOMEM); \
       return -1; \
     } \
+    uv_ref(loop); \
   } else { \
     /* sync */ \
     req->result = func(args); \
@@ -61,7 +62,7 @@
 
 
 static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req, uv_fs_type fs_type,
-    char* path, uv_fs_cb cb) {
+    const char* path, uv_fs_cb cb) {
   /* Make sure the thread pool is initialized. */
   uv_eio_init(loop);
 
@@ -110,7 +111,7 @@ static int uv__fs_after(eio_req* eio) {
   assert(req->cb);
 
   req->result = req->eio->result;
-  req->errorno = req->eio->errorno;
+  req->errorno = uv_translate_sys_error(req->eio->errorno);
 
   switch (req->fs_type) {
     case UV_FS_READDIR:
@@ -344,7 +345,7 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
 
 
 int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
-  char* pathdup = path;
+  char* pathdup;
   int pathlen;
 
   uv_fs_req_init(loop, req, UV_FS_STAT, path, cb);
@@ -479,7 +480,7 @@ int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime,
 
 
 int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
-  char* pathdup = path;
+  char* pathdup;
   int pathlen;
 
   uv_fs_req_init(loop, req, UV_FS_LSTAT, path, cb);
@@ -538,7 +539,7 @@ int uv_fs_symlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
 
 int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
     uv_fs_cb cb) {
-  size_t size;
+  ssize_t size;
   int status;
   char* buf;
 

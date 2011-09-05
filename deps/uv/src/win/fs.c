@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <io.h>
+#include <limits.h>
 #include <sys/stat.h>
 #include <sys/utime.h>
 #include <stdio.h>
@@ -239,33 +240,77 @@ void fs__close(uv_fs_t* req, uv_file file) {
 
 void fs__read(uv_fs_t* req, uv_file file, void *buf, size_t length,
     off_t offset) {
-  int result = 0;
+  HANDLE handle;
+  OVERLAPPED overlapped, *overlapped_ptr;
+  LARGE_INTEGER offset_;
+  DWORD bytes;
+
+  handle = (HANDLE) _get_osfhandle(file);
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_RESULT(req, -1);
+    return;
+  }
+
+  if (length > INT_MAX) {
+    SET_REQ_ERROR(req, ERROR_INSUFFICIENT_BUFFER);
+    return;
+  }
 
   if (offset != -1) {
-    result = _lseek(file, offset, SEEK_SET);
+    memset(&overlapped, 0, sizeof overlapped);
+
+    offset_.QuadPart = offset;
+    overlapped.Offset = offset_.LowPart;
+    overlapped.OffsetHigh = offset_.HighPart;
+
+    overlapped_ptr = &overlapped;
+  } else {
+    overlapped_ptr = NULL;
   }
 
-  if (result != -1) {
-    result = _read(file, buf, length);
+  if (ReadFile(handle, buf, length, &bytes, overlapped_ptr)) {
+    SET_REQ_RESULT(req, bytes);
+  } else {
+    SET_REQ_ERROR(req, GetLastError());
   }
-
-  SET_REQ_RESULT(req, result);
 }
 
 
 void fs__write(uv_fs_t* req, uv_file file, void *buf, size_t length,
     off_t offset) {
-  int result = 0;
+  HANDLE handle;
+  OVERLAPPED overlapped, *overlapped_ptr;
+  LARGE_INTEGER offset_;
+  DWORD bytes;
+
+  handle = (HANDLE) _get_osfhandle(file);
+  if (handle == INVALID_HANDLE_VALUE) {
+    SET_REQ_RESULT(req, -1);
+    return;
+  }
+
+  if (length > INT_MAX) {
+    SET_REQ_ERROR(req, ERROR_INSUFFICIENT_BUFFER);
+    return;
+  }
 
   if (offset != -1) {
-    result = _lseek(file, offset, SEEK_SET);
+    memset(&overlapped, 0, sizeof overlapped);
+
+    offset_.QuadPart = offset;
+    overlapped.Offset = offset_.LowPart;
+    overlapped.OffsetHigh = offset_.HighPart;
+
+    overlapped_ptr = &overlapped;
+  } else {
+    overlapped_ptr = NULL;
   }
 
-  if (result != -1) {
-    result = _write(file, buf, length);
+  if (WriteFile(handle, buf, length, &bytes, overlapped_ptr)) {
+    SET_REQ_RESULT(req, bytes);
+  } else {
+    SET_REQ_ERROR(req, GetLastError());
   }
-
-  SET_REQ_RESULT(req, result);
 }
 
 
