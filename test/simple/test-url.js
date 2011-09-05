@@ -335,6 +335,13 @@ var parseTests = {
     hostname: 'bucket_name.s3.amazonaws.com',
     pathname: '/image.jpg',
     href: 'http://bucket_name.s3.amazonaws.com/image.jpg'
+  },
+  'git+http://github.com/joyent/node.git': {
+    protocol: 'git+http:',
+    slashes: true,
+    host: 'github.com',
+    pathname: '/joyent/node.git',
+    href: 'git+http://github.com/joyent/node.git'
   }
 };
 
