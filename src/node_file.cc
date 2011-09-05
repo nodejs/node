@@ -54,7 +54,7 @@ typedef class ReqWrap<uv_fs_t> FSReqWrap;
 static Persistent<String> encoding_symbol;
 static Persistent<String> errno_symbol;
 static Persistent<String> buf_symbol;
-static Persistent<String> callback_sym;
+static Persistent<String> oncomplete_sym;
 
 static inline bool SetCloseOnExec(int fd) {
 #ifdef __POSIX__
@@ -77,7 +77,7 @@ static void After(uv_fs_t *req) {
 
   FSReqWrap* req_wrap = (FSReqWrap*) req->data;
   assert(&req_wrap->req_ == req);
-  Local<Value> callback_v = req_wrap->object_->Get(callback_sym);
+  Local<Value> callback_v = req_wrap->object_->Get(oncomplete_sym);
   assert(callback_v->IsFunction());
   Local<Function> callback = Local<Function>::Cast(callback_v);
 
@@ -192,7 +192,7 @@ static void After(uv_fs_t *req) {
 
   TryCatch try_catch;
 
-  callback->Call(v8::Context::GetCurrent()->Global(), argc, argv);
+  callback->Call(req_wrap->object_, argc, argv);
 
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
@@ -218,7 +218,7 @@ struct fs_req_wrap {
   int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
       __VA_ARGS__, After);                                        \
   assert(r == 0);                                                 \
-  req_wrap->object_->Set(callback_sym, callback);                 \
+  req_wrap->object_->Set(oncomplete_sym, callback);                 \
   req_wrap->Dispatched();                                         \
   return scope.Close(req_wrap->object_);
 
@@ -991,7 +991,7 @@ void InitFs(Handle<Object> target) {
                stats_constructor_template->GetFunction());
   File::Initialize(target);
 
-  callback_sym = NODE_PSYMBOL("callback");
+  oncomplete_sym = NODE_PSYMBOL("oncomplete");
 
 #ifdef __POSIX__
   StatWatcher::Initialize(target);
