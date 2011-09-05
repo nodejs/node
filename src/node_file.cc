@@ -92,7 +92,7 @@ static void After(uv_fs_t *req) {
   // for a success, which is possible.
   if (req->result == -1) {
     // If the request doesn't have a path parameter set.
-    
+
     if (!req->path) {
       argv[0] = ErrnoException(req->errorno);
     } else {
@@ -154,7 +154,7 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_READLINK:
-        argv[1] = String::New(static_cast<char*>(req->ptr), req->result);
+        argv[1] = String::New(static_cast<char*>(req->ptr));
         break;
 
       case UV_FS_READ:
@@ -441,7 +441,7 @@ static Handle<Value> ReadLink(const Arguments& args) {
     ASYNC_CALL(readlink, args[1], *path)
   } else {
     SYNC_CALL(readlink, *path, *path)
-    return scope.Close(String::New((char*)SYNC_REQ.ptr, SYNC_REQ.result));
+    return scope.Close(String::New((char*)SYNC_REQ.ptr));
   }
 }
 #endif // __POSIX__
