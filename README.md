@@ -3,7 +3,7 @@ Evented I/O for V8 javascript.
 
 ### To build:
 
-Unix/Macintosh:
+Unix/Macintosh (requires python >= 2.5.2):
 
     ./configure
     make
