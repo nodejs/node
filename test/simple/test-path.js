@@ -39,11 +39,43 @@ if (!isWindows) {
 }
 
 assert.equal(path.extname(f), '.js');
+
 assert.equal(path.dirname(f).substr(-11), isWindows ? 'test\\simple' : 'test/simple');
 assert.equal(path.dirname('/a/b/'), '/a');
 assert.equal(path.dirname('/a/b'), '/a');
 assert.equal(path.dirname('/a'), '/');
 assert.equal(path.dirname('/'), '/');
+
+if (isWindows) {
+  assert.equal(path.dirname('c:\\'), 'c:\\');
+  assert.equal(path.dirname('c:\\foo'), 'c:\\');
+  assert.equal(path.dirname('c:\\foo\\'), 'c:\\');
+  assert.equal(path.dirname('c:\\foo\\bar'), 'c:\\foo');
+  assert.equal(path.dirname('c:\\foo\\bar\\'), 'c:\\foo');
+  assert.equal(path.dirname('c:\\foo\\bar\\baz'), 'c:\\foo\\bar');
+  assert.equal(path.dirname('\\'), '\\');
+  assert.equal(path.dirname('\\foo'), '\\');
+  assert.equal(path.dirname('\\foo\\'), '\\');
+  assert.equal(path.dirname('\\foo\\bar'), '\\foo');
+  assert.equal(path.dirname('\\foo\\bar\\'), '\\foo');
+  assert.equal(path.dirname('\\foo\\bar\\baz'), '\\foo\\bar');
+  assert.equal(path.dirname('c:'), 'c:');
+  assert.equal(path.dirname('c:foo'), 'c:');
+  assert.equal(path.dirname('c:foo\\'), 'c:');
+  assert.equal(path.dirname('c:foo\\bar'), 'c:foo');
+  assert.equal(path.dirname('c:foo\\bar\\'), 'c:foo');
+  assert.equal(path.dirname('c:foo\\bar\\baz'), 'c:foo\\bar');
+  assert.equal(path.dirname('\\\\unc\\share'), '\\\\unc\\share');
+  assert.equal(path.dirname('\\\\unc\\share\\foo'), '\\\\unc\\share\\');
+  assert.equal(path.dirname('\\\\unc\\share\\foo\\'), '\\\\unc\\share\\');
+  assert.equal(path.dirname('\\\\unc\\share\\foo\\bar'),
+               '\\\\unc\\share\\foo');
+  assert.equal(path.dirname('\\\\unc\\share\\foo\\bar\\'),
+               '\\\\unc\\share\\foo');
+  assert.equal(path.dirname('\\\\unc\\share\\foo\\bar\\baz'),
+               '\\\\unc\\share\\foo\\bar');
+}
+
 path.exists(f, function(y) { assert.equal(y, true) });
 
 assert.equal(path.existsSync(f), true);
