@@ -764,10 +764,8 @@ size_t uv__strlcpy(char* dst, const char* src, size_t size) {
   }
 
   org = src;
-  while (size > 1) {
-    if ((*dst++ = *src++) == '\0') {
-      return org - src;
-    }
+  while (--size && *src) {
+    *dst++ = *src++;
   }
   *dst = '\0';
 

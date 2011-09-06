@@ -235,10 +235,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   struct uv_process_close_s {             \
     UV_REQ_FIELDS                         \
   } close_req;                            \
-  struct uv_process_stdio_s {             \
-    uv_pipe_t* server_pipe;               \
-    HANDLE child_pipe;                    \
-  } stdio_pipes[3];                       \
+  HANDLE child_stdio[3];                  \
   int exit_signal;                        \
   DWORD spawn_errno;                      \
   HANDLE wait_handle;                     \

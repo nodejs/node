@@ -61,12 +61,9 @@ static void uv_process_init(uv_loop_t* loop, uv_process_t* handle) {
   handle->wait_handle = INVALID_HANDLE_VALUE;
   handle->process_handle = INVALID_HANDLE_VALUE;
   handle->close_handle = INVALID_HANDLE_VALUE;
-  handle->stdio_pipes[0].server_pipe = NULL;
-  handle->stdio_pipes[0].child_pipe = INVALID_HANDLE_VALUE;
-  handle->stdio_pipes[1].server_pipe = NULL;
-  handle->stdio_pipes[1].child_pipe = INVALID_HANDLE_VALUE;
-  handle->stdio_pipes[2].server_pipe = NULL;
-  handle->stdio_pipes[2].child_pipe = INVALID_HANDLE_VALUE;
+  handle->child_stdio[0] = INVALID_HANDLE_VALUE;
+  handle->child_stdio[1] = INVALID_HANDLE_VALUE;
+  handle->child_stdio[2] = INVALID_HANDLE_VALUE;
 
   uv_req_init(loop, (uv_req_t*)&handle->exit_req);
   handle->exit_req.type = UV_PROCESS_EXIT;
@@ -625,7 +622,7 @@ static DWORD WINAPI spawn_failure(void* data) {
   char unknown[] = "unknown error\n";
   uv_process_t* process = (uv_process_t*) data;
   uv_loop_t* loop = process->loop;
-  HANDLE child_stderr = process->stdio_pipes[2].child_pipe;
+  HANDLE child_stderr = process->child_stdio[2];
   char* buf = NULL;
   DWORD count, written;
 
@@ -657,18 +654,23 @@ static DWORD WINAPI spawn_failure(void* data) {
 }
 
 
-/* Called on main thread after a child process has exited. */
-void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
+static void close_child_stdio(uv_process_t* process) {
   int i;
-  DWORD exit_code;
+  HANDLE handle;
 
-  /* Close stdio handles. */
-  for (i = 0; i < COUNTOF(handle->stdio_pipes); i++) {
-    if (handle->stdio_pipes[i].child_pipe != INVALID_HANDLE_VALUE) {
-      CloseHandle(handle->stdio_pipes[i].child_pipe);
-      handle->stdio_pipes[i].child_pipe = INVALID_HANDLE_VALUE;
+  for (i = 0; i < COUNTOF(process->child_stdio); i++) {
+    handle = process->child_stdio[i];
+    if (handle != NULL && handle != INVALID_HANDLE_VALUE) {
+      CloseHandle(handle);
+      process->child_stdio[i] = INVALID_HANDLE_VALUE;
     }
   }
+}
+
+
+/* Called on main thread after a child process has exited. */
+void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
+  DWORD exit_code;
 
   /* Unregister from process notification. */
   if (handle->wait_handle != INVALID_HANDLE_VALUE) {
@@ -686,6 +688,10 @@ void uv_process_proc_exit(uv_loop_t* loop, uv_process_t* handle) {
     CloseHandle(handle->process_handle);
     handle->process_handle = INVALID_HANDLE_VALUE;
   } else {
+    /* We probably left the child stdio handles open to report the error */
+    /* asynchronously, so close them now. */
+    close_child_stdio(handle);
+
     /* The process never even started in the first place. */
     exit_code = 127;
   }
@@ -805,13 +811,45 @@ done:
 }
 
 
+static int duplicate_std_handle(uv_loop_t* loop, DWORD id, HANDLE* dup) {
+  HANDLE handle;
+  HANDLE current_process = GetCurrentProcess();
+  
+  handle = GetStdHandle(id);
+
+  if (handle == NULL) {
+    *dup = NULL;
+    return 0;
+  } else if (handle == INVALID_HANDLE_VALUE) {
+    *dup = INVALID_HANDLE_VALUE;
+    uv_set_sys_error(loop, GetLastError());
+    return -1;
+  }
+
+  if (!DuplicateHandle(current_process,
+                       handle,
+                       current_process,
+                       dup,
+                       0,
+                       TRUE,
+                       DUPLICATE_SAME_ACCESS)) {
+    *dup = INVALID_HANDLE_VALUE;
+    uv_set_sys_error(loop, GetLastError());
+    return -1;
+  }
+
+  return 0;
+}
+
+
 int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     uv_process_options_t options) {
-  int err = 0, i;
+  int err = 0, keep_child_stdio_open = 0;
   wchar_t* path;
   int size;
   BOOL result;
   wchar_t* application_path, *application, *arguments, *env, *cwd;
+  HANDLE* child_stdio = process->child_stdio;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
 
@@ -864,41 +902,41 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     err = uv_create_stdio_pipe_pair(
         loop,
         options.stdin_stream,
-        &process->stdio_pipes[0].child_pipe,
+        &child_stdio[0],
         PIPE_ACCESS_OUTBOUND,
         GENERIC_READ | FILE_WRITE_ATTRIBUTES);
-    if (err) {
-      goto done;
-    }
-
-    process->stdio_pipes[0].server_pipe = options.stdin_stream;
+  } else {
+    err = duplicate_std_handle(loop, STD_INPUT_HANDLE, &child_stdio[0]);
+  }
+  if (err) {
+    goto done;
   }
 
   if (options.stdout_stream) {
     err = uv_create_stdio_pipe_pair(
         loop, options.stdout_stream,
-        &process->stdio_pipes[1].child_pipe,
+        &child_stdio[1],
         PIPE_ACCESS_INBOUND,
         GENERIC_WRITE);
-    if (err) {
-      goto done;
-    }
-
-    process->stdio_pipes[1].server_pipe = options.stdout_stream;
+  } else {
+    err = duplicate_std_handle(loop, STD_OUTPUT_HANDLE, &child_stdio[1]);
+  }
+  if (err) {
+    goto done;
   }
 
   if (options.stderr_stream) {
     err = uv_create_stdio_pipe_pair(
         loop,
         options.stderr_stream,
-        &process->stdio_pipes[2].child_pipe,
+        &child_stdio[2],
         PIPE_ACCESS_INBOUND,
         GENERIC_WRITE);
-    if (err) {
-      goto done;
-    }
-
-    process->stdio_pipes[2].server_pipe = options.stderr_stream;
+  } else {
+    err = duplicate_std_handle(loop, STD_ERROR_HANDLE, &child_stdio[2]);
+  }
+  if (err) {
+    goto done;
   }
 
   startup.cb = sizeof(startup);
@@ -908,9 +946,9 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   startup.dwFlags = STARTF_USESTDHANDLES;
   startup.cbReserved2 = 0;
   startup.lpReserved2 = NULL;
-  startup.hStdInput = process->stdio_pipes[0].child_pipe;
-  startup.hStdOutput = process->stdio_pipes[1].child_pipe;
-  startup.hStdError = process->stdio_pipes[2].child_pipe;
+  startup.hStdInput = child_stdio[0];
+  startup.hStdOutput = child_stdio[1];
+  startup.hStdError = child_stdio[2];
 
   if (CreateProcessW(application_path,
                      arguments,
@@ -942,6 +980,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     /* succeeded, and start a thread instead that prints an error */
     /* to the child's intended stderr. */
     process->spawn_errno = GetLastError();
+    keep_child_stdio_open = 1;
     if (!QueueUserWorkItem(spawn_failure, process, WT_EXECUTEDEFAULT)) {
       uv_fatal_error(GetLastError(), "QueueUserWorkItem");
     }
@@ -957,14 +996,22 @@ done:
   free(env);
   free(path);
 
-  if (err) {
-    for (i = 0; i < COUNTOF(process->stdio_pipes); i++) {
-      if (process->stdio_pipes[i].child_pipe != INVALID_HANDLE_VALUE) {
-        CloseHandle(process->stdio_pipes[i].child_pipe);
-        process->stdio_pipes[i].child_pipe = INVALID_HANDLE_VALUE;
-      }
+  /* Under normal circumstances we should close the stdio handles now - */
+  /* the child now has its own duplicates, or something went horribly wrong. */
+  /* The only exception is when CreateProcess has failed, then we actually */
+  /* need to keep the stdio handles to report the error asynchronously. */
+  if (!keep_child_stdio_open) {
+    close_child_stdio(process);
+  } else {
+    /* We're keeping the handles open, the thread pool is going to have */
+    /* it's way with them. But at least make them noninheritable. */
+    int i;
+    for (i = 0; i < COUNTOF(process->child_stdio); i++) {
+      SetHandleInformation(child_stdio[1], HANDLE_FLAG_INHERIT, 0);
     }
+  }
 
+  if (err) {
     if (process->wait_handle != INVALID_HANDLE_VALUE) {
       UnregisterWait(process->wait_handle);
       process->wait_handle = INVALID_HANDLE_VALUE;

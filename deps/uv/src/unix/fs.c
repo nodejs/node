@@ -472,10 +472,34 @@ int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
 }
 
 
+#if defined(HAVE_FUTIMES)
+static int _futime(const uv_file file, double atime, double mtime) {
+  struct timeval tv[2];
+
+  /* FIXME possible loss of precision in floating-point arithmetic? */
+  tv[0].tv_sec = atime;
+  tv[0].tv_usec = (unsigned long)(atime * 1000000) % 1000000;
+
+  tv[1].tv_sec = mtime;
+  tv[1].tv_usec = (unsigned long)(mtime * 1000000) % 1000000;
+
+  return futimes(file, tv);
+}
+#endif
+
+
 int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime,
     double mtime, uv_fs_cb cb) {
-  assert(0 && "implement me");
+  const char* path = NULL;
+
+  uv_fs_req_init(loop, req, UV_FS_FUTIME, path, cb);
+
+#if defined(HAVE_FUTIMES)
+  WRAP_EIO(UV_FS_FUTIME, eio_futime, _futime, ARGS3(file, atime, mtime))
+#else
+  uv_err_new(loop, ENOSYS);
   return -1;
+#endif
 }
 
 
