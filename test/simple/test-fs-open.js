@@ -30,7 +30,7 @@ try {
   fs.openSync('/path/to/file/that/does/not/exist', 'r');
 }
 catch (e) {
-  assert.equal(e.errno, constants.ENOENT);
+  assert.equal(e.code, 'ENOENT');
   caughtException = true;
 }
 assert.ok(caughtException);

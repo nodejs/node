@@ -39,7 +39,6 @@ var gotError = false;
 c.on('error', function(e) {
   console.error('couldn\'t connect.');
   gotError = true;
-  assert.equal(require('constants').ECONNREFUSED, e.errno);
   assert.equal('ECONNREFUSED', e.code);
 });
 

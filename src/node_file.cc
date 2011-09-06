@@ -213,6 +213,69 @@ struct fs_req_wrap {
   uv_fs_t req;
 };
 
+
+const char* errno_string(int errorno) {
+  uv_err_t err;
+  memset(&err, 0, sizeof err);
+  err.code = (uv_err_code)errorno;
+  return uv_err_name(err);
+}
+
+
+const char* errno_message(int errorno) {
+  uv_err_t err;
+  memset(&err, 0, sizeof err);
+  err.code = (uv_err_code)errorno;
+  return uv_strerror(err);
+}
+
+
+// hack alert! copy of ErrnoException in node.cc, tuned for uv errors
+Local<Value> FSError(int errorno,
+                     const char *syscall,
+                     const char *msg,
+                     const char *path) {
+  static Persistent<String> syscall_symbol;
+  static Persistent<String> errpath_symbol;
+  static Persistent<String> code_symbol;
+
+  if (syscall_symbol.IsEmpty()) {
+    syscall_symbol = NODE_PSYMBOL("syscall");
+    errno_symbol = NODE_PSYMBOL("errno");
+    errpath_symbol = NODE_PSYMBOL("path");
+    code_symbol = NODE_PSYMBOL("code");
+  }
+
+  if (!msg || !msg[0])
+    msg = errno_message(errorno);
+
+  Local<String> estring = String::NewSymbol(errno_string(errorno));
+  Local<String> message = String::NewSymbol(msg);
+  Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
+  Local<String> cons2 = String::Concat(cons1, message);
+
+  Local<Value> e;
+
+  if (path) {
+    Local<String> cons3 = String::Concat(cons2, String::NewSymbol(" '"));
+    Local<String> cons4 = String::Concat(cons3, String::New(path));
+    Local<String> cons5 = String::Concat(cons4, String::NewSymbol("'"));
+    e = Exception::Error(cons5);
+  } else {
+    e = Exception::Error(cons2);
+  }
+
+  Local<Object> obj = e->ToObject();
+
+  // TODO errno should probably go
+  obj->Set(errno_symbol, Integer::New(errorno));
+  obj->Set(code_symbol, estring);
+  if (path) obj->Set(errpath_symbol, String::New(path));
+  if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
+  return e;
+}
+
+
 #define ASYNC_CALL(func, callback, ...)                           \
   FSReqWrap* req_wrap = new FSReqWrap();                          \
   int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
@@ -226,8 +289,8 @@ struct fs_req_wrap {
   fs_req_wrap req_wrap;                                           \
   uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
   if (req_wrap.req.result < 0) {                                  \
-    return ThrowException(                                        \
-      ErrnoException(req_wrap.req.errorno, #func, "", path));     \
+    int code = uv_last_error(uv_default_loop()).code;             \
+    return ThrowException(FSError(code, #func, "", path));        \
   }
 
 #define SYNC_REQ req_wrap.req
