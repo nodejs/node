@@ -56,6 +56,12 @@ static Persistent<String> errno_symbol;
 static Persistent<String> buf_symbol;
 static Persistent<String> oncomplete_sym;
 
+Local<Value> FSError(int errorno,
+                     const char *syscall = NULL,
+                     const char *msg     = NULL,
+                     const char *path    = NULL);
+
+
 static inline bool SetCloseOnExec(int fd) {
 #ifdef __POSIX__
   return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
@@ -94,12 +100,12 @@ static void After(uv_fs_t *req) {
     // If the request doesn't have a path parameter set.
 
     if (!req->path) {
-      argv[0] = ErrnoException(req->errorno);
+      argv[0] = FSError(req->errorno);
     } else {
-      argv[0] = ErrnoException(req->errorno,
-                               NULL,
-                               "",
-                               static_cast<const char*>(req->path));
+      argv[0] = FSError(req->errorno,
+                        NULL,
+                        NULL,
+                        static_cast<const char*>(req->path));
     }
   } else {
     // error value is empty or null for non-error.
