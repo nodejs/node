@@ -73,3 +73,7 @@ The externally maintained libraries used by Node are:
 
   - tools/gyp GYP is a meta-build system copyright 2009 Google Inc and
     licensed under the three clause BSD license. See tools/gyp/LICENSE.
+
+  - deps/zlib copyright 1995-2010 Jean-loup Gailly and Mark Adler
+    licensed under a permissive free software license. See
+    deps/zlib/LICENSE.

@@ -1,0 +1,12 @@
+Name: zlib
+URL: http://zlib.net/
+Version: 1.2.3
+
+Description:
+General purpose compression library
+
+Local Modifications:
+A few minor changes, all marked with "Google":
+- Added #ifdefs to avoid compile warnings when NO_GZCOMPRESS is defined.
+- Removed use of strerror for WinCE in gzio.c.
+- Added 'int z_errno' global for WinCE, to which 'errno' is defined in zutil.h.

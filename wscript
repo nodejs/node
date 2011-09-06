@@ -62,11 +62,11 @@ def set_options(opt):
   opt.tool_options('compiler_cc')
   opt.tool_options('misc')
   opt.add_option( '--libdir'
-		, action='store'
-		, type='string'
-		, default=False
-		, help='Install into this libdir [Release: ${PREFIX}/lib]'
-		)
+                , action='store'
+                , type='string'
+                , default=False
+                , help='Install into this libdir [Release: ${PREFIX}/lib]'
+                )
   opt.add_option( '--debug'
                 , action='store_true'
                 , default=False
@@ -158,7 +158,29 @@ def set_options(opt):
                 )
 
 
-  opt.add_option('--shared-cares'
+  opt.add_option( '--shared-zlib'
+                , action='store_true'
+                , default=False
+                , help='Link to a shared zlib DLL instead of static linking'
+                , dest='shared_zlib'
+                )
+
+  opt.add_option( '--shared-zlib-includes'
+                , action='store'
+                , default=False
+                , help='Directory containing zlib header files'
+                , dest='shared_zlib_includes'
+                )
+
+  opt.add_option( '--shared-zlib-libpath'
+                , action='store'
+                , default=False
+                , help='A directory to search for the shared zlib DLL'
+                , dest='shared_zlib_libpath'
+                )
+
+
+  opt.add_option( '--shared-cares'
                 , action='store_true'
                 , default=False
                 , help='Link to a shared C-Ares DLL instead of static linking'
@@ -246,6 +268,7 @@ def configure(conf):
 
   conf.env["USE_SHARED_V8"] = o.shared_v8 or o.shared_v8_includes or o.shared_v8_libpath or o.shared_v8_libname
   conf.env["USE_SHARED_CARES"] = o.shared_cares or o.shared_cares_includes or o.shared_cares_libpath
+  conf.env["USE_SHARED_ZLIB"] = o.shared_zlib or o.shared_zlib_includes or o.shared_zlib_libpath
 
   conf.env["USE_GDBJIT"] = o.use_gdbjit
 
@@ -838,7 +861,7 @@ def build(bld):
   node = bld.new_task_gen("cxx", product_type)
   node.name         = "node"
   node.target       = "node"
-  node.uselib = 'RT OPENSSL CARES EXECINFO DL KVM SOCKET NSL KSTAT UTIL OPROFILE'
+  node.uselib = 'RT OPENSSL ZLIB CARES EXECINFO DL KVM SOCKET NSL KSTAT UTIL OPROFILE'
   node.add_objects = 'http_parser'
   if product_type_is_lib:
     node.install_path = '${LIBDIR}'
@@ -857,6 +880,7 @@ def build(bld):
     src/node_os.cc
     src/node_dtrace.cc
     src/node_string.cc
+    src/node_zlib.cc
     src/timer_wrap.cc
     src/handle_wrap.cc
     src/stream_wrap.cc
