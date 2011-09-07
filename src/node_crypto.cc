@@ -1191,24 +1191,16 @@ Handle<Value> Connection::GetSession(const Arguments& args) {
   int slen = i2d_SSL_SESSION(sess, NULL);
   assert(slen > 0);
 
-  Local<Value> s;
-
   if (slen > 0) {
-    void* pp = malloc(slen);
-    if (pp)
-    {
-      unsigned char* p = (unsigned char*)pp;
-      i2d_SSL_SESSION(sess, &p);
-      s = Encode(pp, slen, BINARY);
-      free(pp);
-    }
-    else
-      return False();
+    unsigned char* sbuf = new unsigned char[slen];
+    unsigned char* p = sbuf;
+    i2d_SSL_SESSION(sess, &p);
+    Local<Value> s = Encode(sbuf, slen, BINARY);
+    delete[] sbuf;
+    return scope.Close(s);
   }
-  else
-    return False();
 
-  return scope.Close(s);
+  return Null();
 }
 
 Handle<Value> Connection::SetSession(const Arguments& args) {
