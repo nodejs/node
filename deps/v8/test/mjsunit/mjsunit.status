@@ -115,6 +115,9 @@ regress/regress-1132: SKIP
 
 ##############################################################################
 [ $arch == mips ]
+# Run those tests, but expect them to time out.
+array-sort: PASS || TIMEOUT
+mirror-object: PASS || TIMEOUT
 
 # Skip long-running tests.
 compiler/alloc-number: SKIP
@@ -141,8 +144,11 @@ regress/regress-634: SKIP
 regress/regress-create-exception: SKIP
 regress/regress-3218915: SKIP
 regress/regress-3247124: SKIP
+regress/regress-1132: SKIP
+regress/regress-1257: SKIP
+regress/regress-91008: SKIP
 
-
+##############################################################################
 [ $isolates ]
 # d8-os writes temporary files that might interfer with each other when running
 # in multible threads. Skip this if running with isolates testing.

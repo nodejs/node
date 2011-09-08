@@ -134,7 +134,7 @@ function sc_rempropBang(sym, key) {
 /*** META ((export #t)) */
 function sc_any2String(o) {
     return jsstring2string(sc_toDisplayString(o));
-}    
+}
 
 /*** META ((export #t)
            (peephole (infix 2 2 "==="))
@@ -923,7 +923,7 @@ function sc_dualAppendBang(l1, l2) {
     tmp.cdr = l2;
     return l1;
 }
-    
+
 /*** META ((export #t)) */
 function sc_appendBang() {
     var res = null;
@@ -1163,7 +1163,7 @@ sc_Char.readable2char = {
     "us": "\037",
     "sp": "\040",
     "del": "\177"};
-    
+
 sc_Char.prototype.toString = function() {
     return this.val;
 };
@@ -1533,7 +1533,7 @@ function sc_mapBang(proc, l1) {
     }
     return l1_orig;
 }
-     
+
 /*** META ((export #t)) */
 function sc_forEach(proc, l1) {
     if (l1 === undefined)
@@ -1871,7 +1871,7 @@ function sc_jsNew(c) {
 	evalStr += ", arguments[" + i + "]";
     evalStr +=")";
     return eval(evalStr);
-}    
+}
 
 // ======================== RegExp ====================
 /*** META ((export #t)) */
@@ -1883,9 +1883,9 @@ function sc_pregexp(re) {
 function sc_pregexpMatch(re, s) {
     var reg = (re instanceof RegExp) ? re : sc_pregexp(re);
     var tmp = reg.exec(sc_string2jsstring(s));
-    
+
     if (tmp == null) return false;
-    
+
     var res = null;
     for (var i = tmp.length-1; i >= 0; i--) {
 	if (tmp[i] !== null) {
@@ -1896,7 +1896,7 @@ function sc_pregexpMatch(re, s) {
     }
     return res;
 }
-   
+
 /*** META ((export #t)) */
 function sc_pregexpReplace(re, s1, s2) {
    var reg;
@@ -1914,7 +1914,7 @@ function sc_pregexpReplace(re, s1, s2) {
 
    return jss1.replace(reg, jss2);
 }
-   
+
 /*** META ((export pregexp-replace*)) */
 function sc_pregexpReplaceAll(re, s1, s2) {
    var reg;
@@ -1945,7 +1945,7 @@ function sc_pregexpSplit(re, s) {
 
    return sc_vector2list(tmp);
 }
-   
+
 
 /* =========================================================================== */
 /* Other library stuff */
@@ -2136,7 +2136,7 @@ sc_ErrorInputPort.prototype.getNextChar = function() {
 sc_ErrorInputPort.prototype.isCharReady = function() {
     return false;
 };
-    
+
 
 /* .............. String port ..........................*/
 
@@ -2200,7 +2200,7 @@ sc_Tokenizer.prototype.readToken = function() {
 };
 sc_Tokenizer.prototype.nextToken = function() {
     var port = this.port;
-    
+
     function isNumberChar(c) {
 	return (c >= "0" && c <= "9");
     };
@@ -2280,7 +2280,7 @@ sc_Tokenizer.prototype.nextToken = function() {
 	else
 	    return new sc_Token(12/*NUMBER*/, res - 0);
     };
-    
+
     function skipWhitespaceAndComments() {
 	var done = false;
 	while (!done) {
@@ -2299,7 +2299,7 @@ sc_Tokenizer.prototype.nextToken = function() {
 	    }
 	}
     };
-    
+
     function readDot() {
 	if (isWhitespace(port.peekChar()))
 	    return new sc_Token(10/*DOT*/);
@@ -2429,7 +2429,7 @@ sc_Reader.prototype.read = function() {
 
 	while (true) {
 	    var token = tokenizer.peekToken();
-	    
+
 	    switch (token.type) {
 	    case 2/*CLOSE_PAR*/:
 	    case 4/*CLOSE_BRACE*/:
@@ -2491,7 +2491,7 @@ sc_Reader.prototype.read = function() {
 	else
 	    throw "bad reference: " + nb;
     };
-    
+
     var tokenizer = this.tokenizer;
 
     var token = tokenizer.readToken();
@@ -2499,7 +2499,7 @@ sc_Reader.prototype.read = function() {
     // handle error
     if (token.type === 13/*ERROR*/)
 	throw token.val;
-    
+
     switch (token.type) {
     case 1/*OPEN_PAR*/:
     case 3/*OPEN_BRACE*/:
@@ -2550,7 +2550,7 @@ function sc_peekChar(port) {
 	port = SC_DEFAULT_IN; // THREAD: shared var...
     var t = port.peekChar();
     return t === SC_EOF_OBJECT? t: new sc_Char(t);
-}    
+}
 /*** META ((export #t)
            (type bool))
 */
@@ -2722,7 +2722,7 @@ sc_StringOutputPort.prototype.close = function() {
 function sc_getOutputString(sp) {
     return sc_jsstring2string(sp.res);
 }
-    
+
 
 function sc_ErrorOutputPort() {
 }
@@ -2852,7 +2852,7 @@ function sc_newline(p) {
 	p = SC_DEFAULT_OUT;
     p.appendJSString("\n");
 }
-    
+
 /* ------------------ write-char ---------------------------------------------------*/
 
 /*** META ((export #t)) */
@@ -2927,7 +2927,7 @@ sc_Pair.prototype.sc_toWriteCircleString = function(symb, inList) {
     }
 
     var res = "";
-    
+
     if (this[symb] !== undefined) { // implies > 0
 	this[symb + "use"] = true;
 	if (inList)
@@ -2939,10 +2939,10 @@ sc_Pair.prototype.sc_toWriteCircleString = function(symb, inList) {
 
     if (!inList)
 	res += "(";
-    
+
     // print car
     res += sc_genToWriteCircleString(this.car, symb);
-    
+
     if (sc_isPair(this.cdr)) {
 	res += " " + this.cdr.sc_toWriteCircleString(symb, true);
     } else if (this.cdr !== null) {
@@ -3072,7 +3072,7 @@ function sc_format(s, args) {
 	       p.appendJSString(arguments[j].toString(2));
 	       i += 2; j++;
 	       break;
-	       
+
 	    case 37:
 	    case 110:
 	       // %, n
@@ -3186,7 +3186,7 @@ function sc_isEqual(o1, o2) {
 function sc_number2symbol(x, radix) {
     return sc_SYMBOL_PREFIX + sc_number2jsstring(x, radix);
 }
-    
+
 /*** META ((export number->string integer->string)) */
 var sc_number2string = sc_number2jsstring;
 

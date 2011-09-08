@@ -1195,12 +1195,9 @@ void HeapSnapshot::AllocateEntries(int entries_count,
                                    int children_count,
                                    int retainers_count) {
   ASSERT(raw_entries_ == NULL);
-  raw_entries_ = NewArray<char>(
-      HeapEntry::EntriesSize(entries_count, children_count, retainers_count));
-#ifdef DEBUG
   raw_entries_size_ =
       HeapEntry::EntriesSize(entries_count, children_count, retainers_count);
-#endif
+  raw_entries_ = NewArray<char>(raw_entries_size_);
 }
 
 
@@ -2984,10 +2981,19 @@ class OutputStreamWriter {
   bool aborted_;
 };
 
+const int HeapSnapshotJSONSerializer::kMaxSerializableSnapshotRawSize =
+    256 * MB;
+
 void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
   ASSERT(writer_ == NULL);
   writer_ = new OutputStreamWriter(stream);
 
+  HeapSnapshot* original_snapshot = NULL;
+  if (snapshot_->raw_entries_size() >= kMaxSerializableSnapshotRawSize) {
+    // The snapshot is too big. Serialize a fake snapshot.
+    original_snapshot = snapshot_;
+    snapshot_ = CreateFakeSnapshot();
+  }
   // Since nodes graph is cyclic, we need the first pass to enumerate
   // them. Strings can be serialized in one pass.
   EnumerateNodes();
@@ -2995,6 +3001,26 @@ void HeapSnapshotJSONSerializer::Serialize(v8::OutputStream* stream) {
 
   delete writer_;
   writer_ = NULL;
+
+  if (original_snapshot != NULL) {
+    delete snapshot_;
+    snapshot_ = original_snapshot;
+  }
+}
+
+
+HeapSnapshot* HeapSnapshotJSONSerializer::CreateFakeSnapshot() {
+  HeapSnapshot* result = new HeapSnapshot(snapshot_->collection(),
+                                          HeapSnapshot::kFull,
+                                          snapshot_->title(),
+                                          snapshot_->uid());
+  result->AllocateEntries(2, 1, 0);
+  HeapEntry* root = result->AddRootEntry(1);
+  HeapEntry* message = result->AddEntry(
+      HeapEntry::kString, "The snapshot is too big", 0, 4, 0, 0);
+  root->SetUnidirElementReference(0, 1, message);
+  result->SetDominatorsToSelf();
+  return result;
 }
 
 

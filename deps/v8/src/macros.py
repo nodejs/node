@@ -122,7 +122,7 @@ macro IS_SPEC_OBJECT(arg) = (%_IsSpecObject(arg));
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
-macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || arg - arg == 0);
+macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));
 macro TO_INTEGER(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToInteger(ToNumber(arg)));
 macro TO_INTEGER_MAP_MINUS_ZERO(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : %NumberToIntegerMapMinusZero(ToNumber(arg)));
 macro TO_INT32(arg) = (%_IsSmi(%IS_VAR(arg)) ? arg : (arg >> 0));
@@ -170,7 +170,7 @@ macro CAPTURE(index) = (3 + (index));
 const CAPTURE0 = 3;
 const CAPTURE1 = 4;
 
-# PropertyDescriptor return value indices - must match 
+# PropertyDescriptor return value indices - must match
 # PropertyDescriptorIndices in runtime.cc.
 const IS_ACCESSOR_INDEX = 0;
 const VALUE_INDEX = 1;
@@ -179,3 +179,17 @@ const SETTER_INDEX = 3;
 const WRITABLE_INDEX = 4;
 const ENUMERABLE_INDEX = 5;
 const CONFIGURABLE_INDEX = 6;
+
+# For messages.js
+# Matches Script::Type from objects.h
+const TYPE_NATIVE = 0;
+const TYPE_EXTENSION = 1;
+const TYPE_NORMAL = 2;
+
+# Matches Script::CompilationType from objects.h
+const COMPILATION_TYPE_HOST = 0;
+const COMPILATION_TYPE_EVAL = 1;
+const COMPILATION_TYPE_JSON = 2;
+
+# Matches Messages::kNoLineNumberInfo from v8.h
+const kNoLineNumberInfo = 0;

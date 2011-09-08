@@ -171,7 +171,7 @@ bool Object::IsSymbol() {
   // Because the symbol tag is non-zero and no non-string types have the
   // symbol bit set we can test for symbols with a very simple test
   // operation.
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   ASSERT(kNotStringTag + kIsSymbolMask > LAST_TYPE);
   return (type & kIsSymbolMask) != 0;
 }
@@ -256,7 +256,7 @@ StringShape::StringShape(InstanceType t)
 
 bool StringShape::IsSymbol() {
   ASSERT(valid());
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   return (type_ & kIsSymbolMask) != 0;
 }
 
@@ -1749,9 +1749,15 @@ bool FixedDoubleArray::is_the_hole(int index) {
 void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
   int old_length = from->length();
   ASSERT(old_length < length());
-  OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
-              FIELD_ADDR(from, kHeaderSize),
-              old_length * kDoubleSize);
+  if (old_length * kDoubleSize >= OS::kMinComplexMemCopy) {
+    OS::MemCopy(FIELD_ADDR(this, kHeaderSize),
+                FIELD_ADDR(from, kHeaderSize),
+                old_length * kDoubleSize);
+  } else {
+    for (int i = 0; i < old_length; ++i) {
+      set(i, from->get_scalar(i));
+    }
+  }
   int offset = kHeaderSize + old_length * kDoubleSize;
   for (int current = from->length(); current < length(); ++current) {
     WRITE_DOUBLE_FIELD(this, offset, hole_nan_as_double());

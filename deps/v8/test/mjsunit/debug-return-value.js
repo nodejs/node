@@ -103,12 +103,12 @@ function listener(event, exec_state, event_data, data) {
         // Position at the end of the function.
         assertEquals(debugger_source_position + 50,
         exec_state.frame(0).sourcePosition());
-        
+
         // Just about to return from the function.
         assertTrue(exec_state.frame(0).isAtReturn())
         assertEquals(expected_return_value,
                      exec_state.frame(0).returnValue().value());
-        
+
         // Check the same using the JSON commands.
         var dcp = exec_state.debugCommandProcessor(false);
         var request = '{"seq":0,"type":"request","command":"backtrace"}';
@@ -118,7 +118,7 @@ function listener(event, exec_state, event_data, data) {
         assertTrue(frames[0].atReturn);
         assertEquals(expected_return_value,
                      response.lookup(frames[0].returnValue.ref).value);
-        
+
         listener_complete = true;
       }
     }
@@ -132,7 +132,7 @@ Debug.setListener(listener);
 
 // Four steps from the debugger statement in this function will position us at
 // the function return.
-//             0         1         2         3         4         5 
+//             0         1         2         3         4         5
 //             0123456789012345678901234567890123456789012345678901
 
 function f(x) {debugger; if (x) { return 1; } else { return 2; } };

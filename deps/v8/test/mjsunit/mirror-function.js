@@ -65,7 +65,7 @@ function testFunctionMirror(f) {
   assertTrue(mirror.constructorFunction() instanceof debug.ObjectMirror);
   assertTrue(mirror.protoObject() instanceof debug.Mirror);
   assertTrue(mirror.prototypeObject() instanceof debug.Mirror);
-  
+
   // Test text representation
   assertEquals(f.toString(), mirror.toText());
 

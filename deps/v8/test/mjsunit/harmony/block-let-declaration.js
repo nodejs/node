@@ -57,11 +57,9 @@ function TestLocalDoesNotThrow(str) {
 
 // Unprotected statement
 TestLocalThrows("if (true) let x;", SyntaxError);
-TestLocalThrows("with ({}) let x;", SyntaxError);
 TestLocalThrows("do let x; while (false)", SyntaxError);
 TestLocalThrows("while (false) let x;", SyntaxError);
 
 TestLocalDoesNotThrow("if (true) var x;");
-TestLocalDoesNotThrow("with ({}) var x;");
 TestLocalDoesNotThrow("do var x; while (false)");
 TestLocalDoesNotThrow("while (false) var x;");

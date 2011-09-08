@@ -198,14 +198,14 @@ bool LCodeGen::GeneratePrologue() {
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->AsSlot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+      Variable* var = scope()->parameter(i);
+      if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
         // Load parameter from stack.
         __ ldr(r0, MemOperand(fp, parameter_offset));
         // Store it in the context.
-        __ mov(r1, Operand(Context::SlotOffset(slot->index())));
+        __ mov(r1, Operand(Context::SlotOffset(var->index())));
         __ str(r0, MemOperand(cp, r1));
         // Update the write barrier. This clobbers all involved
         // registers, so we have to use two more registers to avoid
@@ -3473,8 +3473,6 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the indirect string shape: slice or cons.
   Label cons_string;
-  const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
-  ASSERT(IsPowerOf2(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
   __ tst(result, Operand(kSlicedNotConsMask));
   __ b(eq, &cons_string);
 
@@ -3511,7 +3509,8 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the encoding: ASCII or two-byte.
   Label ascii_string;
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ tst(result, Operand(kStringEncodingMask));
   __ b(ne, &ascii_string);
 
@@ -3759,7 +3758,7 @@ void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
   LOperand* input = instr->InputAt(0);
   ASSERT(input->IsRegister() && input->Equals(instr->result()));
   if (instr->needs_check()) {
-    ASSERT(kHeapObjectTag == 1);
+    STATIC_ASSERT(kHeapObjectTag == 1);
     // If the input is a HeapObject, SmiUntag will set the carry flag.
     __ SmiUntag(ToRegister(input), SetCC);
     DeoptimizeIf(cs, instr->environment());
@@ -3844,7 +3843,7 @@ void LCodeGen::DoDeferredTaggedToI(LTaggedToI* instr) {
   // The input was optimistically untagged; revert it.
   // The carry flag is set when we reach this deferred code as we just executed
   // SmiUntag(heap_object, SetCC)
-  ASSERT(kHeapObjectTag == 1);
+  STATIC_ASSERT(kHeapObjectTag == 1);
   __ adc(input_reg, input_reg, Operand(input_reg));
 
   // Heap number map check.

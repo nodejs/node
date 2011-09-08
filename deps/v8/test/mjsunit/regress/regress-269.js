@@ -40,7 +40,7 @@ Debug.setListener(listener);
 
 function g() {
 }
- 
+
 function f() {
   debugger;
   g.apply(null, ['']);

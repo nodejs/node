@@ -39,7 +39,7 @@ function RunTests() {
     assertEquals('object', (42).TypeOfThis());
     assertEquals('object', (3.14).TypeOfThis());
   }
-  
+
   for (var i = 0; i < 10; i++) {
     assertEquals('object', 'xxx'['TypeOfThis']());
     assertEquals('object', true['TypeOfThis']());
@@ -47,11 +47,11 @@ function RunTests() {
     assertEquals('object', (42)['TypeOfThis']());
     assertEquals('object', (3.14)['TypeOfThis']());
   }
-  
+
   function CallTypeOfThis(obj) {
     assertEquals('object', obj.TypeOfThis());
   }
-  
+
   for (var i = 0; i < 10; i++) {
     CallTypeOfThis('xxx');
     CallTypeOfThis(true);
@@ -59,7 +59,7 @@ function RunTests() {
     CallTypeOfThis(42);
     CallTypeOfThis(3.14);
   }
-  
+
   function TestWithWith(obj) {
     with (obj) {
       for (var i = 0; i < 10; i++) {
@@ -67,13 +67,13 @@ function RunTests() {
       }
     }
   }
-  
+
   TestWithWith('xxx');
   TestWithWith(true);
   TestWithWith(false);
   TestWithWith(42);
   TestWithWith(3.14);
-  
+
   for (var i = 0; i < 10; i++) {
     assertEquals('object', true[7]());
     assertEquals('object', false[7]());
@@ -100,7 +100,7 @@ function RunTests() {
 
 function TypeOfThis() { return typeof this; }
 
-// Test with normal setup of prototype. 
+// Test with normal setup of prototype.
 String.prototype.TypeOfThis = TypeOfThis;
 Boolean.prototype.TypeOfThis = TypeOfThis;
 Number.prototype.TypeOfThis = TypeOfThis;

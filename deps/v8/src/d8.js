@@ -1786,7 +1786,7 @@ function decodeLolInfoResponse(body) {
 
 
 function decodeLolListResponse(body, title) {
-  
+
   var result;
   var total_count = body.count;
   var total_size = body.size;

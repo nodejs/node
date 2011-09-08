@@ -529,3 +529,32 @@ TEST(TrivialSlice) {
   CHECK(string->IsSlicedString());
   CHECK_EQ("bcdefghijklmnopqrstuvwxy", *(string->ToCString()));
 }
+
+
+TEST(SliceFromSlice) {
+  // This tests whether a slice that contains the entire parent string
+  // actually creates a new string (it should not).
+  FLAG_string_slices = true;
+  InitializeVM();
+  HandleScope scope;
+  v8::Local<v8::Value> result;
+  Handle<String> string;
+  const char* init = "var str = 'abcdefghijklmnopqrstuvwxyz';";
+  const char* slice = "var slice = str.slice(1,-1); slice";
+  const char* slice_from_slice = "slice.slice(1,-1);";
+
+  CompileRun(init);
+  result = CompileRun(slice);
+  CHECK(result->IsString());
+  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK(string->IsSlicedString());
+  CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
+  CHECK_EQ("bcdefghijklmnopqrstuvwxy", *(string->ToCString()));
+
+  result = CompileRun(slice_from_slice);
+  CHECK(result->IsString());
+  string = v8::Utils::OpenHandle(v8::String::Cast(*result));
+  CHECK(string->IsSlicedString());
+  CHECK(SlicedString::cast(*string)->parent()->IsSeqString());
+  CHECK_EQ("cdefghijklmnopqrstuvwx", *(string->ToCString()));
+}

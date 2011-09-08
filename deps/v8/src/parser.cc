@@ -30,6 +30,7 @@
 #include "api.h"
 #include "ast-inl.h"
 #include "bootstrapper.h"
+#include "char-predicates-inl.h"
 #include "codegen.h"
 #include "compiler.h"
 #include "func-name-inferrer.h"
@@ -532,7 +533,7 @@ LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
   parser->top_scope_ = scope;
   parser->lexical_scope_ = this;
   parser->with_nesting_level_ = 0;
-  isolate->set_ast_node_id(AstNode::kFunctionEntryId + 1);
+  isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
 }
 
 
@@ -647,6 +648,11 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
     if (ok && top_scope_->is_strict_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
+
+    if (ok && harmony_block_scoping_) {
+      CheckConflictingVarDeclarations(scope, &ok);
+    }
+
     if (ok) {
       result = new(zone()) FunctionLiteral(
           isolate(),
@@ -1343,14 +1349,32 @@ VariableProxy* Parser::Declare(Handle<String> name,
       // Declare the name.
       var = declaration_scope->DeclareLocal(name, mode);
     } else {
-      // The name was declared before; check for conflicting re-declarations.
-      // We have a conflict if either of the declarations is not a var. There
-      // is similar code in runtime.cc in the Declare functions.
+      // The name was declared in this scope before; check for conflicting
+      // re-declarations. We have a conflict if either of the declarations is
+      // not a var. There is similar code in runtime.cc in the Declare
+      // functions. The function CheckNonConflictingScope checks for conflicting
+      // var and let bindings from different scopes whereas this is a check for
+      // conflicting declarations within the same scope. This check also covers
+      //
+      // function () { let x; { var x; } }
+      //
+      // because the var declaration is hoisted to the function scope where 'x'
+      // is already bound.
       if ((mode != Variable::VAR) || (var->mode() != Variable::VAR)) {
         // We only have vars, consts and lets in declarations.
         ASSERT(var->mode() == Variable::VAR ||
                var->mode() == Variable::CONST ||
                var->mode() == Variable::LET);
+        if (harmony_block_scoping_) {
+          // In harmony mode we treat re-declarations as early errors. See
+          // ES5 16 for a definition of early errors.
+          SmartPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+          const char* elms[2] = { "Variable", *c_string };
+          Vector<const char*> args(elms, 2);
+          ReportMessage("redeclaration", args);
+          *ok = false;
+          return NULL;
+        }
         const char* type = (var->mode() == Variable::VAR) ? "var" :
                            (var->mode() == Variable::CONST) ? "const" : "let";
         Handle<String> type_string =
@@ -1379,8 +1403,10 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // semantic issue as long as we keep the source order, but it may be
   // a performance issue since it may lead to repeated
   // Runtime::DeclareContextSlot() calls.
-  VariableProxy* proxy = declaration_scope->NewUnresolved(name, false);
-  declaration_scope->AddDeclaration(new(zone()) Declaration(proxy, mode, fun));
+  VariableProxy* proxy = declaration_scope->NewUnresolved(
+      name, false, scanner().location().beg_pos);
+  declaration_scope->AddDeclaration(
+      new(zone()) Declaration(proxy, mode, fun, top_scope_));
 
   // For global const variables we bind the proxy to a variable.
   if (mode == Variable::CONST && declaration_scope->is_global_scope()) {
@@ -1534,9 +1560,6 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
   Scope* block_scope = NewScope(top_scope_,
                                 Scope::BLOCK_SCOPE,
                                 inside_with());
-  body->set_block_scope(block_scope);
-  block_scope->DeclareLocal(isolate()->factory()->block_scope_symbol(),
-                            Variable::VAR);
   if (top_scope_->is_strict_mode()) {
     block_scope->EnableStrictMode();
   }
@@ -1559,21 +1582,11 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
-
-  // Create exit block.
-  Block* exit = new(zone()) Block(isolate(), NULL, 1, false);
-  exit->AddStatement(new(zone()) ExitContextStatement());
-
-  // Create a try-finally statement.
-  TryFinallyStatement* try_finally =
-      new(zone()) TryFinallyStatement(body, exit);
-  try_finally->set_escaping_targets(collector.targets());
   top_scope_ = saved_scope;
 
-  // Create a result block.
-  Block* result = new(zone()) Block(isolate(), NULL, 1, false);
-  result->AddStatement(try_finally);
-  return result;
+  block_scope = block_scope->FinalizeBlockScope();
+  body->set_block_scope(block_scope);
+  return body;
 }
 
 
@@ -1609,7 +1622,13 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
 
   Variable::Mode mode = Variable::VAR;
+  // True if the binding needs initialization. 'let' and 'const' declared
+  // bindings are created uninitialized by their declaration nodes and
+  // need initialization. 'var' declared bindings are always initialized
+  // immediately by their declaration nodes.
+  bool needs_init = false;
   bool is_const = false;
+  Token::Value init_op = Token::INIT_VAR;
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
@@ -1621,6 +1640,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     }
     mode = Variable::CONST;
     is_const = true;
+    needs_init = true;
+    init_op = Token::INIT_CONST;
   } else if (peek() == Token::LET) {
     Consume(Token::LET);
     if (var_context != kSourceElement &&
@@ -1631,6 +1652,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       return NULL;
     }
     mode = Variable::LET;
+    needs_init = true;
+    init_op = Token::INIT_LET;
   } else {
     UNREACHABLE();  // by current callers
   }
@@ -1732,9 +1755,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       }
     }
 
-    // Make sure that 'const c' actually initializes 'c' to undefined
-    // even though it seems like a stupid thing to do.
-    if (value == NULL && is_const) {
+    // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
+    if (value == NULL && needs_init) {
       value = GetLiteralUndefined();
     }
 
@@ -1811,23 +1833,25 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       block->AddStatement(new(zone()) ExpressionStatement(initialize));
     }
 
-    // Add an assignment node to the initialization statement block if
-    // we still have a pending initialization value. We must distinguish
-    // between variables and constants: Variable initializations are simply
+    // Add an assignment node to the initialization statement block if we still
+    // have a pending initialization value. We must distinguish between
+    // different kinds of declarations: 'var' initializations are simply
     // assignments (with all the consequences if they are inside a 'with'
     // statement - they may change a 'with' object property). Constant
     // initializations always assign to the declared constant which is
     // always at the function scope level. This is only relevant for
     // dynamically looked-up variables and constants (the start context
     // for constant lookups is always the function context, while it is
-    // the top context for variables). Sigh...
+    // the top context for var declared variables). Sigh...
+    // For 'let' declared variables the initialization is in the same scope
+    // as the declaration. Thus dynamic lookups are unnecessary even if the
+    // block scope is inside a with.
     if (value != NULL) {
-      Token::Value op = (is_const ? Token::INIT_CONST : Token::INIT_VAR);
-      bool in_with = is_const ? false : inside_with();
+      bool in_with = mode == Variable::VAR ? inside_with() : false;
       VariableProxy* proxy =
           initialization_scope->NewUnresolved(name, in_with);
       Assignment* assignment =
-          new(zone()) Assignment(isolate(), op, proxy, value, position);
+          new(zone()) Assignment(isolate(), init_op, proxy, value, position);
       if (block) {
         block->AddStatement(new(zone()) ExpressionStatement(assignment));
       }
@@ -2199,7 +2223,9 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       if (top_scope_->is_strict_mode()) {
         catch_scope->EnableStrictMode();
       }
-      catch_variable = catch_scope->DeclareLocal(name, Variable::VAR);
+      Variable::Mode mode = harmony_block_scoping_
+          ? Variable::LET : Variable::VAR;
+      catch_variable = catch_scope->DeclareLocal(name, mode);
       catch_block = new(zone()) Block(isolate(), NULL, 2, false);
 
       Scope* saved_scope = top_scope_;
@@ -3728,7 +3754,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         reserved_loc = scanner().location();
       }
 
-      top_scope_->DeclareParameter(param_name);
+      top_scope_->DeclareParameter(param_name,
+                                   harmony_block_scoping_
+                                   ? Variable::LET
+                                   : Variable::VAR);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",
@@ -3853,6 +3882,10 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
       }
       CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
     }
+  }
+
+  if (harmony_block_scoping_) {
+    CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
   FunctionLiteral* function_literal =
@@ -4056,6 +4089,25 @@ void Parser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
     ReportMessageAt(octal, "strict_octal_literal",
                     Vector<const char*>::empty());
     scanner().clear_octal_position();
+    *ok = false;
+  }
+}
+
+
+void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
+  Declaration* decl = scope->CheckConflictingVarDeclarations();
+  if (decl != NULL) {
+    // In harmony mode we treat conflicting variable bindinds as early
+    // errors. See ES5 16 for a definition of early errors.
+    Handle<String> name = decl->proxy()->name();
+    SmartPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+    const char* elms[2] = { "Variable", *c_string };
+    Vector<const char*> args(elms, 2);
+    int position = decl->proxy()->position();
+    Scanner::Location location = position == RelocInfo::kNoPosition
+        ? Scanner::Location::invalid()
+        : Scanner::Location(position, position + 1);
+    ReportMessageAt(location, "redeclaration", args);
     *ok = false;
   }
 }

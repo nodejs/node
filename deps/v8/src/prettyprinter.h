@@ -52,7 +52,6 @@ class PrettyPrinter: public AstVisitor {
   // Print a node to stdout.
   static void PrintOut(AstNode* node);
 
-  virtual void VisitSlot(Slot* node);
   // Individual nodes
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
@@ -87,7 +86,6 @@ class AstPrinter: public PrettyPrinter {
   const char* PrintProgram(FunctionLiteral* program);
 
   // Individual nodes
-  virtual void VisitSlot(Slot* node);
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT
@@ -163,7 +161,6 @@ class JsonAstBuilder: public PrettyPrinter {
   void AddAttribute(const char* name, bool value);
 
   // AST node visit functions.
-  virtual void VisitSlot(Slot* node);
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);
   AST_NODE_LIST(DECLARE_VISIT)
 #undef DECLARE_VISIT

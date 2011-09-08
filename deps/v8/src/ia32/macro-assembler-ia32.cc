@@ -148,7 +148,7 @@ void MacroAssembler::RecordWrite(Register object,
   Label done;
 
   // Skip barrier if writing a smi.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   JumpIfSmi(value, &done, Label::kNear);
 
   InNewSpace(object, value, equal, &done, Label::kNear);
@@ -166,8 +166,8 @@ void MacroAssembler::RecordWrite(Register object,
     // Array access: calculate the destination address in the same manner as
     // KeyedStoreIC::GenerateGeneric.  Multiply a smi by 2 to get an offset
     // into an array of words.
-    ASSERT_EQ(1, kSmiTagSize);
-    ASSERT_EQ(0, kSmiTag);
+    STATIC_ASSERT(kSmiTagSize == 1);
+    STATIC_ASSERT(kSmiTag == 0);
     lea(dst, Operand(object, dst, times_half_pointer_size,
                      FixedArray::kHeaderSize - kHeapObjectTag));
   }
@@ -193,7 +193,7 @@ void MacroAssembler::RecordWrite(Register object,
   Label done;
 
   // Skip barrier if writing a smi.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   JumpIfSmi(value, &done, Label::kNear);
 
   InNewSpace(object, value, equal, &done);
@@ -326,7 +326,7 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
                                              Register instance_type) {
   mov(map, FieldOperand(heap_object, HeapObject::kMapOffset));
   movzx_b(instance_type, FieldOperand(map, Map::kInstanceTypeOffset));
-  ASSERT(kNotStringTag != 0);
+  STATIC_ASSERT(kNotStringTag != 0);
   test(instance_type, Immediate(kIsNotStringMask));
   return zero;
 }
@@ -1172,7 +1172,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
 }
 
 
-void MacroAssembler::AllocateConsString(Register result,
+void MacroAssembler::AllocateTwoByteConsString(Register result,
                                         Register scratch1,
                                         Register scratch2,
                                         Label* gc_required) {
@@ -1205,6 +1205,42 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
   // Set the map. The other fields are left uninitialized.
   mov(FieldOperand(result, HeapObject::kMapOffset),
       Immediate(isolate()->factory()->cons_ascii_string_map()));
+}
+
+
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                          Register scratch1,
+                                          Register scratch2,
+                                          Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(isolate()->factory()->sliced_string_map()));
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  // Allocate heap number in new space.
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  // Set the map. The other fields are left uninitialized.
+  mov(FieldOperand(result, HeapObject::kMapOffset),
+      Immediate(isolate()->factory()->sliced_ascii_string_map()));
 }
 
 
@@ -2166,7 +2202,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
                                                          Register scratch2,
                                                          Label* failure) {
   // Check that both objects are not smis.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   mov(scratch1, Operand(object1));
   and_(scratch1, Operand(object2));
   JumpIfSmi(scratch1, failure);

@@ -173,6 +173,14 @@
           },
         },
       }],
+      ['OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
+        'conditions': [
+          [ 'target_arch=="ia32"', {
+            'cflags': [ '-m32' ],
+            'ldflags': [ '-m32' ],
+          }],
+        ],
+      }],
     ],
     'configurations': {
       'Debug': {
@@ -207,7 +215,7 @@
             'cflags': [ '-I/usr/local/include' ],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-            'cflags': [ '-Wall', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor' ],
           }],
         ],

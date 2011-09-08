@@ -29,7 +29,7 @@
 // HTML.
 function CheckSimple(f, tag) {
   assertEquals('<' + tag + '>foo</' + tag + '>',
-               "foo"[f]().toLowerCase()); 
+               "foo"[f]().toLowerCase());
 };
 var simple = { big: 'big', blink: 'blink', bold: 'b',
                fixed: 'tt', italics: 'i', small: 'small',

@@ -39,7 +39,7 @@ Debug = debug.Debug
 // below.  The test checks for these line numbers.
 
 function g() { // line 40
-  var x = 5; 
+  var x = 5;
   var y = 6;
   var z = 7;
 };

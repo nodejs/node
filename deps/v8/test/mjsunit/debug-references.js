@@ -52,7 +52,7 @@ function testRequest(dcp, arguments, success, count) {
   } else {
     request = '{' + base_request + '}'
   }
-  
+
   // Process the request and check expectation.
   var response = safeEval(dcp.processDebugJSONRequest(request));
   if (success) {
@@ -88,7 +88,7 @@ function listener(event, exec_state, event_data, data) {
     var response = safeEval(dcp.processDebugJSONRequest(evaluate_point));
     assertTrue(response.success, "Evaluation of Point failed");
     var handle = response.body.handle;
-    
+
     // Test some legal references requests.
     testRequest(dcp, '{"handle":' + handle + ',"type":"referencedBy"}', true);
     testRequest(dcp, '{"handle":' + handle + ',"type":"constructedBy"}',

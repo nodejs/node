@@ -30,7 +30,7 @@
 
 function f() { return }
 
-function g() { 
+function g() {
   return
     4;
 }

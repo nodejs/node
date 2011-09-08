@@ -30,7 +30,7 @@
 // implemented on Windows, and even if it were then many of the things
 // we are calling would not be available.
 
-var TEST_DIR = "d8-os-test-directory-" + ((Math.random() * (1<<30)) | 0);
+var TEST_DIR = "/tmp/d8-os-test-directory-" + ((Math.random() * (1<<30)) | 0);
 
 
 function arg_error(str) {
@@ -64,7 +64,7 @@ if (this.os && os.system) {
   os.chdir(TEST_DIR);
   try {
     // Check the chdir worked.
-    os.system('ls', ['../' + TEST_DIR]);
+    os.system('ls', [TEST_DIR]);
     // Simple create dir.
     os.mkdirp("dir");
     // Create dir in dir.
@@ -144,7 +144,6 @@ if (this.os && os.system) {
       //}
     }
   } finally {
-    os.chdir("..");
     os.system("rm", ["-r", TEST_DIR]);
   }
 

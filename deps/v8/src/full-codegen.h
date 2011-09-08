@@ -191,6 +191,22 @@ class FullCodeGenerator: public AstVisitor {
     Label continue_label_;
   };
 
+  // A nested block statement.
+  class NestedBlock : public Breakable {
+   public:
+    NestedBlock(FullCodeGenerator* codegen, Block* block)
+        : Breakable(codegen, block) {
+    }
+    virtual ~NestedBlock() {}
+
+    virtual NestedStatement* Exit(int* stack_depth, int* context_length) {
+      if (statement()->AsBlock()->block_scope() != NULL) {
+        ++(*context_length);
+      }
+      return previous_;
+    };
+  };
+
   // The try block of a try/catch statement.
   class TryCatch : public NestedStatement {
    public:
@@ -288,10 +304,6 @@ class FullCodeGenerator: public AstVisitor {
   // with a GC-safe value.
   void ClearAccumulator();
 
-  // Compute the frame pointer relative offset for a given local or
-  // parameter slot.
-  int SlotOffset(Slot* slot);
-
   // Determine whether or not to inline the smi case for the given
   // operation.
   bool ShouldInlineSmiCase(Token::Value op);
@@ -321,13 +333,29 @@ class FullCodeGenerator: public AstVisitor {
              Label* fall_through);
 #endif  // V8_TARGET_ARCH_MIPS
 
-  void Move(Slot* dst, Register source, Register scratch1, Register scratch2);
-  void Move(Register dst, Slot* source);
+  // Load the value of a known (PARAMETER, LOCAL, or CONTEXT) variable into
+  // a register.  Emits a context chain walk if if necessary (so does
+  // SetVar) so avoid calling both on the same variable.
+  void GetVar(Register destination, Variable* var);
 
-  // Return an operand used to read/write to a known (ie, non-LOOKUP) slot.
-  // May emit code to traverse the context chain, destroying the scratch
-  // register.
-  MemOperand EmitSlotSearch(Slot* slot, Register scratch);
+  // Assign to a known (PARAMETER, LOCAL, or CONTEXT) variable.  If it's in
+  // the context, the write barrier will be emitted and source, scratch0,
+  // scratch1 will be clobbered.  Emits a context chain walk if if necessary
+  // (so does GetVar) so avoid calling both on the same variable.
+  void SetVar(Variable* var,
+              Register source,
+              Register scratch0,
+              Register scratch1);
+
+  // An operand used to read/write a stack-allocated (PARAMETER or LOCAL)
+  // variable.  Writing does not need the write barrier.
+  MemOperand StackOperand(Variable* var);
+
+  // An operand used to read/write a known (PARAMETER, LOCAL, or CONTEXT)
+  // variable.  May emit code to traverse the context chain, loading the
+  // found context into the scratch register.  Writing to this operand will
+  // need the write barrier if location is CONTEXT.
+  MemOperand VarOperand(Variable* var, Register scratch);
 
   // Forward the bailout responsibility for the given expression to
   // the next child visited (which must be in a test context).
@@ -358,6 +386,7 @@ class FullCodeGenerator: public AstVisitor {
 
   void VisitDeclarations(ZoneList<Declaration*>* declarations);
   void DeclareGlobals(Handle<FixedArray> pairs);
+  int DeclareGlobalsFlags();
 
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
@@ -402,9 +431,10 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code for a variable, constant, or function
   // declaration.  Functions have an initial value.
-  void EmitDeclaration(Variable* variable,
+  void EmitDeclaration(VariableProxy* proxy,
                        Variable::Mode mode,
-                       FunctionLiteral* function);
+                       FunctionLiteral* function,
+                       int* global_count);
 
   // Platform-specific code for checking the stack limit at the back edge of
   // a loop.
@@ -435,14 +465,14 @@ class FullCodeGenerator: public AstVisitor {
 #undef EMIT_INLINE_RUNTIME_CALL
 
   // Platform-specific code for loading variables.
-  void EmitLoadGlobalSlotCheckExtensions(Slot* slot,
-                                         TypeofState typeof_state,
-                                         Label* slow);
-  MemOperand ContextSlotOperandCheckExtensions(Slot* slot, Label* slow);
-  void EmitDynamicLoadFromSlotFastCase(Slot* slot,
-                                       TypeofState typeof_state,
-                                       Label* slow,
-                                       Label* done);
+  void EmitLoadGlobalCheckExtensions(Variable* var,
+                                     TypeofState typeof_state,
+                                     Label* slow);
+  MemOperand ContextSlotOperandCheckExtensions(Variable* var, Label* slow);
+  void EmitDynamicLookupFastCase(Variable* var,
+                                 TypeofState typeof_state,
+                                 Label* slow,
+                                 Label* done);
   void EmitVariableLoad(VariableProxy* proxy);
 
   enum ResolveEvalFlag {
@@ -555,6 +585,7 @@ class FullCodeGenerator: public AstVisitor {
 
   Handle<Script> script() { return info_->script(); }
   bool is_eval() { return info_->is_eval(); }
+  bool is_native() { return info_->is_native(); }
   bool is_strict_mode() { return function()->strict_mode(); }
   StrictModeFlag strict_mode_flag() {
     return is_strict_mode() ? kStrictMode : kNonStrictMode;
@@ -618,11 +649,11 @@ class FullCodeGenerator: public AstVisitor {
     // this expression context.
     virtual void Plug(bool flag) const = 0;
 
-    // Emit code to convert a pure value (in a register, slot, as a literal,
-    // or on top of the stack) into the result expected according to this
-    // expression context.
+    // Emit code to convert a pure value (in a register, known variable
+    // location, as a literal, or on top of the stack) into the result
+    // expected according to this expression context.
     virtual void Plug(Register reg) const = 0;
-    virtual void Plug(Slot* slot) const = 0;
+    virtual void Plug(Variable* var) const = 0;
     virtual void Plug(Handle<Object> lit) const = 0;
     virtual void Plug(Heap::RootListIndex index) const = 0;
     virtual void PlugTOS() const = 0;
@@ -680,7 +711,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
     virtual void Plug(Label* materialize_true, Label* materialize_false) const;
-    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Variable* var) const;
     virtual void Plug(Handle<Object> lit) const;
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
@@ -703,7 +734,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
     virtual void Plug(Label* materialize_true, Label* materialize_false) const;
-    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Variable* var) const;
     virtual void Plug(Handle<Object> lit) const;
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
@@ -744,7 +775,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
     virtual void Plug(Label* materialize_true, Label* materialize_false) const;
-    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Variable* var) const;
     virtual void Plug(Handle<Object> lit) const;
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;
@@ -774,7 +805,7 @@ class FullCodeGenerator: public AstVisitor {
     virtual void Plug(bool flag) const;
     virtual void Plug(Register reg) const;
     virtual void Plug(Label* materialize_true, Label* materialize_false) const;
-    virtual void Plug(Slot* slot) const;
+    virtual void Plug(Variable* var) const;
     virtual void Plug(Handle<Object> lit) const;
     virtual void Plug(Heap::RootListIndex) const;
     virtual void PlugTOS() const;

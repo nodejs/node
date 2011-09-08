@@ -1048,18 +1048,19 @@ function ResetDateCache() {
 
 // -------------------------------------------------------------------
 
-function SetupDate() {
-  // Setup non-enumerable properties of the Date object itself.
+function SetUpDate() {
+  %CheckIsBootstrapping();
+  // Set up non-enumerable properties of the Date object itself.
   InstallFunctions($Date, DONT_ENUM, $Array(
     "UTC", DateUTC,
     "parse", DateParse,
     "now", DateNow
   ));
 
-  // Setup non-enumerable constructor property of the Date prototype object.
+  // Set up non-enumerable constructor property of the Date prototype object.
   %SetProperty($Date.prototype, "constructor", $Date, DONT_ENUM);
 
-  // Setup non-enumerable functions of the Date prototype object and
+  // Set up non-enumerable functions of the Date prototype object and
   // set their names.
   InstallFunctionsOnHiddenPrototype($Date.prototype, DONT_ENUM, $Array(
     "toString", DateToString,
@@ -1111,4 +1112,4 @@ function SetupDate() {
   ));
 }
 
-SetupDate();
+SetUpDate();

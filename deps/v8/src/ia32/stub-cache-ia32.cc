@@ -273,7 +273,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
   // Check that the object is a string.
   __ mov(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movzx_b(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  ASSERT(kNotStringTag != 0);
+  STATIC_ASSERT(kNotStringTag != 0);
   __ test(scratch, Immediate(kNotStringTag));
   __ j(not_zero, non_string_object);
 }

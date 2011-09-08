@@ -28,8 +28,6 @@
 #ifndef V8_SCANNER_H_
 #define V8_SCANNER_H_
 
-#include "token.h"
-#include "char-predicates-inl.h"
 #include "scanner-base.h"
 
 namespace v8 {

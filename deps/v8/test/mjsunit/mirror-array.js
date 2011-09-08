@@ -64,7 +64,7 @@ function testArrayMirror(a, names) {
   assertTrue(mirror.protoObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
   assertTrue(mirror.prototypeObject() instanceof debug.Mirror, 'Unexpected mirror hierachy');
   assertEquals(mirror.length(), a.length, "Length mismatch");
-  
+
   var indexedProperties = mirror.indexedPropertiesFromRange();
   assertEquals(indexedProperties.length, a.length);
   for (var i = 0; i < indexedProperties.length; i++) {
@@ -110,7 +110,7 @@ function testArrayMirror(a, names) {
       var found = false;
       for (var j = 0; j < fromJSON.properties.length; j++) {
         if (names[i] == fromJSON.properties[j].name) {
-          found = true; 
+          found = true;
         }
       }
       assertTrue(found, names[i])

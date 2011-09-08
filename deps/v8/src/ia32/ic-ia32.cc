@@ -324,7 +324,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   __ cmp(key, FieldOperand(scratch, FixedArray::kLengthOffset));
   __ j(above_equal, out_of_range);
   // Fast case: Do the load.
-  ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
+  STATIC_ASSERT((kPointerSize == 4) && (kSmiTagSize == 1) && (kSmiTag == 0));
   __ mov(scratch, FieldOperand(scratch, key, times_2, FixedArray::kHeaderSize));
   __ cmp(Operand(scratch), Immediate(FACTORY->the_hole_value()));
   // In case the loaded value is the_hole we have to consult GetProperty
@@ -358,7 +358,7 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   __ j(zero, index_string);
 
   // Is the string a symbol?
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   __ test_b(FieldOperand(map, Map::kInstanceTypeOffset), kIsSymbolMask);
   __ j(zero, not_symbol);
 }

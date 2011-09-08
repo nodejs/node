@@ -29,6 +29,6 @@
 // objects from within 'with' statements.
 (function(){
   var tmp = { x: 12 };
-  with (tmp) { assertTrue(delete x); }  
+  with (tmp) { assertTrue(delete x); }
   assertFalse("x" in tmp);
 })();

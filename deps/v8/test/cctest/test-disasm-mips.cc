@@ -274,23 +274,25 @@ TEST(Type0) {
   COMPARE(srav(v0, v1, fp),
           "03c31007       srav    v0, v1, fp");
 
-  COMPARE(rotr(a0, a1, 0),
-          "00252002       rotr    a0, a1, 0");
-  COMPARE(rotr(s0, s1, 8),
-          "00318202       rotr    s0, s1, 8");
-  COMPARE(rotr(t2, t3, 24),
-          "002b5602       rotr    t2, t3, 24");
-  COMPARE(rotr(v0, v1, 31),
-          "002317c2       rotr    v0, v1, 31");
+  if (mips32r2) {
+    COMPARE(rotr(a0, a1, 0),
+            "00252002       rotr    a0, a1, 0");
+    COMPARE(rotr(s0, s1, 8),
+            "00318202       rotr    s0, s1, 8");
+    COMPARE(rotr(t2, t3, 24),
+            "002b5602       rotr    t2, t3, 24");
+    COMPARE(rotr(v0, v1, 31),
+            "002317c2       rotr    v0, v1, 31");
 
-  COMPARE(rotrv(a0, a1, a2),
-          "00c52046       rotrv   a0, a1, a2");
-  COMPARE(rotrv(s0, s1, s2),
-          "02518046       rotrv   s0, s1, s2");
-  COMPARE(rotrv(t2, t3, t4),
-          "018b5046       rotrv   t2, t3, t4");
-  COMPARE(rotrv(v0, v1, fp),
-          "03c31046       rotrv   v0, v1, fp");
+    COMPARE(rotrv(a0, a1, a2),
+            "00c52046       rotrv   a0, a1, a2");
+    COMPARE(rotrv(s0, s1, s2),
+            "02518046       rotrv   s0, s1, s2");
+    COMPARE(rotrv(t2, t3, t4),
+            "018b5046       rotrv   t2, t3, t4");
+    COMPARE(rotrv(v0, v1, fp),
+            "03c31046       rotrv   v0, v1, fp");
+  }
 
   COMPARE(break_(0),
           "0000000d       break, code: 0x00000 (0)");
@@ -415,18 +417,21 @@ TEST(Type0) {
           "72f6b020       clz     s6, s7");
   COMPARE(clz(v0, v1),
           "70621020       clz     v0, v1");
-  COMPARE(ins_(a0, a1, 31, 1),
-          "7ca4ffc4       ins     a0, a1, 31, 1");
-  COMPARE(ins_(s6, s7, 30, 2),
-          "7ef6ff84       ins     s6, s7, 30, 2");
-  COMPARE(ins_(v0, v1, 0, 32),
-          "7c62f804       ins     v0, v1, 0, 32");
-  COMPARE(ext_(a0, a1, 31, 1),
-          "7ca407c0       ext     a0, a1, 31, 1");
-  COMPARE(ext_(s6, s7, 30, 2),
-          "7ef60f80       ext     s6, s7, 30, 2");
-  COMPARE(ext_(v0, v1, 0, 32),
-          "7c62f800       ext     v0, v1, 0, 32");
+
+  if (mips32r2) {
+    COMPARE(ins_(a0, a1, 31, 1),
+            "7ca4ffc4       ins     a0, a1, 31, 1");
+    COMPARE(ins_(s6, s7, 30, 2),
+            "7ef6ff84       ins     s6, s7, 30, 2");
+    COMPARE(ins_(v0, v1, 0, 32),
+            "7c62f804       ins     v0, v1, 0, 32");
+    COMPARE(ext_(a0, a1, 31, 1),
+            "7ca407c0       ext     a0, a1, 31, 1");
+    COMPARE(ext_(s6, s7, 30, 2),
+            "7ef60f80       ext     s6, s7, 30, 2");
+    COMPARE(ext_(v0, v1, 0, 32),
+            "7c62f800       ext     v0, v1, 0, 32");
+  }
 
   VERIFY_RUN();
 }

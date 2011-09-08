@@ -207,14 +207,14 @@ bool LCodeGen::GeneratePrologue() {
     // Copy any necessary parameters into the context.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->AsSlot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+      Variable* var = scope()->parameter(i);
+      if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
         // Load parameter from stack.
         __ movq(rax, Operand(rbp, parameter_offset));
         // Store it in the context.
-        int context_offset = Context::SlotOffset(slot->index());
+        int context_offset = Context::SlotOffset(var->index());
         __ movq(Operand(rsi, context_offset), rax);
         // Update the write barrier. This clobbers all involved
         // registers, so we have use a third register to avoid
@@ -3217,8 +3217,6 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the indirect string shape: slice or cons.
   Label cons_string;
-  const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
-  ASSERT(IsPowerOf2(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
   __ testb(result, Immediate(kSlicedNotConsMask));
   __ j(zero, &cons_string, Label::kNear);
 
@@ -3253,7 +3251,8 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the encoding: ASCII or two-byte.
   Label ascii_string;
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ testb(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string, Label::kNear);
 

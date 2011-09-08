@@ -32,7 +32,7 @@ x.__defineGetter__("a", function() {
   try {
     y.x = 40;
   } catch (e) {
-    assertEquals(3, e.stack.split('\n').length); 
+    assertEquals(3, e.stack.split('\n').length);
   }
   return 40;
 });
@@ -41,7 +41,7 @@ x.__defineSetter__("a", function(val) {
   try {
     y.x = 40;
   } catch(e) {
-    assertEquals(3, e.stack.split('\n').length); 
+    assertEquals(3, e.stack.split('\n').length);
   }
 });
 
@@ -50,7 +50,7 @@ function getB() {
   try {
     y.x = 30;
   } catch (e) {
-    assertEquals(3, e.stack.split('\n').length); 
+    assertEquals(3, e.stack.split('\n').length);
   }
   return 30;
 }
@@ -59,7 +59,7 @@ function setB(val) {
   try {
     y.x = 30;
   } catch(e) {
-    assertEquals(3, e.stack.split('\n').length); 
+    assertEquals(3, e.stack.split('\n').length);
   }
 }
 
@@ -72,7 +72,7 @@ var descriptor  = {
     try {
       y.x = 40;
     } catch (e) {
-      assertEquals(3, e.stack.split('\n').length); 
+      assertEquals(3, e.stack.split('\n').length);
     }
     return 40;
   },
@@ -80,7 +80,7 @@ var descriptor  = {
     try {
       y.x = 40;
     } catch(e) {
-      assertEquals(3, e.stack.split('\n').length); 
+      assertEquals(3, e.stack.split('\n').length);
     }
   }
 }
@@ -88,7 +88,7 @@ var descriptor  = {
 Object.defineProperty(x, 'c', descriptor)
 
 // Check that the stack for an exception in a getter and setter produce the
-// expected stack height.   
+// expected stack height.
 x.a;
 x.b;
 x.c;

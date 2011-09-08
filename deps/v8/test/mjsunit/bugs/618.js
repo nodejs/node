@@ -32,14 +32,14 @@ function C1() {
 var c1 = new C1();
 assertEquals(23, c1.x);
 assertEquals("undefined", typeof c1.y);
-  
+
 // Add setter somewhere on the prototype chain after having constructed the
 // first instance.
 C1.prototype = { set x(value) { this.y = 23; } };
 var c1 = new C1();
 assertEquals("undefined", typeof c1.x);
 assertEquals(23, c1.y);
-  
+
 // Simple class using inline constructor.
 function C2() {
   this.x = 23;

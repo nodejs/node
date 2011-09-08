@@ -1,3 +1,46 @@
+2011-09-07: Version 3.6.1
+
+        Fixed a bug in abrupt exit from with or catch inside finally.
+
+        Fixed possible crash in FixedDoubleArray::Initialize() (Chromium
+        issue 95113).
+
+        Fixed a bug in Page::GetRegionMaskForSpan (Chromium issue 94425).
+
+        Fixed a few clang warnings (which -Werror treated as errors).
+
+        Performance improvements on all platforms.
+
+
+2011-09-05: Version 3.6.0
+
+	Fixed a bug when optimizing named function expression (issue 1647).
+
+	Fixed a bug when optimizing f.call.apply (issue 1650).
+
+	Made arguments and caller always be null on native functions
+	(issues 1548 and 1643).
+
+	Fixed issue 1648 (cross-compiling x64 targeting ia32).
+
+	Fixed issue 371 (d8 printing of strings containing \0).
+
+	Fixed order of evaluation in arguments to parseInt (issue 1649).
+
+	Fixed a problem with large heap snapshots in Chrome DevTools
+	(issue 1658, chromium issue 89268).
+
+	Upped default maximum heap size from 512M to 700M.
+
+
+2011-08-31: Version 3.5.10
+
+        Added dependency of v8_base on WinSocket2 Windows library in
+        the GYP-build.
+
+        Various bugfixes.
+
+
 2011-08-29: Version 3.5.9
 
         Made FromPropertyDescriptor not trigger inherited setters.

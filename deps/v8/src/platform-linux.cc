@@ -130,13 +130,7 @@ void OS::Setup() {
 
 
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-#if(defined(__mips_hard_float) && __mips_hard_float != 0)
-    // Here gcc is telling us that we are on an MIPS and gcc is assuming that we
-    // have FPU instructions.  If gcc can assume it then so can we.
-    return 1u << FPU;
-#else
   return 0;  // Linux runs on anything.
-#endif
 }
 
 

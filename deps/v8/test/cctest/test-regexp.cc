@@ -30,14 +30,15 @@
 
 #include "v8.h"
 
-#include "string-stream.h"
-#include "cctest.h"
-#include "zone-inl.h"
-#include "parser.h"
 #include "ast.h"
+#include "char-predicates-inl.h"
+#include "cctest.h"
 #include "jsregexp.h"
+#include "parser.h"
 #include "regexp-macro-assembler.h"
 #include "regexp-macro-assembler-irregexp.h"
+#include "string-stream.h"
+#include "zone-inl.h"
 #ifdef V8_INTERPRETED_REGEXP
 #include "interpreter-irregexp.h"
 #else  // V8_INTERPRETED_REGEXP

@@ -258,7 +258,7 @@ static void GenerateStringCheck(MacroAssembler* masm,
   // Check that the object is a string.
   __ movq(scratch, FieldOperand(receiver, HeapObject::kMapOffset));
   __ movzxbq(scratch, FieldOperand(scratch, Map::kInstanceTypeOffset));
-  ASSERT(kNotStringTag != 0);
+  STATIC_ASSERT(kNotStringTag != 0);
   __ testl(scratch, Immediate(kNotStringTag));
   __ j(not_zero, non_string_object);
 }
@@ -3070,7 +3070,7 @@ MaybeObject* ConstructStubCompiler::CompileConstructStub(JSFunction* function) {
   // Load the initial map and verify that it is in fact a map.
   __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
   // Will both indicate a NULL and a Smi.
-  ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTag == 0);
   __ JumpIfSmi(rbx, &generic_stub_call);
   __ CmpObjectType(rbx, MAP_TYPE, rcx);
   __ j(not_equal, &generic_stub_call);

@@ -3538,7 +3538,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
     const int kNumInstructionsToJump = 6;
     masm->Addu(ra, ra, kNumInstructionsToJump * kPointerSize);
     masm->sw(ra, MemOperand(sp));  // This spot was reserved in EnterExitFrame.
-    masm->Subu(sp, sp, StandardFrameConstants::kCArgsSlotsSize);
+    masm->Subu(sp, sp, kCArgsSlotsSize);
     // Stack is still aligned.
 
     // Call the C routine.
@@ -3551,7 +3551,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   }
 
   // Restore stack (remove arg slots).
-  __ Addu(sp, sp, StandardFrameConstants::kCArgsSlotsSize);
+  __ Addu(sp, sp, kCArgsSlotsSize);
 
   if (always_allocate) {
     // It's okay to clobber a2 and a3 here. v0 & v1 contain result.
@@ -3695,9 +3695,19 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Save callee saved registers on the stack.
   __ MultiPush(kCalleeSaved | ra.bit());
 
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+    // Save callee-saved FPU registers.
+    __ MultiPushFPU(kCalleeSavedFPU);
+  }
+
   // Load argv in s0 register.
-  __ lw(s0, MemOperand(sp, (kNumCalleeSaved + 1) * kPointerSize +
-                           StandardFrameConstants::kCArgsSlotsSize));
+  int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
+  if (CpuFeatures::IsSupported(FPU)) {
+    offset_to_argv += kNumCalleeSavedFPU * kDoubleSize;
+  }
+
+  __ lw(s0, MemOperand(sp, offset_to_argv + kCArgsSlotsSize));
 
   // We build an EntryFrame.
   __ li(t3, Operand(-1));  // Push a bad frame pointer to fail if it is used.
@@ -3828,6 +3838,12 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Reset the stack to the callee saved registers.
   __ addiu(sp, sp, -EntryFrameConstants::kCallerFPOffset);
+
+  if (CpuFeatures::IsSupported(FPU)) {
+    CpuFeatures::Scope scope(FPU);
+    // Restore callee-saved fpu registers.
+    __ MultiPopFPU(kCalleeSavedFPU);
+  }
 
   // Restore callee saved registers from the stack.
   __ MultiPop(kCalleeSaved | ra.bit());
@@ -4527,9 +4543,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ lw(a0, FieldMemOperand(subject, HeapObject::kMapOffset));
   __ lbu(a0, FieldMemOperand(a0, Map::kInstanceTypeOffset));
   // First check for flat string.
-  __ And(at, a0, Operand(kIsNotStringMask | kStringRepresentationMask));
+  __ And(a1, a0, Operand(kIsNotStringMask | kStringRepresentationMask));
   STATIC_ASSERT((kStringTag | kSeqStringTag) == 0);
-  __ Branch(&seq_string, eq, at, Operand(zero_reg));
+  __ Branch(&seq_string, eq, a1, Operand(zero_reg));
 
   // subject: Subject string
   // a0: instance type if Subject string
@@ -4541,10 +4557,10 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // a sequential string or an external string.
   // In the case of a sliced string its offset has to be taken into account.
   Label cons_string, check_encoding;
-  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
-  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
-  __ Branch(&cons_string, lt, at, Operand(kExternalStringTag));
-  __ Branch(&runtime, eq, at, Operand(kExternalStringTag));
+  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
+  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
+  __ Branch(&cons_string, lt, a1, Operand(kExternalStringTag));
+  __ Branch(&runtime, eq, a1, Operand(kExternalStringTag));
 
   // String is sliced.
   __ lw(t0, FieldMemOperand(subject, SlicedString::kOffsetOffset));
@@ -4652,7 +4668,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // frame. Therefore we have to use fp, which points exactly to two pointer
   // sizes below the previous sp. (Because creating a new stack frame pushes
   // the previous fp onto the stack and moves up sp by 2 * kPointerSize.)
-  __ lw(a0, MemOperand(fp, kSubjectOffset + 2 * kPointerSize));
+  __ lw(subject, MemOperand(fp, kSubjectOffset + 2 * kPointerSize));
   // If slice offset is not 0, load the length from the original sliced string.
   // Argument 4, a3: End of string data
   // Argument 3, a2: Start of string data
@@ -4662,7 +4678,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ sllv(t1, a1, a3);
   __ addu(a2, t0, t1);
 
-  __ lw(t2, FieldMemOperand(a0, String::kLengthOffset));
+  __ lw(t2, FieldMemOperand(subject, String::kLengthOffset));
   __ sra(t2, t2, kSmiTagSize);
   __ sllv(t1, t2, a3);
   __ addu(a3, t0, t1);
@@ -4670,7 +4686,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   // Already there
 
   // Argument 1 (a0): Subject string.
-  // Already there
+  __ mov(a0, subject);
 
   // Locate the code entry and call it.
   __ Addu(t9, t9, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -4688,13 +4704,13 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   Label success;
   __ Branch(&success, eq,
-            subject, Operand(NativeRegExpMacroAssembler::SUCCESS));
+            v0, Operand(NativeRegExpMacroAssembler::SUCCESS));
   Label failure;
   __ Branch(&failure, eq,
-            subject, Operand(NativeRegExpMacroAssembler::FAILURE));
+            v0, Operand(NativeRegExpMacroAssembler::FAILURE));
   // If not exception it can only be retry. Handle that in the runtime system.
   __ Branch(&runtime, ne,
-            subject, Operand(NativeRegExpMacroAssembler::EXCEPTION));
+            v0, Operand(NativeRegExpMacroAssembler::EXCEPTION));
   // Result must now be exception. If there is no pending exception already a
   // stack overflow (on the backtrack stack) was detected in RegExp code but
   // haven't created the exception yet. Handle that in the runtime system.
@@ -4705,16 +4721,16 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ li(a2, Operand(ExternalReference(Isolate::k_pending_exception_address,
                                       masm->isolate())));
   __ lw(v0, MemOperand(a2, 0));
-  __ Branch(&runtime, eq, subject, Operand(a1));
+  __ Branch(&runtime, eq, v0, Operand(a1));
 
   __ sw(a1, MemOperand(a2, 0));  // Clear pending exception.
 
   // Check if the exception is a termination. If so, throw as uncatchable.
   __ LoadRoot(a0, Heap::kTerminationExceptionRootIndex);
   Label termination_exception;
-  __ Branch(&termination_exception, eq, subject, Operand(a0));
+  __ Branch(&termination_exception, eq, v0, Operand(a0));
 
-  __ Throw(subject);  // Expects thrown value in v0.
+  __ Throw(v0);  // Expects thrown value in v0.
 
   __ bind(&termination_exception);
   __ ThrowUncatchable(TERMINATION, v0);  // Expects thrown value in v0.
@@ -5025,8 +5041,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Handle non-flat strings.
   __ And(result_, result_, Operand(kStringRepresentationMask));
-  STATIC_ASSERT((kConsStringTag < kExternalStringTag));
-  STATIC_ASSERT((kSlicedStringTag > kExternalStringTag));
+  STATIC_ASSERT(kConsStringTag < kExternalStringTag);
+  STATIC_ASSERT(kSlicedStringTag > kExternalStringTag);
   __ Branch(&sliced_string, gt, result_, Operand(kExternalStringTag));
   __ Branch(&call_runtime_, eq, result_, Operand(kExternalStringTag));
 
@@ -5062,7 +5078,8 @@ void StringCharCodeAtGenerator::GenerateFast(MacroAssembler* masm) {
 
   // Check for 1-byte or 2-byte string.
   __ bind(&flat_string);
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ And(t0, result_, Operand(kStringEncodingMask));
   __ Branch(&ascii_string, ne, t0, Operand(zero_reg));
 
@@ -5625,11 +5642,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   Register to = t2;
   Register from = t3;
 
-  if (FLAG_string_slices) {
-    __ nop();  // Jumping as first instruction would crash the code generation.
-    __ jmp(&sub_string_runtime);
-  }
-
   // Check bounds and smi-ness.
   __ lw(to, MemOperand(sp, kToOffset));
   __ lw(from, MemOperand(sp, kFromOffset));
@@ -5653,7 +5665,8 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Special handling of sub-strings of length 1 and 2. One character strings
   // are handled in the runtime system (looked up in the single character
-  // cache). Two character strings are looked for in the symbol cache.
+  // cache). Two character strings are looked for in the symbol cache in
+  // generated code.
   __ Branch(&sub_string_runtime, lt, a2, Operand(2));
 
   // Both to and from are smis.
@@ -5665,19 +5678,32 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // t5: to index (untagged smi)
 
   // Make sure first argument is a sequential (or flat) string.
-  __ lw(t1, MemOperand(sp, kStringOffset));
-  __ Branch(&sub_string_runtime, eq, t1, Operand(kSmiTagMask));
+  __ lw(v0, MemOperand(sp, kStringOffset));
+  __ Branch(&sub_string_runtime, eq, v0, Operand(kSmiTagMask));
 
-  __ lw(a1, FieldMemOperand(t1, HeapObject::kMapOffset));
+  __ lw(a1, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(a1, FieldMemOperand(a1, Map::kInstanceTypeOffset));
-  __ And(t4, a1, Operand(kIsNotStringMask));
+  __ And(t4, v0, Operand(kIsNotStringMask));
 
   __ Branch(&sub_string_runtime, ne, t4, Operand(zero_reg));
 
+  // Short-cut for the case of trivial substring.
+  Label return_v0;
+  // v0: original string
+  // a2: result string length
+  __ lw(t0, FieldMemOperand(v0, String::kLengthOffset));
+  __ sra(t0, t0, 1);
+  __ Branch(&return_v0, eq, a2, Operand(t0));
+
+  Label create_slice;
+  if (FLAG_string_slices) {
+    __ Branch(&create_slice, ge, a2, Operand(SlicedString::kMinLength));
+  }
+
+  // v0: original string
   // a1: instance type
   // a2: result string length
   // a3: from index (untagged smi)
-  // t1: string
   // t2: (a.k.a. to): to (smi)
   // t3: (a.k.a. from): from offset (smi)
   // t5: to index (untagged smi)
@@ -5686,8 +5712,9 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ And(t0, a1, Operand(kStringRepresentationMask));
   STATIC_ASSERT(kSeqStringTag < kConsStringTag);
   STATIC_ASSERT(kConsStringTag < kExternalStringTag);
+  STATIC_ASSERT(kConsStringTag < kSlicedStringTag);
 
-  // External strings go to runtime.
+  // Slices and external strings go to runtime.
   __ Branch(&sub_string_runtime, gt, t0, Operand(kConsStringTag));
 
   // Sequential strings are handled directly.
@@ -5696,32 +5723,32 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   // Cons string. Try to recurse (once) on the first substring.
   // (This adds a little more generality than necessary to handle flattened
   // cons strings, but not much).
-  __ lw(t1, FieldMemOperand(t1, ConsString::kFirstOffset));
-  __ lw(t0, FieldMemOperand(t1, HeapObject::kMapOffset));
+  __ lw(v0, FieldMemOperand(v0, ConsString::kFirstOffset));
+  __ lw(t0, FieldMemOperand(v0, HeapObject::kMapOffset));
   __ lbu(a1, FieldMemOperand(t0, Map::kInstanceTypeOffset));
   STATIC_ASSERT(kSeqStringTag == 0);
-  // Cons and External strings go to runtime.
+  // Cons, slices and external strings go to runtime.
   __ Branch(&sub_string_runtime, ne, a1, Operand(kStringRepresentationMask));
 
   // Definitly a sequential string.
   __ bind(&seq_string);
 
+  // v0: original string
   // a1: instance type
   // a2: result string length
   // a3: from index (untagged smi)
-  // t1: string
   // t2: (a.k.a. to): to (smi)
   // t3: (a.k.a. from): from offset (smi)
   // t5: to index (untagged smi)
 
-  __ lw(t0, FieldMemOperand(t1, String::kLengthOffset));
+  __ lw(t0, FieldMemOperand(v0, String::kLengthOffset));
   __ Branch(&sub_string_runtime, lt, t0, Operand(to));  // Fail if to > length.
   to = no_reg;
 
+  // v0: original string or left hand side of the original cons string.
   // a1: instance type
   // a2: result string length
   // a3: from index (untagged smi)
-  // t1: string
   // t3: (a.k.a. from): from offset (smi)
   // t5: to index (untagged smi)
 
@@ -5737,84 +5764,147 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
   // Sub string of length 2 requested.
   // Get the two characters forming the sub string.
-  __ Addu(t1, t1, Operand(a3));
-  __ lbu(a3, FieldMemOperand(t1, SeqAsciiString::kHeaderSize));
-  __ lbu(t0, FieldMemOperand(t1, SeqAsciiString::kHeaderSize + 1));
+  __ Addu(v0, v0, Operand(a3));
+  __ lbu(a3, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
+  __ lbu(t0, FieldMemOperand(v0, SeqAsciiString::kHeaderSize + 1));
 
   // Try to lookup two character string in symbol table.
   Label make_two_character_string;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
       masm, a3, t0, a1, t1, t2, t3, t4, &make_two_character_string);
   Counters* counters = masm->isolate()->counters();
-  __ IncrementCounter(counters->sub_string_native(), 1, a3, t0);
-  __ Addu(sp, sp, Operand(3 * kPointerSize));
-  __ Ret();
-
+  __ jmp(&return_v0);
 
   // a2: result string length.
   // a3: two characters combined into halfword in little endian byte order.
   __ bind(&make_two_character_string);
   __ AllocateAsciiString(v0, a2, t0, t1, t4, &sub_string_runtime);
   __ sh(a3, FieldMemOperand(v0, SeqAsciiString::kHeaderSize));
-  __ IncrementCounter(counters->sub_string_native(), 1, a3, t0);
-  __ Addu(sp, sp, Operand(3 * kPointerSize));
-  __ Ret();
+  __ jmp(&return_v0);
 
   __ bind(&result_longer_than_two);
+
+  // Locate 'from' character of string.
+  __ Addu(t1, v0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ sra(t4, from, 1);
+  __ Addu(t1, t1, t4);
 
   // Allocate the result.
   __ AllocateAsciiString(v0, a2, t4, t0, a1, &sub_string_runtime);
 
-  // v0: result string.
-  // a2: result string length.
+  // v0: result string
+  // a2: result string length
   // a3: from index (untagged smi)
-  // t1: string.
+  // t1: first character of substring to copy
   // t3: (a.k.a. from): from offset (smi)
   // Locate first character of result.
   __ Addu(a1, v0, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // Locate 'from' character of string.
-  __ Addu(t1, t1, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  __ Addu(t1, t1, Operand(a3));
 
-  // v0: result string.
-  // a1: first character of result string.
-  // a2: result string length.
-  // t1: first character of sub string to copy.
+  // v0: result string
+  // a1: first character of result string
+  // a2: result string length
+  // t1: first character of substring to copy
   STATIC_ASSERT((SeqAsciiString::kHeaderSize & kObjectAlignmentMask) == 0);
   StringHelper::GenerateCopyCharactersLong(
       masm, a1, t1, a2, a3, t0, t2, t3, t4, COPY_ASCII | DEST_ALWAYS_ALIGNED);
-  __ IncrementCounter(counters->sub_string_native(), 1, a3, t0);
-  __ Addu(sp, sp, Operand(3 * kPointerSize));
-  __ Ret();
+  __ jmp(&return_v0);
 
   __ bind(&non_ascii_flat);
-  // a2: result string length.
-  // t1: string.
+  // a2: result string length
+  // t1: string
   // t3: (a.k.a. from): from offset (smi)
   // Check for flat two byte string.
+
+  // Locate 'from' character of string.
+  __ Addu(t1, v0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // As "from" is a smi it is 2 times the value which matches the size of a two
+  // byte character.
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  __ Addu(t1, t1, Operand(from));
 
   // Allocate the result.
   __ AllocateTwoByteString(v0, a2, a1, a3, t0, &sub_string_runtime);
 
-  // v0: result string.
-  // a2: result string length.
-  // t1: string.
+  // v0: result string
+  // a2: result string length
+  // t1: first character of substring to copy
   // Locate first character of result.
   __ Addu(a1, v0, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // Locate 'from' character of string.
-  __ Addu(t1, t1, Operand(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // As "from" is a smi it is 2 times the value which matches the size of a two
-  // byte character.
-  __ Addu(t1, t1, Operand(from));
+
   from = no_reg;
 
   // v0: result string.
   // a1: first character of result.
   // a2: result length.
-  // t1: first character of string to copy.
+  // t1: first character of substring to copy.
   STATIC_ASSERT((SeqTwoByteString::kHeaderSize & kObjectAlignmentMask) == 0);
   StringHelper::GenerateCopyCharactersLong(
       masm, a1, t1, a2, a3, t0, t2, t3, t4, DEST_ALWAYS_ALIGNED);
+  __ jmp(&return_v0);
+
+  if (FLAG_string_slices) {
+    __ bind(&create_slice);
+    // v0: original string
+    // a1: instance type
+    // a2: length
+    // a3: from index (untagged smi)
+    // t2 (a.k.a. to): to (smi)
+    // t3 (a.k.a. from): from offset (smi)
+    Label allocate_slice, sliced_string, seq_string;
+    STATIC_ASSERT(kSeqStringTag == 0);
+    __ And(t4, a1, Operand(kStringRepresentationMask));
+    __ Branch(&seq_string, eq, t4, Operand(zero_reg));
+    STATIC_ASSERT(kIsIndirectStringMask == (kSlicedStringTag & kConsStringTag));
+    STATIC_ASSERT(kIsIndirectStringMask != 0);
+    __ And(t4, a1, Operand(kIsIndirectStringMask));
+    // External string.  Jump to runtime.
+    __ Branch(&sub_string_runtime, eq, t4, Operand(zero_reg));
+
+    __ And(t4, a1, Operand(kSlicedNotConsMask));
+    __ Branch(&sliced_string, ne, t4, Operand(zero_reg));
+    // Cons string.  Check whether it is flat, then fetch first part.
+    __ lw(t1, FieldMemOperand(v0, ConsString::kSecondOffset));
+    __ LoadRoot(t5, Heap::kEmptyStringRootIndex);
+    __ Branch(&sub_string_runtime, ne, t1, Operand(t5));
+    __ lw(t1, FieldMemOperand(v0, ConsString::kFirstOffset));
+    __ jmp(&allocate_slice);
+
+    __ bind(&sliced_string);
+    // Sliced string.  Fetch parent and correct start index by offset.
+    __ lw(t1, FieldMemOperand(v0, SlicedString::kOffsetOffset));
+    __ addu(t3, t3, t1);
+    __ lw(t1, FieldMemOperand(v0, SlicedString::kParentOffset));
+    __ jmp(&allocate_slice);
+
+    __ bind(&seq_string);
+    // Sequential string.  Just move string to the right register.
+    __ mov(t1, v0);
+
+    __ bind(&allocate_slice);
+    // a1: instance type of original string
+    // a2: length
+    // t1: underlying subject string
+    // t3 (a.k.a. from): from offset (smi)
+    // Allocate new sliced string.  At this point we do not reload the instance
+    // type including the string encoding because we simply rely on the info
+    // provided by the original string.  It does not matter if the original
+    // string's encoding is wrong because we always have to recheck encoding of
+    // the newly created string's parent anyways due to externalized strings.
+    Label two_byte_slice, set_slice_header;
+    STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+    STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
+    __ And(t4, a1, Operand(kStringEncodingMask));
+    __ Branch(&two_byte_slice, eq, t4, Operand(zero_reg));
+    __ AllocateAsciiSlicedString(v0, a2, a3, t0, &sub_string_runtime);
+    __ jmp(&set_slice_header);
+    __ bind(&two_byte_slice);
+    __ AllocateTwoByteSlicedString(v0, a2, a3, t0, &sub_string_runtime);
+    __ bind(&set_slice_header);
+    __ sw(t3, FieldMemOperand(v0, SlicedString::kOffsetOffset));
+    __ sw(t1, FieldMemOperand(v0, SlicedString::kParentOffset));
+  }
+
+  __ bind(&return_v0);
   __ IncrementCounter(counters->sub_string_native(), 1, a3, t0);
   __ Addu(sp, sp, Operand(3 * kPointerSize));
   __ Ret();

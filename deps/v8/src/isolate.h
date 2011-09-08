@@ -47,7 +47,6 @@
 namespace v8 {
 namespace internal {
 
-class AstSentinels;
 class Bootstrapper;
 class CodeGenerator;
 class CodeRange;
@@ -878,8 +877,6 @@ class Isolate {
     return &objects_string_input_buffer_;
   }
 
-  AstSentinels* ast_sentinels() { return ast_sentinels_; }
-
   RuntimeState* runtime_state() { return &runtime_state_; }
 
   StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
@@ -1138,7 +1135,6 @@ class Isolate {
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
-  AstSentinels* ast_sentinels_;
   RuntimeState runtime_state_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;

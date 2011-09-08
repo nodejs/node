@@ -29,8 +29,6 @@
 #include <bzlib.h>
 #endif
 #include <signal.h>
-#include <string>
-#include <map>
 
 #include "v8.h"
 
@@ -84,16 +82,6 @@ class CounterCollection {
   uint32_t counters_in_use_;
   Counter counters_[kMaxCounters];
 };
-
-
-// We statically allocate a set of local counters to be used if we
-// don't want to store the stats in a memory-mapped file
-static CounterCollection local_counters;
-
-
-typedef std::map<std::string, int*> CounterMap;
-typedef std::map<std::string, int*>::iterator CounterMapIterator;
-static CounterMap counter_table_;
 
 
 class Compressor {

@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // The following regression test illustrates a problem in using the
-// value of setting a property in the arguments object. 
+// value of setting a property in the arguments object.
 
 function f(s) {
   arguments.length;

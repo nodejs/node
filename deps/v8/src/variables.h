@@ -74,6 +74,33 @@ class Variable: public ZoneObject {
     ARGUMENTS
   };
 
+  enum Location {
+    // Before and during variable allocation, a variable whose location is
+    // not yet determined.  After allocation, a variable looked up as a
+    // property on the global object (and possibly absent).  name() is the
+    // variable name, index() is invalid.
+    UNALLOCATED,
+
+    // A slot in the parameter section on the stack.  index() is the
+    // parameter index, counting left-to-right.  The reciever is index -1;
+    // the first parameter is index 0.
+    PARAMETER,
+
+    // A slot in the local section on the stack.  index() is the variable
+    // index in the stack frame, starting at 0.
+    LOCAL,
+
+    // An indexed slot in a heap context.  index() is the variable index in
+    // the context object on the heap, starting at 0.  scope() is the
+    // corresponding scope.
+    CONTEXT,
+
+    // A named slot in a heap context.  name() is the variable name in the
+    // context object on the heap, with lookup starting at the current
+    // context.  index() is invalid.
+    LOOKUP
+  };
+
   Variable(Scope* scope,
            Handle<String> name,
            Mode mode,
@@ -82,10 +109,6 @@ class Variable: public ZoneObject {
 
   // Printing support
   static const char* Mode2String(Mode mode);
-
-  // Type testing & conversion.  Global variables are not slots.
-  Property* AsProperty() const;
-  Slot* AsSlot() const;
 
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
 
@@ -111,10 +134,12 @@ class Variable: public ZoneObject {
     return !is_this() && name().is_identical_to(n);
   }
 
-  bool IsStackAllocated() const;
-  bool IsParameter() const;  // Includes 'this'.
-  bool IsStackLocal() const;
-  bool IsContextSlot() const;
+  bool IsUnallocated() const { return location_ == UNALLOCATED; }
+  bool IsParameter() const { return location_ == PARAMETER; }
+  bool IsStackLocal() const { return location_ == LOCAL; }
+  bool IsStackAllocated() const { return IsParameter() || IsStackLocal(); }
+  bool IsContextSlot() const { return location_ == CONTEXT; }
+  bool IsLookupSlot() const { return location_ == LOOKUP; }
 
   bool is_dynamic() const {
     return (mode_ == DYNAMIC ||
@@ -141,19 +166,23 @@ class Variable: public ZoneObject {
     local_if_not_shadowed_ = local;
   }
 
-  Slot* rewrite() const { return rewrite_; }
-  void set_rewrite(Slot* slot) { rewrite_ = slot; }
+  Location location() const { return location_; }
+  int index() const { return index_; }
+
+  void AllocateTo(Location location, int index) {
+    location_ = location;
+    index_ = index;
+  }
 
  private:
   Scope* scope_;
   Handle<String> name_;
   Mode mode_;
   Kind kind_;
+  Location location_;
+  int index_;
 
   Variable* local_if_not_shadowed_;
-
-  // Code generation.
-  Slot* rewrite_;
 
   // Valid as a LHS? (const and this are not valid LHS, for example)
   bool is_valid_LHS_;

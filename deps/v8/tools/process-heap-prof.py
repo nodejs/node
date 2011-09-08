@@ -47,7 +47,7 @@ def ProcessLogFile(filename, options):
     itemname = 'heap-js-cons-item'
   else:
     itemname = 'heap-sample-item'
-  
+
   first_call_time = None
   sample_time = 0.0
   sampling = False
@@ -108,11 +108,11 @@ def Main():
   if not ProcessOptions(options):
     parser.print_help()
     sys.exit();
-  
+
   if not args:
     print "Missing logfile"
     sys.exit();
-    
+
   ProcessLogFile(args[0], options)
 
 

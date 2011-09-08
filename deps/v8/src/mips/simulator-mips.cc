@@ -1409,20 +1409,11 @@ void Simulator::SoftwareInterrupt(Instruction* instr) {
     int32_t arg1 = get_register(a1);
     int32_t arg2 = get_register(a2);
     int32_t arg3 = get_register(a3);
-    int32_t arg4 = 0;
-    int32_t arg5 = 0;
 
-    // Need to check if sp is valid before assigning arg4, arg5.
-    // This is a fix for cctest test-api/CatchStackOverflow which causes
-    // the stack to overflow. For some reason arm doesn't need this
-    // stack check here.
     int32_t* stack_pointer = reinterpret_cast<int32_t*>(get_register(sp));
-    int32_t* stack = reinterpret_cast<int32_t*>(stack_);
-    if (stack_pointer >= stack && stack_pointer < stack + stack_size_ - 5) {
-      // Args 4 and 5 are on the stack after the reserved space for args 0..3.
-      arg4 = stack_pointer[4];
-      arg5 = stack_pointer[5];
-    }
+    // Args 4 and 5 are on the stack after the reserved space for args 0..3.
+    int32_t arg4 = stack_pointer[4];
+    int32_t arg5 = stack_pointer[5];
 
     bool fp_call =
          (redirection->type() == ExternalReference::BUILTIN_FP_FP_CALL) ||
@@ -2725,7 +2716,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   // Store remaining arguments on stack, from low to high memory.
   intptr_t* stack_argument = reinterpret_cast<intptr_t*>(entry_stack);
   for (int i = 4; i < argument_count; i++) {
-    stack_argument[i - 4 + kArgsSlotsNum] = va_arg(parameters, int32_t);
+    stack_argument[i - 4 + kCArgSlotCount] = va_arg(parameters, int32_t);
   }
   va_end(parameters);
   set_register(sp, entry_stack);

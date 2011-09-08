@@ -62,7 +62,7 @@ function listener(event, exec_state, event_data, data) {
 Debug.setListener(listener);
 
 
-function g() { 
+function g() {
    return "s";  // expected line
 }
 
@@ -71,7 +71,7 @@ function testFunction() {
   var s = 1 +f(10);
 }
 
-function g2() { 
+function g2() {
    return "s2";  // expected line
 }
 

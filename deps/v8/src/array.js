@@ -996,6 +996,9 @@ function ArrayFilter(f, receiver) {
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = ToUint32(this.length);
@@ -1004,7 +1007,7 @@ function ArrayFilter(f, receiver) {
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      if (f.call(receiver, current, i, this)) {
+      if (%_CallFunction(receiver, current, i, this, f)) {
         result[result_length++] = current;
       }
     }
@@ -1022,13 +1025,16 @@ function ArrayForEach(f, receiver) {
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length =  TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      f.call(receiver, current, i, this);
+      %_CallFunction(receiver, current, i, this, f);
     }
   }
 }
@@ -1045,13 +1051,16 @@ function ArraySome(f, receiver) {
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      if (f.call(receiver, current, i, this)) return true;
+      if (%_CallFunction(receiver, current, i, this, f)) return true;
     }
   }
   return false;
@@ -1067,13 +1076,16 @@ function ArrayEvery(f, receiver) {
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = TO_UINT32(this.length);
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      if (!f.call(receiver, current, i, this)) return false;
+      if (!%_CallFunction(receiver, current, i, this, f)) return false;
     }
   }
   return true;
@@ -1088,6 +1100,9 @@ function ArrayMap(f, receiver) {
   if (!IS_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
+  if (IS_NULL_OR_UNDEFINED(receiver)) {
+    receiver = %GetDefaultReceiver(f) || receiver;
+  }
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = TO_UINT32(this.length);
@@ -1096,7 +1111,7 @@ function ArrayMap(f, receiver) {
   for (var i = 0; i < length; i++) {
     var current = this[i];
     if (!IS_UNDEFINED(current) || i in this) {
-      accumulator[i] = f.call(receiver, current, i, this);
+      accumulator[i] = %_CallFunction(receiver, current, i, this, f);
     }
   }
   %MoveArrayContents(accumulator, result);
@@ -1233,6 +1248,7 @@ function ArrayReduce(callback, current) {
   if (!IS_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
+
   // Pull out the length so that modifications to the length in the
   // loop will not affect the looping.
   var length = ToUint32(this.length);
@@ -1249,10 +1265,11 @@ function ArrayReduce(callback, current) {
     throw MakeTypeError('reduce_no_initial', []);
   }
 
+  var receiver = %GetDefaultReceiver(callback);
   for (; i < length; i++) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(void 0, current, element, i, this);
+      current = %_CallFunction(receiver, current, element, i, this, callback);
     }
   }
   return current;
@@ -1280,10 +1297,11 @@ function ArrayReduceRight(callback, current) {
     throw MakeTypeError('reduce_no_initial', []);
   }
 
+  var receiver = %GetDefaultReceiver(callback);
   for (; i >= 0; i--) {
     var element = this[i];
     if (!IS_UNDEFINED(element) || i in this) {
-      current = callback.call(void 0, current, element, i, this);
+      current = %_CallFunction(receiver, current, element, i, this, callback);
     }
   }
   return current;
@@ -1296,12 +1314,13 @@ function ArrayIsArray(obj) {
 
 
 // -------------------------------------------------------------------
-function SetupArray() {
-  // Setup non-enumerable constructor property on the Array.prototype
+function SetUpArray() {
+  %CheckIsBootstrapping();
+  // Set up non-enumerable constructor property on the Array.prototype
   // object.
   %SetProperty($Array.prototype, "constructor", $Array, DONT_ENUM);
 
-  // Setup non-enumerable functions on the Array object.
+  // Set up non-enumerable functions on the Array object.
   InstallFunctions($Array, DONT_ENUM, $Array(
     "isArray", ArrayIsArray
   ));
@@ -1319,7 +1338,7 @@ function SetupArray() {
     return f;
   }
 
-  // Setup non-enumerable functions of the Array.prototype object and
+  // Set up non-enumerable functions of the Array.prototype object and
   // set their names.
   // Manipulate the length of some of the functions to meet
   // expectations set by ECMA-262 or Mozilla.
@@ -1350,19 +1369,13 @@ function SetupArray() {
   %FinishArrayPrototypeSetup($Array.prototype);
 
   // The internal Array prototype doesn't need to be fancy, since it's never
-  // exposed to user code, so no hidden prototypes or DONT_ENUM attributes
-  // are necessary.
-  // The null __proto__ ensures that we never inherit any user created
-  // getters or setters from, e.g., Object.prototype.
-  InternalArray.prototype.__proto__ = null;
-  // Adding only the functions that are actually used, and a toString.
-  InternalArray.prototype.join = getFunction("join", ArrayJoin);
-  InternalArray.prototype.pop = getFunction("pop", ArrayPop);
-  InternalArray.prototype.push = getFunction("push", ArrayPush);
-  InternalArray.prototype.toString = function() {
-    return "Internal Array, length " + this.length;
-  };
+  // exposed to user code.
+  // Adding only the functions that are actually used.
+  SetUpLockedPrototype(InternalArray, $Array(), $Array(
+    "join", getFunction("join", ArrayJoin),
+    "pop", getFunction("pop", ArrayPop),
+    "push", getFunction("push", ArrayPush)
+  ));
 }
 
-
-SetupArray();
+SetUpArray();

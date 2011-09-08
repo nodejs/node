@@ -392,7 +392,7 @@ TestSpecialCasesInheritedElementSort();
 
 // Test that sort calls compare function with global object as receiver,
 // and with only elements of the array as arguments.
-function o(v) { 
+function o(v) {
   return {__proto__: o.prototype, val: v};
 }
 var arr = [o(1), o(2), o(4), o(8), o(16), o(32), o(64), o(128), o(256), o(-0)];

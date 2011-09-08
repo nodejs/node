@@ -64,7 +64,7 @@ assertEquals(void 0, mirror.source());
 assertEquals('undefined', mirror.constructorFunction().type());
 assertEquals('undefined', mirror.protoObject().type());
 assertEquals('undefined', mirror.prototypeObject().type());
-  
+
 // Parse JSON representation of unresolved functions and check.
 var fromJSON = eval('(' + json + ')');
 assertEquals('function', fromJSON.type, 'Unexpected mirror type in JSON');

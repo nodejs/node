@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests the handling of multiple assignments to the same property in a 
+// Tests the handling of multiple assignments to the same property in a
 // constructor that only has simple this property assignments.
 
 function Node() {

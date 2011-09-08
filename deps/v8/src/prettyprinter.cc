@@ -284,28 +284,6 @@ void PrettyPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
-void PrettyPrinter::VisitSlot(Slot* node) {
-  switch (node->type()) {
-    case Slot::PARAMETER:
-      Print("parameter[%d]", node->index());
-      break;
-    case Slot::LOCAL:
-      Print("local[%d]", node->index());
-      break;
-    case Slot::CONTEXT:
-      Print("context[%d]", node->index());
-      break;
-    case Slot::LOOKUP:
-      Print("lookup[");
-      PrintLiteral(node->var()->name(), false);
-      Print("]");
-      break;
-    default:
-      UNREACHABLE();
-  }
-}
-
-
 void PrettyPrinter::VisitVariableProxy(VariableProxy* node) {
   PrintLiteral(node->name(), false);
 }
@@ -751,7 +729,7 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
   if (node->fun() == NULL) {
     // var or const declarations
     PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
-                                 node->proxy()->AsVariable(),
+                                 node->proxy()->var(),
                                  node->proxy()->name());
   } else {
     // function declarations
@@ -959,19 +937,26 @@ void AstPrinter::VisitArrayLiteral(ArrayLiteral* node) {
 }
 
 
-void AstPrinter::VisitSlot(Slot* node) {
-  PrintIndented("SLOT ");
-  PrettyPrinter::VisitSlot(node);
-  Print("\n");
-}
-
-
 void AstPrinter::VisitVariableProxy(VariableProxy* node) {
-  PrintLiteralWithModeIndented("VAR PROXY", node->AsVariable(), node->name());
   Variable* var = node->var();
-  if (var != NULL && var->rewrite() != NULL) {
-    IndentedScope indent(this);
-    Visit(var->rewrite());
+  PrintLiteralWithModeIndented("VAR PROXY", var, node->name());
+  { IndentedScope indent(this);
+    switch (var->location()) {
+      case Variable::UNALLOCATED:
+        break;
+      case Variable::PARAMETER:
+        Print("parameter[%d]", var->index());
+        break;
+      case Variable::LOCAL:
+        Print("local[%d]", var->index());
+        break;
+      case Variable::CONTEXT:
+        Print("context[%d]", var->index());
+        break;
+      case Variable::LOOKUP:
+        Print("lookup");
+        break;
+    }
   }
 }
 
@@ -1287,39 +1272,32 @@ void JsonAstBuilder::VisitConditional(Conditional* expr) {
 }
 
 
-void JsonAstBuilder::VisitSlot(Slot* expr) {
-  TagScope tag(this, "Slot");
+void JsonAstBuilder::VisitVariableProxy(VariableProxy* expr) {
+  TagScope tag(this, "Variable");
   {
     AttributesScope attributes(this);
-    switch (expr->type()) {
-      case Slot::PARAMETER:
-        AddAttribute("type", "PARAMETER");
+    Variable* var = expr->var();
+    AddAttribute("name", var->name());
+    switch (var->location()) {
+      case Variable::UNALLOCATED:
+        AddAttribute("location", "UNALLOCATED");
         break;
-      case Slot::LOCAL:
-        AddAttribute("type", "LOCAL");
+      case Variable::PARAMETER:
+        AddAttribute("location", "PARAMETER");
+        AddAttribute("index", var->index());
         break;
-      case Slot::CONTEXT:
-        AddAttribute("type", "CONTEXT");
+      case Variable::LOCAL:
+        AddAttribute("location", "LOCAL");
+        AddAttribute("index", var->index());
         break;
-      case Slot::LOOKUP:
-        AddAttribute("type", "LOOKUP");
+      case Variable::CONTEXT:
+        AddAttribute("location", "CONTEXT");
+        AddAttribute("index", var->index());
+        break;
+      case Variable::LOOKUP:
+        AddAttribute("location", "LOOKUP");
         break;
     }
-    AddAttribute("index", expr->index());
-  }
-}
-
-
-void JsonAstBuilder::VisitVariableProxy(VariableProxy* expr) {
-  if (expr->var()->rewrite() == NULL) {
-    TagScope tag(this, "VariableProxy");
-    {
-      AttributesScope attributes(this);
-      AddAttribute("name", expr->name());
-      AddAttribute("mode", Variable::Mode2String(expr->var()->mode()));
-    }
-  } else {
-    Visit(expr->var()->rewrite());
   }
 }
 

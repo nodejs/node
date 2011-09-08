@@ -67,7 +67,7 @@ function listener(event, exec_state, event_data, data) {
     // The expected backtrace is
     // 1: g
     // 0: [anonymous]
-    
+
     // Get the debug command processor.
     var dcp = exec_state.debugCommandProcessor(false);
 

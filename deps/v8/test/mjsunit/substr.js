@@ -55,7 +55,7 @@ assertEquals(s, s.substr(-100));
 assertEquals('abc', s.substr(-100, 3));
 assertEquals(s1, s.substr(-s.length + 1));
 
-// assertEquals('', s.substr(0, void 0)); // smjs and rhino 
+// assertEquals('', s.substr(0, void 0)); // smjs and rhino
 assertEquals('abcdefghijklmn', s.substr(0, void 0));  // kjs and v8
 assertEquals('', s.substr(0, null));
 assertEquals(s, s.substr(0, String(s.length)));

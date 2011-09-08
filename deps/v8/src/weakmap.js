@@ -80,21 +80,22 @@ function WeakMapDelete(key) {
 
 // -------------------------------------------------------------------
 
-function SetupWeakMap() {
-  // Setup the WeakMap constructor function.
+(function () {
+  %CheckIsBootstrapping();
+  // Set up the WeakMap constructor function.
   %SetCode($WeakMap, WeakMapConstructor);
 
-  // Setup the WeakMap prototype object.
+  // Set up the WeakMap prototype object.
   %FunctionSetPrototype($WeakMap, new $WeakMap());
 
-  // Setup the non-enumerable functions on the WeakMap prototype object.
+  // Set up the constructor property on the WeakMap prototype object.
+  %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
+
+  // Set up the non-enumerable functions on the WeakMap prototype object.
   InstallFunctionsOnHiddenPrototype($WeakMap.prototype, DONT_ENUM, $Array(
     "get", WeakMapGet,
     "set", WeakMapSet,
     "has", WeakMapHas,
     "delete", WeakMapDelete
   ));
-}
-
-
-SetupWeakMap();
+})();

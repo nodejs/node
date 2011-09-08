@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Tests the Object.defineProperties method - ES 15.2.3.7
-// Note that the internal DefineOwnProperty method is tested through 
+// Note that the internal DefineOwnProperty method is tested through
 // object-define-property.js, this file only contains tests specific for
 // Object.defineProperties. Also note that object-create.js contains
 // a range of indirect tests on this method since Object.create uses

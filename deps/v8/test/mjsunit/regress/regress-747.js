@@ -40,7 +40,7 @@ try {
   callEval();
 } catch (e) {
   assertUnreachable();
-} 
+}
 
 gc();
 gc();
@@ -53,4 +53,4 @@ try {
   callEval();
 } catch (e) {
   assertUnreachable();
-} 
+}

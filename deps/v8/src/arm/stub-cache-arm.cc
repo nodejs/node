@@ -3497,7 +3497,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
   // We are not untagging smi key and instead work with it
   // as if it was premultiplied by 2.
-  ASSERT((kSmiTag == 0) && (kSmiTagSize == 1));
+  STATIC_ASSERT((kSmiTag == 0) && (kSmiTagSize == 1));
 
   Register value = r2;
   switch (elements_kind) {
@@ -4147,7 +4147,7 @@ void KeyedLoadStubCompiler::GenerateLoadFastElement(MacroAssembler* masm) {
 
   // Load the result and make sure it's not the hole.
   __ add(r3, r2, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ ldr(r4,
          MemOperand(r3, r0, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -4279,7 +4279,7 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
 
   __ add(scratch,
          elements_reg, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ str(value_reg,
          MemOperand(scratch, key_reg, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ RecordWrite(scratch,

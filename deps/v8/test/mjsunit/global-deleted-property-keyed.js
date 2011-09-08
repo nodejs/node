@@ -33,6 +33,6 @@
 var name = "fisk";
 natives[name] = name;
 function foo() { natives[name] + 12; }
-for(var i = 0; i < 3; i++) foo(); 
+for(var i = 0; i < 3; i++) foo();
 delete natives[name];
 for(var i = 0; i < 3; i++) foo();

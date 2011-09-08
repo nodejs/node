@@ -73,7 +73,7 @@ for (var i = 0; i < loop_count; i++) {
   a = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8);
   assertArrayEquals([0, 1, 2, 3, 4, 5, 6, 7, 8], a);
   a = new Array(0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-  assertArrayEquals([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], a);  
+  assertArrayEquals([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], a);
 }
 
 
@@ -91,9 +91,9 @@ function testConstructOfSizeSize(n) {
   var a = eval('[' + str + ']');
   var b = eval('new Array(' + str + ')')
   var c = eval('Array(' + str + ')')
-  assertEquals(n, a.length);  
-  assertArrayEquals(a, b);  
-  assertArrayEquals(a, c);  
+  assertEquals(n, a.length);
+  assertArrayEquals(a, b);
+  assertArrayEquals(a, c);
 }
 
 

@@ -1656,7 +1656,7 @@ class Object : public Value {
   V8EXPORT bool IsCallable();
 
   /**
-   * Call an Object as a function if a callback is set by the 
+   * Call an Object as a function if a callback is set by the
    * ObjectTemplate::SetCallAsFunctionHandler method.
    */
   V8EXPORT Local<Value> CallAsFunction(Handle<Object> recv,
@@ -3562,7 +3562,7 @@ class V8EXPORT Context {
  * // V8 Now no longer locked.
  * \endcode
  *
- * 
+ *
  */
 class V8EXPORT Unlocker {
  public:

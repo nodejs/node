@@ -1010,4 +1010,18 @@ TEST(11) {
   CHECK_EQ(0xffffffff, i.d);
 }
 
+
+TEST(12) {
+  // Test chaining of label usages within instructions (issue 1644).
+  InitializeVM();
+  v8::HandleScope scope;
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  Label target;
+  __ b(eq, &target);
+  __ b(ne, &target);
+  __ bind(&target);
+  __ nop();
+}
+
 #undef __

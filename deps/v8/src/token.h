@@ -71,6 +71,7 @@ namespace internal {
   /* this block of enum values being contiguous and sorted in the */    \
   /* same order! */                                                     \
   T(INIT_VAR, "=init_var", 2)  /* AST-use only. */                      \
+  T(INIT_LET, "=init_let", 2)  /* AST-use only. */                      \
   T(INIT_CONST, "=init_const", 2)  /* AST-use only. */                  \
   T(ASSIGN, "=", 2)                                                     \
   T(ASSIGN_BIT_OR, "|=", 2)                                             \

@@ -75,11 +75,11 @@ chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-214: UNIMPLEMENTED
 # NOT IMPLEMENTED: RegExp.prototype.multiline
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-215: UNIMPLEMENTED
 
-# All of the tests below marked SUBSETFAIL (in 15.2.3.4) fail because 
+# All of the tests below marked SUBSETFAIL (in 15.2.3.4) fail because
 # the tests assumes that objects can not have more properties
-# than those described in the spec - but according to spec they can 
+# than those described in the spec - but according to spec they can
 # have additional properties.
-# All compareArray calls in these tests could be exchanged with a 
+# All compareArray calls in these tests could be exchanged with a
 # isSubsetOfArray call (I will upload a patch to the es5conform site).
 
 # SUBSETFAIL

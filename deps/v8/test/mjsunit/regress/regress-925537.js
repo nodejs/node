@@ -28,8 +28,8 @@
 function assertClose(expected, actual) {
   var delta = 0.00001;
   if (Math.abs(expected - actual) > delta) {
-    print('Failure: Expected <' + actual + '> to be close to <' + 
-          expected + '>');    
+    print('Failure: Expected <' + actual + '> to be close to <' +
+          expected + '>');
   }
 }
 

@@ -49,11 +49,47 @@ bool CpuFeatures::initialized_ = false;
 unsigned CpuFeatures::supported_ = 0;
 unsigned CpuFeatures::found_by_runtime_probing_ = 0;
 
+
+// Get the CPU features enabled by the build. For cross compilation the
+// preprocessor symbols CAN_USE_FPU_INSTRUCTIONS
+// can be defined to enable FPU instructions when building the
+// snapshot.
+static uint64_t CpuFeaturesImpliedByCompiler() {
+  uint64_t answer = 0;
+#ifdef CAN_USE_FPU_INSTRUCTIONS
+  answer |= 1u << FPU;
+#endif  // def CAN_USE_FPU_INSTRUCTIONS
+
+#ifdef __mips__
+  // If the compiler is allowed to use FPU then we can use FPU too in our code
+  // generation even when generating snapshots.  This won't work for cross
+  // compilation.
+#if(defined(__mips_hard_float) && __mips_hard_float != 0)
+  answer |= 1u << FPU;
+#endif  // defined(__mips_hard_float) && __mips_hard_float != 0
+#endif  // def __mips__
+
+  return answer;
+}
+
+
 void CpuFeatures::Probe() {
   ASSERT(!initialized_);
 #ifdef DEBUG
   initialized_ = true;
 #endif
+
+  // Get the features implied by the OS and the compiler settings. This is the
+  // minimal set of features which is also allowed for generated code in the
+  // snapshot.
+  supported_ |= OS::CpuFeaturesImpliedByPlatform();
+  supported_ |= CpuFeaturesImpliedByCompiler();
+
+  if (Serializer::enabled()) {
+    // No probing for features if we might serialize (generate snapshot).
+    return;
+  }
+
   // If the compiler is allowed to use fpu then we can use fpu too in our
   // code generation.
 #if !defined(__mips__)
@@ -62,11 +98,7 @@ void CpuFeatures::Probe() {
       supported_ |= 1u << FPU;
   }
 #else
-  if (Serializer::enabled()) {
-    supported_ |= OS::CpuFeaturesImpliedByPlatform();
-    return;  // No features if we might serialize.
-  }
-
+  // Probe for additional features not already known to be available.
   if (OS::MipsCpuHasFeature(FPU)) {
     // This implementation also sets the FPU flags if
     // runtime detection of FPU returns true.
@@ -780,10 +812,10 @@ void Assembler::bind(Label* L) {
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
   int link = target_at(L->pos());
-  ASSERT(link > 0 || link == kEndOfChain);
   if (link == kEndOfChain) {
     L->Unuse();
-  } else if (link > 0) {
+  } else {
+    ASSERT(link >= 0);
     L->link_to(link);
   }
 }

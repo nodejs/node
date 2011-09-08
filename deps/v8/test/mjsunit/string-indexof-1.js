@@ -63,7 +63,7 @@ assertEquals(1, twoByteString.indexOf("\u0391"), "Alpha");
 assertEquals(2, twoByteString.indexOf("\u03a3"), "First Sigma");
 assertEquals(3, twoByteString.indexOf("\u03a3",3), "Second Sigma");
 assertEquals(4, twoByteString.indexOf("\u0395"), "Epsilon");
-assertEquals(-1, twoByteString.indexOf("\u0392"), "Not beta");  
+assertEquals(-1, twoByteString.indexOf("\u0392"), "Not beta");
 
 // Test multi-char pattern
 assertEquals(0, twoByteString.indexOf("\u039a\u0391"), "lambda Alpha");
@@ -71,7 +71,7 @@ assertEquals(1, twoByteString.indexOf("\u0391\u03a3"), "Alpha Sigma");
 assertEquals(2, twoByteString.indexOf("\u03a3\u03a3"), "Sigma Sigma");
 assertEquals(3, twoByteString.indexOf("\u03a3\u0395"), "Sigma Epsilon");
 
-assertEquals(-1, twoByteString.indexOf("\u0391\u03a3\u0395"), 
+assertEquals(-1, twoByteString.indexOf("\u0391\u03a3\u0395"),
     "Not Alpha Sigma Epsilon");
 
 //single char pattern

@@ -62,7 +62,7 @@ function testScriptMirror(f, file_name, file_lines, type, compilation_type,
   if (eval_from_line) {
     assertEquals(eval_from_line,  mirror.evalFromLocation().line);
   }
-  
+
   // Parse JSON representation and check.
   var fromJSON = JSON.parse(json);
   assertEquals('script', fromJSON.type);

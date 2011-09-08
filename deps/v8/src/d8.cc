@@ -176,8 +176,8 @@ bool Shell::ExecuteString(Handle<String> source,
         // If all went well and the result wasn't undefined then print
         // the returned value.
         v8::String::Utf8Value str(result);
-        const char* cstr = ToCString(str);
-        printf("%s\n", cstr);
+        fwrite(*str, sizeof(**str), str.length(), stdout);
+        printf("\n");
       }
       return true;
     }
@@ -678,12 +678,12 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
                        FunctionTemplate::New(PixelArray));
 
 #ifdef LIVE_OBJECT_LIST
-  global_template->Set(String::New("lol_is_enabled"), Boolean::New(true));
+  global_template->Set(String::New("lol_is_enabled"), True());
 #else
-  global_template->Set(String::New("lol_is_enabled"), Boolean::New(false));
+  global_template->Set(String::New("lol_is_enabled"), False());
 #endif
 
-#ifndef V8_SHARED
+#if !defined(V8_SHARED) && !defined(_WIN32) && !defined(_WIN64)
   Handle<ObjectTemplate> os_templ = ObjectTemplate::New();
   AddOSMethods(os_templ);
   global_template->Set(String::New("os"), os_templ);
@@ -864,7 +864,7 @@ Handle<String> Shell::ReadFile(const char* name) {
 void Shell::RunShell() {
   Locker locker;
   Context::Scope context_scope(evaluation_context_);
-  HandleScope handle_scope;
+  HandleScope outer_scope;
   Handle<String> name = String::New("(d8)");
 #ifndef V8_SHARED
   LineEditor* editor = LineEditor::Get();
@@ -877,6 +877,7 @@ void Shell::RunShell() {
     i::SmartPointer<char> input = editor->Prompt(Shell::kPrompt);
     if (input.is_empty()) break;
     editor->AddHistory(*input);
+    HandleScope inner_scope;
     ExecuteString(String::New(*input), name, true, true);
   }
   editor->Close();
@@ -887,6 +888,7 @@ void Shell::RunShell() {
     char buffer[kBufferSize];
     printf("%s", Shell::kPrompt);
     if (fgets(buffer, kBufferSize, stdin) == NULL) break;
+    HandleScope inner_scope;
     ExecuteString(String::New(buffer), name, true, true);
   }
 #endif  // V8_SHARED

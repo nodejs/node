@@ -496,6 +496,11 @@ STATIC_ASSERT(
 STATIC_ASSERT(
     (kSlicedStringTag & kIsIndirectStringMask) == kIsIndirectStringTag);
 
+// Use this mask to distinguish between cons and slice only after making
+// sure that the string is one of the two (an indirect string).
+const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
+STATIC_ASSERT(IS_POWER_OF_TWO(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
+
 // If bit 7 is clear, then bit 3 indicates whether this two-byte
 // string actually contains ascii data.
 const uint32_t kAsciiDataHintMask = 0x08;

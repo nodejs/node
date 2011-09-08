@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // This test tests that no bailouts are missing by not hitting asserts in debug
-// mode. 
+// mode.
 
 test_count_operation()
 test_compound_assignment()

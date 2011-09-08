@@ -654,6 +654,7 @@ class HeapSnapshot {
   HeapEntry* gc_roots() { return gc_roots_entry_; }
   HeapEntry* natives_root() { return natives_root_entry_; }
   List<HeapEntry*>* entries() { return &entries_; }
+  int raw_entries_size() { return raw_entries_size_; }
 
   void AllocateEntries(
       int entries_count, int children_count, int retainers_count);
@@ -689,9 +690,7 @@ class HeapSnapshot {
   char* raw_entries_;
   List<HeapEntry*> entries_;
   bool entries_sorted_;
-#ifdef DEBUG
   int raw_entries_size_;
-#endif
 
   friend class HeapSnapshotTester;
 
@@ -1097,6 +1096,7 @@ class HeapSnapshotJSONSerializer {
   }
 
   void EnumerateNodes();
+  HeapSnapshot* CreateFakeSnapshot();
   int GetNodeId(HeapEntry* entry);
   int GetStringId(const char* s);
   void SerializeEdge(HeapGraphEdge* edge);
@@ -1107,6 +1107,8 @@ class HeapSnapshotJSONSerializer {
   void SerializeString(const unsigned char* s);
   void SerializeStrings();
   void SortHashMap(HashMap* map, List<HashMap::Entry*>* sorted_entries);
+
+  static const int kMaxSerializableSnapshotRawSize;
 
   HeapSnapshot* snapshot_;
   HashMap nodes_;

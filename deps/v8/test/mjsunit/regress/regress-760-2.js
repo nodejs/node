@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Check that when valueOf for a String object is overwritten it is called and
-// the result used when that object is added with a string.  
+// the result used when that object is added with a string.
 
 // See: http://code.google.com/p/v8/issues/detail?id=760
 

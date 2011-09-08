@@ -425,7 +425,7 @@ void HValue::PrintRangeTo(StringStream* stream) {
 
 
 void HValue::PrintChangesTo(StringStream* stream) {
-  int changes_flags = (flags() & HValue::ChangesFlagsMask());
+  int changes_flags = ChangesFlags();
   if (changes_flags == 0) return;
   stream->Add(" changes[");
   if (changes_flags == AllSideEffects()) {
@@ -512,9 +512,7 @@ void HInstruction::PrintTo(StringStream* stream) {
 
 
 void HInstruction::PrintMnemonicTo(StringStream* stream) {
-  stream->Add("%s", Mnemonic());
-  if (HasSideEffects()) stream->Add("*");
-  stream->Add(" ");
+  stream->Add("%s ", Mnemonic());
 }
 
 
@@ -791,6 +789,13 @@ void HChange::PrintDataTo(StringStream* stream) {
 }
 
 
+void HJSArrayLength::PrintDataTo(StringStream* stream) {
+  value()->PrintNameTo(stream);
+  stream->Add(" ");
+  typecheck()->PrintNameTo(stream);
+}
+
+
 HValue* HCheckInstanceType::Canonicalize() {
   if (check_ == IS_STRING &&
       !value()->type().IsUninitialized() &&
@@ -1020,11 +1025,14 @@ void HPhi::PrintTo(StringStream* stream) {
     value->PrintNameTo(stream);
     stream->Add(" ");
   }
-  stream->Add(" uses%d_%di_%dd_%dt]",
+  stream->Add(" uses%d_%di_%dd_%dt",
               UseCount(),
               int32_non_phi_uses() + int32_indirect_uses(),
               double_non_phi_uses() + double_indirect_uses(),
               tagged_non_phi_uses() + tagged_indirect_uses());
+  stream->Add("%s%s]",
+              is_live() ? "_live" : "",
+              IsConvertibleToInteger() ? "" : "_ncti");
 }
 
 

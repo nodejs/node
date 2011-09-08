@@ -28,7 +28,7 @@
 // See: http://code.google.com/p/v8/issues/detail?id=696
 // Because of the change in dateparser in revision 4557 to support time
 // only strings in Date.parse we also misleadingly supported strings with non
-// leading numbers. 
+// leading numbers.
 
 assertTrue(isNaN(Date.parse('x')));
 assertTrue(isNaN(Date.parse('1x')));

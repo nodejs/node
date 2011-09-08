@@ -405,7 +405,8 @@ var lastMatchInfoOverride = null;
 
 // -------------------------------------------------------------------
 
-function SetupRegExp() {
+function SetUpRegExp() {
+  %CheckIsBootstrapping();
   %FunctionSetInstanceClassName($RegExp, 'RegExp');
   %FunctionSetPrototype($RegExp, new $Object());
   %SetProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
@@ -484,5 +485,4 @@ function SetupRegExp() {
   }
 }
 
-
-SetupRegExp();
+SetUpRegExp();

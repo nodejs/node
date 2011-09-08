@@ -823,7 +823,7 @@ static void* expected_ptr;
 static v8::Handle<v8::Value> callback(const v8::Arguments& args) {
   void* ptr = v8::External::Unwrap(args.Data());
   CHECK_EQ(expected_ptr, ptr);
-  return v8::Boolean::New(true);
+  return v8::True();
 }
 
 
@@ -2609,7 +2609,7 @@ v8::Handle<Value> ThrowFromC(const v8::Arguments& args) {
 
 
 v8::Handle<Value> CCatcher(const v8::Arguments& args) {
-  if (args.Length() < 1) return v8::Boolean::New(false);
+  if (args.Length() < 1) return v8::False();
   v8::HandleScope scope;
   v8::TryCatch try_catch;
   Local<Value> result = v8::Script::Compile(args[0]->ToString())->Run();
@@ -4226,7 +4226,7 @@ template <typename T> static void USE(T) { }
 
 
 // This test is not intended to be run, just type checked.
-static void PersistentHandles() {
+static inline void PersistentHandles() {
   USE(PersistentHandles);
   Local<String> str = v8_str("foo");
   v8::Persistent<String> p_str = v8::Persistent<String>::New(str);
@@ -7296,7 +7296,7 @@ THREADED_TEST(ConstructorForObject) {
     CHECK(value->IsBoolean());
     CHECK_EQ(true, value->BooleanValue());
 
-    Handle<Value> args3[] = { v8::Boolean::New(true) };
+    Handle<Value> args3[] = { v8::True() };
     Local<Value> value_obj3 = instance->CallAsConstructor(1, args3);
     CHECK(value_obj3->IsObject());
     Local<Object> object3 = Local<Object>::Cast(value_obj3);
@@ -9567,10 +9567,7 @@ THREADED_TEST(Overriding) {
 
 static v8::Handle<Value> IsConstructHandler(const v8::Arguments& args) {
   ApiTestFuzzer::Fuzz();
-  if (args.IsConstructCall()) {
-    return v8::Boolean::New(true);
-  }
-  return v8::Boolean::New(false);
+  return v8::Boolean::New(args.IsConstructCall());
 }
 
 
@@ -11796,14 +11793,21 @@ THREADED_TEST(PixelArray) {
   CHECK_EQ(28, result->Int32Value());
 
   i::Handle<i::Smi> value(i::Smi::FromInt(2));
-  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  i::Handle<i::Object> no_failure;
+  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  i::USE(no_failure);
   CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(256);
-  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  i::USE(no_failure);
   CHECK_EQ(255,
            i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(-1);
-  i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  ASSERT(!no_failure.is_null());
+  i::USE(no_failure);
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
 
   result = CompileRun("for (var i = 0; i < 8; i++) {"

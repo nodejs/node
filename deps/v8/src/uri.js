@@ -392,8 +392,9 @@ function URIUnescape(str) {
 
 // -------------------------------------------------------------------
 
-function SetupURI() {
-  // Setup non-enumerable URI functions on the global object and set
+function SetUpUri() {
+  %CheckIsBootstrapping();
+  // Set up non-enumerable URI functions on the global object and set
   // their names.
   InstallFunctions(global, DONT_ENUM, $Array(
     "escape", URIEscape,
@@ -405,4 +406,4 @@ function SetupURI() {
   ));
 }
 
-SetupURI();
+SetUpUri();

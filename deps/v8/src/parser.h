@@ -645,6 +645,17 @@ class Parser {
   // Strict mode octal literal validation.
   void CheckOctalLiteral(int beg_pos, int end_pos, bool* ok);
 
+  // For harmony block scoping mode: Check if the scope has conflicting var/let
+  // declarations from different scopes. It covers for example
+  //
+  // function f() { { { var x; } let x; } }
+  // function g() { { var x; let x; } }
+  //
+  // The var declarations are hoisted to the function scope, but originate from
+  // a scope where the name has also been let bound or the var declaration is
+  // hoisted over such a scope.
+  void CheckConflictingVarDeclarations(Scope* scope, bool* ok);
+
   // Parser support
   VariableProxy* Declare(Handle<String> name, Variable::Mode mode,
                          FunctionLiteral* fun,

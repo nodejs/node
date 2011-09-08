@@ -72,7 +72,7 @@ function lookupRequest(exec_state, arguments, success) {
 
   // The base part of all lookup requests.
   var base_request = '"seq":0,"type":"request","command":"lookup"'
-  
+
   // Generate request with the supplied arguments.
   var request;
   if (arguments) {
@@ -214,7 +214,7 @@ function listener(event, exec_state, event_data, data) {
                  'Handle not in the request: ' + handle);
       count++;
     }
-    assertEquals(count, obj.properties.length, 
+    assertEquals(count, obj.properties.length,
                  'Unexpected number of resolved objects');
 
 

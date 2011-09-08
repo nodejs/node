@@ -60,10 +60,10 @@ TestChains();
 
 function TestExceptions() {
   function F() { }
-  var items = [ 1, new Number(42), 
-                true, 
+  var items = [ 1, new Number(42),
+                true,
                 'string', new String('hest'),
-                {}, [], 
+                {}, [],
                 F, new F(),
                 Object, String ];
 

@@ -513,19 +513,6 @@ class HValue: public ZoneObject {
 
   static const int kChangesToDependsFlagsLeftShift = 1;
 
-  static int ChangesFlagsMask() {
-    int result = 0;
-    // Create changes mask.
-#define DECLARE_DO(type) result |= (1 << kChanges##type);
-  GVN_FLAG_LIST(DECLARE_DO)
-#undef DECLARE_DO
-    return result;
-  }
-
-  static int DependsFlagsMask() {
-    return ConvertChangesToDependsFlags(ChangesFlagsMask());
-  }
-
   static int ConvertChangesToDependsFlags(int flags) {
     return flags << kChangesToDependsFlagsLeftShift;
   }
@@ -629,6 +616,8 @@ class HValue: public ZoneObject {
   void ClearAllSideEffects() { flags_ &= ~AllSideEffects(); }
   bool HasSideEffects() const { return (flags_ & AllSideEffects()) != 0; }
 
+  int ChangesFlags() const { return flags_ & ChangesFlagsMask(); }
+
   Range* range() const { return range_; }
   bool HasRange() const { return range_ != NULL; }
   void AddNewRange(Range* r);
@@ -693,6 +682,15 @@ class HValue: public ZoneObject {
   }
 
  private:
+  static int ChangesFlagsMask() {
+    int result = 0;
+    // Create changes mask.
+#define ADD_FLAG(type) result |= (1 << kChanges##type);
+  GVN_FLAG_LIST(ADD_FLAG)
+#undef ADD_FLAG
+    return result;
+  }
+
   // A flag mask to mark an instruction as having arbitrary side effects.
   static int AllSideEffects() {
     return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
@@ -1696,7 +1694,10 @@ class HJSArrayLength: public HTemplateInstruction<2> {
     return Representation::Tagged();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   HValue* value() { return OperandAt(0); }
+  HValue* typecheck() { return OperandAt(1); }
 
   DECLARE_CONCRETE_INSTRUCTION(JSArrayLength)
 

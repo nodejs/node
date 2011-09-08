@@ -36,7 +36,7 @@ function f() {
   }
   h();
 }
-  
+
 function g() {
   function h() {
     assertEquals(Debug.scriptSource(f), Debug.scriptSource(h));

@@ -1406,7 +1406,7 @@ function rng_seed_int(x) {
 
 // Mix in the current time (w/milliseconds) into the pool
 function rng_seed_time() {
-  // Use pre-computed date to avoid making the benchmark 
+  // Use pre-computed date to avoid making the benchmark
   // results dependent on the current date.
   rng_seed_int(1122926989487);
 }

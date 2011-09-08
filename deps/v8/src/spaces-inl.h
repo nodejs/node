@@ -155,7 +155,8 @@ uint32_t Page::GetRegionMaskForAddress(Address addr) {
 
 uint32_t Page::GetRegionMaskForSpan(Address start, int length_in_bytes) {
   uint32_t result = 0;
-  if (length_in_bytes >= kPageSize) {
+  static const intptr_t kRegionMask = (1 << kRegionSizeLog2) - 1;
+  if (length_in_bytes + (OffsetFrom(start) & kRegionMask) >= kPageSize) {
     result = kAllRegionsDirtyMarks;
   } else if (length_in_bytes > 0) {
     int start_region = GetRegionNumberForAddress(start);

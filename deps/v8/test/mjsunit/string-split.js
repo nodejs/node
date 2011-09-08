@@ -68,13 +68,13 @@ assertArrayEquals(["a", "b", "c"], "abc".split(/(?=.)/));
 
 
 /* "ab".split(/((?=.))/)
- * 
+ *
  * KJS:   ,a,,b
  * SM:    a,,b,
  * IE:    a,b
  * Opera: a,,b
  * V8:    a,,b
- * 
+ *
  * Opera seems to have this right.  The others make no sense.
  */
 assertArrayEquals(["a", "", "b"], "ab".split(/((?=.))/));

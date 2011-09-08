@@ -743,11 +743,9 @@ class Instruction {
 // -----------------------------------------------------------------------------
 // MIPS assembly various constants.
 
-
-static const int kArgsSlotsSize  = 4 * Instruction::kInstrSize;
-static const int kArgsSlotsNum   = 4;
 // C/C++ argument slots size.
-static const int kCArgsSlotsSize = 4 * Instruction::kInstrSize;
+static const int kCArgSlotCount = 4;
+static const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize;
 // JS argument slots size.
 static const int kJSArgsSlotsSize = 0 * Instruction::kInstrSize;
 // Assembly builtins argument slots size.

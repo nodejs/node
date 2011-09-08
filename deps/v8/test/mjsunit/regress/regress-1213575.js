@@ -33,7 +33,7 @@ this.__defineSetter__('x', function(value) { assertTrue(false); });
 
 var caught = false;
 try {
-  eval('const x'); 
+  eval('const x');
 } catch(e) {
   assertTrue(e instanceof TypeError);
   caught = true;

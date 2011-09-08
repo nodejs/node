@@ -33,7 +33,7 @@
 // the popularity of the pages where it occurs and the number of times
 // it is executed while loading each page.  Furthermore the literal
 // letters in the data are encoded using ROT13 in a way that does not
-// affect how the regexps match their input.  Finally the strings are 
+// affect how the regexps match their input.  Finally the strings are
 // scrambled to exercise the regexp engine on different input strings.
 
 
@@ -47,7 +47,7 @@ function RegExpSetup() {
   regExpBenchmark = new RegExpBenchmark();
   RegExpRun(); // run once to get system initialized
 }
-  
+
 function RegExpRun() {
   regExpBenchmark.run();
 }
@@ -1759,6 +1759,6 @@ function RegExpBenchmark() {
       runBlock11();
     }
   }
-  
+
   this.run = run;
 }

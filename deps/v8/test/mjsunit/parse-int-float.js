@@ -100,4 +100,17 @@ assertTrue(isNaN(parseFloat(0/0)));
 assertEquals(Infinity, parseFloat(1/0), "parseFloat Infinity");
 assertEquals(-Infinity, parseFloat(-1/0), "parseFloat -Infinity");
 
+var state;
+var throwingRadix = { valueOf: function() { state = "throwingRadix"; throw null; } };
+var throwingString = { toString: function() { state = "throwingString"; throw null; } };
+state = null;
+try { parseInt('123', throwingRadix); } catch (e) {}
+assertEquals(state, "throwingRadix");
 
+state = null;
+try { parseInt(throwingString, 10); } catch (e) {}
+assertEquals(state, "throwingString");
+
+state = null;
+try { parseInt(throwingString, throwingRadix); } catch (e) {}
+assertEquals(state, "throwingString");

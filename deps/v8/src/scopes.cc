@@ -31,7 +31,6 @@
 
 #include "bootstrapper.h"
 #include "compiler.h"
-#include "prettyprinter.h"
 #include "scopeinfo.h"
 
 #include "allocation-inl.h"
@@ -314,7 +313,7 @@ void Scope::Initialize(bool inside_with) {
                            Variable::VAR,
                            false,
                            Variable::THIS);
-    var->set_rewrite(NewSlot(var, Slot::PARAMETER, -1));
+    var->AllocateTo(Variable::PARAMETER, -1);
     receiver_ = var;
   }
 
@@ -328,6 +327,35 @@ void Scope::Initialize(bool inside_with) {
                        true,
                        Variable::ARGUMENTS);
   }
+}
+
+
+Scope* Scope::FinalizeBlockScope() {
+  ASSERT(is_block_scope());
+  ASSERT(temps_.is_empty());
+  ASSERT(params_.is_empty());
+
+  if (num_var_or_const() > 0) return this;
+
+  // Remove this scope from outer scope.
+  for (int i = 0; i < outer_scope_->inner_scopes_.length(); i++) {
+    if (outer_scope_->inner_scopes_[i] == this) {
+      outer_scope_->inner_scopes_.Remove(i);
+      break;
+    }
+  }
+
+  // Reparent inner scopes.
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    outer_scope()->AddInnerScope(inner_scopes_[i]);
+  }
+
+  // Move unresolved variables
+  for (int i = 0; i < unresolved_.length(); i++) {
+    outer_scope()->unresolved_.Add(unresolved_[i]);
+  }
+
+  return NULL;
 }
 
 
@@ -360,7 +388,7 @@ Variable* Scope::LocalLookup(Handle<String> name) {
 
   Variable* var =
       variables_.Declare(this, name, mode, true, Variable::NORMAL);
-  var->set_rewrite(NewSlot(var, Slot::CONTEXT, index));
+  var->AllocateTo(Variable::CONTEXT, index);
   return var;
 }
 
@@ -378,16 +406,18 @@ Variable* Scope::Lookup(Handle<String> name) {
 
 Variable* Scope::DeclareFunctionVar(Handle<String> name) {
   ASSERT(is_function_scope() && function_ == NULL);
-  function_ = new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
-  return function_;
+  Variable* function_var =
+      new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
+  function_ = new(isolate_->zone()) VariableProxy(isolate_, function_var);
+  return function_var;
 }
 
 
-void Scope::DeclareParameter(Handle<String> name) {
+void Scope::DeclareParameter(Handle<String> name, Variable::Mode mode) {
   ASSERT(!already_resolved());
   ASSERT(is_function_scope());
   Variable* var =
-      variables_.Declare(this, name, Variable::VAR, true, Variable::NORMAL);
+      variables_.Declare(this, name, mode, true, Variable::NORMAL);
   params_.Add(var);
 }
 
@@ -407,7 +437,8 @@ Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
 
 Variable* Scope::DeclareGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
-  return variables_.Declare(this, name, Variable::DYNAMIC_GLOBAL, true,
+  return variables_.Declare(this, name, Variable::DYNAMIC_GLOBAL,
+                            true,
                             Variable::NORMAL);
 }
 
@@ -440,8 +471,11 @@ void Scope::RemoveUnresolved(VariableProxy* var) {
 
 Variable* Scope::NewTemporary(Handle<String> name) {
   ASSERT(!already_resolved());
-  Variable* var =
-      new Variable(this, name, Variable::TEMPORARY, true, Variable::NORMAL);
+  Variable* var = new Variable(this,
+                               name,
+                               Variable::TEMPORARY,
+                               true,
+                               Variable::NORMAL);
   temps_.Add(var);
   return var;
 }
@@ -464,6 +498,28 @@ void Scope::SetIllegalRedeclaration(Expression* expression) {
 void Scope::VisitIllegalRedeclaration(AstVisitor* visitor) {
   ASSERT(HasIllegalRedeclaration());
   illegal_redecl_->Accept(visitor);
+}
+
+
+Declaration* Scope::CheckConflictingVarDeclarations() {
+  int length = decls_.length();
+  for (int i = 0; i < length; i++) {
+    Declaration* decl = decls_[i];
+    if (decl->mode() != Variable::VAR) continue;
+    Handle<String> name = decl->proxy()->name();
+    bool cond = true;
+    for (Scope* scope = decl->scope(); cond ; scope = scope->outer_scope_) {
+      // There is a conflict if there exists a non-VAR binding.
+      Variable* other_var = scope->variables_.Lookup(name);
+      if (other_var != NULL && other_var->mode() != Variable::VAR) {
+        return decl;
+      }
+
+      // Include declaration scope in the iteration but stop after.
+      if (!scope->is_block_scope() && !scope->is_catch_scope()) cond = false;
+    }
+  }
+  return NULL;
 }
 
 
@@ -612,17 +668,35 @@ static void PrintName(Handle<String> name) {
 }
 
 
-static void PrintVar(PrettyPrinter* printer, int indent, Variable* var) {
-  if (var->is_used() || var->rewrite() != NULL) {
+static void PrintLocation(Variable* var) {
+  switch (var->location()) {
+    case Variable::UNALLOCATED:
+      break;
+    case Variable::PARAMETER:
+      PrintF("parameter[%d]", var->index());
+      break;
+    case Variable::LOCAL:
+      PrintF("local[%d]", var->index());
+      break;
+    case Variable::CONTEXT:
+      PrintF("context[%d]", var->index());
+      break;
+    case Variable::LOOKUP:
+      PrintF("lookup");
+      break;
+  }
+}
+
+
+static void PrintVar(int indent, Variable* var) {
+  if (var->is_used() || !var->IsUnallocated()) {
     Indent(indent, Variable::Mode2String(var->mode()));
     PrintF(" ");
     PrintName(var->name());
     PrintF(";  // ");
-    if (var->rewrite() != NULL) {
-      PrintF("%s, ", printer->Print(var->rewrite()));
-      if (var->is_accessed_from_inner_function_scope()) PrintF(", ");
-    }
+    PrintLocation(var);
     if (var->is_accessed_from_inner_function_scope()) {
+      if (!var->IsUnallocated()) PrintF(", ");
       PrintF("inner scope access");
     }
     PrintF("\n");
@@ -630,10 +704,10 @@ static void PrintVar(PrettyPrinter* printer, int indent, Variable* var) {
 }
 
 
-static void PrintMap(PrettyPrinter* printer, int indent, VariableMap* map) {
+static void PrintMap(int indent, VariableMap* map) {
   for (VariableMap::Entry* p = map->Start(); p != NULL; p = map->Next(p)) {
     Variable* var = reinterpret_cast<Variable*>(p->value);
-    PrintVar(printer, indent, var);
+    PrintVar(indent, var);
   }
 }
 
@@ -690,25 +764,24 @@ void Scope::Print(int n) {
   PrintF("%d heap slots\n", num_heap_slots_); }
 
   // Print locals.
-  PrettyPrinter printer;
   Indent(n1, "// function var\n");
   if (function_ != NULL) {
-    PrintVar(&printer, n1, function_);
+    PrintVar(n1, function_->var());
   }
 
   Indent(n1, "// temporary vars\n");
   for (int i = 0; i < temps_.length(); i++) {
-    PrintVar(&printer, n1, temps_[i]);
+    PrintVar(n1, temps_[i]);
   }
 
   Indent(n1, "// local vars\n");
-  PrintMap(&printer, n1, &variables_);
+  PrintMap(n1, &variables_);
 
   Indent(n1, "// dynamic vars\n");
   if (dynamics_ != NULL) {
-    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC));
-    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC_LOCAL));
-    PrintMap(&printer, n1, dynamics_->GetMap(Variable::DYNAMIC_GLOBAL));
+    PrintMap(n1, dynamics_->GetMap(Variable::DYNAMIC));
+    PrintMap(n1, dynamics_->GetMap(Variable::DYNAMIC_LOCAL));
+    PrintMap(n1, dynamics_->GetMap(Variable::DYNAMIC_GLOBAL));
   }
 
   // Print inner scopes (disable by providing negative n).
@@ -732,7 +805,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
     // Declare a new non-local.
     var = map->Declare(NULL, name, mode, true, Variable::NORMAL);
     // Allocate it by giving it a dynamic lookup.
-    var->set_rewrite(NewSlot(var, Slot::LOOKUP, -1));
+    var->AllocateTo(Variable::LOOKUP, -1);
   }
   return var;
 }
@@ -774,7 +847,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     // the name of named function literal is kept in an intermediate scope
     // in between this scope and the next outer scope.)
     if (function_ != NULL && function_->name().is_identical_to(name)) {
-      var = function_;
+      var = function_->var();
 
     } else if (outer_scope_ != NULL) {
       var = outer_scope_->LookupRecursive(
@@ -992,12 +1065,12 @@ bool Scope::HasArgumentsParameter() {
 
 
 void Scope::AllocateStackSlot(Variable* var) {
-  var->set_rewrite(NewSlot(var, Slot::LOCAL, num_stack_slots_++));
+  var->AllocateTo(Variable::LOCAL, num_stack_slots_++);
 }
 
 
 void Scope::AllocateHeapSlot(Variable* var) {
-  var->set_rewrite(NewSlot(var, Slot::CONTEXT, num_heap_slots_++));
+  var->AllocateTo(Variable::CONTEXT, num_heap_slots_++);
 }
 
 
@@ -1043,14 +1116,14 @@ void Scope::AllocateParameterLocals() {
 
     if (MustAllocate(var)) {
       if (MustAllocateInContext(var)) {
-        ASSERT(var->rewrite() == NULL || var->IsContextSlot());
-        if (var->rewrite() == NULL) {
+        ASSERT(var->IsUnallocated() || var->IsContextSlot());
+        if (var->IsUnallocated()) {
           AllocateHeapSlot(var);
         }
       } else {
-        ASSERT(var->rewrite() == NULL || var->IsParameter());
-        if (var->rewrite() == NULL) {
-          var->set_rewrite(NewSlot(var, Slot::PARAMETER, i));
+        ASSERT(var->IsUnallocated() || var->IsParameter());
+        if (var->IsUnallocated()) {
+          var->AllocateTo(Variable::PARAMETER, i);
         }
       }
     }
@@ -1060,11 +1133,9 @@ void Scope::AllocateParameterLocals() {
 
 void Scope::AllocateNonParameterLocal(Variable* var) {
   ASSERT(var->scope() == this);
-  ASSERT(var->rewrite() == NULL ||
-         !var->IsVariable(isolate_->factory()->result_symbol()) ||
-         var->AsSlot() == NULL ||
-         var->AsSlot()->type() != Slot::LOCAL);
-  if (var->rewrite() == NULL && MustAllocate(var)) {
+  ASSERT(!var->IsVariable(isolate_->factory()->result_symbol()) ||
+         !var->IsStackLocal());
+  if (var->IsUnallocated() && MustAllocate(var)) {
     if (MustAllocateInContext(var)) {
       AllocateHeapSlot(var);
     } else {
@@ -1092,7 +1163,7 @@ void Scope::AllocateNonParameterLocals() {
   // because of the current ScopeInfo implementation (see
   // ScopeInfo::ScopeInfo(FunctionScope* scope) constructor).
   if (function_ != NULL) {
-    AllocateNonParameterLocal(function_);
+    AllocateNonParameterLocal(function_->var());
   }
 }
 

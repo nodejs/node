@@ -87,13 +87,15 @@ void Context::set_global_proxy(JSObject* object) {
 Handle<Object> Context::Lookup(Handle<String> name,
                                ContextLookupFlags flags,
                                int* index_,
-                               PropertyAttributes* attributes) {
+                               PropertyAttributes* attributes,
+                               BindingFlags* binding_flags) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   *index_ = -1;
   *attributes = ABSENT;
+  *binding_flags = MISSING_BINDING;
 
   if (FLAG_trace_contexts) {
     PrintF("Context::Lookup(");
@@ -118,6 +120,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index_ = Context::THROWN_OBJECT_INDEX;
           *attributes = NONE;
+          *binding_flags = MUTABLE_IS_INITIALIZED;
           return context;
         }
       } else {
@@ -180,11 +183,16 @@ Handle<Object> Context::Lookup(Handle<String> name,
         switch (mode) {
           case Variable::INTERNAL:  // Fall through.
           case Variable::VAR:
+            *attributes = NONE;
+            *binding_flags = MUTABLE_IS_INITIALIZED;
+            break;
           case Variable::LET:
             *attributes = NONE;
+            *binding_flags = MUTABLE_CHECK_INITIALIZED;
             break;
           case Variable::CONST:
             *attributes = READ_ONLY;
+            *binding_flags = IMMUTABLE_CHECK_INITIALIZED;
             break;
           case Variable::DYNAMIC:
           case Variable::DYNAMIC_GLOBAL:
@@ -207,6 +215,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index_ = index;
           *attributes = READ_ONLY;
+          *binding_flags = IMMUTABLE_IS_INITIALIZED;
           return context;
         }
       }

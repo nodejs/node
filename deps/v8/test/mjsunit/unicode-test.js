@@ -807,7 +807,7 @@ var cyrillic =
 "    * Васильев Л.С. Древний Китай: в 3 т. Т. 3. Период Чжаньго (V–III вв. до н.э.). М.: Восточная литература, 2006. ISBN 502018103X\n" +
 "    * Непомнин О.Е. История Китая: Эпоха Цин. XVII – начало XX века. М.: Восточная литература, 2005. ISBN 5020184004\n";
 
-var devanagari = 
+var devanagari =
 "भारत\n" +
 "विकिपीडिया, एक मुक्त ज्ञानकोष से\n" +
 "Jump to: navigation, search\n" +
@@ -1417,7 +1417,7 @@ var english =
 "There are many words of French origin in English, such as competition, art, table, publicity, police, role, routine, machine, force, and many others that have been and are being anglicised; they are now pronounced according to English rules of phonology, rather than French. A large portion of English vocabulary is of French or Oïl language origin, most derived from, or transmitted via, the Anglo-Norman spoken by the upper classes in England for several hundred years after the Norman Conquest.\n";
 
 
-var greek = 
+var greek =
 "Ελλάδα\n" +
 "Από τη Βικιπαίδεια, την ελεύθερη εγκυκλοπαίδεια\n" +
 "Ελληνική Δημοκρατία\n" +

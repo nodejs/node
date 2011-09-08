@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that CodeGenerator::EmitKeyedPropertyAssignment for the start 
+// Test that CodeGenerator::EmitKeyedPropertyAssignment for the start
 // of an initialization block doesn't normalize the properties of the
 // JSGlobalProxy.
 this.w = 0;

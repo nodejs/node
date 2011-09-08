@@ -860,8 +860,7 @@ class FunctionInfoListener {
       int j = 0;
       for (int i = 0; i < list.length(); i++) {
         Variable* var1 = list[i];
-        Slot* slot = var1->AsSlot();
-        if (slot != NULL && slot->type() == Slot::CONTEXT) {
+        if (var1->IsContextSlot()) {
           if (j != i) {
             list[j] = var1;
           }
@@ -873,7 +872,7 @@ class FunctionInfoListener {
       for (int k = 1; k < j; k++) {
         int l = k;
         for (int m = k + 1; m < j; m++) {
-          if (list[l]->AsSlot()->index() > list[m]->AsSlot()->index()) {
+          if (list[l]->index() > list[m]->index()) {
             l = m;
           }
         }
@@ -887,7 +886,7 @@ class FunctionInfoListener {
         SetElementNonStrict(
             scope_info_list,
             scope_info_length,
-            Handle<Smi>(Smi::FromInt(list[i]->AsSlot()->index())));
+            Handle<Smi>(Smi::FromInt(list[i]->index())));
         scope_info_length++;
       }
       SetElementNonStrict(scope_info_list,

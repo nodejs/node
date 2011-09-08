@@ -81,7 +81,7 @@ function listener(event, exec_state, event_data, data) {
       assertTrue('context' in msg.body.script);
 
       // Check that we pick script name from //@ sourceURL, iff present
-      assertEquals(current_source.indexOf('sourceURL') >= 0 ? 
+      assertEquals(current_source.indexOf('sourceURL') >= 0 ?
                      'myscript.js' : undefined,
                    event_data.script().name());
     }

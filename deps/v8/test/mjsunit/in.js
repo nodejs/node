@@ -86,7 +86,7 @@ a[1] = 2;
 assertFalse(0 in a);
 assertTrue(1 in a);
 assertFalse(2 in a);
-assertFalse('0' in a); 
+assertFalse('0' in a);
 assertTrue('1' in a);
 assertFalse('2' in a);
 assertTrue('toString' in a, "toString");

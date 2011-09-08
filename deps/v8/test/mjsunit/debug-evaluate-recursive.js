@@ -110,7 +110,7 @@ function listener_recurse(event, exec_state, event_data, data) {
     if (event == Debug.DebugEvent.Break)
     {
       break_count++;
-      
+
       // Call functions with break using the FrameMirror directly.
       if (break_count == 1) {
         // First break event evaluates with break enabled.

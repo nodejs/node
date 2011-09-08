@@ -532,6 +532,16 @@ class MacroAssembler: public Assembler {
                                Register scratch1,
                                Register scratch2,
                                Label* gc_required);
+  void AllocateTwoByteSlicedString(Register result,
+                                   Register length,
+                                   Register scratch1,
+                                   Register scratch2,
+                                   Label* gc_required);
+  void AllocateAsciiSlicedString(Register result,
+                                 Register length,
+                                 Register scratch1,
+                                 Register scratch2,
+                                 Label* gc_required);
 
   // Allocates a heap number or jumps to the gc_required label if the young
   // space is full and a scavenge is needed. All registers are clobbered also

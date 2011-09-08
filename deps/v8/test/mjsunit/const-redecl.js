@@ -55,7 +55,7 @@ function TestLocal(s,e) {
 function TestGlobal(s,e) {
   // Collect the global properties before the call.
   var properties = [];
-  for (var key in this) properties.push(key); 
+  for (var key in this) properties.push(key);
   // Compute the result.
   var result;
   try {
@@ -113,7 +113,7 @@ function TestConflict(def0, def1) {
   // Eval second definition.
   TestAll("TypeError", def0 + '; eval("' + def1 + '")');
   // Eval both definitions separately.
-  TestAll("TypeError", 'eval("' + def0 +'"); eval("' + def1 + '")');  
+  TestAll("TypeError", 'eval("' + def0 +'"); eval("' + def1 + '")');
 }
 
 

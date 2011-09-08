@@ -394,4 +394,18 @@ TEST(AssemblerIa329) {
   CHECK_EQ(kNaN, f(OS::nan_value(), 1.1));
 }
 
+
+TEST(AssemblerIa3210) {
+  // Test chaining of label usages within instructions (issue 1644).
+  InitializeVM();
+  v8::HandleScope scope;
+  Assembler assm(Isolate::Current(), NULL, 0);
+
+  Label target;
+  __ j(equal, &target);
+  __ j(not_equal, &target);
+  __ bind(&target);
+  __ nop();
+}
+
 #undef __

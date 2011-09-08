@@ -38,7 +38,7 @@ function listener(event, exec_state, event_data, data) {
     if (exec_state.frameCount() > 1) {
       exec_state.prepareStep(Debug.StepAction.StepIn);
     }
-    
+
     // Test that there is a script.
     assertTrue(typeof(event_data.func().script()) == 'object');
   }

@@ -48,6 +48,7 @@ const $Number = global.Number;
 const $Function = global.Function;
 const $Boolean = global.Boolean;
 const $NaN = 0/0;
+const builtins = this;
 
 // ECMA-262 Section 11.9.3.
 function EQUALS(y) {

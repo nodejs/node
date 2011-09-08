@@ -57,7 +57,7 @@ assertEquals(s, s.substr(-100));
 assertEquals('abc', s.substr(-100, 3));
 assertEquals(s1, s.substr(-s.length + 1));
 
-// assertEquals('', s.substr(0, void 0)); // smjs and rhino 
+// assertEquals('', s.substr(0, void 0)); // smjs and rhino
 assertEquals('abcdefghijklmn', s.substr(0, void 0));  // kjs and v8
 assertEquals('', s.substr(0, null));
 assertEquals(s, s.substr(0, String(s.length)));
@@ -72,7 +72,7 @@ for (var i = 0; i < 25; i++) {
 }
 /x/.exec(x);  // Try to force a flatten.
 for (var i = 5; i < 25; i++) {
-  for (var j = 12; j < 25; j++) {
+  for (var j = 0; j < 25; j++) {
     var z = x.substring(i, i+j);
     var w = Math.random() * 42;  // Allocate something new in new-space.
     assertEquals(j, z.length);
@@ -110,7 +110,7 @@ x += x;
 x += x;
 var xl = x.length;
 var cache = [];
-for (var i = 0; i < 10000; i++) {
+for (var i = 0; i < 1000; i++) {
   var z = x.substring(i % xl);
   assertEquals(xl - (i % xl), z.length);
   cache.push(z);
@@ -129,7 +129,7 @@ x += x;
 x += x;
 var xl = x.length;
 var cache = [];
-for (var i = 0; i < 10000; i++) {
+for (var i = 0; i < 1000; i++) {
   var z = x.substring(i % xl);
   assertEquals(xl - (i % xl), z.length);
   cache.push(z);
@@ -149,6 +149,7 @@ for (var i = 63; i >= 0; i--) {
   var z = cache.pop();
   assertTrue(/\u2028123456789ABCDEF/.test(z));
   assertEquals(xl - offset, z.length);
+  assertEquals(x.charAt(i*(i+1)/2), z.charAt(0));
   offset -= i;
 }
 

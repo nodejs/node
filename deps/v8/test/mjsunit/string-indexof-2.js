@@ -57,10 +57,10 @@ for(var i = 0; i < lipsum.length; i += 3) {
     var index = -1;
     do {
       index = lipsum.indexOf(substring, index + 1);
-      assertTrue(index != -1, 
+      assertTrue(index != -1,
                  "Lipsum substring " + i + ".." + (i + len-1) + " not found");
-      assertEquals(lipsum.substring(index, index + len), substring, 
-          "Wrong lipsum substring found: " + i + ".." + (i + len - 1) + "/" + 
+      assertEquals(lipsum.substring(index, index + len), substring,
+          "Wrong lipsum substring found: " + i + ".." + (i + len - 1) + "/" +
               index + ".." + (index + len - 1));
     } while (index >= 0 && index < i);
     assertEquals(i, index, "Lipsum match at " + i + ".." + (i + len - 1));

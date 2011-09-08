@@ -1725,6 +1725,46 @@ void MacroAssembler::AllocateAsciiConsString(Register result,
 }
 
 
+void MacroAssembler::AllocateTwoByteSlicedString(Register result,
+                                                 Register length,
+                                                 Register scratch1,
+                                                 Register scratch2,
+                                                 Label* gc_required) {
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  InitializeNewString(result,
+                      length,
+                      Heap::kSlicedStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
+void MacroAssembler::AllocateAsciiSlicedString(Register result,
+                                               Register length,
+                                               Register scratch1,
+                                               Register scratch2,
+                                               Label* gc_required) {
+  AllocateInNewSpace(SlicedString::kSize,
+                     result,
+                     scratch1,
+                     scratch2,
+                     gc_required,
+                     TAG_OBJECT);
+
+  InitializeNewString(result,
+                      length,
+                      Heap::kSlicedAsciiStringMapRootIndex,
+                      scratch1,
+                      scratch2);
+}
+
+
 void MacroAssembler::CompareObjectType(Register object,
                                        Register map,
                                        Register type_reg,

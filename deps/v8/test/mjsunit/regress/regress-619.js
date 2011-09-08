@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Tests that Object.defineProperty works correctly on array indices. 
+// Tests that Object.defineProperty works correctly on array indices.
 // Please see http://code.google.com/p/v8/issues/detail?id=619 for details.
 
 var obj = {};

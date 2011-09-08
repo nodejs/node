@@ -210,7 +210,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested number of elements.
   __ bind(&not_empty);
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ li(elements_array_end,
         (JSArray::kSize + FixedArray::kHeaderSize) / kPointerSize);
   __ sra(scratch1, array_size, kSmiTagSize);
@@ -261,7 +261,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // Length of the FixedArray is the number of pre-allocated elements if
   // the actual JSArray has length 0 and the size of the JSArray for non-empty
   // JSArrays. The length of a FixedArray is stored as a smi.
-  ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTag == 0);
   __ li(at, Operand(Smi::FromInt(JSArray::kPreallocatedArrayElements)));
   __ movz(array_size, at, array_size);
 
@@ -273,7 +273,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array_storage: elements array element storage
   // array_size: smi-tagged size of elements array
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ sll(elements_array_end, array_size, kPointerSizeLog2 - kSmiTagSize);
   __ Addu(elements_array_end, elements_array_storage, elements_array_end);
 
@@ -336,14 +336,14 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ bind(&argc_one_or_more);
   __ Branch(&argc_two_or_more, ne, a0, Operand(1));
 
-  ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTag == 0);
   __ lw(a2, MemOperand(sp));  // Get the argument from the stack.
   __ And(a3, a2, Operand(kIntptrSignBit | kSmiTagMask));
   __ Branch(call_generic_code, eq, a3, Operand(zero_reg));
 
   // Handle construction of an empty array of a certain size. Bail out if size
   // is too large to actually allocate an elements array.
-  ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTag == 0);
   __ Branch(call_generic_code, Ugreater_equal, a2,
             Operand(JSObject::kInitialMaxFastElementArray << kSmiTagSize));
 
@@ -576,7 +576,7 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
   // Is it a String?
   __ lw(a2, FieldMemOperand(a0, HeapObject::kMapOffset));
   __ lbu(a3, FieldMemOperand(a2, Map::kInstanceTypeOffset));
-  ASSERT(kNotStringTag != 0);
+  STATIC_ASSERT(kNotStringTag != 0);
   __ And(t0, a3, Operand(kIsNotStringMask));
   __ Branch(&convert_argument, ne, t0, Operand(zero_reg));
   __ mov(argument, a0);

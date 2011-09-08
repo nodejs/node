@@ -33,7 +33,7 @@ var obj1 = {};
 assertTrue(Object.isExtensible(obj1));
 Object.preventExtensions(obj1);
 
-// Make sure the is_extensible flag is set. 
+// Make sure the is_extensible flag is set.
 assertFalse(Object.isExtensible(obj1));
 obj1.x = 42;
 assertEquals(undefined, obj1.x);

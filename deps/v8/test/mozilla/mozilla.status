@@ -201,6 +201,10 @@ js1_5/extensions/regress-363258: PASS || FAIL
 ecma_3/RegExp/regress-85721: PASS || FAIL if $mode == debug
 
 
+# Test that assumes specific execution time, flaky in debug mode.
+js1_5/Array/regress-101964: PASS || FAIL if $mode == debug
+
+
 ##################### INCOMPATIBLE TESTS #####################
 
 # This section is for tests that fail in both V8 and JSC.  Thus they
@@ -245,7 +249,7 @@ ecma_3/Number/15.7.4.7-1: FAIL_OK
 # toExponential argument restricted to range 0..20 in JSC/V8
 ecma_3/Number/15.7.4.6-1: FAIL_OK
 
-#:=== RegExp:=== 
+#:=== RegExp:===
 # We don't match the syntax error message of Mozilla for invalid
 # RegExp flags.
 ecma_3/RegExp/15.10.4.1-6: FAIL_OK
@@ -578,7 +582,7 @@ js1_5/Regress/regress-352604: FAIL_OK
 js1_5/Regress/regress-417893: FAIL_OK
 
 
-# Unsupported use of "[]" as function parameter. We match JSC. 
+# Unsupported use of "[]" as function parameter. We match JSC.
 js1_5/Regress/regress-416737-01: FAIL_OK
 js1_5/Regress/regress-416737-02: FAIL_OK
 

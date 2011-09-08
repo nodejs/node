@@ -37,7 +37,7 @@ function GrowNamed(o) {
 }
 
 function GrowKeyed(o) {
-  var names = ['a','b','c','d','e','f']; 
+  var names = ['a','b','c','d','e','f'];
   var i = 0;
   o[names[i++]] = i;
   o[names[i++]] = i;

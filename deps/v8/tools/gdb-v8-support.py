@@ -138,7 +138,7 @@ def v8_to_int(v):
   else:
     return '?'
 
-  
+
 def v8_get_value(vstring):
   v = gdb.parse_and_eval(vstring)
   return v8_to_int(v)

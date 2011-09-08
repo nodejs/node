@@ -1409,7 +1409,6 @@ Isolate::Isolate()
       global_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
-      ast_sentinels_(NULL),
       string_tracker_(NULL),
       regexp_stack_(NULL),
       embedder_data_(NULL) {
@@ -1545,9 +1544,6 @@ Isolate::~Isolate() {
 
   delete regexp_stack_;
   regexp_stack_ = NULL;
-
-  delete ast_sentinels_;
-  ast_sentinels_ = NULL;
 
   delete descriptor_lookup_cache_;
   descriptor_lookup_cache_ = NULL;
@@ -1710,7 +1706,6 @@ bool Isolate::Init(Deserializer* des) {
   bootstrapper_ = new Bootstrapper();
   handle_scope_implementer_ = new HandleScopeImplementer(this);
   stub_cache_ = new StubCache(this);
-  ast_sentinels_ = new AstSentinels();
   regexp_stack_ = new RegExpStack();
   regexp_stack_->isolate_ = this;
 

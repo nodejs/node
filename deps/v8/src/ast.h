@@ -134,6 +134,10 @@ class AstNode: public ZoneObject {
 
   static const int kNoNumber = -1;
   static const int kFunctionEntryId = 2;  // Using 0 could disguise errors.
+  // This AST id identifies the point after the declarations have been
+  // visited. We need it to capture the environment effects of declarations
+  // that emit code (function declarations).
+  static const int kDeclarationsId = 3;
 
   // Override ZoneObject's new to count allocated AST nodes.
   void* operator new(size_t size, Zone* zone) {
@@ -161,7 +165,6 @@ class AstNode: public ZoneObject {
   virtual BreakableStatement* AsBreakableStatement() { return NULL; }
   virtual IterationStatement* AsIterationStatement() { return NULL; }
   virtual MaterializedLiteral* AsMaterializedLiteral() { return NULL; }
-  virtual Slot* AsSlot() { return NULL; }
 
   // True if the node is simple enough for us to inline calls containing it.
   virtual bool IsInlineable() const = 0;
@@ -316,20 +319,6 @@ class Expression: public AstNode {
 };
 
 
-/**
- * A sentinel used during pre parsing that represents some expression
- * that is a valid left hand side without having to actually build
- * the expression.
- */
-class ValidLeftHandSideSentinel: public Expression {
- public:
-  explicit ValidLeftHandSideSentinel(Isolate* isolate) : Expression(isolate) {}
-  virtual bool IsValidLeftHandSide() { return true; }
-  virtual void Accept(AstVisitor* v) { UNREACHABLE(); }
-  virtual bool IsInlineable() const;
-};
-
-
 class BreakableStatement: public Statement {
  public:
   enum Type {
@@ -404,10 +393,14 @@ class Block: public BreakableStatement {
 
 class Declaration: public AstNode {
  public:
-  Declaration(VariableProxy* proxy, Variable::Mode mode, FunctionLiteral* fun)
+  Declaration(VariableProxy* proxy,
+              Variable::Mode mode,
+              FunctionLiteral* fun,
+              Scope* scope)
       : proxy_(proxy),
         mode_(mode),
-        fun_(fun) {
+        fun_(fun),
+        scope_(scope) {
     ASSERT(mode == Variable::VAR ||
            mode == Variable::CONST ||
            mode == Variable::LET);
@@ -421,11 +414,15 @@ class Declaration: public AstNode {
   Variable::Mode mode() const { return mode_; }
   FunctionLiteral* fun() const { return fun_; }  // may be NULL
   virtual bool IsInlineable() const;
+  Scope* scope() const { return scope_; }
 
  private:
   VariableProxy* proxy_;
   Variable::Mode mode_;
   FunctionLiteral* fun_;
+
+  // Nested scope from which the declaration originated.
+  Scope* scope_;
 };
 
 
@@ -1114,9 +1111,6 @@ class VariableProxy: public Expression {
 
   DECLARE_NODE_TYPE(VariableProxy)
 
-  // Type testing & conversion
-  Variable* AsVariable() { return (this == NULL) ? NULL : var_; }
-
   virtual bool IsValidLeftHandSide() {
     return var_ == NULL ? true : var_->IsValidLeftHandSide();
   }
@@ -1133,10 +1127,7 @@ class VariableProxy: public Expression {
     return !is_this() && name().is_identical_to(n);
   }
 
-  bool IsArguments() {
-    Variable* variable = AsVariable();
-    return (variable == NULL) ? false : variable->is_arguments();
-  }
+  bool IsArguments() { return var_ != NULL && var_->is_arguments(); }
 
   Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
@@ -1162,70 +1153,8 @@ class VariableProxy: public Expression {
                 bool is_this,
                 bool inside_with,
                 int position = RelocInfo::kNoPosition);
-  VariableProxy(Isolate* isolate, bool is_this);
 
   friend class Scope;
-};
-
-
-class VariableProxySentinel: public VariableProxy {
- public:
-  virtual bool IsValidLeftHandSide() { return !is_this(); }
-
- private:
-  VariableProxySentinel(Isolate* isolate, bool is_this)
-      : VariableProxy(isolate, is_this) { }
-
-  friend class AstSentinels;
-};
-
-
-class Slot: public Expression {
- public:
-  enum Type {
-    // A slot in the parameter section on the stack. index() is
-    // the parameter index, counting left-to-right, starting at 0.
-    PARAMETER,
-
-    // A slot in the local section on the stack. index() is
-    // the variable index in the stack frame, starting at 0.
-    LOCAL,
-
-    // An indexed slot in a heap context. index() is the
-    // variable index in the context object on the heap,
-    // starting at 0. var()->scope() is the corresponding
-    // scope.
-    CONTEXT,
-
-    // A named slot in a heap context. var()->name() is the
-    // variable name in the context object on the heap,
-    // with lookup starting at the current context. index()
-    // is invalid.
-    LOOKUP
-  };
-
-  Slot(Isolate* isolate, Variable* var, Type type, int index)
-      : Expression(isolate), var_(var), type_(type), index_(index) {
-    ASSERT(var != NULL);
-  }
-
-  virtual void Accept(AstVisitor* v);
-
-  virtual Slot* AsSlot() { return this; }
-
-  bool IsStackAllocated() { return type_ == PARAMETER || type_ == LOCAL; }
-
-  // Accessors
-  Variable* var() const { return var_; }
-  Type type() const { return type_; }
-  int index() const { return index_; }
-  bool is_arguments() const { return var_->is_arguments(); }
-  virtual bool IsInlineable() const;
-
- private:
-  Variable* var_;
-  Type type_;
-  int index_;
 };
 
 
@@ -1334,36 +1263,6 @@ class Call: public Expression {
   Handle<JSGlobalPropertyCell> cell_;
 
   int return_id_;
-};
-
-
-class AstSentinels {
- public:
-  ~AstSentinels() { }
-
-  // Returns a property singleton property access on 'this'.  Used
-  // during preparsing.
-  Property* this_property() { return &this_property_; }
-  VariableProxySentinel* this_proxy() { return &this_proxy_; }
-  VariableProxySentinel* identifier_proxy() { return &identifier_proxy_; }
-  ValidLeftHandSideSentinel* valid_left_hand_side_sentinel() {
-    return &valid_left_hand_side_sentinel_;
-  }
-  Call* call_sentinel() { return &call_sentinel_; }
-  EmptyStatement* empty_statement() { return &empty_statement_; }
-
- private:
-  AstSentinels();
-  VariableProxySentinel this_proxy_;
-  VariableProxySentinel identifier_proxy_;
-  ValidLeftHandSideSentinel valid_left_hand_side_sentinel_;
-  Property this_property_;
-  Call call_sentinel_;
-  EmptyStatement empty_statement_;
-
-  friend class Isolate;
-
-  DISALLOW_COPY_AND_ASSIGN(AstSentinels);
 };
 
 
@@ -2238,9 +2137,6 @@ class AstVisitor BASE_EMBEDDED {
   // bails out without visiting more nodes.
   void SetStackOverflow() { stack_overflow_ = true; }
   void ClearStackOverflow() { stack_overflow_ = false; }
-
-  // Nodes not appearing in the AST, including slots.
-  virtual void VisitSlot(Slot* node) { UNREACHABLE(); }
 
   // Individual AST nodes.
 #define DEF_VISIT(type)                         \

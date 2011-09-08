@@ -134,7 +134,7 @@
   a = [0,1];
   assertFalse(a.every(function(n, index, array) { array[index] = n + 1; return n == 1;}));
   assertArrayEquals([1,1], a);
-  
+
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [1,1];
@@ -156,23 +156,23 @@
 //
 (function() {
   var a = [0,1,2,3,4];
-  
+
   // Simple use.
   var result = [1,2,3,4,5];
   assertArrayEquals(result, a.map(function(n) { return n + 1; }));
   assertEquals(a, a);
-  
+
   // Use specified object as this object when calling the function.
   var o = { delta: 42 }
   result = [42,43,44,45,46];
   assertArrayEquals(result, a.map(function(n) { return this.delta + n; }, o));
-  
+
   // Modify original array.
   a = [0,1,2,3,4];
   result = [1,2,3,4,5];
   assertArrayEquals(result, a.map(function(n, index, array) { array[index] = n + 1; return n + 1;}));
   assertArrayEquals(result, a);
-  
+
   // Only loop through initial part of array eventhough elements are
   // added.
   a = [0,1,2,3,4];
@@ -197,7 +197,7 @@
   // Simple use.
   assertTrue(a.some(function(n) { return n == 3}));
   assertFalse(a.some(function(n) { return n == 5}));
-  
+
   // Use specified object as this object when calling the function.
   var o = { element: 42 };
   a = [1,42,3];

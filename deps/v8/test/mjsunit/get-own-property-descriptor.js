@@ -27,7 +27,7 @@
 
 // This file only tests very simple descriptors that always have
 // configurable, enumerable, and writable set to true.
-// A range of more elaborate tests are performed in 
+// A range of more elaborate tests are performed in
 // object-define-property.js
 
 function get() { return x; }

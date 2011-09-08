@@ -337,7 +337,7 @@ static void GenerateFastArrayLoad(MacroAssembler* masm,
   // Fast case: Do the load.
   __ add(scratch1, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   // The key is a smi.
-  ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
+  STATIC_ASSERT(kSmiTag == 0 && kSmiTagSize < kPointerSizeLog2);
   __ ldr(scratch2,
          MemOperand(scratch1, key, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
@@ -370,7 +370,7 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   // Is the string a symbol?
   // map: key map
   __ ldrb(hash, FieldMemOperand(map, Map::kInstanceTypeOffset));
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   __ tst(hash, Operand(kIsSymbolMask));
   __ b(eq, not_symbol);
 }
@@ -1333,7 +1333,7 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ cmp(key, Operand(ip));
   __ b(hs, &slow);
   // Calculate key + 1 as smi.
-  ASSERT_EQ(0, kSmiTag);
+  STATIC_ASSERT(kSmiTag == 0);
   __ add(r4, key, Operand(Smi::FromInt(1)));
   __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
   __ b(&fast);

@@ -29,8 +29,9 @@
 // This situation can arise with sliced strings.  This tests for an ARM bug
 // that was fixed in r554.
 
-var base = "Now is the time for all good men to come to the aid of the party. " + 
-           "Now is the time for all good men to come to the aid of the party."
+var base =
+    "Now is the time for all good men to come to the aid of the party. " +
+    "Now is the time for all good men to come to the aid of the party."
 var s1 = base.substring(0, 64);
 var s2 = base.substring(66, 130);
 

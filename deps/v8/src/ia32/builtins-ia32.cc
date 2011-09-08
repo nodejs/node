@@ -373,7 +373,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   __ LeaveConstructFrame();
 
   // Remove caller arguments from the stack and return.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ pop(ecx);
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);
@@ -923,7 +923,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
-  ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
+  STATIC_ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
@@ -975,7 +975,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
                         times_half_pointer_size,  // array_size is a smi.
                         array_size,
@@ -1100,7 +1100,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ bind(&argc_one_or_more);
   __ cmp(eax, 1);
   __ j(not_equal, &argc_two_or_more);
-  ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTag == 0);
   __ mov(ecx, Operand(esp, (push_count + 1) * kPointerSize));
   __ test(ecx, Operand(ecx));
   __ j(not_zero, &not_empty_array);
@@ -1155,7 +1155,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
 
   // Handle construction of an array from a list of arguments.
   __ bind(&argc_two_or_more);
-  ASSERT(kSmiTag == 0);
+  STATIC_ASSERT(kSmiTag == 0);
   __ SmiTag(eax);  // Convet argc to a smi.
   // eax: array_size (smi)
   // edi: constructor
@@ -1437,7 +1437,7 @@ static void EnterArgumentsAdaptorFrame(MacroAssembler* masm) {
   // Preserve the number of arguments on the stack. Must preserve eax,
   // ebx and ecx because these registers are used when copying the
   // arguments and the receiver.
-  ASSERT(kSmiTagSize == 1);
+  STATIC_ASSERT(kSmiTagSize == 1);
   __ lea(edi, Operand(eax, eax, times_1, kSmiTag));
   __ push(edi);
 }
@@ -1451,7 +1451,7 @@ static void LeaveArgumentsAdaptorFrame(MacroAssembler* masm) {
   __ leave();
 
   // Remove caller arguments from the stack.
-  ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
+  STATIC_ASSERT(kSmiTagSize == 1 && kSmiTag == 0);
   __ pop(ecx);
   __ lea(esp, Operand(esp, ebx, times_2, 1 * kPointerSize));  // 1 ~ receiver
   __ push(ecx);

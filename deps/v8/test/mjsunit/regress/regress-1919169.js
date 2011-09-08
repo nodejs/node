@@ -30,7 +30,7 @@ function test() {
  var s2 = "s2";
  for (var i = 0; i < 2; i++) {
    // Crashes in round i==1 with IllegalAccess in %StringAdd(x,y)
-   var res = 1 + s2;  
+   var res = 1 + s2;
    s2 = 2;
  }
 }

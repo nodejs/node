@@ -378,7 +378,7 @@ static void GenerateKeyStringCheck(MacroAssembler* masm,
   __ j(zero, index_string);  // The value in hash is used at jump target.
 
   // Is the string a symbol?
-  ASSERT(kSymbolTag != 0);
+  STATIC_ASSERT(kSymbolTag != 0);
   __ testb(FieldOperand(map, Map::kInstanceTypeOffset),
            Immediate(kIsSymbolMask));
   __ j(zero, not_symbol);

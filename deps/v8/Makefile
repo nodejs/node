@@ -98,8 +98,9 @@ CHECKS = $(addsuffix .check,$(BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all clean $(ENVFILE).new \
-        $(ARCHES) $(MODES) $(BUILDS) $(addsuffix .clean,$(ARCHES))
+.PHONY: all check clean $(ENVFILE).new \
+        $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
+        $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES))
 
 # Target definitions. "all" is the default.
 all: $(MODES)

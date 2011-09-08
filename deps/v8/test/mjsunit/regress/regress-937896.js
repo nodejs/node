@@ -41,7 +41,7 @@ function f() {
       }
     }
   } catch (e) {
-    // Empty. 
+    // Empty.
   }
   return 42;
 }

@@ -250,16 +250,14 @@ void RunShell(v8::Handle<v8::Context> context) {
   static const int kBufferSize = 256;
   // Enter the execution environment before evaluating any code.
   v8::Context::Scope context_scope(context);
+  v8::Local<v8::String> name(v8::String::New("(shell)"));
   while (true) {
     char buffer[kBufferSize];
     printf("> ");
     char* str = fgets(buffer, kBufferSize, stdin);
     if (str == NULL) break;
     v8::HandleScope handle_scope;
-    ExecuteString(v8::String::New(str),
-                  v8::String::New("(shell)"),
-                  true,
-                  true);
+    ExecuteString(v8::String::New(str), name, true, true);
   }
   printf("\n");
 }

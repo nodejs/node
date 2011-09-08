@@ -29,7 +29,7 @@
 
 try {
   function Crash() { continue;if (Crash) {
-    } } 
+    } }
   Crash();
   assertTrue(false);
 } catch (e) {

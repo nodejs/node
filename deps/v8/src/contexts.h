@@ -44,6 +44,30 @@ enum ContextLookupFlags {
 };
 
 
+// ES5 10.2 defines lexical environments with mutable and immutable bindings.
+// Immutable bindings have two states, initialized and uninitialized, and
+// their state is changed by the InitializeImmutableBinding method.
+//
+// The harmony proposal for block scoped bindings also introduces the
+// uninitialized state for mutable bindings. A 'let' declared variable
+// is a mutable binding that is created uninitalized upon activation of its
+// lexical environment and it is initialized when evaluating its declaration
+// statement. Var declared variables are mutable bindings that are
+// immediately initialized upon creation. The BindingFlags enum represents
+// information if a binding has definitely been initialized. 'const' declared
+// variables are created as uninitialized immutable bindings.
+
+// In harmony mode accessing an uninitialized binding produces a reference
+// error.
+enum BindingFlags {
+  MUTABLE_IS_INITIALIZED,
+  MUTABLE_CHECK_INITIALIZED,
+  IMMUTABLE_IS_INITIALIZED,
+  IMMUTABLE_CHECK_INITIALIZED,
+  MISSING_BINDING
+};
+
+
 // Heap-allocated activation contexts.
 //
 // Contexts are implemented as FixedArray objects; the Context
@@ -351,8 +375,11 @@ class Context: public FixedArray {
   // 4) index_ < 0 && result.is_null():
   //    there was no context found with the corresponding property.
   //    attributes == ABSENT.
-  Handle<Object> Lookup(Handle<String> name, ContextLookupFlags flags,
-                        int* index_, PropertyAttributes* attributes);
+  Handle<Object> Lookup(Handle<String> name,
+                        ContextLookupFlags flags,
+                        int* index_,
+                        PropertyAttributes* attributes,
+                        BindingFlags* binding_flags);
 
   // Determine if a local variable with the given name exists in a
   // context.  Do not consider context extension objects.  This is

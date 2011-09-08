@@ -112,6 +112,11 @@ class Scope: public ZoneObject {
 
   void Initialize(bool inside_with);
 
+  // Checks if the block scope is redundant, i.e. it does not contain any
+  // block scoped declarations. In that case it is removed from the scope
+  // tree and its children are reparented.
+  Scope* FinalizeBlockScope();
+
   // ---------------------------------------------------------------------------
   // Declarations
 
@@ -130,7 +135,7 @@ class Scope: public ZoneObject {
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  void DeclareParameter(Handle<String> name);
+  void DeclareParameter(Handle<String> name, Variable::Mode mode);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
@@ -182,6 +187,10 @@ class Scope: public ZoneObject {
   // Check if the scope has (at least) one illegal redeclaration.
   bool HasIllegalRedeclaration() const { return illegal_redecl_ != NULL; }
 
+  // For harmony block scoping mode: Check if the scope has conflicting var
+  // declarations, i.e. a var declaration that has been hoisted from a nested
+  // scope over a let binding of the same name.
+  Declaration* CheckConflictingVarDeclarations();
 
   // ---------------------------------------------------------------------------
   // Scope-specific info.
@@ -235,7 +244,7 @@ class Scope: public ZoneObject {
   // The variable holding the function literal for named function
   // literals, or NULL.
   // Only valid for function scopes.
-  Variable* function() const {
+  VariableProxy* function() const {
     ASSERT(is_function_scope());
     return function_;
   }
@@ -354,7 +363,7 @@ class Scope: public ZoneObject {
   // Convenience variable.
   Variable* receiver_;
   // Function variable, if any; function scopes only.
-  Variable* function_;
+  VariableProxy* function_;
   // Convenience variable; function scopes only.
   Variable* arguments_;
 
@@ -434,10 +443,6 @@ class Scope: public ZoneObject {
 
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
-
-  inline Slot* NewSlot(Variable* var, Slot::Type type, int index) {
-    return new(isolate_->zone()) Slot(isolate_, var, type, index);
-  }
 
   void AddInnerScope(Scope* inner_scope) {
     if (inner_scope != NULL) {

@@ -194,14 +194,14 @@ bool LCodeGen::GeneratePrologue() {
     // Copy parameters into context if necessary.
     int num_parameters = scope()->num_parameters();
     for (int i = 0; i < num_parameters; i++) {
-      Slot* slot = scope()->parameter(i)->AsSlot();
-      if (slot != NULL && slot->type() == Slot::CONTEXT) {
+      Variable* var = scope()->parameter(i);
+      if (var->IsContextSlot()) {
         int parameter_offset = StandardFrameConstants::kCallerSPOffset +
             (num_parameters - 1 - i) * kPointerSize;
         // Load parameter from stack.
         __ mov(eax, Operand(ebp, parameter_offset));
         // Store it in the context.
-        int context_offset = Context::SlotOffset(slot->index());
+        int context_offset = Context::SlotOffset(var->index());
         __ mov(Operand(esi, context_offset), eax);
         // Update the write barrier. This clobbers all involved
         // registers, so we have to use a third register to avoid
@@ -3175,7 +3175,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
 void LCodeGen::DoStoreKeyedFastDoubleElement(
     LStoreKeyedFastDoubleElement* instr) {
   XMMRegister value = ToDoubleRegister(instr->value());
-  Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Label have_value;
 
   __ ucomisd(value, value);
@@ -3234,8 +3233,6 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the indirect string shape: slice or cons.
   Label cons_string;
-  const uint32_t kSlicedNotConsMask = kSlicedStringTag & ~kConsStringTag;
-  ASSERT(IsPowerOf2(kSlicedNotConsMask) && kSlicedNotConsMask != 0);
   __ test(result, Immediate(kSlicedNotConsMask));
   __ j(zero, &cons_string, Label::kNear);
 
@@ -3271,7 +3268,8 @@ void LCodeGen::DoStringCharCodeAt(LStringCharCodeAt* instr) {
 
   // Dispatch on the encoding: ASCII or two-byte.
   Label ascii_string;
-  STATIC_ASSERT(kAsciiStringTag != 0);
+  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
+  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
   __ test(result, Immediate(kStringEncodingMask));
   __ j(not_zero, &ascii_string, Label::kNear);
 

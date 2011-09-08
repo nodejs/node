@@ -692,11 +692,11 @@ void Assembler::bind(Label* L) {
 void Assembler::next(Label* L) {
   ASSERT(L->is_linked());
   int link = target_at(L->pos());
-  if (link > 0) {
-    L->link_to(link);
-  } else {
-    ASSERT(link == kEndOfChain);
+  if (link == kEndOfChain) {
     L->Unuse();
+  } else {
+    ASSERT(link >= 0);
+    L->link_to(link);
   }
 }
 

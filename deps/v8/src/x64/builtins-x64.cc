@@ -139,7 +139,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     // rdi: constructor
     __ movq(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi
-    ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTag == 0);
     __ JumpIfSmi(rax, &rt_call);
     // rdi: constructor
     // rax: initial map (if proven valid below)
@@ -1283,7 +1283,7 @@ void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
     // Initial map for the builtin Array functions should be maps.
     __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
-    ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
     __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rbx, MAP_TYPE, rcx);
@@ -1317,7 +1317,7 @@ void Builtins::Generate_ArrayConstructCode(MacroAssembler* masm) {
     // Initial map for the builtin Array function should be a map.
     __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
     // Will both indicate a NULL and a Smi.
-    ASSERT(kSmiTag == 0);
+    STATIC_ASSERT(kSmiTag == 0);
     Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
     __ Check(not_smi, "Unexpected initial map for Array function");
     __ CmpObjectType(rbx, MAP_TYPE, rcx);

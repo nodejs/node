@@ -250,7 +250,7 @@ function break_from_nested_catch(x) {
     } catch (o) {
       x--;
     }
-  } 
+  }
   return x;
 }
 
@@ -274,7 +274,7 @@ function break_from_nested_finally(x) {
       x--;
     }
     x--; // should not happen
-  } 
+  }
   return x;
 }
 

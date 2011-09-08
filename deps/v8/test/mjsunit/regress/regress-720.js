@@ -27,7 +27,7 @@
 
 // This regression test is used to ensure that Object.defineProperty
 // keeps the existing value of the writable flag if none is given
-// in the provided descriptor. 
+// in the provided descriptor.
 // See: http://code.google.com/p/v8/issues/detail?id=720
 
 var o = {x: 10};

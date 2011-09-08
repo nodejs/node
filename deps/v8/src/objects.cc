@@ -7009,7 +7009,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           JSFunction* function =
               JSFunction::cast(LiteralArray()->get(function_id));
           unsigned height = iterator.Next();
-          PrintF(out, "{ast_id=%d, \nfunction=", ast_id);
+          PrintF(out, "{ast_id=%d, function=", ast_id);
           function->PrintName(out);
           PrintF(out, ", height=%u}", height);
           break;

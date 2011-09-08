@@ -79,7 +79,7 @@ assertEquals(7, foo7[15]);
 // Test for the classic code generator.
 
 function fun(x) {
-  var inner = { j: function(x) { return x; }, j: 7 }; 
+  var inner = { j: function(x) { return x; }, j: 7 };
   return inner.j;
 }
 

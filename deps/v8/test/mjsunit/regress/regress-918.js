@@ -28,6 +28,6 @@
 // Parser should not accept parentheses around labels.
 // See http://code.google.com/p/v8/issues/detail?id=918
 
-// The label was parsed as an expression and then tested for being a 
+// The label was parsed as an expression and then tested for being a
 // single identifier. This threw away the parentheses.
 assertThrows("(label):42;");
