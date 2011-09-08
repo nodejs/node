@@ -32,6 +32,15 @@ def CalculateVariables(default_variables, params):
   default_variables['OS'] = generator_flags.get('os', 'linux')
 
 
+def CalculateGeneratorInputInfo(params):
+  """Calculate the generator specific info that gets fed to input (called by
+  gyp)."""
+  generator_flags = params.get('generator_flags', {})
+  if generator_flags.get('adjust_static_libraries', False):
+    global generator_wants_static_library_dependencies_adjusted
+    generator_wants_static_library_dependencies_adjusted = True
+
+
 def GenerateOutput(target_list, target_dicts, data, params):
   # Map of target -> list of targets it depends on.
   edges = {}

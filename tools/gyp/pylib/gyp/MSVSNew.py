@@ -248,10 +248,13 @@ class MSVSSolution:
     sln_root = os.path.split(self.path)[0]
     for e in all_entries:
       relative_path = gyp.common.RelativePath(e.path, sln_root)
+      # msbuild does not accept an empty folder_name.
+      # use '.' in case relative_path is empty.
+      folder_name = relative_path.replace('/', '\\') or '.'
       f.write('Project("%s") = "%s", "%s", "%s"\r\n' % (
           e.entry_type_guid,          # Entry type GUID
           e.name,                     # Folder name
-          relative_path.replace('/', '\\'),  # Folder name (again)
+          folder_name,                # Folder name (again)
           e.get_guid(),               # Entry GUID
       ))
 

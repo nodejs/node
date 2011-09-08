@@ -58,6 +58,12 @@ class Writer(object):
 
         return outputs
 
+    def include(self, path):
+        self._line('include %s' % path)
+
+    def subninja(self, path):
+        self._line('subninja %s' % path)
+
     def _line(self, text, indent=0):
         """Write 'text' word-wrapped at self.width characters."""
         leading_space = '  ' * indent
