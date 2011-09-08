@@ -37,11 +37,9 @@ using v8::TryCatch;
 using v8::String;
 using v8::Exception;
 using v8::Local;
-using v8::Null;
 using v8::Array;
 using v8::Persistent;
 using v8::Integer;
-using v8::Function;
 using v8::FunctionTemplate;
 
 
@@ -96,21 +94,8 @@ class WrappedScript : ObjectWrap {
   static Handle<Value> CompileRunInThisContext(const Arguments& args);
   static Handle<Value> CompileRunInNewContext(const Arguments& args);
 
-  static Handle<Value> SetCloneMethod(const Arguments& args);
-
   Persistent<Script> script_;
 };
-
-
-Persistent<Function> cloneObjectMethod;
-
-void CloneObject(Handle<Object> recv,
-                 Handle<Value> source, Handle<Value> target) {
-  HandleScope scope;
-
-  Handle<Value> args[] = {source, target};
-  cloneObjectMethod->Call(recv, 2, args);
-}
 
 
 void WrappedContext::Initialize(Handle<Object> target) {
@@ -192,10 +177,6 @@ void WrappedScript::Initialize(Handle<Object> target) {
                             "runInNewContext",
                             WrappedScript::RunInNewContext);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template,
-                            "_setCloneMethod",
-                            WrappedScript::SetCloneMethod);
-
   NODE_SET_METHOD(constructor_template,
                   "createContext",
                   WrappedScript::CreateContext);
@@ -211,10 +192,6 @@ void WrappedScript::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(constructor_template,
                   "runInNewContext",
                   WrappedScript::CompileRunInNewContext);
-
-  NODE_SET_METHOD(constructor_template,
-                  "_setCloneMethod",
-                  WrappedScript::SetCloneMethod);
 
   target->Set(String::NewSymbol("NodeScript"),
               constructor_template->GetFunction());
@@ -248,8 +225,14 @@ Handle<Value> WrappedScript::CreateContext(const Arguments& args) {
 
   if (args.Length() > 0) {
     Local<Object> sandbox = args[0]->ToObject();
+    Local<Array> keys = sandbox->GetPropertyNames();
 
-    CloneObject(args.This(), sandbox, context);
+    for (uint32_t i = 0; i < keys->Length(); i++) {
+      Handle<String> key = keys->Get(Integer::New(i))->ToString();
+      Handle<Value> value = sandbox->Get(key);
+      if(value == sandbox) { value = context; }
+      context->Set(key, value);
+    }
   }
 
 
@@ -290,15 +273,6 @@ Handle<Value> WrappedScript::CompileRunInThisContext(const Arguments& args) {
 Handle<Value> WrappedScript::CompileRunInNewContext(const Arguments& args) {
   return
     WrappedScript::EvalMachine<compileCode, newContext, returnResult>(args);
-}
-
-Handle<Value> WrappedScript::SetCloneMethod(const Arguments& args) {
-  HandleScope scope;
-
-  Local<Function> cloneObjectMethod_ = Local<Function>::Cast(args[0]);
-  cloneObjectMethod = Persistent<Function>::New(cloneObjectMethod_);
-
-  return scope.Close(Null());
 }
 
 
@@ -369,7 +343,14 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
     // Copy everything from the passed in sandbox (either the persistent
     // context for runInContext(), or the sandbox arg to runInNewContext()).
-    CloneObject(args.This(), sandbox, context->Global()->GetPrototype());
+    keys = sandbox->GetPropertyNames();
+
+    for (i = 0; i < keys->Length(); i++) {
+      Handle<String> key = keys->Get(Integer::New(i))->ToString();
+      Handle<Value> value = sandbox->Get(key);
+      if (value == sandbox) { value = context->Global(); }
+      context->Global()->Set(key, value);
+    }
   }
 
   // Catch errors
@@ -427,7 +408,13 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
   if (context_flag == userContext || context_flag == newContext) {
     // success! copy changes back onto the sandbox object.
-    CloneObject(args.This(), context->Global()->GetPrototype(), sandbox);
+    keys = context->Global()->GetPropertyNames();
+    for (i = 0; i < keys->Length(); i++) {
+      Handle<String> key = keys->Get(Integer::New(i))->ToString();
+      Handle<Value> value = context->Global()->Get(key);
+      if (value == context->Global()) { value = sandbox; }
+      sandbox->Set(key, value);
+    }
   }
 
   if (context_flag == newContext) {
