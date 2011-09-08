@@ -41,3 +41,21 @@ delete a[1];
 assert.equal(util.inspect(a), "[ 'foo', , 'baz' ]");
 assert.equal(util.inspect(a, true), "[ 'foo', , 'baz', [length]: 3 ]");
 assert.equal(util.inspect(new Array(5)), '[ , , , ,  ]');
+
+// exceptions should print the error message, not "{}"
+assert.equal(util.inspect(new Error()), '[Error]');
+assert.equal(util.inspect(new Error('FAIL')), '[Error: FAIL]');
+assert.equal(util.inspect(new TypeError('FAIL')), '[TypeError: FAIL]');
+assert.equal(util.inspect(new SyntaxError('FAIL')), '[SyntaxError: FAIL]');
+try {
+  undef();
+} catch (e) {
+  assert.equal(util.inspect(e), '[ReferenceError: undef is not defined]');
+}
+var ex = util.inspect(new Error('FAIL'), true);
+console.log(ex);
+assert.ok(ex.indexOf("[Error: FAIL]") != -1);
+assert.ok(ex.indexOf("[stack]") != -1);
+assert.ok(ex.indexOf("[message]") != -1);
+assert.ok(ex.indexOf("[arguments]") != -1);
+assert.ok(ex.indexOf("[type]") != -1);
