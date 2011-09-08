@@ -37,9 +37,11 @@ using v8::TryCatch;
 using v8::String;
 using v8::Exception;
 using v8::Local;
+using v8::Null;
 using v8::Array;
 using v8::Persistent;
 using v8::Integer;
+using v8::Function;
 using v8::FunctionTemplate;
 
 
@@ -96,6 +98,38 @@ class WrappedScript : ObjectWrap {
 
   Persistent<Script> script_;
 };
+
+
+Persistent<Function> cloneObjectMethod;
+
+void CloneObject(Handle<Object> recv,
+                 Handle<Value> source, Handle<Value> target) {
+  HandleScope scope;
+
+  Handle<Value> args[] = {source, target};
+
+  // Init
+  if (cloneObjectMethod.IsEmpty()) {
+    Local<Function> cloneObjectMethod_ = Local<Function>::Cast(
+      Script::Compile(String::New(
+        "(function(source, target) {\n\
+           Object.getOwnPropertyNames(source).forEach(function(key) {\n\
+           try {\n\
+             var desc = Object.getOwnPropertyDescriptor(source, key);\n\
+             if (desc.value === source) desc.value = target;\n\
+             Object.defineProperty(target, key, desc);\n\
+           } catch (e) {\n\
+            // Catch sealed properties errors\n\
+           }\n\
+         });\n\
+        })"
+      ), String::New("binding:script"))->Run()
+    );
+    cloneObjectMethod = Persistent<Function>::New(cloneObjectMethod_);
+  }
+
+  cloneObjectMethod->Call(recv, 2, args);
+}
 
 
 void WrappedContext::Initialize(Handle<Object> target) {
@@ -225,14 +259,8 @@ Handle<Value> WrappedScript::CreateContext(const Arguments& args) {
 
   if (args.Length() > 0) {
     Local<Object> sandbox = args[0]->ToObject();
-    Local<Array> keys = sandbox->GetPropertyNames();
 
-    for (uint32_t i = 0; i < keys->Length(); i++) {
-      Handle<String> key = keys->Get(Integer::New(i))->ToString();
-      Handle<Value> value = sandbox->Get(key);
-      if(value == sandbox) { value = context; }
-      context->Set(key, value);
-    }
+    CloneObject(args.This(), sandbox, context);
   }
 
 
@@ -343,14 +371,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
     // Copy everything from the passed in sandbox (either the persistent
     // context for runInContext(), or the sandbox arg to runInNewContext()).
-    keys = sandbox->GetPropertyNames();
-
-    for (i = 0; i < keys->Length(); i++) {
-      Handle<String> key = keys->Get(Integer::New(i))->ToString();
-      Handle<Value> value = sandbox->Get(key);
-      if (value == sandbox) { value = context->Global(); }
-      context->Global()->Set(key, value);
-    }
+    CloneObject(args.This(), sandbox, context->Global()->GetPrototype());
   }
 
   // Catch errors
@@ -408,13 +429,7 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
   if (context_flag == userContext || context_flag == newContext) {
     // success! copy changes back onto the sandbox object.
-    keys = context->Global()->GetPropertyNames();
-    for (i = 0; i < keys->Length(); i++) {
-      Handle<String> key = keys->Get(Integer::New(i))->ToString();
-      Handle<Value> value = context->Global()->Get(key);
-      if (value == context->Global()) { value = sandbox; }
-      sandbox->Set(key, value);
-    }
+    CloneObject(args.This(), context->Global()->GetPrototype(), sandbox);
   }
 
   if (context_flag == newContext) {
