@@ -118,8 +118,6 @@ static void uv_fs_req_init_sync(uv_loop_t* loop, uv_fs_t* req,
   req->errorno = 0;
 }
 
-/* this is where the CRT stores the current umask */
-extern int _umaskval;
 
 void fs__open(uv_fs_t* req, const char* path, int flags, int mode) {
   DWORD access;
@@ -128,7 +126,12 @@ void fs__open(uv_fs_t* req, const char* path, int flags, int mode) {
   DWORD disposition;
   DWORD attributes;
   HANDLE file;
-  int result;
+  int result, current_umask;
+
+  /* Obtain the active umask. umask() never fails and returns the previous */
+  /* umask. */
+  current_umask = umask(0);
+  umask(current_umask);
 
   /* convert flags and mode to CreateFile parameters */
   switch (flags & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
@@ -188,7 +191,7 @@ void fs__open(uv_fs_t* req, const char* path, int flags, int mode) {
 
   attributes = FILE_ATTRIBUTE_NORMAL;
   if (flags & _O_CREAT) {
-    if (!((mode & ~_umaskval) & _S_IWRITE)) {
+    if (!((mode & ~current_umask) & _S_IWRITE)) {
       attributes |= FILE_ATTRIBUTE_READONLY;
     }
   }

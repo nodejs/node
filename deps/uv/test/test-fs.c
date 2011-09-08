@@ -1096,7 +1096,7 @@ TEST_IMPL(fs_symlink) {
   ASSERT(r == 0);
 #ifdef _WIN32
   if (req.result == -1) {
-    if (req.errorno == ENOTSUP) {
+    if (req.errorno == ENOSYS) {
       /*
        * Windows doesn't support symlinks on older versions.
        * We just pass the test and bail out early if we get ENOTSUP.

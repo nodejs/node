@@ -4241,6 +4241,11 @@ typedef enum _FILE_INFORMATION_CLASS {
 # define FILE_WRITE_ACCESS 0x0002
 #endif
 
+#ifndef CTL_CODE
+# define CTL_CODE(device_type, function, method, access)                      \
+    (((device_type) << 16) | ((access) << 14) | ((function) << 2) | (method))
+#endif
+
 #ifndef FSCTL_SET_REPARSE_POINT
 # define FSCTL_SET_REPARSE_POINT CTL_CODE(FILE_DEVICE_FILE_SYSTEM,            \
                                           41,                                 \
