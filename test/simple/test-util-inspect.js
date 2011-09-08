@@ -33,3 +33,11 @@ var orig = util.inspect(d);
 Date2.prototype.foo = 'bar';
 var after = util.inspect(d);
 assert.equal(orig, after);
+
+// test for sparse array
+var a = [ 'foo', 'bar', 'baz' ];
+assert.equal(util.inspect(a), "[ 'foo', 'bar', 'baz' ]");
+delete a[1];
+assert.equal(util.inspect(a), "[ 'foo', , 'baz' ]");
+assert.equal(util.inspect(a, true), "[ 'foo', , 'baz', [length]: 3 ]");
+assert.equal(util.inspect(new Array(5)), '[ , , , ,  ]');
