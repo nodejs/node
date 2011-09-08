@@ -1,5 +1,4 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
- *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -20,44 +19,50 @@
  */
 
 #include "uv.h"
-#include "task.h"
+
 #include <string.h>
+#include <time.h>
 
-#define PATHMAX 1024
-extern char executable_path[];
+#include <sys/types.h>
+#include <sys/sysctl.h>
 
-TEST_IMPL(get_currentexe) {
-  char buffer[PATHMAX];
-  size_t size;
-  char* match;
+#include <unistd.h>
+
+#undef NANOSEC
+#define NANOSEC 1000000000
+
+uint64_t uv_hrtime(void) {
+  struct timespec ts;
+  clock_gettime(CLOCK_MONOTONIC, &ts);
+  return (ts.tv_sec * NANOSEC + ts.tv_nsec);
+}
+
+
+int uv_exepath(char* buffer, size_t* size) {
+  uint32_t usize;
+  int result;
   char* path;
-  int r;
+  char* fullpath;
+  int mib[4];
+  size_t cb;
+  pid_t mypid;
 
-  size = sizeof(buffer) / sizeof(buffer[0]);
-  r = uv_exepath(buffer, &size);
-  ASSERT(!r);
-
-  /* uv_exepath can return an absolute path on darwin, so if the test runner
-   * was run with a relative prefix of "./", we need to strip that prefix off
-   * executable_path or we'll fail. */
-  if (executable_path[0] == '.' && executable_path[1] == '/') {
-    path = executable_path + 2;
-  } else {
-    path = executable_path;
+  if (!buffer || !size) {
+    return -1;
   }
 
-  match = strstr(buffer, path);
-  /* Verify that the path returned from uv_exepath is a subdirectory of executable_path */
-  ASSERT(match && !strcmp(match, path));
-  ASSERT(size == strlen(buffer));
+  mypid = getpid();
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC_ARGS;
+  mib[2] = mypid;
+  mib[3] = KERN_PROC_ARGV;
 
-  /* Negative tests */
-  size = sizeof(buffer) / sizeof(buffer[0]);
-  r = uv_exepath(NULL, &size);
-  ASSERT(r == -1);
-
-  r = uv_exepath(buffer, NULL);
-  ASSERT(r == -1);
+  cb = *size;
+  if (sysctl(mib, 4, buffer, &cb, NULL, 0) < 0) {
+    *size = 0;
+    return -1;
+  }
+  *size = strlen(buffer);
 
   return 0;
 }

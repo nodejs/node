@@ -72,6 +72,14 @@ LINKFLAGS+=
 OBJS += src/unix/freebsd.o
 endif
 
+ifeq (NetBSD,$(uname_S))
+EV_CONFIG=config_netbsd.h
+EIO_CONFIG=config_netbsd.h
+CPPFLAGS += -Isrc/ares/config_netbsd
+LINKFLAGS+=
+OBJS += src/unix/netbsd.o
+endif
+
 ifneq (,$(findstring CYGWIN,$(uname_S)))
 EV_CONFIG=config_cygwin.h
 EIO_CONFIG=config_cygwin.h

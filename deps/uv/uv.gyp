@@ -88,7 +88,6 @@
           'include_dirs': [
             'src/ares/config_win32'
           ],
-          'sources': [ 'src/ares/windows_port.c' ],
           'defines': [
             '_WIN32_WINNT=0x0502',
             'EIO_STACKSIZE=262144',
@@ -98,6 +97,7 @@
             'include/uv-private/tree.h',
             'include/uv-private/uv-win.h',
             'src/ares/config_win32/ares_config.h',
+            'src/ares/windows_port.c',
             'src/win/async.c',
             'src/win/cares.c',
             'src/win/core.c',
@@ -245,6 +245,7 @@
         'test/test-spawn.c',
         'test/test-tcp-bind-error.c',
         'test/test-tcp-bind6-error.c',
+        'test/test-tcp-close.c',
         'test/test-tcp-writealot.c',
         'test/test-threadpool.c',
         'test/test-timer-again.c',

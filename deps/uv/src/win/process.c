@@ -1007,7 +1007,7 @@ done:
     /* it's way with them. But at least make them noninheritable. */
     int i;
     for (i = 0; i < COUNTOF(process->child_stdio); i++) {
-      SetHandleInformation(child_stdio[1], HANDLE_FLAG_INHERIT, 0);
+      SetHandleInformation(child_stdio[i], HANDLE_FLAG_INHERIT, 0);
     }
   }
 

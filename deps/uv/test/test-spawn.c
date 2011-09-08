@@ -23,12 +23,13 @@
 #include "task.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 static int close_cb_called;
 static int exit_cb_called;
 static uv_process_t process;
 static uv_timer_t timer;
-static uv_process_options_t options = { 0 };
+static uv_process_options_t options;
 static char exepath[1024];
 static size_t exepath_size = 1024;
 static char* args[3];

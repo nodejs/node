@@ -575,7 +575,7 @@ void fs__symlink(uv_fs_t* req, const char* path, const char* new_path,
     }
   } else {
     result = -1;
-    errno = ENOTSUP;
+    errno = ENOSYS;
   }
   
   SET_REQ_RESULT(req, result);

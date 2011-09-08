@@ -28,12 +28,10 @@
 /* Actual tests and helpers are defined in test-list.h */
 #include "test-list.h"
 
-
 /* The time in milliseconds after which a single test times out. */
 #define TEST_TIMEOUT  5000
 
 static int maybe_run_test(int argc, char **argv);
-static void list_all_tests(void);
 
 
 int main(int argc, char **argv) {
