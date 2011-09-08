@@ -453,7 +453,6 @@ static Handle<Value> FStat(const Arguments& args) {
   }
 }
 
-#ifdef __POSIX__
 static Handle<Value> Symlink(const Arguments& args) {
   HandleScope scope;
 
@@ -463,20 +462,23 @@ static Handle<Value> Symlink(const Arguments& args) {
 
   String::Utf8Value dest(args[0]->ToString());
   String::Utf8Value path(args[1]->ToString());
-
-  // Just set to zero for now. Support UV_FS_SYMLINK_DIR in the future.
   int flags = 0;
 
-  if (args[2]->IsFunction()) {
-    ASYNC_CALL(symlink, args[2], *dest, *path, flags)
+  if (args[2]->IsString()) {
+    String::Utf8Value mode(args[2]->ToString());
+    if (memcmp(*mode, "dir\0", 4) == 0) {
+      flags |= UV_FS_SYMLINK_DIR;
+    }
+  }
+
+  if (args[3]->IsFunction()) {
+    ASYNC_CALL(symlink, args[3], *dest, *path, flags)
   } else {
     SYNC_CALL(symlink, *path, *dest, *path, flags)
     return Undefined();
   }
 }
-#endif // __POSIX__
 
-#ifdef __POSIX__
 static Handle<Value> Link(const Arguments& args) {
   HandleScope scope;
 
@@ -494,9 +496,7 @@ static Handle<Value> Link(const Arguments& args) {
     return Undefined();
   }
 }
-#endif // __POSIX__
 
-#ifdef __POSIX__
 static Handle<Value> ReadLink(const Arguments& args) {
   HandleScope scope;
 
@@ -513,7 +513,6 @@ static Handle<Value> ReadLink(const Arguments& args) {
     return scope.Close(String::New((char*)SYNC_REQ.ptr));
   }
 }
-#endif // __POSIX__
 
 static Handle<Value> Rename(const Arguments& args) {
   HandleScope scope;
@@ -1027,11 +1026,9 @@ void File::Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "stat", Stat);
   NODE_SET_METHOD(target, "lstat", LStat);
   NODE_SET_METHOD(target, "fstat", FStat);
-#ifdef __POSIX__
   NODE_SET_METHOD(target, "link", Link);
   NODE_SET_METHOD(target, "symlink", Symlink);
   NODE_SET_METHOD(target, "readlink", ReadLink);
-#endif // __POSIX__
   NODE_SET_METHOD(target, "unlink", Unlink);
   NODE_SET_METHOD(target, "write", Write);
 
