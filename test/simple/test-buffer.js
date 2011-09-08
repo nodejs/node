@@ -687,3 +687,5 @@ buf.write('0123456789', 'binary');
 assert.equal(Buffer._charsWritten, 9);
 buf.write('123456', 'base64');
 assert.equal(Buffer._charsWritten, 6);
+buf.write('00010203040506070809', 'hex');
+assert.equal(Buffer._charsWritten, 18);
