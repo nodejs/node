@@ -668,3 +668,22 @@ assert.equal(buf[1], 0x00);
 assert.equal(buf[2], 0xFF);
 assert.equal(buf[3], 0xFF);
 
+// test for buffer overrun
+buf = new Buffer([0, 0, 0, 0, 0]); // length: 5
+var sub = buf.slice(0, 4);         // length: 4
+written = sub.write('12345', 'binary');
+assert.equal(written, 4);
+assert.equal(buf[4], 0);
+
+// test for _charsWritten
+buf = new Buffer(9);
+buf.write('あいうえ', 'utf8'); // 3bytes * 4
+assert.equal(Buffer._charsWritten, 3);
+buf.write('あいうえお', 'ucs2'); // 2bytes * 5
+assert.equal(Buffer._charsWritten, 4);
+buf.write('0123456789', 'ascii');
+assert.equal(Buffer._charsWritten, 9);
+buf.write('0123456789', 'binary');
+assert.equal(Buffer._charsWritten, 9);
+buf.write('123456', 'base64');
+assert.equal(Buffer._charsWritten, 6);
