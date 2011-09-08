@@ -404,11 +404,6 @@ bool WithStatement::IsInlineable() const {
 }
 
 
-bool ExitContextStatement::IsInlineable() const {
-  return false;
-}
-
-
 bool SwitchStatement::IsInlineable() const {
   return false;
 }

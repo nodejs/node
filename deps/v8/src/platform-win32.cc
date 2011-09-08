@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -35,75 +35,7 @@
 #include "platform.h"
 #include "vm-state-inl.h"
 
-// Extra POSIX/ANSI routines for Win32 when when using Visual Studio C++. Please
-// refer to The Open Group Base Specification for specification of the correct
-// semantics for these functions.
-// (http://www.opengroup.org/onlinepubs/000095399/)
 #ifdef _MSC_VER
-
-namespace v8 {
-namespace internal {
-
-// Test for finite value - usually defined in math.h
-int isfinite(double x) {
-  return _finite(x);
-}
-
-}  // namespace v8
-}  // namespace internal
-
-// Test for a NaN (not a number) value - usually defined in math.h
-int isnan(double x) {
-  return _isnan(x);
-}
-
-
-// Test for infinity - usually defined in math.h
-int isinf(double x) {
-  return (_fpclass(x) & (_FPCLASS_PINF | _FPCLASS_NINF)) != 0;
-}
-
-
-// Test if x is less than y and both nominal - usually defined in math.h
-int isless(double x, double y) {
-  return isnan(x) || isnan(y) ? 0 : x < y;
-}
-
-
-// Test if x is greater than y and both nominal - usually defined in math.h
-int isgreater(double x, double y) {
-  return isnan(x) || isnan(y) ? 0 : x > y;
-}
-
-
-// Classify floating point number - usually defined in math.h
-int fpclassify(double x) {
-  // Use the MS-specific _fpclass() for classification.
-  int flags = _fpclass(x);
-
-  // Determine class. We cannot use a switch statement because
-  // the _FPCLASS_ constants are defined as flags.
-  if (flags & (_FPCLASS_PN | _FPCLASS_NN)) return FP_NORMAL;
-  if (flags & (_FPCLASS_PZ | _FPCLASS_NZ)) return FP_ZERO;
-  if (flags & (_FPCLASS_PD | _FPCLASS_ND)) return FP_SUBNORMAL;
-  if (flags & (_FPCLASS_PINF | _FPCLASS_NINF)) return FP_INFINITE;
-
-  // All cases should be covered by the code above.
-  ASSERT(flags & (_FPCLASS_SNAN | _FPCLASS_QNAN));
-  return FP_NAN;
-}
-
-
-// Test sign - usually defined in math.h
-int signbit(double x) {
-  // We need to take care of the special case of both positive
-  // and negative versions of zero.
-  if (x == 0)
-    return _fpclass(x) & _FPCLASS_NZ;
-  else
-    return x < 0;
-}
-
 
 // Case-insensitive bounded string comparisons. Use stricmp() on Win32. Usually
 // defined in strings.h.

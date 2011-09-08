@@ -96,11 +96,6 @@ void BreakableStatementChecker::VisitWithStatement(WithStatement* stmt) {
 }
 
 
-void BreakableStatementChecker::VisitExitContextStatement(
-    ExitContextStatement* stmt) {
-}
-
-
 void BreakableStatementChecker::VisitSwitchStatement(SwitchStatement* stmt) {
   // Switch statements breakable if the tag expression is.
   Visit(stmt->tag());
@@ -989,17 +984,6 @@ void FullCodeGenerator::VisitWithStatement(WithStatement* stmt) {
 }
 
 
-void FullCodeGenerator::VisitExitContextStatement(ExitContextStatement* stmt) {
-  Comment cmnt(masm_, "[ ExitContextStatement");
-  SetStatementPosition(stmt);
-
-  // Pop context.
-  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
-  // Update local stack frame context field.
-  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
-}
-
-
 void FullCodeGenerator::VisitDoWhileStatement(DoWhileStatement* stmt) {
   Comment cmnt(masm_, "[ DoWhileStatement");
   SetStatementPosition(stmt);
@@ -1147,6 +1131,9 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
   { WithOrCatch body(this);
     Visit(stmt->catch_block());
   }
+  // Restore the context.
+  LoadContextField(context_register(), Context::PREVIOUS_INDEX);
+  StoreToFrameField(StandardFrameConstants::kContextOffset, context_register());
   scope_ = saved_scope;
   __ jmp(&done);
 

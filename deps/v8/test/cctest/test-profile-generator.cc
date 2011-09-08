@@ -37,16 +37,16 @@ TEST(TokenEnumerator) {
   TokenEnumerator te;
   CHECK_EQ(TokenEnumerator::kNoSecurityToken, te.GetTokenId(NULL));
   v8::HandleScope hs;
-  v8::Local<v8::String> token1(v8::String::New("1"));
+  v8::Local<v8::String> token1(v8::String::New("1x"));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
-  v8::Local<v8::String> token2(v8::String::New("2"));
+  v8::Local<v8::String> token2(v8::String::New("2x"));
   CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
   CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   {
     v8::HandleScope hs;
-    v8::Local<v8::String> token3(v8::String::New("3"));
+    v8::Local<v8::String> token3(v8::String::New("3x"));
     CHECK_EQ(2, te.GetTokenId(*v8::Utils::OpenHandle(*token3)));
     CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
     CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));

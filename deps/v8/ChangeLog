@@ -1,3 +1,14 @@
+2011-09-08: Version 3.6.2
+
+        Added "dependencies" target to top-level Makefile.
+
+        Added ability to turn profiler on/off in d8.
+
+        Added "soname_version" parameter to common.gypi, v8.gyp, and Makefile.
+
+        Fixed several crash bugs.
+
+
 2011-09-07: Version 3.6.1
 
         Fixed a bug in abrupt exit from with or catch inside finally.
@@ -14,23 +25,23 @@
 
 2011-09-05: Version 3.6.0
 
-	Fixed a bug when optimizing named function expression (issue 1647).
+        Fixed a bug when optimizing named function expression (issue 1647).
 
-	Fixed a bug when optimizing f.call.apply (issue 1650).
+        Fixed a bug when optimizing f.call.apply (issue 1650).
 
-	Made arguments and caller always be null on native functions
-	(issues 1548 and 1643).
+        Made arguments and caller always be null on native functions
+        (issues 1548 and 1643).
 
-	Fixed issue 1648 (cross-compiling x64 targeting ia32).
+        Fixed issue 1648 (cross-compiling x64 targeting ia32).
 
-	Fixed issue 371 (d8 printing of strings containing \0).
+        Fixed issue 371 (d8 printing of strings containing \0).
 
-	Fixed order of evaluation in arguments to parseInt (issue 1649).
+        Fixed order of evaluation in arguments to parseInt (issue 1649).
 
-	Fixed a problem with large heap snapshots in Chrome DevTools
-	(issue 1658, chromium issue 89268).
+        Fixed a problem with large heap snapshots in Chrome DevTools
+        (issue 1658, chromium issue 89268).
 
-	Upped default maximum heap size from 512M to 700M.
+        Upped default maximum heap size from 512M to 700M.
 
 
 2011-08-31: Version 3.5.10

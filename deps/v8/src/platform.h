@@ -44,52 +44,11 @@
 #ifndef V8_PLATFORM_H_
 #define V8_PLATFORM_H_
 
-#define V8_INFINITY INFINITY
-
-// Windows specific stuff.
-#ifdef WIN32
-
-// Microsoft Visual C++ specific stuff.
-#ifdef _MSC_VER
-
-enum {
-  FP_NAN,
-  FP_INFINITE,
-  FP_ZERO,
-  FP_SUBNORMAL,
-  FP_NORMAL
-};
-
-#undef V8_INFINITY
-#define V8_INFINITY HUGE_VAL
-
-namespace v8 {
-namespace internal {
-int isfinite(double x);
-} }
-int isnan(double x);
-int isinf(double x);
-int isless(double x, double y);
-int isgreater(double x, double y);
-int fpclassify(double x);
-int signbit(double x);
-
-int strncasecmp(const char* s1, const char* s2, int n);
-
-#endif  // _MSC_VER
-
-// Random is missing on both Visual Studio and MinGW.
-int random();
-
-#endif  // WIN32
-
-
 #ifdef __sun
 # ifndef signbit
 int signbit(double x);
 # endif
 #endif
-
 
 // GCC specific stuff
 #ifdef __GNUC__
@@ -99,19 +58,25 @@ int signbit(double x);
 
 #define __GNUC_VERSION__ (__GNUC__ * 10000 + __GNUC_MINOR__ * 100)
 
-// Unfortunately, the INFINITY macro cannot be used with the '-pedantic'
-// warning flag and certain versions of GCC due to a bug:
-// http://gcc.gnu.org/bugzilla/show_bug.cgi?id=11931
-// For now, we use the more involved template-based version from <limits>, but
-// only when compiling with GCC versions affected by the bug (2.96.x - 4.0.x)
-// __GNUC_PREREQ is not defined in GCC for Mac OS X, so we define our own macro
-#if __GNUC_VERSION__ >= 29600 && __GNUC_VERSION__ < 40100
-#include <limits>
-#undef V8_INFINITY
-#define V8_INFINITY std::numeric_limits<double>::infinity()
-#endif
-
 #endif  // __GNUC__
+
+
+// Windows specific stuff.
+#ifdef WIN32
+
+// Microsoft Visual C++ specific stuff.
+#ifdef _MSC_VER
+
+#include "win32-math.h"
+
+int strncasecmp(const char* s1, const char* s2, int n);
+
+#endif  // _MSC_VER
+
+// Random is missing on both Visual Studio and MinGW.
+int random();
+
+#endif  // WIN32
 
 #include "atomicops.h"
 #include "platform-tls.h"

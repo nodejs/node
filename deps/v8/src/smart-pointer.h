@@ -37,35 +37,31 @@ namespace internal {
 template<typename T>
 class SmartPointer {
  public:
+  // Default constructor. Constructs an empty scoped pointer.
+  inline SmartPointer() : p_(NULL) {}
 
-  // Default constructor. Construct an empty scoped pointer.
-  inline SmartPointer() : p(NULL) {}
-
-
-  // Construct a scoped pointer from a plain one.
-  explicit inline SmartPointer(T* pointer) : p(pointer) {}
-
+  // Constructs a scoped pointer from a plain one.
+  explicit inline SmartPointer(T* ptr) : p_(ptr) {}
 
   // Copy constructor removes the pointer from the original to avoid double
   // freeing.
-  inline SmartPointer(const SmartPointer<T>& rhs) : p(rhs.p) {
-    const_cast<SmartPointer<T>&>(rhs).p = NULL;
+  inline SmartPointer(const SmartPointer<T>& rhs) : p_(rhs.p_) {
+    const_cast<SmartPointer<T>&>(rhs).p_ = NULL;
   }
-
 
   // When the destructor of the scoped pointer is executed the plain pointer
   // is deleted using DeleteArray.  This implies that you must allocate with
   // NewArray.
-  inline ~SmartPointer() { if (p) DeleteArray(p); }
+  inline ~SmartPointer() { if (p_) DeleteArray(p_); }
 
+  inline T* operator->() const { return p_; }
 
   // You can get the underlying pointer out with the * operator.
-  inline T* operator*() { return p; }
-
+  inline T* operator*() { return p_; }
 
   // You can use [n] to index as if it was a plain pointer
   inline T& operator[](size_t i) {
-    return p[i];
+    return p_[i];
   }
 
   // We don't have implicit conversion to a T* since that hinders migration:
@@ -77,31 +73,26 @@ class SmartPointer {
   // deleted then call Detach().  Afterwards, the smart pointer is empty
   // (NULL).
   inline T* Detach() {
-    T* temp = p;
-    p = NULL;
+    T* temp = p_;
+    p_ = NULL;
     return temp;
   }
-
 
   // Assignment requires an empty (NULL) SmartPointer as the receiver.  Like
   // the copy constructor it removes the pointer in the original to avoid
   // double freeing.
   inline SmartPointer& operator=(const SmartPointer<T>& rhs) {
     ASSERT(is_empty());
-    T* tmp = rhs.p;  // swap to handle self-assignment
-    const_cast<SmartPointer<T>&>(rhs).p = NULL;
-    p = tmp;
+    T* tmp = rhs.p_;  // swap to handle self-assignment
+    const_cast<SmartPointer<T>&>(rhs).p_ = NULL;
+    p_ = tmp;
     return *this;
   }
 
-
-  inline bool is_empty() {
-    return p == NULL;
-  }
-
+  inline bool is_empty() { return p_ == NULL; }
 
  private:
-  T* p;
+  T* p_;
 };
 
 } }  // namespace v8::internal

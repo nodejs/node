@@ -72,6 +72,9 @@
     'v8_use_snapshot%': 'true',
     'host_os%': '<(OS)',
     'v8_use_liveobjectlist%': 'false',
+
+    # For a shared library build, results in "libv8-<(soname_version).so".
+    'soname_version%': '',
   },
   'target_defaults': {
     'conditions': [

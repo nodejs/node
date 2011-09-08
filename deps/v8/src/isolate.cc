@@ -43,7 +43,6 @@
 #include "messages.h"
 #include "regexp-stack.h"
 #include "runtime-profiler.h"
-#include "scanner.h"
 #include "scopeinfo.h"
 #include "serialize.h"
 #include "simulator.h"

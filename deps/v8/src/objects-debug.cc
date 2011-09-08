@@ -257,9 +257,9 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
-  ASSERT(map()->has_fast_elements() ==
-         (elements()->map() == GetHeap()->fixed_array_map() ||
-          elements()->map() == GetHeap()->fixed_cow_array_map()));
+  ASSERT_EQ(map()->has_fast_elements(),
+            (elements()->map() == GetHeap()->fixed_array_map() ||
+             elements()->map() == GetHeap()->fixed_cow_array_map()));
   ASSERT(map()->has_fast_elements() == HasFastElements());
 }
 

@@ -39,6 +39,7 @@
 #include "platform.h"
 #include "preparser.h"
 #include "runtime.h"
+#include "scanner-character-streams.h"
 #include "scopeinfo.h"
 #include "string-stream.h"
 
@@ -2216,8 +2217,6 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Expect(Token::RPAREN, CHECK_OK);
 
     if (peek() == Token::LBRACE) {
-      // Rewrite the catch body { B } to a block:
-      // { { B } ExitContext; }.
       Target target(&this->target_stack_, &catch_collector);
       catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
       if (top_scope_->is_strict_mode()) {
@@ -2226,14 +2225,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
       Variable::Mode mode = harmony_block_scoping_
           ? Variable::LET : Variable::VAR;
       catch_variable = catch_scope->DeclareLocal(name, mode);
-      catch_block = new(zone()) Block(isolate(), NULL, 2, false);
 
       Scope* saved_scope = top_scope_;
       top_scope_ = catch_scope;
-      Block* catch_body = ParseBlock(NULL, CHECK_OK);
+      catch_block = ParseBlock(NULL, CHECK_OK);
       top_scope_ = saved_scope;
-      catch_block->AddStatement(catch_body);
-      catch_block->AddStatement(new(zone()) ExitContextStatement());
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }

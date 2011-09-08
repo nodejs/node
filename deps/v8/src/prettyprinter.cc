@@ -131,11 +131,6 @@ void PrettyPrinter::VisitWithStatement(WithStatement* node) {
 }
 
 
-void PrettyPrinter::VisitExitContextStatement(ExitContextStatement* node) {
-  Print("<exit context>");
-}
-
-
 void PrettyPrinter::VisitSwitchStatement(SwitchStatement* node) {
   PrintLabels(node->labels());
   Print("switch (");
@@ -783,11 +778,6 @@ void AstPrinter::VisitWithStatement(WithStatement* node) {
 }
 
 
-void AstPrinter::VisitExitContextStatement(ExitContextStatement* node) {
-  PrintIndented("EXIT CONTEXT\n");
-}
-
-
 void AstPrinter::VisitSwitchStatement(SwitchStatement* node) {
   IndentedScope indent(this, "SWITCH");
   PrintLabelsIndented(NULL, node->labels());
@@ -1184,11 +1174,6 @@ void JsonAstBuilder::VisitWithStatement(WithStatement* stmt) {
   TagScope tag(this, "WithStatement");
   Visit(stmt->expression());
   Visit(stmt->statement());
-}
-
-
-void JsonAstBuilder::VisitExitContextStatement(ExitContextStatement* stmt) {
-  TagScope tag(this, "ExitContextStatement");
 }
 
 

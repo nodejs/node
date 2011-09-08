@@ -208,7 +208,6 @@ void Processor::VisitWithStatement(WithStatement* node) {
 void Processor::VisitDeclaration(Declaration* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
 void Processor::VisitReturnStatement(ReturnStatement* node) {}
-void Processor::VisitExitContextStatement(ExitContextStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
 
 

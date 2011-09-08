@@ -30,10 +30,9 @@
 
 #include "allocation.h"
 #include "ast.h"
-#include "scanner.h"
-#include "scopes.h"
 #include "preparse-data-format.h"
 #include "preparse-data.h"
+#include "scopes.h"
 
 namespace v8 {
 namespace internal {

@@ -311,13 +311,17 @@ class SourceProcessor(SourceFileProcessor):
 
   def ProcessFiles(self, files, path):
     success = True
+    violations = 0
     for file in files:
       try:
         handle = open(file)
         contents = handle.read()
-        success = self.ProcessContents(file, contents) and success
+        if not self.ProcessContents(file, contents):
+          success = False
+          violations += 1
       finally:
         handle.close()
+    print "Total violating files: %s" % violations
     return success
 
 
@@ -333,8 +337,10 @@ def Main():
   parser = GetOptions()
   (options, args) = parser.parse_args()
   success = True
+  print "Running C++ lint check..."
   if not options.no_lint:
     success = CppLintProcessor().Run(workspace) and success
+  print "Running copyright header and trailing whitespaces check..."
   success = SourceProcessor().Run(workspace) and success
   if success:
     return 0

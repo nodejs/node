@@ -44,6 +44,7 @@
 #include "platform.h"
 #include "profile-generator-inl.h"
 #include "runtime-profiler.h"
+#include "scanner-character-streams.h"
 #include "serialize.h"
 #include "snapshot.h"
 #include "v8threads.h"

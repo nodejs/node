@@ -111,8 +111,8 @@ SOURCES = {
     runtime.cc
     runtime-profiler.cc
     safepoint-table.cc
-    scanner-base.cc
     scanner.cc
+    scanner-character-streams.cc
     scopeinfo.cc
     scopes.cc
     serialize.cc
@@ -222,7 +222,7 @@ SOURCES = {
   'os:solaris': ['platform-solaris.cc', 'platform-posix.cc'],
   'os:cygwin':  ['platform-cygwin.cc', 'platform-posix.cc'],
   'os:nullos':  ['platform-nullos.cc'],
-  'os:win32':   ['platform-win32.cc'],
+  'os:win32':   ['platform-win32.cc', 'win32-math.cc'],
   'mode:release': [],
   'mode:debug': [
     'objects-debug.cc', 'prettyprinter.cc', 'regexp-macro-assembler-tracer.cc'
@@ -233,15 +233,25 @@ SOURCES = {
 PREPARSER_SOURCES = {
   'all': Split("""
     allocation.cc
+    bignum.cc
+    bignum-dtoa.cc
+    cached-powers.cc
+    conversions.cc
+    diy-fp.cc
+    dtoa.cc
+    fast-dtoa.cc
+    fixed-dtoa.cc
     hashmap.cc
     preparse-data.cc
     preparser.cc
     preparser-api.cc
-    scanner-base.cc
+    scanner.cc
+    strtod.cc
     token.cc
     unicode.cc
     utils.cc
-    """)
+    """),
+  'os:win32': ['win32-math.cc']
 }
 
 

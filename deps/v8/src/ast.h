@@ -62,7 +62,6 @@ namespace internal {
   V(BreakStatement)                             \
   V(ReturnStatement)                            \
   V(WithStatement)                              \
-  V(ExitContextStatement)                       \
   V(SwitchStatement)                            \
   V(DoWhileStatement)                           \
   V(WhileStatement)                             \
@@ -678,14 +677,6 @@ class WithStatement: public Statement {
  private:
   Expression* expression_;
   Statement* statement_;
-};
-
-
-class ExitContextStatement: public Statement {
- public:
-  virtual bool IsInlineable() const;
-
-  DECLARE_NODE_TYPE(ExitContextStatement)
 };
 
 

@@ -1675,7 +1675,9 @@ void HInferRepresentation::Analyze() {
   bool change = true;
   while (change) {
     change = false;
-    for (int i = 0; i < phi_count; ++i) {
+    // We normally have far more "forward edges" than "backward edges",
+    // so we terminate faster when we walk backwards.
+    for (int i = phi_count - 1; i >= 0; --i) {
       HPhi* phi = phi_list->at(i);
       for (HUseIterator it(phi->uses()); !it.Done(); it.Advance()) {
         HValue* use = it.value();
@@ -2649,14 +2651,6 @@ void HGraphBuilder::VisitWithStatement(WithStatement* stmt) {
   ASSERT(current_block() != NULL);
   ASSERT(current_block()->HasPredecessor());
   return Bailout("WithStatement");
-}
-
-
-void HGraphBuilder::VisitExitContextStatement(ExitContextStatement* stmt) {
-  ASSERT(!HasStackOverflow());
-  ASSERT(current_block() != NULL);
-  ASSERT(current_block()->HasPredecessor());
-  return Bailout("ExitContextStatement");
 }
 
 

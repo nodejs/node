@@ -30,10 +30,12 @@
 
 #include <limits>
 
-#include "scanner-base.h"
+#include "utils.h"
 
 namespace v8 {
 namespace internal {
+
+class UnicodeCache;
 
 // Maximum number of significant digits in decimal representation.
 // The longest possible double in decimal representation is
@@ -124,6 +126,8 @@ double StringToDouble(UnicodeCache* unicode_cache,
                       const char* str,
                       int flags,
                       double empty_string_val = 0);
+
+const int kDoubleToCStringMinBufferSize = 100;
 
 // Converts a double to a string value according to ECMA-262 9.8.1.
 // The buffer should be large enough for any floating point number.

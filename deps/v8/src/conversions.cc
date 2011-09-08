@@ -26,17 +26,16 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 #include <stdarg.h>
+#include <math.h>
 #include <limits.h>
 
 #include "conversions-inl.h"
 #include "dtoa.h"
-#include "scanner-base.h"
 #include "strtod.h"
 #include "utils.h"
 
 namespace v8 {
 namespace internal {
-
 
 
 double StringToDouble(UnicodeCache* unicode_cache,
@@ -390,7 +389,7 @@ char* DoubleToRadixCString(double value, int radix) {
   int integer_pos = kBufferSize - 2;
   do {
     integer_buffer[integer_pos--] =
-        chars[static_cast<int>(modulo(integer_part, radix))];
+        chars[static_cast<int>(fmod(integer_part, radix))];
     integer_part /= radix;
   } while (integer_part >= 1.0);
   // Sanity check.

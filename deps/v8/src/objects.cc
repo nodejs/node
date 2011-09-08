@@ -41,7 +41,6 @@
 #include "objects-visiting.h"
 #include "macro-assembler.h"
 #include "safepoint-table.h"
-#include "scanner-base.h"
 #include "string-stream.h"
 #include "utils.h"
 #include "vm-state-inl.h"

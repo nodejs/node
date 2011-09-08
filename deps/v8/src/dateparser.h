@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "char-predicates-inl.h"
-#include "scanner-base.h"
 
 namespace v8 {
 namespace internal {

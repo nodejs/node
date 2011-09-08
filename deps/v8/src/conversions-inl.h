@@ -32,13 +32,16 @@
 #include <math.h>
 #include <float.h>         // Required for DBL_MAX and on Win32 for finite()
 #include <stdarg.h>
+#include "globals.h"       // Required for V8_INFINITY
 
 // ----------------------------------------------------------------------------
 // Extra POSIX/ANSI functions for Win32/MSVC.
 
 #include "conversions.h"
-#include "strtod.h"
+#include "double.h"
 #include "platform.h"
+#include "scanner.h"
+#include "strtod.h"
 
 namespace v8 {
 namespace internal {
@@ -87,12 +90,15 @@ static inline double DoubleToInteger(double x) {
 int32_t DoubleToInt32(double x) {
   int32_t i = FastD2I(x);
   if (FastI2D(i) == x) return i;
-  static const double two32 = 4294967296.0;
-  static const double two31 = 2147483648.0;
-  if (!isfinite(x) || x == 0) return 0;
-  if (x < 0 || x >= two32) x = modulo(x, two32);
-  x = (x >= 0) ? floor(x) : ceil(x) + two32;
-  return (int32_t) ((x >= two31) ? x - two32 : x);
+  Double d(x);
+  int exponent = d.Exponent();
+  if (exponent < 0) {
+    if (exponent <= -Double::kSignificandSize) return 0;
+    return d.Sign() * static_cast<int32_t>(d.Significand() >> -exponent);
+  } else {
+    if (exponent > 31) return 0;
+    return d.Sign() * static_cast<int32_t>(d.Significand() << exponent);
+  }
 }
 
 

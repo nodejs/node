@@ -41,7 +41,6 @@
 #include "natives.h"
 #include "objects-visiting.h"
 #include "runtime-profiler.h"
-#include "scanner-base.h"
 #include "scopeinfo.h"
 #include "snapshot.h"
 #include "v8threads.h"
@@ -2259,8 +2258,8 @@ bool Heap::CreateInitialObjects() {
 Object* StringSplitCache::Lookup(
     FixedArray* cache, String* string, String* pattern) {
   if (!string->IsSymbol() || !pattern->IsSymbol()) return Smi::FromInt(0);
-  uintptr_t hash = string->Hash();
-  uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
+  uint32_t hash = string->Hash();
+  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == string &&
       cache->get(index + kPatternOffset) == pattern) {
@@ -2281,30 +2280,29 @@ void StringSplitCache::Enter(Heap* heap,
                              String* pattern,
                              FixedArray* array) {
   if (!string->IsSymbol() || !pattern->IsSymbol()) return;
-  uintptr_t hash = string->Hash();
-  array->set_map(heap->fixed_cow_array_map());
-  uintptr_t index = ((hash & (kStringSplitCacheSize - 1)) &
+  uint32_t hash = string->Hash();
+  uint32_t index = ((hash & (kStringSplitCacheSize - 1)) &
       ~(kArrayEntriesPerCacheEntry - 1));
   if (cache->get(index + kStringOffset) == Smi::FromInt(0)) {
     cache->set(index + kStringOffset, string);
     cache->set(index + kPatternOffset, pattern);
     cache->set(index + kArrayOffset, array);
-    return;
+  } else {
+    uint32_t index2 =
+        ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
+    if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
+      cache->set(index2 + kStringOffset, string);
+      cache->set(index2 + kPatternOffset, pattern);
+      cache->set(index2 + kArrayOffset, array);
+    } else {
+      cache->set(index2 + kStringOffset, Smi::FromInt(0));
+      cache->set(index2 + kPatternOffset, Smi::FromInt(0));
+      cache->set(index2 + kArrayOffset, Smi::FromInt(0));
+      cache->set(index + kStringOffset, string);
+      cache->set(index + kPatternOffset, pattern);
+      cache->set(index + kArrayOffset, array);
+    }
   }
-  uintptr_t index2 =
-      ((index + kArrayEntriesPerCacheEntry) & (kStringSplitCacheSize - 1));
-  if (cache->get(index2 + kStringOffset) == Smi::FromInt(0)) {
-    cache->set(index2 + kStringOffset, string);
-    cache->set(index2 + kPatternOffset, pattern);
-    cache->set(index2 + kArrayOffset, array);
-    return;
-  }
-  cache->set(index2 + kStringOffset, Smi::FromInt(0));
-  cache->set(index2 + kPatternOffset, Smi::FromInt(0));
-  cache->set(index2 + kArrayOffset, Smi::FromInt(0));
-  cache->set(index + kStringOffset, string);
-  cache->set(index + kPatternOffset, pattern);
-  cache->set(index + kArrayOffset, array);
   if (array->length() < 100) {  // Limit how many new symbols we want to make.
     for (int i = 0; i < array->length(); i++) {
       String* str = String::cast(array->get(i));
@@ -2315,6 +2313,7 @@ void StringSplitCache::Enter(Heap* heap,
       }
     }
   }
+  array->set_map(heap->fixed_cow_array_map());
 }
 
 
@@ -3623,6 +3622,9 @@ MaybeObject* Heap::ReinitializeJSGlobalProxy(JSFunction* constructor,
 
 MaybeObject* Heap::AllocateStringFromAscii(Vector<const char> string,
                                            PretenureFlag pretenure) {
+  if (string.length() == 1) {
+    return Heap::LookupSingleCharacterStringFromCode(string[0]);
+  }
   Object* result;
   { MaybeObject* maybe_result =
         AllocateRawAsciiString(string.length(), pretenure);

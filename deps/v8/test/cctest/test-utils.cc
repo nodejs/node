@@ -195,3 +195,15 @@ TEST(SequenceCollector) {
   }
   result.Dispose();
 }
+
+
+TEST(SequenceCollectorRegression) {
+  SequenceCollector<char> collector(16);
+  collector.StartSequence();
+  collector.Add('0');
+  collector.AddBlock(
+      i::Vector<const char>("12345678901234567890123456789012", 32));
+  i::Vector<char> seq = collector.EndSequence();
+  CHECK_EQ(0, strncmp("0123456789012345678901234567890123",
+                      seq.start(), seq.length()));
+}

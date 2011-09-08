@@ -207,3 +207,8 @@ replaceTest("[ab-aabb-ab-b][az-aazz-az-z]",
 
 replaceTest("[ab-aabb-ab-b][az-aazz-az-z]",
             "abaz", /a(.)/g, replacer);
+
+var str = 'She sells seashells by the seashore.';
+var re = /sh/g;
+assertEquals('She sells sea$schells by the sea$schore.',
+             str.replace(re,"$$" + 'sch'))

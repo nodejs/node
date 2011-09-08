@@ -31,14 +31,14 @@
 
 #include "v8.h"
 
-#include "isolate.h"
-#include "token.h"
-#include "scanner.h"
-#include "parser.h"
-#include "utils.h"
-#include "execution.h"
-#include "preparser.h"
 #include "cctest.h"
+#include "execution.h"
+#include "isolate.h"
+#include "parser.h"
+#include "preparser.h"
+#include "scanner-character-streams.h"
+#include "token.h"
+#include "utils.h"
 
 TEST(ScanKeywords) {
   struct KeywordToken {

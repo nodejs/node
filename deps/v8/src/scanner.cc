@@ -25,303 +25,1067 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
+// Features shared by parsing and pre-parsing scanners.
 
-#include "ast.h"
-#include "handles.h"
 #include "scanner.h"
-#include "unicode-inl.h"
+
+#include "../include/v8stdint.h"
+#include "char-predicates-inl.h"
 
 namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// BufferedUC16CharacterStreams
+// Scanner
 
-BufferedUC16CharacterStream::BufferedUC16CharacterStream()
-    : UC16CharacterStream(),
-      pushback_limit_(NULL) {
-  // Initialize buffer as being empty. First read will fill the buffer.
-  buffer_cursor_ = buffer_;
-  buffer_end_ = buffer_;
-}
+Scanner::Scanner(UnicodeCache* unicode_cache)
+    : unicode_cache_(unicode_cache) { }
 
-BufferedUC16CharacterStream::~BufferedUC16CharacterStream() { }
 
-void BufferedUC16CharacterStream::PushBack(uc32 character) {
-  if (character == kEndOfInput) {
-    pos_--;
-    return;
+uc32 Scanner::ScanHexNumber(int expected_length) {
+  ASSERT(expected_length <= 4);  // prevent overflow
+
+  uc32 digits[4] = { 0, 0, 0, 0 };
+  uc32 x = 0;
+  for (int i = 0; i < expected_length; i++) {
+    digits[i] = c0_;
+    int d = HexValue(c0_);
+    if (d < 0) {
+      // According to ECMA-262, 3rd, 7.8.4, page 18, these hex escapes
+      // should be illegal, but other JS VMs just return the
+      // non-escaped version of the original character.
+
+      // Push back digits that we have advanced past.
+      for (int j = i-1; j >= 0; j--) {
+        PushBack(digits[j]);
+      }
+      return -1;
+    }
+    x = x * 16 + d;
+    Advance();
   }
-  if (pushback_limit_ == NULL && buffer_cursor_ > buffer_) {
-    // buffer_ is writable, buffer_cursor_ is const pointer.
-    buffer_[--buffer_cursor_ - buffer_] = static_cast<uc16>(character);
-    pos_--;
-    return;
-  }
-  SlowPushBack(static_cast<uc16>(character));
+
+  return x;
 }
 
-
-void BufferedUC16CharacterStream::SlowPushBack(uc16 character) {
-  // In pushback mode, the end of the buffer contains pushback,
-  // and the start of the buffer (from buffer start to pushback_limit_)
-  // contains valid data that comes just after the pushback.
-  // We NULL the pushback_limit_ if pushing all the way back to the
-  // start of the buffer.
-
-  if (pushback_limit_ == NULL) {
-    // Enter pushback mode.
-    pushback_limit_ = buffer_end_;
-    buffer_end_ = buffer_ + kBufferSize;
-    buffer_cursor_ = buffer_end_;
-  }
-  // Ensure that there is room for at least one pushback.
-  ASSERT(buffer_cursor_ > buffer_);
-  ASSERT(pos_ > 0);
-  buffer_[--buffer_cursor_ - buffer_] = character;
-  if (buffer_cursor_ == buffer_) {
-    pushback_limit_ = NULL;
-  } else if (buffer_cursor_ < pushback_limit_) {
-    pushback_limit_ = buffer_cursor_;
-  }
-  pos_--;
-}
-
-
-bool BufferedUC16CharacterStream::ReadBlock() {
-  buffer_cursor_ = buffer_;
-  if (pushback_limit_ != NULL) {
-    // Leave pushback mode.
-    buffer_end_ = pushback_limit_;
-    pushback_limit_ = NULL;
-    // If there were any valid characters left at the
-    // start of the buffer, use those.
-    if (buffer_cursor_ < buffer_end_) return true;
-    // Otherwise read a new block.
-  }
-  unsigned length = FillBuffer(pos_, kBufferSize);
-  buffer_end_ = buffer_ + length;
-  return length > 0;
-}
-
-
-unsigned BufferedUC16CharacterStream::SlowSeekForward(unsigned delta) {
-  // Leave pushback mode (i.e., ignore that there might be valid data
-  // in the buffer before the pushback_limit_ point).
-  pushback_limit_ = NULL;
-  return BufferSeekForward(delta);
-}
-
-// ----------------------------------------------------------------------------
-// GenericStringUC16CharacterStream
-
-
-GenericStringUC16CharacterStream::GenericStringUC16CharacterStream(
-    Handle<String> data,
-    unsigned start_position,
-    unsigned end_position)
-    : string_(data),
-      length_(end_position) {
-  ASSERT(end_position >= start_position);
-  buffer_cursor_ = buffer_;
-  buffer_end_ = buffer_;
-  pos_ = start_position;
-}
-
-
-GenericStringUC16CharacterStream::~GenericStringUC16CharacterStream() { }
-
-
-unsigned GenericStringUC16CharacterStream::BufferSeekForward(unsigned delta) {
-  unsigned old_pos = pos_;
-  pos_ = Min(pos_ + delta, length_);
-  ReadBlock();
-  return pos_ - old_pos;
-}
-
-
-unsigned GenericStringUC16CharacterStream::FillBuffer(unsigned from_pos,
-                                                      unsigned length) {
-  if (from_pos >= length_) return 0;
-  if (from_pos + length > length_) {
-    length = length_ - from_pos;
-  }
-  String::WriteToFlat<uc16>(*string_, buffer_, from_pos, from_pos + length);
-  return length;
-}
 
 
 // ----------------------------------------------------------------------------
-// Utf8ToUC16CharacterStream
-Utf8ToUC16CharacterStream::Utf8ToUC16CharacterStream(const byte* data,
-                                                     unsigned length)
-    : BufferedUC16CharacterStream(),
-      raw_data_(data),
-      raw_data_length_(length),
-      raw_data_pos_(0),
-      raw_character_position_(0) {
-  ReadBlock();
+// JavaScriptScanner
+
+JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
+    : Scanner(scanner_contants),
+      octal_pos_(Location::invalid()),
+      harmony_block_scoping_(false) { }
+
+
+void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
+  source_ = source;
+  // Need to capture identifiers in order to recognize "get" and "set"
+  // in object literals.
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
 }
 
 
-Utf8ToUC16CharacterStream::~Utf8ToUC16CharacterStream() { }
+// Ensure that tokens can be stored in a byte.
+STATIC_ASSERT(Token::NUM_TOKENS <= 0x100);
+
+// Table of one-character tokens, by character (0x00..0x7f only).
+static const byte one_char_tokens[] = {
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::LPAREN,       // 0x28
+  Token::RPAREN,       // 0x29
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::COMMA,        // 0x2c
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::COLON,        // 0x3a
+  Token::SEMICOLON,    // 0x3b
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::CONDITIONAL,  // 0x3f
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::LBRACK,     // 0x5b
+  Token::ILLEGAL,
+  Token::RBRACK,     // 0x5d
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::ILLEGAL,
+  Token::LBRACE,       // 0x7b
+  Token::ILLEGAL,
+  Token::RBRACE,       // 0x7d
+  Token::BIT_NOT,      // 0x7e
+  Token::ILLEGAL
+};
 
 
-unsigned Utf8ToUC16CharacterStream::BufferSeekForward(unsigned delta) {
-  unsigned old_pos = pos_;
-  unsigned target_pos = pos_ + delta;
-  SetRawPosition(target_pos);
-  pos_ = raw_character_position_;
-  ReadBlock();
-  return pos_ - old_pos;
-}
-
-
-unsigned Utf8ToUC16CharacterStream::FillBuffer(unsigned char_position,
-                                               unsigned length) {
-  static const unibrow::uchar kMaxUC16Character = 0xffff;
-  SetRawPosition(char_position);
-  if (raw_character_position_ != char_position) {
-    // char_position was not a valid position in the stream (hit the end
-    // while spooling to it).
-    return 0u;
+Token::Value JavaScriptScanner::Next() {
+  current_ = next_;
+  has_line_terminator_before_next_ = false;
+  has_multiline_comment_before_next_ = false;
+  if (static_cast<unsigned>(c0_) <= 0x7f) {
+    Token::Value token = static_cast<Token::Value>(one_char_tokens[c0_]);
+    if (token != Token::ILLEGAL) {
+      int pos = source_pos();
+      next_.token = token;
+      next_.location.beg_pos = pos;
+      next_.location.end_pos = pos + 1;
+      Advance();
+      return current_.token;
+    }
   }
-  unsigned i = 0;
-  while (i < length) {
-    if (raw_data_pos_ == raw_data_length_) break;
-    unibrow::uchar c = raw_data_[raw_data_pos_];
-    if (c <= unibrow::Utf8::kMaxOneByteChar) {
-      raw_data_pos_++;
+  Scan();
+  return current_.token;
+}
+
+
+static inline bool IsByteOrderMark(uc32 c) {
+  // The Unicode value U+FFFE is guaranteed never to be assigned as a
+  // Unicode character; this implies that in a Unicode context the
+  // 0xFF, 0xFE byte pattern can only be interpreted as the U+FEFF
+  // character expressed in little-endian byte order (since it could
+  // not be a U+FFFE character expressed in big-endian byte
+  // order). Nevertheless, we check for it to be compatible with
+  // Spidermonkey.
+  return c == 0xFEFF || c == 0xFFFE;
+}
+
+
+bool JavaScriptScanner::SkipWhiteSpace() {
+  int start_position = source_pos();
+
+  while (true) {
+    // We treat byte-order marks (BOMs) as whitespace for better
+    // compatibility with Spidermonkey and other JavaScript engines.
+    while (unicode_cache_->IsWhiteSpace(c0_) || IsByteOrderMark(c0_)) {
+      // IsWhiteSpace() includes line terminators!
+      if (unicode_cache_->IsLineTerminator(c0_)) {
+        // Ignore line terminators, but remember them. This is necessary
+        // for automatic semicolon insertion.
+        has_line_terminator_before_next_ = true;
+      }
+      Advance();
+    }
+
+    // If there is an HTML comment end '-->' at the beginning of a
+    // line (with only whitespace in front of it), we treat the rest
+    // of the line as a comment. This is in line with the way
+    // SpiderMonkey handles it.
+    if (c0_ == '-' && has_line_terminator_before_next_) {
+      Advance();
+      if (c0_ == '-') {
+        Advance();
+        if (c0_ == '>') {
+          // Treat the rest of the line as a comment.
+          SkipSingleLineComment();
+          // Continue skipping white space after the comment.
+          continue;
+        }
+        PushBack('-');  // undo Advance()
+      }
+      PushBack('-');  // undo Advance()
+    }
+    // Return whether or not we skipped any characters.
+    return source_pos() != start_position;
+  }
+}
+
+
+Token::Value JavaScriptScanner::SkipSingleLineComment() {
+  Advance();
+
+  // The line terminator at the end of the line is not considered
+  // to be part of the single-line comment; it is recognized
+  // separately by the lexical grammar and becomes part of the
+  // stream of input elements for the syntactic grammar (see
+  // ECMA-262, section 7.4).
+  while (c0_ >= 0 && !unicode_cache_->IsLineTerminator(c0_)) {
+    Advance();
+  }
+
+  return Token::WHITESPACE;
+}
+
+
+Token::Value JavaScriptScanner::SkipMultiLineComment() {
+  ASSERT(c0_ == '*');
+  Advance();
+
+  while (c0_ >= 0) {
+    uc32 ch = c0_;
+    Advance();
+    if (unicode_cache_->IsLineTerminator(ch)) {
+      // Following ECMA-262, section 7.4, a comment containing
+      // a newline will make the comment count as a line-terminator.
+      has_multiline_comment_before_next_ = true;
+    }
+    // If we have reached the end of the multi-line comment, we
+    // consume the '/' and insert a whitespace. This way all
+    // multi-line comments are treated as whitespace.
+    if (ch == '*' && c0_ == '/') {
+      c0_ = ' ';
+      return Token::WHITESPACE;
+    }
+  }
+
+  // Unterminated multi-line comment.
+  return Token::ILLEGAL;
+}
+
+
+Token::Value JavaScriptScanner::ScanHtmlComment() {
+  // Check for <!-- comments.
+  ASSERT(c0_ == '!');
+  Advance();
+  if (c0_ == '-') {
+    Advance();
+    if (c0_ == '-') return SkipSingleLineComment();
+    PushBack('-');  // undo Advance()
+  }
+  PushBack('!');  // undo Advance()
+  ASSERT(c0_ == '!');
+  return Token::LT;
+}
+
+
+void JavaScriptScanner::Scan() {
+  next_.literal_chars = NULL;
+  Token::Value token;
+  do {
+    // Remember the position of the next token
+    next_.location.beg_pos = source_pos();
+
+    switch (c0_) {
+      case ' ':
+      case '\t':
+        Advance();
+        token = Token::WHITESPACE;
+        break;
+
+      case '\n':
+        Advance();
+        has_line_terminator_before_next_ = true;
+        token = Token::WHITESPACE;
+        break;
+
+      case '"': case '\'':
+        token = ScanString();
+        break;
+
+      case '<':
+        // < <= << <<= <!--
+        Advance();
+        if (c0_ == '=') {
+          token = Select(Token::LTE);
+        } else if (c0_ == '<') {
+          token = Select('=', Token::ASSIGN_SHL, Token::SHL);
+        } else if (c0_ == '!') {
+          token = ScanHtmlComment();
+        } else {
+          token = Token::LT;
+        }
+        break;
+
+      case '>':
+        // > >= >> >>= >>> >>>=
+        Advance();
+        if (c0_ == '=') {
+          token = Select(Token::GTE);
+        } else if (c0_ == '>') {
+          // >> >>= >>> >>>=
+          Advance();
+          if (c0_ == '=') {
+            token = Select(Token::ASSIGN_SAR);
+          } else if (c0_ == '>') {
+            token = Select('=', Token::ASSIGN_SHR, Token::SHR);
+          } else {
+            token = Token::SAR;
+          }
+        } else {
+          token = Token::GT;
+        }
+        break;
+
+      case '=':
+        // = == ===
+        Advance();
+        if (c0_ == '=') {
+          token = Select('=', Token::EQ_STRICT, Token::EQ);
+        } else {
+          token = Token::ASSIGN;
+        }
+        break;
+
+      case '!':
+        // ! != !==
+        Advance();
+        if (c0_ == '=') {
+          token = Select('=', Token::NE_STRICT, Token::NE);
+        } else {
+          token = Token::NOT;
+        }
+        break;
+
+      case '+':
+        // + ++ +=
+        Advance();
+        if (c0_ == '+') {
+          token = Select(Token::INC);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_ADD);
+        } else {
+          token = Token::ADD;
+        }
+        break;
+
+      case '-':
+        // - -- --> -=
+        Advance();
+        if (c0_ == '-') {
+          Advance();
+          if (c0_ == '>' && has_line_terminator_before_next_) {
+            // For compatibility with SpiderMonkey, we skip lines that
+            // start with an HTML comment end '-->'.
+            token = SkipSingleLineComment();
+          } else {
+            token = Token::DEC;
+          }
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_SUB);
+        } else {
+          token = Token::SUB;
+        }
+        break;
+
+      case '*':
+        // * *=
+        token = Select('=', Token::ASSIGN_MUL, Token::MUL);
+        break;
+
+      case '%':
+        // % %=
+        token = Select('=', Token::ASSIGN_MOD, Token::MOD);
+        break;
+
+      case '/':
+        // /  // /* /=
+        Advance();
+        if (c0_ == '/') {
+          token = SkipSingleLineComment();
+        } else if (c0_ == '*') {
+          token = SkipMultiLineComment();
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_DIV);
+        } else {
+          token = Token::DIV;
+        }
+        break;
+
+      case '&':
+        // & && &=
+        Advance();
+        if (c0_ == '&') {
+          token = Select(Token::AND);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_BIT_AND);
+        } else {
+          token = Token::BIT_AND;
+        }
+        break;
+
+      case '|':
+        // | || |=
+        Advance();
+        if (c0_ == '|') {
+          token = Select(Token::OR);
+        } else if (c0_ == '=') {
+          token = Select(Token::ASSIGN_BIT_OR);
+        } else {
+          token = Token::BIT_OR;
+        }
+        break;
+
+      case '^':
+        // ^ ^=
+        token = Select('=', Token::ASSIGN_BIT_XOR, Token::BIT_XOR);
+        break;
+
+      case '.':
+        // . Number
+        Advance();
+        if (IsDecimalDigit(c0_)) {
+          token = ScanNumber(true);
+        } else {
+          token = Token::PERIOD;
+        }
+        break;
+
+      case ':':
+        token = Select(Token::COLON);
+        break;
+
+      case ';':
+        token = Select(Token::SEMICOLON);
+        break;
+
+      case ',':
+        token = Select(Token::COMMA);
+        break;
+
+      case '(':
+        token = Select(Token::LPAREN);
+        break;
+
+      case ')':
+        token = Select(Token::RPAREN);
+        break;
+
+      case '[':
+        token = Select(Token::LBRACK);
+        break;
+
+      case ']':
+        token = Select(Token::RBRACK);
+        break;
+
+      case '{':
+        token = Select(Token::LBRACE);
+        break;
+
+      case '}':
+        token = Select(Token::RBRACE);
+        break;
+
+      case '?':
+        token = Select(Token::CONDITIONAL);
+        break;
+
+      case '~':
+        token = Select(Token::BIT_NOT);
+        break;
+
+      default:
+        if (unicode_cache_->IsIdentifierStart(c0_)) {
+          token = ScanIdentifierOrKeyword();
+        } else if (IsDecimalDigit(c0_)) {
+          token = ScanNumber(false);
+        } else if (SkipWhiteSpace()) {
+          token = Token::WHITESPACE;
+        } else if (c0_ < 0) {
+          token = Token::EOS;
+        } else {
+          token = Select(Token::ILLEGAL);
+        }
+        break;
+    }
+
+    // Continue scanning for tokens as long as we're just skipping
+    // whitespace.
+  } while (token == Token::WHITESPACE);
+
+  next_.location.end_pos = source_pos();
+  next_.token = token;
+}
+
+
+void JavaScriptScanner::SeekForward(int pos) {
+  // After this call, we will have the token at the given position as
+  // the "next" token. The "current" token will be invalid.
+  if (pos == next_.location.beg_pos) return;
+  int current_pos = source_pos();
+  ASSERT_EQ(next_.location.end_pos, current_pos);
+  // Positions inside the lookahead token aren't supported.
+  ASSERT(pos >= current_pos);
+  if (pos != current_pos) {
+    source_->SeekForward(pos - source_->pos());
+    Advance();
+    // This function is only called to seek to the location
+    // of the end of a function (at the "}" token). It doesn't matter
+    // whether there was a line terminator in the part we skip.
+    has_line_terminator_before_next_ = false;
+    has_multiline_comment_before_next_ = false;
+  }
+  Scan();
+}
+
+
+void JavaScriptScanner::ScanEscape() {
+  uc32 c = c0_;
+  Advance();
+
+  // Skip escaped newlines.
+  if (unicode_cache_->IsLineTerminator(c)) {
+    // Allow CR+LF newlines in multiline string literals.
+    if (IsCarriageReturn(c) && IsLineFeed(c0_)) Advance();
+    // Allow LF+CR newlines in multiline string literals.
+    if (IsLineFeed(c) && IsCarriageReturn(c0_)) Advance();
+    return;
+  }
+
+  switch (c) {
+    case '\'':  // fall through
+    case '"' :  // fall through
+    case '\\': break;
+    case 'b' : c = '\b'; break;
+    case 'f' : c = '\f'; break;
+    case 'n' : c = '\n'; break;
+    case 'r' : c = '\r'; break;
+    case 't' : c = '\t'; break;
+    case 'u' : {
+      c = ScanHexNumber(4);
+      if (c < 0) c = 'u';
+      break;
+    }
+    case 'v' : c = '\v'; break;
+    case 'x' : {
+      c = ScanHexNumber(2);
+      if (c < 0) c = 'x';
+      break;
+    }
+    case '0' :  // fall through
+    case '1' :  // fall through
+    case '2' :  // fall through
+    case '3' :  // fall through
+    case '4' :  // fall through
+    case '5' :  // fall through
+    case '6' :  // fall through
+    case '7' : c = ScanOctalEscape(c, 2); break;
+  }
+
+  // According to ECMA-262, 3rd, 7.8.4 (p 18ff) these
+  // should be illegal, but they are commonly handled
+  // as non-escaped characters by JS VMs.
+  AddLiteralChar(c);
+}
+
+
+// Octal escapes of the forms '\0xx' and '\xxx' are not a part of
+// ECMA-262. Other JS VMs support them.
+uc32 JavaScriptScanner::ScanOctalEscape(uc32 c, int length) {
+  uc32 x = c - '0';
+  int i = 0;
+  for (; i < length; i++) {
+    int d = c0_ - '0';
+    if (d < 0 || d > 7) break;
+    int nx = x * 8 + d;
+    if (nx >= 256) break;
+    x = nx;
+    Advance();
+  }
+  // Anything except '\0' is an octal escape sequence, illegal in strict mode.
+  // Remember the position of octal escape sequences so that an error
+  // can be reported later (in strict mode).
+  // We don't report the error immediately, because the octal escape can
+  // occur before the "use strict" directive.
+  if (c != '0' || i > 0) {
+    octal_pos_ = Location(source_pos() - i - 1, source_pos() - 1);
+  }
+  return x;
+}
+
+
+Token::Value JavaScriptScanner::ScanString() {
+  uc32 quote = c0_;
+  Advance();  // consume quote
+
+  LiteralScope literal(this);
+  while (c0_ != quote && c0_ >= 0
+         && !unicode_cache_->IsLineTerminator(c0_)) {
+    uc32 c = c0_;
+    Advance();
+    if (c == '\\') {
+      if (c0_ < 0) return Token::ILLEGAL;
+      ScanEscape();
     } else {
-      c =  unibrow::Utf8::CalculateValue(raw_data_ + raw_data_pos_,
-                                         raw_data_length_ - raw_data_pos_,
-                                         &raw_data_pos_);
-      // Don't allow characters outside of the BMP.
-      if (c > kMaxUC16Character) {
-        c = unibrow::Utf8::kBadChar;
+      AddLiteralChar(c);
+    }
+  }
+  if (c0_ != quote) return Token::ILLEGAL;
+  literal.Complete();
+
+  Advance();  // consume quote
+  return Token::STRING;
+}
+
+
+void JavaScriptScanner::ScanDecimalDigits() {
+  while (IsDecimalDigit(c0_))
+    AddLiteralCharAdvance();
+}
+
+
+Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
+  ASSERT(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
+
+  enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
+
+  LiteralScope literal(this);
+  if (seen_period) {
+    // we have already seen a decimal point of the float
+    AddLiteralChar('.');
+    ScanDecimalDigits();  // we know we have at least one digit
+
+  } else {
+    // if the first character is '0' we must check for octals and hex
+    if (c0_ == '0') {
+      int start_pos = source_pos();  // For reporting octal positions.
+      AddLiteralCharAdvance();
+
+      // either 0, 0exxx, 0Exxx, 0.xxx, an octal number, or a hex number
+      if (c0_ == 'x' || c0_ == 'X') {
+        // hex number
+        kind = HEX;
+        AddLiteralCharAdvance();
+        if (!IsHexDigit(c0_)) {
+          // we must have at least one hex digit after 'x'/'X'
+          return Token::ILLEGAL;
+        }
+        while (IsHexDigit(c0_)) {
+          AddLiteralCharAdvance();
+        }
+      } else if ('0' <= c0_ && c0_ <= '7') {
+        // (possible) octal number
+        kind = OCTAL;
+        while (true) {
+          if (c0_ == '8' || c0_ == '9') {
+            kind = DECIMAL;
+            break;
+          }
+          if (c0_  < '0' || '7'  < c0_) {
+            // Octal literal finished.
+            octal_pos_ = Location(start_pos, source_pos());
+            break;
+          }
+          AddLiteralCharAdvance();
+        }
       }
     }
-    buffer_[i++] = static_cast<uc16>(c);
+
+    // Parse decimal digits and allow trailing fractional part.
+    if (kind == DECIMAL) {
+      ScanDecimalDigits();  // optional
+      if (c0_ == '.') {
+        AddLiteralCharAdvance();
+        ScanDecimalDigits();  // optional
+      }
+    }
   }
-  raw_character_position_ = char_position + i;
-  return i;
+
+  // scan exponent, if any
+  if (c0_ == 'e' || c0_ == 'E') {
+    ASSERT(kind != HEX);  // 'e'/'E' must be scanned as part of the hex number
+    if (kind == OCTAL) return Token::ILLEGAL;  // no exponent for octals allowed
+    // scan exponent
+    AddLiteralCharAdvance();
+    if (c0_ == '+' || c0_ == '-')
+      AddLiteralCharAdvance();
+    if (!IsDecimalDigit(c0_)) {
+      // we must have at least one decimal digit after 'e'/'E'
+      return Token::ILLEGAL;
+    }
+    ScanDecimalDigits();
+  }
+
+  // The source character immediately following a numeric literal must
+  // not be an identifier start or a decimal digit; see ECMA-262
+  // section 7.8.3, page 17 (note that we read only one decimal digit
+  // if the value is 0).
+  if (IsDecimalDigit(c0_) || unicode_cache_->IsIdentifierStart(c0_))
+    return Token::ILLEGAL;
+
+  literal.Complete();
+
+  return Token::NUMBER;
 }
 
 
-static const byte kUtf8MultiByteMask = 0xC0;
-static const byte kUtf8MultiByteCharStart = 0xC0;
-static const byte kUtf8MultiByteCharFollower = 0x80;
-
-
-#ifdef DEBUG
-static bool IsUtf8MultiCharacterStart(byte first_byte) {
-  return (first_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharStart;
-}
-#endif
-
-
-static bool IsUtf8MultiCharacterFollower(byte later_byte) {
-  return (later_byte & kUtf8MultiByteMask) == kUtf8MultiByteCharFollower;
-}
-
-
-// Move the cursor back to point at the preceding UTF-8 character start
-// in the buffer.
-static inline void Utf8CharacterBack(const byte* buffer, unsigned* cursor) {
-  byte character = buffer[--*cursor];
-  if (character > unibrow::Utf8::kMaxOneByteChar) {
-    ASSERT(IsUtf8MultiCharacterFollower(character));
-    // Last byte of a multi-byte character encoding. Step backwards until
-    // pointing to the first byte of the encoding, recognized by having the
-    // top two bits set.
-    while (IsUtf8MultiCharacterFollower(buffer[--*cursor])) { }
-    ASSERT(IsUtf8MultiCharacterStart(buffer[*cursor]));
-  }
-}
-
-
-// Move the cursor forward to point at the next following UTF-8 character start
-// in the buffer.
-static inline void Utf8CharacterForward(const byte* buffer, unsigned* cursor) {
-  byte character = buffer[(*cursor)++];
-  if (character > unibrow::Utf8::kMaxOneByteChar) {
-    // First character of a multi-byte character encoding.
-    // The number of most-significant one-bits determines the length of the
-    // encoding:
-    //  110..... - (0xCx, 0xDx) one additional byte (minimum).
-    //  1110.... - (0xEx) two additional bytes.
-    //  11110... - (0xFx) three additional bytes (maximum).
-    ASSERT(IsUtf8MultiCharacterStart(character));
-    // Additional bytes is:
-    // 1 if value in range 0xC0 .. 0xDF.
-    // 2 if value in range 0xE0 .. 0xEF.
-    // 3 if value in range 0xF0 .. 0xF7.
-    // Encode that in a single value.
-    unsigned additional_bytes =
-        ((0x3211u) >> (((character - 0xC0) >> 2) & 0xC)) & 0x03;
-    *cursor += additional_bytes;
-    ASSERT(!IsUtf8MultiCharacterFollower(buffer[1 + additional_bytes]));
-  }
-}
-
-
-void Utf8ToUC16CharacterStream::SetRawPosition(unsigned target_position) {
-  if (raw_character_position_ > target_position) {
-    // Spool backwards in utf8 buffer.
-    do {
-      Utf8CharacterBack(raw_data_, &raw_data_pos_);
-      raw_character_position_--;
-    } while (raw_character_position_ > target_position);
-    return;
-  }
-  // Spool forwards in the utf8 buffer.
-  while (raw_character_position_ < target_position) {
-    if (raw_data_pos_ == raw_data_length_) return;
-    Utf8CharacterForward(raw_data_, &raw_data_pos_);
-    raw_character_position_++;
-  }
+uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
+  Advance();
+  if (c0_ != 'u') return -1;
+  Advance();
+  uc32 result = ScanHexNumber(4);
+  if (result < 0) PushBack('u');
+  return result;
 }
 
 
 // ----------------------------------------------------------------------------
-// ExternalTwoByteStringUC16CharacterStream
+// Keyword Matcher
 
-ExternalTwoByteStringUC16CharacterStream::
-    ~ExternalTwoByteStringUC16CharacterStream() { }
+#define KEYWORDS(KEYWORD_GROUP, KEYWORD)                            \
+  KEYWORD_GROUP('b')                                                \
+  KEYWORD("break", Token::BREAK)                                    \
+  KEYWORD_GROUP('c')                                                \
+  KEYWORD("case", Token::CASE)                                      \
+  KEYWORD("catch", Token::CATCH)                                    \
+  KEYWORD("class", Token::FUTURE_RESERVED_WORD)                     \
+  KEYWORD("const", Token::CONST)                                    \
+  KEYWORD("continue", Token::CONTINUE)                              \
+  KEYWORD_GROUP('d')                                                \
+  KEYWORD("debugger", Token::DEBUGGER)                              \
+  KEYWORD("default", Token::DEFAULT)                                \
+  KEYWORD("delete", Token::DELETE)                                  \
+  KEYWORD("do", Token::DO)                                          \
+  KEYWORD_GROUP('e')                                                \
+  KEYWORD("else", Token::ELSE)                                      \
+  KEYWORD("enum", Token::FUTURE_RESERVED_WORD)                      \
+  KEYWORD("export", Token::FUTURE_RESERVED_WORD)                    \
+  KEYWORD("extends", Token::FUTURE_RESERVED_WORD)                   \
+  KEYWORD_GROUP('f')                                                \
+  KEYWORD("false", Token::FALSE_LITERAL)                            \
+  KEYWORD("finally", Token::FINALLY)                                \
+  KEYWORD("for", Token::FOR)                                        \
+  KEYWORD("function", Token::FUNCTION)                              \
+  KEYWORD_GROUP('i')                                                \
+  KEYWORD("if", Token::IF)                                          \
+  KEYWORD("implements", Token::FUTURE_STRICT_RESERVED_WORD)         \
+  KEYWORD("import", Token::FUTURE_RESERVED_WORD)                    \
+  KEYWORD("in", Token::IN)                                          \
+  KEYWORD("instanceof", Token::INSTANCEOF)                          \
+  KEYWORD("interface", Token::FUTURE_STRICT_RESERVED_WORD)          \
+  KEYWORD_GROUP('l')                                                \
+  KEYWORD("let", harmony_block_scoping                              \
+                 ? Token::LET : Token::FUTURE_STRICT_RESERVED_WORD) \
+  KEYWORD_GROUP('n')                                                \
+  KEYWORD("new", Token::NEW)                                        \
+  KEYWORD("null", Token::NULL_LITERAL)                              \
+  KEYWORD_GROUP('p')                                                \
+  KEYWORD("package", Token::FUTURE_STRICT_RESERVED_WORD)            \
+  KEYWORD("private", Token::FUTURE_STRICT_RESERVED_WORD)            \
+  KEYWORD("protected", Token::FUTURE_STRICT_RESERVED_WORD)          \
+  KEYWORD("public", Token::FUTURE_STRICT_RESERVED_WORD)             \
+  KEYWORD_GROUP('r')                                                \
+  KEYWORD("return", Token::RETURN)                                  \
+  KEYWORD_GROUP('s')                                                \
+  KEYWORD("static", Token::FUTURE_STRICT_RESERVED_WORD)             \
+  KEYWORD("super", Token::FUTURE_RESERVED_WORD)                     \
+  KEYWORD("switch", Token::SWITCH)                                  \
+  KEYWORD_GROUP('t')                                                \
+  KEYWORD("this", Token::THIS)                                      \
+  KEYWORD("throw", Token::THROW)                                    \
+  KEYWORD("true", Token::TRUE_LITERAL)                              \
+  KEYWORD("try", Token::TRY)                                        \
+  KEYWORD("typeof", Token::TYPEOF)                                  \
+  KEYWORD_GROUP('v')                                                \
+  KEYWORD("var", Token::VAR)                                        \
+  KEYWORD("void", Token::VOID)                                      \
+  KEYWORD_GROUP('w')                                                \
+  KEYWORD("while", Token::WHILE)                                    \
+  KEYWORD("with", Token::WITH)                                      \
+  KEYWORD_GROUP('y')                                                \
+  KEYWORD("yield", Token::FUTURE_STRICT_RESERVED_WORD)
 
 
-ExternalTwoByteStringUC16CharacterStream
-    ::ExternalTwoByteStringUC16CharacterStream(
-        Handle<ExternalTwoByteString> data,
-        int start_position,
-        int end_position)
-    : UC16CharacterStream(),
-      source_(data),
-      raw_data_(data->GetTwoByteData(start_position)) {
-  buffer_cursor_ = raw_data_,
-  buffer_end_ = raw_data_ + (end_position - start_position);
-  pos_ = start_position;
+static Token::Value KeywordOrIdentifierToken(const char* input,
+                                             int input_length,
+                                             bool harmony_block_scoping) {
+  ASSERT(input_length >= 1);
+  const int kMinLength = 2;
+  const int kMaxLength = 10;
+  if (input_length < kMinLength || input_length > kMaxLength) {
+    return Token::IDENTIFIER;
+  }
+  switch (input[0]) {
+    default:
+#define KEYWORD_GROUP_CASE(ch)                                \
+      break;                                                  \
+    case ch:
+#define KEYWORD(keyword, token)                               \
+    {                                                         \
+      /* 'keyword' is a char array, so sizeof(keyword) is */  \
+      /* strlen(keyword) plus 1 for the NUL char. */          \
+      const int keyword_length = sizeof(keyword) - 1;         \
+      STATIC_ASSERT(keyword_length >= kMinLength);            \
+      STATIC_ASSERT(keyword_length <= kMaxLength);            \
+      if (input_length == keyword_length &&                   \
+          input[1] == keyword[1] &&                           \
+          (keyword_length <= 2 || input[2] == keyword[2]) &&  \
+          (keyword_length <= 3 || input[3] == keyword[3]) &&  \
+          (keyword_length <= 4 || input[4] == keyword[4]) &&  \
+          (keyword_length <= 5 || input[5] == keyword[5]) &&  \
+          (keyword_length <= 6 || input[6] == keyword[6]) &&  \
+          (keyword_length <= 7 || input[7] == keyword[7]) &&  \
+          (keyword_length <= 8 || input[8] == keyword[8]) &&  \
+          (keyword_length <= 9 || input[9] == keyword[9])) {  \
+        return token;                                         \
+      }                                                       \
+    }
+    KEYWORDS(KEYWORD_GROUP_CASE, KEYWORD)
+  }
+  return Token::IDENTIFIER;
 }
 
 
-// ----------------------------------------------------------------------------
-// Scanner::LiteralScope
+Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
+  ASSERT(unicode_cache_->IsIdentifierStart(c0_));
+  LiteralScope literal(this);
+  // Scan identifier start character.
+  if (c0_ == '\\') {
+    uc32 c = ScanIdentifierUnicodeEscape();
+    // Only allow legal identifier start characters.
+    if (c < 0 ||
+        c == '\\' ||  // No recursive escapes.
+        !unicode_cache_->IsIdentifierStart(c)) {
+      return Token::ILLEGAL;
+    }
+    AddLiteralChar(c);
+    return ScanIdentifierSuffix(&literal);
+  }
 
-Scanner::LiteralScope::LiteralScope(Scanner* self)
-    : scanner_(self), complete_(false) {
-  self->StartLiteral();
+  uc32 first_char = c0_;
+  Advance();
+  AddLiteralChar(first_char);
+
+  // Scan the rest of the identifier characters.
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
+    if (c0_ != '\\') {
+      uc32 next_char = c0_;
+      Advance();
+      AddLiteralChar(next_char);
+      continue;
+    }
+    // Fallthrough if no longer able to complete keyword.
+    return ScanIdentifierSuffix(&literal);
+  }
+
+  literal.Complete();
+
+  if (next_.literal_chars->is_ascii()) {
+    Vector<const char> chars = next_.literal_chars->ascii_literal();
+    return KeywordOrIdentifierToken(chars.start(),
+                                    chars.length(),
+                                    harmony_block_scoping_);
+  }
+
+  return Token::IDENTIFIER;
 }
 
 
-Scanner::LiteralScope::~LiteralScope() {
-  if (!complete_) scanner_->DropLiteral();
+Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
+  // Scan the rest of the identifier characters.
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
+    if (c0_ == '\\') {
+      uc32 c = ScanIdentifierUnicodeEscape();
+      // Only allow legal identifier part characters.
+      if (c < 0 ||
+          c == '\\' ||
+          !unicode_cache_->IsIdentifierPart(c)) {
+        return Token::ILLEGAL;
+      }
+      AddLiteralChar(c);
+    } else {
+      AddLiteralChar(c0_);
+      Advance();
+    }
+  }
+  literal->Complete();
+
+  return Token::IDENTIFIER;
 }
 
 
-void Scanner::LiteralScope::Complete() {
-  scanner_->TerminateLiteral();
-  complete_ = true;
+bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
+  // Scan: ('/' | '/=') RegularExpressionBody '/' RegularExpressionFlags
+  bool in_character_class = false;
+
+  // Previous token is either '/' or '/=', in the second case, the
+  // pattern starts at =.
+  next_.location.beg_pos = source_pos() - (seen_equal ? 2 : 1);
+  next_.location.end_pos = source_pos() - (seen_equal ? 1 : 0);
+
+  // Scan regular expression body: According to ECMA-262, 3rd, 7.8.5,
+  // the scanner should pass uninterpreted bodies to the RegExp
+  // constructor.
+  LiteralScope literal(this);
+  if (seen_equal) {
+    AddLiteralChar('=');
+  }
+
+  while (c0_ != '/' || in_character_class) {
+    if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
+    if (c0_ == '\\') {  // Escape sequence.
+      AddLiteralCharAdvance();
+      if (unicode_cache_->IsLineTerminator(c0_) || c0_ < 0) return false;
+      AddLiteralCharAdvance();
+      // If the escape allows more characters, i.e., \x??, \u????, or \c?,
+      // only "safe" characters are allowed (letters, digits, underscore),
+      // otherwise the escape isn't valid and the invalid character has
+      // its normal meaning. I.e., we can just continue scanning without
+      // worrying whether the following characters are part of the escape
+      // or not, since any '/', '\\' or '[' is guaranteed to not be part
+      // of the escape sequence.
+
+      // TODO(896): At some point, parse RegExps more throughly to capture
+      // octal esacpes in strict mode.
+    } else {  // Unescaped character.
+      if (c0_ == '[') in_character_class = true;
+      if (c0_ == ']') in_character_class = false;
+      AddLiteralCharAdvance();
+    }
+  }
+  Advance();  // consume '/'
+
+  literal.Complete();
+
+  return true;
+}
+
+
+bool JavaScriptScanner::ScanLiteralUnicodeEscape() {
+  ASSERT(c0_ == '\\');
+  uc32 chars_read[6] = {'\\', 'u', 0, 0, 0, 0};
+  Advance();
+  int i = 1;
+  if (c0_ == 'u') {
+    i++;
+    while (i < 6) {
+      Advance();
+      if (!IsHexDigit(c0_)) break;
+      chars_read[i] = c0_;
+      i++;
+    }
+  }
+  if (i < 6) {
+    // Incomplete escape. Undo all advances and return false.
+    while (i > 0) {
+      i--;
+      PushBack(chars_read[i]);
+    }
+    return false;
+  }
+  // Complete escape. Add all chars to current literal buffer.
+  for (int i = 0; i < 6; i++) {
+    AddLiteralChar(chars_read[i]);
+  }
+  return true;
+}
+
+
+bool JavaScriptScanner::ScanRegExpFlags() {
+  // Scan regular expression flags.
+  LiteralScope literal(this);
+  while (unicode_cache_->IsIdentifierPart(c0_)) {
+    if (c0_ != '\\') {
+      AddLiteralCharAdvance();
+    } else {
+      if (!ScanLiteralUnicodeEscape()) {
+        break;
+      }
+    }
+  }
+  literal.Complete();
+
+  next_.location.end_pos = source_pos() - 1;
+  return true;
 }
 
 } }  // namespace v8::internal
