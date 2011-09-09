@@ -245,7 +245,6 @@
         'test/test-spawn.c',
         'test/test-tcp-bind-error.c',
         'test/test-tcp-bind6-error.c',
-        'test/test-tcp-close.c',
         'test/test-tcp-writealot.c',
         'test/test-threadpool.c',
         'test/test-timer-again.c',

@@ -235,8 +235,6 @@ void uv__finish_close(uv_handle_t* handle) {
     case UV_TCP:
       assert(!ev_is_active(&((uv_stream_t*)handle)->read_watcher));
       assert(!ev_is_active(&((uv_stream_t*)handle)->write_watcher));
-      assert(((uv_stream_t*)handle)->fd == -1);
-      uv__stream_destroy((uv_stream_t*)handle);
       break;
 
     case UV_UDP:

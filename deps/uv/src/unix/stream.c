@@ -75,35 +75,6 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
 }
 
 
-/* Clears out the write queue, invokes the callbacks attached
- * to each write request. Used when a stream is destroyed.
- */
-static void uv__clear_queue(ngx_queue_t* wq, int status, uv_err_code code) {
-  uv_write_t* req;
-  ngx_queue_t* q;
-
-  while (!ngx_queue_empty(wq)) {
-    q = ngx_queue_head(wq);
-    ngx_queue_remove(q);
-
-    req = ngx_queue_data(q, uv_write_t, queue);
-    if (req->cb) {
-      uv_err_new(req->handle->loop, code);
-      req->cb(req, status);
-    }
-
-    if (req->bufs != req->bufsml)
-      free(req->bufs);
-  }
-}
-
-
-void uv__stream_destroy(uv_stream_t* stream) {
-  uv__clear_queue(&stream->write_queue, -1, UV_EINTR);
-  uv__clear_queue(&stream->write_completed_queue, 0, UV_OK);
-}
-
-
 void uv__server_io(EV_P_ ev_io* watcher, int revents) {
   int fd;
   struct sockaddr_storage addr;

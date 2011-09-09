@@ -85,7 +85,8 @@ void uv_fs_req_cleanup(uv_fs_t* req) {
 
   switch (req->fs_type) {
     case UV_FS_READDIR:
-      assert(req->ptr);
+      assert((req->result == -1 && req->ptr == NULL)
+          || (req->result >= 0 && req->ptr != NULL));
       free(req->ptr);
       req->ptr = NULL;
       break;
