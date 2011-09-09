@@ -27,13 +27,33 @@ var assert = require('assert');
 var path = require('path');
 var fs = require('fs');
 
+var watchSeenOne = 0;
+var watchSeenTwo = 0;
 
-var filename = path.join(common.fixturesDir, 'watch.txt');
-fs.writeFileSync(filename, "hello");
+var startDir = process.cwd();
+var testDir = common.fixturesDir;
+
+var filenameOne = 'watch.txt';
+var filepathOne = path.join(testDir, filenameOne);
+
+var filenameTwo = 'hasOwnProperty';
+var filepathTwo = filenameTwo;
+var filepathTwoAbs = path.join(testDir, filenameTwo);
+
+
+process.addListener('exit', function() {
+  fs.unlinkSync(filepathOne);
+  fs.unlinkSync(filepathTwoAbs);
+  assert.equal(1, watchSeenOne);
+  assert.equal(1, watchSeenTwo);
+});
+
+
+fs.writeFileSync(filepathOne, "hello");
 
 assert.throws(
   function() {
-    fs.watchFile(filename);
+    fs.watchFile(filepathOne);
   },
   function(e) {
     return e.message === 'watchFile requires a listener function';
@@ -42,14 +62,40 @@ assert.throws(
 
 assert.doesNotThrow(
   function() {
-    fs.watchFile(filename, function(curr, prev) {
-      fs.unwatchFile(filename);
-      fs.unlinkSync(filename);
+    fs.watchFile(filepathOne, function(curr, prev) {
+      fs.unwatchFile(filepathOne);
+      ++watchSeenOne;
     });
   }
 );
 
 setTimeout(function() {
-  fs.writeFileSync(filename, "world");
+  fs.writeFileSync(filepathOne, "world");
 }, 1000);
 
+
+process.chdir(testDir);
+
+fs.writeFileSync(filepathTwoAbs, "howdy");
+
+assert.throws(
+  function() {
+    fs.watchFile(filepathTwo);
+  },
+  function(e) {
+    return e.message === 'watchFile requires a listener function';
+  }
+);
+
+assert.doesNotThrow(
+  function() {
+    fs.watchFile(filepathTwo, function(curr, prev) {
+      fs.unwatchFile(filepathTwo);
+      ++watchSeenTwo;
+    });
+  }
+);
+
+setTimeout(function() {
+  fs.writeFileSync(filepathTwoAbs, "pardner");
+}, 1000);
