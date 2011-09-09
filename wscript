@@ -652,7 +652,7 @@ def build_uv(bld):
     bld.env_of_name('Debug').append_value("LINKFLAGS_UV", t)
 
   bld.install_files('${PREFIX}/include/node/', 'deps/uv/include/*.h')
-
+  bld.install_files('${PREFIX}/include/node/uv-private', 'deps/uv/include/uv-private/*.h')
   bld.install_files('${PREFIX}/include/node/ev', 'deps/uv/src/ev/*.h')
   bld.install_files('${PREFIX}/include/node/c-ares', """
     deps/uv/include/ares.h
