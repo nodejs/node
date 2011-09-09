@@ -31,8 +31,8 @@ var is_windows = process.platform === 'win32';
 
 // On Windows chmod is only able to manipulate read-only bit
 if (is_windows) {
-  mode_async = 0400;  // read-only
-  mode_sync = 0600;   // read-write
+  mode_async = 0600;   // read-write
+  mode_sync = 0400;    // read-only
 } else {
   mode_async = 0777;
   mode_sync = 0644;
@@ -40,7 +40,7 @@ if (is_windows) {
 
 var file = path.join(common.fixturesDir, 'a.js');
 
-fs.chmod(file, mode_async.toString(), function(err) {
+fs.chmod(file, mode_async.toString(8), function(err) {
   if (err) {
     got_error = true;
   } else {
@@ -68,7 +68,7 @@ fs.open(file, 'a', function(err, fd) {
     console.error(err.stack);
     return;
   }
-  fs.fchmod(fd, mode_async.toString(), function(err) {
+  fs.fchmod(fd, mode_async.toString(8), function(err) {
     if (err) {
       got_error = true;
     } else {
