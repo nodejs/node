@@ -1,4 +1,80 @@
-2011.08.26, Version 0.5.5 (unstable)
+2011.09.08, Version 0.5.6 (unstable)
+
+* #345, #1635, #1648 Documentation improvements (Thomas Shinnick,
+  Abimanyu Raja, AJ ONeal, Koichi Kobayashi, Michael Jackson, Logan Smyth,
+  Ben Noordhuis)
+
+* #650 Improve path parsing on windows (Bert Belder)
+
+* #752 Remove headers sent check in OutgoingMessage.getHeader()
+  (Peter Lyons)
+
+* #1236, #1438, #1506, #1513, #1621, #1640, #1647 Libuv-related bugs fixed
+  (Jorge Chamorro Bieling, Peter Bright, Luis Lavena, Igor Zinkovsky)
+
+* #1296, #1612 crypto: Fix BIO's usage. (Koichi Kobayashi)
+
+* #1345 Correctly set socket.remoteAddress with libuv backend (Bert Belder)
+
+* #1429 Don't clobber quick edit mode on windows (Peter Bright)
+
+* #1503 Make libuv backend default on unix, override with `node --use-legacy`
+
+* #1565 Fix fs.stat for paths ending with \ on windows (Igor Zinkovsky)
+
+* #1568 Fix x509 certificate subject parsing (Koichi Kobayashi)
+
+* #1586 Make socket write encoding case-insensitive (Koichi Kobayashi)
+
+* #1591, #1656, #1657 Implement fs in libuv, remove libeio and pthread-win32
+  dependency on windows (Igor Zinkovsky, Ben Noordhuis, Ryan Dahl,
+  Isaac Schlueter)
+
+* #1592 Don't load-time link against CreateSymbolicLink on windows
+  (Peter Bright)
+
+* #1601 Improve API consistency when dealing with the socket underlying a HTTP
+  client request (Mikeal Rogers)
+
+* #1610 Remove DigiNotar CA from trusted list (Isaac Schlueter)
+
+* #1617 Added some win32 os functions (Karl Skomski)
+
+* #1624 avoid buffer overrun with 'binary' encoding (Koichi Kobayashi)
+
+* #1633 make Buffer.write() always set _charsWritten (Koichi Kobayashi)
+
+* #1644 Windows: set executables to be console programs (Peter Bright)
+
+* #1651 improve inspection for sparse array (Koichi Kobayashi)
+
+* #1672 set .code='ECONNRESET' on socket hang up errors (Ben Noordhuis)
+
+* Add test case for foaf+ssl client certificate (Niclas Hoyer)
+
+* Added RPATH environment variable to override run-time library paths
+  (Ashok Mudukutore)
+
+* Added TLS client-side session resumption support (Sean Cunningham)
+
+* Added additional properties to getPeerCertificate (Nathan Rixham,
+  Niclas Hoyer)
+
+* Don't eval repl command twice when an error is thrown (Nathan Rajlich)
+
+* Improve util.isDate() (Nathan Rajlich)
+
+* Improvements in libuv backend and bindings, upgrade libuv to
+  bd6066cb349a9b3a1b0d87b146ddaee06db31d10
+
+* Show warning when using lib/sys.js (Maciej Malecki)
+
+* Support plus sign in url protocol (Maciej Malecki)
+
+* Upgrade V8 to 3.6.2
+
+
+2011.08.26, Version 0.5.5 (unstable), d2d53d4bb262f517a227cc178a1648094ba54c20
 
 * typed arrays, implementation from Plesk
 
