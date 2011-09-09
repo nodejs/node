@@ -82,6 +82,17 @@
   req->last_error = error;                                                  \
   req->flags |= UV_FS_LAST_ERROR_SET;
 
+#define SET_REQ_RESULT(req, result_value)                                   \
+  req->result = (result_value);                                             \
+  if (req->result == -1) {                                                  \
+    req->errorno = uv_translate_sys_error(_doserrno);                       \
+  }
+
+#define SET_REQ_RESULT_WIN32_ERROR(req, sys_errno)                          \
+  req->result = -1;                                                         \
+  req->errorno = uv_translate_sys_error(sys_errno);                         \
+  SET_REQ_LAST_ERROR(req, sys_errno);
+
 
 void uv_fs_init() {
   _fmode = _O_BINARY;
@@ -227,8 +238,8 @@ void fs__open(uv_fs_t* req, const char* path, int flags, int mode) {
                      attributes,
                      NULL);
   if (file == INVALID_HANDLE_VALUE) {
-    result = -1;
-    goto end;
+    SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
+    return;
   }
   result = _open_osfhandle((intptr_t)file, flags);
 end:
@@ -356,9 +367,8 @@ void fs__readdir(uv_fs_t* req, const char* path, int flags) {
   free(path2);
 
   if(dir == INVALID_HANDLE_VALUE) {
-    result = -1;
-    SET_REQ_LAST_ERROR(req, GetLastError());
-    goto done;
+    SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
+    return;
   }
 
   buf = (char*)malloc(buf_size);
@@ -439,9 +449,10 @@ void fs__rename(uv_fs_t* req, const char* path, const char* new_path) {
 void fs__fsync(uv_fs_t* req, uv_file file) {
   int result = FlushFileBuffers((HANDLE)_get_osfhandle(file)) ? 0 : -1;
   if (result == -1) {
-    SET_REQ_LAST_ERROR(req, GetLastError());
+    SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
+  } else {
+    SET_REQ_RESULT(req, result);
   }
-  SET_REQ_RESULT(req, result);
 }
 
 
@@ -560,9 +571,10 @@ void fs__futime(uv_fs_t* req, uv_file file, double atime, double mtime) {
 void fs__link(uv_fs_t* req, const char* path, const char* new_path) {
   int result = CreateHardLinkA(new_path, path, NULL) ? 0 : -1;
   if (result == -1) {
-    SET_REQ_LAST_ERROR(req, GetLastError());
+    SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
+  } else {
+    SET_REQ_RESULT(req, result);
   }
-  SET_REQ_RESULT(req, result);
 }
 
 
@@ -589,7 +601,7 @@ void fs__readlink(uv_fs_t* req, const char* path) {
   int result = -1;
   BOOL rv;
   HANDLE symlink;
-  void* buffer;
+  void* buffer = NULL;
   DWORD bytes_returned;
   REPARSE_DATA_BUFFER* reparse_data;
   int utf8size;

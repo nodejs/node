@@ -4069,11 +4069,14 @@
 # define STATUS_HASH_NOT_PRESENT ((NTSTATUS) 0xC000A101L)
 #endif
 
-#ifndef NTSTATUS_FROM_WIN32
-# define NTSTATUS_FROM_WIN32(error) ((NTSTATUS) (error) <= 0 ? \
-         ((NTSTATUS) (error)) : ((NTSTATUS) (((error) & 0x0000FFFF) | \
-         (FACILITY_NTWIN32 << 16) | ERROR_SEVERITY_ERROR)))
+/* This is not the NTSTATUS_FROM_WIN32 that the DDK provides, because the
+/* DDK got it wrong! */
+#ifdef NTSTATUS_FROM_WIN32
+# undef NTSTATUS_FROM_WIN32
 #endif
+#define NTSTATUS_FROM_WIN32(error) ((NTSTATUS) (error) <= 0 ? \
+        ((NTSTATUS) (error)) : ((NTSTATUS) (((error) & 0x0000FFFF) | \
+        (FACILITY_NTWIN32 << 16) | ERROR_SEVERITY_WARNING)))
 
 /* from ntifs.h */
 /* MinGW already has it */

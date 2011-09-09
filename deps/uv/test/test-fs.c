@@ -391,7 +391,7 @@ TEST_IMPL(fs_file_noent) {
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &req, "does_not_exist", O_RDONLY, 0, NULL);
-  ASSERT(r == -1);
+  ASSERT(r == 0);
   ASSERT(req.result == -1);
   ASSERT(uv_last_error(loop).code == UV_ENOENT);
   uv_fs_req_cleanup(&req);
