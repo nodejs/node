@@ -121,7 +121,7 @@ class TCPWrap : public StreamWrap {
 
   static Handle<Value> GetSockName(const Arguments& args) {
     HandleScope scope;
-    struct sockaddr address;
+    struct sockaddr_storage address;
     int family;
     int port;
     char ip[INET6_ADDRSTRLEN];
@@ -137,7 +137,7 @@ class TCPWrap : public StreamWrap {
     if (r != 0) {
       SetErrno(uv_last_error(uv_default_loop()).code);
     } else {
-      family = address.sa_family;
+      family = address.ss_family;
       if (family == AF_INET) {
         struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
         uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
@@ -159,7 +159,7 @@ class TCPWrap : public StreamWrap {
 
   static Handle<Value> GetPeerName(const Arguments& args) {
     HandleScope scope;
-    struct sockaddr address;
+    struct sockaddr_storage address;
     int family;
     int port;
     char ip[INET6_ADDRSTRLEN];
@@ -175,7 +175,7 @@ class TCPWrap : public StreamWrap {
     if (r != 0) {
       SetErrno(uv_last_error(uv_default_loop()).code);
     } else {
-      family = address.sa_family;
+      family = address.ss_family;
       if (family == AF_INET) {
         struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
         uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
