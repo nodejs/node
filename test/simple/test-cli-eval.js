@@ -19,13 +19,14 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// libuv-broken
+var common = require('../common.js'),
+    assert = require('assert'),
+    child = require('child_process'),
+    nodejs = '"' + process.execPath + '"';
 
-
-assert = require('assert');
-child = require('child_process');
-
-nodejs = '"' + process.execPath + '"';
+// replace \ by / because windows uses backslashes in paths, but they're still
+// interpreted as the escape character when put between quotes.
+var filename = __filename.replace(/\\/g, '/');
 
 if (module.parent) {
   // signal we've been loaded as a module
@@ -40,13 +41,13 @@ child.exec(nodejs + ' --eval 42',
     });
 
 // assert that "42\n" is written to stderr
-child.exec(nodejs + ' --eval \'console.error(42)\'',
+child.exec(nodejs + ' --eval "console.error(42)"',
     function(err, stdout, stderr) {
       assert.equal(stderr, "42\n");
     });
 
 // assert that module loading works
-child.exec(nodejs + ' --eval "require(\'' + __filename + '\')"',
+child.exec(nodejs + ' --eval "require(\'' + filename + '\')"',
     function(status, stdout, stderr) {
       assert.equal(status.code, 42);
     });
