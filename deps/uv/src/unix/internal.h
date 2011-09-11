@@ -80,6 +80,8 @@ uv_err_t uv_err_new_artificial(uv_loop_t* loop, int code);
 void uv_fatal_error(const int errorno, const char* syscall);
 
 /* stream */
+void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,
+    uv_handle_type type);
 int uv__stream_open(uv_stream_t*, int fd, int flags);
 void uv__stream_io(EV_P_ ev_io* watcher, int revents);
 void uv__server_io(EV_P_ ev_io* watcher, int revents);

@@ -27,28 +27,8 @@
 
 
 int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* tcp) {
-  uv__handle_init(loop, (uv_handle_t*)tcp, UV_TCP);
+  uv__stream_init(loop, (uv_stream_t*)tcp, UV_TCP);
   loop->counters.tcp_init++;
-
-  tcp->alloc_cb = NULL;
-  tcp->connect_req = NULL;
-  tcp->accepted_fd = -1;
-  tcp->fd = -1;
-  tcp->delayed_error = 0;
-  ngx_queue_init(&tcp->write_queue);
-  ngx_queue_init(&tcp->write_completed_queue);
-  tcp->write_queue_size = 0;
-
-  ev_init(&tcp->read_watcher, uv__stream_io);
-  tcp->read_watcher.data = tcp;
-
-  ev_init(&tcp->write_watcher, uv__stream_io);
-  tcp->write_watcher.data = tcp;
-
-  assert(ngx_queue_empty(&tcp->write_queue));
-  assert(ngx_queue_empty(&tcp->write_completed_queue));
-  assert(tcp->write_queue_size == 0);
-
   return 0;
 }
 

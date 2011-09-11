@@ -47,6 +47,34 @@ static size_t uv__buf_count(uv_buf_t bufs[], int bufcnt) {
 }
 
 
+void uv__stream_init(uv_loop_t* loop,
+                     uv_stream_t* stream,
+                     uv_handle_type type) {
+  uv__handle_init(loop, (uv_handle_t*)stream, type);
+
+  stream->alloc_cb = NULL;
+  stream->close_cb = NULL;
+  stream->connection_cb = NULL;
+  stream->connect_req = NULL;
+  stream->accepted_fd = -1;
+  stream->fd = -1;
+  stream->delayed_error = 0;
+  ngx_queue_init(&stream->write_queue);
+  ngx_queue_init(&stream->write_completed_queue);
+  stream->write_queue_size = 0;
+
+  ev_init(&stream->read_watcher, uv__stream_io);
+  stream->read_watcher.data = stream;
+
+  ev_init(&stream->write_watcher, uv__stream_io);
+  stream->write_watcher.data = stream;
+
+  assert(ngx_queue_empty(&stream->write_queue));
+  assert(ngx_queue_empty(&stream->write_completed_queue));
+  assert(stream->write_queue_size == 0);
+}
+
+
 int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
   socklen_t yes;
 

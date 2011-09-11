@@ -117,9 +117,7 @@ typedef int uv_file;
 
 
 /* UV_NAMED_PIPE */
-#define UV_PIPE_PRIVATE_TYPEDEF
 #define UV_PIPE_PRIVATE_FIELDS \
-  UV_TCP_PRIVATE_FIELDS \
   const char* pipe_fname; /* strdup'ed */
 
 

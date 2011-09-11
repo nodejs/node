@@ -200,7 +200,6 @@ typedef enum {
   UV_ASYNC,
   UV_ARES_TASK,
   UV_ARES_EVENT,
-  UV_GETADDRINFO,
   UV_PROCESS
 } uv_handle_type;
 
@@ -215,6 +214,7 @@ typedef enum {
   UV_UDP_SEND,
   UV_FS,
   UV_WORK,
+  UV_GETADDRINFO,
   UV_REQ_TYPE_PRIVATE
 } uv_req_type;
 
@@ -737,14 +737,14 @@ void uv_ares_destroy(uv_loop_t*, ares_channel channel);
 
 
 /*
- * uv_getaddrinfo_t is a subclass of uv_handle_t
- *
- * TODO this should be a subclass of uv_req_t
+ * uv_getaddrinfo_t is a subclass of uv_req_t
  *
  * Request object for uv_getaddrinfo.
  */
 struct uv_getaddrinfo_s {
-  UV_HANDLE_FIELDS
+  UV_REQ_FIELDS
+  /* read-only */
+  uv_loop_t* loop; \
   UV_GETADDRINFO_PRIVATE_FIELDS
 };
 

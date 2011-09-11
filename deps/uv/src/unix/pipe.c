@@ -30,24 +30,9 @@
 #include <stdlib.h>
 
 int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle) {
-  memset(handle, 0, sizeof *handle);
-
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_NAMED_PIPE);
+  uv__stream_init(loop, (uv_stream_t*)handle, UV_NAMED_PIPE);
   loop->counters.pipe_init++;
-
-  handle->type = UV_NAMED_PIPE;
-  handle->pipe_fname = NULL; /* Only set by listener. */
-
-  ev_init(&handle->write_watcher, uv__stream_io);
-  ev_init(&handle->read_watcher, uv__stream_io);
-  handle->write_watcher.data = handle;
-  handle->read_watcher.data = handle;
-  handle->accepted_fd = -1;
-  handle->fd = -1;
-
-  ngx_queue_init(&handle->write_completed_queue);
-  ngx_queue_init(&handle->write_queue);
-
+  handle->pipe_fname = NULL;
   return 0;
 }
 
