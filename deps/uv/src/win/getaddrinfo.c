@@ -255,7 +255,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
     goto error;
   }
 
-  uv_req_init((uv_req_init*)handle);
+  uv_req_init(loop, (uv_req_t*) handle);
 
   handle->getaddrinfo_cb = getaddrinfo_cb;
   handle->res = NULL;
