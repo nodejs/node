@@ -70,6 +70,7 @@ void PipeWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "bind", Bind);
   NODE_SET_PROTOTYPE_METHOD(t, "listen", Listen);
   NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
+  NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
 
   pipeConstructor = Persistent<Function>::New(t->GetFunction());
 
@@ -192,6 +193,19 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
 
   delete req_wrap;
+}
+
+
+Handle<Value> PipeWrap::Open(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  int fd = args[0]->IntegerValue();
+
+  uv_pipe_open(&wrap->handle_, fd);
+
+  return scope.Close(v8::Null());
 }
 
 
