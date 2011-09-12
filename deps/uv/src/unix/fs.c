@@ -123,6 +123,8 @@ static int uv__fs_after(eio_req* eio) {
        * callback. We must keep it until uv_fs_req_cleanup. If we get rid of
        * libeio this can be avoided.
        */
+      if (req->eio->ptr2 == NULL)
+        break;
       buflen = 0;
       name = req->eio->ptr2;
       for (i = 0; i < req->result; i++) {

@@ -1812,7 +1812,17 @@ eio__scandir (eio_req *req, etp_worker *self)
 #endif
 
   if (req->flags & EIO_FLAG_PTR1_FREE)
-    free (req->ptr1);
+    {
+      req->flags &= ~EIO_FLAG_PTR1_FREE;
+      free (req->ptr1);
+      req->ptr1 = NULL;
+    }
+
+  if (!dirp)
+    {
+      req->errorno = errno;
+      return;
+    }
 
   req->flags |= EIO_FLAG_PTR1_FREE | EIO_FLAG_PTR2_FREE;
   req->ptr1 = dents = flags ? malloc (dentalloc * sizeof (eio_dirent)) : 0;
