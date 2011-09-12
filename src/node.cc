@@ -2506,8 +2506,6 @@ int Start(int argc, char *argv[]) {
   pthread_win32_process_attach_np();
 #endif
 
-  uv_init();
-
   // This needs to run *before* V8::Initialize()
   argv = Init(argc, argv);
 

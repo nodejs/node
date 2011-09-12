@@ -81,10 +81,9 @@ typedef struct uv_work_s uv_work_t;
  * All callbacks in libuv are made asynchronously. That is they are never
  * made by the function that takes them as a parameter.
  */
-void uv_init();
 uv_loop_t* uv_loop_new();
-
 void uv_loop_delete(uv_loop_t*);
+
 
 /*
  * Returns the default loop.

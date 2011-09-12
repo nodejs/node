@@ -170,8 +170,6 @@ TEST_IMPL(udp_send_and_recv) {
 
   addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
 
-  uv_init();
-
   r = uv_udp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
 

@@ -176,9 +176,6 @@ TEST_IMPL(tcp_writealot) {
 
   ASSERT(send_buffer != NULL);
 
-  uv_init();
-
-
   r = uv_tcp_init(uv_default_loop(), client);
   ASSERT(r == 0);
 

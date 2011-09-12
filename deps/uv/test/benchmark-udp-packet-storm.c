@@ -134,7 +134,6 @@ static int do_packet_storm(int n_senders, int n_receivers) {
   ASSERT(n_senders <= MAX_SENDERS);
   ASSERT(n_receivers <= MAX_RECEIVERS);
 
-  uv_init();
   loop = uv_default_loop();
 
   n_senders_ = n_senders;

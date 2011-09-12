@@ -65,8 +65,6 @@ TEST_IMPL(udp_dgram_too_big) {
 
   memset(dgram, 42, sizeof dgram); /* silence valgrind */
 
-  uv_init();
-
   r = uv_udp_init(uv_default_loop(), &handle_);
   ASSERT(r == 0);
 

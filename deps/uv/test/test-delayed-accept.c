@@ -180,8 +180,6 @@ static void client_connect() {
 
 
 TEST_IMPL(delayed_accept) {
-  uv_init();
-
   start_server();
 
   client_connect();

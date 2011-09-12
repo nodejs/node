@@ -65,17 +65,6 @@ static void uv__finish_close(uv_handle_t* handle);
 #endif
 
 
-void uv_init() {
-  default_loop_ptr = &default_loop_struct;
-#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-  default_loop_struct.ev = ev_default_loop(EVBACKEND_KQUEUE);
-#else
-  default_loop_struct.ev = ev_default_loop(EVFLAG_AUTO);
-#endif
-  ev_set_userdata(default_loop_struct.ev, default_loop_ptr);
-}
-
-
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   uv_udp_t* udp;
   uv_async_t* async;
@@ -176,6 +165,15 @@ void uv_loop_delete(uv_loop_t* loop) {
 
 
 uv_loop_t* uv_default_loop() {
+  if (!default_loop_ptr) {
+    default_loop_ptr = &default_loop_struct;
+#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+    default_loop_struct.ev = ev_default_loop(EVBACKEND_KQUEUE);
+#else
+    default_loop_struct.ev = ev_default_loop(EVFLAG_AUTO);
+#endif
+    ev_set_userdata(default_loop_struct.ev, default_loop_ptr);
+  }
   assert(default_loop_ptr->ev == EV_DEFAULT_UC);
   return default_loop_ptr;
 }

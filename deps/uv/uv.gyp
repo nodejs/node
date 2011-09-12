@@ -114,6 +114,7 @@
             'src/win/stream.c',
             'src/win/tcp.c',
             'src/win/threadpool.c',
+            'src/win/threads.c',
             'src/win/timer.c',
             'src/win/udp.c',
             'src/win/util.c',
@@ -209,7 +210,19 @@
             'libraries': [ '-lrt' ],
           },
         }],
-        # TODO add OS=='sun'
+        [ 'OS=="solaris"', {
+          'include_dirs': [ 'src/ares/config_sunos' ],
+          'sources': [ 'src/unix/sunos.c' ],
+          'defines': [
+            '__EXTENSIONS__',
+            '_XOPEN_SOURCE=500',
+            'EV_CONFIG_H="config_sunos.h"',
+            'EIO_CONFIG_H="config_sunos.h"',
+          ],
+          'direct_dependent_settings': {
+            'libraries': [ '-lrt' ],
+          },
+        }],
       ]
     },
 

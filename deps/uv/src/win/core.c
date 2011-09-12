@@ -33,7 +33,22 @@
 
 /* The only event loop we support right now */
 static uv_loop_t uv_default_loop_;
-static int uv_default_loop_initialized_ = 0;
+
+/* uv_once intialization guards */
+static uv_once_t uv_init_guard_ = UV_ONCE_INIT;
+static uv_once_t uv_default_loop_init_guard_ = UV_ONCE_INIT;
+
+
+static void uv_init(void) {
+  /* Initialize winsock */
+  uv_winsock_init();
+
+  /* Fetch winapi function pointers */
+  uv_winapi_init();
+
+  /* Initialize FS */
+  uv_fs_init();
+}
 
 
 static void uv_loop_init(uv_loop_t* loop) {
@@ -68,25 +83,18 @@ static void uv_loop_init(uv_loop_t* loop) {
 }
 
 
-uv_loop_t* uv_default_loop() {
-  if (!uv_default_loop_initialized_) {
-    uv_loop_init(&uv_default_loop_);
-    uv_default_loop_initialized_ = 1;
-  }
+static void uv_default_loop_init(void) {
+  /* Intialize libuv itself first */
+  uv_once(&uv_init_guard_, uv_init);
 
-  return &uv_default_loop_;
+  /* Initialize the main loop */
+  uv_loop_init(&uv_default_loop_);
 }
 
 
-void uv_init() {
-  /* Initialize winsock */
-  uv_winsock_init();
-
-  /* Fetch winapi function pointers */
-  uv_winapi_init();
-
-  /* Initialize FS */
-  uv_fs_init();
+uv_loop_t* uv_default_loop() {
+  uv_once(&uv_default_loop_init_guard_, uv_default_loop_init);
+  return &uv_default_loop_;
 }
 
 

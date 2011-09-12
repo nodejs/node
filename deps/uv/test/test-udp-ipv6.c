@@ -100,8 +100,6 @@ static void do_test(uv_udp_recv_cb recv_cb, int bind_flags) {
   uv_buf_t buf;
   int r;
 
-  uv_init();
-
   addr6 = uv_ip6_addr("::0", TEST_PORT);
 
   r = uv_udp_init(uv_default_loop(), &server);

@@ -299,9 +299,6 @@ TEST_IMPL(loop_handles) {
   int i;
   int r;
 
-  uv_init();
-
-
   r = uv_prepare_init(uv_default_loop(), &prepare_1_handle);
   ASSERT(r == 0);
   r = uv_prepare_start(&prepare_1_handle, prepare_1_cb);

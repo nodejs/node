@@ -86,7 +86,6 @@ BENCHMARK_IMPL(gethostbyname) {
     return 1;
   }
 
-  uv_init();
   loop = uv_default_loop();
 
   ares_callbacks = 0;

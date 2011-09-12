@@ -39,9 +39,6 @@ TEST_IMPL(tcp_bind_error_addrinuse) {
   uv_tcp_t server1, server2;
   int r;
 
-  uv_init();
-
-
   r = uv_tcp_init(uv_default_loop(), &server1);
   ASSERT(r == 0);
   r = uv_tcp_bind(&server1, addr);
@@ -75,9 +72,6 @@ TEST_IMPL(tcp_bind_error_addrnotavail_1) {
   uv_tcp_t server;
   int r;
 
-  uv_init();
-
-
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_tcp_bind(&server, addr);
@@ -101,8 +95,6 @@ TEST_IMPL(tcp_bind_error_addrnotavail_2) {
   struct sockaddr_in addr = uv_ip4_addr("4.4.4.4", TEST_PORT);
   uv_tcp_t server;
   int r;
-
-  uv_init();
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
@@ -128,9 +120,6 @@ TEST_IMPL(tcp_bind_error_fault) {
 
   garbage_addr = (struct sockaddr_in*) &garbage;
 
-  uv_init();
-
-
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_tcp_bind(&server, *garbage_addr);
@@ -154,9 +143,6 @@ TEST_IMPL(tcp_bind_error_inval) {
   struct sockaddr_in addr2 = uv_ip4_addr("0.0.0.0", TEST_PORT_2);
   uv_tcp_t server;
   int r;
-
-  uv_init();
-
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
@@ -183,9 +169,6 @@ TEST_IMPL(tcp_bind_localhost_ok) {
   uv_tcp_t server;
   int r;
 
-  uv_init();
-
-
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_tcp_bind(&server, addr);
@@ -198,8 +181,6 @@ TEST_IMPL(tcp_bind_localhost_ok) {
 TEST_IMPL(tcp_listen_without_bind) {
   int r;
   uv_tcp_t server;
-
-  uv_init();
 
   r = uv_tcp_init(uv_default_loop(), &server);
   ASSERT(r == 0);

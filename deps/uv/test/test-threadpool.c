@@ -45,8 +45,6 @@ static void after_work_cb(uv_work_t* req) {
 TEST_IMPL(threadpool_queue_work_simple) {
   int r;
 
-  uv_init();
-
   work_req.data = &data;
   r = uv_queue_work(uv_default_loop(), &work_req, work_cb, after_work_cb);
   ASSERT(r == 0);

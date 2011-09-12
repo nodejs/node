@@ -117,8 +117,6 @@ static void timer_cb(uv_timer_t* handle, int status) {
 TEST_IMPL(spawn_exit_code) {
   int r;
 
-  uv_init();
-
   init_process_options("spawn_helper1", exit_cb);
 
   r = uv_spawn(uv_default_loop(), &process, options);
@@ -137,8 +135,6 @@ TEST_IMPL(spawn_exit_code) {
 TEST_IMPL(spawn_stdout) {
   int r;
   uv_pipe_t out;
-
-  uv_init();
 
   init_process_options("spawn_helper2", exit_cb);
 
@@ -170,8 +166,6 @@ int r;
   uv_write_t write_req;
   uv_buf_t buf;
   char buffer[] = "hello-from-spawn_stdin";
-
-  uv_init();
 
   init_process_options("spawn_helper3", exit_cb);
 
@@ -205,8 +199,6 @@ int r;
 TEST_IMPL(spawn_and_kill) {
   int r;
 
-  uv_init();
-
   init_process_options("spawn_helper4", kill_cb);
 
   r = uv_spawn(uv_default_loop(), &process, options);
@@ -234,8 +226,6 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
   uv_pipe_t out;
   char name[64];
   HANDLE pipe_handle;
-
-  uv_init();
 
   init_process_options("spawn_helper2", exit_cb);
 

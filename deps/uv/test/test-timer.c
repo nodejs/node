@@ -90,8 +90,6 @@ TEST_IMPL(timer) {
   uv_timer_t repeat, never;
   int i, r;
 
-  uv_init();
-
   start_time = uv_now(uv_default_loop());
   ASSERT(0 < start_time);
 

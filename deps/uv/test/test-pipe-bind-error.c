@@ -45,9 +45,6 @@ TEST_IMPL(pipe_bind_error_addrinuse) {
   uv_pipe_t server1, server2;
   int r;
 
-  uv_init();
-
-
   r = uv_pipe_init(uv_default_loop(), &server1);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server1, TEST_PIPENAME);
@@ -82,9 +79,6 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
   uv_pipe_t server;
   int r;
 
-  uv_init();
-
-
   r = uv_pipe_init(uv_default_loop(), &server);
   ASSERT(r == 0);
   r = uv_pipe_bind(&server, BAD_PIPENAME);
@@ -105,9 +99,6 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
 TEST_IMPL(pipe_bind_error_inval) {
   uv_pipe_t server;
   int r;
-
-  uv_init();
-
 
   r = uv_pipe_init(uv_default_loop(), &server);
   ASSERT(r == 0);
@@ -131,9 +122,6 @@ TEST_IMPL(pipe_bind_error_inval) {
 TEST_IMPL(pipe_listen_without_bind) {
   uv_pipe_t server;
   int r;
-
-  uv_init();
-
 
   r = uv_pipe_init(uv_default_loop(), &server);
   ASSERT(r == 0);

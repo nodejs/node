@@ -317,7 +317,6 @@ static int dns_start(int port) {
 
 
 HELPER_IMPL(dns_server) {
-  uv_init();
   loop = uv_default_loop();
 
   if (dns_start(TEST_PORT_2))

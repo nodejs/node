@@ -367,7 +367,6 @@ HELPER_IMPL(tcp_pump_server) {
   int r;
 
   type = TCP;
-  uv_init();
   loop = uv_default_loop();
 
   listen_addr = uv_ip4_addr("0.0.0.0", TEST_PORT);
@@ -391,7 +390,6 @@ HELPER_IMPL(pipe_pump_server) {
   int r;
   type = PIPE;
 
-  uv_init();
   loop = uv_default_loop();
 
   /* Server */
@@ -414,7 +412,6 @@ void tcp_pump(int n) {
   TARGET_CONNECTIONS = n;
   type = TCP;
 
-  uv_init();
   loop = uv_default_loop();
 
   connect_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
@@ -431,7 +428,6 @@ void pipe_pump(int n) {
   TARGET_CONNECTIONS = n;
   type = PIPE;
 
-  uv_init();
   loop = uv_default_loop();
 
   /* Start making connections */

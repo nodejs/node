@@ -309,7 +309,6 @@ static void udp_sender(void) {
 
 
 TEST_IMPL(getsockname_tcp) {
-  uv_init();
   loop = uv_default_loop();
 
   if (tcp_listener())
@@ -327,7 +326,6 @@ TEST_IMPL(getsockname_tcp) {
 
 
 TEST_IMPL(getsockname_udp) {
-  uv_init();
   loop = uv_default_loop();
 
   if (udp_listener())

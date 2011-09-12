@@ -24,7 +24,6 @@
 
 
 TEST_IMPL(ref) {
-  uv_init();
   uv_run(uv_default_loop());
   return 0;
 }
@@ -32,7 +31,6 @@ TEST_IMPL(ref) {
 
 TEST_IMPL(idle_ref) {
   uv_idle_t h;
-  uv_init();
   uv_idle_init(uv_default_loop(), &h);
   uv_idle_start(&h, NULL);
   uv_unref(uv_default_loop());
@@ -43,7 +41,6 @@ TEST_IMPL(idle_ref) {
 
 TEST_IMPL(async_ref) {
   uv_async_t h;
-  uv_init();
   uv_async_init(uv_default_loop(), &h, NULL);
   uv_unref(uv_default_loop());
   uv_run(uv_default_loop());
@@ -53,7 +50,6 @@ TEST_IMPL(async_ref) {
 
 TEST_IMPL(prepare_ref) {
   uv_prepare_t h;
-  uv_init();
   uv_prepare_init(uv_default_loop(), &h);
   uv_prepare_start(&h, NULL);
   uv_unref(uv_default_loop());
@@ -64,7 +60,6 @@ TEST_IMPL(prepare_ref) {
 
 TEST_IMPL(check_ref) {
   uv_check_t h;
-  uv_init();
   uv_check_init(uv_default_loop(), &h);
   uv_check_start(&h, NULL);
   uv_unref(uv_default_loop());
@@ -83,8 +78,6 @@ static void prepare_cb(uv_prepare_t* handle, int status) {
 
 TEST_IMPL(unref_in_prepare_cb) {
   uv_prepare_t h;
-  uv_init();
-
   uv_prepare_init(uv_default_loop(), &h);
   uv_prepare_start(&h, prepare_cb);
   uv_run(uv_default_loop());

@@ -387,7 +387,6 @@ TEST_IMPL(fs_file_noent) {
   uv_fs_t req;
   int r;
 
-  uv_init();
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &req, "does_not_exist", O_RDONLY, 0, NULL);
@@ -476,7 +475,6 @@ TEST_IMPL(fs_file_async) {
   unlink("test_file");
   unlink("test_file2");
 
-  uv_init();
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &open_req1, "test_file", O_WRONLY | O_CREAT,
@@ -539,7 +537,6 @@ TEST_IMPL(fs_file_sync) {
   unlink("test_file");
   unlink("test_file2");
 
-  uv_init();
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &open_req1, "test_file", O_WRONLY | O_CREAT,
@@ -625,7 +622,6 @@ TEST_IMPL(fs_async_dir) {
   unlink("test_dir/file2");
   rmdir("test_dir");
 
-  uv_init();
   loop = uv_default_loop();
 
   r = uv_fs_mkdir(loop, &mkdir_req, "test_dir", 0755, mkdir_cb);
@@ -713,7 +709,6 @@ TEST_IMPL(fs_async_sendfile) {
   struct stat s1, s2;
 
   /* Setup. */
-  uv_init();
   unlink("test_file");
   unlink("test_file2");
 
@@ -781,8 +776,6 @@ TEST_IMPL(fs_fstat) {
   /* Setup. */
   unlink("test_file");
 
-  uv_init();
-
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &req, "test_file", O_RDWR | O_CREAT,
@@ -836,8 +829,6 @@ TEST_IMPL(fs_chmod) {
 
   /* Setup. */
   unlink("test_file");
-
-  uv_init();
 
   loop = uv_default_loop();
 
@@ -926,8 +917,6 @@ TEST_IMPL(fs_chown) {
   /* Setup. */
   unlink("test_file");
 
-  uv_init();
-
   loop = uv_default_loop();
 
   r = uv_fs_open(loop, &req, "test_file", O_RDWR | O_CREAT,
@@ -986,8 +975,6 @@ TEST_IMPL(fs_link) {
   unlink("test_file");
   unlink("test_file_link");
   unlink("test_file_link2");
-
-  uv_init();
 
   loop = uv_default_loop();
 
@@ -1072,8 +1059,6 @@ TEST_IMPL(fs_symlink) {
   unlink("test_file_symlink2");
   unlink("test_file_symlink_symlink");
   unlink("test_file_symlink2_symlink");
-
-  uv_init();
 
   loop = uv_default_loop();
 
@@ -1187,7 +1172,6 @@ TEST_IMPL(fs_utime) {
   uv_fs_t req;
   int r;
 
-  uv_init();
   loop = uv_default_loop();
 
   atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
@@ -1228,7 +1212,6 @@ TEST_IMPL(fs_futime) {
   uv_fs_t req;
   int r;
 
-  uv_init();
   loop = uv_default_loop();
 
   atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
