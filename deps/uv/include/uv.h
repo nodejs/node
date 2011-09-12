@@ -49,6 +49,7 @@ typedef struct uv_stream_s uv_stream_t;
 typedef struct uv_tcp_s uv_tcp_t;
 typedef struct uv_udp_s uv_udp_t;
 typedef struct uv_pipe_s uv_pipe_t;
+typedef struct uv_tty_s uv_tty_t;
 typedef struct uv_timer_s uv_timer_t;
 typedef struct uv_prepare_s uv_prepare_t;
 typedef struct uv_check_s uv_check_t;
@@ -324,7 +325,7 @@ uv_buf_t uv_buf_init(char* base, size_t len);
  *
  * uv_stream is an abstract class.
  *
- * uv_stream_t is the parent class of uv_tcp_t, uv_pipe_t
+ * uv_stream_t is the parent class of uv_tcp_t, uv_pipe_t, uv_tty_t
  * and soon uv_file_t.
  */
 struct uv_stream_s {
@@ -588,6 +589,25 @@ int uv_udp_recv_stop(uv_udp_t* handle);
 
 
 /*
+ * uv_tty_t is a subclass of uv_stream_t
+ *
+ * Representing a stream for the console.
+ */
+struct uv_tty_s {
+  UV_HANDLE_FIELDS
+  UV_STREAM_FIELDS
+  UV_TTY_PRIVATE_FIELDS
+};
+
+int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd);
+
+/*
+ * Set mode. 0 for normal, 1 for raw.
+ */
+int uv_tty_set_mode(uv_tty_t*, int mode);
+
+
+/*
  * uv_pipe_t is a subclass of uv_stream_t
  *
  * Representing a pipe stream or pipe server. On Windows this is a Named
@@ -600,6 +620,11 @@ struct uv_pipe_s {
 };
 
 int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle);
+
+/*
+ * Opens an existing file descriptor or HANDLE as a pipe.
+ */
+void uv_pipe_open(uv_pipe_t*, uv_file file);
 
 int uv_pipe_bind(uv_pipe_t* handle, const char* name);
 
@@ -1026,6 +1051,7 @@ struct uv_counters_s {
   uint64_t tcp_init;
   uint64_t udp_init;
   uint64_t pipe_init;
+  uint64_t tty_init;
   uint64_t prepare_init;
   uint64_t check_init;
   uint64_t idle_init;

@@ -37,6 +37,7 @@ OBJS += src/unix/error.o
 OBJS += src/unix/process.o
 OBJS += src/unix/tcp.o
 OBJS += src/unix/pipe.o
+OBJS += src/unix/tty.o
 OBJS += src/unix/stream.o
 
 ifeq (SunOS,$(uname_S))

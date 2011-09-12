@@ -170,6 +170,11 @@ int uv_pipe_cleanup(uv_pipe_t* handle) {
 }
 
 
+void uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
+  uv__stream_open((uv_stream_t*)handle, fd, UV_READABLE | UV_WRITABLE);
+}
+
+
 int uv_pipe_connect(uv_connect_t* req,
                     uv_pipe_t* handle,
                     const char* name,

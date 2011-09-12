@@ -173,4 +173,6 @@ typedef int uv_file;
 #define UV_WORK_PRIVATE_FIELDS \
   eio_req* eio;
 
+#define UV_TTY_PRIVATE_FIELDS /* empty */
+
 #endif /* UV_UNIX_H */

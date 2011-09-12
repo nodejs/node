@@ -1059,3 +1059,9 @@ static void eof_timer_close_cb(uv_handle_t* handle) {
   assert(handle->type == UV_TIMER);
   free(handle);
 }
+
+
+void uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
+  assert(0 && "implement me");
+}
+
