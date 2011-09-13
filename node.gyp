@@ -4,6 +4,7 @@
     'target_arch': 'ia32',
     'node_use_dtrace': 'false',
     'node_use_openssl%': 'true',
+    'node_use_system_openssl%': 'false',
     'library_files': [
       'src/node.js',
       'lib/_debugger.js',
@@ -50,10 +51,6 @@
       'lib/vm.js',
     ],
   },
-
-  'includes': [
-    './options.gypi'
-  ],
 
   'targets': [
     {

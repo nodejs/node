@@ -664,6 +664,23 @@ static Handle<Value> StopTTYWatcher(const Arguments& args) {
   return Undefined();
 }
 
+// This exists to prevent process.stdout from keeping the event loop alive.
+// It is only ever called in src/node.js during the initalization of
+// process.stdout and will fail if called more than once. We do not want to
+// expose uv_ref and uv_unref to javascript in general.
+// This should be removed in the future!
+static bool unref_called = false;
+static Handle<Value> Unref(const Arguments& args) {
+  HandleScope scope;
+
+  assert(unref_called == false);
+
+  //uv_unref(uv_default_loop());
+  unref_called = true;
+
+  return Null();
+}
+
 
 void Stdio::Initialize(v8::Handle<v8::Object> target) {
   init_scancode_table();
@@ -701,6 +718,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "destroyTTYWatcher", DestroyTTYWatcher);
   NODE_SET_METHOD(target, "startTTYWatcher", StartTTYWatcher);
   NODE_SET_METHOD(target, "stopTTYWatcher", StopTTYWatcher);
+  NODE_SET_METHOD(target, "unref", Unref);
 }
 
 
