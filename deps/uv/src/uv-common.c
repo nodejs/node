@@ -87,6 +87,7 @@ const char* uv_err_name(uv_err_t err) {
     case UV_EPROTONOSUPPORT: return "EPROTONOSUPPORT";
     case UV_EPROTOTYPE: return "EPROTOTYPE";
     case UV_ETIMEDOUT: return "ETIMEDOUT";
+    case UV_EEXIST: return "EEXIST";
     default:
       assert(0);
       return NULL;

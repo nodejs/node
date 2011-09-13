@@ -83,6 +83,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case EADDRINUSE: return UV_EADDRINUSE;
     case EADDRNOTAVAIL: return UV_EADDRNOTAVAIL;
     case ENOTCONN: return UV_ENOTCONN;
+    case EEXIST: return UV_EEXIST;
     default: return UV_UNKNOWN;
   }
 
