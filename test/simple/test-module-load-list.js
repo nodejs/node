@@ -78,13 +78,6 @@ if (!process.features.uv)  {
     case 'fs':
       expected = expected.concat([
         'NativeModule console',
-        'NativeModule readline',
-        'NativeModule tty',
-        'NativeModule tty_posix',
-        'NativeModule net_uv',
-        'NativeModule timers_uv',
-        'Binding timer_wrap',
-        'NativeModule _linklist',
       ]);
       break;
 
@@ -98,7 +91,6 @@ if (!process.features.uv)  {
         'Binding timer_wrap',
         'NativeModule _linklist',
         'Binding pipe_wrap',
-        'NativeModule readline'
       ]);
       break;
 
@@ -110,9 +102,6 @@ if (!process.features.uv)  {
         'Binding timer_wrap',
         'NativeModule _linklist',
         'Binding pipe_wrap',
-        'NativeModule readline',
-        'NativeModule tty',
-        'NativeModule tty_posix',
       ]);
       break;
 
