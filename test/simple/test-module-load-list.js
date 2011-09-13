@@ -28,9 +28,8 @@ function assertEqual(x, y) {
 }
 
 function checkExpected() {
-  assertEqual(expected.length, process.moduleLoadList.length);
-
-  for (var i = 0; i < expected.length; i++) {
+  var toCompare = Math.max(expected.length, process.moduleLoadList.length);
+  for (var i = 0; i < toCompare; i++) {
     assertEqual(expected[i], process.moduleLoadList[i]);
   }
 }
@@ -56,8 +55,8 @@ checkExpected();
 
 
 // Now do the test again after we console.log something.
-console.log("load console.log");
-console.error("load console.error");
+console.log("load console.log. process.stdout._type is " +
+    process.stdout._type);
 
 if (!process.features.uv)  {
   // legacy
@@ -75,31 +74,55 @@ if (!process.features.uv)  {
     'NativeModule readline'
   ]);
 } else {
-  if (process.platform == 'win32') {
-    // win32
-    expected = expected.concat([
-      'NativeModule console',
-      'NativeModule tty',
-      'NativeModule tty_win32',
-      'NativeModule readline'
-    ]);
-  } else {
-    // unix libuv backend.
-    expected = expected.concat([
-      'NativeModule console',
-      'NativeModule net_uv',
-      'NativeModule timers_uv',
-      'Binding timer_wrap',
-      'NativeModule _linklist',
-      'NativeModule tty',
-      'NativeModule tty_posix',
-      'Binding pipe_wrap',
-      'NativeModule readline'
-    ]);
+  switch (process.stdout._type) {
+    case 'fs':
+      expected = expected.concat([
+        'NativeModule console',
+        'NativeModule readline',
+        'NativeModule tty',
+        'NativeModule tty_posix',
+        'NativeModule net_uv',
+        'NativeModule timers_uv',
+        'Binding timer_wrap',
+        'NativeModule _linklist',
+      ]);
+      break;
+
+    case 'tty':
+      expected = expected.concat([
+        'NativeModule console',
+        'NativeModule tty',
+        'NativeModule tty_posix',
+        'NativeModule net_uv',
+        'NativeModule timers_uv',
+        'Binding timer_wrap',
+        'NativeModule _linklist',
+        'Binding pipe_wrap',
+        'NativeModule readline'
+      ]);
+      break;
+
+    case 'pipe':
+      expected = expected.concat([
+        'NativeModule console',
+        'NativeModule net_uv',
+        'NativeModule timers_uv',
+        'Binding timer_wrap',
+        'NativeModule _linklist',
+        'Binding pipe_wrap',
+        'NativeModule readline',
+        'NativeModule tty',
+        'NativeModule tty_posix',
+      ]);
+      break;
+
+    default:
+      assert.ok(0, "prcoess.stdout._type is bad");
   }
 }
 
-console.error(process.moduleLoadList)
+console.error("process.moduleLoadList", process.moduleLoadList)
+console.error("expected", expected)
 
 checkExpected();
 

@@ -219,27 +219,31 @@
       if (stdout) return stdout;
 
       var binding = process.binding('stdio'),
-          // FIXME Remove conditional when net is supported again on windows.
-          net = (process.platform !== "win32")
-                ? NativeModule.require('net')
-                : undefined,
-          fs = NativeModule.require('fs'),
-          tty = NativeModule.require('tty'),
           fd = binding.stdoutFD;
+
+      // Note stdout._type is used for test-module-load-list.js
 
       if (binding.isatty(fd)) {
         binding.unref();
+        var tty = NativeModule.require('tty');
         stdout = new tty.WriteStream(fd);
+        stdout._type = "tty";
       } else if (binding.isStdoutBlocking()) {
+        var fs = NativeModule.require('fs');
         stdout = new fs.WriteStream(null, {fd: fd});
+        stdout._type = "fs";
       } else {
         binding.unref();
+
+        var net = NativeModule.require('net');
         stdout = new net.Stream(fd);
+
         // FIXME Should probably have an option in net.Stream to create a
         // stream from an existing fd which is writable only. But for now
         // we'll just add this hack and set the `readable` member to false.
         // Test: ./node test/fixtures/echo.js < /etc/passwd
         stdout.readable = false;
+        stdout._type = "pipe";
       }
 
       return stdout;
@@ -255,16 +259,16 @@
       if (stdin) return stdin;
 
       var binding = process.binding('stdio'),
-          net = NativeModule.require('net'),
-          fs = NativeModule.require('fs'),
-          tty = NativeModule.require('tty'),
           fd = binding.openStdin();
 
       if (binding.isatty(fd)) {
+        var tty = NativeModule.require('tty');
         stdin = new tty.ReadStream(fd);
       } else if (binding.isStdinBlocking()) {
+        var fs = NativeModule.require('fs');
         stdin = new fs.ReadStream(null, {fd: fd});
       } else {
+        var net = NativeModule.require('net');
         stdin = new net.Stream(fd);
         stdin.readable = true;
       }
