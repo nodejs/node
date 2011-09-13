@@ -35,14 +35,21 @@ fs.mkdir(d, 0666, function(err) {
     console.log('mkdir error: ' + err.message);
     mkdir_error = true;
   } else {
-    console.log('mkdir okay!');
-    fs.rmdir(d, function(err) {
-      if (err) {
-        console.log('rmdir error: ' + err.message);
-        rmdir_error = true;
-      } else {
-        console.log('rmdir okay!');
-      }
+    fs.mkdir(d, 0666, function(err) {
+      console.log('expect EEXIST error: ', err);
+      assert.ok(err.message.match(/^EEXIST/), 'got EEXIST message');
+      assert.equal(err.code, 'EEXIST', 'got EEXIST code');
+      assert.equal(err.path, d, 'got proper path for EEXIST');
+
+      console.log('mkdir okay!');
+      fs.rmdir(d, function(err) {
+        if (err) {
+          console.log('rmdir error: ' + err.message);
+          rmdir_error = true;
+        } else {
+          console.log('rmdir okay!');
+        }
+      });
     });
   }
 });
