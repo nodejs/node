@@ -221,17 +221,19 @@
       var binding = process.binding('stdio'),
           // FIXME Remove conditional when net is supported again on windows.
           net = (process.platform !== "win32")
-                ? NativeModule.require('net_legacy') // fixme!
+                ? NativeModule.require('net')
                 : undefined,
           fs = NativeModule.require('fs'),
           tty = NativeModule.require('tty'),
           fd = binding.stdoutFD;
 
       if (binding.isatty(fd)) {
+        binding.unref();
         stdout = new tty.WriteStream(fd);
       } else if (binding.isStdoutBlocking()) {
         stdout = new fs.WriteStream(null, {fd: fd});
       } else {
+        binding.unref();
         stdout = new net.Stream(fd);
         // FIXME Should probably have an option in net.Stream to create a
         // stream from an existing fd which is writable only. But for now

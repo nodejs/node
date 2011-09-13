@@ -87,15 +87,13 @@ if (!process.features.uv)  {
     // unix libuv backend.
     expected = expected.concat([
       'NativeModule console',
-      'NativeModule net_legacy',
+      'NativeModule net_uv',
       'NativeModule timers_uv',
       'Binding timer_wrap',
       'NativeModule _linklist',
-      'Binding net',
-      'NativeModule freelist',
-      'Binding io_watcher',
       'NativeModule tty',
       'NativeModule tty_posix',
+      'Binding pipe_wrap',
       'NativeModule readline'
     ]);
   }
