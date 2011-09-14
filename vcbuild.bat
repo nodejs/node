@@ -18,6 +18,7 @@ set noprojgen=
 set nobuild=
 set test=
 set test_args=
+set msi=
 
 :next-arg
 if "%1"=="" goto args-done
@@ -33,6 +34,7 @@ if /i "%1"=="test-simple"  set test=test-simple&goto arg-ok
 if /i "%1"=="test-message" set test=test-message&goto arg-ok
 if /i "%1"=="test-all"     set test=test-all&goto arg-ok
 if /i "%1"=="test"         set test=test&goto arg-ok
+if /i "%1"=="msi"          set msi=1&goto arg-ok
 :arg-ok
 shift
 goto next-arg
@@ -51,7 +53,7 @@ echo Project files generated.
 
 :msbuild
 @rem Skip project generation if requested.
-if defined nobuild goto run
+if defined nobuild goto msi
 
 @rem Bail out early if not running in VS build env.
 if defined VCINSTALLDIR goto msbuild-found
@@ -68,6 +70,15 @@ goto run
 :msbuild-found
 @rem Build the sln with msbuild.
 msbuild node.sln /t:%target% /p:Configuration=%config% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
+if errorlevel 1 goto exit
+
+:msi
+@rem Skip msi generation if not requested
+if not defined msi goto run
+python "%~dp0tools\msi\getnodeversion.py" < "%~dp0src\node_version.h" > "%temp%\node_version.txt"
+if not errorlevel 0 echo Cannot determine current version of node.js & goto exit
+for /F "tokens=*" %%i in (%temp%\node_version.txt) do set NODE_VERSION=%%i
+msbuild "%~dp0tools\msi\nodemsi.sln" /t:Clean,Build /p:Configuration=%config% /p:NodeVersion=%NODE_VERSION% /clp:NoSummary;NoItemAndPropertyList;Verbosity=minimal /nologo
 if errorlevel 1 goto exit
 
 :run
@@ -94,9 +105,10 @@ echo Failed to create vc project files.
 goto exit
 
 :help
-echo vcbuild.bat [debug/release] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [nobuild]
+echo vcbuild.bat [debug/release] [msi] [test-all/test-uv/test-internet/test-pummel/test-simple/test-message] [clean] [noprojgen] [nobuild]
 echo Examples:
 echo   vcbuild.bat                : builds debug build
+echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
 echo   vcbuild.bat release test-uv: builds release build and runs --libuv tests
 goto exit

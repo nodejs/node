@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+
+  <?define sourcedir="$(var.ProjectDir)..\..\$(var.Configuration)\" ?>
+
+  <Product Id="cc6c176e-e26c-48ec-8970-f58bd1d046cf"
+           Name="node.js"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="Joyent, Inc"
+           UpgradeCode="1d60944c-b9ce-4a71-a7c0-0384eb884baa">
+
+    <Package InstallerVersion="200" Compressed="yes" Platform="x86" />
+
+    <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
+    
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFilesFolder">
+        <Directory Id="NodeRoot" Name="nodejs">
+          <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
+            <File Id="filenodeexe" KeyPath="yes" Source="$(var.sourcedir)\node.exe" />
+          </Component>
+          <?if $(var.Configuration) = Debug ?>
+          <Component Id="nodepdb" Guid="BEC0F08E-89B3-4C35-A286-8DB8598597F2">
+            <File Id="filenodepdb" KeyPath="yes" Source="$(var.sourcedir)\node.pdb" />
+          </Component>
+          <?endif?>
+          <Component Id="license" Guid="CEC0F08E-89B3-4C35-A286-8DB8598597F2">
+            <File Id="filelicense" KeyPath="yes" Source="$(var.sourcedir)\..\LICENSE" />
+          </Component>
+        </Directory>
+      </Directory>
+    </Directory>
+
+    <ComponentGroup Id="allfiles">
+      <ComponentRef Id="nodeexe"/>
+      <?if $(var.Configuration) = Debug ?>
+      <ComponentRef Id="nodepdb"/>
+      <?endif?>
+      <ComponentRef Id="license"/>
+    </ComponentGroup>
+
+    <Feature Id="nodejs" Title="node.js engine" Level="1" Description="evented I/O for V8 javascript">
+      <ComponentGroupRef Id="allfiles" />
+      <ComponentGroupRef Id="Product.Generated" />
+    </Feature>
+
+    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)\license.rtf" />
+    <UIRef Id="WixUI_Minimal" />
+
+  </Product>
+
+</Wix>

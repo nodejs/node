@@ -18,6 +18,7 @@ node_g
 Debug/
 Release/
 *.sln
+!nodemsi.sln
 *.suo
 *.vcproj
 *.vcxproj
