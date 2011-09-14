@@ -67,11 +67,48 @@ The options argument has the following options
 - port: port of host to request to. Defaults to 443.
 - path: Path to request. Default `'/'`.
 - method: HTTP request method. Default `'GET'`.
+
+The following options can also be specified.
+However, a global [Agent](http.html#http.Agent) cannot be used. 
+
 - key: Private key to use for SSL. Default `null`.
 - cert: Public x509 certificate to use. Default `null`.
 - ca: An authority certificate or array of authority certificates to check
   the remote host against.
 
+In order to specify these options, use a custom `Agent`.
+
+Example:
+
+    var options = {
+      host: 'encrypted.google.com',
+      port: 443,
+      path: '/',
+      method: 'GET',
+      key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
+    };
+    options.agent = new https.Agent(options);
+
+    var req = https.request(options, function(res) {
+      ...
+    }
+
+Or does not use an `Agent`.
+
+Example:
+
+    var options = {
+      host: 'encrypted.google.com',
+      port: 443,
+      path: '/',
+      method: 'GET',
+      key: fs.readFileSync('test/fixtures/keys/agent2-key.pem'),
+      agent: false
+    };
+
+    var req = https.request(options, function(res) {
+      ...
+    }
 
 ## https.get(options, callback)
 
