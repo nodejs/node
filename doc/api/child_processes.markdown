@@ -142,8 +142,7 @@ See also: `child_process.exec()`
 
 ### child_process.exec(command, [options], callback)
 
-High-level way to execute a command as a child process, buffer the
-output, and return it all in a callback.
+Runs a command in a shell and buffers the output.
 
     var util = require('util'),
         exec = require('child_process').exec,
@@ -177,6 +176,13 @@ if it runs longer than `timeout` milliseconds. The child process is killed with
 `killSignal` (default: `'SIGTERM'`). `maxBuffer` specifies the largest
 amount of data allowed on stdout or stderr - if this value is exceeded then
 the child process is killed.
+
+
+### child_process.execFile(file, args, options, callback)
+
+This is similar to `child_process.exec()` except it does not execute a
+subshell but rather the specified file directly. This makes it slightly
+leaner than `child_process.exec`. It has the same options.
 
 
 ### child_process.fork(modulePath, arguments, options)
