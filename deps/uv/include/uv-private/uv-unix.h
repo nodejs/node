@@ -61,6 +61,7 @@ typedef int uv_file;
   int write_index; \
   uv_buf_t* bufs; \
   int bufcnt; \
+  int error; \
   uv_buf_t bufsml[UV_REQ_BUFSML_SIZE];
 
 #define UV_SHUTDOWN_PRIVATE_FIELDS /* empty */

@@ -83,6 +83,7 @@ void uv_fatal_error(const int errorno, const char* syscall);
 void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,
     uv_handle_type type);
 int uv__stream_open(uv_stream_t*, int fd, int flags);
+void uv__stream_destroy(uv_stream_t* stream);
 void uv__stream_io(EV_P_ ev_io* watcher, int revents);
 void uv__server_io(EV_P_ ev_io* watcher, int revents);
 int uv__accept(int sockfd, struct sockaddr* saddr, socklen_t len);
