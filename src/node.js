@@ -31,8 +31,13 @@
 
   function startup() {
 
-    if (process.env.NODE_USE_UV == '1') process.features.uv = true;
-    if (process.env.NODE_USE_HTTP1 == '1') process.features.http1 = true;
+    if ('NODE_USE_UV' in process.env) {
+      process.features.uv = process.env.NODE_USE_UV != '0';
+    }
+
+    if ('NODE_USE_HTTP1' in process.env) {
+      process.features.http1 = process.env.NODE_USE_HTTP1 != '0';
+    }
 
     // make sure --use-uv is propagated to child processes
     if (process.features.uv) {
