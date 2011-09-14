@@ -196,7 +196,6 @@ TASK_LIST_START
   TEST_ENTRY  (fs_utime)
   TEST_ENTRY  (fs_futime)
   TEST_ENTRY  (fs_symlink)
-  TEST_ENTRY  (fs_symlink)
 
   TEST_ENTRY  (threadpool_queue_work_simple)
 

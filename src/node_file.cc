@@ -287,19 +287,21 @@ Local<Value> FSError(int errorno,
   int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
       __VA_ARGS__, After);                                        \
   assert(r == 0);                                                 \
-  req_wrap->object_->Set(oncomplete_sym, callback);                 \
+  req_wrap->object_->Set(oncomplete_sym, callback);               \
   req_wrap->Dispatched();                                         \
   return scope.Close(req_wrap->object_);
 
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
-  uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
-  if (req_wrap.req.result < 0) {                                  \
+  int result = uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
+  if (result < 0) {                                               \
     int code = uv_last_error(uv_default_loop()).code;             \
     return ThrowException(FSError(code, #func, "", path));        \
   }
 
 #define SYNC_REQ req_wrap.req
+
+#define SYNC_RESULT result
 
 
 static Handle<Value> Close(const Arguments& args) {
@@ -672,7 +674,7 @@ static Handle<Value> SendFile(const Arguments& args) {
     ASYNC_CALL(sendfile, args[4], out_fd, in_fd, in_offset, length)
   } else {
     SYNC_CALL(sendfile, 0, out_fd, in_fd, in_offset, length)
-    return scope.Close(Integer::New(SYNC_REQ.result));
+    return scope.Close(Integer::New(SYNC_RESULT));
   }
 }
 
@@ -728,7 +730,7 @@ static Handle<Value> Open(const Arguments& args) {
     ASYNC_CALL(open, args[3], *path, flags, mode)
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
-    int fd = SYNC_REQ.result;
+    int fd = SYNC_RESULT;
     SetCloseOnExec(fd);
     return scope.Close(Integer::New(fd));
   }
@@ -797,7 +799,7 @@ static Handle<Value> Write(const Arguments& args) {
     ASYNC_CALL(write, cb, fd, buf, len, pos)
   } else {
     SYNC_CALL(write, 0, fd, buf, len, pos)
-    return scope.Close(Integer::New(SYNC_REQ.result));
+    return scope.Close(Integer::New(SYNC_RESULT));
   }
 }
 
@@ -860,7 +862,7 @@ static Handle<Value> Read(const Arguments& args) {
     ASYNC_CALL(read, cb, fd, buf, len, pos);
   } else {
     SYNC_CALL(read, 0, fd, buf, len, pos)
-    Local<Integer> bytesRead = Integer::New(SYNC_REQ.result);
+    Local<Integer> bytesRead = Integer::New(SYNC_RESULT);
     return scope.Close(bytesRead);
   }
 }
