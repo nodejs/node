@@ -62,15 +62,6 @@ Local<Value> FSError(int errorno,
                      const char *path    = NULL);
 
 
-static inline bool SetCloseOnExec(int fd) {
-#ifdef __POSIX__
-  return (fcntl(fd, F_SETFD, FD_CLOEXEC) != -1);
-#else // __MINGW32__
-  return SetHandleInformation(reinterpret_cast<HANDLE>(_get_osfhandle(fd)),
-                              HANDLE_FLAG_INHERIT, 0) != 0;
-#endif
-}
-
 #ifdef _LARGEFILE_SOURCE
 static inline int IsInt64(double x) {
   return x == static_cast<double>(static_cast<int64_t>(x));
@@ -140,7 +131,6 @@ static void After(uv_fs_t *req) {
         break;
 
       case UV_FS_OPEN:
-        SetCloseOnExec(req->result);
         /* pass thru */
       case UV_FS_SENDFILE:
         argv[1] = Integer::New(req->result);
@@ -731,7 +721,6 @@ static Handle<Value> Open(const Arguments& args) {
   } else {
     SYNC_CALL(open, *path, *path, flags, mode)
     int fd = SYNC_RESULT;
-    SetCloseOnExec(fd);
     return scope.Close(Integer::New(fd));
   }
 }
