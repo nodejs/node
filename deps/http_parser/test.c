@@ -582,6 +582,35 @@ const struct message requests[] =
   ,.body= ""
   }
 
+#define LINE_FOLDING_IN_HEADER 20
+, {.name= "line folding in header value"
+  ,.type= HTTP_REQUEST
+  ,.raw= "GET / HTTP/1.1\r\n"
+         "Line1:   abc\r\n"
+         "\tdef\r\n"
+         " ghi\r\n"
+         "\t\tjkl\r\n"
+         "  mno \r\n"
+         "\t \tqrs\r\n"
+         "Line2: \t line2\t\r\n"
+         "\r\n"
+  ,.should_keep_alive= TRUE
+  ,.message_complete_on_eof= FALSE
+  ,.http_major= 1
+  ,.http_minor= 1
+  ,.method= HTTP_GET
+  ,.query_string= ""
+  ,.fragment= ""
+  ,.request_path= "/"
+  ,.request_url= "/"
+  ,.num_headers= 2
+  ,.headers= { { "Line1", "abcdefghijklmno qrs" }
+             , { "Line2", "line2\t" }
+             }
+  ,.body= ""
+  }
+
+
 #define QUERY_TERMINATED_HOST 21
 , {.name= "host terminated by a query string"
   ,.type= HTTP_REQUEST
@@ -1943,7 +1972,7 @@ main (void)
     "\tRA==\r\n"
     "\t-----END CERTIFICATE-----\r\n"
     "\r\n";
-  test_simple(dumbfuck2, 0);
+  test_simple(dumbfuck2, 1);
 
 #if 0
   // NOTE(Wed Nov 18 11:57:27 CET 2009) this seems okay. we just read body
