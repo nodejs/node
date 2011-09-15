@@ -144,13 +144,15 @@ static void on_connection(uv_stream_t* server, int status) {
   case TCP:
     stream = malloc(sizeof(uv_tcp_t));
     ASSERT(stream != NULL);
-    uv_tcp_init(loop, (uv_tcp_t*)stream);
+    r = uv_tcp_init(loop, (uv_tcp_t*)stream);
+    ASSERT(r == 0);
     break;
 
   case PIPE:
     stream = malloc(sizeof(uv_pipe_t));
     ASSERT(stream != NULL);
-    uv_pipe_init(loop, (uv_pipe_t*)stream);
+    r = uv_pipe_init(loop, (uv_pipe_t*)stream);
+    ASSERT(r == 0);
     break;
 
   default:

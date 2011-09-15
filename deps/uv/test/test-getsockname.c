@@ -117,7 +117,8 @@ static void on_connection(uv_stream_t* server, int status) {
   handle = (uv_handle_t*) malloc(sizeof(uv_tcp_t));
   ASSERT(handle != NULL);
 
-  uv_tcp_init(loop, (uv_tcp_t*)handle);
+  r = uv_tcp_init(loop, (uv_tcp_t*)handle);
+  ASSERT(r == 0);
 
   /* associate server with stream */
   handle->data = server;

@@ -179,16 +179,28 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     if (stdin_pipe[0] >= 0) {
       uv__close(stdin_pipe[1]);
       dup2(stdin_pipe[0],  STDIN_FILENO);
+    } else {
+      /* Reset flags that might be set by Node */
+      uv__cloexec(STDIN_FILENO, 0);
+      uv__nonblock(STDIN_FILENO, 0);
     }
 
     if (stdout_pipe[1] >= 0) {
       uv__close(stdout_pipe[0]);
       dup2(stdout_pipe[1], STDOUT_FILENO);
+    } else {
+      /* Reset flags that might be set by Node */
+      uv__cloexec(STDOUT_FILENO, 0);
+      uv__nonblock(STDOUT_FILENO, 0);
     }
 
     if (stderr_pipe[1] >= 0) {
       uv__close(stderr_pipe[0]);
       dup2(stderr_pipe[1], STDERR_FILENO);
+    } else {
+      /* Reset flags that might be set by Node */
+      uv__cloexec(STDERR_FILENO, 0);
+      uv__nonblock(STDERR_FILENO, 0);
     }
 
     if (options.cwd && chdir(options.cwd)) {

@@ -273,10 +273,12 @@ static void connection_cb(uv_stream_t* s, int status) {
 
   if (type == TCP) {
     stream = (uv_stream_t*)malloc(sizeof(uv_tcp_t));
-    uv_tcp_init(loop, (uv_tcp_t*)stream);
+    r = uv_tcp_init(loop, (uv_tcp_t*)stream);
+    ASSERT(r == 0);
   } else {
     stream = (uv_stream_t*)malloc(sizeof(uv_pipe_t));
-    uv_pipe_init(loop, (uv_pipe_t*)stream);
+    r = uv_pipe_init(loop, (uv_pipe_t*)stream);
+    ASSERT(r == 0);
   }
 
   r = uv_accept(s, stream);

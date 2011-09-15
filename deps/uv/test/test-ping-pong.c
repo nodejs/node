@@ -43,7 +43,7 @@ typedef struct {
   union {
     uv_tcp_t tcp;
     uv_pipe_t pipe;
-  };
+  } stream;
   uv_connect_t connect_req;
   char read_buffer[BUFSIZE];
 } pinger_t;
@@ -85,7 +85,7 @@ static void pinger_write_ping(pinger_t* pinger) {
 
   req = malloc(sizeof(uv_write_t));
 
-  if (uv_write(req, (uv_stream_t*)&pinger->tcp, &buf, 1, pinger_after_write)) {
+  if (uv_write(req, (uv_stream_t*)&pinger->stream.tcp, &buf, 1, pinger_after_write)) {
     FATAL("uv_write failed");
   }
 
@@ -108,7 +108,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
       free(buf.base);
     }
 
-    uv_close((uv_handle_t*)(&pinger->tcp), pinger_on_close);
+    uv_close((uv_handle_t*)(&pinger->stream.tcp), pinger_on_close);
 
     return;
   }
@@ -123,7 +123,7 @@ static void pinger_read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
       if (pinger->pongs < NUM_PINGS) {
         pinger_write_ping(pinger);
       } else {
-        uv_close((uv_handle_t*)(&pinger->tcp), pinger_on_close);
+        uv_close((uv_handle_t*)(&pinger->stream.tcp), pinger_on_close);
         return;
       }
     }
@@ -155,13 +155,13 @@ static void tcp_pinger_v6_new() {
   pinger->pongs = 0;
 
   /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_tcp_init(uv_default_loop(), &pinger->tcp);
-  pinger->tcp.data = pinger;
+  r = uv_tcp_init(uv_default_loop(), &pinger->stream.tcp);
+  pinger->stream.tcp.data = pinger;
   ASSERT(!r);
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  r = uv_tcp_connect6(&pinger->connect_req, &pinger->tcp, server_addr,
+  r = uv_tcp_connect6(&pinger->connect_req, &pinger->stream.tcp, server_addr,
       pinger_on_connect);
   ASSERT(!r);
 
@@ -180,13 +180,13 @@ static void tcp_pinger_new() {
   pinger->pongs = 0;
 
   /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_tcp_init(uv_default_loop(), &pinger->tcp);
-  pinger->tcp.data = pinger;
+  r = uv_tcp_init(uv_default_loop(), &pinger->stream.tcp);
+  pinger->stream.tcp.data = pinger;
   ASSERT(!r);
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
-  r = uv_tcp_connect(&pinger->connect_req, &pinger->tcp, server_addr,
+  r = uv_tcp_connect(&pinger->connect_req, &pinger->stream.tcp, server_addr,
       pinger_on_connect);
   ASSERT(!r);
 
@@ -204,14 +204,14 @@ static void pipe_pinger_new() {
   pinger->pongs = 0;
 
   /* Try to connec to the server and do NUM_PINGS ping-pongs. */
-  r = uv_pipe_init(uv_default_loop(), &pinger->pipe);
-  pinger->pipe.data = pinger;
+  r = uv_pipe_init(uv_default_loop(), &pinger->stream.pipe);
+  pinger->stream.pipe.data = pinger;
   ASSERT(!r);
 
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
 
-  r = uv_pipe_connect(&pinger->connect_req, &pinger->pipe, TEST_PIPENAME,
+  r = uv_pipe_connect(&pinger->connect_req, &pinger->stream.pipe, TEST_PIPENAME,
       pinger_on_connect);
   ASSERT(!r);
 
