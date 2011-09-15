@@ -1,4 +1,27 @@
-2011.08.17, Version 0.4.11 (stable)
+2011.09.15, Version 0.4.12 (stable)
+
+* Improve docs
+
+* #1563 overflow in ChildProcess custom_fd.
+
+* #1569, parse error on multi-line HTTP headers. (Ben Noordhuis)
+
+* #1586 net: Socket write encoding case sensitivity (koichik)
+
+* #1610 Remove DigiNotar CA from trusted list (isaacs)
+
+* #1624 buffer: Avoid overrun with 'binary' encoding. (koichik)
+
+* #1633 buffer: write() should always set _charsWritten. (koichik)
+
+* #1707 hasOwnProperty usage security hole in querystring (isaacs)
+
+* #1719 Drain OpenSSL error queue
+
+* Fix error reporting in net.Server.listen
+
+
+2011.08.17, Version 0.4.11 (stable), a745d19ce7d1c0e3778371af4f0346be70cf2c8e
 
 * #738 Fix crypto encryption/decryption with Base64. (SAWADA Tadashi)
 
