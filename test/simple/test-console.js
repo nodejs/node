@@ -25,6 +25,10 @@
 var common = require('../common');
 var assert = require('assert');
 
+assert.ok(process.stdout.writable);
+assert.ok(process.stderr.writable);
+
+
 var stdout_write = global.process.stdout.write;
 var strings = [];
 global.process.stdout.write = function(string) {
