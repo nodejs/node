@@ -504,11 +504,22 @@ int Connection::HandleSSLError(const char* func, int rv) {
     static char ssl_error_buf[512];
     ERR_error_string_n(err, ssl_error_buf, sizeof(ssl_error_buf));
 
+    // XXX We need to drain the error queue for this thread or else OpenSSL
+    // has the possibility of blocking connections? This problem is not well
+    // understood. And we should be somehow propigating these errors up
+    // into JavaScript. There is no test which demonstrates this problem.
+    // https://github.com/joyent/node/issues/1719
+    while ((err = ERR_get_error()) != 0) {
+      ERR_error_string_n(err, ssl_error_buf, sizeof(ssl_error_buf));
+      fprintf(stderr, "(node SSL) %s\n", ssl_error_buf);
+    }
+
     HandleScope scope;
     Local<Value> e = Exception::Error(String::New(ssl_error_buf));
     handle_->Set(String::New("error"), e);
 
-    DEBUG_PRINT("[%p] SSL: %s failed: (%d:%d) %s\n", ssl_, func, err, rv, ssl_error_buf);
+    DEBUG_PRINT("[%p] SSL: %s failed: (%d:%d) %s\n", ssl_, func, err, rv,
+        ssl_error_buf);
 
     return rv;
   }
