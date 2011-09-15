@@ -27,6 +27,9 @@ var assert = require('assert');
 
 assert.ok(process.stdout.writable);
 assert.ok(process.stderr.writable);
+// Support legacy API
+assert.equal('number', typeof process.stdout.fd);
+assert.equal('number', typeof process.stderr.fd);
 
 
 var stdout_write = global.process.stdout.write;

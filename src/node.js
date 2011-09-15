@@ -251,6 +251,9 @@
         stdout._type = "pipe";
       }
 
+      // For supporting legacy API we put the FD here.
+      stdout.fd = fd;
+
       return stdout;
     });
 
@@ -259,6 +262,9 @@
     stderr.readable = false;
     stderr.write = process.binding('stdio').writeError;
     stderr.end = stderr.destroy = stderr.destroySoon = function() { };
+    // For supporting legacy API we put the FD here.
+    // XXX this could break things if anyone ever closes this stream?
+    stderr.fd = 2;
 
     process.__defineGetter__('stdin', function() {
       if (stdin) return stdin;
@@ -277,6 +283,9 @@
         stdin = new net.Stream(fd);
         stdin.readable = true;
       }
+
+      // For supporting legacy API we put the FD here.
+      stdin.fd = fd;
 
       return stdin;
     });
