@@ -3099,7 +3099,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
   //  -- r1    : receiver
   // -----------------------------------
   Code* stub;
-  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  ElementsKind elements_kind = receiver_map->elements_kind();
   MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
   if (!maybe_stub->To(&stub)) return maybe_stub;
   __ DispatchMap(r1,
@@ -3193,7 +3193,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- r3    : scratch
   // -----------------------------------
   Code* stub;
-  JSObject::ElementsKind elements_kind = receiver_map->elements_kind();
+  ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
   MaybeObject* maybe_stub =
       KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
@@ -3438,25 +3438,25 @@ void KeyedLoadStubCompiler::GenerateLoadDictionaryElement(
 }
 
 
-static bool IsElementTypeSigned(JSObject::ElementsKind elements_kind) {
+static bool IsElementTypeSigned(ElementsKind elements_kind) {
   switch (elements_kind) {
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
       return true;
 
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       return false;
 
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-    case JSObject::FAST_ELEMENTS:
-    case JSObject::FAST_DOUBLE_ELEMENTS:
-    case JSObject::DICTIONARY_ELEMENTS:
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       return false;
   }
@@ -3466,7 +3466,7 @@ static bool IsElementTypeSigned(JSObject::ElementsKind elements_kind) {
 
 void KeyedLoadStubCompiler::GenerateLoadExternalArray(
     MacroAssembler* masm,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   // ---------- S t a t e --------------
   //  -- lr     : return address
   //  -- r0     : key
@@ -3501,24 +3501,24 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
   Register value = r2;
   switch (elements_kind) {
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
       __ ldrsb(value, MemOperand(r3, key, LSR, 1));
       break;
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       __ ldrb(value, MemOperand(r3, key, LSR, 1));
       break;
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
       __ ldrsh(value, MemOperand(r3, key, LSL, 0));
       break;
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ ldrh(value, MemOperand(r3, key, LSL, 0));
       break;
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       __ ldr(value, MemOperand(r3, key, LSL, 1));
       break;
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
       if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         __ add(r2, r3, Operand(key, LSL, 1));
@@ -3527,7 +3527,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
         __ ldr(value, MemOperand(r3, key, LSL, 1));
       }
       break;
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
       if (CpuFeatures::IsSupported(VFP3)) {
         CpuFeatures::Scope scope(VFP3);
         __ add(r2, r3, Operand(key, LSL, 2));
@@ -3539,10 +3539,10 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
         __ ldr(r3, MemOperand(r4, Register::kSizeInBytes));
       }
       break;
-    case JSObject::FAST_ELEMENTS:
-    case JSObject::FAST_DOUBLE_ELEMENTS:
-    case JSObject::DICTIONARY_ELEMENTS:
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -3556,7 +3556,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
   // d0: value (if VFP3 is supported)
   // r2/r3: value (if VFP3 is not supported)
 
-  if (elements_kind == JSObject::EXTERNAL_INT_ELEMENTS) {
+  if (elements_kind == EXTERNAL_INT_ELEMENTS) {
     // For the Int and UnsignedInt array types, we need to see whether
     // the value can be represented in a Smi. If not, we need to convert
     // it to a HeapNumber.
@@ -3600,7 +3600,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ str(dst2, FieldMemOperand(r0, HeapNumber::kExponentOffset));
       __ Ret();
     }
-  } else if (elements_kind == JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_UNSIGNED_INT_ELEMENTS) {
     // The test is different for unsigned int values. Since we need
     // the value to be in the range of a positive smi, we can't
     // handle either of the top two bits being set in the value.
@@ -3665,7 +3665,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ mov(r0, r4);
       __ Ret();
     }
-  } else if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     // For the floating-point array type, we need to always allocate a
     // HeapNumber.
     if (CpuFeatures::IsSupported(VFP3)) {
@@ -3735,7 +3735,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
       __ mov(r0, r3);
       __ Ret();
     }
-  } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
       // Allocate a HeapNumber for the result. Don't use r0 and r1 as
@@ -3792,7 +3792,7 @@ void KeyedLoadStubCompiler::GenerateLoadExternalArray(
 
 void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     MacroAssembler* masm,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   // ---------- S t a t e --------------
   //  -- r0     : value
   //  -- r1     : key
@@ -3824,7 +3824,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // Handle both smis and HeapNumbers in the fast path. Go to the
   // runtime for all other kinds of values.
   // r3: external array.
-  if (elements_kind == JSObject::EXTERNAL_PIXEL_ELEMENTS) {
+  if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
     // Double to pixel conversion is only implemented in the runtime for now.
     __ JumpIfNotSmi(value, &slow);
   } else {
@@ -3836,29 +3836,29 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // r3: base pointer of external storage.
   // r5: value (integer).
   switch (elements_kind) {
-    case JSObject::EXTERNAL_PIXEL_ELEMENTS:
+    case EXTERNAL_PIXEL_ELEMENTS:
       // Clamp the value to [0..255].
       __ Usat(r5, 8, Operand(r5));
       __ strb(r5, MemOperand(r3, key, LSR, 1));
       break;
-    case JSObject::EXTERNAL_BYTE_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+    case EXTERNAL_BYTE_ELEMENTS:
+    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
       __ strb(r5, MemOperand(r3, key, LSR, 1));
       break;
-    case JSObject::EXTERNAL_SHORT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+    case EXTERNAL_SHORT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
       __ strh(r5, MemOperand(r3, key, LSL, 0));
       break;
-    case JSObject::EXTERNAL_INT_ELEMENTS:
-    case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+    case EXTERNAL_INT_ELEMENTS:
+    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
       __ str(r5, MemOperand(r3, key, LSL, 1));
       break;
-    case JSObject::EXTERNAL_FLOAT_ELEMENTS:
+    case EXTERNAL_FLOAT_ELEMENTS:
       // Perform int-to-float conversion and store to memory.
       __ SmiUntag(r4, key);
       StoreIntAsFloat(masm, r3, r4, r5, r6, r7, r9);
       break;
-    case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
+    case EXTERNAL_DOUBLE_ELEMENTS:
       __ add(r3, r3, Operand(key, LSL, 2));
       // r3: effective address of the double element
       FloatingPointHelper::Destination destination;
@@ -3879,10 +3879,10 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ str(r7, MemOperand(r3, Register::kSizeInBytes));
       }
       break;
-    case JSObject::FAST_ELEMENTS:
-    case JSObject::FAST_DOUBLE_ELEMENTS:
-    case JSObject::DICTIONARY_ELEMENTS:
-    case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+    case FAST_ELEMENTS:
+    case FAST_DOUBLE_ELEMENTS:
+    case DICTIONARY_ELEMENTS:
+    case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNREACHABLE();
       break;
   }
@@ -3890,7 +3890,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // Entry registers are intact, r0 holds the value which is the return value.
   __ Ret();
 
-  if (elements_kind != JSObject::EXTERNAL_PIXEL_ELEMENTS) {
+  if (elements_kind != EXTERNAL_PIXEL_ELEMENTS) {
     // r3: external array.
     __ bind(&check_heap_number);
     __ CompareObjectType(value, r5, r6, HEAP_NUMBER_TYPE);
@@ -3906,7 +3906,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     if (CpuFeatures::IsSupported(VFP3)) {
       CpuFeatures::Scope scope(VFP3);
 
-      if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         // vldr requires offset to be a multiple of 4 so we can not
         // include -kHeapObjectTag into it.
         __ sub(r5, r0, Operand(kHeapObjectTag));
@@ -3914,7 +3914,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ add(r5, r3, Operand(key, LSL, 1));
         __ vcvt_f32_f64(s0, d0);
         __ vstr(s0, r5, 0);
-      } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+      } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
         __ sub(r5, r0, Operand(kHeapObjectTag));
         __ vldr(d0, r5, HeapNumber::kValueOffset);
         __ add(r5, r3, Operand(key, LSL, 2));
@@ -3927,25 +3927,25 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ EmitECMATruncate(r5, d0, s2, r6, r7, r9);
 
         switch (elements_kind) {
-          case JSObject::EXTERNAL_BYTE_ELEMENTS:
-          case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+          case EXTERNAL_BYTE_ELEMENTS:
+          case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
             __ strb(r5, MemOperand(r3, key, LSR, 1));
             break;
-          case JSObject::EXTERNAL_SHORT_ELEMENTS:
-          case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+          case EXTERNAL_SHORT_ELEMENTS:
+          case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
             __ strh(r5, MemOperand(r3, key, LSL, 0));
             break;
-          case JSObject::EXTERNAL_INT_ELEMENTS:
-          case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+          case EXTERNAL_INT_ELEMENTS:
+          case EXTERNAL_UNSIGNED_INT_ELEMENTS:
             __ str(r5, MemOperand(r3, key, LSL, 1));
             break;
-          case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-          case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-          case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-          case JSObject::FAST_ELEMENTS:
-          case JSObject::FAST_DOUBLE_ELEMENTS:
-          case JSObject::DICTIONARY_ELEMENTS:
-          case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+          case EXTERNAL_PIXEL_ELEMENTS:
+          case EXTERNAL_FLOAT_ELEMENTS:
+          case EXTERNAL_DOUBLE_ELEMENTS:
+          case FAST_ELEMENTS:
+          case FAST_DOUBLE_ELEMENTS:
+          case DICTIONARY_ELEMENTS:
+          case NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
             break;
         }
@@ -3959,7 +3959,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ ldr(r5, FieldMemOperand(value, HeapNumber::kExponentOffset));
       __ ldr(r6, FieldMemOperand(value, HeapNumber::kMantissaOffset));
 
-      if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+      if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         Label done, nan_or_infinity_or_zero;
         static const int kMantissaInHiWordShift =
             kBinary32MantissaBits - HeapNumber::kMantissaBitsInTopWord;
@@ -4011,7 +4011,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ orr(r9, r9, Operand(r5, LSL, kMantissaInHiWordShift));
         __ orr(r5, r9, Operand(r6, LSR, kMantissaInLoWordShift));
         __ b(&done);
-      } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+      } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
         __ add(r7, r3, Operand(key, LSL, 2));
         // r7: effective address of destination element.
         __ str(r6, MemOperand(r7, 0));
@@ -4066,25 +4066,25 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
         __ bind(&done);
         switch (elements_kind) {
-          case JSObject::EXTERNAL_BYTE_ELEMENTS:
-          case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+          case EXTERNAL_BYTE_ELEMENTS:
+          case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
             __ strb(r5, MemOperand(r3, key, LSR, 1));
             break;
-          case JSObject::EXTERNAL_SHORT_ELEMENTS:
-          case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+          case EXTERNAL_SHORT_ELEMENTS:
+          case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
             __ strh(r5, MemOperand(r3, key, LSL, 0));
             break;
-          case JSObject::EXTERNAL_INT_ELEMENTS:
-          case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+          case EXTERNAL_INT_ELEMENTS:
+          case EXTERNAL_UNSIGNED_INT_ELEMENTS:
             __ str(r5, MemOperand(r3, key, LSL, 1));
             break;
-          case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-          case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-          case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-          case JSObject::FAST_ELEMENTS:
-          case JSObject::FAST_DOUBLE_ELEMENTS:
-          case JSObject::DICTIONARY_ELEMENTS:
-          case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+          case EXTERNAL_PIXEL_ELEMENTS:
+          case EXTERNAL_FLOAT_ELEMENTS:
+          case EXTERNAL_DOUBLE_ELEMENTS:
+          case FAST_ELEMENTS:
+          case FAST_DOUBLE_ELEMENTS:
+          case DICTIONARY_ELEMENTS:
+          case NON_STRICT_ARGUMENTS_ELEMENTS:
             UNREACHABLE();
             break;
         }

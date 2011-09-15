@@ -77,7 +77,6 @@ class HttpRequestProcessor {
  */
 class JsHttpRequestProcessor : public HttpRequestProcessor {
  public:
-
   // Creates a new processor that processes requests by invoking the
   // Process function of the JavaScript script given as an argument.
   explicit JsHttpRequestProcessor(Handle<String> script) : script_(script) { }
@@ -88,7 +87,6 @@ class JsHttpRequestProcessor : public HttpRequestProcessor {
   virtual bool Process(HttpRequest* req);
 
  private:
-
   // Execute the script associated with this processor and extract the
   // Process function.  Returns true if this succeeded, otherwise false.
   bool ExecuteScript(Handle<String> script);

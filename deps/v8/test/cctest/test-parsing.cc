@@ -345,7 +345,7 @@ TEST(PreParseOverflow) {
       reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
 
   size_t kProgramSize = 1024 * 1024;
-  i::SmartPointer<char> program(
+  i::SmartArrayPointer<char> program(
       reinterpret_cast<char*>(malloc(kProgramSize + 1)));
   memset(*program, '(', kProgramSize);
   program[kProgramSize] = '\0';
@@ -398,7 +398,7 @@ void TestCharacterStream(const char* ascii_source,
   if (end == 0) end = length;
   unsigned sub_length = end - start;
   i::HandleScope test_scope;
-  i::SmartPointer<i::uc16> uc16_buffer(new i::uc16[length]);
+  i::SmartArrayPointer<i::uc16> uc16_buffer(new i::uc16[length]);
   for (unsigned i = 0; i < length; i++) {
     uc16_buffer[i] = static_cast<i::uc16>(ascii_source[i]);
   }

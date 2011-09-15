@@ -231,6 +231,7 @@ class ExecArgs {
   static const unsigned kMaxArgs = 1000;
   char** arg_array() { return exec_args_; }
   char* arg0() { return exec_args_[0]; }
+
  private:
   char* exec_args_[kMaxArgs + 1];
 };

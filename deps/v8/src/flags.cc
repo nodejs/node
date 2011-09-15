@@ -31,7 +31,7 @@
 #include "v8.h"
 
 #include "platform.h"
-#include "smart-pointer.h"
+#include "smart-array-pointer.h"
 #include "string-stream.h"
 
 
@@ -193,7 +193,7 @@ static const char* Type2String(Flag::FlagType type) {
 }
 
 
-static SmartPointer<const char> ToString(Flag* flag) {
+static SmartArrayPointer<const char> ToString(Flag* flag) {
   HeapStringAllocator string_allocator;
   StringStream buffer(&string_allocator);
   switch (flag->type()) {
@@ -528,7 +528,7 @@ void FlagList::PrintHelp() {
   printf("Options:\n");
   for (size_t i = 0; i < num_flags; ++i) {
     Flag* f = &flags[i];
-    SmartPointer<const char> value = ToString(f);
+    SmartArrayPointer<const char> value = ToString(f);
     printf("  --%s (%s)\n        type: %s  default: %s\n",
            f->name(), f->comment(), Type2String(f->type()), *value);
   }

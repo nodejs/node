@@ -49,7 +49,6 @@ namespace internal {
 template <typename T, class P>
 class List {
  public:
-
   List() { Initialize(0); }
   INLINE(explicit List(int capacity)) { Initialize(capacity); }
   INLINE(~List()) { DeleteData(data_); }
@@ -169,6 +168,15 @@ class Code;
 typedef List<Map*> MapList;
 typedef List<Code*> CodeList;
 
+// Perform binary search for an element in an already sorted
+// list. Returns the index of the element of -1 if it was not found.
+template <typename T>
+int SortedListBSearch(
+    const List<T>& list, T elem, int (*cmp)(const T* x, const T* y));
+template <typename T>
+int SortedListBSearch(const List<T>& list, T elem);
+
 } }  // namespace v8::internal
+
 
 #endif  // V8_LIST_H_

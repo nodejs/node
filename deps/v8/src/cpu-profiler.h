@@ -48,7 +48,6 @@ class TokenEnumerator;
 #define CODE_EVENTS_TYPE_LIST(V)                                   \
   V(CODE_CREATION,    CodeCreateEventRecord)                       \
   V(CODE_MOVE,        CodeMoveEventRecord)                         \
-  V(CODE_DELETE,      CodeDeleteEventRecord)                       \
   V(SHARED_FUNC_MOVE, SharedFunctionInfoMoveEventRecord)
 
 
@@ -82,14 +81,6 @@ class CodeMoveEventRecord : public CodeEventRecord {
  public:
   Address from;
   Address to;
-
-  INLINE(void UpdateCodeMap(CodeMap* code_map));
-};
-
-
-class CodeDeleteEventRecord : public CodeEventRecord {
- public:
-  Address start;
 
   INLINE(void UpdateCodeMap(CodeMap* code_map));
 };

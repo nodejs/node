@@ -474,7 +474,6 @@ void Thread::YieldCPU() {
 
 class CygwinMutex : public Mutex {
  public:
-
   CygwinMutex() {
     pthread_mutexattr_t attrs;
     memset(&attrs, 0, sizeof(attrs));

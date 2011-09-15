@@ -238,6 +238,8 @@ enum BuiltinExtraArguments {
   V(FILTER_KEY, 1)                       \
   V(CALL_NON_FUNCTION, 0)                \
   V(CALL_NON_FUNCTION_AS_CONSTRUCTOR, 0) \
+  V(CALL_FUNCTION_PROXY, 1)                \
+  V(CALL_FUNCTION_PROXY_AS_CONSTRUCTOR, 1) \
   V(TO_OBJECT, 0)                        \
   V(TO_NUMBER, 0)                        \
   V(TO_STRING, 0)                        \

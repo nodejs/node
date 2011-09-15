@@ -401,7 +401,7 @@ class DictionaryElementsAccessor
     Heap* heap = isolate->heap();
     FixedArray* backing_store = FixedArray::cast(obj->elements());
     bool is_arguments =
-        (obj->GetElementsKind() == JSObject::NON_STRICT_ARGUMENTS_ELEMENTS);
+        (obj->GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS);
     if (is_arguments) {
       backing_store = FixedArray::cast(backing_store->get(1));
     }
@@ -565,28 +565,28 @@ ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
   switch (array->map()->instance_type()) {
     case FIXED_ARRAY_TYPE:
       if (array->IsDictionary()) {
-        return elements_accessors_[JSObject::DICTIONARY_ELEMENTS];
+        return elements_accessors_[DICTIONARY_ELEMENTS];
       } else {
-        return elements_accessors_[JSObject::FAST_ELEMENTS];
+        return elements_accessors_[FAST_ELEMENTS];
       }
     case EXTERNAL_BYTE_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_BYTE_ELEMENTS];
+      return elements_accessors_[EXTERNAL_BYTE_ELEMENTS];
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS];
+      return elements_accessors_[EXTERNAL_UNSIGNED_BYTE_ELEMENTS];
     case EXTERNAL_SHORT_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_SHORT_ELEMENTS];
+      return elements_accessors_[EXTERNAL_SHORT_ELEMENTS];
     case EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS];
+      return elements_accessors_[EXTERNAL_UNSIGNED_SHORT_ELEMENTS];
     case EXTERNAL_INT_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_INT_ELEMENTS];
+      return elements_accessors_[EXTERNAL_INT_ELEMENTS];
     case EXTERNAL_UNSIGNED_INT_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS];
+      return elements_accessors_[EXTERNAL_UNSIGNED_INT_ELEMENTS];
     case EXTERNAL_FLOAT_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_FLOAT_ELEMENTS];
+      return elements_accessors_[EXTERNAL_FLOAT_ELEMENTS];
     case EXTERNAL_DOUBLE_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_DOUBLE_ELEMENTS];
+      return elements_accessors_[EXTERNAL_DOUBLE_ELEMENTS];
     case EXTERNAL_PIXEL_ARRAY_TYPE:
-      return elements_accessors_[JSObject::EXTERNAL_PIXEL_ELEMENTS];
+      return elements_accessors_[EXTERNAL_PIXEL_ELEMENTS];
     default:
       UNREACHABLE();
       return NULL;

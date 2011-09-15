@@ -164,6 +164,9 @@ void HeapObject::HeapObjectVerify() {
     case JS_PROXY_TYPE:
       JSProxy::cast(this)->JSProxyVerify();
       break;
+    case JS_FUNCTION_PROXY_TYPE:
+      JSFunctionProxy::cast(this)->JSFunctionProxyVerify();
+      break;
     case FOREIGN_TYPE:
       Foreign::cast(this)->ForeignVerify();
       break;
@@ -535,6 +538,15 @@ void JSProxy::JSProxyVerify() {
   ASSERT(IsJSProxy());
   VerifyPointer(handler());
 }
+
+
+void JSFunctionProxy::JSFunctionProxyVerify() {
+  ASSERT(IsJSFunctionProxy());
+  JSProxyVerify();
+  VerifyPointer(call_trap());
+  VerifyPointer(construct_trap());
+}
+
 
 void Foreign::ForeignVerify() {
   ASSERT(IsForeign());

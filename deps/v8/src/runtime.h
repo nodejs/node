@@ -80,6 +80,7 @@ namespace internal {
   \
   /* Utilities */ \
   F(CheckIsBootstrapping, 0, 1) \
+  F(Apply, 5, 1) \
   F(GetFunctionDelegate, 1, 1) \
   F(GetConstructorDelegate, 1, 1) \
   F(NewArgumentsFast, 3, 1) \
@@ -287,8 +288,12 @@ namespace internal {
   \
   /* Harmony proxies */ \
   F(CreateJSProxy, 2, 1) \
+  F(CreateJSFunctionProxy, 4, 1) \
   F(IsJSProxy, 1, 1) \
+  F(IsJSFunctionProxy, 1, 1) \
   F(GetHandler, 1, 1) \
+  F(GetCallTrap, 1, 1) \
+  F(GetConstructTrap, 1, 1) \
   F(Fix, 1, 1) \
   \
   /* Harmony weakmaps */ \

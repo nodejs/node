@@ -116,9 +116,17 @@ macro FLOOR(arg)                = $floor(arg);
 
 # Macro for ECMAScript 5 queries of the type:
 # "Type(O) is object."
-# This is the same as being either a function or an object in V8 terminology.
+# This is the same as being either a function or an object in V8 terminology
+# (including proxies).
 # In addition, an undetectable object is also included by this.
-macro IS_SPEC_OBJECT(arg) = (%_IsSpecObject(arg));
+macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
+
+# Macro for ECMAScript 5 queries of the type:
+# "IsCallable(O)"
+# We assume here that this is the same as being either a function or a function
+# proxy. That ignores host objects with [[Call]] methods, but in most situations
+# we cannot handle those anyway.
+macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));

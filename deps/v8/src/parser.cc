@@ -1369,7 +1369,7 @@ VariableProxy* Parser::Declare(Handle<String> name,
         if (harmony_block_scoping_) {
           // In harmony mode we treat re-declarations as early errors. See
           // ES5 16 for a definition of early errors.
-          SmartPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+          SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
           const char* elms[2] = { "Variable", *c_string };
           Vector<const char*> args(elms, 2);
           ReportMessage("redeclaration", args);
@@ -1902,7 +1902,7 @@ Statement* Parser::ParseExpressionOrLabelledStatement(ZoneStringList* labels,
     // structured.  However, these are probably changes we want to
     // make later anyway so we should go back and fix this then.
     if (ContainsLabel(labels, label) || TargetStackContainsLabel(label)) {
-      SmartPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
+      SmartArrayPointer<char> c_string = label->ToCString(DISALLOW_NULLS);
       const char* elms[2] = { "Label", *c_string };
       Vector<const char*> args(elms, 2);
       ReportMessage("redeclaration", args);
@@ -3006,7 +3006,7 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
 
 
 void Parser::ReportInvalidPreparseData(Handle<String> name, bool* ok) {
-  SmartPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
+  SmartArrayPointer<char> name_string = name->ToCString(DISALLOW_NULLS);
   const char* element[1] = { *name_string };
   ReportMessage("invalid_preparser_data",
                 Vector<const char*>(element, 1));
@@ -4096,7 +4096,7 @@ void Parser::CheckConflictingVarDeclarations(Scope* scope, bool* ok) {
     // In harmony mode we treat conflicting variable bindinds as early
     // errors. See ES5 16 for a definition of early errors.
     Handle<String> name = decl->proxy()->name();
-    SmartPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
+    SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
     const char* elms[2] = { "Variable", *c_string };
     Vector<const char*> args(elms, 2);
     int position = decl->proxy()->position();

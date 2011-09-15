@@ -25,29 +25,61 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_QUEUE_INL_H_
-#define V8_CIRCULAR_QUEUE_INL_H_
+// Flags: --expose-debug-as debug
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
+var breaks = 0;
 
-#include "circular-queue.h"
-
-namespace v8 {
-namespace internal {
-
-
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
+function sendCommand(state, cmd) {
+  // Get the debug command processor in paused state.
+  var dcp = state.debugCommandProcessor(false);
+  var request = JSON.stringify(cmd);
+  var response = dcp.processDebugJSONRequest(request);
 }
 
+function listener(event, exec_state, event_data, data) {
+  try {
+    if (event == Debug.DebugEvent.Break) {
+      var line = event_data.sourceLineText();
+      print('break: ' + line);
 
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
+      assertEquals(-1, line.indexOf('NOBREAK'),
+                   "should not break on unexpected lines")
+      assertEquals('BREAK ' + breaks, line.substr(-7));
+      breaks++;
+      sendCommand(exec_state, {
+        seq: 0,
+        type: "request",
+        command: "continue",
+        arguments: { stepaction: "next" }
+      });
+    }
+  } catch (e) {
+    print(e);
+  }
 }
 
+// Add the debug event listener.
+Debug.setListener(listener);
 
-} }  // namespace v8::internal
+function a(f) {
+  if (f) {  // NOBREAK: should not break here!
+    try {
+      f();
+    } catch(e) {
+    }
+  }
+}  // BREAK 2
 
-#endif  // V8_CIRCULAR_QUEUE_INL_H_
+function b() {
+  c();  // BREAK 0
+}  // BREAK 1
+
+function c() {
+  a();
+}
+
+// Set a break point and call to invoke the debug event listener.
+Debug.setBreakPoint(b, 0, 0);
+a(b);
+// BREAK 3

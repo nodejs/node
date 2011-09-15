@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -31,7 +31,7 @@
 #ifndef V8_SHARED
 #include "allocation.h"
 #include "hashmap.h"
-#include "smart-pointer.h"
+#include "smart-array-pointer.h"
 #include "v8.h"
 #else
 #include "../include/v8.h"
@@ -116,16 +116,42 @@ class CounterMap {
 #endif  // V8_SHARED
 
 
+#ifndef V8_SHARED
+class LineEditor {
+ public:
+  enum Type { DUMB = 0, READLINE = 1 };
+  LineEditor(Type type, const char* name);
+  virtual ~LineEditor() { }
+
+  virtual i::SmartArrayPointer<char> Prompt(const char* prompt) = 0;
+  virtual bool Open() { return true; }
+  virtual bool Close() { return true; }
+  virtual void AddHistory(const char* str) { }
+
+  const char* name() { return name_; }
+  static LineEditor* Get();
+ private:
+  Type type_;
+  const char* name_;
+  LineEditor* next_;
+  static LineEditor* first_;
+};
+#endif  // V8_SHARED
+
+
 class SourceGroup {
  public:
   SourceGroup() :
 #ifndef V8_SHARED
       next_semaphore_(v8::internal::OS::CreateSemaphore(0)),
       done_semaphore_(v8::internal::OS::CreateSemaphore(0)),
+      thread_(NULL),
 #endif  // V8_SHARED
       argv_(NULL),
       begin_offset_(0),
       end_offset_(0) {}
+
+  ~SourceGroup();
 
   void Begin(char** argv, int offset) {
     argv_ = const_cast<const char**>(argv);
@@ -157,9 +183,9 @@ class SourceGroup {
   static i::Thread::Options GetThreadOptions();
   void ExecuteInThread();
 
-  i::SmartPointer<i::Semaphore> next_semaphore_;
-  i::SmartPointer<i::Semaphore> done_semaphore_;
-  i::SmartPointer<i::Thread> thread_;
+  i::Semaphore* next_semaphore_;
+  i::Semaphore* done_semaphore_;
+  i::Thread* thread_;
 #endif  // V8_SHARED
 
   void ExitShell(int exit_code);
@@ -177,6 +203,7 @@ class ShellOptions {
 #ifndef V8_SHARED
      use_preemption(true),
      preemption_interval(10),
+     num_parallel_files(0),
      parallel_files(NULL),
 #endif  // V8_SHARED
      script_executed(false),
@@ -188,10 +215,18 @@ class ShellOptions {
      num_isolates(1),
      isolate_sources(NULL) { }
 
+  ~ShellOptions() {
+#ifndef V8_SHARED
+    delete[] parallel_files;
+#endif  // V8_SHARED
+    delete[] isolate_sources;
+  }
+
 #ifndef V8_SHARED
   bool use_preemption;
   int preemption_interval;
-  i::List< i::Vector<const char> >* parallel_files;
+  int num_parallel_files;
+  char** parallel_files;
 #endif  // V8_SHARED
   bool script_executed;
   bool last_run;
@@ -208,6 +243,7 @@ class Shell {
 #else
 class Shell : public i::AllStatic {
 #endif  // V8_SHARED
+
  public:
   static bool ExecuteString(Handle<String> source,
                             Handle<Value> name,
@@ -219,6 +255,7 @@ class Shell : public i::AllStatic {
   static Persistent<Context> CreateEvaluationContext();
   static int RunMain(int argc, char* argv[]);
   static int Main(int argc, char* argv[]);
+  static void Exit(int exit_code);
 
 #ifndef V8_SHARED
   static Handle<Array> GetCompletions(Handle<String> text,
@@ -299,6 +336,8 @@ class Shell : public i::AllStatic {
   static void AddOSMethods(Handle<ObjectTemplate> os_template);
 #ifndef V8_SHARED
   static const char* kHistoryFileName;
+  static const int kMaxHistoryEntries;
+  static LineEditor* console;
 #endif  // V8_SHARED
   static const char* kPrompt;
   static ShellOptions options;
@@ -327,29 +366,6 @@ class Shell : public i::AllStatic {
                                            size_t element_size);
   static void ExternalArrayWeakCallback(Persistent<Value> object, void* data);
 };
-
-
-#ifndef V8_SHARED
-class LineEditor {
- public:
-  enum Type { DUMB = 0, READLINE = 1 };
-  LineEditor(Type type, const char* name);
-  virtual ~LineEditor() { }
-
-  virtual i::SmartPointer<char> Prompt(const char* prompt) = 0;
-  virtual bool Open() { return true; }
-  virtual bool Close() { return true; }
-  virtual void AddHistory(const char* str) { }
-
-  const char* name() { return name_; }
-  static LineEditor* Get();
- private:
-  Type type_;
-  const char* name_;
-  LineEditor* next_;
-  static LineEditor* first_;
-};
-#endif  // V8_SHARED
 
 
 }  // namespace v8

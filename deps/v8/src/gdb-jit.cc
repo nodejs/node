@@ -993,7 +993,7 @@ class CodeDescription BASE_EMBEDDED {
   }
 #endif
 
-  SmartPointer<char> GetFilename() {
+  SmartArrayPointer<char> GetFilename() {
     return String::cast(script_->name())->ToCString();
   }
 
@@ -1991,7 +1991,7 @@ void GDBJITInterface::AddCode(Handle<String> name,
   GetScriptLineNumber(script, 0);
 
   if (!name.is_null()) {
-    SmartPointer<char> name_cstring = name->ToCString(DISALLOW_NULLS);
+    SmartArrayPointer<char> name_cstring = name->ToCString(DISALLOW_NULLS);
     AddCode(*name_cstring, *code, GDBJITInterface::FUNCTION, *script, info);
   } else {
     AddCode("", *code, GDBJITInterface::FUNCTION, *script, info);

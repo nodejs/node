@@ -72,7 +72,7 @@ class DebuggerAgent: public Thread {
   void OnSessionClosed(DebuggerAgentSession* session);
 
   Isolate* isolate_;
-  SmartPointer<const char> name_;  // Name of the embedding application.
+  SmartArrayPointer<const char> name_;  // Name of the embedding application.
   int port_;  // Port to use for the agent.
   Socket* server_;  // Server socket for listen/accept.
   bool terminate_;  // Termination flag.
@@ -117,7 +117,7 @@ class DebuggerAgentUtil {
   static const char* const kContentLength;
   static const int kContentLengthSize;
 
-  static SmartPointer<char> ReceiveMessage(const Socket* conn);
+  static SmartArrayPointer<char> ReceiveMessage(const Socket* conn);
   static bool SendConnectMessage(const Socket* conn,
                                  const char* embedding_host);
   static bool SendMessage(const Socket* conn, const Vector<uint16_t> message);

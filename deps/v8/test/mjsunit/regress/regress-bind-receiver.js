@@ -25,29 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_QUEUE_INL_H_
-#define V8_CIRCULAR_QUEUE_INL_H_
+function strict() { 'use strict'; return this; }
+function lenient() { return this; }
+var obj = {};
 
-#include "circular-queue.h"
+assertEquals(true, strict.bind(true)());
+assertEquals(42, strict.bind(42)());
+assertEquals("", strict.bind("")());
+assertEquals(null, strict.bind(null)());
+assertEquals(undefined, strict.bind(undefined)());
+assertEquals(obj, strict.bind(obj)());
 
-namespace v8 {
-namespace internal {
-
-
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
-}
-
-
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CIRCULAR_QUEUE_INL_H_
+assertEquals(true, lenient.bind(true)() instanceof Boolean);
+assertEquals(true, lenient.bind(42)() instanceof Number);
+assertEquals(true, lenient.bind("")() instanceof String);
+assertEquals(this, lenient.bind(null)());
+assertEquals(this, lenient.bind(undefined)());
+assertEquals(obj, lenient.bind(obj)());

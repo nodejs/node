@@ -663,7 +663,7 @@ static void Indent(int n, const char* str) {
 
 
 static void PrintName(Handle<String> name) {
-  SmartPointer<char> s = name->ToCString(DISALLOW_NULLS);
+  SmartArrayPointer<char> s = name->ToCString(DISALLOW_NULLS);
   PrintF("%s", *s);
 }
 
@@ -695,7 +695,7 @@ static void PrintVar(int indent, Variable* var) {
     PrintName(var->name());
     PrintF(";  // ");
     PrintLocation(var);
-    if (var->is_accessed_from_inner_function_scope()) {
+    if (var->is_accessed_from_inner_scope()) {
       if (!var->IsUnallocated()) PrintF(", ");
       PrintF("inner scope access");
     }
@@ -818,7 +818,7 @@ Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
 // another variable that is introduced dynamically via an 'eval' call
 // or a 'with' statement).
 Variable* Scope::LookupRecursive(Handle<String> name,
-                                 bool from_inner_function,
+                                 bool from_inner_scope,
                                  Variable** invalidated_local) {
   // If we find a variable, but the current scope calls 'eval', the found
   // variable may not be the correct one (the 'eval' may introduce a
@@ -834,7 +834,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
     // (Even if there is an 'eval' in this scope which introduces the
     // same variable again, the resulting variable remains the same.
     // Note that enclosing 'with' statements are handled at the call site.)
-    if (!from_inner_function)
+    if (!from_inner_scope)
       return var;
 
   } else {
@@ -850,10 +850,7 @@ Variable* Scope::LookupRecursive(Handle<String> name,
       var = function_->var();
 
     } else if (outer_scope_ != NULL) {
-      var = outer_scope_->LookupRecursive(
-          name,
-          is_function_scope() || from_inner_function,
-          invalidated_local);
+      var = outer_scope_->LookupRecursive(name, true, invalidated_local);
       // We may have found a variable in an outer scope. However, if
       // the current scope is inside a 'with', the actual variable may
       // be a property introduced via the 'with' statement. Then, the
@@ -870,8 +867,8 @@ Variable* Scope::LookupRecursive(Handle<String> name,
   ASSERT(var != NULL);
 
   // If this is a lookup from an inner scope, mark the variable.
-  if (from_inner_function) {
-    var->MarkAsAccessedFromInnerFunctionScope();
+  if (from_inner_scope) {
+    var->MarkAsAccessedFromInnerScope();
   }
 
   // If the variable we have found is just a guess, invalidate the
@@ -1022,7 +1019,7 @@ bool Scope::MustAllocate(Variable* var) {
   // via an eval() call.  This is only possible if the variable has a
   // visible name.
   if ((var->is_this() || var->name()->length() > 0) &&
-      (var->is_accessed_from_inner_function_scope() ||
+      (var->is_accessed_from_inner_scope() ||
        scope_calls_eval_ ||
        inner_scope_calls_eval_ ||
        scope_contains_with_ ||
@@ -1045,7 +1042,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   // catch-bound variables are always allocated in a context.
   if (var->mode() == Variable::TEMPORARY) return false;
   if (is_catch_scope() || is_block_scope()) return true;
-  return var->is_accessed_from_inner_function_scope() ||
+  return var->is_accessed_from_inner_scope() ||
       scope_calls_eval_ ||
       inner_scope_calls_eval_ ||
       scope_contains_with_ ||
@@ -1111,7 +1108,7 @@ void Scope::AllocateParameterLocals() {
     if (uses_nonstrict_arguments) {
       // Give the parameter a use from an inner scope, to force allocation
       // to the context.
-      var->MarkAsAccessedFromInnerFunctionScope();
+      var->MarkAsAccessedFromInnerScope();
     }
 
     if (MustAllocate(var)) {

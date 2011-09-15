@@ -190,7 +190,6 @@ void TypeFeedbackOracle::CallReceiverTypes(Call* expr,
                                                     NORMAL,
                                                     extra_ic_state,
                                                     OWN_MAP,
-                                                    NOT_IN_LOOP,
                                                     arity);
   CollectReceiverTypes(expr->id(), name, flags, types);
 }

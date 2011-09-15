@@ -441,7 +441,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   const int kDetailsOffset =
       NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   lw(reg1, FieldMemOperand(reg2, kDetailsOffset));
-  And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::mask())));
+  And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   Branch(miss, ne, at, Operand(zero_reg));
 
   // Get the value at the masked, scaled index and return.
@@ -2337,7 +2337,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
       li(t0, Operand(StackHandler::TRY_FINALLY));
     }
     // Save the current handler as the next handler.
-    li(t2, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
     lw(t1, MemOperand(t2));
 
     addiu(sp, sp, -StackHandlerConstants::kSize);
@@ -2359,7 +2359,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     li(t0, Operand(StackHandler::ENTRY));
 
     // Save the current handler as the next handler.
-    li(t2, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+    li(t2, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
     lw(t1, MemOperand(t2));
 
     ASSERT(Smi::FromInt(0) == 0);  // Used for no context.
@@ -2381,7 +2381,7 @@ void MacroAssembler::PopTryHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
   pop(a1);
   Addu(sp, sp, Operand(StackHandlerConstants::kSize - kPointerSize));
-  li(at, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  li(at, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   sw(a1, MemOperand(at));
 }
 
@@ -2399,7 +2399,7 @@ void MacroAssembler::Throw(Register value) {
   STATIC_ASSERT(StackHandlerConstants::kPCOffset == 4 * kPointerSize);
 
   // Drop the sp to the top of the handler.
-  li(a3, Operand(ExternalReference(Isolate::k_handler_address,
+  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress,
                                    isolate())));
   lw(sp, MemOperand(a3));
 
@@ -2462,7 +2462,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   Move(v0, value);
 
   // Drop sp to the top stack handler.
-  li(a3, Operand(ExternalReference(Isolate::k_handler_address, isolate())));
+  li(a3, Operand(ExternalReference(Isolate::kHandlerAddress, isolate())));
   lw(sp, MemOperand(a3));
 
   // Unwind the handlers until the ENTRY handler is found.
@@ -2485,7 +2485,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
     ExternalReference external_caught(
-           Isolate::k_external_caught_exception_address, isolate());
+           Isolate::kExternalCaughtExceptionAddress, isolate());
     li(a0, Operand(false, RelocInfo::NONE));
     li(a2, Operand(external_caught));
     sw(a0, MemOperand(a2));
@@ -2493,7 +2493,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
     // Set pending exception and v0 to out of memory exception.
     Failure* out_of_memory = Failure::OutOfMemoryException();
     li(v0, Operand(reinterpret_cast<int32_t>(out_of_memory)));
-    li(a2, Operand(ExternalReference(Isolate::k_pending_exception_address,
+    li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                         isolate())));
     sw(v0, MemOperand(a2));
   }
@@ -2975,7 +2975,7 @@ void MacroAssembler::CopyBytes(Register src,
 void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
-  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 0);
   lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
   Branch(fail, hi, scratch, Operand(Map::kMaximumBitField2FastElementValue));
 }
@@ -3973,9 +3973,9 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   sw(t8, MemOperand(fp, ExitFrameConstants::kCodeOffset));
 
   // Save the frame pointer and the context in top.
-  li(t8, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  li(t8, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   sw(fp, MemOperand(t8));
-  li(t8, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   sw(cp, MemOperand(t8));
 
   const int frame_alignment = MacroAssembler::ActivationFrameAlignment();
@@ -4025,11 +4025,11 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles,
   }
 
   // Clear top frame.
-  li(t8, Operand(ExternalReference(Isolate::k_c_entry_fp_address, isolate())));
+  li(t8, Operand(ExternalReference(Isolate::kCEntryFPAddress, isolate())));
   sw(zero_reg, MemOperand(t8));
 
   // Restore current context from top and clear it in debug mode.
-  li(t8, Operand(ExternalReference(Isolate::k_context_address, isolate())));
+  li(t8, Operand(ExternalReference(Isolate::kContextAddress, isolate())));
   lw(cp, MemOperand(t8));
 #ifdef DEBUG
   sw(a3, MemOperand(t8));

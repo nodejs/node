@@ -3591,7 +3591,7 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   __ li(t0,
         Operand(ExternalReference::the_hole_value_location(masm->isolate())));
   __ lw(a3, MemOperand(t0));
-  __ li(t0, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       masm->isolate())));
   __ lw(v0, MemOperand(t0));
   __ sw(a3, MemOperand(t0));
@@ -3714,7 +3714,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   int marker = is_construct ? StackFrame::ENTRY_CONSTRUCT : StackFrame::ENTRY;
   __ li(t2, Operand(Smi::FromInt(marker)));
   __ li(t1, Operand(Smi::FromInt(marker)));
-  __ li(t0, Operand(ExternalReference(Isolate::k_c_entry_fp_address,
+  __ li(t0, Operand(ExternalReference(Isolate::kCEntryFPAddress,
                                       masm->isolate())));
   __ lw(t0, MemOperand(t0));
   __ Push(t3, t2, t1, t0);
@@ -3739,7 +3739,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // If this is the outermost JS call, set js_entry_sp value.
   Label non_outermost_js;
-  ExternalReference js_entry_sp(Isolate::k_js_entry_sp_address,
+  ExternalReference js_entry_sp(Isolate::kJSEntrySPAddress,
                                 masm->isolate());
   __ li(t1, Operand(ExternalReference(js_entry_sp)));
   __ lw(t2, MemOperand(t1));
@@ -3762,7 +3762,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // exception field in the JSEnv and return a failure sentinel.
   // Coming in here the fp will be invalid because the PushTryHandler below
   // sets it to 0 to signal the existence of the JSEntry frame.
-  __ li(t0, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       masm->isolate())));
   __ sw(v0, MemOperand(t0));  // We come back from 'invoke'. result is in v0.
   __ li(v0, Operand(reinterpret_cast<int32_t>(Failure::Exception())));
@@ -3781,7 +3781,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   __ li(t0,
         Operand(ExternalReference::the_hole_value_location(masm->isolate())));
   __ lw(t1, MemOperand(t0));
-  __ li(t0, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ li(t0, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       masm->isolate())));
   __ sw(t1, MemOperand(t0));
 
@@ -3832,7 +3832,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 
   // Restore the top frame descriptors from the stack.
   __ pop(t1);
-  __ li(t0, Operand(ExternalReference(Isolate::k_c_entry_fp_address,
+  __ li(t0, Operand(ExternalReference(Isolate::kCEntryFPAddress,
                                       masm->isolate())));
   __ sw(t1, MemOperand(t0));
 
@@ -4718,7 +4718,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   __ li(a1, Operand(
       ExternalReference::the_hole_value_location(masm->isolate())));
   __ lw(a1, MemOperand(a1, 0));
-  __ li(a2, Operand(ExternalReference(Isolate::k_pending_exception_address,
+  __ li(a2, Operand(ExternalReference(Isolate::kPendingExceptionAddress,
                                       masm->isolate())));
   __ lw(v0, MemOperand(a2, 0));
   __ Branch(&runtime, eq, v0, Operand(a1));

@@ -184,7 +184,7 @@ bool IsOfType(LiveObjectType type, HeapObject *obj) {
 const AllocationSpace kInvalidSpace = static_cast<AllocationSpace>(-1);
 
 static AllocationSpace FindSpaceFor(String* space_str) {
-  SmartPointer<char> s =
+  SmartArrayPointer<char> s =
       space_str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
 
   const char* key_str = *s;
@@ -236,7 +236,7 @@ static bool InSpace(AllocationSpace space, HeapObject *heap_obj) {
 
 
 static LiveObjectType FindTypeFor(String* type_str) {
-  SmartPointer<char> s =
+  SmartArrayPointer<char> s =
       type_str->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
 
 #define CHECK_OBJECT_TYPE(type_, name) { \
@@ -503,10 +503,10 @@ static void GenerateObjectDesc(HeapObject* obj,
     // We'll only dump 80 of them after we compact them.
     const int kMaxCharToDump = 80;
     const int kMaxBufferSize = kMaxCharToDump * 2;
-    SmartPointer<char> str_sp = str->ToCString(DISALLOW_NULLS,
-                                               ROBUST_STRING_TRAVERSAL,
-                                               0,
-                                               kMaxBufferSize);
+    SmartArrayPointer<char> str_sp = str->ToCString(DISALLOW_NULLS,
+                                                    ROBUST_STRING_TRAVERSAL,
+                                                    0,
+                                                    kMaxBufferSize);
     char* str_cstr = *str_sp;
     int length = CompactString(str_cstr);
     OS::SNPrintF(buffer_v,
@@ -526,14 +526,14 @@ static void GenerateObjectDesc(HeapObject* obj,
     }
 
     String* name = sinfo->DebugName();
-    SmartPointer<char> name_sp =
+    SmartArrayPointer<char> name_sp =
         name->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
     char* name_cstr = *name_sp;
 
     HeapStringAllocator string_allocator;
     StringStream stream(&string_allocator);
     sinfo->SourceCodePrint(&stream, 50);
-    SmartPointer<const char> source_sp = stream.ToCString();
+    SmartArrayPointer<const char> source_sp = stream.ToCString();
     const char* source_cstr = *source_sp;
 
     OS::SNPrintF(buffer_v,
@@ -1656,7 +1656,7 @@ int LiveObjectList::GetObjId(Object* obj) {
 
 // Gets the obj id for the specified address if valid.
 Object* LiveObjectList::GetObjId(Handle<String> address) {
-  SmartPointer<char> addr_str =
+  SmartArrayPointer<char> addr_str =
       address->ToCString(DISALLOW_NULLS, ROBUST_STRING_TRAVERSAL);
 
   Isolate* isolate = Isolate::Current();

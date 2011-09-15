@@ -302,12 +302,6 @@ enum CheckType {
 };
 
 
-enum InLoopFlag {
-  NOT_IN_LOOP,
-  IN_LOOP
-};
-
-
 enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
   // Receiver might implicitly be the global objects. If it is, the
@@ -334,7 +328,7 @@ enum PropertyType {
   HANDLER                   = 4,  // only in lookup results, not in descriptors
   INTERCEPTOR               = 5,  // only in lookup results, not in descriptors
   MAP_TRANSITION            = 6,  // only in fast mode
-  EXTERNAL_ARRAY_TRANSITION = 7,
+  ELEMENTS_TRANSITION       = 7,
   CONSTANT_TRANSITION       = 8,  // only in fast mode
   NULL_DESCRIPTOR           = 9,  // only in fast mode
   // All properties before MAP_TRANSITION are real.

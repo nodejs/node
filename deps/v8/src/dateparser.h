@@ -36,7 +36,6 @@ namespace internal {
 
 class DateParser : public AllStatic {
  public:
-
   // Parse the string as a date. If parsing succeeds, return true after
   // filling out the output array as follows (all integers are Smis):
   // [0]: year
@@ -234,6 +233,7 @@ class DateParser : public AllStatic {
     static DateToken Invalid() {
       return DateToken(kInvalidTokenTag, 0, -1);
     }
+
    private:
     enum TagType {
       kInvalidTokenTag = -6,
@@ -275,6 +275,7 @@ class DateParser : public AllStatic {
       }
       return false;
     }
+
    private:
     DateToken Scan();
 
@@ -351,6 +352,7 @@ class DateParser : public AllStatic {
     static bool IsMinute(int x) { return Between(x, 0, 59); }
     static bool IsHour(int x) { return Between(x, 0, 23); }
     static bool IsSecond(int x) { return Between(x, 0, 59); }
+
    private:
     static bool IsHour12(int x) { return Between(x, 0, 12); }
     static bool IsMillisecond(int x) { return Between(x, 0, 999); }

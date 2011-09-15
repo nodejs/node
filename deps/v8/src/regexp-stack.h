@@ -89,6 +89,7 @@ class RegExpStack {
   char* ArchiveStack(char* to);
   char* RestoreStack(char* from);
   void FreeThreadResources() { thread_local_.Free(); }
+
  private:
   RegExpStack();
   ~RegExpStack();

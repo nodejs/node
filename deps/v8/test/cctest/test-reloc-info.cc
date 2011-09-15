@@ -45,7 +45,7 @@ TEST(Positions) {
   const int code_size = 10 * KB;
   int relocation_info_size = 10 * KB;
   const int buffer_size = code_size + relocation_info_size;
-  SmartPointer<byte> buffer(new byte[buffer_size]);
+  SmartArrayPointer<byte> buffer(new byte[buffer_size]);
 
   byte* pc = *buffer;
   byte* buffer_end = *buffer + buffer_size;

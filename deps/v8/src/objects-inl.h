@@ -2000,7 +2000,7 @@ bool DescriptorArray::IsProperty(int descriptor_number) {
 bool DescriptorArray::IsTransition(int descriptor_number) {
   PropertyType t = GetType(descriptor_number);
   return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
-      t == EXTERNAL_ARRAY_TRANSITION;
+      t == ELEMENTS_TRANSITION;
 }
 
 
@@ -2867,7 +2867,7 @@ Code::Flags Code::flags() {
 
 
 void Code::set_flags(Code::Flags flags) {
-  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= (kFlagsKindMask >> kFlagsKindShift)+1);
+  STATIC_ASSERT(Code::NUMBER_OF_KINDS <= KindField::kMax + 1);
   // Make sure that all call stubs have an arguments count.
   ASSERT((ExtractKindFromFlags(flags) != CALL_IC &&
           ExtractKindFromFlags(flags) != KEYED_CALL_IC) ||
@@ -2878,11 +2878,6 @@ void Code::set_flags(Code::Flags flags) {
 
 Code::Kind Code::kind() {
   return ExtractKindFromFlags(flags());
-}
-
-
-InLoopFlag Code::ic_in_loop() {
-  return ExtractICInLoopFromFlags(flags());
 }
 
 
@@ -2951,13 +2946,31 @@ void Code::set_optimizable(bool value) {
 
 bool Code::has_deoptimization_support() {
   ASSERT(kind() == FUNCTION);
-  return READ_BYTE_FIELD(this, kHasDeoptimizationSupportOffset) == 1;
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasDeoptimizationSupportField::decode(flags);
 }
 
 
 void Code::set_has_deoptimization_support(bool value) {
   ASSERT(kind() == FUNCTION);
-  WRITE_BYTE_FIELD(this, kHasDeoptimizationSupportOffset, value ? 1 : 0);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasDeoptimizationSupportField::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
+}
+
+
+bool Code::has_debug_break_slots() {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  return FullCodeFlagsHasDebugBreakSlotsField::decode(flags);
+}
+
+
+void Code::set_has_debug_break_slots(bool value) {
+  ASSERT(kind() == FUNCTION);
+  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
+  flags = FullCodeFlagsHasDebugBreakSlotsField::update(flags, value);
+  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
 }
 
 
@@ -3091,7 +3104,6 @@ bool Code::is_inline_cache_stub() {
 
 
 Code::Flags Code::ComputeFlags(Kind kind,
-                               InLoopFlag in_loop,
                                InlineCacheState ic_state,
                                ExtraICState extra_ic_state,
                                PropertyType type,
@@ -3100,26 +3112,17 @@ Code::Flags Code::ComputeFlags(Kind kind,
   // Extra IC state is only allowed for call IC stubs or for store IC
   // stubs.
   ASSERT(extra_ic_state == kNoExtraICState ||
-         (kind == CALL_IC) ||
-         (kind == STORE_IC) ||
-         (kind == KEYED_STORE_IC));
+         kind == CALL_IC ||
+         kind == STORE_IC ||
+         kind == KEYED_STORE_IC);
   // Compute the bit mask.
-  int bits = kind << kFlagsKindShift;
-  if (in_loop) bits |= kFlagsICInLoopMask;
-  bits |= ic_state << kFlagsICStateShift;
-  bits |= type << kFlagsTypeShift;
-  bits |= extra_ic_state << kFlagsExtraICStateShift;
-  bits |= argc << kFlagsArgumentsCountShift;
-  if (holder == PROTOTYPE_MAP) bits |= kFlagsCacheInPrototypeMapMask;
-  // Cast to flags and validate result before returning it.
-  Flags result = static_cast<Flags>(bits);
-  ASSERT(ExtractKindFromFlags(result) == kind);
-  ASSERT(ExtractICStateFromFlags(result) == ic_state);
-  ASSERT(ExtractICInLoopFromFlags(result) == in_loop);
-  ASSERT(ExtractTypeFromFlags(result) == type);
-  ASSERT(ExtractExtraICStateFromFlags(result) == extra_ic_state);
-  ASSERT(ExtractArgumentsCountFromFlags(result) == argc);
-  return result;
+  int bits = KindField::encode(kind)
+      | ICStateField::encode(ic_state)
+      | TypeField::encode(type)
+      | ExtraICStateField::encode(extra_ic_state)
+      | (argc << kArgumentsCountShift)
+      | CacheHolderField::encode(holder);
+  return static_cast<Flags>(bits);
 }
 
 
@@ -3127,56 +3130,43 @@ Code::Flags Code::ComputeMonomorphicFlags(Kind kind,
                                           PropertyType type,
                                           ExtraICState extra_ic_state,
                                           InlineCacheHolderFlag holder,
-                                          InLoopFlag in_loop,
                                           int argc) {
-  return ComputeFlags(
-      kind, in_loop, MONOMORPHIC, extra_ic_state, type, argc, holder);
+  return ComputeFlags(kind, MONOMORPHIC, extra_ic_state, type, argc, holder);
 }
 
 
 Code::Kind Code::ExtractKindFromFlags(Flags flags) {
-  int bits = (flags & kFlagsKindMask) >> kFlagsKindShift;
-  return static_cast<Kind>(bits);
+  return KindField::decode(flags);
 }
 
 
 InlineCacheState Code::ExtractICStateFromFlags(Flags flags) {
-  int bits = (flags & kFlagsICStateMask) >> kFlagsICStateShift;
-  return static_cast<InlineCacheState>(bits);
+  return ICStateField::decode(flags);
 }
 
 
 Code::ExtraICState Code::ExtractExtraICStateFromFlags(Flags flags) {
-  int bits = (flags & kFlagsExtraICStateMask) >> kFlagsExtraICStateShift;
-  return static_cast<ExtraICState>(bits);
-}
-
-
-InLoopFlag Code::ExtractICInLoopFromFlags(Flags flags) {
-  int bits = (flags & kFlagsICInLoopMask);
-  return bits != 0 ? IN_LOOP : NOT_IN_LOOP;
+  return ExtraICStateField::decode(flags);
 }
 
 
 PropertyType Code::ExtractTypeFromFlags(Flags flags) {
-  int bits = (flags & kFlagsTypeMask) >> kFlagsTypeShift;
-  return static_cast<PropertyType>(bits);
+  return TypeField::decode(flags);
 }
 
 
 int Code::ExtractArgumentsCountFromFlags(Flags flags) {
-  return (flags & kFlagsArgumentsCountMask) >> kFlagsArgumentsCountShift;
+  return (flags & kArgumentsCountMask) >> kArgumentsCountShift;
 }
 
 
 InlineCacheHolderFlag Code::ExtractCacheHolderFromFlags(Flags flags) {
-  int bits = (flags & kFlagsCacheInPrototypeMapMask);
-  return bits != 0 ? PROTOTYPE_MAP : OWN_MAP;
+  return CacheHolderField::decode(flags);
 }
 
 
 Code::Flags Code::RemoveTypeFromFlags(Flags flags) {
-  int bits = flags & ~kFlagsTypeMask;
+  int bits = flags & ~TypeField::kMask;
   return static_cast<Flags>(bits);
 }
 
@@ -3259,7 +3249,7 @@ MaybeObject* Map::GetFastElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(JSObject::FAST_ELEMENTS);
+  new_map->set_elements_kind(FAST_ELEMENTS);
   isolate()->counters()->map_to_fast_elements()->Increment();
   return new_map;
 }
@@ -3272,7 +3262,7 @@ MaybeObject* Map::GetFastDoubleElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(JSObject::FAST_DOUBLE_ELEMENTS);
+  new_map->set_elements_kind(FAST_DOUBLE_ELEMENTS);
   isolate()->counters()->map_to_fast_double_elements()->Increment();
   return new_map;
 }
@@ -3285,7 +3275,7 @@ MaybeObject* Map::GetSlowElementsMap() {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   Map* new_map = Map::cast(obj);
-  new_map->set_elements_kind(JSObject::DICTIONARY_ELEMENTS);
+  new_map->set_elements_kind(DICTIONARY_ELEMENTS);
   isolate()->counters()->map_to_slow_elements()->Increment();
   return new_map;
 }
@@ -3916,7 +3906,16 @@ void JSBuiltinsObject::set_javascript_builtin_code(Builtins::JavaScript id,
 
 
 ACCESSORS(JSProxy, handler, Object, kHandlerOffset)
-ACCESSORS(JSProxy, padding, Object, kPaddingOffset)
+ACCESSORS(JSFunctionProxy, call_trap, Object, kCallTrapOffset)
+ACCESSORS(JSFunctionProxy, construct_trap, Object, kConstructTrapOffset)
+
+
+void JSProxy::InitializeBody(int object_size, Object* value) {
+  ASSERT(!value->IsHeapObject() || !GetHeap()->InNewSpace(value));
+  for (int offset = kHeaderSize; offset < object_size; offset += kPointerSize) {
+    WRITE_FIELD(this, offset, value);
+  }
+}
 
 
 ACCESSORS(JSWeakMap, table, ObjectHashTable, kTableOffset)
@@ -4098,7 +4097,7 @@ void JSRegExp::SetDataAtUnchecked(int index, Object* value, Heap* heap) {
 }
 
 
-JSObject::ElementsKind JSObject::GetElementsKind() {
+ElementsKind JSObject::GetElementsKind() {
   ElementsKind kind = map()->elements_kind();
   ASSERT((kind == FAST_ELEMENTS &&
           (elements()->map() == GetHeap()->fixed_array_map() ||
@@ -4437,9 +4436,7 @@ PropertyAttributes AccessorInfo::property_attributes() {
 
 
 void AccessorInfo::set_property_attributes(PropertyAttributes attributes) {
-  ASSERT(AttributesField::is_valid(attributes));
-  int rest_value = flag()->value() & ~AttributesField::mask();
-  set_flag(Smi::FromInt(rest_value | AttributesField::encode(attributes)));
+  set_flag(Smi::FromInt(AttributesField::update(flag()->value(), attributes)));
 }
 
 

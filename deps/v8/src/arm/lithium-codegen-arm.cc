@@ -101,7 +101,8 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 
 void LCodeGen::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    SmartArrayPointer<char> name(
+        info()->shared_info()->DebugName()->ToCString());
     PrintF("Aborting LCodeGen in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
@@ -2410,11 +2411,11 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ ldr(scratch, FieldMemOperand(scratch, Map::kBitField2Offset));
     __ ubfx(scratch, scratch, Map::kElementsKindShift,
             Map::kElementsKindBitCount);
-    __ cmp(scratch, Operand(JSObject::FAST_ELEMENTS));
+    __ cmp(scratch, Operand(FAST_ELEMENTS));
     __ b(eq, &done);
-    __ cmp(scratch, Operand(JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
+    __ cmp(scratch, Operand(FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND));
     __ b(lt, &fail);
-    __ cmp(scratch, Operand(JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
+    __ cmp(scratch, Operand(LAST_EXTERNAL_ARRAY_ELEMENTS_KIND));
     __ b(le, &done);
     __ bind(&fail);
     __ Abort("Check for fast or external elements failed.");
@@ -2478,7 +2479,7 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
   Register scratch = scratch0();
 
   int shift_size =
-      ElementsKindToShiftSize(JSObject::FAST_DOUBLE_ELEMENTS);
+      ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   int constant_key = 0;
   if (key_is_constant) {
     constant_key = ToInteger32(LConstantOperand::cast(instr->key()));
@@ -2515,7 +2516,7 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = no_reg;
-  JSObject::ElementsKind elements_kind = instr->elements_kind();
+  ElementsKind elements_kind = instr->elements_kind();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int constant_key = 0;
   if (key_is_constant) {
@@ -2528,18 +2529,18 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
   }
   int shift_size = ElementsKindToShiftSize(elements_kind);
 
-  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister result = ToDoubleRegister(instr->result());
     Operand operand = key_is_constant
         ? Operand(constant_key * (1 << shift_size))
         : Operand(key, LSL, shift_size);
     __ add(scratch0(), external_pointer, operand);
-    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ vldr(result.low(), scratch0(), 0);
       __ vcvt_f64_f32(result, result.low());
-    } else  {  // i.e. elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS
+    } else  {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
       __ vldr(result, scratch0(), 0);
     }
   } else {
@@ -2548,23 +2549,23 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         ? MemOperand(external_pointer, constant_key * (1 << shift_size))
         : MemOperand(external_pointer, key, LSL, shift_size));
     switch (elements_kind) {
-      case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_BYTE_ELEMENTS:
         __ ldrsb(result, mem_operand);
         break;
-      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
         __ ldrb(result, mem_operand);
         break;
-      case JSObject::EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
         __ ldrsh(result, mem_operand);
         break;
-      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ ldrh(result, mem_operand);
         break;
-      case JSObject::EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
         __ ldr(result, mem_operand);
         break;
-      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ ldr(result, mem_operand);
         __ cmp(result, Operand(0x80000000));
         // TODO(danno): we could be more clever here, perhaps having a special
@@ -2572,12 +2573,12 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         // happens, and generate code that returns a double rather than int.
         DeoptimizeIf(cs, instr->environment());
         break;
-      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      case JSObject::FAST_DOUBLE_ELEMENTS:
-      case JSObject::FAST_ELEMENTS:
-      case JSObject::DICTIONARY_ELEMENTS:
-      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_ELEMENTS:
+      case DICTIONARY_ELEMENTS:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -3177,7 +3178,7 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
 
   int arity = instr->arity();
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
 }
@@ -3189,7 +3190,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   int arity = instr->arity();
   RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
   __ mov(r2, Operand(instr->name()));
   CallCode(ic, mode, instr);
   // Restore context register.
@@ -3201,7 +3202,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_IMPLICIT);
+  CallFunctionStub stub(arity, RECEIVER_MIGHT_BE_IMPLICIT);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ Drop(1);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -3214,7 +3215,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   int arity = instr->arity();
   RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
   __ mov(r2, Operand(instr->name()));
   CallCode(ic, mode, instr);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -3340,7 +3341,7 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   } else {
     key = ToRegister(instr->key());
   }
-  int shift_size = ElementsKindToShiftSize(JSObject::FAST_DOUBLE_ELEMENTS);
+  int shift_size = ElementsKindToShiftSize(FAST_DOUBLE_ELEMENTS);
   Operand operand = key_is_constant
       ? Operand(constant_key * (1 << shift_size) +
                 FixedDoubleArray::kHeaderSize - kHeapObjectTag)
@@ -3367,7 +3368,7 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
 
   Register external_pointer = ToRegister(instr->external_pointer());
   Register key = no_reg;
-  JSObject::ElementsKind elements_kind = instr->elements_kind();
+  ElementsKind elements_kind = instr->elements_kind();
   bool key_is_constant = instr->key()->IsConstantOperand();
   int constant_key = 0;
   if (key_is_constant) {
@@ -3380,17 +3381,17 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
   }
   int shift_size = ElementsKindToShiftSize(elements_kind);
 
-  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
-      elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+      elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     CpuFeatures::Scope scope(VFP3);
     DwVfpRegister value(ToDoubleRegister(instr->value()));
     Operand operand(key_is_constant ? Operand(constant_key * (1 << shift_size))
                                     : Operand(key, LSL, shift_size));
     __ add(scratch0(), external_pointer, operand);
-    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
       __ vcvt_f32_f64(double_scratch0().low(), value);
       __ vstr(double_scratch0().low(), scratch0(), 0);
-    } else {  // i.e. elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS
+    } else {  // i.e. elements_kind == EXTERNAL_DOUBLE_ELEMENTS
       __ vstr(value, scratch0(), 0);
     }
   } else {
@@ -3399,25 +3400,25 @@ void LCodeGen::DoStoreKeyedSpecializedArrayElement(
         ? MemOperand(external_pointer, constant_key * (1 << shift_size))
         : MemOperand(external_pointer, key, LSL, shift_size));
     switch (elements_kind) {
-      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      case JSObject::EXTERNAL_BYTE_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
+      case EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
         __ strb(value, mem_operand);
         break;
-      case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ strh(value, mem_operand);
         break;
-      case JSObject::EXTERNAL_INT_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ str(value, mem_operand);
         break;
-      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      case JSObject::FAST_DOUBLE_ELEMENTS:
-      case JSObject::FAST_ELEMENTS:
-      case JSObject::DICTIONARY_ELEMENTS:
-      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case FAST_ELEMENTS:
+      case DICTIONARY_ELEMENTS:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }

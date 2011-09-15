@@ -135,7 +135,6 @@ class UnicodeCache {
   bool IsWhiteSpace(unibrow::uchar c) { return kIsWhiteSpace.get(c); }
 
  private:
-
   unibrow::Predicate<IdentifierStart, 128> kIsIdentifierStart;
   unibrow::Predicate<IdentifierPart, 128> kIsIdentifierPart;
   unibrow::Predicate<unibrow::LineTerminator, 128> kIsLineTerminator;
@@ -198,6 +197,7 @@ class LiteralBuffer {
     position_ = 0;
     is_ascii_ = true;
   }
+
  private:
   static const int kInitialCapacity = 16;
   static const int kGrowthFactory = 4;

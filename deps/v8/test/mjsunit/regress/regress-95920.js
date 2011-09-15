@@ -25,29 +25,34 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_QUEUE_INL_H_
-#define V8_CIRCULAR_QUEUE_INL_H_
+// Tests that objects with external arrays cannot be sealed or have their
+// properties redefined.
 
-#include "circular-queue.h"
+(function() {
+  assertThrows(function() {
+    [0].every(function(){ Object.seal((new Int8Array(42))); });
+    assertUnreable();
+    }, TypeError)
+})();
 
-namespace v8 {
-namespace internal {
+(function() {
+  assertThrows(function() {
+    [0].every(function(){ Object.freeze((new Int8Array(42))); });
+    assertUnreable();
+    }, TypeError)
+})();
 
+(function() {
+  assertThrows(function() {
+    [0].every(function(){ Object.preventExtensions((new Int8Array(42))); });
+    assertUnreable();
+    }, TypeError)
+})();
 
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
-}
-
-
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CIRCULAR_QUEUE_INL_H_
+(function() {
+  assertThrows(function() {
+      Object.defineProperty(new Int8Array(42), "1",
+                            { writable: false, value: "1" });
+      assertUnreable();
+    })
+})();

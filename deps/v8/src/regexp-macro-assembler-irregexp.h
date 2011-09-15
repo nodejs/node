@@ -107,6 +107,7 @@ class RegExpMacroAssemblerIrregexp: public RegExpMacroAssembler {
 
   virtual IrregexpImplementation Implementation();
   virtual Handle<HeapObject> GetCode(Handle<String> source);
+
  private:
   void Expand();
   // Code and bitmap emission.

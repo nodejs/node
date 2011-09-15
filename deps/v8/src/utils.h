@@ -203,16 +203,17 @@ inline int StrLength(const char* string) {
 template<class T, int shift, int size>
 class BitField {
  public:
+  // A uint32_t mask of bit field.  To use all bits of a uint32 in a
+  // bitfield without compiler warnings we have to compute 2^32 without
+  // using a shift count of 32.
+  static const uint32_t kMask = ((1U << shift) << size) - (1U << shift);
+
+  // Value for the field with all bits set.
+  static const T kMax = static_cast<T>((1U << size) - 1);
+
   // Tells whether the provided value fits into the bit field.
   static bool is_valid(T value) {
-    return (static_cast<uint32_t>(value) & ~((1U << (size)) - 1)) == 0;
-  }
-
-  // Returns a uint32_t mask of bit field.
-  static uint32_t mask() {
-    // To use all bits of a uint32 in a bitfield without compiler warnings we
-    // have to compute 2^32 without using a shift count of 32.
-    return ((1U << shift) << size) - (1U << shift);
+    return (static_cast<uint32_t>(value) & ~static_cast<uint32_t>(kMax)) == 0;
   }
 
   // Returns a uint32_t with the bit field value encoded.
@@ -223,17 +224,12 @@ class BitField {
 
   // Returns a uint32_t with the bit field value updated.
   static uint32_t update(uint32_t previous, T value) {
-    return (previous & ~mask()) | encode(value);
+    return (previous & ~kMask) | encode(value);
   }
 
   // Extracts the bit field from the value.
   static T decode(uint32_t value) {
-    return static_cast<T>((value & mask()) >> shift);
-  }
-
-  // Value for the field with all bits set.
-  static T max() {
-    return decode(mask());
+    return static_cast<T>((value & kMask) >> shift);
   }
 };
 
@@ -890,6 +886,7 @@ class SimpleStringBuilder {
   int position_;
 
   bool is_finalized() const { return position_ < 0; }
+
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(SimpleStringBuilder);
 };

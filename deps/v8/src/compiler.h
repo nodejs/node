@@ -49,11 +49,11 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(Isolate::Current() == isolate_);
     return isolate_;
   }
-  bool is_lazy() const { return (flags_ & IsLazy::mask()) != 0; }
-  bool is_eval() const { return (flags_ & IsEval::mask()) != 0; }
-  bool is_global() const { return (flags_ & IsGlobal::mask()) != 0; }
-  bool is_strict_mode() const { return (flags_ & IsStrictMode::mask()) != 0; }
-  bool is_in_loop() const { return (flags_ & IsInLoop::mask()) != 0; }
+  bool is_lazy() const { return IsLazy::decode(flags_); }
+  bool is_eval() const { return IsEval::decode(flags_); }
+  bool is_global() const { return IsGlobal::decode(flags_); }
+  bool is_strict_mode() const { return IsStrictMode::decode(flags_); }
+  bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
   Handle<Code> code() const { return code_; }

@@ -68,8 +68,8 @@ SafepointTable::SafepointTable(Code* code) {
   entries_ = pc_and_deoptimization_indexes_ +
             (length_ * kPcAndDeoptimizationIndexSize);
   ASSERT(entry_size_ > 0);
-  ASSERT_EQ(SafepointEntry::DeoptimizationIndexField::max(),
-            Safepoint::kNoDeoptimizationIndex);
+  STATIC_ASSERT(SafepointEntry::DeoptimizationIndexField::kMax ==
+                Safepoint::kNoDeoptimizationIndex);
 }
 
 

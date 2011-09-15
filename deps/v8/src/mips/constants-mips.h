@@ -204,6 +204,10 @@ static const int kImm26Bits  = 26;
 static const int kImm28Shift = 0;
 static const int kImm28Bits  = 28;
 
+// In branches and jumps immediate fields point to words, not bytes,
+// and are therefore shifted by 2.
+static const int kImmFieldShift = 2;
+
 static const int kFsShift       = 11;
 static const int kFsBits        = 5;
 static const int kFtShift       = 16;
@@ -233,7 +237,7 @@ static const int  kFunctionFieldMask =
 static const int  kHiMask       =   0xffff << 16;
 static const int  kLoMask       =   0xffff;
 static const int  kSignMask     =   0x80000000;
-
+static const int  kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
 
 // ----- MIPS Opcodes and Function Fields.
 // We use this presentation to stay close to the table representation in
@@ -290,12 +294,12 @@ enum Opcode {
 enum SecondaryField {
   // SPECIAL Encoding of Function Field.
   SLL       =   ((0 << 3) + 0),
+  MOVCI     =   ((0 << 3) + 1),
   SRL       =   ((0 << 3) + 2),
   SRA       =   ((0 << 3) + 3),
   SLLV      =   ((0 << 3) + 4),
   SRLV      =   ((0 << 3) + 6),
   SRAV      =   ((0 << 3) + 7),
-  MOVCI     =   ((0 << 3) + 1),
 
   JR        =   ((1 << 3) + 0),
   JALR      =   ((1 << 3) + 1),
@@ -498,14 +502,38 @@ inline Condition ReverseCondition(Condition cc) {
 
 // ----- Coprocessor conditions.
 enum FPUCondition {
-  F,    // False.
-  UN,   // Unordered.
-  EQ,   // Equal.
-  UEQ,  // Unordered or Equal.
-  OLT,  // Ordered or Less Than.
-  ULT,  // Unordered or Less Than.
-  OLE,  // Ordered or Less Than or Equal.
-  ULE   // Unordered or Less Than or Equal.
+  kNoFPUCondition = -1,
+
+  F     = 0,  // False.
+  UN    = 1,  // Unordered.
+  EQ    = 2,  // Equal.
+  UEQ   = 3,  // Unordered or Equal.
+  OLT   = 4,  // Ordered or Less Than.
+  ULT   = 5,  // Unordered or Less Than.
+  OLE   = 6,  // Ordered or Less Than or Equal.
+  ULE   = 7   // Unordered or Less Than or Equal.
+};
+
+
+// FPU rounding modes.
+enum FPURoundingMode {
+  RN = 0 << 0,  // Round to Nearest.
+  RZ = 1 << 0,  // Round towards zero.
+  RP = 2 << 0,  // Round towards Plus Infinity.
+  RM = 3 << 0,  // Round towards Minus Infinity.
+
+  // Aliases.
+  kRoundToNearest = RN,
+  kRoundToZero = RZ,
+  kRoundToPlusInf = RP,
+  kRoundToMinusInf = RM
+};
+
+static const uint32_t kFPURoundingModeMask = 3 << 0;
+
+enum CheckForInexactConversion {
+  kCheckForInexactConversion,
+  kDontCheckForInexactConversion
 };
 
 
@@ -716,7 +744,7 @@ class Instruction {
 
   inline int32_t Imm26Value() const {
     ASSERT(InstructionType() == kJumpType);
-    return Bits(kImm16Shift + kImm26Bits - 1, kImm26Shift);
+    return Bits(kImm26Shift + kImm26Bits - 1, kImm26Shift);
   }
 
   // Say if the instruction should not be used in a branch delay slot.

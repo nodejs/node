@@ -915,6 +915,8 @@ class HGoto: public HTemplateControlInstruction<1, 0> {
     return Representation::None();
   }
 
+  virtual void PrintDataTo(StringStream* stream);
+
   DECLARE_CONCRETE_INSTRUCTION(Goto)
 };
 
@@ -2207,6 +2209,13 @@ class HPhi: public HValue {
 
   void set_is_convertible_to_integer(bool b) {
     is_convertible_to_integer_ = b;
+  }
+
+  bool AllOperandsConvertibleToInteger() {
+    for (int i = 0; i < OperandCount(); ++i) {
+      if (!OperandAt(i)->IsConvertibleToInteger()) return false;
+    }
+    return true;
   }
 
  protected:
@@ -3555,12 +3564,12 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
  public:
   HLoadKeyedSpecializedArrayElement(HValue* external_elements,
                                     HValue* key,
-                                    JSObject::ElementsKind elements_kind)
+                                    ElementsKind elements_kind)
       :  elements_kind_(elements_kind) {
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
-    if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
-        elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+    if (elements_kind == EXTERNAL_FLOAT_ELEMENTS ||
+        elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
       set_representation(Representation::Double());
     } else {
       set_representation(Representation::Integer32());
@@ -3583,7 +3592,7 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
 
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
-  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement)
 
@@ -3596,7 +3605,7 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
   }
 
  private:
-  JSObject::ElementsKind elements_kind_;
+  ElementsKind elements_kind_;
 };
 
 
@@ -3776,7 +3785,7 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HStoreKeyedSpecializedArrayElement(HValue* external_elements,
                                      HValue* key,
                                      HValue* val,
-                                     JSObject::ElementsKind elements_kind)
+                                     ElementsKind elements_kind)
       : elements_kind_(elements_kind) {
     SetFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
@@ -3791,8 +3800,8 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
       return Representation::External();
     } else {
       bool float_or_double_elements =
-          elements_kind() == JSObject::EXTERNAL_FLOAT_ELEMENTS ||
-          elements_kind() == JSObject::EXTERNAL_DOUBLE_ELEMENTS;
+          elements_kind() == EXTERNAL_FLOAT_ELEMENTS ||
+          elements_kind() == EXTERNAL_DOUBLE_ELEMENTS;
       if (index == 2 && float_or_double_elements) {
         return Representation::Double();
       } else {
@@ -3804,12 +3813,12 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   HValue* value() { return OperandAt(2); }
-  JSObject::ElementsKind elements_kind() const { return elements_kind_; }
+  ElementsKind elements_kind() const { return elements_kind_; }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedSpecializedArrayElement)
 
  private:
-  JSObject::ElementsKind elements_kind_;
+  ElementsKind elements_kind_;
 };
 
 

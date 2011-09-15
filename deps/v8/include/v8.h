@@ -1051,18 +1051,21 @@ class String : public Primitive {
     NO_NULL_TERMINATION = 2
   };
 
+  // 16-bit character codes.
   V8EXPORT int Write(uint16_t* buffer,
                      int start = 0,
                      int length = -1,
-                     int options = NO_OPTIONS) const;  // UTF-16
+                     int options = NO_OPTIONS) const;
+  // ASCII characters.
   V8EXPORT int WriteAscii(char* buffer,
                           int start = 0,
                           int length = -1,
-                          int options = NO_OPTIONS) const;  // ASCII
+                          int options = NO_OPTIONS) const;
+  // UTF-8 encoded characters.
   V8EXPORT int WriteUtf8(char* buffer,
                          int length = -1,
                          int* nchars_ref = NULL,
-                         int options = NO_OPTIONS) const;  // UTF-8
+                         int options = NO_OPTIONS) const;
 
   /**
    * A zero length string.
@@ -1075,7 +1078,7 @@ class String : public Primitive {
   V8EXPORT bool IsExternal() const;
 
   /**
-   * Returns true if the string is both external and ascii
+   * Returns true if the string is both external and ASCII
    */
   V8EXPORT bool IsExternalAscii() const;
 
@@ -1132,11 +1135,11 @@ class String : public Primitive {
   };
 
   /**
-   * An ExternalAsciiStringResource is a wrapper around an ascii
+   * An ExternalAsciiStringResource is a wrapper around an ASCII
    * string buffer that resides outside V8's heap. Implement an
    * ExternalAsciiStringResource to manage the life cycle of the
    * underlying buffer.  Note that the string data must be immutable
-   * and that the data must be strict 7-bit ASCII, not Latin1 or
+   * and that the data must be strict (7-bit) ASCII, not Latin-1 or
    * UTF-8, which would require special treatment internally in the
    * engine and, in the case of UTF-8, do not allow efficient indexing.
    * Use String::New or convert to 16 bit data for non-ASCII.
@@ -1152,7 +1155,7 @@ class String : public Primitive {
     virtual ~ExternalAsciiStringResource() {}
     /** The string data from the underlying buffer.*/
     virtual const char* data() const = 0;
-    /** The number of ascii characters in the string.*/
+    /** The number of ASCII characters in the string.*/
     virtual size_t length() const = 0;
    protected:
     ExternalAsciiStringResource() {}
@@ -1165,7 +1168,7 @@ class String : public Primitive {
   inline ExternalStringResource* GetExternalStringResource() const;
 
   /**
-   * Get the ExternalAsciiStringResource for an external ascii string.
+   * Get the ExternalAsciiStringResource for an external ASCII string.
    * Returns NULL if IsExternalAscii() doesn't return true.
    */
   V8EXPORT ExternalAsciiStringResource* GetExternalAsciiStringResource() const;
@@ -1173,9 +1176,9 @@ class String : public Primitive {
   static inline String* Cast(v8::Value* obj);
 
   /**
-   * Allocates a new string from either utf-8 encoded or ascii data.
+   * Allocates a new string from either UTF-8 encoded or ASCII data.
    * The second parameter 'length' gives the buffer length.
-   * If the data is utf-8 encoded, the caller must
+   * If the data is UTF-8 encoded, the caller must
    * be careful to supply the length parameter.
    * If it is not given, the function calls
    * 'strlen' to determine the buffer length, it might be
@@ -1183,7 +1186,7 @@ class String : public Primitive {
    */
   V8EXPORT static Local<String> New(const char* data, int length = -1);
 
-  /** Allocates a new string from utf16 data.*/
+  /** Allocates a new string from 16-bit character codes.*/
   V8EXPORT static Local<String> New(const uint16_t* data, int length = -1);
 
   /** Creates a symbol. Returns one if it exists already.*/
@@ -1218,7 +1221,7 @@ class String : public Primitive {
   V8EXPORT bool MakeExternal(ExternalStringResource* resource);
 
   /**
-   * Creates a new external string using the ascii data defined in the given
+   * Creates a new external string using the ASCII data defined in the given
    * resource. When the external string is no longer live on V8's heap the
    * resource will be disposed by calling its Dispose method. The caller of
    * this function should not otherwise delete or modify the resource. Neither
@@ -1244,18 +1247,18 @@ class String : public Primitive {
    */
   V8EXPORT bool CanMakeExternal();
 
-  /** Creates an undetectable string from the supplied ascii or utf-8 data.*/
+  /** Creates an undetectable string from the supplied ASCII or UTF-8 data.*/
   V8EXPORT static Local<String> NewUndetectable(const char* data,
                                                 int length = -1);
 
-  /** Creates an undetectable string from the supplied utf-16 data.*/
+  /** Creates an undetectable string from the supplied 16-bit character codes.*/
   V8EXPORT static Local<String> NewUndetectable(const uint16_t* data,
                                                 int length = -1);
 
   /**
-   * Converts an object to a utf8-encoded character array.  Useful if
+   * Converts an object to a UTF-8-encoded character array.  Useful if
    * you want to print the object.  If conversion to a string fails
-   * (eg. due to an exception in the toString() method of the object)
+   * (e.g. due to an exception in the toString() method of the object)
    * then the length() method returns 0 and the * operator returns
    * NULL.
    */
@@ -1276,7 +1279,7 @@ class String : public Primitive {
   };
 
   /**
-   * Converts an object to an ascii string.
+   * Converts an object to an ASCII string.
    * Useful if you want to print the object.
    * If conversion to a string fails (eg. due to an exception in the toString()
    * method of the object) then the length() method returns 0 and the * operator

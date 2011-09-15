@@ -558,7 +558,6 @@ void Thread::YieldCPU() {
 
 class MacOSMutex : public Mutex {
  public:
-
   MacOSMutex() {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);

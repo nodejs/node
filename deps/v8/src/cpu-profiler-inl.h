@@ -51,11 +51,6 @@ void CodeMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
 }
 
 
-void CodeDeleteEventRecord::UpdateCodeMap(CodeMap* code_map) {
-  code_map->DeleteCode(start);
-}
-
-
 void SharedFunctionInfoMoveEventRecord::UpdateCodeMap(CodeMap* code_map) {
   code_map->MoveCode(from, to);
 }

@@ -119,13 +119,13 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
 #define RETURN_IF_EMPTY_HANDLE(isolate, call)                       \
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, Failure::Exception())
 
-#define ISOLATE_ADDRESS_LIST(C)            \
-  C(handler_address)                       \
-  C(c_entry_fp_address)                    \
-  C(context_address)                       \
-  C(pending_exception_address)             \
-  C(external_caught_exception_address)     \
-  C(js_entry_sp_address)
+#define FOR_EACH_ISOLATE_ADDRESS_NAME(C)                \
+  C(Handler, handler)                                   \
+  C(CEntryFP, c_entry_fp)                               \
+  C(Context, context)                                   \
+  C(PendingException, pending_exception)                \
+  C(ExternalCaughtException, external_caught_exception) \
+  C(JSEntrySP, js_entry_sp)
 
 
 // Platform-independent, reliable thread identifier.
@@ -423,10 +423,10 @@ class Isolate {
 
 
   enum AddressId {
-#define C(name) k_##name,
-    ISOLATE_ADDRESS_LIST(C)
+#define DECLARE_ENUM(CamelName, hacker_name) k##CamelName##Address,
+    FOR_EACH_ISOLATE_ADDRESS_NAME(DECLARE_ENUM)
 #undef C
-    k_isolate_address_count
+    kIsolateAddressCount
   };
 
   // Returns the PerIsolateThreadData for the current thread (or NULL if one is
@@ -1097,7 +1097,7 @@ class Isolate {
   StringStream* incomplete_message_;
   // The preallocated memory thread singleton.
   PreallocatedMemoryThread* preallocated_memory_thread_;
-  Address isolate_addresses_[k_isolate_address_count + 1];  // NOLINT
+  Address isolate_addresses_[kIsolateAddressCount + 1];  // NOLINT
   NoAllocationStringAllocator* preallocated_message_space_;
 
   Bootstrapper* bootstrapper_;

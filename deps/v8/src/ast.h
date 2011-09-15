@@ -1775,7 +1775,7 @@ class RegExpTree: public ZoneObject {
   // expression.
   virtual Interval CaptureRegisters() { return Interval::Empty(); }
   virtual void AppendToText(RegExpText* text);
-  SmartPointer<const char> ToString();
+  SmartArrayPointer<const char> ToString();
 #define MAKE_ASTYPE(Name)                                                  \
   virtual RegExp##Name* As##Name();                                        \
   virtual bool Is##Name();

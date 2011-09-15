@@ -88,7 +88,8 @@ void LCodeGen::FinishCode(Handle<Code> code) {
 
 void LCodeGen::Abort(const char* format, ...) {
   if (FLAG_trace_bailout) {
-    SmartPointer<char> name(info()->shared_info()->DebugName()->ToCString());
+    SmartArrayPointer<char> name(
+        info()->shared_info()->DebugName()->ToCString());
     PrintF("Aborting LCodeGen in @\"%s\": ", *name);
     va_list arguments;
     va_start(arguments, format);
@@ -2219,11 +2220,11 @@ void LCodeGen::DoLoadElements(LLoadElements* instr) {
     __ movzx_b(temp, FieldOperand(temp, Map::kBitField2Offset));
     __ and_(temp, Map::kElementsKindMask);
     __ shr(temp, Map::kElementsKindShift);
-    __ cmp(temp, JSObject::FAST_ELEMENTS);
+    __ cmp(temp, FAST_ELEMENTS);
     __ j(equal, &ok, Label::kNear);
-    __ cmp(temp, JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+    __ cmp(temp, FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND);
     __ j(less, &fail, Label::kNear);
-    __ cmp(temp, JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
+    __ cmp(temp, LAST_EXTERNAL_ARRAY_ELEMENTS_KIND);
     __ j(less_equal, &ok, Label::kNear);
     __ bind(&fail);
     __ Abort("Check for fast or external elements failed.");
@@ -2264,7 +2265,7 @@ void LCodeGen::DoLoadKeyedFastElement(LLoadKeyedFastElement* instr) {
   // Load the result.
   __ mov(result,
          BuildFastArrayOperand(instr->elements(), instr->key(),
-                               JSObject::FAST_ELEMENTS,
+                               FAST_ELEMENTS,
                                FixedArray::kHeaderSize - kHeapObjectTag));
 
   // Check for the hole value.
@@ -2284,14 +2285,14 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
         sizeof(kHoleNanLower32);
     Operand hole_check_operand = BuildFastArrayOperand(
         instr->elements(), instr->key(),
-        JSObject::FAST_DOUBLE_ELEMENTS,
+        FAST_DOUBLE_ELEMENTS,
         offset);
     __ cmp(hole_check_operand, Immediate(kHoleNanUpper32));
     DeoptimizeIf(equal, instr->environment());
   }
 
   Operand double_load_operand = BuildFastArrayOperand(
-      instr->elements(), instr->key(), JSObject::FAST_DOUBLE_ELEMENTS,
+      instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
       FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ movdbl(result, double_load_operand);
 }
@@ -2300,7 +2301,7 @@ void LCodeGen::DoLoadKeyedFastDoubleElement(
 Operand LCodeGen::BuildFastArrayOperand(
     LOperand* elements_pointer,
     LOperand* key,
-    JSObject::ElementsKind elements_kind,
+    ElementsKind elements_kind,
     uint32_t offset) {
   Register elements_pointer_reg = ToRegister(elements_pointer);
   int shift_size = ElementsKindToShiftSize(elements_kind);
@@ -2320,35 +2321,35 @@ Operand LCodeGen::BuildFastArrayOperand(
 
 void LCodeGen::DoLoadKeyedSpecializedArrayElement(
     LLoadKeyedSpecializedArrayElement* instr) {
-  JSObject::ElementsKind elements_kind = instr->elements_kind();
+  ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildFastArrayOperand(instr->external_pointer(),
                                         instr->key(), elements_kind, 0));
-  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     XMMRegister result(ToDoubleRegister(instr->result()));
     __ movss(result, operand);
     __ cvtss2sd(result, result);
-  } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     __ movdbl(ToDoubleRegister(instr->result()), operand);
   } else {
     Register result(ToRegister(instr->result()));
     switch (elements_kind) {
-      case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_BYTE_ELEMENTS:
         __ movsx_b(result, operand);
         break;
-      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
         __ movzx_b(result, operand);
         break;
-      case JSObject::EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
         __ movsx_w(result, operand);
         break;
-      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ movzx_w(result, operand);
         break;
-      case JSObject::EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
         __ mov(result, operand);
         break;
-      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ mov(result, operand);
         __ test(result, Operand(result));
         // TODO(danno): we could be more clever here, perhaps having a special
@@ -2356,12 +2357,12 @@ void LCodeGen::DoLoadKeyedSpecializedArrayElement(
         // happens, and generate code that returns a double rather than int.
         DeoptimizeIf(negative, instr->environment());
         break;
-      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      case JSObject::FAST_ELEMENTS:
-      case JSObject::FAST_DOUBLE_ELEMENTS:
-      case JSObject::DICTIONARY_ELEMENTS:
-      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case DICTIONARY_ELEMENTS:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -2980,8 +2981,8 @@ void LCodeGen::DoCallKeyed(LCallKeyed* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  Handle<Code> ic = isolate()->stub_cache()->
-      ComputeKeyedCallInitialize(arity, NOT_IN_LOOP);
+  Handle<Code> ic =
+      isolate()->stub_cache()->ComputeKeyedCallInitialize(arity);
   CallCode(ic, RelocInfo::CODE_TARGET, instr);
 }
 
@@ -2993,7 +2994,7 @@ void LCodeGen::DoCallNamed(LCallNamed* instr) {
   int arity = instr->arity();
   RelocInfo::Mode mode = RelocInfo::CODE_TARGET;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
   __ mov(ecx, instr->name());
   CallCode(ic, mode, instr);
 }
@@ -3004,7 +3005,7 @@ void LCodeGen::DoCallFunction(LCallFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
 
   int arity = instr->arity();
-  CallFunctionStub stub(arity, NOT_IN_LOOP, RECEIVER_MIGHT_BE_IMPLICIT);
+  CallFunctionStub stub(arity, RECEIVER_MIGHT_BE_IMPLICIT);
   CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
   __ Drop(1);
 }
@@ -3017,7 +3018,7 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
   int arity = instr->arity();
   RelocInfo::Mode mode = RelocInfo::CODE_TARGET_CONTEXT;
   Handle<Code> ic =
-      isolate()->stub_cache()->ComputeCallInitialize(arity, NOT_IN_LOOP, mode);
+      isolate()->stub_cache()->ComputeCallInitialize(arity, mode);
   __ mov(ecx, instr->name());
   CallCode(ic, mode, instr);
 }
@@ -3103,36 +3104,36 @@ void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
 
 void LCodeGen::DoStoreKeyedSpecializedArrayElement(
     LStoreKeyedSpecializedArrayElement* instr) {
-  JSObject::ElementsKind elements_kind = instr->elements_kind();
+  ElementsKind elements_kind = instr->elements_kind();
   Operand operand(BuildFastArrayOperand(instr->external_pointer(),
                                         instr->key(), elements_kind, 0));
-  if (elements_kind == JSObject::EXTERNAL_FLOAT_ELEMENTS) {
+  if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
     __ cvtsd2ss(xmm0, ToDoubleRegister(instr->value()));
     __ movss(operand, xmm0);
-  } else if (elements_kind == JSObject::EXTERNAL_DOUBLE_ELEMENTS) {
+  } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
     __ movdbl(operand, ToDoubleRegister(instr->value()));
   } else {
     Register value = ToRegister(instr->value());
     switch (elements_kind) {
-      case JSObject::EXTERNAL_PIXEL_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      case JSObject::EXTERNAL_BYTE_ELEMENTS:
+      case EXTERNAL_PIXEL_ELEMENTS:
+      case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
+      case EXTERNAL_BYTE_ELEMENTS:
         __ mov_b(operand, value);
         break;
-      case JSObject::EXTERNAL_SHORT_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
+      case EXTERNAL_SHORT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
         __ mov_w(operand, value);
         break;
-      case JSObject::EXTERNAL_INT_ELEMENTS:
-      case JSObject::EXTERNAL_UNSIGNED_INT_ELEMENTS:
+      case EXTERNAL_INT_ELEMENTS:
+      case EXTERNAL_UNSIGNED_INT_ELEMENTS:
         __ mov(operand, value);
         break;
-      case JSObject::EXTERNAL_FLOAT_ELEMENTS:
-      case JSObject::EXTERNAL_DOUBLE_ELEMENTS:
-      case JSObject::FAST_ELEMENTS:
-      case JSObject::FAST_DOUBLE_ELEMENTS:
-      case JSObject::DICTIONARY_ELEMENTS:
-      case JSObject::NON_STRICT_ARGUMENTS_ELEMENTS:
+      case EXTERNAL_FLOAT_ELEMENTS:
+      case EXTERNAL_DOUBLE_ELEMENTS:
+      case FAST_ELEMENTS:
+      case FAST_DOUBLE_ELEMENTS:
+      case DICTIONARY_ELEMENTS:
+      case NON_STRICT_ARGUMENTS_ELEMENTS:
         UNREACHABLE();
         break;
     }
@@ -3186,7 +3187,7 @@ void LCodeGen::DoStoreKeyedFastDoubleElement(
   __ bind(&have_value);
 
   Operand double_store_operand = BuildFastArrayOperand(
-      instr->elements(), instr->key(), JSObject::FAST_DOUBLE_ELEMENTS,
+      instr->elements(), instr->key(), FAST_DOUBLE_ELEMENTS,
       FixedDoubleArray::kHeaderSize - kHeapObjectTag);
   __ movdbl(double_store_operand, value);
 }

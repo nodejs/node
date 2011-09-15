@@ -31,7 +31,7 @@
 #include "allocation.h"
 #include "builtins.h"
 #include "list.h"
-#include "smart-pointer.h"
+#include "smart-array-pointer.h"
 #include "unicode-inl.h"
 #if V8_TARGET_ARCH_ARM
 #include "arm/constants-arm.h"
@@ -135,6 +135,37 @@ enum PropertyAttributes {
 namespace v8 {
 namespace internal {
 
+enum ElementsKind {
+  // The "fast" kind for tagged values. Must be first to make it possible
+  // to efficiently check maps if they have fast elements.
+  FAST_ELEMENTS,
+
+  // The "fast" kind for unwrapped, non-tagged double values.
+  FAST_DOUBLE_ELEMENTS,
+
+  // The "slow" kind.
+  DICTIONARY_ELEMENTS,
+  NON_STRICT_ARGUMENTS_ELEMENTS,
+  // The "fast" kind for external arrays
+  EXTERNAL_BYTE_ELEMENTS,
+  EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
+  EXTERNAL_SHORT_ELEMENTS,
+  EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
+  EXTERNAL_INT_ELEMENTS,
+  EXTERNAL_UNSIGNED_INT_ELEMENTS,
+  EXTERNAL_FLOAT_ELEMENTS,
+  EXTERNAL_DOUBLE_ELEMENTS,
+  EXTERNAL_PIXEL_ELEMENTS,
+
+  // Derived constants from ElementsKind
+  FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
+  LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
+  FIRST_ELEMENTS_KIND = FAST_ELEMENTS,
+  LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
+};
+
+static const int kElementsKindCount =
+    LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
@@ -143,7 +174,7 @@ class PropertyDetails BASE_EMBEDDED {
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
                   int index = 0) {
-    ASSERT(type != EXTERNAL_ARRAY_TRANSITION);
+    ASSERT(type != ELEMENTS_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
     ASSERT(StorageField::is_valid(index));
@@ -159,19 +190,19 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyDetails(PropertyAttributes attributes,
                   PropertyType type,
-                  ExternalArrayType array_type) {
-    ASSERT(type == EXTERNAL_ARRAY_TRANSITION);
+                  ElementsKind elements_kind) {
+    ASSERT(type == ELEMENTS_TRANSITION);
     ASSERT(TypeField::is_valid(type));
     ASSERT(AttributesField::is_valid(attributes));
-    ASSERT(StorageField::is_valid(static_cast<int>(array_type)));
+    ASSERT(StorageField::is_valid(static_cast<int>(elements_kind)));
 
     value_ = TypeField::encode(type)
         | AttributesField::encode(attributes)
-        | StorageField::encode(static_cast<int>(array_type));
+        | StorageField::encode(static_cast<int>(elements_kind));
 
     ASSERT(type == this->type());
     ASSERT(attributes == this->attributes());
-    ASSERT(array_type == this->array_type());
+    ASSERT(elements_kind == this->elements_kind());
   }
 
   // Conversion for storing details as Object*.
@@ -184,7 +215,7 @@ class PropertyDetails BASE_EMBEDDED {
     PropertyType t = type();
     ASSERT(t != INTERCEPTOR);
     return t == MAP_TRANSITION || t == CONSTANT_TRANSITION ||
-        t == EXTERNAL_ARRAY_TRANSITION;
+        t == ELEMENTS_TRANSITION;
   }
 
   bool IsProperty() {
@@ -195,9 +226,9 @@ class PropertyDetails BASE_EMBEDDED {
 
   int index() { return StorageField::decode(value_); }
 
-  ExternalArrayType array_type() {
-    ASSERT(type() == EXTERNAL_ARRAY_TRANSITION);
-    return static_cast<ExternalArrayType>(StorageField::decode(value_));
+  ElementsKind elements_kind() {
+    ASSERT(type() == ELEMENTS_TRANSITION);
+    return static_cast<ElementsKind>(StorageField::decode(value_));
   }
 
   inline PropertyDetails AsDeleted();
@@ -1463,38 +1494,6 @@ class JSReceiver: public HeapObject {
 // caching.
 class JSObject: public JSReceiver {
  public:
-  enum ElementsKind {
-    // The "fast" kind for tagged values. Must be first to make it possible
-    // to efficiently check maps if they have fast elements.
-    FAST_ELEMENTS,
-
-    // The "fast" kind for unwrapped, non-tagged double values.
-    FAST_DOUBLE_ELEMENTS,
-
-    // The "slow" kind.
-    DICTIONARY_ELEMENTS,
-    NON_STRICT_ARGUMENTS_ELEMENTS,
-    // The "fast" kind for external arrays
-    EXTERNAL_BYTE_ELEMENTS,
-    EXTERNAL_UNSIGNED_BYTE_ELEMENTS,
-    EXTERNAL_SHORT_ELEMENTS,
-    EXTERNAL_UNSIGNED_SHORT_ELEMENTS,
-    EXTERNAL_INT_ELEMENTS,
-    EXTERNAL_UNSIGNED_INT_ELEMENTS,
-    EXTERNAL_FLOAT_ELEMENTS,
-    EXTERNAL_DOUBLE_ELEMENTS,
-    EXTERNAL_PIXEL_ELEMENTS,
-
-    // Derived constants from ElementsKind
-    FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_BYTE_ELEMENTS,
-    LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
-    FIRST_ELEMENTS_KIND = FAST_ELEMENTS,
-    LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
-  };
-
-  static const int kElementsKindCount =
-    LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
-
   // [properties]: Backing storage for properties.
   // properties is a FixedArray in the fast case and a Dictionary in the
   // slow case.
@@ -3154,7 +3153,6 @@ class ByteArray: public FixedArrayBase {
 // raised rather than being silently ignored.
 class ExternalArray: public FixedArrayBase {
  public:
-
   inline bool is_the_hole(int index) { return false; }
 
   // [external_pointer]: The pointer to the external memory area backing this
@@ -3655,7 +3653,6 @@ class Code: public HeapObject {
   inline Kind kind();
   inline InlineCacheState ic_state();  // Only valid for IC stubs.
   inline ExtraICState extra_ic_state();  // Only valid for IC stubs.
-  inline InLoopFlag ic_in_loop();  // Only valid for IC stubs.
   inline PropertyType type();  // Only valid for monomorphic IC stubs.
   inline int arguments_count();  // Only valid for call IC stubs.
 
@@ -3684,6 +3681,11 @@ class Code: public HeapObject {
   // deoptimization support.
   inline bool has_deoptimization_support();
   inline void set_has_deoptimization_support(bool value);
+
+  // [has_debug_break_slots]: For FUNCTION kind, tells if it has
+  // been compiled with debug break slots.
+  inline bool has_debug_break_slots();
+  inline void set_has_debug_break_slots(bool value);
 
   // [allow_osr_at_loop_nesting_level]: For FUNCTION kind, tells for
   // how long the function has been marked for OSR and therefore which
@@ -3743,7 +3745,6 @@ class Code: public HeapObject {
   // Flags operations.
   static inline Flags ComputeFlags(
       Kind kind,
-      InLoopFlag in_loop = NOT_IN_LOOP,
       InlineCacheState ic_state = UNINITIALIZED,
       ExtraICState extra_ic_state = kNoExtraICState,
       PropertyType type = NORMAL,
@@ -3755,16 +3756,15 @@ class Code: public HeapObject {
       PropertyType type,
       ExtraICState extra_ic_state = kNoExtraICState,
       InlineCacheHolderFlag holder = OWN_MAP,
-      InLoopFlag in_loop = NOT_IN_LOOP,
       int argc = -1);
 
-  static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheState ExtractICStateFromFlags(Flags flags);
-  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
-  static inline InLoopFlag ExtractICInLoopFromFlags(Flags flags);
   static inline PropertyType ExtractTypeFromFlags(Flags flags);
-  static inline int ExtractArgumentsCountFromFlags(Flags flags);
+  static inline Kind ExtractKindFromFlags(Flags flags);
   static inline InlineCacheHolderFlag ExtractCacheHolderFromFlags(Flags flags);
+  static inline ExtraICState ExtractExtraICStateFromFlags(Flags flags);
+  static inline int ExtractArgumentsCountFromFlags(Flags flags);
+
   static inline Flags RemoveTypeFromFlags(Flags flags);
 
   // Convert a target address into a code object.
@@ -3875,34 +3875,32 @@ class Code: public HeapObject {
   static const int kBinaryOpTypeOffset = kStubMajorKeyOffset + 1;
   static const int kCompareStateOffset = kStubMajorKeyOffset + 1;
   static const int kToBooleanTypeOffset = kStubMajorKeyOffset + 1;
-  static const int kHasDeoptimizationSupportOffset = kOptimizableOffset + 1;
+
+  static const int kFullCodeFlags = kOptimizableOffset + 1;
+  class FullCodeFlagsHasDeoptimizationSupportField:
+      public BitField<bool, 0, 1> {};  // NOLINT
+  class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
-  static const int kAllowOSRAtLoopNestingLevelOffset =
-      kHasDeoptimizationSupportOffset + 1;
+
+  static const int kAllowOSRAtLoopNestingLevelOffset = kFullCodeFlags + 1;
 
   static const int kSafepointTableOffsetOffset = kStackSlotsOffset + kIntSize;
   static const int kStackCheckTableOffsetOffset = kStackSlotsOffset + kIntSize;
 
-  // Flags layout.
-  static const int kFlagsICStateShift        = 0;
-  static const int kFlagsICInLoopShift       = 3;
-  static const int kFlagsTypeShift           = 4;
-  static const int kFlagsKindShift           = 8;
-  static const int kFlagsICHolderShift       = 12;
-  static const int kFlagsExtraICStateShift   = 13;
-  static const int kFlagsArgumentsCountShift = 15;
+  // Flags layout.  BitField<type, shift, size>.
+  class ICStateField: public BitField<InlineCacheState, 0, 3> {};
+  class TypeField: public BitField<PropertyType, 3, 4> {};
+  class KindField: public BitField<Kind, 7, 4> {};
+  class CacheHolderField: public BitField<InlineCacheHolderFlag, 11, 1> {};
+  class ExtraICStateField: public BitField<ExtraICState, 12, 2> {};
 
-  static const int kFlagsICStateMask        = 0x00000007;  // 00000000111
-  static const int kFlagsICInLoopMask       = 0x00000008;  // 00000001000
-  static const int kFlagsTypeMask           = 0x000000F0;  // 00001110000
-  static const int kFlagsKindMask           = 0x00000F00;  // 11110000000
-  static const int kFlagsCacheInPrototypeMapMask = 0x00001000;
-  static const int kFlagsExtraICStateMask   = 0x00006000;
-  static const int kFlagsArgumentsCountMask = 0xFFFF8000;
+  // Signed field cannot be encoded using the BitField class.
+  static const int kArgumentsCountShift = 14;
+  static const int kArgumentsCountMask = ~((1 << kArgumentsCountShift) - 1);
 
   static const int kFlagsNotUsedInLookup =
-      (kFlagsICInLoopMask | kFlagsTypeMask | kFlagsCacheInPrototypeMapMask);
+      TypeField::kMask | CacheHolderField::kMask;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(Code);
@@ -4021,37 +4019,37 @@ class Map: public HeapObject {
   inline void set_is_extensible(bool value);
   inline bool is_extensible();
 
-  inline void set_elements_kind(JSObject::ElementsKind elements_kind) {
-    ASSERT(elements_kind < JSObject::kElementsKindCount);
-    ASSERT(JSObject::kElementsKindCount <= (1 << kElementsKindBitCount));
+  inline void set_elements_kind(ElementsKind elements_kind) {
+    ASSERT(elements_kind < kElementsKindCount);
+    ASSERT(kElementsKindCount <= (1 << kElementsKindBitCount));
     set_bit_field2((bit_field2() & ~kElementsKindMask) |
         (elements_kind << kElementsKindShift));
     ASSERT(this->elements_kind() == elements_kind);
   }
 
-  inline JSObject::ElementsKind elements_kind() {
-    return static_cast<JSObject::ElementsKind>(
+  inline ElementsKind elements_kind() {
+    return static_cast<ElementsKind>(
         (bit_field2() & kElementsKindMask) >> kElementsKindShift);
   }
 
   // Tells whether the instance has fast elements.
   // Equivalent to instance->GetElementsKind() == FAST_ELEMENTS.
   inline bool has_fast_elements() {
-    return elements_kind() == JSObject::FAST_ELEMENTS;
+    return elements_kind() == FAST_ELEMENTS;
   }
 
   inline bool has_fast_double_elements() {
-    return elements_kind() == JSObject::FAST_DOUBLE_ELEMENTS;
+    return elements_kind() == FAST_DOUBLE_ELEMENTS;
   }
 
   inline bool has_external_array_elements() {
-    JSObject::ElementsKind kind(elements_kind());
-    return kind >= JSObject::FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
-        kind <= JSObject::LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
+    ElementsKind kind(elements_kind());
+    return kind >= FIRST_EXTERNAL_ARRAY_ELEMENTS_KIND &&
+        kind <= LAST_EXTERNAL_ARRAY_ELEMENTS_KIND;
   }
 
   inline bool has_dictionary_elements() {
-    return elements_kind() == JSObject::DICTIONARY_ELEMENTS;
+    return elements_kind() == DICTIONARY_ELEMENTS;
   }
 
   // Tells whether the map is attached to SharedFunctionInfo
@@ -4156,9 +4154,9 @@ class Map: public HeapObject {
   MUST_USE_RESULT inline MaybeObject* GetSlowElementsMap();
 
   // Returns a new map with all transitions dropped from the descriptors and the
-  // ElementsKind set to one of the value corresponding to array_type.
-  MUST_USE_RESULT MaybeObject* GetExternalArrayElementsMap(
-      ExternalArrayType array_type,
+  // ElementsKind set.
+  MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
+      ElementsKind elements_kind,
       bool safe_to_add_transition);
 
   // Returns the property index for name (only valid for FAST MODE).
@@ -4323,7 +4321,7 @@ class Map: public HeapObject {
   static const int kElementsKindMask = (-1 << kElementsKindShift) &
       ((1 << (kElementsKindShift + kElementsKindBitCount)) - 1);
   static const int8_t kMaximumBitField2FastElementValue = static_cast<int8_t>(
-      (JSObject::FAST_ELEMENTS + 1) << Map::kElementsKindShift) - 1;
+      (FAST_ELEMENTS + 1) << Map::kElementsKindShift) - 1;
 
   // Bit positions for bit field 3
   static const int kIsShared = 0;
@@ -4737,7 +4735,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_BOOLEAN_ACCESSORS(has_duplicate_parameters)
 
   // Indicates whether the function is a native function.
-  // These needs special threatment in .call and .apply since
+  // These needs special treatment in .call and .apply since
   // null passed as the receiver should not be translated to the
   // global object.
   DECL_BOOLEAN_ACCESSORS(native)
@@ -5004,7 +5002,7 @@ class JSFunction: public JSObject {
   // [prototype_or_initial_map]:
   DECL_ACCESSORS(prototype_or_initial_map, Object)
 
-  // [shared_function_info]: The information about the function that
+  // [shared]: The information about the function that
   // can be shared by instances.
   DECL_ACCESSORS(shared, SharedFunctionInfo)
 
@@ -5981,12 +5979,12 @@ class String: public HeapObject {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  SmartPointer<char> ToCString(AllowNullsFlag allow_nulls,
-                               RobustnessFlag robustness_flag,
-                               int offset,
-                               int length,
-                               int* length_output = 0);
-  SmartPointer<char> ToCString(
+  SmartArrayPointer<char> ToCString(AllowNullsFlag allow_nulls,
+                                    RobustnessFlag robustness_flag,
+                                    int offset,
+                                    int length,
+                                    int* length_output = 0);
+  SmartArrayPointer<char> ToCString(
       AllowNullsFlag allow_nulls = DISALLOW_NULLS,
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
@@ -5999,7 +5997,7 @@ class String: public HeapObject {
   // ROBUST_STRING_TRAVERSAL invokes behaviour that is robust  This means it
   // handles unexpected data without causing assert failures and it does not
   // do any heap allocations.  This is useful when printing stack traces.
-  SmartPointer<uc16> ToWideCString(
+  SmartArrayPointer<uc16> ToWideCString(
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL);
 
   // Tells whether the hash code has been computed.
@@ -6409,7 +6407,6 @@ class ConsString: public String {
 //  - truncating sliced string to enable otherwise unneeded parent to be GC'ed.
 class SlicedString: public String {
  public:
-
   inline String* parent();
   inline void set_parent(String* parent);
   inline int offset();
@@ -6722,9 +6719,6 @@ class JSProxy: public JSReceiver {
   // [handler]: The handler property.
   DECL_ACCESSORS(handler, Object)
 
-  // [padding]: The padding slot (unused, see below).
-  DECL_ACCESSORS(padding, Object)
-
   // Casting.
   static inline JSProxy* cast(Object* obj);
 
@@ -6748,6 +6742,9 @@ class JSProxy: public JSReceiver {
   // Turn this into an (empty) JSObject.
   void Fix();
 
+  // Initializes the body after the handler slot.
+  inline void InitializeBody(int object_size, Object* value);
+
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
   inline void JSProxyPrint() {
@@ -6764,9 +6761,11 @@ class JSProxy: public JSReceiver {
   // upon freeze.
   static const int kHandlerOffset = HeapObject::kHeaderSize;
   static const int kPaddingOffset = kHandlerOffset + kPointerSize;
-  static const int kSize = kPaddingOffset + kPointerSize;
+  static const int kSize = JSObject::kHeaderSize;
+  static const int kHeaderSize = kPaddingOffset;
+  static const int kPaddingSize = kSize - kPaddingOffset;
 
-  STATIC_CHECK(kSize == JSObject::kHeaderSize);
+  STATIC_CHECK(kPaddingSize >= 0);
 
   typedef FixedBodyDescriptor<kHandlerOffset,
                               kHandlerOffset + kPointerSize,
@@ -6777,11 +6776,40 @@ class JSProxy: public JSReceiver {
 };
 
 
-// TODO(rossberg): Only a stub for now.
 class JSFunctionProxy: public JSProxy {
  public:
+  // [call_trap]: The call trap.
+  DECL_ACCESSORS(call_trap, Object)
+
+  // [construct_trap]: The construct trap.
+  DECL_ACCESSORS(construct_trap, Object)
+
   // Casting.
   static inline JSFunctionProxy* cast(Object* obj);
+
+  // Dispatched behavior.
+#ifdef OBJECT_PRINT
+  inline void JSFunctionProxyPrint() {
+    JSFunctionProxyPrint(stdout);
+  }
+  void JSFunctionProxyPrint(FILE* out);
+#endif
+#ifdef DEBUG
+  void JSFunctionProxyVerify();
+#endif
+
+  // Layout description.
+  static const int kCallTrapOffset = kHandlerOffset + kPointerSize;
+  static const int kConstructTrapOffset = kCallTrapOffset + kPointerSize;
+  static const int kPaddingOffset = kConstructTrapOffset + kPointerSize;
+  static const int kSize = JSFunction::kSize;
+  static const int kPaddingSize = kSize - kPaddingOffset;
+
+  STATIC_CHECK(kPaddingSize >= 0);
+
+  typedef FixedBodyDescriptor<kHandlerOffset,
+                              kConstructTrapOffset + kPointerSize,
+                              kSize> BodyDescriptor;
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunctionProxy);

@@ -53,11 +53,16 @@ class Execution : public AllStatic {
   // *pending_exception tells whether the invoke resulted in
   // a pending exception.
   //
+  // When convert_receiver is set, and the receiver is not an object,
+  // and the function called is not in strict mode, receiver is converted to
+  // an object.
+  //
   static Handle<Object> Call(Handle<Object> callable,
                              Handle<Object> receiver,
                              int argc,
                              Object*** args,
-                             bool* pending_exception);
+                             bool* pending_exception,
+                             bool convert_receiver = false);
 
   // Construct object from function, the caller supplies an array of
   // arguments. Arguments are Object* type. After function returns,

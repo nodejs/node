@@ -287,7 +287,7 @@ void MacroAssembler::CmpInstanceType(Register map, InstanceType type) {
 void MacroAssembler::CheckFastElements(Register map,
                                        Label* fail,
                                        Label::Distance distance) {
-  STATIC_ASSERT(JSObject::FAST_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 0);
   cmpb(FieldOperand(map, Map::kBitField2Offset),
        Map::kMaximumBitField2FastElementValue);
   j(above, fail, distance);
@@ -437,9 +437,9 @@ void MacroAssembler::EnterExitFramePrologue() {
   push(Immediate(CodeObject()));  // Accessed from ExitFrame::code_slot.
 
   // Save the frame pointer and the context in top.
-  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address,
+  ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress,
                                        isolate());
-  ExternalReference context_address(Isolate::k_context_address,
+  ExternalReference context_address(Isolate::kContextAddress,
                                     isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), ebp);
   mov(Operand::StaticVariable(context_address), esi);
@@ -518,14 +518,14 @@ void MacroAssembler::LeaveExitFrame(bool save_doubles) {
 
 void MacroAssembler::LeaveExitFrameEpilogue() {
   // Restore current context from top and clear it in debug mode.
-  ExternalReference context_address(Isolate::k_context_address, isolate());
+  ExternalReference context_address(Isolate::kContextAddress, isolate());
   mov(esi, Operand::StaticVariable(context_address));
 #ifdef DEBUG
   mov(Operand::StaticVariable(context_address), Immediate(0));
 #endif
 
   // Clear the top frame.
-  ExternalReference c_entry_fp_address(Isolate::k_c_entry_fp_address,
+  ExternalReference c_entry_fp_address(Isolate::kCEntryFPAddress,
                                        isolate());
   mov(Operand::StaticVariable(c_entry_fp_address), Immediate(0));
 }
@@ -567,10 +567,10 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
     push(Immediate(Smi::FromInt(0)));  // No context.
   }
   // Save the current handler as the next handler.
-  push(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address,
+  push(Operand::StaticVariable(ExternalReference(Isolate::kHandlerAddress,
                                                  isolate())));
   // Link this handler as the new current one.
-  mov(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address,
+  mov(Operand::StaticVariable(ExternalReference(Isolate::kHandlerAddress,
                                                 isolate())),
       esp);
 }
@@ -578,7 +578,7 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
 
 void MacroAssembler::PopTryHandler() {
   STATIC_ASSERT(StackHandlerConstants::kNextOffset == 0);
-  pop(Operand::StaticVariable(ExternalReference(Isolate::k_handler_address,
+  pop(Operand::StaticVariable(ExternalReference(Isolate::kHandlerAddress,
                                                 isolate())));
   add(Operand(esp), Immediate(StackHandlerConstants::kSize - kPointerSize));
 }
@@ -598,7 +598,7 @@ void MacroAssembler::Throw(Register value) {
   }
 
   // Drop the sp to the top of the handler.
-  ExternalReference handler_address(Isolate::k_handler_address,
+  ExternalReference handler_address(Isolate::kHandlerAddress,
                                     isolate());
   mov(esp, Operand::StaticVariable(handler_address));
 
@@ -637,7 +637,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   }
 
   // Drop sp to the top stack handler.
-  ExternalReference handler_address(Isolate::k_handler_address,
+  ExternalReference handler_address(Isolate::kHandlerAddress,
                                     isolate());
   mov(esp, Operand::StaticVariable(handler_address));
 
@@ -660,13 +660,13 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   if (type == OUT_OF_MEMORY) {
     // Set external caught exception to false.
     ExternalReference external_caught(
-        Isolate::k_external_caught_exception_address,
+        Isolate::kExternalCaughtExceptionAddress,
         isolate());
     mov(eax, false);
     mov(Operand::StaticVariable(external_caught), eax);
 
     // Set pending exception and eax to out of memory exception.
-    ExternalReference pending_exception(Isolate::k_pending_exception_address,
+    ExternalReference pending_exception(Isolate::kPendingExceptionAddress,
                                         isolate());
     mov(eax, reinterpret_cast<int32_t>(Failure::OutOfMemoryException()));
     mov(Operand::StaticVariable(pending_exception), eax);
@@ -840,7 +840,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
       NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ASSERT_EQ(NORMAL, 0);
   test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
-       Immediate(PropertyDetails::TypeField::mask() << kSmiTagSize));
+       Immediate(PropertyDetails::TypeField::kMask << kSmiTagSize));
   j(not_zero, miss);
 
   // Get the value at the masked, scaled index.

@@ -590,16 +590,17 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
   // 2. Get the function to call (passed as receiver) from the stack, check
   //    if it is a function.
-  Label non_function;
+  Label slow, non_function;
   // 1 ~ return address.
   __ mov(edi, Operand(esp, eax, times_4, 1 * kPointerSize));
   __ JumpIfSmi(edi, &non_function);
   __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
-  __ j(not_equal, &non_function);
+  __ j(not_equal, &slow);
 
 
   // 3a. Patch the first argument if necessary when calling a function.
   Label shift_arguments;
+  __ Set(edx, Immediate(0));  // indicate regular JS_FUNCTION
   { Label convert_to_object, use_global_receiver, patch_receiver;
     // Change context eagerly in case we need the global receiver.
     __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
@@ -637,6 +638,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ push(ebx);
     __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
     __ mov(ebx, eax);
+    __ Set(edx, Immediate(0));  // restore
 
     __ pop(eax);
     __ SmiUntag(eax);
@@ -661,14 +663,19 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ jmp(&shift_arguments);
   }
 
-  // 3b. Patch the first argument when calling a non-function.  The
+  // 3b. Check for function proxy.
+  __ bind(&slow);
+  __ Set(edx, Immediate(1));  // indicate function proxy
+  __ CmpInstanceType(ecx, JS_FUNCTION_PROXY_TYPE);
+  __ j(equal, &shift_arguments);
+  __ bind(&non_function);
+  __ Set(edx, Immediate(2));  // indicate non-function
+
+  // 3c. Patch the first argument when calling a non-function.  The
   //     CALL_NON_FUNCTION builtin expects the non-function callee as
   //     receiver, so overwrite the first argument which will ultimately
   //     become the receiver.
-  __ bind(&non_function);
   __ mov(Operand(esp, eax, times_4, 0), edi);
-  // Clear edi to indicate a non-function being called.
-  __ Set(edi, Immediate(0));
 
   // 4. Shift arguments and return address one slot down on the stack
   //    (overwriting the original receiver).  Adjust argument count to make
@@ -685,13 +692,26 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ dec(eax);  // One fewer argument (first argument is new receiver).
   }
 
-  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin.
-  { Label function;
-    __ test(edi, Operand(edi));
-    __ j(not_zero, &function);
+  // 5a. Call non-function via tail call to CALL_NON_FUNCTION builtin,
+  //     or a function proxy via CALL_FUNCTION_PROXY.
+  { Label function, non_proxy;
+    __ test(edx, Operand(edx));
+    __ j(zero, &function);
     __ Set(ebx, Immediate(0));
-    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     __ SetCallKind(ecx, CALL_AS_METHOD);
+    __ cmp(Operand(edx), Immediate(1));
+    __ j(not_equal, &non_proxy);
+
+    __ pop(edx);   // return address
+    __ push(edi);  // re-add proxy object as additional argument
+    __ push(edx);
+    __ inc(eax);
+    __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+    __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+           RelocInfo::CODE_TARGET);
+
+    __ bind(&non_proxy);
+    __ GetBuiltinEntry(edx, Builtins::CALL_NON_FUNCTION);
     __ jmp(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
            RelocInfo::CODE_TARGET);
     __ bind(&function);
@@ -717,13 +737,17 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
 
 
 void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
+  static const int kArgumentsOffset = 2 * kPointerSize;
+  static const int kReceiverOffset = 3 * kPointerSize;
+  static const int kFunctionOffset = 4 * kPointerSize;
+
   __ EnterInternalFrame();
 
-  __ push(Operand(ebp, 4 * kPointerSize));  // push this
-  __ push(Operand(ebp, 2 * kPointerSize));  // push arguments
+  __ push(Operand(ebp, kFunctionOffset));  // push this
+  __ push(Operand(ebp, kArgumentsOffset));  // push arguments
   __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  // Check the stack for overflow. We are not trying need to catch
+  // Check the stack for overflow. We are not trying to catch
   // interruptions (e.g. debug break and preemption) here, so the "real stack
   // limit" is checked.
   Label okay;
@@ -756,16 +780,21 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ push(eax);  // limit
   __ push(Immediate(0));  // index
 
-  // Change context eagerly to get the right global object if
-  // necessary.
-  __ mov(edi, Operand(ebp, 4 * kPointerSize));
+  // Get the receiver.
+  __ mov(ebx, Operand(ebp, kReceiverOffset));
+
+  // Check that the function is a JS function (otherwise it must be a proxy).
+  Label push_receiver;
+  __ mov(edi, Operand(ebp, kFunctionOffset));
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &push_receiver);
+
+  // Change context eagerly to get the right global object if necessary.
   __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   // Compute the receiver.
-  Label call_to_object, use_global_receiver, push_receiver;
-  __ mov(ebx, Operand(ebp, 3 * kPointerSize));
-
   // Do not transform the receiver for strict mode functions.
+  Label call_to_object, use_global_receiver;
   __ mov(ecx, FieldOperand(edi, JSFunction::kSharedFunctionInfoOffset));
   __ test_b(FieldOperand(ecx, SharedFunctionInfo::kStrictModeByteOffset),
             1 << SharedFunctionInfo::kStrictModeBitWithinByte);
@@ -814,7 +843,7 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ mov(eax, Operand(ebp, kIndexOffset));
   __ jmp(&entry);
   __ bind(&loop);
-  __ mov(edx, Operand(ebp, 2 * kPointerSize));  // load arguments
+  __ mov(edx, Operand(ebp, kArgumentsOffset));  // load arguments
 
   // Use inline caching to speed up access to arguments.
   Handle<Code> ic = masm->isolate()->builtins()->KeyedLoadIC_Initialize();
@@ -837,11 +866,27 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   __ j(not_equal, &loop);
 
   // Invoke the function.
+  Label call_proxy;
   ParameterCount actual(eax);
   __ SmiUntag(eax);
-  __ mov(edi, Operand(ebp, 4 * kPointerSize));
+  __ mov(edi, Operand(ebp, kFunctionOffset));
+  __ CmpObjectType(edi, JS_FUNCTION_TYPE, ecx);
+  __ j(not_equal, &call_proxy);
   __ InvokeFunction(edi, actual, CALL_FUNCTION,
                     NullCallWrapper(), CALL_AS_METHOD);
+
+  __ LeaveInternalFrame();
+  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+
+  // Invoke the function proxy.
+  __ bind(&call_proxy);
+  __ push(edi);  // add function proxy as last argument
+  __ inc(eax);
+  __ Set(ebx, Immediate(0));
+  __ SetCallKind(ecx, CALL_AS_METHOD);
+  __ GetBuiltinEntry(edx, Builtins::CALL_FUNCTION_PROXY);
+  __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+          RelocInfo::CODE_TARGET);
 
   __ LeaveInternalFrame();
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments

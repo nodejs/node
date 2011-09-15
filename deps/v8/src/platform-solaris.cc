@@ -460,7 +460,6 @@ void Thread::YieldCPU() {
 
 class SolarisMutex : public Mutex {
  public:
-
   SolarisMutex() {
     pthread_mutexattr_t attr;
     pthread_mutexattr_init(&attr);

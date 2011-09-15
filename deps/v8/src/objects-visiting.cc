@@ -105,6 +105,11 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
                                  kVisitStructGeneric,
                                  JSProxy::kSize);
 
+    case JS_FUNCTION_PROXY_TYPE:
+      return GetVisitorIdForSize(kVisitStruct,
+                                 kVisitStructGeneric,
+                                 JSFunctionProxy::kSize);
+
     case FOREIGN_TYPE:
       return GetVisitorIdForSize(kVisitDataObject,
                                  kVisitDataObjectGeneric,

@@ -418,6 +418,27 @@ with_5();
 EndTest();
 
 
+// Nested with blocks using existing object in global code.
+BeginTest("With 6");
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.With,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent(with_object, 0, exec_state);
+  CheckScopeContent(with_object, 1, exec_state);
+  assertEquals(exec_state.frame().scope(0).scopeObject(), exec_state.frame().scope(1).scopeObject());
+  assertEquals(with_object, exec_state.frame().scope(1).scopeObject().value());
+};
+
+var with_object = {c:3,d:4};
+with(with_object) {
+  with(with_object) {
+    debugger;
+  }
+}
+EndTest();
+
+
 // Simple closure formed by returning an inner function referering the outer
 // functions arguments.
 BeginTest("Closure 1");
@@ -771,6 +792,23 @@ closure_in_with_3();
 EndTest();
 
 
+BeginTest("Closure inside With 4");
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.With,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 2}, 0, exec_state);
+  CheckScopeContent({x: 1}, 1, exec_state);
+};
+
+with({x:1}) {
+  (function(x) {
+    debugger;
+  })(2);
+}
+EndTest();
+
+
 // Test global scope.
 BeginTest("Global");
 listener_delegate = function(exec_state) {
@@ -872,6 +910,43 @@ listener_delegate = function(exec_state) {
   CheckScopeContent({y:98}, 2, exec_state);
 };
 catch_block_4();
+EndTest();
+
+
+// Test catch in global scope.
+BeginTest("Catch block 5");
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Catch,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({e:'Exception'}, 0, exec_state);
+};
+
+try {
+  throw 'Exception';
+} catch (e) {
+  debugger;
+}
+
+EndTest();
+
+
+// Closure inside catch in global code.
+BeginTest("Catch block 6");
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Local,
+                   debug.ScopeType.Catch,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x: 2}, 0, exec_state);
+  CheckScopeContent({e:'Exception'}, 1, exec_state);
+};
+
+try {
+  throw 'Exception';
+} catch (e) {
+  (function(x) {
+    debugger;
+  })(2);
+}
 EndTest();
 
 

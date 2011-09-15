@@ -53,11 +53,11 @@ from the Chromium repository. From the root of the V8 project do the following:
 
 > svn co http://src.chromium.org/svn/trunk/deps/third_party/cygwin@66844 third_party/cygwin
 
-To run GYP Python is required and it is reccomended to use the same version as
+To run GYP Python is required and it is recommended to use the same version as
 is used by the Chromium project. This can also be checked out from the Chromium
 repository. From the root of the V8 project do the following:
 
-> svn co http://src.chromium.org/svn/trunk/tools/third_party/python_26@70627 third_party/python_26
+> svn co http://src.chromium.org/svn/trunk/tools/third_party/python_26@89111 third_party/python_26
 
 Now generate Visual Studio solution and project files for the ia32 architecture:
 

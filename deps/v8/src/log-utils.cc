@@ -125,7 +125,7 @@ void Log::Initialize() {
             stream.Put(*p);
           }
         }
-        SmartPointer<const char> expanded = stream.ToCString();
+        SmartArrayPointer<const char> expanded = stream.ToCString();
         OpenFile(*expanded);
       } else {
         OpenFile(FLAG_logfile);

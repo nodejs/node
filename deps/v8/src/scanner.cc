@@ -36,6 +36,25 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
+// Scanner::LiteralScope
+
+Scanner::LiteralScope::LiteralScope(Scanner* self)
+    : scanner_(self), complete_(false) {
+  self->StartLiteral();
+}
+
+
+Scanner::LiteralScope::~LiteralScope() {
+  if (!complete_) scanner_->DropLiteral();
+}
+
+
+void Scanner::LiteralScope::Complete() {
+  scanner_->TerminateLiteral();
+  complete_ = true;
+}
+
+// ----------------------------------------------------------------------------
 // Scanner
 
 Scanner::Scanner(UnicodeCache* unicode_cache)

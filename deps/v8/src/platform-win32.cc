@@ -1299,7 +1299,7 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 
     // Try to locate a symbol for this frame.
     DWORD64 symbol_displacement;
-    SmartPointer<IMAGEHLP_SYMBOL64> symbol(
+    SmartArrayPointer<IMAGEHLP_SYMBOL64> symbol(
         NewArray<IMAGEHLP_SYMBOL64>(kStackWalkMaxNameLen));
     if (symbol.is_empty()) return kStackWalkError;  // Out of memory.
     memset(*symbol, 0, sizeof(IMAGEHLP_SYMBOL64) + kStackWalkMaxNameLen);

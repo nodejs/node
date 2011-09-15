@@ -61,8 +61,8 @@ class RemoteDebugger {
   void Run();
 
   // Handle events from the subordinate threads.
-  void MessageReceived(i::SmartPointer<char> message);
-  void KeyboardCommand(i::SmartPointer<char> command);
+  void MessageReceived(i::SmartArrayPointer<char> message);
+  void KeyboardCommand(i::SmartArrayPointer<char> command);
   void ConnectionClosed();
 
  private:
@@ -127,7 +127,7 @@ class KeyboardThread: public i::Thread {
 // Events processed by the main deubgger thread.
 class RemoteDebuggerEvent {
  public:
-  RemoteDebuggerEvent(int type, i::SmartPointer<char> data)
+  RemoteDebuggerEvent(int type, i::SmartArrayPointer<char> data)
       : type_(type), data_(data), next_(NULL) {
     ASSERT(type == kMessage || type == kKeyboard || type == kDisconnect);
   }
@@ -144,7 +144,7 @@ class RemoteDebuggerEvent {
   RemoteDebuggerEvent* next() { return next_; }
 
   int type_;
-  i::SmartPointer<char> data_;
+  i::SmartArrayPointer<char> data_;
   RemoteDebuggerEvent* next_;
 
   friend class RemoteDebugger;

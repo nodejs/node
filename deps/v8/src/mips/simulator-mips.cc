@@ -33,6 +33,7 @@
 
 #if defined(V8_TARGET_ARCH_MIPS)
 
+#include "cpu.h"
 #include "disasm.h"
 #include "assembler.h"
 #include "globals.h"    // Need the BitCast.
@@ -1215,6 +1216,8 @@ int32_t Simulator::get_pc() const {
 int Simulator::ReadW(int32_t addr, Instruction* instr) {
   if (addr >=0 && addr < 0x400) {
     // This has to be a NULL-dereference, drop into debugger.
+    PrintF("Memory read from bad address: 0x%08x, pc=0x%08x\n",
+           addr, reinterpret_cast<intptr_t>(instr));
     MipsDebugger dbg(this);
     dbg.Debug();
   }
@@ -1234,6 +1237,8 @@ int Simulator::ReadW(int32_t addr, Instruction* instr) {
 void Simulator::WriteW(int32_t addr, int value, Instruction* instr) {
   if (addr >= 0 && addr < 0x400) {
     // This has to be a NULL-dereference, drop into debugger.
+    PrintF("Memory write to bad address: 0x%08x, pc=0x%08x\n",
+           addr, reinterpret_cast<intptr_t>(instr));
     MipsDebugger dbg(this);
     dbg.Debug();
   }

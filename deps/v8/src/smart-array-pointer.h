@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_SMART_POINTER_H_
-#define V8_SMART_POINTER_H_
+#ifndef V8_SMART_ARRAY_POINTER_H_
+#define V8_SMART_ARRAY_POINTER_H_
 
 namespace v8 {
 namespace internal {
@@ -35,24 +35,24 @@ namespace internal {
 // A 'scoped array pointer' that calls DeleteArray on its pointer when the
 // destructor is called.
 template<typename T>
-class SmartPointer {
+class SmartArrayPointer {
  public:
   // Default constructor. Constructs an empty scoped pointer.
-  inline SmartPointer() : p_(NULL) {}
+  inline SmartArrayPointer() : p_(NULL) {}
 
   // Constructs a scoped pointer from a plain one.
-  explicit inline SmartPointer(T* ptr) : p_(ptr) {}
+  explicit inline SmartArrayPointer(T* ptr) : p_(ptr) {}
 
   // Copy constructor removes the pointer from the original to avoid double
   // freeing.
-  inline SmartPointer(const SmartPointer<T>& rhs) : p_(rhs.p_) {
-    const_cast<SmartPointer<T>&>(rhs).p_ = NULL;
+  inline SmartArrayPointer(const SmartArrayPointer<T>& rhs) : p_(rhs.p_) {
+    const_cast<SmartArrayPointer<T>&>(rhs).p_ = NULL;
   }
 
   // When the destructor of the scoped pointer is executed the plain pointer
   // is deleted using DeleteArray.  This implies that you must allocate with
   // NewArray.
-  inline ~SmartPointer() { if (p_) DeleteArray(p_); }
+  inline ~SmartArrayPointer() { if (p_) DeleteArray(p_); }
 
   inline T* operator->() const { return p_; }
 
@@ -66,7 +66,7 @@ class SmartPointer {
 
   // We don't have implicit conversion to a T* since that hinders migration:
   // You would not be able to change a method from returning a T* to
-  // returning an SmartPointer<T> and then get errors wherever it is used.
+  // returning an SmartArrayPointer<T> and then get errors wherever it is used.
 
 
   // If you want to take out the plain pointer and don't want it automatically
@@ -78,13 +78,13 @@ class SmartPointer {
     return temp;
   }
 
-  // Assignment requires an empty (NULL) SmartPointer as the receiver.  Like
+  // Assignment requires an empty (NULL) SmartArrayPointer as the receiver. Like
   // the copy constructor it removes the pointer in the original to avoid
   // double freeing.
-  inline SmartPointer& operator=(const SmartPointer<T>& rhs) {
+  inline SmartArrayPointer& operator=(const SmartArrayPointer<T>& rhs) {
     ASSERT(is_empty());
     T* tmp = rhs.p_;  // swap to handle self-assignment
-    const_cast<SmartPointer<T>&>(rhs).p_ = NULL;
+    const_cast<SmartArrayPointer<T>&>(rhs).p_ = NULL;
     p_ = tmp;
     return *this;
   }
@@ -97,4 +97,4 @@ class SmartPointer {
 
 } }  // namespace v8::internal
 
-#endif  // V8_SMART_POINTER_H_
+#endif  // V8_SMART_ARRAY_POINTER_H_

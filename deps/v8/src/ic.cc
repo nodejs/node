@@ -61,8 +61,7 @@ static char TransitionMarkFromState(IC::State state) {
 void IC::TraceIC(const char* type,
                  Handle<Object> name,
                  State old_state,
-                 Code* new_target,
-                 const char* extra_info) {
+                 Code* new_target) {
   if (FLAG_trace_ic) {
     State new_state = StateFrom(new_target,
                                 HEAP->undefined_value(),
@@ -94,10 +93,9 @@ void IC::TraceIC(const char* type,
     } else {
       PrintF("<unknown>");
     }
-    PrintF(" (%c->%c)%s",
+    PrintF(" (%c->%c)",
            TransitionMarkFromState(old_state),
-           TransitionMarkFromState(new_state),
-           extra_info);
+           TransitionMarkFromState(new_state));
     name->Print();
     PrintF("]\n");
   }
@@ -326,7 +324,6 @@ void CallICBase::Clear(Address address, Code* target) {
   Code* code =
       Isolate::Current()->stub_cache()->FindCallInitialize(
           target->arguments_count(),
-          target->ic_in_loop(),
           contextual ? RelocInfo::CODE_TARGET_CONTEXT : RelocInfo::CODE_TARGET,
           target->kind());
   SetTargetAtAddress(address, code);
@@ -604,13 +601,11 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
     Handle<Object> object,
     Handle<String> name) {
   int argc = target()->arguments_count();
-  InLoopFlag in_loop = target()->ic_in_loop();
   MaybeObject* maybe_code = NULL;
   switch (lookup->type()) {
     case FIELD: {
       int index = lookup->GetFieldIndex();
       maybe_code = isolate()->stub_cache()->ComputeCallField(argc,
-                                                             in_loop,
                                                              kind_,
                                                              extra_ic_state,
                                                              *name,
@@ -626,7 +621,6 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
       JSFunction* function = lookup->GetConstantFunction();
       maybe_code =
           isolate()->stub_cache()->ComputeCallConstant(argc,
-                                                       in_loop,
                                                        kind_,
                                                        extra_ic_state,
                                                        *name,
@@ -646,7 +640,6 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
         if (!cell->value()->IsJSFunction()) return NULL;
         JSFunction* function = JSFunction::cast(cell->value());
         maybe_code = isolate()->stub_cache()->ComputeCallGlobal(argc,
-                                                                in_loop,
                                                                 kind_,
                                                                 extra_ic_state,
                                                                 *name,
@@ -661,7 +654,6 @@ MaybeObject* CallICBase::ComputeMonomorphicStub(
         // applicable.
         if (lookup->holder() != *receiver) return NULL;
         maybe_code = isolate()->stub_cache()->ComputeCallNormal(argc,
-                                                                in_loop,
                                                                 kind_,
                                                                 extra_ic_state,
                                                                 *name,
@@ -706,7 +698,6 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 
   // Compute the number of arguments.
   int argc = target()->arguments_count();
-  InLoopFlag in_loop = target()->ic_in_loop();
   MaybeObject* maybe_code = NULL;
   bool had_proto_failure = false;
   if (state == UNINITIALIZED) {
@@ -715,7 +706,6 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     // setting the monomorphic state.
     maybe_code =
         isolate()->stub_cache()->ComputeCallPreMonomorphic(argc,
-                                                           in_loop,
                                                            kind_,
                                                            extra_ic_state);
   } else if (state == MONOMORPHIC) {
@@ -739,7 +729,6 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
     } else {
       maybe_code =
           isolate()->stub_cache()->ComputeCallMegamorphic(argc,
-                                                          in_loop,
                                                           kind_,
                                                           extra_ic_state);
     }
@@ -776,7 +765,7 @@ void CallICBase::UpdateCaches(LookupResult* lookup,
 #ifdef DEBUG
   if (had_proto_failure) state = MONOMORPHIC_PROTOTYPE_FAILURE;
   TraceIC(kind_ == Code::CALL_IC ? "CallIC" : "KeyedCallIC",
-      name, state, target(), in_loop ? " (in-loop)" : "");
+          name, state, target());
 #endif
 }
 
@@ -797,31 +786,28 @@ MaybeObject* KeyedCallIC::LoadFunction(State state,
 
   if (FLAG_use_ic && state != MEGAMORPHIC && object->IsHeapObject()) {
     int argc = target()->arguments_count();
-    InLoopFlag in_loop = target()->ic_in_loop();
     Heap* heap = Handle<HeapObject>::cast(object)->GetHeap();
     Map* map = heap->non_strict_arguments_elements_map();
     if (object->IsJSObject() &&
         Handle<JSObject>::cast(object)->elements()->map() == map) {
       MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallArguments(
-          argc, in_loop, Code::KEYED_CALL_IC);
+          argc, Code::KEYED_CALL_IC);
       Object* code;
       if (maybe_code->ToObject(&code)) {
         set_target(Code::cast(code));
 #ifdef DEBUG
-        TraceIC(
-            "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+        TraceIC("KeyedCallIC", key, state, target());
 #endif
       }
     } else if (FLAG_use_ic && state != MEGAMORPHIC &&
                !object->IsAccessCheckNeeded()) {
       MaybeObject* maybe_code = isolate()->stub_cache()->ComputeCallMegamorphic(
-          argc, in_loop, Code::KEYED_CALL_IC, Code::kNoExtraICState);
+          argc, Code::KEYED_CALL_IC, Code::kNoExtraICState);
       Object* code;
       if (maybe_code->ToObject(&code)) {
         set_target(Code::cast(code));
 #ifdef DEBUG
-        TraceIC(
-            "KeyedCallIC", key, state, target(), in_loop ? " (in-loop)" : "");
+        TraceIC("KeyedCallIC", key, state, target());
 #endif
       }
     }
@@ -1093,7 +1079,7 @@ void LoadIC::UpdateCaches(LookupResult* lookup,
 
 MaybeObject* KeyedLoadIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   return KeyedLoadElementStub(elements_kind).TryGetCode();
 }
 
@@ -1650,7 +1636,6 @@ MaybeObject* KeyedIC::ComputeStub(JSObject* receiver,
 
   PolymorphicCodeCache* cache = isolate()->heap()->polymorphic_code_cache();
   Code::Flags flags = Code::ComputeFlags(this->kind(),
-                                         NOT_IN_LOOP,
                                          MEGAMORPHIC,
                                          strict_mode);
   Object* maybe_cached_stub = cache->Lookup(&target_receiver_maps, flags);
@@ -1721,7 +1706,7 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
 
 MaybeObject* KeyedStoreIC::GetElementStubWithoutMapCheck(
     bool is_js_array,
-    JSObject::ElementsKind elements_kind) {
+    ElementsKind elements_kind) {
   return KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
 }
 
@@ -1905,16 +1890,11 @@ void KeyedStoreIC::UpdateCaches(LookupResult* lookup,
 //
 
 static JSFunction* CompileFunction(Isolate* isolate,
-                                   JSFunction* function,
-                                   InLoopFlag in_loop) {
+                                   JSFunction* function) {
   // Compile now with optimization.
   HandleScope scope(isolate);
   Handle<JSFunction> function_handle(function, isolate);
-  if (in_loop == IN_LOOP) {
-    CompileLazyInLoop(function_handle, CLEAR_EXCEPTION);
-  } else {
-    CompileLazy(function_handle, CLEAR_EXCEPTION);
-  }
+  CompileLazy(function_handle, CLEAR_EXCEPTION);
   return *function_handle;
 }
 
@@ -1943,9 +1923,7 @@ RUNTIME_FUNCTION(MaybeObject*, CallIC_Miss) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-  return CompileFunction(isolate,
-                         JSFunction::cast(result),
-                         ic.target()->ic_in_loop());
+  return CompileFunction(isolate, JSFunction::cast(result));
 }
 
 
@@ -1964,9 +1942,7 @@ RUNTIME_FUNCTION(MaybeObject*, KeyedCallIC_Miss) {
   if (!result->IsJSFunction() || JSFunction::cast(result)->is_compiled()) {
     return result;
   }
-  return CompileFunction(isolate,
-                         JSFunction::cast(result),
-                         ic.target()->ic_in_loop());
+  return CompileFunction(isolate, JSFunction::cast(result));
 }
 
 

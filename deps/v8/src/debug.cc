@@ -40,6 +40,7 @@
 #include "global-handles.h"
 #include "ic.h"
 #include "ic-inl.h"
+#include "list.h"
 #include "messages.h"
 #include "natives.h"
 #include "stub-cache.h"
@@ -542,6 +543,7 @@ void Debug::ThreadInit() {
   thread_local_.last_statement_position_ = RelocInfo::kNoPosition;
   thread_local_.step_count_ = 0;
   thread_local_.last_fp_ = 0;
+  thread_local_.queued_step_count_ = 0;
   thread_local_.step_into_fp_ = 0;
   thread_local_.step_out_fp_ = 0;
   thread_local_.after_break_target_ = 0;
@@ -957,13 +959,48 @@ Object* Debug::Break(Arguments args) {
     // Clear all current stepping setup.
     ClearStepping();
 
-    // Notify the debug event listeners.
-    isolate_->debugger()->OnDebugBreak(break_points_hit, false);
+    if (thread_local_.queued_step_count_ > 0) {
+      // Perform queued steps
+      int step_count = thread_local_.queued_step_count_;
+
+      // Clear queue
+      thread_local_.queued_step_count_ = 0;
+
+      PrepareStep(StepNext, step_count);
+    } else {
+      // Notify the debug event listeners.
+      isolate_->debugger()->OnDebugBreak(break_points_hit, false);
+    }
   } else if (thread_local_.last_step_action_ != StepNone) {
     // Hold on to last step action as it is cleared by the call to
     // ClearStepping.
     StepAction step_action = thread_local_.last_step_action_;
     int step_count = thread_local_.step_count_;
+
+    // If StepNext goes deeper in code, StepOut until original frame
+    // and keep step count queued up in the meantime.
+    if (step_action == StepNext && frame->fp() < thread_local_.last_fp_) {
+      // Count frames until target frame
+      int count = 0;
+      JavaScriptFrameIterator it(isolate_);
+      while (!it.done() && it.frame()->fp() != thread_local_.last_fp_) {
+        count++;
+        it.Advance();
+      }
+
+      // If we found original frame
+      if (it.frame()->fp() == thread_local_.last_fp_) {
+        if (step_count > 1) {
+          // Save old count and action to continue stepping after
+          // StepOut
+          thread_local_.queued_step_count_ = step_count - 1;
+        }
+
+        // Set up for StepOut to reach target frame
+        step_action = StepOut;
+        step_count = count;
+      }
+    }
 
     // Clear all current stepping setup.
     ClearStepping();
@@ -1105,6 +1142,8 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
                           int* source_position) {
   HandleScope scope(isolate_);
 
+  PrepareForBreakPoints();
+
   if (!EnsureDebugInfo(shared)) {
     // Return if retrieving debug info failed.
     return;
@@ -1178,6 +1217,7 @@ void Debug::ClearAllBreakPoints() {
 
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
+  PrepareForBreakPoints();
   // Make sure the function has setup the debug info.
   if (!EnsureDebugInfo(shared)) {
     // Return if we failed to retrieve the debug info.
@@ -1234,6 +1274,9 @@ bool Debug::IsBreakOnException(ExceptionBreakType type) {
 
 void Debug::PrepareStep(StepAction step_action, int step_count) {
   HandleScope scope(isolate_);
+
+  PrepareForBreakPoints();
+
   ASSERT(Debug::InDebugger());
 
   // Remember this step action and count.
@@ -1448,6 +1491,13 @@ void Debug::PrepareStep(StepAction step_action, int step_count) {
 // steps before reporting break back to the debugger.
 bool Debug::StepNextContinue(BreakLocationIterator* break_location_iterator,
                              JavaScriptFrame* frame) {
+  // StepNext and StepOut shouldn't bring us deeper in code, so last frame
+  // shouldn't be a parent of current frame.
+  if (thread_local_.last_step_action_ == StepNext ||
+      thread_local_.last_step_action_ == StepOut) {
+    if (frame->fp() < thread_local_.last_fp_) return true;
+  }
+
   // If the step last action was step next or step in make sure that a new
   // statement is hit.
   if (thread_local_.last_step_action_ == StepNext ||
@@ -1676,19 +1726,63 @@ void Debug::ClearStepNext() {
 }
 
 
-// Ensures the debug information is present for shared.
-bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
-  // Return if we already have the debug info for shared.
-  if (HasDebugInfo(shared)) return true;
-
-  // Ensure shared in compiled. Return false if this failed.
-  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
-
+void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
     Deoptimizer::DeoptimizeAll();
+
+    AssertNoAllocation no_allocation;
+    Builtins* builtins = isolate_->builtins();
+    Code* lazy_compile = builtins->builtin(Builtins::kLazyCompile);
+
+    // Find all non-optimized code functions with activation frames on
+    // the stack.
+    List<JSFunction*> active_functions(100);
+    for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->function()->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(frame->function());
+        if (function->code()->kind() == Code::FUNCTION)
+          active_functions.Add(function);
+      }
+    }
+    active_functions.Sort();
+
+    // Scan the heap for all non-optimized functions which has no
+    // debug break slots.
+    HeapIterator iterator;
+    HeapObject* obj = NULL;
+    while (((obj = iterator.next()) != NULL)) {
+      if (obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(obj);
+        if (function->shared()->allows_lazy_compilation() &&
+            function->shared()->script()->IsScript() &&
+            function->code()->kind() == Code::FUNCTION &&
+            !function->code()->has_debug_break_slots()) {
+          bool has_activation =
+              SortedListBSearch<JSFunction*>(active_functions, function) != -1;
+          if (!has_activation) {
+            function->set_code(lazy_compile);
+            function->shared()->set_code(lazy_compile);
+          }
+        }
+      }
+    }
   }
+}
+
+
+// Ensures the debug information is present for shared.
+bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
+  // Return if we already have the debug info for shared.
+  if (HasDebugInfo(shared)) {
+    ASSERT(shared->is_compiled());
+    return true;
+  }
+
+  // Ensure shared in compiled. Return false if this failed.
+  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = FACTORY->NewDebugInfo(shared);
@@ -1738,6 +1832,8 @@ void Debug::RemoveDebugInfo(Handle<DebugInfo> debug_info) {
 
 void Debug::SetAfterBreakTarget(JavaScriptFrame* frame) {
   HandleScope scope(isolate_);
+
+  PrepareForBreakPoints();
 
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =
@@ -1828,6 +1924,8 @@ bool Debug::IsBreakAtReturn(JavaScriptFrame* frame) {
   if (!has_break_points_) {
     return false;
   }
+
+  PrepareForBreakPoints();
 
   // Get the executing function in which the debug break occurred.
   Handle<SharedFunctionInfo> shared =

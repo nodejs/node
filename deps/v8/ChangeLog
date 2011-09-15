@@ -1,3 +1,24 @@
+2011-09-15: Version 3.6.4
+
+        Fixed d8's broken readline history.
+
+        Removed the need for code delete events in CPU profiler (Issue 1466).
+
+        Fixed debugger stepping next with trycatch recursion (Issue 1639).
+
+        Fixing parallel execution in d8 (with -p) and some memory leaks.
+
+        Support for precise stepping in functions compiled before debugging was
+        started (step 1).
+
+
+2011-09-13: Version 3.6.3
+
+        Implemented better support of typed arrays in the d8 shell.
+
+        Bug fixes and performance improvements on all platforms.
+
+
 2011-09-08: Version 3.6.2
 
         Added "dependencies" target to top-level Makefile.

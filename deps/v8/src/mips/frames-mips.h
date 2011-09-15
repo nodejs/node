@@ -87,7 +87,6 @@ static const RegList kCalleeSavedFPU =
 static const int kNumCalleeSavedFPU = 6;
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
-// TODO(mips): Only 8 registers may actually be sufficient. Revisit.
 static const int kNumSafepointRegisters = 24;
 
 // Define the list of registers actually saved at safepoints.

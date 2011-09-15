@@ -1583,7 +1583,6 @@ void Builtins::InitBuiltinFunctionTable() {
     functions->s_name = #aname;                                             \
     functions->name = k##aname;                                             \
     functions->flags = Code::ComputeFlags(Code::kind,                       \
-                                          NOT_IN_LOOP,                      \
                                           state,                            \
                                           extra);                           \
     functions->extra_args = NO_EXTRA_ARGUMENTS;                             \

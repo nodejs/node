@@ -710,6 +710,7 @@ class FrameFunctionIterator {
     } while (next_function != NULL);
     return false;
   }
+
  private:
   void GetFunctions() {
     functions_.Rewind(0);

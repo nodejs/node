@@ -141,7 +141,6 @@ class LogMessageBuilder BASE_EMBEDDED {
   void WriteToLogFile();
 
  private:
-
   Log* log_;
   ScopedLock sl;
   int pos_;

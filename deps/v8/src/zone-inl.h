@@ -55,7 +55,12 @@ inline void* Zone::New(int size) {
 
   // Check if the requested size is available without expanding.
   Address result = position_;
-  if ((position_ += size) > limit_) result = NewExpand(size);
+
+  if (size > limit_ - position_) {
+     result = NewExpand(size);
+  } else {
+     position_ += size;
+  }
 
   // Check that the result has the proper alignment and return it.
   ASSERT(IsAddressAligned(result, kAlignment, 0));

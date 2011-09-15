@@ -207,6 +207,35 @@ void List<T, P>::Initialize(int capacity) {
 }
 
 
+template <typename T>
+int SortedListBSearch(
+    const List<T>& list, T elem, int (*cmp)(const T* x, const T* y)) {
+  int low = 0;
+  int high = list.length() - 1;
+  while (low <= high) {
+    int mid = (low + high) / 2;
+    T mid_elem = list[mid];
+
+    if (mid_elem > elem) {
+      high = mid - 1;
+      continue;
+    }
+    if (mid_elem < elem) {
+      low = mid + 1;
+      continue;
+    }
+    // Found the elememt.
+    return mid;
+  }
+  return -1;
+}
+
+
+template <typename T>
+int SortedListBSearch(const List<T>& list, T elem) {
+  return SortedListBSearch<T>(list, elem, PointerValueCompare<T>);
+}
+
 } }  // namespace v8::internal
 
 #endif  // V8_LIST_INL_H_

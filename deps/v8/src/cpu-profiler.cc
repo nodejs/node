@@ -137,16 +137,6 @@ void ProfilerEventsProcessor::CodeMoveEvent(Address from, Address to) {
 }
 
 
-void ProfilerEventsProcessor::CodeDeleteEvent(Address from) {
-  CodeEventsContainer evt_rec;
-  CodeDeleteEventRecord* rec = &evt_rec.CodeDeleteEventRecord_;
-  rec->type = CodeEventRecord::CODE_DELETE;
-  rec->order = ++enqueue_order_;
-  rec->start = from;
-  events_buffer_.Enqueue(evt_rec);
-}
-
-
 void ProfilerEventsProcessor::SharedFunctionInfoMoveEvent(Address from,
                                                           Address to) {
   CodeEventsContainer evt_rec;
@@ -425,7 +415,6 @@ void CpuProfiler::CodeMoveEvent(Address from, Address to) {
 
 
 void CpuProfiler::CodeDeleteEvent(Address from) {
-  Isolate::Current()->cpu_profiler()->processor_->CodeDeleteEvent(from);
 }
 
 

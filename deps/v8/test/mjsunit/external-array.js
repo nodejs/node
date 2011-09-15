@@ -81,6 +81,19 @@ assertEquals(2.5, get(array, 0));
 assertEquals(3.5, get(array, 1));
 }
 
+// Test non-number parameters.
+var array_with_length_from_non_number = new Int32Array("2");
+assertEquals(2, array_with_length_from_non_number.length);
+array_with_length_from_non_number = new Int32Array(undefined);
+assertEquals(0, array_with_length_from_non_number.length);
+var foo = { valueOf: function() { return 3; } };
+array_with_length_from_non_number = new Int32Array(foo);
+assertEquals(3, array_with_length_from_non_number.length);
+foo = { toString: function() { return "4"; } };
+array_with_length_from_non_number = new Int32Array(foo);
+assertEquals(4, array_with_length_from_non_number.length);
+
+
 // Test loads and stores.
 types = [Array, Int8Array, Uint8Array, Int16Array, Uint16Array, Int32Array,
          Uint32Array, PixelArray, Float32Array, Float64Array];

@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,8 +52,8 @@ void LookupResult::Print(FILE* out) {
       GetTransitionMap()->Print(out);
       PrintF(out, "\n");
       break;
-    case EXTERNAL_ARRAY_TRANSITION:
-      PrintF(out, " -type = external array transition\n");
+    case ELEMENTS_TRANSITION:
+      PrintF(out, " -type = elements transition\n");
       PrintF(out, " -map:\n");
       GetTransitionMap()->Print(out);
       PrintF(out, "\n");

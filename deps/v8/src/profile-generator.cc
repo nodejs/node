@@ -492,6 +492,28 @@ const CodeMap::CodeTreeConfig::Value CodeMap::CodeTreeConfig::kNoValue =
     CodeMap::CodeEntryInfo(NULL, 0);
 
 
+void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
+  DeleteAllCoveredCode(addr, addr + size);
+  CodeTree::Locator locator;
+  tree_.Insert(addr, &locator);
+  locator.set_value(CodeEntryInfo(entry, size));
+}
+
+
+void CodeMap::DeleteAllCoveredCode(Address start, Address end) {
+  List<Address> to_delete;
+  Address addr = end - 1;
+  while (addr >= start) {
+    CodeTree::Locator locator;
+    if (!tree_.FindGreatestLessThan(addr, &locator)) break;
+    Address start2 = locator.key(), end2 = start2 + locator.value().size;
+    if (start2 < end && start < end2) to_delete.Add(start2);
+    addr = start2 - 1;
+  }
+  for (int i = 0; i < to_delete.length(); ++i) tree_.Remove(to_delete[i]);
+}
+
+
 CodeEntry* CodeMap::FindEntry(Address addr) {
   CodeTree::Locator locator;
   if (tree_.FindGreatestLessThan(addr, &locator)) {
@@ -517,6 +539,16 @@ int CodeMap::GetSharedId(Address addr) {
     locator.set_value(CodeEntryInfo(kSharedFunctionCodeEntry, id));
     return id;
   }
+}
+
+
+void CodeMap::MoveCode(Address from, Address to) {
+  if (from == to) return;
+  CodeTree::Locator locator;
+  if (!tree_.Find(from, &locator)) return;
+  CodeEntryInfo entry = locator.value();
+  tree_.Remove(from);
+  AddCode(to, entry.entry, entry.size);
 }
 
 

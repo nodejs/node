@@ -54,8 +54,8 @@ class ElementsAccessor {
                                                Object* receiver) = 0;
 
   // Returns a shared ElementsAccessor for the specified ElementsKind.
-  static ElementsAccessor* ForKind(JSObject::ElementsKind elements_kind) {
-    ASSERT(elements_kind < JSObject::kElementsKindCount);
+  static ElementsAccessor* ForKind(ElementsKind elements_kind) {
+    ASSERT(elements_kind < kElementsKindCount);
     return elements_accessors_[elements_kind];
   }
 

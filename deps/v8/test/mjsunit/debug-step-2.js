@@ -25,29 +25,65 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_QUEUE_INL_H_
-#define V8_CIRCULAR_QUEUE_INL_H_
+// Flags: --expose-debug-as debug
 
-#include "circular-queue.h"
+// This test tests that full code compiled without debug break slots
+// is recompiled with debug break slots when debugging is started.
 
-namespace v8 {
-namespace internal {
+// Get the Debug object exposed from the debug context global object.
+Debug = debug.Debug
 
+var bp;
+var done = false;
+var step_count = 0;
 
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
+// Debug event listener which steps until the global variable done is true.
+function listener(event, exec_state, event_data, data) {
+  if (event == Debug.DebugEvent.Break) {
+    if (!done) exec_state.prepareStep(Debug.StepAction.StepNext);
+    step_count++;
+  }
+};
+
+// Set the global variables state to prpare the stepping test.
+function prepare_step_test() {
+  done = false;
+  step_count = 0;
 }
 
+// Test function to step through.
+function f() {
+  var i = 1;
+  var j = 2;
+  done = true;
+};
 
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
-}
+prepare_step_test();
+f();
 
+// Add the debug event listener.
+Debug.setListener(listener);
 
-} }  // namespace v8::internal
+bp = Debug.setBreakPoint(f, 1);
 
-#endif  // V8_CIRCULAR_QUEUE_INL_H_
+prepare_step_test();
+f();
+assertEquals(4, step_count);
+Debug.clearBreakPoint(bp);
+
+// Set a breakpoint on the first var statement (line 1).
+bp = Debug.setBreakPoint(f, 1);
+
+// Step through the function ensuring that the var statements are hit as well.
+prepare_step_test();
+f();
+assertEquals(4, step_count);
+
+// Clear the breakpoint and check that no stepping happens.
+Debug.clearBreakPoint(bp);
+prepare_step_test();
+f();
+assertEquals(0, step_count);
+
+// Get rid of the debug event listener.
+Debug.setListener(null);

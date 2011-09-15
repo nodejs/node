@@ -107,7 +107,7 @@ TEST(CodeEvents) {
                             0x80);
   processor.CodeMoveEvent(ToAddress(0x1400), ToAddress(0x1500));
   processor.CodeCreateEvent(i::Logger::STUB_TAG, 3, ToAddress(0x1600), 0x10);
-  processor.CodeDeleteEvent(ToAddress(0x1600));
+  processor.CodeCreateEvent(i::Logger::STUB_TAG, 4, ToAddress(0x1605), 0x10);
   // Enqueue a tick event to enable code events processing.
   EnqueueTickSampleEvent(&processor, ToAddress(0x1000));
 

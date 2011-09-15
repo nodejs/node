@@ -208,7 +208,7 @@ function ConvertToLocaleString(e) {
     // Call ToString if toLocaleString is not a function.
     // See issue 877615.
     var e_obj = ToObject(e);
-    if (IS_FUNCTION(e_obj.toLocaleString))
+    if (IS_SPEC_FUNCTION(e_obj.toLocaleString))
       return ToString(e_obj.toLocaleString());
     else
       return ToString(e);
@@ -730,7 +730,7 @@ function ArraySort(comparefn) {
   // In-place QuickSort algorithm.
   // For short (length <= 22) arrays, insertion sort is used for efficiency.
 
-  if (!IS_FUNCTION(comparefn)) {
+  if (!IS_SPEC_FUNCTION(comparefn)) {
     comparefn = function (x, y) {
       if (x === y) return 0;
       if (%_IsSmi(x) && %_IsSmi(y)) {
@@ -993,7 +993,7 @@ function ArrayFilter(f, receiver) {
                         ["Array.prototype.filter"]);
   }
 
-  if (!IS_FUNCTION(f)) {
+  if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
@@ -1022,7 +1022,7 @@ function ArrayForEach(f, receiver) {
                         ["Array.prototype.forEach"]);
   }
 
-  if (!IS_FUNCTION(f)) {
+  if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
@@ -1048,7 +1048,7 @@ function ArraySome(f, receiver) {
                         ["Array.prototype.some"]);
   }
 
-  if (!IS_FUNCTION(f)) {
+  if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
@@ -1073,7 +1073,7 @@ function ArrayEvery(f, receiver) {
                         ["Array.prototype.every"]);
   }
 
-  if (!IS_FUNCTION(f)) {
+  if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
@@ -1097,7 +1097,7 @@ function ArrayMap(f, receiver) {
                         ["Array.prototype.map"]);
   }
 
-  if (!IS_FUNCTION(f)) {
+  if (!IS_SPEC_FUNCTION(f)) {
     throw MakeTypeError('called_non_callable', [ f ]);
   }
   if (IS_NULL_OR_UNDEFINED(receiver)) {
@@ -1245,7 +1245,7 @@ function ArrayReduce(callback, current) {
                         ["Array.prototype.reduce"]);
   }
 
-  if (!IS_FUNCTION(callback)) {
+  if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
 
@@ -1281,7 +1281,7 @@ function ArrayReduceRight(callback, current) {
                         ["Array.prototype.reduceRight"]);
   }
 
-  if (!IS_FUNCTION(callback)) {
+  if (!IS_SPEC_FUNCTION(callback)) {
     throw MakeTypeError('called_non_callable', [callback]);
   }
   var i = ToUint32(this.length) - 1;

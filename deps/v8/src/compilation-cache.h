@@ -242,6 +242,7 @@ class CompilationCache {
   // cache during debugging to make sure new scripts are always compiled.
   void Enable();
   void Disable();
+
  private:
   explicit CompilationCache(Isolate* isolate);
   ~CompilationCache();

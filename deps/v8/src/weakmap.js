@@ -85,9 +85,6 @@ function WeakMapDelete(key) {
   // Set up the WeakMap constructor function.
   %SetCode($WeakMap, WeakMapConstructor);
 
-  // Set up the WeakMap prototype object.
-  %FunctionSetPrototype($WeakMap, new $WeakMap());
-
   // Set up the constructor property on the WeakMap prototype object.
   %SetProperty($WeakMap.prototype, "constructor", $WeakMap, DONT_ENUM);
 

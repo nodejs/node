@@ -969,7 +969,7 @@ class RegExpUnparser: public RegExpVisitor {
  public:
   RegExpUnparser();
   void VisitCharacterRange(CharacterRange that);
-  SmartPointer<const char> ToString() { return stream_.ToCString(); }
+  SmartArrayPointer<const char> ToString() { return stream_.ToCString(); }
 #define MAKE_CASE(Name) virtual void* Visit##Name(RegExp##Name*, void* data);
   FOR_EACH_REG_EXP_TREE_TYPE(MAKE_CASE)
 #undef MAKE_CASE
@@ -1124,7 +1124,7 @@ void* RegExpUnparser::VisitEmpty(RegExpEmpty* that, void* data) {
 }
 
 
-SmartPointer<const char> RegExpTree::ToString() {
+SmartArrayPointer<const char> RegExpTree::ToString() {
   RegExpUnparser unparser;
   Accept(&unparser, NULL);
   return unparser.ToString();

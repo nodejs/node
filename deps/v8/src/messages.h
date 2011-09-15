@@ -105,7 +105,7 @@ class MessageHandler {
   static void DefaultMessageReport(const MessageLocation* loc,
                                    Handle<Object> message_obj);
   static Handle<String> GetMessage(Handle<Object> data);
-  static SmartPointer<char> GetLocalizedMessage(Handle<Object> data);
+  static SmartArrayPointer<char> GetLocalizedMessage(Handle<Object> data);
 };
 
 } }  // namespace v8::internal

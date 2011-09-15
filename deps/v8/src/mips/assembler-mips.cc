@@ -172,7 +172,8 @@ Register ToRegister(int num) {
 // -----------------------------------------------------------------------------
 // Implementation of RelocInfo.
 
-const int RelocInfo::kApplyMask = 1 << RelocInfo::INTERNAL_REFERENCE;
+const int RelocInfo::kApplyMask = RelocInfo::kCodeTargetMask |
+                                  1 << RelocInfo::INTERNAL_REFERENCE;
 
 
 bool RelocInfo::IsCodedSpecially() {
@@ -543,6 +544,19 @@ bool Assembler::IsJ(Instr instr) {
   uint32_t opcode = GetOpcodeField(instr);
   // Checks if the instruction is a jump.
   return opcode == J;
+}
+
+
+bool Assembler::IsJal(Instr instr) {
+  return GetOpcodeField(instr) == JAL;
+}
+
+bool Assembler::IsJr(Instr instr) {
+  return GetOpcodeField(instr) == SPECIAL && GetFunctionField(instr) == JR;
+}
+
+bool Assembler::IsJalr(Instr instr) {
+  return GetOpcodeField(instr) == SPECIAL && GetFunctionField(instr) == JALR;
 }
 
 
@@ -939,7 +953,7 @@ void Assembler::GenInstrImmediate(Opcode opcode,
 
 
 void Assembler::GenInstrJump(Opcode opcode,
-                              uint32_t address) {
+                             uint32_t address) {
   BlockTrampolinePoolScope block_trampoline_pool(this);
   ASSERT(is_uint26(address));
   Instr instr = opcode | address;
@@ -1112,7 +1126,12 @@ void Assembler::bne(Register rs, Register rt, int16_t offset) {
 
 
 void Assembler::j(int32_t target) {
-  ASSERT(is_uint28(target) && ((target & 3) == 0));
+#if DEBUG
+  // Get pc of delay slot.
+  uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
+  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+  ASSERT(in_range && ((target & 3) == 0));
+#endif
   GenInstrJump(J, target >> 2);
 }
 
@@ -1128,8 +1147,13 @@ void Assembler::jr(Register rs) {
 
 
 void Assembler::jal(int32_t target) {
+#ifdef DEBUG
+  // Get pc of delay slot.
+  uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
+  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+  ASSERT(in_range && ((target & 3) == 0));
+#endif
   positions_recorder()->WriteRecordedPositions();
-  ASSERT(is_uint28(target) && ((target & 3) == 0));
   GenInstrJump(JAL, target >> 2);
 }
 
@@ -1139,6 +1163,32 @@ void Assembler::jalr(Register rs, Register rd) {
   positions_recorder()->WriteRecordedPositions();
   GenInstrRegister(SPECIAL, rs, zero_reg, rd, 0, JALR);
   BlockTrampolinePoolFor(1);  // For associated delay slot.
+}
+
+
+void Assembler::j_or_jr(int32_t target, Register rs) {
+  // Get pc of delay slot.
+  uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
+  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+
+  if (in_range) {
+      j(target);
+  } else {
+      jr(t9);
+  }
+}
+
+
+void Assembler::jal_or_jalr(int32_t target, Register rs) {
+  // Get pc of delay slot.
+  uint32_t ipc = reinterpret_cast<uint32_t>(pc_ + 1 * kInstrSize);
+  bool in_range = ((uint32_t)(ipc^target) >> (kImm26Bits+kImmFieldShift)) == 0;
+
+  if (in_range) {
+      jal(target);
+  } else {
+      jalr(t9);
+  }
 }
 
 
@@ -1614,6 +1664,13 @@ void Assembler::cfc1(Register rt, FPUControlRegister fs) {
   GenInstrRegister(COP1, CFC1, rt, fs);
 }
 
+void Assembler::DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi) {
+  uint64_t i;
+  memcpy(&i, &d, 8);
+
+  *lo = i & 0xffffffff;
+  *hi = i >> 32;
+}
 
 // Arithmetic.
 
@@ -1972,10 +2029,15 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   }
   if (rinfo.rmode() != RelocInfo::NONE) {
     // Don't record external references unless the heap will be serialized.
-    if (rmode == RelocInfo::EXTERNAL_REFERENCE &&
-        !Serializer::enabled() &&
-        !FLAG_debug_code) {
-      return;
+    if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
+#ifdef DEBUG
+      if (!Serializer::enabled()) {
+        Serializer::TooLateToEnableNow();
+      }
+#endif
+      if (!Serializer::enabled() && !emit_debug_code()) {
+        return;
+      }
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // Too late to grow buffer here.
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
@@ -2070,30 +2132,142 @@ Address Assembler::target_address_at(Address pc) {
 }
 
 
+// On Mips, a target address is stored in a lui/ori instruction pair, each
+// of which load 16 bits of the 32-bit address to a register.
+// Patching the address must replace both instr, and flush the i-cache.
+//
+// There is an optimization below, which emits a nop when the address
+// fits in just 16 bits. This is unlikely to help, and should be benchmarked,
+// and possibly removed.
 void Assembler::set_target_address_at(Address pc, Address target) {
-  // On MIPS we patch the address into lui/ori instruction pair.
-
-  // First check we have an li (lui/ori pair).
   Instr instr2 = instr_at(pc + kInstrSize);
-#ifdef DEBUG
-  Instr instr1 = instr_at(pc);
-
-  // Check we have indeed the result from a li with MustUseReg true.
-  CHECK((GetOpcodeField(instr1) == LUI && GetOpcodeField(instr2) == ORI));
-#endif
-
   uint32_t rt_code = GetRtField(instr2);
   uint32_t* p = reinterpret_cast<uint32_t*>(pc);
   uint32_t itarget = reinterpret_cast<uint32_t>(target);
 
-  // lui rt, high-16.
-  // ori rt rt, low-16.
+#ifdef DEBUG
+  // Check we have the result from a li macro-instruction, using instr pair.
+  Instr instr1 = instr_at(pc);
+  CHECK((GetOpcodeField(instr1) == LUI && GetOpcodeField(instr2) == ORI));
+#endif
+
+  // Must use 2 instructions to insure patchable code => just use lui and ori.
+  // lui rt, upper-16.
+  // ori rt rt, lower-16.
   *p = LUI | rt_code | ((itarget & kHiMask) >> kLuiShift);
   *(p+1) = ORI | rt_code | (rt_code << 5) | (itarget & kImm16Mask);
 
-  CPU::FlushICache(pc, 2 * sizeof(int32_t));
+  // The following code is an optimization for the common case of Call()
+  // or Jump() which is load to register, and jump through register:
+  //     li(t9, address); jalr(t9)    (or jr(t9)).
+  // If the destination address is in the same 256 MB page as the call, it
+  // is faster to do a direct jal, or j, rather than jump thru register, since
+  // that lets the cpu pipeline prefetch the target address. However each
+  // time the address above is patched, we have to patch the direct jal/j
+  // instruction, as well as possibly revert to jalr/jr if we now cross a
+  // 256 MB page. Note that with the jal/j instructions, we do not need to
+  // load the register, but that code is left, since it makes it easy to
+  // revert this process. A further optimization could try replacing the
+  // li sequence with nops.
+  // This optimization can only be applied if the rt-code from instr2 is the
+  // register used for the jalr/jr. Finally, we have to skip 'jr ra', which is
+  // mips return. Occasionally this lands after an li().
+
+  Instr instr3 = instr_at(pc + 2 * kInstrSize);
+  uint32_t ipc = reinterpret_cast<uint32_t>(pc + 3 * kInstrSize);
+  bool in_range =
+             ((uint32_t)(ipc ^ itarget) >> (kImm26Bits + kImmFieldShift)) == 0;
+  uint32_t target_field = (uint32_t)(itarget & kJumpAddrMask) >> kImmFieldShift;
+  bool patched_jump = false;
+
+#ifndef ALLOW_JAL_IN_BOUNDARY_REGION
+  // This is a workaround to the 24k core E156 bug (affect some 34k cores also).
+  // Since the excluded space is only 64KB out of 256MB (0.02 %), we will just
+  // apply this workaround for all cores so we don't have to identify the core.
+  if (in_range) {
+    // The 24k core E156 bug has some very specific requirements, we only check
+    // the most simple one: if the address of the delay slot instruction is in
+    // the first or last 32 KB of the 256 MB segment.
+    uint32_t segment_mask = ((256 * MB) - 1) ^ ((32 * KB) - 1);
+    uint32_t ipc_segment_addr = ipc & segment_mask;
+    if (ipc_segment_addr == 0 || ipc_segment_addr == segment_mask)
+      in_range = false;
+  }
+#endif
+
+  if (IsJalr(instr3)) {
+    // Try to convert JALR to JAL.
+    if (in_range && GetRt(instr2) == GetRs(instr3)) {
+      *(p+2) = JAL | target_field;
+      patched_jump = true;
+    }
+  } else if (IsJr(instr3)) {
+    // Try to convert JR to J, skip returns (jr ra).
+    bool is_ret = static_cast<int>(GetRs(instr3)) == ra.code();
+    if (in_range && !is_ret && GetRt(instr2) == GetRs(instr3)) {
+      *(p+2) = J | target_field;
+      patched_jump = true;
+    }
+  } else if (IsJal(instr3)) {
+    if (in_range) {
+      // We are patching an already converted JAL.
+      *(p+2) = JAL | target_field;
+    } else {
+      // Patch JAL, but out of range, revert to JALR.
+      // JALR rs reg is the rt reg specified in the ORI instruction.
+      uint32_t rs_field = GetRt(instr2) << kRsShift;
+      uint32_t rd_field = ra.code() << kRdShift;  // Return-address (ra) reg.
+      *(p+2) = SPECIAL | rs_field | rd_field | JALR;
+    }
+    patched_jump = true;
+  } else if (IsJ(instr3)) {
+    if (in_range) {
+      // We are patching an already converted J (jump).
+      *(p+2) = J | target_field;
+    } else {
+      // Trying patch J, but out of range, just go back to JR.
+      // JR 'rs' reg is the 'rt' reg specified in the ORI instruction (instr2).
+      uint32_t rs_field = GetRt(instr2) << kRsShift;
+      *(p+2) = SPECIAL | rs_field | JR;
+    }
+    patched_jump = true;
+  }
+
+  CPU::FlushICache(pc, (patched_jump ? 3 : 2) * sizeof(int32_t));
 }
 
+void Assembler::JumpLabelToJumpRegister(Address pc) {
+  // Address pc points to lui/ori instructions.
+  // Jump to label may follow at pc + 2 * kInstrSize.
+  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
+#ifdef DEBUG
+  Instr instr1 = instr_at(pc);
+#endif
+  Instr instr2 = instr_at(pc + 1 * kInstrSize);
+  Instr instr3 = instr_at(pc + 2 * kInstrSize);
+  bool patched = false;
+
+  if (IsJal(instr3)) {
+    ASSERT(GetOpcodeField(instr1) == LUI);
+    ASSERT(GetOpcodeField(instr2) == ORI);
+
+    uint32_t rs_field = GetRt(instr2) << kRsShift;
+    uint32_t rd_field = ra.code() << kRdShift;  // Return-address (ra) reg.
+    *(p+2) = SPECIAL | rs_field | rd_field | JALR;
+    patched = true;
+  } else if (IsJ(instr3)) {
+    ASSERT(GetOpcodeField(instr1) == LUI);
+    ASSERT(GetOpcodeField(instr2) == ORI);
+
+    uint32_t rs_field = GetRt(instr2) << kRsShift;
+    *(p+2) = SPECIAL | rs_field | JR;
+    patched = true;
+  }
+
+  if (patched) {
+      CPU::FlushICache(pc+2, sizeof(Address));
+  }
+}
 
 } }  // namespace v8::internal
 

@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,7 +49,7 @@ namespace v8 {
 class ReadLineEditor: public LineEditor {
  public:
   ReadLineEditor() : LineEditor(LineEditor::READLINE, "readline") { }
-  virtual i::SmartPointer<char> Prompt(const char* prompt);
+  virtual i::SmartArrayPointer<char> Prompt(const char* prompt);
   virtual bool Open();
   virtual bool Close();
   virtual void AddHistory(const char* str);
@@ -72,6 +72,7 @@ bool ReadLineEditor::Open() {
   rl_completer_word_break_characters = kWordBreakCharacters;
   rl_bind_key('\t', rl_complete);
   using_history();
+  stifle_history(Shell::kMaxHistoryEntries);
   return read_history(Shell::kHistoryFileName) == 0;
 }
 
@@ -81,13 +82,25 @@ bool ReadLineEditor::Close() {
 }
 
 
-i::SmartPointer<char> ReadLineEditor::Prompt(const char* prompt) {
+i::SmartArrayPointer<char> ReadLineEditor::Prompt(const char* prompt) {
   char* result = readline(prompt);
-  return i::SmartPointer<char>(result);
+  return i::SmartArrayPointer<char>(result);
 }
 
 
 void ReadLineEditor::AddHistory(const char* str) {
+  // Do not record empty input.
+  if (strlen(str) == 0) return;
+  // Remove duplicate history entry.
+  history_set_pos(history_length-1);
+  if (current_history()) {
+    do {
+      if (strcmp(current_history()->line, str) == 0) {
+        remove_history(where_history());
+        break;
+      }
+    } while (previous_history());
+  }
   add_history(str);
 }
 
@@ -105,7 +118,7 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
   static Persistent<Array> current_completions;
   if (state == 0) {
-    i::SmartPointer<char> full_text(i::StrNDup(rl_line_buffer, rl_point));
+    i::SmartArrayPointer<char> full_text(i::StrNDup(rl_line_buffer, rl_point));
     HandleScope scope;
     Handle<Array> completions =
       Shell::GetCompletions(String::New(text), String::New(*full_text));

@@ -157,6 +157,7 @@ class DebugLocalContext {
         Handle<Object>(debug->debug_context()->global_proxy()), DONT_ENUM,
         ::v8::internal::kNonStrictMode);
   }
+
  private:
   v8::Persistent<v8::Context> context_;
 };
@@ -5916,7 +5917,7 @@ class DebuggerAgentProtocolServerThread : public i::Thread {
 
  private:
   int port_;
-  i::SmartPointer<char> body_;
+  i::SmartArrayPointer<char> body_;
   i::Socket* server_;  // Server socket used for bind/accept.
   i::Socket* client_;  // Single client connection used by the test.
   i::Semaphore* listening_;  // Signalled when the server is in listen mode.

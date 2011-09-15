@@ -1627,7 +1627,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type, int instance_size) {
   map->set_unused_property_fields(0);
   map->set_bit_field(0);
   map->set_bit_field2(1 << Map::kIsExtensible);
-  map->set_elements_kind(JSObject::FAST_ELEMENTS);
+  map->set_elements_kind(FAST_ELEMENTS);
 
   // If the map object is aligned fill the padding area with Smi 0 objects.
   if (Map::kPadStart < Map::kSize) {
@@ -3415,11 +3415,36 @@ MaybeObject* Heap::AllocateJSProxy(Object* handler, Object* prototype) {
   map->set_prototype(prototype);
 
   // Allocate the proxy object.
-  Object* result;
+  JSProxy* result;
   MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
-  if (!maybe_result->ToObject(&result)) return maybe_result;
-  JSProxy::cast(result)->set_handler(handler);
-  JSProxy::cast(result)->set_padding(Smi::FromInt(0));
+  if (!maybe_result->To<JSProxy>(&result)) return maybe_result;
+  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_handler(handler);
+  return result;
+}
+
+
+MaybeObject* Heap::AllocateJSFunctionProxy(Object* handler,
+                                           Object* call_trap,
+                                           Object* construct_trap,
+                                           Object* prototype) {
+  // Allocate map.
+  // TODO(rossberg): Once we optimize proxies, think about a scheme to share
+  // maps. Will probably depend on the identity of the handler object, too.
+  Map* map;
+  MaybeObject* maybe_map_obj =
+      AllocateMap(JS_FUNCTION_PROXY_TYPE, JSFunctionProxy::kSize);
+  if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
+  map->set_prototype(prototype);
+
+  // Allocate the proxy object.
+  JSFunctionProxy* result;
+  MaybeObject* maybe_result = Allocate(map, NEW_SPACE);
+  if (!maybe_result->To<JSFunctionProxy>(&result)) return maybe_result;
+  result->InitializeBody(map->instance_size(), Smi::FromInt(0));
+  result->set_handler(handler);
+  result->set_call_trap(call_trap);
+  result->set_construct_trap(construct_trap);
   return result;
 }
 
@@ -3564,16 +3589,19 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
 }
 
 
-MaybeObject* Heap::ReinitializeJSProxyAsJSObject(JSProxy* object) {
+MaybeObject* Heap::ReinitializeJSReceiver(
+    JSReceiver* object, InstanceType type, int size) {
+  ASSERT(type >= FIRST_JS_RECEIVER_TYPE);
+
   // Allocate fresh map.
   // TODO(rossberg): Once we optimize proxies, cache these maps.
   Map* map;
-  MaybeObject* maybe_map_obj =
-      AllocateMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
+  MaybeObject* maybe_map_obj = AllocateMap(type, size);
   if (!maybe_map_obj->To<Map>(&map)) return maybe_map_obj;
 
-  // Check that the receiver has the same size as a fresh object.
-  ASSERT(map->instance_size() == object->map()->instance_size());
+  // Check that the receiver has at least the size of the fresh object.
+  int size_difference = object->map()->instance_size() - map->instance_size();
+  ASSERT(size_difference >= 0);
 
   map->set_prototype(object->map()->prototype());
 
@@ -3590,6 +3618,28 @@ MaybeObject* Heap::ReinitializeJSProxyAsJSObject(JSProxy* object) {
   // Reinitialize the object from the constructor map.
   InitializeJSObjectFromMap(JSObject::cast(object),
                             FixedArray::cast(properties), map);
+
+  // Functions require some minimal initialization.
+  if (type == JS_FUNCTION_TYPE) {
+    String* name;
+    MaybeObject* maybe_name = LookupAsciiSymbol("<freezing call trap>");
+    if (!maybe_name->To<String>(&name)) return maybe_name;
+    SharedFunctionInfo* shared;
+    MaybeObject* maybe_shared = AllocateSharedFunctionInfo(name);
+    if (!maybe_shared->To<SharedFunctionInfo>(&shared)) return maybe_shared;
+    JSFunction* func;
+    MaybeObject* maybe_func =
+        InitializeFunction(JSFunction::cast(object), shared, the_hole_value());
+    if (!maybe_func->To<JSFunction>(&func)) return maybe_func;
+    func->set_context(isolate()->context()->global_context());
+  }
+
+  // Put in filler if the new object is smaller than the old.
+  if (size_difference > 0) {
+    CreateFillerObjectAt(
+        object->address() + map->instance_size(), size_difference);
+  }
+
   return object;
 }
 

@@ -156,7 +156,6 @@ class SerializedScopeInfo : public FixedArray {
   static SerializedScopeInfo* Empty();
 
  private:
-
   inline Object** ContextEntriesAddr();
 
   inline Object** ParameterEntriesAddr();
@@ -187,6 +186,7 @@ class ContextSlotCache {
   void Clear();
 
   static const int kNotFound = -2;
+
  private:
   ContextSlotCache() {
     for (int i = 0; i < kLength; ++i) {

@@ -185,6 +185,7 @@ function FormatMessage(message) {
       "define_disallowed",            ["Cannot define property:", "%0", ", object is not extensible."],
       "non_extensible_proto",         ["%0", " is not extensible"],
       "handler_non_object",           ["Proxy.", "%0", " called with non-object as handler"],
+      "trap_function_expected",       ["Proxy.", "%0", " called with non-function for ", "%1", " trap"],
       "handler_trap_missing",         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
       "handler_trap_must_be_callable", ["Proxy handler ", "%0", " has non-callable '", "%1", "' trap"],
       "handler_returned_false",       ["Proxy handler ", "%0", " returned false for '", "%1", "' trap"],
@@ -239,6 +240,8 @@ function FormatMessage(message) {
       "strict_poison_pill",           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
       "strict_caller",                ["Illegal access to a strict mode caller function."],
       "unprotected_let",              ["Illegal let declaration in unprotected statement context."],
+      "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
+      "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
     ];
     var messages = { __proto__ : null };
     var desc = new PropertyDescriptor();

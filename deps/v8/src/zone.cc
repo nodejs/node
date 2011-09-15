@@ -168,7 +168,7 @@ Address Zone::NewExpand(int size) {
   // Make sure the requested size is already properly aligned and that
   // there isn't enough room in the Zone to satisfy the request.
   ASSERT(size == RoundDown(size, kAlignment));
-  ASSERT(position_ + size > limit_);
+  ASSERT(size > limit_ - position_);
 
   // Compute the new segment size. We use a 'high water mark'
   // strategy, where we increase the segment size every time we expand
@@ -177,7 +177,13 @@ Address Zone::NewExpand(int size) {
   Segment* head = segment_head_;
   int old_size = (head == NULL) ? 0 : head->size();
   static const int kSegmentOverhead = sizeof(Segment) + kAlignment;
-  int new_size = kSegmentOverhead + size + (old_size << 1);
+  int new_size_no_overhead = size + (old_size << 1);
+  int new_size = kSegmentOverhead + new_size_no_overhead;
+  // Guard against integer overflow.
+  if (new_size_no_overhead < size || new_size < kSegmentOverhead) {
+    V8::FatalProcessOutOfMemory("Zone");
+    return NULL;
+  }
   if (new_size < kMinimumSegmentSize) {
     new_size = kMinimumSegmentSize;
   } else if (new_size > kMaximumSegmentSize) {
@@ -196,6 +202,11 @@ Address Zone::NewExpand(int size) {
   // Recompute 'top' and 'limit' based on the new segment.
   Address result = RoundUp(segment->start(), kAlignment);
   position_ = result + size;
+  // Check for address overflow.
+  if (position_ < result) {
+    V8::FatalProcessOutOfMemory("Zone");
+    return NULL;
+  }
   limit_ = segment->end();
   ASSERT(position_ <= limit_);
   return result;

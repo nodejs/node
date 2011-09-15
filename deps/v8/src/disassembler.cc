@@ -223,7 +223,7 @@ static int DecodeIt(FILE* f,
         HeapStringAllocator allocator;
         StringStream accumulator(&allocator);
         relocinfo.target_object()->ShortPrint(&accumulator);
-        SmartPointer<const char> obj_name = accumulator.ToCString();
+        SmartArrayPointer<const char> obj_name = accumulator.ToCString();
         out.AddFormatted("    ;; object: %s", *obj_name);
       } else if (rmode == RelocInfo::EXTERNAL_REFERENCE) {
         const char* reference_name =
@@ -246,9 +246,6 @@ static int DecodeIt(FILE* f,
           if (ic_state == MONOMORPHIC) {
             PropertyType type = code->type();
             out.AddFormatted(", %s", Code::PropertyType2String(type));
-          }
-          if (code->ic_in_loop() == IN_LOOP) {
-            out.AddFormatted(", in_loop");
           }
           if (kind == Code::CALL_IC || kind == Code::KEYED_CALL_IC) {
             out.AddFormatted(", argc = %d", code->arguments_count());

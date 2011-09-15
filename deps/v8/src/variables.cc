@@ -66,7 +66,7 @@ Variable::Variable(Scope* scope,
     index_(-1),
     local_if_not_shadowed_(NULL),
     is_valid_LHS_(is_valid_LHS),
-    is_accessed_from_inner_function_scope_(false),
+    is_accessed_from_inner_scope_(false),
     is_used_(false) {
   // names must be canonicalized for fast equality checks
   ASSERT(name->IsSymbol());

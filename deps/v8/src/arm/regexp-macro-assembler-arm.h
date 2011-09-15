@@ -116,6 +116,7 @@ class RegExpMacroAssemblerARM: public NativeRegExpMacroAssembler {
   static int CheckStackGuardState(Address* return_address,
                                   Code* re_code,
                                   Address re_frame);
+
  private:
   // Offsets from frame_pointer() of function parameters and stored registers.
   static const int kFramePointer = 0;

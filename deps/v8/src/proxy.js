@@ -29,36 +29,6 @@ global.Proxy = new $Object();
 
 var $Proxy = global.Proxy
 
-var fundamentalTraps = [
-  "getOwnPropertyDescriptor",
-  "getPropertyDescriptor",
-  "getOwnPropertyNames",
-  "getPropertyNames",
-  "defineProperty",
-  "delete",
-  "fix",
-]
-
-var derivedTraps = [
-  "has",
-  "hasOwn",
-  "get",
-  "set",
-  "enumerate",
-  "keys",
-]
-
-var functionTraps = [
-  "callTrap",
-  "constructTrap",
-]
-
-$Proxy.createFunction = function(handler, callTrap, constructTrap) {
-  handler.callTrap = callTrap
-  handler.constructTrap = constructTrap
-  $Proxy.create(handler)
-}
-
 $Proxy.create = function(handler, proto) {
   if (!IS_SPEC_OBJECT(handler))
     throw MakeTypeError("handler_non_object", ["create"])
@@ -66,12 +36,33 @@ $Proxy.create = function(handler, proto) {
   return %CreateJSProxy(handler, proto)
 }
 
+$Proxy.createFunction = function(handler, callTrap, constructTrap) {
+  if (!IS_SPEC_OBJECT(handler))
+    throw MakeTypeError("handler_non_object", ["create"])
+  if (!IS_SPEC_FUNCTION(callTrap))
+    throw MakeTypeError("trap_function_expected", ["createFunction", "call"])
+  if (IS_UNDEFINED(constructTrap)) {
+    constructTrap = callTrap
+  } else if (!IS_SPEC_FUNCTION(constructTrap)) {
+    throw MakeTypeError("trap_function_expected",
+                        ["createFunction", "construct"])
+  }
+  return %CreateJSFunctionProxy(
+    handler, callTrap, constructTrap, $Function.prototype)
+}
 
 
 
 ////////////////////////////////////////////////////////////////////////////////
 // Builtins
 ////////////////////////////////////////////////////////////////////////////////
+
+function DelegateCallAndConstruct(callTrap, constructTrap) {
+  return function() {
+    return %Apply(%_IsConstructCall() ? constructTrap : callTrap,
+                  this, arguments, 0, %_ArgumentsLength())
+  }
+}
 
 function DerivedGetTrap(receiver, name) {
   var desc = this.getPropertyDescriptor(name)

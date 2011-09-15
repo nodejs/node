@@ -168,24 +168,36 @@ Register ToRegister(int num);
 // Coprocessor register.
 struct FPURegister {
   static const int kNumRegisters = v8::internal::kNumFPURegisters;
-  // f0 has been excluded from allocation. This is following ia32
-  // where xmm0 is excluded.
-  static const int kNumAllocatableRegisters = 15;
+
+  // TODO(plind): Warning, inconsistent numbering here. kNumFPURegisters refers
+  // to number of 32-bit FPU regs, but kNumAllocatableRegisters refers to
+  // number of Double regs (64-bit regs, or FPU-reg-pairs).
+
+  // A few double registers are reserved: one as a scratch register and one to
+  // hold 0.0.
+  //  f28: 0.0
+  //  f30: scratch register.
+  static const int kNumReservedRegisters = 2;
+  static const int kNumAllocatableRegisters = kNumRegisters / 2 -
+      kNumReservedRegisters;
+
 
   static int ToAllocationIndex(FPURegister reg) {
-    ASSERT(reg.code() != 0);
     ASSERT(reg.code() % 2 == 0);
-    return (reg.code() / 2) - 1;
+    ASSERT(reg.code() / 2 < kNumAllocatableRegisters);
+    ASSERT(reg.is_valid());
+    return (reg.code() / 2);
   }
 
   static FPURegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code((index + 1) * 2);
+    return from_code(index * 2);
   }
 
   static const char* AllocationIndexToString(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
     const char* const names[] = {
+      "f0",
       "f2",
       "f4",
       "f6",
@@ -198,9 +210,7 @@ struct FPURegister {
       "f20",
       "f22",
       "f24",
-      "f26",
-      "f28",
-      "f30"
+      "f26"
     };
     return names[index];
   }
@@ -212,6 +222,23 @@ struct FPURegister {
 
   bool is_valid() const { return 0 <= code_ && code_ < kNumFPURegisters ; }
   bool is(FPURegister creg) const { return code_ == creg.code_; }
+  FPURegister low() const {
+    // Find low reg of a Double-reg pair, which is the reg itself.
+    ASSERT(code_ % 2 == 0);  // Specified Double reg must be even.
+    FPURegister reg;
+    reg.code_ = code_;
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+  FPURegister high() const {
+    // Find high reg of a Doubel-reg pair, which is reg + 1.
+    ASSERT(code_ % 2 == 0);  // Specified Double reg must be even.
+    FPURegister reg;
+    reg.code_ = code_ + 1;
+    ASSERT(reg.is_valid());
+    return reg;
+  }
+
   int code() const {
     ASSERT(is_valid());
     return code_;
@@ -228,9 +255,19 @@ struct FPURegister {
   int code_;
 };
 
-typedef FPURegister DoubleRegister;
+// V8 now supports the O32 ABI, and the FPU Registers are organized as 32
+// 32-bit registers, f0 through f31. When used as 'double' they are used
+// in pairs, starting with the even numbered register. So a double operation
+// on f0 really uses f0 and f1.
+// (Modern mips hardware also supports 32 64-bit registers, via setting
+// (priviledged) Status Register FR bit to 1. This is used by the N32 ABI,
+// but it is not in common use. Someday we will want to support this in v8.)
 
-const FPURegister no_creg = { -1 };
+// For O32 ABI, Floats and Doubles refer to same set of 32 32-bit registers.
+typedef FPURegister DoubleRegister;
+typedef FPURegister FloatRegister;
+
+const FPURegister no_freg = { -1 };
 
 const FPURegister f0 = { 0 };  // Return value in hard float mode.
 const FPURegister f1 = { 1 };
@@ -264,6 +301,8 @@ const FPURegister f28 = { 28 };
 const FPURegister f29 = { 29 };
 const FPURegister f30 = { 30 };
 const FPURegister f31 = { 31 };
+
+const FPURegister kDoubleRegZero = f28;
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.
@@ -330,6 +369,10 @@ class MemOperand : public Operand {
  public:
   explicit MemOperand(Register rn, int32_t offset = 0);
   int32_t offset() const { return offset_; }
+
+  bool OffsetIsInt16Encodable() const {
+    return is_int16(offset_);
+  }
 
  private:
   int32_t offset_;
@@ -504,6 +547,8 @@ class Assembler : public AssemblerBase {
   static Address target_address_at(Address pc);
   static void set_target_address_at(Address pc, Address target);
 
+  static void JumpLabelToJumpRegister(Address pc);
+
   // This sets the branch destination (which gets loaded at the call address).
   // This is for calls and branches within generated code.
   inline static void set_target_at(Address instruction_payload,
@@ -534,9 +579,13 @@ class Assembler : public AssemblerBase {
   static const int kExternalTargetSize = 0 * kInstrSize;
 
   // Number of consecutive instructions used to store 32bit constant.
-  // Used in RelocInfo::target_address_address() function to tell serializer
-  // address of the instruction that follows LUI/ORI instruction pair.
-  static const int kInstructionsFor32BitConstant = 2;
+  // Before jump-optimizations, this constant was used in
+  // RelocInfo::target_address_address() function to tell serializer address of
+  // the instruction that follows LUI/ORI instruction pair. Now, with new jump
+  // optimization, where jump-through-register instruction that usually
+  // follows LUI/ORI pair is substituted with J/JAL, this constant equals
+  // to 3 instructions (LUI+ORI+J/JAL/JR/JALR).
+  static const int kInstructionsFor32BitConstant = 3;
 
   // Distance between the instruction referring to the address of the call
   // target and the return address.
@@ -623,6 +672,8 @@ class Assembler : public AssemblerBase {
   void jal(int32_t target);
   void jalr(Register rs, Register rd = ra);
   void jr(Register target);
+  void j_or_jr(int32_t target, Register rs);
+  void jal_or_jalr(int32_t target, Register rs);
 
 
   //-------Data-processing-instructions---------
@@ -892,6 +943,10 @@ class Assembler : public AssemblerBase {
   static bool IsLui(Instr instr);
   static bool IsOri(Instr instr);
 
+  static bool IsJal(Instr instr);
+  static bool IsJr(Instr instr);
+  static bool IsJalr(Instr instr);
+
   static bool IsNop(Instr instr, unsigned int type);
   static bool IsPop(Instr instr);
   static bool IsPush(Instr instr);
@@ -975,6 +1030,8 @@ class Assembler : public AssemblerBase {
   bool has_exception() const {
     return internal_trampoline_exception_;
   }
+
+  void DoubleAsTwoUInt32(double d, uint32_t* lo, uint32_t* hi);
 
   bool is_trampoline_emitted() const {
     return trampoline_emitted_;
@@ -1159,6 +1216,7 @@ class Assembler : public AssemblerBase {
       }
       return trampoline_slot;
     }
+
    private:
     int start_;
     int end_;

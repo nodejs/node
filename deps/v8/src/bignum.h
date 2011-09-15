@@ -92,6 +92,7 @@ class Bignum {
   static bool PlusLess(const Bignum& a, const Bignum& b, const Bignum& c) {
     return PlusCompare(a, b, c) < 0;
   }
+
  private:
   typedef uint32_t Chunk;
   typedef uint64_t DoubleChunk;

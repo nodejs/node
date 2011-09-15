@@ -1450,7 +1450,7 @@ static bool FixTryCatchHandler(StackFrame* top_frame,
                                StackFrame* bottom_frame) {
   Address* pointer_address =
       &Memory::Address_at(Isolate::Current()->get_address_from_id(
-          Isolate::k_handler_address));
+          Isolate::kHandlerAddress));
 
   while (*pointer_address < top_frame->sp()) {
     pointer_address = &Memory::Address_at(*pointer_address);

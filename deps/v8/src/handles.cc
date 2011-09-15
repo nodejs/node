@@ -921,32 +921,17 @@ bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
 }
 
 
-static bool CompileLazyFunction(Handle<JSFunction> function,
-                                ClearExceptionFlag flag,
-                                InLoopFlag in_loop_flag) {
+bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
   bool result = true;
   if (function->shared()->is_compiled()) {
     function->ReplaceCode(function->shared()->code());
     function->shared()->set_code_age(0);
   } else {
     CompilationInfo info(function);
-    if (in_loop_flag == IN_LOOP) info.MarkAsInLoop();
     result = CompileLazyHelper(&info, flag);
     ASSERT(!result || function->is_compiled());
   }
   return result;
-}
-
-
-bool CompileLazy(Handle<JSFunction> function,
-                 ClearExceptionFlag flag) {
-  return CompileLazyFunction(function, flag, NOT_IN_LOOP);
-}
-
-
-bool CompileLazyInLoop(Handle<JSFunction> function,
-                       ClearExceptionFlag flag) {
-  return CompileLazyFunction(function, flag, IN_LOOP);
 }
 
 

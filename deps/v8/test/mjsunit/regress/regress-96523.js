@@ -25,29 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_CIRCULAR_QUEUE_INL_H_
-#define V8_CIRCULAR_QUEUE_INL_H_
-
-#include "circular-queue.h"
-
-namespace v8 {
-namespace internal {
-
-
-void* SamplingCircularQueue::Enqueue() {
-  WrapPositionIfNeeded(&producer_pos_->enqueue_pos);
-  void* result = producer_pos_->enqueue_pos;
-  producer_pos_->enqueue_pos += record_size_;
-  return result;
+with ({x:'outer'}) {
+  (function() {
+    var x = 'inner';
+    try {
+      throw 'Exception';
+    } catch (e) {
+      assertEquals('inner', x);
+    }
+  })()
 }
-
-
-void SamplingCircularQueue::WrapPositionIfNeeded(
-    SamplingCircularQueue::Cell** pos) {
-  if (**pos == kEnd) *pos = buffer_;
-}
-
-
-} }  // namespace v8::internal
-
-#endif  // V8_CIRCULAR_QUEUE_INL_H_

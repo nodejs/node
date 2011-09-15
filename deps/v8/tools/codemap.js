@@ -79,6 +79,7 @@ CodeMap.PAGE_SIZE =
  * @param {CodeMap.CodeEntry} codeEntry Code entry object.
  */
 CodeMap.prototype.addCode = function(start, codeEntry) {
+  this.deleteAllCoveredNodes_(this.dynamics_, start, start + codeEntry.size);
   this.dynamics_.insert(start, codeEntry);
 };
 
@@ -92,6 +93,7 @@ CodeMap.prototype.addCode = function(start, codeEntry) {
  */
 CodeMap.prototype.moveCode = function(from, to) {
   var removedNode = this.dynamics_.remove(from);
+  this.deleteAllCoveredNodes_(this.dynamics_, to, to + removedNode.value.size);
   this.dynamics_.insert(to, removedNode.value);
 };
 
@@ -140,6 +142,23 @@ CodeMap.prototype.markPages_ = function(start, end) {
        addr += CodeMap.PAGE_SIZE) {
     this.pages_[addr >>> CodeMap.PAGE_ALIGNMENT] = 1;
   }
+};
+
+
+/**
+ * @private
+ */
+CodeMap.prototype.deleteAllCoveredNodes_ = function(tree, start, end) {
+  var to_delete = [];
+  var addr = end - 1;
+  while (addr >= start) {
+    var node = tree.findGreatestLessThan(addr);
+    if (!node) break;
+    var start2 = node.key, end2 = start2 + node.value.size;
+    if (start2 < end && start < end2) to_delete.push(start2);
+    addr = start2 - 1;
+  }
+  for (var i = 0, l = to_delete.length; i < l; ++i) tree.remove(to_delete[i]);
 };
 
 

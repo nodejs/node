@@ -596,9 +596,7 @@ class MacroAssembler: public Assembler {
 
   // Compare instance type in a map.  map contains a valid map object whose
   // object type should be compared with the given type.  This both
-  // sets the flags and leaves the object type in the type_reg register.  It
-  // leaves the heap object in the heap_object register unless the heap_object
-  // register is the same register as type_reg.
+  // sets the flags and leaves the object type in the type_reg register.
   void CompareInstanceType(Register map,
                            Register type_reg,
                            InstanceType type);

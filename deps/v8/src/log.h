@@ -281,6 +281,8 @@ class Logger {
   void ResumeProfiler();
   bool IsProfilerPaused();
 
+  void LogExistingFunction(Handle<SharedFunctionInfo> shared,
+                           Handle<Code> code);
   // Logs all compiled functions found in the heap.
   void LogCompiledFunctions();
   // Logs all accessor callbacks found in the heap.

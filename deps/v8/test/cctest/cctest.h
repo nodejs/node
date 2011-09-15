@@ -110,6 +110,7 @@ class ApiTestFuzzer: public v8::internal::Thread {
   // This method switches threads if we are running the Threading test.
   // Otherwise it does nothing.
   static void Fuzz();
+
  private:
   static bool fuzzing_;
   static int tests_being_run_;

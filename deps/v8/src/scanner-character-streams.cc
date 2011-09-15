@@ -29,7 +29,6 @@
 
 #include "scanner-character-streams.h"
 
-#include "ast.h"
 #include "handles.h"
 #include "unicode-inl.h"
 
@@ -303,26 +302,6 @@ ExternalTwoByteStringUC16CharacterStream
   buffer_cursor_ = raw_data_,
   buffer_end_ = raw_data_ + (end_position - start_position);
   pos_ = start_position;
-}
-
-
-// ----------------------------------------------------------------------------
-// Scanner::LiteralScope
-
-Scanner::LiteralScope::LiteralScope(Scanner* self)
-    : scanner_(self), complete_(false) {
-  self->StartLiteral();
-}
-
-
-Scanner::LiteralScope::~LiteralScope() {
-  if (!complete_) scanner_->DropLiteral();
-}
-
-
-void Scanner::LiteralScope::Complete() {
-  scanner_->TerminateLiteral();
-  complete_ = true;
 }
 
 } }  // namespace v8::internal
