@@ -165,6 +165,7 @@ class ProcessWrap : public HandleWrap {
     }
 
     free(options.cwd);
+    free((void*)options.file);
 
     if (options.env) {
       for (int i = 0; options.env[i]; i++) free(options.env[i]);
