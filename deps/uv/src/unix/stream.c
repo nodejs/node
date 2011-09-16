@@ -129,8 +129,8 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
     req = ngx_queue_data(q, uv_write_t, queue);
     if (req->cb) {
-      uv_err_new_artificial(req->handle->loop, UV_OK);
-      req->cb(req, 0);
+      uv_err_new_artificial(stream->loop, req->error);
+      req->cb(req, req->error ? -1 : 0);
     }
   }
 }
@@ -287,6 +287,17 @@ static void uv__drain(uv_stream_t* stream) {
 }
 
 
+static size_t uv__write_req_size(uv_write_t* req) {
+  size_t size;
+
+  size = uv__buf_count(req->bufs + req->write_index,
+                       req->bufcnt - req->write_index);
+  assert(req->handle->write_queue_size >= size);
+
+  return size;
+}
+
+
 static void uv__write_req_finish(uv_write_t* req) {
   uv_stream_t* stream = req->handle;
 
@@ -351,6 +362,7 @@ static void uv__write(uv_stream_t* stream) {
     if (errno != EAGAIN) {
       /* Error */
       req->error = errno;
+      stream->write_queue_size -= uv__write_req_size(req);
       uv__write_req_finish(req);
       return;
     }

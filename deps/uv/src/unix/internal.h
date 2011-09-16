@@ -51,6 +51,10 @@
 
 #endif /* __linux__ */
 
+#ifdef __APPLE__
+# define HAVE_FUTIMES
+#endif
+
 /* flags */
 enum {
   UV_CLOSING  = 0x00000001, /* uv_close() called but not finished. */

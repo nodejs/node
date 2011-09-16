@@ -65,6 +65,8 @@ void platform_init(int argc, char **argv) {
 #else
   strcpy(executable_path, argv[0]);
 #endif
+
+  signal(SIGPIPE, SIG_IGN);
 }
 
 
