@@ -333,7 +333,7 @@ Handle<Value> SecureContext::SetCert(const Arguments& args) {
           String::New("SSL_CTX_use_certificate_chain")));
     }
     char string[120];
-    ERR_error_string(err, string);
+    ERR_error_string_n(err, string, sizeof string);
     return ThrowException(Exception::Error(String::New(string)));
   }
 
