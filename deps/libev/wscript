@@ -63,7 +63,7 @@ def configure(conf):
           return 0;
       }
   """
-  conf.check_cc(fragment=code, define_name="HAVE_CLOCK_SYSCALL", execute=True,
+  conf.check_cc(fragment=code, define_name="HAVE_CLOCK_SYSCALL",
                 msg="Checking for SYS_clock_gettime")
 
   have_librt = conf.check(lib='rt', uselib_store='RT')
