@@ -1,3 +1,39 @@
+2011.09.16, Version 0.5.7 (unstable)
+
+* Upgrade V8 to 3.6.4
+
+* Improve Windows compatibility
+
+* Documentation improvements
+
+* Debugger and REPL improvements (Fedor Indutny)
+
+* Add legacy API support: net.Stream(fd), process.stdout.writable,
+  process.stdout.fd
+
+* Fix mkdir EEXIST handling (isaacs)
+
+* Use net_uv instead of net_legacy for stdio
+
+* Do not load readline from util.inspect
+
+* #1673 Fix bug related to V8 context with accessors (Fedor Indutny)
+
+* #1634 util: Fix inspection for Error (koichik)
+
+* #1645 fs: Add positioned file writing feature to fs.WriteStream (Thomas
+  Shinnick)
+
+* #1637 fs: Unguarded fs.watchFile cache statWatchers checking fixed (Thomas
+  Shinnick)
+
+* #1695 Forward customFds to ChildProcess.spawn
+
+* #1707 Fix hasOwnProperty security problem in querystring (isaacs)
+
+* #1719 Drain OpenSSL error queue
+
+
 2011.09.08, Version 0.5.6 (unstable)
 
 * #345, #1635, #1648 Documentation improvements (Thomas Shinnick,
