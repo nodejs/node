@@ -1,6 +1,6 @@
 WAF=python tools/waf-light
 
-web_root = ryan@nodejs.org:~/web/nodejs.org/
+web_root = node@nodejs.org:~/web/nodejs.org/
 
 all: program
 
