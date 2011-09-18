@@ -547,7 +547,7 @@ def _GenerateExternalRules(rules, output_dir, spec,
   # Write out all: target, including mkdir for each output directory.
   mk_file.write('all: %s\n' % ' '.join(first_outputs_cyg))
   for od in all_output_dirs:
-    mk_file.write('\tmkdir -p %s\n' % od)
+    mk_file.write('\tmkdir -p `cygpath -u "%s"`\n' % od)
   mk_file.write('\n')
   # Define how each output is generated.
   for rule in rules:
@@ -882,7 +882,7 @@ def _GenerateMSVSProject(project, options, version):
   p.AddFiles(sources)
 
   _AddToolFilesToMSVS(p, spec)
-  _HandlePreCompileHeaderStubs(p, spec)
+  _HandlePreCompiledHeaders(p, sources, spec)
   _AddActions(actions_to_add, spec, relative_path_of_gyp_file)
   _AddCopies(actions_to_add, spec)
   _WriteMSVSUserFile(project.path, version, spec)
@@ -1383,8 +1383,12 @@ def _AddToolFilesToMSVS(p, spec):
     p.AddToolFile(f)
 
 
-def _HandlePreCompileHeaderStubs(p, spec):
-  # Handle pre-compiled headers source stubs specially.
+def _HandlePreCompiledHeaders(p, sources, spec):
+  # Pre-compiled header source stubs need a different compiler flag
+  # (generate precompiled header) and any source file not of the same
+  # kind (i.e. C vs. C++) as the precompiled header source stub needs
+  # to have use of precompiled headers disabled.
+  extensions_excluded_from_precompile = []
   for config_name, config in spec['configurations'].iteritems():
     source = config.get('msvs_precompiled_source')
     if source:
@@ -1394,6 +1398,28 @@ def _HandlePreCompileHeaderStubs(p, spec):
                               {'UsePrecompiledHeader': '1'})
       p.AddFileConfig(source, _ConfigFullName(config_name, config),
                       {}, tools=[tool])
+      basename, extension = os.path.splitext(source)
+      if extension == '.c':
+        extensions_excluded_from_precompile = ['.cc', '.cpp', '.cxx']
+      else:
+        extensions_excluded_from_precompile = ['.c']
+  def DisableForSourceTree(source_tree):
+    for source in source_tree:
+      if isinstance(source, MSVSProject.Filter):
+        DisableForSourceTree(source.contents)
+      else:
+        basename, extension = os.path.splitext(source)
+        if extension in extensions_excluded_from_precompile:
+          for config_name, config in spec['configurations'].iteritems():
+            tool = MSVSProject.Tool('VCCLCompilerTool',
+                                    {'UsePrecompiledHeader': '0',
+                                     'ForcedIncludeFiles': '$(NOINHERIT)'})
+            p.AddFileConfig(_FixPath(source),
+                            _ConfigFullName(config_name, config),
+                            {}, tools=[tool])
+  # Do nothing if there was no precompiled source.
+  if extensions_excluded_from_precompile:
+    DisableForSourceTree(sources)
 
 
 def _AddActions(actions_to_add, spec, relative_path_of_gyp_file):

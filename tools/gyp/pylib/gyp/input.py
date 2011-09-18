@@ -1328,7 +1328,7 @@ class DependencyGraphNode(object):
     setting.
 
     When adding a target to the list of dependencies, this function will
-    recurse into itself with |initial| set to False, to collect depenedencies
+    recurse into itself with |initial| set to False, to collect dependencies
     that are linked into the linkable target for which the list is being built.
     """
     if dependencies == None:
@@ -1369,11 +1369,7 @@ class DependencyGraphNode(object):
 
     # The target is linkable, add it to the list of link dependencies.
     if self.ref not in dependencies:
-      if target_type != 'none':
-        # Special case: "none" type targets don't produce any linkable products
-        # and shouldn't be exposed as link dependencies, although dependencies
-        # of "none" type targets may still be link dependencies.
-        dependencies.append(self.ref)
+      dependencies.append(self.ref)
       if initial or not is_linkable:
         # If this is a subsequent target and it's linkable, don't look any
         # further for linkable dependencies, as they'll already be linked into
