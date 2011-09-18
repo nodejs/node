@@ -39,7 +39,6 @@ using namespace v8;
 // write() returns one of these, and then calls the cb() when it's done.
 typedef ReqWrap<uv_work_t> WorkReqWrap;
 
-static Persistent<String> ondata_sym;
 static Persistent<String> callback_sym;
 
 enum node_zlib_mode {
@@ -78,6 +77,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   // write(flush, in, in_off, in_len, out, out_off, out_len)
   static Handle<Value>
   Write(const Arguments& args) {
+    HandleScope scope;
     assert(args.Length() == 7);
 
     ZCtx<mode> *ctx = ObjectWrap::Unwrap< ZCtx<mode> >(args.This());
@@ -177,6 +177,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   // v8 land!
   static void
   After(uv_work_t* work_req) {
+    HandleScope scope;
     WorkReqWrap *req_wrap = reinterpret_cast<WorkReqWrap *>(work_req->data);
     ZCtx<mode> *ctx = (ZCtx<mode> *)req_wrap->data_;
     Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
@@ -322,7 +323,6 @@ void InitZlib(Handle<Object> target) {
   NODE_ZLIB_CLASS(GUNZIP, "Gunzip")
   NODE_ZLIB_CLASS(UNZIP, "Unzip")
 
-  ondata_sym = NODE_PSYMBOL("onData");
   callback_sym = NODE_PSYMBOL("callback");
 
   NODE_DEFINE_CONSTANT(target, Z_NO_FLUSH);

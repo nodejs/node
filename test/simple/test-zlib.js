@@ -59,6 +59,12 @@ if (!process.env.PUMMEL) {
 var fs = require('fs');
 
 var testFiles = [ 'person.jpg', 'elipses.txt', 'empty.txt' ];
+
+if (process.env.FAST) {
+  zlibPairs = [ [zlib.Gzip, zlib.Unzip] ];
+  var testFiles = [ 'person.jpg' ];
+}
+
 var tests = {}
 testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
@@ -81,6 +87,7 @@ util.inherits(BufferStream, stream.Stream);
 BufferStream.prototype.write = function(c) {
   this.chunks.push(c);
   this.length += c.length;
+  return true;
 };
 
 BufferStream.prototype.end = function(c) {
@@ -94,6 +101,7 @@ BufferStream.prototype.end = function(c) {
   });
   this.emit('data', buf);
   this.emit('end');
+  return true;
 };
 
 
@@ -184,7 +192,7 @@ Object.keys(tests).forEach(function(file) {
                   Def.name + ' -> ' + Inf.name;
         var ok = true;
         var testNum = ++done;
-        for (var i = 0; i < c.length; i++) {
+        for (var i = 0; i < Math.max(c.length, test.length); i++) {
           if (c[i] !== test[i]) {
             ok = false;
             failures ++;
