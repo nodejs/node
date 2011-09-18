@@ -63,7 +63,7 @@ using v8::Persistent;
 using v8::String;
 using v8::Value;
 
-static Persistent<String> onanswer_sym;
+static Persistent<String> oncomplete_sym;
 
 static ares_channel ares_channel;
 
@@ -152,7 +152,7 @@ class QueryWrap {
   ~QueryWrap() {
     assert(!object_.IsEmpty());
 
-    object_->DeleteHiddenValue(onanswer_sym);
+    object_->Delete(oncomplete_sym);
 
     object_.Dispose();
     object_.Clear();
@@ -162,9 +162,9 @@ class QueryWrap {
     return object_;
   }
 
-  void SetOnAnswer(Handle<Value> onanswer) {
-    assert(onanswer->IsFunction());
-    object_->SetHiddenValue(onanswer_sym, onanswer);
+  void SetOnComplete(Handle<Value> oncomplete) {
+    assert(oncomplete->IsFunction());
+    object_->Set(oncomplete_sym, oncomplete);
   }
 
   // Subclasses should implement the appropriate Send method.
@@ -209,24 +209,16 @@ class QueryWrap {
     delete wrap;
   }
 
-  Handle<Function> GetOnAnswer() {
-    HandleScope scope;
-    assert(!object_.IsEmpty());
-    Handle<Value> onanswer = object_->GetHiddenValue(onanswer_sym);
-    assert(onanswer->IsFunction());
-    return scope.Close(Handle<Function>::Cast(onanswer));
-  }
-
-  void CallOnAnswer(Local<Value> answer) {
+  void CallOnComplete(Local<Value> answer) {
     HandleScope scope;
     Local<Value> argv[2] = { Integer::New(0), answer };
-    GetOnAnswer()->Call(this->object_, 2, argv);
+    MakeCallback(object_, "oncomplete", 2, argv);
   }
 
-  void CallOnAnswer(Local<Value> answer, Local<Value> family) {
+  void CallOnComplete(Local<Value> answer, Local<Value> family) {
     HandleScope scope;
     Local<Value> argv[3] = { Integer::New(0), answer, family };
-    GetOnAnswer()->Call(this->object_, 3, argv);
+    MakeCallback(object_, "oncomplete", 3, argv);
   }
 
   void ParseError(int status) {
@@ -235,7 +227,7 @@ class QueryWrap {
 
     HandleScope scope;
     Local<Value> argv[1] = { Integer::New(-1) };
-    GetOnAnswer()->Call(this->object_, 1, argv);
+    MakeCallback(object_, "oncomplete", 1, argv);
   }
 
   // Subclasses should implement the appropriate Parse method.
@@ -274,7 +266,7 @@ class QueryAWrap: public QueryWrap {
     Local<Array> addresses = HostentToAddresses(host);
     ares_free_hostent(host);
 
-    this->CallOnAnswer(addresses);
+    this->CallOnComplete(addresses);
   }
 };
 
@@ -306,7 +298,7 @@ class QueryAaaaWrap: public QueryWrap {
     Local<Array> addresses = HostentToAddresses(host);
     ares_free_hostent(host);
 
-    this->CallOnAnswer(addresses);
+    this->CallOnComplete(addresses);
   }
 };
 
@@ -341,7 +333,7 @@ class QueryCnameWrap: public QueryWrap {
     result->Set(0, String::New(host->h_name));
     ares_free_hostent(host);
 
-    this->CallOnAnswer(result);
+    this->CallOnComplete(result);
   }
 };
 
@@ -379,7 +371,7 @@ class QueryMxWrap: public QueryWrap {
 
     ares_free_data(mx_start);
 
-    this->CallOnAnswer(mx_records);
+    this->CallOnComplete(mx_records);
   }
 };
 
@@ -404,7 +396,7 @@ class QueryNsWrap: public QueryWrap {
     Local<Array> names = HostentToNames(host);
     ares_free_hostent(host);
 
-    this->CallOnAnswer(names);
+    this->CallOnComplete(names);
   }
 };
 
@@ -451,7 +443,7 @@ class QuerySrvWrap: public QueryWrap {
 
     ares_free_data(srv_start);
 
-    this->CallOnAnswer(srv_records);
+    this->CallOnComplete(srv_records);
   }
 };
 
@@ -485,7 +477,7 @@ class GetHostByAddrWrap: public QueryWrap {
   void Parse(struct hostent* host) {
     HandleScope scope;
 
-    this->CallOnAnswer(HostentToNames(host));
+    this->CallOnComplete(HostentToNames(host));
   }
 };
 
@@ -504,7 +496,7 @@ class GetHostByNameWrap: public QueryWrap {
     Local<Array> addresses = HostentToAddresses(host);
     Local<Integer> family = Integer::New(host->h_addrtype);
 
-    this->CallOnAnswer(addresses, family);
+    this->CallOnComplete(addresses, family);
   }
 };
 
@@ -518,7 +510,7 @@ static Handle<Value> Query(const Arguments& args) {
   assert(args[1]->IsFunction());
 
   Wrap* wrap = new Wrap();
-  wrap->SetOnAnswer(args[1]);
+  wrap->SetOnComplete(args[1]);
 
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
@@ -547,7 +539,7 @@ static Handle<Value> QueryWithFamily(const Arguments& args) {
   assert(args[2]->IsFunction());
 
   Wrap* wrap = new Wrap();
-  wrap->SetOnAnswer(args[2]);
+  wrap->SetOnComplete(args[2]);
 
   // We must cache the wrap's js object here, because cares might make the
   // callback from the wrap->Send stack. This will destroy the wrap's internal
@@ -592,7 +584,7 @@ static void Initialize(Handle<Object> target) {
   target->Set(String::NewSymbol("AF_INET6"), Integer::New(AF_INET6));
   target->Set(String::NewSymbol("AF_UNSPEC"), Integer::New(AF_UNSPEC));
 
-  onanswer_sym = Persistent<String>::New(String::NewSymbol("onanswer"));
+  oncomplete_sym = Persistent<String>::New(String::NewSymbol("oncomplete"));
 }
 
 
