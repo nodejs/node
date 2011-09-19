@@ -241,7 +241,7 @@ def get_node_version():
   return "%s.%s.%s%s" % ( node_major_version,
                            node_minor_version,
                            node_patch_version,
-                           "-pre" if node_is_release == "0" else ""
+                           node_is_release == "0" and "-pre" or ""
                          )
 
 
