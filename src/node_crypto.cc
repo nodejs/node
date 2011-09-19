@@ -524,7 +524,10 @@ int Connection::HandleSSLError(const char* func, int rv) {
 
   int err = SSL_get_error(ssl_, rv);
 
-  if (err == SSL_ERROR_WANT_WRITE) {
+  if (err == SSL_ERROR_NONE) {
+    return 0;
+
+  } else if (err == SSL_ERROR_WANT_WRITE) {
     DEBUG_PRINT("[%p] SSL: %s want write\n", ssl_, func);
     return 0;
 
@@ -533,25 +536,24 @@ int Connection::HandleSSLError(const char* func, int rv) {
     return 0;
 
   } else {
-    static char ssl_error_buf[512];
-    ERR_error_string_n(err, ssl_error_buf, sizeof(ssl_error_buf));
+    HandleScope scope;
+    BUF_MEM* mem;
+    BIO *bio;
+
+    assert(err == SSL_ERROR_SSL || err == SSL_ERROR_SYSCALL);
 
     // XXX We need to drain the error queue for this thread or else OpenSSL
     // has the possibility of blocking connections? This problem is not well
-    // understood. And we should be somehow propigating these errors up
+    // understood. And we should be somehow propagating these errors up
     // into JavaScript. There is no test which demonstrates this problem.
     // https://github.com/joyent/node/issues/1719
-    while ((err = ERR_get_error()) != 0) {
-      ERR_error_string_n(err, ssl_error_buf, sizeof(ssl_error_buf));
-      fprintf(stderr, "(node SSL) %s\n", ssl_error_buf);
+    if ((bio = BIO_new(BIO_s_mem()))) {
+      ERR_print_errors(bio);
+      BIO_get_mem_ptr(bio, &mem);
+      Local<Value> e = Exception::Error(String::New(mem->data, mem->length));
+      handle_->Set(String::New("error"), e);
+      BIO_free(bio);
     }
-
-    HandleScope scope;
-    Local<Value> e = Exception::Error(String::New(ssl_error_buf));
-    handle_->Set(String::New("error"), e);
-
-    DEBUG_PRINT("[%p] SSL: %s failed: (%d:%d) %s\n", ssl_, func, err, rv,
-        ssl_error_buf);
 
     return rv;
   }
