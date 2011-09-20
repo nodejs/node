@@ -447,6 +447,9 @@
       case 'net':
         return process.features.uv ? 'net_uv' : 'net_legacy';
 
+      case 'tty':
+        return process.features.uv ? 'tty_uv' : 'tty_legacy';
+
       case 'child_process':
         return process.features.uv ? 'child_process_uv' :
                                      'child_process_legacy';
