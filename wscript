@@ -889,6 +889,7 @@ def build(bld):
     src/pipe_wrap.cc
     src/cares_wrap.cc
     src/stdio_wrap.cc
+    src/tty_wrap.cc
     src/process_wrap.cc
     src/v8_typed_array.cc
   """

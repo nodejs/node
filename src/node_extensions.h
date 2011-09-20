@@ -49,6 +49,7 @@ NODE_EXT_LIST_ITEM(node_udp_wrap)
 NODE_EXT_LIST_ITEM(node_pipe_wrap)
 NODE_EXT_LIST_ITEM(node_cares_wrap)
 NODE_EXT_LIST_ITEM(node_stdio_wrap)
+NODE_EXT_LIST_ITEM(node_tty_wrap)
 NODE_EXT_LIST_ITEM(node_process_wrap)
 
 NODE_EXT_LIST_END
