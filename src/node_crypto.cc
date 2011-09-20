@@ -159,7 +159,7 @@ static BIO* LoadBIO (Handle<Value> v) {
 
   HandleScope scope;
 
-  int r;
+  int r = -1;
 
   if (v->IsString()) {
     String::Utf8Value s(v->ToString());
