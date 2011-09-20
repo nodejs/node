@@ -19,6 +19,7 @@
  * IN THE SOFTWARE.
  */
 
+TEST_DECLARE   (tty)
 TEST_DECLARE   (tcp_ping_pong)
 TEST_DECLARE   (tcp_ping_pong_v6)
 TEST_DECLARE   (pipe_ping_pong)
@@ -98,6 +99,8 @@ HELPER_DECLARE (pipe_echo_server)
 
 
 TASK_LIST_START
+  TEST_ENTRY  (tty)
+
   TEST_ENTRY  (tcp_ping_pong)
   TEST_HELPER (tcp_ping_pong, tcp4_echo_server)
 

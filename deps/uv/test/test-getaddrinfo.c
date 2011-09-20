@@ -31,10 +31,10 @@
 
 static const char* name = "localhost";
 
-static uv_getaddrinfo_t getaddrinfo_handle;
 static int getaddrinfo_cbs = 0;
 
 /* data used for running multiple calls concurrently */
+static uv_getaddrinfo_t* getaddrinfo_handle;
 static uv_getaddrinfo_t getaddrinfo_handles[CONCURRENT_COUNT];
 static int callback_counts[CONCURRENT_COUNT];
 
@@ -42,8 +42,9 @@ static int callback_counts[CONCURRENT_COUNT];
 static void getaddrinfo_basic_cb(uv_getaddrinfo_t* handle,
                                  int status,
                                  struct addrinfo* res) {
-  ASSERT(handle == &getaddrinfo_handle);
+  ASSERT(handle == getaddrinfo_handle);
   getaddrinfo_cbs++;
+  free(handle);
 }
 
 
@@ -71,9 +72,10 @@ static void getaddrinfo_cuncurrent_cb(uv_getaddrinfo_t* handle,
 
 TEST_IMPL(getaddrinfo_basic) {
   int r;
+  getaddrinfo_handle = (uv_getaddrinfo_t*)malloc(sizeof(uv_getaddrinfo_t));
 
   r = uv_getaddrinfo(uv_default_loop(),
-                     &getaddrinfo_handle,
+                     getaddrinfo_handle,
                      &getaddrinfo_basic_cb,
                      name,
                      NULL,

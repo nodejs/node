@@ -67,3 +67,7 @@ fatal:
   return -1;
 }
 
+
+int uv_is_tty(uv_file file) {
+  return isatty(file);
+}

@@ -194,7 +194,10 @@
           'include_dirs': [ 'src/ares/config_darwin' ],
           'sources': [ 'src/unix/darwin.c' ],
           'direct_dependent_settings': {
-            'libraries': [ '-framework CoreServices' ],
+            'libraries': [
+              '$(SDKROOT)/System/Library/Frameworks/Carbon.framework',
+              '$(SDKROOT)/System/Library/Frameworks/CoreServices.framework',
+            ],
           },
           'defines': [
             'EV_CONFIG_H="config_darwin.h"',
@@ -261,6 +264,7 @@
         'test/test-tcp-bind-error.c',
         'test/test-tcp-bind6-error.c',
         'test/test-tcp-close.c',
+        'test/test-tcp-write-error.c',
         'test/test-tcp-writealot.c',
         'test/test-threadpool.c',
         'test/test-timer-again.c',

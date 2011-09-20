@@ -845,13 +845,18 @@ static int duplicate_std_handle(uv_loop_t* loop, DWORD id, HANDLE* dup) {
 int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     uv_process_options_t options) {
   int err = 0, keep_child_stdio_open = 0;
-  wchar_t* path;
+  wchar_t* path = NULL;
   int size;
   BOOL result;
-  wchar_t* application_path, *application, *arguments, *env, *cwd;
+  wchar_t* application_path = NULL, *application = NULL, *arguments = NULL, *env = NULL, *cwd = NULL;
   HANDLE* child_stdio = process->child_stdio;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
+
+  if (!options.file) {
+    uv_set_error(loop, UV_EINVAL, 0);
+    return -1;
+  }
 
   uv_process_init(loop, process);
 

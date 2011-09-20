@@ -113,7 +113,7 @@
         'cflags_cc': [ '-fno-rtti', '-fno-exceptions' ],
         'ldflags': [ '-pthread', ],
         'conditions': [
-          [ 'target_arch=="ia32"', {
+          [ 'host_arch != target_arch and target_arch=="ia32"', {
             'cflags': [ '-m32' ],
             'ldflags': [ '-m32' ],
           }],

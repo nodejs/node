@@ -600,6 +600,11 @@ struct uv_tty_s {
   UV_TTY_PRIVATE_FIELDS
 };
 
+/*
+ * Returns 1 if file is associated with a Console/TTY 0 otherwise.
+ */
+int uv_is_tty(uv_file file);
+
 int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd);
 
 /*

@@ -20,25 +20,14 @@
  */
 
 #include "uv.h"
-#include "internal.h"
+#include "task.h"
 
-#include <assert.h>
+TEST_IMPL(tty) {
+  uv_loop_t* loop = uv_default_loop();
 
+  ASSERT(uv_is_tty(0) == 1);
 
-int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd) {
-  assert(0 && "implement me");
-  return -1;
-}
+  uv_run(loop);
 
-
-int uv_tty_set_mode(uv_tty_t* tty, int mode) {
-  assert(0 && "implement me");
-  return -1;
-}
-
-
-int uv_is_tty(uv_file file) {
-  DWORD result;
-  int r = GetConsoleMode((HANDLE)_get_osfhandle(file), &result);
-  return r ? 1 : 0;
+  return 0;
 }

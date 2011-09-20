@@ -679,8 +679,9 @@ int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
     uv_write_cb cb) {
   int empty_queue;
 
-  assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE)
-      && "uv_write (unix) does not yet support other types of streams");
+  assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
+      stream->type == UV_TTY) &&
+      "uv_write (unix) does not yet support other types of streams");
 
   if (stream->fd < 0) {
     uv_err_new(stream->loop, EBADF);
