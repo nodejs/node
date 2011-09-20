@@ -2130,6 +2130,7 @@ class Decipher : public ObjectWrap {
     int out_len;
     Local<Value> outString ;
 
+    out_value = NULL;
     int r = cipher->DecipherFinal(&out_value, &out_len, true);
 
     if (out_len == 0 || r == 0) {
