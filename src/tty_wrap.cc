@@ -39,7 +39,6 @@ class TTYWrap : StreamWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "write", StreamWrap::Write);
-    NODE_SET_PROTOTYPE_METHOD(t, "write", StreamWrap::Write);
 
     NODE_SET_METHOD(target, "isTTY", IsTTY);
 
