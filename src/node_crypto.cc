@@ -93,6 +93,8 @@ void SecureContext::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
   NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
   NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
+  NODE_SET_PROTOTYPE_METHOD(t, "setSessionIdContext",
+                               SecureContext::SetSessionIdContext);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
 
   target->Set(String::NewSymbol("SecureContext"), t->GetFunction());
@@ -470,6 +472,38 @@ Handle<Value> SecureContext::SetOptions(const Arguments& args) {
   unsigned int opts = args[0]->Uint32Value();
 
   SSL_CTX_set_options(sc->ctx_, opts);
+
+  return True();
+}
+
+Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
+  HandleScope scope;
+
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+
+  if (args.Length() != 1 || !args[0]->IsString()) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
+  }
+
+  String::Utf8Value sessionIdContext(args[0]->ToString());
+  const unsigned char* sid_ctx = (const unsigned char*) *sessionIdContext;
+  unsigned int sid_ctx_len = sessionIdContext.length();
+
+  int r = SSL_CTX_set_session_id_context(sc->ctx_, sid_ctx, sid_ctx_len);
+  if (r != 1) {
+    Local<String> message;
+    BIO* bio;
+    BUF_MEM* mem;
+    if ((bio = BIO_new(BIO_s_mem()))) {
+      ERR_print_errors(bio);
+      BIO_get_mem_ptr(bio, &mem);
+      message = String::New(mem->data, mem->length);
+      BIO_free(bio);
+    } else {
+      message = String::New("SSL_CTX_set_session_id_context error");
+    }
+    return ThrowException(Exception::TypeError(message));
+  }
 
   return True();
 }

@@ -171,6 +171,9 @@ has these possibilities:
     SecureContext). If `SNICallback` wasn't provided - default callback with
     high-level API will be used (see below).
 
+  - `sessionIdContext`: A string containing a opaque identifier for session
+    resumption. If `requestCert` is `true`, the default is MD5 hash value
+    generated from command-line. Otherwise, the default is not provided.
 
 #### Event: 'secureConnection'
 
