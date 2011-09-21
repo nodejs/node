@@ -117,7 +117,6 @@
         'src/node_stdio.h',
         'src/node_string.h',
         'src/node_version.h',
-        'src/node_zlib.h',
         'src/pipe_wrap.h',
         'src/platform.h',
         'src/req_wrap.h',
