@@ -4013,6 +4013,139 @@ PBKDF2(const Arguments& args) {
   return Undefined();
 }
 
+
+typedef int (*RandomBytesGenerator)(unsigned char* buf, int size);
+
+struct RandomBytesRequest {
+  ~RandomBytesRequest();
+  Persistent<Function> callback_;
+  unsigned long error_; // openssl error code or zero
+  uv_work_t work_req_;
+  size_t size_;
+  char* data_;
+};
+
+
+RandomBytesRequest::~RandomBytesRequest() {
+  if (!callback_.IsEmpty()) {
+    callback_.Dispose();
+    callback_.Clear();
+  }
+}
+
+
+void RandomBytesFree(char* data, void* hint) {
+  delete[] data;
+}
+
+
+template <RandomBytesGenerator generator>
+void RandomBytesWork(uv_work_t* work_req) {
+  RandomBytesRequest* req =
+      container_of(work_req, RandomBytesRequest, work_req_);
+
+  int r = generator(reinterpret_cast<unsigned char*>(req->data_), req->size_);
+
+  switch (r) {
+  case 0:
+    // RAND_bytes() returns 0 on error, RAND_pseudo_bytes() returns 0
+    // when the result is not cryptographically strong - the latter
+    // sucks but is not an error
+    if (generator == RAND_bytes)
+      req->error_ = ERR_get_error();
+    break;
+
+  case -1:
+    // not supported - can this actually happen?
+    req->error_ = (unsigned long) -1;
+    break;
+  }
+}
+
+
+void RandomBytesCheck(RandomBytesRequest* req, Handle<Value> argv[2]) {
+  HandleScope scope;
+
+  if (req->error_) {
+    char errmsg[256] = "Operation not supported";
+
+    if (req->error_ != (unsigned long) -1)
+      ERR_error_string_n(req->error_, errmsg, sizeof errmsg);
+
+    argv[0] = Exception::Error(String::New(errmsg));
+    argv[1] = Null();
+  }
+  else {
+    // avoids the malloc + memcpy
+    Buffer* buffer = Buffer::New(req->data_, req->size_, RandomBytesFree, NULL);
+    argv[0] = Null();
+    argv[1] = buffer->handle_;
+  }
+}
+
+
+template <RandomBytesGenerator generator>
+void RandomBytesAfter(uv_work_t* work_req) {
+  RandomBytesRequest* req =
+      container_of(work_req, RandomBytesRequest, work_req_);
+
+  HandleScope scope;
+  Handle<Value> argv[2];
+  RandomBytesCheck(req, argv);
+
+  TryCatch tc;
+  req->callback_->Call(Context::GetCurrent()->Global(), 2, argv);
+
+  if (tc.HasCaught())
+    FatalException(tc);
+
+  delete req;
+}
+
+
+template <RandomBytesGenerator generator>
+Handle<Value> RandomBytes(const Arguments& args) {
+  HandleScope scope;
+
+  // maybe allow a buffer to write to? cuts down on object creation
+  // when generating random data in a loop
+  if (!args[0]->IsUint32()) {
+    Local<String> s = String::New("Argument #1 must be number > 0");
+    return ThrowException(Exception::TypeError(s));
+  }
+
+  const size_t size = args[0]->Uint32Value();
+
+  RandomBytesRequest* req = new RandomBytesRequest();
+  req->error_ = 0;
+  req->data_ = new char[size];
+  req->size_ = size;
+
+  if (args[1]->IsFunction()) {
+    Local<Function> callback_v = Local<Function>(Function::Cast(*args[1]));
+    req->callback_ = Persistent<Function>::New(callback_v);
+
+    uv_queue_work(uv_default_loop(),
+                  &req->work_req_,
+                  RandomBytesWork<generator>,
+                  RandomBytesAfter<generator>);
+
+    return Undefined();
+  }
+  else {
+    Handle<Value> argv[2];
+    RandomBytesWork<generator>(&req->work_req_);
+    RandomBytesCheck(req, argv);
+    delete req;
+
+    if (!argv[0]->IsNull())
+      return ThrowException(argv[0]);
+    else
+      return argv[1];
+  }
+}
+
+
 void InitCrypto(Handle<Object> target) {
   HandleScope scope;
 
@@ -4046,6 +4179,8 @@ void InitCrypto(Handle<Object> target) {
   Verify::Initialize(target);
 
   NODE_SET_METHOD(target, "PBKDF2", PBKDF2);
+  NODE_SET_METHOD(target, "randomBytes", RandomBytes<RAND_bytes>);
+  NODE_SET_METHOD(target, "pseudoRandomBytes", RandomBytes<RAND_pseudo_bytes>);
 
   subject_symbol    = NODE_PSYMBOL("subject");
   issuer_symbol     = NODE_PSYMBOL("issuer");

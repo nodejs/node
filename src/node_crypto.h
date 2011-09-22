@@ -34,6 +34,7 @@
 #include <openssl/x509.h>
 #include <openssl/x509v3.h>
 #include <openssl/hmac.h>
+#include <openssl/rand.h>
 
 #ifdef OPENSSL_NPN_NEGOTIATED
 #include <node_buffer.h>
