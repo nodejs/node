@@ -238,3 +238,21 @@ Sets the Diffie-Hellman private key. Key encoding can be `'binary'`, `'hex'`, or
 Asynchronous PBKDF2 applies pseudorandom function HMAC-SHA1 to derive
 a key of given length from the given password, salt and iterations.
 The callback gets two arguments `(err, derivedKey)`.
+
+### randomBytes(size, [callback])
+
+Generates cryptographically strong pseudo-random data. Usage:
+
+    // async
+    crypto.randomBytes(256, function(ex, buf) {
+      if (ex) throw ex;
+      console.log('Have %d bytes of random data: %s', buf.length, buf);
+    });
+
+    // sync
+    try {
+      var buf = crypto.randomBytes(256);
+      console.log('Have %d bytes of random data: %s', buf.length, buf);
+    } catch (ex) {
+      // handle error
+    }
