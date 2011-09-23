@@ -54,11 +54,37 @@ class TTYWrap : StreamWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "setRawMode", SetRawMode);
 
     NODE_SET_METHOD(target, "isTTY", IsTTY);
+    NODE_SET_METHOD(target, "guessHandleType", GuessHandleType);
 
     target->Set(String::NewSymbol("TTY"), t->GetFunction());
   }
 
  private:
+  static Handle<Value> GuessHandleType(const Arguments& args) {
+    HandleScope scope;
+    int fd = args[0]->Int32Value();
+    assert(fd >= 0);
+
+    uv_handle_type t = uv_guess_handle(fd);
+
+    switch (t) {
+      case UV_TTY:
+        return String::New("TTY");
+
+      case UV_NAMED_PIPE:
+        return String::New("PIPE");
+
+      case UV_FILE:
+        return String::New("FILE");
+
+      default:
+        assert(0);
+        return v8::Undefined();
+    }
+    return uv_is_tty(fd) ? v8::True() : v8::False();
+
+  }
+
   static Handle<Value> IsTTY(const Arguments& args) {
     HandleScope scope;
     int fd = args[0]->Int32Value();
