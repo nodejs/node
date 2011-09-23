@@ -272,6 +272,9 @@ def configure(conf):
 
   conf.env["USE_GDBJIT"] = o.use_gdbjit
 
+  if not conf.env["USE_SHARED_ZLIB"] and not sys.platform.startswith("win32"):
+    conf.env.append_value("LINKFLAGS", "-lz")
+
   conf.check(lib='dl', uselib_store='DL')
   if not sys.platform.startswith("sunos") and not sys.platform.startswith("cygwin") and not sys.platform.startswith("win32"):
     conf.env.append_value("CCFLAGS", "-rdynamic")
