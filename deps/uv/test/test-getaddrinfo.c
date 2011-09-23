@@ -45,6 +45,7 @@ static void getaddrinfo_basic_cb(uv_getaddrinfo_t* handle,
   ASSERT(handle == getaddrinfo_handle);
   getaddrinfo_cbs++;
   free(handle);
+  uv_freeaddrinfo(res);
 }
 
 
@@ -65,6 +66,7 @@ static void getaddrinfo_cuncurrent_cb(uv_getaddrinfo_t* handle,
   ASSERT (i < CONCURRENT_COUNT);
 
   free(data);
+  uv_freeaddrinfo(res);
 
   getaddrinfo_cbs++;
 }

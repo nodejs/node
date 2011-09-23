@@ -31,12 +31,10 @@ TEST_IMPL(tty) {
    * Not necessarally a problem if this assert goes off. E.G you are piping
    * this test to a file. 0 == stdin.
    */
-  ASSERT(uv_is_tty(0) == 1);
+  ASSERT(UV_TTY == uv_guess_handle(0));
 
   r = uv_tty_init(uv_default_loop(), &tty, 0);
   ASSERT(r == 0);
-
-  ASSERT(UV_TTY == uv_guess_handle(0));
 
   r = uv_tty_get_winsize(&tty, &width, &height);
   ASSERT(r == 0);

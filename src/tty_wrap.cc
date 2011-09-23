@@ -50,7 +50,7 @@ class TTYWrap : StreamWrap {
     HandleScope scope;
     int fd = args[0]->Int32Value();
     assert(fd >= 0);
-    return uv_is_tty(fd) ? v8::True() : v8::False();
+    return uv_guess_handle(fd) == UV_TTY ? v8::True() : v8::False();
   }
 
   static Handle<Value> New(const Arguments& args) {

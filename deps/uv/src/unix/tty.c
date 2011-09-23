@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <termios.h>
 #include <errno.h>
+#include <sys/ioctl.h>
 
 
 int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, int fd) {
@@ -66,11 +67,6 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
 fatal:
   uv_err_new(tty->loop, ENOTTY);
   return -1;
-}
-
-
-int uv_is_tty(uv_file file) {
-  return isatty(file);
 }
 
 

@@ -216,12 +216,17 @@ complete:
   /* finally do callback with converted result */
   handle->getaddrinfo_cb(handle, uv_ret, (struct addrinfo*)alloc_ptr);
 
+  uv_unref(loop);
+}
+
+
+void uv_freeaddrinfo(struct addrinfo* ai) {
+  char* alloc_ptr = (char*)ai;
+
   /* release copied result memory */
   if (alloc_ptr != NULL) {
     free(alloc_ptr);
   }
-
-  uv_unref(loop);
 }
 
 

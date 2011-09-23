@@ -52,6 +52,8 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* handle, int status,
   if (calls_initiated < TOTAL_CALLS) {
     getaddrinfo_initiate(handle);
   }
+
+  uv_freeaddrinfo(res);
 }
 
 

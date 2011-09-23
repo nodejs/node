@@ -612,11 +612,6 @@ struct uv_tty_s {
   UV_TTY_PRIVATE_FIELDS
 };
 
-/*
- * Returns 1 if file is associated with a Console/TTY 0 otherwise.
- */
-int uv_is_tty(uv_file file);
-
 int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd);
 
 /*
@@ -633,6 +628,7 @@ int uv_tty_get_winsize(uv_tty_t*, int* width, int* height);
  * Used to detect what type of stream should be used with a given file
  * descriptor. Usually this will be used during initialization to guess the
  * type of the stdio streams.
+ * For isatty() functionality use this function and test for UV_TTY.
  */
 uv_handle_type uv_guess_handle(uv_file file);
 
@@ -807,8 +803,10 @@ struct uv_getaddrinfo_s {
  *
  * Return code 0 means that request is accepted and callback will be called
  * with result. Other return codes mean that there will not be a callback.
- * Input arguments may be released after return from this call. Callback
- * must not call freeaddrinfo.
+ * Input arguments may be released after return from this call.
+ *
+ * uv_freeaddrinfo() must be called after completion to free the addrinfo
+ * structure.
  */
  int uv_getaddrinfo(uv_loop_t*,
                     uv_getaddrinfo_t* handle,
@@ -816,6 +814,8 @@ struct uv_getaddrinfo_s {
                     const char* node,
                     const char* service,
                     const struct addrinfo* hints);
+
+void uv_freeaddrinfo(struct addrinfo* ai);
 
 /* uv_spawn() options */
 typedef struct uv_process_options_s {

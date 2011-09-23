@@ -19,6 +19,7 @@
  */
 
 #include "uv.h"
+#include "internal.h"
 
 #include <assert.h>
 #include <stdint.h>

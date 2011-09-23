@@ -600,8 +600,6 @@ static int uv_getaddrinfo_done(eio_req* req) {
 
   handle->cb(handle, handle->retcode, res);
 
-  freeaddrinfo(res);
-
   return 0;
 }
 
@@ -665,6 +663,11 @@ int uv_getaddrinfo(uv_loop_t* loop,
   assert(req->data == handle);
 
   return 0;
+}
+
+
+void uv_freeaddrinfo(struct addrinfo* ai) {
+  freeaddrinfo(ai);
 }
 
 
