@@ -165,6 +165,10 @@ void uv_process_reqs(uv_loop_t* loop) {
         uv_process_work_req(loop, (uv_work_t*) req);
         break;
 
+      case UV_FS_EVENT_REQ:
+        uv_process_fs_event_req(loop, req, (uv_fs_event_t*) req->data);
+        break;
+
       default:
         assert(0);
     }

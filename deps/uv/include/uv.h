@@ -65,6 +65,8 @@ typedef struct uv_write_s uv_write_t;
 typedef struct uv_connect_s uv_connect_t;
 typedef struct uv_udp_send_s uv_udp_send_t;
 typedef struct uv_fs_s uv_fs_t;
+/* uv_fs_event_t is a subclass of uv_handle_t. */
+typedef struct uv_fs_event_s uv_fs_event_t;
 typedef struct uv_work_s uv_work_t;
 
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
@@ -137,6 +139,15 @@ typedef void (*uv_fs_cb)(uv_fs_t* req);
 typedef void (*uv_work_cb)(uv_work_t* req);
 typedef void (*uv_after_work_cb)(uv_work_t* req);
 
+/*
+* This will be called repeatedly after the uv_fs_event_t is initialized.
+* If uv_fs_event_t was initialized with a directory the filename parameter
+* will be a relative path to a file contained in the directory.
+* The events paramenter is an ORed mask of enum uv_fs_event elements.
+*/
+typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
+    int events, int status);
+
 
 /* Expand this list if necessary. */
 typedef enum {
@@ -201,7 +212,8 @@ typedef enum {
   UV_ASYNC,
   UV_ARES_TASK,
   UV_ARES_EVENT,
-  UV_PROCESS
+  UV_PROCESS,
+  UV_FS_EVENT
 } uv_handle_type;
 
 typedef enum {
@@ -612,6 +624,17 @@ int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd);
  */
 int uv_tty_set_mode(uv_tty_t*, int mode);
 
+/*
+ * Gets the current Window size. On success zero is returned.
+ */
+int uv_tty_get_winsize(uv_tty_t*, int* width, int* height);
+
+/*
+ * Used to detect what type of stream should be used with a given file
+ * descriptor. Usually this will be used during initialization to guess the
+ * type of the stdio streams.
+ */
+uv_handle_type uv_guess_handle(uv_file file);
 
 /*
  * uv_pipe_t is a subclass of uv_stream_t
@@ -1002,6 +1025,27 @@ int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, int uid,
     int gid, uv_fs_cb cb);
 
 
+enum uv_fs_event {
+  UV_RENAME = 1,
+  UV_CHANGE = 2
+};
+
+
+struct uv_fs_event_s {
+  UV_HANDLE_FIELDS
+  char* filename;
+  UV_FS_EVENT_PRIVATE_FIELDS
+};
+
+
+/*
+* If filename is a directory then we will watch for all events in that
+* directory. If filename is a file - we will only get events from that
+* file. Subdirectories are not watched.
+*/
+int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
+    const char* filename, uv_fs_event_cb cb);
+
 /* Utility */
 
 /* Convert string ip addresses to binary structures */
@@ -1037,6 +1081,7 @@ union uv_any_handle {
   uv_async_t async;
   uv_timer_t timer;
   uv_getaddrinfo_t getaddrinfo;
+  uv_fs_event_t fs_event;
 };
 
 union uv_any_req {
@@ -1064,6 +1109,7 @@ struct uv_counters_s {
   uint64_t async_init;
   uint64_t timer_init;
   uint64_t process_init;
+  uint64_t fs_event_init;
 };
 
 
@@ -1097,6 +1143,7 @@ struct uv_loop_s {
 #undef UV_GETADDRINFO_PRIVATE_FIELDS
 #undef UV_FS_REQ_PRIVATE_FIELDS
 #undef UV_WORK_PRIVATE_FIELDS
+#undef UV_FS_EVENT_PRIVATE_FIELDS
 
 #ifdef __cplusplus
 }

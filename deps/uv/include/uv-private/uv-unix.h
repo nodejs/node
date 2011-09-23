@@ -27,6 +27,10 @@
 #include "ev.h"
 #include "eio.h"
 
+#if defined(__linux__)
+#include "uv-private/uv-linux.h"
+#endif
+
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netdb.h>
@@ -41,6 +45,11 @@ typedef struct {
 } uv_buf_t;
 
 typedef int uv_file;
+
+/* Stub. Remove it once all platforms support the file watcher API. */
+#ifndef UV_FS_EVENT_PRIVATE_FIELDS
+#define UV_FS_EVENT_PRIVATE_FIELDS /* empty */
+#endif
 
 #define UV_LOOP_PRIVATE_FIELDS \
   ares_channel channel; \

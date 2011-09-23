@@ -20,7 +20,10 @@
 
 #include "uv.h"
 
+#include <assert.h>
 #include <stdint.h>
+#include <errno.h>
+
 #include <CoreServices/CoreServices.h>
 #include <mach/mach.h>
 #include <mach/mach_time.h>
@@ -62,4 +65,18 @@ int uv_exepath(char* buffer, size_t* size) {
   free(fullpath);
   *size = strlen(buffer);
   return 0;
+}
+
+
+int uv_fs_event_init(uv_loop_t* loop,
+                     uv_fs_event_t* handle,
+                     const char* filename,
+                     uv_fs_event_cb cb) {
+  uv_err_new(loop, ENOSYS);
+  return -1;
+}
+
+
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  assert(0 && "implement me");
 }

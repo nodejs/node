@@ -1,4 +1,5 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -18,60 +19,11 @@
  * IN THE SOFTWARE.
  */
 
-#include "uv.h"
+#ifndef UV_LINUX_H
+#define UV_LINUX_H
 
-#include <stdio.h>
-#include <stdint.h>
-#include <assert.h>
-#include <errno.h>
+#define UV_FS_EVENT_PRIVATE_FIELDS \
+  ev_io read_watcher; \
+  uv_fs_event_cb cb; \
 
-#include <sys/time.h>
-#include <unistd.h>
-
-
-uint64_t uv_hrtime() {
-  return (gethrtime());
-}
-
-
-/*
- * We could use a static buffer for the path manipulations that we need outside
- * of the function, but this function could be called by multiple consumers and
- * we don't want to potentially create a race condition in the use of snprintf.
- */
-int uv_exepath(char* buffer, size_t* size) {
-  ssize_t res;
-  pid_t pid;
-  char buf[128];
-
-  if (buffer == NULL)
-    return (-1);
-
-  if (size == NULL)
-    return (-1);
-
-  pid = getpid();
-  (void) snprintf(buf, sizeof (buf), "/proc/%d/path/a.out", pid);
-  res = readlink(buf, buffer, *size - 1);
-
-  if (res < 0)
-    return (res);
-
-  buffer[res] = '\0';
-  *size = res;
-  return (0);
-}
-
-
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb) {
-  uv_err_new(loop, ENOSYS);
-  return -1;
-}
-
-
-void uv__fs_event_destroy(uv_fs_event_t* handle) {
-  assert(0 && "implement me");
-}
+#endif /* UV_LINUX_H */

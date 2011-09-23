@@ -86,7 +86,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   UV_GETADDRINFO_REQ,                     \
   UV_PROCESS_EXIT,                        \
   UV_PROCESS_CLOSE,                       \
-  UV_UDP_RECV
+  UV_UDP_RECV,                            \
+  UV_FS_EVENT_REQ
 
 #define UV_REQ_PRIVATE_FIELDS             \
   union {                                 \
@@ -261,6 +262,16 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define UV_WORK_PRIVATE_FIELDS            \
 
+#define UV_FS_EVENT_PRIVATE_FIELDS        \
+  struct uv_fs_event_req_s {              \
+    UV_REQ_FIELDS                         \
+  } req;                                  \
+  HANDLE dir_handle;                      \
+  int req_pending;                        \
+  uv_fs_event_cb cb;                      \
+  wchar_t* filew;                         \
+  int is_path_dir;                        \
+  char* buffer;
 
 #define UV_TTY_PRIVATE_FIELDS /* empty */
 

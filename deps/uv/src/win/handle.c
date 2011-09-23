@@ -120,6 +120,10 @@ void uv_close(uv_handle_t* handle, uv_close_cb cb) {
       uv_process_close(loop, process);
       return;
 
+    case UV_FS_EVENT:
+      uv_fs_event_close(loop, (uv_fs_event_t*)handle);
+      return;
+
     default:
       /* Not supported */
       abort();
@@ -175,6 +179,10 @@ void uv_process_endgames(uv_loop_t* loop) {
 
       case UV_PROCESS:
         uv_process_endgame(loop, (uv_process_t*) handle);
+        break;
+
+      case UV_FS_EVENT:
+        uv_fs_event_endgame(loop, (uv_fs_event_t*) handle);
         break;
 
       default:

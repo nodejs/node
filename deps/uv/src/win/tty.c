@@ -42,3 +42,15 @@ int uv_is_tty(uv_file file) {
   int r = GetConsoleMode((HANDLE)_get_osfhandle(file), &result);
   return r ? 1 : 0;
 }
+
+
+int uv_tty_get_winsize(uv_tty_t* tty, int* width, int* height) {
+  assert(0 && "implement me");
+  return -1;
+}
+
+
+uv_handle_type uv_guess_handle(uv_file file) {
+  assert(0 && "implement me");
+  return UV_UNKNOWN_HANDLE;
+}

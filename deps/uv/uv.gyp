@@ -103,6 +103,7 @@
             'src/win/core.c',
             'src/win/error.c',
             'src/win/fs.c',
+            'src/win/fs-event.c',
             'src/win/getaddrinfo.c',
             'src/win/handle.c',
             'src/win/internal.h',
@@ -238,6 +239,7 @@
         'test/test-delayed-accept.c',
         'test/test-fail-always.c',
         'test/test-fs.c',
+        'test/test-fs-event.c',
         'test/test-get-currentexe.c',
         'test/test-getaddrinfo.c',
         'test/test-gethostbyname.c',
@@ -333,4 +335,5 @@
     }
   ]
 }
+
 
