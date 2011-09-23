@@ -6,16 +6,6 @@
 
 namespace node {
 
-#define UNWRAP \
-  assert(!args.Holder().IsEmpty()); \
-  assert(args.Holder()->InternalFieldCount() > 0); \
-  TTYWrap* wrap =  \
-      static_cast<TTYWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
-  if (!wrap) { \
-    SetErrno(UV_EBADF); \
-    return scope.Close(Integer::New(-1)); \
-  }
-
 using v8::Object;
 using v8::Handle;
 using v8::Local;
@@ -30,6 +20,16 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 using v8::Undefined;
+
+#define UNWRAP \
+  assert(!args.Holder().IsEmpty()); \
+  assert(args.Holder()->InternalFieldCount() > 0); \
+  TTYWrap* wrap =  \
+      static_cast<TTYWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
+  if (!wrap) { \
+    SetErrno(UV_EBADF); \
+    return scope.Close(Integer::New(-1)); \
+  }
 
 
 class TTYWrap : StreamWrap {
@@ -115,15 +115,7 @@ class TTYWrap : StreamWrap {
   static Handle<Value> SetRawMode(const Arguments& args) {
     HandleScope scope;
 
-    assert(!args.Holder().IsEmpty());
-    assert(args.Holder()->InternalFieldCount() > 0);
-    TTYWrap* wrap =
-        static_cast<TTYWrap*>(args.Holder()->GetPointerFromInternalField(0));
-
-    if (!wrap) {
-      SetErrno(UV_EBADF);
-      return scope.Close(Integer::New(-1));
-    }
+    UNWRAP
 
     int r = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
 
