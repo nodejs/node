@@ -108,10 +108,10 @@
 
     } else {
       var binding = process.binding('stdio');
-      var fd = binding.openStdin();
       var Module = NativeModule.require('module');
 
-      if (NativeModule.require('tty').isatty(fd)) {
+      // If stdin is a TTY.
+      if (NativeModule.require('tty').isatty(0)) {
         // REPL
         Module.requireRepl().start();
 
