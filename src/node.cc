@@ -2362,6 +2362,7 @@ static void EnableDebug(bool wait_connect) {
 }
 
 
+#ifdef __POSIX__
 static void EnableDebugSignalHandler(int signal) {
   // Break once process will return execution to v8
   v8::Debug::DebugBreak();
@@ -2371,6 +2372,23 @@ static void EnableDebugSignalHandler(int signal) {
     EnableDebug(false);
   }
 }
+#endif // __POSIX__
+
+#if defined(__MINGW32__) || defined(_MSC_VER)
+static bool EnableDebugSignalHandler(DWORD signal) {
+  if (signal != CTRL_BREAK_EVENT) return false;
+
+  // Break once process will return execution to v8
+  v8::Debug::DebugBreak();
+
+  if (!debugger_running) {
+    fprintf(stderr, "Hit Ctrl+Break - starting debugger agent.\n");
+    EnableDebug(false);
+  }
+
+  return true;
+}
+#endif
 
 
 #ifdef __POSIX__
@@ -2474,6 +2492,9 @@ char** Init(int argc, char *argv[]) {
 #ifdef __POSIX__
     RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
 #endif // __POSIX__
+#if defined(__MINGW32__) || defined(_MSC_VER)
+    SetConsoleCtrlHandler((PHANDLER_ROUTINE) EnableDebugSignalHandler, TRUE);
+#endif
   }
 
   return argv;
