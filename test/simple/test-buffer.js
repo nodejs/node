@@ -689,3 +689,16 @@ buf.write('123456', 'base64');
 assert.equal(Buffer._charsWritten, 6);
 buf.write('00010203040506070809', 'hex');
 assert.equal(Buffer._charsWritten, 18);
+
+// Check for fractional length args, junk length args, etc.
+// https://github.com/joyent/node/issues/1758
+Buffer(3.3).toString(); // throws bad argument error in commit 43cb4ec
+assert.equal(Buffer(-1).length, 0);
+assert.equal(Buffer(NaN).length, 0);
+assert.equal(Buffer(3.3).length, 4);
+assert.equal(Buffer({length:3.3}).length, 4);
+assert.equal(Buffer({length:"BAM"}).length, 0);
+
+// Make sure that strings are not coerced to numbers.
+assert.equal(Buffer("99").length, 2);
+assert.equal(Buffer("13.37").length, 5);
