@@ -2356,14 +2356,17 @@ static void EnableDebug(bool wait_connect) {
 
   // Print out some information.
   fprintf(stderr, "debugger listening on port %d", debug_port);
+
+  debugger_running = true;
 }
 
 
 static volatile bool hit_signal;
+static volatile bool debugger_running = false;
 
 
 static void DebugSignalCB(const Debug::EventDetails& details) {
-  if (hit_signal && details.GetEvent() == v8::Break) {
+  if (!debugger_running && hit_signal && details.GetEvent() == v8::Break) {
     hit_signal = false;
     fprintf(stderr, "Hit SIGUSR1 - starting debugger agent.\n");
     EnableDebug(false);
