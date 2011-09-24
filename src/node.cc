@@ -2338,6 +2338,7 @@ static void ParseArgs(int argc, char **argv) {
   option_end_index = i;
 }
 
+static volatile bool debugger_running = false;
 
 static void EnableDebug(bool wait_connect) {
   // Start the debug thread and it's associated TCP server on port 5858.
@@ -2362,7 +2363,6 @@ static void EnableDebug(bool wait_connect) {
 
 
 static volatile bool hit_signal;
-static volatile bool debugger_running = false;
 
 
 static void DebugSignalCB(const Debug::EventDetails& details) {
