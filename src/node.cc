@@ -2356,29 +2356,20 @@ static void EnableDebug(bool wait_connect) {
   assert(r);
 
   // Print out some information.
-  fprintf(stderr, "debugger listening on port %d", debug_port);
+  fprintf(stderr, "debugger listening on port %d\n", debug_port);
 
   debugger_running = true;
 }
 
 
-static volatile bool hit_signal;
+static void EnableDebugSignalHandler(int signal) {
+  // Break once process will return execution to v8
+  v8::Debug::DebugBreak();
 
-
-static void DebugSignalCB(const Debug::EventDetails& details) {
-  if (!debugger_running && hit_signal && details.GetEvent() == v8::Break) {
-    hit_signal = false;
+  if (!debugger_running) {
     fprintf(stderr, "Hit SIGUSR1 - starting debugger agent.\n");
     EnableDebug(false);
   }
-}
-
-
-static void EnableDebugSignalHandler(int signal) {
-  // This is signal safe.
-  hit_signal = true;
-  v8::Debug::SetDebugEventListener2(DebugSignalCB);
-  v8::Debug::DebugBreak();
 }
 
 
