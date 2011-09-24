@@ -8,34 +8,37 @@ http://nodejs.org/
 
 ## Features
 
-Implemented Features:
+Implemented:
 
- * Non-blocking sockets and pipes
+ * Non-blocking TCP sockets
 
- * Timers
+ * Non-blocking named pipes
 
  * UDP
 
+ * Timers
+
  * Child process spawning
 
- * Asynchronous DNS via c-ares or getaddrinfo.
+ * Asynchronous DNS via c-ares or `uv_getaddrinfo`.
 
- * Asynchronous file system APIs (uv_fs_*)
+ * Asynchronous file system APIs `uv_fs_*`
 
- * High resolution time (uv_hrtime)
+ * High resolution time `uv_hrtime`
 
- * Current executable path look up (uv_exepath)
+ * Current executable path look up `uv_exepath`
 
- * Thread pool scheduling (uv_queue_work)
+ * Thread pool scheduling `uv_queue_work`
 
-Work in progress:
+In-progress:
 
- * File system events (Currently supports inotify, ReadDirectoryChangesW and
-   will support kqueue and event ports in the near future.)
+ * File system events (Currently supports inotify, `ReadDirectoryChangesW`
+   and will support kqueue and event ports in the near future.)
+   `uv_fs_event_t`
 
- * TTY support (with VT100 emulation on Windows - work in progress) 
+ * VT100 TTY `uv_tty_t`
 
- * Socket sharing between processes
+ * Socket sharing between processes `uv_ipc_t`
 
 
 ## Documentation
@@ -58,7 +61,7 @@ To build with Visual Studio run the vcbuilds.bat file which will
 checkout the GYP code into build/gyp and generate the uv.sln and
 related files.
 
-Windows users can also build from cmd-line using msbuild.  This is 
+Windows users can also build from cmd-line using msbuild.  This is
 done by running vcbuild.bat from Visual Studio command prompt.
 
 To have GYP generate build script for another system you will need to
