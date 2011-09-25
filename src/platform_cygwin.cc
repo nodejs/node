@@ -340,6 +340,8 @@ double Platform::GetUptimeImpl() {
   char line[512];
   FILE *fpUptime = fopen("/proc/uptime", "r");
 
+  amount = 0;
+
   if (fpUptime) {
     if (fgets(line, 511, fpUptime) != NULL) {
       sscanf(line, "%lf %*lf", &amount);
