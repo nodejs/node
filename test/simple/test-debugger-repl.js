@@ -43,6 +43,7 @@ child.stderr.pipe(process.stdout);
 var expected = [];
 
 child.on('line', function(line) {
+  console.log(JSON.stringify(line));
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
   var expectedLine = expected[0].lines.shift();
@@ -108,6 +109,21 @@ addTest('o', [
   "\b 14 a(1);",
   "\b 15 b();",
   "\b 16 b();"
+]);
+
+// Continue
+addTest('c', [
+ "debug> debug> debug> \bbreak in [unnamed]:7",
+  "\b  5   var i = 10;",
+  "\b  6   while (--i != 0);",
+  "\b  7   debugger;",
+  "\b  8   return i;",
+  "\b  9 };"
+]);
+
+// Continue
+addTest('c, bt', [
+  "debug> \bCan't request backtrace now"
 ]);
 
 
