@@ -78,25 +78,26 @@ if (!process.features.uv)  {
     case 'fs':
       expected = expected.concat([
         'NativeModule console',
+        'Binding tty_wrap',
       ]);
       break;
 
     case 'tty':
       expected = expected.concat([
         'NativeModule console',
-        'NativeModule tty',
-        'NativeModule tty_posix',
+        'Binding tty_wrap',
+        'NativeModule tty_uv',
         'NativeModule net_uv',
         'NativeModule timers_uv',
         'Binding timer_wrap',
-        'NativeModule _linklist',
-        'Binding pipe_wrap',
+        'NativeModule _linklist'
       ]);
       break;
 
     case 'pipe':
       expected = expected.concat([
         'NativeModule console',
+        'Binding tty_wrap',
         'NativeModule net_uv',
         'NativeModule timers_uv',
         'Binding timer_wrap',
