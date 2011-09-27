@@ -21,6 +21,16 @@ using v8::Arguments;
 using v8::Integer;
 using v8::Undefined;
 
+#define UNWRAP \
+  assert(!args.Holder().IsEmpty()); \
+  assert(args.Holder()->InternalFieldCount() > 0); \
+  TTYWrap* wrap =  \
+      static_cast<TTYWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
+  if (!wrap) { \
+    SetErrno(UV_EBADF); \
+    return scope.Close(Integer::New(-1)); \
+  }
+
 
 class TTYWrap : StreamWrap {
  public:
@@ -40,17 +50,78 @@ class TTYWrap : StreamWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);
     NODE_SET_PROTOTYPE_METHOD(t, "write", StreamWrap::Write);
 
+    NODE_SET_PROTOTYPE_METHOD(t, "getWindowSize", TTYWrap::GetWindowSize);
+    NODE_SET_PROTOTYPE_METHOD(t, "setRawMode", SetRawMode);
+
     NODE_SET_METHOD(target, "isTTY", IsTTY);
+    NODE_SET_METHOD(target, "guessHandleType", GuessHandleType);
 
     target->Set(String::NewSymbol("TTY"), t->GetFunction());
   }
 
  private:
+  static Handle<Value> GuessHandleType(const Arguments& args) {
+    HandleScope scope;
+    int fd = args[0]->Int32Value();
+    assert(fd >= 0);
+
+    uv_handle_type t = uv_guess_handle(fd);
+
+    switch (t) {
+      case UV_TTY:
+        return scope.Close(String::New("TTY"));
+
+      case UV_NAMED_PIPE:
+        return scope.Close(String::New("PIPE"));
+
+      case UV_FILE:
+        return scope.Close(String::New("FILE"));
+
+      default:
+        assert(0);
+        return v8::Undefined();
+    }
+  }
+
   static Handle<Value> IsTTY(const Arguments& args) {
     HandleScope scope;
     int fd = args[0]->Int32Value();
     assert(fd >= 0);
     return uv_guess_handle(fd) == UV_TTY ? v8::True() : v8::False();
+  }
+
+  static Handle<Value> GetWindowSize(const Arguments& args) {
+    HandleScope scope;
+    
+    UNWRAP
+
+    int width, height;
+    int r = uv_tty_get_winsize(&wrap->handle_, &width, &height);
+
+    if (r) {
+      SetErrno(uv_last_error(uv_default_loop()).code);
+      return v8::Undefined();
+    }
+
+    Local<v8::Array> a = v8::Array::New(2);
+    a->Set(0, Integer::New(width));
+    a->Set(1, Integer::New(height));
+
+    return scope.Close(a);
+  }
+
+  static Handle<Value> SetRawMode(const Arguments& args) {
+    HandleScope scope;
+
+    UNWRAP
+
+    int r = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
+
+    if (r) {
+      SetErrno(uv_last_error(uv_default_loop()).code);
+    }
+
+    return scope.Close(Integer::New(r));
   }
 
   static Handle<Value> New(const Arguments& args) {

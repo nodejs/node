@@ -128,7 +128,9 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
       }
       handle->shutdown_req->cb(handle->shutdown_req, status);
     }
-    handle->reqs_pending--;
+
+    DECREASE_PENDING_REQ_COUNT(handle);
+    return;
   }
 
   if (handle->flags & UV_HANDLE_CLOSING &&

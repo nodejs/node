@@ -130,3 +130,43 @@ TEST_IMPL(timer) {
 
   return 0;
 }
+
+
+TEST_IMPL(timer_ref) {
+  uv_timer_t never;
+  int r;
+
+  /* A timer just initialized should count as one reference. */
+  r = uv_timer_init(uv_default_loop(), &never);
+  ASSERT(r == 0);
+
+  /* One unref should set the loop ref count to zero. */
+  uv_unref(uv_default_loop());
+
+  /* Therefore this does not block */
+  uv_run(uv_default_loop());
+
+  return 0;
+}
+
+
+TEST_IMPL(timer_ref2) {
+  uv_timer_t never;
+  int r;
+
+  /* A timer just initialized should count as one reference. */
+  r = uv_timer_init(uv_default_loop(), &never);
+  ASSERT(r == 0);
+
+  /* We start the timer, this should not effect the ref count. */
+  r = uv_timer_start(&never, never_cb, 1000, 1000);
+  ASSERT(r == 0);
+
+  /* One unref should set the loop ref count to zero. */
+  uv_unref(uv_default_loop());
+
+  /* Therefore this does not block */
+  uv_run(uv_default_loop());
+
+  return 0;
+}

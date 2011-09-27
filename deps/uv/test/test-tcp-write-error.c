@@ -35,10 +35,15 @@ static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size);
 static uv_tcp_t tcp_server;
 static uv_tcp_t tcp_client;
 static uv_tcp_t tcp_peer; /* client socket as accept()-ed by server */
-static uv_write_t write_req;
 static uv_connect_t connect_req;
 
 static int write_cb_called;
+static int write_cb_error_called;
+ 
+typedef struct {
+  uv_write_t req;
+  uv_buf_t buf;
+} write_req_t;
 
 
 static void connection_cb(uv_stream_t* server, int status) {
@@ -75,40 +80,47 @@ static void connect_cb(uv_connect_t* req, int status) {
   size_t size;
   char* data;
   int r;
+  write_req_t* wr;
 
   ASSERT(req == &connect_req);
   ASSERT(status == 0);
 
-  size = 10*1024*1024;
-  data = malloc(size);
-  ASSERT(data != NULL);
-
-  memset(data, '$', size);
-  buf = uv_buf_init(data, size);
-
-  write_req.data = data;
-
-  r = uv_write(&write_req, req->handle, &buf, 1, write_cb);
-  ASSERT(r == 0);
-
-  /* Write queue should have been updated. */
-  ASSERT(req->handle->write_queue_size > 0);
-
-  /* write_queue_size <= size, part may have already been written. */
-  ASSERT(req->handle->write_queue_size <= size);
+  while (1) {
+    size = 10 * 1024 * 1024;
+    data = malloc(size);
+    ASSERT(data != NULL);
+ 
+    memset(data, '$', size);
+    buf = uv_buf_init(data, size);
+ 
+    wr = (write_req_t*) malloc(sizeof *wr);
+    wr->buf = buf;
+    wr->req.data = data;
+ 
+    r = uv_write(&(wr->req), req->handle, &wr->buf, 1, write_cb);
+    ASSERT(r == 0);
+ 
+    if (req->handle->write_queue_size > 0) {
+      break;
+    }
+  }
 }
 
 
 static void write_cb(uv_write_t* req, int status) {
-  ASSERT(req == &write_req);
-  ASSERT(status == -1);
+  write_req_t* wr;
+  wr = (write_req_t*) req;
 
-  /* This is what this test is all about. */
-  ASSERT(tcp_client.write_queue_size == 0);
+  if (status == -1) {
+    write_cb_error_called++;
+  }
 
-  free(write_req.data);
+  if (req->handle->write_queue_size == 0) {
+    uv_close((uv_handle_t*)&tcp_client, NULL);
+  }
 
-  uv_close((uv_handle_t*)&tcp_client, NULL);
+  free(wr->buf.base);
+  free(wr);
 
   write_cb_called++;
 }
@@ -148,7 +160,9 @@ TEST_IMPL(tcp_write_error) {
   r = uv_run(loop);
   ASSERT(r == 0);
 
-  ASSERT(write_cb_called == 1);
+  ASSERT(write_cb_called > 0);
+  ASSERT(write_cb_error_called == 1);
+  ASSERT(tcp_client.write_queue_size == 0);
 
   return 0;
 }

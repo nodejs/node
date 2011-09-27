@@ -32,6 +32,11 @@
             'LinkIncremental': 2, # enable incremental linking
           },
         },
+        'conditions': [
+          ['OS != "win"', {
+            'defines': [ 'EV_VERIFY=2' ],
+          }],
+        ]
       },
       'Release': {
         'defines': [ 'NDEBUG' ],

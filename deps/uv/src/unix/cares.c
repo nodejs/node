@@ -67,6 +67,7 @@ static uv_ares_task_t* uv__ares_task_create(int fd) {
 
   if (h == NULL) {
     uv_fatal_error(ENOMEM, "malloc");
+    return NULL;
   }
 
   h->sock = fd;
