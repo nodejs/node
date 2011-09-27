@@ -229,19 +229,30 @@
       // Note stdout._type is used for test-module-load-list.js
 
       if (binding.isatty(fd)) {
-        binding.unref();
         var tty = NativeModule.require('tty');
         stdout = new tty.WriteStream(fd);
         stdout._type = "tty";
+
+        // FIXME Hack to have stdout not keep the event loop alive.
+        // See https://github.com/joyent/node/issues/1726
+        binding.unref();
+        stdout.on('close', function() {
+          binding.ref();
+        });
       } else if (binding.isStdoutBlocking()) {
         var fs = NativeModule.require('fs');
         stdout = new fs.WriteStream(null, {fd: fd});
         stdout._type = "fs";
       } else {
-        binding.unref();
-
         var net = NativeModule.require('net');
         stdout = new net.Stream(fd);
+
+        // FIXME Hack to have stdout not keep the event loop alive.
+        // See https://github.com/joyent/node/issues/1726
+        binding.unref();
+        stdout.on('close', function() {
+          binding.ref();
+        });
 
         // FIXME Should probably have an option in net.Stream to create a
         // stream from an existing fd which is writable only. But for now

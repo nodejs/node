@@ -209,6 +209,17 @@ static Handle<Value> Unref(const Arguments& args) {
 }
 
 
+static Handle<Value> Ref(const Arguments& args) {
+  HandleScope scope;
+
+  assert(unref_called == true);
+
+  uv_ref(uv_default_loop());
+
+  return Null();
+}
+
+
 static Handle<Value> OpenStdin(const Arguments& args) {
   HandleScope scope;
 
@@ -337,6 +348,7 @@ void Stdio::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "openpty", OpenPTY);
 
   NODE_SET_METHOD(target, "unref", Unref);
+  NODE_SET_METHOD(target, "ref", Ref);
 
   struct sigaction sa;
   memset(&sa, 0, sizeof(sa));
