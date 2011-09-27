@@ -301,6 +301,7 @@ static int uv__udp_bind(uv_udp_t* handle,
 
   saved_errno = errno;
   status = -1;
+  fd = -1;
 
   /* Check for bad flags. */
   if (flags & ~UV_UDP_IPV6ONLY) {

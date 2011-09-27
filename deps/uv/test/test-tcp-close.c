@@ -127,3 +127,50 @@ TEST_IMPL(tcp_close) {
 
   return 0;
 }
+
+
+TEST_IMPL(tcp_ref) {
+  uv_tcp_t never;
+  int r;
+
+  /* A tcp just initialized should count as one reference. */
+  r = uv_tcp_init(uv_default_loop(), &never);
+  ASSERT(r == 0);
+
+  /* One unref should set the loop ref count to zero. */
+  uv_unref(uv_default_loop());
+
+  /* Therefore this does not block */
+  uv_run(uv_default_loop());
+
+  return 0;
+}
+
+
+static void never_cb(uv_connect_t* conn_req, int status) {
+  FATAL("never_cb should never be called");
+}
+
+
+TEST_IMPL(tcp_ref2) {
+  uv_tcp_t never;
+  int r;
+
+  /* A tcp just initialized should count as one reference. */
+  r = uv_tcp_init(uv_default_loop(), &never);
+  ASSERT(r == 0);
+
+  r = uv_tcp_connect(&connect_req,
+                     &never,
+                     uv_ip4_addr("127.0.0.1", TEST_PORT),
+                     never_cb);
+  ASSERT(r == 0);
+
+  /* One unref should set the loop ref count to zero. */
+  uv_unref(uv_default_loop());
+
+  /* Therefore this does not block */
+  uv_run(uv_default_loop());
+
+  return 0;
+}

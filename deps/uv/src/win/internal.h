@@ -64,6 +64,7 @@ void uv_process_timers(uv_loop_t* loop);
 #define UV_HANDLE_UV_ALLOCED       0x20000
 #define UV_HANDLE_SYNC_BYPASS_IOCP 0x40000
 #define UV_HANDLE_ZERO_READ        0x80000
+#define UV_HANDLE_TTY_RAW          0x100000
 
 void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle);
 void uv_process_endgames(uv_loop_t* loop);
@@ -172,6 +173,33 @@ void uv_process_pipe_connect_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_connect_t* req);
 void uv_process_pipe_shutdown_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_shutdown_t* req);
+
+
+/*
+ * TTY
+ */
+void uv_console_init();
+
+int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
+    uv_read_cb read_cb);
+int uv_tty_read_stop(uv_tty_t* handle);
+int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
+    uv_buf_t bufs[], int bufcnt, uv_write_cb cb);
+void uv_tty_close(uv_tty_t* handle);
+
+void uv_process_tty_read_req(uv_loop_t* loop, uv_tty_t* handle,
+    uv_req_t* req);
+void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
+    uv_write_t* req);
+/* TODO: remove me */
+void uv_process_tty_accept_req(uv_loop_t* loop, uv_tty_t* handle,
+    uv_req_t* raw_req);
+/* TODO: remove me */
+void uv_process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
+    uv_connect_t* req);
+
+void uv_tty_endgame(uv_loop_t* loop, uv_tty_t* handle);
+
 
 /*
  * Loop watchers

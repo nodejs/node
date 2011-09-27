@@ -149,18 +149,19 @@ static int uv__fs_after(eio_req* eio) {
     case UV_FS_READLINK:
       if (req->result == -1) {
         req->ptr = NULL;
-      } else {
-        assert(req->result > 0);
+        break;
+      }
+      assert(req->result > 0);
 
-        if ((name = realloc(req->eio->ptr2, req->result + 1)) == NULL) {
-          /* Not enough memory. Reuse buffer, chop off last byte. */
-          name = req->eio->ptr2;
-          req->result--;
-        }
-
+      /* Make zero-terminated copy of req->eio->ptr2 */
+      if ((req->ptr = name = malloc(req->result + 1))) {
+        memcpy(name, req->eio->ptr2, req->result);
         name[req->result] = '\0';
-        req->ptr = name;
         req->result = 0;
+      }
+      else {
+        req->errorno = ENOMEM;
+        req->result = -1;
       }
       break;
 
