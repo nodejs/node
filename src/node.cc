@@ -2384,9 +2384,12 @@ static bool EnableDebugSignalHandler(DWORD signal) {
   if (!debugger_running) {
     fprintf(stderr, "Hit Ctrl+Break - starting debugger agent.\n");
     EnableDebug(false);
+    return true;
+  } else {
+    // Run default system action (terminate)
+    return false;
   }
 
-  return true;
 }
 #endif
 
