@@ -45,6 +45,7 @@ class TTYWrap : StreamWrap {
     t->InstanceTemplate()->SetInternalFieldCount(1);
 
     NODE_SET_PROTOTYPE_METHOD(t, "close", HandleWrap::Close);
+    NODE_SET_PROTOTYPE_METHOD(t, "unref", HandleWrap::Unref);
 
     NODE_SET_PROTOTYPE_METHOD(t, "readStart", StreamWrap::ReadStart);
     NODE_SET_PROTOTYPE_METHOD(t, "readStop", StreamWrap::ReadStop);

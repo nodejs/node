@@ -235,12 +235,9 @@
           stdout = new tty.WriteStream(fd);
           stdout._type = "tty";
 
-          // FIXME Hack to have stdout not keep the event loop alive.
+          // Hack to have stdout not keep the event loop alive.
           // See https://github.com/joyent/node/issues/1726
-          binding.unref();
-          stdout.on('close', function() {
-            binding.ref();
-          });
+          stdout._handle.unref();
           break;
 
         case 'FILE':
@@ -262,10 +259,7 @@
 
           // FIXME Hack to have stdout not keep the event loop alive.
           // See https://github.com/joyent/node/issues/1726
-          binding.unref();
-          stdout.on('close', function() {
-            binding.ref();
-          });
+          stdout._handle.unref();
           break;
 
         default:

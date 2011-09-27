@@ -27,6 +27,7 @@ class HandleWrap {
   public:
     static void Initialize(v8::Handle<v8::Object> target);
     static v8::Handle<v8::Value> Close(const v8::Arguments& args);
+    static v8::Handle<v8::Value> Unref(const v8::Arguments& args);
 
   protected:
     HandleWrap(v8::Handle<v8::Object> object, uv_handle_t* handle);
@@ -42,6 +43,7 @@ class HandleWrap {
     // Using double underscore due to handle_ member in tcp_wrap. Probably
     // tcp_wrap should rename it's member to 'handle'.
     uv_handle_t* handle__;
+    bool unref;
 };
 
 

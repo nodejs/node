@@ -34,6 +34,23 @@ void HandleWrap::Initialize(Handle<Object> target) {
 }
 
 
+// This function is used only for process.stdout. It's put here instead of
+// in TTYWrap because here we have access to the Close binding.
+Handle<Value> HandleWrap::Unref(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  // Calling this function twice should never happen.
+  assert(wrap->unref == false);
+
+  wrap->unref = true;
+  uv_unref(uv_default_loop());
+
+  return v8::Undefined();
+}
+
+
 Handle<Value> HandleWrap::Close(const Arguments& args) {
   HandleScope scope;
 
@@ -42,6 +59,11 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
   assert(!wrap->object_.IsEmpty());
   uv_close(wrap->handle__, OnClose);
 
+  if (wrap->unref) {
+    uv_ref(uv_default_loop());
+    wrap->unref = false;
+  }
+
   wrap->StateChange();
 
   return v8::Null();
@@ -49,6 +71,7 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
 
 
 HandleWrap::HandleWrap(Handle<Object> object, uv_handle_t* h) {
+  unref = false;
   handle__ = h;
   if (h) {
     h->data = this;
