@@ -107,7 +107,6 @@
       process.nextTick(Module.runMain);
 
     } else {
-      var binding = process.binding('stdio');
       var Module = NativeModule.require('module');
 
       // If stdin is a TTY.
@@ -224,7 +223,6 @@
       if (stdout) return stdout;
 
       var tty_wrap = process.binding('tty_wrap');
-      var binding = process.binding('stdio');
       var fd = 1;
 
       // Note stdout._type is used for test-module-load-list.js
@@ -286,7 +284,6 @@
       if (stdin) return stdin;
 
       var tty_wrap = process.binding('tty_wrap');
-      var binding = process.binding('stdio');
       var fd = 0;
 
       switch (tty_wrap.guessHandleType(fd)) {
