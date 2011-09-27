@@ -100,7 +100,8 @@ function addTest (cb) {
 
 addTest(function (client, done) {
   console.error("requesting version");
-  client.reqVersion(function (v) {
+  client.reqVersion(function (err, v) {
+    assert.ok(!err);
     console.log("version: %s", v);
     assert.equal(process.versions.v8, v);
     done();
@@ -109,7 +110,8 @@ addTest(function (client, done) {
 
 addTest(function (client, done) {
   console.error("requesting scripts");
-  client.reqScripts(function () {
+  client.reqScripts(function (err) {
+    assert.ok(!err);
     console.error("got %d scripts", Object.keys(client.scripts).length);
 
     var foundMainScript = false;
@@ -127,11 +129,11 @@ addTest(function (client, done) {
 
 addTest(function (client, done) {
   console.error("eval 2+2");
-  client.reqEval("2+2", function (res) {
-    assert.ok(res.success);
+  client.reqEval("2+2", function (err, res) {
     console.error(res);
-    assert.equal('4', res.body.text);
-    assert.equal(4, res.body.value);
+    assert.ok(!err);
+    assert.equal('4', res.text);
+    assert.equal(4, res.value);
     done();
   });
 });
