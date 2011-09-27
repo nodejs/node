@@ -43,7 +43,6 @@ child.stderr.pipe(process.stdout);
 var expected = [];
 
 child.on('line', function(line) {
-  console.log(JSON.stringify(line));
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
   var expectedLine = expected[0].lines.shift();
@@ -60,8 +59,6 @@ function addTest(input, output) {
   function next() {
     if (expected.length > 0) {
       child.stdin.write(expected[0].input + '\n');
-      console.log('---');
-      console.log('>>', expected[0].input);
     } else {
       finish();
     }
@@ -119,6 +116,31 @@ addTest('c', [
   "\b  7   debugger;",
   "\b  8   return i;",
   "\b  9 };"
+]);
+
+// Set breakpoint by function name
+addTest('sb("setInterval()", "!(setInterval.flag++)")', [
+  "debug> \b  2 debugger;",
+  "\b  3 debugger;",
+  "\b  4 function a(x) {",
+  "\b  5   var i = 10;",
+  "\b  6   while (--i != 0);",
+  "\b  7   debugger;",
+  "\b  8   return i;",
+  "\b  9 };",
+  "\b 10 function b() {",
+  "\b 11   return ['hello', 'world'].join(' ');",
+  "\b 12 };"
+]);
+
+// Continue
+addTest('c', [
+  "debug> debug> debug> debug> \bbreak in node.js:150",
+  "\b*148 ",
+  "\b 149     global.setInterval = function() {",
+  "\b 150       var t = NativeModule.require('timers');",
+  "\b 151       return t.setInterval.apply(this, arguments);",
+  "\b 152     };"
 ]);
 
 // Continue
