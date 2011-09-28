@@ -46,7 +46,7 @@ child.on('line', function(line) {
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
   var expectedLine = expected[0].lines.shift();
-  assert.equal(line, expectedLine);
+  assert.ok(line.match(expectedLine) !== null);
 
   if (expected[0].lines.length === 0) {
     var callback = expected[0].callback;
@@ -68,84 +68,50 @@ function addTest(input, output) {
 
 // Initial lines
 addTest(null, [
-  "debug> \b< debugger listening on port 5858",
-  "debug> \bconnecting... ok",
-  "debug> \bbreak in [unnamed]:3",
-  "\b  1 ",
-  "\b  2 debugger;",
-  "\b  3 debugger;",
-  "\b  4 function a(x) {",
-  "\b  5   var i = 10;"
+  /listening on port 5858/,
+  /connecting... ok/,
+  /break in .*:3/,
+  /1/, /2/, /3/, /4/, /5/
 ]);
 
 // Next
 addTest('n', [
-  "debug> debug> debug> \bbreak in [unnamed]:13",
-  "\b 11   return ['hello', 'world'].join(' ');",
-  "\b 12 };",
-  "\b 13 a();",
-  "\b 14 a(1);",
-  "\b 15 b();"
+  /break in .*:13/,
+  /11/, /12/, /13/, /14/, /15/
 ]);
 
 // Continue
 addTest('c', [
- "debug> debug> debug> \bbreak in [unnamed]:7",
-  "\b  5   var i = 10;",
-  "\b  6   while (--i != 0);",
-  "\b  7   debugger;",
-  "\b  8   return i;",
-  "\b  9 };"
+  /break in .*:7/,
+  /5/, /6/, /7/, /8/, /9/
 ]);
 
 // Step out
 addTest('o', [
-  "debug> debug> debug> \bbreak in [unnamed]:14",
-  "\b 12 };",
-  "\b 13 a();",
-  "\b 14 a(1);",
-  "\b 15 b();",
-  "\b 16 b();"
+  /break in .*:14/,
+  /12/, /13/, /14/, /15/, /16/
 ]);
 
 // Continue
 addTest('c', [
- "debug> debug> debug> \bbreak in [unnamed]:7",
-  "\b  5   var i = 10;",
-  "\b  6   while (--i != 0);",
-  "\b  7   debugger;",
-  "\b  8   return i;",
-  "\b  9 };"
+  /break in .*:7/,
+  /5/, /6/, /7/, /8/, /9/
 ]);
 
 // Set breakpoint by function name
 addTest('sb("setInterval()", "!(setInterval.flag++)")', [
-  "debug> \b  2 debugger;",
-  "\b  3 debugger;",
-  "\b  4 function a(x) {",
-  "\b  5   var i = 10;",
-  "\b  6   while (--i != 0);",
-  "\b  7   debugger;",
-  "\b  8   return i;",
-  "\b  9 };",
-  "\b 10 function b() {",
-  "\b 11   return ['hello', 'world'].join(' ');",
-  "\b 12 };"
+  /2/, /3/, /4/, /5/, /6/, /7/, /8/, /9/, /10/, /11/, /12/
 ]);
 
 // Continue
 addTest('c', [
-  "debug> debug> debug> debug> \bbreak in node.js:150",
-  "\b*148 ",
-  "\b 149     global.setInterval = function() {",
-  "\b 150       var t = NativeModule.require('timers');",
-  "\b 151       return t.setInterval.apply(this, arguments);",
-  "\b 152     };"
+  /break in node.js:\d+/,
+  /\d/, /\d/, /\d/, /\d/, /\d/
 ]);
 
 // Continue
 addTest('c, bt', [
-  "debug> \bCan't request backtrace now"
+  /Can't request backtrace now/
 ]);
 
 
