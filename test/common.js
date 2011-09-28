@@ -135,7 +135,7 @@ process.on('exit', function() {
 
     if (!found) {
       console.error('Unknown global: %s', x);
-      assert.ok(false, 'Unknown global founded');
+      assert.ok(false, 'Unknown global found');
     }
   }
 });
