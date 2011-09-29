@@ -46,7 +46,7 @@ child.on('line', function(line) {
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
   var expectedLine = expected[0].lines.shift();
-  assert.ok(line.match(expectedLine) !== null);
+  assert.ok(line.match(expectedLine) !== null, expectedLine);
 
   if (expected[0].lines.length === 0) {
     var callback = expected[0].callback;
@@ -59,6 +59,15 @@ function addTest(input, output) {
   function next() {
     if (expected.length > 0) {
       child.stdin.write(expected[0].input + '\n');
+
+      if (!expected[0].lines) {
+        process.nextTick(function() {
+          var callback = expected[0].callback;
+          expected.shift();
+
+          callback && callback();
+        });
+      }
     } else {
       finish();
     }
@@ -80,11 +89,25 @@ addTest('n', [
   /11/, /12/, /13/, /14/, /15/
 ]);
 
+// Watch
+addTest('watch("\'x\'")');
+
 // Continue
 addTest('c', [
   /break in .*:7/,
+  /Watchers/,
+  /0:\s+'x' = "x"/,
+  /()/,
   /5/, /6/, /7/, /8/, /9/
 ]);
+
+// Show watchers
+addTest('watchers', [
+  /0:\s+'x' = "x"/
+]);
+
+// Unwatch
+addTest('unwatch("\'x\'")');
 
 // Step out
 addTest('o', [
