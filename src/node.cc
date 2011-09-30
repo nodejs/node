@@ -2180,12 +2180,12 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
 static void AtExit() {
   node::Stdio::Flush();
-  node::Stdio::DisableRawMode(STDIN_FILENO);
+  uv_tty_reset_mode();
 }
 
 
 static void SignalExit(int signal) {
-  Stdio::DisableRawMode(STDIN_FILENO);
+  uv_tty_reset_mode();
   _exit(1);
 }
 
