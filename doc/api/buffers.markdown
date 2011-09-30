@@ -189,7 +189,7 @@ Example:
     buf[3] = 0x42;
 
     for (ii = 0; ii < buf.length; ii++) {
-      console.log(buf.readUInt8(ii);
+      console.log(buf.readUInt8(ii));
     }
 
     // 0x3
