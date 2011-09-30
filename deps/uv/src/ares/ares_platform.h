@@ -1,5 +1,9 @@
+#ifndef HEADER_CARES_PLATFORM_H
+#define HEADER_CARES_PLATFORM_H
+
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
+ * Copyright (C) 2004 - 2011 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -15,28 +19,25 @@
  */
 
 #include "ares_setup.h"
-#include <stdlib.h>
 
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
+#if defined(WIN32) && !defined(MSDOS)
+
+typedef enum {
+  WIN_UNKNOWN,
+  WIN_3X,
+  WIN_9X,
+  WIN_NT,
+  WIN_CE
+} win_platform;
+
+win_platform ares__getplatform(void);
+
 #endif
 
-#include "ares.h"
-#include "ares_private.h" /* for memdebug */
+#if defined(_WIN32_WCE)
 
-void ares_free_hostent(struct hostent *host)
-{
-  char **p;
+struct servent *getservbyport(int port, const char *proto);
 
-  if (!host)
-    return;
+#endif
 
-  free((char *)(host->h_name));
-  for (p = host->h_aliases; *p; p++)
-    free(*p);
-  free(host->h_aliases);
-  free(host->h_addr_list[0]); /* no matter if there is one or many entries,
-                                 there is only one malloc for all of them */
-  free(host->h_addr_list);
-  free(host);
-}
+#endif /* HEADER_CARES_PLATFORM_H */

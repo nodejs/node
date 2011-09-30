@@ -48,6 +48,16 @@ TEST_IMPL(tty) {
   ASSERT(width > 10);
   ASSERT(height > 10);
 
+  /* Turn on raw mode. */
+  r = uv_tty_set_mode(&tty, 1);
+  ASSERT(r == 0);
+
+  /* Turn off raw mode. */
+  r = uv_tty_set_mode(&tty, 0);
+  ASSERT(r == 0);
+
+  /* TODO check the actual mode! */
+
   uv_close((uv_handle_t*)&tty, NULL);
 
   uv_run(loop);

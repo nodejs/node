@@ -53,13 +53,13 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
 
   /* Already bound? */
   if (handle->fd >= 0) {
-    uv_err_new_artificial(handle->loop, UV_EINVAL);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     goto out;
   }
 
   /* Make a copy of the file name, it outlives this function's scope. */
   if ((pipe_fname = strdup(name)) == NULL) {
-    uv_err_new(handle->loop, ENOMEM);
+    uv__set_sys_error(handle->loop, ENOMEM);
     goto out;
   }
 
@@ -67,7 +67,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   name = NULL;
 
   if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    uv_err_new(handle->loop, errno);
+    uv__set_sys_error(handle->loop, errno);
     goto out;
   }
 
@@ -88,7 +88,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
         || unlink(pipe_fname) == -1
         || bind(sockfd, (struct sockaddr*)&saddr, sizeof saddr) == -1) {
       /* Convert ENOENT to EACCES for compatibility with Windows. */
-      uv_err_new(handle->loop, (errno == ENOENT) ? EACCES : errno);
+      uv__set_sys_error(handle->loop, (errno == ENOENT) ? EACCES : errno);
       goto out;
     }
   }
@@ -125,13 +125,13 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   status = -1;
 
   if (handle->fd == -1) {
-    uv_err_new_artificial(handle->loop, UV_EINVAL);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     goto out;
   }
   assert(handle->fd >= 0);
 
   if ((status = listen(handle->fd, backlog)) == -1) {
-    uv_err_new(handle->loop, errno);
+    uv__set_sys_error(handle->loop, errno);
   } else {
     handle->connection_cb = cb;
     ev_io_init(&handle->read_watcher, uv__pipe_accept, handle->fd, EV_READ);
@@ -190,7 +190,7 @@ int uv_pipe_connect(uv_connect_t* req,
   status = -1;
 
   if ((sockfd = uv__socket(AF_UNIX, SOCK_STREAM, 0)) == -1) {
-    uv_err_new(handle->loop, errno);
+    uv__set_sys_error(handle->loop, errno);
     goto out;
   }
 
@@ -207,7 +207,7 @@ int uv_pipe_connect(uv_connect_t* req,
   while (r == -1 && errno == EINTR);
 
   if (r == -1) {
-    uv_err_new(handle->loop, errno);
+    uv__set_sys_error(handle->loop, errno);
     uv__close(sockfd);
     goto out;
   }
@@ -257,7 +257,7 @@ void uv__pipe_accept(EV_P_ ev_io* watcher, int revents) {
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
       assert(0 && "EAGAIN on uv__accept(pipefd)");
     } else {
-      uv_err_new(pipe->loop, errno);
+      uv__set_sys_error(pipe->loop, errno);
     }
   } else {
     pipe->accepted_fd = sockfd;

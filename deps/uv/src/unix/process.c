@@ -277,7 +277,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   return 0;
 
 error:
-  uv_err_new(process->loop, errno);
+  uv__set_sys_error(process->loop, errno);
   uv__close(stdin_pipe[0]);
   uv__close(stdin_pipe[1]);
   uv__close(stdout_pipe[0]);
@@ -292,7 +292,7 @@ int uv_process_kill(uv_process_t* process, int signum) {
   int r = kill(process->pid, signum);
 
   if (r) {
-    uv_err_new(process->loop, errno);
+    uv__set_sys_error(process->loop, errno);
     return -1;
   } else {
     return 0;

@@ -47,7 +47,7 @@
 
 int
 ares_parse_mx_reply (const unsigned char *abuf, int alen,
-                      struct ares_mx_reply **mx_out)
+                     struct ares_mx_reply **mx_out)
 {
   unsigned int qdcount, ancount, i;
   const unsigned char *aptr, *vptr;
@@ -134,7 +134,7 @@ ares_parse_mx_reply (const unsigned char *abuf, int alen,
           mx_last = mx_curr;
 
           vptr = aptr;
-          mx_curr->priority = ntohs (*((unsigned short *)vptr));
+          mx_curr->priority = DNS__16BIT(vptr);
           vptr += sizeof(unsigned short);
 
           status = ares_expand_name (vptr, abuf, alen, &mx_curr->host, &len);

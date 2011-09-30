@@ -82,7 +82,7 @@ static void uv_loop_init(uv_loop_t* loop) {
   loop->ares_active_sockets = 0;
   loop->ares_chan = NULL;
 
-  loop->last_error = uv_ok_;
+  loop->last_err = uv_ok_;
 }
 
 

@@ -69,7 +69,7 @@ uv_stream_t* uv_std_handle(uv_loop_t* loop, uv_std_type type) {
 
     default:
       assert(0);
-      uv_set_error(loop, UV_EINVAL, 0);
+      uv__set_artificial_error(loop, UV_EINVAL);
       return NULL;
   }
 }

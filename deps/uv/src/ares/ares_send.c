@@ -96,7 +96,7 @@ void ares_send(ares_channel channel, const unsigned char *qbuf, int qlen,
   query->arg = arg;
 
   /* Initialize query status. */
-  query->try = 0;
+  query->try_count = 0;
 
   /* Choose the server to send the query to. If rotation is enabled, keep track
    * of the next server we want to use. */

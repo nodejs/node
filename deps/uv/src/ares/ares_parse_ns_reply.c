@@ -1,5 +1,3 @@
-/* $Id */
-
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
@@ -105,6 +103,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
     if ( aptr + RRFIXEDSZ > abuf + alen )
     {
       status = ARES_EBADRESP;
+      free(rr_name);
       break;
     }
     rr_type = DNS_RR_TYPE( aptr );
@@ -119,6 +118,7 @@ int ares_parse_ns_reply( const unsigned char* abuf, int alen,
                                                &len);
       if ( status != ARES_SUCCESS )
       {
+        free(rr_name);
         break;
       }
 

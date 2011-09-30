@@ -1,25 +1,26 @@
-c-ares version 1.7.4
-
-Changed:
-
- o local-bind: Support binding to local interface/IPs, see
-   ares_set_local_ip4, ares_set_local_ip6, ares_set_local_dev
+c-ares version 1.7.5
 
 Fixed:
 
- o memory leak in ares_getnameinfo
- o add missing break that caused get_ares_servers to fail
- o ares_parse_a_reply: fix CNAME response parsing
- o init_by_options: don't copy an empty sortlist
- o Replaced uint32_t with unsigned int to fix broken builds
-   on a couple of platforms
- o Fix lookup with HOSTALIASES set
- o adig: fix NAPTR parsing
- o compiler warning cleanups
+ o detection of semicolon comments in resolv.conf
+ o avoid using system's inet_net_pton affected by the WLB-2008080064 advisory
+ o replacement ares_inet_net_pton affected by the WLB-2008080064 advisory
+ o replacement ares_inet_ntop affected by potential out of bounds write
+ o added install target to Makefile.msvc
+ o only fall back to AF_INET searches when looking for AF_UNSPEC addresses
+ o fixed ares_parse_*_reply memory leaks
+ o Use correct sizeof in ares_getnameinfo()
+ o IPv6-on-windows: find DNS servers correctly
+ o man pages: docs for the c-ares utility programs
+ o getservbyport replacement for Win CE
+ o config_sortlist: (win32) missing else
+ o advance_tcp_send_queue: avoid NULL ptr dereference
+ o configure: fix a bashism
+ o ares_expand_name: Fix encoded length for indirect root
 
 Thanks go to these friendly people for their efforts and contributions:
 
- Andrew C. Morrow, Ben Greear, Ben Noordhuis, Daniel Stenberg,
- Guenter Knauf, Mike Crowe, Patrik Thunstrom, Yang Tse
+ Yang Tse, Jakub Hrozek, Gisle Vanem, Tom Hughes, David Stuart, Dima Tisnek,
+ Peter Pentchev, Stefan Buhler
 
 Have fun!

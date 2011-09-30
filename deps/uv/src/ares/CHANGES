@@ -1,5 +1,25 @@
   Changelog for the c-ares project
 
+Version 1.7.5 (August 16, 2011)
+
+Fixed:
+
+ o detection of semicolon comments in resolv.conf
+ o avoid using system's inet_net_pton affected by the WLB-2008080064 advisory
+ o replacement ares_inet_net_pton affected by the WLB-2008080064 advisory
+ o replacement ares_inet_ntop affected by potential out of bounds write
+ o added install target to Makefile.msvc
+ o only fall back to AF_INET searches when looking for AF_UNSPEC addresses
+ o fixed ares_parse_*_reply memory leaks
+ o Use correct sizeof in ares_getnameinfo()
+ o IPv6-on-windows: find DNS servers correctly
+ o man pages: docs for the c-ares utility programs
+ o getservbyport replacement for Win CE
+ o config_sortlist: (win32) missing else
+ o advance_tcp_send_queue: avoid NULL ptr dereference
+ o configure: fix a bashism
+ o ares_expand_name: Fix encoded length for indirect root
+
 Version 1.7.4 (December 9, 2010)
 
 Changed:

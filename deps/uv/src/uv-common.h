@@ -48,5 +48,9 @@ void uv_add_ares_handle(uv_loop_t* loop, uv_ares_task_t* handle);
 
 int uv_ares_handles_empty(uv_loop_t* loop);
 
+uv_err_code uv_translate_sys_error(int sys_errno);
+void uv__set_error(uv_loop_t* loop, uv_err_code code, int sys_error);
+void uv__set_sys_error(uv_loop_t* loop, int sys_error);
+void uv__set_artificial_error(uv_loop_t* loop, uv_err_code code);
 
 #endif /* UV_COMMON_H_ */

@@ -77,12 +77,12 @@ uint64_t uv_hrtime(void) {
 
   /* If the performance frequency is zero, there's no support. */
   if (!uv_hrtime_frequency_) {
-    /* uv_set_sys_error(loop, ERROR_NOT_SUPPORTED); */
+    /* uv__set_sys_error(loop, ERROR_NOT_SUPPORTED); */
     return 0;
   }
 
   if (!QueryPerformanceCounter(&counter)) {
-    /* uv_set_sys_error(loop, GetLastError()); */
+    /* uv__set_sys_error(loop, GetLastError()); */
     return 0;
   }
 
@@ -181,7 +181,7 @@ int uv_timer_again(uv_timer_t* handle) {
 
   /* If timer_cb is NULL that means that the timer was never started. */
   if (!handle->timer_cb) {
-    uv_set_sys_error(loop, ERROR_INVALID_DATA);
+    uv__set_sys_error(loop, ERROR_INVALID_DATA);
     return -1;
   }
 

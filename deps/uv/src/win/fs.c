@@ -66,7 +66,7 @@
   if (!QueueUserWorkItem(&uv_fs_thread_proc,                                \
                          req,                                               \
                          WT_EXECUTELONGFUNCTION)) {                         \
-    uv_set_sys_error((loop), GetLastError());                               \
+    uv__set_sys_error((loop), GetLastError());                              \
     return -1;                                                              \
   }                                                                         \
   req->flags |= UV_FS_ASYNC_QUEUED;                                         \
@@ -75,7 +75,9 @@
 
 #define SET_UV_LAST_ERROR_FROM_REQ(req)                                     \
   if (req->flags & UV_FS_LAST_ERROR_SET) {                                  \
-    uv_set_sys_error(req->loop, req->last_error);                           \
+    uv__set_sys_error(req->loop, req->last_error);                          \
+  } else if (req->result == -1) {                                           \
+    uv__set_error(req->loop, (uv_err_code)req->errorno, req->last_error);   \
   }
 
 #define SET_REQ_LAST_ERROR(req, error)                                      \
@@ -85,7 +87,8 @@
 #define SET_REQ_RESULT(req, result_value)                                   \
   req->result = (result_value);                                             \
   if (req->result == -1) {                                                  \
-    req->errorno = uv_translate_sys_error(_doserrno);                       \
+    req->last_error = _doserrno;                                            \
+    req->errorno = uv_translate_sys_error(req->last_error);                 \
   }
 
 #define SET_REQ_RESULT_WIN32_ERROR(req, sys_errno)                          \
@@ -576,11 +579,14 @@ void fs__symlink(uv_fs_t* req, const char* path, const char* new_path,
                                   path,
                                   flags & UV_FS_SYMLINK_DIR ? SYMBOLIC_LINK_FLAG_DIRECTORY : 0) ? 0 : -1;
     if (result == -1) {
-      SET_REQ_LAST_ERROR(req, GetLastError());
+      SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
+      return;
     }
   } else {
-    result = -1;
-    errno = ENOSYS;
+    req->result = -1;
+    req->errorno = UV_ENOTSUP;
+    req->last_error = ERROR_SUCCESS;
+    return;
   }
   
   SET_REQ_RESULT(req, result);
@@ -1016,9 +1022,9 @@ int uv_fs_fchown(uv_loop_t* loop, uv_fs_t* req, uv_file file, int uid,
 int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   int len = strlen(path);
   char* path2 = NULL;
-  int has_backslash = (path[len - 1] == '\\' || path[len - 1] == '/');
 
-  if (path[len - 1] == '\\' || path[len - 1] == '/') {
+  if (len > 1 && path[len - 2] != ':' &&
+      (path[len - 1] == '\\' || path[len - 1] == '/')) {
     path2 = strdup(path);
     if (!path2) {
       uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
@@ -1054,9 +1060,9 @@ int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
 int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   int len = strlen(path);
   char* path2 = NULL;
-  int has_backslash = (path[len - 1] == '\\' || path[len - 1] == '/');
 
-  if (path[len - 1] == '\\' || path[len - 1] == '/') {
+  if (len > 1 && path[len - 2] != ':' &&
+      (path[len - 1] == '\\' || path[len - 1] == '/')) {
     path2 = strdup(path);
     if (!path2) {
       uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");

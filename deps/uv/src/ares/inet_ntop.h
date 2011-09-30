@@ -18,7 +18,6 @@
  */
 
 #ifdef HAVE_INET_NTOP
-#include <arpa/inet.h>
 #define ares_inet_ntop(w,x,y,z) inet_ntop(w,x,y,z)
 #else
 const char *ares_inet_ntop(int af, const void *src, char *dst, size_t size);

@@ -1,4 +1,5 @@
 
+
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *
  * Permission to use, copy, modify, and distribute this
@@ -15,28 +16,15 @@
  */
 
 #include "ares_setup.h"
-#include <stdlib.h>
+#include "ares_getenv.h"
 
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
-#endif
+#ifndef HAVE_GETENV
 
-#include "ares.h"
-#include "ares_private.h" /* for memdebug */
-
-void ares_free_hostent(struct hostent *host)
+char *ares_getenv(const char *name)
 {
-  char **p;
-
-  if (!host)
-    return;
-
-  free((char *)(host->h_name));
-  for (p = host->h_aliases; *p; p++)
-    free(*p);
-  free(host->h_aliases);
-  free(host->h_addr_list[0]); /* no matter if there is one or many entries,
-                                 there is only one malloc for all of them */
-  free(host->h_addr_list);
-  free(host);
+#ifdef _WIN32_WCE
+  return NULL;
+#endif
 }
+
+#endif

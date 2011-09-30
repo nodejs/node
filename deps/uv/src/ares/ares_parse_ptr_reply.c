@@ -99,6 +99,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
       aptr += len;
       if (aptr + RRFIXEDSZ > abuf + alen)
         {
+          free(rr_name);
           status = ARES_EBADRESP;
           break;
         }
@@ -114,13 +115,17 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
           status = ares__expand_name_for_response(aptr, abuf, alen, &rr_data,
                                                   &len);
           if (status != ARES_SUCCESS)
-            break;
+            {
+              free(rr_name);
+              break;
+            }
           if (hostname)
             free(hostname);
           hostname = rr_data;
-          aliases[aliascnt] = malloc((strlen(rr_data)+1) * sizeof(char *));
+          aliases[aliascnt] = malloc((strlen(rr_data)+1) * sizeof(char));
           if (!aliases[aliascnt])
             {
+              free(rr_name);
               status = ARES_ENOMEM;
               break;
             }
@@ -131,6 +136,7 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
             alias_alloc *= 2;
             ptr = realloc(aliases, alias_alloc * sizeof(char *));
             if(!ptr) {
+              free(rr_name);
               status = ARES_ENOMEM;
               break;
             }
@@ -144,7 +150,10 @@ int ares_parse_ptr_reply(const unsigned char *abuf, int alen, const void *addr,
           status = ares__expand_name_for_response(aptr, abuf, alen, &rr_data,
                                                   &len);
           if (status != ARES_SUCCESS)
-            break;
+            {
+              free(rr_name);
+              break;
+            }
           free(ptrname);
           ptrname = rr_data;
         }

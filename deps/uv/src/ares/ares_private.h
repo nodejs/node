@@ -52,7 +52,6 @@
 
 #if defined(WIN32) && !defined(WATT32)
 
-#define IS_NT()        ((int)GetVersion() > 0)
 #define WIN_NS_9X      "System\\CurrentControlSet\\Services\\VxD\\MSTCP"
 #define WIN_NS_NT_KEY  "System\\CurrentControlSet\\Services\\Tcpip\\Parameters"
 #define NAMESERVER     "NameServer"
@@ -88,6 +87,11 @@
 
 #include "ares_ipv6.h"
 #include "ares_llist.h"
+
+#ifndef HAVE_GETENV
+#  include "ares_getenv.h"
+#  define getenv(ptr) ares_getenv(ptr)
+#endif
 
 #ifndef HAVE_STRDUP
 #  include "ares_strdup.h"
@@ -199,7 +203,7 @@ struct query {
   void *arg;
 
   /* Query status */
-  int try; /* Number of times we tried this query already. */
+  int try_count; /* Number of times we tried this query already. */
   int server; /* Server this query has last been sent to. */
   struct query_server_info *server_info;   /* per-server state */
   int using_tcp;

@@ -67,11 +67,6 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 }
 
 
-uv_err_t uv_last_error(uv_loop_t* loop) {
-  return loop->last_error;
-}
-
-
 /* TODO: thread safety */
 static char* last_err_str_ = NULL;
 
@@ -136,22 +131,3 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
   }
 }
 
-
-uv_err_t uv_new_sys_error(int sys_errno) {
-  uv_err_t e;
-  e.code = uv_translate_sys_error(sys_errno);
-  e.sys_errno_ = sys_errno;
-  return e;
-}
-
-
-void uv_set_sys_error(uv_loop_t* loop, int sys_errno) {
-  loop->last_error.code = uv_translate_sys_error(sys_errno);
-  loop->last_error.sys_errno_ = sys_errno;
-}
-
-
-void uv_set_error(uv_loop_t* loop, uv_err_code code, int sys_errno) {
-  loop->last_error.code = code;
-  loop->last_error.sys_errno_ = sys_errno;
-}

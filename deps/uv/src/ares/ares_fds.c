@@ -21,6 +21,7 @@
 #endif
 
 #include "ares.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 int ares_fds(ares_channel channel, fd_set *read_fds, fd_set *write_fds)

@@ -7,11 +7,11 @@
 
 #define ARES_VERSION_MAJOR 1
 #define ARES_VERSION_MINOR 7
-#define ARES_VERSION_PATCH 4
+#define ARES_VERSION_PATCH 5
 #define ARES_VERSION ((ARES_VERSION_MAJOR<<16)|\
                        (ARES_VERSION_MINOR<<8)|\
                        (ARES_VERSION_PATCH))
-#define ARES_VERSION_STR "1.7.4"
+#define ARES_VERSION_STR "1.7.5-DEV"
 
 #if (ARES_VERSION >= 0x010700)
 #  define CARES_HAVE_ARES_LIBRARY_INIT 1

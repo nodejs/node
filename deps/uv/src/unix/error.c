@@ -56,11 +56,6 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 }
 
 
-uv_err_t uv_last_error(uv_loop_t* loop) {
-  return loop->last_err;
-}
-
-
 char* uv_strerror(uv_err_t err) {
   return strerror(err.sys_errno_);
 }
@@ -89,22 +84,4 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
 
   assert(0 && "unreachable");
   return -1;
-}
-
-
-uv_err_t uv_err_new_artificial(uv_loop_t* loop, int code) {
-  uv_err_t err;
-  err.sys_errno_ = 0;
-  err.code = code;
-  loop->last_err = err;
-  return err;
-}
-
-
-uv_err_t uv_err_new(uv_loop_t* loop, int sys_error) {
-  uv_err_t err;
-  err.sys_errno_ = sys_error;
-  err.code = uv_translate_sys_error(sys_error);
-  loop->last_err = err;
-  return err;
 }

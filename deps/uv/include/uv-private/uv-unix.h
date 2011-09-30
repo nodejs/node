@@ -33,10 +33,11 @@
 
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <netdb.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <termios.h>
 
 /* Note: May be cast to struct iovec. See writev(2). */
 typedef struct {
@@ -183,6 +184,8 @@ typedef int uv_file;
 #define UV_WORK_PRIVATE_FIELDS \
   eio_req* eio;
 
-#define UV_TTY_PRIVATE_FIELDS /* empty */
+#define UV_TTY_PRIVATE_FIELDS \
+  struct termios orig_termios; \
+  int mode;
 
 #endif /* UV_UNIX_H */

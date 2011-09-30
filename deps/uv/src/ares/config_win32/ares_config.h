@@ -108,6 +108,9 @@
 /* Define if you have the strcasecmp function. */
 /* #define HAVE_STRCASECMP 1 */
 
+/* Define if you have the getenv function. */
+#define HAVE_GETENV 1
+
 /* Define if you have the strdup function. */
 #define HAVE_STRDUP 1
 

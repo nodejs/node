@@ -145,7 +145,7 @@ int uv_fs_event_init(uv_loop_t* loop,
    * keep creating new inotify fds.
    */
   if ((fd = new_inotify_fd()) == -1) {
-    uv_err_new(loop, errno);
+    uv__set_sys_error(loop, errno);
     return -1;
   }
 
@@ -158,7 +158,7 @@ int uv_fs_event_init(uv_loop_t* loop,
         | IN_MOVED_TO;
 
   if (inotify_add_watch(fd, filename, flags) == -1) {
-    uv_err_new(loop, errno);
+    uv__set_sys_error(loop, errno);
     uv__close(fd);
     return -1;
   }

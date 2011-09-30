@@ -1077,7 +1077,7 @@ TEST_IMPL(fs_symlink) {
   r = uv_fs_symlink(loop, &req, "test_file", "test_file_symlink", 0, NULL);
 #ifdef _WIN32
   if (r == -1) {
-    if (req.errorno == ENOSYS) {
+    if (uv_last_error(loop).code == UV_ENOTSUP) {
       /*
        * Windows doesn't support symlinks on older versions.
        * We just pass the test and bail out early if we get ENOTSUP.
@@ -1242,6 +1242,22 @@ TEST_IMPL(fs_futime) {
   ASSERT(r == 0);
   uv_run(loop);
   ASSERT(futime_cb_count == 1);
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_stat_missing_path) {
+  uv_fs_t req;
+  int r;
+
+  loop = uv_default_loop();
+
+  r = uv_fs_stat(loop, &req, "non_existent_file", NULL);
+  ASSERT(r == -1);
+  ASSERT(req.result == -1);
+  ASSERT(uv_last_error(loop).code == UV_ENOENT);
+  uv_fs_req_cleanup(&req);
 
   return 0;
 }

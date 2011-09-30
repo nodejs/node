@@ -69,7 +69,7 @@ int uv_exepath(char* buffer, size_t* size) {
   /* Get the path as UTF-16 */
   utf16Size = GetModuleFileNameW(NULL, utf16Buffer, *size - 1);
   if (utf16Size <= 0) {
-    /* uv_set_sys_error(loop, GetLastError()); */
+    /* uv__set_sys_error(loop, GetLastError()); */
     retVal = -1;
     goto done;
   }
@@ -79,7 +79,7 @@ int uv_exepath(char* buffer, size_t* size) {
   /* Convert to UTF-8 */
   *size = uv_utf16_to_utf8(utf16Buffer, utf16Size, buffer, *size);
   if (!*size) {
-    /* uv_set_sys_error(loop, GetLastError()); */
+    /* uv__set_sys_error(loop, GetLastError()); */
     retVal = -1;
     goto done;
   }

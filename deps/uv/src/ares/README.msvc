@@ -40,6 +40,30 @@
   library version it is using.
 
 
+  How to install using MSVC from the command line
+  -----------------------------------------------
+
+  In order to allow easy usage of c-ares libraries it may be convenient to
+  install c-ares libraries and header files to a common subdirectory tree.
+
+  Once that c-ares libraries have been built using procedure described above,
+  use same command prompt window to define environment variable INSTALL_DIR
+  to designate the top subdirectory where installation of c-ares libraries and
+  header files will be done.
+
+  > set INSTALL_DIR=c:\c-ares
+
+  Afterwards, run following command to actually perform the installation:
+
+  > nmake -f Makefile.msvc install
+
+  Installation procedure will copy c-ares libraries to subdirectory 'lib' and
+  c-ares header files to subdirectory 'include' below the INSTALL_DIR subdir.
+
+  When environment variable INSTALL_DIR is not defined, installation is done
+  to c-ares source folder where Makefile.msvc file is located.
+
+
   How to build using Visual Studio 6 IDE
   --------------------------------------
 

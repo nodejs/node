@@ -1,3 +1,6 @@
+#ifndef HEADER_CARES_GETENV_H
+#define HEADER_CARES_GETENV_H
+
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
  *
@@ -15,28 +18,9 @@
  */
 
 #include "ares_setup.h"
-#include <stdlib.h>
 
-#ifdef HAVE_NETDB_H
-#include <netdb.h>
+#ifndef HAVE_GETENV
+extern char *ares_getenv(const char *name);
 #endif
 
-#include "ares.h"
-#include "ares_private.h" /* for memdebug */
-
-void ares_free_hostent(struct hostent *host)
-{
-  char **p;
-
-  if (!host)
-    return;
-
-  free((char *)(host->h_name));
-  for (p = host->h_aliases; *p; p++)
-    free(*p);
-  free(host->h_aliases);
-  free(host->h_addr_list[0]); /* no matter if there is one or many entries,
-                                 there is only one malloc for all of them */
-  free(host->h_addr_list);
-  free(host);
-}
+#endif /* HEADER_CARES_GETENV_H */

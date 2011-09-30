@@ -87,7 +87,14 @@ int ares_expand_name(const unsigned char *encoded, const unsigned char *abuf,
      * Since this function strips trailing dots though, it becomes ""
      */
     q[0] = '\0';
-    *enclen = 1;  /* the caller should move one byte to get past this */
+
+    /* indirect root label (like 0xc0 0x0c) is 2 bytes long (stupid, but
+       valid) */
+    if ((*encoded & INDIR_MASK) == INDIR_MASK)
+      *enclen = 2;
+    else
+      *enclen = 1;  /* the caller should move one byte to get past this */
+
     return ARES_SUCCESS;
   }
 

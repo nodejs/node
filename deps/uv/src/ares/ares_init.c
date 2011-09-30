@@ -1,6 +1,6 @@
 
 /* Copyright 1998 by the Massachusetts Institute of Technology.
- * Copyright (C) 2007-2010 by Daniel Stenberg
+ * Copyright (C) 2007-2011 by Daniel Stenberg
  *
  * Permission to use, copy, modify, and distribute this
  * software and its documentation for any purpose and without
@@ -16,10 +16,6 @@
  */
 
 #include "ares_setup.h"
-
-#ifdef USE_WINSOCK
-#include <iphlpapi.h>
-#endif
 
 #ifdef HAVE_SYS_PARAM_H
 #include <sys/param.h>
@@ -63,16 +59,18 @@
 #include <string.h>
 #include <ctype.h>
 #include <time.h>
-#include <errno.h>
-#include "ares.h"
-#include "inet_net_pton.h"
-#include "ares_library_init.h"
-#include "ares_nowarn.h"
-#include "ares_private.h"
 
 #ifdef ANDROID
 #include <sys/system_properties.h>
 #endif
+
+#include "ares.h"
+#include "inet_net_pton.h"
+#include "ares_library_init.h"
+#include "ares_nowarn.h"
+#include "ares_platform.h"
+#include "inet_ntop.h"
+#include "ares_private.h"
 
 #ifdef WATT32
 #undef WIN32  /* Redefined in MingW/MSVC headers */
@@ -102,7 +100,7 @@ static int config_lookup(ares_channel channel, const char *str,
                          const char *bindch, const char *filech);
 static int config_sortlist(struct apattern **sortlist, int *nsort,
                            const char *str);
-static char *try_config(char *s, const char *opt);
+static char *try_config(char *s, const char *opt, char scc);
 #endif
 
 #define ARES_CONFIG_CHECK(x) (x->lookups && x->nsort > -1 && \
@@ -363,7 +361,7 @@ int ares_save_options(ares_channel channel, struct ares_options *options,
         ipv4_nservers++;
     }
     if (ipv4_nservers) {
-      options->servers = malloc(ipv4_nservers * sizeof(struct server_state));
+      options->servers = malloc(ipv4_nservers * sizeof(struct in_addr));
       if (!options->servers)
         return ARES_ENOMEM;
       for (i = j = 0; i < channel->nservers; i++)
@@ -595,73 +593,195 @@ static int get_res_interfaces_nt(HKEY hKey, const char *subkey, char **obuf)
   return 0;
 }
 
+/**
+ * The desired output for this method is that we set "ret_buf" to
+ * something like:
+ *
+ * 192.168.0.1,dns01.my.domain,fe80::200:f8ff:fe21:67cf
+ *
+ * The only ordering requirement is that primary servers are listed
+ * before secondary. There is no requirement that IPv4 addresses should
+ * necessarily be before IPv6.
+ *
+ * Note that ret_size should ideally be big enough to hold around
+ * 2-3 IPv4 and 2-3 IPv6 addresses.
+ *
+ * Finally, we need to return the total number of DNS servers located.
+ */
 static int get_iphlpapi_dns_info (char *ret_buf, size_t ret_size)
 {
-  FIXED_INFO    *fi, *newfi;
-  DWORD          size = sizeof (*fi);
-  IP_ADDR_STRING *ipAddr;
-  int            i, count = 0;
-  int            debug  = 0;
-  size_t         ip_size = sizeof("255.255.255.255,")-1;
-  size_t         left = ret_size;
-  char          *ret = ret_buf;
-  HRESULT        res;
+  const size_t  ipv4_size = INET_ADDRSTRLEN  + 1;  /* +1 for ',' at end */
+  const size_t  ipv6_size = INET6_ADDRSTRLEN + 12; /* +12 for "%0123456789," at end */
+  size_t        left = ret_size;
+  char         *ret  = ret_buf;
+  int           count = 0;
 
-  fi = malloc(size);
-  if (!fi)
-     return 0;
-
-  res = (*ares_fpGetNetworkParams) (fi, &size);
-  if ((res != ERROR_BUFFER_OVERFLOW) && (res != ERROR_SUCCESS))
-     goto quit;
-
-  newfi = realloc(fi, size);
-  if (!newfi)
-     goto quit;
-
-  fi = newfi;
-  res = (*ares_fpGetNetworkParams) (fi, &size);
-  if (res != ERROR_SUCCESS)
-     goto quit;
-
-  if (debug)
+  /* Use the GetAdaptersAddresses method if it's available, otherwise
+     fall back to GetNetworkParams. */
+  if (ares_fpGetAdaptersAddresses != ZERO_NULL)
   {
-    printf ("Host Name: %s\n", fi->HostName);
-    printf ("Domain Name: %s\n", fi->DomainName);
-    printf ("DNS Servers:\n"
-            "    %s (primary)\n", fi->DnsServerList.IpAddress.String);
-  }
-  if (strlen(fi->DnsServerList.IpAddress.String) > 0 &&
-      inet_addr(fi->DnsServerList.IpAddress.String) != INADDR_NONE &&
-      left > ip_size)
-  {
-    ret += sprintf (ret, "%s,", fi->DnsServerList.IpAddress.String);
-    left -= ret - ret_buf;
-    count++;
-  }
+    const ULONG            working_buf_size = 15000;
+    IP_ADAPTER_ADDRESSES   *pFirstEntry = NULL;
+    IP_ADAPTER_ADDRESSES   *pEntry = NULL;
+    ULONG                  bufSize = 0;
+    ULONG                  result = 0;
 
-  for (i = 0, ipAddr = fi->DnsServerList.Next; ipAddr && left > ip_size;
-       ipAddr = ipAddr->Next, i++)
-  {
-    if (inet_addr(ipAddr->IpAddress.String) != INADDR_NONE)
+    /* According to MSDN, the recommended way to do this is to use a temporary
+       buffer of 15K, to "dramatically reduce the chance that the GetAdaptersAddresses
+       method returns ERROR_BUFFER_OVERFLOW" */
+    pFirstEntry  = ( IP_ADAPTER_ADDRESSES * ) malloc( working_buf_size );
+    bufSize = working_buf_size;
+    if( !pFirstEntry )
+      return 0;
+
+    /* Call the method one time */
+    result = ( *ares_fpGetAdaptersAddresses )( AF_UNSPEC, 0, 0, pFirstEntry, &bufSize );
+    if( result == ERROR_BUFFER_OVERFLOW )
     {
-       ret += sprintf (ret, "%s,", ipAddr->IpAddress.String);
-       left -= ret - ret_buf;
-       count++;
+      /* Reallocate, bufSize should now be set to the required size */
+      pFirstEntry = ( IP_ADAPTER_ADDRESSES * ) realloc( pFirstEntry, bufSize );
+      if( !pFirstEntry )
+        return 0;
+
+      /* Call the method a second time */
+      result = ( *ares_fpGetAdaptersAddresses )( AF_UNSPEC, 0, 0, pFirstEntry, &bufSize );
+      if( result == ERROR_BUFFER_OVERFLOW )
+      {
+        /* Reallocate, bufSize should now be set to the required size */
+        pFirstEntry = ( IP_ADAPTER_ADDRESSES * ) realloc( pFirstEntry, bufSize );
+        if( !pFirstEntry )
+          return 0;
+
+        /* Call the method a third time. The maximum number of times we're going to do
+           this is 3. Three shall be the number thou shalt count, and the number of the
+           counting shall be three.  Five is right out. */
+        result = ( *ares_fpGetAdaptersAddresses )( AF_UNSPEC, 0, 0, pFirstEntry, &bufSize );
+      }
     }
-    if (debug)
-       printf ("    %s (secondary %d)\n", ipAddr->IpAddress.String, i+1);
+
+    /* Check the current result for failure */
+    if( result != ERROR_SUCCESS )
+    {
+      free( pFirstEntry );
+      return 0;
+    }
+
+    /* process the results */
+    for( pEntry = pFirstEntry ; pEntry != NULL ; pEntry = pEntry->Next )
+    {
+      IP_ADAPTER_DNS_SERVER_ADDRESS* pDNSAddr = pEntry->FirstDnsServerAddress;
+      for( ; pDNSAddr != NULL ; pDNSAddr = pDNSAddr->Next )
+      {
+        struct sockaddr *pGenericAddr = pDNSAddr->Address.lpSockaddr;
+        size_t stringlen = 0;
+
+        if( pGenericAddr->sa_family == AF_INET && left > ipv4_size )
+        {
+          /* Handle the v4 case */
+          struct sockaddr_in *pIPv4Addr = ( struct sockaddr_in * ) pGenericAddr;
+          ares_inet_ntop( AF_INET, &pIPv4Addr->sin_addr, ret, ipv4_size - 1 ); /* -1 for comma */
+
+          /* Append a comma to the end, THEN NULL. Should be OK because we
+             already tested the size at the top of the if statement. */
+          stringlen = strlen( ret );
+          ret[ stringlen ] = ',';
+          ret[ stringlen + 1 ] = '\0';
+          ret += stringlen + 1;
+          left -= ret - ret_buf;
+          ++count;
+        }
+        else if( pGenericAddr->sa_family == AF_INET6 && left > ipv6_size )
+        {
+          /* Handle the v6 case */
+          struct sockaddr_in6 *pIPv6Addr = ( struct sockaddr_in6 * ) pGenericAddr;
+          ares_inet_ntop( AF_INET6, &pIPv6Addr->sin6_addr, ret, ipv6_size - 1 ); /* -1 for comma */
+
+          /* Append a comma to the end, THEN NULL. Should be OK because we
+             already tested the size at the top of the if statement. */
+          stringlen = strlen( ret );
+          ret[ stringlen ] = ',';
+          ret[ stringlen + 1 ] = '\0';
+          ret += stringlen + 1;
+          left -= ret - ret_buf;
+          ++count;
+
+          /* NB on Windows this also returns stuff in the fec0::/10 range,
+             seems to be hard-coded somehow. Do we need to ignore them? */
+        }
+      }
+    }
+
+    if( pFirstEntry )
+      free( pFirstEntry );
+    if (ret > ret_buf)
+      ret[-1] = '\0';
+    return count;
   }
+  else
+  {
+    FIXED_INFO    *fi, *newfi;
+    DWORD          size = sizeof (*fi);
+    IP_ADDR_STRING *ipAddr;
+    int            i;
+    int            debug  = 0;
+    HRESULT        res;
+
+    fi = malloc(size);
+    if (!fi)
+      return 0;
+
+    res = (*ares_fpGetNetworkParams) (fi, &size);
+    if ((res != ERROR_BUFFER_OVERFLOW) && (res != ERROR_SUCCESS))
+      goto quit;
+
+    newfi = realloc(fi, size);
+    if (!newfi)
+      goto quit;
+
+    fi = newfi;
+    res = (*ares_fpGetNetworkParams) (fi, &size);
+    if (res != ERROR_SUCCESS)
+      goto quit;
+
+    if (debug)
+    {
+      printf ("Host Name: %s\n", fi->HostName);
+      printf ("Domain Name: %s\n", fi->DomainName);
+      printf ("DNS Servers:\n"
+              "    %s (primary)\n", fi->DnsServerList.IpAddress.String);
+    }
+    if (strlen(fi->DnsServerList.IpAddress.String) > 0 &&
+        inet_addr(fi->DnsServerList.IpAddress.String) != INADDR_NONE &&
+        left > ipv4_size)
+    {
+      ret += sprintf (ret, "%s,", fi->DnsServerList.IpAddress.String);
+      left -= ret - ret_buf;
+      ++count;
+    }
+
+    for (i = 0, ipAddr = fi->DnsServerList.Next; ipAddr && left > ipv4_size;
+         ipAddr = ipAddr->Next, i++)
+    {
+      if (inet_addr(ipAddr->IpAddress.String) != INADDR_NONE)
+      {
+         ret += sprintf (ret, "%s,", ipAddr->IpAddress.String);
+         left -= ret - ret_buf;
+         ++count;
+      }
+      if (debug)
+         printf ("    %s (secondary %d)\n", ipAddr->IpAddress.String, i+1);
+    }
 
 quit:
-  if (fi)
-     free(fi);
+    if (fi)
+      free(fi);
 
-  if (debug && left <= ip_size)
-     printf ("Too many nameservers. Truncating to %d addressess", count);
-  if (ret > ret_buf)
-     ret[-1] = '\0';
-  return count;
+    if (debug && left <= ipv4_size)
+      printf ("Too many nameservers. Truncating to %d addressess", count);
+    if (ret > ret_buf)
+      ret[-1] = '\0';
+    return count;
+  }
 }
 #endif
 
@@ -704,7 +824,8 @@ DhcpNameServer
   DWORD data_type;
   DWORD bytes;
   DWORD result;
-  char  buf[256];
+  char  buf[512];
+  win_platform platform;
 
   if (channel->nservers > -1)  /* don't override ARES_OPT_SERVER */
      return ARES_SUCCESS;
@@ -716,7 +837,9 @@ DhcpNameServer
       goto okay;
   }
 
-  if (IS_NT())
+  platform = ares__getplatform();
+
+  if (platform == WIN_NT)
   {
     if (RegOpenKeyEx(
           HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0,
@@ -750,7 +873,7 @@ DhcpNameServer
       RegCloseKey(mykey);
     }
   }
-  else
+  else if (platform == WIN_9X)
   {
     if (RegOpenKeyEx(
           HKEY_LOCAL_MACHINE, WIN_NS_9X, 0,
@@ -832,7 +955,10 @@ DhcpNameServer
      return ARES_ENOMEM;
 
   for (i = 0; def_nameservers[i]; i++)
-      servers[i].addr.addrV4.s_addr = htonl(def_nameservers[i]);
+  {
+    servers[i].addr.addrV4.s_addr = htonl(def_nameservers[i]);
+    servers[i].addr.family = AF_INET;
+  }
   status = ARES_EOF;
 
 #elif defined(ANDROID)
@@ -856,17 +982,19 @@ DhcpNameServer
     if (fp) {
       while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
       {
-        if ((p = try_config(line, "domain")))
+        if ((p = try_config(line, "domain", ';')))
           status = config_domain(channel, p);
-        else if ((p = try_config(line, "lookup")) && !channel->lookups)
+        else if ((p = try_config(line, "lookup", ';')) && !channel->lookups)
           status = config_lookup(channel, p, "bind", "file");
-        else if ((p = try_config(line, "search")))
+        else if ((p = try_config(line, "search", ';')))
           status = set_search(channel, p);
-        else if ((p = try_config(line, "nameserver")) && channel->nservers == -1)
+        else if ((p = try_config(line, "nameserver", ';')) &&
+                 channel->nservers == -1)
           status = config_nameserver(&servers, &nservers, p);
-        else if ((p = try_config(line, "sortlist")) && channel->nsort == -1)
+        else if ((p = try_config(line, "sortlist", ';')) &&
+                 channel->nsort == -1)
           status = config_sortlist(&sortlist, &nsort, p);
-        else if ((p = try_config(line, "options")))
+        else if ((p = try_config(line, "options", ';')))
           status = set_options(channel, p);
         else
           status = ARES_SUCCESS;
@@ -896,8 +1024,9 @@ DhcpNameServer
       if (fp) {
         while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
         {
-          if ((p = try_config(line, "hosts:")) && !channel->lookups)
-            status = config_lookup(channel, p, "dns", "files");
+          if ((p = try_config(line, "hosts:", '\0')) && !channel->lookups)
+            /* ignore errors */
+            (void)config_lookup(channel, p, "dns", "files");
         }
         fclose(fp);
       }
@@ -923,8 +1052,9 @@ DhcpNameServer
       if (fp) {
         while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
         {
-          if ((p = try_config(line, "order")) && !channel->lookups)
-            status = config_lookup(channel, p, "bind", "hosts");
+          if ((p = try_config(line, "order", '\0')) && !channel->lookups)
+            /* ignore errors */
+            (void)config_lookup(channel, p, "bind", "hosts");
         }
         fclose(fp);
       }
@@ -950,8 +1080,9 @@ DhcpNameServer
       if (fp) {
         while ((status = ares__read_line(fp, &line, &linesize)) == ARES_SUCCESS)
         {
-          if ((p = try_config(line, "hosts=")) && !channel->lookups)
-            status = config_lookup(channel, p, "bind", "local");
+          if ((p = try_config(line, "hosts=", '\0')) && !channel->lookups)
+            /* ignore errors */
+            (void)config_lookup(channel, p, "bind", "local");
         }
         fclose(fp);
       }
@@ -1042,10 +1173,13 @@ static int init_by_defaults(ares_channel channel)
     channel->nservers = 1;
   }
 
-#ifdef ENAMETOOLONG
-#define toolong(x) (x == -1) && ((ENAMETOOLONG == errno) || (EINVAL == errno))
+#if defined(USE_WINSOCK)
+#define toolong(x) (x == -1) &&  (SOCKERRNO == WSAEFAULT)
+#elif defined(ENAMETOOLONG)
+#define toolong(x) (x == -1) && ((SOCKERRNO == ENAMETOOLONG) || \
+                                 (SOCKERRNO == EINVAL))
 #else
-#define toolong(x) (x == -1) && (EINVAL == errno)
+#define toolong(x) (x == -1) &&  (SOCKERRNO == EINVAL)
 #endif
 
   if (channel->ndomains == -1) {
@@ -1287,9 +1421,9 @@ static int config_sortlist(struct apattern **sortlist, int *nsort,
           if (!sortlist_alloc(sortlist, nsort, &pat))
             return ARES_ENOMEM;
         }
-      if (ipbufpfx[0] &&
-          (bits = ares_inet_net_pton(AF_INET, ipbufpfx, &pat.addrV4,
-                                     sizeof(pat.addrV4))) > 0)
+      else if (ipbufpfx[0] &&
+               (bits = ares_inet_net_pton(AF_INET, ipbufpfx, &pat.addrV4,
+                                          sizeof(pat.addrV4))) > 0)
         {
           pat.type = PATTERN_CIDR;
           pat.mask.bits = (unsigned short)bits;
@@ -1426,7 +1560,7 @@ static const char *try_option(const char *p, const char *q, const char *opt)
 }
 
 #if !defined(WIN32) && !defined(WATT32)
-static char *try_config(char *s, const char *opt)
+static char *try_config(char *s, const char *opt, char scc)
 {
   size_t len;
   char *p;
@@ -1436,10 +1570,17 @@ static char *try_config(char *s, const char *opt)
     /* no line or no option */
     return NULL;
 
+  /* Hash '#' character is always used as primary comment char, additionally
+     a not-NUL secondary comment char will be considered when specified. */
+
   /* trim line comment */
   p = s;
-  while (*p && (*p != '#'))
-    p++;
+  if(scc)
+    while (*p && (*p != '#') && (*p != scc))
+      p++;
+  else
+    while (*p && (*p != '#'))
+      p++;
   *p = '\0';
 
   /* trim trailing whitespace */

@@ -75,6 +75,11 @@ typedef enum __ns_type {
     ns_t_sink = 40,         /* Kitchen sink (experimentatl) */
     ns_t_opt = 41,          /* EDNS0 option (meta-RR) */
     ns_t_apl = 42,          /* Address prefix list (RFC3123) */
+    ns_t_ds = 43,           /* Delegation Signer (RFC4034) */
+    ns_t_sshfp = 44,        /* SSH Key Fingerprint (RFC4255) */
+    ns_t_rrsig = 46,        /* Resource Record Signature (RFC4034) */
+    ns_t_nsec = 47,         /* Next Secure (RFC4034) */
+    ns_t_dnskey = 48,       /* DNS Public Key (RFC4034) */
     ns_t_tkey = 249,        /* Transaction key */
     ns_t_tsig = 250,        /* Transaction signature. */
     ns_t_ixfr = 251,        /* Incremental zone transfer. */
@@ -181,6 +186,11 @@ typedef enum __ns_rcode {
 #define T_SRV           ns_t_srv
 #define T_ATMA          ns_t_atma
 #define T_NAPTR         ns_t_naptr
+#define T_DS            ns_t_ds
+#define T_SSHFP         ns_t_sshfp
+#define T_RRSIG         ns_t_rrsig
+#define T_NSEC          ns_t_nsec
+#define T_DNSKEY        ns_t_dnskey
 #define T_TSIG          ns_t_tsig
 #define T_IXFR          ns_t_ixfr
 #define T_AXFR          ns_t_axfr

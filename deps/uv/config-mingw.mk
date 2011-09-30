@@ -28,6 +28,7 @@ CFLAGS=$(CPPFLAGS) -g --std=gnu89 -D_WIN32_WINNT=0x0501 -Isrc/ares/config_win32
 LINKFLAGS=-lm
 
 CARES_OBJS += src/ares/windows_port.o
+CARES_OBJS += src/ares/ares_platform.o
 WIN_SRCS=$(wildcard src/win/*.c)
 WIN_OBJS=$(WIN_SRCS:.c=.o)
 

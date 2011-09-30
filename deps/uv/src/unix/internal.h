@@ -96,8 +96,6 @@ int uv__socket(int domain, int type, int protocol);
 
 /* error */
 uv_err_code uv_translate_sys_error(int sys_errno);
-uv_err_t uv_err_new(uv_loop_t* loop, int sys_error);
-uv_err_t uv_err_new_artificial(uv_loop_t* loop, int code);
 void uv_fatal_error(const int errorno, const char* syscall);
 
 /* stream */

@@ -2,7 +2,7 @@
 #define __SETUP_ONCE_H
 
 
-/* Copyright (C) 2004 - 2010 by Daniel Stenberg et al
+/* Copyright (C) 2004 - 2011 by Daniel Stenberg et al
  *
  * Permission to use, copy, modify, and distribute this software and its
  * documentation for any purpose and without fee is hereby granted, provided
@@ -35,7 +35,10 @@
 #include <string.h>
 #include <stdarg.h>
 #include <ctype.h>
+
+#ifdef HAVE_ERRNO_H
 #include <errno.h>
+#endif
 
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
@@ -248,6 +251,7 @@ struct timeval {
 #define ISPRINT(x)  (isprint((int)  ((unsigned char)x)))
 #define ISUPPER(x)  (isupper((int)  ((unsigned char)x)))
 #define ISLOWER(x)  (islower((int)  ((unsigned char)x)))
+#define ISASCII(x)  (isascii((int)  ((unsigned char)x)))
 
 #define ISBLANK(x)  (int)((((unsigned char)x) == ' ') || \
                           (((unsigned char)x) == '\t'))
@@ -366,7 +370,7 @@ typedef int sig_atomic_t;
  * (or equivalent) on this platform to hide platform details to code using it.
  */
 
-#ifdef WIN32
+#if defined(WIN32) && !defined(WATT32)
 #define ERRNO         ((int)GetLastError())
 #define SET_ERRNO(x)  (SetLastError((DWORD)(x)))
 #else
@@ -452,6 +456,18 @@ typedef int sig_atomic_t;
 #define EDQUOT           WSAEDQUOT
 #define ESTALE           WSAESTALE
 #define EREMOTE          WSAEREMOTE
+#endif
+
+
+/*
+ *  System error codes for Windows CE
+ */
+
+#if defined(WIN32) && !defined(HAVE_ERRNO_H)
+#define ENOENT       ERROR_FILE_NOT_FOUND
+#define ESRCH        ERROR_PATH_NOT_FOUND
+#define ENOMEM       ERROR_NOT_ENOUGH_MEMORY
+#define ENOSPC       ERROR_INVALID_PARAMETER
 #endif
 
 

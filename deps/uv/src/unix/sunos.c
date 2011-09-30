@@ -67,7 +67,7 @@ int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
                      const char* filename,
                      uv_fs_event_cb cb) {
-  uv_err_new(loop, ENOSYS);
+  uv__set_sys_error(loop, ENOSYS);
   return -1;
 }
 

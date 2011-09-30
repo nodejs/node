@@ -92,12 +92,12 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd) {
 
   win_handle = (HANDLE) _get_osfhandle(fd);
   if (win_handle == INVALID_HANDLE_VALUE) {
-    uv_set_sys_error(loop, ERROR_INVALID_HANDLE);
+    uv__set_sys_error(loop, ERROR_INVALID_HANDLE);
     return -1;
   }
 
   if (!GetConsoleMode(win_handle, &tty->original_console_mode)) {
-    uv_set_sys_error(loop, GetLastError());
+    uv__set_sys_error(loop, GetLastError());
     return -1;
   }
 
@@ -163,7 +163,7 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
   }
 
   if (!SetConsoleMode(tty->handle, flags)) {
-    uv_set_sys_error(tty->loop, GetLastError());
+    uv__set_sys_error(tty->loop, GetLastError());
     return -1;
   }
 
@@ -203,7 +203,7 @@ int uv_tty_get_winsize(uv_tty_t* tty, int* width, int* height) {
   CONSOLE_SCREEN_BUFFER_INFO info;
 
   if (!GetConsoleScreenBufferInfo(tty->handle, &info)) {
-    uv_set_sys_error(tty->loop, GetLastError());
+    uv__set_sys_error(tty->loop, GetLastError());
     return -1;
   }
 
@@ -452,7 +452,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
     /* An error occurred while waiting for the event. */
     if ((handle->flags & UV_HANDLE_READING)) {
       handle->flags &= ~UV_HANDLE_READING;
-      loop->last_error = GET_REQ_UV_ERROR(req);
+      uv__set_sys_error(loop, GET_REQ_ERROR(req));
       handle->read_cb((uv_stream_t*)handle, -1, uv_null_buf_);
     }
     goto out;
@@ -461,7 +461,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
   /* Fetch the number of events  */
   if (!GetNumberOfConsoleInputEvents(handle->handle, &records_left)) {
     handle->flags &= ~UV_HANDLE_READING;
-    uv_set_sys_error(loop, GetLastError());
+    uv__set_sys_error(loop, GetLastError());
     handle->read_cb((uv_stream_t*)handle, -1, uv_null_buf_);
     goto out;
   }
@@ -479,7 +479,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
                              &handle->last_input_record,
                              1,
                              &records_read)) {
-        uv_set_sys_error(loop, GetLastError());
+        uv__set_sys_error(loop, GetLastError());
         handle->flags &= ~UV_HANDLE_READING;
         handle->read_cb((uv_stream_t*) handle, -1, buf);
         goto out;
@@ -579,7 +579,7 @@ void uv_process_tty_read_raw_req(uv_loop_t* loop, uv_tty_t* handle,
         /* If the utf16 character(s) couldn't be converted something must */
         /* be wrong. */
         if (!char_len) {
-          uv_set_sys_error(loop, GetLastError());
+          uv__set_sys_error(loop, GetLastError());
           handle->flags &= ~UV_HANDLE_READING;
           handle->read_cb((uv_stream_t*) handle, -1, buf);
           goto out;
@@ -689,11 +689,11 @@ void uv_process_tty_read_line_req(uv_loop_t* loop, uv_tty_t* handle,
         !(handle->flags & UV_HANDLE_TTY_RAW)) {
       /* Real error */
       handle->flags &= ~UV_HANDLE_READING;
-      loop->last_error = GET_REQ_UV_ERROR(req);
+      uv__set_sys_error(loop, GET_REQ_ERROR(req));
       handle->read_cb((uv_stream_t*) handle, -1, buf);
     } else {
       /* The read was cancelled, or whatever we don't care */
-      uv_set_sys_error(loop, WSAEWOULDBLOCK); /* maps to UV_EAGAIN */
+      uv__set_sys_error(loop, WSAEWOULDBLOCK); /* maps to UV_EAGAIN */
       handle->read_cb((uv_stream_t*) handle, 0, buf);
     }
 
@@ -702,7 +702,7 @@ void uv_process_tty_read_line_req(uv_loop_t* loop, uv_tty_t* handle,
     /* TODO: read unicode, convert to utf-8 */
     DWORD bytes = req->overlapped.InternalHigh;
     if (bytes == 0) {
-      uv_set_sys_error(loop, WSAEWOULDBLOCK); /* maps to UV_EAGAIN */
+      uv__set_sys_error(loop, WSAEWOULDBLOCK); /* maps to UV_EAGAIN */
     }
     handle->read_cb((uv_stream_t*) handle, bytes, buf);
   }
@@ -770,7 +770,7 @@ int uv_tty_read_stop(uv_tty_t* handle) {
     DWORD written;
     memset(&record, 0, sizeof record);
     if (!WriteConsoleInputW(handle->handle, &record, 1, &written)) {
-      uv_set_sys_error(handle->loop, GetLastError());
+      uv__set_sys_error(handle->loop, GetLastError());
       return -1;
     }
   }
@@ -1483,7 +1483,7 @@ int uv_tty_write(uv_loop_t* loop, uv_write_t* req, uv_tty_t* handle,
 
   if ((handle->flags & UV_HANDLE_SHUTTING) ||
       (handle->flags & UV_HANDLE_CLOSING)) {
-    uv_set_sys_error(loop, WSAESHUTDOWN);
+    uv__set_sys_error(loop, WSAESHUTDOWN);
     return -1;
   }
 
@@ -1515,8 +1515,8 @@ void uv_process_tty_write_req(uv_loop_t* loop, uv_tty_t* handle,
   handle->write_queue_size -= req->queued_bytes;
 
   if (req->cb) {
-    loop->last_error = GET_REQ_UV_ERROR(req);
-    ((uv_write_cb)req->cb)(req, loop->last_error.code == UV_OK ? 0 : -1);
+    uv__set_sys_error(loop, GET_REQ_ERROR(req));
+    ((uv_write_cb)req->cb)(req, loop->last_err.code == UV_OK ? 0 : -1);
   }
 
   handle->write_reqs_pending--;
@@ -1588,4 +1588,10 @@ void uv_process_tty_accept_req(uv_loop_t* loop, uv_tty_t* handle,
 void uv_process_tty_connect_req(uv_loop_t* loop, uv_tty_t* handle,
     uv_connect_t* req) {
   abort();
+}
+
+
+void uv_tty_reset_mode() {
+  /* Not necessary to do anything. */
+  ;
 }

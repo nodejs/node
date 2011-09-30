@@ -45,7 +45,7 @@ static int uv__tcp_bind(uv_tcp_t* tcp,
 
   if (tcp->fd < 0) {
     if ((tcp->fd = uv__socket(domain, SOCK_STREAM, 0)) == -1) {
-      uv_err_new(tcp->loop, errno);
+      uv__set_sys_error(tcp->loop, errno);
       goto out;
     }
 
@@ -64,7 +64,7 @@ static int uv__tcp_bind(uv_tcp_t* tcp,
     if (errno == EADDRINUSE) {
       tcp->delayed_error = errno;
     } else {
-      uv_err_new(tcp->loop, errno);
+      uv__set_sys_error(tcp->loop, errno);
       goto out;
     }
   }
@@ -76,26 +76,26 @@ out:
 }
 
 
-int uv_tcp_bind(uv_tcp_t* tcp, struct sockaddr_in addr) {
-  if (addr.sin_family != AF_INET) {
-    uv_err_new(tcp->loop, EFAULT);
+int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
+  if (handle->type != UV_TCP || addr.sin_family != AF_INET) {
+    uv__set_sys_error(handle->loop, EFAULT);
     return -1;
   }
 
-  return uv__tcp_bind(tcp,
+  return uv__tcp_bind(handle,
                       AF_INET,
                       (struct sockaddr*)&addr,
                       sizeof(struct sockaddr_in));
 }
 
 
-int uv_tcp_bind6(uv_tcp_t* tcp, struct sockaddr_in6 addr) {
-  if (addr.sin6_family != AF_INET6) {
-    uv_err_new(tcp->loop, EFAULT);
+int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
+  if (handle->type != UV_TCP || addr.sin6_family != AF_INET6) {
+    uv__set_sys_error(handle->loop, EFAULT);
     return -1;
   }
 
-  return uv__tcp_bind(tcp,
+  return uv__tcp_bind(handle,
                       AF_INET6,
                       (struct sockaddr*)&addr,
                       sizeof(struct sockaddr_in6));
@@ -112,13 +112,13 @@ int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
   saved_errno = errno;
 
   if (handle->delayed_error) {
-    uv_err_new(handle->loop, handle->delayed_error);
+    uv__set_sys_error(handle->loop, handle->delayed_error);
     rv = -1;
     goto out;
   }
 
   if (handle->fd < 0) {
-    uv_err_new(handle->loop, EINVAL);
+    uv__set_sys_error(handle->loop, EINVAL);
     rv = -1;
     goto out;
   }
@@ -127,7 +127,7 @@ int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
   socklen = (socklen_t)*namelen;
 
   if (getsockname(handle->fd, name, &socklen) == -1) {
-    uv_err_new(handle->loop, errno);
+    uv__set_sys_error(handle->loop, errno);
     rv = -1;
   } else {
     *namelen = (int)socklen;
@@ -149,13 +149,13 @@ int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
   saved_errno = errno;
 
   if (handle->delayed_error) {
-    uv_err_new(handle->loop, handle->delayed_error);
+    uv__set_sys_error(handle->loop, handle->delayed_error);
     rv = -1;
     goto out;
   }
 
   if (handle->fd < 0) {
-    uv_err_new(handle->loop, EINVAL);
+    uv__set_sys_error(handle->loop, EINVAL);
     rv = -1;
     goto out;
   }
@@ -164,7 +164,7 @@ int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
   socklen = (socklen_t)*namelen;
 
   if (getpeername(handle->fd, name, &socklen) == -1) {
-    uv_err_new(handle->loop, errno);
+    uv__set_sys_error(handle->loop, errno);
     rv = -1;
   } else {
     *namelen = (int)socklen;
@@ -180,13 +180,13 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
   int r;
 
   if (tcp->delayed_error) {
-    uv_err_new(tcp->loop, tcp->delayed_error);
+    uv__set_sys_error(tcp->loop, tcp->delayed_error);
     return -1;
   }
 
   if (tcp->fd < 0) {
     if ((tcp->fd = uv__socket(AF_INET, SOCK_STREAM, 0)) == -1) {
-      uv_err_new(tcp->loop, errno);
+      uv__set_sys_error(tcp->loop, errno);
       return -1;
     }
 
@@ -201,7 +201,7 @@ int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb) {
 
   r = listen(tcp->fd, backlog);
   if (r < 0) {
-    uv_err_new(tcp->loop, errno);
+    uv__set_sys_error(tcp->loop, errno);
     return -1;
   }
 
@@ -226,13 +226,8 @@ int uv_tcp_connect(uv_connect_t* req,
   saved_errno = errno;
   status = -1;
 
-  if (handle->type != UV_TCP) {
-    uv_err_new(handle->loop, EINVAL);
-    goto out;
-  }
-
-  if (address.sin_family != AF_INET) {
-    uv_err_new(handle->loop, EINVAL);
+  if (handle->type != UV_TCP || address.sin_family != AF_INET) {
+    uv__set_sys_error(handle->loop, EINVAL);
     goto out;
   }
 
@@ -258,13 +253,8 @@ int uv_tcp_connect6(uv_connect_t* req,
   saved_errno = errno;
   status = -1;
 
-  if (handle->type != UV_TCP) {
-    uv_err_new(handle->loop, EINVAL);
-    goto out;
-  }
-
-  if (address.sin6_family != AF_INET6) {
-    uv_err_new(handle->loop, EINVAL);
+  if (handle->type != UV_TCP || address.sin6_family != AF_INET6) {
+    uv__set_sys_error(handle->loop, EINVAL);
     goto out;
   }
 

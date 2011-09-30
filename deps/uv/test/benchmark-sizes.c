@@ -29,6 +29,7 @@ BENCHMARK_IMPL(sizes) {
   LOGF("uv_connect_t: %u bytes\n", (unsigned int) sizeof(uv_connect_t));
   LOGF("uv_tcp_t: %u bytes\n", (unsigned int) sizeof(uv_tcp_t));
   LOGF("uv_pipe_t: %u bytes\n", (unsigned int) sizeof(uv_pipe_t));
+  LOGF("uv_tty_t: %u bytes\n", (unsigned int) sizeof(uv_tty_t));
   LOGF("uv_prepare_t: %u bytes\n", (unsigned int) sizeof(uv_prepare_t));
   LOGF("uv_check_t: %u bytes\n", (unsigned int) sizeof(uv_check_t));
   LOGF("uv_idle_t: %u bytes\n", (unsigned int) sizeof(uv_idle_t));

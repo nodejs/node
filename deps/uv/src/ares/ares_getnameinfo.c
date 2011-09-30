@@ -58,6 +58,7 @@
 #include "ares.h"
 #include "ares_ipv6.h"
 #include "inet_ntop.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 struct nameinfo_query {
@@ -187,7 +188,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
         if (sa->sa_family == AF_INET)
           {
             niquery->family = AF_INET;
-            memcpy(&niquery->addr.addr4, addr, sizeof(addr));
+            memcpy(&niquery->addr.addr4, addr, sizeof(struct in_addr));
             ares_gethostbyaddr(channel, &addr->sin_addr,
                                sizeof(struct in_addr), AF_INET,
                                nameinfo_callback, niquery);
@@ -195,7 +196,7 @@ void ares_getnameinfo(ares_channel channel, const struct sockaddr *sa,
         else
           {
             niquery->family = AF_INET6;
-            memcpy(&niquery->addr.addr6, addr6, sizeof(addr6));
+            memcpy(&niquery->addr.addr6, addr6, sizeof(struct ares_in6_addr));
             ares_gethostbyaddr(channel, &addr6->sin6_addr,
                                sizeof(struct ares_in6_addr), AF_INET6,
                                nameinfo_callback, niquery);

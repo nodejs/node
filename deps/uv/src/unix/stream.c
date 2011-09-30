@@ -87,7 +87,7 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
   yes = 1;
   if (stream->type == UV_TCP
       && setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-    uv_err_new(stream->loop, errno);
+    uv__set_sys_error(stream->loop, errno);
     return -1;
   }
 
@@ -118,7 +118,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
       free(req->bufs);
 
     if (req->cb) {
-      uv_err_new_artificial(req->handle->loop, UV_EINTR);
+      uv__set_artificial_error(req->handle->loop, UV_EINTR);
       req->cb(req, -1);
     }
   }
@@ -129,7 +129,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
     req = ngx_queue_data(q, uv_write_t, queue);
     if (req->cb) {
-      uv_err_new_artificial(stream->loop, req->error);
+      uv__set_artificial_error(stream->loop, req->error);
       req->cb(req, req->error ? -1 : 0);
     }
   }
@@ -167,7 +167,7 @@ void uv__server_io(EV_P_ ev_io* watcher, int revents) {
         /* TODO special trick. unlock reserved socket, accept, close. */
         return;
       } else {
-        uv_err_new(stream->loop, errno);
+        uv__set_sys_error(stream->loop, errno);
         stream->connection_cb((uv_stream_t*)stream, -1);
       }
     } else {
@@ -199,7 +199,7 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   streamClient = (uv_stream_t*)client;
 
   if (streamServer->accepted_fd < 0) {
-    uv_err_new(server->loop, EAGAIN);
+    uv__set_sys_error(server->loop, EAGAIN);
     goto out;
   }
 
@@ -272,12 +272,12 @@ static void uv__drain(uv_stream_t* stream) {
 
     if (shutdown(stream->fd, SHUT_WR)) {
       /* Error. Report it. User should call uv_close(). */
-      uv_err_new(stream->loop, errno);
+      uv__set_sys_error(stream->loop, errno);
       if (req->cb) {
         req->cb(req, -1);
       }
     } else {
-      uv_err_new(stream->loop, 0);
+      uv__set_sys_error(stream->loop, 0);
       ((uv_handle_t*) stream)->flags |= UV_SHUT;
       if (req->cb) {
         req->cb(req, 0);
@@ -428,7 +428,7 @@ static void uv__write_callbacks(uv_stream_t* stream) {
 
     /* NOTE: call callback AFTER freeing the request data. */
     if (req->cb) {
-      uv_err_new_artificial(stream->loop, req->error);
+      uv__set_artificial_error(stream->loop, req->error);
       req->cb(req, req->error ? -1 : 0);
     }
 
@@ -472,19 +472,19 @@ static void uv__read(uv_stream_t* stream) {
         if (stream->flags & UV_READING) {
           ev_io_start(ev, &stream->read_watcher);
         }
-        uv_err_new(stream->loop, EAGAIN);
+        uv__set_sys_error(stream->loop, EAGAIN);
         stream->read_cb(stream, 0, buf);
         return;
       } else {
         /* Error. User should call uv_close(). */
-        uv_err_new(stream->loop, errno);
+        uv__set_sys_error(stream->loop, errno);
         stream->read_cb(stream, -1, buf);
         assert(!ev_is_active(&stream->read_watcher));
         return;
       }
     } else if (nread == 0) {
       /* EOF */
-      uv_err_new_artificial(stream->loop, UV_EOF);
+      uv__set_artificial_error(stream->loop, UV_EOF);
       ev_io_stop(ev, &stream->read_watcher);
       stream->read_cb(stream, -1, buf);
       return;
@@ -505,7 +505,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
       stream->flags & UV_SHUT ||
       stream->flags & UV_CLOSED ||
       stream->flags & UV_CLOSING) {
-    uv_err_new(stream->loop, EINVAL);
+    uv__set_sys_error(stream->loop, EINVAL);
     return -1;
   }
 
@@ -593,7 +593,7 @@ static void uv__stream_connect(uv_stream_t* stream) {
     return;
   } else {
     /* Error */
-    uv_err_new(stream->loop, error);
+    uv__set_sys_error(stream->loop, error);
 
     stream->connect_req = NULL;
     if (req->cb) {
@@ -610,7 +610,7 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
 
   if (stream->fd <= 0) {
     if ((sockfd = uv__socket(addr->sa_family, SOCK_STREAM, 0)) == -1) {
-      uv_err_new(stream->loop, errno);
+      uv__set_sys_error(stream->loop, errno);
       return -1;
     }
 
@@ -627,12 +627,12 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
   ngx_queue_init(&req->queue);
 
   if (stream->connect_req) {
-    uv_err_new(stream->loop, EALREADY);
+    uv__set_sys_error(stream->loop, EALREADY);
     return -1;
   }
 
   if (stream->type != UV_TCP) {
-    uv_err_new(stream->loop, ENOTSOCK);
+    uv__set_sys_error(stream->loop, ENOTSOCK);
     return -1;
   }
 
@@ -656,7 +656,7 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
         break;
 
       default:
-        uv_err_new(stream->loop, errno);
+        uv__set_sys_error(stream->loop, errno);
         return -1;
     }
   }
@@ -684,7 +684,7 @@ int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
       "uv_write (unix) does not yet support other types of streams");
 
   if (stream->fd < 0) {
-    uv_err_new(stream->loop, EBADF);
+    uv__set_sys_error(stream->loop, EBADF);
     return -1;
   }
 
@@ -742,7 +742,7 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
       stream->type == UV_TTY);
 
   if (stream->flags & UV_CLOSING) {
-    uv_err_new(stream->loop, EINVAL);
+    uv__set_sys_error(stream->loop, EINVAL);
     return -1;
   }
 

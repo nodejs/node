@@ -63,10 +63,10 @@
 #include <stdlib.h>
 #include <fcntl.h>
 #include <time.h>
-#include <errno.h>
 
 #include "ares.h"
 #include "ares_dns.h"
+#include "ares_nowarn.h"
 #include "ares_private.h"
 
 
@@ -300,29 +300,28 @@ static void advance_tcp_send_queue(ares_channel channel, int whichserver,
 {
   struct send_request *sendreq;
   struct server_state *server = &channel->servers[whichserver];
-  while (num_bytes > 0)
-    {
-      sendreq = server->qhead;
-      if ((size_t)num_bytes >= sendreq->len)
-       {
-         num_bytes -= sendreq->len;
-         server->qhead = sendreq->next;
-         if (server->qhead == NULL)
-           {
-             SOCK_STATE_CALLBACK(channel, server->tcp_socket, 1, 0);
-             server->qtail = NULL;
-           }
-         if (sendreq->data_storage != NULL)
-           free(sendreq->data_storage);
-         free(sendreq);
-       }
-      else
-       {
-         sendreq->data += num_bytes;
-         sendreq->len -= num_bytes;
-         num_bytes = 0;
-       }
+  while (num_bytes > 0) {
+    sendreq = server->qhead;
+    if ((size_t)num_bytes >= sendreq->len) {
+      num_bytes -= sendreq->len;
+      server->qhead = sendreq->next;
+      if (sendreq->data_storage)
+        free(sendreq->data_storage);
+      free(sendreq);
+      if (server->qhead == NULL) {
+        SOCK_STATE_CALLBACK(channel, server->tcp_socket, 1, 0);
+        server->qtail = NULL;
+
+        /* qhead is NULL so we cannot continue this loop */
+        break;
+      }
     }
+    else {
+      sendreq->data += num_bytes;
+      sendreq->len -= num_bytes;
+      num_bytes = 0;
+    }
+  }
 }
 
 /* If any TCP socket selects true for reading, read some data,
@@ -686,7 +685,7 @@ static void next_server(ares_channel channel, struct query *query,
    * servers to try. In total, we need to do channel->nservers * channel->tries
    * attempts. Use query->try to remember how many times we already attempted
    * this query. Use modular arithmetic to find the next server to try. */
-  while (++(query->try) < (channel->nservers * channel->tries))
+  while (++(query->try_count) < (channel->nservers * channel->tries))
     {
       struct server_state *server;
 
@@ -791,7 +790,7 @@ void ares__send_query(ares_channel channel, struct query *query,
           return;
         }
     }
-    timeplus = channel->timeout << (query->try / channel->nservers);
+    timeplus = channel->timeout << (query->try_count / channel->nservers);
     timeplus = (timeplus * (9 + (rand () & 7))) / 16;
     query->timeout = *now;
     ares__timeadd(&query->timeout,

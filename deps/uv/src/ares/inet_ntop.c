@@ -1,18 +1,18 @@
-
-/* Copyright (c) 1996 by Internet Software Consortium.
+/*
+ * Copyright (c) 2004 by Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (c) 1996-1999 by Internet Software Consortium.
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
  * copyright notice and this permission notice appear in all copies.
  *
- * THE SOFTWARE IS PROVIDED "AS IS" AND INTERNET SOFTWARE CONSORTIUM DISCLAIMS
- * ALL WARRANTIES WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES
- * OF MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL INTERNET SOFTWARE
- * CONSORTIUM BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
- * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
- * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
- * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
- * SOFTWARE.
+ * THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT
+ * OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
 #include "ares_setup.h"
@@ -36,7 +36,6 @@
 #endif
 
 #include <ctype.h>
-#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -47,12 +46,6 @@
 
 
 #ifndef HAVE_INET_NTOP
-
-#ifdef SPRINTF_CHAR
-# define SPRINTF(x) strlen(sprintf/**/x)
-#else
-# define SPRINTF(x) ((size_t)sprintf x)
-#endif
 
 /*
  * WARNING: Don't even consider trying to compile this on a system where
@@ -68,32 +61,31 @@ static const char *inet_ntop6(const unsigned char *src, char *dst, size_t size);
  * return:
  *     pointer to presentation format address (`dst'), or NULL (see errno).
  * note:
- *      On Windows we store the error in the thread errno, not
- *      in the winsock error code. This is to avoid loosing the
- *      actual last winsock error. So use macro ERRNO to fetch the
- *      errno this funtion sets when returning NULL, not SOCKERRNO.
+ *     On Windows we store the error in the thread errno, not
+ *     in the winsock error code. This is to avoid loosing the
+ *     actual last winsock error. So use macro ERRNO to fetch the
+ *     errno this funtion sets when returning NULL, not SOCKERRNO.
  * author:
  *     Paul Vixie, 1996.
  */
 const char *
 ares_inet_ntop(int af, const void *src, char *dst, size_t size)
 {
-  switch (af)
-    {
-    case AF_INET:
-      return (inet_ntop4(src, dst, size));
-    case AF_INET6:
-      return (inet_ntop6(src, dst, size));
-    default:
-      SET_ERRNO(EAFNOSUPPORT);
-      return (NULL);
-    }
+  switch (af) {
+  case AF_INET:
+    return (inet_ntop4(src, dst, size));
+  case AF_INET6:
+    return (inet_ntop6(src, dst, size));
+  default:
+    SET_ERRNO(EAFNOSUPPORT);
+    return (NULL);
+  }
   /* NOTREACHED */
 }
 
 /* const char *
  * inet_ntop4(src, dst, size)
- *     format an IPv4 address, more or less like inet_ntoa()
+ *     format an IPv4 address
  * return:
  *     `dst' (as a const)
  * notes:
@@ -106,22 +98,21 @@ static const char *
 inet_ntop4(const unsigned char *src, char *dst, size_t size)
 {
   static const char fmt[] = "%u.%u.%u.%u";
-  char tmp[sizeof "255.255.255.255"];
+  char tmp[sizeof("255.255.255.255")];
 
-  if (SPRINTF((tmp, fmt, src[0], src[1], src[2], src[3])) > size)
-    {
-      SET_ERRNO(ENOSPC);
-      return (NULL);
-    }
-    strcpy(dst, tmp);
-    return (dst);
+  if ((size_t)sprintf(tmp, fmt, src[0], src[1], src[2], src[3]) >= size) {
+    SET_ERRNO(ENOSPC);
+    return (NULL);
+  }
+  strcpy(dst, tmp);
+  return (dst);
 }
 
 /* const char *
  * inet_ntop6(src, dst, size)
- *    convert IPv6 binary address into presentation (printable) format
+ *     convert IPv6 binary address into presentation (printable) format
  * author:
- *    Paul Vixie, 1996.
+ *     Paul Vixie, 1996.
  */
 static const char *
 inet_ntop6(const unsigned char *src, char *dst, size_t size)
@@ -135,11 +126,8 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
    */
   char tmp[sizeof("ffff:ffff:ffff:ffff:ffff:ffff:255.255.255.255")];
   char *tp;
-  struct {
-    long base;
-    long len;
-  } best, cur;
-  unsigned long words[NS_IN6ADDRSZ / NS_INT16SZ];
+  struct { int base, len; } best, cur;
+  unsigned int words[NS_IN6ADDRSZ / NS_INT16SZ];
   int i;
 
   /*
@@ -149,37 +137,29 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
    */
   memset(words, '\0', sizeof(words));
   for (i = 0; i < NS_IN6ADDRSZ; i++)
-      words[i / 2] |= (src[i] << ((1 - (i % 2)) << 3));
-
+    words[i / 2] |= (src[i] << ((1 - (i % 2)) << 3));
   best.base = -1;
-  cur.base = -1;
   best.len = 0;
+  cur.base = -1;
   cur.len = 0;
-
-  for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++)
-    {
-      if (words[i] == 0)
-        {
-          if (cur.base == -1)
-            cur.base = i, cur.len = 1;
-          else
-            cur.len++;
-        }
+  for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++) {
+    if (words[i] == 0) {
+      if (cur.base == -1)
+        cur.base = i, cur.len = 1;
       else
-        {
-          if (cur.base != -1)
-            {
-              if (best.base == -1 || cur.len > best.len)
-                best = cur;
-              cur.base = -1;
-            }
-        }
+        cur.len++;
+    } else {
+      if (cur.base != -1) {
+        if (best.base == -1 || cur.len > best.len)
+          best = cur;
+        cur.base = -1;
+      }
     }
-  if (cur.base != -1)
-    {
-      if (best.base == -1 || cur.len > best.len)
-        best = cur;
-    }
+  }
+  if (cur.base != -1) {
+    if (best.base == -1 || cur.len > best.len)
+      best = cur;
+  }
   if (best.base != -1 && best.len < 2)
     best.base = -1;
 
@@ -187,46 +167,42 @@ inet_ntop6(const unsigned char *src, char *dst, size_t size)
    * Format the result.
    */
   tp = tmp;
-  for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++)
-    {
-      /* Are we inside the best run of 0x00's? */
-      if (best.base != -1 && i >= best.base &&
-          i < (best.base + best.len))
-        {
-          if (i == best.base)
-             *tp++ = ':';
-          continue;
-        }
-      /* Are we following an initial run of 0x00s or any real hex? */
-      if (i != 0)
+  for (i = 0; i < (NS_IN6ADDRSZ / NS_INT16SZ); i++) {
+    /* Are we inside the best run of 0x00's? */
+    if (best.base != -1 && i >= best.base &&
+        i < (best.base + best.len)) {
+      if (i == best.base)
         *tp++ = ':';
-      /* Is this address an encapsulated IPv4? */
-      if (i == 6 && best.base == 0 &&
-          (best.len == 6 || (best.len == 5 && words[5] == 0xffff)))
-        {
-          if (!inet_ntop4(src+12, tp, sizeof(tmp) - (tp - tmp)))
-            return (NULL);
-          tp += strlen(tp);
-          break;
-        }
-        tp += SPRINTF((tp, "%lx", words[i]));
+      continue;
     }
-
+    /* Are we following an initial run of 0x00s or any real hex? */
+    if (i != 0)
+      *tp++ = ':';
+    /* Is this address an encapsulated IPv4? */
+    if (i == 6 && best.base == 0 && (best.len == 6 ||
+        (best.len == 7 && words[7] != 0x0001) ||
+        (best.len == 5 && words[5] == 0xffff))) {
+      if (!inet_ntop4(src+12, tp, sizeof(tmp) - (tp - tmp)))
+        return (NULL);
+      tp += strlen(tp);
+      break;
+    }
+    tp += sprintf(tp, "%x", words[i]);
+  }
   /* Was it a trailing run of 0x00's? */
-  if (best.base != -1 && (best.base + best.len) == (NS_IN6ADDRSZ / NS_INT16SZ))
+  if (best.base != -1 && (best.base + best.len) == 
+      (NS_IN6ADDRSZ / NS_INT16SZ))
     *tp++ = ':';
   *tp++ = '\0';
 
   /*
    * Check for overflow, copy, and we're done.
    */
-  if ((size_t)(tp - tmp) > size)
-    {
-      SET_ERRNO(ENOSPC);
-      return (NULL);
-    }
+  if ((size_t)(tp - tmp) > size) {
+    SET_ERRNO(ENOSPC);
+    return (NULL);
+  }
   strcpy(dst, tmp);
   return (dst);
 }
 #endif
-

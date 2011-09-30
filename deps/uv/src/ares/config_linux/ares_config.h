@@ -508,3 +508,5 @@
 
 /* the signed version of size_t */
 /* #undef ssize_t */
+
+#define HAVE_GETENV 1
