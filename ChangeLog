@@ -1,4 +1,27 @@
-2011.09.16, Version 0.5.7 (unstable)
+2011.09.30, Version 0.5.8 (unstable)
+
+* zlib bindings (isaacs)
+
+* Windows supports TTY ANSI escape codes (Bert Belder)
+
+* Debugger improvements (Fedor Indutny)
+
+* crypto: look up SSL errors with ERR_print_errors() (Ben Noordhuis)
+
+* dns callbacks go through MakeCallback now
+
+* Raise an error when a malformed package.json file is found. (Ben Leslie)
+
+* buffers: handle bad length argument in constructor (Ben Noordhuis)
+
+* #1726, unref process.stdout
+
+* Doc improvements (Ben Noordhuis, Fedor Indutny, koichik)
+
+* Upgrade libuv to fe18438
+
+
+2011.09.16, Version 0.5.7 (unstable), 558241166c4f3c516e5a448e676db0b57119212f
 
 * Upgrade V8 to 3.6.4
 
