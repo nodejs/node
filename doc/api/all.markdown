@@ -30,6 +30,7 @@
 @include child_processes
 @include assert
 @include tty
+@include zlib
 @include os
 @include debugger
 

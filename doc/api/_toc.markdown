@@ -29,6 +29,7 @@
 * [Child Processes](child_processes.html)
 * [Assertion Testing](assert.html)
 * [TTY](tty.html)
+* [ZLIB](zlib.html)
 * [OS](os.html)
 * [Debugger](debugger.html)
 * Appendixes
