@@ -248,6 +248,18 @@ TEST(function test_resolveCname(done) {
 });
 
 
+TEST(function test_resolveTxt(done) {
+  var req = dns.resolveTxt('google.com', function(err, records) {
+    if (err) throw err;
+    assert.equal(records.length, 1);
+    assert.equal(records[0].indexOf('v=spf1'), 0);
+    done();
+  });
+
+  checkWrap(req);
+});
+
+
 TEST(function test_lookup_ipv4_explicit(done) {
   var req = dns.lookup('www.google.com', 4, function(err, ip, family) {
     if (err) throw err;
