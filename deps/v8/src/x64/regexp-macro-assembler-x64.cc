@@ -193,7 +193,7 @@ void RegExpMacroAssemblerX64::CheckCharacterGT(uc16 limit, Label* on_greater) {
 void RegExpMacroAssemblerX64::CheckAtStart(Label* on_at_start) {
   Label not_at_start;
   // Did we start the match at the start of the string at all?
-  __ cmpb(Operand(rbp, kStartIndex), Immediate(0));
+  __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
   BranchOrBacktrack(not_equal, &not_at_start);
   // If we did, are we still at the start of the input?
   __ lea(rax, Operand(rsi, rdi, times_1, 0));
@@ -205,7 +205,7 @@ void RegExpMacroAssemblerX64::CheckAtStart(Label* on_at_start) {
 
 void RegExpMacroAssemblerX64::CheckNotAtStart(Label* on_not_at_start) {
   // Did we start the match at the start of the string at all?
-  __ cmpb(Operand(rbp, kStartIndex), Immediate(0));
+  __ cmpl(Operand(rbp, kStartIndex), Immediate(0));
   BranchOrBacktrack(not_equal, on_not_at_start);
   // If we did, are we still at the start of the input?
   __ lea(rax, Operand(rsi, rdi, times_1, 0));
