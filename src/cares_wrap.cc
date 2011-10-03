@@ -401,6 +401,38 @@ class QueryNsWrap: public QueryWrap {
 };
 
 
+class QueryTxtWrap: public QueryWrap {
+ public:
+  int Send(const char* name) {
+    ares_query(ares_channel, name, ns_c_in, ns_t_txt, Callback, GetQueryArg());
+    return 0;
+  }
+
+ protected:
+  void Parse(unsigned char* buf, int len) {
+    struct ares_txt_reply* txt_out;
+
+    int status = ares_parse_txt_reply(buf, len, &txt_out);
+    if (status != ARES_SUCCESS) {
+      this->ParseError(status);
+      return;
+    }
+
+    Local<Array> txt_records = Array::New();
+
+    struct ares_txt_reply *current = txt_out;
+    for (int i = 0; current; ++i, current = current->next) {
+      Local<String> txt = String::New(reinterpret_cast<char*>(current->txt));
+      txt_records->Set(Integer::New(i), txt);
+    }
+
+    ares_free_data(txt_out);
+
+    this->CallOnComplete(txt_records);
+  }
+};
+
+
 class QuerySrvWrap: public QueryWrap {
  public:
   int Send(const char* name) {
@@ -576,6 +608,7 @@ static void Initialize(Handle<Object> target) {
   NODE_SET_METHOD(target, "queryCname", Query<QueryCnameWrap>);
   NODE_SET_METHOD(target, "queryMx", Query<QueryMxWrap>);
   NODE_SET_METHOD(target, "queryNs", Query<QueryNsWrap>);
+  NODE_SET_METHOD(target, "queryTxt", Query<QueryTxtWrap>);
   NODE_SET_METHOD(target, "querySrv", Query<QuerySrvWrap>);
   NODE_SET_METHOD(target, "getHostByAddr", Query<GetHostByAddrWrap>);
   NODE_SET_METHOD(target, "getHostByName", QueryWithFamily<GetHostByNameWrap>);
