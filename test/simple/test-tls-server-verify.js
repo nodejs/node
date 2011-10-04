@@ -23,7 +23,7 @@
 
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 
@@ -36,70 +36,71 @@ if (!process.versions.openssl) {
 // - accepted and "authorized".
 
 var testCases =
-  [ { title: "Do not request certs. Everyone is unauthorized.",
+    [{ title: 'Do not request certs. Everyone is unauthorized.',
       requestCert: false,
       rejectUnauthorized: false,
       CAs: ['ca1-cert'],
       clients:
-        [ { name: 'agent1', shouldReject: false, shouldAuth: false },
-          { name: 'agent2', shouldReject: false, shouldAuth: false },
-          { name: 'agent3', shouldReject: false, shouldAuth: false },
-          { name: 'nocert', shouldReject: false, shouldAuth: false }
-        ]
+       [{ name: 'agent1', shouldReject: false, shouldAuth: false },
+        { name: 'agent2', shouldReject: false, shouldAuth: false },
+        { name: 'agent3', shouldReject: false, shouldAuth: false },
+        { name: 'nocert', shouldReject: false, shouldAuth: false }
+       ]
     },
 
-    { title: "Allow both authed and unauthed connections with CA1",
+    { title: 'Allow both authed and unauthed connections with CA1',
       requestCert: true,
       rejectUnauthorized: false,
       CAs: ['ca1-cert'],
       clients:
-        [ { name: 'agent1', shouldReject: false, shouldAuth: true },
-          { name: 'agent2', shouldReject: false, shouldAuth: false },
-          { name: 'agent3', shouldReject: false, shouldAuth: false },
-          { name: 'nocert', shouldReject: false, shouldAuth: false }
-        ]
+       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+        { name: 'agent2', shouldReject: false, shouldAuth: false },
+        { name: 'agent3', shouldReject: false, shouldAuth: false },
+        { name: 'nocert', shouldReject: false, shouldAuth: false }
+       ]
     },
 
-    { title: "Allow only authed connections with CA1",
+    { title: 'Allow only authed connections with CA1',
       requestCert: true,
       rejectUnauthorized: true,
       CAs: ['ca1-cert'],
       clients:
-        [ { name: 'agent1', shouldReject: false, shouldAuth: true },
-          { name: 'agent2', shouldReject: true },
-          { name: 'agent3', shouldReject: true },
-          { name: 'nocert', shouldReject: true }
-        ]
+       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+        { name: 'agent2', shouldReject: true },
+        { name: 'agent3', shouldReject: true },
+        { name: 'nocert', shouldReject: true }
+       ]
     },
 
-    { title: "Allow only authed connections with CA1 and CA2",
+    { title: 'Allow only authed connections with CA1 and CA2',
       requestCert: true,
       rejectUnauthorized: true,
       CAs: ['ca1-cert', 'ca2-cert'],
       clients:
-        [ { name: 'agent1', shouldReject: false, shouldAuth: true },
-          { name: 'agent2', shouldReject: true },
-          { name: 'agent3', shouldReject: false, shouldAuth: true },
-          { name: 'nocert', shouldReject: true }
-        ]
+       [{ name: 'agent1', shouldReject: false, shouldAuth: true },
+        { name: 'agent2', shouldReject: true },
+        { name: 'agent3', shouldReject: false, shouldAuth: true },
+        { name: 'nocert', shouldReject: true }
+       ]
     },
 
 
-    { title: "Allow only certs signed by CA2 but not in the CRL",
+    { title: 'Allow only certs signed by CA2 but not in the CRL',
       requestCert: true,
       rejectUnauthorized: true,
       CAs: ['ca2-cert'],
       crl: 'ca2-crl',
       clients:
-        [ { name: 'agent1', shouldReject: true, shouldAuth: false },
-          { name: 'agent2', shouldReject: true, shouldAuth: false  },
-          { name: 'agent3', shouldReject: false, shouldAuth: true },
-          // Agent4 has a cert in the CRL.
-          { name: 'agent4', shouldReject: true, shouldAuth: false },
-          { name: 'nocert', shouldReject: true }
-        ]
-    },
-  ];
+       [
+        { name: 'agent1', shouldReject: true, shouldAuth: false },
+        { name: 'agent2', shouldReject: true, shouldAuth: false },
+        { name: 'agent3', shouldReject: false, shouldAuth: true },
+        // Agent4 has a cert in the CRL.
+        { name: 'agent4', shouldReject: true, shouldAuth: false },
+        { name: 'nocert', shouldReject: true }
+       ]
+    }
+    ];
 
 
 var common = require('../common');
@@ -110,7 +111,7 @@ var spawn = require('child_process').spawn;
 
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + ".pem");
+  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
 }
 
 
@@ -123,7 +124,7 @@ var serverKey = loadPEM('agent2-key');
 var serverCert = loadPEM('agent2-cert');
 
 
-function runClient (options, cb) {
+function runClient(options, cb) {
 
   // Client can connect in three ways:
   // - Self-signed cert
@@ -133,7 +134,7 @@ function runClient (options, cb) {
   var args = ['s_client', '-connect', '127.0.0.1:' + common.PORT];
 
 
-  console.log("  connecting with", options.name);
+  console.log('  connecting with', options.name);
 
   switch (options.name) {
     case 'agent1':
@@ -174,7 +175,7 @@ function runClient (options, cb) {
       break;
 
     default:
-      throw new Error("Unknown agent name");
+      throw new Error('Unknown agent name');
   }
 
   // To test use: openssl s_client -connect localhost:8000
@@ -190,14 +191,14 @@ function runClient (options, cb) {
     out += d;
 
     if (/_unauthed/g.test(out)) {
-      console.error("  * unauthed");
+      console.error('  * unauthed');
       client.stdin.end('goodbye\n');
       authed = false;
       rejected = false;
     }
 
     if (/_authed/g.test(out)) {
-      console.error("  * authed");
+      console.error('  * authed');
       client.stdin.end('goodbye\n');
       authed = true;
       rejected = false;
@@ -211,10 +212,10 @@ function runClient (options, cb) {
     //      ": s_client exited with error code " + code);
     if (options.shouldReject) {
       assert.equal(true, rejected, options.name +
-          " NOT rejected, but should have been");
+          ' NOT rejected, but should have been');
     } else {
       assert.equal(false, rejected, options.name +
-          " rejected, but should NOT have been");
+          ' rejected, but should NOT have been');
       assert.equal(options.shouldAuth, authed);
     }
 
@@ -225,7 +226,7 @@ function runClient (options, cb) {
 
 // Run the tests
 var successfulTests = 0;
-function runTest (testIndex) {
+function runTest(testIndex) {
   var tcase = testCases[testIndex];
   if (!tcase) return;
 
@@ -246,7 +247,7 @@ function runTest (testIndex) {
 
   var connections = 0;
 
-  var server = tls.Server(serverOptions, function (c) {
+  var server = tls.Server(serverOptions, function(c) {
     connections++;
     if (c.authorized) {
       console.error('- authed connection: ' +
@@ -261,7 +262,7 @@ function runTest (testIndex) {
   function runNextClient(clientIndex) {
     var options = tcase.clients[clientIndex];
     if (options) {
-      runClient(options, function () {
+      runClient(options, function() {
         runNextClient(clientIndex + 1);
       });
     } else {
@@ -273,7 +274,7 @@ function runTest (testIndex) {
 
   server.listen(common.PORT, function() {
     if (tcase.debug) {
-      console.error("TLS server running on port " + common.PORT);
+      console.error('TLS server running on port ' + common.PORT);
     } else {
       runNextClient(0);
     }

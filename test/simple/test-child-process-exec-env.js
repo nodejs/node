@@ -55,7 +55,7 @@ child.stdout.addListener('data', function(chunk) {
 });
 
 process.addListener('exit', function() {
-  console.log("response: ", response);
+  console.log('response: ', response);
   assert.equal(1, success_count);
   assert.equal(0, error_count);
   assert.ok(response.indexOf('HELLO=WORLD') >= 0);

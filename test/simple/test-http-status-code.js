@@ -36,7 +36,7 @@ var testIdx = 0;
 var s = http.createServer(function(req, res) {
   var t = tests[testIdx];
   res.writeHead(t, {'Content-Type': 'text/plain'});
-  console.log('--\nserver: statusCode after writeHead: '+res.statusCode);
+  console.log('--\nserver: statusCode after writeHead: ' + res.statusCode);
   assert.equal(res.statusCode, t);
   res.end('hello world\n');
 });
@@ -44,7 +44,7 @@ var s = http.createServer(function(req, res) {
 s.listen(common.PORT, nextTest);
 
 
-function nextTest () {
+function nextTest() {
   if (testIdx + 1 === tests.length) {
     return s.close();
   }

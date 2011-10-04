@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 
@@ -33,7 +33,7 @@ var path = require('path');
 var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
 var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
 
-var conn = tls.connect(common.PORT, {cert:cert, key:key}, function() {
+var conn = tls.connect(common.PORT, {cert: cert, key: key}, function() {
   assert.ok(false); // callback should never be executed
 });
 conn.on('error', function() {

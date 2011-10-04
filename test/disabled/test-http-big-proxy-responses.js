@@ -58,10 +58,10 @@ var proxy = http.createServer(function(req, res) {
   }
 
   var proxy_req = http.request({
-    host:    'localhost',
-    port:    9000,
-    method:  req.method,
-    path:    req.url,
+    host: 'localhost',
+    port: 9000,
+    method: req.method,
+    path: req.url,
     headers: req.headers
   }, function(proxy_res) {
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
@@ -96,9 +96,9 @@ function call_chargen(list) {
     var recved = 0;
 
     var req = http.request({
-      port:    9001,
-      host:    'localhost',
-      path:    '/',
+      port: 9001,
+      host: 'localhost',
+      path: '/',
       headers: {'x-len': len}
     }, function(res) {
 

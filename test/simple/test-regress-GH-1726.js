@@ -38,7 +38,7 @@ if (gen === maxGen) {
 }
 
 var child = ch.spawn(process.execPath, [__filename, gen + 1], {
-  customFds: [ 0, -1, 2]
+  customFds: [0, -1, 2]
 });
 assert.ok(!child.stdin);
 assert.ok(child.stdout);
@@ -52,13 +52,13 @@ var timer = setTimeout(function () {
 }, 1000);
 */
 
-child.on('exit', function (code) {
+child.on('exit', function(code) {
   console.error('exit %d from gen %d', code, gen + 1);
   //clearTimeout(timer);
 });
 
 child.stdout.pipe(process.stdout);
 
-child.stdout.on("close", function() {
-  console.error("child.stdout close  gen=%d", gen);
+child.stdout.on('close', function() {
+  console.error('child.stdout close  gen=%d', gen);
 });

@@ -31,7 +31,7 @@ var options = {
 };
 
 var connections = 0;
-var message = "hello world\n";
+var message = 'hello world\n';
 
 
 var server = tls.Server(options, function(socket) {

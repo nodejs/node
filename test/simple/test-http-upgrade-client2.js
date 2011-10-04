@@ -40,13 +40,13 @@ var successCount = 0;
 server.listen(common.PORT, function() {
 
   function upgradeRequest(fn) {
-    console.log("req");
+    console.log('req');
     var header = { 'Connection': 'Upgrade', 'Upgrade': 'Test' };
     var request = http.request({ port: common.PORT, headers: header });
     var wasUpgrade = false;
 
     function onUpgrade(res, socket, head) {
-      console.log("client upgraded");
+      console.log('client upgraded');
       wasUpgrade = true;
 
       request.removeListener('upgrade', onUpgrade);
@@ -55,7 +55,7 @@ server.listen(common.PORT, function() {
     request.on('upgrade', onUpgrade);
 
     function onEnd() {
-      console.log("client end");
+      console.log('client end');
       request.removeListener('end', onEnd);
       if (!wasUpgrade) {
         throw new Error('hasn\'t received upgrade event');

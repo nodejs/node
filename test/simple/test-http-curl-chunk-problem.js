@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 
@@ -56,7 +56,7 @@ function maybeMakeRequest() {
 
 
 var ddcmd = common.ddCommand(filename, 10240);
-console.log("dd command: ", ddcmd);
+console.log('dd command: ', ddcmd);
 
 cp.exec(ddcmd, function(err, stdout, stderr) {
   if (err) throw err;

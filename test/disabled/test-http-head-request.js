@@ -46,9 +46,9 @@ var gotEnd = false;
 
 server.addListener('listening', function() {
   var request = http.request({
-    port:   common.PORT,
+    port: common.PORT,
     method: 'HEAD',
-    path:   '/'
+    path: '/'
   }, function(response) {
     console.log('got response');
     response.addListener('data', function() {

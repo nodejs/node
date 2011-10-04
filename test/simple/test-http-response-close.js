@@ -30,20 +30,20 @@ var server = http.createServer(function(req, res) {
   res.write('a');
 
   req.on('close', function() {
-    console.error("aborted");
+    console.error('aborted');
     gotEnd = true;
   });
 });
 server.listen(common.PORT);
 
 server.addListener('listening', function() {
-  console.error("make req");
+  console.error('make req');
   http.get({
     port: common.PORT
   }, function(res) {
-    console.error("got res");
+    console.error('got res');
     res.on('data', function(data) {
-      console.error("destroy res");
+      console.error('destroy res');
       res.destroy();
       server.close();
     });

@@ -40,7 +40,7 @@ var server = http.Server(function(req, res) {
   }, 100);
 
   res.writeHead(200);
-  res.end("hello world\n");
+  res.end('hello world\n');
 });
 
 server.listen(common.PORT, function() {

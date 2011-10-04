@@ -28,8 +28,8 @@ function test() {
   ASSERT.equal(0x00, buffer[6]);
   ASSERT.equal(0x00, buffer[7]);
 
-  buffer.writeFloatBE(1/3, 0);
-  buffer.writeFloatLE(1/3, 4);
+  buffer.writeFloatBE(1 / 3, 0);
+  buffer.writeFloatLE(1 / 3, 4);
   ASSERT.equal(0x3e, buffer[0]);
   ASSERT.equal(0xaa, buffer[1]);
   ASSERT.equal(0xaa, buffer[2]);
@@ -50,8 +50,8 @@ function test() {
   ASSERT.equal(0x7f, buffer[6]);
   ASSERT.equal(0x7f, buffer[7]);
 
-  buffer.writeFloatBE(0*-1, 0);
-  buffer.writeFloatLE(0*-1, 4);
+  buffer.writeFloatBE(0 * -1, 0);
+  buffer.writeFloatLE(0 * -1, 4);
   ASSERT.equal(0x80, buffer[0]);
   ASSERT.equal(0x00, buffer[1]);
   ASSERT.equal(0x00, buffer[2]);

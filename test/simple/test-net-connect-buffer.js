@@ -49,7 +49,7 @@ var tcp = net.Server(function(s) {
   });
 });
 
-tcp.listen(common.PORT, function () {
+tcp.listen(common.PORT, function() {
   var socket = net.Stream();
 
   console.log('Connecting to socket ');
@@ -63,10 +63,10 @@ tcp.listen(common.PORT, function () {
 
   assert.equal('opening', socket.readyState);
 
-  var r = socket.write('foo', function () {
+  var r = socket.write('foo', function() {
     fooWritten = true;
     assert.ok(connectHappened);
-    console.error("foo written");
+    console.error('foo written');
   });
 
   assert.equal(false, r);
@@ -75,7 +75,7 @@ tcp.listen(common.PORT, function () {
   assert.equal('opening', socket.readyState);
 });
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.ok(connectHappened);
   assert.ok(fooWritten);
 });

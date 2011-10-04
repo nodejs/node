@@ -53,7 +53,7 @@ function testCwd(options, forCode, forData) {
 }
 
 // Assume these exist, and 'pwd' gives us the right directory back
-if (process.platform == "win32") {
+if (process.platform == 'win32') {
   testCwd({cwd: process.env.windir}, 0, process.env.windir);
   testCwd({cwd: 'c:\\'}, 0, 'c:\\');
 } else {

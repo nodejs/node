@@ -30,8 +30,9 @@ var exec = require('child_process').exec;
 var success_count = 0;
 var error_count = 0;
 
-var cmd = [process.execPath, '-e', '"console.error(process.argv)"', 'foo', 'bar'].join(' ');
-var expected = util.format([process.execPath, 'foo', 'bar']) + "\n";
+var cmd = [process.execPath, '-e', '"console.error(process.argv)"', 'foo', 'bar']
+    .join(' ');
+var expected = util.format([process.execPath, 'foo', 'bar']) + '\n';
 var child = exec(cmd, function(err, stdout, stderr) {
   if (err) {
     console.log(err.toString());

@@ -31,18 +31,18 @@ server.on('listening', pingping);
 
 
 function serverOn() {
-  console.error("Server ON");
+  console.error('Server ON');
   server.listen(common.PORT);
 }
 
 
 function serverOff() {
-  console.error("Server OFF");
+  console.error('Server OFF');
   server.close();
   pingping();
 }
 
-var responses = []
+var responses = [];
 
 
 function afterPing(result) {
@@ -78,7 +78,7 @@ function afterPing(result) {
 
 
 function ping() {
-  console.error("making req");
+  console.error('making req');
 
   var opt = {
     port: common.PORT,
@@ -98,7 +98,7 @@ function ping() {
       assert.equal('PONG', body);
       assert.ok(!hadError);
       gotEnd = true;
-      afterPing("success");
+      afterPing('success');
     });
   });
 
@@ -108,7 +108,7 @@ function ping() {
   var hadError = false;
 
   req.on('error', function(error) {
-    console.log("Error making ping req: " + error);
+    console.log('Error making ping req: ' + error);
     hadError = true;
     assert.ok(!gotEnd);
     afterPing(error.message);

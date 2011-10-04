@@ -54,3 +54,4 @@ function onListen() {
 process.on('exit', function() {
   assert.equal(caughtError, true);
 });
+

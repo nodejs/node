@@ -38,9 +38,9 @@ var gotEnd = false;
 
 server.listen(common.PORT, function() {
   var request = http.request({
-    port:   common.PORT,
+    port: common.PORT,
     method: 'HEAD',
-    path:   '/'
+    path: '/'
   }, function(response) {
     common.error('response start');
     response.addListener('end', function() {

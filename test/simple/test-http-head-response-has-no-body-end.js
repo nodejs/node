@@ -41,9 +41,9 @@ var responseComplete = false;
 
 server.addListener('listening', function() {
   var req = http.request({
-    port:   common.PORT,
+    port: common.PORT,
     method: 'HEAD',
-    path:   '/'
+    path: '/'
   }, function(res) {
     common.error('response');
     res.addListener('end', function() {

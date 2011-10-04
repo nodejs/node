@@ -36,7 +36,7 @@ server.on('request', function(req, res) {
   req.on('end', function() {
     connections--;
     res.writeHead(200);
-    res.end("done\n");
+    res.end('done\n');
     if (connections == 0) {
       server.close();
     }
@@ -51,7 +51,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
       var request = http.request({
         port: common.PORT,
         method: 'POST',
-        path:   '/'
+        path: '/'
       });
 
       function ping() {

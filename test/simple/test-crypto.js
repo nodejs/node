@@ -39,8 +39,10 @@ var path = require('path');
 var caPem = fs.readFileSync(common.fixturesDir + '/test_ca.pem', 'ascii');
 var certPem = fs.readFileSync(common.fixturesDir + '/test_cert.pem', 'ascii');
 var keyPem = fs.readFileSync(common.fixturesDir + '/test_key.pem', 'ascii');
-var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem', 'ascii');
-var rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem', 'ascii');
+var rsaPubPem = fs.readFileSync(common.fixturesDir + '/test_rsa_pubkey.pem',
+    'ascii');
+var rsaKeyPem = fs.readFileSync(common.fixturesDir + '/test_rsa_privkey.pem',
+    'ascii');
 
 try {
   var credentials = crypto.createCredentials(
@@ -69,8 +71,8 @@ var rfc4231 = [
       sha224: '896fb1128abbdf196832107cd49df33f47b4b1169912ba4f53684b22',
       sha256: 'b0344c61d8db38535ca8afceaf0bf12b881dc200c9833da726e9376c2e32cff7',
       sha384: 'afd03944d84895626b0825f4ab46907f15f9dadbe4101ec682aa034c7cebc59cfaea9ea9076ede7f4af152e8b2fa9cb6',
-      sha512: '87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854',
-    },
+      sha512: '87aa7cdea5ef619d4ff0b4241a1d6cb02379f4e2ce4ec2787ad0b30545e17cdedaa833b7d6b8a702038b274eaea3f4e4be9d914eeb61f1702e696c203a126854'
+    }
   },
   {
     key: new Buffer('4a656665', 'hex'), // 'Jefe'
@@ -79,8 +81,8 @@ var rfc4231 = [
       sha224: 'a30e01098bc6dbbf45690f3a7e9e6d0f8bbea2a39e6148008fd05e44',
       sha256: '5bdcc146bf60754e6a042426089575c75a003f089d2739839dec58b964ec3843',
       sha384: 'af45d2e376484031617f78d2b58a6b1b9c7ef464f5a01b47e42ec3736322445e8e2240ca5e69e2c78b3239ecfab21649',
-      sha512: '164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737',
-    },
+      sha512: '164b7a7bfcf819e2e395fbe73b56e0a387bd64222e831fd610270cd7ea2505549758bf75c05a994a6d034f65f8f0e6fdcaeab1a34d4a6b4b636e070a38bce737'
+    }
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
@@ -89,8 +91,8 @@ var rfc4231 = [
       sha224: '7fb3cb3588c6c1f6ffa9694d7d6ad2649365b0c1f65d69d1ec8333ea',
       sha256: '773ea91e36800e46854db8ebd09181a72959098b3ef8c122d9635514ced565fe',
       sha384: '88062608d3e6ad8a0aa2ace014c8a86f0aa635d947ac9febe83ef4e55966144b2a5ab39dc13814b94e3ab6e101a34f27',
-      sha512: 'fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33b2279d39bf3e848279a722c806b485a47e67c807b946a337bee8942674278859e13292fb',
-    },
+      sha512: 'fa73b0089d56a284efb0f0756c890be9b1b5dbdd8ee81a3655f83e33b2279d39bf3e848279a722c806b485a47e67c807b946a337bee8942674278859e13292fb'
+    }
   },
   {
     key: new Buffer('0102030405060708090a0b0c0d0e0f10111213141516171819', 'hex'),
@@ -99,8 +101,8 @@ var rfc4231 = [
       sha224: '6c11506874013cac6a2abc1bb382627cec6a90d86efc012de7afec5a',
       sha256: '82558a389a443c0ea4cc819899f2083a85f0faa3e578f8077a2e3ff46729665b',
       sha384: '3e8a69b7783c25851933ab6290af6ca77a9981480850009cc5577c6e1f573b4e6801dd23c4a7d679ccf8a386c674cffb',
-      sha512: 'b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2de2adebeb10a298dd',
-    },
+      sha512: 'b0ba465637458c6990e5a8c5f61d4af7e576d97ff94b872de76f8050361ee3dba91ca5c11aa25eb4d679275cc5788063a5f19741120c4f2de2adebeb10a298dd'
+    }
   },
   {
     key: new Buffer('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
@@ -109,9 +111,9 @@ var rfc4231 = [
       sha224: '0e2aea68a90c8d37c988bcdb9fca6fa8',
       sha256: 'a3b6167473100ee06e0c796c2955552b',
       sha384: '3abf34c3503b2a23a46efc619baef897',
-      sha512: '415fad6271580a531d4179bc891d87a6',
+      sha512: '415fad6271580a531d4179bc891d87a6'
     },
-    truncate: true,
+    truncate: true
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
@@ -120,8 +122,8 @@ var rfc4231 = [
       sha224: '95e9a0db962095adaebe9b2d6f0dbce2d499f112f2d2b7273fa6870e',
       sha256: '60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54',
       sha384: '4ece084485813e9088d2c63a041bc5b44f9ef1012a2b588f3cd11f05033ac4c60c2ef6ab4030fe8296248df163f44952',
-      sha512: '80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b013783f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec8b915a985d786598',
-    },
+      sha512: '80b24263c7c1a3ebb71493c1dd7be8b49b46d1f41b4aeec1121b013783f8f3526b56d037e05f2598bd0fd2215d6a1e5295e64f73f63f0aec8b915a985d786598'
+    }
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
@@ -130,9 +132,9 @@ var rfc4231 = [
       sha224: '3a854166ac5d9f023f54d517d0b39dbd946770db9c2b95c9f6f565d1',
       sha256: '9b09ffa71b942fcb27635fbcd5b0e944bfdc63644f0713938a7f51535c3a35e2',
       sha384: '6617178e941f020d351e2f254e8fd32c602420feb0b8fb9adccebb82461e99c5a678cc31e799176d3860e6110c46523e',
-      sha512: 'e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58',
-    },
-  },
+      sha512: 'e37b6a775dc87dbaa4dfa9f96e5e3ffddebd71f8867289865df5a32d20cdc944b6022cac3c4982b10d5eeb55c3e4de15134676fb6de0446065c97440fa8c6a58'
+    }
+  }
 ];
 
 for (var i = 0, l = rfc4231.length; i < l; i++) {
@@ -145,7 +147,7 @@ for (var i = 0, l = rfc4231.length; i < l; i++) {
     }
     assert.equal(rfc4231[i]['hmac'][hash],
                  result,
-                 "Test HMAC-" + hash + ": Test case " + (i+1) + " rfc 4231");
+                 'Test HMAC-' + hash + ': Test case ' + (i + 1) + ' rfc 4231');
   }
 }
 
@@ -154,75 +156,75 @@ var rfc2202_md5 = [
   {
     key: new Buffer('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
-    hmac: '9294727a3638bb1c13f48ef8158bfc9d',
+    hmac: '9294727a3638bb1c13f48ef8158bfc9d'
   },
   {
     key: 'Jefe',
     data: 'what do ya want for nothing?',
-    hmac: '750c783e6ab0b503eaa86e310a5db738',
+    hmac: '750c783e6ab0b503eaa86e310a5db738'
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: new Buffer('dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', 'hex'),
-    hmac: '56be34521d144c88dbb8c733f0e8b3f6',
+    hmac: '56be34521d144c88dbb8c733f0e8b3f6'
   },
   {
     key: new Buffer('0102030405060708090a0b0c0d0e0f10111213141516171819', 'hex'),
     data: new Buffer('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd', 'hex'),
-    hmac: '697eaf0aca3a3aea3a75164746ffaa79',
+    hmac: '697eaf0aca3a3aea3a75164746ffaa79'
   },
   {
     key: new Buffer('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     data: 'Test With Truncation',
-    hmac: '56461ef2342edc00f9bab995690efd4c',
+    hmac: '56461ef2342edc00f9bab995690efd4c'
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
-    hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd',
+    hmac: '6b1ab7fe4bd7bf8f0b62e6ce61b9d0cd'
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: 'Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data',
-    hmac: '6f630fad67cda0ee1fb1f562db3aa53e',
-  },
+    hmac: '6f630fad67cda0ee1fb1f562db3aa53e'
+  }
 ];
 var rfc2202_sha1 = [
   {
     key: new Buffer('0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b', 'hex'),
     data: 'Hi There',
-    hmac: 'b617318655057264e28bc0b6fb378c8ef146be00',
+    hmac: 'b617318655057264e28bc0b6fb378c8ef146be00'
   },
   {
     key: 'Jefe',
     data: 'what do ya want for nothing?',
-    hmac: 'effcdf6ae5eb2fa2d27416d5f184df9c259a7c79',
+    hmac: 'effcdf6ae5eb2fa2d27416d5f184df9c259a7c79'
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: new Buffer('dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd', 'hex'),
-    hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3',
+    hmac: '125d7342b9ac11cd91a39af48aa17b4f63f175d3'
   },
   {
     key: new Buffer('0102030405060708090a0b0c0d0e0f10111213141516171819', 'hex'),
     data: new Buffer('cdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcdcd', 'hex'),
-    hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da',
+    hmac: '4c9007f4026250c6bc8414f9bf50c86c2d7235da'
   },
   {
     key: new Buffer('0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c', 'hex'),
     data: 'Test With Truncation',
-    hmac: '4c1a03424b55e07fe7f27be1d58bb9324a9a5a04',
+    hmac: '4c1a03424b55e07fe7f27be1d58bb9324a9a5a04'
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: 'Test Using Larger Than Block-Size Key - Hash Key First',
-    hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112',
+    hmac: 'aa4ae5e15272d00e95705637ce8a3b55ed402112'
   },
   {
     key: new Buffer('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa', 'hex'),
     data: 'Test Using Larger Than Block-Size Key and Larger Than One Block-Size Data',
-    hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91',
-  },
+    hmac: 'e8e99d0f45237d786d6bbaa7965c7808bbff1a91'
+  }
 ];
 
 for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
@@ -230,14 +232,14 @@ for (var i = 0, l = rfc2202_md5.length; i < l; i++) {
                crypto.createHmac('md5', rfc2202_md5[i]['key'])
                    .update(rfc2202_md5[i]['data'])
                    .digest('hex'),
-               "Test HMAC-MD5 : Test case " + (i+1) + " rfc 2202");
+               'Test HMAC-MD5 : Test case ' + (i + 1) + ' rfc 2202');
 }
 for (var i = 0, l = rfc2202_sha1.length; i < l; i++) {
   assert.equal(rfc2202_sha1[i]['hmac'],
                crypto.createHmac('sha1', rfc2202_sha1[i]['key'])
                    .update(rfc2202_sha1[i]['data'])
                    .digest('hex'),
-               "Test HMAC-SHA1 : Test case " + (i+1) + " rfc 2202");
+               'Test HMAC-SHA1 : Test case ' + (i + 1) + ' rfc 2202');
 }
 
 // Test hashing
@@ -314,8 +316,8 @@ assert.equal(txt, plaintext, 'encryption and decryption');
 // encryption and decryption with Base64
 // reported in https://github.com/joyent/node/issues/738
 var plaintext =
-  '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
-  'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**';
+    '32|RmVZZkFUVmpRRkp0TmJaUm56ZU9qcnJkaXNNWVNpTTU*|iXmckfRWZBGWWELw' +
+    'eCBsThSsfUHLeRe0KCsK8ooHgxie0zOINpXxfZi/oNG7uq9JWFVCk70gfzQH8ZUJjAfaFg**';
 var cipher = crypto.createCipher('aes256', '0123456789abcdef');
 
 // encrypt plaintext which is in utf8 format
@@ -394,22 +396,22 @@ assert.equal(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), 1);
 
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 
-crypto.pbkdf2('password', 'salt', 1, 20, function (err, result) {
+crypto.pbkdf2('password', 'salt', 1, 20, function(err, result) {
   assert.equal(result, '\x0c\x60\xc8\x0f\x96\x1f\x0e\x71\xf3\xa9\xb5\x24\xaf\x60\x12\x06\x2f\xe0\x37\xa6', 'pbkdf1 test vector 1');
 });
 
-crypto.pbkdf2('password', 'salt', 2, 20, function (err, result) {
+crypto.pbkdf2('password', 'salt', 2, 20, function(err, result) {
   assert.equal(result, '\xea\x6c\x01\x4d\xc7\x2d\x6f\x8c\xcd\x1e\xd9\x2a\xce\x1d\x41\xf0\xd8\xde\x89\x57', 'pbkdf1 test vector 2');
 });
 
-crypto.pbkdf2('password', 'salt', 4096, 20, function (err, result) {
+crypto.pbkdf2('password', 'salt', 4096, 20, function(err, result) {
   assert.equal(result, '\x4b\x00\x79\x01\xb7\x65\x48\x9a\xbe\xad\x49\xd9\x26\xf7\x21\xd0\x65\xa4\x29\xc1', 'pbkdf1 test vector 3');
 });
 
-crypto.pbkdf2('passwordPASSWORDpassword', 'saltSALTsaltSALTsaltSALTsaltSALTsalt', 4096, 25, function (err, result) {
+crypto.pbkdf2('passwordPASSWORDpassword', 'saltSALTsaltSALTsaltSALTsaltSALTsalt', 4096, 25, function(err, result) {
   assert.equal(result, '\x3d\x2e\xec\x4f\xe4\x1c\x84\x9b\x80\xc8\xd8\x36\x62\xc0\xe4\x4a\x8b\x29\x1a\x96\x4c\xf2\xf0\x70\x38', 'pbkdf1 test vector 5');
 });
 
-crypto.pbkdf2('pass\0word', 'sa\0lt', 4096, 16, function (err, result) {
+crypto.pbkdf2('pass\0word', 'sa\0lt', 4096, 16, function(err, result) {
   assert.equal(result, '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34\x25\xe0\xc3', 'pbkdf1 test vector 6');
 });

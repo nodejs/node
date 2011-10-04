@@ -30,13 +30,13 @@ var fs = require('fs');
 // most servers don't require certificates
 
 var options = {
-  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem'),
+  key: fs.readFileSync(common.fixturesDir + '/keys/agent1-key.pem')
 };
 
 
-var s = tls.connect(443, "joyent.com", options, function() {
+var s = tls.connect(443, 'joyent.com', options, function() {
   if (!s.authorized) {
-    console.error("CONNECTED: " +  s.authorizationError);
+    console.error('CONNECTED: ' + s.authorizationError);
     s.destroy();
     return;
   }

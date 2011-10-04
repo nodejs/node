@@ -36,7 +36,7 @@ var reqErrorCount = 0;
 var body = 'hello world\n';
 
 
-var server = http.createServer(function (req, res) {
+var server = http.createServer(function(req, res) {
   reqCount++;
   console.log('got request');
   res.writeHead(200, { 'content-type': 'text/plain' });

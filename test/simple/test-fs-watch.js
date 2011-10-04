@@ -56,85 +56,85 @@ process.addListener('exit', function() {
 });
 
 
-fs.writeFileSync(filepathOne, "hello");
+fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-  function() {
-    fs.watch(filepathOne);
-  },
-  function(e) {
-    return e.message === 'watch requires a listener function';
-  }
+    function() {
+      fs.watch(filepathOne);
+    },
+    function(e) {
+      return e.message === 'watch requires a listener function';
+    }
 );
 
 assert.doesNotThrow(
-  function() {
-    var watcher = fs.watch(filepathOne, function(event, filename) {
-      assert.equal('change', event);
-      if (expectFilePath) {
-        assert.equal('watch.txt', filename);
-      } else {
-        assert.equal(null, filename);
-      }
-      watcher.close();
-      ++watchSeenOne;
-    });
-  }
+    function() {
+      var watcher = fs.watch(filepathOne, function(event, filename) {
+        assert.equal('change', event);
+        if (expectFilePath) {
+          assert.equal('watch.txt', filename);
+        } else {
+          assert.equal(null, filename);
+        }
+        watcher.close();
+        ++watchSeenOne;
+      });
+    }
 );
 
 setTimeout(function() {
-  fs.writeFileSync(filepathOne, "world");
+  fs.writeFileSync(filepathOne, 'world');
 }, 1000);
 
 
 process.chdir(testDir);
 
-fs.writeFileSync(filepathTwoAbs, "howdy");
+fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-  function() {
-    fs.watch(filepathTwo);
-  },
-  function(e) {
-    return e.message === 'watch requires a listener function';
-  }
+    function() {
+      fs.watch(filepathTwo);
+    },
+    function(e) {
+      return e.message === 'watch requires a listener function';
+    }
 );
 
 assert.doesNotThrow(
-  function() {
-    var watcher = fs.watch(filepathTwo, function(event, filename) {
-      assert.equal('change', event);
-      if (expectFilePath) {
-        assert.equal('hasOwnProperty', filename);
-      } else {
-        assert.equal(null, filename);
-      }
-      watcher.close();
-      ++watchSeenTwo;
-    });
-  }
+    function() {
+      var watcher = fs.watch(filepathTwo, function(event, filename) {
+        assert.equal('change', event);
+        if (expectFilePath) {
+          assert.equal('hasOwnProperty', filename);
+        } else {
+          assert.equal(null, filename);
+        }
+        watcher.close();
+        ++watchSeenTwo;
+      });
+    }
 );
 
 setTimeout(function() {
-  fs.writeFileSync(filepathTwoAbs, "pardner");
+  fs.writeFileSync(filepathTwoAbs, 'pardner');
 }, 1000);
 
-try { fs.unlinkSync(filepathThree); } catch(e) {}
-try { fs.mkdirSync(testsubdir, 0700); } catch(e) {}
+try { fs.unlinkSync(filepathThree); } catch (e) {}
+try { fs.mkdirSync(testsubdir, 0700); } catch (e) {}
 
 assert.doesNotThrow(
-  function() {
-    var watcher = fs.watch(testsubdir, function(event, filename) {
-      assert.equal('rename', event);
-      if (expectFilePath) {
-        assert.equal('newfile.txt', filename);
-      } else {
-        assert.equal(null, filename);
-      }
-      watcher.close();
-      ++watchSeenThree;
-    });
-  }
+    function() {
+      var watcher = fs.watch(testsubdir, function(event, filename) {
+        assert.equal('rename', event);
+        if (expectFilePath) {
+          assert.equal('newfile.txt', filename);
+        } else {
+          assert.equal(null, filename);
+        }
+        watcher.close();
+        ++watchSeenThree;
+      });
+    }
 );
 
 setTimeout(function() {

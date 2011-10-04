@@ -30,7 +30,7 @@ var reqEndCount = 0;
 
 var server = http.Server(function(req, res) {
   res.writeHead(200);
-  res.end("hello world\n");
+  res.end('hello world\n');
 
   var buffer = '';
 
@@ -50,7 +50,7 @@ var responses = 0;
 var N = 10;
 var M = 10;
 
-var body = ''
+var body = '';
 for (var i = 0; i < 1000; i++) {
   body += 'hello world';
 }
@@ -63,7 +63,7 @@ var options = {
 
 server.listen(common.PORT, function() {
   for (var i = 0; i < N; i++) {
-    setTimeout(function () {
+    setTimeout(function() {
       for (var j = 0; j < M; j++) {
 
         var req = http.request(options, function(res) {

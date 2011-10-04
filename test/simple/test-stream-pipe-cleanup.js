@@ -26,21 +26,21 @@ var stream = require('stream');
 var assert = require('assert');
 var util = require('util');
 
-function Writable () {
+function Writable() {
   this.writable = true;
   this.endCalls = 0;
   stream.Stream.call(this);
 }
 util.inherits(Writable, stream.Stream);
-Writable.prototype.end = function () {
+Writable.prototype.end = function() {
   this.endCalls++;
-}
+};
 
-Writable.prototype.destroy = function () {
+Writable.prototype.destroy = function() {
   this.endCalls++;
-}
+};
 
-function Readable () {
+function Readable() {
   this.readable = true;
   stream.Stream.call(this);
 }
@@ -51,16 +51,16 @@ var limit = 100;
 
 var w = new Writable();
 
-console.error = function (text) {
+console.error = function(text) {
   throw new Error(text);
-}
+};
 
 var r;
 
 for (i = 0; i < limit; i++) {
-  r = new Readable()
-  r.pipe(w)
-  r.emit('end')
+  r = new Readable();
+  r.pipe(w);
+  r.emit('end');
 }
 assert.equal(0, r.listeners('end').length);
 assert.equal(limit, w.endCalls);
@@ -68,9 +68,9 @@ assert.equal(limit, w.endCalls);
 w.endCalls = 0;
 
 for (i = 0; i < limit; i++) {
-  r = new Readable()
-  r.pipe(w)
-  r.emit('close')
+  r = new Readable();
+  r.pipe(w);
+  r.emit('close');
 }
 assert.equal(0, r.listeners('close').length);
 assert.equal(limit, w.endCalls);
@@ -78,13 +78,13 @@ assert.equal(limit, w.endCalls);
 w.endCalls = 0;
 
 var r2;
-r = new Readable()
+r = new Readable();
 r2 = new Readable();
 
-r.pipe(w)
-r2.pipe(w)
-r.emit('close')
-r2.emit('close')
+r.pipe(w);
+r2.pipe(w);
+r.emit('close');
+r2.emit('close');
 assert.equal(1, w.endCalls);
 
 r = new Readable();

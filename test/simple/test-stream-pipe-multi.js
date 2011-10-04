@@ -1,9 +1,9 @@
 // Test that having a bunch of streams piping in parallel
 // doesn't break anything.
 
-var common = require("../common");
-var assert = require("assert");
-var Stream = require("stream").Stream;
+var common = require('../common');
+var assert = require('assert');
+var Stream = require('stream').Stream;
 var rr = [];
 var ww = [];
 var cnt = 100;
@@ -23,46 +23,46 @@ function FakeStream() {
 FakeStream.prototype = Object.create(Stream.prototype);
 
 FakeStream.prototype.write = function(chunk) {
-  console.error(this.ID, "write", this.wait)
+  console.error(this.ID, 'write', this.wait);
   if (this.wait) {
-    process.nextTick(this.emit.bind(this, "drain"));
+    process.nextTick(this.emit.bind(this, 'drain'));
   }
   this.wait = !this.wait;
   return this.wait;
 };
 
 FakeStream.prototype.end = function() {
-  this.emit("end");
+  this.emit('end');
   process.nextTick(this.close.bind(this));
 };
 
 // noop - closes happen automatically on end.
 FakeStream.prototype.close = function() {
-  this.emit("close");
+  this.emit('close');
 };
 
 
 // expect all streams to close properly.
-process.on("exit", function() {
-  assert.equal(cnt, wclosed, "writable streams closed");
-  assert.equal(cnt, rclosed, "readable streams closed");
+process.on('exit', function() {
+  assert.equal(cnt, wclosed, 'writable streams closed');
+  assert.equal(cnt, rclosed, 'readable streams closed');
 });
 
-for (var i = 0; i < chunkSize; i ++) {
+for (var i = 0; i < chunkSize; i++) {
   chunkSize[i] = i % 256;
 }
 
 for (var i = 0; i < cnt; i++) {
   var r = new FakeStream();
-  r.on("close", function() {
-    console.error(this.ID, "read close");
+  r.on('close', function() {
+    console.error(this.ID, 'read close');
     rclosed++;
   });
   rr.push(r);
 
   var w = new FakeStream();
-  w.on("close", function() {
-    console.error(this.ID, "write close");
+  w.on('close', function() {
+    console.error(this.ID, 'write close');
     wclosed++;
   });
   ww.push(w);
@@ -73,21 +73,21 @@ for (var i = 0; i < cnt; i++) {
 
 // now start passing through data
 // simulate a relatively fast async stream.
-rr.forEach(function (r) {
+rr.forEach(function(r) {
   var cnt = chunks;
   var paused = false;
 
-  r.on("pause", function() {
+  r.on('pause', function() {
     paused = true;
   });
 
-  r.on("resume", function() {
+  r.on('resume', function() {
     paused = false;
     step();
   });
 
   function step() {
-    r.emit("data", data);
+    r.emit('data', data);
     if (--cnt === 0) {
       r.end();
       return;

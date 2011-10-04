@@ -43,9 +43,9 @@ function nextRequest() {
   console.error('writing request: %s', method);
 
   var request = http.request({
-    port:   common.PORT,
+    port: common.PORT,
     method: method,
-    path:   '/'
+    path: '/'
   }, function(response) {
     response.on('end', function() {
       if (methods.length == 0) {

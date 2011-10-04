@@ -21,16 +21,16 @@
 
 var common = require('../common');
 var assert = require('assert');
-var ch = require("child_process")
+var ch = require('child_process');
 
-var SIZE = 100000
+var SIZE = 100000;
 var childGone = false;
 
-var cp = ch.spawn("python", ['-c', 'print ' + SIZE + ' * "C"'], {
+var cp = ch.spawn('python', ['-c', 'print ' + SIZE + ' * "C"'], {
   customFds: [0, 1, 2]
 });
 
-cp.on("exit", function (code) {
+cp.on('exit', function(code) {
   childGone = true;
   assert.equal(0, code);
 });

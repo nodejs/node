@@ -36,7 +36,7 @@ host += host;
 host += host;
 
 function do_not_call() {
-  throw new Error("This function should not have been called.");
+  throw new Error('This function should not have been called.');
 }
 
 function test(mod) {
@@ -44,17 +44,17 @@ function test(mod) {
 
   // Bad host name should not throw an uncatchable exception.
   // Ensure that there is time to attach an error listener.
-  var req = mod.get({host:host, port:42}, do_not_call);
+  var req = mod.get({host: host, port: 42}, do_not_call);
   req.on('error', function(err) {
-   assert.equal(err.code, 'EBADNAME');
-   actual_bad_requests++;
+    assert.equal(err.code, 'EBADNAME');
+    actual_bad_requests++;
   });
   // http.get() called req.end() for us
 
-  var req = mod.request({method:'GET', host:host, port:42}, do_not_call);
+  var req = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
   req.on('error', function(err) {
-   assert.equal(err.code, 'EBADNAME');
-   actual_bad_requests++;
+    assert.equal(err.code, 'EBADNAME');
+    actual_bad_requests++;
   });
   req.end();
 }
@@ -68,3 +68,4 @@ test(http);
 process.on('exit', function() {
   assert.equal(actual_bad_requests, expected_bad_requests);
 });
+

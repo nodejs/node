@@ -73,7 +73,7 @@ function addTest(input, output) {
     }
   };
   expected.push({input: input, lines: output, callback: next});
-};
+}
 
 // Initial lines
 addTest(null, [
@@ -140,13 +140,13 @@ addTest('c, bt', [
 
 function finish() {
   process.exit(0);
-};
+}
 
 function quit() {
   if (quit.called) return;
   quit.called = true;
   child.stdin.write('quit');
-};
+}
 
 setTimeout(function() {
   throw new Error('timeout!');

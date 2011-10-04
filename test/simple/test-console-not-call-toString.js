@@ -25,9 +25,9 @@
 var common = require('../common');
 var assert = require('assert');
 
-var func = function () {};
+var func = function() {};
 var toStringCalled = false;
-func.toString = function () {
+func.toString = function() {
   toStringCalled = true;
 };
 

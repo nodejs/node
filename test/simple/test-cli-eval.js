@@ -43,7 +43,7 @@ child.exec(nodejs + ' --eval 42',
 // assert that "42\n" is written to stderr
 child.exec(nodejs + ' --eval "console.error(42)"',
     function(err, stdout, stderr) {
-      assert.equal(stderr, "42\n");
+      assert.equal(stderr, '42\n');
     });
 
 // assert that module loading works

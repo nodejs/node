@@ -36,7 +36,7 @@ e.emit('hello', 'a', 'b');
 e.emit('hello', 'a', 'b');
 
 var remove = function() {
-  assert.fail(1,0, 'once->foo should not be emitted', '!');
+  assert.fail(1, 0, 'once->foo should not be emitted', '!');
 };
 
 e.once('foo', remove);

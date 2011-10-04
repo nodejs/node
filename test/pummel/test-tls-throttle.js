@@ -33,7 +33,7 @@ var fs = require('fs');
 var body = '';
 
 process.stdout.write('build body...');
-for (var i = 0; i < 1024*1024; i++) {
+for (var i = 0; i < 1024 * 1024; i++) {
   body += 'hello world\n';
 }
 process.stdout.write('done\n');
@@ -62,7 +62,7 @@ server.listen(common.PORT, function() {
     recvCount += d.length;
 
     client.pause();
-    process.nextTick(function () {
+    process.nextTick(function() {
       client.resume();
     });
   });
@@ -82,7 +82,7 @@ function displayCounts() {
 }
 
 
-var timeout = setTimeout(displayCounts, 10*1000);
+var timeout = setTimeout(displayCounts, 10 * 1000);
 
 
 process.on('exit', function() {

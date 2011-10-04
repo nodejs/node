@@ -31,9 +31,7 @@ req.on('error', function(e) {
 function loadDom() {
   // Do a lot of computation to stall the process.
   // In the meantime the socket will be disconnected.
-  for (var i = 0; i < 1e8; i++) {
-    ;
-  }
+  for (var i = 0; i < 1e8; i++);
 
   console.log('Dom loaded.');
 }

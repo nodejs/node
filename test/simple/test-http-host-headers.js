@@ -153,7 +153,7 @@ function testHttps() {
       host: 'localhost',
       //agent: false,
       port: common.PORT }, cb).on('error', thrower).end();
-      
+
     https.get({ method: 'GET',
       path: '/setHostFalse' + (counter++),
       host: 'localhost',

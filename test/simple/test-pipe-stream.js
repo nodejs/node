@@ -44,7 +44,7 @@ function test(clazz, cb) {
     });
 
     conn.on('data', function(data) {
-      assert.equal(data.toString(), 'PONG')
+      assert.equal(data.toString(), 'PONG');
       have_pong = true;
       conn.destroy();
     });
@@ -56,7 +56,7 @@ function test(clazz, cb) {
     });
 
     conn.on('data', function(data) {
-      assert.equal(data.toString(), 'PING')
+      assert.equal(data.toString(), 'PING');
       have_ping = true;
       conn.write('PONG', 'utf-8');
     });
@@ -83,3 +83,4 @@ function test(clazz, cb) {
 test(net.Stream, function() {
   test(net.Socket);
 });
+

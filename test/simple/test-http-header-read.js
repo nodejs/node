@@ -35,9 +35,9 @@ var s = http.createServer(function(req, res) {
   // This checks that after the headers have been sent, getHeader works
   // and does not throw an exception (Issue 752)
   assert.doesNotThrow(
-    function() {
-      assert.equal(plain, res.getHeader(contentType));
-    }
+      function() {
+        assert.equal(plain, res.getHeader(contentType));
+      }
   );
 });
 

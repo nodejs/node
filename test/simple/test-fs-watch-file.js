@@ -49,53 +49,53 @@ process.addListener('exit', function() {
 });
 
 
-fs.writeFileSync(filepathOne, "hello");
+fs.writeFileSync(filepathOne, 'hello');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathOne);
-  },
-  function(e) {
-    return e.message === 'watchFile requires a listener function';
-  }
+    function() {
+      fs.watchFile(filepathOne);
+    },
+    function(e) {
+      return e.message === 'watchFile requires a listener function';
+    }
 );
 
 assert.doesNotThrow(
-  function() {
-    fs.watchFile(filepathOne, function(curr, prev) {
-      fs.unwatchFile(filepathOne);
-      ++watchSeenOne;
-    });
-  }
+    function() {
+      fs.watchFile(filepathOne, function(curr, prev) {
+        fs.unwatchFile(filepathOne);
+        ++watchSeenOne;
+      });
+    }
 );
 
 setTimeout(function() {
-  fs.writeFileSync(filepathOne, "world");
+  fs.writeFileSync(filepathOne, 'world');
 }, 1000);
 
 
 process.chdir(testDir);
 
-fs.writeFileSync(filepathTwoAbs, "howdy");
+fs.writeFileSync(filepathTwoAbs, 'howdy');
 
 assert.throws(
-  function() {
-    fs.watchFile(filepathTwo);
-  },
-  function(e) {
-    return e.message === 'watchFile requires a listener function';
-  }
+    function() {
+      fs.watchFile(filepathTwo);
+    },
+    function(e) {
+      return e.message === 'watchFile requires a listener function';
+    }
 );
 
 assert.doesNotThrow(
-  function() {
-    fs.watchFile(filepathTwo, function(curr, prev) {
-      fs.unwatchFile(filepathTwo);
-      ++watchSeenTwo;
-    });
-  }
+    function() {
+      fs.watchFile(filepathTwo, function(curr, prev) {
+        fs.unwatchFile(filepathTwo);
+        ++watchSeenTwo;
+      });
+    }
 );
 
 setTimeout(function() {
-  fs.writeFileSync(filepathTwoAbs, "pardner");
+  fs.writeFileSync(filepathTwoAbs, 'pardner');
 }, 1000);

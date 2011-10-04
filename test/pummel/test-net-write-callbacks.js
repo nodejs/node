@@ -28,11 +28,11 @@ var N = 500000;
 
 var server = net.Server(function(socket) {
   socket.on('data', function(d) {
-    console.error("got %d bytes", d.length);
+    console.error('got %d bytes', d.length);
   });
 
   socket.on('end', function() {
-    console.error("end");
+    console.error('end');
     socket.destroy();
     server.close();
   });
@@ -43,7 +43,7 @@ server.listen(common.PORT, function() {
 
   client.on('connect', function() {
     for (var i = 0; i < N; i++) {
-      client.write("hello world", function() {
+      client.write('hello world', function() {
         cbcount++;
       });
     }

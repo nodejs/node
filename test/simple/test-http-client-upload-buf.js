@@ -47,9 +47,9 @@ server.listen(common.PORT);
 
 server.addListener('listening', function() {
   var req = http.request({
-    port:   common.PORT,
+    port: common.PORT,
     method: 'POST',
-    path:   '/'
+    path: '/'
   }, function(res) {
     res.setEncoding('utf8');
     res.addListener('data', function(chunk) {

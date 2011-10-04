@@ -44,7 +44,7 @@ server.listen(tcpPort, 'localhost', function() {
   net.createConnection(tcpPort, 'localhost', cb);
 });
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(clientConnected, 4);
 });
 

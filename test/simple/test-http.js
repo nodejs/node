@@ -82,8 +82,8 @@ server.addListener('listening', function() {
     var req = http.request({
       port: common.PORT,
       method: 'POST',
-      path:   '/world',
-      agent:  agent
+      path: '/world',
+      agent: agent
     }, function(res) {
       assert.equal(200, res.statusCode);
       responses_recvd += 1;

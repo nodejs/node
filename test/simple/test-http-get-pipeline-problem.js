@@ -32,7 +32,7 @@ var fs = require('fs');
 
 var image = fs.readFileSync(common.fixturesDir + '/person.jpg');
 
-console.log("image.length = " + image.length);
+console.log('image.length = ' + image.length);
 
 var total = 100;
 var requests = 0, responses = 0;
@@ -64,20 +64,20 @@ server.listen(common.PORT, function() {
       };
 
       http.get(opts, function(res) {
-        console.error("recv " + x);
-        var s = fs.createWriteStream(common.tmpDir + '/' + x + ".jpg");
+        console.error('recv ' + x);
+        var s = fs.createWriteStream(common.tmpDir + '/' + x + '.jpg');
         res.pipe(s);
 
         // TODO there should be a callback to pipe() that will allow
         // us to get a callback when the pipe is finished.
         res.on('end', function() {
-          console.error("done " + x);
+          console.error('done ' + x);
           if (++responses == total) {
             s.on('close', checkFiles);
           }
         });
       }).on('error', function(e) {
-        console.error('error! ', e.message)
+        console.error('error! ', e.message);
         throw e;
       });
     })();
@@ -97,7 +97,7 @@ function checkFiles() {
     var stat = fs.statSync(common.tmpDir + '/' + fn);
     assert.equal(image.length, stat.size,
                  "size doesn't match on '" + fn +
-                 "'. Got " + stat.size + " bytes");
+                 "'. Got " + stat.size + ' bytes');
   }
 
   checkedFiles = true;

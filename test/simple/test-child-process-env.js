@@ -31,7 +31,7 @@ var env = {
 };
 env.__proto__ = {
   'FOO': 'BAR'
-}
+};
 
 if (isWindows) {
   var child = spawn('cmd.exe', ['/c', 'set'], {env: env});

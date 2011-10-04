@@ -3,7 +3,7 @@ var assert = require('assert');
 
 var t = Date.now();
 var diff;
-setTimeout(function () {
+setTimeout(function() {
   diff = Date.now() - t;
   console.error(diff);
 }, 0.1);

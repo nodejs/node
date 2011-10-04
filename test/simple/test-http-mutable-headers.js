@@ -42,10 +42,10 @@ var cookies = [
 var s = http.createServer(function(req, res) {
   switch (test) {
     case 'headers':
-      assert.throws(function () { res.setHeader() });
-      assert.throws(function () { res.setHeader('someHeader') });
-      assert.throws(function () { res.getHeader() });
-      assert.throws(function () { res.removeHeader() });
+      assert.throws(function() { res.setHeader() });
+      assert.throws(function() { res.setHeader('someHeader') });
+      assert.throws(function() { res.getHeader() });
+      assert.throws(function() { res.removeHeader() });
 
       res.setHeader('x-test-header', 'testing');
       res.setHeader('X-TEST-HEADER2', 'testing');
@@ -84,7 +84,7 @@ var s = http.createServer(function(req, res) {
 s.listen(common.PORT, nextTest);
 
 
-function nextTest () {
+function nextTest() {
   if (test === 'end') {
     return s.close();
   }
@@ -103,7 +103,7 @@ function nextTest () {
         assert.equal(response.headers['x-test-header'],
                      'testing');
         assert.equal(response.headers['x-test-array-header'],
-                     [1,2,3].join(', '));
+                     [1, 2, 3].join(', '));
         assert.deepEqual(cookies,
                          response.headers['set-cookie']);
         assert.equal(response.headers['x-test-header2'] !== undefined, false);
@@ -130,7 +130,7 @@ function nextTest () {
         break;
 
       default:
-        throw Error("?");
+        throw Error('?');
     }
 
     response.setEncoding('utf8');

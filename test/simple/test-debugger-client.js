@@ -31,15 +31,15 @@ var spawn = require('child_process').spawn;
 
 var resCount = 0;
 var p = new debug.Protocol();
-p.onResponse = function (res) {
+p.onResponse = function(res) {
   resCount++;
 };
 
-p.execute("Type: connect\r\n" +
-          "V8-Version: 3.0.4.1\r\n" +
-          "Protocol-Version: 1\r\n" +
-          "Embedding-Host: node v0.3.3-pre\r\n" +
-          "Content-Length: 0\r\n\r\n");
+p.execute('Type: connect\r\n' +
+          'V8-Version: 3.0.4.1\r\n' +
+          'Protocol-Version: 1\r\n' +
+          'Embedding-Host: node v0.3.3-pre\r\n' +
+          'Content-Length: 0\r\n\r\n');
 assert.equal(1, resCount);
 
 // Make sure split messages go in.
@@ -93,26 +93,26 @@ assert.equal(4, resCount);
 
 var expectedConnections = 0;
 var tests = [];
-function addTest (cb) {
+function addTest(cb) {
   expectedConnections++;
   tests.push(cb);
 }
 
-addTest(function (client, done) {
-  console.error("requesting version");
-  client.reqVersion(function (err, v) {
+addTest(function(client, done) {
+  console.error('requesting version');
+  client.reqVersion(function(err, v) {
     assert.ok(!err);
-    console.log("version: %s", v);
+    console.log('version: %s', v);
     assert.equal(process.versions.v8, v);
     done();
   });
 });
 
-addTest(function (client, done) {
-  console.error("requesting scripts");
-  client.reqScripts(function (err) {
+addTest(function(client, done) {
+  console.error('requesting scripts');
+  client.reqScripts(function(err) {
     assert.ok(!err);
-    console.error("got %d scripts", Object.keys(client.scripts).length);
+    console.error('got %d scripts', Object.keys(client.scripts).length);
 
     var foundMainScript = false;
     for (var k in client.scripts) {
@@ -127,9 +127,9 @@ addTest(function (client, done) {
   });
 });
 
-addTest(function (client, done) {
-  console.error("eval 2+2");
-  client.reqEval("2+2", function (err, res) {
+addTest(function(client, done) {
+  console.error('eval 2+2');
+  client.reqEval('2+2', function(err, res) {
     console.error(res);
     assert.ok(!err);
     assert.equal('4', res.text);
@@ -145,16 +145,16 @@ function doTest(cb, done) {
   var nodeProcess = spawn(process.execPath,
       ['-e', 'setInterval(function () { console.log("blah"); }, 100);']);
 
-  nodeProcess.stdout.once('data', function () {
-    console.log(">>> new node process: %d", nodeProcess.pid);
-    process.kill(nodeProcess.pid, "SIGUSR1");
-    console.log(">>> signaling it with SIGUSR1");
+  nodeProcess.stdout.once('data', function() {
+    console.log('>>> new node process: %d', nodeProcess.pid);
+    process.kill(nodeProcess.pid, 'SIGUSR1');
+    console.log('>>> signaling it with SIGUSR1');
   });
 
   var didTryConnect = false;
   nodeProcess.stderr.setEncoding('utf8');
-  var b = ''
-  nodeProcess.stderr.on('data', function (data) {
+  var b = '';
+  nodeProcess.stderr.on('data', function(data) {
     b += data;
     if (didTryConnect == false && /debugger listening on port/.test(b)) {
       didTryConnect = true;
@@ -162,13 +162,13 @@ function doTest(cb, done) {
       setTimeout(function() {
         // Wait for some data before trying to connect
         var c = new debug.Client();
-        process.stdout.write(">>> connecting...");
-        c.connect(debug.port)
-        c.on('ready', function () {
+        process.stdout.write('>>> connecting...');
+        c.connect(debug.port);
+        c.on('ready', function() {
           connectCount++;
-          console.log("ready!");
-          cb(c, function () {
-            console.error(">>> killing node process %d\n\n", nodeProcess.pid);
+          console.log('ready!');
+          cb(c, function() {
+            console.error('>>> killing node process %d\n\n', nodeProcess.pid);
             nodeProcess.kill();
             done();
           });
@@ -179,11 +179,11 @@ function doTest(cb, done) {
 }
 
 
-function run () {
+function run() {
   var t = tests[0];
   if (!t) return;
 
-  doTest(t, function () {
+  doTest(t, function() {
     tests.shift();
     run();
   });

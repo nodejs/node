@@ -24,14 +24,15 @@ var assert = require('assert');
 var fs = require('fs');
 var http = require('http');
 
-var status_ok  = false; // status code == 200?
+var status_ok = false; // status code == 200?
 var headers_ok = false;
-var body_ok    = false;
+var body_ok = false;
 
 var server = http.createServer(function(req, res) {
-  res.writeHead(200, {'Content-Type': 'text/plain',
-                      'Connection': 'close'
-                     });
+  res.writeHead(200, {
+    'Content-Type': 'text/plain',
+    'Connection': 'close'
+  });
   res.write('hello ');
   res.write('world\n');
   res.end();
@@ -54,7 +55,7 @@ server.listen(common.PIPE, function() {
     res.body = '';
     res.setEncoding('utf8');
 
-    res.on('data', function (chunk) {
+    res.on('data', function(chunk) {
       res.body += chunk;
     });
 

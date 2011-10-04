@@ -25,11 +25,11 @@ var zlib = require('zlib');
 var path = require('path');
 
 var zlibPairs =
-  [ [zlib.Deflate, zlib.Inflate],
-    [zlib.Gzip, zlib.Gunzip],
-    [zlib.Deflate, zlib.Unzip],
-    [zlib.Gzip, zlib.Unzip],
-    [zlib.DeflateRaw, zlib.InflateRaw ] ];
+    [[zlib.Deflate, zlib.Inflate],
+     [zlib.Gzip, zlib.Gunzip],
+     [zlib.Deflate, zlib.Unzip],
+     [zlib.Gzip, zlib.Unzip],
+     [zlib.DeflateRaw, zlib.InflateRaw]];
 
 // how fast to trickle through the slowstream
 var trickle = [128, 1024, 1024 * 1024];
@@ -58,14 +58,14 @@ if (!process.env.PUMMEL) {
 
 var fs = require('fs');
 
-var testFiles = [ 'person.jpg', 'elipses.txt', 'empty.txt' ];
+var testFiles = ['person.jpg', 'elipses.txt', 'empty.txt'];
 
 if (process.env.FAST) {
-  zlibPairs = [ [zlib.Gzip, zlib.Unzip] ];
-  var testFiles = [ 'person.jpg' ];
+  zlibPairs = [[zlib.Gzip, zlib.Unzip]];
+  var testFiles = ['person.jpg'];
 }
 
-var tests = {}
+var tests = {};
 testFiles.forEach(function(file) {
   tests[file] = fs.readFileSync(path.resolve(common.fixturesDir, file));
 });
@@ -141,7 +141,7 @@ SlowStream.prototype.resume = function() {
     self.emit('data', c);
     process.nextTick(emit);
   }
-}
+};
 
 SlowStream.prototype.end = function(chunk) {
   // walk over the chunk in blocks.
@@ -164,62 +164,62 @@ var done = 0;
 Object.keys(tests).forEach(function(file) {
   var test = tests[file];
   chunkSize.forEach(function(chunkSize) {
-  trickle.forEach(function(trickle) {
-  windowBits.forEach(function(windowBits) {
-  level.forEach(function(level) {
-  memLevel.forEach(function(memLevel) {
-  strategy.forEach(function(strategy) {
-    zlibPairs.forEach(function(pair) {
-      var Def = pair[0];
-      var Inf = pair[1];
-      var opts = { level: level,
-                   windowBits: windowBits,
-                   memLevel: memLevel,
-                   strategy: strategy };
+    trickle.forEach(function(trickle) {
+      windowBits.forEach(function(windowBits) {
+        level.forEach(function(level) {
+          memLevel.forEach(function(memLevel) {
+            strategy.forEach(function(strategy) {
+              zlibPairs.forEach(function(pair) {
+                var Def = pair[0];
+                var Inf = pair[1];
+                var opts = { level: level,
+                  windowBits: windowBits,
+                  memLevel: memLevel,
+                  strategy: strategy };
 
-      total ++;
+                total++;
 
-      var def = new Def(opts);
-      var inf = new Inf(opts);
-      var ss = new SlowStream(trickle);
-      var buf = new BufferStream();
+                var def = new Def(opts);
+                var inf = new Inf(opts);
+                var ss = new SlowStream(trickle);
+                var buf = new BufferStream();
 
-      // verify that the same exact buffer comes out the other end.
-      buf.on('data', function(c) {
-        var msg = file + ' ' +
-                  chunkSize + ' ' +
-                  JSON.stringify(opts) + ' ' +
-                  Def.name + ' -> ' + Inf.name;
-        var ok = true;
-        var testNum = ++done;
-        for (var i = 0; i < Math.max(c.length, test.length); i++) {
-          if (c[i] !== test[i]) {
-            ok = false;
-            failures ++;
-            break;
-          }
-        }
-        if (ok) {
-          console.log('ok ' + (testNum) + ' ' + msg);
-        } else {
-          console.log('not ok ' + (testNum) + ' ' + msg);
-          console.log('  ...');
-          console.log('  testfile: ' + file);
-          console.log('  type: ' + Def.name + ' -> ' + Inf.name);
-          console.log('  position: ' + i);
-          console.log('  options: ' + JSON.stringify(opts));
-          console.log('  expect: ' + test[i]);
-          console.log('  actual: ' + c[i]);
-          console.log('  chunkSize: ' + chunkSize);
-          console.log('  ---');
-        }
-      });
+                // verify that the same exact buffer comes out the other end.
+                buf.on('data', function(c) {
+                  var msg = file + ' ' +
+                      chunkSize + ' ' +
+                      JSON.stringify(opts) + ' ' +
+                      Def.name + ' -> ' + Inf.name;
+                  var ok = true;
+                  var testNum = ++done;
+                  for (var i = 0; i < Math.max(c.length, test.length); i++) {
+                    if (c[i] !== test[i]) {
+                      ok = false;
+                      failures++;
+                      break;
+                    }
+                  }
+                  if (ok) {
+                    console.log('ok ' + (testNum) + ' ' + msg);
+                  } else {
+                    console.log('not ok ' + (testNum) + ' ' + msg);
+                    console.log('  ...');
+                    console.log('  testfile: ' + file);
+                    console.log('  type: ' + Def.name + ' -> ' + Inf.name);
+                    console.log('  position: ' + i);
+                    console.log('  options: ' + JSON.stringify(opts));
+                    console.log('  expect: ' + test[i]);
+                    console.log('  actual: ' + c[i]);
+                    console.log('  chunkSize: ' + chunkSize);
+                    console.log('  ---');
+                  }
+                });
 
-      // the magic happens here.
-      ss.pipe(def).pipe(inf).pipe(buf);
-      ss.end(test);
-    });
-  }); }); }); }); }); }); // sad stallman is sad.
+                // the magic happens here.
+                ss.pipe(def).pipe(inf).pipe(buf);
+                ss.end(test);
+              });
+            }); }); }); }); }); }); // sad stallman is sad.
 });
 
 process.on('exit', function(code) {

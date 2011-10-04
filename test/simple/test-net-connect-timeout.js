@@ -47,7 +47,7 @@ var socket0 = net.createConnection(9999, 'google.com');
 socket0.setTimeout(T);
 
 socket0.on('timeout', function() {
-  console.error("timeout");
+  console.error('timeout');
   gotTimeout0 = true;
   var now = new Date();
   assert.ok(now - start < T + 500);
@@ -55,7 +55,7 @@ socket0.on('timeout', function() {
 });
 
 socket0.on('connect', function() {
-  console.error("connect");
+  console.error('connect');
   gotConnect0 = true;
   socket0.destroy();
 });
@@ -68,7 +68,7 @@ var socket1 = net.createConnection(9999, '24.24.24.24');
 socket1.setTimeout(T);
 
 socket1.on('timeout', function() {
-  console.error("timeout");
+  console.error('timeout');
   gotTimeout1 = true;
   var now = new Date();
   assert.ok(now - start < T + 500);
@@ -76,7 +76,7 @@ socket1.on('timeout', function() {
 });
 
 socket1.on('connect', function() {
-  console.error("connect");
+  console.error('connect');
   gotConnect1 = true;
   socket1.destroy();
 });

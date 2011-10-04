@@ -123,12 +123,12 @@ function error_test() {
     { client: client_unix, send: 'function blah() { return 1; }',
       expect: prompt_unix },
     { client: client_unix, send: 'blah()',
-      expect: "1\n" + prompt_unix },
+      expect: '1\n' + prompt_unix },
     // Multiline object
     { client: client_unix, send: '{ a: ',
       expect: prompt_multiline },
     { client: client_unix, send: '1 }',
-      expect: "{ a: 1 }" },
+      expect: '{ a: 1 }' },
     // Multiline anonymous function with comment
     { client: client_unix, send: '(function () {',
       expect: prompt_multiline },
@@ -137,7 +137,7 @@ function error_test() {
     { client: client_unix, send: 'return 1;',
       expect: prompt_multiline },
     { client: client_unix, send: '})()',
-      expect: "1" },
+      expect: '1' }
   ]);
 }
 
@@ -234,7 +234,7 @@ function unix_test() {
         { client: client_unix, send: 'a = 12345\n',
           expect: ('12345' + '\n' + prompt_unix) },
         { client: client_unix, send: '{a:1}\n',
-          expect: ('{ a: 1 }' + '\n' + prompt_unix) },
+          expect: ('{ a: 1 }' + '\n' + prompt_unix) }
       ]);
     });
 

@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 
@@ -30,7 +30,8 @@ var fs = require('fs');
 var tls = require('tls');
 var path = require('path');
 
-// https://github.com/joyent/node/issues/1218 - uncatchable exception on TLS connection error
+// https://github.com/joyent/node/issues/1218
+// uncatchable exception on TLS connection error
 (function() {
   var cert = fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'));
   var key = fs.readFileSync(path.join(common.fixturesDir, 'test_key.pem'));
@@ -41,7 +42,7 @@ var path = require('path');
     assert.ok(errorEmitted);
   });
 
-  var conn = tls.connect(common.PORT, {cert:cert, key:key}, function() {
+  var conn = tls.connect(common.PORT, {cert: cert, key: key}, function() {
     assert.ok(false); // callback should never be executed
   });
 

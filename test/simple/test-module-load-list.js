@@ -55,10 +55,10 @@ checkExpected();
 
 
 // Now do the test again after we console.log something.
-console.log("load console.log. process.stdout._type is " +
+console.log('load console.log. process.stdout._type is ' +
     process.stdout._type);
 
-if (!process.features.uv)  {
+if (!process.features.uv) {
   // legacy
   expected = expected.concat([
     'NativeModule console',
@@ -78,7 +78,7 @@ if (!process.features.uv)  {
     case 'fs':
       expected = expected.concat([
         'NativeModule console',
-        'Binding tty_wrap',
+        'Binding tty_wrap'
       ]);
       break;
 
@@ -102,17 +102,17 @@ if (!process.features.uv)  {
         'NativeModule timers_uv',
         'Binding timer_wrap',
         'NativeModule _linklist',
-        'Binding pipe_wrap',
+        'Binding pipe_wrap'
       ]);
       break;
 
     default:
-      assert.ok(0, "prcoess.stdout._type is bad");
+      assert.ok(0, 'prcoess.stdout._type is bad');
   }
 }
 
-console.error("process.moduleLoadList", process.moduleLoadList)
-console.error("expected", expected)
+console.error('process.moduleLoadList', process.moduleLoadList);
+console.error('expected', expected);
 
 checkExpected();
 

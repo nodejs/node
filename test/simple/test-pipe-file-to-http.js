@@ -59,7 +59,7 @@ server.listen(common.PORT);
 
 server.on('listening', function() {
   var cmd = common.ddCommand(filename, 10240);
-  console.log("dd command: ", cmd);
+  console.log('dd command: ', cmd);
 
   cp.exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;

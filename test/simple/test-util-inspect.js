@@ -35,7 +35,7 @@ var after = util.inspect(d);
 assert.equal(orig, after);
 
 // test for sparse array
-var a = [ 'foo', 'bar', 'baz' ];
+var a = ['foo', 'bar', 'baz'];
 assert.equal(util.inspect(a), "[ 'foo', 'bar', 'baz' ]");
 delete a[1];
 assert.equal(util.inspect(a), "[ 'foo', , 'baz' ]");
@@ -54,8 +54,8 @@ try {
 }
 var ex = util.inspect(new Error('FAIL'), true);
 console.log(ex);
-assert.ok(ex.indexOf("[Error: FAIL]") != -1);
-assert.ok(ex.indexOf("[stack]") != -1);
-assert.ok(ex.indexOf("[message]") != -1);
-assert.ok(ex.indexOf("[arguments]") != -1);
-assert.ok(ex.indexOf("[type]") != -1);
+assert.ok(ex.indexOf('[Error: FAIL]') != -1);
+assert.ok(ex.indexOf('[stack]') != -1);
+assert.ok(ex.indexOf('[message]') != -1);
+assert.ok(ex.indexOf('[arguments]') != -1);
+assert.ok(ex.indexOf('[type]') != -1);

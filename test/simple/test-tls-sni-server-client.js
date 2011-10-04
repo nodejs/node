@@ -23,8 +23,8 @@
 
 
 if (!process.features.tls_sni) {
-  console.error("Skipping because node compiled without OpenSSL or " +
-                "with old OpenSSL version.");
+  console.error('Skipping because node compiled without OpenSSL or ' +
+                'with old OpenSSL version.');
   process.exit(0);
 }
 
@@ -34,7 +34,7 @@ var common = require('../common'),
     tls = require('tls');
 
 function filenamePEM(n) {
-  return require('path').join(common.fixturesDir, 'keys', n + ".pem");
+  return require('path').join(common.fixturesDir, 'keys', n + '.pem');
 }
 
 function loadPEM(n) {
@@ -106,7 +106,7 @@ function startTest() {
       });
     });
   });
-};
+}
 
 process.on('exit', function() {
   assert.deepEqual(serverResults, ['a.example.com', 'b.test.com',

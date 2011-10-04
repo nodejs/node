@@ -47,7 +47,7 @@ var echo = spawn('echo', ['hello\nnode\nand\nworld\n']),
 
 // pipe echo | grep
 echo.stdout.on('data', function(data) {
-  console.error("grep stdin write " + data.length);
+  console.error('grep stdin write ' + data.length);
   if (!grep.stdin.write(data)) {
     echo.stdout.pause();
   }
@@ -63,22 +63,22 @@ echo.stdout.on('end', function(code) {
 });
 
 echo.on('exit', function() {
-  console.error("echo exit");
-})
+  console.error('echo exit');
+});
 
 grep.on('exit', function() {
-  console.error("grep exit");
-})
+  console.error('grep exit');
+});
 
 sed.on('exit', function() {
-  console.error("sed exit");
-})
+  console.error('sed exit');
+});
 
 
 
 // pipe grep | sed
 grep.stdout.on('data', function(data) {
-  console.error("grep stdout " + data.length);
+  console.error('grep stdout ' + data.length);
   if (!sed.stdin.write(data)) {
     grep.stdout.pause();
   }
@@ -90,7 +90,7 @@ sed.stdin.on('drain', function(data) {
 
 // propagate end from grep to sed
 grep.stdout.on('end', function(code) {
-  console.error("grep stdout end");
+  console.error('grep stdout end');
   sed.stdin.end();
 });
 

@@ -38,7 +38,7 @@ var options = {
 var req = https.request(options, function(res) {
   assert.equal(200, res.statusCode);
   gotResponse = true;
-  console.error("DONE");
+  console.error('DONE');
 });
 
 req.end(new Buffer(bytesExpected));

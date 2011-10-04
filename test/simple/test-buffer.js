@@ -260,7 +260,8 @@ var f = new Buffer([0, 0, 0, 0, 0]);
 assert.equal(f.length, 5);
 var size = f.write('あいうえお', 'ucs2');
 console.error('bytes written to buffer: %d     (should be 4)', size);
-console.error('chars written to buffer: %d     (should be 2)', Buffer._charsWritten);
+console.error('chars written to buffer: %d     (should be 2)',
+    Buffer._charsWritten);
 assert.equal(size, 4);
 assert.equal(Buffer._charsWritten, 2);
 assert.deepEqual(f, new Buffer([0x42, 0x30, 0x44, 0x30, 0x00]));
@@ -411,7 +412,7 @@ assert.equal(dot.toString('base64'), '//4uAA==');
 // Writing base64 at a position > 0 should not mangle the result.
 //
 // https://github.com/joyent/node/issues/402
-var segments = ['TWFkbmVzcz8h','IFRoaXM=','IGlz','IG5vZGUuanMh'];
+var segments = ['TWFkbmVzcz8h', 'IFRoaXM=', 'IGlz', 'IG5vZGUuanMh'];
 var buf = new Buffer(64);
 var pos = 0;
 
@@ -455,37 +456,37 @@ assert.equal(0, Buffer('hello').slice(0, 0).length);
 // test hex toString
 console.log('Create hex string from buffer');
 var hexb = new Buffer(256);
-for (var i = 0; i < 256; i ++) {
+for (var i = 0; i < 256; i++) {
   hexb[i] = i;
 }
 var hexStr = hexb.toString('hex');
 assert.equal(hexStr,
-             '000102030405060708090a0b0c0d0e0f'+
-             '101112131415161718191a1b1c1d1e1f'+
-             '202122232425262728292a2b2c2d2e2f'+
-             '303132333435363738393a3b3c3d3e3f'+
-             '404142434445464748494a4b4c4d4e4f'+
-             '505152535455565758595a5b5c5d5e5f'+
-             '606162636465666768696a6b6c6d6e6f'+
-             '707172737475767778797a7b7c7d7e7f'+
-             '808182838485868788898a8b8c8d8e8f'+
-             '909192939495969798999a9b9c9d9e9f'+
-             'a0a1a2a3a4a5a6a7a8a9aaabacadaeaf'+
-             'b0b1b2b3b4b5b6b7b8b9babbbcbdbebf'+
-             'c0c1c2c3c4c5c6c7c8c9cacbcccdcecf'+
-             'd0d1d2d3d4d5d6d7d8d9dadbdcdddedf'+
-             'e0e1e2e3e4e5e6e7e8e9eaebecedeeef'+
+             '000102030405060708090a0b0c0d0e0f' +
+             '101112131415161718191a1b1c1d1e1f' +
+             '202122232425262728292a2b2c2d2e2f' +
+             '303132333435363738393a3b3c3d3e3f' +
+             '404142434445464748494a4b4c4d4e4f' +
+             '505152535455565758595a5b5c5d5e5f' +
+             '606162636465666768696a6b6c6d6e6f' +
+             '707172737475767778797a7b7c7d7e7f' +
+             '808182838485868788898a8b8c8d8e8f' +
+             '909192939495969798999a9b9c9d9e9f' +
+             'a0a1a2a3a4a5a6a7a8a9aaabacadaeaf' +
+             'b0b1b2b3b4b5b6b7b8b9babbbcbdbebf' +
+             'c0c1c2c3c4c5c6c7c8c9cacbcccdcecf' +
+             'd0d1d2d3d4d5d6d7d8d9dadbdcdddedf' +
+             'e0e1e2e3e4e5e6e7e8e9eaebecedeeef' +
              'f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff');
 
 console.log('Create buffer from hex string');
 var hexb2 = new Buffer(hexStr, 'hex');
-for (var i = 0; i < 256; i ++) {
+for (var i = 0; i < 256; i++) {
   assert.equal(hexb2[i], hexb[i]);
 }
 
 // test an invalid slice end.
 console.log('Try to slice off the end of the buffer');
-var b = new Buffer([1,2,3,4,5]);
+var b = new Buffer([1, 2, 3, 4, 5]);
 var b2 = b.toString('hex', 1, 10000);
 var b3 = b.toString('hex', 1, 5);
 var b4 = b.toString('hex', 1);
@@ -496,25 +497,25 @@ assert.equal(b2, b4);
 // Test slice on SlowBuffer GH-843
 var SlowBuffer = process.binding('buffer').SlowBuffer;
 
-function buildSlowBuffer (data) {
+function buildSlowBuffer(data) {
   if (Array.isArray(data)) {
     var buffer = new SlowBuffer(data.length);
-    data.forEach(function(v,k) {
+    data.forEach(function(v, k) {
       buffer[k] = v;
     });
     return buffer;
-  };
+  }
   return null;
 }
 
-var x = buildSlowBuffer([0x81,0xa3,0x66,0x6f,0x6f,0xa3,0x62,0x61,0x72]);
+var x = buildSlowBuffer([0x81, 0xa3, 0x66, 0x6f, 0x6f, 0xa3, 0x62, 0x61, 0x72]);
 
-console.log(x.inspect())
+console.log(x.inspect());
 assert.equal('<SlowBuffer 81 a3 66 6f 6f a3 62 61 72>', x.inspect());
 
 var z = x.slice(4);
-console.log(z.inspect())
-console.log(z.length)
+console.log(z.inspect());
+console.log(z.length);
 assert.equal(5, z.length);
 assert.equal(0x6f, z[0]);
 assert.equal(0xa3, z[1]);
@@ -523,41 +524,41 @@ assert.equal(0x61, z[3]);
 assert.equal(0x72, z[4]);
 
 var z = x.slice(0);
-console.log(z.inspect())
-console.log(z.length)
+console.log(z.inspect());
+console.log(z.length);
 assert.equal(z.length, x.length);
 
 var z = x.slice(0, 4);
-console.log(z.inspect())
-console.log(z.length)
+console.log(z.inspect());
+console.log(z.length);
 assert.equal(4, z.length);
 assert.equal(0x81, z[0]);
 assert.equal(0xa3, z[1]);
 
 var z = x.slice(0, 9);
-console.log(z.inspect())
-console.log(z.length)
+console.log(z.inspect());
+console.log(z.length);
 assert.equal(9, z.length);
 
 var z = x.slice(1, 4);
-console.log(z.inspect())
-console.log(z.length)
+console.log(z.inspect());
+console.log(z.length);
 assert.equal(3, z.length);
 assert.equal(0xa3, z[0]);
 
 var z = x.slice(2, 4);
-console.log(z.inspect())
-console.log(z.length)
+console.log(z.inspect());
+console.log(z.length);
 assert.equal(2, z.length);
 assert.equal(0x66, z[0]);
 assert.equal(0x6f, z[1]);
 
-assert.equal(0, Buffer('hello').slice(0, 0).length)
+assert.equal(0, Buffer('hello').slice(0, 0).length);
 
 b = new Buffer(50);
-b.fill("h");
+b.fill('h');
 for (var i = 0; i < b.length; i++) {
-  assert.equal("h".charCodeAt(0), b[i]);
+  assert.equal('h'.charCodeAt(0), b[i]);
 }
 
 b.fill(0);
@@ -577,13 +578,13 @@ assert.equal(b.toString('ucs2'), 'あいうえお');
 // Binary encoding should write only one byte per character.
 var b = Buffer([0xde, 0xad, 0xbe, 0xef]);
 var s = String.fromCharCode(0xffff);
-b.write(s, 0, 'binary')
+b.write(s, 0, 'binary');
 assert.equal(0xff, b[0]);
 assert.equal(0xad, b[1]);
 assert.equal(0xbe, b[2]);
 assert.equal(0xef, b[3]);
 s = String.fromCharCode(0xaaee);
-b.write(s, 0, 'binary')
+b.write(s, 0, 'binary');
 assert.equal(0xee, b[0]);
 assert.equal(0xad, b[1]);
 assert.equal(0xbe, b[2]);
@@ -592,7 +593,7 @@ assert.equal(0xef, b[3]);
 
 // This should not segfault the program.
 assert.throws(function() {
-  new Buffer('"pong"', 0, 6, 8031, '127.0.0.1')
+  new Buffer('"pong"', 0, 6, 8031, '127.0.0.1');
 });
 
 // #1210 Test UTF-8 string includes null character
@@ -696,9 +697,9 @@ Buffer(3.3).toString(); // throws bad argument error in commit 43cb4ec
 assert.equal(Buffer(-1).length, 0);
 assert.equal(Buffer(NaN).length, 0);
 assert.equal(Buffer(3.3).length, 4);
-assert.equal(Buffer({length:3.3}).length, 4);
-assert.equal(Buffer({length:"BAM"}).length, 0);
+assert.equal(Buffer({length: 3.3}).length, 4);
+assert.equal(Buffer({length: 'BAM'}).length, 0);
 
 // Make sure that strings are not coerced to numbers.
-assert.equal(Buffer("99").length, 2);
-assert.equal(Buffer("13.37").length, 5);
+assert.equal(Buffer('99').length, 2);
+assert.equal(Buffer('13.37').length, 5);

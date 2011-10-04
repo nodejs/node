@@ -27,7 +27,7 @@
 // test for all openssl versions less than 1.0.0.
 if (!process.versions.openssl ||
     parseInt(process.versions.openssl[0]) < 1) {
-  console.error("Skipping due to old OpenSSL version.");
+  console.error('Skipping due to old OpenSSL version.');
   process.exit(0);
 }
 
@@ -96,7 +96,7 @@ server.stdout.on('data', function(s) {
 });
 
 
-var timeout = setTimeout(function () {
+var timeout = setTimeout(function() {
   server.kill();
   process.exit(1);
 }, 5000);
@@ -137,12 +137,13 @@ function startClient() {
 
     // "TLS Web Client Authentication"
     assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage.length, 1);
-    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0], '1.3.6.1.5.5.7.3.2');
+    assert.equal(pair.cleartext.getPeerCertificate().ext_key_usage[0],
+                 '1.3.6.1.5.5.7.3.2');
 
     console.log('client pair.cleartext.getCipher(): %j',
                 pair.cleartext.getCipher());
     setTimeout(function() {
-      pair.cleartext.write('hello\r\n', function () {
+      pair.cleartext.write('hello\r\n', function() {
         gotWriteCallback = true;
       });
     }, 500);

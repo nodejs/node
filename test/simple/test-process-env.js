@@ -29,7 +29,7 @@ spawn = require('child_process').spawn;
  * environment variables. The problem is that various V8 platform backends
  * deal with timezone in different ways. The windows platform backend caches
  * the timezone value while the Linux one hits libc for every query.
-  
+
 https://github.com/joyent/node/blob/08782931205bc4f6d28102ebc29fd806e8ccdf1f/deps/v8/src/platform-linux.cc#L339-345
 https://github.com/joyent/node/blob/08782931205bc4f6d28102ebc29fd806e8ccdf1f/deps/v8/src/platform-win32.cc#L590-596
 

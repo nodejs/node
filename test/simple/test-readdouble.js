@@ -85,12 +85,12 @@ function test() {
   buffer[6] = 0;
   ASSERT.equal(0, buffer.readDoubleBE(0));
   ASSERT.equal(0, buffer.readDoubleLE(0));
-  ASSERT.equal(false, 1/buffer.readDoubleLE(0)<0);
+  ASSERT.equal(false, 1 / buffer.readDoubleLE(0) < 0);
 
   buffer[7] = 0x80;
   ASSERT.equal(6.3e-322, buffer.readDoubleBE(0));
   ASSERT.equal(0, buffer.readDoubleLE(0));
-  ASSERT.equal(true, 1/buffer.readDoubleLE(0)<0);
+  ASSERT.equal(true, 1 / buffer.readDoubleLE(0) < 0);
 
   buffer[6] = 0xf0;
   buffer[7] = 0x7f;

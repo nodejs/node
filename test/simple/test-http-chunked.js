@@ -39,21 +39,25 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT, function() {
   var data = '';
-  var get = http.get({path:'/', host:'localhost', port:common.PORT}, function (x) {
-    x.setEncoding('utf8')
-    x.on('data', function (c) {data += c});
-    x.on('error', function (e) {
+  var get = http.get({
+    path: '/',
+    host: 'localhost',
+    port: common.PORT
+  }, function(x) {
+    x.setEncoding('utf8');
+    x.on('data', function(c) {data += c});
+    x.on('error', function(e) {
       throw e;
-    })
-    x.on('end', function () {
+    });
+    x.on('end', function() {
       assert.equal('string', typeof data);
       console.log('here is the response:');
       assert.equal(UTF8_STRING, data);
       console.log(data);
       server.close();
-    })
-  })
-  get.on('error', function (e) {throw e});
+    });
+  });
+  get.on('error', function(e) {throw e});
   get.end();
 
 });

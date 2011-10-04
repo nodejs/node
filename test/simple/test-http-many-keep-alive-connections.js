@@ -32,7 +32,7 @@ var server = http.Server(function(req, res) {
   requests++;
   assert.equal(req.connection, connection);
   res.writeHead(200);
-  res.end("hello world\n");
+  res.end('hello world\n');
 });
 
 server.once('connection', function(c) {

@@ -52,9 +52,9 @@ server.listen(common.PORT);
 
 server.addListener('listening', function() {
   var req = http.request({
-    port:    common.PORT,
-    method:  'POST',
-    path:    '/world',
+    port: common.PORT,
+    method: 'POST',
+    path: '/world',
     headers: { 'Expect': '100-continue' }
   });
   common.debug('Client sending request...');

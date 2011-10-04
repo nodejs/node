@@ -37,12 +37,12 @@ var reqCount = 0;
 var body = '';
 
 process.stdout.write('build body...');
-for (var i = 0; i < 1024*1024; i++) {
+for (var i = 0; i < 1024 * 1024; i++) {
   body += 'hello world\n';
 }
 process.stdout.write('done\n');
 
-var server = https.createServer(options, function (req, res) {
+var server = https.createServer(options, function(req, res) {
   reqCount++;
   console.log('got request');
   res.writeHead(200, { 'content-type': 'text/plain' });
@@ -52,23 +52,23 @@ var server = https.createServer(options, function (req, res) {
 var count = 0;
 var gotResEnd = false;
 
-server.listen(common.PORT, function () {
+server.listen(common.PORT, function() {
   https.get({ port: common.PORT }, function(res) {
-    console.log("response!");
+    console.log('response!');
 
     res.on('data', function(d) {
       process.stdout.write('.');
       count += d.length;
       res.pause();
-      process.nextTick(function () {
+      process.nextTick(function() {
         res.resume();
       });
     });
 
     res.on('end', function(d) {
       process.stdout.write('\n');
-      console.log("expected: ", body.length);
-      console.log("     got: ", count);
+      console.log('expected: ', body.length);
+      console.log('     got: ', count);
       server.close();
       gotResEnd = true;
     });
@@ -76,7 +76,7 @@ server.listen(common.PORT, function () {
 });
 
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(1, reqCount);
   assert.equal(body.length, count);
   assert.ok(gotResEnd);

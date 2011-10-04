@@ -33,7 +33,7 @@ var fs = require('fs');
 var body = '';
 
 process.stdout.write('build body...');
-for (var i = 0; i < 10*1024*1024; i++) {
+for (var i = 0; i < 10 * 1024 * 1024; i++) {
   body += 'hello world\n';
 }
 process.stdout.write('done\n');

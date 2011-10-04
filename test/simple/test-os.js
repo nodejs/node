@@ -27,32 +27,32 @@ var assert = require('assert');
 var os = require('os');
 
 
-var hostname = os.hostname()
-console.log("hostname = %s", hostname);
+var hostname = os.hostname();
+console.log('hostname = %s', hostname);
 assert.ok(hostname.length > 0);
 
 var uptime = os.uptime();
-console.log("uptime = %d", uptime);
+console.log('uptime = %d', uptime);
 assert.ok(uptime > 0);
 
 var cpus = os.cpus();
-console.log("cpus = ", cpus);
+console.log('cpus = ', cpus);
 assert.ok(cpus.length > 0);
 
 var type = os.type();
-console.log("type = ", type);
+console.log('type = ', type);
 assert.ok(type.length > 0);
 
 var release = os.release();
-console.log("release = ", release);
+console.log('release = ', release);
 assert.ok(release.length > 0);
 
 var platform = os.platform();
-console.log("platform = ", platform);
+console.log('platform = ', platform);
 assert.ok(platform.length > 0);
 
 var arch = os.arch();
-console.log("arch = ", arch);
+console.log('arch = ', arch);
 assert.ok(arch.length > 0);
 
 if (process.platform != 'sunos') {

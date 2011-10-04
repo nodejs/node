@@ -32,10 +32,10 @@ try {
 // bump, we register a lot of exit listeners
 process.setMaxListeners(256);
 
-[ crypto.randomBytes,
+[crypto.randomBytes,
   crypto.pseudoRandomBytes
 ].forEach(function(f) {
-  [ -1,
+  [-1,
     undefined,
     null,
     false,
@@ -44,7 +44,7 @@ process.setMaxListeners(256);
     []
   ].forEach(function(value) {
     assert.throws(function() { f(value); });
-    assert.throws(function() { f(value, function(){}); });
+    assert.throws(function() { f(value, function() {}); });
   });
 
   [0, 1, 2, 4, 16, 256, 1024].forEach(function(len) {

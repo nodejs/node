@@ -28,7 +28,7 @@ var http = require('http');
 
 var server = http.Server(function(req, res) {
   res.writeHead(200);
-  res.end("hello world\n");
+  res.end('hello world\n');
 });
 
 var responses = 0;
@@ -37,9 +37,9 @@ var M = 10;
 
 server.listen(common.PORT, function() {
   for (var i = 0; i < N; i++) {
-    setTimeout(function () {
+    setTimeout(function() {
       for (var j = 0; j < M; j++) {
-        http.get({ port: common.PORT, path: '/', }, function(res) {
+        http.get({ port: common.PORT, path: '/' }, function(res) {
           console.log(res.statusCode);
           if (++responses == N * M) server.close();
         }).on('error', function(e) {

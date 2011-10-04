@@ -69,9 +69,9 @@ web.listen(common.PORT, function() {
   console.log('Making request');
 
   var req = http.request({
-    port:    common.PORT,
-    method:  'GET',
-    path:    '/',
+    port: common.PORT,
+    method: 'GET',
+    path: '/',
     headers: { 'content-length': buffer.length }
   }, function(res) {
     console.log('Got response');

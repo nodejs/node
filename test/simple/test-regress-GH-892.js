@@ -34,7 +34,7 @@ var spawn = require('child_process').spawn;
 var https = require('https');
 var fs = require('fs');
 
-var PORT = 8000
+var PORT = 8000;
 
 
 var bytesExpected = 1024 * 1024 * 32;
@@ -51,7 +51,7 @@ function makeRequest() {
   var stderrBuffer = '';
 
   var child = spawn(process.execPath,
-      [ childScript, common.PORT, bytesExpected ]);
+      [childScript, common.PORT, bytesExpected]);
 
   child.on('exit', function(code) {
     assert.ok(/DONE/.test(stderrBuffer));
@@ -98,11 +98,11 @@ var server = https.Server(serverOptions, function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  console.log("expecting %d bytes", bytesExpected);
+  console.log('expecting %d bytes', bytesExpected);
   makeRequest();
 });
 
 process.on('exit', function() {
-  console.error("got %d bytes", uploadCount);
+  console.error('got %d bytes', uploadCount);
   assert.equal(uploadCount, bytesExpected);
 });

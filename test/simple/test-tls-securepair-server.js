@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 
@@ -115,7 +115,8 @@ var opensslExitCode = -1;
 
 server.listen(common.PORT, function() {
   // To test use: openssl s_client -connect localhost:8000
-  var client = spawn('openssl', ['s_client', '-connect', '127.0.0.1:' + common.PORT]);
+  var client = spawn('openssl', ['s_client', '-connect', '127.0.0.1:' +
+        common.PORT]);
 
 
   var out = '';

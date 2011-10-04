@@ -40,14 +40,14 @@ var tcp = net.Server(function(s) {
   });
 });
 
-tcp.listen(common.PORT, function () {
+tcp.listen(common.PORT, function() {
   var socket = net.createConnection(tcpPort);
 
   socket.on('connect', function() {
     count++;
     console.log('tcp client connection #' + count);
 
-    socket.write('foo', function () {
+    socket.write('foo', function() {
       socket.end('bar');
     });
   });
@@ -64,11 +64,11 @@ tcp.listen(common.PORT, function () {
       socket.connect(tcpPort);
     } else {
       tcp.close();
-    };
+    }
   });
 });
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.equal(bytesRead, 12);
   assert.equal(bytesWritten, 12);
 });

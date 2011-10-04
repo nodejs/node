@@ -36,19 +36,19 @@ var server = http.createServer(function(req, res) {
 var connectCount = 0;
 
 server.listen(common.PORT, function() {
-  var agent = new http.Agent({maxSockets:1})
-  var request = http.request({method:'GET', path:'/', headers:headers, port:common.PORT, agent:agent}, function () {
-    assert.equal(1, agent.sockets['localhost:'+common.PORT].length)
+  var agent = new http.Agent({maxSockets: 1});
+  var request = http.request({method: 'GET', path: '/', headers: headers, port: common.PORT, agent: agent}, function() {
+    assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
   });
   request.end();
-  
-  request = http.request({method:'GET', path:'/', headers:headers, port:common.PORT, agent:agent}, function () {
-    assert.equal(1, agent.sockets['localhost:'+common.PORT].length)
+
+  request = http.request({method: 'GET', path: '/', headers: headers, port: common.PORT, agent: agent}, function() {
+    assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
   });
   request.end();
-  request = http.request({method:'GET', path:'/', headers:headers, port:common.PORT, agent:agent}, function(response) {
+  request = http.request({method: 'GET', path: '/', headers: headers, port: common.PORT, agent: agent}, function(response) {
     response.addListener('end', function() {
-      assert.equal(1, agent.sockets['localhost:'+common.PORT].length)
+      assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
       server.close();
     });
   });

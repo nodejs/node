@@ -24,44 +24,44 @@
 
 // This must be run as root.
 
-var http = require("http"),
-    https = require("https"),
+var http = require('http'),
+    https = require('https'),
     PORT = 80,
     SSLPORT = 443,
-    assert = require("assert"),
-    hostExpect = "localhost",
-    fs = require("fs"),
-    path = require("path"),
-    fixtures = path.resolve(__dirname, "../fixtures/keys"),
+    assert = require('assert'),
+    hostExpect = 'localhost',
+    fs = require('fs'),
+    path = require('path'),
+    fixtures = path.resolve(__dirname, '../fixtures/keys'),
     options = {
       key: fs.readFileSync(fixtures + '/agent1-key.pem'),
       cert: fs.readFileSync(fixtures + '/agent1-cert.pem')
     };
 
-http.createServer(function (req, res) {
+http.createServer(function(req, res) {
   console.error(req.headers);
   assert.equal(req.headers.host, hostExpect);
   res.writeHead(200);
-  res.end("ok");
+  res.end('ok');
   this.close();
 }).listen(PORT);
 
-https.createServer(options, function (req, res) {
+https.createServer(options, function(req, res) {
   console.error(req.headers);
   assert.equal(req.headers.host, hostExpect);
   res.writeHead(200);
-  res.end("ok");
+  res.end('ok');
   this.close();
 }).listen(SSLPORT);
 
 http
-  .get({ host: "localhost",
-         port: PORT,
-         headers: { "x-port": PORT } })
-  .on("response", function(res) {});
+  .get({ host: 'localhost',
+      port: PORT,
+      headers: { 'x-port': PORT } })
+  .on('response', function(res) {});
 
 https
-  .get({ host: "localhost",
-         port: SSLPORT,
-         headers: { "x-port": SSLPORT } })
-  .on("response", function(res) {});
+  .get({ host: 'localhost',
+      port: SSLPORT,
+      headers: { 'x-port': SSLPORT } })
+  .on('response', function(res) {});

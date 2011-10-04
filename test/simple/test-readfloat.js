@@ -43,12 +43,12 @@ function test() {
   buffer[3] = 0;
   ASSERT.equal(0, buffer.readFloatBE(0));
   ASSERT.equal(0, buffer.readFloatLE(0));
-  ASSERT.equal(false, 1/buffer.readFloatLE(0)<0);
+  ASSERT.equal(false, 1 / buffer.readFloatLE(0) < 0);
 
   buffer[3] = 0x80;
   ASSERT.equal(1.793662034335766e-43, buffer.readFloatBE(0));
   ASSERT.equal(0, buffer.readFloatLE(0));
-  ASSERT.equal(true, 1/buffer.readFloatLE(0)<0);
+  ASSERT.equal(true, 1 / buffer.readFloatLE(0) < 0);
 
   buffer[0] = 0;
   buffer[1] = 0;

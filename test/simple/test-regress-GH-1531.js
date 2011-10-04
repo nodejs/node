@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 
@@ -38,19 +38,19 @@ var gotCallback = false;
 
 var server = https.createServer(options, function(req, res) {
   res.writeHead(200);
-  res.end("hello world\n");
+  res.end('hello world\n');
 });
 
 server.listen(common.PORT, function() {
-  https.get({ 
-    path: '/', 
-    port: common.PORT, 
+  https.get({
+    path: '/',
+    port: common.PORT,
     agent: false
-  }, function (res) {
+  }, function(res) {
     console.error(res.statusCode);
     gotCallback = true;
     server.close();
-  }).on('error', function (e) {
+  }).on('error', function(e) {
     console.error(e.message);
     process.exit(1);
   });

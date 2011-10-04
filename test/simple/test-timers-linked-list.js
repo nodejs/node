@@ -24,11 +24,11 @@ var assert = require('assert');
 var L = require('_linklist');
 
 
-var list = { name: "list" };
-var A = { name: "A" };
-var B = { name: "B" };
-var C = { name: "C" };
-var D = { name: "D" };
+var list = { name: 'list' };
+var A = { name: 'A' };
+var B = { name: 'B' };
+var C = { name: 'C' };
+var D = { name: 'D' };
 
 
 L.init(list);
@@ -85,7 +85,7 @@ L.remove(B);
 assert.equal(D, L.peek(list));
 
 L.remove(D);
-// list 
+// list
 assert.equal(null, L.peek(list));
 
 

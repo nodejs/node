@@ -34,7 +34,7 @@ var gotPipeEOF = false;
 var gotPipeData = false;
 
 p.onexit = function(exitCode, signal) {
-  console.log("exit");
+  console.log('exit');
   p.close();
   pipe.readStart();
 
@@ -42,22 +42,22 @@ p.onexit = function(exitCode, signal) {
   assert.equal(0, signal);
 
   processExited = true;
-}
+};
 
 pipe.onread = function(b, off, len) {
   assert.ok(processExited);
   if (b) {
     gotPipeData = true;
-    console.log("read %d", len);
+    console.log('read %d', len);
   } else {
     gotPipeEOF = true;
     pipe.close();
   }
-}
+};
 
 p.spawn({
   file: process.execPath,
-  args: [ process.execPath, "-v" ],
+  args: [process.execPath, '-v'],
   stdoutStream: pipe
 });
 

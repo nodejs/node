@@ -73,7 +73,7 @@ var gotEnd = false;
 var bodyBuffer = '';
 
 server.listen(common.PORT, function() {
-    console.log('1) Making Request');
+  console.log('1) Making Request');
   var req = https.get({ port: common.PORT }, function(res) {
     server.close();
     console.log('3) Client got response headers.');

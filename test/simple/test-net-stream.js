@@ -33,7 +33,7 @@ s.server = new net.Server();
 s.server.connections = 10;
 
 assert.equal(10, s.server.connections);
-s.destroy()
+s.destroy();
 assert.equal(9, s.server.connections);
-s.destroy()
+s.destroy();
 assert.equal(9, s.server.connections);
