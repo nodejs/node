@@ -35,10 +35,6 @@
       process.features.uv = process.env.NODE_USE_UV != '0';
     }
 
-    if ('NODE_USE_HTTP1' in process.env) {
-      process.features.http1 = process.env.NODE_USE_HTTP1 != '0';
-    }
-
     // make sure --use-uv is propagated to child processes
     if (process.features.uv) {
       process.env.NODE_USE_UV = '1';
@@ -451,12 +447,6 @@
   // backend.
   function translateId(id) {
     switch (id) {
-      case 'http':
-        return process.features.http1 ? 'http' : 'http2';
-
-      case 'https':
-        return process.features.http1 ? 'https' : 'https2';
-
       case 'net':
         return process.features.uv ? 'net_uv' : 'net_legacy';
 
