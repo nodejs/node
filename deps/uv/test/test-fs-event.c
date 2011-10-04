@@ -25,11 +25,12 @@
 #include <string.h>
 #include <fcntl.h>
 
-uv_fs_event_t fs_event;
-uv_timer_t timer;
-int timer_cb_called;
-int close_cb_called;
-int fs_event_cb_called;
+static uv_fs_event_t fs_event;
+static uv_timer_t timer;
+static int timer_cb_called;
+static int close_cb_called;
+static int fs_event_cb_called;
+static int timer_cb_touch_called;
 
 static void create_dir(uv_loop_t* loop, const char* name) {
   int r;
@@ -84,7 +85,7 @@ static void fs_event_cb_dir(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_RENAME);
-  ASSERT(strcmp(filename, "file1") == 0);
+  ASSERT(filename == NULL || strcmp(filename, "file1") == 0);
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
@@ -94,7 +95,7 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
-  ASSERT(strcmp(filename, "file2") == 0);
+  ASSERT(filename == NULL || strcmp(filename, "file2") == 0);
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
@@ -104,7 +105,7 @@ static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
-  ASSERT(strcmp(filename, "watch_file") == 0);
+  ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
@@ -123,6 +124,13 @@ static void timer_cb_file(uv_timer_t* handle, int status) {
     touch_file(handle->loop, "watch_dir/file2");
     uv_close((uv_handle_t*)handle, close_cb);
   }
+}
+
+static void timer_cb_touch(uv_timer_t* timer, int status) {
+  ASSERT(status == 0);
+  uv_close((uv_handle_t*)timer, NULL);
+  touch_file(timer->loop, "watch_file");
+  timer_cb_touch_called++;
 }
 
 TEST_IMPL(fs_event_watch_dir) {
@@ -192,9 +200,12 @@ TEST_IMPL(fs_event_watch_file) {
 }
 
 TEST_IMPL(fs_event_watch_file_current_dir) {
+  uv_timer_t timer;
+  uv_loop_t* loop;
   uv_fs_t fs_req;
-  uv_loop_t* loop = uv_default_loop();
   int r;
+
+  loop = uv_default_loop();
 
   /* Setup */
   uv_fs_unlink(loop, &fs_req, "watch_file", NULL);
@@ -203,11 +214,20 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_fs_event_init(loop, &fs_event, "watch_file",
     fs_event_cb_file_current_dir);
   ASSERT(r != -1);
-  
-  touch_file(loop, "watch_file");
+
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+
+  r = uv_timer_start(&timer, timer_cb_touch, 1, 0);
+  ASSERT(r == 0);
+
+  ASSERT(timer_cb_touch_called == 0);
+  ASSERT(fs_event_cb_called == 0);
+  ASSERT(close_cb_called == 0);
 
   uv_run(loop);
 
+  ASSERT(timer_cb_touch_called == 1);
   ASSERT(fs_event_cb_called == 1);
   ASSERT(close_cb_called == 1);
 

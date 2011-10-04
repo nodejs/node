@@ -172,7 +172,7 @@ void uv_loop_delete(uv_loop_t* loop) {
 uv_loop_t* uv_default_loop() {
   if (!default_loop_ptr) {
     default_loop_ptr = &default_loop_struct;
-#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
+#if HAVE_KQUEUE
     default_loop_struct.ev = ev_default_loop(EVBACKEND_KQUEUE);
 #else
     default_loop_struct.ev = ev_default_loop(EVFLAG_AUTO);

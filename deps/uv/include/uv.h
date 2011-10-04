@@ -1044,6 +1044,9 @@ struct uv_fs_event_s {
 };
 
 
+/* Gets load avg */
+void uv_loadavg(double avg[3]);
+
 /*
 * If filename is a directory then we will watch for all events in that
 * directory. If filename is a file - we will only get events from that
@@ -1064,6 +1067,10 @@ int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 
 /* Gets the executable path */
 int uv_exepath(char* buffer, size_t* size);
+
+/* Memory info */
+double uv_get_free_memory(void);
+double uv_get_total_memory(void);
 
 /*
  * Returns the current high-resolution real time. This is expressed in

@@ -32,33 +32,37 @@
 #include <linux/version.h>
 #include <features.h>
 
-#undef HAVE_FUTIMES
-#undef HAVE_PIPE2
-#undef HAVE_ACCEPT4
-
 /* futimes() requires linux >= 2.6.22 and glib >= 2.6 */
 #if LINUX_VERSION_CODE >= 0x20616 && __GLIBC_PREREQ(2, 6)
-#define HAVE_FUTIMES
+#define HAVE_FUTIMES 1
 #endif
 
 /* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
 #if LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9)
-#define HAVE_PIPE2
+#define HAVE_PIPE2 1
 #endif
 
 /* accept4() requires linux >= 2.6.28 and glib >= 2.10 */
 #if LINUX_VERSION_CODE >= 0x2061C && __GLIBC_PREREQ(2, 10)
-#define HAVE_ACCEPT4
+#define HAVE_ACCEPT4 1
 #endif
 
 #endif /* __linux__ */
 
 #ifdef __APPLE__
-# define HAVE_FUTIMES
+# define HAVE_FUTIMES 1
 #endif
 
 #ifdef __FreeBSD__
-# define HAVE_FUTIMES
+# define HAVE_FUTIMES 1
+#endif
+
+/* FIXME exact copy of the #ifdef guard in uv-unix.h */
+#if (defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060) \
+  || defined(__FreeBSD__) \
+  || defined(__OpenBSD__) \
+  || defined(__NetBSD__)
+# define HAVE_KQUEUE 1
 #endif
 
 #define container_of(ptr, type, member) \

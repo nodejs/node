@@ -2663,7 +2663,8 @@ ev_io_start (EV_P_ ev_io *w)
     return;
 
   assert (("libev: ev_io_start called with negative fd", fd >= 0));
-  assert (("libev: ev_io_start called with illegal event mask", !(w->events & ~(EV__IOFDSET | EV_READ | EV_WRITE))));
+  assert (("libev: ev_io_start called with illegal event mask",
+      !(w->events & ~(EV__IOFDSET | EV_READ | EV_WRITE | EV_LIBUV_KQUEUE_HACK))));
 
   EV_FREQUENT_CHECK;
 

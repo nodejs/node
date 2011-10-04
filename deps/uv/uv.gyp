@@ -215,7 +215,10 @@
             'EIO_CONFIG_H="config_sunos.h"',
           ],
           'direct_dependent_settings': {
-            'libraries': [ '-lrt' ],
+            'libraries': [
+              '-lsocket',
+              '-lnsl',
+            ],
           },
         }],
         [ 'OS=="freebsd"', {
@@ -225,6 +228,9 @@
             'EV_CONFIG_H="config_freebsd.h"',
             'EIO_CONFIG_H="config_freebsd.h"',
           ],
+        }],
+        [ 'OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
+          'sources': [ 'src/unix/kqueue.c' ],
         }],
       ]
     },
@@ -238,6 +244,7 @@
         'test/run-tests.c',
         'test/runner.c',
         'test/runner.h',
+        'test/test-get-loadavg.c',
         'test/task.h',
         'test/test-async.c',
         'test/test-callback-stack.c',
@@ -247,6 +254,7 @@
         'test/test-fs.c',
         'test/test-fs-event.c',
         'test/test-get-currentexe.c',
+        'test/test-get-memory.c',
         'test/test-getaddrinfo.c',
         'test/test-gethostbyname.c',
         'test/test-getsockname.c',
@@ -263,6 +271,8 @@
         'test/test-tcp-bind-error.c',
         'test/test-tcp-bind6-error.c',
         'test/test-tcp-close.c',
+        'test/test-tcp-connect-error.c',
+        'test/test-tcp-connect6-error.c',
         'test/test-tcp-write-error.c',
         'test/test-tcp-writealot.c',
         'test/test-threadpool.c',
@@ -287,7 +297,13 @@
             'test/runner-unix.c',
             'test/runner-unix.h',
           ]
-        }]
+        }],
+        [ 'OS=="solaris"', { # make test-fs.c compile, needs _POSIX_C_SOURCE
+          'defines': [
+            '__EXTENSIONS__',
+            '_XOPEN_SOURCE=500',
+          ],
+        }],
       ],
       'msvs-settings': {
         'VCLinkerTool': {

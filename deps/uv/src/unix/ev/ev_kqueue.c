@@ -43,6 +43,9 @@
 #include <string.h>
 #include <errno.h>
 
+extern void
+uv__kqueue_hack (EV_P_ int fflags, ev_io *w);
+
 void inline_speed
 kqueue_change (EV_P_ int fd, int filter, int flags, int fflags)
 {
@@ -80,6 +83,10 @@ kqueue_modify (EV_P_ int fd, int oev, int nev)
 
   if (nev & EV_WRITE)
     kqueue_change (EV_A_ fd, EVFILT_WRITE, EV_ADD | EV_ENABLE, NOTE_EOF);
+
+  if (nev & EV_LIBUV_KQUEUE_HACK)
+    kqueue_change (EV_A_ fd, EVFILT_VNODE, EV_ADD | EV_ENABLE | EV_ONESHOT,
+      NOTE_ATTRIB | NOTE_WRITE | NOTE_RENAME | NOTE_DELETE | NOTE_EXTEND | NOTE_REVOKE);
 }
 
 static void
@@ -114,6 +121,13 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
     {
       int fd = kqueue_events [i].ident;
 
+      if (kqueue_events [i].filter == EVFILT_VNODE)
+        {
+          /* pass kqueue filter flags to libuv */
+          ev_io *w = (ev_io *)(anfds [fd].head);
+          uv__kqueue_hack (EV_A_ kqueue_events [i].fflags, w);
+        }
+
       if (expect_false (kqueue_events [i].flags & EV_ERROR))
         {
           int err = kqueue_events [i].data;
@@ -140,6 +154,7 @@ kqueue_poll (EV_P_ ev_tstamp timeout)
           fd,
           kqueue_events [i].filter == EVFILT_READ ? EV_READ
           : kqueue_events [i].filter == EVFILT_WRITE ? EV_WRITE
+          : kqueue_events [i].filter == EVFILT_VNODE ? EV_LIBUV_KQUEUE_HACK
           : 0
         );
     }

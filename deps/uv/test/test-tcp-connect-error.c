@@ -1,4 +1,5 @@
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
  * deal in the Software without restriction, including without limitation the
@@ -19,62 +20,51 @@
  */
 
 #include "uv.h"
-
-#include <assert.h>
-#include <stdint.h>
-#include <stddef.h>
-#include <errno.h>
-#include <time.h>
-
-#undef NANOSEC
-#define NANOSEC 1000000000
+#include "task.h"
+#include <stdio.h>
+#include <stdlib.h>
 
 
-uint64_t uv_hrtime() {
-  struct timespec ts;
-  clock_gettime(CLOCK_MONOTONIC, &ts);
-  return (ts.tv_sec * NANOSEC + ts.tv_nsec);
-}
+static int connect_cb_called = 0;
+static int close_cb_called = 0;
 
-void uv_loadavg(double avg[3]) {
-  /* Unsupported as of cygwin 1.7.7 */
-  avg[0] = avg[1] = avg[2] = 0;
+
+
+static void connect_cb(uv_connect_t* handle, int status) {
+  ASSERT(handle != NULL);
+  connect_cb_called++;
 }
 
 
-int uv_exepath(char* buffer, size_t* size) {
-  uint32_t usize;
-  int result;
-  char* path;
-  char* fullpath;
 
-  if (!buffer || !size) {
-    return -1;
-  }
+static void close_cb(uv_handle_t* handle) {
+  ASSERT(handle != NULL);
+  close_cb_called++;
+}
 
-  *size = readlink("/proc/self/exe", buffer, *size - 1);
-  if (*size <= 0) return -1;
-  buffer[*size] = '\0';
+
+TEST_IMPL(tcp_connect_error_fault) {
+  char garbage[] = "blah blah blah blah blah blah blah blah blah blah blah blah";
+  struct sockaddr_in* garbage_addr;
+  uv_tcp_t server;
+  int r;
+  uv_connect_t req;
+
+  garbage_addr = (struct sockaddr_in*) &garbage;
+
+  r = uv_tcp_init(uv_default_loop(), &server);
+  ASSERT(r == 0);
+  r = uv_tcp_connect(&req, &server, *garbage_addr, connect_cb);
+  ASSERT(r == -1);
+
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EINVAL);
+
+  uv_close((uv_handle_t*)&server, close_cb);
+
+  uv_run(uv_default_loop());
+
+  ASSERT(connect_cb_called == 0);
+  ASSERT(close_cb_called == 1);
+
   return 0;
-}
-
-double uv_get_free_memory(void) {
-  return (double) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
-}
-
-double uv_get_total_memory(void) {
-  return (double) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
-}
-
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb) {
-  uv__set_sys_error(loop, ENOSYS);
-  return -1;
-}
-
-
-void uv__fs_event_destroy(uv_fs_event_t* handle) {
-  assert(0 && "implement me");
 }

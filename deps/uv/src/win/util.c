@@ -94,3 +94,32 @@ done:
 
   return retVal;
 }
+
+void uv_loadavg(double avg[3]) {
+  /* Can't be implemented */
+  avg[0] = avg[1] = avg[2] = 0;
+}
+
+double uv_get_free_memory(void) {
+  MEMORYSTATUSEX memory_status;
+  memory_status.dwLength = sizeof(memory_status);
+
+  if(!GlobalMemoryStatusEx(&memory_status))
+  {
+     return -1;
+  }
+
+  return (double)memory_status.ullAvailPhys;
+}
+
+double uv_get_total_memory(void) {
+  MEMORYSTATUSEX memory_status;
+  memory_status.dwLength = sizeof(memory_status);
+
+  if(!GlobalMemoryStatusEx(&memory_status))
+  {
+    return -1;
+  }
+
+  return (double)memory_status.ullTotalPhys;
+}

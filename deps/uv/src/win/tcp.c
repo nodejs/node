@@ -154,8 +154,10 @@ void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle) {
 }
 
 
-static int uv__bind(uv_loop_t* loop, uv_tcp_t* handle, int domain,
-    struct sockaddr* addr, int addrsize) {
+static int uv__bind(uv_tcp_t* handle,
+                    int domain,
+                    struct sockaddr* addr,
+                    int addrsize) {
   DWORD err;
   int r;
   SOCKET sock;
@@ -163,11 +165,11 @@ static int uv__bind(uv_loop_t* loop, uv_tcp_t* handle, int domain,
   if (handle->socket == INVALID_SOCKET) {
     sock = socket(domain, SOCK_STREAM, 0);
     if (sock == INVALID_SOCKET) {
-      uv__set_sys_error(loop, WSAGetLastError());
+      uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;
     }
 
-    if (uv_tcp_set_socket(loop, handle, sock) == -1) {
+    if (uv_tcp_set_socket(handle->loop, handle, sock) == -1) {
       closesocket(sock);
       return -1;
     }
@@ -182,7 +184,7 @@ static int uv__bind(uv_loop_t* loop, uv_tcp_t* handle, int domain,
       handle->bind_error = err;
       handle->flags |= UV_HANDLE_BIND_ERROR;
     } else {
-      uv__set_sys_error(loop, err);
+      uv__set_sys_error(handle->loop, err);
       return -1;
     }
   }
@@ -193,40 +195,24 @@ static int uv__bind(uv_loop_t* loop, uv_tcp_t* handle, int domain,
 }
 
 
-int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
-  uv_loop_t* loop = handle->loop;
-
-  if (handle->type != UV_TCP || addr.sin_family != AF_INET) {
-    uv__set_sys_error(loop, WSAEFAULT);
-    return -1;
-  }
-
-  return uv__bind(loop,
-                  handle,
+int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr) {
+  return uv__bind(handle,
                   AF_INET,
                   (struct sockaddr*)&addr,
                   sizeof(struct sockaddr_in));
 }
 
 
-int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
-  uv_loop_t* loop = handle->loop;
-
-  if (handle->type != UV_TCP || addr.sin6_family != AF_INET6) {
-    uv__set_sys_error(loop, WSAEFAULT);
-    return -1;
-  }
-
+int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr) {
   if (uv_allow_ipv6) {
     handle->flags |= UV_HANDLE_IPV6;
-    return uv__bind(loop,
-                    handle,
+    return uv__bind(handle,
                     AF_INET6,
                     (struct sockaddr*)&addr,
                     sizeof(struct sockaddr_in6));
 
   } else {
-    uv__set_sys_error(loop, WSAEAFNOSUPPORT);
+    uv__set_sys_error(handle->loop, WSAEAFNOSUPPORT);
     return -1;
   }
 }
@@ -472,8 +458,10 @@ int uv_tcp_read_start(uv_tcp_t* handle, uv_alloc_cb alloc_cb,
 }
 
 
-int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
-    struct sockaddr_in address, uv_connect_cb cb) {
+int uv__tcp_connect(uv_connect_t* req,
+                    uv_tcp_t* handle,
+                    struct sockaddr_in address,
+                    uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
   int addrsize = sizeof(struct sockaddr_in);
   BOOL success;
@@ -481,11 +469,6 @@ int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
     uv__set_sys_error(loop, handle->bind_error);
-    return -1;
-  }
-
-  if (handle->type != UV_TCP || address.sin_family != AF_INET) {
-    uv__set_sys_error(loop, WSAEFAULT);
     return -1;
   }
 
@@ -523,8 +506,10 @@ int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
 }
 
 
-int uv_tcp_connect6(uv_connect_t* req, uv_tcp_t* handle,
-    struct sockaddr_in6 address, uv_connect_cb cb) {
+int uv__tcp_connect6(uv_connect_t* req,
+                     uv_tcp_t* handle,
+                     struct sockaddr_in6 address,
+                     uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
   int addrsize = sizeof(struct sockaddr_in6);
   BOOL success;
@@ -537,11 +522,6 @@ int uv_tcp_connect6(uv_connect_t* req, uv_tcp_t* handle,
 
   if (handle->flags & UV_HANDLE_BIND_ERROR) {
     uv__set_sys_error(loop, handle->bind_error);
-    return -1;
-  }
-
-  if (handle->type != UV_TCP || address.sin6_family != AF_INET6) {
-    uv__set_sys_error(loop, WSAEFAULT);
     return -1;
   }
 

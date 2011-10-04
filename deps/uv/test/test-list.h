@@ -61,12 +61,14 @@ TEST_DECLARE   (idle_starvation)
 TEST_DECLARE   (loop_handles)
 TEST_DECLARE   (ref)
 TEST_DECLARE   (idle_ref)
+TEST_DECLARE   (get_loadavg)
 TEST_DECLARE   (async_ref)
 TEST_DECLARE   (prepare_ref)
 TEST_DECLARE   (check_ref)
 TEST_DECLARE   (unref_in_prepare_cb)
 TEST_DECLARE   (async)
 TEST_DECLARE   (get_currentexe)
+TEST_DECLARE   (get_memory)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_basic)
 TEST_DECLARE   (getaddrinfo_concurrent)
@@ -184,6 +186,10 @@ TASK_LIST_START
   TEST_ENTRY  (async)
 
   TEST_ENTRY  (get_currentexe)
+
+  TEST_ENTRY  (get_memory)
+
+  TEST_ENTRY  (get_loadavg)
 
   TEST_ENTRY  (hrtime)
 

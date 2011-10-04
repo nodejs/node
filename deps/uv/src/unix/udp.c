@@ -34,8 +34,6 @@ static void uv__udp_run_pending(uv_udp_t* handle);
 static void uv__udp_recvmsg(uv_udp_t* handle);
 static void uv__udp_sendmsg(uv_udp_t* handle);
 static void uv__udp_io(EV_P_ ev_io* w, int events);
-static int uv__udp_bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
-    socklen_t len, unsigned flags);
 static int uv__udp_maybe_deferred_bind(uv_udp_t* handle, int domain);
 static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     int bufcnt, struct sockaddr* addr, socklen_t addrlen, uv_udp_send_cb send_cb);
@@ -289,11 +287,11 @@ static void uv__udp_io(EV_P_ ev_io* w, int events) {
 }
 
 
-static int uv__udp_bind(uv_udp_t* handle,
-                        int domain,
-                        struct sockaddr* addr,
-                        socklen_t len,
-                        unsigned flags) {
+static int uv__bind(uv_udp_t* handle,
+                    int domain,
+                    struct sockaddr* addr,
+                    socklen_t len,
+                    unsigned flags) {
   int saved_errno;
   int status;
   int yes;
@@ -389,7 +387,7 @@ static int uv__udp_maybe_deferred_bind(uv_udp_t* handle, int domain) {
     abort();
   }
 
-  return uv__udp_bind(handle, domain, (struct sockaddr*)&taddr, addrlen, 0);
+  return uv__bind(handle, domain, (struct sockaddr*)&taddr, addrlen, 0);
 }
 
 
@@ -443,31 +441,21 @@ int uv_udp_init(uv_loop_t* loop, uv_udp_t* handle) {
 }
 
 
-int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned flags) {
-  if (handle->type != UV_UDP || addr.sin_family != AF_INET) {
-    uv__set_sys_error(handle->loop, EFAULT);
-    return -1;
-  }
-
-  return uv__udp_bind(handle,
-                      AF_INET,
-                      (struct sockaddr*)&addr,
-                      sizeof addr,
-                      flags);
+int uv__udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned flags) {
+  return uv__bind(handle,
+                  AF_INET,
+                  (struct sockaddr*)&addr,
+                  sizeof addr,
+                  flags);
 }
 
 
-int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags) {
-  if (handle->type != UV_UDP || addr.sin6_family != AF_INET6) {
-    uv__set_sys_error(handle->loop, EFAULT);
-    return -1;
-  }
-
-  return uv__udp_bind(handle,
-                      AF_INET6,
-                      (struct sockaddr*)&addr,
-                      sizeof addr,
-                      flags);
+int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags) {
+  return uv__bind(handle,
+                  AF_INET6,
+                  (struct sockaddr*)&addr,
+                  sizeof addr,
+                  flags);
 }
 
 

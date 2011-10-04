@@ -19,11 +19,50 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_LINUX_H
-#define UV_LINUX_H
+#include "uv.h"
+#include "task.h"
+#include <stdio.h>
+#include <stdlib.h>
 
-#define UV_FS_EVENT_PRIVATE_FIELDS \
-  ev_io read_watcher; \
-  uv_fs_event_cb cb; \
 
-#endif /* UV_LINUX_H */
+static int connect_cb_called = 0;
+static int close_cb_called = 0;
+
+
+static void connect_cb(uv_connect_t* handle, int status) {
+  ASSERT(handle != NULL);
+  connect_cb_called++;
+}
+
+
+static void close_cb(uv_handle_t* handle) {
+  ASSERT(handle != NULL);
+  close_cb_called++;
+}
+
+
+TEST_IMPL(tcp_connect6_error_fault) {
+  char garbage[] = "blah blah blah blah blah blah blah blah blah blah blah blah";
+  struct sockaddr_in6* garbage_addr;
+  uv_tcp_t server;
+  int r;
+  uv_connect_t req;
+
+  garbage_addr = (struct sockaddr_in6*) &garbage;
+
+  r = uv_tcp_init(uv_default_loop(), &server);
+  ASSERT(r == 0);
+  r = uv_tcp_connect6(&req, &server, *garbage_addr, connect_cb);
+  ASSERT(r == -1);
+
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EINVAL);
+
+  uv_close((uv_handle_t*)&server, close_cb);
+
+  uv_run(uv_default_loop());
+
+  ASSERT(connect_cb_called == 0);
+  ASSERT(close_cb_called == 1);
+
+  return 0;
+}

@@ -89,13 +89,14 @@ static int uv_udp_set_socket(uv_loop_t* loop, uv_udp_t* handle,
   }
 
   if (pSetFileCompletionNotificationModes) {
-    if (!pSetFileCompletionNotificationModes((HANDLE)socket,
-       FILE_SKIP_SET_EVENT_ON_HANDLE | FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
+    if (pSetFileCompletionNotificationModes((HANDLE)socket,
+        FILE_SKIP_SET_EVENT_ON_HANDLE |
+        FILE_SKIP_COMPLETION_PORT_ON_SUCCESS)) {
+      handle->flags |= UV_HANDLE_SYNC_BYPASS_IOCP;
+    } else if (GetLastError() != ERROR_INVALID_FUNCTION) {
       uv__set_sys_error(loop, GetLastError());
       return -1;
     }
-
-    handle->flags |= UV_HANDLE_SYNC_BYPASS_IOCP;
   }
 
   handle->socket = socket;
@@ -139,27 +140,29 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle) {
 }
 
 
-static int uv__bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
-    int addrsize, unsigned int flags) {
-  uv_loop_t* loop = handle->loop;
+static int uv__bind(uv_udp_t* handle,
+                    int domain,
+                    struct sockaddr* addr,
+                    int addrsize,
+                    unsigned int flags) {
   DWORD err;
   int r;
   SOCKET sock;
 
   if ((flags & UV_UDP_IPV6ONLY) && domain != AF_INET6) {
     /* UV_UDP_IPV6ONLY is supported only for IPV6 sockets */
-    uv__set_sys_error(loop, UV_EINVAL);
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
     return -1;
   }
 
   if (handle->socket == INVALID_SOCKET) {
     sock = socket(domain, SOCK_DGRAM, 0);
     if (sock == INVALID_SOCKET) {
-      uv__set_sys_error(loop, WSAGetLastError());
+      uv__set_sys_error(handle->loop, WSAGetLastError());
       return -1;
     }
 
-    if (uv_udp_set_socket(loop, handle, sock) == -1) {
+    if (uv_udp_set_socket(handle->loop, handle, sock) == -1) {
       closesocket(sock);
       return -1;
     }
@@ -184,7 +187,7 @@ static int uv__bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
 
   if (r == SOCKET_ERROR) {
     err = WSAGetLastError();
-    uv__set_sys_error(loop, WSAGetLastError());
+    uv__set_sys_error(handle->loop, WSAGetLastError());
     return -1;
   }
 
@@ -194,15 +197,8 @@ static int uv__bind(uv_udp_t* handle, int domain, struct sockaddr* addr,
 }
 
 
-int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
+int uv__udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
     unsigned int flags) {
-  uv_loop_t* loop = handle->loop;
-
-  if (handle->type != UV_UDP || addr.sin_family != AF_INET) {
-    uv__set_sys_error(loop, WSAEFAULT);
-    return -1;
-  }
-
   return uv__bind(handle,
                   AF_INET,
                   (struct sockaddr*) &addr,
@@ -211,15 +207,8 @@ int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr,
 }
 
 
-int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
+int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
     unsigned int flags) {
-  uv_loop_t* loop = handle->loop;
-
-  if (handle->type != UV_UDP || addr.sin6_family != AF_INET6) {
-    uv__set_sys_error(loop, WSAEFAULT);
-    return -1;
-  }
-
   if (uv_allow_ipv6) {
     handle->flags |= UV_HANDLE_IPV6;
     return uv__bind(handle,
@@ -228,7 +217,7 @@ int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
                     sizeof(struct sockaddr_in6),
                     flags);
   } else {
-    uv__set_sys_error(loop, WSAEAFNOSUPPORT);
+    uv__set_sys_error(handle->loop, WSAEAFNOSUPPORT);
     return -1;
   }
 }
