@@ -86,16 +86,16 @@ Handle<Value> PipeWrap::New(const Arguments& args) {
   assert(args.IsConstructCall());
 
   HandleScope scope;
-  PipeWrap* wrap = new PipeWrap(args.This());
+  PipeWrap* wrap = new PipeWrap(args.This(), args[0]->IsTrue());
   assert(wrap);
 
   return scope.Close(args.This());
 }
 
 
-PipeWrap::PipeWrap(Handle<Object> object) : StreamWrap(object,
-                                            (uv_stream_t*) &handle_) {
-  int r = uv_pipe_init(uv_default_loop(), &handle_, 0);
+PipeWrap::PipeWrap(Handle<Object> object, bool ipc)
+    : StreamWrap(object, (uv_stream_t*) &handle_) {
+  int r = uv_pipe_init(uv_default_loop(), &handle_, ipc);
   assert(r == 0); // How do we proxy this error up to javascript?
                   // Suggestion: uv_pipe_init() returns void.
   handle_.data = reinterpret_cast<void*>(this);

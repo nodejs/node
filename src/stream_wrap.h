@@ -32,8 +32,13 @@ class StreamWrap : public HandleWrap {
   // Callbacks for libuv
   static void AfterWrite(uv_write_t* req, int status);
   static uv_buf_t OnAlloc(uv_handle_t* handle, size_t suggested_size);
-  static void OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf);
   static void AfterShutdown(uv_shutdown_t* req, int status);
+
+  static void OnRead(uv_stream_t* handle, ssize_t nread, uv_buf_t buf);
+  static void OnRead2(uv_pipe_t* handle, ssize_t nread, uv_buf_t buf,
+      uv_handle_type pending);
+  static void OnReadCommon(uv_stream_t* handle, ssize_t nread,
+      uv_buf_t buf, uv_handle_type pending);
 
   size_t slab_offset_;
   uv_stream_t* stream_;
