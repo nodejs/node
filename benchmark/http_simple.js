@@ -110,3 +110,6 @@ server.listen(port, function () {
   console.log('Listening at http://127.0.0.1:'+port+'/');
 });
 
+process.on('exit', function() {
+  console.error('libuv counters', process.uvCounters());
+});
