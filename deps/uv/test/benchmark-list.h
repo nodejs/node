@@ -21,6 +21,7 @@
 
 BENCHMARK_DECLARE (sizes)
 BENCHMARK_DECLARE (ping_pongs)
+BENCHMARK_DECLARE (tcp_write_batch)
 BENCHMARK_DECLARE (tcp4_pound_100)
 BENCHMARK_DECLARE (tcp4_pound_1000)
 BENCHMARK_DECLARE (pipe_pound_100)
@@ -42,6 +43,7 @@ BENCHMARK_DECLARE (udp_packet_storm_1000v1000)
 BENCHMARK_DECLARE (gethostbyname)
 BENCHMARK_DECLARE (getaddrinfo)
 BENCHMARK_DECLARE (spawn)
+HELPER_DECLARE    (tcp4_blackhole_server)
 HELPER_DECLARE    (tcp_pump_server)
 HELPER_DECLARE    (pipe_pump_server)
 HELPER_DECLARE    (tcp4_echo_server)
@@ -53,6 +55,9 @@ TASK_LIST_START
 
   BENCHMARK_ENTRY  (ping_pongs)
   BENCHMARK_HELPER (ping_pongs, tcp4_echo_server)
+
+  BENCHMARK_ENTRY  (tcp_write_batch)
+  BENCHMARK_HELPER (tcp_write_batch, tcp4_blackhole_server)
 
   BENCHMARK_ENTRY  (tcp_pump100_client)
   BENCHMARK_HELPER (tcp_pump100_client, tcp_pump_server)

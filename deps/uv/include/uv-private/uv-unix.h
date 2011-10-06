@@ -91,8 +91,6 @@ typedef int uv_file;
 
 
 #define UV_STREAM_PRIVATE_FIELDS \
-  uv_read_cb read_cb; \
-  uv_alloc_cb alloc_cb; \
   uv_connect_t *connect_req; \
   uv_shutdown_t *shutdown_req; \
   ev_io read_watcher; \

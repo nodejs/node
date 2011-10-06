@@ -44,27 +44,28 @@ void uv_process_timers(uv_loop_t* loop);
  */
 
 /* Private uv_handle flags */
-#define UV_HANDLE_CLOSING          0x0001
-#define UV_HANDLE_CLOSED           0x0002
-#define UV_HANDLE_BOUND            0x0004
-#define UV_HANDLE_LISTENING        0x0008
-#define UV_HANDLE_CONNECTION       0x0010
-#define UV_HANDLE_CONNECTED        0x0020
-#define UV_HANDLE_READING          0x0040
-#define UV_HANDLE_ACTIVE           0x0040
-#define UV_HANDLE_EOF              0x0080
-#define UV_HANDLE_SHUTTING         0x0100
-#define UV_HANDLE_SHUT             0x0200
-#define UV_HANDLE_ENDGAME_QUEUED   0x0400
-#define UV_HANDLE_BIND_ERROR       0x1000
-#define UV_HANDLE_IPV6             0x2000
-#define UV_HANDLE_PIPESERVER       0x4000
-#define UV_HANDLE_READ_PENDING     0x8000
-#define UV_HANDLE_GIVEN_OS_HANDLE  0x10000
-#define UV_HANDLE_UV_ALLOCED       0x20000
-#define UV_HANDLE_SYNC_BYPASS_IOCP 0x40000
-#define UV_HANDLE_ZERO_READ        0x80000
-#define UV_HANDLE_TTY_RAW          0x100000
+#define UV_HANDLE_CLOSING                 0x0001
+#define UV_HANDLE_CLOSED                  0x0002
+#define UV_HANDLE_BOUND                   0x0004
+#define UV_HANDLE_LISTENING               0x0008
+#define UV_HANDLE_CONNECTION              0x0010
+#define UV_HANDLE_CONNECTED               0x0020
+#define UV_HANDLE_READING                 0x0040
+#define UV_HANDLE_ACTIVE                  0x0040
+#define UV_HANDLE_EOF                     0x0080
+#define UV_HANDLE_SHUTTING                0x0100
+#define UV_HANDLE_SHUT                    0x0200
+#define UV_HANDLE_ENDGAME_QUEUED          0x0400
+#define UV_HANDLE_BIND_ERROR              0x1000
+#define UV_HANDLE_IPV6                    0x2000
+#define UV_HANDLE_PIPESERVER              0x4000
+#define UV_HANDLE_READ_PENDING            0x8000
+#define UV_HANDLE_UV_ALLOCED              0x10000
+#define UV_HANDLE_SYNC_BYPASS_IOCP        0x20000
+#define UV_HANDLE_ZERO_READ               0x40000
+#define UV_HANDLE_TTY_RAW                 0x80000
+#define UV_HANDLE_USE_IPC_PROTOCOL        0x100000
+#define UV_HANDLE_EMULATE_IOCP            0x200000
 
 void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle);
 void uv_process_endgames(uv_loop_t* loop);
@@ -97,8 +98,8 @@ uv_req_t* uv_overlapped_to_req(OVERLAPPED* overlapped);
 void uv_insert_pending_req(uv_loop_t* loop, uv_req_t* req);
 void uv_process_reqs(uv_loop_t* loop);
 
-#define POST_COMPLETION_FOR_REQ(loop, req)                                    \
-  if (!PostQueuedCompletionStatus((loop)->iocp,                           \
+#define POST_COMPLETION_FOR_REQ(loop, req)                              \
+  if (!PostQueuedCompletionStatus((loop)->iocp,                         \
                                   0,                                    \
                                   0,                                    \
                                   &((req)->overlapped))) {              \
@@ -135,6 +136,8 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
 
 void uv_tcp_endgame(uv_loop_t* loop, uv_tcp_t* handle);
 
+int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info);
+
 
 /*
  * UDP
@@ -149,19 +152,21 @@ void uv_udp_endgame(uv_loop_t* loop, uv_udp_t* handle);
 /*
  * Pipes
  */
-int uv_pipe_init_with_handle(uv_loop_t* loop, uv_pipe_t* handle,
-    HANDLE pipeHandle);
 int uv_stdio_pipe_server(uv_loop_t* loop, uv_pipe_t* handle, DWORD access,
     char* name, size_t nameSize);
 void close_pipe(uv_pipe_t* handle, int* status, uv_err_t* err);
 void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle);
 
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);
-int uv_pipe_accept(uv_pipe_t* server, uv_pipe_t* client);
+int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client);
 int uv_pipe_read_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
     uv_read_cb read_cb);
+int uv_pipe_read2_start(uv_pipe_t* handle, uv_alloc_cb alloc_cb,
+    uv_read2_cb read_cb);
 int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
     uv_buf_t bufs[], int bufcnt, uv_write_cb cb);
+int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
+    uv_buf_t bufs[], int bufcnt, uv_stream_t* send_handle, uv_write_cb cb);
 
 void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_req_t* req);
@@ -265,6 +270,10 @@ void uv_process_work_req(uv_loop_t* loop, uv_work_t* req);
 void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req, uv_fs_event_t* handle);
 void uv_fs_event_close(uv_loop_t* loop, uv_fs_event_t* handle);
 void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle);
+
+
+/* Utils */
+int uv_parent_pid();
 
 
 /*

@@ -89,7 +89,6 @@
         'src/node_string.cc',
         'src/node_zlib.cc',
         'src/pipe_wrap.cc',
-        'src/stdio_wrap.cc',
         'src/stream_wrap.cc',
         'src/tcp_wrap.cc',
         'src/timer_wrap.cc',

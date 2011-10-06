@@ -222,7 +222,7 @@ static void tcp_make_connect(conn_rec* p) {
 static void pipe_make_connect(conn_rec* p) {
   int r;
 
-  r = uv_pipe_init(loop, (uv_pipe_t*)&p->stream);
+  r = uv_pipe_init(loop, (uv_pipe_t*)&p->stream, 0);
   ASSERT(r == 0);
 
   r = uv_pipe_connect(&((pipe_conn_rec*)p)->conn_req, (uv_pipe_t*)&p->stream, TEST_PIPENAME, connect_cb);

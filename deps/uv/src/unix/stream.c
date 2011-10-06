@@ -29,6 +29,8 @@
 #include <string.h>
 #include <sys/uio.h>
 
+#include <stdio.h>
+
 
 static void uv__stream_connect(uv_stream_t*);
 static void uv__write(uv_stream_t* stream);
@@ -349,14 +351,43 @@ static void uv__write(uv_stream_t* stream) {
    * inside the iov each time we write. So there is no need to offset it.
    */
 
-  do {
-    if (iovcnt == 1) {
-      n = write(stream->fd, iov[0].iov_base, iov[0].iov_len);
-    } else {
-      n = writev(stream->fd, iov, iovcnt);
+  if (req->send_handle) {
+    struct msghdr msg;
+    char scratch[64];
+    struct cmsghdr *cmsg;
+    int fd_to_send = req->send_handle->fd;
+
+    assert(fd_to_send >= 0);
+
+    msg.msg_name = NULL;
+    msg.msg_namelen = 0;
+    msg.msg_iov = iov;
+    msg.msg_iovlen = iovcnt;
+    msg.msg_flags = 0;
+
+    msg.msg_control = (void*) scratch;
+    msg.msg_controllen = CMSG_LEN(sizeof(fd_to_send));
+
+    cmsg = CMSG_FIRSTHDR(&msg);
+    cmsg->cmsg_level = SOL_SOCKET;
+    cmsg->cmsg_type = SCM_RIGHTS;
+    cmsg->cmsg_len = msg.msg_controllen;
+    *(int*) CMSG_DATA(cmsg) = fd_to_send;
+
+    do {
+      n = sendmsg(stream->fd, &msg, 0);
     }
+    while (n == -1 && errno == EINTR);
+  } else {
+    do {
+      if (iovcnt == 1) {
+        n = write(stream->fd, iov[0].iov_base, iov[0].iov_len);
+      } else {
+        n = writev(stream->fd, iov, iovcnt);
+      }
+    }
+    while (n == -1 && errno == EINTR);
   }
-  while (n == -1 && errno == EINTR);
 
   if (n < 0) {
     if (errno != EAGAIN) {
@@ -447,12 +478,17 @@ static void uv__write_callbacks(uv_stream_t* stream) {
 static void uv__read(uv_stream_t* stream) {
   uv_buf_t buf;
   ssize_t nread;
+  struct msghdr msg;
+  struct cmsghdr* cmsg;
+  char cmsg_space[64];
+  int received_fd = -1;
   struct ev_loop* ev = stream->loop->ev;
 
   /* XXX: Maybe instead of having UV_READING we just test if
    * tcp->read_cb is NULL or not?
    */
-  while (stream->read_cb && ((uv_handle_t*)stream)->flags & UV_READING) {
+  while ((stream->read_cb || stream->read2_cb) &&
+         stream->flags & UV_READING) {
     assert(stream->alloc_cb);
     buf = stream->alloc_cb((uv_handle_t*)stream, 64 * 1024);
 
@@ -460,10 +496,29 @@ static void uv__read(uv_stream_t* stream) {
     assert(buf.base);
     assert(stream->fd >= 0);
 
-    do {
-      nread = read(stream->fd, buf.base, buf.len);
+    if (stream->read_cb) {
+      do {
+        nread = read(stream->fd, buf.base, buf.len);
+      }
+      while (nread < 0 && errno == EINTR);
+    } else {
+      assert(stream->read2_cb);
+      /* read2_cb uses recvmsg */
+      msg.msg_flags = 0;
+      msg.msg_iov = (struct iovec*) &buf;
+      msg.msg_iovlen = 1;
+      msg.msg_name = NULL;
+      msg.msg_namelen = 0;
+      /* Set up to receive a descriptor even if one isn't in the message */
+      msg.msg_controllen = 64;
+      msg.msg_control = (void *) cmsg_space;
+
+      do {
+        nread = recvmsg(stream->fd, &msg, 0);
+      }
+      while (nread < 0 && errno == EINTR);
     }
-    while (nread < 0 && errno == EINTR);
+
 
     if (nread < 0) {
       /* Error */
@@ -473,24 +528,78 @@ static void uv__read(uv_stream_t* stream) {
           ev_io_start(ev, &stream->read_watcher);
         }
         uv__set_sys_error(stream->loop, EAGAIN);
-        stream->read_cb(stream, 0, buf);
+
+        if (stream->read_cb) {
+          stream->read_cb(stream, 0, buf);
+        } else {
+          stream->read2_cb((uv_pipe_t*)stream, 0, buf, UV_UNKNOWN_HANDLE);
+        }
+
         return;
       } else {
         /* Error. User should call uv_close(). */
         uv__set_sys_error(stream->loop, errno);
-        stream->read_cb(stream, -1, buf);
+
+        if (stream->read_cb) {
+          stream->read_cb(stream, -1, buf);
+        } else {
+          stream->read2_cb((uv_pipe_t*)stream, -1, buf, UV_UNKNOWN_HANDLE);
+        }
+
         assert(!ev_is_active(&stream->read_watcher));
         return;
       }
+
     } else if (nread == 0) {
       /* EOF */
       uv__set_artificial_error(stream->loop, UV_EOF);
       ev_io_stop(ev, &stream->read_watcher);
-      stream->read_cb(stream, -1, buf);
+
+      if (stream->read_cb) {
+        stream->read_cb(stream, -1, buf);
+      } else {
+        stream->read2_cb((uv_pipe_t*)stream, -1, buf, UV_UNKNOWN_HANDLE);
+      }
       return;
     } else {
       /* Successful read */
-      stream->read_cb(stream, nread, buf);
+
+      if (stream->read_cb) {
+        stream->read_cb(stream, nread, buf);
+      } else {
+        assert(stream->read2_cb);
+
+        /*
+         * XXX: Some implementations can send multiple file descriptors in a
+         * single message. We should be using CMSG_NXTHDR() to walk the
+         * chain to get at them all. This would require changing the API to
+         * hand these back up the caller, is a pain.
+         */
+
+        for (cmsg = CMSG_FIRSTHDR(&msg);
+             msg.msg_controllen > 0 && cmsg != NULL;
+             cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+
+          if (cmsg->cmsg_type == SCM_RIGHTS) {
+            if (stream->accepted_fd != -1) {
+              fprintf(stderr, "(libuv) ignoring extra FD received\n");
+            }
+
+            stream->accepted_fd = *(int *) CMSG_DATA(cmsg);
+
+          } else {
+            fprintf(stderr, "ignoring non-SCM_RIGHTS ancillary data: %d\n",
+                cmsg->cmsg_type);
+          }
+        }
+
+
+        if (stream->accepted_fd >= 0) {
+          stream->read2_cb((uv_pipe_t*)stream, nread, buf, UV_TCP);
+        } else {
+          stream->read2_cb((uv_pipe_t*)stream, nread, buf, UV_UNKNOWN_HANDLE);
+        }
+      }
     }
   }
 }
@@ -672,11 +781,8 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
 }
 
 
-/* The buffers to be written must remain valid until the callback is called.
- * This is not required for the uv_buf_t array.
- */
-int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
-    uv_write_cb cb) {
+int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
+    uv_stream_t* send_handle, uv_write_cb cb) {
   int empty_queue;
 
   assert((stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
@@ -688,6 +794,13 @@ int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
     return -1;
   }
 
+  if (send_handle) {
+    if (stream->type != UV_NAMED_PIPE || !((uv_pipe_t*)stream)->ipc) {
+      uv__set_sys_error(stream->loop, EOPNOTSUPP);
+      return -1;
+    }
+  }
+
   empty_queue = (stream->write_queue_size == 0);
 
   /* Initialize the req */
@@ -695,6 +808,7 @@ int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
   req->cb = cb;
   req->handle = stream;
   req->error = 0;
+  req->send_handle = send_handle;
   req->type = UV_WRITE;
   ngx_queue_init(&req->queue);
 
@@ -737,7 +851,17 @@ int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
 }
 
 
-int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb) {
+/* The buffers to be written must remain valid until the callback is called.
+ * This is not required for the uv_buf_t array.
+ */
+int uv_write(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
+    uv_write_cb cb) {
+  return uv_write2(req, stream, bufs, bufcnt, NULL, cb);
+}
+
+
+int uv__read_start_common(uv_stream_t* stream, uv_alloc_cb alloc_cb,
+    uv_read_cb read_cb, uv_read2_cb read2_cb) {
   assert(stream->type == UV_TCP || stream->type == UV_NAMED_PIPE ||
       stream->type == UV_TTY);
 
@@ -759,6 +883,7 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
   assert(alloc_cb);
 
   stream->read_cb = read_cb;
+  stream->read2_cb = read2_cb;
   stream->alloc_cb = alloc_cb;
 
   /* These should have been set by uv_tcp_init. */
@@ -769,6 +894,18 @@ int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb, uv_read_cb read_cb)
 }
 
 
+int uv_read_start(uv_stream_t* stream, uv_alloc_cb alloc_cb,
+    uv_read_cb read_cb) {
+  return uv__read_start_common(stream, alloc_cb, read_cb, NULL);
+}
+
+
+int uv_read2_start(uv_stream_t* stream, uv_alloc_cb alloc_cb,
+    uv_read2_cb read_cb) {
+  return uv__read_start_common(stream, alloc_cb, NULL, read_cb);
+}
+
+
 int uv_read_stop(uv_stream_t* stream) {
   uv_tcp_t* tcp = (uv_tcp_t*)stream;
 
@@ -776,6 +913,7 @@ int uv_read_stop(uv_stream_t* stream) {
 
   ev_io_stop(tcp->loop->ev, &tcp->read_watcher);
   tcp->read_cb = NULL;
+  tcp->read2_cb = NULL;
   tcp->alloc_cb = NULL;
   return 0;
 }

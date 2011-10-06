@@ -1,4 +1,3 @@
-
 /* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -63,6 +62,34 @@ static void uv__chld(EV_P_ ev_child* watcher, int revents) {
   }
 }
 
+
+/*
+ * Used for initializing stdio streams like options.stdin_stream. Returns
+ * zero on success.
+ */
+static int uv__process_init_pipe(uv_pipe_t* handle, int fds[2]) {
+  if (handle->type != UV_NAMED_PIPE) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  if (handle->ipc) {
+    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
+      return -1;
+    }
+  } else {
+    if (pipe(fds) < 0) {
+      return -1;
+    }
+  }
+
+  uv__cloexec(fds[0], 1);
+  uv__cloexec(fds[1], 1);
+
+  return 0;
+}
+
+
 #ifndef SPAWN_WAIT_EXEC
 # define SPAWN_WAIT_EXEC 1
 #endif
@@ -89,43 +116,19 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   process->exit_cb = options.exit_cb;
 
-  if (options.stdin_stream) {
-    if (options.stdin_stream->type != UV_NAMED_PIPE) {
-      errno = EINVAL;
-      goto error;
-    }
-
-    if (pipe(stdin_pipe) < 0) {
-      goto error;
-    }
-    uv__cloexec(stdin_pipe[0], 1);
-    uv__cloexec(stdin_pipe[1], 1);
+  if (options.stdin_stream &&
+      uv__process_init_pipe(options.stdin_stream, stdin_pipe)) {
+    goto error;
   }
 
-  if (options.stdout_stream) {
-    if (options.stdout_stream->type != UV_NAMED_PIPE) {
-      errno = EINVAL;
-      goto error;
-    }
-
-    if (pipe(stdout_pipe) < 0) {
-      goto error;
-    }
-    uv__cloexec(stdout_pipe[0], 1);
-    uv__cloexec(stdout_pipe[1], 1);
+  if (options.stdout_stream &&
+      uv__process_init_pipe(options.stdout_stream, stdout_pipe)) {
+    goto error;
   }
 
-  if (options.stderr_stream) {
-    if (options.stderr_stream->type != UV_NAMED_PIPE) {
-      errno = EINVAL;
-      goto error;
-    }
-
-    if (pipe(stderr_pipe) < 0) {
-      goto error;
-    }
-    uv__cloexec(stderr_pipe[0], 1);
-    uv__cloexec(stderr_pipe[1], 1);
+  if (options.stderr_stream &&
+      uv__process_init_pipe(options.stderr_stream, stderr_pipe)) {
+    goto error;
   }
 
   /* This pipe is used by the parent to wait until
@@ -154,7 +157,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     goto error;
   }
 # else
-  if (pipe(signal_pipe) < 0) {
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, signal_pipe) < 0) {
     goto error;
   }
   uv__cloexec(signal_pipe[0], 1);

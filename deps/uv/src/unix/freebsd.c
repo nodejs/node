@@ -27,7 +27,9 @@
 #include <sys/types.h>
 #include <sys/resource.h>
 #include <sys/sysctl.h>
+#include <vm/vm_param.h> /* VM_LOADAVG */
 #include <time.h>
+#include <unistd.h> /* sysconf */
 
 #undef NANOSEC
 #define NANOSEC 1000000000
@@ -69,15 +71,15 @@ int uv_exepath(char* buffer, size_t* size) {
 }
 
 double uv_get_free_memory(void) {
-  vm_statistics_data_t info;
-  mach_msg_type_number_t count = sizeof(info) / sizeof(integer_t);
+  int freecount;
+  size_t size = sizeof(freecount);
 
-  if (host_statistics(mach_host_self(), HOST_VM_INFO,
-                      (host_info_t)&info, &count) != KERN_SUCCESS) {
+  if(sysctlbyname("vm.stats.vm.v_free_count",
+                  &freecount, &size, NULL, 0) == -1){
     return -1;
   }
+  return (double) freecount * sysconf(_SC_PAGESIZE);
 
-  return (double) info.free_count * sysconf(_SC_PAGESIZE);
 }
 
 double uv_get_total_memory(void) {

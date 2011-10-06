@@ -109,23 +109,11 @@
   #define IPV6_V6ONLY 27
 #endif
 
-
-/* Winsock extension functions (ipv4) */
-extern LPFN_CONNECTEX pConnectEx;
-extern LPFN_ACCEPTEX pAcceptEx;
-extern LPFN_GETACCEPTEXSOCKADDRS pGetAcceptExSockAddrs;
-extern LPFN_DISCONNECTEX pDisconnectEx;
-extern LPFN_TRANSMITFILE pTransmitFile;
-
-/* Winsock extension functions (ipv6) */
-extern LPFN_CONNECTEX pConnectEx6;
-extern LPFN_ACCEPTEX pAcceptEx6;
-extern LPFN_GETACCEPTEXSOCKADDRS pGetAcceptExSockAddrs6;
-extern LPFN_DISCONNECTEX pDisconnectEx6;
-extern LPFN_TRANSMITFILE  pTransmitFile6;
-
 /* Whether ipv6 is supported */
 extern int uv_allow_ipv6;
+
+BOOL uv_get_acceptex_function(SOCKET socket, LPFN_ACCEPTEX* target);
+BOOL uv_get_connectex_function(SOCKET socket, LPFN_CONNECTEX* target);
 
 /* Ip address used to bind to any port at any interface */
 extern struct sockaddr_in uv_addr_ip4_any_;

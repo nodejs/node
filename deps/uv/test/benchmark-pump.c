@@ -253,7 +253,7 @@ static void maybe_connect_some() {
     } else {
       pipe = &pipe_write_handles[max_connect_socket++];
 
-      r = uv_pipe_init(loop, pipe);
+      r = uv_pipe_init(loop, pipe, 0);
       ASSERT(r == 0);
 
       req = (uv_connect_t*) req_alloc();
@@ -277,7 +277,7 @@ static void connection_cb(uv_stream_t* s, int status) {
     ASSERT(r == 0);
   } else {
     stream = (uv_stream_t*)malloc(sizeof(uv_pipe_t));
-    r = uv_pipe_init(loop, (uv_pipe_t*)stream);
+    r = uv_pipe_init(loop, (uv_pipe_t*)stream, 0);
     ASSERT(r == 0);
   }
 
@@ -396,7 +396,7 @@ HELPER_IMPL(pipe_pump_server) {
 
   /* Server */
   server = (uv_stream_t*)&pipeServer;
-  r = uv_pipe_init(loop, &pipeServer);
+  r = uv_pipe_init(loop, &pipeServer, 0);
   ASSERT(r == 0);
   r = uv_pipe_bind(&pipeServer, TEST_PIPENAME);
   ASSERT(r == 0);

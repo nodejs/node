@@ -41,113 +41,11 @@ extern "C" {
 typedef intptr_t ssize_t;
 #endif
 
-typedef struct uv_loop_s uv_loop_t;
-typedef struct uv_ares_task_s uv_ares_task_t;
-typedef struct uv_err_s uv_err_t;
-typedef struct uv_handle_s uv_handle_t;
-typedef struct uv_stream_s uv_stream_t;
-typedef struct uv_tcp_s uv_tcp_t;
-typedef struct uv_udp_s uv_udp_t;
-typedef struct uv_pipe_s uv_pipe_t;
-typedef struct uv_tty_s uv_tty_t;
-typedef struct uv_timer_s uv_timer_t;
-typedef struct uv_prepare_s uv_prepare_t;
-typedef struct uv_check_s uv_check_t;
-typedef struct uv_idle_s uv_idle_t;
-typedef struct uv_async_s uv_async_t;
-typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
-typedef struct uv_process_s uv_process_t;
-typedef struct uv_counters_s uv_counters_t;
-/* Request types */
-typedef struct uv_req_s uv_req_t;
-typedef struct uv_shutdown_s uv_shutdown_t;
-typedef struct uv_write_s uv_write_t;
-typedef struct uv_connect_s uv_connect_t;
-typedef struct uv_udp_send_s uv_udp_send_t;
-typedef struct uv_fs_s uv_fs_t;
-/* uv_fs_event_t is a subclass of uv_handle_t. */
-typedef struct uv_fs_event_s uv_fs_event_t;
-typedef struct uv_work_s uv_work_t;
-
 #if defined(__unix__) || defined(__POSIX__) || defined(__APPLE__)
 # include "uv-private/uv-unix.h"
 #else
 # include "uv-private/uv-win.h"
 #endif
-
-
-/*
- * This function must be called before any other functions in libuv.
- *
- * All functions besides uv_run() are non-blocking.
- *
- * All callbacks in libuv are made asynchronously. That is they are never
- * made by the function that takes them as a parameter.
- */
-uv_loop_t* uv_loop_new();
-void uv_loop_delete(uv_loop_t*);
-
-
-/*
- * Returns the default loop.
- */
-uv_loop_t* uv_default_loop();
-
-/*
- * This function starts the event loop. It blocks until the reference count
- * of the loop drops to zero.
- */
-int uv_run(uv_loop_t*);
-
-/*
- * Manually modify the event loop's reference count. Useful if the user wants
- * to have a handle or timeout that doesn't keep the loop alive.
- */
-void uv_ref(uv_loop_t*);
-void uv_unref(uv_loop_t*);
-
-void uv_update_time(uv_loop_t*);
-int64_t uv_now(uv_loop_t*);
-
-
-/*
- * The status parameter is 0 if the request completed successfully,
- * and should be -1 if the request was cancelled or failed.
- * For uv_close_cb, -1 means that the handle was closed due to an error.
- * Error details can be obtained by calling uv_last_error().
- *
- * In the case of uv_read_cb the uv_buf_t returned should be freed by the
- * user.
- */
-typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
-typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
-typedef void (*uv_write_cb)(uv_write_t* req, int status);
-typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
-typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
-typedef void (*uv_connection_cb)(uv_stream_t* server, int status);
-typedef void (*uv_close_cb)(uv_handle_t* handle);
-typedef void (*uv_timer_cb)(uv_timer_t* handle, int status);
-/* TODO: do these really need a status argument? */
-typedef void (*uv_async_cb)(uv_async_t* handle, int status);
-typedef void (*uv_prepare_cb)(uv_prepare_t* handle, int status);
-typedef void (*uv_check_cb)(uv_check_t* handle, int status);
-typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
-typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* handle, int status,
-    struct addrinfo* res);
-typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
-typedef void (*uv_fs_cb)(uv_fs_t* req);
-typedef void (*uv_work_cb)(uv_work_t* req);
-typedef void (*uv_after_work_cb)(uv_work_t* req);
-
-/*
-* This will be called repeatedly after the uv_fs_event_t is initialized.
-* If uv_fs_event_t was initialized with a directory the filename parameter
-* will be a relative path to a file contained in the directory.
-* The events paramenter is an ORed mask of enum uv_fs_event elements.
-*/
-typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
-    int events, int status);
-
 
 /* Expand this list if necessary. */
 typedef enum {
@@ -230,6 +128,116 @@ typedef enum {
   UV_GETADDRINFO,
   UV_REQ_TYPE_PRIVATE
 } uv_req_type;
+
+
+
+typedef struct uv_loop_s uv_loop_t;
+typedef struct uv_ares_task_s uv_ares_task_t;
+typedef struct uv_err_s uv_err_t;
+typedef struct uv_handle_s uv_handle_t;
+typedef struct uv_stream_s uv_stream_t;
+typedef struct uv_tcp_s uv_tcp_t;
+typedef struct uv_udp_s uv_udp_t;
+typedef struct uv_pipe_s uv_pipe_t;
+typedef struct uv_tty_s uv_tty_t;
+typedef struct uv_timer_s uv_timer_t;
+typedef struct uv_prepare_s uv_prepare_t;
+typedef struct uv_check_s uv_check_t;
+typedef struct uv_idle_s uv_idle_t;
+typedef struct uv_async_s uv_async_t;
+typedef struct uv_getaddrinfo_s uv_getaddrinfo_t;
+typedef struct uv_process_s uv_process_t;
+typedef struct uv_counters_s uv_counters_t;
+/* Request types */
+typedef struct uv_req_s uv_req_t;
+typedef struct uv_shutdown_s uv_shutdown_t;
+typedef struct uv_write_s uv_write_t;
+typedef struct uv_connect_s uv_connect_t;
+typedef struct uv_udp_send_s uv_udp_send_t;
+typedef struct uv_fs_s uv_fs_t;
+/* uv_fs_event_t is a subclass of uv_handle_t. */
+typedef struct uv_fs_event_s uv_fs_event_t;
+typedef struct uv_work_s uv_work_t;
+
+
+/*
+ * This function must be called before any other functions in libuv.
+ *
+ * All functions besides uv_run() are non-blocking.
+ *
+ * All callbacks in libuv are made asynchronously. That is they are never
+ * made by the function that takes them as a parameter.
+ */
+uv_loop_t* uv_loop_new();
+void uv_loop_delete(uv_loop_t*);
+
+
+/*
+ * Returns the default loop.
+ */
+uv_loop_t* uv_default_loop();
+
+/*
+ * This function starts the event loop. It blocks until the reference count
+ * of the loop drops to zero.
+ */
+int uv_run(uv_loop_t*);
+
+/*
+ * Manually modify the event loop's reference count. Useful if the user wants
+ * to have a handle or timeout that doesn't keep the loop alive.
+ */
+void uv_ref(uv_loop_t*);
+void uv_unref(uv_loop_t*);
+
+void uv_update_time(uv_loop_t*);
+int64_t uv_now(uv_loop_t*);
+
+
+/*
+ * The status parameter is 0 if the request completed successfully,
+ * and should be -1 if the request was cancelled or failed.
+ * For uv_close_cb, -1 means that the handle was closed due to an error.
+ * Error details can be obtained by calling uv_last_error().
+ *
+ * In the case of uv_read_cb the uv_buf_t returned should be freed by the
+ * user.
+ */
+typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
+typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
+/*
+ * Just like the uv_read_cb except that if the pending parameter is true
+ * then you can use uv_accept() to pull the new handle into the process.
+ * If no handle is pending then pending will be UV_UNKNOWN_HANDLE.
+ */
+typedef void (*uv_read2_cb)(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
+    uv_handle_type pending);
+typedef void (*uv_write_cb)(uv_write_t* req, int status);
+typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
+typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
+typedef void (*uv_connection_cb)(uv_stream_t* server, int status);
+typedef void (*uv_close_cb)(uv_handle_t* handle);
+typedef void (*uv_timer_cb)(uv_timer_t* handle, int status);
+/* TODO: do these really need a status argument? */
+typedef void (*uv_async_cb)(uv_async_t* handle, int status);
+typedef void (*uv_prepare_cb)(uv_prepare_t* handle, int status);
+typedef void (*uv_check_cb)(uv_check_t* handle, int status);
+typedef void (*uv_idle_cb)(uv_idle_t* handle, int status);
+typedef void (*uv_getaddrinfo_cb)(uv_getaddrinfo_t* handle, int status,
+    struct addrinfo* res);
+typedef void (*uv_exit_cb)(uv_process_t*, int exit_status, int term_signal);
+typedef void (*uv_fs_cb)(uv_fs_t* req);
+typedef void (*uv_work_cb)(uv_work_t* req);
+typedef void (*uv_after_work_cb)(uv_work_t* req);
+
+/*
+* This will be called repeatedly after the uv_fs_event_t is initialized.
+* If uv_fs_event_t was initialized with a directory the filename parameter
+* will be a relative path to a file contained in the directory.
+* The events paramenter is an ORed mask of enum uv_fs_event elements.
+*/
+typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
+    int events, int status);
 
 
 struct uv_err_s {
@@ -330,6 +338,9 @@ uv_buf_t uv_buf_init(char* base, size_t len);
 #define UV_STREAM_FIELDS \
   /* number of bytes queued for writing */ \
   size_t write_queue_size; \
+  uv_alloc_cb alloc_cb; \
+  uv_read_cb read_cb; \
+  uv_read2_cb read2_cb; \
   /* private */ \
   UV_STREAM_PRIVATE_FIELDS
 
@@ -338,8 +349,8 @@ uv_buf_t uv_buf_init(char* base, size_t len);
  *
  * uv_stream is an abstract class.
  *
- * uv_stream_t is the parent class of uv_tcp_t, uv_pipe_t, uv_tty_t
- * and soon uv_file_t.
+ * uv_stream_t is the parent class of uv_tcp_t, uv_pipe_t, uv_tty_t, and
+ * soon uv_file_t.
  */
 struct uv_stream_s {
   UV_HANDLE_FIELDS
@@ -375,13 +386,12 @@ int uv_read_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read_cb read_cb);
 
 int uv_read_stop(uv_stream_t*);
 
-typedef enum {
-  UV_STDIN = 0,
-  UV_STDOUT,
-  UV_STDERR
-} uv_std_type;
+/*
+ * Extended read methods for receiving handles over a pipe. The pipe must be
+ * initialized with ipc == 1.
+ */
+int uv_read2_start(uv_stream_t*, uv_alloc_cb alloc_cb, uv_read2_cb read_cb);
 
-uv_stream_t* uv_std_handle(uv_loop_t*, uv_std_type type);
 
 /*
  * Write data to stream. Buffers are written in order. Example:
@@ -404,10 +414,14 @@ uv_stream_t* uv_std_handle(uv_loop_t*, uv_std_type type);
 int uv_write(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
     uv_write_cb cb);
 
+int uv_write2(uv_write_t* req, uv_stream_t* handle, uv_buf_t bufs[], int bufcnt,
+    uv_stream_t* send_handle, uv_write_cb cb);
+
 /* uv_write_t is a subclass of uv_req_t */
 struct uv_write_s {
   UV_REQ_FIELDS
   uv_write_cb cb;
+  uv_stream_t* send_handle;
   uv_stream_t* handle;
   UV_WRITE_PRIVATE_FIELDS
 };
@@ -648,9 +662,14 @@ struct uv_pipe_s {
   UV_HANDLE_FIELDS
   UV_STREAM_FIELDS
   UV_PIPE_PRIVATE_FIELDS
+  int ipc; /* non-zero if this pipe is used for passing handles */
 };
 
-int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle);
+/*
+ * Initialize a pipe. The last argument is a boolean to indicate if
+ * this pipe will be used for handle passing between processes.
+ */
+int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
 
 /*
  * Opens an existing file descriptor or HANDLE as a pipe.

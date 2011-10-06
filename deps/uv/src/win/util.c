@@ -25,6 +25,7 @@
 
 #include "uv.h"
 #include "internal.h"
+#include "Tlhelp32.h"
 
 
 int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
@@ -95,10 +96,12 @@ done:
   return retVal;
 }
 
+
 void uv_loadavg(double avg[3]) {
   /* Can't be implemented */
   avg[0] = avg[1] = avg[2] = 0;
 }
+
 
 double uv_get_free_memory(void) {
   MEMORYSTATUSEX memory_status;
@@ -112,6 +115,7 @@ double uv_get_free_memory(void) {
   return (double)memory_status.ullAvailPhys;
 }
 
+
 double uv_get_total_memory(void) {
   MEMORYSTATUSEX memory_status;
   memory_status.dwLength = sizeof(memory_status);
@@ -122,4 +126,27 @@ double uv_get_total_memory(void) {
   }
 
   return (double)memory_status.ullTotalPhys;
+}
+
+
+int uv_parent_pid() {
+  int parent_pid = -1;
+  HANDLE handle;
+  PROCESSENTRY32 pe;
+  int current_pid = GetCurrentProcessId();
+
+  pe.dwSize = sizeof(PROCESSENTRY32);
+  handle = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+
+  if (Process32First(handle, &pe)) {
+    do {
+      if (pe.th32ProcessID == current_pid) {
+        parent_pid = pe.th32ParentProcessID;
+        break;
+      }
+    } while( Process32Next(handle, &pe));
+  }
+
+  CloseHandle(handle);
+  return parent_pid;
 }

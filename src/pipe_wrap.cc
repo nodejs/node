@@ -95,7 +95,7 @@ Handle<Value> PipeWrap::New(const Arguments& args) {
 
 PipeWrap::PipeWrap(Handle<Object> object) : StreamWrap(object,
                                             (uv_stream_t*) &handle_) {
-  int r = uv_pipe_init(uv_default_loop(), &handle_);
+  int r = uv_pipe_init(uv_default_loop(), &handle_, 0);
   assert(r == 0); // How do we proxy this error up to javascript?
                   // Suggestion: uv_pipe_init() returns void.
   handle_.data = reinterpret_cast<void*>(this);

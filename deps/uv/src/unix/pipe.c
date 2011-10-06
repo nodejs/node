@@ -29,10 +29,12 @@
 #include <unistd.h>
 #include <stdlib.h>
 
-int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle) {
+
+int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   uv__stream_init(loop, (uv_stream_t*)handle, UV_NAMED_PIPE);
   loop->counters.pipe_init++;
   handle->pipe_fname = NULL;
+  handle->ipc = ipc;
   return 0;
 }
 

@@ -893,7 +893,6 @@ def build(bld):
     src/udp_wrap.cc
     src/pipe_wrap.cc
     src/cares_wrap.cc
-    src/stdio_wrap.cc
     src/tty_wrap.cc
     src/fs_event_wrap.cc
     src/process_wrap.cc

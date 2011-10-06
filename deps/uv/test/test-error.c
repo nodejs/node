@@ -19,57 +19,41 @@
  * IN THE SOFTWARE.
  */
 
-#include <assert.h>
+#include "uv.h"
+#include "task.h"
+
+#include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
-#include "uv.h"
-#include "../uv-common.h"
-#include "internal.h"
 
+/*
+ * Synthetic errors (errors that originate from within libuv, not the system)
+ * should produce sensible error messages when run through uv_strerror().
+ *
+ * See https://github.com/joyent/libuv/issues/210
+ */
+TEST_IMPL(error_message) {
+  uv_err_t e;
 
-static uv_pipe_t* uv_make_pipe_for_std_handle(uv_loop_t* loop, HANDLE handle) {
-  uv_pipe_t* pipe = NULL;
+  /* Cop out. Can't do proper checks on systems with
+   * i18n-ized error messages...
+   */
+  e.code = 0, e.sys_errno_ = 0;
 
-  pipe = (uv_pipe_t*)malloc(sizeof(uv_pipe_t));
-  if (!pipe) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+  if (strcmp(uv_strerror(e), "Success") != 0) {
+    printf("i18n error messages detected, skipping test.\n");
+    return 0;
   }
 
-  if (uv_pipe_init_with_handle(loop, pipe, handle)) {
-    free(pipe);
-    return NULL;
-  }
+  e.code = UV_EINVAL, e.sys_errno_ = 0;
+  ASSERT(strstr(uv_strerror(e), "Success") == NULL);
 
-  pipe->flags |= UV_HANDLE_UV_ALLOCED;
-  return pipe;
-}
+  e.code = UV_UNKNOWN, e.sys_errno_ = 0;
+  ASSERT(strcmp(uv_strerror(e), "Unknown error") == 0);
 
+  e.code = 1337, e.sys_errno_ = 0;
+  ASSERT(strcmp(uv_strerror(e), "Unknown error") == 0);
 
-uv_stream_t* uv_std_handle(uv_loop_t* loop, uv_std_type type) {
-  HANDLE handle;
-
-  switch (type) {
-    case UV_STDIN:
-      handle = GetStdHandle(STD_INPUT_HANDLE);
-      if (handle == INVALID_HANDLE_VALUE) {
-        return NULL;
-      }
-
-      /* Assume only named pipes for now. */
-      return (uv_stream_t*)uv_make_pipe_for_std_handle(loop, handle);
-      break;
-
-    case UV_STDOUT:
-      return NULL;
-      break;
-
-    case UV_STDERR:
-      return NULL;
-      break;
-
-    default:
-      assert(0);
-      uv__set_artificial_error(loop, UV_EINVAL);
-      return NULL;
-  }
+  return 0;
 }

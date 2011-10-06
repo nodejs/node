@@ -151,7 +151,7 @@ static void on_connection(uv_stream_t* server, int status) {
   case PIPE:
     stream = malloc(sizeof(uv_pipe_t));
     ASSERT(stream != NULL);
-    r = uv_pipe_init(loop, (uv_pipe_t*)stream);
+    r = uv_pipe_init(loop, (uv_pipe_t*)stream, 0);
     ASSERT(r == 0);
     break;
 
@@ -248,7 +248,7 @@ static int pipe_echo_start(char* pipeName) {
   server = (uv_handle_t*)&pipeServer;
   serverType = PIPE;
 
-  r = uv_pipe_init(loop, &pipeServer);
+  r = uv_pipe_init(loop, &pipeServer, 0);
   if (r) {
     fprintf(stderr, "uv_pipe_init: %s\n",
         uv_strerror(uv_last_error(loop)));

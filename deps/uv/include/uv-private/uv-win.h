@@ -98,7 +98,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   struct uv_req_s* next_req;
 
 #define UV_WRITE_PRIVATE_FIELDS           \
-  /* empty */
+  int ipc_header;
 
 #define UV_CONNECT_PRIVATE_FIELDS         \
   /* empty */
@@ -120,6 +120,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     UV_REQ_FIELDS                         \
     SOCKET accept_socket;                 \
     char accept_buffer[sizeof(struct sockaddr_storage) * 2 + 32]; \
+    HANDLE event_handle;                  \
+    HANDLE wait_handle;                   \
     struct uv_tcp_accept_s* next_pending; \
   } uv_tcp_accept_t;
 
@@ -132,8 +134,6 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define UV_STREAM_PRIVATE_FIELDS          \
   unsigned int reqs_pending;              \
-  uv_alloc_cb alloc_cb;                   \
-  uv_read_cb read_cb;                     \
   uv_req_t read_req;                      \
   union {                                 \
     struct { uv_stream_connection_fields };  \
@@ -142,10 +142,12 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define uv_tcp_server_fields              \
   uv_tcp_accept_t* accept_reqs;           \
-  uv_tcp_accept_t* pending_accepts;
+  uv_tcp_accept_t* pending_accepts;       \
+  LPFN_ACCEPTEX func_acceptex;
 
 #define uv_tcp_connection_fields          \
-  uv_buf_t read_buffer;
+  uv_buf_t read_buffer;                   \
+  LPFN_CONNECTEX func_connectex;
 
 #define UV_TCP_PRIVATE_FIELDS             \
   SOCKET socket;                          \
@@ -166,11 +168,15 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   uv_alloc_cb alloc_cb;
 
 #define uv_pipe_server_fields             \
-    uv_pipe_accept_t accept_reqs[4];      \
-    uv_pipe_accept_t* pending_accepts;
+  uv_pipe_accept_t accept_reqs[4];        \
+  uv_pipe_accept_t* pending_accepts;
 
 #define uv_pipe_connection_fields         \
-  uv_timer_t* eof_timer;
+  uv_timer_t* eof_timer;                  \
+  uv_write_t ipc_header_write_req;        \
+  int ipc_pid;                            \
+  uint64_t remaining_ipc_rawdata_bytes;   \
+  WSAPROTOCOL_INFOW* pending_socket_info;
 
 #define UV_PIPE_PRIVATE_FIELDS            \
   HANDLE handle;                          \

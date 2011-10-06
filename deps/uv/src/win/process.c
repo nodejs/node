@@ -45,7 +45,7 @@ typedef struct env_var {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");          \
   }                                                       \
   if (!uv_utf8_to_utf16(s, t, size / sizeof(wchar_t))) {  \
-    uv__set_sys_error(loop, GetLastError());                     \
+    uv__set_sys_error(loop, GetLastError());              \
     err = -1;                                             \
     goto done;                                            \
   }
@@ -739,7 +739,8 @@ void uv_process_close(uv_loop_t* loop, uv_process_t* handle) {
 
 
 static int uv_create_stdio_pipe_pair(uv_loop_t* loop, uv_pipe_t* server_pipe,
-    HANDLE* child_pipe,  DWORD server_access, DWORD child_access) {
+    HANDLE* child_pipe,  DWORD server_access, DWORD child_access,
+    int overlapped) {
   int err;
   SECURITY_ATTRIBUTES sa = { sizeof(SECURITY_ATTRIBUTES), NULL, TRUE };
   char pipe_name[64];
@@ -767,7 +768,7 @@ static int uv_create_stdio_pipe_pair(uv_loop_t* loop, uv_pipe_t* server_pipe,
                             0,
                             &sa,
                             OPEN_EXISTING,
-                            0,
+                            overlapped ? FILE_FLAG_OVERLAPPED : 0,
                             NULL);
 
   if (*child_pipe == INVALID_HANDLE_VALUE) {
@@ -848,7 +849,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   wchar_t* path = NULL;
   int size;
   BOOL result;
-  wchar_t* application_path = NULL, *application = NULL, *arguments = NULL, *env = NULL, *cwd = NULL;
+  wchar_t* application_path = NULL, *application = NULL, *arguments = NULL,
+    *env = NULL, *cwd = NULL;
   HANDLE* child_stdio = process->child_stdio;
   STARTUPINFOW startup;
   PROCESS_INFORMATION info;
@@ -904,12 +906,23 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   /* Create stdio pipes. */
   if (options.stdin_stream) {
-    err = uv_create_stdio_pipe_pair(
-        loop,
-        options.stdin_stream,
-        &child_stdio[0],
-        PIPE_ACCESS_OUTBOUND,
-        GENERIC_READ | FILE_WRITE_ATTRIBUTES);
+    if (options.stdin_stream->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+      err = uv_create_stdio_pipe_pair(
+          loop,
+          options.stdin_stream,
+          &child_stdio[0],
+          PIPE_ACCESS_DUPLEX,
+          GENERIC_READ | FILE_WRITE_ATTRIBUTES | GENERIC_WRITE,
+          1);
+    } else {
+      err = uv_create_stdio_pipe_pair(
+          loop,
+          options.stdin_stream,
+          &child_stdio[0],
+          PIPE_ACCESS_OUTBOUND,
+          GENERIC_READ | FILE_WRITE_ATTRIBUTES,
+          0);
+    }
   } else {
     err = duplicate_std_handle(loop, STD_INPUT_HANDLE, &child_stdio[0]);
   }
@@ -922,7 +935,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
         loop, options.stdout_stream,
         &child_stdio[1],
         PIPE_ACCESS_INBOUND,
-        GENERIC_WRITE);
+        GENERIC_WRITE,
+        0);
   } else {
     err = duplicate_std_handle(loop, STD_OUTPUT_HANDLE, &child_stdio[1]);
   }
@@ -936,7 +950,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
         options.stderr_stream,
         &child_stdio[2],
         PIPE_ACCESS_INBOUND,
-        GENERIC_WRITE);
+        GENERIC_WRITE,
+        0);
   } else {
     err = duplicate_std_handle(loop, STD_ERROR_HANDLE, &child_stdio[2]);
   }
@@ -968,6 +983,11 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     /* Spawn succeeded */
     process->process_handle = info.hProcess;
     process->pid = info.dwProcessId;
+
+    if (options.stdin_stream &&
+        options.stdin_stream->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+      options.stdin_stream->ipc_pid = info.dwProcessId;
+    }
 
     /* Setup notifications for when the child process exits. */
     result = RegisterWaitForSingleObject(&process->wait_handle,

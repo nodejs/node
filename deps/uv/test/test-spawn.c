@@ -67,7 +67,7 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
 }
 
 
-uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
+static uv_buf_t on_alloc(uv_handle_t* handle, size_t suggested_size) {
   uv_buf_t buf;
   buf.base = output + output_used;
   buf.len = OUTPUT_SIZE - output_used;
@@ -138,7 +138,7 @@ TEST_IMPL(spawn_stdout) {
 
   init_process_options("spawn_helper2", exit_cb);
 
-  uv_pipe_init(uv_default_loop(), &out);
+  uv_pipe_init(uv_default_loop(), &out, 0);
   options.stdout_stream = &out;
 
   r = uv_spawn(uv_default_loop(), &process, options);
@@ -169,8 +169,8 @@ int r;
 
   init_process_options("spawn_helper3", exit_cb);
 
-  uv_pipe_init(uv_default_loop(), &out);
-  uv_pipe_init(uv_default_loop(), &in);
+  uv_pipe_init(uv_default_loop(), &out, 0);
+  uv_pipe_init(uv_default_loop(), &in, 0);
   options.stdout_stream = &out;
   options.stdin_stream = &in;
 
@@ -229,7 +229,7 @@ TEST_IMPL(spawn_detect_pipe_name_collisions_on_windows) {
 
   init_process_options("spawn_helper2", exit_cb);
 
-  uv_pipe_init(uv_default_loop(), &out);
+  uv_pipe_init(uv_default_loop(), &out, 0);
   options.stdout_stream = &out;
 
   /* Create a pipe that'll cause a collision. */
