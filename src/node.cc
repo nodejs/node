@@ -1557,6 +1557,38 @@ static Handle<Value> Uptime(const Arguments& args) {
   return scope.Close(Number::New(uptime));
 }
 
+
+v8::Handle<v8::Value> UVCounters(const v8::Arguments& args) {
+  HandleScope scope;
+
+  uv_counters_t* c = &uv_default_loop()->counters;
+
+  Local<Object> obj = Object::New();
+
+#define setc(name) obj->Set(String::New(#name), Integer::New(c->name));
+
+  setc(eio_init)
+  setc(req_init)
+  setc(handle_init)
+  setc(stream_init)
+  setc(tcp_init)
+  setc(udp_init)
+  setc(pipe_init)
+  setc(tty_init)
+  setc(prepare_init)
+  setc(check_init)
+  setc(idle_init)
+  setc(async_init)
+  setc(timer_init)
+  setc(process_init)
+  setc(fs_event_init)
+
+#undef setc
+
+  return scope.Close(obj);
+}
+
+
 v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
   assert(args.Length() == 0);
@@ -2167,6 +2199,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "uptime", Uptime);
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
+  NODE_SET_METHOD(process, "uvCounters", UVCounters);
 
   NODE_SET_METHOD(process, "binding", Binding);
 
