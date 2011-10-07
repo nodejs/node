@@ -321,20 +321,6 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   return 0;
 }
 
-double Platform::GetFreeMemory() {
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  double pages = static_cast<double>(sysconf(_SC_AVPHYS_PAGES));
-
-  return static_cast<double>(pages * pagesize);
-}
-
-double Platform::GetTotalMemory() {
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  double pages = static_cast<double>(sysconf(_SC_PHYS_PAGES));
-
-  return pages * pagesize;
-}
-
 double Platform::GetUptimeImpl() {
   double amount;
   char line[512];
@@ -351,12 +337,6 @@ double Platform::GetUptimeImpl() {
 
   return amount;
 }
-
-int Platform::GetLoadAvg(Local<Array> *loads) {
-  // Unsupported as of cygwin 1.7.7
-  return -1;
-}
-
 
 Handle<Value> Platform::GetInterfaceAddresses() {
   HandleScope scope;

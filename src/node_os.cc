@@ -117,7 +117,7 @@ static Handle<Value> GetCPUInfo(const Arguments& args) {
 
 static Handle<Value> GetFreeMemory(const Arguments& args) {
   HandleScope scope;
-  double amount = Platform::GetFreeMemory();
+  double amount = uv_get_free_memory();
 
   if (amount < 0) {
     return Undefined();
@@ -128,7 +128,7 @@ static Handle<Value> GetFreeMemory(const Arguments& args) {
 
 static Handle<Value> GetTotalMemory(const Arguments& args) {
   HandleScope scope;
-  double amount = Platform::GetTotalMemory();
+  double amount = uv_get_total_memory();
 
   if (amount < 0) {
     return Undefined();
@@ -150,12 +150,17 @@ static Handle<Value> GetUptime(const Arguments& args) {
 
 static Handle<Value> GetLoadAvg(const Arguments& args) {
   HandleScope scope;
-  Local<Array> loads = Array::New(3);
-  int r = Platform::GetLoadAvg(&loads);
+  double loadavg[3];
+  uv_loadavg(loadavg);
 
-  if (r < 0) {
+  if (loadavg[0] < 0) {
     return Undefined();
   }
+
+  Local<Array> loads = Array::New(3);
+  loads->Set(0, Number::New(loadavg[0]));
+  loads->Set(1, Number::New(loadavg[1]));
+  loads->Set(2, Number::New(loadavg[2]));
 
   return scope.Close(loads);
 }

@@ -214,34 +214,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
   return 0;
 }
 
-
-double Platform::GetFreeMemory() {
-
-  MEMORYSTATUSEX memory_status;
-  memory_status.dwLength = sizeof(memory_status);
-
-  if(!GlobalMemoryStatusEx(&memory_status))
-  {
-     winapi_perror("GlobalMemoryStatusEx");
-  }
-
-  return (double)memory_status.ullAvailPhys;
-}
-
-double Platform::GetTotalMemory() {
-
-  MEMORYSTATUSEX memory_status;
-  memory_status.dwLength = sizeof(memory_status);
-
-  if(!GlobalMemoryStatusEx(&memory_status))
-  {
-    winapi_perror("GlobalMemoryStatusEx");
-  }
-
-  return (double)memory_status.ullTotalPhys;
-}
-
-
 int Platform::GetCPUInfo(Local<Array> *cpus) {
   return -1;
 }
@@ -250,11 +222,6 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 double Platform::GetUptimeImpl() {
   return (double)GetTickCount()/1000.0;
 }
-
-int Platform::GetLoadAvg(Local<Array> *loads) {
-  return -1;
-}
-
 
 Handle<Value> Platform::GetInterfaceAddresses() {
   HandleScope scope;

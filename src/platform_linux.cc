@@ -25,8 +25,6 @@
 #include <v8.h>
 
 #include <sys/param.h> // for MAXPATHLEN
-#include <sys/sysctl.h>
-#include <sys/sysinfo.h>
 #include <unistd.h> // getpagesize, sysconf
 #include <stdio.h> // sscanf, snprintf
 
@@ -257,20 +255,6 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   return 0;
 }
 
-double Platform::GetFreeMemory() {
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  double pages = static_cast<double>(sysconf(_SC_AVPHYS_PAGES));
-
-  return static_cast<double>(pages * pagesize);
-}
-
-double Platform::GetTotalMemory() {
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  double pages = static_cast<double>(sysconf(_SC_PHYS_PAGES));
-
-  return pages * pagesize;
-}
-
 double Platform::GetUptimeImpl() {
 #if HAVE_MONOTONIC_CLOCK
   struct timespec now;
@@ -287,19 +271,6 @@ double Platform::GetUptimeImpl() {
   }
   return static_cast<double>(info.uptime);
 #endif
-}
-
-int Platform::GetLoadAvg(Local<Array> *loads) {
-  struct sysinfo info;
-
-  if (sysinfo(&info) < 0) {
-    return -1;
-  }
-  (*loads)->Set(0, Number::New(static_cast<double>(info.loads[0]) / 65536.0));
-  (*loads)->Set(1, Number::New(static_cast<double>(info.loads[1]) / 65536.0));
-  (*loads)->Set(2, Number::New(static_cast<double>(info.loads[2]) / 65536.0));
-
-  return 0;
 }
 
 

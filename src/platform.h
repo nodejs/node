@@ -34,13 +34,10 @@ class Platform {
 
   static int GetMemory(size_t *rss, size_t *vsize);
   static int GetCPUInfo(v8::Local<v8::Array> *cpus);
-  static double GetFreeMemory();
-  static double GetTotalMemory();
   static double GetUptime(bool adjusted = false)
   {
     return adjusted ? GetUptimeImpl() - prog_start_time : GetUptimeImpl();
   }
-  static int GetLoadAvg(v8::Local<v8::Array> *loads);
   static v8::Handle<v8::Value> GetInterfaceAddresses();
  private:
   static double GetUptimeImpl();

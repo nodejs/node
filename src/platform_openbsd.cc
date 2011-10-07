@@ -153,36 +153,6 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   return 0;
 }
 
-double Platform::GetFreeMemory() {
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  struct uvmexp info;
-  size_t size = sizeof(info);
-  static int which[] = {CTL_VM, VM_UVMEXP};
-
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return -1;
-  }
-
-  return static_cast<double>(info.free) * pagesize;
-}
-
-double Platform::GetTotalMemory() {
-#if defined(HW_PHYSMEM64)
-  uint64_t info;
-  static int which[] = {CTL_HW, HW_PHYSMEM64};
-#else
-  unsigned int info;
-  static int which[] = {CTL_HW, HW_PHYSMEM};
-#endif
-  size_t size = sizeof(info);
-
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return -1;
-  }
-
-  return static_cast<double>(info);
-}
-
 double Platform::GetUptimeImpl() {
   time_t now;
   struct timeval info;
@@ -195,24 +165,6 @@ double Platform::GetUptimeImpl() {
   now = time(NULL);
 
   return static_cast<double>(now - info.tv_sec);
-}
-
-int Platform::GetLoadAvg(Local<Array> *loads) {
-  struct loadavg info;
-  size_t size = sizeof(info);
-  static int which[] = {CTL_VM, VM_LOADAVG};
-
-  if (sysctl(which, 2, &info, &size, NULL, 0) < 0) {
-    return -1;
-  }
-  (*loads)->Set(0, Number::New(static_cast<double>(info.ldavg[0])
-                               / static_cast<double>(info.fscale)));
-  (*loads)->Set(1, Number::New(static_cast<double>(info.ldavg[1])
-                               / static_cast<double>(info.fscale)));
-  (*loads)->Set(2, Number::New(static_cast<double>(info.ldavg[2])
-                               / static_cast<double>(info.fscale)));
-
-  return 0;
 }
 
 

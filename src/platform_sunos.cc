@@ -207,40 +207,6 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 }
 
 
-double Platform::GetFreeMemory() {
-  kstat_ctl_t   *kc;
-  kstat_t       *ksp;
-  kstat_named_t *knp;
-
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  ulong_t freemem;
-
-  if((kc = kstat_open()) == NULL)
-    throw "could not open kstat";
-
-  ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_pages");
-
-  if(kstat_read(kc, ksp, NULL) == -1){
-    throw "could not read kstat";
-  }
-  else {
-    knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"freemem");
-    freemem = knp->value.ul;
-  }
-
-  kstat_close(kc);
-
-  return static_cast<double>(freemem)*pagesize;
-}
-
-
-double Platform::GetTotalMemory() {
-  double pagesize = static_cast<double>(sysconf(_SC_PAGESIZE));
-  double pages = static_cast<double>(sysconf(_SC_PHYS_PAGES));
-
-  return pagesize*pages;
-}
-
 double Platform::GetUptimeImpl() {
   kstat_ctl_t   *kc;
   kstat_t       *ksp;
@@ -264,18 +230,6 @@ double Platform::GetUptimeImpl() {
   kstat_close(kc);
 
   return static_cast<double>( clk_intr / hz );
-}
-
-int Platform::GetLoadAvg(Local<Array> *loads) {
-  HandleScope scope;
-  double loadavg[3];
-
-  (void) getloadavg(loadavg, 3);
-  (*loads)->Set(0, Number::New(loadavg[LOADAVG_1MIN]));
-  (*loads)->Set(1, Number::New(loadavg[LOADAVG_5MIN]));
-  (*loads)->Set(2, Number::New(loadavg[LOADAVG_15MIN]));
-
-  return 0;
 }
 
 
