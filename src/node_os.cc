@@ -153,10 +153,6 @@ static Handle<Value> GetLoadAvg(const Arguments& args) {
   double loadavg[3];
   uv_loadavg(loadavg);
 
-  if (loadavg[0] < 0) {
-    return Undefined();
-  }
-
   Local<Array> loads = Array::New(3);
   loads->Set(0, Number::New(loadavg[0]));
   loads->Set(1, Number::New(loadavg[1]));
