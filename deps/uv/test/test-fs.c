@@ -1163,13 +1163,21 @@ TEST_IMPL(fs_symlink) {
 
 TEST_IMPL(fs_utime) {
   utime_check_t checkme;
-  const char* path = ".";
+  const char* path = "test_file";
   double atime;
   double mtime;
   uv_fs_t req;
   int r;
 
+  /* Setup. */
   loop = uv_default_loop();
+  unlink(path);
+  r = uv_fs_open(loop, &req, path, O_RDWR | O_CREAT,
+      S_IWRITE | S_IREAD, NULL);
+  ASSERT(r != -1);
+  ASSERT(req.result != -1);
+  uv_fs_req_cleanup(&req);
+  close(r);
 
   atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
 
@@ -1196,24 +1204,35 @@ TEST_IMPL(fs_utime) {
   uv_run(loop);
   ASSERT(utime_cb_count == 1);
 
+  /* Cleanup. */
+  unlink(path);
+
   return 0;
 }
 
 
 TEST_IMPL(fs_futime) {
   utime_check_t checkme;
-  const char* path = ".";
+  const char* path = "test_file";
   double atime;
   double mtime;
   uv_file file;
   uv_fs_t req;
   int r;
 
+  /* Setup. */
   loop = uv_default_loop();
+  unlink(path);
+  r = uv_fs_open(loop, &req, path, O_RDWR | O_CREAT,
+      S_IWRITE | S_IREAD, NULL);
+  ASSERT(r != -1);
+  ASSERT(req.result != -1);
+  uv_fs_req_cleanup(&req);
+  close(r);
 
   atime = mtime = 400497753; /* 1982-09-10 11:22:33 */
 
-  r = uv_fs_open(loop, &req, path, O_RDONLY, 0, NULL);
+  r = uv_fs_open(loop, &req, path, O_RDWR, 0, NULL);
   ASSERT(r != -1);
   ASSERT(req.result != -1);
   file = req.result; /* FIXME probably not how it's supposed to be used */
@@ -1242,6 +1261,9 @@ TEST_IMPL(fs_futime) {
   ASSERT(r == 0);
   uv_run(loop);
   ASSERT(futime_cb_count == 1);
+
+  /* Cleanup. */
+  unlink(path);
 
   return 0;
 }
