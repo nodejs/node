@@ -1,6 +1,9 @@
 {
   'variables': {
     'v8_use_snapshot': 'true',
+    # Turn off -Werror in V8
+    # See http://codereview.chromium.org/8159015
+    'werror': '',
     'target_arch': 'ia32',
     'node_use_dtrace': 'false',
     'node_use_openssl%': 'true',
