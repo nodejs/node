@@ -1063,7 +1063,11 @@ struct uv_fs_event_s {
 };
 
 
-/* Gets load avg */
+/*
+ * Gets load avg
+ * See: http://en.wikipedia.org/wiki/Load_(computing)
+ * (Returns [0,0,0] for windows and cygwin)
+ */
 void uv_loadavg(double avg[3]);
 
 /*
@@ -1087,7 +1091,7 @@ int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 /* Gets the executable path */
 int uv_exepath(char* buffer, size_t* size);
 
-/* Memory info */
+/* Gets memory info in bytes */
 double uv_get_free_memory(void);
 double uv_get_total_memory(void);
 

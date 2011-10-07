@@ -191,6 +191,7 @@ TEST_IMPL(ipc) {
 
   r = uv_pipe_init(uv_default_loop(), &channel, 1);
   ASSERT(r == 0);
+  ASSERT(channel.ipc);
 
   memset(&options, 0, sizeof(uv_process_options_t));
 

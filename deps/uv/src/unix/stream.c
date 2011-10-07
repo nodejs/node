@@ -600,11 +600,11 @@ static void uv__read(uv_stream_t* stream) {
         } else {
           stream->read2_cb((uv_pipe_t*)stream, nread, buf, UV_UNKNOWN_HANDLE);
         }
+      }
 
-        /* Return if we didn't fill the buffer, there is no more data to read. */
-        if (nread < buflen) {
-          return;
-        }
+      /* Return if we didn't fill the buffer, there is no more data to read. */
+      if (nread < buflen) {
+        return;
       }
     }
   }

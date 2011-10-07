@@ -78,12 +78,9 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   handle->ipc_pid = 0;
   handle->remaining_ipc_rawdata_bytes = 0;
   handle->pending_socket_info = NULL;
+  handle->ipc = ipc;
 
   uv_req_init(loop, (uv_req_t*) &handle->ipc_header_write_req);
-
-  if (ipc) {
-    handle->flags |= UV_HANDLE_USE_IPC_PROTOCOL;
-  }
 
   loop->counters.pipe_init++;
 
@@ -585,7 +582,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
   uv_pipe_t* pipe_client;
   uv_pipe_accept_t* req;
 
-  if (server->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+  if (server->ipc) {
     if (!server->pending_socket_info) {
       /* No valid pending sockets. */
       uv__set_sys_error(loop, WSAEWOULDBLOCK);
@@ -780,7 +777,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
   req->ipc_header = 0;
   memset(&req->overlapped, 0, sizeof(req->overlapped));
 
-  if (handle->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+  if (handle->ipc) {
     /* Use the IPC framing protocol. */
     if (send_handle) {
       tcp_send_handle = (uv_tcp_t*)send_handle;
@@ -892,7 +889,7 @@ int uv_pipe_write(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
 
 int uv_pipe_write2(uv_loop_t* loop, uv_write_t* req, uv_pipe_t* handle,
     uv_buf_t bufs[], int bufcnt, uv_stream_t* send_handle, uv_write_cb cb) {
-  if (!(handle->flags & UV_HANDLE_USE_IPC_PROTOCOL)) {
+  if (!handle->ipc) {
     uv__set_artificial_error(loop, UV_EINVAL);
     return -1;
   }
@@ -983,7 +980,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
         break;
       }
 
-      if (handle->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+      if (handle->ipc) {
         /* Use the IPC framing protocol to read the incoming data. */
         if (handle->remaining_ipc_rawdata_bytes == 0) {
           /* We're reading a new frame.  First, read the header. */
@@ -1048,7 +1045,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
                    &bytes,
                    NULL)) {
         /* Successful read */
-        if (handle->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+        if (handle->ipc) {
           assert(handle->remaining_ipc_rawdata_bytes >= bytes);
           handle->remaining_ipc_rawdata_bytes = 
             handle->remaining_ipc_rawdata_bytes - bytes;
@@ -1280,7 +1277,7 @@ void uv_pipe_open(uv_pipe_t* pipe, uv_file file) {
   HANDLE os_handle;
   
   /* Special-case stdin with ipc. */
-  if (file == 0 && pipe->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+  if (file == 0 && pipe->ipc) {
     os_handle = (HANDLE)_get_osfhandle(file);
 
     if (os_handle == INVALID_HANDLE_VALUE ||

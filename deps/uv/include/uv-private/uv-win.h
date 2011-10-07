@@ -300,6 +300,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   int req_pending;                        \
   uv_fs_event_cb cb;                      \
   wchar_t* filew;                         \
+  wchar_t* short_filew;                   \
   int is_path_dir;                        \
   char* buffer;
 

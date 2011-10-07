@@ -906,7 +906,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   /* Create stdio pipes. */
   if (options.stdin_stream) {
-    if (options.stdin_stream->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+    if (options.stdin_stream->ipc) {
       err = uv_create_stdio_pipe_pair(
           loop,
           options.stdin_stream,
@@ -985,7 +985,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     process->pid = info.dwProcessId;
 
     if (options.stdin_stream &&
-        options.stdin_stream->flags & UV_HANDLE_USE_IPC_PROTOCOL) {
+        options.stdin_stream->ipc) {
       options.stdin_stream->ipc_pid = info.dwProcessId;
     }
 
