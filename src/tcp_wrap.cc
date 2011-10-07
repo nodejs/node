@@ -56,8 +56,14 @@ typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
 
 Local<Object> TCPWrap::Instantiate() {
+  // If this assert fire then process.binding('tcp_wrap') hasn't been
+  // called yet.
+  assert(tcpConstructor.IsEmpty() == false);
+
   HandleScope scope;
-  return scope.Close(tcpConstructor->NewInstance());
+  Local<Object> obj = tcpConstructor->NewInstance();
+
+  return scope.Close(obj);
 }
 
 

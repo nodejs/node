@@ -183,8 +183,6 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
     uv_buf_t buf, uv_handle_type pending) {
   HandleScope scope;
 
-  assert(pending == UV_UNKNOWN_HANDLE); // TODO
-
   StreamWrap* wrap = static_cast<StreamWrap*>(handle->data);
 
   // We should not be getting this callback if someone as already called
@@ -219,6 +217,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
       Integer::New(wrap->slab_offset_),
       Integer::New(nread)
     };
+
 
     if (pending == UV_TCP) {
       // Instantiate the client javascript object and handle.
