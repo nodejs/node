@@ -1078,6 +1078,9 @@ void MakeCallback(Handle<Object> object,
   HandleScope scope;
 
   Local<Value> callback_v = object->Get(String::New(method)); 
+  if (!callback_v->IsFunction()) {
+    fprintf(stderr, "method = %s", method);
+  }
   assert(callback_v->IsFunction());
   Local<Function> callback = Local<Function>::Cast(callback_v);
 

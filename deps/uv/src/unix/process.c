@@ -110,6 +110,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 #endif
   int status;
   pid_t pid;
+  int flags;
 
   uv__handle_init(loop, (uv_handle_t*)process, UV_PROCESS);
   loop->counters.process_init++;
@@ -255,8 +256,9 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     assert(stdin_pipe[0] >= 0);
     uv__close(stdin_pipe[0]);
     uv__nonblock(stdin_pipe[1], 1);
+    flags = UV_WRITABLE | (options.stdin_stream->ipc ? UV_READABLE : 0);
     uv__stream_open((uv_stream_t*)options.stdin_stream, stdin_pipe[1],
-        UV_WRITABLE);
+        flags);
   }
 
   if (stdout_pipe[0] >= 0) {
@@ -264,8 +266,9 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     assert(stdout_pipe[1] >= 0);
     uv__close(stdout_pipe[1]);
     uv__nonblock(stdout_pipe[0], 1);
+    flags = UV_READABLE | (options.stdout_stream->ipc ? UV_WRITABLE : 0);
     uv__stream_open((uv_stream_t*)options.stdout_stream, stdout_pipe[0],
-        UV_READABLE);
+        flags);
   }
 
   if (stderr_pipe[0] >= 0) {
@@ -273,8 +276,9 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
     assert(stderr_pipe[1] >= 0);
     uv__close(stderr_pipe[1]);
     uv__nonblock(stderr_pipe[0], 1);
+    flags = UV_READABLE | (options.stderr_stream->ipc ? UV_WRITABLE : 0);
     uv__stream_open((uv_stream_t*)options.stderr_stream, stderr_pipe[0],
-        UV_READABLE);
+        flags);
   }
 
   return 0;

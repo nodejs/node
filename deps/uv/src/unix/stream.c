@@ -563,6 +563,7 @@ static void uv__read(uv_stream_t* stream) {
       return;
     } else {
       /* Successful read */
+      size_t buflen = buf.len;
 
       if (stream->read_cb) {
         stream->read_cb(stream, nread, buf);
@@ -598,6 +599,11 @@ static void uv__read(uv_stream_t* stream) {
           stream->read2_cb((uv_pipe_t*)stream, nread, buf, UV_TCP);
         } else {
           stream->read2_cb((uv_pipe_t*)stream, nread, buf, UV_UNKNOWN_HANDLE);
+        }
+
+        /* Return if we didn't fill the buffer, there is no more data to read. */
+        if (nread < buflen) {
+          return;
         }
       }
     }
@@ -907,14 +913,11 @@ int uv_read2_start(uv_stream_t* stream, uv_alloc_cb alloc_cb,
 
 
 int uv_read_stop(uv_stream_t* stream) {
-  uv_tcp_t* tcp = (uv_tcp_t*)stream;
-
-  ((uv_handle_t*)tcp)->flags &= ~UV_READING;
-
-  ev_io_stop(tcp->loop->ev, &tcp->read_watcher);
-  tcp->read_cb = NULL;
-  tcp->read2_cb = NULL;
-  tcp->alloc_cb = NULL;
+  ev_io_stop(stream->loop->ev, &stream->read_watcher);
+  stream->flags &= ~UV_READING;
+  stream->read_cb = NULL;
+  stream->read2_cb = NULL;
+  stream->alloc_cb = NULL;
   return 0;
 }
 
