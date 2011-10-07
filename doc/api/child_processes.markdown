@@ -190,8 +190,8 @@ leaner than `child_process.exec`. It has the same options.
 This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
 instance, the returned object has a communication channel built-in. The
-channel is written to with `child.send(message)` and messages are recieved
-by a `'message'` event on the child.
+channel is written to with `child.send(message, [sendStream])` and messages
+are recieved by a `'message'` event on the child.
 
 For example:
 
@@ -223,6 +223,10 @@ associated with the parent's. This can be overridden by using the
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many
 thousands of them.
+
+The `sendStream` option to `child.send()` is for sending a `net.Socket`
+or `net.Server` object to another process. Child will receive the handle as
+as second argument to the `message` event.
 
 
 ### child.kill(signal='SIGTERM')

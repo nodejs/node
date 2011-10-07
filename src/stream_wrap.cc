@@ -292,8 +292,7 @@ Handle<Value> StreamWrap::Write(const Arguments& args) {
   } else {
     uv_stream_t* send_stream = NULL;
 
-    if (args.Length() > 3) {
-      assert(args[3]->IsObject());
+    if (args[3]->IsObject()) {
       Local<Object> send_stream_obj = args[3]->ToObject();
       assert(send_stream_obj->InternalFieldCount() > 0);
       StreamWrap* send_stream_wrap = static_cast<StreamWrap*>(
