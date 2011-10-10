@@ -615,7 +615,7 @@ void FloatingPointHelper::ConvertIntToDouble(MacroAssembler* masm,
 void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
                                                   Register object,
                                                   Destination destination,
-                                                  FPURegister double_dst,
+                                                  DoubleRegister double_dst,
                                                   Register dst1,
                                                   Register dst2,
                                                   Register heap_number_map,
@@ -651,25 +651,16 @@ void FloatingPointHelper::LoadNumberAsInt32Double(MacroAssembler* masm,
     // Load the double value.
     __ ldc1(double_dst, FieldMemOperand(object, HeapNumber::kValueOffset));
 
-    // NOTE: ARM uses a MacroAssembler function here (EmitVFPTruncate).
-    // On MIPS a lot of things cannot be implemented the same way so right
-    // now it makes a lot more sense to just do things manually.
-
-    // Save FCSR.
-    __ cfc1(scratch1, FCSR);
-    // Disable FPU exceptions.
-    __ ctc1(zero_reg, FCSR);
-    __ trunc_w_d(single_scratch, double_dst);
-    // Retrieve FCSR.
-    __ cfc1(scratch2, FCSR);
-    // Restore FCSR.
-    __ ctc1(scratch1, FCSR);
-
-    // Check for inexact conversion or exception.
-    __ And(scratch2, scratch2, kFCSRFlagMask);
+    Register except_flag = scratch2;
+    __ EmitFPUTruncate(kRoundToZero,
+                       single_scratch,
+                       double_dst,
+                       scratch1,
+                       except_flag,
+                       kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
-    __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
+    __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
 
     if (destination == kCoreRegisters) {
       __ Move(dst1, dst2, double_dst);
@@ -706,7 +697,7 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
                                             Register scratch1,
                                             Register scratch2,
                                             Register scratch3,
-                                            FPURegister double_scratch,
+                                            DoubleRegister double_scratch,
                                             Label* not_int32) {
   ASSERT(!dst.is(object));
   ASSERT(!scratch1.is(object) && !scratch2.is(object) && !scratch3.is(object));
@@ -735,27 +726,19 @@ void FloatingPointHelper::LoadNumberAsInt32(MacroAssembler* masm,
     // Load the double value.
     __ ldc1(double_scratch, FieldMemOperand(object, HeapNumber::kValueOffset));
 
-    // NOTE: ARM uses a MacroAssembler function here (EmitVFPTruncate).
-    // On MIPS a lot of things cannot be implemented the same way so right
-    // now it makes a lot more sense to just do things manually.
-
-    // Save FCSR.
-    __ cfc1(scratch1, FCSR);
-    // Disable FPU exceptions.
-    __ ctc1(zero_reg, FCSR);
-    __ trunc_w_d(double_scratch, double_scratch);
-    // Retrieve FCSR.
-    __ cfc1(scratch2, FCSR);
-    // Restore FCSR.
-    __ ctc1(scratch1, FCSR);
-
-    // Check for inexact conversion or exception.
-    __ And(scratch2, scratch2, kFCSRFlagMask);
+    FPURegister single_scratch = double_scratch.low();
+    Register except_flag = scratch2;
+    __ EmitFPUTruncate(kRoundToZero,
+                       single_scratch,
+                       double_scratch,
+                       scratch1,
+                       except_flag,
+                       kCheckForInexactConversion);
 
     // Jump to not_int32 if the operation did not succeed.
-    __ Branch(not_int32, ne, scratch2, Operand(zero_reg));
+    __ Branch(not_int32, ne, except_flag, Operand(zero_reg));
     // Get the result in the destination register.
-    __ mfc1(dst, double_scratch);
+    __ mfc1(dst, single_scratch);
 
   } else {
     // Load the double value in the destination registers.
@@ -881,9 +864,11 @@ void FloatingPointHelper::CallCCodeForDoubleOperation(
     __ Move(f12, a0, a1);
     __ Move(f14, a2, a3);
   }
-  // Call C routine that may not cause GC or other trouble.
-  __ CallCFunction(ExternalReference::double_fp_operation(op, masm->isolate()),
-                   4);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm);
+    __ CallCFunction(
+        ExternalReference::double_fp_operation(op, masm->isolate()), 0, 2);
+  }
   // Store answer in the overwritable heap number.
   if (!IsMipsSoftFloatABI) {
     CpuFeatures::Scope scope(FPU);
@@ -1258,7 +1243,7 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
 
   if (!CpuFeatures::IsSupported(FPU)) {
     __ push(ra);
-    __ PrepareCallCFunction(4, t4);  // Two doubles count as 4 arguments.
+    __ PrepareCallCFunction(0, 2, t4);
     if (!IsMipsSoftFloatABI) {
       // We are not using MIPS FPU instructions, and parameters for the runtime
       // function call are prepaired in a0-a3 registers, but function we are
@@ -1268,19 +1253,15 @@ static void EmitTwoNonNanDoubleComparison(MacroAssembler* masm, Condition cc) {
       __ Move(f12, a0, a1);
       __ Move(f14, a2, a3);
     }
-    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()), 4);
+    __ CallCFunction(ExternalReference::compare_doubles(masm->isolate()),
+       0, 2);
     __ pop(ra);  // Because this function returns int, result is in v0.
     __ Ret();
   } else {
     CpuFeatures::Scope scope(FPU);
     Label equal, less_than;
-    __ c(EQ, D, f12, f14);
-    __ bc1t(&equal);
-    __ nop();
-
-    __ c(OLT, D, f12, f14);
-    __ bc1t(&less_than);
-    __ nop();
+    __ BranchF(&equal, NULL, eq, f12, f14);
+    __ BranchF(&less_than, NULL, lt, f12, f14);
 
     // Not equal, not less, not NaN, must be greater.
     __ li(v0, Operand(GREATER));
@@ -1473,9 +1454,7 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
       __ JumpIfSmi(probe, not_found);
       __ ldc1(f12, FieldMemOperand(object, HeapNumber::kValueOffset));
       __ ldc1(f14, FieldMemOperand(probe, HeapNumber::kValueOffset));
-      __ c(EQ, D, f12, f14);
-      __ bc1t(&load_result_from_cache);
-      __ nop();   // bc1t() requires explicit fill of branch delay slot.
+      __ BranchF(&load_result_from_cache, NULL, eq, f12, f14);
       __ Branch(not_found);
     } else {
       // Note that there is no cache check for non-FPU case, even though
@@ -1591,9 +1570,7 @@ void CompareStub::Generate(MacroAssembler* masm) {
     __ li(t2, Operand(EQUAL));
 
     // Check if either rhs or lhs is NaN.
-    __ c(UN, D, f12, f14);
-    __ bc1t(&nan);
-    __ nop();
+    __ BranchF(NULL, &nan, eq, f12, f14);
 
     // Check if LESS condition is satisfied. If true, move conditionally
     // result to v0.
@@ -1711,89 +1688,116 @@ void CompareStub::Generate(MacroAssembler* masm) {
 }
 
 
-// The stub returns zero for false, and a non-zero value for true.
+// The stub expects its argument in the tos_ register and returns its result in
+// it, too: zero for false, and a non-zero value for true.
 void ToBooleanStub::Generate(MacroAssembler* masm) {
   // This stub uses FPU instructions.
   CpuFeatures::Scope scope(FPU);
 
-  Label false_result;
-  Label not_heap_number;
-  Register scratch0 = t5.is(tos_) ? t3 : t5;
+  Label patch;
+  const Register map = t5.is(tos_) ? t3 : t5;
 
-  // undefined -> false
-  __ LoadRoot(scratch0, Heap::kUndefinedValueRootIndex);
-  __ Branch(&false_result, eq, tos_, Operand(scratch0));
+  // undefined -> false.
+  CheckOddball(masm, UNDEFINED, Heap::kUndefinedValueRootIndex, false);
 
-  // Boolean -> its value
-  __ LoadRoot(scratch0, Heap::kFalseValueRootIndex);
-  __ Branch(&false_result, eq, tos_, Operand(scratch0));
-  __ LoadRoot(scratch0, Heap::kTrueValueRootIndex);
-  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
-  // return true if the equal condition is satisfied.
-  __ Ret(eq, tos_, Operand(scratch0));
+  // Boolean -> its value.
+  CheckOddball(masm, BOOLEAN, Heap::kFalseValueRootIndex, false);
+  CheckOddball(masm, BOOLEAN, Heap::kTrueValueRootIndex, true);
 
-  // Smis: 0 -> false, all other -> true
-  __ And(scratch0, tos_, tos_);
-  __ Branch(&false_result, eq, scratch0, Operand(zero_reg));
-  __ And(scratch0, tos_, Operand(kSmiTagMask));
-  // "tos_" is a register and contains a non-zero value.  Hence we implicitly
-  // return true if the not equal condition is satisfied.
-  __ Ret(eq, scratch0, Operand(zero_reg));
+  // 'null' -> false.
+  CheckOddball(masm, NULL_TYPE, Heap::kNullValueRootIndex, false);
 
-  // 'null' -> false
-  __ LoadRoot(scratch0, Heap::kNullValueRootIndex);
-  __ Branch(&false_result, eq, tos_, Operand(scratch0));
+  if (types_.Contains(SMI)) {
+    // Smis: 0 -> false, all other -> true
+    __ And(at, tos_, kSmiTagMask);
+    // tos_ contains the correct return value already
+    __ Ret(eq, at, Operand(zero_reg));
+  } else if (types_.NeedsMap()) {
+    // If we need a map later and have a Smi -> patch.
+    __ JumpIfSmi(tos_, &patch);
+  }
 
-  // HeapNumber => false if +0, -0, or NaN.
-  __ lw(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
-  __ Branch(&not_heap_number, ne, scratch0, Operand(at));
+  if (types_.NeedsMap()) {
+    __ lw(map, FieldMemOperand(tos_, HeapObject::kMapOffset));
 
-  __ ldc1(f12, FieldMemOperand(tos_, HeapNumber::kValueOffset));
-  __ fcmp(f12, 0.0, UEQ);
+    if (types_.CanBeUndetectable()) {
+      __ lbu(at, FieldMemOperand(map, Map::kBitFieldOffset));
+      __ And(at, at, Operand(1 << Map::kIsUndetectable));
+      // Undetectable -> false.
+      __   movn(tos_, zero_reg, at);
+      __ Ret(ne, at, Operand(zero_reg));
+    }
+  }
 
-  // "tos_" is a register, and contains a non zero value by default.
-  // Hence we only need to overwrite "tos_" with zero to return false for
-  // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
-  __ movt(tos_, zero_reg);
-  __ Ret();
+  if (types_.Contains(SPEC_OBJECT)) {
+    // Spec object -> true.
+    __ lbu(at, FieldMemOperand(map, Map::kInstanceTypeOffset));
+    // tos_ contains the correct non-zero return value already.
+    __ Ret(ge, at, Operand(FIRST_SPEC_OBJECT_TYPE));
+  }
 
-  __ bind(&not_heap_number);
+  if (types_.Contains(STRING)) {
+    // String value -> false iff empty.
+    __ lbu(at, FieldMemOperand(map, Map::kInstanceTypeOffset));
+    Label skip;
+    __ Branch(&skip, ge, at, Operand(FIRST_NONSTRING_TYPE));
+    __ lw(tos_, FieldMemOperand(tos_, String::kLengthOffset));
+    __ Ret();  // the string length is OK as the return value
+    __ bind(&skip);
+  }
 
-  // It can be an undetectable object.
-  // Undetectable => false.
-  __ lw(at, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ lbu(scratch0, FieldMemOperand(at, Map::kBitFieldOffset));
-  __ And(scratch0, scratch0, Operand(1 << Map::kIsUndetectable));
-  __ Branch(&false_result, eq, scratch0, Operand(1 << Map::kIsUndetectable));
+  if (types_.Contains(HEAP_NUMBER)) {
+    // Heap number -> false iff +0, -0, or NaN.
+    Label not_heap_number;
+    __ LoadRoot(at, Heap::kHeapNumberMapRootIndex);
+    __ Branch(&not_heap_number, ne, map, Operand(at));
+    Label zero_or_nan, number;
+    __ ldc1(f2, FieldMemOperand(tos_, HeapNumber::kValueOffset));
+    __ BranchF(&number, &zero_or_nan, ne, f2, kDoubleRegZero);
+    // "tos_" is a register, and contains a non zero value by default.
+    // Hence we only need to overwrite "tos_" with zero to return false for
+    // FP_ZERO or FP_NAN cases. Otherwise, by default it returns true.
+    __ bind(&zero_or_nan);
+    __ mov(tos_, zero_reg);
+    __ bind(&number);
+    __ Ret();
+    __ bind(&not_heap_number);
+  }
 
-  // JavaScript object => true.
-  __ lw(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ lbu(scratch0, FieldMemOperand(scratch0, Map::kInstanceTypeOffset));
+  __ bind(&patch);
+  GenerateTypeTransition(masm);
+}
 
-  // "tos_" is a register and contains a non-zero value.
-  // Hence we implicitly return true if the greater than
-  // condition is satisfied.
-  __ Ret(ge, scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
 
-  // Check for string.
-  __ lw(scratch0, FieldMemOperand(tos_, HeapObject::kMapOffset));
-  __ lbu(scratch0, FieldMemOperand(scratch0, Map::kInstanceTypeOffset));
-  // "tos_" is a register and contains a non-zero value.
-  // Hence we implicitly return true if the greater than
-  // condition is satisfied.
-  __ Ret(ge, scratch0, Operand(FIRST_NONSTRING_TYPE));
+void ToBooleanStub::CheckOddball(MacroAssembler* masm,
+                                 Type type,
+                                 Heap::RootListIndex value,
+                                 bool result) {
+  if (types_.Contains(type)) {
+    // If we see an expected oddball, return its ToBoolean value tos_.
+    __ LoadRoot(at, value);
+    __ Subu(at, at, tos_);  // This is a check for equality for the movz below.
+    // The value of a root is never NULL, so we can avoid loading a non-null
+    // value into tos_ when we want to return 'true'.
+    if (!result) {
+      __ movz(tos_, zero_reg, at);
+    }
+    __ Ret(eq, at, Operand(zero_reg));
+  }
+}
 
-  // String value => false iff empty, i.e., length is zero.
-  __ lw(tos_, FieldMemOperand(tos_, String::kLengthOffset));
-  // If length is zero, "tos_" contains zero ==> false.
-  // If length is not zero, "tos_" contains a non-zero value ==> true.
-  __ Ret();
 
-  // Return 0 in "tos_" for false.
-  __ bind(&false_result);
-  __ mov(tos_, zero_reg);
-  __ Ret();
+void ToBooleanStub::GenerateTypeTransition(MacroAssembler* masm) {
+  __ Move(a3, tos_);
+  __ li(a2, Operand(Smi::FromInt(tos_.code())));
+  __ li(a1, Operand(Smi::FromInt(types_.ToByte())));
+  __ Push(a3, a2, a1);
+  // Patch the caller to an appropriate specialized stub and return the
+  // operation result to the caller of the stub.
+  __ TailCallExternalReference(
+      ExternalReference(IC_Utility(IC::kToBoolean_Patch), masm->isolate()),
+      3,
+      1);
 }
 
 
@@ -1951,12 +1955,13 @@ void UnaryOpStub::GenerateHeapNumberCodeSub(MacroAssembler* masm,
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(a0);
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ mov(a1, v0);
-    __ pop(a0);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(a0);
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ mov(a1, v0);
+      __ pop(a0);
+    }
 
     __ bind(&heapnumber_allocated);
     __ lw(a3, FieldMemOperand(a0, HeapNumber::kMantissaOffset));
@@ -1998,13 +2003,14 @@ void UnaryOpStub::GenerateHeapNumberCodeBitNot(
     __ jmp(&heapnumber_allocated);
 
     __ bind(&slow_allocate_heapnumber);
-    __ EnterInternalFrame();
-    __ push(v0);  // Push the heap number, not the untagged int32.
-    __ CallRuntime(Runtime::kNumberAlloc, 0);
-    __ mov(a2, v0);  // Move the new heap number into a2.
-    // Get the heap number into v0, now that the new heap number is in a2.
-    __ pop(v0);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(v0);  // Push the heap number, not the untagged int32.
+      __ CallRuntime(Runtime::kNumberAlloc, 0);
+      __ mov(a2, v0);  // Move the new heap number into a2.
+      // Get the heap number into v0, now that the new heap number is in a2.
+      __ pop(v0);
+    }
 
     // Convert the heap number in v0 to an untagged integer in a1.
     // This can't go slow-case because it's the same number we already
@@ -2717,26 +2723,16 @@ void BinaryOpStub::GenerateInt32Stub(MacroAssembler* masm) {
           // Otherwise return a heap number if allowed, or jump to type
           // transition.
 
-          // NOTE: ARM uses a MacroAssembler function here (EmitVFPTruncate).
-          // On MIPS a lot of things cannot be implemented the same way so right
-          // now it makes a lot more sense to just do things manually.
-
-          // Save FCSR.
-          __ cfc1(scratch1, FCSR);
-          // Disable FPU exceptions.
-          __ ctc1(zero_reg, FCSR);
-          __ trunc_w_d(single_scratch, f10);
-          // Retrieve FCSR.
-          __ cfc1(scratch2, FCSR);
-          // Restore FCSR.
-          __ ctc1(scratch1, FCSR);
-
-          // Check for inexact conversion or exception.
-          __ And(scratch2, scratch2, kFCSRFlagMask);
+          Register except_flag = scratch2;
+          __ EmitFPUTruncate(kRoundToZero,
+                             single_scratch,
+                             f10,
+                             scratch1,
+                             except_flag);
 
           if (result_type_ <= BinaryOpIC::INT32) {
-            // If scratch2 != 0, result does not fit in a 32-bit integer.
-            __ Branch(&transition, ne, scratch2, Operand(zero_reg));
+            // If except_flag != 0, result does not fit in a 32-bit integer.
+            __ Branch(&transition, ne, except_flag, Operand(zero_reg));
           }
 
           // Check if the result fits in a smi.
@@ -3225,7 +3221,6 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ lw(t0, MemOperand(cache_entry, 0));
     __ lw(t1, MemOperand(cache_entry, 4));
     __ lw(t2, MemOperand(cache_entry, 8));
-    __ Addu(cache_entry, cache_entry, 12);
     __ Branch(&calculate, ne, a2, Operand(t0));
     __ Branch(&calculate, ne, a3, Operand(t1));
     // Cache hit. Load result, cleanup and return.
@@ -3259,13 +3254,13 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     // Register a0 holds precalculated cache entry address; preserve
     // it on the stack and pop it into register cache_entry after the
     // call.
-    __ push(cache_entry);
+    __ Push(cache_entry, a2, a3);
     GenerateCallCFunction(masm, scratch0);
     __ GetCFunctionDoubleResult(f4);
 
     // Try to update the cache. If we cannot allocate a
     // heap number, we return the result without updating.
-    __ pop(cache_entry);
+    __ Pop(cache_entry, a2, a3);
     __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(t2, scratch0, scratch1, t1, &no_update);
     __ sdc1(f4, FieldMemOperand(t2, HeapNumber::kValueOffset));
@@ -3283,10 +3278,11 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
     __ LoadRoot(t1, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(a0, scratch0, scratch1, t1, &skip_cache);
     __ sdc1(f4, FieldMemOperand(a0, HeapNumber::kValueOffset));
-    __ EnterInternalFrame();
-    __ push(a0);
-    __ CallRuntime(RuntimeFunction(), 1);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ push(a0);
+      __ CallRuntime(RuntimeFunction(), 1);
+    }
     __ ldc1(f4, FieldMemOperand(v0, HeapNumber::kValueOffset));
     __ Ret();
 
@@ -3299,14 +3295,15 @@ void TranscendentalCacheStub::Generate(MacroAssembler* masm) {
 
     // We return the value in f4 without adding it to the cache, but
     // we cause a scavenging GC so that future allocations will succeed.
-    __ EnterInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
 
-    // Allocate an aligned object larger than a HeapNumber.
-    ASSERT(4 * kPointerSize >= HeapNumber::kSize);
-    __ li(scratch0, Operand(4 * kPointerSize));
-    __ push(scratch0);
-    __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
-    __ LeaveInternalFrame();
+      // Allocate an aligned object larger than a HeapNumber.
+      ASSERT(4 * kPointerSize >= HeapNumber::kSize);
+      __ li(scratch0, Operand(4 * kPointerSize));
+      __ push(scratch0);
+      __ CallRuntimeSaveDoubles(Runtime::kAllocateInNewSpace);
+    }
     __ Ret();
   }
 }
@@ -3317,22 +3314,26 @@ void TranscendentalCacheStub::GenerateCallCFunction(MacroAssembler* masm,
   __ push(ra);
   __ PrepareCallCFunction(2, scratch);
   if (IsMipsSoftFloatABI) {
-    __ Move(v0, v1, f4);
+    __ Move(a0, a1, f4);
   } else {
     __ mov_d(f12, f4);
   }
+  AllowExternalCallThatCantCauseGC scope(masm);
   switch (type_) {
     case TranscendentalCache::SIN:
       __ CallCFunction(
-          ExternalReference::math_sin_double_function(masm->isolate()), 2);
+          ExternalReference::math_sin_double_function(masm->isolate()),
+          0, 1);
       break;
     case TranscendentalCache::COS:
       __ CallCFunction(
-          ExternalReference::math_cos_double_function(masm->isolate()), 2);
+          ExternalReference::math_cos_double_function(masm->isolate()),
+          0, 1);
       break;
     case TranscendentalCache::LOG:
       __ CallCFunction(
-          ExternalReference::math_log_double_function(masm->isolate()), 2);
+          ExternalReference::math_log_double_function(masm->isolate()),
+          0, 1);
       break;
     default:
       UNIMPLEMENTED();
@@ -3415,12 +3416,15 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           heapnumbermap,
                           &call_runtime);
     __ push(ra);
-    __ PrepareCallCFunction(3, scratch);
+    __ PrepareCallCFunction(1, 1, scratch);
     __ SetCallCDoubleArguments(double_base, exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_int_function(masm->isolate()), 3);
-    __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ CallCFunction(
+          ExternalReference::power_double_int_function(masm->isolate()), 1, 1);
+      __ pop(ra);
+      __ GetCFunctionDoubleResult(double_result);
+    }
     __ sdc1(double_result,
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     __ mov(v0, heapnumber);
@@ -3443,15 +3447,20 @@ void MathPowStub::Generate(MacroAssembler* masm) {
                           heapnumbermap,
                           &call_runtime);
     __ push(ra);
-    __ PrepareCallCFunction(4, scratch);
+    __ PrepareCallCFunction(0, 2, scratch);
     // ABI (o32) for func(double a, double b): a in f12, b in f14.
     ASSERT(double_base.is(f12));
     ASSERT(double_exponent.is(f14));
     __ SetCallCDoubleArguments(double_base, double_exponent);
-    __ CallCFunction(
-        ExternalReference::power_double_double_function(masm->isolate()), 4);
-    __ pop(ra);
-    __ GetCFunctionDoubleResult(double_result);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()),
+          0,
+          2);
+      __ pop(ra);
+      __ GetCFunctionDoubleResult(double_result);
+    }
     __ sdc1(double_result,
             FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
     __ mov(v0, heapnumber);
@@ -3465,6 +3474,24 @@ void MathPowStub::Generate(MacroAssembler* masm) {
 
 bool CEntryStub::NeedsImmovableCode() {
   return true;
+}
+
+
+bool CEntryStub::IsPregenerated() {
+  return (!save_doubles_ || ISOLATE->fp_stubs_generated()) &&
+          result_size_ == 1;
+}
+
+
+void CodeStub::GenerateStubsAheadOfTime() {
+}
+
+
+void CodeStub::GenerateFPStubs() {
+  CEntryStub save_doubles(1);
+  save_doubles.SaveDoubles();
+  Handle<Code> code = save_doubles.GetCode();
+  code->GetIsolate()->set_fp_stubs_generated(true);
 }
 
 
@@ -3493,9 +3520,10 @@ void CEntryStub::GenerateCore(MacroAssembler* masm,
   if (do_gc) {
     // Move result passed in v0 into a0 to call PerformGC.
     __ mov(a0, v0);
-    __ PrepareCallCFunction(1, a1);
+    __ PrepareCallCFunction(1, 0, a1);
     __ CallCFunction(
-        ExternalReference::perform_gc_function(masm->isolate()), 1);
+        ExternalReference::perform_gc_function(masm->isolate()),
+        1, 0);
   }
 
   ExternalReference scope_depth =
@@ -3628,6 +3656,7 @@ void CEntryStub::Generate(MacroAssembler* masm) {
   __ Subu(s1, s1, Operand(kPointerSize));
 
   // Enter the exit frame that transitions from JavaScript to C++.
+  FrameScope scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(save_doubles_);
 
   // Setup argc and the builtin function in callee-saved registers.
@@ -3699,7 +3728,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
     CpuFeatures::Scope scope(FPU);
     // Save callee-saved FPU registers.
     __ MultiPushFPU(kCalleeSavedFPU);
+    // Set up the reserved register for 0.0.
+    __ Move(kDoubleRegZero, 0.0);
   }
+
 
   // Load argv in s0 register.
   int offset_to_argv = (kNumCalleeSaved + 1) * kPointerSize;
@@ -3857,11 +3889,10 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
 // * object: a0 or at sp + 1 * kPointerSize.
 // * function: a1 or at sp.
 //
-// Inlined call site patching is a crankshaft-specific feature that is not
-// implemented on MIPS.
+// An inlined call site may have been generated before calling this stub.
+// In this case the offset to the inline site to patch is passed on the stack,
+// in the safepoint slot for register t0.
 void InstanceofStub::Generate(MacroAssembler* masm) {
-  // This is a crankshaft-specific feature that has not been implemented yet.
-  ASSERT(!HasCallSiteInlineCheck());
   // Call site inlining and patching implies arguments in registers.
   ASSERT(HasArgsInRegisters() || !HasCallSiteInlineCheck());
   // ReturnTrueFalse is only implemented for inlined call sites.
@@ -3874,6 +3905,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   const Register prototype = t0;  // Prototype of the function.
   const Register inline_site = t5;
   const Register scratch = a2;
+
+  const int32_t kDeltaToLoadBoolResult = 4 * kPointerSize;
 
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
@@ -3890,10 +3923,10 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // real lookup and update the call site cache.
   if (!HasCallSiteInlineCheck()) {
     Label miss;
-    __ LoadRoot(t1, Heap::kInstanceofCacheFunctionRootIndex);
-    __ Branch(&miss, ne, function, Operand(t1));
-    __ LoadRoot(t1, Heap::kInstanceofCacheMapRootIndex);
-    __ Branch(&miss, ne, map, Operand(t1));
+    __ LoadRoot(at, Heap::kInstanceofCacheFunctionRootIndex);
+    __ Branch(&miss, ne, function, Operand(at));
+    __ LoadRoot(at, Heap::kInstanceofCacheMapRootIndex);
+    __ Branch(&miss, ne, map, Operand(at));
     __ LoadRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
     __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
@@ -3913,7 +3946,15 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ StoreRoot(function, Heap::kInstanceofCacheFunctionRootIndex);
     __ StoreRoot(map, Heap::kInstanceofCacheMapRootIndex);
   } else {
-    UNIMPLEMENTED_MIPS();
+    ASSERT(HasArgsInRegisters());
+    // Patch the (relocated) inlined map check.
+
+    // The offset was stored in t0 safepoint slot.
+    // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal)
+    __ LoadFromSafepointRegisterSlot(scratch, t0);
+    __ Subu(inline_site, ra, scratch);
+    // Patch the relocated value to map.
+    __ PatchRelocatedValue(inline_site, scratch, map);
   }
 
   // Register mapping: a3 is object map and t0 is function prototype.
@@ -3939,7 +3980,16 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ mov(v0, zero_reg);
     __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
-    UNIMPLEMENTED_MIPS();
+    // Patch the call site to return true.
+    __ LoadRoot(v0, Heap::kTrueValueRootIndex);
+    __ Addu(inline_site, inline_site, Operand(kDeltaToLoadBoolResult));
+    // Get the boolean result location in scratch and patch it.
+    __ PatchRelocatedValue(inline_site, scratch, v0);
+
+    if (!ReturnTrueFalseObject()) {
+      ASSERT_EQ(Smi::FromInt(0), 0);
+      __ mov(v0, zero_reg);
+    }
   }
   __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
@@ -3948,8 +3998,17 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ li(v0, Operand(Smi::FromInt(1)));
     __ StoreRoot(v0, Heap::kInstanceofCacheAnswerRootIndex);
   } else {
-    UNIMPLEMENTED_MIPS();
+    // Patch the call site to return false.
+    __ LoadRoot(v0, Heap::kFalseValueRootIndex);
+    __ Addu(inline_site, inline_site, Operand(kDeltaToLoadBoolResult));
+    // Get the boolean result location in scratch and patch it.
+    __ PatchRelocatedValue(inline_site, scratch, v0);
+
+    if (!ReturnTrueFalseObject()) {
+      __ li(v0, Operand(Smi::FromInt(1)));
+    }
   }
+
   __ DropAndRet(HasArgsInRegisters() ? 0 : 2);
 
   Label object_not_null, object_not_null_or_smi;
@@ -3986,10 +4045,11 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     }
   __ InvokeBuiltin(Builtins::INSTANCE_OF, JUMP_FUNCTION);
   } else {
-    __ EnterInternalFrame();
-    __ Push(a0, a1);
-    __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
-    __ LeaveInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Push(a0, a1);
+      __ InvokeBuiltin(Builtins::INSTANCE_OF, CALL_FUNCTION);
+    }
     __ mov(a0, v0);
     __ LoadRoot(v0, Heap::kTrueValueRootIndex);
     __ DropAndRet(HasArgsInRegisters() ? 0 : 2, eq, a0, Operand(zero_reg));
@@ -4661,8 +4721,7 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
 
   // For arguments 4 and 3 get string length, calculate start of string data
   // and calculate the shift of the index (0 for ASCII and 1 for two byte).
-  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
-  __ Addu(t2, subject, Operand(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ Addu(t2, subject, Operand(SeqString::kHeaderSize - kHeapObjectTag));
   __ Xor(a3, a3, Operand(1));  // 1 for 2-byte str, 0 for 1-byte.
   // Load the length from the original subject string from the previous stack
   // frame. Therefore we have to use fp, which points exactly to two pointer
@@ -4896,7 +4955,7 @@ void RegExpConstructResultStub::Generate(MacroAssembler* masm) {
 
 
 void CallFunctionStub::Generate(MacroAssembler* masm) {
-  Label slow;
+  Label slow, non_function;
 
   // The receiver might implicitly be the global object. This is
   // indicated by passing the hole as the receiver to the call
@@ -4922,7 +4981,7 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Check that the function is really a JavaScript function.
   // a1: pushed function (to be verified)
-  __ JumpIfSmi(a1, &slow);
+  __ JumpIfSmi(a1, &non_function);
   // Get the map of the function object.
   __ GetObjectType(a1, a2, a2);
   __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
@@ -4950,8 +5009,22 @@ void CallFunctionStub::Generate(MacroAssembler* masm) {
 
   // Slow-case: Non-function called.
   __ bind(&slow);
+  // Check for function proxy.
+  __ Branch(&non_function, ne, a2, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ push(a1);  // Put proxy as additional argument.
+  __ li(a0, Operand(argc_ + 1, RelocInfo::NONE));
+  __ li(a2, Operand(0, RelocInfo::NONE));
+  __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY);
+  __ SetCallKind(t1, CALL_AS_FUNCTION);
+  {
+    Handle<Code> adaptor =
+      masm->isolate()->builtins()->ArgumentsAdaptorTrampoline();
+    __ Jump(adaptor, RelocInfo::CODE_TARGET);
+  }
+
   // CALL_NON_FUNCTION expects the non-function callee as receiver (instead
   // of the original receiver from the call site).
+  __ bind(&non_function);
   __ sw(a1, MemOperand(sp, argc_ * kPointerSize));
   __ li(a0, Operand(argc_));  // Setup the number of arguments.
   __ mov(a2, zero_reg);
@@ -6463,39 +6536,25 @@ void ICCompareStub::GenerateHeapNumbers(MacroAssembler* masm) {
     __ Subu(a2, a0, Operand(kHeapObjectTag));
     __ ldc1(f2, MemOperand(a2, HeapNumber::kValueOffset));
 
-    Label fpu_eq, fpu_lt, fpu_gt;
-    // Compare operands (test if unordered).
-    __ c(UN, D, f0, f2);
-    // Don't base result on status bits when a NaN is involved.
-    __ bc1t(&unordered);
-    __ nop();
+    // Return a result of -1, 0, or 1, or use CompareStub for NaNs.
+    Label fpu_eq, fpu_lt;
+    // Test if equal, and also handle the unordered/NaN case.
+    __ BranchF(&fpu_eq, &unordered, eq, f0, f2);
 
-    // Test if equal.
-    __ c(EQ, D, f0, f2);
-    __ bc1t(&fpu_eq);
-    __ nop();
+    // Test if less (unordered case is already handled).
+    __ BranchF(&fpu_lt, NULL, lt, f0, f2);
 
-    // Test if unordered or less (unordered case is already handled).
-    __ c(ULT, D, f0, f2);
-    __ bc1t(&fpu_lt);
-    __ nop();
+    // Otherwise it's greater, so just fall thru, and return.
+    __ Ret(USE_DELAY_SLOT);
+    __ li(v0, Operand(GREATER));  // In delay slot.
 
-    // Otherwise it's greater.
-    __ bc1f(&fpu_gt);
-    __ nop();
-
-    // Return a result of -1, 0, or 1.
     __ bind(&fpu_eq);
-    __ li(v0, Operand(EQUAL));
-    __ Ret();
+    __ Ret(USE_DELAY_SLOT);
+    __ li(v0, Operand(EQUAL));  // In delay slot.
 
     __ bind(&fpu_lt);
-    __ li(v0, Operand(LESS));
-    __ Ret();
-
-    __ bind(&fpu_gt);
-    __ li(v0, Operand(GREATER));
-    __ Ret();
+    __ Ret(USE_DELAY_SLOT);
+    __ li(v0, Operand(LESS));  // In delay slot.
 
     __ bind(&unordered);
   }
@@ -6646,12 +6705,13 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   // Call the runtime system in a fresh internal frame.
   ExternalReference miss = ExternalReference(IC_Utility(IC::kCompareIC_Miss),
                                              masm->isolate());
-  __ EnterInternalFrame();
-  __ Push(a1, a0);
-  __ li(t0, Operand(Smi::FromInt(op_)));
-  __ push(t0);
-  __ CallExternalReference(miss, 3);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(a1, a0);
+    __ li(t0, Operand(Smi::FromInt(op_)));
+    __ push(t0);
+    __ CallExternalReference(miss, 3);
+  }
   // Compute the entry point of the rewritten stub.
   __ Addu(a2, v0, Operand(Code::kHeaderSize - kHeapObjectTag));
   // Restore registers.
@@ -6867,6 +6927,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
 
 void StringDictionaryLookupStub::Generate(MacroAssembler* masm) {
+  // This stub overrides SometimesSetsUpAFrame() to return false.  That means
+  // we cannot call anything that could cause a GC from this stub.
   // Registers:
   //  result: StringDictionary to probe
   //  a1: key

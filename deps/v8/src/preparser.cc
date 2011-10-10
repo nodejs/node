@@ -117,7 +117,18 @@ void PreParser::CheckOctalLiteral(int beg_pos, int end_pos, bool* ok) {
 
 
 PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
+  // (Ecma 262 5th Edition, clause 14):
+  // SourceElement:
+  //    Statement
+  //    FunctionDeclaration
+  //
+  // In harmony mode we allow additionally the following productions
+  // SourceElement:
+  //    LetDeclaration
+
   switch (peek()) {
+    case i::Token::FUNCTION:
+      return ParseFunctionDeclaration(ok);
     case i::Token::LET:
       return ParseVariableStatement(kSourceElement, ok);
     default:
@@ -225,8 +236,19 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
     case i::Token::TRY:
       return ParseTryStatement(ok);
 
-    case i::Token::FUNCTION:
-      return ParseFunctionDeclaration(ok);
+    case i::Token::FUNCTION: {
+      i::Scanner::Location start_location = scanner_->peek_location();
+      Statement statement = ParseFunctionDeclaration(CHECK_OK);
+      i::Scanner::Location end_location = scanner_->location();
+      if (strict_mode()) {
+        ReportMessageAt(start_location.beg_pos, end_location.end_pos,
+                        "strict_function", NULL);
+        *ok = false;
+        return Statement::Default();
+      } else {
+        return statement;
+      }
+    }
 
     case i::Token::DEBUGGER:
       return ParseDebuggerStatement(ok);
@@ -271,14 +293,10 @@ PreParser::Statement PreParser::ParseBlock(bool* ok) {
   //
   Expect(i::Token::LBRACE, CHECK_OK);
   while (peek() != i::Token::RBRACE) {
-    i::Scanner::Location start_location = scanner_->peek_location();
-    Statement statement = ParseSourceElement(CHECK_OK);
-    i::Scanner::Location end_location = scanner_->location();
-    if (strict_mode() && statement.IsFunctionDeclaration()) {
-      ReportMessageAt(start_location.beg_pos, end_location.end_pos,
-                      "strict_function", NULL);
-      *ok = false;
-      return Statement::Default();
+    if (harmony_block_scoping_) {
+      ParseSourceElement(CHECK_OK);
+    } else {
+      ParseStatement(CHECK_OK);
     }
   }
   Expect(i::Token::RBRACE, ok);
@@ -372,18 +390,11 @@ PreParser::Statement PreParser::ParseExpressionOrLabelledStatement(bool* ok) {
 
   Expression expr = ParseExpression(true, CHECK_OK);
   if (expr.IsRawIdentifier()) {
-    if (peek() == i::Token::COLON &&
-        (!strict_mode() || !expr.AsIdentifier().IsFutureReserved())) {
+    ASSERT(!expr.AsIdentifier().IsFutureReserved());
+    ASSERT(!strict_mode() || !expr.AsIdentifier().IsFutureStrictReserved());
+    if (peek() == i::Token::COLON) {
       Consume(i::Token::COLON);
-      i::Scanner::Location start_location = scanner_->peek_location();
-      Statement statement = ParseStatement(CHECK_OK);
-      if (strict_mode() && statement.IsFunctionDeclaration()) {
-        i::Scanner::Location end_location = scanner_->location();
-        ReportMessageAt(start_location.beg_pos, end_location.end_pos,
-                        "strict_function", NULL);
-        *ok = false;
-      }
-      return Statement::Default();
+      return ParseStatement(ok);
     }
     // Preparsing is disabled for extensions (because the extension details
     // aren't passed to lazily compiled functions), so we don't
@@ -513,15 +524,7 @@ PreParser::Statement PreParser::ParseSwitchStatement(bool* ok) {
       Expect(i::Token::DEFAULT, CHECK_OK);
       Expect(i::Token::COLON, CHECK_OK);
     } else {
-      i::Scanner::Location start_location = scanner_->peek_location();
-      Statement statement = ParseStatement(CHECK_OK);
-      if (strict_mode() && statement.IsFunctionDeclaration()) {
-        i::Scanner::Location end_location = scanner_->location();
-        ReportMessageAt(start_location.beg_pos, end_location.end_pos,
-                        "strict_function", NULL);
-        *ok = false;
-        return Statement::Default();
-      }
+      ParseStatement(CHECK_OK);
     }
     token = peek();
   }
@@ -1434,9 +1437,16 @@ PreParser::Identifier PreParser::ParseIdentifier(bool* ok) {
       ReportMessageAt(location.beg_pos, location.end_pos,
                       "reserved_word", NULL);
       *ok = false;
+      return GetIdentifierSymbol();
     }
-      // FALLTHROUGH
     case i::Token::FUTURE_STRICT_RESERVED_WORD:
+      if (strict_mode()) {
+        i::Scanner::Location location = scanner_->location();
+        ReportMessageAt(location.beg_pos, location.end_pos,
+                        "strict_reserved_word", NULL);
+        *ok = false;
+      }
+      // FALLTHROUGH
     case i::Token::IDENTIFIER:
       return GetIdentifierSymbol();
     default:

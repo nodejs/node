@@ -91,7 +91,8 @@
         'test-threads.cc',
         'test-unbound-queue.cc',
         'test-utils.cc',
-        'test-version.cc'
+        'test-version.cc',
+        'test-weakmaps.cc'
       ],
       'conditions': [
         ['v8_target_arch=="ia32"', {
@@ -134,6 +135,12 @@
           'sources': [
             'test-platform-win32.cc',
           ],
+          'msvs_settings': {
+            'VCCLCompilerTool': {
+              # MSVS wants this for gay-{precision,shortest}.cc.
+              'AdditionalOptions': ['/bigobj'],
+            },
+          },
         }],
         ['component=="shared_library"', {
           # cctest can't be built against a shared library, so we need to

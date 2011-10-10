@@ -107,7 +107,7 @@ class LCodeGen;
   V(Integer32ToDouble)                          \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
-  V(IsNullAndBranch)                            \
+  V(IsNilAndBranch)                             \
   V(IsObjectAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
@@ -627,16 +627,17 @@ class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LIsNullAndBranch: public LControlInstruction<1, 0> {
+class LIsNilAndBranch: public LControlInstruction<1, 0> {
  public:
-  explicit LIsNullAndBranch(LOperand* value) {
+  explicit LIsNilAndBranch(LOperand* value) {
     inputs_[0] = value;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(IsNullAndBranch, "is-null-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNullAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch, "is-nil-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(IsNilAndBranch)
 
-  bool is_strict() const { return hydrogen()->is_strict(); }
+  EqualityKind kind() const { return hydrogen()->kind(); }
+  NilValue nil() const { return hydrogen()->nil(); }
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -2159,7 +2160,8 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr, int ast_id);
   void ClearInstructionPendingDeoptimizationEnvironment();
 
-  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env);
+  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
+                                  int* argument_index_accumulator);
 
   void VisitInstruction(HInstruction* current);
 

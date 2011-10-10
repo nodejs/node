@@ -86,14 +86,14 @@ void Context::set_global_proxy(JSObject* object) {
 
 Handle<Object> Context::Lookup(Handle<String> name,
                                ContextLookupFlags flags,
-                               int* index_,
+                               int* index,
                                PropertyAttributes* attributes,
                                BindingFlags* binding_flags) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
-  *index_ = -1;
+  *index = -1;
   *attributes = ABSENT;
   *binding_flags = MISSING_BINDING;
 
@@ -110,70 +110,50 @@ Handle<Object> Context::Lookup(Handle<String> name,
       PrintF("\n");
     }
 
-    // Check extension/with/global object.
-    if (!context->IsBlockContext() && context->has_extension()) {
-      if (context->IsCatchContext()) {
-        // Catch contexts have the variable name in the extension slot.
-        if (name->Equals(String::cast(context->extension()))) {
-          if (FLAG_trace_contexts) {
-            PrintF("=> found in catch context\n");
-          }
-          *index_ = Context::THROWN_OBJECT_INDEX;
-          *attributes = NONE;
-          *binding_flags = MUTABLE_IS_INITIALIZED;
-          return context;
-        }
+    // 1. Check global objects, subjects of with, and extension objects.
+    if (context->IsGlobalContext() ||
+        context->IsWithContext() ||
+        (context->IsFunctionContext() && context->has_extension())) {
+      Handle<JSObject> object(JSObject::cast(context->extension()), isolate);
+      // Context extension objects needs to behave as if they have no
+      // prototype.  So even if we want to follow prototype chains, we need
+      // to only do a local lookup for context extension objects.
+      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
+          object->IsJSContextExtensionObject()) {
+        *attributes = object->GetLocalPropertyAttribute(*name);
       } else {
-        ASSERT(context->IsGlobalContext() ||
-               context->IsFunctionContext() ||
-               context->IsWithContext());
-        // Global, function, and with contexts may have an object in the
-        // extension slot.
-        Handle<JSObject> extension(JSObject::cast(context->extension()),
-                                   isolate);
-        // Context extension objects needs to behave as if they have no
-        // prototype.  So even if we want to follow prototype chains, we
-        // need to only do a local lookup for context extension objects.
-        if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
-            extension->IsJSContextExtensionObject()) {
-          *attributes = extension->GetLocalPropertyAttribute(*name);
-        } else {
-          *attributes = extension->GetPropertyAttribute(*name);
+        *attributes = object->GetPropertyAttribute(*name);
+      }
+      if (*attributes != ABSENT) {
+        if (FLAG_trace_contexts) {
+          PrintF("=> found property in context object %p\n",
+                 reinterpret_cast<void*>(*object));
         }
-        if (*attributes != ABSENT) {
-          // property found
-          if (FLAG_trace_contexts) {
-            PrintF("=> found property in context object %p\n",
-                   reinterpret_cast<void*>(*extension));
-          }
-          return extension;
-        }
+        return object;
       }
     }
 
-    // Check serialized scope information of functions and blocks. Only
-    // functions can have parameters, and a function name.
+    // 2. Check the context proper if it has slots.
     if (context->IsFunctionContext() || context->IsBlockContext()) {
-      // We may have context-local slots.  Check locals in the context.
+      // Use serialized scope information of functions and blocks to search
+      // for the context index.
       Handle<SerializedScopeInfo> scope_info;
       if (context->IsFunctionContext()) {
         scope_info = Handle<SerializedScopeInfo>(
             context->closure()->shared()->scope_info(), isolate);
       } else {
-        ASSERT(context->IsBlockContext());
         scope_info = Handle<SerializedScopeInfo>(
             SerializedScopeInfo::cast(context->extension()), isolate);
       }
-
       Variable::Mode mode;
-      int index = scope_info->ContextSlotIndex(*name, &mode);
-      ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
-      if (index >= 0) {
+      int slot_index = scope_info->ContextSlotIndex(*name, &mode);
+      ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
+      if (slot_index >= 0) {
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
-                 index, mode);
+                 slot_index, mode);
         }
-        *index_ = index;
+        *index = slot_index;
         // Note: Fixed context slots are statically allocated by the compiler.
         // Statically allocated variables always have a statically known mode,
         // which is the mode with which they were declared when added to the
@@ -206,22 +186,34 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
       // Check the slot corresponding to the intermediate context holding
       // only the function name variable.
-      if (follow_context_chain) {
-        int index = scope_info->FunctionContextSlotIndex(*name);
-        if (index >= 0) {
+      if (follow_context_chain && context->IsFunctionContext()) {
+        int function_index = scope_info->FunctionContextSlotIndex(*name);
+        if (function_index >= 0) {
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
-                   index);
+                   function_index);
           }
-          *index_ = index;
+          *index = function_index;
           *attributes = READ_ONLY;
           *binding_flags = IMMUTABLE_IS_INITIALIZED;
           return context;
         }
       }
+
+    } else if (context->IsCatchContext()) {
+      // Catch contexts have the variable name in the extension slot.
+      if (name->Equals(String::cast(context->extension()))) {
+        if (FLAG_trace_contexts) {
+          PrintF("=> found in catch context\n");
+        }
+        *index = Context::THROWN_OBJECT_INDEX;
+        *attributes = NONE;
+        *binding_flags = MUTABLE_IS_INITIALIZED;
+        return context;
+      }
     }
 
-    // Proceed with the previous context.
+    // 3. Prepare to continue with the previous (next outermost) context.
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
     } else {

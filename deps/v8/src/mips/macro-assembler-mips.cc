@@ -42,7 +42,8 @@ namespace internal {
 MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
     : Assembler(arg_isolate, buffer, size),
       generating_stub_(false),
-      allow_stub_calls_(true) {
+      allow_stub_calls_(true),
+      has_frame_(false) {
   if (isolate() != NULL) {
     code_object_ = Handle<Object>(isolate()->heap()->undefined_value(),
                                   isolate());
@@ -119,7 +120,9 @@ void MacroAssembler::PushSafepointRegisters() {
   // stack, so adjust the stack for unsaved registers.
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
   ASSERT(num_unsaved >= 0);
-  Subu(sp, sp, Operand(num_unsaved * kPointerSize));
+  if (num_unsaved > 0) {
+    Subu(sp, sp, Operand(num_unsaved * kPointerSize));
+  }
   MultiPush(kSafepointSavedRegisters);
 }
 
@@ -127,7 +130,9 @@ void MacroAssembler::PushSafepointRegisters() {
 void MacroAssembler::PopSafepointRegisters() {
   const int num_unsaved = kNumSafepointRegisters - kNumSafepointSavedRegisters;
   MultiPop(kSafepointSavedRegisters);
-  Addu(sp, sp, Operand(num_unsaved * kPointerSize));
+  if (num_unsaved > 0) {
+    Addu(sp, sp, Operand(num_unsaved * kPointerSize));
+  }
 }
 
 
@@ -180,13 +185,12 @@ MemOperand MacroAssembler::SafepointRegisterSlot(Register reg) {
 
 
 MemOperand MacroAssembler::SafepointRegistersAndDoublesSlot(Register reg) {
+  UNIMPLEMENTED_MIPS();
   // General purpose registers are pushed last on the stack.
   int doubles_size = FPURegister::kNumAllocatableRegisters * kDoubleSize;
   int register_offset = SafepointRegisterStackIndex(reg.code()) * kPointerSize;
   return MemOperand(sp, doubles_size + register_offset);
 }
-
-
 
 
 void MacroAssembler::InNewSpace(Register object,
@@ -707,7 +711,7 @@ void MacroAssembler::MultiPush(RegList regs) {
   int16_t stack_offset = num_to_push * kPointerSize;
 
   Subu(sp, sp, Operand(stack_offset));
-  for (int16_t i = kNumRegisters; i > 0; i--) {
+  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       stack_offset -= kPointerSize;
       sw(ToRegister(i), MemOperand(sp, stack_offset));
@@ -746,7 +750,7 @@ void MacroAssembler::MultiPop(RegList regs) {
 void MacroAssembler::MultiPopReversed(RegList regs) {
   int16_t stack_offset = 0;
 
-  for (int16_t i = kNumRegisters; i > 0; i--) {
+  for (int16_t i = kNumRegisters - 1; i >= 0; i--) {
     if ((regs & (1 << i)) != 0) {
       lw(ToRegister(i), MemOperand(sp, stack_offset));
       stack_offset += kPointerSize;
@@ -811,6 +815,21 @@ void MacroAssembler::MultiPopReversedFPU(RegList regs) {
     }
   }
   addiu(sp, sp, stack_offset);
+}
+
+
+void MacroAssembler::FlushICache(Register address, unsigned instructions) {
+  RegList saved_regs = kJSCallerSaved | ra.bit();
+  MultiPush(saved_regs);
+  AllowExternalCallThatCantCauseGC scope(this);
+
+  // Save to a0 in case address == t0.
+  Move(a0, address);
+  PrepareCallCFunction(2, t0);
+
+  li(a1, instructions * kInstrSize);
+  CallCFunction(ExternalReference::flush_icache_function(isolate()), 2);
+  MultiPop(saved_regs);
 }
 
 
@@ -940,11 +959,9 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
   mtc1(at, FPURegister::from_code(scratch.code() + 1));
   mtc1(zero_reg, scratch);
   // Test if scratch > fd.
-  c(OLT, D, fd, scratch);
-
-  Label simple_convert;
   // If fd < 2^31 we can convert it normally.
-  bc1t(&simple_convert);
+  Label simple_convert;
+  BranchF(&simple_convert, NULL, lt, fd, scratch);
 
   // First we subtract 2^31 from fd, then trunc it to rs
   // and add 2^31 to rs.
@@ -961,6 +978,102 @@ void MacroAssembler::Trunc_uw_d(FPURegister fd,
   mfc1(rs, scratch);
 
   bind(&done);
+}
+
+
+void MacroAssembler::BranchF(Label* target,
+                             Label* nan,
+                             Condition cc,
+                             FPURegister cmp1,
+                             FPURegister cmp2,
+                             BranchDelaySlot bd) {
+  if (cc == al) {
+    Branch(bd, target);
+    return;
+  }
+
+  ASSERT(nan || target);
+  // Check for unordered (NaN) cases.
+  if (nan) {
+    c(UN, D, cmp1, cmp2);
+    bc1t(nan);
+  }
+
+  if (target) {
+    // Here NaN cases were either handled by this function or are assumed to
+    // have been handled by the caller.
+    // Unsigned conditions are treated as their signed counterpart.
+    switch (cc) {
+      case Uless:
+      case less:
+        c(OLT, D, cmp1, cmp2);
+        bc1t(target);
+        break;
+      case Ugreater:
+      case greater:
+        c(ULE, D, cmp1, cmp2);
+        bc1f(target);
+        break;
+      case Ugreater_equal:
+      case greater_equal:
+        c(ULT, D, cmp1, cmp2);
+        bc1f(target);
+        break;
+      case Uless_equal:
+      case less_equal:
+        c(OLE, D, cmp1, cmp2);
+        bc1t(target);
+        break;
+      case eq:
+        c(EQ, D, cmp1, cmp2);
+        bc1t(target);
+        break;
+      case ne:
+        c(EQ, D, cmp1, cmp2);
+        bc1f(target);
+        break;
+      default:
+        CHECK(0);
+    };
+  }
+
+  if (bd == PROTECT) {
+    nop();
+  }
+}
+
+
+void MacroAssembler::Move(FPURegister dst, double imm) {
+  ASSERT(CpuFeatures::IsEnabled(FPU));
+  static const DoubleRepresentation minus_zero(-0.0);
+  static const DoubleRepresentation zero(0.0);
+  DoubleRepresentation value(imm);
+  // Handle special values first.
+  bool force_load = dst.is(kDoubleRegZero);
+  if (value.bits == zero.bits && !force_load) {
+    mov_d(dst, kDoubleRegZero);
+  } else if (value.bits == minus_zero.bits && !force_load) {
+    neg_d(dst, kDoubleRegZero);
+  } else {
+    uint32_t lo, hi;
+    DoubleAsTwoUInt32(imm, &lo, &hi);
+    // Move the low part of the double into the lower of the corresponding FPU
+    // register of FPU register pair.
+    if (lo != 0) {
+      li(at, Operand(lo));
+      mtc1(at, dst);
+    } else {
+      mtc1(zero_reg, dst);
+    }
+    // Move the high part of the double into the higher of the corresponding FPU
+    // register of FPU register pair.
+    if (hi != 0) {
+      li(at, Operand(hi));
+      mtc1(at, dst.high());
+    } else {
+      mtc1(zero_reg, dst.high());
+    }
+  }
 }
 
 
@@ -1062,6 +1175,53 @@ void MacroAssembler::ConvertToInt32(Register source,
 }
 
 
+void MacroAssembler::EmitFPUTruncate(FPURoundingMode rounding_mode,
+                                     FPURegister result,
+                                     DoubleRegister double_input,
+                                     Register scratch1,
+                                     Register except_flag,
+                                     CheckForInexactConversion check_inexact) {
+  ASSERT(CpuFeatures::IsSupported(FPU));
+  CpuFeatures::Scope scope(FPU);
+
+  int32_t except_mask = kFCSRFlagMask;  // Assume interested in all exceptions.
+
+  if (check_inexact == kDontCheckForInexactConversion) {
+    // Ingore inexact exceptions.
+    except_mask &= ~kFCSRInexactFlagMask;
+  }
+
+  // Save FCSR.
+  cfc1(scratch1, FCSR);
+  // Disable FPU exceptions.
+  ctc1(zero_reg, FCSR);
+
+  // Do operation based on rounding mode.
+  switch (rounding_mode) {
+    case kRoundToNearest:
+      round_w_d(result, double_input);
+      break;
+    case kRoundToZero:
+      trunc_w_d(result, double_input);
+      break;
+    case kRoundToPlusInf:
+      ceil_w_d(result, double_input);
+      break;
+    case kRoundToMinusInf:
+      floor_w_d(result, double_input);
+      break;
+  }  // End of switch-statement.
+
+  // Retrieve FCSR.
+  cfc1(except_flag, FCSR);
+  // Restore FCSR.
+  ctc1(scratch1, FCSR);
+
+  // Check for fpu exceptions.
+  And(except_flag, except_flag, Operand(except_mask));
+}
+
+
 void MacroAssembler::EmitOutOfInt32RangeTruncate(Register result,
                                                  Register input_high,
                                                  Register input_low,
@@ -1148,22 +1308,21 @@ void MacroAssembler::EmitECMATruncate(Register result,
                                       FPURegister double_input,
                                       FPURegister single_scratch,
                                       Register scratch,
-                                      Register input_high,
-                                      Register input_low) {
+                                      Register scratch2,
+                                      Register scratch3) {
   CpuFeatures::Scope scope(FPU);
-  ASSERT(!input_high.is(result));
-  ASSERT(!input_low.is(result));
-  ASSERT(!input_low.is(input_high));
+  ASSERT(!scratch2.is(result));
+  ASSERT(!scratch3.is(result));
+  ASSERT(!scratch3.is(scratch2));
   ASSERT(!scratch.is(result) &&
-         !scratch.is(input_high) &&
-         !scratch.is(input_low));
+         !scratch.is(scratch2) &&
+         !scratch.is(scratch3));
   ASSERT(!single_scratch.is(double_input));
 
   Label done;
   Label manual;
 
   // Clear cumulative exception flags and save the FCSR.
-  Register scratch2 = input_high;
   cfc1(scratch2, FCSR);
   ctc1(zero_reg, FCSR);
   // Try a conversion to a signed integer.
@@ -1180,6 +1339,8 @@ void MacroAssembler::EmitECMATruncate(Register result,
   Branch(&done, eq, scratch, Operand(zero_reg));
 
   // Load the double value and perform a manual truncation.
+  Register input_high = scratch2;
+  Register input_low = scratch3;
   Move(input_low, input_high, double_input);
   EmitOutOfInt32RangeTruncate(result,
                               input_high,
@@ -1211,15 +1372,6 @@ void MacroAssembler::GetLeastBitsFromInt32(Register dst,
     (cond != cc_always && (!rs.is(zero_reg) || !rt.rm().is(zero_reg))))
 
 
-bool MacroAssembler::UseAbsoluteCodePointers() {
-  if (is_trampoline_emitted()) {
-    return true;
-  } else {
-    return false;
-  }
-}
-
-
 void MacroAssembler::Branch(int16_t offset, BranchDelaySlot bdslot) {
   BranchShort(offset, bdslot);
 }
@@ -1233,11 +1385,18 @@ void MacroAssembler::Branch(int16_t offset, Condition cond, Register rs,
 
 
 void MacroAssembler::Branch(Label* L, BranchDelaySlot bdslot) {
-  bool is_label_near = is_near(L);
-  if (UseAbsoluteCodePointers() && !is_label_near) {
-    Jr(L, bdslot);
+  if (L->is_bound()) {
+    if (is_near(L)) {
+      BranchShort(L, bdslot);
+    } else {
+      Jr(L, bdslot);
+    }
   } else {
-    BranchShort(L, bdslot);
+    if (is_trampoline_emitted()) {
+      Jr(L, bdslot);
+    } else {
+      BranchShort(L, bdslot);
+    }
   }
 }
 
@@ -1245,15 +1404,26 @@ void MacroAssembler::Branch(Label* L, BranchDelaySlot bdslot) {
 void MacroAssembler::Branch(Label* L, Condition cond, Register rs,
                             const Operand& rt,
                             BranchDelaySlot bdslot) {
-  bool is_label_near = is_near(L);
-  if (UseAbsoluteCodePointers() && !is_label_near) {
-    Label skip;
-    Condition neg_cond = NegateCondition(cond);
-    BranchShort(&skip, neg_cond, rs, rt);
-    Jr(L, bdslot);
-    bind(&skip);
+  if (L->is_bound()) {
+    if (is_near(L)) {
+      BranchShort(L, cond, rs, rt, bdslot);
+    } else {
+      Label skip;
+      Condition neg_cond = NegateCondition(cond);
+      BranchShort(&skip, neg_cond, rs, rt);
+      Jr(L, bdslot);
+      bind(&skip);
+    }
   } else {
-    BranchShort(L, cond, rs, rt, bdslot);
+    if (is_trampoline_emitted()) {
+      Label skip;
+      Condition neg_cond = NegateCondition(cond);
+      BranchShort(&skip, neg_cond, rs, rt);
+      Jr(L, bdslot);
+      bind(&skip);
+    } else {
+      BranchShort(L, cond, rs, rt, bdslot);
+    }
   }
 }
 
@@ -1276,8 +1446,8 @@ void MacroAssembler::BranchShort(int16_t offset, Condition cond, Register rs,
   Register scratch = at;
 
   if (rt.is_reg()) {
-    // We don't want any other register but scratch clobbered.
-    ASSERT(!scratch.is(rs) && !scratch.is(rt.rm_));
+    // NOTE: 'at' can be clobbered by Branch but it is legal to use it as rs or
+    // rt.
     r2 = rt.rm_;
     switch (cond) {
       case cc_always:
@@ -1779,11 +1949,18 @@ void MacroAssembler::BranchAndLink(int16_t offset, Condition cond, Register rs,
 
 
 void MacroAssembler::BranchAndLink(Label* L, BranchDelaySlot bdslot) {
-  bool is_label_near = is_near(L);
-  if (UseAbsoluteCodePointers() && !is_label_near) {
-    Jalr(L, bdslot);
+  if (L->is_bound()) {
+    if (is_near(L)) {
+      BranchAndLinkShort(L, bdslot);
+    } else {
+      Jalr(L, bdslot);
+    }
   } else {
-    BranchAndLinkShort(L, bdslot);
+    if (is_trampoline_emitted()) {
+      Jalr(L, bdslot);
+    } else {
+      BranchAndLinkShort(L, bdslot);
+    }
   }
 }
 
@@ -1791,15 +1968,26 @@ void MacroAssembler::BranchAndLink(Label* L, BranchDelaySlot bdslot) {
 void MacroAssembler::BranchAndLink(Label* L, Condition cond, Register rs,
                                    const Operand& rt,
                                    BranchDelaySlot bdslot) {
-  bool is_label_near = is_near(L);
-  if (UseAbsoluteCodePointers() && !is_label_near) {
-    Label skip;
-    Condition neg_cond = NegateCondition(cond);
-    BranchShort(&skip, neg_cond, rs, rt);
-    Jalr(L, bdslot);
-    bind(&skip);
+  if (L->is_bound()) {
+    if (is_near(L)) {
+      BranchAndLinkShort(L, cond, rs, rt, bdslot);
+    } else {
+      Label skip;
+      Condition neg_cond = NegateCondition(cond);
+      BranchShort(&skip, neg_cond, rs, rt);
+      Jalr(L, bdslot);
+      bind(&skip);
+    }
   } else {
-    BranchAndLinkShort(L, cond, rs, rt, bdslot);
+    if (is_trampoline_emitted()) {
+      Label skip;
+      Condition neg_cond = NegateCondition(cond);
+      BranchShort(&skip, neg_cond, rs, rt);
+      Jalr(L, bdslot);
+      bind(&skip);
+    } else {
+      BranchAndLinkShort(L, cond, rs, rt, bdslot);
+    }
   }
 }
 
@@ -2306,10 +2494,10 @@ void MacroAssembler::Push(Handle<Object> handle) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
 
 void MacroAssembler::DebugBreak() {
-  ASSERT(allow_stub_calls());
   mov(a0, zero_reg);
   li(a1, Operand(ExternalReference(Runtime::kDebugBreak, isolate())));
   CEntryStub ces(1);
+  ASSERT(AllowThisStubCall(&ces));
   Call(ces.GetCode(), RelocInfo::DEBUG_BREAK);
 }
 
@@ -2975,7 +3163,8 @@ void MacroAssembler::CopyBytes(Register src,
 void MacroAssembler::CheckFastElements(Register map,
                                        Register scratch,
                                        Label* fail) {
-  STATIC_ASSERT(FAST_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_SMI_ONLY_ELEMENTS == 0);
+  STATIC_ASSERT(FAST_ELEMENTS == 1);
   lbu(scratch, FieldMemOperand(map, Map::kBitField2Offset));
   Branch(fail, hi, scratch, Operand(Map::kMaximumBitField2FastElementValue));
 }
@@ -3171,13 +3360,18 @@ void MacroAssembler::InvokeCode(Register code,
                                 InvokeFlag flag,
                                 const CallWrapper& call_wrapper,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
 
   InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
                  call_wrapper, call_kind);
   if (flag == CALL_FUNCTION) {
+    call_wrapper.BeforeCall(CallSize(code));
     SetCallKind(t1, call_kind);
     Call(code);
+    call_wrapper.AfterCall();
   } else {
     ASSERT(flag == JUMP_FUNCTION);
     SetCallKind(t1, call_kind);
@@ -3195,6 +3389,9 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
                                 RelocInfo::Mode rmode,
                                 InvokeFlag flag,
                                 CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   Label done;
 
   InvokePrologue(expected, actual, code, no_reg, &done, flag,
@@ -3217,6 +3414,9 @@ void MacroAssembler::InvokeFunction(Register function,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   // Contract with called JS functions requires that function is passed in a1.
   ASSERT(function.is(a1));
   Register expected_reg = a2;
@@ -3239,6 +3439,9 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
                                     CallKind call_kind) {
+  // You can't call a function without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   ASSERT(function->is_compiled());
 
   // Get the function and setup the context.
@@ -3249,7 +3452,11 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
   if (V8::UseCrankshaft()) {
-    UNIMPLEMENTED_MIPS();
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+    InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
   } else {
     InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
   }
@@ -3349,14 +3556,14 @@ void MacroAssembler::GetObjectType(Register object,
 
 void MacroAssembler::CallStub(CodeStub* stub, Condition cond,
                               Register r1, const Operand& r2) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Call(stub->GetCode(), RelocInfo::CODE_TARGET, kNoASTId, cond, r1, r2);
 }
 
 
 MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond,
                                          Register r1, const Operand& r2) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  ASSERT(AllowThisStubCall(stub));  // Stub calls are not allowed in some stubs.
   Object* result;
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3368,7 +3575,7 @@ MaybeObject* MacroAssembler::TryCallStub(CodeStub* stub, Condition cond,
 
 
 void MacroAssembler::TailCallStub(CodeStub* stub) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
+  ASSERT(allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe());
   Jump(stub->GetCode(), RelocInfo::CODE_TARGET);
 }
 
@@ -3377,7 +3584,6 @@ MaybeObject* MacroAssembler::TryTailCallStub(CodeStub* stub,
                                              Condition cond,
                                              Register r1,
                                              const Operand& r2) {
-  ASSERT(allow_stub_calls());  // Stub calls are not allowed in some stubs.
   Object* result;
   { MaybeObject* maybe_result = stub->TryGetCode();
     if (!maybe_result->ToObject(&result)) return maybe_result;
@@ -3486,6 +3692,12 @@ MaybeObject* MacroAssembler::TryCallApiFunctionAndReturn(
 }
 
 
+bool MacroAssembler::AllowThisStubCall(CodeStub* stub) {
+  if (!has_frame_ && stub->SometimesSetsUpAFrame()) return false;
+  return allow_stub_calls_ || stub->CompilingCallsToThisStubIsGCSafe();
+}
+
+
 void MacroAssembler::IllegalOperation(int num_arguments) {
   if (num_arguments > 0) {
     addiu(sp, sp, num_arguments * kPointerSize);
@@ -3566,7 +3778,16 @@ void MacroAssembler::AdduAndCheckForOverflow(Register dst,
   ASSERT(!overflow_dst.is(scratch));
   ASSERT(!overflow_dst.is(left));
   ASSERT(!overflow_dst.is(right));
-  ASSERT(!left.is(right));
+
+  if (left.is(right) && dst.is(left)) {
+    ASSERT(!dst.is(t9));
+    ASSERT(!scratch.is(t9));
+    ASSERT(!left.is(t9));
+    ASSERT(!right.is(t9));
+    ASSERT(!overflow_dst.is(t9));
+    mov(t9, right);
+    right = t9;
+  }
 
   if (dst.is(left)) {
     mov(scratch, left);  // Preserve left.
@@ -3599,9 +3820,16 @@ void MacroAssembler::SubuAndCheckForOverflow(Register dst,
   ASSERT(!overflow_dst.is(scratch));
   ASSERT(!overflow_dst.is(left));
   ASSERT(!overflow_dst.is(right));
-  ASSERT(!left.is(right));
   ASSERT(!scratch.is(left));
   ASSERT(!scratch.is(right));
+
+  // This happens with some crankshaft code. Since Subu works fine if
+  // left == right, let's not make that restriction here.
+  if (left.is(right)) {
+    mov(dst, zero_reg);
+    mov(overflow_dst, zero_reg);
+    return;
+  }
 
   if (dst.is(left)) {
     mov(scratch, left);  // Preserve left.
@@ -3722,6 +3950,9 @@ MaybeObject* MacroAssembler::TryJumpToExternalReference(
 void MacroAssembler::InvokeBuiltin(Builtins::JavaScript id,
                                    InvokeFlag flag,
                                    const CallWrapper& call_wrapper) {
+  // You can't call a builtin without a valid frame.
+  ASSERT(flag == JUMP_FUNCTION || has_frame());
+
   GetBuiltinEntry(t9, id);
   if (flag == CALL_FUNCTION) {
     call_wrapper.BeforeCall(CallSize(t9));
@@ -3854,14 +4085,20 @@ void MacroAssembler::Abort(const char* msg) {
     RecordComment(msg);
   }
 #endif
-  // Disable stub call restrictions to always allow calls to abort.
-  AllowStubCallsScope allow_scope(this, true);
 
   li(a0, Operand(p0));
   push(a0);
   li(a0, Operand(Smi::FromInt(p1 - p0)));
   push(a0);
-  CallRuntime(Runtime::kAbort, 2);
+  // Disable stub call restrictions to always allow calls to abort.
+  if (!has_frame_) {
+    // We don't actually want to generate a pile of code for this, so just
+    // claim there is a stack frame, without generating one.
+    FrameScope scope(this, StackFrame::NONE);
+    CallRuntime(Runtime::kAbort, 2);
+  } else {
+    CallRuntime(Runtime::kAbort, 2);
+  }
   // Will not return here.
   if (is_trampoline_pool_blocked()) {
     // If the calling code cares about the exact number of
@@ -4245,7 +4482,23 @@ void MacroAssembler::JumpIfInstanceTypeIsNotSequentialAscii(Register type,
 
 static const int kRegisterPassedArguments = 4;
 
-void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
+int MacroAssembler::CalculateStackPassedWords(int num_reg_arguments,
+                                              int num_double_arguments) {
+  int stack_passed_words = 0;
+  num_reg_arguments += 2 * num_double_arguments;
+
+  // Up to four simple arguments are passed in registers a0..a3.
+  if (num_reg_arguments > kRegisterPassedArguments) {
+    stack_passed_words += num_reg_arguments - kRegisterPassedArguments;
+  }
+  stack_passed_words += kCArgSlotCount;
+  return stack_passed_words;
+}
+
+
+void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
+                                          int num_double_arguments,
+                                          Register scratch) {
   int frame_alignment = ActivationFrameAlignment();
 
   // Up to four simple arguments are passed in registers a0..a3.
@@ -4253,9 +4506,8 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
   // mips, even though those argument slots are not normally used.
   // Remaining arguments are pushed on the stack, above (higher address than)
   // the argument slots.
-  int stack_passed_arguments = ((num_arguments <= kRegisterPassedArguments) ?
-                                 0 : num_arguments - kRegisterPassedArguments) +
-                                kCArgSlotCount;
+  int stack_passed_arguments = CalculateStackPassedWords(
+      num_reg_arguments, num_double_arguments);
   if (frame_alignment > kPointerSize) {
     // Make stack end at alignment and make room for num_arguments - 4 words
     // and the original value of sp.
@@ -4270,26 +4522,54 @@ void MacroAssembler::PrepareCallCFunction(int num_arguments, Register scratch) {
 }
 
 
+void MacroAssembler::PrepareCallCFunction(int num_reg_arguments,
+                                          Register scratch) {
+  PrepareCallCFunction(num_reg_arguments, 0, scratch);
+}
+
+
+void MacroAssembler::CallCFunction(ExternalReference function,
+                                   int num_reg_arguments,
+                                   int num_double_arguments) {
+  CallCFunctionHelper(no_reg,
+                      function,
+                      t8,
+                      num_reg_arguments,
+                      num_double_arguments);
+}
+
+
+void MacroAssembler::CallCFunction(Register function,
+                                   Register scratch,
+                                   int num_reg_arguments,
+                                   int num_double_arguments) {
+  CallCFunctionHelper(function,
+                      ExternalReference::the_hole_value_location(isolate()),
+                      scratch,
+                      num_reg_arguments,
+                      num_double_arguments);
+}
+
+
 void MacroAssembler::CallCFunction(ExternalReference function,
                                    int num_arguments) {
-  CallCFunctionHelper(no_reg, function, t8, num_arguments);
+  CallCFunction(function, num_arguments, 0);
 }
 
 
 void MacroAssembler::CallCFunction(Register function,
                                    Register scratch,
                                    int num_arguments) {
-  CallCFunctionHelper(function,
-                      ExternalReference::the_hole_value_location(isolate()),
-                      scratch,
-                      num_arguments);
+  CallCFunction(function, scratch, num_arguments, 0);
 }
 
 
 void MacroAssembler::CallCFunctionHelper(Register function,
                                          ExternalReference function_reference,
                                          Register scratch,
-                                         int num_arguments) {
+                                         int num_reg_arguments,
+                                         int num_double_arguments) {
+  ASSERT(has_frame());
   // Make sure that the stack is aligned before calling a C function unless
   // running in the simulator. The simulator has its own alignment check which
   // provides more information.
@@ -4327,9 +4607,8 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 
   Call(function);
 
-  int stack_passed_arguments = ((num_arguments <= kRegisterPassedArguments) ?
-                                0 : num_arguments - kRegisterPassedArguments) +
-                               kCArgSlotCount;
+  int stack_passed_arguments = CalculateStackPassedWords(
+      num_reg_arguments, num_double_arguments);
 
   if (OS::ActivationFrameAlignment() > kPointerSize) {
     lw(sp, MemOperand(sp, stack_passed_arguments * kPointerSize));
@@ -4342,6 +4621,37 @@ void MacroAssembler::CallCFunctionHelper(Register function,
 #undef BRANCH_ARGS_CHECK
 
 
+void MacroAssembler::PatchRelocatedValue(Register li_location,
+                                         Register scratch,
+                                         Register new_value) {
+  lw(scratch, MemOperand(li_location));
+  // At this point scratch is a lui(at, ...) instruction.
+  if (emit_debug_code()) {
+    And(scratch, scratch, kOpcodeMask);
+    Check(eq, "The instruction to patch should be a lui.",
+        scratch, Operand(LUI));
+    lw(scratch, MemOperand(li_location));
+  }
+  srl(t9, new_value, kImm16Bits);
+  Ins(scratch, t9, 0, kImm16Bits);
+  sw(scratch, MemOperand(li_location));
+
+  lw(scratch, MemOperand(li_location, kInstrSize));
+  // scratch is now ori(at, ...).
+  if (emit_debug_code()) {
+    And(scratch, scratch, kOpcodeMask);
+    Check(eq, "The instruction to patch should be an ori.",
+        scratch, Operand(ORI));
+    lw(scratch, MemOperand(li_location, kInstrSize));
+  }
+  Ins(scratch, new_value, 0, kImm16Bits);
+  sw(scratch, MemOperand(li_location, kInstrSize));
+
+  // Update the I-cache so the new lui and ori can be executed.
+  FlushICache(li_location, 2);
+}
+
+
 void MacroAssembler::LoadInstanceDescriptors(Register map,
                                              Register descriptors) {
   lw(descriptors,
@@ -4350,6 +4660,49 @@ void MacroAssembler::LoadInstanceDescriptors(Register map,
   JumpIfNotSmi(descriptors, &not_smi);
   li(descriptors, Operand(FACTORY->empty_descriptor_array()));
   bind(&not_smi);
+}
+
+
+void MacroAssembler::ClampUint8(Register output_reg, Register input_reg) {
+  ASSERT(!output_reg.is(input_reg));
+  Label done;
+  li(output_reg, Operand(255));
+  // Normal branch: nop in delay slot.
+  Branch(&done, gt, input_reg, Operand(output_reg));
+  // Use delay slot in this branch.
+  Branch(USE_DELAY_SLOT, &done, lt, input_reg, Operand(zero_reg));
+  mov(output_reg, zero_reg);  // In delay slot.
+  mov(output_reg, input_reg);  // Value is in range 0..255.
+  bind(&done);
+}
+
+
+void MacroAssembler::ClampDoubleToUint8(Register result_reg,
+                                        DoubleRegister input_reg,
+                                        DoubleRegister temp_double_reg) {
+  Label above_zero;
+  Label done;
+  Label in_bounds;
+
+  Move(temp_double_reg, 0.0);
+  BranchF(&above_zero, NULL, gt, input_reg, temp_double_reg);
+
+  // Double value is less than zero, NaN or Inf, return 0.
+  mov(result_reg, zero_reg);
+  Branch(&done);
+
+  // Double value is >= 255, return 255.
+  bind(&above_zero);
+  Move(temp_double_reg, 255.0);
+  BranchF(&in_bounds, NULL, le, input_reg, temp_double_reg);
+  li(result_reg, Operand(255));
+  Branch(&done);
+
+  // In 0-255 range, round and truncate.
+  bind(&in_bounds);
+  round_w_d(temp_double_reg, input_reg);
+  mfc1(result_reg, temp_double_reg);
+  bind(&done);
 }
 
 

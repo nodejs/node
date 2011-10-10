@@ -70,6 +70,12 @@ class FuncNameInferrer : public ZoneObject {
     }
   }
 
+  void RemoveLastFunction() {
+    if (IsOpen() && !funcs_to_infer_.is_empty()) {
+      funcs_to_infer_.RemoveLast();
+    }
+  }
+
   // Infers a function name and leaves names collection state.
   void Infer() {
     ASSERT(IsOpen());

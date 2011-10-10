@@ -355,7 +355,7 @@ function IN(x) {
   if (!IS_SPEC_OBJECT(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
-  return %_IsNonNegativeSmi(this) && !%IsJSProxy(x) ?
+  return %_IsNonNegativeSmi(this) ?
     %HasElement(x, this) : %HasProperty(x, %ToString(this));
 }
 
@@ -429,20 +429,10 @@ function CALL_FUNCTION_PROXY() {
 }
 
 
-function CALL_FUNCTION_PROXY_AS_CONSTRUCTOR(proxy) {
-  var arity = %_ArgumentsLength() - 1;
+function CALL_FUNCTION_PROXY_AS_CONSTRUCTOR() {
+  var proxy = this;
   var trap = %GetConstructTrap(proxy);
-  var receiver = void 0;
-  if (!IS_UNDEFINED(trap)) {
-    trap = %GetCallTrap(proxy);
-    var proto = proxy.prototype;
-    if (!IS_SPEC_OBJECT(proto) && proto !== null) {
-      throw MakeTypeError("proto_object_or_null", [proto]);
-    }
-    receiver = new global.Object();
-    receiver.__proto__ = proto;
-  }
-  return %Apply(trap, this, arguments, 1, arity);
+  return %Apply(trap, this, arguments, 0, %_ArgumentsLength());
 }
 
 

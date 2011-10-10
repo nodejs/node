@@ -504,21 +504,22 @@ static void GenerateCallMiss(MacroAssembler* masm,
   // Get the receiver of the function from the stack.
   __ lw(a3, MemOperand(sp, argc*kPointerSize));
 
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Push the receiver and the name of the function.
-  __ Push(a3, a2);
+    // Push the receiver and the name of the function.
+    __ Push(a3, a2);
 
-  // Call the entry.
-  __ li(a0, Operand(2));
-  __ li(a1, Operand(ExternalReference(IC_Utility(id), isolate)));
+    // Call the entry.
+    __ li(a0, Operand(2));
+    __ li(a1, Operand(ExternalReference(IC_Utility(id), isolate)));
 
-  CEntryStub stub(1);
-  __ CallStub(&stub);
+    CEntryStub stub(1);
+    __ CallStub(&stub);
 
-  // Move result to a1 and leave the internal frame.
-  __ mov(a1, v0);
-  __ LeaveInternalFrame();
+    // Move result to a1 and leave the internal frame.
+    __ mov(a1, v0);
+  }
 
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
@@ -649,12 +650,13 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // This branch is taken when calling KeyedCallIC_Miss is neither required
   // nor beneficial.
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1, a0, a3);
-  __ EnterInternalFrame();
-  __ push(a2);  // Save the key.
-  __ Push(a1, a2);  // Pass the receiver and the key.
-  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
-  __ pop(a2);  // Restore the key.
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(a2);  // Save the key.
+    __ Push(a1, a2);  // Pass the receiver and the key.
+    __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+    __ pop(a2);  // Restore the key.
+  }
   __ mov(a1, v0);
   __ jmp(&do_call);
 
@@ -1572,7 +1574,8 @@ void PatchInlinedSmiCode(Address address) {
   // If the instruction following the call is not a andi at, rx, #yyy, nothing
   // was inlined.
   Instr instr = Assembler::instr_at(andi_instruction_address);
-  if (!Assembler::IsAndImmediate(instr)) {
+  if (!(Assembler::IsAndImmediate(instr) &&
+        Assembler::GetRt(instr) == (uint32_t)zero_reg.code())) {
     return;
   }
 

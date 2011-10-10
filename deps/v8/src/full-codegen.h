@@ -391,25 +391,16 @@ class FullCodeGenerator: public AstVisitor {
   // Try to perform a comparison as a fast inlined literal compare if
   // the operands allow it.  Returns true if the compare operations
   // has been matched and all code generated; false otherwise.
-  bool TryLiteralCompare(CompareOperation* compare,
-                         Label* if_true,
-                         Label* if_false,
-                         Label* fall_through);
+  bool TryLiteralCompare(CompareOperation* compare);
 
   // Platform-specific code for comparing the type of a value with
   // a given literal string.
-  void EmitLiteralCompareTypeof(Expression* expr,
-                                Handle<String> check,
-                                Label* if_true,
-                                Label* if_false,
-                                Label* fall_through);
+  void EmitLiteralCompareTypeof(Expression* expr, Handle<String> check);
 
-  // Platform-specific code for strict equality comparison with
-  // the undefined value.
-  void EmitLiteralCompareUndefined(Expression* expr,
-                                   Label* if_true,
-                                   Label* if_false,
-                                   Label* fall_through);
+  // Platform-specific code for equality comparison with a nil-like value.
+  void EmitLiteralCompareNil(CompareOperation* expr,
+                             Expression* sub_expr,
+                             NilValue nil);
 
   // Bailout support.
   void PrepareForBailout(Expression* node, State state);

@@ -49,7 +49,7 @@ try {
   exception = true;
   assertTrue(/TypeError/.test(e));
 }
-assertTrue(exception);
+assertFalse(exception);
 
 exception = false;
 try {

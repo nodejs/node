@@ -361,3 +361,42 @@ TEST(FactoryHashmapConditional) {
   // Can't infer the function name statically.
   CheckFunctionName(script, "return 1", "obj.(anonymous function)");
 }
+
+
+TEST(GlobalAssignmentAndCall) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "var Foo = function() {\n"
+      "  return 1;\n"
+      "}();\n"
+      "var Baz = Bar = function() {\n"
+      "  return 2;\n"
+      "}");
+  // The inferred name is empty, because this is an assignment of a result.
+  CheckFunctionName(script, "return 1", "");
+  // See MultipleAssignments test.
+  CheckFunctionName(script, "return 2", "Bar");
+}
+
+
+TEST(AssignmentAndCall) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  v8::Handle<v8::Script> script = Compile(
+      "(function Enclosing() {\n"
+      "  var Foo;\n"
+      "  Foo = function() {\n"
+      "    return 1;\n"
+      "  }();\n"
+      "  var Baz = Bar = function() {\n"
+      "    return 2;\n"
+      "  }\n"
+      "})();");
+  // The inferred name is empty, because this is an assignment of a result.
+  CheckFunctionName(script, "return 1", "");
+  // See MultipleAssignments test.
+  CheckFunctionName(script, "return 2", "Enclosing.Bar");
+}

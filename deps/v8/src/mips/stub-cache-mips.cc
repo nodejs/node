@@ -554,9 +554,10 @@ static void FreeSpaceForFastApiCall(MacroAssembler* masm) {
 }
 
 
-static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
-                                      const CallOptimization& optimization,
-                                      int argc) {
+static MaybeObject* GenerateFastApiDirectCall(
+    MacroAssembler* masm,
+    const CallOptimization& optimization,
+    int argc) {
   // ----------- S t a t e -------------
   //  -- sp[0]              : holder (set by CheckPrototypes)
   //  -- sp[4]              : callee js function
@@ -595,6 +596,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
 
   const int kApiStackSpace = 4;
 
+  FrameScope frame_scope(masm, StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
 
   // NOTE: the O32 abi requires a0 to hold a special pointer when returning a
@@ -626,6 +628,7 @@ static MaybeObject* GenerateFastApiDirectCall(MacroAssembler* masm,
       ExternalReference(&fun,
                         ExternalReference::DIRECT_API_CALL,
                         masm->isolate());
+  AllowExternalCallThatCantCauseGC scope(masm);
   return masm->TryCallApiFunctionAndReturn(ref, kStackUnwindSpace);
 }
 
@@ -804,7 +807,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                                         miss_label);
 
     // Call a runtime function to load the interceptor property.
-    __ EnterInternalFrame();
+    FrameScope scope(masm, StackFrame::INTERNAL);
     // Save the name_ register across the call.
     __ push(name_);
 
@@ -822,7 +825,8 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Restore the name_ register.
     __ pop(name_);
-    __ LeaveInternalFrame();
+
+    // Leave the internal frame.
   }
 
   void LoadWithInterceptor(MacroAssembler* masm,
@@ -831,19 +835,20 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            JSObject* holder_obj,
                            Register scratch,
                            Label* interceptor_succeeded) {
-    __ EnterInternalFrame();
+    {
+      FrameScope scope(masm, StackFrame::INTERNAL);
 
-    __ Push(holder, name_);
+      __ Push(holder, name_);
 
-    CompileCallLoadPropertyWithInterceptor(masm,
-                                           receiver,
-                                           holder,
-                                           name_,
-                                           holder_obj);
+      CompileCallLoadPropertyWithInterceptor(masm,
+                                             receiver,
+                                             holder,
+                                             name_,
+                                             holder_obj);
 
-    __ pop(name_);  // Restore the name.
-    __ pop(receiver);  // Restore the holder.
-    __ LeaveInternalFrame();
+      __ pop(name_);  // Restore the name.
+      __ pop(receiver);  // Restore the holder.
+    }
 
     // If interceptor returns no-result sentinel, call the constant function.
     __ LoadRoot(scratch, Heap::kNoInterceptorResultSentinelRootIndex);
@@ -1256,7 +1261,9 @@ MaybeObject* StubCompiler::GenerateLoadCallback(JSObject* object,
 
   const int kApiStackSpace = 1;
 
+  FrameScope frame_scope(masm(), StackFrame::MANUAL);
   __ EnterExitFrame(false, kApiStackSpace);
+
   // Create AccessorInfo instance on the stack above the exit frame with
   // scratch2 (internal::Object **args_) as the data.
   __ sw(a2, MemOperand(sp, kPointerSize));
@@ -1317,40 +1324,42 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
-    __ EnterInternalFrame();
+    {
+      FrameScope frame_scope(masm(), StackFrame::INTERNAL);
 
-    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-      // CALLBACKS case needs a receiver to be passed into C++ callback.
-      __ Push(receiver, holder_reg, name_reg);
-    } else {
-      __ Push(holder_reg, name_reg);
+      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+        // CALLBACKS case needs a receiver to be passed into C++ callback.
+        __ Push(receiver, holder_reg, name_reg);
+      } else {
+        __ Push(holder_reg, name_reg);
+      }
+
+      // Invoke an interceptor.  Note: map checks from receiver to
+      // interceptor's holder has been compiled before (see a caller
+      // of this method).
+      CompileCallLoadPropertyWithInterceptor(masm(),
+                                             receiver,
+                                             holder_reg,
+                                             name_reg,
+                                             interceptor_holder);
+
+      // Check if interceptor provided a value for property.  If it's
+      // the case, return immediately.
+      Label interceptor_failed;
+      __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
+      __ Branch(&interceptor_failed, eq, v0, Operand(scratch1));
+      frame_scope.GenerateLeaveFrame();
+      __ Ret();
+
+      __ bind(&interceptor_failed);
+      __ pop(name_reg);
+      __ pop(holder_reg);
+      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+        __ pop(receiver);
+      }
+
+      // Leave the internal frame.
     }
-
-    // Invoke an interceptor.  Note: map checks from receiver to
-    // interceptor's holder has been compiled before (see a caller
-    // of this method).
-    CompileCallLoadPropertyWithInterceptor(masm(),
-                                           receiver,
-                                           holder_reg,
-                                           name_reg,
-                                           interceptor_holder);
-
-    // Check if interceptor provided a value for property.  If it's
-    // the case, return immediately.
-    Label interceptor_failed;
-    __ LoadRoot(scratch1, Heap::kNoInterceptorResultSentinelRootIndex);
-    __ Branch(&interceptor_failed, eq, v0, Operand(scratch1));
-    __ LeaveInternalFrame();
-    __ Ret();
-
-    __ bind(&interceptor_failed);
-    __ pop(name_reg);
-    __ pop(holder_reg);
-    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-      __ pop(receiver);
-    }
-
-    __ LeaveInternalFrame();
 
     // Check that the maps from interceptor's holder to lookup's holder
     // haven't changed.  And load lookup's holder into |holder| register.
@@ -1605,8 +1614,8 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ Addu(end_elements, elements, end_elements);
       const int kEndElementsOffset =
           FixedArray::kHeaderSize - kHeapObjectTag - argc * kPointerSize;
-      __ sw(t0, MemOperand(end_elements, kEndElementsOffset));
-      __ Addu(end_elements, end_elements, kPointerSize);
+      __ Addu(end_elements, end_elements, kEndElementsOffset);
+      __ sw(t0, MemOperand(end_elements));
 
       // Check for a smi.
       __ JumpIfNotSmi(t0, &with_write_barrier);
@@ -2551,7 +2560,12 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   if (V8::UseCrankshaft()) {
-    UNIMPLEMENTED_MIPS();
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    __ lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+    __ InvokeCode(a3, expected, arguments(), JUMP_FUNCTION,
+                  NullCallWrapper(), call_kind);
   } else {
     __ InvokeCode(code, expected, arguments(), RelocInfo::CODE_TARGET,
                   JUMP_FUNCTION, call_kind);
@@ -3457,6 +3471,7 @@ static bool IsElementTypeSigned(ElementsKind elements_kind) {
 
     case EXTERNAL_FLOAT_ELEMENTS:
     case EXTERNAL_DOUBLE_ELEMENTS:
+    case FAST_SMI_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
@@ -3828,7 +3843,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ lw(a3, FieldMemOperand(receiver, JSObject::kElementsOffset));
 
   // Check that the index is in range.
-  __ SmiUntag(t0, key);
   __ lw(t1, FieldMemOperand(a3, ExternalArray::kLengthOffset));
   // Unsigned comparison catches both negative and too-large values.
   __ Branch(&miss_force_generic, Ugreater_equal, key, Operand(t1));
@@ -3836,7 +3850,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   // Handle both smis and HeapNumbers in the fast path. Go to the
   // runtime for all other kinds of values.
   // a3: external array.
-  // t0: key (integer).
 
   if (elements_kind == EXTERNAL_PIXEL_ELEMENTS) {
     // Double to pixel conversion is only implemented in the runtime for now.
@@ -3848,7 +3861,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   __ lw(a3, FieldMemOperand(a3, ExternalArray::kExternalPointerOffset));
 
   // a3: base pointer of external storage.
-  // t0: key (integer).
   // t1: value (integer).
 
   switch (elements_kind) {
@@ -3865,33 +3877,36 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ mov(v0, t1);  // Value is in range 0..255.
       __ bind(&done);
       __ mov(t1, v0);
-      __ addu(t8, a3, t0);
+
+      __ srl(t8, key, 1);
+      __ addu(t8, a3, t8);
       __ sb(t1, MemOperand(t8, 0));
       }
       break;
     case EXTERNAL_BYTE_ELEMENTS:
     case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      __ addu(t8, a3, t0);
+      __ srl(t8, key, 1);
+      __ addu(t8, a3, t8);
       __ sb(t1, MemOperand(t8, 0));
       break;
     case EXTERNAL_SHORT_ELEMENTS:
     case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      __ sll(t8, t0, 1);
-      __ addu(t8, a3, t8);
+      __ addu(t8, a3, key);
       __ sh(t1, MemOperand(t8, 0));
       break;
     case EXTERNAL_INT_ELEMENTS:
     case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      __ sll(t8, t0, 2);
+      __ sll(t8, key, 1);
       __ addu(t8, a3, t8);
       __ sw(t1, MemOperand(t8, 0));
       break;
     case EXTERNAL_FLOAT_ELEMENTS:
       // Perform int-to-float conversion and store to memory.
+      __ SmiUntag(t0, key);
       StoreIntAsFloat(masm, a3, t0, t1, t2, t3, t4);
       break;
     case EXTERNAL_DOUBLE_ELEMENTS:
-      __ sll(t8, t0, 3);
+      __ sll(t8, key, 2);
       __ addu(a3, a3, t8);
       // a3: effective address of the double element
       FloatingPointHelper::Destination destination;
@@ -3921,12 +3936,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
   }
 
   // Entry registers are intact, a0 holds the value which is the return value.
-  __ mov(v0, value);
+  __ mov(v0, a0);
   __ Ret();
 
   if (elements_kind != EXTERNAL_PIXEL_ELEMENTS) {
     // a3: external array.
-    // t0: index (integer).
     __ bind(&check_heap_number);
     __ GetObjectType(value, t1, t2);
     __ Branch(&slow, ne, t2, Operand(HEAP_NUMBER_TYPE));
@@ -3934,7 +3948,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
     __ lw(a3, FieldMemOperand(a3, ExternalArray::kExternalPointerOffset));
 
     // a3: base pointer of external storage.
-    // t0: key (integer).
 
     // The WebGL specification leaves the behavior of storing NaN and
     // +/-Infinity into integer arrays basically undefined. For more
@@ -3947,11 +3960,11 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
       if (elements_kind == EXTERNAL_FLOAT_ELEMENTS) {
         __ cvt_s_d(f0, f0);
-        __ sll(t8, t0, 2);
+        __ sll(t8, key, 1);
         __ addu(t8, a3, t8);
         __ swc1(f0, MemOperand(t8, 0));
       } else if (elements_kind == EXTERNAL_DOUBLE_ELEMENTS) {
-        __ sll(t8, t0, 3);
+        __ sll(t8, key, 2);
         __ addu(t8, a3, t8);
         __ sdc1(f0, MemOperand(t8, 0));
       } else {
@@ -3960,18 +3973,18 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         switch (elements_kind) {
           case EXTERNAL_BYTE_ELEMENTS:
           case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ addu(t8, a3, t0);
+            __ srl(t8, key, 1);
+            __ addu(t8, a3, t8);
             __ sb(t3, MemOperand(t8, 0));
             break;
           case EXTERNAL_SHORT_ELEMENTS:
           case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-            __ sll(t8, t0, 1);
-            __ addu(t8, a3, t8);
+            __ addu(t8, a3, key);
             __ sh(t3, MemOperand(t8, 0));
             break;
           case EXTERNAL_INT_ELEMENTS:
           case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ sll(t8, t0, 2);
+            __ sll(t8, key, 1);
             __ addu(t8, a3, t8);
             __ sw(t3, MemOperand(t8, 0));
             break;
@@ -3989,7 +4002,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
 
       // Entry registers are intact, a0 holds the value
       // which is the return value.
-      __ mov(v0, value);
+      __ mov(v0, a0);
       __ Ret();
     } else {
       // FPU is not available, do manual conversions.
@@ -4044,13 +4057,13 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         __ or_(t3, t7, t6);
 
         __ bind(&done);
-        __ sll(t9, a1, 2);
+        __ sll(t9, key, 1);
         __ addu(t9, a2, t9);
         __ sw(t3, MemOperand(t9, 0));
 
         // Entry registers are intact, a0 holds the value which is the return
         // value.
-        __ mov(v0, value);
+        __ mov(v0, a0);
         __ Ret();
 
         __ bind(&nan_or_infinity_or_zero);
@@ -4068,6 +4081,7 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         // t8: effective address of destination element.
         __ sw(t4, MemOperand(t8, 0));
         __ sw(t3, MemOperand(t8, Register::kSizeInBytes));
+        __ mov(v0, a0);
         __ Ret();
       } else {
         bool is_signed_type = IsElementTypeSigned(elements_kind);
@@ -4130,18 +4144,18 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         switch (elements_kind) {
           case EXTERNAL_BYTE_ELEMENTS:
           case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-            __ addu(t8, a3, t0);
+            __ srl(t8, key, 1);
+            __ addu(t8, a3, t8);
             __ sb(t3, MemOperand(t8, 0));
             break;
           case EXTERNAL_SHORT_ELEMENTS:
           case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-            __ sll(t8, t0, 1);
-            __ addu(t8, a3, t8);
+            __ addu(t8, a3, key);
             __ sh(t3, MemOperand(t8, 0));
             break;
           case EXTERNAL_INT_ELEMENTS:
           case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-            __ sll(t8, t0, 2);
+            __ sll(t8, key, 1);
             __ addu(t8, a3, t8);
             __ sw(t3, MemOperand(t8, 0));
             break;

@@ -75,6 +75,7 @@
 // makes it impossible to have them elsewhere.
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#include <wspiapi.h>
 #include <process.h>  // for _beginthreadex()
 #include <stdlib.h>
 #endif  // V8_WIN32_HEADERS_FULL

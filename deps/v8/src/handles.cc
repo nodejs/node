@@ -421,17 +421,18 @@ Handle<Object> PreventExtensions(Handle<JSObject> object) {
 }
 
 
-Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
-                                   JSObject::HiddenPropertiesFlag flag) {
+Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->GetHiddenProperties(flag),
+                     obj->SetHiddenProperty(*key, *value),
                      Object);
 }
 
 
-int GetIdentityHash(Handle<JSObject> obj) {
+int GetIdentityHash(Handle<JSReceiver> obj) {
   CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(JSObject::ALLOW_CREATION),
+                 obj->GetIdentityHash(ALLOW_CREATION),
                  return Smi::cast(__object__)->value(),
                  return 0);
 }
@@ -886,7 +887,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
 
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSObject> key,
+                                               Handle<JSReceiver> key,
                                                Handle<Object> value) {
   CALL_HEAP_FUNCTION(table->GetIsolate(),
                      table->Put(*key, *value),

@@ -38,6 +38,7 @@
 #include "log.h"
 #include "runtime-profiler.h"
 #include "serialize.h"
+#include "store-buffer.h"
 
 namespace v8 {
 namespace internal {

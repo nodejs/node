@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -257,7 +257,7 @@ class CodeMap {
     typedef Address Key;
     typedef CodeEntryInfo Value;
     static const Key kNoKey;
-    static const Value kNoValue;
+    static const Value NoValue() { return CodeEntryInfo(NULL, 0); }
     static int Compare(const Key& a, const Key& b) {
       return a < b ? -1 : (a > b ? 1 : 0);
     }
@@ -550,7 +550,10 @@ class HeapEntry BASE_EMBEDDED {
   Vector<HeapGraphEdge*> retainers() {
     return Vector<HeapGraphEdge*>(retainers_arr(), retainers_count_); }
   HeapEntry* dominator() { return dominator_; }
-  void set_dominator(HeapEntry* entry) { dominator_ = entry; }
+  void set_dominator(HeapEntry* entry) {
+    ASSERT(entry != NULL);
+    dominator_ = entry;
+  }
 
   void clear_paint() { painted_ = kUnpainted; }
   bool painted_reachable() { return painted_ == kPainted; }
@@ -584,6 +587,8 @@ class HeapEntry BASE_EMBEDDED {
   int RetainedSize(bool exact);
 
   void Print(int max_depth, int indent);
+
+  Handle<HeapObject> GetHeapObject();
 
   static int EntriesSize(int entries_count,
                          int children_count,
@@ -763,6 +768,7 @@ class HeapSnapshotsCollection {
   TokenEnumerator* token_enumerator() { return token_enumerator_; }
 
   uint64_t GetObjectId(Address addr) { return ids_.FindObject(addr); }
+  Handle<HeapObject> FindHeapObjectById(uint64_t id);
   void ObjectMoveEvent(Address from, Address to) { ids_.MoveObject(from, to); }
 
  private:
@@ -917,7 +923,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   virtual HeapEntry* AllocateEntry(
       HeapThing ptr, int children_count, int retainers_count);
   void AddRootEntries(SnapshotFillerInterface* filler);
-  int EstimateObjectsCount();
+  int EstimateObjectsCount(HeapIterator* iterator);
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
 

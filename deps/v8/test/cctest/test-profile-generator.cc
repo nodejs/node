@@ -52,7 +52,7 @@ TEST(TokenEnumerator) {
     CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));
   }
   CHECK(!i::TokenEnumeratorTester::token_removed(&te)->at(2));
-  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
   CHECK(i::TokenEnumeratorTester::token_removed(&te)->at(2));
   CHECK_EQ(1, te.GetTokenId(*v8::Utils::OpenHandle(*token2)));
   CHECK_EQ(0, te.GetTokenId(*v8::Utils::OpenHandle(*token1)));

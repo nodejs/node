@@ -243,11 +243,13 @@ class HGraph: public ZoneObject {
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
-  bool CheckPhis();
+  bool CheckArgumentsPhiUses();
 
-  // Returns false if there are phi-uses of hole values comming
-  // from uninitialized consts.
-  bool CollectPhis();
+  // Returns false if there are phi-uses of an uninitialized const
+  // which are not supported by the optimizing compiler.
+  bool CheckConstPhiUses();
+
+  void CollectPhis();
 
   Handle<Code> Compile(CompilationInfo* info);
 
@@ -283,7 +285,7 @@ class HGraph: public ZoneObject {
   }
 
 #ifdef DEBUG
-  void Verify() const;
+  void Verify(bool do_full_verify) const;
 #endif
 
  private:
@@ -910,11 +912,13 @@ class HGraphBuilder: public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
-  void HandleLiteralCompareTypeof(CompareOperation* compare_expr,
-                                  Expression* expr,
+  bool TryLiteralCompare(CompareOperation* expr);
+  void HandleLiteralCompareTypeof(CompareOperation* expr,
+                                  Expression* sub_expr,
                                   Handle<String> check);
-  void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
-                                     Expression* expr);
+  void HandleLiteralCompareNil(CompareOperation* expr,
+                               Expression* sub_expr,
+                               NilValue nil);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
                                            HValue* string,
@@ -938,6 +942,11 @@ class HGraphBuilder: public AstVisitor {
       HValue* val,
       ElementsKind elements_kind,
       bool is_store);
+  HInstruction* BuildFastElementAccess(HValue* elements,
+                                       HValue* checked_key,
+                                       HValue* val,
+                                       ElementsKind elements_kind,
+                                       bool is_store);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,

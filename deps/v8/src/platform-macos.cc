@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -228,7 +228,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) munmap(memory_, size_);
+  if (memory_) OS::Free(memory_, size_);
   fclose(file_);
 }
 
@@ -334,33 +334,102 @@ int OS::StackWalk(Vector<StackFrame> frames) {
 }
 
 
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 
-VirtualMemory::VirtualMemory(size_t size) {
-  address_ = mmap(NULL, size, PROT_NONE,
-                  MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                  kMmapFd, kMmapFdOffset);
-  size_ = size;
+VirtualMemory::VirtualMemory(size_t size)
+    : address_(ReserveRegion(size)), size_(size) { }
+
+
+VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+    : address_(NULL), size_(0) {
+  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  size_t request_size = RoundUp(size + alignment,
+                                static_cast<intptr_t>(OS::AllocateAlignment()));
+  void* reservation = mmap(NULL,
+                           request_size,
+                           PROT_NONE,
+                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                           kMmapFd,
+                           kMmapFdOffset);
+  if (reservation == MAP_FAILED) return;
+
+  Address base = static_cast<Address>(reservation);
+  Address aligned_base = RoundUp(base, alignment);
+  ASSERT_LE(base, aligned_base);
+
+  // Unmap extra memory reserved before and after the desired block.
+  if (aligned_base != base) {
+    size_t prefix_size = static_cast<size_t>(aligned_base - base);
+    OS::Free(base, prefix_size);
+    request_size -= prefix_size;
+  }
+
+  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
+  ASSERT_LE(aligned_size, request_size);
+
+  if (aligned_size != request_size) {
+    size_t suffix_size = request_size - aligned_size;
+    OS::Free(aligned_base + aligned_size, suffix_size);
+    request_size -= suffix_size;
+  }
+
+  ASSERT(aligned_size == request_size);
+
+  address_ = static_cast<void*>(aligned_base);
+  size_ = aligned_size;
 }
 
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    if (0 == munmap(address(), size())) address_ = MAP_FAILED;
+    bool result = ReleaseRegion(address(), size());
+    ASSERT(result);
+    USE(result);
   }
 }
 
 
+void VirtualMemory::Reset() {
+  address_ = NULL;
+  size_ = 0;
+}
+
+
+void* VirtualMemory::ReserveRegion(size_t size) {
+  void* result = mmap(NULL,
+                      size,
+                      PROT_NONE,
+                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                      kMmapFd,
+                      kMmapFdOffset);
+
+  if (result == MAP_FAILED) return NULL;
+
+  return result;
+}
+
+
 bool VirtualMemory::IsReserved() {
-  return address_ != MAP_FAILED;
+  return address_ != NULL;
 }
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  return CommitRegion(address, size, is_executable);
+}
+
+
+bool VirtualMemory::CommitRegion(void* address,
+                                 size_t size,
+                                 bool is_executable) {
   int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(address, size, prot,
+  if (MAP_FAILED == mmap(address,
+                         size,
+                         prot,
                          MAP_PRIVATE | MAP_ANON | MAP_FIXED,
-                         kMmapFd, kMmapFdOffset)) {
+                         kMmapFd,
+                         kMmapFdOffset)) {
     return false;
   }
 
@@ -370,9 +439,22 @@ bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return mmap(address, size, PROT_NONE,
+  return UncommitRegion(address, size);
+}
+
+
+bool VirtualMemory::UncommitRegion(void* address, size_t size) {
+  return mmap(address,
+              size,
+              PROT_NONE,
               MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd, kMmapFdOffset) != MAP_FAILED;
+              kMmapFd,
+              kMmapFdOffset) != MAP_FAILED;
+}
+
+
+bool VirtualMemory::ReleaseRegion(void* address, size_t size) {
+  return munmap(address, size) == 0;
 }
 
 

@@ -87,6 +87,8 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
   }
 #endif
   Assembler::set_target_address_at(address, target->instruction_start());
+  target->GetHeap()->incremental_marking()->RecordCodeTargetPatch(address,
+                                                                  target);
 }
 
 

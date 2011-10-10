@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 
 #include <stdlib.h>
 
@@ -672,7 +672,8 @@ TEST(JSArray) {
   // Set array length to 0.
   ok = array->SetElementsLength(Smi::FromInt(0))->ToObjectChecked();
   CHECK_EQ(Smi::FromInt(0), array->length());
-  CHECK(array->HasFastElements());  // Must be in fast mode.
+  // Must be in fast mode.
+  CHECK(array->HasFastTypeElements());
 
   // array[length] = name.
   ok = array->SetElement(0, *name, kNonStrictMode, true)->ToObjectChecked();
@@ -838,49 +839,6 @@ TEST(Iteration) {
 }
 
 
-TEST(LargeObjectSpaceContains) {
-  InitializeVM();
-
-  HEAP->CollectGarbage(NEW_SPACE);
-
-  Address current_top = HEAP->new_space()->top();
-  Page* page = Page::FromAddress(current_top);
-  Address current_page = page->address();
-  Address next_page = current_page + Page::kPageSize;
-  int bytes_to_page = static_cast<int>(next_page - current_top);
-  if (bytes_to_page <= FixedArray::kHeaderSize) {
-    // Alas, need to cross another page to be able to
-    // put desired value.
-    next_page += Page::kPageSize;
-    bytes_to_page = static_cast<int>(next_page - current_top);
-  }
-  CHECK(bytes_to_page > FixedArray::kHeaderSize);
-
-  intptr_t* flags_ptr = &Page::FromAddress(next_page)->flags_;
-  Address flags_addr = reinterpret_cast<Address>(flags_ptr);
-
-  int bytes_to_allocate =
-      static_cast<int>(flags_addr - current_top) + kPointerSize;
-
-  int n_elements = (bytes_to_allocate - FixedArray::kHeaderSize) /
-      kPointerSize;
-  CHECK_EQ(bytes_to_allocate, FixedArray::SizeFor(n_elements));
-  FixedArray* array = FixedArray::cast(
-      HEAP->AllocateFixedArray(n_elements)->ToObjectChecked());
-
-  int index = n_elements - 1;
-  CHECK_EQ(flags_ptr,
-           HeapObject::RawField(array, FixedArray::OffsetOfElementAt(index)));
-  array->set(index, Smi::FromInt(0));
-  // This chould have turned next page into LargeObjectPage:
-  // CHECK(Page::FromAddress(next_page)->IsLargeObjectPage());
-
-  HeapObject* addr = HeapObject::FromAddress(next_page + 2 * kPointerSize);
-  CHECK(HEAP->new_space()->Contains(addr));
-  CHECK(!HEAP->lo_space()->Contains(addr));
-}
-
-
 TEST(EmptyHandleEscapeFrom) {
   InitializeVM();
 
@@ -907,8 +865,7 @@ TEST(Regression39128) {
   InitializeVM();
 
   // Increase the chance of 'bump-the-pointer' allocation in old space.
-  bool force_compaction = true;
-  HEAP->CollectAllGarbage(force_compaction);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   v8::HandleScope scope;
 
@@ -975,12 +932,6 @@ TEST(Regression39128) {
     return;
   }
   CHECK(HEAP->old_pointer_space()->Contains(clone->address()));
-
-  // Step 5: verify validity of region dirty marks.
-  Address clone_addr = clone->address();
-  Page* page = Page::FromAddress(clone_addr);
-  // Check that region covering inobject property 1 is marked dirty.
-  CHECK(page->IsRegionDirty(clone_addr + (object_size - kPointerSize)));
 }
 
 
@@ -1010,17 +961,18 @@ TEST(TestCodeFlushing) {
   Handle<JSFunction> function(JSFunction::cast(func_value));
   CHECK(function->shared()->is_compiled());
 
-  HEAP->CollectAllGarbage(true);
-  HEAP->CollectAllGarbage(true);
+  // TODO(1609) Currently incremental marker does not support code flushing.
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   CHECK(function->shared()->is_compiled());
 
-  HEAP->CollectAllGarbage(true);
-  HEAP->CollectAllGarbage(true);
-  HEAP->CollectAllGarbage(true);
-  HEAP->CollectAllGarbage(true);
-  HEAP->CollectAllGarbage(true);
-  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // foo should no longer be in the compilation cache
   CHECK(!function->shared()->is_compiled() || function->IsOptimized());
@@ -1109,7 +1061,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    HEAP->CollectAllGarbage(true);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
 
     // Get rid of f3 and f5 in the same way.
@@ -1118,21 +1070,21 @@ TEST(TestInternalWeakLists) {
       HEAP->PerformScavenge();
       CHECK_EQ(opt ? 4 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
-    HEAP->CollectAllGarbage(true);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     CompileRun("f5=null");
     for (int j = 0; j < 10; j++) {
       HEAP->PerformScavenge();
       CHECK_EQ(opt ? 3 : 0, CountOptimizedUserFunctions(ctx[i]));
     }
-    HEAP->CollectAllGarbage(true);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(opt ? 2 : 0, CountOptimizedUserFunctions(ctx[i]));
 
     ctx[i]->Exit();
   }
 
   // Force compilation cache cleanup.
-  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
 
   // Dispose the global contexts one by one.
   for (int i = 0; i < kNumTestContexts; i++) {
@@ -1146,7 +1098,7 @@ TEST(TestInternalWeakLists) {
     }
 
     // Mark compact handles the weak references.
-    HEAP->CollectAllGarbage(true);
+    HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     CHECK_EQ(kNumTestContexts - i - 1, CountGlobalContexts());
   }
 
@@ -1161,7 +1113,7 @@ static int CountGlobalContextsWithGC(int n) {
   Handle<Object> object(HEAP->global_contexts_list());
   while (!object->IsUndefined()) {
     count++;
-    if (count == n) HEAP->CollectAllGarbage(true);
+    if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     object =
         Handle<Object>(Context::cast(*object)->get(Context::NEXT_CONTEXT_LINK));
   }
@@ -1180,7 +1132,7 @@ static int CountOptimizedUserFunctionsWithGC(v8::Handle<v8::Context> context,
   while (object->IsJSFunction() &&
          !Handle<JSFunction>::cast(object)->IsBuiltin()) {
     count++;
-    if (count == n) HEAP->CollectAllGarbage(true);
+    if (count == n) HEAP->CollectAllGarbage(Heap::kNoGCFlags);
     object = Handle<Object>(
         Object::cast(JSFunction::cast(*object)->next_function_link()));
   }
@@ -1240,90 +1192,84 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   InitializeVM();
+  HEAP->EnsureHeapIsIterable();
   intptr_t size_of_objects_1 = HEAP->SizeOfObjects();
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator;
   intptr_t size_of_objects_2 = 0;
   for (HeapObject* obj = iterator.next();
        obj != NULL;
        obj = iterator.next()) {
     size_of_objects_2 += obj->Size();
   }
-  // Delta must be within 1% of the larger result.
+  // Delta must be within 5% of the larger result.
+  // TODO(gc): Tighten this up by distinguishing between byte
+  // arrays that are real and those that merely mark free space
+  // on the heap.
   if (size_of_objects_1 > size_of_objects_2) {
     intptr_t delta = size_of_objects_1 - size_of_objects_2;
     PrintF("Heap::SizeOfObjects: %" V8_PTR_PREFIX "d, "
            "Iterator: %" V8_PTR_PREFIX "d, "
            "delta: %" V8_PTR_PREFIX "d\n",
            size_of_objects_1, size_of_objects_2, delta);
-    CHECK_GT(size_of_objects_1 / 100, delta);
+    CHECK_GT(size_of_objects_1 / 20, delta);
   } else {
     intptr_t delta = size_of_objects_2 - size_of_objects_1;
     PrintF("Heap::SizeOfObjects: %" V8_PTR_PREFIX "d, "
            "Iterator: %" V8_PTR_PREFIX "d, "
            "delta: %" V8_PTR_PREFIX "d\n",
            size_of_objects_1, size_of_objects_2, delta);
-    CHECK_GT(size_of_objects_2 / 100, delta);
+    CHECK_GT(size_of_objects_2 / 20, delta);
   }
 }
 
 
-class HeapIteratorTestHelper {
- public:
-  HeapIteratorTestHelper(Object* a, Object* b)
-      : a_(a), b_(b), a_found_(false), b_found_(false) {}
-  bool a_found() { return a_found_; }
-  bool b_found() { return b_found_; }
-  void IterateHeap(HeapIterator::HeapObjectsFiltering mode) {
-    HeapIterator iterator(mode);
-    for (HeapObject* obj = iterator.next();
-         obj != NULL;
-         obj = iterator.next()) {
-      if (obj == a_)
-        a_found_ = true;
-      else if (obj == b_)
-        b_found_ = true;
+TEST(GrowAndShrinkNewSpace) {
+  InitializeVM();
+  NewSpace* new_space = HEAP->new_space();
+
+  // Explicitly growing should double the space capacity.
+  intptr_t old_capacity, new_capacity;
+  old_capacity = new_space->Capacity();
+  new_space->Grow();
+  new_capacity = new_space->Capacity();
+  CHECK(2 * old_capacity == new_capacity);
+
+  // Fill up new space to the point that it is completely full. Make sure
+  // that the scavenger does not undo the filling.
+  old_capacity = new_space->Capacity();
+  {
+    v8::HandleScope scope;
+    AlwaysAllocateScope always_allocate;
+    intptr_t available = new_space->EffectiveCapacity() - new_space->Size();
+    intptr_t number_of_fillers = (available / FixedArray::SizeFor(1000)) - 10;
+    for (intptr_t i = 0; i < number_of_fillers; i++) {
+      CHECK(HEAP->InNewSpace(*FACTORY->NewFixedArray(1000, NOT_TENURED)));
     }
   }
- private:
-  Object* a_;
-  Object* b_;
-  bool a_found_;
-  bool b_found_;
-};
+  new_capacity = new_space->Capacity();
+  CHECK(old_capacity == new_capacity);
 
-TEST(HeapIteratorFilterUnreachable) {
-  InitializeVM();
-  v8::HandleScope scope;
-  CompileRun("a = {}; b = {};");
-  v8::Handle<Object> a(ISOLATE->context()->global()->GetProperty(
-      *FACTORY->LookupAsciiSymbol("a"))->ToObjectChecked());
-  v8::Handle<Object> b(ISOLATE->context()->global()->GetProperty(
-      *FACTORY->LookupAsciiSymbol("b"))->ToObjectChecked());
-  CHECK_NE(*a, *b);
-  {
-    HeapIteratorTestHelper helper(*a, *b);
-    helper.IterateHeap(HeapIterator::kFilterUnreachable);
-    CHECK(helper.a_found());
-    CHECK(helper.b_found());
-  }
-  CHECK(ISOLATE->context()->global()->DeleteProperty(
-      *FACTORY->LookupAsciiSymbol("a"), JSObject::FORCE_DELETION));
-  // We ensure that GC will not happen, so our raw pointer stays valid.
-  AssertNoAllocation no_alloc;
-  Object* a_saved = *a;
-  a.Clear();
-  // Verify that "a" object still resides in the heap...
-  {
-    HeapIteratorTestHelper helper(a_saved, *b);
-    helper.IterateHeap(HeapIterator::kNoFiltering);
-    CHECK(helper.a_found());
-    CHECK(helper.b_found());
-  }
-  // ...but is now unreachable.
-  {
-    HeapIteratorTestHelper helper(a_saved, *b);
-    helper.IterateHeap(HeapIterator::kFilterUnreachable);
-    CHECK(!helper.a_found());
-    CHECK(helper.b_found());
-  }
+  // Explicitly shrinking should not affect space capacity.
+  old_capacity = new_space->Capacity();
+  new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  CHECK(old_capacity == new_capacity);
+
+  // Let the scavenger empty the new space.
+  HEAP->CollectGarbage(NEW_SPACE);
+  CHECK_LE(new_space->Size(), old_capacity);
+
+  // Explicitly shrinking should halve the space capacity.
+  old_capacity = new_space->Capacity();
+  new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  CHECK(old_capacity == 2 * new_capacity);
+
+  // Consecutive shrinking should not affect space capacity.
+  old_capacity = new_space->Capacity();
+  new_space->Shrink();
+  new_space->Shrink();
+  new_space->Shrink();
+  new_capacity = new_space->Capacity();
+  CHECK(old_capacity == new_capacity);
 }

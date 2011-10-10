@@ -62,9 +62,11 @@ static unsigned GetPropertyId(Property* property) {
 // A patch site is a location in the code which it is possible to patch. This
 // class has a number of methods to emit the code which is patchable and the
 // method EmitPatchInfo to record a marker back to the patchable code. This
-// marker is a andi at, rx, #yyy instruction, and x * 0x0000ffff + yyy (raw 16
-// bit immediate value is used) is the delta from the pc to the first
+// marker is a andi zero_reg, rx, #yyyy instruction, and rx * 0x0000ffff + yyyy
+// (raw 16 bit immediate value is used) is the delta from the pc to the first
 // instruction of the patchable code.
+// The marker instruction is effectively a NOP (dest is zero_reg) and will
+// never be emitted by normal code.
 class JumpPatchSite BASE_EMBEDDED {
  public:
   explicit JumpPatchSite(MacroAssembler* masm) : masm_(masm) {
@@ -103,7 +105,7 @@ class JumpPatchSite BASE_EMBEDDED {
     if (patch_site_.is_bound()) {
       int delta_to_patch_site = masm_->InstructionsGeneratedSince(&patch_site_);
       Register reg = Register::from_code(delta_to_patch_site / kImm16Mask);
-      __ andi(at, reg, delta_to_patch_site % kImm16Mask);
+      __ andi(zero_reg, reg, delta_to_patch_site % kImm16Mask);
 #ifdef DEBUG
       info_emitted_ = true;
 #endif
@@ -161,6 +163,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ sw(a2, MemOperand(sp, receiver_offset));
     __ bind(&ok);
   }
+
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm_, StackFrame::MANUAL);
 
   int locals_count = info->scope()->num_stack_slots();
 
@@ -310,17 +317,25 @@ void FullCodeGenerator::ClearAccumulator() {
 
 
 void FullCodeGenerator::EmitStackCheck(IterationStatement* stmt) {
+  // The generated code is used in Deoptimizer::PatchStackCheckCodeAt so we need
+  // to make sure it is constant. Branch may emit a skip-or-jump sequence
+  // instead of the normal Branch. It seems that the "skip" part of that
+  // sequence is about as long as this Branch would be so it is safe to ignore
+  // that.
+  Assembler::BlockTrampolinePoolScope block_trampoline_pool(masm_);
   Comment cmnt(masm_, "[ Stack check");
   Label ok;
   __ LoadRoot(t0, Heap::kStackLimitRootIndex);
-  __ Branch(&ok, hs, sp, Operand(t0));
+  __ sltu(at, sp, t0);
+  __ beq(at, zero_reg, &ok);
+  // CallStub will emit a li t9, ... first, so it is safe to use the delay slot.
   StackCheckStub stub;
+  __ CallStub(&stub);
   // Record a mapping of this PC offset to the OSR id.  This is used to find
   // the AST id from the unoptimized code in order to use it as a key into
   // the deoptimization input data found in the optimized code.
   RecordStackCheck(stmt->OsrEntryId());
 
-  __ CallStub(&stub);
   __ bind(&ok);
   PrepareForBailoutForId(stmt->EntryId(), NO_REGISTERS);
   // Record a mapping of the OSR id to this PC.  This is used if the OSR
@@ -3921,10 +3936,14 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 }
 
 void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
-                                                 Handle<String> check,
-                                                 Label* if_true,
-                                                 Label* if_false,
-                                                 Label* fall_through) {
+                                                 Handle<String> check) {
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
   { AccumulatorValueContext context(this);
     VisitForTypeofValue(expr);
   }
@@ -3986,18 +4005,7 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }
-}
-
-
-void FullCodeGenerator::EmitLiteralCompareUndefined(Expression* expr,
-                                                    Label* if_true,
-                                                    Label* if_false,
-                                                    Label* fall_through) {
-  VisitForAccumulatorValue(expr);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-
-  __ LoadRoot(at, Heap::kUndefinedValueRootIndex);
-  Split(eq, v0, Operand(at), if_true, if_false, fall_through);
+  context()->Plug(if_true, if_false);
 }
 
 
@@ -4005,22 +4013,18 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
   SetSourcePosition(expr->position());
 
+  // First we try a fast inlined version of the compare when one of
+  // the operands is a literal.
+  if (TryLiteralCompare(expr)) return;
+
   // Always perform the comparison for its control flow.  Pack the result
   // into the expression's context after the comparison is performed.
-
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
   Label* fall_through = NULL;
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
-
-  // First we try a fast inlined version of the compare when one of
-  // the operands is a literal.
-  if (TryLiteralCompare(expr, if_true, if_false, fall_through)) {
-    context()->Plug(if_true, if_false);
-    return;
-  }
 
   Token::Value op = expr->op();
   VisitForStackValue(expr->left());
@@ -4046,11 +4050,8 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
     default: {
       VisitForAccumulatorValue(expr->right());
       Condition cc = eq;
-      bool strict = false;
       switch (op) {
         case Token::EQ_STRICT:
-          strict = true;
-          // Fall through.
         case Token::EQ:
           cc = eq;
           __ mov(a0, result_register());
@@ -4109,8 +4110,9 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  Comment cmnt(masm_, "[ CompareToNull");
+void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
+                                              Expression* sub_expr,
+                                              NilValue nil) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
@@ -4118,15 +4120,21 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  VisitForAccumulatorValue(expr->expression());
+  VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
+  Heap::RootListIndex nil_value = nil == kNullValue ?
+      Heap::kNullValueRootIndex :
+      Heap::kUndefinedValueRootIndex;
   __ mov(a0, result_register());
-  __ LoadRoot(a1, Heap::kNullValueRootIndex);
-  if (expr->is_strict()) {
+  __ LoadRoot(a1, nil_value);
+  if (expr->op() == Token::EQ_STRICT) {
     Split(eq, a0, Operand(a1), if_true, if_false, fall_through);
   } else {
+    Heap::RootListIndex other_nil_value = nil == kNullValue ?
+        Heap::kUndefinedValueRootIndex :
+        Heap::kNullValueRootIndex;
     __ Branch(if_true, eq, a0, Operand(a1));
-    __ LoadRoot(a1, Heap::kUndefinedValueRootIndex);
+    __ LoadRoot(a1, other_nil_value);
     __ Branch(if_true, eq, a0, Operand(a1));
     __ And(at, a0, Operand(kSmiTagMask));
     __ Branch(if_false, eq, at, Operand(zero_reg));

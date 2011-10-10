@@ -94,6 +94,9 @@ void HeapObject::HeapObjectVerify() {
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayVerify();
       break;
+    case FREE_SPACE_TYPE:
+      FreeSpace::cast(this)->FreeSpaceVerify();
+      break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       ExternalPixelArray::cast(this)->ExternalPixelArrayVerify();
       break;
@@ -207,6 +210,11 @@ void ByteArray::ByteArrayVerify() {
 }
 
 
+void FreeSpace::FreeSpaceVerify() {
+  ASSERT(IsFreeSpace());
+}
+
+
 void ExternalPixelArray::ExternalPixelArrayVerify() {
   ASSERT(IsExternalPixelArray());
 }
@@ -260,7 +268,7 @@ void JSObject::JSObjectVerify() {
              (map()->inobject_properties() + properties()->length() -
               map()->NextFreePropertyIndex()));
   }
-  ASSERT_EQ(map()->has_fast_elements(),
+  ASSERT_EQ((map()->has_fast_elements() || map()->has_fast_smi_only_elements()),
             (elements()->map() == GetHeap()->fixed_array_map() ||
              elements()->map() == GetHeap()->fixed_cow_array_map()));
   ASSERT(map()->has_fast_elements() == HasFastElements());
@@ -322,7 +330,8 @@ void FixedDoubleArray::FixedDoubleArrayVerify() {
       double value = get_scalar(i);
       ASSERT(!isnan(value) ||
              (BitCast<uint64_t>(value) ==
-              BitCast<uint64_t>(canonical_not_the_hole_nan_as_double())));
+              BitCast<uint64_t>(canonical_not_the_hole_nan_as_double())) ||
+             ((BitCast<uint64_t>(value) & Double::kSignMask) != 0));
     }
   }
 }
@@ -387,6 +396,7 @@ void JSFunction::JSFunctionVerify() {
   CHECK(IsJSFunction());
   VerifyObjectField(kPrototypeOrInitialMapOffset);
   VerifyObjectField(kNextFunctionLinkOffset);
+  CHECK(code()->IsCode());
   CHECK(next_function_link()->IsUndefined() ||
         next_function_link()->IsJSFunction());
 }
@@ -446,9 +456,8 @@ void Oddball::OddballVerify() {
   } else {
     ASSERT(number->IsSmi());
     int value = Smi::cast(number)->value();
-    // Hidden oddballs have negative smis.
-    const int kLeastHiddenOddballNumber = -4;
     ASSERT(value <= 1);
+    // Hidden oddballs have negative smis.
     ASSERT(value >= kLeastHiddenOddballNumber);
   }
 }
@@ -463,6 +472,7 @@ void JSGlobalPropertyCell::JSGlobalPropertyCellVerify() {
 void Code::CodeVerify() {
   CHECK(IsAligned(reinterpret_cast<intptr_t>(instruction_start()),
                   kCodeAlignment));
+  relocation_info()->Verify();
   Address last_gc_pc = NULL;
   for (RelocIterator it(this); !it.done(); it.next()) {
     it.rinfo()->Verify();
@@ -488,7 +498,7 @@ void JSWeakMap::JSWeakMapVerify() {
   CHECK(IsJSWeakMap());
   JSObjectVerify();
   VerifyHeapPointer(table());
-  ASSERT(table()->IsHashTable());
+  ASSERT(table()->IsHashTable() || table()->IsUndefined());
 }
 
 
@@ -535,13 +545,14 @@ void JSRegExp::JSRegExpVerify() {
 
 
 void JSProxy::JSProxyVerify() {
-  ASSERT(IsJSProxy());
+  CHECK(IsJSProxy());
   VerifyPointer(handler());
+  ASSERT(hash()->IsSmi() || hash()->IsUndefined());
 }
 
 
 void JSFunctionProxy::JSFunctionProxyVerify() {
-  ASSERT(IsJSFunctionProxy());
+  CHECK(IsJSFunctionProxy());
   JSProxyVerify();
   VerifyPointer(call_trap());
   VerifyPointer(construct_trap());

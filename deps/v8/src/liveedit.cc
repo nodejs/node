@@ -1000,6 +1000,7 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!HEAP->InNewSpace(substitution));
 
+  HeapIterator iterator;
   AssertNoAllocation no_allocations_please;
 
   // A zone scope for ReferenceCollectorVisitor.
@@ -1016,7 +1017,6 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
-  HeapIterator iterator;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
@@ -1100,6 +1100,8 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
   SharedInfoWrapper shared_info_wrapper(shared_info_array);
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
+
+  HEAP->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(shared_info->code())) {
     Handle<Code> code = compile_info_wrapper.GetFunctionCode();
@@ -1271,7 +1273,8 @@ class RelocInfoBuffer {
 
 // Patch positions in code (changes relocation info section) and possibly
 // returns new instance of code.
-static Handle<Code> PatchPositionsInCode(Handle<Code> code,
+static Handle<Code> PatchPositionsInCode(
+    Handle<Code> code,
     Handle<JSArray> position_change_array) {
 
   RelocInfoBuffer buffer_writer(code->relocation_size(),
@@ -1286,7 +1289,7 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
         int new_position = TranslatePosition(position,
                                              position_change_array);
         if (position != new_position) {
-          RelocInfo info_copy(rinfo->pc(), rinfo->rmode(), new_position);
+          RelocInfo info_copy(rinfo->pc(), rinfo->rmode(), new_position, NULL);
           buffer_writer.Write(&info_copy);
           continue;
         }
@@ -1332,6 +1335,8 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
   info->set_start_position(new_function_start);
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
+
+  HEAP->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.

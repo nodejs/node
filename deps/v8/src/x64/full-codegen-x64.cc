@@ -147,6 +147,11 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     __ bind(&ok);
   }
 
+  // Open a frame scope to indicate that there is a frame on the stack.  The
+  // MANUAL indicates that the scope shouldn't actually generate code to set up
+  // the frame (that is done below).
+  FrameScope frame_scope(masm_, StackFrame::MANUAL);
+
   __ push(rbp);  // Caller's frame pointer.
   __ movq(rbp, rsp);
   __ push(rsi);  // Callee's context.
@@ -195,11 +200,9 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
         // Store it in the context.
         int context_offset = Context::SlotOffset(var->index());
         __ movq(Operand(rsi, context_offset), rax);
-        // Update the write barrier. This clobbers all involved
-        // registers, so we have use a third register to avoid
-        // clobbering rsi.
-        __ movq(rcx, rsi);
-        __ RecordWrite(rcx, context_offset, rax, rbx);
+        // Update the write barrier.  This clobbers rax and rbx.
+        __ RecordWriteContextSlot(
+            rsi, context_offset, rax, rbx, kDontSaveFPRegs);
       }
     }
   }
@@ -638,10 +641,11 @@ void FullCodeGenerator::SetVar(Variable* var,
   ASSERT(!scratch1.is(src));
   MemOperand location = VarOperand(var, scratch0);
   __ movq(location, src);
+
   // Emit the write barrier code if the location is in the heap.
   if (var->IsContextSlot()) {
     int offset = Context::SlotOffset(var->index());
-    __ RecordWrite(scratch0, offset, src, scratch1);
+    __ RecordWriteContextSlot(scratch0, offset, src, scratch1, kDontSaveFPRegs);
   }
 }
 
@@ -715,8 +719,14 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
         VisitForAccumulatorValue(function);
         __ movq(ContextOperand(rsi, variable->index()), result_register());
         int offset = Context::SlotOffset(variable->index());
-        __ movq(rbx, rsi);
-        __ RecordWrite(rbx, offset, result_register(), rcx);
+        // We know that we have written a function, which is not a smi.
+        __ RecordWriteContextSlot(rsi,
+                                  offset,
+                                  result_register(),
+                                  rcx,
+                                  kDontSaveFPRegs,
+                                  EMIT_REMEMBERED_SET,
+                                  OMIT_SMI_CHECK);
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
       } else if (mode == Variable::CONST || mode == Variable::LET) {
         Comment cmnt(masm_, "[ Declaration");
@@ -1174,10 +1184,16 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
   } else if (var->mode() == Variable::DYNAMIC_LOCAL) {
     Variable* local = var->local_if_not_shadowed();
     __ movq(rax, ContextSlotOperandCheckExtensions(local, slow));
-    if (local->mode() == Variable::CONST) {
+    if (local->mode() == Variable::CONST ||
+        local->mode() == Variable::LET) {
       __ CompareRoot(rax, Heap::kTheHoleValueRootIndex);
       __ j(not_equal, done);
-      __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      if (local->mode() == Variable::CONST) {
+        __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
+      } else {  // Variable::LET
+        __ Push(var->name());
+        __ CallRuntime(Runtime::kThrowReferenceError, 1);
+      }
     }
     __ jmp(done);
   }
@@ -1445,13 +1461,23 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     VisitForAccumulatorValue(subexpr);
 
     // Store the subexpression value in the array's elements.
-    __ movq(rbx, Operand(rsp, 0));  // Copy of array literal.
-    __ movq(rbx, FieldOperand(rbx, JSObject::kElementsOffset));
+    __ movq(r8, Operand(rsp, 0));  // Copy of array literal.
+    __ movq(rbx, FieldOperand(r8, JSObject::kElementsOffset));
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
     __ movq(FieldOperand(rbx, offset), result_register());
 
+    Label no_map_change;
+    __ JumpIfSmi(result_register(), &no_map_change);
     // Update the write barrier for the array store.
-    __ RecordWrite(rbx, offset, result_register(), rcx);
+    __ RecordWriteField(rbx, offset, result_register(), rcx,
+                        kDontSaveFPRegs,
+                        EMIT_REMEMBERED_SET,
+                        OMIT_SMI_CHECK);
+    __ movq(rdi, FieldOperand(rbx, JSObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(rdi, &no_map_change, Label::kNear);
+    __ push(r8);
+    __ CallRuntime(Runtime::kNonSmiElementStored, 1);
+    __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1777,7 +1803,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ movq(location, rax);
       if (var->IsContextSlot()) {
         __ movq(rdx, rax);
-        __ RecordWrite(rcx, Context::SlotOffset(var->index()), rdx, rbx);
+        __ RecordWriteContextSlot(
+            rcx, Context::SlotOffset(var->index()), rdx, rbx, kDontSaveFPRegs);
       }
     }
 
@@ -1795,7 +1822,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       __ movq(location, rax);
       if (var->IsContextSlot()) {
         __ movq(rdx, rax);
-        __ RecordWrite(rcx, Context::SlotOffset(var->index()), rdx, rbx);
+        __ RecordWriteContextSlot(
+            rcx, Context::SlotOffset(var->index()), rdx, rbx, kDontSaveFPRegs);
       }
     } else {
       ASSERT(var->IsLookupSlot());
@@ -2545,20 +2573,24 @@ void FullCodeGenerator::EmitClassOf(ZoneList<Expression*>* args) {
 
   // Check that the object is a JS object but take special care of JS
   // functions to make sure they have 'Function' as their class.
+  // Assume that there are only two callable types, and one of them is at
+  // either end of the type range for JS object types. Saves extra comparisons.
+  STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
   __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rax);
   // Map is now in rax.
   __ j(below, &null);
+  STATIC_ASSERT(FIRST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                FIRST_SPEC_OBJECT_TYPE + 1);
+  __ j(equal, &function);
 
-  // As long as LAST_CALLABLE_SPEC_OBJECT_TYPE is the last instance type, and
-  // FIRST_CALLABLE_SPEC_OBJECT_TYPE comes right after
-  // LAST_NONCALLABLE_SPEC_OBJECT_TYPE, we can avoid checking for the latter.
-  STATIC_ASSERT(LAST_TYPE == LAST_CALLABLE_SPEC_OBJECT_TYPE);
-  STATIC_ASSERT(FIRST_CALLABLE_SPEC_OBJECT_TYPE ==
-                LAST_NONCALLABLE_SPEC_OBJECT_TYPE + 1);
-  __ CmpInstanceType(rax, FIRST_CALLABLE_SPEC_OBJECT_TYPE);
-  __ j(above_equal, &function);
+  __ CmpInstanceType(rax, LAST_SPEC_OBJECT_TYPE);
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE ==
+                LAST_SPEC_OBJECT_TYPE - 1);
+  __ j(equal, &function);
+  // Assume that there is no larger type.
+  STATIC_ASSERT(LAST_NONCALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE - 1);
 
-  // Check if the constructor in the map is a function.
+  // Check if the constructor in the map is a JS function.
   __ movq(rax, FieldOperand(rax, Map::kConstructorOffset));
   __ CmpObjectType(rax, JS_FUNCTION_TYPE, rbx);
   __ j(not_equal, &non_function_constructor);
@@ -2726,7 +2758,7 @@ void FullCodeGenerator::EmitSetValueOf(ZoneList<Expression*>* args) {
   // Update the write barrier.  Save the value as it will be
   // overwritten by the write barrier code and is needed afterward.
   __ movq(rdx, rax);
-  __ RecordWrite(rbx, JSValue::kValueOffset, rdx, rcx);
+  __ RecordWriteField(rbx, JSValue::kValueOffset, rdx, rcx, kDontSaveFPRegs);
 
   __ bind(&done);
   context()->Plug(rax);
@@ -3010,14 +3042,33 @@ void FullCodeGenerator::EmitSwapElements(ZoneList<Expression*>* args) {
   __ movq(Operand(index_2, 0), object);
   __ movq(Operand(index_1, 0), temp);
 
-  Label new_space;
-  __ InNewSpace(elements, temp, equal, &new_space);
+  Label no_remembered_set;
+  __ CheckPageFlag(elements,
+                   temp,
+                   1 << MemoryChunk::SCAN_ON_SCAVENGE,
+                   not_zero,
+                   &no_remembered_set,
+                   Label::kNear);
+  // Possible optimization: do a check that both values are Smis
+  // (or them and test against Smi mask.)
 
-  __ movq(object, elements);
-  __ RecordWriteHelper(object, index_1, temp);
-  __ RecordWriteHelper(elements, index_2, temp);
+  // We are swapping two objects in an array and the incremental marker never
+  // pauses in the middle of scanning a single object.  Therefore the
+  // incremental marker is not disturbed, so we don't need to call the
+  // RecordWrite stub that notifies the incremental marker.
+  __ RememberedSetHelper(elements,
+                         index_1,
+                         temp,
+                         kDontSaveFPRegs,
+                         MacroAssembler::kFallThroughAtEnd);
+  __ RememberedSetHelper(elements,
+                         index_2,
+                         temp,
+                         kDontSaveFPRegs,
+                         MacroAssembler::kFallThroughAtEnd);
 
-  __ bind(&new_space);
+  __ bind(&no_remembered_set);
+
   // We are done. Drop elements from the stack, and return undefined.
   __ addq(rsp, Immediate(3 * kPointerSize));
   __ LoadRoot(rax, Heap::kUndefinedValueRootIndex);
@@ -3833,10 +3884,14 @@ void FullCodeGenerator::VisitForTypeofValue(Expression* expr) {
 
 
 void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
-                                                 Handle<String> check,
-                                                 Label* if_true,
-                                                 Label* if_false,
-                                                 Label* fall_through) {
+                                                 Handle<String> check) {
+  Label materialize_true, materialize_false;
+  Label* if_true = NULL;
+  Label* if_false = NULL;
+  Label* fall_through = NULL;
+  context()->PrepareTest(&materialize_true, &materialize_false,
+                         &if_true, &if_false, &fall_through);
+
   { AccumulatorValueContext context(this);
     VisitForTypeofValue(expr);
   }
@@ -3875,9 +3930,11 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
     Split(not_zero, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->function_symbol())) {
     __ JumpIfSmi(rax, if_false);
-    STATIC_ASSERT(LAST_CALLABLE_SPEC_OBJECT_TYPE == LAST_TYPE);
-    __ CmpObjectType(rax, FIRST_CALLABLE_SPEC_OBJECT_TYPE, rdx);
-    Split(above_equal, if_true, if_false, fall_through);
+    STATIC_ASSERT(NUM_OF_CALLABLE_SPEC_OBJECT_TYPES == 2);
+    __ CmpObjectType(rax, JS_FUNCTION_TYPE, rdx);
+    __ j(equal, if_true);
+    __ CmpInstanceType(rdx, JS_FUNCTION_PROXY_TYPE);
+    Split(equal, if_true, if_false, fall_through);
   } else if (check->Equals(isolate()->heap()->object_symbol())) {
     __ JumpIfSmi(rax, if_false);
     if (!FLAG_harmony_typeof) {
@@ -3895,24 +3952,17 @@ void FullCodeGenerator::EmitLiteralCompareTypeof(Expression* expr,
   } else {
     if (if_false != fall_through) __ jmp(if_false);
   }
-}
-
-
-void FullCodeGenerator::EmitLiteralCompareUndefined(Expression* expr,
-                                                    Label* if_true,
-                                                    Label* if_false,
-                                                    Label* fall_through) {
-  VisitForAccumulatorValue(expr);
-  PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-
-  __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
-  Split(equal, if_true, if_false, fall_through);
+  context()->Plug(if_true, if_false);
 }
 
 
 void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Comment cmnt(masm_, "[ CompareOperation");
   SetSourcePosition(expr->position());
+
+  // First we try a fast inlined version of the compare when one of
+  // the operands is a literal.
+  if (TryLiteralCompare(expr)) return;
 
   // Always perform the comparison for its control flow.  Pack the result
   // into the expression's context after the comparison is performed.
@@ -3922,13 +3972,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
   Label* fall_through = NULL;
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
-
-  // First we try a fast inlined version of the compare when one of
-  // the operands is a literal.
-  if (TryLiteralCompare(expr, if_true, if_false, fall_through)) {
-    context()->Plug(if_true, if_false);
-    return;
-  }
 
   Token::Value op = expr->op();
   VisitForStackValue(expr->left());
@@ -3957,7 +4000,6 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
       Condition cc = no_condition;
       switch (op) {
         case Token::EQ_STRICT:
-          // Fall through.
         case Token::EQ:
           cc = equal;
           __ pop(rdx);
@@ -4018,8 +4060,9 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
 }
 
 
-void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
-  Comment cmnt(masm_, "[ CompareToNull");
+void FullCodeGenerator::EmitLiteralCompareNil(CompareOperation* expr,
+                                              Expression* sub_expr,
+                                              NilValue nil) {
   Label materialize_true, materialize_false;
   Label* if_true = NULL;
   Label* if_false = NULL;
@@ -4027,14 +4070,20 @@ void FullCodeGenerator::VisitCompareToNull(CompareToNull* expr) {
   context()->PrepareTest(&materialize_true, &materialize_false,
                          &if_true, &if_false, &fall_through);
 
-  VisitForAccumulatorValue(expr->expression());
+  VisitForAccumulatorValue(sub_expr);
   PrepareForBailoutBeforeSplit(TOS_REG, true, if_true, if_false);
-  __ CompareRoot(rax, Heap::kNullValueRootIndex);
-  if (expr->is_strict()) {
+  Heap::RootListIndex nil_value = nil == kNullValue ?
+      Heap::kNullValueRootIndex :
+      Heap::kUndefinedValueRootIndex;
+  __ CompareRoot(rax, nil_value);
+  if (expr->op() == Token::EQ_STRICT) {
     Split(equal, if_true, if_false, fall_through);
   } else {
+    Heap::RootListIndex other_nil_value = nil == kNullValue ?
+        Heap::kUndefinedValueRootIndex :
+        Heap::kNullValueRootIndex;
     __ j(equal, if_true);
-    __ CompareRoot(rax, Heap::kUndefinedValueRootIndex);
+    __ CompareRoot(rax, other_nil_value);
     __ j(equal, if_true);
     __ JumpIfSmi(rax, if_false);
     // It can be an undetectable object.

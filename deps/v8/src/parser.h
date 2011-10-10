@@ -533,11 +533,6 @@ class Parser {
   ObjectLiteral::Property* ParseObjectLiteralGetSet(bool is_getter, bool* ok);
   Expression* ParseRegExpLiteral(bool seen_equal, bool* ok);
 
-  Expression* NewCompareNode(Token::Value op,
-                             Expression* x,
-                             Expression* y,
-                             int position);
-
   // Populate the constant properties fixed array for a materialized object
   // literal.
   void BuildObjectLiteralConstantProperties(

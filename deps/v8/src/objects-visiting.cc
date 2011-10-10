@@ -73,6 +73,9 @@ StaticVisitorBase::VisitorId StaticVisitorBase::GetVisitorId(
     case BYTE_ARRAY_TYPE:
       return kVisitByteArray;
 
+    case FREE_SPACE_TYPE:
+      return kVisitFreeSpace;
+
     case FIXED_ARRAY_TYPE:
       return kVisitFixedArray;
 

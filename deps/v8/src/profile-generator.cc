@@ -488,8 +488,6 @@ void CpuProfile::Print() {
 
 CodeEntry* const CodeMap::kSharedFunctionCodeEntry = NULL;
 const CodeMap::CodeTreeConfig::Key CodeMap::CodeTreeConfig::kNoKey = NULL;
-const CodeMap::CodeTreeConfig::Value CodeMap::CodeTreeConfig::kNoValue =
-    CodeMap::CodeEntryInfo(NULL, 0);
 
 
 void CodeMap::AddCode(Address addr, CodeEntry* entry, unsigned size) {
@@ -1015,6 +1013,11 @@ int HeapEntry::RetainedSize(bool exact) {
 }
 
 
+Handle<HeapObject> HeapEntry::GetHeapObject() {
+  return snapshot_->collection()->FindHeapObjectById(id());
+}
+
+
 template<class Visitor>
 void HeapEntry::ApplyAndPaintAllReachable(Visitor* visitor) {
   List<HeapEntry*> list(10);
@@ -1375,8 +1378,8 @@ HeapObjectsMap::~HeapObjectsMap() {
 
 
 void HeapObjectsMap::SnapshotGenerationFinished() {
-    initial_fill_mode_ = false;
-    RemoveDeadEntries();
+  initial_fill_mode_ = false;
+  RemoveDeadEntries();
 }
 
 
@@ -1398,10 +1401,12 @@ void HeapObjectsMap::MoveObject(Address from, Address to) {
   if (entry != NULL) {
     void* value = entry->value;
     entries_map_.Remove(from, AddressHash(from));
-    entry = entries_map_.Lookup(to, AddressHash(to), true);
-    // We can have an entry at the new location, it is OK, as GC can overwrite
-    // dead objects with alive objects being moved.
-    entry->value = value;
+    if (to != NULL) {
+      entry = entries_map_.Lookup(to, AddressHash(to), true);
+      // We can have an entry at the new location, it is OK, as GC can overwrite
+      // dead objects with alive objects being moved.
+      entry->value = value;
+    }
   }
 }
 
@@ -1519,6 +1524,26 @@ void HeapSnapshotsCollection::RemoveSnapshot(HeapSnapshot* snapshot) {
   unsigned uid = snapshot->uid();
   snapshots_uids_.Remove(reinterpret_cast<void*>(uid),
                          static_cast<uint32_t>(uid));
+}
+
+
+Handle<HeapObject> HeapSnapshotsCollection::FindHeapObjectById(uint64_t id) {
+  // First perform a full GC in order to avoid dead objects.
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  AssertNoAllocation no_allocation;
+  HeapObject* object = NULL;
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+  // Make sure that object with the given id is still reachable.
+  for (HeapObject* obj = iterator.next();
+       obj != NULL;
+       obj = iterator.next()) {
+    if (ids_.FindObject(obj->address()) == id) {
+      ASSERT(object == NULL);
+      object = obj;
+      // Can't break -- kFilterUnreachable requires full heap traversal.
+    }
+  }
+  return object != NULL ? Handle<HeapObject>(object) : Handle<HeapObject>();
 }
 
 
@@ -1812,12 +1837,13 @@ const char* V8HeapExplorer::GetSystemEntryName(HeapObject* object) {
 }
 
 
-int V8HeapExplorer::EstimateObjectsCount() {
-  HeapIterator iterator(HeapIterator::kFilterUnreachable);
+int V8HeapExplorer::EstimateObjectsCount(HeapIterator* iterator) {
   int objects_count = 0;
-  for (HeapObject* obj = iterator.next();
+  for (HeapObject* obj = iterator->next();
        obj != NULL;
-       obj = iterator.next(), ++objects_count) {}
+       obj = iterator->next()) {
+    objects_count++;
+  }
   return objects_count;
 }
 
@@ -1944,6 +1970,14 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       SetInternalReference(obj, entry,
                            "descriptors", map->instance_descriptors(),
                            Map::kInstanceDescriptorsOrBitField3Offset);
+    }
+    if (map->prototype_transitions() != heap_->empty_fixed_array()) {
+      TagObject(map->prototype_transitions(), "(prototype transitions)");
+      SetInternalReference(obj,
+                           entry,
+                           "prototype_transitions",
+                           map->prototype_transitions(),
+                           Map::kPrototypeTransitionsOffset);
     }
     SetInternalReference(obj, entry,
                          "code_cache", map->code_cache(),
@@ -2175,9 +2209,11 @@ class RootsReferencesExtractor : public ObjectVisitor {
 
 bool V8HeapExplorer::IterateAndExtractReferences(
     SnapshotFillerInterface* filler) {
-  filler_ = filler;
   HeapIterator iterator(HeapIterator::kFilterUnreachable);
+
+  filler_ = filler;
   bool interrupted = false;
+
   // Heap iteration with filtering must be finished in any case.
   for (HeapObject* obj = iterator.next();
        obj != NULL;
@@ -2743,12 +2779,42 @@ class SnapshotFiller : public SnapshotFillerInterface {
 bool HeapSnapshotGenerator::GenerateSnapshot() {
   v8_heap_explorer_.TagGlobalObjects();
 
+  // TODO(1562) Profiler assumes that any object that is in the heap after
+  // full GC is reachable from the root when computing dominators.
+  // This is not true for weakly reachable objects.
+  // As a temporary solution we call GC twice.
+  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  Isolate::Current()->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+
+#ifdef DEBUG
+  Heap* debug_heap = Isolate::Current()->heap();
+  ASSERT(!debug_heap->old_data_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->old_pointer_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->code_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->cell_space()->was_swept_conservatively());
+  ASSERT(!debug_heap->map_space()->was_swept_conservatively());
+#endif
+
+  // The following code uses heap iterators, so we want the heap to be
+  // stable. It should follow TagGlobalObjects as that can allocate.
   AssertNoAllocation no_alloc;
+
+#ifdef DEBUG
+  debug_heap->Verify();
+#endif
 
   SetProgressTotal(4);  // 2 passes + dominators + sizes.
 
+#ifdef DEBUG
+  debug_heap->Verify();
+#endif
+
   // Pass 1. Iterate heap contents to count entries and references.
   if (!CountEntriesAndReferences()) return false;
+
+#ifdef DEBUG
+  debug_heap->Verify();
+#endif
 
   // Allocate and fill entries in the snapshot, allocate references.
   snapshot_->AllocateEntries(entries_.entries_count(),
@@ -2787,8 +2853,9 @@ bool HeapSnapshotGenerator::ProgressReport(bool force) {
 
 void HeapSnapshotGenerator::SetProgressTotal(int iterations_count) {
   if (control_ == NULL) return;
+  HeapIterator iterator(HeapIterator::kFilterUnreachable);
   progress_total_ = (
-      v8_heap_explorer_.EstimateObjectsCount() +
+      v8_heap_explorer_.EstimateObjectsCount(&iterator) +
       dom_explorer_.EstimateObjectsCount()) * iterations_count;
   progress_counter_ = 0;
 }
@@ -2838,7 +2905,7 @@ void HeapSnapshotGenerator::FillReversePostorderIndexes(
       nodes_to_visit.RemoveLast();
     }
   }
-  entries->Truncate(current_entry);
+  ASSERT_EQ(current_entry, entries->length());
 }
 
 

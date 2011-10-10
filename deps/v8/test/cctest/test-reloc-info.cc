@@ -34,7 +34,7 @@ namespace internal {
 
 static void WriteRinfo(RelocInfoWriter* writer,
                        byte* pc, RelocInfo::Mode mode, intptr_t data) {
-  RelocInfo rinfo(pc, mode, data);
+  RelocInfo rinfo(pc, mode, data, NULL);
   writer->Write(&rinfo);
 }
 

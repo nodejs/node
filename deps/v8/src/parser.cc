@@ -957,17 +957,18 @@ class InitializationBlockFinder : public ParserFinder {
 };
 
 
-// A ThisNamedPropertyAssigmentFinder finds and marks statements of the form
+// A ThisNamedPropertyAssignmentFinder finds and marks statements of the form
 // this.x = ...;, where x is a named property. It also determines whether a
 // function contains only assignments of this type.
-class ThisNamedPropertyAssigmentFinder : public ParserFinder {
+class ThisNamedPropertyAssignmentFinder : public ParserFinder {
  public:
-  explicit ThisNamedPropertyAssigmentFinder(Isolate* isolate)
+  explicit ThisNamedPropertyAssignmentFinder(Isolate* isolate)
       : isolate_(isolate),
         only_simple_this_property_assignments_(true),
-        names_(NULL),
-        assigned_arguments_(NULL),
-        assigned_constants_(NULL) {}
+        names_(0),
+        assigned_arguments_(0),
+        assigned_constants_(0) {
+  }
 
   void Update(Scope* scope, Statement* stat) {
     // Bail out if function already has property assignment that are
@@ -994,19 +995,17 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
   // Returns a fixed array containing three elements for each assignment of the
   // form this.x = y;
   Handle<FixedArray> GetThisPropertyAssignments() {
-    if (names_ == NULL) {
+    if (names_.is_empty()) {
       return isolate_->factory()->empty_fixed_array();
     }
-    ASSERT(names_ != NULL);
-    ASSERT(assigned_arguments_ != NULL);
-    ASSERT_EQ(names_->length(), assigned_arguments_->length());
-    ASSERT_EQ(names_->length(), assigned_constants_->length());
+    ASSERT_EQ(names_.length(), assigned_arguments_.length());
+    ASSERT_EQ(names_.length(), assigned_constants_.length());
     Handle<FixedArray> assignments =
-        isolate_->factory()->NewFixedArray(names_->length() * 3);
-    for (int i = 0; i < names_->length(); i++) {
-      assignments->set(i * 3, *names_->at(i));
-      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_->at(i)));
-      assignments->set(i * 3 + 2, *assigned_constants_->at(i));
+        isolate_->factory()->NewFixedArray(names_.length() * 3);
+    for (int i = 0; i < names_.length(); ++i) {
+      assignments->set(i * 3, *names_[i]);
+      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_[i]));
+      assignments->set(i * 3 + 2, *assigned_constants_[i]);
     }
     return assignments;
   }
@@ -1063,18 +1062,37 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     AssignmentFromSomethingElse();
   }
 
+
+
+
+  // We will potentially reorder the property assignments, so they must be
+  // simple enough that the ordering does not matter.
   void AssignmentFromParameter(Handle<String> name, int index) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(index);
-    assigned_constants_->Add(isolate_->factory()->undefined_value());
+    EnsureInitialized();
+    for (int i = 0; i < names_.length(); ++i) {
+      if (name->Equals(*names_[i])) {
+        assigned_arguments_[i] = index;
+        assigned_constants_[i] = isolate_->factory()->undefined_value();
+        return;
+      }
+    }
+    names_.Add(name);
+    assigned_arguments_.Add(index);
+    assigned_constants_.Add(isolate_->factory()->undefined_value());
   }
 
   void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(-1);
-    assigned_constants_->Add(value);
+    EnsureInitialized();
+    for (int i = 0; i < names_.length(); ++i) {
+      if (name->Equals(*names_[i])) {
+        assigned_arguments_[i] = -1;
+        assigned_constants_[i] = value;
+        return;
+      }
+    }
+    names_.Add(name);
+    assigned_arguments_.Add(-1);
+    assigned_constants_.Add(value);
   }
 
   void AssignmentFromSomethingElse() {
@@ -1082,35 +1100,36 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     only_simple_this_property_assignments_ = false;
   }
 
-  void EnsureAllocation() {
-    if (names_ == NULL) {
-      ASSERT(assigned_arguments_ == NULL);
-      ASSERT(assigned_constants_ == NULL);
-      Zone* zone = isolate_->zone();
-      names_ = new(zone) ZoneStringList(4);
-      assigned_arguments_ = new(zone) ZoneList<int>(4);
-      assigned_constants_ = new(zone) ZoneObjectList(4);
+  void EnsureInitialized() {
+    if (names_.capacity() == 0) {
+      ASSERT(assigned_arguments_.capacity() == 0);
+      ASSERT(assigned_constants_.capacity() == 0);
+      names_.Initialize(4);
+      assigned_arguments_.Initialize(4);
+      assigned_constants_.Initialize(4);
     }
   }
 
   Isolate* isolate_;
   bool only_simple_this_property_assignments_;
-  ZoneStringList* names_;
-  ZoneList<int>* assigned_arguments_;
-  ZoneObjectList* assigned_constants_;
+  ZoneStringList names_;
+  ZoneList<int> assigned_arguments_;
+  ZoneObjectList assigned_constants_;
 };
 
 
 Statement* Parser::ParseSourceElement(ZoneStringList* labels,
                                       bool* ok) {
+  // (Ecma 262 5th Edition, clause 14):
+  // SourceElement:
+  //    Statement
+  //    FunctionDeclaration
+  //
+  // In harmony mode we allow additionally the following productions
+  // SourceElement:
+  //    LetDeclaration
+
   if (peek() == Token::FUNCTION) {
-    // FunctionDeclaration is only allowed in the context of SourceElements
-    // (Ecma 262 5th Edition, clause 14):
-    // SourceElement:
-    //    Statement
-    //    FunctionDeclaration
-    // Common language extension is to allow function declaration in place
-    // of any statement. This language extension is disabled in strict mode.
     return ParseFunctionDeclaration(ok);
   } else if (peek() == Token::LET) {
     return ParseVariableStatement(kSourceElement, ok);
@@ -1124,7 +1143,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool* ok) {
   // SourceElements ::
-  //   (Statement)* <end_token>
+  //   (SourceElement)* <end_token>
 
   // Allocate a target stack to use for this set of source
   // elements. This way, all scripts and functions get their own
@@ -1134,7 +1153,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
   ASSERT(processor != NULL);
   InitializationBlockFinder block_finder(top_scope_, target_stack_);
-  ThisNamedPropertyAssigmentFinder this_property_assignment_finder(isolate());
+  ThisNamedPropertyAssignmentFinder this_property_assignment_finder(isolate());
   bool directive_prologue = true;     // Parsing directive prologue.
 
   while (peek() != end_token) {
@@ -1295,8 +1314,13 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     }
 
     case Token::FUNCTION: {
-      // In strict mode, FunctionDeclaration is only allowed in the context
-      // of SourceElements.
+      // FunctionDeclaration is only allowed in the context of SourceElements
+      // (Ecma 262 5th Edition, clause 14):
+      // SourceElement:
+      //    Statement
+      //    FunctionDeclaration
+      // Common language extension is to allow function declaration in place
+      // of any statement. This language extension is disabled in strict mode.
       if (top_scope_->is_strict_mode()) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
@@ -1555,6 +1579,11 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
 
 
 Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
+  // The harmony mode uses source elements instead of statements.
+  //
+  // Block ::
+  //   '{' SourceElement* '}'
+
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
   Scope* saved_scope = top_scope_;
@@ -1753,6 +1782,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
           value->AsCall() == NULL &&
           value->AsCallNew() == NULL) {
         fni_->Infer();
+      } else {
+        fni_->RemoveLastFunction();
       }
     }
 
@@ -2503,6 +2534,8 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
          || op == Token::ASSIGN)
         && (right->AsCall() == NULL && right->AsCallNew() == NULL)) {
       fni_->Infer();
+    } else {
+      fni_->RemoveLastFunction();
     }
     fni_->Leave();
   }
@@ -2614,7 +2647,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NewCompareNode(cmp, x, y, position);
+        x = new(zone()) CompareOperation(isolate(), cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = new(zone()) UnaryOperation(isolate(), Token::NOT, x, position);
@@ -2627,27 +2660,6 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
-}
-
-
-Expression* Parser::NewCompareNode(Token::Value op,
-                                   Expression* x,
-                                   Expression* y,
-                                   int position) {
-  ASSERT(op != Token::NE && op != Token::NE_STRICT);
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool is_strict = (op == Token::EQ_STRICT);
-    Literal* x_literal = x->AsLiteral();
-    if (x_literal != NULL && x_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, y);
-    }
-
-    Literal* y_literal = y->AsLiteral();
-    if (y_literal != NULL && y_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, x);
-    }
-  }
-  return new(zone()) CompareOperation(isolate(), op, x, y, position);
 }
 
 

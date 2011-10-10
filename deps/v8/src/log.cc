@@ -1356,12 +1356,12 @@ class EnumerateOptimizedFunctionsVisitor: public OptimizedFunctionVisitor {
 
 static int EnumerateCompiledFunctions(Handle<SharedFunctionInfo>* sfis,
                                       Handle<Code>* code_objects) {
+  HeapIterator iterator;
   AssertNoAllocation no_alloc;
   int compiled_funcs_count = 0;
 
   // Iterate the heap to find shared function info objects and record
   // the unoptimized code for them.
-  HeapIterator iterator;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsSharedFunctionInfo()) continue;
     SharedFunctionInfo* sfi = SharedFunctionInfo::cast(obj);
@@ -1519,8 +1519,9 @@ void Logger::LowLevelLogWriteBytes(const char* bytes, int size) {
 
 
 void Logger::LogCodeObjects() {
-  AssertNoAllocation no_alloc;
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   HeapIterator iterator;
+  AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (obj->IsCode()) LogCodeObject(obj);
   }
@@ -1573,6 +1574,7 @@ void Logger::LogExistingFunction(Handle<SharedFunctionInfo> shared,
 
 
 void Logger::LogCompiledFunctions() {
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   HandleScope scope;
   const int compiled_funcs_count = EnumerateCompiledFunctions(NULL, NULL);
   ScopedVector< Handle<SharedFunctionInfo> > sfis(compiled_funcs_count);
@@ -1591,9 +1593,9 @@ void Logger::LogCompiledFunctions() {
 
 
 void Logger::LogAccessorCallbacks() {
-  AssertNoAllocation no_alloc;
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
   HeapIterator iterator;
-  i::Isolate* isolate = ISOLATE;
+  AssertNoAllocation no_alloc;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     if (!obj->IsAccessorInfo()) continue;
     AccessorInfo* ai = AccessorInfo::cast(obj);
@@ -1601,11 +1603,11 @@ void Logger::LogAccessorCallbacks() {
     String* name = String::cast(ai->name());
     Address getter_entry = v8::ToCData<Address>(ai->getter());
     if (getter_entry != 0) {
-      PROFILE(isolate, GetterCallbackEvent(name, getter_entry));
+      PROFILE(ISOLATE, GetterCallbackEvent(name, getter_entry));
     }
     Address setter_entry = v8::ToCData<Address>(ai->setter());
     if (setter_entry != 0) {
-      PROFILE(isolate, SetterCallbackEvent(name, setter_entry));
+      PROFILE(ISOLATE, SetterCallbackEvent(name, setter_entry));
     }
   }
 }

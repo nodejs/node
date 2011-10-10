@@ -551,12 +551,12 @@ void CpuProfiler::StopProcessor() {
     sampler->Stop();
     need_to_stop_sampler_ = false;
   }
+  NoBarrier_Store(&is_profiling_, false);
   processor_->Stop();
   processor_->Join();
   delete processor_;
   delete generator_;
   processor_ = NULL;
-  NoBarrier_Store(&is_profiling_, false);
   generator_ = NULL;
   logger->logging_nesting_ = saved_logging_nesting_;
 }

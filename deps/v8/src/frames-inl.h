@@ -77,6 +77,21 @@ inline StackHandler* StackHandler::FromAddress(Address address) {
 }
 
 
+inline bool StackHandler::is_entry() const {
+  return state() == ENTRY;
+}
+
+
+inline bool StackHandler::is_try_catch() const {
+  return state() == TRY_CATCH;
+}
+
+
+inline bool StackHandler::is_try_finally() const {
+  return state() == TRY_FINALLY;
+}
+
+
 inline StackHandler::State StackHandler::state() const {
   const int offset = StackHandlerConstants::kStateOffset;
   return static_cast<State>(Memory::int_at(address() + offset));
@@ -105,8 +120,33 @@ inline StackHandler* StackFrame::top_handler() const {
 }
 
 
+inline Code* StackFrame::LookupCode() const {
+  return GetContainingCode(isolate(), pc());
+}
+
+
 inline Code* StackFrame::GetContainingCode(Isolate* isolate, Address pc) {
-  return isolate->pc_to_code_cache()->GetCacheEntry(pc)->code;
+  return isolate->inner_pointer_to_code_cache()->GetCacheEntry(pc)->code;
+}
+
+
+inline EntryFrame::EntryFrame(StackFrameIterator* iterator)
+    : StackFrame(iterator) {
+}
+
+
+inline EntryConstructFrame::EntryConstructFrame(StackFrameIterator* iterator)
+    : EntryFrame(iterator) {
+}
+
+
+inline ExitFrame::ExitFrame(StackFrameIterator* iterator)
+    : StackFrame(iterator) {
+}
+
+
+inline StandardFrame::StandardFrame(StackFrameIterator* iterator)
+    : StackFrame(iterator) {
 }
 
 
@@ -155,6 +195,11 @@ inline bool StandardFrame::IsConstructFrame(Address fp) {
 }
 
 
+inline JavaScriptFrame::JavaScriptFrame(StackFrameIterator* iterator)
+    : StandardFrame(iterator) {
+}
+
+
 Address JavaScriptFrame::GetParameterSlot(int index) const {
   int param_count = ComputeParametersCount();
   ASSERT(-1 <= index && index < param_count);
@@ -187,6 +232,26 @@ inline Object* JavaScriptFrame::function() const {
   Object* result = function_slot_object();
   ASSERT(result->IsJSFunction());
   return result;
+}
+
+
+inline OptimizedFrame::OptimizedFrame(StackFrameIterator* iterator)
+    : JavaScriptFrame(iterator) {
+}
+
+
+inline ArgumentsAdaptorFrame::ArgumentsAdaptorFrame(
+    StackFrameIterator* iterator) : JavaScriptFrame(iterator) {
+}
+
+
+inline InternalFrame::InternalFrame(StackFrameIterator* iterator)
+    : StandardFrame(iterator) {
+}
+
+
+inline ConstructFrame::ConstructFrame(StackFrameIterator* iterator)
+    : InternalFrame(iterator) {
 }
 
 

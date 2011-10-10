@@ -25,10 +25,25 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// Test element kind of objects
+// Flags: --allow-natives-syntax --smi-only-arrays
+// Test element kind of objects.
+// Since --smi-only-arrays affects builtins, its default setting at compile
+// time sticks if built with snapshot.  If --smi-only-arrays is deactivated
+// by default, only a no-snapshot build actually has smi-only arrays enabled
+// in this test case.  Depending on whether smi-only arrays are actually
+// enabled, this test takes the appropriate code path to check smi-only arrays.
+
+
+support_smi_only_arrays = %HasFastSmiOnlyElements([]);
+
+if (support_smi_only_arrays) {
+  print("Tests include smi-only arrays.");
+} else {
+  print("Tests do NOT include smi-only arrays.");
+}
 
 var element_kind = {
+  fast_smi_only_elements            :  0,
   fast_elements                     :  1,
   fast_double_elements              :  2,
   dictionary_elements               :  3,
@@ -44,9 +59,17 @@ var element_kind = {
 }
 
 // We expect an object to only be of one element kind.
-function assertKind(expected, obj){
-  assertEquals(expected == element_kind.fast_elements,
-               %HasFastElements(obj));
+function assertKind(expected, obj) {
+  if (support_smi_only_arrays) {
+    assertEquals(expected == element_kind.fast_smi_only_elements,
+                 %HasFastSmiOnlyElements(obj));
+    assertEquals(expected == element_kind.fast_elements,
+                 %HasFastElements(obj));
+  } else {
+    assertEquals(expected == element_kind.fast_elements ||
+                 expected == element_kind.fast_smi_only_elements,
+                 %HasFastElements(obj));
+  }
   assertEquals(expected == element_kind.fast_double_elements,
                %HasFastDoubleElements(obj));
   assertEquals(expected == element_kind.dictionary_elements,
@@ -80,16 +103,30 @@ me.dance = 0xD15C0;
 me.drink = 0xC0C0A;
 assertKind(element_kind.fast_elements, me);
 
+var too = [1,2,3];
+assertKind(element_kind.fast_smi_only_elements, too);
+too.dance = 0xD15C0;
+too.drink = 0xC0C0A;
+assertKind(element_kind.fast_smi_only_elements, too);
+
+// Make sure the element kind transitions from smionly when a non-smi is stored.
 var you = new Array();
-for(i = 0; i < 1337; i++) {
-  you[i] = i;
+assertKind(element_kind.fast_smi_only_elements, you);
+for (var i = 0; i < 1337; i++) {
+  var val = i;
+  if (i == 1336) {
+    assertKind(element_kind.fast_smi_only_elements, you);
+    val = new Object();
+  }
+  you[i] = val;
 }
 assertKind(element_kind.fast_elements, you);
 
-assertKind(element_kind.dictionary_elements, new Array(0xC0C0A));
+assertKind(element_kind.dictionary_elements, new Array(0xDECAF));
 
-// fast_double_elements not yet available
-
+var fast_double_array = new Array(0xDECAF);
+for (var i = 0; i < 0xDECAF; i++) fast_double_array[i] = i / 2;
+assertKind(element_kind.fast_double_elements, fast_double_array);
 
 assertKind(element_kind.external_byte_elements,           new Int8Array(9001));
 assertKind(element_kind.external_unsigned_byte_elements,  new Uint8Array(007));
@@ -100,3 +137,70 @@ assertKind(element_kind.external_unsigned_int_elements,   new Uint32Array(23));
 assertKind(element_kind.external_float_elements,          new Float32Array(7));
 assertKind(element_kind.external_double_elements,         new Float64Array(0));
 assertKind(element_kind.external_pixel_elements,          new PixelArray(512));
+
+// Crankshaft support for smi-only array elements.
+function monomorphic(array) {
+  for (var i = 0; i < 3; i++) {
+    array[i] = i + 10;
+  }
+  assertKind(element_kind.fast_smi_only_elements, array);
+  for (var i = 0; i < 3; i++) {
+    var a = array[i];
+    assertEquals(i + 10, a);
+  }
+}
+var smi_only = [1, 2, 3];
+for (var i = 0; i < 3; i++) monomorphic(smi_only);
+%OptimizeFunctionOnNextCall(monomorphic);
+monomorphic(smi_only);
+function polymorphic(array, expected_kind) {
+  array[1] = 42;
+  assertKind(expected_kind, array);
+  var a = array[1];
+  assertEquals(42, a);
+}
+var smis = [1, 2, 3];
+var strings = ["one", "two", "three"];
+var doubles = [0, 0, 0]; doubles[0] = 1.5; doubles[1] = 2.5; doubles[2] = 3.5;
+assertKind(support_smi_only_arrays
+               ? element_kind.fast_double_elements
+               : element_kind.fast_elements,
+           doubles);
+for (var i = 0; i < 3; i++) {
+  polymorphic(smis, element_kind.fast_smi_only_elements);
+  polymorphic(strings, element_kind.fast_elements);
+  polymorphic(doubles, support_smi_only_arrays
+                           ? element_kind.fast_double_elements
+                           : element_kind.fast_elements);
+}
+%OptimizeFunctionOnNextCall(polymorphic);
+polymorphic(smis, element_kind.fast_smi_only_elements);
+polymorphic(strings, element_kind.fast_elements);
+polymorphic(doubles, support_smi_only_arrays
+    ? element_kind.fast_double_elements
+    : element_kind.fast_elements);
+
+// Crankshaft support for smi-only elements in dynamic array literals.
+function get(foo) { return foo; }  // Used to generate dynamic values.
+
+//function crankshaft_test(expected_kind) {
+function crankshaft_test() {
+  var a = [get(1), get(2), get(3)];
+  assertKind(element_kind.fast_smi_only_elements, a);
+  var b = [get(1), get(2), get("three")];
+  assertKind(element_kind.fast_elements, b);
+  var c = [get(1), get(2), get(3.5)];
+  // The full code generator doesn't support conversion to fast_double_elements
+  // yet. Crankshaft does, but only with --smi-only-arrays support.
+  if ((%GetOptimizationStatus(crankshaft_test) & 1) &&
+      support_smi_only_arrays) {
+    assertKind(element_kind.fast_double_elements, c);
+  } else {
+    assertKind(element_kind.fast_elements, c);
+  }
+}
+for (var i = 0; i < 3; i++) {
+  crankshaft_test();
+}
+%OptimizeFunctionOnNextCall(crankshaft_test);
+crankshaft_test();
