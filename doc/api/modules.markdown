@@ -200,7 +200,8 @@ in pseudocode of what require.resolve does:
        a. Parse X/package.json, and look for "main" field.
        b. let M = X + (json main field)
        c. LOAD_AS_FILE(M)
-    2. LOAD_AS_FILE(X/index)
+    2. If X/index.js is a file, load X/index.js as JavaScript text.  STOP
+    3. If X/index.node is a file, load X/index.node as binary addon.  STOP
 
     LOAD_NODE_MODULES(X, START)
     1. let DIRS=NODE_MODULES_PATHS(START)
