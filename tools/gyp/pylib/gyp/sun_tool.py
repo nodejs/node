@@ -5,11 +5,9 @@
 
 """These functions are executed via gyp-sun-tool when using the Makefile generator."""
 
-import os
 import fcntl
-import plistlib
-import shutil
-import string
+import os
+import struct
 import subprocess
 import sys
 
@@ -36,6 +34,14 @@ class SunTool(object):
   def ExecFlock(self, lockfile, *cmd_list):
     """Emulates the most basic behavior of Linux's flock(1)."""
     # Rely on exception handling to report errors.
-    fd = os.open(lockfile, os.O_RDONLY|os.O_NOCTTY|os.O_CREAT, 0o666)
-    fcntl.flock(fd, fcntl.LOCK_EX)
+    # Note that the stock python on SunOS has a bug
+    # where fcntl.flock(fd, LOCK_EX) always fails
+    # with EBADF, that's why we use this F_SETLK
+    # hack instead.
+    fd = os.open(lockfile, os.O_WRONLY|os.O_NOCTTY|os.O_CREAT, 0o666)
+    op = struct.pack('hhllhhl', fcntl.F_WRLCK, 0, 0, 0, 0, 0, 0)
+    fcntl.fcntl(fd, fcntl.F_SETLK, op)
     return subprocess.call(cmd_list)
+
+if __name__ == '__main__':
+  sys.exit(main(sys.argv[1:]))
