@@ -626,7 +626,18 @@ struct uv_tty_s {
   UV_TTY_PRIVATE_FIELDS
 };
 
-int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd);
+/*
+ * Initialize a new TTY stream with the given file descriptor. Usually the
+ * file descriptor will be
+ *   0 = stdin
+ *   1 = stdout
+ *   2 = stderr
+ * The last argument, readable, specifies if you plan on calling
+ * uv_read_start with this stream. stdin is readable, stdout is not.
+ *
+ * TTY streams which are not readable have blocking writes.
+ */
+int uv_tty_init(uv_loop_t*, uv_tty_t*, uv_file fd, int readable);
 
 /*
  * Set mode. 0 for normal, 1 for raw.

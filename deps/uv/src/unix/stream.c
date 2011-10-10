@@ -53,6 +53,7 @@ void uv__stream_init(uv_loop_t* loop,
                      uv_stream_t* stream,
                      uv_handle_type type) {
   uv__handle_init(loop, (uv_handle_t*)stream, type);
+  loop->counters.stream_init++;
 
   stream->alloc_cb = NULL;
   stream->close_cb = NULL;
@@ -83,7 +84,7 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
   assert(fd >= 0);
   stream->fd = fd;
 
-  ((uv_handle_t*)stream)->flags |= flags;
+  stream->flags |= flags;
 
   /* Reuse the port address if applicable. */
   yes = 1;

@@ -86,7 +86,7 @@ void uv_console_init() {
 }
 
 
-int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd) {
+int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   HANDLE win_handle;
   CONSOLE_SCREEN_BUFFER_INFO info;
 

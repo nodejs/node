@@ -136,16 +136,16 @@ class TTYWrap : StreamWrap {
     int fd = args[0]->Int32Value();
     assert(fd >= 0);
 
-    TTYWrap* wrap = new TTYWrap(args.This(), fd);
+    TTYWrap* wrap = new TTYWrap(args.This(), fd, args[1]->IsTrue());
     assert(wrap);
     wrap->UpdateWriteQueueSize();
 
     return scope.Close(args.This());
   }
 
-  TTYWrap(Handle<Object> object, int fd)
+  TTYWrap(Handle<Object> object, int fd, bool readable)
       : StreamWrap(object, (uv_stream_t*)&handle_) {
-    uv_tty_init(uv_default_loop(), &handle_, fd);
+    uv_tty_init(uv_default_loop(), &handle_, fd, readable);
   }
 
   uv_tty_t handle_;

@@ -33,7 +33,7 @@ TEST_IMPL(tty) {
    */
   ASSERT(UV_TTY == uv_guess_handle(0));
 
-  r = uv_tty_init(uv_default_loop(), &tty, 0);
+  r = uv_tty_init(uv_default_loop(), &tty, 0, 1);
   ASSERT(r == 0);
 
   r = uv_tty_get_winsize(&tty, &width, &height);

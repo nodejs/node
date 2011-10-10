@@ -99,7 +99,8 @@ typedef int uv_file;
   ngx_queue_t write_completed_queue; \
   int delayed_error; \
   uv_connection_cb connection_cb; \
-  int accepted_fd;
+  int accepted_fd; \
+  int blocking;
 
 
 /* UV_TCP */
