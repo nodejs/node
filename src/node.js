@@ -231,7 +231,9 @@
 
           // Hack to have stdout not keep the event loop alive.
           // See https://github.com/joyent/node/issues/1726
-          stdout._handle.unref();
+          if (stdout._handle && stdout._handle.unref) {
+            stdout._handle.unref();
+          }
           break;
 
         case 'FILE':
@@ -253,7 +255,9 @@
 
           // FIXME Hack to have stdout not keep the event loop alive.
           // See https://github.com/joyent/node/issues/1726
-          stdout._handle.unref();
+          if (stdout._handle && stdout._handle.unref) {
+            stdout._handle.unref();
+          }
           break;
 
         default:
