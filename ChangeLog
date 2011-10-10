@@ -1,4 +1,29 @@
-2011.09.30, Version 0.5.8 (unstable)
+2011.10.10, Version 0.5.9 (unstable)
+
+* fs.watch interface backed by kqueue, inotify, and ReadDirectoryChangesW
+  (Igor Zinkovsky, Ben Noordhuis)
+
+* add dns.resolveTxt (Christian Tellnes)
+
+* Remove legacy http library (Ben Noordhuis)
+
+* child_process.fork returns and works on Windows. Allows passing handles.
+  (Igor Zinkovsky, Bert Belder)
+
+* #1774 Lint and clean up for --harmony_block_scoping (Tyler Larson, Colton
+  Baker)
+
+* #1813 Fix ctrl+c on Windows (Bert Belder)
+
+* #1844 unbreak --use-legacy (Ben Noordhuis)
+
+* process.stderr now goes through libuv. Both process.stdout and
+  process.stderr are blocking when referencing a TTY.
+
+* net_uv performance improvements (Ben Noordhuis, Bert Belder)
+
+
+2011.09.30, Version 0.5.8 (unstable), 7cc17a0cea1d25188c103745a7d0c24375e3a609
 
 * zlib bindings (isaacs)
 
