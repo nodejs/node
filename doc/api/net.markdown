@@ -135,14 +135,6 @@ This function is asynchronous. The last parameter `listeningListener` will be
 called when the server has been bound.
 See also ['listening'](#event_listening_) event.
 
-#### server.listenFD(fd)
-
-Start a server listening for connections on the given file descriptor.
-
-This file descriptor must have already had the `bind(2)` and `listen(2)` system
-calls invoked on it.  Additionally, it must be set non-blocking; try
-`fcntl(fd, F_SETFL, O_NONBLOCK)`.
-
 #### server.pause(msecs)
 
 Stop accepting connections for the given number of milliseconds (default is
@@ -300,12 +292,10 @@ buffer. Returns `false` if all or part of the data was queued in user memory.
 The optional `callback` parameter will be executed when the data is finally
 written out - this may not be immediately.
 
-#### socket.write(data, [encoding], [fileDescriptor], [callback])
+#### socket.write(data, [encoding], [callback])
 
-For UNIX sockets, it is possible to send a file descriptor through the
-socket. Simply add the `fileDescriptor` argument and listen for the `'fd'`
-event on the other end.
-
+Write data with the optional encoding. The callback will be made when the
+data is flushed to the kernel.
 
 #### socket.end([data], [encoding])
 
