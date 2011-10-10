@@ -212,73 +212,74 @@
     };
   };
 
+  function createWritableStdioStream(fd) {
+    var stream;
+    var tty_wrap = process.binding('tty_wrap');
+
+    // Note stream._type is used for test-module-load-list.js
+
+    switch (tty_wrap.guessHandleType(fd)) {
+      case 'TTY':
+        var tty = NativeModule.require('tty');
+        stream = new tty.WriteStream(fd);
+        stream._type = 'tty';
+
+        // Hack to have stream not keep the event loop alive.
+        // See https://github.com/joyent/node/issues/1726
+        if (stream._handle && stream._handle.unref) {
+          stream._handle.unref();
+        }
+        break;
+
+      case 'FILE':
+        var fs = NativeModule.require('fs');
+        stream = new fs.WriteStream(null, { fd: fd });
+        stream._type = 'fs';
+        break;
+
+      case 'PIPE':
+        var net = NativeModule.require('net');
+        stream = new net.Stream(fd);
+
+        // FIXME Should probably have an option in net.Stream to create a
+        // stream from an existing fd which is writable only. But for now
+        // we'll just add this hack and set the `readable` member to false.
+        // Test: ./node test/fixtures/echo.js < /etc/passwd
+        stream.readable = false;
+        stream._type = 'pipe';
+
+        // FIXME Hack to have stream not keep the event loop alive.
+        // See https://github.com/joyent/node/issues/1726
+        if (stream._handle && stream._handle.unref) {
+          stream._handle.unref();
+        }
+        break;
+
+      default:
+        // Probably an error on in uv_guess_handle()
+        throw new Error('Implement me. Unknown stream file type!');
+    }
+
+    // For supporting legacy API we put the FD here.
+    stream.fd = fd;
+
+    return stream;
+  }
+
   startup.processStdio = function() {
-    var stdout, stdin;
+    var stdin, stdout, stderr;
 
     process.__defineGetter__('stdout', function() {
       if (stdout) return stdout;
-
-      var tty_wrap = process.binding('tty_wrap');
-      var fd = 1;
-
-      // Note stdout._type is used for test-module-load-list.js
-
-      switch (tty_wrap.guessHandleType(fd)) {
-        case 'TTY':
-          var tty = NativeModule.require('tty');
-          stdout = new tty.WriteStream(fd);
-          stdout._type = 'tty';
-
-          // Hack to have stdout not keep the event loop alive.
-          // See https://github.com/joyent/node/issues/1726
-          if (stdout._handle && stdout._handle.unref) {
-            stdout._handle.unref();
-          }
-          break;
-
-        case 'FILE':
-          var fs = NativeModule.require('fs');
-          stdout = new fs.WriteStream(null, {fd: fd});
-          stdout._type = 'fs';
-          break;
-
-        case 'PIPE':
-          var net = NativeModule.require('net');
-          stdout = new net.Stream(fd);
-
-          // FIXME Should probably have an option in net.Stream to create a
-          // stream from an existing fd which is writable only. But for now
-          // we'll just add this hack and set the `readable` member to false.
-          // Test: ./node test/fixtures/echo.js < /etc/passwd
-          stdout.readable = false;
-          stdout._type = 'pipe';
-
-          // FIXME Hack to have stdout not keep the event loop alive.
-          // See https://github.com/joyent/node/issues/1726
-          if (stdout._handle && stdout._handle.unref) {
-            stdout._handle.unref();
-          }
-          break;
-
-        default:
-          // Probably an error on in uv_guess_handle()
-          throw new Error('Implement me. Unknown stdout file type!');
-      }
-
-      // For supporting legacy API we put the FD here.
-      stdout.fd = fd;
-
+      stdout = createWritableStdioStream(1);
       return stdout;
     });
 
-    var stderr = process.stderr = new EventEmitter();
-    stderr.writable = true;
-    stderr.readable = false;
-    stderr.write = process.binding('stdio').writeError;
-    stderr.end = stderr.destroy = stderr.destroySoon = function() { };
-    // For supporting legacy API we put the FD here.
-    // XXX this could break things if anyone ever closes this stream?
-    stderr.fd = 2;
+    process.__defineGetter__('stderr', function() {
+      if (stderr) return stderr;
+      stderr = createWritableStdioStream(2);
+      return stderr;
+    });
 
     process.__defineGetter__('stdin', function() {
       if (stdin) return stdin;

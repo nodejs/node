@@ -30,7 +30,14 @@ function assertEqual(x, y) {
 function checkExpected() {
   var toCompare = Math.max(expected.length, process.moduleLoadList.length);
   for (var i = 0; i < toCompare; i++) {
-    assertEqual(expected[i], process.moduleLoadList[i]);
+    if (expected[i] !== process.moduleLoadList[i]) {
+      console.error("process.moduleLoadList[" + i + "] = " + process.moduleLoadList[i]);
+      console.error("expected[" + i + "] = " + expected[i]);
+
+      console.error("process.moduleLoadList", process.moduleLoadList);
+      console.error("expected = ", expected);
+      throw new Error("mismatch");
+    }
   }
 }
 
@@ -42,7 +49,6 @@ var expected = [
   'Binding buffer',
   'NativeModule assert',
   'NativeModule util',
-  'Binding stdio',
   'NativeModule path',
   'NativeModule module',
   'NativeModule fs',
@@ -78,6 +84,7 @@ if (!process.features.uv) {
     case 'fs':
       expected = expected.concat([
         'NativeModule console',
+        'Binding stdio',
         'Binding tty_wrap'
       ]);
       break;
@@ -85,6 +92,7 @@ if (!process.features.uv) {
     case 'tty':
       expected = expected.concat([
         'NativeModule console',
+        'Binding stdio',
         'Binding tty_wrap',
         'NativeModule tty_uv',
         'NativeModule net_uv',
@@ -97,6 +105,7 @@ if (!process.features.uv) {
     case 'pipe':
       expected = expected.concat([
         'NativeModule console',
+        'Binding stdio',
         'Binding tty_wrap',
         'NativeModule net_uv',
         'NativeModule timers_uv',

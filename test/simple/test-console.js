@@ -49,4 +49,4 @@ assert.equal('foo bar\n', strings.shift());
 assert.equal('foo bar hop\n', strings.shift());
 assert.equal("{ slashes: '\\\\\\\\' }\n", strings.shift());
 
-assert.equal(true, process.stderr.write('hello world'));
+process.stderr.write('hello world');
