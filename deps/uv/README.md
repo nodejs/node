@@ -8,8 +8,6 @@ http://nodejs.org/
 
 ## Features
 
-Implemented:
-
  * Non-blocking TCP sockets
 
  * Non-blocking named pipes
@@ -32,13 +30,11 @@ Implemented:
 
  * ANSI escape code controlled TTY `uv_tty_t`
 
-In-progress:
-
- * File system events (Currently supports inotify, `ReadDirectoryChangesW`
-   and will support kqueue and event ports in the near future.)
+ * File system events Currently supports inotify, `ReadDirectoryChangesW`
+   and kqueue. Event ports in the near future.
    `uv_fs_event_t`
 
- * Socket sharing between processes `uv_ipc_t`
+ * IPC and socket sharing between processes `uv_write2`
 
 
 ## Documentation
