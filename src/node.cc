@@ -2166,18 +2166,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   Local<Object> env = envTemplate->NewInstance();
   process->Set(String::NewSymbol("env"), env);
 
-  // create process.ENV
-  // TODO: remove me at some point.
-  Local<ObjectTemplate> ENVTemplate = ObjectTemplate::New();
-  ENVTemplate->SetNamedPropertyHandler(EnvGetterWarn,
-                                       EnvSetter,
-                                       EnvQuery,
-                                       EnvDeleter,
-                                       EnvEnumerator,
-                                       Undefined());
-  Local<Object> ENV = ENVTemplate->NewInstance();
-  process->Set(String::NewSymbol("ENV"), ENV);
-
   process->Set(String::NewSymbol("pid"), Integer::New(getpid()));
   process->Set(String::NewSymbol("features"), GetFeatures());
 
