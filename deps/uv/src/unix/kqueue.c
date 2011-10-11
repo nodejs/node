@@ -26,6 +26,8 @@
 #include <string.h>
 #include <errno.h>
 
+#if HAVE_KQUEUE
+
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/event.h>
@@ -85,7 +87,6 @@ int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
                      const char* filename,
                      uv_fs_event_cb cb) {
-#if HAVE_KQUEUE
   int fd;
 
   if (cb == NULL) {
@@ -107,10 +108,6 @@ int uv_fs_event_init(uv_loop_t* loop,
   uv__fs_event_start(handle);
 
   return 0;
-#else
-  uv__set_sys_error(loop, ENOSYS);
-  return -1;
-#endif
 }
 
 
@@ -119,3 +116,26 @@ void uv__fs_event_destroy(uv_fs_event_t* handle) {
   uv__close(handle->fd);
   handle->fd = -1;
 }
+
+#else /* !HAVE_KQUEUE */
+
+int uv_fs_event_init(uv_loop_t* loop,
+                     uv_fs_event_t* handle,
+                     const char* filename,
+                     uv_fs_event_cb cb) {
+  uv__set_sys_error(loop, ENOSYS);
+  return -1;
+}
+
+
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  assert(0 && "unreachable");
+}
+
+
+/* Called by libev, don't touch. */
+void uv__kqueue_hack(EV_P_ int fflags, ev_io *w) {
+  assert(0 && "unreachable");
+}
+
+#endif /* HAVE_KQUEUE */
