@@ -169,6 +169,9 @@
           'COMPRESS_STARTUP_DATA_BZ2',
         ],
       }],
+      ['OS=="win"', {
+        'defines': [ 'WIN32' ],
+      }],
       ['OS=="win" and v8_enable_prof==1', {
         'msvs_settings': {
           'VCLinkerTool': {
