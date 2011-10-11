@@ -136,8 +136,6 @@ static bool need_tick_cb;
 static Persistent<String> tick_callback_sym;
 
 
-static bool use_uv = true;
-
 #ifdef OPENSSL_NPN_NEGOTIATED
 static bool use_npn = true;
 #else
@@ -2076,7 +2074,7 @@ static Handle<Object> GetFeatures() {
 #endif
   );
 
-  obj->Set(String::NewSymbol("uv"), Boolean::New(use_uv));
+  obj->Set(String::NewSymbol("uv"), True());
   obj->Set(String::NewSymbol("ipv6"), True()); // TODO ping libuv
   obj->Set(String::NewSymbol("tls_npn"), Boolean::New(use_npn));
   obj->Set(String::NewSymbol("tls_sni"), Boolean::New(use_sni));
@@ -2347,9 +2345,6 @@ static void ParseArgs(int argc, char **argv) {
     const char *arg = argv[i];
     if (strstr(arg, "--debug") == arg) {
       ParseDebugOpt(arg);
-      argv[i] = const_cast<char*>("");
-    } else if (!strcmp(arg, "--use-legacy")) {
-      use_uv = false;
       argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
       printf("%s\n", NODE_VERSION);

@@ -30,18 +30,6 @@
   var EventEmitter;
 
   function startup() {
-
-    if ('NODE_USE_UV' in process.env) {
-      process.features.uv = process.env.NODE_USE_UV != '0';
-    }
-
-    // make sure --use-uv is propagated to child processes
-    if (process.features.uv) {
-      process.env.NODE_USE_UV = '1';
-    } else {
-      delete process.env.NODE_USE_UV;
-    }
-
     EventEmitter = NativeModule.require('events').EventEmitter;
     process.__proto__ = EventEmitter.prototype;
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
@@ -453,18 +441,7 @@
   var Script = process.binding('evals').NodeScript;
   var runInThisContext = Script.runInThisContext;
 
-  // A special hook to test the new platform layer. Use the command-line
-  // flag --use-uv to enable the libuv backend instead of the legacy
-  // backend.
-  function translateId(id) {
-    switch (id) {
-      default:
-        return id;
-    }
-  }
-
   function NativeModule(id) {
-    id = translateId(id);
     this.filename = id + '.js';
     this.id = id;
     this.exports = {};
@@ -475,8 +452,6 @@
   NativeModule._cache = {};
 
   NativeModule.require = function(id) {
-    id = translateId(id);
-
     if (id == 'native_module') {
       return NativeModule;
     }
@@ -501,17 +476,14 @@
   };
 
   NativeModule.getCached = function(id) {
-    id = translateId(id);
     return NativeModule._cache[id];
   }
 
   NativeModule.exists = function(id) {
-    id = translateId(id);
     return (id in NativeModule._source);
   }
 
   NativeModule.getSource = function(id) {
-    id = translateId(id);
     return NativeModule._source[id];
   }
 
