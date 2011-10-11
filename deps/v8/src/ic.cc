@@ -167,7 +167,7 @@ static bool HasNormalObjectsInPrototypeChain(Isolate* isolate,
                                              LookupResult* lookup,
                                              Object* receiver) {
   Object* end = lookup->IsProperty()
-      ? lookup->holder() : Object::cast(isolate->heap()->null_value());
+      ? lookup->holder() : isolate->heap()->null_value();
   for (Object* current = receiver;
        current != end;
        current = current->GetPrototype()) {
@@ -1351,7 +1351,7 @@ static bool StoreICableLookup(LookupResult* lookup) {
 }
 
 
-static bool LookupForWrite(JSObject* receiver,
+static bool LookupForWrite(JSReceiver* receiver,
                            String* name,
                            LookupResult* lookup) {
   receiver->LocalLookup(name, lookup);
@@ -1359,10 +1359,12 @@ static bool LookupForWrite(JSObject* receiver,
     return false;
   }
 
-  if (lookup->type() == INTERCEPTOR &&
-      receiver->GetNamedInterceptor()->setter()->IsUndefined()) {
-    receiver->LocalLookupRealNamedProperty(name, lookup);
-    return StoreICableLookup(lookup);
+  if (lookup->type() == INTERCEPTOR) {
+    JSObject* object = JSObject::cast(receiver);
+    if (object->GetNamedInterceptor()->setter()->IsUndefined()) {
+      object->LocalLookupRealNamedProperty(name, lookup);
+      return StoreICableLookup(lookup);
+    }
   }
 
   return true;
@@ -1374,26 +1376,26 @@ MaybeObject* StoreIC::Store(State state,
                             Handle<Object> object,
                             Handle<String> name,
                             Handle<Object> value) {
-  if (!object->IsJSObject()) {
-    // Handle proxies.
-    if (object->IsJSProxy()) {
-      return JSProxy::cast(*object)->
-          SetProperty(*name, *value, NONE, strict_mode);
-    }
+  // If the object is undefined or null it's illegal to try to set any
+  // properties on it; throw a TypeError in that case.
+  if (object->IsUndefined() || object->IsNull()) {
+    return TypeError("non_object_property_store", object, name);
+  }
 
-    // If the object is undefined or null it's illegal to try to set any
-    // properties on it; throw a TypeError in that case.
-    if (object->IsUndefined() || object->IsNull()) {
-      return TypeError("non_object_property_store", object, name);
-    }
-
+  if (!object->IsJSReceiver()) {
     // The length property of string values is read-only. Throw in strict mode.
     if (strict_mode == kStrictMode && object->IsString() &&
         name->Equals(isolate()->heap()->length_symbol())) {
       return TypeError("strict_read_only_property", object, name);
     }
-    // Ignore other stores where the receiver is not a JSObject.
+    // Ignore stores where the receiver is not a JSObject.
     return *value;
+  }
+
+  // Handle proxies.
+  if (object->IsJSProxy()) {
+    return JSReceiver::cast(*object)->
+        SetProperty(*name, *value, NONE, strict_mode);
   }
 
   Handle<JSObject> receiver = Handle<JSObject>::cast(object);
@@ -1673,7 +1675,6 @@ MaybeObject* KeyedIC::ComputeMonomorphicStubWithoutMapCheck(
   } else {
     ASSERT(receiver_map->has_dictionary_elements() ||
            receiver_map->has_fast_elements() ||
-           receiver_map->has_fast_smi_only_elements() ||
            receiver_map->has_fast_double_elements() ||
            receiver_map->has_external_array_elements());
     bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
@@ -1689,7 +1690,6 @@ MaybeObject* KeyedIC::ComputeMonomorphicStub(JSObject* receiver,
                                              Code* generic_stub) {
   Code* result = NULL;
   if (receiver->HasFastElements() ||
-      receiver->HasFastSmiOnlyElements() ||
       receiver->HasExternalArrayElements() ||
       receiver->HasFastDoubleElements() ||
       receiver->HasDictionaryElements()) {
@@ -2402,7 +2402,7 @@ RUNTIME_FUNCTION(MaybeObject*, BinaryOp_Patch) {
   Handle<JSFunction> builtin_function(JSFunction::cast(builtin), isolate);
 
   bool caught_exception;
-  Handle<Object> builtin_args[] = { right };
+  Object** builtin_args[] = { right.location() };
   Handle<Object> result = Execution::Call(builtin_function,
                                           left,
                                           ARRAY_SIZE(builtin_args),

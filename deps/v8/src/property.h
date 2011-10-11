@@ -115,9 +115,11 @@ class MapTransitionDescriptor: public Descriptor {
 class ElementsTransitionDescriptor: public Descriptor {
  public:
   ElementsTransitionDescriptor(String* key,
-                               Object* map_or_array)
-      : Descriptor(key, map_or_array, PropertyDetails(NONE,
-                                                      ELEMENTS_TRANSITION)) { }
+                               Map* map,
+                               ElementsKind elements_kind)
+      : Descriptor(key, map, PropertyDetails(NONE,
+                                             ELEMENTS_TRANSITION,
+                                             elements_kind)) { }
 };
 
 // Marks a field name in a map so that adding the field is guaranteed
@@ -200,9 +202,9 @@ class LookupResult BASE_EMBEDDED {
     number_ = entry;
   }
 
-  void HandlerResult(JSProxy* proxy) {
+  void HandlerResult() {
     lookup_type_ = HANDLER_TYPE;
-    holder_ = proxy;
+    holder_ = NULL;
     details_ = PropertyDetails(NONE, HANDLER);
     cacheable_ = false;
   }
@@ -219,12 +221,7 @@ class LookupResult BASE_EMBEDDED {
 
   JSObject* holder() {
     ASSERT(IsFound());
-    return JSObject::cast(holder_);
-  }
-
-  JSProxy* proxy() {
-    ASSERT(IsFound());
-    return JSProxy::cast(holder_);
+    return holder_;
   }
 
   PropertyType type() {
@@ -357,7 +354,7 @@ class LookupResult BASE_EMBEDDED {
     CONSTANT_TYPE
   } lookup_type_;
 
-  JSReceiver* holder_;
+  JSObject* holder_;
   int number_;
   bool cacheable_;
   PropertyDetails details_;

@@ -193,14 +193,13 @@ function GlobalEval(x) {
 function SetUpGlobal() {
   %CheckIsBootstrapping();
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
 
   // Set up non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
@@ -1043,21 +1042,12 @@ function ProxyFix(obj) {
     throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
   }
 
-  if (%IsJSFunctionProxy(obj)) {
+  if (IS_SPEC_FUNCTION(obj)) {
     var callTrap = %GetCallTrap(obj);
     var constructTrap = %GetConstructTrap(obj);
     var code = DelegateCallAndConstruct(callTrap, constructTrap);
     %Fix(obj);  // becomes a regular function
     %SetCode(obj, code);
-    // TODO(rossberg): What about length and other properties? Not specified.
-    // We just put in some half-reasonable defaults for now.
-    var prototype = new $Object();
-    $Object.defineProperty(prototype, "constructor",
-      {value: obj, writable: true, enumerable: false, configrable: true});
-    $Object.defineProperty(obj, "prototype",
-      {value: prototype, writable: true, enumerable: false, configrable: false})
-    $Object.defineProperty(obj, "length",
-      {value: 0, writable: true, enumerable: false, configrable: false});
   } else {
     %Fix(obj);
   }

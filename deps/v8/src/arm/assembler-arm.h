@@ -1209,10 +1209,6 @@ class Assembler : public AssemblerBase {
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 
   // Read/patch instructions
-  Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
-  void instr_at_put(int pos, Instr instr) {
-    *reinterpret_cast<Instr*>(buffer_ + pos) = instr;
-  }
   static Instr instr_at(byte* pc) { return *reinterpret_cast<Instr*>(pc); }
   static void instr_at_put(byte* pc, Instr instr) {
     *reinterpret_cast<Instr*>(pc) = instr;
@@ -1266,6 +1262,12 @@ class Assembler : public AssemblerBase {
   bool emit_debug_code() const { return emit_debug_code_; }
 
   int buffer_space() const { return reloc_info_writer.pos() - pc_; }
+
+  // Read/patch instructions
+  Instr instr_at(int pos) { return *reinterpret_cast<Instr*>(buffer_ + pos); }
+  void instr_at_put(int pos, Instr instr) {
+    *reinterpret_cast<Instr*>(buffer_ + pos) = instr;
+  }
 
   // Decode branch instruction at pos and return branch target pos
   int target_at(int pos);

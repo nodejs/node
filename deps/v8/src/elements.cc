@@ -227,9 +227,7 @@ class FastElementsAccessor
  public:
   static MaybeObject* DeleteCommon(JSObject* obj,
                                    uint32_t key) {
-    ASSERT(obj->HasFastElements() ||
-           obj->HasFastSmiOnlyElements() ||
-           obj->HasFastArgumentsElements());
+    ASSERT(obj->HasFastElements() || obj->HasFastArgumentsElements());
     Heap* heap = obj->GetHeap();
     FixedArray* backing_store = FixedArray::cast(obj->elements());
     if (backing_store->map() == heap->non_strict_arguments_elements_map()) {
@@ -598,9 +596,6 @@ ElementsAccessor* ElementsAccessor::ForArray(FixedArrayBase* array) {
 
 void ElementsAccessor::InitializeOncePerProcess() {
   static struct ConcreteElementsAccessors {
-    // Use the fast element handler for smi-only arrays. The implementation is
-    // currently identical.
-    FastElementsAccessor fast_smi_elements_handler;
     FastElementsAccessor fast_elements_handler;
     FastDoubleElementsAccessor fast_double_elements_handler;
     DictionaryElementsAccessor dictionary_elements_handler;
@@ -617,7 +612,6 @@ void ElementsAccessor::InitializeOncePerProcess() {
   } element_accessors;
 
   static ElementsAccessor* accessor_array[] = {
-    &element_accessors.fast_smi_elements_handler,
     &element_accessors.fast_elements_handler,
     &element_accessors.fast_double_elements_handler,
     &element_accessors.dictionary_elements_handler,
@@ -632,9 +626,6 @@ void ElementsAccessor::InitializeOncePerProcess() {
     &element_accessors.double_elements_handler,
     &element_accessors.pixel_elements_handler
   };
-
-  STATIC_ASSERT((sizeof(accessor_array) / sizeof(*accessor_array)) ==
-                kElementsKindCount);
 
   elements_accessors_ = accessor_array;
 }

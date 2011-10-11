@@ -39,16 +39,12 @@ namespace internal {
 // Platform-specific RuntimeCallHelper functions.
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
-  masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
-  masm->set_has_frame(true);
+  masm->EnterInternalFrame();
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
-  masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
-  masm->set_has_frame(false);
+  masm->LeaveInternalFrame();
 }
 
 
@@ -112,14 +108,14 @@ OS::MemCopyFunction CreateMemCopyFunction() {
     __ mov(edx, dst);
     __ and_(edx, 0xF);
     __ neg(edx);
-    __ add(edx, Immediate(16));
-    __ add(dst, edx);
-    __ add(src, edx);
-    __ sub(count, edx);
+    __ add(Operand(edx), Immediate(16));
+    __ add(dst, Operand(edx));
+    __ add(src, Operand(edx));
+    __ sub(Operand(count), edx);
 
     // edi is now aligned. Check if esi is also aligned.
     Label unaligned_source;
-    __ test(src, Immediate(0x0F));
+    __ test(Operand(src), Immediate(0x0F));
     __ j(not_zero, &unaligned_source);
     {
       // Copy loop for aligned source and destination.
@@ -134,11 +130,11 @@ OS::MemCopyFunction CreateMemCopyFunction() {
         __ prefetch(Operand(src, 0x20), 1);
         __ movdqa(xmm0, Operand(src, 0x00));
         __ movdqa(xmm1, Operand(src, 0x10));
-        __ add(src, Immediate(0x20));
+        __ add(Operand(src), Immediate(0x20));
 
         __ movdqa(Operand(dst, 0x00), xmm0);
         __ movdqa(Operand(dst, 0x10), xmm1);
-        __ add(dst, Immediate(0x20));
+        __ add(Operand(dst), Immediate(0x20));
 
         __ dec(loop_count);
         __ j(not_zero, &loop);
@@ -146,12 +142,12 @@ OS::MemCopyFunction CreateMemCopyFunction() {
 
       // At most 31 bytes to copy.
       Label move_less_16;
-      __ test(count, Immediate(0x10));
+      __ test(Operand(count), Immediate(0x10));
       __ j(zero, &move_less_16);
       __ movdqa(xmm0, Operand(src, 0));
-      __ add(src, Immediate(0x10));
+      __ add(Operand(src), Immediate(0x10));
       __ movdqa(Operand(dst, 0), xmm0);
-      __ add(dst, Immediate(0x10));
+      __ add(Operand(dst), Immediate(0x10));
       __ bind(&move_less_16);
 
       // At most 15 bytes to copy. Copy 16 bytes at end of string.
@@ -180,11 +176,11 @@ OS::MemCopyFunction CreateMemCopyFunction() {
         __ prefetch(Operand(src, 0x20), 1);
         __ movdqu(xmm0, Operand(src, 0x00));
         __ movdqu(xmm1, Operand(src, 0x10));
-        __ add(src, Immediate(0x20));
+        __ add(Operand(src), Immediate(0x20));
 
         __ movdqa(Operand(dst, 0x00), xmm0);
         __ movdqa(Operand(dst, 0x10), xmm1);
-        __ add(dst, Immediate(0x20));
+        __ add(Operand(dst), Immediate(0x20));
 
         __ dec(loop_count);
         __ j(not_zero, &loop);
@@ -192,12 +188,12 @@ OS::MemCopyFunction CreateMemCopyFunction() {
 
       // At most 31 bytes to copy.
       Label move_less_16;
-      __ test(count, Immediate(0x10));
+      __ test(Operand(count), Immediate(0x10));
       __ j(zero, &move_less_16);
       __ movdqu(xmm0, Operand(src, 0));
-      __ add(src, Immediate(0x10));
+      __ add(Operand(src), Immediate(0x10));
       __ movdqa(Operand(dst, 0), xmm0);
-      __ add(dst, Immediate(0x10));
+      __ add(Operand(dst), Immediate(0x10));
       __ bind(&move_less_16);
 
       // At most 15 bytes to copy. Copy 16 bytes at end of string.
@@ -232,10 +228,10 @@ OS::MemCopyFunction CreateMemCopyFunction() {
     __ mov(edx, dst);
     __ and_(edx, 0x03);
     __ neg(edx);
-    __ add(edx, Immediate(4));  // edx = 4 - (dst & 3)
-    __ add(dst, edx);
-    __ add(src, edx);
-    __ sub(count, edx);
+    __ add(Operand(edx), Immediate(4));  // edx = 4 - (dst & 3)
+    __ add(dst, Operand(edx));
+    __ add(src, Operand(edx));
+    __ sub(Operand(count), edx);
     // edi is now aligned, ecx holds number of remaning bytes to copy.
 
     __ mov(edx, count);

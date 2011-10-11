@@ -75,8 +75,6 @@ struct Register {
   static inline Register FromAllocationIndex(int index);
 
   static Register from_code(int code) {
-    ASSERT(code >= 0);
-    ASSERT(code < kNumRegisters);
     Register r = { code };
     return r;
   }
@@ -302,6 +300,9 @@ enum ScaleFactor {
 
 class Operand BASE_EMBEDDED {
  public:
+  // reg
+  INLINE(explicit Operand(Register reg));
+
   // XMM reg
   INLINE(explicit Operand(XMMRegister xmm_reg));
 
@@ -346,16 +347,12 @@ class Operand BASE_EMBEDDED {
   // Returns true if this Operand is a wrapper for the specified register.
   bool is_reg(Register reg) const;
 
-  // Returns true if this Operand is a wrapper for one register.
-  bool is_reg_only() const;
-
-  // Asserts that this Operand is a wrapper for one register and returns the
-  // register.
-  Register reg() const;
-
  private:
-  // reg
-  INLINE(explicit Operand(Register reg));
+  byte buf_[6];
+  // The number of bytes in buf_.
+  unsigned int len_;
+  // Only valid if len_ > 4.
+  RelocInfo::Mode rmode_;
 
   // Set the ModRM byte without an encoded 'reg' register. The
   // register is encoded later as part of the emit_operand operation.
@@ -365,15 +362,7 @@ class Operand BASE_EMBEDDED {
   inline void set_disp8(int8_t disp);
   inline void set_dispr(int32_t disp, RelocInfo::Mode rmode);
 
-  byte buf_[6];
-  // The number of bytes in buf_.
-  unsigned int len_;
-  // Only valid if len_ > 4.
-  RelocInfo::Mode rmode_;
-
   friend class Assembler;
-  friend class MacroAssembler;
-  friend class LCodeGen;
 };
 
 
@@ -682,9 +671,7 @@ class Assembler : public AssemblerBase {
   void leave();
 
   // Moves
-  void mov_b(Register dst, Register src) { mov_b(dst, Operand(src)); }
   void mov_b(Register dst, const Operand& src);
-  void mov_b(Register dst, int8_t imm8) { mov_b(Operand(dst), imm8); }
   void mov_b(const Operand& dst, int8_t imm8);
   void mov_b(const Operand& dst, Register src);
 
@@ -700,24 +687,17 @@ class Assembler : public AssemblerBase {
   void mov(const Operand& dst, Handle<Object> handle);
   void mov(const Operand& dst, Register src);
 
-  void movsx_b(Register dst, Register src) { movsx_b(dst, Operand(src)); }
   void movsx_b(Register dst, const Operand& src);
 
-  void movsx_w(Register dst, Register src) { movsx_w(dst, Operand(src)); }
   void movsx_w(Register dst, const Operand& src);
 
-  void movzx_b(Register dst, Register src) { movzx_b(dst, Operand(src)); }
   void movzx_b(Register dst, const Operand& src);
 
-  void movzx_w(Register dst, Register src) { movzx_w(dst, Operand(src)); }
   void movzx_w(Register dst, const Operand& src);
 
   // Conditional moves
   void cmov(Condition cc, Register dst, int32_t imm32);
   void cmov(Condition cc, Register dst, Handle<Object> handle);
-  void cmov(Condition cc, Register dst, Register src) {
-    cmov(cc, dst, Operand(src));
-  }
   void cmov(Condition cc, Register dst, const Operand& src);
 
   // Flag management.
@@ -735,31 +715,24 @@ class Assembler : public AssemblerBase {
   void adc(Register dst, int32_t imm32);
   void adc(Register dst, const Operand& src);
 
-  void add(Register dst, Register src) { add(dst, Operand(src)); }
   void add(Register dst, const Operand& src);
-  void add(const Operand& dst, Register src);
-  void add(Register dst, const Immediate& imm) { add(Operand(dst), imm); }
   void add(const Operand& dst, const Immediate& x);
 
   void and_(Register dst, int32_t imm32);
   void and_(Register dst, const Immediate& x);
-  void and_(Register dst, Register src) { and_(dst, Operand(src)); }
   void and_(Register dst, const Operand& src);
-  void and_(const Operand& dst, Register src);
+  void and_(const Operand& src, Register dst);
   void and_(const Operand& dst, const Immediate& x);
 
-  void cmpb(Register reg, int8_t imm8) { cmpb(Operand(reg), imm8); }
   void cmpb(const Operand& op, int8_t imm8);
-  void cmpb(Register reg, const Operand& op);
-  void cmpb(const Operand& op, Register reg);
+  void cmpb(Register src, const Operand& dst);
+  void cmpb(const Operand& dst, Register src);
   void cmpb_al(const Operand& op);
   void cmpw_ax(const Operand& op);
   void cmpw(const Operand& op, Immediate imm16);
   void cmp(Register reg, int32_t imm32);
   void cmp(Register reg, Handle<Object> handle);
-  void cmp(Register reg0, Register reg1) { cmp(reg0, Operand(reg1)); }
   void cmp(Register reg, const Operand& op);
-  void cmp(Register reg, const Immediate& imm) { cmp(Operand(reg), imm); }
   void cmp(const Operand& op, const Immediate& imm);
   void cmp(const Operand& op, Handle<Object> handle);
 
@@ -775,7 +748,6 @@ class Assembler : public AssemblerBase {
 
   // Signed multiply instructions.
   void imul(Register src);                               // edx:eax = eax * src.
-  void imul(Register dst, Register src) { imul(dst, Operand(src)); }
   void imul(Register dst, const Operand& src);           // dst = dst * src.
   void imul(Register dst, Register src, int32_t imm32);  // dst = src * imm32.
 
@@ -792,10 +764,8 @@ class Assembler : public AssemblerBase {
   void not_(Register dst);
 
   void or_(Register dst, int32_t imm32);
-  void or_(Register dst, Register src) { or_(dst, Operand(src)); }
   void or_(Register dst, const Operand& src);
   void or_(const Operand& dst, Register src);
-  void or_(Register dst, const Immediate& imm) { or_(Operand(dst), imm); }
   void or_(const Operand& dst, const Immediate& x);
 
   void rcl(Register dst, uint8_t imm8);
@@ -806,42 +776,35 @@ class Assembler : public AssemblerBase {
 
   void sbb(Register dst, const Operand& src);
 
-  void shld(Register dst, Register src) { shld(dst, Operand(src)); }
   void shld(Register dst, const Operand& src);
 
   void shl(Register dst, uint8_t imm8);
   void shl_cl(Register dst);
 
-  void shrd(Register dst, Register src) { shrd(dst, Operand(src)); }
   void shrd(Register dst, const Operand& src);
 
   void shr(Register dst, uint8_t imm8);
   void shr_cl(Register dst);
 
-  void sub(Register dst, const Immediate& imm) { sub(Operand(dst), imm); }
+  void subb(const Operand& dst, int8_t imm8);
+  void subb(Register dst, const Operand& src);
   void sub(const Operand& dst, const Immediate& x);
-  void sub(Register dst, Register src) { sub(dst, Operand(src)); }
   void sub(Register dst, const Operand& src);
   void sub(const Operand& dst, Register src);
 
   void test(Register reg, const Immediate& imm);
-  void test(Register reg0, Register reg1) { test(reg0, Operand(reg1)); }
   void test(Register reg, const Operand& op);
   void test_b(Register reg, const Operand& op);
   void test(const Operand& op, const Immediate& imm);
-  void test_b(Register reg, uint8_t imm8) { test_b(Operand(reg), imm8); }
   void test_b(const Operand& op, uint8_t imm8);
 
   void xor_(Register dst, int32_t imm32);
-  void xor_(Register dst, Register src) { xor_(dst, Operand(src)); }
   void xor_(Register dst, const Operand& src);
-  void xor_(const Operand& dst, Register src);
-  void xor_(Register dst, const Immediate& imm) { xor_(Operand(dst), imm); }
+  void xor_(const Operand& src, Register dst);
   void xor_(const Operand& dst, const Immediate& x);
 
   // Bit operations.
   void bt(const Operand& dst, Register src);
-  void bts(Register dst, Register src) { bts(Operand(dst), src); }
   void bts(const Operand& dst, Register src);
 
   // Miscellaneous
@@ -872,7 +835,6 @@ class Assembler : public AssemblerBase {
   void call(Label* L);
   void call(byte* entry, RelocInfo::Mode rmode);
   int CallSize(const Operand& adr);
-  void call(Register reg) { call(Operand(reg)); }
   void call(const Operand& adr);
   int CallSize(Handle<Code> code, RelocInfo::Mode mode);
   void call(Handle<Code> code,
@@ -883,7 +845,6 @@ class Assembler : public AssemblerBase {
   // unconditional jump to L
   void jmp(Label* L, Label::Distance distance = Label::kFar);
   void jmp(byte* entry, RelocInfo::Mode rmode);
-  void jmp(Register reg) { jmp(Operand(reg)); }
   void jmp(const Operand& adr);
   void jmp(Handle<Code> code, RelocInfo::Mode rmode);
 
@@ -968,7 +929,6 @@ class Assembler : public AssemblerBase {
   void cvttss2si(Register dst, const Operand& src);
   void cvttsd2si(Register dst, const Operand& src);
 
-  void cvtsi2sd(XMMRegister dst, Register src) { cvtsi2sd(dst, Operand(src)); }
   void cvtsi2sd(XMMRegister dst, const Operand& src);
   void cvtss2sd(XMMRegister dst, XMMRegister src);
   void cvtsd2ss(XMMRegister dst, XMMRegister src);
@@ -1009,14 +969,12 @@ class Assembler : public AssemblerBase {
   void movdbl(XMMRegister dst, const Operand& src);
   void movdbl(const Operand& dst, XMMRegister src);
 
-  void movd(XMMRegister dst, Register src) { movd(dst, Operand(src)); }
   void movd(XMMRegister dst, const Operand& src);
-  void movd(Register dst, XMMRegister src) { movd(Operand(dst), src); }
-  void movd(const Operand& dst, XMMRegister src);
+  void movd(const Operand& src, XMMRegister dst);
   void movsd(XMMRegister dst, XMMRegister src);
 
   void movss(XMMRegister dst, const Operand& src);
-  void movss(const Operand& dst, XMMRegister src);
+  void movss(const Operand& src, XMMRegister dst);
   void movss(XMMRegister dst, XMMRegister src);
 
   void pand(XMMRegister dst, XMMRegister src);
@@ -1029,17 +987,11 @@ class Assembler : public AssemblerBase {
   void psrlq(XMMRegister reg, int8_t shift);
   void psrlq(XMMRegister dst, XMMRegister src);
   void pshufd(XMMRegister dst, XMMRegister src, int8_t shuffle);
-  void pextrd(Register dst, XMMRegister src, int8_t offset) {
-    pextrd(Operand(dst), src, offset);
-  }
   void pextrd(const Operand& dst, XMMRegister src, int8_t offset);
-  void pinsrd(XMMRegister dst, Register src, int8_t offset) {
-    pinsrd(dst, Operand(src), offset);
-  }
   void pinsrd(XMMRegister dst, const Operand& src, int8_t offset);
 
   // Parallel XMM operations.
-  void movntdqa(XMMRegister dst, const Operand& src);
+  void movntdqa(XMMRegister src, const Operand& dst);
   void movntdq(const Operand& dst, XMMRegister src);
   // Prefetch src position into cache level.
   // Level 1, 2 or 3 specifies CPU cache level. Level 0 specifies a
@@ -1093,9 +1045,6 @@ class Assembler : public AssemblerBase {
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
-  byte byte_at(int pos)  { return buffer_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
-
  protected:
   bool emit_debug_code() const { return emit_debug_code_; }
 
@@ -1108,8 +1057,9 @@ class Assembler : public AssemblerBase {
 
   byte* addr_at(int pos) { return buffer_ + pos; }
 
-
  private:
+  byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {
     return *reinterpret_cast<uint32_t*>(addr_at(pos));
   }

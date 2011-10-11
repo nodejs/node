@@ -68,9 +68,9 @@ Handle<Object> RegExpImpl::CreateRegExpLiteral(Handle<JSFunction> constructor,
                                                Handle<String> flags,
                                                bool* has_pending_exception) {
   // Call the construct code with 2 arguments.
-  Handle<Object> argv[] = { pattern, flags };
-  return Execution::New(constructor, ARRAY_SIZE(argv), argv,
-                        has_pending_exception);
+  Object** argv[2] = { Handle<Object>::cast(pattern).location(),
+                       Handle<Object>::cast(flags).location() };
+  return Execution::New(constructor, 2, argv, has_pending_exception);
 }
 
 
@@ -4723,6 +4723,7 @@ bool OutSet::Get(unsigned value) {
 
 
 const uc16 DispatchTable::Config::kNoKey = unibrow::Utf8::kBadChar;
+const DispatchTable::Entry DispatchTable::Config::kNoValue;
 
 
 void DispatchTable::AddRange(CharacterRange full_range, int value) {

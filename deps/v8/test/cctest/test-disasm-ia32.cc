@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2007-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -63,9 +63,9 @@ TEST(DisasmIa320) {
 
   // Short immediate instructions
   __ adc(eax, 12345678);
-  __ add(eax, Immediate(12345678));
+  __ add(Operand(eax), Immediate(12345678));
   __ or_(eax, 12345678);
-  __ sub(eax, Immediate(12345678));
+  __ sub(Operand(eax), Immediate(12345678));
   __ xor_(eax, 12345678);
   __ and_(eax, 12345678);
   Handle<FixedArray> foo = FACTORY->NewFixedArray(10, TENURED);
@@ -75,7 +75,7 @@ TEST(DisasmIa320) {
   __ mov(ebx,  Operand(esp, ecx, times_2, 0));  // [esp+ecx*4]
 
   // ---- All instructions that I can think of
-  __ add(edx, ebx);
+  __ add(edx, Operand(ebx));
   __ add(edx, Operand(12, RelocInfo::NONE));
   __ add(edx, Operand(ebx, 0));
   __ add(edx, Operand(ebx, 16));
@@ -89,7 +89,7 @@ TEST(DisasmIa320) {
   __ add(Operand(ebp, ecx, times_4, 12), Immediate(12));
 
   __ nop();
-  __ add(ebx, Immediate(12));
+  __ add(Operand(ebx), Immediate(12));
   __ nop();
   __ adc(ecx, 12);
   __ adc(ecx, 1000);
@@ -116,16 +116,16 @@ TEST(DisasmIa320) {
     CpuFeatures::Scope fscope(RDTSC);
     __ rdtsc();
   }
-  __ movsx_b(edx, ecx);
-  __ movsx_w(edx, ecx);
-  __ movzx_b(edx, ecx);
-  __ movzx_w(edx, ecx);
+  __ movsx_b(edx, Operand(ecx));
+  __ movsx_w(edx, Operand(ecx));
+  __ movzx_b(edx, Operand(ecx));
+  __ movzx_w(edx, Operand(ecx));
 
   __ nop();
-  __ imul(edx, ecx);
-  __ shld(edx, ecx);
-  __ shrd(edx, ecx);
-  __ bts(edx, ecx);
+  __ imul(edx, Operand(ecx));
+  __ shld(edx, Operand(ecx));
+  __ shrd(edx, Operand(ecx));
+  __ bts(Operand(edx), ecx);
   __ bts(Operand(ebx, ecx, times_4, 0), ecx);
   __ nop();
   __ pushad();
@@ -146,9 +146,9 @@ TEST(DisasmIa320) {
   __ nop();
 
   __ add(edx, Operand(esp, 16));
-  __ add(edx, ecx);
-  __ mov_b(edx, ecx);
-  __ mov_b(ecx, 6);
+  __ add(edx, Operand(ecx));
+  __ mov_b(edx, Operand(ecx));
+  __ mov_b(Operand(ecx), 6);
   __ mov_b(Operand(ebx, ecx, times_4, 10000), 6);
   __ mov_b(Operand(esp, 16), edx);
   __ mov_w(edx, Operand(esp, 16));
@@ -216,20 +216,22 @@ TEST(DisasmIa320) {
 
   __ adc(edx, 12345);
 
-  __ add(ebx, Immediate(12));
+  __ add(Operand(ebx), Immediate(12));
   __ add(Operand(edx, ecx, times_4, 10000), Immediate(12));
 
   __ and_(ebx, 12345);
 
   __ cmp(ebx, 12345);
-  __ cmp(ebx, Immediate(12));
+  __ cmp(Operand(ebx), Immediate(12));
   __ cmp(Operand(edx, ecx, times_4, 10000), Immediate(12));
-  __ cmpb(eax, 100);
 
   __ or_(ebx, 12345);
 
-  __ sub(ebx, Immediate(12));
+  __ sub(Operand(ebx), Immediate(12));
   __ sub(Operand(edx, ecx, times_4, 10000), Immediate(12));
+  __ subb(Operand(edx, ecx, times_4, 10000), 100);
+  __ subb(Operand(eax), 100);
+  __ subb(eax, Operand(edx, ecx, times_4, 10000));
 
   __ xor_(ebx, 12345);
 
@@ -242,7 +244,7 @@ TEST(DisasmIa320) {
   __ stos();
 
   __ sub(edx, Operand(ebx, ecx, times_4, 10000));
-  __ sub(edx, ebx);
+  __ sub(edx, Operand(ebx));
 
   __ test(edx, Immediate(12345));
   __ test(edx, Operand(ebx, ecx, times_8, 10000));
@@ -444,8 +446,8 @@ TEST(DisasmIa320) {
   {
     if (CpuFeatures::IsSupported(SSE4_1)) {
       CpuFeatures::Scope scope(SSE4_1);
-      __ pextrd(eax, xmm0, 1);
-      __ pinsrd(xmm1, eax, 0);
+      __ pextrd(Operand(eax), xmm0, 1);
+      __ pinsrd(xmm1, Operand(eax), 0);
     }
   }
 

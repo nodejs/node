@@ -90,6 +90,7 @@ namespace internal {
   V(CountOperation)                             \
   V(BinaryOperation)                            \
   V(CompareOperation)                           \
+  V(CompareToNull)                              \
   V(ThisFunction)
 
 #define AST_NODE_LIST(V)                        \
@@ -287,12 +288,6 @@ class Expression: public AstNode {
 
   // True iff the expression is a literal represented as a smi.
   virtual bool IsSmiLiteral() { return false; }
-
-  // True iff the expression is a string literal.
-  virtual bool IsStringLiteral() { return false; }
-
-  // True iff the expression is the null literal.
-  virtual bool IsNullLiteral() { return false; }
 
   // Type feedback information for assignments and properties.
   virtual bool IsMonomorphic() {
@@ -896,8 +891,6 @@ class Literal: public Expression {
 
   virtual bool IsTrivial() { return true; }
   virtual bool IsSmiLiteral() { return handle_->IsSmi(); }
-  virtual bool IsStringLiteral() { return handle_->IsString(); }
-  virtual bool IsNullLiteral() { return handle_->IsNull(); }
 
   // Check if this literal is identical to the other literal.
   bool IsIdenticalTo(const Literal* other) const {
@@ -1472,7 +1465,6 @@ class CompareOperation: public Expression {
   // Match special cases.
   bool IsLiteralCompareTypeof(Expression** expr, Handle<String>* check);
   bool IsLiteralCompareUndefined(Expression** expr);
-  bool IsLiteralCompareNull(Expression** expr);
 
  private:
   Token::Value op_;
@@ -1482,6 +1474,25 @@ class CompareOperation: public Expression {
 
   enum CompareTypeFeedback { NONE, SMI_ONLY, OBJECT_ONLY };
   CompareTypeFeedback compare_type_;
+};
+
+
+class CompareToNull: public Expression {
+ public:
+  CompareToNull(Isolate* isolate, bool is_strict, Expression* expression)
+      : Expression(isolate), is_strict_(is_strict), expression_(expression) { }
+
+  DECLARE_NODE_TYPE(CompareToNull)
+
+  virtual bool IsInlineable() const;
+
+  bool is_strict() const { return is_strict_; }
+  Token::Value op() const { return is_strict_ ? Token::EQ_STRICT : Token::EQ; }
+  Expression* expression() const { return expression_; }
+
+ private:
+  bool is_strict_;
+  Expression* expression_;
 };
 
 

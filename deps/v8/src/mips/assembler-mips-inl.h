@@ -244,7 +244,7 @@ void RelocInfo::Visit(ObjectVisitor* visitor) {
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
     Object** p = target_object_address();
     Object* orig = *p;
-    visitor->VisitEmbeddedPointer(host(), p);
+    visitor->VisitPointer(p);
     if (*p != orig) {
       set_target_object(*p);
     }
@@ -273,7 +273,7 @@ template<typename StaticVisitor>
 void RelocInfo::Visit(Heap* heap) {
   RelocInfo::Mode mode = rmode();
   if (mode == RelocInfo::EMBEDDED_OBJECT) {
-    StaticVisitor::VisitEmbeddedPointer(heap, host(), target_object_address());
+    StaticVisitor::VisitPointer(heap, target_object_address());
   } else if (RelocInfo::IsCodeTarget(mode)) {
     StaticVisitor::VisitCodeTarget(heap, this);
   } else if (mode == RelocInfo::GLOBAL_PROPERTY_CELL) {

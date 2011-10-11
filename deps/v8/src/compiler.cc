@@ -36,7 +36,6 @@
 #include "full-codegen.h"
 #include "gdb-jit.h"
 #include "hydrogen.h"
-#include "isolate-inl.h"
 #include "lithium.h"
 #include "liveedit.h"
 #include "parser.h"
@@ -276,7 +275,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   Handle<Context> global_context(info->closure()->context()->global_context());
-  TypeFeedbackOracle oracle(code, global_context, info->isolate());
+  TypeFeedbackOracle oracle(code, global_context);
   HGraphBuilder builder(info, &oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph();

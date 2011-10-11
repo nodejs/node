@@ -145,9 +145,9 @@ class Factory {
   // not make sense to have a UTF-8 factory function for external strings,
   // because we cannot change the underlying buffer.
   Handle<String> NewExternalStringFromAscii(
-      const ExternalAsciiString::Resource* resource);
+      ExternalAsciiString::Resource* resource);
   Handle<String> NewExternalStringFromTwoByte(
-      const ExternalTwoByteString::Resource* resource);
+      ExternalTwoByteString::Resource* resource);
 
   // Create a global (but otherwise uninitialized) context.
   Handle<Context> NewGlobalContext();
@@ -203,9 +203,7 @@ class Factory {
   Handle<JSGlobalPropertyCell> NewJSGlobalPropertyCell(
       Handle<Object> value);
 
-  Handle<Map> NewMap(InstanceType type,
-                     int instance_size,
-                     ElementsKind elements_kind = FAST_ELEMENTS);
+  Handle<Map> NewMap(InstanceType type, int instance_size);
 
   Handle<JSObject> NewFunctionPrototype(Handle<JSFunction> function);
 
@@ -217,8 +215,13 @@ class Factory {
 
   Handle<Map> CopyMapDropTransitions(Handle<Map> map);
 
-  Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
-                                       ElementsKind elements_kind);
+  Handle<Map> GetFastElementsMap(Handle<Map> map);
+
+  Handle<Map> GetSlowElementsMap(Handle<Map> map);
+
+  Handle<Map> GetElementsTransitionMap(Handle<Map> map,
+                                       ElementsKind elements_kind,
+                                       bool safe_to_add_transition);
 
   Handle<FixedArray> CopyFixedArray(Handle<FixedArray> array);
 
@@ -255,17 +258,11 @@ class Factory {
       Handle<FixedArray> elements,
       PretenureFlag pretenure = NOT_TENURED);
 
-  void SetContent(Handle<JSArray> array, Handle<FixedArray> elements);
-
-  void EnsureCanContainNonSmiElements(Handle<JSArray> array);
-
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 
   // Change the type of the argument into a JS object/function and reinitialize.
   void BecomeJSObject(Handle<JSReceiver> object);
   void BecomeJSFunction(Handle<JSReceiver> object);
-
-  void SetIdentityHash(Handle<JSObject> object, Object* hash);
 
   Handle<JSFunction> NewFunction(Handle<String> name,
                                  Handle<Object> prototype);
@@ -359,7 +356,6 @@ class Factory {
       PropertyAttributes attributes);
 
   Handle<String> NumberToString(Handle<Object> number);
-  Handle<String> Uint32ToString(uint32_t value);
 
   enum ApiInstanceType {
     JavaScriptObject,
@@ -445,14 +441,6 @@ class Factory {
                              Handle<String> source,
                              JSRegExp::Flags flags,
                              int capture_count);
-
-  // Returns the value for a known global constant (a property of the global
-  // object which is neither configurable nor writable) like 'undefined'.
-  // Returns a null handle when the given name is unknown.
-  Handle<Object> GlobalConstantFor(Handle<String> name);
-
-  // Converts the given boolean condition to JavaScript boolean value.
-  Handle<Object> ToBoolean(bool value);
 
  private:
   Isolate* isolate() { return reinterpret_cast<Isolate*>(this); }

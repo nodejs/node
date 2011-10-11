@@ -131,20 +131,16 @@ def BuildOptions():
 
 
 def ProcessOptions(options):
-  if options.arch_and_mode == ".":
-    options.arch = []
-    options.mode = []
-  else:
-    if options.arch_and_mode != None and options.arch_and_mode != "":
-      tokens = options.arch_and_mode.split(".")
-      options.arch = tokens[0]
-      options.mode = tokens[1]
-    options.mode = options.mode.split(',')
-    options.arch = options.arch.split(',')
+  if options.arch_and_mode != None and options.arch_and_mode != "":
+    tokens = options.arch_and_mode.split(".")
+    options.arch = tokens[0]
+    options.mode = tokens[1]
+  options.mode = options.mode.split(',')
   for mode in options.mode:
     if not mode in ['debug', 'release']:
       print "Unknown mode %s" % mode
       return False
+  options.arch = options.arch.split(',')
   for arch in options.arch:
     if not arch in ['ia32', 'x64', 'arm']:
       print "Unknown architecture %s" % arch
@@ -169,7 +165,7 @@ def PassOnOptions(options):
   if options.snapshot:
     result += ['--snapshot']
   if options.special_command:
-    result += ['--special-command="%s"' % options.special_command]
+    result += ['--special-command=' + options.special_command]
   if options.valgrind:
     result += ['--valgrind']
   if options.cat:
@@ -235,18 +231,6 @@ def Main():
                                cwd=workspace,
                                env=env)
       returncodes += child.wait()
-
-  if len(options.mode) == 0 and len(options.arch) == 0:
-    print ">>> running tests"
-    shellpath = workspace + '/' + options.outdir
-    env['LD_LIBRARY_PATH'] = shellpath + '/lib.target'
-    shell = shellpath + '/d8'
-    child = subprocess.Popen(' '.join(args_for_children +
-                                      ['--shell=' + shell]),
-                             shell=True,
-                             cwd=workspace,
-                             env=env)
-    returncodes = child.wait()
 
   return returncodes
 

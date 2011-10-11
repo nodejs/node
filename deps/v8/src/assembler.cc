@@ -38,7 +38,6 @@
 #include "deoptimizer.h"
 #include "execution.h"
 #include "ic-inl.h"
-#include "incremental-marking.h"
 #include "factory.h"
 #include "runtime.h"
 #include "runtime-profiler.h"
@@ -48,7 +47,6 @@
 #include "ast.h"
 #include "regexp-macro-assembler.h"
 #include "platform.h"
-#include "store-buffer.h"
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32
@@ -518,7 +516,6 @@ void RelocIterator::next() {
 
 
 RelocIterator::RelocIterator(Code* code, int mode_mask) {
-  rinfo_.host_ = code;
   rinfo_.pc_ = code->instruction_start();
   rinfo_.data_ = 0;
   // Relocation info is read backwards.
@@ -739,38 +736,9 @@ ExternalReference::ExternalReference(const SCTableReference& table_ref)
   : address_(table_ref.address()) {}
 
 
-ExternalReference ExternalReference::
-    incremental_marking_record_write_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(IncrementalMarking::RecordWriteFromCode)));
-}
-
-
-ExternalReference ExternalReference::
-    incremental_evacuation_record_write_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(IncrementalMarking::RecordWriteForEvacuationFromCode)));
-}
-
-
-ExternalReference ExternalReference::
-    store_buffer_overflow_function(Isolate* isolate) {
-  return ExternalReference(Redirect(
-      isolate,
-      FUNCTION_ADDR(StoreBuffer::StoreBufferOverflow)));
-}
-
-
-ExternalReference ExternalReference::flush_icache_function(Isolate* isolate) {
-  return ExternalReference(Redirect(isolate, FUNCTION_ADDR(CPU::FlushICache)));
-}
-
-
 ExternalReference ExternalReference::perform_gc_function(Isolate* isolate) {
-  return
-      ExternalReference(Redirect(isolate, FUNCTION_ADDR(Runtime::PerformGC)));
+  return ExternalReference(Redirect(isolate,
+                                    FUNCTION_ADDR(Runtime::PerformGC)));
 }
 
 
@@ -834,6 +802,17 @@ ExternalReference ExternalReference::keyed_lookup_cache_field_offsets(
 }
 
 
+ExternalReference ExternalReference::the_hole_value_location(Isolate* isolate) {
+  return ExternalReference(isolate->factory()->the_hole_value().location());
+}
+
+
+ExternalReference ExternalReference::arguments_marker_location(
+    Isolate* isolate) {
+  return ExternalReference(isolate->factory()->arguments_marker().location());
+}
+
+
 ExternalReference ExternalReference::roots_address(Isolate* isolate) {
   return ExternalReference(isolate->heap()->roots_address());
 }
@@ -861,14 +840,9 @@ ExternalReference ExternalReference::new_space_start(Isolate* isolate) {
 }
 
 
-ExternalReference ExternalReference::store_buffer_top(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->store_buffer()->TopAddress());
-}
-
-
 ExternalReference ExternalReference::new_space_mask(Isolate* isolate) {
-  return ExternalReference(reinterpret_cast<Address>(
-      isolate->heap()->NewSpaceMask()));
+  Address mask = reinterpret_cast<Address>(isolate->heap()->NewSpaceMask());
+  return ExternalReference(mask);
 }
 
 

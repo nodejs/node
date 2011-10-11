@@ -95,11 +95,12 @@ function RegExpConstructor(pattern, flags) {
   }
 }
 
+
 // Deprecated RegExp.prototype.compile method.  We behave like the constructor
 // were called again.  In SpiderMonkey, this method returns the regexp object.
 // In JSC, it returns undefined.  For compatibility with JSC, we match their
 // behavior.
-function RegExpCompile(pattern, flags) {
+function CompileRegExp(pattern, flags) {
   // Both JSC and SpiderMonkey treat a missing pattern argument as the
   // empty subject string, and an actual undefined value passed as the
   // pattern as the string 'undefined'.  Note that JSC is inconsistent
@@ -107,11 +108,6 @@ function RegExpCompile(pattern, flags) {
   // RegExp.prototype.compile and in the constructor, where they are
   // the empty string.  For compatibility with JSC, we match their
   // behavior.
-  if (this == $RegExp.prototype) {
-    // We don't allow recompiling RegExp.prototype.
-    throw MakeTypeError('incompatible_method_receiver',
-                        ['RegExp.prototype.compile', this]);
-  }
   if (IS_UNDEFINED(pattern) && %_ArgumentsLength() != 0) {
     DoConstructRegExp(this, 'undefined', flags);
   } else {
@@ -412,6 +408,7 @@ var lastMatchInfoOverride = null;
 function SetUpRegExp() {
   %CheckIsBootstrapping();
   %FunctionSetInstanceClassName($RegExp, 'RegExp');
+  %FunctionSetPrototype($RegExp, new $Object());
   %SetProperty($RegExp.prototype, 'constructor', $RegExp, DONT_ENUM);
   %SetCode($RegExp, RegExpConstructor);
 
@@ -419,7 +416,7 @@ function SetUpRegExp() {
     "exec", RegExpExec,
     "test", RegExpTest,
     "toString", RegExpToString,
-    "compile", RegExpCompile
+    "compile", CompileRegExp
   ));
 
   // The length of compile is 1 in SpiderMonkey.

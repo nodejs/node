@@ -98,8 +98,7 @@ function TestAll(expected,s,opt_e) {
   var msg = s;
   if (opt_e) { e = opt_e; msg += "; " + opt_e; }
   assertEquals(expected, TestLocal(s,e), "local:'" + msg + "'");
-  // Redeclarations of global consts do not throw, they are silently ignored.
-  assertEquals(42, TestGlobal(s, 42), "global:'" + msg + "'");
+  assertEquals(expected, TestGlobal(s,e), "global:'" + msg + "'");
   assertEquals(expected, TestContext(s,e), "context:'" + msg + "'");
 }
 
@@ -219,62 +218,3 @@ TestAll(0, "var a,b,c,d,e,f,g,h; " + loop, "x");
 // Test that const inside with behaves correctly.
 TestAll(87, "with ({x:42}) { const x = 87; }", "x");
 TestAll(undefined, "with ({x:42}) { const x; }", "x");
-
-
-// Additional tests for how various combinations of re-declarations affect
-// the values of the var/const in question.
-try {
-  eval("var undefined;");
-} catch (ex) {
-  assertUnreachable("undefined (1) has thrown");
-}
-
-var original_undef = undefined;
-var undefined = 1;  // Should be silently ignored.
-assertEquals(original_undef, undefined, "undefined got overwritten");
-undefined = original_undef;
-
-var a; const a; const a = 1;
-assertEquals(1, a, "a has wrong value");
-a = 2;
-assertEquals(2, a, "a should be writable");
-
-var b = 1; const b = 2;
-assertEquals(2, b, "b has wrong value");
-
-var c = 1; const c = 2; const c = 3;
-assertEquals(3, c, "c has wrong value");
-
-const d = 1; const d = 2;
-assertEquals(1, d, "d has wrong value");
-
-const e = 1; var e = 2;
-assertEquals(1, e, "e has wrong value");
-
-const f = 1; const f;
-assertEquals(1, f, "f has wrong value");
-
-var g; const g = 1;
-assertEquals(1, g, "g has wrong value");
-g = 2;
-assertEquals(2, g, "g should be writable");
-
-const h; var h = 1;
-assertEquals(undefined,h,  "h has wrong value");
-
-eval("Object.defineProperty(this, 'i', { writable: true });"
-   + "const i = 7;"
-   + "assertEquals(7, i, \"i has wrong value\");");
-
-var global = this;
-assertThrows(function() {
-  Object.defineProperty(global, 'j', { writable: true })
-}, TypeError);
-const j = 2;  // This is what makes the function above throw, because the
-// const declaration gets hoisted and makes the property non-configurable.
-assertEquals(2, j, "j has wrong value");
-
-var k = 1; const k;
-// You could argue about the expected result here. For now, the winning
-// argument is that "const k;" is equivalent to "const k = undefined;".
-assertEquals(undefined, k, "k has wrong value");

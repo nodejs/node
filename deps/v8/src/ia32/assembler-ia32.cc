@@ -55,8 +55,6 @@ uint64_t CpuFeatures::supported_ = 0;
 uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
-// The Probe method needs executable memory, so it uses Heap::CreateCode.
-// Allocation failure is silent and leads to safe default.
 void CpuFeatures::Probe() {
   ASSERT(!initialized_);
   ASSERT(supported_ == 0);
@@ -88,23 +86,23 @@ void CpuFeatures::Probe() {
   __ pushfd();
   __ push(ecx);
   __ push(ebx);
-  __ mov(ebp, esp);
+  __ mov(ebp, Operand(esp));
 
   // If we can modify bit 21 of the EFLAGS register, then CPUID is supported.
   __ pushfd();
   __ pop(eax);
-  __ mov(edx, eax);
+  __ mov(edx, Operand(eax));
   __ xor_(eax, 0x200000);  // Flip bit 21.
   __ push(eax);
   __ popfd();
   __ pushfd();
   __ pop(eax);
-  __ xor_(eax, edx);  // Different if CPUID is supported.
+  __ xor_(eax, Operand(edx));  // Different if CPUID is supported.
   __ j(not_zero, &cpuid);
 
   // CPUID not supported. Clear the supported features in edx:eax.
-  __ xor_(eax, eax);
-  __ xor_(edx, edx);
+  __ xor_(eax, Operand(eax));
+  __ xor_(edx, Operand(edx));
   __ jmp(&done);
 
   // Invoke CPUID with 1 in eax to get feature information in
@@ -120,13 +118,13 @@ void CpuFeatures::Probe() {
 
   // Move the result from ecx:edx to edx:eax and make sure to mark the
   // CPUID feature as supported.
-  __ mov(eax, edx);
+  __ mov(eax, Operand(edx));
   __ or_(eax, 1 << CPUID);
-  __ mov(edx, ecx);
+  __ mov(edx, Operand(ecx));
 
   // Done.
   __ bind(&done);
-  __ mov(esp, ebp);
+  __ mov(esp, Operand(ebp));
   __ pop(ebx);
   __ pop(ecx);
   __ popfd();
@@ -287,18 +285,6 @@ bool Operand::is_reg(Register reg) const {
   return ((buf_[0] & 0xF8) == 0xC0)  // addressing mode is register only.
       && ((buf_[0] & 0x07) == reg.code());  // register codes match.
 }
-
-
-bool Operand::is_reg_only() const {
-  return (buf_[0] & 0xF8) == 0xC0;  // Addressing mode is register only.
-}
-
-
-Register Operand::reg() const {
-  ASSERT(is_reg_only());
-  return Register::from_code(buf_[0] & 0x07);
-}
-
 
 // -----------------------------------------------------------------------------
 // Implementation of Assembler.
@@ -715,13 +701,6 @@ void Assembler::add(Register dst, const Operand& src) {
 }
 
 
-void Assembler::add(const Operand& dst, Register src) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x01);
-  emit_operand(src, dst);
-}
-
-
 void Assembler::add(const Operand& dst, const Immediate& x) {
   ASSERT(reloc_info_writer.last_pc() != NULL);
   EnsureSpace ensure_space(this);
@@ -762,29 +741,25 @@ void Assembler::and_(const Operand& dst, Register src) {
 
 void Assembler::cmpb(const Operand& op, int8_t imm8) {
   EnsureSpace ensure_space(this);
-  if (op.is_reg(eax)) {
-    EMIT(0x3C);
-  } else {
-    EMIT(0x80);
-    emit_operand(edi, op);  // edi == 7
-  }
+  EMIT(0x80);
+  emit_operand(edi, op);  // edi == 7
   EMIT(imm8);
 }
 
 
-void Assembler::cmpb(const Operand& op, Register reg) {
-  ASSERT(reg.is_byte_register());
+void Assembler::cmpb(const Operand& dst, Register src) {
+  ASSERT(src.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x38);
-  emit_operand(reg, op);
+  emit_operand(src, dst);
 }
 
 
-void Assembler::cmpb(Register reg, const Operand& op) {
-  ASSERT(reg.is_byte_register());
+void Assembler::cmpb(Register dst, const Operand& src) {
+  ASSERT(dst.is_byte_register());
   EnsureSpace ensure_space(this);
   EMIT(0x3A);
-  emit_operand(reg, op);
+  emit_operand(dst, src);
 }
 
 
@@ -1094,6 +1069,18 @@ void Assembler::shr_cl(Register dst) {
 }
 
 
+void Assembler::subb(const Operand& op, int8_t imm8) {
+  EnsureSpace ensure_space(this);
+  if (op.is_reg(eax)) {
+    EMIT(0x2c);
+  } else {
+    EMIT(0x80);
+    emit_operand(ebp, op);  // ebp == 5
+  }
+  EMIT(imm8);
+}
+
+
 void Assembler::sub(const Operand& dst, const Immediate& x) {
   EnsureSpace ensure_space(this);
   emit_arith(5, dst, x);
@@ -1103,6 +1090,14 @@ void Assembler::sub(const Operand& dst, const Immediate& x) {
 void Assembler::sub(Register dst, const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0x2B);
+  emit_operand(dst, src);
+}
+
+
+void Assembler::subb(Register dst, const Operand& src) {
+  ASSERT(dst.code() < 4);
+  EnsureSpace ensure_space(this);
+  EMIT(0x2A);
   emit_operand(dst, src);
 }
 
@@ -1163,10 +1158,6 @@ void Assembler::test(const Operand& op, const Immediate& imm) {
 
 
 void Assembler::test_b(const Operand& op, uint8_t imm8) {
-  if (op.is_reg_only() && op.reg().code() >= 4) {
-    test(op, Immediate(imm8));
-    return;
-  }
   EnsureSpace ensure_space(this);
   EMIT(0xF6);
   emit_operand(eax, op);
@@ -1187,10 +1178,10 @@ void Assembler::xor_(Register dst, const Operand& src) {
 }
 
 
-void Assembler::xor_(const Operand& dst, Register src) {
+void Assembler::xor_(const Operand& src, Register dst) {
   EnsureSpace ensure_space(this);
   EMIT(0x31);
-  emit_operand(src, dst);
+  emit_operand(dst, src);
 }
 
 
@@ -2480,7 +2471,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
   }
-  RelocInfo rinfo(pc_, rmode, data, NULL);
+  RelocInfo rinfo(pc_, rmode, data);
   reloc_info_writer.Write(&rinfo);
 }
 

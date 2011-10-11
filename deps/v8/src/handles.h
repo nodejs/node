@@ -263,13 +263,14 @@ Handle<Object> GetPrototype(Handle<Object> obj);
 
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 
-// Sets a hidden property on an object. Returns obj on success, undefined
-// if trying to set the property on a detached proxy.
-Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
-                                 Handle<String> key,
-                                 Handle<Object> value);
+// Return the object's hidden properties object. If the object has no hidden
+// properties and HiddenPropertiesFlag::ALLOW_CREATION is passed, then a new
+// hidden property object will be allocated. Otherwise Heap::undefined_value
+// is returned.
+Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
+                                   JSObject::HiddenPropertiesFlag flag);
 
-int GetIdentityHash(Handle<JSReceiver> obj);
+int GetIdentityHash(Handle<JSObject> obj);
 
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
@@ -347,7 +348,7 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 Handle<Object> PreventExtensions(Handle<JSObject> object);
 
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSReceiver> key,
+                                               Handle<JSObject> key,
                                                Handle<Object> value);
 
 // Does lazy compilation of the given function. Returns true on success and

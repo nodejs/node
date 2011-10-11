@@ -48,8 +48,6 @@ local function TrackCause(name, lvl)
 	    T[f] = true
 	    TrackCause(f, (lvl or 0) + 1)
 	 end
-
-	 if f == '<GC>' then break end
       end
    end
 end

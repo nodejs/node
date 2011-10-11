@@ -530,7 +530,7 @@ class TestConfig {
   typedef int Key;
   typedef int Value;
   static const int kNoKey;
-  static int NoValue() { return 0; }
+  static const int kNoValue;
   static inline int Compare(int a, int b) {
     if (a < b)
       return -1;
@@ -543,6 +543,7 @@ class TestConfig {
 
 
 const int TestConfig::kNoKey = 0;
+const int TestConfig::kNoValue = 0;
 
 
 static unsigned PseudoRandom(int i, int j) {

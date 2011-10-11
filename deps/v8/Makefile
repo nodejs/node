@@ -32,7 +32,6 @@ LINK ?= "g++"
 OUTDIR ?= out
 TESTJOBS ?= -j16
 GYPFLAGS ?=
-TESTFLAGS ?=
 
 # Special build flags. Use them like this: "make library=shared"
 
@@ -50,10 +49,6 @@ endif
 # disassembler=on
 ifeq ($(disassembler), on)
   GYPFLAGS += -Dv8_enable_disassembler=1
-endif
-# objectprint=on
-ifeq ($(objectprint), on)
-  GYPFLAGS += -Dv8_object_print=1
 endif
 # snapshot=off
 ifeq ($(snapshot), off)
@@ -77,21 +72,12 @@ endif
 ifdef soname_version
   GYPFLAGS += -Dsoname_version=$(soname_version)
 endif
-# werror=no
-ifeq ($(werror), no)
-  GYPFLAGS += -Dwerror=''
-endif
-# presubmit=no
-ifeq ($(presubmit), no)
-  TESTFLAGS += --no-presubmit
-endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
 # - any arch listed in ARCHES (see below)
 # - any mode listed in MODES
 # - every combination <arch>.<mode>, e.g. "ia32.release"
-# - "native": current host's architecture, release mode
 # - any of the above with .check appended, e.g. "ia32.release.check"
 # - default (no target specified): build all ARCHES and MODES
 # - "check": build all targets and run all tests
@@ -117,7 +103,7 @@ CHECKS = $(addsuffix .check,$(BUILDS))
 # File where previously used GYPFLAGS are stored.
 ENVFILE = $(OUTDIR)/environment
 
-.PHONY: all check clean dependencies $(ENVFILE).new native \
+.PHONY: all check clean dependencies $(ENVFILE).new \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
         $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES))
 
@@ -138,31 +124,21 @@ $(BUILDS): $(OUTDIR)/Makefile-$$(basename $$@)
 	                     python -c "print raw_input().capitalize()") \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
 
-native: $(OUTDIR)/Makefile-native
-	@$(MAKE) -C "$(OUTDIR)" -f Makefile-native \
-	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
-	         builddir="$(shell pwd)/$(OUTDIR)/$@"
-
 # Test targets.
 check: all
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    $(TESTFLAGS)
+	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)
 
 $(addsuffix .check,$(MODES)): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --mode=$(basename $@) $(TESTFLAGS)
+	    --mode=$(basename $@)
 
 $(addsuffix .check,$(ARCHES)): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --arch=$(basename $@) $(TESTFLAGS)
+	    --arch=$(basename $@)
 
 $(CHECKS): $$(basename $$@)
 	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR) \
-	    --arch-and-mode=$(basename $@) $(TESTFLAGS)
-
-native.check: native
-	@tools/test-wrapper-gypbuild.py $(TESTJOBS) --outdir=$(OUTDIR)/native \
-	    --arch-and-mode=. $(TESTFLAGS)
+	    --arch-and-mode=$(basename $@)
 
 # Clean targets. You can clean each architecture individually, or everything.
 $(addsuffix .clean,$(ARCHES)):
@@ -171,12 +147,7 @@ $(addsuffix .clean,$(ARCHES)):
 	rm -rf $(OUTDIR)/$(basename $@).debug
 	find $(OUTDIR) -regex '.*\(host\|target\)-$(basename $@)\.mk' -delete
 
-native.clean:
-	rm -f $(OUTDIR)/Makefile-native
-	rm -rf $(OUTDIR)/native
-	find $(OUTDIR) -regex '.*\(host\|target\)-native\.mk' -delete
-
-clean: $(addsuffix .clean,$(ARCHES)) native.clean
+clean: $(addsuffix .clean,$(ARCHES))
 
 # GYP file generation targets.
 $(OUTDIR)/Makefile-ia32: $(GYPFILES) $(ENVFILE)
@@ -193,10 +164,6 @@ $(OUTDIR)/Makefile-arm: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -Ibuild/armu.gypi \
 	              -S-arm $(GYPFLAGS)
-
-$(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
-	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
-	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
 
 # Replaces the old with the new environment file if they're different, which
 # will trigger GYP to regenerate Makefiles.

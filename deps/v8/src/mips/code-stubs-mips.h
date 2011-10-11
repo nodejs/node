@@ -578,8 +578,6 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Register r0,
                                      Register r1);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
  private:
   static const int kInlinedProbes = 4;
   static const int kTotalProbes = 20;
@@ -592,7 +590,7 @@ class StringDictionaryLookupStub: public CodeStub {
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return StringDictionaryNegativeLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

@@ -1043,13 +1043,11 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       // it into a location different from the operand of a live range
       // covering a branch instruction.
       // Thus we need to manually record a pointer.
-      LInstruction* branch =
-          InstructionAt(cur_block->last_instruction_index());
-      if (branch->HasPointerMap()) {
-        if (phi->representation().IsTagged()) {
+      if (phi->representation().IsTagged()) {
+        LInstruction* branch =
+            InstructionAt(cur_block->last_instruction_index());
+        if (branch->HasPointerMap()) {
           branch->pointer_map()->RecordPointer(phi_operand);
-        } else if (!phi->representation().IsDouble()) {
-          branch->pointer_map()->RecordUntagged(phi_operand);
         }
       }
     }
@@ -1144,13 +1142,10 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
         // it into a location different from the operand of a live range
         // covering a branch instruction.
         // Thus we need to manually record a pointer.
-        LInstruction* branch = InstructionAt(pred->last_instruction_index());
-        if (branch->HasPointerMap()) {
-          if (HasTaggedValue(range->id())) {
+        if (HasTaggedValue(range->id())) {
+          LInstruction* branch = InstructionAt(pred->last_instruction_index());
+          if (branch->HasPointerMap()) {
             branch->pointer_map()->RecordPointer(cur_op);
-          } else if (!cur_op->IsDoubleStackSlot() &&
-                     !cur_op->IsDoubleRegister()) {
-            branch->pointer_map()->RemovePointer(cur_op);
           }
         }
       }

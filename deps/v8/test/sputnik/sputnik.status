@@ -52,9 +52,6 @@ S15.10.6.2_A1_T16: FAIL_OK
 S15.10.6.2_A12: FAIL_OK
 S15.10.6.3_A1_T16: FAIL_OK
 
-# Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
-S15.10.6_A2: FAIL_OK
-
 # We are silent in some regexp cases where the spec wants us to give
 # errors, for compatibility.
 S15.10.2.11_A1_T2: FAIL
@@ -178,19 +175,6 @@ S15.5.4.12_A1_T3: FAIL_OK
 S15.5.4.13_A1_T3: FAIL_OK
 S15.5.4.14_A1_T3: FAIL_OK
 S15.5.4.15_A1_T3: FAIL_OK
-
-# NaN, Infinity and undefined are read-only according to ES5.
-S15.1.1.1_A2_T1: FAIL_OK  # NaN
-S15.1.1.1_A2_T2: FAIL_OK  # NaN
-S15.1.1.2_A2_T1: FAIL_OK  # Infinity
-# S15.1.1.2_A2_T2 would fail if it weren't bogus in r97. sputnik bug #45.
-S15.1.1.3_A2_T1: FAIL_OK  # undefined
-S15.1.1.3_A2_T2: FAIL_OK  # undefined
-
-# Array.prototype.to[Locale]String is generic in ES5.
-S15.4.4.2_A2_T1: FAIL_OK
-S15.4.4.3_A2_T1: FAIL_OK
-
 
 ##################### SKIPPED TESTS #####################
 

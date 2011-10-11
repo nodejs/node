@@ -142,14 +142,8 @@ inline void CopyWords(T* dst, T* src, int num_words) {
 }
 
 
-template <typename T, typename U>
-static inline void MemsetPointer(T** dest, U* value, int counter) {
-#ifdef DEBUG
-  T* a = NULL;
-  U* b = NULL;
-  a = b;  // Fake assignment to check assignability.
-  USE(a);
-#endif  // DEBUG
+template <typename T>
+static inline void MemsetPointer(T** dest, T* value, int counter) {
 #if defined(V8_HOST_ARCH_IA32)
 #define STOS "stosl"
 #elif defined(V8_HOST_ARCH_X64)

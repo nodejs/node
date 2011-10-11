@@ -66,7 +66,7 @@ class HandleScopeImplementer;
 class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
-class InnerPointerToCodeCache;
+class PcToCodeCache;
 class PreallocatedMemoryThread;
 class RegExpStack;
 class SaveContext;
@@ -841,9 +841,7 @@ class Isolate {
     return unicode_cache_;
   }
 
-  InnerPointerToCodeCache* inner_pointer_to_code_cache() {
-    return inner_pointer_to_code_cache_;
-  }
+  PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
 
   StringInputBuffer* write_input_buffer() { return write_input_buffer_; }
 
@@ -880,12 +878,6 @@ class Isolate {
   }
 
   RuntimeState* runtime_state() { return &runtime_state_; }
-
-  void set_fp_stubs_generated(bool value) {
-    fp_stubs_generated_ = value;
-  }
-
-  bool fp_stubs_generated() { return fp_stubs_generated_; }
 
   StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
     return &compiler_safe_string_input_buffer_;
@@ -1138,13 +1130,12 @@ class Isolate {
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;
-  InnerPointerToCodeCache* inner_pointer_to_code_cache_;
+  PcToCodeCache* pc_to_code_cache_;
   StringInputBuffer* write_input_buffer_;
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
-  bool fp_stubs_generated_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
   StringTracker* string_tracker_;
@@ -1219,7 +1210,19 @@ class Isolate {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  inline explicit SaveContext(Isolate* isolate);
+  explicit SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
+    if (isolate->context() != NULL) {
+      context_ = Handle<Context>(isolate->context());
+#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
+      dummy_ = Handle<Context>(isolate->context());
+#endif
+    }
+    isolate->set_save_context(this);
+
+    // If there is no JS frame under the current C frame, use the value 0.
+    JavaScriptFrameIterator it(isolate);
+    js_sp_ = it.done() ? 0 : it.frame()->sp();
+  }
 
   ~SaveContext() {
     if (context_.is_null()) {

@@ -407,18 +407,9 @@ class LParallelMove : public ZoneObject {
 class LPointerMap: public ZoneObject {
  public:
   explicit LPointerMap(int position)
-      : pointer_operands_(8),
-        untagged_operands_(0),
-        position_(position),
-        lithium_position_(-1) { }
+      : pointer_operands_(8), position_(position), lithium_position_(-1) { }
 
-  const ZoneList<LOperand*>* GetNormalizedOperands() {
-    for (int i = 0; i < untagged_operands_.length(); ++i) {
-      RemovePointer(untagged_operands_[i]);
-    }
-    untagged_operands_.Clear();
-    return &pointer_operands_;
-  }
+  const ZoneList<LOperand*>* operands() const { return &pointer_operands_; }
   int position() const { return position_; }
   int lithium_position() const { return lithium_position_; }
 
@@ -428,13 +419,10 @@ class LPointerMap: public ZoneObject {
   }
 
   void RecordPointer(LOperand* op);
-  void RemovePointer(LOperand* op);
-  void RecordUntagged(LOperand* op);
   void PrintTo(StringStream* stream);
 
  private:
   ZoneList<LOperand*> pointer_operands_;
-  ZoneList<LOperand*> untagged_operands_;
   int position_;
   int lithium_position_;
 };

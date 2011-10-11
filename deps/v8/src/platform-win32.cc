@@ -1397,99 +1397,39 @@ void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
 }
 
 
-VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
-
-
-VirtualMemory::VirtualMemory(size_t size)
-    : address_(ReserveRegion(size)), size_(size) { }
-
-
-VirtualMemory::VirtualMemory(size_t size, size_t alignment)
-    : address_(NULL), size_(0) {
-  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
-  size_t request_size = RoundUp(size + alignment,
-                                static_cast<intptr_t>(OS::AllocateAlignment()));
-  void* address = ReserveRegion(request_size);
-  if (address == NULL) return;
-  Address base = RoundUp(static_cast<Address>(address), alignment);
-  // Try reducing the size by freeing and then reallocating a specific area.
-  bool result = ReleaseRegion(address, request_size);
-  USE(result);
-  ASSERT(result);
-  address = VirtualAlloc(base, size, MEM_RESERVE, PAGE_NOACCESS);
-  if (address != NULL) {
-    request_size = size;
-    ASSERT(base == static_cast<Address>(address));
-  } else {
-    // Resizing failed, just go with a bigger area.
-    address = ReserveRegion(request_size);
-    if (address == NULL) return;
-  }
-  address_ = address;
-  size_ = request_size;
-}
-
-
-VirtualMemory::~VirtualMemory() {
-  if (IsReserved()) {
-    bool result = ReleaseRegion(address_, size_);
-    ASSERT(result);
-    USE(result);
-  }
-}
-
-
 bool VirtualMemory::IsReserved() {
   return address_ != NULL;
 }
 
 
-void VirtualMemory::Reset() {
-  address_ = NULL;
-  size_ = 0;
+VirtualMemory::VirtualMemory(size_t size) {
+  address_ = VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
+  size_ = size;
+}
+
+
+VirtualMemory::~VirtualMemory() {
+  if (IsReserved()) {
+    if (0 == VirtualFree(address(), 0, MEM_RELEASE)) address_ = NULL;
+  }
 }
 
 
 bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
-  if (CommitRegion(address, size, is_executable)) {
-    UpdateAllocatedSpaceLimits(address, static_cast<int>(size));
-    return true;
+  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
+  if (NULL == VirtualAlloc(address, size, MEM_COMMIT, prot)) {
+    return false;
   }
-  return false;
+
+  UpdateAllocatedSpaceLimits(address, static_cast<int>(size));
+  return true;
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
   ASSERT(IsReserved());
-  return UncommitRegion(address, size);
+  return VirtualFree(address, size, MEM_DECOMMIT) != false;
 }
-
-
-void* VirtualMemory::ReserveRegion(size_t size) {
-  return VirtualAlloc(NULL, size, MEM_RESERVE, PAGE_NOACCESS);
-}
-
-
-bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
-  int prot = is_executable ? PAGE_EXECUTE_READWRITE : PAGE_READWRITE;
-  if (NULL == VirtualAlloc(base, size, MEM_COMMIT, prot)) {
-    return false;
-  }
-
-  UpdateAllocatedSpaceLimits(base, static_cast<int>(size));
-  return true;
-}
-
-
-bool VirtualMemory::UncommitRegion(void* base, size_t size) {
-  return VirtualFree(base, size, MEM_DECOMMIT) != 0;
-}
-
-
-bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
-  return VirtualFree(base, 0, MEM_RELEASE) != 0;
-}
-
 
 
 // ----------------------------------------------------------------------------
@@ -1513,7 +1453,6 @@ class Thread::PlatformData : public Malloced {
  public:
   explicit PlatformData(HANDLE thread) : thread_(thread) {}
   HANDLE thread_;
-  unsigned thread_id_;
 };
 
 
@@ -1557,15 +1496,13 @@ void Thread::Start() {
                      ThreadEntry,
                      this,
                      0,
-                     &data_->thread_id_));
+                     NULL));
 }
 
 
 // Wait for thread to terminate.
 void Thread::Join() {
-  if (data_->thread_id_ != GetCurrentThreadId()) {
-    WaitForSingleObject(data_->thread_, INFINITE);
-  }
+  WaitForSingleObject(data_->thread_, INFINITE);
 }
 
 

@@ -202,14 +202,10 @@ if [ $STEP -le 4 ] ; then
   for commit in $COMMITS ; do
     # Get the commit's title line.
     git log -1 $commit --format="%w(80,8,8)%s" >> "$CHANGELOG_ENTRY_FILE"
-    # Grep for "BUG=xxxx" lines in the commit message and convert them to
-    # "(issue xxxx)".
-    git log -1 $commit --format="%B" \
-        | grep "^BUG=" | grep -v "BUG=$" \
-        | sed -e 's/^/        /' \
-        | sed -e 's/BUG=v8:\(.*\)$/(issue \1)/' \
-        | sed -e 's/BUG=\(.*\)$/(Chromium issue \1)/' \
-        >> "$CHANGELOG_ENTRY_FILE"
+    # Grep for "BUG=xxxx" lines in the commit message.
+    git log -1 $commit --format="%b" | grep BUG= | grep -v "BUG=$" \
+                                     | sed -e 's/^/        /' \
+                                     >> "$CHANGELOG_ENTRY_FILE"
     # Append the commit's author for reference.
     git log -1 $commit --format="%w(80,8,8)(%an)" >> "$CHANGELOG_ENTRY_FILE"
     echo "" >> "$CHANGELOG_ENTRY_FILE"

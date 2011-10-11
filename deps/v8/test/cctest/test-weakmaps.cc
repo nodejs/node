@@ -50,7 +50,7 @@ static void PutIntoWeakMap(Handle<JSWeakMap> weakmap,
                            Handle<JSObject> key,
                            int value) {
   Handle<ObjectHashTable> table = PutIntoObjectHashTable(
-      Handle<ObjectHashTable>(ObjectHashTable::cast(weakmap->table())),
+      Handle<ObjectHashTable>(weakmap->table()),
       Handle<JSObject>(JSObject::cast(*key)),
       Handle<Smi>(Smi::FromInt(value)));
   weakmap->set_table(*table);
@@ -85,14 +85,13 @@ TEST(Weakness) {
     v8::HandleScope scope;
     PutIntoWeakMap(weakmap, Handle<JSObject>(JSObject::cast(*key)), 23);
   }
-  CHECK_EQ(1, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
+  CHECK_EQ(1, weakmap->table()->NumberOfElements());
 
   // Force a full GC.
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(0, NumberOfWeakCalls);
-  CHECK_EQ(1, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(1, weakmap->table()->NumberOfElements());
+  CHECK_EQ(0, weakmap->table()->NumberOfDeletedElements());
 
   // Make the global reference to the key weak.
   {
@@ -108,14 +107,12 @@ TEST(Weakness) {
   // weak references whereas the second one will also clear weak maps.
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(1, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(1, weakmap->table()->NumberOfElements());
+  CHECK_EQ(0, weakmap->table()->NumberOfDeletedElements());
   HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, NumberOfWeakCalls);
-  CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      1, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(0, weakmap->table()->NumberOfElements());
+  CHECK_EQ(1, weakmap->table()->NumberOfDeletedElements());
 }
 
 
@@ -125,7 +122,7 @@ TEST(Shrinking) {
   Handle<JSWeakMap> weakmap = AllocateJSWeakMap();
 
   // Check initial capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, weakmap->table()->Capacity());
 
   // Fill up weak map to trigger capacity change.
   {
@@ -138,17 +135,15 @@ TEST(Shrinking) {
   }
 
   // Check increased capacity.
-  CHECK_EQ(128, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(128, weakmap->table()->Capacity());
 
   // Force a full GC.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      0, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(32, weakmap->table()->NumberOfElements());
+  CHECK_EQ(0, weakmap->table()->NumberOfDeletedElements());
   HEAP->CollectAllGarbage(false);
-  CHECK_EQ(0, ObjectHashTable::cast(weakmap->table())->NumberOfElements());
-  CHECK_EQ(
-      32, ObjectHashTable::cast(weakmap->table())->NumberOfDeletedElements());
+  CHECK_EQ(0, weakmap->table()->NumberOfElements());
+  CHECK_EQ(32, weakmap->table()->NumberOfDeletedElements());
 
   // Check shrunk capacity.
-  CHECK_EQ(32, ObjectHashTable::cast(weakmap->table())->Capacity());
+  CHECK_EQ(32, weakmap->table()->Capacity());
 }
