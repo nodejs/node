@@ -39,10 +39,7 @@
       'lib/sys.js',
       'lib/timers.js',
       'lib/tls.js',
-      'lib/tty_legacy.js',
-      'lib/tty_posix.js',
-      'lib/tty_uv.js',
-      'lib/tty_win32.js',
+      'lib/tty.js',
       'lib/url.js',
       'lib/util.js',
       'lib/vm.js',
@@ -109,7 +106,6 @@
         'src/node_os.h',
         'src/node_root_certs.h',
         'src/node_script.h',
-        'src/node_stdio.h',
         'src/node_string.h',
         'src/node_version.h',
         'src/pipe_wrap.h',
@@ -153,7 +149,6 @@
         [ 'OS=="win"', {
           'sources': [
             'src/platform_win32.cc',
-            'src/node_stdio_win32.cc',
             # headers to make for a more pleasant IDE experience
             'src/platform_win32.h',
           ],
@@ -169,7 +164,6 @@
             'src/node_signal_watcher.cc',
             'src/node_stat_watcher.cc',
             'src/node_io_watcher.cc',
-            'src/node_stdio.cc',
           ]
         }],
         [ 'OS=="mac"', {

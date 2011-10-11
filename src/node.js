@@ -458,9 +458,6 @@
   // backend.
   function translateId(id) {
     switch (id) {
-      case 'tty':
-        return process.features.uv ? 'tty_uv' : 'tty_legacy';
-
       default:
         return id;
     }

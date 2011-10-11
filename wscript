@@ -899,13 +899,10 @@ def build(bld):
     src/v8_typed_array.cc
   """
 
-  if sys.platform.startswith("win32"):
-    node.source += " src/node_stdio_win32.cc "
-  else:
+  if not sys.platform.startswith("win32"):
     node.source += " src/node_signal_watcher.cc "
     node.source += " src/node_stat_watcher.cc "
     node.source += " src/node_io_watcher.cc "
-    node.source += " src/node_stdio.cc "
 
   node.source += bld.env["PLATFORM_FILE"]
   if not product_type_is_lib:

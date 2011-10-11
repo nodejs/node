@@ -1236,7 +1236,8 @@ void DisplayExceptionLine (TryCatch &try_catch) {
 
   Handle<Message> message = try_catch.Message();
 
-  node::Stdio::DisableRawMode(STDIN_FILENO);
+  uv_tty_reset_mode();
+
   fprintf(stderr, "\n");
 
   if (!message.IsEmpty()) {
@@ -1335,6 +1336,34 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
   }
 
   return scope.Close(result);
+}
+
+
+/* STDERR IS ALWAY SYNC ALWAYS UTF8 */
+static Handle<Value> WriteError (const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() < 1) {
+    return Undefined();
+  }
+
+  String::Utf8Value msg(args[0]->ToString());
+
+  ssize_t r;
+  size_t written = 0;
+  while (written < (size_t) msg.length()) {
+    r = write(STDERR_FILENO, (*msg) + written, msg.length() - written);
+    if (r < 0) {
+      if (errno == EAGAIN || errno == EIO) {
+        usleep(100);
+        continue;
+      }
+      return ThrowException(ErrnoException(errno, "write"));
+    }
+    written += (size_t)r;
+  }
+
+  return True();
 }
 
 
@@ -2174,6 +2203,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
 
+  NODE_SET_METHOD(process, "writeError", WriteError);
+
   NODE_SET_METHOD(process, "umask", Umask);
 
 #ifdef __POSIX__
@@ -2198,7 +2229,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
 
 static void AtExit() {
-  node::Stdio::Flush();
   uv_tty_reset_mode();
 }
 
