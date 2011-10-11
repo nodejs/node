@@ -464,9 +464,6 @@
       case 'dgram':
         return process.features.uv ? 'dgram_uv' : 'dgram_legacy';
 
-      case 'dns':
-        return process.features.uv ? 'dns_uv' : 'dns_legacy';
-
       default:
         return id;
     }

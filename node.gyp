@@ -21,8 +21,7 @@
       'lib/crypto.js',
       'lib/dgram_legacy.js',
       'lib/dgram_uv.js',
-      'lib/dns_legacy.js',
-      'lib/dns_uv.js',
+      'lib/dns.js',
       'lib/events.js',
       'lib/freelist.js',
       'lib/fs.js',
@@ -168,7 +167,6 @@
         },{ # POSIX
           'defines': [ '__POSIX__' ],
           'sources': [
-            'src/node_cares.cc',
             'src/node_signal_watcher.cc',
             'src/node_stat_watcher.cc',
             'src/node_io_watcher.cc',

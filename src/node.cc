@@ -77,7 +77,6 @@ extern "C" {
 #ifdef __POSIX__
 # include <node_io_watcher.h>
 #endif
-#include <node_cares.h>
 #include <node_file.h>
 #include <node_http_parser.h>
 #ifdef __POSIX__

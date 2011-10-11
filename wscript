@@ -902,7 +902,6 @@ def build(bld):
   if sys.platform.startswith("win32"):
     node.source += " src/node_stdio_win32.cc "
   else:
-    node.source += " src/node_cares.cc "
     node.source += " src/node_signal_watcher.cc "
     node.source += " src/node_stat_watcher.cc "
     node.source += " src/node_io_watcher.cc "
