@@ -1970,17 +1970,6 @@ static Handle<Value> EnvGetter(Local<String> property,
 }
 
 
-static bool ENV_warning = false;
-static Handle<Value> EnvGetterWarn(Local<String> property,
-                                   const AccessorInfo& info) {
-  if (!ENV_warning) {
-    ENV_warning = true;
-    fprintf(stderr, "(node) Use process.env instead of process.ENV\r\n");
-  }
-  return EnvGetter(property, info);
-}
-
-
 static Handle<Value> EnvSetter(Local<String> property,
                                Local<Value> value,
                                const AccessorInfo& info) {
