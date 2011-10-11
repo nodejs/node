@@ -95,7 +95,6 @@
         'src/handle_wrap.h',
         'src/node.h',
         'src/node_buffer.h',
-        'src/node_cares.h',
         'src/node_constants.h',
         'src/node_crypto.h',
         'src/node_dtrace.h',

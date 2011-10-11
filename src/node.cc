@@ -1355,7 +1355,11 @@ static Handle<Value> WriteError (const Arguments& args) {
     r = write(STDERR_FILENO, (*msg) + written, msg.length() - written);
     if (r < 0) {
       if (errno == EAGAIN || errno == EIO) {
+#ifdef __POSIX__
         usleep(100);
+#else
+        Sleep(100);
+#endif
         continue;
       }
       return ThrowException(ErrnoException(errno, "write"));
