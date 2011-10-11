@@ -458,18 +458,12 @@
   // backend.
   function translateId(id) {
     switch (id) {
-      case 'net':
-        return process.features.uv ? 'net_uv' : 'net_legacy';
-
       case 'tty':
         return process.features.uv ? 'tty_uv' : 'tty_legacy';
 
       case 'child_process':
         return process.features.uv ? 'child_process_uv' :
                                      'child_process_legacy';
-
-      case 'timers':
-        return process.features.uv ? 'timers_uv' : 'timers_legacy';
 
       case 'dgram':
         return process.features.uv ? 'dgram_uv' : 'dgram_legacy';

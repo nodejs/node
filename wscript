@@ -903,13 +903,11 @@ def build(bld):
     node.source += " src/node_stdio_win32.cc "
   else:
     node.source += " src/node_cares.cc "
-    node.source += " src/node_net.cc "
     node.source += " src/node_signal_watcher.cc "
     node.source += " src/node_stat_watcher.cc "
     node.source += " src/node_io_watcher.cc "
     node.source += " src/node_stdio.cc "
     node.source += " src/node_child_process.cc "
-    node.source += " src/node_timer.cc "
 
   node.source += bld.env["PLATFORM_FILE"]
   if not product_type_is_lib:

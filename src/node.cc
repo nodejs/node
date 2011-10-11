@@ -77,14 +77,12 @@ extern "C" {
 #ifdef __POSIX__
 # include <node_io_watcher.h>
 #endif
-#include <node_net.h>
 #include <node_cares.h>
 #include <node_file.h>
 #include <node_http_parser.h>
 #ifdef __POSIX__
 # include <node_signal_watcher.h>
 # include <node_stat_watcher.h>
-# include <node_timer.h>
 #endif
 #if !defined(_MSC_VER)
 #include <node_child_process.h>
@@ -1902,13 +1900,6 @@ static Handle<Value> Binding(const Arguments& args) {
     binding_cache->Set(module, exports);
 #endif
 
-  } else if (!strcmp(*module_v, "timer")) {
-#ifdef __POSIX__
-    exports = Object::New();
-    Timer::Initialize(exports);
-    binding_cache->Set(module, exports);
-
-#endif
   } else if (!strcmp(*module_v, "natives")) {
     exports = Object::New();
     DefineJavaScript(exports);

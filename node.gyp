@@ -30,8 +30,7 @@
       'lib/http.js',
       'lib/https.js',
       'lib/module.js',
-      'lib/net_legacy.js',
-      'lib/net_uv.js',
+      'lib/net.js',
       'lib/os.js',
       'lib/path.js',
       'lib/punycode.js',
@@ -41,8 +40,7 @@
       'lib/stream.js',
       'lib/string_decoder.js',
       'lib/sys.js',
-      'lib/timers_legacy.js',
-      'lib/timers_uv.js',
+      'lib/timers.js',
       'lib/tls.js',
       'lib/tty_legacy.js',
       'lib/tty_posix.js',
@@ -112,7 +110,6 @@
         'src/node_file.h',
         'src/node_http_parser.h',
         'src/node_javascript.h',
-        'src/node_net.h',
         'src/node_os.h',
         'src/node_root_certs.h',
         'src/node_script.h',
@@ -174,13 +171,11 @@
           'defines': [ '__POSIX__' ],
           'sources': [
             'src/node_cares.cc',
-            'src/node_net.cc',
             'src/node_signal_watcher.cc',
             'src/node_stat_watcher.cc',
             'src/node_io_watcher.cc',
             'src/node_stdio.cc',
             'src/node_child_process.cc',
-            'src/node_timer.cc'
           ]
         }],
         [ 'OS=="mac"', {
