@@ -68,7 +68,6 @@ switch (process.stdout._type) {
   case 'fs':
     expected = expected.concat([
       'NativeModule console',
-      'Binding stdio',
       'Binding tty_wrap'
     ]);
     break;
@@ -76,11 +75,10 @@ switch (process.stdout._type) {
   case 'tty':
     expected = expected.concat([
       'NativeModule console',
-      'Binding stdio',
       'Binding tty_wrap',
-      'NativeModule tty_uv',
-      'NativeModule net_uv',
-      'NativeModule timers_uv',
+      'NativeModule tty',
+      'NativeModule net',
+      'NativeModule timers',
       'Binding timer_wrap',
       'NativeModule _linklist'
     ]);
@@ -89,10 +87,9 @@ switch (process.stdout._type) {
   case 'pipe':
     expected = expected.concat([
       'NativeModule console',
-      'Binding stdio',
       'Binding tty_wrap',
-      'NativeModule net_uv',
-      'NativeModule timers_uv',
+      'NativeModule net',
+      'NativeModule timers',
       'Binding timer_wrap',
       'NativeModule _linklist',
       'Binding pipe_wrap'
