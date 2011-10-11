@@ -84,7 +84,6 @@ extern "C" {
 # include <node_stat_watcher.h>
 #endif
 #include <node_constants.h>
-#include <node_stdio.h>
 #include <node_javascript.h>
 #include <node_version.h>
 #include <node_string.h>
