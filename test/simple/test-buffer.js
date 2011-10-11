@@ -259,11 +259,11 @@ assert.equal(f.toString('ucs2'), 'привет');
 var f = new Buffer([0, 0, 0, 0, 0]);
 assert.equal(f.length, 5);
 var size = f.write('あいうえお', 'ucs2');
+var charsWritten = Buffer._charsWritten; // Copy value out.
 console.error('bytes written to buffer: %d     (should be 4)', size);
-console.error('chars written to buffer: %d     (should be 2)',
-    Buffer._charsWritten);
+console.error('chars written to buffer: %d     (should be 2)', charsWritten);
 assert.equal(size, 4);
-assert.equal(Buffer._charsWritten, 2);
+assert.equal(charsWritten, 2);
 assert.deepEqual(f, new Buffer([0x42, 0x30, 0x44, 0x30, 0x00]));
 
 
