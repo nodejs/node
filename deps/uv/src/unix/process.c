@@ -236,13 +236,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   }
   while (status == -1 && (errno == EINTR || errno == ENOMEM));
 
+  assert((status == 1) && "poll() on pipe read end failed");
   uv__close(signal_pipe[0]);
-  uv__close(signal_pipe[1]);
-
-  assert((status == 1)
-      && "poll() on pipe read end failed");
-  assert((pfd.revents & POLLHUP) == POLLHUP
-      && "no POLLHUP on pipe read end");
 #endif
 
   process->pid = pid;

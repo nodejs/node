@@ -215,6 +215,7 @@
           ],
           'direct_dependent_settings': {
             'libraries': [
+              '-lkstat',
               '-lsocket',
               '-lnsl',
             ],
