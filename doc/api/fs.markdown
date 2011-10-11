@@ -427,6 +427,34 @@ you need to compare `curr.mtime` and `prev.mtime`.
 
 Stop watching for changes on `filename`.
 
+### fs.watch(filename, [options], listener)
+
+Watch for changes on `filename`, where `filename` is either a file or a
+directory.  The returned object is [fs.FSWatcher](#fs.FSWatcher).
+
+The second argument is optional. The `options` if provided should be an object
+containing a boolean member `persistent`.  The default is `{ persistent: true }`.
+
+The listener callback gets two arguments `(event, filename)`.  `event` is either
+'rename' or 'change', and `filename` is the name of the file which triggered
+the event.
+
+***Warning:***
+Providing `filename` argument in the callback is not supported
+on every platform (currently it's only supported on Linux and Windows).  Even
+on supported platforms `filename` is not always guaranteed to be provided.
+Therefore, don't assume that `filename` argument is always provided in the
+callback, and have some fallback logic if it is null.
+
+    fs.watch('somedir', function (event, filename) {
+      console.log('event is: ' + event);
+	  if (filename) {
+        console.log('filename provided: ' + filename);
+	  } else {
+	    console.log('filename not provided');
+	  }
+    });
+
 ## fs.Stats
 
 Objects returned from `fs.stat()` and `fs.lstat()` are of this type.
@@ -501,3 +529,24 @@ Returns a new WriteStream object (See `Writable Stream`).
 some position past the beginning of the file.  Modifying a file rather
 than replacing it may require a `flags` mode of `r+` rather than the
 default mode `w`.
+
+## fs.FSWatcher
+
+Objects returned from `fs.watch()` are of this type.
+
+#### watcher.close()
+
+Stop watching for changes on the given `fs.FSWatcher`.
+
+#### Event: 'change'
+
+`function (event, filename) {}`
+
+Emitted when something changes in a watched directory or file.
+See more details in [fs.watch](#fs.watch).
+
+#### Event: 'error'
+
+`function (exception) {}`
+
+Emitted when an error occurs.
