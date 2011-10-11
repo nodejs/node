@@ -461,9 +461,6 @@
       case 'tty':
         return process.features.uv ? 'tty_uv' : 'tty_legacy';
 
-      case 'dgram':
-        return process.features.uv ? 'dgram_uv' : 'dgram_legacy';
-
       default:
         return id;
     }
