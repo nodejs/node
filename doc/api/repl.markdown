@@ -27,11 +27,17 @@ For example, you could add this to your bashrc file:
     alias node="env NODE_NO_READLINE=1 rlwrap node"
 
 
-### repl.start(prompt='> ', stream=process.stdin)
+### repl.start(prompt='> ', stream=process.stdin, eval=eval)
 
 Starts a REPL with `prompt` as the prompt and `stream` for all I/O.  `prompt`
 is optional and defaults to `> `.  `stream` is optional and defaults to
-`process.stdin`.
+`process.stdin`. `eval` is optional too and defaults to async wrapper for `eval`.
+
+You can use your own `eval` function if it has following signature:
+
+    function eval(cmd, callback) {
+      callback(null, result);
+    }
 
 Multiple REPLs may be started against the same running instance of node.  Each
 will share the same global object but will have unique I/O.
