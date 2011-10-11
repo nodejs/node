@@ -461,10 +461,6 @@
       case 'tty':
         return process.features.uv ? 'tty_uv' : 'tty_legacy';
 
-      case 'child_process':
-        return process.features.uv ? 'child_process_uv' :
-                                     'child_process_legacy';
-
       case 'dgram':
         return process.features.uv ? 'dgram_uv' : 'dgram_legacy';
 

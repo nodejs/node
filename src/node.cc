@@ -84,9 +84,6 @@ extern "C" {
 # include <node_signal_watcher.h>
 # include <node_stat_watcher.h>
 #endif
-#if !defined(_MSC_VER)
-#include <node_child_process.h>
-#endif
 #include <node_constants.h>
 #include <node_stdio.h>
 #include <node_javascript.h>

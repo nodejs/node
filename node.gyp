@@ -15,8 +15,7 @@
       'lib/assert.js',
       'lib/buffer.js',
       'lib/buffer_ieee754.js',
-      'lib/child_process_legacy.js',
-      'lib/child_process_uv.js',
+      'lib/child_process.js',
       'lib/console.js',
       'lib/constants.js',
       'lib/crypto.js',
@@ -102,7 +101,6 @@
         'src/node.h',
         'src/node_buffer.h',
         'src/node_cares.h',
-        'src/node_child_process.h',
         'src/node_constants.h',
         'src/node_crypto.h',
         'src/node_dtrace.h',
@@ -175,7 +173,6 @@
             'src/node_stat_watcher.cc',
             'src/node_io_watcher.cc',
             'src/node_stdio.cc',
-            'src/node_child_process.cc',
           ]
         }],
         [ 'OS=="mac"', {
