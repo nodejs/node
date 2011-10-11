@@ -241,7 +241,7 @@ processes:
 
     process.on('message', function(m, serverHandle) {
       if (serverHandle) {
-        var server = require('child_process').createServer();
+        var server = require('net').createServer();
         server.listen(serverHandle);
       }
     });
