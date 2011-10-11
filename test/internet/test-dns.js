@@ -24,8 +24,7 @@ var assert = require('assert'),
     net = require('net_uv'),
     isIP = net.isIP,
     isIPv4 = net.isIPv4,
-    isIPv6 = net.isIPv6,
-    uv = process.features.uv;
+    isIPv6 = net.isIPv6;
 
 var expected = 0,
     completed = 0,
@@ -59,16 +58,14 @@ function TEST(f) {
 
 
 process.on('exit', function() {
-  console.log(completed + ' tests completed (using libuv: ' + (!!uv) + ')');
+  console.log(completed + ' tests completed');
   assert.equal(running, false);
   assert.strictEqual(expected, completed);
 });
 
 
 function checkWrap(req) {
-  if (uv) {
-    assert.ok(typeof req === 'object');
-  }
+  assert.ok(typeof req === 'object');
 }
 
 
@@ -154,7 +151,7 @@ TEST(function test_reverse_bogus(done) {
   }
 
   assert.ok(error instanceof Error);
-  uv && assert.strictEqual(error.errno, 'ENOTIMP');
+  assert.strictEqual(error.errno, 'ENOTIMP');
 
   done();
 });
@@ -316,7 +313,7 @@ TEST(function test_lookup_failure(done) {
   var req = dns.lookup('does.not.exist', 4, function(err, ip, family) {
     assert.ok(err instanceof Error);
     assert.strictEqual(err.errno, dns.NOTFOUND);
-    uv && assert.strictEqual(err.errno, 'ENOTFOUND');
+    assert.strictEqual(err.errno, 'ENOTFOUND');
 
     done();
   });

@@ -64,60 +64,43 @@ checkExpected();
 console.log('load console.log. process.stdout._type is ' +
     process.stdout._type);
 
-if (!process.features.uv) {
-  // legacy
-  expected = expected.concat([
-    'NativeModule console',
-    'NativeModule net_legacy',
-    'NativeModule timers_legacy',
-    'Binding timer',
-    'NativeModule _linklist',
-    'Binding net',
-    'NativeModule freelist',
-    'Binding io_watcher',
-    'NativeModule tty',
-    'NativeModule tty_posix',
-    'NativeModule readline'
-  ]);
-} else {
-  switch (process.stdout._type) {
-    case 'fs':
-      expected = expected.concat([
-        'NativeModule console',
-        'Binding stdio',
-        'Binding tty_wrap'
-      ]);
-      break;
+switch (process.stdout._type) {
+  case 'fs':
+    expected = expected.concat([
+      'NativeModule console',
+      'Binding stdio',
+      'Binding tty_wrap'
+    ]);
+    break;
 
-    case 'tty':
-      expected = expected.concat([
-        'NativeModule console',
-        'Binding stdio',
-        'Binding tty_wrap',
-        'NativeModule tty_uv',
-        'NativeModule net_uv',
-        'NativeModule timers_uv',
-        'Binding timer_wrap',
-        'NativeModule _linklist'
-      ]);
-      break;
+  case 'tty':
+    expected = expected.concat([
+      'NativeModule console',
+      'Binding stdio',
+      'Binding tty_wrap',
+      'NativeModule tty_uv',
+      'NativeModule net_uv',
+      'NativeModule timers_uv',
+      'Binding timer_wrap',
+      'NativeModule _linklist'
+    ]);
+    break;
 
-    case 'pipe':
-      expected = expected.concat([
-        'NativeModule console',
-        'Binding stdio',
-        'Binding tty_wrap',
-        'NativeModule net_uv',
-        'NativeModule timers_uv',
-        'Binding timer_wrap',
-        'NativeModule _linklist',
-        'Binding pipe_wrap'
-      ]);
-      break;
+  case 'pipe':
+    expected = expected.concat([
+      'NativeModule console',
+      'Binding stdio',
+      'Binding tty_wrap',
+      'NativeModule net_uv',
+      'NativeModule timers_uv',
+      'Binding timer_wrap',
+      'NativeModule _linklist',
+      'Binding pipe_wrap'
+    ]);
+    break;
 
-    default:
-      assert.ok(0, 'prcoess.stdout._type is bad');
-  }
+  default:
+    assert.ok(0, 'prcoess.stdout._type is bad');
 }
 
 console.error('process.moduleLoadList', process.moduleLoadList);
