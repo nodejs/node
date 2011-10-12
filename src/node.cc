@@ -2301,7 +2301,6 @@ static void PrintHelp() {
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
-         "  --use-legacy         use the legacy backend (default: libuv)\n"
          "\n"
          "Enviromental variables:\n"
          "NODE_PATH              ':'-separated list of directories\n"
