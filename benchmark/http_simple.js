@@ -11,26 +11,6 @@ for (var i = 0; i < 20*1024; i++) {
   fixed += "C";
 }
 
-var uname, rev;
-
-exec('git rev-list -1 HEAD', function (e, stdout) {
-  if (e) {
-    console.error("Problem executing: 'git rev-list -1 HEAD'");
-    throw new Error(e);
-  }
-  rev = stdout.replace(/\s/g, '');
-});
-
-exec('uname -a', function (e, stdout) {
-  if (e) {
-    console.error("Problem executing: 'uname -a'");
-    throw new Error(e);
-  }
-  uname = stdout.replace(/[\r\n]/g, '');
-});
-
-
-
 stored = {};
 storedBuffer = {};
 
@@ -73,9 +53,6 @@ var server = http.createServer(function (req, res) {
 
   } else if (command == "fixed") {
     body = fixed;
-
-  } else if (command == "info") {
-    body = 'rev=' + rev + '\nuname="' + uname + '"\n';
 
   } else {
     status = 404;
