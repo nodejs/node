@@ -234,7 +234,9 @@ another process. Child will receive the handle as as second argument to the
     var server = require('net').createServer();
     var child = require('child_process').fork(__dirname + '/child.js');
     // Open up the server object and send the handle.
-    child.send({ server: true }, server._handle);
+    server.listen(1337, function() {
+      child.send({ server: true }, server._handle);
+    });
 
 Here is an example of receiving the server handle and sharing it between
 processes:
