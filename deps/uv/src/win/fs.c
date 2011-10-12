@@ -72,7 +72,6 @@
   req->flags |= UV_FS_ASYNC_QUEUED;                                         \
   uv_ref((loop));
 
-
 #define SET_UV_LAST_ERROR_FROM_REQ(req)                                     \
   if (req->flags & UV_FS_LAST_ERROR_SET) {                                  \
     uv__set_sys_error(req->loop, req->last_error);                          \
@@ -95,6 +94,14 @@
   req->result = -1;                                                         \
   req->errorno = uv_translate_sys_error(sys_errno);                         \
   SET_REQ_LAST_ERROR(req, sys_errno);
+
+#define VERIFY_UV_FILE(file, req)                                           \
+  if (file == -1) {                                                         \
+    req->result = -1;                                                       \
+    req->errorno = UV_EBADF;                                                \
+    req->last_error = ERROR_SUCCESS;                                        \
+    return;                                                                 \
+  }
 
 
 void uv_fs_init() {
@@ -241,7 +248,11 @@ end:
 }
 
 void fs__close(uv_fs_t* req, uv_file file) {
-  int result = _close(file);
+  int result;
+
+  VERIFY_UV_FILE(file, req);
+
+  result = _close(file);
   SET_REQ_RESULT(req, result);
 }
 
@@ -252,6 +263,8 @@ void fs__read(uv_fs_t* req, uv_file file, void *buf, size_t length,
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
   DWORD bytes;
+
+  VERIFY_UV_FILE(file, req);
 
   handle = (HANDLE) _get_osfhandle(file);
   if (handle == INVALID_HANDLE_VALUE) {
@@ -290,6 +303,8 @@ void fs__write(uv_fs_t* req, uv_file file, void *buf, size_t length,
   OVERLAPPED overlapped, *overlapped_ptr;
   LARGE_INTEGER offset_;
   DWORD bytes;
+
+  VERIFY_UV_FILE(file, req);
 
   handle = (HANDLE) _get_osfhandle(file);
   if (handle == INVALID_HANDLE_VALUE) {
@@ -342,7 +357,7 @@ void fs__rmdir(uv_fs_t* req, const char* path) {
 
 void fs__readdir(uv_fs_t* req, const char* path, int flags) {
   int result;
-  char* buf, *ptr, *name;
+  char* buf = NULL, *ptr, *name;
   HANDLE dir;
   WIN32_FIND_DATAA ent = {0};
   size_t len = strlen(path);
@@ -365,12 +380,6 @@ void fs__readdir(uv_fs_t* req, const char* path, int flags) {
     return;
   }
 
-  buf = (char*)malloc(buf_size);
-  if (!buf) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
-
-  ptr = buf;
   result = 0;
 
   do {
@@ -378,6 +387,15 @@ void fs__readdir(uv_fs_t* req, const char* path, int flags) {
 
     if (name[0] != '.' || (name[1] && (name[1] != '.' || name[2]))) {
       len = strlen(name);
+
+      if (!buf) {
+        buf = (char*)malloc(buf_size);
+        if (!buf) {
+          uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+        }
+
+        ptr = buf;
+      }
 
       while ((ptr - buf) + len + 1 > buf_size) {
         buf_size *= 2;
@@ -422,6 +440,8 @@ void fs__stat(uv_fs_t* req, const char* path) {
 void fs__fstat(uv_fs_t* req, uv_file file) {
   int result;
 
+  VERIFY_UV_FILE(file, req);
+
   result = _fstati64(file, &req->stat);
   if (result == -1) {
     req->ptr = NULL;
@@ -440,7 +460,11 @@ void fs__rename(uv_fs_t* req, const char* path, const char* new_path) {
 
 
 void fs__fsync(uv_fs_t* req, uv_file file) {
-  int result = FlushFileBuffers((HANDLE)_get_osfhandle(file)) ? 0 : -1;
+  int result;
+
+  VERIFY_UV_FILE(file, req);
+
+  result = FlushFileBuffers((HANDLE)_get_osfhandle(file)) ? 0 : -1;
   if (result == -1) {
     SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
   } else {
@@ -450,7 +474,11 @@ void fs__fsync(uv_fs_t* req, uv_file file) {
 
 
 void fs__ftruncate(uv_fs_t* req, uv_file file, off_t offset) {
-  int result = _chsize(file, offset);
+  int result;
+
+  VERIFY_UV_FILE(file, req);
+
+  result = _chsize(file, offset);
   SET_REQ_RESULT(req, result);
 }
 
@@ -508,6 +536,8 @@ void fs__fchmod(uv_fs_t* req, uv_file file, int mode) {
   IO_STATUS_BLOCK io_status;
   FILE_BASIC_INFORMATION file_info;
 
+  VERIFY_UV_FILE(file, req);
+
   handle = (HANDLE)_get_osfhandle(file);
 
   nt_status = pNtQueryInformationFile(handle,
@@ -556,6 +586,9 @@ void fs__utime(uv_fs_t* req, const char* path, double atime, double mtime) {
 void fs__futime(uv_fs_t* req, uv_file file, double atime, double mtime) {
   int result;
   struct _utimbuf b = {(time_t)atime, (time_t)mtime};
+
+  VERIFY_UV_FILE(file, req);
+
   result = _futime(file, &b);
   SET_REQ_RESULT(req, result);
 }

@@ -459,6 +459,42 @@ int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags) {
 }
 
 
+int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
+  const char* interface_addr, uv_membership membership) {
+
+  int optname;
+  struct ip_mreq mreq;
+  memset(&mreq, 0, sizeof mreq);
+
+  if (interface_addr) {
+    mreq.imr_interface.s_addr = inet_addr(interface_addr);
+  } else {
+    mreq.imr_interface.s_addr = htonl(INADDR_ANY);
+  }
+
+  mreq.imr_multiaddr.s_addr = inet_addr(multicast_addr);
+
+  switch (membership) {
+  case UV_JOIN_GROUP:
+    optname = IP_ADD_MEMBERSHIP;
+    break;
+  case UV_LEAVE_GROUP:
+    optname = IP_DROP_MEMBERSHIP;
+    break;
+  default:
+    uv__set_sys_error(handle->loop, EFAULT);
+    return -1;
+  }
+
+  if (setsockopt(handle->fd, IPPROTO_IP, optname, (void*) &mreq, sizeof mreq) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+
+  return 0;
+}
+
+
 int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
     int* namelen) {
   socklen_t socklen;

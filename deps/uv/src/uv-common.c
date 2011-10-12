@@ -76,12 +76,14 @@ const char* uv_err_name(uv_err_t err) {
     case UV_ENFILE: return "ENFILE";
     case UV_ENOBUFS: return "ENOBUFS";
     case UV_ENOMEM: return "ENOMEM";
+    case UV_ENOTDIR: return "ENOTDIR";
     case UV_ENONET: return "ENONET";
     case UV_ENOPROTOOPT: return "ENOPROTOOPT";
     case UV_ENOTCONN: return "ENOTCONN";
     case UV_ENOTSOCK: return "ENOTSOCK";
     case UV_ENOTSUP: return "ENOTSUP";
     case UV_ENOENT: return "ENOENT";
+    case UV_ENOSYS: return "ENOSYS";
     case UV_EPIPE: return "EPIPE";
     case UV_EPROTO: return "EPROTO";
     case UV_EPROTONOSUPPORT: return "EPROTONOSUPPORT";

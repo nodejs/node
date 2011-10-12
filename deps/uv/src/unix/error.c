@@ -58,6 +58,7 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 
 static int uv__translate_lib_error(int code) {
   switch (code) {
+    case UV_ENOSYS: return ENOSYS;
     case UV_ENOENT: return ENOENT;
     case UV_EACCESS: return EACCES;
     case UV_EBADF: return EBADF;
@@ -71,6 +72,7 @@ static int uv__translate_lib_error(int code) {
     case UV_ECONNREFUSED: return ECONNREFUSED;
     case UV_EADDRINUSE: return EADDRINUSE;
     case UV_EADDRNOTAVAIL: return EADDRNOTAVAIL;
+    case UV_ENOTDIR: return ENOTDIR;
     case UV_ENOTCONN: return ENOTCONN;
     case UV_EEXIST: return EEXIST;
     default: return -1;
@@ -84,6 +86,7 @@ static int uv__translate_lib_error(int code) {
 uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case 0: return UV_OK;
+    case ENOSYS: return UV_ENOSYS;
     case ENOENT: return UV_ENOENT;
     case EACCES: return UV_EACCESS;
     case EBADF: return UV_EBADF;
@@ -97,6 +100,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ECONNREFUSED: return UV_ECONNREFUSED;
     case EADDRINUSE: return UV_EADDRINUSE;
     case EADDRNOTAVAIL: return UV_EADDRNOTAVAIL;
+    case ENOTDIR: return UV_ENOTDIR;
     case ENOTCONN: return UV_ENOTCONN;
     case EEXIST: return UV_EEXIST;
     default: return UV_UNKNOWN;

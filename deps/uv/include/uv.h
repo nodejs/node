@@ -76,12 +76,14 @@ typedef enum {
   UV_ENFILE,
   UV_ENOBUFS,
   UV_ENOMEM,
+  UV_ENOTDIR,
   UV_ENONET,
   UV_ENOPROTOOPT,
   UV_ENOTCONN,
   UV_ENOTSOCK,
   UV_ENOTSUP,
   UV_ENOENT,
+  UV_ENOSYS,
   UV_EPIPE,
   UV_EPROTO,
   UV_EPROTONOSUPPORT,
@@ -238,6 +240,11 @@ typedef void (*uv_after_work_cb)(uv_work_t* req);
 */
 typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
     int events, int status);
+
+typedef enum {
+  UV_LEAVE_GROUP = 0,
+  UV_JOIN_GROUP
+} uv_membership;
 
 
 struct uv_err_s {
@@ -549,6 +556,21 @@ int uv_udp_bind(uv_udp_t* handle, struct sockaddr_in addr, unsigned flags);
  */
 int uv_udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr, unsigned flags);
 int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen);
+
+/*
+ * Set membership for a multicast address
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with `uv_udp_init`.
+ *  multicast_addr      multicast address to set membership for
+ *  interface_addr      interface address
+ *  membership          Should be UV_JOIN_GROUP or UV_LEAVE_GROUP
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
+  const char* interface_addr, uv_membership membership);
 
 /*
  * Send data. If the socket has not previously been bound with `uv_udp_bind`

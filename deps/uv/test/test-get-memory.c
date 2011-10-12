@@ -26,6 +26,8 @@ TEST_IMPL(get_memory) {
   double free_mem = uv_get_free_memory();
   double total_mem = uv_get_total_memory();
 
+  printf("free_mem=%.0f, total_mem=%.0f\n", free_mem, total_mem);
+
   ASSERT(free_mem > 0);
   ASSERT(total_mem > 0);
   ASSERT(total_mem > free_mem);

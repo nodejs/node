@@ -496,7 +496,7 @@ int uv_fs_utime(uv_loop_t* loop, uv_fs_t* req, const char* path, double atime,
 }
 
 
-#if defined(HAVE_FUTIMES)
+#if HAVE_FUTIMES
 static int _futime(const uv_file file, double atime, double mtime) {
   struct timeval tv[2];
 
@@ -507,14 +507,18 @@ static int _futime(const uv_file file, double atime, double mtime) {
   tv[1].tv_sec = mtime;
   tv[1].tv_usec = (unsigned long)(mtime * 1000000) % 1000000;
 
+#ifdef __sun
+  return futimesat(file, NULL, tv);
+#else
   return futimes(file, tv);
+#endif
 }
 #endif
 
 
 int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime,
     double mtime, uv_fs_cb cb) {
-#if defined(HAVE_FUTIMES)
+#if HAVE_FUTIMES
   const char* path = NULL;
 
   uv_fs_req_init(loop, req, UV_FS_FUTIME, path, cb);

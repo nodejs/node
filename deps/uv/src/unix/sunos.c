@@ -65,34 +65,16 @@ int uv_exepath(char* buffer, size_t* size) {
   return (0);
 }
 
+
 double uv_get_free_memory(void) {
-  kstat_ctl_t   *kc;
-  kstat_t       *ksp;
-  kstat_named_t *knp;
-
-  ulong_t freemem;
-
-  if ((kc = kstat_open()) == NULL) return -1;
-
-  ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_pages");
-
-  if(kstat_read(kc, ksp, NULL) == -1){
-    return -1;
-  }
-  else {
-    knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"freemem");
-    freemem = knp->value.ul;
-  }
-
-  kstat_close(kc);
-
-  return (double) freemem * sysconf(_SC_PAGESIZE);
+  return (double) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
 }
 
 
 double uv_get_total_memory(void) {
   return (double) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
 }
+
 
 void uv_loadavg(double avg[3]) {
   (void) getloadavg(avg, 3);

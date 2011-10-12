@@ -364,6 +364,17 @@ static void empty_readdir_cb(uv_fs_t* req) {
 }
 
 
+static void file_readdir_cb(uv_fs_t* req) {
+  ASSERT(req == &readdir_req);
+  ASSERT(req->fs_type == UV_FS_READDIR);
+  ASSERT(req->result == -1);
+  ASSERT(req->ptr == NULL);
+  ASSERT(uv_last_error(req->loop).code == UV_ENOTDIR);
+  uv_fs_req_cleanup(req);
+  readdir_cb_count++;
+}
+
+
 static void stat_cb(uv_fs_t* req) {
   ASSERT(req == &stat_req);
   ASSERT(req->fs_type == UV_FS_STAT || req->fs_type == UV_FS_LSTAT);
@@ -1330,6 +1341,28 @@ TEST_IMPL(fs_readdir_empty_dir) {
 
   uv_fs_rmdir(loop, &req, path, NULL);
   uv_fs_req_cleanup(&req);
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_readdir_file) {
+  const char* path;
+  int r;
+
+  path = "test/fixtures/empty_file";
+  loop = uv_default_loop();
+
+  r = uv_fs_readdir(loop, &readdir_req, path, 0, NULL);
+  ASSERT(r == -1);
+  ASSERT(uv_last_error(loop).code == UV_ENOTDIR);
+
+  r = uv_fs_readdir(loop, &readdir_req, path, 0, file_readdir_cb);
+  ASSERT(r == 0);
+
+  ASSERT(readdir_cb_count == 0);
+  uv_run(loop);
+  ASSERT(readdir_cb_count == 1);
 
   return 0;
 }

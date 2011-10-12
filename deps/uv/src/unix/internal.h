@@ -49,11 +49,7 @@
 
 #endif /* __linux__ */
 
-#ifdef __APPLE__
-# define HAVE_FUTIMES 1
-#endif
-
-#ifdef __FreeBSD__
+#if defined(__APPLE__) || defined(__FreeBSD__) || defined(__sun)
 # define HAVE_FUTIMES 1
 #endif
 

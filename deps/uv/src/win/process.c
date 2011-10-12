@@ -1053,13 +1053,34 @@ done:
 
 
 int uv_process_kill(uv_process_t* process, int signum) {
-  process->exit_signal = signum;
+  DWORD status;
 
-  /* On windows killed processes normally return 1 */
-  if (process->process_handle != INVALID_HANDLE_VALUE &&
-      TerminateProcess(process->process_handle, 1)) {
-      return 0;
+  if (process->process_handle == INVALID_HANDLE_VALUE) {
+    uv__set_artificial_error(process->loop, UV_EINVAL);
+    return -1;
   }
 
-  return -1;
+  if (signum) {
+    /* Kill the process. On Windows, killed processes normally return 1. */
+    if (TerminateProcess(process->process_handle, 1)) {
+        process->exit_signal = signum;
+        return 0;
+    }
+    else {
+      uv__set_sys_error(process->loop, GetLastError());
+      return -1;
+    }
+  }
+  else {
+    /* Health check: is the process still alive? */
+    if (GetExitCodeProcess(process->process_handle, &status) && status == STILL_ACTIVE) {
+      return 0;
+    }
+    else {
+      uv__set_artificial_error(process->loop, UV_EINVAL);
+      return -1;
+    }
+  }
+
+  assert(0 && "unreachable");
 }

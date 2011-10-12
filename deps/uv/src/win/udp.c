@@ -223,6 +223,15 @@ int uv__udp_bind6(uv_udp_t* handle, struct sockaddr_in6 addr,
 }
 
 
+int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
+  const char* interface_addr, uv_membership membership) {
+
+  /* not implemented yet */
+  uv__set_artificial_error(handle->loop, UV_ENOSYS);
+  return -1;
+}
+
+
 static void uv_udp_queue_recv(uv_loop_t* loop, uv_udp_t* handle) {
   uv_req_t* req;
   uv_buf_t buf;

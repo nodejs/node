@@ -108,6 +108,10 @@ static void eio_destroy (eio_req *req);
 
 #define EIO_ENOSYS() EIO_ERRNO (ENOSYS, -1)
 
+#ifdef __sun
+# define futimes(fd, times) futimesat (fd, NULL, times)
+#endif
+
 #ifdef _WIN32
 
   #include <direct.h>

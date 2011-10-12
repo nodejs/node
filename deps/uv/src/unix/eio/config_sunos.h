@@ -11,7 +11,7 @@
 #define HAVE_UTIMES 1
 
 /* futimes(2) is available */
-/* #undef HAVE_FUTIMES */
+#define HAVE_FUTIMES 1
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
