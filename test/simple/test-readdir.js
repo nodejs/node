@@ -58,3 +58,34 @@ process.addListener('exit', function() {
   assert.equal(false, got_error);
   console.log('exit');
 });
+
+
+// readdir() on file should throw ENOTDIR
+// https://github.com/joyent/node/issues/1869
+(function() {
+  var has_caught = false;
+
+  try {
+    fs.readdirSync(__filename)
+  }
+  catch (e) {
+    has_caught = true;
+    assert.equal(e.code, 'ENOTDIR');
+  }
+
+  assert(has_caught);
+})();
+
+
+(function() {
+  var readdir_cb_called = false;
+
+  fs.readdir(__filename, function(e) {
+    readdir_cb_called = true;
+    assert.equal(e.code, 'ENOTDIR');
+  });
+
+  process.on('exit', function() {
+    assert(readdir_cb_called);
+  });
+})();
