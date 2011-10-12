@@ -231,6 +231,11 @@ void fs__open(uv_fs_t* req, const char* path, int flags, int mode) {
     goto end;
   }
 
+  /* Figure out whether path is a file or a directory. */
+  if (GetFileAttributesA(path) & FILE_ATTRIBUTE_DIRECTORY) {
+    attributes |= FILE_FLAG_BACKUP_SEMANTICS;
+  }
+
   file = CreateFileA(path,
                      access,
                      share,
@@ -362,11 +367,20 @@ void fs__readdir(uv_fs_t* req, const char* path, int flags) {
   WIN32_FIND_DATAA ent = {0};
   size_t len = strlen(path);
   size_t buf_size = 4096;
+  char* path2;
   const char* fmt = !len                                            ? "./*"
                   : (path[len - 1] == '/' || path[len - 1] == '\\') ? "%s*"
                   :                                                   "%s\\*";
 
-  char* path2 = (char*)malloc(len + 4);
+  /* Figure out whether path is a file or a directory. */
+  if (!(GetFileAttributesA(path) & FILE_ATTRIBUTE_DIRECTORY)) {
+    req->result = -1;
+    req->errorno = UV_ENOTDIR;
+    req->last_error = ERROR_SUCCESS;
+    return;
+  }
+
+  path2 = (char*)malloc(len + 4);
   if (!path2) {
     uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
   }

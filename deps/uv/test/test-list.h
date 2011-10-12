@@ -103,6 +103,7 @@ TEST_DECLARE   (fs_event_watch_file)
 TEST_DECLARE   (fs_event_watch_file_current_dir)
 TEST_DECLARE   (fs_readdir_empty_dir)
 TEST_DECLARE   (fs_readdir_file)
+TEST_DECLARE   (fs_open_dir)
 TEST_DECLARE   (threadpool_queue_work_simple)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
@@ -240,7 +241,7 @@ TASK_LIST_START
   TEST_ENTRY  (fs_event_watch_file_current_dir)
   TEST_ENTRY  (fs_readdir_empty_dir)
   TEST_ENTRY  (fs_readdir_file)
-
+  TEST_ENTRY  (fs_open_dir)
   TEST_ENTRY  (threadpool_queue_work_simple)
 
 #if 0

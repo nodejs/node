@@ -482,7 +482,6 @@ static void uv__read(uv_stream_t* stream) {
   struct msghdr msg;
   struct cmsghdr* cmsg;
   char cmsg_space[64];
-  int received_fd = -1;
   struct ev_loop* ev = stream->loop->ev;
 
   /* XXX: Maybe instead of having UV_READING we just test if
@@ -564,7 +563,7 @@ static void uv__read(uv_stream_t* stream) {
       return;
     } else {
       /* Successful read */
-      size_t buflen = buf.len;
+      ssize_t buflen = buf.len;
 
       if (stream->read_cb) {
         stream->read_cb(stream, nread, buf);

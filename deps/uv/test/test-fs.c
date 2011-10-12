@@ -263,6 +263,19 @@ static void open_cb(uv_fs_t* req) {
 }
 
 
+static void open_cb_simple(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_OPEN);
+  if (req->result < 0) {
+    /* TODO get error with uv_last_error() */
+    fprintf(stderr, "async open error: %d\n", req->errorno);
+    ASSERT(0);
+  }
+  open_cb_count++;
+  ASSERT(req->path);
+  uv_fs_req_cleanup(req);
+}
+
+
 static void fsync_cb(uv_fs_t* req) {
   int r;
   ASSERT(req == &fsync_req);
@@ -1363,6 +1376,35 @@ TEST_IMPL(fs_readdir_file) {
   ASSERT(readdir_cb_count == 0);
   uv_run(loop);
   ASSERT(readdir_cb_count == 1);
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_open_dir) {
+  const char* path;
+  uv_fs_t req;
+  int r, file;
+
+  path = ".";
+  loop = uv_default_loop();
+
+  r = uv_fs_open(loop, &req, path, O_RDONLY, 0, NULL);
+  ASSERT(r != -1);
+  ASSERT(req.result != -1);
+  ASSERT(req.ptr == NULL);
+  file = r;
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_close(loop, &req, file, NULL);
+  ASSERT(r == 0);
+
+  r = uv_fs_open(loop, &req, path, O_RDONLY, 0, open_cb_simple);
+  ASSERT(r == 0);
+
+  ASSERT(open_cb_count == 0);
+  uv_run(loop);
+  ASSERT(open_cb_count == 1);
 
   return 0;
 }
