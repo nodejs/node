@@ -91,6 +91,8 @@ public:
   static Handle<Value> RecvStart(const Arguments& args);
   static Handle<Value> RecvStop(const Arguments& args);
   static Handle<Value> GetSockName(const Arguments& args);
+  static Handle<Value> AddMembership(const Arguments& args);
+  static Handle<Value> DropMembership(const Arguments& args);
 
 private:
   static inline char* NewSlab(v8::Handle<v8::Object> global, v8::Handle<v8::Object> wrap_obj);
@@ -100,6 +102,8 @@ private:
 
   static Handle<Value> DoBind(const Arguments& args, int family);
   static Handle<Value> DoSend(const Arguments& args, int family);
+  static Handle<Value> SetMembership(const Arguments& args,
+                                     uv_membership membership);
 
   static uv_buf_t OnAlloc(uv_handle_t* handle, size_t suggested_size);
   static void OnSend(uv_udp_send_t* req, int status);
@@ -147,6 +151,8 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "recvStart", RecvStart);
   NODE_SET_PROTOTYPE_METHOD(t, "recvStop", RecvStop);
   NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
+  NODE_SET_PROTOTYPE_METHOD(t, "addMembership", AddMembership);
+  NODE_SET_PROTOTYPE_METHOD(t, "dropMembership", DropMembership);
 
   target->Set(String::NewSymbol("UDP"),
               Persistent<FunctionTemplate>::New(t)->GetFunction());
@@ -201,6 +207,41 @@ Handle<Value> UDPWrap::Bind(const Arguments& args) {
 
 Handle<Value> UDPWrap::Bind6(const Arguments& args) {
   return DoBind(args, AF_INET6);
+}
+
+
+Handle<Value> UDPWrap::SetMembership(const Arguments& args,
+                                     uv_membership membership) {
+  HandleScope scope;
+  UNWRAP
+
+  assert(args.Length() == 2);
+
+  String::Utf8Value address(args[0]->ToString());
+  String::Utf8Value interface(args[1]->ToString());
+
+  const char* interface_cstr = *interface;
+  if (args[1]->IsUndefined() || args[1]->IsNull()) {
+      interface_cstr = NULL;
+  }
+
+  int r = uv_udp_set_membership(&wrap->handle_, *address, interface_cstr,
+                                membership);
+
+  if (r)
+    SetErrno(uv_last_error(uv_default_loop()));
+
+  return scope.Close(Integer::New(r));
+}
+
+
+Handle<Value> UDPWrap::AddMembership(const Arguments& args) {
+  return SetMembership(args, UV_JOIN_GROUP);
+}
+
+
+Handle<Value> UDPWrap::DropMembership(const Arguments& args) {
+  return SetMembership(args, UV_LEAVE_GROUP);
 }
 
 
