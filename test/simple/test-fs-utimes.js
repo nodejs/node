@@ -3,6 +3,8 @@ var assert = require('assert');
 var util = require('util');
 var fs = require('fs');
 
+var is_windows = process.platform === 'win32';
+
 var tests_ok = 0;
 var tests_run = 0;
 
@@ -96,7 +98,11 @@ function runTests(atime, mtime, callback) {
       expect_errno('utimes', 'foobarbaz', err, 'ENOENT');
 
       // don't close this fd
-      fd = fs.openSync(__filename, 'r');
+      if (is_windows) {
+        fd = fs.openSync(__filename, 'r+');
+      } else {
+        fd = fs.openSync(__filename, 'r');
+      }
 
       fs.futimes(fd, atime, mtime, function(err) {
         expect_ok('futimes', fd, err, atime, mtime);
@@ -119,7 +125,7 @@ var stats = fs.statSync(__filename);
 
 runTests(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
   runTests(new Date(), new Date(), function() {
-    runTests(1234.5678, 1234.5678, function() {
+    runTests(123456.789, 123456.789, function() {
       runTests(stats.mtime, stats.mtime, function() {
         // done
       });
