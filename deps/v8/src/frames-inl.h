@@ -197,6 +197,15 @@ inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
   if (!done()) Advance();
 }
 
+
+template<typename Iterator>
+inline JavaScriptFrameIteratorTemp<Iterator>::JavaScriptFrameIteratorTemp(
+    Isolate* isolate, ThreadLocalTop* top)
+    : iterator_(isolate, top) {
+  if (!done()) Advance();
+}
+
+
 template<typename Iterator>
 inline JavaScriptFrame* JavaScriptFrameIteratorTemp<Iterator>::frame() const {
   // TODO(1233797): The frame hierarchy needs to change. It's
