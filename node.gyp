@@ -19,6 +19,7 @@
       'lib/console.js',
       'lib/constants.js',
       'lib/crypto.js',
+      'lib/cluster.js',
       'lib/dgram.js',
       'lib/dns.js',
       'lib/events.js',
