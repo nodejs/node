@@ -2141,7 +2141,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
     arguments->Set(Integer::New(j), arg);
   }
   // assign it
-  process->Set(String::NewSymbol("ARGV"), arguments);
   process->Set(String::NewSymbol("argv"), arguments);
 
   // create process.env
