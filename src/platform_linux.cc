@@ -46,41 +46,82 @@
 #include <time.h>
 #endif
 
+extern char **environ;
+
 namespace node {
 
 using namespace v8;
 
 static char buf[MAXPATHLEN + 1];
-static char *process_title;
 double Platform::prog_start_time = Platform::GetUptime();
+
+static struct {
+  char *str;
+  size_t len;
+} process_title;
 
 
 char** Platform::SetupArgs(int argc, char *argv[]) {
-  process_title = strdup(argv[0]);
-  return argv;
+  char **new_argv;
+  char **new_env;
+  size_t size;
+  int envc;
+  char *s;
+  int i;
+
+  for (envc = 0; environ[envc]; envc++);
+
+  s = envc ? environ[envc - 1] : argv[argc - 1];
+
+  process_title.str = argv[0];
+  process_title.len = s + strlen(s) + 1 - argv[0];
+
+  size = process_title.len;
+  size += (argc + 1) * sizeof(char **);
+  size += (envc + 1) * sizeof(char **);
+
+  if ((s = (char *) malloc(size)) == NULL) {
+    process_title.str = NULL;
+    process_title.len = 0;
+    return argv;
+  }
+
+  new_argv = (char **) s;
+  new_env = new_argv + argc + 1;
+  s = (char *) (new_env + envc + 1);
+  memcpy(s, process_title.str, process_title.len);
+
+  for (i = 0; i < argc; i++)
+    new_argv[i] = s + (argv[i] - argv[0]);
+  new_argv[argc] = NULL;
+
+  s += environ[0] - argv[0];
+
+  for (i = 0; i < envc; i++)
+    new_env[i] = s + (environ[i] - environ[0]);
+  new_env[envc] = NULL;
+
+  environ = new_env;
+  return new_argv;
 }
 
 
 void Platform::SetProcessTitle(char *title) {
-#ifdef PR_SET_NAME
-  if (process_title) free(process_title);
-  process_title = strdup(title);
-  prctl(PR_SET_NAME, process_title);
-#else
-  Local<Value> ex = Exception::Error(
-    String::New("'process.title' is not writable on your system, sorry."));
-  ThrowException(ex); // Safe, this method is only called from the main thread.
-#endif
+  /* No need to terminate, last char is always '\0'. */
+  if (process_title.len)
+    strncpy(process_title.str, title, process_title.len - 1);
 }
 
 
 const char* Platform::GetProcessTitle(int *len) {
-  if (process_title) {
-    *len = strlen(process_title);
-    return process_title;
+  if (process_title.str) {
+    *len = strlen(process_title.str);
+    return process_title.str;
   }
-  *len = 0;
-  return NULL;
+  else {
+    *len = 0;
+    return NULL;
+  }
 }
 
 
