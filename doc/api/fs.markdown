@@ -453,7 +453,7 @@ synchronous counterparts are of this type.
  - `stats.isFIFO()`
  - `stats.isSocket()`
 
-For a regular file `sys.inspect(stats)` would return a string very
+For a regular file `util.inspect(stats)` would return a string very
 similar to this:
 
     { dev: 2114,
