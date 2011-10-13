@@ -98,10 +98,11 @@ return the built in HTTP module, even if there is a file by that name.
 ### File Modules
 
 If the exact filename is not found, then node will attempt to load the
-required filename with the added extension of `.js`, and then `.node`.
+required filename with the added extension of `.js`, `.json`, and then `.node`.
 
-`.js` files are interpreted as JavaScript text files, and `.node` files
-are interpreted as compiled addon modules loaded with `dlopen`.
+`.js` files are interpreted as JavaScript text files, and `.json` files are
+parsed as JSON text files. `.node` files are interpreted as compiled addon
+modules loaded with `dlopen`.
 
 A module prefixed with `'/'` is an absolute path to the file.  For
 example, `require('/home/marco/foo.js')` will load the file at
