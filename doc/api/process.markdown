@@ -228,6 +228,21 @@ A compiled-in property that exposes `NODE_VERSION`.
 
     console.log('Version: ' + process.version);
 
+### process.versions
+
+A property exposing version strings of node and its dependencies.
+
+    console.log(process.versions);
+
+Will output:
+
+    { node: '0.4.12',
+      v8: '3.1.8.26',
+      ares: '1.7.4',
+      ev: '4.4',
+      openssl: '1.0.0e-fips' }
+
+
 ### process.installPrefix
 
 A compiled-in property that exposes `NODE_PREFIX`.
