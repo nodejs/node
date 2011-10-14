@@ -2111,7 +2111,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 #if HAVE_OPENSSL
   // Stupid code to slice out the version string.
   int c, l = strlen(OPENSSL_VERSION_TEXT);
-  for (i = 0; i < l; i++) {
+  for (i = j = 0; i < l; i++) {
     c = OPENSSL_VERSION_TEXT[i];
     if ('0' <= c && c <= '9') {
       for (j = i + 1; j < l; j++) {
