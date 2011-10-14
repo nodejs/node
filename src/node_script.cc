@@ -351,7 +351,6 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
   Persistent<Context> context;
 
   Local<Array> keys;
-  unsigned int i;
   if (context_flag == newContext) {
     // Create the new context
     context = Context::New();
