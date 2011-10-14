@@ -114,7 +114,6 @@ HeapSnapshot* HeapProfiler::TakeSnapshotImpl(const char* name,
   bool generation_completed = true;
   switch (s_type) {
     case HeapSnapshot::kFull: {
-      HEAP->CollectAllGarbage(true);
       HeapSnapshotGenerator generator(result, control);
       generation_completed = generator.GenerateSnapshot();
       break;

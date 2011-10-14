@@ -78,7 +78,9 @@ static uint64_t CpuFeaturesImpliedByCompiler() {
 
 
 void CpuFeatures::Probe() {
-  ASSERT(!initialized_);
+  unsigned standard_features = (OS::CpuFeaturesImpliedByPlatform() |
+                                CpuFeaturesImpliedByCompiler());
+  ASSERT(supported_ == 0 || supported_ == standard_features);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -86,8 +88,7 @@ void CpuFeatures::Probe() {
   // Get the features implied by the OS and the compiler settings. This is the
   // minimal set of features which is also alowed for generated code in the
   // snapshot.
-  supported_ |= OS::CpuFeaturesImpliedByPlatform();
-  supported_ |= CpuFeaturesImpliedByCompiler();
+  supported_ |= standard_features;
 
   if (Serializer::enabled()) {
     // No probing for features if we might serialize (generate snapshot).
@@ -2505,7 +2506,8 @@ void Assembler::dd(uint32_t data) {
 
 
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
-  RelocInfo rinfo(pc_, rmode, data);  // we do not try to reuse pool constants
+  // We do not try to reuse pool constants.
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   if (rmode >= RelocInfo::JS_RETURN && rmode <= RelocInfo::DEBUG_BREAK_SLOT) {
     // Adjust code for new modes.
     ASSERT(RelocInfo::IsDebugBreakSlot(rmode)
@@ -2537,7 +2539,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
     }
     ASSERT(buffer_space() >= kMaxRelocSize);  // too late to grow buffer here
     if (rmode == RelocInfo::CODE_TARGET_WITH_ID) {
-      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId());
+      RelocInfo reloc_info_with_ast_id(pc_, rmode, RecordedAstId(), NULL);
       ClearRecordedAstId();
       reloc_info_writer.Write(&reloc_info_with_ast_id);
     } else {

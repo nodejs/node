@@ -340,6 +340,11 @@ class EXPORT Debug {
                           bool wait_for_connection = false);
 
   /**
+    * Disable the V8 builtin debug agent. The TCP/IP connection will be closed.
+    */
+  static void DisableAgent();
+
+  /**
    * Makes V8 process all pending debug messages.
    *
    * From V8 point of view all debug messages come asynchronously (e.g. from

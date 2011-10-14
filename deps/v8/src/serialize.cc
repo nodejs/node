@@ -300,12 +300,24 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       RUNTIME_ENTRY,
       4,
       "HandleScope::DeleteExtensions");
+  Add(ExternalReference::
+          incremental_marking_record_write_function(isolate).address(),
+      RUNTIME_ENTRY,
+      5,
+      "IncrementalMarking::RecordWrite");
+  Add(ExternalReference::store_buffer_overflow_function(isolate).address(),
+      RUNTIME_ENTRY,
+      6,
+      "StoreBuffer::StoreBufferOverflow");
+  Add(ExternalReference::
+          incremental_evacuation_record_write_function(isolate).address(),
+      RUNTIME_ENTRY,
+      7,
+      "IncrementalMarking::RecordWrite");
+
+
 
   // Miscellaneous
-  Add(ExternalReference::the_hole_value_location(isolate).address(),
-      UNCLASSIFIED,
-      2,
-      "Factory::the_hole_value().location()");
   Add(ExternalReference::roots_address(isolate).address(),
       UNCLASSIFIED,
       3,
@@ -351,129 +363,133 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       "Heap::always_allocate_scope_depth()");
   Add(ExternalReference::new_space_allocation_limit_address(isolate).address(),
       UNCLASSIFIED,
-      13,
+      14,
       "Heap::NewSpaceAllocationLimitAddress()");
   Add(ExternalReference::new_space_allocation_top_address(isolate).address(),
       UNCLASSIFIED,
-      14,
+      15,
       "Heap::NewSpaceAllocationTopAddress()");
 #ifdef ENABLE_DEBUGGER_SUPPORT
   Add(ExternalReference::debug_break(isolate).address(),
       UNCLASSIFIED,
-      15,
+      16,
       "Debug::Break()");
   Add(ExternalReference::debug_step_in_fp_address(isolate).address(),
       UNCLASSIFIED,
-      16,
+      17,
       "Debug::step_in_fp_addr()");
 #endif
   Add(ExternalReference::double_fp_operation(Token::ADD, isolate).address(),
       UNCLASSIFIED,
-      17,
+      18,
       "add_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::SUB, isolate).address(),
       UNCLASSIFIED,
-      18,
+      19,
       "sub_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MUL, isolate).address(),
       UNCLASSIFIED,
-      19,
+      20,
       "mul_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::DIV, isolate).address(),
       UNCLASSIFIED,
-      20,
+      21,
       "div_two_doubles");
   Add(ExternalReference::double_fp_operation(Token::MOD, isolate).address(),
       UNCLASSIFIED,
-      21,
+      22,
       "mod_two_doubles");
   Add(ExternalReference::compare_doubles(isolate).address(),
       UNCLASSIFIED,
-      22,
+      23,
       "compare_doubles");
 #ifndef V8_INTERPRETED_REGEXP
   Add(ExternalReference::re_case_insensitive_compare_uc16(isolate).address(),
       UNCLASSIFIED,
-      23,
+      24,
       "NativeRegExpMacroAssembler::CaseInsensitiveCompareUC16()");
   Add(ExternalReference::re_check_stack_guard_state(isolate).address(),
       UNCLASSIFIED,
-      24,
+      25,
       "RegExpMacroAssembler*::CheckStackGuardState()");
   Add(ExternalReference::re_grow_stack(isolate).address(),
       UNCLASSIFIED,
-      25,
+      26,
       "NativeRegExpMacroAssembler::GrowStack()");
   Add(ExternalReference::re_word_character_map().address(),
       UNCLASSIFIED,
-      26,
+      27,
       "NativeRegExpMacroAssembler::word_character_map");
 #endif  // V8_INTERPRETED_REGEXP
   // Keyed lookup cache.
   Add(ExternalReference::keyed_lookup_cache_keys(isolate).address(),
       UNCLASSIFIED,
-      27,
+      28,
       "KeyedLookupCache::keys()");
   Add(ExternalReference::keyed_lookup_cache_field_offsets(isolate).address(),
       UNCLASSIFIED,
-      28,
+      29,
       "KeyedLookupCache::field_offsets()");
   Add(ExternalReference::transcendental_cache_array_address(isolate).address(),
       UNCLASSIFIED,
-      29,
+      30,
       "TranscendentalCache::caches()");
   Add(ExternalReference::handle_scope_next_address().address(),
       UNCLASSIFIED,
-      30,
+      31,
       "HandleScope::next");
   Add(ExternalReference::handle_scope_limit_address().address(),
       UNCLASSIFIED,
-      31,
+      32,
       "HandleScope::limit");
   Add(ExternalReference::handle_scope_level_address().address(),
       UNCLASSIFIED,
-      32,
+      33,
       "HandleScope::level");
   Add(ExternalReference::new_deoptimizer_function(isolate).address(),
       UNCLASSIFIED,
-      33,
+      34,
       "Deoptimizer::New()");
   Add(ExternalReference::compute_output_frames_function(isolate).address(),
       UNCLASSIFIED,
-      34,
+      35,
       "Deoptimizer::ComputeOutputFrames()");
   Add(ExternalReference::address_of_min_int().address(),
       UNCLASSIFIED,
-      35,
+      36,
       "LDoubleConstant::min_int");
   Add(ExternalReference::address_of_one_half().address(),
       UNCLASSIFIED,
-      36,
+      37,
       "LDoubleConstant::one_half");
   Add(ExternalReference::isolate_address().address(),
       UNCLASSIFIED,
-      37,
+      38,
       "isolate");
   Add(ExternalReference::address_of_minus_zero().address(),
       UNCLASSIFIED,
-      38,
+      39,
       "LDoubleConstant::minus_zero");
   Add(ExternalReference::address_of_negative_infinity().address(),
       UNCLASSIFIED,
-      39,
+      40,
       "LDoubleConstant::negative_infinity");
   Add(ExternalReference::power_double_double_function(isolate).address(),
       UNCLASSIFIED,
-      40,
+      41,
       "power_double_double_function");
   Add(ExternalReference::power_double_int_function(isolate).address(),
       UNCLASSIFIED,
-      41,
-      "power_double_int_function");
-  Add(ExternalReference::arguments_marker_location(isolate).address(),
-      UNCLASSIFIED,
       42,
-      "Factory::arguments_marker().location()");
+      "power_double_int_function");
+  Add(ExternalReference::store_buffer_top(isolate).address(),
+      UNCLASSIFIED,
+      43,
+      "store_buffer_top");
+  Add(ExternalReference::address_of_canonical_non_hole_nan().address(),
+      UNCLASSIFIED,
+      44,
+      "canonical_nan");
 }
 
 
@@ -569,6 +585,7 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
       maybe_new_allocation =
           reinterpret_cast<PagedSpace*>(space)->AllocateRaw(size);
     }
+    ASSERT(!maybe_new_allocation->IsFailure());
     Object* new_allocation = maybe_new_allocation->ToObjectUnchecked();
     HeapObject* new_object = HeapObject::cast(new_allocation);
     address = new_object->address();
@@ -577,14 +594,13 @@ Address Deserializer::Allocate(int space_index, Space* space, int size) {
     ASSERT(SpaceIsLarge(space_index));
     LargeObjectSpace* lo_space = reinterpret_cast<LargeObjectSpace*>(space);
     Object* new_allocation;
-    if (space_index == kLargeData) {
-      new_allocation = lo_space->AllocateRaw(size)->ToObjectUnchecked();
-    } else if (space_index == kLargeFixedArray) {
+    if (space_index == kLargeData || space_index == kLargeFixedArray) {
       new_allocation =
-          lo_space->AllocateRawFixedArray(size)->ToObjectUnchecked();
+          lo_space->AllocateRaw(size, NOT_EXECUTABLE)->ToObjectUnchecked();
     } else {
       ASSERT_EQ(kLargeCode, space_index);
-      new_allocation = lo_space->AllocateRawCode(size)->ToObjectUnchecked();
+      new_allocation =
+          lo_space->AllocateRaw(size, EXECUTABLE)->ToObjectUnchecked();
     }
     HeapObject* new_object = HeapObject::cast(new_allocation);
     // Record all large objects in the same space.
@@ -629,6 +645,7 @@ HeapObject* Deserializer::GetAddressFromStart(int space) {
 
 void Deserializer::Deserialize() {
   isolate_ = Isolate::Current();
+  ASSERT(isolate_ != NULL);
   // Don't GC while deserializing - just expand the heap.
   AlwaysAllocateScope always_allocate;
   // Don't use the free lists while deserializing.
@@ -685,9 +702,8 @@ void Deserializer::VisitPointers(Object** start, Object** end) {
 // This routine writes the new object into the pointer provided and then
 // returns true if the new object was in young space and false otherwise.
 // The reason for this strange interface is that otherwise the object is
-// written very late, which means the ByteArray map is not set up by the
-// time we need to use it to mark the space at the end of a page free (by
-// making it into a byte array).
+// written very late, which means the FreeSpace map is not set up by the
+// time we need to use it to mark the space at the end of a page free.
 void Deserializer::ReadObject(int space_number,
                               Space* space,
                               Object** write_back) {
@@ -758,8 +774,9 @@ void Deserializer::ReadChunk(Object** current,
         if (where == kNewObject && how == kPlain && within == kStartOfObject) {\
           ASSIGN_DEST_SPACE(space_number)                                      \
           ReadObject(space_number, dest_space, current);                       \
-          emit_write_barrier =                                                 \
-            (space_number == NEW_SPACE && source_space != NEW_SPACE);          \
+          emit_write_barrier = (space_number == NEW_SPACE &&                   \
+                                source_space != NEW_SPACE &&                   \
+                                source_space != CELL_SPACE);                   \
         } else {                                                               \
           Object* new_object = NULL;  /* May not be a real Object pointer. */  \
           if (where == kNewObject) {                                           \
@@ -778,14 +795,16 @@ void Deserializer::ReadChunk(Object** current,
                 Decode(reference_id);                                          \
             new_object = reinterpret_cast<Object*>(address);                   \
           } else if (where == kBackref) {                                      \
-            emit_write_barrier =                                               \
-              (space_number == NEW_SPACE && source_space != NEW_SPACE);        \
+            emit_write_barrier = (space_number == NEW_SPACE &&                 \
+                                  source_space != NEW_SPACE &&                 \
+                                  source_space != CELL_SPACE);                 \
             new_object = GetAddressFromEnd(data & kSpaceMask);                 \
           } else {                                                             \
             ASSERT(where == kFromStart);                                       \
             if (offset_from_start == kUnknownOffsetFromStart) {                \
-              emit_write_barrier =                                             \
-                (space_number == NEW_SPACE && source_space != NEW_SPACE);      \
+              emit_write_barrier = (space_number == NEW_SPACE &&               \
+                                    source_space != NEW_SPACE &&               \
+                                    source_space != CELL_SPACE);               \
               new_object = GetAddressFromStart(data & kSpaceMask);             \
             } else {                                                           \
               Address object_address = pages_[space_number][0] +               \
@@ -973,6 +992,11 @@ void Deserializer::ReadChunk(Object** current,
         break;
       }
 
+      case kSkip: {
+        current++;
+        break;
+      }
+
       case kNativesStringResource: {
         int index = source_->Get();
         Vector<const char> source_vector = Natives::GetRawScriptSource(index);
@@ -1097,8 +1121,13 @@ void PartialSerializer::Serialize(Object** object) {
 
 
 void Serializer::VisitPointers(Object** start, Object** end) {
+  Isolate* isolate = Isolate::Current();
+
   for (Object** current = start; current < end; current++) {
-    if ((*current)->IsSmi()) {
+    if (reinterpret_cast<Address>(current) ==
+        isolate->heap()->store_buffer()->TopAddress()) {
+      sink_->Put(kSkip, "Skip");
+    } else if ((*current)->IsSmi()) {
       sink_->Put(kRawData, "RawData");
       sink_->PutInt(kPointerSize, "length");
       for (int i = 0; i < kPointerSize; i++) {
@@ -1420,7 +1449,7 @@ void Serializer::ObjectSerializer::VisitExternalAsciiString(
     if (!source->IsUndefined()) {
       ExternalAsciiString* string = ExternalAsciiString::cast(source);
       typedef v8::String::ExternalAsciiStringResource Resource;
-      Resource* resource = string->resource();
+      const Resource* resource = string->resource();
       if (resource == *resource_pointer) {
         sink_->Put(kNativesStringResource, "NativesStringResource");
         sink_->PutSection(i, "NativesStringResourceEnd");

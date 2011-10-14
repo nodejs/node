@@ -47,7 +47,7 @@ namespace v8 {
 namespace internal {
 
 static inline double JunkStringValue() {
-  return std::numeric_limits<double>::quiet_NaN();
+  return BitCast<double, uint64_t>(kQuietNaNMask);
 }
 
 

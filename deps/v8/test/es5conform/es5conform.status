@@ -41,16 +41,6 @@ chapter10/10.4/10.4.2/10.4.2-2-c-1: FAIL_OK
 # We are compatible with Safari and Firefox.
 chapter11/11.1/11.1.5: UNIMPLEMENTED
 
-# We do not have a global object called 'global' as required by tests.
-chapter15/15.1: FAIL_OK
-
-# NaN is writable. We are compatible with JSC.
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-178: FAIL_OK
-# Infinity is writable. We are compatible with JSC.
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-179: FAIL_OK
-# undefined is writable. We are compatible with JSC.
-chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-180: FAIL_OK
-
 # Our Function object has an "arguments" property which is used as a
 # non-property in the test.
 chapter15/15.2/15.2.3/15.2.3.3/15.2.3.3-4-183: FAIL_OK
@@ -105,9 +95,6 @@ chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-7: FAIL_OK
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-11: FAIL_OK
-
-# We do not implement all methods on RegExp.
-chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-13: FAIL
 
 # SUBSETFAIL
 chapter15/15.2/15.2.3/15.2.3.4/15.2.3.4-4-14: FAIL_OK
@@ -195,27 +182,6 @@ chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-c-ii-4-s: SKIP
 # Bad test - deleting the property on o in callbackfn will
 # have no effect on the actual array on which reduceRight is called.
 chapter15/15.4/15.4.4/15.4.4.22/15.4.4.22-9-7: FAIL_OK
-
-# We do not correctly recognize \uFEFF as whitespace
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-10: FAIL
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-18: FAIL
-chapter15/15.5/15.5.4/15.5.4.20/15.5.4.20-4-34: FAIL
-
-# RegExp.prototype is not of type RegExp - we are bug compatible with JSC.
-chapter15/15.10/15.10.6/15.10.6: FAIL_OK
-
-# We do not have the properties of a RegExp instance on RegExp.prototype.
-# The spec says we should - but we are currently bug compatible with JSC.
-chapter15/15.10/15.10.7/15.10.7.1/15.10.7.1-1: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.1/15.10.7.1-2: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.2/15.10.7.2-1: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.2/15.10.7.2-2: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.3/15.10.7.3-1: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.3/15.10.7.3-2: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-1: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.4/15.10.7.4-2: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-1: FAIL_OK
-chapter15/15.10/15.10.7/15.10.7.5/15.10.7.5-2: FAIL_OK
 
 ##############################################################################
 # Unimplemented parts of strict mode

@@ -40,34 +40,6 @@ namespace internal {
 
 class Variable: public ZoneObject {
  public:
-  enum Mode {
-    // User declared variables:
-    VAR,       // declared via 'var', and 'function' declarations
-
-    CONST,     // declared via 'const' declarations
-
-    LET,       // declared via 'let' declarations
-
-    // Variables introduced by the compiler:
-    DYNAMIC,         // always require dynamic lookup (we don't know
-                     // the declaration)
-
-    DYNAMIC_GLOBAL,  // requires dynamic lookup, but we know that the
-                     // variable is global unless it has been shadowed
-                     // by an eval-introduced variable
-
-    DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
-                     // variable is local and where it is unless it
-                     // has been shadowed by an eval-introduced
-                     // variable
-
-    INTERNAL,        // like VAR, but not user-visible (may or may not
-                     // be in a context)
-
-    TEMPORARY        // temporary variables (not user-visible), never
-                     // in a context
-  };
-
   enum Kind {
     NORMAL,
     THIS,
@@ -103,12 +75,12 @@ class Variable: public ZoneObject {
 
   Variable(Scope* scope,
            Handle<String> name,
-           Mode mode,
+           VariableMode mode,
            bool is_valid_lhs,
            Kind kind);
 
   // Printing support
-  static const char* Mode2String(Mode mode);
+  static const char* Mode2String(VariableMode mode);
 
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
 
@@ -119,7 +91,7 @@ class Variable: public ZoneObject {
   Scope* scope() const { return scope_; }
 
   Handle<String> name() const { return name_; }
-  Mode mode() const { return mode_; }
+  VariableMode mode() const { return mode_; }
   bool is_accessed_from_inner_scope() const {
     return is_accessed_from_inner_scope_;
   }
@@ -177,7 +149,7 @@ class Variable: public ZoneObject {
  private:
   Scope* scope_;
   Handle<String> name_;
-  Mode mode_;
+  VariableMode mode_;
   Kind kind_;
   Location location_;
   int index_;

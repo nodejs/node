@@ -47,7 +47,7 @@ uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
 void CpuFeatures::Probe() {
-  ASSERT(!initialized_);
+  ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -2983,7 +2983,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
   }
-  RelocInfo rinfo(pc_, rmode, data);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 

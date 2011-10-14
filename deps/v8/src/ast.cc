@@ -327,56 +327,77 @@ bool BinaryOperation::ResultOverwriteAllowed() {
 }
 
 
+static bool IsTypeof(Expression* expr) {
+  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
+  return maybe_unary != NULL && maybe_unary->op() == Token::TYPEOF;
+}
+
+
+// Check for the pattern: typeof <expression> equals <string literal>.
+static bool MatchLiteralCompareTypeof(Expression* left,
+                                      Token::Value op,
+                                      Expression* right,
+                                      Expression** expr,
+                                      Handle<String>* check) {
+  if (IsTypeof(left) && right->IsStringLiteral() && Token::IsEqualityOp(op)) {
+    *expr = left->AsUnaryOperation()->expression();
+    *check = Handle<String>::cast(right->AsLiteral()->handle());
+    return true;
+  }
+  return false;
+}
+
+
 bool CompareOperation::IsLiteralCompareTypeof(Expression** expr,
                                               Handle<String>* check) {
-  if (op_ != Token::EQ && op_ != Token::EQ_STRICT) return false;
+  return MatchLiteralCompareTypeof(left_, op_, right_, expr, check) ||
+      MatchLiteralCompareTypeof(right_, op_, left_, expr, check);
+}
 
-  UnaryOperation* left_unary = left_->AsUnaryOperation();
-  UnaryOperation* right_unary = right_->AsUnaryOperation();
-  Literal* left_literal = left_->AsLiteral();
-  Literal* right_literal = right_->AsLiteral();
 
-  // Check for the pattern: typeof <expression> == <string literal>.
-  if (left_unary != NULL && left_unary->op() == Token::TYPEOF &&
-      right_literal != NULL && right_literal->handle()->IsString()) {
-    *expr = left_unary->expression();
-    *check = Handle<String>::cast(right_literal->handle());
+static bool IsVoidOfLiteral(Expression* expr) {
+  UnaryOperation* maybe_unary = expr->AsUnaryOperation();
+  return maybe_unary != NULL &&
+      maybe_unary->op() == Token::VOID &&
+      maybe_unary->expression()->AsLiteral() != NULL;
+}
+
+
+// Check for the pattern: void <literal> equals <expression>
+static bool MatchLiteralCompareUndefined(Expression* left,
+                                         Token::Value op,
+                                         Expression* right,
+                                         Expression** expr) {
+  if (IsVoidOfLiteral(left) && Token::IsEqualityOp(op)) {
+    *expr = right;
     return true;
   }
-
-  // Check for the pattern: <string literal> == typeof <expression>.
-  if (right_unary != NULL && right_unary->op() == Token::TYPEOF &&
-      left_literal != NULL && left_literal->handle()->IsString()) {
-    *expr = right_unary->expression();
-    *check = Handle<String>::cast(left_literal->handle());
-    return true;
-  }
-
   return false;
 }
 
 
 bool CompareOperation::IsLiteralCompareUndefined(Expression** expr) {
-  if (op_ != Token::EQ_STRICT) return false;
+  return MatchLiteralCompareUndefined(left_, op_, right_, expr) ||
+      MatchLiteralCompareUndefined(right_, op_, left_, expr);
+}
 
-  UnaryOperation* left_unary = left_->AsUnaryOperation();
-  UnaryOperation* right_unary = right_->AsUnaryOperation();
 
-  // Check for the pattern: <expression> === void <literal>.
-  if (right_unary != NULL && right_unary->op() == Token::VOID &&
-      right_unary->expression()->AsLiteral() != NULL) {
-    *expr = left_;
+// Check for the pattern: null equals <expression>
+static bool MatchLiteralCompareNull(Expression* left,
+                                    Token::Value op,
+                                    Expression* right,
+                                    Expression** expr) {
+  if (left->IsNullLiteral() && Token::IsEqualityOp(op)) {
+    *expr = right;
     return true;
   }
-
-  // Check for the pattern: void <literal> === <expression>.
-  if (left_unary != NULL && left_unary->op() == Token::VOID &&
-      left_unary->expression()->AsLiteral() != NULL) {
-    *expr = right_;
-    return true;
-  }
-
   return false;
+}
+
+
+bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
+  return MatchLiteralCompareNull(left_, op_, right_, expr) ||
+      MatchLiteralCompareNull(right_, op_, left_, expr);
 }
 
 
@@ -529,7 +550,9 @@ bool Conditional::IsInlineable() const {
 
 
 bool VariableProxy::IsInlineable() const {
-  return var()->IsUnallocated() || var()->IsStackAllocated();
+  return var()->IsUnallocated()
+      || var()->IsStackAllocated()
+      || var()->IsContextSlot();
 }
 
 
@@ -595,11 +618,6 @@ bool BinaryOperation::IsInlineable() const {
 
 bool CompareOperation::IsInlineable() const {
   return left()->IsInlineable() && right()->IsInlineable();
-}
-
-
-bool CompareToNull::IsInlineable() const {
-  return expression()->IsInlineable();
 }
 
 
@@ -746,37 +764,41 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
 
 void Call::RecordTypeFeedback(TypeFeedbackOracle* oracle,
                               CallKind call_kind) {
-  Property* property = expression()->AsProperty();
-  ASSERT(property != NULL);
-  // Specialize for the receiver types seen at runtime.
-  Literal* key = property->key()->AsLiteral();
-  ASSERT(key != NULL && key->handle()->IsString());
-  Handle<String> name = Handle<String>::cast(key->handle());
-  receiver_types_.Clear();
-  oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
-#ifdef DEBUG
-  if (FLAG_enable_slow_asserts) {
-    int length = receiver_types_.length();
-    for (int i = 0; i < length; i++) {
-      Handle<Map> map = receiver_types_.at(i);
-      ASSERT(!map.is_null() && *map != NULL);
-    }
-  }
-#endif
   is_monomorphic_ = oracle->CallIsMonomorphic(this);
-  check_type_ = oracle->GetCallCheckType(this);
-  if (is_monomorphic_) {
-    Handle<Map> map;
-    if (receiver_types_.length() > 0) {
-      ASSERT(check_type_ == RECEIVER_MAP_CHECK);
-      map = receiver_types_.at(0);
-    } else {
-      ASSERT(check_type_ != RECEIVER_MAP_CHECK);
-      holder_ = Handle<JSObject>(
-          oracle->GetPrototypeForPrimitiveCheck(check_type_));
-      map = Handle<Map>(holder_->map());
+  Property* property = expression()->AsProperty();
+  if (property == NULL) {
+    // Function call.  Specialize for monomorphic calls.
+    if (is_monomorphic_) target_ = oracle->GetCallTarget(this);
+  } else {
+    // Method call.  Specialize for the receiver types seen at runtime.
+    Literal* key = property->key()->AsLiteral();
+    ASSERT(key != NULL && key->handle()->IsString());
+    Handle<String> name = Handle<String>::cast(key->handle());
+    receiver_types_.Clear();
+    oracle->CallReceiverTypes(this, name, call_kind, &receiver_types_);
+#ifdef DEBUG
+    if (FLAG_enable_slow_asserts) {
+      int length = receiver_types_.length();
+      for (int i = 0; i < length; i++) {
+        Handle<Map> map = receiver_types_.at(i);
+        ASSERT(!map.is_null() && *map != NULL);
+      }
     }
-    is_monomorphic_ = ComputeTarget(map, name);
+#endif
+    check_type_ = oracle->GetCallCheckType(this);
+    if (is_monomorphic_) {
+      Handle<Map> map;
+      if (receiver_types_.length() > 0) {
+        ASSERT(check_type_ == RECEIVER_MAP_CHECK);
+        map = receiver_types_.at(0);
+      } else {
+        ASSERT(check_type_ != RECEIVER_MAP_CHECK);
+        holder_ = Handle<JSObject>(
+            oracle->GetPrototypeForPrimitiveCheck(check_type_));
+        map = Handle<Map>(holder_->map());
+      }
+      is_monomorphic_ = ComputeTarget(map, name);
+    }
   }
 }
 

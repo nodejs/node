@@ -84,6 +84,7 @@ SOURCES = {
     hydrogen.cc
     hydrogen-instructions.cc
     ic.cc
+    incremental-marking.cc
     inspector.cc
     interpreter-irregexp.cc
     isolate.cc
@@ -133,6 +134,7 @@ SOURCES = {
     v8utils.cc
     variables.cc
     version.cc
+    store-buffer.cc
     zone.cc
     extensions/gc-extension.cc
     extensions/externalize-string-extension.cc

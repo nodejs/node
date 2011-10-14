@@ -26,7 +26,7 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Check that dynamically introducing conflicting consts/vars
-// leads to exceptions.
+// is silently ignored (and does not lead to exceptions).
 
 var caught = 0;
 
@@ -46,12 +46,12 @@ eval("var c");
 try { eval("const c"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
 assertTrue(typeof c == 'undefined');
 try { eval("const c = 1"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
-assertTrue(typeof c == 'undefined');
+assertEquals(1, c);
 
 eval("var d = 0");
 try { eval("const d"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
-assertEquals(0, d);
+assertEquals(undefined, d);
 try { eval("const d = 1"); } catch (e) { caught++; assertTrue(e instanceof TypeError); }
-assertEquals(0, d);
+assertEquals(1, d);
 
-assertEquals(8, caught);
+assertEquals(0, caught);

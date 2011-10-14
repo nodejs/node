@@ -1,4 +1,4 @@
-// Copyright 2007-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -72,11 +72,29 @@ static MaybeObject* AllocateAfterFailures() {
   }
   CHECK(!heap->AllocateRawAsciiString(100, TENURED)->IsFailure());
 
-  // Large object space.
-  while (!heap->OldGenerationAllocationLimitReached()) {
-    CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
+  // Old pointer space.
+  OldSpace* old_pointer_space = heap->old_pointer_space();
+  static const int kOldPointerSpaceFillerLength = 10000;
+  static const int kOldPointerSpaceFillerSize = FixedArray::SizeFor(
+      kOldPointerSpaceFillerLength);
+  while (old_pointer_space->Available() > kOldPointerSpaceFillerSize) {
+    CHECK(!heap->AllocateFixedArray(kOldPointerSpaceFillerLength, TENURED)->
+          IsFailure());
   }
-  CHECK(!heap->AllocateFixedArray(10000, TENURED)->IsFailure());
+  CHECK(!heap->AllocateFixedArray(kOldPointerSpaceFillerLength, TENURED)->
+        IsFailure());
+
+  // Large object space.
+  static const int kLargeObjectSpaceFillerLength = 300000;
+  static const int kLargeObjectSpaceFillerSize = FixedArray::SizeFor(
+      kLargeObjectSpaceFillerLength);
+  ASSERT(kLargeObjectSpaceFillerSize > heap->MaxObjectSizeInPagedSpace());
+  while (heap->OldGenerationSpaceAvailable() > kLargeObjectSpaceFillerSize) {
+    CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
+          IsFailure());
+  }
+  CHECK(!heap->AllocateFixedArray(kLargeObjectSpaceFillerLength, TENURED)->
+        IsFailure());
 
   // Map space.
   MapSpace* map_space = heap->map_space();
@@ -175,16 +193,16 @@ unsigned int Pseudorandom() {
 // Plain old data class.  Represents a block of allocated memory.
 class Block {
  public:
-  Block(void* base_arg, int size_arg)
+  Block(Address base_arg, int size_arg)
       : base(base_arg), size(size_arg) {}
 
-  void *base;
+  Address base;
   int size;
 };
 
 
 TEST(CodeRange) {
-  const int code_range_size = 16*MB;
+  const int code_range_size = 32*MB;
   OS::Setup();
   Isolate::Current()->InitializeLoggingAndCounters();
   CodeRange* code_range = new CodeRange(Isolate::Current());
@@ -196,11 +214,13 @@ TEST(CodeRange) {
   while (total_allocated < 5 * code_range_size) {
     if (current_allocated < code_range_size / 10) {
       // Allocate a block.
-      // Geometrically distributed sizes, greater than Page::kPageSize.
-      size_t requested = (Page::kPageSize << (Pseudorandom() % 6)) +
+      // Geometrically distributed sizes, greater than Page::kMaxHeapObjectSize.
+      // TODO(gc): instead of using 3 use some contant based on code_range_size
+      // kMaxHeapObjectSize.
+      size_t requested = (Page::kMaxHeapObjectSize << (Pseudorandom() % 3)) +
            Pseudorandom() % 5000 + 1;
       size_t allocated = 0;
-      void* base = code_range->AllocateRawMemory(requested, &allocated);
+      Address base = code_range->AllocateRawMemory(requested, &allocated);
       CHECK(base != NULL);
       blocks.Add(Block(base, static_cast<int>(allocated)));
       current_allocated += static_cast<int>(allocated);

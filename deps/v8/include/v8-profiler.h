@@ -307,6 +307,12 @@ class V8EXPORT HeapGraphNode {
    * path from the snapshot root to the current node.
    */
   const HeapGraphNode* GetDominatorNode() const;
+
+  /**
+   * Finds and returns a value from the heap corresponding to this node,
+   * if the value is still reachable.
+   */
+  Handle<Value> GetHeapValue() const;
 };
 
 

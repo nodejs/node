@@ -43,10 +43,10 @@ class Test262TestCase(test.TestCase):
     self.root = root
 
   def IsNegative(self):
-    return self.filename.endswith('-n.js')
+    return '@negative' in self.GetSource()
 
   def GetLabel(self):
-    return "%s test262 %s %s" % (self.mode, self.GetGroup(), self.GetName())
+    return "%s test262 %s" % (self.mode, self.GetName())
 
   def IsFailureOutput(self, output):
     if output.exit_code != 0:
@@ -63,9 +63,6 @@ class Test262TestCase(test.TestCase):
   def GetName(self):
     return self.path[-1]
 
-  def GetGroup(self):
-    return self.path[0]
-
   def GetSource(self):
     return open(self.filename).read()
 
@@ -75,13 +72,14 @@ class Test262TestConfiguration(test.TestConfiguration):
   def __init__(self, context, root):
     super(Test262TestConfiguration, self).__init__(context, root)
 
-  def AddIETestCenter(self, tests, current_path, path, mode):
-    current_root = join(self.root, 'data', 'test', 'suite', 'ietestcenter')
+  def ListTests(self, current_path, path, mode, variant_flags):
+    testroot = join(self.root, 'data', 'test', 'suite')
     harness = [join(self.root, 'data', 'test', 'harness', f)
                    for f in TEST_262_HARNESS]
     harness += [join(self.root, 'harness-adapt.js')]
-    for root, dirs, files in os.walk(current_root):
-      for dotted in [x  for x in dirs if x.startswith('.')]:
+    tests = []
+    for root, dirs, files in os.walk(testroot):
+      for dotted in [x for x in dirs if x.startswith('.')]:
         dirs.remove(dotted)
       dirs.sort()
       root_path = root[len(self.root):].split(os.path.sep)
@@ -89,25 +87,11 @@ class Test262TestConfiguration(test.TestConfiguration):
       files.sort()
       for file in files:
         if file.endswith('.js'):
-          if self.Contains(path, root_path):
-            test_path = ['ietestcenter', file[:-3]]
+          test_path = ['test262', file[:-3]]
+          if self.Contains(path, test_path):
             test = Test262TestCase(join(root, file), test_path, self.context,
                                    self.root, mode, harness)
             tests.append(test)
-
-  def AddSputnikConvertedTests(self, tests, current_path, path, mode):
-    # To be enabled
-    pass
-
-  def AddSputnikTests(self, tests, current_path, path, mode):
-    # To be enabled
-    pass
-
-  def ListTests(self, current_path, path, mode, variant_flags):
-    tests = []
-    self.AddIETestCenter(tests, current_path, path, mode)
-    self.AddSputnikConvertedTests(tests, current_path, path, mode)
-    self.AddSputnikTests(tests, current_path, path, mode)
     return tests
 
   def GetBuildRequirements(self):

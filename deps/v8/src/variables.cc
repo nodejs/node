@@ -37,7 +37,7 @@ namespace internal {
 // ----------------------------------------------------------------------------
 // Implementation Variable.
 
-const char* Variable::Mode2String(Mode mode) {
+const char* Variable::Mode2String(VariableMode mode) {
   switch (mode) {
     case VAR: return "VAR";
     case CONST: return "CONST";
@@ -55,7 +55,7 @@ const char* Variable::Mode2String(Mode mode) {
 
 Variable::Variable(Scope* scope,
                    Handle<String> name,
-                   Mode mode,
+                   VariableMode mode,
                    bool is_valid_LHS,
                    Kind kind)
   : scope_(scope),
