@@ -175,7 +175,7 @@ static void CheckStatus(uv_timer_t* watcher, int status);
 
 static void StartGCTimer () {
   if (!uv_is_active((uv_handle_t*) &gc_timer)) {
-    uv_timer_start(&node::gc_timer, node::CheckStatus, 5000., 5000.);
+    uv_timer_start(&node::gc_timer, node::CheckStatus, 5000, 5000);
   }
 }
 
