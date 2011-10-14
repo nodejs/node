@@ -5,6 +5,8 @@
 #include <stream_wrap.h>
 #include <tcp_wrap.h>
 
+#include <stdlib.h>
+
 // Temporary hack: libuv should provide uv_inet_pton and uv_inet_ntop.
 #if defined(__MINGW32__) || defined(_MSC_VER)
   extern "C" {
@@ -150,6 +152,7 @@ Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()).code);
   } else {
     family = address.ss_family;
+
     if (family == AF_INET) {
       struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
       uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
@@ -158,6 +161,9 @@ Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
       struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
       uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
       port = ntohs(addrin6->sin6_port);
+    } else {
+      assert(0 && "bad address family");
+      abort();
     }
 
     sockname->Set(port_symbol, Integer::New(port));
@@ -188,6 +194,7 @@ Handle<Value> TCPWrap::GetPeerName(const Arguments& args) {
     SetErrno(uv_last_error(uv_default_loop()).code);
   } else {
     family = address.ss_family;
+
     if (family == AF_INET) {
       struct sockaddr_in* addrin = (struct sockaddr_in*)&address;
       uv_inet_ntop(AF_INET, &(addrin->sin_addr), ip, INET6_ADDRSTRLEN);
@@ -196,6 +203,9 @@ Handle<Value> TCPWrap::GetPeerName(const Arguments& args) {
       struct sockaddr_in6* addrin6 = (struct sockaddr_in6*)&address;
       uv_inet_ntop(AF_INET6, &(addrin6->sin6_addr), ip, INET6_ADDRSTRLEN);
       port = ntohs(addrin6->sin6_port);
+    } else {
+      assert(0 && "bad address family");
+      abort();
     }
 
     sockname->Set(port_symbol, Integer::New(port));
