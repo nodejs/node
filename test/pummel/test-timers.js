@@ -120,7 +120,7 @@ var z = setTimeout(t, 200);
 clearTimeout(y);
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(true, setTimeout_called);
   assert.equal(3, interval_count);
   assert.equal(11, count4);

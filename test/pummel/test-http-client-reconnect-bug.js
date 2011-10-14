@@ -36,13 +36,13 @@ var server = net.createServer(function(socket) {
 server.on('listening', function() {
   var client = http.createClient(common.PORT);
 
-  client.addListener('error', function(err) {
+  client.on('error', function(err) {
     // We should receive one error
     console.log('ERROR! ' + err.message);
     errorCount++;
   });
 
-  client.addListener('end', function() {
+  client.on('end', function() {
     // When we remove the old Client interface this will most likely have to be
     // changed.
     console.log('EOF!');
@@ -51,7 +51,7 @@ server.on('listening', function() {
 
   var request = client.request('GET', '/', {'host': 'localhost'});
   request.end();
-  request.addListener('response', function(response) {
+  request.on('response', function(response) {
     console.log('STATUS: ' + response.statusCode);
   });
 });
@@ -63,7 +63,7 @@ setTimeout(function() {
 }, 500);
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, errorCount);
   assert.equal(1, eofCount);
 });

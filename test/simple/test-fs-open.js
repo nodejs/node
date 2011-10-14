@@ -45,7 +45,7 @@ fs.open(__filename, 'r', function(err, fd) {
   openFd = fd;
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(openFd);
 });
 

@@ -31,12 +31,12 @@ function pwd(callback) {
   var child = common.spawnPwd();
 
   child.stdout.setEncoding('utf8');
-  child.stdout.addListener('data', function(s) {
+  child.stdout.on('data', function(s) {
     console.log('stdout: ' + JSON.stringify(s));
     output += s;
   });
 
-  child.addListener('exit', function(c) {
+  child.on('exit', function(c) {
     console.log('exit: ' + c);
     assert.equal(0, c);
     callback(output);
@@ -51,6 +51,6 @@ pwd(function(result) {
   assert.equal('\n', result[result.length - 1]);
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(true, pwd_called);
 });

@@ -68,14 +68,14 @@ var proxy = http.createServer(function(req, res) {
 
     var count = 0;
 
-    proxy_res.addListener('data', function(d) {
+    proxy_res.on('data', function(d) {
       if (count++ % 1000 == 0) common.print('.');
       res.write(d);
       sent += d.length;
       assert.ok(sent <= (len * chunk.length));
     });
 
-    proxy_res.addListener('end', function() {
+    proxy_res.on('end', function() {
       res.end();
     });
 
@@ -102,12 +102,12 @@ function call_chargen(list) {
       headers: {'x-len': len}
     }, function(res) {
 
-      res.addListener('data', function(d) {
+      res.on('data', function(d) {
         recved += d.length;
         assert.ok(recved <= (len * chunk.length));
       });
 
-      res.addListener('end', function() {
+      res.on('end', function() {
         assert.ok(recved <= (len * chunk.length));
         common.debug('end for ' + len + ' chunks.');
         call_chargen(list);
@@ -130,6 +130,6 @@ function ready() {
   call_chargen([100, 1000, 10000, 100000, 1000000]);
 }
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(done);
 });

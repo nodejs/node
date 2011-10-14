@@ -29,8 +29,8 @@ var e = new events.EventEmitter();
 
 function callback1() {
   callbacks_called.push('callback1');
-  e.addListener('foo', callback2);
-  e.addListener('foo', callback3);
+  e.on('foo', callback2);
+  e.on('foo', callback3);
   e.removeListener('foo', callback1);
 }
 
@@ -44,7 +44,7 @@ function callback3() {
   e.removeListener('foo', callback3);
 }
 
-e.addListener('foo', callback1);
+e.on('foo', callback1);
 assert.equal(1, e.listeners('foo').length);
 
 e.emit('foo');
@@ -59,8 +59,8 @@ e.emit('foo');
 assert.equal(0, e.listeners('foo').length);
 assert.deepEqual(['callback1', 'callback2', 'callback3'], callbacks_called);
 
-e.addListener('foo', callback1);
-e.addListener('foo', callback2);
+e.on('foo', callback1);
+e.on('foo', callback2);
 assert.equal(2, e.listeners('foo').length);
 e.removeAllListeners('foo');
 assert.equal(0, e.listeners('foo').length);
@@ -69,8 +69,8 @@ assert.equal(0, e.listeners('foo').length);
 // all listeners
 callbacks_called = [];
 
-e.addListener('foo', callback2);
-e.addListener('foo', callback3);
+e.on('foo', callback2);
+e.on('foo', callback3);
 assert.equal(2, e.listeners('foo').length);
 e.emit('foo');
 assert.deepEqual(['callback2', 'callback3'], callbacks_called);

@@ -39,17 +39,17 @@ function testServer() {
   var server = this;
   http.Server.call(server, function() {});
 
-  server.addListener('connection', function() {
+  server.on('connection', function() {
     requests_recv++;
   });
 
-  server.addListener('request', function(req, res) {
+  server.on('request', function(req, res) {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('okay');
     res.end();
   });
 
-  server.addListener('upgrade', function(req, socket, upgradeHead) {
+  server.on('upgrade', function(req, socket, upgradeHead) {
     socket.write('HTTP/1.1 101 Web Socket Protocol Handshake\r\n' +
                  'Upgrade: WebSocket\r\n' +
                  'Connection: Upgrade\r\n' +
@@ -85,7 +85,7 @@ function test_upgrade_with_listener(_server) {
   conn.setEncoding('utf8');
   var state = 0;
 
-  conn.addListener('connect', function() {
+  conn.on('connect', function() {
     writeReq(conn,
              'GET / HTTP/1.1\r\n' +
              'Upgrade: WebSocket\r\n' +
@@ -94,7 +94,7 @@ function test_upgrade_with_listener(_server) {
              'WjN}|M(6');
   });
 
-  conn.addListener('data', function(data) {
+  conn.on('data', function(data) {
     state++;
 
     assert.equal('string', typeof data);
@@ -109,7 +109,7 @@ function test_upgrade_with_listener(_server) {
     }
   });
 
-  conn.addListener('end', function() {
+  conn.on('end', function() {
     assert.equal(2, state);
     conn.end();
     _server.removeAllListeners('upgrade');
@@ -126,7 +126,7 @@ function test_upgrade_no_listener() {
   var conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
 
-  conn.addListener('connect', function() {
+  conn.on('connect', function() {
     writeReq(conn,
              'GET / HTTP/1.1\r\n' +
              'Upgrade: WebSocket\r\n' +
@@ -134,12 +134,12 @@ function test_upgrade_no_listener() {
              '\r\n');
   });
 
-  conn.addListener('end', function() {
+  conn.on('end', function() {
     test_upgrade_no_listener_ended = true;
     conn.end();
   });
 
-  conn.addListener('close', function() {
+  conn.on('close', function() {
     test_standard_http();
   });
 }
@@ -151,17 +151,17 @@ function test_standard_http() {
   var conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
 
-  conn.addListener('connect', function() {
+  conn.on('connect', function() {
     writeReq(conn, 'GET / HTTP/1.1\r\n\r\n');
   });
 
-  conn.addListener('data', function(data) {
+  conn.on('data', function(data) {
     assert.equal('string', typeof data);
     assert.equal('HTTP/1.1 200', data.substr(0, 12));
     conn.end();
   });
 
-  conn.addListener('close', function() {
+  conn.on('close', function() {
     server.close();
   });
 }
@@ -178,7 +178,7 @@ server.listen(common.PORT, function() {
 /*-----------------------------------------------
   Fin.
 -----------------------------------------------*/
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(3, requests_recv);
   assert.equal(3, requests_sent);
   assert.ok(test_upgrade_no_listener_ended);

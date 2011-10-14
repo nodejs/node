@@ -48,16 +48,16 @@ var server = net.createServer(function(stream) {
 server.listen(common.PORT, function() {
   var conn = net.createConnection(common.PORT);
   conn.setEncoding('utf8');
-  conn.addListener('data', function(chunk) {
+  conn.on('data', function(chunk) {
     common.error('recv data! nchars = ' + chunk.length);
     buffer += chunk;
   });
 
-  conn.addListener('end', function() {
+  conn.on('end', function() {
     conn.end();
   });
 
-  conn.addListener('close', function() {
+  conn.on('close', function() {
     common.error('client connection close');
     conn_closed = true;
   });
@@ -65,7 +65,7 @@ server.listen(common.PORT, function() {
 
 var buffer = '';
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(true, got_error);
   assert.equal(true, conn_closed);
   console.log('exiting');

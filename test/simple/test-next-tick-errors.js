@@ -40,7 +40,7 @@ process.nextTick(function() {
   order.push('C');
 });
 
-process.addListener('uncaughtException', function() {
+process.on('uncaughtException', function() {
   if (!exceptionHandled) {
     exceptionHandled = true;
     order.push('B');
@@ -51,7 +51,7 @@ process.addListener('uncaughtException', function() {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.deepEqual(['A', 'B', 'C'], order);
 });
 

@@ -27,16 +27,16 @@ var events = require('events');
 function listener() {}
 
 var e1 = new events.EventEmitter();
-e1.addListener('foo', listener);
-e1.addListener('bar', listener);
+e1.on('foo', listener);
+e1.on('bar', listener);
 e1.removeAllListeners('foo');
 assert.deepEqual([], e1.listeners('foo'));
 assert.deepEqual([listener], e1.listeners('bar'));
 
 
 var e2 = new events.EventEmitter();
-e2.addListener('foo', listener);
-e2.addListener('bar', listener);
+e2.on('foo', listener);
+e2.on('bar', listener);
 e2.removeAllListeners();
 console.error(e2);
 assert.deepEqual([], e2.listeners('foo'));

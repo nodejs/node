@@ -51,35 +51,35 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var c = net.createConnection(common.PORT);
 
   c.setEncoding('utf8');
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     c.write('GET / HTTP/1.0\r\n' +
             'Connection: Keep-Alive\r\n\r\n');
   });
 
-  c.addListener('data', function(chunk) {
+  c.on('data', function(chunk) {
     console.log(chunk);
     server_response += chunk;
   });
 
-  c.addListener('end', function() {
+  c.on('end', function() {
     client_got_eof = true;
     console.log('got end');
     c.end();
   });
 
-  c.addListener('close', function() {
+  c.on('close', function() {
     connection_was_closed = true;
     console.log('got close');
     server.close();
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   var m = server_response.split('\r\n\r\n');
   assert.equal(m[1], 'hello world\n');
   assert.ok(client_got_eof);

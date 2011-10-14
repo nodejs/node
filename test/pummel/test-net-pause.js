@@ -43,7 +43,7 @@ var server = net.createServer(function(connection) {
 server.on('listening', function() {
   var client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
-  client.addListener('data', function(d) {
+  client.on('data', function(d) {
     common.print(d);
     recv += d;
   });
@@ -76,14 +76,14 @@ server.on('listening', function() {
 
   }, 500);
 
-  client.addListener('end', function() {
+  client.on('end', function() {
     server.close();
     client.end();
   });
 });
 server.listen(common.PORT);
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(N, recv.length);
   common.debug('Exit');
 });

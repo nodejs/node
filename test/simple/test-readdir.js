@@ -54,7 +54,7 @@ fs.readdir(readdirDir, function(err, f) {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(false, got_error);
   console.log('exit');
 });

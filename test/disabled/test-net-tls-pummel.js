@@ -47,7 +47,7 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
     socket.setNoDelay();
     socket.timeout = 0;
 
-    socket.addListener('data', function(data) {
+    socket.on('data', function(data) {
       var verified = socket.verifyPeer();
       var peerDN = socket.getPeerCertificate('DNstring');
       assert.equal(verified, 1);
@@ -62,12 +62,12 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
       }
     });
 
-    socket.addListener('end', function() {
+    socket.on('end', function() {
       assert.equal('writeOnly', socket.readyState);
       socket.end();
     });
 
-    socket.addListener('close', function(had_error) {
+    socket.on('close', function(had_error) {
       assert.equal(false, had_error);
       assert.equal('closed', socket.readyState);
       socket.server.close();
@@ -82,7 +82,7 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
   client.setEncoding('utf8');
   client.setSecure('X509_PEM', caPem, 0, keyPem, caPem);
 
-  client.addListener('connect', function() {
+  client.on('connect', function() {
     assert.equal('open', client.readyState);
     var verified = client.verifyPeer();
     var peerDN = client.getPeerCertificate('DNstring');
@@ -93,7 +93,7 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
     client.write('PING');
   });
 
-  client.addListener('data', function(data) {
+  client.on('data', function(data) {
     assert.equal('PONG', data);
     count += 1;
 
@@ -115,7 +115,7 @@ function tlsTest(port, host, caPem, keyPem, certPem) {
     }
   });
 
-  client.addListener('close', function() {
+  client.on('close', function() {
     assert.equal(N + 1, count);
     assert.equal(true, sent_final_ping);
     tests_run += 1;
@@ -141,7 +141,7 @@ if (have_tls) {
   tlsTest(common.PORT, 'localhost', caPem, keyPem, certPem);
   tlsTest(common.PORT + 1, null, caPem, keyPem, certPem);
 
-  process.addListener('exit', function() {
+  process.on('exit', function() {
     assert.equal(2, tests_run);
   });
 } else {

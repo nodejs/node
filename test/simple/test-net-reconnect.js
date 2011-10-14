@@ -30,15 +30,15 @@ var client_recv_count = 0;
 var disconnect_count = 0;
 
 var server = net.createServer(function(socket) {
-  socket.addListener('connect', function() {
+  socket.on('connect', function() {
     socket.write('hello\r\n');
   });
 
-  socket.addListener('end', function() {
+  socket.on('end', function() {
     socket.end();
   });
 
-  socket.addListener('close', function(had_error) {
+  socket.on('close', function(had_error) {
     //console.log('server had_error: ' + JSON.stringify(had_error));
     assert.equal(false, had_error);
   });
@@ -50,18 +50,18 @@ server.listen(common.PORT, function() {
 
   client.setEncoding('UTF8');
 
-  client.addListener('connect', function() {
+  client.on('connect', function() {
     console.log('client connected.');
   });
 
-  client.addListener('data', function(chunk) {
+  client.on('data', function(chunk) {
     client_recv_count += 1;
     console.log('client_recv_count ' + client_recv_count);
     assert.equal('hello\r\n', chunk);
     client.end();
   });
 
-  client.addListener('close', function(had_error) {
+  client.on('close', function(had_error) {
     console.log('disconnect');
     assert.equal(false, had_error);
     if (disconnect_count++ < N)
@@ -71,7 +71,7 @@ server.listen(common.PORT, function() {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(N + 1, disconnect_count);
   assert.equal(N + 1, client_recv_count);
 });

@@ -43,7 +43,7 @@ exports.D = function() {
   return d.D();
 };
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   string = 'C done';
   console.log('b/c.js exit');
 });

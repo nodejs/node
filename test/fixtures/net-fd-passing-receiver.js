@@ -26,19 +26,19 @@ path = process.ARGV[2];
 greeting = process.ARGV[3];
 
 receiver = net.createServer(function(socket) {
-  socket.addListener('fd', function(fd) {
+  socket.on('fd', function(fd) {
     var peerInfo = process.getpeername(fd);
     peerInfo.fd = fd;
     var passedSocket = new net.Socket(peerInfo);
 
-    passedSocket.addListener('eof', function() {
+    passedSocket.on('eof', function() {
       passedSocket.close();
     });
 
-    passedSocket.addListener('data', function(data) {
+    passedSocket.on('data', function(data) {
       passedSocket.send('[echo] ' + data);
     });
-    passedSocket.addListener('close', function() {
+    passedSocket.on('close', function() {
       receiver.close();
     });
     passedSocket.send('[greeting] ' + greeting);
@@ -46,7 +46,7 @@ receiver = net.createServer(function(socket) {
 });
 
 /* To signal the test runne we're up and listening */
-receiver.addListener('listening', function() {
+receiver.on('listening', function() {
   common.print('ready');
 });
 

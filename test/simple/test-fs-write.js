@@ -69,7 +69,7 @@ fs.open(fn2, constants.O_CREAT | constants.O_WRONLY | constants.O_TRUNC, 0644,
     });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(expected, found);
   assert.equal(expected, found2);
 });

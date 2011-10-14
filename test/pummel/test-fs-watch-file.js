@@ -41,7 +41,7 @@ var filepathTwo = filenameTwo;
 var filepathTwoAbs = path.join(testDir, filenameTwo);
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   fs.unlinkSync(filepathOne);
   fs.unlinkSync(filepathTwoAbs);
   assert.equal(1, watchSeenOne);

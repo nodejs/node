@@ -28,7 +28,7 @@ var e = new events.EventEmitter();
 var events_new_listener_emited = [];
 var times_hello_emited = 0;
 
-e.addListener('newListener', function(event, listener) {
+e.on('newListener', function(event, listener) {
   console.log('newListener: ' + event);
   events_new_listener_emited.push(event);
 });
@@ -50,7 +50,7 @@ var f = new events.EventEmitter();
 f.setMaxListeners(0);
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.deepEqual(['hello'], events_new_listener_emited);
   assert.equal(1, times_hello_emited);
 });

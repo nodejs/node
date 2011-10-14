@@ -37,6 +37,6 @@ for (var i = 0; i < N; i++) {
   });
 }
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(N, j);
 });

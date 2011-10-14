@@ -45,23 +45,23 @@ try {
 }
 
 client.setEncoding('UTF8');
-client.addListener('connect', function() {
+client.on('connect', function() {
   console.log('client connected.');
   client.setSecure(credentials);
 });
 
-client.addListener('secure', function() {
+client.on('secure', function() {
   console.log('client secure : ' + JSON.stringify(client.getCipher()));
   console.log(JSON.stringify(client.getPeerCertificate()));
   console.log('verifyPeer : ' + client.verifyPeer());
   client.write('GET / HTTP/1.0\r\n\r\n');
 });
 
-client.addListener('data', function(chunk) {
+client.on('data', function(chunk) {
   common.error(chunk);
 });
 
-client.addListener('end', function() {
+client.on('end', function() {
   console.log('client disconnected.');
 });
 

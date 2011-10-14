@@ -71,6 +71,6 @@ errExec('throws_error3.js', function(err, stdout, stderr) {
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(3, exits);
 });

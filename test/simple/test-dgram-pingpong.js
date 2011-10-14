@@ -60,7 +60,7 @@ function pingPongTest(port, host) {
     var buf = new Buffer('PING'),
         client = dgram.createSocket('udp4');
 
-    client.addListener('message', function(msg, rinfo) {
+    client.on('message', function(msg, rinfo) {
       console.log('client got: ' + msg +
                   ' from ' + rinfo.address + ':' + rinfo.port);
       assert.equal('PONG', msg.toString('ascii'));
@@ -108,7 +108,7 @@ pingPongTest(20990, 'localhost');
 pingPongTest(20988);
 //pingPongTest('/tmp/pingpong.sock');
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(3, tests_run);
   console.log('done');
 });

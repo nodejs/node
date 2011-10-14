@@ -45,6 +45,6 @@ var r = fs.readSync(fd, bufferSync, 0, expected.length, 0);
 assert.deepEqual(bufferSync, new Buffer(expected));
 assert.equal(r, expected.length);
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(readCalled, 1);
 });

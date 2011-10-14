@@ -33,6 +33,6 @@ process.nextTick(function() {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.deepEqual(order, ['nextTick', 'setTimeout']);
 });

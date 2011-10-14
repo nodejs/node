@@ -91,7 +91,7 @@ fs.writeFile(filename3, n, function(e) {
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   common.error('done');
   assert.equal(6, ncallbacks);
 

@@ -37,7 +37,7 @@ for (var i = 0; i < bytes; i++) {
 }
 
 var server = net.createServer(function(c) {
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     total_connections++;
     common.print('#');
     c.write(body);
@@ -52,26 +52,26 @@ function runClient(callback) {
 
   client.setEncoding('utf8');
 
-  client.addListener('connect', function() {
+  client.on('connect', function() {
     common.print('c');
     client.recved = '';
     client.connections += 1;
   });
 
-  client.addListener('data', function(chunk) {
+  client.on('data', function(chunk) {
     this.recved += chunk;
   });
 
-  client.addListener('end', function() {
+  client.on('end', function() {
     client.end();
   });
 
-  client.addListener('error', function(e) {
+  client.on('error', function(e) {
     console.log('\n\nERROOOOOr');
     throw e;
   });
 
-  client.addListener('close', function(had_error) {
+  client.on('close', function(had_error) {
     common.print('.');
     assert.equal(false, had_error);
     assert.equal(bytes, client.recved.length);
@@ -98,7 +98,7 @@ server.listen(common.PORT, function() {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(connections_per_client * concurrency, total_connections);
   console.log('\nokay!');
 });

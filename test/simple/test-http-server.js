@@ -71,17 +71,17 @@ server.listen(common.PORT);
 
 server.httpAllowHalfOpen = true;
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var c = net.createConnection(common.PORT);
 
   c.setEncoding('utf8');
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     c.write('GET /hello?hello=world&foo=b==ar HTTP/1.1\r\n\r\n');
     requests_sent += 1;
   });
 
-  c.addListener('data', function(chunk) {
+  c.on('data', function(chunk) {
     server_response += chunk;
 
     if (requests_sent == 1) {
@@ -105,16 +105,16 @@ server.addListener('listening', function() {
 
   });
 
-  c.addListener('end', function() {
+  c.on('end', function() {
     client_got_eof = true;
   });
 
-  c.addListener('close', function() {
+  c.on('close', function() {
     assert.equal(c.readyState, 'closed');
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(4, request_number);
   assert.equal(4, requests_sent);
 

@@ -34,6 +34,6 @@ idle.callback = function() {
 idle.setPriority(process.EVMAXPRI);
 idle.start();
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(complete);
 });

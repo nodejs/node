@@ -39,11 +39,11 @@ function testCwd(options, forCode, forData) {
 
   child.stdout.setEncoding('utf8');
 
-  child.stdout.addListener('data', function(chunk) {
+  child.stdout.on('data', function(chunk) {
     data += chunk;
   });
 
-  child.addListener('exit', function(code, signal) {
+  child.on('exit', function(code, signal) {
     forData && assert.strictEqual(forData, data.replace(/[\s\r\n]+$/, ''));
     assert.strictEqual(forCode, code);
     returns--;
@@ -73,6 +73,6 @@ testCwd({cwd: null}, 0);
 
 // Check whether all tests actually returned
 assert.notEqual(0, returns);
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(0, returns);
 });

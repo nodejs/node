@@ -43,7 +43,7 @@ var child = exec(cmd, function(err, stdout, stderr) {
   ++success_count;
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, success_count);
   assert.equal(0, error_count);
 });

@@ -33,13 +33,13 @@ var gotEcho = false;
 
 var child = spawn(process.argv[0], [sub]);
 
-child.stderr.addListener('data', function(data) {
+child.stderr.on('data', function(data) {
   console.log('parent stderr: ' + data);
 });
 
 child.stdout.setEncoding('utf8');
 
-child.stdout.addListener('data', function(data) {
+child.stdout.on('data', function(data) {
   console.log('child said: ' + JSON.stringify(data));
   if (!gotHelloWorld) {
     assert.equal('hello world\r\n', data);
@@ -52,12 +52,12 @@ child.stdout.addListener('data', function(data) {
   }
 });
 
-child.stdout.addListener('end', function(data) {
+child.stdout.on('end', function(data) {
   console.log('child end');
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(gotHelloWorld);
   assert.ok(gotEcho);
 });

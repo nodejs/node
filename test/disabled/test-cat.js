@@ -70,7 +70,7 @@ promise.addErrback(function() {
   errors += 1;
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(2, successes);
   assert.equal(0, errors);
 });

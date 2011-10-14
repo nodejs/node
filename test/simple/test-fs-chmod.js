@@ -91,7 +91,7 @@ fs.open(file, 'a', function(err, fd) {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(2, success_count);
   assert.equal(false, got_error);
 });

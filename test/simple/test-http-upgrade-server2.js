@@ -29,7 +29,7 @@ var server = http.createServer(function(req, res) {
   throw new Error('This shouldn\'t happen.');
 });
 
-server.addListener('upgrade', function(req, socket, upgradeHead) {
+server.on('upgrade', function(req, socket, upgradeHead) {
   common.error('got upgrade event');
   // test that throwing an error from upgrade gets
   // is uncaught
@@ -38,7 +38,7 @@ server.addListener('upgrade', function(req, socket, upgradeHead) {
 
 var gotError = false;
 
-process.addListener('uncaughtException', function(e) {
+process.on('uncaughtException', function(e) {
   common.error('got \'clientError\' event');
   assert.equal('upgrade error', e.message);
   gotError = true;
@@ -49,7 +49,7 @@ process.addListener('uncaughtException', function(e) {
 server.listen(common.PORT, function() {
   var c = net.createConnection(common.PORT);
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     common.error('client wrote message');
     c.write('GET /blah HTTP/1.1\r\n' +
             'Upgrade: WebSocket\r\n' +
@@ -57,16 +57,16 @@ server.listen(common.PORT, function() {
             '\r\n\r\nhello world');
   });
 
-  c.addListener('end', function() {
+  c.on('end', function() {
     c.end();
   });
 
-  c.addListener('close', function() {
+  c.on('close', function() {
     common.error('client close');
     server.close();
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(gotError);
 });

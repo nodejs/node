@@ -50,7 +50,7 @@ function test1(next) {
     assert.equal(child.stdout, null);
     assert.notEqual(child.stderr, null);
 
-    child.addListener('exit', function(err) {
+    child.on('exit', function(err) {
       if (err) throw err;
       fs.close(fd, function(error) {
         if (error) throw error;
@@ -77,10 +77,10 @@ function test2(next) {
 
     assert.equal(child.stdin, null);
     var actualData = '';
-    child.stdout.addListener('data', function(data) {
+    child.stdout.on('data', function(data) {
       actualData += data.toString();
     });
-    child.addListener('exit', function(code) {
+    child.on('exit', function(code) {
       if (err) throw err;
       assert.equal(actualData, 'hella warld\n');
       console.log('  File was filtered successfully');
@@ -98,16 +98,16 @@ function test3(next) {
   var filter = spawn(process.argv[0], [fixtPath('stdio-filter.js'), 'o', 'a']);
   var echo = spawn('/bin/echo', [expected], {customFds: [-1, filter.fds[0]]});
   var actualData = '';
-  filter.stdout.addListener('data', function(data) {
+  filter.stdout.on('data', function(data) {
     console.log('  Got data --> ' + data);
     actualData += data;
   });
-  filter.addListener('exit', function(code) {
+  filter.on('exit', function(code) {
     if (code) throw 'Return code was ' + code;
     assert.equal(actualData, 'hella warld\n');
     console.log('  Talked to another process successfully');
   });
-  echo.addListener('exit', function(code) {
+  echo.on('exit', function(code) {
     if (code) throw 'Return code was ' + code;
     filter.stdin.end();
     fs.unlinkSync(helloPath);

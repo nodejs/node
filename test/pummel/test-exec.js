@@ -105,7 +105,7 @@ exec('python -c "print 200000*\'C\'"', {maxBuffer: 1000},
        assert.ok(/maxBuffer/.test(err.message));
      });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, success_count);
   assert.equal(1, error_count);
 });

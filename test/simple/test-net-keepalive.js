@@ -30,13 +30,13 @@ var echoServer = net.createServer(function(connection) {
   assert.notEqual(connection.setKeepAlive, undefined);
   // send a keepalive packet after 1000 ms
   connection.setKeepAlive(true, 1000);
-  connection.addListener('end', function() {
+  connection.on('end', function() {
     connection.end();
   });
 });
 echoServer.listen(common.PORT);
 
-echoServer.addListener('listening', function() {
+echoServer.on('listening', function() {
   var clientConnection = net.createConnection(common.PORT);
   clientConnection.setTimeout(0);
 

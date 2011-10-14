@@ -43,6 +43,6 @@ exec(cmd, function(err, stdout, stderr) {
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(finished);
 });

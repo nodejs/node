@@ -40,7 +40,7 @@ server.listen(common.PORT);
 var requests_ok = 0;
 var requests_complete = 0;
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   for (var i = 0; i < request_count; i++) {
     http.cat('http://localhost:' + common.PORT + '/', 'utf8',
              function(err, content) {
@@ -60,7 +60,7 @@ server.addListener('listening', function() {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(request_count, requests_complete);
   assert.equal(request_count, requests_ok);
 });

@@ -42,11 +42,11 @@ for (var i = 255; i >= 0; i--) {
 // safe constructor
 var echoServer = net.Server(function(connection) {
   connection.setEncoding('binary');
-  connection.addListener('data', function(chunk) {
+  connection.on('data', function(chunk) {
     common.error('recved: ' + JSON.stringify(chunk));
     connection.write(chunk, 'binary');
   });
-  connection.addListener('end', function() {
+  connection.on('end', function() {
     connection.end();
   });
 });
@@ -54,12 +54,12 @@ echoServer.listen(common.PORT);
 
 var recv = '';
 
-echoServer.addListener('listening', function() {
+echoServer.on('listening', function() {
   var j = 0;
   var c = net.createConnection(common.PORT);
 
   c.setEncoding('binary');
-  c.addListener('data', function(chunk) {
+  c.on('data', function(chunk) {
     if (j < 256) {
       common.error('write ' + j);
       c.write(String.fromCharCode(j), 'binary');
@@ -70,17 +70,17 @@ echoServer.addListener('listening', function() {
     recv += chunk;
   });
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     c.write(binaryString, 'binary');
   });
 
-  c.addListener('close', function() {
+  c.on('close', function() {
     console.dir(recv);
     echoServer.close();
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   console.log('recv: ' + JSON.stringify(recv));
 
   assert.equal(2 * 256, recv.length);

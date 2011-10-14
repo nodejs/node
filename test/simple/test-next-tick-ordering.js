@@ -45,7 +45,7 @@ for (i = 0; i < N; i += 1) {
 console.log('Running from main.');
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal('nextTick', done[0]);
   /* Disabling this test. I don't think we can ensure the order
   for (i = 0; i < N; i += 1) {

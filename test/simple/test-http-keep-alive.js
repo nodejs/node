@@ -47,7 +47,7 @@ server.listen(common.PORT, function() {
   });
   request.end();
   request = http.request({method: 'GET', path: '/', headers: headers, port: common.PORT, agent: agent}, function(response) {
-    response.addListener('end', function() {
+    response.on('end', function() {
       assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
       server.close();
     });

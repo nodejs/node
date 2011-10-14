@@ -42,7 +42,7 @@ var server = http.createServer(function(req, res) {
 server.listen(common.PORT, function() {
   var c = net.createConnection(common.PORT);
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     common.error('client wrote message');
     c.write('GET /blah HTTP/1.1\r\n' +
             'Host: mapdevel.trolologames.ru:443\r\n' +
@@ -52,17 +52,17 @@ server.listen(common.PORT, function() {
     );
   });
 
-  c.addListener('end', function() {
+  c.on('end', function() {
     c.end();
   });
 
-  c.addListener('close', function() {
+  c.on('close', function() {
     common.error('client close');
     server.close();
   });
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(gotReq);
 });

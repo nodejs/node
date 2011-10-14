@@ -31,24 +31,24 @@ var timeout = 1000;
 var echo_server = net.createServer(function(socket) {
   socket.setTimeout(timeout);
 
-  socket.addListener('timeout', function() {
+  socket.on('timeout', function() {
     console.log('server timeout');
     timeouttime = new Date;
     console.dir(timeouttime);
     socket.destroy();
   });
 
-  socket.addListener('error', function(e) {
+  socket.on('error', function(e) {
     throw new Error('Server side socket should not get error. ' +
                       'We disconnect willingly.');
   });
 
-  socket.addListener('data', function(d) {
+  socket.on('data', function(d) {
     console.log(d);
     socket.write(d);
   });
 
-  socket.addListener('end', function() {
+  socket.on('end', function() {
     socket.end();
   });
 });
@@ -59,12 +59,12 @@ echo_server.listen(common.PORT, function() {
   var client = net.createConnection(common.PORT);
   client.setEncoding('UTF8');
   client.setTimeout(0); // disable the timeout for client
-  client.addListener('connect', function() {
+  client.on('connect', function() {
     console.log('client connected.');
     client.write('hello\r\n');
   });
 
-  client.addListener('data', function(chunk) {
+  client.on('data', function(chunk) {
     assert.equal('hello\r\n', chunk);
     if (exchanges++ < 5) {
       setTimeout(function() {
@@ -80,22 +80,22 @@ echo_server.listen(common.PORT, function() {
     }
   });
 
-  client.addListener('timeout', function() {
+  client.on('timeout', function() {
     throw new Error("client timeout - this shouldn't happen");
   });
 
-  client.addListener('end', function() {
+  client.on('end', function() {
     console.log('client end');
     client.end();
   });
 
-  client.addListener('close', function() {
+  client.on('close', function() {
     console.log('client disconnect');
     echo_server.close();
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(starttime != null);
   assert.ok(timeouttime != null);
 

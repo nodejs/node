@@ -43,7 +43,7 @@ server.listen(common.PORT, function() {
     path: '/'
   }, function(response) {
     common.error('response start');
-    response.addListener('end', function() {
+    response.on('end', function() {
       common.error('response end');
       gotEnd = true;
     });
@@ -51,6 +51,6 @@ server.listen(common.PORT, function() {
   request.end();
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(gotEnd);
 });

@@ -54,7 +54,7 @@ fs.link(srcPath, dstPath, function(err) {
   completed++;
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(completed, 2);
 });
 

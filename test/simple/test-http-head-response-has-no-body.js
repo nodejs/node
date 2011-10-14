@@ -36,14 +36,14 @@ server.listen(common.PORT);
 
 var responseComplete = false;
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var req = http.request({
     port: common.PORT,
     method: 'HEAD',
     path: '/'
   }, function(res) {
     common.error('response');
-    res.addListener('end', function() {
+    res.on('end', function() {
       common.error('response end');
       server.close();
       responseComplete = true;
@@ -53,6 +53,6 @@ server.addListener('listening', function() {
   req.end();
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(responseComplete);
 });

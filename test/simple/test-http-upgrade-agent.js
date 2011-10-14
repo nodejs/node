@@ -32,7 +32,7 @@ var net = require('net');
 // Create a TCP server
 var srv = net.createServer(function(c) {
   var data = '';
-  c.addListener('data', function(d) {
+  c.on('data', function(d) {
     data += d.toString('utf8');
 
     c.write('HTTP/1.1 101\r\n');
@@ -43,7 +43,7 @@ var srv = net.createServer(function(c) {
     c.write('nurtzo');
   });
 
-  c.addListener('end', function() {
+  c.on('end', function() {
     c.end();
   });
 });
@@ -87,6 +87,6 @@ srv.listen(common.PORT, '127.0.0.1', function() {
 
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(gotUpgrade);
 });

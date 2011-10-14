@@ -45,6 +45,6 @@ process.nextTick(function() {
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(5, complete);
 });

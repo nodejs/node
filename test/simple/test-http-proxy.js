@@ -58,11 +58,11 @@ var proxy = http.createServer(function(req, res) {
 
     res.writeHead(proxy_res.statusCode, proxy_res.headers);
 
-    proxy_res.addListener('data', function(chunk) {
+    proxy_res.on('data', function(chunk) {
       res.write(chunk);
     });
 
-    proxy_res.addListener('end', function() {
+    proxy_res.on('end', function() {
       res.end();
       common.debug('proxy res');
     });
@@ -88,8 +88,8 @@ function startReq() {
     assert.deepEqual(cookies, res.headers['set-cookie']);
 
     res.setEncoding('utf8');
-    res.addListener('data', function(chunk) { body += chunk; });
-    res.addListener('end', function() {
+    res.on('data', function(chunk) { body += chunk; });
+    res.on('end', function() {
       proxy.close();
       backend.close();
       common.debug('closed both');
@@ -104,6 +104,6 @@ proxy.listen(PROXY_PORT, startReq);
 common.debug('listen backend');
 backend.listen(BACKEND_PORT, startReq);
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(body, 'hello world\n');
 });

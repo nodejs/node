@@ -44,17 +44,17 @@ server.listen(common.PORT);
 
 var gotEnd = false;
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var request = http.request({
     port: common.PORT,
     method: 'HEAD',
     path: '/'
   }, function(response) {
     console.log('got response');
-    response.addListener('data', function() {
+    response.on('data', function() {
       process.exit(2);
     });
-    response.addListener('end', function() {
+    response.on('end', function() {
       process.exit(0);
     });
   });

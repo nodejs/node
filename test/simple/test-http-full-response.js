@@ -91,6 +91,6 @@ server.listen(common.PORT, function() {
 
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(3, runs);
 });

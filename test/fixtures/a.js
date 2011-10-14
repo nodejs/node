@@ -41,6 +41,6 @@ exports.D = function() {
 
 exports.number = 42;
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   string = 'A done';
 });

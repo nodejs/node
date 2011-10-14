@@ -68,7 +68,7 @@ function error_test() {
   var read_buffer = '';
   client_unix.removeAllListeners('data');
 
-  client_unix.addListener('data', function(data) {
+  client_unix.on('data', function(data) {
     read_buffer += data.toString('ascii', 0, data.length);
     common.error('Unix data: ' + JSON.stringify(read_buffer) + ', expecting ' +
                  (client_unix.expect.exec ?
@@ -145,7 +145,7 @@ function tcp_test() {
   server_tcp = net.createServer(function(socket) {
     assert.strictEqual(server_tcp, socket.server);
 
-    socket.addListener('end', function() {
+    socket.on('end', function() {
       socket.end();
     });
 
@@ -157,7 +157,7 @@ function tcp_test() {
 
     client_tcp = net.createConnection(common.PORT);
 
-    client_tcp.addListener('connect', function() {
+    client_tcp.on('connect', function() {
       assert.equal(true, client_tcp.readable);
       assert.equal(true, client_tcp.writable);
 
@@ -174,7 +174,7 @@ function tcp_test() {
       ]);
     });
 
-    client_tcp.addListener('data', function(data) {
+    client_tcp.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
       common.error('TCP data: ' + JSON.stringify(read_buffer) +
                    ', expecting ' + JSON.stringify(client_tcp.expect));
@@ -193,11 +193,11 @@ function tcp_test() {
       }
     });
 
-    client_tcp.addListener('error', function(e) {
+    client_tcp.on('error', function(e) {
       throw e;
     });
 
-    client_tcp.addListener('close', function() {
+    client_tcp.on('close', function() {
       server_tcp.close();
     });
   });
@@ -208,19 +208,19 @@ function unix_test() {
   server_unix = net.createServer(function(socket) {
     assert.strictEqual(server_unix, socket.server);
 
-    socket.addListener('end', function() {
+    socket.on('end', function() {
       socket.end();
     });
 
     repl.start(prompt_unix, socket).context.message = message;
   });
 
-  server_unix.addListener('listening', function() {
+  server_unix.on('listening', function() {
     var read_buffer = '';
 
     client_unix = net.createConnection(common.PIPE);
 
-    client_unix.addListener('connect', function() {
+    client_unix.on('connect', function() {
       assert.equal(true, client_unix.readable);
       assert.equal(true, client_unix.writable);
 
@@ -238,7 +238,7 @@ function unix_test() {
       ]);
     });
 
-    client_unix.addListener('data', function(data) {
+    client_unix.on('data', function(data) {
       read_buffer += data.toString('ascii', 0, data.length);
       common.error('Unix data: ' + JSON.stringify(read_buffer) +
                    ', expecting ' + JSON.stringify(client_unix.expect));
@@ -257,11 +257,11 @@ function unix_test() {
       }
     });
 
-    client_unix.addListener('error', function(e) {
+    client_unix.on('error', function(e) {
       throw e;
     });
 
-    client_unix.addListener('close', function() {
+    client_unix.on('close', function() {
       server_unix.close();
     });
   });

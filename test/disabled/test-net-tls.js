@@ -63,7 +63,7 @@ var secureServer = net.createServer(function(connection) {
   connection.setSecure(credentials);
   connection.setEncoding('UTF8');
 
-  connection.addListener('secure', function() {
+  connection.on('secure', function() {
     gotSecureServer = true;
     var verified = connection.verifyPeer();
     var peerDN = JSON.stringify(connection.getPeerCertificate());
@@ -80,12 +80,12 @@ var secureServer = net.createServer(function(connection) {
 
   });
 
-  connection.addListener('data', function(chunk) {
+  connection.on('data', function(chunk) {
     serverData += chunk;
     connection.write(chunk);
   });
 
-  connection.addListener('end', function() {
+  connection.on('end', function() {
     assert.equal(serverData, testData);
     connection.end();
     self.close();
@@ -93,15 +93,15 @@ var secureServer = net.createServer(function(connection) {
 });
 secureServer.listen(common.PORT);
 
-secureServer.addListener('listening', function() {
+secureServer.on('listening', function() {
   var secureClient = net.createConnection(common.PORT);
 
   secureClient.setEncoding('UTF8');
-  secureClient.addListener('connect', function() {
+  secureClient.on('connect', function() {
     secureClient.setSecure(credentials);
   });
 
-  secureClient.addListener('secure', function() {
+  secureClient.on('secure', function() {
     gotSecureClient = true;
     var verified = secureClient.verifyPeer();
     var peerDN = JSON.stringify(secureClient.getPeerCertificate());
@@ -120,16 +120,16 @@ secureServer.addListener('listening', function() {
     secureClient.end();
   });
 
-  secureClient.addListener('data', function(chunk) {
+  secureClient.on('data', function(chunk) {
     clientData += chunk;
   });
 
-  secureClient.addListener('end', function() {
+  secureClient.on('end', function() {
     assert.equal(clientData, testData);
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(gotSecureServer, 'Did not get secure event for server');
   assert.ok(gotSecureClient, 'Did not get secure event for client');
 });

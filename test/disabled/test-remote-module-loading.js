@@ -57,6 +57,6 @@ util.exec(cmd, function(err, stdout, stderr) {
   server.close();
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, modulesLoaded);
 });

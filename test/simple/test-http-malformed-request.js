@@ -42,9 +42,9 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var c = net.createConnection(common.PORT);
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     c.write('GET /hello?foo=%99bar HTTP/1.1\r\n\r\n');
     c.end();
   });
@@ -52,6 +52,6 @@ server.addListener('listening', function() {
   // TODO add more!
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(nrequests_expected, nrequests_completed);
 });

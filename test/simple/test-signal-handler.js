@@ -32,12 +32,12 @@ var first = 0,
 
 var sighup = false;
 
-process.addListener('SIGUSR1', function() {
+process.on('SIGUSR1', function() {
   console.log('Interrupted by SIGUSR1');
   first += 1;
 });
 
-process.addListener('SIGUSR1', function() {
+process.on('SIGUSR1', function() {
   second += 1;
   setTimeout(function() {
     console.log('End.');
@@ -54,14 +54,14 @@ setInterval(function() {
   }
 }, 1);
 
-// Test addListener condition where a watcher for SIGNAL
+// Test on condition where a watcher for SIGNAL
 // has been previously registered, and `process.listeners(SIGNAL).length === 1`
-process.addListener('SIGHUP', function() {});
+process.on('SIGHUP', function() {});
 process.removeAllListeners('SIGHUP');
-process.addListener('SIGHUP', function() { sighup = true });
+process.on('SIGHUP', function() { sighup = true });
 process.kill(process.pid, 'SIGHUP');
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, first);
   assert.equal(1, second);
   assert.equal(true, sighup);

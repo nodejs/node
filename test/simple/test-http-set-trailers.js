@@ -35,23 +35,23 @@ server.listen(common.PORT);
 
 
 // first, we test an HTTP/1.0 request.
-server.addListener('listening', function() {
+server.on('listening', function() {
   var c = net.createConnection(common.PORT);
   var res_buffer = '';
 
   c.setEncoding('utf8');
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     outstanding_reqs++;
     c.write('GET / HTTP/1.0\r\n\r\n');
   });
 
-  c.addListener('data', function(chunk) {
+  c.on('data', function(chunk) {
     //console.log(chunk);
     res_buffer += chunk;
   });
 
-  c.addListener('end', function() {
+  c.on('end', function() {
     c.end();
     assert.ok(! /x-foo/.test(res_buffer), 'Trailer in HTTP/1.0 response.');
     outstanding_reqs--;
@@ -63,20 +63,20 @@ server.addListener('listening', function() {
 });
 
 // now, we test an HTTP/1.1 request.
-server.addListener('listening', function() {
+server.on('listening', function() {
   var c = net.createConnection(common.PORT);
   var res_buffer = '';
   var tid;
 
   c.setEncoding('utf8');
 
-  c.addListener('connect', function() {
+  c.on('connect', function() {
     outstanding_reqs++;
     c.write('GET / HTTP/1.1\r\n\r\n');
     tid = setTimeout(assert.fail, 2000, 'Couldn\'t find last chunk.');
   });
 
-  c.addListener('data', function(chunk) {
+  c.on('data', function(chunk) {
     //console.log(chunk);
     res_buffer += chunk;
     if (/0\r\n/.test(res_buffer)) { // got the end.
@@ -95,9 +95,9 @@ server.addListener('listening', function() {
 });
 
 // now, see if the client sees the trailers.
-server.addListener('listening', function() {
+server.on('listening', function() {
   http.get({ port: common.PORT, path: '/hello', headers: {} }, function(res) {
-    res.addListener('end', function() {
+    res.on('end', function() {
       //console.log(res.trailers);
       assert.ok('x-foo' in res.trailers, 'Client doesn\'t see trailers.');
       outstanding_reqs--;

@@ -47,7 +47,7 @@ fs.open(filename, 'w', 0644, function(err, fd) {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, openCalled);
   assert.equal(1, writeCalled);
 });

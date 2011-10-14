@@ -53,7 +53,7 @@ var body1 = '';
 var body2 = '';
 var body3 = '';
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var client = http.createClient(common.PORT);
 
   //
@@ -61,14 +61,14 @@ server.addListener('listening', function() {
   //
   var req1 = client.request('/1');
   req1.end();
-  req1.addListener('response', function(res1) {
+  req1.on('response', function(res1) {
     res1.setEncoding('utf8');
 
-    res1.addListener('data', function(chunk) {
+    res1.on('data', function(chunk) {
       body1 += chunk;
     });
 
-    res1.addListener('end', function() {
+    res1.on('end', function() {
       //
       // Delay execution a little to allow the 'close' event to be processed
       // (required to trigger this bug!)
@@ -87,10 +87,10 @@ server.addListener('listening', function() {
         //
         var req2 = client.request('/2');
         req2.end();
-        req2.addListener('response', function(res2) {
+        req2.on('response', function(res2) {
           res2.setEncoding('utf8');
-          res2.addListener('data', function(chunk) { body2 += chunk; });
-          res2.addListener('end', function() {
+          res2.on('data', function(chunk) { body2 += chunk; });
+          res2.on('end', function() {
 
             //
             // Just to be really sure we've covered all our bases, execute a
@@ -98,10 +98,10 @@ server.addListener('listening', function() {
             //
             var req3 = client2.request('/3');
             req3.end();
-            req3.addListener('response', function(res3) {
+            req3.on('response', function(res3) {
               res3.setEncoding('utf8');
-              res3.addListener('data', function(chunk) { body3 += chunk });
-              res3.addListener('end', function() { server.close(); });
+              res3.on('data', function(chunk) { body3 += chunk });
+              res3.on('end', function() { server.close(); });
             });
           });
         });
@@ -110,7 +110,7 @@ server.addListener('listening', function() {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(body1_s, body1);
   assert.equal(body2_s, body2);
   assert.equal(body3_s, body3);

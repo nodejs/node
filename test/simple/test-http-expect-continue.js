@@ -40,7 +40,7 @@ function handler(req, res) {
 }
 
 var server = http.createServer(handler);
-server.addListener('checkContinue', function(req, res) {
+server.on('checkContinue', function(req, res) {
   common.debug('Server got Expect: 100-continue...');
   res.writeContinue();
   sent_continue = true;
@@ -50,7 +50,7 @@ server.listen(common.PORT);
 
 
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var req = http.request({
     port: common.PORT,
     method: 'POST',
@@ -60,19 +60,19 @@ server.addListener('listening', function() {
   common.debug('Client sending request...');
   outstanding_reqs++;
   var body = '';
-  req.addListener('continue', function() {
+  req.on('continue', function() {
     common.debug('Client got 100 Continue...');
     got_continue = true;
     req.end(test_req_body);
   });
-  req.addListener('response', function(res) {
+  req.on('response', function(res) {
     assert.equal(got_continue, true,
                  'Full response received before 100 Continue');
     assert.equal(200, res.statusCode,
                  'Final status code was ' + res.statusCode + ', not 200.');
     res.setEncoding('utf8');
-    res.addListener('data', function(chunk) { body += chunk; });
-    res.addListener('end', function() {
+    res.on('data', function(chunk) { body += chunk; });
+    res.on('end', function() {
       common.debug('Got full response.');
       assert.equal(body, test_res_body, 'Response body doesn\'t match.');
       assert.ok('abcd' in res.headers, 'Response headers missing.');

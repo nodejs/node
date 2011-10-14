@@ -31,11 +31,11 @@ var client_res_complete = false;
 var server = http.createServer(function(req, res) {
   assert.equal('POST', req.method);
 
-  req.addListener('data', function(chunk) {
+  req.on('data', function(chunk) {
     bytesRecieved += chunk.length;
   });
 
-  req.addListener('end', function() {
+  req.on('end', function() {
     server_req_complete = true;
     console.log('request complete from server');
     res.writeHead(200, {'Content-Type': 'text/plain'});
@@ -45,17 +45,17 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var req = http.request({
     port: common.PORT,
     method: 'POST',
     path: '/'
   }, function(res) {
     res.setEncoding('utf8');
-    res.addListener('data', function(chunk) {
+    res.on('data', function(chunk) {
       console.log(chunk);
     });
-    res.addListener('end', function() {
+    res.on('end', function() {
       client_res_complete = true;
       server.close();
     });
@@ -67,7 +67,7 @@ server.addListener('listening', function() {
   common.error('client finished sending request');
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(N, bytesRecieved);
   assert.equal(true, server_req_complete);
   assert.equal(true, client_res_complete);

@@ -39,7 +39,7 @@ for (var i = 0; i < N; i++) {
 console.log('start server on port ' + common.PORT);
 
 var server = net.createServer(function(connection) {
-  connection.addListener('connect', function() {
+  connection.on('connect', function() {
     assert.equal(false, connection.write(body));
     console.log('bufferSize: ' + connection.bufferSize);
     assert.ok(0 <= connection.bufferSize &&
@@ -52,7 +52,7 @@ server.listen(common.PORT, function() {
   var paused = false;
   var client = net.createConnection(common.PORT);
   client.setEncoding('ascii');
-  client.addListener('data', function(d) {
+  client.on('data', function(d) {
     chars_recved += d.length;
     console.log('got ' + chars_recved);
     if (!paused) {
@@ -70,7 +70,7 @@ server.listen(common.PORT, function() {
     }
   });
 
-  client.addListener('end', function() {
+  client.on('end', function() {
     server.close();
     client.end();
   });
@@ -78,7 +78,7 @@ server.listen(common.PORT, function() {
 
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(N, chars_recved);
   assert.equal(true, npauses > 2);
 });

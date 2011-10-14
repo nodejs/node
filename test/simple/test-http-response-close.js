@@ -36,7 +36,7 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   console.error('make req');
   http.get({
     port: common.PORT

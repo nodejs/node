@@ -27,7 +27,7 @@ exports.D = function() {
   return string;
 };
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   string = 'D done';
 });
 

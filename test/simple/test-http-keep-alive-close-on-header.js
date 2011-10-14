@@ -76,7 +76,7 @@ server.listen(common.PORT, function() {
     port: common.PORT,
     agent: agent
   }, function(response) {
-    response.addListener('end', function() {
+    response.on('end', function() {
       assert.equal(1, agent.sockets['localhost:' + common.PORT].length);
       server.close();
     });
@@ -89,6 +89,6 @@ server.listen(common.PORT, function() {
   request.end();
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(3, connectCount);
 });

@@ -91,7 +91,7 @@ assert.equal(pipeFDs.length, 2);
 var seenOrdinals = [];
 
 var pipeReadStream = new net.Stream();
-pipeReadStream.addListener('data', function(data) {
+pipeReadStream.on('data', function(data) {
   data.toString('utf8').trim().split('\n').forEach(function(d) {
     var rd = JSON.parse(d);
 
@@ -121,7 +121,7 @@ var srv = net.createServer(function(s) {
   if (s.write(buf, pipeFDs[1])) {
     netBinding.close(pipeFDs[1]);
   } else {
-    s.addListener('drain', function() {
+    s.on('drain', function() {
       netBinding.close(pipeFDs[1]);
     });
   }
@@ -133,12 +133,12 @@ var cp = child_process.spawn(process.argv[0],
                              [path.join(common.fixturesDir, 'recvfd.js'),
                               SOCK_PATH]);
 
-cp.stdout.addListener('data', logChild);
-cp.stderr.addListener('data', logChild);
+cp.stdout.on('data', logChild);
+cp.stderr.on('data', logChild);
 
 // When the child exits, clean up and validate its exit status
 var cpp = cp.pid;
-cp.addListener('exit', function(code, signal) {
+cp.on('exit', function(code, signal) {
   srv.close();
   // fs.unlinkSync(SOCK_PATH);
 

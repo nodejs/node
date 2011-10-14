@@ -206,7 +206,7 @@ assert.deepEqual(json, {
 });
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(common.indirectInstanceOf(a.A, Function));
   assert.equal('A done', a.A());
 

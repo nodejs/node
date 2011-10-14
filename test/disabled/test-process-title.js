@@ -40,8 +40,8 @@ function verifyProcessName(str, callback) {
   var buf = '';
   ps = spawn('ps');
   ps.stdout.setEncoding('utf8');
-  ps.stdout.addListener('data', function(s) { buf += s; });
-  ps.addListener('exit', function(c) {
+  ps.stdout.on('data', function(s) { buf += s; });
+  ps.on('exit', function(c) {
     try {
       assert.equal(0, c);
       assert.ok(new RegExp(process.pid + ' ', 'm').test(buf));

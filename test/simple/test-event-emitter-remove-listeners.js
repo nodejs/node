@@ -42,18 +42,18 @@ function listener3() {
 }
 
 var e1 = new events.EventEmitter();
-e1.addListener('hello', listener1);
+e1.on('hello', listener1);
 e1.removeListener('hello', listener1);
 assert.deepEqual([], e1.listeners('hello'));
 
 var e2 = new events.EventEmitter();
-e2.addListener('hello', listener1);
+e2.on('hello', listener1);
 e2.removeListener('hello', listener2);
 assert.deepEqual([listener1], e2.listeners('hello'));
 
 var e3 = new events.EventEmitter();
-e3.addListener('hello', listener1);
-e3.addListener('hello', listener2);
+e3.on('hello', listener1);
+e3.on('hello', listener2);
 e3.removeListener('hello', listener1);
 assert.deepEqual([listener2], e3.listeners('hello'));
 

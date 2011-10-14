@@ -35,7 +35,7 @@ function pingPongTest(port, host, on_complete) {
   var server = net.createServer({ allowHalfOpen: true }, function(socket) {
     socket.setEncoding('utf8');
 
-    socket.addListener('data', function(data) {
+    socket.on('data', function(data) {
       console.log(data);
       assert.equal('PING', data);
       assert.equal('open', socket.readyState);
@@ -46,18 +46,18 @@ function pingPongTest(port, host, on_complete) {
       }, DELAY);
     });
 
-    socket.addListener('timeout', function() {
+    socket.on('timeout', function() {
       common.debug('server-side timeout!!');
       assert.equal(false, true);
     });
 
-    socket.addListener('end', function() {
+    socket.on('end', function() {
       console.log('server-side socket EOF');
       assert.equal('writeOnly', socket.readyState);
       socket.end();
     });
 
-    socket.addListener('close', function(had_error) {
+    socket.on('close', function(had_error) {
       console.log('server-side socket.end');
       assert.equal(false, had_error);
       assert.equal('closed', socket.readyState);
@@ -70,12 +70,12 @@ function pingPongTest(port, host, on_complete) {
 
     client.setEncoding('utf8');
 
-    client.addListener('connect', function() {
+    client.on('connect', function() {
       assert.equal('open', client.readyState);
       client.write('PING');
     });
 
-    client.addListener('data', function(data) {
+    client.on('data', function(data) {
       console.log(data);
       assert.equal('PONG', data);
       assert.equal('open', client.readyState);
@@ -92,12 +92,12 @@ function pingPongTest(port, host, on_complete) {
       }, DELAY);
     });
 
-    client.addListener('timeout', function() {
+    client.on('timeout', function() {
       common.debug('client-side timeout!!');
       assert.equal(false, true);
     });
 
-    client.addListener('close', function() {
+    client.on('close', function() {
       console.log('client.end');
       assert.equal(N + 1, count);
       assert.ok(client_ended);
@@ -109,6 +109,6 @@ function pingPongTest(port, host, on_complete) {
 
 pingPongTest(common.PORT);
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, tests_run);
 });

@@ -269,10 +269,10 @@ assert.equal(h1, h2, 'multipled updates');
 var fn = path.join(common.fixturesDir, 'sample.png');
 var sha1Hash = crypto.createHash('sha1');
 var fileStream = fs.createReadStream(fn);
-fileStream.addListener('data', function(data) {
+fileStream.on('data', function(data) {
   sha1Hash.update(data);
 });
-fileStream.addListener('close', function() {
+fileStream.on('close', function() {
   assert.equal(sha1Hash.digest('hex'),
                '22723e553129a336ad96e10f6aecdf0f45e4149e',
                'Test SHA1 of sample.png');

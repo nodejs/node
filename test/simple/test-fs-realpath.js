@@ -459,7 +459,7 @@ fs.realpath('/', function(err, result) {
 
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   unlink.forEach(function(path) { try {fs.unlinkSync(path);} catch (e) {} });
   assert.equal(async_completed, async_expected);
 });

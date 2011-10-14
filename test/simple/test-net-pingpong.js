@@ -41,7 +41,7 @@ function pingPongTest(port, host) {
     socket.timeout = 0;
 
     socket.setEncoding('utf8');
-    socket.addListener('data', function(data) {
+    socket.on('data', function(data) {
       // Since we never queue data (we're always waiting for the PING
       // before sending a pong) the writeQueueSize should always be less
       // than one message.
@@ -59,17 +59,17 @@ function pingPongTest(port, host) {
       }
     });
 
-    socket.addListener('end', function() {
+    socket.on('end', function() {
       assert.equal(true, socket.writable); // because allowHalfOpen
       assert.equal(false, socket.readable);
       socket.end();
     });
 
-    socket.addListener('error', function(e) {
+    socket.on('error', function(e) {
       throw e;
     });
 
-    socket.addListener('close', function() {
+    socket.on('close', function() {
       console.log('server socket.endd');
       assert.equal(false, socket.writable);
       assert.equal(false, socket.readable);
@@ -84,13 +84,13 @@ function pingPongTest(port, host) {
     var client = net.createConnection(port, host);
 
     client.setEncoding('ascii');
-    client.addListener('connect', function() {
+    client.on('connect', function() {
       assert.equal(true, client.readable);
       assert.equal(true, client.writable);
       client.write('PING');
     });
 
-    client.addListener('data', function(data) {
+    client.on('data', function(data) {
       console.log('client got: ' + data);
 
       assert.equal('PONG', data);
@@ -114,7 +114,7 @@ function pingPongTest(port, host) {
       }
     });
 
-    client.addListener('close', function() {
+    client.on('close', function() {
       console.log('client.end');
       assert.equal(N + 1, count);
       assert.equal(N + 1, sentPongs);
@@ -122,7 +122,7 @@ function pingPongTest(port, host) {
       tests_run += 1;
     });
 
-    client.addListener('error', function(e) {
+    client.on('error', function(e) {
       throw e;
     });
   });
@@ -134,7 +134,7 @@ pingPongTest(20988);
 pingPongTest(20989, 'localhost');
 pingPongTest(20997, '::1');
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(4, tests_run);
   console.log('done');
 });

@@ -41,7 +41,7 @@ var file = path.join(common.tmpDir, 'write.txt');
 (function() {
   var stream = fs.createWriteStream(file);
 
-  stream.addListener('drain', function() {
+  stream.on('drain', function() {
     assert.fail('\'drain\' event must not be emitted before ' +
                 'stream.write() has been called at least once.');
   });

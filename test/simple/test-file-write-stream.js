@@ -37,14 +37,14 @@ var path = require('path'),
     };
 
 file
-  .addListener('open', function(fd) {
+  .on('open', function(fd) {
       callbacks.open++;
       assert.equal('number', typeof fd);
     })
-  .addListener('error', function(err) {
+  .on('error', function(err) {
       throw err;
     })
-  .addListener('drain', function() {
+  .on('drain', function() {
       callbacks.drain++;
       if (callbacks.drain == -1) {
         assert.equal(EXPECTED, fs.readFileSync(fn));
@@ -57,7 +57,7 @@ file
         });
       }
     })
-  .addListener('close', function() {
+  .on('close', function() {
       assert.strictEqual(file.bytesWritten, EXPECTED.length * 2);
 
       callbacks.close++;
@@ -74,7 +74,7 @@ for (var i = 0; i < 11; i++) {
   })(i);
 }
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   for (var k in callbacks) {
     assert.equal(0, callbacks[k], k + ' count off by ' + callbacks[k]);
   }

@@ -80,6 +80,6 @@ fs.open('/dev/zero', 'r', 0666, function(err, fd) {
 
 tryToKillEventLoop();
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(pos > 10000);
 });

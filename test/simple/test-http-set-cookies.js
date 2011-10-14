@@ -39,7 +39,7 @@ var server = http.createServer(function(req, res) {
 });
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   //
   // one set-cookie header
   //
@@ -49,11 +49,11 @@ server.addListener('listening', function() {
     assert.deepEqual(['A'], res.headers['set-cookie']);
     assert.equal('text/plain', res.headers['content-type']);
 
-    res.addListener('data', function(chunk) {
+    res.on('data', function(chunk) {
       console.log(chunk.toString());
     });
 
-    res.addListener('end', function() {
+    res.on('end', function() {
       if (++nresponses == 2) {
         server.close();
       }
@@ -66,11 +66,11 @@ server.addListener('listening', function() {
     assert.deepEqual(['A', 'B'], res.headers['set-cookie']);
     assert.equal('text/plain', res.headers['content-type']);
 
-    res.addListener('data', function(chunk) {
+    res.on('data', function(chunk) {
       console.log(chunk.toString());
     });
 
-    res.addListener('end', function() {
+    res.on('end', function() {
       if (++nresponses == 2) {
         server.close();
       }
@@ -79,6 +79,6 @@ server.addListener('listening', function() {
 
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(2, nresponses);
 });

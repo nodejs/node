@@ -36,7 +36,7 @@ fs.readFile(filename, 'raw', function(err, content) {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   console.log('done');
   assert.equal(true, got_error);
 });

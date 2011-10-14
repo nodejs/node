@@ -31,10 +31,10 @@ var http = require('http');
 var server = http.createServer(function(req, res) {});
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
-  net.createConnection(common.PORT).addListener('connect', function() {
+server.on('listening', function() {
+  net.createConnection(common.PORT).on('connect', function() {
     this.destroy();
-  }).addListener('close', function() {
+  }).on('close', function() {
     server.close();
   });
 });

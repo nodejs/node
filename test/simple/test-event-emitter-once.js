@@ -43,7 +43,7 @@ e.once('foo', remove);
 e.removeListener('foo', remove);
 e.emit('foo');
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, times_hello_emited);
 });
 

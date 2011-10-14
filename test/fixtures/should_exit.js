@@ -20,7 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 function tmp() {}
-process.addListener('SIGINT', tmp);
+process.on('SIGINT', tmp);
 process.removeListener('SIGINT', tmp);
 setInterval(function() {
   process.stdout.write('keep alive\n');

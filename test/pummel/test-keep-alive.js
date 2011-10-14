@@ -83,7 +83,7 @@ server.listen(common.PORT, function() {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(true, normalReqSec > 50);
   assert.equal(true, keepAliveReqSec > 50);
   assert.equal(true, normalReqSec < keepAliveReqSec);

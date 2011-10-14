@@ -52,7 +52,7 @@ var server = http.Server(function(req, res) {
     this.close();
   }
 
-  req.addListener('end', function() {
+  req.on('end', function() {
     res.writeHead(200, {'Content-Type': 'text/plain'});
     res.write('The path was ' + url.parse(req.url).pathname);
     res.end();
@@ -63,7 +63,7 @@ var server = http.Server(function(req, res) {
 });
 server.listen(common.PORT);
 
-server.addListener('listening', function() {
+server.on('listening', function() {
   var agent = new http.Agent({ port: common.PORT, maxSockets: 1 });
   http.get({
     port: common.PORT,
@@ -74,7 +74,7 @@ server.addListener('listening', function() {
     assert.equal(200, res.statusCode);
     responses_recvd += 1;
     res.setEncoding('utf8');
-    res.addListener('data', function(chunk) { body0 += chunk; });
+    res.on('data', function(chunk) { body0 += chunk; });
     common.debug('Got /hello response');
   });
 
@@ -88,14 +88,14 @@ server.addListener('listening', function() {
       assert.equal(200, res.statusCode);
       responses_recvd += 1;
       res.setEncoding('utf8');
-      res.addListener('data', function(chunk) { body1 += chunk; });
+      res.on('data', function(chunk) { body1 += chunk; });
       common.debug('Got /world response');
     });
     req.end();
   }, 1);
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   common.debug('responses_recvd: ' + responses_recvd);
   assert.equal(2, responses_recvd);
 

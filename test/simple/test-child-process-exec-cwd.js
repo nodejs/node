@@ -50,7 +50,7 @@ var child = exec(pwdcommand, {cwd: dir}, function(err, stdout, stderr) {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(1, success_count);
   assert.equal(0, error_count);
 });

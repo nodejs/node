@@ -54,7 +54,7 @@ fs.mkdir(d, 0666, function(err) {
   }
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(false, mkdir_error);
   assert.equal(false, rmdir_error);
   console.log('exit');

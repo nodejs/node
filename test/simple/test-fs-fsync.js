@@ -54,6 +54,6 @@ fs.open(file, 'a', 0777, function(err, fd) {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.equal(4, successes);
 });

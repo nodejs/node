@@ -44,11 +44,11 @@ var server = net.createServer(function(connection) {
   connection.setSecure(credentials);
   connection.setEncoding('binary');
 
-  connection.addListener('secure', function() {
+  connection.on('secure', function() {
     //console.log('Secure');
   });
 
-  connection.addListener('data', function(chunk) {
+  connection.on('data', function(chunk) {
     console.log('recved: ' + JSON.stringify(chunk));
     connection.write('HTTP/1.0 200 OK\r\n' +
                      'Content-type: text/plain\r\n' +
@@ -60,7 +60,7 @@ var server = net.createServer(function(connection) {
     connection.end();
   });
 
-  connection.addListener('end', function() {
+  connection.on('end', function() {
     connection.end();
   });
 

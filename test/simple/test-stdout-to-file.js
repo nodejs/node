@@ -72,6 +72,6 @@ test(1024 * 1024, false, function() {
   });
 });
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.ok(finished);
 });

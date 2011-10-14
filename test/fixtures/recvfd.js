@@ -51,7 +51,7 @@ function processData(s) {
     }
   };
 
-  pipeStream.addListener('drain', drainFunc);
+  pipeStream.on('drain', drainFunc);
   pipeStream.resume();
 
   if (pipeStream.write(JSON.stringify(d) + '\n')) {
@@ -62,11 +62,11 @@ function processData(s) {
 // Create a UNIX socket to the path defined by argv[2] and read a file
 // descriptor and misc data from it.
 var s = new net.Stream();
-s.addListener('fd', function(fd) {
+s.on('fd', function(fd) {
   receivedFDs.unshift(fd);
   processData(s);
 });
-s.addListener('data', function(data) {
+s.on('data', function(data) {
   data.toString('utf8').trim().split('\n').forEach(function(d) {
     receivedData.unshift(JSON.parse(d));
   });

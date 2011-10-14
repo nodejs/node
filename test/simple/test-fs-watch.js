@@ -45,7 +45,7 @@ var testsubdir = path.join(testDir, 'testsubdir');
 var filepathThree = path.join(testsubdir, filenameThree);
 
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   fs.unlinkSync(filepathOne);
   fs.unlinkSync(filepathTwoAbs);
   fs.unlinkSync(filepathThree);

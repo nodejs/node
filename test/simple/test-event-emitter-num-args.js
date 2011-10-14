@@ -41,7 +41,7 @@ e.emit('numArgs', null, null, null);
 e.emit('numArgs', null, null, null, null);
 e.emit('numArgs', null, null, null, null, null);
 
-process.addListener('exit', function() {
+process.on('exit', function() {
   assert.deepEqual([0, 1, 2, 3, 4, 5], num_args_emited);
 });
 
