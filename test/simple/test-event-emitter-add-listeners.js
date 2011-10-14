@@ -28,6 +28,9 @@ var e = new events.EventEmitter();
 var events_new_listener_emited = [];
 var times_hello_emited = 0;
 
+// sanity check
+assert.equal(e.addListener, e.on);
+
 e.on('newListener', function(event, listener) {
   console.log('newListener: ' + event);
   events_new_listener_emited.push(event);
