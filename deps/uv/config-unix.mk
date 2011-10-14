@@ -82,6 +82,15 @@ OBJS += src/unix/netbsd.o
 OBJS += src/unix/kqueue.o
 endif
 
+ifeq (OpenBSD,$(uname_S))
+EV_CONFIG=config_openbsd.h
+EIO_CONFIG=config_openbsd.h
+CPPFLAGS += -Isrc/ares/config_openbsd
+LINKFLAGS+=
+OBJS += src/unix/openbsd.o
+OBJS += src/unix/kqueue.o
+endif
+
 ifneq (,$(findstring CYGWIN,$(uname_S)))
 EV_CONFIG=config_cygwin.h
 EIO_CONFIG=config_cygwin.h

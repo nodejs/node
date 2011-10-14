@@ -326,7 +326,7 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
                                         filename,
                                         utf8size);
             if (utf8size) {
-              filename[utf8size] = L'\0';
+              filename[utf8size] = '\0';
             } else {
               free(filename);
               filename = NULL;

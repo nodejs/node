@@ -4317,9 +4317,9 @@ typedef BOOL (WINAPI* sSetFileCompletionNotificationModes)
              (HANDLE FileHandle,
               UCHAR Flags);
 
-typedef BOOLEAN (WINAPI* sCreateSymbolicLinkA)
-                (LPCSTR lpSymlinkFileName,
-                 LPCSTR lpTargetFileName,
+typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
+                (LPCWSTR lpSymlinkFileName,
+                 LPCWSTR lpTargetFileName,
                  DWORD dwFlags);
 
 
@@ -4332,6 +4332,6 @@ extern sNtSetInformationFile pNtSetInformationFile;
 /* Kernel32 function pointers */
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
-extern sCreateSymbolicLinkA pCreateSymbolicLinkA;
+extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
 
 #endif /* UV_WIN_WINAPI_H_ */

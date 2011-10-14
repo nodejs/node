@@ -236,6 +236,14 @@
             'EIO_CONFIG_H="config_freebsd.h"',
           ],
         }],
+        [ 'OS=="openbsd"', {
+          'include_dirs': [ 'src/ares/config_openbsd' ],
+          'sources': [ 'src/unix/openbsd.c' ],
+          'defines': [
+            'EV_CONFIG_H="config_openbsd.h"',
+            'EIO_CONFIG_H="config_openbsd.h"',
+          ],
+        }],
         [ 'OS=="mac" or OS=="freebsd" or OS=="openbsd" or OS=="netbsd"', {
           'sources': [ 'src/unix/kqueue.c' ],
         }],

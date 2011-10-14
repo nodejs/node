@@ -778,6 +778,8 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
   memset(&req->overlapped, 0, sizeof(req->overlapped));
 
   if (handle->ipc) {
+    ipc_frame.header.flags = 0;
+
     /* Use the IPC framing protocol. */
     if (send_handle) {
       tcp_send_handle = (uv_tcp_t*)send_handle;
@@ -997,6 +999,7 @@ void uv_process_pipe_read_req(uv_loop_t* loop, uv_pipe_t* handle,
           }
 
           assert(bytes == sizeof(ipc_frame.header));
+          assert(ipc_frame.header.flags <= UV_IPC_UV_STREAM | UV_IPC_RAW_DATA);
 
           if (ipc_frame.header.flags & UV_IPC_UV_STREAM) {
             assert(avail - sizeof(ipc_frame.header) >=

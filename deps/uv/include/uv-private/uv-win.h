@@ -345,6 +345,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   HANDLE close_handle;
 
 #define UV_FS_PRIVATE_FIELDS              \
+  wchar_t* pathw;                         \
   int flags;                              \
   int last_error;                         \
   struct _stati64 stat;                   \
