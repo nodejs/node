@@ -67,7 +67,10 @@ class TimerWrap : public HandleWrap {
   TimerWrap(Handle<Object> object)
       : HandleWrap(object, (uv_handle_t*) &handle_) {
     active_ = false;
+
     int r = uv_timer_init(uv_default_loop(), &handle_);
+    assert(r == 0);
+
     handle_.data = this;
 
     // uv_timer_init adds a loop reference. (That is, it calls uv_ref.) This
