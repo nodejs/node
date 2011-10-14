@@ -149,7 +149,7 @@ class QueryWrap {
     object_ = Persistent<Object>::New(Object::New());
   }
 
-  ~QueryWrap() {
+  virtual ~QueryWrap() {
     assert(!object_.IsEmpty());
 
     object_->Delete(oncomplete_sym);
