@@ -32,7 +32,8 @@ var result = script.runInContext(context);
 assert.equal('passed', result);
 
 common.debug('create a new pre-populated context');
-context = script.createContext({'foo': 'bar', 'thing': 'lala'});
+var sandbox = {'foo': 'bar', 'thing': 'lala'};
+context = script.createContext(sandbox);
 assert.equal('bar', context.foo);
 assert.equal('lala', context.thing);
 
@@ -42,6 +43,12 @@ result = script.runInContext(context);
 assert.equal(3, context.foo);
 assert.equal('lala', context.thing);
 
+// Issue GH-1801
+common.debug('test dynamic modification');
+context.fun = function(){ context.widget = 42 };
+script = new Script('fun(); widget');
+result = script.runInContext(context);
+assert.equal(42, result);
 
 // Issue GH-227:
 Script.runInNewContext('', null, 'some.js');

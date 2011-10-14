@@ -364,12 +364,25 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
   // New and user context share code. DRY it up.
   if (context_flag == userContext || context_flag == newContext) {
-    // Enter the context
-    context->Enter();
+    // First, we grab the "global proxy" (see v8's documentation for an
+    // explanation of this) by calling `Context::Global()` *before* we call
+    // `Context::DetachGlobal()`, which will then give us access to the *actual*
+    // global object.
 
-    // Copy everything from the passed in sandbox (either the persistent
-    // context for runInContext(), or the sandbox arg to runInNewContext()).
-    CloneObject(args.This(), sandbox, context->Global()->GetPrototype());
+    // We have to set the prototype of the *actual* global object, because the
+    // prototype of v8's 'global proxy' is the global object itself, and v8
+    // blows up in approximately twenty different ways if you mess with that
+    // relationship.
+
+    // Once we have the `global_proxy` reference, we utilize that to
+    // `ReattachGlobal()` before entering the context.
+    Handle<Object> global_proxy = context->Global();
+
+    context->DetachGlobal();
+    context->Global()->SetPrototype(sandbox);
+    context->ReattachGlobal(global_proxy);
+
+    context->Enter();
   }
 
   // Catch errors
@@ -409,7 +422,6 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
     result = script->Run();
     if (result.IsEmpty()) {
       if (context_flag == newContext) {
-        context->DetachGlobal();
         context->Exit();
         context.Dispose();
       }
@@ -432,7 +444,6 @@ Handle<Value> WrappedScript::EvalMachine(const Arguments& args) {
 
   if (context_flag == newContext) {
     // Clean up, clean up, everybody everywhere!
-    context->DetachGlobal();
     context->Exit();
     context.Dispose();
   } else if (context_flag == userContext) {

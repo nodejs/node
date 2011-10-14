@@ -66,11 +66,11 @@ code = 'foo = 1;' +
        'bar = 2;' +
        'if (baz !== 3) throw new Error(\'test fail\');';
 foo = 2;
-obj = { foo: 0, baz: 3 };
+sandbox = { foo: 0, baz: 3 };
 script = new Script(code);
-var baz = script.runInNewContext(obj);
-assert.equal(1, obj.foo);
-assert.equal(2, obj.bar);
+var baz = script.runInNewContext(sandbox);
+assert.equal(1, sandbox.foo);
+assert.equal(2, sandbox.bar);
 assert.equal(2, foo);
 
 common.debug('call a function by reference');
@@ -84,6 +84,29 @@ script = new Script('f.a = 2');
 var f = { a: 1 };
 script.runInNewContext({ f: f });
 assert.equal(f.a, 2);
+
+// Issue GH-1801
+common.debug('test dynamic modification');
+sandbox.fun = function(){ sandbox.widget = 42 };
+script = new Script('fun(); widget');
+result = script.runInNewContext(sandbox);
+assert.equal(42, result);
+
+// Issue GH-1801
+common.debug('indirectly modify an object');
+var sandbox = { proxy: {}, common: common, process: process };
+sandbox.finish = function(){
+   process.nextTick(function(){
+      common.debug('(FINISH)');
+      assert.equal(42, sandbox.proxy.widget)
+   })
+};
+script = new Script("  process.nextTick(function(){ " +
+                    "    common.debug('(TICK)');    " +
+                    "    proxy.widget = 42;         " +
+                    "  });                          " +
+                    "  finish()                     ");
+script.runInNewContext(sandbox);
 
 common.debug('invalid this');
 assert.throws(function() {
