@@ -27,7 +27,75 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 `test/fixtures/keys/Makefile` in the Node source code)
 
 
-### s = tls.connect(port, [host], [options], secureConnectListener)
+#### tls.createServer(options, secureConnectionListener)
+
+Creates a new [tls.Server](#tls.Server).
+The `connectionListener` argument is automatically set as a listener for the
+[secureConnection](#event_secureConnection_) event.
+The `options` object has these possibilities:
+
+  - `key`: A string or `Buffer` containing the private key of the server in
+    PEM format. (Required)
+
+  - `cert`: A string or `Buffer` containing the certificate key of the server in
+    PEM format. (Required)
+
+  - `ca`: An array of strings or `Buffer`s of trusted certificates. If this is
+    omitted several well known "root" CAs will be used, like VeriSign.
+    These are used to authorize connections.
+
+  - `requestCert`: If `true` the server will request a certificate from
+    clients that connect and attempt to verify that certificate. Default:
+    `false`.
+
+  - `rejectUnauthorized`: If `true` the server will reject any connection
+    which is not authorized with the list of supplied CAs. This option only
+    has an effect if `requestCert` is `true`. Default: `false`.
+
+  - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
+    should be ordered by their priority).
+
+  - `SNICallback`: A function that will be called if client supports SNI TLS
+    extension. Only one argument will be passed to it: `servername`. And
+    `SNICallback` should return SecureContext instance.
+    (You can use `crypto.createCredentials(...).context` to get proper
+    SecureContext). If `SNICallback` wasn't provided - default callback with
+    high-level API will be used (see below).
+
+  - `sessionIdContext`: A string containing a opaque identifier for session
+    resumption. If `requestCert` is `true`, the default is MD5 hash value
+    generated from command-line. Otherwise, the default is not provided.
+
+Here is a simple example echo server:
+
+    var tls = require('tls');
+    var fs = require('fs');
+
+    var options = {
+      key: fs.readFileSync('server-key.pem'),
+      cert: fs.readFileSync('server-cert.pem'),
+      requestCert: true,
+      ca: [ fs.readFileSync('client-cert.pem') ]
+    };
+
+    var server = tls.createServer(options, function (s) {
+      console.log('server connected',
+                  s.authorized ? 'authorized' : 'not authorized');
+      s.write("welcome!\n");
+      s.pipe(s);
+    });
+    server.listen(8000, function() {
+      console.log('server bound');
+    });
+
+
+You can test this server by connecting to it with `openssl s_client`:
+
+
+    openssl s_client -connect 127.0.0.1:8000
+
+
+#### tls.connect(port, [host], [options], secureConnectListener)
 
 Creates a new client connection to the given `port` and `host`. (If `host`
 defaults to `localhost`.) `options` should be an object which specifies
@@ -53,6 +121,26 @@ The `secureConnectListener` parameter will be added as a listener for the
 ['secureConnect'](#event_secureConnect_) event.
 
 `tls.connect()` returns a [CleartextStream](#tls.CleartextStream) object.
+
+Here is an example of a client of echo server as described previously:
+
+    var tls = require('tls');
+    var fs = require('fs');
+
+    var options = {
+      key: fs.readFileSync('client-key.pem'),
+      cert: fs.readFileSync('client-cert.pem'),
+      ca: [ fs.readFileSync('server-cert.pem') ]
+    };
+
+    var client = tls.connect(8000, options, function() {
+      console.log('client connected',
+                  client.authorized ? 'authorized' : 'not authorized');
+      client.write("Hello, World!\n");
+    });
+    client.on('data', function(data) {
+      console.log(data.toString());
+    });
 
 
 ### STARTTLS
@@ -111,65 +199,6 @@ used properly authorized.
 This class is a subclass of `net.Server` and has the same methods on it.
 Instead of accepting just raw TCP connections, this accepts encrypted
 connections using TLS or SSL.
-
-Here is a simple example echo server:
-
-    var tls = require('tls');
-    var fs = require('fs');
-
-    var options = {
-      key: fs.readFileSync('server-key.pem'),
-      cert: fs.readFileSync('server-cert.pem')
-    };
-
-    tls.createServer(options, function (s) {
-      s.write("welcome!\n");
-      s.pipe(s);
-    }).listen(8000);
-
-
-You can test this server by connecting to it with `openssl s_client`:
-
-
-    openssl s_client -connect 127.0.0.1:8000
-
-
-#### tls.createServer(options, secureConnectionListener)
-
-This is a constructor for the `tls.Server` class. The options object
-has these possibilities:
-
-  - `key`: A string or `Buffer` containing the private key of the server in
-    PEM format. (Required)
-
-  - `cert`: A string or `Buffer` containing the certificate key of the server in
-    PEM format. (Required)
-
-  - `ca`: An array of strings or `Buffer`s of trusted certificates. If this is
-    omitted several well known "root" CAs will be used, like VeriSign.
-    These are used to authorize connections.
-
-  - `requestCert`: If `true` the server will request a certificate from
-    clients that connect and attempt to verify that certificate. Default:
-    `false`.
-
-  - `rejectUnauthorized`: If `true` the server will reject any connection
-    which is not authorized with the list of supplied CAs. This option only
-    has an effect if `requestCert` is `true`. Default: `false`.
-
-  - `NPNProtocols`: An array or `Buffer` of possible NPN protocols. (Protocols
-    should be ordered by their priority).
-
-  - `SNICallback`: A function that will be called if client supports SNI TLS
-    extension. Only one argument will be passed to it: `servername`. And
-    `SNICallback` should return SecureContext instance.
-    (You can use `crypto.createCredentials(...).context` to get proper
-    SecureContext). If `SNICallback` wasn't provided - default callback with
-    high-level API will be used (see below).
-
-  - `sessionIdContext`: A string containing a opaque identifier for session
-    resumption. If `requestCert` is `true`, the default is MD5 hash value
-    generated from command-line. Otherwise, the default is not provided.
 
 #### Event: 'secureConnection'
 
