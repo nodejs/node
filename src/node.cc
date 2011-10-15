@@ -58,12 +58,6 @@ typedef int mode_t;
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
 # include <platform_win32.h> /* winapi_perror() */
-# ifdef PTW32_STATIC_LIB
-extern "C" {
-  BOOL __cdecl pthread_win32_process_attach_np (void);
-  BOOL __cdecl pthread_win32_process_detach_np (void);
-}
-# endif
 #endif
 
 #ifdef __POSIX__
@@ -2539,11 +2533,6 @@ void EmitExit(v8::Handle<v8::Object> process) {
 
 
 int Start(int argc, char *argv[]) {
-
-#if (defined(__MINGW32__) || defined(_MSC_VER)) && defined(PTW32_STATIC_LIB)
-  pthread_win32_process_attach_np();
-#endif
-
   // This needs to run *before* V8::Initialize()
   argv = Init(argc, argv);
 
@@ -2575,10 +2564,6 @@ int Start(int argc, char *argv[]) {
   context.Dispose();
   V8::Dispose();
 #endif  // NDEBUG
-
-#if (defined(__MINGW32__) || defined(_MSC_VER)) && defined(PTW32_STATIC_LIB)
-  pthread_win32_process_detach_np();
-#endif
 
   return 0;
 }
