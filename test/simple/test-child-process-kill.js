@@ -27,12 +27,14 @@ var assert = require('assert');
 
 var spawn = require('child_process').spawn;
 
+var is_windows = process.platform === 'win32';
+
 var exitCode;
 var termSignal;
 var gotStdoutEOF = false;
 var gotStderrEOF = false;
 
-var cat = spawn('cat');
+var cat = spawn(is_windows ? 'cmd' : 'cat');
 
 
 cat.stdout.on('data', function(chunk) {

@@ -23,8 +23,9 @@ var common = require('../common');
 var assert = require('assert');
 
 var spawn = require('child_process').spawn;
+var is_windows = process.platform === 'win32';
 
-var cat = spawn('cat');
+var cat = spawn(is_windows ? 'more' : 'cat');
 cat.stdin.write('hello');
 cat.stdin.write(' ');
 cat.stdin.write('world');
@@ -65,10 +66,18 @@ cat.stderr.on('end', function(chunk) {
 cat.on('exit', function(status) {
   console.log('exit event');
   exitStatus = status;
-  assert.equal('hello world', response);
+  if (is_windows) {
+    assert.equal('hello world\r\n', response);
+  } else {
+    assert.equal('hello world', response);
+  }
 });
 
 process.on('exit', function() {
   assert.equal(0, exitStatus);
-  assert.equal('hello world', response);
+  if (is_windows) {
+    assert.equal('hello world\r\n', response);
+  } else {
+    assert.equal('hello world', response);
+  }
 });
