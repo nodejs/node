@@ -56,7 +56,7 @@ var parseTests = {
     'protocol': 'http:',
     'slashes': true,
     'auth': 'user:pw',
-    'host': 'user:pw@www.example.com',
+    'host': 'www.example.com',
     'hostname': 'www.example.com',
     'pathname': '/',
     'path': '/'
@@ -66,7 +66,7 @@ var parseTests = {
     'protocol': 'http:',
     'slashes': true,
     'auth': 'USER:PW',
-    'host': 'USER:PW@www.example.com',
+    'host': 'www.example.com',
     'hostname': 'www.example.com',
     'pathname': '/',
     'path': '/'
@@ -184,7 +184,7 @@ var parseTests = {
             '&hl=en&src=api&x=2&y=2&z=3&s=',
         'protocol': 'http:',
         'slashes': true,
-        'host': 'user:pass@mt0.google.com',
+        'host': 'mt0.google.com',
         'auth': 'user:pass',
         'hostname': 'mt0.google.com',
         'search': '???&hl=en&src=api&x=2&y=2&z=3&s=',
@@ -256,7 +256,7 @@ var parseTests = {
     'href': 'http://user:pass@example.com:8000/foo/bar?baz=quux#frag',
     'protocol': 'http:',
     'slashes': true,
-    'host': 'user:pass@example.com:8000',
+    'host': 'example.com:8000',
     'auth': 'user:pass',
     'port': '8000',
     'hostname': 'example.com',
@@ -269,7 +269,7 @@ var parseTests = {
   '//user:pass@example.com:8000/foo/bar?baz=quux#frag' : {
     'href': '//user:pass@example.com:8000/foo/bar?baz=quux#frag',
     'slashes': true,
-    'host': 'user:pass@example.com:8000',
+    'host': 'example.com:8000',
     'auth': 'user:pass',
     'port': '8000',
     'hostname': 'example.com',
@@ -299,7 +299,7 @@ var parseTests = {
   'mailto:foo@bar.com?subject=hello' : {
     'href': 'mailto:foo@bar.com?subject=hello',
     'protocol': 'mailto:',
-    'host': 'foo@bar.com',
+    'host': 'bar.com',
     'auth' : 'foo',
     'hostname' : 'bar.com',
     'search': '?subject=hello',
@@ -315,7 +315,7 @@ var parseTests = {
   'xmpp:isaacschlueter@jabber.org' : {
     'href': 'xmpp:isaacschlueter@jabber.org',
     'protocol': 'xmpp:',
-    'host': 'isaacschlueter@jabber.org',
+    'host': 'jabber.org',
     'auth': 'isaacschlueter',
     'hostname': 'jabber.org'
   },
@@ -323,7 +323,7 @@ var parseTests = {
     'href' : 'http://atpass:foo%40bar@127.0.0.1:8080/path?search=foo#bar',
     'protocol' : 'http:',
     'slashes': true,
-    'host' : 'atpass:foo%40bar@127.0.0.1:8080',
+    'host' : '127.0.0.1:8080',
     'auth' : 'atpass:foo%40bar',
     'hostname' : '127.0.0.1',
     'port' : '8080',
@@ -557,7 +557,7 @@ var formatTests = {
   'xmpp:isaacschlueter@jabber.org' : {
     'href': 'xmpp:isaacschlueter@jabber.org',
     'protocol': 'xmpp:',
-    'host': 'isaacschlueter@jabber.org',
+    'host': 'jabber.org',
     'auth': 'isaacschlueter',
     'hostname': 'jabber.org'
   },
