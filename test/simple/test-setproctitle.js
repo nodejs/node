@@ -39,6 +39,6 @@ assert.equal(process.title, title);
 exec('ps -p ' + process.pid + ' -o args=', function(error, stdout, stderr) {
   assert.equal(error, null);
   assert.equal(stderr, '');
-  // omitting trailing \n
-  assert.equal(stdout.substring(0, stdout.length - 1), title);
+  // omitting trailing whitespace and \n
+  assert.equal(stdout.replace(/\s+$/, ''), title);
 });
