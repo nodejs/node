@@ -27,7 +27,7 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 `test/fixtures/keys/Makefile` in the Node source code)
 
 
-### s = tls.connect(port, [host], [options], callback)
+### s = tls.connect(port, [host], [options], secureConnectListener)
 
 Creates a new client connection to the given `port` and `host`. (If `host`
 defaults to `localhost`.) `options` should be an object which specifies
@@ -49,14 +49,10 @@ defaults to `localhost`.) `options` should be an object which specifies
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
-`tls.connect()` returns a [CleartextStream](#tls.CleartextStream) object.
+The `secureConnectListener` parameter will be added as a listener for the
+['secureConnect'](#event_secureConnect_) event.
 
-After the TLS/SSL handshake the `callback` is called. The `callback` will be
-called no matter if the server's certificate was authorized or not. It is up
-to the user to test `s.authorized` to see if the server certificate was signed
-by one of the specified CAs. If `s.authorized === false` then the error
-can be found in `s.authorizationError`. Also if NPN was used - you can check
-`s.npnProtocol` for negotiated protocol.
+`tls.connect()` returns a [CleartextStream](#tls.CleartextStream) object.
 
 
 ### STARTTLS
@@ -237,6 +233,18 @@ read/write an encrypted data as a cleartext data.
 This instance implements a duplex [Stream](streams.html#streams) interfaces.
 It has all the common stream methods and events.
 
+#### Event: 'secureConnect'
+
+`function () {}`
+
+This event is emitted after a new connection has been successfully handshaked. 
+The listener will be called no matter if the server's certificate was
+authorized or not. It is up to the user to test `cleartextStream.authorized`
+to see if the server certificate was signed by one of the specified CAs.
+If `cleartextStream.authorized === false` then the error can be found in
+`cleartextStream.authorizationError`. Also if NPN was used - you can check
+`cleartextStream.npnProtocol` for negotiated protocol.
+
 #### cleartextStream.authorized
 
 A boolean that is `true` if the peer certificate was signed by one of the
@@ -274,4 +282,3 @@ Example:
 
 If the peer does not provide a certificate, it returns `null` or an empty
 object.
-
