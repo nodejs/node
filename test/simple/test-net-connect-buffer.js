@@ -24,7 +24,7 @@ var assert = require('assert');
 var net = require('net');
 
 var tcpPort = common.PORT;
-var fooWritten = false;
+var dataWritten = false;
 var connectHappened = false;
 
 var tcp = net.Server(function(s) {
@@ -38,7 +38,7 @@ var tcp = net.Server(function(s) {
   });
 
   s.on('end', function() {
-    assert.equal('foobar', buf);
+    assert.equal(buf, "L'État, c'est moi");
     console.log('tcp socket disconnect');
     s.end();
   });
@@ -63,19 +63,29 @@ tcp.listen(common.PORT, function() {
 
   assert.equal('opening', socket.readyState);
 
-  var r = socket.write('foo', function() {
-    fooWritten = true;
+  // Write a string that contains a multi-byte character sequence to test that
+  // `bytesWritten` is incremented with the # of bytes, not # of characters.
+  var a = "L'État, c'est ";
+  var b = "moi";
+
+  // We're still connecting at this point so the datagram is first pushed onto
+  // the connect queue. Make sure that it's not added to `bytesWritten` again
+  // when the actual write happens.
+  var r = socket.write(a, function() {
+    dataWritten = true;
     assert.ok(connectHappened);
-    console.error('foo written');
+    assert.equal(socket.bytesWritten, Buffer(a + b).length);
+    console.error('data written');
   });
+  assert.equal(socket.bytesWritten, Buffer(a).length);
 
   assert.equal(false, r);
-  socket.end('bar');
+  socket.end(b);
 
   assert.equal('opening', socket.readyState);
 });
 
 process.on('exit', function() {
   assert.ok(connectHappened);
-  assert.ok(fooWritten);
+  assert.ok(dataWritten);
 });
