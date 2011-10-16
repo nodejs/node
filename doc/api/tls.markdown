@@ -74,15 +74,20 @@ Here is a simple example echo server:
     var options = {
       key: fs.readFileSync('server-key.pem'),
       cert: fs.readFileSync('server-cert.pem'),
+
+      // This is necessary only if using the client certificate authentication.
       requestCert: true,
+
+      // This is necessary only if the client uses the self-signed certificate.
       ca: [ fs.readFileSync('client-cert.pem') ]
     };
 
-    var server = tls.createServer(options, function (s) {
+    var server = tls.createServer(options, function(cleartextStream) {
       console.log('server connected',
-                  s.authorized ? 'authorized' : 'not authorized');
-      s.write("welcome!\n");
-      s.pipe(s);
+                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
+      cleartextStream.write("welcome!\n");
+      cleartextStream.setEncoding('utf8');
+      cleartextStream.pipe(cleartextStream);
     });
     server.listen(8000, function() {
       console.log('server bound');
@@ -100,10 +105,10 @@ You can test this server by connecting to it with `openssl s_client`:
 Creates a new client connection to the given `port` and `host`. (If `host`
 defaults to `localhost`.) `options` should be an object which specifies
 
-  - `key`: A string or `Buffer` containing the private key of the server in
+  - `key`: A string or `Buffer` containing the private key of the client in
     PEM format. (Required)
 
-  - `cert`: A string or `Buffer` containing the certificate key of the server in
+  - `cert`: A string or `Buffer` containing the certificate key of the client in
     PEM format.
 
   - `ca`: An array of strings or `Buffer`s of trusted certificates. If this is
@@ -111,9 +116,9 @@ defaults to `localhost`.) `options` should be an object which specifies
     These are used to authorize connections.
 
   - `NPNProtocols`: An array of string or `Buffer` containing supported NPN
-    protocols. `Buffer` should have following format: `0x05hello0x05world`, where
-    first byte is next protocol name's length. (Passing array should usually be
-    much simplier: `['hello', 'world']`.)
+    protocols. `Buffer` should have following format: `0x05hello0x05world`,
+    where first byte is next protocol name's length. (Passing array should
+    usually be much simplier: `['hello', 'world']`.)
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
@@ -128,18 +133,26 @@ Here is an example of a client of echo server as described previously:
     var fs = require('fs');
 
     var options = {
+      // These are necessary only if using the client certificate authentication
       key: fs.readFileSync('client-key.pem'),
       cert: fs.readFileSync('client-cert.pem'),
+    
+      // This is necessary only if the server uses the self-signed certificate
       ca: [ fs.readFileSync('server-cert.pem') ]
     };
 
-    var client = tls.connect(8000, options, function() {
+    var cleartextStream = tls.connect(8000, options, function() {
       console.log('client connected',
-                  client.authorized ? 'authorized' : 'not authorized');
-      client.write("Hello, World!\n");
+                  cleartextStream.authorized ? 'authorized' : 'unauthorized');
+      process.stdin.pipe(cleartextStream);
+      process.stdin.resume();
     });
-    client.on('data', function(data) {
-      console.log(data.toString());
+    cleartextStream.setEncoding('utf8');
+    cleartextStream.on('data', function(data) {
+      console.log(data);
+    });
+    cleartextStream.on('end', function() {
+      server.close();
     });
 
 
