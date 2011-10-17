@@ -493,18 +493,11 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   int written = s->WriteUtf8(p,
                              max_length,
                              &char_written,
-                             String::HINT_MANY_WRITES_EXPECTED);
+                             (String::HINT_MANY_WRITES_EXPECTED |
+                              String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(char_written));
-
-  if (written > 0 && p[written-1] == '\0' && char_written == length) {
-    uint16_t last_char;
-    s->Write(&last_char, length - 1, 1, String::NO_OPTIONS);
-    if (last_char != 0 || written > s->Utf8Length()) {
-      written--;
-    }
-  }
 
   return scope.Close(Integer::New(written));
 }
@@ -538,7 +531,8 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
   int written = s->Write(p,
                          0,
                          max_length,
-                         String::HINT_MANY_WRITES_EXPECTED);
+                         (String::HINT_MANY_WRITES_EXPECTED |
+                          String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(written));
@@ -576,7 +570,8 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
   int written = s->WriteAscii(p,
                               0,
                               max_length,
-                              String::HINT_MANY_WRITES_EXPECTED);
+                              (String::HINT_MANY_WRITES_EXPECTED |
+                               String::NO_NULL_TERMINATION));
 
   constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(written));
