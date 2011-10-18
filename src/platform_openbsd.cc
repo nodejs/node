@@ -66,7 +66,7 @@ const char* Platform::GetProcessTitle(int *len) {
   return NULL;
 }
 
-int Platform::GetMemory(size_t *rss, size_t *vsize) {
+int Platform::GetMemory(size_t *rss) {
   kvm_t *kd = NULL;
   struct kinfo_proc2 *kinfo = NULL;
   pid_t pid;
@@ -82,7 +82,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
   if (kinfo == NULL) goto error;
 
   *rss = kinfo->p_vm_rssize * page_size;
-  *vsize = kinfo->p_uru_ixrss;
 
   kvm_close(kd);
 

@@ -106,7 +106,6 @@ static Persistent<String> errpath_symbol;
 static Persistent<String> code_symbol;
 
 static Persistent<String> rss_symbol;
-static Persistent<String> vsize_symbol;
 static Persistent<String> heap_total_symbol;
 static Persistent<String> heap_used_symbol;
 
@@ -1582,9 +1581,9 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
   HandleScope scope;
   assert(args.Length() == 0);
 
-  size_t rss, vsize;
+  size_t rss;
 
-  int r = Platform::GetMemory(&rss, &vsize);
+  int r = Platform::GetMemory(&rss);
 
   if (r != 0) {
     return ThrowException(Exception::Error(String::New(strerror(errno))));
@@ -1594,13 +1593,11 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 
   if (rss_symbol.IsEmpty()) {
     rss_symbol = NODE_PSYMBOL("rss");
-    vsize_symbol = NODE_PSYMBOL("vsize");
     heap_total_symbol = NODE_PSYMBOL("heapTotal");
     heap_used_symbol = NODE_PSYMBOL("heapUsed");
   }
 
   info->Set(rss_symbol, Integer::NewFromUnsigned(rss));
-  info->Set(vsize_symbol, Integer::NewFromUnsigned(vsize));
 
   // V8 memory usage
   HeapStatistics v8_heap_stats;

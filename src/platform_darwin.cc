@@ -71,7 +71,7 @@ const char* Platform::GetProcessTitle(int *len) {
 
 // Researched by Tim Becker and Michael Knight
 // http://blog.kuriositaet.de/?p=257
-int Platform::GetMemory(size_t *rss, size_t *vsize) {
+int Platform::GetMemory(size_t *rss) {
   struct task_basic_info t_info;
   mach_msg_type_number_t t_info_count = TASK_BASIC_INFO_COUNT;
 
@@ -83,7 +83,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
   if (r != KERN_SUCCESS) return -1;
 
   *rss = t_info.resident_size;
-  *vsize  = t_info.virtual_size;
 
   return 0;
 }

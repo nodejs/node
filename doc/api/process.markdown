@@ -312,7 +312,6 @@ measured in bytes.
 This will generate:
 
     { rss: 4935680,
-      vsize: 41893888,
       heapTotal: 1826816,
       heapUsed: 650472 }
 

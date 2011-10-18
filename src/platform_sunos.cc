@@ -79,7 +79,7 @@ const char* Platform::GetProcessTitle(int *len) {
 }
 
 
-int Platform::GetMemory(size_t *rss, size_t *vsize) {
+int Platform::GetMemory(size_t *rss) {
   pid_t pid = getpid();
 
   size_t page_size = getpagesize();
@@ -97,7 +97,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
 
   /* XXX correct? */
 
-  *vsize = (size_t) psinfo.pr_size * page_size;
   *rss = (size_t) psinfo.pr_rssize * 1024;
 
   fclose (f);

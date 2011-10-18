@@ -198,7 +198,7 @@ const char* Platform::GetProcessTitle(int *len) {
 }
 
 
-int Platform::GetMemory(size_t *rss, size_t *vsize) {
+int Platform::GetMemory(size_t *rss) {
 
   HANDLE current_process = GetCurrentProcess();
   PROCESS_MEMORY_COUNTERS pmc;
@@ -209,7 +209,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
   }
 
   *rss = pmc.WorkingSetSize;
-  *vsize = 0; // FIXME
 
   return 0;
 }

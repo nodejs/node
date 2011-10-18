@@ -167,7 +167,7 @@ const char* Platform::GetProcessTitle(int *len) {
 }
 
 
-int Platform::GetMemory(size_t *rss, size_t *vsize) {
+int Platform::GetMemory(size_t *rss) {
   FILE *f = fopen("/proc/self/stat", "r");
   if (!f) return -1;
 
@@ -222,7 +222,6 @@ int Platform::GetMemory(size_t *rss, size_t *vsize) {
 
   /* Virtual memory size */
   if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  *vsize = (size_t) itmp;
 
   /* Resident set size */
   if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */

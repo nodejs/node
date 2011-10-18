@@ -32,7 +32,7 @@ class Platform {
   static void SetProcessTitle(char *title);
   static const char* GetProcessTitle(int *len);
 
-  static int GetMemory(size_t *rss, size_t *vsize);
+  static int GetMemory(size_t *rss);
   static int GetCPUInfo(v8::Local<v8::Array> *cpus);
   static double GetUptime(bool adjusted = false)
   {
