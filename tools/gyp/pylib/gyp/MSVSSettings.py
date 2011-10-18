@@ -966,6 +966,7 @@ _Same(_lib, 'ModuleDefinitionFile', _file_name)  # /DEF
 _Same(_lib, 'OutputFile', _file_name)  # /OUT
 _Same(_lib, 'SuppressStartupBanner', _boolean)  # /NOLOGO
 _Same(_lib, 'UseUnicodeResponseFiles', _boolean)
+_Same(_lib, 'LinkTimeCodeGeneration', _boolean)  # /LTCG
 
 # TODO(jeanluc) _link defines the same value that gets moved to
 # ProjectReference.  We may want to validate that they are consistent.
@@ -980,7 +981,6 @@ _MSBuildOnly(_lib, 'ErrorReporting',
                                    'QueueForNextLogin',  # /ERRORREPORT:QUEUE
                                    'SendErrorReport',  # /ERRORREPORT:SEND
                                    'NoErrorReport']))  # /ERRORREPORT:NONE
-_MSBuildOnly(_lib, 'LinkTimeCodeGeneration', _boolean)  # /LTCG
 _MSBuildOnly(_lib, 'MinimumRequiredVersion', _string)
 _MSBuildOnly(_lib, 'Name', _file_name)  # /NAME
 _MSBuildOnly(_lib, 'RemoveObjects', _file_list)  # /REMOVE

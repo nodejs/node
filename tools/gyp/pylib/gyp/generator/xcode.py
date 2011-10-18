@@ -53,6 +53,7 @@ generator_default_variables = {
   'RULE_INPUT_EXT': '$(INPUT_FILE_SUFFIX)',
   'RULE_INPUT_NAME': '$(INPUT_FILE_NAME)',
   'RULE_INPUT_PATH': '$(INPUT_FILE_PATH)',
+  'RULE_INPUT_DIRNAME': '$(INPUT_FILE_DIRNAME)',
   'SHARED_INTERMEDIATE_DIR': '$(%s)' % _shared_intermediate_var,
   'CONFIGURATION_NAME': '$(CONFIGURATION)',
 }
@@ -865,7 +866,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
       actions = []
 
       for rule_source in rule.get('rule_sources', []):
-        rule_source_basename = posixpath.basename(rule_source)
+        rule_source_dirname, rule_source_basename = \
+            posixpath.split(rule_source)
         (rule_source_root, rule_source_ext) = \
             posixpath.splitext(rule_source_basename)
 
@@ -877,6 +879,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
           'INPUT_FILE_SUFFIX': rule_source_ext,
           'INPUT_FILE_NAME':   rule_source_basename,
           'INPUT_FILE_PATH':   rule_source,
+          'INPUT_FILE_DIRNAME': rule_source_dirname,
         }
 
         concrete_outputs_for_this_rule_source = []

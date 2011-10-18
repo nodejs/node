@@ -58,6 +58,7 @@ generator_default_variables = {
     # TODO(jeanluc)  I had:  'LIB_DIR': '$(OutDir)lib',
     'LIB_DIR': '$(OutDir)/lib',
     'RULE_INPUT_ROOT': '$(InputName)',
+    'RULE_INPUT_DIRNAME': '$(InputDir)',
     'RULE_INPUT_EXT': '$(InputExt)',
     'RULE_INPUT_NAME': '$(InputFileName)',
     'RULE_INPUT_PATH': '$(InputPath)',
@@ -254,6 +255,16 @@ def _ConfigFullName(config_name, config_data):
 
 def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
                                 quote_cmd):
+
+  if [x for x in cmd if '$(InputDir)' in x]:
+    input_dir_preamble = (
+      'set INPUTDIR=$(InputDir)\n'
+      'set INPUTDIR=%INPUTDIR:$(ProjectDir)=%\n'
+      'set INPUTDIR=%INPUTDIR:~0,-1%\n'
+      )
+  else:
+    input_dir_preamble = ''
+
   if cygwin_shell:
     # Find path to cygwin.
     cygwin_dir = _FixPath(spec.get('msvs_cygwin_dirs', ['.'])[0])
@@ -263,6 +274,8 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
                             '`cygpath -m "${INTDIR}"`') for i in direct_cmd]
     direct_cmd = [i.replace('$(OutDir)',
                             '`cygpath -m "${OUTDIR}"`') for i in direct_cmd]
+    direct_cmd = [i.replace('$(InputDir)',
+                            '`cygpath -m "${INPUTDIR}"`') for i in direct_cmd]
     if has_input_path:
       direct_cmd = [i.replace('$(InputPath)',
                               '`cygpath -m "${INPUTPATH}"`')
@@ -286,7 +299,7 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
     cmd += 'bash -c "%(cmd)s"'
     cmd = cmd % {'cygwin_dir': cygwin_dir,
                  'cmd': direct_cmd}
-    return cmd
+    return input_dir_preamble + cmd
   else:
     # Convert cat --> type to mimic unix.
     if cmd[0] == 'cat':
@@ -296,13 +309,14 @@ def _BuildCommandLineForRuleRaw(spec, cmd, cygwin_shell, has_input_path,
     # Fix the paths
     # If the argument starts with a slash, it's probably a command line switch
     arguments = [i.startswith('/') and i or _FixPath(i) for i in cmd[1:]]
+    arguments = [i.replace('$(InputDir)','%INPUTDIR%') for i in arguments]
     if quote_cmd:
       # Support a mode for using cmd directly.
       # Convert any paths to native form (first element is used directly).
       # TODO(quote):  regularize quoting path names throughout the module
       arguments = ['"%s"' % i for i in arguments]
     # Collapse into a single command.
-    return ' '.join(command + arguments)
+    return input_dir_preamble + ' '.join(command + arguments)
 
 
 def _BuildCommandLineForRule(spec, rule, has_input_path):
@@ -427,6 +441,7 @@ def _RuleExpandPath(path, input_file):
   """
   path = path.replace('$(InputName)',
                       os.path.splitext(os.path.split(input_file)[1])[0])
+  path = path.replace('$(InputDir)', os.path.dirname(input_file))
   path = path.replace('$(InputExt)',
                       os.path.splitext(os.path.split(input_file)[1])[1])
   path = path.replace('$(InputFileName)', os.path.split(input_file)[1])
@@ -547,7 +562,8 @@ def _GenerateExternalRules(rules, output_dir, spec,
   # Write out all: target, including mkdir for each output directory.
   mk_file.write('all: %s\n' % ' '.join(first_outputs_cyg))
   for od in all_output_dirs:
-    mk_file.write('\tmkdir -p `cygpath -u "%s"`\n' % od)
+    if od:
+      mk_file.write('\tmkdir -p `cygpath -u "%s"`\n' % od)
   mk_file.write('\n')
   # Define how each output is generated.
   for rule in rules:
@@ -855,30 +871,29 @@ def _GenerateMSVSProject(project, options, version):
                          project.guid, platforms)
 
   # Get directory project file is in.
-  gyp_dir = os.path.split(project.path)[0]
-  gyp_file = posixpath.split(project.build_file)[1]
-  gyp_path = _NormalizedSource(gyp_file)
-  relative_path_of_gyp_file = gyp.common.RelativePath(gyp_path, gyp_dir)
+  project_dir = os.path.split(project.path)[0]
+  gyp_path = _NormalizedSource(project.build_file)
+  relative_path_of_gyp_file = gyp.common.RelativePath(gyp_path, project_dir)
 
   config_type = _GetMSVSConfigurationType(spec, project.build_file)
   for config_name, config in spec['configurations'].iteritems():
     _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config)
 
   # Prepare list of sources and excluded sources.
-  sources, excluded_sources = _PrepareListOfSources(spec,
-                                                    relative_path_of_gyp_file)
+  gyp_file = os.path.split(project.build_file)[1]
+  sources, excluded_sources = _PrepareListOfSources(spec, gyp_file)
 
   # Add rules.
   actions_to_add = {}
-  _GenerateRulesForMSVS(p, gyp_dir, options, spec,
+  _GenerateRulesForMSVS(p, project_dir, options, spec,
                         sources, excluded_sources,
                         actions_to_add)
   sources, excluded_sources, excluded_idl = (
       _AdjustSourcesAndConvertToFilterHierarchy(
-          spec, options, gyp_dir, sources, excluded_sources))
+          spec, options, project_dir, sources, excluded_sources))
 
   # Add in files.
-  _VerifySourcesExist(sources, gyp_dir)
+  _VerifySourcesExist(sources, project_dir)
   p.AddFiles(sources)
 
   _AddToolFilesToMSVS(p, spec)
@@ -1013,7 +1028,7 @@ def _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config):
               defines)
   # Change program database directory to prevent collisions.
   _ToolAppend(tools, 'VCCLCompilerTool', 'ProgramDataBaseFileName',
-              '$(IntDir)\\$(ProjectName)\\vc80.pdb')
+              '$(IntDir)\\$(ProjectName)\\vc80.pdb', only_if_unset=True)
   # Add disabled warnings.
   _ToolAppend(tools, 'VCCLCompilerTool',
               'DisableSpecificWarnings', disabled_warnings)
@@ -1236,7 +1251,7 @@ def _AddNormalizedSources(sources_set, sources_array):
   sources_set.update(set(sources))
 
 
-def _PrepareListOfSources(spec, relative_path_of_gyp_file):
+def _PrepareListOfSources(spec, gyp_file):
   """Prepare list of sources and excluded sources.
 
   Besides the sources specified directly in the spec, adds the gyp file so
@@ -1246,15 +1261,16 @@ def _PrepareListOfSources(spec, relative_path_of_gyp_file):
 
   Arguments:
     spec: The target dictionary containing the properties of the target.
-    relative_path_of_gyp_file: The relative path of the gyp file.
+    gyp_file: The name of the gyp file.
   Returns:
-    A pair of (list of sources, list of excluded sources)
+    A pair of (list of sources, list of excluded sources).
+    The sources will be relative to the gyp file.
   """
   sources = set()
   _AddNormalizedSources(sources, spec.get('sources', []))
   excluded_sources = set()
   # Add in the gyp file.
-  sources.add(relative_path_of_gyp_file)
+  sources.add(gyp_file)
 
   # Add in 'action' inputs and outputs.
   for a in spec.get('actions', []):
@@ -1489,7 +1505,9 @@ def _GetCopies(spec):
 
 
 def _GetPathDict(root, path):
-  if not path:
+  # |path| will eventually be empty (in the recursive calls) if it was initially
+  # relative; otherwise it will eventually end up as '\', 'D:\', etc.
+  if not path or path.endswith(os.sep):
     return root
   parent, folder = os.path.split(path)
   parent_dict = _GetPathDict(root, parent)
@@ -2642,7 +2660,8 @@ def _VerifySourcesExist(sources, root_dir):
       if '$' not in source:
         full_path = os.path.join(root_dir, source)
         if not os.path.exists(full_path):
-          print 'Error: Missing input file ' + full_path
+          print 'Warning: Missing input file ' + full_path + ' pwd=' +\
+              os.getcwd()
 
 
 def _GetMSBuildSources(spec, sources, exclusions, extension_to_rule_name,
@@ -2685,15 +2704,16 @@ def _AddSources2(spec, sources, exclusions, grouped_sources,
         # Add precompile if needed
         for config_name, configuration in spec['configurations'].iteritems():
           precompiled_source = configuration.get('msvs_precompiled_source', '')
-          precompiled_source = _FixPath(precompiled_source)
-          if not extensions_excluded_from_precompile:
-            # If the precompiled header is generated by a C source, we must
-            # not try to use it for C++ sources, and vice versa.
-            basename, extension = os.path.splitext(precompiled_source)
-            if extension == '.c':
-              extensions_excluded_from_precompile = ['.cc', '.cpp', '.cxx']
-            else:
-              extensions_excluded_from_precompile = ['.c']
+          if precompiled_source != '':
+            precompiled_source = _FixPath(precompiled_source)
+            if not extensions_excluded_from_precompile:
+              # If the precompiled header is generated by a C source, we must
+              # not try to use it for C++ sources, and vice versa.
+              basename, extension = os.path.splitext(precompiled_source)
+              if extension == '.c':
+                extensions_excluded_from_precompile = ['.cc', '.cpp', '.cxx']
+              else:
+                extensions_excluded_from_precompile = ['.c']
 
           if precompiled_source == source:
             condition = _GetConfigurationCondition(config_name, configuration)
@@ -2736,30 +2756,28 @@ def _GetMSBuildProjectReferences(project):
 def _GenerateMSBuildProject(project, options, version):
   spec = project.spec
   configurations = spec['configurations']
-  gyp_dir, gyp_file_name = os.path.split(project.path)
+  project_dir, project_file_name = os.path.split(project.path)
   msbuildproj_dir = os.path.dirname(project.path)
   if msbuildproj_dir and not os.path.exists(msbuildproj_dir):
     os.makedirs(msbuildproj_dir)
   # Prepare list of sources and excluded sources.
-  gyp_dir = os.path.split(project.path)[0]
-  gyp_file = posixpath.split(project.build_file)[1]
-  gyp_path = _NormalizedSource(gyp_file)
-  relative_path_of_gyp_file = gyp.common.RelativePath(gyp_path, gyp_dir)
+  gyp_path = _NormalizedSource(project.build_file)
+  relative_path_of_gyp_file = gyp.common.RelativePath(gyp_path, project_dir)
 
-  sources, excluded_sources = _PrepareListOfSources(spec,
-                                                    relative_path_of_gyp_file)
+  gyp_file = os.path.split(project.build_file)[1]
+  sources, excluded_sources = _PrepareListOfSources(spec, gyp_file)
   # Add rules.
   actions_to_add = {}
   props_files_of_rules = set()
   targets_files_of_rules = set()
   extension_to_rule_name = {}
-  _GenerateRulesForMSBuild(gyp_dir, options, spec,
+  _GenerateRulesForMSBuild(project_dir, options, spec,
                            sources, excluded_sources,
                            props_files_of_rules, targets_files_of_rules,
                            actions_to_add, extension_to_rule_name)
   sources, excluded_sources, excluded_idl = (
       _AdjustSourcesAndConvertToFilterHierarchy(spec, options,
-                                                gyp_dir, sources,
+                                                project_dir, sources,
                                                 excluded_sources))
   _AddActions(actions_to_add, spec, project.build_file)
   _AddCopies(actions_to_add, spec)
@@ -2775,7 +2793,7 @@ def _GenerateMSBuildProject(project, options, version):
 
   _GenerateMSBuildFiltersFile(project.path + '.filters', sources,
                               extension_to_rule_name)
-  _VerifySourcesExist(sources, gyp_dir)
+  _VerifySourcesExist(sources, project_dir)
 
   for (_, configuration) in configurations.iteritems():
     _FinalizeMSBuildSettings(spec, configuration)
@@ -2798,7 +2816,7 @@ def _GenerateMSBuildProject(project, options, version):
       }]
 
   content += _GetMSBuildProjectConfigurations(configurations)
-  content += _GetMSBuildGlobalProperties(spec, project.guid, gyp_file_name)
+  content += _GetMSBuildGlobalProperties(spec, project.guid, project_file_name)
   content += import_default_section
   content += _GetMSBuildConfigurationDetails(spec, project.build_file)
   content += import_cpp_props_section

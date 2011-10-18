@@ -42,6 +42,7 @@ generator_default_variables = {
   # We generate definitions for these variables on the fly when processing a
   # rule.
   'RULE_INPUT_ROOT': '${root}',
+  'RULE_INPUT_DIRNAME': '${dirname}',
   'RULE_INPUT_PATH': '${source}',
   'RULE_INPUT_EXT': '${ext}',
   'RULE_INPUT_NAME': '${name}',
@@ -212,13 +213,17 @@ class NinjaWriter:
 
     Returns the path to the build output, or None."""
 
+    self.name = spec['target_name']
+    self.toolset = spec['toolset']
+
     if spec['type'] == 'settings':
       # TODO: 'settings' is not actually part of gyp; it was
       # accidentally introduced somehow into just the Linux build files.
-      return None
-
-    self.name = spec['target_name']
-    self.toolset = spec['toolset']
+      # Remove this (or make it an error) once all the users are fixed.
+      print ("WARNING: %s uses invalid type 'settings'.  " % self.name +
+             "Please fix the source gyp file to use type 'none'.")
+      print "See http://code.google.com/p/chromium/issues/detail?id=96629 ."
+      spec['type'] = 'none'
 
     # Compute predepends for all rules.
     # prebuild is the dependencies this target depends on before
@@ -331,7 +336,7 @@ class NinjaWriter:
       # Rules can potentially make use of some special variables which
       # must vary per source file.
       # Compute the list of variables we'll need to provide.
-      special_locals = ('source', 'root', 'ext', 'name')
+      special_locals = ('source', 'root', 'dirname', 'ext', 'name')
       needed_variables = set(['source'])
       for argument in args:
         for var in special_locals:
@@ -340,14 +345,15 @@ class NinjaWriter:
 
       # For each source file, write an edge that generates all the outputs.
       for source in rule.get('rule_sources', []):
-        basename = os.path.basename(source)
+        dirname, basename = os.path.split(source)
         root, ext = os.path.splitext(basename)
 
         # Gather the list of outputs, expanding $vars if possible.
         outputs = []
         for output in rule['outputs']:
           outputs.append(output.replace(
-              generator_default_variables['RULE_INPUT_ROOT'], root))
+              generator_default_variables['RULE_INPUT_ROOT'], root).replace(
+                  generator_default_variables['RULE_INPUT_DIRNAME'], dirname))
 
         if int(rule.get('process_outputs_as_sources', False)):
           extra_sources += outputs
@@ -356,6 +362,8 @@ class NinjaWriter:
         for var in needed_variables:
           if var == 'root':
             extra_bindings.append(('root', root))
+          elif var == 'dirname':
+            extra_bindings.append(('dirname', dirname))
           elif var == 'source':
             # '$source' is a parameter to the rule action, which means
             # it shouldn't be converted to a Ninja path.  But we don't
@@ -466,7 +474,7 @@ class NinjaWriter:
     command_map = {
       'executable':      'link',
       'static_library':  'alink',
-      'loadable_module': 'solink',
+      'loadable_module': 'solink_module',
       'shared_library':  'solink',
       'none':            'stamp',
     }
@@ -481,7 +489,7 @@ class NinjaWriter:
                                                     spec.get('libraries', []))))
 
     extra_bindings = []
-    if command == 'solink':
+    if command in ('solink', 'solink_module'):
       extra_bindings.append(('soname', os.path.split(output)[1]))
 
     self.ninja.build(output, command, final_deps,
@@ -528,8 +536,6 @@ class NinjaWriter:
       return '%s%s%s' % (prefix, target, extension)
     elif spec['type'] == 'none':
       return '%s.stamp' % target
-    elif spec['type'] == 'settings':
-      return None
     else:
       raise 'Unhandled output type', spec['type']
 
@@ -655,6 +661,11 @@ def GenerateOutput(target_list, target_dicts, data, params):
     description='SOLINK $out',
     command=('$ld -shared $ldflags -o $out -Wl,-soname=$soname '
              '-Wl,--whole-archive $in -Wl,--no-whole-archive $libs'))
+  master_ninja.rule(
+    'solink_module',
+    description='SOLINK(module) $out',
+    command=('$ld -shared $ldflags -o $out -Wl,-soname=$soname '
+             '-Wl,--start-group $in -Wl,--end-group $libs'))
   master_ninja.rule(
     'link',
     description='LINK $out',

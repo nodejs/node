@@ -44,6 +44,7 @@ generator_default_variables = {
   'SHARED_INTERMEDIATE_DIR': '$(obj)/gen',
   'PRODUCT_DIR': '$(builddir)',
   'RULE_INPUT_ROOT': '%(INPUT_ROOT)s',  # This gets expanded by Python.
+  'RULE_INPUT_DIRNAME': '%(INPUT_DIRNAME)s',  # This gets expanded by Python.
   'RULE_INPUT_PATH': '$(abspath $<)',
   'RULE_INPUT_EXT': '$(suffix $<)',
   'RULE_INPUT_NAME': '$(notdir $<)',
@@ -61,14 +62,7 @@ generator_wants_sorted_dependencies = False
 
 def GetFlavor(params):
   """Returns |params.flavor| if it's set, the system's default flavor else."""
-  flavors = {
-    'darwin': 'mac',
-    'sunos5': 'solaris',
-    'freebsd7': 'freebsd',
-    'freebsd8': 'freebsd',
-  }
-  flavor = flavors.get(sys.platform, 'linux')
-  return params.get('flavor', flavor)
+  return params.get('flavor', 'mac' if sys.platform == 'darwin' else 'linux')
 
 
 def CalculateVariables(default_variables, params):
@@ -77,8 +71,7 @@ def CalculateVariables(default_variables, params):
   default_variables['LINKER_SUPPORTS_ICF'] = \
       gyp.system_test.TestLinkerSupportsICF(cc_command=cc_target)
 
-  flavor = GetFlavor(params)
-  if flavor == 'mac':
+  if GetFlavor(params) == 'mac':
     default_variables.setdefault('OS', 'mac')
     default_variables.setdefault('SHARED_LIB_SUFFIX', '.dylib')
     default_variables.setdefault('SHARED_LIB_DIR',
@@ -101,7 +94,7 @@ def CalculateVariables(default_variables, params):
     global COMPILABLE_EXTENSIONS
     COMPILABLE_EXTENSIONS.update({'.m': 'objc', '.mm' : 'objcxx'})
   else:
-    default_variables.setdefault('OS', flavor)
+    default_variables.setdefault('OS', 'linux')
     default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
     default_variables.setdefault('SHARED_LIB_DIR','$(builddir)/lib.$(TOOLSET)')
     default_variables.setdefault('LIB_DIR', '$(obj).$(TOOLSET)')
@@ -255,6 +248,8 @@ abs_obj := $(abspath $(obj))
 # generated dependency rule Makefiles in one pass.
 all_deps :=
 
+%(make_global_settings)s
+
 # C++ apps need to be linked with g++.
 #
 # Note: flock is used to seralize linking. Linking is a memory-intensive
@@ -266,9 +261,6 @@ all_deps :=
 # This will allow make to invoke N linker processes as specified in -jN.
 LINK ?= %(flock)s $(builddir)/linker.lock $(CXX)
 
-%(make_global_settings)s
-
-LINK ?= $(FLOCK) $(CXX)
 CC.target ?= $(CC)
 CFLAGS.target ?= $(CFLAGS)
 CXX.target ?= $(CXX)
@@ -357,7 +349,7 @@ cmd_cc = $(CC.$(TOOLSET)) $(GYP_CFLAGS) $(DEPFLAGS) $(CFLAGS.$(TOOLSET)) -c -o $
 
 quiet_cmd_cxx = CXX($(TOOLSET)) $@
 cmd_cxx = $(CXX.$(TOOLSET)) $(GYP_CXXFLAGS) $(DEPFLAGS) $(CXXFLAGS.$(TOOLSET)) -c -o $@ $<
-%(extra_commands)s
+%(mac_commands)s
 quiet_cmd_touch = TOUCH $@
 cmd_touch = touch $@
 
@@ -407,6 +399,23 @@ command_changed = $(or $(subst $(cmd_$(1)),,$(cmd_$(call replace_spaces,$@))),\\
 #   $| -- order-only dependencies
 prereq_changed = $(filter-out FORCE_DO_CMD,$(filter-out $|,$?))
 
+# Helper that executes all postbuilds, and deletes the output file when done
+# if any of the postbuilds failed.
+define do_postbuilds
+  @E=0;\\
+  for p in $(POSTBUILDS); do\\
+    eval $$p;\\
+    F=$$?;\\
+    if [ $$F -ne 0 ]; then\\
+      E=$$F;\\
+    fi;\\
+  done;\\
+  if [ $$E -ne 0 ]; then\\
+    rm -rf "$@";\\
+    exit $$E;\\
+  fi
+endef
+
 # do_cmd: run a command via the above cmd_foo names, if necessary.
 # Should always run for a given target to handle command-line changes.
 # Second argument, if non-zero, makes it do asm/C/C++ dependency munging.
@@ -427,7 +436,7 @@ $(if $(or $(command_changed),$(prereq_changed)),
   @$(call exact_echo,$(call escape_vars,cmd_$(call replace_spaces,$@) := $(cmd_$(1)))) > $(depfile)
   @$(if $(2),$(fixup_dep))
   $(if $(and $(3), $(POSTBUILDS)),
-    @for p in $(POSTBUILDS); do eval $$p; done
+    $(call do_postbuilds)
   )
 )
 endef
@@ -469,14 +478,6 @@ cmd_mac_tool = ./gyp-mac-tool $(4) $< "$@"
 
 quiet_cmd_mac_package_framework = PACKAGE FRAMEWORK $@
 cmd_mac_package_framework = ./gyp-mac-tool package-framework "$@" $(4)
-"""
-
-SHARED_HEADER_SUN_COMMANDS = """
-# gyp-sun-tool is written next to the root Makefile by gyp.
-# Use $(4) for the command, since $(2) and $(3) are used as flag by do_cmd
-# already.
-quiet_cmd_sun_tool = SUNTOOL $(4) $<
-cmd_sun_tool = ./gyp-sun-tool $(4) $< "$@"
 """
 
 
@@ -654,9 +655,11 @@ class XcodeSettings(object):
   def _Test(self, test_key, cond_key, default):
     return self._Settings().get(test_key, default) == cond_key
 
-  def _Appendf(self, lst, test_key, format_str):
+  def _Appendf(self, lst, test_key, format_str, default=None):
     if test_key in self._Settings():
       lst.append(format_str % str(self._Settings()[test_key]))
+    elif default:
+      lst.append(format_str % str(default))
 
   def _WarnUnimplemented(self, test_key):
     if test_key in self._Settings():
@@ -676,8 +679,12 @@ class XcodeSettings(object):
     valid for bundles."""
     assert self._IsBundle()
     if self.spec['type'] in ('loadable_module', 'shared_library'):
+      default_wrapper_extension = {
+        'loadable_module': 'bundle',
+        'shared_library': 'framework',
+      }[self.spec['type']]
       wrapper_extension = self.GetPerTargetSetting(
-          'WRAPPER_EXTENSION', default='framework')
+          'WRAPPER_EXTENSION', default=default_wrapper_extension)
       return '.' + self.spec.get('product_extension', wrapper_extension)
     elif self.spec['type'] == 'executable':
       return '.app'
@@ -716,22 +723,47 @@ class XcodeSettings(object):
     """Returns the qualified path to the bundle's plist file. E.g.
     Chromium.app/Contents/Info.plist. Only valid for bundles."""
     assert self._IsBundle()
-    assert self.spec['type'] != 'loadable_modules', (
-        "Info.plist files for loadable_modules not yet supported by the "
-        "make generator (target %s)" % self.spec['target_name'])  # Not tested.
-    if self.spec['type'] == 'executable':
+    if self.spec['type'] in ('executable', 'loadable_module'):
       return os.path.join(self.GetBundleContentsFolderPath(), 'Info.plist')
     else:
       return os.path.join(self.GetBundleContentsFolderPath(),
                           'Resources', 'Info.plist')
 
+  def GetProductType(self):
+    """Returns the PRODUCT_TYPE of this target."""
+    if self._IsBundle():
+      return {
+        'executable': 'com.apple.product-type.application',
+        'loadable_module': 'com.apple.product-type.bundle',
+        'shared_library': 'com.apple.product-type.framework',
+      }[self.spec['type']]
+    else:
+      return {
+        'executable': 'com.apple.product-type.tool',
+        'loadable_module': 'com.apple.product-type.library.dynamic',
+        'shared_library': 'com.apple.product-type.library.dynamic',
+        'static_library': 'com.apple.product-type.library.static',
+      }[self.spec['type']]
+
+  def GetMachOType(self):
+    """Returns the MACH_O_TYPE of this target."""
+    # Weird, but matches Xcode.
+    if not self._IsBundle() and self.spec['type'] == 'executable':
+      return ''
+    return {
+      'executable': 'mh_execute',
+      'static_library': 'staticlib',
+      'shared_library': 'mh_dylib',
+      'loadable_module': 'mh_bundle',
+    }[self.spec['type']]
+
   def _GetBundleBinaryPath(self):
     """Returns the name of the bundle binary of by this target.
     E.g. Chromium.app/Contents/MacOS/Chromium. Only valid for bundles."""
     assert self._IsBundle()
-    if self.spec['type'] in ('loadable_module', 'shared_library'):
+    if self.spec['type'] in ('shared_library'):
       path = self.GetBundleContentsFolderPath()
-    elif self.spec['type'] == 'executable':
+    elif self.spec['type'] in ('executable', 'loadable_module'):
       path = os.path.join(self.GetBundleContentsFolderPath(), 'MacOS')
     return os.path.join(path, self.spec.get('product_name',
                                             self.spec['target_name']))
@@ -819,7 +851,7 @@ class XcodeSettings(object):
     if self._Test('GCC_ENABLE_PASCAL_STRINGS', 'YES', default='YES'):
       cflags.append('-mpascal-strings')
 
-    self._Appendf(cflags, 'GCC_OPTIMIZATION_LEVEL', '-O%s')
+    self._Appendf(cflags, 'GCC_OPTIMIZATION_LEVEL', '-O%s', default='s')
 
     if self._Test('GCC_GENERATE_DEBUGGING_SYMBOLS', 'YES', default='YES'):
       dbg_format = self._Settings().get('DEBUG_INFORMATION_FORMAT', 'dwarf')
@@ -828,12 +860,7 @@ class XcodeSettings(object):
       elif dbg_format == 'stabs':
         raise NotImplementedError('stabs debug format is not supported yet.')
       elif dbg_format == 'dwarf-with-dsym':
-        # TODO(thakis): this is needed for mac_breakpad chromium builds, but not
-        # for regular chromium builds.
-        # -gdwarf-2 as well, but needs to invoke dsymutil after linking too:
-        #   dsymutil build/Default/TestAppGyp.app/Contents/MacOS/TestAppGyp \
-        #       -o build/Default/TestAppGyp.app.dSYM
-        raise NotImplementedError('dsym debug format is not supported yet.')
+        cflags.append('-gdwarf-2')
       else:
         raise NotImplementedError('Unknown debug format %s' % dbg_format)
 
@@ -850,15 +877,17 @@ class XcodeSettings(object):
 
     # TODO:
     self._WarnUnimplemented('ARCHS')
-    self._WarnUnimplemented('COPY_PHASE_STRIP')
-    self._WarnUnimplemented('DEPLOYMENT_POSTPROCESSING')
+    if self._Test('COPY_PHASE_STRIP', 'YES', default='NO'):
+      self._WarnUnimplemented('COPY_PHASE_STRIP')
     self._WarnUnimplemented('GCC_DEBUGGING_SYMBOLS')
     self._WarnUnimplemented('GCC_ENABLE_OBJC_EXCEPTIONS')
     self._WarnUnimplemented('GCC_ENABLE_OBJC_GC')
     self._WarnUnimplemented('INFOPLIST_PREPROCESS')
     self._WarnUnimplemented('INFOPLIST_PREPROCESSOR_DEFINITIONS')
-    self._WarnUnimplemented('STRIPFLAGS')
-    self._WarnUnimplemented('STRIP_INSTALLED_PRODUCT')
+
+    # TODO: This is exported correctly, but assigning to it is not supported.
+    self._WarnUnimplemented('MACH_O_TYPE')
+    self._WarnUnimplemented('PRODUCT_TYPE')
 
     # TODO: Do not hardcode arch. Supporting fat binaries will be annoying.
     cflags.append('-arch i386')
@@ -1040,6 +1069,64 @@ class XcodeSettings(object):
       return default
     return result
 
+  def _GetStripPostbuilds(self, configname, output_binary):
+    """Returns a list of shell commands that contain the shell commands
+    neccessary to strip this target's binary. These should be run as postbuilds
+    before the actual postbuilds run."""
+    self.configname = configname
+
+    result = []
+    if (self._Test('DEPLOYMENT_POSTPROCESSING', 'YES', default='NO') and
+        self._Test('STRIP_INSTALLED_PRODUCT', 'YES', default='NO')):
+
+      default_strip_style = 'debugging'
+      if self._IsBundle():
+        default_strip_style = 'non-global'
+      elif self.spec['type'] == 'executable':
+        default_strip_style = 'all'
+
+      strip_style = self._Settings().get('STRIP_STYLE', default_strip_style)
+      strip_flags = {
+        'all': '',
+        'non-global': '-x',
+        'debugging': '-S',
+      }[strip_style]
+
+      explicit_strip_flags = self._Settings().get('STRIPFLAGS', '')
+      if explicit_strip_flags:
+        strip_flags += ' ' + explicit_strip_flags
+
+      result.append('echo STRIP\\(%s\\)' % self.spec['target_name'])
+      result.append('strip %s %s' % (strip_flags, output_binary))
+
+    self.configname = None
+    return result
+
+  def _GetDebugPostbuilds(self, configname, output, output_binary):
+    """Returns a list of shell commands that contain the shell commands
+    neccessary to massage this target's debug information. These should be run
+    as postbuilds before the actual postbuilds run."""
+    self.configname = configname
+
+    # For static libraries, no dSYMs are created.
+    result = []
+    if (self._Test('GCC_GENERATE_DEBUGGING_SYMBOLS', 'YES', default='YES') and
+        self._Test(
+            'DEBUG_INFORMATION_FORMAT', 'dwarf-with-dsym', default='dwarf') and
+        self.spec['type'] != 'static_library'):
+      result.append('echo DSYMUTIL\\(%s\\)' % self.spec['target_name'])
+      result.append('dsymutil %s -o %s' % (output_binary, output + '.dSYM'))
+
+    self.configname = None
+    return result
+
+  def GetTargetPostbuilds(self, configname, output, output_binary):
+    """Returns a list of shell commands that contain the shell commands
+    to run as postbuilds for this target, before the actual postbuilds."""
+    # dSYMs need to build before stripping happens.
+    return (self._GetDebugPostbuilds(configname, output, output_binary) +
+            self._GetStripPostbuilds(configname, output_binary))
+
 
 class MacPrefixHeader(object):
   """A class that helps with emulating Xcode's GCC_PREFIX_HEADER feature. If
@@ -1203,6 +1290,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     self.target = spec['target_name']
     self.type = spec['type']
     self.toolset = spec['toolset']
+
+    if self.type == 'settings':
+      # TODO: 'settings' is not actually part of gyp; it was
+      # accidentally introduced somehow into just the Linux build files.
+      # Remove this (or make it an error) once all the users are fixed.
+      print ("WARNING: %s uses invalid type 'settings'.  " % self.target +
+             "Please fix the source gyp file to use type 'none'.")
+      print "See http://code.google.com/p/chromium/issues/detail?id=96629 ."
+      self.type = 'none'
 
     # Bundles are directories with a certain subdirectory structure, instead of
     # just a single file. Bundle rules do not produce a binary but also package
@@ -1446,12 +1542,20 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       for rule_source in rule.get('rule_sources', []):
         dirs = set()
-        rule_source_basename = os.path.basename(rule_source)
+        (rule_source_dirname, rule_source_basename) = os.path.split(rule_source)
         (rule_source_root, rule_source_ext) = \
             os.path.splitext(rule_source_basename)
 
-        outputs = [self.ExpandInputRoot(out, rule_source_root)
+        outputs = [self.ExpandInputRoot(out, rule_source_root,
+                                        rule_source_dirname)
                    for out in rule['outputs']]
+
+        # If an output is just the file name, turn it into a path so
+        # FixupArgPath() will know to Absolutify() it.
+        outputs = map(
+            lambda x : os.path.dirname(x) and x or os.path.join('.', x),
+            outputs)
+
         for out in outputs:
           dir = os.path.dirname(out)
           if dir:
@@ -1486,7 +1590,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         self.WriteLn('all_deps += %s' % ' '.join(outputs))
         self._num_outputs += len(outputs)
 
-        action = [self.ExpandInputRoot(ac, rule_source_root)
+        action = [self.ExpandInputRoot(ac, rule_source_root,
+                                       rule_source_dirname)
                   for ac in rule['action']]
         mkdirs = ''
         if len(dirs) > 0:
@@ -1789,9 +1894,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     """
     assert not self.is_mac_bundle
 
-    if self.type == 'settings':
-      return ''  # Doesn't have any output.
-
     path = os.path.join('$(obj).' + self.toolset, self.path)
     if self.type == 'executable' or self._InstallImmediately():
       path = '$(builddir)'
@@ -1860,11 +1962,22 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                          order_only = True,
                          multiple_output_trick = False)
 
-    if self.type not in ('settings', 'none'):
+    has_target_postbuilds = False
+    if self.type != 'none':
       for configname in sorted(configs.keys()):
         config = configs[configname]
         if self.flavor == 'mac':
           ldflags = self.xcode_settings.GetLdflags(self, configname)
+
+          # TARGET_POSTBUILDS_$(BUILDTYPE) is added to postbuilds later on.
+          target_postbuilds = self.xcode_settings.GetTargetPostbuilds(
+              configname, self.output, self.output_binary)
+          if target_postbuilds:
+            has_target_postbuilds = True
+            self.WriteLn('%s: TARGET_POSTBUILDS_%s := %s' %
+                (self.output,
+                 configname,
+                 gyp.common.EncodePOSIXShellList(target_postbuilds)))
         else:
           ldflags = config.get('ldflags', [])
           # Compute an rpath for this output if needed.
@@ -1890,6 +2003,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
     postbuilds = []
     if self.flavor == 'mac':
+      if has_target_postbuilds:
+        postbuilds.append('$(TARGET_POSTBUILDS_$(BUILDTYPE))')
       # Postbuild actions. Like actions, but implicitly depend on the target's
       # output.
       for postbuild in spec.get('postbuilds', []):
@@ -1901,14 +2016,40 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         # absolutified. Else, it's in the PATH (e.g. install_name_tool, ln).
         if os.path.sep in shell_list[0]:
           shell_list[0] = self.Absolutify(shell_list[0])
-        postbuilds.append('%s' % gyp.common.EncodePOSIXShellList(shell_list))
+
+          # "script.sh" -> "./script.sh"
+          if not os.path.sep in shell_list[0]:
+            shell_list[0] = os.path.join('.', shell_list[0])
+        postbuilds.append(gyp.common.EncodePOSIXShellList(shell_list))
+
+    if postbuilds:
+      # Write envvars for postbuilds.
+      extra_settings = {}
+
+      # CHROMIUM_STRIP_SAVE_FILE is a chromium-specific hack.
+      # TODO(thakis): It would be nice to have some general mechanism instead.
+      strip_save_file = self.xcode_settings.GetPerTargetSetting(
+          'CHROMIUM_STRIP_SAVE_FILE')
+      if strip_save_file:
+        strip_save_file = self.Absolutify(strip_save_file)
+      else:
+        # Explicitly clear this out, else a postbuild might pick up an export
+        # from an earlier target.
+        strip_save_file = ''
+      extra_settings['CHROMIUM_STRIP_SAVE_FILE'] = strip_save_file
+
+      self.WriteXcodeEnv(self.output, spec, additional_settings=extra_settings)
+
+      for i in xrange(len(postbuilds)):
+        if not postbuilds[i].startswith('$'):
+          postbuilds[i] = EscapeShellArgument(postbuilds[i])
+      self.WriteLn('%s: builddir := $(abs_builddir)' % self.output)
+      self.WriteLn('%s: POSTBUILDS := %s' % (self.output, ' '.join(postbuilds)))
 
     # A bundle directory depends on its dependencies such as bundle resources
     # and bundle binary. When all dependencies have been built, the bundle
     # needs to be packaged.
     if self.is_mac_bundle:
-      self.WriteXcodeEnv(self.output, spec)  # For postbuilds
-
       # If the framework doesn't contain a binary, then nothing depends
       # on the actions -- make the framework depend on them directly too.
       self.WriteDependencyOnExtraOutputs(self.output, extra_outputs)
@@ -1926,8 +2067,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       # Bundle postbuilds can depend on the whole bundle, so run them after
       # the bundle is packaged, not already after the bundle binary is done.
-      for postbuild in postbuilds:
-        self.WriteLn('\t@' + postbuild)
+      if postbuilds:
+        self.WriteLn('\t@$(call do_postbuilds)')
       postbuilds = []  # Don't write postbuilds for target's output.
 
       # Needed by test/mac/gyptest-rebuild.py.
@@ -1945,11 +2086,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
           'on the bundle, not the binary (target \'%s\')' % self.target)
       assert 'product_dir' not in spec, ('Postbuilds do not work with '
           'custom product_dir')
-      self.WriteXcodeEnv(self.output_binary, spec)  # For postbuilds
-      postbuilds = [EscapeShellArgument(p) for p in postbuilds]
-      self.WriteLn('%s: builddir := $(abs_builddir)' % self.output_binary)
-      self.WriteLn('%s: POSTBUILDS := %s' % (
-          self.output_binary, ' '.join(postbuilds)))
 
     if self.type == 'executable':
       self.WriteLn(
@@ -1987,9 +2123,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       # Write a stamp line.
       self.WriteDoCmd([self.output_binary], deps, 'touch', part_of_all,
                       postbuilds=postbuilds)
-    elif self.type == 'settings':
-      # Only used for passing flags around.
-      pass
     else:
       print "WARNING: no output for", self.type, target
 
@@ -2259,11 +2392,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       'TARGET_BUILD_DIR' : built_products_dir,
       'TEMP_DIR' : '$(TMPDIR)',
     }
-    if self.type in ('executable', 'shared_library'):
+    if self.type in ('executable', 'shared_library', 'loadable_module'):
       env['EXECUTABLE_NAME'] = os.path.basename(self.output_binary)
     if self.type in (
         'executable', 'static_library', 'shared_library', 'loadable_module'):
       env['EXECUTABLE_PATH'] = self.xcode_settings.GetExecutablePath()
+      mach_o_type = self.xcode_settings.GetMachOType()
+      if mach_o_type:
+        env['MACH_O_TYPE'] = mach_o_type
+      env['PRODUCT_TYPE'] = self.xcode_settings.GetProductType()
     if self.is_mac_bundle:
       env['CONTENTS_FOLDER_PATH'] = \
         self.xcode_settings.GetBundleContentsFolderPath()
@@ -2347,14 +2484,13 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     return arg
 
 
-  def ExpandInputRoot(self, template, expansion):
-    if '%(INPUT_ROOT)s' not in template:
+  def ExpandInputRoot(self, template, expansion, dirname):
+    if '%(INPUT_ROOT)s' not in template and '%(INPUT_DIRNAME)s' not in template:
       return template
-    path = template % { 'INPUT_ROOT': expansion }
-    if not os.path.dirname(path):
-      # If it's just the file name, turn it into a path so FixupArgPath()
-      # will know to Absolutify() it.
-      path = os.path.join('.', path)
+    path = template % {
+        'INPUT_ROOT': expansion,
+        'INPUT_DIRNAME': dirname,
+        }
     return path
 
 
@@ -2440,31 +2576,17 @@ def RunSystemTests(flavor):
            'LINK_flags': link_flags }
 
 
-def CopyTool(flavor, out_path):
-  """Finds (mac|sun)_tool.gyp in the gyp directory and copies it to |out_path|."""
-  prefix = { 'solaris': 'sun', 'mac': 'mac' }.get(flavor, None)
-  if not prefix:
-    return
-
-  tool_path = os.path.join(out_path, 'gyp-%s-tool' % prefix)
-  if os.path.exists(tool_path):
-    os.remove(tool_path)
-
-  # Slurp input file.
+def CopyMacTool(out_path):
+  """Finds mac_tool.gyp in the gyp directory and copies it to |out_path|."""
   source_path = os.path.join(
-      os.path.dirname(os.path.abspath(__file__)), '..', '%s_tool.py' % prefix)
+      os.path.dirname(os.path.abspath(__file__)), '..', 'mac_tool.py')
   source_file = open(source_path)
   source = source_file.readlines()
   source_file.close()
-
-  # Add header and write it out.
-  tool_file = open(tool_path, 'w')
-  tool_file.write(
+  mactool_file = open(out_path, 'w')
+  mactool_file.write(
       ''.join([source[0], '# Generated by gyp. Do not edit.\n'] + source[1:]))
-  tool_file.close()
-
-  # Make file executable.
-  os.chmod(tool_path, 0o755)
+  mactool_file.close()
 
 
 def GenerateOutput(target_list, target_dicts, data, params):
@@ -2512,33 +2634,24 @@ def GenerateOutput(target_list, target_dicts, data, params):
     srcdir = gyp.common.RelativePath(srcdir, options.generator_output)
     srcdir_prefix = '$(srcdir)/'
 
+  flock_command= 'flock'
   header_params = {
       'builddir': builddir_name,
       'default_configuration': default_configuration,
-      'flock': 'flock',
+      'flock': flock_command,
       'flock_index': 1,
       'link_commands': LINK_COMMANDS_LINUX,
-      'extra_commands': '',
+      'mac_commands': '',
       'srcdir': srcdir,
     }
   if flavor == 'mac':
+    flock_command = './gyp-mac-tool flock'
     header_params.update({
-        'flock': './gyp-mac-tool flock',
+        'flock': flock_command,
         'flock_index': 2,
         'link_commands': LINK_COMMANDS_MAC,
-        'extra_commands': SHARED_HEADER_MAC_COMMANDS,
+        'mac_commands': SHARED_HEADER_MAC_COMMANDS,
     })
-  elif flavor == 'solaris':
-    header_params.update({
-        'flock': './gyp-sun-tool flock',
-        'flock_index': 2,
-        'extra_commands': SHARED_HEADER_SUN_COMMANDS,
-    })
-  elif flavor == 'freebsd':
-    header_params.update({
-        'flock': 'lockf',
-    })
-
   if flavor == 'android':
     header_params.update({
         'link_commands': LINK_COMMANDS_ANDROID,
@@ -2552,7 +2665,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
     if value[0] != '$':
       value = '$(abspath %s)' % value
     if key == 'LINK':
-      make_global_settings += '%s ?= $(FLOCK) %s\n' % (key, value)
+      make_global_settings += '%s ?= %s %s\n' % (flock_command, key, value)
     elif key in ['CC', 'CXX']:
       make_global_settings += (
           'ifneq (,$(filter $(origin %s), undefined default))\n' % key)
@@ -2579,9 +2692,14 @@ def GenerateOutput(target_list, target_dicts, data, params):
     root_makefile.write('TOOLSET := %s\n' % toolset)
     WriteRootHeaderSuffixRules(root_makefile)
 
-  # Put platform tool next to the root Makefile.
-  dest_path = os.path.dirname(makefile_path)
-  CopyTool(flavor, dest_path)
+  # Put mac_tool next to the root Makefile.
+  if flavor == 'mac':
+    mactool_path = os.path.join(os.path.dirname(makefile_path), 'gyp-mac-tool')
+    if os.path.exists(mactool_path):
+      os.remove(mactool_path)
+    CopyMacTool(mactool_path)
+    # Make file executable.
+    os.chmod(mactool_path, 0755)
 
   # Find the list of targets that derive from the gyp file(s) being built.
   needed_targets = set()

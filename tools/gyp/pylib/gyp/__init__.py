@@ -335,6 +335,7 @@ def main(args):
                            'linux2':   'make',
                            'linux3':   'make',
                            'openbsd4': 'make',
+                           'openbsd5': 'make',
                            'sunos5':   'make',}[sys.platform] ]
 
   if not options.generator_output and options.use_environment:
@@ -418,6 +419,7 @@ def main(args):
   if home_dot_gyp != None:
     default_include = os.path.join(home_dot_gyp, 'include.gypi')
     if os.path.exists(default_include):
+      print 'Using overrides found in ' + default_include
       includes.append(default_include)
 
   # Command-line --include files come after the default include.

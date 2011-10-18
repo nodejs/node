@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -28,6 +28,7 @@ _generator_identity_variables = [
   'INTERMEDIATE_DIR',
   'PRODUCT_DIR',
   'RULE_INPUT_ROOT',
+  'RULE_INPUT_DIRNAME',
   'RULE_INPUT_EXT',
   'RULE_INPUT_NAME',
   'RULE_INPUT_PATH',

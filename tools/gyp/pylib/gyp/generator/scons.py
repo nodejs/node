@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-# Copyright (c) 2009 Google Inc. All rights reserved.
+# Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -30,6 +30,7 @@ generator_default_variables = {
     'SHARED_LIB_DIR': '$LIB_DIR',
     'LIB_DIR': '$LIB_DIR',
     'RULE_INPUT_ROOT': '${SOURCE.filebase}',
+    'RULE_INPUT_DIRNAME': '${SOURCE.dir}',
     'RULE_INPUT_EXT': '${SOURCE.suffix}',
     'RULE_INPUT_NAME': '${SOURCE.file}',
     'RULE_INPUT_PATH': '${SOURCE.abspath}',

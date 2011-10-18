@@ -73,12 +73,14 @@ class MacTool(object):
     if not plist:
       return
 
-    # The format of PkgInfo is eight characters, representing the bundle type
-    # and bundle signature, each four characters. If either is missing, four
-    # '?' characters are used instead.
+    # Only create PkgInfo for executable types.
     package_type = plist['CFBundlePackageType']
-    if len(package_type) != 4:
-      package_type = '?' * 4
+    if package_type != 'APPL':
+      return
+
+    # The format of PkgInfo is eight characters, representing the bundle type
+    # and bundle signature, each four characters. If that is missing, four
+    # '?' characters are used instead.
     signature_code = plist['CFBundleSignature']
     if len(signature_code) != 4:
       signature_code = '?' * 4
