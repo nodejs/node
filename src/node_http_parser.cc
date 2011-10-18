@@ -67,6 +67,7 @@ static Persistent<String> put_sym;
 static Persistent<String> connect_sym;
 static Persistent<String> options_sym;
 static Persistent<String> trace_sym;
+static Persistent<String> patch_sym;
 static Persistent<String> copy_sym;
 static Persistent<String> lock_sym;
 static Persistent<String> mkcol_sym;
@@ -153,6 +154,7 @@ method_to_str(unsigned short m) {
     case HTTP_CONNECT:    return connect_sym;
     case HTTP_OPTIONS:    return options_sym;
     case HTTP_TRACE:      return trace_sym;
+    case HTTP_PATCH:      return patch_sym;
     case HTTP_COPY:       return copy_sym;
     case HTTP_LOCK:       return lock_sym;
     case HTTP_MKCOL:      return mkcol_sym;
@@ -400,6 +402,7 @@ void InitHttpParser(Handle<Object> target) {
   connect_sym = NODE_PSYMBOL("CONNECT");
   options_sym = NODE_PSYMBOL("OPTIONS");
   trace_sym = NODE_PSYMBOL("TRACE");
+  patch_sym = NODE_PSYMBOL("PATCH");
   copy_sym = NODE_PSYMBOL("COPY");
   lock_sym = NODE_PSYMBOL("LOCK");
   mkcol_sym = NODE_PSYMBOL("MKCOL");
