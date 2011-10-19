@@ -1004,7 +1004,7 @@ Local<Value> ErrnoException(int errorno,
   Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
   Local<String> cons2 = String::Concat(cons1, message);
 
-  if (errno_symbol.IsEmpty()) {
+  if (syscall_symbol.IsEmpty()) {
     syscall_symbol = NODE_PSYMBOL("syscall");
     errno_symbol = NODE_PSYMBOL("errno");
     errpath_symbol = NODE_PSYMBOL("path");
@@ -1080,11 +1080,21 @@ void MakeCallback(Handle<Object> object,
 }
 
 
-void SetErrno(uv_err_code code) {
-  uv_err_t err;
-  err.code = code;
-  Context::GetCurrent()->Global()->Set(String::NewSymbol("errno"),
-                                       String::NewSymbol(uv_err_name(err)));
+void SetErrno(uv_err_t err) {
+  HandleScope scope;
+
+  if (errno_symbol.IsEmpty()) {
+    errno_symbol = NODE_PSYMBOL("errno");
+  }
+
+  if (err.code == UV_UNKNOWN) {
+    char errno_buf[100];
+    snprintf(errno_buf, 100, "Unknown system errno %d", err.sys_errno_);
+    Context::GetCurrent()->Global()->Set(errno_symbol, String::New(errno_buf));
+  } else {
+    Context::GetCurrent()->Global()->Set(errno_symbol,
+                                         String::NewSymbol(uv_err_name(err)));
+  }
 }
 
 

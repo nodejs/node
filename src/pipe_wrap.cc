@@ -11,7 +11,9 @@
   PipeWrap* wrap =  \
       static_cast<PipeWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
   if (!wrap) { \
-    SetErrno(UV_EBADF); \
+    uv_err_t err; \
+    err.code = UV_EBADF; \
+    SetErrno(err); \
     return scope.Close(Integer::New(-1)); \
   }
 
@@ -113,7 +115,7 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
   int r = uv_pipe_bind(&wrap->handle_, *name);
 
   // Error starting the pipe.
-  if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -129,7 +131,7 @@ Handle<Value> PipeWrap::Listen(const Arguments& args) {
   int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
 
   // Error starting the pipe.
-  if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -182,7 +184,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
   }
 
   Local<Value> argv[3] = {
@@ -227,7 +229,7 @@ Handle<Value> PipeWrap::Connect(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {

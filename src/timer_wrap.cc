@@ -7,7 +7,9 @@
   TimerWrap* wrap =  \
       static_cast<TimerWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
   if (!wrap) { \
-    SetErrno(UV_EBADF); \
+    uv_err_t err; \
+    err.code = UV_EBADF; \
+    SetErrno(err); \
     return scope.Close(Integer::New(-1)); \
   }
 
@@ -109,7 +111,7 @@ class TimerWrap : public HandleWrap {
     int r = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
 
     // Error starting the timer.
-    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()));
 
     wrap->StateChange();
 
@@ -123,7 +125,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_stop(&wrap->handle_);
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()));
 
     wrap->StateChange();
 
@@ -137,7 +139,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_again(&wrap->handle_);
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()));
 
     wrap->StateChange();
 
@@ -163,7 +165,7 @@ class TimerWrap : public HandleWrap {
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
 
-    if (repeat < 0) SetErrno(uv_last_error(uv_default_loop()).code);
+    if (repeat < 0) SetErrno(uv_last_error(uv_default_loop()));
 
     return scope.Close(Integer::New(repeat));
   }

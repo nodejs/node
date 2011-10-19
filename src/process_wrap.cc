@@ -10,7 +10,9 @@
   ProcessWrap* wrap =  \
       static_cast<ProcessWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
   if (!wrap) { \
-    SetErrno(UV_EBADF); \
+    uv_err_t err; \
+    err.code = UV_EBADF; \
+    SetErrno(err); \
     return scope.Close(Integer::New(-1)); \
   }
 
@@ -172,7 +174,7 @@ class ProcessWrap : public HandleWrap {
       delete [] options.env;
     }
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()));
 
     return scope.Close(Integer::New(r));
   }
@@ -186,7 +188,7 @@ class ProcessWrap : public HandleWrap {
 
     int r = uv_process_kill(&wrap->process_, signal);
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+    if (r) SetErrno(uv_last_error(uv_default_loop()));
 
     return scope.Close(Integer::New(r));
   }

@@ -203,7 +203,7 @@ node_module_struct* get_builtin_module(const char *name);
 #define NODE_MODULE_DECL(modname) \
   extern node::node_module_struct modname ## _module;
 
-void SetErrno(uv_err_code code);
+void SetErrno(uv_err_t err);
 void MakeCallback(v8::Handle<v8::Object> object,
                   const char* method,
                   int argc,

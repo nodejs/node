@@ -27,7 +27,9 @@ using v8::Undefined;
   TTYWrap* wrap =  \
       static_cast<TTYWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
   if (!wrap) { \
-    SetErrno(UV_EBADF); \
+    uv_err_t err; \
+    err.code = UV_EBADF; \
+    SetErrno(err); \
     return scope.Close(Integer::New(-1)); \
   }
 
@@ -100,7 +102,7 @@ class TTYWrap : StreamWrap {
     int r = uv_tty_get_winsize(&wrap->handle_, &width, &height);
 
     if (r) {
-      SetErrno(uv_last_error(uv_default_loop()).code);
+      SetErrno(uv_last_error(uv_default_loop()));
       return v8::Undefined();
     }
 
@@ -119,7 +121,7 @@ class TTYWrap : StreamWrap {
     int r = uv_tty_set_mode(&wrap->handle_, args[0]->IsTrue());
 
     if (r) {
-      SetErrno(uv_last_error(uv_default_loop()).code);
+      SetErrno(uv_last_error(uv_default_loop()));
     }
 
     return scope.Close(Integer::New(r));

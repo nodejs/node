@@ -34,7 +34,9 @@ using v8::Integer;
   StreamWrap* wrap =  \
       static_cast<StreamWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
   if (!wrap) { \
-    SetErrno(UV_EBADF); \
+    uv_err_t err; \
+    err.code = UV_EBADF; \
+    SetErrno(err); \
     return scope.Close(Integer::New(-1)); \
   }
 
@@ -106,7 +108,7 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
   }
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -120,7 +122,7 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
   int r = uv_read_stop(wrap->stream_);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(uv_default_loop()).code);
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -199,7 +201,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
       slab_used -= buf.len;
     }
 
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
     MakeCallback(wrap->object_, "onread", 0, NULL);
     return;
   }
@@ -312,7 +314,7 @@ Handle<Value> StreamWrap::Write(const Arguments& args) {
   wrap->UpdateWriteQueueSize();
 
   if (r) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -332,7 +334,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
   }
 
   wrap->UpdateWriteQueueSize();
@@ -362,7 +364,7 @@ Handle<Value> StreamWrap::Shutdown(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -382,7 +384,7 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   HandleScope scope;
 
   if (status) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
   }
 
   Local<Value> argv[3] = {

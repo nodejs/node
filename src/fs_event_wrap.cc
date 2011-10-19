@@ -13,7 +13,9 @@ namespace node {
   FSEventWrap* wrap =                                                       \
       static_cast<FSEventWrap*>(args.Holder()->GetPointerFromInternalField(0)); \
   if (!wrap) {                                                              \
-    SetErrno(UV_EBADF);                                                     \
+    uv_err_t err;                                                           \
+    err.code = UV_EBADF;                                                    \
+    SetErrno(err);                                                          \
     return scope.Close(Integer::New(-1));                                   \
   }
 
@@ -89,7 +91,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
       uv_unref(uv_default_loop());
     }
   } else { 
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
   }
 
   return scope.Close(Integer::New(r));
@@ -106,7 +108,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(uv_default_loop()).code);
+    SetErrno(uv_last_error(uv_default_loop()));
     eventStr = String::Empty();
   } else {
     switch (events) {
