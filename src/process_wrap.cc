@@ -147,7 +147,7 @@ class ProcessWrap : public HandleWrap {
     }
 
     // options.windows_verbatim_arguments
-#if defined(_WIN32) && !defined(__CYGWIN__)
+#if defined(_WIN32)
     options.windows_verbatim_arguments = js_options->
         Get(String::NewSymbol("windowsVerbatimArguments"))->IsTrue();
 #endif
