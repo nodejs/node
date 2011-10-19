@@ -34,7 +34,7 @@ Example:
 ## https.request(options, callback)
 
 Makes a request to a secure web server.
-Similar options to `http.request()`.
+All options from [`http.request()`](http.html#http.request) are valid.
 
 Example:
 

@@ -33,6 +33,9 @@ string will not be in the parsed object. Examples are shown for the URL
 * `search`: The 'query string' portion of the URL, including the leading question mark.
 
   Example: `'?query=string'`
+* `path`: Concatenation of `pathname` and `search`.
+
+  Example: `'/p/a/t/h?query=string'`
 * `query`: Either the 'params' portion of the query string, or a querystring-parsed object.
 
   Example: `'query=string'` or `{'query':'string'}`

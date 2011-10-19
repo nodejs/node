@@ -387,11 +387,14 @@ followed by `response.end()`.
 ## http.request(options, callback)
 
 Node maintains several connections per server to make HTTP requests.
-This function allows one to transparently issue requests.
+This function allows one to transparently issue requests.  Options align
+with `url.parse`.
 
 Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
+- `hostname`: To support `url.parse` `hostname` is prefered over
+  `host`
 - `port`: Port of remote server.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 - `method`: A string specifying the HTTP request method. Possible values:
@@ -399,6 +402,8 @@ Options:
 - `path`: Request path. Should include query string and fragments if any.
    E.G. `'/index.html?page=12'`
 - `headers`: An object containing request headers.
+- `auth`: Basic authentication i.e. `'user:password'` to compute an
+  Authorization header.
 - `agent`: Controls `Agent` behavior. When an Agent is used request will default to 
    Connection:keep-alive. Possible values:
  - `undefined` (default): use default `Agent` for this host and port.
@@ -455,6 +460,9 @@ There are a few special headers that should be noted.
   Usually, when sending 'Expect: 100-continue', you should both set a timeout
   and listen for the `continue` event. See RFC2616 Section 8.2.3 for more
   information.
+
+* Sending an Authorization header will override useing the `auth` option
+  to compute basic authentication.
 
 ## http.get(options, callback)
 
