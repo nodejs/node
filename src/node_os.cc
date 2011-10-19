@@ -167,20 +167,6 @@ static Handle<Value> GetInterfaceAddresses(const Arguments& args) {
 }
 
 
-#ifdef __MINGW32__
-static Handle<Value> OpenOSHandle(const Arguments& args) {
-  HandleScope scope;
-
-  intptr_t handle = args[0]->IntegerValue();
-
-  int fd = _open_osfhandle(handle, 0);
-  if (fd < 0)
-    return ThrowException(ErrnoException(errno, "_open_osfhandle"));
-
-  return scope.Close(Integer::New(fd));
-}
-#endif // __MINGW32__
-
 void OS::Initialize(v8::Handle<v8::Object> target) {
   HandleScope scope;
 
@@ -193,10 +179,6 @@ void OS::Initialize(v8::Handle<v8::Object> target) {
   NODE_SET_METHOD(target, "getOSType", GetOSType);
   NODE_SET_METHOD(target, "getOSRelease", GetOSRelease);
   NODE_SET_METHOD(target, "getInterfaceAddresses", GetInterfaceAddresses);
-
-#ifdef __MINGW32__
-  NODE_SET_METHOD(target, "openOSHandle", OpenOSHandle);
-#endif
 }
 
 
