@@ -69,7 +69,7 @@ The options argument has the following options
 - method: HTTP request method. Default `'GET'`.
 
 The following options can also be specified.
-However, a global [Agent](http.html#http.Agent) cannot be used. 
+However, a global [Agent](http.html#http.Agent) cannot be used.
 
 - key: Private key to use for SSL. Default `null`.
 - cert: Public x509 certificate to use. Default `null`.

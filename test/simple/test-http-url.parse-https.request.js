@@ -47,7 +47,7 @@ var server = https.createServer(httpsOptions, function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function () {
+server.listen(common.PORT, function() {
   // make the request
   var clientRequest = https.request(testURL);
   // since there is a little magic with the agent

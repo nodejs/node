@@ -40,7 +40,7 @@ var server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function () {
+server.listen(common.PORT, function() {
   // make the request
   http.request(testURL).end();
 });

@@ -22,7 +22,6 @@
 var common = require('../common');
 var assert = require('assert');
 var http = require('http');
-var https = require('https');
 var url = require('url');
 
 var testURL = url.parse('http://asdf:qwer@localhost:' + common.PORT);
@@ -40,7 +39,7 @@ var server = http.createServer(function(request, response) {
   server.close();
 });
 
-server.listen(common.PORT, function () {
+server.listen(common.PORT, function() {
   // make the request
   http.request(testURL).end();
 });

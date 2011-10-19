@@ -989,7 +989,7 @@ relativeTests.forEach(function(relativeTest) {
 if (relativeTests2[181][0] === './/g' &&
     relativeTests2[181][1] === 'f:/a' &&
     relativeTests2[181][2] === 'f://g') {
-  relativeTests2.splice(181,1);
+  relativeTests2.splice(181, 1);
 }
 relativeTests2.forEach(function(relativeTest) {
   var actual = url.resolveObject(url.parse(relativeTest[1]), relativeTest[0]),
