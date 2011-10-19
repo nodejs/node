@@ -49,7 +49,7 @@ code = 'foo = 1;' +
 foo = 2;
 obj = { foo: 0, baz: 3 };
 script = new Script(code);
-script.runInThisContext();
+script.runInThisContext(script);
 assert.equal(0, obj.foo);
 assert.equal(2, bar);
 assert.equal(1, foo);
