@@ -123,17 +123,6 @@ process.on('exit', function() {
     knownGlobals.push(DataView);
   }
 
-  // repl pollution
-  if (global.hasOwnProperty('module')) {
-    knownGlobals.push(global.module);
-  }
-  if (global.hasOwnProperty('require')) {
-    knownGlobals.push(global.require);
-  }
-  if (global.hasOwnProperty('exports')) {
-    knownGlobals.push(global.exports);
-  }
-
   for (var x in global) {
     var found = false;
 
