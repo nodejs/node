@@ -21,7 +21,7 @@
 
 var assert = require('assert'),
     dns = require('dns'),
-    net = require('net_uv'),
+    net = require('net'),
     isIP = net.isIP,
     isIPv4 = net.isIPv4,
     isIPv6 = net.isIPv6;
@@ -55,13 +55,6 @@ function TEST(f) {
     next();
   }
 }
-
-
-process.on('exit', function() {
-  console.log(completed + ' tests completed');
-  assert.equal(running, false);
-  assert.strictEqual(expected, completed);
-});
 
 
 function checkWrap(req) {
@@ -386,3 +379,26 @@ TEST(function test_lookup_localhost_ipv4(done) {
 
   checkWrap(req);
 }); */
+
+
+var getaddrinfoCallbackCalled = false;
+
+console.log("looking up nodejs.org...");
+var req = process.binding('cares_wrap').getaddrinfo('nodejs.org');
+
+req.oncomplete = function(domains) {
+  console.log("nodejs.org = ", domains);
+  assert.ok(Array.isArray(domains));
+  assert.ok(domains.length >= 1);
+  assert.ok(typeof domains[0] == 'string');
+  getaddrinfoCallbackCalled = true;
+};
+
+
+
+process.on('exit', function() {
+  console.log(completed + ' tests completed');
+  assert.equal(running, false);
+  assert.strictEqual(expected, completed);
+  assert.ok(getaddrinfoCallbackCalled);
+});
