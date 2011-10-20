@@ -500,9 +500,9 @@ Example:
     // <Buffer 43 eb d5 b7 dd f9 5f d7>
     // <Buffer d7 5f f9 dd b7 d5 eb 43>
 
-### buffer.fill(value, offset=0, length=-1)
+### buffer.fill(value, offset=0, end=buffer.length)
 
-Fills the buffer with the specified value. If the offset and length are not
+Fills the buffer with the specified value. If the offset and end are not
 given it will fill the entire buffer.
 
     var b = new Buffer(50);
