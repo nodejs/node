@@ -107,7 +107,7 @@
       // If stdin is a TTY.
       if (NativeModule.require('tty').isatty(0)) {
         // REPL
-        Module.requireRepl().start();
+        var repl = Module.requireRepl().start('> ', null, null, true);
 
       } else {
         // Read all of stdin - execute it.
