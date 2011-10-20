@@ -638,7 +638,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
       addr = (address->ai_family == AF_INET ?
           (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr :
           (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr);
-      const char* c = inet_ntop(address->ai_family, addr, ip, INET6_ADDRSTRLEN);
+      const char* c = uv_inet_ntop(address->ai_family, addr, ip, INET6_ADDRSTRLEN);
 
       // Create JavaScript string
       Local<String> s = String::New(c);
