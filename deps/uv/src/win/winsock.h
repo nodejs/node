@@ -39,14 +39,66 @@
   #define IPV6_V6ONLY 27
 #endif
 
-/* Whether ipv6 is supported */
-extern int uv_allow_ipv6;
+/*
+ * TDI defines that are only in the DDK.
+ * We only need receive flags so far.
+ */
+#ifndef TDI_RECEIVE_NORMAL
+  #define TDI_RECEIVE_BROADCAST           0x00000004
+  #define TDI_RECEIVE_MULTICAST           0x00000008
+  #define TDI_RECEIVE_PARTIAL             0x00000010
+  #define TDI_RECEIVE_NORMAL              0x00000020
+  #define TDI_RECEIVE_EXPEDITED           0x00000040
+  #define TDI_RECEIVE_PEEK                0x00000080
+  #define TDI_RECEIVE_NO_RESPONSE_EXP     0x00000100
+  #define TDI_RECEIVE_COPY_LOOKAHEAD      0x00000200
+  #define TDI_RECEIVE_ENTIRE_MESSAGE      0x00000400
+  #define TDI_RECEIVE_AT_DISPATCH_LEVEL   0x00000800
+  #define TDI_RECEIVE_CONTROL_INFO        0x00001000
+  #define TDI_RECEIVE_FORCE_INDICATION    0x00002000
+  #define TDI_RECEIVE_NO_PUSH             0x00004000
+#endif
 
-BOOL uv_get_acceptex_function(SOCKET socket, LPFN_ACCEPTEX* target);
-BOOL uv_get_connectex_function(SOCKET socket, LPFN_CONNECTEX* target);
+/*
+ * The "Auxiliary Function Driver" is the windows kernel-mode driver that does
+ * TCP, UDP etc. Winsock is just a layer that dispatches requests to it.
+ * Having these definitions allows us to bypass winsock and make an AFD kernel
+ * call directly, avoiding a bug in winsock's recvfrom implementation.
+ */
 
-/* Ip address used to bind to any port at any interface */
-extern struct sockaddr_in uv_addr_ip4_any_;
-extern struct sockaddr_in6 uv_addr_ip6_any_;
+#define AFD_NO_FAST_IO   0x00000001
+#define AFD_OVERLAPPED   0x00000002
+#define AFD_IMMEDIATE    0x00000004
+
+typedef struct _AFD_RECV_DATAGRAM_INFO {
+    LPWSABUF BufferArray;
+    ULONG BufferCount;
+    ULONG AfdFlags;
+    ULONG TdiFlags;
+    struct sockaddr* Address;
+    int* AddressLength;
+} AFD_RECV_DATAGRAM_INFO, *PAFD_RECV_DATAGRAM_INFO;
+
+typedef struct _AFD_RECV_INFO {
+    LPWSABUF BufferArray;
+    ULONG BufferCount;
+    ULONG AfdFlags;
+    ULONG TdiFlags;
+} AFD_RECV_INFO, *PAFD_RECV_INFO;
+
+
+#define _AFD_CONTROL_CODE(operation, method) \
+    ((FSCTL_AFD_BASE) << 12 | (operation << 2) | method)
+
+#define FSCTL_AFD_BASE FILE_DEVICE_NETWORK
+
+#define AFD_RECEIVE            5
+#define AFD_RECEIVE_DATAGRAM   6
+
+#define IOCTL_AFD_RECEIVE \
+    _AFD_CONTROL_CODE(AFD_RECEIVE, METHOD_NEITHER)
+
+#define IOCTL_AFD_RECEIVE_DATAGRAM \
+    _AFD_CONTROL_CODE(AFD_RECEIVE_DATAGRAM, METHOD_NEITHER)
 
 #endif /* UV_WIN_WINSOCK_H_ */

@@ -610,7 +610,7 @@ int uv_udp_send6(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
     int bufcnt, struct sockaddr_in6 addr, uv_udp_send_cb send_cb);
 
 /*
- * Send data. If the socket has not previously been bound with `uv_udp_bind`
+ * Receive data. If the socket has not previously been bound with `uv_udp_bind`
  * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
  * and a random port number.
  *
@@ -1061,7 +1061,7 @@ int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb);
 int uv_fs_link(uv_loop_t* loop, uv_fs_t* req, const char* path,
     const char* new_path, uv_fs_cb cb);
 
-/* 
+/*
  * This flag can be used with uv_fs_symlink on Windows
  * to specify whether path argument points to a directory.
  */

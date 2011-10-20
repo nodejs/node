@@ -239,7 +239,7 @@ static void CALLBACK uv_tty_post_raw_read(void* data, BOOLEAN didTimeout) {
 
 
 static void uv_tty_queue_read_raw(uv_loop_t* loop, uv_tty_t* handle) {
-  uv_req_t* req;
+  uv_read_t* req;
   BOOL r;
 
   assert(handle->flags & UV_HANDLE_READING);
@@ -261,7 +261,7 @@ static void uv_tty_queue_read_raw(uv_loop_t* loop, uv_tty_t* handle) {
   if (!r) {
     handle->read_raw_wait = NULL;
     SET_REQ_ERROR(req, GetLastError());
-    uv_insert_pending_req(loop, req);
+    uv_insert_pending_req(loop, (uv_req_t*)req);
   }
 
   handle->flags |= UV_HANDLE_READ_PENDING;
@@ -309,7 +309,7 @@ static DWORD CALLBACK uv_tty_line_read_thread(void* data) {
 
 
 static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
-  uv_req_t* req;
+  uv_read_t* req;
   BOOL r;
 
   assert(handle->flags & UV_HANDLE_READING);
@@ -337,7 +337,7 @@ static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
     if (!r) {
       handle->read_line_handle = NULL;
       SET_REQ_ERROR(req, GetLastError());
-      uv_insert_pending_req(loop, req);
+      uv_insert_pending_req(loop, (uv_req_t*)req);
       goto out;
     }
   }
@@ -347,7 +347,7 @@ static void uv_tty_queue_read_line(uv_loop_t* loop, uv_tty_t* handle) {
                         WT_EXECUTELONGFUNCTION);
   if (!r) {
     SET_REQ_ERROR(req, GetLastError());
-    uv_insert_pending_req(loop, req);
+    uv_insert_pending_req(loop, (uv_req_t*)req);
   }
 
  out:

@@ -216,3 +216,210 @@ int uv_ntstatus_to_winsock_error(NTSTATUS status) {
       }
   }
 }
+
+
+/*
+ * This function provides a workaround for a bug in the winsock implementation
+ * of WSARecv. The problem is that when SetFileCompletionNotificationModes is
+ * used to avoid IOCP notifications of completed reads, WSARecv does not
+ * reliably indicate whether we can expect a completion package to be posted
+ * when the receive buffer is smaller than the received datagram.
+ *
+ * However it is desirable to use SetFileCompletionNotificationModes because
+ * it yields a massive performance increase.
+ *
+ * This function provides a workaround for that bug, but it only works for the
+ * specific case that we need it for. E.g. it assumes that the "avoid iocp"
+ * bit has been set, and supports only overlapped operation. It also requires
+ * the user to use the default msafd driver, doesn't work when other LSPs are
+ * stacked on top of it.
+ */
+int WSAAPI uv_wsarecv_workaround(SOCKET socket, WSABUF* buffers,
+    DWORD buffer_count, DWORD* bytes, DWORD* flags, WSAOVERLAPPED *overlapped,
+    LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine) {
+  NTSTATUS status;
+  void* apc_context;
+  IO_STATUS_BLOCK* iosb = (IO_STATUS_BLOCK*) &overlapped->Internal;
+  AFD_RECV_INFO info;
+  DWORD error;
+
+  if (overlapped == NULL || completion_routine != NULL) {
+    WSASetLastError(WSAEINVAL);
+    return SOCKET_ERROR;
+  }
+
+  info.BufferArray = buffers;
+  info.BufferCount = buffer_count;
+  info.AfdFlags = AFD_OVERLAPPED;
+  info.TdiFlags = TDI_RECEIVE_NORMAL;
+
+  if (*flags & MSG_PEEK) {
+    info.TdiFlags |= TDI_RECEIVE_PEEK;
+  }
+
+  if (*flags & MSG_PARTIAL) {
+    info.TdiFlags |= TDI_RECEIVE_PARTIAL;
+  }
+
+  if (!((intptr_t) overlapped->hEvent & 1)) {
+    apc_context = (void*) overlapped;
+  } else {
+    apc_context = NULL;
+  }
+
+  iosb->Status = STATUS_PENDING;
+  iosb->Pointer = 0;
+
+  status = pNtDeviceIoControlFile((HANDLE) socket,
+                                  overlapped->hEvent,
+                                  NULL,
+                                  apc_context,
+                                  iosb,
+                                  IOCTL_AFD_RECEIVE,
+                                  &info,
+                                  sizeof(info),
+                                  NULL,
+                                  0);
+
+  *flags = 0;
+  *bytes = (DWORD) iosb->Information;
+
+  switch (status) {
+    case STATUS_SUCCESS:
+      error = ERROR_SUCCESS;
+      break;
+
+    case STATUS_PENDING:
+      error = WSA_IO_PENDING;
+      break;
+
+    case STATUS_BUFFER_OVERFLOW:
+      error = WSAEMSGSIZE;
+      break;
+
+    case STATUS_RECEIVE_EXPEDITED:
+      error = ERROR_SUCCESS;
+      *flags = MSG_OOB;
+      break;
+
+    case STATUS_RECEIVE_PARTIAL_EXPEDITED:
+      error = ERROR_SUCCESS;
+      *flags = MSG_PARTIAL | MSG_OOB;
+      break;
+
+    case STATUS_RECEIVE_PARTIAL:
+      error = ERROR_SUCCESS;
+      *flags = MSG_PARTIAL;
+      break;
+
+    default:
+      error = uv_ntstatus_to_winsock_error(status);
+      break;
+  }
+
+  WSASetLastError(error);
+
+  if (error == ERROR_SUCCESS) {
+    return 0;
+  } else {
+    return SOCKET_ERROR;
+  }
+}
+
+
+/* See description of uv_wsarecv_workaround. */
+int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
+    DWORD buffer_count, DWORD* bytes, DWORD* flags, struct sockaddr* addr,
+    int* addr_len, WSAOVERLAPPED *overlapped,
+    LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine) {
+  NTSTATUS status;
+  void* apc_context;
+  IO_STATUS_BLOCK* iosb = (IO_STATUS_BLOCK*) &overlapped->Internal;
+  AFD_RECV_DATAGRAM_INFO info;
+  DWORD error;
+
+  if (overlapped == NULL || addr == NULL || addr_len == NULL ||
+      completion_routine != NULL) {
+    WSASetLastError(WSAEINVAL);
+    return SOCKET_ERROR;
+  }
+
+  info.BufferArray = buffers;
+  info.BufferCount = buffer_count;
+  info.AfdFlags = AFD_OVERLAPPED;
+  info.TdiFlags = TDI_RECEIVE_NORMAL;
+  info.Address = addr;
+  info.AddressLength = addr_len;
+
+  if (*flags & MSG_PEEK) {
+    info.TdiFlags |= TDI_RECEIVE_PEEK;
+  }
+
+  if (*flags & MSG_PARTIAL) {
+    info.TdiFlags |= TDI_RECEIVE_PARTIAL;
+  }
+
+  if (!((intptr_t) overlapped->hEvent & 1)) {
+    apc_context = (void*) overlapped;
+  } else {
+    apc_context = NULL;
+  }
+
+  iosb->Status = STATUS_PENDING;
+  iosb->Pointer = 0;
+
+  status = pNtDeviceIoControlFile((HANDLE) socket,
+                                  overlapped->hEvent,
+                                  NULL,
+                                  apc_context,
+                                  iosb,
+                                  IOCTL_AFD_RECEIVE_DATAGRAM,
+                                  &info,
+                                  sizeof(info),
+                                  NULL,
+                                  0);
+
+  *flags = 0;
+  *bytes = (DWORD) iosb->Information;
+
+  switch (status) {
+    case STATUS_SUCCESS:
+      error = ERROR_SUCCESS;
+      break;
+
+    case STATUS_PENDING:
+      error = WSA_IO_PENDING;
+      break;
+
+    case STATUS_BUFFER_OVERFLOW:
+      error = WSAEMSGSIZE;
+      break;
+
+    case STATUS_RECEIVE_EXPEDITED:
+      error = ERROR_SUCCESS;
+      *flags = MSG_OOB;
+      break;
+
+    case STATUS_RECEIVE_PARTIAL_EXPEDITED:
+      error = ERROR_SUCCESS;
+      *flags = MSG_PARTIAL | MSG_OOB;
+      break;
+
+    case STATUS_RECEIVE_PARTIAL:
+      error = ERROR_SUCCESS;
+      *flags = MSG_PARTIAL;
+      break;
+
+    default:
+      error = uv_ntstatus_to_winsock_error(status);
+      break;
+  }
+
+  WSASetLastError(error);
+
+  if (error == ERROR_SUCCESS) {
+    return 0;
+  } else {
+    return SOCKET_ERROR;
+  }
+}

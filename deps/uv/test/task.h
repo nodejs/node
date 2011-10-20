@@ -38,6 +38,8 @@
 # define TEST_PIPENAME_2 "/tmp/uv-test-sock2"
 #endif
 
+#define COUNTOF(a) (sizeof(a) / sizeof(a[0]))
+
 typedef enum {
   TCP = 0,
   PIPE

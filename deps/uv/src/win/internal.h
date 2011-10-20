@@ -65,6 +65,7 @@ void uv_process_timers(uv_loop_t* loop);
 #define UV_HANDLE_ZERO_READ               0x40000
 #define UV_HANDLE_TTY_RAW                 0x80000
 #define UV_HANDLE_EMULATE_IOCP            0x100000
+#define UV_HANDLE_NON_OVERLAPPED_PIPE     0x200000
 
 void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle);
 void uv_process_endgames(uv_loop_t* loop);
@@ -307,14 +308,40 @@ uv_err_code uv_translate_sys_error(int sys_errno);
 
 
 /*
- * Initialization for the windows and winsock api
+ * Winapi and ntapi utility functions
  */
 void uv_winapi_init();
+
+
+/*
+ * Winsock utility functions
+ */
 void uv_winsock_init();
+
 int uv_ntstatus_to_winsock_error(NTSTATUS status);
 
+BOOL uv_get_acceptex_function(SOCKET socket, LPFN_ACCEPTEX* target);
+BOOL uv_get_connectex_function(SOCKET socket, LPFN_CONNECTEX* target);
 
-/* Threads and synchronization */
+int WSAAPI uv_wsarecv_workaround(SOCKET socket, WSABUF* buffers,
+    DWORD buffer_count, DWORD* bytes, DWORD* flags, WSAOVERLAPPED *overlapped,
+    LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine);
+int WSAAPI uv_wsarecvfrom_workaround(SOCKET socket, WSABUF* buffers,
+    DWORD buffer_count, DWORD* bytes, DWORD* flags, struct sockaddr* addr,
+    int* addr_len, WSAOVERLAPPED *overlapped,
+    LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine);
+
+/* Whether ipv6 is supported */
+extern int uv_allow_ipv6;
+
+/* Ip address used to bind to any port at any interface */
+extern struct sockaddr_in uv_addr_ip4_any_;
+extern struct sockaddr_in6 uv_addr_ip6_any_;
+
+
+/*
+ * Threads and synchronization
+ */
 typedef struct uv_once_s {
   unsigned char ran;
   /* The actual event handle must be aligned to sizeof(HANDLE), so in */

@@ -43,6 +43,8 @@ void uv_connection_init(uv_stream_t* handle) {
   handle->write_reqs_pending = 0;
 
   uv_req_init(handle->loop, (uv_req_t*) &(handle->read_req));
+  handle->read_req.event_handle = NULL;
+  handle->read_req.wait_handle = INVALID_HANDLE_VALUE;
   handle->read_req.type = UV_READ;
   handle->read_req.data = handle;
 }

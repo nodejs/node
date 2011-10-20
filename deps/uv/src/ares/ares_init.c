@@ -696,17 +696,20 @@ static int get_iphlpapi_dns_info (char *ret_buf, size_t ret_size)
           struct sockaddr_in6 *pIPv6Addr = ( struct sockaddr_in6 * ) pGenericAddr;
           ares_inet_ntop( AF_INET6, &pIPv6Addr->sin6_addr, ret, ipv6_size - 1 ); /* -1 for comma */
 
-          /* Append a comma to the end, THEN NULL. Should be OK because we
-             already tested the size at the top of the if statement. */
           stringlen = strlen( ret );
-          ret[ stringlen ] = ',';
-          ret[ stringlen + 1 ] = '\0';
-          ret += stringlen + 1;
-          left -= ret - ret_buf;
-          ++count;
 
-          /* NB on Windows this also returns stuff in the fec0::/10 range,
-             seems to be hard-coded somehow. Do we need to ignore them? */
+          /* Windows apparently always reports some IPv6 DNS servers that
+             prefixed with fec0:0:0:ffff. These ususally do not point to
+             working DNS servers, so we ignore them. */
+          if (strncmp(ret, "fec0:0:0:ffff:", 14) != 0) {
+            /* Append a comma to the end, THEN NULL. Should be OK because we
+               already tested the size at the top of the if statement. */
+            ret[ stringlen ] = ',';
+            ret[ stringlen + 1 ] = '\0';
+            ret += stringlen + 1;
+            left -= ret - ret_buf;
+            ++count;
+          }
         }
       }
     }

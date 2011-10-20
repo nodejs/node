@@ -104,6 +104,27 @@
                        DWORD dwFlags);
 #endif
 
+typedef int (WSAAPI* LPFN_WSARECV)
+            (SOCKET socket,
+             LPWSABUF buffers,
+             DWORD buffer_count,
+             LPDWORD bytes,
+             LPDWORD flags,
+             LPWSAOVERLAPPED overlapped,
+             LPWSAOVERLAPPED_COMPLETION_ROUTINE
+             completion_routine);
+
+typedef int (WSAAPI* LPFN_WSARECVFROM)
+            (SOCKET socket,
+             LPWSABUF buffers,
+             DWORD buffer_count,
+             LPDWORD bytes,
+             LPDWORD flags,
+             struct sockaddr* addr,
+             LPINT addr_len,
+             LPWSAOVERLAPPED overlapped,
+             LPWSAOVERLAPPED_COMPLETION_ROUTINE completion_routine);
+
 
 /**
  * It should be possible to cast uv_buf_t[] to WSABUF[]
@@ -169,7 +190,10 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   struct uv_req_s* next_req;
 
 #define UV_WRITE_PRIVATE_FIELDS           \
-  int ipc_header;
+  int ipc_header;                         \
+  uv_buf_t write_buffer;                  \
+  HANDLE event_handle;                    \
+  HANDLE wait_handle;
 
 #define UV_CONNECT_PRIVATE_FIELDS         \
   /* empty */
@@ -194,7 +218,13 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
     HANDLE event_handle;                  \
     HANDLE wait_handle;                   \
     struct uv_tcp_accept_s* next_pending; \
-  } uv_tcp_accept_t;
+  } uv_tcp_accept_t;                      \
+                                          \
+  typedef struct uv_read_s {              \
+    UV_REQ_FIELDS                         \
+    HANDLE event_handle;                  \
+    HANDLE wait_handle;                   \
+  } uv_read_t;
 
 #define uv_stream_connection_fields       \
   unsigned int write_reqs_pending;        \
@@ -205,7 +235,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define UV_STREAM_PRIVATE_FIELDS          \
   unsigned int reqs_pending;              \
-  uv_req_t read_req;                      \
+  uv_read_t read_req;                     \
   union {                                 \
     struct { uv_stream_connection_fields };  \
     struct { uv_stream_server_fields     };  \
@@ -236,7 +266,9 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   struct sockaddr_storage recv_from;      \
   int recv_from_len;                      \
   uv_udp_recv_cb recv_cb;                 \
-  uv_alloc_cb alloc_cb;
+  uv_alloc_cb alloc_cb;                   \
+  LPFN_WSARECV func_wsarecv;              \
+  LPFN_WSARECVFROM func_wsarecvfrom;
 
 #define uv_pipe_server_fields             \
   uv_pipe_accept_t accept_reqs[4];        \
@@ -247,7 +279,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   uv_write_t ipc_header_write_req;        \
   int ipc_pid;                            \
   uint64_t remaining_ipc_rawdata_bytes;   \
-  WSAPROTOCOL_INFOW* pending_socket_info;
+  WSAPROTOCOL_INFOW* pending_socket_info; \
+  uv_write_t* non_overlapped_writes_tail;
 
 #define UV_PIPE_PRIVATE_FIELDS            \
   HANDLE handle;                          \

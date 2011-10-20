@@ -144,6 +144,9 @@ static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
       filename = e->len ? e->name : basename_r(handle->filename);
 
       handle->cb(handle, filename, events, 0);
+
+      if (handle->fd == -1)
+        break;
     }
   }
   while (handle->fd != -1); /* handle might've been closed by callback */
@@ -198,4 +201,5 @@ void uv__fs_event_destroy(uv_fs_event_t* handle) {
   uv__close(handle->fd);
   handle->fd = -1;
   free(handle->filename);
+  handle->filename = NULL;
 }

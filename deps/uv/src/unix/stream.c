@@ -209,8 +209,8 @@ int uv_accept(uv_stream_t* server, uv_stream_t* client) {
   if (uv__stream_open(streamClient, streamServer->accepted_fd,
         UV_READABLE | UV_WRITABLE)) {
     /* TODO handle error */
-    streamServer->accepted_fd = -1;
     uv__close(streamServer->accepted_fd);
+    streamServer->accepted_fd = -1;
     goto out;
   }
 
