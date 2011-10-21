@@ -71,7 +71,7 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-double uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void) {
   vm_statistics_data_t info;
   mach_msg_type_number_t count = sizeof(info) / sizeof(integer_t);
 
@@ -80,10 +80,10 @@ double uv_get_free_memory(void) {
     return -1;
   }
 
-  return (double) info.free_count * sysconf(_SC_PAGESIZE);
+  return (uint64_t) info.free_count * sysconf(_SC_PAGESIZE);
 }
 
-double uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void) {
   uint64_t info;
   int which[] = {CTL_HW, HW_MEMSIZE};
   size_t size = sizeof(info);
@@ -92,7 +92,7 @@ double uv_get_total_memory(void) {
     return -1;
   }
 
-  return (double) info;
+  return (uint64_t) info;
 }
 
 void uv_loadavg(double avg[3]) {

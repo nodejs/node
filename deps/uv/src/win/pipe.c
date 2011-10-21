@@ -949,7 +949,6 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
   int result;
   uv_tcp_t* tcp_send_handle;
   uv_write_t* ipc_header_req;
-  DWORD written;
   uv_ipc_frame_uv_stream ipc_frame;
 
   if (bufcnt != 1 && (bufcnt != 0 || !send_handle)) {
@@ -1038,7 +1037,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
                         &ipc_frame,
                         ipc_frame.header.flags & UV_IPC_UV_STREAM ?
                           sizeof(ipc_frame) : sizeof(ipc_frame.header),
-                        &written,
+                        NULL,
                         &ipc_header_req->overlapped);
     if (!result && GetLastError() != ERROR_IO_PENDING) {
       uv__set_sys_error(loop, GetLastError());
@@ -1047,10 +1046,11 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
 
     if (result) {
       /* Request completed immediately. */
-      req->queued_bytes = 0;
+      ipc_header_req->queued_bytes = 0;
     } else {
       /* Request queued by the kernel. */
-      req->queued_bytes = written;
+      ipc_header_req->queued_bytes = ipc_frame.header.flags & UV_IPC_UV_STREAM ?
+        sizeof(ipc_frame) : sizeof(ipc_frame.header);
       handle->write_queue_size += req->queued_bytes;
     }
 
@@ -1332,6 +1332,7 @@ void uv_process_pipe_write_req(uv_loop_t* loop, uv_pipe_t* handle,
     uv_write_t* req) {
   assert(handle->type == UV_NAMED_PIPE);
 
+  assert(handle->write_queue_size >= req->queued_bytes);
   handle->write_queue_size -= req->queued_bytes;
 
   if (handle->flags & UV_HANDLE_EMULATE_IOCP) {

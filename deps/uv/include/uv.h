@@ -1127,8 +1127,8 @@ int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 int uv_exepath(char* buffer, size_t* size);
 
 /* Gets memory info in bytes */
-double uv_get_free_memory(void);
-double uv_get_total_memory(void);
+uint64_t uv_get_free_memory(void);
+uint64_t uv_get_total_memory(void);
 
 /*
  * Returns the current high-resolution real time. This is expressed in

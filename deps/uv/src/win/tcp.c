@@ -847,6 +847,7 @@ void uv_process_tcp_write_req(uv_loop_t* loop, uv_tcp_t* handle,
     uv_write_t* req) {
   assert(handle->type == UV_TCP);
 
+  assert(handle->write_queue_size >= req->queued_bytes);
   handle->write_queue_size -= req->queued_bytes;
 
   if (req->cb) {

@@ -23,10 +23,10 @@
 #include "task.h"
 
 TEST_IMPL(get_memory) {
-  double free_mem = uv_get_free_memory();
-  double total_mem = uv_get_total_memory();
+  uint64_t free_mem = uv_get_free_memory();
+  uint64_t total_mem = uv_get_total_memory();
 
-  printf("free_mem=%.0f, total_mem=%.0f\n", free_mem, total_mem);
+  printf("free_mem=%llu, total_mem=%llu\n", free_mem, total_mem);
 
   ASSERT(free_mem > 0);
   ASSERT(total_mem > 0);

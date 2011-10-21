@@ -313,7 +313,9 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   /* ansi parser state */                 \
   unsigned char ansi_parser_state;        \
   unsigned char ansi_csi_argc;            \
-  unsigned short ansi_csi_argv[4];
+  unsigned short ansi_csi_argv[4];        \
+  COORD saved_position;                   \
+  WORD saved_attributes;
 
 #define UV_TIMER_PRIVATE_FIELDS           \
   RB_ENTRY(uv_timer_s) tree_entry;        \

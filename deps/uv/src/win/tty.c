@@ -898,6 +898,64 @@ static int uv_tty_move_caret(uv_tty_t* handle, int x, unsigned char x_relative,
 }
 
 
+static int uv_tty_reset(uv_tty_t* handle, DWORD* error) {
+  const COORD origin = {0, 0};
+  const WORD char_attrs = FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_RED;
+  CONSOLE_SCREEN_BUFFER_INFO info;
+  DWORD count, written;
+
+  if (*error != ERROR_SUCCESS) {
+    return -1;
+  }
+
+  /* Reset original text attributes. */
+  if (!SetConsoleTextAttribute(handle->handle, char_attrs)) {
+    *error = GetLastError();
+    return -1;
+  }
+
+  /* Move the cursor position to (0, 0). */
+  if (!SetConsoleCursorPosition(handle->handle, origin)) {
+    *error = GetLastError();
+    return -1;
+  }
+
+  /* Clear the screen buffer. */
+ retry:
+  if (!GetConsoleScreenBufferInfo(handle->handle, &info)) {
+    *error = GetLastError();
+    return -1;
+  }
+
+  count = info.dwSize.X * info.dwSize.Y;
+
+  if (!(FillConsoleOutputCharacterW(handle->handle,
+                              L'\x20',
+                              count,
+                              origin,
+                              &written) &&
+        FillConsoleOutputAttribute(handle->handle,
+                                   char_attrs,
+                                   written,
+                                   origin,
+                                   &written))) {
+    if (GetLastError() == ERROR_INVALID_PARAMETER) {
+      /* The console may be resized - retry */
+      goto retry;
+    } else {
+      *error = GetLastError();
+      return -1;
+    }
+  }
+
+  /* Move the virtual window up to the top. */
+  uv_tty_virtual_offset = 0;
+  uv_tty_update_virtual_window(&info);
+
+  return 0;
+}
+
+
 static int uv_tty_clear(uv_tty_t* handle, int dir, char entire_screen,
     DWORD* error) {
   unsigned short argc = handle->ansi_csi_argc;
@@ -1084,6 +1142,76 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
 }
 
 
+static int uv_tty_save_state(uv_tty_t* handle, unsigned char save_attributes,
+    DWORD* error) {
+  CONSOLE_SCREEN_BUFFER_INFO info;
+
+  if (*error != ERROR_SUCCESS) {
+    return -1;
+  }
+
+  if (!GetConsoleScreenBufferInfo(handle->handle, &info)) {
+    *error = GetLastError();
+    return -1;
+  }
+
+  uv_tty_update_virtual_window(&info);
+
+  handle->saved_position.X = info.dwCursorPosition.X;
+  handle->saved_position.Y = info.dwCursorPosition.Y - uv_tty_virtual_offset;
+  handle->flags |= UV_HANDLE_TTY_SAVED_POSITION;
+
+  if (save_attributes) {
+    handle->saved_attributes = info.wAttributes &
+        (FOREGROUND_INTENSITY | BACKGROUND_INTENSITY);
+    handle->flags |= UV_HANDLE_TTY_SAVED_ATTRIBUTES;
+  }
+
+  return 0;
+}
+
+
+static int uv_tty_restore_state(uv_tty_t* handle,
+    unsigned char restore_attributes, DWORD* error) {
+  CONSOLE_SCREEN_BUFFER_INFO info;
+  WORD new_attributes;
+
+  if (*error != ERROR_SUCCESS) {
+    return -1;
+  }
+
+  if (handle->flags & UV_HANDLE_TTY_SAVED_POSITION) {
+    if (uv_tty_move_caret(handle,
+                          handle->saved_position.X,
+                          0,
+                          handle->saved_position.Y,
+                          0,
+                          error) != 0) {
+      return -1;
+    }
+  }
+
+  if (restore_attributes &&
+      (handle->flags & UV_HANDLE_TTY_SAVED_ATTRIBUTES)) {
+    if (!GetConsoleScreenBufferInfo(handle->handle, &info)) {
+      *error = GetLastError();
+      return -1;
+    }
+
+    new_attributes = info.wAttributes;
+    new_attributes &= ~(FOREGROUND_INTENSITY | BACKGROUND_INTENSITY);
+    new_attributes |= handle->saved_attributes;
+
+    if (!SetConsoleTextAttribute(handle->handle, new_attributes)) {
+      *error = GetLastError();
+      return -1;
+    }
+  }
+
+  return 0;
+}
+
+
 static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
     DWORD* error) {
   /* We can only write 8k characters at a time. Windows can't handle */
@@ -1202,6 +1330,26 @@ static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
 
           case '\033':
             /* Ignore double escape. */
+            continue;
+
+          case 'c':
+            /* Full console reset. */
+            uv_tty_reset(handle, error);
+            ansi_parser_state = ANSI_NORMAL;
+            continue;
+
+          case '7':
+            /* Save the cursor position and text attributes. */
+            FLUSH_TEXT();
+            uv_tty_save_state(handle, 1, error);
+            ansi_parser_state = ANSI_NORMAL;
+            continue;
+
+           case '8':
+            /* Restore the cursor position and text attributes */
+            FLUSH_TEXT();
+            uv_tty_restore_state(handle, 1, error);
+            ansi_parser_state = ANSI_NORMAL;
             continue;
 
           default:
@@ -1359,6 +1507,18 @@ static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
                 /* Set style */
                 FLUSH_TEXT();
                 uv_tty_set_style(handle, error);
+                break;
+
+              case 's':
+                /* Save the cursor position. */
+                FLUSH_TEXT();
+                uv_tty_save_state(handle, 0, error);
+                break;
+
+              case 'u':
+                /* Restore the cursor position */
+                FLUSH_TEXT();
+                uv_tty_restore_state(handle, 0, error);
                 break;
             }
 

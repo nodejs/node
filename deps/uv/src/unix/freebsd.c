@@ -70,7 +70,7 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-double uv_get_free_memory(void) {
+uint64_t uv_get_free_memory(void) {
   int freecount;
   size_t size = sizeof(freecount);
 
@@ -78,11 +78,11 @@ double uv_get_free_memory(void) {
                   &freecount, &size, NULL, 0) == -1){
     return -1;
   }
-  return (double) freecount * sysconf(_SC_PAGESIZE);
+  return (uint64_t) freecount * sysconf(_SC_PAGESIZE);
 
 }
 
-double uv_get_total_memory(void) {
+uint64_t uv_get_total_memory(void) {
   unsigned long info;
   int which[] = {CTL_HW, HW_PHYSMEM};
 
@@ -92,7 +92,7 @@ double uv_get_total_memory(void) {
     return -1;
   }
 
-  return (double) info;
+  return (uint64_t) info;
 }
 
 void uv_loadavg(double avg[3]) {

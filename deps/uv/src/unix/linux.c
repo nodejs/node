@@ -75,12 +75,12 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
-double uv_get_free_memory(void) {
-  return (double) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
+uint64_t uv_get_free_memory(void) {
+  return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
 }
 
-double uv_get_total_memory(void) {
-  return (double) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
+uint64_t uv_get_total_memory(void) {
+  return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
 }
 
 static int new_inotify_fd(void) {
