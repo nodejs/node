@@ -998,9 +998,9 @@ def shutdown():
       if os.path.exists('out/Debug/node.exe'):
         os.system('cp out/Debug/node.exe node_g.exe')
     else:
-      if os.path.exists('out/Release/node') and not os.path.exists('node'):
+      if os.path.exists('out/Release/node') and not os.path.islink('node'):
         os.symlink('out/Release/node', 'node')
-      if os.path.exists('out/Debug/node') and not os.path.exists('node_g'):
+      if os.path.exists('out/Debug/node') and not os.path.islink('node_g'):
         os.symlink('out/Debug/node', 'node_g')
   else:
     if sys.platform.startswith("win32"):
