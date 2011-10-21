@@ -46,14 +46,14 @@ function test(mod) {
   // Ensure that there is time to attach an error listener.
   var req = mod.get({host: host, port: 42}, do_not_call);
   req.on('error', function(err) {
-    assert.equal(err.code, 'EBADNAME');
+    assert.equal(err.code, 'ENOTFOUND');
     actual_bad_requests++;
   });
   // http.get() called req.end() for us
 
   var req = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
   req.on('error', function(err) {
-    assert.equal(err.code, 'EBADNAME');
+    assert.equal(err.code, 'ENOTFOUND');
     actual_bad_requests++;
   });
   req.end();
