@@ -865,6 +865,8 @@ struct uv_getaddrinfo_s {
  *
  * uv_freeaddrinfo() must be called after completion to free the addrinfo
  * structure.
+ *
+ * On error NXDOMAIN the status code will be non-zero and UV_ENOENT returned.
  */
  int uv_getaddrinfo(uv_loop_t*,
                     uv_getaddrinfo_t* handle,

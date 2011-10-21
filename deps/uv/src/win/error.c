@@ -129,6 +129,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ERROR_PIPE_BUSY:                   return UV_EBUSY;
     case ERROR_SEM_TIMEOUT:                 return UV_ETIMEDOUT;
     case ERROR_ALREADY_EXISTS:              return UV_EEXIST;
+    case WSAHOST_NOT_FOUND:                 return UV_ENOENT;
     default:                                return UV_UNKNOWN;
   }
 }
