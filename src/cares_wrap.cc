@@ -632,17 +632,20 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
     address = res;
     while (address) {
       assert(address->ai_socktype == SOCK_STREAM);
-      assert(address->ai_family == AF_INET || address->ai_family == AF_INET6);
 
-      // Juggle pointers
-      addr = (address->ai_family == AF_INET ?
-          (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr :
-          (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr);
-      const char* c = uv_inet_ntop(address->ai_family, addr, ip, INET6_ADDRSTRLEN);
+      // Ignore random ai_family types.
+      if (address->ai_family == AF_INET || address->ai_family == AF_INET6) {
+        // Juggle pointers
+        addr = (address->ai_family == AF_INET ?
+            (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr :
+            (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr);
+        const char* c = uv_inet_ntop(address->ai_family, addr, ip,
+            INET6_ADDRSTRLEN);
 
-      // Create JavaScript string
-      Local<String> s = String::New(c);
-      results->Set(n, s);
+        // Create JavaScript string
+        Local<String> s = String::New(c);
+        results->Set(n, s);
+      }
 
       // Increment
       n++;
@@ -666,9 +669,17 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
 
   String::Utf8Value hostname(args[0]->ToString());
 
-  int fam = AF_INET;
-  if (args[1]->IsInt32() && args[1]->Int32Value() == 6) {
-    fam = AF_INET6;
+  int fam = AF_UNSPEC;
+  if (args[1]->IsInt32()) {
+    switch (args[1]->Int32Value()) {
+      case 6:
+        fam = AF_INET6;
+        break;
+
+      case 4:
+        fam = AF_INET;
+        break;
+    }
   }
 
   GetAddrInfoReqWrap* req_wrap = new GetAddrInfoReqWrap();
