@@ -49,6 +49,7 @@ using v8::TryCatch;
 using v8::Context;
 using v8::Arguments;
 using v8::Integer;
+using v8::Undefined;
 
 static Persistent<Function> tcpConstructor;
 static Persistent<String> family_symbol;
@@ -96,6 +97,8 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "connect6", Connect6);
   NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
   NODE_SET_PROTOTYPE_METHOD(t, "getpeername", GetPeerName);
+  NODE_SET_PROTOTYPE_METHOD(t, "setNoDelay", SetNoDelay);
+  NODE_SET_PROTOTYPE_METHOD(t, "setKeepAlive", SetKeepAlive);
 
   tcpConstructor = Persistent<Function>::New(t->GetFunction());
 
@@ -216,6 +219,35 @@ Handle<Value> TCPWrap::GetPeerName(const Arguments& args) {
   }
 
   return scope.Close(sockname);
+}
+
+
+Handle<Value> TCPWrap::SetNoDelay(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  int r = uv_tcp_nodelay(&wrap->handle_, 1);
+  if (r)
+    SetErrno(uv_last_error(uv_default_loop()));
+
+  return Undefined();
+}
+
+
+Handle<Value> TCPWrap::SetKeepAlive(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  int enable = args[0]->Int32Value();
+  unsigned int delay = args[1]->Uint32Value();
+
+  int r = uv_tcp_keepalive(&wrap->handle_, enable, delay);
+  if (r)
+    SetErrno(uv_last_error(uv_default_loop()));
+
+  return Undefined();
 }
 
 

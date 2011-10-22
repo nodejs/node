@@ -17,6 +17,8 @@ class TCPWrap : public StreamWrap {
   static v8::Handle<v8::Value> New(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetSockName(const v8::Arguments& args);
   static v8::Handle<v8::Value> GetPeerName(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetNoDelay(const v8::Arguments& args);
+  static v8::Handle<v8::Value> SetKeepAlive(const v8::Arguments& args);
   static v8::Handle<v8::Value> Bind(const v8::Arguments& args);
   static v8::Handle<v8::Value> Bind6(const v8::Arguments& args);
   static v8::Handle<v8::Value> Listen(const v8::Arguments& args);
