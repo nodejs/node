@@ -86,12 +86,24 @@ int uv__stream_open(uv_stream_t* stream, int fd, int flags) {
 
   stream->flags |= flags;
 
-  /* Reuse the port address if applicable. */
-  yes = 1;
-  if (stream->type == UV_TCP
-      && setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(int)) == -1) {
-    uv__set_sys_error(stream->loop, errno);
-    return -1;
+  if (stream->type == UV_TCP) {
+    /* Reuse the port address if applicable. */
+    yes = 1;
+    if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof yes) == -1) {
+      uv__set_sys_error(stream->loop, errno);
+      return -1;
+    }
+
+    if ((stream->flags & UV_TCP_NODELAY) &&
+        uv__tcp_nodelay((uv_tcp_t*)stream, 1)) {
+      return -1;
+    }
+
+    /* TODO Use delay the user passed in. */
+    if ((stream->flags & UV_TCP_KEEPALIVE) &&
+        uv__tcp_keepalive((uv_tcp_t*)stream, 1, 60)) {
+      return -1;
+    }
   }
 
   /* Associate the fd with each ev_io watcher. */

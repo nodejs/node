@@ -74,13 +74,15 @@
 
 /* flags */
 enum {
-  UV_CLOSING  = 0x00000001, /* uv_close() called but not finished. */
-  UV_CLOSED   = 0x00000002, /* close(2) finished. */
-  UV_READING  = 0x00000004, /* uv_read_start() called. */
-  UV_SHUTTING = 0x00000008, /* uv_shutdown() called but not complete. */
-  UV_SHUT     = 0x00000010, /* Write side closed. */
-  UV_READABLE = 0x00000020, /* The stream is readable */
-  UV_WRITABLE = 0x00000040  /* The stream is writable */
+  UV_CLOSING       = 0x01,   /* uv_close() called but not finished. */
+  UV_CLOSED        = 0x02,   /* close(2) finished. */
+  UV_READING       = 0x04,   /* uv_read_start() called. */
+  UV_SHUTTING      = 0x08,   /* uv_shutdown() called but not complete. */
+  UV_SHUT          = 0x10,   /* Write side closed. */
+  UV_READABLE      = 0x20,   /* The stream is readable */
+  UV_WRITABLE      = 0x40,   /* The stream is writable */
+  UV_TCP_NODELAY   = 0x080,  /* Disable Nagle. */
+  UV_TCP_KEEPALIVE = 0x100   /* Turn on keep-alive. */
 };
 
 size_t uv__strlcpy(char* dst, const char* src, size_t size);
@@ -111,6 +113,8 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
 
 /* tcp */
 int uv_tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
+int uv__tcp_nodelay(uv_tcp_t* handle, int enable);
+int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay);
 
 /* pipe */
 int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb);

@@ -240,3 +240,82 @@ int uv__tcp_connect6(uv_connect_t* req,
   errno = saved_errno;
   return status;
 }
+
+
+int uv__tcp_nodelay(uv_tcp_t* handle, int enable) {
+  if (setsockopt(handle->fd,
+                 IPPROTO_TCP,
+                 TCP_NODELAY,
+                 &enable,
+                 sizeof enable) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+  return 0;
+}
+
+
+int uv__tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
+  if (setsockopt(handle->fd,
+                 SOL_SOCKET,
+                 SO_KEEPALIVE,
+                 &enable,
+                 sizeof enable) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+
+#ifdef TCP_KEEPIDLE
+  if (enable && setsockopt(handle->fd,
+                           IPPROTO_TCP,
+                           TCP_KEEPIDLE,
+                           &delay,
+                           sizeof delay) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+#endif
+
+#ifdef TCP_KEEPALIVE
+  if (enable && setsockopt(handle->fd,
+                           IPPROTO_TCP,
+                           TCP_KEEPALIVE,
+                           &delay,
+                           sizeof delay) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+#endif
+
+  return 0;
+}
+
+
+int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
+  if (handle->fd != -1 && uv__tcp_nodelay(handle, enable))
+    return -1;
+
+  if (enable)
+    handle->flags |= UV_TCP_NODELAY;
+  else
+    handle->flags &= ~UV_TCP_NODELAY;
+
+  return 0;
+}
+
+
+int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
+  if (handle->fd != -1 && uv__tcp_keepalive(handle, enable, delay))
+    return -1;
+
+  if (enable)
+    handle->flags |= UV_TCP_KEEPALIVE;
+  else
+    handle->flags &= ~UV_TCP_KEEPALIVE;
+
+  /* TODO Store delay if handle->fd == -1 but don't want to enlarge
+   *       uv_tcp_t with an int that's almost never used...
+   */
+
+  return 0;
+}

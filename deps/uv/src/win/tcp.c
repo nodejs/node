@@ -956,3 +956,15 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info) {
 
   return uv_tcp_set_socket(tcp->loop, tcp, socket, 1);
 }
+
+
+int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
+  uv__set_artificial_error(handle->loop, UV_ENOSYS);
+  return -1;
+}
+
+
+int uv_tcp_keepalive(uv_tcp_t* handle, int enable, int delay) {
+  uv__set_artificial_error(handle->loop, UV_ENOSYS);
+  return -1;
+}

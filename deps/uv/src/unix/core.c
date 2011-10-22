@@ -667,7 +667,8 @@ int uv_getaddrinfo(uv_loop_t* loop,
 
 
 void uv_freeaddrinfo(struct addrinfo* ai) {
-  freeaddrinfo(ai);
+  if (ai)
+    freeaddrinfo(ai);
 }
 
 

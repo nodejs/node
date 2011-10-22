@@ -448,6 +448,15 @@ struct uv_tcp_s {
 
 int uv_tcp_init(uv_loop_t*, uv_tcp_t* handle);
 
+/* Enable/disable Nagle's algorithm. */
+int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
+
+/* Enable/disable TCP keep-alive.
+ *
+ * `ms` is the initial delay in seconds, ignored when `enable` is zero.
+ */
+int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay);
+
 int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in);
 int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6);
 int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name, int* namelen);
