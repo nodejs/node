@@ -20,8 +20,6 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * Emit 'end' from crypto streams on close
 
-* repl: print out `undefined` (Nathan Rajlich)
-
 * #1902 buffer: use NO_NULL_TERMINATION flag (koichik)
 
 * #1907 http: Added support for HTTP PATCH verb (Thomas Parslow)
