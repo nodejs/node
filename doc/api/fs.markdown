@@ -133,7 +133,7 @@ Synchronous lchmod(2).
 ### fs.stat(path, [callback])
 
 Asynchronous stat(2). The callback gets two arguments `(err, stats)` where
-`stats` is a [`fs.Stats`](#fs.Stats) object.  See the [fs.Stats](#fs.Stats)
+`stats` is a [fs.Stats](#fs.Stats) object.  See the [fs.Stats](#fs.Stats)
 section below for more information.
 
 ### fs.lstat(path, [callback])
@@ -471,9 +471,9 @@ similar to this:
       ctime: Mon, 10 Oct 2011 23:24:11 GMT }
 
 Please note that `atime`, `mtime` and `ctime` are instances
-of [`Date`][MDN-Date] object and to compare the values of
+of [Date][MDN-Date] object and to compare the values of
 these objects you should use appropriate methods. For most
-general uses [`getTime()`][MDN-Date-getTime] will return
+general uses [getTime()][MDN-Date-getTime] will return
 the number of milliseconds elapsed since _1 January 1970
 00:00:00 UTC_ and this integer should be sufficient for
 any comparison, however there additional methods which can

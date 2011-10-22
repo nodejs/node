@@ -387,28 +387,29 @@ followed by `response.end()`.
 ## http.request(options, callback)
 
 Node maintains several connections per server to make HTTP requests.
-This function allows one to transparently issue requests.  Options align
-with `url.parse`.
+This function allows one to transparently issue requests.  `options` align
+with [url.parse()](url.html#url.parse).
 
 Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
-- `hostname`: To support `url.parse` `hostname` is prefered over
-  `host`
-- `port`: Port of remote server.
+  Defaults to `'localhost'`.
+- `hostname`: To support `url.parse()` `hostname` is prefered over `host`
+- `port`: Port of remote server. Defaults to 80.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
-- `method`: A string specifying the HTTP request method. Possible values:
-  `'GET'` (default), `'POST'`, `'PUT'`, and `'DELETE'`.
-- `path`: Request path. Should include query string and fragments if any.
-   E.G. `'/index.html?page=12'`
+- `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
+- `path`: Request path. Defaults to `'/'`. Should include query string if any.
+  E.G. `'/index.html?page=12'`
 - `headers`: An object containing request headers.
 - `auth`: Basic authentication i.e. `'user:password'` to compute an
   Authorization header.
-- `agent`: Controls `Agent` behavior. When an Agent is used request will default to 
-   Connection:keep-alive. Possible values:
- - `undefined` (default): use default `Agent` for this host and port.
+- `agent`: Controls [Agent](#http.Agent) behavior. When an Agent is used
+  request will default to `Connection: keep-alive`. Possible values:
+ - `undefined` (default): use [global Agent](#http.globalAgent) for this host
+   and port.
  - `Agent` object: explicitly use the passed in `Agent`.
- - `false`: opts out of connection pooling with an Agent, defaults request to Connection:close.
+ - `false`: opts out of connection pooling with an Agent, defaults request to
+   `Connection: close`.
 
 `http.request()` returns an instance of the `http.ClientRequest`
 class. The `ClientRequest` instance is a writable stream. If one needs to

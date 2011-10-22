@@ -27,7 +27,7 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 `test/fixtures/keys/Makefile` in the Node source code)
 
 
-#### tls.createServer(options, secureConnectionListener)
+#### tls.createServer(options, [secureConnectionListener])
 
 Creates a new [tls.Server](#tls.Server).
 The `connectionListener` argument is automatically set as a listener for the
@@ -100,7 +100,7 @@ You can test this server by connecting to it with `openssl s_client`:
     openssl s_client -connect 127.0.0.1:8000
 
 
-#### tls.connect(port, [host], [options], secureConnectListener)
+#### tls.connect(port, [host], [options], [secureConnectListener])
 
 Creates a new client connection to the given `port` and `host`. (If `host`
 defaults to `localhost`.) `options` should be an object which specifies
