@@ -485,7 +485,7 @@ be found in the [MDN JavaScript Reference][MDN-Date] page.
 
 ## fs.ReadStream
 
-`ReadStream` is a `Readable Stream`.
+`ReadStream` is a [Readable Stream](streams.html#readable_Stream).
 
 ### Event: 'open'
 
@@ -517,7 +517,7 @@ An example to read the last 10 bytes of a file which is 100 bytes long:
 
 ## fs.WriteStream
 
-`WriteStream` is a `Writable Stream`.
+`WriteStream` is a [Writable Stream](streams.html#writable_Stream).
 
 ### Event: 'open'
 

@@ -141,6 +141,10 @@ Example of checking for failed exec:
       }
     });
 
+Note that if spawn receives an empty options object, it will result in
+spawning the process with an empty environment rather than using
+`process.env`. This due to backwards compatibility issues with a deprecated
+API.
 
 See also: `child_process.exec()`
 

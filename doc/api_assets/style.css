@@ -126,6 +126,15 @@ h4 + h4 {
   margin: 0 0 0.5em;
 }
 
+  h3 a,
+  h4 a {
+    font-size: 0.8em;
+    float: right;
+    color: #000;
+    text-decoration: none;
+    opacity: 0.3;
+  }
+
 h5 {
   font-size: 1.125em;
   line-height: 1.4em;
