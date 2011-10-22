@@ -27,6 +27,8 @@
 #include <ws2tcpip.h>
 #include <windows.h>
 
+#include "winapi.h"
+
 
 /*
  * MinGW is missing these too

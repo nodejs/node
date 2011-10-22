@@ -424,7 +424,7 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
       len = wcslen(name);
 
       if (!buf) {
-        buf = (wchar_t*)malloc(buf_size);
+        buf = (wchar_t*)malloc(buf_size * sizeof(wchar_t));
         if (!buf) {
           uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
         }
@@ -435,7 +435,7 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
       while ((ptr - buf) + len + 1 > buf_size) {
         buf_size *= 2;
         path2 = buf;
-        buf = (wchar_t*)realloc(buf, buf_size);
+        buf = (wchar_t*)realloc(buf, buf_size * sizeof(wchar_t));
         if (!buf) {
           uv_fatal_error(ERROR_OUTOFMEMORY, "realloc");
         }

@@ -964,7 +964,7 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
 }
 
 
-int uv_tcp_keepalive(uv_tcp_t* handle, int enable, int delay) {
+int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
   uv__set_artificial_error(handle->loop, UV_ENOSYS);
   return -1;
 }

@@ -1334,6 +1334,7 @@ static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
 
           case 'c':
             /* Full console reset. */
+            FLUSH_TEXT();
             uv_tty_reset(handle, error);
             ansi_parser_state = ANSI_NORMAL;
             continue;
