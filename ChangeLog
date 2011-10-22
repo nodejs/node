@@ -1,3 +1,53 @@
+2011.10.21, Version 0.5.10 (unstable)
+
+* Remove cmake build system, support for Cygwin, legacy code base,
+	process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
+
+* Documentation improvments (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
+koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
+
+* Performance improvements (Daniel Ennis, Bert Belder, Ben Noordhuis) 
+
+* Long process.title support (Ben Noordhuis)
+
+* net: register net.Server callback only once (Simen Brekken)
+
+* net: fix connect queue bugs (Ben Noordhuis)
+
+* debugger: fix backtrace err handling (Fedor Indutny)
+
+* Use getaddrinfo instead of c-ares for dns.lookup
+
+* Emit 'end' from crypto streams on close
+
+* repl: print out `undefined` (Nathan Rajlich)
+
+* #1902 buffer: use NO_NULL_TERMINATION flag (koichik)
+
+* #1907 http: Added support for HTTP PATCH verb (Thomas Parslow)
+
+* #1644 add GetCPUInfo on windows (Karl Skomski)
+
+* #1484, #1834, #1482, #771 Don't use a separate context for the repl.
+  (isaacs)
+
+* #1882 zlib Update 'availOutBefore' value, and test (isaacs)
+
+* #1888 child_process.fork: don't modify args (koichik)
+
+* #1516 tls: requestCert unusable with Firefox and Chrome (koichik)
+
+* #1467 tls: The TLS API is inconsistent with the TCP API (koichik)
+
+* #1894 net: fix error handling in listen() (koichik)
+
+* #1860 console.error now goes through uv_tty_t
+
+* Upgrade V8 to 3.7.0
+
+* Upgrade GYP to r1081
+
+
 2011.10.10, Version 0.5.9 (unstable)
 
 * fs.watch interface backed by kqueue, inotify, and ReadDirectoryChangesW
