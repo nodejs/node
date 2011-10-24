@@ -20,6 +20,23 @@ fs.ReadStream into a zlib stream, then into an fs.WriteStream.
 
     inp.pipe(gzip).pipe(out);
 
+Compressing or decompressing data in one step can be done by using
+the convenience methods.
+
+    var input = '.................................';
+    zlib.deflate(input, function(err, buffer) {
+      if (!err) {
+        console.log(buffer.toString('base64'));
+      }
+    });
+
+    var buffer = new Buffer('eJzT0yMAAGTvBe8=', 'base64');
+    zlib.unzip(buffer, function(err, buffer) {
+      if (!err) {
+        console.log(buffer.toString());
+      }
+    });
+
 To use this module in an HTTP client or server, use the
 [accept-encoding](http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.html#sec14.3)
 on requests, and the
@@ -149,9 +166,46 @@ Decompress a raw deflate stream.
 Decompress either a Gzip- or Deflate-compressed stream by auto-detecting
 the header.
 
-### Options
+## Convenience Methods
 
-Each class takes an options object.  All options are optional.
+All of these take a string or buffer as the first argument, and call the
+supplied callback with `callback(error, result)`.  The
+compression/decompression engine is created using the default settings
+in all convenience methods.  To supply different options, use the
+zlib classes directly.
+
+### zlib.deflate(buf, callback)
+
+Compress a string with Deflate.
+
+### zlib.deflateRaw(buf, callback)
+
+Compress a string with DeflateRaw.
+
+### zlib.gzip(buf, callback)
+
+Compress a string with Gzip.
+
+### zlib.gunzip(buf, callback)
+
+Decompress a raw Buffer with Gunzip.
+
+### zlib.inflate(buf, callback)
+
+Decompress a raw Buffer with Inflate.
+
+### zlib.inflateRaw(buf, callback)
+
+Decompress a raw Buffer with InflateRaw.
+
+### zlib.unzip(buf, callback)
+
+Decompress a raw Buffer with Unzip.
+
+## Options
+
+Each class takes an options object.  All options are optional.  (The
+convenience methods use the default settings for all options.)
 
 Note that some options are only
 relevant when compressing, and are ignored by the decompression classes.
