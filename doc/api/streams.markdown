@@ -93,9 +93,6 @@ This keeps `process.stdout` open so that "Goodbye" can be written at the end.
       process.stdout.write("Goodbye\n");
     });
 
-NOTE: If the source stream does not support `pause()` and `resume()`, this function
-adds simple definitions which simply emit `'pause'` and `'resume'` events on
-the source stream.
 
 ## Writable Stream
 
