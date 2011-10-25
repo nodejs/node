@@ -24,7 +24,7 @@ var assert = require('assert')
 var spawn = require('child_process').spawn;
 var common = require('../common');
 
-var child = spawn('node', [path.join(common.fixturesDir, 'GH-1899-output.js')]);
+var child = spawn(process.argv[0], [path.join(common.fixturesDir, 'GH-1899-output.js')]);
 var output = '';
 
 child.stdout.on('data', function (data) {
