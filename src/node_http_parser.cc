@@ -103,12 +103,18 @@ static char* current_buffer_data;
 static size_t current_buffer_len;
 
 
+// gcc 3.x knows the always_inline attribute but fails at build time with a
+// "sorry, unimplemented: inlining failed" error when compiling at -O0
 #if defined(__GNUC__)
-#define always_inline __attribute__((always_inline))
+# if __GNUC__ >= 4
+#  define always_inline __attribute__((always_inline))
+# else
+#  define always_inline inline
+# endif
 #elif defined(_MSC_VER)
-#define always_inline __forceinline
+# define always_inline __forceinline
 #else
-#define always_inline
+# define always_inline
 #endif
 
 
