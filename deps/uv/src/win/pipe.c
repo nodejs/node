@@ -989,9 +989,9 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
     /* Use the IPC framing protocol. */
     if (send_handle) {
       tcp_send_handle = (uv_tcp_t*)send_handle;
-      if (WSADuplicateSocketW(tcp_send_handle->socket, handle->ipc_pid,
+
+      if (uv_tcp_duplicate_socket(tcp_send_handle, handle->ipc_pid,
           &ipc_frame.socket_info)) {
-        uv__set_sys_error(loop, WSAGetLastError());
         return -1;
       }
       ipc_frame.header.flags |= UV_IPC_UV_STREAM;

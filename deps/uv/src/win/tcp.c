@@ -420,7 +420,8 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
     }
   }
 
-  if (listen(handle->socket, backlog) == SOCKET_ERROR) {
+  if (!(handle->flags & UV_HANDLE_SHARED_TCP_SERVER) &&
+      listen(handle->socket, backlog) == SOCKET_ERROR) {
     uv__set_sys_error(loop, WSAGetLastError());
     return -1;
   }
@@ -953,6 +954,7 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info) {
   }
 
   tcp->flags |= UV_HANDLE_BOUND;
+  tcp->flags |= UV_HANDLE_SHARED_TCP_SERVER;
 
   return uv_tcp_set_socket(tcp->loop, tcp, socket, 1);
 }
@@ -967,4 +969,39 @@ int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
 int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
   uv__set_artificial_error(handle->loop, UV_ENOSYS);
   return -1;
+}
+
+
+int uv_tcp_duplicate_socket(uv_tcp_t* handle, int pid,
+    LPWSAPROTOCOL_INFOW protocol_info) {
+  if (!(handle->flags & UV_HANDLE_CONNECTION)) {
+    /* 
+     * We're about to share the socket with another process.  Because
+     * this is a server socket, we assume that the other process will
+     * be accepting conections on this socket.  So, before sharing the
+     * socket with another process, we call listen here in the parent
+     * process.  This needs to be modified if the socket is shared with
+     * another process for anything other than accepting connections.
+     */
+
+    if (!(handle->flags & UV_HANDLE_LISTENING)) {
+      if (!(handle->flags & UV_HANDLE_BOUND)) {
+        uv__set_artificial_error(handle->loop, UV_EINVAL);
+        return -1;
+      }
+      if (listen(handle->socket, SOMAXCONN) == SOCKET_ERROR) {
+        uv__set_sys_error(handle->loop, WSAGetLastError());
+        return -1;
+      }
+    }
+
+    handle->flags |= UV_HANDLE_SHARED_TCP_SERVER;
+  }
+
+  if (WSADuplicateSocketW(handle->socket, pid, protocol_info)) {
+    uv__set_sys_error(handle->loop, WSAGetLastError());
+    return -1;
+  }
+
+  return 0;
 }

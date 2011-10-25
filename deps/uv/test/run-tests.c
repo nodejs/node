@@ -112,7 +112,7 @@ static void ipc_on_connection(uv_stream_t* server, int status) {
 }
 
 
-static int ipc_helper() {
+static int ipc_helper(int listen_after_write) {
   /*
    * This is launched from test-ipc.c. stdin is a duplex channel that we
    * over which a handle will be transmitted. In this initial version only
@@ -135,13 +135,20 @@ static int ipc_helper() {
   r = uv_tcp_bind(&tcp_server, uv_ip4_addr("0.0.0.0", TEST_PORT));
   ASSERT(r == 0);
 
-  r = uv_listen((uv_stream_t*)&tcp_server, 12, ipc_on_connection);
-  ASSERT(r == 0);
+  if (!listen_after_write) {
+    r = uv_listen((uv_stream_t*)&tcp_server, 12, ipc_on_connection);
+    ASSERT(r == 0);
+  }
 
   buf = uv_buf_init("hello\n", 6);
   r = uv_write2(&write_req, (uv_stream_t*)&channel, &buf, 1,
       (uv_stream_t*)&tcp_server, NULL);
   ASSERT(r == 0);
+
+  if (listen_after_write) {
+    r = uv_listen((uv_stream_t*)&tcp_server, 12, ipc_on_connection);
+    ASSERT(r == 0);
+  }
 
   r = uv_run(uv_default_loop());
   ASSERT(r == 0);
@@ -251,8 +258,12 @@ static int maybe_run_test(int argc, char **argv) {
     return 0;
   }
 
-  if (strcmp(argv[1], "ipc_helper") == 0) {
-    return ipc_helper();
+  if (strcmp(argv[1], "ipc_helper_listen_before_write") == 0) {
+    return ipc_helper(0);
+  }
+
+  if (strcmp(argv[1], "ipc_helper_listen_after_write") == 0) {
+    return ipc_helper(1);
   }
 
   if (strcmp(argv[1], "stdio_over_pipes_helper") == 0) {

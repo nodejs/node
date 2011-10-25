@@ -75,6 +75,7 @@ static int uv__translate_lib_error(int code) {
     case UV_ENOTDIR: return ENOTDIR;
     case UV_ENOTCONN: return ENOTCONN;
     case UV_EEXIST: return EEXIST;
+    case UV_EHOSTUNREACH: return EHOSTUNREACH;
     default: return -1;
   }
 
@@ -103,6 +104,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ENOTDIR: return UV_ENOTDIR;
     case ENOTCONN: return UV_ENOTCONN;
     case EEXIST: return UV_EEXIST;
+    case EHOSTUNREACH: return UV_EHOSTUNREACH;
     case EAI_NONAME: return UV_ENOENT;
     default: return UV_UNKNOWN;
   }
