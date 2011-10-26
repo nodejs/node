@@ -15,7 +15,7 @@ elsewhere.
 
 - Web Framework: [Express](http://github.com/visionmedia/express)
 
-- Web Sockets: [Socket.IO](http://github.com/LearnBoost/Socket.IO-node)
+- Web Sockets: [Socket.IO](https://github.com/learnboost/socket.io)
 
 - HTML Parsing: [HTML5](http://github.com/aredridel/html5)
 
