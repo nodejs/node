@@ -7,25 +7,57 @@ processes to handle the load.
 The cluster module allows you to easily create a network of processes all
 which share server ports.
 
-  var cluster = require('cluster');
-  var http = require('http');
+    var cluster = require('cluster');
+    var http = require('http');
 
-  if (!cluster.isWorker()) {
-    // Start the master process, fork workers.
-    cluster.startMaster({ workers: 2 });
-  } else {
-    // Worker processes have a http server.
-    http.Server(function(req, res) {
-      res.writeHead(200);
-      res.end("hello world\n");
-    }).listen(8000);
-  }
+    if (cluster.isMaster) {
+      // Start the master process, fork workers.
+      cluster.startMaster({ workers: 2 });
+    } else {
+      // Worker processes have a http server.
+      http.Server(function(req, res) {
+        res.writeHead(200);
+        res.end("hello world\n");
+      }).listen(8000);
+    }
 
-If we start it like this
+Running node will now share port 8000 between the workers:
 
-    % node cluster server.js 
-    Detected 2 cpus
+    % node server.js
     Worker 2438 online
     Worker 2437 online
 
-Node will automatically share port 8000 between the multiple instances.
+### exports.startMaster([options])
+
+  Spawns the initial worker processes, one per CPU by default.
+
+  The following options are supported:
+
+  - `filename`: script to execute in the worker process, defaults to
+    `process.argv[1]`
+  - `args`: worker program arguments, defaulting to `process.argv.slice(2)`
+  - `workers`: the number of workers, defaulting to `os.cpus().length`
+
+### exports.spawnWorker([options])
+
+   Spawn a new worker process. This is called within `cluster.startMaster()`,
+   however it is useful to implement worker resuscitation as described below
+   in the "Common patterns" section.
+
+   The `options` available are identical to `cluster.startMaster()`.
+
+## Common patterns
+
+## Worker resuscitation
+
+The following is an example of how you may implement worker resuscitation,
+spawning a new worker process when another exits.
+
+    if (cluster.isMaster) {
+      cluster.startMaster();
+      process.on('SIGCHLD', function(){
+        console.log('worker killed');
+        cluster.spawnWorker();
+      });
+    }
+
