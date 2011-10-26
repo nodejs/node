@@ -627,30 +627,51 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
     n = 0;
 
-    // Iterate over the responses again this time creating javascript
+    // Iterate over the IPv4 responses again this time creating javascript
     // strings for each IP and filling the results array.
     address = res;
     while (address) {
       assert(address->ai_socktype == SOCK_STREAM);
 
       // Ignore random ai_family types.
-      if (address->ai_family == AF_INET || address->ai_family == AF_INET6) {
+      if (address->ai_family == AF_INET) {
         // Juggle pointers
-        addr = (address->ai_family == AF_INET ?
-            (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr :
-            (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr);
+        addr = (char*) &((struct sockaddr_in*) address->ai_addr)->sin_addr;
         const char* c = uv_inet_ntop(address->ai_family, addr, ip,
             INET6_ADDRSTRLEN);
 
         // Create JavaScript string
         Local<String> s = String::New(c);
         results->Set(n, s);
+        n++;
       }
 
       // Increment
-      n++;
       address = address->ai_next;
     }
+
+    // Iterate over the IPv6 responses putting them in the array.
+    address = res;
+    while (address) {
+      assert(address->ai_socktype == SOCK_STREAM);
+
+      // Ignore random ai_family types.
+      if (address->ai_family == AF_INET6) {
+        // Juggle pointers
+        addr = (char*) &((struct sockaddr_in6*) address->ai_addr)->sin6_addr;
+        const char* c = uv_inet_ntop(address->ai_family, addr, ip,
+            INET6_ADDRSTRLEN);
+
+        // Create JavaScript string
+        Local<String> s = String::New(c);
+        results->Set(n, s);
+        n++;
+      }
+
+      // Increment
+      address = address->ai_next;
+    }
+
 
     argv[0] = results;
   }
