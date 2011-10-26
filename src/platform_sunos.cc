@@ -82,7 +82,6 @@ const char* Platform::GetProcessTitle(int *len) {
 int Platform::GetMemory(size_t *rss) {
   pid_t pid = getpid();
 
-  size_t page_size = getpagesize();
   char pidpath[1024];
   sprintf(pidpath, "/proc/%d/psinfo", pid);
 
@@ -128,7 +127,7 @@ static Handle<Value> data_named(kstat_named_t *knp) {
     val = String::New(KSTAT_NAMED_STR_PTR(knp));
     break;
   default:
-    throw (String::New("unrecognized data type"));
+    val = String::New("unrecognized data type");
   }
 
   return (val);
@@ -146,7 +145,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
   kstat_named_t *knp;
 
   if ((kc = kstat_open()) == NULL)
-    throw "could not open kstat";
+    return -1;
 
   *cpus = Array::New();
 
@@ -212,23 +211,23 @@ double Platform::GetUptimeImpl() {
   kstat_named_t *knp;
 
   long hz = sysconf(_SC_CLK_TCK);
-  ulong_t clk_intr;
+  double clk_intr;
 
   if ((kc = kstat_open()) == NULL)
-    throw "could not open kstat";
+    return -1;
 
   ksp = kstat_lookup(kc, (char *)"unix", 0, (char *)"system_misc");
 
   if (kstat_read(kc, ksp, NULL) == -1) {
-    throw "unable to read kstat";
+    clk_intr = -1;
   } else {
     knp = (kstat_named_t *) kstat_data_lookup(ksp, (char *)"clk_intr");
-    clk_intr = knp->value.ul;
+    clk_intr = knp->value.ul / hz;
   }
 
   kstat_close(kc);
 
-  return static_cast<double>( clk_intr / hz );
+  return clk_intr;
 }
 
 
