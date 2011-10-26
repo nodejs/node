@@ -184,6 +184,12 @@
             '-lkvm',
           ],
         }],
+        [ 'OS=="solaris"', {
+          'sources': [ 'src/platform_sunos.cc' ],
+          'libraries': [
+            '-lkstat',
+          ],
+        }],
       ],
       'msvs-settings': {
         'VCLinkerTool': {
