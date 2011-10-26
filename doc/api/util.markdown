@@ -70,6 +70,62 @@ Example of inspecting all properties of the `util` object:
     console.log(util.inspect(util, true, null));
 
 
+### util.isArray(object)
+
+Returns `true` if the given "object" is an `Array`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isArray([])
+      // true
+    util.isArray(new Array)
+      // true
+    util.isArray({})
+      // false
+
+
+### util.isRegExp(object)
+
+Returns `true` if the given "object" is a `RegExp`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isRegExp(/some regexp/)
+      // true
+    util.isRegExp(new RegExp('another regexp'))
+      // true
+    util.isRegExp({})
+      // false
+
+
+### util.isDate(object)
+
+Returns `true` if the given "object" is a `Date`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isDate(new Date())
+      // true
+    util.isDate(Date())
+      // false (without 'new' returns a String)
+    util.isDate({})
+      // false
+
+
+### util.isError(object)
+
+Returns `true` if the given "object" is an `Error`. `false` otherwise.
+
+    var util = require('util');
+
+    util.isError(new Error())
+      // true
+    util.isError(new TypeError())
+      // true
+    util.isError({ name: 'Error', message: 'an error occurred' })
+      // false
+
+
 ### util.pump(readableStream, writableStream, [callback])
 
 Experimental
