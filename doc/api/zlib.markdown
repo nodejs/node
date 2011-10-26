@@ -91,6 +91,35 @@ All of the constants defined in zlib.h are also defined on
 documentation.  See <http://zlib.net/manual.html#Constants>
 for more details.
 
+### zlib.createGzip([options])
+
+Returns a new [Gzip](#zlib.Gzip) object with an [options](#options).
+
+### zlib.createGunzip([options])
+
+Returns a new [Gunzip](#zlib.Gunzip) object with an [options](#options).
+
+### zlib.createDeflate([options])
+
+Returns a new [Deflate](#zlib.Deflate) object with an [options](#options).
+
+### zlib.createInflate([options])
+
+Returns a new [Inflate](#zlib.Inflate) object with an [options](#options).
+
+### zlib.createDeflateRaw([options])
+
+Returns a new [DeflateRaw](#zlib.DeflateRaw) object with an [options](#options).
+
+### zlib.createInflateRaw([options])
+
+Returns a new [InflateRaw](#zlib.InflateRaw) object with an [options](#options).
+
+### zlib.createUnzip([options])
+
+Returns a new [Unzip](#zlib.Unzip) object with an [options](#options).
+
+
 ### zlib.Gzip
 
 Compress data using gzip.
