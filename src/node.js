@@ -68,10 +68,6 @@
       var d = NativeModule.require('_debugger');
       d.start();
 
-    } else if (process.argv[1] == 'cluster') {
-      var cluster = NativeModule.require('cluster');
-      cluster.start();
-
     } else if (process._eval != null) {
       // User passed '-e' or '--eval' arguments to Node.
       var Module = NativeModule.require('module');

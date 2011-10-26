@@ -4,14 +4,22 @@ A single instance of Node runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node
 processes to handle the load.
 
-By starting node with the `cluster` argument, Node will detect the number of
-CPUs on the machine and start that many processes. For example suppose we
-had a simple HTTP server in server.js:
+The cluster module allows you to easily create a network of processes all
+which share server ports.
 
-    require('http').createServer(function(req, res) {
+  var cluster = require('cluster');
+  var http = require('http');
+
+  if (!cluster.isWorker()) {
+    // Start the master process, fork workers.
+    cluster.startMaster({ workers: 2 });
+  } else {
+    // Worker processes have a http server.
+    http.Server(function(req, res) {
       res.writeHead(200);
-      res.end('hello world\n');
+      res.end("hello world\n");
     }).listen(8000);
+  }
 
 If we start it like this
 
