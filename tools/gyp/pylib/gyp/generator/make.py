@@ -1505,8 +1505,10 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       # libraries, but until everything is made cross-compile safe, also use
       # target libraries.
       # TODO(piman): when everything is cross-compile safe, remove lib.target
-      self.WriteLn('cmd_%s = export LD_LIBRARY_PATH=$(builddir)/lib.host:'
-                   '$(builddir)/lib.target:$$LD_LIBRARY_PATH; %s%s'
+      self.WriteLn('cmd_%s = LD_LIBRARY_PATH=$(builddir)/lib.host:'
+                   '$(builddir)/lib.target:$$LD_LIBRARY_PATH; '
+                   'export LD_LIBRARY_PATH; '
+                   '%s%s'
                    % (name, cd_action, command))
       self.WriteLn()
       outputs = map(self.Absolutify, outputs)
@@ -1623,8 +1625,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         # target libraries.
         # TODO(piman): when everything is cross-compile safe, remove lib.target
         self.WriteLn(
-            "cmd_%(name)s_%(count)d = export LD_LIBRARY_PATH="
+            "cmd_%(name)s_%(count)d = LD_LIBRARY_PATH="
               "$(builddir)/lib.host:$(builddir)/lib.target:$$LD_LIBRARY_PATH; "
+              "export LD_LIBRARY_PATH; "
               "%(cd_action)s%(mkdirs)s%(action)s" % {
           'action': gyp.common.EncodePOSIXShellList(action),
           'cd_action': cd_action,
