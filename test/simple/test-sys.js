@@ -37,7 +37,7 @@ assert.equal('Sun, 14 Feb 2010 11:48:40 GMT',
 assert.equal("'\\n\\u0001'", common.inspect('\n\u0001'));
 
 assert.equal('[]', common.inspect([]));
-assert.equal('[]', common.inspect(Object.create([])));
+assert.equal('{}', common.inspect(Object.create([])));
 assert.equal('[ 1, 2 ]', common.inspect([1, 2]));
 assert.equal('[ 1, [ 2, 3 ] ]', common.inspect([1, [2, 3]]));
 
@@ -91,9 +91,6 @@ assert.equal('{ writeonly: [Setter] }',
 var value = {};
 value['a'] = value;
 assert.equal('{ a: [Circular] }', common.inspect(value));
-value = Object.create([]);
-value.push(1);
-assert.equal('[ 1, length: 1 ]', common.inspect(value));
 
 // Array with dynamic properties
 value = [1, 2, 3];

@@ -53,9 +53,12 @@ try {
   assert.equal(util.inspect(e), '[ReferenceError: undef is not defined]');
 }
 var ex = util.inspect(new Error('FAIL'), true);
-console.log(ex);
 assert.ok(ex.indexOf('[Error: FAIL]') != -1);
 assert.ok(ex.indexOf('[stack]') != -1);
 assert.ok(ex.indexOf('[message]') != -1);
 assert.ok(ex.indexOf('[arguments]') != -1);
 assert.ok(ex.indexOf('[type]') != -1);
+
+// GH-1941
+// should not throw:
+assert.equal(util.inspect(Object.create(Date.prototype)), '{}')

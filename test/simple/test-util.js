@@ -36,6 +36,7 @@ assert.equal(false, util.isArray({}))
 assert.equal(false, util.isArray({ push: function () {} }))
 assert.equal(false, util.isArray(/regexp/))
 assert.equal(false, util.isArray(new Error))
+assert.equal(false, util.isArray(Object.create(Array.prototype)))
 
 // isRegExp
 assert.equal(true, util.isRegExp(/regexp/))
@@ -45,6 +46,7 @@ assert.equal(true, util.isRegExp(context('RegExp')()))
 assert.equal(false, util.isRegExp({}))
 assert.equal(false, util.isRegExp([]))
 assert.equal(false, util.isRegExp(new Date()))
+assert.equal(false, util.isRegExp(Object.create(RegExp.prototype)))
 
 // isDate
 assert.equal(true, util.isDate(new Date()))
@@ -54,6 +56,7 @@ assert.equal(false, util.isDate(Date()))
 assert.equal(false, util.isDate({}))
 assert.equal(false, util.isDate([]))
 assert.equal(false, util.isDate(new Error))
+assert.equal(false, util.isDate(Object.create(Date.prototype)))
 
 // isError
 assert.equal(true, util.isError(new Error))
@@ -65,3 +68,4 @@ assert.equal(true, util.isError(new (context('SyntaxError'))))
 assert.equal(false, util.isError({}))
 assert.equal(false, util.isError({ name: 'Error', message: '' }))
 assert.equal(false, util.isError([]))
+assert.equal(false, util.isError(Object.create(Error.prototype)))
