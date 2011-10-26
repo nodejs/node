@@ -37,6 +37,8 @@ The `options` object has these possibilities:
   - `key`: A string or `Buffer` containing the private key of the server in
     PEM format. (Required)
 
+  - `passphrase`: A string of passphrase for the private key.
+
   - `cert`: A string or `Buffer` containing the certificate key of the server in
     PEM format. (Required)
 
@@ -106,7 +108,9 @@ Creates a new client connection to the given `port` and `host`. (If `host`
 defaults to `localhost`.) `options` should be an object which specifies
 
   - `key`: A string or `Buffer` containing the private key of the client in
-    PEM format. (Required)
+    PEM format.
+
+  - `passphrase`: A string of passphrase for the private key.
 
   - `cert`: A string or `Buffer` containing the certificate key of the client in
     PEM format.

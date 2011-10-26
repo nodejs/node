@@ -90,6 +90,7 @@ The following options from [tls.connect()](tls.html#tls.connect) can also be
 specified. However, a [globalAgent](#https.globalAgent) silently ignores these.
 
 - `key`: Private key to use for SSL. Default `null`.
+- `passphrase`: A string of passphrase for the private key. Default `null`.
 - `cert`: Public x509 certificate to use. Default `null`.
 - `ca`: An authority certificate or array of authority certificates to check
   the remote host against.

@@ -223,14 +223,21 @@ Handle<Value> SecureContext::SetKey(const Arguments& args) {
 
   SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
 
-  if (args.Length() != 1) {
+  unsigned int len = args.Length();
+  if (len != 1 && len != 2) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
+  }
+  if (len == 2 && !args[1]->IsString()) {
     return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
   BIO *bio = LoadBIO(args[0]);
   if (!bio) return False();
 
-  EVP_PKEY* key = PEM_read_bio_PrivateKey(bio, NULL, NULL, NULL);
+  String::Utf8Value passphrase(args[1]->ToString());
+
+  EVP_PKEY* key = PEM_read_bio_PrivateKey(bio, NULL, NULL,
+                                          len == 1 ? NULL : *passphrase);
 
   if (!key) {
     BIO_free(bio);
