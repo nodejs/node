@@ -903,6 +903,9 @@ def build(bld):
     src/v8_typed_array.cc
   """
 
+  if bld.env["USE_DTRACE"]:
+    node.source += " src/node_dtrace.cc "
+
   if not sys.platform.startswith("win32"):
     node.source += " src/node_signal_watcher.cc "
     node.source += " src/node_stat_watcher.cc "

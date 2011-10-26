@@ -74,7 +74,6 @@
         'src/node.cc',
         'src/node_buffer.cc',
         'src/node_constants.cc',
-        'src/node_dtrace.cc',
         'src/node_extensions.cc',
         'src/node_file.cc',
         'src/node_http_parser.cc',
@@ -98,7 +97,6 @@
         'src/node_buffer.h',
         'src/node_constants.h',
         'src/node_crypto.h',
-        'src/node_dtrace.h',
         'src/node_extensions.h',
         'src/node_file.h',
         'src/node_http_parser.h',
@@ -142,7 +140,11 @@
 
         [ 'node_use_dtrace=="true"', {
           'sources': [
-            'src/node_provider.h', # why does this get generated into src and not SHARED_INTERMEDIATE_DIR?
+            'src/node_dtrace.cc',
+            'src/node_dtrace.h',
+            # why does node_provider.h get generated into src and not
+            # SHARED_INTERMEDIATE_DIR?
+            'src/node_provider.h',
           ],
         }],
 

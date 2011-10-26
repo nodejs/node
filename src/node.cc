@@ -24,7 +24,9 @@
 #include <uv.h>
 
 #include <v8-debug.h>
-#include <node_dtrace.h>
+#ifdef HAVE_DTRACE
+# include <node_dtrace.h>
+#endif
 
 #include <locale.h>
 #include <signal.h>
