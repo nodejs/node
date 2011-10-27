@@ -909,7 +909,6 @@ def build(bld):
   if not sys.platform.startswith("win32"):
     node.source += " src/node_signal_watcher.cc "
     node.source += " src/node_stat_watcher.cc "
-    node.source += " src/node_io_watcher.cc "
 
   node.source += bld.env["PLATFORM_FILE"]
   if not product_type_is_lib:
