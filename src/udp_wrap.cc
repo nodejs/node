@@ -93,6 +93,7 @@ public:
   static Handle<Value> GetSockName(const Arguments& args);
   static Handle<Value> AddMembership(const Arguments& args);
   static Handle<Value> DropMembership(const Arguments& args);
+  static Handle<Value> SetBroadcast(const Arguments& args);
 
 private:
   static inline char* NewSlab(v8::Handle<v8::Object> global, v8::Handle<v8::Object> wrap_obj);
@@ -153,6 +154,7 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
   NODE_SET_PROTOTYPE_METHOD(t, "addMembership", AddMembership);
   NODE_SET_PROTOTYPE_METHOD(t, "dropMembership", DropMembership);
+  NODE_SET_PROTOTYPE_METHOD(t, "setBroadcast", SetBroadcast);
 
   target->Set(String::NewSymbol("UDP"),
               Persistent<FunctionTemplate>::New(t)->GetFunction());
@@ -209,6 +211,20 @@ Handle<Value> UDPWrap::Bind6(const Arguments& args) {
   return DoBind(args, AF_INET6);
 }
 
+Handle<Value> UDPWrap::SetBroadcast(const Arguments& args) {
+  HandleScope scope;
+  UNWRAP
+
+  assert(args.Length() == 1);
+
+  int on = args[0]->Uint32Value();
+  int r = uv_udp_set_broadcast(&wrap->handle_, on);
+
+  if (r)
+    SetErrno(uv_last_error(uv_default_loop()));
+
+  return scope.Close(Integer::New(r));
+}
 
 Handle<Value> UDPWrap::SetMembership(const Arguments& args,
                                      uv_membership membership) {
