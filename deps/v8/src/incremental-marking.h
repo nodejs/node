@@ -127,6 +127,7 @@ class IncrementalMarking {
   inline void RecordWriteIntoCode(HeapObject* obj,
                                   RelocInfo* rinfo,
                                   Object* value);
+  void RecordCodeTargetPatch(Code* host, Address pc, HeapObject* value);
   void RecordCodeTargetPatch(Address pc, HeapObject* value);
   void RecordWriteOfCodeEntry(JSFunction* host, Object** slot, Code* value);
 
@@ -197,6 +198,14 @@ class IncrementalMarking {
     }
   }
 
+  void EnterNoMarkingScope() {
+    no_marking_scope_depth_++;
+  }
+
+  void LeaveNoMarkingScope() {
+    no_marking_scope_depth_--;
+  }
+
  private:
   void set_should_hurry(bool val) {
     should_hurry_ = val;
@@ -247,6 +256,8 @@ class IncrementalMarking {
   bool should_hurry_;
   int allocation_marking_factor_;
   intptr_t allocated_;
+
+  int no_marking_scope_depth_;
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(IncrementalMarking);
 };

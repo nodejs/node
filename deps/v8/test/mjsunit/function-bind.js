@@ -29,29 +29,31 @@
 
 // Simple tests.
 function foo(x, y, z) {
-  return x + y + z;
+  return [this, arguments.length, x];
 }
 
+assertEquals(3, foo.length);
+
 var f = foo.bind(foo);
-assertEquals(3, f(1, 1, 1));
+assertEquals([foo, 3, 1], f(1, 2, 3));
 assertEquals(3, f.length);
 
-f = foo.bind(foo, 2);
-assertEquals(4, f(1, 1));
+f = foo.bind(foo, 1);
+assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
 
-f = foo.bind(foo, 2, 2);
-assertEquals(5, f(1));
+f = foo.bind(foo, 1, 2);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo, 2, 2, 2);
-assertEquals(6, f());
+f = foo.bind(foo, 1, 2, 3);
+assertEquals([foo, 3, 1], f());
 assertEquals(0, f.length);
 
 // Test that length works correctly even if more than the actual number
 // of arguments are given when binding.
 f = foo.bind(foo, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-assertEquals(6, f());
+assertEquals([foo, 9, 1], f());
 assertEquals(0, f.length);
 
 // Use a different bound object.
@@ -78,64 +80,97 @@ assertEquals(0, f.length);
 // When only giving the thisArg, any number of binds should have
 // the same effect.
 f = foo.bind(foo);
-assertEquals(3, f(1, 1, 1));
-f = foo.bind(foo).bind(foo).bind(foo).bind(foo);
-assertEquals(3, f(1, 1, 1));
+assertEquals([foo, 3, 1], f(1, 2, 3));
+
+var not_foo = {};
+f = foo.bind(foo).bind(not_foo).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(1, 2, 3));
 assertEquals(3, f.length);
 
 // Giving bound parameters should work at any place in the chain.
-f = foo.bind(foo, 1).bind(foo).bind(foo).bind(foo);
-assertEquals(3, f(1, 1));
+f = foo.bind(foo, 1).bind(not_foo).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
 
-f = foo.bind(foo).bind(foo, 1).bind(foo).bind(foo);
-assertEquals(3, f(1, 1));
+f = foo.bind(foo).bind(not_foo, 1).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
 
-f = foo.bind(foo).bind(foo).bind(foo,1 ).bind(foo);
-assertEquals(3, f(1, 1));
+f = foo.bind(foo).bind(not_foo).bind(not_foo,1 ).bind(not_foo);
+assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
 
-f = foo.bind(foo).bind(foo).bind(foo).bind(foo, 1);
-assertEquals(3, f(1, 1));
+f = foo.bind(foo).bind(not_foo).bind(not_foo).bind(not_foo, 1);
+assertEquals([foo, 3, 1], f(2, 3));
 assertEquals(2, f.length);
 
-// Several parameters can be given, and given in different bind invokations.
-f = foo.bind(foo, 1, 1).bind(foo).bind(foo).bind(foo);
-assertEquals(3, f(1));
+// Several parameters can be given, and given in different bind invocations.
+f = foo.bind(foo, 1, 2).bind(not_foo).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo).bind(foo, 1, 1).bind(foo).bind(foo);
-assertEquals(3, f(1));
+f = foo.bind(foo).bind(not_foo, 1, 2).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(1));
 assertEquals(1, f.length);
 
-f = foo.bind(foo).bind(foo, 1, 1).bind(foo).bind(foo);
-assertEquals(3, f(1));
+f = foo.bind(foo).bind(not_foo, 1, 2).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo).bind(foo).bind(foo, 1, 1).bind(foo);
-assertEquals(3, f(1));
+f = foo.bind(foo).bind(not_foo).bind(not_foo, 1, 2).bind(not_foo);
+assertEquals([foo, 3, 1], f(1));
 assertEquals(1, f.length);
 
-f = foo.bind(foo).bind(foo).bind(foo).bind(foo, 1, 1);
-assertEquals(3, f(1));
+f = foo.bind(foo).bind(not_foo).bind(not_foo).bind(not_foo, 1, 2);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo, 1).bind(foo, 1).bind(foo).bind(foo);
-assertEquals(3, f(1));
+f = foo.bind(foo, 1).bind(not_foo, 2).bind(not_foo).bind(not_foo);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo, 1).bind(foo).bind(foo, 1).bind(foo);
-assertEquals(3, f(1));
+f = foo.bind(foo, 1).bind(not_foo).bind(not_foo, 2).bind(not_foo);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo, 1).bind(foo).bind(foo).bind(foo, 1);
-assertEquals(3, f(1));
+f = foo.bind(foo, 1).bind(not_foo).bind(not_foo).bind(not_foo, 2);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
 
-f = foo.bind(foo).bind(foo, 1).bind(foo).bind(foo, 1);
-assertEquals(3, f(1));
+f = foo.bind(foo).bind(not_foo, 1).bind(not_foo).bind(not_foo, 2);
+assertEquals([foo, 3, 1], f(3));
 assertEquals(1, f.length);
+
+// The wrong number of arguments can be given to bound functions too.
+f = foo.bind(foo);
+assertEquals(3, f.length);
+assertEquals([foo, 0, undefined], f());
+assertEquals([foo, 1, 1], f(1));
+assertEquals([foo, 2, 1], f(1, 2));
+assertEquals([foo, 3, 1], f(1, 2, 3));
+assertEquals([foo, 4, 1], f(1, 2, 3, 4));
+
+f = foo.bind(foo, 1);
+assertEquals(2, f.length);
+assertEquals([foo, 1, 1], f());
+assertEquals([foo, 2, 1], f(2));
+assertEquals([foo, 3, 1], f(2, 3));
+assertEquals([foo, 4, 1], f(2, 3, 4));
+
+f = foo.bind(foo, 1, 2);
+assertEquals(1, f.length);
+assertEquals([foo, 2, 1], f());
+assertEquals([foo, 3, 1], f(3));
+assertEquals([foo, 4, 1], f(3, 4));
+
+f = foo.bind(foo, 1, 2, 3);
+assertEquals(0, f.length);
+assertEquals([foo, 3, 1], f());
+assertEquals([foo, 4, 1], f(4));
+
+f = foo.bind(foo, 1, 2, 3, 4);
+assertEquals(0, f.length);
+assertEquals([foo, 4, 1], f());
 
 // Test constructor calls.
 
@@ -171,13 +206,91 @@ assertEquals(3, obj2.z);
 
 
 // Test bind chains when used as a constructor.
-
 f = bar.bind(bar, 1).bind(bar, 2).bind(bar, 3);
 obj2 = new f();
 assertEquals(1, obj2.x);
 assertEquals(2, obj2.y);
 assertEquals(3, obj2.z);
 
-// Test instanceof obj2 is bar, not f.
+// Test obj2 is instanceof both bar and f.
 assertTrue(obj2 instanceof bar);
-assertFalse(obj2 instanceof f);
+assertTrue(obj2 instanceof f);
+
+// This-args are not relevant to instanceof.
+f = bar.bind(foo.prototype, 1).
+    bind(String.prototype, 2).
+    bind(Function.prototype, 3);
+var obj3 = new f();
+assertTrue(obj3 instanceof bar);
+assertTrue(obj3 instanceof f);
+assertFalse(obj3 instanceof foo);
+assertFalse(obj3 instanceof Function);
+assertFalse(obj3 instanceof String);
+
+// thisArg is converted to object.
+f = foo.bind(undefined);
+assertEquals([this, 0, undefined], f());
+
+f = foo.bind(null);
+assertEquals([this, 0, undefined], f());
+
+f = foo.bind(42);
+assertEquals([Object(42), 0, undefined], f());
+
+f = foo.bind("foo");
+assertEquals([Object("foo"), 0, undefined], f());
+
+f = foo.bind(true);
+assertEquals([Object(true), 0, undefined], f());
+
+// Strict functions don't convert thisArg.
+function soo(x, y, z) {
+  "use strict";
+  return [this, arguments.length, x];
+}
+
+var s = soo.bind(undefined);
+assertEquals([undefined, 0, undefined], s());
+
+s = soo.bind(null);
+assertEquals([null, 0, undefined], s());
+
+s = soo.bind(42);
+assertEquals([42, 0, undefined], s());
+
+s = soo.bind("foo");
+assertEquals(["foo", 0, undefined], s());
+
+s = soo.bind(true);
+assertEquals([true, 0, undefined], s());
+
+// Test that .arguments and .caller are poisoned according to the ES5 spec.
+
+// Check that property descriptors are correct (unconfigurable, unenumerable,
+// and both get and set is the ThrowTypeError function).
+var cdesc = Object.getOwnPropertyDescriptor(f, "caller");
+var adesc = Object.getOwnPropertyDescriptor(f, "arguments");
+
+assertFalse(cdesc.enumerable);
+assertFalse(cdesc.configurable);
+
+assertFalse(adesc.enumerable);
+assertFalse(adesc.configurable);
+
+assertSame(cdesc.get, cdesc.set);
+assertSame(cdesc.get, adesc.get);
+assertSame(cdesc.get, adesc.set);
+
+assertTrue(cdesc.get instanceof Function);
+assertEquals(0, cdesc.get.length);
+assertThrows(cdesc.get, TypeError);
+
+assertThrows(function() { return f.caller; }, TypeError);
+assertThrows(function() { f.caller = 42; }, TypeError);
+assertThrows(function() { return f.arguments; }, TypeError);
+assertThrows(function() { f.arguments = 42; }, TypeError);
+
+// Shouldn't throw. Accessing the functions caller must throw if
+// the caller is strict and the callee isn't. A bound function is built-in,
+// but not considered strict.
+(function foo() { return foo.caller; }).bind()();

@@ -111,8 +111,18 @@ ForInStatement::ForInStatement(Isolate* isolate, ZoneStringList* labels)
 }
 
 
-bool FunctionLiteral::strict_mode() const {
-  return scope()->is_strict_mode();
+int FunctionLiteral::start_position() const {
+  return scope()->start_position();
+}
+
+
+int FunctionLiteral::end_position() const {
+  return scope()->end_position();
+}
+
+
+StrictModeFlag FunctionLiteral::strict_mode_flag() const {
+  return scope()->strict_mode_flag();
 }
 
 

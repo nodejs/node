@@ -321,7 +321,7 @@ debug-debugger.js
 
 EXPERIMENTAL_LIBRARY_FILES = '''
 proxy.js
-weakmap.js
+collection.js
 '''.split()
 
 

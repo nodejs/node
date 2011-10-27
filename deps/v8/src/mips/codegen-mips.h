@@ -31,7 +31,6 @@
 
 
 #include "ast.h"
-#include "code-stubs-mips.h"
 #include "ic-inl.h"
 
 namespace v8 {

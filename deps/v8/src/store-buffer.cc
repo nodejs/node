@@ -401,7 +401,9 @@ void StoreBuffer::Verify() {
 
 void StoreBuffer::GCEpilogue() {
   during_gc_ = false;
-  Verify();
+  if (FLAG_verify_heap) {
+    Verify();
+  }
 }
 
 

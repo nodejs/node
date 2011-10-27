@@ -38,6 +38,7 @@
 
 using namespace v8::internal;
 
+
 TEST(ObjectHashTable) {
   v8::HandleScope scope;
   LocalContext context;
@@ -66,7 +67,8 @@ TEST(ObjectHashTable) {
   CHECK_EQ(table->NumberOfDeletedElements(), 1);
   CHECK_EQ(table->Lookup(*a), HEAP->undefined_value());
 
-  // Keys should map back to their respective values.
+  // Keys should map back to their respective values and also should get
+  // an identity hash code generated.
   for (int i = 0; i < 100; i++) {
     Handle<JSObject> key = FACTORY->NewJSArray(7);
     Handle<JSObject> value = FACTORY->NewJSArray(11);
@@ -74,12 +76,67 @@ TEST(ObjectHashTable) {
     CHECK_EQ(table->NumberOfElements(), i + 1);
     CHECK_NE(table->FindEntry(*key), ObjectHashTable::kNotFound);
     CHECK_EQ(table->Lookup(*key), *value);
+    CHECK(key->GetIdentityHash(OMIT_CREATION)->ToObjectChecked()->IsSmi());
   }
 
-  // Keys never added to the map should not be found.
-  for (int i = 0; i < 1000; i++) {
-    Handle<JSObject> o = FACTORY->NewJSArray(100);
-    CHECK_EQ(table->FindEntry(*o), ObjectHashTable::kNotFound);
-    CHECK_EQ(table->Lookup(*o), HEAP->undefined_value());
+  // Keys never added to the map which already have an identity hash
+  // code should not be found.
+  for (int i = 0; i < 100; i++) {
+    Handle<JSObject> key = FACTORY->NewJSArray(7);
+    CHECK(key->GetIdentityHash(ALLOW_CREATION)->ToObjectChecked()->IsSmi());
+    CHECK_EQ(table->FindEntry(*key), ObjectHashTable::kNotFound);
+    CHECK_EQ(table->Lookup(*key), HEAP->undefined_value());
+    CHECK(key->GetIdentityHash(OMIT_CREATION)->ToObjectChecked()->IsSmi());
+  }
+
+  // Keys that don't have an identity hash should not be found and also
+  // should not get an identity hash code generated.
+  for (int i = 0; i < 100; i++) {
+    Handle<JSObject> key = FACTORY->NewJSArray(7);
+    CHECK_EQ(table->Lookup(*key), HEAP->undefined_value());
+    CHECK_EQ(key->GetIdentityHash(OMIT_CREATION), HEAP->undefined_value());
   }
 }
+
+
+#ifdef DEBUG
+TEST(ObjectHashSetCausesGC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Handle<ObjectHashSet> table = FACTORY->NewObjectHashSet(1);
+  Handle<JSObject> key = FACTORY->NewJSArray(0);
+
+  // Simulate a full heap so that generating an identity hash code
+  // in subsequent calls will request GC.
+  FLAG_gc_interval = 0;
+
+  // Calling Contains() should not cause GC ever.
+  CHECK(!table->Contains(*key));
+
+  // Calling Remove() should not cause GC ever.
+  CHECK(!table->Remove(*key)->IsFailure());
+
+  // Calling Add() should request GC by returning a failure.
+  CHECK(table->Add(*key)->IsRetryAfterGC());
+}
+#endif
+
+
+#ifdef DEBUG
+TEST(ObjectHashTableCausesGC) {
+  v8::HandleScope scope;
+  LocalContext context;
+  Handle<ObjectHashTable> table = FACTORY->NewObjectHashTable(1);
+  Handle<JSObject> key = FACTORY->NewJSArray(0);
+
+  // Simulate a full heap so that generating an identity hash code
+  // in subsequent calls will request GC.
+  FLAG_gc_interval = 0;
+
+  // Calling Lookup() should not cause GC ever.
+  CHECK(table->Lookup(*key)->IsUndefined());
+
+  // Calling Put() should request GC by returning a failure.
+  CHECK(table->Put(*key, *key)->IsRetryAfterGC());
+}
+#endif

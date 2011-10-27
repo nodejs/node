@@ -882,10 +882,12 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       unsigned output_offset =
           output->GetOffsetFromSlotIndex(this, output_index);
       if (FLAG_trace_osr) {
-        PrintF("    [sp + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
+        PrintF("    [sp + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d] ",
                output_offset,
                input_value,
                *input_offset);
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output->SetFrameSlot(output_offset, input_value);
       break;
@@ -1007,7 +1009,10 @@ void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
   for (uint32_t i = 0; i < table_length; ++i) {
     uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    RevertStackCheckCodeAt(pc_after, check_code, replacement_code);
+    RevertStackCheckCodeAt(unoptimized_code,
+                           pc_after,
+                           check_code,
+                           replacement_code);
     stack_check_cursor += 2 * kIntSize;
   }
 }

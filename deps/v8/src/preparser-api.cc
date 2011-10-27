@@ -188,7 +188,7 @@ PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   preparser::PreParser::PreParseResult result =
       preparser::PreParser::PreParseProgram(&scanner,
                                             &recorder,
-                                            true,
+                                            internal::kAllowLazy,
                                             stack_limit);
   if (result == preparser::PreParser::kPreParseStackOverflow) {
     return PreParserData::StackOverflow();

@@ -30,6 +30,7 @@
 #if defined(V8_TARGET_ARCH_X64)
 
 #include "codegen.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
@@ -143,6 +144,224 @@ ModuloFunction CreateModuloFunction() {
 
 #endif
 
+#undef __
+
+// -------------------------------------------------------------------------
+// Code generators
+
+#define __ ACCESS_MASM(masm)
+
+void ElementsTransitionGenerator::GenerateSmiOnlyToObject(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rbx    : target map
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  // Set transitioned map.
+  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ RecordWriteField(rdx,
+                      HeapObject::kMapOffset,
+                      rbx,
+                      rdi,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+}
+
+
+void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
+    MacroAssembler* masm, Label* fail) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rbx    : target map
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  // The fail label is not actually used since we do not allocate.
+  Label allocated, cow_array;
+
+  // Check backing store for COW-ness.  If the negative case, we do not have to
+  // allocate a new array, since FixedArray and FixedDoubleArray do not differ
+  // in size.
+  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
+  __ CompareRoot(FieldOperand(r8, HeapObject::kMapOffset),
+                 Heap::kFixedCOWArrayMapRootIndex);
+  __ j(equal, &cow_array);
+  __ movq(r14, r8);  // Destination array equals source array.
+
+  __ bind(&allocated);
+  // r8 : source FixedArray
+  // r9 : elements array length
+  // r14: destination FixedDoubleArray
+  // Set backing store's map
+  __ LoadRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
+  __ movq(FieldOperand(r14, HeapObject::kMapOffset), rdi);
+
+  // Set transitioned map.
+  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ RecordWriteField(rdx,
+                      HeapObject::kMapOffset,
+                      rbx,
+                      rdi,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+
+  // Convert smis to doubles and holes to hole NaNs.  The Array's length
+  // remains unchanged.
+  STATIC_ASSERT(FixedDoubleArray::kLengthOffset == FixedArray::kLengthOffset);
+  STATIC_ASSERT(FixedDoubleArray::kHeaderSize == FixedArray::kHeaderSize);
+
+  Label loop, entry, convert_hole;
+  __ movq(r15, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+  // r15: the-hole NaN
+  __ jmp(&entry);
+
+  // Allocate new array if the source array is a COW array.
+  __ bind(&cow_array);
+  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
+  __ AllocateInNewSpace(rdi, r14, r11, r15, fail, TAG_OBJECT);
+  // Set receiver's backing store.
+  __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r14);
+  __ movq(r11, r14);
+  __ RecordWriteField(rdx,
+                      JSObject::kElementsOffset,
+                      r11,
+                      r15,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  // Set backing store's length.
+  __ Integer32ToSmi(r11, r9);
+  __ movq(FieldOperand(r14, FixedDoubleArray::kLengthOffset), r11);
+  __ jmp(&allocated);
+
+  // Conversion loop.
+  __ bind(&loop);
+  __ decq(r9);
+  __ movq(rbx,
+          FieldOperand(r8, r9, times_8, FixedArray::kHeaderSize));
+  // r9 : current element's index
+  // rbx: current element (smi-tagged)
+  __ JumpIfNotSmi(rbx, &convert_hole);
+  __ SmiToInteger32(rbx, rbx);
+  __ cvtlsi2sd(xmm0, rbx);
+  __ movsd(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize),
+           xmm0);
+  __ jmp(&entry);
+  __ bind(&convert_hole);
+  __ movq(FieldOperand(r14, r9, times_8, FixedDoubleArray::kHeaderSize), r15);
+  __ bind(&entry);
+  __ testq(r9, r9);
+  __ j(not_zero, &loop);
+}
+
+
+void ElementsTransitionGenerator::GenerateDoubleToObject(
+    MacroAssembler* masm, Label* fail) {
+  // ----------- S t a t e -------------
+  //  -- rax    : value
+  //  -- rbx    : target map
+  //  -- rcx    : key
+  //  -- rdx    : receiver
+  //  -- rsp[0] : return address
+  // -----------------------------------
+  Label loop, entry, convert_hole, gc_required;
+  __ push(rax);
+
+  __ movq(r8, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ SmiToInteger32(r9, FieldOperand(r8, FixedDoubleArray::kLengthOffset));
+  // r8 : source FixedDoubleArray
+  // r9 : number of elements
+  __ lea(rdi, Operand(r9, times_pointer_size, FixedArray::kHeaderSize));
+  __ AllocateInNewSpace(rdi, r11, r14, r15, &gc_required, TAG_OBJECT);
+  // r11: destination FixedArray
+  __ LoadRoot(rdi, Heap::kFixedArrayMapRootIndex);
+  __ movq(FieldOperand(r11, HeapObject::kMapOffset), rdi);
+  __ Integer32ToSmi(r14, r9);
+  __ movq(FieldOperand(r11, FixedArray::kLengthOffset), r14);
+
+  // Prepare for conversion loop.
+  __ movq(rsi, BitCast<int64_t, uint64_t>(kHoleNanInt64), RelocInfo::NONE);
+  __ LoadRoot(rdi, Heap::kTheHoleValueRootIndex);
+  // rsi: the-hole NaN
+  // rdi: pointer to the-hole
+  __ jmp(&entry);
+
+  // Call into runtime if GC is required.
+  __ bind(&gc_required);
+  __ pop(rax);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ jmp(fail);
+
+  // Box doubles into heap numbers.
+  __ bind(&loop);
+  __ decq(r9);
+  __ movq(r14, FieldOperand(r8,
+                            r9,
+                            times_pointer_size,
+                            FixedDoubleArray::kHeaderSize));
+  // r9 : current element's index
+  // r14: current element
+  __ cmpq(r14, rsi);
+  __ j(equal, &convert_hole);
+
+  // Non-hole double, copy value into a heap number.
+  __ AllocateHeapNumber(rax, r15, &gc_required);
+  // rax: new heap number
+  __ movq(FieldOperand(rax, HeapNumber::kValueOffset), r14);
+  __ movq(FieldOperand(r11,
+                       r9,
+                       times_pointer_size,
+                       FixedArray::kHeaderSize),
+          rax);
+  __ movq(r15, r9);
+  __ RecordWriteArray(r11,
+                      rax,
+                      r15,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ jmp(&entry, Label::kNear);
+
+  // Replace the-hole NaN with the-hole pointer.
+  __ bind(&convert_hole);
+  __ movq(FieldOperand(r11,
+                       r9,
+                       times_pointer_size,
+                       FixedArray::kHeaderSize),
+          rdi);
+
+  __ bind(&entry);
+  __ testq(r9, r9);
+  __ j(not_zero, &loop);
+
+  // Set transitioned map.
+  __ movq(FieldOperand(rdx, HeapObject::kMapOffset), rbx);
+  __ RecordWriteField(rdx,
+                      HeapObject::kMapOffset,
+                      rbx,
+                      rdi,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  // Replace receiver's backing store with newly created and filled FixedArray.
+  __ movq(FieldOperand(rdx, JSObject::kElementsOffset), r11);
+  __ RecordWriteField(rdx,
+                      JSObject::kElementsOffset,
+                      r11,
+                      r15,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ pop(rax);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+}
 
 #undef __
 

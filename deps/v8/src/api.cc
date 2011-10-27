@@ -2794,7 +2794,7 @@ Local<Value> v8::Object::Get(uint32_t index) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetElement(self, index);
+  i::Handle<i::Object> result = i::Object::GetElement(self, index);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
   return Utils::ToLocal(result);
@@ -2874,8 +2874,10 @@ Local<Array> v8::Object::GetPropertyNames() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  bool threw = false;
   i::Handle<i::FixedArray> value =
-      i::GetKeysInFixedArrayFor(self, i::INCLUDE_PROTOS);
+      i::GetKeysInFixedArrayFor(self, i::INCLUDE_PROTOS, &threw);
+  if (threw) return Local<v8::Array>();
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
@@ -2893,8 +2895,10 @@ Local<Array> v8::Object::GetOwnPropertyNames() {
   ENTER_V8(isolate);
   i::HandleScope scope(isolate);
   i::Handle<i::JSObject> self = Utils::OpenHandle(this);
+  bool threw = false;
   i::Handle<i::FixedArray> value =
-      i::GetKeysInFixedArrayFor(self, i::LOCAL_ONLY);
+      i::GetKeysInFixedArrayFor(self, i::LOCAL_ONLY, &threw);
+  if (threw) return Local<v8::Array>();
   // Because we use caching to speed up enumeration it is important
   // to never change the result of the basic enumeration function so
   // we clone the result.
@@ -3093,7 +3097,10 @@ static Local<Value> GetPropertyByLookup(i::Isolate* isolate,
   // If the property being looked up is a callback, it can throw
   // an exception.
   EXCEPTION_PREAMBLE(isolate);
-  i::Handle<i::Object> result = i::GetProperty(receiver, name, lookup);
+  PropertyAttributes ignored;
+  i::Handle<i::Object> result =
+      i::Object::GetProperty(receiver, receiver, lookup, name,
+                             &ignored);
   has_pending_exception = result.is_null();
   EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
 
@@ -3110,7 +3117,7 @@ Local<Value> v8::Object::GetRealNamedPropertyInPrototypeChain(
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup;
+  i::LookupResult lookup(isolate);
   self_obj->LookupRealNamedPropertyInPrototypes(*key_obj, &lookup);
   return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
@@ -3123,7 +3130,7 @@ Local<Value> v8::Object::GetRealNamedProperty(Handle<String> key) {
   ENTER_V8(isolate);
   i::Handle<i::JSObject> self_obj = Utils::OpenHandle(this);
   i::Handle<i::String> key_obj = Utils::OpenHandle(*key);
-  i::LookupResult lookup;
+  i::LookupResult lookup(isolate);
   self_obj->LookupRealNamedProperty(*key_obj, &lookup);
   return GetPropertyByLookup(isolate, self_obj, key_obj, &lookup);
 }
@@ -3634,13 +3641,30 @@ int String::WriteUtf8(char* buffer,
   if (IsDeadCheck(isolate, "v8::String::WriteUtf8()")) return 0;
   LOG_API(isolate, "String::WriteUtf8");
   ENTER_V8(isolate);
-  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   i::Handle<i::String> str = Utils::OpenHandle(this);
+  if (str->IsAsciiRepresentation()) {
+    int len;
+    if (capacity == -1) {
+      capacity = str->length() + 1;
+      len = str->length();
+    } else {
+      len = i::Min(capacity, str->length());
+    }
+    i::String::WriteToFlat(*str, buffer, 0, len);
+    if (nchars_ref != NULL) *nchars_ref = len;
+    if (!(options & NO_NULL_TERMINATION) && capacity > len) {
+      buffer[len] = '\0';
+      return len + 1;
+    }
+    return len;
+  }
+
+  i::StringInputBuffer& write_input_buffer = *isolate->write_input_buffer();
   isolate->string_tracker()->RecordWrite(str);
   if (options & HINT_MANY_WRITES_EXPECTED) {
     // Flatten the string for efficiency.  This applies whether we are
     // using StringInputBuffer or Get(i) to access the characters.
-    str->TryFlatten();
+    FlattenString(str);
   }
   write_input_buffer.Reset(0, *str);
   int len = str->length();
@@ -3961,6 +3985,15 @@ HeapStatistics::HeapStatistics(): total_heap_size_(0),
 
 
 void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
+  if (!i::Isolate::Current()->IsInitialized()) {
+    // Isolate is unitialized thus heap is not configured yet.
+    heap_statistics->set_total_heap_size(0);
+    heap_statistics->set_total_heap_size_executable(0);
+    heap_statistics->set_used_heap_size(0);
+    heap_statistics->set_heap_size_limit(0);
+    return;
+  }
+
   i::Heap* heap = i::Isolate::Current()->heap();
   heap_statistics->set_total_heap_size(heap->CommittedMemory());
   heap_statistics->set_total_heap_size_executable(
@@ -3973,14 +4006,15 @@ void v8::V8::GetHeapStatistics(HeapStatistics* heap_statistics) {
 bool v8::V8::IdleNotification() {
   // Returning true tells the caller that it need not
   // continue to call IdleNotification.
-  if (!i::Isolate::Current()->IsInitialized()) return true;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (isolate == NULL || !isolate->IsInitialized()) return true;
   return i::V8::IdleNotification();
 }
 
 
 void v8::V8::LowMemoryNotification() {
   i::Isolate* isolate = i::Isolate::Current();
-  if (!isolate->IsInitialized()) return;
+  if (isolate == NULL || !isolate->IsInitialized()) return;
   isolate->heap()->CollectAllAvailableGarbage();
 }
 
@@ -4075,8 +4109,9 @@ Persistent<Context> v8::Context::New(
   }
   // Leave V8.
 
-  if (env.is_null())
+  if (env.is_null()) {
     return Persistent<Context>();
+  }
   return Persistent<Context>(Utils::ToLocal(env));
 }
 

@@ -711,6 +711,69 @@ void JavaScriptFrame::Summarize(List<FrameSummary>* functions) {
 }
 
 
+void JavaScriptFrame::PrintTop(FILE* file,
+                               bool print_args,
+                               bool print_line_number) {
+  // constructor calls
+  HandleScope scope;
+  AssertNoAllocation no_allocation;
+  JavaScriptFrameIterator it;
+  while (!it.done()) {
+    if (it.frame()->is_java_script()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->IsConstructor()) PrintF(file, "new ");
+      // function name
+      Object* fun = frame->function();
+      if (fun->IsJSFunction()) {
+        SharedFunctionInfo* shared = JSFunction::cast(fun)->shared();
+        shared->DebugName()->ShortPrint(file);
+        if (print_line_number) {
+          Address pc = frame->pc();
+          Code* code = Code::cast(
+              v8::internal::Isolate::Current()->heap()->FindCodeObject(pc));
+          int source_pos = code->SourcePosition(pc);
+          Object* maybe_script = shared->script();
+          if (maybe_script->IsScript()) {
+            Handle<Script> script(Script::cast(maybe_script));
+            int line = GetScriptLineNumberSafe(script, source_pos) + 1;
+            Object* script_name_raw = script->name();
+            if (script_name_raw->IsString()) {
+              String* script_name = String::cast(script->name());
+              SmartArrayPointer<char> c_script_name =
+                  script_name->ToCString(DISALLOW_NULLS,
+                                         ROBUST_STRING_TRAVERSAL);
+              PrintF(file, " at %s:%d", *c_script_name, line);
+            } else {
+              PrintF(file, "at <unknown>:%d", line);
+            }
+          } else {
+            PrintF(file, " at <unknown>:<unknown>");
+          }
+        }
+      } else {
+        fun->ShortPrint(file);
+      }
+
+      if (print_args) {
+        // function arguments
+        // (we are intentionally only printing the actually
+        // supplied parameters, not all parameters required)
+        PrintF(file, "(this=");
+        frame->receiver()->ShortPrint(file);
+        const int length = frame->ComputeParametersCount();
+        for (int i = 0; i < length; i++) {
+          PrintF(file, ", ");
+          frame->GetParameter(i)->ShortPrint(file);
+        }
+        PrintF(file, ")");
+      }
+      break;
+    }
+    it.Advance();
+  }
+}
+
+
 void FrameSummary::Print() {
   PrintF("receiver: ");
   receiver_->ShortPrint();

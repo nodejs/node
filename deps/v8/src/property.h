@@ -164,10 +164,20 @@ class CallbacksDescriptor:  public Descriptor {
 
 class LookupResult BASE_EMBEDDED {
  public:
-  LookupResult()
-      : lookup_type_(NOT_FOUND),
+  explicit LookupResult(Isolate* isolate)
+      : isolate_(isolate),
+        next_(isolate->top_lookup_result()),
+        lookup_type_(NOT_FOUND),
+        holder_(NULL),
         cacheable_(true),
-        details_(NONE, NORMAL) {}
+        details_(NONE, NORMAL) {
+    isolate->SetTopLookupResult(this);
+  }
+
+  ~LookupResult() {
+    ASSERT(isolate_->top_lookup_result() == this);
+    isolate_->SetTopLookupResult(next_);
+  }
 
   void DescriptorResult(JSObject* holder, PropertyDetails details, int number) {
     lookup_type_ = DESCRIPTOR_TYPE;
@@ -215,6 +225,7 @@ class LookupResult BASE_EMBEDDED {
 
   void NotFound() {
     lookup_type_ = NOT_FOUND;
+    holder_ = NULL;
   }
 
   JSObject* holder() {
@@ -346,7 +357,12 @@ class LookupResult BASE_EMBEDDED {
     return holder()->GetNormalizedProperty(this);
   }
 
+  void Iterate(ObjectVisitor* visitor);
+
  private:
+  Isolate* isolate_;
+  LookupResult* next_;
+
   // Where did we find the result;
   enum {
     NOT_FOUND,

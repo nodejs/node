@@ -693,7 +693,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     PROFILE(isolate_, CodeMovingGCEvent());
   }
 
-  VerifySymbolTable();
+  if (FLAG_verify_heap) {
+    VerifySymbolTable();
+  }
   if (collector == MARK_COMPACTOR && global_gc_prologue_callback_) {
     ASSERT(!allocation_allowed_);
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
@@ -789,7 +791,9 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     GCTracer::Scope scope(tracer, GCTracer::Scope::EXTERNAL);
     global_gc_epilogue_callback_();
   }
-  VerifySymbolTable();
+  if (FLAG_verify_heap) {
+    VerifySymbolTable();
+  }
 
   return next_gc_likely_to_collect_more;
 }
@@ -983,7 +987,7 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
 
 void Heap::Scavenge() {
 #ifdef DEBUG
-  if (FLAG_enable_slow_asserts) VerifyNonPointerSpacePointers();
+  if (FLAG_verify_heap) VerifyNonPointerSpacePointers();
 #endif
 
   gc_state_ = SCAVENGE;
@@ -1112,7 +1116,9 @@ String* Heap::UpdateNewSpaceReferenceInExternalStringTableEntry(Heap* heap,
 
 void Heap::UpdateNewSpaceReferencesInExternalStringTable(
     ExternalStringTableUpdaterCallback updater_func) {
-  external_string_table_.Verify();
+  if (FLAG_verify_heap) {
+    external_string_table_.Verify();
+  }
 
   if (external_string_table_.new_space_strings_.is_empty()) return;
 
@@ -1443,9 +1449,9 @@ class ScavengingVisitor : public StaticVisitorBase {
                                     HeapObject** slot,
                                     HeapObject* object,
                                     int object_size) {
-    ASSERT((size_restriction != SMALL) ||
-           (object_size <= Page::kMaxHeapObjectSize));
-    ASSERT(object->Size() == object_size);
+    SLOW_ASSERT((size_restriction != SMALL) ||
+                (object_size <= Page::kMaxHeapObjectSize));
+    SLOW_ASSERT(object->Size() == object_size);
 
     Heap* heap = map->GetHeap();
     if (heap->ShouldBePromoted(object->address(), object_size)) {
@@ -1678,9 +1684,9 @@ void Heap::SelectScavengingVisitorsTable() {
 
 
 void Heap::ScavengeObjectSlow(HeapObject** p, HeapObject* object) {
-  ASSERT(HEAP->InFromSpace(object));
+  SLOW_ASSERT(HEAP->InFromSpace(object));
   MapWord first_word = object->map_word();
-  ASSERT(!first_word.IsForwardingAddress());
+  SLOW_ASSERT(!first_word.IsForwardingAddress());
   Map* map = first_word.ToMap();
   map->GetHeap()->DoScavengeObject(map, p, object);
 }
@@ -2910,7 +2916,9 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
 
   ASSERT(buffer->IsFlat());
 #if DEBUG
-  buffer->StringVerify();
+  if (FLAG_verify_heap) {
+    buffer->StringVerify();
+  }
 #endif
 
   Object* result;
@@ -3156,7 +3164,9 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   code->CopyFrom(desc);
 
 #ifdef DEBUG
-  code->Verify();
+  if (FLAG_verify_heap) {
+    code->Verify();
+  }
 #endif
   return code;
 }
@@ -3236,7 +3246,9 @@ MaybeObject* Heap::CopyCode(Code* code, Vector<byte> reloc_info) {
   new_code->Relocate(new_addr - old_addr);
 
 #ifdef DEBUG
-  code->Verify();
+  if (FLAG_verify_heap) {
+    code->Verify();
+  }
 #endif
   return new_code;
 }
@@ -3269,7 +3281,7 @@ void Heap::InitializeFunction(JSFunction* function,
   function->set_code(shared->code());
   function->set_prototype_or_initial_map(prototype);
   function->set_context(undefined_value());
-  function->set_literals(empty_fixed_array());
+  function->set_literals_or_bindings(empty_fixed_array());
   function->set_next_function_link(undefined_value());
 }
 
@@ -3434,22 +3446,22 @@ MaybeObject* Heap::AllocateInitialMap(JSFunction* fun) {
       // Inline constructor can only handle inobject properties.
       fun->shared()->ForbidInlineConstructor();
     } else {
-      Object* descriptors_obj;
+      DescriptorArray* descriptors;
       { MaybeObject* maybe_descriptors_obj = DescriptorArray::Allocate(count);
-        if (!maybe_descriptors_obj->ToObject(&descriptors_obj)) {
+        if (!maybe_descriptors_obj->To<DescriptorArray>(&descriptors)) {
           return maybe_descriptors_obj;
         }
       }
-      DescriptorArray* descriptors = DescriptorArray::cast(descriptors_obj);
+      DescriptorArray::WhitenessWitness witness(descriptors);
       for (int i = 0; i < count; i++) {
         String* name = fun->shared()->GetThisPropertyAssignmentName(i);
         ASSERT(name->IsSymbol());
         FieldDescriptor field(name, i, NONE);
         field.SetEnumerationIndex(i);
-        descriptors->Set(i, &field);
+        descriptors->Set(i, &field, witness);
       }
       descriptors->SetNextEnumerationIndex(count);
-      descriptors->SortUnchecked();
+      descriptors->SortUnchecked(witness);
 
       // The descriptors may contain duplicates because the compiler does not
       // guarantee the uniqueness of property names (it would have required
@@ -3688,12 +3700,14 @@ MaybeObject* Heap::AllocateGlobalObject(JSFunction* constructor) {
 MaybeObject* Heap::CopyJSObject(JSObject* source) {
   // Never used to copy functions.  If functions need to be copied we
   // have to be careful to clear the literals array.
-  ASSERT(!source->IsJSFunction());
+  SLOW_ASSERT(!source->IsJSFunction());
 
   // Make the clone.
   Map* map = source->map();
   int object_size = map->instance_size();
   Object* clone;
+
+  WriteBarrierMode wb_mode = UPDATE_WRITE_BARRIER;
 
   // If we're forced to always allocate, we use the general allocation
   // functions which may leave us with an object in old space.
@@ -3711,10 +3725,11 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
                  JSObject::kHeaderSize,
                  (object_size - JSObject::kHeaderSize) / kPointerSize);
   } else {
+    wb_mode = SKIP_WRITE_BARRIER;
     { MaybeObject* maybe_clone = new_space_.AllocateRaw(object_size);
       if (!maybe_clone->ToObject(&clone)) return maybe_clone;
     }
-    ASSERT(InNewSpace(clone));
+    SLOW_ASSERT(InNewSpace(clone));
     // Since we know the clone is allocated in new space, we can copy
     // the contents without worrying about updating the write barrier.
     CopyBlock(HeapObject::cast(clone)->address(),
@@ -3722,7 +3737,8 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
               object_size);
   }
 
-  ASSERT(JSObject::cast(clone)->GetElementsKind() == source->GetElementsKind());
+  SLOW_ASSERT(
+      JSObject::cast(clone)->GetElementsKind() == source->GetElementsKind());
   FixedArrayBase* elements = FixedArrayBase::cast(source->elements());
   FixedArray* properties = FixedArray::cast(source->properties());
   // Update elements if necessary.
@@ -3738,7 +3754,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
       }
       if (!maybe_elem->ToObject(&elem)) return maybe_elem;
     }
-    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem));
+    JSObject::cast(clone)->set_elements(FixedArrayBase::cast(elem), wb_mode);
   }
   // Update properties if necessary.
   if (properties->length() > 0) {
@@ -3746,7 +3762,7 @@ MaybeObject* Heap::CopyJSObject(JSObject* source) {
     { MaybeObject* maybe_prop = CopyFixedArray(properties);
       if (!maybe_prop->ToObject(&prop)) return maybe_prop;
     }
-    JSObject::cast(clone)->set_properties(FixedArray::cast(prop));
+    JSObject::cast(clone)->set_properties(FixedArray::cast(prop), wb_mode);
   }
   // Return the new clone.
   return clone;
@@ -4802,12 +4818,12 @@ void Heap::IterateAndMarkPointersToFromSpace(Address start,
                  HeapObject::cast(object));
         Object* new_object = *slot;
         if (InNewSpace(new_object)) {
-          ASSERT(Heap::InToSpace(new_object));
-          ASSERT(new_object->IsHeapObject());
+          SLOW_ASSERT(Heap::InToSpace(new_object));
+          SLOW_ASSERT(new_object->IsHeapObject());
           store_buffer_.EnterDirectlyIntoStoreBuffer(
               reinterpret_cast<Address>(slot));
         }
-        ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(new_object));
+        SLOW_ASSERT(!MarkCompactCollector::IsOnEvacuationCandidate(new_object));
       } else if (record_slots &&
                  MarkCompactCollector::IsOnEvacuationCandidate(object)) {
         mark_compact_collector()->RecordSlot(slot, slot, object);
@@ -5361,6 +5377,7 @@ class HeapDebugUtils {
 
 bool Heap::Setup(bool create_heap_objects) {
 #ifdef DEBUG
+  allocation_timeout_ = FLAG_gc_interval;
   debug_utils_ = new HeapDebugUtils(this);
 #endif
 
@@ -5446,7 +5463,7 @@ bool Heap::Setup(bool create_heap_objects) {
   // The large object code space may contain code or data.  We set the memory
   // to be non-executable here for safety, but this means we need to enable it
   // explicitly when allocating large code objects.
-  lo_space_ = new LargeObjectSpace(this, LO_SPACE);
+  lo_space_ = new LargeObjectSpace(this, max_old_generation_size_, LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
   if (create_heap_objects) {
@@ -5762,56 +5779,51 @@ class HeapObjectsFilter {
 class UnreachableObjectsFilter : public HeapObjectsFilter {
  public:
   UnreachableObjectsFilter() {
-    MarkUnreachableObjects();
+    MarkReachableObjects();
+  }
+
+  ~UnreachableObjectsFilter() {
+    Isolate::Current()->heap()->mark_compact_collector()->ClearMarkbits();
   }
 
   bool SkipObject(HeapObject* object) {
-    if (IntrusiveMarking::IsMarked(object)) {
-      IntrusiveMarking::ClearMark(object);
-      return true;
-    } else {
-      return false;
-    }
+    MarkBit mark_bit = Marking::MarkBitFrom(object);
+    return !mark_bit.Get();
   }
 
  private:
-  class UnmarkingVisitor : public ObjectVisitor {
+  class MarkingVisitor : public ObjectVisitor {
    public:
-    UnmarkingVisitor() : list_(10) {}
+    MarkingVisitor() : marking_stack_(10) {}
 
     void VisitPointers(Object** start, Object** end) {
       for (Object** p = start; p < end; p++) {
         if (!(*p)->IsHeapObject()) continue;
         HeapObject* obj = HeapObject::cast(*p);
-        if (IntrusiveMarking::IsMarked(obj)) {
-          IntrusiveMarking::ClearMark(obj);
-          list_.Add(obj);
+        MarkBit mark_bit = Marking::MarkBitFrom(obj);
+        if (!mark_bit.Get()) {
+          mark_bit.Set();
+          marking_stack_.Add(obj);
         }
       }
     }
 
-    bool can_process() { return !list_.is_empty(); }
-
-    void ProcessNext() {
-      HeapObject* obj = list_.RemoveLast();
-      obj->Iterate(this);
+    void TransitiveClosure() {
+      while (!marking_stack_.is_empty()) {
+        HeapObject* obj = marking_stack_.RemoveLast();
+        obj->Iterate(this);
+      }
     }
 
    private:
-    List<HeapObject*> list_;
+    List<HeapObject*> marking_stack_;
   };
 
-  void MarkUnreachableObjects() {
-    HeapIterator iterator;
-    for (HeapObject* obj = iterator.next();
-         obj != NULL;
-         obj = iterator.next()) {
-      IntrusiveMarking::SetMark(obj);
-    }
-    UnmarkingVisitor visitor;
-    HEAP->IterateRoots(&visitor, VISIT_ALL);
-    while (visitor.can_process())
-      visitor.ProcessNext();
+  void MarkReachableObjects() {
+    Heap* heap = Isolate::Current()->heap();
+    MarkingVisitor visitor;
+    heap->IterateRoots(&visitor, VISIT_ALL);
+    visitor.TransitiveClosure();
   }
 
   AssertNoAllocation no_alloc;
@@ -5839,13 +5851,8 @@ HeapIterator::~HeapIterator() {
 
 void HeapIterator::Init() {
   // Start the iteration.
-  space_iterator_ = filtering_ == kNoFiltering ? new SpaceIterator :
-      new SpaceIterator(Isolate::Current()->heap()->
-                        GcSafeSizeOfOldObjectFunction());
+  space_iterator_ = new SpaceIterator;
   switch (filtering_) {
-    case kFilterFreeListNodes:
-      // TODO(gc): Not handled.
-      break;
     case kFilterUnreachable:
       filter_ = new UnreachableObjectsFilter;
       break;
@@ -6350,7 +6357,9 @@ void ExternalStringTable::CleanUp() {
     old_space_strings_[last++] = old_space_strings_[i];
   }
   old_space_strings_.Rewind(last);
-  Verify();
+  if (FLAG_verify_heap) {
+    Verify();
+  }
 }
 
 

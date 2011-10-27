@@ -98,6 +98,7 @@ void ThreadLocalTop::InitializeInternal() {
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
   catcher_ = NULL;
+  top_lookup_result_ = NULL;
 
   // These members are re-initialized later after deserialization
   // is complete.
@@ -480,6 +481,9 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
+
+  // Iterate pointers in live lookup results.
+  thread->top_lookup_result_->Iterate(v);
 }
 
 
@@ -1068,6 +1072,16 @@ void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
       message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
           location, HandleVector<Object>(&exception_handle, 1), stack_trace,
           stack_trace_object);
+    } else if (location != NULL && !location->script().is_null()) {
+      // We are bootstrapping and caught an error where the location is set
+      // and we have a script for the location.
+      // In this case we could have an extension (or an internal error
+      // somewhere) and we print out the line number at which the error occured
+      // to the console for easier debugging.
+      int line_number = GetScriptLineNumberSafe(location->script(),
+                                                location->start_pos());
+      OS::PrintError("Extension or internal compilation error at line %d.\n",
+                     line_number);
     }
   }
 

@@ -59,7 +59,6 @@ CompilationInfo::CompilationInfo(Handle<Script> script)
       script_(script),
       extension_(NULL),
       pre_parse_data_(NULL),
-      supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(NONOPT);
 }
@@ -74,7 +73,6 @@ CompilationInfo::CompilationInfo(Handle<SharedFunctionInfo> shared_info)
       script_(Handle<Script>(Script::cast(shared_info->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(BASE);
 }
@@ -90,7 +88,6 @@ CompilationInfo::CompilationInfo(Handle<JSFunction> closure)
       script_(Handle<Script>(Script::cast(shared_info_->script()))),
       extension_(NULL),
       pre_parse_data_(NULL),
-      supports_deoptimization_(false),
       osr_ast_id_(AstNode::kNoNumber) {
   Initialize(BASE);
 }
@@ -309,9 +306,9 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
 
 
 static bool GenerateCode(CompilationInfo* info) {
-  return V8::UseCrankshaft() ?
-    MakeCrankshaftCode(info) :
-    FullCodeGenerator::MakeCode(info);
+  return info->IsCompilingForDebugging() || !V8::UseCrankshaft() ?
+      FullCodeGenerator::MakeCode(info) :
+      MakeCrankshaftCode(info);
 }
 
 
@@ -480,20 +477,22 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
     ScriptDataImpl* pre_data = input_pre_data;
-    bool harmony_scoping = natives != NATIVES_CODE && FLAG_harmony_scoping;
+    int flags = kNoParsingFlags;
+    if ((natives == NATIVES_CODE) || FLAG_allow_natives_syntax) {
+      flags |= kAllowNativesSyntax;
+    }
+    if (natives != NATIVES_CODE && FLAG_harmony_scoping) {
+      flags |= kHarmonyScoping;
+    }
     if (pre_data == NULL
         && source_length >= FLAG_min_preparse_length) {
       if (source->IsExternalTwoByteString()) {
         ExternalTwoByteStringUC16CharacterStream stream(
             Handle<ExternalTwoByteString>::cast(source), 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream,
-                                              extension,
-                                              harmony_scoping);
+        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
       } else {
         GenericStringUC16CharacterStream stream(source, 0, source->length());
-        pre_data = ParserApi::PartialPreParse(&stream,
-                                              extension,
-                                              harmony_scoping);
+        pre_data = ParserApi::PartialPreParse(&stream, extension, flags);
       }
     }
 
@@ -516,9 +515,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
-    if (natives == NATIVES_CODE) {
-      info.MarkAsAllowingNativesSyntax();
-    }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);
@@ -562,7 +558,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
     CompilationInfo info(script);
     info.MarkAsEval();
     if (is_global) info.MarkAsGlobal();
-    if (strict_mode == kStrictMode) info.MarkAsStrictMode();
+    info.SetStrictModeFlag(strict_mode);
     info.SetCallingContext(context);
     result = MakeFunctionInfo(&info);
     if (!result.is_null()) {
@@ -570,6 +566,7 @@ Handle<SharedFunctionInfo> Compiler::CompileEval(Handle<String> source,
       // If caller is strict mode, the result must be strict as well,
       // but not the other way around. Consider:
       // eval("'use strict'; ...");
+      // TODO(keuchel): adapt this for extended mode.
       ASSERT(strict_mode == kNonStrictMode || result->strict_mode());
       compilation_cache->PutEval(source, context, is_global, result);
     }
@@ -601,10 +598,13 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
     HistogramTimerScope timer(isolate->counters()->compile_lazy());
 
     // After parsing we know function's strict mode. Remember it.
-    if (info->function()->strict_mode()) {
-      shared->set_strict_mode(true);
-      info->MarkAsStrictMode();
-    }
+    StrictModeFlag strict_mode = info->function()->strict_mode_flag();
+    ASSERT(info->strict_mode_flag() == kNonStrictMode ||
+           info->strict_mode_flag() == strict_mode);
+    ASSERT(shared->strict_mode_flag() == kNonStrictMode ||
+           shared->strict_mode_flag() == strict_mode);
+    info->SetStrictModeFlag(strict_mode);
+    shared->set_strict_mode_flag(strict_mode);
 
     // Compile the code.
     if (!MakeCode(info)) {
@@ -684,7 +684,7 @@ Handle<SharedFunctionInfo> Compiler::BuildFunctionInfo(FunctionLiteral* literal,
   CompilationInfo info(script);
   info.SetFunction(literal);
   info.SetScope(literal->scope());
-  if (literal->scope()->is_strict_mode()) info.MarkAsStrictMode();
+  info.SetStrictModeFlag(literal->scope()->strict_mode_flag());
 
   LiveEditFunctionTracker live_edit_tracker(info.isolate(), literal);
   // Determine if the function can be lazily compiled. This is necessary to
@@ -750,7 +750,7 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
       lit->has_only_simple_this_property_assignments(),
       *lit->this_property_assignments());
   function_info->set_allows_lazy_compilation(lit->AllowsLazyCompilation());
-  function_info->set_strict_mode(lit->strict_mode());
+  function_info->set_strict_mode_flag(lit->strict_mode_flag());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
 }

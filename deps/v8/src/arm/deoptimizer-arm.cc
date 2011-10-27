@@ -100,7 +100,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     }
   }
 
-
 #ifdef DEBUG
   // Destroy the code which is not supposed to be run again.
   int instructions =
@@ -178,16 +177,13 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   Memory::uint32_at(stack_check_address_pointer) =
       reinterpret_cast<uint32_t>(replacement_code->entry());
 
-  RelocInfo rinfo(pc_after - 2 * kInstrSize,
-                  RelocInfo::CODE_TARGET,
-                  0,
-                  unoptimized_code);
-  unoptimized_code->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-      unoptimized_code, &rinfo, replacement_code);
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstrSize, replacement_code);
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
+                                         Address pc_after,
                                          Code* check_code,
                                          Code* replacement_code) {
   const int kInstrSize = Assembler::kInstrSize;
@@ -209,8 +205,8 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   Memory::uint32_at(stack_check_address_pointer) =
       reinterpret_cast<uint32_t>(check_code->entry());
 
-  check_code->GetHeap()->incremental_marking()->
-      RecordCodeTargetPatch(pc_after - 2 * kInstrSize, check_code);
+  check_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, pc_after - 2 * kInstrSize, check_code);
 }
 
 
@@ -727,7 +723,6 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ ldr(r3, MemOperand(r2, FrameDescription::frame_size_offset()));
   __ bind(&inner_push_loop);
   __ sub(r3, r3, Operand(sizeof(uint32_t)));
-  // __ add(r6, r2, Operand(r3, LSL, 1));
   __ add(r6, r2, Operand(r3));
   __ ldr(r7, MemOperand(r6, FrameDescription::frame_content_offset()));
   __ push(r7);
@@ -761,8 +756,9 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ pop(ip);  // remove lr
 
   // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address(isolate);
-  __ mov(r10, Operand(roots_address));
+  ExternalReference roots_array_start =
+      ExternalReference::roots_array_start(isolate);
+  __ mov(r10, Operand(roots_array_start));
 
   __ pop(ip);  // remove pc
   __ pop(r7);  // get continuation, leave pc on stack

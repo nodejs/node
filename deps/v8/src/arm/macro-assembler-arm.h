@@ -320,8 +320,11 @@ class MacroAssembler: public Assembler {
   }
 
   // Push four registers.  Pushes leftmost register first (to highest address).
-  void Push(Register src1, Register src2,
-            Register src3, Register src4, Condition cond = al) {
+  void Push(Register src1,
+            Register src2,
+            Register src3,
+            Register src4,
+            Condition cond = al) {
     ASSERT(!src1.is(src2));
     ASSERT(!src2.is(src3));
     ASSERT(!src1.is(src3));
@@ -356,6 +359,57 @@ class MacroAssembler: public Assembler {
       ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
     } else {
       ldr(src2, MemOperand(sp, 4, PostIndex), cond);
+      ldr(src1, MemOperand(sp, 4, PostIndex), cond);
+    }
+  }
+
+  // Pop three registers.  Pops rightmost register first (from lower address).
+  void Pop(Register src1, Register src2, Register src3, Condition cond = al) {
+    ASSERT(!src1.is(src2));
+    ASSERT(!src2.is(src3));
+    ASSERT(!src1.is(src3));
+    if (src1.code() > src2.code()) {
+      if (src2.code() > src3.code()) {
+        ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+      } else {
+        ldr(src3, MemOperand(sp, 4, PostIndex), cond);
+        ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+      }
+    } else {
+      Pop(src2, src3, cond);
+      str(src1, MemOperand(sp, 4, PostIndex), cond);
+    }
+  }
+
+  // Pop four registers.  Pops rightmost register first (from lower address).
+  void Pop(Register src1,
+           Register src2,
+           Register src3,
+           Register src4,
+           Condition cond = al) {
+    ASSERT(!src1.is(src2));
+    ASSERT(!src2.is(src3));
+    ASSERT(!src1.is(src3));
+    ASSERT(!src1.is(src4));
+    ASSERT(!src2.is(src4));
+    ASSERT(!src3.is(src4));
+    if (src1.code() > src2.code()) {
+      if (src2.code() > src3.code()) {
+        if (src3.code() > src4.code()) {
+          ldm(ia_w,
+              sp,
+              src1.bit() | src2.bit() | src3.bit() | src4.bit(),
+              cond);
+        } else {
+          ldr(src4, MemOperand(sp, 4, PostIndex), cond);
+          ldm(ia_w, sp, src1.bit() | src2.bit() | src3.bit(), cond);
+        }
+      } else {
+        Pop(src3, src4, cond);
+        ldm(ia_w, sp, src1.bit() | src2.bit(), cond);
+      }
+    } else {
+      Pop(src2, src3, src4, cond);
       ldr(src1, MemOperand(sp, 4, PostIndex), cond);
     }
   }
@@ -672,7 +726,8 @@ class MacroAssembler: public Assembler {
   void TryGetFunctionPrototype(Register function,
                                Register result,
                                Register scratch,
-                               Label* miss);
+                               Label* miss,
+                               bool miss_on_bound_function = false);
 
   // Compare object type for heap object.  heap_object contains a non-Smi
   // whose object type should be compared with the given type.  This both

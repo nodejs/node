@@ -376,24 +376,6 @@ Handle<Object> GetProperty(Handle<Object> obj,
 }
 
 
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           Handle<String> name,
-                           LookupResult* result) {
-  PropertyAttributes attributes;
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate,
-                     obj->GetProperty(*obj, result, *name, &attributes),
-                     Object);
-}
-
-
-Handle<Object> GetElement(Handle<Object> obj,
-                          uint32_t index) {
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate, Runtime::GetElement(obj, index), Object);
-}
-
-
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,
@@ -500,6 +482,14 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
   ASSERT(!object->HasExternalArrayElements());
   CALL_HEAP_FUNCTION(object->GetIsolate(),
                      object->SetElement(index, *value, strict_mode, false),
+                     Object);
+}
+
+
+Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->TransitionElementsKind(to_kind),
                      Object);
 }
 
@@ -701,7 +691,7 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 
 
 // Compute the property keys from the interceptor.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
@@ -723,7 +713,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 
 
 // Compute the element keys from the interceptor.
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
                                                    Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
@@ -754,8 +744,9 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 }
 
 
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
-                                          KeyCollectionType type) {
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
+                                          KeyCollectionType type,
+                                          bool* threw) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> content = isolate->factory()->empty_fixed_array();
@@ -770,6 +761,16 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
   for (Handle<Object> p = object;
        *p != isolate->heap()->null_value();
        p = Handle<Object>(p->GetPrototype(), isolate)) {
+    if (p->IsJSProxy()) {
+      Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
+      Handle<Object> args[] = { proxy };
+      Handle<Object> names = Execution::Call(
+          isolate->proxy_enumerate(), object, ARRAY_SIZE(args), args, threw);
+      if (*threw) return content;
+      content = AddKeysFromJSArray(content, Handle<JSArray>::cast(names));
+      break;
+    }
+
     Handle<JSObject> current(JSObject::cast(*p), isolate);
 
     // Check access rights if required.
@@ -836,11 +837,11 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 }
 
 
-Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
+Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw) {
   Isolate* isolate = object->GetIsolate();
   isolate->counters()->for_in()->Increment();
-  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object,
-                                                       INCLUDE_PROTOS);
+  Handle<FixedArray> elements =
+      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS, threw);
   return isolate->factory()->NewJSArrayWithElements(elements);
 }
 
@@ -890,62 +891,29 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
+Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
+                                       Handle<Object> key) {
+  CALL_HEAP_FUNCTION(table->GetIsolate(),
+                     table->Add(*key),
+                     ObjectHashSet);
+}
+
+
+Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
+                                          Handle<Object> key) {
+  CALL_HEAP_FUNCTION(table->GetIsolate(),
+                     table->Remove(*key),
+                     ObjectHashSet);
+}
+
+
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSReceiver> key,
+                                               Handle<Object> key,
                                                Handle<Object> value) {
   CALL_HEAP_FUNCTION(table->GetIsolate(),
                      table->Put(*key, *value),
                      ObjectHashTable);
 }
 
-
-bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                    ClearExceptionFlag flag) {
-  return shared->is_compiled() || CompileLazyShared(shared, flag);
-}
-
-
-static bool CompileLazyHelper(CompilationInfo* info,
-                              ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
-  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
-  ASSERT(!info->isolate()->has_pending_exception());
-  bool result = Compiler::CompileLazy(info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
-  if (!result && flag == CLEAR_EXCEPTION) {
-    info->isolate()->clear_pending_exception();
-  }
-  return result;
-}
-
-
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag) {
-  CompilationInfo info(shared);
-  return CompileLazyHelper(&info, flag);
-}
-
-
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
-  bool result = true;
-  if (function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
-  } else {
-    CompilationInfo info(function);
-    result = CompileLazyHelper(&info, flag);
-    ASSERT(!result || function->is_compiled());
-  }
-  return result;
-}
-
-
-bool CompileOptimized(Handle<JSFunction> function,
-                      int osr_ast_id,
-                      ClearExceptionFlag flag) {
-  CompilationInfo info(function);
-  info.SetOptimizing(osr_ast_id);
-  return CompileLazyHelper(&info, flag);
-}
 
 } }  // namespace v8::internal

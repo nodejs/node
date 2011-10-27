@@ -256,8 +256,8 @@ class MacroAssembler: public Assembler {
 
   // Notify the garbage collector that we wrote a pointer into a fixed array.
   // |array| is the array being stored into, |value| is the
-  // object being stored.  |index| is the array index represented as a
-  // Smi. All registers are clobbered by the operation RecordWriteArray
+  // object being stored.  |index| is the array index represented as a non-smi.
+  // All registers are clobbered by the operation RecordWriteArray
   // filters out smis so it does not update the write barrier if the
   // value is a smi.
   void RecordWriteArray(
@@ -319,9 +319,9 @@ class MacroAssembler: public Assembler {
   void LoadFromSafepointRegisterSlot(Register dst, Register src);
 
   void InitializeRootRegister() {
-    ExternalReference roots_address =
-        ExternalReference::roots_address(isolate());
-    movq(kRootRegister, roots_address);
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    movq(kRootRegister, roots_array_start);
     addq(kRootRegister, Immediate(kRootRegisterBias));
   }
 
@@ -726,6 +726,7 @@ class MacroAssembler: public Assembler {
   void Push(Smi* smi);
   void Test(const Operand& dst, Smi* source);
 
+
   // ---------------------------------------------------------------------------
   // String macros.
 
@@ -770,6 +771,9 @@ class MacroAssembler: public Assembler {
 
   // Move if the registers are not identical.
   void Move(Register target, Register source);
+
+  // Bit-field support.
+  void TestBit(const Operand& dst, int bit_index);
 
   // Handle support
   void Move(Register dst, Handle<Object> source);
@@ -860,12 +864,12 @@ class MacroAssembler: public Assembler {
                                 Label::Distance distance = Label::kFar);
 
   // Check to see if maybe_number can be stored as a double in
-  // FastDoubleElements. If it can, store it at the index specified by key in
-  // the FastDoubleElements array elements, otherwise jump to fail.
-  // Note that key must not be smi-tagged.
+  // FastDoubleElements. If it can, store it at the index specified by index in
+  // the FastDoubleElements array elements, otherwise jump to fail.  Note that
+  // index must not be smi-tagged.
   void StoreNumberToDoubleElements(Register maybe_number,
                                    Register elements,
-                                   Register key,
+                                   Register index,
                                    XMMRegister xmm_scratch,
                                    Label* fail);
 
@@ -1074,7 +1078,8 @@ class MacroAssembler: public Assembler {
   // clobbered.
   void TryGetFunctionPrototype(Register function,
                                Register result,
-                               Label* miss);
+                               Label* miss,
+                               bool miss_on_bound_function = false);
 
   // Generates code for reporting that an illegal operation has
   // occurred.

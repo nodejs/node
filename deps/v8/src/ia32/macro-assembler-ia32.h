@@ -594,6 +594,9 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // Support functions.
 
+  // Check a boolean-bit of a Smi field.
+  void BooleanBitTest(Register object, int field_offset, int bit_index);
+
   // Check if result is zero and op is negative.
   void NegativeZeroTest(Register result, Register op, Label* then_label);
 
@@ -610,7 +613,8 @@ class MacroAssembler: public Assembler {
   void TryGetFunctionPrototype(Register function,
                                Register result,
                                Register scratch,
-                               Label* miss);
+                               Label* miss,
+                               bool miss_on_bound_function = false);
 
   // Generates code for reporting that an illegal operation has
   // occurred.

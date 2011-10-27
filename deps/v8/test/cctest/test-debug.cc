@@ -409,11 +409,8 @@ Handle<FixedArray> GetDebuggedFunctions() {
 
 
 static Handle<Code> ComputeCallDebugBreak(int argc) {
-  CALL_HEAP_FUNCTION(
-      v8::internal::Isolate::Current(),
-      v8::internal::Isolate::Current()->stub_cache()->ComputeCallDebugBreak(
-          argc, Code::CALL_IC),
-      Code);
+  return Isolate::Current()->stub_cache()->ComputeCallDebugBreak(argc,
+                                                                 Code::CALL_IC);
 }
 
 
@@ -425,8 +422,8 @@ void CheckDebuggerUnloaded(bool check_functions) {
   CHECK_EQ(NULL, Isolate::Current()->debug()->debug_info_list_);
 
   // Collect garbage to ensure weak handles are cleared.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
   // Iterate the head and check that there are no debugger related objects left.
   HeapIterator iterator;

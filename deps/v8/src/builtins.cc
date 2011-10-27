@@ -1507,6 +1507,14 @@ static void Generate_KeyedStoreIC_NonStrictArguments(MacroAssembler* masm) {
   KeyedStoreIC::GenerateNonStrictArguments(masm);
 }
 
+static void Generate_TransitionElementsSmiToDouble(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateTransitionElementsSmiToDouble(masm);
+}
+
+static void Generate_TransitionElementsDoubleToObject(MacroAssembler* masm) {
+  KeyedStoreIC::GenerateTransitionElementsDoubleToObject(masm);
+}
+
 #ifdef ENABLE_DEBUGGER_SUPPORT
 static void Generate_LoadIC_DebugBreak(MacroAssembler* masm) {
   Debug::GenerateLoadICDebugBreak(masm);

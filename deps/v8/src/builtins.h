@@ -167,6 +167,10 @@ enum BuiltinExtraArguments {
                                     kStrictMode)                        \
   V(KeyedStoreIC_NonStrictArguments, KEYED_STORE_IC, MEGAMORPHIC,       \
                                      Code::kNoExtraICState)             \
+  V(TransitionElementsSmiToDouble,  BUILTIN, UNINITIALIZED,             \
+                                    Code::kNoExtraICState)              \
+  V(TransitionElementsDoubleToObject, BUILTIN, UNINITIALIZED,           \
+                                      Code::kNoExtraICState)            \
                                                                         \
   /* Uses KeyedLoadIC_Initialize; must be after in list. */             \
   V(FunctionCall,                   BUILTIN, UNINITIALIZED,             \
@@ -234,7 +238,6 @@ enum BuiltinExtraArguments {
   V(DELETE, 2)                           \
   V(IN, 1)                               \
   V(INSTANCE_OF, 1)                      \
-  V(GET_KEYS, 0)                         \
   V(FILTER_KEY, 1)                       \
   V(CALL_NON_FUNCTION, 0)                \
   V(CALL_NON_FUNCTION_AS_CONSTRUCTOR, 0) \

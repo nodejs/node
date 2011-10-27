@@ -263,7 +263,12 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // [sp + (2 * kPointerSize)]: literals array.
 
   // All sizes here are multiples of kPointerSize.
-  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
+  int elements_size = 0;
+  if (length_ > 0) {
+    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
+        ? FixedDoubleArray::SizeFor(length_)
+        : FixedArray::SizeFor(length_);
+  }
   int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into r3 and check if we need to create a
@@ -283,6 +288,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     if (mode_ == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map_index = Heap::kFixedArrayMapRootIndex;
+    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
+      message = "Expected (writable) fixed double array";
+      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
     } else {
       ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
@@ -322,6 +330,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ str(r2, FieldMemOperand(r0, JSArray::kElementsOffset));
 
     // Copy the elements array.
+    ASSERT((elements_size % kPointerSize) == 0);
     __ CopyFields(r2, r3, r1.bit(), elements_size / kPointerSize);
   }
 
@@ -3913,7 +3922,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   }
 
   // Get the prototype of the function.
-  __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
+  __ TryGetFunctionPrototype(function, prototype, scratch, &slow, true);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(prototype, &slow);
@@ -6668,7 +6677,82 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
 }
 
 
-MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
+void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
+                                                        Label* miss,
+                                                        Label* done,
+                                                        Register receiver,
+                                                        Register properties,
+                                                        Handle<String> name,
+                                                        Register scratch0) {
+  // If names of slots in range from 1 to kProbes - 1 for the hash value are
+  // not equal to the name and kProbes-th slot is not used (its name is the
+  // undefined value), it guarantees the hash table doesn't contain the
+  // property. It's true even if some slots represent deleted properties
+  // (their names are the null value).
+  for (int i = 0; i < kInlinedProbes; i++) {
+    // scratch0 points to properties hash.
+    // Compute the masked index: (hash + i + i * i) & mask.
+    Register index = scratch0;
+    // Capacity is smi 2^n.
+    __ ldr(index, FieldMemOperand(properties, kCapacityOffset));
+    __ sub(index, index, Operand(1));
+    __ and_(index, index, Operand(
+        Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
+
+    // Scale the index by multiplying by the entry size.
+    ASSERT(StringDictionary::kEntrySize == 3);
+    __ add(index, index, Operand(index, LSL, 1));  // index *= 3.
+
+    Register entity_name = scratch0;
+    // Having undefined at this place means the name is not contained.
+    ASSERT_EQ(kSmiTagSize, 1);
+    Register tmp = properties;
+    __ add(tmp, properties, Operand(index, LSL, 1));
+    __ ldr(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
+
+    ASSERT(!tmp.is(entity_name));
+    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
+    __ cmp(entity_name, tmp);
+    __ b(eq, done);
+
+    if (i != kInlinedProbes - 1) {
+      // Stop if found the property.
+      __ cmp(entity_name, Operand(Handle<String>(name)));
+      __ b(eq, miss);
+
+      // Check if the entry name is not a symbol.
+      __ ldr(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
+      __ ldrb(entity_name,
+              FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
+      __ tst(entity_name, Operand(kIsSymbolMask));
+      __ b(eq, miss);
+
+      // Restore the properties.
+      __ ldr(properties,
+             FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+    }
+  }
+
+  const int spill_mask =
+      (lr.bit() | r6.bit() | r5.bit() | r4.bit() | r3.bit() |
+       r2.bit() | r1.bit() | r0.bit());
+
+  __ stm(db_w, sp, spill_mask);
+  __ ldr(r0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  __ mov(r1, Operand(Handle<String>(name)));
+  StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
+  __ CallStub(&stub);
+  __ tst(r0, Operand(r0));
+  __ ldm(ia_w, sp, spill_mask);
+
+  __ b(eq, done);
+  __ b(ne, miss);
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
     MacroAssembler* masm,
     Label* miss,
     Label* done,
@@ -6927,6 +7011,13 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { r3, r1, r2, EMIT_REMEMBERED_SET },
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { r4, r2, r3, EMIT_REMEMBERED_SET },
+  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
+  // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
+  // and ElementsTransitionGenerator::GenerateDoubleToObject
+  { r2, r3, r9, EMIT_REMEMBERED_SET },
+  // ElementsTransitionGenerator::GenerateDoubleToObject
+  { r6, r2, r0, EMIT_REMEMBERED_SET },
+  { r2, r6, r9, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -7162,7 +7253,6 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   // Fall through when we need to inform the incremental marker.
 }
-
 
 #undef __
 

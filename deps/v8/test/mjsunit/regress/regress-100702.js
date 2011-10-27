@@ -25,22 +25,20 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test printing of cyclic errors which return the empty string for
-// compatibility with Safari and Firefox.
+// Regression test for correct handling of non-object receiver values
+// passed to built-in array functions.
 
-var e = new Error();
-assertEquals('Error', e + '');
+String.prototype.isThatMe = function () {
+  assertFalse(this === str);
+};
 
-e = new Error();
-e.name = e;
-e.message = e;
-e.stack = e;
-e.arguments = e;
-assertEquals(': ', e + '');
+var str = "abc";
+str.isThatMe();
+str.isThatMe.call(str);
 
-e = new Error();
-e.name = [ e ];
-e.message = [ e ];
-e.stack = [ e ];
-e.arguments = [ e ];
-assertEquals(': ', e + '');
+var arr = [1];
+arr.forEach("".isThatMe, str);
+arr.filter("".isThatMe, str);
+arr.some("".isThatMe, str);
+arr.every("".isThatMe, str);
+arr.map("".isThatMe, str);

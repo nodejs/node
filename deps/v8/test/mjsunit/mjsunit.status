@@ -65,6 +65,20 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
 
+# Liveedit messes with the frame hights - see bug 1791
+debug-liveedit-1: SKIP
+debug-liveedit-2: SKIP
+debug-liveedit-3: SKIP
+debug-liveedit-breakpoints: SKIP
+debug-liveedit-check-stack: SKIP
+debug-liveedit-diff: SKIP
+debug-liveedit-newsource: SKIP
+debug-liveedit-patch-positions: SKIP
+debug-liveedit-patch-positions-replace: SKIP
+debug-liveedit-utils: SKIP
+
+
+
 ##############################################################################
 [ $arch == arm ]
 

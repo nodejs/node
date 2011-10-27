@@ -52,7 +52,10 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
-  bool is_strict_mode() const { return IsStrictMode::decode(flags_); }
+  bool is_strict_mode() const { return strict_mode_flag() == kStrictMode; }
+  StrictModeFlag strict_mode_flag() const {
+    return StrictModeFlagField::decode(flags_);
+  }
   bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
@@ -73,21 +76,14 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
-  void MarkAsStrictMode() {
-    flags_ |= IsStrictMode::encode(true);
-  }
-  StrictModeFlag StrictMode() {
-    return is_strict_mode() ? kStrictMode : kNonStrictMode;
+  void SetStrictModeFlag(StrictModeFlag strict_mode_flag) {
+    ASSERT(StrictModeFlagField::decode(flags_) == kNonStrictMode ||
+           StrictModeFlagField::decode(flags_) == strict_mode_flag);
+    flags_ = StrictModeFlagField::update(flags_, strict_mode_flag);
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
     flags_ |= IsInLoop::encode(true);
-  }
-  void MarkAsAllowingNativesSyntax() {
-    flags_ |= IsNativesSyntaxAllowed::encode(true);
-  }
-  bool allows_natives_syntax() const {
-    return IsNativesSyntaxAllowed::decode(flags_);
   }
   void MarkAsNative() {
     flags_ |= IsNative::encode(true);
@@ -120,6 +116,19 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(IsOptimizing());
     osr_ast_id_ = osr_ast_id;
   }
+  void MarkCompilingForDebugging(Handle<Code> current_code) {
+    ASSERT(mode_ != OPTIMIZE);
+    ASSERT(current_code->kind() == Code::FUNCTION);
+    flags_ |= IsCompilingForDebugging::encode(true);
+    if (current_code->is_compiled_optimizable()) {
+      EnableDeoptimizationSupport();
+    } else {
+      mode_ = CompilationInfo::NONOPT;
+    }
+  }
+  bool IsCompilingForDebugging() {
+    return IsCompilingForDebugging::decode(flags_);
+  }
 
   bool has_global_object() const {
     return !closure().is_null() && (closure()->context()->global() != NULL);
@@ -139,10 +148,12 @@ class CompilationInfo BASE_EMBEDDED {
   void DisableOptimization();
 
   // Deoptimization support.
-  bool HasDeoptimizationSupport() const { return supports_deoptimization_; }
+  bool HasDeoptimizationSupport() const {
+    return SupportsDeoptimization::decode(flags_);
+  }
   void EnableDeoptimizationSupport() {
     ASSERT(IsOptimizable());
-    supports_deoptimization_ = true;
+    flags_ |= SupportsDeoptimization::encode(true);
   }
 
   // Determine whether or not we can adaptively optimize.
@@ -177,8 +188,9 @@ class CompilationInfo BASE_EMBEDDED {
     if (script_->type()->value() == Script::TYPE_NATIVE) {
       MarkAsNative();
     }
-    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
-      MarkAsStrictMode();
+    if (!shared_info_.is_null()) {
+      ASSERT(strict_mode_flag() == kNonStrictMode);
+      SetStrictModeFlag(shared_info_->strict_mode_flag());
     }
   }
 
@@ -198,11 +210,14 @@ class CompilationInfo BASE_EMBEDDED {
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
-  class IsStrictMode: public BitField<bool, 4, 1> {};
-  // Native syntax (%-stuff) allowed?
-  class IsNativesSyntaxAllowed: public BitField<bool, 5, 1> {};
+  class StrictModeFlagField: public BitField<StrictModeFlag, 4, 1> {};
   // Is this a function from our natives.
   class IsNative: public BitField<bool, 6, 1> {};
+  // Is this code being compiled with support for deoptimization..
+  class SupportsDeoptimization: public BitField<bool, 7, 1> {};
+  // If compiling for debugging produce just full code matching the
+  // initial mode setting.
+  class IsCompilingForDebugging: public BitField<bool, 8, 1> {};
 
 
   unsigned flags_;
@@ -231,7 +246,6 @@ class CompilationInfo BASE_EMBEDDED {
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
-  bool supports_deoptimization_;
   int osr_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);

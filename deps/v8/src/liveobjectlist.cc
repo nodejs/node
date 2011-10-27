@@ -1085,7 +1085,7 @@ void LiveObjectList::SortAll() {
 static int CountHeapObjects() {
   int count = 0;
   // Iterate over all the heap spaces and count the number of objects.
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
   while ((heap_obj = iterator.next()) != NULL) {
     count++;
@@ -1122,7 +1122,7 @@ MaybeObject* LiveObjectList::Capture() {
   // allocation, and we need allocate below.
   {
     // Iterate over all the heap spaces and add the objects.
-    HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+    HeapIterator iterator;
     HeapObject* heap_obj = NULL;
     bool failed = false;
     while (!failed && (heap_obj = iterator.next()) != NULL) {
@@ -2513,7 +2513,7 @@ void LiveObjectList::Verify(bool match_heap_exactly) {
   OS::Print("  Start verify ...\n");
   OS::Print("  Verifying ...");
   Flush();
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
   while ((heap_obj = iterator.next()) != NULL) {
     number_of_heap_objects++;

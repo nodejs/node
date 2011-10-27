@@ -30,10 +30,6 @@ def FAIL_OK = FAIL, OKAY
 
 ############################### BUGS ###################################
 
-# A bound function should fail on access to 'caller' and 'arguments'.
-S15.3.4.5_A1: FAIL
-S15.3.4.5_A2: FAIL
-
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
@@ -45,12 +41,6 @@ S15.12.2_A1: FAIL
 S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
 S15.8.2.13_A23: PASS || FAIL_OK
-
-# We allow calls to regexp exec() with no arguments to fail for
-# compatibility reasons.
-S15.10.6.2_A1_T16: FAIL_OK
-S15.10.6.2_A12: FAIL_OK
-S15.10.6.3_A1_T16: FAIL_OK
 
 # Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
 S15.10.6_A2: FAIL_OK
@@ -162,6 +152,10 @@ S11.1.5_A4.2: FAIL_OK
 S9.9_A1: FAIL_OK
 S9.9_A2: FAIL_OK
 
+# The expected evaluation order of comparison operations changed.
+S11.8.2_A2.3_T1: FAIL_OK
+S11.8.3_A2.3_T1: FAIL_OK
+
 # Calls builtins without an explicit receiver which means that
 # undefined is passed to the builtin. The tests expect the global
 # object to be passed which was true in ES3 but not in ES5.
@@ -186,6 +180,10 @@ S15.1.1.2_A2_T1: FAIL_OK  # Infinity
 # S15.1.1.2_A2_T2 would fail if it weren't bogus in r97. sputnik bug #45.
 S15.1.1.3_A2_T1: FAIL_OK  # undefined
 S15.1.1.3_A2_T2: FAIL_OK  # undefined
+
+# Function.prototype.apply can handle arbitrary object as argument list.
+S15.3.4.3_A6_T1: FAIL_OK
+S15.3.4.3_A6_T4: FAIL_OK
 
 # Array.prototype.to[Locale]String is generic in ES5.
 S15.4.4.2_A2_T1: FAIL_OK

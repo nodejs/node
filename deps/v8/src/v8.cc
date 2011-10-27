@@ -63,7 +63,7 @@ bool V8::Initialize(Deserializer* des) {
     FLAG_harmony_typeof = true;
     FLAG_harmony_scoping = true;
     FLAG_harmony_proxies = true;
-    FLAG_harmony_weakmaps = true;
+    FLAG_harmony_collections = true;
   }
 
   InitializeOncePerProcess();
@@ -150,9 +150,10 @@ void V8::SetEntropySource(EntropySource source) {
 
 
 // Used by JavaScript APIs
-uint32_t V8::Random(Isolate* isolate) {
-  ASSERT(isolate == Isolate::Current());
-  return random_base(isolate->random_seed());
+uint32_t V8::Random(Context* context) {
+  ASSERT(context->IsGlobalContext());
+  ByteArray* seed = context->random_seed();
+  return random_base(reinterpret_cast<uint32_t*>(seed->GetDataStartAddress()));
 }
 
 
@@ -182,8 +183,9 @@ typedef union {
 } double_int_union;
 
 
-Object* V8::FillHeapNumberWithRandom(Object* heap_number, Isolate* isolate) {
-  uint64_t random_bits = Random(isolate);
+Object* V8::FillHeapNumberWithRandom(Object* heap_number,
+                                     Context* context) {
+  uint64_t random_bits = Random(context);
   // Make a double* from address (heap_number + sizeof(double)).
   double_int_union* r = reinterpret_cast<double_int_union*>(
       reinterpret_cast<char*>(heap_number) +

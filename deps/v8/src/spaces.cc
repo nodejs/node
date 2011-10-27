@@ -95,10 +95,6 @@ void HeapObjectIterator::Initialize(PagedSpace* space,
   cur_end_ = end;
   page_mode_ = mode;
   size_func_ = size_f;
-
-#ifdef DEBUG
-  Verify();
-#endif
 }
 
 
@@ -121,13 +117,6 @@ bool HeapObjectIterator::AdvanceToNextPage() {
   ASSERT(cur_page->WasSweptPrecisely());
   return true;
 }
-
-
-#ifdef DEBUG
-void HeapObjectIterator::Verify() {
-  // TODO(gc): We should do something here.
-}
-#endif
 
 
 // -----------------------------------------------------------------------------
@@ -1909,11 +1898,24 @@ intptr_t FreeList::SumFreeLists() {
 
 bool NewSpace::ReserveSpace(int bytes) {
   // We can't reliably unpack a partial snapshot that needs more new space
-  // space than the minimum NewSpace size.
+  // space than the minimum NewSpace size.  The limit can be set lower than
+  // the end of new space either because there is more space on the next page
+  // or because we have lowered the limit in order to get periodic incremental
+  // marking.  The most reliable way to ensure that there is linear space is
+  // to do the allocation, then rewind the limit.
   ASSERT(bytes <= InitialCapacity());
-  Address limit = allocation_info_.limit;
+  MaybeObject* maybe = AllocateRawInternal(bytes);
+  Object* object = NULL;
+  if (!maybe->ToObject(&object)) return false;
+  HeapObject* allocation = HeapObject::cast(object);
   Address top = allocation_info_.top;
-  return limit - top >= bytes;
+  if ((top - bytes) == allocation->address()) {
+    allocation_info_.top = allocation->address();
+    return true;
+  }
+  // There may be a borderline case here where the allocation succeeded, but
+  // the limit and top have moved on to a new page.  In that case we try again.
+  return ReserveSpace(bytes);
 }
 
 
@@ -2278,8 +2280,11 @@ HeapObject* LargeObjectIterator::Next() {
 // -----------------------------------------------------------------------------
 // LargeObjectSpace
 
-LargeObjectSpace::LargeObjectSpace(Heap* heap, AllocationSpace id)
+LargeObjectSpace::LargeObjectSpace(Heap* heap,
+                                   intptr_t max_capacity,
+                                   AllocationSpace id)
     : Space(heap, id, NOT_EXECUTABLE),  // Managed on a per-allocation basis
+      max_capacity_(max_capacity),
       first_page_(NULL),
       size_(0),
       page_count_(0),
@@ -2316,6 +2321,10 @@ MaybeObject* LargeObjectSpace::AllocateRaw(int object_size,
   // If so, fail the allocation.
   if (!heap()->always_allocate() &&
       heap()->OldGenerationAllocationLimitReached()) {
+    return Failure::RetryAfterGC(identity());
+  }
+
+  if (Size() + object_size > max_capacity_) {
     return Failure::RetryAfterGC(identity());
   }
 

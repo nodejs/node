@@ -302,7 +302,7 @@ const FPURegister f29 = { 29 };
 const FPURegister f30 = { 30 };
 const FPURegister f31 = { 31 };
 
-const FPURegister kDoubleRegZero = f28;
+static const FPURegister& kDoubleRegZero = f28;
 
 // FPU (coprocessor 1) control registers.
 // Currently only FCSR (#31) is implemented.

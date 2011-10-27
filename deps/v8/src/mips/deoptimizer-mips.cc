@@ -61,7 +61,8 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
+                                         Address pc_after,
                                          Code* check_code,
                                          Code* replacement_code) {
   UNIMPLEMENTED();

@@ -125,11 +125,13 @@ PreParser::Statement PreParser::ParseSourceElement(bool* ok) {
   // In harmony mode we allow additionally the following productions
   // SourceElement:
   //    LetDeclaration
+  //    ConstDeclaration
 
   switch (peek()) {
     case i::Token::FUNCTION:
       return ParseFunctionDeclaration(ok);
     case i::Token::LET:
+    case i::Token::CONST:
       return ParseVariableStatement(kSourceElement, ok);
     default:
       return ParseStatement(ok);
@@ -240,7 +242,7 @@ PreParser::Statement PreParser::ParseStatement(bool* ok) {
       i::Scanner::Location start_location = scanner_->peek_location();
       Statement statement = ParseFunctionDeclaration(CHECK_OK);
       i::Scanner::Location end_location = scanner_->location();
-      if (strict_mode()) {
+      if (strict_mode() || harmony_scoping_) {
         ReportMessageAt(start_location.beg_pos, end_location.end_pos,
                         "strict_function", NULL);
         *ok = false;
@@ -312,6 +314,7 @@ PreParser::Statement PreParser::ParseVariableStatement(
 
   Statement result = ParseVariableDeclarations(var_context,
                                                NULL,
+                                               NULL,
                                                CHECK_OK);
   ExpectSemicolon(CHECK_OK);
   return result;
@@ -325,15 +328,37 @@ PreParser::Statement PreParser::ParseVariableStatement(
 // of 'for-in' loops.
 PreParser::Statement PreParser::ParseVariableDeclarations(
     VariableDeclarationContext var_context,
+    VariableDeclarationProperties* decl_props,
     int* num_decl,
     bool* ok) {
   // VariableDeclarations ::
   //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
-
+  //
+  // The ES6 Draft Rev3 specifies the following grammar for const declarations
+  //
+  // ConstDeclaration ::
+  //   const ConstBinding (',' ConstBinding)* ';'
+  // ConstBinding ::
+  //   Identifier '=' AssignmentExpression
+  //
+  // TODO(ES6):
+  // ConstBinding ::
+  //   BindingPattern '=' AssignmentExpression
+  bool require_initializer = false;
   if (peek() == i::Token::VAR) {
     Consume(i::Token::VAR);
   } else if (peek() == i::Token::CONST) {
-    if (strict_mode()) {
+    if (harmony_scoping_) {
+      if (var_context != kSourceElement &&
+          var_context != kForStatement) {
+        i::Scanner::Location location = scanner_->peek_location();
+        ReportMessageAt(location.beg_pos, location.end_pos,
+                        "unprotected_const", NULL);
+        *ok = false;
+        return Statement::Default();
+      }
+      require_initializer = true;
+    } else if (strict_mode()) {
       i::Scanner::Location location = scanner_->peek_location();
       ReportMessageAt(location, "strict_const", NULL);
       *ok = false;
@@ -372,9 +397,10 @@ PreParser::Statement PreParser::ParseVariableDeclarations(
       return Statement::Default();
     }
     nvars++;
-    if (peek() == i::Token::ASSIGN) {
+    if (peek() == i::Token::ASSIGN || require_initializer) {
       Expect(i::Token::ASSIGN, CHECK_OK);
       ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
+      if (decl_props != NULL) *decl_props = kHasInitializers;
     }
   } while (peek() == i::Token::COMMA);
 
@@ -569,9 +595,14 @@ PreParser::Statement PreParser::ParseForStatement(bool* ok) {
   if (peek() != i::Token::SEMICOLON) {
     if (peek() == i::Token::VAR || peek() == i::Token::CONST ||
         peek() == i::Token::LET) {
+      bool is_let = peek() == i::Token::LET;
       int decl_count;
-      ParseVariableDeclarations(kForStatement, &decl_count, CHECK_OK);
-      if (peek() == i::Token::IN && decl_count == 1) {
+      VariableDeclarationProperties decl_props = kHasNoInitializers;
+      ParseVariableDeclarations(
+          kForStatement, &decl_props, &decl_count, CHECK_OK);
+      bool accept_IN = decl_count == 1 &&
+          !(is_let && decl_props == kHasInitializers);
+      if (peek() == i::Token::IN && accept_IN) {
         Expect(i::Token::IN, CHECK_OK);
         ParseExpression(true, CHECK_OK);
         Expect(i::Token::RPAREN, CHECK_OK);
@@ -1353,8 +1384,11 @@ PreParser::Expression PreParser::ParseFunctionLiteral(bool* ok) {
 PreParser::Expression PreParser::ParseV8Intrinsic(bool* ok) {
   // CallRuntime ::
   //   '%' Identifier Arguments
-
   Expect(i::Token::MOD, CHECK_OK);
+  if (!allow_natives_syntax_) {
+    *ok = false;
+    return Expression::Default();
+  }
   ParseIdentifier(CHECK_OK);
   ParseArguments(ok);
 

@@ -509,14 +509,16 @@ RegExpImpl::IrregexpResult RegExpImpl::IrregexpExecOnce(
   }
   Handle<ByteArray> byte_codes(IrregexpByteCode(*irregexp, is_ascii), isolate);
 
-  if (IrregexpInterpreter::Match(isolate,
-                                 byte_codes,
-                                 subject,
-                                 register_vector,
-                                 index)) {
-    return RE_SUCCESS;
+  IrregexpResult result = IrregexpInterpreter::Match(isolate,
+                                                     byte_codes,
+                                                     subject,
+                                                     register_vector,
+                                                     index);
+  if (result == RE_EXCEPTION) {
+    ASSERT(!isolate->has_pending_exception());
+    isolate->StackOverflow();
   }
-  return RE_FAILURE;
+  return result;
 #endif  // V8_INTERPRETED_REGEXP
 }
 

@@ -512,6 +512,8 @@ class JavaScriptFrame: public StandardFrame {
     return static_cast<JavaScriptFrame*>(frame);
   }
 
+  static void PrintTop(FILE* file, bool print_args, bool print_line_number);
+
  protected:
   inline explicit JavaScriptFrame(StackFrameIterator* iterator);
 

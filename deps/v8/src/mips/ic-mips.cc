@@ -384,10 +384,10 @@ Object* CallIC_Miss(Arguments args);
 
 // The generated code does not accept smi keys.
 // The generated code falls through if both probes miss.
-static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
-                                          int argc,
-                                          Code::Kind kind,
-                                          Code::ExtraICState extra_ic_state) {
+void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                               int argc,
+                                               Code::Kind kind,
+                                               Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- a1    : receiver
   //  -- a2    : name
@@ -397,7 +397,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(kind,
                                          MONOMORPHIC,
-                                         extra_ic_state,
+                                         extra_state,
                                          NORMAL,
                                          argc);
   Isolate::Current()->stub_cache()->GenerateProbe(
@@ -463,7 +463,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 }
 
 
-static void GenerateCallNormal(MacroAssembler* masm, int argc) {
+void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   //  -- a2    : name
   //  -- ra    : return address
@@ -486,10 +486,10 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc) {
 }
 
 
-static void GenerateCallMiss(MacroAssembler* masm,
-                             int argc,
-                             IC::UtilityId id,
-                             Code::ExtraICState extra_ic_state) {
+void CallICBase::GenerateMiss(MacroAssembler* masm,
+                              int argc,
+                              IC::UtilityId id,
+                              Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
   //  -- a2    : name
   //  -- ra    : return address
@@ -540,7 +540,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
     __ bind(&invoke);
   }
   // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   ParameterCount actual(argc);
@@ -549,18 +549,6 @@ static void GenerateCallMiss(MacroAssembler* masm,
                     JUMP_FUNCTION,
                     NullCallWrapper(),
                     call_kind);
-}
-
-
-void CallIC::GenerateMiss(MacroAssembler* masm,
-                          int argc,
-                          Code::ExtraICState extra_ic_state) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- ra    : return address
-  // -----------------------------------
-
-  GenerateCallMiss(masm, argc, IC::kCallIC_Miss, extra_ic_state);
 }
 
 
@@ -576,27 +564,6 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
   __ lw(a1, MemOperand(sp, argc * kPointerSize));
   GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC, extra_ic_state);
   GenerateMiss(masm, argc, extra_ic_state);
-}
-
-
-void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- ra    : return address
-  // -----------------------------------
-
-  GenerateCallNormal(masm, argc);
-  GenerateMiss(masm, argc, Code::kNoExtraICState);
-}
-
-
-void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  //  -- a2    : name
-  //  -- ra    : return address
-  // -----------------------------------
-
-  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss, Code::kNoExtraICState);
 }
 
 
@@ -716,7 +683,7 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ JumpIfSmi(a2, &miss);
   __ IsObjectJSStringType(a2, a0, &miss);
 
-  GenerateCallNormal(masm, argc);
+  CallICBase::GenerateNormal(masm, argc);
   __ bind(&miss);
   GenerateMiss(masm, argc);
 }
@@ -1421,6 +1388,47 @@ void KeyedStoreIC::GenerateSlow(MacroAssembler* masm) {
 }
 
 
+void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- a2     : receiver
+  //  -- a3     : target map
+  //  -- ra     : return address
+  // -----------------------------------
+  // Must return the modified receiver in v0.
+  if (!FLAG_trace_elements_transitions) {
+    Label fail;
+    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    __ Ret(USE_DELAY_SLOT);
+    __ mov(v0, a2);
+    __ bind(&fail);
+  }
+
+  __ push(a2);
+  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
+}
+
+
+void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
+    MacroAssembler* masm) {
+  // ---------- S t a t e --------------
+  //  -- a2     : receiver
+  //  -- a3     : target map
+  //  -- ra     : return address
+  // -----------------------------------
+  // Must return the modified receiver in v0.
+  if (!FLAG_trace_elements_transitions) {
+    Label fail;
+    ElementsTransitionGenerator::GenerateDoubleToObject(masm, &fail);
+    __ Ret(USE_DELAY_SLOT);
+    __ mov(v0, a2);
+    __ bind(&fail);
+  }
+
+  __ push(a2);
+  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
+}
+
+
 void StoreIC::GenerateMegamorphic(MacroAssembler* masm,
                                   StrictModeFlag strict_mode) {
   // ----------- S t a t e -------------
@@ -1560,11 +1568,9 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
     case Token::LT:
       return lt;
     case Token::GT:
-      // Reverse left and right operands to obtain ECMA-262 conversion order.
-      return lt;
+      return gt;
     case Token::LTE:
-      // Reverse left and right operands to obtain ECMA-262 conversion order.
-      return ge;
+      return le;
     case Token::GTE:
       return ge;
     default:

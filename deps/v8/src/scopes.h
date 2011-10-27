@@ -89,15 +89,7 @@ class Scope: public ZoneObject {
   // ---------------------------------------------------------------------------
   // Construction
 
-  enum Type {
-    EVAL_SCOPE,      // The top-level scope for an eval source.
-    FUNCTION_SCOPE,  // The top-level scope for a function.
-    GLOBAL_SCOPE,    // The top-level scope for a program or a top-level eval.
-    CATCH_SCOPE,     // The scope introduced by catch.
-    BLOCK_SCOPE      // The scope introduced by a new block.
-  };
-
-  Scope(Scope* outer_scope, Type type);
+  Scope(Scope* outer_scope, ScopeType type);
 
   // Compute top scope and allocate variables. For lazy compilation the top
   // scope only contains the single lazily compiled function, so this
@@ -110,7 +102,7 @@ class Scope: public ZoneObject {
   // The scope name is only used for printing/debugging.
   void SetScopeName(Handle<String> scope_name) { scope_name_ = scope_name; }
 
-  void Initialize(bool inside_with);
+  void Initialize();
 
   // Checks if the block scope is redundant, i.e. it does not contain any
   // block scoped declarations. In that case it is removed from the scope
@@ -130,7 +122,7 @@ class Scope: public ZoneObject {
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
-  Variable* DeclareFunctionVar(Handle<String> name);
+  Variable* DeclareFunctionVar(Handle<String> name, VariableMode mode);
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
@@ -149,7 +141,6 @@ class Scope: public ZoneObject {
 
   // Create a new unresolved variable.
   VariableProxy* NewUnresolved(Handle<String> name,
-                               bool inside_with,
                                int position = RelocInfo::kNoPosition);
 
   // Remove a unresolved variable. During parsing, an unresolved variable
@@ -199,11 +190,42 @@ class Scope: public ZoneObject {
   void RecordWithStatement() { scope_contains_with_ = true; }
 
   // Inform the scope that the corresponding code contains an eval call.
-  void RecordEvalCall() { scope_calls_eval_ = true; }
+  void RecordEvalCall() { if (!is_global_scope()) scope_calls_eval_ = true; }
 
-  // Enable strict mode for the scope (unless disabled by a global flag).
-  void EnableStrictMode() {
-    strict_mode_ = FLAG_strict_mode;
+  // Set the strict mode flag (unless disabled by a global flag).
+  void SetStrictModeFlag(StrictModeFlag strict_mode_flag) {
+    strict_mode_flag_ = FLAG_strict_mode ? strict_mode_flag : kNonStrictMode;
+  }
+
+  // Position in the source where this scope begins and ends.
+  //
+  // * For the scope of a with statement
+  //     with (obj) stmt
+  //   start position: start position of first token of 'stmt'
+  //   end position: end position of last token of 'stmt'
+  // * For the scope of a block
+  //     { stmts }
+  //   start position: start position of '{'
+  //   end position: end position of '}'
+  // * For the scope of a function literal or decalaration
+  //     function fun(a,b) { stmts }
+  //   start position: start position of '('
+  //   end position: end position of '}'
+  // * For the scope of a catch block
+  //     try { stms } catch(e) { stmts }
+  //   start position: start position of '('
+  //   end position: end position of ')'
+  // * For the scope of a for-statement
+  //     for (let x ...) stmt
+  //   start position: start position of '('
+  //   end position: end position of last token of 'stmt'
+  int start_position() const { return start_position_; }
+  void set_start_position(int statement_pos) {
+    start_position_ = statement_pos;
+  }
+  int end_position() const { return end_position_; }
+  void set_end_position(int statement_pos) {
+    end_position_ = statement_pos;
   }
 
   // ---------------------------------------------------------------------------
@@ -215,14 +237,20 @@ class Scope: public ZoneObject {
   bool is_global_scope() const { return type_ == GLOBAL_SCOPE; }
   bool is_catch_scope() const { return type_ == CATCH_SCOPE; }
   bool is_block_scope() const { return type_ == BLOCK_SCOPE; }
-  bool is_strict_mode() const { return strict_mode_; }
+  bool is_with_scope() const { return type_ == WITH_SCOPE; }
+  bool is_declaration_scope() const {
+    return is_eval_scope() || is_function_scope() || is_global_scope();
+  }
+  bool is_strict_mode() const { return strict_mode_flag() == kStrictMode; }
   bool is_strict_mode_eval_scope() const {
     return is_eval_scope() && is_strict_mode();
   }
 
   // Information about which scopes calls eval.
   bool calls_eval() const { return scope_calls_eval_; }
-  bool outer_scope_calls_eval() const { return outer_scope_calls_eval_; }
+  bool calls_non_strict_eval() {
+    return scope_calls_eval_ && !is_strict_mode();
+  }
   bool outer_scope_calls_non_strict_eval() const {
     return outer_scope_calls_non_strict_eval_;
   }
@@ -237,6 +265,12 @@ class Scope: public ZoneObject {
 
   // ---------------------------------------------------------------------------
   // Accessors.
+
+  // The type of this scope.
+  ScopeType type() const { return type_; }
+
+  // The strict mode of this scope.
+  StrictModeFlag strict_mode_flag() const { return strict_mode_flag_; }
 
   // The variable corresponding the 'this' value.
   Variable* receiver() { return receiver_; }
@@ -264,6 +298,8 @@ class Scope: public ZoneObject {
   // Declarations list.
   ZoneList<Declaration*>* declarations() { return &decls_; }
 
+  // Inner scope list.
+  ZoneList<Scope*>* inner_scopes() { return &inner_scopes_; }
 
   // ---------------------------------------------------------------------------
   // Variable allocation.
@@ -307,6 +343,13 @@ class Scope: public ZoneObject {
 
   Handle<SerializedScopeInfo> GetSerializedScopeInfo();
 
+  // Get the chain of nested scopes within this scope for the source statement
+  // position. The scopes will be added to the list from the outermost scope to
+  // the innermost scope. Only nested block, catch or with scopes are tracked
+  // and will be returned, but no inner function scopes.
+  void GetNestedScopeChain(List<Handle<SerializedScopeInfo> >* chain,
+                           int statement_position);
+
   // ---------------------------------------------------------------------------
   // Strict mode support.
   bool IsDeclared(Handle<String> name) {
@@ -330,7 +373,7 @@ class Scope: public ZoneObject {
  protected:
   friend class ParserFactory;
 
-  explicit Scope(Type type);
+  explicit Scope(ScopeType type);
 
   Isolate* const isolate_;
 
@@ -339,7 +382,7 @@ class Scope: public ZoneObject {
   ZoneList<Scope*> inner_scopes_;  // the immediately enclosed inner scopes
 
   // The scope type.
-  Type type_;
+  ScopeType type_;
 
   // Debugging support.
   Handle<String> scope_name_;
@@ -380,13 +423,14 @@ class Scope: public ZoneObject {
   // the 'eval' call site this scope is the declaration scope.
   bool scope_calls_eval_;
   // This scope is a strict mode scope.
-  bool strict_mode_;
+  StrictModeFlag strict_mode_flag_;
+  // Source positions.
+  int start_position_;
+  int end_position_;
 
   // Computed via PropagateScopeInfo.
-  bool outer_scope_calls_eval_;
   bool outer_scope_calls_non_strict_eval_;
   bool inner_scope_calls_eval_;
-  bool outer_scope_is_eval_scope_;
   bool force_eager_compilation_;
 
   // True if it doesn't need scope resolution (e.g., if the scope was
@@ -396,7 +440,7 @@ class Scope: public ZoneObject {
   // Computed as variables are declared.
   int num_var_or_const_;
 
-  // Computed via AllocateVariables; function scopes only.
+  // Computed via AllocateVariables; function, block and catch scopes only.
   int num_stack_slots_;
   int num_heap_slots_;
 
@@ -409,9 +453,57 @@ class Scope: public ZoneObject {
   Variable* NonLocal(Handle<String> name, VariableMode mode);
 
   // Variable resolution.
+  // Possible results of a recursive variable lookup telling if and how a
+  // variable is bound. These are returned in the output parameter *binding_kind
+  // of the LookupRecursive function.
+  enum BindingKind {
+    // The variable reference could be statically resolved to a variable binding
+    // which is returned. There is no 'with' statement between the reference and
+    // the binding and no scope between the reference scope (inclusive) and
+    // binding scope (exclusive) makes a non-strict 'eval' call.
+    BOUND,
+
+    // The variable reference could be statically resolved to a variable binding
+    // which is returned. There is no 'with' statement between the reference and
+    // the binding, but some scope between the reference scope (inclusive) and
+    // binding scope (exclusive) makes a non-strict 'eval' call, that might
+    // possibly introduce variable bindings shadowing the found one. Thus the
+    // found variable binding is just a guess.
+    BOUND_EVAL_SHADOWED,
+
+    // The variable reference could not be statically resolved to any binding
+    // and thus should be considered referencing a global variable. NULL is
+    // returned. The variable reference is not inside any 'with' statement and
+    // no scope between the reference scope (inclusive) and global scope
+    // (exclusive) makes a non-strict 'eval' call.
+    UNBOUND,
+
+    // The variable reference could not be statically resolved to any binding
+    // NULL is returned. The variable reference is not inside any 'with'
+    // statement, but some scope between the reference scope (inclusive) and
+    // global scope (exclusive) makes a non-strict 'eval' call, that might
+    // possibly introduce a variable binding. Thus the reference should be
+    // considered referencing a global variable unless it is shadowed by an
+    // 'eval' introduced binding.
+    UNBOUND_EVAL_SHADOWED,
+
+    // The variable could not be statically resolved and needs to be looked up
+    // dynamically. NULL is returned. There are two possible reasons:
+    // * A 'with' statement has been encountered and there is no variable
+    //   binding for the name between the variable reference and the 'with'.
+    //   The variable potentially references a property of the 'with' object.
+    // * The code is being executed as part of a call to 'eval' and the calling
+    //   context chain contains either a variable binding for the name or it
+    //   contains a 'with' context.
+    DYNAMIC_LOOKUP
+  };
+
+  // Lookup a variable reference given by name recursively starting with this
+  // scope. If the code is executed because of a call to 'eval', the context
+  // parameter should be set to the calling context of 'eval'.
   Variable* LookupRecursive(Handle<String> name,
-                            bool from_inner_function,
-                            Variable** invalidated_local);
+                            Handle<Context> context,
+                            BindingKind* binding_kind);
   void ResolveVariable(Scope* global_scope,
                        Handle<Context> context,
                        VariableProxy* proxy);
@@ -419,9 +511,7 @@ class Scope: public ZoneObject {
                                    Handle<Context> context);
 
   // Scope analysis.
-  bool PropagateScopeInfo(bool outer_scope_calls_eval,
-                          bool outer_scope_calls_non_strict_eval,
-                          bool outer_scope_is_eval_scope);
+  bool PropagateScopeInfo(bool outer_scope_calls_non_strict_eval);
   bool HasTrivialContext() const;
 
   // Predicates.
@@ -438,8 +528,10 @@ class Scope: public ZoneObject {
   void AllocateVariablesRecursively();
 
  private:
-  // Construct a function or block scope based on the scope info.
-  Scope(Scope* inner_scope, Type type, Handle<SerializedScopeInfo> scope_info);
+  // Construct a scope based on the scope info.
+  Scope(Scope* inner_scope,
+        ScopeType type,
+        Handle<SerializedScopeInfo> scope_info);
 
   // Construct a catch scope with a binding for the name.
   Scope(Scope* inner_scope, Handle<String> catch_variable_name);
@@ -451,7 +543,7 @@ class Scope: public ZoneObject {
     }
   }
 
-  void SetDefaults(Type type,
+  void SetDefaults(ScopeType type,
                    Scope* outer_scope,
                    Handle<SerializedScopeInfo> scope_info);
 };

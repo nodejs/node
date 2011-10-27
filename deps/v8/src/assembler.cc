@@ -834,8 +834,8 @@ ExternalReference ExternalReference::keyed_lookup_cache_field_offsets(
 }
 
 
-ExternalReference ExternalReference::roots_address(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->roots_address());
+ExternalReference ExternalReference::roots_array_start(Isolate* isolate) {
+  return ExternalReference(isolate->heap()->roots_array_start());
 }
 
 
@@ -1134,6 +1134,23 @@ ExternalReference ExternalReference::power_double_int_function(
 static int native_compare_doubles(double y, double x) {
   if (x == y) return EQUAL;
   return x < y ? LESS : GREATER;
+}
+
+
+bool EvalComparison(Token::Value op, double op1, double op2) {
+  ASSERT(Token::IsCompareOp(op));
+  switch (op) {
+    case Token::EQ:
+    case Token::EQ_STRICT: return (op1 == op2);
+    case Token::NE: return (op1 != op2);
+    case Token::LT: return (op1 < op2);
+    case Token::GT: return (op1 > op2);
+    case Token::LTE: return (op1 <= op2);
+    case Token::GTE: return (op1 >= op2);
+    default:
+      UNREACHABLE();
+      return false;
+  }
 }
 
 

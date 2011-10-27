@@ -95,7 +95,63 @@ static void ProbeTable(Isolate* isolate,
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
 // Name must be a symbol and receiver must be a heap object.
-MUST_USE_RESULT static MaybeObject* GenerateDictionaryNegativeLookup(
+static void GenerateDictionaryNegativeLookup(MacroAssembler* masm,
+                                             Label* miss_label,
+                                             Register receiver,
+                                             Handle<String> name,
+                                             Register scratch0,
+                                             Register scratch1) {
+  ASSERT(name->IsSymbol());
+  Counters* counters = masm->isolate()->counters();
+  __ IncrementCounter(counters->negative_lookups(), 1, scratch0, scratch1);
+  __ IncrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
+
+  Label done;
+
+  const int kInterceptorOrAccessCheckNeededMask =
+      (1 << Map::kHasNamedInterceptor) | (1 << Map::kIsAccessCheckNeeded);
+
+  // Bail out if the receiver has a named interceptor or requires access checks.
+  Register map = scratch1;
+  __ ldr(map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldrb(scratch0, FieldMemOperand(map, Map::kBitFieldOffset));
+  __ tst(scratch0, Operand(kInterceptorOrAccessCheckNeededMask));
+  __ b(ne, miss_label);
+
+  // Check that receiver is a JSObject.
+  __ ldrb(scratch0, FieldMemOperand(map, Map::kInstanceTypeOffset));
+  __ cmp(scratch0, Operand(FIRST_SPEC_OBJECT_TYPE));
+  __ b(lt, miss_label);
+
+  // Load properties array.
+  Register properties = scratch0;
+  __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+  // Check that the properties array is a dictionary.
+  __ ldr(map, FieldMemOperand(properties, HeapObject::kMapOffset));
+  Register tmp = properties;
+  __ LoadRoot(tmp, Heap::kHashTableMapRootIndex);
+  __ cmp(map, tmp);
+  __ b(ne, miss_label);
+
+  // Restore the temporarily used register.
+  __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
+
+
+  StringDictionaryLookupStub::GenerateNegativeLookup(masm,
+                                                     miss_label,
+                                                     &done,
+                                                     receiver,
+                                                     properties,
+                                                     name,
+                                                     scratch1);
+  __ bind(&done);
+  __ DecrementCounter(counters->negative_lookups_miss(), 1, scratch0, scratch1);
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MUST_USE_RESULT static MaybeObject* TryGenerateDictionaryNegativeLookup(
     MacroAssembler* masm,
     Label* miss_label,
     Register receiver,
@@ -138,7 +194,7 @@ MUST_USE_RESULT static MaybeObject* GenerateDictionaryNegativeLookup(
   __ ldr(properties, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
 
 
-  MaybeObject* result = StringDictionaryLookupStub::GenerateNegativeLookup(
+  MaybeObject* result = StringDictionaryLookupStub::TryGenerateNegativeLookup(
       masm,
       miss_label,
       &done,
@@ -259,8 +315,10 @@ void StubCompiler::GenerateDirectLoadGlobalFunctionPrototype(
 // are loaded directly otherwise the property is loaded from the properties
 // fixed array.
 void StubCompiler::GenerateFastPropertyLoad(MacroAssembler* masm,
-                                            Register dst, Register src,
-                                            JSObject* holder, int index) {
+                                            Register dst,
+                                            Register src,
+                                            Handle<JSObject> holder,
+                                            int index) {
   // Adjust for the number of properties stored in the holder.
   index -= holder->map()->inobject_properties();
   if (index < 0) {
@@ -367,9 +425,9 @@ void StubCompiler::GenerateLoadFunctionPrototype(MacroAssembler* masm,
 // may be clobbered.  Upon branch to miss_label, the receiver and name
 // registers have their original values.
 void StubCompiler::GenerateStoreField(MacroAssembler* masm,
-                                      JSObject* object,
+                                      Handle<JSObject> object,
                                       int index,
-                                      Map* transition,
+                                      Handle<Map> transition,
                                       Register receiver_reg,
                                       Register name_reg,
                                       Register scratch,
@@ -395,11 +453,11 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   // Perform map transition for the receiver if necessary.
-  if ((transition != NULL) && (object->map()->unused_property_fields() == 0)) {
+  if (!transition.is_null() && (object->map()->unused_property_fields() == 0)) {
     // The properties must be extended before we can store the value.
     // We jump to a runtime call that extends the properties array.
     __ push(receiver_reg);
-    __ mov(r2, Operand(Handle<Map>(transition)));
+    __ mov(r2, Operand(transition));
     __ Push(r2, r0);
     __ TailCallExternalReference(
         ExternalReference(IC_Utility(IC::kSharedStoreIC_ExtendStorage),
@@ -409,10 +467,10 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     return;
   }
 
-  if (transition != NULL) {
+  if (!transition.is_null()) {
     // Update the map of the object; no write barrier updating is
     // needed because the map is never in new space.
-    __ mov(ip, Operand(Handle<Map>(transition)));
+    __ mov(ip, Operand(transition));
     __ str(ip, FieldMemOperand(receiver_reg, HeapObject::kMapOffset));
   }
 
@@ -467,20 +525,15 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
 
 void StubCompiler::GenerateLoadMiss(MacroAssembler* masm, Code::Kind kind) {
   ASSERT(kind == Code::LOAD_IC || kind == Code::KEYED_LOAD_IC);
-  Code* code = NULL;
-  if (kind == Code::LOAD_IC) {
-    code = masm->isolate()->builtins()->builtin(Builtins::kLoadIC_Miss);
-  } else {
-    code = masm->isolate()->builtins()->builtin(Builtins::kKeyedLoadIC_Miss);
-  }
-
-  Handle<Code> ic(code);
-  __ Jump(ic, RelocInfo::CODE_TARGET);
+  Handle<Code> code = (kind == Code::LOAD_IC)
+      ? masm->isolate()->builtins()->LoadIC_Miss()
+      : masm->isolate()->builtins()->KeyedLoadIC_Miss();
+  __ Jump(code, RelocInfo::CODE_TARGET);
 }
 
 
 static void GenerateCallFunction(MacroAssembler* masm,
-                                 Object* object,
+                                 Handle<Object> object,
                                  const ParameterCount& arguments,
                                  Label* miss,
                                  Code::ExtraICState extra_ic_state) {
@@ -868,7 +921,26 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 // Generate code to check that a global property cell is empty. Create
 // the property cell at compilation time if no cell exists for the
 // property.
-MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
+static void GenerateCheckPropertyCell(MacroAssembler* masm,
+                                      Handle<GlobalObject> global,
+                                      Handle<String> name,
+                                      Register scratch,
+                                      Label* miss) {
+  Handle<JSGlobalPropertyCell> cell =
+      GlobalObject::EnsurePropertyCell(global, name);
+  ASSERT(cell->value()->IsTheHole());
+  __ mov(scratch, Operand(cell));
+  __ ldr(scratch,
+         FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+  __ LoadRoot(ip, Heap::kTheHoleValueRootIndex);
+  __ cmp(scratch, ip);
+  __ b(ne, miss);
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MUST_USE_RESULT static MaybeObject* TryGenerateCheckPropertyCell(
     MacroAssembler* masm,
     GlobalObject* global,
     String* name,
@@ -889,9 +961,32 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCell(
   return cell;
 }
 
+
 // Calls GenerateCheckPropertyCell for each global object in the prototype chain
 // from object to (but not including) holder.
-MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
+static void GenerateCheckPropertyCells(MacroAssembler* masm,
+                                       Handle<JSObject> object,
+                                       Handle<JSObject> holder,
+                                       Handle<String> name,
+                                       Register scratch,
+                                       Label* miss) {
+  Handle<JSObject> current = object;
+  while (!current.is_identical_to(holder)) {
+    if (current->IsGlobalObject()) {
+      GenerateCheckPropertyCell(masm,
+                                Handle<GlobalObject>::cast(current),
+                                name,
+                                scratch,
+                                miss);
+    }
+    current = Handle<JSObject>(JSObject::cast(current->GetPrototype()));
+  }
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MUST_USE_RESULT static MaybeObject* TryGenerateCheckPropertyCells(
     MacroAssembler* masm,
     JSObject* object,
     JSObject* holder,
@@ -902,7 +997,7 @@ MUST_USE_RESULT static MaybeObject* GenerateCheckPropertyCells(
   while (current != holder) {
     if (current->IsGlobalObject()) {
       // Returns a cell or a failure.
-      MaybeObject* result = GenerateCheckPropertyCell(
+      MaybeObject* result = TryGenerateCheckPropertyCell(
           masm,
           GlobalObject::cast(current),
           name,
@@ -1027,6 +1122,112 @@ static void GenerateUInt2Double(MacroAssembler* masm,
 #define __ ACCESS_MASM(masm())
 
 
+Register StubCompiler::CheckPrototypes(Handle<JSObject> object,
+                                       Register object_reg,
+                                       Handle<JSObject> holder,
+                                       Register holder_reg,
+                                       Register scratch1,
+                                       Register scratch2,
+                                       Handle<String> name,
+                                       int save_at_depth,
+                                       Label* miss) {
+  // Make sure there's no overlap between holder and object registers.
+  ASSERT(!scratch1.is(object_reg) && !scratch1.is(holder_reg));
+  ASSERT(!scratch2.is(object_reg) && !scratch2.is(holder_reg)
+         && !scratch2.is(scratch1));
+
+  // Keep track of the current object in register reg.
+  Register reg = object_reg;
+  int depth = 0;
+
+  if (save_at_depth == depth) {
+    __ str(reg, MemOperand(sp));
+  }
+
+  // Check the maps in the prototype chain.
+  // Traverse the prototype chain from the object and do map checks.
+  Handle<JSObject> current = object;
+  while (!current.is_identical_to(holder)) {
+    ++depth;
+
+    // Only global objects and objects that do not require access
+    // checks are allowed in stubs.
+    ASSERT(current->IsJSGlobalProxy() || !current->IsAccessCheckNeeded());
+
+    Handle<JSObject> prototype(JSObject::cast(current->GetPrototype()));
+    if (!current->HasFastProperties() &&
+        !current->IsJSGlobalObject() &&
+        !current->IsJSGlobalProxy()) {
+      if (!name->IsSymbol()) {
+        name = factory()->LookupSymbol(name);
+      }
+      ASSERT(current->property_dictionary()->FindEntry(*name) ==
+             StringDictionary::kNotFound);
+
+      GenerateDictionaryNegativeLookup(masm(), miss, reg, name,
+                                       scratch1, scratch2);
+
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      reg = holder_reg;  // From now on the object will be in holder_reg.
+      __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+    } else {
+      Handle<Map> current_map(current->map());
+      __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+      __ cmp(scratch1, Operand(current_map));
+      // Branch on the result of the map check.
+      __ b(ne, miss);
+      // Check access rights to the global object.  This has to happen after
+      // the map check so that we know that the object is actually a global
+      // object.
+      if (current->IsJSGlobalProxy()) {
+        __ CheckAccessGlobalProxy(reg, scratch2, miss);
+      }
+      reg = holder_reg;  // From now on the object will be in holder_reg.
+
+      if (heap()->InNewSpace(*prototype)) {
+        // The prototype is in new space; we cannot store a reference to it
+        // in the code.  Load it from the map.
+        __ ldr(reg, FieldMemOperand(scratch1, Map::kPrototypeOffset));
+      } else {
+        // The prototype is in old space; load it directly.
+        __ mov(reg, Operand(prototype));
+      }
+    }
+
+    if (save_at_depth == depth) {
+      __ str(reg, MemOperand(sp));
+    }
+
+    // Go to the next object in the prototype chain.
+    current = prototype;
+  }
+
+  // Log the check depth.
+  LOG(masm()->isolate(), IntEvent("check-maps-depth", depth + 1));
+
+  // Check the holder map.
+  __ ldr(scratch1, FieldMemOperand(reg, HeapObject::kMapOffset));
+  __ cmp(scratch1, Operand(Handle<Map>(current->map())));
+  __ b(ne, miss);
+
+  // Perform security check for access to the global object.
+  ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
+  if (holder->IsJSGlobalProxy()) {
+    __ CheckAccessGlobalProxy(reg, scratch1, miss);
+  }
+
+  // If we've skipped any global objects, it's not enough to verify that
+  // their maps haven't changed.  We also need to check that the property
+  // cell for the property is still empty.
+  GenerateCheckPropertyCells(masm(), object, holder, name, scratch1, miss);
+
+  // Return the register containing the holder.
+  return reg;
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
 Register StubCompiler::CheckPrototypes(JSObject* object,
                                        Register object_reg,
                                        JSObject* holder,
@@ -1076,12 +1277,13 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
       ASSERT(current->property_dictionary()->FindEntry(name) ==
              StringDictionary::kNotFound);
 
-      MaybeObject* negative_lookup = GenerateDictionaryNegativeLookup(masm(),
-                                                                      miss,
-                                                                      reg,
-                                                                      name,
-                                                                      scratch1,
-                                                                      scratch2);
+      MaybeObject* negative_lookup =
+          TryGenerateDictionaryNegativeLookup(masm(),
+                                              miss,
+                                              reg,
+                                              name,
+                                              scratch1,
+                                              scratch2);
       if (negative_lookup->IsFailure()) {
         set_failure(Failure::cast(negative_lookup));
         return reg;
@@ -1150,17 +1352,17 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
   ASSERT(holder->IsJSGlobalProxy() || !holder->IsAccessCheckNeeded());
   if (holder->IsJSGlobalProxy()) {
     __ CheckAccessGlobalProxy(reg, scratch1, miss);
-  };
+  }
 
   // If we've skipped any global objects, it's not enough to verify
   // that their maps haven't changed.  We also need to check that the
   // property cell for the property is still empty.
-  MaybeObject* result = GenerateCheckPropertyCells(masm(),
-                                                   object,
-                                                   holder,
-                                                   name,
-                                                   scratch1,
-                                                   miss);
+  MaybeObject* result = TryGenerateCheckPropertyCells(masm(),
+                                                      object,
+                                                      holder,
+                                                      name,
+                                                      scratch1,
+                                                      miss);
   if (result->IsFailure()) set_failure(Failure::cast(result));
 
   // Return the register containing the holder.
@@ -1168,45 +1370,44 @@ Register StubCompiler::CheckPrototypes(JSObject* object,
 }
 
 
-void StubCompiler::GenerateLoadField(JSObject* object,
-                                     JSObject* holder,
+void StubCompiler::GenerateLoadField(Handle<JSObject> object,
+                                     Handle<JSObject> holder,
                                      Register receiver,
                                      Register scratch1,
                                      Register scratch2,
                                      Register scratch3,
                                      int index,
-                                     String* name,
+                                     Handle<String> name,
                                      Label* miss) {
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  Register reg =
-      CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3,
-                      name, miss);
+  Register reg = CheckPrototypes(
+      object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
   GenerateFastPropertyLoad(masm(), r0, reg, holder, index);
   __ Ret();
 }
 
 
-void StubCompiler::GenerateLoadConstant(JSObject* object,
-                                        JSObject* holder,
+void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
+                                        Handle<JSObject> holder,
                                         Register receiver,
                                         Register scratch1,
                                         Register scratch2,
                                         Register scratch3,
-                                        Object* value,
-                                        String* name,
+                                        Handle<Object> value,
+                                        Handle<String> name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
   __ JumpIfSmi(receiver, miss);
 
   // Check that the maps haven't changed.
-  CheckPrototypes(object, receiver, holder, scratch1, scratch2, scratch3, name,
-                  miss);
+  CheckPrototypes(
+      object, receiver, holder, scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
-  __ mov(r0, Operand(Handle<Object>(value)));
+  __ mov(r0, Operand(value));
   __ Ret();
 }
 
@@ -1365,7 +1566,8 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
       // We found FIELD property in prototype chain of interceptor's holder.
       // Retrieve a field from field's holder.
       GenerateFastPropertyLoad(masm(), r0, holder_reg,
-                               lookup->holder(), lookup->GetFieldIndex());
+                               Handle<JSObject>(lookup->holder()),
+                               lookup->GetFieldIndex());
       __ Ret();
     } else {
       // We found CALLBACKS property in prototype chain of interceptor's
@@ -1416,9 +1618,9 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 }
 
 
-void CallStubCompiler::GenerateNameCheck(String* name, Label* miss) {
+void CallStubCompiler::GenerateNameCheck(Handle<String> name, Label* miss) {
   if (kind_ == Code::KEYED_CALL_IC) {
-    __ cmp(r2, Operand(Handle<String>(name)));
+    __ cmp(r2, Operand(name));
     __ b(ne, miss);
   }
 }
@@ -1478,11 +1680,22 @@ void CallStubCompiler::GenerateLoadFunctionFromCell(JSGlobalPropertyCell* cell,
 }
 
 
-MaybeObject* CallStubCompiler::GenerateMissBranch() {
-  MaybeObject* maybe_obj =
+void CallStubCompiler::GenerateMissBranch() {
+  Handle<Code> code =
       isolate()->stub_cache()->ComputeCallMiss(arguments().immediate(),
                                                kind_,
-                                               extra_ic_state_);
+                                               extra_state_);
+  __ Jump(code, RelocInfo::CODE_TARGET);
+}
+
+
+// TODO(kmillikin): Eliminate this function when the stub cache is fully
+// handlified.
+MaybeObject* CallStubCompiler::TryGenerateMissBranch() {
+  MaybeObject* maybe_obj =
+      isolate()->stub_cache()->TryComputeCallMiss(arguments().immediate(),
+                                                  kind_,
+                                                  extra_state_);
   Object* obj;
   if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   __ Jump(Handle<Code>(Code::cast(obj)), RelocInfo::CODE_TARGET);
@@ -1490,10 +1703,10 @@ MaybeObject* CallStubCompiler::GenerateMissBranch() {
 }
 
 
-MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
-                                                JSObject* holder,
+Handle<Code> CallStubCompiler::CompileCallField(Handle<JSObject> object,
+                                                Handle<JSObject> holder,
                                                 int index,
-                                                String* name) {
+                                                Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r2    : name
   //  -- lr    : return address
@@ -1513,12 +1726,11 @@ MaybeObject* CallStubCompiler::CompileCallField(JSObject* object,
   Register reg = CheckPrototypes(object, r0, holder, r1, r3, r4, name, &miss);
   GenerateFastPropertyLoad(masm(), r1, reg, holder, index);
 
-  GenerateCallFunction(masm(), object, arguments(), &miss, extra_ic_state_);
+  GenerateCallFunction(masm(), object, arguments(), &miss, extra_state_);
 
   // Handle call cache miss.
   __ bind(&miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
-  if (maybe_result->IsFailure()) return maybe_result;
+  GenerateMissBranch();
 
   // Return the generated code.
   return GetCode(FIELD, name);
@@ -1543,7 +1755,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   Label miss;
 
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   Register receiver = r1;
 
@@ -1619,7 +1831,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ bind(&with_write_barrier);
 
       __ ldr(r6, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ CheckFastSmiOnlyElements(r6, r6, &call_builtin);
+      __ CheckFastObjectElements(r6, r6, &call_builtin);
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1709,11 +1921,11 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(function);
+  return TryGetCode(function);
 }
 
 
@@ -1738,7 +1950,7 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
   Register receiver = r1;
   Register elements = r3;
 
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   // Get the receiver from the stack
   const int argc = arguments().immediate();
@@ -1798,11 +2010,11 @@ MaybeObject* CallStubCompiler::CompileArrayPopCall(Object* object,
 
   // Handle call cache miss.
   __ bind(&miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(function);
+  return TryGetCode(function);
 }
 
 
@@ -1831,12 +2043,12 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   Label* index_out_of_range_label = &index_out_of_range;
 
   if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_ic_state_) ==
+      (CallICBase::StringStubState::decode(extra_state_) ==
        DEFAULT_STRING_STUB)) {
     index_out_of_range_label = &miss;
   }
 
-  GenerateNameCheck(name, &name_miss);
+  GenerateNameCheck(Handle<String>(name), &name_miss);
 
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
@@ -1884,11 +2096,11 @@ MaybeObject* CallStubCompiler::CompileStringCharCodeAtCall(
   // Restore function name in r2.
   __ Move(r2, Handle<String>(name));
   __ bind(&name_miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(function);
+  return TryGetCode(function);
 }
 
 
@@ -1917,12 +2129,12 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   Label* index_out_of_range_label = &index_out_of_range;
 
   if (kind_ == Code::CALL_IC &&
-      (CallICBase::StringStubState::decode(extra_ic_state_) ==
+      (CallICBase::StringStubState::decode(extra_state_) ==
        DEFAULT_STRING_STUB)) {
     index_out_of_range_label = &miss;
   }
 
-  GenerateNameCheck(name, &name_miss);
+  GenerateNameCheck(Handle<String>(name), &name_miss);
 
   // Check that the maps starting from the prototype haven't changed.
   GenerateDirectLoadGlobalFunctionPrototype(masm(),
@@ -1972,11 +2184,11 @@ MaybeObject* CallStubCompiler::CompileStringCharAtCall(
   // Restore function name in r2.
   __ Move(r2, Handle<String>(name));
   __ bind(&name_miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(function);
+  return TryGetCode(function);
 }
 
 
@@ -2001,7 +2213,7 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
   if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
 
   Label miss;
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   if (cell == NULL) {
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
@@ -2044,11 +2256,11 @@ MaybeObject* CallStubCompiler::CompileStringFromCharCodeCall(
 
   __ bind(&miss);
   // r2: function name.
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
+  return (cell == NULL) ? TryGetCode(function) : TryGetCode(NORMAL, name);
 }
 
 
@@ -2078,7 +2290,7 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
   if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
 
   Label miss, slow;
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   if (cell == NULL) {
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
@@ -2192,11 +2404,11 @@ MaybeObject* CallStubCompiler::CompileMathFloorCall(Object* object,
 
   __ bind(&miss);
   // r2: function name.
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
+  return (cell == NULL) ? TryGetCode(function) : TryGetCode(NORMAL, name);
 }
 
 
@@ -2220,7 +2432,7 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
   if (!object->IsJSObject() || argc != 1) return heap()->undefined_value();
 
   Label miss;
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   if (cell == NULL) {
     __ ldr(r1, MemOperand(sp, 1 * kPointerSize));
@@ -2293,11 +2505,11 @@ MaybeObject* CallStubCompiler::CompileMathAbsCall(Object* object,
 
   __ bind(&miss);
   // r2: function name.
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return (cell == NULL) ? GetCode(function) : GetCode(NORMAL, name);
+  return (cell == NULL) ? TryGetCode(function) : TryGetCode(NORMAL, name);
 }
 
 
@@ -2322,7 +2534,7 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
 
   Label miss, miss_before_stack_reserved;
 
-  GenerateNameCheck(name, &miss_before_stack_reserved);
+  GenerateNameCheck(Handle<String>(name), &miss_before_stack_reserved);
 
   // Get the receiver from the stack.
   const int argc = arguments().immediate();
@@ -2347,11 +2559,11 @@ MaybeObject* CallStubCompiler::CompileFastApiCall(
   FreeSpaceForFastApiCall(masm());
 
   __ bind(&miss_before_stack_reserved);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(function);
+  return TryGetCode(function);
 }
 
 
@@ -2375,7 +2587,7 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
 
   Label miss;
 
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   // Get the receiver from the stack
   const int argc = arguments().immediate();
@@ -2474,18 +2686,18 @@ MaybeObject* CallStubCompiler::CompileCallConstant(Object* object,
       UNREACHABLE();
   }
 
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   __ InvokeFunction(function, arguments(), JUMP_FUNCTION, call_kind);
 
   // Handle call cache miss.
   __ bind(&miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(function);
+  return TryGetCode(function);
 }
 
 
@@ -2499,18 +2711,18 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
 
   Label miss;
 
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
 
   // Get the receiver from the stack.
   __ ldr(r1, MemOperand(sp, argc * kPointerSize));
 
-  CallInterceptorCompiler compiler(this, arguments(), r2, extra_ic_state_);
+  CallInterceptorCompiler compiler(this, arguments(), r2, extra_state_);
   MaybeObject* result = compiler.Compile(masm(),
                                          object,
                                          holder,
@@ -2530,15 +2742,16 @@ MaybeObject* CallStubCompiler::CompileCallInterceptor(JSObject* object,
   // Restore receiver.
   __ ldr(r0, MemOperand(sp, argc * kPointerSize));
 
-  GenerateCallFunction(masm(), object, arguments(), &miss, extra_ic_state_);
+  GenerateCallFunction(masm(), Handle<Object>(object), arguments(), &miss,
+                       extra_state_);
 
   // Handle call cache miss.
   __ bind(&miss);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR, name);
+  return TryGetCode(INTERCEPTOR, name);
 }
 
 
@@ -2563,7 +2776,7 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
 
   Label miss;
 
-  GenerateNameCheck(name, &miss);
+  GenerateNameCheck(Handle<String>(name), &miss);
 
   // Get the number of arguments.
   const int argc = arguments().immediate();
@@ -2585,39 +2798,33 @@ MaybeObject* CallStubCompiler::CompileCallGlobal(JSObject* object,
   // Jump to the cached code (tail call).
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->call_global_inline(), 1, r3, r4);
-  ASSERT(function->is_compiled());
   Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state_)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state_)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-    __ InvokeCode(r3, expected, arguments(), JUMP_FUNCTION,
-                  NullCallWrapper(), call_kind);
-  } else {
-    __ InvokeCode(code, expected, arguments(), RelocInfo::CODE_TARGET,
-                  JUMP_FUNCTION, call_kind);
-  }
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  __ ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+  __ InvokeCode(r3, expected, arguments(), JUMP_FUNCTION,
+                NullCallWrapper(), call_kind);
 
   // Handle call cache miss.
   __ bind(&miss);
   __ IncrementCounter(counters->call_global_inline_miss(), 1, r1, r3);
-  MaybeObject* maybe_result = GenerateMissBranch();
+  MaybeObject* maybe_result = TryGenerateMissBranch();
   if (maybe_result->IsFailure()) return maybe_result;
 
   // Return the generated code.
-  return GetCode(NORMAL, name);
+  return TryGetCode(NORMAL, name);
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
+Handle<Code> StoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                   int index,
-                                                  Map* transition,
-                                                  String* name) {
+                                                  Handle<Map> transition,
+                                                  Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2626,24 +2833,20 @@ MaybeObject* StoreStubCompiler::CompileStoreField(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     r1, r2, r3,
-                     &miss);
+  GenerateStoreField(masm(), object, index, transition, r1, r2, r3, &miss);
   __ bind(&miss);
   Handle<Code> ic = masm()->isolate()->builtins()->StoreIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+  return GetCode(transition.is_null() ? FIELD : MAP_TRANSITION, name);
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
-                                                     AccessorInfo* callback,
-                                                     String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreCallback(
+    Handle<JSObject> object,
+    Handle<AccessorInfo> callback,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2670,7 +2873,7 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
   ASSERT(object->IsJSGlobalProxy() || !object->IsAccessCheckNeeded());
 
   __ push(r1);  // receiver
-  __ mov(ip, Operand(Handle<AccessorInfo>(callback)));  // callback info
+  __ mov(ip, Operand(callback));  // callback info
   __ Push(ip, r2, r0);
 
   // Do tail-call to the runtime system.
@@ -2689,8 +2892,9 @@ MaybeObject* StoreStubCompiler::CompileStoreCallback(JSObject* object,
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
-                                                        String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreInterceptor(
+    Handle<JSObject> receiver,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2737,9 +2941,10 @@ MaybeObject* StoreStubCompiler::CompileStoreInterceptor(JSObject* receiver,
 }
 
 
-MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
-                                                   JSGlobalPropertyCell* cell,
-                                                   String* name) {
+Handle<Code> StoreStubCompiler::CompileStoreGlobal(
+    Handle<GlobalObject> object,
+    Handle<JSGlobalPropertyCell> cell,
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : receiver
@@ -2757,7 +2962,7 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
   // cell could have been deleted and reintroducing the global needs
   // to update the property details in the property dictionary of the
   // global object. We bail out to the runtime system to do that.
-  __ mov(r4, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ mov(r4, Operand(cell));
   __ LoadRoot(r5, Heap::kTheHoleValueRootIndex);
   __ ldr(r6, FieldMemOperand(r4, JSGlobalPropertyCell::kValueOffset));
   __ cmp(r5, r6);
@@ -2790,9 +2995,9 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
-                                                      JSObject* object,
-                                                      JSObject* last) {
+Handle<Code> LoadStubCompiler::CompileLoadNonexistent(Handle<String> name,
+                                                      Handle<JSObject> object,
+                                                      Handle<JSObject> last) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
   //  -- lr    : return address
@@ -2808,15 +3013,8 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   // If the last object in the prototype chain is a global object,
   // check that the global property cell is empty.
   if (last->IsGlobalObject()) {
-    MaybeObject* cell = GenerateCheckPropertyCell(masm(),
-                                                  GlobalObject::cast(last),
-                                                  name,
-                                                  r1,
-                                                  &miss);
-    if (cell->IsFailure()) {
-      miss.Unuse();
-      return cell;
-    }
+    GenerateCheckPropertyCell(
+        masm(), Handle<GlobalObject>::cast(last), name, r1, &miss);
   }
 
   // Return undefined if maps of the full prototype chain are still the
@@ -2828,14 +3026,14 @@ MaybeObject* LoadStubCompiler::CompileLoadNonexistent(String* name,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(NONEXISTENT, heap()->empty_string());
+  return GetCode(NONEXISTENT, factory()->empty_string());
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadField(JSObject* object,
-                                                JSObject* holder,
+Handle<Code> LoadStubCompiler::CompileLoadField(Handle<JSObject> object,
+                                                Handle<JSObject> holder,
                                                 int index,
-                                                String* name) {
+                                                Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
   //  -- r2    : name
@@ -2874,14 +3072,14 @@ MaybeObject* LoadStubCompiler::CompileLoadCallback(String* name,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(CALLBACKS, name);
+  return TryGetCode(CALLBACKS, name);
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadConstant(JSObject* object,
-                                                   JSObject* holder,
-                                                   Object* value,
-                                                   String* name) {
+Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
+                                                   Handle<JSObject> holder,
+                                                   Handle<Object> value,
+                                                   Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
   //  -- r2    : name
@@ -2908,7 +3106,7 @@ MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   // -----------------------------------
   Label miss;
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
   GenerateLoadInterceptor(object,
                           holder,
@@ -2924,15 +3122,16 @@ MaybeObject* LoadStubCompiler::CompileLoadInterceptor(JSObject* object,
   GenerateLoadMiss(masm(), Code::LOAD_IC);
 
   // Return the generated code.
-  return GetCode(INTERCEPTOR, name);
+  return TryGetCode(INTERCEPTOR, name);
 }
 
 
-MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
-                                                 GlobalObject* holder,
-                                                 JSGlobalPropertyCell* cell,
-                                                 String* name,
-                                                 bool is_dont_delete) {
+Handle<Code> LoadStubCompiler::CompileLoadGlobal(
+    Handle<JSObject> object,
+    Handle<GlobalObject> holder,
+    Handle<JSGlobalPropertyCell> cell,
+    Handle<String> name,
+    bool is_dont_delete) {
   // ----------- S t a t e -------------
   //  -- r0    : receiver
   //  -- r2    : name
@@ -2943,7 +3142,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   // If the object is the holder then we know that it's a global
   // object which can only happen for contextual calls. In this case,
   // the receiver cannot be a smi.
-  if (object != holder) {
+  if (!object.is_identical_to(holder)) {
     __ JumpIfSmi(r0, &miss);
   }
 
@@ -2951,7 +3150,7 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
   CheckPrototypes(object, r0, holder, r3, r4, r1, name, &miss);
 
   // Get the value from the cell.
-  __ mov(r3, Operand(Handle<JSGlobalPropertyCell>(cell)));
+  __ mov(r3, Operand(cell));
   __ ldr(r4, FieldMemOperand(r3, JSGlobalPropertyCell::kValueOffset));
 
   // Check for deleted property if property can actually be deleted.
@@ -2975,9 +3174,9 @@ MaybeObject* LoadStubCompiler::CompileLoadGlobal(JSObject* object,
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
-                                                     JSObject* receiver,
-                                                     JSObject* holder,
+Handle<Code> KeyedLoadStubCompiler::CompileLoadField(Handle<String> name,
+                                                     Handle<JSObject> receiver,
+                                                     Handle<JSObject> holder,
                                                      int index) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
@@ -2987,7 +3186,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadField(String* name,
   Label miss;
 
   // Check the key is the cached one.
-  __ cmp(r0, Operand(Handle<String>(name)));
+  __ cmp(r0, Operand(name));
   __ b(ne, &miss);
 
   GenerateLoadField(receiver, holder, r1, r2, r3, r4, index, name, &miss);
@@ -3024,14 +3223,15 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadCallback(
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
-  return GetCode(CALLBACKS, name);
+  return TryGetCode(CALLBACKS, name);
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
-                                                        JSObject* receiver,
-                                                        JSObject* holder,
-                                                        Object* value) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(
+    Handle<String> name,
+    Handle<JSObject> receiver,
+    Handle<JSObject> holder,
+    Handle<Object> value) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
@@ -3040,7 +3240,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadConstant(String* name,
   Label miss;
 
   // Check the key is the cached one.
-  __ cmp(r0, Operand(Handle<String>(name)));
+  __ cmp(r0, Operand(name));
   __ b(ne, &miss);
 
   GenerateLoadConstant(receiver, holder, r1, r2, r3, r4, value, name, &miss);
@@ -3066,7 +3266,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ cmp(r0, Operand(Handle<String>(name)));
   __ b(ne, &miss);
 
-  LookupResult lookup;
+  LookupResult lookup(isolate());
   LookupPostInterceptor(holder, name, &lookup);
   GenerateLoadInterceptor(receiver,
                           holder,
@@ -3081,11 +3281,12 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadInterceptor(JSObject* receiver,
   __ bind(&miss);
   GenerateLoadMiss(masm(), Code::KEYED_LOAD_IC);
 
-  return GetCode(INTERCEPTOR, name);
+  return TryGetCode(INTERCEPTOR, name);
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadArrayLength(
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
@@ -3094,7 +3295,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
   Label miss;
 
   // Check the key is the cached one.
-  __ cmp(r0, Operand(Handle<String>(name)));
+  __ cmp(r0, Operand(name));
   __ b(ne, &miss);
 
   GenerateLoadArrayLength(masm(), r1, r2, &miss);
@@ -3105,7 +3306,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadArrayLength(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadStringLength(
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
@@ -3117,7 +3319,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
   __ IncrementCounter(counters->keyed_load_string_length(), 1, r2, r3);
 
   // Check the key is the cached one.
-  __ cmp(r0, Operand(Handle<String>(name)));
+  __ cmp(r0, Operand(name));
   __ b(ne, &miss);
 
   GenerateLoadStringLength(masm(), r1, r2, r3, &miss, true);
@@ -3130,7 +3332,8 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadStringLength(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadFunctionPrototype(
+    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
@@ -3142,7 +3345,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
   __ IncrementCounter(counters->keyed_load_function_prototype(), 1, r2, r3);
 
   // Check the name hasn't changed.
-  __ cmp(r0, Operand(Handle<String>(name)));
+  __ cmp(r0, Operand(name));
   __ b(ne, &miss);
 
   GenerateLoadFunctionPrototype(masm(), r1, r2, r3, &miss);
@@ -3154,33 +3357,29 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadFunctionPrototype(String* name) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadElement(
+    Handle<Map> receiver_map) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
   //  -- r1    : receiver
   // -----------------------------------
-  Code* stub;
   ElementsKind elements_kind = receiver_map->elements_kind();
-  MaybeObject* maybe_stub = KeyedLoadElementStub(elements_kind).TryGetCode();
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(r1,
-                 r2,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
+  Handle<Code> stub = KeyedLoadElementStub(elements_kind).GetCode();
+
+  __ DispatchMap(r1, r2, receiver_map, stub, DO_SMI_CHECK);
 
   Handle<Code> ic = isolate()->builtins()->KeyedLoadIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL);
+  return GetCode(NORMAL, factory()->empty_string());
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
-    MapList* receiver_maps,
-    CodeList* handler_ics) {
+Handle<Code> KeyedLoadStubCompiler::CompileLoadPolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_ics) {
   // ----------- S t a t e -------------
   //  -- lr    : return address
   //  -- r0    : key
@@ -3192,11 +3391,9 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
   int receiver_count = receiver_maps->length();
   __ ldr(r2, FieldMemOperand(r1, HeapObject::kMapOffset));
   for (int current = 0; current < receiver_count; ++current) {
-    Handle<Map> map(receiver_maps->at(current));
-    Handle<Code> code(handler_ics->at(current));
-    __ mov(ip, Operand(map));
+    __ mov(ip, Operand(receiver_maps->at(current)));
     __ cmp(r2, ip);
-    __ Jump(code, RelocInfo::CODE_TARGET, eq);
+    __ Jump(handler_ics->at(current), RelocInfo::CODE_TARGET, eq);
   }
 
   __ bind(&miss);
@@ -3204,14 +3401,14 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
   __ Jump(miss_ic, RelocInfo::CODE_TARGET, al);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, factory()->empty_string(), MEGAMORPHIC);
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
+Handle<Code> KeyedStoreStubCompiler::CompileStoreField(Handle<JSObject> object,
                                                        int index,
-                                                       Map* transition,
-                                                       String* name) {
+                                                       Handle<Map> transition,
+                                                       Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : name
@@ -3224,17 +3421,12 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ IncrementCounter(counters->keyed_store_field(), 1, r3, r4);
 
   // Check that the name has not changed.
-  __ cmp(r1, Operand(Handle<String>(name)));
+  __ cmp(r1, Operand(name));
   __ b(ne, &miss);
 
   // r3 is used as scratch register. r1 and r2 keep their values if a jump to
   // the miss label is generated.
-  GenerateStoreField(masm(),
-                     object,
-                     index,
-                     transition,
-                     r2, r1, r3,
-                     &miss);
+  GenerateStoreField(masm(), object, index, transition, r2, r1, r3, &miss);
   __ bind(&miss);
 
   __ DecrementCounter(counters->keyed_store_field(), 1, r3, r4);
@@ -3242,11 +3434,12 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreField(JSObject* object,
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(transition == NULL ? FIELD : MAP_TRANSITION, name);
+  return GetCode(transition.is_null() ? FIELD : MAP_TRANSITION, name);
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
+Handle<Code> KeyedStoreStubCompiler::CompileStoreElement(
+    Handle<Map> receiver_map) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -3254,30 +3447,25 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
   //  -- lr    : return address
   //  -- r3    : scratch
   // -----------------------------------
-  Code* stub;
   ElementsKind elements_kind = receiver_map->elements_kind();
   bool is_js_array = receiver_map->instance_type() == JS_ARRAY_TYPE;
-  MaybeObject* maybe_stub =
-      KeyedStoreElementStub(is_js_array, elements_kind).TryGetCode();
-  if (!maybe_stub->To(&stub)) return maybe_stub;
-  __ DispatchMap(r2,
-                 r3,
-                 Handle<Map>(receiver_map),
-                 Handle<Code>(stub),
-                 DO_SMI_CHECK);
+  Handle<Code> stub =
+      KeyedStoreElementStub(is_js_array, elements_kind).GetCode();
+
+  __ DispatchMap(r2, r3, receiver_map, stub, DO_SMI_CHECK);
 
   Handle<Code> ic = isolate()->builtins()->KeyedStoreIC_Miss();
   __ Jump(ic, RelocInfo::CODE_TARGET);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL);
+  return GetCode(NORMAL, factory()->empty_string());
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
-    MapList* receiver_maps,
-    CodeList* handler_stubs,
-    MapList* transitioned_maps) {
+Handle<Code> KeyedStoreStubCompiler::CompileStorePolymorphic(
+    MapHandleList* receiver_maps,
+    CodeHandleList* handler_stubs,
+    MapHandleList* transitioned_maps) {
   // ----------- S t a t e -------------
   //  -- r0    : value
   //  -- r1    : key
@@ -3291,17 +3479,15 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
   int receiver_count = receiver_maps->length();
   __ ldr(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
   for (int i = 0; i < receiver_count; ++i) {
-    Handle<Map> map(receiver_maps->at(i));
-    Handle<Code> code(handler_stubs->at(i));
-    __ mov(ip, Operand(map));
+    __ mov(ip, Operand(receiver_maps->at(i)));
     __ cmp(r3, ip);
-    if (transitioned_maps->at(i) == NULL) {
-      __ Jump(code, RelocInfo::CODE_TARGET, eq);
+    if (transitioned_maps->at(i).is_null()) {
+      __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, eq);
     } else {
       Label next_map;
-      __ b(eq, &next_map);
-      __ mov(r4, Operand(Handle<Map>(transitioned_maps->at(i))));
-      __ Jump(code, RelocInfo::CODE_TARGET, al);
+      __ b(ne, &next_map);
+      __ mov(r3, Operand(transitioned_maps->at(i)));
+      __ Jump(handler_stubs->at(i), RelocInfo::CODE_TARGET, al);
       __ bind(&next_map);
     }
   }
@@ -3311,7 +3497,7 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
   __ Jump(miss_ic, RelocInfo::CODE_TARGET, al);
 
   // Return the generated code.
-  return GetCode(NORMAL, NULL, MEGAMORPHIC);
+  return GetCode(NORMAL, factory()->empty_string(), MEGAMORPHIC);
 }
 
 

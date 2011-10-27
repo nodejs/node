@@ -255,6 +255,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
+  // Head of the list of live LookupResults.
+  LookupResult* top_lookup_result_;
+
   // Whether out of memory exceptions should be ignored.
   bool ignore_out_of_memory_;
 
@@ -311,7 +314,6 @@ class HashMap;
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
-  V(uint32_t, random_seed, 2)                                                  \
   V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
@@ -994,6 +996,13 @@ class Isolate {
 
   void SetData(void* data) { embedder_data_ = data; }
   void* GetData() { return embedder_data_; }
+
+  LookupResult* top_lookup_result() {
+    return thread_local_top_.top_lookup_result_;
+  }
+  void SetTopLookupResult(LookupResult* top) {
+    thread_local_top_.top_lookup_result_ = top;
+  }
 
  private:
   Isolate();

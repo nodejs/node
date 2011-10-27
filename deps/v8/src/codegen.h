@@ -81,4 +81,19 @@ enum TypeofState { INSIDE_TYPEOF, NOT_INSIDE_TYPEOF };
 #error Unsupported target architecture.
 #endif
 
+namespace v8 {
+namespace internal {
+
+class ElementsTransitionGenerator : public AllStatic {
+ public:
+  static void GenerateSmiOnlyToObject(MacroAssembler* masm);
+  static void GenerateSmiOnlyToDouble(MacroAssembler* masm, Label* fail);
+  static void GenerateDoubleToObject(MacroAssembler* masm, Label* fail);
+
+ private:
+  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionGenerator);
+};
+
+} }  // namespace v8::internal
+
 #endif  // V8_CODEGEN_H_

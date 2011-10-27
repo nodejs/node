@@ -26,12 +26,69 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 
-// This file relies on the fact that the following declaration has been made
-// in runtime.js:
-// const $Object = global.Object;
+const $Set = global.Set;
+const $Map = global.Map;
 const $WeakMap = global.WeakMap;
 
-// -------------------------------------------------------------------
+//-------------------------------------------------------------------
+
+function SetConstructor() {
+  if (%_IsConstructCall()) {
+    %SetInitialize(this);
+  } else {
+    return new $Set();
+  }
+}
+
+
+function SetAdd(key) {
+  return %SetAdd(this, key);
+}
+
+
+function SetHas(key) {
+  return %SetHas(this, key);
+}
+
+
+function SetDelete(key) {
+  return %SetDelete(this, key);
+}
+
+
+function MapConstructor() {
+  if (%_IsConstructCall()) {
+    %MapInitialize(this);
+  } else {
+    return new $Map();
+  }
+}
+
+
+function MapGet(key) {
+  return %MapGet(this, key);
+}
+
+
+function MapSet(key, value) {
+  return %MapSet(this, key, value);
+}
+
+
+function MapHas(key) {
+  return !IS_UNDEFINED(%MapGet(this, key));
+}
+
+
+function MapDelete(key) {
+  if (!IS_UNDEFINED(%MapGet(this, key))) {
+    %MapSet(this, key, void 0);
+    return true;
+  } else {
+    return false;
+  }
+}
+
 
 function WeakMapConstructor() {
   if (%_IsConstructCall()) {
@@ -82,6 +139,30 @@ function WeakMapDelete(key) {
 
 (function () {
   %CheckIsBootstrapping();
+
+  // Set up the Set and Map constructor function.
+  %SetCode($Set, SetConstructor);
+  %SetCode($Map, MapConstructor);
+
+  // Set up the constructor property on the Set and Map prototype object.
+  %SetProperty($Set.prototype, "constructor", $Set, DONT_ENUM);
+  %SetProperty($Map.prototype, "constructor", $Map, DONT_ENUM);
+
+  // Set up the non-enumerable functions on the Set prototype object.
+  InstallFunctionsOnHiddenPrototype($Set.prototype, DONT_ENUM, $Array(
+    "add", SetAdd,
+    "has", SetHas,
+    "delete", SetDelete
+  ));
+
+  // Set up the non-enumerable functions on the Map prototype object.
+  InstallFunctionsOnHiddenPrototype($Map.prototype, DONT_ENUM, $Array(
+    "get", MapGet,
+    "set", MapSet,
+    "has", MapHas,
+    "delete", MapDelete
+  ));
+
   // Set up the WeakMap constructor function.
   %SetCode($WeakMap, WeakMapConstructor);
 

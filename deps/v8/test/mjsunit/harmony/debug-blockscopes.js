@@ -464,3 +464,112 @@ listener_delegate = function(exec_state) {
 };
 closure_1(1)();
 EndTest();
+
+
+// Simple for-in loop over the keys of an object.
+BeginTest("For loop 1");
+
+function for_loop_1() {
+  for (let x in {y:undefined}) {
+    debugger;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x:'y'}, 0, exec_state);
+  // The function scope contains a temporary iteration variable.
+  CheckScopeContent({x:'y'}, 1, exec_state);
+};
+for_loop_1();
+EndTest();
+
+
+// For-in loop over the keys of an object with a block scoped let variable
+// shadowing the iteration variable.
+BeginTest("For loop 2");
+
+function for_loop_2() {
+  for (let x in {y:undefined}) {
+    let x = 3;
+    debugger;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x:3}, 0, exec_state);
+  CheckScopeContent({x:'y'}, 1, exec_state);
+  // The function scope contains a temporary iteration variable.
+  CheckScopeContent({x:'y'}, 2, exec_state);
+};
+for_loop_2();
+EndTest();
+
+
+// Simple for loop.
+BeginTest("For loop 3");
+
+function for_loop_3() {
+  for (let x = 3; x < 4; ++x) {
+    debugger;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x:3}, 0, exec_state);
+  CheckScopeContent({}, 1, exec_state);
+};
+for_loop_3();
+EndTest();
+
+
+// For loop with a block scoped let variable shadowing the iteration variable.
+BeginTest("For loop 4");
+
+function for_loop_4() {
+  for (let x = 3; x < 4; ++x) {
+    let x = 5;
+    debugger;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x:5}, 0, exec_state);
+  CheckScopeContent({x:3}, 1, exec_state);
+  CheckScopeContent({}, 2, exec_state);
+};
+for_loop_4();
+EndTest();
+
+
+// For loop with two variable declarations.
+BeginTest("For loop 5");
+
+function for_loop_5() {
+  for (let x = 3, y = 5; x < 4; ++x) {
+    debugger;
+  }
+}
+
+listener_delegate = function(exec_state) {
+  CheckScopeChain([debug.ScopeType.Block,
+                   debug.ScopeType.Local,
+                   debug.ScopeType.Global], exec_state);
+  CheckScopeContent({x:3,y:5}, 0, exec_state);
+  CheckScopeContent({}, 1, exec_state);
+};
+for_loop_5();
+EndTest();

@@ -35,17 +35,10 @@
 namespace v8 {
 namespace internal {
 
-// Scope information represents information about a functions's
-// scopes (currently only one, because we don't do any inlining)
-// and the allocation of the scope's variables. Scope information
-// is stored in a compressed form in FixedArray objects and is used
+// ScopeInfo represents information about different scopes of a source
+// program  and the allocation of the scope's variables. Scope information
+// is stored in a compressed form in SerializedScopeInfo objects and is used
 // at runtime (stack dumps, deoptimization, etc.).
-//
-// Historical note: In other VMs built by this team, ScopeInfo was
-// usually called DebugInfo since the information was used (among
-// other things) for on-demand debugging (Self, Smalltalk). However,
-// DebugInfo seems misleading, since this information is primarily used
-// in debugging-unrelated contexts.
 
 // Forward defined as
 // template <class Allocator = FreeStoreAllocationPolicy> class ScopeInfo;
@@ -83,6 +76,7 @@ class ScopeInfo BASE_EMBEDDED {
   Handle<String> LocalName(int i) const;
   int NumberOfLocals() const;
 
+  ScopeType type() const { return type_; }
   // --------------------------------------------------------------------------
   // Debugging support
 
@@ -94,6 +88,7 @@ class ScopeInfo BASE_EMBEDDED {
   Handle<String> function_name_;
   bool calls_eval_;
   bool is_strict_mode_;
+  ScopeType type_;
   List<Handle<String>, Allocator > parameters_;
   List<Handle<String>, Allocator > stack_slots_;
   List<Handle<String>, Allocator > context_slots_;

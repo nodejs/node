@@ -186,7 +186,8 @@ class Deoptimizer : public Malloced {
 
   // Change all patched stack guard checks in the unoptimized code
   // back to a normal stack guard check.
-  static void RevertStackCheckCodeAt(Address pc_after,
+  static void RevertStackCheckCodeAt(Code* unoptimized_code,
+                                     Address pc_after,
                                      Code* check_code,
                                      Code* replacement_code);
 

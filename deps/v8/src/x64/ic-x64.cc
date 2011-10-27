@@ -712,12 +712,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Writing a non-smi, check whether array allows non-smi elements.
   // r9: receiver's map
   __ CheckFastObjectElements(r9, &slow, Label::kNear);
-  __ lea(rcx,
-         FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));
-  __ movq(Operand(rcx, 0), rax);
-  __ movq(rdx, rax);
-  __ RecordWrite(
-      rbx, rcx, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
+  __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
+  __ movq(rdx, rax);  // Preserve the value which is returned.
+  __ RecordWriteArray(
+      rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
   __ ret(0);
 
   __ bind(&fast_double_with_map_check);
@@ -736,10 +735,10 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
 
 // The generated code does not accept smi keys.
 // The generated code falls through if both probes miss.
-static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
-                                          int argc,
-                                          Code::Kind kind,
-                                          Code::ExtraICState extra_ic_state) {
+void CallICBase::GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                               int argc,
+                                               Code::Kind kind,
+                                               Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
   // rcx                      : function name
   // rdx                      : receiver
@@ -749,7 +748,7 @@ static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
   // Probe the stub cache.
   Code::Flags flags = Code::ComputeFlags(kind,
                                          MONOMORPHIC,
-                                         extra_ic_state,
+                                         extra_state,
                                          NORMAL,
                                          argc);
   Isolate::Current()->stub_cache()->GenerateProbe(masm, flags, rdx, rcx, rbx,
@@ -822,7 +821,7 @@ static void GenerateFunctionTailCall(MacroAssembler* masm,
 
 
 // The generated code falls through if the call should be handled by runtime.
-static void GenerateCallNormal(MacroAssembler* masm, int argc) {
+void CallICBase::GenerateNormal(MacroAssembler* masm, int argc) {
   // ----------- S t a t e -------------
   // rcx                    : function name
   // rsp[0]                 : return address
@@ -849,10 +848,10 @@ static void GenerateCallNormal(MacroAssembler* masm, int argc) {
 }
 
 
-static void GenerateCallMiss(MacroAssembler* masm,
-                             int argc,
-                             IC::UtilityId id,
-                             Code::ExtraICState extra_ic_state) {
+void CallICBase::GenerateMiss(MacroAssembler* masm,
+                              int argc,
+                              IC::UtilityId id,
+                              Code::ExtraICState extra_state) {
   // ----------- S t a t e -------------
   // rcx                      : function name
   // rsp[0]                   : return address
@@ -910,7 +909,7 @@ static void GenerateCallMiss(MacroAssembler* masm,
   }
 
   // Invoke the function.
-  CallKind call_kind = CallICBase::Contextual::decode(extra_ic_state)
+  CallKind call_kind = CallICBase::Contextual::decode(extra_state)
       ? CALL_AS_FUNCTION
       : CALL_AS_METHOD;
   ParameterCount actual(argc);
@@ -939,39 +938,6 @@ void CallIC::GenerateMegamorphic(MacroAssembler* masm,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
   GenerateMonomorphicCacheProbe(masm, argc, Code::CALL_IC, extra_ic_state);
   GenerateMiss(masm, argc, extra_ic_state);
-}
-
-
-void CallIC::GenerateNormal(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
-  // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
-  // -----------------------------------
-
-  GenerateCallNormal(masm, argc);
-  GenerateMiss(masm, argc, Code::kNoExtraICState);
-}
-
-
-void CallIC::GenerateMiss(MacroAssembler* masm,
-                          int argc,
-                          Code::ExtraICState extra_ic_state) {
-  // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
-  // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
-  // -----------------------------------
-
-  GenerateCallMiss(masm, argc, IC::kCallIC_Miss, extra_ic_state);
 }
 
 
@@ -1102,24 +1068,9 @@ void KeyedCallIC::GenerateNormal(MacroAssembler* masm, int argc) {
   __ JumpIfSmi(rcx, &miss);
   Condition cond = masm->IsObjectStringType(rcx, rax, rax);
   __ j(NegateCondition(cond), &miss);
-  GenerateCallNormal(masm, argc);
+  CallICBase::GenerateNormal(masm, argc);
   __ bind(&miss);
   GenerateMiss(masm, argc);
-}
-
-
-void KeyedCallIC::GenerateMiss(MacroAssembler* masm, int argc) {
-  // ----------- S t a t e -------------
-  // rcx                      : function name
-  // rsp[0]                   : return address
-  // rsp[8]                   : argument argc
-  // rsp[16]                  : argument argc - 1
-  // ...
-  // rsp[argc * 8]            : argument 1
-  // rsp[(argc + 1) * 8]      : argument 0 = receiver
-  // -----------------------------------
-
-  GenerateCallMiss(masm, argc, IC::kKeyedCallIC_Miss, Code::kNoExtraICState);
 }
 
 
@@ -1602,6 +1553,51 @@ void KeyedStoreIC::GenerateMiss(MacroAssembler* masm, bool force_generic) {
 }
 
 
+void KeyedStoreIC::GenerateTransitionElementsSmiToDouble(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rbx     : target map
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+  // Must return the modified receiver in eax.
+  if (!FLAG_trace_elements_transitions) {
+    Label fail;
+    ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &fail);
+    __ movq(rax, rdx);
+    __ Ret();
+    __ bind(&fail);
+  }
+
+  __ pop(rbx);
+  __ push(rdx);
+  __ push(rbx);  // return address
+  __ TailCallRuntime(Runtime::kTransitionElementsSmiToDouble, 1, 1);
+}
+
+
+void KeyedStoreIC::GenerateTransitionElementsDoubleToObject(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rbx     : target map
+  //  -- rdx     : receiver
+  //  -- rsp[0]  : return address
+  // -----------------------------------
+  // Must return the modified receiver in eax.
+  if (!FLAG_trace_elements_transitions) {
+    Label fail;
+    ElementsTransitionGenerator::GenerateDoubleToObject(masm, &fail);
+    __ movq(rax, rdx);
+    __ Ret();
+    __ bind(&fail);
+  }
+
+  __ pop(rbx);
+  __ push(rdx);
+  __ push(rbx);  // return address
+  __ TailCallRuntime(Runtime::kTransitionElementsDoubleToObject, 1, 1);
+}
+
+
 #undef __
 
 
@@ -1613,11 +1609,9 @@ Condition CompareIC::ComputeCondition(Token::Value op) {
     case Token::LT:
       return less;
     case Token::GT:
-      // Reverse left and right operands to obtain ECMA-262 conversion order.
-      return less;
+      return greater;
     case Token::LTE:
-      // Reverse left and right operands to obtain ECMA-262 conversion order.
-      return greater_equal;
+      return less_equal;
     case Token::GTE:
       return greater_equal;
     default:

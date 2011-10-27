@@ -300,6 +300,11 @@ js1_2/regexp/RegExp_multiline_as_array: FAIL_OK
 js1_2/regexp/beginLine: FAIL_OK
 js1_2/regexp/endLine: FAIL_OK
 
+# We no longer let calls to test and exec with no argument implicitly
+# use the previous input.
+js1_2/regexp/RegExp_input: FAIL_OK
+js1_2/regexp/RegExp_input_as_array: FAIL_OK
+
 
 # To be compatible with safari typeof a regexp yields 'function';
 # in firefox it yields 'object'.
@@ -408,12 +413,6 @@ js1_5/Error/regress-465377: FAIL_OK
 # Tests that use the watch method.  Non-ECMA.
 js1_5/extensions/regress-435345-01: FAIL_OK
 js1_5/extensions/regress-455413: FAIL_OK
-
-
-# The spec specifies reverse evaluation order for < and >=.
-# See section 11.8.2 and 11.8.5.
-# We implement the spec here but the test tests the more straigtforward order.
-ecma_3/Operators/order-01: FAIL_OK
 
 
 # Uses Mozilla-specific QName, XML, XMLList and Iterator.

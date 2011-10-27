@@ -30,9 +30,12 @@
 #if defined(V8_TARGET_ARCH_ARM)
 
 #include "codegen.h"
+#include "macro-assembler.h"
 
 namespace v8 {
 namespace internal {
+
+#define __ ACCESS_MASM(masm)
 
 // -------------------------------------------------------------------------
 // Platform-specific RuntimeCallHelper functions.
@@ -50,6 +53,252 @@ void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
   masm->set_has_frame(false);
 }
 
+
+// -------------------------------------------------------------------------
+// Code generators
+
+void ElementsTransitionGenerator::GenerateSmiOnlyToObject(
+    MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- lr    : return address
+  //  -- r3    : target map, scratch for subsequent call
+  //  -- r4    : scratch (elements)
+  // -----------------------------------
+  // Set transitioned map.
+  __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ RecordWriteField(r2,
+                      HeapObject::kMapOffset,
+                      r3,
+                      r9,
+                      kLRHasNotBeenSaved,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+}
+
+
+void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
+    MacroAssembler* masm, Label* fail) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- lr    : return address
+  //  -- r3    : target map, scratch for subsequent call
+  //  -- r4    : scratch (elements)
+  // -----------------------------------
+  Label loop, entry, convert_hole, gc_required;
+  bool vfp3_supported = CpuFeatures::IsSupported(VFP3);
+  __ push(lr);
+
+  __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));
+  __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  // r4: source FixedArray
+  // r5: number of elements (smi-tagged)
+
+  // Allocate new FixedDoubleArray.
+  __ mov(lr, Operand(FixedDoubleArray::kHeaderSize));
+  __ add(lr, lr, Operand(r5, LSL, 2));
+  __ AllocateInNewSpace(lr, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
+  // r6: destination FixedDoubleArray, not tagged as heap object
+  __ LoadRoot(r9, Heap::kFixedDoubleArrayMapRootIndex);
+  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
+  // Set destination FixedDoubleArray's length.
+  __ str(r5, MemOperand(r6, FixedDoubleArray::kLengthOffset));
+  // Update receiver's map.
+
+  __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ RecordWriteField(r2,
+                      HeapObject::kMapOffset,
+                      r3,
+                      r9,
+                      kLRHasBeenSaved,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  // Replace receiver's backing store with newly created FixedDoubleArray.
+  __ add(r3, r6, Operand(kHeapObjectTag));
+  __ str(r3, FieldMemOperand(r2, JSObject::kElementsOffset));
+  __ RecordWriteField(r2,
+                      JSObject::kElementsOffset,
+                      r3,
+                      r9,
+                      kLRHasBeenSaved,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+
+  // Prepare for conversion loop.
+  __ add(r3, r4, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(r7, r6, Operand(FixedDoubleArray::kHeaderSize));
+  __ add(r6, r7, Operand(r5, LSL, 2));
+  __ mov(r4, Operand(kHoleNanLower32));
+  __ mov(r5, Operand(kHoleNanUpper32));
+  // r3: begin of source FixedArray element fields, not tagged
+  // r4: kHoleNanLower32
+  // r5: kHoleNanUpper32
+  // r6: end of destination FixedDoubleArray, not tagged
+  // r7: begin of FixedDoubleArray element fields, not tagged
+  if (!vfp3_supported) __ Push(r1, r0);
+
+  __ b(&entry);
+
+  // Call into runtime if GC is required.
+  __ bind(&gc_required);
+  __ pop(lr);
+  __ b(fail);
+
+  // Convert and copy elements.
+  __ bind(&loop);
+  __ ldr(r9, MemOperand(r3, 4, PostIndex));
+  // r9: current element
+  __ JumpIfNotSmi(r9, &convert_hole);
+
+  // Normal smi, convert to double and store.
+  __ SmiUntag(r9);
+  if (vfp3_supported) {
+    CpuFeatures::Scope scope(VFP3);
+    __ vmov(s0, r9);
+    __ vcvt_f64_s32(d0, s0);
+    __ vstr(d0, r7, 0);
+    __ add(r7, r7, Operand(8));
+  } else {
+    FloatingPointHelper::ConvertIntToDouble(masm,
+                                            r9,
+                                            FloatingPointHelper::kCoreRegisters,
+                                            d0,
+                                            r0,
+                                            r1,
+                                            lr,
+                                            s0);
+    __ Strd(r0, r1, MemOperand(r7, 8, PostIndex));
+  }
+  __ b(&entry);
+
+  // Hole found, store the-hole NaN.
+  __ bind(&convert_hole);
+  __ Strd(r4, r5, MemOperand(r7, 8, PostIndex));
+
+  __ bind(&entry);
+  __ cmp(r7, r6);
+  __ b(lt, &loop);
+
+  if (!vfp3_supported) __ Pop(r1, r0);
+  __ pop(lr);
+}
+
+
+void ElementsTransitionGenerator::GenerateDoubleToObject(
+    MacroAssembler* masm, Label* fail) {
+  // ----------- S t a t e -------------
+  //  -- r0    : value
+  //  -- r1    : key
+  //  -- r2    : receiver
+  //  -- lr    : return address
+  //  -- r3    : target map, scratch for subsequent call
+  //  -- r4    : scratch (elements)
+  // -----------------------------------
+  Label entry, loop, convert_hole, gc_required;
+
+  __ push(lr);
+  __ Push(r3, r2, r1, r0);
+
+  __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));
+  __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
+  // r4: source FixedDoubleArray
+  // r5: number of elements (smi-tagged)
+
+  // Allocate new FixedArray.
+  __ mov(r0, Operand(FixedDoubleArray::kHeaderSize));
+  __ add(r0, r0, Operand(r5, LSL, 1));
+  __ AllocateInNewSpace(r0, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
+  // r6: destination FixedArray, not tagged as heap object
+  __ LoadRoot(r9, Heap::kFixedArrayMapRootIndex);
+  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
+  // Set destination FixedDoubleArray's length.
+  __ str(r5, MemOperand(r6, FixedDoubleArray::kLengthOffset));
+
+  // Prepare for conversion loop.
+  __ add(r4, r4, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
+  __ add(r3, r6, Operand(FixedArray::kHeaderSize));
+  __ add(r6, r6, Operand(kHeapObjectTag));
+  __ add(r5, r3, Operand(r5, LSL, 1));
+  __ LoadRoot(r7, Heap::kTheHoleValueRootIndex);
+  __ LoadRoot(r9, Heap::kHeapNumberMapRootIndex);
+  // Using offsetted addresses in r4 to fully take advantage of post-indexing.
+  // r3: begin of destination FixedArray element fields, not tagged
+  // r4: begin of source FixedDoubleArray element fields, not tagged, +4
+  // r5: end of destination FixedArray, not tagged
+  // r6: destination FixedArray
+  // r7: the-hole pointer
+  // r9: heap number map
+  __ b(&entry);
+
+  // Call into runtime if GC is required.
+  __ bind(&gc_required);
+  __ Pop(r3, r2, r1, r0);
+  __ pop(lr);
+  __ b(fail);
+
+  __ bind(&loop);
+  __ ldr(r1, MemOperand(r4, 8, PostIndex));
+  // lr: current element's upper 32 bit
+  // r4: address of next element's upper 32 bit
+  __ cmp(r1, Operand(kHoleNanUpper32));
+  __ b(eq, &convert_hole);
+
+  // Non-hole double, copy value into a heap number.
+  __ AllocateHeapNumber(r2, r0, lr, r9, &gc_required);
+  // r2: new heap number
+  __ ldr(r0, MemOperand(r4, 12, NegOffset));
+  __ Strd(r0, r1, FieldMemOperand(r2, HeapNumber::kValueOffset));
+  __ mov(r0, r3);
+  __ str(r2, MemOperand(r3, 4, PostIndex));
+  __ RecordWrite(r6,
+                 r0,
+                 r2,
+                 kLRHasBeenSaved,
+                 kDontSaveFPRegs,
+                 EMIT_REMEMBERED_SET,
+                 OMIT_SMI_CHECK);
+  __ b(&entry);
+
+  // Replace the-hole NaN with the-hole pointer.
+  __ bind(&convert_hole);
+  __ str(r7, MemOperand(r3, 4, PostIndex));
+
+  __ bind(&entry);
+  __ cmp(r3, r5);
+  __ b(lt, &loop);
+
+  __ Pop(r3, r2, r1, r0);
+  // Update receiver's map.
+  __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
+  __ RecordWriteField(r2,
+                      HeapObject::kMapOffset,
+                      r3,
+                      r9,
+                      kLRHasBeenSaved,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  // Replace receiver's backing store with newly created and filled FixedArray.
+  __ str(r6, FieldMemOperand(r2, JSObject::kElementsOffset));
+  __ RecordWriteField(r2,
+                      JSObject::kElementsOffset,
+                      r6,
+                      r9,
+                      kLRHasBeenSaved,
+                      kDontSaveFPRegs,
+                      EMIT_REMEMBERED_SET,
+                      OMIT_SMI_CHECK);
+  __ pop(lr);
+}
+
+#undef __
 
 } }  // namespace v8::internal
 

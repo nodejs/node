@@ -128,6 +128,11 @@ macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
 # we cannot handle those anyway.
 macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
 
+# Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
+const kBoundFunctionIndex = 0;
+const kBoundThisIndex = 1;
+const kBoundArgumentsStartIndex = 2;
+
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));
 macro NUMBER_IS_FINITE(arg) = (%_IsSmi(%IS_VAR(arg)) || ((arg == arg) && (arg != 1/0) && (arg != -1/0)));

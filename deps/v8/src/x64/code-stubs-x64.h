@@ -423,7 +423,16 @@ class StringDictionaryLookupStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  MUST_USE_RESULT static MaybeObject* GenerateNegativeLookup(
+  static void GenerateNegativeLookup(MacroAssembler* masm,
+                                     Label* miss,
+                                     Label* done,
+                                     Register properties,
+                                     Handle<String> name,
+                                     Register r0);
+
+  // TODO(kmillikin): Eliminate this function when the stub cache is fully
+  // handlified.
+  MUST_USE_RESULT static MaybeObject* TryGenerateNegativeLookup(
       MacroAssembler* masm,
       Label* miss,
       Label* done,

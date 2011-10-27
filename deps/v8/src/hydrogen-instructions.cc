@@ -587,11 +587,10 @@ void HInstruction::Verify() {
     HBasicBlock* other_block = other_operand->block();
     if (cur_block == other_block) {
       if (!other_operand->IsPhi()) {
-        HInstruction* cur = cur_block->first();
+        HInstruction* cur = this->previous();
         while (cur != NULL) {
-          ASSERT(cur != this);  // We should reach other_operand before!
           if (cur == other_operand) break;
-          cur = cur->next();
+          cur = cur->previous();
         }
         // Must reach other operand in the same block!
         ASSERT(cur == other_operand);
@@ -783,9 +782,18 @@ void HHasInstanceTypeAndBranch::PrintDataTo(StringStream* stream) {
 
 void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
-  stream->Add(" == ");
-  stream->Add(type_literal_->GetFlatContent().ToAsciiVector());
+  stream->Add(" == %o", *type_literal_);
   HControlInstruction::PrintDataTo(stream);
+}
+
+
+HValue* HConstant::Canonicalize() {
+  return HasNoUses() && !IsBlockEntry() ? NULL : this;
+}
+
+
+HValue* HTypeof::Canonicalize() {
+  return HasNoUses() && !IsBlockEntry() ? NULL : this;
 }
 
 
@@ -1138,15 +1146,16 @@ void HPhi::AddIndirectUsesTo(int* dest) {
 
 
 void HSimulate::PrintDataTo(StringStream* stream) {
-  stream->Add("id=%d ", ast_id());
-  if (pop_count_ > 0) stream->Add("pop %d", pop_count_);
+  stream->Add("id=%d", ast_id());
+  if (pop_count_ > 0) stream->Add(" pop %d", pop_count_);
   if (values_.length() > 0) {
     if (pop_count_ > 0) stream->Add(" /");
     for (int i = 0; i < values_.length(); ++i) {
-      if (!HasAssignedIndexAt(i)) {
-        stream->Add(" push ");
-      } else {
+      if (i > 0) stream->Add(",");
+      if (HasAssignedIndexAt(i)) {
         stream->Add(" var[%d] = ", GetAssignedIndexAt(i));
+      } else {
+        stream->Add(" push ");
       }
       values_[i]->PrintNameTo(stream);
     }
@@ -1227,7 +1236,10 @@ void HConstant::PrintDataTo(StringStream* stream) {
 
 
 bool HArrayLiteral::IsCopyOnWrite() const {
-  return constant_elements()->map() == HEAP->fixed_cow_array_map();
+  Handle<FixedArray> constant_elements = this->constant_elements();
+  FixedArrayBase* constant_elements_values =
+      FixedArrayBase::cast(constant_elements->get(1));
+  return constant_elements_values->map() == HEAP->fixed_cow_array_map();
 }
 
 
@@ -1392,7 +1404,7 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
-    LookupResult lookup;
+    LookupResult lookup(map->GetIsolate());
     map->LookupInDescriptors(NULL, *name, &lookup);
     if (lookup.IsProperty()) {
       switch (lookup.type()) {
@@ -1445,14 +1457,14 @@ bool HLoadNamedFieldPolymorphic::DataEquals(HValue* value) {
 
 void HLoadNamedFieldPolymorphic::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  stream->Add(" .");
+  stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
 }
 
 
 void HLoadNamedGeneric::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
-  stream->Add(" .");
+  stream->Add(".");
   stream->Add(*String::cast(*name())->ToCString());
 }
 
@@ -1549,10 +1561,10 @@ void HStoreNamedGeneric::PrintDataTo(StringStream* stream) {
 void HStoreNamedField::PrintDataTo(StringStream* stream) {
   object()->PrintNameTo(stream);
   stream->Add(".");
-  ASSERT(name()->IsString());
   stream->Add(*String::cast(*name())->ToCString());
   stream->Add(" = ");
   value()->PrintNameTo(stream);
+  stream->Add(" @%d%s", offset(), is_in_object() ? "[in-object]" : "");
   if (!transition().is_null()) {
     stream->Add(" (transition map %p)", *transition());
   }
@@ -1630,6 +1642,12 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
   key()->PrintNameTo(stream);
   stream->Add("] = ");
   value()->PrintNameTo(stream);
+}
+
+
+void HTransitionElementsKind::PrintDataTo(StringStream* stream) {
+  object()->PrintNameTo(stream);
+  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
 }
 
 
@@ -1746,6 +1764,12 @@ HType HInstanceOfKnownGlobal::CalculateInferredType() {
 }
 
 
+HType HChange::CalculateInferredType() {
+  if (from().IsDouble() && to().IsTagged()) return HType::HeapNumber();
+  return type();
+}
+
+
 HType HBitwiseBinaryOperation::CalculateInferredType() {
   return HType::TaggedNumber();
 }
@@ -1798,6 +1822,31 @@ HType HShr::CalculateInferredType() {
 
 HType HSar::CalculateInferredType() {
   return HType::TaggedNumber();
+}
+
+
+HType HStringCharFromCode::CalculateInferredType() {
+  return HType::String();
+}
+
+
+HType HArrayLiteral::CalculateInferredType() {
+  return HType::JSArray();
+}
+
+
+HType HObjectLiteral::CalculateInferredType() {
+  return HType::JSObject();
+}
+
+
+HType HRegExpLiteral::CalculateInferredType() {
+  return HType::JSObject();
+}
+
+
+HType HFunctionLiteral::CalculateInferredType() {
+  return HType::JSObject();
 }
 
 

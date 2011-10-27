@@ -55,10 +55,10 @@ void StoreBuffer::Mark(Address addr) {
 
 void StoreBuffer::EnterDirectlyIntoStoreBuffer(Address addr) {
   if (store_buffer_rebuilding_enabled_) {
-    ASSERT(!heap_->cell_space()->Contains(addr));
-    ASSERT(!heap_->code_space()->Contains(addr));
-    ASSERT(!heap_->old_data_space()->Contains(addr));
-    ASSERT(!heap_->new_space()->Contains(addr));
+    SLOW_ASSERT(!heap_->cell_space()->Contains(addr) &&
+                !heap_->code_space()->Contains(addr) &&
+                !heap_->old_data_space()->Contains(addr) &&
+                !heap_->new_space()->Contains(addr));
     Address* top = old_top_;
     *top++ = addr;
     old_top_ = top;

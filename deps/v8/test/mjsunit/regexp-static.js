@@ -25,18 +25,6 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we throw exceptions when calling test and exec with no
-// input.  This is not part of the spec, but we do it for
-// compatibility with JSC.
-assertThrows("/a/.test()");
-assertThrows("/a/.exec()");
-
-// Test that we do not throw exceptions once the static RegExp.input
-// field has been set.
-RegExp.input = "a";
-assertDoesNotThrow("/a/.test()");
-assertDoesNotThrow("/a/.exec()");
-
 // Test the (deprecated as of JS 1.5) properties of the RegExp function.
 var re = /((\d+)\.(\d+))/;
 var s = 'abc123.456def';
@@ -166,3 +154,8 @@ assertTrue(typeof RegExp.input == typeof String(), "RegExp.input coerces values 
 var foo = "lsdfj sldkfj sdklfj læsdfjl sdkfjlsdk fjsdl fjsdljskdj flsj flsdkj flskd regexp: /foobar/\nldkfj sdlkfj sdkl";
 assertTrue(/^([a-z]+): (.*)/.test(foo.substring(foo.indexOf("regexp:"))), "regexp: setup");
 assertEquals("regexp", RegExp.$1, "RegExp.$1");
+
+
+// Check that calling with no argument is the same as calling with undefined.
+assertTrue(/^undefined$/.test());
+assertEquals(["undefined"], /^undefined$/.exec());

@@ -352,7 +352,7 @@ void MacroAssembler::SafePush(const Immediate& x) {
 
 void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
   // see ROOT_ACCESSOR macro in factory.h
-  Handle<Object> value(&isolate()->heap()->roots_address()[index]);
+  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
   cmp(with, value);
 }
 
@@ -1492,6 +1492,19 @@ void MacroAssembler::InitializeFieldsWithFiller(Register start_offset,
 }
 
 
+void MacroAssembler::BooleanBitTest(Register object,
+                                    int field_offset,
+                                    int bit_index) {
+  bit_index += kSmiTagSize + kSmiShiftSize;
+  ASSERT(IsPowerOf2(kBitsPerByte));
+  int byte_index = bit_index / kBitsPerByte;
+  int byte_bit_index = bit_index & (kBitsPerByte - 1);
+  test_b(FieldOperand(object, field_offset + byte_index),
+         static_cast<byte>(1 << byte_bit_index));
+}
+
+
+
 void MacroAssembler::NegativeZeroTest(Register result,
                                       Register op,
                                       Label* then_label) {
@@ -1522,13 +1535,23 @@ void MacroAssembler::NegativeZeroTest(Register result,
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
-                                             Label* miss) {
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
   // Check that the receiver isn't a smi.
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.
   CmpObjectType(function, JS_FUNCTION_TYPE, result);
   j(not_equal, miss);
+
+  if (miss_on_bound_function) {
+    // If a bound function, go to miss label.
+    mov(scratch,
+        FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    BooleanBitTest(scratch, SharedFunctionInfo::kCompilerHintsOffset,
+                   SharedFunctionInfo::kBoundFunction);
+    j(not_zero, miss);
+  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
@@ -2064,23 +2087,16 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  ASSERT(function->is_compiled());
   // Get the function and setup the context.
   mov(edi, Immediate(Handle<JSFunction>(function)));
   mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
 
   ParameterCount expected(function->shared()->formal_parameter_count());
-  if (V8::UseCrankshaft()) {
-    // TODO(kasperl): For now, we always call indirectly through the
-    // code field in the function to allow recompilation to take effect
-    // without changing any of the call sites.
-    InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
-               expected, actual, flag, call_wrapper, call_kind);
-  } else {
-    Handle<Code> code(function->code());
-    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET,
-               flag, call_wrapper, call_kind);
-  }
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  InvokeCode(FieldOperand(edi, JSFunction::kCodeEntryOffset),
+             expected, actual, flag, call_wrapper, call_kind);
 }
 
 

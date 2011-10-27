@@ -38,6 +38,13 @@ function CreateFrozen(handler, callTrap, constructTrap) {
 }
 
 
+// Ensures that checking the "length" property of a function proxy doesn't
+// crash due to lack of a [[Get]] method.
+var handler = {
+  get : function(r, n) { return n == "length" ? 2 : undefined }
+}
+
+
 // Calling (call, Function.prototype.call, Function.prototype.apply,
 //          Function.prototype.bind).
 
@@ -46,81 +53,167 @@ var receiver
 
 function TestCall(isStrict, callTrap) {
   assertEquals(42, callTrap(5, 37))
-  // TODO(rossberg): unrelated bug: this does not succeed for optimized code:
-  // assertEquals(isStrict ? undefined : global_object, receiver)
+  assertEquals(isStrict ? undefined : global_object, receiver)
 
-  var f = Proxy.createFunction({}, callTrap)
+  var handler = {
+    get: function(r, k) {
+      return k == "length" ? 2 : Function.prototype[k]
+    }
+  }
+  var f = Proxy.createFunction(handler, callTrap)
+
   receiver = 333
   assertEquals(42, f(11, 31))
   assertEquals(isStrict ? undefined : global_object, receiver)
-  var o = {}
+  var o = {f: f}
+  receiver = 333
+  assertEquals(42, o.f(10, 32))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, o["f"](9, 33))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, (1, o).f(8, 34))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, (1, o)["f"](7, 35))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, f.call(o, 32, 10))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, f.call(null, 33, 9))
+  assertSame(isStrict ? null : global_object, receiver)
+  receiver = 333
+  assertEquals(44, f.call(2, 21, 23))
+  assertSame(2, receiver.valueOf())
+  receiver = 333
   assertEquals(42, Function.prototype.call.call(f, o, 20, 22))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
+  receiver = 333
   assertEquals(43, Function.prototype.call.call(f, null, 20, 23))
-  assertEquals(isStrict ? null : global_object, receiver)
+  assertSame(isStrict ? null : global_object, receiver)
   assertEquals(44, Function.prototype.call.call(f, 2, 21, 23))
   assertEquals(2, receiver.valueOf())
   receiver = 333
+  assertEquals(32, f.apply(o, [16, 16]))
+  assertSame(o, receiver)
+  receiver = 333
   assertEquals(32, Function.prototype.apply.call(f, o, [17, 15]))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
+
   var ff = Function.prototype.bind.call(f, o, 12)
+  assertTrue(ff.length <= 1)  // TODO(rossberg): Not spec'ed yet, be lax.
   receiver = 333
   assertEquals(42, ff(30))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
   receiver = 333
   assertEquals(32, Function.prototype.apply.call(ff, {}, [20]))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
+
+  var fff = Function.prototype.bind.call(ff, o, 30)
+  assertEquals(0, fff.length)
+  receiver = 333
+  assertEquals(42, fff())
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, Function.prototype.call.call(fff, {}))
+  assertSame(o, receiver)
 
   var f = CreateFrozen({}, callTrap)
   receiver = 333
   assertEquals(42, f(11, 31))
-  // TODO(rossberg): unrelated bug: this does not succeed for optimized code.
-  // assertEquals(isStrict ? undefined : global, receiver)
+  assertSame(isStrict ? undefined : global_object, receiver)
+  var o = {f: f}
+  receiver = 333
+  assertEquals(42, o.f(10, 32))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, o["f"](9, 33))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, (1, o).f(8, 34))
+  assertSame(o, receiver)
+  receiver = 333
+  assertEquals(42, (1, o)["f"](7, 35))
+  assertSame(o, receiver)
   receiver = 333
   assertEquals(42, Function.prototype.call.call(f, o, 20, 22))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
   receiver = 333
   assertEquals(32, Function.prototype.apply.call(f, o, [17, 15]))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
   receiver = 333
   assertEquals(42, ff(30))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
   receiver = 333
   assertEquals(32, Function.prototype.apply.call(ff, {}, [20]))
-  assertEquals(o, receiver)
+  assertSame(o, receiver)
 }
 
 TestCall(false, function(x, y) {
-  receiver = this; return x + y
+  receiver = this
+  return x + y
 })
 
 TestCall(true, function(x, y) {
-  "use strict";
-  receiver = this; return x + y
+  "use strict"
+  receiver = this
+  return x + y
 })
 
-TestCall(false, Proxy.createFunction({}, function(x, y) {
-  receiver = this; return x + y
+TestCall(false, function() {
+  receiver = this; return arguments[0] + arguments[1]
+})
+
+TestCall(false, Proxy.createFunction(handler, function(x, y) {
+  receiver = this
+  return x + y
 }))
 
-TestCall(true, Proxy.createFunction({}, function(x, y) {
-  "use strict";
-  receiver = this; return x + y
+TestCall(true, Proxy.createFunction(handler, function(x, y) {
+  "use strict"
+  receiver = this
+  return x + y
 }))
 
-TestCall(false, CreateFrozen({}, function(x, y) {
-  receiver = this; return x + y
+TestCall(false, CreateFrozen(handler, function(x, y) {
+  receiver = this
+  return x + y
 }))
 
+
+
+// Using intrinsics as call traps.
+
+function TestCallIntrinsic(type, callTrap) {
+  var f = Proxy.createFunction({}, callTrap)
+  var x = f()
+  assertTrue(typeof x == type)
+}
+
+TestCallIntrinsic("boolean", Boolean)
+TestCallIntrinsic("number", Number)
+TestCallIntrinsic("string", String)
+TestCallIntrinsic("object", Object)
+TestCallIntrinsic("function", Function)
+
+
+
+// Throwing from call trap.
 
 function TestCallThrow(callTrap) {
   var f = Proxy.createFunction({}, callTrap)
   assertThrows(function(){ f(11) }, "myexn")
+  assertThrows(function(){ ({x: f}).x(11) }, "myexn")
+  assertThrows(function(){ ({x: f})["x"](11) }, "myexn")
   assertThrows(function(){ Function.prototype.call.call(f, {}, 2) }, "myexn")
   assertThrows(function(){ Function.prototype.apply.call(f, {}, [1]) }, "myexn")
 
   var f = CreateFrozen({}, callTrap)
   assertThrows(function(){ f(11) }, "myexn")
+  assertThrows(function(){ ({x: f}).x(11) }, "myexn")
+  assertThrows(function(){ ({x: f})["x"](11) }, "myexn")
   assertThrows(function(){ Function.prototype.call.call(f, {}, 2) }, "myexn")
   assertThrows(function(){ Function.prototype.apply.call(f, {}, [1]) }, "myexn")
 }
@@ -137,24 +230,48 @@ var prototype = {}
 var receiver
 
 var handlerWithPrototype = {
-  fix: function() { return {prototype: prototype} },
-  get: function(r, n) { assertEquals("prototype", n); return prototype }
+  fix: function() { return { prototype: { value: prototype } }; },
+  get: function(r, n) {
+    if (n == "length") return 2;
+    assertEquals("prototype", n);
+    return prototype;
+  }
 }
 
 var handlerSansPrototype = {
-  fix: function() { return {} },
-  get: function(r, n) { assertEquals("prototype", n); return undefined }
+  fix: function() { return { length: { value: 2 } } },
+  get: function(r, n) {
+    if (n == "length") return 2;
+    assertEquals("prototype", n);
+    return undefined;
+  }
 }
 
-function ReturnUndef(x, y) { "use strict"; receiver = this; this.sum = x + y }
-function ReturnThis(x, y) { "use strict"; receiver = this; this.sum = x + y; return this }
-function ReturnNew(x, y) { "use strict"; receiver = this; return {sum: x + y} }
+function ReturnUndef(x, y) {
+  "use strict";
+  receiver = this;
+  this.sum = x + y;
+}
+
+function ReturnThis(x, y) {
+  "use strict";
+  receiver = this;
+  this.sum = x + y;
+  return this;
+}
+
+function ReturnNew(x, y) {
+  "use strict";
+  receiver = this;
+  return {sum: x + y};
+}
+
 function ReturnNewWithProto(x, y) {
   "use strict";
   receiver = this;
-  var result = Object.create(prototype)
-  result.sum = x + y
-  return result
+  var result = Object.create(prototype);
+  result.sum = x + y;
+  return result;
 }
 
 function TestConstruct(proto, constructTrap) {
@@ -165,15 +282,13 @@ function TestConstruct(proto, constructTrap) {
 function TestConstruct2(proto, constructTrap, handler) {
   var f = Proxy.createFunction(handler, function() {}, constructTrap)
   var o = new f(11, 31)
-  // TODO(rossberg): doesn't hold, due to unrelated bug.
-  // assertEquals(undefined, receiver)
+  assertEquals(undefined, receiver)
   assertEquals(42, o.sum)
   assertSame(proto, Object.getPrototypeOf(o))
 
   var f = CreateFrozen(handler, function() {}, constructTrap)
   var o = new f(11, 32)
-  // TODO(rossberg): doesn't hold, due to unrelated bug.
-  // assertEquals(undefined, receiver)
+  assertEquals(undefined, receiver)
   assertEquals(43, o.sum)
   assertSame(proto, Object.getPrototypeOf(o))
 }
@@ -181,12 +296,15 @@ function TestConstruct2(proto, constructTrap, handler) {
 TestConstruct(Object.prototype, ReturnNew)
 TestConstruct(prototype, ReturnNewWithProto)
 
-TestConstruct(Object.prototype, Proxy.createFunction({}, ReturnNew))
-TestConstruct(prototype, Proxy.createFunction({}, ReturnNewWithProto))
+TestConstruct(Object.prototype, Proxy.createFunction(handler, ReturnNew))
+TestConstruct(prototype, Proxy.createFunction(handler, ReturnNewWithProto))
 
-TestConstruct(Object.prototype, CreateFrozen({}, ReturnNew))
-TestConstruct(prototype, CreateFrozen({}, ReturnNewWithProto))
+TestConstruct(Object.prototype, CreateFrozen(handler, ReturnNew))
+TestConstruct(prototype, CreateFrozen(handler, ReturnNewWithProto))
 
+
+
+// Construction with derived construct trap.
 
 function TestConstructFromCall(proto, returnsThis, callTrap) {
   TestConstructFromCall2(proto, returnsThis, callTrap, handlerWithPrototype)
@@ -212,10 +330,14 @@ TestConstructFromCall(Object.prototype, true, ReturnThis)
 TestConstructFromCall(Object.prototype, false, ReturnNew)
 TestConstructFromCall(prototype, false, ReturnNewWithProto)
 
-TestConstructFromCall(Object.prototype, true, Proxy.createFunction({}, ReturnUndef))
-TestConstructFromCall(Object.prototype, true, Proxy.createFunction({}, ReturnThis))
-TestConstructFromCall(Object.prototype, false, Proxy.createFunction({}, ReturnNew))
-TestConstructFromCall(prototype, false, Proxy.createFunction({}, ReturnNewWithProto))
+TestConstructFromCall(Object.prototype, true,
+                      Proxy.createFunction(handler, ReturnUndef))
+TestConstructFromCall(Object.prototype, true,
+                      Proxy.createFunction(handler, ReturnThis))
+TestConstructFromCall(Object.prototype, false,
+                      Proxy.createFunction(handler, ReturnNew))
+TestConstructFromCall(prototype, false,
+                      Proxy.createFunction(handler, ReturnNewWithProto))
 
 TestConstructFromCall(Object.prototype, true, CreateFrozen({}, ReturnUndef))
 TestConstructFromCall(Object.prototype, true, CreateFrozen({}, ReturnThis))
@@ -232,26 +354,44 @@ TestConstructFromCall(prototype, true, ReturnThis)
 TestConstructFromCall(Object.prototype, false, ReturnNew)
 TestConstructFromCall(prototype, false, ReturnNewWithProto)
 
-TestConstructFromCall(Object.prototype, true, Proxy.createFunction({}, ReturnUndef))
-TestConstructFromCall(Object.prototype, true, Proxy.createFunction({}, ReturnThis))
-TestConstructFromCall(Object.prototype, false, Proxy.createFunction({}, ReturnNew))
-TestConstructFromCall(prototype, false, Proxy.createFunction({}, ReturnNewWithProto))
+TestConstructFromCall(Object.prototype, true,
+                      Proxy.createFunction(handler, ReturnUndef))
+TestConstructFromCall(Object.prototype, true,
+                      Proxy.createFunction(handler, ReturnThis))
+TestConstructFromCall(Object.prototype, false,
+                      Proxy.createFunction(handler, ReturnNew))
+TestConstructFromCall(prototype, false,
+                      Proxy.createFunction(handler, ReturnNewWithProto))
 
-TestConstructFromCall(prototype, true, Proxy.createFunction(handlerWithPrototype, ReturnUndef))
-TestConstructFromCall(prototype, true, Proxy.createFunction(handlerWithPrototype, ReturnThis))
-TestConstructFromCall(Object.prototype, false, Proxy.createFunction(handlerWithPrototype, ReturnNew))
-TestConstructFromCall(prototype, false, Proxy.createFunction(handlerWithPrototype, ReturnNewWithProto))
+TestConstructFromCall(prototype, true,
+                      Proxy.createFunction(handlerWithPrototype, ReturnUndef))
+TestConstructFromCall(prototype, true,
+                      Proxy.createFunction(handlerWithPrototype, ReturnThis))
+TestConstructFromCall(Object.prototype, false,
+                      Proxy.createFunction(handlerWithPrototype, ReturnNew))
+TestConstructFromCall(prototype, false,
+                      Proxy.createFunction(handlerWithPrototype,
+                                           ReturnNewWithProto))
 
-TestConstructFromCall(prototype, true, CreateFrozen(handlerWithPrototype, ReturnUndef))
-TestConstructFromCall(prototype, true, CreateFrozen(handlerWithPrototype, ReturnThis))
-TestConstructFromCall(Object.prototype, false, CreateFrozen(handlerWithPrototype, ReturnNew))
-TestConstructFromCall(prototype, false, CreateFrozen(handlerWithPrototype, ReturnNewWithProto))
+TestConstructFromCall(prototype, true,
+                      CreateFrozen(handlerWithPrototype, ReturnUndef))
+TestConstructFromCall(prototype, true,
+                      CreateFrozen(handlerWithPrototype, ReturnThis))
+TestConstructFromCall(Object.prototype, false,
+                      CreateFrozen(handlerWithPrototype, ReturnNew))
+TestConstructFromCall(prototype, false,
+                      CreateFrozen(handlerWithPrototype, ReturnNewWithProto))
 
+
+
+// Throwing from the construct trap.
 
 function TestConstructThrow(trap) {
-  TestConstructThrow2(Proxy.createFunction({fix: function() {return {}}}, trap))
-  TestConstructThrow2(Proxy.createFunction({fix: function() {return {}}},
-    function() {}, trap))
+  TestConstructThrow2(Proxy.createFunction({ fix: function() {return {};} },
+                                           trap))
+  TestConstructThrow2(Proxy.createFunction({ fix: function() {return {};} },
+                                           function() {},
+                                           trap))
 }
 
 function TestConstructThrow2(f) {
@@ -266,13 +406,13 @@ TestConstructThrow(CreateFrozen({}, function() { throw "myexn" }))
 
 
 
-// Getters and setters.
+// Using function proxies as getters and setters.
 
 var value
 var receiver
 
 function TestAccessorCall(getterCallTrap, setterCallTrap) {
-  var handler = {fix: function() { return {} }}
+  var handler = { fix: function() { return {} } }
   var pgetter = Proxy.createFunction(handler, getterCallTrap)
   var psetter = Proxy.createFunction(handler, setterCallTrap)
 

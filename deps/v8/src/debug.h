@@ -810,11 +810,15 @@ class Debugger {
   }
 
   void set_compiling_natives(bool compiling_natives) {
-    Debugger::compiling_natives_ = compiling_natives;
+    compiling_natives_ = compiling_natives;
   }
   bool compiling_natives() const { return compiling_natives_; }
   void set_loading_debugger(bool v) { is_loading_debugger_ = v; }
   bool is_loading_debugger() const { return is_loading_debugger_; }
+  void set_force_debugger_active(bool force_debugger_active) {
+    force_debugger_active_ = force_debugger_active;
+  }
+  bool force_debugger_active() const { return force_debugger_active_; }
 
   bool IsDebuggerActive();
 
@@ -840,6 +844,7 @@ class Debugger {
   bool compiling_natives_;  // Are we compiling natives?
   bool is_loading_debugger_;  // Are we loading the debugger?
   bool never_unload_debugger_;  // Can we unload the debugger?
+  bool force_debugger_active_;  // Activate debugger without event listeners.
   v8::Debug::MessageHandler2 message_handler_;
   bool debugger_unload_pending_;  // Was message handler cleared?
   v8::Debug::HostDispatchHandler host_dispatch_handler_;

@@ -33,6 +33,7 @@
 #include "preparse-data-format.h"
 #include "preparse-data.h"
 #include "scopes.h"
+#include "preparser.h"
 
 namespace v8 {
 namespace internal {
@@ -43,6 +44,7 @@ class ParserLog;
 class PositionStack;
 class Target;
 class LexicalScope;
+class SaveScope;
 
 template <typename T> class ZoneListWrapper;
 
@@ -164,13 +166,13 @@ class ParserApi {
   // Generic preparser generating full preparse data.
   static ScriptDataImpl* PreParse(UC16CharacterStream* source,
                                   v8::Extension* extension,
-                                  bool harmony_scoping);
+                                  int flags);
 
   // Preparser that only does preprocessing that makes sense if only used
   // immediately after.
   static ScriptDataImpl* PartialPreParse(UC16CharacterStream* source,
                                          v8::Extension* extension,
-                                         bool harmony_scoping);
+                                         int flags);
 };
 
 // ----------------------------------------------------------------------------
@@ -459,6 +461,12 @@ class Parser {
     kForStatement
   };
 
+  // If a list of variable declarations includes any initializers.
+  enum VariableDeclarationProperties {
+    kHasInitializers,
+    kHasNoInitializers
+  };
+
   Isolate* isolate() { return isolate_; }
   Zone* zone() { return isolate_->zone(); }
 
@@ -473,7 +481,7 @@ class Parser {
   void ReportInvalidPreparseData(Handle<String> name, bool* ok);
   void ReportMessage(const char* message, Vector<const char*> args);
 
-  bool inside_with() const { return with_nesting_level_ > 0; }
+  bool inside_with() const { return top_scope_->inside_with(); }
   JavaScriptScanner& scanner()  { return scanner_; }
   Mode mode() const { return mode_; }
   ScriptDataImpl* pre_data() const { return pre_data_; }
@@ -492,10 +500,10 @@ class Parser {
   Statement* ParseFunctionDeclaration(bool* ok);
   Statement* ParseNativeDeclaration(bool* ok);
   Block* ParseBlock(ZoneStringList* labels, bool* ok);
-  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
   Block* ParseVariableStatement(VariableDeclarationContext var_context,
                                 bool* ok);
   Block* ParseVariableDeclarations(VariableDeclarationContext var_context,
+                                   VariableDeclarationProperties* decl_props,
                                    Handle<String>* out,
                                    bool* ok);
   Statement* ParseExpressionOrLabelledStatement(ZoneStringList* labels,
@@ -514,6 +522,9 @@ class Parser {
   Expression* MakeCatchContext(Handle<String> id, VariableProxy* value);
   TryStatement* ParseTryStatement(bool* ok);
   DebuggerStatement* ParseDebuggerStatement(bool* ok);
+
+  // Support for hamony block scoped bindings.
+  Block* ParseScopedBlock(ZoneStringList* labels, bool* ok);
 
   Expression* ParseExpression(bool accept_IN, bool* ok);
   Expression* ParseAssignmentExpression(bool accept_IN, bool* ok);
@@ -669,7 +680,7 @@ class Parser {
     return &empty;
   }
 
-  Scope* NewScope(Scope* parent, Scope::Type type, bool inside_with);
+  Scope* NewScope(Scope* parent, ScopeType type);
 
   Handle<String> LookupSymbol(int symbol_id);
 
@@ -714,7 +725,6 @@ class Parser {
   JavaScriptScanner scanner_;
 
   Scope* top_scope_;
-  int with_nesting_level_;
 
   LexicalScope* lexical_scope_;
   Mode mode_;
@@ -734,6 +744,7 @@ class Parser {
   bool harmony_scoping_;
 
   friend class LexicalScope;
+  friend class SaveScope;
 };
 
 

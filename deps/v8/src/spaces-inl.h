@@ -257,16 +257,12 @@ HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
   if (new_top > allocation_info_.limit) return NULL;
 
   allocation_info_.top = new_top;
-  ASSERT(allocation_info_.VerifyPagedAllocation());
-  ASSERT(current_top != NULL);
   return HeapObject::FromAddress(current_top);
 }
 
 
 // Raw allocation.
 MaybeObject* PagedSpace::AllocateRaw(int size_in_bytes) {
-  ASSERT(HasBeenSetup());
-  ASSERT_OBJECT_SIZE(size_in_bytes);
   HeapObject* object = AllocateLinearly(size_in_bytes);
   if (object != NULL) {
     if (identity() == CODE_SPACE) {

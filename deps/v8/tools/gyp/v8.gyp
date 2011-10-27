@@ -709,7 +709,7 @@
             'experimental_library_files': [
               '../../src/macros.py',
               '../../src/proxy.js',
-              '../../src/weakmap.js',
+              '../../src/collection.js',
             ],
           },
           'actions': [

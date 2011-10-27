@@ -375,6 +375,12 @@ function INSTANCE_OF(F) {
     return 1;
   }
 
+  // Check if function is bound, if so, get [[BoundFunction]] from it
+  // and use that instead of F.
+  var bindings = %BoundFunctionGetBindings(F);
+  if (bindings) {
+    F = bindings[kBoundFunctionIndex];  // Always a non-bound function.
+  }
   // Get the prototype of F; if it is not an object, throw an error.
   var O = F.prototype;
   if (!IS_SPEC_OBJECT(O)) {
@@ -383,13 +389,6 @@ function INSTANCE_OF(F) {
 
   // Return whether or not O is in the prototype chain of V.
   return %IsInPrototypeChain(O, V) ? 0 : 1;
-}
-
-
-// Get an array of property keys for the given object. Used in
-// for-in statements.
-function GET_KEYS() {
-  return %GetPropertyNames(this);
 }
 
 
@@ -463,7 +462,7 @@ function APPLY_PREPARE(args) {
   }
 
   // Make sure the arguments list has the right type.
-  if (args != null && !IS_ARRAY(args) && !IS_ARGUMENTS(args)) {
+  if (args != null && !IS_SPEC_OBJECT(args)) {
     throw %MakeTypeError('apply_wrong_args', []);
   }
 

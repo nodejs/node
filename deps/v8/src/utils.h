@@ -143,6 +143,16 @@ static int PointerValueCompare(const T* a, const T* b) {
 }
 
 
+// Compare function to compare the object pointer value of two
+// handlified objects. The handles are passed as pointers to the
+// handles.
+template<typename T> class Handle;  // Forward declaration.
+template <typename T>
+static int HandleObjectPointerCompare(const Handle<T>* a, const Handle<T>* b) {
+  return Compare<T*>(*(*a), *(*b));
+}
+
+
 // Returns the smallest power of two which is >= x. If you pass in a
 // number that is already a power of two, it is returned as is.
 // Implementation is from "Hacker's Delight" by Henry S. Warren, Jr.,
@@ -168,7 +178,6 @@ static inline uint32_t RoundDownToPowerOf2(uint32_t x) {
 
 template <typename T, typename U>
 static inline bool IsAligned(T value, U alignment) {
-  ASSERT(IsPowerOf2(alignment));
   return (value & (alignment - 1)) == 0;
 }
 
@@ -254,6 +263,18 @@ static inline uint32_t ComputeIntegerHash(uint32_t key) {
   hash = hash * 2057;  // hash = (hash + (hash << 3)) + (hash << 11);
   hash = hash ^ (hash >> 16);
   return hash;
+}
+
+
+static inline uint32_t ComputeLongHash(uint64_t key) {
+  uint64_t hash = key;
+  hash = ~hash + (hash << 18);  // hash = (hash << 18) - hash - 1;
+  hash = hash ^ (hash >> 31);
+  hash = hash * 21;  // hash = (hash + (hash << 2)) + (hash << 4);
+  hash = hash ^ (hash >> 11);
+  hash = hash + (hash << 6);
+  hash = hash ^ (hash >> 22);
+  return (uint32_t) hash;
 }
 
 

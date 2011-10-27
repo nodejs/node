@@ -55,7 +55,7 @@ MacroAssembler::MacroAssembler(Isolate* arg_isolate, void* buffer, int size)
 
 static intptr_t RootRegisterDelta(ExternalReference other, Isolate* isolate) {
   Address roots_register_value = kRootRegisterBias +
-      reinterpret_cast<Address>(isolate->heap()->roots_address());
+      reinterpret_cast<Address>(isolate->heap()->roots_array_start());
   intptr_t delta = other.address() - roots_register_value;
   return delta;
 }
@@ -322,6 +322,40 @@ void MacroAssembler::RecordWriteField(
   if (emit_debug_code()) {
     movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
     movq(dst, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+  }
+}
+
+
+void MacroAssembler::RecordWriteArray(Register object,
+                                      Register value,
+                                      Register index,
+                                      SaveFPRegsMode save_fp,
+                                      RememberedSetAction remembered_set_action,
+                                      SmiCheck smi_check) {
+  // First, check if a write barrier is even needed. The tests below
+  // catch stores of Smis.
+  Label done;
+
+  // Skip barrier if writing a smi.
+  if (smi_check == INLINE_SMI_CHECK) {
+    JumpIfSmi(value, &done);
+  }
+
+  // Array access: calculate the destination address. Index is not a smi.
+  Register dst = index;
+  lea(dst, Operand(object, index, times_pointer_size,
+                   FixedArray::kHeaderSize - kHeapObjectTag));
+
+  RecordWrite(
+      object, dst, value, save_fp, remembered_set_action, OMIT_SMI_CHECK);
+
+  bind(&done);
+
+  // Clobber clobbered input registers when running with the debug-code flag
+  // turned on to provoke errors.
+  if (emit_debug_code()) {
+    movq(value, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
+    movq(index, BitCast<int64_t>(kZapValue), RelocInfo::NONE);
   }
 }
 
@@ -2317,6 +2351,13 @@ void MacroAssembler::Test(const Operand& src, Smi* source) {
 }
 
 
+void MacroAssembler::TestBit(const Operand& src, int bits) {
+  int byte_offset = bits / kBitsPerByte;
+  int bit_in_byte = bits & (kBitsPerByte - 1);
+  testb(Operand(src, byte_offset), Immediate(1 << bit_in_byte));
+}
+
+
 void MacroAssembler::Jump(ExternalReference ext) {
   LoadAddress(kScratchRegister, ext);
   jmp(kScratchRegister);
@@ -2683,7 +2724,7 @@ void MacroAssembler::CheckFastSmiOnlyElements(Register map,
 void MacroAssembler::StoreNumberToDoubleElements(
     Register maybe_number,
     Register elements,
-    Register key,
+    Register index,
     XMMRegister xmm_scratch,
     Label* fail) {
   Label smi_value, is_nan, maybe_nan, not_nan, have_double_value, done;
@@ -2704,7 +2745,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   bind(&not_nan);
   movsd(xmm_scratch, FieldOperand(maybe_number, HeapNumber::kValueOffset));
   bind(&have_double_value);
-  movsd(FieldOperand(elements, key, times_8, FixedDoubleArray::kHeaderSize),
+  movsd(FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
         xmm_scratch);
   jmp(&done);
 
@@ -2727,7 +2768,7 @@ void MacroAssembler::StoreNumberToDoubleElements(
   // Preserve original value.
   SmiToInteger32(kScratchRegister, maybe_number);
   cvtlsi2sd(xmm_scratch, kScratchRegister);
-  movsd(FieldOperand(elements, key, times_8, FixedDoubleArray::kHeaderSize),
+  movsd(FieldOperand(elements, index, times_8, FixedDoubleArray::kHeaderSize),
         xmm_scratch);
   bind(&done);
 }
@@ -2866,7 +2907,8 @@ Condition MacroAssembler::IsObjectStringType(Register heap_object,
 
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
-                                             Label* miss) {
+                                             Label* miss,
+                                             bool miss_on_bound_function) {
   // Check that the receiver isn't a smi.
   testl(function, Immediate(kSmiTagMask));
   j(zero, miss);
@@ -2874,6 +2916,17 @@ void MacroAssembler::TryGetFunctionPrototype(Register function,
   // Check that the function really is a function.
   CmpObjectType(function, JS_FUNCTION_TYPE, result);
   j(not_equal, miss);
+
+  if (miss_on_bound_function) {
+    movq(kScratchRegister,
+         FieldOperand(function, JSFunction::kSharedFunctionInfoOffset));
+    // It's not smi-tagged (stored in the top half of a smi-tagged 8-byte
+    // field).
+    TestBit(FieldOperand(kScratchRegister,
+                         SharedFunctionInfo::kCompilerHintsOffset),
+            SharedFunctionInfo::kBoundFunction);
+    j(not_zero, miss);
+  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
@@ -3067,29 +3120,16 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
-  ASSERT(function->is_compiled());
   // Get the function and setup the context.
   Move(rdi, Handle<JSFunction>(function));
   movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  if (V8::UseCrankshaft()) {
-    // Since Crankshaft can recompile a function, we need to load
-    // the Code object every time we call the function.
-    movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
-    ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
-  } else {
-    // Invoke the cached code.
-    Handle<Code> code(function->code());
-    ParameterCount expected(function->shared()->formal_parameter_count());
-    InvokeCode(code,
-               expected,
-               actual,
-               RelocInfo::CODE_TARGET,
-               flag,
-               call_wrapper,
-               call_kind);
-  }
+  // We call indirectly through the code field in the function to
+  // allow recompilation to take effect without changing any of the
+  // call sites.
+  movq(rdx, FieldOperand(rdi, JSFunction::kCodeEntryOffset));
+  ParameterCount expected(function->shared()->formal_parameter_count());
+  InvokeCode(rdx, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
