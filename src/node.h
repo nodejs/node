@@ -74,7 +74,8 @@ v8::Handle<v8::Object> SetupProcessObject(int argc, char *argv[]);
 void Load(v8::Handle<v8::Object> process);
 void EmitExit(v8::Handle<v8::Object> process);
 
-#define NODE_PSYMBOL(s) v8::Persistent<v8::String>::New(v8::String::NewSymbol(s))
+#define NODE_PSYMBOL(s) \
+  v8::Persistent<v8::String>::New(v8::String::NewSymbol(s))
 
 /* Converts a unixtime to V8 Date */
 #define NODE_UNIXTIME_V8(t) v8::Date::New(1000*static_cast<double>(t))
@@ -83,7 +84,8 @@ void EmitExit(v8::Handle<v8::Object> process);
 #define NODE_DEFINE_CONSTANT(target, constant)                            \
   (target)->Set(v8::String::NewSymbol(#constant),                         \
                 v8::Integer::New(constant),                               \
-                static_cast<v8::PropertyAttribute>(v8::ReadOnly|v8::DontDelete))
+                static_cast<v8::PropertyAttribute>(                       \
+                    v8::ReadOnly|v8::DontDelete))
 
 #define NODE_SET_METHOD(obj, name, callback)                              \
   obj->Set(v8::String::NewSymbol(name),                                   \
@@ -134,12 +136,15 @@ v8::Local<v8::Object> BuildStatsObject(NODE_STAT_STRUCT *s);
 
 
 /**
- * Call this when your constructor is invoked as a regular function, e.g. Buffer(10) instead of new Buffer(10).
+ * Call this when your constructor is invoked as a regular function, e.g.
+ * Buffer(10) instead of new Buffer(10).
  * @param constructorTemplate Constructor template to instantiate from.
  * @param args The arguments object passed to your constructor.
  * @see v8::Arguments::IsConstructCall
  */
-v8::Handle<v8::Value> FromConstructorTemplate(v8::Persistent<v8::FunctionTemplate>& constructorTemplate, const v8::Arguments& args);
+v8::Handle<v8::Value> FromConstructorTemplate(
+    v8::Persistent<v8::FunctionTemplate>& constructorTemplate,
+    const v8::Arguments& args);
 
 
 static inline v8::Persistent<v8::Function>* cb_persist(

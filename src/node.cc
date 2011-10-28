@@ -1063,7 +1063,7 @@ void MakeCallback(Handle<Object> object,
                   Handle<Value> argv[]) {
   HandleScope scope;
 
-  Local<Value> callback_v = object->Get(String::New(method)); 
+  Local<Value> callback_v = object->Get(String::New(method));
   if (!callback_v->IsFunction()) {
     fprintf(stderr, "method = %s", method);
   }
@@ -1565,7 +1565,8 @@ v8::Handle<v8::Value> UVCounters(const v8::Arguments& args) {
 
   Local<Object> obj = Object::New();
 
-#define setc(name) obj->Set(String::New(#name), Integer::New(c->name));
+#define setc(name) \
+    obj->Set(String::New(#name), Integer::New(static_cast<int32_t>(c->name)));
 
   setc(eio_init)
   setc(req_init)
