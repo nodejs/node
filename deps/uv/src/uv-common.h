@@ -52,6 +52,7 @@ uv_err_code uv_translate_sys_error(int sys_errno);
 void uv__set_error(uv_loop_t* loop, uv_err_code code, int sys_error);
 void uv__set_sys_error(uv_loop_t* loop, int sys_error);
 void uv__set_artificial_error(uv_loop_t* loop, uv_err_code code);
+uv_err_t uv__new_sys_error(int sys_error);
 
 int uv__tcp_bind(uv_tcp_t* handle, struct sockaddr_in addr);
 int uv__tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6 addr);

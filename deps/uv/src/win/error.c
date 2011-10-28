@@ -70,7 +70,7 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 /* TODO: thread safety */
 static char* last_err_str_ = NULL;
 
-char* uv_strerror(uv_err_t err) {
+const char* uv_strerror(uv_err_t err) {
   if (last_err_str_ != NULL) {
     LocalFree(last_err_str_);
   }

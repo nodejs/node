@@ -43,6 +43,10 @@ typedef struct {
 
 typedef int uv_file;
 
+/* Platform-specific definitions for uv_dlopen support. */
+typedef void* uv_lib_t;
+#define UV_DYNAMIC /* empty */
+
 #define UV_LOOP_PRIVATE_FIELDS \
   ares_channel channel; \
   /* \
@@ -194,6 +198,16 @@ typedef int uv_file;
   ev_io event_watcher; \
   uv_fs_event_cb cb; \
   int fflags; \
+
+#elif defined(__sun)
+
+#include <sys/port.h>
+#include <port.h>
+
+#define UV_FS_EVENT_PRIVATE_FIELDS \
+  ev_io event_watcher; \
+  uv_fs_event_cb cb; \
+  file_obj_t fo; \
 
 #else
 

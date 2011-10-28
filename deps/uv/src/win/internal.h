@@ -69,6 +69,8 @@ void uv_process_timers(uv_loop_t* loop);
 #define UV_HANDLE_TTY_SAVED_POSITION      0x0400000
 #define UV_HANDLE_TTY_SAVED_ATTRIBUTES    0x0800000
 #define UV_HANDLE_SHARED_TCP_SERVER       0x1000000
+#define UV_HANDLE_TCP_NODELAY             0x2000000
+#define UV_HANDLE_TCP_KEEPALIVE           0x4000000
 
 void uv_want_endgame(uv_loop_t* loop, uv_handle_t* handle);
 void uv_process_endgames(uv_loop_t* loop);

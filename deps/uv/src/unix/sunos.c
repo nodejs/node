@@ -23,13 +23,17 @@
 
 #include <stdio.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 #include <errno.h>
 
-#include <sys/time.h>
 #include <sys/loadavg.h>
+#include <sys/time.h>
+#include <sys/port.h>
 #include <unistd.h>
 #include <kstat.h>
+#include <port.h>
 
 
 uint64_t uv_hrtime() {
@@ -81,15 +85,87 @@ void uv_loadavg(double avg[3]) {
 }
 
 
+static void uv__fs_event_rearm(uv_fs_event_t *handle) {
+  if (port_associate(handle->fd,
+                     PORT_SOURCE_FILE,
+                     (uintptr_t) &handle->fo,
+                     FILE_ATTRIB | FILE_MODIFIED,
+                     NULL) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+  }
+}
+
+
+static void uv__fs_event_read(EV_P_ ev_io* w, int revents) {
+  uv_fs_event_t *handle;
+  timespec_t timeout;
+  port_event_t pe;
+  int events;
+  int r;
+
+  handle = container_of(w, uv_fs_event_t, event_watcher);
+
+  do {
+    /* TODO use port_getn() */
+    do {
+      memset(&timeout, 0, sizeof timeout);
+      r = port_get(handle->fd, &pe, &timeout);
+    }
+    while (r == -1 && errno == EINTR);
+
+    if (r == -1 && errno == ETIME)
+      break;
+
+    assert((r == 0) && "unexpected port_get() error");
+
+    events = 0;
+    if (pe.portev_events & (FILE_ATTRIB | FILE_MODIFIED))
+      events |= UV_CHANGE;
+    if (pe.portev_events & ~(FILE_ATTRIB | FILE_MODIFIED))
+      events |= UV_RENAME;
+    assert(events != 0);
+
+    handle->cb(handle, NULL, events, 0);
+  }
+  while (handle->fd != -1);
+
+  if (handle->fd != -1)
+    uv__fs_event_rearm(handle);
+}
+
+
 int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
                      const char* filename,
                      uv_fs_event_cb cb) {
-  uv__set_sys_error(loop, ENOSYS);
-  return -1;
+  int portfd;
+
+  if ((portfd = port_create()) == -1) {
+    uv__set_sys_error(loop, errno);
+    return -1;
+  }
+
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  handle->filename = strdup(filename);
+  handle->fd = portfd;
+  handle->cb = cb;
+
+  memset(&handle->fo, 0, sizeof handle->fo);
+  handle->fo.fo_name = handle->filename;
+  uv__fs_event_rearm(handle);
+
+  ev_io_init(&handle->event_watcher, uv__fs_event_read, portfd, EV_READ);
+  ev_io_start(loop->ev, &handle->event_watcher);
+
+  return 0;
 }
 
 
 void uv__fs_event_destroy(uv_fs_event_t* handle) {
-  assert(0 && "implement me");
+  ev_io_stop(handle->loop->ev, &handle->event_watcher);
+  uv__close(handle->fd);
+  handle->fd = -1;
+  free(handle->filename);
+  handle->filename = NULL;
+  handle->fo.fo_name = NULL;
 }

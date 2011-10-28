@@ -29,6 +29,7 @@ TEST_DECLARE   (tcp_ref)
 TEST_DECLARE   (tcp_ref2)
 TEST_DECLARE   (pipe_ping_pong)
 TEST_DECLARE   (delayed_accept)
+TEST_DECLARE   (multiple_listen)
 TEST_DECLARE   (tcp_writealot)
 TEST_DECLARE   (tcp_bind_error_addrinuse)
 TEST_DECLARE   (tcp_bind_error_addrnotavail_1)
@@ -139,6 +140,7 @@ TASK_LIST_START
   TEST_HELPER (pipe_ping_pong, pipe_echo_server)
 
   TEST_ENTRY  (delayed_accept)
+  TEST_ENTRY  (multiple_listen)
 
   TEST_ENTRY  (tcp_writealot)
   TEST_HELPER (tcp_writealot, tcp4_echo_server)

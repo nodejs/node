@@ -53,6 +53,7 @@ const char* uv_err_name(uv_err_t err) {
     case UV_UNKNOWN: return "UNKNOWN";
     case UV_OK: return "OK";
     case UV_EOF: return "EOF";
+    case UV_EADDRINFO: return "EADDRINFO";
     case UV_EACCESS: return "EACCESS";
     case UV_EAGAIN: return "EAGAIN";
     case UV_EADDRINUSE: return "EADDRINUSE";
@@ -112,6 +113,14 @@ void uv__set_sys_error(uv_loop_t* loop, int sys_error) {
 void uv__set_artificial_error(uv_loop_t* loop, uv_err_code code) {
   loop->last_err.code = code;
   loop->last_err.sys_errno_ = 0;
+}
+
+
+uv_err_t uv__new_sys_error(int sys_error) {
+  uv_err_t error;
+  error.code = uv_translate_sys_error(sys_error);
+  error.sys_errno_ = sys_error;
+  return error;
 }
 
 

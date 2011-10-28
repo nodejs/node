@@ -46,6 +46,42 @@ static char uv_zero_[] = "";
 static unsigned int active_tcp_streams = 0;
 
 
+static int uv__tcp_nodelay(uv_tcp_t* handle, SOCKET socket, int enable) {
+  if (setsockopt(socket,
+                 IPPROTO_TCP,
+                 TCP_NODELAY,
+                 (const char*)&enable,
+                 sizeof enable) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+  return 0;
+}
+
+
+static int uv__tcp_keepalive(uv_tcp_t* handle, SOCKET socket, int enable, unsigned int delay) {
+  if (setsockopt(socket,
+                 SOL_SOCKET,
+                 SO_KEEPALIVE,
+                 (const char*)&enable,
+                 sizeof enable) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+
+  if (enable && setsockopt(socket,
+                           IPPROTO_TCP,
+                           TCP_KEEPALIVE,
+                           (const char*)&delay,
+                           sizeof delay) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+
+  return 0;
+}
+
+
 static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
     SOCKET socket, int imported) {
   DWORD yes = 1;
@@ -87,6 +123,17 @@ static int uv_tcp_set_socket(uv_loop_t* loop, uv_tcp_t* handle,
       uv__set_sys_error(loop, GetLastError());
       return -1;
     }
+  }
+
+  if ((handle->flags & UV_HANDLE_TCP_NODELAY) &&
+      uv__tcp_nodelay(handle, socket, 1)) {
+    return -1;
+  }
+
+  /* TODO: Use stored delay. */
+  if ((handle->flags & UV_HANDLE_TCP_KEEPALIVE) &&
+      uv__tcp_keepalive(handle, socket, 1, 60)) {
+    return -1;
   }
 
   handle->socket = socket;
@@ -402,13 +449,6 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
     return -1;
   }
 
-  if (handle->flags & UV_HANDLE_LISTENING ||
-      handle->flags & UV_HANDLE_READING) {
-    /* Already listening. */
-    uv__set_sys_error(loop, WSAEALREADY);
-    return -1;
-  }
-
   if (!(handle->flags & UV_HANDLE_BOUND) &&
       uv_tcp_bind(handle, uv_addr_ip4_any_) < 0)
     return -1;
@@ -429,31 +469,32 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   handle->flags |= UV_HANDLE_LISTENING;
   handle->connection_cb = cb;
 
-  assert(!handle->accept_reqs);
-  handle->accept_reqs = (uv_tcp_accept_t*)
-    malloc(uv_simultaneous_server_accepts * sizeof(uv_tcp_accept_t));
-  if (!handle->accept_reqs) {
-    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-  }
-
-  for (i = 0; i < uv_simultaneous_server_accepts; i++) {
-    req = &handle->accept_reqs[i];
-    uv_req_init(loop, (uv_req_t*)req);
-    req->type = UV_ACCEPT;
-    req->accept_socket = INVALID_SOCKET;
-    req->data = handle;
-
-    req->wait_handle = INVALID_HANDLE_VALUE;
-    if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
-      req->event_handle = CreateEvent(NULL, 0, 0, NULL);
-      if (!req->event_handle) {
-        uv_fatal_error(GetLastError(), "CreateEvent");
-      }
-    } else {
-      req->event_handle = NULL;
+  if(!handle->accept_reqs) {
+    handle->accept_reqs = (uv_tcp_accept_t*)
+      malloc(uv_simultaneous_server_accepts * sizeof(uv_tcp_accept_t));
+    if (!handle->accept_reqs) {
+      uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
     }
 
-    uv_tcp_queue_accept(handle, req);
+    for (i = 0; i < uv_simultaneous_server_accepts; i++) {
+      req = &handle->accept_reqs[i];
+      uv_req_init(loop, (uv_req_t*)req);
+      req->type = UV_ACCEPT;
+      req->accept_socket = INVALID_SOCKET;
+      req->data = handle;
+
+      req->wait_handle = INVALID_HANDLE_VALUE;
+      if (handle->flags & UV_HANDLE_EMULATE_IOCP) {
+        req->event_handle = CreateEvent(NULL, 0, 0, NULL);
+        if (!req->event_handle) {
+          uv_fatal_error(GetLastError(), "CreateEvent");
+        }
+      } else {
+        req->event_handle = NULL;
+      }
+
+      uv_tcp_queue_accept(handle, req);
+    }
   }
 
   return 0;
@@ -961,38 +1002,61 @@ int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info) {
 
 
 int uv_tcp_nodelay(uv_tcp_t* handle, int enable) {
-  uv__set_artificial_error(handle->loop, UV_ENOSYS);
-  return -1;
+  if (handle->socket != INVALID_SOCKET &&
+      uv__tcp_nodelay(handle, handle->socket, enable)) {
+    return -1;
+  }
+
+  if (enable) {
+    handle->flags |= UV_HANDLE_TCP_NODELAY;
+  } else {
+    handle->flags &= ~UV_HANDLE_TCP_NODELAY;
+  }
+
+  return 0;
 }
 
 
 int uv_tcp_keepalive(uv_tcp_t* handle, int enable, unsigned int delay) {
-  uv__set_artificial_error(handle->loop, UV_ENOSYS);
-  return -1;
+  if (handle->socket != INVALID_SOCKET &&
+      uv__tcp_keepalive(handle, handle->socket, enable, delay)) {
+    return -1;
+  }
+
+  if (enable) {
+    handle->flags |= UV_HANDLE_TCP_KEEPALIVE;
+  } else {
+    handle->flags &= ~UV_HANDLE_TCP_KEEPALIVE;
+  }
+
+  /* TODO: Store delay if handle->socket isn't created yet. */
+
+  return 0;
 }
+
 
 
 int uv_tcp_duplicate_socket(uv_tcp_t* handle, int pid,
     LPWSAPROTOCOL_INFOW protocol_info) {
-  if (!(handle->flags & UV_HANDLE_CONNECTION)) {
-    /* 
-     * We're about to share the socket with another process.  Because
-     * this is a server socket, we assume that the other process will
-     * be accepting conections on this socket.  So, before sharing the
-     * socket with another process, we call listen here in the parent
-     * process.  This needs to be modified if the socket is shared with
-     * another process for anything other than accepting connections.
-     */
+  assert(!(handle->flags & UV_HANDLE_CONNECTION));
 
-    if (!(handle->flags & UV_HANDLE_LISTENING)) {
-      if (!(handle->flags & UV_HANDLE_BOUND)) {
-        uv__set_artificial_error(handle->loop, UV_EINVAL);
-        return -1;
-      }
-      if (listen(handle->socket, SOMAXCONN) == SOCKET_ERROR) {
-        uv__set_sys_error(handle->loop, WSAGetLastError());
-        return -1;
-      }
+  /* 
+   * We're about to share the socket with another process.  Because
+   * this is a listening socket, we assume that the other process will
+   * be accepting conections on it.  So, before sharing the socket
+   * with another process, we call listen here in the parent process.
+   * This needs to be modified if the socket is shared with
+   * another process for anything other than accepting connections.
+   */
+
+  if (!(handle->flags & UV_HANDLE_LISTENING)) {
+    if (!(handle->flags & UV_HANDLE_BOUND)) {
+      uv__set_artificial_error(handle->loop, UV_EINVAL);
+      return -1;
+    }
+    if (listen(handle->socket, SOMAXCONN) == SOCKET_ERROR) {
+      uv__set_sys_error(handle->loop, WSAGetLastError());
+      return -1;
     }
 
     handle->flags |= UV_HANDLE_SHARED_TCP_SERVER;

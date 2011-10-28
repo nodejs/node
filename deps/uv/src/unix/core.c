@@ -594,8 +594,8 @@ static int uv_getaddrinfo_done(eio_req* req) {
   free(handle->hostname);
 
   if (handle->retcode != 0) {
-    /* TODO how to display gai error strings? */
-    uv__set_sys_error(handle->loop, handle->retcode);
+    handle->loop->last_err.code = UV_EADDRINFO;
+    handle->loop->last_err.sys_errno_ = handle->retcode;
   }
 
   handle->cb(handle, handle->retcode, res);

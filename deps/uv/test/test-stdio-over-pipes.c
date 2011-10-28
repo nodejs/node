@@ -22,6 +22,9 @@
 #include "uv.h"
 #include "task.h"
 
+#include <stdlib.h>
+#include <string.h>
+
 
 static char exepath[1024];
 static size_t exepath_size = 1024;
