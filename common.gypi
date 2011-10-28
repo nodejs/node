@@ -106,6 +106,8 @@
           # ... or that C implementations shouldn't use
           # POSIX names
           '_CRT_NONSTDC_NO_DEPRECATE',
+          'BUILDING_V8_SHARED=1',
+          'BUILDING_UV_SHARED=1',
         ],
       }],
       [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {

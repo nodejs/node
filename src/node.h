@@ -22,6 +22,23 @@
 #ifndef SRC_NODE_H_
 #define SRC_NODE_H_
 
+#ifdef _WIN32
+# ifndef BUILDING_NODE_EXTENSION
+#   define NODE_EXTERN __declspec(dllexport)
+# else
+#   define NODE_EXTERN __declspec(dllimport)
+# endif
+#else
+# define NODE_EXTERN /* nothing */
+#endif
+
+#ifdef BUILDING_NODE_EXTENSION
+# undef BUILDING_V8_SHARED
+# undef BUILDING_UV_SHARED
+# define USING_V8_SHARED 1
+# define USING_UV_SHARED 1
+#endif
+
 // This should be defined in make system.
 // See issue https://github.com/joyent/node/issues/1236
 #if defined(__MINGW32__) || defined(_MSC_VER)
@@ -196,16 +213,24 @@ node_module_struct* get_builtin_module(const char *name);
           NULL,                    \
           __FILE__
 
-#define NODE_MODULE(modname, regfunc)   \
-  node::node_module_struct modname ## _module =    \
-  {                                     \
-      NODE_STANDARD_MODULE_STUFF,       \
-      regfunc,                          \
-      NODE_STRINGIFY(modname)           \
-  };
+#ifdef _WIN32
+# define NODE_MODULE_EXPORT __declspec(dllexport)
+#else
+# define NODE_MODULE_EXPORT /* empty */
+#endif
+
+#define NODE_MODULE(modname, regfunc)                                 \
+  extern "C" {                                                        \
+    NODE_MODULE_EXPORT node::node_module_struct modname ## _module =  \
+    {                                                                 \
+      NODE_STANDARD_MODULE_STUFF,                                     \
+      regfunc,                                                        \
+      NODE_STRINGIFY(modname)                                         \
+    };                                                                \
+  }
 
 #define NODE_MODULE_DECL(modname) \
-  extern node::node_module_struct modname ## _module;
+  extern "C" node::node_module_struct modname ## _module;
 
 void SetErrno(uv_err_t err);
 void MakeCallback(v8::Handle<v8::Object> object,
