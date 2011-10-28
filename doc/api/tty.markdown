@@ -5,8 +5,8 @@ Use `require('tty')` to access this module.
 Example:
 
     var tty = require('tty');
-    tty.setRawMode(true);
     process.stdin.resume();
+    tty.setRawMode(true);
     process.stdin.on('keypress', function(char, key) {
       if (key && key.ctrl && key.name == 'c') {
         console.log('graceful exit');
