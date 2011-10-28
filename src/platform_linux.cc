@@ -42,8 +42,10 @@
 #include <sys/ioctl.h>
 #include <net/if.h>
 
-#if HAVE_MONOTONIC_CLOCK
 #include <time.h>
+
+#ifndef CLOCK_MONOTONIC
+# include <sys/sysinfo.h>
 #endif
 
 extern char **environ;
@@ -296,7 +298,7 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 }
 
 double Platform::GetUptimeImpl() {
-#if HAVE_MONOTONIC_CLOCK
+#ifdef CLOCK_MONOTONIC
   struct timespec now;
   if (0 == clock_gettime(CLOCK_MONOTONIC, &now)) {
     double uptime = now.tv_sec;

@@ -380,23 +380,6 @@ def configure(conf):
 
   have_librt = conf.check(lib='rt', uselib_store='RT')
 
-  have_monotonic = False
-  if have_librt:
-    code =  """
-      #include <time.h>
-      int main(void) {
-        struct timespec now;
-        clock_gettime(CLOCK_MONOTONIC, &now);
-        return 0;
-      }
-    """
-    have_monotonic = conf.check_cc(lib="rt", msg="Checking for CLOCK_MONOTONIC", fragment=code)
-
-  if have_monotonic:
-    conf.env.append_value('CPPFLAGS', '-DHAVE_MONOTONIC_CLOCK=1')
-  else:
-    conf.env.append_value('CPPFLAGS', '-DHAVE_MONOTONIC_CLOCK=0')
-
   if sys.platform.startswith("sunos"):
     code =  """
       #include <ifaddrs.h>
