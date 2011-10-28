@@ -63,7 +63,6 @@ typedef int mode_t;
 #endif
 
 #ifdef __POSIX__
-# include <dlfcn.h> /* dlopen(), dlsym() */
 # include <pwd.h> /* getpwnam() */
 # include <grp.h> /* getgrnam() */
 #endif
@@ -1642,73 +1641,84 @@ Handle<Value> Kill(const Arguments& args) {
   return Undefined();
 }
 
+#endif // __POSIX__
 
-typedef void (*extInit)(Handle<Object> exports);
+
+typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
 
 // DLOpen is node.dlopen(). Used to load 'module.node' dynamically shared
 // objects.
 Handle<Value> DLOpen(const v8::Arguments& args) {
-  node_module_struct compat_mod;
   HandleScope scope;
+  char symbol[1024], *base, *pos;
+  uv_lib_t lib;
+  node_module_struct compat_mod;
+  uv_err_t err;
+  int r;
 
-  if (args.Length() < 2) return Undefined();
+  if (args.Length() < 2) {
+    return Undefined();
+  }
 
   String::Utf8Value filename(args[0]->ToString()); // Cast
   Local<Object> target = args[1]->ToObject(); // Cast
 
-  // Actually call dlopen().
-  // FIXME: This is a blocking function and should be called asynchronously!
-  // This function should be moved to file.cc and use libeio to make this
-  // system call.
-  void *handle = dlopen(*filename, RTLD_LAZY);
-
-  // Handle errors.
-  if (handle == NULL) {
-    Local<Value> exception = Exception::Error(String::New(dlerror()));
-    return ThrowException(exception);
+  err = uv_dlopen(*filename, &lib);
+  if (err.code != UV_OK) {
+    SetErrno(err);
+    return scope.Close(Integer::New(-1));
   }
 
-  String::Utf8Value symbol(args[0]->ToString());
-  char *symstr = NULL;
-  {
-    char *sym = *symbol;
-    char *p = strrchr(sym, '/');
-    if (p != NULL) {
-      sym = p+1;
-    }
+  String::Utf8Value path(args[0]->ToString());
+  base = *path;
 
-    p = strrchr(sym, '.');
-    if (p != NULL) {
-      *p = '\0';
+  /* Find the shared library filename within the full path. */
+#ifdef __POSIX__
+  pos = strrchr(base, '/');
+  if (pos != NULL) {
+    base = pos;
+  }
+#else // Windows
+  for (;;) {
+    pos = strpbrk(base, "\\/:");
+    if (pos == NULL) {
+      break;
     }
+    base = pos + 1;
+  }
+#endif
 
-    size_t slen = strlen(sym);
-    symstr = static_cast<char*>(calloc(1, slen + sizeof("_module") + 1));
-    memcpy(symstr, sym, slen);
-    memcpy(symstr+slen, "_module", sizeof("_module") + 1);
+  /* Strip the .node extension. */
+  pos = strrchr(base, '.');
+  if (pos != NULL) {
+    *pos = '\0';
+  }
+
+  /* Add the `_module` suffix to the extension name. */
+  r = snprintf(symbol, sizeof symbol, "%s_module", base);
+  if (r <= 0 || r >= sizeof symbol) {
+    err.code = UV_ENOMEM;
+    SetErrno(err);
+    return scope.Close(Integer::New(-1));
   }
 
   // Get the init() function from the dynamically shared object.
-  node_module_struct *mod = static_cast<node_module_struct *>(dlsym(handle, symstr));
-  free(symstr);
-  symstr = NULL;
+  node_module_struct *mod;
+  err = uv_dlsym(lib, symbol, reinterpret_cast<void**>(&mod));
 
-  // Error out if not found.
-  if (mod == NULL) {
+  if (err.code != UV_OK) {
     /* Start Compatibility hack: Remove once everyone is using NODE_MODULE macro */
     memset(&compat_mod, 0, sizeof compat_mod);
 
     mod = &compat_mod;
     mod->version = NODE_MODULE_VERSION;
 
-    void *init_handle = dlsym(handle, "init");
-    if (init_handle == NULL) {
-      dlclose(handle);
-      Local<Value> exception =
-        Exception::Error(String::New("No module symbol found in module."));
-      return ThrowException(exception);
+    err = uv_dlsym(lib, "init", reinterpret_cast<void**>(&mod->register_func));
+    if (err.code != UV_OK) {
+      uv_dlclose(lib);
+      SetErrno(err);
+      return scope.Close(Integer::New(-1));
     }
-    mod->register_func = (extInit)(init_handle);
     /* End Compatibility hack */
   }
 
@@ -1725,8 +1735,6 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   // coverity[leaked_storage]
   return Undefined();
 }
-
-#endif // __POSIX__
 
 
 // TODO remove me before 0.4
@@ -2161,9 +2169,10 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "setgid", SetGid);
   NODE_SET_METHOD(process, "getgid", GetGid);
 
-  NODE_SET_METHOD(process, "dlopen", DLOpen);
   NODE_SET_METHOD(process, "_kill", Kill);
 #endif // __POSIX__
+
+  NODE_SET_METHOD(process, "dlopen", DLOpen);
 
   NODE_SET_METHOD(process, "uptime", Uptime);
   NODE_SET_METHOD(process, "memoryUsage", MemoryUsage);
