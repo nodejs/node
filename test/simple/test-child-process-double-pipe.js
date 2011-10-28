@@ -19,8 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// libuv-broken
-
+var is_windows = process.platform === 'win32';
 
 var assert = require('assert'),
     util = require('util'),
@@ -29,7 +28,9 @@ var assert = require('assert'),
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
-var echo = spawn('echo', ['hello\nnode\nand\nworld\n']),
+var echo = is_windows ? spawn('cmd.exe', ['/c', 'echo', 'hello&&', 'echo',
+             'node&&', 'echo', 'and&&', 'echo', 'world']) :
+           spawn('echo', ['hello\nnode\nand\nworld\n']),
     grep = spawn('grep', ['o']),
     sed = spawn('sed', ['s/o/O/']);
 
