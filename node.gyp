@@ -165,6 +165,7 @@
           'sources': [
             'src/node_signal_watcher.cc',
             'src/node_stat_watcher.cc',
+            'src/node_io_watcher.cc',
           ]
         }],
         [ 'OS=="mac"', {
