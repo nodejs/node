@@ -121,7 +121,7 @@ do {                                                                      \
 enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX};
 enum encoding ParseEncoding(v8::Handle<v8::Value> encoding_v,
                             enum encoding _default = BINARY);
-void FatalException(v8::TryCatch &try_catch);
+NODE_EXTERN void FatalException(v8::TryCatch &try_catch);
 void DisplayExceptionLine(v8::TryCatch &try_catch); // hack
 
 v8::Local<v8::Value> Encode(const void *buf, size_t len,
@@ -183,10 +183,10 @@ static inline void cb_destroy(v8::Persistent<v8::Function> * cb) {
   delete cb;
 }
 
-v8::Local<v8::Value> ErrnoException(int errorno,
-                                    const char *syscall = NULL,
-                                    const char *msg = "",
-                                    const char *path = NULL);
+NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
+                                                const char *syscall = NULL,
+                                                const char *msg = "",
+                                                const char *path = NULL);
 
 const char *signo_string(int errorno);
 
@@ -232,11 +232,11 @@ node_module_struct* get_builtin_module(const char *name);
 #define NODE_MODULE_DECL(modname) \
   extern "C" node::node_module_struct modname ## _module;
 
-void SetErrno(uv_err_t err);
-void MakeCallback(v8::Handle<v8::Object> object,
-                  const char* method,
-                  int argc,
-                  v8::Handle<v8::Value> argv[]);
+NODE_EXTERN void SetErrno(uv_err_t err);
+NODE_EXTERN void MakeCallback(v8::Handle<v8::Object> object,
+                              const char* method,
+                              int argc,
+                              v8::Handle<v8::Value> argv[]);
 
 }  // namespace node
 #endif  // SRC_NODE_H_
