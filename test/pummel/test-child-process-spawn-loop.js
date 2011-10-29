@@ -27,6 +27,8 @@ var assert = require('assert');
 
 var spawn = require('child_process').spawn;
 
+var is_windows = process.platform === 'win32';
+
 var SIZE = 1000 * 1024;
 var N = 40;
 var finished = false;
@@ -45,7 +47,8 @@ function doSpawn(i) {
   });
 
   child.on('exit', function() {
-    assert.equal(SIZE + 1, count); // + 1 for \n
+    // + 1 for \n or + 2 for \r\n on Windows
+    assert.equal(SIZE + (is_windows ? 2 : 1), count);
     if (i < N) {
       doSpawn(i + 1);
     } else {
