@@ -16,16 +16,6 @@ Example:
 
 
 
-### tty.open(path, args=[])
-
-Spawns a new process with the executable pointed to by `path` as the session
-leader to a new pseudo terminal.
-
-Returns an array `[slaveFD, childProcess]`. `slaveFD` is the file descriptor
-of the slave end of the pseudo terminal. `childProcess` is a child process
-object.
-
-
 ### tty.isatty(fd)
 
 Returns `true` or `false` depending on if the `fd` is associated with a
