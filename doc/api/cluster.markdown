@@ -33,7 +33,7 @@ Running node will now share port 8000 between the workers:
 
   The following options are supported:
 
-  - `filename`: script to execute in the worker process, defaults to
+  - `workerFilename`: script to execute in the worker process, defaults to
     `process.argv[1]`
   - `args`: worker program arguments, defaulting to `process.argv.slice(2)`
   - `workers`: the number of workers, defaulting to `os.cpus().length`
