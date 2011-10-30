@@ -1676,7 +1676,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 #ifdef __POSIX__
   pos = strrchr(base, '/');
   if (pos != NULL) {
-    base = pos;
+    base = pos + 1;
   }
 #else // Windows
   for (;;) {
