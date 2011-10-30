@@ -29,6 +29,7 @@ C++:
 
 To get started we create a file `hello.cc`:
 
+    #include <node.h>
     #include <v8.h>
 
     using namespace v8;
