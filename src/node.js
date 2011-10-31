@@ -185,20 +185,18 @@
       var l = nextTickQueue.length;
       if (l === 0) return;
 
+      var q = nextTickQueue;
+      nextTickQueue = [];
+
       try {
-        for (var i = 0; i < l; i++) {
-          nextTickQueue[i]();
-        }
+        for (var i = 0; i < l; i++) q[i]();
       }
       catch (e) {
-        nextTickQueue.splice(0, i + 1);
-        if (i + 1 < l) {
+        if (nextTickQueue.length) {
           process._needTickCallback();
         }
         throw e; // process.nextTick error, or 'error' event on first tick
       }
-
-      nextTickQueue.splice(0, l);
     };
 
     process.nextTick = function(callback) {
