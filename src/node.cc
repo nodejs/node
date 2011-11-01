@@ -1737,45 +1737,6 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 }
 
 
-// TODO remove me before 0.4
-Handle<Value> Compile(const Arguments& args) {
-  HandleScope scope;
-
-
-  if (args.Length() < 2) {
-    return ThrowException(Exception::TypeError(
-          String::New("needs two arguments.")));
-  }
-
-  static bool shown_error_message = false;
-
-  if (!shown_error_message) {
-    shown_error_message = true;
-    fprintf(stderr, "(node) process.compile should not be used. "
-                    "Use require('vm').runInThisContext instead.\n");
-  }
-
-  Local<String> source = args[0]->ToString();
-  Local<String> filename = args[1]->ToString();
-
-  TryCatch try_catch;
-
-  Local<v8::Script> script = v8::Script::Compile(source, filename);
-  if (try_catch.HasCaught()) {
-    // Hack because I can't get a proper stacktrace on SyntaxError
-    ReportException(try_catch, true);
-    exit(1);
-  }
-
-  Local<Value> result = script->Run();
-  if (try_catch.HasCaught()) {
-    ReportException(try_catch, false);
-    exit(1);
-  }
-
-  return scope.Close(result);
-}
-
 static void OnFatalError(const char* location, const char* message) {
   if (location) {
     fprintf(stderr, "FATAL ERROR: %s %s\n", location, message);
@@ -2154,7 +2115,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
 
   // define various internal methods
-  NODE_SET_METHOD(process, "compile", Compile);
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "chdir", Chdir);
