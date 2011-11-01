@@ -147,7 +147,7 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
   BOOL success;
   DWORD timeout;
   uv_req_t* req;
-  OVERLAPPED_ENTRY overlappeds[64];
+  OVERLAPPED_ENTRY overlappeds[128];
   ULONG count;
   ULONG i;
 

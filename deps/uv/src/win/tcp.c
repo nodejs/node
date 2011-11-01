@@ -152,6 +152,7 @@ int uv_tcp_init(uv_loop_t* loop, uv_tcp_t* handle) {
   handle->reqs_pending = 0;
   handle->func_acceptex = NULL;
   handle->func_connectex = NULL;
+  handle->processed_accepts = 0;
 
   loop->counters.tcp_init++;
 
@@ -439,7 +440,7 @@ static void uv_tcp_queue_read(uv_loop_t* loop, uv_tcp_t* handle) {
 
 int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   uv_loop_t* loop = handle->loop;
-  unsigned int i;
+  unsigned int i, simultaneous_accepts;
   uv_tcp_accept_t* req;
 
   assert(backlog > 0);
@@ -469,14 +470,17 @@ int uv_tcp_listen(uv_tcp_t* handle, int backlog, uv_connection_cb cb) {
   handle->flags |= UV_HANDLE_LISTENING;
   handle->connection_cb = cb;
 
+  simultaneous_accepts = handle->flags & UV_HANDLE_TCP_SINGLE_ACCEPT ? 1
+    : uv_simultaneous_server_accepts;
+
   if(!handle->accept_reqs) {
     handle->accept_reqs = (uv_tcp_accept_t*)
-      malloc(uv_simultaneous_server_accepts * sizeof(uv_tcp_accept_t));
+      malloc(simultaneous_accepts * sizeof(uv_tcp_accept_t));
     if (!handle->accept_reqs) {
       uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
     }
 
-    for (i = 0; i < uv_simultaneous_server_accepts; i++) {
+    for (i = 0; i < simultaneous_accepts; i++) {
       req = &handle->accept_reqs[i];
       uv_req_init(loop, (uv_req_t*)req);
       req->type = UV_ACCEPT;
@@ -533,7 +537,26 @@ int uv_tcp_accept(uv_tcp_t* server, uv_tcp_t* client) {
   req->accept_socket = INVALID_SOCKET;
 
   if (!(server->flags & UV_HANDLE_CLOSING)) {
-    uv_tcp_queue_accept(server, req);
+    /* Check if we're in a middle of changing the number of pending accepts. */
+    if (!(server->flags & UV_HANDLE_TCP_ACCEPT_STATE_CHANGING)) {
+      uv_tcp_queue_accept(server, req);
+    } else {
+      /* We better be switching to a single pending accept. */
+      assert(server->flags & UV_HANDLE_TCP_SINGLE_ACCEPT);
+
+      server->processed_accepts++;
+
+      if (server->processed_accepts >= uv_simultaneous_server_accepts) {
+        server->processed_accepts = 0;
+        /* 
+         * All previously queued accept requests are now processed.
+         * We now switch to queueing just a single accept.
+         */
+        uv_tcp_queue_accept(server, &server->accept_reqs[0]);
+        server->flags &= ~UV_HANDLE_TCP_ACCEPT_STATE_CHANGING;
+        server->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
+      }
+    }
   }
 
   active_tcp_streams++;
@@ -1065,6 +1088,40 @@ int uv_tcp_duplicate_socket(uv_tcp_t* handle, int pid,
   if (WSADuplicateSocketW(handle->socket, pid, protocol_info)) {
     uv__set_sys_error(handle->loop, WSAGetLastError());
     return -1;
+  }
+
+  return 0;
+}
+
+
+int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
+  if (handle->flags & UV_HANDLE_CONNECTION) {
+    uv__set_artificial_error(handle->loop, UV_EINVAL);
+    return -1;
+  }
+
+  /* Check if we're already in the desired mode. */
+  if ((enable && !(handle->flags & UV_HANDLE_TCP_SINGLE_ACCEPT)) ||
+      (!enable && handle->flags & UV_HANDLE_TCP_SINGLE_ACCEPT)) {
+    return 0;
+  }
+
+  /* Don't allow switching from single pending accept to many. */
+  if (enable) {
+    uv__set_artificial_error(handle->loop, UV_ENOTSUP);
+    return -1;
+  }
+
+  /* Check if we're in a middle of changing the number of pending accepts. */
+  if (handle->flags & UV_HANDLE_TCP_ACCEPT_STATE_CHANGING) {
+    return 0;
+  }
+
+  handle->flags |= UV_HANDLE_TCP_SINGLE_ACCEPT;
+
+  /* Flip the changing flag if we have already queueed multiple accepts. */
+  if (handle->flags & UV_HANDLE_LISTENING) {
+    handle->flags |= UV_HANDLE_TCP_ACCEPT_STATE_CHANGING;
   }
 
   return 0;

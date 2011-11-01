@@ -481,6 +481,16 @@ UV_EXTERN int uv_tcp_nodelay(uv_tcp_t* handle, int enable);
 UV_EXTERN int uv_tcp_keepalive(uv_tcp_t* handle, int enable,
     unsigned int delay);
 
+/*
+ * This setting applies to Windows only.
+ * Enable/disable simultaneous asynchronous accept requests that are
+ * queued by the operating system when listening for new tcp connections.
+ * This setting is used to tune a tcp server for the desired performance.
+ * Having simultaneous accepts can significantly improve the rate of
+ * accepting connections (which is why it is enabled by default).
+ */
+UV_EXTERN int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable);
+
 UV_EXTERN int uv_tcp_bind(uv_tcp_t* handle, struct sockaddr_in);
 UV_EXTERN int uv_tcp_bind6(uv_tcp_t* handle, struct sockaddr_in6);
 UV_EXTERN int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,

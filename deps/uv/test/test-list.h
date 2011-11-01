@@ -113,6 +113,8 @@ TEST_DECLARE   (threadpool_queue_work_simple)
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
 TEST_DECLARE   (environment_creation)
+TEST_DECLARE   (listen_with_simultaneous_accepts)
+TEST_DECLARE   (listen_no_simultaneous_accepts)
 #endif
 HELPER_DECLARE (tcp4_echo_server)
 HELPER_DECLARE (tcp6_echo_server)
@@ -229,6 +231,8 @@ TASK_LIST_START
   TEST_ENTRY  (spawn_detect_pipe_name_collisions_on_windows)
   TEST_ENTRY  (argument_escaping)
   TEST_ENTRY  (environment_creation)
+  TEST_ENTRY  (listen_with_simultaneous_accepts)
+  TEST_ENTRY  (listen_no_simultaneous_accepts)
 #endif
 
   TEST_ENTRY  (fs_file_noent)

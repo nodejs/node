@@ -247,6 +247,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 
 #define uv_tcp_server_fields              \
   uv_tcp_accept_t* accept_reqs;           \
+  unsigned int processed_accepts;         \
   uv_tcp_accept_t* pending_accepts;       \
   LPFN_ACCEPTEX func_acceptex;
 
