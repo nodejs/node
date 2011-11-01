@@ -30,7 +30,7 @@ var RESPONSE = HTTPParser.RESPONSE;
 
 // The purpose of this test is not to check HTTP compliance but to test the
 // binding. Tests for pathological http messages should be submitted
-// upstream to http://github.com/ry/http-parser for inclusion into
+// upstream to https://github.com/joyent/http-parser for inclusion into
 // deps/http-parser/test.c
 
 

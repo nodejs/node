@@ -135,5 +135,5 @@ line interface:
 
 Take a look at this slightly more complicated
 [example](https://gist.github.com/901104), and
-[http-console](http://github.com/cloudhead/http-console) for a real-life use
+[http-console](https://github.com/cloudhead/http-console) for a real-life use
 case.

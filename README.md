@@ -33,14 +33,14 @@ Windows:
 
 Resources for Newcomers
 ---
-  - [The Wiki](https://github.com/ry/node/wiki)
+  - [The Wiki](https://github.com/joyent/node/wiki)
   - [nodejs.org](http://nodejs.org/)
   - [how to install node.js and npm (node package manager)](http://joyeur.com/2010/12/10/installing-node-and-npm/)
-  - [list of modules](https://github.com/ry/node/wiki/modules)
+  - [list of modules](https://github.com/joyent/node/wiki/modules)
   - [searching the npm registry](http://search.npmjs.org/)
-  - [list of companies and projects using node](http://github.com/ry/node/wiki)
+  - [list of companies and projects using node](https://github.com/joyent/node/wiki/Projects,-Applications,-and-Companies-Using-Node)
   - [node.js mailing list](http://groups.google.com/group/nodejs)
   - irc chatroom, [#node.js on freenode.net](http://webchat.freenode.net?channels=node.js&uio=d4)
-  - [community](https://github.com/ry/node/wiki/Community)
-  - [contributing](https://github.com/ry/node/wiki/Contributing)
-  - [big list of all the helpful wiki pages](https://github.com/ry/node/wiki/_pages)
+  - [community](https://github.com/joyent/node/wiki/Community)
+  - [contributing](https://github.com/joyent/node/wiki/Contributing)
+  - [big list of all the helpful wiki pages](https://github.com/joyent/node/wiki/_pages)

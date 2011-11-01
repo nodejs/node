@@ -1318,7 +1318,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 2010.04.29, Version 0.1.93, 557ba6bd97bad3afe0f9bd3ac07efac0a39978c1
 
   * Fixed no 'end' event on long chunked HTTP messages
-    http://github.com/ry/node/issues/#issue/77
+    https://github.com/joyent/node/issues/77
 
   * Remove legacy modules http_old and tcp_old
 

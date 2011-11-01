@@ -26,7 +26,7 @@ var net = require('net');
 
 // If an HTTP server is broken and sends data after the end of the response,
 // node should ignore it and drop the connection.
-// Demos this bug: https://github.com/ry/node/issues/680
+// Demos this bug: https://github.com/joyent/node/issues/680
 
 var body = 'hello world\r\n';
 var fullResponse =

@@ -24,7 +24,7 @@ var assert = require('assert');
 var net = require('net');
 var http = require('http');
 
-// This is a regression test for http://github.com/ry/node/issues/#issue/44
+// This is a regression test for https://github.com/joyent/node/issues/44
 // It is separate from test-http-malformed-request.js because it is only
 // reproduceable on the first packet on the first connection to a server.
 
