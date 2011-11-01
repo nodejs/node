@@ -63,7 +63,7 @@ if (process.platform != 'sunos') {
 }
 
 
-var interfaces = os.getNetworkInterfaces();
+var interfaces = os.networkInterfaces();
 console.error(interfaces);
 switch (platform) {
   case 'linux':

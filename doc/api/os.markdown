@@ -109,7 +109,7 @@ Example inspection of os.cpus:
            idle: 1072572010,
            irq: 30 } } ]
 
-### os.getNetworkInterfaces()
+### os.networkInterfaces()
 
 Get a list of network interfaces:
 
