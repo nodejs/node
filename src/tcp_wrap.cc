@@ -100,6 +100,10 @@ void TCPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "setNoDelay", SetNoDelay);
   NODE_SET_PROTOTYPE_METHOD(t, "setKeepAlive", SetKeepAlive);
 
+#ifdef _WIN32
+  NODE_SET_PROTOTYPE_METHOD(t, "setSimultaneousAccepts", SetSimultaneousAccepts);
+#endif
+
   tcpConstructor = Persistent<Function>::New(t->GetFunction());
 
   family_symbol = NODE_PSYMBOL("family");
@@ -249,6 +253,23 @@ Handle<Value> TCPWrap::SetKeepAlive(const Arguments& args) {
 
   return Undefined();
 }
+
+
+#ifdef _WIN32
+Handle<Value> TCPWrap::SetSimultaneousAccepts(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  bool enable = args[0]->BooleanValue();
+
+  int r = uv_tcp_simultaneous_accepts(&wrap->handle_, enable ? 1 : 0);
+  if (r)
+    SetErrno(uv_last_error(uv_default_loop()));
+
+  return Undefined();
+}
+#endif
 
 
 Handle<Value> TCPWrap::Bind(const Arguments& args) {
