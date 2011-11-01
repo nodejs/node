@@ -100,7 +100,7 @@ function testServers(index, servers, clientOptions, cb) {
     var b = '';
 
     console.error('connecting...');
-    var client = tls.connect(common.PORT, clientOptions, function() {
+    var client = tls.connect(clientOptions, function() {
 
       console.error('expected: ' + ok + ' authed: ' + client.authorized);
 
@@ -128,6 +128,7 @@ function runTest(testIndex) {
   if (!tcase) return;
 
   var clientOptions = {
+    port: common.PORT,
     ca: tcase.ca.map(loadPEM),
     key: loadPEM(tcase.key),
     cert: loadPEM(tcase.cert)

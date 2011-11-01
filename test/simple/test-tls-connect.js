@@ -42,7 +42,7 @@ var path = require('path');
     assert.ok(errorEmitted);
   });
 
-  var conn = tls.connect(common.PORT, {cert: cert, key: key}, function() {
+  var conn = tls.connect({cert: cert, key: key, port: common.PORT}, function() {
     assert.ok(false); // callback should never be executed
   });
 

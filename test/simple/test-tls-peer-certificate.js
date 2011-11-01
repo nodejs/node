@@ -42,7 +42,7 @@ var server = tls.createServer(options, function(cleartext) {
   cleartext.end('World');
 });
 server.listen(common.PORT, function() {
-  var socket = tls.connect(common.PORT, function() {
+  var socket = tls.connect({port: common.PORT}, function() {
     var peerCert = socket.getPeerCertificate();
     common.debug(util.inspect(peerCert));
     assert.equal(peerCert.subject.subjectAltName,

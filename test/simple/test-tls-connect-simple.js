@@ -39,12 +39,12 @@ var server = tls.Server(options, function(socket) {
 });
 
 server.listen(common.PORT, function() {
-  var client1 = tls.connect(common.PORT, function() {
+  var client1 = tls.connect({port: common.PORT}, function() {
     ++clientConnected;
     client1.end();
   });
 
-  var client2 = tls.connect(common.PORT);
+  var client2 = tls.connect({port: common.PORT});
   client2.on('secureConnect', function() {
     ++clientConnected;
     client2.end();

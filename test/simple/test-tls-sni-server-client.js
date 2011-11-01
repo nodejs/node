@@ -57,25 +57,27 @@ var SNIContexts = {
   }
 };
 
+var serverPort = common.PORT;
 
 var clientsOptions = [{
+  port: serverPort,
   key: loadPEM('agent1-key'),
   cert: loadPEM('agent1-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'a.example.com'
 },{
+  port: serverPort,
   key: loadPEM('agent2-key'),
   cert: loadPEM('agent2-cert'),
   ca: [loadPEM('ca2-cert')],
   servername: 'b.test.com'
 },{
+  port: serverPort,
   key: loadPEM('agent3-key'),
   cert: loadPEM('agent3-cert'),
   ca: [loadPEM('ca1-cert')],
   servername: 'c.wrong.com'
 }];
-
-var serverPort = common.PORT;
 
 var serverResults = [],
     clientResults = [];
@@ -91,7 +93,7 @@ server.listen(serverPort, startTest);
 
 function startTest() {
   function connectClient(options, callback) {
-    var client = tls.connect(serverPort, 'localhost', options, function() {
+    var client = tls.connect(options, function() {
       clientResults.push(client.authorized);
       client.destroy();
 

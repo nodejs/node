@@ -48,7 +48,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
   assert.equal(server.address().address, '127.0.0.1');
   assert.equal(server.address().port, common.PORT);
 
-  var c = tls.connect(common.PORT, '127.0.0.1', function() {
+  var c = tls.connect({port: common.PORT, host: '127.0.0.1'}, function() {
     assert.equal(c.address().address, c.socket.address().address);
     assert.equal(c.address().port, c.socket.address().port);
 

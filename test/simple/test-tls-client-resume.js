@@ -50,7 +50,7 @@ var server = tls.Server(options, function(socket) {
 server.listen(common.PORT, function() {
 
   var session1 = null;
-  var client1 = tls.connect(common.PORT, function() {
+  var client1 = tls.connect({port: common.PORT}, function() {
     console.log('connect1');
     assert.ok(!client1.isSessionReused(), 'Session *should not* be reused.');
     session1 = client1.getSession();
@@ -59,7 +59,7 @@ server.listen(common.PORT, function() {
   client1.on('close', function() {
     console.log('close1');
 
-    var client2 = tls.connect(common.PORT, {'session': session1}, function() {
+    var client2 = tls.connect({'session': session1, port: common.PORT}, function() {
       console.log('connect2');
       assert.ok(client2.isSessionReused(), 'Session *should* be reused.');
     });

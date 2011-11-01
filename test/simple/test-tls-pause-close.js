@@ -66,7 +66,7 @@ var server = tls.createServer(options, function(s) {
 });
 
 server.listen(common.PORT, function() {
-  var c = tls.connect(common.PORT, function() {
+  var c = tls.connect({port: common.PORT}, function() {
     console.log('client connected');
     c.socket.on('end', function() {
       console.log('client socket ended');
