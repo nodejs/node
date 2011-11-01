@@ -192,6 +192,9 @@
         for (var i = 0; i < l; i++) q[i]();
       }
       catch (e) {
+        if (i + 1 < l) {
+          nextTickQueue = q.slice(i + 1).concat(nextTickQueue);
+        }
         if (nextTickQueue.length) {
           process._needTickCallback();
         }
