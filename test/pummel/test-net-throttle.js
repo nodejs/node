@@ -27,6 +27,7 @@ var assert = require('assert');
 var net = require('net');
 
 var N = 160 * 1024;
+var part_N = N / 3;
 var chars_recved = 0;
 var npauses = 0;
 
@@ -40,7 +41,9 @@ console.log('start server on port ' + common.PORT);
 
 var server = net.createServer(function(connection) {
   connection.on('connect', function() {
-    assert.equal(false, connection.write(body));
+    connection.write(body.slice(0, part_N));
+    connection.write(body.slice(part_N, 2 * part_N));
+    assert.equal(false, connection.write(body.slice(2 * part_N, N)));
     console.log('bufferSize: ' + connection.bufferSize);
     assert.ok(0 <= connection.bufferSize &&
               connection.bufferSize <= N);
