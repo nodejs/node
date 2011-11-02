@@ -19,11 +19,6 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (process.platform === 'win32') {
-  console.warn('Skipping because process.kill is not supported on windows');
-  process.exit(0);
-}
-
 
 var assert = require('assert');
 var spawn = require('child_process').spawn;

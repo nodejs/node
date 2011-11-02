@@ -1623,8 +1623,6 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 }
 
 
-#ifdef __POSIX__
-
 Handle<Value> Kill(const Arguments& args) {
   HandleScope scope;
 
@@ -1632,16 +1630,17 @@ Handle<Value> Kill(const Arguments& args) {
     return ThrowException(Exception::Error(String::New("Bad argument.")));
   }
 
-  pid_t pid = args[0]->IntegerValue();
+  int pid = args[0]->IntegerValue();
   int sig = args[1]->Int32Value();
-  int r = kill(pid, sig);
+  uv_err_t err = uv_kill(pid, sig);
 
-  if (r != 0) return ThrowException(ErrnoException(errno, "kill"));
+  if (err.code != UV_OK) {
+    SetErrno(err);
+    return scope.Close(Integer::New(-1));
+  }
 
   return Undefined();
 }
-
-#endif // __POSIX__
 
 
 typedef void (UV_DYNAMIC* extInit)(Handle<Object> exports);
@@ -2128,9 +2127,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "setgid", SetGid);
   NODE_SET_METHOD(process, "getgid", GetGid);
+#endif // __POSIX__
 
   NODE_SET_METHOD(process, "_kill", Kill);
-#endif // __POSIX__
 
   NODE_SET_METHOD(process, "dlopen", DLOpen);
 

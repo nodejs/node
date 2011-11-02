@@ -54,6 +54,10 @@
 #define PATH_MAX MAX_PATH
 #endif
 
+#ifdef _WIN32
+# define SIGKILL         9
+#endif
+
 #include <uv.h>
 #include <v8.h>
 #include <sys/types.h> /* struct stat */
