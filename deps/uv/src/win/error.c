@@ -30,9 +30,6 @@
 #include "internal.h"
 
 
-const uv_err_t uv_ok_ = { UV_OK, ERROR_SUCCESS };
-
-
 /*
  * Display an error message and abort the event loop.
  */

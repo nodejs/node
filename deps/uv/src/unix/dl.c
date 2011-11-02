@@ -26,8 +26,6 @@
 #include <errno.h>
 
 
-static const uv_err_t uv_ok_ = { UV_OK, 0 };
-
 uv_err_t uv_dlopen(const char* filename, uv_lib_t* library) {
   void* handle = dlopen(filename, RTLD_LAZY);
   if (handle == NULL) {

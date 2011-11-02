@@ -48,6 +48,9 @@ uv_buf_t uv_buf_init(char* base, size_t len) {
 }
 
 
+const uv_err_t uv_ok_ = { UV_OK, 0 };
+
+
 const char* uv_err_name(uv_err_t err) {
   switch (err.code) {
     case UV_UNKNOWN: return "UNKNOWN";

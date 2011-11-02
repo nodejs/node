@@ -61,6 +61,7 @@ static int uv__translate_lib_error(int code) {
     case UV_ENOSYS: return ENOSYS;
     case UV_ENOENT: return ENOENT;
     case UV_EACCESS: return EACCES;
+    case UV_EAFNOSUPPORT: return EAFNOSUPPORT;
     case UV_EBADF: return EBADF;
     case UV_EPIPE: return EPIPE;
     case UV_EAGAIN: return EAGAIN;
@@ -90,6 +91,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case ENOSYS: return UV_ENOSYS;
     case ENOENT: return UV_ENOENT;
     case EACCES: return UV_EACCESS;
+    case EAFNOSUPPORT: return UV_EAFNOSUPPORT;
     case EBADF: return UV_EBADF;
     case EPIPE: return UV_EPIPE;
     case EAGAIN: return UV_EAGAIN;

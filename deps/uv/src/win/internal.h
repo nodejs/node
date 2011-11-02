@@ -286,11 +286,6 @@ void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle);
 int uv_parent_pid();
 
 
-/*
- * Error handling
- */
-extern const uv_err_t uv_ok_;
-
 void uv_fatal_error(const int errorno, const char* syscall);
 
 uv_err_code uv_translate_sys_error(int sys_errno);

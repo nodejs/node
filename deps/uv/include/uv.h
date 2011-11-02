@@ -983,6 +983,10 @@ UV_EXTERN int uv_spawn(uv_loop_t*, uv_process_t*,
 UV_EXTERN int uv_process_kill(uv_process_t*, int signum);
 
 
+/* Kills the process with the specified signal. */
+UV_EXTERN uv_err_t uv_kill(int pid, int signum);
+
+
 /*
  * uv_work_t is a subclass of uv_req_t
  */

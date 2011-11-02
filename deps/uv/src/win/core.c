@@ -40,6 +40,10 @@ static uv_once_t uv_default_loop_init_guard_ = UV_ONCE_INIT;
 
 
 static void uv_init(void) {
+  /* Tell Windows that we will handle critical errors. */
+  SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX |
+    SEM_NOOPENFILEERRORBOX);
+
   /* Initialize winsock */
   uv_winsock_init();
 

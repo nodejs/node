@@ -300,3 +300,14 @@ int uv_process_kill(uv_process_t* process, int signum) {
     return 0;
   }
 }
+
+
+uv_err_t uv_kill(int pid, int signum) {
+  int r = kill(pid, signum);
+
+  if (r) {
+    return uv__new_sys_error(errno);
+  } else {
+    return uv_ok_;
+  }
+}
