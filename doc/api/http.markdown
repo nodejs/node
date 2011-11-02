@@ -681,17 +681,20 @@ Aborts a request.  (New since v0.3.8.)
 ### request.setTimeout(timeout, [callback])
 
 Once a socket is assigned to this request and is connected 
-socket.setTimeout(timeout, [callback]) will be called.
+[socket.setTimeout(timeout, [callback])](net.html#socket.setTimeout)
+will be called.
 
 ### request.setNoDelay(noDelay=true)
 
 Once a socket is assigned to this request and is connected 
-socket.setNoDelay(noDelay) will be called.
+[socket.setNoDelay(noDelay)](net.html#socket.setNoDelay)
+will be called.
 
 ### request.setSocketKeepAlive(enable=false, [initialDelay])
 
 Once a socket is assigned to this request and is connected 
-socket.setKeepAlive(enable, [initialDelay]) will be called.
+[socket.setKeepAlive(enable, [initialDelay])](net.html#socket.setKeepAlive)
+will be called.
 
 ## http.ClientResponse
 
