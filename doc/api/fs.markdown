@@ -387,6 +387,23 @@ Example:
 
 The synchronous version of `fs.writeFile`.
 
+### fs.appendFile(filename, data, encoding='utf8', [callback])
+
+Asynchronously append data to a file, creating the file if it not yet exists.
+`data` can be a string or a buffer. The `encoding` argument is ignored if
+`data` is a buffer.
+
+Example:
+
+    fs.appendFile('message.txt', 'data to append', function (err) {
+      if (err) throw err;
+      console.log('The "data to append" was appended to file!');
+    });
+
+### fs.appendFileSync(filename, data, encoding='utf8')
+
+The synchronous version of `fs.appendFile`.
+
 ### fs.watchFile(filename, [options], listener)
 
 Watch for changes on `filename`. The callback `listener` will be called each
