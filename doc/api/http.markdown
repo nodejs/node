@@ -46,7 +46,7 @@ per connection (in the case of keep-alive connections).
 
 ### Event: 'close'
 
-`function (errno) { }`
+`function () { }`
 
  Emitted when the server closes.
 
@@ -147,19 +147,10 @@ will be emitted on the request.
 
 ### Event: 'close'
 
-`function (err) { }`
+`function () { }`
 
 Indicates that the underlaying connection was terminated before
 `response.end()` was called or able to flush.
-
-The `err` parameter is always present and indicates the reason for the timeout:
-
-`err.code === 'timeout'` indicates that the underlaying connection timed out.
-This may happen because all incoming connections have a default timeout of 2
-minutes.
-
-`err.code === 'aborted'` means that the client has closed the underlaying
-connection prematurely.
 
 Just like `'end'`, this event occurs only once per request, and no more `'data'`
 events will fire afterwards.
