@@ -50,8 +50,7 @@ IncrementalMarking::IncrementalMarking(Heap* heap)
       steps_took_since_last_gc_(0),
       should_hurry_(false),
       allocation_marking_factor_(0),
-      allocated_(0),
-      no_marking_scope_depth_(0) {
+      allocated_(0) {
 }
 
 
@@ -85,16 +84,6 @@ void IncrementalMarking::RecordWriteForEvacuationFromCode(HeapObject* obj,
   IncrementalMarking* marking = isolate->heap()->incremental_marking();
   ASSERT(marking->is_compacting_);
   marking->RecordWrite(obj, slot, *slot);
-}
-
-
-void IncrementalMarking::RecordCodeTargetPatch(Code* host,
-                                               Address pc,
-                                               HeapObject* value) {
-  if (IsMarking()) {
-    RelocInfo rinfo(pc, RelocInfo::CODE_TARGET, 0, host);
-    RecordWriteIntoCode(host, &rinfo, value);
-  }
 }
 
 
@@ -354,8 +343,7 @@ bool IncrementalMarking::WorthActivating() {
   static const intptr_t kActivationThreshold = 0;
 #endif
 
-  return !FLAG_expose_gc &&
-      FLAG_incremental_marking &&
+  return FLAG_incremental_marking &&
       !Serializer::enabled() &&
       heap_->PromotedSpaceSize() > kActivationThreshold;
 }
@@ -473,9 +461,7 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
 
 #ifdef DEBUG
   // Marking bits are cleared by the sweeper.
-  if (FLAG_verify_heap) {
-    heap_->mark_compact_collector()->VerifyMarkbitsAreClean();
-  }
+  heap_->mark_compact_collector()->VerifyMarkbitsAreClean();
 #endif
 
   heap_->CompletelyClearInstanceofCache();
@@ -706,8 +692,6 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
 
   if (allocated_ < kAllocatedThreshold) return;
 
-  if (state_ == MARKING && no_marking_scope_depth_ > 0) return;
-
   intptr_t bytes_to_process = allocated_ * allocation_marking_factor_;
 
   double start = 0;
@@ -755,8 +739,8 @@ void IncrementalMarking::Step(intptr_t allocated_bytes) {
       }
 
       MarkBit obj_mark_bit = Marking::MarkBitFrom(obj);
-      SLOW_ASSERT(Marking::IsGrey(obj_mark_bit) ||
-                  (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
+      ASSERT(Marking::IsGrey(obj_mark_bit) ||
+             (obj->IsFiller() && Marking::IsWhite(obj_mark_bit)));
       Marking::MarkBlack(obj_mark_bit);
       MemoryChunk::IncrementLiveBytes(obj->address(), size);
     }

@@ -179,10 +179,6 @@ class InstructionTable {
  public:
   InstructionTable();
   const InstructionDesc& Get(byte x) const { return instructions_[x]; }
-  static InstructionTable* get_instance() {
-    static InstructionTable table;
-    return &table;
-  }
 
  private:
   InstructionDesc instructions_[256];
@@ -263,13 +259,15 @@ void InstructionTable::AddJumpConditionalShort() {
 }
 
 
+static InstructionTable instruction_table;
+
+
 // The IA32 disassembler implementation.
 class DisassemblerIA32 {
  public:
   DisassemblerIA32(const NameConverter& converter,
                    bool abort_on_unimplemented = true)
       : converter_(converter),
-        instruction_table_(InstructionTable::get_instance()),
         tmp_buffer_pos_(0),
         abort_on_unimplemented_(abort_on_unimplemented) {
     tmp_buffer_[0] = '\0';
@@ -283,10 +281,10 @@ class DisassemblerIA32 {
 
  private:
   const NameConverter& converter_;
-  InstructionTable* instruction_table_;
   v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
   bool abort_on_unimplemented_;
+
 
   enum {
     eax = 0,
@@ -886,7 +884,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
   bool processed = true;  // Will be set to false if the current instruction
                           // is not in 'instructions' table.
-  const InstructionDesc& idesc = instruction_table_->Get(*data);
+  const InstructionDesc& idesc = instruction_table.Get(*data);
   switch (idesc.type) {
     case ZERO_OPERANDS_INSTR:
       AppendToBuffer(idesc.mnem);

@@ -143,6 +143,9 @@ void IncrementalMarking::WhiteToGreyAndPush(HeapObject* obj, MarkBit mark_bit) {
 
 
 void IncrementalMarking::WhiteToGrey(HeapObject* obj, MarkBit mark_bit) {
+  ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
+  ASSERT(obj->Size() >= 2*kPointerSize);
+  ASSERT(IsMarking());
   Marking::WhiteToGrey(mark_bit);
 }
 

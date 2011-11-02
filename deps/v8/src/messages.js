@@ -83,7 +83,7 @@ function IsNativeErrorObject(obj) {
 // objects between script tags in a browser setting.
 function ToStringCheckErrorObject(obj) {
   if (IsNativeErrorObject(obj)) {
-    return %_CallFunction(obj, ErrorToString);
+    return %_CallFunction(obj, errorToString);
   } else {
     return ToString(obj);
   }
@@ -185,15 +185,14 @@ function FormatMessage(message) {
       "define_disallowed",            ["Cannot define property:", "%0", ", object is not extensible."],
       "non_extensible_proto",         ["%0", " is not extensible"],
       "handler_non_object",           ["Proxy.", "%0", " called with non-object as handler"],
-      "proto_non_object",             ["Proxy.", "%0", " called with non-object as prototype"],
-      "trap_function_expected",       ["Proxy.", "%0", " called with non-function for '", "%1", "' trap"],
+      "trap_function_expected",       ["Proxy.", "%0", " called with non-function for ", "%1", " trap"],
       "handler_trap_missing",         ["Proxy handler ", "%0", " has no '", "%1", "' trap"],
       "handler_trap_must_be_callable", ["Proxy handler ", "%0", " has non-callable '", "%1", "' trap"],
-      "handler_returned_false",       ["Proxy handler ", "%0", " returned false from '", "%1", "' trap"],
-      "handler_returned_undefined",   ["Proxy handler ", "%0", " returned undefined from '", "%1", "' trap"],
-      "proxy_prop_not_configurable",  ["Proxy handler ", "%0", " returned non-configurable descriptor for property '", "%2", "' from '", "%1", "' trap"],
-      "proxy_non_object_prop_names",  ["Trap '", "%1", "' returned non-object ", "%0"],
-      "proxy_repeated_prop_name",     ["Trap '", "%1", "' returned repeated property name '", "%2", "'"],
+      "handler_returned_false",       ["Proxy handler ", "%0", " returned false for '", "%1", "' trap"],
+      "handler_returned_undefined",   ["Proxy handler ", "%0", " returned undefined for '", "%1", "' trap"],
+      "proxy_prop_not_configurable",  ["Trap ", "%1", " of proxy handler ", "%0", " returned non-configurable descriptor for property ", "%2"],
+      "proxy_non_object_prop_names",  ["Trap ", "%1", " returned non-object ", "%0"],
+      "proxy_repeated_prop_name",     ["Trap ", "%1", " returned repeated property name ", "%2"],
       "invalid_weakmap_key",          ["Invalid value used as weak map key"],
       // RangeError
       "invalid_array_length",         ["Invalid array length"],
@@ -241,7 +240,6 @@ function FormatMessage(message) {
       "strict_poison_pill",           ["'caller', 'callee', and 'arguments' properties may not be accessed on strict mode functions or the arguments objects for calls to them"],
       "strict_caller",                ["Illegal access to a strict mode caller function."],
       "unprotected_let",              ["Illegal let declaration in unprotected statement context."],
-      "unprotected_const",            ["Illegal const declaration in unprotected statement context."],
       "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
       "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
     ];
@@ -1128,7 +1126,6 @@ function SetUpError() {
         return new f(m);
       }
     });
-    %SetNativeFlag(f);
   }
 
   DefineError(function Error() { });
@@ -1146,43 +1143,42 @@ $Error.captureStackTrace = captureStackTrace;
 
 %SetProperty($Error.prototype, 'message', '', DONT_ENUM);
 
-// Global list of error objects visited during ErrorToString. This is
+// Global list of error objects visited during errorToString. This is
 // used to detect cycles in error toString formatting.
 const visited_errors = new InternalArray();
 const cyclic_error_marker = new $Object();
 
-function ErrorToStringDetectCycle(error) {
+function errorToStringDetectCycle(error) {
   if (!%PushIfAbsent(visited_errors, error)) throw cyclic_error_marker;
   try {
     var type = error.type;
-    var name = error.name
-    name = IS_UNDEFINED(name) ? "Error" : TO_STRING_INLINE(name);
-    var message = error.message;
     var hasMessage = %_CallFunction(error, "message", ObjectHasOwnProperty);
     if (type && !hasMessage) {
-      message = FormatMessage(%NewMessageObject(type, error.arguments));
+      var formatted = FormatMessage(%NewMessageObject(type, error.arguments));
+      return error.name + ": " + formatted;
     }
-    message = IS_UNDEFINED(message) ? "" : TO_STRING_INLINE(message);
-    if (name === "") return message;
-    if (message === "") return name;
-    return name + ": " + message;
+    var message = hasMessage ? (": " + error.message) : "";
+    return error.name + message;
   } finally {
     visited_errors.length = visited_errors.length - 1;
   }
 }
 
-function ErrorToString() {
+function errorToString() {
   if (IS_NULL_OR_UNDEFINED(this) && !IS_UNDETECTABLE(this)) {
     throw MakeTypeError("called_on_null_or_undefined",
                         ["Error.prototype.toString"]);
   }
+  // This helper function is needed because access to properties on
+  // the builtins object do not work inside of a catch clause.
+  function isCyclicErrorMarker(o) { return o === cyclic_error_marker; }
 
   try {
-    return ErrorToStringDetectCycle(this);
+    return errorToStringDetectCycle(this);
   } catch(e) {
     // If this error message was encountered already return the empty
     // string for it instead of recursively formatting it.
-    if (e === cyclic_error_marker) {
+    if (isCyclicErrorMarker(e)) {
       return '';
     }
     throw e;
@@ -1190,7 +1186,7 @@ function ErrorToString() {
 }
 
 
-InstallFunctions($Error.prototype, DONT_ENUM, ['toString', ErrorToString]);
+InstallFunctions($Error.prototype, DONT_ENUM, ['toString', errorToString]);
 
 // Boilerplate for exceptions for stack overflows. Used from
 // Isolate::StackOverflow().

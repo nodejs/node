@@ -252,28 +252,6 @@ TEST(HeapSnapshotHeapNumbers) {
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
 
-TEST(HeapSnapshotSlicedString) {
-  v8::HandleScope scope;
-  LocalContext env;
-  CompileRun(
-      "parent_string = \"123456789.123456789.123456789.123456789.123456789."
-      "123456789.123456789.123456789.123456789.123456789."
-      "123456789.123456789.123456789.123456789.123456789."
-      "123456789.123456789.123456789.123456789.123456789.\";"
-      "child_string = parent_string.slice(100);");
-  const v8::HeapSnapshot* snapshot =
-      v8::HeapProfiler::TakeSnapshot(v8_str("strings"));
-  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
-  const v8::HeapGraphNode* parent_string =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "parent_string");
-  CHECK_NE(NULL, parent_string);
-  const v8::HeapGraphNode* child_string =
-      GetProperty(global, v8::HeapGraphEdge::kShortcut, "child_string");
-  CHECK_NE(NULL, child_string);
-  const v8::HeapGraphNode* parent =
-      GetProperty(child_string, v8::HeapGraphEdge::kInternal, "parent");
-  CHECK_EQ(parent_string, parent);
-}
 
 TEST(HeapSnapshotInternalReferences) {
   v8::HandleScope scope;

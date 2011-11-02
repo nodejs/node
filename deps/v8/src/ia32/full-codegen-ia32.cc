@@ -266,10 +266,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
       // constant.
       if (scope()->is_function_scope() && scope()->function() != NULL) {
         int ignored = 0;
-        VariableProxy* proxy = scope()->function();
-        ASSERT(proxy->var()->mode() == CONST ||
-               proxy->var()->mode() == CONST_HARMONY);
-        EmitDeclaration(proxy, proxy->var()->mode(), NULL, &ignored);
+        EmitDeclaration(scope()->function(), CONST, NULL, &ignored);
       }
       VisitDeclarations(scope()->declarations());
     }
@@ -714,8 +711,6 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
   // need to "declare" it at runtime to make sure it actually exists in the
   // local context.
   Variable* variable = proxy->var();
-  bool binding_needs_init =
-      mode == CONST || mode == CONST_HARMONY || mode == LET;
   switch (variable->location()) {
     case Variable::UNALLOCATED:
       ++(*global_count);
@@ -727,7 +722,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
         Comment cmnt(masm_, "[ Declaration");
         VisitForAccumulatorValue(function);
         __ mov(StackOperand(variable), result_register());
-      } else if (binding_needs_init) {
+      } else if (mode == CONST || mode == LET) {
         Comment cmnt(masm_, "[ Declaration");
         __ mov(StackOperand(variable),
                Immediate(isolate()->factory()->the_hole_value()));
@@ -759,7 +754,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
                                   EMIT_REMEMBERED_SET,
                                   OMIT_SMI_CHECK);
         PrepareForBailoutForId(proxy->id(), NO_REGISTERS);
-      } else if (binding_needs_init) {
+      } else if (mode == CONST || mode == LET) {
         Comment cmnt(masm_, "[ Declaration");
         __ mov(ContextOperand(esi, variable->index()),
                Immediate(isolate()->factory()->the_hole_value()));
@@ -772,13 +767,9 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       Comment cmnt(masm_, "[ Declaration");
       __ push(esi);
       __ push(Immediate(variable->name()));
-      // Declaration nodes are always introduced in one of four modes.
-      ASSERT(mode == VAR ||
-             mode == CONST ||
-             mode == CONST_HARMONY ||
-             mode == LET);
-      PropertyAttributes attr = (mode == CONST || mode == CONST_HARMONY)
-          ? READ_ONLY : NONE;
+      // Declaration nodes are always introduced in one of three modes.
+      ASSERT(mode == VAR || mode == CONST || mode == LET);
+      PropertyAttributes attr = (mode == CONST) ? READ_ONLY : NONE;
       __ push(Immediate(Smi::FromInt(attr)));
       // Push initial value, if any.
       // Note: For variables we must not push an initial value (such as
@@ -787,7 +778,7 @@ void FullCodeGenerator::EmitDeclaration(VariableProxy* proxy,
       increment_stack_height(3);
       if (function != NULL) {
         VisitForStackValue(function);
-      } else if (binding_needs_init) {
+      } else if (mode == CONST || mode == LET) {
         __ push(Immediate(isolate()->factory()->the_hole_value()));
         increment_stack_height();
       } else {
@@ -929,17 +920,11 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ push(eax);
   increment_stack_height();
 
-  // Check for proxies.
-  Label call_runtime;
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
-  __ CmpObjectType(eax, LAST_JS_PROXY_TYPE, ecx);
-  __ j(below_equal, &call_runtime);
-
   // Check cache validity in generated code. This is a fast case for
   // the JSObject::IsSimpleEnum cache validity checks. If we cannot
   // guarantee cache validity, call the runtime system to check cache
   // validity or get the property names in a fixed array.
-  Label next;
+  Label next, call_runtime;
   __ mov(ecx, eax);
   __ bind(&next);
 
@@ -1010,17 +995,9 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ jmp(&loop);
 
   // We got a fixed array in register eax. Iterate through that.
-  Label non_proxy;
   __ bind(&fixed_array);
-  __ mov(ebx, Immediate(Smi::FromInt(1)));  // Smi indicates slow check
-  __ mov(ecx, Operand(esp, 0 * kPointerSize));  // Get enumerated object
-  STATIC_ASSERT(FIRST_JS_PROXY_TYPE == FIRST_SPEC_OBJECT_TYPE);
-  __ CmpObjectType(ecx, LAST_JS_PROXY_TYPE, ecx);
-  __ j(above, &non_proxy);
-  __ mov(ebx, Immediate(Smi::FromInt(0)));  // Zero indicates proxy
-  __ bind(&non_proxy);
-  __ push(ebx);  // Smi
-  __ push(eax);  // Array
+  __ push(Immediate(Smi::FromInt(0)));  // Map (0) - force slow check.
+  __ push(eax);
   __ mov(eax, FieldOperand(eax, FixedArray::kLengthOffset));
   __ push(eax);  // Fixed array length (as smi).
   __ push(Immediate(Smi::FromInt(0)));  // Initial index.
@@ -1037,22 +1014,16 @@ void FullCodeGenerator::VisitForInStatement(ForInStatement* stmt) {
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
   __ mov(ebx, FieldOperand(ebx, eax, times_2, FixedArray::kHeaderSize));
 
-  // Get the expected map from the stack or a smi in the
+  // Get the expected map from the stack or a zero map in the
   // permanent slow case into register edx.
   __ mov(edx, Operand(esp, 3 * kPointerSize));
 
   // Check if the expected map still matches that of the enumerable.
-  // If not, we may have to filter the key.
+  // If not, we have to filter the key.
   Label update_each;
   __ mov(ecx, Operand(esp, 4 * kPointerSize));
   __ cmp(edx, FieldOperand(ecx, HeapObject::kMapOffset));
   __ j(equal, &update_each, Label::kNear);
-
-  // For proxies, no filtering is done.
-  // TODO(rossberg): What if only a prototype is a proxy? Not specified yet.
-  ASSERT(Smi::FromInt(0) == 0);
-  __ test(edx, edx);
-  __ j(zero, &update_each);
 
   // Convert the entry to a string or null if it isn't a property
   // anymore. If the property has been removed while iterating, we
@@ -1108,7 +1079,7 @@ void FullCodeGenerator::EmitNewClosure(Handle<SharedFunctionInfo> info,
       !pretenure &&
       scope()->is_function_scope() &&
       info->num_literals() == 0) {
-    FastNewClosureStub stub(info->strict_mode_flag());
+    FastNewClosureStub stub(info->strict_mode() ? kStrictMode : kNonStrictMode);
     __ push(Immediate(info));
     __ CallStub(&stub);
   } else {
@@ -1138,7 +1109,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
   Scope* s = scope();
   while (s != NULL) {
     if (s->num_heap_slots() > 0) {
-      if (s->calls_non_strict_eval()) {
+      if (s->calls_eval()) {
         // Check that extension is NULL.
         __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
                Immediate(0));
@@ -1152,7 +1123,7 @@ void FullCodeGenerator::EmitLoadGlobalCheckExtensions(Variable* var,
     // If no outer scope calls eval, we do not need to check more
     // context extensions.  If we have reached an eval scope, we check
     // all extensions from this point.
-    if (!s->outer_scope_calls_non_strict_eval() || s->is_eval_scope()) break;
+    if (!s->outer_scope_calls_eval() || s->is_eval_scope()) break;
     s = s->outer_scope();
   }
 
@@ -1197,7 +1168,7 @@ MemOperand FullCodeGenerator::ContextSlotOperandCheckExtensions(Variable* var,
 
   for (Scope* s = scope(); s != var->scope(); s = s->outer_scope()) {
     if (s->num_heap_slots() > 0) {
-      if (s->calls_non_strict_eval()) {
+      if (s->calls_eval()) {
         // Check that extension is NULL.
         __ cmp(ContextOperand(context, Context::EXTENSION_INDEX),
                Immediate(0));
@@ -1235,13 +1206,12 @@ void FullCodeGenerator::EmitDynamicLookupFastCase(Variable* var,
     Variable* local = var->local_if_not_shadowed();
     __ mov(eax, ContextSlotOperandCheckExtensions(local, slow));
     if (local->mode() == CONST ||
-        local->mode() == CONST_HARMONY ||
         local->mode() == LET) {
       __ cmp(eax, isolate()->factory()->the_hole_value());
       __ j(not_equal, done);
       if (local->mode() == CONST) {
         __ mov(eax, isolate()->factory()->undefined_value());
-      } else {  // LET || CONST_HARMONY
+      } else {  // LET
         __ push(Immediate(var->name()));
         __ CallRuntime(Runtime::kThrowReferenceError, 1);
       }
@@ -1277,7 +1247,7 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
       Comment cmnt(masm_, var->IsContextSlot()
                               ? "Context variable"
                               : "Stack variable");
-      if (!var->binding_needs_init()) {
+      if (var->mode() != LET && var->mode() != CONST) {
         context()->Plug(var);
       } else {
         // Let and const need a read barrier.
@@ -1285,14 +1255,10 @@ void FullCodeGenerator::EmitVariableLoad(VariableProxy* proxy) {
         GetVar(eax, var);
         __ cmp(eax, isolate()->factory()->the_hole_value());
         __ j(not_equal, &done, Label::kNear);
-        if (var->mode() == LET || var->mode() == CONST_HARMONY) {
-          // Throw a reference error when using an uninitialized let/const
-          // binding in harmony mode.
+        if (var->mode() == LET) {
           __ push(Immediate(var->name()));
           __ CallRuntime(Runtime::kThrowReferenceError, 1);
-        } else {
-          // Uninitalized const bindings outside of harmony mode are unholed.
-          ASSERT(var->mode() == CONST);
+        } else {  // CONST
           __ mov(eax, isolate()->factory()->undefined_value());
         }
         __ bind(&done);
@@ -1482,18 +1448,12 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
   ZoneList<Expression*>* subexprs = expr->values();
   int length = subexprs->length();
-  Handle<FixedArray> constant_elements = expr->constant_elements();
-  ASSERT_EQ(2, constant_elements->length());
-  ElementsKind constant_elements_kind =
-      static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
-  Handle<FixedArrayBase> constant_elements_values(
-      FixedArrayBase::cast(constant_elements->get(1)));
 
   __ mov(ebx, Operand(ebp, JavaScriptFrameConstants::kFunctionOffset));
   __ push(FieldOperand(ebx, JSFunction::kLiteralsOffset));
   __ push(Immediate(Smi::FromInt(expr->literal_index())));
-  __ push(Immediate(constant_elements));
-  if (constant_elements_values->map() ==
+  __ push(Immediate(expr->constant_elements()));
+  if (expr->constant_elements()->map() ==
       isolate()->heap()->fixed_cow_array_map()) {
     ASSERT(expr->depth() == 1);
     FastCloneShallowArrayStub stub(
@@ -1505,14 +1465,8 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   } else if (length > FastCloneShallowArrayStub::kMaximumClonedLength) {
     __ CallRuntime(Runtime::kCreateArrayLiteralShallow, 3);
   } else {
-    ASSERT(constant_elements_kind == FAST_ELEMENTS ||
-           constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
-           FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        constant_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
-    FastCloneShallowArrayStub stub(mode, length);
+    FastCloneShallowArrayStub stub(
+        FastCloneShallowArrayStub::CLONE_ELEMENTS, length);
     __ CallStub(&stub);
   }
 
@@ -1538,61 +1492,22 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
 
     // Store the subexpression value in the array's elements.
     __ mov(ebx, Operand(esp, 0));  // Copy of array literal.
-    __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
     __ mov(ebx, FieldOperand(ebx, JSObject::kElementsOffset));
     int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-
-    Label element_done;
-    Label double_elements;
-    Label smi_element;
-    Label slow_elements;
-    Label fast_elements;
-    __ CheckFastElements(edi, &double_elements);
-
-    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
-    __ JumpIfSmi(result_register(), &smi_element);
-    __ CheckFastSmiOnlyElements(edi, &fast_elements, Label::kNear);
-
-    // Store into the array literal requires a elements transition. Call into
-    // the runtime.
-    __ bind(&slow_elements);
-    __ push(Operand(esp, 0));  // Copy of array literal.
-    __ push(Immediate(Smi::FromInt(i)));
-    __ push(result_register());
-    __ push(Immediate(Smi::FromInt(NONE)));  // PropertyAttributes
-    __ push(Immediate(Smi::FromInt(strict_mode_flag())));  // Strict mode.
-    __ CallRuntime(Runtime::kSetProperty, 5);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
-    __ bind(&double_elements);
-    __ mov(ecx, Immediate(Smi::FromInt(i)));
-    __ StoreNumberToDoubleElements(result_register(),
-                                   ebx,
-                                   ecx,
-                                   edx,
-                                   xmm0,
-                                   &slow_elements,
-                                   false);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
-    __ bind(&fast_elements);
     __ mov(FieldOperand(ebx, offset), result_register());
+
+    Label no_map_change;
+    __ JumpIfSmi(result_register(), &no_map_change);
     // Update the write barrier for the array store.
     __ RecordWriteField(ebx, offset, result_register(), ecx,
                         kDontSaveFPRegs,
                         EMIT_REMEMBERED_SET,
                         OMIT_SMI_CHECK);
-    __ jmp(&element_done);
-
-    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-    // FAST_ELEMENTS, and value is Smi.
-    __ bind(&smi_element);
-    __ mov(FieldOperand(ebx, offset), result_register());
-    // Fall through
-
-    __ bind(&element_done);
+    __ mov(edi, FieldOperand(ebx, JSObject::kMapOffset));
+    __ CheckFastSmiOnlyElements(edi, &no_map_change, Label::kNear);
+    __ push(Operand(esp, 0));
+    __ CallRuntime(Runtime::kNonSmiElementStored, 1);
+    __ bind(&no_map_change);
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
@@ -1975,9 +1890,8 @@ void FullCodeGenerator::EmitVariableAssignment(Variable* var,
       }
     }
 
-  } else if (!var->is_const_mode() || op == Token::INIT_CONST_HARMONY) {
-    // Assignment to var or initializing assignment to let/const
-    // in harmony mode.
+  } else if (var->mode() != CONST) {
+    // Assignment to var or initializing assignment to let.
     if (var->IsStackAllocated() || var->IsContextSlot()) {
       MemOperand location = VarOperand(var, ecx);
       if (FLAG_debug_code && op == Token::INIT_LET) {
@@ -2190,7 +2104,7 @@ void FullCodeGenerator::EmitCallWithStub(Call* expr, CallFunctionFlags flags) {
     flags = static_cast<CallFunctionFlags>(flags | RECORD_CALL_TARGET);
   }
   CallFunctionStub stub(arg_count, flags);
-  __ CallStub(&stub, expr->id());
+  __ CallStub(&stub);
   if (record_call_target) {
     // There is a one element cache in the instruction stream.
 #ifdef DEBUG
@@ -2867,10 +2781,9 @@ void FullCodeGenerator::EmitRandomHeapNumber(ZoneList<Expression*>* args) {
   __ bind(&heapnumber_allocated);
 
   __ PrepareCallCFunction(1, ebx);
-  __ mov(eax, ContextOperand(context_register(), Context::GLOBAL_INDEX));
-  __ mov(eax, FieldOperand(eax, GlobalObject::kGlobalContextOffset));
-  __ mov(Operand(esp, 0), eax);
-  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+  __ mov(Operand(esp, 0), Immediate(ExternalReference::isolate_address()));
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()),
+                   1);
 
   // Convert 32 random bits in eax to 0.(32 random bits) in a double
   // by computing:
@@ -4234,25 +4147,33 @@ void FullCodeGenerator::VisitCompareOperation(CompareOperation* expr) {
         case Token::EQ_STRICT:
         case Token::EQ:
           cc = equal;
+          __ pop(edx);
           break;
         case Token::LT:
           cc = less;
+          __ pop(edx);
           break;
         case Token::GT:
-          cc = greater;
+          // Reverse left and right sizes to obtain ECMA-262 conversion order.
+          cc = less;
+          __ mov(edx, result_register());
+          __ pop(eax);
          break;
         case Token::LTE:
-          cc = less_equal;
+          // Reverse left and right sizes to obtain ECMA-262 conversion order.
+          cc = greater_equal;
+          __ mov(edx, result_register());
+          __ pop(eax);
           break;
         case Token::GTE:
           cc = greater_equal;
+          __ pop(edx);
           break;
         case Token::IN:
         case Token::INSTANCEOF:
         default:
           UNREACHABLE();
       }
-      __ pop(edx);
       decrement_stack_height();
 
       bool inline_smi_code = ShouldInlineSmiCase(op);

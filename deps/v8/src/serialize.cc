@@ -318,10 +318,10 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
 
 
   // Miscellaneous
-  Add(ExternalReference::roots_array_start(isolate).address(),
+  Add(ExternalReference::roots_address(isolate).address(),
       UNCLASSIFIED,
       3,
-      "Heap::roots_array_start()");
+      "Heap::roots_address()");
   Add(ExternalReference::address_of_stack_limit(isolate).address(),
       UNCLASSIFIED,
       4,
@@ -490,10 +490,6 @@ void ExternalReferenceTable::PopulateTable(Isolate* isolate) {
       UNCLASSIFIED,
       44,
       "canonical_nan");
-  Add(ExternalReference::address_of_the_hole_nan().address(),
-      UNCLASSIFIED,
-      45,
-      "the_hole_nan");
 }
 
 
@@ -757,13 +753,8 @@ static const int kUnknownOffsetFromStart = -1;
 void Deserializer::ReadChunk(Object** current,
                              Object** limit,
                              int source_space,
-                             Address current_object_address) {
+                             Address address) {
   Isolate* const isolate = isolate_;
-  bool write_barrier_needed = (current_object_address != NULL &&
-                               source_space != NEW_SPACE &&
-                               source_space != CELL_SPACE &&
-                               source_space != CODE_SPACE &&
-                               source_space != OLD_DATA_SPACE);
   while (current < limit) {
     int data = source_->Get();
     switch (data) {
@@ -783,7 +774,9 @@ void Deserializer::ReadChunk(Object** current,
         if (where == kNewObject && how == kPlain && within == kStartOfObject) {\
           ASSIGN_DEST_SPACE(space_number)                                      \
           ReadObject(space_number, dest_space, current);                       \
-          emit_write_barrier = (space_number == NEW_SPACE);                    \
+          emit_write_barrier = (space_number == NEW_SPACE &&                   \
+                                source_space != NEW_SPACE &&                   \
+                                source_space != CELL_SPACE);                   \
         } else {                                                               \
           Object* new_object = NULL;  /* May not be a real Object pointer. */  \
           if (where == kNewObject) {                                           \
@@ -791,25 +784,27 @@ void Deserializer::ReadChunk(Object** current,
             ReadObject(space_number, dest_space, &new_object);                 \
           } else if (where == kRootArray) {                                    \
             int root_id = source_->GetInt();                                   \
-            new_object = isolate->heap()->roots_array_start()[root_id];        \
-            emit_write_barrier = isolate->heap()->InNewSpace(new_object);      \
+            new_object = isolate->heap()->roots_address()[root_id];            \
           } else if (where == kPartialSnapshotCache) {                         \
             int cache_index = source_->GetInt();                               \
             new_object = isolate->serialize_partial_snapshot_cache()           \
                 [cache_index];                                                 \
-            emit_write_barrier = isolate->heap()->InNewSpace(new_object);      \
           } else if (where == kExternalReference) {                            \
             int reference_id = source_->GetInt();                              \
             Address address = external_reference_decoder_->                    \
                 Decode(reference_id);                                          \
             new_object = reinterpret_cast<Object*>(address);                   \
           } else if (where == kBackref) {                                      \
-            emit_write_barrier = (space_number == NEW_SPACE);                  \
+            emit_write_barrier = (space_number == NEW_SPACE &&                 \
+                                  source_space != NEW_SPACE &&                 \
+                                  source_space != CELL_SPACE);                 \
             new_object = GetAddressFromEnd(data & kSpaceMask);                 \
           } else {                                                             \
             ASSERT(where == kFromStart);                                       \
             if (offset_from_start == kUnknownOffsetFromStart) {                \
-              emit_write_barrier = (space_number == NEW_SPACE);                \
+              emit_write_barrier = (space_number == NEW_SPACE &&               \
+                                    source_space != NEW_SPACE &&               \
+                                    source_space != CELL_SPACE);               \
               new_object = GetAddressFromStart(data & kSpaceMask);             \
             } else {                                                           \
               Address object_address = pages_[space_number][0] +               \
@@ -836,14 +831,12 @@ void Deserializer::ReadChunk(Object** current,
             *current = new_object;                                             \
           }                                                                    \
         }                                                                      \
-        if (emit_write_barrier && write_barrier_needed) {                      \
-          Address current_address = reinterpret_cast<Address>(current);        \
-          isolate->heap()->RecordWrite(                                        \
-              current_object_address,                                          \
-              static_cast<int>(current_address - current_object_address));     \
+        if (emit_write_barrier) {                                              \
+          isolate->heap()->RecordWrite(address, static_cast<int>(              \
+              reinterpret_cast<Address>(current) - address));                  \
         }                                                                      \
         if (!current_was_incremented) {                                        \
-          current++;                                                           \
+          current++;   /* Increment current if it wasn't done above. */        \
         }                                                                      \
         break;                                                                 \
       }                                                                        \
@@ -890,17 +883,11 @@ void Deserializer::ReadChunk(Object** current,
   CASE_STATEMENT(where, how, within, kLargeCode)                               \
   CASE_BODY(where, how, within, kLargeCode, kUnknownOffsetFromStart)
 
-#define FOUR_CASES(byte_code)             \
-  case byte_code:                         \
-  case byte_code + 1:                     \
-  case byte_code + 2:                     \
-  case byte_code + 3:
-
-#define SIXTEEN_CASES(byte_code)          \
-  FOUR_CASES(byte_code)                   \
-  FOUR_CASES(byte_code + 4)               \
-  FOUR_CASES(byte_code + 8)               \
-  FOUR_CASES(byte_code + 12)
+#define EMIT_COMMON_REFERENCE_PATTERNS(pseudo_space_number,                    \
+                                       space_number,                           \
+                                       offset_from_start)                      \
+  CASE_STATEMENT(kFromStart, kPlain, kStartOfObject, pseudo_space_number)      \
+  CASE_BODY(kFromStart, kPlain, kStartOfObject, space_number, offset_from_start)
 
       // We generate 15 cases and bodies that process special tags that combine
       // the raw data tag and the length into one byte.
@@ -921,38 +908,6 @@ void Deserializer::ReadChunk(Object** current,
         byte* raw_data_out = reinterpret_cast<byte*>(current);
         source_->CopyRaw(raw_data_out, size);
         current = reinterpret_cast<Object**>(raw_data_out + size);
-        break;
-      }
-
-      SIXTEEN_CASES(kRootArrayLowConstants)
-      SIXTEEN_CASES(kRootArrayHighConstants) {
-        int root_id = RootArrayConstantFromByteCode(data);
-        Object* object = isolate->heap()->roots_array_start()[root_id];
-        ASSERT(!isolate->heap()->InNewSpace(object));
-        *current++ = object;
-        break;
-      }
-
-      case kRepeat: {
-        int repeats = source_->GetInt();
-        Object* object = current[-1];
-        ASSERT(!isolate->heap()->InNewSpace(object));
-        for (int i = 0; i < repeats; i++) current[i] = object;
-        current += repeats;
-        break;
-      }
-
-      STATIC_ASSERT(kRootArrayNumberOfConstantEncodings ==
-                    Heap::kOldSpaceRoots);
-      STATIC_ASSERT(kMaxRepeats == 12);
-      FOUR_CASES(kConstantRepeat)
-      FOUR_CASES(kConstantRepeat + 4)
-      FOUR_CASES(kConstantRepeat + 8) {
-        int repeats = RepeatsForCode(data);
-        Object* object = current[-1];
-        ASSERT(!isolate->heap()->InNewSpace(object));
-        for (int i = 0; i < repeats; i++) current[i] = object;
-        current += repeats;
         break;
       }
 
@@ -981,6 +936,9 @@ void Deserializer::ReadChunk(Object** current,
       // start and write a pointer to its first instruction to the current code
       // object.
       ALL_SPACES(kFromStart, kFromCode, kFirstInstruction)
+      // Find an already deserialized object at one of the predetermined popular
+      // offsets from the start and write a pointer to it in the current object.
+      COMMON_REFERENCE_PATTERNS(EMIT_COMMON_REFERENCE_PATTERNS)
       // Find an object in the roots array and write a pointer to it to the
       // current object.
       CASE_STATEMENT(kRootArray, kPlain, kStartOfObject, 0)
@@ -1022,6 +980,7 @@ void Deserializer::ReadChunk(Object** current,
 #undef CASE_BODY
 #undef ONE_PER_SPACE
 #undef ALL_SPACES
+#undef EMIT_COMMON_REFERENCE_PATTERNS
 #undef ASSIGN_DEST_SPACE
 
       case kNewPage: {
@@ -1108,8 +1067,7 @@ Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),
       current_root_index_(0),
       external_reference_encoder_(new ExternalReferenceEncoder),
-      large_object_total_(0),
-      root_index_wave_front_(0) {
+      large_object_total_(0) {
   // The serializer is meant to be used only to generate initial heap images
   // from a context in which there is only one isolate.
   ASSERT(Isolate::Current()->IsDefaultIsolate());
@@ -1166,10 +1124,6 @@ void Serializer::VisitPointers(Object** start, Object** end) {
   Isolate* isolate = Isolate::Current();
 
   for (Object** current = start; current < end; current++) {
-    if (start == isolate->heap()->roots_array_start()) {
-      root_index_wave_front_ =
-          Max(root_index_wave_front_, static_cast<intptr_t>(current - start));
-    }
     if (reinterpret_cast<Address>(current) ==
         isolate->heap()->store_buffer()->TopAddress()) {
       sink_->Put(kSkip, "Skip");
@@ -1237,12 +1191,10 @@ int PartialSerializer::PartialSnapshotCacheIndex(HeapObject* heap_object) {
 }
 
 
-int Serializer::RootIndex(HeapObject* heap_object) {
-  Heap* heap = HEAP;
-  if (heap->InNewSpace(heap_object)) return kInvalidRootIndex;
-  for (int i = 0; i < root_index_wave_front_; i++) {
-    Object* root = heap->roots_array_start()[i];
-    if (!root->IsSmi() && root == heap_object) return i;
+int PartialSerializer::RootIndex(HeapObject* heap_object) {
+  for (int i = 0; i < Heap::kRootListLength; i++) {
+    Object* root = HEAP->roots_address()[i];
+    if (root == heap_object) return i;
   }
   return kInvalidRootIndex;
 }
@@ -1278,8 +1230,18 @@ void Serializer::SerializeReferenceToPreviousObject(
   // all objects) then we should shift out the bits that are always 0.
   if (!SpaceIsLarge(space)) address >>= kObjectAlignmentBits;
   if (from_start) {
-    sink_->Put(kFromStart + how_to_code + where_to_point + space, "RefSer");
-    sink_->PutInt(address, "address");
+#define COMMON_REFS_CASE(pseudo_space, actual_space, offset)                   \
+    if (space == actual_space && address == offset &&                          \
+        how_to_code == kPlain && where_to_point == kStartOfObject) {           \
+      sink_->Put(kFromStart + how_to_code + where_to_point +                   \
+                 pseudo_space, "RefSer");                                      \
+    } else  /* NOLINT */
+    COMMON_REFERENCE_PATTERNS(COMMON_REFS_CASE)
+#undef COMMON_REFS_CASE
+    {  /* NOLINT */
+      sink_->Put(kFromStart + how_to_code + where_to_point + space, "RefSer");
+      sink_->PutInt(address, "address");
+    }
   } else {
     sink_->Put(kBackref + how_to_code + where_to_point + space, "BackRefSer");
     sink_->PutInt(address, "address");
@@ -1293,12 +1255,6 @@ void StartupSerializer::SerializeObject(
     WhereToPoint where_to_point) {
   CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
-
-  int root_index;
-  if ((root_index = RootIndex(heap_object)) != kInvalidRootIndex) {
-    PutRoot(root_index, heap_object, how_to_code, where_to_point);
-    return;
-  }
 
   if (address_mapper_.IsMapped(heap_object)) {
     int space = SpaceOfAlreadySerializedObject(heap_object);
@@ -1330,28 +1286,6 @@ void StartupSerializer::SerializeWeakReferences() {
 }
 
 
-void Serializer::PutRoot(int root_index,
-                         HeapObject* object,
-                         SerializerDeserializer::HowToCode how_to_code,
-                         SerializerDeserializer::WhereToPoint where_to_point) {
-  if (how_to_code == kPlain &&
-      where_to_point == kStartOfObject &&
-      root_index < kRootArrayNumberOfConstantEncodings &&
-      !HEAP->InNewSpace(object)) {
-    if (root_index < kRootArrayNumberOfLowConstantEncodings) {
-      sink_->Put(kRootArrayLowConstants + root_index, "RootLoConstant");
-    } else {
-      sink_->Put(kRootArrayHighConstants + root_index -
-                     kRootArrayNumberOfLowConstantEncodings,
-                 "RootHiConstant");
-    }
-  } else {
-    sink_->Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
-    sink_->PutInt(root_index, "root_index");
-  }
-}
-
-
 void PartialSerializer::SerializeObject(
     Object* o,
     HowToCode how_to_code,
@@ -1361,7 +1295,8 @@ void PartialSerializer::SerializeObject(
 
   int root_index;
   if ((root_index = RootIndex(heap_object)) != kInvalidRootIndex) {
-    PutRoot(root_index, heap_object, how_to_code, where_to_point);
+    sink_->Put(kRootArray + how_to_code + where_to_point, "RootSerialization");
+    sink_->PutInt(root_index, "root_index");
     return;
   }
 
@@ -1439,33 +1374,9 @@ void Serializer::ObjectSerializer::VisitPointers(Object** start,
     if (current < end) OutputRawData(reinterpret_cast<Address>(current));
 
     while (current < end && !(*current)->IsSmi()) {
-      HeapObject* current_contents = HeapObject::cast(*current);
-      int root_index = serializer_->RootIndex(current_contents);
-      // Repeats are not subject to the write barrier so there are only some
-      // objects that can be used in a repeat encoding.  These are the early
-      // ones in the root array that are never in new space.
-      if (current != start &&
-          root_index != kInvalidRootIndex &&
-          root_index < kRootArrayNumberOfConstantEncodings &&
-          current_contents == current[-1]) {
-        ASSERT(!HEAP->InNewSpace(current_contents));
-        int repeat_count = 1;
-        while (current < end - 1 && current[repeat_count] == current_contents) {
-          repeat_count++;
-        }
-        current += repeat_count;
-        bytes_processed_so_far_ += repeat_count * kPointerSize;
-        if (repeat_count > kMaxRepeats) {
-          sink_->Put(kRepeat, "SerializeRepeats");
-          sink_->PutInt(repeat_count, "SerializeRepeats");
-        } else {
-          sink_->Put(CodeForRepeats(repeat_count), "SerializeRepeats");
-        }
-      } else {
-        serializer_->SerializeObject(current_contents, kPlain, kStartOfObject);
-        bytes_processed_so_far_ += kPointerSize;
-        current++;
-      }
+      serializer_->SerializeObject(*current, kPlain, kStartOfObject);
+      bytes_processed_so_far_ += kPointerSize;
+      current++;
     }
   }
 }

@@ -230,9 +230,6 @@ const int kPointerSize  = sizeof(void*);     // NOLINT
 
 const int kDoubleSizeLog2 = 3;
 
-// Size of the state of a the random number generator.
-const int kRandomStateSize = 2 * kIntSize;
-
 #if V8_HOST_ARCH_64_BIT
 const int kPointerSizeLog2 = 3;
 const intptr_t kIntptrSignBit = V8_INT64_C(0x8000000000000000);

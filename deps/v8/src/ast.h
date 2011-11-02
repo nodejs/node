@@ -405,10 +405,7 @@ class Declaration: public AstNode {
         mode_(mode),
         fun_(fun),
         scope_(scope) {
-    ASSERT(mode == VAR ||
-           mode == CONST ||
-           mode == CONST_HARMONY ||
-           mode == LET);
+    ASSERT(mode == VAR || mode == CONST || mode == LET);
     // At the moment there are no "const functions"'s in JavaScript...
     ASSERT(fun == NULL || mode == VAR || mode == LET);
   }
@@ -1131,6 +1128,7 @@ class VariableProxy: public Expression {
   Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
+  bool inside_with() const { return inside_with_; }
   int position() const { return position_; }
 
   void MarkAsTrivial() { is_trivial_ = true; }
@@ -1142,12 +1140,14 @@ class VariableProxy: public Expression {
   Handle<String> name_;
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
+  bool inside_with_;
   bool is_trivial_;
   int position_;
 
   VariableProxy(Isolate* isolate,
                 Handle<String> name,
                 bool is_this,
+                bool inside_with,
                 int position = RelocInfo::kNoPosition);
 
   friend class Scope;
@@ -1620,6 +1620,8 @@ class FunctionLiteral: public Expression {
                   bool has_only_simple_this_property_assignments,
                   Handle<FixedArray> this_property_assignments,
                   int num_parameters,
+                  int start_position,
+                  int end_position,
                   Type type,
                   bool has_duplicate_parameters)
       : Expression(isolate),
@@ -1632,6 +1634,8 @@ class FunctionLiteral: public Expression {
             has_only_simple_this_property_assignments),
         this_property_assignments_(this_property_assignments),
         num_parameters_(num_parameters),
+        start_position_(start_position),
+        end_position_(end_position),
         function_token_position_(RelocInfo::kNoPosition),
         inferred_name_(HEAP->empty_string()),
         is_expression_(type != DECLARATION),
@@ -1647,12 +1651,11 @@ class FunctionLiteral: public Expression {
   ZoneList<Statement*>* body() const { return body_; }
   void set_function_token_position(int pos) { function_token_position_ = pos; }
   int function_token_position() const { return function_token_position_; }
-  int start_position() const;
-  int end_position() const;
+  int start_position() const { return start_position_; }
+  int end_position() const { return end_position_; }
   bool is_expression() const { return is_expression_; }
   bool is_anonymous() const { return is_anonymous_; }
-  bool strict_mode() const { return strict_mode_flag() == kStrictMode; }
-  StrictModeFlag strict_mode_flag() const;
+  bool strict_mode() const;
 
   int materialized_literal_count() { return materialized_literal_count_; }
   int expected_property_count() { return expected_property_count_; }

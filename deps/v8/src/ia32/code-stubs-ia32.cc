@@ -34,7 +34,6 @@
 #include "isolate.h"
 #include "jsregexp.h"
 #include "regexp-macro-assembler.h"
-#include "stub-cache.h"
 
 namespace v8 {
 namespace internal {
@@ -239,12 +238,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // [esp + (3 * kPointerSize)]: literals array.
 
   // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length_ > 0) {
-    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length_)
-        : FixedArray::SizeFor(length_);
-  }
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
   int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into ecx and check if we need to create a
@@ -267,9 +261,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     if (mode_ == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map = factory->fixed_array_map();
-    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
-      message = "Expected (writable) fixed double array";
-      expected_map = factory->fixed_double_array_map();
     } else {
       ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
@@ -302,24 +293,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ mov(FieldOperand(eax, JSArray::kElementsOffset), edx);
 
     // Copy the elements array.
-    if (mode_ == CLONE_ELEMENTS) {
-      for (int i = 0; i < elements_size; i += kPointerSize) {
-        __ mov(ebx, FieldOperand(ecx, i));
-        __ mov(FieldOperand(edx, i), ebx);
-      }
-    } else {
-      ASSERT(mode_ == CLONE_DOUBLE_ELEMENTS);
-      int i;
-      for (i = 0; i < FixedDoubleArray::kHeaderSize; i += kPointerSize) {
-        __ mov(ebx, FieldOperand(ecx, i));
-        __ mov(FieldOperand(edx, i), ebx);
-      }
-      while (i < elements_size) {
-        __ fld_d(FieldOperand(ecx, i));
-        __ fstp_d(FieldOperand(edx, i));
-        i += kDoubleSize;
-      }
-      ASSERT(i == elements_size);
+    for (int i = 0; i < elements_size; i += kPointerSize) {
+      __ mov(ebx, FieldOperand(ecx, i));
+      __ mov(FieldOperand(edx, i), ebx);
     }
   }
 
@@ -3882,11 +3858,11 @@ void NumberToStringStub::GenerateLookupNumberStringCache(MacroAssembler* masm,
   Register scratch = scratch2;
 
   // Load the number string cache.
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(masm->isolate());
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
   __ mov(scratch, Immediate(Heap::kNumberStringCacheRootIndex));
   __ mov(number_string_cache,
-         Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
+         Operand::StaticArray(scratch, times_pointer_size, roots_address));
   // Make the hash mask from the length of the number string cache. It
   // contains two elements (number and string) for each cache entry.
   __ mov(mask, FieldOperand(number_string_cache, FixedArray::kLengthOffset));
@@ -4854,8 +4830,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(masm->isolate());
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
 
   ASSERT_EQ(object.code(), InstanceofStub::left().code());
   ASSERT_EQ(function.code(), InstanceofStub::right().code());
@@ -4877,23 +4853,22 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Look up the function and the map in the instanceof cache.
     Label miss;
     __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-    __ cmp(function, Operand::StaticArray(scratch,
-                                          times_pointer_size,
-                                          roots_array_start));
+    __ cmp(function,
+           Operand::StaticArray(scratch, times_pointer_size, roots_address));
     __ j(not_equal, &miss, Label::kNear);
     __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
     __ cmp(map, Operand::StaticArray(
-        scratch, times_pointer_size, roots_array_start));
+        scratch, times_pointer_size, roots_address));
     __ j(not_equal, &miss, Label::kNear);
     __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
     __ mov(eax, Operand::StaticArray(
-        scratch, times_pointer_size, roots_array_start));
+        scratch, times_pointer_size, roots_address));
     __ ret((HasArgsInRegisters() ? 0 : 2) * kPointerSize);
     __ bind(&miss);
   }
 
   // Get the prototype of the function.
-  __ TryGetFunctionPrototype(function, prototype, scratch, &slow, true);
+  __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(prototype, &slow);
@@ -4903,10 +4878,9 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   // map and function. The cached answer will be set when it is known below.
   if (!HasCallSiteInlineCheck()) {
   __ mov(scratch, Immediate(Heap::kInstanceofCacheMapRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
-         map);
+  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address), map);
   __ mov(scratch, Immediate(Heap::kInstanceofCacheFunctionRootIndex));
-  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_array_start),
+  __ mov(Operand::StaticArray(scratch, times_pointer_size, roots_address),
          function);
   } else {
     // The constants for the code patching are based on no push instructions
@@ -4943,7 +4917,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Set(eax, Immediate(0));
     __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
     __ mov(Operand::StaticArray(scratch,
-                                times_pointer_size, roots_array_start), eax);
+                                times_pointer_size, roots_address), eax);
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->true_value());
@@ -4965,7 +4939,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ Set(eax, Immediate(Smi::FromInt(1)));
     __ mov(scratch, Immediate(Heap::kInstanceofCacheAnswerRootIndex));
     __ mov(Operand::StaticArray(
-        scratch, times_pointer_size, roots_array_start), eax);
+        scratch, times_pointer_size, roots_address), eax);
   } else {
     // Get return address and delta to inlined map check.
     __ mov(eax, factory->false_value());
@@ -5754,11 +5728,11 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
   // Load the symbol table.
   Register symbol_table = c2;
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(masm->isolate());
+  ExternalReference roots_address =
+      ExternalReference::roots_address(masm->isolate());
   __ mov(scratch, Immediate(Heap::kSymbolTableRootIndex));
   __ mov(symbol_table,
-         Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
+         Operand::StaticArray(scratch, times_pointer_size, roots_address));
 
   // Calculate capacity mask from the symbol table capacity.
   Register mask = scratch2;
@@ -6541,67 +6515,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 // must always call a backup property check that is complete.
 // This function is safe to call if the receiver has fast properties.
 // Name must be a symbol and receiver must be a heap object.
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register properties,
-                                                        Handle<String> name,
-                                                        Register r0) {
-  ASSERT(name->IsSymbol());
-
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = r0;
-    // Capacity is smi 2^n.
-    __ mov(index, FieldOperand(properties, kCapacityOffset));
-    __ dec(index);
-    __ and_(index,
-            Immediate(Smi::FromInt(name->Hash() +
-                                   StringDictionary::GetProbeOffset(i))));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
-    Register entity_name = r0;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    __ mov(entity_name, Operand(properties, index, times_half_pointer_size,
-                                kElementsStartOffset - kHeapObjectTag));
-    __ cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    __ j(equal, done);
-
-    // Stop if found the property.
-    __ cmp(entity_name, Handle<String>(name));
-    __ j(equal, miss);
-
-    // Check if the entry name is not a symbol.
-    __ mov(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ test_b(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-              kIsSymbolMask);
-    __ j(zero, miss);
-  }
-
-  StringDictionaryLookupStub stub(properties,
-                                  r0,
-                                  r0,
-                                  StringDictionaryLookupStub::NEGATIVE_LOOKUP);
-  __ push(Immediate(Handle<Object>(name)));
-  __ push(Immediate(name->Hash()));
-  __ CallStub(&stub);
-  __ test(r0, r0);
-  __ j(not_zero, miss);
-  __ jmp(done);
-}
-
-
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
+MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
     MacroAssembler* masm,
     Label* miss,
     Label* done,
@@ -6835,13 +6749,6 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { ebx, edx, ecx, EMIT_REMEMBERED_SET},
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { edi, edx, ecx, EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { edx, ebx, edi, EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateDoubleToObject
-  { eax, edx, esi, EMIT_REMEMBERED_SET},
-  { edx, eax, edi, EMIT_REMEMBERED_SET},
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -7083,6 +6990,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   // Fall through when we need to inform the incremental marker.
 }
+
 
 #undef __
 

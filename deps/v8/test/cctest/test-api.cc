@@ -5438,108 +5438,66 @@ static int StrNCmp16(uint16_t* a, uint16_t* b, int n) {
 
 
 THREADED_TEST(StringWrite) {
-  LocalContext context;
   v8::HandleScope scope;
   v8::Handle<String> str = v8_str("abcde");
   // abc<Icelandic eth><Unicode snowman>.
   v8::Handle<String> str2 = v8_str("abc\303\260\342\230\203");
-  const int kStride = 4;  // Must match stride in for loops in JS below.
-  CompileRun(
-      "var left = '';"
-      "for (var i = 0; i < 0xd800; i += 4) {"
-      "  left = left + String.fromCharCode(i);"
-      "}");
-  CompileRun(
-      "var right = '';"
-      "for (var i = 0; i < 0xd800; i += 4) {"
-      "  right = String.fromCharCode(i) + right;"
-      "}");
-  v8::Handle<v8::Object> global = Context::GetCurrent()->Global();
-  Handle<String> left_tree = global->Get(v8_str("left")).As<String>();
-  Handle<String> right_tree = global->Get(v8_str("right")).As<String>();
 
   CHECK_EQ(5, str2->Length());
-  CHECK_EQ(0xd800 / kStride, left_tree->Length());
-  CHECK_EQ(0xd800 / kStride, right_tree->Length());
 
   char buf[100];
-  char utf8buf[0xd800 * 3];
+  char utf8buf[100];
   uint16_t wbuf[100];
   int len;
   int charlen;
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, sizeof(utf8buf), &charlen);
   CHECK_EQ(9, len);
   CHECK_EQ(5, charlen);
   CHECK_EQ(0, strcmp(utf8buf, "abc\303\260\342\230\203"));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 8, &charlen);
   CHECK_EQ(8, len);
   CHECK_EQ(5, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\342\230\203\1", 9));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 7, &charlen);
   CHECK_EQ(5, len);
   CHECK_EQ(4, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 6, &charlen);
   CHECK_EQ(5, len);
   CHECK_EQ(4, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 5, &charlen);
   CHECK_EQ(5, len);
   CHECK_EQ(4, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\303\260\1", 5));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 4, &charlen);
   CHECK_EQ(3, len);
   CHECK_EQ(3, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 3, &charlen);
   CHECK_EQ(3, len);
   CHECK_EQ(3, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "abc\1", 4));
 
-  memset(utf8buf, 0x1, 1000);
+  memset(utf8buf, 0x1, sizeof(utf8buf));
   len = str2->WriteUtf8(utf8buf, 2, &charlen);
   CHECK_EQ(2, len);
   CHECK_EQ(2, charlen);
   CHECK_EQ(0, strncmp(utf8buf, "ab\1", 3));
-
-  memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = left_tree->Utf8Length();
-  int utf8_expected =
-      (0x80 + (0x800 - 0x80) * 2 + (0xd800 - 0x800) * 3) / kStride;
-  CHECK_EQ(utf8_expected, len);
-  len = left_tree->WriteUtf8(utf8buf, utf8_expected, &charlen);
-  CHECK_EQ(utf8_expected, len);
-  CHECK_EQ(0xd800 / kStride, charlen);
-  CHECK_EQ(0xed, static_cast<unsigned char>(utf8buf[utf8_expected - 3]));
-  CHECK_EQ(0x9f, static_cast<unsigned char>(utf8buf[utf8_expected - 2]));
-  CHECK_EQ(0xc0 - kStride,
-           static_cast<unsigned char>(utf8buf[utf8_expected - 1]));
-  CHECK_EQ(1, utf8buf[utf8_expected]);
-
-  memset(utf8buf, 0x1, sizeof(utf8buf));
-  len = right_tree->Utf8Length();
-  CHECK_EQ(utf8_expected, len);
-  len = right_tree->WriteUtf8(utf8buf, utf8_expected, &charlen);
-  CHECK_EQ(utf8_expected, len);
-  CHECK_EQ(0xd800 / kStride, charlen);
-  CHECK_EQ(0xed, static_cast<unsigned char>(utf8buf[0]));
-  CHECK_EQ(0x9f, static_cast<unsigned char>(utf8buf[1]));
-  CHECK_EQ(0xc0 - kStride, static_cast<unsigned char>(utf8buf[2]));
-  CHECK_EQ(1, utf8buf[utf8_expected]);
 
   memset(buf, 0x1, sizeof(buf));
   memset(wbuf, 0x1, sizeof(wbuf));
@@ -11482,7 +11440,6 @@ static void MorphAString(i::String* string,
 // Test that we can still flatten a string if the components it is built up
 // from have been turned into 16 bit strings in the mean time.
 THREADED_TEST(MorphCompositeStringTest) {
-  char utf_buffer[129];
   const char* c_string = "Now is the time for all good men"
                          " to come to the aid of the party";
   uint16_t* two_byte_string = AsciiToTwoByteString(c_string);
@@ -11510,17 +11467,6 @@ THREADED_TEST(MorphCompositeStringTest) {
 
     MorphAString(*v8::Utils::OpenHandle(*lhs), &ascii_resource, &uc16_resource);
     MorphAString(*v8::Utils::OpenHandle(*rhs), &ascii_resource, &uc16_resource);
-
-    // This should UTF-8 without flattening, since everything is ASCII.
-    Handle<String> cons = v8_compile("cons")->Run().As<String>();
-    CHECK_EQ(128, cons->Utf8Length());
-    int nchars = -1;
-    CHECK_EQ(129, cons->WriteUtf8(utf_buffer, -1, &nchars));
-    CHECK_EQ(128, nchars);
-    CHECK_EQ(0, strcmp(
-        utf_buffer,
-        "Now is the time for all good men to come to the aid of the party"
-        "Now is the time for all good men to come to the aid of the party"));
 
     // Now do some stuff to make sure the strings are flattened, etc.
     CompileRun(

@@ -174,10 +174,6 @@ Handle<Object> Context::Lookup(Handle<String> name,
             *attributes = READ_ONLY;
             *binding_flags = IMMUTABLE_CHECK_INITIALIZED;
             break;
-          case CONST_HARMONY:
-            *attributes = READ_ONLY;
-            *binding_flags = IMMUTABLE_CHECK_INITIALIZED_HARMONY;
-            break;
           case DYNAMIC:
           case DYNAMIC_GLOBAL:
           case DYNAMIC_LOCAL:
@@ -191,8 +187,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
       // Check the slot corresponding to the intermediate context holding
       // only the function name variable.
       if (follow_context_chain && context->IsFunctionContext()) {
-        VariableMode mode;
-        int function_index = scope_info->FunctionContextSlotIndex(*name, &mode);
+        int function_index = scope_info->FunctionContextSlotIndex(*name);
         if (function_index >= 0) {
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
@@ -200,9 +195,7 @@ Handle<Object> Context::Lookup(Handle<String> name,
           }
           *index = function_index;
           *attributes = READ_ONLY;
-          ASSERT(mode == CONST || mode == CONST_HARMONY);
-          *binding_flags = (mode == CONST)
-              ? IMMUTABLE_IS_INITIALIZED : IMMUTABLE_IS_INITIALIZED_HARMONY;
+          *binding_flags = IMMUTABLE_IS_INITIALIZED;
           return context;
         }
       }
@@ -262,7 +255,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     if (param_index >= 0) return false;
 
     // Check context only holding the function name variable.
-    index = scope_info->FunctionContextSlotIndex(*name, NULL);
+    index = scope_info->FunctionContextSlotIndex(*name);
     if (index >= 0) return false;
     context = context->previous();
   }
@@ -273,7 +266,8 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
 }
 
 
-void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_non_strict_eval) {
+void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_eval,
+                                   bool* outer_scope_calls_non_strict_eval) {
   // Skip up the context chain checking all the function contexts to see
   // whether they call eval.
   Context* context = this;
@@ -281,11 +275,14 @@ void Context::ComputeEvalScopeInfo(bool* outer_scope_calls_non_strict_eval) {
     if (context->IsFunctionContext()) {
       Handle<SerializedScopeInfo> scope_info(
           context->closure()->shared()->scope_info());
-      if (scope_info->CallsEval() && !scope_info->IsStrictMode()) {
-        // No need to go further since the answers will not change from
-        // here.
-        *outer_scope_calls_non_strict_eval = true;
-        return;
+      if (scope_info->CallsEval()) {
+        *outer_scope_calls_eval = true;
+        if (!scope_info->IsStrictMode()) {
+          // No need to go further since the answers will not change from
+          // here.
+          *outer_scope_calls_non_strict_eval = true;
+          return;
+        }
       }
     }
     context = context->previous();

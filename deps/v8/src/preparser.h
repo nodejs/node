@@ -118,12 +118,9 @@ class PreParser {
   // during parsing.
   static PreParseResult PreParseProgram(i::JavaScriptScanner* scanner,
                                         i::ParserRecorder* log,
-                                        int flags,
+                                        bool allow_lazy,
                                         uintptr_t stack_limit) {
-    bool allow_lazy = (flags & i::kAllowLazy) != 0;
-    bool allow_natives_syntax = (flags & i::kAllowNativesSyntax) != 0;
-    return PreParser(scanner, log, stack_limit,
-                     allow_lazy, allow_natives_syntax).PreParse();
+    return PreParser(scanner, log, stack_limit, allow_lazy).PreParse();
   }
 
  private:
@@ -180,12 +177,6 @@ class PreParser {
     kSourceElement,
     kStatement,
     kForStatement
-  };
-
-  // If a list of variable declarations includes any initializers.
-  enum VariableDeclarationProperties {
-    kHasInitializers,
-    kHasNoInitializers
   };
 
   class Expression;
@@ -408,16 +399,6 @@ class PreParser {
 
   typedef int Arguments;
 
-  // The Strict Mode (ECMA-262 5th edition, 4.2.2).
-  enum StrictModeFlag {
-    kNonStrictMode,
-    kStrictMode,
-    // This value is never used, but is needed to prevent GCC 4.5 from failing
-    // to compile when we assert that a flag is either kNonStrictMode or
-    // kStrictMode.
-    kInvalidStrictFlag
-  };
-
   class Scope {
    public:
     Scope(Scope** variable, ScopeType type)
@@ -427,8 +408,7 @@ class PreParser {
           materialized_literal_count_(0),
           expected_properties_(0),
           with_nesting_count_(0),
-          strict_mode_flag_((prev_ != NULL) ? prev_->strict_mode_flag()
-                            : kNonStrictMode) {
+          strict_((prev_ != NULL) && prev_->is_strict()) {
       *variable = this;
     }
     ~Scope() { *variable_ = prev_; }
@@ -438,13 +418,8 @@ class PreParser {
     int expected_properties() { return expected_properties_; }
     int materialized_literal_count() { return materialized_literal_count_; }
     bool IsInsideWith() { return with_nesting_count_ != 0; }
-    bool is_strict_mode() { return strict_mode_flag_ == kStrictMode; }
-    StrictModeFlag strict_mode_flag() {
-      return strict_mode_flag_;
-    }
-    void set_strict_mode_flag(StrictModeFlag strict_mode_flag) {
-      strict_mode_flag_ = strict_mode_flag;
-    }
+    bool is_strict() { return strict_; }
+    void set_strict() { strict_ = true; }
     void EnterWith() { with_nesting_count_++; }
     void LeaveWith() { with_nesting_count_--; }
 
@@ -455,15 +430,14 @@ class PreParser {
     int materialized_literal_count_;
     int expected_properties_;
     int with_nesting_count_;
-    StrictModeFlag strict_mode_flag_;
+    bool strict_;
   };
 
   // Private constructor only used in PreParseProgram.
   PreParser(i::JavaScriptScanner* scanner,
             i::ParserRecorder* log,
             uintptr_t stack_limit,
-            bool allow_lazy,
-            bool allow_natives_syntax)
+            bool allow_lazy)
       : scanner_(scanner),
         log_(log),
         scope_(NULL),
@@ -471,8 +445,7 @@ class PreParser {
         strict_mode_violation_location_(i::Scanner::Location::invalid()),
         strict_mode_violation_type_(NULL),
         stack_overflow_(false),
-        allow_lazy_(allow_lazy),
-        allow_natives_syntax_(allow_natives_syntax),
+        allow_lazy_(true),
         parenthesized_function_(false),
         harmony_scoping_(scanner->HarmonyScoping()) { }
 
@@ -486,7 +459,7 @@ class PreParser {
     if (stack_overflow_) return kPreParseStackOverflow;
     if (!ok) {
       ReportUnexpectedToken(scanner_->current_token());
-    } else if (scope_->is_strict_mode()) {
+    } else if (scope_->is_strict()) {
       CheckOctalLiteral(start_position, scanner_->location().end_pos, &ok);
     }
     return kPreParseSuccess;
@@ -520,7 +493,6 @@ class PreParser {
   Statement ParseVariableStatement(VariableDeclarationContext var_context,
                                    bool* ok);
   Statement ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                      VariableDeclarationProperties* decl_props,
                                       int* num_decl,
                                       bool* ok);
   Statement ParseExpressionOrLabelledStatement(bool* ok);
@@ -591,10 +563,10 @@ class PreParser {
   bool peek_any_identifier();
 
   void set_strict_mode() {
-    scope_->set_strict_mode_flag(kStrictMode);
+    scope_->set_strict();
   }
 
-  bool strict_mode() { return scope_->strict_mode_flag() == kStrictMode; }
+  bool strict_mode() { return scope_->is_strict(); }
 
   void Consume(i::Token::Value token) { Next(); }
 
@@ -635,7 +607,6 @@ class PreParser {
   const char* strict_mode_violation_type_;
   bool stack_overflow_;
   bool allow_lazy_;
-  bool allow_natives_syntax_;
   bool parenthesized_function_;
   bool harmony_scoping_;
 };

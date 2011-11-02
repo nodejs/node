@@ -178,8 +178,7 @@ bool Shell::ExecuteString(Handle<String> source,
         // If all went well and the result wasn't undefined then print
         // the returned value.
         v8::String::Utf8Value str(result);
-        size_t count = fwrite(*str, sizeof(**str), str.length(), stdout);
-        (void) count;  // Silence GCC-4.5.x "unused result" warning.
+        fwrite(*str, sizeof(**str), str.length(), stdout);
         printf("\n");
       }
       return true;

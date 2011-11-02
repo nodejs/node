@@ -38,7 +38,6 @@
 #include "macro-assembler.h"
 #include "natives.h"
 #include "objects-visiting.h"
-#include "platform.h"
 #include "snapshot.h"
 #include "extensions/externalize-string-extension.h"
 #include "extensions/gc-extension.h"
@@ -363,7 +362,6 @@ static Handle<JSFunction> InstallFunction(Handle<JSObject> target,
   if (is_ecma_native) {
     function->shared()->set_instance_class_name(*symbol);
   }
-  function->shared()->set_native(true);
   return function;
 }
 
@@ -377,28 +375,26 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
   PropertyAttributes attributes =
       static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
 
-  DescriptorArray::WhitenessWitness witness(*descriptors);
-
   {  // Add length.
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
     CallbacksDescriptor d(*factory()->length_symbol(), *foreign, attributes);
-    descriptors->Set(0, &d, witness);
+    descriptors->Set(0, &d);
   }
   {  // Add name.
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionName);
     CallbacksDescriptor d(*factory()->name_symbol(), *foreign, attributes);
-    descriptors->Set(1, &d, witness);
+    descriptors->Set(1, &d);
   }
   {  // Add arguments.
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionArguments);
     CallbacksDescriptor d(*factory()->arguments_symbol(), *foreign, attributes);
-    descriptors->Set(2, &d, witness);
+    descriptors->Set(2, &d);
   }
   {  // Add caller.
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionCaller);
     CallbacksDescriptor d(*factory()->caller_symbol(), *foreign, attributes);
-    descriptors->Set(3, &d, witness);
+    descriptors->Set(3, &d);
   }
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
     // Add prototype.
@@ -408,9 +404,9 @@ Handle<DescriptorArray> Genesis::ComputeFunctionInstanceDescriptor(
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionPrototype);
     CallbacksDescriptor d(*factory()->prototype_symbol(), *foreign, attributes);
-    descriptors->Set(4, &d, witness);
+    descriptors->Set(4, &d);
   }
-  descriptors->Sort(witness);
+  descriptors->Sort();
   return descriptors;
 }
 
@@ -526,43 +522,41 @@ Handle<DescriptorArray> Genesis::ComputeStrictFunctionInstanceDescriptor(
                                     ? 4
                                     : 5);
   PropertyAttributes attributes = static_cast<PropertyAttributes>(
-      DONT_ENUM | DONT_DELETE);
-
-  DescriptorArray::WhitenessWitness witness(*descriptors);
+      DONT_ENUM | DONT_DELETE | READ_ONLY);
 
   {  // length
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionLength);
     CallbacksDescriptor d(*factory()->length_symbol(), *foreign, attributes);
-    descriptors->Set(0, &d, witness);
+    descriptors->Set(0, &d);
   }
   {  // name
     Handle<Foreign> foreign = factory()->NewForeign(&Accessors::FunctionName);
     CallbacksDescriptor d(*factory()->name_symbol(), *foreign, attributes);
-    descriptors->Set(1, &d, witness);
+    descriptors->Set(1, &d);
   }
   {  // arguments
     CallbacksDescriptor d(*factory()->arguments_symbol(),
                           *arguments,
                           attributes);
-    descriptors->Set(2, &d, witness);
+    descriptors->Set(2, &d);
   }
   {  // caller
     CallbacksDescriptor d(*factory()->caller_symbol(), *caller, attributes);
-    descriptors->Set(3, &d, witness);
+    descriptors->Set(3, &d);
   }
 
   // prototype
   if (prototypeMode != DONT_ADD_PROTOTYPE) {
-    if (prototypeMode != ADD_WRITEABLE_PROTOTYPE) {
-      attributes = static_cast<PropertyAttributes>(attributes | READ_ONLY);
+    if (prototypeMode == ADD_WRITEABLE_PROTOTYPE) {
+      attributes = static_cast<PropertyAttributes>(attributes & ~READ_ONLY);
     }
     Handle<Foreign> foreign =
         factory()->NewForeign(&Accessors::FunctionPrototype);
     CallbacksDescriptor d(*factory()->prototype_symbol(), *foreign, attributes);
-    descriptors->Set(4, &d, witness);
+    descriptors->Set(4, &d);
   }
 
-  descriptors->Sort(witness);
+  descriptors->Sort();
   return descriptors;
 }
 
@@ -947,7 +941,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     ASSERT_EQ(0, initial_map->inobject_properties());
 
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(5);
-    DescriptorArray::WhitenessWitness witness(*descriptors);
     PropertyAttributes final =
         static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE | READ_ONLY);
     int enum_index = 0;
@@ -957,7 +950,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kSourceFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(0, &field, witness);
+      descriptors->Set(0, &field);
     }
     {
       // ECMA-262, section 15.10.7.2.
@@ -965,7 +958,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kGlobalFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(1, &field, witness);
+      descriptors->Set(1, &field);
     }
     {
       // ECMA-262, section 15.10.7.3.
@@ -973,7 +966,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kIgnoreCaseFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(2, &field, witness);
+      descriptors->Set(2, &field);
     }
     {
       // ECMA-262, section 15.10.7.4.
@@ -981,7 +974,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kMultilineFieldIndex,
                             final,
                             enum_index++);
-      descriptors->Set(3, &field, witness);
+      descriptors->Set(3, &field);
     }
     {
       // ECMA-262, section 15.10.7.5.
@@ -991,10 +984,10 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             JSRegExp::kLastIndexFieldIndex,
                             writable,
                             enum_index++);
-      descriptors->Set(4, &field, witness);
+      descriptors->Set(4, &field);
     }
     descriptors->SetNextEnumerationIndex(enum_index);
-    descriptors->Sort(witness);
+    descriptors->Sort();
 
     initial_map->set_inobject_properties(5);
     initial_map->set_pre_allocated_property_fields(5);
@@ -1072,7 +1065,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             DONT_ENUM);
 
 #ifdef DEBUG
-    LookupResult lookup(isolate);
+    LookupResult lookup;
     result->LocalLookup(heap->callee_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsCalleeIndex);
@@ -1091,6 +1084,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
   }
 
   {  // --- aliased_arguments_boilerplate_
+    Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
+    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
+    new_map->set_pre_allocated_property_fields(2);
+    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
+    new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
     // Set up a well-formed parameter map to make assertions happy.
     Handle<FixedArray> elements = factory->NewFixedArray(2);
     elements->set_map(heap->non_strict_arguments_elements_map());
@@ -1099,16 +1097,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     elements->set(0, *array);
     array = factory->NewFixedArray(0);
     elements->set(1, *array);
-
-    Handle<Map> old_map(global_context()->arguments_boilerplate()->map());
-    Handle<Map> new_map = factory->CopyMapDropTransitions(old_map);
-    new_map->set_pre_allocated_property_fields(2);
-    Handle<JSObject> result = factory->NewJSObjectFromMap(new_map);
-    // Set elements kind after allocating the object because
-    // NewJSObjectFromMap assumes a fast elements map.
-    new_map->set_elements_kind(NON_STRICT_ARGUMENTS_ELEMENTS);
-    result->set_elements(*elements);
+    Handle<Map> non_strict_arguments_elements_map =
+        factory->GetElementsTransitionMap(result,
+                                          NON_STRICT_ARGUMENTS_ELEMENTS);
+    result->set_map(*non_strict_arguments_elements_map);
     ASSERT(result->HasNonStrictArgumentsElements());
+    result->set_elements(*elements);
     global_context()->set_aliased_arguments_boilerplate(*result);
   }
 
@@ -1131,20 +1125,19 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
     // Create the descriptor array for the arguments object.
     Handle<DescriptorArray> descriptors = factory->NewDescriptorArray(3);
-    DescriptorArray::WhitenessWitness witness(*descriptors);
     {  // length
       FieldDescriptor d(*factory->length_symbol(), 0, DONT_ENUM);
-      descriptors->Set(0, &d, witness);
+      descriptors->Set(0, &d);
     }
     {  // callee
       CallbacksDescriptor d(*factory->callee_symbol(), *callee, attributes);
-      descriptors->Set(1, &d, witness);
+      descriptors->Set(1, &d);
     }
     {  // caller
       CallbacksDescriptor d(*factory->caller_symbol(), *caller, attributes);
-      descriptors->Set(2, &d, witness);
+      descriptors->Set(2, &d);
     }
-    descriptors->Sort(witness);
+    descriptors->Sort();
 
     // Create the map. Allocate one in-object field for length.
     Handle<Map> map = factory->NewMap(JS_OBJECT_TYPE,
@@ -1169,7 +1162,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
                             DONT_ENUM);
 
 #ifdef DEBUG
-    LookupResult lookup(isolate);
+    LookupResult lookup;
     result->LocalLookup(heap->length_symbol(), &lookup);
     ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
@@ -1228,14 +1221,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 
   // Initialize the data slot.
   global_context()->set_data(heap->undefined_value());
-
-  {
-    // Initialize the random seed slot.
-    Handle<ByteArray> zeroed_byte_array(
-        factory->NewByteArray(kRandomStateSize));
-    global_context()->set_random_seed(*zeroed_byte_array);
-    memset(zeroed_byte_array->GetDataStartAddress(), 0, kRandomStateSize);
-  }
 }
 
 
@@ -1243,26 +1228,12 @@ void Genesis::InitializeExperimentalGlobal() {
   Handle<JSObject> global = Handle<JSObject>(global_context()->global());
 
   // TODO(mstarzinger): Move this into Genesis::InitializeGlobal once we no
-  // longer need to live behind a flag, so functions get added to the snapshot.
-  if (FLAG_harmony_collections) {
-    {  // -- S e t
-      Handle<JSObject> prototype =
-          factory()->NewJSObject(isolate()->object_function(), TENURED);
-      InstallFunction(global, "Set", JS_SET_TYPE, JSSet::kSize,
-                      prototype, Builtins::kIllegal, true);
-    }
-    {  // -- M a p
-      Handle<JSObject> prototype =
-          factory()->NewJSObject(isolate()->object_function(), TENURED);
-      InstallFunction(global, "Map", JS_MAP_TYPE, JSMap::kSize,
-                      prototype, Builtins::kIllegal, true);
-    }
-    {  // -- W e a k M a p
-      Handle<JSObject> prototype =
-          factory()->NewJSObject(isolate()->object_function(), TENURED);
-      InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
-                      prototype, Builtins::kIllegal, true);
-    }
+  // longer need to live behind a flag, so WeakMap gets added to the snapshot.
+  if (FLAG_harmony_weakmaps) {  // -- W e a k M a p
+    Handle<JSObject> prototype =
+        factory()->NewJSObject(isolate()->object_function(), TENURED);
+    InstallFunction(global, "WeakMap", JS_WEAK_MAP_TYPE, JSWeakMap::kSize,
+                    prototype, Builtins::kIllegal, true);
   }
 }
 
@@ -1391,7 +1362,6 @@ void Genesis::InstallExperimentalNativeFunctions() {
     INSTALL_NATIVE(JSFunction, "DerivedHasTrap", derived_has_trap);
     INSTALL_NATIVE(JSFunction, "DerivedGetTrap", derived_get_trap);
     INSTALL_NATIVE(JSFunction, "DerivedSetTrap", derived_set_trap);
-    INSTALL_NATIVE(JSFunction, "ProxyEnumerate", proxy_enumerate);
   }
 }
 
@@ -1726,9 +1696,7 @@ bool Genesis::InstallNatives() {
     Handle<DescriptorArray> reresult_descriptors =
         factory()->NewDescriptorArray(3);
 
-    DescriptorArray::WhitenessWitness witness(*reresult_descriptors);
-
-    reresult_descriptors->CopyFrom(0, *array_descriptors, 0, witness);
+    reresult_descriptors->CopyFrom(0, *array_descriptors, 0);
 
     int enum_index = 0;
     {
@@ -1736,7 +1704,7 @@ bool Genesis::InstallNatives() {
                                   JSRegExpResult::kIndexIndex,
                                   NONE,
                                   enum_index++);
-      reresult_descriptors->Set(1, &index_field, witness);
+      reresult_descriptors->Set(1, &index_field);
     }
 
     {
@@ -1744,9 +1712,9 @@ bool Genesis::InstallNatives() {
                                   JSRegExpResult::kInputIndex,
                                   NONE,
                                   enum_index++);
-      reresult_descriptors->Set(2, &input_field, witness);
+      reresult_descriptors->Set(2, &input_field);
     }
-    reresult_descriptors->Sort(witness);
+    reresult_descriptors->Sort();
 
     initial_map->set_inobject_properties(2);
     initial_map->set_pre_allocated_property_fields(2);
@@ -1773,9 +1741,9 @@ bool Genesis::InstallExperimentalNatives() {
                "native proxy.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
-    if (FLAG_harmony_collections &&
+    if (FLAG_harmony_weakmaps &&
         strcmp(ExperimentalNatives::GetScriptName(i).start(),
-               "native collection.js") == 0) {
+               "native weakmap.js") == 0) {
       if (!CompileExperimentalBuiltin(isolate(), i)) return false;
     }
   }
@@ -2021,12 +1989,6 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
       false);
   ASSERT(isolate->has_pending_exception() != result);
   if (!result) {
-    // We print out the name of the extension that fail to install.
-    // When an error is thrown during bootstrapping we automatically print
-    // the line number at which this happened to the console in the isolate
-    // error throwing functionality.
-    OS::PrintError("Error installing extension '%s'.\n",
-                   current->extension()->name());
     isolate->clear_pending_exception();
   }
   current->set_state(v8::INSTALLED);
@@ -2046,9 +2008,7 @@ bool Genesis::InstallJSBuiltins(Handle<JSBuiltinsObject> builtins) {
     builtins->set_javascript_builtin(id, *function);
     Handle<SharedFunctionInfo> shared
         = Handle<SharedFunctionInfo>(function->shared());
-    if (!SharedFunctionInfo::EnsureCompiled(shared, CLEAR_EXCEPTION)) {
-      return false;
-    }
+    if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
     // Set the code object on the function object.
     function->ReplaceCode(function->shared()->code());
     builtins->set_javascript_builtin_code(id, shared->code());
@@ -2128,7 +2088,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
           break;
         }
         case CALLBACKS: {
-          LookupResult result(isolate());
+          LookupResult result;
           to->LocalLookup(descs->GetKey(i), &result);
           // If the property is already there we skip it
           if (result.IsProperty()) continue;
@@ -2166,7 +2126,7 @@ void Genesis::TransferNamedProperties(Handle<JSObject> from,
       if (properties->IsKey(raw_key)) {
         ASSERT(raw_key->IsString());
         // If the property is already there we skip it.
-        LookupResult result(isolate());
+        LookupResult result;
         to->LocalLookup(String::cast(raw_key), &result);
         if (result.IsProperty()) continue;
         // Set the property.

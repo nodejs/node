@@ -211,14 +211,14 @@ namespace internal {
   /* Reflection */ \
   F(FunctionSetInstanceClassName, 2, 1) \
   F(FunctionSetLength, 2, 1) \
+  F(BoundFunctionSetLength, 2, 1)    \
   F(FunctionSetPrototype, 2, 1) \
   F(FunctionSetReadOnlyPrototype, 1, 1) \
   F(FunctionGetName, 1, 1) \
   F(FunctionSetName, 2, 1) \
   F(FunctionNameShouldPrintAsAnonymous, 1, 1) \
   F(FunctionMarkNameShouldPrintAsAnonymous, 1, 1) \
-  F(FunctionBindArguments, 4, 1) \
-  F(BoundFunctionGetBindings, 1, 1) \
+  F(FunctionSetBound, 1, 1) \
   F(FunctionRemovePrototype, 1, 1) \
   F(FunctionGetSourceCode, 1, 1) \
   F(FunctionGetScript, 1, 1) \
@@ -278,7 +278,7 @@ namespace internal {
   \
   /* Literals */ \
   F(MaterializeRegExpLiteral, 4, 1)\
-  F(CreateArrayLiteralBoilerplate, 4, 1) \
+  F(CreateArrayLiteralBoilerplate, 3, 1) \
   F(CloneLiteralBoilerplate, 1, 1) \
   F(CloneShallowLiteralBoilerplate, 1, 1) \
   F(CreateObjectLiteral, 4, 1) \
@@ -296,17 +296,6 @@ namespace internal {
   F(GetConstructTrap, 1, 1) \
   F(Fix, 1, 1) \
   \
-  /* Harmony sets */ \
-  F(SetInitialize, 1, 1) \
-  F(SetAdd, 2, 1) \
-  F(SetHas, 2, 1) \
-  F(SetDelete, 2, 1) \
-  \
-  /* Harmony maps */ \
-  F(MapInitialize, 1, 1) \
-  F(MapGet, 2, 1) \
-  F(MapSet, 3, 1) \
-  \
   /* Harmony weakmaps */ \
   F(WeakMapInitialize, 1, 1) \
   F(WeakMapGet, 2, 1) \
@@ -315,7 +304,7 @@ namespace internal {
   /* Statements */ \
   F(NewClosure, 3, 1) \
   F(NewObject, 1, 1) \
-  F(NewObjectFromBound, 1, 1) \
+  F(NewObjectFromBound, 2, 1) \
   F(FinalizeInstanceSize, 1, 1) \
   F(Throw, 1, 1) \
   F(ReThrow, 1, 1) \
@@ -341,10 +330,11 @@ namespace internal {
   F(InitializeConstContextSlot, 3, 1) \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   \
+  /* Arrays */ \
+  F(NonSmiElementStored, 1, 1) \
   /* Debugging */ \
   F(DebugPrint, 1, 1) \
   F(DebugTrace, 0, 1) \
-  F(TraceElementsKindTransition, 5, 1) \
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
   F(Abort, 2, 1) \
@@ -380,8 +370,6 @@ namespace internal {
   F(HasExternalUnsignedIntElements, 1, 1) \
   F(HasExternalFloatElements, 1, 1) \
   F(HasExternalDoubleElements, 1, 1) \
-  F(TransitionElementsSmiToDouble, 1, 1) \
-  F(TransitionElementsDoubleToObject, 1, 1) \
   F(HaveSameMap, 2, 1) \
   /* profiler */ \
   F(ProfilerResume, 0, 1) \
@@ -640,14 +628,16 @@ class Runtime : public AllStatic {
 
   static bool IsUpperCaseChar(RuntimeState* runtime_state, uint16_t ch);
 
-  // TODO(1240886): Some of the following methods are *not* handle safe, but
-  // accept handle arguments. This seems fragile.
+  // TODO(1240886): The following three methods are *not* handle safe,
+  // but accept handle arguments. This seems fragile.
 
   // Support getting the characters in a string using [] notation as
   // in Firefox/SpiderMonkey, Safari and Opera.
   MUST_USE_RESULT static MaybeObject* GetElementOrCharAt(Isolate* isolate,
                                                          Handle<Object> object,
                                                          uint32_t index);
+  MUST_USE_RESULT static MaybeObject* GetElement(Handle<Object> object,
+                                                 uint32_t index);
 
   MUST_USE_RESULT static MaybeObject* SetObjectProperty(
       Isolate* isolate,
@@ -687,9 +677,11 @@ class Runtime : public AllStatic {
 //---------------------------------------------------------------------------
 // Constants used by interface to runtime functions.
 
-class DeclareGlobalsEvalFlag:       public BitField<bool,           0, 1> {};
-class DeclareGlobalsStrictModeFlag: public BitField<StrictModeFlag, 1, 1> {};
-class DeclareGlobalsNativeFlag:     public BitField<bool,           2, 1> {};
+enum kDeclareGlobalsFlags {
+  kDeclareGlobalsEvalFlag = 1 << 0,
+  kDeclareGlobalsStrictModeFlag = 1 << 1,
+  kDeclareGlobalsNativeFlag = 1 << 2
+};
 
 } }  // namespace v8::internal
 

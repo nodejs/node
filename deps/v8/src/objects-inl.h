@@ -67,13 +67,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
 }
 
 
-#define TYPE_CHECKER(type, instancetype)                                \
-  bool Object::Is##type() {                                             \
-  return Object::IsHeapObject() &&                                      \
-      HeapObject::cast(this)->map()->instance_type() == instancetype;   \
-  }
-
-
 #define CAST_ACCESSOR(type)                     \
   type* type::cast(Object* object) {            \
     ASSERT(object->Is##type());                 \
@@ -119,11 +112,6 @@ PropertyDetails PropertyDetails::AsDeleted() {
   }
 
 
-bool Object::IsFixedArrayBase() {
-  return IsFixedArray() || IsFixedDoubleArray();
-}
-
-
 bool Object::IsInstanceOf(FunctionTemplateInfo* expected) {
   // There is a constraint on the object; check.
   if (!this->IsJSObject()) return false;
@@ -159,7 +147,10 @@ bool Object::NonFailureIsHeapObject() {
 }
 
 
-TYPE_CHECKER(HeapNumber, HEAP_NUMBER_TYPE)
+bool Object::IsHeapNumber() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == HEAP_NUMBER_TYPE;
+}
 
 
 bool Object::IsString() {
@@ -412,8 +403,16 @@ bool Object::IsNumber() {
 }
 
 
-TYPE_CHECKER(ByteArray, BYTE_ARRAY_TYPE)
-TYPE_CHECKER(FreeSpace, FREE_SPACE_TYPE)
+bool Object::IsByteArray() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == BYTE_ARRAY_TYPE;
+}
+
+
+bool Object::IsFreeSpace() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == FREE_SPACE_TYPE;
+}
 
 
 bool Object::IsFiller() {
@@ -423,7 +422,11 @@ bool Object::IsFiller() {
 }
 
 
-TYPE_CHECKER(ExternalPixelArray, EXTERNAL_PIXEL_ARRAY_TYPE)
+bool Object::IsExternalPixelArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+          EXTERNAL_PIXEL_ARRAY_TYPE;
+}
 
 
 bool Object::IsExternalArray() {
@@ -436,14 +439,60 @@ bool Object::IsExternalArray() {
 }
 
 
-TYPE_CHECKER(ExternalByteArray, EXTERNAL_BYTE_ARRAY_TYPE)
-TYPE_CHECKER(ExternalUnsignedByteArray, EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE)
-TYPE_CHECKER(ExternalShortArray, EXTERNAL_SHORT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalUnsignedShortArray, EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalIntArray, EXTERNAL_INT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalUnsignedIntArray, EXTERNAL_UNSIGNED_INT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalFloatArray, EXTERNAL_FLOAT_ARRAY_TYPE)
-TYPE_CHECKER(ExternalDoubleArray, EXTERNAL_DOUBLE_ARRAY_TYPE)
+bool Object::IsExternalByteArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_BYTE_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalUnsignedByteArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalShortArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_SHORT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalUnsignedShortArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalIntArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_INT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalUnsignedIntArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_UNSIGNED_INT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalFloatArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_FLOAT_ARRAY_TYPE;
+}
+
+
+bool Object::IsExternalDoubleArray() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() ==
+      EXTERNAL_DOUBLE_ARRAY_TYPE;
+}
 
 
 bool MaybeObject::IsFailure() {
@@ -500,14 +549,42 @@ bool Object::IsJSProxy() {
 }
 
 
-TYPE_CHECKER(JSFunctionProxy, JS_FUNCTION_PROXY_TYPE)
-TYPE_CHECKER(JSSet, JS_SET_TYPE)
-TYPE_CHECKER(JSMap, JS_MAP_TYPE)
-TYPE_CHECKER(JSWeakMap, JS_WEAK_MAP_TYPE)
-TYPE_CHECKER(JSContextExtensionObject, JS_CONTEXT_EXTENSION_OBJECT_TYPE)
-TYPE_CHECKER(Map, MAP_TYPE)
-TYPE_CHECKER(FixedArray, FIXED_ARRAY_TYPE)
-TYPE_CHECKER(FixedDoubleArray, FIXED_DOUBLE_ARRAY_TYPE)
+bool Object::IsJSFunctionProxy() {
+  return Object::IsHeapObject() &&
+      HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_PROXY_TYPE;
+}
+
+
+bool Object::IsJSWeakMap() {
+  return Object::IsJSObject() &&
+      HeapObject::cast(this)->map()->instance_type() == JS_WEAK_MAP_TYPE;
+}
+
+
+bool Object::IsJSContextExtensionObject() {
+  return IsHeapObject()
+      && (HeapObject::cast(this)->map()->instance_type() ==
+          JS_CONTEXT_EXTENSION_OBJECT_TYPE);
+}
+
+
+bool Object::IsMap() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == MAP_TYPE;
+}
+
+
+bool Object::IsFixedArray() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == FIXED_ARRAY_TYPE;
+}
+
+
+bool Object::IsFixedDoubleArray() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() ==
+          FIXED_DOUBLE_ARRAY_TYPE;
+}
 
 
 bool Object::IsDescriptorArray() {
@@ -570,7 +647,10 @@ bool Object::IsSerializedScopeInfo() {
 }
 
 
-TYPE_CHECKER(JSFunction, JS_FUNCTION_TYPE)
+bool Object::IsJSFunction() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == JS_FUNCTION_TYPE;
+}
 
 
 template <> inline bool Is<JSFunction>(Object* obj) {
@@ -578,12 +658,43 @@ template <> inline bool Is<JSFunction>(Object* obj) {
 }
 
 
-TYPE_CHECKER(Code, CODE_TYPE)
-TYPE_CHECKER(Oddball, ODDBALL_TYPE)
-TYPE_CHECKER(JSGlobalPropertyCell, JS_GLOBAL_PROPERTY_CELL_TYPE)
-TYPE_CHECKER(SharedFunctionInfo, SHARED_FUNCTION_INFO_TYPE)
-TYPE_CHECKER(JSValue, JS_VALUE_TYPE)
-TYPE_CHECKER(JSMessageObject, JS_MESSAGE_OBJECT_TYPE)
+bool Object::IsCode() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == CODE_TYPE;
+}
+
+
+bool Object::IsOddball() {
+  return Object::IsHeapObject()
+    && HeapObject::cast(this)->map()->instance_type() == ODDBALL_TYPE;
+}
+
+
+bool Object::IsJSGlobalPropertyCell() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type()
+      == JS_GLOBAL_PROPERTY_CELL_TYPE;
+}
+
+
+bool Object::IsSharedFunctionInfo() {
+  return Object::IsHeapObject() &&
+      (HeapObject::cast(this)->map()->instance_type() ==
+       SHARED_FUNCTION_INFO_TYPE);
+}
+
+
+bool Object::IsJSValue() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == JS_VALUE_TYPE;
+}
+
+
+bool Object::IsJSMessageObject() {
+  return Object::IsHeapObject()
+      && (HeapObject::cast(this)->map()->instance_type() ==
+          JS_MESSAGE_OBJECT_TYPE);
+}
 
 
 bool Object::IsStringWrapper() {
@@ -591,7 +702,10 @@ bool Object::IsStringWrapper() {
 }
 
 
-TYPE_CHECKER(Foreign, FOREIGN_TYPE)
+bool Object::IsForeign() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == FOREIGN_TYPE;
+}
 
 
 bool Object::IsBoolean() {
@@ -600,8 +714,16 @@ bool Object::IsBoolean() {
 }
 
 
-TYPE_CHECKER(JSArray, JS_ARRAY_TYPE)
-TYPE_CHECKER(JSRegExp, JS_REGEXP_TYPE)
+bool Object::IsJSArray() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == JS_ARRAY_TYPE;
+}
+
+
+bool Object::IsJSRegExp() {
+  return Object::IsHeapObject()
+      && HeapObject::cast(this)->map()->instance_type() == JS_REGEXP_TYPE;
+}
 
 
 template <> inline bool Is<JSArray>(Object* obj) {
@@ -638,10 +760,7 @@ bool Object::IsJSFunctionResultCache() {
     return false;
   }
 #ifdef DEBUG
-  if (FLAG_verify_heap) {
-    reinterpret_cast<JSFunctionResultCache*>(this)->
-        JSFunctionResultCacheVerify();
-  }
+  reinterpret_cast<JSFunctionResultCache*>(this)->JSFunctionResultCacheVerify();
 #endif
   return true;
 }
@@ -653,9 +772,7 @@ bool Object::IsNormalizedMapCache() {
     return false;
   }
 #ifdef DEBUG
-  if (FLAG_verify_heap) {
-    reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
-  }
+  reinterpret_cast<NormalizedMapCache*>(this)->NormalizedMapCacheVerify();
 #endif
   return true;
 }
@@ -704,8 +821,18 @@ bool Object::IsGlobalObject() {
 }
 
 
-TYPE_CHECKER(JSGlobalObject, JS_GLOBAL_OBJECT_TYPE)
-TYPE_CHECKER(JSBuiltinsObject, JS_BUILTINS_OBJECT_TYPE)
+bool Object::IsJSGlobalObject() {
+  return IsHeapObject() &&
+      (HeapObject::cast(this)->map()->instance_type() ==
+       JS_GLOBAL_OBJECT_TYPE);
+}
+
+
+bool Object::IsJSBuiltinsObject() {
+  return IsHeapObject() &&
+      (HeapObject::cast(this)->map()->instance_type() ==
+       JS_BUILTINS_OBJECT_TYPE);
+}
 
 
 bool Object::IsUndetectableObject() {
@@ -1173,6 +1300,7 @@ ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 FixedArrayBase* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
+  ASSERT(array->HasValidElements());
   return static_cast<FixedArrayBase*>(array);
 }
 
@@ -1612,11 +1740,7 @@ void FixedDoubleArray::Initialize(FixedDoubleArray* from) {
                 old_length * kDoubleSize);
   } else {
     for (int i = 0; i < old_length; ++i) {
-      if (from->is_the_hole(i)) {
-        set_the_hole(i);
-      } else {
-        set(i, from->get_scalar(i));
-      }
+      set(i, from->get_scalar(i));
     }
   }
   int offset = kHeaderSize + old_length * kDoubleSize;
@@ -1681,13 +1805,15 @@ void FixedArray::set(int index,
 }
 
 
-void FixedArray::NoWriteBarrierSet(FixedArray* array,
-                                   int index,
-                                   Object* value) {
+void FixedArray::fast_set(FixedArray* array, int index, Object* value) {
   ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
   ASSERT(index >= 0 && index < array->length());
   ASSERT(!HEAP->InNewSpace(value));
   WRITE_FIELD(array, kHeaderSize + index * kPointerSize, value);
+  array->GetHeap()->incremental_marking()->RecordWrite(
+      array,
+      HeapObject::RawField(array, kHeaderSize + index * kPointerSize),
+      value);
 }
 
 
@@ -1775,12 +1901,10 @@ void DescriptorArray::set_bit_field3_storage(int value) {
 }
 
 
-void DescriptorArray::NoWriteBarrierSwap(FixedArray* array,
-                                         int first,
-                                         int second) {
+void DescriptorArray::fast_swap(FixedArray* array, int first, int second) {
   Object* tmp = array->get(first);
-  NoWriteBarrierSet(array, first, array->get(second));
-  NoWriteBarrierSet(array, second, tmp);
+  fast_set(array, first, array->get(second));
+  fast_set(array, second, tmp);
 }
 
 
@@ -1888,9 +2012,7 @@ void DescriptorArray::Get(int descriptor_number, Descriptor* desc) {
 }
 
 
-void DescriptorArray::Set(int descriptor_number,
-                          Descriptor* desc,
-                          const WhitenessWitness&) {
+void DescriptorArray::Set(int descriptor_number, Descriptor* desc) {
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
@@ -1898,53 +2020,26 @@ void DescriptorArray::Set(int descriptor_number,
   ASSERT(!HEAP->InNewSpace(desc->GetKey()));
   ASSERT(!HEAP->InNewSpace(desc->GetValue()));
 
-  NoWriteBarrierSet(this,
-                    ToKeyIndex(descriptor_number),
-                    desc->GetKey());
+  fast_set(this, ToKeyIndex(descriptor_number), desc->GetKey());
   FixedArray* content_array = GetContentArray();
-  NoWriteBarrierSet(content_array,
-                    ToValueIndex(descriptor_number),
-                    desc->GetValue());
-  NoWriteBarrierSet(content_array,
-                    ToDetailsIndex(descriptor_number),
-                    desc->GetDetails().AsSmi());
+  fast_set(content_array, ToValueIndex(descriptor_number), desc->GetValue());
+  fast_set(content_array, ToDetailsIndex(descriptor_number),
+           desc->GetDetails().AsSmi());
 }
 
 
-void DescriptorArray::CopyFrom(int index,
-                               DescriptorArray* src,
-                               int src_index,
-                               const WhitenessWitness& witness) {
+void DescriptorArray::CopyFrom(int index, DescriptorArray* src, int src_index) {
   Descriptor desc;
   src->Get(src_index, &desc);
-  Set(index, &desc, witness);
+  Set(index, &desc);
 }
 
 
-void DescriptorArray::NoWriteBarrierSwapDescriptors(int first, int second) {
-  NoWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
+void DescriptorArray::Swap(int first, int second) {
+  fast_swap(this, ToKeyIndex(first), ToKeyIndex(second));
   FixedArray* content_array = GetContentArray();
-  NoWriteBarrierSwap(content_array,
-                     ToValueIndex(first),
-                     ToValueIndex(second));
-  NoWriteBarrierSwap(content_array,
-                     ToDetailsIndex(first),
-                     ToDetailsIndex(second));
-}
-
-
-DescriptorArray::WhitenessWitness::WhitenessWitness(DescriptorArray* array)
-    : marking_(array->GetHeap()->incremental_marking()) {
-  marking_->EnterNoMarkingScope();
-  if (array->number_of_descriptors() > 0) {
-    ASSERT(Marking::Color(array) == Marking::WHITE_OBJECT);
-    ASSERT(Marking::Color(array->GetContentArray()) == Marking::WHITE_OBJECT);
-  }
-}
-
-
-DescriptorArray::WhitenessWitness::~WhitenessWitness() {
-  marking_->LeaveNoMarkingScope();
+  fast_swap(content_array, ToValueIndex(first), ToValueIndex(second));
+  fast_swap(content_array, ToDetailsIndex(first),  ToDetailsIndex(second));
 }
 
 
@@ -2047,8 +2142,6 @@ CAST_ACCESSOR(JSArray)
 CAST_ACCESSOR(JSRegExp)
 CAST_ACCESSOR(JSProxy)
 CAST_ACCESSOR(JSFunctionProxy)
-CAST_ACCESSOR(JSSet)
-CAST_ACCESSOR(JSMap)
 CAST_ACCESSOR(JSWeakMap)
 CAST_ACCESSOR(Foreign)
 CAST_ACCESSOR(ByteArray)
@@ -2886,21 +2979,6 @@ void Code::set_has_debug_break_slots(bool value) {
 }
 
 
-bool Code::is_compiled_optimizable() {
-  ASSERT(kind() == FUNCTION);
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
-  return FullCodeFlagsIsCompiledOptimizable::decode(flags);
-}
-
-
-void Code::set_compiled_optimizable(bool value) {
-  ASSERT(kind() == FUNCTION);
-  byte flags = READ_BYTE_FIELD(this, kFullCodeFlags);
-  flags = FullCodeFlagsIsCompiledOptimizable::update(flags, value);
-  WRITE_BYTE_FIELD(this, kFullCodeFlags, flags);
-}
-
-
 int Code::allow_osr_at_loop_nesting_level() {
   ASSERT(kind() == FUNCTION);
   return READ_BYTE_FIELD(this, kAllowOSRAtLoopNestingLevelOffset);
@@ -3226,7 +3304,7 @@ ACCESSORS(Map, prototype_transitions, FixedArray, kPrototypeTransitionsOffset)
 ACCESSORS(Map, constructor, Object, kConstructorOffset)
 
 ACCESSORS(JSFunction, shared, SharedFunctionInfo, kSharedFunctionInfoOffset)
-ACCESSORS(JSFunction, literals_or_bindings, FixedArray, kLiteralsOffset)
+ACCESSORS(JSFunction, literals, FixedArray, kLiteralsOffset)
 ACCESSORS(JSFunction,
           next_function_link,
           Object,
@@ -3469,23 +3547,8 @@ void SharedFunctionInfo::set_optimization_disabled(bool disable) {
 }
 
 
-StrictModeFlag SharedFunctionInfo::strict_mode_flag() {
-  return BooleanBit::get(compiler_hints(), kStrictModeFunction)
-      ? kStrictMode : kNonStrictMode;
-}
-
-
-void SharedFunctionInfo::set_strict_mode_flag(StrictModeFlag strict_mode_flag) {
-  ASSERT(strict_mode_flag == kStrictMode ||
-         strict_mode_flag == kNonStrictMode);
-  bool value = strict_mode_flag == kStrictMode;
-  set_compiler_hints(
-      BooleanBit::set(compiler_hints(), kStrictModeFunction, value));
-}
-
-
-BOOL_GETTER(SharedFunctionInfo, compiler_hints, strict_mode,
-            kStrictModeFunction)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, strict_mode,
+               kStrictModeFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, native, kNative)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                name_should_print_as_anonymous,
@@ -3760,36 +3823,7 @@ bool JSFunction::is_compiled() {
 }
 
 
-FixedArray* JSFunction::literals() {
-  ASSERT(!shared()->bound());
-  return literals_or_bindings();
-}
-
-
-void JSFunction::set_literals(FixedArray* literals) {
-  ASSERT(!shared()->bound());
-  set_literals_or_bindings(literals);
-}
-
-
-FixedArray* JSFunction::function_bindings() {
-  ASSERT(shared()->bound());
-  return literals_or_bindings();
-}
-
-
-void JSFunction::set_function_bindings(FixedArray* bindings) {
-  ASSERT(shared()->bound());
-  // Bound function literal may be initialized to the empty fixed array
-  // before the bindings are set.
-  ASSERT(bindings == GetHeap()->empty_fixed_array() ||
-         bindings->map() == GetHeap()->fixed_cow_array_map());
-  set_literals_or_bindings(bindings);
-}
-
-
 int JSFunction::NumberOfLiterals() {
-  ASSERT(!shared()->bound());
   return literals()->length();
 }
 
@@ -3836,8 +3870,6 @@ void JSProxy::InitializeBody(int object_size, Object* value) {
 }
 
 
-ACCESSORS(JSSet, table, Object, kTableOffset)
-ACCESSORS(JSMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, table, Object, kTableOffset)
 ACCESSORS(JSWeakMap, next, Object, kNextOffset)
 
@@ -4024,16 +4056,14 @@ ElementsKind JSObject::GetElementsKind() {
       reinterpret_cast<FixedArrayBase*>(READ_FIELD(this, kElementsOffset));
   Map* map = fixed_array->map();
     ASSERT(((kind == FAST_ELEMENTS || kind == FAST_SMI_ONLY_ELEMENTS) &&
-            (map == GetHeap()->fixed_array_map() ||
-             map == GetHeap()->fixed_cow_array_map())) ||
-           (kind == FAST_DOUBLE_ELEMENTS &&
-            fixed_array->IsFixedDoubleArray()) ||
-           (kind == DICTIONARY_ELEMENTS &&
-            fixed_array->IsFixedArray() &&
-            fixed_array->IsDictionary()) ||
-           (kind > DICTIONARY_ELEMENTS));
-    ASSERT((kind != NON_STRICT_ARGUMENTS_ELEMENTS) ||
-           (elements()->IsFixedArray() && elements()->length() >= 2));
+          (map == GetHeap()->fixed_array_map() ||
+           map == GetHeap()->fixed_cow_array_map())) ||
+         (kind == FAST_DOUBLE_ELEMENTS &&
+          fixed_array->IsFixedDoubleArray()) ||
+         (kind == DICTIONARY_ELEMENTS &&
+          fixed_array->IsFixedArray() &&
+          fixed_array->IsDictionary()) ||
+         (kind > DICTIONARY_ELEMENTS));
 #endif
   return kind;
 }
@@ -4377,7 +4407,7 @@ void Dictionary<Shape, Key>::SetEntry(int entry,
   WriteBarrierMode mode = FixedArray::GetWriteBarrierMode(no_gc);
   FixedArray::set(index, key, mode);
   FixedArray::set(index+1, value, mode);
-  FixedArray::set(index+2, details.AsSmi());
+  FixedArray::fast_set(this, index+2, details.AsSmi());
 }
 
 
@@ -4426,31 +4456,27 @@ MaybeObject* StringDictionaryShape::AsObject(String* key) {
 }
 
 
-template <int entrysize>
-bool ObjectHashTableShape<entrysize>::IsMatch(Object* key, Object* other) {
-  return key->SameValue(other);
+bool ObjectHashTableShape::IsMatch(JSReceiver* key, Object* other) {
+  return key == JSReceiver::cast(other);
 }
 
 
-template <int entrysize>
-uint32_t ObjectHashTableShape<entrysize>::Hash(Object* key) {
-  ASSERT(!key->IsUndefined() && !key->IsNull());
-  MaybeObject* maybe_hash = key->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+uint32_t ObjectHashTableShape::Hash(JSReceiver* key) {
+  MaybeObject* maybe_hash = key->GetIdentityHash(OMIT_CREATION);
+  ASSERT(!maybe_hash->IsFailure());
+  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
 }
 
 
-template <int entrysize>
-uint32_t ObjectHashTableShape<entrysize>::HashForObject(Object* key,
-                                                        Object* other) {
-  ASSERT(!other->IsUndefined() && !other->IsNull());
-  MaybeObject* maybe_hash = other->GetHash(OMIT_CREATION);
-  return Smi::cast(maybe_hash->ToObjectChecked())->value();
+uint32_t ObjectHashTableShape::HashForObject(JSReceiver* key, Object* other) {
+  MaybeObject* maybe_hash =
+      JSReceiver::cast(other)->GetIdentityHash(OMIT_CREATION);
+  ASSERT(!maybe_hash->IsFailure());
+  return Smi::cast(maybe_hash->ToObjectUnchecked())->value();
 }
 
 
-template <int entrysize>
-MaybeObject* ObjectHashTableShape<entrysize>::AsObject(Object* key) {
+MaybeObject* ObjectHashTableShape::AsObject(JSReceiver* key) {
   return key;
 }
 
@@ -4505,12 +4531,6 @@ MaybeObject* JSArray::SetContent(FixedArray* storage) {
 MaybeObject* FixedArray::Copy() {
   if (length() == 0) return this;
   return GetHeap()->CopyFixedArray(this);
-}
-
-
-MaybeObject* FixedDoubleArray::Copy() {
-  if (length() == 0) return this;
-  return GetHeap()->CopyFixedDoubleArray(this);
 }
 
 

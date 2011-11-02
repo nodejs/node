@@ -423,14 +423,6 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
 }
 
 
-static void AddMapIfMissing(Handle<Map> map, SmallMapList* list) {
-  for (int i = 0; i < list->length(); ++i) {
-    if (list->at(i).is_identical_to(map)) return;
-  }
-  list->Add(map);
-}
-
-
 void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
                                                    SmallMapList* types) {
   Handle<Object> object = GetInfo(ast_id);
@@ -444,7 +436,7 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
       RelocInfo* info = it.rinfo();
       Object* object = info->target_object();
       if (object->IsMap()) {
-        AddMapIfMissing(Handle<Map>(Map::cast(object)), types);
+        types->Add(Handle<Map>(Map::cast(object)));
       }
     }
   }
@@ -504,56 +496,61 @@ void TypeFeedbackOracle::RelocateRelocInfos(ZoneList<RelocInfo>* infos,
 
 void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
   for (int i = 0; i < infos->length(); i++) {
-    RelocInfo reloc_entry = (*infos)[i];
-    Address target_address = reloc_entry.target_address();
+    Address target_address = (*infos)[i].target_address();
     unsigned ast_id = static_cast<unsigned>((*infos)[i].data());
-    Code* target = Code::GetCodeFromTargetAddress(target_address);
-    switch (target->kind()) {
-      case Code::LOAD_IC:
-      case Code::STORE_IC:
-      case Code::CALL_IC:
-      case Code::KEYED_CALL_IC:
-        if (target->ic_state() == MONOMORPHIC) {
-          if (target->kind() == Code::CALL_IC &&
-              target->check_type() != RECEIVER_MAP_CHECK) {
-            SetInfo(ast_id, Smi::FromInt(target->check_type()));
-          } else {
-            Object* map = target->FindFirstMap();
-            SetInfo(ast_id, map == NULL ? static_cast<Object*>(target) : map);
-          }
-        } else if (target->ic_state() == MEGAMORPHIC) {
-          SetInfo(ast_id, target);
-        }
-        break;
+    ProcessTargetAt(target_address, ast_id);
+  }
+}
 
-      case Code::KEYED_LOAD_IC:
-      case Code::KEYED_STORE_IC:
-        if (target->ic_state() == MONOMORPHIC ||
-            target->ic_state() == MEGAMORPHIC) {
-          SetInfo(ast_id, target);
-        }
-        break;
 
-      case Code::UNARY_OP_IC:
-      case Code::BINARY_OP_IC:
-      case Code::COMPARE_IC:
-      case Code::TO_BOOLEAN_IC:
+void TypeFeedbackOracle::ProcessTargetAt(Address target_address,
+                                         unsigned ast_id) {
+  Code* target = Code::GetCodeFromTargetAddress(target_address);
+  switch (target->kind()) {
+    case Code::LOAD_IC:
+    case Code::STORE_IC:
+    case Code::CALL_IC:
+    case Code::KEYED_CALL_IC:
+      if (target->ic_state() == MONOMORPHIC) {
+        if (target->kind() == Code::CALL_IC &&
+            target->check_type() != RECEIVER_MAP_CHECK) {
+          SetInfo(ast_id, Smi::FromInt(target->check_type()));
+        } else {
+          Object* map = target->FindFirstMap();
+          SetInfo(ast_id, map == NULL ? static_cast<Object*>(target) : map);
+        }
+      } else if (target->ic_state() == MEGAMORPHIC) {
         SetInfo(ast_id, target);
-        break;
+      }
+      break;
 
-      case Code::STUB:
-        if (target->major_key() == CodeStub::CallFunction &&
-            target->has_function_cache()) {
-          Object* value = CallFunctionStub::GetCachedValue(reloc_entry.pc());
-          if (value->IsJSFunction()) {
-            SetInfo(ast_id, value);
-          }
+    case Code::KEYED_LOAD_IC:
+    case Code::KEYED_STORE_IC:
+      if (target->ic_state() == MONOMORPHIC ||
+          target->ic_state() == MEGAMORPHIC) {
+        SetInfo(ast_id, target);
+      }
+      break;
+
+    case Code::UNARY_OP_IC:
+    case Code::BINARY_OP_IC:
+    case Code::COMPARE_IC:
+    case Code::TO_BOOLEAN_IC:
+      SetInfo(ast_id, target);
+      break;
+
+    case Code::STUB:
+      if (target->major_key() == CodeStub::CallFunction &&
+          target->has_function_cache()) {
+        Object* value = CallFunctionStub::GetCachedValue(target_address);
+        if (value->IsJSFunction()) {
+          SetInfo(ast_id, value);
         }
-        break;
+      }
+      break;
 
-      default:
-        break;
-    }
+    default:
+      break;
   }
 }
 

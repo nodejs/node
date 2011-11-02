@@ -100,8 +100,7 @@ private:
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
-DEFINE_bool(harmony_collections, false,
-            "enable harmony collections (sets, maps, and weak maps)")
+DEFINE_bool(harmony_weakmaps, false, "enable harmony weak maps")
 DEFINE_bool(harmony, false, "enable all harmony features")
 
 // Flags for experimental implementation features.
@@ -187,8 +186,6 @@ DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_bool(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
-DEFINE_bool(builtins_in_stack_traces, false,
-            "show built-in functions in stack traces")
 DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 
 // builtins-ia32.cc
@@ -529,9 +526,6 @@ DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 #else
 #define FLAG FLAG_READONLY
 #endif
-
-// elements.cc
-DEFINE_bool(trace_elements_transitions, false, "trace elements transitions")
 
 // code-stubs.cc
 DEFINE_bool(print_code_stubs, false, "print code stubs")

@@ -258,13 +258,16 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
 
-  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, call_target_address, replacement_code);
+  RelocInfo rinfo(call_target_address,
+                  RelocInfo::CODE_TARGET,
+                  0,
+                  unoptimized_code);
+  unoptimized_code->GetHeap()->incremental_marking()->RecordWriteIntoCode(
+      unoptimized_code, &rinfo, replacement_code);
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
-                                         Address pc_after,
+void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
                                          Code* check_code,
                                          Code* replacement_code) {
   Address call_target_address = pc_after - kIntSize;
@@ -279,9 +282,8 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
-
-  check_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
-      unoptimized_code, call_target_address, check_code);
+  check_code->GetHeap()->incremental_marking()->
+      RecordCodeTargetPatch(call_target_address, check_code);
 }
 
 

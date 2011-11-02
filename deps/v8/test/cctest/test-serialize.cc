@@ -130,8 +130,7 @@ TEST(ExternalReferenceEncoder) {
            encoder.Encode(
                ExternalReference::new_space_start(isolate).address()));
   CHECK_EQ(make_code(UNCLASSIFIED, 3),
-           encoder.Encode(
-               ExternalReference::roots_array_start(isolate).address()));
+           encoder.Encode(ExternalReference::roots_address(isolate).address()));
 }
 
 

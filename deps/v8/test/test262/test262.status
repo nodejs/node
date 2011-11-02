@@ -30,6 +30,10 @@ def FAIL_OK = FAIL, OKAY
 
 ############################### BUGS ###################################
 
+# A bound function should fail on access to 'caller' and 'arguments'.
+S15.3.4.5_A1: FAIL
+S15.3.4.5_A2: FAIL
+
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
@@ -38,6 +42,22 @@ S8.7_A5_T2: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
 S10.4.2.1_A1: FAIL
+
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1752
+S11.8.2_A2.3_T1: FAIL
+S11.8.3_A2.3_T1: FAIL
+11.8.2-1: FAIL
+11.8.2-2: FAIL
+11.8.2-3: FAIL
+11.8.2-4: FAIL
+11.8.3-1: FAIL
+11.8.3-2: FAIL
+11.8.3-3: FAIL
+11.8.3-4: FAIL
+11.8.3-5: FAIL
+
+# V8 Bug.
+S13.2.3_A1: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1530
 S15.3.3.1_A4: FAIL
@@ -144,6 +164,12 @@ S15.1.2.2_A5.1_T1: FAIL_OK
 S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
 S15.8.2.13_A23: PASS || FAIL_OK
+
+# We allow calls to regexp exec() with no arguments to fail for
+# compatibility reasons.
+S15.10.6.2_A1_T16: FAIL_OK
+S15.10.6.2_A12: FAIL_OK
+S15.10.6.3_A1_T16: FAIL_OK
 
 # Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
 S15.10.6_A2: FAIL_OK
@@ -316,6 +342,80 @@ S15.4.4.3_A2_T1: FAIL_OK
 
 ######################### UNANALYZED FAILURES ##########################
 
+# Bug? Object.defineProperty - Update [[Enumerable]] attribute of 'name'
+#      property to true successfully when [[Enumerable]] attribute of 'name'
+#      is false and [[Configurable]] attribute of 'name' is true,  the 'desc'
+#      is a generic descriptor which only contains [[Enumerable]] attribute
+#      as true, 'name' property is an index data property (8.12.9 step 8)
+15.2.3.6-4-82-18: FAIL
+# Bug? Object.defineProperty - Update [[Enumerable]] attribute of 'name'
+#      property to false successfully when [[Enumerable]] and [[Configurable]]
+#      attributes of 'name' property are true,  the 'desc' is a generic
+#      descriptor which only contains [Enumerable]] attribute as false and
+#      'name' property is an index accessor property (8.12.9 step 8)
+15.2.3.6-4-82-19: FAIL
+# Bug? Object.defineProperty - Update [[Enumerable]] attribute of 'name'
+#      property to false successfully when [[Enumerable]] and [[Configurable]]
+#      attributes of 'name' property are true,  the 'desc' is a generic
+#      descriptor which contains [Enumerable]] attribute as false and
+#      [[Configurable]] property is true, 'name' property is an index accessor
+#      property (8.12.9 step 8)
+15.2.3.6-4-82-20: FAIL
+# Bug? Object.defineProperty - Update [[Configurable]] attribute of 'name'
+#      property to false successfully when [[Enumerable]] and [[Configurable]]
+#      attributes of 'name' property are true, the 'desc' is a generic
+#      descriptor which only contains [[Configurable]] attribute as false,
+#      'name' property is an index accessor property (8.12.9 step 8)
+15.2.3.6-4-82-21: FAIL
+# Bug? Object.defineProperty - Update [[Configurable]] attribute of 'name'
+#      property to false successfully when [[Enumerable]] and [[Configurable]]
+#      attributes of 'name' property are true, the 'desc' is a generic
+#      descriptor which contains [[Enumerable]] attribute as true and
+#      [[Configurable]] attribute is false, 'name' property is an index accessor
+#      property (8.12.9 step 8)
+15.2.3.6-4-82-22: FAIL
+# Bug? Object.defineProperty - Update [[Enumerable]] and [[Configurable]]
+#      attributes of 'name' property to false successfully when [[Enumerable]]
+#      and [[Configurable]] attributes of 'name' property are true, the 'desc'
+#      is a generic descriptor which contains [[Enumerable]] and
+#      [[Configurable]] attributes as false, 'name' property is an index
+#      accessor property (8.12.9 step 8)
+15.2.3.6-4-82-23: FAIL
+# Bug? Object.defineProperty - Update [[Enumerable]] attributes of 'name'
+#      property to true successfully when [[Enumerable]] attribute of 'name' is
+#      false and [[Configurable]] attribute of 'name' is true, the 'desc' is a
+#      generic descriptor which only contains [[Enumerable]] attribute as true,
+#      'name' property is an index accessor property (8.12.9 step 8)
+15.2.3.6-4-82-24: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, 'desc' is accessor descriptor, test updating all attribute
+#      values of 'name' (15.4.5.1 step 4.c)
+15.2.3.6-4-209: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, name is accessor property and 'desc' is accessor descriptor,
+#      test updating the [[Enumerable]] attribute value of 'name' (15.4.5.1 step
+#      4.c)
+15.2.3.6-4-271: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, name is accessor property and 'desc' is accessor descriptor,
+#      test updating the [[Configurable]] attribute value of 'name' (15.4.5.1
+#      step 4.c)
+15.2.3.6-4-272: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, name is accessor property and 'desc' is accessor descriptor,
+#      test updating multiple attribute values of 'name' (15.4.5.1 step 4.c)
+15.2.3.6-4-273: FAIL
+# Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
+#      formal parameters, 'name' is own accessor property of 'O' which is also
+#      defined in [[ParameterMap]] of 'O', and 'desc' is accessor descriptor,
+#      test updating multiple attribute values of 'name' (10.6
+#      [[DefineOwnProperty]] step 3 and 5.a.i)
+15.2.3.6-4-291-1: FAIL
+# Bug? Object.defineProperty - 'O' is an Arguments object, 'name' is own
+#      accessor property of 'O', and 'desc' is accessor descriptor, test
+#      updating multiple attribute values of 'name' (10.6 [[DefineOwnProperty]]
+#      step 3)
+15.2.3.6-4-291: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
 #      formal parameters, 'name' is own property of 'O' which is also defined in
 #      [[ParameterMap]] of 'O', and 'desc' is data descriptor, test updating
@@ -354,6 +454,11 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      updating the [[Configurable]] attribute value of 'name' which is defined
 #      as non-configurable (10.6 [[DefineOwnProperty]] step 4 and step 5b)
 15.2.3.6-4-296-1: FAIL
+# Bug? Object.defineProperty - 'O' is an Arguments object, 'name' is an index
+#      named accessor property of 'O' but not defined in [[ParameterMap]] of
+#      'O', and 'desc' is accessor descriptor, test updating multiple attribute
+#      values of 'name' (10.6 [[DefineOwnProperty]] step 3)
+15.2.3.6-4-303: FAIL
 # Bug? ES5 Attributes - indexed property 'P' with attributes [[Writable]]: true,
 #      [[Enumerable]]: true, [[Configurable]]: false is writable using simple
 #      assignment, 'O' is an Arguments object
@@ -414,6 +519,30 @@ S15.4.4.3_A2_T1: FAIL_OK
 15.2.3.6-4-623: FAIL
 # Bug? ES5 Attributes - all attributes in Date.prototype.toJSON are correct
 15.2.3.6-4-624: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property, 'desc' is accessor descriptor, test updating all attribute
+#      values of 'P' (15.4.5.1 step 4.c)
+15.2.3.7-6-a-205: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property that already exists on 'O' is accessor property and 'desc' is
+#      accessor descriptor, test updating the [[Enumerable]] attribute value of
+#      'P' (15.4.5.1 step 4.c)
+15.2.3.7-6-a-260: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property that already exists on 'O' is accessor property and 'desc' is
+#      accessor descriptor, test updating the [[Configurable]] attribute value
+#      of 'P' (15.4.5.1 step 4.c)
+15.2.3.7-6-a-261: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property that already exists on 'O' is accessor property and 'desc' is
+#      accessor descriptor, test updating multiple attribute values of 'P'
+#      (15.4.5.1 step 4.c)
+15.2.3.7-6-a-262: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own accessor
+#      property of 'O' which is also defined in [[ParameterMap]] of 'O', and
+#      'desc' is accessor descriptor, test updating multiple attribute values of
+#      'P' (10.6 [[DefineOwnProperty]] step 3)
+15.2.3.7-6-a-280: FAIL
 # Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own data
 #      property of 'O' which is also defined in [[ParameterMap]] of 'O', and
 #      'desc' is data descriptor, test updating multiple attribute values of 'P'
@@ -442,6 +571,32 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      'P' which is defined as non-configurable (10.6 [[DefineOwnProperty]] step
 #      4)
 15.2.3.7-6-a-285: FAIL
+# Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is an array
+#      index named accessor property of 'O' but not defined in [[ParameterMap]]
+#      of 'O', and 'desc' is accessor descriptor, test updating multiple
+#      attribute values of 'P' (10.6 [[DefineOwnProperty]] step 3)
+15.2.3.7-6-a-292: FAIL
+# Bug? Strict Mode - 'this' value is a string which cannot be converted to
+#      wrapper objects when the function is called with an array of arguments
+15.3.4.3-1-s: FAIL
+# Bug? Strict Mode - 'this' value is a number which cannot be converted to
+#      wrapper objects when the function is called with an array of arguments
+15.3.4.3-2-s: FAIL
+# Bug? Strict Mode - 'this' value is a boolean which cannot be converted to
+#      wrapper objects when the function is called with an array of arguments
+15.3.4.3-3-s: FAIL
+# Bug? Function.prototype.bind - [[Get]] attribute of 'caller' property in 'F'
+#      is thrower
+15.3.4.5-20-2: FAIL
+# Bug? Function.prototype.bind - [[Set]] attribute of 'caller' property in 'F'
+#      is thrower
+15.3.4.5-20-3: FAIL
+# Bug? Function.prototype.bind - [[Get]] attribute of 'arguments' property in
+#      'F' is thrower
+15.3.4.5-21-2: FAIL
+# Bug? Function.prototype.bind - [[Set]] attribute of 'arguments' property in
+#      'F' is thrower
+15.3.4.5-21-3: FAIL
 # Bug? Array.prototype.indexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.14-9-a-19: FAIL
@@ -460,9 +615,24 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.map - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.19-8-b-16: FAIL
+# Bug? Array.prototype.filter - properties can be added to prototype after
+#      current position are visited on an Array-like object
+15.4.4.20-9-b-6: FAIL
 # Bug? Array.prototype.filter - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.20-9-b-16: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is own data property
+#      that overrides an inherited accessor property on an Array
+15.4.4.20-9-c-i-6: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is own accessor property
+#      that overrides an inherited accessor property on an Array
+15.4.4.20-9-c-i-14: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is inherited accessor
+#      property on an Array
+15.4.4.20-9-c-i-16: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is inherited accessor
+#      property without a get function on an Array
+15.4.4.20-9-c-i-22: FAIL
 # Bug? Array.prototype.reduce - decreasing length of array in step 8 does not
 #      delete non-configurable properties
 15.4.4.21-9-b-16: FAIL
@@ -496,6 +666,9 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Date.prototype.toISOString - value of year is Infinity
 #      Date.prototype.toISOString throw the RangeError
 15.9.5.43-0-15: FAIL
+# Bug? Error.prototype.toString return the value of 'msg' when 'name' is empty
+#      string and 'msg' isn't undefined
+15.11.4.4-8-1: FAIL
 
 ############################ SKIPPED TESTS #############################
 

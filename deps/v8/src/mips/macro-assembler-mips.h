@@ -887,8 +887,7 @@ class MacroAssembler: public Assembler {
   void TryGetFunctionPrototype(Register function,
                                Register result,
                                Register scratch,
-                               Label* miss,
-                               bool miss_on_bound_function = false);
+                               Label* miss);
 
   void GetObjectType(Register function,
                      Register map,

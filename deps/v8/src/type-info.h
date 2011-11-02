@@ -277,6 +277,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                           byte* old_start,
                           byte* new_start);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
+  void ProcessTargetAt(Address target_address, unsigned ast_id);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.

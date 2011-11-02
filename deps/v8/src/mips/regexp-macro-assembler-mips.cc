@@ -1112,11 +1112,6 @@ int RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
     frame_entry<const String*>(re_frame, kInputString) = *subject;
     frame_entry<const byte*>(re_frame, kInputStart) = new_address;
     frame_entry<const byte*>(re_frame, kInputEnd) = new_address + byte_length;
-  } else if (frame_entry<const String*>(re_frame, kInputString) != *subject) {
-    // Subject string might have been a ConsString that underwent
-    // short-circuiting during GC. That will not change start_address but
-    // will change pointer inside the subject handle.
-    frame_entry<const String*>(re_frame, kInputString) = *subject;
   }
 
   return 0;

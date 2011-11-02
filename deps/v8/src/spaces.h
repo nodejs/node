@@ -459,6 +459,7 @@ class MemoryChunk {
     live_byte_count_ = 0;
   }
   void IncrementLiveBytes(int by) {
+    ASSERT_LE(static_cast<unsigned>(live_byte_count_), size_);
     if (FLAG_gc_verbose) {
       printf("UpdateLiveBytes:%p:%x%c=%x->%x\n",
              static_cast<void*>(this), live_byte_count_,
@@ -641,6 +642,7 @@ class Page : public MemoryChunk {
   // [page_addr + kObjectStartOffset .. page_addr + kPageSize].
   INLINE(static Page* FromAllocationTop(Address top)) {
     Page* p = FromAddress(top - kPointerSize);
+    ASSERT_PAGE_OFFSET(p->Offset(top));
     return p;
   }
 
@@ -664,6 +666,7 @@ class Page : public MemoryChunk {
   // Returns the offset of a given address to this page.
   INLINE(int Offset(Address a)) {
     int offset = static_cast<int>(a - address());
+    ASSERT_PAGE_OFFSET(offset);
     return offset;
   }
 
@@ -1131,6 +1134,11 @@ class HeapObjectIterator: public ObjectIterator {
                          Address end,
                          PageMode mode,
                          HeapObjectCallback size_func);
+
+#ifdef DEBUG
+  // Verifies whether fields have valid values.
+  void Verify();
+#endif
 };
 
 
@@ -1733,6 +1741,7 @@ class NewSpacePage : public MemoryChunk {
         reinterpret_cast<Address>(reinterpret_cast<uintptr_t>(address_in_page) &
                                   ~Page::kPageAlignmentMask);
     NewSpacePage* page = reinterpret_cast<NewSpacePage*>(page_start);
+    ASSERT(page->InNewSpace());
     return page;
   }
 
@@ -1809,6 +1818,7 @@ class SemiSpace : public Space {
 
   // Returns the start address of the current page of the space.
   Address page_low() {
+    ASSERT(anchor_.next_page() != &anchor_);
     return current_page_->body();
   }
 
@@ -2074,7 +2084,7 @@ class NewSpace : public Space {
 
   // Return the current capacity of a semispace.
   intptr_t EffectiveCapacity() {
-    SLOW_ASSERT(to_space_.Capacity() == from_space_.Capacity());
+    ASSERT(to_space_.Capacity() == from_space_.Capacity());
     return (to_space_.Capacity() / Page::kPageSize) * Page::kObjectAreaSize;
   }
 
@@ -2090,9 +2100,10 @@ class NewSpace : public Space {
     return Capacity();
   }
 
-  // Return the available bytes without growing.
+  // Return the available bytes without growing or switching page in the
+  // active semispace.
   intptr_t Available() {
-    return Capacity() - Size();
+    return allocation_info_.limit - allocation_info_.top;
   }
 
   // Return the maximum capacity of a semispace.
@@ -2306,9 +2317,9 @@ class OldSpace : public PagedSpace {
 // For contiguous spaces, top should be in the space (or at the end) and limit
 // should be the end of the space.
 #define ASSERT_SEMISPACE_ALLOCATION_INFO(info, space) \
-  SLOW_ASSERT((space).page_low() <= (info).top             \
-              && (info).top <= (space).page_high()         \
-              && (info).limit <= (space).page_high())
+  ASSERT((space).page_low() <= (info).top             \
+         && (info).top <= (space).page_high()         \
+         && (info).limit <= (space).page_high())
 
 
 // -----------------------------------------------------------------------------
@@ -2436,7 +2447,7 @@ class CellSpace : public FixedSpace {
 
 class LargeObjectSpace : public Space {
  public:
-  LargeObjectSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id);
+  LargeObjectSpace(Heap* heap, AllocationSpace id);
   virtual ~LargeObjectSpace() {}
 
   // Initializes internal data structures.
@@ -2506,7 +2517,6 @@ class LargeObjectSpace : public Space {
   bool SlowContains(Address addr) { return !FindObject(addr)->IsFailure(); }
 
  private:
-  intptr_t max_capacity_;
   // The head of the linked list of large object chunks.
   LargePage* first_page_;
   intptr_t size_;  // allocated bytes

@@ -262,12 +262,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // [sp + (2 * kPointerSize)]: literals array.
 
   // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length_ > 0) {
-    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length_)
-        : FixedArray::SizeFor(length_);
-  }
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
   int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into r3 and check if we need to create a
@@ -288,9 +283,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     if (mode_ == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map_index = Heap::kFixedArrayMapRootIndex;
-    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
-      message = "Expected (writable) fixed double array";
-      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
     } else {
       ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
@@ -330,7 +322,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ sw(a2, FieldMemOperand(v0, JSArray::kElementsOffset));
 
     // Copy the elements array.
-    ASSERT((elements_size % kPointerSize) == 0);
     __ CopyFields(a2, a3, a1.bit(), elements_size / kPointerSize);
   }
 
@@ -4080,7 +4071,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   }
 
   // Get the prototype of the function.
-  __ TryGetFunctionPrototype(function, prototype, scratch, &slow, true);
+  __ TryGetFunctionPrototype(function, prototype, scratch, &slow);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(prototype, &slow);
@@ -6898,7 +6889,7 @@ void DirectCEntryStub::Generate(MacroAssembler* masm) {
   // The saved ra is after the reserved stack space for the 4 args.
   __ lw(t9, MemOperand(sp, kCArgsSlotsSize));
 
-  if (FLAG_debug_code && FLAG_enable_slow_asserts) {
+  if (FLAG_debug_code && EnableSlowAsserts()) {
     // In case of an error the return address may point to a memory area
     // filled with kZapValue by the GC.
     // Dereference the address and check for this.
@@ -6948,82 +6939,7 @@ void DirectCEntryStub::GenerateCall(MacroAssembler* masm,
 }
 
 
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register receiver,
-                                                        Register properties,
-                                                        Handle<String> name,
-                                                        Register scratch0) {
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // scratch0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = scratch0;
-    // Capacity is smi 2^n.
-    __ lw(index, FieldMemOperand(properties, kCapacityOffset));
-    __ Subu(index, index, Operand(1));
-    __ And(index, index, Operand(
-        Smi::FromInt(name->Hash() + StringDictionary::GetProbeOffset(i))));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ sll(at, index, 1);
-    __ Addu(index, index, at);
-
-    Register entity_name = scratch0;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    Register tmp = properties;
-    __ sll(tmp, index, 1);
-    __ Addu(tmp, properties, tmp);
-    __ lw(entity_name, FieldMemOperand(tmp, kElementsStartOffset));
-
-    ASSERT(!tmp.is(entity_name));
-    __ LoadRoot(tmp, Heap::kUndefinedValueRootIndex);
-    __ Branch(done, eq, entity_name, Operand(tmp));
-
-    if (i != kInlinedProbes - 1) {
-      // Stop if found the property.
-      __ Branch(miss, eq, entity_name, Operand(Handle<String>(name)));
-
-      // Check if the entry name is not a symbol.
-      __ lw(entity_name, FieldMemOperand(entity_name, HeapObject::kMapOffset));
-      __ lbu(entity_name,
-             FieldMemOperand(entity_name, Map::kInstanceTypeOffset));
-      __ And(tmp, entity_name, Operand(kIsSymbolMask));
-      __ Branch(miss, eq, tmp, Operand(zero_reg));
-
-      // Restore the properties.
-      __ lw(properties,
-            FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-    }
-  }
-
-  const int spill_mask =
-      (ra.bit() | t2.bit() | t1.bit() | t0.bit() | a3.bit() |
-       a2.bit() | a1.bit() | a0.bit() | v0.bit());
-
-  __ MultiPush(spill_mask);
-  __ lw(a0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
-  __ li(a1, Operand(Handle<String>(name)));
-  StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
-  __ CallStub(&stub);
-  __ mov(at, v0);
-  __ MultiPop(spill_mask);
-
-  __ Branch(done, eq, at, Operand(zero_reg));
-  __ Branch(miss, ne, at, Operand(zero_reg));
-}
-
-
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
+MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
     MacroAssembler* masm,
     Label* miss,
     Label* done,
@@ -7049,7 +6965,8 @@ MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
     // Scale the index by multiplying by the entry size.
     ASSERT(StringDictionary::kEntrySize == 3);
     // index *= 3.
-    __ sll(at, index, 1);
+    __ mov(at, index);
+    __ sll(index, index, 1);
     __ Addu(index, index, at);
 
     Register entity_name = scratch0;
@@ -7084,7 +7001,7 @@ MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
 
   const int spill_mask =
       (ra.bit() | t2.bit() | t1.bit() | t0.bit() | a3.bit() |
-       a2.bit() | a1.bit() | a0.bit() | v0.bit());
+       a2.bit() | a1.bit() | a0.bit());
 
   __ MultiPush(spill_mask);
   __ lw(a0, FieldMemOperand(receiver, JSObject::kPropertiesOffset));
@@ -7092,11 +7009,10 @@ MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
   StringDictionaryLookupStub stub(NEGATIVE_LOOKUP);
   MaybeObject* result = masm->TryCallStub(&stub);
   if (result->IsFailure()) return result;
-  __ mov(at, v0);
   __ MultiPop(spill_mask);
 
-  __ Branch(done, eq, at, Operand(zero_reg));
-  __ Branch(miss, ne, at, Operand(zero_reg));
+  __ Branch(done, eq, v0, Operand(zero_reg));
+  __ Branch(miss, ne, v0, Operand(zero_reg));
   return result;
 }
 
@@ -7142,7 +7058,8 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
     ASSERT(StringDictionary::kEntrySize == 3);
     // scratch2 = scratch2 * 3.
 
-    __ sll(at, scratch2, 1);
+    __ mov(at, scratch2);
+    __ sll(scratch2, scratch2, 1);
     __ Addu(scratch2, scratch2, at);
 
     // Check if the key is identical to the name.
@@ -7154,26 +7071,19 @@ void StringDictionaryLookupStub::GeneratePositiveLookup(MacroAssembler* masm,
 
   const int spill_mask =
       (ra.bit() | t2.bit() | t1.bit() | t0.bit() |
-       a3.bit() | a2.bit() | a1.bit() | a0.bit() | v0.bit()) &
+       a3.bit() | a2.bit() | a1.bit() | a0.bit()) &
       ~(scratch1.bit() | scratch2.bit());
 
   __ MultiPush(spill_mask);
-  if (name.is(a0)) {
-    ASSERT(!elements.is(a1));
-    __ Move(a1, name);
-    __ Move(a0, elements);
-  } else {
-    __ Move(a0, elements);
-    __ Move(a1, name);
-  }
+  __ Move(a0, elements);
+  __ Move(a1, name);
   StringDictionaryLookupStub stub(POSITIVE_LOOKUP);
   __ CallStub(&stub);
   __ mov(scratch2, a2);
-  __ mov(at, v0);
   __ MultiPop(spill_mask);
 
-  __ Branch(done, ne, at, Operand(zero_reg));
-  __ Branch(miss, eq, at, Operand(zero_reg));
+  __ Branch(done, ne, v0, Operand(zero_reg));
+  __ Branch(miss, eq, v0, Operand(zero_reg));
 }
 
 
@@ -7297,13 +7207,6 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { a3, a1, a2, EMIT_REMEMBERED_SET },
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { t0, a2, a3, EMIT_REMEMBERED_SET },
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { a2, a3, t5, EMIT_REMEMBERED_SET },
-  // ElementsTransitionGenerator::GenerateDoubleToObject
-  { t2, a2, a0, EMIT_REMEMBERED_SET },
-  { a2, t2, t5, EMIT_REMEMBERED_SET },
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };

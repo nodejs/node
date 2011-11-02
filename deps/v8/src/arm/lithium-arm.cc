@@ -391,12 +391,6 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
-}
-
-
 LChunk::LChunk(CompilationInfo* info, HGraph* graph)
     : spill_slot_count_(0),
       info_(info),
@@ -1410,10 +1404,12 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
+  Token::Value op = instr->token();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
-  LOperand* left = UseFixed(instr->left(), r1);
-  LOperand* right = UseFixed(instr->right(), r0);
+  bool reversed = (op == Token::GT || op == Token::LTE);
+  LOperand* left = UseFixed(instr->left(), reversed ? r0 : r1);
+  LOperand* right = UseFixed(instr->right(), reversed ? r1 : r0);
   LCmpT* result = new LCmpT(left, right);
   return MarkAsCall(DefineFixed(result, r0), instr);
 }
@@ -1425,8 +1421,8 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
   if (r.IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterOrConstantAtStart(instr->left());
-    LOperand* right = UseRegisterOrConstantAtStart(instr->right());
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseRegisterAtStart(instr->right());
     return new LCmpIDAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
@@ -1971,26 +1967,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   ASSERT(instr->value()->representation().IsTagged());
 
   return MarkAsCall(new LStoreKeyedGeneric(obj, key, val), instr);
-}
-
-
-LInstruction* LChunkBuilder::DoTransitionElementsKind(
-    HTransitionElementsKind* instr) {
-  if (instr->original_map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
-      instr->transitioned_map()->elements_kind() == FAST_ELEMENTS) {
-    LOperand* object = UseRegister(instr->object());
-    LOperand* new_map_reg = TempRegister();
-    LTransitionElementsKind* result =
-        new LTransitionElementsKind(object, new_map_reg, NULL);
-    return DefineSameAsFirst(result);
-  } else {
-    LOperand* object = UseFixed(instr->object(), r0);
-    LOperand* fixed_object_reg = FixedTemp(r2);
-    LOperand* new_map_reg = FixedTemp(r3);
-    LTransitionElementsKind* result =
-        new LTransitionElementsKind(object, new_map_reg, fixed_object_reg);
-    return MarkAsCall(DefineFixed(result, r0), instr);
-  }
 }
 
 

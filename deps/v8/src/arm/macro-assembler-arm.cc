@@ -1101,16 +1101,24 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
+  ASSERT(function->is_compiled());
+
   // Get the function and setup the context.
   mov(r1, Operand(Handle<JSFunction>(function)));
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
-  ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-  InvokeCode(r3, expected, actual, flag, NullCallWrapper(), call_kind);
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    ldr(r3, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    InvokeCode(r3, expected, actual, flag, NullCallWrapper(), call_kind);
+  } else {
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
+  }
 }
 
 
@@ -1594,7 +1602,6 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
-  ASSERT(!object_size.is(ip));
   ASSERT(!result.is(ip));
   ASSERT(!scratch1.is(ip));
   ASSERT(!scratch2.is(ip));
@@ -2023,24 +2030,13 @@ void MacroAssembler::DispatchMap(Register obj,
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
-                                             Label* miss,
-                                             bool miss_on_bound_function) {
+                                             Label* miss) {
   // Check that the receiver isn't a smi.
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
   CompareObjectType(function, result, scratch, JS_FUNCTION_TYPE);
   b(ne, miss);
-
-  if (miss_on_bound_function) {
-    ldr(scratch,
-        FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    ldr(scratch,
-        FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    tst(scratch,
-        Operand(Smi::FromInt(1 << SharedFunctionInfo::kBoundFunction)));
-    b(ne, miss);
-  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;
@@ -3151,10 +3147,8 @@ void MacroAssembler::CountLeadingZeros(Register zeros,   // Answer.
 #ifdef CAN_USE_ARMV5_INSTRUCTIONS
   clz(zeros, source);  // This instruction is only supported after ARM5.
 #else
-  // Order of the next two lines is important: zeros register
-  // can be the same as source register.
-  Move(scratch, source);
   mov(zeros, Operand(0, RelocInfo::NONE));
+  Move(scratch, source);
   // Top 16.
   tst(scratch, Operand(0xffff0000));
   add(zeros, zeros, Operand(16), LeaveCC, eq);

@@ -87,13 +87,19 @@ static void PrintLn(v8::Local<v8::Value> value) {
 
 static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
   Isolate* isolate = Isolate::Current();
-  return isolate->stub_cache()->ComputeCallDebugBreak(argc, kind);
+  CALL_HEAP_FUNCTION(
+      isolate,
+      isolate->stub_cache()->ComputeCallDebugBreak(argc, kind),
+      Code);
 }
 
 
 static Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
   Isolate* isolate = Isolate::Current();
-  return isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind);
+  CALL_HEAP_FUNCTION(
+      isolate,
+      isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind),
+      Code);
 }
 
 
@@ -1721,203 +1727,50 @@ void Debug::ClearStepNext() {
 }
 
 
-// Helper function to compile full code for debugging. This code will
-// have debug break slots and deoptimization
-// information. Deoptimization information is required in case that an
-// optimized version of this function is still activated on the
-// stack. It will also make sure that the full code is compiled with
-// the same flags as the previous version - that is flags which can
-// change the code generated. The current method of mapping from
-// already compiled full code without debug break slots to full code
-// with debug break slots depends on the generated code is otherwise
-// exactly the same.
-static bool CompileFullCodeForDebugging(Handle<SharedFunctionInfo> shared,
-                                        Handle<Code> current_code) {
-  ASSERT(!current_code->has_debug_break_slots());
-
-  CompilationInfo info(shared);
-  info.MarkCompilingForDebugging(current_code);
-  ASSERT(!info.shared_info()->is_compiled());
-  ASSERT(!info.isolate()->has_pending_exception());
-
-  // Use compile lazy which will end up compiling the full code in the
-  // configuration configured above.
-  bool result = Compiler::CompileLazy(&info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
-  info.isolate()->clear_pending_exception();
-#if DEBUG
-  if (result) {
-    Handle<Code> new_code(shared->code());
-    ASSERT(new_code->has_debug_break_slots());
-    ASSERT(current_code->is_compiled_optimizable() ==
-           new_code->is_compiled_optimizable());
-    ASSERT(current_code->instruction_size() <= new_code->instruction_size());
-  }
-#endif
-  return result;
-}
-
-
 void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
     Deoptimizer::DeoptimizeAll();
 
-    Handle<Code> lazy_compile =
-        Handle<Code>(isolate_->builtins()->builtin(Builtins::kLazyCompile));
+    // We are going to iterate heap to find all functions without
+    // debug break slots.
+    isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
-    // Keep the list of activated functions in a handlified list as it
-    // is used both in GC and non-GC code.
-    List<Handle<JSFunction> > active_functions(100);
+    AssertNoAllocation no_allocation;
+    Builtins* builtins = isolate_->builtins();
+    Code* lazy_compile = builtins->builtin(Builtins::kLazyCompile);
 
-    {
-      // We are going to iterate heap to find all functions without
-      // debug break slots.
-      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
-
-      // Ensure no GC in this scope as we are comparing raw pointer
-      // values and performing a heap iteration.
-      AssertNoAllocation no_allocation;
-
-      // Find all non-optimized code functions with activation frames on
-      // the stack.
-      for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
-        JavaScriptFrame* frame = it.frame();
-        if (frame->function()->IsJSFunction()) {
-          JSFunction* function = JSFunction::cast(frame->function());
-          if (function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots())
-            active_functions.Add(Handle<JSFunction>(function));
-        }
-      }
-      // Sort the functions on the object pointer value to prepare for
-      // the binary search below.
-      active_functions.Sort(HandleObjectPointerCompare<JSFunction>);
-
-      // Scan the heap for all non-optimized functions which has no
-      // debug break slots.
-      HeapIterator iterator;
-      HeapObject* obj = NULL;
-      while (((obj = iterator.next()) != NULL)) {
-        if (obj->IsJSFunction()) {
-          JSFunction* function = JSFunction::cast(obj);
-          if (function->shared()->allows_lazy_compilation() &&
-              function->shared()->script()->IsScript() &&
-              function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots()) {
-            bool has_activation =
-                SortedListBSearch<Handle<JSFunction> >(
-                    active_functions,
-                    Handle<JSFunction>(function),
-                    HandleObjectPointerCompare<JSFunction>) != -1;
-            if (!has_activation) {
-              function->set_code(*lazy_compile);
-              function->shared()->set_code(*lazy_compile);
-            }
-          }
-        }
+    // Find all non-optimized code functions with activation frames on
+    // the stack.
+    List<JSFunction*> active_functions(100);
+    for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
+      JavaScriptFrame* frame = it.frame();
+      if (frame->function()->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(frame->function());
+        if (function->code()->kind() == Code::FUNCTION)
+          active_functions.Add(function);
       }
     }
+    active_functions.Sort();
 
-    // Now the non-GC scope is left, and the sorting of the functions
-    // in active_function is not ensured any more. The code below does
-    // not rely on it.
-
-    // Now recompile all functions with activation frames and and
-    // patch the return address to run in the new compiled code.
-    for (int i = 0; i < active_functions.length(); i++) {
-      Handle<JSFunction> function = active_functions[i];
-      Handle<SharedFunctionInfo> shared(function->shared());
-      // If recompilation is not possible just skip it.
-      if (shared->is_toplevel() ||
-          !shared->allows_lazy_compilation() ||
-          shared->code()->kind() == Code::BUILTIN) {
-        continue;
-      }
-
-      // Make sure that the shared full code is compiled with debug
-      // break slots.
-      Handle<Code> current_code(function->code());
-      if (shared->code()->has_debug_break_slots()) {
-        // if the code is already recompiled to have break slots skip
-        // recompilation.
-        ASSERT(!function->code()->has_debug_break_slots());
-      } else {
-        // Try to compile the full code with debug break slots. If it
-        // fails just keep the current code.
-        ASSERT(shared->code() == *current_code);
-        ZoneScope zone_scope(isolate_, DELETE_ON_EXIT);
-        shared->set_code(*lazy_compile);
-        bool prev_force_debugger_active =
-            isolate_->debugger()->force_debugger_active();
-        isolate_->debugger()->set_force_debugger_active(true);
-        CompileFullCodeForDebugging(shared, current_code);
-        isolate_->debugger()->set_force_debugger_active(
-            prev_force_debugger_active);
-        if (!shared->is_compiled()) {
-          shared->set_code(*current_code);
-          continue;
-        }
-      }
-      Handle<Code> new_code(shared->code());
-
-      // Find the function and patch return address.
-      for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
-        JavaScriptFrame* frame = it.frame();
-        // If the current frame is for this function in its
-        // non-optimized form rewrite the return address to continue
-        // in the newly compiled full code with debug break slots.
-        if (frame->function()->IsJSFunction() &&
-            frame->function() == *function &&
-            frame->LookupCode()->kind() == Code::FUNCTION) {
-          intptr_t delta = frame->pc() - current_code->instruction_start();
-          int debug_break_slot_count = 0;
-          int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT);
-          for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
-            // Check if the pc in the new code with debug break
-            // slots is before this slot.
-            RelocInfo* info = it.rinfo();
-            int debug_break_slot_bytes =
-                debug_break_slot_count * Assembler::kDebugBreakSlotLength;
-            intptr_t new_delta =
-                info->pc() -
-                new_code->instruction_start() -
-                debug_break_slot_bytes;
-            if (new_delta > delta) {
-              break;
-            }
-
-            // Passed a debug break slot in the full code with debug
-            // break slots.
-            debug_break_slot_count++;
+    // Scan the heap for all non-optimized functions which has no
+    // debug break slots.
+    HeapIterator iterator;
+    HeapObject* obj = NULL;
+    while (((obj = iterator.next()) != NULL)) {
+      if (obj->IsJSFunction()) {
+        JSFunction* function = JSFunction::cast(obj);
+        if (function->shared()->allows_lazy_compilation() &&
+            function->shared()->script()->IsScript() &&
+            function->code()->kind() == Code::FUNCTION &&
+            !function->code()->has_debug_break_slots()) {
+          bool has_activation =
+              SortedListBSearch<JSFunction*>(active_functions, function) != -1;
+          if (!has_activation) {
+            function->set_code(lazy_compile);
+            function->shared()->set_code(lazy_compile);
           }
-          int debug_break_slot_bytes =
-              debug_break_slot_count * Assembler::kDebugBreakSlotLength;
-          if (FLAG_trace_deopt) {
-            PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
-                   "with %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
-                   "for debugging, "
-                   "changing pc from %08" V8PRIxPTR " to %08" V8PRIxPTR "\n",
-                   reinterpret_cast<intptr_t>(
-                       current_code->instruction_start()),
-                   reinterpret_cast<intptr_t>(
-                       current_code->instruction_start()) +
-                       current_code->instruction_size(),
-                   current_code->instruction_size(),
-                   reinterpret_cast<intptr_t>(new_code->instruction_start()),
-                   reinterpret_cast<intptr_t>(new_code->instruction_start()) +
-                       new_code->instruction_size(),
-                   new_code->instruction_size(),
-                   reinterpret_cast<intptr_t>(frame->pc()),
-                   reinterpret_cast<intptr_t>(new_code->instruction_start()) +
-                       delta + debug_break_slot_bytes);
-          }
-
-          // Patch the return address to return into the code with
-          // debug break slots.
-          frame->set_pc(
-              new_code->instruction_start() + delta + debug_break_slot_bytes);
         }
       }
     }
@@ -1934,9 +1787,7 @@ bool Debug::EnsureDebugInfo(Handle<SharedFunctionInfo> shared) {
   }
 
   // Ensure shared in compiled. Return false if this failed.
-  if (!SharedFunctionInfo::EnsureCompiled(shared, CLEAR_EXCEPTION)) {
-    return false;
-  }
+  if (!EnsureCompiled(shared, CLEAR_EXCEPTION)) return false;
 
   // Create the debug info object.
   Handle<DebugInfo> debug_info = FACTORY->NewDebugInfo(shared);
@@ -2226,7 +2077,6 @@ Debugger::Debugger(Isolate* isolate)
       compiling_natives_(false),
       is_loading_debugger_(false),
       never_unload_debugger_(false),
-      force_debugger_active_(false),
       message_handler_(NULL),
       debugger_unload_pending_(false),
       host_dispatch_handler_(NULL),
@@ -2994,9 +2844,7 @@ void Debugger::EnqueueDebugCommand(v8::Debug::ClientData* client_data) {
 bool Debugger::IsDebuggerActive() {
   ScopedLock with(debugger_access_);
 
-  return message_handler_ != NULL ||
-      !event_listener_.is_null() ||
-      force_debugger_active_;
+  return message_handler_ != NULL || !event_listener_.is_null();
 }
 
 

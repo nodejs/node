@@ -31,15 +31,6 @@ namespace v8 {
 namespace internal {
 
 
-void LookupResult::Iterate(ObjectVisitor* visitor) {
-  LookupResult* current = this;  // Could be NULL.
-  while (current != NULL) {
-    visitor->VisitPointer(BitCast<Object**>(&current->holder_));
-    current = current->next_;
-  }
-}
-
-
 #ifdef OBJECT_PRINT
 void LookupResult::Print(FILE* out) {
   if (!IsFound()) {

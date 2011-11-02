@@ -118,15 +118,6 @@ class Variable: public ZoneObject {
             mode_ == DYNAMIC_GLOBAL ||
             mode_ == DYNAMIC_LOCAL);
   }
-  bool is_const_mode() const {
-    return (mode_ == CONST ||
-            mode_ == CONST_HARMONY);
-  }
-  bool binding_needs_init() const {
-    return (mode_ == LET ||
-            mode_ == CONST ||
-            mode_ == CONST_HARMONY);
-  }
 
   bool is_global() const;
   bool is_this() const { return kind_ == THIS; }
@@ -163,10 +154,6 @@ class Variable: public ZoneObject {
   Location location_;
   int index_;
 
-  // If this field is set, this variable references the stored locally bound
-  // variable, but it might be shadowed by variable bindings introduced by
-  // non-strict 'eval' calls between the reference scope (inclusive) and the
-  // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
 
   // Valid as a LHS? (const and this are not valid LHS, for example)

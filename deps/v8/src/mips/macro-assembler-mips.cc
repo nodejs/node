@@ -2873,7 +2873,6 @@ void MacroAssembler::AllocateInNewSpace(Register object_size,
   ASSERT(!result.is(scratch1));
   ASSERT(!result.is(scratch2));
   ASSERT(!scratch1.is(scratch2));
-  ASSERT(!object_size.is(t9));
   ASSERT(!scratch1.is(t9) && !scratch2.is(t9) && !result.is(t9));
 
   // Check relative positions of allocation top and limit addresses.
@@ -3617,16 +3616,24 @@ void MacroAssembler::InvokeFunction(JSFunction* function,
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
+  ASSERT(function->is_compiled());
+
   // Get the function and setup the context.
   li(a1, Operand(Handle<JSFunction>(function)));
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
+  // Invoke the cached code.
+  Handle<Code> code(function->code());
   ParameterCount expected(function->shared()->formal_parameter_count());
-  // We call indirectly through the code field in the function to
-  // allow recompilation to take effect without changing any of the
-  // call sites.
-  lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
+  if (V8::UseCrankshaft()) {
+    // TODO(kasperl): For now, we always call indirectly through the
+    // code field in the function to allow recompilation to take effect
+    // without changing any of the call sites.
+    lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
+    InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
+  } else {
+    InvokeCode(code, expected, actual, RelocInfo::CODE_TARGET, flag, call_kind);
+  }
 }
 
 
@@ -3667,24 +3674,13 @@ void MacroAssembler::IsObjectJSStringType(Register object,
 void MacroAssembler::TryGetFunctionPrototype(Register function,
                                              Register result,
                                              Register scratch,
-                                             Label* miss,
-                                             bool miss_on_bound_function) {
+                                             Label* miss) {
   // Check that the receiver isn't a smi.
   JumpIfSmi(function, miss);
 
   // Check that the function really is a function.  Load map into result reg.
   GetObjectType(function, result, scratch);
   Branch(miss, ne, scratch, Operand(JS_FUNCTION_TYPE));
-
-  if (miss_on_bound_function) {
-    lw(scratch,
-       FieldMemOperand(function, JSFunction::kSharedFunctionInfoOffset));
-    lw(scratch,
-       FieldMemOperand(scratch, SharedFunctionInfo::kCompilerHintsOffset));
-    And(scratch, scratch,
-        Operand(Smi::FromInt(1 << SharedFunctionInfo::kBoundFunction)));
-    Branch(miss, ne, scratch, Operand(zero_reg));
-  }
 
   // Make sure that the function has an instance prototype.
   Label non_instance;

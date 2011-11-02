@@ -174,6 +174,13 @@ function RegExpExec(string) {
                         ['RegExp.prototype.exec', this]);
   }
 
+  if (%_ArgumentsLength() === 0) {
+    var regExpInput = LAST_INPUT(lastMatchInfo);
+    if (IS_UNDEFINED(regExpInput)) {
+      throw MakeError('no_input_to_regexp', [this]);
+    }
+    string = regExpInput;
+  }
   string = TO_STRING_INLINE(string);
   var lastIndex = this.lastIndex;
 
@@ -222,6 +229,14 @@ function RegExpTest(string) {
     throw MakeTypeError('incompatible_method_receiver',
                         ['RegExp.prototype.test', this]);
   }
+  if (%_ArgumentsLength() == 0) {
+    var regExpInput = LAST_INPUT(lastMatchInfo);
+    if (IS_UNDEFINED(regExpInput)) {
+      throw MakeError('no_input_to_regexp', [this]);
+    }
+    string = regExpInput;
+  }
+
   string = TO_STRING_INLINE(string);
 
   var lastIndex = this.lastIndex;

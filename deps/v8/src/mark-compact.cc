@@ -65,6 +65,16 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       collect_maps_(FLAG_collect_maps),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
+#ifdef DEBUG
+      live_young_objects_size_(0),
+      live_old_pointer_objects_size_(0),
+      live_old_data_objects_size_(0),
+      live_code_objects_size_(0),
+      live_map_objects_size_(0),
+      live_cell_objects_size_(0),
+      live_lo_objects_size_(0),
+      live_bytes_(0),
+#endif
       heap_(NULL),
       code_flusher_(NULL),
       encountered_weak_maps_(NULL) { }
@@ -320,7 +330,7 @@ void MarkCompactCollector::VerifyMarkbitsAreClean() {
 #endif
 
 
-static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
+static void ClearMarkbits(PagedSpace* space) {
   PageIterator it(space);
 
   while (it.has_next()) {
@@ -329,7 +339,7 @@ static void ClearMarkbitsInPagedSpace(PagedSpace* space) {
 }
 
 
-static void ClearMarkbitsInNewSpace(NewSpace* space) {
+static void ClearMarkbits(NewSpace* space) {
   NewSpacePageIterator it(space->ToSpaceStart(), space->ToSpaceEnd());
 
   while (it.has_next()) {
@@ -338,15 +348,15 @@ static void ClearMarkbitsInNewSpace(NewSpace* space) {
 }
 
 
-void MarkCompactCollector::ClearMarkbits() {
-  ClearMarkbitsInPagedSpace(heap_->code_space());
-  ClearMarkbitsInPagedSpace(heap_->map_space());
-  ClearMarkbitsInPagedSpace(heap_->old_pointer_space());
-  ClearMarkbitsInPagedSpace(heap_->old_data_space());
-  ClearMarkbitsInPagedSpace(heap_->cell_space());
-  ClearMarkbitsInNewSpace(heap_->new_space());
+static void ClearMarkbits(Heap* heap) {
+  ClearMarkbits(heap->code_space());
+  ClearMarkbits(heap->map_space());
+  ClearMarkbits(heap->old_pointer_space());
+  ClearMarkbits(heap->old_data_space());
+  ClearMarkbits(heap->cell_space());
+  ClearMarkbits(heap->new_space());
 
-  LargeObjectIterator it(heap_->lo_space());
+  LargeObjectIterator it(heap->lo_space());
   for (HeapObject* obj = it.Next(); obj != NULL; obj = it.Next()) {
     MarkBit mark_bit = Marking::MarkBitFrom(obj);
     mark_bit.Clear();
@@ -494,7 +504,7 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // Clear marking bits for precise sweeping to collect all garbage.
   if (was_marked_incrementally_ && PreciseSweepingRequired()) {
     heap()->incremental_marking()->Abort();
-    ClearMarkbits();
+    ClearMarkbits(heap_);
     AbortCompaction();
     was_marked_incrementally_ = false;
   }
@@ -513,9 +523,20 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   }
 
 #ifdef DEBUG
-  if (!was_marked_incrementally_ && FLAG_verify_heap) {
+  if (!was_marked_incrementally_) {
     VerifyMarkbitsAreClean();
   }
+#endif
+
+#ifdef DEBUG
+  live_bytes_ = 0;
+  live_young_objects_size_ = 0;
+  live_old_pointer_objects_size_ = 0;
+  live_old_data_objects_size_ = 0;
+  live_code_objects_size_ = 0;
+  live_map_objects_size_ = 0;
+  live_cell_objects_size_ = 0;
+  live_lo_objects_size_ = 0;
 #endif
 }
 
@@ -2155,6 +2176,32 @@ void MarkCompactCollector::ProcessMapCaches() {
 }
 
 
+#ifdef DEBUG
+void MarkCompactCollector::UpdateLiveObjectCount(HeapObject* obj) {
+  live_bytes_ += obj->Size();
+  if (heap()->new_space()->Contains(obj)) {
+    live_young_objects_size_ += obj->Size();
+  } else if (heap()->map_space()->Contains(obj)) {
+    ASSERT(obj->IsMap());
+    live_map_objects_size_ += obj->Size();
+  } else if (heap()->cell_space()->Contains(obj)) {
+    ASSERT(obj->IsJSGlobalPropertyCell());
+    live_cell_objects_size_ += obj->Size();
+  } else if (heap()->old_pointer_space()->Contains(obj)) {
+    live_old_pointer_objects_size_ += obj->Size();
+  } else if (heap()->old_data_space()->Contains(obj)) {
+    live_old_data_objects_size_ += obj->Size();
+  } else if (heap()->code_space()->Contains(obj)) {
+    live_code_objects_size_ += obj->Size();
+  } else if (heap()->lo_space()->Contains(obj)) {
+    live_lo_objects_size_ += obj->Size();
+  } else {
+    UNREACHABLE();
+  }
+}
+#endif  // DEBUG
+
+
 void MarkCompactCollector::ReattachInitialMaps() {
   HeapObjectIterator map_iterator(heap()->map_space());
   for (HeapObject* obj = map_iterator.Next();
@@ -3601,6 +3648,8 @@ void MarkCompactCollector::SweepSpaces() {
   // detect whether unmarked map became dead in this collection or in one
   // of the previous ones.
   SweepSpace(heap()->map_space(), PRECISE);
+
+  ASSERT(live_map_objects_size_ <= heap()->map_space()->Size());
 
   // Deallocate unmarked objects and clear marked bits for marked objects.
   heap_->lo_space()->FreeUnmarkedObjects();

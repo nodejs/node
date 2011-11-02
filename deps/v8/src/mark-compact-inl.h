@@ -38,7 +38,7 @@ namespace internal {
 
 
 MarkBit Marking::MarkBitFrom(Address addr) {
-  MemoryChunk* p = MemoryChunk::FromAddress(addr);
+  MemoryChunk *p = MemoryChunk::FromAddress(addr);
   return p->markbits()->MarkBitFromIndex(p->AddressToMarkbitIndex(addr),
                                          p->ContainsOnlyData());
 }
@@ -54,6 +54,9 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
   if (!mark_bit.Get()) {
     mark_bit.Set();
     MemoryChunk::IncrementLiveBytes(obj->address(), obj->Size());
+#ifdef DEBUG
+    UpdateLiveObjectCount(obj);
+#endif
     ProcessNewlyMarkedObject(obj);
   }
 }
@@ -64,6 +67,9 @@ void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);
   mark_bit.Set();
   MemoryChunk::IncrementLiveBytes(obj->address(), obj->Size());
+#ifdef DEBUG
+  UpdateLiveObjectCount(obj);
+#endif
 }
 
 

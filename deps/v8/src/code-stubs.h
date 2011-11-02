@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "globals.h"
-#include "codegen.h"
 
 namespace v8 {
 namespace internal {
@@ -70,8 +69,7 @@ namespace internal {
   V(KeyedLoadElement)                    \
   V(KeyedStoreElement)                   \
   V(DebuggerStatement)                   \
-  V(StringDictionaryLookup)              \
-  V(ElementsTransitionAndStore)
+  V(StringDictionaryLookup)
 
 // List of code stubs only used on ARM platforms.
 #ifdef V8_TARGET_ARCH_ARM
@@ -364,7 +362,6 @@ class FastCloneShallowArrayStub : public CodeStub {
 
   enum Mode {
     CLONE_ELEMENTS,
-    CLONE_DOUBLE_ELEMENTS,
     COPY_ON_WRITE_ELEMENTS
   };
 
@@ -383,8 +380,8 @@ class FastCloneShallowArrayStub : public CodeStub {
 
   Major MajorKey() { return FastCloneShallowArray; }
   int MinorKey() {
-    ASSERT(mode_ == 0 || mode_ == 1 || mode_ == 2);
-    return length_ * 3 +  mode_;
+    ASSERT(mode_ == 0 || mode_ == 1);
+    return (length_ << 1) | mode_;
   }
 };
 
@@ -1026,42 +1023,6 @@ class ToBooleanStub: public CodeStub {
 
   Register tos_;
   Types types_;
-};
-
-
-class ElementsTransitionAndStoreStub : public CodeStub {
- public:
-  ElementsTransitionAndStoreStub(ElementsKind from,
-                                 ElementsKind to,
-                                 bool is_jsarray,
-                                 StrictModeFlag strict_mode)
-      : from_(from),
-        to_(to),
-        is_jsarray_(is_jsarray),
-        strict_mode_(strict_mode) {}
-
- private:
-  class FromBits:       public BitField<ElementsKind,    0, 8> {};
-  class ToBits:         public BitField<ElementsKind,    8, 8> {};
-  class IsJSArrayBits:  public BitField<bool,           16, 8> {};
-  class StrictModeBits: public BitField<StrictModeFlag, 24, 8> {};
-
-  Major MajorKey() { return ElementsTransitionAndStore; }
-  int MinorKey() {
-    return FromBits::encode(from_) |
-        ToBits::encode(to_) |
-        IsJSArrayBits::encode(is_jsarray_) |
-        StrictModeBits::encode(strict_mode_);
-  }
-
-  void Generate(MacroAssembler* masm);
-
-  ElementsKind from_;
-  ElementsKind to_;
-  bool is_jsarray_;
-  StrictModeFlag strict_mode_;
-
-  DISALLOW_COPY_AND_ASSIGN(ElementsTransitionAndStoreStub);
 };
 
 } }  // namespace v8::internal

@@ -121,7 +121,7 @@ class HBasicBlock: public ZoneObject {
 
   void Finish(HControlInstruction* last);
   void FinishExit(HControlInstruction* instruction);
-  void Goto(HBasicBlock* block, bool drop_extra = false);
+  void Goto(HBasicBlock* block);
 
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   void AddSimulate(int ast_id) { AddInstruction(CreateSimulate(ast_id)); }
@@ -133,9 +133,7 @@ class HBasicBlock: public ZoneObject {
 
   // Add the inlined function exit sequence, adding an HLeaveInlined
   // instruction and updating the bailout environment.
-  void AddLeaveInlined(HValue* return_value,
-                       HBasicBlock* target,
-                       bool drop_extra = false);
+  void AddLeaveInlined(HValue* return_value, HBasicBlock* target);
 
   // If a target block is tagged as an inline function return, all
   // predecessors should contain the inlined exit sequence:
@@ -605,18 +603,16 @@ class TestContext: public AstContext {
 };
 
 
-class FunctionState {
+class FunctionState BASE_EMBEDDED {
  public:
   FunctionState(HGraphBuilder* owner,
                 CompilationInfo* info,
-                TypeFeedbackOracle* oracle,
-                bool drop_extra);
+                TypeFeedbackOracle* oracle);
   ~FunctionState();
 
   CompilationInfo* compilation_info() { return compilation_info_; }
   TypeFeedbackOracle* oracle() { return oracle_; }
   AstContext* call_context() { return call_context_; }
-  bool drop_extra() { return drop_extra_; }
   HBasicBlock* function_return() { return function_return_; }
   TestContext* test_context() { return test_context_; }
   void ClearInlinedTestContext() {
@@ -635,10 +631,6 @@ class FunctionState {
   // During function inlining, expression context of the call being
   // inlined. NULL when not inlining.
   AstContext* call_context_;
-
-  // Indicate if we have to drop an extra value from the environment on
-  // return from inlined functions.
-  bool drop_extra_;
 
   // When inlining in an effect of value context, this is the return block.
   // It is NULL otherwise.  When inlining in a test context, there are a
@@ -736,8 +728,6 @@ class HGraphBuilder: public AstVisitor {
 
   TypeFeedbackOracle* oracle() const { return function_state()->oracle(); }
 
-  FunctionState* function_state() const { return function_state_; }
-
  private:
   // Type of a member function that generates inline code for a native function.
   typedef void (HGraphBuilder::*InlineFunctionGenerator)(CallRuntime* call);
@@ -756,6 +746,7 @@ class HGraphBuilder: public AstVisitor {
   static const int kMaxSourceSize = 600;
 
   // Simple accessors.
+  FunctionState* function_state() const { return function_state_; }
   void set_function_state(FunctionState* state) { function_state_ = state; }
 
   AstContext* ast_context() const { return ast_context_; }
@@ -778,8 +769,8 @@ class HGraphBuilder: public AstVisitor {
   void ClearInlinedTestContext() {
     function_state()->ClearInlinedTestContext();
   }
-  StrictModeFlag function_strict_mode_flag() {
-    return function_state()->compilation_info()->strict_mode_flag();
+  bool function_strict_mode() {
+    return function_state()->compilation_info()->is_strict_mode();
   }
 
   // Generators for inline runtime functions.
@@ -892,7 +883,7 @@ class HGraphBuilder: public AstVisitor {
   // Try to optimize fun.apply(receiver, arguments) pattern.
   bool TryCallApply(Call* expr);
 
-  bool TryInline(Call* expr, bool drop_extra = false);
+  bool TryInline(Call* expr);
   bool TryInlineBuiltinFunction(Call* expr,
                                 HValue* receiver,
                                 Handle<Map> receiver_map,
@@ -921,11 +912,12 @@ class HGraphBuilder: public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
+  bool TryLiteralCompare(CompareOperation* expr);
   void HandleLiteralCompareTypeof(CompareOperation* expr,
-                                  HTypeof* typeof_expr,
+                                  Expression* sub_expr,
                                   Handle<String> check);
   void HandleLiteralCompareNil(CompareOperation* expr,
-                               HValue* value,
+                               Expression* sub_expr,
                                NilValue nil);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
@@ -959,7 +951,7 @@ class HGraphBuilder: public AstVisitor {
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,
                                               HValue* val,
-                                              Handle<Map> map,
+                                              Expression* expr,
                                               bool is_store);
   HValue* HandlePolymorphicElementAccess(HValue* object,
                                          HValue* key,

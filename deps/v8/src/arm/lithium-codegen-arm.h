@@ -86,7 +86,6 @@ class LCodeGen BASE_EMBEDDED {
                                         SwVfpRegister flt_scratch,
                                         DoubleRegister dbl_scratch);
   int ToInteger32(LConstantOperand* op) const;
-  double ToDouble(LConstantOperand* op) const;
   Operand ToOperand(LOperand* op);
   MemOperand ToMemOperand(LOperand* op) const;
   // Returns a MemOperand pointing to the high word of a DoubleStackSlot.
@@ -140,8 +139,8 @@ class LCodeGen BASE_EMBEDDED {
   bool is_done() const { return status_ == DONE; }
   bool is_aborted() const { return status_ == ABORTED; }
 
-  StrictModeFlag strict_mode_flag() const {
-    return info()->strict_mode_flag();
+  int strict_mode_flag() const {
+    return info()->is_strict_mode() ? kStrictMode : kNonStrictMode;
   }
 
   LChunk* chunk() const { return chunk_; }
@@ -207,7 +206,7 @@ class LCodeGen BASE_EMBEDDED {
                                LInstruction* instr);
 
   // Generate a direct call to a known function.  Expects the function
-  // to be in r1.
+  // to be in edi.
   void CallKnownFunction(Handle<JSFunction> function,
                          int arity,
                          LInstruction* instr,
@@ -264,6 +263,7 @@ class LCodeGen BASE_EMBEDDED {
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
   void EmitBranch(int left_block, int right_block, Condition cc);
+  void EmitCmpI(LOperand* left, LOperand* right);
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,
                         bool deoptimize_on_undefined,
@@ -272,10 +272,8 @@ class LCodeGen BASE_EMBEDDED {
   // Emits optimized code for typeof x == "y".  Modifies input register.
   // Returns the condition on which a final split to
   // true and false label should be made, to optimize fallthrough.
-  Condition EmitTypeofIs(Label* true_label,
-                         Label* false_label,
-                         Register input,
-                         Handle<String> type_name);
+  Condition EmitTypeofIs(Label* true_label, Label* false_label,
+                         Register input, Handle<String> type_name);
 
   // Emits optimized code for %_IsObject(x).  Preserves input register.
   // Returns the condition on which a final split to

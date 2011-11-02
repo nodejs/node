@@ -227,12 +227,7 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
   // [rsp + (3 * kPointerSize)]: literals array.
 
   // All sizes here are multiples of kPointerSize.
-  int elements_size = 0;
-  if (length_ > 0) {
-    elements_size = mode_ == CLONE_DOUBLE_ELEMENTS
-        ? FixedDoubleArray::SizeFor(length_)
-        : FixedArray::SizeFor(length_);
-  }
+  int elements_size = (length_ > 0) ? FixedArray::SizeFor(length_) : 0;
   int size = JSArray::kSize + elements_size;
 
   // Load boilerplate object into rcx and check if we need to create a
@@ -252,9 +247,6 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     if (mode_ == CLONE_ELEMENTS) {
       message = "Expected (writable) fixed array";
       expected_map_index = Heap::kFixedArrayMapRootIndex;
-    } else if (mode_ == CLONE_DOUBLE_ELEMENTS) {
-      message = "Expected (writable) fixed double array";
-      expected_map_index = Heap::kFixedDoubleArrayMapRootIndex;
     } else {
       ASSERT(mode_ == COPY_ON_WRITE_ELEMENTS);
       message = "Expected copy-on-write fixed array";
@@ -288,24 +280,9 @@ void FastCloneShallowArrayStub::Generate(MacroAssembler* masm) {
     __ movq(FieldOperand(rax, JSArray::kElementsOffset), rdx);
 
     // Copy the elements array.
-    if (mode_ == CLONE_ELEMENTS) {
-      for (int i = 0; i < elements_size; i += kPointerSize) {
-        __ movq(rbx, FieldOperand(rcx, i));
-        __ movq(FieldOperand(rdx, i), rbx);
-      }
-    } else {
-      ASSERT(mode_ == CLONE_DOUBLE_ELEMENTS);
-      int i;
-      for (i = 0; i < FixedDoubleArray::kHeaderSize; i += kPointerSize) {
-        __ movq(rbx, FieldOperand(rcx, i));
-        __ movq(FieldOperand(rdx, i), rbx);
-      }
-      while (i < elements_size) {
-        __ movsd(xmm0, FieldOperand(rcx, i));
-        __ movsd(FieldOperand(rdx, i), xmm0);
-        i += kDoubleSize;
-      }
-      ASSERT(i == elements_size);
+    for (int i = 0; i < elements_size; i += kPointerSize) {
+      __ movq(rbx, FieldOperand(rcx, i));
+      __ movq(FieldOperand(rdx, i), rbx);
     }
   }
 
@@ -3902,7 +3879,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ bind(&miss);
   }
 
-  __ TryGetFunctionPrototype(rdx, rbx, &slow, true);
+  __ TryGetFunctionPrototype(rdx, rbx, &slow);
 
   // Check that the function prototype is a JS object.
   __ JumpIfSmi(rbx, &slow);
@@ -5461,68 +5438,7 @@ void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
 }
 
 
-void StringDictionaryLookupStub::GenerateNegativeLookup(MacroAssembler* masm,
-                                                        Label* miss,
-                                                        Label* done,
-                                                        Register properties,
-                                                        Handle<String> name,
-                                                        Register r0) {
-  // If names of slots in range from 1 to kProbes - 1 for the hash value are
-  // not equal to the name and kProbes-th slot is not used (its name is the
-  // undefined value), it guarantees the hash table doesn't contain the
-  // property. It's true even if some slots represent deleted properties
-  // (their names are the null value).
-  for (int i = 0; i < kInlinedProbes; i++) {
-    // r0 points to properties hash.
-    // Compute the masked index: (hash + i + i * i) & mask.
-    Register index = r0;
-    // Capacity is smi 2^n.
-    __ SmiToInteger32(index, FieldOperand(properties, kCapacityOffset));
-    __ decl(index);
-    __ and_(index,
-            Immediate(name->Hash() + StringDictionary::GetProbeOffset(i)));
-
-    // Scale the index by multiplying by the entry size.
-    ASSERT(StringDictionary::kEntrySize == 3);
-    __ lea(index, Operand(index, index, times_2, 0));  // index *= 3.
-
-    Register entity_name = r0;
-    // Having undefined at this place means the name is not contained.
-    ASSERT_EQ(kSmiTagSize, 1);
-    __ movq(entity_name, Operand(properties,
-                                 index,
-                                 times_pointer_size,
-                                 kElementsStartOffset - kHeapObjectTag));
-    __ Cmp(entity_name, masm->isolate()->factory()->undefined_value());
-    __ j(equal, done);
-
-    // Stop if found the property.
-    __ Cmp(entity_name, Handle<String>(name));
-    __ j(equal, miss);
-
-    // Check if the entry name is not a symbol.
-    __ movq(entity_name, FieldOperand(entity_name, HeapObject::kMapOffset));
-    __ testb(FieldOperand(entity_name, Map::kInstanceTypeOffset),
-             Immediate(kIsSymbolMask));
-    __ j(zero, miss);
-  }
-
-  StringDictionaryLookupStub stub(properties,
-                                  r0,
-                                  r0,
-                                  StringDictionaryLookupStub::NEGATIVE_LOOKUP);
-  __ Push(Handle<Object>(name));
-  __ push(Immediate(name->Hash()));
-  __ CallStub(&stub);
-  __ testq(r0, r0);
-  __ j(not_zero, miss);
-  __ jmp(done);
-}
-
-
-// TODO(kmillikin): Eliminate this function when the stub cache is fully
-// handlified.
-MaybeObject* StringDictionaryLookupStub::TryGenerateNegativeLookup(
+MaybeObject* StringDictionaryLookupStub::GenerateNegativeLookup(
     MacroAssembler* masm,
     Label* miss,
     Label* done,
@@ -5749,15 +5665,6 @@ struct AheadOfTimeWriteBarrierStubList kAheadOfTime[] = {
   { rbx, rdx, rcx, EMIT_REMEMBERED_SET},
   // KeyedStoreStubCompiler::GenerateStoreFastElement.
   { rdi, rdx, rcx, EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateSmiOnlyToObject
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { rdx, rbx, rdi, EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateSmiOnlyToDouble
-  // and ElementsTransitionGenerator::GenerateDoubleToObject
-  { rdx, r11, r15, EMIT_REMEMBERED_SET},
-  // ElementsTransitionGenerator::GenerateDoubleToObject
-  { r11, rax, r15, EMIT_REMEMBERED_SET},
   // Null termination.
   { no_reg, no_reg, no_reg, EMIT_REMEMBERED_SET}
 };
@@ -6004,6 +5911,7 @@ void RecordWriteStub::CheckNeedsToInformIncrementalMarker(
 
   // Fall through when we need to inform the incremental marker.
 }
+
 
 #undef __
 

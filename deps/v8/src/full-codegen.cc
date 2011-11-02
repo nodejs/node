@@ -289,12 +289,11 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   code->set_has_debug_break_slots(
       info->isolate()->debugger()->IsDebuggerActive());
-  code->set_compiled_optimizable(info->IsOptimizable());
 #endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
-  info->SetCode(code);  // May be an empty handle.
+  info->SetCode(code);  // may be an empty handle.
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit && !code.is_null()) {
     GDBJITLineInfo* lineinfo =
@@ -521,8 +520,8 @@ void FullCodeGenerator::VisitDeclarations(
       if (var->IsUnallocated()) {
         array->set(j++, *(var->name()));
         if (decl->fun() == NULL) {
-          if (var->binding_needs_init()) {
-            // In case this binding needs initialization use the hole.
+          if (var->mode() == CONST) {
+            // In case this is const property use the hole.
             array->set_the_hole(j++);
           } else {
             array->set_undefined(j++);
@@ -547,10 +546,11 @@ void FullCodeGenerator::VisitDeclarations(
 
 
 int FullCodeGenerator::DeclareGlobalsFlags() {
-  ASSERT(DeclareGlobalsStrictModeFlag::is_valid(strict_mode_flag()));
-  return DeclareGlobalsEvalFlag::encode(is_eval()) |
-      DeclareGlobalsStrictModeFlag::encode(strict_mode_flag()) |
-      DeclareGlobalsNativeFlag::encode(is_native());
+  int flags = 0;
+  if (is_eval()) flags |= kDeclareGlobalsEvalFlag;
+  if (is_strict_mode()) flags |= kDeclareGlobalsStrictModeFlag;
+  if (is_native()) flags |= kDeclareGlobalsNativeFlag;
+  return flags;
 }
 
 

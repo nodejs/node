@@ -1930,11 +1930,9 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       SetInternalReference(js_fun, entry,
                            "context", js_fun->unchecked_context(),
                            JSFunction::kContextOffset);
-      TagObject(js_fun->literals_or_bindings(),
-                "(function literals_or_bindings)");
+      TagObject(js_fun->literals(), "(function literals)");
       SetInternalReference(js_fun, entry,
-                           "literals_or_bindings",
-                           js_fun->literals_or_bindings(),
+                           "literals", js_fun->literals(),
                            JSFunction::kLiteralsOffset);
     }
     TagObject(js_obj->properties(), "(object properties)");
@@ -1950,10 +1948,6 @@ void V8HeapExplorer::ExtractReferences(HeapObject* obj) {
       ConsString* cs = ConsString::cast(obj);
       SetInternalReference(obj, entry, 1, cs->first());
       SetInternalReference(obj, entry, 2, cs->second());
-    }
-    if (obj->IsSlicedString()) {
-      SlicedString* ss = SlicedString::cast(obj);
-      SetInternalReference(obj, entry, "parent", ss->parent());
     }
     extract_indexed_refs = false;
   } else if (obj->IsGlobalContext()) {
@@ -2170,16 +2164,15 @@ void V8HeapExplorer::ExtractInternalReferences(JSObject* js_obj,
 
 
 String* V8HeapExplorer::GetConstructorName(JSObject* object) {
-  Heap* heap = object->GetHeap();
-  if (object->IsJSFunction()) return heap->closure_symbol();
+  if (object->IsJSFunction()) return HEAP->closure_symbol();
   String* constructor_name = object->constructor_name();
-  if (constructor_name == heap->Object_symbol()) {
+  if (constructor_name == HEAP->Object_symbol()) {
     // Look up an immediate "constructor" property, if it is a function,
     // return its name. This is for instances of binding objects, which
     // have prototype constructor type "Object".
     Object* constructor_prop = NULL;
-    LookupResult result(heap->isolate());
-    object->LocalLookupRealNamedProperty(heap->constructor_symbol(), &result);
+    LookupResult result;
+    object->LocalLookupRealNamedProperty(HEAP->constructor_symbol(), &result);
     if (result.IsProperty()) {
       constructor_prop = result.GetLazyValue();
     }

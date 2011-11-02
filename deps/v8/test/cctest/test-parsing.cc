@@ -260,52 +260,14 @@ TEST(StandAlonePreParser) {
     i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
     scanner.Initialize(&stream);
 
-    int flags = i::kAllowLazy | i::kAllowNativesSyntax;
     v8::preparser::PreParser::PreParseResult result =
         v8::preparser::PreParser::PreParseProgram(&scanner,
                                                   &log,
-                                                  flags,
+                                                  true,
                                                   stack_limit);
     CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
     i::ScriptDataImpl data(log.ExtractData());
     CHECK(!data.has_error());
-  }
-}
-
-
-TEST(StandAlonePreParserNoNatives) {
-  v8::V8::Initialize();
-
-  int marker;
-  i::Isolate::Current()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
-  const char* programs[] = {
-      "%ArgleBargle(glop);",
-      "var x = %_IsSmi(42);",
-      NULL
-  };
-
-  uintptr_t stack_limit = i::Isolate::Current()->stack_guard()->real_climit();
-  for (int i = 0; programs[i]; i++) {
-    const char* program = programs[i];
-    i::Utf8ToUC16CharacterStream stream(
-        reinterpret_cast<const i::byte*>(program),
-        static_cast<unsigned>(strlen(program)));
-    i::CompleteParserRecorder log;
-    i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
-    scanner.Initialize(&stream);
-
-    // Flags don't allow natives syntax.
-    v8::preparser::PreParser::PreParseResult result =
-        v8::preparser::PreParser::PreParseProgram(&scanner,
-                                                  &log,
-                                                  i::kAllowLazy,
-                                                  stack_limit);
-    CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
-    i::ScriptDataImpl data(log.ExtractData());
-    // Data contains syntax error.
-    CHECK(data.has_error());
   }
 }
 
@@ -743,136 +705,4 @@ TEST(RegExpScanning) {
   // Starting with '=' works too.
   TestScanRegExp("/=/", "=");
   TestScanRegExp("/=?/", "=?");
-}
-
-
-TEST(ScopePositions) {
-  // Test the parser for correctly setting the start and end positions
-  // of a scope. We check the scope positions of exactly one scope
-  // nested in the global scope of a program. 'inner source' is the
-  // source code that determines the part of the source belonging
-  // to the nested scope. 'outer_prefix' and 'outer_suffix' are
-  // parts of the source that belong to the global scope.
-  struct SourceData {
-    const char* outer_prefix;
-    const char* inner_source;
-    const char* outer_suffix;
-    i::ScopeType scope_type;
-  };
-
-  const SourceData source_data[] = {
-    { "  with ({}) ", "{ block; }", " more;", i::WITH_SCOPE },
-    { "  with ({}) ", "{ block; }", "; more;", i::WITH_SCOPE },
-    { "  with ({}) ", "{\n"
-      "    block;\n"
-      "  }", "\n"
-      "  more;", i::WITH_SCOPE },
-    { "  with ({}) ", "statement;", " more;", i::WITH_SCOPE },
-    { "  with ({}) ", "statement", "\n"
-      "  more;", i::WITH_SCOPE },
-    { "  with ({})\n"
-      "    ", "statement;", "\n"
-      "  more;", i::WITH_SCOPE },
-    { "  try {} catch ", "(e) { block; }", " more;", i::CATCH_SCOPE },
-    { "  try {} catch ", "(e) { block; }", "; more;", i::CATCH_SCOPE },
-    { "  try {} catch ", "(e) {\n"
-      "    block;\n"
-      "  }", "\n"
-      "  more;", i::CATCH_SCOPE },
-    { "  try {} catch ", "(e) { block; }", " finally { block; } more;",
-      i::CATCH_SCOPE },
-    { "  start;\n"
-      "  ", "{ let block; }", " more;", i::BLOCK_SCOPE },
-    { "  start;\n"
-      "  ", "{ let block; }", "; more;", i::BLOCK_SCOPE },
-    { "  start;\n"
-      "  ", "{\n"
-      "    let block;\n"
-      "  }", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { "  start;\n"
-      "  function fun", "(a,b) { infunction; }", " more;",
-      i::FUNCTION_SCOPE },
-    { "  start;\n"
-      "  function fun", "(a,b) {\n"
-      "    infunction;\n"
-      "  }", "\n"
-      "  more;", i::FUNCTION_SCOPE },
-    { "  (function fun", "(a,b) { infunction; }", ")();",
-      i::FUNCTION_SCOPE },
-    { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", " more;",
-      i::BLOCK_SCOPE },
-    { "  for ", "(let x = 1 ; x < 10; ++ x) { block; }", "; more;",
-      i::BLOCK_SCOPE },
-    { "  for ", "(let x = 1 ; x < 10; ++ x) {\n"
-      "    block;\n"
-      "  }", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x = 1 ; x < 10; ++ x) statement;", " more;",
-      i::BLOCK_SCOPE },
-    { "  for ", "(let x = 1 ; x < 10; ++ x) statement", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x = 1 ; x < 10; ++ x)\n"
-      "    statement;", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x in {}) { block; }", " more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x in {}) { block; }", "; more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x in {}) {\n"
-      "    block;\n"
-      "  }", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x in {}) statement;", " more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x in {}) statement", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { "  for ", "(let x in {})\n"
-      "    statement;", "\n"
-      "  more;", i::BLOCK_SCOPE },
-    { NULL, NULL, NULL, i::EVAL_SCOPE }
-  };
-
-  v8::HandleScope handles;
-  v8::Persistent<v8::Context> context = v8::Context::New();
-  v8::Context::Scope context_scope(context);
-
-  int marker;
-  i::Isolate::Current()->stack_guard()->SetStackLimit(
-      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
-
-  for (int i = 0; source_data[i].outer_prefix; i++) {
-    int kPrefixLen = i::StrLength(source_data[i].outer_prefix);
-    int kInnerLen = i::StrLength(source_data[i].inner_source);
-    int kSuffixLen = i::StrLength(source_data[i].outer_suffix);
-    int kProgramSize = kPrefixLen + kInnerLen + kSuffixLen;
-    i::Vector<char> program = i::Vector<char>::New(kProgramSize + 1);
-    int length;
-    length = i::OS::SNPrintF(program, "%s%s%s",
-                             source_data[i].outer_prefix,
-                             source_data[i].inner_source,
-                             source_data[i].outer_suffix);
-    ASSERT(length == kProgramSize);
-
-    // Parse program source.
-    i::Handle<i::String> source(
-        FACTORY->NewStringFromAscii(i::CStrVector(program.start())));
-    i::Handle<i::Script> script = FACTORY->NewScript(source);
-    i::Parser parser(script, false, NULL, NULL);
-    parser.SetHarmonyScoping(true);
-    i::FunctionLiteral* function =
-        parser.ParseProgram(source, true, i::kNonStrictMode);
-    ASSERT(function != NULL);
-
-    // Check scope types and positions.
-    i::Scope* scope = function->scope();
-    CHECK(scope->is_global_scope());
-    CHECK_EQ(scope->start_position(), 0);
-    CHECK_EQ(scope->end_position(), kProgramSize);
-    CHECK_EQ(scope->inner_scopes()->length(), 1);
-
-    i::Scope* inner_scope = scope->inner_scopes()->at(0);
-    CHECK_EQ(inner_scope->type(), source_data[i].scope_type);
-    CHECK_EQ(inner_scope->start_position(), kPrefixLen);
-    // The end position of a token is one position after the last
-    // character belonging to that token.
-    CHECK_EQ(inner_scope->end_position(), kPrefixLen + kInnerLen);
-  }
 }

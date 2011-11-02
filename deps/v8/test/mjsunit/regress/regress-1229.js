@@ -35,10 +35,10 @@ function foo(x, y, z) {
   assertEquals(3, z);
 }
 
-var foob = foo.bind({}, 1);
+var bound_arg = [1];
 
 function f(y, z) {
-  return %NewObjectFromBound(foob);
+  return %NewObjectFromBound(foo, bound_arg);
 }
 
 // Check that %NewObjectFromBound looks at correct frame for inlined function.

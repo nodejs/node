@@ -29,6 +29,7 @@
 #define V8_ARM_CODEGEN_ARM_H_
 
 #include "ast.h"
+#include "code-stubs-arm.h"
 #include "ic-inl.h"
 
 namespace v8 {

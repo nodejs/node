@@ -61,52 +61,68 @@ class Marking {
   // Impossible markbits: 01
   static const char* kImpossibleBitPattern;
   static inline bool IsImpossible(MarkBit mark_bit) {
+    ASSERT(strcmp(kImpossibleBitPattern, "01") == 0);
     return !mark_bit.Get() && mark_bit.Next().Get();
   }
 
   // Black markbits: 10 - this is required by the sweeper.
   static const char* kBlackBitPattern;
   static inline bool IsBlack(MarkBit mark_bit) {
+    ASSERT(strcmp(kBlackBitPattern, "10") == 0);
+    ASSERT(!IsImpossible(mark_bit));
     return mark_bit.Get() && !mark_bit.Next().Get();
   }
 
   // White markbits: 00 - this is required by the mark bit clearer.
   static const char* kWhiteBitPattern;
   static inline bool IsWhite(MarkBit mark_bit) {
+    ASSERT(strcmp(kWhiteBitPattern, "00") == 0);
+    ASSERT(!IsImpossible(mark_bit));
     return !mark_bit.Get();
   }
 
   // Grey markbits: 11
   static const char* kGreyBitPattern;
   static inline bool IsGrey(MarkBit mark_bit) {
+    ASSERT(strcmp(kGreyBitPattern, "11") == 0);
+    ASSERT(!IsImpossible(mark_bit));
     return mark_bit.Get() && mark_bit.Next().Get();
   }
 
   static inline void MarkBlack(MarkBit mark_bit) {
     mark_bit.Set();
     mark_bit.Next().Clear();
+    ASSERT(Marking::IsBlack(mark_bit));
   }
 
   static inline void BlackToGrey(MarkBit markbit) {
+    ASSERT(IsBlack(markbit));
     markbit.Next().Set();
+    ASSERT(IsGrey(markbit));
   }
 
   static inline void WhiteToGrey(MarkBit markbit) {
+    ASSERT(IsWhite(markbit));
     markbit.Set();
     markbit.Next().Set();
+    ASSERT(IsGrey(markbit));
   }
 
   static inline void GreyToBlack(MarkBit markbit) {
+    ASSERT(IsGrey(markbit));
     markbit.Next().Clear();
+    ASSERT(IsBlack(markbit));
   }
 
   static inline void BlackToGrey(HeapObject* obj) {
+    ASSERT(obj->Size() >= 2 * kPointerSize);
     BlackToGrey(MarkBitFrom(obj));
   }
 
   static inline void AnyToGrey(MarkBit markbit) {
     markbit.Set();
     markbit.Next().Set();
+    ASSERT(IsGrey(markbit));
   }
 
   // Returns true if the the object whose mark is transferred is marked black.
@@ -157,6 +173,8 @@ class Marking {
       to_mark_bit.Next().Set();
       is_black = false;  // Was actually gray.
     }
+    ASSERT(Color(from) == Color(to));
+    ASSERT(is_black == (Color(to) == BLACK_OBJECT));
     return is_black;
   }
 
@@ -209,6 +227,7 @@ class MarkingDeque {
   inline void PushGrey(HeapObject* object) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
+      ASSERT(Marking::IsGrey(Marking::MarkBitFrom(object)));
       SetOverflowed();
     } else {
       array_[top_] = object;
@@ -227,6 +246,7 @@ class MarkingDeque {
   inline void UnshiftGrey(HeapObject* object) {
     ASSERT(object->IsHeapObject());
     if (IsFull()) {
+      ASSERT(Marking::IsGrey(Marking::MarkBitFrom(object)));
       SetOverflowed();
     } else {
       bottom_ = ((bottom_ - 1) & mask_);
@@ -538,8 +558,6 @@ class MarkCompactCollector {
 
   void InvalidateCode(Code* code);
 
-  void ClearMarkbits();
-
  private:
   MarkCompactCollector();
   ~MarkCompactCollector();
@@ -669,6 +687,10 @@ class MarkCompactCollector {
   // heap object.
   static bool IsUnmarkedHeapObject(Object** p);
 
+#ifdef DEBUG
+  void UpdateLiveObjectCount(HeapObject* obj);
+#endif
+
   // Map transitions from a live map to a dead map must be killed.
   // We replace them with a null descriptor, with the same key.
   void ClearNonLiveTransitions();
@@ -715,7 +737,37 @@ class MarkCompactCollector {
 
   void SweepSpace(PagedSpace* space, SweeperType sweeper);
 
+
 #ifdef DEBUG
+  // -----------------------------------------------------------------------
+  // Debugging variables, functions and classes
+  // Counters used for debugging the marking phase of mark-compact or
+  // mark-sweep collection.
+
+  // Size of live objects in Heap::to_space_.
+  int live_young_objects_size_;
+
+  // Size of live objects in Heap::old_pointer_space_.
+  int live_old_pointer_objects_size_;
+
+  // Size of live objects in Heap::old_data_space_.
+  int live_old_data_objects_size_;
+
+  // Size of live objects in Heap::code_space_.
+  int live_code_objects_size_;
+
+  // Size of live objects in Heap::map_space_.
+  int live_map_objects_size_;
+
+  // Size of live objects in Heap::cell_space_.
+  int live_cell_objects_size_;
+
+  // Size of live objects in Heap::lo_space_.
+  int live_lo_objects_size_;
+
+  // Number of live bytes in this collection.
+  int live_bytes_;
+
   friend class MarkObjectVisitor;
   static void VisitObject(HeapObject* obj);
 

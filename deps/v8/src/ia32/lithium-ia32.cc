@@ -452,12 +452,6 @@ void LStoreKeyedGeneric::PrintDataTo(StringStream* stream) {
 }
 
 
-void LTransitionElementsKind::PrintDataTo(StringStream* stream) {
-  object()->PrintTo(stream);
-  stream->Add(" %p -> %p", *original_map(), *transitioned_map());
-}
-
-
 void LChunk::AddInstruction(LInstruction* instr, HBasicBlock* block) {
   LInstructionGap* gap = new LInstructionGap(block);
   int index = -1;
@@ -1440,11 +1434,13 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
 
 
 LInstruction* LChunkBuilder::DoCompareGeneric(HCompareGeneric* instr) {
+  Token::Value op = instr->token();
   ASSERT(instr->left()->representation().IsTagged());
   ASSERT(instr->right()->representation().IsTagged());
+  bool reversed = (op == Token::GT || op == Token::LTE);
   LOperand* context = UseFixed(instr->context(), esi);
-  LOperand* left = UseFixed(instr->left(), edx);
-  LOperand* right = UseFixed(instr->right(), eax);
+  LOperand* left = UseFixed(instr->left(), reversed ? eax : edx);
+  LOperand* right = UseFixed(instr->right(), reversed ? edx : eax);
   LCmpT* result = new LCmpT(context, left, right);
   return MarkAsCall(DefineFixed(result, eax), instr);
 }
@@ -1456,22 +1452,15 @@ LInstruction* LChunkBuilder::DoCompareIDAndBranch(
   if (r.IsInteger32()) {
     ASSERT(instr->left()->representation().IsInteger32());
     ASSERT(instr->right()->representation().IsInteger32());
-    LOperand* left = UseRegisterOrConstantAtStart(instr->left());
+    LOperand* left = UseRegisterAtStart(instr->left());
     LOperand* right = UseOrConstantAtStart(instr->right());
     return new LCmpIDAndBranch(left, right);
   } else {
     ASSERT(r.IsDouble());
     ASSERT(instr->left()->representation().IsDouble());
     ASSERT(instr->right()->representation().IsDouble());
-    LOperand* left;
-    LOperand* right;
-    if (instr->left()->IsConstant() && instr->right()->IsConstant()) {
-      left = UseRegisterOrConstantAtStart(instr->left());
-      right = UseRegisterOrConstantAtStart(instr->right());
-    } else {
-      left = UseRegisterAtStart(instr->left());
-      right = UseRegisterAtStart(instr->right());
-    }
+    LOperand* left = UseRegisterAtStart(instr->left());
+    LOperand* right = UseRegisterAtStart(instr->right());
     return new LCmpIDAndBranch(left, right);
   }
 }
@@ -2041,27 +2030,6 @@ LInstruction* LChunkBuilder::DoStoreKeyedGeneric(HStoreKeyedGeneric* instr) {
   LStoreKeyedGeneric* result =
       new LStoreKeyedGeneric(context, object, key, value);
   return MarkAsCall(result, instr);
-}
-
-
-LInstruction* LChunkBuilder::DoTransitionElementsKind(
-    HTransitionElementsKind* instr) {
-  if (instr->original_map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS &&
-      instr->transitioned_map()->elements_kind() == FAST_ELEMENTS) {
-    LOperand* object = UseRegister(instr->object());
-    LOperand* new_map_reg = TempRegister();
-    LOperand* temp_reg = TempRegister();
-    LTransitionElementsKind* result =
-        new LTransitionElementsKind(object, new_map_reg, temp_reg);
-    return DefineSameAsFirst(result);
-  } else {
-    LOperand* object = UseFixed(instr->object(), eax);
-    LOperand* fixed_object_reg = FixedTemp(edx);
-    LOperand* new_map_reg = FixedTemp(ebx);
-    LTransitionElementsKind* result =
-        new LTransitionElementsKind(object, new_map_reg, fixed_object_reg);
-    return MarkAsCall(DefineFixed(result, eax), instr);
-  }
 }
 
 

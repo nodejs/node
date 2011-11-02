@@ -52,6 +52,9 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
+# NewGC: BUG(1717)
+test-api/OutOfMemoryNested: PASS || TIMEOUT
+
 ##############################################################################
 [ $arch == arm ]
 

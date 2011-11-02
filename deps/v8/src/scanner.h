@@ -41,17 +41,6 @@
 namespace v8 {
 namespace internal {
 
-
-// General collection of bit-flags that can be passed to scanners and
-// parsers to signify their (initial) mode of operation.
-enum ParsingFlags {
-  kNoParsingFlags = 0,
-  kAllowLazy = 1,
-  kAllowNativesSyntax = 2,
-  kHarmonyScoping = 4
-};
-
-
 // Returns the value (0 .. 15) of a hexadecimal character c.
 // If c is not a legal hexadecimal character, returns a value < 0.
 inline int HexValue(uc32 c) {

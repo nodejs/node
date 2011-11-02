@@ -59,13 +59,13 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
 }
 
 
-Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
-                                                      PretenureFlag pretenure) {
+Handle<FixedArray> Factory::NewFixedDoubleArray(int size,
+                                                PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
-      FixedDoubleArray);
+      FixedArray);
 }
 
 
@@ -82,14 +82,6 @@ Handle<NumberDictionary> Factory::NewNumberDictionary(int at_least_space_for) {
   CALL_HEAP_FUNCTION(isolate(),
                      NumberDictionary::Allocate(at_least_space_for),
                      NumberDictionary);
-}
-
-
-Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
-  ASSERT(0 <= at_least_space_for);
-  CALL_HEAP_FUNCTION(isolate(),
-                     ObjectHashSet::Allocate(at_least_space_for),
-                     ObjectHashSet);
 }
 
 
@@ -479,12 +471,6 @@ Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
 }
 
 
-Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
-    Handle<FixedDoubleArray> array) {
-  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
-}
-
-
 Handle<JSFunction> Factory::BaseNewFunctionFromSharedFunctionInfo(
     Handle<SharedFunctionInfo> function_info,
     Handle<Map> function_map,
@@ -511,20 +497,16 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
       pretenure);
 
   result->set_context(*context);
-  if (!function_info->bound()) {
-    int number_of_literals = function_info->num_literals();
-    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
-    if (number_of_literals > 0) {
-      // Store the object, regexp and array functions in the literals
-      // array prefix.  These functions will be used when creating
-      // object, regexp and array literals in this function.
-      literals->set(JSFunction::kLiteralGlobalContextIndex,
-                    context->global_context());
-    }
-    result->set_literals(*literals);
-  } else {
-    result->set_function_bindings(isolate()->heap()->empty_fixed_array());
+  int number_of_literals = function_info->num_literals();
+  Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
+  if (number_of_literals > 0) {
+    // Store the object, regexp and array functions in the literals
+    // array prefix.  These functions will be used when creating
+    // object, regexp and array literals in this function.
+    literals->set(JSFunction::kLiteralGlobalContextIndex,
+                  context->global_context());
   }
+  result->set_literals(*literals);
   result->set_next_function_link(isolate()->heap()->undefined_value());
 
   if (V8::UseCrankshaft() &&
@@ -839,13 +821,10 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Number of descriptors added to the result so far.
   int descriptor_count = 0;
 
-  // Ensure that marking will not progress and change color of objects.
-  DescriptorArray::WhitenessWitness witness(*result);
-
   // Copy the descriptors from the array.
   for (int i = 0; i < array->number_of_descriptors(); i++) {
     if (array->GetType(i) != NULL_DESCRIPTOR) {
-      result->CopyFrom(descriptor_count++, *array, i, witness);
+      result->CopyFrom(descriptor_count++, *array, i);
     }
   }
 
@@ -865,7 +844,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     if (result->LinearSearch(*key, descriptor_count) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Set(descriptor_count, &desc, witness);
+      result->Set(descriptor_count, &desc);
       descriptor_count++;
     } else {
       duplicates++;
@@ -879,13 +858,13 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<DescriptorArray> new_result =
         NewDescriptorArray(number_of_descriptors);
     for (int i = 0; i < number_of_descriptors; i++) {
-      new_result->CopyFrom(i, *result, i, witness);
+      new_result->CopyFrom(i, *result, i);
     }
     result = new_result;
   }
 
   // Sort the result before returning.
-  result->Sort(witness);
+  result->Sort();
   return result;
 }
 

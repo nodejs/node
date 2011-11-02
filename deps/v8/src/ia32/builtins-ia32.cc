@@ -915,6 +915,10 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
 }
 
 
+// Number of empty elements to allocate for an empty array.
+static const int kPreallocatedArrayElements = 4;
+
+
 // Allocate an empty JSArray. The allocated array is put into the result
 // register. If the parameter initial_capacity is larger than zero an elements
 // backing store is allocated with this size and filled with the hole values.
@@ -925,9 +929,10 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register scratch1,
                                  Register scratch2,
                                  Register scratch3,
+                                 int initial_capacity,
                                  Label* gc_required) {
-  const int initial_capacity = JSArray::kPreallocatedArrayElements;
-  STATIC_ASSERT(initial_capacity >= 0);
+  ASSERT(initial_capacity >= 0);
+
   // Load the initial map from the array function.
   __ mov(scratch1, FieldOperand(array_function,
                                 JSFunction::kPrototypeOrInitialMapOffset));
@@ -985,6 +990,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
+  STATIC_ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
@@ -1147,6 +1153,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        ebx,
                        ecx,
                        edi,
+                       kPreallocatedArrayElements,
                        &prepare_generic_code_call);
   __ IncrementCounter(masm->isolate()->counters()->array_function_native(), 1);
   __ pop(ebx);
@@ -1175,7 +1182,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
     __ mov(eax, Operand(esp, i * kPointerSize));
     __ mov(Operand(esp, (i + 1) * kPointerSize), eax);
   }
-  __ Drop(2);  // Drop two stack slots.
+  __ add(esp, Immediate(2 * kPointerSize));  // Drop two stack slots.
   __ push(Immediate(0));  // Treat this as a call with argc of zero.
   __ jmp(&empty_array);
 

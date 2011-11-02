@@ -527,9 +527,7 @@ MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
     // correctly yet. Compile it now and return the right length.
     HandleScope scope;
     Handle<JSFunction> handle(function);
-    if (!JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
-      return Failure::Exception();
-    }
+    if (!CompileLazy(handle, KEEP_EXCEPTION)) return Failure::Exception();
     return Smi::FromInt(handle->shared()->length());
   } else {
     return Smi::FromInt(function->shared()->length());
@@ -761,12 +759,7 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
     caller = potential_caller;
     potential_caller = it.next();
   }
-  // If caller is bound, return null. This is compatible with JSC, and
-  // allows us to make bound functions use the strict function map
-  // and its associated throwing caller and arguments.
-  if (caller->shared()->bound()) {
-    return isolate->heap()->null_value();
-  }
+
   return CheckNonStrictCallerOrThrow(isolate, caller);
 }
 

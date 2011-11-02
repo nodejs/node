@@ -40,7 +40,6 @@
 #endif
 #include "v8checks.h"
 
-
 //
 // Most object types in the V8 JavaScript are described in this file.
 //
@@ -53,8 +52,6 @@
 //       - JSReceiver  (suitable for property access)
 //         - JSObject
 //           - JSArray
-//           - JSSet
-//           - JSMap
 //           - JSWeakMap
 //           - JSRegExp
 //           - JSFunction
@@ -175,8 +172,6 @@ enum ElementsKind {
 
 static const int kElementsKindCount =
     LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
-
-void PrintElementsKind(FILE* out, ElementsKind kind);
 
 // PropertyDetails captures type and attributes for a property.
 // They are used both in property dictionaries and instance descriptors.
@@ -633,8 +628,6 @@ enum InstanceType {
   JS_BUILTINS_OBJECT_TYPE,
   JS_GLOBAL_PROXY_TYPE,
   JS_ARRAY_TYPE,
-  JS_SET_TYPE,
-  JS_MAP_TYPE,
   JS_WEAK_MAP_TYPE,
 
   JS_REGEXP_TYPE,
@@ -827,8 +820,6 @@ class MaybeObject BASE_EMBEDDED {
   V(JSArray)                                   \
   V(JSProxy)                                   \
   V(JSFunctionProxy)                           \
-  V(JSSet)                                     \
-  V(JSMap)                                     \
   V(JSWeakMap)                                 \
   V(JSRegExp)                                  \
   V(HashTable)                                 \
@@ -865,8 +856,6 @@ class Object : public MaybeObject {
   OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
   HEAP_OBJECT_TYPE_LIST(IS_TYPE_FUNCTION_DECL)
 #undef IS_TYPE_FUNCTION_DECL
-
-  inline bool IsFixedArrayBase();
 
   // Returns true if this object is an instance of the specified
   // function template.
@@ -923,22 +912,13 @@ class Object : public MaybeObject {
       Object* receiver,
       String* key,
       PropertyAttributes* attributes);
-
-  static Handle<Object> GetProperty(Handle<Object> object,
-                                    Handle<Object> receiver,
-                                    LookupResult* result,
-                                    Handle<String> key,
-                                    PropertyAttributes* attributes);
-
   MUST_USE_RESULT MaybeObject* GetProperty(Object* receiver,
                                            LookupResult* result,
                                            String* key,
                                            PropertyAttributes* attributes);
-
   MUST_USE_RESULT MaybeObject* GetPropertyWithDefinedGetter(Object* receiver,
                                                             JSReceiver* getter);
 
-  static Handle<Object> GetElement(Handle<Object> object, uint32_t index);
   inline MaybeObject* GetElement(uint32_t index);
   // For use when we know that no exception can be thrown.
   inline Object* GetElementNoExceptionThrown(uint32_t index);
@@ -946,16 +926,6 @@ class Object : public MaybeObject {
 
   // Return the object's prototype (might be Heap::null_value()).
   Object* GetPrototype();
-
-  // Returns the permanent hash code associated with this object depending on
-  // the actual object type.  Might return a failure in case no hash was
-  // created yet or GC was caused by creation.
-  MUST_USE_RESULT MaybeObject* GetHash(CreationFlag flag);
-
-  // Checks whether this object has the same value as the given one.  This
-  // function is implemented according to ES5, section 9.12 and can be used
-  // to implement the Harmony "egal" function.
-  bool SameValue(Object* other);
 
   // Tries to convert an object to an array index.  Returns true and sets
   // the output parameter if it succeeds.
@@ -1381,9 +1351,6 @@ class JSReceiver: public HeapObject {
                                           StrictModeFlag strict_mode,
                                           bool check_prototype);
 
-  // Tests for the fast common case for property enumeration.
-  bool IsSimpleEnum();
-
   // Returns the class name ([[Class]] property in the specification).
   String* class_name();
 
@@ -1409,7 +1376,7 @@ class JSReceiver: public HeapObject {
                                             bool skip_hidden_prototypes);
 
   // Retrieves a permanent object identity hash code. The undefined value might
-  // be returned in case no hash was created yet and OMIT_CREATION was used.
+  // be returned in case no has been created yet and OMIT_CREATION was used.
   inline MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
 
   // Lookup a property.  If found, the result is valid and has
@@ -1636,6 +1603,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
+  // Tests for the fast common case for property enumeration.
+  bool IsSimpleEnum();
+
   inline void ValidateSmiOnlyElements();
 
   // Makes sure that this object can contain non-smi Object as elements.
@@ -1816,12 +1786,8 @@ class JSObject: public JSReceiver {
 
   // Returns a new map with all transitions dropped from the object's current
   // map and the ElementsKind set.
-  static Handle<Map> GetElementsTransitionMap(Handle<JSObject> object,
-                                              ElementsKind to_kind);
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
       ElementsKind elements_kind);
-
-  MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
 
   // Converts a descriptor of any other type to a real field,
   // backed by the properties array.  Descriptors of visible
@@ -1868,10 +1834,6 @@ class JSObject: public JSReceiver {
   // Convert and update the elements backing store to be a NumberDictionary
   // dictionary.  Returns the backing after conversion.
   MUST_USE_RESULT MaybeObject* NormalizeElements();
-
-  static void UpdateMapCodeCache(Handle<JSObject> object,
-                                 Handle<String> name,
-                                 Handle<Code> code);
 
   MUST_USE_RESULT MaybeObject* UpdateMapCodeCache(String* name, Code* code);
 
@@ -1933,10 +1895,6 @@ class JSObject: public JSReceiver {
   }
   void PrintElements(FILE* out);
 #endif
-
-  void PrintElementsTransition(
-      FILE* file, ElementsKind from_kind, FixedArrayBase* from_elements,
-      ElementsKind to_kind, FixedArrayBase* to_elements);
 
 #ifdef DEBUG
   // Structure for collecting spill information about JSObjects.
@@ -2204,9 +2162,7 @@ class FixedArray: public FixedArrayBase {
  protected:
   // Set operation on FixedArray without using write barriers. Can
   // only be used for storing old space objects or smis.
-  static inline void NoWriteBarrierSet(FixedArray* array,
-                                       int index,
-                                       Object* value);
+  static inline void fast_set(FixedArray* array, int index, Object* value);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
@@ -2228,9 +2184,6 @@ class FixedDoubleArray: public FixedArrayBase {
 
   // Checking for the hole.
   inline bool is_the_hole(int index);
-
-  // Copy operations
-  MUST_USE_RESULT inline MaybeObject* Copy();
 
   // Garbage collection support.
   inline static int SizeFor(int length) {
@@ -2269,9 +2222,6 @@ class FixedDoubleArray: public FixedArrayBase {
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedDoubleArray);
 };
-
-
-class IncrementalMarking;
 
 
 // DescriptorArrays are fixed arrays used to hold instance descriptors.
@@ -2315,7 +2265,7 @@ class DescriptorArray: public FixedArray {
   // Set next enumeration index and flush any enum cache.
   void SetNextEnumerationIndex(int value) {
     if (!IsEmpty()) {
-      set(kEnumerationIndexIndex, Smi::FromInt(value));
+      fast_set(this, kEnumerationIndexIndex, Smi::FromInt(value));
     }
   }
   bool HasEnumCache() {
@@ -2352,27 +2302,13 @@ class DescriptorArray: public FixedArray {
   inline bool IsNullDescriptor(int descriptor_number);
   inline bool IsDontEnum(int descriptor_number);
 
-  class WhitenessWitness {
-   public:
-    inline explicit WhitenessWitness(DescriptorArray* array);
-    inline ~WhitenessWitness();
-
-   private:
-    IncrementalMarking* marking_;
-  };
-
   // Accessor for complete descriptor.
   inline void Get(int descriptor_number, Descriptor* desc);
-  inline void Set(int descriptor_number,
-                  Descriptor* desc,
-                  const WhitenessWitness&);
+  inline void Set(int descriptor_number, Descriptor* desc);
 
   // Transfer complete descriptor from another descriptor array to
   // this one.
-  inline void CopyFrom(int index,
-                       DescriptorArray* src,
-                       int src_index,
-                       const WhitenessWitness&);
+  inline void CopyFrom(int index, DescriptorArray* src, int src_index);
 
   // Copy the descriptor array, insert a new descriptor and optionally
   // remove map transitions.  If the descriptor is already present, it is
@@ -2389,11 +2325,11 @@ class DescriptorArray: public FixedArray {
 
   // Sort the instance descriptors by the hash codes of their keys.
   // Does not check for duplicates.
-  void SortUnchecked(const WhitenessWitness&);
+  void SortUnchecked();
 
   // Sort the instance descriptors by the hash codes of their keys.
   // Checks the result for duplicates.
-  void Sort(const WhitenessWitness&);
+  void Sort();
 
   // Search the instance descriptors for given name.
   inline int Search(String* name);
@@ -2486,12 +2422,10 @@ class DescriptorArray: public FixedArray {
         NULL_DESCRIPTOR;
   }
   // Swap operation on FixedArray without using write barriers.
-  static inline void NoWriteBarrierSwap(FixedArray* array,
-                                        int first,
-                                        int second);
+  static inline void fast_swap(FixedArray* array, int first, int second);
 
   // Swap descriptor first and second.
-  inline void NoWriteBarrierSwapDescriptors(int first, int second);
+  inline void Swap(int first, int second);
 
   FixedArray* GetContentArray() {
     return FixedArray::cast(get(kContentArrayIndex));
@@ -2633,12 +2567,12 @@ class HashTable: public FixedArray {
 
   // Update the number of elements in the hash table.
   void SetNumberOfElements(int nof) {
-    set(kNumberOfElementsIndex, Smi::FromInt(nof));
+    fast_set(this, kNumberOfElementsIndex, Smi::FromInt(nof));
   }
 
   // Update the number of deleted elements in the hash table.
   void SetNumberOfDeletedElements(int nod) {
-    set(kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
+    fast_set(this, kNumberOfDeletedElementsIndex, Smi::FromInt(nod));
   }
 
   // Sets the capacity of the hash table.
@@ -2648,7 +2582,7 @@ class HashTable: public FixedArray {
     // and non-zero.
     ASSERT(capacity > 0);
     ASSERT(capacity <= kMaxCapacity);
-    set(kCapacityIndex, Smi::FromInt(capacity));
+    fast_set(this, kCapacityIndex, Smi::FromInt(capacity));
   }
 
 
@@ -2856,7 +2790,7 @@ class Dictionary: public HashTable<Shape, Key> {
 
   // Accessors for next enumeration index.
   void SetNextEnumerationIndex(int index) {
-    this->set(kNextEnumerationIndexIndex, Smi::FromInt(index));
+    this->fast_set(this, kNextEnumerationIndexIndex, Smi::FromInt(index));
   }
 
   int NextEnumerationIndex() {
@@ -2997,41 +2931,20 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 };
 
 
-template <int entrysize>
 class ObjectHashTableShape {
  public:
-  static inline bool IsMatch(Object* key, Object* other);
-  static inline uint32_t Hash(Object* key);
-  static inline uint32_t HashForObject(Object* key, Object* object);
-  MUST_USE_RESULT static inline MaybeObject* AsObject(Object* key);
+  static inline bool IsMatch(JSReceiver* key, Object* other);
+  static inline uint32_t Hash(JSReceiver* key);
+  static inline uint32_t HashForObject(JSReceiver* key, Object* object);
+  MUST_USE_RESULT static inline MaybeObject* AsObject(JSReceiver* key);
   static const int kPrefixSize = 0;
-  static const int kEntrySize = entrysize;
+  static const int kEntrySize = 2;
 };
 
 
-// ObjectHashSet holds keys that are arbitrary objects by using the identity
-// hash of the key for hashing purposes.
-class ObjectHashSet: public HashTable<ObjectHashTableShape<1>, Object*> {
- public:
-  static inline ObjectHashSet* cast(Object* obj) {
-    ASSERT(obj->IsHashTable());
-    return reinterpret_cast<ObjectHashSet*>(obj);
-  }
-
-  // Looks up whether the given key is part of this hash set.
-  bool Contains(Object* key);
-
-  // Adds the given key to this hash set.
-  MUST_USE_RESULT MaybeObject* Add(Object* key);
-
-  // Removes the given key from this hash set.
-  MUST_USE_RESULT MaybeObject* Remove(Object* key);
-};
-
-
-// ObjectHashTable maps keys that are arbitrary objects to object values by
+// ObjectHashTable maps keys that are JavaScript objects to object values by
 // using the identity hash of the key for hashing purposes.
-class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
+class ObjectHashTable: public HashTable<ObjectHashTableShape, JSReceiver*> {
  public:
   static inline ObjectHashTable* cast(Object* obj) {
     ASSERT(obj->IsHashTable());
@@ -3040,16 +2953,16 @@ class ObjectHashTable: public HashTable<ObjectHashTableShape<2>, Object*> {
 
   // Looks up the value associated with the given key. The undefined value is
   // returned in case the key is not present.
-  Object* Lookup(Object* key);
+  Object* Lookup(JSReceiver* key);
 
   // Adds (or overwrites) the value associated with the given key. Mapping a
   // key to the undefined value causes removal of the whole entry.
-  MUST_USE_RESULT MaybeObject* Put(Object* key, Object* value);
+  MUST_USE_RESULT MaybeObject* Put(JSReceiver* key, Object* value);
 
  private:
   friend class MarkCompactCollector;
 
-  void AddEntry(int entry, Object* key, Object* value);
+  void AddEntry(int entry, JSReceiver* key, Object* value);
   void RemoveEntry(int entry, Heap* heap);
   inline void RemoveEntry(int entry);
 
@@ -3107,9 +3020,6 @@ class SerializedScopeInfo : public FixedArray {
     return reinterpret_cast<SerializedScopeInfo*>(object);
   }
 
-  // Return the type of this scope.
-  ScopeType Type();
-
   // Does this scope call eval?
   bool CallsEval();
 
@@ -3124,9 +3034,6 @@ class SerializedScopeInfo : public FixedArray {
 
   // Return if this has context slots besides MIN_CONTEXT_SLOTS;
   bool HasHeapAllocatedLocals();
-
-  // Return if contexts are allocated for this scope.
-  bool HasContext();
 
   // Lookup support for serialized scope info. Returns the
   // the stack slot index for a given slot name if the slot is
@@ -3150,7 +3057,7 @@ class SerializedScopeInfo : public FixedArray {
   // function context slot index if the function name is present (named
   // function expressions, only), otherwise returns a value < 0. The name
   // must be a symbol (canonicalized).
-  int FunctionContextSlotIndex(String* name, VariableMode* mode);
+  int FunctionContextSlotIndex(String* name);
 
   static Handle<SerializedScopeInfo> Create(Scope* scope);
 
@@ -3839,11 +3746,6 @@ class Code: public HeapObject {
   inline bool has_debug_break_slots();
   inline void set_has_debug_break_slots(bool value);
 
-  // [compiled_with_optimizing]: For FUNCTION kind, tells if it has
-  // been compiled with IsOptimizing set to true.
-  inline bool is_compiled_optimizable();
-  inline void set_compiled_optimizable(bool value);
-
   // [allow_osr_at_loop_nesting_level]: For FUNCTION kind, tells for
   // how long the function has been marked for OSR and therefore which
   // level of loop nesting we are willing to do on-stack replacement
@@ -4039,7 +3941,6 @@ class Code: public HeapObject {
   class FullCodeFlagsHasDeoptimizationSupportField:
       public BitField<bool, 0, 1> {};  // NOLINT
   class FullCodeFlagsHasDebugBreakSlotsField: public BitField<bool, 1, 1> {};
-  class FullCodeFlagsIsCompiledOptimizable: public BitField<bool, 2, 1> {};
 
   static const int kBinaryOpReturnTypeOffset = kBinaryOpTypeOffset + 1;
 
@@ -4221,9 +4122,6 @@ class Map: public HeapObject {
     return elements_kind() == DICTIONARY_ELEMENTS;
   }
 
-  static bool IsValidElementsTransition(ElementsKind from_kind,
-                                        ElementsKind to_kind);
-
   // Tells whether the map is attached to SharedFunctionInfo
   // (for inobject slack tracking).
   inline void set_attached_to_shared_function_info(bool value);
@@ -4332,9 +4230,6 @@ class Map: public HeapObject {
   inline void ClearCodeCache(Heap* heap);
 
   // Update code cache.
-  static void UpdateCodeCache(Handle<Map> map,
-                              Handle<String> name,
-                              Handle<Code> code);
   MUST_USE_RESULT MaybeObject* UpdateCodeCache(String* name, Code* code);
 
   // Returns the found code or undefined if absent.
@@ -4392,13 +4287,6 @@ class Map: public HeapObject {
   // |transitioned_map| when its elements_kind is changed to |elements_kind|.
   MaybeObject* AddElementsTransition(ElementsKind elements_kind,
                                      Map* transitioned_map);
-
-  // Returns the transitioned map for this map with the most generic
-  // elements_kind that's found in |candidates|, or null handle if no match is
-  // found at all.
-  Handle<Map> FindTransitionedMap(MapHandleList* candidates);
-  Map* FindTransitionedMap(MapList* candidates);
-
 
   // Dispatched behavior.
 #ifdef OBJECT_PRINT
@@ -4908,11 +4796,7 @@ class SharedFunctionInfo: public HeapObject {
   DECL_BOOLEAN_ACCESSORS(optimization_disabled)
 
   // Indicates whether the function is a strict mode function.
-  inline bool strict_mode();
-
-  // Indicates the mode of the function.
-  inline StrictModeFlag strict_mode_flag();
-  inline void set_strict_mode_flag(StrictModeFlag strict_mode_flag);
+  DECL_BOOLEAN_ACCESSORS(strict_mode)
 
   // False if the function definitely does not allocate an arguments object.
   DECL_BOOLEAN_ACCESSORS(uses_arguments)
@@ -5003,13 +4887,6 @@ class SharedFunctionInfo: public HeapObject {
 #ifdef DEBUG
   void SharedFunctionInfoVerify();
 #endif
-
-  // Helpers to compile the shared code.  Returns true on success, false on
-  // failure (e.g., stack overflow during compilation).
-  static bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                             ClearExceptionFlag flag);
-  static bool CompileLazy(Handle<SharedFunctionInfo> shared,
-                          ClearExceptionFlag flag);
 
   // Casting.
   static inline SharedFunctionInfo* cast(Object* obj);
@@ -5161,7 +5038,7 @@ class SharedFunctionInfo: public HeapObject {
  public:
   // Constants for optimizing codegen for strict mode function and
   // native tests.
-  // Allows to use byte-width instructions.
+  // Allows to use byte-widgh instructions.
   static const int kStrictModeBitWithinByte =
       (kStrictModeFunction + kCompilerHintsSmiTagSize) % kBitsPerByte;
 
@@ -5232,14 +5109,6 @@ class JSFunction: public JSObject {
   // recompiled the next time it is executed.
   void MarkForLazyRecompilation();
 
-  // Helpers to compile this function.  Returns true on success, false on
-  // failure (e.g., stack overflow during compilation).
-  static bool CompileLazy(Handle<JSFunction> function,
-                          ClearExceptionFlag flag);
-  static bool CompileOptimized(Handle<JSFunction> function,
-                               int osr_ast_id,
-                               ClearExceptionFlag flag);
-
   // Tells whether or not the function is already marked for lazy
   // recompilation.
   inline bool IsMarkedForLazyRecompilation();
@@ -5247,8 +5116,7 @@ class JSFunction: public JSObject {
   // Check whether or not this function is inlineable.
   bool IsInlineable();
 
-  // [literals_or_bindings]: Fixed array holding either
-  // the materialized literals or the bindings of a bound function.
+  // [literals]: Fixed array holding the materialized literals.
   //
   // If the function contains object, regexp or array literals, the
   // literals array prefix contains the object, regexp, and array
@@ -5257,17 +5125,7 @@ class JSFunction: public JSObject {
   // or array functions.  Performing a dynamic lookup, we might end up
   // using the functions from a new context that we should not have
   // access to.
-  //
-  // On bound functions, the array is a (copy-on-write) fixed-array containing
-  // the function that was bound, bound this-value and any bound
-  // arguments. Bound functions never contain literals.
-  DECL_ACCESSORS(literals_or_bindings, FixedArray)
-
-  inline FixedArray* literals();
-  inline void set_literals(FixedArray* literals);
-
-  inline FixedArray* function_bindings();
-  inline void set_function_bindings(FixedArray* bindings);
+  DECL_ACCESSORS(literals, FixedArray)
 
   // The initial map for an object created by this constructor.
   inline Map* initial_map();
@@ -5355,11 +5213,6 @@ class JSFunction: public JSObject {
   static const int kLiteralsPrefixSize = 1;
   static const int kLiteralGlobalContextIndex = 0;
 
-  // Layout of the bound-function binding array.
-  static const int kBoundFunctionIndex = 0;
-  static const int kBoundThisIndex = 1;
-  static const int kBoundArgumentsStartIndex = 2;
-
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunction);
 };
@@ -5432,11 +5285,6 @@ class GlobalObject: public JSObject {
   }
 
   // Ensure that the global object has a cell for the given property name.
-  static Handle<JSGlobalPropertyCell> EnsurePropertyCell(
-      Handle<GlobalObject> global,
-      Handle<String> name);
-  // TODO(kmillikin): This function can be eliminated once the stub cache is
-  // full handlified (and the static helper can be written directly).
   MUST_USE_RESULT MaybeObject* EnsurePropertyCell(String* name);
 
   // Casting.
@@ -5909,17 +5757,10 @@ class PolymorphicCodeCache: public Struct {
  public:
   DECL_ACCESSORS(cache, Object)
 
-  static void Update(Handle<PolymorphicCodeCache> cache,
-                     MapHandleList* maps,
-                     Code::Flags flags,
-                     Handle<Code> code);
-
-  MUST_USE_RESULT MaybeObject* Update(MapHandleList* maps,
+  MUST_USE_RESULT MaybeObject* Update(MapList* maps,
                                       Code::Flags flags,
                                       Code* code);
-
-  // Returns an undefined value if the entry is not found.
-  Handle<Object> Lookup(MapHandleList* maps, Code::Flags flags);
+  Object* Lookup(MapList* maps, Code::Flags flags);
 
   static inline PolymorphicCodeCache* cast(Object* obj);
 
@@ -5944,11 +5785,8 @@ class PolymorphicCodeCache: public Struct {
 class PolymorphicCodeCacheHashTable
     : public HashTable<CodeCacheHashTableShape, HashTableKey*> {
  public:
-  Object* Lookup(MapHandleList* maps, int code_kind);
-
-  MUST_USE_RESULT MaybeObject* Put(MapHandleList* maps,
-                                   int code_kind,
-                                   Code* code);
+  Object* Lookup(MapList* maps, int code_kind);
+  MUST_USE_RESULT MaybeObject* Put(MapList* maps, int code_kind, Code* code);
 
   static inline PolymorphicCodeCacheHashTable* cast(Object* obj);
 
@@ -6219,8 +6057,7 @@ class String: public HeapObject {
       RobustnessFlag robustness_flag = FAST_STRING_TRAVERSAL,
       int* length_output = 0);
 
-  inline int Utf8Length() { return Utf8Length(this, 0, length()); }
-  static int Utf8Length(String* input, int from, int to);
+  int Utf8Length();
 
   // Return a 16 bit Unicode representation of the string.
   // The string should be nearly flat, otherwise the performance of
@@ -7077,60 +6914,6 @@ class JSFunctionProxy: public JSProxy {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(JSFunctionProxy);
-};
-
-
-// The JSSet describes EcmaScript Harmony maps
-class JSSet: public JSObject {
- public:
-  // [set]: the backing hash set containing keys.
-  DECL_ACCESSORS(table, Object)
-
-  // Casting.
-  static inline JSSet* cast(Object* obj);
-
-#ifdef OBJECT_PRINT
-  inline void JSSetPrint() {
-    JSSetPrint(stdout);
-  }
-  void JSSetPrint(FILE* out);
-#endif
-#ifdef DEBUG
-  void JSSetVerify();
-#endif
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSSet);
-};
-
-
-// The JSMap describes EcmaScript Harmony maps
-class JSMap: public JSObject {
- public:
-  // [table]: the backing hash table mapping keys to values.
-  DECL_ACCESSORS(table, Object)
-
-  // Casting.
-  static inline JSMap* cast(Object* obj);
-
-#ifdef OBJECT_PRINT
-  inline void JSMapPrint() {
-    JSMapPrint(stdout);
-  }
-  void JSMapPrint(FILE* out);
-#endif
-#ifdef DEBUG
-  void JSMapVerify();
-#endif
-
-  static const int kTableOffset = JSObject::kHeaderSize;
-  static const int kSize = kTableOffset + kPointerSize;
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(JSMap);
 };
 
 

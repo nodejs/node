@@ -240,14 +240,19 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
                              Handle<Object> value,
                              StrictModeFlag strict_mode);
 
-Handle<Object> TransitionElementsKind(Handle<JSObject> object,
-                                      ElementsKind to_kind);
-
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name);
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
+
+Handle<Object> GetProperty(Handle<JSReceiver> obj,
+                           Handle<String> name,
+                           LookupResult* result);
+
+
+Handle<Object> GetElement(Handle<Object> obj,
+                          uint32_t index);
 
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
@@ -295,19 +300,18 @@ int GetScriptLineNumberSafe(Handle<Script> script, int code_position);
 
 // Computes the enumerable keys from interceptors. Used for debug mirrors and
 // by GetKeysInFixedArrayFor below.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
+v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
                                                  Handle<JSObject> object);
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
+v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
                                                    Handle<JSObject> object);
 
 enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
 
 // Computes the enumerable keys for a JSObject. Used for implementing
 // "for (n in object) { }".
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
-                                          KeyCollectionType type,
-                                          bool* threw);
-Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw);
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
+                                          KeyCollectionType type);
+Handle<JSArray> GetKeysFor(Handle<JSObject> object);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);
 
@@ -342,15 +346,25 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 
 Handle<Object> PreventExtensions(Handle<JSObject> object);
 
-Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
-                                       Handle<Object> key);
-
-Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
-                                          Handle<Object> key);
-
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<Object> key,
+                                               Handle<JSReceiver> key,
                                                Handle<Object> value);
+
+// Does lazy compilation of the given function. Returns true on success and
+// false if the compilation resulted in a stack overflow.
+enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
+
+bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
+                    ClearExceptionFlag flag);
+
+bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
+                       ClearExceptionFlag flag);
+
+bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
+
+bool CompileOptimized(Handle<JSFunction> function,
+                      int osr_ast_id,
+                      ClearExceptionFlag flag);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

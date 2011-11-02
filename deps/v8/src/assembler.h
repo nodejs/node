@@ -279,17 +279,14 @@ class RelocInfo BASE_EMBEDDED {
   // this relocation applies to;
   // can only be called if IsCodeTarget(rmode_) || rmode_ == RUNTIME_ENTRY
   INLINE(Address target_address());
-  INLINE(void set_target_address(Address target,
-                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
+  INLINE(void set_target_address(Address target));
   INLINE(Object* target_object());
   INLINE(Handle<Object> target_object_handle(Assembler* origin));
   INLINE(Object** target_object_address());
-  INLINE(void set_target_object(Object* target,
-                                WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
+  INLINE(void set_target_object(Object* target));
   INLINE(JSGlobalPropertyCell* target_cell());
   INLINE(Handle<JSGlobalPropertyCell> target_cell_handle());
-  INLINE(void set_target_cell(JSGlobalPropertyCell* cell,
-                              WriteBarrierMode mode = UPDATE_WRITE_BARRIER));
+  INLINE(void set_target_cell(JSGlobalPropertyCell* cell));
 
 
   // Read the address of the word containing the target_address in an
@@ -596,8 +593,8 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);
   static ExternalReference keyed_lookup_cache_field_offsets(Isolate* isolate);
 
-  // Static variable Heap::roots_array_start()
-  static ExternalReference roots_array_start(Isolate* isolate);
+  // Static variable Heap::roots_address()
+  static ExternalReference roots_address(Isolate* isolate);
 
   // Static variable StackGuard::address_of_jslimit()
   static ExternalReference address_of_stack_limit(Isolate* isolate);
@@ -849,8 +846,6 @@ static inline int NumberOfBitsSet(uint32_t x) {
   }
   return num_bits_set;
 }
-
-bool EvalComparison(Token::Value op, double op1, double op2);
 
 // Computes pow(x, y) with the special cases in the spec for Math.pow.
 double power_double_int(double x, int y);
