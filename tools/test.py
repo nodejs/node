@@ -46,7 +46,6 @@ sys.path.append(dirname(__file__) + "/../deps/v8/tools");
 import utils
 
 VERBOSE = False
-LIBUV_BROKEN_PATTERN = re.compile(r"//\s+libuv-broken")
 
 
 # ---------------------------------------------
@@ -575,11 +574,10 @@ VARIANT_FLAGS = [[]]
 
 class TestRepository(TestSuite):
 
-  def __init__(self, path, options):
+  def __init__(self, path):
     normalized_path = abspath(path)
     super(TestRepository, self).__init__(basename(normalized_path))
     self.path = normalized_path
-    self.options = options
     self.is_loaded = False
     self.config = None
 
@@ -603,20 +601,8 @@ class TestRepository(TestSuite):
   def AddTestsToList(self, result, current_path, path, context, mode):
     for v in VARIANT_FLAGS:
       tests = self.GetConfiguration(context).ListTests(current_path, path, mode)
-
-      for t in tests:
-        t.variant_flags = v
-
-        if self.options.libuv:
-          source = open(t.file).read()
-          broken = LIBUV_BROKEN_PATTERN.search(source)
-        else:
-          broken = False
-
-        if not broken:
-          result += [ t ]
-        else:
-          print "Skipping libuv-broken: " + t.file
+      for t in tests: t.variant_flags = v
+      result += tests
 
 
   def GetTestStatus(self, context, sections, defs):
@@ -1177,8 +1163,6 @@ def BuildOptions():
       default=False, action="store_true")
   result.add_option("--valgrind", help="Run tests through valgrind",
       default=False, action="store_true")
-  result.add_option("--libuv", help="Run only tests that aren't marks 'libuv-broken'",
-      default=False, action="store_true")
   result.add_option("--cat", help="Print the source of the tests",
       default=False, action="store_true")
   result.add_option("--warn-unused", help="Report unused rules",
@@ -1314,12 +1298,8 @@ def Main():
 
   workspace = abspath(join(dirname(sys.argv[0]), '..'))
   suites = GetSuites(join(workspace, 'test'))
-  repositories = [
-    TestRepository(join(workspace, 'test', name), options)
-        for name in suites
-  ]
-
-  repositories += [TestRepository(a, options) for a in options.suite]
+  repositories = [TestRepository(join(workspace, 'test', name)) for name in suites]
+  repositories += [TestRepository(a) for a in options.suite]
 
   root = LiteralTestSuite(repositories)
   if len(args) == 0:

@@ -89,7 +89,6 @@ if "%config%"=="Debug" set test_args=--mode=debug
 if "%config%"=="Release" set test_args=--mode=release
 
 if "%test%"=="test" set test_args=%test_args% simple message
-if "%test%"=="test-uv" set test_args=%test_args% --libuv simple
 if "%test%"=="test-internet" set test_args=%test_args% internet
 if "%test%"=="test-pummel" set test_args=%test_args% pummel
 if "%test%"=="test-simple" set test_args=%test_args% simple
@@ -110,7 +109,6 @@ echo Examples:
 echo   vcbuild.bat                : builds debug build
 echo   vcbuild.bat release msi    : builds release build and MSI installer package
 echo   vcbuild.bat test           : builds debug build and runs tests
-echo   vcbuild.bat release test-uv: builds release build and runs --libuv tests
 goto exit
 
 :exit
