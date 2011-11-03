@@ -40,7 +40,7 @@ namespace node {
 using namespace v8;
 
 static char *process_title = NULL;
-double Platform::prog_start_time = 0.0;
+double Platform::prog_start_time = Platform::GetUptime();
 
 
 // Does the about the same as strerror(),
