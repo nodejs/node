@@ -146,11 +146,11 @@ bool Shell::ExecuteString(Handle<String> source,
                           Handle<Value> name,
                           bool print_result,
                           bool report_exceptions) {
-#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
+#ifndef V8_SHARED
   bool FLAG_debugger = i::FLAG_debugger;
 #else
   bool FLAG_debugger = false;
-#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
+#endif  // V8_SHARED
   HandleScope handle_scope;
   TryCatch try_catch;
   options.script_executed = true;
@@ -594,7 +594,6 @@ void Shell::InstallUtilityScript() {
   Context::Scope utility_scope(utility_context_);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  if (i::FLAG_debugger) printf("JavaScript debugger enabled\n");
   // Install the debugger object in the utility scope
   i::Debug* debug = i::Isolate::Current()->debug();
   debug->Load();
@@ -817,7 +816,7 @@ void Shell::OnExit() {
 
 
 static FILE* FOpen(const char* path, const char* mode) {
-#if defined(_MSC_VER) && (defined(_WIN32) || defined(_WIN64))
+#if (defined(_WIN32) || defined(_WIN64))
   FILE* result;
   if (fopen_s(&result, path, mode) == 0) {
     return result;
@@ -901,6 +900,9 @@ void Shell::RunShell() {
 #ifndef V8_SHARED
   console = LineEditor::Get();
   printf("V8 version %s [console: %s]\n", V8::GetVersion(), console->name());
+  if (i::FLAG_debugger) {
+    printf("JavaScript debugger enabled\n");
+  }
   console->Open();
   while (true) {
     i::SmartArrayPointer<char> input = console->Prompt(Shell::kPrompt);
@@ -1251,22 +1253,14 @@ int Shell::RunMain(int argc, char* argv[]) {
     Locker lock;
     HandleScope scope;
     Persistent<Context> context = CreateEvaluationContext();
-    if (options.last_run) {
-      // Keep using the same context in the interactive shell.
-      evaluation_context_ = context;
-#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
-      // If the interactive debugger is enabled make sure to activate
-      // it before running the files passed on the command line.
-      if (i::FLAG_debugger) {
-        InstallUtilityScript();
-      }
-#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
-    }
     {
       Context::Scope cscope(context);
       options.isolate_sources[0].Execute();
     }
-    if (!options.last_run) {
+    if (options.last_run) {
+      // Keep using the same context in the interactive shell
+      evaluation_context_ = context;
+    } else {
       context.Dispose();
     }
 
@@ -1337,11 +1331,9 @@ int Shell::Main(int argc, char* argv[]) {
   if (( options.interactive_shell
       || !options.script_executed )
       && !options.test_shell ) {
-#if !defined(V8_SHARED) && defined(ENABLE_DEBUGGER_SUPPORT)
-    if (!i::FLAG_debugger) {
-      InstallUtilityScript();
-    }
-#endif  // !V8_SHARED && ENABLE_DEBUGGER_SUPPORT
+#ifndef V8_SHARED
+    InstallUtilityScript();
+#endif  // V8_SHARED
     RunShell();
   }
 

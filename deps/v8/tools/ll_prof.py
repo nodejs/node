@@ -399,16 +399,12 @@ class LogReader(object):
         code = Code(name, start_address, end_address, origin, origin_offset)
         conficting_code = self.code_map.Find(start_address)
         if conficting_code:
-          if not (conficting_code.start_address == code.start_address and
-            conficting_code.end_address == code.end_address):
-            self.code_map.Remove(conficting_code)
-          else:
-            LogReader._HandleCodeConflict(conficting_code, code)
-            # TODO(vitalyr): this warning is too noisy because of our
-            # attempts to reconstruct code log from the snapshot.
-            # print >>sys.stderr, \
-            #     "Warning: Skipping duplicate code log entry %s" % code
-            continue
+          LogReader._HandleCodeConflict(conficting_code, code)
+          # TODO(vitalyr): this warning is too noisy because of our
+          # attempts to reconstruct code log from the snapshot.
+          # print >>sys.stderr, \
+          #     "Warning: Skipping duplicate code log entry %s" % code
+          continue
         self.code_map.Add(code)
         continue
 

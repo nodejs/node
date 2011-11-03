@@ -85,20 +85,6 @@ static const RegList kCalleeSavedFPU =
   1 << 30;   // f30
 
 static const int kNumCalleeSavedFPU = 6;
-
-static const RegList kCallerSavedFPU =
-  1 << 0  |  // f0
-  1 << 2  |  // f2
-  1 << 4  |  // f4
-  1 << 6  |  // f6
-  1 << 8  |  // f8
-  1 << 10 |  // f10
-  1 << 12 |  // f12
-  1 << 14 |  // f14
-  1 << 16 |  // f16
-  1 << 18;   // f18
-
-
 // Number of registers for which space is reserved in safepoints. Must be a
 // multiple of 8.
 static const int kNumSafepointRegisters = 24;

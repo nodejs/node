@@ -107,7 +107,7 @@ class LCodeGen;
   V(Integer32ToDouble)                          \
   V(InvokeFunction)                             \
   V(IsConstructCallAndBranch)                   \
-  V(IsNilAndBranch)                             \
+  V(IsNullAndBranch)                            \
   V(IsObjectAndBranch)                          \
   V(IsSmiAndBranch)                             \
   V(IsUndetectableAndBranch)                    \
@@ -609,18 +609,17 @@ class LCmpConstantEqAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LIsNilAndBranch: public LControlInstruction<1, 1> {
+class LIsNullAndBranch: public LControlInstruction<1, 1> {
  public:
-  LIsNilAndBranch(LOperand* value, LOperand* temp) {
+  LIsNullAndBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
   }
 
-  DECLARE_CONCRETE_INSTRUCTION(IsNilAndBranch, "is-nil-and-branch")
-  DECLARE_HYDROGEN_ACCESSOR(IsNilAndBranch)
+  DECLARE_CONCRETE_INSTRUCTION(IsNullAndBranch, "is-null-and-branch")
+  DECLARE_HYDROGEN_ACCESSOR(IsNullAndBranch)
 
-  EqualityKind kind() const { return hydrogen()->kind(); }
-  NilValue nil() const { return hydrogen()->nil(); }
+  bool is_strict() const { return hydrogen()->is_strict(); }
 
   virtual void PrintDataTo(StringStream* stream);
 };
@@ -706,12 +705,11 @@ class LHasCachedArrayIndexAndBranch: public LControlInstruction<1, 0> {
 };
 
 
-class LClassOfTestAndBranch: public LControlInstruction<1, 2> {
+class LClassOfTestAndBranch: public LControlInstruction<1, 1> {
  public:
-  LClassOfTestAndBranch(LOperand* value, LOperand* temp, LOperand* temp2) {
+  LClassOfTestAndBranch(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
     temps_[0] = temp;
-    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(ClassOfTestAndBranch,
@@ -1199,12 +1197,11 @@ class LLoadGlobalGeneric: public LTemplateInstruction<1, 1, 0> {
 };
 
 
-class LStoreGlobalCell: public LTemplateInstruction<0, 1, 2> {
+class LStoreGlobalCell: public LTemplateInstruction<0, 1, 1> {
  public:
-  explicit LStoreGlobalCell(LOperand* value, LOperand* temp1, LOperand* temp2) {
+  explicit LStoreGlobalCell(LOperand* value, LOperand* temp) {
     inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
+    temps_[0] = temp;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
@@ -2149,8 +2146,7 @@ class LChunkBuilder BASE_EMBEDDED {
       LInstruction* instr, int ast_id);
   void ClearInstructionPendingDeoptimizationEnvironment();
 
-  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env,
-                                  int* argument_index_accumulator);
+  LEnvironment* CreateEnvironment(HEnvironment* hydrogen_env);
 
   void VisitInstruction(HInstruction* current);
 

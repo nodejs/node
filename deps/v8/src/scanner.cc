@@ -95,7 +95,7 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
 JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
     : Scanner(scanner_contants),
       octal_pos_(Location::invalid()),
-      harmony_scoping_(false) { }
+      harmony_block_scoping_(false) { }
 
 
 void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
@@ -872,7 +872,7 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
   KEYWORD("instanceof", Token::INSTANCEOF)                          \
   KEYWORD("interface", Token::FUTURE_STRICT_RESERVED_WORD)          \
   KEYWORD_GROUP('l')                                                \
-  KEYWORD("let", harmony_scoping                                    \
+  KEYWORD("let", harmony_block_scoping                              \
                  ? Token::LET : Token::FUTURE_STRICT_RESERVED_WORD) \
   KEYWORD_GROUP('n')                                                \
   KEYWORD("new", Token::NEW)                                        \
@@ -906,7 +906,7 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 
 static Token::Value KeywordOrIdentifierToken(const char* input,
                                              int input_length,
-                                             bool harmony_scoping) {
+                                             bool harmony_block_scoping) {
   ASSERT(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
@@ -982,7 +982,7 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
     Vector<const char> chars = next_.literal_chars->ascii_literal();
     return KeywordOrIdentifierToken(chars.start(),
                                     chars.length(),
-                                    harmony_scoping_);
+                                    harmony_block_scoping_);
   }
 
   return Token::IDENTIFIER;

@@ -35,30 +35,25 @@
     'msvs_multi_core_compile%': '1',
     'variables': {
       'variables': {
-        'variables': {
-          'conditions': [
-            [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-              # This handles the Linux platforms we generally deal with. Anything
-              # else gets passed through, which probably won't work very well; such
-              # hosts should pass an explicit target_arch to gyp.
-              'host_arch%':
-                '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
-            }, {  # OS!="linux" and OS!="freebsd" and OS!="openbsd"
-              'host_arch%': 'ia32',
-            }],
-          ],
-        },
-        'host_arch%': '<(host_arch)',
-        'target_arch%': '<(host_arch)',
+        'conditions': [
+          [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
+            # This handles the Linux platforms we generally deal with. Anything
+            # else gets passed through, which probably won't work very well; such
+            # hosts should pass an explicit target_arch to gyp.
+            'host_arch%':
+              '<!(uname -m | sed -e "s/i.86/ia32/;s/x86_64/x64/;s/amd64/x64/;s/arm.*/arm/")',
+          }, {  # OS!="linux" and OS!="freebsd" and OS!="openbsd"
+            'host_arch%': 'ia32',
+          }],
+        ],
       },
       'host_arch%': '<(host_arch)',
-      'target_arch%': '<(target_arch)',
+      'target_arch%': '<(host_arch)',
       'v8_target_arch%': '<(target_arch)',
     },
     'host_arch%': '<(host_arch)',
     'target_arch%': '<(target_arch)',
     'v8_target_arch%': '<(v8_target_arch)',
-    'werror%': '-Werror',
     'conditions': [
       ['(v8_target_arch=="arm" and host_arch!="arm") or \
         (v8_target_arch=="x64" and host_arch!="x64")', {
@@ -79,7 +74,7 @@
   'conditions': [
     [ 'OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris"', {
       'target_defaults': {
-        'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+        'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
                     '-Wnon-virtual-dtor', '-pthread', '-fno-rtti',
                     '-fno-exceptions', '-pedantic' ],
         'ldflags': [ '-pthread', ],

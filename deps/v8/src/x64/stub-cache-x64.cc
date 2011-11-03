@@ -645,7 +645,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                                         scratch1, scratch2, scratch3, name,
                                         miss_label);
 
-    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ EnterInternalFrame();
     // Save the name_ register across the call.
     __ push(name_);
 
@@ -662,8 +662,7 @@ class CallInterceptorCompiler BASE_EMBEDDED {
 
     // Restore the name_ register.
     __ pop(name_);
-
-    // Leave the internal frame.
+    __ LeaveInternalFrame();
   }
 
   void LoadWithInterceptor(MacroAssembler* masm,
@@ -671,21 +670,19 @@ class CallInterceptorCompiler BASE_EMBEDDED {
                            Register holder,
                            JSObject* holder_obj,
                            Label* interceptor_succeeded) {
-    {
-      FrameScope scope(masm, StackFrame::INTERNAL);
-      __ push(holder);  // Save the holder.
-      __ push(name_);  // Save the name.
+    __ EnterInternalFrame();
+    __ push(holder);  // Save the holder.
+    __ push(name_);  // Save the name.
 
-      CompileCallLoadPropertyWithInterceptor(masm,
-                                             receiver,
-                                             holder,
-                                             name_,
-                                             holder_obj);
+    CompileCallLoadPropertyWithInterceptor(masm,
+                                           receiver,
+                                           holder,
+                                           name_,
+                                           holder_obj);
 
-      __ pop(name_);  // Restore the name.
-      __ pop(receiver);  // Restore the holder.
-      // Leave the internal frame.
-    }
+    __ pop(name_);  // Restore the name.
+    __ pop(receiver);  // Restore the holder.
+    __ LeaveInternalFrame();
 
     __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
     __ j(not_equal, interceptor_succeeded);
@@ -784,8 +781,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ movq(name_reg, rax);
-    __ RecordWriteField(
-        receiver_reg, offset, name_reg, scratch, kDontSaveFPRegs);
+    __ RecordWrite(receiver_reg, offset, name_reg, scratch);
   } else {
     // Write to the properties array.
     int offset = index * kPointerSize + FixedArray::kHeaderSize;
@@ -796,8 +792,7 @@ void StubCompiler::GenerateStoreField(MacroAssembler* masm,
     // Update the write barrier for the array address.
     // Pass the value being stored in the now unused name_reg.
     __ movq(name_reg, rax);
-    __ RecordWriteField(
-        scratch, offset, name_reg, receiver_reg, kDontSaveFPRegs);
+    __ RecordWrite(scratch, offset, name_reg, receiver_reg);
   }
 
   // Return the value (register rax).
@@ -1144,42 +1139,40 @@ void StubCompiler::GenerateLoadInterceptor(JSObject* object,
 
     // Save necessary data before invoking an interceptor.
     // Requires a frame to make GC aware of pushed pointers.
-    {
-      FrameScope frame_scope(masm(), StackFrame::INTERNAL);
+    __ EnterInternalFrame();
 
-      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-        // CALLBACKS case needs a receiver to be passed into C++ callback.
-        __ push(receiver);
-      }
-      __ push(holder_reg);
-      __ push(name_reg);
-
-      // Invoke an interceptor.  Note: map checks from receiver to
-      // interceptor's holder has been compiled before (see a caller
-      // of this method.)
-      CompileCallLoadPropertyWithInterceptor(masm(),
-                                             receiver,
-                                             holder_reg,
-                                             name_reg,
-                                             interceptor_holder);
-
-      // Check if interceptor provided a value for property.  If it's
-      // the case, return immediately.
-      Label interceptor_failed;
-      __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
-      __ j(equal, &interceptor_failed);
-      frame_scope.GenerateLeaveFrame();
-      __ ret(0);
-
-      __ bind(&interceptor_failed);
-      __ pop(name_reg);
-      __ pop(holder_reg);
-      if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
-        __ pop(receiver);
-      }
-
-      // Leave the internal frame.
+    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      // CALLBACKS case needs a receiver to be passed into C++ callback.
+      __ push(receiver);
     }
+    __ push(holder_reg);
+    __ push(name_reg);
+
+    // Invoke an interceptor.  Note: map checks from receiver to
+    // interceptor's holder has been compiled before (see a caller
+    // of this method.)
+    CompileCallLoadPropertyWithInterceptor(masm(),
+                                           receiver,
+                                           holder_reg,
+                                           name_reg,
+                                           interceptor_holder);
+
+    // Check if interceptor provided a value for property.  If it's
+    // the case, return immediately.
+    Label interceptor_failed;
+    __ CompareRoot(rax, Heap::kNoInterceptorResultSentinelRootIndex);
+    __ j(equal, &interceptor_failed);
+    __ LeaveInternalFrame();
+    __ ret(0);
+
+    __ bind(&interceptor_failed);
+    __ pop(name_reg);
+    __ pop(holder_reg);
+    if (lookup->type() == CALLBACKS && !receiver.is(holder_reg)) {
+      __ pop(receiver);
+    }
+
+    __ LeaveInternalFrame();
 
     // Check that the maps from interceptor's holder to lookup's holder
     // haven't changed.  And load lookup's holder into |holder| register.
@@ -1428,7 +1421,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
     __ j(not_equal, &call_builtin);
 
     if (argc == 1) {  // Otherwise fall through to call builtin.
-      Label attempt_to_grow_elements, with_write_barrier;
+      Label exit, with_write_barrier, attempt_to_grow_elements;
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
@@ -1442,55 +1435,36 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ cmpl(rax, rcx);
       __ j(greater, &attempt_to_grow_elements);
 
-      // Check if value is a smi.
-      __ movq(rcx, Operand(rsp, argc * kPointerSize));
-      __ JumpIfNotSmi(rcx, &with_write_barrier);
-
       // Save new length.
       __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
       // Push the element.
+      __ movq(rcx, Operand(rsp, argc * kPointerSize));
       __ lea(rdx, FieldOperand(rbx,
                                rax, times_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ movq(Operand(rdx, 0), rcx);
 
+      // Check if value is a smi.
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
+
+      __ JumpIfNotSmi(rcx, &with_write_barrier);
+
+      __ bind(&exit);
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&with_write_barrier);
 
-      __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(rdi, &call_builtin);
+      __ InNewSpace(rbx, rcx, equal, &exit);
 
-      // Save new length.
-      __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
+      __ RecordWriteHelper(rbx, rdx, rcx);
 
-      // Push the element.
-      __ lea(rdx, FieldOperand(rbx,
-                               rax, times_pointer_size,
-                               FixedArray::kHeaderSize - argc * kPointerSize));
-      __ movq(Operand(rdx, 0), rcx);
-
-      __ RecordWrite(
-          rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-
-      __ Integer32ToSmi(rax, rax);  // Return new length as smi.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&attempt_to_grow_elements);
       if (!FLAG_inline_new) {
         __ jmp(&call_builtin);
       }
-
-      __ movq(rdi, Operand(rsp, argc * kPointerSize));
-      // Growing elements that are SMI-only requires special handling in case
-      // the new element is non-Smi. For now, delegate to the builtin.
-      Label no_fast_elements_check;
-      __ JumpIfSmi(rdi, &no_fast_elements_check);
-      __ movq(rsi, FieldOperand(rdx, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(rsi, &call_builtin, Label::kFar);
-      __ bind(&no_fast_elements_check);
 
       ExternalReference new_space_allocation_top =
           ExternalReference::new_space_allocation_top_address(isolate());
@@ -1515,21 +1489,15 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
 
       // We fit and could grow elements.
       __ Store(new_space_allocation_top, rcx);
+      __ movq(rcx, Operand(rsp, argc * kPointerSize));
 
       // Push the argument...
-      __ movq(Operand(rdx, 0), rdi);
+      __ movq(Operand(rdx, 0), rcx);
       // ... and fill the rest with holes.
       __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
         __ movq(Operand(rdx, i * kPointerSize), kScratchRegister);
       }
-
-      // We know the elements array is in new space so we don't need the
-      // remembered set, but we just pushed a value onto it so we may have to
-      // tell the incremental marker to rescan the object that we just grew.  We
-      // don't need to worry about the holes because they are in old space and
-      // already marked black.
-      __ RecordWrite(rbx, rdx, rdi, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
 
       // Restore receiver to rdx as finish sequence assumes it's here.
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
@@ -1542,6 +1510,7 @@ MaybeObject* CallStubCompiler::CompileArrayPushCall(Object* object,
       __ Integer32ToSmi(rax, rax);
       __ movq(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
+      // Elements are in new space, so write barrier is not required.
       __ ret((argc + 1) * kPointerSize);
     }
 
@@ -2494,36 +2463,19 @@ MaybeObject* StoreStubCompiler::CompileStoreGlobal(GlobalObject* object,
          Handle<Map>(object->map()));
   __ j(not_equal, &miss);
 
-  // Compute the cell operand to use.
-  __ Move(rbx, Handle<JSGlobalPropertyCell>(cell));
-  Operand cell_operand = FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset);
-
   // Check that the value in the cell is not the hole. If it is, this
   // cell could have been deleted and reintroducing the global needs
   // to update the property details in the property dictionary of the
   // global object. We bail out to the runtime system to do that.
-  __ CompareRoot(cell_operand, Heap::kTheHoleValueRootIndex);
+  __ Move(rbx, Handle<JSGlobalPropertyCell>(cell));
+  __ CompareRoot(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset),
+                 Heap::kTheHoleValueRootIndex);
   __ j(equal, &miss);
 
   // Store the value in the cell.
-  __ movq(cell_operand, rax);
-  Label done;
-  __ JumpIfSmi(rax, &done);
-
-  __ movq(rcx, rax);
-  __ lea(rdx, cell_operand);
-  // Cells are always in the remembered set.
-  __ RecordWrite(rbx,  // Object.
-                 rdx,  // Address.
-                 rcx,  // Value.
-                 kDontSaveFPRegs,
-                 OMIT_REMEMBERED_SET,
-                 OMIT_SMI_CHECK);
-
+  __ movq(FieldOperand(rbx, JSGlobalPropertyCell::kValueOffset), rax);
 
   // Return the value (register rax).
-  __ bind(&done);
-
   Counters* counters = isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1);
   __ ret(0);
@@ -2603,10 +2555,9 @@ MaybeObject* KeyedStoreStubCompiler::CompileStoreElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
+MaybeObject* KeyedStoreStubCompiler::CompileStoreMegamorphic(
     MapList* receiver_maps,
-    CodeList* handler_stubs,
-    MapList* transitioned_maps) {
+    CodeList* handler_ics) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key
@@ -2614,25 +2565,18 @@ MaybeObject* KeyedStoreStubCompiler::CompileStorePolymorphic(
   //  -- rsp[0] : return address
   // -----------------------------------
   Label miss;
-  __ JumpIfSmi(rdx, &miss, Label::kNear);
+  __ JumpIfSmi(rdx, &miss);
 
-  __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
+  Register map_reg = rbx;
+  __ movq(map_reg, FieldOperand(rdx, HeapObject::kMapOffset));
   int receiver_count = receiver_maps->length();
-  for (int i = 0; i < receiver_count; ++i) {
+  for (int current = 0; current < receiver_count; ++current) {
     // Check map and tail call if there's a match
-    Handle<Map> map(receiver_maps->at(i));
-    __ Cmp(rdi, map);
-    if (transitioned_maps->at(i) == NULL) {
-      __ j(equal, Handle<Code>(handler_stubs->at(i)), RelocInfo::CODE_TARGET);
-    } else {
-      Label next_map;
-      __ j(not_equal, &next_map, Label::kNear);
-      __ movq(rbx,
-              Handle<Map>(transitioned_maps->at(i)),
-              RelocInfo::EMBEDDED_OBJECT);
-      __ jmp(Handle<Code>(handler_stubs->at(i)), RelocInfo::CODE_TARGET);
-      __ bind(&next_map);
-    }
+    Handle<Map> map(receiver_maps->at(current));
+    __ Cmp(map_reg, map);
+    __ j(equal,
+         Handle<Code>(handler_ics->at(current)),
+         RelocInfo::CODE_TARGET);
   }
 
   __ bind(&miss);
@@ -3068,7 +3012,7 @@ MaybeObject* KeyedLoadStubCompiler::CompileLoadElement(Map* receiver_map) {
 }
 
 
-MaybeObject* KeyedLoadStubCompiler::CompileLoadPolymorphic(
+MaybeObject* KeyedLoadStubCompiler::CompileLoadMegamorphic(
     MapList* receiver_maps,
     CodeList* handler_ics) {
   // ----------- S t a t e -------------
@@ -3492,7 +3436,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
       __ movsd(Operand(rbx, rdi, times_8, 0), xmm0);
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -3560,7 +3503,6 @@ void KeyedStoreStubCompiler::GenerateStoreExternalArray(
         case EXTERNAL_FLOAT_ELEMENTS:
         case EXTERNAL_DOUBLE_ELEMENTS:
         case FAST_ELEMENTS:
-        case FAST_SMI_ONLY_ELEMENTS:
         case FAST_DOUBLE_ELEMENTS:
         case DICTIONARY_ELEMENTS:
         case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -3692,17 +3634,15 @@ void KeyedLoadStubCompiler::GenerateLoadFastDoubleElement(
 }
 
 
-void KeyedStoreStubCompiler::GenerateStoreFastElement(
-    MacroAssembler* masm,
-    bool is_js_array,
-    ElementsKind elements_kind) {
+void KeyedStoreStubCompiler::GenerateStoreFastElement(MacroAssembler* masm,
+                                                      bool is_js_array) {
   // ----------- S t a t e -------------
   //  -- rax    : value
   //  -- rcx    : key
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, transition_elements_kind;
+  Label miss_force_generic;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -3725,22 +3665,13 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
     __ j(above_equal, &miss_force_generic);
   }
 
-  if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-    __ JumpIfNotSmi(rax, &transition_elements_kind);
-    __ SmiToInteger32(rcx, rcx);
-    __ movq(FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize),
-            rax);
-  } else {
-    // Do the store and update the write barrier.
-    ASSERT(elements_kind == FAST_ELEMENTS);
-    __ SmiToInteger32(rcx, rcx);
-    __ lea(rcx,
-           FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize));
-    __ movq(Operand(rcx, 0), rax);
-    // Make sure to preserve the value in register rax.
-    __ movq(rdx, rax);
-    __ RecordWrite(rdi, rcx, rdx, kDontSaveFPRegs);
-  }
+  // Do the store and update the write barrier. Make sure to preserve
+  // the value in register eax.
+  __ movq(rdx, rax);
+  __ SmiToInteger32(rcx, rcx);
+  __ movq(FieldOperand(rdi, rcx, times_pointer_size, FixedArray::kHeaderSize),
+          rax);
+  __ RecordWrite(rdi, 0, rdx, rcx);
 
   // Done.
   __ ret(0);
@@ -3750,10 +3681,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastElement(
   Handle<Code> ic_force_generic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
-
-  __ bind(&transition_elements_kind);
-  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 }
 
 
@@ -3766,7 +3693,8 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   //  -- rdx    : receiver
   //  -- rsp[0] : return address
   // -----------------------------------
-  Label miss_force_generic, transition_elements_kind;
+  Label miss_force_generic, smi_value, is_nan, maybe_nan;
+  Label have_double_value, not_nan;
 
   // This stub is meant to be tail-jumped to, the receiver must already
   // have been verified by the caller to not be a smi.
@@ -3787,9 +3715,50 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   __ j(above_equal, &miss_force_generic);
 
   // Handle smi values specially
+  __ JumpIfSmi(rax, &smi_value, Label::kNear);
+
+  __ CheckMap(rax,
+              masm->isolate()->factory()->heap_number_map(),
+              &miss_force_generic,
+              DONT_DO_SMI_CHECK);
+
+  // Double value, canonicalize NaN.
+  uint32_t offset = HeapNumber::kValueOffset + sizeof(kHoleNanLower32);
+  __ cmpl(FieldOperand(rax, offset),
+          Immediate(kNaNOrInfinityLowerBoundUpper32));
+  __ j(greater_equal, &maybe_nan, Label::kNear);
+
+  __ bind(&not_nan);
+  __ movsd(xmm0, FieldOperand(rax, HeapNumber::kValueOffset));
+  __ bind(&have_double_value);
   __ SmiToInteger32(rcx, rcx);
-  __ StoreNumberToDoubleElements(rax, rdi, rcx, xmm0,
-                                 &transition_elements_kind);
+  __ movsd(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize),
+           xmm0);
+  __ ret(0);
+
+  __ bind(&maybe_nan);
+  // Could be NaN or Infinity. If fraction is not zero, it's NaN, otherwise
+  // it's an Infinity, and the non-NaN code path applies.
+  __ j(greater, &is_nan, Label::kNear);
+  __ cmpl(FieldOperand(rax, HeapNumber::kValueOffset), Immediate(0));
+  __ j(zero, &not_nan);
+  __ bind(&is_nan);
+  // Convert all NaNs to the same canonical NaN value when they are stored in
+  // the double array.
+  __ Set(kScratchRegister, BitCast<uint64_t>(
+      FixedDoubleArray::canonical_not_the_hole_nan_as_double()));
+  __ movq(xmm0, kScratchRegister);
+  __ jmp(&have_double_value, Label::kNear);
+
+  __ bind(&smi_value);
+  // Value is a smi. convert to a double and store.
+  // Preserve original value.
+  __ SmiToInteger32(rdx, rax);
+  __ push(rdx);
+  __ fild_s(Operand(rsp, 0));
+  __ pop(rdx);
+  __ SmiToInteger32(rcx, rcx);
+  __ fstp_d(FieldOperand(rdi, rcx, times_8, FixedDoubleArray::kHeaderSize));
   __ ret(0);
 
   // Handle store cache miss, replacing the ic with the generic stub.
@@ -3797,12 +3766,6 @@ void KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(
   Handle<Code> ic_force_generic =
       masm->isolate()->builtins()->KeyedStoreIC_MissForceGeneric();
   __ jmp(ic_force_generic, RelocInfo::CODE_TARGET);
-
-  __ bind(&transition_elements_kind);
-  // Restore smi-tagging of rcx.
-  __ Integer32ToSmi(rcx, rcx);
-  Handle<Code> ic_miss = masm->isolate()->builtins()->KeyedStoreIC_Miss();
-  __ jmp(ic_miss, RelocInfo::CODE_TARGET);
 }
 
 

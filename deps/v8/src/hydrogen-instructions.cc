@@ -707,14 +707,6 @@ void HUnaryControlInstruction::PrintDataTo(StringStream* stream) {
 }
 
 
-void HIsNilAndBranch::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
-  stream->Add(kind() == kStrictEquality ? " === " : " == ");
-  stream->Add(nil() == kNullValue ? "null" : "undefined");
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
 void HReturn::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
 }
@@ -785,22 +777,15 @@ void HTypeofIsAndBranch::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" == ");
   stream->Add(type_literal_->GetFlatContent().ToAsciiVector());
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
-void HTypeof::PrintDataTo(StringStream* stream) {
-  value()->PrintNameTo(stream);
 }
 
 
 void HChange::PrintDataTo(StringStream* stream) {
   HUnaryOperation::PrintDataTo(stream);
-  stream->Add(" %s to %s", from().Mnemonic(), to().Mnemonic());
+  stream->Add(" %s to %s", from_.Mnemonic(), to().Mnemonic());
 
   if (CanTruncateToInt32()) stream->Add(" truncating-int32");
   if (CheckFlag(kBailoutOnMinusZero)) stream->Add(" -0?");
-  if (CheckFlag(kDeoptimizeOnUndefined)) stream->Add(" deopt-on-undefined");
 }
 
 
@@ -869,23 +854,6 @@ void HCheckMap::PrintDataTo(StringStream* stream) {
 void HCheckFunction::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" %p", *target());
-}
-
-
-const char* HCheckInstanceType::GetCheckName() {
-  switch (check_) {
-    case IS_SPEC_OBJECT: return "object";
-    case IS_JS_ARRAY: return "array";
-    case IS_STRING: return "string";
-    case IS_SYMBOL: return "symbol";
-  }
-  UNREACHABLE();
-  return "";
-}
-
-void HCheckInstanceType::PrintDataTo(StringStream* stream) {
-  stream->Add("%s ", GetCheckName());
-  HUnaryOperation::PrintDataTo(stream);
 }
 
 
@@ -1343,14 +1311,6 @@ void HCompareIDAndBranch::PrintDataTo(StringStream* stream) {
 }
 
 
-void HCompareObjectEqAndBranch::PrintDataTo(StringStream* stream) {
-  left()->PrintNameTo(stream);
-  stream->Add(" ");
-  right()->PrintNameTo(stream);
-  HControlInstruction::PrintDataTo(stream);
-}
-
-
 void HGoto::PrintDataTo(StringStream* stream) {
   stream->Add("B%d", SuccessorAt(0)->block_id());
 }
@@ -1465,7 +1425,7 @@ void HLoadKeyedFastElement::PrintDataTo(StringStream* stream) {
 }
 
 
-bool HLoadKeyedFastElement::RequiresHoleCheck() {
+bool HLoadKeyedFastElement::RequiresHoleCheck() const {
   for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
     HValue* use = it.value();
     if (!use->IsChange()) return true;
@@ -1479,6 +1439,11 @@ void HLoadKeyedFastDoubleElement::PrintDataTo(StringStream* stream) {
   stream->Add("[");
   key()->PrintNameTo(stream);
   stream->Add("]");
+}
+
+
+bool HLoadKeyedFastDoubleElement::RequiresHoleCheck() const {
+  return true;
 }
 
 
@@ -1523,7 +1488,6 @@ void HLoadKeyedSpecializedArrayElement::PrintDataTo(
       stream->Add("pixel");
       break;
     case FAST_ELEMENTS:
-    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
     case NON_STRICT_ARGUMENTS_ELEMENTS:
@@ -1618,7 +1582,6 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
     case EXTERNAL_PIXEL_ELEMENTS:
       stream->Add("pixel");
       break;
-    case FAST_SMI_ONLY_ELEMENTS:
     case FAST_ELEMENTS:
     case FAST_DOUBLE_ELEMENTS:
     case DICTIONARY_ELEMENTS:
@@ -1635,18 +1598,7 @@ void HStoreKeyedSpecializedArrayElement::PrintDataTo(
 
 void HLoadGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p]", *cell());
-  if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
-  if (details_.IsReadOnly()) stream->Add(" (read-only)");
-}
-
-
-bool HLoadGlobalCell::RequiresHoleCheck() {
-  if (details_.IsDontDelete() && !details_.IsReadOnly()) return false;
-  for (HUseIterator it(uses()); !it.Done(); it.Advance()) {
-    HValue* use = it.value();
-    if (!use->IsChange()) return true;
-  }
-  return false;
+  if (check_hole_value()) stream->Add(" (deleteable/read-only)");
 }
 
 
@@ -1658,8 +1610,6 @@ void HLoadGlobalGeneric::PrintDataTo(StringStream* stream) {
 void HStoreGlobalCell::PrintDataTo(StringStream* stream) {
   stream->Add("[%p] = ", *cell());
   value()->PrintNameTo(stream);
-  if (!details_.IsDontDelete()) stream->Add(" (deleteable)");
-  if (details_.IsReadOnly()) stream->Add(" (read-only)");
 }
 
 

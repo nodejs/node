@@ -76,8 +76,6 @@ array = [
   "execScript"];
 CheckEcmaSemantics(this, array, "Global");
 CheckReadOnlyAttr(this, "Infinity");
-CheckReadOnlyAttr(this, "NaN");
-CheckReadOnlyAttr(this, "undefined");
 
 array = ["exec", "test", "toString", "compile"];
 CheckEcmaSemantics(RegExp.prototype, array, "RegExp prototype");
@@ -191,7 +189,7 @@ function CheckReadOnlyAttr(type, prop) {
   assertFalse(deleted, "delete operator returned true: " + prop);
   assertTrue(type.hasOwnProperty(prop), "not there after delete: " + prop);
   type[prop] = "foo";
-  assertEquals(old, type[prop], "overwritable: " + prop);
+  assertEquals("foo", type[prop], "overwritable: " + prop);
 }
 
 print("OK");

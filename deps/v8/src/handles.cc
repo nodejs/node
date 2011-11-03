@@ -190,11 +190,7 @@ static int ExpectedNofPropertiesFromEstimate(int estimate) {
 
   // Inobject slack tracking will reclaim redundant inobject space later,
   // so we can afford to adjust the estimate generously.
-  if (FLAG_clever_optimizations) {
-    return estimate + 8;
-  } else {
-    return estimate + 3;
-  }
+  return estimate + 8;
 }
 
 
@@ -425,18 +421,17 @@ Handle<Object> PreventExtensions(Handle<JSObject> object) {
 }
 
 
-Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
-                                 Handle<String> key,
-                                 Handle<Object> value) {
+Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
+                                   JSObject::HiddenPropertiesFlag flag) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->SetHiddenProperty(*key, *value),
+                     obj->GetHiddenProperties(flag),
                      Object);
 }
 
 
-int GetIdentityHash(Handle<JSReceiver> obj) {
+int GetIdentityHash(Handle<JSObject> obj) {
   CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(ALLOW_CREATION),
+                 obj->GetIdentityHash(JSObject::ALLOW_CREATION),
                  return Smi::cast(__object__)->value(),
                  return 0);
 }
@@ -891,7 +886,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 
 
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSReceiver> key,
+                                               Handle<JSObject> key,
                                                Handle<Object> value) {
   CALL_HEAP_FUNCTION(table->GetIsolate(),
                      table->Put(*key, *value),

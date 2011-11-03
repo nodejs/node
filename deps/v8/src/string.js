@@ -568,6 +568,7 @@ function StringSplit(separator, limit) {
   }
   var subject = TO_STRING_INLINE(this);
   limit = (IS_UNDEFINED(limit)) ? 0xffffffff : TO_UINT32(limit);
+  if (limit === 0) return [];
 
   // ECMA-262 says that if separator is undefined, the result should
   // be an array of size 1 containing the entire string.  SpiderMonkey
@@ -581,9 +582,6 @@ function StringSplit(separator, limit) {
   var length = subject.length;
   if (!IS_REGEXP(separator)) {
     separator = TO_STRING_INLINE(separator);
-
-    if (limit === 0) return [];
-
     var separator_length = separator.length;
 
     // If the separator string is empty then return the elements in the subject.
@@ -593,8 +591,6 @@ function StringSplit(separator, limit) {
 
     return result;
   }
-
-  if (limit === 0) return [];
 
   %_Log('regexp', 'regexp-split,%0S,%1r', [subject, separator]);
 

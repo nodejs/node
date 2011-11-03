@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -189,16 +189,11 @@ assertEquals("\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9abcdefghijklmnop",
 assertEquals("\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7",
     utf.substring(5,1) + utf.substring(3,7));
 
+/*
 // Externalizing strings.
-var a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
-var b = "23456789qwertyuiopasdfghjklzxcvbn"
+var a = "123456789qwertyuiopasdfghjklzxcvbnm";
+var b = a.slice(1,-1);
 assertEquals(a.slice(1,-1), b);
-
-assertTrue(isAsciiString(a));
-externalizeString(a, true);
-assertFalse(isAsciiString(a));
-
+externalizeString(a);
 assertEquals(a.slice(1,-1), b);
-assertTrue(/3456789qwe/.test(a));
-assertEquals(5, a.indexOf("678"));
-assertEquals("12345", a.split("6")[0]);
+*/

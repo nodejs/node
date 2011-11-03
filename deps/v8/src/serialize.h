@@ -238,8 +238,7 @@ class SerializerDeserializer: public ObjectVisitor {
     kRootArray = 0x9,               // Object is found in root array.
     kPartialSnapshotCache = 0xa,    // Object is in the cache.
     kExternalReference = 0xb,       // Pointer to an external reference.
-    kSkip = 0xc,                    // Skip a pointer sized cell.
-    // 0xd-0xf                         Free.
+    // 0xc-0xf                         Free.
     kBackref = 0x10,                 // Object is described relative to end.
     // 0x11-0x18                       One per space.
     // 0x19-0x1f                       Common backref offsets.

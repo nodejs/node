@@ -113,7 +113,7 @@ static inline T AddressFrom(intptr_t x) {
 
 // Return the largest multiple of m which is <= x.
 template <typename T>
-static inline T RoundDown(T x, intptr_t m) {
+static inline T RoundDown(T x, int m) {
   ASSERT(IsPowerOf2(m));
   return AddressFrom<T>(OffsetFrom(x) & -m);
 }
@@ -121,8 +121,8 @@ static inline T RoundDown(T x, intptr_t m) {
 
 // Return the smallest multiple of m which is >= x.
 template <typename T>
-static inline T RoundUp(T x, intptr_t m) {
-  return RoundDown<T>(static_cast<T>(x + m - 1), m);
+static inline T RoundUp(T x, int m) {
+  return RoundDown(x + m - 1, m);
 }
 
 
@@ -159,15 +159,9 @@ static inline uint32_t RoundUpToPowerOf2(uint32_t x) {
 }
 
 
-static inline uint32_t RoundDownToPowerOf2(uint32_t x) {
-  uint32_t rounded_up = RoundUpToPowerOf2(x);
-  if (rounded_up > x) return rounded_up >> 1;
-  return rounded_up;
-}
 
-
-template <typename T, typename U>
-static inline bool IsAligned(T value, U alignment) {
+template <typename T>
+static inline bool IsAligned(T value, T alignment) {
   ASSERT(IsPowerOf2(alignment));
   return (value & (alignment - 1)) == 0;
 }
@@ -176,7 +170,7 @@ static inline bool IsAligned(T value, U alignment) {
 // Returns true if (addr + offset) is aligned.
 static inline bool IsAddressAligned(Address addr,
                                     intptr_t alignment,
-                                    int offset = 0) {
+                                    int offset) {
   intptr_t offs = OffsetFrom(addr + offset);
   return IsAligned(offs, alignment);
 }

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2006-2008 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -305,11 +305,10 @@ TEST(C2JSFrames) {
   Handle<Object> fun1(fun1_object->ToObjectChecked());
   CHECK(fun1->IsJSFunction());
 
-  Handle<Object> argv[] = { FACTORY->LookupAsciiSymbol("hello") };
-  Execution::Call(Handle<JSFunction>::cast(fun1),
-                  global,
-                  ARRAY_SIZE(argv),
-                  argv,
+  Object** argv[1] = {
+    Handle<Object>::cast(FACTORY->LookupAsciiSymbol("hello")).location()
+  };
+  Execution::Call(Handle<JSFunction>::cast(fun1), global, 1, argv,
                   &has_pending_exception);
   CHECK(!has_pending_exception);
 }

@@ -55,15 +55,7 @@ void StubCache::Initialize(bool create_heap_objects) {
   ASSERT(IsPowerOf2(kSecondaryTableSize));
   if (create_heap_objects) {
     HandleScope scope;
-    Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
-    for (int i = 0; i < kPrimaryTableSize; i++) {
-      primary_[i].key = heap()->empty_string();
-      primary_[i].value = empty;
-    }
-    for (int j = 0; j < kSecondaryTableSize; j++) {
-      secondary_[j].key = heap()->empty_string();
-      secondary_[j].value = empty;
-    }
+    Clear();
   }
 }
 
@@ -497,56 +489,38 @@ MaybeObject* StubCache::ComputeStoreField(String* name,
 
 MaybeObject* StubCache::ComputeKeyedLoadOrStoreElement(
     JSObject* receiver,
-    KeyedIC::StubKind stub_kind,
+    bool is_store,
     StrictModeFlag strict_mode) {
   Code::Flags flags =
       Code::ComputeMonomorphicFlags(
-          stub_kind == KeyedIC::LOAD ? Code::KEYED_LOAD_IC
-                                     : Code::KEYED_STORE_IC,
+          is_store ? Code::KEYED_STORE_IC :
+                     Code::KEYED_LOAD_IC,
           NORMAL,
           strict_mode);
-  String* name = NULL;
-  switch (stub_kind) {
-    case KeyedIC::LOAD:
-      name = isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
-      break;
-    case KeyedIC::STORE_NO_TRANSITION:
-      name = isolate()->heap()->KeyedStoreElementMonomorphic_symbol();
-      break;
-    default:
-      UNREACHABLE();
-      break;
-  }
+  String* name = is_store
+      ? isolate()->heap()->KeyedStoreElementMonomorphic_symbol()
+      : isolate()->heap()->KeyedLoadElementMonomorphic_symbol();
   Object* maybe_code = receiver->map()->FindInCodeCache(name, flags);
   if (!maybe_code->IsUndefined()) return Code::cast(maybe_code);
 
-  Map* receiver_map = receiver->map();
   MaybeObject* maybe_new_code = NULL;
-  switch (stub_kind) {
-    case KeyedIC::LOAD: {
-      KeyedLoadStubCompiler compiler;
-      maybe_new_code = compiler.CompileLoadElement(receiver_map);
-      break;
-    }
-    case KeyedIC::STORE_NO_TRANSITION: {
-      KeyedStoreStubCompiler compiler(strict_mode);
-      maybe_new_code = compiler.CompileStoreElement(receiver_map);
-      break;
-    }
-    default:
-      UNREACHABLE();
-      break;
+  Map* receiver_map = receiver->map();
+  if (is_store) {
+    KeyedStoreStubCompiler compiler(strict_mode);
+    maybe_new_code = compiler.CompileStoreElement(receiver_map);
+  } else {
+    KeyedLoadStubCompiler compiler;
+    maybe_new_code = compiler.CompileLoadElement(receiver_map);
   }
-  Code* code = NULL;
+  Code* code;
   if (!maybe_new_code->To(&code)) return maybe_new_code;
-
-  if (stub_kind == KeyedIC::LOAD) {
+  if (is_store) {
     PROFILE(isolate_,
-            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
+            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
                             Code::cast(code), 0));
   } else {
     PROFILE(isolate_,
-            CodeCreateEvent(Logger::KEYED_STORE_IC_TAG,
+            CodeCreateEvent(Logger::KEYED_LOAD_IC_TAG,
                             Code::cast(code), 0));
   }
   ASSERT(code->IsCode());
@@ -1125,14 +1099,15 @@ MaybeObject* StubCache::ComputeCallDebugPrepareStepIn(
 
 
 void StubCache::Clear() {
-  Code* empty = isolate_->builtins()->builtin(Builtins::kIllegal);
   for (int i = 0; i < kPrimaryTableSize; i++) {
     primary_[i].key = heap()->empty_string();
-    primary_[i].value = empty;
+    primary_[i].value = isolate_->builtins()->builtin(
+        Builtins::kIllegal);
   }
   for (int j = 0; j < kSecondaryTableSize; j++) {
     secondary_[j].key = heap()->empty_string();
-    secondary_[j].value = empty;
+    secondary_[j].value = isolate_->builtins()->builtin(
+        Builtins::kIllegal);
   }
 }
 

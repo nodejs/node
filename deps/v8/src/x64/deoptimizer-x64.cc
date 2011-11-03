@@ -197,18 +197,12 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // Destroy the code which is not supposed to run again.
   ZapCodeRange(previous_pc, jump_table_address);
 #endif
-  Isolate* isolate = code->GetIsolate();
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
-  DeoptimizerData* data = isolate->deoptimizer_data();
+  DeoptimizerData* data = code->GetIsolate()->deoptimizer_data();
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
-
-  // We might be in the middle of incremental marking with compaction.
-  // Tell collector to treat this code object in a special way and
-  // ignore all slots that might have been recorded on it.
-  isolate->heap()->mark_compact_collector()->InvalidateCode(code);
 
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
@@ -226,8 +220,7 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
 }
 
 
-void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
-                                        Address pc_after,
+void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
                                         Code* check_code,
                                         Code* replacement_code) {
   Address call_target_address = pc_after - kIntSize;
@@ -257,13 +250,6 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   *(call_target_address - 2) = 0x90;  // nop
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
-
-  RelocInfo rinfo(call_target_address,
-                  RelocInfo::CODE_TARGET,
-                  0,
-                  unoptimized_code);
-  unoptimized_code->GetHeap()->incremental_marking()->RecordWriteIntoCode(
-      unoptimized_code, &rinfo, replacement_code);
 }
 
 
@@ -282,8 +268,6 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
-  check_code->GetHeap()->incremental_marking()->
-      RecordCodeTargetPatch(call_target_address, check_code);
 }
 
 
@@ -729,10 +713,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   Isolate* isolate = masm()->isolate();
 
-  {
-    AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
-  }
+  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
   // Preserve deoptimizer object in register rax and get the input
   // frame descriptor pointer.
   __ movq(rbx, Operand(rax, Deoptimizer::input_offset()));
@@ -778,11 +759,8 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ PrepareCallCFunction(2);
   __ movq(arg1, rax);
   __ LoadAddress(arg2, ExternalReference::isolate_address());
-  {
-    AllowExternalCallThatCantCauseGC scope(masm());
-    __ CallCFunction(
-        ExternalReference::compute_output_frames_function(isolate), 2);
-  }
+  __ CallCFunction(
+      ExternalReference::compute_output_frames_function(isolate), 2);
   __ pop(rax);
 
   // Replace the current frame with the output frames.

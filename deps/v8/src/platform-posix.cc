@@ -84,34 +84,6 @@ void OS::Guard(void* address, const size_t size) {
 #endif  // __CYGWIN__
 
 
-void* OS::GetRandomMmapAddr() {
-  Isolate* isolate = Isolate::UncheckedCurrent();
-  // Note that the current isolate isn't set up in a call path via
-  // CpuFeatures::Probe. We don't care about randomization in this case because
-  // the code page is immediately freed.
-  if (isolate != NULL) {
-#ifdef V8_TARGET_ARCH_X64
-    uint64_t rnd1 = V8::RandomPrivate(isolate);
-    uint64_t rnd2 = V8::RandomPrivate(isolate);
-    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
-    // Currently available CPUs have 48 bits of virtual addressing.  Truncate
-    // the hint address to 46 bits to give the kernel a fighting chance of
-    // fulfilling our placement request.
-    raw_addr &= V8_UINT64_C(0x3ffffffff000);
-#else
-    uint32_t raw_addr = V8::RandomPrivate(isolate);
-    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
-    // variety of ASLR modes (PAE kernel, NX compat mode, etc) and on macos
-    // 10.6 and 10.7.
-    raw_addr &= 0x3ffff000;
-    raw_addr += 0x20000000;
-#endif
-    return reinterpret_cast<void*>(raw_addr);
-  }
-  return NULL;
-}
-
-
 // ----------------------------------------------------------------------------
 // Math functions
 

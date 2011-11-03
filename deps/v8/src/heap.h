@@ -32,15 +32,11 @@
 
 #include "allocation.h"
 #include "globals.h"
-#include "incremental-marking.h"
 #include "list.h"
 #include "mark-compact.h"
-#include "objects-visiting.h"
 #include "spaces.h"
 #include "splay-tree-inl.h"
-#include "store-buffer.h"
 #include "v8-counters.h"
-#include "v8globals.h"
 
 namespace v8 {
 namespace internal {
@@ -52,20 +48,20 @@ inline Heap* _inline_get_heap_();
 
 
 // Defines all the roots in Heap.
-#define STRONG_ROOT_LIST(V)                                                    \
+#define STRONG_ROOT_LIST(V)                                      \
+  /* Put the byte array map early.  We need it to be in place by the time   */ \
+  /* the deserializer hits the next page, since it wants to put a byte      */ \
+  /* array in the unused space at the end of the page.                      */ \
   V(Map, byte_array_map, ByteArrayMap)                                         \
-  V(Map, free_space_map, FreeSpaceMap)                                         \
   V(Map, one_pointer_filler_map, OnePointerFillerMap)                          \
   V(Map, two_pointer_filler_map, TwoPointerFillerMap)                          \
   /* Cluster the most popular ones in a few cache lines here at the top.    */ \
-  V(Smi, store_buffer_top, StoreBufferTop)                                     \
-  V(Oddball, undefined_value, UndefinedValue)                                  \
-  V(Oddball, the_hole_value, TheHoleValue)                                     \
-  V(Oddball, null_value, NullValue)                                            \
-  V(Oddball, true_value, TrueValue)                                            \
-  V(Oddball, false_value, FalseValue)                                          \
-  V(Oddball, arguments_marker, ArgumentsMarker)                                \
-  V(Oddball, frame_alignment_marker, FrameAlignmentMarker)                     \
+  V(Object, undefined_value, UndefinedValue)                                   \
+  V(Object, the_hole_value, TheHoleValue)                                      \
+  V(Object, null_value, NullValue)                                             \
+  V(Object, true_value, TrueValue)                                             \
+  V(Object, false_value, FalseValue)                                           \
+  V(Object, arguments_marker, ArgumentsMarker)                                 \
   V(Map, heap_number_map, HeapNumberMap)                                       \
   V(Map, global_context_map, GlobalContextMap)                                 \
   V(Map, fixed_array_map, FixedArrayMap)                                       \
@@ -126,9 +122,8 @@ inline Heap* _inline_get_heap_();
   V(Map, shared_function_info_map, SharedFunctionInfoMap)                      \
   V(Map, message_object_map, JSMessageObjectMap)                               \
   V(Map, foreign_map, ForeignMap)                                              \
-  V(HeapNumber, nan_value, NanValue)                                           \
-  V(HeapNumber, infinity_value, InfinityValue)                                 \
-  V(HeapNumber, minus_zero_value, MinusZeroValue)                              \
+  V(Object, nan_value, NanValue)                                               \
+  V(Object, minus_zero_value, MinusZeroValue)                                  \
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
@@ -231,9 +226,7 @@ inline Heap* _inline_get_heap_();
   V(closure_symbol, "(closure)")                                         \
   V(use_strict, "use strict")                                            \
   V(dot_symbol, ".")                                                     \
-  V(anonymous_function_symbol, "(anonymous function)")                   \
-  V(infinity_symbol, "Infinity")                                         \
-  V(minus_infinity_symbol, "-Infinity")
+  V(anonymous_function_symbol, "(anonymous function)")
 
 // Forward declarations.
 class GCTracer;
@@ -245,26 +238,10 @@ class WeakObjectRetainer;
 typedef String* (*ExternalStringTableUpdaterCallback)(Heap* heap,
                                                       Object** pointer);
 
-class StoreBufferRebuilder {
- public:
-  explicit StoreBufferRebuilder(StoreBuffer* store_buffer)
-      : store_buffer_(store_buffer) {
-  }
-
-  void Callback(MemoryChunk* page, StoreBufferEvent event);
-
- private:
-  StoreBuffer* store_buffer_;
-
-  // We record in this variable how full the store buffer was when we started
-  // iterating over the current page, finding pointers to new space.  If the
-  // store buffer overflows again we can exempt the page from the store buffer
-  // by rewinding to this point instead of having to search the store buffer.
-  Object*** start_of_current_page_;
-  // The current page we are scanning in the store buffer iterator.
-  MemoryChunk* current_page_;
-};
-
+typedef bool (*DirtyRegionCallback)(Heap* heap,
+                                    Address start,
+                                    Address end,
+                                    ObjectSlotCallback copy_object_func);
 
 
 // The all static Heap captures the interface to the global object heap.
@@ -282,47 +259,27 @@ class PromotionQueue {
   PromotionQueue() : front_(NULL), rear_(NULL) { }
 
   void Initialize(Address start_address) {
-    // Assumes that a NewSpacePage exactly fits a number of promotion queue
-    // entries (where each is a pair of intptr_t). This allows us to simplify
-    // the test fpr when to switch pages.
-    ASSERT((Page::kPageSize - MemoryChunk::kBodyOffset) % (2 * kPointerSize)
-           == 0);
-    ASSERT(NewSpacePage::IsAtEnd(start_address));
     front_ = rear_ = reinterpret_cast<intptr_t*>(start_address);
   }
 
-  bool is_empty() { return front_ == rear_; }
+  bool is_empty() { return front_ <= rear_; }
 
   inline void insert(HeapObject* target, int size);
 
   void remove(HeapObject** target, int* size) {
-    ASSERT(!is_empty());
-    if (NewSpacePage::IsAtStart(reinterpret_cast<Address>(front_))) {
-      NewSpacePage* front_page =
-          NewSpacePage::FromAddress(reinterpret_cast<Address>(front_));
-      ASSERT(!front_page->prev_page()->is_anchor());
-      front_ =
-          reinterpret_cast<intptr_t*>(front_page->prev_page()->body_limit());
-    }
     *target = reinterpret_cast<HeapObject*>(*(--front_));
     *size = static_cast<int>(*(--front_));
     // Assert no underflow.
-    SemiSpace::AssertValidRange(reinterpret_cast<Address>(rear_),
-                                reinterpret_cast<Address>(front_));
+    ASSERT(front_ >= rear_);
   }
 
  private:
-  // The front of the queue is higher in the memory page chain than the rear.
+  // The front of the queue is higher in memory than the rear.
   intptr_t* front_;
   intptr_t* rear_;
 
   DISALLOW_COPY_AND_ASSIGN(PromotionQueue);
 };
-
-
-typedef void (*ScavengingCallback)(Map* map,
-                                   HeapObject** slot,
-                                   HeapObject* object);
 
 
 // External strings table is a place where all external strings are
@@ -370,8 +327,8 @@ class Heap {
   // Configure heap size before setup. Return false if the heap has been
   // setup already.
   bool ConfigureHeap(int max_semispace_size,
-                     intptr_t max_old_gen_size,
-                     intptr_t max_executable_size);
+                     int max_old_gen_size,
+                     int max_executable_size);
   bool ConfigureHeapDefault();
 
   // Initializes the global object heap. If create_heap_objects is true,
@@ -499,7 +456,6 @@ class Heap {
   // size, but keeping the original prototype.  The receiver must have at least
   // the size of the new object.  The object is reinitialized and behaves as an
   // object that has been freshly allocated.
-  // Returns failure if an error occured, otherwise object.
   MUST_USE_RESULT MaybeObject* ReinitializeJSReceiver(JSReceiver* object,
                                                       InstanceType type,
                                                       int size);
@@ -528,10 +484,8 @@ class Heap {
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed.
   // Please note this function does not perform a garbage collection.
-  MUST_USE_RESULT MaybeObject* AllocateMap(
-      InstanceType instance_type,
-      int instance_size,
-      ElementsKind elements_kind = FAST_ELEMENTS);
+  MUST_USE_RESULT MaybeObject* AllocateMap(InstanceType instance_type,
+                                           int instance_size);
 
   // Allocates a partial map for bootstrapping.
   MUST_USE_RESULT MaybeObject* AllocatePartialMap(InstanceType instance_type,
@@ -842,9 +796,9 @@ class Heap {
   // failed.
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateExternalStringFromAscii(
-      const ExternalAsciiString::Resource* resource);
+      ExternalAsciiString::Resource* resource);
   MUST_USE_RESULT MaybeObject* AllocateExternalStringFromTwoByte(
-      const ExternalTwoByteString::Resource* resource);
+      ExternalTwoByteString::Resource* resource);
 
   // Finalizes an external string by deleting the associated external
   // data and clearing the resource pointer.
@@ -931,23 +885,12 @@ class Heap {
   // collect more garbage.
   inline bool CollectGarbage(AllocationSpace space);
 
-  static const int kNoGCFlags = 0;
-  static const int kMakeHeapIterableMask = 1;
-
-  // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
-  // non-zero, then the slower precise sweeper is used, which leaves the heap
-  // in a state where we can iterate over the heap visiting all objects.
-  void CollectAllGarbage(int flags);
+  // Performs a full garbage collection. Force compaction if the
+  // parameter is true.
+  void CollectAllGarbage(bool force_compaction);
 
   // Last hope GC, should try to squeeze as much as possible.
   void CollectAllAvailableGarbage();
-
-  // Check whether the heap is currently iterable.
-  bool IsHeapIterable();
-
-  // Ensure that we have swept all spaces in such a way that we can iterate
-  // over all objects.  May cause a GC.
-  void EnsureHeapIsIterable();
 
   // Notify the heap that a context has been disposed.
   int NotifyContextDisposed() { return ++contexts_disposed_; }
@@ -955,20 +898,6 @@ class Heap {
   // Utility to invoke the scavenger. This is needed in test code to
   // ensure correct callback for weak global handles.
   void PerformScavenge();
-
-  inline void increment_scan_on_scavenge_pages() {
-    scan_on_scavenge_pages_++;
-    if (FLAG_gc_verbose) {
-      PrintF("Scan-on-scavenge pages: %d\n", scan_on_scavenge_pages_);
-    }
-  }
-
-  inline void decrement_scan_on_scavenge_pages() {
-    scan_on_scavenge_pages_--;
-    if (FLAG_gc_verbose) {
-      PrintF("Scan-on-scavenge pages: %d\n", scan_on_scavenge_pages_);
-    }
-  }
 
   PromotionQueue* promotion_queue() { return &promotion_queue_; }
 
@@ -996,8 +925,6 @@ class Heap {
 
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
-  // TODO(1490): Try removing the unchecked accessors, now that GC marking does
-  // not corrupt the stack.
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   type* name() {                                                               \
     return type::cast(roots_[k##camel_name##RootIndex]);                       \
@@ -1031,9 +958,6 @@ class Heap {
   }
   Object* global_contexts_list() { return global_contexts_list_; }
 
-  // Number of mark-sweeps.
-  int ms_count() { return ms_count_; }
-
   // Iterates over all roots in the heap.
   void IterateRoots(ObjectVisitor* v, VisitMode mode);
   // Iterates over all strong roots in the heap.
@@ -1041,16 +965,60 @@ class Heap {
   // Iterates over all the other roots in the heap.
   void IterateWeakRoots(ObjectVisitor* v, VisitMode mode);
 
+  enum ExpectedPageWatermarkState {
+    WATERMARK_SHOULD_BE_VALID,
+    WATERMARK_CAN_BE_INVALID
+  };
+
+  // For each dirty region on a page in use from an old space call
+  // visit_dirty_region callback.
+  // If either visit_dirty_region or callback can cause an allocation
+  // in old space and changes in allocation watermark then
+  // can_preallocate_during_iteration should be set to true.
+  // All pages will be marked as having invalid watermark upon
+  // iteration completion.
+  void IterateDirtyRegions(
+      PagedSpace* space,
+      DirtyRegionCallback visit_dirty_region,
+      ObjectSlotCallback callback,
+      ExpectedPageWatermarkState expected_page_watermark_state);
+
+  // Interpret marks as a bitvector of dirty marks for regions of size
+  // Page::kRegionSize aligned by Page::kRegionAlignmentMask and covering
+  // memory interval from start to top. For each dirty region call a
+  // visit_dirty_region callback. Return updated bitvector of dirty marks.
+  uint32_t IterateDirtyRegions(uint32_t marks,
+                               Address start,
+                               Address end,
+                               DirtyRegionCallback visit_dirty_region,
+                               ObjectSlotCallback callback);
+
   // Iterate pointers to from semispace of new space found in memory interval
   // from start to end.
+  // Update dirty marks for page containing start address.
   void IterateAndMarkPointersToFromSpace(Address start,
                                          Address end,
                                          ObjectSlotCallback callback);
 
+  // Iterate pointers to new space found in memory interval from start to end.
+  // Return true if pointers to new space was found.
+  static bool IteratePointersInDirtyRegion(Heap* heap,
+                                           Address start,
+                                           Address end,
+                                           ObjectSlotCallback callback);
+
+
+  // Iterate pointers to new space found in memory interval from start to end.
+  // This interval is considered to belong to the map space.
+  // Return true if pointers to new space was found.
+  static bool IteratePointersInDirtyMapsRegion(Heap* heap,
+                                               Address start,
+                                               Address end,
+                                               ObjectSlotCallback callback);
+
+
   // Returns whether the object resides in new space.
   inline bool InNewSpace(Object* object);
-  inline bool InNewSpace(Address addr);
-  inline bool InNewSpacePage(Address addr);
   inline bool InFromSpace(Object* object);
   inline bool InToSpace(Object* object);
 
@@ -1089,19 +1057,11 @@ class Heap {
     roots_[kEmptyScriptRootIndex] = script;
   }
 
-  void public_set_store_buffer_top(Address* top) {
-    roots_[kStoreBufferTopRootIndex] = reinterpret_cast<Smi*>(top);
-  }
-
   // Update the next script id.
   inline void SetLastScriptId(Object* last_script_id);
 
   // Generated code can embed this address to get access to the roots.
   Object** roots_address() { return roots_; }
-
-  Address* store_buffer_top_address() {
-    return reinterpret_cast<Address*>(&roots_[kStoreBufferTopRootIndex]);
-  }
 
   // Get address of global contexts list for serialization support.
   Object** global_contexts_list_address() {
@@ -1114,10 +1074,6 @@ class Heap {
 
   // Verify the heap is in its normal state before or after a GC.
   void Verify();
-
-  void OldPointerSpaceCheckStoreBuffer();
-  void MapSpaceCheckStoreBuffer();
-  void LargeObjectSpaceCheckStoreBuffer();
 
   // Report heap statistics.
   void ReportHeapStatistics(const char* title);
@@ -1214,53 +1170,22 @@ class Heap {
   MUST_USE_RESULT MaybeObject* AllocateRawFixedArray(int length,
                                                      PretenureFlag pretenure);
 
-  inline intptr_t PromotedTotalSize() {
-    return PromotedSpaceSize() + PromotedExternalMemorySize();
+  // True if we have reached the allocation limit in the old generation that
+  // should force the next GC (caused normally) to be a full one.
+  bool OldGenerationPromotionLimitReached() {
+    return (PromotedSpaceSize() + PromotedExternalMemorySize())
+           > old_gen_promotion_limit_;
+  }
+
+  intptr_t OldGenerationSpaceAvailable() {
+    return old_gen_allocation_limit_ -
+           (PromotedSpaceSize() + PromotedExternalMemorySize());
   }
 
   // True if we have reached the allocation limit in the old generation that
-  // should force the next GC (caused normally) to be a full one.
-  inline bool OldGenerationPromotionLimitReached() {
-    return PromotedTotalSize() > old_gen_promotion_limit_;
-  }
-
-  inline intptr_t OldGenerationSpaceAvailable() {
-    return old_gen_allocation_limit_ - PromotedTotalSize();
-  }
-
-  static const intptr_t kMinimumPromotionLimit = 5 * Page::kPageSize;
-  static const intptr_t kMinimumAllocationLimit =
-      8 * (Page::kPageSize > MB ? Page::kPageSize : MB);
-
-  // When we sweep lazily we initially guess that there is no garbage on the
-  // heap and set the limits for the next GC accordingly.  As we sweep we find
-  // out that some of the pages contained garbage and we have to adjust
-  // downwards the size of the heap.  This means the limits that control the
-  // timing of the next GC also need to be adjusted downwards.
-  void LowerOldGenLimits(intptr_t adjustment) {
-    size_of_old_gen_at_last_old_space_gc_ -= adjustment;
-    old_gen_promotion_limit_ =
-        OldGenPromotionLimit(size_of_old_gen_at_last_old_space_gc_);
-    old_gen_allocation_limit_ =
-        OldGenAllocationLimit(size_of_old_gen_at_last_old_space_gc_);
-  }
-
-  intptr_t OldGenPromotionLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 10 : 3;
-    intptr_t limit =
-        Max(old_gen_size + old_gen_size / divisor, kMinimumPromotionLimit);
-    limit += new_space_.Capacity();
-    limit *= old_gen_limit_factor_;
-    return limit;
-  }
-
-  intptr_t OldGenAllocationLimit(intptr_t old_gen_size) {
-    const int divisor = FLAG_stress_compaction ? 8 : 2;
-    intptr_t limit =
-        Max(old_gen_size + old_gen_size / divisor, kMinimumAllocationLimit);
-    limit += new_space_.Capacity();
-    limit *= old_gen_limit_factor_;
-    return limit;
+  // should artificially cause a GC right now.
+  bool OldGenerationAllocationLimitReached() {
+    return OldGenerationSpaceAvailable() < 0;
   }
 
   // Can be called when the embedding application is idle.
@@ -1288,8 +1213,6 @@ class Heap {
 
   MUST_USE_RESULT MaybeObject* NumberToString(
       Object* number, bool check_number_string_cache = true);
-  MUST_USE_RESULT MaybeObject* Uint32ToString(
-      uint32_t value, bool check_number_string_cache = true);
 
   Map* MapForExternalArrayType(ExternalArrayType array_type);
   RootListIndex RootIndexForExternalArrayType(
@@ -1301,9 +1224,17 @@ class Heap {
   // by pointer size.
   static inline void CopyBlock(Address dst, Address src, int byte_size);
 
+  inline void CopyBlockToOldSpaceAndUpdateRegionMarks(Address dst,
+                                                      Address src,
+                                                      int byte_size);
+
   // Optimized version of memmove for blocks with pointer size aligned sizes and
   // pointer size aligned addresses.
   static inline void MoveBlock(Address dst, Address src, int byte_size);
+
+  inline void MoveBlockToOldSpaceAndUpdateRegionMarks(Address dst,
+                                                      Address src,
+                                                      int byte_size);
 
   // Check new space expansion criteria and expand semispaces if it was hit.
   void CheckNewSpaceExpansionCriteria();
@@ -1313,29 +1244,7 @@ class Heap {
     survived_since_last_expansion_ += survived;
   }
 
-  inline bool NextGCIsLikelyToBeFull() {
-    if (FLAG_gc_global) return true;
-
-    intptr_t total_promoted = PromotedTotalSize();
-
-    intptr_t adjusted_promotion_limit =
-        old_gen_promotion_limit_ - new_space_.Capacity();
-
-    if (total_promoted >= adjusted_promotion_limit) return true;
-
-    intptr_t adjusted_allocation_limit =
-        old_gen_allocation_limit_ - new_space_.Capacity() / 5;
-
-    if (PromotedSpaceSize() >= adjusted_allocation_limit) return true;
-
-    return false;
-  }
-
-
   void UpdateNewSpaceReferencesInExternalStringTable(
-      ExternalStringTableUpdaterCallback updater_func);
-
-  void UpdateReferencesInExternalStringTable(
       ExternalStringTableUpdaterCallback updater_func);
 
   void ProcessWeakReferences(WeakObjectRetainer* retainer);
@@ -1353,9 +1262,6 @@ class Heap {
   void ClearNormalizedMapCaches();
 
   GCTracer* tracer() { return tracer_; }
-
-  // Returns the size of objects residing in non new spaces.
-  intptr_t PromotedSpaceSize();
 
   double total_regexp_code_generated() { return total_regexp_code_generated_; }
   void IncreaseTotalRegexpCodeGenerated(int size) {
@@ -1375,18 +1281,6 @@ class Heap {
     return &mark_compact_collector_;
   }
 
-  StoreBuffer* store_buffer() {
-    return &store_buffer_;
-  }
-
-  Marking* marking() {
-    return &marking_;
-  }
-
-  IncrementalMarking* incremental_marking() {
-    return &incremental_marking_;
-  }
-
   ExternalStringTable* external_string_table() {
     return &external_string_table_;
   }
@@ -1397,27 +1291,15 @@ class Heap {
   }
 
   inline Isolate* isolate();
+  bool is_safe_to_read_maps() { return is_safe_to_read_maps_; }
 
-  inline void CallGlobalGCPrologueCallback() {
+  void CallGlobalGCPrologueCallback() {
     if (global_gc_prologue_callback_ != NULL) global_gc_prologue_callback_();
   }
 
-  inline void CallGlobalGCEpilogueCallback() {
+  void CallGlobalGCEpilogueCallback() {
     if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
   }
-
-  inline bool OldGenerationAllocationLimitReached();
-
-  inline void DoScavengeObject(Map* map, HeapObject** slot, HeapObject* obj) {
-    scavenging_visitors_table_.GetVisitor(map)(map, slot, obj);
-  }
-
-  void QueueMemoryChunkForFree(MemoryChunk* chunk);
-  void FreeQueuedChunks();
-
-  // Completely clear the Instanceof cache (to stop it keeping objects alive
-  // around a GC).
-  inline void CompletelyClearInstanceofCache();
 
  private:
   Heap();
@@ -1426,12 +1308,12 @@ class Heap {
   // more expedient to get at the isolate directly from within Heap methods.
   Isolate* isolate_;
 
-  intptr_t code_range_size_;
   int reserved_semispace_size_;
   int max_semispace_size_;
   int initial_semispace_size_;
   intptr_t max_old_generation_size_;
   intptr_t max_executable_size_;
+  intptr_t code_range_size_;
 
   // For keeping track of how much data has survived
   // scavenge since last new space expansion.
@@ -1445,8 +1327,6 @@ class Heap {
 
   // For keeping track of context disposals.
   int contexts_disposed_;
-
-  int scan_on_scavenge_pages_;
 
 #if defined(V8_TARGET_ARCH_X64)
   static const int kMaxObjectSizeInNewSpace = 1024*KB;
@@ -1464,9 +1344,13 @@ class Heap {
   HeapState gc_state_;
   int gc_post_processing_depth_;
 
+  // Returns the size of object residing in non new spaces.
+  intptr_t PromotedSpaceSize();
+
   // Returns the amount of external memory registered since last global gc.
   int PromotedExternalMemorySize();
 
+  int mc_count_;  // how many mark-compact collections happened
   int ms_count_;  // how many mark-sweep collections happened
   unsigned int gc_count_;  // how many gc happened
 
@@ -1505,13 +1389,6 @@ class Heap {
   // every allocation in large object space.
   intptr_t old_gen_allocation_limit_;
 
-  // Sometimes the heuristics dictate that those limits are increased.  This
-  // variable records that fact.
-  int old_gen_limit_factor_;
-
-  // Used to adjust the limits that control the timing of the next GC.
-  intptr_t size_of_old_gen_at_last_old_space_gc_;
-
   // Limit on the amount of externally allocated memory allowed
   // between global GCs. If reached a global GC is forced.
   intptr_t external_allocation_limit_;
@@ -1530,8 +1407,6 @@ class Heap {
   Object* roots_[kRootListLength];
 
   Object* global_contexts_list_;
-
-  StoreBufferRebuilder store_buffer_rebuilder_;
 
   struct StringTypeTable {
     InstanceType type;
@@ -1590,11 +1465,13 @@ class Heap {
   // Support for computing object sizes during GC.
   HeapObjectCallback gc_safe_size_of_old_object_;
   static int GcSafeSizeOfOldObject(HeapObject* object);
+  static int GcSafeSizeOfOldObjectWithEncodedMap(HeapObject* object);
 
   // Update the GC state. Called from the mark-compact collector.
   void MarkMapPointersAsEncoded(bool encoded) {
-    ASSERT(!encoded);
-    gc_safe_size_of_old_object_ = &GcSafeSizeOfOldObject;
+    gc_safe_size_of_old_object_ = encoded
+        ? &GcSafeSizeOfOldObjectWithEncodedMap
+        : &GcSafeSizeOfOldObject;
   }
 
   // Checks whether a global GC is necessary
@@ -1606,9 +1483,10 @@ class Heap {
   bool PerformGarbageCollection(GarbageCollector collector,
                                 GCTracer* tracer);
 
+  static const intptr_t kMinimumPromotionLimit = 2 * MB;
+  static const intptr_t kMinimumAllocationLimit = 8 * MB;
 
   inline void UpdateOldSpaceLimits();
-
 
   // Allocate an uninitialized object in map space.  The behavior is identical
   // to Heap::AllocateRaw(size_in_bytes, MAP_SPACE), except that (a) it doesn't
@@ -1644,6 +1522,8 @@ class Heap {
   // Allocate empty fixed double array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedDoubleArray();
 
+  void SwitchScavengingVisitorsTableIfProfilingWasEnabled();
+
   // Performs a minor collection in new generation.
   void Scavenge();
 
@@ -1652,15 +1532,16 @@ class Heap {
       Object** pointer);
 
   Address DoScavenge(ObjectVisitor* scavenge_visitor, Address new_space_front);
-  static void ScavengeStoreBufferCallback(Heap* heap,
-                                          MemoryChunk* page,
-                                          StoreBufferEvent event);
 
   // Performs a major collection in the whole heap.
   void MarkCompact(GCTracer* tracer);
 
   // Code to be run before and after mark-compact.
-  void MarkCompactPrologue();
+  void MarkCompactPrologue(bool is_compacting);
+
+  // Completely clear the Instanceof cache (to stop it keeping objects alive
+  // around a GC).
+  inline void CompletelyClearInstanceofCache();
 
   // Record statistics before and after garbage collection.
   void ReportStatisticsBeforeGC();
@@ -1670,11 +1551,12 @@ class Heap {
   static void ScavengeObjectSlow(HeapObject** p, HeapObject* object);
 
   // Initializes a function with a shared part and prototype.
+  // Returns the function.
   // Note: this code was factored out of AllocateFunction such that
   // other parts of the VM could use it. Specifically, a function that creates
   // instances of type JS_FUNCTION_TYPE benefit from the use of this function.
   // Please note this does not perform a garbage collection.
-  inline void InitializeFunction(
+  MUST_USE_RESULT inline MaybeObject* InitializeFunction(
       JSFunction* function,
       SharedFunctionInfo* shared,
       Object* prototype);
@@ -1739,8 +1621,6 @@ class Heap {
     return high_survival_rate_period_length_ > 0;
   }
 
-  void SelectScavengingVisitorsTable();
-
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
 
@@ -1760,11 +1640,10 @@ class Heap {
 
   MarkCompactCollector mark_compact_collector_;
 
-  StoreBuffer store_buffer_;
-
-  Marking marking_;
-
-  IncrementalMarking incremental_marking_;
+  // This field contains the meaning of the WATERMARK_INVALIDATED flag.
+  // Instead of clearing this flag from all pages we just flip
+  // its meaning at the beginning of a scavenge.
+  intptr_t page_watermark_invalidated_mark_;
 
   int number_idle_notifications_;
   unsigned int last_idle_notification_gc_count_;
@@ -1779,9 +1658,7 @@ class Heap {
 
   ExternalStringTable external_string_table_;
 
-  VisitorDispatchTable<ScavengingCallback> scavenging_visitors_table_;
-
-  MemoryChunk* chunks_queued_for_free_;
+  bool is_safe_to_read_maps_;
 
   friend class Factory;
   friend class GCTracer;
@@ -1876,6 +1753,29 @@ class VerifyPointersVisitor: public ObjectVisitor {
         HeapObject* object = HeapObject::cast(*current);
         ASSERT(HEAP->Contains(object));
         ASSERT(object->map()->IsMap());
+      }
+    }
+  }
+};
+
+
+// Visitor class to verify interior pointers in spaces that use region marks
+// to keep track of intergenerational references.
+// As VerifyPointersVisitor but also checks that dirty marks are set
+// for regions covering intergenerational references.
+class VerifyPointersAndDirtyRegionsVisitor: public ObjectVisitor {
+ public:
+  void VisitPointers(Object** start, Object** end) {
+    for (Object** current = start; current < end; current++) {
+      if ((*current)->IsHeapObject()) {
+        HeapObject* object = HeapObject::cast(*current);
+        ASSERT(HEAP->Contains(object));
+        ASSERT(object->map()->IsMap());
+        if (HEAP->InNewSpace(object)) {
+          ASSERT(HEAP->InToSpace(object));
+          Address addr = reinterpret_cast<Address>(current);
+          ASSERT(Page::FromAddress(addr)->IsRegionDirty(addr));
+        }
       }
     }
   }
@@ -2212,6 +2112,16 @@ class GCTracer BASE_EMBEDDED {
   // Sets the full GC count.
   void set_full_gc_count(int count) { full_gc_count_ = count; }
 
+  // Sets the flag that this is a compacting full GC.
+  void set_is_compacting() { is_compacting_ = true; }
+  bool is_compacting() const { return is_compacting_; }
+
+  // Increment and decrement the count of marked objects.
+  void increment_marked_count() { ++marked_count_; }
+  void decrement_marked_count() { --marked_count_; }
+
+  int marked_count() { return marked_count_; }
+
   void increment_promoted_objects_size(int object_size) {
     promoted_objects_size_ += object_size;
   }
@@ -2236,6 +2146,23 @@ class GCTracer BASE_EMBEDDED {
   // A count (including this one) of the number of full garbage collections.
   int full_gc_count_;
 
+  // True if the current GC is a compacting full collection, false
+  // otherwise.
+  bool is_compacting_;
+
+  // True if the *previous* full GC cwas a compacting collection (will be
+  // false if there has not been a previous full GC).
+  bool previous_has_compacted_;
+
+  // On a full GC, a count of the number of marked objects.  Incremented
+  // when an object is marked and decremented when an object's mark bit is
+  // cleared.  Will be zero on a scavenge collection.
+  int marked_count_;
+
+  // The count from the end of the previous full GC.  Will be zero if there
+  // was no previous full GC.
+  int previous_marked_count_;
+
   // Amounts of time spent in different scopes during GC.
   double scopes_[Scope::kNumberOfScopes];
 
@@ -2253,13 +2180,6 @@ class GCTracer BASE_EMBEDDED {
 
   // Size of objects promoted during the current collection.
   intptr_t promoted_objects_size_;
-
-  // Incremental marking steps counters.
-  int steps_count_;
-  double steps_took_;
-  double longest_step_;
-  int steps_count_since_last_gc_;
-  double steps_took_since_last_gc_;
 
   Heap* heap_;
 };
@@ -2372,46 +2292,6 @@ class WeakObjectRetainer {
 };
 
 
-// Intrusive object marking uses least significant bit of
-// heap object's map word to mark objects.
-// Normally all map words have least significant bit set
-// because they contain tagged map pointer.
-// If the bit is not set object is marked.
-// All objects should be unmarked before resuming
-// JavaScript execution.
-class IntrusiveMarking {
- public:
-  static bool IsMarked(HeapObject* object) {
-    return (object->map_word().ToRawValue() & kNotMarkedBit) == 0;
-  }
-
-  static void ClearMark(HeapObject* object) {
-    uintptr_t map_word = object->map_word().ToRawValue();
-    object->set_map_word(MapWord::FromRawValue(map_word | kNotMarkedBit));
-    ASSERT(!IsMarked(object));
-  }
-
-  static void SetMark(HeapObject* object) {
-    uintptr_t map_word = object->map_word().ToRawValue();
-    object->set_map_word(MapWord::FromRawValue(map_word & ~kNotMarkedBit));
-    ASSERT(IsMarked(object));
-  }
-
-  static Map* MapOfMarkedObject(HeapObject* object) {
-    uintptr_t map_word = object->map_word().ToRawValue();
-    return MapWord::FromRawValue(map_word | kNotMarkedBit).ToMap();
-  }
-
-  static int SizeOfMarkedObject(HeapObject* object) {
-    return object->SizeFromMap(MapOfMarkedObject(object));
-  }
-
- private:
-  static const uintptr_t kNotMarkedBit = 0x1;
-  STATIC_ASSERT((kHeapObjectTag & kNotMarkedBit) != 0);
-};
-
-
 #if defined(DEBUG) || defined(LIVE_OBJECT_LIST)
 // Helper class for tracing paths to a search target Object from all roots.
 // The TracePathFrom() method can be used to trace paths from a specific
@@ -2469,6 +2349,7 @@ class PathTracer : public ObjectVisitor {
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
 };
 #endif  // DEBUG || LIVE_OBJECT_LIST
+
 
 } }  // namespace v8::internal
 

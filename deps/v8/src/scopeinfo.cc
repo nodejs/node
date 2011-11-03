@@ -138,7 +138,7 @@ ScopeInfo<Allocator>::ScopeInfo(Scope* scope)
       ASSERT(proxy->var()->index() - Context::MIN_CONTEXT_SLOTS ==
              context_modes_.length());
       context_slots_.Add(FACTORY->empty_symbol());
-      context_modes_.Add(INTERNAL);
+      context_modes_.Add(Variable::INTERNAL);
     }
   }
 }
@@ -216,7 +216,7 @@ static Object** ReadList(Object** p, List<Handle<String>, Allocator >* list) {
 template <class Allocator>
 static Object** ReadList(Object** p,
                          List<Handle<String>, Allocator>* list,
-                         List<VariableMode, Allocator>* modes) {
+                         List<Variable::Mode, Allocator>* modes) {
   ASSERT(list->is_empty());
   int n;
   p = ReadInt(p, &n);
@@ -226,7 +226,7 @@ static Object** ReadList(Object** p,
     p = ReadSymbol(p, &s);
     p = ReadInt(p, &m);
     list->Add(s);
-    modes->Add(static_cast<VariableMode>(m));
+    modes->Add(static_cast<Variable::Mode>(m));
   }
   return p;
 }
@@ -285,7 +285,7 @@ static Object** WriteList(Object** p, List<Handle<String>, Allocator >* list) {
 template <class Allocator>
 static Object** WriteList(Object** p,
                           List<Handle<String>, Allocator>* list,
-                          List<VariableMode, Allocator>* modes) {
+                          List<Variable::Mode, Allocator>* modes) {
   const int n = list->length();
   p = WriteInt(p, n);
   for (int i = 0; i < n; i++) {
@@ -456,7 +456,7 @@ int SerializedScopeInfo::StackSlotIndex(String* name) {
   return -1;
 }
 
-int SerializedScopeInfo::ContextSlotIndex(String* name, VariableMode* mode) {
+int SerializedScopeInfo::ContextSlotIndex(String* name, Variable::Mode* mode) {
   ASSERT(name->IsSymbol());
   Isolate* isolate = GetIsolate();
   int result = isolate->context_slot_cache()->Lookup(this, name, mode);
@@ -473,7 +473,7 @@ int SerializedScopeInfo::ContextSlotIndex(String* name, VariableMode* mode) {
         ASSERT(((p - p0) & 1) == 0);
         int v;
         ReadInt(p + 1, &v);
-        VariableMode mode_value = static_cast<VariableMode>(v);
+        Variable::Mode mode_value = static_cast<Variable::Mode>(v);
         if (mode != NULL) *mode = mode_value;
         result = static_cast<int>((p - p0) >> 1) + Context::MIN_CONTEXT_SLOTS;
         isolate->context_slot_cache()->Update(this, name, mode_value, result);
@@ -482,7 +482,7 @@ int SerializedScopeInfo::ContextSlotIndex(String* name, VariableMode* mode) {
       p += 2;
     }
   }
-  isolate->context_slot_cache()->Update(this, name, INTERNAL, -1);
+  isolate->context_slot_cache()->Update(this, name, Variable::INTERNAL, -1);
   return -1;
 }
 
@@ -540,7 +540,7 @@ int ContextSlotCache::Hash(Object* data, String* name) {
 
 int ContextSlotCache::Lookup(Object* data,
                              String* name,
-                             VariableMode* mode) {
+                             Variable::Mode* mode) {
   int index = Hash(data, name);
   Key& key = keys_[index];
   if ((key.data == data) && key.name->Equals(name)) {
@@ -554,7 +554,7 @@ int ContextSlotCache::Lookup(Object* data,
 
 void ContextSlotCache::Update(Object* data,
                               String* name,
-                              VariableMode mode,
+                              Variable::Mode mode,
                               int slot_index) {
   String* symbol;
   ASSERT(slot_index > kNotFound);
@@ -581,7 +581,7 @@ void ContextSlotCache::Clear() {
 
 void ContextSlotCache::ValidateEntry(Object* data,
                                      String* name,
-                                     VariableMode mode,
+                                     Variable::Mode mode,
                                      int slot_index) {
   String* symbol;
   if (HEAP->LookupSymbolIfExists(name, &symbol)) {

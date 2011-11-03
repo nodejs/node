@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping
+// Flags: --harmony-block-scoping
 
 // We want to test the context chain shape.  In each of the tests cases
 // below, the outer with is to force a runtime lookup of the identifier 'x'

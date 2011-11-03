@@ -312,8 +312,7 @@ int main(int argc, char** argv) {
   }
   // If we don't do this then we end up with a stray root pointing at the
   // context even after we have disposed of the context.
-  // TODO(gc): request full compaction?
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(true);
   i::Object* raw_context = *(v8::Utils::OpenHandle(*context));
   context.Dispose();
   CppByteSink sink(argv[1]);

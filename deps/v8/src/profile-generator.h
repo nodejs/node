@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2010 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -257,7 +257,7 @@ class CodeMap {
     typedef Address Key;
     typedef CodeEntryInfo Value;
     static const Key kNoKey;
-    static const Value NoValue() { return CodeEntryInfo(NULL, 0); }
+    static const Value kNoValue;
     static int Compare(const Key& a, const Key& b) {
       return a < b ? -1 : (a > b ? 1 : 0);
     }
@@ -550,10 +550,7 @@ class HeapEntry BASE_EMBEDDED {
   Vector<HeapGraphEdge*> retainers() {
     return Vector<HeapGraphEdge*>(retainers_arr(), retainers_count_); }
   HeapEntry* dominator() { return dominator_; }
-  void set_dominator(HeapEntry* entry) {
-    ASSERT(entry != NULL);
-    dominator_ = entry;
-  }
+  void set_dominator(HeapEntry* entry) { dominator_ = entry; }
 
   void clear_paint() { painted_ = kUnpainted; }
   bool painted_reachable() { return painted_ == kPainted; }
@@ -923,7 +920,7 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   virtual HeapEntry* AllocateEntry(
       HeapThing ptr, int children_count, int retainers_count);
   void AddRootEntries(SnapshotFillerInterface* filler);
-  int EstimateObjectsCount(HeapIterator* iterator);
+  int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
   void TagGlobalObjects();
 

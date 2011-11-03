@@ -134,12 +134,14 @@ static const CachedPower kCachedPowers[] = {
 };
 
 static const int kCachedPowersLength = ARRAY_SIZE(kCachedPowers);
-static const int kCachedPowersOffset = 348;  // -1 * the first decimal_exponent.
+static const int kCachedPowersOffset = -kCachedPowers[0].decimal_exponent;
 static const double kD_1_LOG2_10 = 0.30102999566398114;  //  1 / lg(10)
-// Difference between the decimal exponents in the table above.
-const int PowersOfTenCache::kDecimalExponentDistance = 8;
-const int PowersOfTenCache::kMinDecimalExponent = -348;
-const int PowersOfTenCache::kMaxDecimalExponent = 340;
+const int PowersOfTenCache::kDecimalExponentDistance =
+    kCachedPowers[1].decimal_exponent - kCachedPowers[0].decimal_exponent;
+const int PowersOfTenCache::kMinDecimalExponent =
+    kCachedPowers[0].decimal_exponent;
+const int PowersOfTenCache::kMaxDecimalExponent =
+    kCachedPowers[kCachedPowersLength - 1].decimal_exponent;
 
 void PowersOfTenCache::GetCachedPowerForBinaryExponentRange(
     int min_exponent,

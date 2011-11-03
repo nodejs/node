@@ -80,11 +80,6 @@ static void ExpectString(const char* code, const char* expected) {
   CHECK_EQ(expected, *ascii);
 }
 
-static void ExpectInt32(const char* code, int expected) {
-  Local<Value> result = CompileRun(code);
-  CHECK(result->IsInt32());
-  CHECK_EQ(expected, result->Int32Value());
-}
 
 static void ExpectBoolean(const char* code, bool expected) {
   Local<Value> result = CompileRun(code);
@@ -398,11 +393,11 @@ THREADED_TEST(ScriptUsingStringResource) {
     CHECK(source->IsExternal());
     CHECK_EQ(resource,
              static_cast<TestResource*>(source->GetExternalStringResource()));
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, dispose_count);
   }
   v8::internal::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllAvailableGarbage();
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -420,11 +415,11 @@ THREADED_TEST(ScriptUsingAsciiStringResource) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllAvailableGarbage();
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -446,12 +441,11 @@ THREADED_TEST(ScriptMakingExternalString) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -473,12 +467,11 @@ THREADED_TEST(ScriptMakingExternalAsciiString) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  // TODO(1608): This should use kAbortIncrementalMarking.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, dispose_count);
 }
 
@@ -579,8 +572,8 @@ THREADED_TEST(UsingExternalString) {
     i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -597,8 +590,8 @@ THREADED_TEST(UsingExternalAsciiString) {
     i::Handle<i::String> isymbol = FACTORY->SymbolFromString(istring);
     CHECK(isymbol->IsSymbol());
   }
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -679,11 +672,11 @@ TEST(ExternalStringWithDisposeHandling) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    HEAP->CollectAllAvailableGarbage();
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllAvailableGarbage();
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
 
@@ -700,11 +693,11 @@ TEST(ExternalStringWithDisposeHandling) {
     Local<Value> value = script->Run();
     CHECK(value->IsNumber());
     CHECK_EQ(7, value->Int32Value());
-    HEAP->CollectAllAvailableGarbage();
+    HEAP->CollectAllGarbage(false);
     CHECK_EQ(0, TestAsciiResourceWithDisposeControl::dispose_count);
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllAvailableGarbage();
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_calls);
   CHECK_EQ(1, TestAsciiResourceWithDisposeControl::dispose_count);
 }
@@ -751,8 +744,8 @@ THREADED_TEST(StringConcat) {
     CHECK_EQ(68, value->Int32Value());
   }
   i::Isolate::Current()->compilation_cache()->Clear();
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -1301,197 +1294,6 @@ static v8::Handle<Value> EchoNamedProperty(Local<String> name,
   return name;
 }
 
-// Helper functions for Interceptor/Accessor interaction tests
-
-Handle<Value> SimpleAccessorGetter(Local<String> name,
-                                   const AccessorInfo& info) {
-  Handle<Object> self = info.This();
-  return self->Get(String::Concat(v8_str("accessor_"), name));
-}
-
-void SimpleAccessorSetter(Local<String> name, Local<Value> value,
-                          const AccessorInfo& info) {
-  Handle<Object> self = info.This();
-  self->Set(String::Concat(v8_str("accessor_"), name), value);
-}
-
-Handle<Value> EmptyInterceptorGetter(Local<String> name,
-                                     const AccessorInfo& info) {
-  return Handle<Value>();
-}
-
-Handle<Value> EmptyInterceptorSetter(Local<String> name,
-                                     Local<Value> value,
-                                     const AccessorInfo& info) {
-  return Handle<Value>();
-}
-
-Handle<Value> InterceptorGetter(Local<String> name,
-                                const AccessorInfo& info) {
-  // Intercept names that start with 'interceptor_'.
-  String::AsciiValue ascii(name);
-  char* name_str = *ascii;
-  char prefix[] = "interceptor_";
-  int i;
-  for (i = 0; name_str[i] && prefix[i]; ++i) {
-    if (name_str[i] != prefix[i]) return Handle<Value>();
-  }
-  Handle<Object> self = info.This();
-  return self->GetHiddenValue(v8_str(name_str + i));
-}
-
-Handle<Value> InterceptorSetter(Local<String> name,
-                                Local<Value> value,
-                                const AccessorInfo& info) {
-  // Intercept accesses that set certain integer values.
-  if (value->IsInt32() && value->Int32Value() < 10000) {
-    Handle<Object> self = info.This();
-    self->SetHiddenValue(name, value);
-    return value;
-  }
-  return Handle<Value>();
-}
-
-void AddAccessor(Handle<FunctionTemplate> templ,
-                 Handle<String> name,
-                 v8::AccessorGetter getter,
-                 v8::AccessorSetter setter) {
-  templ->PrototypeTemplate()->SetAccessor(name, getter, setter);
-}
-
-void AddInterceptor(Handle<FunctionTemplate> templ,
-                    v8::NamedPropertyGetter getter,
-                    v8::NamedPropertySetter setter) {
-  templ->InstanceTemplate()->SetNamedPropertyHandler(getter, setter);
-}
-
-THREADED_TEST(EmptyInterceptorDoesNotShadowAccessors) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddAccessor(parent, v8_str("age"),
-              SimpleAccessorGetter, SimpleAccessorSetter);
-  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "child.age = 10;");
-  ExpectBoolean("child.hasOwnProperty('age')", false);
-  ExpectInt32("child.age", 10);
-  ExpectInt32("child.accessor_age", 10);
-}
-
-THREADED_TEST(EmptyInterceptorDoesNotShadowJSAccessors) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "var parent = child.__proto__;"
-             "Object.defineProperty(parent, 'age', "
-             "  {get: function(){ return this.accessor_age; }, "
-             "   set: function(v){ this.accessor_age = v; }, "
-             "   enumerable: true, configurable: true});"
-             "child.age = 10;");
-  ExpectBoolean("child.hasOwnProperty('age')", false);
-  ExpectInt32("child.age", 10);
-  ExpectInt32("child.accessor_age", 10);
-}
-
-THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddInterceptor(child, EmptyInterceptorGetter, EmptyInterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "var parent = child.__proto__;"
-             "parent.name = 'Alice';");
-  ExpectBoolean("child.hasOwnProperty('name')", false);
-  ExpectString("child.name", "Alice");
-  CompileRun("child.name = 'Bob';");
-  ExpectString("child.name", "Bob");
-  ExpectBoolean("child.hasOwnProperty('name')", true);
-  ExpectString("parent.name", "Alice");
-}
-
-THREADED_TEST(SwitchFromInterceptorToAccessor) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddAccessor(parent, v8_str("age"),
-              SimpleAccessorGetter, SimpleAccessorSetter);
-  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "function setAge(i){ child.age = i; };"
-             "for(var i = 0; i <= 10000; i++) setAge(i);");
-  // All i < 10000 go to the interceptor.
-  ExpectInt32("child.interceptor_age", 9999);
-  // The last i goes to the accessor.
-  ExpectInt32("child.accessor_age", 10000);
-}
-
-THREADED_TEST(SwitchFromAccessorToInterceptor) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddAccessor(parent, v8_str("age"),
-              SimpleAccessorGetter, SimpleAccessorSetter);
-  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "function setAge(i){ child.age = i; };"
-             "for(var i = 20000; i >= 9999; i--) setAge(i);");
-  // All i >= 10000 go to the accessor.
-  ExpectInt32("child.accessor_age", 10000);
-  // The last i goes to the interceptor.
-  ExpectInt32("child.interceptor_age", 9999);
-}
-
-THREADED_TEST(SwitchFromInterceptorToProperty) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "function setAge(i){ child.age = i; };"
-             "for(var i = 0; i <= 10000; i++) setAge(i);");
-  // All i < 10000 go to the interceptor.
-  ExpectInt32("child.interceptor_age", 9999);
-  // The last i goes to child's own property.
-  ExpectInt32("child.age", 10000);
-}
-
-THREADED_TEST(SwitchFromPropertyToInterceptor) {
-  v8::HandleScope scope;
-  Handle<FunctionTemplate> parent = FunctionTemplate::New();
-  Handle<FunctionTemplate> child = FunctionTemplate::New();
-  child->Inherit(parent);
-  AddInterceptor(child, InterceptorGetter, InterceptorSetter);
-  LocalContext env;
-  env->Global()->Set(v8_str("Child"), child->GetFunction());
-  CompileRun("var child = new Child;"
-             "function setAge(i){ child.age = i; };"
-             "for(var i = 20000; i >= 9999; i--) setAge(i);");
-  // All i >= 10000 go to child's own property.
-  ExpectInt32("child.age", 10000);
-  // The last i goes to the interceptor.
-  ExpectInt32("child.interceptor_age", 9999);
-}
 
 THREADED_TEST(NamedPropertyHandlerGetter) {
   echo_named_call_count = 0;
@@ -1864,12 +1666,12 @@ THREADED_TEST(InternalFieldsNativePointers) {
 
   // Check reading and writing aligned pointers.
   obj->SetPointerInInternalField(0, aligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
 
   // Check reading and writing unaligned pointers.
   obj->SetPointerInInternalField(0, unaligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
 
   delete[] data;
@@ -1895,19 +1697,19 @@ THREADED_TEST(InternalFieldsNativePointersAndExternal) {
   CHECK_EQ(1, static_cast<int>(reinterpret_cast<uintptr_t>(unaligned) & 0x1));
 
   obj->SetPointerInInternalField(0, aligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(aligned, v8::External::Unwrap(obj->GetInternalField(0)));
 
   obj->SetPointerInInternalField(0, unaligned);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(unaligned, v8::External::Unwrap(obj->GetInternalField(0)));
 
   obj->SetInternalField(0, v8::External::Wrap(aligned));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(aligned, obj->GetPointerFromInternalField(0));
 
   obj->SetInternalField(0, v8::External::Wrap(unaligned));
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(unaligned, obj->GetPointerFromInternalField(0));
 
   delete[] data;
@@ -1920,7 +1722,7 @@ THREADED_TEST(IdentityHash) {
 
   // Ensure that the test starts with an fresh heap to test whether the hash
   // code is based on the address.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   Local<v8::Object> obj = v8::Object::New();
   int hash = obj->GetIdentityHash();
   int hash1 = obj->GetIdentityHash();
@@ -1930,7 +1732,7 @@ THREADED_TEST(IdentityHash) {
   // objects should not be assigned the same hash code. If the test below fails
   // the random number generator should be evaluated.
   CHECK_NE(hash, hash2);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   int hash3 = v8::Object::New()->GetIdentityHash();
   // Make sure that the identity hash is not based on the initial address of
   // the object alone. If the test below fails the random number generator
@@ -1967,7 +1769,7 @@ THREADED_TEST(HiddenProperties) {
   v8::Local<v8::String> empty = v8_str("");
   v8::Local<v8::String> prop_name = v8_str("prop_name");
 
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 
   // Make sure delete of a non-existent hidden value works
   CHECK(obj->DeleteHiddenValue(key));
@@ -1977,7 +1779,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK(obj->SetHiddenValue(key, v8::Integer::New(2002)));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
 
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 
   // Make sure we do not find the hidden property.
   CHECK(!obj->Has(empty));
@@ -1988,7 +1790,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
   CHECK_EQ(2003, obj->Get(empty)->Int32Value());
 
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 
   // Add another property and delete it afterwards to force the object in
   // slow case.
@@ -1999,7 +1801,7 @@ THREADED_TEST(HiddenProperties) {
   CHECK(obj->Delete(prop_name));
   CHECK_EQ(2002, obj->GetHiddenValue(key)->Int32Value());
 
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 
   CHECK(obj->DeleteHiddenValue(key));
   CHECK(obj->GetHiddenValue(key).IsEmpty());
@@ -2106,29 +1908,18 @@ THREADED_TEST(GlobalHandle) {
 }
 
 
-class WeakCallCounter {
- public:
-  explicit WeakCallCounter(int id) : id_(id), number_of_weak_calls_(0) { }
-  int id() { return id_; }
-  void increment() { number_of_weak_calls_++; }
-  int NumberOfWeakCalls() { return number_of_weak_calls_; }
- private:
-  int id_;
-  int number_of_weak_calls_;
-};
-
-
+static int NumberOfWeakCalls = 0;
 static void WeakPointerCallback(Persistent<Value> handle, void* id) {
-  WeakCallCounter* counter = reinterpret_cast<WeakCallCounter*>(id);
-  CHECK_EQ(1234, counter->id());
-  counter->increment();
+  CHECK_EQ(reinterpret_cast<void*>(1234), id);
+  NumberOfWeakCalls++;
   handle.Dispose();
 }
-
 
 THREADED_TEST(ApiObjectGroups) {
   HandleScope scope;
   LocalContext env;
+
+  NumberOfWeakCalls = 0;
 
   Persistent<Object> g1s1;
   Persistent<Object> g1s2;
@@ -2137,23 +1928,21 @@ THREADED_TEST(ApiObjectGroups) {
   Persistent<Object> g2s2;
   Persistent<Object> g2c1;
 
-  WeakCallCounter counter(1234);
-
   {
     HandleScope scope;
     g1s1 = Persistent<Object>::New(Object::New());
     g1s2 = Persistent<Object>::New(Object::New());
     g1c1 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g1s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g1c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(Object::New());
     g2s2 = Persistent<Object>::New(Object::New());
     g2c1 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g2s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g2c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
   }
 
   Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
@@ -2172,15 +1961,14 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddObjectGroup(g2_objects, 2);
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
-  // Do a single full GC. Use kMakeHeapIterableMask to ensure that
-  // incremental garbage collection is stopped.
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  // Do a full GC
+  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
 
   // All object should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
+  CHECK_EQ(0, NumberOfWeakCalls);
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
   // But make children strong roots---all the objects (except for children)
   // should be collectable now.
   g1c1.ClearWeak();
@@ -2198,17 +1986,17 @@ THREADED_TEST(ApiObjectGroups) {
     V8::AddImplicitReferences(g2s2, g2_children, 1);
   }
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
 
   // All objects should be gone. 5 global handles in total.
-  CHECK_EQ(5, counter.NumberOfWeakCalls());
+  CHECK_EQ(5, NumberOfWeakCalls);
 
   // And now make children weak again and collect them.
-  g1c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-  g2c1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  g1c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+  g2c1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
-  CHECK_EQ(7, counter.NumberOfWeakCalls());
+  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
+  CHECK_EQ(7, NumberOfWeakCalls);
 }
 
 
@@ -2216,7 +2004,7 @@ THREADED_TEST(ApiObjectGroupsCycle) {
   HandleScope scope;
   LocalContext env;
 
-  WeakCallCounter counter(1234);
+  NumberOfWeakCalls = 0;
 
   Persistent<Object> g1s1;
   Persistent<Object> g1s2;
@@ -2229,18 +2017,18 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     HandleScope scope;
     g1s1 = Persistent<Object>::New(Object::New());
     g1s2 = Persistent<Object>::New(Object::New());
-    g1s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g1s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g1s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g1s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
 
     g2s1 = Persistent<Object>::New(Object::New());
     g2s2 = Persistent<Object>::New(Object::New());
-    g2s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g2s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g2s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g2s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
 
     g3s1 = Persistent<Object>::New(Object::New());
     g3s2 = Persistent<Object>::New(Object::New());
-    g3s1.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
-    g3s2.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+    g3s1.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
+    g3s2.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
   }
 
   Persistent<Object> root = Persistent<Object>::New(g1s1);  // make a root.
@@ -2262,14 +2050,14 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddObjectGroup(g3_objects, 2);
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
-  // Do a single full GC
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  // Do a full GC
+  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
 
   // All object should be alive.
-  CHECK_EQ(0, counter.NumberOfWeakCalls());
+  CHECK_EQ(0, NumberOfWeakCalls);
 
   // Weaken the root.
-  root.MakeWeak(reinterpret_cast<void*>(&counter), &WeakPointerCallback);
+  root.MakeWeak(reinterpret_cast<void*>(1234), &WeakPointerCallback);
 
   // Groups are deleted, rebuild groups.
   {
@@ -2287,10 +2075,10 @@ THREADED_TEST(ApiObjectGroupsCycle) {
     V8::AddImplicitReferences(g3s1, g3_children, 1);
   }
 
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->CollectGarbage(i::OLD_POINTER_SPACE);
 
   // All objects should be gone. 7 global handles in total.
-  CHECK_EQ(7, counter.NumberOfWeakCalls());
+  CHECK_EQ(7, NumberOfWeakCalls);
 }
 
 
@@ -4517,47 +4305,6 @@ THREADED_TEST(SimpleExtensions) {
 }
 
 
-static const char* kEmbeddedExtensionSource =
-    "function Ret54321(){return 54321;}~~@@$"
-    "$%% THIS IS A SERIES OF NON-NULL-TERMINATED STRINGS.";
-static const int kEmbeddedExtensionSourceValidLen = 34;
-
-
-THREADED_TEST(ExtensionMissingSourceLength) {
-  v8::HandleScope handle_scope;
-  v8::RegisterExtension(new Extension("srclentest_fail",
-                                      kEmbeddedExtensionSource));
-  const char* extension_names[] = { "srclentest_fail" };
-  v8::ExtensionConfiguration extensions(1, extension_names);
-  v8::Handle<Context> context = Context::New(&extensions);
-  CHECK_EQ(0, *context);
-}
-
-
-THREADED_TEST(ExtensionWithSourceLength) {
-  for (int source_len = kEmbeddedExtensionSourceValidLen - 1;
-       source_len <= kEmbeddedExtensionSourceValidLen + 1; ++source_len) {
-    v8::HandleScope handle_scope;
-    i::ScopedVector<char> extension_name(32);
-    i::OS::SNPrintF(extension_name, "ext #%d", source_len);
-    v8::RegisterExtension(new Extension(extension_name.start(),
-                                        kEmbeddedExtensionSource, 0, 0,
-                                        source_len));
-    const char* extension_names[1] = { extension_name.start() };
-    v8::ExtensionConfiguration extensions(1, extension_names);
-    v8::Handle<Context> context = Context::New(&extensions);
-    if (source_len == kEmbeddedExtensionSourceValidLen) {
-      Context::Scope lock(context);
-      v8::Handle<Value> result = Script::Compile(v8_str("Ret54321()"))->Run();
-      CHECK_EQ(v8::Integer::New(54321), result);
-    } else {
-      // Anything but exactly the right length should fail to compile.
-      CHECK_EQ(0, *context);
-    }
-  }
-}
-
-
 static const char* kEvalExtensionSource1 =
   "function UseEval1() {"
   "  var x = 42;"
@@ -5058,7 +4805,7 @@ static void InvokeScavenge() {
 
 
 static void InvokeMarkSweep() {
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -5151,7 +4898,7 @@ static v8::Handle<Value> ArgumentsTestCallback(const v8::Arguments& args) {
   CHECK_EQ(v8::Integer::New(3), args[2]);
   CHECK_EQ(v8::Undefined(), args[3]);
   v8::HandleScope scope;
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   return v8::Undefined();
 }
 
@@ -8136,7 +7883,7 @@ static v8::Handle<Value> InterceptorHasOwnPropertyGetterGC(
     Local<String> name,
     const AccessorInfo& info) {
   ApiTestFuzzer::Fuzz();
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   return v8::Handle<Value>();
 }
 
@@ -8866,7 +8613,7 @@ static v8::Handle<Value> InterceptorCallICFastApi(Local<String> name,
   int* call_count = reinterpret_cast<int*>(v8::External::Unwrap(info.Data()));
   ++(*call_count);
   if ((*call_count) % 20 == 0) {
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(true);
   }
   return v8::Handle<Value>();
 }
@@ -10217,7 +9964,6 @@ THREADED_TEST(LockUnlockLock) {
 
 
 static int GetGlobalObjectsCount() {
-  i::Isolate::Current()->heap()->EnsureHeapIsIterable();
   int count = 0;
   i::HeapIterator it;
   for (i::HeapObject* object = it.next(); object != NULL; object = it.next())
@@ -10232,8 +9978,9 @@ static void CheckSurvivingGlobalObjectsCount(int expected) {
   // the first garbage collection but some of the maps have already
   // been marked at that point.  Therefore some of the maps are not
   // collected until the second garbage collection.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
-  HEAP->CollectAllGarbage(i::Heap::kMakeHeapIterableMask);
+  HEAP->global_context_map();
+  HEAP->CollectAllGarbage(false);
+  HEAP->CollectAllGarbage(false);
   int count = GetGlobalObjectsCount();
 #ifdef DEBUG
   if (count != expected) HEAP->TracePathToGlobal();
@@ -10302,7 +10049,7 @@ THREADED_TEST(NewPersistentHandleFromWeakCallback) {
   // weak callback of the first handle would be able to 'reallocate' it.
   handle1.MakeWeak(NULL, NewPersistentHandleCallback);
   handle2.Dispose();
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -10310,7 +10057,7 @@ v8::Persistent<v8::Object> to_be_disposed;
 
 void DisposeAndForceGcCallback(v8::Persistent<v8::Value> handle, void*) {
   to_be_disposed.Dispose();
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   handle.Dispose();
 }
 
@@ -10326,7 +10073,7 @@ THREADED_TEST(DoNotUseDeletedNodesInSecondLevelGc) {
   }
   handle1.MakeWeak(NULL, DisposeAndForceGcCallback);
   to_be_disposed = handle2;
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 }
 
 void DisposingCallback(v8::Persistent<v8::Value> handle, void*) {
@@ -10352,7 +10099,7 @@ THREADED_TEST(NoGlobalHandlesOrphaningDueToWeakCallback) {
   }
   handle2.MakeWeak(NULL, DisposingCallback);
   handle3.MakeWeak(NULL, HandleCreatingCallback);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
 }
 
 
@@ -11168,7 +10915,7 @@ class RegExpInterruptTest {
       {
         v8::Locker lock;
         // TODO(lrn): Perhaps create some garbage before collecting.
-        HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+        HEAP->CollectAllGarbage(false);
         gc_count_++;
       }
       i::OS::Sleep(1);
@@ -11290,7 +11037,7 @@ class ApplyInterruptTest {
     while (gc_during_apply_ < kRequiredGCs) {
       {
         v8::Locker lock;
-        HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+        HEAP->CollectAllGarbage(false);
         gc_count_++;
       }
       i::OS::Sleep(1);
@@ -12006,15 +11753,13 @@ THREADED_TEST(PixelArray) {
   i::Handle<i::ExternalPixelArray> pixels =
       i::Handle<i::ExternalPixelArray>::cast(
           FACTORY->NewExternalArray(kElementCount,
-                                    v8::kExternalPixelArray,
-                                    pixel_data));
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+                                       v8::kExternalPixelArray,
+                                       pixel_data));
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     pixels->set(i, i % 256);
   }
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     CHECK_EQ(i % 256, pixels->get_scalar(i));
     CHECK_EQ(i % 256, pixel_data[i]);
@@ -12490,13 +12235,11 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
   i::Handle<ExternalArrayClass> array =
       i::Handle<ExternalArrayClass>::cast(
           FACTORY->NewExternalArray(kElementCount, array_type, array_data));
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     array->set(i, static_cast<ElementType>(i));
   }
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   for (int i = 0; i < kElementCount; i++) {
     CHECK_EQ(static_cast<int64_t>(i),
              static_cast<int64_t>(array->get_scalar(i)));
@@ -12614,8 +12357,7 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
                       "  }"
                       "}"
                       "sum;");
-  // Force GC to trigger verification.
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);  // Force GC to trigger verification.
   CHECK_EQ(28, result->Int32Value());
 
   // Make sure out-of-range loads do not throw.
@@ -13595,7 +13337,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_simple);
     other_context->Exit();
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -13617,7 +13359,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_eval);
     other_context->Exit();
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -13644,7 +13386,7 @@ TEST(Regress528) {
     other_context->Enter();
     CompileRun(source_exception);
     other_context->Exit();
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(false);
     if (GetGlobalObjectsCount() == 1) break;
   }
   CHECK_GE(2, gc_count);
@@ -13862,26 +13604,26 @@ TEST(GCCallbacks) {
   v8::V8::AddGCEpilogueCallback(EpilogueCallback);
   CHECK_EQ(0, prologue_call_count);
   CHECK_EQ(0, epilogue_call_count);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(1, prologue_call_count);
   CHECK_EQ(1, epilogue_call_count);
   v8::V8::AddGCPrologueCallback(PrologueCallbackSecond);
   v8::V8::AddGCEpilogueCallback(EpilogueCallbackSecond);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(1, prologue_call_count_second);
   CHECK_EQ(1, epilogue_call_count_second);
   v8::V8::RemoveGCPrologueCallback(PrologueCallback);
   v8::V8::RemoveGCEpilogueCallback(EpilogueCallback);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
   CHECK_EQ(2, epilogue_call_count_second);
   v8::V8::RemoveGCPrologueCallback(PrologueCallbackSecond);
   v8::V8::RemoveGCEpilogueCallback(EpilogueCallbackSecond);
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(false);
   CHECK_EQ(2, prologue_call_count);
   CHECK_EQ(2, epilogue_call_count);
   CHECK_EQ(2, prologue_call_count_second);
@@ -14098,7 +13840,7 @@ THREADED_TEST(TwoByteStringInAsciiCons) {
 void FailedAccessCheckCallbackGC(Local<v8::Object> target,
                                  v8::AccessType type,
                                  Local<v8::Value> data) {
-  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(true);
 }
 
 
@@ -14672,7 +14414,7 @@ TEST(DontDeleteCellLoadIC) {
                  "})()",
                  "ReferenceError: cell is not defined");
     CompileRun("cell = \"new_second\";");
-    HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
+    HEAP->CollectAllGarbage(true);
     ExpectString("readCell()", "new_second");
     ExpectString("readCell()", "new_second");
   }

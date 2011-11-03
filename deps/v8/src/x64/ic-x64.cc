@@ -221,7 +221,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update write barrier. Make sure not to clobber the value.
   __ movq(scratch0, value);
-  __ RecordWrite(elements, scratch1, scratch0, kDontSaveFPRegs);
+  __ RecordWrite(elements, scratch1, scratch0);
 }
 
 
@@ -606,40 +606,45 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- rdx     : receiver
   //  -- rsp[0]  : return address
   // -----------------------------------
-  Label slow, slow_with_tagged_index, fast, array, extra, check_extra_double;
-  Label fast_object_with_map_check, fast_object_without_map_check;
-  Label fast_double_with_map_check, fast_double_without_map_check;
+  Label slow, slow_with_tagged_index, fast, array, extra;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow_with_tagged_index);
   // Get the map from the receiver.
-  __ movq(r9, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ testb(FieldOperand(r9, Map::kBitFieldOffset),
+  __ testb(FieldOperand(rbx, Map::kBitFieldOffset),
            Immediate(1 << Map::kIsAccessCheckNeeded));
   __ j(not_zero, &slow_with_tagged_index);
   // Check that the key is a smi.
   __ JumpIfNotSmi(rcx, &slow_with_tagged_index);
   __ SmiToInteger32(rcx, rcx);
 
-  __ CmpInstanceType(r9, JS_ARRAY_TYPE);
+  __ CmpInstanceType(rbx, JS_ARRAY_TYPE);
   __ j(equal, &array);
   // Check that the object is some kind of JSObject.
-  __ CmpInstanceType(r9, FIRST_JS_OBJECT_TYPE);
+  __ CmpInstanceType(rbx, FIRST_JS_RECEIVER_TYPE);
   __ j(below, &slow);
+  __ CmpInstanceType(rbx, JS_PROXY_TYPE);
+  __ j(equal, &slow);
+  __ CmpInstanceType(rbx, JS_FUNCTION_PROXY_TYPE);
+  __ j(equal, &slow);
 
   // Object case: Check key against length in the elements array.
   // rax: value
   // rdx: JSObject
   // rcx: index
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
-  // Check array bounds.
+  // Check that the object is in fast mode and writable.
+  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
+                 Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &slow);
   __ SmiCompareInteger32(FieldOperand(rbx, FixedArray::kLengthOffset), rcx);
   // rax: value
   // rbx: FixedArray
   // rcx: index
-  __ j(above, &fast_object_with_map_check);
+  __ j(above, &fast);
 
   // Slow case: call runtime.
   __ bind(&slow);
@@ -661,20 +666,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ SmiCompareInteger32(FieldOperand(rbx, FixedArray::kLengthOffset), rcx);
   __ j(below_equal, &slow);
   // Increment index to get new length.
-  __ movq(rdi, FieldOperand(rbx, HeapObject::kMapOffset));
-  __ CompareRoot(rdi, Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &check_extra_double);
   __ leal(rdi, Operand(rcx, 1));
   __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
-  __ jmp(&fast_object_without_map_check);
-
-  __ bind(&check_extra_double);
-  // rdi: elements array's map
-  __ CompareRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ j(not_equal, &slow);
-  __ leal(rdi, Operand(rcx, 1));
-  __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rdi);
-  __ jmp(&fast_double_without_map_check);
+  __ jmp(&fast);
 
   // Array case: Get the length and the elements array from the JS
   // array. Check that the array is in fast mode (and writable); if it
@@ -684,6 +678,9 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // rdx: receiver (a JSArray)
   // rcx: index
   __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ CompareRoot(FieldOperand(rbx, HeapObject::kMapOffset),
+                 Heap::kFixedArrayMapRootIndex);
+  __ j(not_equal, &slow);
 
   // Check the key against the length in the array, compute the
   // address to store into and fall through to fast case.
@@ -691,45 +688,20 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ j(below_equal, &extra);
 
   // Fast case: Do the store.
-  __ bind(&fast_object_with_map_check);
+  __ bind(&fast);
   // rax: value
   // rbx: receiver's elements array (a FixedArray)
   // rcx: index
-  // rdx: receiver (a JSArray)
-  __ movq(rdi, FieldOperand(rbx, HeapObject::kMapOffset));
-  __ CompareRoot(rdi, Heap::kFixedArrayMapRootIndex);
-  __ j(not_equal, &fast_double_with_map_check);
-  __ bind(&fast_object_without_map_check);
-  // Smi stores don't require further checks.
   Label non_smi_value;
-  __ JumpIfNotSmi(rax, &non_smi_value);
-  // It's irrelevant whether array is smi-only or not when writing a smi.
   __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
+  __ JumpIfNotSmi(rax, &non_smi_value, Label::kNear);
   __ ret(0);
-
   __ bind(&non_smi_value);
-  // Writing a non-smi, check whether array allows non-smi elements.
-  // r9: receiver's map
-  __ CheckFastObjectElements(r9, &slow, Label::kNear);
-  __ lea(rcx,
-         FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize));
-  __ movq(Operand(rcx, 0), rax);
+  // Slow case that needs to retain rcx for use by RecordWrite.
+  // Update write barrier for the elements array address.
   __ movq(rdx, rax);
-  __ RecordWrite(
-      rbx, rcx, rdx, kDontSaveFPRegs, EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-  __ ret(0);
-
-  __ bind(&fast_double_with_map_check);
-  // Check for fast double array case. If this fails, call through to the
-  // runtime.
-  // rdi: elements array's map
-  __ CompareRoot(rdi, Heap::kFixedDoubleArrayMapRootIndex);
-  __ j(not_equal, &slow);
-  __ bind(&fast_double_without_map_check);
-  // If the value is a number, store it as a double in the FastDoubleElements
-  // array.
-  __ StoreNumberToDoubleElements(rax, rbx, rcx, xmm0, &slow);
+  __ RecordWriteNonSmi(rbx, 0, rdx, rcx);
   __ ret(0);
 }
 
@@ -874,22 +846,21 @@ static void GenerateCallMiss(MacroAssembler* masm,
   __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
   // Enter an internal frame.
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
-    // Push the receiver and the name of the function.
-    __ push(rdx);
-    __ push(rcx);
+  // Push the receiver and the name of the function.
+  __ push(rdx);
+  __ push(rcx);
 
-    // Call the entry.
-    CEntryStub stub(1);
-    __ Set(rax, 2);
-    __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
-    __ CallStub(&stub);
+  // Call the entry.
+  CEntryStub stub(1);
+  __ Set(rax, 2);
+  __ LoadAddress(rbx, ExternalReference(IC_Utility(id), masm->isolate()));
+  __ CallStub(&stub);
 
-    // Move result to rdi and exit the internal frame.
-    __ movq(rdi, rax);
-  }
+  // Move result to rdi and exit the internal frame.
+  __ movq(rdi, rax);
+  __ LeaveInternalFrame();
 
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
@@ -1031,14 +1002,13 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // This branch is taken when calling KeyedCallIC_Miss is neither required
   // nor beneficial.
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(rcx);  // save the key
-    __ push(rdx);  // pass the receiver
-    __ push(rcx);  // pass the key
-    __ CallRuntime(Runtime::kKeyedGetProperty, 2);
-    __ pop(rcx);  // restore the key
-  }
+  __ EnterInternalFrame();
+  __ push(rcx);  // save the key
+  __ push(rdx);  // pass the receiver
+  __ push(rcx);  // pass the key
+  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+  __ pop(rcx);  // restore the key
+  __ LeaveInternalFrame();
   __ movq(rdi, rax);
   __ jmp(&do_call);
 
@@ -1242,12 +1212,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ movq(mapped_location, rax);
   __ lea(r9, mapped_location);
   __ movq(r8, rax);
-  __ RecordWrite(rbx,
-                 r9,
-                 r8,
-                 kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET,
-                 INLINE_SMI_CHECK);
+  __ RecordWrite(rbx, r9, r8);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in rbx.
@@ -1256,12 +1221,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   __ movq(unmapped_location, rax);
   __ lea(r9, unmapped_location);
   __ movq(r8, rax);
-  __ RecordWrite(rbx,
-                 r9,
-                 r8,
-                 kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET,
-                 INLINE_SMI_CHECK);
+  __ RecordWrite(rbx, r9, r8);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);

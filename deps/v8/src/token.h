@@ -216,10 +216,6 @@ class Token {
     return op == LT || op == LTE || op == GT || op == GTE;
   }
 
-  static bool IsEqualityOp(Value op) {
-    return op == EQ || op == EQ_STRICT;
-  }
-
   static Value NegateCompareOp(Value op) {
     ASSERT(IsCompareOp(op));
     switch (op) {

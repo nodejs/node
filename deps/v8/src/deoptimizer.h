@@ -86,8 +86,8 @@ class DeoptimizerData {
 #endif
 
  private:
-  MemoryChunk* eager_deoptimization_entry_code_;
-  MemoryChunk* lazy_deoptimization_entry_code_;
+  LargeObjectChunk* eager_deoptimization_entry_code_;
+  LargeObjectChunk* lazy_deoptimization_entry_code_;
   Deoptimizer* current_;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -173,8 +173,7 @@ class Deoptimizer : public Malloced {
 
   // Patch stack guard check at instruction before pc_after in
   // the unoptimized code to unconditionally call replacement_code.
-  static void PatchStackCheckCodeAt(Code* unoptimized_code,
-                                    Address pc_after,
+  static void PatchStackCheckCodeAt(Address pc_after,
                                     Code* check_code,
                                     Code* replacement_code);
 
@@ -212,11 +211,6 @@ class Deoptimizer : public Malloced {
     return OFFSET_OF(Deoptimizer, output_count_);
   }
   static int output_offset() { return OFFSET_OF(Deoptimizer, output_); }
-  static int frame_alignment_marker_offset() {
-    return OFFSET_OF(Deoptimizer, frame_alignment_marker_); }
-  static int has_alignment_padding_offset() {
-    return OFFSET_OF(Deoptimizer, has_alignment_padding_);
-  }
 
   static int GetDeoptimizedCodeCount(Isolate* isolate);
 
@@ -291,7 +285,7 @@ class Deoptimizer : public Malloced {
 
   void AddDoubleValue(intptr_t slot_address, double value);
 
-  static MemoryChunk* CreateCode(BailoutType type);
+  static LargeObjectChunk* CreateCode(BailoutType type);
   static void GenerateDeoptimizationEntries(
       MacroAssembler* masm, int count, BailoutType type);
 
@@ -320,10 +314,6 @@ class Deoptimizer : public Malloced {
   int output_count_;
   // Array of output frame descriptions.
   FrameDescription** output_;
-
-  // Frames can be dynamically padded on ia32 to align untagged doubles.
-  Object* frame_alignment_marker_;
-  intptr_t has_alignment_padding_;
 
   List<HeapNumberMaterializationDescriptor> deferred_heap_numbers_;
 

@@ -208,8 +208,7 @@ static void GenerateDictionaryStore(MacroAssembler* masm,
 
   // Update the write barrier. Make sure not to clobber the value.
   __ mov(scratch1, value);
-  __ RecordWrite(
-      elements, scratch2, scratch1, kLRHasNotBeenSaved, kDontSaveFPRegs);
+  __ RecordWrite(elements, scratch2, scratch1);
 }
 
 
@@ -505,22 +504,21 @@ static void GenerateCallMiss(MacroAssembler* masm,
   // Get the receiver of the function from the stack.
   __ ldr(r3, MemOperand(sp, argc * kPointerSize));
 
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
-    // Push the receiver and the name of the function.
-    __ Push(r3, r2);
+  // Push the receiver and the name of the function.
+  __ Push(r3, r2);
 
-    // Call the entry.
-    __ mov(r0, Operand(2));
-    __ mov(r1, Operand(ExternalReference(IC_Utility(id), isolate)));
+  // Call the entry.
+  __ mov(r0, Operand(2));
+  __ mov(r1, Operand(ExternalReference(IC_Utility(id), isolate)));
 
-    CEntryStub stub(1);
-    __ CallStub(&stub);
+  CEntryStub stub(1);
+  __ CallStub(&stub);
 
-    // Move result to r1 and leave the internal frame.
-    __ mov(r1, Operand(r0));
-  }
+  // Move result to r1 and leave the internal frame.
+  __ mov(r1, Operand(r0));
+  __ LeaveInternalFrame();
 
   // Check if the receiver is a global object of some sort.
   // This can happen only for regular CallIC but not KeyedCallIC.
@@ -652,13 +650,12 @@ void KeyedCallIC::GenerateMegamorphic(MacroAssembler* masm, int argc) {
   // This branch is taken when calling KeyedCallIC_Miss is neither required
   // nor beneficial.
   __ IncrementCounter(counters->keyed_call_generic_slow_load(), 1, r0, r3);
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
-    __ push(r2);  // save the key
-    __ Push(r1, r2);  // pass the receiver and the key
-    __ CallRuntime(Runtime::kKeyedGetProperty, 2);
-    __ pop(r2);  // restore the key
-  }
+  __ EnterInternalFrame();
+  __ push(r2);  // save the key
+  __ Push(r1, r2);  // pass the receiver and the key
+  __ CallRuntime(Runtime::kKeyedGetProperty, 2);
+  __ pop(r2);  // restore the key
+  __ LeaveInternalFrame();
   __ mov(r1, r0);
   __ jmp(&do_call);
 
@@ -911,8 +908,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
       GenerateMappedArgumentsLookup(masm, r2, r1, r3, r4, r5, &notin, &slow);
   __ str(r0, mapped_location);
   __ add(r6, r3, r5);
-  __ mov(r9, r0);
-  __ RecordWrite(r3, r6, r9, kLRHasNotBeenSaved, kDontSaveFPRegs);
+  __ RecordWrite(r3, r6, r9);
   __ Ret();
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in r3.
@@ -920,8 +916,7 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
       GenerateUnmappedArgumentsLookup(masm, r1, r3, r4, &slow);
   __ str(r0, unmapped_location);
   __ add(r6, r3, r4);
-  __ mov(r9, r0);
-  __ RecordWrite(r3, r6, r9, kLRHasNotBeenSaved, kDontSaveFPRegs);
+  __ RecordWrite(r3, r6, r9);
   __ Ret();
   __ bind(&slow);
   GenerateMiss(masm, false);
@@ -1272,17 +1267,13 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   //  -- r2     : receiver
   //  -- lr     : return address
   // -----------------------------------
-  Label slow, array, extra, check_if_double_array;
-  Label fast_object_with_map_check, fast_object_without_map_check;
-  Label fast_double_with_map_check, fast_double_without_map_check;
+  Label slow, fast, array, extra;
 
   // Register usage.
   Register value = r0;
   Register key = r1;
   Register receiver = r2;
   Register elements = r3;  // Elements array of the receiver.
-  Register elements_map = r6;
-  Register receiver_map = r7;
   // r4 and r5 are used as general scratch registers.
 
   // Check that the key is a smi.
@@ -1290,26 +1281,35 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // Check that the object isn't a smi.
   __ JumpIfSmi(receiver, &slow);
   // Get the map of the object.
-  __ ldr(receiver_map, FieldMemOperand(receiver, HeapObject::kMapOffset));
+  __ ldr(r4, FieldMemOperand(receiver, HeapObject::kMapOffset));
   // Check that the receiver does not require access checks.  We need
   // to do this because this generic stub does not perform map checks.
-  __ ldrb(ip, FieldMemOperand(receiver_map, Map::kBitFieldOffset));
+  __ ldrb(ip, FieldMemOperand(r4, Map::kBitFieldOffset));
   __ tst(ip, Operand(1 << Map::kIsAccessCheckNeeded));
   __ b(ne, &slow);
   // Check if the object is a JS array or not.
-  __ ldrb(r4, FieldMemOperand(receiver_map, Map::kInstanceTypeOffset));
+  __ ldrb(r4, FieldMemOperand(r4, Map::kInstanceTypeOffset));
   __ cmp(r4, Operand(JS_ARRAY_TYPE));
   __ b(eq, &array);
   // Check that the object is some kind of JSObject.
-  __ cmp(r4, Operand(FIRST_JS_OBJECT_TYPE));
+  __ cmp(r4, Operand(FIRST_JS_RECEIVER_TYPE));
   __ b(lt, &slow);
+  __ cmp(r4, Operand(JS_PROXY_TYPE));
+  __ b(eq, &slow);
+  __ cmp(r4, Operand(JS_FUNCTION_PROXY_TYPE));
+  __ b(eq, &slow);
 
   // Object case: Check key against length in the elements array.
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  // Check that the object is in fast mode and writable.
+  __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+  __ cmp(r4, ip);
+  __ b(ne, &slow);
   // Check array bounds. Both the key and the length of FixedArray are smis.
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmp(key, Operand(ip));
-  __ b(lo, &fast_object_with_map_check);
+  __ b(lo, &fast);
 
   // Slow case, handle jump to runtime.
   __ bind(&slow);
@@ -1330,31 +1330,21 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ldr(ip, FieldMemOperand(elements, FixedArray::kLengthOffset));
   __ cmp(key, Operand(ip));
   __ b(hs, &slow);
-  __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ cmp(elements_map,
-         Operand(masm->isolate()->factory()->fixed_array_map()));
-  __ b(ne, &check_if_double_array);
   // Calculate key + 1 as smi.
   STATIC_ASSERT(kSmiTag == 0);
   __ add(r4, key, Operand(Smi::FromInt(1)));
   __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
-  __ b(&fast_object_without_map_check);
-
-  __ bind(&check_if_double_array);
-  __ cmp(elements_map,
-         Operand(masm->isolate()->factory()->fixed_double_array_map()));
-  __ b(ne, &slow);
-  // Add 1 to key, and go to common element store code for doubles.
-  STATIC_ASSERT(kSmiTag == 0);
-  __ add(r4, key, Operand(Smi::FromInt(1)));
-  __ str(r4, FieldMemOperand(receiver, JSArray::kLengthOffset));
-  __ jmp(&fast_double_without_map_check);
+  __ b(&fast);
 
   // Array case: Get the length and the elements array from the JS
   // array. Check that the array is in fast mode (and writable); if it
   // is the length is always a smi.
   __ bind(&array);
   __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ ldr(r4, FieldMemOperand(elements, HeapObject::kMapOffset));
+  __ LoadRoot(ip, Heap::kFixedArrayMapRootIndex);
+  __ cmp(r4, ip);
+  __ b(ne, &slow);
 
   // Check the key against the length in the array.
   __ ldr(ip, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1362,57 +1352,18 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ b(hs, &extra);
   // Fall through to fast case.
 
-  __ bind(&fast_object_with_map_check);
-  Register scratch_value = r4;
-  Register address = r5;
-  __ ldr(elements_map, FieldMemOperand(elements, HeapObject::kMapOffset));
-  __ cmp(elements_map,
-         Operand(masm->isolate()->factory()->fixed_array_map()));
-  __ b(ne, &fast_double_with_map_check);
-  __ bind(&fast_object_without_map_check);
-  // Smi stores don't require further checks.
-  Label non_smi_value;
-  __ JumpIfNotSmi(value, &non_smi_value);
-  // It's irrelevant whether array is smi-only or not when writing a smi.
-  __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ str(value, MemOperand(address));
-  __ Ret();
-
-  __ bind(&non_smi_value);
-  // Escape to slow case when writing non-smi into smi-only array.
-  __ CheckFastObjectElements(receiver_map, scratch_value, &slow);
-  // Fast elements array, store the value to the elements backing store.
-  __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
-  __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
-  __ str(value, MemOperand(address));
+  __ bind(&fast);
+  // Fast case, store the value to the elements backing store.
+  __ add(r5, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
+  __ add(r5, r5, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
+  __ str(value, MemOperand(r5));
+  // Skip write barrier if the written value is a smi.
+  __ tst(value, Operand(kSmiTagMask));
+  __ Ret(eq);
   // Update write barrier for the elements array address.
-  __ mov(scratch_value, value);  // Preserve the value which is returned.
-  __ RecordWrite(elements,
-                 address,
-                 scratch_value,
-                 kLRHasNotBeenSaved,
-                 kDontSaveFPRegs,
-                 EMIT_REMEMBERED_SET,
-                 OMIT_SMI_CHECK);
-  __ Ret();
+  __ sub(r4, r5, Operand(elements));
+  __ RecordWrite(elements, Operand(r4), r5, r6);
 
-  __ bind(&fast_double_with_map_check);
-  // Check for fast double array case. If this fails, call through to the
-  // runtime.
-  __ cmp(elements_map,
-         Operand(masm->isolate()->factory()->fixed_double_array_map()));
-  __ b(ne, &slow);
-  __ bind(&fast_double_without_map_check);
-  __ StoreNumberToDoubleElements(value,
-                                 key,
-                                 receiver,
-                                 elements,
-                                 r4,
-                                 r5,
-                                 r6,
-                                 r7,
-                                 &slow);
   __ Ret();
 }
 

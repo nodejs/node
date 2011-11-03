@@ -215,12 +215,6 @@ struct XMMRegister {
     return names[index];
   }
 
-  static XMMRegister from_code(int code) {
-    ASSERT(code >= 0);
-    ASSERT(code < kNumRegisters);
-    XMMRegister r = { code };
-    return r;
-  }
   bool is_valid() const { return 0 <= code_ && code_ < kNumRegisters; }
   bool is(XMMRegister reg) const { return code_ == reg.code_; }
   int code() const {
@@ -739,10 +733,6 @@ class Assembler : public AssemblerBase {
 
   void addl(const Operand& dst, Immediate src) {
     immediate_arithmetic_op_32(0x0, dst, src);
-  }
-
-  void addl(const Operand& dst, Register src) {
-    arithmetic_op_32(0x01, src, dst);
   }
 
   void addq(Register dst, Register src) {
@@ -1404,14 +1394,13 @@ class Assembler : public AssemblerBase {
   static const int kMaximalBufferSize = 512*MB;
   static const int kMinimalBufferSize = 4*KB;
 
-  byte byte_at(int pos)  { return buffer_[pos]; }
-  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
-
  protected:
   bool emit_debug_code() const { return emit_debug_code_; }
 
  private:
   byte* addr_at(int pos)  { return buffer_ + pos; }
+  byte byte_at(int pos)  { return buffer_[pos]; }
+  void set_byte_at(int pos, byte value) { buffer_[pos] = value; }
   uint32_t long_at(int pos)  {
     return *reinterpret_cast<uint32_t*>(addr_at(pos));
   }

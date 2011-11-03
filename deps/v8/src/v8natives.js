@@ -193,14 +193,13 @@ function GlobalEval(x) {
 function SetUpGlobal() {
   %CheckIsBootstrapping();
   // ECMA 262 - 15.1.1.1.
-  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "NaN", $NaN, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.2.
-  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "Infinity", 1/0, DONT_ENUM | DONT_DELETE);
 
   // ECMA-262 - 15.1.1.3.
-  %SetProperty(global, "undefined", void 0,
-               DONT_ENUM | DONT_DELETE | READ_ONLY);
+  %SetProperty(global, "undefined", void 0, DONT_ENUM | DONT_DELETE);
 
   // Set up non-enumerable function on the global object.
   InstallFunctions(global, DONT_ENUM, $Array(
@@ -690,7 +689,12 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 
 // ES5 8.12.9.
-function DefineObjectProperty(obj, p, desc, should_throw) {
+function DefineOwnProperty(obj, p, desc, should_throw) {
+  if (%IsJSProxy(obj)) {
+    var attributes = FromGenericPropertyDescriptor(desc);
+    return DefineProxyProperty(obj, p, attributes, should_throw);
+  }
+
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
   if (current_or_access === false) return void 0;
@@ -851,63 +855,6 @@ function DefineObjectProperty(obj, p, desc, should_throw) {
     }
   }
   return true;
-}
-
-
-// ES5 section 15.4.5.1.
-function DefineArrayProperty(obj, p, desc, should_throw) {
-  var length_desc = GetOwnProperty(obj, "length");
-  var length = length_desc.getValue();
-
-  // Step 3 - Special handling for the length property.
-  if (p == "length") {
-    if (!desc.hasValue()) {
-      return DefineObjectProperty(obj, "length", desc, should_throw);
-    }
-    var new_length = ToUint32(desc.getValue());
-    if (new_length != ToNumber(desc.getValue())) {
-      throw new $RangeError('defineProperty() array length out of range');
-    }
-    // TODO(1756): There still are some uncovered corner cases left on how to
-    // handle changes to the length property of arrays.
-    return DefineObjectProperty(obj, "length", desc, should_throw);
-  }
-
-  // Step 4 - Special handling for array index.
-  var index = ToUint32(p);
-  if (index == ToNumber(p) && index != 4294967295) {
-    if ((index >= length && !length_desc.isWritable()) ||
-        !DefineObjectProperty(obj, p, desc, true)) {
-      if (should_throw) {
-        throw MakeTypeError("define_disallowed", [p]);
-      } else {
-        return;
-      }
-    }
-    if (index >= length) {
-      // TODO(mstarzinger): We should actually set the value of the property
-      // descriptor here and pass it to DefineObjectProperty(). Take a look at
-      // ES5 section 15.4.5.1, step 4.e.i and 4.e.ii for details.
-      obj.length = index + 1;
-    }
-    return true;
-  }
-
-  // Step 5 - Fallback to default implementation.
-  return DefineObjectProperty(obj, p, desc, should_throw);
-}
-
-
-// ES5 section 8.12.9, ES5 section 15.4.5.1 and Harmony proxies.
-function DefineOwnProperty(obj, p, desc, should_throw) {
-  if (%IsJSProxy(obj)) {
-    var attributes = FromGenericPropertyDescriptor(desc);
-    return DefineProxyProperty(obj, p, attributes, should_throw);
-  } else if (IS_ARRAY(obj)) {
-    return DefineArrayProperty(obj, p, desc, should_throw);
-  } else {
-    return DefineObjectProperty(obj, p, desc, should_throw);
-  }
 }
 
 
@@ -1095,21 +1042,12 @@ function ProxyFix(obj) {
     throw MakeTypeError("handler_returned_undefined", [handler, "fix"]);
   }
 
-  if (%IsJSFunctionProxy(obj)) {
+  if (IS_SPEC_FUNCTION(obj)) {
     var callTrap = %GetCallTrap(obj);
     var constructTrap = %GetConstructTrap(obj);
     var code = DelegateCallAndConstruct(callTrap, constructTrap);
     %Fix(obj);  // becomes a regular function
     %SetCode(obj, code);
-    // TODO(rossberg): What about length and other properties? Not specified.
-    // We just put in some half-reasonable defaults for now.
-    var prototype = new $Object();
-    $Object.defineProperty(prototype, "constructor",
-      {value: obj, writable: true, enumerable: false, configrable: true});
-    $Object.defineProperty(obj, "prototype",
-      {value: prototype, writable: true, enumerable: false, configrable: false})
-    $Object.defineProperty(obj, "length",
-      {value: 0, writable: true, enumerable: false, configrable: false});
   } else {
     %Fix(obj);
   }

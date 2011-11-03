@@ -30,7 +30,6 @@
 
 #include "allocation.h"
 #include "arguments.h"
-#include "ic-inl.h"
 #include "macro-assembler.h"
 #include "objects.h"
 #include "zone-inl.h"
@@ -188,7 +187,7 @@ class StubCache {
 
   MUST_USE_RESULT MaybeObject* ComputeKeyedLoadOrStoreElement(
       JSObject* receiver,
-      KeyedIC::StubKind stub_kind,
+      bool is_store,
       StrictModeFlag strict_mode);
 
   // ---
@@ -641,7 +640,7 @@ class KeyedLoadStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileLoadElement(Map* receiver_map);
 
-  MUST_USE_RESULT MaybeObject* CompileLoadPolymorphic(
+  MUST_USE_RESULT MaybeObject* CompileLoadMegamorphic(
       MapList* receiver_maps,
       CodeList* handler_ics);
 
@@ -700,14 +699,12 @@ class KeyedStoreStubCompiler: public StubCompiler {
 
   MUST_USE_RESULT MaybeObject* CompileStoreElement(Map* receiver_map);
 
-  MUST_USE_RESULT MaybeObject* CompileStorePolymorphic(
+  MUST_USE_RESULT MaybeObject* CompileStoreMegamorphic(
       MapList* receiver_maps,
-      CodeList* handler_stubs,
-      MapList* transitioned_maps);
+      CodeList* handler_ics);
 
   static void GenerateStoreFastElement(MacroAssembler* masm,
-                                       bool is_js_array,
-                                       ElementsKind element_kind);
+                                       bool is_js_array);
 
   static void GenerateStoreFastDoubleElement(MacroAssembler* masm,
                                              bool is_js_array);

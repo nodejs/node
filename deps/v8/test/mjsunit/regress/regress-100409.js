@@ -25,103 +25,31 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --always-compact --expose-gc
+// Flags: --allow-natives-syntax
 
-var O = { get f() { return 0; } };
+function outer () {
+  var val = 0;
 
-var CODE = [];
-
-var R = [];
-
-function Allocate4Kb(N) {
-  var arr = [];
-  do {arr.push(new Array(1024));} while (--N > 0);
-  return arr;
-}
-
-function AllocateXMb(X) {
-  return Allocate4Kb((1024 * X) / 4);
-}
-
-function Node(v, next) { this.v = v; this.next = next; }
-
-Node.prototype.execute = function (O) {
-  var n = this;
-  while (n.next !== null) n = n.next;
-  n.v(O);
-};
-
-function LongList(N, x) {
-  if (N == 0) return new Node(x, null);
-  return new Node(new Array(1024), LongList(N - 1, x));
-}
-
-var L = LongList(1024, function (O) {
-  for (var i = 0; i < 5; i++) O.f;
-});
-
-
-
-function Incremental(O, x) {
-  if (!x) {
-    return;
-  }
-  function CreateCode(i) {
-    var f = new Function("return O.f_" + i);
-    CODE.push(f);
-    f(); // compile
-    f(); // compile
-    f(); // compile
+  function foo () {
+    val = 0;
+    val;
+    var z = false;
+    var y = true;
+    if (!z) {
+      while (z = !z) {
+        if (y) val++;
+      }
+    }
+    return val++;
   }
 
-  for (var i = 0; i < 1e4; i++) CreateCode(i);
-  gc();
-  gc();
-  gc();
-
-  print(">>> 1 <<<");
-
-  L.execute(O);
-
-  try {} catch (e) {}
-
-  L = null;
-  print(">>> 2 <<<");
-  AllocateXMb(8);
- //rint("1");
- //llocateXMb(8);
- //rint("1");
- //llocateXMb(8);
-
+  return foo;
 }
 
-function foo(O, x) {
-  Incremental(O, x);
 
-  print('f');
+var foo = outer();
 
-  for (var i = 0; i < 5; i++) O.f;
-
-
-  print('g');
-
-  bar(x);
-}
-
-function bar(x) {
-  if (!x) return;
-  %DeoptimizeFunction(foo);
-  AllocateXMb(8);
-  AllocateXMb(8);
-}
-
-var O1 = {};
-var O2 = {};
-var O3 = {};
-var O4 = {f:0};
-
-foo(O1, false);
-foo(O2, false);
-foo(O3, false);
-%OptimizeFunctionOnNextCall(foo);
-foo(O4, true);
+assertEquals(1, foo());
+assertEquals(1, foo());
+    %OptimizeFunctionOnNextCall(foo);
+assertEquals(1, foo());

@@ -243,13 +243,11 @@ class HGraph: public ZoneObject {
 
   // Returns false if there are phi-uses of the arguments-object
   // which are not supported by the optimizing compiler.
-  bool CheckArgumentsPhiUses();
+  bool CheckPhis();
 
-  // Returns false if there are phi-uses of an uninitialized const
-  // which are not supported by the optimizing compiler.
-  bool CheckConstPhiUses();
-
-  void CollectPhis();
+  // Returns false if there are phi-uses of hole values comming
+  // from uninitialized consts.
+  bool CollectPhis();
 
   Handle<Code> Compile(CompilationInfo* info);
 
@@ -285,7 +283,7 @@ class HGraph: public ZoneObject {
   }
 
 #ifdef DEBUG
-  void Verify(bool do_full_verify) const;
+  void Verify() const;
 #endif
 
  private:
@@ -782,7 +780,7 @@ class HGraphBuilder: public AstVisitor {
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
   void HandleDeclaration(VariableProxy* proxy,
-                         VariableMode mode,
+                         Variable::Mode mode,
                          FunctionLiteral* function);
 
   void VisitDelete(UnaryOperation* expr);
@@ -912,13 +910,11 @@ class HGraphBuilder: public AstVisitor {
                                   HValue* receiver,
                                   SmallMapList* types,
                                   Handle<String> name);
-  bool TryLiteralCompare(CompareOperation* expr);
-  void HandleLiteralCompareTypeof(CompareOperation* expr,
-                                  Expression* sub_expr,
+  void HandleLiteralCompareTypeof(CompareOperation* compare_expr,
+                                  Expression* expr,
                                   Handle<String> check);
-  void HandleLiteralCompareNil(CompareOperation* expr,
-                               Expression* sub_expr,
-                               NilValue nil);
+  void HandleLiteralCompareUndefined(CompareOperation* compare_expr,
+                                     Expression* expr);
 
   HStringCharCodeAt* BuildStringCharCodeAt(HValue* context,
                                            HValue* string,
@@ -942,11 +938,6 @@ class HGraphBuilder: public AstVisitor {
       HValue* val,
       ElementsKind elements_kind,
       bool is_store);
-  HInstruction* BuildFastElementAccess(HValue* elements,
-                                       HValue* checked_key,
-                                       HValue* val,
-                                       ElementsKind elements_kind,
-                                       bool is_store);
 
   HInstruction* BuildMonomorphicElementAccess(HValue* object,
                                               HValue* key,

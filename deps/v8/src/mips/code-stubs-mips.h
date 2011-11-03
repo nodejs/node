@@ -59,25 +59,6 @@ class TranscendentalCacheStub: public CodeStub {
 };
 
 
-class StoreBufferOverflowStub: public CodeStub {
- public:
-  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
-      : save_doubles_(save_fp) { }
-
-  void Generate(MacroAssembler* masm);
-
-  virtual bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
- private:
-  SaveFPRegsMode save_doubles_;
-
-  Major MajorKey() { return StoreBufferOverflow; }
-  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
-};
-
-
 class UnaryOpStub: public CodeStub {
  public:
   UnaryOpStub(Token::Value op,
@@ -343,15 +324,7 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
       : the_int_(the_int),
         the_heap_number_(the_heap_number),
         scratch_(scratch),
-        sign_(scratch2) {
-    ASSERT(IntRegisterBits::is_valid(the_int_.code()));
-    ASSERT(HeapNumberRegisterBits::is_valid(the_heap_number_.code()));
-    ASSERT(ScratchRegisterBits::is_valid(scratch_.code()));
-    ASSERT(SignRegisterBits::is_valid(sign_.code()));
-  }
-
-  bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
+        sign_(scratch2) { }
 
  private:
   Register the_int_;
@@ -363,15 +336,13 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
   class IntRegisterBits: public BitField<int, 0, 4> {};
   class HeapNumberRegisterBits: public BitField<int, 4, 4> {};
   class ScratchRegisterBits: public BitField<int, 8, 4> {};
-  class SignRegisterBits: public BitField<int, 12, 4> {};
 
   Major MajorKey() { return WriteInt32ToHeapNumber; }
   int MinorKey() {
     // Encode the parameters in a unique 16 bit value.
     return IntRegisterBits::encode(the_int_.code())
            | HeapNumberRegisterBits::encode(the_heap_number_.code())
-           | ScratchRegisterBits::encode(scratch_.code())
-           | SignRegisterBits::encode(sign_.code());
+           | ScratchRegisterBits::encode(scratch_.code());
   }
 
   void Generate(MacroAssembler* masm);
@@ -401,215 +372,6 @@ class NumberToStringStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
-};
-
-
-class RecordWriteStub: public CodeStub {
- public:
-  RecordWriteStub(Register object,
-                  Register value,
-                  Register address,
-                  RememberedSetAction remembered_set_action,
-                  SaveFPRegsMode fp_mode)
-      : object_(object),
-        value_(value),
-        address_(address),
-        remembered_set_action_(remembered_set_action),
-        save_fp_regs_mode_(fp_mode),
-        regs_(object,   // An input reg.
-              address,  // An input reg.
-              value) {  // One scratch reg.
-  }
-
-  enum Mode {
-    STORE_BUFFER_ONLY,
-    INCREMENTAL,
-    INCREMENTAL_COMPACTION
-  };
-
-  virtual bool IsPregenerated();
-  static void GenerateFixedRegStubsAheadOfTime();
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
-  static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
-    const unsigned offset = masm->instr_at(pos) & kImm16Mask;
-    masm->instr_at_put(pos, BNE | (zero_reg.code() << kRsShift) |
-        (zero_reg.code() << kRtShift) | (offset & kImm16Mask));
-    ASSERT(Assembler::IsBne(masm->instr_at(pos)));
-  }
-
-  static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
-    const unsigned offset = masm->instr_at(pos) & kImm16Mask;
-    masm->instr_at_put(pos, BEQ | (zero_reg.code() << kRsShift) |
-        (zero_reg.code() << kRtShift) | (offset & kImm16Mask));
-    ASSERT(Assembler::IsBeq(masm->instr_at(pos)));
-  }
-
-  static Mode GetMode(Code* stub) {
-    Instr first_instruction = Assembler::instr_at(stub->instruction_start());
-    Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
-                                                   2 * Assembler::kInstrSize);
-
-    if (Assembler::IsBeq(first_instruction)) {
-      return INCREMENTAL;
-    }
-
-    ASSERT(Assembler::IsBne(first_instruction));
-
-    if (Assembler::IsBeq(second_instruction)) {
-      return INCREMENTAL_COMPACTION;
-    }
-
-    ASSERT(Assembler::IsBne(second_instruction));
-
-    return STORE_BUFFER_ONLY;
-  }
-
-  static void Patch(Code* stub, Mode mode) {
-    MacroAssembler masm(NULL,
-                        stub->instruction_start(),
-                        stub->instruction_size());
-    switch (mode) {
-      case STORE_BUFFER_ONLY:
-        ASSERT(GetMode(stub) == INCREMENTAL ||
-               GetMode(stub) == INCREMENTAL_COMPACTION);
-        PatchBranchIntoNop(&masm, 0);
-        PatchBranchIntoNop(&masm, 2 * Assembler::kInstrSize);
-        break;
-      case INCREMENTAL:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
-        PatchNopIntoBranch(&masm, 0);
-        break;
-      case INCREMENTAL_COMPACTION:
-        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
-        PatchNopIntoBranch(&masm, 2 * Assembler::kInstrSize);
-        break;
-    }
-    ASSERT(GetMode(stub) == mode);
-    CPU::FlushICache(stub->instruction_start(), 4 * Assembler::kInstrSize);
-  }
-
- private:
-  // This is a helper class for freeing up 3 scratch registers.  The input is
-  // two registers that must be preserved and one scratch register provided by
-  // the caller.
-  class RegisterAllocation {
-   public:
-    RegisterAllocation(Register object,
-                       Register address,
-                       Register scratch0)
-        : object_(object),
-          address_(address),
-          scratch0_(scratch0) {
-      ASSERT(!AreAliased(scratch0, object, address, no_reg));
-      scratch1_ = GetRegThatIsNotOneOf(object_, address_, scratch0_);
-    }
-
-    void Save(MacroAssembler* masm) {
-      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
-      // We don't have to save scratch0_ because it was given to us as
-      // a scratch register.
-      masm->push(scratch1_);
-    }
-
-    void Restore(MacroAssembler* masm) {
-      masm->pop(scratch1_);
-    }
-
-    // If we have to call into C then we need to save and restore all caller-
-    // saved registers that were not already preserved.  The scratch registers
-    // will be restored by other means so we don't bother pushing them here.
-    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
-      masm->MultiPush((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());
-      if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(FPU);
-        masm->MultiPushFPU(kCallerSavedFPU);
-      }
-    }
-
-    inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
-                                           SaveFPRegsMode mode) {
-      if (mode == kSaveFPRegs) {
-        CpuFeatures::Scope scope(FPU);
-        masm->MultiPopFPU(kCallerSavedFPU);
-      }
-      masm->MultiPop((kJSCallerSaved | ra.bit()) & ~scratch1_.bit());
-    }
-
-    inline Register object() { return object_; }
-    inline Register address() { return address_; }
-    inline Register scratch0() { return scratch0_; }
-    inline Register scratch1() { return scratch1_; }
-
-   private:
-    Register object_;
-    Register address_;
-    Register scratch0_;
-    Register scratch1_;
-
-    Register GetRegThatIsNotOneOf(Register r1,
-                                  Register r2,
-                                  Register r3) {
-      for (int i = 0; i < Register::kNumAllocatableRegisters; i++) {
-        Register candidate = Register::FromAllocationIndex(i);
-        if (candidate.is(r1)) continue;
-        if (candidate.is(r2)) continue;
-        if (candidate.is(r3)) continue;
-        return candidate;
-      }
-      UNREACHABLE();
-      return no_reg;
-    }
-    friend class RecordWriteStub;
-  };
-
-  enum OnNoNeedToInformIncrementalMarker {
-    kReturnOnNoNeedToInformIncrementalMarker,
-    kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
-  };
-
-  void Generate(MacroAssembler* masm);
-  void GenerateIncremental(MacroAssembler* masm, Mode mode);
-  void CheckNeedsToInformIncrementalMarker(
-      MacroAssembler* masm,
-      OnNoNeedToInformIncrementalMarker on_no_need,
-      Mode mode);
-  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
-
-  Major MajorKey() { return RecordWrite; }
-
-  int MinorKey() {
-    return ObjectBits::encode(object_.code()) |
-        ValueBits::encode(value_.code()) |
-        AddressBits::encode(address_.code()) |
-        RememberedSetActionBits::encode(remembered_set_action_) |
-        SaveFPRegsModeBits::encode(save_fp_regs_mode_);
-  }
-
-  bool MustBeInStubCache() {
-    // All stubs must be registered in the stub cache
-    // otherwise IncrementalMarker would not be able to find
-    // and patch it.
-    return true;
-  }
-
-  void Activate(Code* code) {
-    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
-  }
-
-  class ObjectBits: public BitField<int, 0, 5> {};
-  class ValueBits: public BitField<int, 5, 5> {};
-  class AddressBits: public BitField<int, 10, 5> {};
-  class RememberedSetActionBits: public BitField<RememberedSetAction, 15, 1> {};
-  class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 16, 1> {};
-
-  Register object_;
-  Register value_;
-  Register address_;
-  RememberedSetAction remembered_set_action_;
-  SaveFPRegsMode save_fp_regs_mode_;
-  Label slow_;
-  RegisterAllocation regs_;
 };
 
 
@@ -816,8 +578,6 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Register r0,
                                      Register r1);
 
-  virtual bool SometimesSetsUpAFrame() { return false; }
-
  private:
   static const int kInlinedProbes = 4;
   static const int kTotalProbes = 20;
@@ -830,7 +590,7 @@ class StringDictionaryLookupStub: public CodeStub {
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryLookup; }
+  Major MajorKey() { return StringDictionaryNegativeLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

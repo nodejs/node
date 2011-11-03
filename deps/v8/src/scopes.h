@@ -50,7 +50,7 @@ class VariableMap: public HashMap {
 
   Variable* Declare(Scope* scope,
                     Handle<String> name,
-                    VariableMode mode,
+                    Variable::Mode mode,
                     bool is_valid_lhs,
                     Variable::Kind kind);
 
@@ -64,8 +64,8 @@ class VariableMap: public HashMap {
 // and setup time for scopes that don't need them.
 class DynamicScopePart : public ZoneObject {
  public:
-  VariableMap* GetMap(VariableMode mode) {
-    int index = mode - DYNAMIC;
+  VariableMap* GetMap(Variable::Mode mode) {
+    int index = mode - Variable::DYNAMIC;
     ASSERT(index >= 0 && index < 3);
     return &maps_[index];
   }
@@ -135,11 +135,11 @@ class Scope: public ZoneObject {
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
   // expects all parameters to be declared and from left to right.
-  void DeclareParameter(Handle<String> name, VariableMode mode);
+  void DeclareParameter(Handle<String> name, Variable::Mode mode);
 
   // Declare a local variable in this scope. If the variable has been
   // declared before, the previously declared variable is returned.
-  Variable* DeclareLocal(Handle<String> name, VariableMode mode);
+  Variable* DeclareLocal(Handle<String> name, Variable::Mode mode);
 
   // Declare an implicit global variable in this scope which must be a
   // global scope.  The variable was introduced (possibly from an inner
@@ -406,7 +406,7 @@ class Scope: public ZoneObject {
 
   // Create a non-local variable with a given name.
   // These variables are looked up dynamically at runtime.
-  Variable* NonLocal(Handle<String> name, VariableMode mode);
+  Variable* NonLocal(Handle<String> name, Variable::Mode mode);
 
   // Variable resolution.
   Variable* LookupRecursive(Handle<String> name,

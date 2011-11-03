@@ -245,7 +245,7 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) OS::Free(memory_, size_);
+  if (memory_) munmap(memory_, size_);
   fclose(file_);
 }
 
@@ -342,8 +342,7 @@ VirtualMemory::VirtualMemory(size_t size) {
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    OS::Free(address(), size());
-    address_ = MAP_FAILED
+    if (0 == munmap(address(), size())) address_ = MAP_FAILED;
   }
 }
 

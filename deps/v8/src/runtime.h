@@ -330,8 +330,6 @@ namespace internal {
   F(InitializeConstContextSlot, 3, 1) \
   F(OptimizeObjectForAddingMultipleProperties, 2, 1) \
   \
-  /* Arrays */ \
-  F(NonSmiElementStored, 1, 1) \
   /* Debugging */ \
   F(DebugPrint, 1, 1) \
   F(DebugTrace, 0, 1) \
@@ -356,7 +354,6 @@ namespace internal {
   F(IS_VAR, 1, 1) \
   \
   /* expose boolean functions from objects-inl.h */ \
-  F(HasFastSmiOnlyElements, 1, 1) \
   F(HasFastElements, 1, 1) \
   F(HasFastDoubleElements, 1, 1) \
   F(HasDictionaryElements, 1, 1) \
@@ -370,7 +367,6 @@ namespace internal {
   F(HasExternalUnsignedIntElements, 1, 1) \
   F(HasExternalFloatElements, 1, 1) \
   F(HasExternalDoubleElements, 1, 1) \
-  F(HaveSameMap, 2, 1) \
   /* profiler */ \
   F(ProfilerResume, 0, 1) \
   F(ProfilerPause, 0, 1)

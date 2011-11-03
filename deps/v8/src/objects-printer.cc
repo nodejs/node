@@ -82,17 +82,11 @@ void HeapObject::HeapObjectPrint(FILE* out) {
     case HEAP_NUMBER_TYPE:
       HeapNumber::cast(this)->HeapNumberPrint(out);
       break;
-    case FIXED_DOUBLE_ARRAY_TYPE:
-      FixedDoubleArray::cast(this)->FixedDoubleArrayPrint(out);
-      break;
     case FIXED_ARRAY_TYPE:
       FixedArray::cast(this)->FixedArrayPrint(out);
       break;
     case BYTE_ARRAY_TYPE:
       ByteArray::cast(this)->ByteArrayPrint(out);
-      break;
-    case FREE_SPACE_TYPE:
-      FreeSpace::cast(this)->FreeSpacePrint(out);
       break;
     case EXTERNAL_PIXEL_ARRAY_TYPE:
       ExternalPixelArray::cast(this)->ExternalPixelArrayPrint(out);
@@ -195,11 +189,6 @@ void ByteArray::ByteArrayPrint(FILE* out) {
 }
 
 
-void FreeSpace::FreeSpacePrint(FILE* out) {
-  PrintF(out, "free space, size %d", Size());
-}
-
-
 void ExternalPixelArray::ExternalPixelArrayPrint(FILE* out) {
   PrintF(out, "external pixel array");
 }
@@ -245,54 +234,6 @@ void ExternalDoubleArray::ExternalDoubleArrayPrint(FILE* out) {
 }
 
 
-static void PrintElementsKind(FILE* out, ElementsKind kind) {
-  switch (kind) {
-    case FAST_SMI_ONLY_ELEMENTS:
-      PrintF(out, "FAST_SMI_ONLY_ELEMENTS");
-      break;
-    case FAST_ELEMENTS:
-      PrintF(out, "FAST_ELEMENTS");
-      break;
-    case FAST_DOUBLE_ELEMENTS:
-      PrintF(out, "FAST_DOUBLE_ELEMENTS");
-      break;
-    case DICTIONARY_ELEMENTS:
-      PrintF(out, "DICTIONARY_ELEMENTS");
-      break;
-    case NON_STRICT_ARGUMENTS_ELEMENTS:
-      PrintF(out, "NON_STRICT_ARGUMENTS_ELEMENTS");
-      break;
-    case EXTERNAL_BYTE_ELEMENTS:
-      PrintF(out, "EXTERNAL_BYTE_ELEMENTS");
-      break;
-    case EXTERNAL_UNSIGNED_BYTE_ELEMENTS:
-      PrintF(out, "EXTERNAL_UNSIGNED_BYTE_ELEMENTS");
-      break;
-    case EXTERNAL_SHORT_ELEMENTS:
-      PrintF(out, "EXTERNAL_SHORT_ELEMENTS");
-      break;
-    case EXTERNAL_UNSIGNED_SHORT_ELEMENTS:
-      PrintF(out, "EXTERNAL_UNSIGNED_SHORT_ELEMENTS");
-      break;
-    case EXTERNAL_INT_ELEMENTS:
-      PrintF(out, "EXTERNAL_INT_ELEMENTS");
-      break;
-    case EXTERNAL_UNSIGNED_INT_ELEMENTS:
-      PrintF(out, "EXTERNAL_UNSIGNED_INT_ELEMENTS");
-      break;
-    case EXTERNAL_FLOAT_ELEMENTS:
-      PrintF(out, "EXTERNAL_FLOAT_ELEMENTS");
-      break;
-    case EXTERNAL_DOUBLE_ELEMENTS:
-      PrintF(out, "EXTERNAL_DOUBLE_ELEMENTS");
-      break;
-    case EXTERNAL_PIXEL_ELEMENTS:
-      PrintF(out, "EXTERNAL_DOUBLE_ELEMENTS");
-      break;
-  }
-}
-
-
 void JSObject::PrintProperties(FILE* out) {
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
@@ -315,33 +256,14 @@ void JSObject::PrintProperties(FILE* out) {
           descs->GetCallbacksObject(i)->ShortPrint(out);
           PrintF(out, " (callback)\n");
           break;
-        case ELEMENTS_TRANSITION: {
-          PrintF(out, "(elements transition to ");
-          Object* descriptor_contents = descs->GetValue(i);
-          if (descriptor_contents->IsMap()) {
-            Map* map = Map::cast(descriptor_contents);
-            PrintElementsKind(out, map->elements_kind());
-          } else {
-            FixedArray* map_array = FixedArray::cast(descriptor_contents);
-            for (int i = 0; i < map_array->length(); ++i) {
-              Map* map = Map::cast(map_array->get(i));
-              if (i != 0) {
-                PrintF(out, ", ");
-              }
-              PrintElementsKind(out, map->elements_kind());
-            }
-          }
-          PrintF(out, ")\n");
-          break;
-        }
         case MAP_TRANSITION:
-          PrintF(out, "(map transition)\n");
+          PrintF(out, " (map transition)\n");
           break;
         case CONSTANT_TRANSITION:
-          PrintF(out, "(constant transition)\n");
+          PrintF(out, " (constant transition)\n");
           break;
         case NULL_DESCRIPTOR:
-          PrintF(out, "(null descriptor)\n");
+          PrintF(out, " (null descriptor)\n");
           break;
         default:
           UNREACHABLE();
@@ -355,10 +277,7 @@ void JSObject::PrintProperties(FILE* out) {
 
 
 void JSObject::PrintElements(FILE* out) {
-  // Don't call GetElementsKind, its validation code can cause the printer to
-  // fail when debugging.
-  switch (map()->elements_kind()) {
-    case FAST_SMI_ONLY_ELEMENTS:
+  switch (GetElementsKind()) {
     case FAST_ELEMENTS: {
       // Print in array notation for non-sparse arrays.
       FixedArray* p = FixedArray::cast(elements());
@@ -466,13 +385,8 @@ void JSObject::PrintElements(FILE* out) {
 
 void JSObject::JSObjectPrint(FILE* out) {
   PrintF(out, "%p: [JSObject]\n", reinterpret_cast<void*>(this));
-  PrintF(out, " - map = %p [", reinterpret_cast<void*>(map()));
-  // Don't call GetElementsKind, its validation code can cause the printer to
-  // fail when debugging.
-  PrintElementsKind(out, this->map()->elements_kind());
-  PrintF(out,
-         "]\n - prototype = %p\n",
-         reinterpret_cast<void*>(GetPrototype()));
+  PrintF(out, " - map = %p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - prototype = %p\n", reinterpret_cast<void*>(GetPrototype()));
   PrintF(out, " {\n");
   PrintProperties(out);
   PrintElements(out);
@@ -501,7 +415,6 @@ static const char* TypeToString(InstanceType type) {
     case EXTERNAL_STRING_TYPE: return "EXTERNAL_STRING";
     case FIXED_ARRAY_TYPE: return "FIXED_ARRAY";
     case BYTE_ARRAY_TYPE: return "BYTE_ARRAY";
-    case FREE_SPACE_TYPE: return "FREE_SPACE";
     case EXTERNAL_PIXEL_ARRAY_TYPE: return "EXTERNAL_PIXEL_ARRAY";
     case EXTERNAL_BYTE_ARRAY_TYPE: return "EXTERNAL_BYTE_ARRAY";
     case EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE:
@@ -545,9 +458,7 @@ void Map::MapPrint(FILE* out) {
   PrintF(out, " - type: %s\n", TypeToString(instance_type()));
   PrintF(out, " - instance size: %d\n", instance_size());
   PrintF(out, " - inobject properties: %d\n", inobject_properties());
-  PrintF(out, " - elements kind: ");
-  PrintElementsKind(out, elements_kind());
-  PrintF(out, "\n - pre-allocated property fields: %d\n",
+  PrintF(out, " - pre-allocated property fields: %d\n",
       pre_allocated_property_fields());
   PrintF(out, " - unused property fields: %d\n", unused_property_fields());
   if (is_hidden_prototype()) {
@@ -600,16 +511,6 @@ void FixedArray::FixedArrayPrint(FILE* out) {
   for (int i = 0; i < length(); i++) {
     PrintF(out, "\n  [%d]: ", i);
     get(i)->ShortPrint(out);
-  }
-  PrintF(out, "\n");
-}
-
-
-void FixedDoubleArray::FixedDoubleArrayPrint(FILE* out) {
-  HeapObject::PrintHeader(out, "FixedDoubleArray");
-  PrintF(out, " - length: %d", length());
-  for (int i = 0; i < length(); i++) {
-    PrintF(out, "\n  [%d]: %g", i, get_scalar(i));
   }
   PrintF(out, "\n");
 }
@@ -686,8 +587,6 @@ void JSProxy::JSProxyPrint(FILE* out) {
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
   PrintF(out, " - handler = ");
   handler()->Print(out);
-  PrintF(out, " - hash = ");
-  hash()->Print(out);
   PrintF(out, "\n");
 }
 
@@ -708,6 +607,7 @@ void JSFunctionProxy::JSFunctionProxyPrint(FILE* out) {
 void JSWeakMap::JSWeakMapPrint(FILE* out) {
   HeapObject::PrintHeader(out, "JSWeakMap");
   PrintF(out, " - map = 0x%p\n", reinterpret_cast<void*>(map()));
+  PrintF(out, " - number of elements = %d\n", table()->NumberOfElements());
   PrintF(out, " - table = ");
   table()->ShortPrint(out);
   PrintF(out, "\n");
@@ -902,15 +802,10 @@ void FunctionTemplateInfo::FunctionTemplateInfoPrint(FILE* out) {
 
 void ObjectTemplateInfo::ObjectTemplateInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "ObjectTemplateInfo");
-  PrintF(out, " - tag: ");
-  tag()->ShortPrint(out);
-  PrintF(out, "\n - property_list: ");
-  property_list()->ShortPrint(out);
   PrintF(out, "\n - constructor: ");
   constructor()->ShortPrint(out);
   PrintF(out, "\n - internal_field_count: ");
   internal_field_count()->ShortPrint(out);
-  PrintF(out, "\n");
 }
 
 

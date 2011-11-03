@@ -86,14 +86,14 @@ void Context::set_global_proxy(JSObject* object) {
 
 Handle<Object> Context::Lookup(Handle<String> name,
                                ContextLookupFlags flags,
-                               int* index,
+                               int* index_,
                                PropertyAttributes* attributes,
                                BindingFlags* binding_flags) {
   Isolate* isolate = GetIsolate();
   Handle<Context> context(this, isolate);
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
-  *index = -1;
+  *index_ = -1;
   *attributes = ABSENT;
   *binding_flags = MISSING_BINDING;
 
@@ -110,50 +110,70 @@ Handle<Object> Context::Lookup(Handle<String> name,
       PrintF("\n");
     }
 
-    // 1. Check global objects, subjects of with, and extension objects.
-    if (context->IsGlobalContext() ||
-        context->IsWithContext() ||
-        (context->IsFunctionContext() && context->has_extension())) {
-      Handle<JSObject> object(JSObject::cast(context->extension()), isolate);
-      // Context extension objects needs to behave as if they have no
-      // prototype.  So even if we want to follow prototype chains, we need
-      // to only do a local lookup for context extension objects.
-      if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
-          object->IsJSContextExtensionObject()) {
-        *attributes = object->GetLocalPropertyAttribute(*name);
-      } else {
-        *attributes = object->GetPropertyAttribute(*name);
-      }
-      if (*attributes != ABSENT) {
-        if (FLAG_trace_contexts) {
-          PrintF("=> found property in context object %p\n",
-                 reinterpret_cast<void*>(*object));
+    // Check extension/with/global object.
+    if (!context->IsBlockContext() && context->has_extension()) {
+      if (context->IsCatchContext()) {
+        // Catch contexts have the variable name in the extension slot.
+        if (name->Equals(String::cast(context->extension()))) {
+          if (FLAG_trace_contexts) {
+            PrintF("=> found in catch context\n");
+          }
+          *index_ = Context::THROWN_OBJECT_INDEX;
+          *attributes = NONE;
+          *binding_flags = MUTABLE_IS_INITIALIZED;
+          return context;
         }
-        return object;
+      } else {
+        ASSERT(context->IsGlobalContext() ||
+               context->IsFunctionContext() ||
+               context->IsWithContext());
+        // Global, function, and with contexts may have an object in the
+        // extension slot.
+        Handle<JSObject> extension(JSObject::cast(context->extension()),
+                                   isolate);
+        // Context extension objects needs to behave as if they have no
+        // prototype.  So even if we want to follow prototype chains, we
+        // need to only do a local lookup for context extension objects.
+        if ((flags & FOLLOW_PROTOTYPE_CHAIN) == 0 ||
+            extension->IsJSContextExtensionObject()) {
+          *attributes = extension->GetLocalPropertyAttribute(*name);
+        } else {
+          *attributes = extension->GetPropertyAttribute(*name);
+        }
+        if (*attributes != ABSENT) {
+          // property found
+          if (FLAG_trace_contexts) {
+            PrintF("=> found property in context object %p\n",
+                   reinterpret_cast<void*>(*extension));
+          }
+          return extension;
+        }
       }
     }
 
-    // 2. Check the context proper if it has slots.
+    // Check serialized scope information of functions and blocks. Only
+    // functions can have parameters, and a function name.
     if (context->IsFunctionContext() || context->IsBlockContext()) {
-      // Use serialized scope information of functions and blocks to search
-      // for the context index.
+      // We may have context-local slots.  Check locals in the context.
       Handle<SerializedScopeInfo> scope_info;
       if (context->IsFunctionContext()) {
         scope_info = Handle<SerializedScopeInfo>(
             context->closure()->shared()->scope_info(), isolate);
       } else {
+        ASSERT(context->IsBlockContext());
         scope_info = Handle<SerializedScopeInfo>(
             SerializedScopeInfo::cast(context->extension()), isolate);
       }
-      VariableMode mode;
-      int slot_index = scope_info->ContextSlotIndex(*name, &mode);
-      ASSERT(slot_index < 0 || slot_index >= MIN_CONTEXT_SLOTS);
-      if (slot_index >= 0) {
+
+      Variable::Mode mode;
+      int index = scope_info->ContextSlotIndex(*name, &mode);
+      ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
+      if (index >= 0) {
         if (FLAG_trace_contexts) {
           PrintF("=> found local in context slot %d (mode = %d)\n",
-                 slot_index, mode);
+                 index, mode);
         }
-        *index = slot_index;
+        *index_ = index;
         // Note: Fixed context slots are statically allocated by the compiler.
         // Statically allocated variables always have a statically known mode,
         // which is the mode with which they were declared when added to the
@@ -161,23 +181,23 @@ Handle<Object> Context::Lookup(Handle<String> name,
         // declared variables that were introduced through declaration nodes)
         // must not appear here.
         switch (mode) {
-          case INTERNAL:  // Fall through.
-          case VAR:
+          case Variable::INTERNAL:  // Fall through.
+          case Variable::VAR:
             *attributes = NONE;
             *binding_flags = MUTABLE_IS_INITIALIZED;
             break;
-          case LET:
+          case Variable::LET:
             *attributes = NONE;
             *binding_flags = MUTABLE_CHECK_INITIALIZED;
             break;
-          case CONST:
+          case Variable::CONST:
             *attributes = READ_ONLY;
             *binding_flags = IMMUTABLE_CHECK_INITIALIZED;
             break;
-          case DYNAMIC:
-          case DYNAMIC_GLOBAL:
-          case DYNAMIC_LOCAL:
-          case TEMPORARY:
+          case Variable::DYNAMIC:
+          case Variable::DYNAMIC_GLOBAL:
+          case Variable::DYNAMIC_LOCAL:
+          case Variable::TEMPORARY:
             UNREACHABLE();
             break;
         }
@@ -186,34 +206,22 @@ Handle<Object> Context::Lookup(Handle<String> name,
 
       // Check the slot corresponding to the intermediate context holding
       // only the function name variable.
-      if (follow_context_chain && context->IsFunctionContext()) {
-        int function_index = scope_info->FunctionContextSlotIndex(*name);
-        if (function_index >= 0) {
+      if (follow_context_chain) {
+        int index = scope_info->FunctionContextSlotIndex(*name);
+        if (index >= 0) {
           if (FLAG_trace_contexts) {
             PrintF("=> found intermediate function in context slot %d\n",
-                   function_index);
+                   index);
           }
-          *index = function_index;
+          *index_ = index;
           *attributes = READ_ONLY;
           *binding_flags = IMMUTABLE_IS_INITIALIZED;
           return context;
         }
       }
-
-    } else if (context->IsCatchContext()) {
-      // Catch contexts have the variable name in the extension slot.
-      if (name->Equals(String::cast(context->extension()))) {
-        if (FLAG_trace_contexts) {
-          PrintF("=> found in catch context\n");
-        }
-        *index = Context::THROWN_OBJECT_INDEX;
-        *attributes = NONE;
-        *binding_flags = MUTABLE_IS_INITIALIZED;
-        return context;
-      }
     }
 
-    // 3. Prepare to continue with the previous (next outermost) context.
+    // Proceed with the previous context.
     if (context->IsGlobalContext()) {
       follow_context_chain = false;
     } else {
@@ -245,7 +253,7 @@ bool Context::GlobalIfNotShadowedByEval(Handle<String> name) {
     // Check non-parameter locals.
     Handle<SerializedScopeInfo> scope_info(
         context->closure()->shared()->scope_info());
-    VariableMode mode;
+    Variable::Mode mode;
     int index = scope_info->ContextSlotIndex(*name, &mode);
     ASSERT(index < 0 || index >= MIN_CONTEXT_SLOTS);
     if (index >= 0) return false;

@@ -79,20 +79,18 @@ const Address kFromSpaceZapValue =
     reinterpret_cast<Address>(V8_UINT64_C(0x1beefdad0beefdaf));
 const uint64_t kDebugZapValue = V8_UINT64_C(0xbadbaddbbadbaddb);
 const uint64_t kSlotsZapValue = V8_UINT64_C(0xbeefdeadbeefdeef);
-const uint64_t kFreeListZapValue = 0xfeed1eaffeed1eaf;
 #else
 const Address kZapValue = reinterpret_cast<Address>(0xdeadbeef);
 const Address kHandleZapValue = reinterpret_cast<Address>(0xbaddeaf);
 const Address kFromSpaceZapValue = reinterpret_cast<Address>(0xbeefdaf);
 const uint32_t kSlotsZapValue = 0xbeefdeef;
 const uint32_t kDebugZapValue = 0xbadbaddb;
-const uint32_t kFreeListZapValue = 0xfeed1eaf;
 #endif
 
 
-// Number of bits to represent the page size for paged spaces. The value of 20
-// gives 1Mb bytes per page.
-const int kPageSizeBits = 20;
+// Number of bits to represent the page size for paged spaces. The value of 13
+// gives 8K bytes per page.
+const int kPageSizeBits = 13;
 
 // On Intel architecture, cache line size is 64 bytes.
 // On ARM it may be less (32 bytes), but as far this constant is
@@ -100,6 +98,10 @@ const int kPageSizeBits = 20;
 const int kProcessorCacheLineSize = 64;
 
 // Constants relevant to double precision floating point numbers.
+
+// Quiet NaNs have bits 51 to 62 set, possibly the sign bit, and no
+// other bits set.
+const uint64_t kQuietNaNMask = static_cast<uint64_t>(0xfff) << 51;
 // If looking only at the top 32 bits, the QNaN mask is bits 19 to 30.
 const uint32_t kQuietNaNHighBitsMask = 0xfff << (51 - 32);
 
@@ -129,7 +131,6 @@ class FixedArray;
 class FunctionEntry;
 class FunctionLiteral;
 class FunctionTemplateInfo;
-class MemoryChunk;
 class NumberDictionary;
 class StringDictionary;
 template <typename T> class Handle;
@@ -253,6 +254,12 @@ struct CodeDesc {
 };
 
 
+// Callback function on object slots, used for iterating heap object slots in
+// HeapObjects, global pointers to heap objects, etc. The callback allows the
+// callback function to change the value of the slot.
+typedef void (*ObjectSlotCallback)(HeapObject** pointer);
+
+
 // Callback function used for iterating objects in heap spaces,
 // for example, scanning heap objects.
 typedef int (*HeapObjectCallback)(HeapObject* obj);
@@ -299,9 +306,7 @@ enum CallFunctionFlags {
   NO_CALL_FUNCTION_FLAGS = 0,
   // Receiver might implicitly be the global objects. If it is, the
   // hole is passed to the call function stub.
-  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0,
-  // The call target is cached in the instruction stream.
-  RECORD_CALL_TARGET = 1 << 1
+  RECEIVER_MIGHT_BE_IMPLICIT = 1 << 0
 };
 
 
@@ -309,19 +314,6 @@ enum InlineCacheHolderFlag {
   OWN_MAP,  // For fast properties objects.
   PROTOTYPE_MAP  // For slow properties objects (except GlobalObjects).
 };
-
-
-// The Store Buffer (GC).
-typedef enum {
-  kStoreBufferFullEvent,
-  kStoreBufferStartScanningPagesEvent,
-  kStoreBufferScanningPageEvent
-} StoreBufferEvent;
-
-
-typedef void (*StoreBufferCallback)(Heap* heap,
-                                    MemoryChunk* page,
-                                    StoreBufferEvent event);
 
 
 // Type of properties.
@@ -496,7 +488,7 @@ enum StrictModeFlag {
 // Used to specify if a macro instruction must perform a smi check on tagged
 // values.
 enum SmiCheckType {
-  DONT_DO_SMI_CHECK,
+  DONT_DO_SMI_CHECK = 0,
   DO_SMI_CHECK
 };
 
@@ -504,7 +496,7 @@ enum SmiCheckType {
 // Used to specify whether a receiver is implicitly or explicitly
 // provided to a call.
 enum CallKind {
-  CALL_AS_METHOD,
+  CALL_AS_METHOD = 0,
   CALL_AS_FUNCTION
 };
 
@@ -517,35 +509,6 @@ const uint64_t kHoleNanInt64 =
     (static_cast<uint64_t>(kHoleNanUpper32) << 32) | kHoleNanLower32;
 const uint64_t kLastNonNaNInt64 =
     (static_cast<uint64_t>(kNaNOrInfinityLowerBoundUpper32) << 32);
-
-
-enum VariableMode {
-  // User declared variables:
-  VAR,       // declared via 'var', and 'function' declarations
-
-  CONST,     // declared via 'const' declarations
-
-  LET,       // declared via 'let' declarations
-
-  // Variables introduced by the compiler:
-  DYNAMIC,         // always require dynamic lookup (we don't know
-                   // the declaration)
-
-  DYNAMIC_GLOBAL,  // requires dynamic lookup, but we know that the
-                   // variable is global unless it has been shadowed
-                   // by an eval-introduced variable
-
-  DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
-                   // variable is local and where it is unless it
-                   // has been shadowed by an eval-introduced
-                   // variable
-
-  INTERNAL,        // like VAR, but not user-visible (may or may not
-                   // be in a context)
-
-  TEMPORARY        // temporary variables (not user-visible), never
-                   // in a context
-};
 
 } }  // namespace v8::internal
 

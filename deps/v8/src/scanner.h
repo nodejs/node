@@ -509,11 +509,11 @@ class JavaScriptScanner : public Scanner {
   // tokens, which is what it is used for.
   void SeekForward(int pos);
 
-  bool HarmonyScoping() const {
-    return harmony_scoping_;
+  bool HarmonyBlockScoping() const {
+    return harmony_block_scoping_;
   }
-  void SetHarmonyScoping(bool block_scoping) {
-    harmony_scoping_ = block_scoping;
+  void SetHarmonyBlockScoping(bool block_scoping) {
+    harmony_block_scoping_ = block_scoping;
   }
 
 
@@ -556,7 +556,7 @@ class JavaScriptScanner : public Scanner {
   bool has_multiline_comment_before_next_;
   // Whether we scan 'let' as a keyword for harmony block scoped
   // let bindings.
-  bool harmony_scoping_;
+  bool harmony_block_scoping_;
 };
 
 } }  // namespace v8::internal

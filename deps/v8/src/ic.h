@@ -342,13 +342,6 @@ class LoadIC: public IC {
 
 class KeyedIC: public IC {
  public:
-  enum StubKind {
-    LOAD,
-    STORE_NO_TRANSITION,
-    STORE_TRANSITION_SMI_TO_OBJECT,
-    STORE_TRANSITION_SMI_TO_DOUBLE,
-    STORE_TRANSITION_DOUBLE_TO_OBJECT
-  };
   explicit KeyedIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {}
   virtual ~KeyedIC() {}
 
@@ -364,30 +357,26 @@ class KeyedIC: public IC {
   virtual Code::Kind kind() const = 0;
 
   MaybeObject* ComputeStub(JSObject* receiver,
-                           StubKind stub_kind,
+                           bool is_store,
                            StrictModeFlag strict_mode,
                            Code* default_stub);
 
-  virtual MaybeObject* ComputePolymorphicStub(MapList* receiver_maps,
-                                              StrictModeFlag strict_mode) = 0;
+  virtual MaybeObject* ConstructMegamorphicStub(
+      MapList* receiver_maps,
+      CodeList* targets,
+      StrictModeFlag strict_mode) = 0;
+
+ private:
+  void GetReceiverMapsForStub(Code* stub, MapList* result);
 
   MaybeObject* ComputeMonomorphicStubWithoutMapCheck(
       Map* receiver_map,
       StrictModeFlag strict_mode);
 
- private:
-  void GetReceiverMapsForStub(Code* stub, MapList* result);
-
   MaybeObject* ComputeMonomorphicStub(JSObject* receiver,
-                                      StubKind stub_kind,
+                                      bool is_store,
                                       StrictModeFlag strict_mode,
                                       Code* default_stub);
-
-  MaybeObject* ComputeTransitionedMap(JSObject* receiver, StubKind stub_kind);
-
-  static bool IsTransitionStubKind(StubKind stub_kind) {
-    return stub_kind > STORE_NO_TRANSITION;
-  }
 };
 
 
@@ -430,8 +419,9 @@ class KeyedLoadIC: public KeyedIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
-  virtual MaybeObject* ComputePolymorphicStub(
+  virtual MaybeObject* ConstructMegamorphicStub(
       MapList* receiver_maps,
+      CodeList* targets,
       StrictModeFlag strict_mode);
 
   virtual Code* string_stub() {
@@ -580,8 +570,9 @@ class KeyedStoreIC: public KeyedIC {
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual MaybeObject* ComputePolymorphicStub(
+  virtual MaybeObject* ConstructMegamorphicStub(
       MapList* receiver_maps,
+      CodeList* targets,
       StrictModeFlag strict_mode);
 
   private:

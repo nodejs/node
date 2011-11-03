@@ -38,16 +38,12 @@ namespace internal {
 // Platform-specific RuntimeCallHelper functions.
 
 void StubRuntimeCallHelper::BeforeCall(MacroAssembler* masm) const {
-  masm->EnterFrame(StackFrame::INTERNAL);
-  ASSERT(!masm->has_frame());
-  masm->set_has_frame(true);
+  masm->EnterInternalFrame();
 }
 
 
 void StubRuntimeCallHelper::AfterCall(MacroAssembler* masm) const {
-  masm->LeaveFrame(StackFrame::INTERNAL);
-  ASSERT(masm->has_frame());
-  masm->set_has_frame(false);
+  masm->LeaveInternalFrame();
 }
 
 

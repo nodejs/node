@@ -36,7 +36,6 @@
 #include "full-codegen.h"
 #include "gdb-jit.h"
 #include "hydrogen.h"
-#include "isolate-inl.h"
 #include "lithium.h"
 #include "liveedit.h"
 #include "parser.h"
@@ -276,7 +275,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   }
 
   Handle<Context> global_context(info->closure()->context()->global_context());
-  TypeFeedbackOracle oracle(code, global_context, info->isolate());
+  TypeFeedbackOracle oracle(code, global_context);
   HGraphBuilder builder(info, &oracle);
   HPhase phase(HPhase::kTotal);
   HGraph* graph = builder.CreateGraph();
@@ -480,7 +479,8 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     // that would be compiled lazily anyway, so we skip the preparse step
     // in that case too.
     ScriptDataImpl* pre_data = input_pre_data;
-    bool harmony_scoping = natives != NATIVES_CODE && FLAG_harmony_scoping;
+    bool harmony_block_scoping = natives != NATIVES_CODE &&
+                                 FLAG_harmony_block_scoping;
     if (pre_data == NULL
         && source_length >= FLAG_min_preparse_length) {
       if (source->IsExternalTwoByteString()) {
@@ -488,12 +488,12 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
             Handle<ExternalTwoByteString>::cast(source), 0, source->length());
         pre_data = ParserApi::PartialPreParse(&stream,
                                               extension,
-                                              harmony_scoping);
+                                              harmony_block_scoping);
       } else {
         GenericStringUC16CharacterStream stream(source, 0, source->length());
         pre_data = ParserApi::PartialPreParse(&stream,
                                               extension,
-                                              harmony_scoping);
+                                              harmony_block_scoping);
       }
     }
 
@@ -516,9 +516,6 @@ Handle<SharedFunctionInfo> Compiler::Compile(Handle<String> source,
     info.MarkAsGlobal();
     info.SetExtension(extension);
     info.SetPreParseData(pre_data);
-    if (natives == NATIVES_CODE) {
-      info.MarkAsAllowingNativesSyntax();
-    }
     result = MakeFunctionInfo(&info);
     if (extension == NULL && !result.is_null()) {
       compilation_cache->PutScript(source, result);

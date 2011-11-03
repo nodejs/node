@@ -97,7 +97,70 @@ class ScopeInfo BASE_EMBEDDED {
   List<Handle<String>, Allocator > parameters_;
   List<Handle<String>, Allocator > stack_slots_;
   List<Handle<String>, Allocator > context_slots_;
-  List<VariableMode, Allocator > context_modes_;
+  List<Variable::Mode, Allocator > context_modes_;
+};
+
+
+// This object provides quick access to scope info details for runtime
+// routines w/o the need to explicitly create a ScopeInfo object.
+class SerializedScopeInfo : public FixedArray {
+ public :
+
+  static SerializedScopeInfo* cast(Object* object) {
+    ASSERT(object->IsSerializedScopeInfo());
+    return reinterpret_cast<SerializedScopeInfo*>(object);
+  }
+
+  // Does this scope call eval?
+  bool CallsEval();
+
+  // Is this scope a strict mode scope?
+  bool IsStrictMode();
+
+  // Return the number of stack slots for code.
+  int NumberOfStackSlots();
+
+  // Return the number of context slots for code.
+  int NumberOfContextSlots();
+
+  // Return if this has context slots besides MIN_CONTEXT_SLOTS;
+  bool HasHeapAllocatedLocals();
+
+  // Lookup support for serialized scope info. Returns the
+  // the stack slot index for a given slot name if the slot is
+  // present; otherwise returns a value < 0. The name must be a symbol
+  // (canonicalized).
+  int StackSlotIndex(String* name);
+
+  // Lookup support for serialized scope info. Returns the
+  // context slot index for a given slot name if the slot is present; otherwise
+  // returns a value < 0. The name must be a symbol (canonicalized).
+  // If the slot is present and mode != NULL, sets *mode to the corresponding
+  // mode for that variable.
+  int ContextSlotIndex(String* name, Variable::Mode* mode);
+
+  // Lookup support for serialized scope info. Returns the
+  // parameter index for a given parameter name if the parameter is present;
+  // otherwise returns a value < 0. The name must be a symbol (canonicalized).
+  int ParameterIndex(String* name);
+
+  // Lookup support for serialized scope info. Returns the
+  // function context slot index if the function name is present (named
+  // function expressions, only), otherwise returns a value < 0. The name
+  // must be a symbol (canonicalized).
+  int FunctionContextSlotIndex(String* name);
+
+  static Handle<SerializedScopeInfo> Create(Scope* scope);
+
+  // Serializes empty scope info.
+  static SerializedScopeInfo* Empty();
+
+ private:
+  inline Object** ContextEntriesAddr();
+
+  inline Object** ParameterEntriesAddr();
+
+  inline Object** StackSlotEntriesAddr();
 };
 
 
@@ -111,12 +174,12 @@ class ContextSlotCache {
   // If absent, kNotFound is returned.
   int Lookup(Object* data,
              String* name,
-             VariableMode* mode);
+             Variable::Mode* mode);
 
   // Update an element in the cache.
   void Update(Object* data,
               String* name,
-              VariableMode mode,
+              Variable::Mode mode,
               int slot_index);
 
   // Clear the cache.
@@ -138,7 +201,7 @@ class ContextSlotCache {
 #ifdef DEBUG
   void ValidateEntry(Object* data,
                      String* name,
-                     VariableMode mode,
+                     Variable::Mode mode,
                      int slot_index);
 #endif
 
@@ -149,7 +212,7 @@ class ContextSlotCache {
   };
 
   struct Value {
-    Value(VariableMode mode, int index) {
+    Value(Variable::Mode mode, int index) {
       ASSERT(ModeField::is_valid(mode));
       ASSERT(IndexField::is_valid(index));
       value_ = ModeField::encode(mode) | IndexField::encode(index);
@@ -161,14 +224,14 @@ class ContextSlotCache {
 
     uint32_t raw() { return value_; }
 
-    VariableMode mode() { return ModeField::decode(value_); }
+    Variable::Mode mode() { return ModeField::decode(value_); }
 
     int index() { return IndexField::decode(value_); }
 
     // Bit fields in value_ (type, shift, size). Must be public so the
     // constants can be embedded in generated code.
-    class ModeField:  public BitField<VariableMode, 0, 3> {};
-    class IndexField: public BitField<int,          3, 32-3> {};
+    class ModeField:  public BitField<Variable::Mode, 0, 3> {};
+    class IndexField: public BitField<int,            3, 32-3> {};
    private:
     uint32_t value_;
   };

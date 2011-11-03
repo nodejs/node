@@ -244,6 +244,11 @@ void BreakableStatementChecker::VisitBinaryOperation(BinaryOperation* expr) {
 }
 
 
+void BreakableStatementChecker::VisitCompareToNull(CompareToNull* expr) {
+  Visit(expr->expression());
+}
+
+
 void BreakableStatementChecker::VisitCompareOperation(CompareOperation* expr) {
   Visit(expr->left());
   Visit(expr->right());
@@ -286,10 +291,8 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_optimizable(info->IsOptimizable());
   cgen.PopulateDeoptimizationData(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
-#ifdef ENABLE_DEBUGGER_SUPPORT
   code->set_has_debug_break_slots(
       info->isolate()->debugger()->IsDebuggerActive());
-#endif  // ENABLE_DEBUGGER_SUPPORT
   code->set_allow_osr_at_loop_nesting_level(0);
   code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
@@ -520,7 +523,7 @@ void FullCodeGenerator::VisitDeclarations(
       if (var->IsUnallocated()) {
         array->set(j++, *(var->name()));
         if (decl->fun() == NULL) {
-          if (var->mode() == CONST) {
+          if (var->mode() == Variable::CONST) {
             // In case this is const property use the hole.
             array->set_the_hole(j++);
           } else {
@@ -820,19 +823,9 @@ void FullCodeGenerator::VisitBlock(Block* stmt) {
   if (stmt->block_scope() != NULL) {
     { Comment cmnt(masm_, "[ Extend block context");
       scope_ = stmt->block_scope();
-      Handle<SerializedScopeInfo> scope_info = scope_->GetSerializedScopeInfo();
-      int heap_slots =
-          scope_info->NumberOfContextSlots() - Context::MIN_CONTEXT_SLOTS;
-      __ Push(scope_info);
+      __ Push(scope_->GetSerializedScopeInfo());
       PushFunctionArgumentForContextAllocation();
-      if (heap_slots <= FastNewBlockContextStub::kMaximumSlots) {
-        FastNewBlockContextStub stub(heap_slots);
-        __ CallStub(&stub);
-      } else {
-        __ CallRuntime(Runtime::kPushBlockContext, 2);
-      }
-
-      // Replace the context stored in the frame.
+      __ CallRuntime(Runtime::kPushBlockContext, 2);
       StoreToFrameField(StandardFrameConstants::kContextOffset,
                         context_register());
     }
@@ -1328,21 +1321,19 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
 }
 
 
-bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
-  Expression *sub_expr;
+bool FullCodeGenerator::TryLiteralCompare(CompareOperation* compare,
+                                          Label* if_true,
+                                          Label* if_false,
+                                          Label* fall_through) {
+  Expression *expr;
   Handle<String> check;
-  if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
-    EmitLiteralCompareTypeof(sub_expr, check);
+  if (compare->IsLiteralCompareTypeof(&expr, &check)) {
+    EmitLiteralCompareTypeof(expr, check, if_true, if_false, fall_through);
     return true;
   }
 
-  if (expr->IsLiteralCompareUndefined(&sub_expr)) {
-    EmitLiteralCompareNil(expr, sub_expr, kUndefinedValue);
-    return true;
-  }
-
-  if (expr->IsLiteralCompareNull(&sub_expr)) {
-    EmitLiteralCompareNil(expr, sub_expr, kNullValue);
+  if (compare->IsLiteralCompareUndefined(&expr)) {
+    EmitLiteralCompareUndefined(expr, if_true, if_false, fall_through);
     return true;
   }
 

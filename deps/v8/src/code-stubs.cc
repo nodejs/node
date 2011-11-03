@@ -52,12 +52,11 @@ void CodeStub::GenerateCode(MacroAssembler* masm) {
   // Update the static counter each time a new code stub is generated.
   masm->isolate()->counters()->code_stubs()->Increment();
 
-  // Nested stubs are not allowed for leaves.
-  AllowStubCallsScope allow_scope(masm, false);
+  // Nested stubs are not allowed for leafs.
+  AllowStubCallsScope allow_scope(masm, AllowsStubCalls());
 
   // Generate the code for the stub.
   masm->set_generating_stub(true);
-  NoCurrentFrameScope scope(masm);
   Generate(masm);
 }
 
@@ -128,10 +127,8 @@ Handle<Code> CodeStub::GetCode() {
             GetKey(),
             new_object);
     heap->public_set_code_stubs(*dict);
+
     code = *new_object;
-    Activate(code);
-  } else {
-    CHECK(IsPregenerated() == code->is_pregenerated());
   }
 
   ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));
@@ -169,11 +166,7 @@ MaybeObject* CodeStub::TryGetCode() {
         heap->code_stubs()->AtNumberPut(GetKey(), code);
     if (maybe_new_object->ToObject(&new_object)) {
       heap->public_set_code_stubs(NumberDictionary::cast(new_object));
-    } else if (MustBeInStubCache()) {
-      return maybe_new_object;
     }
-
-    Activate(code);
   }
 
   return code;
@@ -192,11 +185,6 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
       }
       return NULL;
   }
-}
-
-
-void CodeStub::PrintName(StringStream* stream) {
-  stream->Add("%s", MajorName(MajorKey(), false));
 }
 
 
@@ -257,7 +245,6 @@ void InstanceofStub::PrintName(StringStream* stream) {
 void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
-    case FAST_SMI_ONLY_ELEMENTS:
       KeyedLoadStubCompiler::GenerateLoadFastElement(masm);
       break;
     case FAST_DOUBLE_ELEMENTS:
@@ -287,11 +274,7 @@ void KeyedLoadElementStub::Generate(MacroAssembler* masm) {
 void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
   switch (elements_kind_) {
     case FAST_ELEMENTS:
-    case FAST_SMI_ONLY_ELEMENTS: {
-      KeyedStoreStubCompiler::GenerateStoreFastElement(masm,
-                                                       is_js_array_,
-                                                       elements_kind_);
-    }
+      KeyedStoreStubCompiler::GenerateStoreFastElement(masm, is_js_array_);
       break;
     case FAST_DOUBLE_ELEMENTS:
       KeyedStoreStubCompiler::GenerateStoreFastDoubleElement(masm,
@@ -319,20 +302,24 @@ void KeyedStoreElementStub::Generate(MacroAssembler* masm) {
 
 
 void ArgumentsAccessStub::PrintName(StringStream* stream) {
-  stream->Add("ArgumentsAccessStub_");
+  const char* type_name = NULL;  // Make g++ happy.
   switch (type_) {
-    case READ_ELEMENT: stream->Add("ReadElement"); break;
-    case NEW_NON_STRICT_FAST: stream->Add("NewNonStrictFast"); break;
-    case NEW_NON_STRICT_SLOW: stream->Add("NewNonStrictSlow"); break;
-    case NEW_STRICT: stream->Add("NewStrict"); break;
+    case READ_ELEMENT: type_name = "ReadElement"; break;
+    case NEW_NON_STRICT_FAST: type_name = "NewNonStrictFast"; break;
+    case NEW_NON_STRICT_SLOW: type_name = "NewNonStrictSlow"; break;
+    case NEW_STRICT: type_name = "NewStrict"; break;
   }
+  stream->Add("ArgumentsAccessStub_%s", type_name);
 }
 
 
 void CallFunctionStub::PrintName(StringStream* stream) {
-  stream->Add("CallFunctionStub_Args%d", argc_);
-  if (ReceiverMightBeImplicit()) stream->Add("_Implicit");
-  if (RecordCallTarget()) stream->Add("_Recording");
+  const char* flags_name = NULL;  // Make g++ happy.
+  switch (flags_) {
+    case NO_CALL_FUNCTION_FLAGS: flags_name = ""; break;
+    case RECEIVER_MIGHT_BE_IMPLICIT: flags_name = "_Implicit"; break;
+  }
+  stream->Add("CallFunctionStub_Args%d%s", argc_, flags_name);
 }
 
 

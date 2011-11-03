@@ -143,9 +143,6 @@ class Label BASE_EMBEDDED {
 };
 
 
-enum SaveFPRegsMode { kDontSaveFPRegs, kSaveFPRegs };
-
-
 // -----------------------------------------------------------------------------
 // Relocation information
 
@@ -219,9 +216,8 @@ class RelocInfo BASE_EMBEDDED {
 
 
   RelocInfo() {}
-
-  RelocInfo(byte* pc, Mode rmode, intptr_t data, Code* host)
-      : pc_(pc), rmode_(rmode), data_(data), host_(host) {
+  RelocInfo(byte* pc, Mode rmode, intptr_t data)
+      : pc_(pc), rmode_(rmode), data_(data) {
   }
 
   static inline bool IsConstructCall(Mode mode) {
@@ -229,9 +225,6 @@ class RelocInfo BASE_EMBEDDED {
   }
   static inline bool IsCodeTarget(Mode mode) {
     return mode <= LAST_CODE_ENUM;
-  }
-  static inline bool IsEmbeddedObject(Mode mode) {
-    return mode == EMBEDDED_OBJECT;
   }
   // Is the relocation mode affected by GC?
   static inline bool IsGCRelocMode(Mode mode) {
@@ -265,7 +258,6 @@ class RelocInfo BASE_EMBEDDED {
   void set_pc(byte* pc) { pc_ = pc; }
   Mode rmode() const {  return rmode_; }
   intptr_t data() const { return data_; }
-  Code* host() const { return host_; }
 
   // Apply a relocation by delta bytes
   INLINE(void apply(intptr_t delta));
@@ -361,7 +353,6 @@ class RelocInfo BASE_EMBEDDED {
   byte* pc_;
   Mode rmode_;
   intptr_t data_;
-  Code* host_;
 #ifdef V8_TARGET_ARCH_MIPS
   // Code and Embedded Object pointers in mips are stored split
   // across two consecutive 32-bit instructions. Heap management
@@ -570,13 +561,6 @@ class ExternalReference BASE_EMBEDDED {
   // pattern. This means that they have to be added to the
   // ExternalReferenceTable in serialize.cc manually.
 
-  static ExternalReference incremental_marking_record_write_function(
-      Isolate* isolate);
-  static ExternalReference incremental_evacuation_record_write_function(
-      Isolate* isolate);
-  static ExternalReference store_buffer_overflow_function(
-      Isolate* isolate);
-  static ExternalReference flush_icache_function(Isolate* isolate);
   static ExternalReference perform_gc_function(Isolate* isolate);
   static ExternalReference fill_heap_number_with_random_function(
       Isolate* isolate);
@@ -592,6 +576,12 @@ class ExternalReference BASE_EMBEDDED {
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);
   static ExternalReference keyed_lookup_cache_field_offsets(Isolate* isolate);
+
+  // Static variable Factory::the_hole_value.location()
+  static ExternalReference the_hole_value_location(Isolate* isolate);
+
+  // Static variable Factory::arguments_marker.location()
+  static ExternalReference arguments_marker_location(Isolate* isolate);
 
   // Static variable Heap::roots_address()
   static ExternalReference roots_address(Isolate* isolate);
@@ -616,10 +606,6 @@ class ExternalReference BASE_EMBEDDED {
   static ExternalReference new_space_start(Isolate* isolate);
   static ExternalReference new_space_mask(Isolate* isolate);
   static ExternalReference heap_always_allocate_scope_depth(Isolate* isolate);
-  static ExternalReference new_space_mark_bits(Isolate* isolate);
-
-  // Write barrier.
-  static ExternalReference store_buffer_top(Isolate* isolate);
 
   // Used for fast allocation in generated code.
   static ExternalReference new_space_allocation_top_address(Isolate* isolate);

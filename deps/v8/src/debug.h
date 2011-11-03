@@ -705,8 +705,7 @@ class Debugger {
   void DebugRequest(const uint16_t* json_request, int length);
 
   Handle<Object> MakeJSObject(Vector<const char> constructor_name,
-                              int argc,
-                              Handle<Object> argv[],
+                              int argc, Object*** argv,
                               bool* caught_exception);
   Handle<Object> MakeExecutionState(bool* caught_exception);
   Handle<Object> MakeBreakEvent(Handle<Object> exec_state,
@@ -870,8 +869,91 @@ class Debugger {
 // some reason could not be entered FailedToEnter will return true.
 class EnterDebugger BASE_EMBEDDED {
  public:
-  EnterDebugger();
-  ~EnterDebugger();
+  EnterDebugger()
+      : isolate_(Isolate::Current()),
+        prev_(isolate_->debug()->debugger_entry()),
+        it_(isolate_),
+        has_js_frames_(!it_.done()),
+        save_(isolate_) {
+    Debug* debug = isolate_->debug();
+    ASSERT(prev_ != NULL || !debug->is_interrupt_pending(PREEMPT));
+    ASSERT(prev_ != NULL || !debug->is_interrupt_pending(DEBUGBREAK));
+
+    // Link recursive debugger entry.
+    debug->set_debugger_entry(this);
+
+    // Store the previous break id and frame id.
+    break_id_ = debug->break_id();
+    break_frame_id_ = debug->break_frame_id();
+
+    // Create the new break info. If there is no JavaScript frames there is no
+    // break frame id.
+    if (has_js_frames_) {
+      debug->NewBreak(it_.frame()->id());
+    } else {
+      debug->NewBreak(StackFrame::NO_ID);
+    }
+
+    // Make sure that debugger is loaded and enter the debugger context.
+    load_failed_ = !debug->Load();
+    if (!load_failed_) {
+      // NOTE the member variable save which saves the previous context before
+      // this change.
+      isolate_->set_context(*debug->debug_context());
+    }
+  }
+
+  ~EnterDebugger() {
+    ASSERT(Isolate::Current() == isolate_);
+    Debug* debug = isolate_->debug();
+
+    // Restore to the previous break state.
+    debug->SetBreak(break_frame_id_, break_id_);
+
+    // Check for leaving the debugger.
+    if (prev_ == NULL) {
+      // Clear mirror cache when leaving the debugger. Skip this if there is a
+      // pending exception as clearing the mirror cache calls back into
+      // JavaScript. This can happen if the v8::Debug::Call is used in which
+      // case the exception should end up in the calling code.
+      if (!isolate_->has_pending_exception()) {
+        // Try to avoid any pending debug break breaking in the clear mirror
+        // cache JavaScript code.
+        if (isolate_->stack_guard()->IsDebugBreak()) {
+          debug->set_interrupts_pending(DEBUGBREAK);
+          isolate_->stack_guard()->Continue(DEBUGBREAK);
+        }
+        debug->ClearMirrorCache();
+      }
+
+      // Request preemption and debug break when leaving the last debugger entry
+      // if any of these where recorded while debugging.
+      if (debug->is_interrupt_pending(PREEMPT)) {
+        // This re-scheduling of preemption is to avoid starvation in some
+        // debugging scenarios.
+        debug->clear_interrupt_pending(PREEMPT);
+        isolate_->stack_guard()->Preempt();
+      }
+      if (debug->is_interrupt_pending(DEBUGBREAK)) {
+        debug->clear_interrupt_pending(DEBUGBREAK);
+        isolate_->stack_guard()->DebugBreak();
+      }
+
+      // If there are commands in the queue when leaving the debugger request
+      // that these commands are processed.
+      if (isolate_->debugger()->HasCommands()) {
+        isolate_->stack_guard()->DebugCommand();
+      }
+
+      // If leaving the debugger with the debugger no longer active unload it.
+      if (!isolate_->debugger()->IsDebuggerActive()) {
+        isolate_->debugger()->UnloadDebugger();
+      }
+    }
+
+    // Leaving this debugger entry.
+    debug->set_debugger_entry(prev_);
+  }
 
   // Check whether the debugger could be entered.
   inline bool FailedToEnter() { return load_failed_; }

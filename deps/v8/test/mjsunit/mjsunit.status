@@ -35,11 +35,6 @@ bugs: FAIL
 regress/regress-1119: FAIL
 
 ##############################################################################
-
-# NewGC: BUG(1719) slow to collect arrays over several contexts.
-regress/regress-524: SKIP
-
-##############################################################################
 # Too slow in debug mode with --stress-opt
 compiler/regress-stacktrace-methods: PASS, SKIP if $mode == debug
 compiler/regress-funcaller: PASS, SKIP if $mode == debug
@@ -64,6 +59,7 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 # Stack manipulations in LiveEdit are buggy - see bug 915
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
+
 
 ##############################################################################
 [ $arch == arm ]

@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping
+// Flags: --harmony-block-scoping
 
 // Test let declarations in various settings.
 
@@ -47,70 +47,19 @@ if (true) {
   assertEquals(undefined, y);
 }
 
-// Invalid declarations are early errors in harmony mode and thus should trigger
-// an exception in eval code during parsing, before even compiling or executing
-// the code. Thus the generated function is not called here.
 function TestLocalThrows(str, expect) {
-  assertThrows("(function(){" + str + "})", expect);
+  assertThrows("(function(){" + str + "})()", expect);
 }
 
 function TestLocalDoesNotThrow(str) {
   assertDoesNotThrow("(function(){" + str + "})()");
 }
 
-// Test let declarations statement positions.
+// Unprotected statement
 TestLocalThrows("if (true) let x;", SyntaxError);
-TestLocalThrows("if (true) {} else let x;", SyntaxError);
 TestLocalThrows("do let x; while (false)", SyntaxError);
 TestLocalThrows("while (false) let x;", SyntaxError);
-TestLocalThrows("label: let x;", SyntaxError);
-TestLocalThrows("for (;false;) let x;", SyntaxError);
-TestLocalThrows("switch (true) { case true: let x; }", SyntaxError);
-TestLocalThrows("switch (true) { default: let x; }", SyntaxError);
 
-// Test var declarations statement positions.
 TestLocalDoesNotThrow("if (true) var x;");
-TestLocalDoesNotThrow("if (true) {} else var x;");
 TestLocalDoesNotThrow("do var x; while (false)");
 TestLocalDoesNotThrow("while (false) var x;");
-TestLocalDoesNotThrow("label: var x;");
-TestLocalDoesNotThrow("for (;false;) var x;");
-TestLocalDoesNotThrow("switch (true) { case true: var x; }");
-TestLocalDoesNotThrow("switch (true) { default: var x; }");
-
-// Test function declarations in source element and
-// non-strict statement positions.
-function f() {
-  // Non-strict source element positions.
-  function g0() {
-    "use strict";
-    // Strict source element positions.
-    function h() { }
-    {
-      function h1() { }
-    }
-  }
-  {
-    function g1() { }
-  }
-  // Non-strict statement positions.
-  if (true) function g2() { }
-  if (true) {} else function g3() { }
-  do function g4() { } while (false)
-  while (false) function g5() { }
-  label: function g6() { }
-  for (;false;) function g7() { }
-  switch (true) { case true: function g8() { } }
-  switch (true) { default: function g9() { } }
-}
-f();
-
-// Test function declarations in statement position in strict mode.
-TestLocalThrows("function f() { 'use strict'; if (true) function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; if (true) {} else function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; do function g() {} while (false)", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; while (false) function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; label: function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; for (;false;) function g() {}", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; switch (true) { case true: function g() {} }", SyntaxError);
-TestLocalThrows("function f() { 'use strict'; switch (true) { default: function g() {} }", SyntaxError);

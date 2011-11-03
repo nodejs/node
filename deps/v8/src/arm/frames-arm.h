@@ -70,16 +70,6 @@ static const RegList kCalleeSaved =
   1 << 10 |  // r10 v7
   1 << 11;   // r11 v8 (fp in JavaScript code)
 
-// When calling into C++ (only for C++ calls that can't cause a GC).
-// The call code will take care of lr, fp, etc.
-static const RegList kCallerSaved =
-  1 <<  0 |  // r0
-  1 <<  1 |  // r1
-  1 <<  2 |  // r2
-  1 <<  3 |  // r3
-  1 <<  9;   // r9
-
-
 static const int kNumCalleeSaved = 7 + kR9Available;
 
 // Double registers d8 to d15 are callee-saved.

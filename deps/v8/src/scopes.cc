@@ -85,7 +85,7 @@ VariableMap::~VariableMap() {}
 
 Variable* VariableMap::Declare(Scope* scope,
                                Handle<String> name,
-                               VariableMode mode,
+                               Variable::Mode mode,
                                bool is_valid_lhs,
                                Variable::Kind kind) {
   HashMap::Entry* p = HashMap::Lookup(name.location(), name->Hash(), true);
@@ -179,7 +179,7 @@ Scope::Scope(Scope* inner_scope, Handle<String> catch_variable_name)
   ++num_var_or_const_;
   Variable* variable = variables_.Declare(this,
                                           catch_variable_name,
-                                          VAR,
+                                          Variable::VAR,
                                           true,  // Valid left-hand side.
                                           Variable::NORMAL);
   AllocateHeapSlot(variable);
@@ -310,7 +310,7 @@ void Scope::Initialize(bool inside_with) {
     Variable* var =
         variables_.Declare(this,
                            isolate_->factory()->this_symbol(),
-                           VAR,
+                           Variable::VAR,
                            false,
                            Variable::THIS);
     var->AllocateTo(Variable::PARAMETER, -1);
@@ -323,7 +323,7 @@ void Scope::Initialize(bool inside_with) {
     // allocated during variable allocation.
     variables_.Declare(this,
                        isolate_->factory()->arguments_symbol(),
-                       VAR,
+                       Variable::VAR,
                        true,
                        Variable::ARGUMENTS);
   }
@@ -373,11 +373,11 @@ Variable* Scope::LocalLookup(Handle<String> name) {
   ASSERT(scope_info_->StackSlotIndex(*name) < 0);
 
   // Check context slot lookup.
-  VariableMode mode;
+  Variable::Mode mode;
   int index = scope_info_->ContextSlotIndex(*name, &mode);
   if (index < 0) {
     // Check parameters.
-    mode = VAR;
+    mode = Variable::VAR;
     index = scope_info_->ParameterIndex(*name);
     if (index < 0) {
       // Check the function name.
@@ -407,13 +407,13 @@ Variable* Scope::Lookup(Handle<String> name) {
 Variable* Scope::DeclareFunctionVar(Handle<String> name) {
   ASSERT(is_function_scope() && function_ == NULL);
   Variable* function_var =
-      new Variable(this, name, CONST, true, Variable::NORMAL);
+      new Variable(this, name, Variable::CONST, true, Variable::NORMAL);
   function_ = new(isolate_->zone()) VariableProxy(isolate_, function_var);
   return function_var;
 }
 
 
-void Scope::DeclareParameter(Handle<String> name, VariableMode mode) {
+void Scope::DeclareParameter(Handle<String> name, Variable::Mode mode) {
   ASSERT(!already_resolved());
   ASSERT(is_function_scope());
   Variable* var =
@@ -422,12 +422,14 @@ void Scope::DeclareParameter(Handle<String> name, VariableMode mode) {
 }
 
 
-Variable* Scope::DeclareLocal(Handle<String> name, VariableMode mode) {
+Variable* Scope::DeclareLocal(Handle<String> name, Variable::Mode mode) {
   ASSERT(!already_resolved());
   // This function handles VAR and CONST modes.  DYNAMIC variables are
   // introduces during variable allocation, INTERNAL variables are allocated
   // explicitly, and TEMPORARY variables are allocated via NewTemporary().
-  ASSERT(mode == VAR || mode == CONST || mode == LET);
+  ASSERT(mode == Variable::VAR ||
+         mode == Variable::CONST ||
+         mode == Variable::LET);
   ++num_var_or_const_;
   return variables_.Declare(this, name, mode, true, Variable::NORMAL);
 }
@@ -435,7 +437,7 @@ Variable* Scope::DeclareLocal(Handle<String> name, VariableMode mode) {
 
 Variable* Scope::DeclareGlobal(Handle<String> name) {
   ASSERT(is_global_scope());
-  return variables_.Declare(this, name, DYNAMIC_GLOBAL,
+  return variables_.Declare(this, name, Variable::DYNAMIC_GLOBAL,
                             true,
                             Variable::NORMAL);
 }
@@ -471,7 +473,7 @@ Variable* Scope::NewTemporary(Handle<String> name) {
   ASSERT(!already_resolved());
   Variable* var = new Variable(this,
                                name,
-                               TEMPORARY,
+                               Variable::TEMPORARY,
                                true,
                                Variable::NORMAL);
   temps_.Add(var);
@@ -503,13 +505,13 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
   int length = decls_.length();
   for (int i = 0; i < length; i++) {
     Declaration* decl = decls_[i];
-    if (decl->mode() != VAR) continue;
+    if (decl->mode() != Variable::VAR) continue;
     Handle<String> name = decl->proxy()->name();
     bool cond = true;
     for (Scope* scope = decl->scope(); cond ; scope = scope->outer_scope_) {
       // There is a conflict if there exists a non-VAR binding.
       Variable* other_var = scope->variables_.Lookup(name);
-      if (other_var != NULL && other_var->mode() != VAR) {
+      if (other_var != NULL && other_var->mode() != Variable::VAR) {
         return decl;
       }
 
@@ -777,9 +779,9 @@ void Scope::Print(int n) {
 
   Indent(n1, "// dynamic vars\n");
   if (dynamics_ != NULL) {
-    PrintMap(n1, dynamics_->GetMap(DYNAMIC));
-    PrintMap(n1, dynamics_->GetMap(DYNAMIC_LOCAL));
-    PrintMap(n1, dynamics_->GetMap(DYNAMIC_GLOBAL));
+    PrintMap(n1, dynamics_->GetMap(Variable::DYNAMIC));
+    PrintMap(n1, dynamics_->GetMap(Variable::DYNAMIC_LOCAL));
+    PrintMap(n1, dynamics_->GetMap(Variable::DYNAMIC_GLOBAL));
   }
 
   // Print inner scopes (disable by providing negative n).
@@ -795,7 +797,7 @@ void Scope::Print(int n) {
 #endif  // DEBUG
 
 
-Variable* Scope::NonLocal(Handle<String> name, VariableMode mode) {
+Variable* Scope::NonLocal(Handle<String> name, Variable::Mode mode) {
   if (dynamics_ == NULL) dynamics_ = new DynamicScopePart();
   VariableMap* map = dynamics_->GetMap(mode);
   Variable* var = map->Lookup(name);
@@ -901,7 +903,7 @@ void Scope::ResolveVariable(Scope* global_scope,
     // Note that we must do a lookup anyway, because if we find one,
     // we must mark that variable as potentially accessed from this
     // inner scope (the property may not be in the 'with' object).
-    var = NonLocal(proxy->name(), DYNAMIC);
+    var = NonLocal(proxy->name(), Variable::DYNAMIC);
 
   } else {
     // We are not inside a local 'with' statement.
@@ -924,13 +926,13 @@ void Scope::ResolveVariable(Scope* global_scope,
       } else if (scope_inside_with_) {
         // If we are inside a with statement we give up and look up
         // the variable at runtime.
-        var = NonLocal(proxy->name(), DYNAMIC);
+        var = NonLocal(proxy->name(), Variable::DYNAMIC);
 
       } else if (invalidated_local != NULL) {
         // No with statements are involved and we found a local
         // variable that might be shadowed by eval introduced
         // variables.
-        var = NonLocal(proxy->name(), DYNAMIC_LOCAL);
+        var = NonLocal(proxy->name(), Variable::DYNAMIC_LOCAL);
         var->set_local_if_not_shadowed(invalidated_local);
 
       } else if (outer_scope_is_eval_scope_) {
@@ -940,10 +942,10 @@ void Scope::ResolveVariable(Scope* global_scope,
         // variable is global if it is not shadowed by eval-introduced
         // variables.
         if (context->GlobalIfNotShadowedByEval(proxy->name())) {
-          var = NonLocal(proxy->name(), DYNAMIC_GLOBAL);
+          var = NonLocal(proxy->name(), Variable::DYNAMIC_GLOBAL);
 
         } else {
-          var = NonLocal(proxy->name(), DYNAMIC);
+          var = NonLocal(proxy->name(), Variable::DYNAMIC);
         }
 
       } else {
@@ -951,7 +953,7 @@ void Scope::ResolveVariable(Scope* global_scope,
         // is not executed with a call to eval.  We know that this
         // variable is global unless it is shadowed by eval-introduced
         // variables.
-        var = NonLocal(proxy->name(), DYNAMIC_GLOBAL);
+        var = NonLocal(proxy->name(), Variable::DYNAMIC_GLOBAL);
       }
     }
   }
@@ -1038,7 +1040,7 @@ bool Scope::MustAllocateInContext(Variable* var) {
   //
   // Exceptions: temporary variables are never allocated in a context;
   // catch-bound variables are always allocated in a context.
-  if (var->mode() == TEMPORARY) return false;
+  if (var->mode() == Variable::TEMPORARY) return false;
   if (is_catch_scope() || is_block_scope()) return true;
   return var->is_accessed_from_inner_scope() ||
       scope_calls_eval_ ||

@@ -1336,9 +1336,7 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
   // Allocate the JSArray of the elements.
   Handle<JSObject> elements = factory->NewJSObject(isolate->array_function());
   if (elements->IsFailure()) return Object::cast(*elements);
-
-  maybe_result = Handle<JSArray>::cast(elements)->SetContent(*elements_arr);
-  if (maybe_result->IsFailure()) return maybe_result;
+  Handle<JSArray>::cast(elements)->SetContent(*elements_arr);
 
   // Set body.elements.
   Handle<String> elements_sym = factory->LookupAsciiSymbol("elements");
@@ -1464,9 +1462,7 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   Handle<JSObject> summary_obj =
     factory->NewJSObject(isolate->array_function());
   if (summary_obj->IsFailure()) return Object::cast(*summary_obj);
-
-  maybe_result = Handle<JSArray>::cast(summary_obj)->SetContent(*summary_arr);
-  if (maybe_result->IsFailure()) return maybe_result;
+  Handle<JSArray>::cast(summary_obj)->SetContent(*summary_arr);
 
   // Create the body object.
   Handle<JSObject> body = factory->NewJSObject(isolate->object_function());
@@ -1593,9 +1589,7 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
 
   // Return the result as a JS array.
   Handle<JSObject> lols = factory->NewJSObject(isolate->array_function());
-
-  maybe_result = Handle<JSArray>::cast(lols)->SetContent(*list);
-  if (maybe_result->IsFailure()) return maybe_result;
+  Handle<JSArray>::cast(lols)->SetContent(*list);
 
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (result->IsFailure()) return Object::cast(*result);
@@ -2619,7 +2613,7 @@ void LiveObjectList::VerifyNotInFromSpace() {
     HeapObject* heap_obj = it.Obj();
     if (heap->InFromSpace(heap_obj)) {
       OS::Print(" ERROR: VerifyNotInFromSpace: [%d] obj %p in From space %p\n",
-                i++, heap_obj, Heap::new_space()->FromSpaceStart());
+                i++, heap_obj, heap->new_space()->FromSpaceLow());
     }
   }
 }

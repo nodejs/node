@@ -124,58 +124,55 @@ void BreakLocationIterator::ClearDebugBreakAtSlot() {
 static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList object_regs,
                                           RegList non_object_regs) {
-  {
-    FrameScope scope(masm, StackFrame::INTERNAL);
+  __ EnterInternalFrame();
 
-    // Store the registers containing live values on the expression stack to
-    // make sure that these are correctly updated during GC. Non object values
-    // are stored as a smi causing it to be untouched by GC.
-    ASSERT((object_regs & ~kJSCallerSaved) == 0);
-    ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
-    ASSERT((object_regs & non_object_regs) == 0);
-    if ((object_regs | non_object_regs) != 0) {
-      for (int i = 0; i < kNumJSCallerSaved; i++) {
-        int r = JSCallerSavedCode(i);
-        Register reg = { r };
-        if ((non_object_regs & (1 << r)) != 0) {
-          if (FLAG_debug_code) {
-            __ And(at, reg, 0xc0000000);
-            __ Assert(
-                eq, "Unable to encode value as smi", at, Operand(zero_reg));
-          }
-          __ sll(reg, reg, kSmiTagSize);
+  // Store the registers containing live values on the expression stack to
+  // make sure that these are correctly updated during GC. Non object values
+  // are stored as a smi causing it to be untouched by GC.
+  ASSERT((object_regs & ~kJSCallerSaved) == 0);
+  ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
+  ASSERT((object_regs & non_object_regs) == 0);
+  if ((object_regs | non_object_regs) != 0) {
+    for (int i = 0; i < kNumJSCallerSaved; i++) {
+      int r = JSCallerSavedCode(i);
+      Register reg = { r };
+      if ((non_object_regs & (1 << r)) != 0) {
+        if (FLAG_debug_code) {
+          __ And(at, reg, 0xc0000000);
+          __ Assert(eq, "Unable to encode value as smi", at, Operand(zero_reg));
         }
+        __ sll(reg, reg, kSmiTagSize);
       }
-      __ MultiPush(object_regs | non_object_regs);
     }
+    __ MultiPush(object_regs | non_object_regs);
+  }
 
 #ifdef DEBUG
-    __ RecordComment("// Calling from debug break to runtime - come in - over");
+  __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-    __ mov(a0, zero_reg);  // No arguments.
-    __ li(a1, Operand(ExternalReference::debug_break(masm->isolate())));
+  __ mov(a0, zero_reg);  // No arguments.
+  __ li(a1, Operand(ExternalReference::debug_break(masm->isolate())));
 
-    CEntryStub ceb(1);
-    __ CallStub(&ceb);
+  CEntryStub ceb(1);
+  __ CallStub(&ceb);
 
-    // Restore the register values from the expression stack.
-    if ((object_regs | non_object_regs) != 0) {
-      __ MultiPop(object_regs | non_object_regs);
-      for (int i = 0; i < kNumJSCallerSaved; i++) {
-        int r = JSCallerSavedCode(i);
-        Register reg = { r };
-        if ((non_object_regs & (1 << r)) != 0) {
-          __ srl(reg, reg, kSmiTagSize);
-        }
-        if (FLAG_debug_code &&
-            (((object_regs |non_object_regs) & (1 << r)) == 0)) {
-          __ li(reg, kDebugZapValue);
-        }
+  // Restore the register values from the expression stack.
+  if ((object_regs | non_object_regs) != 0) {
+    __ MultiPop(object_regs | non_object_regs);
+    for (int i = 0; i < kNumJSCallerSaved; i++) {
+      int r = JSCallerSavedCode(i);
+      Register reg = { r };
+      if ((non_object_regs & (1 << r)) != 0) {
+        __ srl(reg, reg, kSmiTagSize);
+      }
+      if (FLAG_debug_code &&
+          (((object_regs |non_object_regs) & (1 << r)) == 0)) {
+        __ li(reg, kDebugZapValue);
       }
     }
-
-    // Leave the internal frame.
   }
+
+  __ LeaveInternalFrame();
 
   // Now that the break point has been handled, resume normal execution by
   // jumping to the target address intended by the caller and that was

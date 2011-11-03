@@ -25,13 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-Number.prototype.toLocaleString = function() { return 'invalid'; };
-assertEquals('invalid', [1].toLocaleString());  // invalid
+Number.prototype.toLocaleString = function() { return 'invalid'};
+assertEquals([1].toLocaleString(), 'invalid');  // invalid
 
 Number.prototype.toLocaleString = 'invalid';
-assertThrows(function() { [1].toLocaleString(); });  // Not callable.
+assertEquals([1].toLocaleString(), '1');  // 1
 
-delete Number.prototype.toLocaleString;
 Number.prototype.toString = function() { return 'invalid' };
-assertEquals([1].toLocaleString(), 'invalid');  // Uses ToObject on elements.
-assertEquals([1].toString(), '1');        // Uses ToString directly on elements.
+assertEquals([1].toLocaleString(), '1');  // 1
+assertEquals([1].toString(), '1');        // 1
+

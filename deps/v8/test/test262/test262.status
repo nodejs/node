@@ -25,323 +25,98 @@
 # (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-prefix test262
-def FAIL_OK = FAIL, OKAY
 
-############################### BUGS ###################################
+#
+# ietestcenter tests.
+#
 
-# A bound function should fail on access to 'caller' and 'arguments'.
-S15.3.4.5_A1: FAIL
-S15.3.4.5_A2: FAIL
+prefix ietestcenter
 
-# '__proto__' should be treated as a normal property in JSON.
-S15.12.2_A1: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1196
-S8.7_A5_T2: FAIL
-
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
-S10.4.2.1_A1: FAIL
-
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1752
-S11.8.2_A2.3_T1: FAIL
-S11.8.3_A2.3_T1: FAIL
-11.8.2-1: FAIL
-11.8.2-2: FAIL
-11.8.2-3: FAIL
-11.8.2-4: FAIL
-11.8.3-1: FAIL
-11.8.3-2: FAIL
-11.8.3-3: FAIL
-11.8.3-4: FAIL
-11.8.3-5: FAIL
-
-# V8 Bug.
-S13.2.3_A1: FAIL
-
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1530
-S15.3.3.1_A4: FAIL
-
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1756
-15.2.3.6-4-116: FAIL
-15.2.3.6-4-117: FAIL
-15.2.3.6-4-126: FAIL
-15.2.3.6-4-127: FAIL
-15.2.3.6-4-128: FAIL
-15.2.3.6-4-129: FAIL
-15.2.3.6-4-130: FAIL
-15.2.3.6-4-131: FAIL
-15.2.3.6-4-132: FAIL
-15.2.3.6-4-137: FAIL
-15.2.3.6-4-142: FAIL
-15.2.3.6-4-143: FAIL
-15.2.3.6-4-144: FAIL
-15.2.3.6-4-146: FAIL
-15.2.3.6-4-147: FAIL
-15.2.3.6-4-148: FAIL
-15.2.3.6-4-149: FAIL
-15.2.3.6-4-151: FAIL
-15.2.3.6-4-154: FAIL
-15.2.3.6-4-155: FAIL
-15.2.3.6-4-159: FAIL
-15.2.3.6-4-161: FAIL
-15.2.3.6-4-165: FAIL
-15.2.3.6-4-166: FAIL
-15.2.3.6-4-167: FAIL
-15.2.3.6-4-168: FAIL
-15.2.3.6-4-169: FAIL
-15.2.3.6-4-170: FAIL
-15.2.3.6-4-171: FAIL
-15.2.3.6-4-172: FAIL
-15.2.3.6-4-173: FAIL
-15.2.3.6-4-174: FAIL
-15.2.3.6-4-175: FAIL
-15.2.3.6-4-176: FAIL
-15.2.3.6-4-177: FAIL
-15.2.3.6-4-178: FAIL
-15.2.3.6-4-179-1: FAIL
-15.2.3.6-4-181: FAIL
-15.2.3.7-6-a-112: FAIL
-15.2.3.7-6-a-113: FAIL
-15.2.3.7-6-a-122: FAIL
-15.2.3.7-6-a-123: FAIL
-15.2.3.7-6-a-124: FAIL
-15.2.3.7-6-a-125: FAIL
-15.2.3.7-6-a-126: FAIL
-15.2.3.7-6-a-127: FAIL
-15.2.3.7-6-a-128: FAIL
-15.2.3.7-6-a-133: FAIL
-15.2.3.7-6-a-138: FAIL
-15.2.3.7-6-a-139: FAIL
-15.2.3.7-6-a-140: FAIL
-15.2.3.7-6-a-142: FAIL
-15.2.3.7-6-a-143: FAIL
-15.2.3.7-6-a-144: FAIL
-15.2.3.7-6-a-145: FAIL
-15.2.3.7-6-a-147: FAIL
-15.2.3.7-6-a-150: FAIL
-15.2.3.7-6-a-151: FAIL
-15.2.3.7-6-a-155: FAIL
-15.2.3.7-6-a-157: FAIL
-15.2.3.7-6-a-161: FAIL
-15.2.3.7-6-a-162: FAIL
-15.2.3.7-6-a-163: FAIL
-15.2.3.7-6-a-164: FAIL
-15.2.3.7-6-a-165: FAIL
-15.2.3.7-6-a-166: FAIL
-15.2.3.7-6-a-167: FAIL
-15.2.3.7-6-a-168: FAIL
-15.2.3.7-6-a-169: FAIL
-15.2.3.7-6-a-170: FAIL
-15.2.3.7-6-a-171: FAIL
-15.2.3.7-6-a-172: FAIL
-15.2.3.7-6-a-173: FAIL
-15.2.3.7-6-a-174: FAIL
-15.2.3.7-6-a-175: FAIL
-15.2.3.7-6-a-176: FAIL
-15.2.3.7-6-a-177: FAIL
-
-# Invalid test cases (recent change adding var changes semantics)
-S8.3_A1_T1: FAIL
-S15.3_A3_T1: FAIL
-S15.3_A3_T3: FAIL
-
-##################### DELIBERATE INCOMPATIBILITIES #####################
-
+#
+# Deliberate differences for compatibility with other browsers
+#
 # 15.9.5.43-0-9 and 15.9.5.43-0-10. V8 doesn't throw RangeError
 # from Date.prototype.toISOString when string is not a finite number.
 # This is compatible with Firefox and Safari.
 15.9.5.43-0-9: PASS || FAIL
 15.9.5.43-0-10: PASS || FAIL
 
-# We deliberately treat arguments to parseInt() with a leading zero as
-# octal numbers in order to not break the web.
-S15.1.2.2_A5.1_T1: FAIL_OK
+#
+# Unanalyzed failures which may be bugs or deliberate differences
+#
 
-# This tests precision of trignometric functions.  We're slightly off
-# from the implementation in libc (~ 1e-17) but it's not clear if we
-# or they are closer to the right answer, or if it even matters.
-S15.8.2.16_A7: PASS || FAIL_OK
-S15.8.2.18_A7: PASS || FAIL_OK
-S15.8.2.13_A23: PASS || FAIL_OK
-
-# We allow calls to regexp exec() with no arguments to fail for
-# compatibility reasons.
-S15.10.6.2_A1_T16: FAIL_OK
-S15.10.6.2_A12: FAIL_OK
-S15.10.6.3_A1_T16: FAIL_OK
-
-# Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
-S15.10.6_A2: FAIL_OK
-
-# We are silent in some regexp cases where the spec wants us to give
-# errors, for compatibility.
-S15.10.2.11_A1_T2: FAIL
-S15.10.2.11_A1_T3: FAIL
-
-# We are more lenient in which string character escapes we allow than
-# the spec (7.8.4 p. 19) wants us to be.  This is for compatibility.
-S7.8.4_A4.3_T3: FAIL_OK
-S7.8.4_A4.3_T4: FAIL_OK
-S7.8.4_A4.3_T5: FAIL_OK
-S7.8.4_A4.3_T6: FAIL_OK
-S7.8.4_A6.1_T4: FAIL_OK
-S7.8.4_A6.2_T1: FAIL_OK
-S7.8.4_A6.2_T2: FAIL_OK
-S7.8.4_A6.4_T1: FAIL_OK
-S7.8.4_A6.4_T2: FAIL_OK
-S7.8.4_A7.1_T4: FAIL_OK
-S7.8.4_A7.2_T1: FAIL_OK
-S7.8.4_A7.2_T2: FAIL_OK
-S7.8.4_A7.2_T3: FAIL_OK
-S7.8.4_A7.2_T4: FAIL_OK
-S7.8.4_A7.2_T5: FAIL_OK
-S7.8.4_A7.2_T6: FAIL_OK
-S7.8.4_A7.4_T1: FAIL_OK
-S7.8.4_A7.4_T2: FAIL_OK
-
-# Sputnik expects unicode escape sequences in RegExp flags to be interpreted.
-# The specification requires them to be passed uninterpreted to the RegExp
-# constructor. We now implement that.
-S7.8.5_A3.1_T7: FAIL_OK
-S7.8.5_A3.1_T8: FAIL_OK
-S7.8.5_A3.1_T9: FAIL_OK
-
-# We allow some keywords to be used as identifiers.
-S7.5.3_A1.15: FAIL_OK
-S7.5.3_A1.18: FAIL_OK
-S7.5.3_A1.21: FAIL_OK
-S7.5.3_A1.22: FAIL_OK
-S7.5.3_A1.23: FAIL_OK
-S7.5.3_A1.24: FAIL_OK
-S7.5.3_A1.26: FAIL_OK
-
-# This checks for non-262 behavior
-S7.6_D1: PASS || FAIL_OK
-S7.6_D2: PASS || FAIL_OK
-S8.4_D1.1: PASS || FAIL_OK
-S8.4_D2.1: PASS || FAIL_OK
-S8.4_D2.2: PASS || FAIL_OK
-S8.4_D2.3: PASS || FAIL_OK
-S8.4_D2.4: PASS || FAIL_OK
-S8.4_D2.5: PASS || FAIL_OK
-S8.4_D2.6: PASS || FAIL_OK
-S8.4_D2.7: PASS || FAIL_OK
-S11.4.3_D1.2: PASS || FAIL_OK
-S12.6.4_A14_T1: PASS || FAIL_OK
-S12.6.4_D1: PASS || FAIL_OK
-S12.6.4_R1: PASS || FAIL_OK
-S12.6.4_R2: PASS || FAIL_OK
-S13.2_D1.2: PASS || FAIL_OK
-S13_D1_T1: PASS || FAIL_OK
-S14_D4_T3: PASS || FAIL_OK
-S14_D7: PASS || FAIL_OK
-S15.1.2.2_D1.2: PASS || FAIL_OK
-S15.5.2_D2: PASS || FAIL_OK
-S15.5.4.11_D1.1_T1: PASS || FAIL_OK
-S15.5.4.11_D1.1_T2: PASS || FAIL_OK
-S15.5.4.11_D1.1_T3: PASS || FAIL_OK
-S15.5.4.11_D1.1_T4: PASS || FAIL_OK
-
-# We allow function declarations within statements
-S12.6.2_A13_T1: FAIL_OK
-S12.6.2_A13_T2: FAIL_OK
-S12.6.4_A13_T1: FAIL_OK
-S12.6.4_A13_T2: FAIL_OK
-S15.3.4.2_A1_T1: FAIL_OK
-
-# Linux and Mac defaults to extended 80 bit floating point format in the FPU.
-# We follow the other major JS engines by keeping this default.
-S8.5_A2.2: PASS, FAIL if $system == linux, FAIL if $system == macos
-S8.5_A2.1: PASS, FAIL if $system == linux, FAIL if $system == macos
-
-# These tests fail because we had to add bugs to be compatible with JSC.  See
-# http://code.google.com/p/chromium/issues/detail?id=1717
-S15.5.4.1_A1_T2: FAIL_OK
-S15.5.4_A1: FAIL_OK
-S15.5.4_A3: FAIL_OK
-S15.9.5.10_A1_T2: FAIL_OK
-S15.9.5.11_A1_T2: FAIL_OK
-S15.9.5.12_A1_T2: FAIL_OK
-S15.9.5.13_A1_T2: FAIL_OK
-S15.9.5.14_A1_T2: FAIL_OK
-S15.9.5.15_A1_T2: FAIL_OK
-S15.9.5.16_A1_T2: FAIL_OK
-S15.9.5.17_A1_T2: FAIL_OK
-S15.9.5.18_A1_T2: FAIL_OK
-S15.9.5.19_A1_T2: FAIL_OK
-S15.9.5.20_A1_T2: FAIL_OK
-S15.9.5.21_A1_T2: FAIL_OK
-S15.9.5.22_A1_T2: FAIL_OK
-S15.9.5.23_A1_T2: FAIL_OK
-S15.9.5.24_A1_T2: FAIL_OK
-S15.9.5.25_A1_T2: FAIL_OK
-S15.9.5.26_A1_T2: FAIL_OK
-S15.9.5.27_A1_T2: FAIL_OK
-S15.9.5.28_A1_T2: FAIL_OK
-S15.9.5.29_A1_T2: FAIL_OK
-S15.9.5.2_A1_T2: FAIL_OK
-S15.9.5.30_A1_T2: FAIL_OK
-S15.9.5.31_A1_T2: FAIL_OK
-S15.9.5.32_A1_T2: FAIL_OK
-S15.9.5.33_A1_T2: FAIL_OK
-S15.9.5.34_A1_T2: FAIL_OK
-S15.9.5.35_A1_T2: FAIL_OK
-S15.9.5.36_A1_T2: FAIL_OK
-S15.9.5.37_A1_T2: FAIL_OK
-S15.9.5.38_A1_T2: FAIL_OK
-S15.9.5.39_A1_T2: FAIL_OK
-S15.9.5.3_A1_T2: FAIL_OK
-S15.9.5.40_A1_T2: FAIL_OK
-S15.9.5.41_A1_T2: FAIL_OK
-S15.9.5.42_A1_T2: FAIL_OK
-S15.9.5.4_A1_T2: FAIL_OK
-S15.9.5.5_A1_T2: FAIL_OK
-S15.9.5.6_A1_T2: FAIL_OK
-S15.9.5.7_A1_T2: FAIL_OK
-S15.9.5.8_A1_T2: FAIL_OK
-S15.9.5.9_A1_T2: FAIL_OK
-
-############################# ES3 TESTS ################################
-# These tests check for ES3 semantics, and differ from ES5.
-# When we follow ES5 semantics, it's ok to fail the test.
-
-# Allow keywords as names of properties in object initialisers and
-# in dot-notation property access.
-S11.1.5_A4.1: FAIL_OK
-S11.1.5_A4.2: FAIL_OK
-
-# Calls builtins without an explicit receiver which means that
-# undefined is passed to the builtin. The tests expect the global
-# object to be passed which was true in ES3 but not in ES5.
-S11.1.1_A2: FAIL_OK
-S15.5.4.4_A1_T3: FAIL_OK
-S15.5.4.5_A1_T3: FAIL_OK
-S15.5.4.6_A1_T3: FAIL_OK
-S15.5.4.7_A1_T3: FAIL_OK
-S15.5.4.8_A1_T3: FAIL_OK
-S15.5.4.9_A1_T3: FAIL_OK
-S15.5.4.10_A1_T3: FAIL_OK
-S15.5.4.11_A1_T3: FAIL_OK
-S15.5.4.12_A1_T3: FAIL_OK
-S15.5.4.13_A1_T3: FAIL_OK
-S15.5.4.14_A1_T3: FAIL_OK
-S15.5.4.15_A1_T3: FAIL_OK
-
-# NaN, Infinity and undefined are read-only according to ES5.
-S15.1.1.1_A2_T1: FAIL_OK  # NaN
-S15.1.1.1_A2_T2: FAIL_OK  # NaN
-S15.1.1.2_A2_T1: FAIL_OK  # Infinity
-# S15.1.1.2_A2_T2 would fail if it weren't bogus in r97. sputnik bug #45.
-S15.1.1.3_A2_T1: FAIL_OK  # undefined
-S15.1.1.3_A2_T2: FAIL_OK  # undefined
-
-# Array.prototype.to[Locale]String is generic in ES5.
-S15.4.4.2_A2_T1: FAIL_OK
-S15.4.4.3_A2_T1: FAIL_OK
-
-######################### UNANALYZED FAILURES ##########################
-
+# Bug? Strict Mode - TypeError is thrown when changing the value of a Value
+#      Property of the Global Object under strict mode (NaN)
+10.2.1.1.3-4-16-s: FAIL
+# Bug? Strict Mode - TypeError is thrown when changing the value of a Value
+#      Property of the Global Object under strict mode (undefined)
+10.2.1.1.3-4-18-s: FAIL
+# Invalid test: https://bugs.ecmascript.org/show_bug.cgi?id=76
+10.4.2-2-c-1: FAIL
+# BUG: 11.8.2 Greater-than Operator - Partial left to right order enforced
+#      when using Greater-than operator: valueOf > valueOf
+11.8.2-1: FAIL
+# BUG: 11.8.2 Greater-than Operator - Partial left to right order enforced
+#      when using Greater-than operator: valueOf > toString
+11.8.2-2: FAIL
+# BUG: 11.8.2 Greater-than Operator - Partial left to right order enforced
+#      when using Greater-than operator: toString > valueOf
+11.8.2-3: FAIL
+# BUG: 11.8.2 Greater-than Operator - Partial left to right order enforced
+#       when using Greater-than operator: toString > toString
+11.8.2-4: FAIL
+# BUG: 11.8.3 Less-than-or-equal Operator - Partial left to right order
+#      enforced when using Less-than-or-equal operator: valueOf <= valueOf
+11.8.3-1: FAIL
+# BUG: 11.8.3 Less-than-or-equal Operator - Partial left to right order
+#      enforced when using Less-than-or-equal operator: valueOf <= toString
+11.8.3-2: FAIL
+# BUG: 11.8.3 Less-than-or-equal Operator - Partial left to right order
+#      enforced when using Less-than-or-equal operator: toString <= valueOf
+11.8.3-3: FAIL
+# BUG: 11.8.3 Less-than-or-equal Operator - Partial left to right order
+#      enforced when using Less-than-or-equal operator: toString <= toString
+11.8.3-4: FAIL
+# BUG: 11.8.3 Less-than-or-equal Operator - Partial left to right order
+#      enforced when using Less-than-or-equal operator: valueOf <= valueOf
+11.8.3-5: FAIL
+# Bug? simple assignment throws TypeError if LeftHandSide is a readonly property
+#      in strict mode (Global.undefined)
+11.13.1-4-27-s: FAIL
+# Bug? simple assignment throws TypeError if LeftHandSide is a readonly property
+#      in strict mode (Global.Infinity)
+11.13.1-4-3-s: FAIL
+# BUG: Global.NaN is a data property with default attribute values
+15.1.1.1-0: FAIL
+# BUG: Global.Infinity is a data property with default attribute values
+15.1.1.2-0: FAIL
+# BUG: Global.undefined is a data property with default attribute values
+15.1.1.3-0: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (Global.NaN)
+15.2.3.3-4-178: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (Global.Infinity)
+15.2.3.3-4-179: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (Global.undefined)
+15.2.3.3-4-180: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (RegExp.prototype.source)
+# There is no RegExp.prototype.source
+15.2.3.3-4-212: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (RegExp.prototype.global)
+# There is no RegExp.prototype.global
+15.2.3.3-4-213: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (RegExp.prototype.ignoreCase)
+# There is no RegExp.prototype.ignoreCase
+15.2.3.3-4-214: FAIL
+# BUG: Object.getOwnPropertyDescriptor returns data desc (all false)
+#      for properties on built-ins (RegExp.prototype.multiline)
+15.2.3.3-4-215: FAIL
 # Bug? Object.defineProperty - Update [[Enumerable]] attribute of 'name'
 #      property to true successfully when [[Enumerable]] attribute of 'name'
 #      is false and [[Configurable]] attribute of 'name' is true,  the 'desc'
@@ -387,6 +162,268 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      generic descriptor which only contains [[Enumerable]] attribute as true,
 #      'name' property is an index accessor property (8.12.9 step 8)
 15.2.3.6-4-82-24: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, test the length property of 'O'
+#      is own data property (15.4.5.1 step 1)
+15.2.3.6-4-116: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, test the length property of 'O'
+#      is own data property that overrides an inherited data property (15.4.5.1
+#      step 1)
+15.2.3.6-4-117: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test that RangeError exception is thrown when [[Value]] field of
+#      'desc' is undefined (15.4.5.1 step 3.c)
+15.2.3.6-4-125: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is null (15.4.5.1 step 3.c)
+15.2.3.6-4-126: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is a boolean with value false
+#      (15.4.5.1 step 3.c)
+15.2.3.6-4-127: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is a boolean with value true
+#      (15.4.5.1 step 3.c)
+15.2.3.6-4-128: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is not thrown when the [[Value]] field of
+#      'desc' is 0 (15.4.5.1 step 3.c)
+15.2.3.6-4-129: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is not thrown when the [[Value]] field of
+#      'desc' is +0 (15.4.5.1 step 3.c)
+15.2.3.6-4-130: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is not thrown when the [[Value]] field of
+#      'desc' is -0 (15.4.5.1 step 3.c)
+15.2.3.6-4-131: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is not thrown when the [[Value]] field of
+#      'desc' is a positive number (15.4.5.1 step 3.c)
+15.2.3.6-4-132: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is a negative number (15.4.5.1 step 3.c)
+15.2.3.6-4-133: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is +Infinity (15.4.5.1 step 3.c)
+15.2.3.6-4-134: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is -Infinity (15.4.5.1 step 3.c)
+15.2.3.6-4-135: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is NaN (15.4.5.1 step 3.c)
+15.2.3.6-4-136: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is not thrown when the [[Value]] field of
+#      'desc' is a string containing a positive number (15.4.5.1 step 3.c)
+15.2.3.6-4-137: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is a string containing a negative number (15.4.5.1 step 3.c)
+15.2.3.6-4-138: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is a string containing a decimal number (15.4.5.1 step 3.c)
+15.2.3.6-4-139: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is a string containing +Infinity (15.4.5.1 step 3.c)
+15.2.3.6-4-140: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is a string containing -Infinity (15.4.5.1 step 3.c)
+15.2.3.6-4-141: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is a string containing an
+#      exponential number (15.4.5.1 step 3.c)
+15.2.3.6-4-142: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is a string containing a hex
+#      number (15.4.5.1 step 3.c)
+15.2.3.6-4-143: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is a string containing a number
+#      with leading zeros (15.4.5.1 step 3.c)
+15.2.3.6-4-144: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError exception is thrown when the [[Value]] field of
+#      'desc' is a string which doesn't convert to a number (15.4.5.1 step 3.c)
+15.2.3.6-4-145: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is an object which has an own
+#      toString method (15.4.5.1 step 3.c)
+15.2.3.6-4-146: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      valueOf method (15.4.5.1 step 3.c)
+15.2.3.6-4-147: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      valueOf method that returns an object and toString method that returns a
+#      string (15.4.5.1 step 3.c)
+15.2.3.6-4-148: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      toString and valueOf method (15.4.5.1 step 3.c)
+15.2.3.6-4-149: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test TypeError is thrown when the [[Value]] field of 'desc' is an
+#      Object that both toString and valueOf wouldn't return primitive value
+#      (15.4.5.1 step 3.c)
+15.2.3.6-4-150: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', and the [[Value]] field of 'desc' is an Object with an own toString
+#      method and an inherited valueOf method (15.4.5.1 step 3.c), test that the
+#      inherited valueOf method is used
+15.2.3.6-4-151: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError is thrown when the [[Value]] field of 'desc' is a
+#      positive non-integer values (15.4.5.1 step 3.c)
+15.2.3.6-4-152: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length prosperty
+#      of 'O', test RangeError is thrown when the [[Value]] field of 'desc' is a
+#      negative non-integer values (15.4.5.1 step 3.c)
+15.2.3.6-4-153: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is boundary value 2^32 - 2
+#      (15.4.5.1 step 3.c)
+15.2.3.6-4-154: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test the [[Value]] field of 'desc' is boundary value 2^32 - 1
+#      (15.4.5.1 step 3.c)
+15.2.3.6-4-155: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError is thrown when the [[Value]] field of 'desc' is
+#      boundary value 2^32 (15.4.5.1 step 3.c)
+15.2.3.6-4-156: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', test RangeError is thrown when the [[Value]] field of 'desc' is
+#      boundary value 2^32 + 1 (15.4.5.1 step 3.c)
+15.2.3.6-4-157: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', set the [[Value]] field of 'desc' to a value greater than the
+#      existing value of length (15.4.5.1 step 3.f)
+15.2.3.6-4-159: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', set the [[Value]] field of 'desc' to a value lesser than the
+#      existing value of length and test that indexes beyond the new length are
+#      deleted(15.4.5.1 step 3.f)
+15.2.3.6-4-161: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to true after deleting properties with large index named if the
+#      [[Writable]] field of 'desc' is absent (15.4.5.1 step 3.h)
+15.2.3.6-4-165: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to true after deleting properties with large index named if the
+#      [[Writable]] field of 'desc' is true (15.4.5.1 step 3.h)
+15.2.3.6-4-166: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to false after deleting properties with large index named if the
+#      [[Writable]] field of 'desc' is false (15.4.5.1 step 3.i.ii)
+15.2.3.6-4-167: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', whose writable attribute is being changed to false and the [[Value]]
+#      field of 'desc' is less than value of the length property and also lesser
+#      than an index of the array which is set to configurable:false, test that
+#      new length is set to a value greater than the non-deletable index by 1,
+#      writable attribute of length is set to false and TypeError exception is
+#      thrown (15.4.5.1 step 3.i.iii)
+15.2.3.6-4-168: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property and also lesser than an index of the array which is set to
+#      configurable: false, test that new length is set to a value greater than
+#      the non-deletable index by 1, and TypeError is thrown (15.4.5.1 step
+#      3.l.i)
+15.2.3.6-4-169: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property and also lesser than an index of the array which is set to
+#      configurable: false, test that new length is set to a value greater than
+#      the non-deletable index by 1, writable attribute of length is set to
+#      false and TypeError exception is thrown (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-170: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of an inherited data
+#      property with large index named in 'O' can't stop deleting index named
+#      properties (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-171: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own data property with
+#      large index named in 'O' that overrides an inherited data property can
+#      stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-172: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own data property with
+#      large index named in 'O' that overrides an inherited accessor property
+#      can stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-173: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own accessor property
+#      with large index named in 'O' can stop deleting index named properties
+#      (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-174: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of an inherited accessor
+#      property with large index named in 'O' can't stop deleting index named
+#      properties (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-175: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own accessor property
+#      with large index named in 'O' that overrides an inherited data property
+#      can stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-176: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own accessor property
+#      with large index named in 'O' that overrides an inherited accessor
+#      property can stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-177: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the configurable large index named property of 'O' is
+#      deleted (15.4.5.1 step 3.l.ii)
+15.2.3.6-4-178: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is greater than value of the length
+#      property, test value of the length property is same as [[Value]]
+#      (15.4.5.1 step 3.l.iii.1)
+15.2.3.6-4-179-1: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to false at last when the [[Writable]] field of 'desc' is false and 'O'
+#      doesn't contain non-configurable large index named property (15.4.5.1
+#      step 3.m)
+15.2.3.6-4-181: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, 'name' is boundary value 2^32 - 2 (15.4.5.1 step 4.a)
+15.2.3.6-4-183: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, test TypeError is thrown if the [[Writable]] attribute of the
+#      length property in 'O' is false and value of 'name' equals to value of
+#      the length property (15.4.5.1 step 4.b)
+15.2.3.6-4-188: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, test TypeError is thrown if the [[Writable]] attribute of the
+#      length property in 'O' is false and value of 'name' is greater than value
+#      of the length property (15.4.5.1 step 4.b)
+15.2.3.6-4-189: FAIL
 # Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
 #      property, 'desc' is accessor descriptor, test updating all attribute
 #      values of 'name' (15.4.5.1 step 4.c)
@@ -405,6 +442,16 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      property, name is accessor property and 'desc' is accessor descriptor,
 #      test updating multiple attribute values of 'name' (15.4.5.1 step 4.c)
 15.2.3.6-4-273: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, test the length property of 'O' is set as ToUint32('name') + 1
+#      if ToUint32('name') equals to value of the length property in 'O'
+#      (15.4.5.1 step 4.e.ii)
+15.2.3.6-4-275: FAIL
+# Bug? Object.defineProperty - 'O' is an Array, 'name' is an array index named
+#      property, test the length property of 'O' is set as ToUint32('name') + 1
+#      if ToUint32('name') is greater than value of the length property in 'O'
+#      (15.4.5.1 step 4.e.ii)
+15.2.3.6-4-276: FAIL
 # Bug? Object.defineProperty - 'O' is an Arguments object of a function that has
 #      formal parameters, 'name' is own accessor property of 'O' which is also
 #      defined in [[ParameterMap]] of 'O', and 'desc' is accessor descriptor,
@@ -519,6 +566,269 @@ S15.4.4.3_A2_T1: FAIL_OK
 15.2.3.6-4-623: FAIL
 # Bug? ES5 Attributes - all attributes in Date.prototype.toJSON are correct
 15.2.3.6-4-624: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, test the length property of
+#      'O' is own data property (15.4.5.1 step 1)
+15.2.3.7-6-a-112: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, test the length property of
+#      'O' is own data property that overrides an inherited data property
+#      (15.4.5.1 step 1)
+15.2.3.7-6-a-113: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', test RangeError is thrown when setting the [[Value]] field of 'desc'
+#      to undefined (15.4.5.1 step 3.c)
+15.2.3.7-6-a-121: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', test setting the [[Value]] field of 'desc' to null actuall is set to
+#      0 (15.4.5.1 step 3.c)
+15.2.3.7-6-a-122: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a boolean with value false
+#      (15.4.5.1 step 3.c)
+15.2.3.7-6-a-123: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a boolean with value true
+#      (15.4.5.1 step 3.c)
+15.2.3.7-6-a-124: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is 0 (15.4.5.1 step 3.c)
+15.2.3.7-6-a-125: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is +0 (15.4.5.1 step 3.c)
+15.2.3.7-6-a-126: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is -0 (15.4.5.1 step 3.c)
+15.2.3.7-6-a-127: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is positive number (15.4.5.1
+#      step 3.c)
+15.2.3.7-6-a-128: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is negative number (15.4.5.1
+#      step 3.c)
+15.2.3.7-6-a-129: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is +Infinity (15.4.5.1 step
+#      3.c)
+15.2.3.7-6-a-130: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is -Infinity (15.4.5.1 step
+#      3.c)
+15.2.3.7-6-a-131: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is NaN (15.4.5.1 step 3.c)
+15.2.3.7-6-a-132: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing a
+#      positive number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-133: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing a
+#      negative number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-134: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing a
+#      decimal number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-135: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing
+#      +Infinity (15.4.5.1 step 3.c)
+15.2.3.7-6-a-136: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing
+#      -Infinity (15.4.5.1 step 3.c)
+15.2.3.7-6-a-137: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing an
+#      exponential number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-138: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing an hex
+#      number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-139: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is a string containing an
+#      leading zero number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-140: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', test the [[Value]] field of 'desc' is a string which doesn't convert
+#      to a number (15.4.5.1 step 3.c)
+15.2.3.7-6-a-141: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      toString method (15.4.5.1 step 3.c)
+15.2.3.7-6-a-142: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      valueOf method (15.4.5.1 step 3.c)
+15.2.3.7-6-a-143: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      valueOf method that returns an object and toString method that returns a
+#      string (15.4.5.1 step 3.c)
+15.2.3.7-6-a-144: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is an Object which has an own
+#      toString and valueOf method (15.4.5.1 step 3.c)
+15.2.3.7-6-a-145: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test TypeError is thrown when the [[Value]] field of 'desc' is an
+#      Object that both toString and valueOf wouldn't return primitive value
+#      (15.4.5.1 step 3.c)
+15.2.3.7-6-a-146: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test using inherited valueOf method when the [[Value]] field of
+#      'desc' is an Objec with an own toString and inherited valueOf methods
+#      (15.4.5.1 step 3.c)
+15.2.3.7-6-a-147: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test RangeError is thrown when the [[Value]] field of 'desc' is
+#      positive non-integer values (15.4.5.1 step 3.c)
+15.2.3.7-6-a-148: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test RangeError is thrown when the [[Value]] field of 'desc' is
+#      negative non-integer values (15.4.5.1 step 3.c)
+15.2.3.7-6-a-149: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is boundary value 2^32 - 2
+#      (15.4.5.1 step 3.c)
+15.2.3.7-6-a-150: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test the [[Value]] field of 'desc' is boundary value 2^32 - 1
+#      (15.4.5.1 step 3.c)
+15.2.3.7-6-a-151: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test RangeError is thrown when the [[Value]] field of 'desc' is
+#      boundary value 2^32 (15.4.5.1 step 3.c)
+15.2.3.7-6-a-152: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'name' is the length property
+#      of 'O', test RangeError is thrown when the [[Value]] field of 'desc' is
+#      boundary value 2^32 + 1 (15.4.5.1 step 3.c)
+15.2.3.7-6-a-153: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', test the [[Value]] field of 'desc' which is greater than value of
+#      the length property is defined into 'O' without deleting any property
+#      with large index named (15.4.5.1 step 3.f)
+15.2.3.7-6-a-155: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', test the [[Value]] field of 'desc' which is less than value of the
+#      length property is defined into 'O' with deleting properties with large
+#      index named (15.4.5.1 step 3.f)
+15.2.3.7-6-a-157: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to true at last after deleting properties with large index named if the
+#      [[Writable]] field of 'desc' is absent (15.4.5.1 step 3.h)
+15.2.3.7-6-a-161: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to true at last after deleting properties with large index named if the
+#      [[Writable]] field of 'desc' is true (15.4.5.1 step 3.h)
+15.2.3.7-6-a-162: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to false at last after deleting properties with large index named if the
+#      [[Writable]] field of 'desc' is false (15.4.5.1 step 3.i.ii)
+15.2.3.7-6-a-163: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property in 'O'
+#      is set as true before deleting properties with large index named
+#      (15.4.5.1 step 3.i.iii)
+15.2.3.7-6-a-164: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the length property is decreased by 1 (15.4.5.1 step
+#      3.l.i)
+15.2.3.7-6-a-165: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own data property with
+#      large index named in 'O' can stop deleting index named properties
+#      (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-166: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of inherited data property
+#      with large index named in 'O' can't stop deleting index named properties
+#      (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-167: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own data property with
+#      large index named in 'O' that overrides inherited data property can stop
+#      deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-168: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own data property with
+#      large index named in 'O' that overrides inherited accessor property can
+#      stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-169: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own accessor property
+#      with large index named in 'O' can stop deleting index named properties
+#      (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-170: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of inherited accessor
+#      property with large index named in 'O' can't stop deleting index named
+#      properties (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-171: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own accessor property
+#      with large index named in 'O' that overrides inherited data property can
+#      stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-172: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Configurable]] attribute of own accessor property
+#      with large index named in 'O' that overrides inherited accessor property
+#      can stop deleting index named properties (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-173: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the configurable large index named property of 'O' can be
+#      deleted (15.4.5.1 step 3.l.ii)
+15.2.3.7-6-a-174: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test value of the length property is set to the last
+#      non-configurable index named property of 'O' plus 1 (15.4.5.1 step
+#      3.l.iii.1)
+15.2.3.7-6-a-175: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to false at last when the [[Writable]] field of 'desc' is false and 'O'
+#      contains non-configurable large index named property (15.4.5.1 step
+#      3.l.iii.2)
+15.2.3.7-6-a-176: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is the length property of
+#      'O', the [[Value]] field of 'desc' is less than value of the length
+#      property, test the [[Writable]] attribute of the length property is set
+#      to false at last when the [[Writable]] field of 'desc' is false and 'O'
+#      doesn't contain non-configurable large index named property (15.4.5.1
+#      step 3.m)
+15.2.3.7-6-a-177: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property, 'P' is boundary value 2^32 - 2 (15.4.5.1 step 4.a)
+15.2.3.7-6-a-179: FAIL
+# Bug? Object.defineProperties - TypeError is thrown if 'O' is an Array, 'P' is
+#      an array index named property,[[Writable]] attribute of the length
+#      property in 'O' is false, value of 'P' is equal to value of the length
+#      property in 'O' (15.4.5.1 step 4.b)
+15.2.3.7-6-a-184: FAIL
+# Bug? Object.defineProperties - TypeError is thrown if 'O' is an Array, 'P' is
+#      an array index named property,[[Writable]] attribute of the length
+#      property in 'O' is false, value of 'P' is bigger than value of the length
+#      property in 'O' (15.4.5.1 step 4.b)
+15.2.3.7-6-a-185: FAIL
 # Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
 #      property, 'desc' is accessor descriptor, test updating all attribute
 #      values of 'P' (15.4.5.1 step 4.c)
@@ -538,6 +848,16 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      accessor descriptor, test updating multiple attribute values of 'P'
 #      (15.4.5.1 step 4.c)
 15.2.3.7-6-a-262: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property, test the length property of 'O' is set as ToUint32('P') + 1 if
+#      ToUint32('P') equals to value of the length property in 'O' (15.4.5.1
+#      step 4.e.ii)
+15.2.3.7-6-a-264: FAIL
+# Bug? Object.defineProperties - 'O' is an Array, 'P' is an array index named
+#      property, test the length property of 'O' is set as ToUint32('P') + 1 if
+#      ToUint32('P') is greater than value of the length property in 'O'
+#      (15.4.5.1 step 4.e.ii)
+15.2.3.7-6-a-265: FAIL
 # Bug? Object.defineProperties - 'O' is an Arguments object, 'P' is own accessor
 #      property of 'O' which is also defined in [[ParameterMap]] of 'O', and
 #      'desc' is accessor descriptor, test updating multiple attribute values of
@@ -600,21 +920,239 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Array.prototype.indexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.14-9-a-19: FAIL
+# Bug? Array.prototype.indexOf - element to be retrieved is own accessor
+#      property that overrides an inherited data property on an Array
+15.4.4.14-9-b-i-11: FAIL
+# Bug? Array.prototype.indexOf - element to be retrieved is own accessor
+#      property that overrides an inherited accessor property on an Array
+15.4.4.14-9-b-i-13: FAIL
+# Bug? Array.prototype.indexOf - element to be retrieved is own accessor
+#      property without a get function on an Array
+15.4.4.14-9-b-i-17: FAIL
+# Bug? Array.prototype.indexOf - element to be retrieved is own accessor
+#      property without a get function that overrides an inherited accessor
+#      property on an Array
+15.4.4.14-9-b-i-19: FAIL
+# Bug? Array.prototype.indexOf - side-effects are visible in subsequent
+#      iterations on an Array
+15.4.4.14-9-b-i-28: FAIL
+# Bug? Array.prototype.indexOf - terminates iteration on unhandled exception on
+#      an Array
+15.4.4.14-9-b-i-30: FAIL
+# Bug? Array.prototype.lastIndexOf - deleting property of prototype causes
+#      prototype index property not to be visited on an Array
+15.4.4.15-8-a-14: FAIL
 # Bug? Array.prototype.lastIndexOf - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.15-8-a-19: FAIL
+# Bug? Array.prototype.lastIndexOf - element to be retrieved is own accessor
+#      property that overrides an inherited data property on an Array
+15.4.4.15-8-b-i-11: FAIL
+# Bug? Array.prototype.lastIndexOf - element to be retrieved is own accessor
+#      property that overrides an inherited accessor property on an Array
+15.4.4.15-8-b-i-13: FAIL
+# Bug? Array.prototype.lastIndexOf - element to be retrieved is own accessor
+#      property without a get function on an Array
+15.4.4.15-8-b-i-17: FAIL
+# Bug? Array.prototype.lastIndexOf - side-effects are visible in subsequent
+#      iterations on an Array
+15.4.4.15-8-b-i-28: FAIL
+# Bug? Array.prototype.lastIndexOf terminates iteration on unhandled exception
+#      on an Array
+15.4.4.15-8-b-i-30: FAIL
+# Bug? Array.prototype.every applied to boolean primitive
+15.4.4.16-1-3: FAIL
+# Bug? Array.prototype.every applied to number primitive
+15.4.4.16-1-5: FAIL
+# Bug? Array.prototype.every applied to string primitive
+15.4.4.16-1-7: FAIL
+# Bug? Array.prototype.every - side effects produced by step 2 are visible when
+#      an exception occurs
+15.4.4.16-4-8: FAIL
+# Bug? Array.prototype.every - side effects produced by step 3 are visible when
+#      an exception occurs
+15.4.4.16-4-9: FAIL
+# Bug? Array.prototype.every - the exception is not thrown if exception was
+#      thrown by step 2
+15.4.4.16-4-10: FAIL
+# Bug? Array.prototype.every - the exception is not thrown if exception was
+#      thrown by step 3
+15.4.4.16-4-11: FAIL
+# Bug? Array.prototype.every - calling with no callbackfn is the same as passing
+#      undefined for callbackfn
+15.4.4.16-4-15: FAIL
 # Bug? Array.prototype.every - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.16-7-b-16: FAIL
+# Bug? Array.prototype.every - element to be retrieved is own accessor property
+#      on an Array
+15.4.4.16-7-c-i-10: FAIL
+# Bug? Array.prototype.every - element to be retrieved is own accessor property
+#      that overrides an inherited data property on an Array
+15.4.4.16-7-c-i-12: FAIL
+# Bug? Array.prototype.every - element to be retrieved is own accessor property
+#      that overrides an inherited accessor property on an Array
+15.4.4.16-7-c-i-14: FAIL
+# Bug? Array.prototype.every - element to be retrieved is own accessor property
+#      without a get function on an Array
+15.4.4.16-7-c-i-18: FAIL
+# Bug? Array.prototype.every - element to be retrieved is own accessor property
+#      without a get function that overrides an inherited accessor property on
+#      an Array
+15.4.4.16-7-c-i-20: FAIL
+# Bug? Array.prototype.every - element changed by getter on previous iterations
+#      is observed on an Array
+15.4.4.16-7-c-i-28: FAIL
+# Bug? Array.prototype.some applied to boolean primitive
+15.4.4.17-1-3: FAIL
+# Bug? Array.prototype.some applied to number primitive
+15.4.4.17-1-5: FAIL
+# Bug? Array.prototype.some applied to applied to string primitive
+15.4.4.17-1-7: FAIL
+# Bug? Array.prototype.some - side effects produced by step 2 are visible when
+#      an exception occurs
+15.4.4.17-4-8: FAIL
+# Bug? Array.prototype.some - side effects produced by step 3 are visible when
+#      an exception occurs
+15.4.4.17-4-9: FAIL
+# Bug? Array.prototype.some - the exception is not thrown if exception was
+#      thrown by step 2
+15.4.4.17-4-10: FAIL
+# Bug? Array.prototype.some - the exception is not thrown if exception was
+#      thrown by step 3
+15.4.4.17-4-11: FAIL
+# Bug? Array.prototype.some - calling with no callbackfn is the same as passing
+#      undefined for callbackfn
+15.4.4.17-4-15: FAIL
 # Bug? Array.prototype.some - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.17-7-b-16: FAIL
+# Bug? Array.prototype.some - element to be retrieved is own accessor property
+#      on an Array
+15.4.4.17-7-c-i-10: FAIL
+# Bug? Array.prototype.some - element to be retrieved is own accessor property
+#      that overrides an inherited data property on an Array
+15.4.4.17-7-c-i-12: FAIL
+# Bug? Array.prototype.some - element to be retrieved is own accessor property
+#      that overrides an inherited accessor property on an Array
+15.4.4.17-7-c-i-14: FAIL
+# Bug? Array.prototype.some - element to be retrieved is own accessor property
+#      without a get function on an Array
+15.4.4.17-7-c-i-18: FAIL
+# Bug? Array.prototype.some - element to be retrieved is own accessor property
+#      without a get function that overrides an inherited accessor property on
+#      an Array
+15.4.4.17-7-c-i-20: FAIL
+# Bug? Array.prototype.some - element changed by getter on previous iterations
+#      is observed on an Array
+15.4.4.17-7-c-i-28: FAIL
+# Bug? Array.prototype.forEach applied to boolean primitive
+15.4.4.18-1-3: FAIL
+# Bug? Array.prototype.forEach applied to number primitive
+15.4.4.18-1-5: FAIL
+# Bug? Array.prototype.forEach applied to string primitive
+15.4.4.18-1-7: FAIL
+# Bug? Array.prototype.forEach - side effects produced by step 2 are visible
+#      when an exception occurs
+15.4.4.18-4-8: FAIL
+# Bug? Array.prototype.forEach - side effects produced by step 3 are visible
+#      when an exception occurs
+15.4.4.18-4-9: FAIL
+# Bug? Array.prototype.forEach - the exception is not thrown if exception was
+#      thrown by step 2
+15.4.4.18-4-10: FAIL
+# Bug? Array.prototype.forEach - the exception is not thrown if exception was
+#      thrown by step 3
+15.4.4.18-4-11: FAIL
+# Bug? Array.prototype.forEach - calling with no callbackfn is the same as
+#      passing undefined for callbackfn
+15.4.4.18-4-15: FAIL
 # Bug? Array.prototype.forEach - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.18-7-b-16: FAIL
+# Bug? Array.prototype.forEach - element to be retrieved is own accessor
+#      property on an Array
+15.4.4.18-7-c-i-10: FAIL
+# Bug? Array.prototype.forEach - element to be retrieved is own accessor
+#      property that overrides an inherited data property on an Array
+15.4.4.18-7-c-i-12: FAIL
+# Bug? Array.prototype.forEach - element to be retrieved is own accessor
+#      property that overrides an inherited accessor property on an Array
+15.4.4.18-7-c-i-14: FAIL
+# Bug? Array.prototype.forEach - element to be retrieved is own accessor
+#      property without a get function on an Array
+15.4.4.18-7-c-i-18: FAIL
+# Bug? Array.prototype.forEach - element to be retrieved is own accessor
+#      property without a get function that overrides an inherited accessor
+#      property on an Array
+15.4.4.18-7-c-i-20: FAIL
+# Bug? Array.prototype.forEach - element changed by getter on previous
+#      iterations is observed on an Array
+15.4.4.18-7-c-i-28: FAIL
+# Bug? Array.prototype.map - applied to boolean primitive
+15.4.4.19-1-3: FAIL
+# Bug? Array.prototype.map - applied to number primitive
+15.4.4.19-1-5: FAIL
+# Bug? Array.prototype.map - applied to string primitive
+15.4.4.19-1-7: FAIL
+# Bug? Array.prototype.map - Side effects produced by step 2 are visible when an
+#      exception occurs
+15.4.4.19-4-8: FAIL
+# Bug? Array.prototype.map - Side effects produced by step 3 are visible when an
+#      exception occurs
+15.4.4.19-4-9: FAIL
+# Bug? Array.prototype.map - the exception is not thrown if exception was thrown
+#      by step 2
+15.4.4.19-4-10: FAIL
+# Bug? Array.prototype.map - the exception is not thrown if exception was thrown
+#      by step 3
+15.4.4.19-4-11: FAIL
+# Bug? Array.prototype.map - calling with no callbackfn is the same as passing
+#      undefined for callbackfn
+15.4.4.19-4-15: FAIL
 # Bug? Array.prototype.map - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.19-8-b-16: FAIL
+# Bug? Array.prototype.map - element to be retrieved is own accessor property on
+#      an Array
+15.4.4.19-8-c-i-10: FAIL
+# Bug? Array.prototype.map - element to be retrieved is own accessor property
+#      that overrides an inherited data property on an Array
+15.4.4.19-8-c-i-12: FAIL
+# Bug? Array.prototype.map - element to be retrieved is own accessor property
+#      that overrides an inherited accessor property on an Array
+15.4.4.19-8-c-i-14: FAIL
+# Bug? Array.prototype.map - element to be retrieved is own accessor property
+#      without a get function on an Array
+15.4.4.19-8-c-i-18: FAIL
+# Bug? Array.prototype.map - element to be retrieved is own accessor property
+#      without a get function that overrides an inherited accessor property on
+#      an Array
+15.4.4.19-8-c-i-19: FAIL
+# Bug? Array.prototype.map - element changed by getter on previous iterations is
+#      observed on an Array
+15.4.4.19-8-c-i-28: FAIL
+# Bug? Array.prototype.filter applied to boolean primitive
+15.4.4.20-1-3: FAIL
+# Bug? Array.prototype.filter applied to number primitive
+15.4.4.20-1-5: FAIL
+# Bug? Array.prototype.filter applied to string primitive
+15.4.4.20-1-7: FAIL
+# Bug? Array.prototype.filter - side effects produced by step 2 are visible when
+#      an exception occurs
+15.4.4.20-4-8: FAIL
+# Bug? Array.prototype.filter - side effects produced by step 3 are visible when
+#      an exception occurs
+15.4.4.20-4-9: FAIL
+# Bug? Array.prototype.filter - the exception is not thrown if exception was
+#      thrown by step 2
+15.4.4.20-4-10: FAIL
+# Bug? Array.prototype.filter - the exception is not thrown if exception was
+#      thrown by step 3
+15.4.4.20-4-11: FAIL
+# Bug? Array.prototype.filter - calling with no callbackfn is the same as
+#      passing undefined for callbackfn
+15.4.4.20-4-15: FAIL
 # Bug? Array.prototype.filter - properties can be added to prototype after
 #      current position are visited on an Array-like object
 15.4.4.20-9-b-6: FAIL
@@ -625,29 +1163,144 @@ S15.4.4.3_A2_T1: FAIL_OK
 #      that overrides an inherited accessor property on an Array
 15.4.4.20-9-c-i-6: FAIL
 # Bug? Array.prototype.filter - element to be retrieved is own accessor property
+#      on an Array
+15.4.4.20-9-c-i-10: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is own accessor property
+#      that overrides an inherited data property on an Array
+15.4.4.20-9-c-i-12: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is own accessor property
 #      that overrides an inherited accessor property on an Array
 15.4.4.20-9-c-i-14: FAIL
 # Bug? Array.prototype.filter - element to be retrieved is inherited accessor
 #      property on an Array
 15.4.4.20-9-c-i-16: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is own accessor property
+#      without a get function on an Array
+15.4.4.20-9-c-i-18: FAIL
+# Bug? Array.prototype.filter - element to be retrieved is own accessor property
+#      without a get function that overrides an inherited accessor property on
+#      an Array
+15.4.4.20-9-c-i-20: FAIL
 # Bug? Array.prototype.filter - element to be retrieved is inherited accessor
 #      property without a get function on an Array
 15.4.4.20-9-c-i-22: FAIL
+# Bug? Array.prototype.filter - element changed by getter on previous iterations
+#      is observed on an Array
+15.4.4.20-9-c-i-28: FAIL
+# Bug? Array.prototype.reduce applied to boolean primitive
+15.4.4.21-1-3: FAIL
+# Bug? Array.prototype.reduce applied to number primitive
+15.4.4.21-1-5: FAIL
+# Bug? Array.prototype.reduce applied to string primitive
+15.4.4.21-1-7: FAIL
+# Bug? Array.prototype.reduce - side effects produced by step 2 are visible when
+#      an exception occurs
+15.4.4.21-4-8: FAIL
+# Bug? Array.prototype.reduce - side effects produced by step 3 are visible when
+#      an exception occurs
+15.4.4.21-4-9: FAIL
+# Bug? Array.prototype.reduce - the exception is not thrown if exception was
+#      thrown by step 2
+15.4.4.21-4-10: FAIL
+# Bug? Array.prototype.reduce - the exception is not thrown if exception was
+#      thrown by step 3
+15.4.4.21-4-11: FAIL
+# Bug? Array.prototype.reduce - calling with no callbackfn is the same as
+#      passing undefined for callbackfn
+15.4.4.21-4-15: FAIL
 # Bug? Array.prototype.reduce - decreasing length of array in step 8 does not
 #      delete non-configurable properties
 15.4.4.21-9-b-16: FAIL
 # Bug? Array.prototype.reduce - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.21-9-b-29: FAIL
+# Bug? Array.prototype.reduceRight applied to boolean primitive
+15.4.4.22-1-3: FAIL
+# Bug? Array.prototype.reduceRight applied to number primitive
+15.4.4.22-1-5: FAIL
+# Bug? Array.prototype.reduceRight applied to string primitive
+15.4.4.22-1-7: FAIL
+# Bug? Array.prototype.reduceRight - side effects produced by step 2 are visible
+#      when an exception occurs
+15.4.4.22-4-8: FAIL
+# Bug? Array.prototype.reduceRight - side effects produced by step 3 are visible
+#      when an exception occurs
+15.4.4.22-4-9: FAIL
+# Bug? Array.prototype.reduceRight - the exception is not thrown if exception
+#      was thrown by step 2
+15.4.4.22-4-10: FAIL
+# Bug? Array.prototype.reduceRight - the exception is not thrown if exception
+#      was thrown by step 3
+15.4.4.22-4-11: FAIL
+# Bug? Array.prototype.reduceRight - calling with no callbackfn is the same as
+#      passing undefined for callbackfn
+15.4.4.22-4-15: FAIL
+# Bug? Array.prototype.reduceRight - element to be retrieved is own accessor
+#      property that overrides an inherited data property on an Array
+15.4.4.22-8-b-iii-1-12: FAIL
+# Bug? Array.prototype.reduceRight - element to be retrieved is own accessor
+#      property without a get function on an Array
+15.4.4.22-8-b-iii-1-18: FAIL
+# Bug? Array.prototype.reduceRight - element to be retrieved is own accessor
+#      property without a get function that overrides an inherited accessor
+#      property on an Array
+15.4.4.22-8-b-iii-1-20: FAIL
+# Bug? Array.prototype.reduceRight - element changed by getter on current
+#      iteration is observed in subsequent iterations on an Array
+15.4.4.22-8-b-iii-1-30: FAIL
+# Bug? Array.prototype.reduceRight - Exception in getter terminate iteration on
+#      an Array
+15.4.4.22-8-b-iii-1-33: FAIL
+# Bug? Array.prototype.reduceRight - modifications to length don't change number
+#      of iterations in step 9
+15.4.4.22-8-b-2: FAIL
+# Bug? Array.prototype.reduceRight - deleting own property in step 8 causes
+#      deleted index property not to be visited on an Array
+15.4.4.22-9-b-9: FAIL
+# Bug? Array.prototype.reduceRight - deleting own property with prototype
+#      property in step 8 causes prototype index property to be visited on an
+#      Array
+15.4.4.22-9-b-13: FAIL
 # Bug? Array.prototype.reduceRight - decreasing length of array in step 8 does
 #      not delete non-configurable properties
 15.4.4.22-9-b-16: FAIL
+# Bug? Array.prototype.reduceRight - deleting property of prototype causes
+#      deleted index property not to be visited on an Array
+15.4.4.22-9-b-24: FAIL
+# Bug? Array.prototype.reduceRight - deleting own property with prototype
+#      property causes prototype index property to be visited on an Array
+15.4.4.22-9-b-26: FAIL
 # Bug? Array.prototype.reduceRight - decreasing length of array does not delete
 #      non-configurable properties
 15.4.4.22-9-b-29: FAIL
+# Bug? Array.prototype.reduceRight - element changed by getter on previous
+#      iterations is observed on an Array
+15.4.4.22-9-c-i-30: FAIL
 # Bug? Array.prototype.reduceRight - modifications to length will change number
 #      of iterations
 15.4.4.22-9-9: FAIL
+# Bug? String.prototype.trim - 'S' is a string with all WhiteSpace
+15.5.4.20-3-2: FAIL
+# Bug? String.prototype.trim - 'S' is a string with all union of WhiteSpace and
+#      LineTerminator
+15.5.4.20-3-3: FAIL
+# Bug? String.prototype.trim - 'S' is a string start with union of all
+#      LineTerminator and all WhiteSpace
+15.5.4.20-3-4: FAIL
+# Bug? String.prototype.trim - 'S' is a string end with union of all
+#      LineTerminator and all WhiteSpace
+15.5.4.20-3-5: FAIL
+# Bug? String.prototype.trim - 'S' is a string start with union of all
+#      LineTerminator and all WhiteSpace and end with union of all
+#      LineTerminator and all WhiteSpace
+15.5.4.20-3-6: FAIL
+# Bug? String.prototype.trim handles whitepace and lineterminators (\\uFEFFabc)
+15.5.4.20-4-10: FAIL
+# Bug? String.prototype.trim handles whitepace and lineterminators (abc\\uFEFF)
+15.5.4.20-4-18: FAIL
+# Bug? String.prototype.trim handles whitepace and lineterminators
+#      (\\uFEFF\\uFEFF)
+15.5.4.20-4-34: FAIL
 # Bug? Date.prototype.toISOString - RangeError is thrown when value of date is
 #      Date(1970, 0, -99999999, 0, 0, 0, -1), the time zone is UTC(0)
 15.9.5.43-0-8: FAIL
@@ -666,31 +1319,36 @@ S15.4.4.3_A2_T1: FAIL_OK
 # Bug? Date.prototype.toISOString - value of year is Infinity
 #      Date.prototype.toISOString throw the RangeError
 15.9.5.43-0-15: FAIL
+# Bug? RegExp - the thrown error is SyntaxError instead of RegExpError when 'F'
+#      contains any character other than 'g', 'i', or 'm'
+15.10.4.1-3: FAIL
+# Bug? RegExp.prototype is itself a RegExp
+15.10.6: FAIL
+# Bug? RegExp.prototype.source is of type String
+15.10.7.1-1: FAIL
+# Bug? RegExp.prototype.source is a data property with default attribute values
+#      (false)
+15.10.7.1-2: FAIL
+# Bug? RegExp.prototype.global is of type Boolean
+15.10.7.2-1: FAIL
+# Bug? RegExp.prototype.global is a data property with default attribute values
+#      (false)
+15.10.7.2-2: FAIL
+# Bug? RegExp.prototype.ignoreCase is of type Boolean
+15.10.7.3-1: FAIL
+# Bug? RegExp.prototype.ignoreCase is a data property with default attribute
+#      values (false)
+15.10.7.3-2: FAIL
+# Bug? RegExp.prototype.multiline is of type Boolean
+15.10.7.4-1: FAIL
+# Bug? RegExp.prototype.multiline is a data property with default attribute
+#      values (false)
+15.10.7.4-2: FAIL
+# Bug? RegExp.prototype.lastIndex is of type Number
+15.10.7.5-1: FAIL
+# Bug? RegExp.prototype.lastIndex is a data property with specified attribute
+#      values
+15.10.7.5-2: FAIL
 # Bug? Error.prototype.toString return the value of 'msg' when 'name' is empty
 #      string and 'msg' isn't undefined
 15.11.4.4-8-1: FAIL
-
-############################ SKIPPED TESTS #############################
-
-# These tests take a looong time to run in debug mode.
-S15.1.3.2_A2.5_T1: PASS, SKIP if $mode == debug
-S15.1.3.1_A2.5_T1: PASS, SKIP if $mode == debug
-
-[ $arch == arm ]
-
-# BUG(3251225): Tests that timeout with --nocrankshaft.
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-S15.1.3.1_A2.4_T1: SKIP
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.4_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-S15.1.3.3_A2.3_T1: SKIP
-S15.1.3.4_A2.3_T1: SKIP
-S15.1.3.1_A2.5_T1: SKIP
-S15.1.3.2_A2.5_T1: SKIP
-
-[ $arch == mips ]
-
-# Skip all tests on MIPS.
-*: SKIP

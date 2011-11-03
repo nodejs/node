@@ -25,16 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Make sure that a const definition does not try
-// to pass 'the hole' to a defined setter.
+// Make sure that a const definition always
+// conflicts with a defined setter. This avoid
+// trying to pass 'the hole' to the setter.
 
-this.__defineSetter__('x', function(value) { assertTrue(value === 1); });
+this.__defineSetter__('x', function(value) { assertTrue(false); });
 
 var caught = false;
 try {
-  eval('const x = 1');
+  eval('const x');
 } catch(e) {
   assertTrue(e instanceof TypeError);
   caught = true;
 }
-assertFalse(caught);
+assertTrue(caught);

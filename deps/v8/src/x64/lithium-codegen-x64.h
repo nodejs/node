@@ -140,8 +140,7 @@ class LCodeGen BASE_EMBEDDED {
                        Label* if_false,
                        Handle<String> class_name,
                        Register input,
-                       Register temporary,
-                       Register scratch);
+                       Register temporary);
 
   int GetStackSlotCount() const { return chunk()->spill_slot_count(); }
   int GetParameterCount() const { return scope()->num_parameters(); }
@@ -346,20 +345,16 @@ class LCodeGen BASE_EMBEDDED {
 class LDeferredCode: public ZoneObject {
  public:
   explicit LDeferredCode(LCodeGen* codegen)
-      : codegen_(codegen),
-        external_exit_(NULL),
-        instruction_index_(codegen->current_instruction_) {
+      : codegen_(codegen), external_exit_(NULL) {
     codegen->AddDeferredCode(this);
   }
 
   virtual ~LDeferredCode() { }
   virtual void Generate() = 0;
-  virtual LInstruction* instr() = 0;
 
   void SetExit(Label *exit) { external_exit_ = exit; }
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
-  int instruction_index() const { return instruction_index_; }
 
  protected:
   LCodeGen* codegen() const { return codegen_; }
@@ -370,7 +365,6 @@ class LDeferredCode: public ZoneObject {
   Label entry_;
   Label exit_;
   Label* external_exit_;
-  int instruction_index_;
 };
 
 } }  // namespace v8::internal

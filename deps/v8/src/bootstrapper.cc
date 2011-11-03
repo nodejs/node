@@ -34,7 +34,6 @@
 #include "debug.h"
 #include "execution.h"
 #include "global-handles.h"
-#include "isolate-inl.h"
 #include "macro-assembler.h"
 #include "natives.h"
 #include "objects-visiting.h"
@@ -996,26 +995,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
         initial_map->instance_size() + 5 * kPointerSize);
     initial_map->set_instance_descriptors(*descriptors);
     initial_map->set_visitor_id(StaticVisitorBase::GetVisitorId(*initial_map));
-
-    // RegExp prototype object is itself a RegExp.
-    Handle<Map> proto_map = factory->CopyMapDropTransitions(initial_map);
-    proto_map->set_prototype(global_context()->initial_object_prototype());
-    Handle<JSObject> proto = factory->NewJSObjectFromMap(proto_map);
-    proto->InObjectPropertyAtPut(JSRegExp::kSourceFieldIndex,
-                                 heap->empty_string());
-    proto->InObjectPropertyAtPut(JSRegExp::kGlobalFieldIndex,
-                                 heap->false_value());
-    proto->InObjectPropertyAtPut(JSRegExp::kIgnoreCaseFieldIndex,
-                                 heap->false_value());
-    proto->InObjectPropertyAtPut(JSRegExp::kMultilineFieldIndex,
-                                 heap->false_value());
-    proto->InObjectPropertyAtPut(JSRegExp::kLastIndexFieldIndex,
-                                 Smi::FromInt(0),
-                                 SKIP_WRITE_BARRIER);  // It's a Smi.
-    initial_map->set_prototype(*proto);
-    factory->SetRegExpIrregexpData(Handle<JSRegExp>::cast(proto),
-                                   JSRegExp::IRREGEXP, factory->empty_string(),
-                                   JSRegExp::Flags(0), 0);
   }
 
   {  // -- J S O N
@@ -1097,11 +1076,6 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
     elements->set(0, *array);
     array = factory->NewFixedArray(0);
     elements->set(1, *array);
-    Handle<Map> non_strict_arguments_elements_map =
-        factory->GetElementsTransitionMap(result,
-                                          NON_STRICT_ARGUMENTS_ELEMENTS);
-    result->set_map(*non_strict_arguments_elements_map);
-    ASSERT(result->HasNonStrictArgumentsElements());
     result->set_elements(*elements);
     global_context()->set_aliased_arguments_boilerplate(*result);
   }
@@ -1353,8 +1327,6 @@ void Genesis::InstallNativeFunctions() {
                  configure_instance_fun);
   INSTALL_NATIVE(JSFunction, "GetStackTraceLine", get_stack_trace_line_fun);
   INSTALL_NATIVE(JSObject, "functionCache", function_cache);
-  INSTALL_NATIVE(JSFunction, "ToCompletePropertyDescriptor",
-                 to_complete_property_descriptor);
 }
 
 void Genesis::InstallExperimentalNativeFunctions() {
@@ -1582,18 +1554,6 @@ bool Genesis::InstallNatives() {
     array_function->shared()->set_construct_stub(
         isolate()->builtins()->builtin(Builtins::kArrayConstructCode));
     array_function->shared()->DontAdaptArguments();
-
-    // InternalArrays should not use Smi-Only array optimizations. There are too
-    // many places in the C++ runtime code (e.g. RegEx) that assume that
-    // elements in InternalArrays can be set to non-Smi values without going
-    // through a common bottleneck that would make the SMI_ONLY -> FAST_ELEMENT
-    // transition easy to trap. Moreover, they rarely are smi-only.
-    MaybeObject* maybe_map =
-        array_function->initial_map()->CopyDropTransitions();
-    Map* new_map;
-    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
-    new_map->set_elements_kind(FAST_ELEMENTS);
-    array_function->set_initial_map(new_map);
 
     // Make "length" magic on instances.
     Handle<DescriptorArray> array_descriptors =
@@ -1978,15 +1938,14 @@ bool Genesis::InstallExtension(v8::RegisteredExtension* current) {
     if (!InstallExtension(extension->dependencies()[i])) return false;
   }
   Isolate* isolate = Isolate::Current();
-  Handle<String> source_code =
-      isolate->factory()->NewExternalStringFromAscii(extension->source());
-  bool result = CompileScriptCached(
-      CStrVector(extension->name()),
-      source_code,
-      isolate->bootstrapper()->extensions_cache(),
-      extension,
-      Handle<Context>(isolate->context()),
-      false);
+  Vector<const char> source = CStrVector(extension->source());
+  Handle<String> source_code = isolate->factory()->NewStringFromAscii(source);
+  bool result = CompileScriptCached(CStrVector(extension->name()),
+                                    source_code,
+                                    isolate->bootstrapper()->extensions_cache(),
+                                    extension,
+                                    Handle<Context>(isolate->context()),
+                                    false);
   ASSERT(isolate->has_pending_exception() != result);
   if (!result) {
     isolate->clear_pending_exception();

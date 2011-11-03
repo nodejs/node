@@ -447,7 +447,7 @@ class PreParser {
         stack_overflow_(false),
         allow_lazy_(true),
         parenthesized_function_(false),
-        harmony_scoping_(scanner->HarmonyScoping()) { }
+        harmony_block_scoping_(scanner->HarmonyBlockScoping()) { }
 
   // Preparse the program. Only called in PreParseProgram after creating
   // the instance.
@@ -608,7 +608,7 @@ class PreParser {
   bool stack_overflow_;
   bool allow_lazy_;
   bool parenthesized_function_;
-  bool harmony_scoping_;
+  bool harmony_block_scoping_;
 };
 } }  // v8::preparser
 

@@ -60,8 +60,6 @@
 
     'v8_enable_disassembler%': 0,
 
-    'v8_object_print%': 0,
-
     'v8_enable_gdbjit%': 0,
 
     # Enable profiling support. Only required on Windows.
@@ -74,7 +72,6 @@
     'v8_use_snapshot%': 'true',
     'host_os%': '<(OS)',
     'v8_use_liveobjectlist%': 'false',
-    'werror%': '-Werror',
 
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
@@ -86,9 +83,6 @@
       }],
       ['v8_enable_disassembler==1', {
         'defines': ['ENABLE_DISASSEMBLER',],
-      }],
-      ['v8_object_print==1', {
-        'defines': ['OBJECT_PRINT',],
       }],
       ['v8_enable_gdbjit==1', {
         'defines': ['ENABLE_GDB_JIT_INTERFACE',],
@@ -190,9 +184,6 @@
           }],
         ],
       }],
-      ['OS=="solaris"', {
-        'defines': [ '__C99FEATURES__=1' ],  # isinf() etc.
-      }],
     ],
     'configurations': {
       'Debug': {
@@ -227,7 +218,7 @@
             'cflags': [ '-I/usr/local/include' ],
           }],
           ['OS=="linux" or OS=="freebsd" or OS=="openbsd"', {
-            'cflags': [ '-Wall', '<(werror)', '-W', '-Wno-unused-parameter',
+            'cflags': [ '-Wall', '-Werror', '-W', '-Wno-unused-parameter',
                         '-Wnon-virtual-dtor' ],
           }],
         ],
@@ -270,6 +261,7 @@
           }],
           ['OS=="win"', {
             'msvs_configuration_attributes': {
+              'OutputDirectory': '$(SolutionDir)$(ConfigurationName)',
               'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
               'CharacterSet': '1',
             },

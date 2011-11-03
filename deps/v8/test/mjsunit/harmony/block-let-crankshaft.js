@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-scoping --allow-natives-syntax
+// Flags: --harmony-block-scoping --allow-natives-syntax
 
 // Test that temporal dead zone semantics for function and block scoped
 // ket bindings are handled by the optimizing compiler.

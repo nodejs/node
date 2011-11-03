@@ -1618,8 +1618,6 @@ void Simulator::HandleRList(Instruction* instr, bool load) {
   ProcessPUW(instr, num_regs, kPointerSize, &start_address, &end_address);
 
   intptr_t* address = reinterpret_cast<intptr_t*>(start_address);
-  // Catch null pointers a little earlier.
-  ASSERT(start_address > 8191 || start_address < 0);
   int reg = 0;
   while (rlist != 0) {
     if ((rlist & 1) != 0) {
