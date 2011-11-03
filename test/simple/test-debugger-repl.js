@@ -149,7 +149,12 @@ function quit() {
 }
 
 setTimeout(function() {
-  throw new Error('timeout!');
+  var err = 'Timeout';
+  if (expected.length > 0 && expected[0].lines) {
+    err = err + '. Expected: ' + expected[0].lines.shift();
+  }
+
+  throw new Error(err);
 }, 5000);
 
 process.once('uncaughtException', function(e) {
