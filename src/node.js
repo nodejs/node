@@ -239,7 +239,7 @@
 
       case 'FILE':
         var fs = NativeModule.require('fs');
-        stream = new fs.WriteStream(null, { fd: fd });
+        stream = new fs.SyncWriteStream(fd);
         stream._type = 'fs';
         break;
 

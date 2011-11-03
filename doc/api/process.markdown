@@ -80,10 +80,20 @@ Example: the definition of `console.log`
       process.stdout.write(d + '\n');
     };
 
+`process.stderr` and `process.stdout` are unlike other streams in Node in
+that writes to them are usually blocking.  They are blocking in the case
+that they refer to regular files or TTY file descriptors. In the case they
+refer to pipes, they are non-blocking like other streams.
+
 
 ### process.stderr
 
-A writable stream to stderr. Writes on this stream are blocking.
+A writable stream to stderr.
+
+`process.stderr` and `process.stdout` are unlike other streams in Node in
+that writes to them are usually blocking.  They are blocking in the case
+that they refer to regular files or TTY file descriptors. In the case they
+refer to pipes, they are non-blocking like other streams.
 
 
 ### process.stdin
