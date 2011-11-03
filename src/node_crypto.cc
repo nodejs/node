@@ -1900,15 +1900,19 @@ class Cipher : public ObjectWrap {
     }
 
     unsigned char key[EVP_MAX_KEY_LENGTH],iv[EVP_MAX_IV_LENGTH];
-    int key_len = EVP_BytesToKey(cipher, EVP_md5(), NULL, (unsigned char*) key_buf, key_buf_len, 1, key, iv);
+    int key_len = EVP_BytesToKey(cipher, EVP_md5(), NULL,
+      (unsigned char*) key_buf, key_buf_len, 1, key, iv);
 
     EVP_CIPHER_CTX_init(&ctx);
-    EVP_CipherInit(&ctx,cipher,(unsigned char *)key,(unsigned char *)iv, true);
-    if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
+    EVP_CipherInit_ex(&ctx, cipher, NULL, NULL, NULL, true);
+    if (!EVP_CIPHER_CTX_set_key_length(&ctx, key_len)) {
       fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+    EVP_CipherInit_ex(&ctx, NULL, NULL,
+      (unsigned char *)key,
+      (unsigned char *)iv, true);
     initialised_ = true;
     return true;
   }
@@ -1924,17 +1928,23 @@ class Cipher : public ObjectWrap {
       fprintf(stderr, "node-crypto : Unknown cipher %s\n", cipherType);
       return false;
     }
-    if (EVP_CIPHER_iv_length(cipher)!=iv_len) {
+    /* OpenSSL versions up to 0.9.8l failed to return the correct
+       iv_length (0) for ECB ciphers */
+    if (EVP_CIPHER_iv_length(cipher) != iv_len &&
+      !(EVP_CIPHER_mode(cipher) == EVP_CIPH_ECB_MODE && iv_len == 0)) {
       fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
       return false;
     }
     EVP_CIPHER_CTX_init(&ctx);
-    EVP_CipherInit(&ctx,cipher,(unsigned char *)key,(unsigned char *)iv, true);
-    if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
+    EVP_CipherInit_ex(&ctx, cipher, NULL, NULL, NULL, true);
+    if (!EVP_CIPHER_CTX_set_key_length(&ctx, key_len)) {
       fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+    EVP_CipherInit_ex(&ctx, NULL, NULL,
+      (unsigned char *)key,
+      (unsigned char *)iv, true);
     initialised_ = true;
     return true;
   }
@@ -1952,7 +1962,7 @@ class Cipher : public ObjectWrap {
   int CipherFinal(unsigned char** out, int *out_len) {
     if (!initialised_) return 0;
     *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
-    EVP_CipherFinal(&ctx,*out,out_len);
+    EVP_CipherFinal_ex(&ctx,*out,out_len);
     EVP_CIPHER_CTX_cleanup(&ctx);
     initialised_ = false;
     return 1;
@@ -2271,16 +2281,15 @@ class Decipher : public ObjectWrap {
                                  iv);
 
     EVP_CIPHER_CTX_init(&ctx);
-    EVP_CipherInit(&ctx,
-                   cipher_,
-                   (unsigned char*)(key),
-                   (unsigned char *)(iv),
-                   false);
-    if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
+    EVP_CipherInit_ex(&ctx, cipher_, NULL, NULL, NULL, false);
+    if (!EVP_CIPHER_CTX_set_key_length(&ctx, key_len)) {
       fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+    EVP_CipherInit_ex(&ctx, NULL, NULL,
+      (unsigned char *)key,
+      (unsigned char *)iv, false);
     initialised_ = true;
     return true;
   }
@@ -2296,21 +2305,23 @@ class Decipher : public ObjectWrap {
       fprintf(stderr, "node-crypto : Unknown cipher %s\n", cipherType);
       return false;
     }
-    if (EVP_CIPHER_iv_length(cipher_) != iv_len) {
+    /* OpenSSL versions up to 0.9.8l failed to return the correct
+      iv_length (0) for ECB ciphers */
+    if (EVP_CIPHER_iv_length(cipher_) != iv_len &&
+      !(EVP_CIPHER_mode(cipher_) == EVP_CIPH_ECB_MODE && iv_len == 0)) {
       fprintf(stderr, "node-crypto : Invalid IV length %d\n", iv_len);
       return false;
     }
     EVP_CIPHER_CTX_init(&ctx);
-    EVP_CipherInit(&ctx,
-                   cipher_,
-                   (unsigned char*)(key),
-                   (unsigned char *)(iv),
-                   false);
-    if (!EVP_CIPHER_CTX_set_key_length(&ctx,key_len)) {
+    EVP_CipherInit_ex(&ctx, cipher_, NULL, NULL, NULL, false);
+    if (!EVP_CIPHER_CTX_set_key_length(&ctx, key_len)) {
       fprintf(stderr, "node-crypto : Invalid key length %d\n", key_len);
       EVP_CIPHER_CTX_cleanup(&ctx);
       return false;
     }
+    EVP_CipherInit_ex(&ctx, NULL, NULL,
+      (unsigned char *)key,
+      (unsigned char *)iv, false);
     initialised_ = true;
     return true;
   }
@@ -2331,7 +2342,7 @@ class Decipher : public ObjectWrap {
     if (tolerate_padding) {
       local_EVP_DecryptFinal_ex(&ctx,*out,out_len);
     } else {
-      EVP_CipherFinal(&ctx,*out,out_len);
+      EVP_CipherFinal_ex(&ctx,*out,out_len);
     }
     EVP_CIPHER_CTX_cleanup(&ctx);
     initialised_ = false;
