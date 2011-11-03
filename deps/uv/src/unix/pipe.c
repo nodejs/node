@@ -209,7 +209,7 @@ int uv_pipe_connect(uv_connect_t* req,
   while (r == -1 && errno == EINTR);
 
   if (r == -1) {
-    uv__set_sys_error(handle->loop, errno);
+    status = errno;
     uv__close(sockfd);
     goto out;
   }

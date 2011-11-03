@@ -1059,7 +1059,7 @@ static uv_err_t uv__kill(HANDLE process_handle, int signum) {
   DWORD status;
   uv_err_t err;
 
-  if (signum == SIGTERM || signum == SIGKILL) {
+  if (signum == SIGTERM || signum == SIGKILL || signum == SIGINT) {
     /* Kill the process. On Windows, killed processes normally return 1. */
     if (TerminateProcess(process_handle, 1)) {
       err = uv_ok_;

@@ -296,6 +296,7 @@
         'test/test-pass-always.c',
         'test/test-ping-pong.c',
         'test/test-pipe-bind-error.c',
+        'test/test-pipe-connect-error.c',
         'test/test-ref.c',
         'test/test-shutdown-eof.c',
         'test/test-spawn.c',

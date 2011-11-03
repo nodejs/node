@@ -55,6 +55,7 @@ TEST_DECLARE   (pipe_bind_error_addrinuse)
 TEST_DECLARE   (pipe_bind_error_addrnotavail)
 TEST_DECLARE   (pipe_bind_error_inval)
 TEST_DECLARE   (pipe_listen_without_bind)
+TEST_DECLARE   (pipe_connect_bad_name)
 TEST_DECLARE   (connection_fail)
 TEST_DECLARE   (connection_fail_doesnt_auto_close)
 TEST_DECLARE   (shutdown_eof)
@@ -124,6 +125,8 @@ HELPER_DECLARE (pipe_echo_server)
 
 
 TASK_LIST_START
+  TEST_ENTRY  (pipe_connect_bad_name)
+
   TEST_ENTRY  (tty)
   TEST_ENTRY  (stdio_over_pipes)
   TEST_ENTRY  (ipc_listen_before_write)

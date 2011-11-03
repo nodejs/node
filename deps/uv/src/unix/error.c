@@ -59,8 +59,9 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 static int uv__translate_lib_error(int code) {
   switch (code) {
     case UV_ENOSYS: return ENOSYS;
+    case UV_ENOTSOCK: return ENOTSOCK;
     case UV_ENOENT: return ENOENT;
-    case UV_EACCESS: return EACCES;
+    case UV_EACCES: return EACCES;
     case UV_EAFNOSUPPORT: return EAFNOSUPPORT;
     case UV_EBADF: return EBADF;
     case UV_EPIPE: return EPIPE;
@@ -89,8 +90,9 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case 0: return UV_OK;
     case ENOSYS: return UV_ENOSYS;
+    case ENOTSOCK: return UV_ENOTSOCK;
     case ENOENT: return UV_ENOENT;
-    case EACCES: return UV_EACCESS;
+    case EACCES: return UV_EACCES;
     case EAFNOSUPPORT: return UV_EAFNOSUPPORT;
     case EBADF: return UV_EBADF;
     case EPIPE: return UV_EPIPE;

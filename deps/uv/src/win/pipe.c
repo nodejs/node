@@ -362,7 +362,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     if (errno == ERROR_ACCESS_DENIED) {
       uv__set_error(loop, UV_EADDRINUSE, errno);
     } else if (errno == ERROR_PATH_NOT_FOUND || errno == ERROR_INVALID_NAME) {
-      uv__set_error(loop, UV_EACCESS, errno);
+      uv__set_error(loop, UV_EACCES, errno);
     } else {
       uv__set_sys_error(loop, errno);
     }

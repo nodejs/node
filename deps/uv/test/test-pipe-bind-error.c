@@ -84,7 +84,7 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
   r = uv_pipe_bind(&server, BAD_PIPENAME);
 
   ASSERT(r == -1);
-  ASSERT(uv_last_error(uv_default_loop()).code == UV_EACCESS);
+  ASSERT(uv_last_error(uv_default_loop()).code == UV_EACCES);
 
   uv_close((uv_handle_t*)&server, close_cb);
 

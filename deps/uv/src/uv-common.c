@@ -57,7 +57,7 @@ const char* uv_err_name(uv_err_t err) {
     case UV_OK: return "OK";
     case UV_EOF: return "EOF";
     case UV_EADDRINFO: return "EADDRINFO";
-    case UV_EACCESS: return "EACCESS";
+    case UV_EACCES: return "EACCES";
     case UV_EAGAIN: return "EAGAIN";
     case UV_EADDRINUSE: return "EADDRINUSE";
     case UV_EADDRNOTAVAIL: return "EADDRNOTAVAIL";
