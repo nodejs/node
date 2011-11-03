@@ -235,3 +235,32 @@ TEST_IMPL(fs_event_watch_file_current_dir) {
   r = uv_fs_unlink(loop, &fs_req, "watch_file", NULL);
   return 0;
 }
+
+
+TEST_IMPL(fs_event_no_callback_on_close) {
+  uv_fs_t fs_req;
+  uv_loop_t* loop = uv_default_loop();
+  int r;
+
+  /* Setup */
+  uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
+  uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+  create_dir(loop, "watch_dir");
+  create_file(loop, "watch_dir/file1");
+
+  r = uv_fs_event_init(loop, &fs_event, "watch_dir/file1", fs_event_cb_file);
+  ASSERT(r != -1);
+
+  uv_close((uv_handle_t*)&fs_event, close_cb);
+
+  uv_run(loop);
+
+  ASSERT(fs_event_cb_called == 0);
+  ASSERT(close_cb_called == 1);
+
+  /* Cleanup */
+  r = uv_fs_unlink(loop, &fs_req, "watch_dir/file1", NULL);
+  r = uv_fs_rmdir(loop, &fs_req, "watch_dir", NULL);
+
+  return 0;
+}

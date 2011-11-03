@@ -599,7 +599,11 @@ static int uv_getaddrinfo_done(eio_req* req) {
 
   if (handle->retcode == 0) {
     /* OK */
+#if EAI_NODATA /* FreeBSD deprecated EAI_NODATA */
   } else if (handle->retcode == EAI_NONAME || handle->retcode == EAI_NODATA) {
+#else
+  } else if (handle->retcode == EAI_NONAME) {
+#endif
     uv__set_sys_error(handle->loop, ENOENT); /* FIXME compatibility hack */
   } else {
     handle->loop->last_err.code = UV_EADDRINFO;

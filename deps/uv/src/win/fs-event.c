@@ -353,7 +353,9 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
         offset = file_info->NextEntryOffset;
       } while(offset);
     } else {
-      handle->cb(handle, NULL, UV_CHANGE, 0);
+      if (!(handle->flags & UV_HANDLE_CLOSING)) {
+        handle->cb(handle, NULL, UV_CHANGE, 0);
+      }
     }
   } else {
     uv__set_sys_error(loop, GET_REQ_ERROR(req));
