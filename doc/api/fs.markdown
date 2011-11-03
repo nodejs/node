@@ -215,12 +215,12 @@ to the completion callback.
 
 Synchronous rmdir(2).
 
-### fs.mkdir(path, mode, [callback])
+### fs.mkdir(path, [mode], [callback])
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback.
+to the completion callback. `mode` defaults to `0777`. 
 
-### fs.mkdirSync(path, mode)
+### fs.mkdirSync(path, [mode])
 
 Synchronous mkdir(2).
 
