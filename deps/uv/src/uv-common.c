@@ -75,6 +75,7 @@ const char* uv_err_name(uv_err_t err) {
     case UV_EINVAL: return "EINVAL";
     case UV_EISCONN: return "EISCONN";
     case UV_EMFILE: return "EMFILE";
+    case UV_EMSGSIZE: return "EMSGSIZE";
     case UV_ENETDOWN: return "ENETDOWN";
     case UV_ENETUNREACH: return "ENETUNREACH";
     case UV_ENFILE: return "ENFILE";
@@ -93,6 +94,12 @@ const char* uv_err_name(uv_err_t err) {
     case UV_EPROTONOSUPPORT: return "EPROTONOSUPPORT";
     case UV_EPROTOTYPE: return "EPROTOTYPE";
     case UV_ETIMEDOUT: return "ETIMEDOUT";
+    case UV_ECHARSET: return "ECHARSET";
+    case UV_EAIFAMNOSUPPORT: return "EAIFAMNOSUPPORT";
+    case UV_EAINONAME: return "EAINONAME";
+    case UV_EAISERVICE: return "EAISERVICE";
+    case UV_EAISOCKTYPE: return "EAISOCKTYPE";
+    case UV_ESHUTDOWN: return "ESHUTDOWN";
     case UV_EEXIST: return "EEXIST";
     default:
       assert(0);

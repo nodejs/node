@@ -268,6 +268,8 @@ static wchar_t* search_path(const wchar_t *file,
   wchar_t* result = NULL;
   wchar_t *file_name_start;
   wchar_t *dot;
+  const wchar_t *dir_start, *dir_end, *dir_path;
+  int dir_len;
   int name_has_ext;
 
   int file_len = wcslen(file);
@@ -305,8 +307,7 @@ static wchar_t* search_path(const wchar_t *file,
         name_has_ext);
 
   } else {
-    const wchar_t *dir_start,
-                *dir_end = path;
+    dir_end = path;
 
     /* The file is really only a name; look in cwd first, then scan path */
     result = path_search_walk_ext(L"", 0,
@@ -338,7 +339,20 @@ static wchar_t* search_path(const wchar_t *file,
         continue;
       }
 
-      result = path_search_walk_ext(dir_start, dir_end - dir_start,
+      dir_path = dir_start;
+      dir_len = dir_end - dir_start;
+
+      /* Adjust if the path is quoted. */
+      if (dir_path[0] == '"' || dir_path[0] == '\'') {
+        ++dir_path;
+        --dir_len;
+      }
+
+      if (dir_path[dir_len - 1] == '"' || dir_path[dir_len - 1] == '\'') {
+        --dir_len;
+      }
+
+      result = path_search_walk_ext(dir_path, dir_len,
                                     file, file_len,
                                     cwd, cwd_len,
                                     name_has_ext);

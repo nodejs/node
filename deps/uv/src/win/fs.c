@@ -173,17 +173,22 @@ void fs__open(uv_fs_t* req, const wchar_t* path, int flags, int mode) {
   /* convert flags and mode to CreateFile parameters */
   switch (flags & (_O_RDONLY | _O_WRONLY | _O_RDWR)) {
   case _O_RDONLY:
-    access = GENERIC_READ;
+    access = FILE_GENERIC_READ;
     break;
   case _O_WRONLY:
-    access = GENERIC_WRITE;
+    access = FILE_GENERIC_WRITE;
     break;
   case _O_RDWR:
-    access = GENERIC_READ | GENERIC_WRITE;
+    access = FILE_GENERIC_READ | FILE_GENERIC_WRITE;
     break;
   default:
     result  = -1;
     goto end;
+  }
+
+  if (flags & _O_APPEND) {
+    access &= ~FILE_WRITE_DATA;
+    access |= FILE_APPEND_DATA;
   }
 
   /*
