@@ -45,18 +45,6 @@ Boolean flags to determine if the current process is a master or a worker
 process in a cluster. A process `isMaster` if `process.env.NODE_WORKER_ID`
 is undefined.
 
-### cluster.eachWorker(cb)
-
-Synchronously iterates over all of the workers.
-
-    cluster.eachWorker(function(worker) {
-      console.log("worker pid=" + worker.pid);
-    });
-
-### cluster.workerCount()
-
-Returns the number of workers.
-
 ### Event: 'death'
 
 When any of the workers die the cluster module will emit the 'death' event.
