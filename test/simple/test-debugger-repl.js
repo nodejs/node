@@ -61,12 +61,12 @@ function addTest(input, output) {
       child.stdin.write(expected[0].input + '\n');
 
       if (!expected[0].lines) {
-        process.nextTick(function() {
+        setTimeout(function() {
           var callback = expected[0].callback;
           expected.shift();
 
           callback && callback();
-        });
+        }, 50);
       }
     } else {
       finish();
