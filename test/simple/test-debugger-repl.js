@@ -25,9 +25,9 @@ var assert = require('assert');
 var spawn = require('child_process').spawn;
 var debug = require('_debugger');
 
-var code = require('fs').readFileSync(common.fixturesDir + '/breakpoints.js');
+var script = common.fixturesDir + '/breakpoints.js';
 
-var child = spawn(process.execPath, ['debug', '-e', code]);
+var child = spawn(process.execPath, ['debug', script]);
 
 var buffer = '';
 child.stdout.setEncoding('utf-8');
@@ -46,7 +46,7 @@ child.on('line', function(line) {
   assert.ok(expected.length > 0, 'Got unexpected line: ' + line);
 
   var expectedLine = expected[0].lines.shift();
-  assert.ok(line.match(expectedLine) !== null, expectedLine);
+  assert.ok(line.match(expectedLine) !== null, line + ' != ' + expectedLine);
 
   if (expected[0].lines.length === 0) {
     var callback = expected[0].callback;
@@ -79,14 +79,14 @@ function addTest(input, output) {
 addTest(null, [
   /listening on port 5858/,
   /connecting... ok/,
-  /break in .*:3/,
-  /1/, /2/, /3/, /4/, /5/
+  /break in .*:1/,
+  /1/, /2/, /3/
 ]);
 
 // Next
 addTest('n', [
-  /break in .*:13/,
-  /11/, /12/, /13/, /14/, /15/
+  /break in .*:11/,
+  /9/, /10/, /11/, /12/, /13/
 ]);
 
 // Watch
@@ -94,11 +94,11 @@ addTest('watch("\'x\'")');
 
 // Continue
 addTest('c', [
-  /break in .*:7/,
+  /break in .*:5/,
   /Watchers/,
   /0:\s+'x' = "x"/,
   /()/,
-  /5/, /6/, /7/, /8/, /9/
+  /3/, /4/, /5/, /6/, /7/
 ]);
 
 // Show watchers
@@ -111,19 +111,19 @@ addTest('unwatch("\'x\'")');
 
 // Step out
 addTest('o', [
-  /break in .*:14/,
-  /12/, /13/, /14/, /15/, /16/
+  /break in .*:12/,
+  /10/, /11/, /12/, /13/, /14/
 ]);
 
 // Continue
 addTest('c', [
-  /break in .*:7/,
-  /5/, /6/, /7/, /8/, /9/
+  /break in .*:5/,
+  /3/, /4/, /5/, /6/, /7/
 ]);
 
 // Set breakpoint by function name
 addTest('sb("setInterval()", "!(setInterval.flag++)")', [
-  /2/, /3/, /4/, /5/, /6/, /7/, /8/, /9/, /10/, /11/, /12/
+  /1/, /2/, /3/, /4/, /5/, /6/, /7/, /8/, /9/, /10/
 ]);
 
 // Continue

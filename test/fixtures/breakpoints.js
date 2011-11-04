@@ -1,5 +1,3 @@
-// wrapper line
-debugger;
 debugger;
 function a(x) {
   var i = 10;
