@@ -605,234 +605,6 @@ static inline const char *errno_string(int errorno) {
   ERRNO_CASE(EXDEV);
 #endif
 
-#ifdef WSAEINTR
-  ERRNO_CASE(WSAEINTR);
-#endif
-
-#ifdef WSAEBADF
-  ERRNO_CASE(WSAEBADF);
-#endif
-
-#ifdef WSAEACCES
-  ERRNO_CASE(WSAEACCES);
-#endif
-
-#ifdef WSAEFAULT
-  ERRNO_CASE(WSAEFAULT);
-#endif
-
-#ifdef WSAEINVAL
-  ERRNO_CASE(WSAEINVAL);
-#endif
-
-#ifdef WSAEMFILE
-  ERRNO_CASE(WSAEMFILE);
-#endif
-
-#ifdef WSAEWOULDBLOCK
-  ERRNO_CASE(WSAEWOULDBLOCK);
-#endif
-
-#ifdef WSAEINPROGRESS
-  ERRNO_CASE(WSAEINPROGRESS);
-#endif
-
-#ifdef WSAEALREADY
-  ERRNO_CASE(WSAEALREADY);
-#endif
-
-#ifdef WSAENOTSOCK
-  ERRNO_CASE(WSAENOTSOCK);
-#endif
-
-#ifdef WSAEDESTADDRREQ
-  ERRNO_CASE(WSAEDESTADDRREQ);
-#endif
-
-#ifdef WSAEMSGSIZE
-  ERRNO_CASE(WSAEMSGSIZE);
-#endif
-
-#ifdef WSAEPROTOTYPE
-  ERRNO_CASE(WSAEPROTOTYPE);
-#endif
-
-#ifdef WSAENOPROTOOPT
-  ERRNO_CASE(WSAENOPROTOOPT);
-#endif
-
-#ifdef WSAEPROTONOSUPPORT
-  ERRNO_CASE(WSAEPROTONOSUPPORT);
-#endif
-
-#ifdef WSAESOCKTNOSUPPORT
-  ERRNO_CASE(WSAESOCKTNOSUPPORT);
-#endif
-
-#ifdef WSAEOPNOTSUPP
-  ERRNO_CASE(WSAEOPNOTSUPP);
-#endif
-
-#ifdef WSAEPFNOSUPPORT
-  ERRNO_CASE(WSAEPFNOSUPPORT);
-#endif
-
-#ifdef WSAEAFNOSUPPORT
-  ERRNO_CASE(WSAEAFNOSUPPORT);
-#endif
-
-#ifdef WSAEADDRINUSE
-  ERRNO_CASE(WSAEADDRINUSE);
-#endif
-
-#ifdef WSAEADDRNOTAVAIL
-  ERRNO_CASE(WSAEADDRNOTAVAIL);
-#endif
-
-#ifdef WSAENETDOWN
-  ERRNO_CASE(WSAENETDOWN);
-#endif
-
-#ifdef WSAENETUNREACH
-  ERRNO_CASE(WSAENETUNREACH);
-#endif
-
-#ifdef WSAENETRESET
-  ERRNO_CASE(WSAENETRESET);
-#endif
-
-#ifdef WSAECONNABORTED
-  ERRNO_CASE(WSAECONNABORTED);
-#endif
-
-#ifdef WSAECONNRESET
-  ERRNO_CASE(WSAECONNRESET);
-#endif
-
-#ifdef WSAENOBUFS
-  ERRNO_CASE(WSAENOBUFS);
-#endif
-
-#ifdef WSAEISCONN
-  ERRNO_CASE(WSAEISCONN);
-#endif
-
-#ifdef WSAENOTCONN
-  ERRNO_CASE(WSAENOTCONN);
-#endif
-
-#ifdef WSAESHUTDOWN
-  ERRNO_CASE(WSAESHUTDOWN);
-#endif
-
-#ifdef WSAETOOMANYREFS
-  ERRNO_CASE(WSAETOOMANYREFS);
-#endif
-
-#ifdef WSAETIMEDOUT
-  ERRNO_CASE(WSAETIMEDOUT);
-#endif
-
-#ifdef WSAECONNREFUSED
-  ERRNO_CASE(WSAECONNREFUSED);
-#endif
-
-#ifdef WSAELOOP
-  ERRNO_CASE(WSAELOOP);
-#endif
-
-#ifdef WSAENAMETOOLONG
-  ERRNO_CASE(WSAENAMETOOLONG);
-#endif
-
-#ifdef WSAEHOSTDOWN
-  ERRNO_CASE(WSAEHOSTDOWN);
-#endif
-
-#ifdef WSAEHOSTUNREACH
-  ERRNO_CASE(WSAEHOSTUNREACH);
-#endif
-
-#ifdef WSAENOTEMPTY
-  ERRNO_CASE(WSAENOTEMPTY);
-#endif
-
-#ifdef WSAEPROCLIM
-  ERRNO_CASE(WSAEPROCLIM);
-#endif
-
-#ifdef WSAEUSERS
-  ERRNO_CASE(WSAEUSERS);
-#endif
-
-#ifdef WSAEDQUOT
-  ERRNO_CASE(WSAEDQUOT);
-#endif
-
-#ifdef WSAESTALE
-  ERRNO_CASE(WSAESTALE);
-#endif
-
-#ifdef WSAEREMOTE
-  ERRNO_CASE(WSAEREMOTE);
-#endif
-
-#ifdef WSASYSNOTREADY
-  ERRNO_CASE(WSASYSNOTREADY);
-#endif
-
-#ifdef WSAVERNOTSUPPORTED
-  ERRNO_CASE(WSAVERNOTSUPPORTED);
-#endif
-
-#ifdef WSANOTINITIALISED
-  ERRNO_CASE(WSANOTINITIALISED);
-#endif
-
-#ifdef WSAEDISCON
-  ERRNO_CASE(WSAEDISCON);
-#endif
-
-#ifdef WSAENOMORE
-  ERRNO_CASE(WSAENOMORE);
-#endif
-
-#ifdef WSAECANCELLED
-  ERRNO_CASE(WSAECANCELLED);
-#endif
-
-#ifdef WSAEINVALIDPROCTABLE
-  ERRNO_CASE(WSAEINVALIDPROCTABLE);
-#endif
-
-#ifdef WSAEINVALIDPROVIDER
-  ERRNO_CASE(WSAEINVALIDPROVIDER);
-#endif
-
-#ifdef WSAEPROVIDERFAILEDINIT
-  ERRNO_CASE(WSAEPROVIDERFAILEDINIT);
-#endif
-
-#ifdef WSASYSCALLFAILURE
-  ERRNO_CASE(WSASYSCALLFAILURE);
-#endif
-
-#ifdef WSASERVICE_NOT_FOUND
-  ERRNO_CASE(WSASERVICE_NOT_FOUND);
-#endif
-
-#ifdef WSATYPE_NOT_FOUND
-  ERRNO_CASE(WSATYPE_NOT_FOUND);
-#endif
-
-#ifdef WSA_E_NO_MORE
-  ERRNO_CASE(WSA_E_NO_MORE);
-#endif
-
-#ifdef WSA_E_CANCELLED
-  ERRNO_CASE(WSA_E_CANCELLED);
-#endif
-
   default: return "";
   }
 }
@@ -994,11 +766,7 @@ Local<Value> ErrnoException(int errorno,
   Local<Value> e;
   Local<String> estring = String::NewSymbol(errno_string(errorno));
   if (!msg[0]) {
-#ifdef __POSIX__
     msg = strerror(errorno);
-#else // __MINGW32__
-    msg = winapi_strerror(errorno);
-#endif
   }
   Local<String> message = String::NewSymbol(msg);
 
@@ -1029,6 +797,43 @@ Local<Value> ErrnoException(int errorno,
   if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
   return e;
 }
+
+
+#ifdef _WIN32
+Local<Value> WinapiErrnoException(int errorno,
+                                  const char *syscall,
+                                  const char *msg,
+                                  const char *path) {
+  Local<Value> e;
+  if (!msg[0]) {
+    msg = winapi_strerror(errorno);
+  }
+  Local<String> message = String::NewSymbol(msg);
+
+  if (syscall_symbol.IsEmpty()) {
+    syscall_symbol = NODE_PSYMBOL("syscall");
+    errno_symbol = NODE_PSYMBOL("errno");
+    errpath_symbol = NODE_PSYMBOL("path");
+    code_symbol = NODE_PSYMBOL("code");
+  }
+
+  if (path) {
+    Local<String> cons1 = String::Concat(message, String::NewSymbol(" '"));
+    Local<String> cons2 = String::Concat(cons1, String::New(path));
+    Local<String> cons3 = String::Concat(cons2, String::NewSymbol("'"));
+    e = Exception::Error(cons3);
+  } else {
+    e = Exception::Error(message);
+  }
+
+  Local<Object> obj = e->ToObject();
+
+  obj->Set(errno_symbol, Integer::New(errorno));
+  if (path) obj->Set(errpath_symbol, String::New(path));
+  if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
+  return e;
+}
+#endif
 
 
 Handle<Value> FromConstructorTemplate(Persistent<FunctionTemplate>& t,

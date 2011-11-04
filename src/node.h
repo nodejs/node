@@ -147,7 +147,7 @@ ssize_t DecodeWrite(char *buf,
 # define NODE_STAT        stat
 # define NODE_FSTAT       fstat
 # define NODE_STAT_STRUCT struct stat
-#else // __MINGW32__
+#else // _WIN32
 # define NODE_STAT        _stati64
 # define NODE_FSTAT       _fstati64
 # define NODE_STAT_STRUCT struct _stati64
@@ -191,6 +191,11 @@ NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
                                                 const char *syscall = NULL,
                                                 const char *msg = "",
                                                 const char *path = NULL);
+#ifdef _WIN32
+NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(int errorno,
+    const char *syscall = NULL,  const char *msg = "",
+    const char *path = NULL);
+#endif
 
 const char *signo_string(int errorno);
 
