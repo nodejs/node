@@ -88,7 +88,7 @@
       // channel.
       if (process.env.NODE_WORKER_ID) {
         var cluster = NativeModule.require('cluster');
-        cluster.startWorker();
+        cluster._startWorker();
       }
 
       var Module = NativeModule.require('module');

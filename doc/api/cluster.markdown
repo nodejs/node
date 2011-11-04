@@ -9,10 +9,17 @@ which share server ports.
 
     var cluster = require('cluster');
     var http = require('http');
+    var numCPUs = require('os').cpus().length;
 
     if (cluster.isMaster) {
-      // Start the master process, fork workers.
-      cluster.startMaster({ workers: 2 });
+      // Fork workers.
+      for (var i = 0; i < numCPUs; i++) {
+        cluster.fork();
+      }
+
+      cluster.on('death', function(worker) {
+        console.log('worker ' + worker.pid + ' died');
+      });
     } else {
       // Worker processes have a http server.
       http.Server(function(req, res) {
@@ -27,37 +34,38 @@ Running node will now share port 8000 between the workers:
     Worker 2438 online
     Worker 2437 online
 
-### exports.startMaster([options])
+### cluster.fork()
 
-  Spawns the initial worker processes, one per CPU by default.
+Spawn a new worker process. This can only be called from the master process.
 
-  The following options are supported:
+### cluster.isMaster
+### cluster.isWorker
 
-  - `workerFilename`: script to execute in the worker process, defaults to
-    `process.argv[1]`
-  - `args`: worker program arguments, defaulting to `process.argv.slice(2)`
-  - `workers`: the number of workers, defaulting to `os.cpus().length`
+Boolean flags to determine if the current process is a master or a worker
+process in a cluster. A process `isMaster` if `process.env.NODE_WORKER_ID`
+is undefined.
 
-### exports.spawnWorker([options])
+### cluster.eachWorker(cb)
 
-   Spawn a new worker process. This is called within `cluster.startMaster()`,
-   however it is useful to implement worker resuscitation as described below
-   in the "Common patterns" section.
+Synchronously iterates over all of the workers.
 
-   The `options` available are identical to `cluster.startMaster()`.
+    cluster.eachWorker(function(worker) {
+      console.log("worker pid=" + worker.pid);
+    });
 
-## Common patterns
+### cluster.workerCount()
 
-## Worker resuscitation
+Returns the number of workers.
 
-The following is an example of how you may implement worker resuscitation,
-spawning a new worker process when another exits.
+### Event: 'death'
 
-    if (cluster.isMaster) {
-      cluster.startMaster();
-      process.on('SIGCHLD', function(){
-        console.log('worker killed');
-        cluster.spawnWorker();
-      });
-    }
+When any of the workers die the cluster module will emit the 'death' event.
+This can be used to restart the worker by calling `fork()` again.
 
+    cluster.on('death', function(worker) {
+      console.log('worker ' + worker.pid + ' died. restart...');
+      cluster.fork();
+    });
+  
+Different techniques can be used to restart the worker depending on the
+application.
