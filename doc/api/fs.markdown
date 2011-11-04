@@ -85,12 +85,12 @@ to the completion callback.
 
 Synchronous chown(2).
 
-### fs.fchown(path, uid, gid, [callback])
+### fs.fchown(fd, uid, gid, [callback])
 
 Asynchronous fchown(2). No arguments other than a possible exception are given
 to the completion callback.
 
-### fs.fchownSync(path, uid, gid)
+### fs.fchownSync(fd, uid, gid)
 
 Synchronous fchown(2).
 
