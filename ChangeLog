@@ -1,4 +1,58 @@
-2011.10.21, Version 0.5.10 (unstable)
+2011.11.04, Version 0.6.0 (stable)
+
+* print undefined on undefined values in REPL (Nathan Rajlich)
+
+* doc improvements (koichik, seebees, bnoordhuis,
+  Maciej Małecki, Jacob Kragh)
+
+* support native addon loading in windows (Bert Belder)
+
+* rename getNetworkInterfaces() to networkInterfaces() (bnoordhuis)
+
+* add pending accepts knob for windows (igorzi)
+
+* http.request(url.parse(x)) (seebees)
+
+* #1929 zlib Respond to 'resume' events properly (isaacs)
+
+* stream.pipe: Remove resume and pause events
+
+* test fixes for windows (igorzi)
+
+* build system improvements (bnoordhuis)
+
+* #1936 tls: does not emit 'end' from EncryptedStream (koichik)
+
+* #758 tls: add address(), remoteAddress/remotePort
+
+* #1399 http: emit Error object after .abort() (bnoordhuis)
+
+* #1999 fs: make mkdir() default to 0777 permissions (bnoordhuis)
+
+* #2001 fix pipe error codes
+
+* #2002 Socket.write should reset timeout timer
+
+* stdout and stderr are blocking when associated with file too.
+
+* remote debugger support on windows (Bert Belder)
+
+* convenience methods for zlib (Matt Robenolt)
+
+* process.kill support on windows (igorzi)
+
+* process.uptime() support on windows (igorzi)
+
+* Return IPv4 addresses before IPv6 addresses from getaddrinfo
+
+* util.inspect improvements (Nathan Rajlich)
+
+* cluster module api changes
+
+* Downgrade V8 to 3.6.6.6
+
+
+2011.10.21, Version 0.5.10 (unstable), 220e61c1f65bf4db09699fcf6399c0809c0bc446
 
 * Remove cmake build system, support for Cygwin, legacy code base,
 	process.ENV, process.ARGV, process.memoryUsage().vsize, os.openOSHandle
