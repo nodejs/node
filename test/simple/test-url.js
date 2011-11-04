@@ -333,6 +333,49 @@ var parseTests = {
     'hash' : '#bar',
     'path': '/path?search=foo'
   },
+  'svn+ssh://foo/bar': {
+    'href': 'svn+ssh://foo/bar',
+    'host': 'foo',
+    'hostname': 'foo',
+    'protocol': 'svn+ssh:',
+    'pathname': '/bar',
+    'path': '/bar',
+    'slashes': true
+  },
+  'dash-test://foo/bar': {
+    'href': 'dash-test://foo/bar',
+    'host': 'foo',
+    'hostname': 'foo',
+    'protocol': 'dash-test:',
+    'pathname': '/bar',
+    'path': '/bar',
+    'slashes': true
+  },
+  'dash-test:foo/bar': {
+    'href': 'dash-test:foo/bar',
+    'host': 'foo',
+    'hostname': 'foo',
+    'protocol': 'dash-test:',
+    'pathname': '/bar',
+    'path': '/bar'
+  },
+  'dot.test://foo/bar': {
+    'href': 'dot.test://foo/bar',
+    'host': 'foo',
+    'hostname': 'foo',
+    'protocol': 'dot.test:',
+    'pathname': '/bar',
+    'path': '/bar',
+    'slashes': true
+  },
+  'dot.test:foo/bar': {
+    'href': 'dot.test:foo/bar',
+    'host': 'foo',
+    'hostname': 'foo',
+    'protocol': 'dot.test:',
+    'pathname': '/bar',
+    'path': '/bar'
+  },
   // IDNA tests
   'http://www.日本語.com/' : {
     'href': 'http://www.xn--wgv71a119e.com/',
@@ -574,6 +617,39 @@ var formatTests = {
     'hostname': 'foo',
     'protocol': 'http:',
     'pathname': '/'
+  },
+  'svn+ssh://foo/bar': {
+    'href': 'svn+ssh://foo/bar',
+    'hostname': 'foo',
+    'protocol': 'svn+ssh:',
+    'pathname': '/bar',
+    'slashes': true
+  },
+  'dash-test://foo/bar': {
+    'href': 'dash-test://foo/bar',
+    'hostname': 'foo',
+    'protocol': 'dash-test:',
+    'pathname': '/bar',
+    'slashes': true
+  },
+  'dash-test:foo/bar': {
+    'href': 'dash-test:foo/bar',
+    'hostname': 'foo',
+    'protocol': 'dash-test:',
+    'pathname': '/bar'
+  },
+  'dot.test://foo/bar': {
+    'href': 'dot.test://foo/bar',
+    'hostname': 'foo',
+    'protocol': 'dot.test:',
+    'pathname': '/bar',
+    'slashes': true
+  },
+  'dot.test:foo/bar': {
+    'href': 'dot.test:foo/bar',
+    'hostname': 'foo',
+    'protocol': 'dot.test:',
+    'pathname': '/bar'
   }
 };
 for (var u in formatTests) {
