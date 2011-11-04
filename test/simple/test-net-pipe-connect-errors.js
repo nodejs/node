@@ -39,7 +39,7 @@ var notSocketClient = net.createConnection(
 );
 
 notSocketClient.on('error', function (err) {
-  assert.equal(err.code, 'ENOTSOCK');
+  assert(err.code === 'ENOTSOCK' || err.code === 'ECONNREFUSED');
   notSocketErrorFired = true;
 });
 
