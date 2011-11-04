@@ -1461,7 +1461,9 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   int r;
 
   if (args.Length() < 2) {
-    return Undefined();
+    Local<Value> exception = Exception::Error(
+        String::New("process.dlopen takes exactly 2 arguments."));
+    return ThrowException(exception);
   }
 
   String::Utf8Value filename(args[0]->ToString()); // Cast
@@ -1469,8 +1471,10 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
 
   err = uv_dlopen(*filename, &lib);
   if (err.code != UV_OK) {
-    SetErrno(err);
-    return scope.Close(Integer::New(-1));
+    Local<Value> exception = Exception::Error(
+        String::Concat(String::New("Unable to load shared library "),
+        args[0]->ToString()));
+    return ThrowException(exception);
   }
 
   String::Utf8Value path(args[0]->ToString());
@@ -1501,9 +1505,9 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
   /* Add the `_module` suffix to the extension name. */
   r = snprintf(symbol, sizeof symbol, "%s_module", base);
   if (r <= 0 || r >= sizeof symbol) {
-    err.code = UV_ENOMEM;
-    SetErrno(err);
-    return scope.Close(Integer::New(-1));
+    Local<Value> exception =
+        Exception::Error(String::New("Out of memory."));
+    return ThrowException(exception);
   }
 
   // Get the init() function from the dynamically shared object.
@@ -1520,15 +1524,16 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     err = uv_dlsym(lib, "init", reinterpret_cast<void**>(&mod->register_func));
     if (err.code != UV_OK) {
       uv_dlclose(lib);
-      SetErrno(err);
-      return scope.Close(Integer::New(-1));
+      Local<Value> exception = Exception::Error(
+          String::New("Out of memory."));
+      return ThrowException(exception);
     }
     /* End Compatibility hack */
   }
 
   if (mod->version != NODE_MODULE_VERSION) {
-    Local<Value> exception =
-      Exception::Error(String::New("Module version mismatch, refusing to load."));
+    Local<Value> exception = Exception::Error(
+        String::New("Module version mismatch, refusing to load."));
     return ThrowException(exception);
   }
 
