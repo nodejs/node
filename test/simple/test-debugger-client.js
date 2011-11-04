@@ -147,8 +147,8 @@ function doTest(cb, done) {
 
   nodeProcess.stdout.once('data', function() {
     console.log('>>> new node process: %d', nodeProcess.pid);
-    process.kill(nodeProcess.pid, 'SIGUSR1');
-    console.log('>>> signaling it with SIGUSR1');
+    process._debugProcess(nodeProcess.pid);
+    console.log('>>> starting debugger session');
   });
 
   var didTryConnect = false;

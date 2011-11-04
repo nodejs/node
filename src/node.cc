@@ -801,11 +801,11 @@ Local<Value> ErrnoException(int errorno,
 
 #ifdef _WIN32
 Local<Value> WinapiErrnoException(int errorno,
-                                  const char *syscall,
-                                  const char *msg,
-                                  const char *path) {
+                                  const char* syscall,
+                                  const char* msg,
+                                  const char* path) {
   Local<Value> e;
-  if (!msg[0]) {
+  if (!msg || !msg[0]) {
     msg = winapi_strerror(errorno);
   }
   Local<String> message = String::NewSymbol(msg);
@@ -1823,6 +1823,8 @@ static Handle<Object> GetFeatures() {
 }
 
 
+static Handle<Value> DebugProcess(const Arguments& args);
+
 Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   HandleScope scope;
 
@@ -1940,6 +1942,8 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 #endif // __POSIX__
 
   NODE_SET_METHOD(process, "_kill", Kill);
+
+  NODE_SET_METHOD(process, "_debugProcess", DebugProcess);
 
   NODE_SET_METHOD(process, "dlopen", DLOpen);
 
@@ -2104,9 +2108,15 @@ static void ParseArgs(int argc, char **argv) {
   option_end_index = i;
 }
 
+
+static Isolate* node_isolate = NULL;
 static volatile bool debugger_running = false;
 
 static void EnableDebug(bool wait_connect) {
+  // If we're called from another thread, make sure to enter the right
+  // v8 isolate.
+  node_isolate->Enter();
+
   // Start the debug thread and it's associated TCP server on port 5858.
   bool r = Debug::EnableAgent("node " NODE_VERSION, debug_port);
 
@@ -2123,55 +2133,209 @@ static void EnableDebug(bool wait_connect) {
 
   // Print out some information.
   fprintf(stderr, "debugger listening on port %d\n", debug_port);
+  fflush(stderr);
 
   debugger_running = true;
+
+  node_isolate->Exit();
 }
 
 
 #ifdef __POSIX__
 static void EnableDebugSignalHandler(int signal) {
   // Break once process will return execution to v8
-  v8::Debug::DebugBreak();
+  v8::Debug::DebugBreak(node_isolate);
 
   if (!debugger_running) {
     fprintf(stderr, "Hit SIGUSR1 - starting debugger agent.\n");
     EnableDebug(false);
   }
 }
-#endif // __POSIX__
-
-#if defined(__MINGW32__) || defined(_MSC_VER)
-static bool EnableDebugSignalHandler(DWORD signal) {
-  if (signal == CTRL_C_EVENT) exit(1);
-  if (signal != CTRL_BREAK_EVENT) return false;
-
-  // Break once process will return execution to v8
-  v8::Debug::DebugBreak();
-
-  if (!debugger_running) {
-    fprintf(stderr, "Hit Ctrl+Break - starting debugger agent.\n");
-    EnableDebug(false);
-    return true;
-  } else {
-    // Run default system action (terminate)
-    return false;
-  }
-
-}
-#endif
 
 
-#ifdef __POSIX__
-
-static int RegisterSignalHandler(int signal, void (*handler)(int)) {
+static void RegisterSignalHandler(int signal, void (*handler)(int)) {
   struct sigaction sa;
 
   memset(&sa, 0, sizeof(sa));
   sa.sa_handler = handler;
   sigfillset(&sa.sa_mask);
-  return sigaction(signal, &sa, NULL);
+  sigaction(signal, &sa, NULL);
+}
+
+
+Handle<Value> DebugProcess(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 1) {
+    return ThrowException(Exception::Error(
+        String::New("Invalid number of arguments.")));
+  }
+
+  pid_t pid;
+  int r;
+
+  pid = args[0]->IntegerValue();
+  r = kill(pid, SIGUSR1);
+  if (r != 0) {
+    return ThrowException(ErrnoException(errno, "kill"));
+  }
+
+  return Undefined();
 }
 #endif // __POSIX__
+
+
+#ifdef _WIN32
+DWORD WINAPI EnableDebugThreadProc(void* arg) {
+  // Break once process will return execution to v8
+  if (!debugger_running) {
+    for (int i = 0; i < 1; i++) {
+      fprintf(stderr, "Starting debugger agent.\r\n");
+      fflush(stderr);
+      EnableDebug(false);
+    }
+  }
+
+  v8::Debug::DebugBreak();
+
+  return 0;
+}
+
+
+static int GetDebugSignalHandlerMappingName(DWORD pid, char* buf, size_t buf_len) {
+  return snprintf(buf, buf_len, "node-debug-handler-%u", pid);
+}
+
+
+static int RegisterDebugSignalHandler() {
+  char mapping_name[32];
+  HANDLE mapping_handle;
+  DWORD pid;
+  LPTHREAD_START_ROUTINE* handler;
+
+  pid = GetCurrentProcessId();
+
+  if (GetDebugSignalHandlerMappingName(pid,
+                                       mapping_name,
+                                       sizeof mapping_name) < 0) {
+    return -1;
+  }
+
+  mapping_handle = CreateFileMappingA(INVALID_HANDLE_VALUE,
+                                      NULL,
+                                      PAGE_READWRITE,
+                                      0,
+                                      sizeof *handler,
+                                      mapping_name);
+  if (mapping_handle == NULL) {
+    return -1;
+  }
+
+  handler = (LPTHREAD_START_ROUTINE*) MapViewOfFile(mapping_handle,
+                                                    FILE_MAP_ALL_ACCESS,
+                                                    0,
+                                                    0,
+                                                    sizeof *handler);
+  if (handler == NULL) {
+    CloseHandle(mapping_handle);
+    return -1;
+  }
+
+  *handler = EnableDebugThreadProc;
+
+  UnmapViewOfFile((void*) handler);
+
+  return 0;
+}
+
+
+static Handle<Value> DebugProcess(const Arguments& args) {
+  HandleScope scope;
+  Handle<Value> rv = Undefined();
+  DWORD pid;
+  HANDLE process = NULL;
+  HANDLE thread = NULL;
+  HANDLE mapping = NULL;
+  char mapping_name[32];
+  LPTHREAD_START_ROUTINE* handler = NULL;
+
+  if (args.Length() != 1) {
+    rv = ThrowException(Exception::Error(String::New("Invalid number of arguments.")));
+    goto out;
+  }
+
+  pid = (DWORD) args[0]->IntegerValue();
+
+  process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+                            PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
+                            PROCESS_VM_READ,
+                        FALSE,
+                        pid);
+  if (process == NULL) {
+    rv = ThrowException(WinapiErrnoException(GetLastError(), "OpenProcess"));
+    goto out;
+  }
+
+  if (GetDebugSignalHandlerMappingName(pid,
+                                       mapping_name,
+                                       sizeof mapping_name) < 0) {
+    rv = ThrowException(ErrnoException(errno, "sprintf"));
+    goto out;
+  }
+
+  mapping = OpenFileMapping(FILE_MAP_READ, FALSE, mapping_name);
+  if (mapping == NULL) {
+    rv = ThrowException(WinapiErrnoException(GetLastError(), "sprintf"));
+    goto out;
+  }
+
+  handler = (LPTHREAD_START_ROUTINE*) MapViewOfFile(mapping,
+                                                    FILE_MAP_READ,
+                                                    0,
+                                                    0,
+                                                    sizeof *handler);
+  if (handler == NULL || *handler == NULL) {
+    rv = ThrowException(WinapiErrnoException(GetLastError(), "MapViewOfFile"));
+    goto out;
+  }
+
+  thread = CreateRemoteThread(process,
+                              NULL,
+                              0,
+                              *handler,
+                              NULL,
+                              0,
+                              NULL);
+  if (thread == NULL) {
+    rv = ThrowException(WinapiErrnoException(GetLastError(),
+                                             "CreateRemoteThread"));
+    goto out;
+  }
+
+  // Wait for the thread to terminate
+  if (WaitForSingleObject(thread, INFINITE) != WAIT_OBJECT_0) {
+    rv = ThrowException(WinapiErrnoException(GetLastError(),
+                                             "WaitForSingleObject"));
+    goto out;
+  }
+
+ out:
+  if (process != NULL) {
+   CloseHandle(process);
+  }
+  if (thread != NULL) {
+    CloseHandle(thread);
+  }
+  if (handler != NULL) {
+    UnmapViewOfFile(handler);
+  }
+  if (mapping != NULL) {
+    CloseHandle(mapping);
+  }
+
+  return Undefined();
+}
+#endif // _WIN32
 
 
 char** Init(int argc, char *argv[]) {
@@ -2245,6 +2409,7 @@ char** Init(int argc, char *argv[]) {
   // Set the callback DebugMessageDispatch which is called from the debug
   // thread.
   Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
+
   // Initialize the async watcher. DebugMessageCallback() is called from the
   // main thread to execute a random bit of javascript - which will give V8
   // control so it can handle whatever new message had been received on the
@@ -2254,17 +2419,19 @@ char** Init(int argc, char *argv[]) {
   // unref it so that we exit the event loop despite it being active.
   uv_unref(uv_default_loop());
 
+  // Fetch a reference to the main isolate, so we have a reference to it
+  // even when we need it to access it from another (debugger) thread.
+  node_isolate = Isolate::GetCurrent();
 
   // If the --debug flag was specified then initialize the debug thread.
   if (node::use_debug_agent) {
     EnableDebug(debug_wait_connect);
   } else {
-#ifdef __POSIX__
+#ifdef _WIN32
+    RegisterDebugSignalHandler();
+#else // Posix
     RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
 #endif // __POSIX__
-#if defined(__MINGW32__) || defined(_MSC_VER)
-    SetConsoleCtrlHandler((PHANDLER_ROUTINE) EnableDebugSignalHandler, TRUE);
-#endif
   }
 
   return argv;
