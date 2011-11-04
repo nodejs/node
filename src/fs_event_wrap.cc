@@ -111,7 +111,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
     if (!args[1]->IsTrue()) {
       uv_unref(uv_default_loop());
     }
-  } else { 
+  } else {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 

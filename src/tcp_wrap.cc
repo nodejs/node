@@ -422,7 +422,7 @@ Handle<Value> TCPWrap::Connect(const Arguments& args) {
   // I'm too lazy to come up with the perfect class hierarchy here. Let's
   // just do some type munging.
   ConnectWrap* req_wrap = new ConnectWrap();
-  
+
   int r = uv_tcp_connect(&req_wrap->req_, &wrap->handle_, address,
       AfterConnect);
 

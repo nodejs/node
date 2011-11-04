@@ -116,7 +116,7 @@ class TTYWrap : StreamWrap {
 
   static Handle<Value> GetWindowSize(const Arguments& args) {
     HandleScope scope;
-    
+
     UNWRAP
 
     int width, height;

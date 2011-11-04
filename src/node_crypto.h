@@ -193,7 +193,7 @@ class Connection : ObjectWrap {
   BIO *bio_read_;
   BIO *bio_write_;
   SSL *ssl_;
-  
+
   bool is_server_; /* coverity[member_decl] */
 };
 

@@ -56,7 +56,7 @@ node_module_struct* get_builtin_module(const char *name)
   char buf[128];
   node_module_struct *cur = NULL;
   snprintf(buf, sizeof(buf), "node_%s", name);
-  /* TODO: you could look these up in a hash, but there are only 
+  /* TODO: you could look these up in a hash, but there are only
    * a few, and once loaded they are cached. */
   for (int i = 0; node_module_list[i] != NULL; i++) {
     cur = node_module_list[i];

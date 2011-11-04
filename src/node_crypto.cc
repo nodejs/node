@@ -780,7 +780,7 @@ int Connection::SelectNextProtoCallback_(SSL *s,
   }
 
   return SSL_TLSEXT_ERR_OK;
-}                                  
+}
 #endif
 
 #ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
