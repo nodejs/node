@@ -117,11 +117,11 @@ Synchronous chmod(2).
 Asynchronous fchmod(2). No arguments other than a possible exception
 are given to the completion callback.
 
-### fs.fchmodSync(path, mode)
+### fs.fchmodSync(fd, mode)
 
 Synchronous fchmod(2).
 
-### fs.lchmod(fd, mode, [callback])
+### fs.lchmod(path, mode, [callback])
 
 Asynchronous lchmod(2). No arguments other than a possible exception
 are given to the completion callback.
@@ -272,18 +272,18 @@ The file is created if it does not exist.
 
 Synchronous open(2).
 
-### fs.utimes(path, atime, mtime, callback)
+### fs.utimes(path, atime, mtime, [callback])
 ### fs.utimesSync(path, atime, mtime)
 
 Change file timestamps of the file referenced by the supplied path.
 
-### fs.futimes(fd, atime, mtime, callback)
+### fs.futimes(fd, atime, mtime, [callback])
 ### fs.futimesSync(fd, atime, mtime)
 
 Change the file timestamps of a file referenced by the supplied file
 descriptor.
 
-### fs.fsync(fd, callback)
+### fs.fsync(fd, [callback])
 
 Asynchronous fsync(2). No arguments other than a possible exception are given
 to the completion callback.
