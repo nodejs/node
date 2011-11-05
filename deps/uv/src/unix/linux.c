@@ -158,7 +158,7 @@ int uv_fs_event_init(uv_loop_t* loop,
                      const char* filename,
                      uv_fs_event_cb cb,
                      int flags) {
-  int flags;
+  int events;
   int fd;
 
   /* We don't support any flags yet. */
@@ -174,15 +174,15 @@ int uv_fs_event_init(uv_loop_t* loop,
     return -1;
   }
 
-  flags = IN_ATTRIB
-        | IN_CREATE
-        | IN_MODIFY
-        | IN_DELETE
-        | IN_DELETE_SELF
-        | IN_MOVED_FROM
-        | IN_MOVED_TO;
+  events = IN_ATTRIB
+         | IN_CREATE
+         | IN_MODIFY
+         | IN_DELETE
+         | IN_DELETE_SELF
+         | IN_MOVED_FROM
+         | IN_MOVED_TO;
 
-  if (inotify_add_watch(fd, filename, flags) == -1) {
+  if (inotify_add_watch(fd, filename, events) == -1) {
     uv__set_sys_error(loop, errno);
     uv__close(fd);
     return -1;
