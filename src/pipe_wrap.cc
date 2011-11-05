@@ -242,20 +242,14 @@ Handle<Value> PipeWrap::Connect(const Arguments& args) {
 
   ConnectWrap* req_wrap = new ConnectWrap();
 
-  int r = uv_pipe_connect(&req_wrap->req_,
-                          &wrap->handle_,
-                          *name,
-                          AfterConnect);
+  uv_pipe_connect(&req_wrap->req_,
+                  &wrap->handle_,
+                  *name,
+                  AfterConnect);
 
   req_wrap->Dispatched();
 
-  if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
-    delete req_wrap;
-    return scope.Close(v8::Null());
-  } else {
-    return scope.Close(req_wrap->object_);
-  }
+  return scope.Close(req_wrap->object_);
 }
 
 
