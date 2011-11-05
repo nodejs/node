@@ -218,7 +218,7 @@ For example:
 
     n.send({ hello: 'world' });
 
-And then the child script, `'sub.js'` would might look like this:
+And then the child script, `'sub.js'` might look like this:
 
     process.on('message', function(m) {
       console.log('CHILD got message:', m);
