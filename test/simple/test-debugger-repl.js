@@ -58,15 +58,20 @@ child.on('line', function(line) {
 function addTest(input, output) {
   function next() {
     if (expected.length > 0) {
-      child.stdin.write(expected[0].input + '\n');
+      var res = child.stdin.write(expected[0].input + '\n'),
+          callback;
 
       if (!expected[0].lines) {
-        setTimeout(function() {
-          var callback = expected[0].callback;
-          expected.shift();
+        callback = expected[0].callback;
+        expected.shift();
+      }
 
-          callback && callback();
-        }, 50);
+      if (callback) {
+        if (res !== true) {
+          child.stdin.on('drain', callback);
+        } else {
+          process.nextTick(callback);
+        }
       }
     } else {
       finish();
@@ -90,7 +95,7 @@ addTest('n', [
 ]);
 
 // Watch
-addTest('watch("\'x\'")');
+addTest('watch("\'x\'"), true', [/true/]);
 
 // Continue
 addTest('c', [
@@ -107,7 +112,7 @@ addTest('watchers', [
 ]);
 
 // Unwatch
-addTest('unwatch("\'x\'")');
+addTest('unwatch("\'x\'"), true', [ /true/ ]);
 
 // Step out
 addTest('o', [
