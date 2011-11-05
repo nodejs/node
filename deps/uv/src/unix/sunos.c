@@ -137,8 +137,12 @@ static void uv__fs_event_read(EV_P_ ev_io* w, int revents) {
 int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
                      const char* filename,
-                     uv_fs_event_cb cb) {
+                     uv_fs_event_cb cb,
+                     int flags) {
   int portfd;
+
+  /* We don't support any flags yet. */
+  assert(!flags);
 
   if ((portfd = port_create()) == -1) {
     uv__set_sys_error(loop, errno);

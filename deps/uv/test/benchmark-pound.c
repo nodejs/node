@@ -225,12 +225,7 @@ static void pipe_make_connect(conn_rec* p) {
   r = uv_pipe_init(loop, (uv_pipe_t*)&p->stream, 0);
   ASSERT(r == 0);
 
-  r = uv_pipe_connect(&((pipe_conn_rec*)p)->conn_req, (uv_pipe_t*)&p->stream, TEST_PIPENAME, connect_cb);
-  if (r) {
-    fprintf(stderr, "uv_tcp_connect error %s\n",
-        uv_err_name(uv_last_error(loop)));
-    ASSERT(0);
-  }
+  uv_pipe_connect(&((pipe_conn_rec*)p)->conn_req, (uv_pipe_t*)&p->stream, TEST_PIPENAME, connect_cb);
 
 #if DEBUG
   printf("make connect %d\n", p->i);

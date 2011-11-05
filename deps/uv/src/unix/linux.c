@@ -156,9 +156,13 @@ static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
 int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
                      const char* filename,
-                     uv_fs_event_cb cb) {
+                     uv_fs_event_cb cb,
+                     int flags) {
   int flags;
   int fd;
+
+  /* We don't support any flags yet. */
+  assert(!flags);
 
   /*
    * TODO share a single inotify fd across the event loop?

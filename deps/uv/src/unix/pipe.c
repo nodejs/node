@@ -177,7 +177,7 @@ void uv_pipe_open(uv_pipe_t* handle, uv_file fd) {
 }
 
 
-int uv_pipe_connect(uv_connect_t* req,
+void uv_pipe_connect(uv_connect_t* req,
                     uv_pipe_t* handle,
                     const char* name,
                     uv_connect_cb cb) {
@@ -237,7 +237,6 @@ out:
    * return 0 and let the callback handle errors.
    */
   errno = saved_errno;
-  return 0;
 }
 
 

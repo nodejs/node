@@ -211,9 +211,8 @@ static void pipe_pinger_new() {
   /* We are never doing multiple reads/connects at a time anyway. */
   /* so these handles can be pre-initialized. */
 
-  r = uv_pipe_connect(&pinger->connect_req, &pinger->stream.pipe, TEST_PIPENAME,
+  uv_pipe_connect(&pinger->connect_req, &pinger->stream.pipe, TEST_PIPENAME,
       pinger_on_connect);
-  ASSERT(!r);
 
   /* Synchronous connect callbacks are not allowed. */
   ASSERT(pinger_on_connect_count == 0);

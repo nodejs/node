@@ -133,11 +133,14 @@ static int uv_split_path(const wchar_t* filename, wchar_t** dir,
 
 
 int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
-    const char* filename, uv_fs_event_cb cb) {
+    const char* filename, uv_fs_event_cb cb, int flags) {
   int name_size;
   DWORD attr, last_error;
   wchar_t* dir = NULL, *dir_to_watch, *filenamew;
   wchar_t short_path[MAX_PATH];
+
+  /* We don't support any flags yet. */
+  assert(!flags);
 
   uv_fs_event_init_handle(loop, handle, filename, cb);
 

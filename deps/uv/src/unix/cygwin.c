@@ -69,7 +69,8 @@ uint64_t uv_get_total_memory(void) {
 int uv_fs_event_init(uv_loop_t* loop,
                      uv_fs_event_t* handle,
                      const char* filename,
-                     uv_fs_event_cb cb) {
+                     uv_fs_event_cb cb,
+                     int flags) {
   uv__set_sys_error(loop, ENOSYS);
   return -1;
 }

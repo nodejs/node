@@ -58,7 +58,6 @@ TEST_IMPL(pipe_connect_bad_name) {
   r = uv_pipe_init(uv_default_loop(), &client, 0);
   ASSERT(r == 0);
   uv_pipe_connect(&req, &client, BAD_PIPENAME, connect_cb);
-  ASSERT(r == 0);
 
   uv_run(uv_default_loop());
 

@@ -443,7 +443,7 @@ static DWORD WINAPI pipe_connect_thread_proc(void* parameter) {
 }
 
 
-int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
+void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb) {
   uv_loop_t* loop = handle->loop;
   int errno, nameSize;
@@ -488,7 +488,7 @@ int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
 
       handle->reqs_pending++;
 
-      return 0;
+      return;
     }
 
     errno = GetLastError();
@@ -505,7 +505,7 @@ int uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
   SET_REQ_SUCCESS(req);
   uv_insert_pending_req(loop, (uv_req_t*) req);
   handle->reqs_pending++;
-  return 0;
+  return;
 
 error:
   if (handle->name) {
@@ -516,8 +516,12 @@ error:
   if (pipeHandle != INVALID_HANDLE_VALUE) {
     CloseHandle(pipeHandle);
   }
-  uv__set_sys_error(loop, errno);
-  return -1;
+
+  /* Make this req pending reporting an error. */
+  SET_REQ_ERROR(req, errno);
+  uv_insert_pending_req(loop, (uv_req_t*) req);
+  handle->reqs_pending++;
+  return;
 }
 
 

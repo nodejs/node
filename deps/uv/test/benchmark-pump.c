@@ -257,8 +257,7 @@ static void maybe_connect_some() {
       ASSERT(r == 0);
 
       req = (uv_connect_t*) req_alloc();
-      r = uv_pipe_connect(req, pipe, TEST_PIPENAME, connect_cb);
-      ASSERT(r == 0);
+      uv_pipe_connect(req, pipe, TEST_PIPENAME, connect_cb);
     }
   }
 }
