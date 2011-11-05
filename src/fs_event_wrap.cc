@@ -105,7 +105,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
 
   String::Utf8Value path(args[0]->ToString());
 
-  int r = uv_fs_event_init(uv_default_loop(), &wrap->handle_, *path, OnEvent);
+  int r = uv_fs_event_init(uv_default_loop(), &wrap->handle_, *path, OnEvent, 0);
   if (r == 0) {
     // Check for persistent argument
     if (!args[1]->IsTrue()) {
