@@ -45,8 +45,8 @@ header on responses.
 
 **Note: these examples are drastically simplified to show
 the basic concept.**  Zlib encoding can be expensive, and the results
-ought to be cached.  See <a href="#memory_Usage_Tuning">Memory Usage
-Tuning</a> below for more information on the speed/memory/compression
+ought to be cached.  See [Memory Usage Tuning](#memory_Usage_Tuning)
+below for more information on the speed/memory/compression
 tradeoffs involved in zlib usage.
 
     // client request example
