@@ -4,8 +4,8 @@ A single instance of Node runs in a single thread. To take advantage of
 multi-core systems the user will sometimes want to launch a cluster of Node
 processes to handle the load.
 
-The cluster module allows you to easily create a network of processes all
-which share server ports.
+The cluster module allows you to easily create a network of processes that
+all share server ports.
 
     var cluster = require('cluster');
     var http = require('http');
