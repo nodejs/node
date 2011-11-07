@@ -187,8 +187,12 @@ server.listen(1337, "127.0.0.1");
         But what about multiple-processor concurrency? Aren't threads
         necessary to scale programs to multi-core computers?
         </i>
-        You can start new processes via <code>child_process.fork()</code>
+        You can start new processes via
+        <a href="http://nodejs.org/docs/latest/api/child_processes.html#child_process.fork"><code>child_process.fork()</code></a>
         these other processes will be scheduled in parallel.
+        For load balancing incoming connections across multiple processes
+        use <a href="http://nodejs.org/docs/latest/api/cluster.html">the
+        cluster module</a>
       </p>
 
       <p>
