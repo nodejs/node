@@ -634,12 +634,11 @@ def uv_cmd(bld, variant):
   #
   cmd = 'cp -r ' + sh_escape(srcdir)  + '/* ' + sh_escape(blddir)
   if not sys.platform.startswith('win32'):
-    cmd += ' && if [[ -z "$NODE_MAKE" ]]; then NODE_MAKE=make; fi; '
-    cmd += '$NODE_MAKE -C ' + sh_escape(blddir)
+    make = ('if [ -z "$NODE_MAKE" ]; then NODE_MAKE=make; fi; '
+            '$NODE_MAKE -C ' + sh_escape(blddir))
   else:
-    cmd += ' && make -C ' + sh_escape(blddir)
-  cmd += ' clean all'
-  return cmd
+    make = 'make -C ' + sh_escape(blddir)
+  return '%s && (%s clean) && (%s all)' % (cmd, make, make)
 
 
 def build_uv(bld):
