@@ -1,4 +1,3 @@
-
 @include synopsis
 @include globals
 @include stdio
@@ -33,6 +32,7 @@
 @include zlib
 @include os
 @include debugger
+@include cluster
 
 # Appendixes
 @include appendix_1
