@@ -308,6 +308,7 @@
         'test/test-tcp-connect-error.c',
         'test/test-tcp-connect6-error.c',
         'test/test-tcp-write-error.c',
+        'test/test-tcp-write-to-half-open-connection.c',
         'test/test-tcp-writealot.c',
         'test/test-threadpool.c',
         'test/test-timer-again.c',

@@ -158,7 +158,7 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 }
 
 
-uv_loop_t* uv_loop_new() {
+uv_loop_t* uv_loop_new(void) {
   uv_loop_t* loop = calloc(1, sizeof(uv_loop_t));
   loop->ev = ev_loop_new(0);
   ev_set_userdata(loop->ev, loop);
@@ -173,7 +173,7 @@ void uv_loop_delete(uv_loop_t* loop) {
 }
 
 
-uv_loop_t* uv_default_loop() {
+uv_loop_t* uv_default_loop(void) {
   if (!default_loop_ptr) {
     default_loop_ptr = &default_loop_struct;
 #if HAVE_KQUEUE

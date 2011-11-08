@@ -75,6 +75,7 @@ static int uv__translate_lib_error(int code) {
     case UV_EADDRINUSE: return EADDRINUSE;
     case UV_EADDRNOTAVAIL: return EADDRNOTAVAIL;
     case UV_ENOTDIR: return ENOTDIR;
+    case UV_EISDIR: return EISDIR;
     case UV_ENOTCONN: return ENOTCONN;
     case UV_EEXIST: return EEXIST;
     case UV_EHOSTUNREACH: return EHOSTUNREACH;
@@ -106,6 +107,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case EADDRINUSE: return UV_EADDRINUSE;
     case EADDRNOTAVAIL: return UV_EADDRNOTAVAIL;
     case ENOTDIR: return UV_ENOTDIR;
+    case EISDIR: return UV_EISDIR;
     case ENOTCONN: return UV_ENOTCONN;
     case EEXIST: return UV_EEXIST;
     case EHOSTUNREACH: return UV_EHOSTUNREACH;
