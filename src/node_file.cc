@@ -226,11 +226,17 @@ struct fs_req_wrap {
 
 #define ASYNC_CALL(func, callback, ...)                           \
   FSReqWrap* req_wrap = new FSReqWrap();                          \
-  int r = uv_fs_##func(Loop(), &req_wrap->req_,              \
+  int r = uv_fs_##func(Loop(), &req_wrap->req_,                   \
       __VA_ARGS__, After);                                        \
-  assert(r == 0);                                                 \
   req_wrap->object_->Set(oncomplete_sym, callback);               \
   req_wrap->Dispatched();                                         \
+  if (r < 0) {                                                    \
+    uv_fs_t* req = &req_wrap->req_;                               \
+    req->result = r;                                              \
+    req->path = NULL;                                             \
+    req->errorno = uv_last_error(uv_default_loop()).code;         \
+    After(req);                                                   \
+  }                                                               \
   return scope.Close(req_wrap->object_);
 
 #define SYNC_CALL(func, path, ...)                                \
