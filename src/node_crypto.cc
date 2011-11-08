@@ -102,9 +102,9 @@ static void crypto_lock_init(void) {
 
 static void crypto_lock_cb(int mode, int n, const char* file, int line) {
   if (mode & CRYPTO_LOCK)
-    WaitForSingleObject(locks[type], INFINITE);
+    WaitForSingleObject(locks[n], INFINITE);
   else
-    ReleaseMutex(locks[type]);
+    ReleaseMutex(locks[n]);
 }
 
 
