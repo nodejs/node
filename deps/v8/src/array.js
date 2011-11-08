@@ -172,12 +172,12 @@ function Join(array, length, separator, convert) {
     } else {
       for (var i = 0; i < length; i++) {
         var e = array[i];
-          if (IS_NUMBER(e)) {
-            e = %_NumberToString(e);
-          } else if (!IS_STRING(e)) {
-            e = convert(e);
-          }
-          elements[i] = e;
+        if (IS_NUMBER(e)) {
+          e = %_NumberToString(e);
+        } else if (!IS_STRING(e)) {
+          e = convert(e);
+        }
+        elements[i] = e;
       }
     }
     var result = %_FastAsciiArrayJoin(elements, separator);

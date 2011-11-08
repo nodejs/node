@@ -6840,7 +6840,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SparseJoinWithSeparator) {
 
   // Find total length of join result.
   int string_length = 0;
-  bool is_ascii = true;
+  bool is_ascii = separator->IsAsciiRepresentation();
   int max_string_length = SeqAsciiString::kMaxLength;
   bool overflow = false;
   CONVERT_NUMBER_CHECKED(int, elements_length,
