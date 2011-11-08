@@ -36,6 +36,13 @@
 
 #include <errno.h>
 
+/* Sigh. */
+#ifdef _WIN32
+# include <windows.h>
+#else
+# include <pthread.h>
+#endif
+
 #if OPENSSL_VERSION_NUMBER >= 0x10000000L
 # define OPENSSL_CONST const
 #else
@@ -75,6 +82,69 @@ static Persistent<String> version_symbol;
 static Persistent<String> ext_key_usage_symbol;
 
 static Persistent<FunctionTemplate> secure_context_constructor;
+
+#ifdef _WIN32
+
+static HANDLE* locks;
+
+
+static void crypto_lock_init(void) {
+  int i, n;
+
+  n = CRYPTO_num_locks();
+  locks = new HANDLE[n];
+
+  for (i = 0; i < n; i++)
+    if (!(locks[i] = CreateMutex(NULL, FALSE, NULL)))
+      abort();
+}
+
+
+static void crypto_lock_cb(int mode, int n, const char* file, int line) {
+  if (mode & CRYPTO_LOCK)
+    WaitForSingleObject(locks[type], INFINITE);
+  else
+    ReleaseMutex(locks[type]);
+}
+
+
+static unsigned long crypto_id_cb(void) {
+  return (unsigned long) GetCurrentThreadId();
+}
+
+#else /* !_WIN32 */
+
+static pthread_rwlock_t* locks;
+
+
+static void crypto_lock_init(void) {
+  int i, n;
+
+  n = CRYPTO_num_locks();
+  locks = new pthread_rwlock_t[n];
+
+  for (i = 0; i < n; i++)
+    if (pthread_rwlock_init(locks + i, NULL))
+      abort();
+}
+
+
+static void crypto_lock_cb(int mode, int n, const char* file, int line) {
+  if (mode & CRYPTO_LOCK) {
+    if (mode & CRYPTO_READ) pthread_rwlock_rdlock(locks + n);
+    if (mode & CRYPTO_WRITE) pthread_rwlock_wrlock(locks + n);
+  } else {
+    pthread_rwlock_unlock(locks + n);
+  }
+}
+
+
+static unsigned long crypto_id_cb(void) {
+  return (unsigned long) pthread_self();
+}
+
+#endif /* !_WIN32 */
+
 
 void SecureContext::Initialize(Handle<Object> target) {
   HandleScope scope;
@@ -4195,6 +4265,10 @@ void InitCrypto(Handle<Object> target) {
   OpenSSL_add_all_digests();
   SSL_load_error_strings();
   ERR_load_crypto_strings();
+
+  crypto_lock_init();
+  CRYPTO_set_locking_callback(crypto_lock_cb);
+  CRYPTO_set_id_callback(crypto_id_cb);
 
   // Turn off compression. Saves memory - do it in userland.
 #if !defined(OPENSSL_NO_COMP)
