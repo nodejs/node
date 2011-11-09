@@ -121,8 +121,7 @@ void uv__set_sys_error(uv_loop_t* loop, int sys_error) {
 
 
 void uv__set_artificial_error(uv_loop_t* loop, uv_err_code code) {
-  loop->last_err.code = code;
-  loop->last_err.sys_errno_ = 0;
+  loop->last_err = uv__new_artificial_error(code);
 }
 
 
@@ -130,6 +129,14 @@ uv_err_t uv__new_sys_error(int sys_error) {
   uv_err_t error;
   error.code = uv_translate_sys_error(sys_error);
   error.sys_errno_ = sys_error;
+  return error;
+}
+
+
+uv_err_t uv__new_artificial_error(uv_err_code code) {
+  uv_err_t error;
+  error.code = code;
+  error.sys_errno_ = 0;
   return error;
 }
 

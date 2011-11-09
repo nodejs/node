@@ -68,11 +68,13 @@ static void kill_cb(uv_process_t* process, int exit_status, int term_signal) {
   ASSERT(no_term_signal || term_signal == 15);
   uv_close((uv_handle_t*)process, close_cb);
 
-  /* Sending signum == 0 should check if the
+  /*
+   * Sending signum == 0 should check if the
    * child process is still alive, not kill it.
+   * This process should be dead.
    */
   err = uv_kill(process->pid, 0);
-  ASSERT(err.code != UV_OK);
+  ASSERT(err.code == UV_ESRCH);
 }
 
 

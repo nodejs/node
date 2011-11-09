@@ -1082,14 +1082,17 @@ static uv_err_t uv__kill(HANDLE process_handle, int signum) {
     }
   } else if (signum == 0) {
     /* Health check: is the process still alive? */
-    if (GetExitCodeProcess(process_handle, &status) &&
-        status == STILL_ACTIVE) {
-      err =  uv_ok_;
+    if (GetExitCodeProcess(process_handle, &status)) {
+      if (status == STILL_ACTIVE) {
+        err =  uv_ok_;
+      } else {
+        err = uv__new_artificial_error(UV_ESRCH);
+      }
     } else {
       err = uv__new_sys_error(GetLastError());
     }
   } else {
-    err.code = UV_ENOSYS;
+    err = uv__new_artificial_error(UV_ENOSYS);
   }
 
   return err;
@@ -1122,8 +1125,12 @@ uv_err_t uv_kill(int pid, int signum) {
   HANDLE process_handle = OpenProcess(PROCESS_TERMINATE |
     PROCESS_QUERY_INFORMATION, FALSE, pid);
 
-  if (process_handle == INVALID_HANDLE_VALUE) {
-    return uv__new_sys_error(GetLastError());
+  if (process_handle == NULL) {
+    if (GetLastError() == ERROR_INVALID_PARAMETER) {
+      return uv__new_artificial_error(UV_ESRCH);
+    } else {
+      return uv__new_sys_error(GetLastError());
+    }
   }
 
   err = uv__kill(process_handle, signum);

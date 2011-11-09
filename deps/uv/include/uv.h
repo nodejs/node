@@ -116,7 +116,8 @@ typedef enum {
   UV_EAISERVICE,
   UV_EAISOCKTYPE,
   UV_ESHUTDOWN,
-  UV_EEXIST
+  UV_EEXIST,
+  UV_ESRCH
 } uv_err_code;
 
 typedef enum {
