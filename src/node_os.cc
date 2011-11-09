@@ -184,4 +184,4 @@ void OS::Initialize(v8::Handle<v8::Object> target) {
 
 }  // namespace node
 
-NODE_MODULE(node_os, node::OS::Initialize);
+NODE_MODULE(node_os, node::OS::Initialize)

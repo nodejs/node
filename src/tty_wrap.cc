@@ -176,4 +176,4 @@ class TTYWrap : StreamWrap {
 
 }  // namespace node
 
-NODE_MODULE(node_tty_wrap, node::TTYWrap::Initialize);
+NODE_MODULE(node_tty_wrap, node::TTYWrap::Initialize)

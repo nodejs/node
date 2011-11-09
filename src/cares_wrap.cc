@@ -763,4 +763,4 @@ static void Initialize(Handle<Object> target) {
 
 }  // namespace node
 
-NODE_MODULE(node_cares_wrap, node::cares_wrap::Initialize);
+NODE_MODULE(node_cares_wrap, node::cares_wrap::Initialize)

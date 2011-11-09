@@ -235,4 +235,4 @@ class ProcessWrap : public HandleWrap {
 
 }  // namespace node
 
-NODE_MODULE(node_process_wrap, node::ProcessWrap::Initialize);
+NODE_MODULE(node_process_wrap, node::ProcessWrap::Initialize)

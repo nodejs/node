@@ -467,4 +467,4 @@ Handle<Value> TCPWrap::Connect6(const Arguments& args) {
 
 }  // namespace node
 
-NODE_MODULE(node_tcp_wrap, node::TCPWrap::Initialize);
+NODE_MODULE(node_tcp_wrap, node::TCPWrap::Initialize)

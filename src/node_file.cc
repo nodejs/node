@@ -1057,4 +1057,4 @@ void InitFs(Handle<Object> target) {
 
 }  // end namespace node
 
-NODE_MODULE(node_fs, node::InitFs);
+NODE_MODULE(node_fs, node::InitFs)

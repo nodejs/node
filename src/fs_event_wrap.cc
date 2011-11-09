@@ -152,4 +152,4 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 }
 } // namespace node
 
-NODE_MODULE(node_fs_event_wrap, node::FSEventWrap::Initialize);
+NODE_MODULE(node_fs_event_wrap, node::FSEventWrap::Initialize)

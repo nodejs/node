@@ -255,4 +255,4 @@ Handle<Value> PipeWrap::Connect(const Arguments& args) {
 
 }  // namespace node
 
-NODE_MODULE(node_pipe_wrap, node::PipeWrap::Initialize);
+NODE_MODULE(node_pipe_wrap, node::PipeWrap::Initialize)

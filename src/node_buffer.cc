@@ -797,4 +797,4 @@ void Buffer::Initialize(Handle<Object> target) {
 
 }  // namespace node
 
-NODE_MODULE(node_buffer, node::Buffer::Initialize);
+NODE_MODULE(node_buffer, node::Buffer::Initialize)

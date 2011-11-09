@@ -417,4 +417,4 @@ void AddressToJS(Handle<Object> info,
 
 } // namespace node
 
-NODE_MODULE(node_udp_wrap, node::UDPWrap::Initialize);
+NODE_MODULE(node_udp_wrap, node::UDPWrap::Initialize)

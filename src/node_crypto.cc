@@ -4313,5 +4313,5 @@ void InitCrypto(Handle<Object> target) {
 }  // namespace crypto
 }  // namespace node
 
-NODE_MODULE(node_crypto, node::crypto::InitCrypto);
+NODE_MODULE(node_crypto, node::crypto::InitCrypto)
 

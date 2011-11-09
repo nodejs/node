@@ -213,4 +213,4 @@ class TimerWrap : public HandleWrap {
 
 }  // namespace node
 
-NODE_MODULE(node_timer_wrap, node::TimerWrap::Initialize);
+NODE_MODULE(node_timer_wrap, node::TimerWrap::Initialize)

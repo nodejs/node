@@ -356,4 +356,4 @@ void InitZlib(Handle<Object> target) {
 
 }  // namespace node
 
-NODE_MODULE(node_zlib, node::InitZlib);
+NODE_MODULE(node_zlib, node::InitZlib)
