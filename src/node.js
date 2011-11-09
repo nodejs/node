@@ -278,6 +278,7 @@
     process.__defineGetter__('stdout', function() {
       if (stdout) return stdout;
       stdout = createWritableStdioStream(1);
+      stdout.end = stdout.destroy = stdout.destroySoon = function() { };
       return stdout;
     });
 
