@@ -101,6 +101,7 @@ const char* uv_err_name(uv_err_t err) {
     case UV_EAISOCKTYPE: return "EAISOCKTYPE";
     case UV_ESHUTDOWN: return "ESHUTDOWN";
     case UV_EEXIST: return "EEXIST";
+    case UV_ESRCH: return "ESRCH";
     default:
       assert(0);
       return NULL;
