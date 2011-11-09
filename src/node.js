@@ -284,6 +284,7 @@
     process.__defineGetter__('stderr', function() {
       if (stderr) return stderr;
       stderr = createWritableStdioStream(2);
+      stderr.end = stderr.destroy = stderr.destroySoon = function() { };
       return stderr;
     });
 
