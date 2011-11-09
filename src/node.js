@@ -349,7 +349,7 @@
       }
 
       if (r) {
-        throw errnoException('kill', errno);
+        throw errnoException(errno, 'kill');
       }
     };
   };
