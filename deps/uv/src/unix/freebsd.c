@@ -43,10 +43,6 @@ uint64_t uv_hrtime(void) {
 
 
 int uv_exepath(char* buffer, size_t* size) {
-  uint32_t usize;
-  int result;
-  char* path;
-  char* fullpath;
   int mib[4];
   size_t cb;
 

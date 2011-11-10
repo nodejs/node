@@ -830,9 +830,10 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
       err = GET_REQ_SOCK_ERROR(req);
 
       if (err == WSAECONNABORTED) {
-        /* Treat WSAECONNABORTED as connection closed. */
-        handle->flags |= UV_HANDLE_EOF;
-        uv__set_error(loop, UV_EOF, ERROR_SUCCESS);
+        /* 
+         * Turn WSAECONNABORTED into UV_ECONNRESET to be consistent with Unix.
+         */
+        uv__set_error(loop, UV_ECONNRESET, err);
       } else {
         uv__set_sys_error(loop, err);
       }
@@ -898,9 +899,10 @@ void uv_process_tcp_read_req(uv_loop_t* loop, uv_tcp_t* handle,
           handle->read_cb((uv_stream_t*)handle, 0, buf);
         } else {
           if (err == WSAECONNABORTED) {
-            /* Treat WSAECONNABORTED as connection closed. */
-            handle->flags |= UV_HANDLE_EOF;
-            uv__set_error(loop, UV_EOF, ERROR_SUCCESS);
+            /* 
+             * Turn WSAECONNABORTED into UV_ECONNRESET to be consistent with Unix.
+             */
+            uv__set_error(loop, UV_ECONNRESET, err);
           } else {
             /* Ouch! serious error. */
             uv__set_sys_error(loop, err);

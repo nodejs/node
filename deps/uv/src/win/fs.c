@@ -388,7 +388,7 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
   HANDLE dir;
   WIN32_FIND_DATAW ent = {0};
   size_t len = wcslen(path);
-  size_t buf_size = 4096;
+  size_t buf_char_len = 4096;
   wchar_t* path2;
   const wchar_t* fmt = !len                                         ? L"./*"
                 : (path[len - 1] == L'/' || path[len - 1] == L'\\') ? L"%s*"
@@ -429,7 +429,7 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
       len = wcslen(name);
 
       if (!buf) {
-        buf = (wchar_t*)malloc(buf_size * sizeof(wchar_t));
+        buf = (wchar_t*)malloc(buf_char_len * sizeof(wchar_t));
         if (!buf) {
           uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
         }
@@ -437,10 +437,10 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
         ptr = buf;
       }
 
-      while ((ptr - buf) + len + 1 > buf_size) {
-        buf_size *= 2;
+      while ((ptr - buf) + len + 1 > buf_char_len) {
+        buf_char_len *= 2;
         path2 = buf;
-        buf = (wchar_t*)realloc(buf, buf_size * sizeof(wchar_t));
+        buf = (wchar_t*)realloc(buf, buf_char_len * sizeof(wchar_t));
         if (!buf) {
           uv_fatal_error(ERROR_OUTOFMEMORY, "realloc");
         }
@@ -458,7 +458,7 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
 
   if (buf) {
     /* Convert result to UTF8. */
-    size = uv_utf16_to_utf8(buf, buf_size / sizeof(wchar_t), NULL, 0);
+    size = uv_utf16_to_utf8(buf, buf_char_len, NULL, 0);
     if (!size) {
       SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
       return;
@@ -469,7 +469,7 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
       uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
     }
 
-    size = uv_utf16_to_utf8(buf, buf_size / sizeof(wchar_t), (char*)req->ptr, size);
+    size = uv_utf16_to_utf8(buf, buf_char_len, (char*)req->ptr, size);
     if (!size) {
       free(buf);
       free(req->ptr);

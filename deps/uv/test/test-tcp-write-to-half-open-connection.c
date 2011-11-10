@@ -40,8 +40,6 @@ static uv_write_t write_req;
 
 static int write_cb_called;
 static int read_cb_called;
-static int read_eof_cb_called;
-
 
 static void connection_cb(uv_stream_t* server, int status) {
   int r;
@@ -76,12 +74,11 @@ static uv_buf_t alloc_cb(uv_handle_t* handle, size_t suggested_size) {
 static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
   if (nread == -1) {
     fprintf(stderr, "read_cb error: %s\n", uv_err_name(uv_last_error(stream->loop)));
-    ASSERT(uv_last_error(stream->loop).code == UV_EOF);
+    ASSERT(uv_last_error(stream->loop).code == UV_ECONNRESET ||
+      uv_last_error(stream->loop).code == UV_EOF);
 
     uv_close((uv_handle_t*)&tcp_server, NULL);
     uv_close((uv_handle_t*)&tcp_peer, NULL);
-
-    read_eof_cb_called++;
   }
 
   read_cb_called++;
@@ -133,7 +130,6 @@ TEST_IMPL(tcp_write_to_half_open_connection) {
 
   ASSERT(write_cb_called > 0);
   ASSERT(read_cb_called > 0);
-  ASSERT(read_eof_cb_called > 0);
 
   return 0;
 }

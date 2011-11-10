@@ -63,30 +63,97 @@ static void uv__chld(EV_P_ ev_child* watcher, int revents) {
 }
 
 
+#define UV__F_IPC        (1 << 0)
+#define UV__F_NONBLOCK   (1 << 1)
+
+static int uv__make_socketpair(int fds[2], int flags) {
+#ifdef SOCK_NONBLOCK
+  int fl;
+
+  fl = SOCK_CLOEXEC;
+
+  if (flags & UV__F_NONBLOCK)
+    fl |= SOCK_NONBLOCK;
+
+  if (socketpair(AF_UNIX, SOCK_STREAM|fl, 0, fds) == 0)
+    return 0;
+
+  if (errno != EINVAL)
+    return -1;
+
+  /* errno == EINVAL so maybe the kernel headers lied about
+   * the availability of SOCK_NONBLOCK. This can happen if people
+   * build libuv against newer kernel headers than the kernel
+   * they actually run the software on.
+   */
+#endif
+
+  if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds))
+    return -1;
+
+  uv__cloexec(fds[0], 1);
+  uv__cloexec(fds[1], 1);
+
+  if (flags & UV__F_NONBLOCK) {
+    uv__nonblock(fds[0], 1);
+    uv__nonblock(fds[1], 1);
+  }
+
+  return 0;
+}
+
+
+static int uv__make_pipe(int fds[2], int flags) {
+#if HAVE_PIPE2
+  int fl;
+
+  fl = O_CLOEXEC;
+
+  if (flags & UV__F_NONBLOCK)
+    fl |= O_NONBLOCK;
+
+  if (pipe2(fds, fl) == 0)
+    return 0;
+
+  if (errno != ENOSYS)
+    return -1;
+
+  /* errno == ENOSYS so maybe the kernel headers lied about
+   * the availability of pipe2(). This can happen if people
+   * build libuv against newer kernel headers than the kernel
+   * they actually run the software on.
+   */
+#endif
+
+  if (pipe(fds))
+    return -1;
+
+  uv__cloexec(fds[0], 1);
+  uv__cloexec(fds[1], 1);
+
+  if (flags & UV__F_NONBLOCK) {
+    uv__nonblock(fds[0], 1);
+    uv__nonblock(fds[1], 1);
+  }
+
+  return 0;
+}
+
+
 /*
  * Used for initializing stdio streams like options.stdin_stream. Returns
  * zero on success.
  */
-static int uv__process_init_pipe(uv_pipe_t* handle, int fds[2]) {
+static int uv__process_init_pipe(uv_pipe_t* handle, int fds[2], int flags) {
   if (handle->type != UV_NAMED_PIPE) {
     errno = EINVAL;
     return -1;
   }
 
-  if (handle->ipc) {
-    if (socketpair(AF_UNIX, SOCK_STREAM, 0, fds) < 0) {
-      return -1;
-    }
-  } else {
-    if (pipe(fds) < 0) {
-      return -1;
-    }
-  }
-
-  uv__cloexec(fds[0], 1);
-  uv__cloexec(fds[1], 1);
-
-  return 0;
+  if (handle->ipc)
+    return uv__make_socketpair(fds, flags);
+  else
+    return uv__make_pipe(fds, flags);
 }
 
 
@@ -118,17 +185,17 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
   process->exit_cb = options.exit_cb;
 
   if (options.stdin_stream &&
-      uv__process_init_pipe(options.stdin_stream, stdin_pipe)) {
+      uv__process_init_pipe(options.stdin_stream, stdin_pipe, 0)) {
     goto error;
   }
 
   if (options.stdout_stream &&
-      uv__process_init_pipe(options.stdout_stream, stdout_pipe)) {
+      uv__process_init_pipe(options.stdout_stream, stdout_pipe, 0)) {
     goto error;
   }
 
   if (options.stderr_stream &&
-      uv__process_init_pipe(options.stderr_stream, stderr_pipe)) {
+      uv__process_init_pipe(options.stderr_stream, stderr_pipe, 0)) {
     goto error;
   }
 
@@ -153,19 +220,8 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
    * the parent polls the read end until it sees POLLHUP.
    */
 #if SPAWN_WAIT_EXEC
-# ifdef HAVE_PIPE2
-  if (pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK) < 0) {
+  if (uv__make_pipe(signal_pipe, UV__F_NONBLOCK))
     goto error;
-  }
-# else
-  if (socketpair(AF_UNIX, SOCK_STREAM, 0, signal_pipe) < 0) {
-    goto error;
-  }
-  uv__cloexec(signal_pipe[0], 1);
-  uv__cloexec(signal_pipe[1], 1);
-  uv__nonblock(signal_pipe[0], 1);
-  uv__nonblock(signal_pipe[1], 1);
-# endif
 #endif
 
   pid = fork();

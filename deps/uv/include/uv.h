@@ -67,58 +67,64 @@ typedef intptr_t ssize_t;
 #endif
 
 /* Expand this list if necessary. */
+#define UV_ERRNO_MAP(XX) \
+  XX( -1, UNKNOWN, "unknown error") \
+  XX(  0, OK, "success") \
+  XX(  1, EOF, "end of file") \
+  XX(  2, EADDRINFO, "getaddrinfo error") \
+  XX(  3, EACCES, "permission denied") \
+  XX(  4, EAGAIN, "no more processes") \
+  XX(  5, EADDRINUSE, "address already in use") \
+  XX(  6, EADDRNOTAVAIL, "") \
+  XX(  7, EAFNOSUPPORT, "") \
+  XX(  8, EALREADY, "") \
+  XX(  9, EBADF, "bad file descriptor") \
+  XX( 10, EBUSY, "mount device busy") \
+  XX( 11, ECONNABORTED, "software caused connection abort") \
+  XX( 12, ECONNREFUSED, "connection refused") \
+  XX( 13, ECONNRESET, "connection reset by peer") \
+  XX( 14, EDESTADDRREQ, "destination address required") \
+  XX( 15, EFAULT, "bad address in system call argument") \
+  XX( 16, EHOSTUNREACH, "host is unreachable") \
+  XX( 17, EINTR, "interrupted system call") \
+  XX( 18, EINVAL, "invalid argument") \
+  XX( 19, EISCONN, "socket is already connected") \
+  XX( 20, EMFILE, "too many open files") \
+  XX( 21, EMSGSIZE, "message too long") \
+  XX( 22, ENETDOWN, "network is down") \
+  XX( 23, ENETUNREACH, "network is unreachable") \
+  XX( 24, ENFILE, "file table overflow") \
+  XX( 25, ENOBUFS, "no buffer space available") \
+  XX( 26, ENOMEM, "not enough memory") \
+  XX( 27, ENOTDIR, "not a directory") \
+  XX( 28, EISDIR, "illegal operation on a directory") \
+  XX( 29, ENONET, "machine is not on the network") \
+  XX( 31, ENOTCONN, "socket is not connected") \
+  XX( 32, ENOTSOCK, "socket operation on non-socket") \
+  XX( 33, ENOTSUP, "operation not supported on socket") \
+  XX( 34, ENOENT, "no such file or directory") \
+  XX( 35, ENOSYS, "function not implemented") \
+  XX( 36, EPIPE, "broken pipe") \
+  XX( 37, EPROTO, "protocol error") \
+  XX( 38, EPROTONOSUPPORT, "protocol not suppored") \
+  XX( 39, EPROTOTYPE, "protocol wrong type for socket") \
+  XX( 40, ETIMEDOUT, "connection timed out") \
+  XX( 41, ECHARSET, "") \
+  XX( 42, EAIFAMNOSUPPORT, "") \
+  XX( 43, EAINONAME, "") \
+  XX( 44, EAISERVICE, "") \
+  XX( 45, EAISOCKTYPE, "") \
+  XX( 46, ESHUTDOWN, "") \
+  XX( 47, EEXIST, "file already exists") \
+  XX( 48, ESRCH, "no such process")
+
+
+#define UV_ERRNO_GEN(val, name, s) UV_##name = val,
 typedef enum {
-  UV_UNKNOWN = -1,
-  UV_OK = 0,
-  UV_EOF,
-  UV_EADDRINFO,
-  UV_EACCES,
-  UV_EAGAIN,
-  UV_EADDRINUSE,
-  UV_EADDRNOTAVAIL,
-  UV_EAFNOSUPPORT,
-  UV_EALREADY,
-  UV_EBADF,
-  UV_EBUSY,
-  UV_ECONNABORTED,
-  UV_ECONNREFUSED,
-  UV_ECONNRESET,
-  UV_EDESTADDRREQ,
-  UV_EFAULT,
-  UV_EHOSTUNREACH,
-  UV_EINTR,
-  UV_EINVAL,
-  UV_EISCONN,
-  UV_EMFILE,
-  UV_EMSGSIZE,
-  UV_ENETDOWN,
-  UV_ENETUNREACH,
-  UV_ENFILE,
-  UV_ENOBUFS,
-  UV_ENOMEM,
-  UV_ENOTDIR,
-  UV_EISDIR,
-  UV_ENONET,
-  UV_ENOPROTOOPT,
-  UV_ENOTCONN,
-  UV_ENOTSOCK,
-  UV_ENOTSUP,
-  UV_ENOENT,
-  UV_ENOSYS,
-  UV_EPIPE,
-  UV_EPROTO,
-  UV_EPROTONOSUPPORT,
-  UV_EPROTOTYPE,
-  UV_ETIMEDOUT,
-  UV_ECHARSET,
-  UV_EAIFAMNOSUPPORT,
-  UV_EAINONAME,
-  UV_EAISERVICE,
-  UV_EAISOCKTYPE,
-  UV_ESHUTDOWN,
-  UV_EEXIST,
-  UV_ESRCH
+  UV_ERRNO_MAP(UV_ERRNO_GEN)
+  UV_MAX_ERRORS
 } uv_err_code;
+#undef UV_ERRNO_GEN
 
 typedef enum {
   UV_UNKNOWN_HANDLE = 0,
