@@ -269,6 +269,8 @@
     // For supporting legacy API we put the FD here.
     stream.fd = fd;
 
+    stream._isStdio = true;
+
     return stream;
   }
 
@@ -278,14 +280,18 @@
     process.__defineGetter__('stdout', function() {
       if (stdout) return stdout;
       stdout = createWritableStdioStream(1);
-      stdout.end = stdout.destroy = stdout.destroySoon = function() { };
+      stdout.end = stdout.destroy = stdout.destroySoon = function() {
+        throw new Error('process.stdout cannot be closed');
+      };
       return stdout;
     });
 
     process.__defineGetter__('stderr', function() {
       if (stderr) return stderr;
       stderr = createWritableStdioStream(2);
-      stderr.end = stderr.destroy = stderr.destroySoon = function() { };
+      stderr.end = stderr.destroy = stderr.destroySoon = function() {
+        throw new Error('process.stderr cannot be closed');
+      };
       return stderr;
     });
 
