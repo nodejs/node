@@ -45,6 +45,7 @@ public:
   static void Initialize(Handle<Object> target);
   static Handle<Value> New(const Arguments& args);
   static Handle<Value> Start(const Arguments& args);
+  static Handle<Value> Close(const Arguments& args);
 
 private:
   FSEventWrap(Handle<Object> object);
@@ -54,16 +55,19 @@ private:
     int status);
 
   uv_fs_event_t handle_;
+  bool initialized_;
 };
 
 
 FSEventWrap::FSEventWrap(Handle<Object> object): HandleWrap(object,
                                                     (uv_handle_t*)&handle_) {
   handle_.data = reinterpret_cast<void*>(this);
+  initialized_ = false;
 }
 
 
 FSEventWrap::~FSEventWrap() {
+  assert(initialized_ == false);
 }
 
 
@@ -111,6 +115,7 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
     if (!args[1]->IsTrue()) {
       uv_unref(uv_default_loop());
     }
+    wrap->initialized_ = true;
   } else {
     SetErrno(uv_last_error(uv_default_loop()));
   }
@@ -150,6 +155,21 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
   MakeCallback(wrap->object_, "onchange", 3, argv);
 }
+
+
+Handle<Value> FSEventWrap::Close(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  if (!wrap->initialized_)
+    return Undefined();
+
+  wrap->initialized_ = false;
+  return HandleWrap::Close(args);
+}
+
+
 } // namespace node
 
 NODE_MODULE(node_fs_event_wrap, node::FSEventWrap::Initialize)
