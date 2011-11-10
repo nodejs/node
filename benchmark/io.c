@@ -2,33 +2,38 @@
  * gcc -o iotest io.c
  */
 
+#include <assert.h>
 #include <unistd.h>
 #include <string.h>
 #include <fcntl.h>
 #include <sys/time.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdio.h>
  
-int tsize = 1000 * 1048576;
-const char *path = "/tmp/wt.dat";
+static int c = 0;
+static int tsize = 1000 * 1048576;
+static const char path[] = "/tmp/wt.dat";
+static char buf[65536];
 
-int c = 0;
+static uint64_t now(void) {
+  struct timeval tv;
 
-char* bufit(size_t l)
-{
-  char *p = malloc(l);
-  memset(p, '!', l);
-  return p;
+  if (gettimeofday(&tv, NULL))
+    abort();
+
+  return tv.tv_sec * 1000000ULL + tv.tv_usec;
 }
 
-void writetest(int size, size_t bsize)
+static void writetest(int size, size_t bsize)
 {
   int i;
-  char *buf = bufit(bsize);
-  struct timeval start, end;
+  uint64_t start, end;
   double elapsed;
   double mbps;
+
+  assert(bsize <= sizeof buf);
 
   int fd = open(path, O_CREAT|O_WRONLY, 0644);
   if (fd < 0) {
@@ -36,7 +41,8 @@ void writetest(int size, size_t bsize)
     exit(254);
   }
 
-  assert(0 ==  gettimeofday(&start, NULL));
+  start = now();
+
   for (i = 0; i < size; i += bsize) {
     int rv = write(fd, buf, bsize);
     if (c++ % 2000 == 0) fprintf(stderr, ".");
@@ -45,27 +51,31 @@ void writetest(int size, size_t bsize)
       exit(254);
     }
   }
-#ifdef __linux__
-  fdatasync(fd);
-#else
-  fsync(fd);
-#endif
   close(fd);
-  assert(0 == gettimeofday(&end, NULL));
-  elapsed = (end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec))/100000.;
-  mbps = ((tsize/elapsed)) / 1048576;
-  fprintf(stderr, "\nWrote %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
 
-  free(buf);
+#ifndef NSYNC
+# ifdef __linux__
+  fdatasync(fd);
+# else
+  fsync(fd);
+# endif
+#endif /* SYNC */
+
+  end = now();
+  elapsed = (end - start) / 1e6;
+  mbps = ((tsize/elapsed)) / 1048576;
+
+  fprintf(stderr, "\nWrote %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
 }
 
 void readtest(int size, size_t bsize)
 {
   int i;
-  char *buf = bufit(bsize);
-  struct timeval start, end;
+  uint64_t start, end;
   double elapsed;
   double mbps;
+
+  assert(bsize <= sizeof buf);
 
   int fd = open(path, O_RDONLY, 0644);
   if (fd < 0) {
@@ -73,7 +83,8 @@ void readtest(int size, size_t bsize)
     exit(254);
   }
 
-  assert(0 == gettimeofday(&start, NULL));
+  start = now();
+
   for (i = 0; i < size; i += bsize) {
     int rv = read(fd, buf, bsize);
     if (rv < 0) {
@@ -82,12 +93,12 @@ void readtest(int size, size_t bsize)
     }
   }
   close(fd);
-  assert(0 == gettimeofday(&end, NULL));
-  elapsed = (end.tv_sec - start.tv_sec) + ((double)(end.tv_usec - start.tv_usec))/100000.;
-  mbps = ((tsize/elapsed)) / 1048576;
-  fprintf(stderr, "Read %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
 
-  free(buf);
+  end = now();
+  elapsed = (end - start) / 1e6;
+  mbps = ((tsize/elapsed)) / 1048576;
+
+  fprintf(stderr, "Read %d bytes in %03fs using %ld byte buffers: %03fmB/s\n", size, elapsed, bsize, mbps);
 }
 
 void cleanup() {
