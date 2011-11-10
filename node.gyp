@@ -155,6 +155,7 @@
             'src/platform_win32.cc',
             # headers to make for a more pleasant IDE experience
             'src/platform_win32.h',
+            'tools/msvs/res/node.rc',
           ],
           'defines': [
             'FD_SETSIZE=1024',
