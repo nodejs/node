@@ -25,4 +25,4 @@ packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/P
 $packagemaker \
   --id "$PKGID" \
   --doc $PMDOC \
-  --out $CONTENTS/node-$VERSION.pkg
+  --out $CONTENTS/node-v$VERSION.pkg
