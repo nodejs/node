@@ -120,6 +120,7 @@ clean:
 
 distclean: docclean
 	-find tools -name "*.pyc" | xargs rm -f
+	-rm -rf dist-osx
 	-rm -rf out/ node node_g
 
 check:

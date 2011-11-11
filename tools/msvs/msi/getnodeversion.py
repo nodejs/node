@@ -6,4 +6,4 @@ for line in sys.stdin:
     minor = line.split()[2]
   if re.match('#define NODE_PATCH_VERSION', line):
     patch = line.split()[2]
-print '{0:s}.{1:s}.{2:s}.0'.format(major, minor, patch)
+print '{0:s}.{1:s}.{2:s}'.format(major, minor, patch)

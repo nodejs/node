@@ -33,3 +33,4 @@ ipch/
 /options.gypi
 *-nodegyp*
 /gyp-mac-tool
+/dist-osx
