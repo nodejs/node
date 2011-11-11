@@ -1,4 +1,33 @@
-2011.11.04, Version 0.6.0 (stable)
+2011.11.11, Version 0.6.1 (stable)
+
+* doc improvements (Eric Lovett, Ben Noordhuis, Scott Anderson, Yoji SHIDARA)
+
+* crypto: make thread-safe (Ben Noordhuis)
+
+* fix process.kill error object
+
+* debugger: correctly handle source with multi-byte characters (Shigeki Ohtsu)
+
+* make stdout and stderr non-destroyable (Igor Zinkovsky)
+
+* fs: don't close uninitialized fs.watch handle (Ben Noordhuis)
+
+* #2026 fix man page install on BSDs (Ben Noordhuis)
+
+* #2040 fix unrecognized errno assert in uv_err_name
+
+* #2043 fs: mkdir() should call callback if mode is omitted
+
+* #2045 fs: fix fs.realpath on windows to return on error (Benjamin Pasero)
+
+* #2047 minor cluster improvements
+
+* #2052 readline get window columns correctly
+
+* Upgrade V8 to 3.6.6.7
+
+
+2011.11.04, Version 0.6.0 (stable), 865b077819a9271a29f982faaef99dc635b57fbc
 
 * print undefined on undefined values in REPL (Nathan Rajlich)
 
