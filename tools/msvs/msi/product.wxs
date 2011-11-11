@@ -19,15 +19,18 @@
         <Directory Id="NodeRoot" Name="nodejs">
           <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodeexe" KeyPath="yes" Source="$(var.sourcedir)\node.exe" />
+            <Environment Id="Environment"
+                         Action="set"             
+                         Name="PATH" 
+                         Part="last" 
+                         System="yes" 
+                         Value="[NodeRoot]" />
           </Component>
           <?if $(var.Configuration) = Debug ?>
           <Component Id="nodepdb" Guid="BEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodepdb" KeyPath="yes" Source="$(var.sourcedir)\node.pdb" />
           </Component>
           <?endif?>
-          <Component Id="license" Guid="CEC0F08E-89B3-4C35-A286-8DB8598597F2">
-            <File Id="filelicense" KeyPath="yes" Source="$(var.sourcedir)\..\LICENSE" />
-          </Component>
         </Directory>
       </Directory>
     </Directory>
@@ -37,7 +40,6 @@
       <?if $(var.Configuration) = Debug ?>
       <ComponentRef Id="nodepdb"/>
       <?endif?>
-      <ComponentRef Id="license"/>
     </ComponentGroup>
 
     <Feature Id="nodejs" Title="node.js engine" Level="1" Description="evented I/O for V8 javascript">
@@ -45,9 +47,37 @@
       <ComponentGroupRef Id="Product.Generated" />
     </Feature>
 
-    <WixVariable Id="WixUILicenseRtf" Value="$(var.ProjectDir)\license.rtf" />
-    <UIRef Id="WixUI_Minimal" />
+    <UI Id="NodeInstallUI">
+      <TextStyle Id="WixUI_Font_Normal" FaceName="Tahoma" Size="8" />
+      <TextStyle Id="WixUI_Font_Bigger" FaceName="Tahoma" Size="12" />
+      <TextStyle Id="WixUI_Font_Title" FaceName="Tahoma" Size="9" Bold="yes" />
 
+      <Property Id="DefaultUIFont" Value="WixUI_Font_Normal" />
+      <Property Id="WixUI_Mode" Value="Minimal" />
+
+      <DialogRef Id="ErrorDlg" />
+      <DialogRef Id="FatalError" />
+      <DialogRef Id="FilesInUse" />
+      <DialogRef Id="MsiRMFilesInUse" />
+      <DialogRef Id="PrepareDlg" />
+      <DialogRef Id="ProgressDlg" />
+      <DialogRef Id="ResumeDlg" />
+      <DialogRef Id="UserExit" />
+      <DialogRef Id="WelcomeDlg" /> 
+
+      <Publish Dialog="WelcomeDlg" Control="Next" Event="NewDialog" Value="PrepareDlg">1</Publish> 
+      <Publish Dialog="ExitDialog" Control="Finish" Event="EndDialog" Value="Return" Order="999">1</Publish>
+      <Publish Dialog="VerifyReadyDlg" Control="Back" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="MaintenanceWelcomeDlg" Control="Next" Event="NewDialog" Value="MaintenanceTypeDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RepairButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="RemoveButton" Event="NewDialog" Value="VerifyReadyDlg">1</Publish>
+      <Publish Dialog="MaintenanceTypeDlg" Control="Back" Event="NewDialog" Value="MaintenanceWelcomeDlg">1</Publish>
+
+      <Property Id="ARPNOMODIFY" Value="1" />
+      <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed.  To run Node.js open command prompt (cmd.exe), and run 'node'. See http://nodejs.org for information about the license." />
+    </UI>
+
+    <UIRef Id="WixUI_Common" />
   </Product>
 
 </Wix>

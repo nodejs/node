@@ -26,9 +26,6 @@
     <Compile Include="product.wxs" />
   </ItemGroup>
   <ItemGroup>
-    <Content Include="LICENSE.rtf" />
-  </ItemGroup>
-  <ItemGroup>
     <WixExtension Include="WixUIExtension">
       <HintPath>$(WixExtDir)\WixUIExtension.dll</HintPath>
       <Name>WixUIExtension</Name>
