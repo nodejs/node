@@ -3,7 +3,7 @@
 TOOLS=`dirname $0`
 ROOT=$TOOLS/..
 
-VERSION=`python $TOOLS/msvs/msi/getnodeversion.py < $ROOT/src/node_version.h`
+VERSION=`python $TOOLS/getnodeversion.py`
 CONTENTS=$ROOT/dist-osx
 PMDOC=$TOOLS/osx-pkg.pmdoc
 VENDOR='org.nodejs'
