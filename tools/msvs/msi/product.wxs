@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
-  <?define sourcedir="$(var.ProjectDir)..\..\$(var.Configuration)\" ?>
+  <?define sourcedir="$(var.ProjectDir)..\..\..\$(var.Configuration)\" ?>
 
   <Product Id="cc6c176e-e26c-48ec-8970-f58bd1d046cf"
            Name="node.js"
