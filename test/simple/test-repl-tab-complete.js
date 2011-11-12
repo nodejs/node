@@ -1,0 +1,92 @@
+// Copyright Joyent, Inc. and other Node contributors.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a
+// copy of this software and associated documentation files (the
+// "Software"), to deal in the Software without restriction, including
+// without limitation the rights to use, copy, modify, merge, publish,
+// distribute, sublicense, and/or sell copies of the Software, and to permit
+// persons to whom the Software is furnished to do so, subject to the
+// following conditions:
+//
+// The above copyright notice and this permission notice shall be included
+// in all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+// OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+// MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN
+// NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM,
+// DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
+// OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
+// USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+var assert = require('assert');
+var util = require('util');
+
+var repl = require('repl');
+
+// A stream to push an array into a REPL
+function ArrayStream() {
+  this.run = function (data) {
+    var self = this;
+    data.forEach(function (line) {
+      self.emit('data', line);
+    });
+  }
+}
+util.inherits(ArrayStream, require('stream').Stream);
+ArrayStream.prototype.readable = true;
+ArrayStream.prototype.writable = true;
+ArrayStream.prototype.resume = function () {};
+ArrayStream.prototype.write = function () {};
+
+var works = [ [ 'inner.one' ], 'inner.o' ];
+var doesNotBreak = [ [], 'inner.o' ];
+
+var putIn = new ArrayStream();
+var testMe = repl.start('', putIn);
+
+// Tab Complete will not break in an object literal
+putIn.run(['.clear']);
+putIn.run([
+  'var inner = {',
+  'one:1']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
+
+// Tab Complete will return globaly scoped variables
+putIn.run(['};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, works);
+});
+
+putIn.run(['.clear']);
+
+// Tab Complete will not break in an ternary operator with ()
+putIn.run([
+  'var inner = ( true ' ,
+  '?',
+  '{one: 1} : ']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
+
+putIn.run(['.clear']);
+
+// Tab Complete will not return localy scoped variables
+putIn.run([
+  'var top = function () {',
+    'var inner = {one:1};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
+
+// When you close the function scope tab complete will not return the
+// localy scoped variable
+putIn.run(['};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
+
+putIn.run(['.clear']);
+
