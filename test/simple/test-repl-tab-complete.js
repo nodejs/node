@@ -73,20 +73,101 @@ testMe.complete('inner.o', function (error, data) {
 
 putIn.run(['.clear']);
 
-// Tab Complete will not return localy scoped variables
+// Tab Complete will return a simple local variable
 putIn.run([
   'var top = function () {',
     'var inner = {one:1};']);
 testMe.complete('inner.o', function (error, data) {
-  assert.deepEqual(data, doesNotBreak);
+  assert.deepEqual(data, works);
 });
 
 // When you close the function scope tab complete will not return the
-// localy scoped variable
+// locally scoped variable
 putIn.run(['};']);
 testMe.complete('inner.o', function (error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
 putIn.run(['.clear']);
+
+// Tab Complete will return a complex local variable
+putIn.run([
+  'var top = function () {',
+    'var inner = {',
+    ' one:1',
+    '};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, works);
+});
+
+putIn.run(['.clear']);
+
+// Tab Complete will return a complex local variable even if the function
+// has paramaters
+putIn.run([
+  'var top = function (one, two) {',
+    'var inner = {',
+    ' one:1',
+    '};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, works);
+});
+
+putIn.run(['.clear']);
+
+// Tab Complete will return a complex local variable even if the
+// scope is nested inside an immediately executed function
+putIn.run([
+  'var top = function () {',
+    '(function test () {',
+    'var inner = {',
+    ' one:1',
+    '};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, works);
+});
+
+putIn.run(['.clear']);
+
+// currently does not work, but should not break note the inner function
+// def has the params and { on a seperate line
+putIn.run([
+  'var top = function () {',
+    'r = function test (',
+    ' one, two) {',
+    'var inner = {',
+    ' one:1',
+    '};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
+
+putIn.run(['.clear']);
+
+// currently does not work, but should not break, not the {
+putIn.run([
+  'var top = function () {',
+    'r = function test ()',
+    '{',
+    'var inner = {',
+    ' one:1',
+    '};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
+
+putIn.run(['.clear']);
+
+// currently does not work, but should not break
+putIn.run([
+  'var top = function () {',
+    'r = function test (',
+    ')',
+    '{',
+    'var inner = {',
+    ' one:1',
+    '};']);
+testMe.complete('inner.o', function (error, data) {
+  assert.deepEqual(data, doesNotBreak);
+});
 

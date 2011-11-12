@@ -86,7 +86,7 @@ function error_test() {
         tcp_test();
       }
 
-    } else if (read_buffer === prompt_multiline) {
+    } else if (read_buffer.indexOf(prompt_multiline) !== -1) {
       // Check that you meant to send a multiline test
       assert.strictEqual(prompt_multiline, client_unix.expect);
       read_buffer = '';
