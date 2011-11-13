@@ -79,6 +79,7 @@ connect to a long-running node process without restarting it.
 ### REPL Features
 
 Inside the REPL, Control+D will exit.  Multi-line expressions can be input.
+Tab completion is supported for both global and local variables.
 
 The special variable `_` (underscore) contains the result of the last expression.
 
@@ -113,6 +114,10 @@ There are a few special REPL commands:
     multi-line expression.
   - `.exit` - Close the I/O stream, which will cause the REPL to exit.
   - `.help` - Show this list of special commands.
+  - `.save` - Save the current REPL session to a file
+    >.save ./file/to/save.js
+  - `.load` - Load a file into the current REPL session.
+    >.load ./file/to/load.js
 
 The following key combinations in the REPL have these special effects:
 
