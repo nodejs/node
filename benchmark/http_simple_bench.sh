@@ -1,7 +1,7 @@
 #!/bin/bash
 
 SERVER=127.0.0.1
-PORT=8000
+PORT=${PORT:=8000}
 
 # You may want to configure your TCP settings to make many ports available
 # to node and ab. On macintosh use: 
@@ -18,9 +18,6 @@ if [ $SERVER == "127.0.0.1" ]; then
   node_pid=$!
   sleep 1
 fi
-
-info=`curl -s http://$SERVER:$PORT/info`
-eval $info
 
 date=`date "+%Y%m%d%H%M%S"`
 
