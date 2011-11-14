@@ -83,67 +83,47 @@ static Persistent<String> ext_key_usage_symbol;
 
 static Persistent<FunctionTemplate> secure_context_constructor;
 
-#ifdef _WIN32
-
-static HANDLE* locks;
-
-
-static void crypto_lock_init(void) {
-  int i, n;
-
-  n = CRYPTO_num_locks();
-  locks = new HANDLE[n];
-
-  for (i = 0; i < n; i++)
-    if (!(locks[i] = CreateMutex(NULL, FALSE, NULL)))
-      abort();
-}
-
-
-static void crypto_lock_cb(int mode, int n, const char* file, int line) {
-  if (mode & CRYPTO_LOCK)
-    WaitForSingleObject(locks[n], INFINITE);
-  else
-    ReleaseMutex(locks[n]);
-}
-
-
 static unsigned long crypto_id_cb(void) {
+#ifdef _WIN32
   return (unsigned long) GetCurrentThreadId();
+#else /* !_WIN32 */
+  return (unsigned long) pthread_self();
+#endif /* !_WIN32 */
 }
 
-#else /* !_WIN32 */
-
-static pthread_rwlock_t* locks;
+static uv_rwlock_t* locks;
 
 
 static void crypto_lock_init(void) {
   int i, n;
 
   n = CRYPTO_num_locks();
-  locks = new pthread_rwlock_t[n];
+  locks = new uv_rwlock_t[n];
 
   for (i = 0; i < n; i++)
-    if (pthread_rwlock_init(locks + i, NULL))
+    if (uv_rwlock_init(locks + i))
       abort();
 }
 
 
 static void crypto_lock_cb(int mode, int n, const char* file, int line) {
+  assert((mode & CRYPTO_LOCK) || (mode & CRYPTO_UNLOCK));
+  assert((mode & CRYPTO_READ) || (mode & CRYPTO_WRITE));
+
   if (mode & CRYPTO_LOCK) {
-    if (mode & CRYPTO_READ) pthread_rwlock_rdlock(locks + n);
-    if (mode & CRYPTO_WRITE) pthread_rwlock_wrlock(locks + n);
+    if (mode & CRYPTO_READ)
+      uv_rwlock_rdlock(locks + n);
+    else
+      uv_rwlock_wrlock(locks + n);
   } else {
-    pthread_rwlock_unlock(locks + n);
+    if (mode & CRYPTO_READ)
+      uv_rwlock_rdunlock(locks + n);
+    else
+      uv_rwlock_wrunlock(locks + n);
   }
 }
 
 
-static unsigned long crypto_id_cb(void) {
-  return (unsigned long) pthread_self();
-}
-
-#endif /* !_WIN32 */
 
 
 void SecureContext::Initialize(Handle<Object> target) {
