@@ -1,4 +1,4 @@
-import os,re; 
+import os,re
 
 node_version_h = os.path.join(os.path.dirname(__file__), '..', 'src',
     'node_version.h')
@@ -13,4 +13,4 @@ for line in f:
   if re.match('#define NODE_PATCH_VERSION', line):
     patch = line.split()[2]
 
-print '{0:s}.{1:s}.{2:s}'.format(major, minor, patch)
+print '%(major)s.%(minor)s.%(patch)s'% locals()
