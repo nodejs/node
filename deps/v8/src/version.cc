@@ -35,7 +35,7 @@
 #define MAJOR_VERSION     3
 #define MINOR_VERSION     6
 #define BUILD_NUMBER      6
-#define PATCH_LEVEL       7
+#define PATCH_LEVEL       8
 // Use 1 for candidates and 0 otherwise.
 // (Boolean macro values are not supported by all preprocessors.)
 #define IS_CANDIDATE_VERSION 0
