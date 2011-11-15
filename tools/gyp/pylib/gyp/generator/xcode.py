@@ -1161,7 +1161,7 @@ exit 1
         if support_xct:
           support_xct.AddDependency(xcode_targets[dependency])
 
-    if 'libraries' in spec:
+    if spec['type'] != 'none' and 'libraries' in spec:
       for library in spec['libraries']:
         xct.FrameworksPhase().AddFile(library)
         # Add the library's directory to LIBRARY_SEARCH_PATHS if necessary.
