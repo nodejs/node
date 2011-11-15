@@ -3,6 +3,7 @@
 import optparse
 import os
 import json
+import subprocess
 import sys
 
 root_dir = os.path.dirname(__file__)
@@ -245,3 +246,4 @@ json.dump(output, f, indent=2, skipkeys=True)
 f.write("\n")
 f.close()
 
+subprocess.call('tools/gyp_node')
