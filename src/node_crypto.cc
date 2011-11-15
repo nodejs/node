@@ -2156,13 +2156,16 @@ class Cipher : public ObjectWrap {
 
     HandleScope scope;
 
-    unsigned char* out_value;
-    int out_len;
+    unsigned char* out_value = NULL;
+    int out_len = -1;
     char* out_hexdigest;
     int out_hex_len;
     Local<Value> outString ;
 
     int r = cipher->CipherFinal(&out_value, &out_len);
+
+    assert(out_value != NULL);
+    assert(out_len != -1);
 
     if (out_len == 0 || r == 0) {
       return scope.Close(String::New(""));
@@ -2576,11 +2579,14 @@ class Decipher : public ObjectWrap {
 
     Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
 
-    unsigned char* out_value;
-    int out_len;
+    unsigned char* out_value = NULL;
+    int out_len = -1;
     Local<Value> outString;
 
     int r = cipher->DecipherFinal(&out_value, &out_len, false);
+
+    assert(out_value != NULL);
+    assert(out_len != -1);
 
     if (out_len == 0 || r == 0) {
       return scope.Close(String::New(""));
@@ -2826,13 +2832,16 @@ class Hmac : public ObjectWrap {
 
     HandleScope scope;
 
-    unsigned char* md_value;
-    unsigned int md_len;
+    unsigned char* md_value = NULL;
+    unsigned int md_len = -1;
     char* md_hexdigest;
     int md_hex_len;
     Local<Value> outString ;
 
     int r = hmac->HmacDigest(&md_value, &md_len);
+
+    assert(md_value != NULL);
+    assert(md_len != -1);
 
     if (md_len == 0 || r == 0) {
       return scope.Close(String::New(""));
