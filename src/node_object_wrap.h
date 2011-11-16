@@ -27,7 +27,7 @@
 
 namespace node {
 
-class ObjectWrap {
+class NODE_EXTERN ObjectWrap {
  public:
   ObjectWrap ( ) {
     refs_ = 0;
