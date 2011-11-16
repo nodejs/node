@@ -74,6 +74,15 @@ OBJS += src/unix/freebsd.o
 OBJS += src/unix/kqueue.o
 endif
 
+ifeq (DragonFly,$(uname_S))
+EV_CONFIG=config_freebsd.h
+EIO_CONFIG=config_freebsd.h
+CPPFLAGS += -Isrc/ares/config_freebsd
+LINKFLAGS+=
+OBJS += src/unix/freebsd.o
+OBJS += src/unix/kqueue.o
+endif
+
 ifeq (NetBSD,$(uname_S))
 EV_CONFIG=config_netbsd.h
 EIO_CONFIG=config_netbsd.h

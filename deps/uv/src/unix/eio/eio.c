@@ -316,7 +316,7 @@ static int gettimeofday(struct timeval *tv, struct timezone *tz)
 #if HAVE_SENDFILE
 # if __linux
 #  include <sys/sendfile.h>
-# elif __FreeBSD__ || defined __APPLE__
+# elif __FreeBSD__ || __DragonFly__ || defined __APPLE__
 #  include <sys/socket.h>
 #  include <sys/uio.h>
 # elif __hpux

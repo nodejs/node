@@ -28,6 +28,7 @@
 #undef NANOSEC
 #define NANOSEC ((uint64_t)10e8)
 
+#undef DEBUG
 #define DEBUG 0
 
 struct conn_rec_s;
@@ -135,7 +136,6 @@ static void connect_cb(uv_connect_t* req, int status) {
 
 
 static void read_cb(uv_stream_t* stream, ssize_t nread, uv_buf_t buf) {
-  conn_rec* p = (conn_rec*)stream->data;
   uv_err_t err = uv_last_error(loop);
 
   ASSERT(stream != NULL);

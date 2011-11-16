@@ -91,7 +91,7 @@ uint64_t uv_get_free_memory(void) {
     return -1;
   }
 
-  return (uint64_t) info.free * psysconf(_SC_PAGESIZE);
+  return (uint64_t) info.free * sysconf(_SC_PAGESIZE);
 }
 
 uint64_t uv_get_total_memory(void) {
