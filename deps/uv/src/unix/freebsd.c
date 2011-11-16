@@ -50,11 +50,17 @@ int uv_exepath(char* buffer, size_t* size) {
     return -1;
   }
 
-
+#ifdef __DragonFly__
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_ARGS;
+  mib[3] = getpid();
+#else
   mib[0] = CTL_KERN;
   mib[1] = KERN_PROC;
   mib[2] = KERN_PROC_PATHNAME;
   mib[3] = -1;
+#endif
 
   cb = *size;
   if (sysctl(mib, 4, buffer, &cb, NULL, 0) < 0) {
