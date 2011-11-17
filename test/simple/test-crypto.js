@@ -286,7 +286,7 @@ var verified = crypto.createVerify('RSA-SHA1')
                      .update('Test')
                      .update('123')
                      .verify(certPem, s1, 'base64');
-assert.ok(verified, 'sign and verify (base 64)');
+assert.strictEqual(verified, true, 'sign and verify (base 64)');
 
 var s2 = crypto.createSign('RSA-SHA256')
                .update('Test123')
@@ -295,7 +295,7 @@ var verified = crypto.createVerify('RSA-SHA256')
                      .update('Test')
                      .update('123')
                      .verify(certPem, s2); // binary
-assert.ok(verified, 'sign and verify (binary)');
+assert.strictEqual(verified, true, 'sign and verify (binary)');
 
 // Test encryption and decryption
 var plaintext = 'Keep this a secret? No! Tell everyone about node.js!';
@@ -392,7 +392,7 @@ var rsaSignature = rsaSign.sign(rsaKeyPem, 'hex');
 assert.equal(rsaSignature, '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7c8f020d7e2688b122bfb54c724ac9ee169f83f66d2fe90abeb95e8e1290e7e177152a4de3d944cf7d4883114a20ed0f78e70e25ef0f60f06b858e6af42a2f276ede95bbc6bc9a9bbdda15bd663186a6f40819a7af19e577bb2efa5e579a1f5ce8a0d4ca8b8f6');
 
 rsaVerify.update(rsaPubPem);
-assert.equal(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), 1);
+assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 
