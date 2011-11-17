@@ -1,10 +1,11 @@
 /*
  * Tests to verify we're writing signed integers correctly
  */
+var SlowBuffer = process.binding('buffer').SlowBuffer;
 var ASSERT = require('assert');
 
-function test8() {
-  var buffer = new Buffer(2);
+function test8(clazz) {
+  var buffer = new clazz(2);
 
   buffer.writeInt8(0x23, 0);
   buffer.writeInt8(-5, 1);
@@ -35,8 +36,8 @@ function test8() {
 }
 
 
-function test16() {
-  var buffer = new Buffer(6);
+function test16(clazz) {
+  var buffer = new clazz(6);
 
   buffer.writeInt16BE(0x0023, 0);
   buffer.writeInt16LE(0x0023, 2);
@@ -88,8 +89,8 @@ function test16() {
 }
 
 
-function test32() {
-  var buffer = new Buffer(8);
+function test32(clazz) {
+  var buffer = new clazz(8);
 
   buffer.writeInt32BE(0x23, 0);
   buffer.writeInt32LE(0x23, 4);
@@ -161,6 +162,9 @@ function test32() {
 }
 
 
-test8();
-test16();
-test32();
+test8(Buffer);
+test8(SlowBuffer);
+test16(Buffer);
+test16(SlowBuffer);
+test32(Buffer);
+test32(SlowBuffer);

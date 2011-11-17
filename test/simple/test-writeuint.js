@@ -1,6 +1,7 @@
 /*
  * A battery of tests to help us read a series of uints
  */
+var SlowBuffer = process.binding('buffer').SlowBuffer;
 var ASSERT = require('assert');
 
 /*
@@ -10,8 +11,8 @@ var ASSERT = require('assert');
  *  - Correctly using the offsets
  *  - Correctly interpreting values that are beyond the signed range as unsigned
  */
-function test8() {
-  var data = new Buffer(4);
+function test8(clazz) {
+  var data = new clazz(4);
 
   data.writeUInt8(23, 0);
   data.writeUInt8(23, 1);
@@ -39,9 +40,9 @@ function test8() {
 }
 
 
-function test16() {
+function test16(clazz) {
   var value = 0x2343;
-  var data = new Buffer(4);
+  var data = new clazz(4);
 
   data.writeUInt16BE(value, 0);
   ASSERT.equal(0x23, data[0]);
@@ -78,8 +79,8 @@ function test16() {
 }
 
 
-function test32() {
-  var data = new Buffer(6);
+function test32(clazz) {
+  var data = new clazz(6);
   var value = 0xe7f90a6d;
 
   data.writeUInt32BE(value, 0);
@@ -120,6 +121,9 @@ function test32() {
 }
 
 
-test8();
-test16();
-test32();
+test8(Buffer);
+test8(SlowBuffer);
+test16(Buffer);
+test16(SlowBuffer);
+test32(Buffer);
+test32(SlowBuffer);
