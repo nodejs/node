@@ -54,8 +54,11 @@
     return ThrowException(Exception::TypeError(String::New("Not a string or buffer"))); \
   }
 
-static const char *PUBLIC_KEY_PFX =  "-----BEGIN PUBLIC KEY-----";
-static const int PUBLIC_KEY_PFX_LEN = strlen(PUBLIC_KEY_PFX);
+static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
+static const int PUBLIC_KEY_PFX_LEN = sizeof(PUBLIC_KEY_PFX) - 1;
+
+static const char PUBRSA_KEY_PFX[] =  "-----BEGIN RSA PUBLIC KEY-----";
+static const int PUBRSA_KEY_PFX_LEN = sizeof(PUBRSA_KEY_PFX) - 1;
 
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | ASN1_STRFLGS_ESC_MSB
@@ -3304,9 +3307,22 @@ class Verify : public ObjectWrap {
       return 0;
     }
 
-    // Check if this is a PKCS#8 public key before trying as X.509
+    // Check if this is a PKCS#8 or RSA public key before trying as X.509.
+    // Split this out into a separate function once we have more than one
+    // consumer of public keys.
     if (strncmp(key_pem, PUBLIC_KEY_PFX, PUBLIC_KEY_PFX_LEN) == 0) {
       pkey = PEM_read_bio_PUBKEY(bp, NULL, NULL, NULL);
+      if (pkey == NULL) {
+        ERR_print_errors_fp(stderr);
+        return 0;
+      }
+    } else if (strncmp(key_pem, PUBRSA_KEY_PFX, PUBRSA_KEY_PFX_LEN) == 0) {
+      RSA* rsa = PEM_read_bio_RSAPublicKey(bp, NULL, NULL, NULL);
+      if (rsa) {
+        pkey = EVP_PKEY_new();
+        if (pkey) EVP_PKEY_set1_RSA(pkey, rsa);
+        RSA_free(rsa);
+      }
       if (pkey == NULL) {
         ERR_print_errors_fp(stderr);
         return 0;

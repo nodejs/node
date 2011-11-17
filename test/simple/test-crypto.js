@@ -394,6 +394,29 @@ assert.equal(rsaSignature, '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
+(function() {
+  var privateKey = fs.readFileSync(
+    common.fixturesDir + '/test_rsa_privkey_2.pem');
+
+  var publicKey = fs.readFileSync(
+    common.fixturesDir + '/test_rsa_pubkey_2.pem');
+
+  var input = 'I AM THE WALRUS';
+
+  var signature = '79d59d34f56d0e94aa6a3e306882b52ed4191f07521f25f505a078dc2f89396e0c8ac89e996fde5717f4cb89199d8fec249961fcb07b74cd3d2a4ffa235417b69618e4bcd76b97e29975b7ce862299410e1b522a328e44ac9bb28195e0268da7eda23d9825ac43c724e86ceeee0d0d4465678652ccaf65010ddfb299bedeb1ad';
+
+  var sign = crypto.createSign('RSA-SHA256');
+  sign.update(input);
+
+  var output = sign.sign(privateKey, 'hex');
+  assert.equal(output, signature);
+
+  var verify = crypto.createVerify('RSA-SHA256');
+  verify.update(input);
+
+  assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
+})();
+
 // Test PBKDF2 with RFC 6070 test vectors (except #4)
 
 crypto.pbkdf2('password', 'salt', 1, 20, function(err, result) {
