@@ -37,6 +37,8 @@ if /i "%1"=="test-all"     set test=test-all&goto arg-ok
 if /i "%1"=="test"         set test=test&goto arg-ok
 if /i "%1"=="msi"          set msi=1&goto arg-ok
 if /i "%1"=="upload"       set upload=1&goto arg-ok
+
+
 :arg-ok
 shift
 goto next-arg

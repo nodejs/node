@@ -62,6 +62,7 @@
 #include <v8.h>
 #include <sys/types.h> /* struct stat */
 #include <sys/stat.h>
+#include <assert.h>
 
 #include <node_object_wrap.h>
 

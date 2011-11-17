@@ -63,7 +63,7 @@ namespace node {
  */
 
 
-class Buffer : public ObjectWrap {
+class NODE_EXTERN Buffer: public ObjectWrap {
  public:
 
   static bool HasInstance(v8::Handle<v8::Value> val);

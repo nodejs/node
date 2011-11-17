@@ -22,8 +22,8 @@ Node statically compiles all its dependencies into the executable. When
 compiling your module, you don't need to worry about linking to any of these
 libraries.
 
-To get started let's make a small Addon which does the following except in
-C++:
+To get started let's make a small Addon which is the C++ equivalent of
+the following Javascript code:
 
     exports.hello = function() { return 'world'; };
 
@@ -40,11 +40,18 @@ To get started we create a file `hello.cc`:
     }
 
     void init(Handle<Object> target) {
-      NODE_SET_METHOD(target, "method", Method);
+      NODE_SET_METHOD(target, "hello", Method);
     }
     NODE_MODULE(hello, init)
 
-This source code needs to be built into `hello.node`, the binary Addon. To
+Note that all Node addons must export an initialization function:
+
+    void Initialize (Handle<Object> target);
+    NODE_MODULE(module_name, Initialize)
+
+There is no semi-colon after `NODE_MODULE` as it's not a function (see `node.h`).
+
+The source code needs to be built into `hello.node`, the binary Addon. To
 do this we create a file called `wscript` which is python code and looks
 like this:
 
@@ -70,10 +77,12 @@ Running `node-waf configure build` will create a file
 `node-waf` is just [WAF](http://code.google.com/p/waf), the python-based build system. `node-waf` is
 provided for the ease of users.
 
-All Node addons must export an initialization function:
+You can now use the binary addon in a Node project `hello.js` by pointing `require` to
+the recently built module:
 
-    void Initialize (Handle<Object> target);
-    NODE_MODULE(hello, Initialize)
+    var addon = require('./build/Release/hello');
+
+    console.log(addon.hello()); // 'world'
 
 For the moment, that is all the documentation on addons. Please see
 <https://github.com/ry/node_postgres> for a real example.
