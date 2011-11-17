@@ -22,6 +22,7 @@
 #ifndef object_wrap_h
 #define object_wrap_h
 
+#include <node.h>
 #include <v8.h>
 #include <assert.h>
 
