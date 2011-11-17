@@ -3483,7 +3483,7 @@ class Verify : public ObjectWrap {
     delete [] kbuf;
     delete [] hbuf;
 
-    return scope.Close(Integer::New(r));
+    return Boolean::New(r && r != -1);
   }
 
   Verify () : ObjectWrap () {
