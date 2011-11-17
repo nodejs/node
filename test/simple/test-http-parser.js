@@ -150,6 +150,29 @@ function expectBody(expected) {
 
 
 //
+// Response with no headers.
+//
+(function() {
+  var request = Buffer(
+    'HTTP/1.0 200 Connection established' + CRLF +
+    CRLF
+  );
+
+  var parser = newParser(RESPONSE);
+
+  parser.onHeadersComplete = mustCall(function(info) {
+    assert.equal(info.method, undefined);
+    assert.equal(info.versionMajor, 1);
+    assert.equal(info.versionMinor, 0);
+    assert.equal(info.statusCode, 200);
+    assert.deepEqual(info.headers || parser.headers, []);
+  });
+
+  parser.execute(request, 0, request.length);
+})();
+
+
+//
 // Trailing headers.
 //
 (function() {
@@ -481,7 +504,7 @@ function expectBody(expected) {
 
 
 //
-//
+// Test parser reinit sequence.
 //
 (function() {
   var req1 = Buffer(
