@@ -145,7 +145,7 @@ void uv__stream_destroy(uv_stream_t* stream) {
 
     req = ngx_queue_data(q, uv_write_t, queue);
     if (req->cb) {
-      uv__set_sys_error(stream->loop, req->error);
+      uv__set_artificial_error(stream->loop, req->error);
       req->cb(req, req->error ? -1 : 0);
     }
   }
@@ -490,7 +490,7 @@ static void uv__write_callbacks(uv_stream_t* stream) {
 
     /* NOTE: call callback AFTER freeing the request data. */
     if (req->cb) {
-      uv__set_sys_error(stream->loop, req->error);
+      uv__set_artificial_error(stream->loop, req->error);
       req->cb(req, req->error ? -1 : 0);
     }
 

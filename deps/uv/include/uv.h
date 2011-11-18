@@ -1243,6 +1243,20 @@ UV_EXTERN uv_err_t uv_dlclose(uv_lib_t library);
  */
 UV_EXTERN uv_err_t uv_dlsym(uv_lib_t library, const char* name, void** ptr);
 
+UV_EXTERN int uv_mutex_init(uv_mutex_t* handle);
+UV_EXTERN void uv_mutex_destroy(uv_mutex_t* handle);
+UV_EXTERN void uv_mutex_lock(uv_mutex_t* handle);
+UV_EXTERN int uv_mutex_trylock(uv_mutex_t* handle);
+UV_EXTERN void uv_mutex_unlock(uv_mutex_t* handle);
+
+UV_EXTERN int uv_rwlock_init(uv_rwlock_t* rwlock);
+UV_EXTERN void uv_rwlock_destroy(uv_rwlock_t* rwlock);
+UV_EXTERN void uv_rwlock_rdlock(uv_rwlock_t* rwlock);
+UV_EXTERN int uv_rwlock_tryrdlock(uv_rwlock_t* rwlock);
+UV_EXTERN void uv_rwlock_rdunlock(uv_rwlock_t* rwlock);
+UV_EXTERN void uv_rwlock_wrlock(uv_rwlock_t* rwlock);
+UV_EXTERN int uv_rwlock_trywrlock(uv_rwlock_t* rwlock);
+UV_EXTERN void uv_rwlock_wrunlock(uv_rwlock_t* rwlock);
 
 /* the presence of these unions force similar struct layout */
 union uv_any_handle {

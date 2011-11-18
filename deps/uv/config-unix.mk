@@ -33,6 +33,7 @@ OBJS += src/unix/fs.o
 OBJS += src/unix/cares.o
 OBJS += src/unix/udp.o
 OBJS += src/unix/error.o
+OBJS += src/unix/thread.o
 OBJS += src/unix/process.o
 OBJS += src/unix/tcp.o
 OBJS += src/unix/pipe.o

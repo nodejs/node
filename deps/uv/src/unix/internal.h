@@ -28,30 +28,69 @@
 #include <stddef.h> /* offsetof */
 
 #undef HAVE_FUTIMES
-#undef HAVE_PIPE2
-#undef HAVE_ACCEPT4
 #undef HAVE_KQUEUE
 #undef HAVE_PORTS_FS
 
 #if defined(__linux__)
 
-#include <linux/version.h>
-#include <features.h>
+# undef HAVE_SYS_UTIMESAT
+# undef HAVE_SYS_PIPE2
+# undef HAVE_SYS_ACCEPT4
 
-/* futimes() requires linux >= 2.6.22 and glib >= 2.6 */
-#if LINUX_VERSION_CODE >= 0x20616 && __GLIBC_PREREQ(2, 6)
-#define HAVE_FUTIMES 1
-#endif
+# undef _GNU_SOURCE
+# define _GNU_SOURCE
 
-/* pipe2() requires linux >= 2.6.27 and glibc >= 2.9 */
-#if LINUX_VERSION_CODE >= 0x2061B && __GLIBC_PREREQ(2, 9)
-#define HAVE_PIPE2 1
-#endif
+# include <linux/version.h>
+# include <sys/syscall.h>
+# include <features.h>
+# include <unistd.h>
 
-/* accept4() requires linux >= 2.6.28 and glib >= 2.10 */
-#if LINUX_VERSION_CODE >= 0x2061C && __GLIBC_PREREQ(2, 10)
-#define HAVE_ACCEPT4 1
-#endif
+# if __NR_utimensat
+#  define HAVE_SYS_UTIMESAT 1
+# endif
+# if __NR_pipe2
+#  define HAVE_SYS_PIPE2 1
+# endif
+# if __NR_accept4
+#  define HAVE_SYS_ACCEPT4 1
+# endif
+
+# if HAVE_SYS_UTIMESAT
+inline static int sys_utimesat(int dirfd,
+                               const char* path,
+                               const struct timespec times[2],
+                               int flags)
+{
+  return syscall(__NR_utimensat, dirfd, path, times, flags);
+}
+inline static int sys_futimes(int fd, const struct timeval times[2])
+{
+  struct timespec ts[2];
+  ts[0].tv_sec = times[0].tv_sec, ts[0].tv_nsec = times[0].tv_usec * 1000;
+  ts[1].tv_sec = times[1].tv_sec, ts[1].tv_nsec = times[1].tv_usec * 1000;
+  return sys_utimesat(fd, NULL, ts, 0);
+}
+#  undef HAVE_FUTIMES
+#  define HAVE_FUTIMES 1
+#  define futimes(fd, times) sys_futimes(fd, times)
+# endif /* HAVE_SYS_FUTIMESAT */
+
+# if HAVE_SYS_PIPE2
+inline static int sys_pipe2(int pipefd[2], int flags)
+{
+  return syscall(__NR_pipe2, pipefd, flags);
+}
+# endif /* HAVE_SYS_PIPE2 */
+
+# if HAVE_SYS_ACCEPT4
+inline static int sys_accept4(int fd,
+                              struct sockaddr* addr,
+                              socklen_t* addrlen,
+                              int flags)
+{
+  return syscall(__NR_accept4, fd, addr, addrlen, flags);
+}
+# endif /* HAVE_SYS_ACCEPT4 */
 
 #endif /* __linux__ */
 

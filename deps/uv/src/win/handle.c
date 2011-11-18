@@ -35,7 +35,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
       if (GetConsoleMode(handle, &mode)) {
         return UV_TTY;
       } else {
-        return UV_UNKNOWN_HANDLE;
+        return UV_FILE;
       }
 
     case FILE_TYPE_PIPE:

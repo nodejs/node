@@ -110,10 +110,13 @@ TEST_DECLARE   (fs_event_watch_dir)
 TEST_DECLARE   (fs_event_watch_file)
 TEST_DECLARE   (fs_event_watch_file_current_dir)
 TEST_DECLARE   (fs_event_no_callback_on_close)
+TEST_DECLARE   (fs_event_immediate_close)
 TEST_DECLARE   (fs_readdir_empty_dir)
 TEST_DECLARE   (fs_readdir_file)
 TEST_DECLARE   (fs_open_dir)
 TEST_DECLARE   (threadpool_queue_work_simple)
+TEST_DECLARE   (thread_mutex)
+TEST_DECLARE   (thread_rwlock)
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -261,10 +264,13 @@ TASK_LIST_START
   TEST_ENTRY  (fs_event_watch_file)
   TEST_ENTRY  (fs_event_watch_file_current_dir)
   TEST_ENTRY  (fs_event_no_callback_on_close)
+  TEST_ENTRY  (fs_event_immediate_close)
   TEST_ENTRY  (fs_readdir_empty_dir)
   TEST_ENTRY  (fs_readdir_file)
   TEST_ENTRY  (fs_open_dir)
   TEST_ENTRY  (threadpool_queue_work_simple)
+  TEST_ENTRY  (thread_mutex)
+  TEST_ENTRY  (thread_rwlock)
 
 #if 0
   /* These are for testing the test runner. */

@@ -137,6 +137,17 @@ typedef struct uv_buf_t {
 
 typedef int uv_file;
 
+typedef CRITICAL_SECTION uv_mutex_t;
+
+typedef union {
+  SRWLOCK srwlock_;
+  struct {
+    uv_mutex_t read_mutex_;
+    uv_mutex_t write_mutex_;
+    unsigned int num_readers_;
+  } fallback_;
+} uv_rwlock_t;
+
 /* Platform-specific definitions for uv_dlopen support. */
 typedef HMODULE uv_lib_t;
 #define UV_DYNAMIC FAR WINAPI

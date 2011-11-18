@@ -4350,6 +4350,26 @@ typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
                  LPCWSTR lpTargetFileName,
                  DWORD dwFlags);
 
+typedef VOID (WINAPI* sInitializeSRWLock)
+             (PSRWLOCK SRWLock);
+
+typedef VOID (WINAPI* sAcquireSRWLockShared)
+             (PSRWLOCK SRWLock);
+
+typedef VOID (WINAPI* sAcquireSRWLockExclusive)
+             (PSRWLOCK SRWLock);
+
+typedef BOOL (WINAPI* sTryAcquireSRWLockShared)
+             (PSRWLOCK SRWLock);
+
+typedef BOOL (WINAPI* sTryAcquireSRWLockExclusive)
+             (PSRWLOCK SRWLock);
+
+typedef VOID (WINAPI* sReleaseSRWLockShared)
+             (PSRWLOCK SRWLock);
+
+typedef VOID (WINAPI* sReleaseSRWLockExclusive)
+             (PSRWLOCK SRWLock);
 
 /* Ntapi function pointers */
 extern sRtlNtStatusToDosError pRtlNtStatusToDosError;
@@ -4362,5 +4382,12 @@ extern sNtSetInformationFile pNtSetInformationFile;
 extern sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 extern sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 extern sCreateSymbolicLinkW pCreateSymbolicLinkW;
+extern sInitializeSRWLock pInitializeSRWLock;
+extern sAcquireSRWLockShared pAcquireSRWLockShared;
+extern sAcquireSRWLockExclusive pAcquireSRWLockExclusive;
+extern sTryAcquireSRWLockShared pTryAcquireSRWLockShared;
+extern sTryAcquireSRWLockExclusive pTryAcquireSRWLockExclusive;
+extern sReleaseSRWLockShared pReleaseSRWLockShared;
+extern sReleaseSRWLockExclusive pReleaseSRWLockExclusive;
 
 #endif /* UV_WIN_WINAPI_H_ */

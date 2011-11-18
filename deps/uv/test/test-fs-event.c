@@ -268,3 +268,43 @@ TEST_IMPL(fs_event_no_callback_on_close) {
 
   return 0;
 }
+
+
+static void fs_event_fail(uv_fs_event_t* handle, const char* filename,
+  int events, int status) {
+  ASSERT(0 && "should never be called");
+}
+
+
+static void timer_cb(uv_timer_t* handle, int status) {
+  int r;
+
+  ASSERT(status == 0);
+
+  r = uv_fs_event_init(handle->loop, &fs_event, ".", fs_event_fail, 0);
+  ASSERT(r != -1);
+
+  uv_close((uv_handle_t*)&fs_event, close_cb);
+  uv_close((uv_handle_t*)handle, close_cb);
+}
+
+
+TEST_IMPL(fs_event_immediate_close) {
+  uv_timer_t timer;
+  uv_loop_t* loop;
+  int r;
+
+  loop = uv_default_loop();
+
+  r = uv_timer_init(loop, &timer);
+  ASSERT(r == 0);
+
+  r = uv_timer_start(&timer, timer_cb, 1, 0);
+  ASSERT(r == 0);
+
+  uv_run(loop);
+
+  ASSERT(close_cb_called == 2);
+
+  return 0;
+}

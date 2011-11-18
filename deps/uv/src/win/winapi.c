@@ -33,6 +33,13 @@ sNtSetInformationFile pNtSetInformationFile;
 sGetQueuedCompletionStatusEx pGetQueuedCompletionStatusEx;
 sSetFileCompletionNotificationModes pSetFileCompletionNotificationModes;
 sCreateSymbolicLinkW pCreateSymbolicLinkW;
+sInitializeSRWLock pInitializeSRWLock;
+sAcquireSRWLockShared pAcquireSRWLockShared;
+sAcquireSRWLockExclusive pAcquireSRWLockExclusive;
+sTryAcquireSRWLockShared pTryAcquireSRWLockShared;
+sTryAcquireSRWLockExclusive pTryAcquireSRWLockExclusive;
+sReleaseSRWLockShared pReleaseSRWLockShared;
+sReleaseSRWLockExclusive pReleaseSRWLockExclusive;
 
 
 void uv_winapi_init() {
@@ -86,4 +93,25 @@ void uv_winapi_init() {
 
   pCreateSymbolicLinkW = (sCreateSymbolicLinkW)
     GetProcAddress(kernel32_module, "CreateSymbolicLinkW");
+
+  pInitializeSRWLock = (sInitializeSRWLock)
+    GetProcAddress(kernel32_module, "InitializeSRWLock");
+
+  pAcquireSRWLockShared = (sAcquireSRWLockShared)
+    GetProcAddress(kernel32_module, "AcquireSRWLockShared");
+
+  pAcquireSRWLockExclusive = (sAcquireSRWLockExclusive)
+    GetProcAddress(kernel32_module, "AcquireSRWLockExclusive");
+
+  pTryAcquireSRWLockShared = (sTryAcquireSRWLockShared)
+    GetProcAddress(kernel32_module, "TryAcquireSRWLockShared");
+
+  pTryAcquireSRWLockExclusive = (sTryAcquireSRWLockExclusive)
+    GetProcAddress(kernel32_module, "TryAcquireSRWLockExclusive");
+
+  pReleaseSRWLockShared = (sReleaseSRWLockShared)
+    GetProcAddress(kernel32_module, "ReleaseSRWLockShared");
+
+  pReleaseSRWLockExclusive = (sReleaseSRWLockExclusive)
+    GetProcAddress(kernel32_module, "ReleaseSRWLockExclusive");
 }

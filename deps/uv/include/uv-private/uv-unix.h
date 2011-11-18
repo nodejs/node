@@ -34,6 +34,7 @@
 #include <arpa/inet.h>
 #include <netdb.h>
 #include <termios.h>
+#include <pthread.h>
 
 /* Note: May be cast to struct iovec. See writev(2). */
 typedef struct {
@@ -42,6 +43,9 @@ typedef struct {
 } uv_buf_t;
 
 typedef int uv_file;
+
+typedef pthread_mutex_t uv_mutex_t;
+typedef pthread_rwlock_t uv_rwlock_t;
 
 /* Platform-specific definitions for uv_dlopen support. */
 typedef void* uv_lib_t;
