@@ -1,3 +1,28 @@
+2011.11.18, Version 0.6.2 (stable)
+
+ * doc improvements (Artur Adib, Trevor Burnham, Ryan Emery, Trent Mick)
+
+ * timers: remember extra setTimeout() arguments when timeout==0
+
+ * punycode: use Mathias Bynens's punycode library, it's more compliant
+
+ * repl: improved tab completion (Ryan Emery)
+
+ * buffer: fix range checks in .writeInt() functions (Lukasz Walukiewicz)
+
+ * tls: make cipher list configurable
+
+ * addons: make Buffer and ObjectWrap visible to Windows add-ons (Bert Belder)
+
+ * crypto: add PKCS#1 a.k.a RSA public key verification support
+
+ * windows: fix stdout writes when redirected to nul
+
+ * sunos: fix build on Solaris and Illumos
+
+ * Upgrade V8 to 3.6.6.8
+
+
 2011.11.11, Version 0.6.1 (stable)
 
 * doc improvements (Eric Lovett, Ben Noordhuis, Scott Anderson, Yoji SHIDARA)
