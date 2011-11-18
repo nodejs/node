@@ -34,7 +34,16 @@ zlib.deflate(inputString, function(err, buffer) {
 });
 
 zlib.gzip(inputString, function(err, buffer) {
-  assert.equal(buffer.toString('base64'), expectedBase64Gzip, 'gzip encoded string should match');
+  // Can't actually guarantee that we'll get exactly the same
+  // deflated bytes when we compress a string, since the header
+  // depends on stuff other than the input string itself.
+  // However, decrypting it should definitely yield the same
+  // result that we're expecting, and this should match what we get
+  // from inflating the known valid deflate data.
+  zlib.gunzip(buffer, function (err, gunzipped) {
+    assert.equal(gunzipped.toString(), inputString,
+                 'Should get original string after gzip/gunzip');
+  });
 });
 
 var buffer = new Buffer(expectedBase64Deflate, 'base64');
