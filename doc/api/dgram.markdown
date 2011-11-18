@@ -23,6 +23,14 @@ are created.
 Emitted when a socket is closed with `close()`.  No new `message` events will be emitted
 on this socket.
 
+#### Event: 'error'
+
+`function (exception) {}`
+
+Emitted when an error occurs.
+
+---
+
 ### dgram.createSocket(type, [callback])
 
 Creates a datagram socket of the specified types.  Valid types are `udp4`
