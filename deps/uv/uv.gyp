@@ -9,6 +9,9 @@
           'EIO_STACKSIZE=262144'
         ],
         'conditions': [
+          ['OS=="mac"', {
+            'defines': ['__DARWIN_64_BIT_INO_T=1'],
+          }],
           ['OS=="solaris"', {
             'cflags': ['-pthreads'],
             'ldlags': ['-pthreads'],

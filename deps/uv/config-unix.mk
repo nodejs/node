@@ -50,6 +50,7 @@ endif
 ifeq (Darwin,$(uname_S))
 EV_CONFIG=config_darwin.h
 EIO_CONFIG=config_darwin.h
+CPPFLAGS += -D__DARWIN_64_BIT_INO_T=1
 CPPFLAGS += -Isrc/ares/config_darwin
 LINKFLAGS+=-framework CoreServices
 OBJS += src/unix/darwin.o
