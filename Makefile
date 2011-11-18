@@ -1,7 +1,6 @@
 BUILDTYPE ?= Release
 
 all: out/Makefile
-	tools/gyp_node -f make
 	$(MAKE) -C out BUILDTYPE=$(BUILDTYPE)
 	-ln -fs out/Release/node node
 	-ln -fs out/Debug/node node_g
@@ -14,7 +13,8 @@ clean:
 	rm -rf out
 
 distclean:
-	rm -rf out
+	-rm -rf out
+	-options.gypi
 
 test: all
 	python tools/test.py --mode=release simple message

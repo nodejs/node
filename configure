@@ -246,4 +246,4 @@ json.dump(output, f, indent=2, skipkeys=True)
 f.write("\n")
 f.close()
 
-subprocess.call('tools/gyp_node')
+subprocess.call(['tools/gyp_node','-f', 'make'])
