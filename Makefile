@@ -14,7 +14,7 @@ clean:
 
 distclean:
 	-rm -rf out
-	-options.gypi
+	-rm options.gypi
 
 test: all
 	python tools/test.py --mode=release simple message
