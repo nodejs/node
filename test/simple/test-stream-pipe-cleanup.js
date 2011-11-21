@@ -77,16 +77,6 @@ assert.equal(limit, w.endCalls);
 
 w.endCalls = 0;
 
-var r2;
-r = new Readable();
-r2 = new Readable();
-
-r.pipe(w);
-r2.pipe(w);
-r.emit('close');
-r2.emit('close');
-assert.equal(1, w.endCalls);
-
 r = new Readable();
 
 for (i = 0; i < limit; i++) {
