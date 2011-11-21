@@ -1,0 +1,4 @@
+.*.swp
+node_modules
+examples/extract/
+test/tmp/

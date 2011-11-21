@@ -1,0 +1,24 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
+  "name": "ini",
+  "description": "An ini encoder/decoder for node",
+  "version": "1.0.1",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/ini.git"
+  },
+  "main": "ini.js",
+  "scripts": {
+    "test": "node ini.js"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "tap": "~0.0.9"
+  },
+  "scripts": {
+    "test": "tap test/*.js"
+  }
+}

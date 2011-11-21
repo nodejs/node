@@ -1,0 +1,64 @@
+// give it a tarball and a path, and it'll dump the contents
+
+module.exports = Extract
+
+var tar = require("../tar.js")
+  , fstream = require("fstream")
+  , inherits = require("inherits")
+  , path = require("path")
+
+function Extract (opts) {
+  if (!(this instanceof Extract)) return new Extract(opts)
+  tar.Parse.apply(this)
+
+  // have to dump into a directory
+  opts.type = "Directory"
+  opts.Directory = true
+
+  if (typeof opts !== "object") {
+    opts = { path: opts }
+  }
+
+  // better to drop in cwd? seems more standard.
+  opts.path = opts.path || path.resolve("node-tar-extract")
+  opts.type = "Directory"
+  opts.Directory = true
+
+  this._fst = fstream.Writer(opts)
+
+  this.pause()
+  var me = this
+
+  // Hardlinks in tarballs are relative to the root
+  // of the tarball.  So, they need to be resolved against
+  // the target directory in order to be created properly.
+  me.on("entry", function (entry) {
+    if (entry.type !== "Link") return
+    entry.linkpath = entry.props.linkpath =
+      path.join(opts.path, path.join("/", entry.props.linkpath))
+  })
+
+  this._fst.on("ready", function () {
+    me.pipe(me._fst, { end: false })
+    me.resume()
+  })
+
+  // this._fst.on("end", function () {
+  //   console.error("\nEEEE Extract End", me._fst.path)
+  // })
+
+  this._fst.on("close", function () {
+    // console.error("\nEEEE Extract End", me._fst.path)
+    me.emit("end")
+    me.emit("close")
+  })
+}
+
+inherits(Extract, tar.Parse)
+
+Extract.prototype._streamEnd = function () {
+  var me = this
+  if (!me._ended) me.error("unexpected eof")
+  me._fst.end()
+  // my .end() is coming later.
+}

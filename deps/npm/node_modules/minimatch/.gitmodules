@@ -1,0 +1,3 @@
+[submodule "node_modules/lru-cache"]
+	path = node_modules/lru-cache
+	url = https://github.com/isaacs/node-lru-cache.git

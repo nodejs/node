@@ -1,0 +1,85 @@
+module.exports = unbuild
+unbuild.usage = "npm unbuild <folder>\n(this is plumbing)"
+
+var readJson = require("./utils/read-json.js")
+  , rm = require("rimraf")
+  , npm = require("./npm.js")
+  , path = require("path")
+  , fs = require("graceful-fs")
+  , lifecycle = require("./utils/lifecycle.js")
+  , asyncMap = require("slide").asyncMap
+  , chain = require("slide").chain
+  , log = require("./utils/log.js")
+  , build = require("./build.js")
+
+// args is a list of folders.
+// remove any bins/etc, and then delete the folder.
+function unbuild (args, cb) { asyncMap(args, unbuild_, cb) }
+
+function unbuild_ (folder, cb) {
+  folder = path.resolve(folder)
+  delete build._didBuild[folder]
+  log.info(folder, "unbuild")
+  readJson(path.resolve(folder, "package.json"), function (er, pkg) {
+    // if no json, then just trash it, but no scripts or whatever.
+    if (er) return rm(folder, cb)
+    readJson.clearCache(folder)
+    chain
+      ( [ [lifecycle, pkg, "preuninstall", folder, false, true]
+        , [lifecycle, pkg, "uninstall", folder, false, true]
+        , [rmStuff, pkg, folder]
+        , [lifecycle, pkg, "postuninstall", folder, false, true]
+        , [rm, folder] ]
+      , cb )
+  })
+}
+
+function rmStuff (pkg, folder, cb) {
+  // if it's global, and folder is in {prefix}/node_modules,
+  // then bins are in {prefix}/bin
+  // otherwise, then bins are in folder/../.bin
+  var parent = path.dirname(folder)
+    , gnm = npm.dir
+    , top = gnm === parent
+
+  log.verbose([top, gnm, parent], "unbuild "+pkg._id)
+  asyncMap([rmBins, rmMans], function (fn, cb) {
+    fn(pkg, folder, parent, top, cb)
+  }, cb)
+}
+
+function rmBins (pkg, folder, parent, top, cb) {
+  if (!pkg.bin) return cb()
+  var binRoot = top ? npm.bin : path.resolve(parent, ".bin")
+  log.verbose([binRoot, pkg.bin], "binRoot")
+  asyncMap(Object.keys(pkg.bin), function (b, cb) {
+    if (process.platform === "win32") {
+      rm(path.resolve(binRoot, b) + ".cmd", cb)
+    } else {
+      rm( path.resolve(binRoot, b)
+        , { gently: !npm.config.get("force") && folder }
+        , cb )
+    }
+  }, cb)
+}
+
+function rmMans (pkg, folder, parent, top, cb) {
+  if (!pkg.man || !top || process.platform === "win32") return cb()
+  var manRoot = path.resolve(npm.config.get("prefix"), "share", "man")
+  asyncMap(pkg.man, function (man, cb) {
+    var parseMan = man.match(/(.*)\.([0-9]+)(\.gz)?$/)
+      , stem = parseMan[1]
+      , sxn = parseMan[2]
+      , gz = parseMan[3] || ""
+      , bn = path.basename(stem)
+      , manDest = path.join( manRoot
+                           , "man"+sxn
+                           , (bn.indexOf(pkg.name) === 0 ? bn
+                             : pkg.name + "-" + bn)
+                             + "." + sxn + gz
+                           )
+    rm( manDest
+      , { gently: !npm.config.get("force") && folder }
+      , cb )
+  }, cb)
+}

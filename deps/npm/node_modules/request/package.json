@@ -1,0 +1,15 @@
+{ "name" : "request"
+, "description" : "Simplified HTTP request client."
+, "tags" : ["http", "simple", "util", "utility"]
+, "version" : "2.1.1"
+, "author" : "Mikeal Rogers <mikeal.rogers@gmail.com>"
+, "repository" :
+  { "type" : "git"
+  , "url" : "http://github.com/mikeal/request.git"
+  }
+, "bugs" :
+  { "url" : "http://github.com/mikeal/request/issues" }
+, "engines" : ["node >= 0.3.6"]
+, "main" : "./main"
+, "scripts": { "test": "bash tests/run.sh" }
+}

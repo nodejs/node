@@ -1,0 +1,11 @@
+{ "name" : "semver"
+, "version" : "1.0.12"
+, "description" : "The semantic version parser used by npm."
+, "main" : "semver.js"
+, "scripts" : { "test" : "tap test.js" }
+, "devDependencies": { "tap" : "0.x >=0.0.4" }
+, "license" :
+  { "type" : "MIT"
+  , "url" : "https://github.com/isaacs/semver/raw/master/LICENSE" }
+, "repository" : "git://github.com/isaacs/node-semver.git"
+, "bin" : { "semver" : "./bin/semver" } }
