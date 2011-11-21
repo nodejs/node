@@ -132,14 +132,25 @@ check:
 VERSION=v$(shell python tools/getnodeversion.py)
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
-PKG=dist-osx/$(TARNAME).pkg
+PKG=out/$(TARNAME).pkg
+
+packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
 #dist: doc/node.1 doc/api
 dist: $(TARBALL) $(PKG)
 
+PKGDIR=out/dist-osx
+
+pkg: $(PKG)
+
 $(PKG):
-	-rm -rf dist-osx
-	tools/osx-dist.sh
+	-rm -rf $(PKGDIR)
+	$(WAF) configure --prefix=/usr/local
+	DESTDIR=$(PKGDIR) $(WAF) install 
+	$(packagemaker) \
+		--id "org.nodejs.NodeJS-$(VERSION)" \
+		--doc tools/osx-pkg.pmdoc \
+		--out $(PKG)
 
 $(TARBALL): out/doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
