@@ -773,7 +773,7 @@ class BuildContext(Utils.Context):
 
 			try:
 				shutil.copy2(src, tgt)
-				if chmod < 0: os.chmod(tgt, chmod)
+				if chmod >= 0: os.chmod(tgt, chmod)
 			except IOError:
 				try:
 					os.stat(src)

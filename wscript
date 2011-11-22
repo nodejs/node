@@ -980,7 +980,7 @@ def install_npm(bld):
                     start_dir.ant_glob('**/*'),
                     cwd=start_dir,
                     relative_trick=True,
-                    chmod=0)
+                    chmod=-1)
   bld.symlink_as('${PREFIX}/bin/npm',
                  '../lib/node_modules/npm/bin/npm-cli.js')
 
