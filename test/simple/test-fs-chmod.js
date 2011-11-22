@@ -29,6 +29,40 @@ var mode_async;
 var mode_sync;
 var is_windows = process.platform === 'win32';
 
+// Need to hijack fs.open/close to make sure that things
+// get closed once they're opened.
+fs._open = fs.open;
+fs._openSync = fs.openSync;
+fs.open = open;
+fs.openSync = openSync;
+fs._close = fs.close;
+fs._closeSync = fs.closeSync;
+fs.close = close;
+fs.closeSync = closeSync;
+
+var openCount = 0;
+
+function open() {
+  openCount++;
+  return fs._open.apply(fs, arguments);
+}
+
+function openSync() {
+  openCount++;
+  return fs._openSync.apply(fs, arguments);
+}
+
+function close() {
+  openCount--;
+  return fs._close.apply(fs, arguments);
+}
+
+function closeSync() {
+  openCount--;
+  return fs._closeSync.apply(fs, arguments);
+}
+
+
 // On Windows chmod is only able to manipulate read-only bit
 if (is_windows) {
   mode_async = 0600;   // read-write
@@ -87,12 +121,40 @@ fs.open(file, 'a', function(err, fd) {
         assert.equal(mode_sync, fs.fstatSync(fd).mode & 0777);
       }
       success_count++;
+      fs.close(fd);
     }
   });
 });
 
+// lchmod
+if (!is_windows) {
+  var link = path.join(common.tmpDir, 'symbolic-link');
+
+  try {
+    fs.unlinkSync(link);
+  } catch (er) {}
+  fs.symlinkSync(file, link);
+
+  fs.lchmod(link, mode_async, function(err) {
+    if (err) {
+      got_error = true;
+    } else {
+      console.log(fs.lstatSync(link).mode);
+      assert.equal(mode_async, fs.lstatSync(link).mode & 0777);
+
+      fs.lchmodSync(link, mode_sync);
+      assert.equal(mode_sync, fs.lstatSync(link).mode & 0777);
+      success_count++;
+    }
+  });
+} else {
+  success_count++;
+}
+
+
 process.on('exit', function() {
-  assert.equal(2, success_count);
+  assert.equal(3, success_count);
+  assert.equal(0, openCount);
   assert.equal(false, got_error);
 });
 
