@@ -394,6 +394,10 @@ assert.equal(rsaSignature, '5c50e3145c4e2497aadb0eabc83b342d0b0021ece0d4c4a064b7
 rsaVerify.update(rsaPubPem);
 assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
 
+
+//
+// Test RSA signing and verification
+//
 (function() {
   var privateKey = fs.readFileSync(
     common.fixturesDir + '/test_rsa_privkey_2.pem');
@@ -417,8 +421,35 @@ assert.strictEqual(rsaVerify.verify(rsaPubPem, rsaSignature, 'hex'), true);
   assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
 })();
 
-// Test PBKDF2 with RFC 6070 test vectors (except #4)
 
+//
+// Test DSA signing and verification
+//
+(function() {
+  var privateKey = fs.readFileSync(
+    common.fixturesDir + '/test_dsa_privkey.pem');
+
+  var publicKey = fs.readFileSync(
+    common.fixturesDir + '/test_dsa_pubkey.pem');
+
+  var input = 'I AM THE WALRUS';
+
+  // DSA signatures vary across runs so there is no static string to verify
+  // against
+  var sign = crypto.createSign('DSS1');
+  sign.update(input);
+  var signature = sign.sign(privateKey, 'hex');
+
+  var verify = crypto.createVerify('DSS1');
+  verify.update(input);
+
+  assert.strictEqual(verify.verify(publicKey, signature, 'hex'), true);
+})();
+
+
+//
+// Test PBKDF2 with RFC 6070 test vectors (except #4)
+//
 crypto.pbkdf2('password', 'salt', 1, 20, function(err, result) {
   assert.equal(result, '\x0c\x60\xc8\x0f\x96\x1f\x0e\x71\xf3\xa9\xb5\x24\xaf\x60\x12\x06\x2f\xe0\x37\xa6', 'pbkdf1 test vector 1');
 });
