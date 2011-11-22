@@ -103,7 +103,7 @@ private:
 
 UDPWrap::UDPWrap(Handle<Object> object): HandleWrap(object,
                                                     (uv_handle_t*)&handle_) {
-  int r = uv_udp_init(uv_default_loop(), &handle_);
+  int r = uv_udp_init(NODE_LOOP(), &handle_);
   assert(r == 0); // can't fail anyway
   handle_.data = reinterpret_cast<void*>(this);
 }
@@ -176,7 +176,7 @@ Handle<Value> UDPWrap::DoBind(const Arguments& args, int family) {
   }
 
   if (r)
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
 
   return scope.Close(Integer::New(r));
 }
@@ -233,7 +233,7 @@ Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
     delete req_wrap;
     return Null();
   }
@@ -260,8 +260,8 @@ Handle<Value> UDPWrap::RecvStart(const Arguments& args) {
 
   // UV_EALREADY means that the socket is already bound but that's okay
   int r = uv_udp_recv_start(&wrap->handle_, OnAlloc, OnRecv);
-  if (r && uv_last_error(uv_default_loop()).code != UV_EALREADY) {
-    SetErrno(uv_last_error(uv_default_loop()));
+  if (r && uv_last_error(NODE_LOOP()).code != UV_EALREADY) {
+    SetErrno(uv_last_error(NODE_LOOP()));
     return False();
   }
 
@@ -297,7 +297,7 @@ Handle<Value> UDPWrap::GetSockName(const Arguments& args) {
     return scope.Close(sockname);
   }
   else {
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
     return Null();
   }
 }
@@ -316,7 +316,7 @@ void UDPWrap::OnSend(uv_udp_send_t* req, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
   }
 
   Local<Value> argv[4] = {
@@ -364,7 +364,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
   };
 
   if (nread == -1) {
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
   }
   else {
     Local<Object> rinfo = Object::New();

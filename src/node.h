@@ -64,6 +64,7 @@
 #include <sys/stat.h>
 #include <assert.h>
 
+#include <node_isolate.h>
 #include <node_object_wrap.h>
 
 #ifndef offset_of
@@ -86,6 +87,8 @@
 #define NODE_STRINGIFY(n) NODE_STRINGIFY_HELPER(n)
 #define NODE_STRINGIFY_HELPER(n) #n
 #endif
+
+#define NODE_LOOP() (node::Isolate::GetCurrent()->GetLoop())
 
 namespace node {
 

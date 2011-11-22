@@ -4117,7 +4117,8 @@ PBKDF2(const Arguments& args) {
 
   req = new uv_work_t();
   req->data = request;
-  uv_queue_work(uv_default_loop(), req, EIO_PBKDF2, EIO_PBKDF2After);
+  uv_queue_work(NODE_LOOP(), req, EIO_PBKDF2, EIO_PBKDF2After);
+
   return Undefined();
 
 err:
@@ -4239,7 +4240,7 @@ Handle<Value> RandomBytes(const Arguments& args) {
     Local<Function> callback_v = Local<Function>(Function::Cast(*args[1]));
     req->callback_ = Persistent<Function>::New(callback_v);
 
-    uv_queue_work(uv_default_loop(),
+    uv_queue_work(NODE_LOOP(),
                   &req->work_req_,
                   RandomBytesWork<generator>,
                   RandomBytesAfter<generator>);
