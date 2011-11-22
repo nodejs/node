@@ -1,13 +1,14 @@
 /*
  * Tests to verify we're reading in signed integers correctly
  */
+var SlowBuffer = process.binding('buffer').SlowBuffer;
 var ASSERT = require('assert');
 
 /*
  * Test 8 bit signed integers
  */
-function test8() {
-  var data = new Buffer(4);
+function test8(clazz) {
+  var data = new clazz(4);
 
   data[0] = 0x23;
   ASSERT.equal(0x23, data.readInt8(0));
@@ -26,8 +27,8 @@ function test8() {
 }
 
 
-function test16() {
-  var buffer = new Buffer(6);
+function test16(clazz) {
+  var buffer = new clazz(6);
 
   buffer[0] = 0x16;
   buffer[1] = 0x79;
@@ -59,8 +60,8 @@ function test16() {
 }
 
 
-function test32() {
-  var buffer = new Buffer(6);
+function test32(clazz) {
+  var buffer = new clazz(6);
 
   buffer[0] = 0x43;
   buffer[1] = 0x53;
@@ -91,6 +92,9 @@ function test32() {
 }
 
 
-test8();
-test16();
-test32();
+test8(Buffer);
+test8(SlowBuffer);
+test16(Buffer);
+test16(SlowBuffer);
+test32(Buffer);
+test32(SlowBuffer);

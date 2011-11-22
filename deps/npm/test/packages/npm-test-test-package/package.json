@@ -1,0 +1,5 @@
+{ "name":"npm-test-test-package"
+, "author" : "Testy McMock"
+, "version" : "1.2.3-99-b"
+, "description" : "This is a test package used for debugging. It has some random data and that's all."
+}

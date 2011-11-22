@@ -370,6 +370,13 @@ size_t http_parser_execute (http_parser *parser,
   uint64_t index = parser->index;
   uint64_t nread = parser->nread;
 
+  /* technically we could combine all of these (except for url_mark) into one
+     variable, saving stack space, but it seems more clear to have them
+     separated. */
+  const char *header_field_mark = 0;
+  const char *header_value_mark = 0;
+  const char *url_mark = 0;
+
   /* We're in an error state. Don't bother doing anything. */
   if (HTTP_PARSER_ERRNO(parser) != HPE_OK) {
     return 0;
@@ -396,12 +403,6 @@ size_t http_parser_execute (http_parser *parser,
     }
   }
 
-  /* technically we could combine all of these (except for url_mark) into one
-     variable, saving stack space, but it seems more clear to have them
-     separated. */
-  const char *header_field_mark = 0;
-  const char *header_value_mark = 0;
-  const char *url_mark = 0;
 
   if (state == s_header_field)
     header_field_mark = data;
@@ -514,7 +515,7 @@ size_t http_parser_execute (http_parser *parser,
         break;
 
       case s_res_first_http_major:
-        if (ch < '1' || ch > '9') {
+        if (ch < '0' || ch > '9') {
           SET_ERRNO(HPE_INVALID_VERSION);
           goto error;
         }
@@ -690,12 +691,13 @@ size_t http_parser_execute (http_parser *parser,
 
       case s_req_method:
       {
+        const char *matcher;
         if (ch == '\0') {
           SET_ERRNO(HPE_INVALID_METHOD);
           goto error;
         }
 
-        const char *matcher = method_strings[parser->method];
+        matcher = method_strings[parser->method];
         if (ch == ' ' && matcher[index] == '\0') {
           state = s_req_spaces_before_url;
         } else if (ch == matcher[index]) {

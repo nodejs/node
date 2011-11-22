@@ -1,0 +1,32 @@
+{
+  "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
+  "name": "minimatch",
+  "description": "a glob matcher in javascript",
+  "version": "0.0.4",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/isaacs/minimatch.git"
+  },
+  "main": "minimatch.js",
+  "scripts": {
+    "test": "tap test"
+  },
+  "engines": {
+    "node": "*"
+  },
+  "bundleDependencies": [
+    "lru-cache"
+  ],
+  "dependencies": {
+    "lru-cache": "~1.0.2"
+  },
+  "devDependencies": {
+    "tap": "~0.0.5"
+  },
+  "licenses" : [
+    {
+      "type" : "MIT",
+      "url" : "http://github.com/isaacs/minimatch/raw/master/LICENSE"
+    }
+  ]
+}

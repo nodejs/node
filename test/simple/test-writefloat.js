@@ -1,10 +1,11 @@
 /*
  * Tests to verify we're writing floats correctly
  */
+var SlowBuffer = process.binding('buffer').SlowBuffer;
 var ASSERT = require('assert');
 
-function test() {
-  var buffer = new Buffer(8);
+function test(clazz) {
+  var buffer = new clazz(8);
 
   buffer.writeFloatBE(1, 0);
   buffer.writeFloatLE(1, 4);
@@ -63,4 +64,5 @@ function test() {
 }
 
 
-test();
+test(Buffer);
+test(SlowBuffer);

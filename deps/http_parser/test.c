@@ -1041,8 +1041,24 @@ const struct message responses[] =
   ,.body= ""
   }
 
-
+#define HTTP_VERSION_0_9 12
+/* Should handle HTTP/0.9 */
+, {.name= "http version 0.9"
+  ,.type= HTTP_RESPONSE
+  ,.raw= "HTTP/0.9 200 OK\r\n"
+         "\r\n"
+  ,.should_keep_alive= FALSE
+  ,.message_complete_on_eof= TRUE
+  ,.http_major= 0
+  ,.http_minor= 9
+  ,.status_code= 200
+  ,.num_headers= 0
+  ,.headers=
+    {}
+  ,.body= ""
+  }
 , {.name= NULL } /* sentinel */
+
 };
 
 int

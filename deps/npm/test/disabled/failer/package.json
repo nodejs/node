@@ -1,0 +1,5 @@
+{ "name" : "failer"
+, "version" : "9999.999.99"
+, "dependencies" : { "base64" : "*" }
+, "scripts" : { "preinstall" : "exit 1" }
+}

@@ -222,7 +222,7 @@ struct http_parser {
    * Should be checked when http_parser_execute() returns in addition to
    * error checking.
    */
-  char upgrade : 1;
+  unsigned char upgrade : 1;
 
 #if HTTP_PARSER_DEBUG
   uint32_t error_lineno;

@@ -218,7 +218,7 @@ Synchronous rmdir(2).
 ### fs.mkdir(path, [mode], [callback])
 
 Asynchronous mkdir(2). No arguments other than a possible exception are given
-to the completion callback. `mode` defaults to `0777`. 
+to the completion callback. `mode` defaults to `0777`.
 
 ### fs.mkdirSync(path, [mode])
 
@@ -391,8 +391,11 @@ Watch for changes on `filename`. The callback `listener` will be called each
 time the file is accessed.
 
 The second argument is optional. The `options` if provided should be an object
-containing two members a boolean, `persistent`, and `interval`, a polling
-value in milliseconds. The default is `{ persistent: true, interval: 0 }`.
+containing two members a boolean, `persistent`, and `interval`. `persistent`
+indicates whether the process should continue to run as long as files are
+being watched. `interval` indicates how often the target should be polled,
+in milliseconds. (On Linux systems with inotify, `interval` is ignored.) The
+default is `{ persistent: true, interval: 0 }`.
 
 The `listener` gets two arguments the current stat object and the previous
 stat object:
@@ -418,7 +421,9 @@ Watch for changes on `filename`, where `filename` is either a file or a
 directory.  The returned object is [fs.FSWatcher](#fs.FSWatcher).
 
 The second argument is optional. The `options` if provided should be an object
-containing a boolean member `persistent`.  The default is `{ persistent: true }`.
+containing a boolean member `persistent`, which indicates whether the process
+should continue to run as long as files are being watched. The default is
+`{ persistent: true }`.
 
 The listener callback gets two arguments `(event, filename)`.  `event` is either
 'rename' or 'change', and `filename` is the name of the file which triggered
