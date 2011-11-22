@@ -30,11 +30,11 @@ process's stdin fd to act either as a raw device or default.
 
 ### tty.setWindowSize(fd, row, col)
 
-`ioctl`s the window size settings to the file descriptor.
-
+This function was removed in v0.6.0.
 
 ### tty.getWindowSize(fd)
 
-Returns `[row, col]` for the TTY associated with the file descriptor.
+This function was removed in v0.6.0. Use `process.stdout.getWindowSize()`
+instead.
 
 
