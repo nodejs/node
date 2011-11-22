@@ -93,6 +93,7 @@ public:
   static Handle<Value> GetSockName(const Arguments& args);
   static Handle<Value> AddMembership(const Arguments& args);
   static Handle<Value> DropMembership(const Arguments& args);
+  static Handle<Value> SetMulticastTTL(const Arguments& args);
   static Handle<Value> SetBroadcast(const Arguments& args);
 
 private:
@@ -154,6 +155,7 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "getsockname", GetSockName);
   NODE_SET_PROTOTYPE_METHOD(t, "addMembership", AddMembership);
   NODE_SET_PROTOTYPE_METHOD(t, "dropMembership", DropMembership);
+  NODE_SET_PROTOTYPE_METHOD(t, "setMulticastTTL", SetMulticastTTL);
   NODE_SET_PROTOTYPE_METHOD(t, "setBroadcast", SetBroadcast);
 
   target->Set(String::NewSymbol("UDP"),
@@ -260,6 +262,20 @@ Handle<Value> UDPWrap::DropMembership(const Arguments& args) {
   return SetMembership(args, UV_LEAVE_GROUP);
 }
 
+Handle<Value> UDPWrap::SetMulticastTTL(const Arguments& args) {
+  HandleScope scope;
+  UNWRAP
+
+  assert(args.Length() == 1);
+
+  int ttl = args[0]->Uint32Value();
+  int r = uv_udp_set_multicast_ttl(&wrap->handle_, ttl);
+
+  if (r)
+    SetErrno(uv_last_error(uv_default_loop()));
+
+  return scope.Close(Integer::New(r));
+}
 
 Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   HandleScope scope;
