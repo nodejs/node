@@ -607,7 +607,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
   if (status) {
     // Error
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
     argv[0] = Local<Value>::New(Null());
   } else {
     // Success
@@ -710,7 +710,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   hints.ai_family = fam;
   hints.ai_socktype = SOCK_STREAM;
 
-  int r = uv_getaddrinfo(uv_default_loop(),
+  int r = uv_getaddrinfo(NODE_LOOP(),
                          &req_wrap->req_,
                          AfterGetAddrInfo,
                          *hostname,
@@ -719,7 +719,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(uv_default_loop()));
+    SetErrno(uv_last_error(NODE_LOOP()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -736,7 +736,7 @@ static void Initialize(Handle<Object> target) {
   assert(r == ARES_SUCCESS);
 
   struct ares_options options;
-  uv_ares_init_options(uv_default_loop(), &ares_channel, &options, 0);
+  uv_ares_init_options(NODE_LOOP(), &ares_channel, &options, 0);
   assert(r == 0);
 
   NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);

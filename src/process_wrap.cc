@@ -175,7 +175,7 @@ class ProcessWrap : public HandleWrap {
         Get(String::NewSymbol("windowsVerbatimArguments"))->IsTrue();
 #endif
 
-    int r = uv_spawn(uv_default_loop(), &wrap->process_, options);
+    int r = uv_spawn(NODE_LOOP(), &wrap->process_, options);
 
     wrap->SetHandle((uv_handle_t*)&wrap->process_);
     assert(wrap->process_.data == wrap);
@@ -195,7 +195,7 @@ class ProcessWrap : public HandleWrap {
       delete [] options.env;
     }
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
+    if (r) SetErrno(uv_last_error(NODE_LOOP()));
 
     return scope.Close(Integer::New(r));
   }
@@ -209,7 +209,7 @@ class ProcessWrap : public HandleWrap {
 
     int r = uv_process_kill(&wrap->process_, signal);
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
+    if (r) SetErrno(uv_last_error(NODE_LOOP()));
 
     return scope.Close(Integer::New(r));
   }
