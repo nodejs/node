@@ -22,8 +22,9 @@
 #ifndef SRC_NODE_ISOLATE_H_
 #define SRC_NODE_ISOLATE_H_
 
-#include <v8.h>
-#include <uv.h>
+#include "queue.h"
+#include "v8.h"
+#include "uv.h"
 
 #ifdef NDEBUG
 # define NODE_ISOLATE_CHECK(ptr) ((void) (ptr))
@@ -42,6 +43,8 @@ namespace node {
 
 class Isolate {
 public:
+  typedef void (*AtExitCallback)(void* arg);
+
   static Isolate* New(uv_loop_t* loop);
 
   static Isolate* GetCurrent() {
@@ -58,8 +61,24 @@ public:
     return isolate_;
   }
 
+  /* Register a handler that should run when the current isolate exits.
+   * Handlers run in LIFO order.
+   */
+  void AtExit(AtExitCallback callback, void *arg);
+
+  /* Shutdown the isolate. Call this method at thread death. */
+  void Dispose();
+
 private:
   Isolate(uv_loop_t* loop);
+
+  struct AtExitCallbackInfo {
+    SLIST_ENTRY(AtExitCallbackInfo) entries_;
+    AtExitCallback callback_;
+    void* arg_;
+  };
+
+  SLIST_HEAD(AtExitCallbacks, AtExitCallbackInfo) at_exit_callbacks_;
   v8::Isolate* isolate_;
   uv_loop_t* loop_;
 };
