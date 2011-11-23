@@ -20,6 +20,9 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include "node_isolate.h"
+
+#include <stdlib.h>
+#include <string.h>
 #include <assert.h>
 
 
@@ -34,8 +37,33 @@ Isolate* Isolate::New(uv_loop_t* loop) {
 Isolate::Isolate(uv_loop_t* loop) {
   loop_ = loop;
   isolate_ = v8::Isolate::GetCurrent();
+  SLIST_INIT(&at_exit_callbacks_);
   assert(isolate_->GetData() == NULL);
   isolate_->SetData(this);
+}
+
+
+void Isolate::AtExit(AtExitCallback callback, void* arg) {
+  struct AtExitCallbackInfo* it = new AtExitCallbackInfo;
+
+  NODE_ISOLATE_CHECK(this);
+
+  it->callback_ = callback;
+  it->arg_ = arg;
+
+  SLIST_INSERT_HEAD(&at_exit_callbacks_, it, entries_);
+}
+
+
+void Isolate::Dispose() {
+  struct AtExitCallbackInfo* it;
+
+  NODE_ISOLATE_CHECK(this);
+
+  SLIST_FOREACH(it, &at_exit_callbacks_, entries_) {
+    it->callback_(it->arg_);
+    delete it;
+  }
 }
 
 
