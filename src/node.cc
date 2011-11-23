@@ -1847,6 +1847,52 @@ static Handle<Value> Binding(const Arguments& args) {
 }
 
 
+static void RunIsolate(void* arg) {
+  uv_loop_t* loop = uv_loop_new();
+  Isolate* isolate = Isolate::New(loop);
+}
+
+
+static char magic_isolate_cookie_[] = "magic isolate cookie";
+
+
+static Handle<Value> NewIsolate(const Arguments& args) {
+  HandleScope scope;
+
+  uv_thread_t* tid = new uv_thread_t;
+
+  if (uv_thread_create(tid, RunIsolate, NULL))
+    return Null();
+
+  Local<ObjectTemplate> tpl = ObjectTemplate::New();
+  tpl->SetInternalFieldCount(2);
+
+  Local<Object> obj = tpl->NewInstance();
+  obj->SetPointerInInternalField(0, magic_isolate_cookie_);
+  obj->SetPointerInInternalField(1, tid);
+
+  return scope.Close(obj);
+}
+
+
+static Handle<Value> JoinIsolate(const Arguments& args) {
+  HandleScope scope;
+
+  assert(args[0]->IsObject());
+
+  Local<Object> obj = args[0]->ToObject();
+  assert(obj->InternalFieldCount() == 2);
+  assert(obj->GetPointerFromInternalField(0) == magic_isolate_cookie_);
+
+  uv_thread_t* tid = (uv_thread_t*) obj->GetPointerFromInternalField(1);
+
+  if (uv_thread_join(tid))
+    return False(); // error
+  else
+    return True();  // ok
+}
+
+
 static Handle<Value> ProcessTitleGetter(Local<String> property,
                                         const AccessorInfo& info) {
   HandleScope scope;
@@ -2118,6 +2164,9 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "uvCounters", UVCounters);
 
   NODE_SET_METHOD(process, "binding", Binding);
+
+  NODE_SET_METHOD(process, "_newIsolate", NewIsolate);
+  NODE_SET_METHOD(process, "_joinIsolate", JoinIsolate);
 
   return process;
 }
