@@ -35,9 +35,15 @@ Isolate* Isolate::New(uv_loop_t* loop) {
 
 
 Isolate::Isolate(uv_loop_t* loop) {
-  loop_ = loop;
-  isolate_ = v8::Isolate::GetCurrent();
   SLIST_INIT(&at_exit_callbacks_);
+  loop_ = loop;
+
+  isolate_ = v8::Isolate::GetCurrent();
+  if (isolate_ == NULL) {
+    isolate_ = v8::Isolate::New();
+    isolate_->Enter();
+  }
+
   assert(isolate_->GetData() == NULL);
   isolate_->SetData(this);
 }
