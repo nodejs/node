@@ -9,6 +9,9 @@ out/Release/node: all
 
 out/Makefile: node.gyp deps/uv/uv.gyp
 
+install uninstall:
+	@echo '`make $(@)` is not implemented yet. Bug bnoordhuis about it in #node.js'
+
 clean:
 	rm -rf out
 
