@@ -23,7 +23,7 @@ are created.
 Emitted when a socket is closed with `close()`.  No new `message` events will be emitted
 on this socket.
 
-#### Event: 'error'
+### Event: 'error'
 
 `function (exception) {}`
 
