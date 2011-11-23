@@ -89,10 +89,7 @@ website_files = \
   out/doc/favicon.ico   \
 	out/doc/pipe.css
 
-doc: doc
-
-out/doc: out/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
-
+doc docs: out/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
 
 $(apidoc_dirs):
 	mkdir -p $@
