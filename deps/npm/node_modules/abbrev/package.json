@@ -5,4 +5,7 @@
 , "main" : "./lib/abbrev.js"
 , "scripts" : { "test" : "node lib/abbrev.js" }
 , "repository" : "http://github.com/isaacs/abbrev-js"
+, "license" :
+  { "type" : "MIT"
+  , "url" : "https://github.com/isaacs/abbrev-js/raw/master/LICENSE" }
 }

@@ -121,7 +121,9 @@ interpreted as a number.
 
 You can also mix types and values, or multiple types, in a list.  For
 instance `{ blah: [Number, null] }` would allow a value to be set to
-either a Number or null.
+either a Number or null.  When types are ordered, this implies a
+preference, and the first type that can be used to properly interpret
+the value will be used.
 
 To define a new type, add it to `nopt.typeDefs`.  Each item in that
 hash is an object with a `type` member and a `validate` method.  The

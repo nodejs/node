@@ -2,7 +2,7 @@
 , "publishConfig": { "tag": "alpha" }
 , "description": "A package manager for node"
 , "keywords": [ "package manager", "modules", "install", "package.json" ]
-, "version": "1.1.0-alpha"
+, "version": "1.1.0-alpha-2"
 , "preferGlobal": true
 , "config": { "publishtest": false }
 , "homepage": "http://npmjs.org/"
@@ -32,16 +32,17 @@
   , "graceful-fs": "1"
   , "minimatch": "0"
   , "nopt": "1"
-  , "node-uuid": "1.2"
+  , "node-uuid": "~1.3"
   , "proto-list": "1"
   , "rimraf": "1"
-  , "request": "~2.1.1"
+  , "request": "~2.2"
   , "which": "1"
-  , "tar": "0"
-  , "fstream": "0"
+  , "tar": "0.1 >=0.1.3"
+  , "fstream": "0.1"
   , "block-stream": "*"
   , "inherits": "1"
   , "mkdirp": "0.1"
+  , "fast-list": "1"
   }
 , "bundleDependencies":
   [ "slide"
@@ -61,6 +62,7 @@
   , "block-stream"
   , "inherits"
   , "mkdirp"
+  , "fast-list"
   ]
 , "devDependencies":
   { "ronn": "https://github.com/isaacs/ronnjs/tarball/master" }

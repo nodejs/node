@@ -49,3 +49,6 @@
 [submodule "node_modules/mkdirp"]
 	path = node_modules/mkdirp
 	url = git://github.com/isaacs/node-mkdirp.git
+[submodule "node_modules/fast-list"]
+	path = node_modules/fast-list
+	url = git://github.com/isaacs/fast-list.git

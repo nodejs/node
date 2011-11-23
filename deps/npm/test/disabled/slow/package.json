@@ -1,9 +1,0 @@
-{ "name" : "slow"
-, "description" : "just like fast, but even slower"
-, "version" : "1.2.3"
-, "scripts" :
-  {   "preinstall" : "sleep 1 && echo slow 1 $(date +%s) && sleep 1 && echo slow 2 $(date +%s)"
-  ,      "install" : "sleep 1 && echo slow 2 $(date +%s) && sleep 1 && echo slow 3 $(date +%s)"
-  ,  "postinstall" : "sleep 1 && echo slow 3 $(date +%s) && sleep 1 && echo slow 4 $(date +%s)"
-  }
-}
