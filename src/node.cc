@@ -1163,9 +1163,9 @@ static Handle<Value> Chdir(const Arguments& args) {
   return Undefined();
 }
 
+
 static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
-  assert(args.Length() == 0);
 
   char *r = getcwd(getbuf, ARRAY_SIZE(getbuf) - 1);
   if (r == NULL) {
