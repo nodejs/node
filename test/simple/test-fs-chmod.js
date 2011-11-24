@@ -127,7 +127,7 @@ fs.open(file, 'a', function(err, fd) {
 });
 
 // lchmod
-if (!is_windows) {
+if (fs.lchmod) {
   var link = path.join(common.tmpDir, 'symbolic-link');
 
   try {
