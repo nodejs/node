@@ -24,6 +24,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <errno.h>
+#include <unistd.h>
 #include <time.h>
 
 #undef NANOSEC

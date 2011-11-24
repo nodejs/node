@@ -27,6 +27,10 @@
 
 #include <stddef.h> /* offsetof */
 
+#if __STRICT_ANSI__
+# define inline __inline
+#endif
+
 #undef HAVE_FUTIMES
 #undef HAVE_PIPE2
 #undef HAVE_ACCEPT4
