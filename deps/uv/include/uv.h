@@ -111,7 +111,6 @@ typedef intptr_t ssize_t;
   XX( 40, ETIMEDOUT, "connection timed out") \
   XX( 41, ECHARSET, "") \
   XX( 42, EAIFAMNOSUPPORT, "") \
-  XX( 43, EAINONAME, "") \
   XX( 44, EAISERVICE, "") \
   XX( 45, EAISOCKTYPE, "") \
   XX( 46, ESHUTDOWN, "") \

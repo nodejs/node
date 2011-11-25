@@ -66,7 +66,7 @@ static uv_err_code uv_translate_eai_error(int eai_errno) {
     case EAI_FAIL:                    return UV_EFAULT;
     case EAI_FAMILY:                  return UV_EAIFAMNOSUPPORT;
     case EAI_MEMORY:                  return UV_ENOMEM;
-    case EAI_NONAME:                  return UV_EAINONAME;
+    case EAI_NONAME:                  return UV_ENOENT;
     case EAI_AGAIN:                   return UV_EAGAIN;
     case EAI_SERVICE:                 return UV_EAISERVICE;
     case EAI_SOCKTYPE:                return UV_EAISOCKTYPE;
