@@ -66,7 +66,7 @@ static uv_err_code uv_translate_eai_error(int eai_errno) {
     case EAI_FAIL:                    return UV_EFAULT;
     case EAI_FAMILY:                  return UV_EAIFAMNOSUPPORT;
     case EAI_MEMORY:                  return UV_ENOMEM;
-    case EAI_NONAME:                  return UV_EAINONAME;
+    case EAI_NONAME:                  return UV_ENOENT;
     case EAI_AGAIN:                   return UV_EAGAIN;
     case EAI_SERVICE:                 return UV_EAISERVICE;
     case EAI_SOCKTYPE:                return UV_EAISOCKTYPE;
@@ -117,7 +117,7 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* handle,
   struct addrinfo* addrinfo_ptr;
   char* alloc_ptr = NULL;
   char* cur_ptr = NULL;
-  uv_err_code uv_ret;
+  int status = 0;
 
   /* release input parameter memory */
   if (handle->alloc != NULL) {
@@ -125,7 +125,6 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* handle,
     handle->alloc = NULL;
   }
 
-  uv_ret = uv_translate_eai_error(handle->retcode);
   if (handle->retcode == 0) {
     /* convert addrinfoW to addrinfo */
     /* first calculate required length */
@@ -136,7 +135,8 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* handle,
       if (addrinfow_ptr->ai_canonname != NULL) {
         name_len = uv_utf16_to_utf8(addrinfow_ptr->ai_canonname, -1, NULL, 0);
         if (name_len == 0) {
-          uv_ret = uv_translate_sys_error(GetLastError());
+          uv__set_sys_error(loop, GetLastError());
+          status = -1;
           goto complete;
         }
         addrinfo_len += ALIGNED_SIZE(name_len);
@@ -201,9 +201,13 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* handle,
         }
       }
     } else {
-      uv_ret = UV_ENOMEM;
+      uv__set_artificial_error(loop, UV_ENOMEM);
+      status = -1;
     }
-
+  } else {
+    /* GetAddrInfo failed */
+    uv__set_artificial_error(loop, uv_translate_eai_error(handle->retcode));
+    status = -1;
   }
 
   /* return memory to system */
@@ -214,7 +218,7 @@ void uv_process_getaddrinfo_req(uv_loop_t* loop, uv_getaddrinfo_t* handle,
 
 complete:
   /* finally do callback with converted result */
-  handle->getaddrinfo_cb(handle, uv_ret, (struct addrinfo*)alloc_ptr);
+  handle->getaddrinfo_cb(handle, status, (struct addrinfo*)alloc_ptr);
 
   uv_unref(loop);
 }

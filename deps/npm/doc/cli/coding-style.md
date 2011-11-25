@@ -155,16 +155,16 @@ Use appropriate log levels.  The default log() function logs at the
 
 ## Case, naming, etc.
 
-Use lowerCamelCase for multiword identifiers when they refer to objects,
+Use `lowerCamelCase` for multiword identifiers when they refer to objects,
 functions, methods, members, or anything not specified in this section.
 
-Use UpperCamelCase for class names (things that you'd pass to "new").
+Use `UpperCamelCase` for class names (things that you'd pass to "new").
 
-Use all-lower-hyphen-css-case for multiword filenames and config keys.
+Use `all-lower-hyphen-css-case` for multiword filenames and config keys.
 
 Use named functions.  They make stack traces easier to follow.
 
-Use CAPS_SNAKE_CASE for constants, things that should never change
+Use `CAPS_SNAKE_CASE` for constants, things that should never change
 and are rarely used.
 
 Use a single uppercase letter for function names where the function

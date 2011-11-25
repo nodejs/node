@@ -76,16 +76,10 @@ function packFiles (targetTarball, parent, files, pkg, cb) {
                  , path: parent
                  , filter: function () {
                      return -1 !== files.indexOf(this.path)
-                          // || (this.type === "Directory" &&
-                          //     this.basename !== ".git")
-
                    }
                  })
     .on("error", log.er(cb, "error reading "+parent))
-    .on("entry", function E (entry) {
-      entry.on("entry", E)
-    })
-    .pipe(tar.Pack({}))
+    .pipe(tar.Pack())
     .on("error", log.er(cb, "tar creation error "+targetTarball))
     .pipe(zlib.Gzip())
     .on("error", log.er(cb, "gzip error "+targetTarball))
@@ -155,8 +149,9 @@ function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
   log.silly([dMode.toString(8), fMode.toString(8)], "gunzTarPerm modes")
 
   fs.createReadStream(tarball)
+    .on("error", log.er(cb, "error reading "+tarball))
     .pipe(zlib.Unzip())
-    .on("error", log.er(cb, "unzip error"))
+    .on("error", log.er(cb, "unzip error "+tarball))
     .pipe(tar.Extract({ type: "Directory", path: tmp }))
     .on("error", log.er(cb, "Failed unpacking "+tarball))
     .on("close", afterUntar)
@@ -165,6 +160,7 @@ function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
   // XXX Do all this in an Extract filter.
   //
   function afterUntar (er) {
+    log.silly(er, "afterUntar")
     // if we're not doing ownership management,
     // then we're done now.
     if (er) return log.er(cb, "Failed unpacking "+tarball)(er)

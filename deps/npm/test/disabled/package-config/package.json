@@ -1,4 +1,0 @@
-{"name":"package-config"
-,"version":"1.2.3"
-,"config":{"foo":"bar"}
-,"scripts":{"test":"./test.js"}}

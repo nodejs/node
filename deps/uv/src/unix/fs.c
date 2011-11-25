@@ -518,11 +518,11 @@ static int _futime(const uv_file file, double atime, double mtime) {
 
 int uv_fs_futime(uv_loop_t* loop, uv_fs_t* req, uv_file file, double atime,
     double mtime, uv_fs_cb cb) {
-#if HAVE_FUTIMES
   const char* path = NULL;
 
   uv_fs_req_init(loop, req, UV_FS_FUTIME, path, cb);
 
+#if HAVE_FUTIMES
   WRAP_EIO(UV_FS_FUTIME, eio_futime, _futime, ARGS3(file, atime, mtime))
 #else
   uv__set_sys_error(loop, ENOSYS);

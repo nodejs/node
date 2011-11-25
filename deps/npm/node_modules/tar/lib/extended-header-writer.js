@@ -148,6 +148,8 @@ function encodeField (k, v) {
   var s = new Buffer(" " + k + "=" + v + "\n")
     , digits = Math.floor(Math.log(s.length) / Math.log(10)) + 1
 
+  // console.error("1 s=%j digits=%j s.length=%d", s.toString(), digits, s.length)
+
   // if adding that many digits will make it go over that length,
   // then add one to it. For example, if the string is:
   // " foo=bar\n"
@@ -156,10 +158,22 @@ function encodeField (k, v) {
   // "10 foo=bar\n"
   // but, since that's actually 11 characters, since 10 adds another
   // character to the length, and the length includes the number
-  // itself.  In that case, just bump it up by 1.
-  if (s.length > Math.pow(10, digits) - digits) digits ++
+  // itself.  In that case, just bump it up again.
+  if (s.length + digits >= Math.pow(10, digits)) digits += 1
+  // console.error("2 s=%j digits=%j s.length=%d", s.toString(), digits, s.length)
 
   var len = digits + s.length
+  // console.error("3 s=%j digits=%j s.length=%d len=%d", s.toString(), digits, s.length, len)
+  var lenBuf = new Buffer("" + len)
+  if (lenBuf.length + s.length !== len) {
+    throw new Error("Bad length calculation\n"+
+                    "len="+len+"\n"+
+                    "lenBuf="+JSON.stringify(lenBuf.toString())+"\n"+
+                    "lenBuf.length="+lenBuf.length+"\n"+
+                    "digits="+digits+"\n"+
+                    "s="+JSON.stringify(s.toString())+"\n"+
+                    "s.length="+s.length)
+  }
 
-  return [new Buffer("" + len), s]
+  return [lenBuf, s]
 }

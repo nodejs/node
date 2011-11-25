@@ -20,7 +20,7 @@ var output = require("./utils/output.js")
 completion.completion = function (opts, cb) {
   if (opts.w > 3) return cb()
 
-  var fs = require("fs")
+  var fs = require("graceful-fs")
     , path = require("path")
     , bashExists = null
     , zshExists = null

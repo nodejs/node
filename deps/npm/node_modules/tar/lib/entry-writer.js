@@ -114,6 +114,9 @@ EntryWriter.prototype._header = function () {
       .on("data", function (c) {
         me.emit("data", c)
       })
+      .on("error", function (er) {
+        me.emit("error", er)
+      })
       .end()
   }
 

@@ -17,6 +17,7 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
         <Directory Id="NodeRoot" Name="nodejs">
+          <Directory Id="NodeModulesFolder" Name="node_modules" />
           <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodeexe" KeyPath="yes" Source="$(var.sourcedir)\node.exe" />
             <Environment Id="Environment"
@@ -25,6 +26,9 @@
                          Part="last" 
                          System="yes" 
                          Value="[NodeRoot]" />
+          </Component>
+          <Component Id="npmcmd" Guid="31e9986d-74cd-44e1-878c-194d3e997d32">
+            <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm.cmd" />
           </Component>
           <?if $(var.Configuration) = Debug ?>
           <Component Id="nodepdb" Guid="BEC0F08E-89B3-4C35-A286-8DB8598597F2">
@@ -37,6 +41,8 @@
 
     <ComponentGroup Id="allfiles">
       <ComponentRef Id="nodeexe"/>
+      <ComponentRef Id="npmcmd"/>
+      <ComponentGroupRef Id="NPMFiles" />
       <?if $(var.Configuration) = Debug ?>
       <ComponentRef Id="nodepdb"/>
       <?endif?>
@@ -75,9 +81,12 @@
 
       <Property Id="ARPNOMODIFY" Value="1" />
       <Property Id="WIXUI_EXITDIALOGOPTIONALTEXT" Value="Node.js has been succesfully installed.  To run Node.js open command prompt (cmd.exe), and run 'node'. See http://nodejs.org for information about the license." />
+
     </UI>
 
     <UIRef Id="WixUI_Common" />
+    <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\windows_banner_nodejs_installer_logo.jpg" />
+    <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\windows_dialog_nodejs_installer_logo.jpg" />
   </Product>
 
 </Wix>

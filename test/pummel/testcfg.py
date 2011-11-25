@@ -55,7 +55,10 @@ class PummelTestCase(test.TestCase):
     except:
       pass
     # make it again.
-    mkdir(self.tmpdir)
+    try:
+      mkdir(self.tmpdir)
+    except:
+      pass
 
   def BeforeRun(self):
     # delete the whole tmp dir
@@ -64,8 +67,11 @@ class PummelTestCase(test.TestCase):
     except:
       pass
     # make it again.
-    mkdir(self.tmpdir)
-  
+    try:
+      mkdir(self.tmpdir)
+    except:
+      pass
+
   def GetLabel(self):
     return "%s %s" % (self.mode, self.GetName())
 

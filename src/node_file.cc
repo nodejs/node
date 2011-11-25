@@ -252,9 +252,23 @@ Local<Value> FSError(int errorno,
 
   Local<Value> e;
 
+  Local<String> path_str;
+
   if (path) {
+#ifdef _WIN32
+    if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
+      path_str = String::Concat(String::New("\\\\"), String::New(path + 8));
+    } else if (strncmp(path, "\\\\?\\", 4) == 0) {
+      path_str = String::New(path + 4);
+    } else {
+      path_str = String::New(path);
+    }
+#else
+    path_str = String::New(path);
+#endif
+
     Local<String> cons3 = String::Concat(cons2, String::NewSymbol(" '"));
-    Local<String> cons4 = String::Concat(cons3, String::New(path));
+    Local<String> cons4 = String::Concat(cons3, path_str);
     Local<String> cons5 = String::Concat(cons4, String::NewSymbol("'"));
     e = Exception::Error(cons5);
   } else {
@@ -266,7 +280,7 @@ Local<Value> FSError(int errorno,
   // TODO errno should probably go
   obj->Set(errno_symbol, Integer::New(errorno));
   obj->Set(code_symbol, estring);
-  if (path) obj->Set(errpath_symbol, String::New(path));
+  if (path) obj->Set(errpath_symbol, path_str);
   if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
   return e;
 }

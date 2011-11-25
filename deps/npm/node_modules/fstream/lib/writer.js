@@ -246,17 +246,7 @@ Writer.prototype._finish = function () {
                  ? "utimes" : "lutimes"
 
       if (utimes === "lutimes" && !fs[utimes]) {
-        if (!fs.futimes) fs.ltimes = function (a, b, c, cb) { return cb() }
-        else fs.lutimes = function (path, atime, mtime, cb) {
-          var c = require("constants")
-          fs.open(path, c.O_SYMLINK, function (er, fd) {
-            if (er) return cb(er)
-            fs.futimes(fd, atime, mtime, function (er) {
-              if (er) return cb(er)
-              fs.close(fd, cb)
-            })
-          })
-        }
+        utimes = "utimes"
       }
 
       var curA = current.atime

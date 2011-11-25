@@ -491,13 +491,35 @@ void fs__readdir(uv_fs_t* req, const wchar_t* path, int flags) {
 
 void fs__stat(uv_fs_t* req, const wchar_t* path) {
   int result;
+  unsigned short mode;
 
-  result = _wstati64(path, &req->stat);
+  fs__open(req, path, _O_RDONLY, 0);
+  if (req->result == -1) {
+    return;
+  }
+
+  result = _fstati64(req->result, &req->stat);
   if (result == -1) {
     req->ptr = NULL;
   } else {
+
+    /*
+     * VC CRT doesn't properly set S_IFDIR in _fstati64,
+     * so we set it here if path is a directory.
+     */
+    if (GetFileAttributesW(path) & FILE_ATTRIBUTE_DIRECTORY) {
+      mode = req->stat.st_mode;
+      mode &= ~_S_IFMT;
+      mode |= _S_IFDIR;
+
+      req->stat.st_mode = mode;
+      assert((req->stat.st_mode & _S_IFMT) == _S_IFDIR);
+    }
+
     req->ptr = &req->stat;
   }
+
+  _close(req->result);
 
   SET_REQ_RESULT(req, result);
 }
@@ -687,7 +709,7 @@ void fs__symlink(uv_fs_t* req, const wchar_t* path, const wchar_t* new_path,
     req->last_error = ERROR_SUCCESS;
     return;
   }
-  
+
   SET_REQ_RESULT(req, result);
 }
 
@@ -726,7 +748,7 @@ void fs__readlink(uv_fs_t* req, const wchar_t* path) {
                        FSCTL_GET_REPARSE_POINT,
                        NULL,
                        0,
-                       buffer, 
+                       buffer,
                        MAXIMUM_REPARSE_DATA_BUFFER_SIZE,
                        &bytes_returned,
                        NULL);
