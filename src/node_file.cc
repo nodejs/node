@@ -256,9 +256,9 @@ Local<Value> FSError(int errorno,
 
   if (path) {
 #ifdef _WIN32
-    if (memcmp(path, "\\\\?\\UNC\\", 8) == 0) {
+    if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
       path_str = String::Concat(String::New("\\\\"), String::New(path + 8));
-    } else if (memcmp(path, "\\\\?\\", 4) == 0) {
+    } else if (strncmp(path, "\\\\?\\", 4) == 0) {
       path_str = String::New(path + 4);
     } else {
       path_str = String::New(path);
