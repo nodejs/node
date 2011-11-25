@@ -114,7 +114,7 @@
 * Documentation improvments (Igor Zinkovsky, Bert Belder, Ilya Dmitrichenko,
 koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
-* Performance improvements (Daniel Ennis, Bert Belder, Ben Noordhuis) 
+* Performance improvements (Daniel Ennis, Bert Belder, Ben Noordhuis)
 
 * Long process.title support (Ben Noordhuis)
 
@@ -370,7 +370,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * Fixes https host header default port handling. (Mikeal Rogers)
 
-* #1440 strip byte order marker when loading *.js and *.json files 
+* #1440 strip byte order marker when loading *.js and *.json files
   (Ben Noordhuis)
 
 * #1434 Improve util.format() compatibility with browser. (Koichi Kobayashi)
@@ -581,9 +581,9 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * #829 Backport r8577 from V8 (Ben Noordhuis)
 
-* #877 Don't wait for HTTP Agent socket pool to establish connections. 
+* #877 Don't wait for HTTP Agent socket pool to establish connections.
 
-* #915 Find kqueue on FreeBSD correctly (Brett Kiefer) 
+* #915 Find kqueue on FreeBSD correctly (Brett Kiefer)
 
 * #1085 HTTP: Fix race in abort/dispatch code (Stefan Rusu)
 
@@ -980,7 +980,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * HTTPS server
 
-* Built in debugger 'node debug script.js' 
+* Built in debugger 'node debug script.js'
 
 * realpath files during module load (Mihai Călin Bazon)
 
@@ -1122,7 +1122,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 * fs bugfixes (Tj Holowaychuk, Tobie Langel, Marco Rogers, isaacs)
 
-* http bug fixes (Fedor Indutny, Mikeal Rogers) 
+* http bug fixes (Fedor Indutny, Mikeal Rogers)
 
 * Faster buffers; breaks C++ API (Tim-Smart, Stéphan Kochen)
 
@@ -1291,7 +1291,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Upgrade http-parser, V8 to 2.2.21
 
 
-2010.06.21, Version 0.1.99, a620b7298f68f68a855306437a3b60b650d61d78 
+2010.06.21, Version 0.1.99, a620b7298f68f68a855306437a3b60b650d61d78
 
 * Datagram sockets (Paul Querna)
 
@@ -1397,7 +1397,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 
 2010.05.06, Version 0.1.94, f711d5343b29d1e72e87107315708e40951a7826
 
-* Look in /usr/local/lib/node for modules, so that there's a way 
+* Look in /usr/local/lib/node for modules, so that there's a way
   to install modules globally (Issac Schlueter)
 
 * SSL improvements (Rhys Jones, Paulo Matias)
@@ -1417,7 +1417,7 @@ koichik, Maciej Małecki, Guglielmo Ferri, isaacs)
 * Bugfix: destroy() instead of end() http connection at end of
   pipeline
 
-* Bugfix: http.Client may be prematurely released back to the 
+* Bugfix: http.Client may be prematurely released back to the
   free pool.  (Thomas Lee)
 
 * Upgrade V8 to 2.2.8
