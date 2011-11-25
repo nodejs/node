@@ -1,4 +1,30 @@
-2011.11.18, Version 0.6.2 (stable)
+2011.11.25, Version 0.6.3 (stable)
+
+* #2083 Land NPM in Node. It is included in packages/installers and installed
+  on `make install`.
+
+* #2076 Add logos to windows installer.
+
+* #1711 Correctly handle http requests without headers. (Ben Noordhuis,
+  Felix Geisendörfer)
+
+* TLS: expose more openssl SSL context options and constants. (Ben Noordhuis)
+
+* #2177 Windows: don't kill UDP socket when a packet fails to reach its
+  destination. (Bert Belder)
+
+* Windows: support paths longer than 260 characters. (Igor Zinkovsky)
+
+* Windows: correctly resolve drive-relative paths. (Bert Belder)
+
+* #2166 Don't leave file descriptor open after lchmod. (Isaac Schlueter)
+
+* #2084 Add OS X .pkg build script to make file.
+
+* #2160 Documentation improvements. (Ben Noordhuis)
+
+
+2011.11.18, Version 0.6.2 (stable), a4402f0b2e410b19375a1d5c5fb7fe7f66f3c7f8
 
  * doc improvements (Artur Adib, Trevor Burnham, Ryan Emery, Trent Mick)
 
@@ -23,7 +49,7 @@
  * Upgrade V8 to 3.6.6.8
 
 
-2011.11.11, Version 0.6.1 (stable)
+2011.11.11, Version 0.6.1 (stable), 170f2addb2dd0c625bc4a6d461e89a31ad68b79b
 
 * doc improvements (Eric Lovett, Ben Noordhuis, Scott Anderson, Yoji SHIDARA)
 
