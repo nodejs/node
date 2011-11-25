@@ -29,7 +29,3 @@ var stdin = process.openStdin();
 stdin.on('data', function(data) {
   process.stdout.write(data.toString());
 });
-
-stdin.on('end', function() {
-  process.stdout.end();
-});
