@@ -65,38 +65,39 @@ function closeSync() {
 
 // On Windows chmod is only able to manipulate read-only bit
 if (is_windows) {
-  mode_async = 0600;   // read-write
-  mode_sync = 0400;    // read-only
+  mode_async = 0400;   // read-only
+  mode_sync = 0600;    // read-write
 } else {
   mode_async = 0777;
   mode_sync = 0644;
 }
 
-var file = path.join(common.fixturesDir, 'a.js');
+var file1 = path.join(common.fixturesDir, 'a.js'),
+    file2 = path.join(common.fixturesDir, 'a1.js');
 
-fs.chmod(file, mode_async.toString(8), function(err) {
+fs.chmod(file1, mode_async.toString(8), function(err) {
   if (err) {
     got_error = true;
   } else {
-    console.log(fs.statSync(file).mode);
+    console.log(fs.statSync(file1).mode);
 
     if (is_windows) {
-      assert.ok((fs.statSync(file).mode & 0777) & mode_async);
+      assert.ok((fs.statSync(file1).mode & 0777) & mode_async);
     } else {
-      assert.equal(mode_async, fs.statSync(file).mode & 0777);
+      assert.equal(mode_async, fs.statSync(file1).mode & 0777);
     }
 
-    fs.chmodSync(file, mode_sync);
+    fs.chmodSync(file1, mode_sync);
     if (is_windows) {
-      assert.ok((fs.statSync(file).mode & 0777) & mode_sync);
+      assert.ok((fs.statSync(file1).mode & 0777) & mode_sync);
     } else {
-      assert.equal(mode_sync, fs.statSync(file).mode & 0777);
+      assert.equal(mode_sync, fs.statSync(file1).mode & 0777);
     }
     success_count++;
   }
 });
 
-fs.open(file, 'a', function(err, fd) {
+fs.open(file2, 'a', function(err, fd) {
   if (err) {
     got_error = true;
     console.error(err.stack);
@@ -133,7 +134,7 @@ if (fs.lchmod) {
   try {
     fs.unlinkSync(link);
   } catch (er) {}
-  fs.symlinkSync(file, link);
+  fs.symlinkSync(file2, link);
 
   fs.lchmod(link, mode_async, function(err) {
     if (err) {
