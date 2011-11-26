@@ -10,7 +10,7 @@ This class is a subclass of `tls.Server` and emits events same as
 
 ## https.createServer(options, [requestListener])
 
-Returns a new HTTPS web server object. The `options` is similer to
+Returns a new HTTPS web server object. The `options` is similar to
 `tls.createServer()`. The `requestListener` is a function which is
 automatically added to the `'request'` event.
 
@@ -70,7 +70,7 @@ The options argument has the following options
 
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
-- `hostname`: To support `url.parse()` `hostname` is prefered over `host`
+- `hostname`: To support `url.parse()` `hostname` is preferred over `host`
 - `port`: Port of remote server. Defaults to 443.
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
 - `path`: Request path. Defaults to `'/'`. Should include query string if any.
@@ -154,7 +154,7 @@ Example:
 
 ## https.Agent
 
-An Agent object for HTTPS similer to [http.Agent](http.html#http.Agent).
+An Agent object for HTTPS similar to [http.Agent](http.html#http.Agent).
 See [https.request()](#https.request) for more information.
 
 

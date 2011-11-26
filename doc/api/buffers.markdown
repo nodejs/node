@@ -511,4 +511,4 @@ given it will fill the entire buffer.
 ### INSPECT_MAX_BYTES
 
 How many bytes will be returned when `buffer.inspect()` is called. This can
-be overriden by user modules.
+be overridden by user modules.

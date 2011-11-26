@@ -385,7 +385,7 @@ Options:
 
 - `host`: A domain name or IP address of the server to issue the request to.
   Defaults to `'localhost'`.
-- `hostname`: To support `url.parse()` `hostname` is prefered over `host`
+- `hostname`: To support `url.parse()` `hostname` is preferred over `host`
 - `port`: Port of remote server. Defaults to 80.
 - `socketPath`: Unix Domain Socket (use one of host:port or socketPath)
 - `method`: A string specifying the HTTP request method. Defaults to `'GET'`.
@@ -453,7 +453,7 @@ There are a few special headers that should be noted.
   and listen for the `continue` event. See RFC2616 Section 8.2.3 for more
   information.
 
-* Sending an Authorization header will override useing the `auth` option
+* Sending an Authorization header will override using the `auth` option
   to compute basic authentication.
 
 ## http.get(options, callback)
