@@ -1,0 +1,79 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-LS" "3" "November 2011" "" ""
+.
+.SH "NAME"
+\fBnpm-ls\fR \-\- List installed packages
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm\.commands\.ls(args, [silent,] callback)
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command will print to stdout all the versions of packages that are
+installed, as well as their dependencies, in a tree\-structure\. It will also
+return that data using the callback\.
+.
+.P
+This command does not take any arguments, but args must be defined\.
+Beyond that, if any arguments are passed in, npm will politely warn that it
+does not take positional arguments, though you may set config flags
+like with any other command, such as \fBglobal\fR to list global packages\.
+.
+.P
+It will print out extraneous, missing, and invalid packages\.
+.
+.P
+If the silent parameter is set to true, nothing will be output to the screen,
+but the data will still be returned\.
+.
+.SH "CONFIGURATION"
+.
+.SS "long"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Show extended information\.
+.
+.SS "parseable"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Show parseable output instead of tree view\.
+.
+.SS "global"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+List packages in the global install prefix instead of in the current
+project\.
+.
+.P
+Note, if parseable is set or long isn\'t set, then duplicates will be trimmed\.
+This means that if a submodule a same dependency as a parent module, then the
+dependency will only be output once\.

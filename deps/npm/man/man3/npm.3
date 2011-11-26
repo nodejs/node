@@ -1,0 +1,160 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM" "3" "November 2011" "" ""
+.
+.SH "NAME"
+\fBnpm\fR \-\- node package manager
+.
+.SH "SYNOPSIS"
+.
+.nf
+var npm = require("npm")
+npm\.load(configObject, function (er, npm) {
+  // use the npm object, now that it\'s loaded\.
+  npm\.config\.set(key, val)
+  val = npm\.config\.get(key)
+  console\.log("prefix = %s", npm\.prefix)
+  npm\.commands\.install(["package"], cb)
+})
+.
+.fi
+.
+.SH "VERSION"
+1.1.0-alpha-2
+.
+.SH "DESCRIPTION"
+This is the API documentation for npm\.
+To find documentation of the command line
+client, see \fBnpm help npm\fR\|\.
+.
+.P
+Prior to using npm\'s commands, \fBnpm\.load()\fR must be called with an object hash of
+top\-level configs\.  In the npm command line client,
+this set of configs is parsed from the command line options\.  Additional
+configuration params are loaded from two configuration files\.  See \fBnpm help config\fR for more information\.
+.
+.P
+After that, each of the functions are accessible in the
+commands object: \fBnpm\.commands\.<cmd>\fR\|\.  See \fBnpm help index\fR for a list of
+all possible commands\.
+.
+.P
+All commands on the command object take an \fBarray\fR of positional argument \fBstrings\fR\|\. The last argument to any function is a callback\. Some
+commands take other optional arguments\.
+.
+.P
+Configs cannot currently be set on a per function basis, as each call to
+npm\.config\.set will change the value for \fIall\fR npm commands in that process\.
+.
+.P
+To find API documentation for a specific command, run the \fBnpm apihelp\fR
+command\.
+.
+.SH "METHODS AND PROPERTIES"
+.
+.IP "\(bu" 4
+\fBnpm\.load(configs, cb)\fR
+.
+.IP
+Load the configuration params, and call the \fBcb\fR function once the
+globalconfig and userconfig files have been loaded as well, or on
+nextTick if they\'ve already been loaded\.
+.
+.IP "\(bu" 4
+\fBnpm\.config\fR
+.
+.IP
+An object for accessing npm configuration parameters\.
+.
+.IP "\(bu" 4
+\fBnpm\.config\.get(key)\fR
+.
+.IP "\(bu" 4
+\fBnpm\.config\.set(key, val)\fR
+.
+.IP "\(bu" 4
+\fBnpm\.config\.del(key)\fR
+.
+.IP "" 0
+
+.
+.IP "\(bu" 4
+\fBnpm\.dir\fR or \fBnpm\.root\fR
+.
+.IP
+The \fBnode_modules\fR directory where npm will operate\.
+.
+.IP "\(bu" 4
+\fBnpm\.prefix\fR
+.
+.IP
+The prefix where npm is operating\.  (Most often the current working
+directory\.)
+.
+.IP "\(bu" 4
+\fBnpm\.cache\fR
+.
+.IP
+The place where npm keeps JSON and tarballs it fetches from the
+registry (or uploads to the registry)\.
+.
+.IP "\(bu" 4
+\fBnpm\.tmp\fR
+.
+.IP
+npm\'s temporary working directory\.
+.
+.IP "\(bu" 4
+\fBnpm\.deref\fR
+.
+.IP
+Get the "real" name for a command that has either an alias or
+abbreviation\.
+.
+.IP "" 0
+.
+.SH "MAGIC"
+For each of the methods in the \fBnpm\.commands\fR hash, a method is added to
+the npm object, which takes a set of positional string arguments rather
+than an array and a callback\.
+.
+.P
+If the last argument is a callback, then it will use the supplied
+callback\.  However, if no callback is provided, then it will print out
+the error or results\.
+.
+.P
+For example, this would work in a node repl:
+.
+.IP "" 4
+.
+.nf
+> npm = require("npm")
+> npm\.load()  // wait a sec\.\.\.
+> npm\.install("dnode", "express")
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Note that that \fIwon\'t\fR work in a node program, since the \fBinstall\fR
+method will get called before the configuration load is completed\.
+.
+.SH "ABBREVS"
+In order to support \fBnpm ins foo\fR instead of \fBnpm install foo\fR, the \fBnpm\.commands\fR object has a set of abbreviations as well as the full
+method names\.  Use the \fBnpm\.deref\fR method to find the real name\.
+.
+.P
+For example:
+.
+.IP "" 4
+.
+.nf
+var cmd = npm\.deref("unp") // cmd === "unpublish"
+.
+.fi
+.
+.IP "" 0
+

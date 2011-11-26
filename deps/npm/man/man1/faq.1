@@ -1,0 +1,308 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-FAQ" "1" "November 2011" "" ""
+.
+.SH "NAME"
+\fBnpm-faq\fR \-\- Frequently Asked Questions
+.
+.SH "Where can I find these docs in HTML?"
+\fIhttp://npmjs\.org/doc/\fR, or run:
+.
+.IP "" 4
+.
+.nf
+npm config set viewer browser
+.
+.fi
+.
+.IP "" 0
+.
+.P
+to open these documents in your default web browser rather than \fBman\fR\|\.
+.
+.SH "It didn\'t work\."
+That\'s not really a question\.
+.
+.SH "Why didn\'t it work?"
+I don\'t know yet\.
+.
+.P
+Read the error output, and if you can\'t figure out what it means,
+do what it says and post a bug with all the information it asks for\.
+.
+.SH "Where does npm put stuff?"
+See \fBnpm help folders\fR
+.
+.P
+tl;dr:
+.
+.IP "\(bu" 4
+Use the \fBnpm root\fR command to see where modules go, and the \fBnpm bin\fR
+command to see where executables go
+.
+.IP "\(bu" 4
+Global installs are different from local installs\.  If you install
+something with the \fB\-g\fR flag, then its executables go in \fBnpm bin \-g\fR
+and its modules go in \fBnpm root \-g\fR\|\.
+.
+.IP "" 0
+.
+.SH "How do I install something everywhere?"
+Install it globally by tacking \fB\-g\fR or \fB\-\-global\fR to the command\.
+.
+.SH "I installed something globally, but I can\'t `require()` it"
+Install it locally\.
+.
+.SH "I don\'t wanna\."
+Check out \fBnpm link\fR\|\.  You might like it\.
+.
+.SH "No, I really want 0\.x style \'everything global\' style\."
+Ok, fine\.  Do this:
+.
+.IP "" 4
+.
+.nf
+echo \'export NODE_PATH="\'$(npm root \-g)\'"\' >> ~/\.bashrc
+\|\. ~/\.bashrc
+npm config set global true
+.
+.fi
+.
+.IP "" 0
+.
+.P
+This is not recommended\.
+.
+.P
+Many things \fBwill not work\fR if you do this\.  Make sure you read and
+understand \fBnpm help config\fR and \fBnpm help global\fR before you complain
+about things being broken\.
+.
+.P
+When you realize what a mistake it was, do this to switch back:
+.
+.IP "" 4
+.
+.nf
+npm config delete global \-\-local
+.
+.fi
+.
+.IP "" 0
+.
+.SH "If \'npm\' is an acronym, why is it never capitalized?"
+Contrary to the belief of many, "npm" is not in fact an abbreviation for
+"Node Package Manager"\.  It is a recursive bacronymic abbreviation for
+"npm is not an acronym"\.  (If it was "ninaa", then it would be an
+acronym, and thus incorrectly named\.)
+.
+.P
+"NPM", however, \fIis\fR an acronym (more precisely, a capitonym) for the
+National Association of Pastoral Musicians\.  You can learn more
+about them at \fIhttp://npm\.org/\fR\|\.
+.
+.P
+In software, "NPM" is a non\-parametric mapping utility written by
+Chris Rorden\.  You can analyze pictures of brains with it\.  Learn more
+about the (capitalized) NPM program at \fIhttp://www\.cabiatl\.com/mricro/npm/\fR\|\.
+.
+.P
+The first seed that eventually grew into this flower was a bash utility
+named "pm", which was a shortened descendent of "pkgmakeinst", a
+bash function that was used to install various different things on different
+platforms, most often using Yahoo\'s \fByinst\fR\|\.  If \fBnpm\fR was ever an
+acronym for anything, it was \fBnode pm\fR or maybe \fBnew pm\fR\|\.
+.
+.P
+So, in all seriousness, the "npm" project is named after its command\-line
+utility, which was organically selected to be easily typed by a right\-handed
+programmer using a US QWERTY keyboard layout, ending with the
+right\-ring\-finger in a postition to type the \fB\-\fR key for flags and
+other command\-line arguments\.  That command\-line utility is always
+lower\-case, though it starts most sentences it is a part of\.
+.
+.SH "How do I list installed packages?"
+\fBnpm ls\fR
+.
+.SH "How do I search for packages?"
+\fBnpm search\fR
+.
+.P
+Arguments are greps\.  \fBnpm search jsdom\fR shows jsdom packages\.
+.
+.SH "How do I update npm?"
+.
+.nf
+npm update npm \-g
+.
+.fi
+.
+.P
+You can also update all outdated local packages by doing \fBnpm update\fR without
+any arguments, or global packages by doing \fBnpm update \-g\fR\|\.
+.
+.P
+Occasionally, the version of npm will progress such that the current
+version cannot be properly installed with the version that you have
+installed already\.  (Consider, if there is ever a bug in the \fBupdate\fR
+command\.)
+.
+.P
+In those cases, you can do this:
+.
+.IP "" 4
+.
+.nf
+curl http://npmjs\.org/install\.sh | sh
+.
+.fi
+.
+.IP "" 0
+.
+.SH "What is a `package`?"
+A package is:
+.
+.IP "\(bu" 4
+a) a folder containing a program described by a package\.json file
+.
+.IP "\(bu" 4
+b) a gzipped tarball containing (a)
+.
+.IP "\(bu" 4
+c) a url that resolves to (b)
+.
+.IP "\(bu" 4
+d) a \fB<name>@<version>\fR that is published on the registry with (c)
+.
+.IP "\(bu" 4
+e) a \fB<name>@<tag>\fR that points to (d)
+.
+.IP "\(bu" 4
+f) a \fB<name>\fR that has a "latest" tag satisfying (e)
+.
+.IP "\(bu" 4
+g) a \fBgit\fR url that, when cloned, results in (a)\.
+.
+.IP "" 0
+.
+.P
+Even if you never publish your package, you can still get a lot of
+benefits of using npm if you just want to write a node program (a), and
+perhaps if you also want to be able to easily install it elsewhere
+after packing it up into a tarball (b)\.
+.
+.P
+Git urls can be of the form:
+.
+.IP "" 4
+.
+.nf
+git://github\.com/user/project\.git#commit\-ish
+git+ssh://user@hostname:project\.git#commit\-ish
+git+http://user@hostname/project/blah\.git#commit\-ish
+git+https://user@hostname/project/blah\.git#commit\-ish
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fBcommit\-ish\fR can be any tag, sha, or branch which can be supplied as
+an argument to \fBgit checkout\fR\|\.  The default is \fBmaster\fR\|\.
+.
+.SH "How do I install node with npm?"
+You don\'t\.  Try one of these:
+.
+.IP "\(bu" 4
+\fIhttp://github\.com/isaacs/nave\fR
+.
+.IP "\(bu" 4
+\fIhttp://github\.com/visionmedia/n\fR
+.
+.IP "\(bu" 4
+\fIhttp://github\.com/creationix/nvm\fR
+.
+.IP "" 0
+.
+.SH "How can I use npm for development?"
+See \fBnpm help developers\fR and \fBnpm help json\fR\|\.
+.
+.P
+You\'ll most likely want to \fBnpm link\fR your development folder\.  That\'s
+awesomely handy\.
+.
+.P
+To set up your own private registry, check out \fBnpm help registry\fR\|\.
+.
+.SH "Can I list a url as a dependency?"
+Yes\.  It should be a url to a gzipped tarball containing a single folder
+that has a package\.json in its root, or a git url\.
+(See "what is a package?" above\.)
+.
+.SH "How do I symlink to a dev folder so I don\'t have to keep re\-installing?"
+See \fBnpm help link\fR
+.
+.SH "The package registry website\.  What is that exactly?"
+See \fBnpm help registry\fR\|\.
+.
+.SH "What\'s up with the insecure channel warnings?"
+Until node 0\.4\.10, there were problems sending big files over HTTPS\.  That
+means that publishes go over HTTP by default in those versions of node\.
+.
+.SH "I forgot my password, and can\'t publish\.  How do I reset it?"
+Go to \fIhttp://admin\.npmjs\.org/reset\fR\|\.
+.
+.SH "I get ECONNREFUSED a lot\.  What\'s up?"
+Either the registry is down, or node\'s DNS isn\'t able to reach out\.
+This happens a lot if you don\'t follow \fIall\fR the steps in the Cygwin
+setup doc\.
+.
+.P
+To check if the registry is down, open up \fIhttp://registry\.npmjs\.org/\-/short\fR
+in a web browser\.  This will also tell you if you are just unable to
+access the internet for some reason\.
+.
+.P
+If the registry IS down, let me know by emailing or posting an issue\.
+We\'ll have someone kick it or something\.
+.
+.SH "Who does npm?"
+\fBnpm view npm author\fR
+.
+.P
+\fBnpm view npm contributors\fR
+.
+.SH "I have a question or request not addressed here\. Where should I put it?"
+Discuss it on the mailing list, or post an issue\.
+.
+.IP "\(bu" 4
+\fInpm\-@googlegroups\.com\fR
+.
+.IP "\(bu" 4
+\fIhttp://github\.com/isaacs/npm/issues\fR
+.
+.IP "" 0
+.
+.SH "Why does npm hate me?"
+npm is not capable of hatred\.  It loves everyone, especially you\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help npm
+.
+.IP "\(bu" 4
+npm help developers
+.
+.IP "\(bu" 4
+npm help json
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help folders
+.
+.IP "" 0
+

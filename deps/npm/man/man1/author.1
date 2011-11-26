@@ -1,0 +1,55 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-OWNER" "1" "November 2011" "" ""
+.
+.SH "NAME"
+\fBnpm-owner\fR \-\- Manage package owners
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm owner ls <package name>
+npm owner add <user> <package name>
+npm owner rm <user> <package name>
+.
+.fi
+.
+.SH "DESCRIPTION"
+Manage ownership of published packages\.
+.
+.IP "\(bu" 4
+ls:
+List all the users who have access to modify a package and push new versions\.
+Handy when you need to know who to bug for help\.
+.
+.IP "\(bu" 4
+add:
+Add a new user as a maintainer of a package\.  This user is enabled to modify
+metadata, publish new versions, and add other owners\.
+.
+.IP "\(bu" 4
+rm:
+Remove a user from the package owner list\.  This immediately revokes their
+privileges\.
+.
+.IP "" 0
+.
+.P
+Note that there is only one level of access\.  Either you can modify a package,
+or you can\'t\.  Future versions may contain more fine\-grained access levels, but
+that is not implemented at this time\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help publish
+.
+.IP "\(bu" 4
+npm help registry
+.
+.IP "\(bu" 4
+npm help adduser
+.
+.IP "" 0
+

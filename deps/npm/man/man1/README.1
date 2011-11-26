@@ -1,0 +1,406 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM" "1" "November 2011" "" ""
+.
+.SH "NAME"
+\fBnpm\fR \-\- node package manager
+.
+.SH "SYNOPSIS"
+This is just enough info to get you up and running\.
+.
+.P
+Much more info available via \fBnpm help\fR once it\'s installed\.
+.
+.SH "IMPORTANT"
+\fBYou need node v0\.4 or higher to run this program\.\fR
+.
+.P
+To install an old \fBand unsupported\fR version of npm that works on node 0\.3
+and prior, clone the git repo and dig through the old tags and branches\.
+.
+.SH "Simple Install (Unix only, sorry)"
+To install npm with one command, do this:
+.
+.IP "" 4
+.
+.nf
+curl http://npmjs\.org/install\.sh | sh
+.
+.fi
+.
+.IP "" 0
+.
+.P
+To skip the npm 0\.x cleanup, do this:
+.
+.IP "" 4
+.
+.nf
+curl http://npmjs\.org/install\.sh | clean=no sh
+.
+.fi
+.
+.IP "" 0
+.
+.P
+To say "yes" to the 0\.x cleanup, but skip the prompt:
+.
+.IP "" 4
+.
+.nf
+curl http://npmjs\.org/install\.sh | clean=yes sh
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If you get permission errors, see the section below, entitled
+"Permission Errors on Installation"\.
+.
+.SH "Installing on Windows \-\- Experimental"
+Yes, this sucks\.  A convenient one\-liner is coming soon\.
+.
+.SS "Step 1: Drop the node\.exe somewhere"
+You will probably need the latest version of node, \fBat least\fR version \fB0\.5\.8\fR or higher\.  You can get it from \fIhttp://nodejs\.org/dist/v0\.5\.8/node\.exe\fR\|\.
+.
+.SS "Step 2 (optional): Update the %PATH% environment variable"
+Update your \fB%PATH%\fR environment variable in System Properties:
+Advanced: Environment, so that it includes the \fBbin\fR folder you chose\.
+The entries are separated by semicolons\.
+.
+.P
+You \fImay\fR be able to do this from the command line using \fBset\fR and \fBsetx\fR\|\.  \fBcd\fR into the \fBbin\fR folder you created in step 1, and do this:
+.
+.IP "" 4
+.
+.nf
+set path=%PATH%;%CD%
+setx path "%PATH%"
+.
+.fi
+.
+.IP "" 0
+.
+.P
+This will have the added advantage that you\'ll be able to simply type \fBnpm\fR or \fBnode\fR in any project folder to access those commands\.
+.
+.P
+If you decide not to update the PATH, and put the node\.exe file in \fBC:\\node\\node\.exe\fR, then the npm executable will end up \fBC:\\node\\npm\.cmd\fR,
+and you\'ll have to type \fBC:\\node\\npm <command>\fR to use it\.
+.
+.SS "Step 3: Install git"
+If you don\'t already have git, install it \fIhttps://git\.wiki\.kernel\.org/index\.php/MSysGit:InstallMSysGit\fR\|\.
+.
+.P
+Run \fBgit \-\-version\fR to make sure that it\'s at least version 1\.7\.6\.
+.
+.SS "Step 4: install npm"
+Lastly, \fBafter\fR node\.exe, git, and your %PATH% have \fIall\fR been set up
+properly, install npm itself:
+.
+.IP "" 4
+.
+.nf
+git config \-\-system http\.sslcainfo /bin/curl\-ca\-bundle\.crt
+git clone \-\-recursive git://github\.com/isaacs/npm\.git
+cd npm
+node cli\.js install npm \-gf
+.
+.fi
+.
+.IP "" 0
+.
+.SH "Permission Errors (`EACCES` or `EACCESS`) on Installation"
+On Windows, you may need to run the command prompt in elevated
+permission mode\.  (Right\-click on cmd\.exe, Run as Administrator\.)
+.
+.P
+On Unix, you may need to run as root, or use \fBsudo\fR\|\.
+.
+.P
+\fBNote\fR: You would need to \fBsudo\fR the \fBsh\fR, \fBnot\fR the \fBcurl\fR\|\.  Fetching
+stuff from the internet typically doesn\'t require elevated permissions\.
+Running it might\.
+.
+.P
+I highly recommend that you first download the file, and make sure that
+it is what you expect, and \fIthen\fR run it\.
+.
+.IP "" 4
+.
+.nf
+curl \-O http://npmjs\.org/install\.sh
+# inspect file\.\.
+sudo sh install\.sh
+.
+.fi
+.
+.IP "" 0
+.
+.SH "Installing on Cygwin"
+No\.
+.
+.SH "Dev Install"
+To install the latest \fBunstable\fR development version from git:
+.
+.IP "" 4
+.
+.nf
+git clone https://github\.com/isaacs/npm\.git
+cd npm
+git submodule update \-\-init \-\-recursive
+sudo make install     # (or: `node cli\.js install \-gf`)
+.
+.fi
+.
+.IP "" 0
+.
+.P
+If you\'re sitting in the code folder reading this document in your
+terminal, then you\'ve already got the code\.  Just do:
+.
+.IP "" 4
+.
+.nf
+git submodule update \-\-init \-\-recursive
+sudo make install
+.
+.fi
+.
+.IP "" 0
+.
+.P
+and npm will install itself\.
+.
+.P
+If you don\'t have make, and don\'t have curl or git, and ALL you have is
+this code and node, you can probably do this:
+.
+.IP "" 4
+.
+.nf
+git submodule update \-\-init \-\-recursive
+sudo node \./cli\.js install \-g
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Note that github tarballs \fBdo not contain submodules\fR, so
+those won\'t work\.  You\'ll have to also fetch the appropriate submodules
+listed in the \.gitmodules file\.
+.
+.SH "Permissions when Using npm to Install Other Stuff"
+\fBtl;dr\fR
+.
+.IP "\(bu" 4
+Use \fBsudo\fR for greater safety\.  Or don\'t, if you prefer not to\.
+.
+.IP "\(bu" 4
+npm will downgrade permissions if it\'s root before running any build
+scripts that package authors specified\.
+.
+.IP "" 0
+.
+.SS "More details\.\.\."
+As of version 0\.3, it is recommended to run npm as root\.
+This allows npm to change the user identifier to the \fBnobody\fR user prior
+to running any package build or test commands\.
+.
+.P
+If you are not the root user, or if you are on a platform that does not
+support uid switching, then npm will not attempt to change the userid\.
+.
+.P
+If you would like to ensure that npm \fBalways\fR runs scripts as the
+"nobody" user, and have it fail if it cannot downgrade permissions, then
+set the following configuration param:
+.
+.IP "" 4
+.
+.nf
+npm config set unsafe\-perm false
+.
+.fi
+.
+.IP "" 0
+.
+.P
+This will prevent running in unsafe mode, even as non\-root users\.
+.
+.SH "Uninstalling"
+So sad to see you go\.
+.
+.IP "" 4
+.
+.nf
+sudo npm uninstall npm \-g
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Or, if that fails,
+.
+.IP "" 4
+.
+.nf
+sudo make uninstall
+.
+.fi
+.
+.IP "" 0
+.
+.SH "More Severe Uninstalling"
+Usually, the above instructions are sufficient\.  That will remove
+npm, but leave behind anything you\'ve installed\.
+.
+.P
+If you would like to remove all the packages that you have installed,
+then you can use the \fBnpm ls\fR command to find them, and then \fBnpm rm\fR to
+remove them\.
+.
+.P
+To remove cruft left behind by npm 0\.x, you can use the included \fBclean\-old\.sh\fR script file\.  You can run it conveniently like this:
+.
+.IP "" 4
+.
+.nf
+npm explore npm \-g \-\- sh scripts/clean\-old\.sh
+.
+.fi
+.
+.IP "" 0
+.
+.P
+npm uses two configuration files, one for per\-user configs, and another
+for global (every\-user) configs\.  You can view them by doing:
+.
+.IP "" 4
+.
+.nf
+npm config get userconfig   # defaults to ~/\.npmrc
+npm config get globalconfig # defaults to /usr/local/etc/npmrc
+.
+.fi
+.
+.IP "" 0
+.
+.P
+Uninstalling npm does not remove configuration files by default\.  You
+must remove them yourself manually if you want them gone\.  Note that
+this means that future npm installs will not remember the settings that
+you have chosen\.
+.
+.SH "Using npm Programmatically"
+If you would like to use npm programmatically, you can do that\.
+It\'s not very well documented, but it \fIis\fR rather simple\.
+.
+.IP "" 4
+.
+.nf
+var npm = require("npm")
+npm\.load(myConfigObject, function (er) {
+  if (er) return handlError(er)
+  npm\.commands\.install(["some", "args"], function (er, data) {
+    if (er) return commandFailed(er)
+    // command succeeded, and data might have some info
+  })
+  npm\.on("log", function (message) { \.\.\.\. })
+})
+.
+.fi
+.
+.IP "" 0
+.
+.P
+The \fBload\fR function takes an object hash of the command\-line configs\.
+The various \fBnpm\.commands\.<cmd>\fR functions take an \fBarray\fR of
+positional argument \fBstrings\fR\|\.  The last argument to any \fBnpm\.commands\.<cmd>\fR function is a callback\.  Some commands take other
+optional arguments\.  Read the source\.
+.
+.P
+You cannot set configs individually for any single npm function at this
+time\.  Since \fBnpm\fR is a singleton, any call to \fBnpm\.config\.set\fR will
+change the value for \fIall\fR npm commands in that process\.
+.
+.P
+See \fB\|\./bin/npm\-cli\.js\fR for an example of pulling config values off of the
+command line arguments using nopt\.  You may also want to check out \fBnpm
+help config\fR to learn about all the options you can set there\.
+.
+.SH "More Docs"
+Check out the docs \fIhttp://npmjs\.org/doc/\fR,
+especially the faq \fIhttp://npmjs\.org/doc/faq\.html\fR\|\.
+.
+.P
+You can use the \fBnpm help\fR command to read any of them\.
+.
+.P
+If you\'re a developer, and you want to use npm to publish your program,
+you should read this \fIhttp://npmjs\.org/doc/developers\.html\fR
+.
+.SH "Legal Stuff"
+"npm" and "the npm registry" are owned by Isaac Z\. Schlueter\.  All
+rights not explicitly granted in the MIT license are reserved\. See the
+included LICENSE file for more details\.
+.
+.P
+"Node\.js" and "node" are trademarks owned by Joyent, Inc\.  npm is not
+officially part of the Node\.js project, and is neither owned by nor
+officially affiliated with Joyent, Inc\.
+.
+.P
+The packages in the npm registry are not part of npm itself, and are the
+sole property of their respective maintainers\.  While every effort is
+made to ensure accountability, there is absolutely no guarantee,
+warrantee, or assertion made as to the quality, fitness for a specific
+purpose, or lack of malice in any given npm package\.  Modules
+published on the npm registry are not affiliated with or endorsed by
+Joyent, Inc\., Isaac Z\. Schlueter, Ryan Dahl, or the Node\.js project\.
+.
+.P
+If you have a complaint about a package in the npm registry, and cannot
+resolve it with the package owner, please express your concerns to
+Isaac Z\. Schlueter at \fIi@izs\.me\fR\|\.
+.
+.SS "In plain english"
+This is mine; not my employer\'s, not Node\'s, not Joyent\'s, not Ryan
+Dahl\'s\.
+.
+.P
+If you publish something, it\'s yours, and you are solely accountable
+for it\.  Not me, not Node, not Joyent, not Ryan Dahl\.
+.
+.P
+If other people publish something, it\'s theirs\.  Not mine, not Node\'s,
+not Joyent\'s, not Ryan Dahl\'s\.
+.
+.P
+Yes, you can publish something evil\.  It will be removed promptly if
+reported, and we\'ll lose respect for you\.  But there is no vetting
+process for published modules\.
+.
+.P
+If this concerns you, inspect the source before using packages\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help npm
+.
+.IP "\(bu" 4
+npm help faq
+.
+.IP "\(bu" 4
+npm help help
+.
+.IP "\(bu" 4
+npm help index
+.
+.IP "" 0
+

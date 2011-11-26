@@ -1,0 +1,99 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-LS" "1" "November 2011" "" ""
+.
+.SH "NAME"
+\fBnpm-ls\fR \-\- List installed packages
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm list
+npm ls
+npm la
+npm ll
+.
+.fi
+.
+.SH "DESCRIPTION"
+This command will print to stdout all the versions of packages that are
+installed, as well as their dependencies, in a tree\-structure\.
+.
+.P
+It does not take positional arguments, though you may set config flags
+like with any other command, such as \fB\-g\fR to list global packages\.
+.
+.P
+It will print out extraneous, missing, and invalid packages\.
+.
+.P
+When run as \fBll\fR or \fBla\fR, it shows extended information by default\.
+.
+.SH "CONFIGURATION"
+.
+.SS "long"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Show extended information\.
+.
+.SS "parseable"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Show parseable output instead of tree view\.
+.
+.SS "global"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+List packages in the global install prefix instead of in the current
+project\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help folders
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "\(bu" 4
+npm help link
+.
+.IP "\(bu" 4
+npm help prune
+.
+.IP "\(bu" 4
+npm help outdated
+.
+.IP "\(bu" 4
+npm help update
+.
+.IP "" 0
+
