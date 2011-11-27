@@ -1594,9 +1594,14 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     err = uv_dlsym(lib, "init", reinterpret_cast<void**>(&mod->register_func));
     if (err.code != UV_OK) {
       uv_dlclose(lib);
-      Local<Value> exception = Exception::Error(
-          String::New("Out of memory."));
-      return ThrowException(exception);
+
+      const char* message;
+      if (err.code == UV_ENOENT)
+        message = "Module entry point not found.";
+      else
+        message = "Out of memory.";
+
+      return ThrowException(Exception::Error(String::New(message)));
     }
     /* End Compatibility hack */
   }
