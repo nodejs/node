@@ -51,6 +51,9 @@ Note that all Node addons must export an initialization function:
 
 There is no semi-colon after `NODE_MODULE` as it's not a function (see `node.h`).
 
+The `module_name` needs to match the filename of the final binary (minus the
+.node suffix).
+
 The source code needs to be built into `hello.node`, the binary Addon. To
 do this we create a file called `wscript` which is python code and looks
 like this:
