@@ -52,9 +52,12 @@ function request(i) {
     var socket = req.socket;
     socket.on('close', function() {
       ++count;
-      assert.equal(http.globalAgent.sockets[name].length, max - count);
-      assert.equal(http.globalAgent.sockets[name].indexOf(socket), -1);
-      if (count === max) {
+      if (count < max) {
+        assert.equal(http.globalAgent.sockets[name].length, max - count);
+        assert.equal(http.globalAgent.sockets[name].indexOf(socket), -1);
+      } else {
+        assert(!http.globalAgent.sockets.hasOwnProperty(name));
+        assert(!http.globalAgent.requests.hasOwnProperty(name));
         server.close();
       }
     });
