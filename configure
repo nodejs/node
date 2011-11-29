@@ -103,6 +103,14 @@ parser.add_option("--dest-cpu",
 (options, args) = parser.parse_args()
 
 
+def b(value):
+  """Returns the string 'true' if value is truthy, 'false' otherwise."""
+  if value:
+    return 'true'
+  else:
+    return 'false'
+
+
 def pkg_config(pkg):
   cmd = os.popen('pkg-config --libs %s' % pkg, 'r')
   libs = cmd.readline().strip()
@@ -146,9 +154,9 @@ def target_arch():
 
 def configure_node(o):
   # TODO add gdb and dest_cpu
-  o['variables']['node_debug'] = 'true' if options.debug else 'false'
+  o['variables']['node_debug'] = b(options.debug)
   o['variables']['node_prefix'] = options.prefix if options.prefix else ''
-  o['variables']['node_use_dtrace'] = 'true' if options.with_dtrace else 'false'
+  o['variables']['node_use_dtrace'] = b(options.with_dtrace)
   o['variables']['host_arch'] = host_arch()
   o['variables']['target_arch'] = target_arch()
 
@@ -162,8 +170,8 @@ def configure_libz(o):
 
 
 def configure_v8(o):
-  o['variables']['v8_use_snapshot'] = 'true' if not options.without_snapshot else 'false'
-  o['variables']['node_shared_v8'] = 'true' if options.shared_v8 else 'false'
+  o['variables']['v8_use_snapshot'] = b(not options.without_snapshot)
+  o['variables']['node_shared_v8'] = b(options.shared_v8)
 
   # assume shared_v8 if one of these is set?
   if options.shared_v8_libpath:
@@ -175,7 +183,7 @@ def configure_v8(o):
 
 
 def configure_cares(o):
-  o['variables']['node_shared_cares'] = 'true' if options.shared_cares else 'false'
+  o['variables']['node_shared_cares'] = b(options.shared_cares)
 
   # assume shared_cares if one of these is set?
   if options.shared_cares_libpath:
@@ -185,7 +193,7 @@ def configure_cares(o):
 
 
 def configure_openssl(o):
-  o['variables']['node_use_openssl'] = 'false' if options.without_ssl else 'true'
+  o['variables']['node_use_openssl'] = b(not options.without_ssl)
 
   if options.without_ssl:
     return
@@ -206,10 +214,8 @@ def configure_openssl(o):
   else:
     o['cflags'] += cflags.split()
 
-  if libs or cflags or options.openssl_libpath or options.openssl_includes:
-    o['variables']['node_use_system_openssl'] = 'true'
-  else:
-    o['variables']['node_use_system_openssl'] = 'false'
+  o['variables']['node_use_system_openssl'] = b(
+    libs or cflags or options.openssl_libpath or options.openssl_includes)
 
 
 print "configure options:", options
