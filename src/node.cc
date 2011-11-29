@@ -1484,7 +1484,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
     heap_used_symbol = NODE_PSYMBOL("heapUsed");
   }
 
-  info->Set(rss_symbol, Integer::NewFromUnsigned(rss));
+  info->Set(rss_symbol, Number::New(rss));
 
   // V8 memory usage
   HeapStatistics v8_heap_stats;
