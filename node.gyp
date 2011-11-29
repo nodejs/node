@@ -130,6 +130,12 @@
       ],
 
       'conditions': [
+        [ 'node_use_isolates=="true"', {
+          'defines': [ 'HAVE_ISOLATES=1' ],
+        }, {
+          'defines': [ 'HAVE_ISOLATES=0' ],
+        }],
+
         [ 'node_use_openssl=="true"', {
           'defines': [ 'HAVE_OPENSSL=1' ],
           'sources': [ 'src/node_crypto.cc' ],
