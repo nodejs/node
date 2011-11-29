@@ -51,27 +51,6 @@ void uv_insert_pending_req(uv_loop_t* loop, uv_req_t* req) {
 }
 
 
-static uv_req_t* uv_remove_pending_req(uv_loop_t* loop) {
-  uv_req_t* req;
-
-  if (loop->pending_reqs_tail) {
-    req = loop->pending_reqs_tail->next_req;
-
-    if (req == loop->pending_reqs_tail) {
-      loop->pending_reqs_tail = NULL;
-    } else {
-      loop->pending_reqs_tail->next_req = req->next_req;
-    }
-
-    return req;
-
-  } else {
-    /* queue empty */
-    return NULL;
-  }
-}
-
-
 #define DELEGATE_STREAM_REQ(loop, req, method, handle_at)                     \
   do {                                                                        \
     switch (((uv_handle_t*) (req)->handle_at)->type) {                        \
@@ -101,8 +80,21 @@ static uv_req_t* uv_remove_pending_req(uv_loop_t* loop) {
 
 void uv_process_reqs(uv_loop_t* loop) {
   uv_req_t* req;
+  uv_req_t* first;
+  uv_req_t* next;
 
-  while (req = uv_remove_pending_req(loop)) {
+  if (loop->pending_reqs_tail == NULL) {
+    return;
+  }
+
+  first = loop->pending_reqs_tail->next_req;
+  next = first;
+  loop->pending_reqs_tail = NULL;
+
+  while (next != NULL) {
+    req = next;
+    next = req->next_req != first ? req->next_req : NULL;
+
     switch (req->type) {
       case UV_READ:
         DELEGATE_STREAM_REQ(loop, req, read, data);
