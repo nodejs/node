@@ -7,7 +7,8 @@ all: out/Makefile
 
 out/Release/node: all
 
-out/Makefile: node.gyp deps/uv/uv.gyp
+out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp options.gypi
+	tools/gyp_node -f make
 
 install uninstall:
 	@echo '`make $(@)` is not implemented yet. Bug bnoordhuis about it in #node.js'
