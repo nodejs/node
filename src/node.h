@@ -67,20 +67,8 @@
 #include <node_isolate.h>
 #include <node_object_wrap.h>
 
-#ifndef offset_of
-// g++ in strict mode complains loudly about the system offsetof() macro
-// because it uses NULL as the base address.
-#define offset_of(type, member) \
-  ((intptr_t) ((char *) &(((type *) 8)->member) - 8))
-#endif
-
-#ifndef container_of
-#define container_of(ptr, type, member) \
-  ((type *) ((char *) (ptr) - offset_of(type, member)))
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#if NODE_WANT_INTERNALS
+# include "node_internals.h"
 #endif
 
 #ifndef NODE_STRINGIFY

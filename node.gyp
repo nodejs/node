@@ -125,6 +125,7 @@
       ],
 
       'defines': [
+        'NODE_WANT_INTERNALS=1',
         'ARCH="<(target_arch)"',
         'PLATFORM="<(OS)"',
       ],
