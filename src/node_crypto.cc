@@ -2890,10 +2890,7 @@ class Hash : public ObjectWrap {
 
   bool HashInit (const char* hashType) {
     md = EVP_get_digestbyname(hashType);
-    if(!md) {
-      fprintf(stderr, "node-crypto : Unknown message digest %s\n", hashType);
-      return false;
-    }
+    if(!md) return false;
     EVP_MD_CTX_init(&mdctx);
     EVP_DigestInit_ex(&mdctx, md, NULL);
     initialised_ = true;
@@ -2917,13 +2914,16 @@ class Hash : public ObjectWrap {
         "Must give hashtype string as argument")));
     }
 
-    Hash *hash = new Hash();
-    hash->Wrap(args.This());
-
     String::Utf8Value hashType(args[0]->ToString());
 
-    hash->HashInit(*hashType);
+    Hash *hash = new Hash();
+    if (!hash->HashInit(*hashType)) {
+      delete hash;
+      return ThrowException(Exception::Error(String::New(
+        "Digest method not supported")));
+    }
 
+    hash->Wrap(args.This());
     return args.This();
   }
 

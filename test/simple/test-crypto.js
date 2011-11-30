@@ -278,6 +278,11 @@ fileStream.on('close', function() {
                'Test SHA1 of sample.png');
 });
 
+// Issue #2227: unknown digest method should throw an error.
+assert.throws(function() {
+  crypto.createHash('xyzzy');
+});
+
 // Test signing and verifying
 var s1 = crypto.createSign('RSA-SHA1')
                .update('Test123')
