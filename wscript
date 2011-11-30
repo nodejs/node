@@ -90,6 +90,13 @@ def set_options(opt):
                 , dest='efence'
                 )
 
+  opt.add_option( '--without-npm'
+                , action='store_true'
+                , default=False
+                , help='Don\'t install the bundled npm package manager [Release: False]'
+                , dest='without_npm'
+                )
+
   opt.add_option( '--without-snapshot'
                 , action='store_true'
                 , default=False
@@ -275,6 +282,7 @@ def configure(conf):
   conf.env["USE_SHARED_ZLIB"] = o.shared_zlib or o.shared_zlib_includes or o.shared_zlib_libpath
 
   conf.env["USE_GDBJIT"] = o.use_gdbjit
+  conf.env['USE_NPM'] = not o.without_npm
 
   if not conf.env["USE_SHARED_ZLIB"] and not sys.platform.startswith("win32"):
     conf.env.append_value("LINKFLAGS", "-lz")
@@ -969,7 +977,9 @@ def build(bld):
   bld.install_files('${PREFIX}/bin/', 'tools/node-waf', chmod=0755)
   bld.install_files('${LIBDIR}/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${LIBDIR}/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
-  install_npm(bld)
+
+  if bld.env['USE_NPM']:
+    install_npm(bld)
 
 def install_npm(bld):
   start_dir = bld.path.find_dir('deps/npm')
