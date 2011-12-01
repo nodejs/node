@@ -115,6 +115,7 @@ static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
 
+static bool print_eval = false;
 static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
@@ -1987,6 +1988,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // -e, --eval
   if (eval_string) {
     process->Set(String::NewSymbol("_eval"), String::New(eval_string));
+    process->Set(String::NewSymbol("_print_eval"), Boolean::New(print_eval));
   }
 
   size_t size = 2*PATH_MAX;
@@ -2127,6 +2129,7 @@ static void PrintHelp() {
          "Options:\n"
          "  -v, --version        print node's version\n"
          "  -e, --eval script    evaluate script\n"
+         "  -p, --print          print result of --eval\n"
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
@@ -2170,13 +2173,20 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
-    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0) {
+    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0 ||
+        strcmp(arg, "-pe") == 0) {
       if (argc <= i + 1) {
         fprintf(stderr, "Error: --eval requires an argument\n");
         exit(1);
       }
+      if (arg[1] == 'p') {
+        print_eval = true;
+      }
       argv[i] = const_cast<char*>("");
       eval_string = argv[++i];
+    } else if (strcmp(arg, "--print") == 0 || strcmp(arg, "-p") == 0) {
+      print_eval = true;
+      argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = const_cast<char*>("--help");
     } else if (argv[i][0] != '-') {
