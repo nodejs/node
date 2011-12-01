@@ -200,6 +200,8 @@ function parseField (f, k, emptyIsFalse) {
     case "undefined": return undefined
   }
 
+  f = envReplace(f)
+
   if (isPath) {
     if (f.substr(0, 2) === "~/" && process.env.HOME) {
       f = path.resolve(process.env.HOME, f.substr(2))
@@ -329,7 +331,7 @@ function snapshot (which) {
 }
 function get (key, which) {
   return (!key) ? snapshot(which)
-       : (!which) ? envReplace(configList.get(key)) // resolved
+       : (!which) ? configList.get(key) // resolved
        : configList.list[TRANS[which]]
          ? envReplace(configList.list[TRANS[which]][key])
        : undefined
