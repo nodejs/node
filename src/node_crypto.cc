@@ -1699,9 +1699,20 @@ static void HexEncode(unsigned char *md_value,
                       int* md_hex_len) {
   *md_hex_len = (2*(md_len));
   *md_hexdigest = new char[*md_hex_len + 1];
-  for (int i = 0; i < md_len; i++) {
-    snprintf((char *)(*md_hexdigest + (i*2)), 3, "%02x",  md_value[i]);
+
+  char* buff = *md_hexdigest;
+  const int len = *md_hex_len;
+  for (int i = 0; i < len; i += 2) {
+    // nibble nibble
+    const int index = i / 2;
+    const char msb = (md_value[index] >> 4) & 0x0f;
+    const char lsb = md_value[index] & 0x0f;
+
+    buff[i] = (msb < 10) ? msb + '0' : (msb - 10) + 'a';
+    buff[i + 1] = (lsb < 10) ? lsb + '0' : (lsb - 10) + 'a';
   }
+  // null terminator
+  buff[*md_hex_len] = '\0';
 }
 
 #define hex2i(c) ((c) <= '9' ? ((c) - '0') : (c) <= 'Z' ? ((c) - 'A' + 10) \
