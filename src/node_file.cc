@@ -540,10 +540,10 @@ static Handle<Value> Rename(const Arguments& args) {
 
 #ifndef _LARGEFILE_SOURCE
 #define ASSERT_TRUNCATE_LENGTH(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUInt32()) { \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUint32()) { \
     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
   }
-#define GET_TRUNCATE_LENGTH(a) ((a)->UInt32Value())
+#define GET_TRUNCATE_LENGTH(a) ((a)->Uint32Value())
 #else
 #define ASSERT_TRUNCATE_LENGTH(a) \
   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \
