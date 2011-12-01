@@ -271,3 +271,8 @@ void uv__pipe_accept(EV_P_ ev_io* watcher, int revents) {
 
   errno = saved_errno;
 }
+
+
+void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
+  return 0;
+}

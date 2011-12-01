@@ -772,6 +772,13 @@ UV_EXTERN int uv_pipe_bind(uv_pipe_t* handle, const char* name);
 UV_EXTERN void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb);
 
+/*
+ * This setting applies to Windows only.
+ * Set the number of pending pipe instance handles when the pipe server
+ * is waiting for connections.
+ */
+UV_EXTERN void uv_pipe_pending_instances(uv_pipe_t* handle, int count);
+
 
 /*
  * uv_prepare_t is a subclass of uv_handle_t.
