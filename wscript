@@ -469,11 +469,6 @@ def configure(conf):
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
 
-  # Apparently _LARGEFILE_SOURCE and _FILE_OFFSET_BITS isn't always enough
-  # on OS X, see https://github.com/joyent/node/issues/2061 for details.
-  if sys.platform.startswith('darwin') and conf.env['DEST_CPU'] == 'x64':
-    conf.env.append_value('CPPFLAGS', '-D__DARWIN_64_BIT_INO_T=1')
-
   # Makes select on windows support more than 64 FDs
   if sys.platform.startswith("win32"):
     conf.env.append_value('CPPFLAGS', '-DFD_SETSIZE=1024');
