@@ -140,9 +140,11 @@ static bool use_sni = true;
 static bool use_sni = false;
 #endif
 
+#ifdef __POSIX__
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
 static char getbuf[PATH_MAX + 1];
+#endif
 
 // We need to notify V8 when we're idle so that it can run the garbage
 // collector. The interface to this is V8::IdleNotification(). It returns
