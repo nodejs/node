@@ -47,8 +47,6 @@
 #include <unistd.h> /* setuid, getuid */
 #else
 #include <direct.h>
-#define chdir _chdir
-#define getcwd _getcwd
 #include <process.h>
 #define getpid _getpid
 #include <io.h>
@@ -1231,10 +1229,10 @@ static Handle<Value> Chdir(const Arguments& args) {
 
   String::Utf8Value path(args[0]->ToString());
 
-  int r = chdir(*path);
+  uv_err_t r = uv_chdir(*path);
 
-  if (r != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  if (r.code != UV_OK) {
+    return ThrowException(UVException(r.code, "uv_chdir"));
   }
 
   return Undefined();
@@ -1243,17 +1241,24 @@ static Handle<Value> Chdir(const Arguments& args) {
 
 static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
+#ifdef _WIN32
+  /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+  char buf[MAX_PATH * 4 + 1];
+#else
+  char buf[PATH_MAX + 1];
+#endif
 
-  char *r = getcwd(getbuf, ARRAY_SIZE(getbuf) - 1);
-  if (r == NULL) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  uv_err_t r = uv_cwd(buf, ARRAY_SIZE(buf) - 1);
+  if (r.code != UV_OK) {
+    return ThrowException(UVException(r.code, "uv_cwd"));
   }
 
-  getbuf[ARRAY_SIZE(getbuf) - 1] = '\0';
-  Local<String> cwd = String::New(r);
+  buf[ARRAY_SIZE(buf) - 1] = '\0';
+  Local<String> cwd = String::New(buf);
 
   return scope.Close(cwd);
 }
+
 
 #ifdef _WIN32
 static Handle<Value> CwdForDrive(const Arguments& args) {
