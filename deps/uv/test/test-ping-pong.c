@@ -154,7 +154,7 @@ static void tcp_pinger_v6_new() {
   pinger->state = 0;
   pinger->pongs = 0;
 
-  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  /* Try to connect to the server and do NUM_PINGS ping-pongs. */
   r = uv_tcp_init(uv_default_loop(), &pinger->stream.tcp);
   pinger->stream.tcp.data = pinger;
   ASSERT(!r);
@@ -179,7 +179,7 @@ static void tcp_pinger_new() {
   pinger->state = 0;
   pinger->pongs = 0;
 
-  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  /* Try to connect to the server and do NUM_PINGS ping-pongs. */
   r = uv_tcp_init(uv_default_loop(), &pinger->stream.tcp);
   pinger->stream.tcp.data = pinger;
   ASSERT(!r);
@@ -203,7 +203,7 @@ static void pipe_pinger_new() {
   pinger->state = 0;
   pinger->pongs = 0;
 
-  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  /* Try to connect to the server and do NUM_PINGS ping-pongs. */
   r = uv_pipe_init(uv_default_loop(), &pinger->stream.pipe, 0);
   pinger->stream.pipe.data = pinger;
   ASSERT(!r);

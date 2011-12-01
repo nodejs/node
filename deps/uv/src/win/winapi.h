@@ -4080,7 +4080,7 @@
 
 /* from ntifs.h */
 /* MinGW already has it */
-#ifndef __MINGW32__
+#if defined(_MSC_VER) || defined(__MINGW64__)
   typedef struct _REPARSE_DATA_BUFFER {
     ULONG  ReparseTag;
     USHORT ReparseDataLength;
@@ -4281,6 +4281,10 @@ typedef enum _FILE_INFORMATION_CLASS {
                                              FILE_SPECIAL_ACCESS)
 #endif
 
+#ifndef IO_REPARSE_TAG_SYMLINK
+# define IO_REPARSE_TAG_SYMLINK (0xA000000CL)
+#endif
+
 typedef VOID (NTAPI *PIO_APC_ROUTINE)
              (PVOID ApcContext,
               PIO_STATUS_BLOCK IoStatusBlock,
@@ -4333,6 +4337,19 @@ typedef NTSTATUS (NTAPI *sNtSetInformationFile)
   } OVERLAPPED_ENTRY, *LPOVERLAPPED_ENTRY;
 #endif
 
+/* from wincon.h */
+#ifndef ENABLE_INSERT_MODE
+# define ENABLE_INSERT_MODE 0x20
+#endif
+
+#ifndef ENABLE_QUICK_EDIT_MODE
+# define ENABLE_QUICK_EDIT_MODE 0x40
+#endif
+
+#ifndef ENABLE_EXTENDED_FLAGS
+# define ENABLE_EXTENDED_FLAGS 0x80
+#endif
+
 typedef BOOL (WINAPI *sGetQueuedCompletionStatusEx)
              (HANDLE CompletionPort,
               LPOVERLAPPED_ENTRY lpCompletionPortEntries,
@@ -4349,6 +4366,7 @@ typedef BOOLEAN (WINAPI* sCreateSymbolicLinkW)
                 (LPCWSTR lpSymlinkFileName,
                  LPCWSTR lpTargetFileName,
                  DWORD dwFlags);
+
 
 
 /* Ntapi function pointers */

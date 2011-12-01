@@ -186,7 +186,7 @@ static void pinger_new() {
   pinger->state = 0;
   pinger->pongs = 0;
 
-  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  /* Try to connect to the server and do NUM_PINGS ping-pongs. */
   r = uv_tcp_init(loop, &pinger->tcp);
   ASSERT(!r);
 

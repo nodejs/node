@@ -19,7 +19,7 @@
  * IN THE SOFTWARE.
  */
 
-/* FIXME we shouldnt need to branch in this file */
+/* FIXME we shouldn't need to branch in this file */
 #define UNIX (defined(__unix__) || defined(__POSIX__) || defined(__APPLE__))
 
 #include "uv.h"

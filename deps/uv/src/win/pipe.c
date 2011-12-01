@@ -249,7 +249,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
       return;
     }
 
-    /* Run FlushFileBuffers in the thhead pool. */
+    /* Run FlushFileBuffers in the thread pool. */
     result = QueueUserWorkItem(pipe_shutdown_thread_proc,
                                req,
                                WT_EXECUTELONGFUNCTION);

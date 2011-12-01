@@ -739,7 +739,7 @@ int uv_tty_read_start(uv_tty_t* handle, uv_alloc_cb alloc_cb,
   handle->read_cb = read_cb;
   handle->alloc_cb = alloc_cb;
 
-  /* If reading was stopped and then started again, there could stell be a */
+  /* If reading was stopped and then started again, there could still be a */
   /* read request pending. */
   if (handle->flags & UV_HANDLE_READ_PENDING) {
     return 0;
@@ -1258,7 +1258,8 @@ static int uv_tty_write_bufs(uv_tty_t* handle, uv_buf_t bufs[], int bufcnt,
 #ifdef _MSC_VER /* msvc */
         if (_BitScanReverse(&first_zero_bit, not_c)) {
 #else /* assume gcc */
-        if (first_zero_bit = __builtin_clzl(not_c), c != 0) {
+        if (c != 0) {
+          first_zero_bit = (sizeof(int) * 8) - 1 - __builtin_clz(not_c);
 #endif
           if (first_zero_bit == 7) {
             /* Ascii - pass right through */

@@ -91,7 +91,7 @@ static void uv_loop_init(uv_loop_t* loop) {
 
 
 static void uv_default_loop_init(void) {
-  /* Intialize libuv itself first */
+  /* Initialize libuv itself first */
   uv_once(&uv_init_guard_, uv_init);
 
   /* Initialize the main loop */

@@ -83,7 +83,7 @@ static void check_sockname(struct sockaddr* addr, const char* compare_ip,
   char check_ip[17];
   int r;
 
-  /* Both adresses should be ipv4 */
+  /* Both addresses should be ipv4 */
   ASSERT(check_addr.sin_family == AF_INET);
   ASSERT(compare_addr.sin_family == AF_INET);
 

@@ -21,46 +21,41 @@
 
 #include "uv.h"
 #include "task.h"
+#include <string.h>
 
-TEST_IMPL(tty) {
-  int r, width, height;
-  uv_tty_t tty;
-  uv_loop_t* loop = uv_default_loop();
+#define PATHMAX 1024
+extern char executable_path[];
 
-  /*
-   * Not necessarily a problem if this assert goes off. E.G you are piping
-   * this test to a file. 0 == stdin.
-   */
-  ASSERT(UV_TTY == uv_guess_handle(0));
+TEST_IMPL(cwd_and_chdir) {
+  char buffer_orig[PATHMAX];
+  char buffer_new[PATHMAX];
+  size_t size;
+  char* last_slash;
+  uv_err_t err;
 
-  r = uv_tty_init(uv_default_loop(), &tty, 0, 1);
-  ASSERT(r == 0);
+  size = sizeof(buffer_orig) / sizeof(buffer_orig[0]);
+  err = uv_cwd(buffer_orig, size);
+  ASSERT(err.code == UV_OK);
 
-  r = uv_tty_get_winsize(&tty, &width, &height);
-  ASSERT(r == 0);
+  last_slash = strrchr(buffer_orig,
+#ifdef _WIN32
+          '\\'
+#else
+          '/'
+#endif
+  );
 
-  printf("width=%d height=%d\n", width, height);
+  ASSERT(last_slash);
 
-  /*
-   * Is it a safe assumption that most people have terminals larger than
-   * 10x10?
-   */
-  ASSERT(width > 10);
-  ASSERT(height > 10);
+  *last_slash = '\0';
 
-  /* Turn on raw mode. */
-  r = uv_tty_set_mode(&tty, 1);
-  ASSERT(r == 0);
+  err = uv_chdir(buffer_orig);
+  ASSERT(err.code == UV_OK);
 
-  /* Turn off raw mode. */
-  r = uv_tty_set_mode(&tty, 0);
-  ASSERT(r == 0);
+  err = uv_cwd(buffer_new, size);
+  ASSERT(err.code == UV_OK);
 
-  /* TODO check the actual mode! */
-
-  uv_close((uv_handle_t*)&tty, NULL);
-
-  uv_run(loop);
+  ASSERT(strcmp(buffer_orig, buffer_new) == 0);
 
   return 0;
 }

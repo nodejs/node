@@ -58,7 +58,7 @@
  *   being started by a check_1 watcher. It verifies that a watcher is
  *   implicitly stopped when closed, and that a watcher can close itself
  *   safely.
- * - There is a repeating timer. It does not keep te event loop alive
+ * - There is a repeating timer. It does not keep the event loop alive
  *   (ev_unref) but makes sure that the loop keeps polling the system for
  *   events.
  */

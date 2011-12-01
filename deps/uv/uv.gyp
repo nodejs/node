@@ -9,9 +9,6 @@
           'EIO_STACKSIZE=262144'
         ],
         'conditions': [
-          ['OS=="mac"', {
-            'defines': ['__DARWIN_64_BIT_INO_T=1'],
-          }],
           ['OS=="solaris"', {
             'cflags': ['-pthreads'],
             'ldlags': ['-pthreads'],
@@ -281,6 +278,7 @@
         'test/test-error.c',
         'test/test-callback-stack.c',
         'test/test-connection-fail.c',
+        'test/test-cwd-and-chdir.c',
         'test/test-delayed-accept.c',
         'test/test-fail-always.c',
         'test/test-fs.c',
