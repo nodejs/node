@@ -212,7 +212,7 @@ See also the `strict-ssl` config.
 
 ### cache
 
-* Default: Windows: `~/npm-cache`, Posix: `~/.npm`
+* Default: Windows: `%APPDATA%\npm-cache`, Posix: `~/.npm`
 * Type: path
 
 The location of npm's cache directory.  See `npm-cache(1)`
@@ -473,6 +473,18 @@ Set to true to run in "production" mode.
 1. devDependencies are not installed at the topmost level when running
    local `npm install` without any arguments.
 2. Set the NODE_ENV="production" for lifecycle scripts.
+
+### proprietary-attribs
+
+* Default: true
+* Type: Boolean
+
+Whether or not to include proprietary extended attributes in the
+tarballs created by npm.
+
+Unless you are expecting to unpack package tarballs with something other
+than npm -- particularly a very outdated tar implementation -- leave
+this as true.
 
 ### proxy
 

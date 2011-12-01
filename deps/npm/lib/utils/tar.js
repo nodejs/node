@@ -45,6 +45,7 @@ function pack (targetTarball, folder, pkg, dfc, cb) {
   log.silly(folder, "makeList")
   makeList(folder, pkg, dfc, function (er, files, cleanup) {
     if (er) return cb(er)
+    // log.silly(files, "files")
     return packFiles(targetTarball, parent, files, pkg, function (er) {
       if (!cleanup || !cleanup.length) return cb(er)
       // try to be a good citizen, even/especially in the event of failure.
@@ -59,7 +60,7 @@ function pack (targetTarball, folder, pkg, dfc, cb) {
   })
 }
 
-function packFiles (targetTarball, parent, files, pkg, cb) {
+function packFiles (targetTarball, parent, files, pkg, cb_) {
 
   var p
 
@@ -70,16 +71,33 @@ function packFiles (targetTarball, parent, files, pkg, cb) {
 
   parent = path.resolve(parent, p)
 
+  var called = false
+  function cb (er) {
+    if (called) return
+    called = true
+    cb_(er)
+  }
+
   log.verbose(targetTarball, "tarball")
   log.verbose(parent, "parent")
   fstream.Reader({ type: "Directory"
                  , path: parent
                  , filter: function () {
+                     // files should *always* get into tarballs
+                     // in a user-writable state, even if they're
+                     // being installed from some wackey vm-mounted
+                     // read-only filesystem.
+                     this.props.mode = this.props.mode | 0200
                      return -1 !== files.indexOf(this.path)
                    }
                  })
     .on("error", log.er(cb, "error reading "+parent))
-    .pipe(tar.Pack())
+    // By default, npm includes some proprietary attributes in the
+    // package tarball.  This is sane, and allowed by the spec.
+    // However, npm *itself* excludes these from its own package,
+    // so that it can be more easily bootstrapped using old and
+    // non-compliant tar implementations.
+    .pipe(tar.Pack({ noProprietary: !npm.config.get("proprietary-attribs") }))
     .on("error", log.er(cb, "tar creation error "+targetTarball))
     .pipe(zlib.Gzip())
     .on("error", log.er(cb, "gzip error "+targetTarball))
@@ -276,7 +294,8 @@ function makeList (dir, pkg, dfc, cb) {
 
     makeList_(dir, pkg, exList, dfc, function (er, files, cleanup) {
       if (er) return cb(er)
-      var dirLen = dir.length + 1
+      var dirLen = dir.replace(/(\/|\\)$/, "").length + 1
+      log.silly([dir, dirLen], "dir, dirLen")
       files = files.map(function (file) {
         return path.join(name, file.substr(dirLen))
       })

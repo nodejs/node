@@ -29,6 +29,7 @@ function LinkWriter (props) {
 }
 
 LinkWriter.prototype._create = function () {
+  // console.error(" LW _create")
   var me = this
     , hard = me.type === "Link" || process.platform === "win32"
     , link = hard ? "link" : "symlink"
@@ -75,8 +76,14 @@ function create (me, lp, link) {
 function finish (me) {
   me.ready = true
   me.emit("ready")
+  if (me._ended && !me._finished) me._finish()
 }
 
 LinkWriter.prototype.end = function () {
-  this._finish()
+  // console.error("LW finish in end")
+  this._ended = true
+  if (this.ready) {
+    this._finished = true
+    this._finish()
+  }
 }

@@ -196,7 +196,7 @@ to trust only that specific signing authority.</p>
 
 <h3 id="cache">cache</h3>
 
-<ul><li>Default: Windows: <code>~/npm-cache</code>, Posix: <code>~/.npm</code></li><li>Type: path</li></ul>
+<ul><li>Default: Windows: <code>%APPDATA%\npm-cache</code>, Posix: <code>~/.npm</code></li><li>Type: path</li></ul>
 
 <p>The location of npm's cache directory.  See <code><a href="../doc/cache.html">cache(1)</a></code></p>
 
@@ -419,6 +419,17 @@ it forces non-global commands to run in the specified folder.</p>
 <ol><li>devDependencies are not installed at the topmost level when running
 local <code>npm install</code> without any arguments.</li><li>Set the NODE_ENV="production" for lifecycle scripts.</li></ol>
 
+<h3 id="proprietary-attribs">proprietary-attribs</h3>
+
+<ul><li>Default: true</li><li>Type: Boolean</li></ul>
+
+<p>Whether or not to include proprietary extended attributes in the
+tarballs created by npm.</p>
+
+<p>Unless you are expecting to unpack package tarballs with something other
+than npm -- particularly a very outdated tar implementation -- leave
+this as true.</p>
+
 <h3 id="proxy">proxy</h3>
 
 <ul><li>Default: <code>HTTP_PROXY</code> or <code>http_proxy</code> environment variable, or null</li><li>Type: url</li></ul>
@@ -586,7 +597,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.0-alpha-2</p>
+<p id="footer">config &mdash; npm@1.1.0-alpha-5</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

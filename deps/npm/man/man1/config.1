@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-CONFIG" "1" "November 2011" "" ""
+.TH "NPM\-CONFIG" "1" "December 2011" "" ""
 .
 .SH "NAME"
 \fBnpm-config\fR \-\- Manage the npm configuration file
@@ -344,7 +344,7 @@ See also the \fBstrict\-ssl\fR config\.
 .SS "cache"
 .
 .IP "\(bu" 4
-Default: Windows: \fB~/npm\-cache\fR, Posix: \fB~/\.npm\fR
+Default: Windows: \fB%APPDATA%\\npm\-cache\fR, Posix: \fB~/\.npm\fR
 .
 .IP "\(bu" 4
 Type: path
@@ -816,6 +816,25 @@ local \fBnpm install\fR without any arguments\.
 Set the NODE_ENV="production" for lifecycle scripts\.
 .
 .IP "" 0
+.
+.SS "proprietary\-attribs"
+.
+.IP "\(bu" 4
+Default: true
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+Whether or not to include proprietary extended attributes in the
+tarballs created by npm\.
+.
+.P
+Unless you are expecting to unpack package tarballs with something other
+than npm \-\- particularly a very outdated tar implementation \-\- leave
+this as true\.
 .
 .SS "proxy"
 .

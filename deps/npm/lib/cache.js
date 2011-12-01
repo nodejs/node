@@ -490,7 +490,8 @@ function addLocal (p, name, cb_) {
     if (er) {
       // if it doesn't have a / in it, it might be a
       // remote thing.
-      if (p.indexOf("/") === -1 && p.charAt(0) !== ".") {
+      if (p.indexOf("/") === -1 && p.charAt(0) !== "."
+         && (process.platform !== "win32" || p.indexOf("\\") === -1)) {
         return addNamed(p, "", cb_)
       }
       return log.er(cb_, "Could not install: "+p)(er)

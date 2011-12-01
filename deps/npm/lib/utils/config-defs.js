@@ -71,7 +71,10 @@ var temp = process.env.TMPDIR
 
 var home = ( process.platform === "win32"
            ? process.env.USERPROFILE
-           : process.env.HOME ) || temp
+           : process.env.HOME )
+
+if (home) process.env.HOME = home
+else home = temp
 
 var globalPrefix
 Object.defineProperty(exports, "defaults", {get: function () {
@@ -133,9 +136,10 @@ Object.defineProperty(exports, "defaults", {get: function () {
       "ZNufy1Jf1r0ldEGeA+0ISck7s+xSh9rQD2Op\n"+
       "-----END CERTIFICATE-----\n"
 
-    , cache : path.resolve( home || temp
-                          , process.platform === "win32"
-                            ? "npm-cache" : ".npm")
+    , cache : process.platform === "win32"
+            ? path.resolve(process.env.APPDATA || home || temp, "npm-cache")
+            : path.resolve( home || temp, ".npm")
+
     , color : process.platform !== "win32" || winColor
     , depth: Infinity
     , description : true
@@ -144,9 +148,8 @@ Object.defineProperty(exports, "defaults", {get: function () {
              ( process.platform === "win32" ? "notepad" : "vi" )
     , force : false
     , global : false
-    , globalconfig : path.resolve(process.execPath, "..", "..", "etc", "npmrc")
-    , globalignorefile : path.resolve( process.execPath
-                                     , "..", "..", "etc", "npmignore")
+    , globalconfig : path.resolve(globalPrefix, "etc", "npmrc")
+    , globalignorefile : path.resolve( globalPrefix, "etc", "npmignore")
     , group : process.platform === "win32" ? 0
             : process.env.SUDO_GID || (process.getgid && process.getgid())
     , ignore: ""
@@ -169,6 +172,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , pre: false
     , prefix : globalPrefix
     , production: false
+    , "proprietary-attribs": true
     , proxy : process.env.HTTP_PROXY || process.env.http_proxy || null
     , "https-proxy" : process.env.HTTPS_PROXY || process.env.https_proxy ||
                       process.env.HTTP_PROXY || process.env.http_proxy || null
@@ -178,7 +182,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , save : false
     , searchopts: ""
     , searchexclude: null
-    , shell : process.env.platform === "win32"
+    , shell : process.platform === "win32"
             ? process.env.ComSpec || "cmd"
             : process.env.SHELL || "bash"
     , "strict-ssl": true
@@ -242,6 +246,7 @@ exports.types =
   , pre: Boolean
   , prefix: path
   , production: Boolean
+  , "proprietary-attribs": Boolean
   , proxy : [null, url]
   , "rebuild-bundle" : Boolean
   , registry : [null, url]

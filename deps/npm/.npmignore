@@ -9,3 +9,4 @@ node_modules/ronn
 node_modules/.bin
 npm-debug.log
 ./npmrc
+.gitignore

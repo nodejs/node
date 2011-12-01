@@ -46,13 +46,14 @@ ProxyReader.prototype._stat = function () {
 
 ProxyReader.prototype._addProxy = function (proxy) {
   var me = this
-  if (me._proxy) {
+  if (me._proxyTarget) {
     return me.error("proxy already set")
   }
 
-  me._proxy = proxy
+  me._proxyTarget = proxy
+  proxy._proxy = me
+
   ; [ "error"
-    , "close"
     , "data"
     , "end"
     , "close"
@@ -60,6 +61,7 @@ ProxyReader.prototype._addProxy = function (proxy) {
     , "entry"
     , "warn"
     ].forEach(function (ev) {
+      // console.error("~~ proxy event", ev, me.path)
       proxy.on(ev, me.emit.bind(me, ev))
     })
 
@@ -79,9 +81,9 @@ ProxyReader.prototype._addProxy = function (proxy) {
 }
 
 ProxyReader.prototype.pause = function () {
-  return this._proxy ? this._proxy.pause() : false
+  return this._proxyTarget ? this._proxyTarget.pause() : false
 }
 
-ProxyReader.prototype.resume = function (c) {
-  return this._proxy ? this._proxy.resume() : false
+ProxyReader.prototype.resume = function () {
+  return this._proxyTarget ? this._proxyTarget.resume() : false
 }

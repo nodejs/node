@@ -304,7 +304,7 @@ function processObject (opts, cb) { return function (er, json) {
     log.verbose([json.prebuilt, opts], "has wscript")
     if (!scripts.install && !scripts.preinstall) {
       // don't fail if it was unexpected, just try.
-      scripts.preinstall = "node-waf clean || true; node-waf configure build"
+      scripts.preinstall = "node-waf clean || (exit 0); node-waf configure build"
       json.scripts = scripts
     }
   }

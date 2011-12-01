@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM" "1" "November 2011" "" ""
+.TH "NPM" "1" "December 2011" "" ""
 .
 .SH "NAME"
 \fBnpm\fR \-\- node package manager
@@ -13,13 +13,29 @@ This is just enough info to get you up and running\.
 Much more info available via \fBnpm help\fR once it\'s installed\.
 .
 .SH "IMPORTANT"
-\fBYou need node v0\.4 or higher to run this program\.\fR
+\fBYou need node v0\.6 or higher to run this program\.\fR
 .
 .P
 To install an old \fBand unsupported\fR version of npm that works on node 0\.3
 and prior, clone the git repo and dig through the old tags and branches\.
 .
-.SH "Simple Install (Unix only, sorry)"
+.SH "Super Easy Install"
+npm comes with node now\.
+.
+.SS "Windows Computers"
+Get the MSI\.  npm is in it\.
+.
+.SS "Apple Macintosh Computers"
+Get the pkg\.  npm is in it\.
+.
+.SS "Other Sorts of Unices"
+Run \fBmake install\fR\|\.  npm will be installed with node\.
+.
+.P
+If you want a more fancy pants install (a different version, customized
+paths, etc\.) then read on\.
+.
+.SH "Fancy Install (Unix)"
 To install npm with one command, do this:
 .
 .IP "" 4
@@ -56,88 +72,51 @@ curl http://npmjs\.org/install\.sh | clean=yes sh
 .IP "" 0
 .
 .P
-If you get permission errors, see the section below, entitled
-"Permission Errors on Installation"\.
+If you get permission errors, you\'ll need to \fBrun\fR the script as root\.
+(Note, just putting \fBsudo\fR in front of the \fBcurl\fR will \fBfetch\fR the script
+as root\.)
 .
-.SH "Installing on Windows \-\- Experimental"
-Yes, this sucks\.  A convenient one\-liner is coming soon\.
-.
-.SS "Step 1: Drop the node\.exe somewhere"
-You will probably need the latest version of node, \fBat least\fR version \fB0\.5\.8\fR or higher\.  You can get it from \fIhttp://nodejs\.org/dist/v0\.5\.8/node\.exe\fR\|\.
-.
-.SS "Step 2 (optional): Update the %PATH% environment variable"
-Update your \fB%PATH%\fR environment variable in System Properties:
-Advanced: Environment, so that it includes the \fBbin\fR folder you chose\.
-The entries are separated by semicolons\.
-.
-.P
-You \fImay\fR be able to do this from the command line using \fBset\fR and \fBsetx\fR\|\.  \fBcd\fR into the \fBbin\fR folder you created in step 1, and do this:
+.SS "Slightly Fancier"
+You can set any npm configuration params with that script:
 .
 .IP "" 4
 .
 .nf
-set path=%PATH%;%CD%
-setx path "%PATH%"
+curl http://npmjs\.org/install\.sh | npm_config_prefix=/some/path sh
 .
 .fi
 .
 .IP "" 0
 .
 .P
-This will have the added advantage that you\'ll be able to simply type \fBnpm\fR or \fBnode\fR in any project folder to access those commands\.
-.
-.P
-If you decide not to update the PATH, and put the node\.exe file in \fBC:\\node\\node\.exe\fR, then the npm executable will end up \fBC:\\node\\npm\.cmd\fR,
-and you\'ll have to type \fBC:\\node\\npm <command>\fR to use it\.
-.
-.SS "Step 3: Install git"
-If you don\'t already have git, install it \fIhttps://git\.wiki\.kernel\.org/index\.php/MSysGit:InstallMSysGit\fR\|\.
-.
-.P
-Run \fBgit \-\-version\fR to make sure that it\'s at least version 1\.7\.6\.
-.
-.SS "Step 4: install npm"
-Lastly, \fBafter\fR node\.exe, git, and your %PATH% have \fIall\fR been set up
-properly, install npm itself:
+Or, you can run it in uber\-debuggery mode:
 .
 .IP "" 4
 .
 .nf
-git config \-\-system http\.sslcainfo /bin/curl\-ca\-bundle\.crt
-git clone \-\-recursive git://github\.com/isaacs/npm\.git
-cd npm
-node cli\.js install npm \-gf
+curl http://npmjs\.org/install\.sh | npm_debug=1 sh
 .
 .fi
 .
 .IP "" 0
 .
-.SH "Permission Errors (`EACCES` or `EACCESS`) on Installation"
-On Windows, you may need to run the command prompt in elevated
-permission mode\.  (Right\-click on cmd\.exe, Run as Administrator\.)
+.SS "Even Fancier"
+Get the code with git\.  Use \fBmake\fR to build the docs and do other stuff\.
+If you plan on hacking on npm, \fBmake link\fR is your friend\.
 .
 .P
-On Unix, you may need to run as root, or use \fBsudo\fR\|\.
+If you\'ve got the npm source code, you can also semi\-permanently set
+arbitrary config keys using the \fB\|\./configure \-\-key=val \.\.\.\fR, and then
+run npm commands by doing \fBnode cli\.js <cmd> <args>\fR\|\.  (This is helpful
+for testing, or running stuff without actually installing npm itself\.)
+.
+.SH "Fancy Windows Install"
+You can download a zip file from \fIhttp://npmjs\.org/dist/\fR, and unpack it
+in the same folder where node\.exe lives\.
 .
 .P
-\fBNote\fR: You would need to \fBsudo\fR the \fBsh\fR, \fBnot\fR the \fBcurl\fR\|\.  Fetching
-stuff from the internet typically doesn\'t require elevated permissions\.
-Running it might\.
-.
-.P
-I highly recommend that you first download the file, and make sure that
-it is what you expect, and \fIthen\fR run it\.
-.
-.IP "" 4
-.
-.nf
-curl \-O http://npmjs\.org/install\.sh
-# inspect file\.\.
-sudo sh install\.sh
-.
-.fi
-.
-.IP "" 0
+If that\'s not fancy enough for you, then you can fetch the code with
+git, and mess with it directly\.
 .
 .SH "Installing on Cygwin"
 No\.
@@ -173,20 +152,6 @@ sudo make install
 .
 .P
 and npm will install itself\.
-.
-.P
-If you don\'t have make, and don\'t have curl or git, and ALL you have is
-this code and node, you can probably do this:
-.
-.IP "" 4
-.
-.nf
-git submodule update \-\-init \-\-recursive
-sudo node \./cli\.js install \-g
-.
-.fi
-.
-.IP "" 0
 .
 .P
 Note that github tarballs \fBdo not contain submodules\fR, so
@@ -387,6 +352,25 @@ process for published modules\.
 .
 .P
 If this concerns you, inspect the source before using packages\.
+.
+.SH "BUGS"
+When you find issues, please report them:
+.
+.IP "\(bu" 4
+web: \fIhttp://github\.com/isaacs/npm/issues\fR
+.
+.IP "\(bu" 4
+email: \fInpm\-@googlegroups\.com\fR
+.
+.IP "" 0
+.
+.P
+Be sure to include \fIall\fR of the output from the npm command that didn\'t work
+as expected\.  The \fBnpm\-debug\.log\fR file is also helpful to provide\.
+.
+.P
+You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
+will no doubt tell you to put the output in a gist or email\.
 .
 .SH "SEE ALSO"
 .

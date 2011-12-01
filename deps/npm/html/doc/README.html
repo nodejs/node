@@ -16,12 +16,31 @@
 
 <h2 id="IMPORTANT">IMPORTANT</h2>
 
-<p><strong>You need node v0.4 or higher to run this program.</strong></p>
+<p><strong>You need node v0.6 or higher to run this program.</strong></p>
 
 <p>To install an old <strong>and unsupported</strong> version of npm that works on node 0.3
 and prior, clone the git repo and dig through the old tags and branches.</p>
 
-<h2 id="Simple-Install-Unix-only-sorry">Simple Install (Unix only, sorry)</h2>
+<h2 id="Super-Easy-Install">Super Easy Install</h2>
+
+<p>npm comes with node now.</p>
+
+<h3 id="Windows-Computers">Windows Computers</h3>
+
+<p>Get the MSI.  npm is in it.</p>
+
+<h3 id="Apple-Macintosh-Computers">Apple Macintosh Computers</h3>
+
+<p>Get the pkg.  npm is in it.</p>
+
+<h3 id="Other-Sorts-of-Unices">Other Sorts of Unices</h3>
+
+<p>Run <code>make install</code>.  npm will be installed with node.</p>
+
+<p>If you want a more fancy pants install (a different version, customized
+paths, etc.) then read on.</p>
+
+<h2 id="Fancy-Install-Unix">Fancy Install (Unix)</h2>
 
 <p>To install npm with one command, do this:</p>
 
@@ -35,72 +54,37 @@ and prior, clone the git repo and dig through the old tags and branches.</p>
 
 <pre><code>curl http://npmjs.org/install.sh | clean=yes sh</code></pre>
 
-<p>If you get permission errors, see the section below, entitled
-"Permission Errors on Installation".</p>
+<p>If you get permission errors, you'll need to <strong>run</strong> the script as root.
+(Note, just putting <code>sudo</code> in front of the <code>curl</code> will <strong>fetch</strong> the script
+as root.)</p>
 
-<h2 id="Installing-on-Windows-Experimental">Installing on Windows -- Experimental</h2>
+<h3 id="Slightly-Fancier">Slightly Fancier</h3>
 
-<p>Yes, this sucks.  A convenient one-liner is coming soon.</p>
+<p>You can set any npm configuration params with that script:</p>
 
-<h3 id="Step-1-Drop-the-node-exe-somewhere">Step 1: Drop the node.exe somewhere</h3>
+<pre><code>curl http://npmjs.org/install.sh | npm_config_prefix=/some/path sh</code></pre>
 
-<p>You will probably need the latest version of node, <strong>at least</strong> version
-<code>0.5.8</code> or higher.  You can get it from
-<a href="http://nodejs.org/dist/v0.5.8/node.exe">http://nodejs.org/dist/v0.5.8/node.exe</a>.</p>
+<p>Or, you can run it in uber-debuggery mode:</p>
 
-<h3 id="Step-2-optional-Update-the-PATH-environment-variable">Step 2 (optional): Update the %PATH% environment variable</h3>
+<pre><code>curl http://npmjs.org/install.sh | npm_debug=1 sh</code></pre>
 
-<p>Update your <code>%PATH%</code> environment variable in System Properties:
-Advanced: Environment, so that it includes the <code>bin</code> folder you chose.
-The entries are separated by semicolons.</p>
+<h3 id="Even-Fancier">Even Fancier</h3>
 
-<p>You <em>may</em> be able to do this from the command line using <code>set</code> and
-<code>setx</code>.  <code>cd</code> into the <code>bin</code> folder you created in step 1, and do this:</p>
+<p>Get the code with git.  Use <code>make</code> to build the docs and do other stuff.
+If you plan on hacking on npm, <code>make link</code> is your friend.</p>
 
-<pre><code>set path=%PATH%;%CD%
-setx path "%PATH%"</code></pre>
+<p>If you've got the npm source code, you can also semi-permanently set
+arbitrary config keys using the <code>./configure --key=val ...</code>, and then
+run npm commands by doing <code>node cli.js &lt;cmd&gt; &lt;args&gt;</code>.  (This is helpful
+for testing, or running stuff without actually installing npm itself.)</p>
 
-<p>This will have the added advantage that you'll be able to simply type
-<code>npm</code> or <code>node</code> in any project folder to access those commands.</p>
+<h2 id="Fancy-Windows-Install">Fancy Windows Install</h2>
 
-<p>If you decide not to update the PATH, and put the node.exe file in
-<code>C:\node\node.exe</code>, then the npm executable will end up <code>C:\node\npm.cmd</code>,
-and you'll have to type <code>C:\node\npm &lt;command&gt;</code> to use it.</p>
+<p>You can download a zip file from <a href="http://npmjs.org/dist/">http://npmjs.org/dist/</a>, and unpack it
+in the same folder where node.exe lives.</p>
 
-<h3 id="Step-3-Install-git">Step 3: Install git</h3>
-
-<p>If you don't already have git,
-<a href="https://git.wiki.kernel.org/index.php/MSysGit:InstallMSysGit">install it</a>.</p>
-
-<p>Run <code>git --version</code> to make sure that it's at least version 1.7.6.</p>
-
-<h3 id="Step-4-install-npm">Step 4: install npm</h3>
-
-<p>Lastly, <strong>after</strong> node.exe, git, and your %PATH% have <em>all</em> been set up
-properly, install npm itself:</p>
-
-<pre><code>git config --system http.sslcainfo /bin/curl-ca-bundle.crt
-git clone --recursive git://github.com/isaacs/npm.git
-cd npm
-node cli.js install npm -gf</code></pre>
-
-<h2 id="Permission-Errors-EACCES-or-EACCESS-on-Installation">Permission Errors (`EACCES` or `EACCESS`) on Installation</h2>
-
-<p>On Windows, you may need to run the command prompt in elevated
-permission mode.  (Right-click on cmd.exe, Run as Administrator.)</p>
-
-<p>On Unix, you may need to run as root, or use <code>sudo</code>.</p>
-
-<p><strong>Note</strong>: You would need to <code>sudo</code> the <code>sh</code>, <strong>not</strong> the <code>curl</code>.  Fetching
-stuff from the internet typically doesn't require elevated permissions.
-Running it might.</p>
-
-<p>I highly recommend that you first download the file, and make sure that
-it is what you expect, and <em>then</em> run it.</p>
-
-<pre><code>curl -O http://npmjs.org/install.sh
-# inspect file..
-sudo sh install.sh</code></pre>
+<p>If that's not fancy enough for you, then you can fetch the code with
+git, and mess with it directly.</p>
 
 <h2 id="Installing-on-Cygwin">Installing on Cygwin</h2>
 
@@ -122,12 +106,6 @@ terminal, then you've already got the code.  Just do:</p>
 sudo make install</code></pre>
 
 <p>and npm will install itself.</p>
-
-<p>If you don't have make, and don't have curl or git, and ALL you have is
-this code and node, you can probably do this:</p>
-
-<pre><code>git submodule update --init --recursive
-sudo node ./cli.js install -g</code></pre>
 
 <p>Note that github tarballs <strong>do not contain submodules</strong>, so
 those won't work.  You'll have to also fetch the appropriate submodules
@@ -224,8 +202,7 @@ help config</code> to learn about all the options you can set there.</p>
 <h2 id="More-Docs">More Docs</h2>
 
 <p>Check out the <a href="http://npmjs.org/doc/">docs</a>,
-especially the
-<a href="http://npmjs.org/doc/faq.html">faq</a>.</p>
+especially the <a href="http://npmjs.org/doc/faq.html">faq</a>.</p>
 
 <p>You can use the <code>npm help</code> command to read any of them.</p>
 
@@ -272,11 +249,25 @@ process for published modules.</p>
 
 <p>If this concerns you, inspect the source before using packages.</p>
 
+<h2 id="BUGS">BUGS</h2>
+
+<p>When you find issues, please report them:</p>
+
+<ul><li>web:
+<a href="http://github.com/isaacs/npm/issues">http://github.com/isaacs/npm/issues</a></li><li>email:
+<a href="mailto:npm-@googlegroups.com">npm-@googlegroups.com</a></li></ul>
+
+<p>Be sure to include <em>all</em> of the output from the npm command that didn't work
+as expected.  The <code>npm-debug.log</code> file is also helpful to provide.</p>
+
+<p>You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
+will no doubt tell you to put the output in a gist or email.</p>
+
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/index.html">index(1)</a></li></ul>
 </div>
-<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.0-alpha-2</p>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.0-alpha-5</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

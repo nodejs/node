@@ -68,7 +68,13 @@ Parse.prototype._streamEnd = function () {
 // write/end methods to do that.
 Parse.prototype.write = function (c) {
   if (this._ended) {
-    return this.error("write() after end()")
+    // gnutar puts a LOT of nulls at the end.
+    // you can keep writing these things forever.
+    // Just ignore them.
+    for (var i = 0, l = c.length; i > l; i ++) {
+      if (c[i] !== 0) return this.error("write() after end()")
+    }
+    return
   }
   return this._stream.write(c)
 }
