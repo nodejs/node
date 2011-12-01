@@ -800,6 +800,82 @@ Local<Value> ErrnoException(int errorno,
 }
 
 
+static const char* get_uv_errno_string(int errorno) {
+  uv_err_t err;
+  memset(&err, 0, sizeof err);
+  err.code = (uv_err_code)errorno;
+  return uv_err_name(err);
+}
+
+
+static const char* get_uv_errno_message(int errorno) {
+  uv_err_t err;
+  memset(&err, 0, sizeof err);
+  err.code = (uv_err_code)errorno;
+  return uv_strerror(err);
+}
+
+
+// hack alert! copy of ErrnoException, tuned for uv errors
+Local<Value> UVException(int errorno,
+                         const char *syscall,
+                         const char *msg,
+                         const char *path) {
+  static Persistent<String> syscall_symbol;
+  static Persistent<String> errpath_symbol;
+  static Persistent<String> code_symbol;
+
+  if (syscall_symbol.IsEmpty()) {
+    syscall_symbol = NODE_PSYMBOL("syscall");
+    errno_symbol = NODE_PSYMBOL("errno");
+    errpath_symbol = NODE_PSYMBOL("path");
+    code_symbol = NODE_PSYMBOL("code");
+  }
+
+  if (!msg || !msg[0])
+    msg = get_uv_errno_message(errorno);
+
+  Local<String> estring = String::NewSymbol(errno_string(errorno));
+  Local<String> message = String::NewSymbol(msg);
+  Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
+  Local<String> cons2 = String::Concat(cons1, message);
+
+  Local<Value> e;
+
+  Local<String> path_str;
+
+  if (path) {
+#ifdef _WIN32
+    if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
+      path_str = String::Concat(String::New("\\\\"), String::New(path + 8));
+    } else if (strncmp(path, "\\\\?\\", 4) == 0) {
+      path_str = String::New(path + 4);
+    } else {
+      path_str = String::New(path);
+    }
+#else
+    path_str = String::New(path);
+#endif
+
+    Local<String> cons3 = String::Concat(cons2, String::NewSymbol(" '"));
+    Local<String> cons4 = String::Concat(cons3, path_str);
+    Local<String> cons5 = String::Concat(cons4, String::NewSymbol("'"));
+    e = Exception::Error(cons5);
+  } else {
+    e = Exception::Error(cons2);
+  }
+
+  Local<Object> obj = e->ToObject();
+
+  // TODO errno should probably go
+  obj->Set(errno_symbol, Integer::New(errorno));
+  obj->Set(code_symbol, estring);
+  if (path) obj->Set(errpath_symbol, path_str);
+  if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
+  return e;
+}
+
+
 #ifdef _WIN32
 Local<Value> WinapiErrnoException(int errorno,
                                   const char* syscall,
