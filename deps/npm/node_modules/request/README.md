@@ -237,7 +237,7 @@ request.jar()
     ;
   request(
     { method: 'PUT'
-    , uri: 'http://mikeal.couchone.com/testjs/' + rand
+    , uri: 'http://mikeal.iriscouch.com/testjs/' + rand
     , multipart: 
       [ { 'content-type': 'application/json'
         ,  body: JSON.stringify({foo: 'bar', _attachments: {'message.txt': {follows: true, length: 18, 'content_type': 'text/plain' }}})
@@ -247,7 +247,7 @@ request.jar()
     }
   , function (error, response, body) {
       if(response.statusCode == 201){
-        console.log('document saved as: http://mikeal.couchone.com/testjs/'+ rand)
+        console.log('document saved as: http://mikeal.iriscouch.com/testjs/'+ rand)
       } else {
         console.log('error: '+ response.statusCode)
         console.log(body)

@@ -27,7 +27,7 @@ var Cookie = exports = module.exports = function Cookie(str, req) {
   // Map the key/val pairs
   str.split(/ *; */).reduce(function(obj, pair){
     pair = pair.split(/ *= */);
-    obj[pair[0]] = pair[1] || true;
+    obj[pair[0].toLowerCase()] = pair[1] || true;
     return obj;
   }, this);
 
@@ -40,9 +40,7 @@ var Cookie = exports = module.exports = function Cookie(str, req) {
     : Infinity;
 
   // Default or trim path
-  this.path = this.path
-    ? this.path.trim()
-    : url.parse(req.url).pathname;
+  this.path = this.path || '/';
 };
 
 /**

@@ -39,6 +39,8 @@ static const uv_buf_t uv_null_buf_ = { 0, NULL };
 /* when the local ends wants to shut it down. */
 static const int64_t eof_timeout = 50; /* ms */
 
+static const int default_pending_pipe_instances = 4;
+
 /* IPC protocol flags. */
 #define UV_IPC_RAW_DATA   0x0001
 #define UV_IPC_UV_STREAM  0x0002
@@ -249,7 +251,7 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
       return;
     }
 
-    /* Run FlushFileBuffers in the thhead pool. */
+    /* Run FlushFileBuffers in the thread pool. */
     result = QueueUserWorkItem(pipe_shutdown_thread_proc,
                                req,
                                WT_EXECUTELONGFUNCTION);
@@ -293,6 +295,12 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
       }
     }
 
+    if (handle->flags & UV_HANDLE_PIPESERVER) {
+      assert(handle->accept_reqs);
+      free(handle->accept_reqs);
+      handle->accept_reqs = NULL;
+    }
+
     /* Remember the state of this flag because the close callback is */
     /* allowed to clobber or free the handle's memory */
     uv_alloced = handle->flags & UV_HANDLE_UV_ALLOCED;
@@ -307,6 +315,12 @@ void uv_pipe_endgame(uv_loop_t* loop, uv_pipe_t* handle) {
 
     uv_unref(loop);
   }
+}
+
+
+void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
+  handle->pending_instances = count;
+  handle->flags |= UV_HANDLE_PIPESERVER;
 }
 
 
@@ -326,7 +340,17 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
     return -1;
   }
 
-  for (i = 0; i < COUNTOF(handle->accept_reqs); i++) {
+  if (!(handle->flags & UV_HANDLE_PIPESERVER)) {
+    handle->pending_instances = default_pending_pipe_instances;
+  }
+
+  handle->accept_reqs = (uv_pipe_accept_t*)
+    malloc(sizeof(uv_pipe_accept_t) * handle->pending_instances);
+  if (!handle->accept_reqs) {
+    uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+  }
+
+  for (i = 0; i < handle->pending_instances; i++) {
     req = &handle->accept_reqs[i];
     uv_req_init(loop, (uv_req_t*) req);
     req->type = UV_ACCEPT;
@@ -537,14 +561,13 @@ void close_pipe(uv_pipe_t* handle, int* status, uv_err_t* err) {
   }
 
   if (handle->flags & UV_HANDLE_PIPESERVER) {
-    for (i = 0; i < COUNTOF(handle->accept_reqs); i++) {
+    for (i = 0; i < handle->pending_instances; i++) {
       pipeHandle = handle->accept_reqs[i].pipeHandle;
       if (pipeHandle != INVALID_HANDLE_VALUE) {
         CloseHandle(pipeHandle);
         handle->accept_reqs[i].pipeHandle = INVALID_HANDLE_VALUE;
       }
     }
-
   }
 
   if (handle->flags & UV_HANDLE_CONNECTION) {
@@ -686,7 +709,7 @@ int uv_pipe_listen(uv_pipe_t* handle, int backlog, uv_connection_cb cb) {
   /* First pipe handle should have already been created in uv_pipe_bind */
   assert(handle->accept_reqs[0].pipeHandle != INVALID_HANDLE_VALUE);
 
-  for (i = 0; i < COUNTOF(handle->accept_reqs); i++) {
+  for (i = 0; i < handle->pending_instances; i++) {
     uv_pipe_queue_accept(loop, handle, &handle->accept_reqs[i], i == 0);
   }
 

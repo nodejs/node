@@ -106,7 +106,7 @@ typedef intptr_t ssize_t;
   XX( 35, ENOSYS, "function not implemented") \
   XX( 36, EPIPE, "broken pipe") \
   XX( 37, EPROTO, "protocol error") \
-  XX( 38, EPROTONOSUPPORT, "protocol not suppored") \
+  XX( 38, EPROTONOSUPPORT, "protocol not supported") \
   XX( 39, EPROTOTYPE, "protocol wrong type for socket") \
   XX( 40, ETIMEDOUT, "connection timed out") \
   XX( 41, ECHARSET, "") \
@@ -226,7 +226,6 @@ UV_EXTERN int64_t uv_now(uv_loop_t*);
 /*
  * The status parameter is 0 if the request completed successfully,
  * and should be -1 if the request was cancelled or failed.
- * For uv_close_cb, -1 means that the handle was closed due to an error.
  * Error details can be obtained by calling uv_last_error().
  *
  * In the case of uv_read_cb the uv_buf_t returned should be freed by the
@@ -263,7 +262,7 @@ typedef void (*uv_after_work_cb)(uv_work_t* req);
 * This will be called repeatedly after the uv_fs_event_t is initialized.
 * If uv_fs_event_t was initialized with a directory the filename parameter
 * will be a relative path to a file contained in the directory.
-* The events paramenter is an ORed mask of enum uv_fs_event elements.
+* The events parameter is an ORed mask of enum uv_fs_event elements.
 */
 typedef void (*uv_fs_event_cb)(uv_fs_event_t* handle, const char* filename,
     int events, int status);
@@ -315,8 +314,8 @@ UV_PRIVATE_REQ_TYPES
  *
  * Shutdown the outgoing (write) side of a duplex stream. It waits for
  * pending write requests to complete. The handle should refer to a
- * initialized stream. req should be an uninitalized shutdown request
- * struct. The cb is a called after shutdown is complete.
+ * initialized stream. req should be an uninitialized shutdown request
+ * struct. The cb is called after shutdown is complete.
  */
 UV_EXTERN int uv_shutdown(uv_shutdown_t* req, uv_stream_t* handle,
     uv_shutdown_cb cb);
@@ -345,8 +344,8 @@ struct uv_handle_s {
 };
 
 /*
- * Returns 1 if the prepare/check/idle handle has been started, 0 otherwise.
- * For other handle types this always returns 1.
+ * Returns 1 if the prepare/check/idle/timer handle has been started, 0
+ * otherwise. For other handle types this always returns 1.
  */
 UV_EXTERN int uv_is_active(uv_handle_t* handle);
 
@@ -509,7 +508,7 @@ UV_EXTERN int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
  * uv_tcp_connect, uv_tcp_connect6
  * These functions establish IPv4 and IPv6 TCP connections. Provide an
  * initialized TCP handle and an uninitialized uv_connect_t*. The callback
- * will be made when the connection is estabished.
+ * will be made when the connection is established.
  */
 UV_EXTERN int uv_tcp_connect(uv_connect_t* req, uv_tcp_t* handle,
     struct sockaddr_in address, uv_connect_cb cb);
@@ -773,6 +772,13 @@ UV_EXTERN int uv_pipe_bind(uv_pipe_t* handle, const char* name);
 UV_EXTERN void uv_pipe_connect(uv_connect_t* req, uv_pipe_t* handle,
     const char* name, uv_connect_cb cb);
 
+/*
+ * This setting applies to Windows only.
+ * Set the number of pending pipe instance handles when the pipe server
+ * is waiting for connections.
+ */
+UV_EXTERN void uv_pipe_pending_instances(uv_pipe_t* handle, int count);
+
 
 /*
  * uv_prepare_t is a subclass of uv_handle_t.
@@ -884,7 +890,7 @@ UV_EXTERN int uv_timer_again(uv_timer_t* timer);
 
 /*
  * Set the repeat value. Note that if the repeat value is set from a timer
- * callback it does not immediately take effect. If the timer was nonrepeating
+ * callback it does not immediately take effect. If the timer was non-repeating
  * before, it will have been stopped. If it was repeating, then the old repeat
  * value will have been used to schedule the next timeout.
  */
@@ -938,7 +944,7 @@ typedef struct uv_process_options_s {
   const char* file; /* Path to program to execute. */
   /*
    * Command line arguments. args[0] should be the path to the program. On
-   * Windows this uses CreateProcess which concatinates the arguments into a
+   * Windows this uses CreateProcess which concatenates the arguments into a
    * string this can cause some strange errors. See the note at
    * windows_verbatim_arguments.
    */
@@ -962,7 +968,7 @@ typedef struct uv_process_options_s {
   /*
    * The user should supply pointers to initialized uv_pipe_t structs for
    * stdio. This is used to to send or receive input from the subprocess.
-   * The user is reponsible for calling uv_close on them.
+   * The user is responsible for calling uv_close on them.
    */
   uv_pipe_t* stdin_stream;
   uv_pipe_t* stdout_stream;
@@ -1022,7 +1028,7 @@ UV_EXTERN int uv_queue_work(uv_loop_t* loop, uv_work_t* req,
  * uninitialized uv_fs_t object.
  *
  * uv_fs_req_cleanup() must be called after completion of the uv_fs_
- * function to free any internal memory allocations associted with the
+ * function to free any internal memory allocations associated with the
  * request.
  */
 
@@ -1213,6 +1219,12 @@ UV_EXTERN int uv_ip6_name(struct sockaddr_in6* src, char* dst, size_t size);
 
 /* Gets the executable path */
 UV_EXTERN int uv_exepath(char* buffer, size_t* size);
+
+/* Gets the current working directory */
+UV_EXTERN uv_err_t uv_cwd(char* buffer, size_t size);
+
+/* Changes the current working directory */
+UV_EXTERN uv_err_t uv_chdir(const char* dir);
 
 /* Gets memory info in bytes */
 UV_EXTERN uint64_t uv_get_free_memory(void);

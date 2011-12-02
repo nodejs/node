@@ -1,0 +1,250 @@
+<!doctype html>
+<html>
+  <title>faq</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="./style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../doc/faq.html">faq</a></h1> <p>Frequently Asked Questions</p>
+
+<h2 id="Where-can-I-find-these-docs-in-HTML">Where can I find these docs in HTML?</h2>
+
+<p><a href="http://npmjs.org/doc/">http://npmjs.org/doc/</a>, or run:</p>
+
+<pre><code>npm config set viewer browser</code></pre>
+
+<p>to open these documents in your default web browser rather than <code>man</code>.</p>
+
+<h2 id="It-didn-t-work">It didn't work.</h2>
+
+<p>That's not really a question.</p>
+
+<h2 id="Why-didn-t-it-work">Why didn't it work?</h2>
+
+<p>I don't know yet.</p>
+
+<p>Read the error output, and if you can't figure out what it means,
+do what it says and post a bug with all the information it asks for.</p>
+
+<h2 id="Where-does-npm-put-stuff">Where does npm put stuff?</h2>
+
+<p>See <code><a href="../doc/folders.html">folders(1)</a></code></p>
+
+<p>tl;dr:</p>
+
+<ul><li>Use the <code>npm root</code> command to see where modules go, and the <code>npm bin</code>
+command to see where executables go</li><li>Global installs are different from local installs.  If you install
+something with the <code>-g</code> flag, then its executables go in <code>npm bin -g</code>
+and its modules go in <code>npm root -g</code>.</li></ul>
+
+<h2 id="How-do-I-install-something-everywhere">How do I install something everywhere?</h2>
+
+<p>Install it globally by tacking <code>-g</code> or <code>--global</code> to the command.</p>
+
+<h2 id="I-installed-something-globally-but-I-can-t-require-it">I installed something globally, but I can't `require()` it</h2>
+
+<p>Install it locally.</p>
+
+<h2 id="I-don-t-wanna">I don't wanna.</h2>
+
+<p>Check out <code>npm link</code>.  You might like it.</p>
+
+<h2 id="No-I-really-want-0-x-style-everything-global-style">No, I really want 0.x style 'everything global' style.</h2>
+
+<p>Ok, fine.  Do this:</p>
+
+<pre><code>echo 'export NODE_PATH="'$(npm root -g)'"' &gt;&gt; ~/.bashrc
+. ~/.bashrc
+npm config set global true</code></pre>
+
+<p>This is not recommended.</p>
+
+<p>Many things <strong>will not work</strong> if you do this.  Make sure you read and
+understand <code><a href="../doc/config.html">config(1)</a></code> and <code><a href="../doc/global.html">global(1)</a></code> before you complain
+about things being broken.</p>
+
+<p>When you realize what a mistake it was, do this to switch back:</p>
+
+<pre><code>npm config delete global --local</code></pre>
+
+<h2 id="If-npm-is-an-acronym-why-is-it-never-capitalized">If 'npm' is an acronym, why is it never capitalized?</h2>
+
+<p>Contrary to the belief of many, "npm" is not in fact an abbreviation for
+"Node Package Manager".  It is a recursive bacronymic abbreviation for
+"npm is not an acronym".  (If it was "ninaa", then it would be an
+acronym, and thus incorrectly named.)</p>
+
+<p>"NPM", however, <em>is</em> an acronym (more precisely, a capitonym) for the
+National Association of Pastoral Musicians.  You can learn more
+about them at <a href="http://npm.org/">http://npm.org/</a>.</p>
+
+<p>In software, "NPM" is a non-parametric mapping utility written by
+Chris Rorden.  You can analyze pictures of brains with it.  Learn more
+about the (capitalized) NPM program at <a href="http://www.cabiatl.com/mricro/npm/">http://www.cabiatl.com/mricro/npm/</a>.</p>
+
+<p>The first seed that eventually grew into this flower was a bash utility
+named "pm", which was a shortened descendent of "pkgmakeinst", a
+bash function that was used to install various different things on different
+platforms, most often using Yahoo's <code>yinst</code>.  If <code>npm</code> was ever an
+acronym for anything, it was <code>node pm</code> or maybe <code>new pm</code>.</p>
+
+<p>So, in all seriousness, the "npm" project is named after its command-line
+utility, which was organically selected to be easily typed by a right-handed
+programmer using a US QWERTY keyboard layout, ending with the
+right-ring-finger in a postition to type the <code>-</code> key for flags and
+other command-line arguments.  That command-line utility is always
+lower-case, though it starts most sentences it is a part of.</p>
+
+<h2 id="How-do-I-list-installed-packages">How do I list installed packages?</h2>
+
+<p><code>npm ls</code></p>
+
+<h2 id="How-do-I-search-for-packages">How do I search for packages?</h2>
+
+<p><code>npm search</code></p>
+
+<p>Arguments are greps.  <code>npm search jsdom</code> shows jsdom packages.</p>
+
+<h2 id="How-do-I-update-npm">How do I update npm?</h2>
+
+<pre><code>npm update npm -g</code></pre>
+
+<p>You can also update all outdated local packages by doing <code>npm update</code> without
+any arguments, or global packages by doing <code>npm update -g</code>.</p>
+
+<p>Occasionally, the version of npm will progress such that the current
+version cannot be properly installed with the version that you have
+installed already.  (Consider, if there is ever a bug in the <code>update</code>
+command.)</p>
+
+<p>In those cases, you can do this:</p>
+
+<pre><code>curl http://npmjs.org/install.sh | sh</code></pre>
+
+<h2 id="What-is-a-package">What is a `package`?</h2>
+
+<p>A package is:</p>
+
+<ul><li>a) a folder containing a program described by a package.json file</li><li>b) a gzipped tarball containing (a)</li><li>c) a url that resolves to (b)</li><li>d) a <code>&lt;name&gt;@&lt;version&gt;</code> that is published on the registry with (c)</li><li>e) a <code>&lt;name&gt;@&lt;tag&gt;</code> that points to (d)</li><li>f) a <code>&lt;name&gt;</code> that has a "latest" tag satisfying (e)</li><li>g) a <code>git</code> url that, when cloned, results in (a).</li></ul>
+
+<p>Even if you never publish your package, you can still get a lot of
+benefits of using npm if you just want to write a node program (a), and
+perhaps if you also want to be able to easily install it elsewhere
+after packing it up into a tarball (b).</p>
+
+<p>Git urls can be of the form:</p>
+
+<pre><code>git://github.com/user/project.git#commit-ish
+git+ssh://user@hostname:project.git#commit-ish
+git+http://user@hostname/project/blah.git#commit-ish
+git+https://user@hostname/project/blah.git#commit-ish</code></pre>
+
+<p>The <code>commit-ish</code> can be any tag, sha, or branch which can be supplied as
+an argument to <code>git checkout</code>.  The default is <code>master</code>.</p>
+
+<h2 id="How-do-I-install-node-with-npm">How do I install node with npm?</h2>
+
+<p>You don't.  Try one of these:</p>
+
+<ul><li><a href="http://github.com/isaacs/nave">http://github.com/isaacs/nave</a></li><li><a href="http://github.com/visionmedia/n">http://github.com/visionmedia/n</a></li><li><a href="http://github.com/creationix/nvm">http://github.com/creationix/nvm</a></li></ul>
+
+<h2 id="How-can-I-use-npm-for-development">How can I use npm for development?</h2>
+
+<p>See <code><a href="../doc/developers.html">developers(1)</a></code> and <code><a href="../doc/json.html">json(1)</a></code>.</p>
+
+<p>You'll most likely want to <code>npm link</code> your development folder.  That's
+awesomely handy.</p>
+
+<p>To set up your own private registry, check out <code><a href="../doc/registry.html">registry(1)</a></code>.</p>
+
+<h2 id="Can-I-list-a-url-as-a-dependency">Can I list a url as a dependency?</h2>
+
+<p>Yes.  It should be a url to a gzipped tarball containing a single folder
+that has a package.json in its root, or a git url.
+(See "what is a package?" above.)</p>
+
+<h2 id="How-do-I-symlink-to-a-dev-folder-so-I-don-t-have-to-keep-re-installing">How do I symlink to a dev folder so I don't have to keep re-installing?</h2>
+
+<p>See <code><a href="../doc/link.html">link(1)</a></code></p>
+
+<h2 id="The-package-registry-website-What-is-that-exactly">The package registry website.  What is that exactly?</h2>
+
+<p>See <code><a href="../doc/registry.html">registry(1)</a></code>.</p>
+
+<h2 id="What-s-up-with-the-insecure-channel-warnings">What's up with the insecure channel warnings?</h2>
+
+<p>Until node 0.4.10, there were problems sending big files over HTTPS.  That
+means that publishes go over HTTP by default in those versions of node.</p>
+
+<h2 id="I-forgot-my-password-and-can-t-publish-How-do-I-reset-it">I forgot my password, and can't publish.  How do I reset it?</h2>
+
+<p>Go to <a href="http://admin.npmjs.org/reset">http://admin.npmjs.org/reset</a>.</p>
+
+<h2 id="I-get-ECONNREFUSED-a-lot-What-s-up">I get ECONNREFUSED a lot.  What's up?</h2>
+
+<p>Either the registry is down, or node's DNS isn't able to reach out.
+This happens a lot if you don't follow <em>all</em> the steps in the Cygwin
+setup doc.</p>
+
+<p>To check if the registry is down, open up
+<a href="http://registry.npmjs.org/-/short">http://registry.npmjs.org/-/short</a>
+in a web browser.  This will also tell you if you are just unable to
+access the internet for some reason.</p>
+
+<p>If the registry IS down, let me know by emailing or posting an issue.
+We'll have someone kick it or something.</p>
+
+<h2 id="Who-does-npm">Who does npm?</h2>
+
+<p><code>npm view npm author</code></p>
+
+<p><code>npm view npm contributors</code></p>
+
+<h2 id="I-have-a-question-or-request-not-addressed-here-Where-should-I-put-it">I have a question or request not addressed here. Where should I put it?</h2>
+
+<p>Discuss it on the mailing list, or post an issue.</p>
+
+<ul><li><a href="mailto:npm-@googlegroups.com">npm-@googlegroups.com</a></li><li><a href="http://github.com/isaacs/npm/issues">http://github.com/isaacs/npm/issues</a></li></ul>
+
+<h2 id="Why-does-npm-hate-me">Why does npm hate me?</h2>
+
+<p>npm is not capable of hatred.  It loves everyone, especially you.</p>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li></ul>
+</div>
+<p id="footer">faq &mdash; npm@1.1.0-alpha-6</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>
+</body></html>

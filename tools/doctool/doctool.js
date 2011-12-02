@@ -110,6 +110,7 @@ if (argc > 3) {
     // go markdown.
     html = convertData(data);
     filename = path.basename(filename, '.markdown');
+    output = output.replace(/{{filename}}/g, filename);
 
     if (filename != "_toc" && filename != "index") {
       if (data) {

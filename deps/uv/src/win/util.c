@@ -20,12 +20,13 @@
  */
 
 #include <assert.h>
+#include <direct.h>
 #include <malloc.h>
 #include <string.h>
 
 #include "uv.h"
 #include "internal.h"
-#include "Tlhelp32.h"
+#include "tlhelp32.h"
 
 
 int uv_utf16_to_utf8(const wchar_t* utf16Buffer, size_t utf16Size,
@@ -94,6 +95,91 @@ done:
   }
 
   return retVal;
+}
+
+
+uv_err_t uv_cwd(char* buffer, size_t size) {
+  uv_err_t err;
+  size_t utf8Size;
+  wchar_t* utf16Buffer = NULL;
+
+  if (!buffer || !size) {
+    err.code = UV_EINVAL;
+    goto done;
+  }
+
+  utf16Buffer = (wchar_t*)malloc(sizeof(wchar_t) * size);
+  if (!utf16Buffer) {
+    err.code = UV_ENOMEM;
+    goto done;
+  }
+
+  if (!_wgetcwd(utf16Buffer, size - 1)) {
+    err = uv__new_sys_error(_doserrno);
+    goto done;
+  }
+
+  utf16Buffer[size - 1] = L'\0';
+
+  /* Convert to UTF-8 */
+  utf8Size = uv_utf16_to_utf8(utf16Buffer, -1, buffer, size);
+  if (utf8Size == 0) {
+    err = uv__new_sys_error(GetLastError());
+    goto done;
+  }
+
+  buffer[utf8Size] = '\0';
+  err = uv_ok_;
+
+done:
+  if (utf16Buffer) {
+    free(utf16Buffer);
+  }
+
+  return err;
+}
+
+
+uv_err_t uv_chdir(const char* dir) {
+  uv_err_t err;
+  wchar_t* utf16Buffer = NULL;
+  size_t utf16Size;
+
+  if (!dir) {
+    err.code = UV_EINVAL;
+    goto done;
+  }
+
+  utf16Size = uv_utf8_to_utf16(dir, NULL, 0);
+  if (!utf16Size) {
+    err = uv__new_sys_error(GetLastError());
+    goto done;
+  }
+
+  utf16Buffer = (wchar_t*)malloc(sizeof(wchar_t) * utf16Size);
+  if (!utf16Buffer) {
+    err.code = UV_ENOMEM;
+    goto done;
+  }
+
+  if (!uv_utf8_to_utf16(dir, utf16Buffer, utf16Size)) {
+    err = uv__new_sys_error(GetLastError());
+    goto done;
+  }
+
+  if (_wchdir(utf16Buffer) == -1) {
+    err = uv__new_sys_error(_doserrno);
+    goto done;
+  }
+
+  err = uv_ok_;
+
+done:
+  if (utf16Buffer) {
+    free(utf16Buffer);
+  }
+
+  return err;
 }
 
 

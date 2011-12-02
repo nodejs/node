@@ -97,7 +97,7 @@ void connection_fail(uv_connect_cb connect_cb) {
   /* There should be no servers listening on this port. */
   server_addr = uv_ip4_addr("127.0.0.1", TEST_PORT);
 
-  /* Try to connec to the server and do NUM_PINGS ping-pongs. */
+  /* Try to connect to the server and do NUM_PINGS ping-pongs. */
   r = uv_tcp_init(uv_default_loop(), &tcp);
   ASSERT(!r);
 

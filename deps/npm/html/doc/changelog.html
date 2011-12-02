@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <title>changelog</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="./style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../doc/changelog.html">changelog</a></h1> <p>Changes</p>
+
+<h2 id="HISTORY">HISTORY</h2>
+
+<h3 id="1-0">1.0</h3>
+
+<ul><li>Greatly simplified folder structure </li><li>Install locally (bundle by default) </li><li>Drastic rearchitecture</li></ul>
+
+<h3 id="0-3">0.3</h3>
+
+<ul><li>More correct permission/uid handling when running as root  </li><li>Require node 0.4.0  </li><li>Reduce featureset  </li><li>Packages without "main" modules don't export modules</li><li>Remove support for invalid JSON (since node doesn't support it)</li></ul>
+
+<h3 id="0-2">0.2</h3>
+
+<ul><li>First allegedly "stable" release</li><li>Most functionality implemented </li><li>Used shim files and <code>name@version</code> symlinks</li><li>Feature explosion</li><li>Kind of a mess</li></ul>
+
+<h3 id="0-1">0.1</h3>
+
+<ul><li>push to beta, and announce  </li><li>Solaris and Cygwin support</li></ul>
+
+<h3 id="0-0">0.0</h3>
+
+<ul><li>Lots of sketches and false starts; abandoned a few times</li><li>Core functionality established</li></ul>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li></ul>
+</div>
+<p id="footer">changelog &mdash; npm@1.1.0-alpha-6</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>
+</body></html>

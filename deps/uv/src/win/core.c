@@ -91,7 +91,7 @@ static void uv_loop_init(uv_loop_t* loop) {
 
 
 static void uv_default_loop_init(void) {
-  /* Intialize libuv itself first */
+  /* Initialize libuv itself first */
   uv_once(&uv_init_guard_, uv_init);
 
   /* Initialize the main loop */
@@ -204,13 +204,8 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
       uv_idle_invoke((loop));                                                 \
     }                                                                         \
                                                                               \
-    /* Completely flush all pending reqs and endgames. */                     \
-    /* We do even when we just called the idle callbacks because those may */ \
-    /* have closed handles or started requests that short-circuited. */       \
-    while ((loop)->pending_reqs_tail || (loop)->endgame_handles) {            \
-      uv_process_endgames((loop));                                            \
-      uv_process_reqs((loop));                                                \
-    }                                                                         \
+    uv_process_reqs((loop));                                                  \
+    uv_process_endgames((loop));                                              \
                                                                               \
     if ((loop)->refs <= 0) {                                                  \
       break;                                                                  \
@@ -218,7 +213,10 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
                                                                               \
     uv_prepare_invoke((loop));                                                \
                                                                               \
-    poll((loop), (loop)->idle_handles == NULL && (loop)->refs > 0);           \
+    poll((loop), (loop)->idle_handles == NULL &&                              \
+                 (loop)->pending_reqs_tail == NULL &&                         \
+                 (loop)->endgame_handles == NULL &&                           \
+                 (loop)->refs > 0);                                           \
                                                                               \
     uv_check_invoke((loop));                                                  \
   }

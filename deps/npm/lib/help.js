@@ -26,7 +26,7 @@ function help (args, cb) {
     return npm.commands["help-search"](args, num, cb)
   }
 
-  var section = args[0]
+  var section = npm.deref(args[0]) || args[0]
 
   if (section) {
     if ( npm.config.get("usage")
@@ -36,6 +36,7 @@ function help (args, cb) {
       npm.config.set("loglevel", "silent")
       return output.write(npm.commands[section].usage, cb)
     }
+
     var sectionPath = path.join( __dirname, "..", "man", "man" + num
                                , section + "." + num)
       , htmlPath = path.resolve( __dirname, "..", "html"
@@ -53,11 +54,13 @@ function help (args, cb) {
           })
           env.MANPATH = manpath
           var viewer = npm.config.get("viewer")
+
           switch (viewer) {
             case "woman":
               var a = ["-e", "(woman-find-file \"" + sectionPath + "\")"]
               exec("emacsclient", a, env, true, cb)
               break
+
             case "browser":
               var b = npm.config.get("browser")
               if (!b) {
@@ -71,6 +74,7 @@ function help (args, cb) {
                 exec(b, [htmlPath], env, false, function () {})
               }
               break
+
             default:
               exec("man", [num, section], env, true, cb)
           }
@@ -96,6 +100,8 @@ function help (args, cb) {
         , "    " + npm.config.get("userconfig")
         , "or on the command line via: npm <command> --key value"
         , "Config info can be viewed via: npm help config"
+        , ""
+        , "npm@" + npm.version + " " + path.dirname(__dirname)
         ].join("\n"), function () { cb(er) })
   })
 }

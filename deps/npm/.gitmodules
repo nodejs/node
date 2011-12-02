@@ -33,7 +33,7 @@
 	url = https://github.com/isaacs/node-which.git
 [submodule "node_modules/request"]
 	path = node_modules/request
-	url = https://github.com/isaacs/request.git
+	url = https://github.com/mikeal/request.git
 [submodule "node_modules/tar"]
 	path = node_modules/tar
 	url = git://github.com/isaacs/node-tar.git

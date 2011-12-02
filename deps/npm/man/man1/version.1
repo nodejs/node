@@ -1,0 +1,45 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM\-VERSION" "1" "December 2011" "" ""
+.
+.SH "NAME"
+\fBnpm-version\fR \-\- Bump a package version
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm version <newversion> [\-\-message commit\-message]
+.
+.fi
+.
+.SH "DESCRIPTION"
+Run this in a package directory to bump the version and write the new
+data back to the package\.json file\.
+.
+.P
+The \fBnewversion\fR argument should be a valid semver string, \fIor\fR a valid
+second argument to semver\.inc (one of "patch", "minor", or "major")\. In 
+the second case, the existing version will be incremented by that amount\.
+.
+.P
+If run in a git repo, it will also create a version commit and tag, and
+fail if the repo is not clean\.
+.
+.P
+If supplied with \fB\-\-message\fR (shorthand: \fB\-m\fR) command line option, npm
+will use it as a commit message when creating a version commit\.
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help init
+.
+.IP "\(bu" 4
+npm help json
+.
+.IP "\(bu" 4
+npm help semver
+.
+.IP "" 0
+

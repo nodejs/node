@@ -254,7 +254,7 @@ static wchar_t* path_search_walk_ext(const wchar_t *dir,
  * - CMD does not trim leading/trailing whitespace from path/pathex entries
  *   nor from the environment variables as a whole.
  *
- * - When cmd.exe cannot read a directory, it wil just skip it and go on
+ * - When cmd.exe cannot read a directory, it will just skip it and go on
  *   searching. However, unlike posix-y systems, it will happily try to run a
  *   file that is not readable/executable; if the spawn fails it will not
  *   continue searching.
@@ -400,7 +400,7 @@ wchar_t* quote_cmd_arg(const wchar_t *source, wchar_t *target) {
   }
 
   /*
-   * Expected intput/output:
+   * Expected input/output:
    *   input : hello"world
    *   output: "hello\"world"
    *   input : hello""world
@@ -1018,7 +1018,7 @@ int uv_spawn(uv_loop_t* loop, uv_process_t* process,
 
   } else {
     /* CreateProcessW failed, but this failure should be delivered */
-    /* asynchronously to retain unix compatibility. So pretent spawn */
+    /* asynchronously to retain unix compatibility. So pretend spawn */
     /* succeeded, and start a thread instead that prints an error */
     /* to the child's intended stderr. */
     process->spawn_errno = GetLastError();
@@ -1046,7 +1046,7 @@ done:
     close_child_stdio(process);
   } else {
     /* We're keeping the handles open, the thread pool is going to have */
-    /* it's way with them. But at least make them noninheritable. */
+    /* it's way with them. But at least make them non-inheritable. */
     int i;
     for (i = 0; i < COUNTOF(process->child_stdio); i++) {
       SetHandleInformation(child_stdio[i], HANDLE_FLAG_INHERIT, 0);

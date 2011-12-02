@@ -192,6 +192,12 @@ NODE_EXTERN v8::Local<v8::Value> ErrnoException(int errorno,
                                                 const char *syscall = NULL,
                                                 const char *msg = "",
                                                 const char *path = NULL);
+
+NODE_EXTERN v8::Local<v8::Value> UVException(int errorno,
+                                             const char *syscall = NULL,
+                                             const char *msg     = NULL,
+                                             const char *path    = NULL);
+
 #ifdef _WIN32
 NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(int errorno,
     const char *syscall = NULL,  const char *msg = "",

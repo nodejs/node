@@ -1,0 +1,302 @@
+<!doctype html>
+<html>
+  <title>README</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="./style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../doc/npm.html">npm</a></h1> <p>node package manager</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<p>This is just enough info to get you up and running.</p>
+
+<p>Much more info available via <code>npm help</code> once it's installed.</p>
+
+<h2 id="IMPORTANT">IMPORTANT</h2>
+
+<p><strong>You need node v0.6 or higher to run this program.</strong></p>
+
+<p>To install an old <strong>and unsupported</strong> version of npm that works on node 0.3
+and prior, clone the git repo and dig through the old tags and branches.</p>
+
+<h2 id="Super-Easy-Install">Super Easy Install</h2>
+
+<p>npm comes with node now.</p>
+
+<h3 id="Windows-Computers">Windows Computers</h3>
+
+<p>Get the MSI.  npm is in it.</p>
+
+<h3 id="Apple-Macintosh-Computers">Apple Macintosh Computers</h3>
+
+<p>Get the pkg.  npm is in it.</p>
+
+<h3 id="Other-Sorts-of-Unices">Other Sorts of Unices</h3>
+
+<p>Run <code>make install</code>.  npm will be installed with node.</p>
+
+<p>If you want a more fancy pants install (a different version, customized
+paths, etc.) then read on.</p>
+
+<h2 id="Fancy-Install-Unix">Fancy Install (Unix)</h2>
+
+<p>To install npm with one command, do this:</p>
+
+<pre><code>curl http://npmjs.org/install.sh | sh</code></pre>
+
+<p>To skip the npm 0.x cleanup, do this:</p>
+
+<pre><code>curl http://npmjs.org/install.sh | clean=no sh</code></pre>
+
+<p>To say "yes" to the 0.x cleanup, but skip the prompt:</p>
+
+<pre><code>curl http://npmjs.org/install.sh | clean=yes sh</code></pre>
+
+<p>If you get permission errors, you'll need to <strong>run</strong> the script as root.
+(Note, just putting <code>sudo</code> in front of the <code>curl</code> will <strong>fetch</strong> the script
+as root.)</p>
+
+<h3 id="Slightly-Fancier">Slightly Fancier</h3>
+
+<p>You can set any npm configuration params with that script:</p>
+
+<pre><code>curl http://npmjs.org/install.sh | npm_config_prefix=/some/path sh</code></pre>
+
+<p>Or, you can run it in uber-debuggery mode:</p>
+
+<pre><code>curl http://npmjs.org/install.sh | npm_debug=1 sh</code></pre>
+
+<h3 id="Even-Fancier">Even Fancier</h3>
+
+<p>Get the code with git.  Use <code>make</code> to build the docs and do other stuff.
+If you plan on hacking on npm, <code>make link</code> is your friend.</p>
+
+<p>If you've got the npm source code, you can also semi-permanently set
+arbitrary config keys using the <code>./configure --key=val ...</code>, and then
+run npm commands by doing <code>node cli.js &lt;cmd&gt; &lt;args&gt;</code>.  (This is helpful
+for testing, or running stuff without actually installing npm itself.)</p>
+
+<h2 id="Fancy-Windows-Install">Fancy Windows Install</h2>
+
+<p>You can download a zip file from <a href="http://npmjs.org/dist/">http://npmjs.org/dist/</a>, and unpack it
+in the same folder where node.exe lives.</p>
+
+<p>If that's not fancy enough for you, then you can fetch the code with
+git, and mess with it directly.</p>
+
+<h2 id="Installing-on-Cygwin">Installing on Cygwin</h2>
+
+<p>No.</p>
+
+<h2 id="Dev-Install">Dev Install</h2>
+
+<p>To install the latest <strong>unstable</strong> development version from git:</p>
+
+<pre><code>git clone https://github.com/isaacs/npm.git
+cd npm
+git submodule update --init --recursive
+sudo make install     # (or: `node cli.js install -gf`)</code></pre>
+
+<p>If you're sitting in the code folder reading this document in your
+terminal, then you've already got the code.  Just do:</p>
+
+<pre><code>git submodule update --init --recursive
+sudo make install</code></pre>
+
+<p>and npm will install itself.</p>
+
+<p>Note that github tarballs <strong>do not contain submodules</strong>, so
+those won't work.  You'll have to also fetch the appropriate submodules
+listed in the .gitmodules file.</p>
+
+<h2 id="Permissions-when-Using-npm-to-Install-Other-Stuff">Permissions when Using npm to Install Other Stuff</h2>
+
+<p><strong>tl;dr</strong></p>
+
+<ul><li>Use <code>sudo</code> for greater safety.  Or don't, if you prefer not to.</li><li>npm will downgrade permissions if it's root before running any build
+scripts that package authors specified.</li></ul>
+
+<h3 id="More-details">More details...</h3>
+
+<p>As of version 0.3, it is recommended to run npm as root.
+This allows npm to change the user identifier to the <code>nobody</code> user prior
+to running any package build or test commands.</p>
+
+<p>If you are not the root user, or if you are on a platform that does not
+support uid switching, then npm will not attempt to change the userid.</p>
+
+<p>If you would like to ensure that npm <strong>always</strong> runs scripts as the
+"nobody" user, and have it fail if it cannot downgrade permissions, then
+set the following configuration param:</p>
+
+<pre><code>npm config set unsafe-perm false</code></pre>
+
+<p>This will prevent running in unsafe mode, even as non-root users.</p>
+
+<h2 id="Uninstalling">Uninstalling</h2>
+
+<p>So sad to see you go.</p>
+
+<pre><code>sudo npm uninstall npm -g</code></pre>
+
+<p>Or, if that fails,</p>
+
+<pre><code>sudo make uninstall</code></pre>
+
+<h2 id="More-Severe-Uninstalling">More Severe Uninstalling</h2>
+
+<p>Usually, the above instructions are sufficient.  That will remove
+npm, but leave behind anything you've installed.</p>
+
+<p>If you would like to remove all the packages that you have installed,
+then you can use the <code>npm ls</code> command to find them, and then <code>npm rm</code> to
+remove them.</p>
+
+<p>To remove cruft left behind by npm 0.x, you can use the included
+<code>clean-old.sh</code> script file.  You can run it conveniently like this:</p>
+
+<pre><code>npm explore npm -g -- sh scripts/clean-old.sh</code></pre>
+
+<p>npm uses two configuration files, one for per-user configs, and another
+for global (every-user) configs.  You can view them by doing:</p>
+
+<pre><code>npm config get userconfig   # defaults to ~/.npmrc
+npm config get globalconfig # defaults to /usr/local/etc/npmrc</code></pre>
+
+<p>Uninstalling npm does not remove configuration files by default.  You
+must remove them yourself manually if you want them gone.  Note that
+this means that future npm installs will not remember the settings that
+you have chosen.</p>
+
+<h2 id="Using-npm-Programmatically">Using npm Programmatically</h2>
+
+<p>If you would like to use npm programmatically, you can do that.
+It's not very well documented, but it <em>is</em> rather simple.</p>
+
+<pre><code>var npm = require("npm")
+npm.load(myConfigObject, function (er) {
+  if (er) return handlError(er)
+  npm.commands.install(["some", "args"], function (er, data) {
+    if (er) return commandFailed(er)
+    // command succeeded, and data might have some info
+  })
+  npm.on("log", function (message) { .... })
+})</code></pre>
+
+<p>The <code>load</code> function takes an object hash of the command-line configs.
+The various <code>npm.commands.&lt;cmd&gt;</code> functions take an <strong>array</strong> of
+positional argument <strong>strings</strong>.  The last argument to any
+<code>npm.commands.&lt;cmd&gt;</code> function is a callback.  Some commands take other
+optional arguments.  Read the source.</p>
+
+<p>You cannot set configs individually for any single npm function at this
+time.  Since <code>npm</code> is a singleton, any call to <code>npm.config.set</code> will
+change the value for <em>all</em> npm commands in that process.</p>
+
+<p>See <code>./bin/npm-cli.js</code> for an example of pulling config values off of the
+command line arguments using nopt.  You may also want to check out <code>npm
+help config</code> to learn about all the options you can set there.</p>
+
+<h2 id="More-Docs">More Docs</h2>
+
+<p>Check out the <a href="http://npmjs.org/doc/">docs</a>,
+especially the <a href="http://npmjs.org/doc/faq.html">faq</a>.</p>
+
+<p>You can use the <code>npm help</code> command to read any of them.</p>
+
+<p>If you're a developer, and you want to use npm to publish your program,
+you should
+<a href="http://npmjs.org/doc/developers.html">read this</a></p>
+
+<h2 id="Legal-Stuff">Legal Stuff</h2>
+
+<p>"npm" and "the npm registry" are owned by Isaac Z. Schlueter.  All
+rights not explicitly granted in the MIT license are reserved. See the
+included LICENSE file for more details.</p>
+
+<p>"Node.js" and "node" are trademarks owned by Joyent, Inc.  npm is not
+officially part of the Node.js project, and is neither owned by nor
+officially affiliated with Joyent, Inc.</p>
+
+<p>The packages in the npm registry are not part of npm itself, and are the
+sole property of their respective maintainers.  While every effort is
+made to ensure accountability, there is absolutely no guarantee,
+warrantee, or assertion made as to the quality, fitness for a specific
+purpose, or lack of malice in any given npm package.  Modules
+published on the npm registry are not affiliated with or endorsed by
+Joyent, Inc., Isaac Z. Schlueter, Ryan Dahl, or the Node.js project.</p>
+
+<p>If you have a complaint about a package in the npm registry, and cannot
+resolve it with the package owner, please express your concerns to
+Isaac Z. Schlueter at <a href="mailto:i@izs.me">i@izs.me</a>.</p>
+
+<h3 id="In-plain-english">In plain english</h3>
+
+<p>This is mine; not my employer's, not Node's, not Joyent's, not Ryan
+Dahl's.</p>
+
+<p>If you publish something, it's yours, and you are solely accountable
+for it.  Not me, not Node, not Joyent, not Ryan Dahl.</p>
+
+<p>If other people publish something, it's theirs.  Not mine, not Node's,
+not Joyent's, not Ryan Dahl's.</p>
+
+<p>Yes, you can publish something evil.  It will be removed promptly if
+reported, and we'll lose respect for you.  But there is no vetting
+process for published modules.</p>
+
+<p>If this concerns you, inspect the source before using packages.</p>
+
+<h2 id="BUGS">BUGS</h2>
+
+<p>When you find issues, please report them:</p>
+
+<ul><li>web:
+<a href="http://github.com/isaacs/npm/issues">http://github.com/isaacs/npm/issues</a></li><li>email:
+<a href="mailto:npm-@googlegroups.com">npm-@googlegroups.com</a></li></ul>
+
+<p>Be sure to include <em>all</em> of the output from the npm command that didn't work
+as expected.  The <code>npm-debug.log</code> file is also helpful to provide.</p>
+
+<p>You can also look for isaacs in #node.js on irc://irc.freenode.net.  He
+will no doubt tell you to put the output in a gist or email.</p>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/help.html">help(1)</a></li><li><a href="../doc/index.html">index(1)</a></li></ul>
+</div>
+<p id="footer"><a href="../doc/README.html">README</a> &mdash; npm@1.1.0-alpha-6</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>
+</body></html>

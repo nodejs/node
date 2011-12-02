@@ -41,6 +41,10 @@ class PipeWrap : StreamWrap {
   static v8::Handle<v8::Value> Connect(const v8::Arguments& args);
   static v8::Handle<v8::Value> Open(const v8::Arguments& args);
 
+#ifdef _WIN32
+  static v8::Handle<v8::Value> SetPendingInstances(const v8::Arguments& args);
+#endif
+
   static void OnConnection(uv_stream_t* handle, int status);
   static void AfterConnect(uv_connect_t* req, int status);
 

@@ -198,8 +198,8 @@ Request.prototype.request = function () {
     } 
     if (!form) form = {}
     var oa = {}
-    for (i in form) oa[i] = form[i]
-    for (i in self.oauth) oa['oauth_'+i] = self.oauth[i]
+    for (var i in form) oa[i] = form[i]
+    for (var i in self.oauth) oa['oauth_'+i] = self.oauth[i]
     if (!oa.oauth_version) oa.oauth_version = '1.0'
     if (!oa.oauth_timestamp) oa.oauth_timestamp = Math.floor( (new Date()).getTime() / 1000 ).toString()
     if (!oa.oauth_nonce) oa.oauth_nonce = uuid().replace(/-/g, '')
@@ -215,7 +215,7 @@ Request.prototype.request = function () {
     var signature = oauth.hmacsign(self.method, baseurl, oa, consumer_secret, token_secret)
     
     // oa.oauth_signature = signature
-    for (i in form) {
+    for (var i in form) {
       if ( i.slice(0, 'oauth_') in self.oauth) {
         // skip 
       } else {

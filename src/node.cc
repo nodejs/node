@@ -47,8 +47,6 @@
 #include <unistd.h> /* setuid, getuid */
 #else
 #include <direct.h>
-#define chdir _chdir
-#define getcwd _getcwd
 #include <process.h>
 #define getpid _getpid
 #include <io.h>
@@ -115,6 +113,7 @@ static Persistent<String> uncaught_exception_symbol;
 static Persistent<String> emit_symbol;
 
 
+static bool print_eval = false;
 static char *eval_string = NULL;
 static int option_end_index = 0;
 static bool use_debug_agent = false;
@@ -141,9 +140,11 @@ static bool use_sni = true;
 static bool use_sni = false;
 #endif
 
+#ifdef __POSIX__
 // Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
 // scoped at file-level rather than method-level to avoid excess stack usage.
 static char getbuf[PATH_MAX + 1];
+#endif
 
 // We need to notify V8 when we're idle so that it can run the garbage
 // collector. The interface to this is V8::IdleNotification(). It returns
@@ -799,6 +800,82 @@ Local<Value> ErrnoException(int errorno,
 }
 
 
+static const char* get_uv_errno_string(int errorno) {
+  uv_err_t err;
+  memset(&err, 0, sizeof err);
+  err.code = (uv_err_code)errorno;
+  return uv_err_name(err);
+}
+
+
+static const char* get_uv_errno_message(int errorno) {
+  uv_err_t err;
+  memset(&err, 0, sizeof err);
+  err.code = (uv_err_code)errorno;
+  return uv_strerror(err);
+}
+
+
+// hack alert! copy of ErrnoException, tuned for uv errors
+Local<Value> UVException(int errorno,
+                         const char *syscall,
+                         const char *msg,
+                         const char *path) {
+  static Persistent<String> syscall_symbol;
+  static Persistent<String> errpath_symbol;
+  static Persistent<String> code_symbol;
+
+  if (syscall_symbol.IsEmpty()) {
+    syscall_symbol = NODE_PSYMBOL("syscall");
+    errno_symbol = NODE_PSYMBOL("errno");
+    errpath_symbol = NODE_PSYMBOL("path");
+    code_symbol = NODE_PSYMBOL("code");
+  }
+
+  if (!msg || !msg[0])
+    msg = get_uv_errno_message(errorno);
+
+  Local<String> estring = String::NewSymbol(get_uv_errno_string(errorno));
+  Local<String> message = String::NewSymbol(msg);
+  Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
+  Local<String> cons2 = String::Concat(cons1, message);
+
+  Local<Value> e;
+
+  Local<String> path_str;
+
+  if (path) {
+#ifdef _WIN32
+    if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
+      path_str = String::Concat(String::New("\\\\"), String::New(path + 8));
+    } else if (strncmp(path, "\\\\?\\", 4) == 0) {
+      path_str = String::New(path + 4);
+    } else {
+      path_str = String::New(path);
+    }
+#else
+    path_str = String::New(path);
+#endif
+
+    Local<String> cons3 = String::Concat(cons2, String::NewSymbol(" '"));
+    Local<String> cons4 = String::Concat(cons3, path_str);
+    Local<String> cons5 = String::Concat(cons4, String::NewSymbol("'"));
+    e = Exception::Error(cons5);
+  } else {
+    e = Exception::Error(cons2);
+  }
+
+  Local<Object> obj = e->ToObject();
+
+  // TODO errno should probably go
+  obj->Set(errno_symbol, Integer::New(errorno));
+  obj->Set(code_symbol, estring);
+  if (path) obj->Set(errpath_symbol, path_str);
+  if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
+  return e;
+}
+
+
 #ifdef _WIN32
 Local<Value> WinapiErrnoException(int errorno,
                                   const char* syscall,
@@ -1154,10 +1231,10 @@ static Handle<Value> Chdir(const Arguments& args) {
 
   String::Utf8Value path(args[0]->ToString());
 
-  int r = chdir(*path);
+  uv_err_t r = uv_chdir(*path);
 
-  if (r != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  if (r.code != UV_OK) {
+    return ThrowException(UVException(r.code, "uv_chdir"));
   }
 
   return Undefined();
@@ -1166,17 +1243,24 @@ static Handle<Value> Chdir(const Arguments& args) {
 
 static Handle<Value> Cwd(const Arguments& args) {
   HandleScope scope;
+#ifdef _WIN32
+  /* MAX_PATH is in characters, not bytes. Make sure we have enough headroom. */
+  char buf[MAX_PATH * 4 + 1];
+#else
+  char buf[PATH_MAX + 1];
+#endif
 
-  char *r = getcwd(getbuf, ARRAY_SIZE(getbuf) - 1);
-  if (r == NULL) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  uv_err_t r = uv_cwd(buf, ARRAY_SIZE(buf) - 1);
+  if (r.code != UV_OK) {
+    return ThrowException(UVException(r.code, "uv_cwd"));
   }
 
-  getbuf[ARRAY_SIZE(getbuf) - 1] = '\0';
-  Local<String> cwd = String::New(r);
+  buf[ARRAY_SIZE(buf) - 1] = '\0';
+  Local<String> cwd = String::New(buf);
 
   return scope.Close(cwd);
 }
+
 
 #ifdef _WIN32
 static Handle<Value> CwdForDrive(const Arguments& args) {
@@ -1484,7 +1568,7 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
     heap_used_symbol = NODE_PSYMBOL("heapUsed");
   }
 
-  info->Set(rss_symbol, Integer::NewFromUnsigned(rss));
+  info->Set(rss_symbol, Number::New(rss));
 
   // V8 memory usage
   HeapStatistics v8_heap_stats;
@@ -1594,9 +1678,14 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
     err = uv_dlsym(lib, "init", reinterpret_cast<void**>(&mod->register_func));
     if (err.code != UV_OK) {
       uv_dlclose(lib);
-      Local<Value> exception = Exception::Error(
-          String::New("Out of memory."));
-      return ThrowException(exception);
+
+      const char* message;
+      if (err.code == UV_ENOENT)
+        message = "Module entry point not found.";
+      else
+        message = "Out of memory.";
+
+      return ThrowException(Exception::Error(String::New(message)));
     }
     /* End Compatibility hack */
   }
@@ -1982,6 +2071,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // -e, --eval
   if (eval_string) {
     process->Set(String::NewSymbol("_eval"), String::New(eval_string));
+    process->Set(String::NewSymbol("_print_eval"), Boolean::New(print_eval));
   }
 
   size_t size = 2*PATH_MAX;
@@ -2122,6 +2212,7 @@ static void PrintHelp() {
          "Options:\n"
          "  -v, --version        print node's version\n"
          "  -e, --eval script    evaluate script\n"
+         "  -p, --print          print result of --eval\n"
          "  --v8-options         print v8 command line options\n"
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
@@ -2165,13 +2256,20 @@ static void ParseArgs(int argc, char **argv) {
     } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
       PrintHelp();
       exit(0);
-    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0) {
+    } else if (strcmp(arg, "--eval") == 0 || strcmp(arg, "-e") == 0 ||
+        strcmp(arg, "-pe") == 0) {
       if (argc <= i + 1) {
         fprintf(stderr, "Error: --eval requires an argument\n");
         exit(1);
       }
+      if (arg[1] == 'p') {
+        print_eval = true;
+      }
       argv[i] = const_cast<char*>("");
       eval_string = argv[++i];
+    } else if (strcmp(arg, "--print") == 0 || strcmp(arg, "-p") == 0) {
+      print_eval = true;
+      argv[i] = const_cast<char*>("");
     } else if (strcmp(arg, "--v8-options") == 0) {
       argv[i] = const_cast<char*>("--help");
     } else if (argv[i][0] != '-') {

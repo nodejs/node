@@ -77,6 +77,7 @@ TEST_DECLARE   (check_ref)
 TEST_DECLARE   (unref_in_prepare_cb)
 TEST_DECLARE   (async)
 TEST_DECLARE   (get_currentexe)
+TEST_DECLARE   (cwd_and_chdir)
 TEST_DECLARE   (get_memory)
 TEST_DECLARE   (hrtime)
 TEST_DECLARE   (getaddrinfo_basic)
@@ -217,6 +218,8 @@ TASK_LIST_START
   TEST_ENTRY  (async)
 
   TEST_ENTRY  (get_currentexe)
+
+  TEST_ENTRY  (cwd_and_chdir)
 
   TEST_ENTRY  (get_memory)
 

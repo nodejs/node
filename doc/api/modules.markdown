@@ -304,7 +304,7 @@ Where `$HOME` is the user's home directory, and `$PREFIX` is node's
 configured `installPrefix`.
 
 These are mostly for historic reasons.  You are highly encouraged to
-place your dependencies localy in `node_modules` folders.  They will be
+place your dependencies locally in `node_modules` folders.  They will be
 loaded faster, and more reliably.
 
 ### Accessing the main module

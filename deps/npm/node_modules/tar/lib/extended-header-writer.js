@@ -58,6 +58,14 @@ ExtendedHeaderWriter.prototype.end = function () {
   me._ended = true
 
   me._encodeFields()
+
+  if (me.props.size === 0) {
+    // nothing to write!
+    me._ready = true
+    me._stream.end()
+    return
+  }
+
   me._stream.write(TarHeader.encode(me.props))
   me.body.forEach(function (l) {
     me._stream.write(l)
@@ -75,14 +83,14 @@ ExtendedHeaderWriter.prototype._encodeFields = function () {
     this.fields.path = this.fields.prefix + "/" + this.fields.path
     this.fields.prefix = ""
   }
-  encodeFields(this.fields, "", this.body)
+  encodeFields(this.fields, "", this.body, this.fields.noProprietary)
   var me = this
   this.body.forEach(function (l) {
     me.props.size += l.length
   })
 }
 
-function encodeFields (fields, prefix, body) {
+function encodeFields (fields, prefix, body, nop) {
   // console.error(">> >> ehw encodeFields")
   // "%d %s=%s\n", <length>, <keyword>, <value>
   // The length is a decimal number, and includes itself and the \n
@@ -127,20 +135,25 @@ function encodeFields (fields, prefix, body) {
     }
 
     if (val && typeof val === "object" &&
-        !Buffer.isBuffer(val)) encodeFields(val, k, body)
+        !Buffer.isBuffer(val)) encodeFields(val, k, body, nop)
     else if (val === null || val === undefined) return
-    else body.push.apply(body, encodeField(k, val))
+    else body.push.apply(body, encodeField(k, val, nop))
   })
 
   return body
 }
 
-function encodeField (k, v) {
+function encodeField (k, v, nop) {
   // lowercase keys must be valid, otherwise prefix with
   // "NODETAR."
   if (k.charAt(0) === k.charAt(0).toLowerCase()) {
     var m = k.split(".")[0]
     if (!tar.knownExtended[m]) k = "NODETAR." + k
+  }
+
+  // no proprietary
+  if (nop && k.charAt(0) !== k.charAt(0).toLowerCase()) {
+    return []
   }
 
   if (typeof val === "number") val = val.toString(10)

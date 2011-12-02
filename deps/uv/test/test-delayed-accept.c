@@ -152,7 +152,7 @@ static void connect_cb(uv_connect_t* req, int status) {
   ASSERT(status == 0);
 
   /* Not that the server will send anything, but otherwise we'll never know */
-  /* when te server closes the connection. */
+  /* when the server closes the connection. */
   r = uv_read_start((uv_stream_t*)(req->handle), alloc_cb, read_cb);
   ASSERT(r == 0);
 

@@ -75,3 +75,7 @@ assert.doesNotThrow(function () {
   r.toString = null;
   util.inspect(r);
 });
+
+// GH-2225
+var x = { inspect: util.inspect };
+assert.ok(util.inspect(x).indexOf('inspect') != -1);

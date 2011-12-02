@@ -86,7 +86,7 @@ uint64_t uv_hrtime(void) {
     return 0;
   }
 
-  /* Because we have no guarantee about the order of magniture of the */
+  /* Because we have no guarantee about the order of magnitude of the */
   /* performance counter frequency, and there may not be much headroom to */
   /* multiply by NANOSEC without overflowing, we use 128-bit math instead. */
   return ((uint64_t) counter.LowPart * NANOSEC / uv_hrtime_frequency_) +

@@ -96,6 +96,10 @@ void PipeWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "connect", Connect);
   NODE_SET_PROTOTYPE_METHOD(t, "open", Open);
 
+#ifdef _WIN32
+  NODE_SET_PROTOTYPE_METHOD(t, "setPendingInstances", SetPendingInstances);
+#endif
+
   pipeConstructor = Persistent<Function>::New(t->GetFunction());
 
   target->Set(String::NewSymbol("Pipe"), pipeConstructor);
@@ -140,6 +144,21 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
 
   return scope.Close(Integer::New(r));
 }
+
+
+#ifdef _WIN32
+Handle<Value> PipeWrap::SetPendingInstances(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  int instances = args[0]->Int32Value();
+
+  uv_pipe_pending_instances(&wrap->handle_, instances);
+
+  return v8::Null();
+}
+#endif
 
 
 Handle<Value> PipeWrap::Listen(const Arguments& args) {

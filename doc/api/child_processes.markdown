@@ -204,7 +204,7 @@ This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
 instance, the returned object has a communication channel built-in. The
 channel is written to with `child.send(message, [sendHandle])` and messages
-are recieved by a `'message'` event on the child.
+are received by a `'message'` event on the child.
 
 For example:
 

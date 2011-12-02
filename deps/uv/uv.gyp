@@ -277,6 +277,7 @@
         'test/test-error.c',
         'test/test-callback-stack.c',
         'test/test-connection-fail.c',
+        'test/test-cwd-and-chdir.c',
         'test/test-delayed-accept.c',
         'test/test-fail-always.c',
         'test/test-fs.c',

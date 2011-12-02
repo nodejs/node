@@ -28,7 +28,7 @@ TEST_IMPL(tty) {
   uv_loop_t* loop = uv_default_loop();
 
   /*
-   * Not necessarally a problem if this assert goes off. E.G you are piping
+   * Not necessarily a problem if this assert goes off. E.G you are piping
    * this test to a file. 0 == stdin.
    */
   ASSERT(UV_TTY == uv_guess_handle(0));

@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
 
-  <?define sourcedir="$(var.ProjectDir)..\..\..\$(var.Configuration)\" ?>
+  <?define repoDir="$(var.ProjectDir)..\..\..\" ?>
+  <?define sourcedir="$(var.repoDir)\$(var.Configuration)\" ?>
 
   <Product Id="cc6c176e-e26c-48ec-8970-f58bd1d046cf"
            Name="node.js"
@@ -17,10 +18,22 @@
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
         <Directory Id="NodeRoot" Name="nodejs">
-          <Directory Id="NodeModulesFolder" Name="node_modules" />
+          <Directory Id="NodeModulesFolder" Name="node_modules">
+            <Directory Id="NPMFolder" Name="npm">
+              <Component Id="npmrc" Guid="55B2B03F-8F32-4D62-A54A-FA428615591D">
+                 <File Id="filenpmrc" KeyPath="yes" Source="$(var.repoDir)\tools\msvs\npm\npmrc" />
+              </Component>
+            </Directory>
+          </Directory>
           <Component Id="nodeexe" Guid="AEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodeexe" KeyPath="yes" Source="$(var.sourcedir)\node.exe" />
-            <Environment Id="Environment"
+            <Environment Id="npm_env"
+                         Action="set"             
+                         Name="PATH" 
+                         Part="last" 
+                         System="yes" 
+                         Value="[AppDataFolder]npm" />
+            <Environment Id="node_env"
                          Action="set"             
                          Name="PATH" 
                          Part="last" 
@@ -37,11 +50,24 @@
           <?endif?>
         </Directory>
       </Directory>
+      <Directory Id="AppDataFolder">
+        <Directory Id="NPMAppData" Name="npm">
+          <Component Id="npmappdata_folder" Guid="994B1F7F-60CD-4792-A96D-63BC7FFF29BF" Permanent="yes">
+            <RegistryKey Action="none" Key="dummy" Root="HKCU" >
+              <RegistryValue Type="integer"  Value="1" KeyPath="yes" />
+            </RegistryKey >
+            <CreateFolder/>
+            <RemoveFolder Id="RemoveAppData" On="uninstall" />
+          </Component>
+        </Directory>
+      </Directory>
     </Directory>
 
     <ComponentGroup Id="allfiles">
       <ComponentRef Id="nodeexe"/>
       <ComponentRef Id="npmcmd"/>
+      <ComponentRef Id="npmrc" />
+      <ComponentRef Id="npmappdata_folder" />
       <ComponentGroupRef Id="NPMFiles" />
       <?if $(var.Configuration) = Debug ?>
       <ComponentRef Id="nodepdb"/>

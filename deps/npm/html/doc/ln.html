@@ -1,0 +1,93 @@
+<!doctype html>
+<html>
+  <title>ln</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="./style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../doc/link.html">link</a></h1> <p>Symlink a package folder</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<pre><code>npm link (in package folder)
+npm link &lt;pkgname&gt;</code></pre>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>Package linking is a two-step process.</p>
+
+<p>First, <code>npm link</code> in a package folder will create a globally-installed
+symbolic link from <code>prefix/package-name</code> to the current folder.</p>
+
+<p>Next, in some other location, <code>npm link package-name</code> will create a
+symlink from the local <code>node_modules</code> folder to the global symlink.</p>
+
+<p>When creating tarballs for <code>npm publish</code>, the linked packages are
+"snapshotted" to their current state by resolving the symbolic links.</p>
+
+<p>This is
+handy for installing your own stuff, so that you can work on it and test it
+iteratively without having to continually rebuild.</p>
+
+<p>For example:</p>
+
+<pre><code>cd ~/projects/node-redis    # go into the package directory
+npm link                    # creates global link
+cd ~/projects/node-bloggy   # go into some other package directory.
+npm link redis              # link-install the package</code></pre>
+
+<p>Now, any changes to ~/projects/node-redis will be reflected in
+~/projects/node-bloggy/node_modules/redis/</p>
+
+<p>You may also shortcut the two steps in one.  For example, to do the
+above use-case in a shorter way:</p>
+
+<pre><code>cd ~/projects/node-bloggy  # go into the dir of your main project
+npm link ../node-redis     # link the dir of your dependency</code></pre>
+
+<p>The second line is the equivalent of doing:</p>
+
+<pre><code>(cd ../node-redis; npm link)
+npm link redis</code></pre>
+
+<p>That is, it first creates a global link, and then links the global
+installation target into your project's <code>node_modules</code> folder.</p>
+
+<h2 id="SEE-ALSO">SEE ALSO</h2>
+
+<ul><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/faq.html">faq(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/install.html">install(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/config.html">config(1)</a></li></ul>
+</div>
+<p id="footer">ln &mdash; npm@1.1.0-alpha-3</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>
+</body></html>

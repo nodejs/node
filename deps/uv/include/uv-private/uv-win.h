@@ -287,7 +287,8 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   LPFN_WSARECVFROM func_wsarecvfrom;
 
 #define uv_pipe_server_fields             \
-  uv_pipe_accept_t accept_reqs[4];        \
+  int pending_instances;                  \
+  uv_pipe_accept_t* accept_reqs;          \
   uv_pipe_accept_t* pending_accepts;
 
 #define uv_pipe_connection_fields         \

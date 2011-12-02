@@ -90,6 +90,13 @@ def set_options(opt):
                 , dest='efence'
                 )
 
+  opt.add_option( '--without-npm'
+                , action='store_true'
+                , default=False
+                , help='Don\'t install the bundled npm package manager [Release: False]'
+                , dest='without_npm'
+                )
+
   opt.add_option( '--without-snapshot'
                 , action='store_true'
                 , default=False
@@ -275,6 +282,7 @@ def configure(conf):
   conf.env["USE_SHARED_ZLIB"] = o.shared_zlib or o.shared_zlib_includes or o.shared_zlib_libpath
 
   conf.env["USE_GDBJIT"] = o.use_gdbjit
+  conf.env['USE_NPM'] = not o.without_npm
 
   if not conf.env["USE_SHARED_ZLIB"] and not sys.platform.startswith("win32"):
     conf.env.append_value("LINKFLAGS", "-lz")
@@ -460,11 +468,6 @@ def configure(conf):
   # LFS
   conf.env.append_value('CPPFLAGS',  '-D_LARGEFILE_SOURCE')
   conf.env.append_value('CPPFLAGS',  '-D_FILE_OFFSET_BITS=64')
-
-  # Apparently _LARGEFILE_SOURCE and _FILE_OFFSET_BITS isn't always enough
-  # on OS X, see https://github.com/joyent/node/issues/2061 for details.
-  if sys.platform.startswith('darwin') and conf.env['DEST_CPU'] == 'x64':
-    conf.env.append_value('CPPFLAGS', '-D__DARWIN_64_BIT_INO_T=1')
 
   # Makes select on windows support more than 64 FDs
   if sys.platform.startswith("win32"):
@@ -969,7 +972,9 @@ def build(bld):
   bld.install_files('${PREFIX}/bin/', 'tools/node-waf', chmod=0755)
   bld.install_files('${LIBDIR}/node/wafadmin', 'tools/wafadmin/*.py')
   bld.install_files('${LIBDIR}/node/wafadmin/Tools', 'tools/wafadmin/Tools/*.py')
-  install_npm(bld)
+
+  if bld.env['USE_NPM']:
+    install_npm(bld)
 
 def install_npm(bld):
   start_dir = bld.path.find_dir('deps/npm')

@@ -138,7 +138,7 @@ static void write_cb(uv_write_t* req, int status) {
   /* After the data has been sent, we're going to wait for a while, then */
   /* start reading. This makes us certain that the message has been echoed */
   /* back to our receive buffer when we start reading. This maximizes the */
-  /* tempation for the backend to use dirty stack for calling read_cb. */
+  /* temptation for the backend to use dirty stack for calling read_cb. */
   nested++;
   r = uv_timer_init(uv_default_loop(), &timer);
   ASSERT(r == 0);

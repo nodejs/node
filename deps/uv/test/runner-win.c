@@ -156,7 +156,7 @@ int process_wait(process_info_t *vec, int n, int timeout) {
   HANDLE handles[MAXIMUM_WAIT_OBJECTS];
   DWORD timeout_api, result;
 
-  /* If there's nothing to wait for, return immedately. */
+  /* If there's nothing to wait for, return immediately. */
   if (n == 0)
     return 0;
 

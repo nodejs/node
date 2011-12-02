@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+  <title>find</title>
+  <meta http-equiv="content-type" value="text/html;utf-8">
+  <link rel="stylesheet" type="text/css" href="./style.css">
+
+  <body>
+    <div id="wrapper">
+<h1><a href="../api/ls.html">ls</a></h1> <p>List installed packages</p>
+
+<h2 id="SYNOPSIS">SYNOPSIS</h2>
+
+<pre><code>npm.commands.ls(args, [silent,] callback)</code></pre>
+
+<h2 id="DESCRIPTION">DESCRIPTION</h2>
+
+<p>This command will print to stdout all the versions of packages that are
+installed, as well as their dependencies, in a tree-structure. It will also
+return that data using the callback.</p>
+
+<p>This command does not take any arguments, but args must be defined.
+Beyond that, if any arguments are passed in, npm will politely warn that it
+does not take positional arguments, though you may set config flags
+like with any other command, such as <code>global</code> to list global packages.</p>
+
+<p>It will print out extraneous, missing, and invalid packages.</p>
+
+<p>If the silent parameter is set to true, nothing will be output to the screen,
+but the data will still be returned.</p>
+
+<h2 id="CONFIGURATION">CONFIGURATION</h2>
+
+<h3 id="long">long</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>Show extended information.</p>
+
+<h3 id="parseable">parseable</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>Show parseable output instead of tree view.</p>
+
+<h3 id="global">global</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>List packages in the global install prefix instead of in the current
+project.</p>
+
+<p>Note, if parseable is set or long isn't set, then duplicates will be trimmed.
+This means that if a submodule a same dependency as a parent module, then the
+dependency will only be output once.</p>
+</div>
+<p id="footer">find &mdash; npm@1.1.0-alpha-3</p>
+<script>
+;(function () {
+var wrapper = document.getElementById("wrapper")
+var els = Array.prototype.slice.call(wrapper.getElementsByTagName("*"), 0)
+  .filter(function (el) {
+    return el.parentNode === wrapper
+        && el.tagName.match(/H[1-6]/)
+        && el.id
+  })
+var l = 2
+  , toc = document.createElement("ul")
+toc.innerHTML = els.map(function (el) {
+  var i = el.tagName.charAt(1)
+    , out = ""
+  while (i > l) {
+    out += "<ul>"
+    l ++
+  }
+  while (i < l) {
+    out += "</ul>"
+    l --
+  }
+  out += "<li><a href='#" + el.id + "'>" +
+    ( el.innerText || el.text || el.innerHTML)
+    + "</a>"
+  return out
+}).join("\n")
+toc.id = "toc"
+document.body.appendChild(toc)
+})()
+</script>
+</body></html>

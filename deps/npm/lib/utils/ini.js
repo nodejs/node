@@ -30,6 +30,8 @@ Object.defineProperty(exports, "keys",
   { get : function () { return configList.keys }})
 
 var fs = require("graceful-fs")
+  , fstream = require("fstream")
+  , rimraf = require("rimraf")
   , path = require("path")
   , nopt = require("nopt")
   , ini = require("ini")
@@ -42,11 +44,13 @@ var fs = require("graceful-fs")
           ? process.env.SUDO_UID : (process.getuid && process.getuid())
   , myGid = process.env.SUDO_GID !== undefined
           ? process.env.SUDO_GID : (process.getgid && process.getgid())
+
   , eol = process.platform === "win32" ? "\r\n" : "\n"
   , privateKey = null
   , defaultConfig
   , configList = new ProtoList()
   , types = configDefs.types
+
   , TRANS = exports.TRANS =
     { "default" : 5
     , "builtin": 4
@@ -83,14 +87,33 @@ function resolveConfigs (cli, cb_) {
   })
   cl.push(cli)
   cl.push(parseEnv(process.env))
+
   parseFile(cl.get("userconfig") || dc.userconfig, function (er, conf) {
     if (er) return cb(er)
     cl.push(conf)
+
+    // globalconfig and globalignorefile defaults
+    // need to respond to the "prefix" setting up to this point.
+    // Eg, `npm config get globalconfig --prefix ~/local` should
+    // return `~/local/etc/npmrc`
+    if (cl.get("prefix")) {
+      dc.globalconfig = path.resolve(cl.get("prefix"), "etc", "npmrc")
+      dc.globalignorefile = path.resolve(cl.get("prefix"), "etc", "npmignore")
+    }
+
     parseFile( cl.get("globalconfig") || dc.globalconfig
              , function (er, conf) {
       if (er) return cb(er)
+
+      if (conf.hasOwnProperty("prefix")) {
+        log.warn("Cannot set prefix in globalconfig file"
+                , cl.get("globalconfig"))
+        delete conf.prefix
+      }
+
       cl.push(conf)
       // the builtin config file, for distros to use.
+
       parseFile(path.resolve(__dirname, "../../npmrc"), function (er, conf) {
         if (er) conf = {}
         cl.push(conf)
@@ -176,12 +199,16 @@ function parseField (f, k, emptyIsFalse) {
     case "null": return null
     case "undefined": return undefined
   }
+
+  f = envReplace(f)
+
   if (isPath) {
     if (f.substr(0, 2) === "~/" && process.env.HOME) {
       f = path.resolve(process.env.HOME, f.substr(2))
     }
     f = path.resolve(f)
   }
+
   return f
 }
 
@@ -272,36 +299,28 @@ function saveConfigfile (file, config, which, cb) {
     data = ini.stringify(data)
     return (data.trim())
          ? writeConfigfile(file, data, which, cb)
-         : rmConfigfile(file, cb)
+         : rimraf(file, cb)
   })
 }
+
 function writeConfigfile (configfile, data, which, cb) {
   data = data.split(/\r*\n/).join(eol)
-  fs.writeFile
-    ( configfile, data, "utf8"
-    , function (er) {
-        if (er) log(er, "Failed saving "+configfile, cb)
-        else if (which) {
-          fs.chmod(configfile, which === "user" ? 0600 : 0644, function (e) {
-            if (e || which !== "user" || typeof myUid !== "number") {
-              return cb(e)
-            }
-            fs.chown(configfile, +myUid, +myGid, cb)
-          })
-        }
-        else cb()
-      }
-    )
+  var props = { type: "File", path: configfile }
+  if (which === "user") {
+    props.mode = 0600
+    if (typeof myUid === "number") {
+      props.uid = +myUid
+      props.gid = +myGid
+    }
+  } else {
+    props.mode = 0644
+  }
+  fstream.Writer(props)
+    .on("close", cb)
+    .on("error", cb)
+    .end(data)
 }
-function rmConfigfile (configfile, cb) {
-  fs.stat(configfile, function (e) {
-    if (e) return cb()
-    fs.unlink(configfile, function (er) {
-      if (er) log(er, "Couldn't remove "+configfile)
-      cb()
-    })
-  })
-}
+
 function snapshot (which) {
   var x = (!which) ? configList.snapshot
         : configList.list[TRANS[which]] ? configList.list[TRANS[which]]
@@ -313,9 +332,20 @@ function snapshot (which) {
 function get (key, which) {
   return (!key) ? snapshot(which)
        : (!which) ? configList.get(key) // resolved
-       : configList.list[TRANS[which]] ? configList.list[TRANS[which]][key]
+       : configList.list[TRANS[which]]
+         ? envReplace(configList.list[TRANS[which]][key])
        : undefined
 }
+
+function envReplace (f) {
+  if (typeof f !== "string" || !f) return f
+
+  // replace any ${ENV} values with the appropriate environ.
+  return f.replace(/\$\{([^}]+)\}/g, function (orig, name, i, s) {
+    return process.env[name] || orig
+  })
+}
+
 function del (key, which) {
   if (!which) configList.list.forEach(function (l) {
     delete l[key]

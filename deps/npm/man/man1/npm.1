@@ -1,0 +1,227 @@
+.\" Generated with Ronnjs/v0.1
+.\" http://github.com/kapouer/ronnjs/
+.
+.TH "NPM" "1" "December 2011" "" ""
+.
+.SH "NAME"
+\fBnpm\fR \-\- node package manager
+.
+.SH "SYNOPSIS"
+.
+.nf
+npm <command> [args]
+.
+.fi
+.
+.SH "VERSION"
+1.1.0-alpha-6
+.
+.SH "DESCRIPTION"
+npm is the package manager for the Node JavaScript platform\.  It puts
+modules in place so that node can find them, and manages dependency
+conflicts intelligently\.
+.
+.P
+It is extremely configurable to support a wide variety of use cases\.
+Most commonly, it is used to publish, discover, install, and develop node
+programs\.
+.
+.P
+Run \fBnpm help\fR to get a list of available commands\.
+.
+.SH "INTRODUCTION"
+You probably got npm because you want to install stuff\.
+.
+.P
+Use \fBnpm install blerg\fR to install the latest version of "blerg"\.  Check out \fBnpm help install\fR for more info\.  It can do a lot of stuff\.
+.
+.P
+Use the \fBnpm search\fR command to show everything that\'s available\.
+Use \fBnpm ls\fR to show everything you\'ve installed\.
+.
+.SH "DIRECTORIES"
+See \fBnpm help folders\fR to learn about where npm puts stuff\.
+.
+.P
+In particular, npm has two modes of operation:
+.
+.IP "\(bu" 4
+global mode:
+.
+.br
+npm installs packages into the install prefix at \fBprefix/lib/node_modules\fR and bins are installed in \fBprefix/bin\fR\|\.
+.
+.IP "\(bu" 4
+local mode:
+.
+.br
+npm installs packages into the current project directory, which
+defaults to the current working directory\.  Packages are installed to \fB\|\./node_modules\fR, and bins are installed to \fB\|\./node_modules/\.bin\fR\|\.
+.
+.IP "" 0
+.
+.P
+Local mode is the default\.  Use \fB\-\-global\fR or \fB\-g\fR on any command to
+operate in global mode instead\.
+.
+.SH "DEVELOPER USAGE"
+If you\'re using npm to develop and publish your code, check out the
+following help topics:
+.
+.IP "\(bu" 4
+json:
+Make a package\.json file\.  See \fBnpm help json\fR\|\.
+.
+.IP "\(bu" 4
+link:
+For linking your current working code into Node\'s path, so that you
+don\'t have to reinstall every time you make a change\.  Use \fBnpm link\fR to do this\.
+.
+.IP "\(bu" 4
+install:
+It\'s a good idea to install things if you don\'t need the symbolic link\.
+Especially, installing other peoples code from the registry is done via \fBnpm install\fR
+.
+.IP "\(bu" 4
+adduser:
+Create an account or log in\.  Creditials are stored in the
+user config file\.
+.
+.IP "\(bu" 4
+publish:
+Use the \fBnpm publish\fR command to upload your code to the registry\.
+.
+.IP "" 0
+.
+.SH "CONFIGURATION"
+npm is extremely configurable\.  It reads its configuration options from
+5 places\.
+.
+.IP "\(bu" 4
+Command line switches:
+.
+.br
+Set a config with \fB\-\-key val\fR\|\.  All keys take a value, even if they
+are booleans (the config parser doesn\'t know what the options are at
+the time of parsing\.)  If no value is provided, then the option is set
+to boolean \fBtrue\fR\|\.
+.
+.IP "\(bu" 4
+Environment Variables:
+.
+.br
+Set any config by prefixing the name in an environment variable with \fBnpm_config_\fR\|\.  For example, \fBexport npm_config_key=val\fR\|\.
+.
+.IP "\(bu" 4
+User Configs:
+.
+.br
+The file at $HOME/\.npmrc is an ini\-formatted list of configs\.  If
+present, it is parsed\.  If the \fBuserconfig\fR option is set in the cli
+or env, then that will be used instead\.
+.
+.IP "\(bu" 4
+Global Configs:
+.
+.br
+The file found at \.\./etc/npmrc (from the node executable, by default
+this resolves to /usr/local/etc/npmrc) will be parsed if it is found\.
+If the \fBglobalconfig\fR option is set in the cli, env, or user config,
+then that file is parsed instead\.
+.
+.IP "\(bu" 4
+Defaults:
+.
+.br
+npm\'s default configuration options are defined in
+lib/utils/config\-defs\.js\.  These must not be changed\.
+.
+.IP "" 0
+.
+.P
+See \fBnpm help config\fR for much much more information\.
+.
+.SH "CONTRIBUTIONS"
+Patches welcome!
+.
+.IP "\(bu" 4
+code:
+Read through \fBnpm help coding\-style\fR if you plan to submit code\.
+You don\'t have to agree with it, but you do have to follow it\.
+.
+.IP "\(bu" 4
+docs:
+If you find an error in the documentation, edit the appropriate markdown
+file in the "doc" folder\.  (Don\'t worry about generating the man page\.)
+.
+.IP "" 0
+.
+.P
+Contributors are listed in npm\'s \fBpackage\.json\fR file\.  You can view them
+easily by doing \fBnpm view npm contributors\fR\|\.
+.
+.P
+If you would like to contribute, but don\'t know what to work on, check
+the issues list or ask on the mailing list\.
+.
+.IP "\(bu" 4
+\fIhttp://github\.com/isaacs/npm/issues\fR
+.
+.IP "\(bu" 4
+\fInpm\-@googlegroups\.com\fR
+.
+.IP "" 0
+.
+.SH "BUGS"
+When you find issues, please report them:
+.
+.IP "\(bu" 4
+web: \fIhttp://github\.com/isaacs/npm/issues\fR
+.
+.IP "\(bu" 4
+email: \fInpm\-@googlegroups\.com\fR
+.
+.IP "" 0
+.
+.P
+Be sure to include \fIall\fR of the output from the npm command that didn\'t work
+as expected\.  The \fBnpm\-debug\.log\fR file is also helpful to provide\.
+.
+.P
+You can also look for isaacs in #node\.js on irc://irc\.freenode\.net\.  He
+will no doubt tell you to put the output in a gist or email\.
+.
+.SH "HISTORY"
+See npm help changelog
+.
+.SH "AUTHOR"
+Isaac Z\. Schlueter \fIhttp://blog\.izs\.me/\fR :: isaacs \fIhttps://github\.com/isaacs/\fR :: @izs \fIhttp://twitter\.com/izs\fR :: \fIi@izs\.me\fR
+.
+.SH "SEE ALSO"
+.
+.IP "\(bu" 4
+npm help help
+.
+.IP "\(bu" 4
+npm help faq
+.
+.IP "\(bu" 4
+README
+.
+.IP "\(bu" 4
+npm help json
+.
+.IP "\(bu" 4
+npm help install
+.
+.IP "\(bu" 4
+npm help config
+.
+.IP "\(bu" 4
+npm help index
+.
+.IP "\(bu" 4
+npm apihelp npm
+.
+.IP "" 0
+

@@ -56,11 +56,6 @@ static Persistent<String> errno_symbol;
 static Persistent<String> buf_symbol;
 static Persistent<String> oncomplete_sym;
 
-Local<Value> FSError(int errorno,
-                     const char *syscall = NULL,
-                     const char *msg     = NULL,
-                     const char *path    = NULL);
-
 
 #ifdef _LARGEFILE_SOURCE
 static inline int IsInt64(double x) {
@@ -91,12 +86,12 @@ static void After(uv_fs_t *req) {
     // If the request doesn't have a path parameter set.
 
     if (!req->path) {
-      argv[0] = FSError(req->errorno);
+      argv[0] = UVException(req->errorno);
     } else {
-      argv[0] = FSError(req->errorno,
-                        NULL,
-                        NULL,
-                        static_cast<const char*>(req->path));
+      argv[0] = UVException(req->errorno,
+                            NULL,
+                            NULL,
+                            static_cast<const char*>(req->path));
     }
   } else {
     // error value is empty or null for non-error.
@@ -210,82 +205,6 @@ struct fs_req_wrap {
 };
 
 
-const char* errno_string(int errorno) {
-  uv_err_t err;
-  memset(&err, 0, sizeof err);
-  err.code = (uv_err_code)errorno;
-  return uv_err_name(err);
-}
-
-
-const char* errno_message(int errorno) {
-  uv_err_t err;
-  memset(&err, 0, sizeof err);
-  err.code = (uv_err_code)errorno;
-  return uv_strerror(err);
-}
-
-
-// hack alert! copy of ErrnoException in node.cc, tuned for uv errors
-Local<Value> FSError(int errorno,
-                     const char *syscall,
-                     const char *msg,
-                     const char *path) {
-  static Persistent<String> syscall_symbol;
-  static Persistent<String> errpath_symbol;
-  static Persistent<String> code_symbol;
-
-  if (syscall_symbol.IsEmpty()) {
-    syscall_symbol = NODE_PSYMBOL("syscall");
-    errno_symbol = NODE_PSYMBOL("errno");
-    errpath_symbol = NODE_PSYMBOL("path");
-    code_symbol = NODE_PSYMBOL("code");
-  }
-
-  if (!msg || !msg[0])
-    msg = errno_message(errorno);
-
-  Local<String> estring = String::NewSymbol(errno_string(errorno));
-  Local<String> message = String::NewSymbol(msg);
-  Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
-  Local<String> cons2 = String::Concat(cons1, message);
-
-  Local<Value> e;
-
-  Local<String> path_str;
-
-  if (path) {
-#ifdef _WIN32
-    if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
-      path_str = String::Concat(String::New("\\\\"), String::New(path + 8));
-    } else if (strncmp(path, "\\\\?\\", 4) == 0) {
-      path_str = String::New(path + 4);
-    } else {
-      path_str = String::New(path);
-    }
-#else
-    path_str = String::New(path);
-#endif
-
-    Local<String> cons3 = String::Concat(cons2, String::NewSymbol(" '"));
-    Local<String> cons4 = String::Concat(cons3, path_str);
-    Local<String> cons5 = String::Concat(cons4, String::NewSymbol("'"));
-    e = Exception::Error(cons5);
-  } else {
-    e = Exception::Error(cons2);
-  }
-
-  Local<Object> obj = e->ToObject();
-
-  // TODO errno should probably go
-  obj->Set(errno_symbol, Integer::New(errorno));
-  obj->Set(code_symbol, estring);
-  if (path) obj->Set(errpath_symbol, path_str);
-  if (syscall) obj->Set(syscall_symbol, String::NewSymbol(syscall));
-  return e;
-}
-
-
 #define ASYNC_CALL(func, callback, ...)                           \
   FSReqWrap* req_wrap = new FSReqWrap();                          \
   int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
@@ -300,7 +219,7 @@ Local<Value> FSError(int errorno,
   int result = uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
   if (result < 0) {                                               \
     int code = uv_last_error(uv_default_loop()).code;             \
-    return ThrowException(FSError(code, #func, "", path));        \
+    return ThrowException(UVException(code, #func, "", path));    \
   }
 
 #define SYNC_REQ req_wrap.req
@@ -540,10 +459,10 @@ static Handle<Value> Rename(const Arguments& args) {
 
 #ifndef _LARGEFILE_SOURCE
 #define ASSERT_TRUNCATE_LENGTH(a) \
-  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUInt32()) { \
+  if (!(a)->IsUndefined() && !(a)->IsNull() && !(a)->IsUint32()) { \
     return ThrowException(Exception::TypeError(String::New("Not an integer"))); \
   }
-#define GET_TRUNCATE_LENGTH(a) ((a)->UInt32Value())
+#define GET_TRUNCATE_LENGTH(a) ((a)->Uint32Value())
 #else
 #define ASSERT_TRUNCATE_LENGTH(a) \
   if (!(a)->IsUndefined() && !(a)->IsNull() && !IsInt64((a)->NumberValue())) { \

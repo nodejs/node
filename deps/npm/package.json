@@ -1,8 +1,8 @@
 { "name": "npm"
-, "publishConfig": { "tag": "alpha" }
+, "publishConfig": { "tag": "alpha", "proprietary-attribs": false }
 , "description": "A package manager for node"
 , "keywords": [ "package manager", "modules", "install", "package.json" ]
-, "version": "1.1.0-alpha-2"
+, "version": "1.1.0-alpha-6"
 , "preferGlobal": true
 , "config": { "publishtest": false }
 , "homepage": "http://npmjs.org/"
@@ -29,7 +29,7 @@
   , "ini": "1"
   , "slide": "1"
   , "abbrev": "1"
-  , "graceful-fs": "1"
+  , "graceful-fs": "~1.1.1"
   , "minimatch": "0"
   , "nopt": "1"
   , "node-uuid": "~1.3"
@@ -37,12 +37,12 @@
   , "rimraf": "1"
   , "request": "~2.2"
   , "which": "1"
-  , "tar": "0.1 >=0.1.3"
-  , "fstream": "0.1"
+  , "tar": "~0.1.7"
+  , "fstream": "~0.1.5"
   , "block-stream": "*"
   , "inherits": "1"
   , "mkdirp": "0.1"
-  , "fast-list": "1"
+  , "fast-list": "~1.0.1"
   }
 , "bundleDependencies":
   [ "slide"

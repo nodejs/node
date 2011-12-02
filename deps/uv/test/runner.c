@@ -218,7 +218,7 @@ out:
   } else if (benchmark_output) {
     switch (process_output_size(main_proc)) {
      case -1:
-      LOGF("%s: (unavailabe)\n", test);
+      LOGF("%s: (unavailable)\n", test);
       break;
 
      case 0:
