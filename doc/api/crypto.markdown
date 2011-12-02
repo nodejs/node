@@ -120,6 +120,12 @@ Returns any remaining enciphered contents, with `output_encoding` being one of:
 
 Note: `cipher` object can not be used after `final()` method been called.
 
+### cipher.setAutoPadding(auto_padding=true)
+
+You can disable automatic padding of the input data to block size. If `auto_padding` is false,
+the length of the entire input data must be a multiple of the cipher's block size or `final` will fail.
+Useful for non-standard padding, e.g. using `0x0` instead of PKCS padding. You must call this before `cipher.final`.
+
 
 ### crypto.createDecipher(algorithm, password)
 
@@ -146,6 +152,12 @@ with `output_encoding` being one of: `'binary'`, `'ascii'` or `'utf8'`.
 Defaults to `'binary'`.
 
 Note: `decipher` object can not be used after `final()` method been called.
+
+### decipher.setAutoPadding(auto_padding=true)
+
+You can disable auto padding if the data has been encrypted without standard block padding to prevent
+`decipher.final` from checking and removing it. Can only work if the input data's length is a multiple of the
+ciphers block size. You must call this before streaming data to `decipher.update`.
 
 
 ### crypto.createSign(algorithm)
