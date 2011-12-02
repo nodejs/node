@@ -835,7 +835,7 @@ Local<Value> UVException(int errorno,
   if (!msg || !msg[0])
     msg = get_uv_errno_message(errorno);
 
-  Local<String> estring = String::NewSymbol(errno_string(errorno));
+  Local<String> estring = String::NewSymbol(get_uv_errno_string(errorno));
   Local<String> message = String::NewSymbol(msg);
   Local<String> cons1 = String::Concat(estring, String::NewSymbol(", "));
   Local<String> cons2 = String::Concat(cons1, message);
