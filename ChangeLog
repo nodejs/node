@@ -1,4 +1,29 @@
-2011.11.25, Version 0.6.3 (stable)
+2011.12.02, Version 0.6.4 (stable), 9170077f13e5e5475b23d1d3c2e7f69bfe139727
+
+* doc improvements (Kyle Young, Tim Oxley, Roman Shtylman, Mathias Bynens)
+
+* upgrade bundled npm (Isaac Schlueter)
+
+* polish Windows installer (Igor Zinkovsky, Isaac Schlueter)
+
+* punycode: upgrade to v0.2.1 (Mathias Bynens)
+
+* build: add –without-npm flag to configure script
+
+* sys: deprecate module some more, print stack trace if NODE_DEBUG=sys
+
+* cli: add -p switch, prints result of –eval
+
+* #1997: fix Blowfish ECB encryption and decryption (Ingmar Runge)
+
+* #2223: fix socket ‘close’ event being emitted twice
+
+* #2224: fix RSS memory usage > 4 GB reporting (Russ Bradberry)
+
+* #2225: fix util.inspect() object stringification bug (Nathan Rajlich)
+
+
+2011.11.25, Version 0.6.3 (stable), b159c6d62e5756d3f8847419d29c6959ea288b56
 
 * #2083 Land NPM in Node. It is included in packages/installers and installed
   on `make install`.
@@ -26,27 +51,27 @@
 
 2011.11.18, Version 0.6.2 (stable), a4402f0b2e410b19375a1d5c5fb7fe7f66f3c7f8
 
- * doc improvements (Artur Adib, Trevor Burnham, Ryan Emery, Trent Mick)
+* doc improvements (Artur Adib, Trevor Burnham, Ryan Emery, Trent Mick)
 
- * timers: remember extra setTimeout() arguments when timeout==0
+* timers: remember extra setTimeout() arguments when timeout==0
 
- * punycode: use Mathias Bynens's punycode library, it's more compliant
+* punycode: use Mathias Bynens's punycode library, it's more compliant
 
- * repl: improved tab completion (Ryan Emery)
+* repl: improved tab completion (Ryan Emery)
 
- * buffer: fix range checks in .writeInt() functions (Lukasz Walukiewicz)
+* buffer: fix range checks in .writeInt() functions (Lukasz Walukiewicz)
 
- * tls: make cipher list configurable
+* tls: make cipher list configurable
 
- * addons: make Buffer and ObjectWrap visible to Windows add-ons (Bert Belder)
+* addons: make Buffer and ObjectWrap visible to Windows add-ons (Bert Belder)
 
- * crypto: add PKCS#1 a.k.a RSA public key verification support
+* crypto: add PKCS#1 a.k.a RSA public key verification support
 
- * windows: fix stdout writes when redirected to nul
+* windows: fix stdout writes when redirected to nul
 
- * sunos: fix build on Solaris and Illumos
+* sunos: fix build on Solaris and Illumos
 
- * Upgrade V8 to 3.6.6.8
+* Upgrade V8 to 3.6.6.8
 
 
 2011.11.11, Version 0.6.1 (stable), 170f2addb2dd0c625bc4a6d461e89a31ad68b79b
