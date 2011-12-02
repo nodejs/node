@@ -980,7 +980,7 @@ def install_npm(bld):
   start_dir = bld.path.find_dir('deps/npm')
   # The chmod=-1 is a Node hack. We changed WAF so that when chmod was set to
   # -1 that the same permission in this tree are used. Necessary to get
-  # npm-cli.js to be executable without having to list every file in NPM.
+  # npm-cli.js to be executable without having to list every file in npm.
   bld.install_files('${LIBDIR}/node_modules/npm',
                     start_dir.ant_glob('**/*'),
                     cwd=start_dir,
