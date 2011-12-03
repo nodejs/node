@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2009 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -13,8 +11,8 @@ Xcode.app and observing the resultant changes in the associated project files.
 
 XCODE PROJECT FILES
 
-The generator targets the file format as written by Xcode 3.1 (specifically,
-3.1.2), but past experience has taught that the format has not changed
+The generator targets the file format as written by Xcode 3.2 (specifically,
+3.2.6), but past experience has taught that the format has not changed
 significantly in the past several years, and future versions of Xcode are able
 to read older project files.
 
@@ -2444,7 +2442,7 @@ class PBXProject(XCContainerPortal):
     'attributes':             [0, dict,                0, 0],
     'buildConfigurationList': [0, XCConfigurationList, 1, 1,
                                XCConfigurationList()],
-    'compatibilityVersion':   [0, str,                 0, 1, 'Xcode 3.1'],
+    'compatibilityVersion':   [0, str,                 0, 1, 'Xcode 3.2'],
     'hasScannedForEncodings': [0, int,                 0, 1, 1],
     'mainGroup':              [0, PBXGroup,            1, 1, PBXGroup()],
     'projectDirPath':         [0, str,                 0, 1, ''],

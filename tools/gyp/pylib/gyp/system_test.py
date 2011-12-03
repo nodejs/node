@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -8,6 +8,7 @@ import os
 import tempfile
 import shutil
 import subprocess
+
 
 def TestCommands(commands, files={}, env={}):
   """Run commands in a temporary directory, returning true if they all succeed.
@@ -64,7 +65,7 @@ def TestLinkerSupportsICF(cc_command='cc'):
                       env={'cc': cc_command})
 
 
-if __name__ == '__main__':
+def main():
   # Run the various test functions and print the results.
   def RunTest(description, function, **kwargs):
     print "Testing " + description + ':',
@@ -75,3 +76,8 @@ if __name__ == '__main__':
   RunTest("ar 'T' flag", TestArSupportsT)
   RunTest("ar 'T' flag with ccache", TestArSupportsT, cc_command='ccache cc')
   RunTest("ld --threads", TestLinkerSupportsThreads)
+  return 0
+
+
+if __name__ == '__main__':
+  sys.exit(main())

@@ -1,4 +1,4 @@
-#!/usr/bin/python2.5
+#!/usr/bin/env python
 
 # Copyright (c) 2009 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -23,14 +23,16 @@ from xml.dom.minidom import Node
 REPLACEMENTS = dict()
 ARGUMENTS = None
 
-class CmpTuple:
+
+class CmpTuple(object):
   """Compare function between 2 tuple."""
   def __call__(self, x, y):
     (key1, value1) = x
     (key2, value2) = y
     return cmp(key1, key2)
 
-class CmpNode:
+
+class CmpNode(object):
   """Compare function between 2 xml nodes."""
 
   def get_string(self, node):
@@ -56,6 +58,7 @@ class CmpNode:
 
   def __call__(self, x, y):
     return cmp(self.get_string(x), self.get_string(y))
+
 
 def PrettyPrintNode(node, indent=0):
   if node.nodeType == Node.TEXT_NODE:
@@ -90,6 +93,7 @@ def PrettyPrintNode(node, indent=0):
     PrettyPrintNode(sub_node, indent=indent+2)
   print '%s</%s>' % (' '*indent, node.nodeName)
 
+
 def FlattenFilter(node):
   """Returns a list of all the node and sub nodes."""
   node_list = []
@@ -107,6 +111,7 @@ def FlattenFilter(node):
 
   return node_list
 
+
 def FixFilenames(filenames, current_directory):
   new_list = []
   for filename in filenames:
@@ -121,8 +126,9 @@ def FixFilenames(filenames, current_directory):
         new_list.append(os.path.abspath(filename))
   return new_list
 
+
 def AbsoluteNode(node):
-  # Make all the properties we know about in this node absolute.
+  """Makes all the properties we know about in this node absolute."""
   if node.attributes:
     for (name, value) in node.attributes.items():
       if name in ['InheritedPropertySheets', 'RelativePath',
@@ -136,8 +142,9 @@ def AbsoluteNode(node):
       if not value:
         node.removeAttribute(name)
 
+
 def CleanupVcproj(node):
-  # For each sub node, we call recursively this function.
+  """For each sub node, we call recursively this function."""
   for sub_node in node.childNodes:
     AbsoluteNode(sub_node)
     CleanupVcproj(sub_node)
@@ -192,6 +199,7 @@ def CleanupVcproj(node):
       continue
     node.appendChild(new_node)
 
+
 def GetConfiguationNodes(vcproj):
   #TODO(nsylvain): Find a better way to navigate the xml.
   nodes = []
@@ -202,6 +210,7 @@ def GetConfiguationNodes(vcproj):
           nodes.append(sub_node)
 
   return nodes
+
 
 def GetChildrenVsprops(filename):
   dom = parse(filename)
@@ -231,6 +240,7 @@ def SeekToNode(node1, child2):
   # No match. We give up.
   return None
 
+
 def MergeAttributes(node1, node2):
   # No attributes to merge?
   if not node2.attributes:
@@ -255,6 +265,7 @@ def MergeAttributes(node1, node2):
     if name == 'InheritedPropertySheets':
       node1.removeAttribute(name)
 
+
 def MergeProperties(node1, node2):
   MergeAttributes(node1, node2)
   for child2 in node2.childNodes:
@@ -263,6 +274,7 @@ def MergeProperties(node1, node2):
       MergeProperties(child1, child2)
     else:
       node1.appendChild(child2.cloneNode(True))
+
 
 def main(argv):
   global REPLACEMENTS
@@ -274,7 +286,7 @@ def main(argv):
   if len(argv) < 2:
     print ('Usage: %s "c:\\path\\to\\vcproj.vcproj" [key1=value1] '
            '[key2=value2]' % argv[0])
-    return
+    return 1
 
   # Parse the keys
   for i in range(2, len(argv)):
@@ -311,6 +323,8 @@ def main(argv):
   # user.
   #print dom.toprettyxml(newl="\n")
   PrettyPrintNode(dom.documentElement)
+  return 0
+
 
 if __name__ == '__main__':
-  main(sys.argv)
+  sys.exit(main(sys.argv))

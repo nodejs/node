@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -8,18 +6,18 @@ import collections
 import gyp
 import gyp.common
 import json
+import sys
 
 generator_wants_static_library_dependencies_adjusted = False
 
 generator_default_variables = {
-  'OS': 'linux',
 }
 for dirname in ['INTERMEDIATE_DIR', 'SHARED_INTERMEDIATE_DIR', 'PRODUCT_DIR',
                 'LIB_DIR', 'SHARED_LIB_DIR']:
   # Some gyp steps fail if these are empty(!).
   generator_default_variables[dirname] = 'dir'
 for unused in ['RULE_INPUT_PATH', 'RULE_INPUT_ROOT', 'RULE_INPUT_NAME',
-               'RULE_INPUT_EXT',
+               'RULE_INPUT_DIRNAME', 'RULE_INPUT_EXT',
                'EXECUTABLE_PREFIX', 'EXECUTABLE_SUFFIX',
                'STATIC_LIB_PREFIX', 'STATIC_LIB_SUFFIX',
                'SHARED_LIB_PREFIX', 'SHARED_LIB_SUFFIX',
@@ -27,9 +25,21 @@ for unused in ['RULE_INPUT_PATH', 'RULE_INPUT_ROOT', 'RULE_INPUT_NAME',
   generator_default_variables[unused] = ''
 
 
+def GetFlavor(params):
+  """Returns |params.flavor| if it's set, the system's default flavor else."""
+  flavors = {
+    'darwin': 'mac',
+    'sunos5': 'solaris',
+    'freebsd7': 'freebsd',
+    'freebsd8': 'freebsd',
+  }
+  flavor = flavors.get(sys.platform, 'linux')
+  return params.get('flavor', flavor)
+
+
 def CalculateVariables(default_variables, params):
   generator_flags = params.get('generator_flags', {})
-  default_variables['OS'] = generator_flags.get('os', 'linux')
+  default_variables['OS'] = generator_flags.get('os', GetFlavor(params))
 
 
 def CalculateGeneratorInputInfo(params):

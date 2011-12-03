@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -11,6 +11,7 @@ import os.path
 import re
 import shlex
 import sys
+import traceback
 
 # Default debug modes for GYP
 debug = {}
@@ -20,9 +21,18 @@ DEBUG_GENERAL = 'general'
 DEBUG_VARIABLES = 'variables'
 DEBUG_INCLUDES = 'includes'
 
+
 def DebugOutput(mode, message):
-  if mode in gyp.debug.keys():
-    print "%s: %s" % (mode.upper(), message)
+  if 'all' in gyp.debug.keys() or mode in gyp.debug.keys():
+    ctx = ('unknown', 0, 'unknown')
+    try:
+      f = traceback.extract_stack(limit=2)
+      if f:
+        ctx = f[0][:3]
+    except:
+      pass
+    print '%s:%s:%d:%s %s' % (mode.upper(), os.path.basename(ctx[0]),
+                              ctx[1], ctx[2], message)
 
 def FindBuildFiles():
   extension = '.gyp'
@@ -266,8 +276,8 @@ def main(args):
                     help='set DEPTH gyp variable to a relative path to PATH')
   parser.add_option('-d', '--debug', dest='debug', metavar='DEBUGMODE',
                     action='append', default=[], help='turn on a debugging '
-                    'mode for debugging GYP.  Supported modes are "variables" '
-                    'and "general"')
+                    'mode for debugging GYP.  Supported modes are "variables", '
+                    '"includes" and "general" or "all" for all of them.')
   parser.add_option('-S', '--suffix', dest='suffix', default='',
                     help='suffix to add to generated files')
   parser.add_option('-G', dest='generator_flags', action='append', default=[],
@@ -327,16 +337,12 @@ def main(args):
       options.formats = generate_formats
     else:
       # Nothing in the variable, default based on platform.
-      options.formats = [ {'darwin':   'xcode',
-                           'win32':    'msvs',
-                           'cygwin':   'msvs',
-                           'freebsd7': 'make',
-                           'freebsd8': 'make',
-                           'linux2':   'make',
-                           'linux3':   'make',
-                           'openbsd4': 'make',
-                           'openbsd5': 'make',
-                           'sunos5':   'make',}[sys.platform] ]
+      if sys.platform == 'darwin':
+        options.formats = ['xcode']
+      elif sys.platform in ('win32', 'cygwin'):
+        options.formats = ['msvs']
+      else:
+        options.formats = ['make']
 
   if not options.generator_output and options.use_environment:
     g_o = os.environ.get('GYP_GENERATOR_OUTPUT')

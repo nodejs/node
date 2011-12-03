@@ -1,4 +1,4 @@
-#!/usr/bin/python2.5
+#!/usr/bin/env python
 
 # Copyright (c) 2009 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -153,7 +153,7 @@ def main():
   # check if we have exactly 1 parameter.
   if len(sys.argv) < 2:
     print 'Usage: %s "c:\\path\\to\\project.sln"' % sys.argv[0]
-    return
+    return 1
 
   (projects, deps) = ParseSolution(sys.argv[1])
   PrintDependencies(projects, deps)
@@ -161,7 +161,8 @@ def main():
 
   if '--recursive' in sys.argv:
     PrintVCProj(projects)
+  return 0
+
 
 if __name__ == '__main__':
-  main()
-
+  sys.exit(main())

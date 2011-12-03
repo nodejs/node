@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
@@ -1475,6 +1475,7 @@ class TestSequenceFunctions(unittest.TestCase):
         self.stderr)
     self.assertEqual(expected_msbuild_settings, actual_msbuild_settings)
     self._ExpectedWarnings([])
+
 
 if __name__ == '__main__':
   unittest.main()

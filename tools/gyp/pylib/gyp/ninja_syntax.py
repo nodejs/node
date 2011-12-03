@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # This file comes from
 #   https://github.com/martine/ninja/blob/master/misc/ninja_syntax.py
 # Do not edit!  Edit the upstream one instead.

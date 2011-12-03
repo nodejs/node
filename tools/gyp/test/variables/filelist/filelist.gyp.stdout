@@ -1,0 +1,174 @@
+GENERAL:__init__.py:356:main running with these options:
+GENERAL:__init__.py:363:main   check: None
+GENERAL:__init__.py:363:main   circular_check: True
+GENERAL:__init__.py:363:main   debug: ['variables', 'general']
+GENERAL:__init__.py:363:main   defines: None
+GENERAL:__init__.py:361:main   depth: '.'
+GENERAL:__init__.py:363:main   formats: ['gypd']
+GENERAL:__init__.py:363:main   generator_flags: []
+GENERAL:__init__.py:363:main   generator_output: None
+GENERAL:__init__.py:363:main   includes: None
+GENERAL:__init__.py:363:main   msvs_version: None
+GENERAL:__init__.py:361:main   suffix: ''
+GENERAL:__init__.py:363:main   toplevel_dir: None
+GENERAL:__init__.py:363:main   use_environment: True
+GENERAL:__init__.py:417:main cmdline_default_variables: {}
+GENERAL:__init__.py:443:main generator_flags: {}
+VARIABLES:input.py:785:ExpandVariables Expanding 'exclude' to 'exclude'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Sch.*' to 'Sch.*'
+VARIABLES:input.py:785:ExpandVariables Expanding 'include' to 'include'
+VARIABLES:input.py:785:ExpandVariables Expanding '.*dt' to '.*dt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'exclude' to 'exclude'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jer.*' to 'Jer.*'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Astor' to 'Astor'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jerome' to 'Jerome'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schultz' to 'Schultz'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Astor' to 'Astor'
+VARIABLES:input.py:785:ExpandVariables Expanding '.' to '.'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'names.txt <@(names', 'is_array': '', 'replace': '<|(names.txt <@(names)', 'type': '<|', 'command_string': None}
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'names', 'is_array': '', 'replace': '<@(names)', 'type': '<@', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'names' to 'names'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:767:ExpandVariables Found output 'names.txt John Jacob Jingleheimer Schmidt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt John Jacob Jingleheimer Schmidt' to 'names.txt John Jacob Jingleheimer Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt <@(names)' to 'names.txt John Jacob Jingleheimer Schmidt'
+VARIABLES:input.py:767:ExpandVariables Found output 'names.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<|(names.txt <@(names))' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'foo' to 'foo'
+VARIABLES:input.py:785:ExpandVariables Expanding 'target' to 'target'
+VARIABLES:input.py:785:ExpandVariables Expanding 'none' to 'none'
+VARIABLES:input.py:785:ExpandVariables Expanding 'test_action' to 'test_action'
+VARIABLES:input.py:785:ExpandVariables Expanding 'python' to 'python'
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy.py' to 'dummy.py'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'names_listfile', 'is_array': '', 'replace': '<(names_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'names_listfile' to 'names_listfile'
+VARIABLES:input.py:767:ExpandVariables Found output 'names.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<(names_listfile)' to 'names.txt'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'names_listfile', 'is_array': '', 'replace': '<(names_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'names_listfile' to 'names_listfile'
+VARIABLES:input.py:767:ExpandVariables Found output 'names.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<(names_listfile)' to 'names.txt'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'cat <(names_listfile', 'is_array': '', 'replace': '<!@(cat <(names_listfile)', 'type': '<!@', 'command_string': None}
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'names_listfile', 'is_array': '', 'replace': '<(names_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'names_listfile' to 'names_listfile'
+VARIABLES:input.py:767:ExpandVariables Found output 'cat names.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'cat names.txt' to 'cat names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'cat <(names_listfile)' to 'cat names.txt'
+VARIABLES:input.py:660:ExpandVariables Executing command 'cat names.txt' in directory 'src'
+VARIABLES:input.py:767:ExpandVariables Found output ['John', 'Jacob', 'Jingleheimer', 'Schmidt'], recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<!@(cat <(names_listfile))' to ['John', 'Jacob', 'Jingleheimer', 'Schmidt']
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy_foo' to 'dummy_foo'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'sources.txt <@(_sources', 'is_array': '', 'replace': '<|(sources.txt <@(_sources)', 'type': '<|', 'command_string': None}
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': '_sources', 'is_array': '', 'replace': '<@(_sources)', 'type': '<@', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding '_sources' to '_sources'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:767:ExpandVariables Found output 'sources.txt John Jacob Jingleheimer Schmidt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt John Jacob Jingleheimer Schmidt' to 'sources.txt John Jacob Jingleheimer Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt <@(_sources)' to 'sources.txt John Jacob Jingleheimer Schmidt'
+VARIABLES:input.py:767:ExpandVariables Found output 'sources.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<|(sources.txt <@(_sources))' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'bar' to 'bar'
+VARIABLES:input.py:785:ExpandVariables Expanding 'target' to 'target'
+VARIABLES:input.py:785:ExpandVariables Expanding 'none' to 'none'
+VARIABLES:input.py:785:ExpandVariables Expanding 'exclude' to 'exclude'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Sch.*' to 'Sch.*'
+VARIABLES:input.py:785:ExpandVariables Expanding 'include' to 'include'
+VARIABLES:input.py:785:ExpandVariables Expanding '.*dt' to '.*dt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'exclude' to 'exclude'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jer.*' to 'Jer.*'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Astor' to 'Astor'
+VARIABLES:input.py:785:ExpandVariables Expanding 'test_action' to 'test_action'
+VARIABLES:input.py:785:ExpandVariables Expanding 'python' to 'python'
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy.py' to 'dummy.py'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'sources_listfile', 'is_array': '', 'replace': '<(sources_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources_listfile' to 'sources_listfile'
+VARIABLES:input.py:767:ExpandVariables Found output 'sources.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<(sources_listfile)' to 'sources.txt'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'sources_listfile', 'is_array': '', 'replace': '<(sources_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources_listfile' to 'sources_listfile'
+VARIABLES:input.py:767:ExpandVariables Found output 'sources.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<(sources_listfile)' to 'sources.txt'
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'cat <(sources_listfile', 'is_array': '', 'replace': '<!@(cat <(sources_listfile)', 'type': '<!@', 'command_string': None}
+VARIABLES:input.py:546:ExpandVariables Matches: {'content': 'sources_listfile', 'is_array': '', 'replace': '<(sources_listfile)', 'type': '<', 'command_string': None}
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources_listfile' to 'sources_listfile'
+VARIABLES:input.py:767:ExpandVariables Found output 'cat sources.txt', recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'cat sources.txt' to 'cat sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'cat <(sources_listfile)' to 'cat sources.txt'
+VARIABLES:input.py:660:ExpandVariables Executing command 'cat sources.txt' in directory 'src'
+VARIABLES:input.py:767:ExpandVariables Found output ['John', 'Jacob', 'Jingleheimer', 'Schmidt'], recursing.
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding '<!@(cat <(sources_listfile))' to ['John', 'Jacob', 'Jingleheimer', 'Schmidt']
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy_foo' to 'dummy_foo'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Astor' to 'Astor'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jerome' to 'Jerome'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schultz' to 'Schultz'
+VARIABLES:input.py:785:ExpandVariables Expanding 'filelist.gyp' to 'filelist.gyp'
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'foo' to 'foo'
+VARIABLES:input.py:785:ExpandVariables Expanding 'target' to 'target'
+VARIABLES:input.py:785:ExpandVariables Expanding 'none' to 'none'
+VARIABLES:input.py:785:ExpandVariables Expanding 'test_action' to 'test_action'
+VARIABLES:input.py:785:ExpandVariables Expanding 'python' to 'python'
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy.py' to 'dummy.py'
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'names.txt' to 'names.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy_foo' to 'dummy_foo'
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'bar' to 'bar'
+VARIABLES:input.py:785:ExpandVariables Expanding 'target' to 'target'
+VARIABLES:input.py:785:ExpandVariables Expanding 'none' to 'none'
+VARIABLES:input.py:785:ExpandVariables Expanding 'exclude' to 'exclude'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Sch.*' to 'Sch.*'
+VARIABLES:input.py:785:ExpandVariables Expanding 'include' to 'include'
+VARIABLES:input.py:785:ExpandVariables Expanding '.*dt' to '.*dt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'exclude' to 'exclude'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jer.*' to 'Jer.*'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Astor' to 'Astor'
+VARIABLES:input.py:785:ExpandVariables Expanding 'test_action' to 'test_action'
+VARIABLES:input.py:785:ExpandVariables Expanding 'python' to 'python'
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy.py' to 'dummy.py'
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'sources.txt' to 'sources.txt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'dummy_foo' to 'dummy_foo'
+VARIABLES:input.py:785:ExpandVariables Expanding 'John' to 'John'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jacob' to 'Jacob'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Astor' to 'Astor'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jingleheimer' to 'Jingleheimer'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Jerome' to 'Jerome'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schmidt' to 'Schmidt'
+VARIABLES:input.py:785:ExpandVariables Expanding 'Schultz' to 'Schultz'

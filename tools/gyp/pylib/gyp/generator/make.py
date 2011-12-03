@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -26,13 +24,10 @@
 import gyp
 import gyp.common
 import gyp.system_test
-import os.path
 import os
+import re
+import shlex
 import sys
-
-# Debugging-related imports -- remove me once we're solid.
-import code
-import pprint
 
 generator_default_variables = {
   'EXECUTABLE_PREFIX': '',
@@ -40,7 +35,7 @@ generator_default_variables = {
   'STATIC_LIB_PREFIX': 'lib',
   'SHARED_LIB_PREFIX': 'lib',
   'STATIC_LIB_SUFFIX': '.a',
-  'INTERMEDIATE_DIR': '$(obj).$(TOOLSET)/geni',
+  'INTERMEDIATE_DIR': '$(obj).$(TOOLSET)/$(TARGET)/geni',
   'SHARED_INTERMEDIATE_DIR': '$(obj)/gen',
   'PRODUCT_DIR': '$(builddir)',
   'RULE_INPUT_ROOT': '%(INPUT_ROOT)s',  # This gets expanded by Python.
@@ -452,10 +447,10 @@ $(if $(or $(command_changed),$(prereq_changed)),
 )
 endef
 
-# Declare "all" target first so it is the default, even though we don't have the
-# deps yet.
-.PHONY: all
-all:
+# Declare the "%(default_target)s" target first so it is the default,
+# even though we don't have the deps yet.
+.PHONY: %(default_target)s
+%(default_target)s:
 
 # Use FORCE_DO_CMD to force a target to run.  Should be coupled with
 # do_cmd.
@@ -489,6 +484,9 @@ cmd_mac_tool = ./gyp-mac-tool $(4) $< "$@"
 
 quiet_cmd_mac_package_framework = PACKAGE FRAMEWORK $@
 cmd_mac_package_framework = ./gyp-mac-tool package-framework "$@" $(4)
+
+quiet_cmd_infoplist = INFOPLIST $@
+cmd_infoplist = $(CC.$(TOOLSET)) -E -P -Wno-trigraphs -x c $(INFOPLIST_DEFINES) "$<" -o "$@"
 """
 
 SHARED_HEADER_SUN_COMMANDS = """
@@ -901,8 +899,6 @@ class XcodeSettings(object):
     self._WarnUnimplemented('GCC_DEBUGGING_SYMBOLS')
     self._WarnUnimplemented('GCC_ENABLE_OBJC_EXCEPTIONS')
     self._WarnUnimplemented('GCC_ENABLE_OBJC_GC')
-    self._WarnUnimplemented('INFOPLIST_PREPROCESS')
-    self._WarnUnimplemented('INFOPLIST_PREPROCESSOR_DEFINITIONS')
 
     # TODO: This is exported correctly, but assigning to it is not supported.
     self._WarnUnimplemented('MACH_O_TYPE')
@@ -917,7 +913,7 @@ class XcodeSettings(object):
     config = self.spec['configurations'][self.configname]
     framework_dirs = config.get('mac_framework_dirs', [])
     for directory in framework_dirs:
-      cflags.append('-F ' + os.path.join(sdk_root, directory))
+      cflags.append('-F ' + directory.replace('$(SDKROOT)', sdk_root))
 
     self.configname = None
     return cflags
@@ -1499,6 +1495,12 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 
       cd_action = 'cd %s; ' % Sourceify(self.path or '.')
 
+      # command and cd_action get written to a toplevel variable called
+      # cmd_foo. Toplevel variables can't handle things that change per
+      # makefile like $(TARGET), so hardcode the target.
+      command = command.replace('$(TARGET)', self.target)
+      cd_action = cd_action.replace('$(TARGET)', self.target)
+
       # Set LD_LIBRARY_PATH in case the action runs an executable from this
       # build which links to shared libs from this build.
       # actions run on the host, so they should in theory only use host
@@ -1618,6 +1620,15 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         if len(dirs) > 0:
           mkdirs = 'mkdir -p %s; ' % ' '.join(dirs)
         cd_action = 'cd %s; ' % Sourceify(self.path or '.')
+
+        # action, cd_action, and mkdirs get written to a toplevel variable
+        # called cmd_foo. Toplevel variables can't handle things that change
+        # per makefile like $(TARGET), so hardcode the target.
+        action = gyp.common.EncodePOSIXShellList(action)
+        action = action.replace('$(TARGET)', self.target)
+        cd_action = cd_action.replace('$(TARGET)', self.target)
+        mkdirs = mkdirs.replace('$(TARGET)', self.target)
+
         # Set LD_LIBRARY_PATH in case the rule runs an executable from this
         # build which links to shared libs from this build.
         # rules run on the host, so they should in theory only use host
@@ -1629,7 +1640,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
               "$(builddir)/lib.host:$(builddir)/lib.target:$$LD_LIBRARY_PATH; "
               "export LD_LIBRARY_PATH; "
               "%(cd_action)s%(mkdirs)s%(action)s" % {
-          'action': gyp.common.EncodePOSIXShellList(action),
+          'action': action,
           'cd_action': cd_action,
           'count': count,
           'mkdirs': mkdirs,
@@ -1666,6 +1677,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     outputs = []
     for copy in copies:
       for path in copy['files']:
+        # Absolutify() calls normpath, stripping trailing slashes.
         path = Sourceify(self.Absolutify(path))
         filename = os.path.split(path)[1]
         output = Sourceify(self.Absolutify(os.path.join(copy['destination'],
@@ -1731,10 +1743,29 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     assert ' ' not in info_plist, (
       "Spaces in resource filenames not supported (%s)"  % info_plist)
     info_plist = self.Absolutify(info_plist)
+    settings = self.xcode_settings
+
+    # If explicilty set to preprocess the plist, invoke the C preprocessor and
+    # specify any defines as -D flags.
+    if settings.GetPerTargetSetting('INFOPLIST_PREPROCESS', 'NO') == 'YES':
+      # Create an intermediate file based on the path.
+      intermediate_plist = ('$(obj).$(TOOLSET)/$(TARGET)/' +
+          os.path.basename(info_plist))
+      defines = shlex.split(settings.GetPerTargetSetting(
+          'INFOPLIST_PREPROCESSOR_DEFINITIONS', ''))
+      self.WriteList(defines, intermediate_plist + ': INFOPLIST_DEFINES', '-D',
+          quoter=EscapeCppDefine)
+      self.WriteMakeRule([intermediate_plist], [info_plist],
+          ['$(call do_cmd,infoplist)',
+           # "Convert" the plist so that any weird whitespace changes from the
+           # preprocessor do not affect the XML parser in mac_tool.
+           '@plutil -convert xml1 $@ $@'])
+      info_plist = intermediate_plist
+
     path = generator_default_variables['PRODUCT_DIR']
-    dest_plist = os.path.join(path, self.xcode_settings.GetBundlePlistPath())
+    dest_plist = os.path.join(path, settings.GetBundlePlistPath())
     dest_plist = QuoteSpaces(dest_plist)
-    extra_settings = self.xcode_settings.GetPerTargetSettings()
+    extra_settings = settings.GetPerTargetSettings()
     # plists can contain envvars and substitute them into the file..
     self.WriteXcodeEnv(dest_plist, spec, additional_settings=extra_settings)
     self.WriteDoCmd([dest_plist], [info_plist], 'mac_tool,,,copy-info-plist',
@@ -2007,6 +2038,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # We want to get the literal string "$ORIGIN" into the link command,
             # so we need lots of escaping.
             ldflags.append(r'-Wl,-rpath=\$$ORIGIN/lib.%s/' % self.toolset)
+            ldflags.append(r'-Wl,-rpath-link=\$(builddir)/lib.%s/' %
+                           self.toolset)
         self.WriteList(ldflags, 'LDFLAGS_%s' % configname)
       libraries = spec.get('libraries')
       if libraries:
@@ -2409,6 +2442,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
       # See /Developer/Platforms/MacOSX.platform/Developer/Library/Xcode/Specifications/MacOSX\ Product\ Types.xcspec for FULL_PRODUCT_NAME
       'FULL_PRODUCT_NAME' : product_name,
       'SRCROOT' : srcroot,
+      'SOURCE_ROOT': '$(SRCROOT)',
       # This is not true for static libraries, but currently the env is only
       # written for bundles:
       'TARGET_BUILD_DIR' : built_products_dir,
@@ -2453,14 +2487,66 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     # GetXcodeEnv() for the full rationale.
     keys_to_not_absolutify = ('PRODUCT_NAME', 'FULL_PRODUCT_NAME')
 
-    # Perform some transformations that are required to mimic Xcode behavior.
-    for k in env:
-      # Values that are not strings but are, for example, lists or tuples such
-      # as LDFLAGS or CFLAGS, should not be written out because they are
-      # not needed and it's undefined how multi-valued keys should be written.
-      if not isinstance(env[k], str):
+    # First sort the list of keys, removing any non-string values.
+    # Values that are not strings but are, for example, lists or tuples such
+    # as LDFLAGS or CFLAGS, should not be written out because they are
+    # not needed and it's undefined how multi-valued keys should be written.
+    key_list = env.keys()
+    key_list.sort()
+    key_list = [k for k in key_list if isinstance(env[k], str)]
+
+    # Since environment variables can refer to other variables, the evaluation
+    # order is important. Below is the logic to compute the dependency graph
+    # and sort it.
+    regex = re.compile(r'\$\(([a-zA-Z0-9\-_]+)\)')
+
+    # Phase 1: Create a set of edges of (DEPENDEE, DEPENDER) where in the graph,
+    # DEPENDEE -> DEPENDER. Also create sets of dependers and dependees.
+    edges = set()
+    dependees = set()
+    dependers = set()
+    for k in key_list:
+      matches = regex.findall(env[k])
+      if not len(matches):
         continue
 
+      dependers.add(k)
+      for dependee in matches:
+        if dependee in env:
+          edges.add((dependee, k))
+          dependees.add(dependee)
+
+    # Phase 2: Create a list of graph nodes with no incoming edges.
+    sorted_nodes = []
+    edgeless_nodes = dependees - dependers
+
+    # Phase 3: Perform Kahn topological sort.
+    while len(edgeless_nodes):
+      # Find a node with no incoming edges, add it to the sorted list, and
+      # remove it from the list of nodes that aren't part of the graph.
+      node = edgeless_nodes.pop()
+      sorted_nodes.append(node)
+      key_list.remove(node)
+
+      # Find all the edges between |node| and other nodes.
+      edges_to_node = [e for e in edges if e[0] == node]
+      for edge in edges_to_node:
+        edges.remove(edge)
+        # If the node connected to |node| by |edge| has no other incoming edges,
+        # add it to |edgeless_nodes|.
+        if not len([e for e in edges if e[1] == edge[1]]):
+          edgeless_nodes.add(edge[1])
+
+    # Any remaining edges indicate a cycle.
+    if len(edges):
+      raise Exception('Xcode environment variables are cyclically dependent: ' +
+          str(edges))
+
+    # Append the "nodes" not in the graph to those that were just sorted.
+    sorted_nodes.extend(key_list)
+
+    # Perform some transformations that are required to mimic Xcode behavior.
+    for k in sorted_nodes:
       # For
       #  foo := a\ b
       # the escaped space does the right thing. For
@@ -2498,7 +2584,9 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
     """Convert a subdirectory-relative path into a base-relative path.
     Skips over paths that contain variables."""
     if '$(' in path:
-      return path
+      # path is no existing file in this case, but calling normpath is still
+      # important for trimming trailing slashes.
+      return os.path.normpath(path)
     return os.path.normpath(os.path.join(self.path, path))
 
 
@@ -2634,6 +2722,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   generator_flags = params.get('generator_flags', {})
   builddir_name = generator_flags.get('output_dir', 'out')
   android_ndk_version = generator_flags.get('android_ndk_version', None)
+  default_target = generator_flags.get('default_target', 'all')
 
   def CalculateMakefilePath(build_file, base_name):
     """Determine where to write a Makefile for a given gyp file."""
@@ -2675,6 +2764,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
 
   flock_command= 'flock'
   header_params = {
+      'default_target': default_target,
       'builddir': builddir_name,
       'default_configuration': default_configuration,
       'flock': flock_command,
@@ -2714,7 +2804,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     if value[0] != '$':
       value = '$(abspath %s)' % value
     if key == 'LINK':
-      make_global_settings += '%s ?= %s %s\n' % (flock_command, key, value)
+      make_global_settings += ('%s ?= %s $(builddir)/linker.lock %s\n' %
+                               (key, flock_command, value))
     elif key in ['CC', 'CXX']:
       make_global_settings += (
           'ifneq (,$(filter $(origin %s), undefined default))\n' % key)

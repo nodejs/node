@@ -34,6 +34,16 @@ def CheckChangeOnCommit(input_api, output_api):
       input_api, output_api,
       'http://gyp-status.appspot.com/status',
       'http://gyp-status.appspot.com/current'))
+
+  import sys
+  old_sys_path = sys.path
+  try:
+    sys.path = ['pylib', 'test/lib'] + sys.path
+    report.extend(input_api.canned_checks.RunPylint(
+        input_api,
+        output_api))
+  finally:
+    sys.path = old_sys_path
   return report
 
 

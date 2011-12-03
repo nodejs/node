@@ -1,0 +1,11 @@
+// -*- mode: c++ -*-
+#include <iostream>
+
+using std::cout;
+using std::endl;
+
+namespace gen {
+  void c() {
+    cout << "hi c" << endl;
+  }
+}

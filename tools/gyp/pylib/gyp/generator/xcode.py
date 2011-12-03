@@ -1,5 +1,3 @@
-#!/usr/bin/python
-
 # Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
@@ -1161,7 +1159,7 @@ exit 1
         if support_xct:
           support_xct.AddDependency(xcode_targets[dependency])
 
-    if spec['type'] != 'none' and 'libraries' in spec:
+    if 'libraries' in spec:
       for library in spec['libraries']:
         xct.FrameworksPhase().AddFile(library)
         # Add the library's directory to LIBRARY_SEARCH_PATHS if necessary.
