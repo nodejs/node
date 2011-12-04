@@ -1,0 +1,14 @@
+language: node_js
+
+before_script:
+  - "./configure"
+  - "make"
+
+script:
+  - "make test"
+
+notifications:
+  email: false
+  irc:
+    - "irc.freenode.net#libuv"
+
