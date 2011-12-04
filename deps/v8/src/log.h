@@ -294,7 +294,13 @@ class Logger {
   INLINE(static LogEventsAndTags ToNativeByScript(LogEventsAndTags, Script*));
 
   // Profiler's sampling interval (in milliseconds).
+#if defined(ANDROID)
+  // Phones and tablets have processors that are much slower than desktop
+  // and laptop computers for which current heuristics are tuned.
+  static const int kSamplingIntervalMs = 5;
+#else
   static const int kSamplingIntervalMs = 1;
+#endif
 
   // Callback from Log, stops profiling in case of insufficient resources.
   void LogFailure();

@@ -1731,44 +1731,6 @@ void Debug::PrepareForBreakPoints() {
   // functions as debugging does not work with optimized code.
   if (!has_break_points_) {
     Deoptimizer::DeoptimizeAll();
-
-    AssertNoAllocation no_allocation;
-    Builtins* builtins = isolate_->builtins();
-    Code* lazy_compile = builtins->builtin(Builtins::kLazyCompile);
-
-    // Find all non-optimized code functions with activation frames on
-    // the stack.
-    List<JSFunction*> active_functions(100);
-    for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
-      JavaScriptFrame* frame = it.frame();
-      if (frame->function()->IsJSFunction()) {
-        JSFunction* function = JSFunction::cast(frame->function());
-        if (function->code()->kind() == Code::FUNCTION)
-          active_functions.Add(function);
-      }
-    }
-    active_functions.Sort();
-
-    // Scan the heap for all non-optimized functions which has no
-    // debug break slots.
-    HeapIterator iterator;
-    HeapObject* obj = NULL;
-    while (((obj = iterator.next()) != NULL)) {
-      if (obj->IsJSFunction()) {
-        JSFunction* function = JSFunction::cast(obj);
-        if (function->shared()->allows_lazy_compilation() &&
-            function->shared()->script()->IsScript() &&
-            function->code()->kind() == Code::FUNCTION &&
-            !function->code()->has_debug_break_slots()) {
-          bool has_activation =
-              SortedListBSearch<JSFunction*>(active_functions, function) != -1;
-          if (!has_activation) {
-            function->set_code(lazy_compile);
-            function->shared()->set_code(lazy_compile);
-          }
-        }
-      }
-    }
   }
 }
 
