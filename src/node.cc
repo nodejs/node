@@ -2217,8 +2217,12 @@ static void PrintHelp() {
          "  --vars               print various compiled-in variables\n"
          "  --max-stack-size=val set max v8 stack size (bytes)\n"
          "\n"
-         "Enviromental variables:\n"
+         "Environment variables:\n"
+#ifdef _WIN32
+         "NODE_PATH              ';'-separated list of directories\n"
+#else
          "NODE_PATH              ':'-separated list of directories\n"
+#endif
          "                       prefixed to the module search path.\n"
          "NODE_MODULE_CONTEXTS   Set to 1 to load modules in their own\n"
          "                       global contexts.\n"
