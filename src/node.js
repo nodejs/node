@@ -336,8 +336,13 @@
   };
 
   startup.processKillAndExit = function() {
+    var exiting = false;
+
     process.exit = function(code) {
-      process.emit('exit', code || 0);
+      if (!exiting) {
+        exiting = true;
+        process.emit('exit', code || 0);
+      }
       process.reallyExit(code || 0);
     };
 
