@@ -341,6 +341,13 @@ static void uv__write(uv_stream_t* stream) {
   int iovcnt;
   ssize_t n;
 
+  if (stream->flags & UV_CLOSING) {
+    /* Handle was closed this tick. We've received a stale
+     * 'is writable' callback from the event loop, ignore.
+     */
+    return;
+  }
+
 start:
 
   assert(stream->fd >= 0);
