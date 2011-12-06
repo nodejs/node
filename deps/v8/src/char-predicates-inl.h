@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,7 +52,7 @@ inline bool IsLineFeed(uc32 c) {
 }
 
 
-static inline bool IsInRange(int value, int lower_limit, int higher_limit) {
+inline bool IsInRange(int value, int lower_limit, int higher_limit) {
   ASSERT(lower_limit <= higher_limit);
   return static_cast<unsigned int>(value - lower_limit) <=
       static_cast<unsigned int>(higher_limit - lower_limit);

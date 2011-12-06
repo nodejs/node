@@ -44,6 +44,11 @@ class ElementsAccessor {
                            JSObject* holder,
                            Object* receiver) = 0;
 
+  // Modifies the length data property as specified for JSArrays and resizes
+  // the underlying backing store accordingly.
+  virtual MaybeObject* SetLength(JSObject* holder,
+                                 Object* new_length) = 0;
+
   virtual MaybeObject* Delete(JSObject* holder,
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;

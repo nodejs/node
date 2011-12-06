@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -43,7 +43,7 @@ enum FastDtoaMode {
 
 // FastDtoa will produce at most kFastDtoaMaximalLength digits. This does not
 // include the terminating '\0' character.
-static const int kFastDtoaMaximalLength = 17;
+const int kFastDtoaMaximalLength = 17;
 
 // Provides a decimal representation of v.
 // The result should be interpreted as buffer * 10^(point - length).

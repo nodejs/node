@@ -252,6 +252,28 @@ TEST(HeapSnapshotHeapNumbers) {
   CHECK_EQ(v8::HeapGraphNode::kHeapNumber, b->GetType());
 }
 
+TEST(HeapSnapshotSlicedString) {
+  v8::HandleScope scope;
+  LocalContext env;
+  CompileRun(
+      "parent_string = \"123456789.123456789.123456789.123456789.123456789."
+      "123456789.123456789.123456789.123456789.123456789."
+      "123456789.123456789.123456789.123456789.123456789."
+      "123456789.123456789.123456789.123456789.123456789.\";"
+      "child_string = parent_string.slice(100);");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("strings"));
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  const v8::HeapGraphNode* parent_string =
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "parent_string");
+  CHECK_NE(NULL, parent_string);
+  const v8::HeapGraphNode* child_string =
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "child_string");
+  CHECK_NE(NULL, child_string);
+  const v8::HeapGraphNode* parent =
+      GetProperty(child_string, v8::HeapGraphEdge::kInternal, "parent");
+  CHECK_EQ(parent_string, parent);
+}
 
 TEST(HeapSnapshotInternalReferences) {
   v8::HandleScope scope;
@@ -294,7 +316,7 @@ TEST(HeapEntryIdsAndGC) {
   const v8::HeapSnapshot* snapshot1 =
       v8::HeapProfiler::TakeSnapshot(v8_str("s1"));
 
-  HEAP->CollectAllGarbage(true);  // Enforce compaction.
+  HEAP->CollectAllGarbage(i::Heap::kNoGCFlags);
 
   const v8::HeapSnapshot* snapshot2 =
       v8::HeapProfiler::TakeSnapshot(v8_str("s2"));
@@ -873,6 +895,20 @@ TEST(DocumentURLWithException) {
 }
 
 
+TEST(NoHandleLeaks) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("document = { URL:\"abcdefgh\" };");
+
+  v8::Handle<v8::String> name(v8_str("leakz"));
+  int count_before = i::HandleScope::NumberOfHandles();
+  v8::HeapProfiler::TakeSnapshot(name);
+  int count_after = i::HandleScope::NumberOfHandles();
+  CHECK_EQ(count_before, count_after);
+}
+
+
 TEST(NodesIteration) {
   v8::HandleScope scope;
   LocalContext env;
@@ -1000,4 +1036,32 @@ TEST(GetConstructorName) {
   i::Handle<i::JSObject> js_obj6 = v8::Utils::OpenHandle(*obj6);
   CHECK_EQ(0, StringCmp(
       "Object", i::V8HeapExplorer::GetConstructorName(*js_obj6)));
+}
+
+
+TEST(FastCaseGetter) {
+  v8::HandleScope scope;
+  LocalContext env;
+
+  CompileRun("var obj1 = {};\n"
+             "obj1.__defineGetter__('propWithGetter', function Y() {\n"
+             "  return 42;\n"
+             "});\n"
+             "obj1.__defineSetter__('propWithSetter', function Z(value) {\n"
+             "  return this.value_ = value;\n"
+             "});\n");
+  const v8::HeapSnapshot* snapshot =
+      v8::HeapProfiler::TakeSnapshot(v8_str("fastCaseGetter"));
+
+  const v8::HeapGraphNode* global = GetGlobalObject(snapshot);
+  CHECK_NE(NULL, global);
+  const v8::HeapGraphNode* obj1 =
+      GetProperty(global, v8::HeapGraphEdge::kShortcut, "obj1");
+  CHECK_NE(NULL, obj1);
+  const v8::HeapGraphNode* getterFunction =
+      GetProperty(obj1, v8::HeapGraphEdge::kProperty, "get-propWithGetter");
+  CHECK_NE(NULL, getterFunction);
+  const v8::HeapGraphNode* setterFunction =
+      GetProperty(obj1, v8::HeapGraphEdge::kProperty, "set-propWithSetter");
+  CHECK_NE(NULL, setterFunction);
 }

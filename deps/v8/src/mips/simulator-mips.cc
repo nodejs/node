@@ -72,7 +72,7 @@ uint32_t get_fcsr_condition_bit(uint32_t cc) {
 // code.
 class MipsDebugger {
  public:
-  explicit MipsDebugger(Simulator* sim);
+  explicit MipsDebugger(Simulator* sim) : sim_(sim) { }
   ~MipsDebugger();
 
   void Stop(Instruction* instr);
@@ -104,10 +104,6 @@ class MipsDebugger {
   void UndoBreakpoints();
   void RedoBreakpoints();
 };
-
-MipsDebugger::MipsDebugger(Simulator* sim) {
-  sim_ = sim;
-}
 
 
 MipsDebugger::~MipsDebugger() {
@@ -391,6 +387,13 @@ void MipsDebugger::Debug() {
     if (line == NULL) {
       break;
     } else {
+      char* last_input = sim_->last_debugger_input();
+      if (strcmp(line, "\n") == 0 && last_input != NULL) {
+        line = last_input;
+      } else {
+        // Ownership is transferred to sim_;
+        sim_->set_last_debugger_input(line);
+      }
       // Use sscanf to parse the individual parts of the command line. At the
       // moment no command expects more than two parameters.
       int argc = SScanF(line,
@@ -757,7 +760,6 @@ void MipsDebugger::Debug() {
         PrintF("Unknown command: %s\n", cmd);
       }
     }
-    DeleteArray(line);
   }
 
   // Add all the breakpoints back to stop execution and enter the debugger
@@ -788,6 +790,12 @@ static bool AllOnOnePage(uintptr_t start, int size) {
   intptr_t start_page = (start & ~CachePage::kPageMask);
   intptr_t end_page = ((start + size) & ~CachePage::kPageMask);
   return start_page == end_page;
+}
+
+
+void Simulator::set_last_debugger_input(char* input) {
+  DeleteArray(last_debugger_input_);
+  last_debugger_input_ = input;
 }
 
 
@@ -911,6 +919,8 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   for (int i = 0; i < kNumExceptions; i++) {
     exceptions[i] = 0;
   }
+
+  last_debugger_input_ = NULL;
 }
 
 
@@ -1359,9 +1369,9 @@ void Simulator::WriteB(int32_t addr, int8_t value) {
 
 // Returns the limit of the stack area to enable checking for stack overflows.
 uintptr_t Simulator::StackLimit() const {
-  // Leave a safety margin of 256 bytes to prevent overrunning the stack when
+  // Leave a safety margin of 512 bytes to prevent overrunning the stack when
   // pushing values.
-  return reinterpret_cast<uintptr_t>(stack_) + 256;
+  return reinterpret_cast<uintptr_t>(stack_) + 512;
 }
 
 

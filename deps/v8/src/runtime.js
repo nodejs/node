@@ -355,7 +355,7 @@ function IN(x) {
   if (!IS_SPEC_OBJECT(x)) {
     throw %MakeTypeError('invalid_in_operator_use', [this, x]);
   }
-  return %_IsNonNegativeSmi(this) && !%IsJSProxy(x) ?
+  return %_IsNonNegativeSmi(this) ?
     %HasElement(x, this) : %HasProperty(x, %ToString(this));
 }
 
@@ -375,6 +375,12 @@ function INSTANCE_OF(F) {
     return 1;
   }
 
+  // Check if function is bound, if so, get [[BoundFunction]] from it
+  // and use that instead of F.
+  var bindings = %BoundFunctionGetBindings(F);
+  if (bindings) {
+    F = bindings[kBoundFunctionIndex];  // Always a non-bound function.
+  }
   // Get the prototype of F; if it is not an object, throw an error.
   var O = F.prototype;
   if (!IS_SPEC_OBJECT(O)) {
@@ -383,13 +389,6 @@ function INSTANCE_OF(F) {
 
   // Return whether or not O is in the prototype chain of V.
   return %IsInPrototypeChain(O, V) ? 0 : 1;
-}
-
-
-// Get an array of property keys for the given object. Used in
-// for-in statements.
-function GET_KEYS() {
-  return %GetPropertyNames(this);
 }
 
 
@@ -429,20 +428,10 @@ function CALL_FUNCTION_PROXY() {
 }
 
 
-function CALL_FUNCTION_PROXY_AS_CONSTRUCTOR(proxy) {
-  var arity = %_ArgumentsLength() - 1;
+function CALL_FUNCTION_PROXY_AS_CONSTRUCTOR() {
+  var proxy = this;
   var trap = %GetConstructTrap(proxy);
-  var receiver = void 0;
-  if (!IS_UNDEFINED(trap)) {
-    trap = %GetCallTrap(proxy);
-    var proto = proxy.prototype;
-    if (!IS_SPEC_OBJECT(proto) && proto !== null) {
-      throw MakeTypeError("proto_object_or_null", [proto]);
-    }
-    receiver = new global.Object();
-    receiver.__proto__ = proto;
-  }
-  return %Apply(trap, this, arguments, 1, arity);
+  return %Apply(trap, this, arguments, 0, %_ArgumentsLength());
 }
 
 
@@ -469,11 +458,12 @@ function APPLY_PREPARE(args) {
   }
 
   if (!IS_SPEC_FUNCTION(this)) {
-    throw %MakeTypeError('apply_non_function', [ %ToString(this), typeof this ]);
+    throw %MakeTypeError('apply_non_function',
+                         [ %ToString(this), typeof this ]);
   }
 
   // Make sure the arguments list has the right type.
-  if (args != null && !IS_ARRAY(args) && !IS_ARGUMENTS(args)) {
+  if (args != null && !IS_SPEC_OBJECT(args)) {
     throw %MakeTypeError('apply_wrong_args', []);
   }
 

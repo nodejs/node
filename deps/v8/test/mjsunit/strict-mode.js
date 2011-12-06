@@ -1051,14 +1051,20 @@ function CheckPillDescriptor(func, name) {
   }
   assertThrows(function() { strict.caller; }, TypeError);
   assertThrows(function() { strict.arguments; }, TypeError);
+  assertThrows(function() { strict.caller = 42; }, TypeError);
+  assertThrows(function() { strict.arguments = 42; }, TypeError);
 
   var another = new Function("'use strict'");
   assertThrows(function() { another.caller; }, TypeError);
   assertThrows(function() { another.arguments; }, TypeError);
+  assertThrows(function() { another.caller = 42; }, TypeError);
+  assertThrows(function() { another.arguments = 42; }, TypeError);
 
   var third = (function() { "use strict"; return function() {}; })();
   assertThrows(function() { third.caller; }, TypeError);
   assertThrows(function() { third.arguments; }, TypeError);
+  assertThrows(function() { third.caller = 42; }, TypeError);
+  assertThrows(function() { third.arguments = 42; }, TypeError);
 
   CheckPillDescriptor(strict, "caller");
   CheckPillDescriptor(strict, "arguments");

@@ -42,7 +42,7 @@ function deopt() {
   // Make sure we don't inline this function
   try { var a = 42; } catch(o) {};
   %DeoptimizeFunction(opt_me);
-  gc(true);
+  gc();
 }
 
 

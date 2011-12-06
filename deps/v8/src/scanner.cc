@@ -36,29 +36,25 @@ namespace v8 {
 namespace internal {
 
 // ----------------------------------------------------------------------------
-// Scanner::LiteralScope
-
-Scanner::LiteralScope::LiteralScope(Scanner* self)
-    : scanner_(self), complete_(false) {
-  self->StartLiteral();
-}
-
-
-Scanner::LiteralScope::~LiteralScope() {
-  if (!complete_) scanner_->DropLiteral();
-}
-
-
-void Scanner::LiteralScope::Complete() {
-  scanner_->TerminateLiteral();
-  complete_ = true;
-}
-
-// ----------------------------------------------------------------------------
 // Scanner
 
 Scanner::Scanner(UnicodeCache* unicode_cache)
-    : unicode_cache_(unicode_cache) { }
+    : unicode_cache_(unicode_cache),
+      octal_pos_(Location::invalid()),
+      harmony_scoping_(false) { }
+
+
+void Scanner::Initialize(UC16CharacterStream* source) {
+  source_ = source;
+  // Need to capture identifiers in order to recognize "get" and "set"
+  // in object literals.
+  Init();
+  // Skip initial whitespace allowing HTML comment ends just like
+  // after a newline and scan first token.
+  has_line_terminator_before_next_ = true;
+  SkipWhiteSpace();
+  Scan();
+}
 
 
 uc32 Scanner::ScanHexNumber(int expected_length) {
@@ -85,29 +81,6 @@ uc32 Scanner::ScanHexNumber(int expected_length) {
   }
 
   return x;
-}
-
-
-
-// ----------------------------------------------------------------------------
-// JavaScriptScanner
-
-JavaScriptScanner::JavaScriptScanner(UnicodeCache* scanner_contants)
-    : Scanner(scanner_contants),
-      octal_pos_(Location::invalid()),
-      harmony_block_scoping_(false) { }
-
-
-void JavaScriptScanner::Initialize(UC16CharacterStream* source) {
-  source_ = source;
-  // Need to capture identifiers in order to recognize "get" and "set"
-  // in object literals.
-  Init();
-  // Skip initial whitespace allowing HTML comment ends just like
-  // after a newline and scan first token.
-  has_line_terminator_before_next_ = true;
-  SkipWhiteSpace();
-  Scan();
 }
 
 
@@ -247,7 +220,7 @@ static const byte one_char_tokens[] = {
 };
 
 
-Token::Value JavaScriptScanner::Next() {
+Token::Value Scanner::Next() {
   current_ = next_;
   has_line_terminator_before_next_ = false;
   has_multiline_comment_before_next_ = false;
@@ -279,7 +252,7 @@ static inline bool IsByteOrderMark(uc32 c) {
 }
 
 
-bool JavaScriptScanner::SkipWhiteSpace() {
+bool Scanner::SkipWhiteSpace() {
   int start_position = source_pos();
 
   while (true) {
@@ -319,7 +292,7 @@ bool JavaScriptScanner::SkipWhiteSpace() {
 }
 
 
-Token::Value JavaScriptScanner::SkipSingleLineComment() {
+Token::Value Scanner::SkipSingleLineComment() {
   Advance();
 
   // The line terminator at the end of the line is not considered
@@ -335,7 +308,7 @@ Token::Value JavaScriptScanner::SkipSingleLineComment() {
 }
 
 
-Token::Value JavaScriptScanner::SkipMultiLineComment() {
+Token::Value Scanner::SkipMultiLineComment() {
   ASSERT(c0_ == '*');
   Advance();
 
@@ -361,7 +334,7 @@ Token::Value JavaScriptScanner::SkipMultiLineComment() {
 }
 
 
-Token::Value JavaScriptScanner::ScanHtmlComment() {
+Token::Value Scanner::ScanHtmlComment() {
   // Check for <!-- comments.
   ASSERT(c0_ == '!');
   Advance();
@@ -376,7 +349,7 @@ Token::Value JavaScriptScanner::ScanHtmlComment() {
 }
 
 
-void JavaScriptScanner::Scan() {
+void Scanner::Scan() {
   next_.literal_chars = NULL;
   Token::Value token;
   do {
@@ -616,7 +589,7 @@ void JavaScriptScanner::Scan() {
 }
 
 
-void JavaScriptScanner::SeekForward(int pos) {
+void Scanner::SeekForward(int pos) {
   // After this call, we will have the token at the given position as
   // the "next" token. The "current" token will be invalid.
   if (pos == next_.location.beg_pos) return;
@@ -637,7 +610,7 @@ void JavaScriptScanner::SeekForward(int pos) {
 }
 
 
-void JavaScriptScanner::ScanEscape() {
+void Scanner::ScanEscape() {
   uc32 c = c0_;
   Advance();
 
@@ -689,7 +662,7 @@ void JavaScriptScanner::ScanEscape() {
 
 // Octal escapes of the forms '\0xx' and '\xxx' are not a part of
 // ECMA-262. Other JS VMs support them.
-uc32 JavaScriptScanner::ScanOctalEscape(uc32 c, int length) {
+uc32 Scanner::ScanOctalEscape(uc32 c, int length) {
   uc32 x = c - '0';
   int i = 0;
   for (; i < length; i++) {
@@ -712,7 +685,7 @@ uc32 JavaScriptScanner::ScanOctalEscape(uc32 c, int length) {
 }
 
 
-Token::Value JavaScriptScanner::ScanString() {
+Token::Value Scanner::ScanString() {
   uc32 quote = c0_;
   Advance();  // consume quote
 
@@ -736,13 +709,13 @@ Token::Value JavaScriptScanner::ScanString() {
 }
 
 
-void JavaScriptScanner::ScanDecimalDigits() {
+void Scanner::ScanDecimalDigits() {
   while (IsDecimalDigit(c0_))
     AddLiteralCharAdvance();
 }
 
 
-Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
+Token::Value Scanner::ScanNumber(bool seen_period) {
   ASSERT(IsDecimalDigit(c0_));  // the first digit of the number or the fraction
 
   enum { DECIMAL, HEX, OCTAL } kind = DECIMAL;
@@ -827,7 +800,7 @@ Token::Value JavaScriptScanner::ScanNumber(bool seen_period) {
 }
 
 
-uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
+uc32 Scanner::ScanIdentifierUnicodeEscape() {
   Advance();
   if (c0_ != 'u') return -1;
   Advance();
@@ -872,7 +845,7 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
   KEYWORD("instanceof", Token::INSTANCEOF)                          \
   KEYWORD("interface", Token::FUTURE_STRICT_RESERVED_WORD)          \
   KEYWORD_GROUP('l')                                                \
-  KEYWORD("let", harmony_block_scoping                              \
+  KEYWORD("let", harmony_scoping                                    \
                  ? Token::LET : Token::FUTURE_STRICT_RESERVED_WORD) \
   KEYWORD_GROUP('n')                                                \
   KEYWORD("new", Token::NEW)                                        \
@@ -906,7 +879,7 @@ uc32 JavaScriptScanner::ScanIdentifierUnicodeEscape() {
 
 static Token::Value KeywordOrIdentifierToken(const char* input,
                                              int input_length,
-                                             bool harmony_block_scoping) {
+                                             bool harmony_scoping) {
   ASSERT(input_length >= 1);
   const int kMinLength = 2;
   const int kMaxLength = 10;
@@ -944,7 +917,7 @@ static Token::Value KeywordOrIdentifierToken(const char* input,
 }
 
 
-Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
+Token::Value Scanner::ScanIdentifierOrKeyword() {
   ASSERT(unicode_cache_->IsIdentifierStart(c0_));
   LiteralScope literal(this);
   // Scan identifier start character.
@@ -982,14 +955,14 @@ Token::Value JavaScriptScanner::ScanIdentifierOrKeyword() {
     Vector<const char> chars = next_.literal_chars->ascii_literal();
     return KeywordOrIdentifierToken(chars.start(),
                                     chars.length(),
-                                    harmony_block_scoping_);
+                                    harmony_scoping_);
   }
 
   return Token::IDENTIFIER;
 }
 
 
-Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
+Token::Value Scanner::ScanIdentifierSuffix(LiteralScope* literal) {
   // Scan the rest of the identifier characters.
   while (unicode_cache_->IsIdentifierPart(c0_)) {
     if (c0_ == '\\') {
@@ -1012,7 +985,7 @@ Token::Value JavaScriptScanner::ScanIdentifierSuffix(LiteralScope* literal) {
 }
 
 
-bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
+bool Scanner::ScanRegExpPattern(bool seen_equal) {
   // Scan: ('/' | '/=') RegularExpressionBody '/' RegularExpressionFlags
   bool in_character_class = false;
 
@@ -1059,7 +1032,7 @@ bool JavaScriptScanner::ScanRegExpPattern(bool seen_equal) {
 }
 
 
-bool JavaScriptScanner::ScanLiteralUnicodeEscape() {
+bool Scanner::ScanLiteralUnicodeEscape() {
   ASSERT(c0_ == '\\');
   uc32 chars_read[6] = {'\\', 'u', 0, 0, 0, 0};
   Advance();
@@ -1089,7 +1062,7 @@ bool JavaScriptScanner::ScanLiteralUnicodeEscape() {
 }
 
 
-bool JavaScriptScanner::ScanRegExpFlags() {
+bool Scanner::ScanRegExpFlags() {
   // Scan regular expression flags.
   LiteralScope literal(this);
   while (unicode_cache_->IsIdentifierPart(c0_)) {

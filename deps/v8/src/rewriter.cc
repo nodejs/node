@@ -236,10 +236,22 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
     if (processor.HasStackOverflow()) return false;
 
     if (processor.result_assigned()) {
+      ASSERT(function->end_position() != RelocInfo::kNoPosition);
       Isolate* isolate = info->isolate();
       Zone* zone = isolate->zone();
-      VariableProxy* result_proxy = new(zone) VariableProxy(isolate, result);
-      body->Add(new(zone) ReturnStatement(result_proxy));
+      // Set the position of the assignment statement one character past the
+      // source code, such that it definitely is not in the source code range
+      // of an immediate inner scope. For example in
+      //   eval('with ({x:1}) x = 1');
+      // the end position of the function generated for executing the eval code
+      // coincides with the end of the with scope which is the position of '1'.
+      int position = function->end_position();
+      VariableProxy* result_proxy = new(zone) VariableProxy(
+          isolate, result->name(), false, position);
+      result_proxy->BindTo(result);
+      Statement* result_statement = new(zone) ReturnStatement(result_proxy);
+      result_statement->set_statement_pos(position);
+      body->Add(result_statement);
     }
   }
 

@@ -407,9 +407,18 @@ class LParallelMove : public ZoneObject {
 class LPointerMap: public ZoneObject {
  public:
   explicit LPointerMap(int position)
-      : pointer_operands_(8), position_(position), lithium_position_(-1) { }
+      : pointer_operands_(8),
+        untagged_operands_(0),
+        position_(position),
+        lithium_position_(-1) { }
 
-  const ZoneList<LOperand*>* operands() const { return &pointer_operands_; }
+  const ZoneList<LOperand*>* GetNormalizedOperands() {
+    for (int i = 0; i < untagged_operands_.length(); ++i) {
+      RemovePointer(untagged_operands_[i]);
+    }
+    untagged_operands_.Clear();
+    return &pointer_operands_;
+  }
   int position() const { return position_; }
   int lithium_position() const { return lithium_position_; }
 
@@ -419,10 +428,13 @@ class LPointerMap: public ZoneObject {
   }
 
   void RecordPointer(LOperand* op);
+  void RemovePointer(LOperand* op);
+  void RecordUntagged(LOperand* op);
   void PrintTo(StringStream* stream);
 
  private:
   ZoneList<LOperand*> pointer_operands_;
+  ZoneList<LOperand*> untagged_operands_;
   int position_;
   int lithium_position_;
 };
@@ -442,6 +454,7 @@ class LEnvironment: public ZoneObject {
         translation_index_(-1),
         ast_id_(ast_id),
         parameter_count_(parameter_count),
+        pc_offset_(-1),
         values_(value_count),
         representations_(value_count),
         spilled_registers_(NULL),
@@ -455,6 +468,7 @@ class LEnvironment: public ZoneObject {
   int translation_index() const { return translation_index_; }
   int ast_id() const { return ast_id_; }
   int parameter_count() const { return parameter_count_; }
+  int pc_offset() const { return pc_offset_; }
   LOperand** spilled_registers() const { return spilled_registers_; }
   LOperand** spilled_double_registers() const {
     return spilled_double_registers_;
@@ -471,10 +485,13 @@ class LEnvironment: public ZoneObject {
     return representations_[index].IsTagged();
   }
 
-  void Register(int deoptimization_index, int translation_index) {
+  void Register(int deoptimization_index,
+                int translation_index,
+                int pc_offset) {
     ASSERT(!HasBeenRegistered());
     deoptimization_index_ = deoptimization_index;
     translation_index_ = translation_index;
+    pc_offset_ = pc_offset;
   }
   bool HasBeenRegistered() const {
     return deoptimization_index_ != Safepoint::kNoDeoptimizationIndex;
@@ -495,6 +512,7 @@ class LEnvironment: public ZoneObject {
   int translation_index_;
   int ast_id_;
   int parameter_count_;
+  int pc_offset_;
   ZoneList<LOperand*> values_;
   ZoneList<Representation> representations_;
 

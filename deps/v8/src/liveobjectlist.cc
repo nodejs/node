@@ -1085,7 +1085,7 @@ void LiveObjectList::SortAll() {
 static int CountHeapObjects() {
   int count = 0;
   // Iterate over all the heap spaces and count the number of objects.
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
   while ((heap_obj = iterator.next()) != NULL) {
     count++;
@@ -1122,7 +1122,7 @@ MaybeObject* LiveObjectList::Capture() {
   // allocation, and we need allocate below.
   {
     // Iterate over all the heap spaces and add the objects.
-    HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+    HeapIterator iterator;
     HeapObject* heap_obj = NULL;
     bool failed = false;
     while (!failed && (heap_obj = iterator.next()) != NULL) {
@@ -1336,7 +1336,9 @@ MaybeObject* LiveObjectList::DumpPrivate(DumpWriter* writer,
   // Allocate the JSArray of the elements.
   Handle<JSObject> elements = factory->NewJSObject(isolate->array_function());
   if (elements->IsFailure()) return Object::cast(*elements);
-  Handle<JSArray>::cast(elements)->SetContent(*elements_arr);
+
+  maybe_result = Handle<JSArray>::cast(elements)->SetContent(*elements_arr);
+  if (maybe_result->IsFailure()) return maybe_result;
 
   // Set body.elements.
   Handle<String> elements_sym = factory->LookupAsciiSymbol("elements");
@@ -1462,7 +1464,9 @@ MaybeObject* LiveObjectList::SummarizePrivate(SummaryWriter* writer,
   Handle<JSObject> summary_obj =
     factory->NewJSObject(isolate->array_function());
   if (summary_obj->IsFailure()) return Object::cast(*summary_obj);
-  Handle<JSArray>::cast(summary_obj)->SetContent(*summary_arr);
+
+  maybe_result = Handle<JSArray>::cast(summary_obj)->SetContent(*summary_arr);
+  if (maybe_result->IsFailure()) return maybe_result;
 
   // Create the body object.
   Handle<JSObject> body = factory->NewJSObject(isolate->object_function());
@@ -1589,7 +1593,9 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
 
   // Return the result as a JS array.
   Handle<JSObject> lols = factory->NewJSObject(isolate->array_function());
-  Handle<JSArray>::cast(lols)->SetContent(*list);
+
+  maybe_result = Handle<JSArray>::cast(lols)->SetContent(*list);
+  if (maybe_result->IsFailure()) return maybe_result;
 
   Handle<JSObject> result = factory->NewJSObject(isolate->object_function());
   if (result->IsFailure()) return Object::cast(*result);
@@ -2507,7 +2513,7 @@ void LiveObjectList::Verify(bool match_heap_exactly) {
   OS::Print("  Start verify ...\n");
   OS::Print("  Verifying ...");
   Flush();
-  HeapIterator iterator(HeapIterator::kFilterFreeListNodes);
+  HeapIterator iterator;
   HeapObject* heap_obj = NULL;
   while ((heap_obj = iterator.next()) != NULL) {
     number_of_heap_objects++;
@@ -2613,7 +2619,7 @@ void LiveObjectList::VerifyNotInFromSpace() {
     HeapObject* heap_obj = it.Obj();
     if (heap->InFromSpace(heap_obj)) {
       OS::Print(" ERROR: VerifyNotInFromSpace: [%d] obj %p in From space %p\n",
-                i++, heap_obj, heap->new_space()->FromSpaceLow());
+                i++, heap_obj, Heap::new_space()->FromSpaceStart());
     }
   }
 }

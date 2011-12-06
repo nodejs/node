@@ -1,4 +1,4 @@
-# Copyright 2009 the V8 project authors. All rights reserved.
+# Copyright 2011 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -68,7 +68,6 @@ js1_5/Array/regress-465980-02: SKIP
 # The tests should be re-enabled when switching to a new version.
 ecma_3/Date/15.9.3.2-1: SKIP
 js1_2/function/Number: SKIP
-
 
 ##################### SLOW TESTS #####################
 
@@ -227,7 +226,7 @@ ecma/String/15.5.4.12-4: FAIL_OK
 ecma/String/15.5.4.12-5: FAIL_OK
 
 # Creates a linked list of arrays until we run out of memory or timeout.
-js1_5/Regress/regress-312588: FAIL || TIMEOUT
+js1_5/Regress/regress-312588: SKIP
 
 
 # Runs out of memory because it compiles huge functions.
@@ -300,6 +299,11 @@ js1_2/regexp/RegExp_multiline: FAIL_OK
 js1_2/regexp/RegExp_multiline_as_array: FAIL_OK
 js1_2/regexp/beginLine: FAIL_OK
 js1_2/regexp/endLine: FAIL_OK
+
+# We no longer let calls to test and exec with no argument implicitly
+# use the previous input.
+js1_2/regexp/RegExp_input: FAIL_OK
+js1_2/regexp/RegExp_input_as_array: FAIL_OK
 
 
 # To be compatible with safari typeof a regexp yields 'function';
@@ -409,12 +413,6 @@ js1_5/Error/regress-465377: FAIL_OK
 # Tests that use the watch method.  Non-ECMA.
 js1_5/extensions/regress-435345-01: FAIL_OK
 js1_5/extensions/regress-455413: FAIL_OK
-
-
-# The spec specifies reverse evaluation order for < and >=.
-# See section 11.8.2 and 11.8.5.
-# We implement the spec here but the test tests the more straigtforward order.
-ecma_3/Operators/order-01: FAIL_OK
 
 
 # Uses Mozilla-specific QName, XML, XMLList and Iterator.
@@ -618,6 +616,10 @@ js1_5/Expressions/regress-394673: FAIL
 # Bug 762: http://code.google.com/p/v8/issues/detail?id=762
 # We do not correctly handle assignments within "with"
 /ecma_3/Statements/12.10-01: FAIL
+
+# We do not throw an exception when a const is redeclared.
+# (We only fail section 1 of the test.)
+js1_5/Regress/regress-103602: FAIL
 
 ##################### MOZILLA EXTENSION TESTS #####################
 

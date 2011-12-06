@@ -44,7 +44,7 @@ function test() {
   assertFalse(isAsciiString(twoByteExternalWithAsciiData));
 
   var realTwoByteExternalString =
-      "\u1234\u1234" + (function() { return "\u1234"; })();
+      "\u1234\u1234\u1234\u1234" + (function() { return "\u1234"; })();
   externalizeString(realTwoByteExternalString);
   assertFalse(isAsciiString(realTwoByteExternalString));
 

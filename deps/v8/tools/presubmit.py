@@ -211,7 +211,12 @@ class CppLintProcessor(SourceFileProcessor):
     if exists(local_cpplint):
       command = ['python', local_cpplint, '--filter', filt] + join(files)
 
-    process = subprocess.Popen(command, stderr=subprocess.PIPE)
+    try:
+      process = subprocess.Popen(command, stderr=subprocess.PIPE)
+    except:
+      print('Error running cpplint.py. Please make sure you have depot_tools' +
+            ' in your $PATH. Lint check skipped.')
+      return True
     LINT_ERROR_PATTERN = re.compile(r'^(.+)[:(]\d+[:)]')
     while True:
       out_line = process.stderr.readline()

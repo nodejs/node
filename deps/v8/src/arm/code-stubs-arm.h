@@ -58,6 +58,25 @@ class TranscendentalCacheStub: public CodeStub {
 };
 
 
+class StoreBufferOverflowStub: public CodeStub {
+ public:
+  explicit StoreBufferOverflowStub(SaveFPRegsMode save_fp)
+      : save_doubles_(save_fp) { }
+
+  void Generate(MacroAssembler* masm);
+
+  virtual bool IsPregenerated();
+  static void GenerateFixedRegStubsAheadOfTime();
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
+ private:
+  SaveFPRegsMode save_doubles_;
+
+  Major MajorKey() { return StoreBufferOverflow; }
+  int MinorKey() { return (save_doubles_ == kSaveFPRegs) ? 1 : 0; }
+};
+
+
 class UnaryOpStub: public CodeStub {
  public:
   UnaryOpStub(Token::Value op,
@@ -117,7 +136,7 @@ class UnaryOpStub: public CodeStub {
     return UnaryOpIC::ToState(operand_type_);
   }
 
-  virtual void FinishCode(Code* code) {
+  virtual void FinishCode(Handle<Code> code) {
     code->set_unary_op_type(operand_type_);
   }
 };
@@ -216,12 +235,76 @@ class BinaryOpStub: public CodeStub {
     return BinaryOpIC::ToState(operands_type_);
   }
 
-  virtual void FinishCode(Code* code) {
+  virtual void FinishCode(Handle<Code> code) {
     code->set_binary_op_type(operands_type_);
     code->set_binary_op_result_type(result_type_);
   }
 
   friend class CodeGenerator;
+};
+
+
+class StringHelper : public AllStatic {
+ public:
+  // Generate code for copying characters using a simple loop. This should only
+  // be used in places where the number of characters is small and the
+  // additional setup and checking in GenerateCopyCharactersLong adds too much
+  // overhead. Copying of overlapping regions is not supported.
+  // Dest register ends at the position after the last character written.
+  static void GenerateCopyCharacters(MacroAssembler* masm,
+                                     Register dest,
+                                     Register src,
+                                     Register count,
+                                     Register scratch,
+                                     bool ascii);
+
+  // Generate code for copying a large number of characters. This function
+  // is allowed to spend extra time setting up conditions to make copying
+  // faster. Copying of overlapping regions is not supported.
+  // Dest register ends at the position after the last character written.
+  static void GenerateCopyCharactersLong(MacroAssembler* masm,
+                                         Register dest,
+                                         Register src,
+                                         Register count,
+                                         Register scratch1,
+                                         Register scratch2,
+                                         Register scratch3,
+                                         Register scratch4,
+                                         Register scratch5,
+                                         int flags);
+
+
+  // Probe the symbol table for a two character string. If the string is
+  // not found by probing a jump to the label not_found is performed. This jump
+  // does not guarantee that the string is not in the symbol table. If the
+  // string is found the code falls through with the string in register r0.
+  // Contents of both c1 and c2 registers are modified. At the exit c1 is
+  // guaranteed to contain halfword with low and high bytes equal to
+  // initial contents of c1 and c2 respectively.
+  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
+                                                   Register c1,
+                                                   Register c2,
+                                                   Register scratch1,
+                                                   Register scratch2,
+                                                   Register scratch3,
+                                                   Register scratch4,
+                                                   Register scratch5,
+                                                   Label* not_found);
+
+  // Generate string hash.
+  static void GenerateHashInit(MacroAssembler* masm,
+                               Register hash,
+                               Register character);
+
+  static void GenerateHashAddCharacter(MacroAssembler* masm,
+                                       Register hash,
+                                       Register character);
+
+  static void GenerateHashGetHash(MacroAssembler* masm,
+                                  Register hash);
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
 };
 
 
@@ -323,6 +406,9 @@ class WriteInt32ToHeapNumberStub : public CodeStub {
         the_heap_number_(the_heap_number),
         scratch_(scratch) { }
 
+  bool IsPregenerated();
+  static void GenerateFixedRegStubsAheadOfTime();
+
  private:
   Register the_int_;
   Register the_heap_number_;
@@ -368,6 +454,218 @@ class NumberToStringStub: public CodeStub {
   int MinorKey() { return 0; }
 
   void Generate(MacroAssembler* masm);
+};
+
+
+class RecordWriteStub: public CodeStub {
+ public:
+  RecordWriteStub(Register object,
+                  Register value,
+                  Register address,
+                  RememberedSetAction remembered_set_action,
+                  SaveFPRegsMode fp_mode)
+      : object_(object),
+        value_(value),
+        address_(address),
+        remembered_set_action_(remembered_set_action),
+        save_fp_regs_mode_(fp_mode),
+        regs_(object,   // An input reg.
+              address,  // An input reg.
+              value) {  // One scratch reg.
+  }
+
+  enum Mode {
+    STORE_BUFFER_ONLY,
+    INCREMENTAL,
+    INCREMENTAL_COMPACTION
+  };
+
+  virtual bool IsPregenerated();
+  static void GenerateFixedRegStubsAheadOfTime();
+  virtual bool SometimesSetsUpAFrame() { return false; }
+
+  static void PatchBranchIntoNop(MacroAssembler* masm, int pos) {
+    masm->instr_at_put(pos, (masm->instr_at(pos) & ~B27) | (B24 | B20));
+    ASSERT(Assembler::IsTstImmediate(masm->instr_at(pos)));
+  }
+
+  static void PatchNopIntoBranch(MacroAssembler* masm, int pos) {
+    masm->instr_at_put(pos, (masm->instr_at(pos) & ~(B24 | B20)) | B27);
+    ASSERT(Assembler::IsBranch(masm->instr_at(pos)));
+  }
+
+  static Mode GetMode(Code* stub) {
+    Instr first_instruction = Assembler::instr_at(stub->instruction_start());
+    Instr second_instruction = Assembler::instr_at(stub->instruction_start() +
+                                                   Assembler::kInstrSize);
+
+    if (Assembler::IsBranch(first_instruction)) {
+      return INCREMENTAL;
+    }
+
+    ASSERT(Assembler::IsTstImmediate(first_instruction));
+
+    if (Assembler::IsBranch(second_instruction)) {
+      return INCREMENTAL_COMPACTION;
+    }
+
+    ASSERT(Assembler::IsTstImmediate(second_instruction));
+
+    return STORE_BUFFER_ONLY;
+  }
+
+  static void Patch(Code* stub, Mode mode) {
+    MacroAssembler masm(NULL,
+                        stub->instruction_start(),
+                        stub->instruction_size());
+    switch (mode) {
+      case STORE_BUFFER_ONLY:
+        ASSERT(GetMode(stub) == INCREMENTAL ||
+               GetMode(stub) == INCREMENTAL_COMPACTION);
+        PatchBranchIntoNop(&masm, 0);
+        PatchBranchIntoNop(&masm, Assembler::kInstrSize);
+        break;
+      case INCREMENTAL:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        PatchNopIntoBranch(&masm, 0);
+        break;
+      case INCREMENTAL_COMPACTION:
+        ASSERT(GetMode(stub) == STORE_BUFFER_ONLY);
+        PatchNopIntoBranch(&masm, Assembler::kInstrSize);
+        break;
+    }
+    ASSERT(GetMode(stub) == mode);
+    CPU::FlushICache(stub->instruction_start(), 2 * Assembler::kInstrSize);
+  }
+
+ private:
+  // This is a helper class for freeing up 3 scratch registers.  The input is
+  // two registers that must be preserved and one scratch register provided by
+  // the caller.
+  class RegisterAllocation {
+   public:
+    RegisterAllocation(Register object,
+                       Register address,
+                       Register scratch0)
+        : object_(object),
+          address_(address),
+          scratch0_(scratch0) {
+      ASSERT(!AreAliased(scratch0, object, address, no_reg));
+      scratch1_ = GetRegThatIsNotOneOf(object_, address_, scratch0_);
+    }
+
+    void Save(MacroAssembler* masm) {
+      ASSERT(!AreAliased(object_, address_, scratch1_, scratch0_));
+      // We don't have to save scratch0_ because it was given to us as
+      // a scratch register.
+      masm->push(scratch1_);
+    }
+
+    void Restore(MacroAssembler* masm) {
+      masm->pop(scratch1_);
+    }
+
+    // If we have to call into C then we need to save and restore all caller-
+    // saved registers that were not already preserved.  The scratch registers
+    // will be restored by other means so we don't bother pushing them here.
+    void SaveCallerSaveRegisters(MacroAssembler* masm, SaveFPRegsMode mode) {
+      masm->stm(db_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
+      if (mode == kSaveFPRegs) {
+        CpuFeatures::Scope scope(VFP3);
+        masm->sub(sp,
+                  sp,
+                  Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
+        // Save all VFP registers except d0.
+        for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
+          DwVfpRegister reg = DwVfpRegister::from_code(i);
+          masm->vstr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
+        }
+      }
+    }
+
+    inline void RestoreCallerSaveRegisters(MacroAssembler*masm,
+                                           SaveFPRegsMode mode) {
+      if (mode == kSaveFPRegs) {
+        CpuFeatures::Scope scope(VFP3);
+        // Restore all VFP registers except d0.
+        for (int i = DwVfpRegister::kNumRegisters - 1; i > 0; i--) {
+          DwVfpRegister reg = DwVfpRegister::from_code(i);
+          masm->vldr(reg, MemOperand(sp, (i - 1) * kDoubleSize));
+        }
+        masm->add(sp,
+                  sp,
+                  Operand(kDoubleSize * (DwVfpRegister::kNumRegisters - 1)));
+      }
+      masm->ldm(ia_w, sp, (kCallerSaved | lr.bit()) & ~scratch1_.bit());
+    }
+
+    inline Register object() { return object_; }
+    inline Register address() { return address_; }
+    inline Register scratch0() { return scratch0_; }
+    inline Register scratch1() { return scratch1_; }
+
+   private:
+    Register object_;
+    Register address_;
+    Register scratch0_;
+    Register scratch1_;
+
+    Register GetRegThatIsNotOneOf(Register r1,
+                                  Register r2,
+                                  Register r3) {
+      for (int i = 0; i < Register::kNumAllocatableRegisters; i++) {
+        Register candidate = Register::FromAllocationIndex(i);
+        if (candidate.is(r1)) continue;
+        if (candidate.is(r2)) continue;
+        if (candidate.is(r3)) continue;
+        return candidate;
+      }
+      UNREACHABLE();
+      return no_reg;
+    }
+    friend class RecordWriteStub;
+  };
+
+  enum OnNoNeedToInformIncrementalMarker {
+    kReturnOnNoNeedToInformIncrementalMarker,
+    kUpdateRememberedSetOnNoNeedToInformIncrementalMarker
+  };
+
+  void Generate(MacroAssembler* masm);
+  void GenerateIncremental(MacroAssembler* masm, Mode mode);
+  void CheckNeedsToInformIncrementalMarker(
+      MacroAssembler* masm,
+      OnNoNeedToInformIncrementalMarker on_no_need,
+      Mode mode);
+  void InformIncrementalMarker(MacroAssembler* masm, Mode mode);
+
+  Major MajorKey() { return RecordWrite; }
+
+  int MinorKey() {
+    return ObjectBits::encode(object_.code()) |
+        ValueBits::encode(value_.code()) |
+        AddressBits::encode(address_.code()) |
+        RememberedSetActionBits::encode(remembered_set_action_) |
+        SaveFPRegsModeBits::encode(save_fp_regs_mode_);
+  }
+
+  void Activate(Code* code) {
+    code->GetHeap()->incremental_marking()->ActivateGeneratedStub(code);
+  }
+
+  class ObjectBits: public BitField<int, 0, 4> {};
+  class ValueBits: public BitField<int, 4, 4> {};
+  class AddressBits: public BitField<int, 8, 4> {};
+  class RememberedSetActionBits: public BitField<RememberedSetAction, 12, 1> {};
+  class SaveFPRegsModeBits: public BitField<SaveFPRegsMode, 13, 1> {};
+
+  Register object_;
+  Register value_;
+  Register address_;
+  RememberedSetAction remembered_set_action_;
+  SaveFPRegsMode save_fp_regs_mode_;
+  Label slow_;
+  RegisterAllocation regs_;
 };
 
 
@@ -558,14 +856,13 @@ class StringDictionaryLookupStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  MUST_USE_RESULT static MaybeObject* GenerateNegativeLookup(
-      MacroAssembler* masm,
-      Label* miss,
-      Label* done,
-      Register receiver,
-      Register properties,
-      String* name,
-      Register scratch0);
+  static void GenerateNegativeLookup(MacroAssembler* masm,
+                                     Label* miss,
+                                     Label* done,
+                                     Register receiver,
+                                     Register properties,
+                                     Handle<String> name,
+                                     Register scratch0);
 
   static void GeneratePositiveLookup(MacroAssembler* masm,
                                      Label* miss,
@@ -574,6 +871,8 @@ class StringDictionaryLookupStub: public CodeStub {
                                      Register name,
                                      Register r0,
                                      Register r1);
+
+  virtual bool SometimesSetsUpAFrame() { return false; }
 
  private:
   static const int kInlinedProbes = 4;
@@ -587,7 +886,7 @@ class StringDictionaryLookupStub: public CodeStub {
       StringDictionary::kHeaderSize +
       StringDictionary::kElementsStartIndex * kPointerSize;
 
-  Major MajorKey() { return StringDictionaryNegativeLookup; }
+  Major MajorKey() { return StringDictionaryLookup; }
 
   int MinorKey() {
     return LookupModeBits::encode(mode_);

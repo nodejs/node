@@ -52,11 +52,13 @@ DeoptimizerData::DeoptimizerData() {
 
 DeoptimizerData::~DeoptimizerData() {
   if (eager_deoptimization_entry_code_ != NULL) {
-    eager_deoptimization_entry_code_->Free(EXECUTABLE);
+    Isolate::Current()->memory_allocator()->Free(
+        eager_deoptimization_entry_code_);
     eager_deoptimization_entry_code_ = NULL;
   }
   if (lazy_deoptimization_entry_code_ != NULL) {
-    lazy_deoptimization_entry_code_->Free(EXECUTABLE);
+    Isolate::Current()->memory_allocator()->Free(
+        lazy_deoptimization_entry_code_);
     lazy_deoptimization_entry_code_ = NULL;
   }
 }
@@ -71,6 +73,8 @@ void DeoptimizerData::Iterate(ObjectVisitor* v) {
 #endif
 
 
+// We rely on this function not causing a GC.  It is called from generated code
+// without having a real stack frame in place.
 Deoptimizer* Deoptimizer::New(JSFunction* function,
                               BailoutType type,
                               unsigned bailout_id,
@@ -112,25 +116,11 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Get the function and code from the frame.
   JSFunction* function = JSFunction::cast(frame->function());
   Code* code = frame->LookupCode();
-  Address code_start_address = code->instruction_start();
 
   // Locate the deoptimization point in the code. As we are at a call the
   // return address must be at a place in the code with deoptimization support.
-  int deoptimization_index = Safepoint::kNoDeoptimizationIndex;
-  // Scope this as the safe point constructor will disallow allocation.
-  {
-    SafepointTable table(code);
-    for (unsigned i = 0; i < table.length(); ++i) {
-      Address address = code_start_address + table.GetPcOffset(i);
-      if (address == frame->pc()) {
-        SafepointEntry safepoint_entry = table.GetEntry(i);
-        ASSERT(safepoint_entry.deoptimization_index() !=
-               Safepoint::kNoDeoptimizationIndex);
-        deoptimization_index = safepoint_entry.deoptimization_index();
-        break;
-      }
-    }
-  }
+  SafepointEntry safepoint_entry = code->GetSafepointEntry(frame->pc());
+  int deoptimization_index = safepoint_entry.deoptimization_index();
   ASSERT(deoptimization_index != Safepoint::kNoDeoptimizationIndex);
 
   // Always use the actual stack slots when calculating the fp to sp
@@ -319,6 +309,8 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
       input_(NULL),
       output_count_(0),
       output_(NULL),
+      frame_alignment_marker_(isolate->heap()->frame_alignment_marker()),
+      has_alignment_padding_(0),
       deferred_heap_numbers_(0) {
   if (FLAG_trace_deopt && type != OSR) {
     if (type == DEBUGGER) {
@@ -343,6 +335,26 @@ Deoptimizer::Deoptimizer(Isolate* isolate,
   if (type == EAGER) {
     ASSERT(from == NULL);
     optimized_code_ = function_->code();
+    if (FLAG_trace_deopt && FLAG_code_comments) {
+      // Print instruction associated with this bailout.
+      const char* last_comment = NULL;
+      int mask = RelocInfo::ModeMask(RelocInfo::COMMENT)
+          | RelocInfo::ModeMask(RelocInfo::RUNTIME_ENTRY);
+      for (RelocIterator it(optimized_code_, mask); !it.done(); it.next()) {
+        RelocInfo* info = it.rinfo();
+        if (info->rmode() == RelocInfo::COMMENT) {
+          last_comment = reinterpret_cast<const char*>(info->data());
+        }
+        if (info->rmode() == RelocInfo::RUNTIME_ENTRY) {
+          unsigned id = Deoptimizer::GetDeoptimizationId(
+              info->target_address(), Deoptimizer::EAGER);
+          if (id == bailout_id && last_comment != NULL) {
+            PrintF("            %s\n", last_comment);
+            break;
+          }
+        }
+      }
+    }
   } else if (type == LAZY) {
     optimized_code_ = FindDeoptimizingCodeFromAddress(from);
     ASSERT(optimized_code_ != NULL);
@@ -386,7 +398,7 @@ void Deoptimizer::DeleteFrameDescriptions() {
 Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
   ASSERT(id >= 0);
   if (id >= kNumberOfEntries) return NULL;
-  LargeObjectChunk* base = NULL;
+  MemoryChunk* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     if (data->eager_deoptimization_entry_code_ == NULL) {
@@ -400,12 +412,12 @@ Address Deoptimizer::GetDeoptimizationEntry(int id, BailoutType type) {
     base = data->lazy_deoptimization_entry_code_;
   }
   return
-      static_cast<Address>(base->GetStartAddress()) + (id * table_entry_size_);
+      static_cast<Address>(base->body()) + (id * table_entry_size_);
 }
 
 
 int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
-  LargeObjectChunk* base = NULL;
+  MemoryChunk* base = NULL;
   DeoptimizerData* data = Isolate::Current()->deoptimizer_data();
   if (type == EAGER) {
     base = data->eager_deoptimization_entry_code_;
@@ -413,14 +425,14 @@ int Deoptimizer::GetDeoptimizationId(Address addr, BailoutType type) {
     base = data->lazy_deoptimization_entry_code_;
   }
   if (base == NULL ||
-      addr < base->GetStartAddress() ||
-      addr >= base->GetStartAddress() +
+      addr < base->body() ||
+      addr >= base->body() +
           (kNumberOfEntries * table_entry_size_)) {
     return kNotDeoptimizationEntry;
   }
   ASSERT_EQ(0,
-      static_cast<int>(addr - base->GetStartAddress()) % table_entry_size_);
-  return static_cast<int>(addr - base->GetStartAddress()) / table_entry_size_;
+      static_cast<int>(addr - base->body()) % table_entry_size_);
+  return static_cast<int>(addr - base->body()) / table_entry_size_;
 }
 
 
@@ -462,6 +474,8 @@ int Deoptimizer::GetDeoptimizedCodeCount(Isolate* isolate) {
 }
 
 
+// We rely on this function not causing a GC.  It is called from generated code
+// without having a real stack frame in place.
 void Deoptimizer::DoComputeOutputFrames() {
   if (bailout_type_ == OSR) {
     DoComputeOsrOutputFrame();
@@ -613,11 +627,13 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       intptr_t input_value = input_->GetRegister(input_reg);
       if (FLAG_trace_deopt) {
         PrintF(
-            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s\n",
+            "    0x%08" V8PRIxPTR ": [top + %d] <- 0x%08" V8PRIxPTR " ; %s ",
             output_[frame_index]->GetTop() + output_offset,
             output_offset,
             input_value,
             converter.NameOfCPURegister(input_reg));
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
@@ -675,10 +691,12 @@ void Deoptimizer::DoTranslateCommand(TranslationIterator* iterator,
       if (FLAG_trace_deopt) {
         PrintF("    0x%08" V8PRIxPTR ": ",
                output_[frame_index]->GetTop() + output_offset);
-        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d]\n",
+        PrintF("[top + %d] <- 0x%08" V8PRIxPTR " ; [esp + %d] ",
                output_offset,
                input_value,
                input_offset);
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output_[frame_index]->SetFrameSlot(output_offset, input_value);
       return;
@@ -850,10 +868,12 @@ bool Deoptimizer::DoOsrTranslateCommand(TranslationIterator* iterator,
       unsigned output_offset =
           output->GetOffsetFromSlotIndex(this, output_index);
       if (FLAG_trace_osr) {
-        PrintF("    [sp + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d]\n",
+        PrintF("    [sp + %d] <- 0x%08" V8PRIxPTR " ; [sp + %d] ",
                output_offset,
                input_value,
                *input_offset);
+        reinterpret_cast<Object*>(input_value)->ShortPrint();
+        PrintF("\n");
       }
       output->SetFrameSlot(output_offset, input_value);
       break;
@@ -953,7 +973,10 @@ void Deoptimizer::PatchStackCheckCode(Code* unoptimized_code,
   for (uint32_t i = 0; i < table_length; ++i) {
     uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    PatchStackCheckCodeAt(pc_after, check_code, replacement_code);
+    PatchStackCheckCodeAt(unoptimized_code,
+                          pc_after,
+                          check_code,
+                          replacement_code);
     stack_check_cursor += 2 * kIntSize;
   }
 }
@@ -972,7 +995,10 @@ void Deoptimizer::RevertStackCheckCode(Code* unoptimized_code,
   for (uint32_t i = 0; i < table_length; ++i) {
     uint32_t pc_offset = Memory::uint32_at(stack_check_cursor + kIntSize);
     Address pc_after = unoptimized_code->instruction_start() + pc_offset;
-    RevertStackCheckCodeAt(pc_after, check_code, replacement_code);
+    RevertStackCheckCodeAt(unoptimized_code,
+                           pc_after,
+                           check_code,
+                           replacement_code);
     stack_check_cursor += 2 * kIntSize;
   }
 }
@@ -1039,7 +1065,7 @@ void Deoptimizer::AddDoubleValue(intptr_t slot_address,
 }
 
 
-LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
+MemoryChunk* Deoptimizer::CreateCode(BailoutType type) {
   // We cannot run this if the serializer is enabled because this will
   // cause us to emit relocation information for the external
   // references. This is fine because the deoptimizer's code section
@@ -1053,12 +1079,15 @@ LargeObjectChunk* Deoptimizer::CreateCode(BailoutType type) {
   masm.GetCode(&desc);
   ASSERT(desc.reloc_size == 0);
 
-  LargeObjectChunk* chunk = LargeObjectChunk::New(desc.instr_size, EXECUTABLE);
+  MemoryChunk* chunk =
+      Isolate::Current()->memory_allocator()->AllocateChunk(desc.instr_size,
+                                                            EXECUTABLE,
+                                                            NULL);
   if (chunk == NULL) {
     V8::FatalProcessOutOfMemory("Not enough memory for deoptimization table");
   }
-  memcpy(chunk->GetStartAddress(), desc.buffer, desc.instr_size);
-  CPU::FlushICache(chunk->GetStartAddress(), desc.instr_size);
+  memcpy(chunk->body(), desc.buffer, desc.instr_size);
+  CPU::FlushICache(chunk->body(), desc.instr_size);
   return chunk;
 }
 

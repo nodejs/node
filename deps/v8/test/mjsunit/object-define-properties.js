@@ -54,3 +54,19 @@ var x = Object.defineProperties(obj, desc);
 
 assertEquals(x.foo, 10);
 assertEquals(x.bar, 42);
+
+
+// Make sure that all property descriptors are calculated before any
+// modifications are done.
+
+var object = {};
+
+assertThrows(function() {
+    Object.defineProperties(object, {
+      foo: { value: 1 },
+      bar: { value: 2, get: function() { return 3; } }
+    });
+  }, TypeError);
+
+assertEquals(undefined, object.foo);
+assertEquals(undefined, object.bar);

@@ -146,7 +146,6 @@ class LifetimePosition {
 
 
 enum RegisterKind {
-  NONE,
   GENERAL_REGISTERS,
   DOUBLE_REGISTERS
 };
@@ -319,7 +318,7 @@ class LiveRange: public ZoneObject {
   // live range to the result live range.
   void SplitAt(LifetimePosition position, LiveRange* result);
 
-  bool IsDouble() const { return assigned_register_kind_ == DOUBLE_REGISTERS; }
+  bool IsDouble() const { return is_double_; }
   bool HasRegisterAssigned() const {
     return assigned_register_ != kInvalidAssignment;
   }
@@ -377,8 +376,8 @@ class LiveRange: public ZoneObject {
 
   int id_;
   bool spilled_;
+  bool is_double_;
   int assigned_register_;
-  RegisterKind assigned_register_kind_;
   UseInterval* last_interval_;
   UseInterval* first_interval_;
   UsePosition* first_pos_;

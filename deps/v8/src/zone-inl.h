@@ -53,6 +53,14 @@ inline void* Zone::New(int size) {
   // Round up the requested size to fit the alignment.
   size = RoundUp(size, kAlignment);
 
+  // If the allocation size is divisible by 8 then we return an 8-byte aligned
+  // address.
+  if (kPointerSize == 4 && kAlignment == 4) {
+    position_ += ((~size) & 4) & (reinterpret_cast<intptr_t>(position_) & 4);
+  } else {
+    ASSERT(kAlignment >= kPointerSize);
+  }
+
   // Check if the requested size is available without expanding.
   Address result = position_;
 

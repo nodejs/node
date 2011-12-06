@@ -138,6 +138,38 @@ setter_arg = StrictTemplate("setter-param-$id", """
   var x = {set foo($id) { }};
 """)
 
+label_normal = Template("label-normal-$id", """
+  $id: '';
+""")
+
+label_strict = StrictTemplate("label-strict-$id", """
+  $id: '';
+""")
+
+break_normal = Template("break-normal-$id", """
+  for (;;) {
+    break $id;
+  }
+""")
+
+break_strict = StrictTemplate("break-strict-$id", """
+  for (;;) {
+    break $id;
+  }
+""")
+
+continue_normal = Template("continue-normal-$id", """
+  for (;;) {
+    continue $id;
+  }
+""")
+
+continue_strict = StrictTemplate("continue-strict-$id", """
+  for (;;) {
+    continue $id;
+  }
+""")
+
 non_strict_use = Template("nonstrict-$id", """
   var $id = 42;
   $id++;
@@ -162,6 +194,7 @@ non_strict_use = Template("nonstrict-$id", """
   function $id($id) { }
   x = {$id: 42};
   x = {get $id() {}, set $id(value) {}};
+  $id: '';
 """)
 
 identifier_name_source = """
@@ -197,6 +230,12 @@ for id in ["eval", "arguments"]:
   prefix_var({"id": id, "op":"--", "opname":"dec"}, "strict_lhs_prefix")
   postfix_var({"id": id, "op":"++", "opname":"inc"}, "strict_lhs_postfix")
   postfix_var({"id": id, "op":"--", "opname":"dec"}, "strict_lhs_postfix")
+  label_normal({"id": id}, None)
+  label_strict({"id": id}, None)
+  break_normal({"id": id}, None)
+  break_strict({"id": id}, None)
+  continue_normal({"id": id}, None)
+  continue_strict({"id": id}, None)
   non_strict_use({"id": id}, None)
 
 
@@ -205,10 +244,13 @@ for id in ["eval", "arguments"]:
 for reserved_word in reserved_words + strict_reserved_words:
   if (reserved_word in strict_reserved_words):
     message = "strict_reserved_word"
+    label_message = None
   elif (reserved_word == "const"):
     message = "unexpected_token"
+    label_message = message
   else:
     message = "reserved_word"
+    label_message = message
   arg_name_own({"id":reserved_word}, message)
   arg_name_nested({"id":reserved_word}, message)
   setter_arg({"id": reserved_word}, message)
@@ -225,6 +267,19 @@ for reserved_word in reserved_words + strict_reserved_words:
   read_var({"id": reserved_word}, message)
   identifier_name({"id": reserved_word}, None);
   identifier_name_strict({"id": reserved_word}, None);
+  label_normal({"id": reserved_word}, label_message)
+  break_normal({"id": reserved_word}, label_message)
+  continue_normal({"id": reserved_word}, label_message)
+  if (reserved_word == "const"):
+    # The error message for this case is different because
+    # ParseLabelledStatementOrExpression will try to parse this as an expression
+    # first, effectively disallowing the use in ParseVariableDeclarations, i.e.
+    # the preparser never sees that 'const' was intended to be a label.
+    label_strict({"id": reserved_word}, "strict_const")
+  else:
+    label_strict({"id": reserved_word}, message)
+  break_strict({"id": reserved_word}, message)
+  continue_strict({"id": reserved_word}, message)
 
 
 # Future reserved words in strict mode behave like normal identifiers

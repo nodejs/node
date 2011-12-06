@@ -527,7 +527,9 @@ MaybeObject* Accessors::FunctionGetLength(Object* object, void*) {
     // correctly yet. Compile it now and return the right length.
     HandleScope scope;
     Handle<JSFunction> handle(function);
-    if (!CompileLazy(handle, KEEP_EXCEPTION)) return Failure::Exception();
+    if (!JSFunction::CompileLazy(handle, KEEP_EXCEPTION)) {
+      return Failure::Exception();
+    }
     return Smi::FromInt(handle->shared()->length());
   } else {
     return Smi::FromInt(function->shared()->length());
@@ -619,8 +621,9 @@ MaybeObject* Accessors::FunctionGetArguments(Object* object, void*) {
 
       if (!frame->is_optimized()) {
         // If there is an arguments variable in the stack, we return that.
-        Handle<SerializedScopeInfo> info(function->shared()->scope_info());
-        int index = info->StackSlotIndex(isolate->heap()->arguments_symbol());
+        Handle<ScopeInfo> scope_info(function->shared()->scope_info());
+        int index = scope_info->StackSlotIndex(
+            isolate->heap()->arguments_symbol());
         if (index >= 0) {
           Handle<Object> arguments(frame->GetExpression(index), isolate);
           if (!arguments->IsArgumentsMarker()) return *arguments;
@@ -672,7 +675,7 @@ static MaybeObject* CheckNonStrictCallerOrThrow(
     Isolate* isolate,
     JSFunction* caller) {
   DisableAssertNoAllocation enable_allocation;
-  if (caller->shared()->strict_mode()) {
+  if (!caller->shared()->is_classic_mode()) {
     return isolate->Throw(
         *isolate->factory()->NewTypeError("strict_caller",
                                           HandleVector<Object>(NULL, 0)));
@@ -759,7 +762,12 @@ MaybeObject* Accessors::FunctionGetCaller(Object* object, void*) {
     caller = potential_caller;
     potential_caller = it.next();
   }
-
+  // If caller is bound, return null. This is compatible with JSC, and
+  // allows us to make bound functions use the strict function map
+  // and its associated throwing caller and arguments.
+  if (caller->shared()->bound()) {
+    return isolate->heap()->null_value();
+  }
   return CheckNonStrictCallerOrThrow(isolate, caller);
 }
 

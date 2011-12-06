@@ -64,6 +64,8 @@ class TypeInfo {
   static TypeInfo Integer32() { return TypeInfo(kInteger32); }
   // We know it's a Smi.
   static TypeInfo Smi() { return TypeInfo(kSmi); }
+  // We know it's a Symbol.
+  static TypeInfo Symbol() { return TypeInfo(kSymbol); }
   // We know it's a heap number.
   static TypeInfo Double() { return TypeInfo(kDouble); }
   // We know it's a string.
@@ -137,6 +139,16 @@ class TypeInfo {
     return ((type_ & kSmi) == kSmi);
   }
 
+  inline bool IsSymbol() {
+    ASSERT(type_ != kUninitialized);
+    return ((type_ & kSymbol) == kSymbol);
+  }
+
+  inline bool IsNonSymbol() {
+    ASSERT(type_ != kUninitialized);
+    return ((type_ & kSymbol) == kString);
+  }
+
   inline bool IsInteger32() {
     ASSERT(type_ != kUninitialized);
     return ((type_ & kInteger32) == kInteger32);
@@ -168,6 +180,7 @@ class TypeInfo {
       case kNumber: return "Number";
       case kInteger32: return "Integer32";
       case kSmi: return "Smi";
+      case kSymbol: return "Symbol";
       case kDouble: return "Double";
       case kString: return "String";
       case kNonPrimitive: return "Object";
@@ -186,6 +199,7 @@ class TypeInfo {
     kSmi = 0x17,           // 0010111
     kDouble = 0x19,        // 0011001
     kString = 0x30,        // 0110000
+    kSymbol = 0x32,        // 0110010
     kNonPrimitive = 0x40,  // 1000000
     kUninitialized = 0x7f  // 1111111
   };
@@ -216,7 +230,9 @@ class UnaryOperation;
 
 class TypeFeedbackOracle BASE_EMBEDDED {
  public:
-  TypeFeedbackOracle(Handle<Code> code, Handle<Context> global_context);
+  TypeFeedbackOracle(Handle<Code> code,
+                     Handle<Context> global_context,
+                     Isolate* isolate);
 
   bool LoadIsMonomorphicNormal(Property* expr);
   bool LoadIsMegamorphicWithTypeInfo(Property* expr);
@@ -242,6 +258,8 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
+
+  Handle<JSFunction> GetCallTarget(Call* expr);
 
   bool LoadIsBuiltin(Property* expr, Builtins::Name id);
 
@@ -273,13 +291,13 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                           byte* old_start,
                           byte* new_start);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
-  void ProcessTarget(unsigned ast_id, Code* target);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.
   Handle<Object> GetInfo(unsigned ast_id);
 
   Handle<Context> global_context_;
+  Isolate* isolate_;
   Handle<NumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);

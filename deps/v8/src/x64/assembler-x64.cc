@@ -47,7 +47,7 @@ uint64_t CpuFeatures::found_by_runtime_probing_ = 0;
 
 
 void CpuFeatures::Probe() {
-  ASSERT(!initialized_);
+  ASSERT(supported_ == CpuFeatures::kDefaultCpuFeatures);
 #ifdef DEBUG
   initialized_ = true;
 #endif
@@ -2299,6 +2299,13 @@ void Assembler::fsin() {
 }
 
 
+void Assembler::fptan() {
+  EnsureSpace ensure_space(this);
+  emit(0xD9);
+  emit(0xF2);
+}
+
+
 void Assembler::fyl2x() {
   EnsureSpace ensure_space(this);
   emit(0xD9);
@@ -2983,7 +2990,7 @@ void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
       return;
     }
   }
-  RelocInfo rinfo(pc_, rmode, data);
+  RelocInfo rinfo(pc_, rmode, data, NULL);
   reloc_info_writer.Write(&rinfo);
 }
 

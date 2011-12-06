@@ -26,10 +26,11 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 String.prototype.startsWith = function (str) {
-  if (str.length > this.length)
+  if (str.length > this.length) {
     return false;
+  }
   return this.substr(0, str.length) == str;
-}
+};
 
 function log10(num) {
   return Math.log(num)/Math.log(10);
@@ -52,8 +53,9 @@ function GetCompletions(global, last, full) {
   for (var i = 0; i < parts.length; i++) {
     var part = parts[i];
     var next = current[part];
-    if (!next)
+    if (!next) {
       return [];
+    }
     current = next;
   }
   var result = [];
@@ -63,8 +65,9 @@ function GetCompletions(global, last, full) {
     var properties = mirror.properties();
     for (var i = 0; i < properties.length; i++) {
       var name = properties[i].name();
-      if (typeof name === 'string' && name.startsWith(last))
+      if (typeof name === 'string' && name.startsWith(last)) {
         result.push(name);
+      }
     }
     current = ToInspectableObject(current.__proto__);
   }
@@ -114,7 +117,7 @@ Debug.State = {
   displaySourceStartLine: -1,
   displaySourceEndLine: -1,
   currentSourceLine: -1
-}
+};
 var trace_compile = false;  // Tracing all compile events?
 var trace_debug_json = false; // Tracing all debug json packets?
 var last_cmd_line = '';
@@ -150,7 +153,7 @@ function DebugMessageDetails(message) {
 }
 
 function DebugEventDetails(response) {
-  details = {text:'', running:false}
+  details = {text:'', running:false};
 
   // Get the running state.
   details.running = response.running();
@@ -217,7 +220,7 @@ function DebugEventDetails(response) {
 
     case 'afterCompile':
       if (trace_compile) {
-        result = 'Source ' + body.script.name + ' compiled:\n'
+        result = 'Source ' + body.script.name + ' compiled:\n';
         var source = body.script.source;
         if (!(source[source.length - 1] == '\n')) {
           result += source;
@@ -237,7 +240,7 @@ function DebugEventDetails(response) {
   }
 
   return details;
-};
+}
 
 
 function SourceInfo(body) {
@@ -279,7 +282,7 @@ function SourceUnderline(source_text, position) {
 
   // Return the source line text with the underline beneath.
   return source_text + '\n' + underline;
-};
+}
 
 
 // Converts a text command to a JSON request.
@@ -289,7 +292,7 @@ function DebugCommandToJSONRequest(cmd_line) {
     print("sending: '" + result + "'");
   }
   return result;
-};
+}
 
 
 function DebugRequest(cmd_line) {
@@ -514,7 +517,7 @@ function DebugRequest(cmd_line) {
 
 DebugRequest.prototype.JSONRequest = function() {
   return this.request_;
-}
+};
 
 
 function RequestPacket(command) {
@@ -536,14 +539,14 @@ RequestPacket.prototype.toJSONProtocol = function() {
     json += ',"arguments":';
     // Encode the arguments part.
     if (this.arguments.toJSONProtocol) {
-      json += this.arguments.toJSONProtocol()
+      json += this.arguments.toJSONProtocol();
     } else {
       json += SimpleObjectToJSON_(this.arguments);
     }
   }
   json += '}';
   return json;
-}
+};
 
 
 DebugRequest.prototype.createRequest = function(command) {
@@ -1310,7 +1313,7 @@ DebugRequest.prototype.lolMakeListRequest =
   }
 
   return request;
-}
+};
 
 
 function extractObjId(args) {
@@ -1499,7 +1502,7 @@ DebugRequest.prototype.traceCommand_ = function(args) {
   } else {
     throw new Error('Invalid trace arguments.');
   }
-}
+};
 
 // Handle the help command.
 DebugRequest.prototype.helpCommand_ = function(args) {
@@ -1608,7 +1611,7 @@ DebugRequest.prototype.helpCommand_ = function(args) {
   print('');
   print('disconnect|exit|quit       - disconnects and quits the debugger');
   print('help                       - prints this help information');
-}
+};
 
 
 function formatHandleReference_(value) {
@@ -1623,7 +1626,7 @@ function formatHandleReference_(value) {
 function formatObject_(value, include_properties) {
   var result = '';
   result += formatHandleReference_(value);
-  result += ', type: object'
+  result += ', type: object';
   result += ', constructor ';
   var ctor = value.constructorFunctionValue();
   result += formatHandleReference_(ctor);
@@ -1943,7 +1946,7 @@ function roundNumber(num, length) {
 
 // Convert a JSON response to text for display in a text based debugger.
 function DebugResponseDetails(response) {
-  details = {text:'', running:false}
+  details = { text: '', running: false };
 
   try {
     if (!response.success()) {
@@ -2308,7 +2311,7 @@ function DebugResponseDetails(response) {
   }
 
   return details;
-};
+}
 
 
 /**
@@ -2334,7 +2337,7 @@ function ProtocolPackage(json) {
  */
 ProtocolPackage.prototype.type = function() {
   return this.packet_.type;
-}
+};
 
 
 /**
@@ -2343,7 +2346,7 @@ ProtocolPackage.prototype.type = function() {
  */
 ProtocolPackage.prototype.event = function() {
   return this.packet_.event;
-}
+};
 
 
 /**
@@ -2352,7 +2355,7 @@ ProtocolPackage.prototype.event = function() {
  */
 ProtocolPackage.prototype.requestSeq = function() {
   return this.packet_.request_seq;
-}
+};
 
 
 /**
@@ -2361,27 +2364,27 @@ ProtocolPackage.prototype.requestSeq = function() {
  */
 ProtocolPackage.prototype.running = function() {
   return this.packet_.running ? true : false;
-}
+};
 
 
 ProtocolPackage.prototype.success = function() {
   return this.packet_.success ? true : false;
-}
+};
 
 
 ProtocolPackage.prototype.message = function() {
   return this.packet_.message;
-}
+};
 
 
 ProtocolPackage.prototype.command = function() {
   return this.packet_.command;
-}
+};
 
 
 ProtocolPackage.prototype.body = function() {
   return this.packet_.body;
-}
+};
 
 
 ProtocolPackage.prototype.bodyValue = function(index) {
@@ -2390,12 +2393,12 @@ ProtocolPackage.prototype.bodyValue = function(index) {
   } else {
     return new ProtocolValue(this.packet_.body, this);
   }
-}
+};
 
 
 ProtocolPackage.prototype.body = function() {
   return this.packet_.body;
-}
+};
 
 
 ProtocolPackage.prototype.lookup = function(handle) {
@@ -2405,12 +2408,12 @@ ProtocolPackage.prototype.lookup = function(handle) {
   } else {
     return new ProtocolReference(handle);
   }
-}
+};
 
 
 ProtocolPackage.prototype.raw_json = function() {
   return this.raw_json_;
-}
+};
 
 
 function ProtocolValue(value, packet) {
@@ -2425,7 +2428,7 @@ function ProtocolValue(value, packet) {
  */
 ProtocolValue.prototype.type = function() {
   return this.value_.type;
-}
+};
 
 
 /**
@@ -2434,7 +2437,7 @@ ProtocolValue.prototype.type = function() {
  */
 ProtocolValue.prototype.field = function(name) {
   return this.value_[name];
-}
+};
 
 
 /**
@@ -2444,7 +2447,7 @@ ProtocolValue.prototype.field = function(name) {
 ProtocolValue.prototype.isPrimitive = function() {
   return this.isUndefined() || this.isNull() || this.isBoolean() ||
          this.isNumber() || this.isString();
-}
+};
 
 
 /**
@@ -2453,7 +2456,7 @@ ProtocolValue.prototype.isPrimitive = function() {
  */
 ProtocolValue.prototype.handle = function() {
   return this.value_.handle;
-}
+};
 
 
 /**
@@ -2462,7 +2465,7 @@ ProtocolValue.prototype.handle = function() {
  */
 ProtocolValue.prototype.isUndefined = function() {
   return this.value_.type == 'undefined';
-}
+};
 
 
 /**
@@ -2471,7 +2474,7 @@ ProtocolValue.prototype.isUndefined = function() {
  */
 ProtocolValue.prototype.isNull = function() {
   return this.value_.type == 'null';
-}
+};
 
 
 /**
@@ -2480,7 +2483,7 @@ ProtocolValue.prototype.isNull = function() {
  */
 ProtocolValue.prototype.isBoolean = function() {
   return this.value_.type == 'boolean';
-}
+};
 
 
 /**
@@ -2489,7 +2492,7 @@ ProtocolValue.prototype.isBoolean = function() {
  */
 ProtocolValue.prototype.isNumber = function() {
   return this.value_.type == 'number';
-}
+};
 
 
 /**
@@ -2498,7 +2501,7 @@ ProtocolValue.prototype.isNumber = function() {
  */
 ProtocolValue.prototype.isString = function() {
   return this.value_.type == 'string';
-}
+};
 
 
 /**
@@ -2508,7 +2511,7 @@ ProtocolValue.prototype.isString = function() {
 ProtocolValue.prototype.isObject = function() {
   return this.value_.type == 'object' || this.value_.type == 'function' ||
          this.value_.type == 'error' || this.value_.type == 'regexp';
-}
+};
 
 
 /**
@@ -2518,7 +2521,7 @@ ProtocolValue.prototype.isObject = function() {
 ProtocolValue.prototype.constructorFunctionValue = function() {
   var ctor = this.value_.constructorFunction;
   return this.packet_.lookup(ctor.ref);
-}
+};
 
 
 /**
@@ -2528,7 +2531,7 @@ ProtocolValue.prototype.constructorFunctionValue = function() {
 ProtocolValue.prototype.protoObjectValue = function() {
   var proto = this.value_.protoObject;
   return this.packet_.lookup(proto.ref);
-}
+};
 
 
 /**
@@ -2537,7 +2540,7 @@ ProtocolValue.prototype.protoObjectValue = function() {
  */
 ProtocolValue.prototype.propertyCount = function() {
   return this.value_.properties ? this.value_.properties.length : 0;
-}
+};
 
 
 /**
@@ -2547,7 +2550,7 @@ ProtocolValue.prototype.propertyCount = function() {
 ProtocolValue.prototype.propertyName = function(index) {
   var property = this.value_.properties[index];
   return property.name;
-}
+};
 
 
 /**
@@ -2562,7 +2565,7 @@ ProtocolValue.prototype.propertyIndex = function(name) {
     }
   }
   return null;
-}
+};
 
 
 /**
@@ -2572,7 +2575,7 @@ ProtocolValue.prototype.propertyIndex = function(name) {
 ProtocolValue.prototype.propertyValue = function(index) {
   var property = this.value_.properties[index];
   return this.packet_.lookup(property.ref);
-}
+};
 
 
 /**
@@ -2581,12 +2584,12 @@ ProtocolValue.prototype.propertyValue = function(index) {
  */
 ProtocolValue.prototype.value = function() {
   return this.value_.value;
-}
+};
 
 
 ProtocolValue.prototype.valueString = function() {
   return this.value_.text;
-}
+};
 
 
 function ProtocolReference(handle) {
@@ -2596,7 +2599,7 @@ function ProtocolReference(handle) {
 
 ProtocolReference.prototype.handle = function() {
   return this.handle_;
-}
+};
 
 
 function MakeJSONPair_(name, value) {
@@ -2667,7 +2670,7 @@ function StringToJSON_(value) {
         // Convert control character to unicode escape sequence.
         return '\\u00' +
           '0' + // TODO %NumberToRadixString(Math.floor(mapped / 16), 16) +
-          '0' // TODO %NumberToRadixString(mapped % 16, 16);
+          '0'; // TODO %NumberToRadixString(mapped % 16, 16)
       })
     + '"';
   }
@@ -2738,7 +2741,7 @@ function SimpleObjectToJSON_(object) {
           if (property_value === null) {
             property_value_json = 'null';
           } else if (typeof property_value.toJSONProtocol == 'function') {
-            property_value_json = property_value.toJSONProtocol(true)
+            property_value_json = property_value.toJSONProtocol(true);
           } else if (property_value.constructor.name == 'Array'){
             property_value_json = SimpleArrayToJSON_(property_value);
           } else {
@@ -2789,7 +2792,7 @@ function SimpleArrayToJSON_(array) {
     }
     var elem = array[i];
     if (elem.toJSONProtocol) {
-      json += elem.toJSONProtocol(true)
+      json += elem.toJSONProtocol(true);
     } else if (typeof(elem) === 'object')  {
       json += SimpleObjectToJSON_(elem);
     } else if (typeof(elem) === 'boolean')  {

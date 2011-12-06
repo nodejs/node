@@ -42,4 +42,4 @@ function C() {
 
 assertEquals(23, new C().x);
 C.prototype.__defineSetter__('x', function(value) { this.y = 23; });
-assertEquals(void 0, new C().x));
+assertEquals(void 0, new C().x);

@@ -182,13 +182,13 @@ PreParserData Preparse(UnicodeInputStream* input, size_t max_stack) {
   internal::InputStreamUTF16Buffer buffer(input);
   uintptr_t stack_limit = reinterpret_cast<uintptr_t>(&buffer) - max_stack;
   internal::UnicodeCache unicode_cache;
-  internal::JavaScriptScanner scanner(&unicode_cache);
+  internal::Scanner scanner(&unicode_cache);
   scanner.Initialize(&buffer);
   internal::CompleteParserRecorder recorder;
   preparser::PreParser::PreParseResult result =
       preparser::PreParser::PreParseProgram(&scanner,
                                             &recorder,
-                                            true,
+                                            internal::kAllowLazy,
                                             stack_limit);
   if (result == preparser::PreParser::kPreParseStackOverflow) {
     return PreParserData::StackOverflow();

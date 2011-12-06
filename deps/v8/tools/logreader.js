@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -134,9 +134,8 @@ LogReader.prototype.skipDispatch = function(dispatch) {
 LogReader.prototype.dispatchLogRow_ = function(fields) {
   // Obtain the dispatch.
   var command = fields[0];
-  if (!(command in this.dispatchTable_)) {
-    throw new Error('unknown command: ' + command);
-  }
+  if (!(command in this.dispatchTable_)) return;
+
   var dispatch = this.dispatchTable_[command];
 
   if (dispatch === null || this.skipDispatch(dispatch)) {

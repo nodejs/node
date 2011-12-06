@@ -223,7 +223,7 @@ var assertUnreachable;
   assertSame = function assertSame(expected, found, name_opt) {
     if (found === expected) {
       if (expected !== 0 || (1 / expected) == (1 / found)) return;
-    } else if (isNaN(expected) && isNaN(found)) {
+    } else if ((expected !== expected) && (found !== found)) {
       return;
     }
     fail(PrettyPrint(expected), found, name_opt);

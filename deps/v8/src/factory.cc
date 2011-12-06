@@ -59,13 +59,13 @@ Handle<FixedArray> Factory::NewFixedArrayWithHoles(int size,
 }
 
 
-Handle<FixedArray> Factory::NewFixedDoubleArray(int size,
-                                                PretenureFlag pretenure) {
+Handle<FixedDoubleArray> Factory::NewFixedDoubleArray(int size,
+                                                      PretenureFlag pretenure) {
   ASSERT(0 <= size);
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateUninitializedFixedDoubleArray(size, pretenure),
-      FixedArray);
+      FixedDoubleArray);
 }
 
 
@@ -82,6 +82,14 @@ Handle<NumberDictionary> Factory::NewNumberDictionary(int at_least_space_for) {
   CALL_HEAP_FUNCTION(isolate(),
                      NumberDictionary::Allocate(at_least_space_for),
                      NumberDictionary);
+}
+
+
+Handle<ObjectHashSet> Factory::NewObjectHashSet(int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(isolate(),
+                     ObjectHashSet::Allocate(at_least_space_for),
+                     ObjectHashSet);
 }
 
 
@@ -234,7 +242,7 @@ Handle<String> Factory::NewProperSubString(Handle<String> str,
 
 
 Handle<String> Factory::NewExternalStringFromAscii(
-    ExternalAsciiString::Resource* resource) {
+    const ExternalAsciiString::Resource* resource) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateExternalStringFromAscii(resource),
@@ -243,7 +251,7 @@ Handle<String> Factory::NewExternalStringFromAscii(
 
 
 Handle<String> Factory::NewExternalStringFromTwoByte(
-    ExternalTwoByteString::Resource* resource) {
+    const ExternalTwoByteString::Resource* resource) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateExternalStringFromTwoByte(resource),
@@ -295,7 +303,7 @@ Handle<Context> Factory::NewWithContext(Handle<JSFunction> function,
 Handle<Context> Factory::NewBlockContext(
     Handle<JSFunction> function,
     Handle<Context> previous,
-    Handle<SerializedScopeInfo> scope_info) {
+    Handle<ScopeInfo> scope_info) {
   CALL_HEAP_FUNCTION(
       isolate(),
       isolate()->heap()->AllocateBlockContext(*function,
@@ -404,10 +412,12 @@ Handle<JSGlobalPropertyCell> Factory::NewJSGlobalPropertyCell(
 }
 
 
-Handle<Map> Factory::NewMap(InstanceType type, int instance_size) {
+Handle<Map> Factory::NewMap(InstanceType type,
+                            int instance_size,
+                            ElementsKind elements_kind) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateMap(type, instance_size),
+      isolate()->heap()->AllocateMap(type, instance_size, elements_kind),
       Map);
 }
 
@@ -455,29 +465,23 @@ Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
 }
 
 
-Handle<Map> Factory::GetFastElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->GetFastElementsMap(), Map);
-}
-
-
-Handle<Map> Factory::GetSlowElementsMap(Handle<Map> src) {
-  CALL_HEAP_FUNCTION(isolate(), src->GetSlowElementsMap(), Map);
-}
-
-
 Handle<Map> Factory::GetElementsTransitionMap(
-    Handle<Map> src,
-    ElementsKind elements_kind,
-    bool safe_to_add_transition) {
+    Handle<JSObject> src,
+    ElementsKind elements_kind) {
   CALL_HEAP_FUNCTION(isolate(),
-                     src->GetElementsTransitionMap(elements_kind,
-                                                   safe_to_add_transition),
+                     src->GetElementsTransitionMap(elements_kind),
                      Map);
 }
 
 
 Handle<FixedArray> Factory::CopyFixedArray(Handle<FixedArray> array) {
   CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedArray);
+}
+
+
+Handle<FixedDoubleArray> Factory::CopyFixedDoubleArray(
+    Handle<FixedDoubleArray> array) {
+  CALL_HEAP_FUNCTION(isolate(), array->Copy(), FixedDoubleArray);
 }
 
 
@@ -501,22 +505,26 @@ Handle<JSFunction> Factory::NewFunctionFromSharedFunctionInfo(
     PretenureFlag pretenure) {
   Handle<JSFunction> result = BaseNewFunctionFromSharedFunctionInfo(
       function_info,
-      function_info->strict_mode()
-          ? isolate()->strict_mode_function_map()
-          : isolate()->function_map(),
+      function_info->is_classic_mode()
+          ? isolate()->function_map()
+          : isolate()->strict_mode_function_map(),
       pretenure);
 
   result->set_context(*context);
-  int number_of_literals = function_info->num_literals();
-  Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
-  if (number_of_literals > 0) {
-    // Store the object, regexp and array functions in the literals
-    // array prefix.  These functions will be used when creating
-    // object, regexp and array literals in this function.
-    literals->set(JSFunction::kLiteralGlobalContextIndex,
-                  context->global_context());
+  if (!function_info->bound()) {
+    int number_of_literals = function_info->num_literals();
+    Handle<FixedArray> literals = NewFixedArray(number_of_literals, pretenure);
+    if (number_of_literals > 0) {
+      // Store the object, regexp and array functions in the literals
+      // array prefix.  These functions will be used when creating
+      // object, regexp and array literals in this function.
+      literals->set(JSFunction::kLiteralGlobalContextIndex,
+                    context->global_context());
+    }
+    result->set_literals(*literals);
+  } else {
+    result->set_function_bindings(isolate()->heap()->empty_fixed_array());
   }
-  result->set_literals(*literals);
   result->set_next_function_link(isolate()->heap()->undefined_value());
 
   if (V8::UseCrankshaft() &&
@@ -538,17 +546,19 @@ Handle<Object> Factory::NewNumber(double value,
 }
 
 
-Handle<Object> Factory::NewNumberFromInt(int value) {
+Handle<Object> Factory::NewNumberFromInt(int32_t value,
+                                         PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->NumberFromInt32(value), Object);
+      isolate()->heap()->NumberFromInt32(value, pretenure), Object);
 }
 
 
-Handle<Object> Factory::NewNumberFromUint(uint32_t value) {
+Handle<Object> Factory::NewNumberFromUint(uint32_t value,
+                                         PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->NumberFromUint32(value), Object);
+      isolate()->heap()->NumberFromUint32(value, pretenure), Object);
 }
 
 
@@ -641,14 +651,16 @@ Handle<Object> Factory::NewError(const char* maker,
     return undefined_value();
   Handle<JSFunction> fun = Handle<JSFunction>::cast(fun_obj);
   Handle<Object> type_obj = LookupAsciiSymbol(type);
-  Object** argv[2] = { type_obj.location(),
-                       Handle<Object>::cast(args).location() };
+  Handle<Object> argv[] = { type_obj, args };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-      isolate()->js_builtins_object(), 2, argv, &caught_exception);
+                                             isolate()->js_builtins_object(),
+                                             ARRAY_SIZE(argv),
+                                             argv,
+                                             &caught_exception);
   return result;
 }
 
@@ -664,13 +676,16 @@ Handle<Object> Factory::NewError(const char* constructor,
   Handle<JSFunction> fun = Handle<JSFunction>(
       JSFunction::cast(isolate()->js_builtins_object()->
                        GetPropertyNoExceptionThrown(*constr)));
-  Object** argv[1] = { Handle<Object>::cast(message).location() };
+  Handle<Object> argv[] = { message };
 
   // Invoke the JavaScript factory method. If an exception is thrown while
   // running the factory method, use the exception as the result.
   bool caught_exception;
   Handle<Object> result = Execution::TryCall(fun,
-      isolate()->js_builtins_object(), 1, argv, &caught_exception);
+                                             isolate()->js_builtins_object(),
+                                             ARRAY_SIZE(argv),
+                                             argv,
+                                             &caught_exception);
   return result;
 }
 
@@ -722,7 +737,12 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   if (force_initial_map ||
       type != JS_OBJECT_TYPE ||
       instance_size != JSObject::kHeaderSize) {
-    Handle<Map> initial_map = NewMap(type, instance_size);
+    ElementsKind default_elements_kind = FLAG_smi_only_arrays
+        ? FAST_SMI_ONLY_ELEMENTS
+        : FAST_ELEMENTS;
+    Handle<Map> initial_map = NewMap(type,
+                                     instance_size,
+                                     default_elements_kind);
     function->set_initial_map(*initial_map);
     initial_map->set_constructor(*function);
   }
@@ -739,7 +759,7 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
                                                         Handle<Code> code) {
   Handle<JSFunction> function = NewFunctionWithoutPrototype(name,
-                                                            kNonStrictMode);
+                                                            CLASSIC_MODE);
   function->shared()->set_code(*code);
   function->set_code(*code);
   ASSERT(!function->has_initial_map());
@@ -748,11 +768,11 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototype(Handle<String> name,
 }
 
 
-Handle<SerializedScopeInfo> Factory::NewSerializedScopeInfo(int length) {
+Handle<ScopeInfo> Factory::NewScopeInfo(int length) {
   CALL_HEAP_FUNCTION(
       isolate(),
-      isolate()->heap()->AllocateSerializedScopeInfo(length),
-      SerializedScopeInfo);
+      isolate()->heap()->AllocateScopeInfo(length),
+      ScopeInfo);
 }
 
 
@@ -821,10 +841,13 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
   // Number of descriptors added to the result so far.
   int descriptor_count = 0;
 
+  // Ensure that marking will not progress and change color of objects.
+  DescriptorArray::WhitenessWitness witness(*result);
+
   // Copy the descriptors from the array.
   for (int i = 0; i < array->number_of_descriptors(); i++) {
-    if (array->GetType(i) != NULL_DESCRIPTOR) {
-      result->CopyFrom(descriptor_count++, *array, i);
+    if (!array->IsNullDescriptor(i)) {
+      result->CopyFrom(descriptor_count++, *array, i, witness);
     }
   }
 
@@ -844,7 +867,7 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     if (result->LinearSearch(*key, descriptor_count) ==
         DescriptorArray::kNotFound) {
       CallbacksDescriptor desc(*key, *entry, entry->property_attributes());
-      result->Set(descriptor_count, &desc);
+      result->Set(descriptor_count, &desc, witness);
       descriptor_count++;
     } else {
       duplicates++;
@@ -858,13 +881,13 @@ Handle<DescriptorArray> Factory::CopyAppendCallbackDescriptors(
     Handle<DescriptorArray> new_result =
         NewDescriptorArray(number_of_descriptors);
     for (int i = 0; i < number_of_descriptors; i++) {
-      new_result->CopyFrom(i, *result, i);
+      new_result->CopyFrom(i, *result, i, witness);
     }
     result = new_result;
   }
 
   // Sort the result before returning.
-  result->Sort();
+  result->Sort(witness);
   return result;
 }
 
@@ -908,8 +931,23 @@ Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArray> elements,
   Handle<JSArray> result =
       Handle<JSArray>::cast(NewJSObject(isolate()->array_function(),
                                         pretenure));
-  result->SetContent(*elements);
+  SetContent(result, elements);
   return result;
+}
+
+
+void Factory::SetContent(Handle<JSArray> array,
+                         Handle<FixedArray> elements) {
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      array->SetContent(*elements));
+}
+
+
+void Factory::EnsureCanContainNonSmiElements(Handle<JSArray> array) {
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      array->EnsureCanContainNonSmiElements());
 }
 
 
@@ -938,11 +976,18 @@ void Factory::BecomeJSFunction(Handle<JSReceiver> object) {
 }
 
 
+void Factory::SetIdentityHash(Handle<JSObject> object, Object* hash) {
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      object->SetIdentityHash(hash, ALLOW_CREATION));
+}
+
+
 Handle<SharedFunctionInfo> Factory::NewSharedFunctionInfo(
     Handle<String> name,
     int number_of_literals,
     Handle<Code> code,
-    Handle<SerializedScopeInfo> scope_info) {
+    Handle<ScopeInfo> scope_info) {
   Handle<SharedFunctionInfo> shared = NewSharedFunctionInfo(name);
   shared->set_code(*code);
   shared->set_scope_info(*scope_info);
@@ -990,6 +1035,12 @@ Handle<String> Factory::NumberToString(Handle<Object> number) {
 }
 
 
+Handle<String> Factory::Uint32ToString(uint32_t value) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     isolate()->heap()->Uint32ToString(value), String);
+}
+
+
 Handle<NumberDictionary> Factory::DictionaryAtNumberPut(
     Handle<NumberDictionary> dictionary,
     uint32_t key,
@@ -1022,11 +1073,11 @@ Handle<JSFunction> Factory::NewFunction(Handle<String> name,
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
     Handle<String> name,
-    StrictModeFlag strict_mode) {
+    LanguageMode language_mode) {
   Handle<SharedFunctionInfo> function_share = NewSharedFunctionInfo(name);
-  Handle<Map> map = strict_mode == kStrictMode
-      ? isolate()->strict_mode_function_without_prototype_map()
-      : isolate()->function_without_prototype_map();
+  Handle<Map> map = (language_mode == CLASSIC_MODE)
+      ? isolate()->function_without_prototype_map()
+      : isolate()->strict_mode_function_without_prototype_map();
   CALL_HEAP_FUNCTION(isolate(),
                      isolate()->heap()->AllocateFunction(
                          *map,
@@ -1038,8 +1089,9 @@ Handle<JSFunction> Factory::NewFunctionWithoutPrototypeHelper(
 
 Handle<JSFunction> Factory::NewFunctionWithoutPrototype(
     Handle<String> name,
-    StrictModeFlag strict_mode) {
-  Handle<JSFunction> fun = NewFunctionWithoutPrototypeHelper(name, strict_mode);
+    LanguageMode language_mode) {
+  Handle<JSFunction> fun =
+      NewFunctionWithoutPrototypeHelper(name, language_mode);
   fun->set_context(isolate()->context()->global_context());
   return fun;
 }
@@ -1296,6 +1348,22 @@ void Factory::ConfigureInstance(Handle<FunctionTemplateInfo> desc,
   } else {
     *pending_exception = false;
   }
+}
+
+
+Handle<Object> Factory::GlobalConstantFor(Handle<String> name) {
+  Heap* h = isolate()->heap();
+  if (name->Equals(h->undefined_symbol())) return undefined_value();
+  if (name->Equals(h->nan_symbol())) return nan_value();
+  if (name->Equals(h->infinity_symbol())) return infinity_value();
+  return Handle<Object>::null();
+}
+
+
+Handle<Object> Factory::ToBoolean(bool value) {
+  return Handle<Object>(value
+                        ? isolate()->heap()->true_value()
+                        : isolate()->heap()->false_value());
 }
 
 

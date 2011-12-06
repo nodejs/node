@@ -25,10 +25,16 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --expose-debug-as debug --harmony-block-scoping
+// Flags: --expose-debug-as debug --harmony-scoping
 
 // Test debug evaluation for functions without local context, but with
 // nested catch contexts.
+
+// TODO(ES6): properly activate extended mode
+"use strict";
+
+var x;
+var result;
 
 function f() {
   {                   // Line 1.
@@ -42,7 +48,7 @@ function f() {
 };
 
 // Get the Debug object exposed from the debug context global object.
-Debug = debug.Debug
+var Debug = debug.Debug
 // Set breakpoint on line 6.
 var bp = Debug.setBreakPoint(f, 6);
 

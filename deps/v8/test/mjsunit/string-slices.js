@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,7 +25,7 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --string-slices --expose-externalize-string
+// Flags: --expose-externalize-string --allow-natives-syntax
 
 var s = 'abcdefghijklmn';
 assertEquals(s, s.substr());
@@ -100,14 +100,7 @@ for (var i = 5; i < 25; i++) {
 
 // Keep creating strings to to force allocation failure on substring creation.
 var x = "0123456789ABCDEF";
-x += x;  // 2^5
-x += x;
-x += x;
-x += x;
-x += x;
-x += x;  // 2^10
-x += x;
-x += x;
+for (var i = 0; i < 8; i++) x += x;
 var xl = x.length;
 var cache = [];
 for (var i = 0; i < 1000; i++) {
@@ -119,14 +112,7 @@ for (var i = 0; i < 1000; i++) {
 
 // Same with two-byte strings
 var x = "\u2028123456789ABCDEF";
-x += x;  // 2^5
-x += x;
-x += x;
-x += x;
-x += x;
-x += x;  // 2^10
-x += x;
-x += x;
+for (var i = 0; i < 8; i++) x += x;
 var xl = x.length;
 var cache = [];
 for (var i = 0; i < 1000; i++) {
@@ -189,11 +175,34 @@ assertEquals("\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9abcdefghijklmnop",
 assertEquals("\u03B2\u03B3\u03B4\u03B5\u03B4\u03B5\u03B6\u03B7",
     utf.substring(5,1) + utf.substring(3,7));
 
-/*
 // Externalizing strings.
-var a = "123456789qwertyuiopasdfghjklzxcvbnm";
-var b = a.slice(1,-1);
+var a = "123456789" + "qwertyuiopasdfghjklzxcvbnm";
+var b = "23456789qwertyuiopasdfghjklzxcvbn"
 assertEquals(a.slice(1,-1), b);
-externalizeString(a);
+
+assertTrue(isAsciiString(a));
+externalizeString(a, true);
+assertFalse(isAsciiString(a));
+
 assertEquals(a.slice(1,-1), b);
-*/
+assertTrue(/3456789qwe/.test(a));
+assertEquals(5, a.indexOf("678"));
+assertEquals("12345", a.split("6")[0]);
+
+// Create a slice with an external string as parent string.
+var c = a.slice(1,-1);
+
+function test_crankshaft() {
+  for (var i = 0; i < 20; i++) {
+    assertEquals(b.charAt(i), a.charAt(i + 1));
+    assertEquals(b.charAt(i), c.charAt(i));
+    assertEquals(b.charAt(4), c.charAt(4));
+    assertTrue(/3456789qwe/.test(c));
+    assertEquals(4, c.indexOf("678"));
+    assertEquals("2345", c.split("6")[0]);
+  }
+}
+
+test_crankshaft();
+%OptimizeFunctionOnNextCall(test_crankshaft);
+test_crankshaft();

@@ -189,7 +189,7 @@ function MathSqrt(x) {
 // ECMA 262 - 15.8.2.18
 function MathTan(x) {
   if (!IS_NUMBER(x)) x = NonNumberToNumber(x);
-  return %Math_tan(x);
+  return %_MathTan(x);
 }
 
 
@@ -239,7 +239,7 @@ function SetUpMath() {
 
   // Set up non-enumerable functions of the Math object and
   // set their names.
-  InstallFunctionsOnHiddenPrototype($Math, DONT_ENUM, $Array(
+  InstallFunctions($Math, DONT_ENUM, $Array(
     "random", MathRandom,
     "abs", MathAbs,
     "acos", MathAcos,

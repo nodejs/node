@@ -52,10 +52,15 @@ class CompilationInfo BASE_EMBEDDED {
   bool is_lazy() const { return IsLazy::decode(flags_); }
   bool is_eval() const { return IsEval::decode(flags_); }
   bool is_global() const { return IsGlobal::decode(flags_); }
-  bool is_strict_mode() const { return IsStrictMode::decode(flags_); }
+  bool is_classic_mode() const { return language_mode() == CLASSIC_MODE; }
+  bool is_extended_mode() const { return language_mode() == EXTENDED_MODE; }
+  LanguageMode language_mode() const {
+    return LanguageModeField::decode(flags_);
+  }
   bool is_in_loop() const { return IsInLoop::decode(flags_); }
   FunctionLiteral* function() const { return function_; }
   Scope* scope() const { return scope_; }
+  Scope* global_scope() const { return global_scope_; }
   Handle<Code> code() const { return code_; }
   Handle<JSFunction> closure() const { return closure_; }
   Handle<SharedFunctionInfo> shared_info() const { return shared_info_; }
@@ -73,11 +78,11 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(!is_lazy());
     flags_ |= IsGlobal::encode(true);
   }
-  void MarkAsStrictMode() {
-    flags_ |= IsStrictMode::encode(true);
-  }
-  StrictModeFlag StrictMode() {
-    return is_strict_mode() ? kStrictMode : kNonStrictMode;
+  void SetLanguageMode(LanguageMode language_mode) {
+    ASSERT(this->language_mode() == CLASSIC_MODE ||
+           this->language_mode() == language_mode ||
+           language_mode == EXTENDED_MODE);
+    flags_ = LanguageModeField::update(flags_, language_mode);
   }
   void MarkAsInLoop() {
     ASSERT(is_lazy());
@@ -97,6 +102,10 @@ class CompilationInfo BASE_EMBEDDED {
     ASSERT(scope_ == NULL);
     scope_ = scope;
   }
+  void SetGlobalScope(Scope* global_scope) {
+    ASSERT(global_scope_ == NULL);
+    global_scope_ = global_scope;
+  }
   void SetCode(Handle<Code> code) { code_ = code; }
   void SetExtension(v8::Extension* extension) {
     ASSERT(!is_lazy());
@@ -113,6 +122,19 @@ class CompilationInfo BASE_EMBEDDED {
   void SetOsrAstId(int osr_ast_id) {
     ASSERT(IsOptimizing());
     osr_ast_id_ = osr_ast_id;
+  }
+  void MarkCompilingForDebugging(Handle<Code> current_code) {
+    ASSERT(mode_ != OPTIMIZE);
+    ASSERT(current_code->kind() == Code::FUNCTION);
+    flags_ |= IsCompilingForDebugging::encode(true);
+    if (current_code->is_compiled_optimizable()) {
+      EnableDeoptimizationSupport();
+    } else {
+      mode_ = CompilationInfo::NONOPT;
+    }
+  }
+  bool IsCompilingForDebugging() {
+    return IsCompilingForDebugging::decode(flags_);
   }
 
   bool has_global_object() const {
@@ -133,10 +155,12 @@ class CompilationInfo BASE_EMBEDDED {
   void DisableOptimization();
 
   // Deoptimization support.
-  bool HasDeoptimizationSupport() const { return supports_deoptimization_; }
+  bool HasDeoptimizationSupport() const {
+    return SupportsDeoptimization::decode(flags_);
+  }
   void EnableDeoptimizationSupport() {
     ASSERT(IsOptimizable());
-    supports_deoptimization_ = true;
+    flags_ |= SupportsDeoptimization::encode(true);
   }
 
   // Determine whether or not we can adaptively optimize.
@@ -171,8 +195,9 @@ class CompilationInfo BASE_EMBEDDED {
     if (script_->type()->value() == Script::TYPE_NATIVE) {
       MarkAsNative();
     }
-    if (!shared_info_.is_null() && shared_info_->strict_mode()) {
-      MarkAsStrictMode();
+    if (!shared_info_.is_null()) {
+      ASSERT(language_mode() == CLASSIC_MODE);
+      SetLanguageMode(shared_info_->language_mode());
     }
   }
 
@@ -192,9 +217,14 @@ class CompilationInfo BASE_EMBEDDED {
   // Flags that can be set for lazy compilation.
   class IsInLoop: public BitField<bool, 3, 1> {};
   // Strict mode - used in eager compilation.
-  class IsStrictMode: public BitField<bool, 4, 1> {};
+  class LanguageModeField: public BitField<LanguageMode, 4, 2> {};
   // Is this a function from our natives.
   class IsNative: public BitField<bool, 6, 1> {};
+  // Is this code being compiled with support for deoptimization..
+  class SupportsDeoptimization: public BitField<bool, 7, 1> {};
+  // If compiling for debugging produce just full code matching the
+  // initial mode setting.
+  class IsCompilingForDebugging: public BitField<bool, 8, 1> {};
 
 
   unsigned flags_;
@@ -205,6 +235,8 @@ class CompilationInfo BASE_EMBEDDED {
   // The scope of the function literal as a convenience.  Set to indicate
   // that scopes have been analyzed.
   Scope* scope_;
+  // The global scope provided as a convenience.
+  Scope* global_scope_;
   // The compiled code.
   Handle<Code> code_;
 
@@ -223,7 +255,6 @@ class CompilationInfo BASE_EMBEDDED {
 
   // Compilation mode flag and whether deoptimization is allowed.
   Mode mode_;
-  bool supports_deoptimization_;
   int osr_ast_id_;
 
   DISALLOW_COPY_AND_ASSIGN(CompilationInfo);
@@ -267,7 +298,8 @@ class Compiler : public AllStatic {
   static Handle<SharedFunctionInfo> CompileEval(Handle<String> source,
                                                 Handle<Context> context,
                                                 bool is_global,
-                                                StrictModeFlag strict_mode);
+                                                LanguageMode language_mode,
+                                                int scope_position);
 
   // Compile from function info (used for lazy compilation). Returns true on
   // success and false if the compilation resulted in a stack overflow.

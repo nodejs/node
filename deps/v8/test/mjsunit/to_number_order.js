@@ -161,7 +161,7 @@ assertEquals("fiskfisk", x, "Compare objects b >= b valueOf order");
 
 x = "";
 assertFalse(a > b, "Compare objects a > b");
-assertEquals("fiskhest", x, "Compare objects a > b valueOf order");
+assertEquals("hestfisk", x, "Compare objects a > b valueOf order");
 
 x = "";
 assertFalse(a > void(0), "Compare objects a > undefined");
@@ -195,7 +195,7 @@ function identical_object_comparison() {
 
   x = "";
   assertFalse(a > b, "Compare objects a > b");
-  assertEquals("fiskhest", x, "Compare objects a > b valueOf order");
+  assertEquals("hestfisk", x, "Compare objects a > b valueOf order");
 
   x = "";
   assertFalse(a > void(0), "Compare objects a > undefined");

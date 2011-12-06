@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,8 +34,8 @@ namespace v8 {
 namespace internal {
 
 // We assume that doubles and uint64_t have the same endianness.
-static uint64_t double_to_uint64(double d) { return BitCast<uint64_t>(d); }
-static double uint64_to_double(uint64_t d64) { return BitCast<double>(d64); }
+inline uint64_t double_to_uint64(double d) { return BitCast<uint64_t>(d); }
+inline double uint64_to_double(uint64_t d64) { return BitCast<double>(d64); }
 
 // Helper functions for doubles.
 class Double {

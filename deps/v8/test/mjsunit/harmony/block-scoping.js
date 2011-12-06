@@ -25,8 +25,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax --harmony-block-scoping
+// Flags: --allow-natives-syntax --harmony-scoping
 // Test functionality of block scopes.
+
+// TODO(ES6): properly activate extended mode
+"use strict";
 
 // Hoisting of var declarations.
 function f1() {
@@ -44,12 +47,16 @@ f1();
 function f2(one) {
   var x = one + 1;
   let y = one + 2;
+  const u = one + 4;
   {
     let z = one + 3;
+    const v = one + 5;
     assertEquals(1, eval('one'));
     assertEquals(2, eval('x'));
     assertEquals(3, eval('y'));
     assertEquals(4, eval('z'));
+    assertEquals(5, eval('u'));
+    assertEquals(6, eval('v'));
   }
 }
 f2(1);
@@ -59,12 +66,17 @@ f2(1);
 function f3(one) {
   var x = one + 1;
   let y = one + 2;
+  const u = one + 4;
   {
     let z = one + 3;
+    const v = one + 5;
     assertEquals(1, one);
     assertEquals(2, x);
     assertEquals(3, y);
     assertEquals(4, z);
+    assertEquals(5, u);
+    assertEquals(6, v);
+
   }
 }
 f3(1);
@@ -74,13 +86,17 @@ f3(1);
 function f4(one) {
   var x = one + 1;
   let y = one + 2;
+  const u = one + 4;
   {
     let z = one + 3;
+    const v = one + 5;
     function f() {
       assertEquals(1, eval('one'));
       assertEquals(2, eval('x'));
       assertEquals(3, eval('y'));
       assertEquals(4, eval('z'));
+      assertEquals(5, eval('u'));
+      assertEquals(6, eval('v'));
     };
   }
 }
@@ -91,13 +107,17 @@ f4(1);
 function f5(one) {
   var x = one + 1;
   let y = one + 2;
+  const u = one + 4;
   {
     let z = one + 3;
+    const v = one + 5;
     function f() {
       assertEquals(1, one);
       assertEquals(2, x);
       assertEquals(3, y);
       assertEquals(4, z);
+      assertEquals(5, u);
+      assertEquals(6, v);
     };
   }
 }
@@ -107,8 +127,10 @@ f5(1);
 // Return from block.
 function f6() {
   let x = 1;
+  const u = 3;
   {
     let y = 2;
+    const v = 4;
     return x + y;
   }
 }
@@ -120,13 +142,26 @@ function f7(a) {
   let b = 1;
   var c = 1;
   var d = 1;
-  { // let variables shadowing argument, let and var variables
+  const e = 1;
+  { // let variables shadowing argument, let, const and var variables
     let a = 2;
     let b = 2;
     let c = 2;
+    let e = 2;
     assertEquals(2,a);
     assertEquals(2,b);
     assertEquals(2,c);
+    assertEquals(2,e);
+  }
+  { // const variables shadowing argument, let, const and var variables
+    const a = 2;
+    const b = 2;
+    const c = 2;
+    const e = 2;
+    assertEquals(2,a);
+    assertEquals(2,b);
+    assertEquals(2,c);
+    assertEquals(2,e);
   }
   try {
     throw 'stuff1';
@@ -156,6 +191,12 @@ function f7(a) {
   } catch (c) {
     // catch variable shadowing var variable
     assertEquals('stuff3',c);
+    {
+      // const variable shadowing catch variable
+      const c = 3;
+      assertEquals(3,c);
+    }
+    assertEquals('stuff3',c);
     try {
       throw 'stuff4';
     } catch(c) {
@@ -178,14 +219,16 @@ function f7(a) {
     c = 2;
   }
   assertEquals(1,c);
-  (function(a,b,c) {
-    // arguments shadowing argument, let and var variable
+  (function(a,b,c,e) {
+    // arguments shadowing argument, let, const and var variable
     a = 2;
     b = 2;
     c = 2;
+    e = 2;
     assertEquals(2,a);
     assertEquals(2,b);
     assertEquals(2,c);
+    assertEquals(2,e);
     // var variable shadowing var variable
     var d = 2;
   })(1,1);
@@ -193,24 +236,30 @@ function f7(a) {
   assertEquals(1,b);
   assertEquals(1,c);
   assertEquals(1,d);
+  assertEquals(1,e);
 }
 f7(1);
 
 
-// Ensure let variables are block local and var variables function local.
+// Ensure let and const variables are block local
+// and var variables function local.
 function f8() {
   var let_accessors = [];
   var var_accessors = [];
+  var const_accessors = [];
   for (var i = 0; i < 10; i++) {
     let x = i;
     var y = i;
+    const z = i;
     let_accessors[i] = function() { return x; }
     var_accessors[i] = function() { return y; }
+    const_accessors[i] = function() { return z; }
   }
   for (var j = 0; j < 10; j++) {
     y = j + 10;
     assertEquals(j, let_accessors[j]());
     assertEquals(y, var_accessors[j]());
+    assertEquals(j, const_accessors[j]());
   }
 }
 f8();

@@ -198,46 +198,59 @@ class CallICBase: public IC {
   class Contextual: public BitField<bool, 0, 1> {};
   class StringStubState: public BitField<StringStubFeedback, 1, 1> {};
 
- protected:
-  CallICBase(Code::Kind kind, Isolate* isolate)
-      : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
-
- public:
+  // Returns a JSFunction or a Failure.
   MUST_USE_RESULT MaybeObject* LoadFunction(State state,
                                             Code::ExtraICState extra_ic_state,
                                             Handle<Object> object,
                                             Handle<String> name);
 
  protected:
-  Code::Kind kind_;
+  CallICBase(Code::Kind kind, Isolate* isolate)
+      : IC(EXTRA_CALL_FRAME, isolate), kind_(kind) {}
 
   bool TryUpdateExtraICState(LookupResult* lookup,
                              Handle<Object> object,
                              Code::ExtraICState* extra_ic_state);
 
-  MUST_USE_RESULT MaybeObject* ComputeMonomorphicStub(
-      LookupResult* lookup,
-      State state,
-      Code::ExtraICState extra_ic_state,
-      Handle<Object> object,
-      Handle<String> name);
+  // Compute a monomorphic stub if possible, otherwise return a null handle.
+  Handle<Code> ComputeMonomorphicStub(LookupResult* lookup,
+                                      State state,
+                                      Code::ExtraICState extra_state,
+                                      Handle<Object> object,
+                                      Handle<String> name);
 
-  // Update the inline cache and the global stub cache based on the
-  // lookup result.
+  // Update the inline cache and the global stub cache based on the lookup
+  // result.
   void UpdateCaches(LookupResult* lookup,
                     State state,
                     Code::ExtraICState extra_ic_state,
                     Handle<Object> object,
                     Handle<String> name);
 
-  // Returns a JSFunction if the object can be called as a function,
-  // and patches the stack to be ready for the call.
-  // Otherwise, it returns the undefined value.
-  Object* TryCallAsFunction(Object* object);
+  // Returns a JSFunction if the object can be called as a function, and
+  // patches the stack to be ready for the call.  Otherwise, it returns the
+  // undefined value.
+  Handle<Object> TryCallAsFunction(Handle<Object> object);
 
   void ReceiverToObjectIfRequired(Handle<Object> callee, Handle<Object> object);
 
   static void Clear(Address address, Code* target);
+
+  // Platform-specific code generation functions used by both call and
+  // keyed call.
+  static void GenerateMiss(MacroAssembler* masm,
+                           int argc,
+                           IC::UtilityId id,
+                           Code::ExtraICState extra_state);
+
+  static void GenerateNormal(MacroAssembler* masm, int argc);
+
+  static void GenerateMonomorphicCacheProbe(MacroAssembler* masm,
+                                            int argc,
+                                            Code::Kind kind,
+                                            Code::ExtraICState extra_state);
+
+  Code::Kind kind_;
 
   friend class IC;
 };
@@ -252,16 +265,24 @@ class CallIC: public CallICBase {
   // Code generator routines.
   static void GenerateInitialize(MacroAssembler* masm,
                                  int argc,
-                                 Code::ExtraICState extra_ic_state) {
-    GenerateMiss(masm, argc, extra_ic_state);
+                                 Code::ExtraICState extra_state) {
+    GenerateMiss(masm, argc, extra_state);
   }
+
   static void GenerateMiss(MacroAssembler* masm,
                            int argc,
-                           Code::ExtraICState extra_ic_state);
+                           Code::ExtraICState extra_state) {
+    CallICBase::GenerateMiss(masm, argc, IC::kCallIC_Miss, extra_state);
+  }
+
   static void GenerateMegamorphic(MacroAssembler* masm,
                                   int argc,
                                   Code::ExtraICState extra_ic_state);
-  static void GenerateNormal(MacroAssembler* masm, int argc);
+
+  static void GenerateNormal(MacroAssembler* masm, int argc) {
+    CallICBase::GenerateNormal(masm, argc);
+    GenerateMiss(masm, argc, Code::kNoExtraICState);
+  }
 };
 
 
@@ -280,7 +301,12 @@ class KeyedCallIC: public CallICBase {
   static void GenerateInitialize(MacroAssembler* masm, int argc) {
     GenerateMiss(masm, argc);
   }
-  static void GenerateMiss(MacroAssembler* masm, int argc);
+
+  static void GenerateMiss(MacroAssembler* masm, int argc) {
+    CallICBase::GenerateMiss(masm, argc, IC::kKeyedCallIC_Miss,
+                             Code::kNoExtraICState);
+  }
+
   static void GenerateMegamorphic(MacroAssembler* masm, int argc);
   static void GenerateNormal(MacroAssembler* masm, int argc);
   static void GenerateNonStrictArguments(MacroAssembler* masm, int argc);
@@ -321,17 +347,15 @@ class LoadIC: public IC {
                     Handle<String> name);
 
   // Stub accessors.
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kLoadIC_Megamorphic);
+  Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->LoadIC_Megamorphic();
   }
   static Code* initialize_stub() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kLoadIC_Initialize);
   }
-  Code* pre_monomorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kLoadIC_PreMonomorphic);
+  Handle<Code> pre_monomorphic_stub() {
+    return isolate()->builtins()->LoadIC_PreMonomorphic();
   }
 
   static void Clear(Address address, Code* target);
@@ -342,41 +366,53 @@ class LoadIC: public IC {
 
 class KeyedIC: public IC {
  public:
+  enum StubKind {
+    LOAD,
+    STORE_NO_TRANSITION,
+    STORE_TRANSITION_SMI_TO_OBJECT,
+    STORE_TRANSITION_SMI_TO_DOUBLE,
+    STORE_TRANSITION_DOUBLE_TO_OBJECT
+  };
   explicit KeyedIC(Isolate* isolate) : IC(NO_EXTRA_FRAME, isolate) {}
   virtual ~KeyedIC() {}
 
-  virtual MaybeObject* GetElementStubWithoutMapCheck(
+  virtual Handle<Code> GetElementStubWithoutMapCheck(
       bool is_js_array,
       ElementsKind elements_kind) = 0;
 
  protected:
-  virtual Code* string_stub() {
-    return NULL;
+  virtual Handle<Code> string_stub() {
+    return Handle<Code>::null();
   }
 
   virtual Code::Kind kind() const = 0;
 
-  MaybeObject* ComputeStub(JSObject* receiver,
-                           bool is_store,
+  Handle<Code> ComputeStub(Handle<JSObject> receiver,
+                           StubKind stub_kind,
                            StrictModeFlag strict_mode,
-                           Code* default_stub);
+                           Handle<Code> default_stub);
 
-  virtual MaybeObject* ConstructMegamorphicStub(
-      MapList* receiver_maps,
-      CodeList* targets,
-      StrictModeFlag strict_mode) = 0;
+  virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
+                                              StrictModeFlag strict_mode) = 0;
 
- private:
-  void GetReceiverMapsForStub(Code* stub, MapList* result);
-
-  MaybeObject* ComputeMonomorphicStubWithoutMapCheck(
-      Map* receiver_map,
+  Handle<Code> ComputeMonomorphicStubWithoutMapCheck(
+      Handle<Map> receiver_map,
       StrictModeFlag strict_mode);
 
-  MaybeObject* ComputeMonomorphicStub(JSObject* receiver,
-                                      bool is_store,
+ private:
+  void GetReceiverMapsForStub(Handle<Code> stub, MapHandleList* result);
+
+  Handle<Code> ComputeMonomorphicStub(Handle<JSObject> receiver,
+                                      StubKind stub_kind,
                                       StrictModeFlag strict_mode,
-                                      Code* default_stub);
+                                      Handle<Code> default_stub);
+
+  Handle<Map> ComputeTransitionedMap(Handle<JSObject> receiver,
+                                     StubKind stub_kind);
+
+  static bool IsTransitionStubKind(StubKind stub_kind) {
+    return stub_kind > STORE_NO_TRANSITION;
+  }
 };
 
 
@@ -412,21 +448,18 @@ class KeyedLoadIC: public KeyedIC {
   static const int kSlowCaseBitFieldMask =
       (1 << Map::kIsAccessCheckNeeded) | (1 << Map::kHasIndexedInterceptor);
 
-  virtual MaybeObject* GetElementStubWithoutMapCheck(
+  virtual Handle<Code> GetElementStubWithoutMapCheck(
       bool is_js_array,
       ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
-  virtual MaybeObject* ConstructMegamorphicStub(
-      MapList* receiver_maps,
-      CodeList* targets,
-      StrictModeFlag strict_mode);
+  virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
+                                              StrictModeFlag strict_mode);
 
-  virtual Code* string_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_String);
+  virtual Handle<Code> string_stub() {
+    return isolate()->builtins()->KeyedLoadIC_String();
   }
 
  private:
@@ -441,25 +474,20 @@ class KeyedLoadIC: public KeyedIC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedLoadIC_Initialize);
   }
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_Generic);
+  Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  Code* generic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_Generic);
+  Handle<Code> generic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  Code* pre_monomorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_PreMonomorphic);
+  Handle<Code> pre_monomorphic_stub() {
+    return isolate()->builtins()->KeyedLoadIC_PreMonomorphic();
   }
-  Code* indexed_interceptor_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_IndexedInterceptor);
+  Handle<Code> indexed_interceptor_stub() {
+    return isolate()->builtins()->KeyedLoadIC_IndexedInterceptor();
   }
-  Code* non_strict_arguments_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedLoadIC_NonStrictArguments);
+  Handle<Code> non_strict_arguments_stub() {
+    return isolate()->builtins()->KeyedLoadIC_NonStrictArguments();
   }
 
   static void Clear(Address address, Code* target);
@@ -524,13 +552,11 @@ class StoreIC: public IC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kStoreIC_Initialize_Strict);
   }
-  Code* global_proxy_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kStoreIC_GlobalProxy);
+  Handle<Code> global_proxy_stub() {
+    return isolate()->builtins()->StoreIC_GlobalProxy();
   }
-  Code* global_proxy_stub_strict() {
-    return isolate()->builtins()->builtin(
-        Builtins::kStoreIC_GlobalProxy_Strict);
+  Handle<Code> global_proxy_stub_strict() {
+    return isolate()->builtins()->StoreIC_GlobalProxy_Strict();
   }
 
   static void Clear(Address address, Code* target);
@@ -562,18 +588,18 @@ class KeyedStoreIC: public KeyedIC {
                                          StrictModeFlag strict_mode);
   static void GenerateGeneric(MacroAssembler* masm, StrictModeFlag strict_mode);
   static void GenerateNonStrictArguments(MacroAssembler* masm);
+  static void GenerateTransitionElementsSmiToDouble(MacroAssembler* masm);
+  static void GenerateTransitionElementsDoubleToObject(MacroAssembler* masm);
 
-  virtual MaybeObject* GetElementStubWithoutMapCheck(
+  virtual Handle<Code> GetElementStubWithoutMapCheck(
       bool is_js_array,
       ElementsKind elements_kind);
 
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
-  virtual MaybeObject* ConstructMegamorphicStub(
-      MapList* receiver_maps,
-      CodeList* targets,
-      StrictModeFlag strict_mode);
+  virtual Handle<Code> ComputePolymorphicStub(MapHandleList* receiver_maps,
+                                              StrictModeFlag strict_mode);
 
   private:
   // Update the inline cache.
@@ -596,29 +622,24 @@ class KeyedStoreIC: public KeyedIC {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedStoreIC_Initialize);
   }
-  Code* megamorphic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic);
-  }
   static Code* initialize_stub_strict() {
     return Isolate::Current()->builtins()->builtin(
         Builtins::kKeyedStoreIC_Initialize_Strict);
   }
-  Code* megamorphic_stub_strict() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic_Strict);
+  Handle<Code> megamorphic_stub() {
+    return isolate()->builtins()->KeyedStoreIC_Generic();
   }
-  Code* generic_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic);
+  Handle<Code> megamorphic_stub_strict() {
+    return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
   }
-  Code* generic_stub_strict() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_Generic_Strict);
+  Handle<Code> generic_stub() {
+    return isolate()->builtins()->KeyedStoreIC_Generic();
   }
-  Code* non_strict_arguments_stub() {
-    return isolate()->builtins()->builtin(
-        Builtins::kKeyedStoreIC_NonStrictArguments);
+  Handle<Code> generic_stub_strict() {
+    return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
+  }
+  Handle<Code> non_strict_arguments_stub() {
+    return isolate()->builtins()->KeyedStoreIC_NonStrictArguments();
   }
 
   static void Clear(Address address, Code* target);

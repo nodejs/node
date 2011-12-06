@@ -237,7 +237,7 @@ TEST(DeoptimizeRecursive) {
 
   v8::Local<v8::Function> fun =
       v8::Local<v8::Function>::Cast(env->Global()->Get(v8::String::New("f")));
-  Handle<v8::internal::JSFunction> f = v8::Utils::OpenHandle(*fun);
+  Handle<v8::internal::JSFunction> f(v8::Utils::OpenHandle(*fun));
 }
 
 

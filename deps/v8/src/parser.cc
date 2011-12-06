@@ -28,7 +28,7 @@
 #include "v8.h"
 
 #include "api.h"
-#include "ast-inl.h"
+#include "ast.h"
 #include "bootstrapper.h"
 #include "char-predicates-inl.h"
 #include "codegen.h"
@@ -407,9 +407,9 @@ unsigned* ScriptDataImpl::ReadAddress(int position) {
 }
 
 
-Scope* Parser::NewScope(Scope* parent, Scope::Type type, bool inside_with) {
+Scope* Parser::NewScope(Scope* parent, ScopeType type) {
   Scope* result = new(zone()) Scope(parent, type);
-  result->Initialize(inside_with);
+  result->Initialize();
   return result;
 }
 
@@ -459,26 +459,42 @@ class TargetScope BASE_EMBEDDED {
 
 
 // ----------------------------------------------------------------------------
-// LexicalScope is a support class to facilitate manipulation of the
-// Parser's scope stack. The constructor sets the parser's top scope
-// to the incoming scope, and the destructor resets it.
-//
-// Additionally, it stores transient information used during parsing.
-// These scopes are not kept around after parsing or referenced by syntax
-// trees so they can be stack-allocated and hence used by the pre-parser.
+// FunctionState and BlockState together implement the parser's scope stack.
+// The parser's current scope is in top_scope_.  The BlockState and
+// FunctionState constructors push on the scope stack and the destructors
+// pop.  They are also used to hold the parser's per-function and per-block
+// state.
 
-class LexicalScope BASE_EMBEDDED {
+class Parser::BlockState BASE_EMBEDDED {
  public:
-  LexicalScope(Parser* parser, Scope* scope, Isolate* isolate);
-  ~LexicalScope();
+  BlockState(Parser* parser, Scope* scope)
+      : parser_(parser),
+        outer_scope_(parser->top_scope_) {
+    parser->top_scope_ = scope;
+  }
+
+  ~BlockState() { parser_->top_scope_ = outer_scope_; }
+
+ private:
+  Parser* parser_;
+  Scope* outer_scope_;
+};
+
+
+class Parser::FunctionState BASE_EMBEDDED {
+ public:
+  FunctionState(Parser* parser, Scope* scope, Isolate* isolate);
+  ~FunctionState();
 
   int NextMaterializedLiteralIndex() {
-    int next_index =
-        materialized_literal_count_ + JSFunction::kLiteralsPrefixSize;
-    materialized_literal_count_++;
-    return next_index;
+    return next_materialized_literal_index_++;
   }
-  int materialized_literal_count() { return materialized_literal_count_; }
+  int materialized_literal_count() {
+    return next_materialized_literal_index_ - JSFunction::kLiteralsPrefixSize;
+  }
+
+  int NextHandlerIndex() { return next_handler_index_++; }
+  int handler_count() { return next_handler_index_; }
 
   void SetThisPropertyAssignmentInfo(
       bool only_simple_this_property_assignments,
@@ -498,10 +514,13 @@ class LexicalScope BASE_EMBEDDED {
   int expected_property_count() { return expected_property_count_; }
 
  private:
-  // Captures the number of literals that need materialization in the
-  // function.  Includes regexp literals, and boilerplate for object
-  // and array literals.
-  int materialized_literal_count_;
+  // Used to assign an index to each literal that needs materialization in
+  // the function.  Includes regexp literals, and boilerplate for object and
+  // array literals.
+  int next_materialized_literal_index_;
+
+  // Used to assign a per-function index to try and catch handlers.
+  int next_handler_index_;
 
   // Properties count estimation.
   int expected_property_count_;
@@ -511,38 +530,35 @@ class LexicalScope BASE_EMBEDDED {
   bool only_simple_this_property_assignments_;
   Handle<FixedArray> this_property_assignments_;
 
-  // Bookkeeping
   Parser* parser_;
-  // Previous values
-  LexicalScope* lexical_scope_parent_;
-  Scope* previous_scope_;
-  int previous_with_nesting_level_;
-  unsigned previous_ast_node_id_;
+  FunctionState* outer_function_state_;
+  Scope* outer_scope_;
+  unsigned saved_ast_node_id_;
 };
 
 
-LexicalScope::LexicalScope(Parser* parser, Scope* scope, Isolate* isolate)
-  : materialized_literal_count_(0),
-    expected_property_count_(0),
-    only_simple_this_property_assignments_(false),
-    this_property_assignments_(isolate->factory()->empty_fixed_array()),
-    parser_(parser),
-    lexical_scope_parent_(parser->lexical_scope_),
-    previous_scope_(parser->top_scope_),
-    previous_with_nesting_level_(parser->with_nesting_level_),
-    previous_ast_node_id_(isolate->ast_node_id()) {
+Parser::FunctionState::FunctionState(Parser* parser,
+                                     Scope* scope,
+                                     Isolate* isolate)
+    : next_materialized_literal_index_(JSFunction::kLiteralsPrefixSize),
+      next_handler_index_(0),
+      expected_property_count_(0),
+      only_simple_this_property_assignments_(false),
+      this_property_assignments_(isolate->factory()->empty_fixed_array()),
+      parser_(parser),
+      outer_function_state_(parser->current_function_state_),
+      outer_scope_(parser->top_scope_),
+      saved_ast_node_id_(isolate->ast_node_id()) {
   parser->top_scope_ = scope;
-  parser->lexical_scope_ = this;
-  parser->with_nesting_level_ = 0;
+  parser->current_function_state_ = this;
   isolate->set_ast_node_id(AstNode::kDeclarationsId + 1);
 }
 
 
-LexicalScope::~LexicalScope() {
-  parser_->top_scope_ = previous_scope_;
-  parser_->lexical_scope_ = lexical_scope_parent_;
-  parser_->with_nesting_level_ = previous_with_nesting_level_;
-  parser_->isolate()->set_ast_node_id(previous_ast_node_id_);
+Parser::FunctionState::~FunctionState() {
+  parser_->top_scope_ = outer_scope_;
+  parser_->current_function_state_ = outer_function_state_;
+  parser_->isolate()->set_ast_node_id(saved_ast_node_id_);
 }
 
 
@@ -570,34 +586,36 @@ LexicalScope::~LexicalScope() {
 // Implementation of Parser
 
 Parser::Parser(Handle<Script> script,
-               bool allow_natives_syntax,
+               int parser_flags,
                v8::Extension* extension,
                ScriptDataImpl* pre_data)
     : isolate_(script->GetIsolate()),
       symbol_cache_(pre_data ? pre_data->symbol_count() : 0),
       script_(script),
       scanner_(isolate_->unicode_cache()),
+      reusable_preparser_(NULL),
       top_scope_(NULL),
-      with_nesting_level_(0),
-      lexical_scope_(NULL),
+      current_function_state_(NULL),
       target_stack_(NULL),
-      allow_natives_syntax_(allow_natives_syntax),
       extension_(extension),
       pre_data_(pre_data),
       fni_(NULL),
+      allow_natives_syntax_((parser_flags & kAllowNativesSyntax) != 0),
+      allow_lazy_((parser_flags & kAllowLazy) != 0),
       stack_overflow_(false),
-      parenthesized_function_(false),
-      harmony_block_scoping_(false) {
+      parenthesized_function_(false) {
   AstNode::ResetIds();
+  if ((parser_flags & kLanguageModeMask) == EXTENDED_MODE) {
+    scanner().SetHarmonyScoping(true);
+  }
 }
 
 
-FunctionLiteral* Parser::ParseProgram(Handle<String> source,
-                                      bool in_global_context,
-                                      StrictModeFlag strict_mode) {
+FunctionLiteral* Parser::ParseProgram(CompilationInfo* info) {
   ZoneScope zone_scope(isolate(), DONT_DELETE_ON_EXIT);
 
   HistogramTimerScope timer(isolate()->counters()->parse());
+  Handle<String> source(String::cast(script_->source()));
   isolate()->counters()->total_parse_size()->Increment(source->length());
   fni_ = new(zone()) FuncNameInferrer(isolate());
 
@@ -610,47 +628,48 @@ FunctionLiteral* Parser::ParseProgram(Handle<String> source,
     ExternalTwoByteStringUC16CharacterStream stream(
         Handle<ExternalTwoByteString>::cast(source), 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(source, in_global_context, strict_mode, &zone_scope);
+    return DoParseProgram(info, source, &zone_scope);
   } else {
     GenericStringUC16CharacterStream stream(source, 0, source->length());
     scanner_.Initialize(&stream);
-    return DoParseProgram(source, in_global_context, strict_mode, &zone_scope);
+    return DoParseProgram(info, source, &zone_scope);
   }
 }
 
 
-FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
-                                        bool in_global_context,
-                                        StrictModeFlag strict_mode,
+FunctionLiteral* Parser::DoParseProgram(CompilationInfo* info,
+                                        Handle<String> source,
                                         ZoneScope* zone_scope) {
+  ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
   if (pre_data_ != NULL) pre_data_->Initialize();
 
   // Compute the parsing mode.
-  mode_ = FLAG_lazy ? PARSE_LAZILY : PARSE_EAGERLY;
+  mode_ = (FLAG_lazy && allow_lazy_) ? PARSE_LAZILY : PARSE_EAGERLY;
   if (allow_natives_syntax_ || extension_ != NULL) mode_ = PARSE_EAGERLY;
 
-  Scope::Type type =
-    in_global_context
-      ? Scope::GLOBAL_SCOPE
-      : Scope::EVAL_SCOPE;
   Handle<String> no_name = isolate()->factory()->empty_symbol();
 
   FunctionLiteral* result = NULL;
-  { Scope* scope = NewScope(top_scope_, type, inside_with());
-    LexicalScope lexical_scope(this, scope, isolate());
-    if (strict_mode == kStrictMode) {
-      top_scope_->EnableStrictMode();
+  { Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
+    info->SetGlobalScope(scope);
+    if (!info->is_global()) {
+      scope = Scope::DeserializeScopeChain(*info->calling_context(), scope);
+      scope = NewScope(scope, EVAL_SCOPE);
     }
+    scope->set_start_position(0);
+    scope->set_end_position(source->length());
+    FunctionState function_state(this, scope, isolate());
+    top_scope_->SetLanguageMode(info->language_mode());
     ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(16);
     bool ok = true;
     int beg_loc = scanner().location().beg_pos;
     ParseSourceElements(body, Token::EOS, &ok);
-    if (ok && top_scope_->is_strict_mode()) {
+    if (ok && !top_scope_->is_classic_mode()) {
       CheckOctalLiteral(beg_loc, scanner().location().end_pos, &ok);
     }
 
-    if (ok && harmony_block_scoping_) {
+    if (ok && is_extended_mode()) {
       CheckConflictingVarDeclarations(scope, &ok);
     }
 
@@ -660,13 +679,12 @@ FunctionLiteral* Parser::DoParseProgram(Handle<String> source,
           no_name,
           top_scope_,
           body,
-          lexical_scope.materialized_literal_count(),
-          lexical_scope.expected_property_count(),
-          lexical_scope.only_simple_this_property_assignments(),
-          lexical_scope.this_property_assignments(),
+          function_state.materialized_literal_count(),
+          function_state.expected_property_count(),
+          function_state.handler_count(),
+          function_state.only_simple_this_property_assignments(),
+          function_state.this_property_assignments(),
           0,
-          0,
-          source->length(),
           FunctionLiteral::ANONYMOUS_EXPRESSION,
           false);  // Does not have duplicate parameters.
     } else if (stack_overflow_) {
@@ -714,6 +732,7 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
                                    ZoneScope* zone_scope) {
   Handle<SharedFunctionInfo> shared_info = info->shared_info();
   scanner_.Initialize(source);
+  ASSERT(top_scope_ == NULL);
   ASSERT(target_stack_ == NULL);
 
   Handle<String> name(String::cast(shared_info->name()));
@@ -727,16 +746,17 @@ FunctionLiteral* Parser::ParseLazy(CompilationInfo* info,
 
   {
     // Parse the function literal.
-    Scope* scope = NewScope(top_scope_, Scope::GLOBAL_SCOPE, inside_with());
+    Scope* scope = NewScope(top_scope_, GLOBAL_SCOPE);
+    info->SetGlobalScope(scope);
     if (!info->closure().is_null()) {
-      scope = Scope::DeserializeScopeChain(info, scope);
+      scope = Scope::DeserializeScopeChain(info->closure()->context(), scope);
     }
-    LexicalScope lexical_scope(this, scope, isolate());
-
-    if (shared_info->strict_mode()) {
-      top_scope_->EnableStrictMode();
-    }
-
+    FunctionState function_state(this, scope, isolate());
+    ASSERT(scope->language_mode() != STRICT_MODE || !info->is_classic_mode());
+    ASSERT(scope->language_mode() != EXTENDED_MODE ||
+           info->is_extended_mode());
+    ASSERT(info->language_mode() == shared_info->language_mode());
+    scope->SetLanguageMode(shared_info->language_mode());
     FunctionLiteral::Type type = shared_info->is_expression()
         ? (shared_info->is_anonymous()
               ? FunctionLiteral::ANONYMOUS_EXPRESSION
@@ -817,10 +837,6 @@ void Parser::ReportMessageAt(Scanner::Location source_location,
   isolate()->Throw(*result, &location);
 }
 
-void Parser::SetHarmonyBlockScoping(bool block_scoping) {
-  scanner().SetHarmonyBlockScoping(block_scoping);
-  harmony_block_scoping_ = block_scoping;
-}
 
 // Base class containing common code for the different finder classes used by
 // the parser.
@@ -957,17 +973,18 @@ class InitializationBlockFinder : public ParserFinder {
 };
 
 
-// A ThisNamedPropertyAssigmentFinder finds and marks statements of the form
+// A ThisNamedPropertyAssignmentFinder finds and marks statements of the form
 // this.x = ...;, where x is a named property. It also determines whether a
 // function contains only assignments of this type.
-class ThisNamedPropertyAssigmentFinder : public ParserFinder {
+class ThisNamedPropertyAssignmentFinder : public ParserFinder {
  public:
-  explicit ThisNamedPropertyAssigmentFinder(Isolate* isolate)
+  explicit ThisNamedPropertyAssignmentFinder(Isolate* isolate)
       : isolate_(isolate),
         only_simple_this_property_assignments_(true),
-        names_(NULL),
-        assigned_arguments_(NULL),
-        assigned_constants_(NULL) {}
+        names_(0),
+        assigned_arguments_(0),
+        assigned_constants_(0) {
+  }
 
   void Update(Scope* scope, Statement* stat) {
     // Bail out if function already has property assignment that are
@@ -994,19 +1011,17 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
   // Returns a fixed array containing three elements for each assignment of the
   // form this.x = y;
   Handle<FixedArray> GetThisPropertyAssignments() {
-    if (names_ == NULL) {
+    if (names_.is_empty()) {
       return isolate_->factory()->empty_fixed_array();
     }
-    ASSERT(names_ != NULL);
-    ASSERT(assigned_arguments_ != NULL);
-    ASSERT_EQ(names_->length(), assigned_arguments_->length());
-    ASSERT_EQ(names_->length(), assigned_constants_->length());
+    ASSERT_EQ(names_.length(), assigned_arguments_.length());
+    ASSERT_EQ(names_.length(), assigned_constants_.length());
     Handle<FixedArray> assignments =
-        isolate_->factory()->NewFixedArray(names_->length() * 3);
-    for (int i = 0; i < names_->length(); i++) {
-      assignments->set(i * 3, *names_->at(i));
-      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_->at(i)));
-      assignments->set(i * 3 + 2, *assigned_constants_->at(i));
+        isolate_->factory()->NewFixedArray(names_.length() * 3);
+    for (int i = 0; i < names_.length(); ++i) {
+      assignments->set(i * 3, *names_[i]);
+      assignments->set(i * 3 + 1, Smi::FromInt(assigned_arguments_[i]));
+      assignments->set(i * 3 + 2, *assigned_constants_[i]);
     }
     return assignments;
   }
@@ -1063,18 +1078,37 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     AssignmentFromSomethingElse();
   }
 
+
+
+
+  // We will potentially reorder the property assignments, so they must be
+  // simple enough that the ordering does not matter.
   void AssignmentFromParameter(Handle<String> name, int index) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(index);
-    assigned_constants_->Add(isolate_->factory()->undefined_value());
+    EnsureInitialized();
+    for (int i = 0; i < names_.length(); ++i) {
+      if (name->Equals(*names_[i])) {
+        assigned_arguments_[i] = index;
+        assigned_constants_[i] = isolate_->factory()->undefined_value();
+        return;
+      }
+    }
+    names_.Add(name);
+    assigned_arguments_.Add(index);
+    assigned_constants_.Add(isolate_->factory()->undefined_value());
   }
 
   void AssignmentFromConstant(Handle<String> name, Handle<Object> value) {
-    EnsureAllocation();
-    names_->Add(name);
-    assigned_arguments_->Add(-1);
-    assigned_constants_->Add(value);
+    EnsureInitialized();
+    for (int i = 0; i < names_.length(); ++i) {
+      if (name->Equals(*names_[i])) {
+        assigned_arguments_[i] = -1;
+        assigned_constants_[i] = value;
+        return;
+      }
+    }
+    names_.Add(name);
+    assigned_arguments_.Add(-1);
+    assigned_constants_.Add(value);
   }
 
   void AssignmentFromSomethingElse() {
@@ -1082,41 +1116,42 @@ class ThisNamedPropertyAssigmentFinder : public ParserFinder {
     only_simple_this_property_assignments_ = false;
   }
 
-  void EnsureAllocation() {
-    if (names_ == NULL) {
-      ASSERT(assigned_arguments_ == NULL);
-      ASSERT(assigned_constants_ == NULL);
-      Zone* zone = isolate_->zone();
-      names_ = new(zone) ZoneStringList(4);
-      assigned_arguments_ = new(zone) ZoneList<int>(4);
-      assigned_constants_ = new(zone) ZoneObjectList(4);
+  void EnsureInitialized() {
+    if (names_.capacity() == 0) {
+      ASSERT(assigned_arguments_.capacity() == 0);
+      ASSERT(assigned_constants_.capacity() == 0);
+      names_.Initialize(4);
+      assigned_arguments_.Initialize(4);
+      assigned_constants_.Initialize(4);
     }
   }
 
   Isolate* isolate_;
   bool only_simple_this_property_assignments_;
-  ZoneStringList* names_;
-  ZoneList<int>* assigned_arguments_;
-  ZoneObjectList* assigned_constants_;
+  ZoneStringList names_;
+  ZoneList<int> assigned_arguments_;
+  ZoneObjectList assigned_constants_;
 };
 
 
 Statement* Parser::ParseSourceElement(ZoneStringList* labels,
                                       bool* ok) {
+  // (Ecma 262 5th Edition, clause 14):
+  // SourceElement:
+  //    Statement
+  //    FunctionDeclaration
+  //
+  // In harmony mode we allow additionally the following productions
+  // SourceElement:
+  //    LetDeclaration
+  //    ConstDeclaration
+
   if (peek() == Token::FUNCTION) {
-    // FunctionDeclaration is only allowed in the context of SourceElements
-    // (Ecma 262 5th Edition, clause 14):
-    // SourceElement:
-    //    Statement
-    //    FunctionDeclaration
-    // Common language extension is to allow function declaration in place
-    // of any statement. This language extension is disabled in strict mode.
     return ParseFunctionDeclaration(ok);
-  } else if (peek() == Token::LET) {
+  } else if (peek() == Token::LET || peek() == Token::CONST) {
     return ParseVariableStatement(kSourceElement, ok);
-  } else {
-    return ParseStatement(labels, ok);
   }
+  return ParseStatement(labels, ok);
 }
 
 
@@ -1124,7 +1159,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
                                   int end_token,
                                   bool* ok) {
   // SourceElements ::
-  //   (Statement)* <end_token>
+  //   (SourceElement)* <end_token>
 
   // Allocate a target stack to use for this set of source
   // elements. This way, all scripts and functions get their own
@@ -1134,7 +1169,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
   ASSERT(processor != NULL);
   InitializationBlockFinder block_finder(top_scope_, target_stack_);
-  ThisNamedPropertyAssigmentFinder this_property_assignment_finder(isolate());
+  ThisNamedPropertyAssignmentFinder this_property_assignment_finder(isolate());
   bool directive_prologue = true;     // Parsing directive prologue.
 
   while (peek() != end_token) {
@@ -1160,11 +1195,13 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
         Handle<String> directive = Handle<String>::cast(literal->handle());
 
         // Check "use strict" directive (ES5 14.1).
-        if (!top_scope_->is_strict_mode() &&
+        if (top_scope_->is_classic_mode() &&
             directive->Equals(isolate()->heap()->use_strict()) &&
             token_loc.end_pos - token_loc.beg_pos ==
               isolate()->heap()->use_strict()->length() + 2) {
-          top_scope_->EnableStrictMode();
+          // TODO(ES6): Fix entering extended mode, once it is specified.
+          top_scope_->SetLanguageMode(FLAG_harmony_scoping
+                                      ? EXTENDED_MODE : STRICT_MODE);
           // "use strict" is the only directive for now.
           directive_prologue = false;
         }
@@ -1188,7 +1225,7 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
         this_property_assignment_finder.only_simple_this_property_assignments()
         && top_scope_->declarations()->length() == 0;
     if (only_simple_this_property_assignments) {
-      lexical_scope_->SetThisPropertyAssignmentInfo(
+      current_function_state_->SetThisPropertyAssignmentInfo(
           only_simple_this_property_assignments,
           this_property_assignment_finder.GetThisPropertyAssignments());
     }
@@ -1230,6 +1267,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
       return ParseBlock(labels, ok);
 
     case Token::CONST:  // fall through
+    case Token::LET:
     case Token::VAR:
       stmt = ParseVariableStatement(kStatement, ok);
       break;
@@ -1295,9 +1333,14 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
     }
 
     case Token::FUNCTION: {
-      // In strict mode, FunctionDeclaration is only allowed in the context
-      // of SourceElements.
-      if (top_scope_->is_strict_mode()) {
+      // FunctionDeclaration is only allowed in the context of SourceElements
+      // (Ecma 262 5th Edition, clause 14):
+      // SourceElement:
+      //    Statement
+      //    FunctionDeclaration
+      // Common language extension is to allow function declaration in place
+      // of any statement. This language extension is disabled in strict mode.
+      if (!top_scope_->is_classic_mode()) {
         ReportMessageAt(scanner().peek_location(), "strict_function",
                         Vector<const char*>::empty());
         *ok = false;
@@ -1321,7 +1364,7 @@ Statement* Parser::ParseStatement(ZoneStringList* labels, bool* ok) {
 
 
 VariableProxy* Parser::Declare(Handle<String> name,
-                               Variable::Mode mode,
+                               VariableMode mode,
                                FunctionLiteral* fun,
                                bool resolve,
                                bool* ok) {
@@ -1329,6 +1372,12 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // If we are inside a function, a declaration of a var/const variable is a
   // truly local variable, and the scope of the variable is always the function
   // scope.
+  // Let/const variables in harmony mode are always added to the immediately
+  // enclosing scope.
+  Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
+      ? top_scope_ : top_scope_->DeclarationScope();
+  InitializationFlag init_flag = (fun != NULL || mode == VAR)
+      ? kCreatedInitialized : kNeedsInitialization;
 
   // If a function scope exists, then we can statically declare this
   // variable and also set its mode. In any case, a Declaration node
@@ -1338,17 +1387,16 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // to the calling function context.
   // Similarly, strict mode eval scope does not leak variable declarations to
   // the caller's scope so we declare all locals, too.
-
-  Scope* declaration_scope = mode == Variable::LET ? top_scope_
-      : top_scope_->DeclarationScope();
+  // Also for block scoped let/const bindings the variable can be
+  // statically declared.
   if (declaration_scope->is_function_scope() ||
-      declaration_scope->is_strict_mode_eval_scope() ||
+      declaration_scope->is_strict_or_extended_eval_scope() ||
       declaration_scope->is_block_scope()) {
     // Declare the variable in the function scope.
     var = declaration_scope->LocalLookup(name);
     if (var == NULL) {
       // Declare the name.
-      var = declaration_scope->DeclareLocal(name, mode);
+      var = declaration_scope->DeclareLocal(name, mode, init_flag);
     } else {
       // The name was declared in this scope before; check for conflicting
       // re-declarations. We have a conflict if either of the declarations is
@@ -1361,12 +1409,13 @@ VariableProxy* Parser::Declare(Handle<String> name,
       //
       // because the var declaration is hoisted to the function scope where 'x'
       // is already bound.
-      if ((mode != Variable::VAR) || (var->mode() != Variable::VAR)) {
+      if ((mode != VAR) || (var->mode() != VAR)) {
         // We only have vars, consts and lets in declarations.
-        ASSERT(var->mode() == Variable::VAR ||
-               var->mode() == Variable::CONST ||
-               var->mode() == Variable::LET);
-        if (harmony_block_scoping_) {
+        ASSERT(var->mode() == VAR ||
+               var->mode() == CONST ||
+               var->mode() == CONST_HARMONY ||
+               var->mode() == LET);
+        if (is_extended_mode()) {
           // In harmony mode we treat re-declarations as early errors. See
           // ES5 16 for a definition of early errors.
           SmartArrayPointer<char> c_string = name->ToCString(DISALLOW_NULLS);
@@ -1376,8 +1425,8 @@ VariableProxy* Parser::Declare(Handle<String> name,
           *ok = false;
           return NULL;
         }
-        const char* type = (var->mode() == Variable::VAR) ? "var" :
-                           (var->mode() == Variable::CONST) ? "const" : "let";
+        const char* type = (var->mode() == VAR)
+            ? "var" : var->is_const_mode() ? "const" : "let";
         Handle<String> type_string =
             isolate()->factory()->NewStringFromUtf8(CStrVector(type), TENURED);
         Expression* expression =
@@ -1405,19 +1454,35 @@ VariableProxy* Parser::Declare(Handle<String> name,
   // a performance issue since it may lead to repeated
   // Runtime::DeclareContextSlot() calls.
   VariableProxy* proxy = declaration_scope->NewUnresolved(
-      name, false, scanner().location().beg_pos);
+      name, scanner().location().beg_pos);
   declaration_scope->AddDeclaration(
       new(zone()) Declaration(proxy, mode, fun, top_scope_));
 
-  // For global const variables we bind the proxy to a variable.
-  if (mode == Variable::CONST && declaration_scope->is_global_scope()) {
+  if ((mode == CONST || mode == CONST_HARMONY) &&
+      declaration_scope->is_global_scope()) {
+    // For global const variables we bind the proxy to a variable.
     ASSERT(resolve);  // should be set by all callers
     Variable::Kind kind = Variable::NORMAL;
     var = new(zone()) Variable(declaration_scope,
                                name,
-                               Variable::CONST,
+                               mode,
                                true,
-                               kind);
+                               kind,
+                               kNeedsInitialization);
+  } else if (declaration_scope->is_eval_scope() &&
+             declaration_scope->is_classic_mode()) {
+    // For variable declarations in a non-strict eval scope the proxy is bound
+    // to a lookup variable to force a dynamic declaration using the
+    // DeclareContextSlot runtime function.
+    Variable::Kind kind = Variable::NORMAL;
+    var = new(zone()) Variable(declaration_scope,
+                               name,
+                               mode,
+                               true,
+                               kind,
+                               init_flag);
+    var->AllocateTo(Variable::LOOKUP, -1);
+    resolve = true;
   }
 
   // If requested and we have a local variable, bind the proxy to the variable
@@ -1487,7 +1552,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   Handle<Code> construct_stub = Handle<Code>(fun->shared()->construct_stub());
   Handle<SharedFunctionInfo> shared =
       isolate()->factory()->NewSharedFunctionInfo(name, literals, code,
-          Handle<SerializedScopeInfo>(fun->shared()->scope_info()));
+          Handle<ScopeInfo>(fun->shared()->scope_info()));
   shared->set_construct_stub(*construct_stub);
 
   // Copy the function data to the shared function info.
@@ -1500,7 +1565,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
   // other functions are setup when entering the surrounding scope.
   SharedFunctionInfoLiteral* lit =
       new(zone()) SharedFunctionInfoLiteral(isolate(), shared);
-  VariableProxy* var = Declare(name, Variable::VAR, NULL, true, CHECK_OK);
+  VariableProxy* var = Declare(name, VAR, NULL, true, CHECK_OK);
   return new(zone()) ExpressionStatement(new(zone()) Assignment(
       isolate(), Token::INIT_VAR, var, lit, RelocInfo::kNoPosition));
 }
@@ -1522,14 +1587,14 @@ Statement* Parser::ParseFunctionDeclaration(bool* ok) {
   // Even if we're not at the top-level of the global or a function
   // scope, we treat is as such and introduce the function with it's
   // initial value upon entering the corresponding scope.
-  Variable::Mode mode = harmony_block_scoping_ ? Variable::LET : Variable::VAR;
+  VariableMode mode = is_extended_mode() ? LET : VAR;
   Declare(name, mode, fun, true, CHECK_OK);
   return EmptyStatement();
 }
 
 
 Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
-  if (harmony_block_scoping_) return ParseScopedBlock(labels, ok);
+  if (top_scope_->is_extended_mode()) return ParseScopedBlock(labels, ok);
 
   // Block ::
   //   '{' Statement* '}'
@@ -1555,22 +1620,21 @@ Block* Parser::ParseBlock(ZoneStringList* labels, bool* ok) {
 
 
 Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
+  // The harmony mode uses source elements instead of statements.
+  //
+  // Block ::
+  //   '{' SourceElement* '}'
+
   // Construct block expecting 16 statements.
   Block* body = new(zone()) Block(isolate(), labels, 16, false);
-  Scope* saved_scope = top_scope_;
-  Scope* block_scope = NewScope(top_scope_,
-                                Scope::BLOCK_SCOPE,
-                                inside_with());
-  if (top_scope_->is_strict_mode()) {
-    block_scope->EnableStrictMode();
-  }
-  top_scope_ = block_scope;
+  Scope* block_scope = NewScope(top_scope_, BLOCK_SCOPE);
 
   // Parse the statements and collect escaping labels.
-  TargetCollector collector;
-  Target target(&this->target_stack_, &collector);
   Expect(Token::LBRACE, CHECK_OK);
-  {
+  block_scope->set_start_position(scanner().location().beg_pos);
+  { BlockState block_state(this, block_scope);
+    TargetCollector collector;
+    Target target(&this->target_stack_, &collector);
     Target target_body(&this->target_stack_, body);
     InitializationBlockFinder block_finder(top_scope_, target_stack_);
 
@@ -1583,8 +1647,7 @@ Block* Parser::ParseScopedBlock(ZoneStringList* labels, bool* ok) {
     }
   }
   Expect(Token::RBRACE, CHECK_OK);
-  top_scope_ = saved_scope;
-
+  block_scope->set_end_position(scanner().location().end_pos);
   block_scope = block_scope->FinalizeBlockScope();
   body->set_block_scope(block_scope);
   return body;
@@ -1598,6 +1661,7 @@ Block* Parser::ParseVariableStatement(VariableDeclarationContext var_context,
 
   Handle<String> ignore;
   Block* result = ParseVariableDeclarations(var_context,
+                                            NULL,
                                             &ignore,
                                             CHECK_OK);
   ExpectSemicolon(CHECK_OK);
@@ -1616,13 +1680,25 @@ bool Parser::IsEvalOrArguments(Handle<String> string) {
 // *var is untouched; in particular, it is the caller's responsibility
 // to initialize it properly. This mechanism is used for the parsing
 // of 'for-in' loops.
-Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
-                                         Handle<String>* out,
-                                         bool* ok) {
+Block* Parser::ParseVariableDeclarations(
+    VariableDeclarationContext var_context,
+    VariableDeclarationProperties* decl_props,
+    Handle<String>* out,
+    bool* ok) {
   // VariableDeclarations ::
-  //   ('var' | 'const') (Identifier ('=' AssignmentExpression)?)+[',']
-
-  Variable::Mode mode = Variable::VAR;
+  //   ('var' | 'const' | 'let') (Identifier ('=' AssignmentExpression)?)+[',']
+  //
+  // The ES6 Draft Rev3 specifies the following grammar for const declarations
+  //
+  // ConstDeclaration ::
+  //   const ConstBinding (',' ConstBinding)* ';'
+  // ConstBinding ::
+  //   Identifier '=' AssignmentExpression
+  //
+  // TODO(ES6):
+  // ConstBinding ::
+  //   BindingPattern '=' AssignmentExpression
+  VariableMode mode = VAR;
   // True if the binding needs initialization. 'let' and 'const' declared
   // bindings are created uninitialized by their declaration nodes and
   // need initialization. 'var' declared bindings are always initialized
@@ -1633,33 +1709,69 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
   if (peek() == Token::VAR) {
     Consume(Token::VAR);
   } else if (peek() == Token::CONST) {
+    // TODO(ES6): The ES6 Draft Rev4 section 12.2.2 reads:
+    //
+    // ConstDeclaration : const ConstBinding (',' ConstBinding)* ';'
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    //
+    // However disallowing const in classic mode will break compatibility with
+    // existing pages. Therefore we keep allowing const with the old
+    // non-harmony semantics in classic mode.
     Consume(Token::CONST);
-    if (top_scope_->is_strict_mode()) {
-      ReportMessage("strict_const", Vector<const char*>::empty());
+    switch (top_scope_->language_mode()) {
+      case CLASSIC_MODE:
+        mode = CONST;
+        init_op = Token::INIT_CONST;
+        break;
+      case STRICT_MODE:
+        ReportMessage("strict_const", Vector<const char*>::empty());
+        *ok = false;
+        return NULL;
+      case EXTENDED_MODE:
+        if (var_context != kSourceElement &&
+            var_context != kForStatement) {
+          // In extended mode 'const' declarations are only allowed in source
+          // element positions.
+          ReportMessage("unprotected_const", Vector<const char*>::empty());
+          *ok = false;
+          return NULL;
+        }
+        mode = CONST_HARMONY;
+        init_op = Token::INIT_CONST_HARMONY;
+    }
+    is_const = true;
+    needs_init = true;
+  } else if (peek() == Token::LET) {
+    // ES6 Draft Rev4 section 12.2.1:
+    //
+    // LetDeclaration : let LetBindingList ;
+    //
+    // * It is a Syntax Error if the code that matches this production is not
+    //   contained in extended code.
+    if (!is_extended_mode()) {
+      ReportMessage("illegal_let", Vector<const char*>::empty());
       *ok = false;
       return NULL;
     }
-    mode = Variable::CONST;
-    is_const = true;
-    needs_init = true;
-    init_op = Token::INIT_CONST;
-  } else if (peek() == Token::LET) {
     Consume(Token::LET);
     if (var_context != kSourceElement &&
         var_context != kForStatement) {
+      // Let declarations are only allowed in source element positions.
       ASSERT(var_context == kStatement);
       ReportMessage("unprotected_let", Vector<const char*>::empty());
       *ok = false;
       return NULL;
     }
-    mode = Variable::LET;
+    mode = LET;
     needs_init = true;
     init_op = Token::INIT_LET;
   } else {
     UNREACHABLE();  // by current callers
   }
 
-  Scope* declaration_scope = mode == Variable::LET
+  Scope* declaration_scope = (mode == LET || mode == CONST_HARMONY)
       ? top_scope_ : top_scope_->DeclarationScope();
   // The scope of a var/const declared variable anywhere inside a function
   // is the entire function (ECMA-262, 3rd, 10.1.3, and 12.2). Thus we can
@@ -1686,7 +1798,7 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     if (fni_ != NULL) fni_->PushVariableName(name);
 
     // Strict mode variables may not be named eval or arguments
-    if (declaration_scope->is_strict_mode() && IsEvalOrArguments(name)) {
+    if (!declaration_scope->is_classic_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_var_name", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -1704,8 +1816,10 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     // If we have a const declaration, in an inner scope, the proxy is always
     // bound to the declared variable (independent of possibly surrounding with
     // statements).
-    Declare(name, mode, NULL, is_const /* always bound for CONST! */,
-            CHECK_OK);
+    // For let/const declarations in harmony mode, we can also immediately
+    // pre-resolve the proxy because it resides in the same scope as the
+    // declaration.
+    VariableProxy* proxy = Declare(name, mode, NULL, mode != VAR, CHECK_OK);
     nvars++;
     if (declaration_scope->num_var_or_const() > kMaxNumFunctionLocals) {
       ReportMessageAt(scanner().location(), "too_many_variables",
@@ -1744,7 +1858,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     Scope* initialization_scope = is_const ? declaration_scope : top_scope_;
     Expression* value = NULL;
     int position = -1;
-    if (peek() == Token::ASSIGN) {
+    // Harmony consts have non-optional initializers.
+    if (peek() == Token::ASSIGN || mode == CONST_HARMONY) {
       Expect(Token::ASSIGN, CHECK_OK);
       position = scanner().location().beg_pos;
       value = ParseAssignmentExpression(var_context != kForStatement, CHECK_OK);
@@ -1756,6 +1871,12 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       } else {
         fni_->RemoveLastFunction();
       }
+      if (decl_props != NULL) *decl_props = kHasInitializers;
+    }
+
+    // Record the end position of the initializer.
+    if (proxy->var() != NULL) {
+      proxy->var()->set_initializer_position(scanner().location().end_pos);
     }
 
     // Make sure that 'const x' and 'let x' initialize 'x' to undefined.
@@ -1782,7 +1903,6 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
     // declaration statement has been executed. This is important in
     // browsers where the global object (window) has lots of
     // properties defined in prototype objects.
-
     if (initialization_scope->is_global_scope()) {
       // Compute the arguments for the runtime call.
       ZoneList<Expression*>* arguments = new(zone()) ZoneList<Expression*>(3);
@@ -1807,10 +1927,8 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       } else {
         // Add strict mode.
         // We may want to pass singleton to avoid Literal allocations.
-        StrictModeFlag flag = initialization_scope->is_strict_mode()
-            ? kStrictMode
-            : kNonStrictMode;
-        arguments->Add(NewNumberLiteral(flag));
+        LanguageMode language_mode = initialization_scope->language_mode();
+        arguments->Add(NewNumberLiteral(language_mode));
 
         // Be careful not to assign a value to the global variable if
         // we're in a with. The initialization value should not
@@ -1834,30 +1952,34 @@ Block* Parser::ParseVariableDeclarations(VariableDeclarationContext var_context,
       }
 
       block->AddStatement(new(zone()) ExpressionStatement(initialize));
+    } else if (needs_init) {
+      // Constant initializations always assign to the declared constant which
+      // is always at the function scope level. This is only relevant for
+      // dynamically looked-up variables and constants (the start context for
+      // constant lookups is always the function context, while it is the top
+      // context for var declared variables). Sigh...
+      // For 'let' and 'const' declared variables in harmony mode the
+      // initialization also always assigns to the declared variable.
+      ASSERT(proxy != NULL);
+      ASSERT(proxy->var() != NULL);
+      ASSERT(value != NULL);
+      Assignment* assignment =
+          new(zone()) Assignment(isolate(), init_op, proxy, value, position);
+      block->AddStatement(new(zone()) ExpressionStatement(assignment));
+      value = NULL;
     }
 
     // Add an assignment node to the initialization statement block if we still
-    // have a pending initialization value. We must distinguish between
-    // different kinds of declarations: 'var' initializations are simply
-    // assignments (with all the consequences if they are inside a 'with'
-    // statement - they may change a 'with' object property). Constant
-    // initializations always assign to the declared constant which is
-    // always at the function scope level. This is only relevant for
-    // dynamically looked-up variables and constants (the start context
-    // for constant lookups is always the function context, while it is
-    // the top context for var declared variables). Sigh...
-    // For 'let' declared variables the initialization is in the same scope
-    // as the declaration. Thus dynamic lookups are unnecessary even if the
-    // block scope is inside a with.
+    // have a pending initialization value.
     if (value != NULL) {
-      bool in_with = mode == Variable::VAR ? inside_with() : false;
-      VariableProxy* proxy =
-          initialization_scope->NewUnresolved(name, in_with);
+      ASSERT(mode == VAR);
+      // 'var' initializations are simply assignments (with all the consequences
+      // if they are inside a 'with' statement - they may change a 'with' object
+      // property).
+      VariableProxy* proxy = initialization_scope->NewUnresolved(name);
       Assignment* assignment =
           new(zone()) Assignment(isolate(), init_op, proxy, value, position);
-      if (block) {
-        block->AddStatement(new(zone()) ExpressionStatement(assignment));
-      }
+      block->AddStatement(new(zone()) ExpressionStatement(assignment));
     }
 
     if (fni_ != NULL) fni_->Leave();
@@ -2070,7 +2192,7 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
 
   Expect(Token::WITH, CHECK_OK);
 
-  if (top_scope_->is_strict_mode()) {
+  if (!top_scope_->is_classic_mode()) {
     ReportMessage("strict_mode_with", Vector<const char*>::empty());
     *ok = false;
     return NULL;
@@ -2080,10 +2202,14 @@ Statement* Parser::ParseWithStatement(ZoneStringList* labels, bool* ok) {
   Expression* expr = ParseExpression(true, CHECK_OK);
   Expect(Token::RPAREN, CHECK_OK);
 
-  ++with_nesting_level_;
   top_scope_->DeclarationScope()->RecordWithStatement();
-  Statement* stmt = ParseStatement(labels, CHECK_OK);
-  --with_nesting_level_;
+  Scope* with_scope = NewScope(top_scope_, WITH_SCOPE);
+  Statement* stmt;
+  { BlockState block_state(this, with_scope);
+    with_scope->set_start_position(scanner().peek_location().beg_pos);
+    stmt = ParseStatement(labels, CHECK_OK);
+    with_scope->set_end_position(scanner().location().end_pos);
+  }
   return new(zone()) WithStatement(expr, stmt);
 }
 
@@ -2208,9 +2334,11 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
     Consume(Token::CATCH);
 
     Expect(Token::LPAREN, CHECK_OK);
+    catch_scope = NewScope(top_scope_, CATCH_SCOPE);
+    catch_scope->set_start_position(scanner().location().beg_pos);
     name = ParseIdentifier(CHECK_OK);
 
-    if (top_scope_->is_strict_mode() && IsEvalOrArguments(name)) {
+    if (!top_scope_->is_classic_mode() && IsEvalOrArguments(name)) {
       ReportMessage("strict_catch_variable", Vector<const char*>::empty());
       *ok = false;
       return NULL;
@@ -2220,22 +2348,16 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
 
     if (peek() == Token::LBRACE) {
       Target target(&this->target_stack_, &catch_collector);
-      catch_scope = NewScope(top_scope_, Scope::CATCH_SCOPE, inside_with());
-      if (top_scope_->is_strict_mode()) {
-        catch_scope->EnableStrictMode();
-      }
-      Variable::Mode mode = harmony_block_scoping_
-          ? Variable::LET : Variable::VAR;
-      catch_variable = catch_scope->DeclareLocal(name, mode);
+      VariableMode mode = is_extended_mode() ? LET : VAR;
+      catch_variable =
+          catch_scope->DeclareLocal(name, mode, kCreatedInitialized);
 
-      Scope* saved_scope = top_scope_;
-      top_scope_ = catch_scope;
+      BlockState block_state(this, catch_scope);
       catch_block = ParseBlock(NULL, CHECK_OK);
-      top_scope_ = saved_scope;
     } else {
       Expect(Token::LBRACE, CHECK_OK);
     }
-
+    catch_scope->set_end_position(scanner().location().end_pos);
     tok = peek();
   }
 
@@ -2253,11 +2375,12 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL && finally_block != NULL) {
     // If we have both, create an inner try/catch.
     ASSERT(catch_scope != NULL && catch_variable != NULL);
-    TryCatchStatement* statement =
-        new(zone()) TryCatchStatement(try_block,
-                                      catch_scope,
-                                      catch_variable,
-                                      catch_block);
+    int index = current_function_state_->NextHandlerIndex();
+    TryCatchStatement* statement = new(zone()) TryCatchStatement(index,
+                                                                 try_block,
+                                                                 catch_scope,
+                                                                 catch_variable,
+                                                                 catch_block);
     statement->set_escaping_targets(try_collector.targets());
     try_block = new(zone()) Block(isolate(), NULL, 1, false);
     try_block->AddStatement(statement);
@@ -2268,14 +2391,18 @@ TryStatement* Parser::ParseTryStatement(bool* ok) {
   if (catch_block != NULL) {
     ASSERT(finally_block == NULL);
     ASSERT(catch_scope != NULL && catch_variable != NULL);
-    result =
-        new(zone()) TryCatchStatement(try_block,
-                                      catch_scope,
-                                      catch_variable,
-                                      catch_block);
+    int index = current_function_state_->NextHandlerIndex();
+    result = new(zone()) TryCatchStatement(index,
+                                           try_block,
+                                           catch_scope,
+                                           catch_variable,
+                                           catch_block);
   } else {
     ASSERT(finally_block != NULL);
-    result = new(zone()) TryFinallyStatement(try_block, finally_block);
+    int index = current_function_state_->NextHandlerIndex();
+    result = new(zone()) TryFinallyStatement(index,
+                                             try_block,
+                                             finally_block);
     // Combine the jump targets of the try block and the possible catch block.
     try_collector.targets()->AddAll(*catch_collector.targets());
   }
@@ -2341,16 +2468,22 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
   Statement* init = NULL;
 
+  // Create an in-between scope for let-bound iteration variables.
+  Scope* saved_scope = top_scope_;
+  Scope* for_scope = NewScope(top_scope_, BLOCK_SCOPE);
+  top_scope_ = for_scope;
+
   Expect(Token::FOR, CHECK_OK);
   Expect(Token::LPAREN, CHECK_OK);
+  for_scope->set_start_position(scanner().location().beg_pos);
   if (peek() != Token::SEMICOLON) {
     if (peek() == Token::VAR || peek() == Token::CONST) {
       Handle<String> name;
       Block* variable_statement =
-          ParseVariableDeclarations(kForStatement, &name, CHECK_OK);
+          ParseVariableDeclarations(kForStatement, NULL, &name, CHECK_OK);
 
       if (peek() == Token::IN && !name.is_null()) {
-        VariableProxy* each = top_scope_->NewUnresolved(name, inside_with());
+        VariableProxy* each = top_scope_->NewUnresolved(name);
         ForInStatement* loop = new(zone()) ForInStatement(isolate(), labels);
         Target target(&this->target_stack_, loop);
 
@@ -2363,12 +2496,73 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
         Block* result = new(zone()) Block(isolate(), NULL, 2, false);
         result->AddStatement(variable_statement);
         result->AddStatement(loop);
+        top_scope_ = saved_scope;
+        for_scope->set_end_position(scanner().location().end_pos);
+        for_scope = for_scope->FinalizeBlockScope();
+        ASSERT(for_scope == NULL);
         // Parsed for-in loop w/ variable/const declaration.
         return result;
       } else {
         init = variable_statement;
       }
+    } else if (peek() == Token::LET) {
+      Handle<String> name;
+      VariableDeclarationProperties decl_props = kHasNoInitializers;
+      Block* variable_statement =
+          ParseVariableDeclarations(kForStatement,
+                                    &decl_props,
+                                    &name,
+                                    CHECK_OK);
+      bool accept_IN = !name.is_null() && decl_props != kHasInitializers;
+      if (peek() == Token::IN && accept_IN) {
+        // Rewrite a for-in statement of the form
+        //
+        //   for (let x in e) b
+        //
+        // into
+        //
+        //   <let x' be a temporary variable>
+        //   for (x' in e) {
+        //     let x;
+        //     x = x';
+        //     b;
+        //   }
 
+        // TODO(keuchel): Move the temporary variable to the block scope, after
+        // implementing stack allocated block scoped variables.
+        Variable* temp = top_scope_->DeclarationScope()->NewTemporary(name);
+        VariableProxy* temp_proxy = new(zone()) VariableProxy(isolate(), temp);
+        VariableProxy* each = top_scope_->NewUnresolved(name);
+        ForInStatement* loop = new(zone()) ForInStatement(isolate(), labels);
+        Target target(&this->target_stack_, loop);
+
+        Expect(Token::IN, CHECK_OK);
+        Expression* enumerable = ParseExpression(true, CHECK_OK);
+        Expect(Token::RPAREN, CHECK_OK);
+
+        Statement* body = ParseStatement(NULL, CHECK_OK);
+        Block* body_block = new(zone()) Block(isolate(), NULL, 3, false);
+        Assignment* assignment = new(zone()) Assignment(isolate(),
+                                                        Token::ASSIGN,
+                                                        each,
+                                                        temp_proxy,
+                                                        RelocInfo::kNoPosition);
+        Statement* assignment_statement =
+            new(zone()) ExpressionStatement(assignment);
+        body_block->AddStatement(variable_statement);
+        body_block->AddStatement(assignment_statement);
+        body_block->AddStatement(body);
+        loop->Initialize(temp_proxy, enumerable, body_block);
+        top_scope_ = saved_scope;
+        for_scope->set_end_position(scanner().location().end_pos);
+        for_scope = for_scope->FinalizeBlockScope();
+        body_block->set_block_scope(for_scope);
+        // Parsed for-in loop w/ let declaration.
+        return loop;
+
+      } else {
+        init = variable_statement;
+      }
     } else {
       Expression* expression = ParseExpression(false, CHECK_OK);
       if (peek() == Token::IN) {
@@ -2390,6 +2584,10 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
 
         Statement* body = ParseStatement(NULL, CHECK_OK);
         if (loop) loop->Initialize(expression, enumerable, body);
+        top_scope_ = saved_scope;
+        for_scope->set_end_position(scanner().location().end_pos);
+        for_scope = for_scope->FinalizeBlockScope();
+        ASSERT(for_scope == NULL);
         // Parsed for-in loop.
         return loop;
 
@@ -2420,8 +2618,31 @@ Statement* Parser::ParseForStatement(ZoneStringList* labels, bool* ok) {
   Expect(Token::RPAREN, CHECK_OK);
 
   Statement* body = ParseStatement(NULL, CHECK_OK);
-  if (loop) loop->Initialize(init, cond, next, body);
-  return loop;
+  top_scope_ = saved_scope;
+  for_scope->set_end_position(scanner().location().end_pos);
+  for_scope = for_scope->FinalizeBlockScope();
+  if (for_scope != NULL) {
+    // Rewrite a for statement of the form
+    //
+    //   for (let x = i; c; n) b
+    //
+    // into
+    //
+    //   {
+    //     let x = i;
+    //     for (; c; n) b
+    //   }
+    ASSERT(init != NULL);
+    Block* result = new(zone()) Block(isolate(), NULL, 2, false);
+    result->AddStatement(init);
+    result->AddStatement(loop);
+    result->set_block_scope(for_scope);
+    if (loop) loop->Initialize(NULL, cond, next, body);
+    return result;
+  } else {
+    if (loop) loop->Initialize(init, cond, next, body);
+    return loop;
+  }
 }
 
 
@@ -2468,7 +2689,7 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
     expression = NewThrowReferenceError(type);
   }
 
-  if (top_scope_->is_strict_mode()) {
+  if (!top_scope_->is_classic_mode()) {
     // Assignment to eval or arguments is disallowed in strict mode.
     CheckStrictModeLValue(expression, "strict_lhs_assignment", CHECK_OK);
   }
@@ -2487,13 +2708,13 @@ Expression* Parser::ParseAssignmentExpression(bool accept_IN, bool* ok) {
       property != NULL &&
       property->obj()->AsVariableProxy() != NULL &&
       property->obj()->AsVariableProxy()->is_this()) {
-    lexical_scope_->AddProperty();
+    current_function_state_->AddProperty();
   }
 
   // If we assign a function literal to a property we pretenure the
   // literal so it can be added as a constant function property.
   if (property != NULL && right->AsFunctionLiteral() != NULL) {
-    right->AsFunctionLiteral()->set_pretenure(true);
+    right->AsFunctionLiteral()->set_pretenure();
   }
 
   if (fni_ != NULL) {
@@ -2618,7 +2839,7 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
           case Token::NE_STRICT: cmp = Token::EQ_STRICT; break;
           default: break;
         }
-        x = NewCompareNode(cmp, x, y, position);
+        x = new(zone()) CompareOperation(isolate(), cmp, x, y, position);
         if (cmp != op) {
           // The comparison was negated - add a NOT.
           x = new(zone()) UnaryOperation(isolate(), Token::NOT, x, position);
@@ -2631,27 +2852,6 @@ Expression* Parser::ParseBinaryExpression(int prec, bool accept_IN, bool* ok) {
     }
   }
   return x;
-}
-
-
-Expression* Parser::NewCompareNode(Token::Value op,
-                                   Expression* x,
-                                   Expression* y,
-                                   int position) {
-  ASSERT(op != Token::NE && op != Token::NE_STRICT);
-  if (op == Token::EQ || op == Token::EQ_STRICT) {
-    bool is_strict = (op == Token::EQ_STRICT);
-    Literal* x_literal = x->AsLiteral();
-    if (x_literal != NULL && x_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, y);
-    }
-
-    Literal* y_literal = y->AsLiteral();
-    if (y_literal != NULL && y_literal->IsNull()) {
-      return new(zone()) CompareToNull(isolate(), is_strict, x);
-    }
-  }
-  return new(zone()) CompareOperation(isolate(), op, x, y, position);
 }
 
 
@@ -2698,7 +2898,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
     }
 
     // "delete identifier" is a syntax error in strict mode.
-    if (op == Token::DELETE && top_scope_->is_strict_mode()) {
+    if (op == Token::DELETE && !top_scope_->is_classic_mode()) {
       VariableProxy* operand = expression->AsVariableProxy();
       if (operand != NULL && !operand->is_this()) {
         ReportMessage("strict_delete", Vector<const char*>::empty());
@@ -2722,7 +2922,7 @@ Expression* Parser::ParseUnaryExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
 
-    if (top_scope_->is_strict_mode()) {
+    if (!top_scope_->is_classic_mode()) {
       // Prefix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
@@ -2757,7 +2957,7 @@ Expression* Parser::ParsePostfixExpression(bool* ok) {
       expression = NewThrowReferenceError(type);
     }
 
-    if (top_scope_->is_strict_mode()) {
+    if (!top_scope_->is_classic_mode()) {
       // Postfix expression operand in strict mode may not be eval or arguments.
       CheckStrictModeLValue(expression, "strict_lhs_prefix", CHECK_OK);
     }
@@ -2804,23 +3004,14 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
         // Keep track of eval() calls since they disable all local variable
         // optimizations.
         // The calls that need special treatment are the
-        // direct (i.e. not aliased) eval calls. These calls are all of the
-        // form eval(...) with no explicit receiver object where eval is not
-        // declared in the current scope chain.
+        // direct eval calls. These calls are all of the form eval(...), with
+        // no explicit receiver.
         // These calls are marked as potentially direct eval calls. Whether
         // they are actually direct calls to eval is determined at run time.
-        // TODO(994): In ES5, it doesn't matter if the "eval" var is declared
-        // in the local scope chain. It only matters that it's called "eval",
-        // is called without a receiver and it refers to the original eval
-        // function.
         VariableProxy* callee = result->AsVariableProxy();
         if (callee != NULL &&
             callee->IsVariable(isolate()->factory()->eval_symbol())) {
-          Handle<String> name = callee->name();
-          Variable* var = top_scope_->Lookup(name);
-          if (var == NULL) {
-            top_scope_->DeclarationScope()->RecordEvalCall();
-          }
+          top_scope_->DeclarationScope()->RecordEvalCall();
         }
         result = NewCall(result, args, pos);
         break;
@@ -2997,9 +3188,9 @@ void Parser::ReportUnexpectedToken(Token::Value token) {
       return ReportMessage("unexpected_reserved",
                            Vector<const char*>::empty());
     case Token::FUTURE_STRICT_RESERVED_WORD:
-      return ReportMessage(top_scope_->is_strict_mode() ?
-                               "unexpected_strict_reserved" :
-                               "unexpected_token_identifier",
+      return ReportMessage(top_scope_->is_classic_mode() ?
+                               "unexpected_token_identifier" :
+                               "unexpected_strict_reserved",
                            Vector<const char*>::empty());
     default:
       const char* name = Token::String(token);
@@ -3062,9 +3253,7 @@ Expression* Parser::ParsePrimaryExpression(bool* ok) {
     case Token::FUTURE_STRICT_RESERVED_WORD: {
       Handle<String> name = ParseIdentifier(CHECK_OK);
       if (fni_ != NULL) fni_->PushVariableName(name);
-      result = top_scope_->NewUnresolved(name,
-                                         inside_with(),
-                                         scanner().location().beg_pos);
+      result = top_scope_->NewUnresolved(name, scanner().location().beg_pos);
       break;
     }
 
@@ -3179,11 +3368,13 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
   Expect(Token::RBRACK, CHECK_OK);
 
   // Update the scope information before the pre-parsing bailout.
-  int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
+  int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
-  // Allocate a fixed array with all the literals.
-  Handle<FixedArray> literals =
+  // Allocate a fixed array to hold all the object literals.
+  Handle<FixedArray> object_literals =
       isolate()->factory()->NewFixedArray(values->length(), TENURED);
+  Handle<FixedDoubleArray> double_literals;
+  ElementsKind elements_kind = FAST_SMI_ONLY_ELEMENTS;
 
   // Fill in the literals.
   bool is_simple = true;
@@ -3195,18 +3386,74 @@ Expression* Parser::ParseArrayLiteral(bool* ok) {
     }
     Handle<Object> boilerplate_value = GetBoilerplateValue(values->at(i));
     if (boilerplate_value->IsUndefined()) {
-      literals->set_the_hole(i);
+      object_literals->set_the_hole(i);
+      if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        double_literals->set_the_hole(i);
+      }
       is_simple = false;
     } else {
-      literals->set(i, *boilerplate_value);
+      // Examine each literal element, and adjust the ElementsKind if the
+      // literal element is not of a type that can be stored in the current
+      // ElementsKind.  Start with FAST_SMI_ONLY_ELEMENTS, and transition to
+      // FAST_DOUBLE_ELEMENTS and FAST_ELEMENTS as necessary.  Always remember
+      // the tagged value, no matter what the ElementsKind is in case we
+      // ultimately end up in FAST_ELEMENTS.
+      object_literals->set(i, *boilerplate_value);
+      if (elements_kind == FAST_SMI_ONLY_ELEMENTS) {
+        // Smi only elements. Notice if a transition to FAST_DOUBLE_ELEMENTS or
+        // FAST_ELEMENTS is required.
+        if (!boilerplate_value->IsSmi()) {
+          if (boilerplate_value->IsNumber() && FLAG_smi_only_arrays) {
+            // Allocate a double array on the FAST_DOUBLE_ELEMENTS transition to
+            // avoid over-allocating in TENURED space.
+            double_literals = isolate()->factory()->NewFixedDoubleArray(
+                values->length(), TENURED);
+            // Copy the contents of the FAST_SMI_ONLY_ELEMENT array to the
+            // FAST_DOUBLE_ELEMENTS array so that they are in sync.
+            for (int j = 0; j < i; ++j) {
+              Object* smi_value = object_literals->get(j);
+              if (smi_value->IsTheHole()) {
+                double_literals->set_the_hole(j);
+              } else {
+                double_literals->set(j, Smi::cast(smi_value)->value());
+              }
+            }
+            double_literals->set(i, boilerplate_value->Number());
+            elements_kind = FAST_DOUBLE_ELEMENTS;
+          } else {
+            elements_kind = FAST_ELEMENTS;
+          }
+        }
+      } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+        // Continue to store double values in to FAST_DOUBLE_ELEMENTS arrays
+        // until the first value is seen that can't be stored as a double.
+        if (boilerplate_value->IsNumber()) {
+          double_literals->set(i, boilerplate_value->Number());
+        } else {
+          elements_kind = FAST_ELEMENTS;
+        }
+      }
     }
   }
 
   // Simple and shallow arrays can be lazily copied, we transform the
   // elements array to a copy-on-write array.
-  if (is_simple && depth == 1 && values->length() > 0) {
-    literals->set_map(isolate()->heap()->fixed_cow_array_map());
+  if (is_simple && depth == 1 && values->length() > 0 &&
+      elements_kind != FAST_DOUBLE_ELEMENTS) {
+    object_literals->set_map(isolate()->heap()->fixed_cow_array_map());
   }
+
+  Handle<FixedArrayBase> element_values = elements_kind == FAST_DOUBLE_ELEMENTS
+      ? Handle<FixedArrayBase>(double_literals)
+      : Handle<FixedArrayBase>(object_literals);
+
+  // Remember both the literal's constant values as well as the ElementsKind
+  // in a 2-element FixedArray.
+  Handle<FixedArray> literals =
+      isolate()->factory()->NewFixedArray(2, TENURED);
+
+  literals->set(0, Smi::FromInt(elements_kind));
+  literals->set(1, *element_values);
 
   return new(zone()) ArrayLiteral(
       isolate(), literals, values, literal_index, is_simple, depth);
@@ -3289,11 +3536,11 @@ bool IsEqualNumber(void* first, void* second);
 // Validation per 11.1.5 Object Initialiser
 class ObjectLiteralPropertyChecker {
  public:
-  ObjectLiteralPropertyChecker(Parser* parser, bool strict) :
+  ObjectLiteralPropertyChecker(Parser* parser, LanguageMode language_mode) :
     props(&IsEqualString),
     elems(&IsEqualNumber),
     parser_(parser),
-    strict_(strict) {
+    language_mode_(language_mode) {
   }
 
   void CheckProperty(
@@ -3323,7 +3570,7 @@ class ObjectLiteralPropertyChecker {
   HashMap props;
   HashMap elems;
   Parser* parser_;
-  bool strict_;
+  LanguageMode language_mode_;
 };
 
 
@@ -3372,8 +3619,8 @@ void ObjectLiteralPropertyChecker::CheckProperty(
   intptr_t prev = reinterpret_cast<intptr_t> (entry->value);
   intptr_t curr = GetPropertyKind(property);
 
-  // Duplicate data properties are illegal in strict mode.
-  if (strict_ && (curr & prev & kData) != 0) {
+  // Duplicate data properties are illegal in strict or extended mode.
+  if (language_mode_ != CLASSIC_MODE && (curr & prev & kData) != 0) {
     parser_->ReportMessageAt(loc, "strict_duplicate_property",
                              Vector<const char*>::empty());
     *ok = false;
@@ -3509,7 +3756,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   int number_of_boilerplate_properties = 0;
   bool has_function = false;
 
-  ObjectLiteralPropertyChecker checker(this, top_scope_->is_strict_mode());
+  ObjectLiteralPropertyChecker checker(this, top_scope_->language_mode());
 
   Expect(Token::LBRACE, CHECK_OK);
 
@@ -3597,11 +3844,13 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
     ObjectLiteral::Property* property =
         new(zone()) ObjectLiteral::Property(key, value);
 
-    // Mark object literals that contain function literals and pretenure the
-    // literal so it can be added as a constant function property.
-    if (value->AsFunctionLiteral() != NULL) {
+    // Mark top-level object literals that contain function literals and
+    // pretenure the literal so it can be added as a constant function
+    // property.
+    if (top_scope_->DeclarationScope()->is_global_scope() &&
+        value->AsFunctionLiteral() != NULL) {
       has_function = true;
-      value->AsFunctionLiteral()->set_pretenure(true);
+      value->AsFunctionLiteral()->set_pretenure();
     }
 
     // Count CONSTANT or COMPUTED properties to maintain the enumeration order.
@@ -3621,7 +3870,7 @@ Expression* Parser::ParseObjectLiteral(bool* ok) {
   Expect(Token::RBRACE, CHECK_OK);
 
   // Computation of literal_index must happen before pre parse bailout.
-  int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
+  int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
   Handle<FixedArray> constant_properties = isolate()->factory()->NewFixedArray(
       number_of_boilerplate_properties * 2, TENURED);
@@ -3653,7 +3902,7 @@ Expression* Parser::ParseRegExpLiteral(bool seen_equal, bool* ok) {
     return NULL;
   }
 
-  int literal_index = lexical_scope_->NextMaterializedLiteralIndex();
+  int literal_index = current_function_state_->NextMaterializedLiteralIndex();
 
   Handle<String> js_pattern = NextLiteralString(TENURED);
   scanner().ScanRegExpFlags();
@@ -3689,6 +3938,98 @@ ZoneList<Expression*>* Parser::ParseArguments(bool* ok) {
 }
 
 
+class SingletonLogger : public ParserRecorder {
+ public:
+  SingletonLogger() : has_error_(false), start_(-1), end_(-1) { }
+  ~SingletonLogger() { }
+
+  void Reset() { has_error_ = false; }
+
+  virtual void LogFunction(int start,
+                           int end,
+                           int literals,
+                           int properties,
+                           LanguageMode mode) {
+    ASSERT(!has_error_);
+    start_ = start;
+    end_ = end;
+    literals_ = literals;
+    properties_ = properties;
+    mode_ = mode;
+  };
+
+  // Logs a symbol creation of a literal or identifier.
+  virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
+  virtual void LogUC16Symbol(int start, Vector<const uc16> literal) { }
+
+  // Logs an error message and marks the log as containing an error.
+  // Further logging will be ignored, and ExtractData will return a vector
+  // representing the error only.
+  virtual void LogMessage(int start,
+                          int end,
+                          const char* message,
+                          const char* argument_opt) {
+    has_error_ = true;
+    start_ = start;
+    end_ = end;
+    message_ = message;
+    argument_opt_ = argument_opt;
+  }
+
+  virtual int function_position() { return 0; }
+
+  virtual int symbol_position() { return 0; }
+
+  virtual int symbol_ids() { return -1; }
+
+  virtual Vector<unsigned> ExtractData() {
+    UNREACHABLE();
+    return Vector<unsigned>();
+  }
+
+  virtual void PauseRecording() { }
+
+  virtual void ResumeRecording() { }
+
+  bool has_error() { return has_error_; }
+
+  int start() { return start_; }
+  int end() { return end_; }
+  int literals() {
+    ASSERT(!has_error_);
+    return literals_;
+  }
+  int properties() {
+    ASSERT(!has_error_);
+    return properties_;
+  }
+  LanguageMode language_mode() {
+    ASSERT(!has_error_);
+    return mode_;
+  }
+  const char* message() {
+    ASSERT(has_error_);
+    return message_;
+  }
+  const char* argument_opt() {
+    ASSERT(has_error_);
+    return argument_opt_;
+  }
+
+ private:
+  bool has_error_;
+  int start_;
+  int end_;
+  // For function entries.
+  int literals_;
+  int properties_;
+  LanguageMode mode_;
+  // For error messages.
+  const char* message_;
+  const char* argument_opt_;
+};
+
+
 FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                               bool name_is_strict_reserved,
                                               int function_token_position,
@@ -3711,26 +4052,24 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
   // Function declarations are function scoped in normal mode, so they are
   // hoisted. In harmony block scoping mode they are block scoped, so they
   // are not hoisted.
-  Scope* scope = (type == FunctionLiteral::DECLARATION &&
-                  !harmony_block_scoping_)
-      ? NewScope(top_scope_->DeclarationScope(), Scope::FUNCTION_SCOPE, false)
-      : NewScope(top_scope_, Scope::FUNCTION_SCOPE, inside_with());
-  ZoneList<Statement*>* body = new(zone()) ZoneList<Statement*>(8);
-  int materialized_literal_count;
-  int expected_property_count;
-  int start_pos;
-  int end_pos;
+  Scope* scope = (type == FunctionLiteral::DECLARATION && !is_extended_mode())
+      ? NewScope(top_scope_->DeclarationScope(), FUNCTION_SCOPE)
+      : NewScope(top_scope_, FUNCTION_SCOPE);
+  ZoneList<Statement*>* body = NULL;
+  int materialized_literal_count = -1;
+  int expected_property_count = -1;
+  int handler_count = 0;
   bool only_simple_this_property_assignments;
   Handle<FixedArray> this_property_assignments;
   bool has_duplicate_parameters = false;
   // Parse function body.
-  { LexicalScope lexical_scope(this, scope, isolate());
+  { FunctionState function_state(this, scope, isolate());
     top_scope_->SetScopeName(function_name);
 
     //  FormalParameterList ::
     //    '(' (Identifier)*[','] ')'
     Expect(Token::LPAREN, CHECK_OK);
-    start_pos = scanner().location().beg_pos;
+    scope->set_start_position(scanner().location().beg_pos);
     Scanner::Location name_loc = Scanner::Location::invalid();
     Scanner::Location dupe_loc = Scanner::Location::invalid();
     Scanner::Location reserved_loc = Scanner::Location::invalid();
@@ -3754,10 +4093,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         reserved_loc = scanner().location();
       }
 
-      top_scope_->DeclareParameter(param_name,
-                                   harmony_block_scoping_
-                                   ? Variable::LET
-                                   : Variable::VAR);
+      top_scope_->DeclareParameter(param_name, is_extended_mode() ? LET : VAR);
       num_parameters++;
       if (num_parameters > kMaxNumFunctionParameters) {
         ReportMessageAt(scanner().location(), "too_many_parameters",
@@ -3778,71 +4114,129 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
     // NOTE: We create a proxy and resolve it here so that in the
     // future we can change the AST to only refer to VariableProxies
     // instead of Variables and Proxis as is the case now.
+    Variable* fvar = NULL;
+    Token::Value fvar_init_op = Token::INIT_CONST;
     if (type == FunctionLiteral::NAMED_EXPRESSION) {
-      Variable* fvar = top_scope_->DeclareFunctionVar(function_name);
-      VariableProxy* fproxy =
-          top_scope_->NewUnresolved(function_name, inside_with());
-      fproxy->BindTo(fvar);
-      body->Add(new(zone()) ExpressionStatement(
-          new(zone()) Assignment(isolate(),
-                                 Token::INIT_CONST,
-                                 fproxy,
-                                 new(zone()) ThisFunction(isolate()),
-                                 RelocInfo::kNoPosition)));
+      VariableMode fvar_mode;
+      if (is_extended_mode()) {
+        fvar_mode = CONST_HARMONY;
+        fvar_init_op = Token::INIT_CONST_HARMONY;
+      } else {
+        fvar_mode = CONST;
+      }
+      fvar = top_scope_->DeclareFunctionVar(function_name, fvar_mode);
     }
 
-    // Determine if the function will be lazily compiled. The mode can only
-    // be PARSE_LAZILY if the --lazy flag is true.  We will not lazily
-    // compile if we do not have preparser data for the function.
+    // Determine whether the function will be lazily compiled.
+    // The heuristics are:
+    // - It must not have been prohibited by the caller to Parse (some callers
+    //   need a full AST).
+    // - The outer scope must be trivial (only global variables in scope).
+    // - The function mustn't be a function expression with an open parenthesis
+    //   before; we consider that a hint that the function will be called
+    //   immediately, and it would be a waste of time to make it lazily
+    //   compiled.
+    // These are all things we can know at this point, without looking at the
+    // function itself.
     bool is_lazily_compiled = (mode() == PARSE_LAZILY &&
                                top_scope_->outer_scope()->is_global_scope() &&
                                top_scope_->HasTrivialOuterContext() &&
-                               !parenthesized_function_ &&
-                               pre_data() != NULL);
+                               !parenthesized_function_);
     parenthesized_function_ = false;  // The bit was set for this function only.
 
     if (is_lazily_compiled) {
       int function_block_pos = scanner().location().beg_pos;
-      FunctionEntry entry = pre_data()->GetFunctionEntry(function_block_pos);
-      if (!entry.is_valid()) {
-        // There is no preparser data for the function, we will not lazily
-        // compile after all.
-        is_lazily_compiled = false;
-      } else {
-        end_pos = entry.end_pos();
-        if (end_pos <= function_block_pos) {
-          // End position greater than end of stream is safe, and hard to check.
-          ReportInvalidPreparseData(function_name, CHECK_OK);
+      FunctionEntry entry;
+      if (pre_data_ != NULL) {
+        // If we have pre_data_, we use it to skip parsing the function body.
+        // the preparser data contains the information we need to construct the
+        // lazy function.
+        entry = pre_data()->GetFunctionEntry(function_block_pos);
+        if (entry.is_valid()) {
+          if (entry.end_pos() <= function_block_pos) {
+            // End position greater than end of stream is safe, and hard
+            // to check.
+            ReportInvalidPreparseData(function_name, CHECK_OK);
+          }
+          scanner().SeekForward(entry.end_pos() - 1);
+
+          scope->set_end_position(entry.end_pos());
+          Expect(Token::RBRACE, CHECK_OK);
+          isolate()->counters()->total_preparse_skipped()->Increment(
+              scope->end_position() - function_block_pos);
+          materialized_literal_count = entry.literal_count();
+          expected_property_count = entry.property_count();
+          top_scope_->SetLanguageMode(entry.language_mode());
+          only_simple_this_property_assignments = false;
+          this_property_assignments = isolate()->factory()->empty_fixed_array();
+        } else {
+          is_lazily_compiled = false;
         }
+      } else {
+        // With no preparser data, we partially parse the function, without
+        // building an AST. This gathers the data needed to build a lazy
+        // function.
+        SingletonLogger logger;
+        preparser::PreParser::PreParseResult result =
+            LazyParseFunctionLiteral(&logger);
+        if (result == preparser::PreParser::kPreParseStackOverflow) {
+          // Propagate stack overflow.
+          stack_overflow_ = true;
+          *ok = false;
+          return NULL;
+        }
+        if (logger.has_error()) {
+          const char* arg = logger.argument_opt();
+          Vector<const char*> args;
+          if (arg != NULL) {
+            args = Vector<const char*>(&arg, 1);
+          }
+          ReportMessageAt(Scanner::Location(logger.start(), logger.end()),
+                          logger.message(), args);
+          *ok = false;
+          return NULL;
+        }
+        scope->set_end_position(logger.end());
+        Expect(Token::RBRACE, CHECK_OK);
         isolate()->counters()->total_preparse_skipped()->Increment(
-            end_pos - function_block_pos);
-        // Seek to position just before terminal '}'.
-        scanner().SeekForward(end_pos - 1);
-        materialized_literal_count = entry.literal_count();
-        expected_property_count = entry.property_count();
-        if (entry.strict_mode()) top_scope_->EnableStrictMode();
+            scope->end_position() - function_block_pos);
+        materialized_literal_count = logger.literals();
+        expected_property_count = logger.properties();
+        top_scope_->SetLanguageMode(logger.language_mode());
         only_simple_this_property_assignments = false;
         this_property_assignments = isolate()->factory()->empty_fixed_array();
-        Expect(Token::RBRACE, CHECK_OK);
       }
     }
 
     if (!is_lazily_compiled) {
+      body = new(zone()) ZoneList<Statement*>(8);
+      if (fvar != NULL) {
+        VariableProxy* fproxy = top_scope_->NewUnresolved(function_name);
+        fproxy->BindTo(fvar);
+        body->Add(new(zone()) ExpressionStatement(
+            new(zone()) Assignment(isolate(),
+                                   fvar_init_op,
+                                   fproxy,
+                                   new(zone()) ThisFunction(isolate()),
+                                   RelocInfo::kNoPosition)));
+      }
       ParseSourceElements(body, Token::RBRACE, CHECK_OK);
 
-      materialized_literal_count = lexical_scope.materialized_literal_count();
-      expected_property_count = lexical_scope.expected_property_count();
+      materialized_literal_count = function_state.materialized_literal_count();
+      expected_property_count = function_state.expected_property_count();
+      handler_count = function_state.handler_count();
       only_simple_this_property_assignments =
-          lexical_scope.only_simple_this_property_assignments();
-      this_property_assignments = lexical_scope.this_property_assignments();
+          function_state.only_simple_this_property_assignments();
+      this_property_assignments = function_state.this_property_assignments();
 
       Expect(Token::RBRACE, CHECK_OK);
-      end_pos = scanner().location().end_pos;
+      scope->set_end_position(scanner().location().end_pos);
     }
 
     // Validate strict mode.
-    if (top_scope_->is_strict_mode()) {
+    if (!top_scope_->is_classic_mode()) {
       if (IsEvalOrArguments(function_name)) {
+        int start_pos = scope->start_position();
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
             : (start_pos > 0 ? start_pos - 1 : start_pos);
@@ -3865,6 +4259,7 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         return NULL;
       }
       if (name_is_strict_reserved) {
+        int start_pos = scope->start_position();
         int position = function_token_position != RelocInfo::kNoPosition
             ? function_token_position
             : (start_pos > 0 ? start_pos - 1 : start_pos);
@@ -3880,11 +4275,13 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
         *ok = false;
         return NULL;
       }
-      CheckOctalLiteral(start_pos, end_pos, CHECK_OK);
+      CheckOctalLiteral(scope->start_position(),
+                        scope->end_position(),
+                        CHECK_OK);
     }
   }
 
-  if (harmony_block_scoping_) {
+  if (is_extended_mode()) {
     CheckConflictingVarDeclarations(scope, CHECK_OK);
   }
 
@@ -3895,17 +4292,37 @@ FunctionLiteral* Parser::ParseFunctionLiteral(Handle<String> function_name,
                                   body,
                                   materialized_literal_count,
                                   expected_property_count,
+                                  handler_count,
                                   only_simple_this_property_assignments,
                                   this_property_assignments,
                                   num_parameters,
-                                  start_pos,
-                                  end_pos,
                                   type,
                                   has_duplicate_parameters);
   function_literal->set_function_token_position(function_token_position);
 
   if (fni_ != NULL && should_infer_name) fni_->AddFunction(function_literal);
   return function_literal;
+}
+
+
+preparser::PreParser::PreParseResult Parser::LazyParseFunctionLiteral(
+    SingletonLogger* logger) {
+  HistogramTimerScope preparse_scope(isolate()->counters()->pre_parse());
+  ASSERT_EQ(Token::LBRACE, scanner().current_token());
+
+  if (reusable_preparser_ == NULL) {
+    intptr_t stack_limit = isolate()->stack_guard()->real_climit();
+    bool do_allow_lazy = true;
+    reusable_preparser_ = new preparser::PreParser(&scanner_,
+                                                   NULL,
+                                                   stack_limit,
+                                                   do_allow_lazy,
+                                                   allow_natives_syntax_);
+  }
+  preparser::PreParser::PreParseResult result =
+      reusable_preparser_->PreParseLazyFunction(top_scope_->language_mode(),
+                                                logger);
+  return result;
 }
 
 
@@ -4024,7 +4441,7 @@ Literal* Parser::GetLiteralNumber(double value) {
 // Parses an identifier that is valid for the current scope, in particular it
 // fails on strict mode future reserved keywords in a strict scope.
 Handle<String> Parser::ParseIdentifier(bool* ok) {
-  if (top_scope_->is_strict_mode()) {
+  if (!top_scope_->is_classic_mode()) {
     Expect(Token::IDENTIFIER, ok);
   } else if (!Check(Token::IDENTIFIER)) {
     Expect(Token::FUTURE_STRICT_RESERVED_WORD, ok);
@@ -4067,7 +4484,7 @@ Handle<String> Parser::ParseIdentifierName(bool* ok) {
 void Parser::CheckStrictModeLValue(Expression* expression,
                                    const char* error,
                                    bool* ok) {
-  ASSERT(top_scope_->is_strict_mode());
+  ASSERT(!top_scope_->is_classic_mode());
   VariableProxy* lhs = expression != NULL
       ? expression->AsVariableProxy()
       : NULL;
@@ -5120,18 +5537,20 @@ int ScriptDataImpl::ReadNumber(byte** source) {
 
 // Create a Scanner for the preparser to use as input, and preparse the source.
 static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
-                                  bool allow_lazy,
-                                  ParserRecorder* recorder,
-                                  bool harmony_block_scoping) {
+                                  int flags,
+                                  ParserRecorder* recorder) {
   Isolate* isolate = Isolate::Current();
-  JavaScriptScanner scanner(isolate->unicode_cache());
-  scanner.SetHarmonyBlockScoping(harmony_block_scoping);
+  HistogramTimerScope timer(isolate->counters()->pre_parse());
+  Scanner scanner(isolate->unicode_cache());
+  scanner.SetHarmonyScoping(FLAG_harmony_scoping);
   scanner.Initialize(source);
   intptr_t stack_limit = isolate->stack_guard()->real_climit();
-  if (!preparser::PreParser::PreParseProgram(&scanner,
-                                             recorder,
-                                             allow_lazy,
-                                             stack_limit)) {
+  preparser::PreParser::PreParseResult result =
+      preparser::PreParser::PreParseProgram(&scanner,
+                                            recorder,
+                                            flags,
+                                            stack_limit);
+  if (result == preparser::PreParser::kPreParseStackOverflow) {
     isolate->StackOverflow();
     return NULL;
   }
@@ -5145,27 +5564,38 @@ static ScriptDataImpl* DoPreParse(UC16CharacterStream* source,
 
 // Preparse, but only collect data that is immediately useful,
 // even if the preparser data is only used once.
-ScriptDataImpl* ParserApi::PartialPreParse(UC16CharacterStream* source,
+ScriptDataImpl* ParserApi::PartialPreParse(Handle<String> source,
                                            v8::Extension* extension,
-                                           bool harmony_block_scoping) {
+                                           int flags) {
   bool allow_lazy = FLAG_lazy && (extension == NULL);
   if (!allow_lazy) {
     // Partial preparsing is only about lazily compiled functions.
     // If we don't allow lazy compilation, the log data will be empty.
     return NULL;
   }
+  flags |= kAllowLazy;
   PartialParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder, harmony_block_scoping);
+  int source_length = source->length();
+  if (source->IsExternalTwoByteString()) {
+    ExternalTwoByteStringUC16CharacterStream stream(
+        Handle<ExternalTwoByteString>::cast(source), 0, source_length);
+    return DoPreParse(&stream, flags, &recorder);
+  } else {
+    GenericStringUC16CharacterStream stream(source, 0, source_length);
+    return DoPreParse(&stream, flags, &recorder);
+  }
 }
 
 
 ScriptDataImpl* ParserApi::PreParse(UC16CharacterStream* source,
                                     v8::Extension* extension,
-                                    bool harmony_block_scoping) {
+                                    int flags) {
   Handle<Script> no_script;
-  bool allow_lazy = FLAG_lazy && (extension == NULL);
+  if (FLAG_lazy && (extension == NULL)) {
+    flags |= kAllowLazy;
+  }
   CompleteParserRecorder recorder;
-  return DoPreParse(source, allow_lazy, &recorder, harmony_block_scoping);
+  return DoPreParse(source, flags, &recorder);
 }
 
 
@@ -5191,29 +5621,26 @@ bool RegExpParser::ParseRegExp(FlatStringReader* input,
 }
 
 
-bool ParserApi::Parse(CompilationInfo* info) {
+bool ParserApi::Parse(CompilationInfo* info, int parsing_flags) {
   ASSERT(info->function() == NULL);
   FunctionLiteral* result = NULL;
   Handle<Script> script = info->script();
-  bool harmony_block_scoping = !info->is_native() &&
-                               FLAG_harmony_block_scoping;
+  ASSERT((parsing_flags & kLanguageModeMask) == CLASSIC_MODE);
+  if (!info->is_native() && FLAG_harmony_scoping) {
+    // Harmony scoping is requested.
+    parsing_flags |= EXTENDED_MODE;
+  }
+  if (FLAG_allow_natives_syntax || info->is_native()) {
+    // We requre %identifier(..) syntax.
+    parsing_flags |= kAllowNativesSyntax;
+  }
   if (info->is_lazy()) {
-    bool allow_natives_syntax =
-        FLAG_allow_natives_syntax ||
-        info->is_native();
-    Parser parser(script, allow_natives_syntax, NULL, NULL);
-    parser.SetHarmonyBlockScoping(harmony_block_scoping);
+    ASSERT(!info->is_eval());
+    Parser parser(script, parsing_flags, NULL, NULL);
     result = parser.ParseLazy(info);
   } else {
-    // Whether we allow %identifier(..) syntax.
-    bool allow_natives_syntax =
-        info->is_native() || FLAG_allow_natives_syntax;
     ScriptDataImpl* pre_data = info->pre_parse_data();
-    Parser parser(script,
-                  allow_natives_syntax,
-                  info->extension(),
-                  pre_data);
-    parser.SetHarmonyBlockScoping(harmony_block_scoping);
+    Parser parser(script, parsing_flags, info->extension(), pre_data);
     if (pre_data != NULL && pre_data->has_error()) {
       Scanner::Location loc = pre_data->MessageLocation();
       const char* message = pre_data->BuildMessage();
@@ -5226,10 +5653,7 @@ bool ParserApi::Parse(CompilationInfo* info) {
       DeleteArray(args.start());
       ASSERT(info->isolate()->has_pending_exception());
     } else {
-      Handle<String> source = Handle<String>(String::cast(script->source()));
-      result = parser.ParseProgram(source,
-                                   info->is_global(),
-                                   info->StrictMode());
+      result = parser.ParseProgram(info);
     }
   }
   info->SetFunction(result);

@@ -1,4 +1,4 @@
-// Copyright 2006-2011 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,76 +33,96 @@
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/syscall.h>
 #include <sys/types.h>
 #include <stdlib.h>
 
 #include <sys/types.h>  // mmap & munmap
 #include <sys/mman.h>   // mmap & munmap
 #include <sys/stat.h>   // open
-#include <sys/fcntl.h>  // open
-#include <unistd.h>     // getpagesize
+#include <fcntl.h>      // open
+#include <unistd.h>     // sysconf
 #include <execinfo.h>   // backtrace, backtrace_symbols
 #include <strings.h>    // index
 #include <errno.h>
 #include <stdarg.h>
-#include <limits.h>
 
 #undef MAP_TYPE
 
 #include "v8.h"
-#include "v8threads.h"
 
 #include "platform.h"
+#include "v8threads.h"
 #include "vm-state-inl.h"
 
 
 namespace v8 {
 namespace internal {
 
-// 0 is never a valid thread id on OpenBSD since tids and pids share a
-// name space and pid 0 is used to kill the group (see man 2 kill).
+// 0 is never a valid thread id on Linux and OpenBSD since tids and pids share a
+// name space and pid 0 is reserved (see man 2 kill).
 static const pthread_t kNoThread = (pthread_t) 0;
 
 
 double ceiling(double x) {
-    // Correct as on OS X
-    if (-1.0 < x && x < 0.0) {
-        return -0.0;
-    } else {
-        return ceil(x);
-    }
+  return ceil(x);
 }
 
 
 static Mutex* limit_mutex = NULL;
 
 
+static void* GetRandomMmapAddr() {
+  Isolate* isolate = Isolate::UncheckedCurrent();
+  // Note that the current isolate isn't set up in a call path via
+  // CpuFeatures::Probe. We don't care about randomization in this case because
+  // the code page is immediately freed.
+  if (isolate != NULL) {
+#ifdef V8_TARGET_ARCH_X64
+    uint64_t rnd1 = V8::RandomPrivate(isolate);
+    uint64_t rnd2 = V8::RandomPrivate(isolate);
+    uint64_t raw_addr = (rnd1 << 32) ^ rnd2;
+    // Currently available CPUs have 48 bits of virtual addressing.  Truncate
+    // the hint address to 46 bits to give the kernel a fighting chance of
+    // fulfilling our placement request.
+    raw_addr &= V8_UINT64_C(0x3ffffffff000);
+#else
+    uint32_t raw_addr = V8::RandomPrivate(isolate);
+    // The range 0x20000000 - 0x60000000 is relatively unpopulated across a
+    // variety of ASLR modes (PAE kernel, NX compat mode, etc).
+    raw_addr &= 0x3ffff000;
+    raw_addr += 0x20000000;
+#endif
+    return reinterpret_cast<void*>(raw_addr);
+  }
+  return NULL;
+}
+
+
 void OS::Setup() {
-  // Seed the random number generator.
-  // Convert the current time to a 64-bit integer first, before converting it
-  // to an unsigned. Going directly can cause an overflow and the seed to be
-  // set to all ones. The seed will be identical for different instances that
-  // call this setup code within the same millisecond.
-  uint64_t seed = static_cast<uint64_t>(TimeCurrentMillis());
+  // Seed the random number generator. We preserve microsecond resolution.
+  uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
   limit_mutex = CreateMutex();
 }
 
 
-void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
-  __asm__ __volatile__("" : : : "memory");
-  *ptr = value;
-}
-
-
 uint64_t OS::CpuFeaturesImpliedByPlatform() {
-  return 0;  // OpenBSD runs on anything.
+  return 0;
 }
 
 
 int OS::ActivationFrameAlignment() {
-  // 16 byte alignment on OpenBSD
+  // With gcc 4.4 the tree vectorization optimizer can generate code
+  // that requires 16 byte alignment such as movdqa on x86.
   return 16;
+}
+
+
+void OS::ReleaseStore(volatile AtomicWord* ptr, AtomicWord value) {
+  __asm__ __volatile__("" : : : "memory");
+  // An x86 store acts as a release barrier.
+  *ptr = value;
 }
 
 
@@ -150,19 +170,20 @@ bool OS::IsOutsideAllocatedSpace(void* address) {
 
 
 size_t OS::AllocateAlignment() {
-  return getpagesize();
+  return sysconf(_SC_PAGESIZE);
 }
 
 
 void* OS::Allocate(const size_t requested,
                    size_t* allocated,
-                   bool executable) {
-  const size_t msize = RoundUp(requested, getpagesize());
-  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
-  void* mbase = mmap(NULL, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
-
+                   bool is_executable) {
+  const size_t msize = RoundUp(requested, AllocateAlignment());
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  void* addr = GetRandomMmapAddr();
+  void* mbase = mmap(addr, msize, prot, MAP_PRIVATE | MAP_ANON, -1, 0);
   if (mbase == MAP_FAILED) {
-    LOG(ISOLATE, StringEvent("OS::Allocate", "mmap failed"));
+    LOG(i::Isolate::Current(),
+        StringEvent("OS::Allocate", "mmap failed"));
     return NULL;
   }
   *allocated = msize;
@@ -171,9 +192,9 @@ void* OS::Allocate(const size_t requested,
 }
 
 
-void OS::Free(void* buf, const size_t length) {
+void OS::Free(void* address, const size_t size) {
   // TODO(1240712): munmap has a return value which is ignored here.
-  int result = munmap(buf, length);
+  int result = munmap(address, size);
   USE(result);
   ASSERT(result == 0);
 }
@@ -192,13 +213,7 @@ void OS::Abort() {
 
 
 void OS::DebugBreak() {
-#if (defined(__arm__) || defined(__thumb__))
-# if defined(CAN_USE_ARMV5_INSTRUCTIONS)
-  asm("bkpt 0");
-# endif
-#else
   asm("int $3");
-#endif
 }
 
 
@@ -245,61 +260,95 @@ OS::MemoryMappedFile* OS::MemoryMappedFile::create(const char* name, int size,
 
 
 PosixMemoryMappedFile::~PosixMemoryMappedFile() {
-  if (memory_) munmap(memory_, size_);
+  if (memory_) OS::Free(memory_, size_);
   fclose(file_);
 }
 
 
-static unsigned StringToLong(char* buffer) {
-  return static_cast<unsigned>(strtol(buffer, NULL, 16));  // NOLINT
-}
-
-
 void OS::LogSharedLibraryAddresses() {
-  static const int MAP_LENGTH = 1024;
-  int fd = open("/proc/self/maps", O_RDONLY);
-  if (fd < 0) return;
+  // This function assumes that the layout of the file is as follows:
+  // hex_start_addr-hex_end_addr rwxp <unused data> [binary_file_name]
+  // If we encounter an unexpected situation we abort scanning further entries.
+  FILE* fp = fopen("/proc/self/maps", "r");
+  if (fp == NULL) return;
+
+  // Allocate enough room to be able to store a full file name.
+  const int kLibNameLen = FILENAME_MAX + 1;
+  char* lib_name = reinterpret_cast<char*>(malloc(kLibNameLen));
+
+  i::Isolate* isolate = ISOLATE;
+  // This loop will terminate once the scanning hits an EOF.
   while (true) {
-    char addr_buffer[11];
-    addr_buffer[0] = '0';
-    addr_buffer[1] = 'x';
-    addr_buffer[10] = 0;
-    int result = read(fd, addr_buffer + 2, 8);
-    if (result < 8) break;
-    unsigned start = StringToLong(addr_buffer);
-    result = read(fd, addr_buffer + 2, 1);
-    if (result < 1) break;
-    if (addr_buffer[2] != '-') break;
-    result = read(fd, addr_buffer + 2, 8);
-    if (result < 8) break;
-    unsigned end = StringToLong(addr_buffer);
-    char buffer[MAP_LENGTH];
-    int bytes_read = -1;
-    do {
-      bytes_read++;
-      if (bytes_read >= MAP_LENGTH - 1)
-        break;
-      result = read(fd, buffer + bytes_read, 1);
-      if (result < 1) break;
-    } while (buffer[bytes_read] != '\n');
-    buffer[bytes_read] = 0;
-    // Ignore mappings that are not executable.
-    if (buffer[3] != 'x') continue;
-    char* start_of_path = index(buffer, '/');
-    // There may be no filename in this line.  Skip to next.
-    if (start_of_path == NULL) continue;
-    buffer[bytes_read] = 0;
-    LOG(i::Isolate::Current(), SharedLibraryEvent(start_of_path, start, end));
+    uintptr_t start, end;
+    char attr_r, attr_w, attr_x, attr_p;
+    // Parse the addresses and permission bits at the beginning of the line.
+    if (fscanf(fp, "%" V8PRIxPTR "-%" V8PRIxPTR, &start, &end) != 2) break;
+    if (fscanf(fp, " %c%c%c%c", &attr_r, &attr_w, &attr_x, &attr_p) != 4) break;
+
+    int c;
+    if (attr_r == 'r' && attr_w != 'w' && attr_x == 'x') {
+      // Found a read-only executable entry. Skip characters until we reach
+      // the beginning of the filename or the end of the line.
+      do {
+        c = getc(fp);
+      } while ((c != EOF) && (c != '\n') && (c != '/'));
+      if (c == EOF) break;  // EOF: Was unexpected, just exit.
+
+      // Process the filename if found.
+      if (c == '/') {
+        ungetc(c, fp);  // Push the '/' back into the stream to be read below.
+
+        // Read to the end of the line. Exit if the read fails.
+        if (fgets(lib_name, kLibNameLen, fp) == NULL) break;
+
+        // Drop the newline character read by fgets. We do not need to check
+        // for a zero-length string because we know that we at least read the
+        // '/' character.
+        lib_name[strlen(lib_name) - 1] = '\0';
+      } else {
+        // No library name found, just record the raw address range.
+        snprintf(lib_name, kLibNameLen,
+                 "%08" V8PRIxPTR "-%08" V8PRIxPTR, start, end);
+      }
+      LOG(isolate, SharedLibraryEvent(lib_name, start, end));
+    } else {
+      // Entry not describing executable data. Skip to end of line to setup
+      // reading the next entry.
+      do {
+        c = getc(fp);
+      } while ((c != EOF) && (c != '\n'));
+      if (c == EOF) break;
+    }
   }
-  close(fd);
+  free(lib_name);
+  fclose(fp);
 }
+
+
+static const char kGCFakeMmap[] = "/tmp/__v8_gc__";
 
 
 void OS::SignalCodeMovingGC() {
+  // Support for ll_prof.py.
+  //
+  // The Linux profiler built into the kernel logs all mmap's with
+  // PROT_EXEC so that analysis tools can properly attribute ticks. We
+  // do a mmap with a name known by ll_prof.py and immediately munmap
+  // it. This injects a GC marker into the stream of events generated
+  // by the kernel and allows us to synchronize V8 code log and the
+  // kernel log.
+  int size = sysconf(_SC_PAGESIZE);
+  FILE* f = fopen(kGCFakeMmap, "w+");
+  void* addr = mmap(NULL, size, PROT_READ | PROT_EXEC, MAP_PRIVATE,
+                    fileno(f), 0);
+  ASSERT(addr != MAP_FAILED);
+  OS::Free(addr, size);
+  fclose(f);
 }
 
 
 int OS::StackWalk(Vector<OS::StackFrame> frames) {
+  // backtrace is a glibc extension.
   int frames_size = frames.length();
   ScopedVector<void*> addresses(frames_size);
 
@@ -331,62 +380,145 @@ int OS::StackWalk(Vector<OS::StackFrame> frames) {
 static const int kMmapFd = -1;
 static const int kMmapFdOffset = 0;
 
+VirtualMemory::VirtualMemory() : address_(NULL), size_(0) { }
 
 VirtualMemory::VirtualMemory(size_t size) {
-  address_ = mmap(NULL, size, PROT_NONE,
-                  MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
-                  kMmapFd, kMmapFdOffset);
+  address_ = ReserveRegion(size);
   size_ = size;
+}
+
+
+VirtualMemory::VirtualMemory(size_t size, size_t alignment)
+    : address_(NULL), size_(0) {
+  ASSERT(IsAligned(alignment, static_cast<intptr_t>(OS::AllocateAlignment())));
+  size_t request_size = RoundUp(size + alignment,
+                                static_cast<intptr_t>(OS::AllocateAlignment()));
+  void* reservation = mmap(GetRandomMmapAddr(),
+                           request_size,
+                           PROT_NONE,
+                           MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                           kMmapFd,
+                           kMmapFdOffset);
+  if (reservation == MAP_FAILED) return;
+
+  Address base = static_cast<Address>(reservation);
+  Address aligned_base = RoundUp(base, alignment);
+  ASSERT_LE(base, aligned_base);
+
+  // Unmap extra memory reserved before and after the desired block.
+  if (aligned_base != base) {
+    size_t prefix_size = static_cast<size_t>(aligned_base - base);
+    OS::Free(base, prefix_size);
+    request_size -= prefix_size;
+  }
+
+  size_t aligned_size = RoundUp(size, OS::AllocateAlignment());
+  ASSERT_LE(aligned_size, request_size);
+
+  if (aligned_size != request_size) {
+    size_t suffix_size = request_size - aligned_size;
+    OS::Free(aligned_base + aligned_size, suffix_size);
+    request_size -= suffix_size;
+  }
+
+  ASSERT(aligned_size == request_size);
+
+  address_ = static_cast<void*>(aligned_base);
+  size_ = aligned_size;
 }
 
 
 VirtualMemory::~VirtualMemory() {
   if (IsReserved()) {
-    if (0 == munmap(address(), size())) address_ = MAP_FAILED;
+    bool result = ReleaseRegion(address(), size());
+    ASSERT(result);
+    USE(result);
   }
 }
 
 
 bool VirtualMemory::IsReserved() {
-  return address_ != MAP_FAILED;
+  return address_ != NULL;
 }
 
 
-bool VirtualMemory::Commit(void* address, size_t size, bool executable) {
-  int prot = PROT_READ | PROT_WRITE | (executable ? PROT_EXEC : 0);
-  if (MAP_FAILED == mmap(address, size, prot,
-                         MAP_PRIVATE | MAP_ANON | MAP_FIXED,
-                         kMmapFd, kMmapFdOffset)) {
-    return false;
-  }
+void VirtualMemory::Reset() {
+  address_ = NULL;
+  size_ = 0;
+}
 
-  UpdateAllocatedSpaceLimits(address, size);
-  return true;
+
+bool VirtualMemory::Commit(void* address, size_t size, bool is_executable) {
+  return CommitRegion(address, size, is_executable);
 }
 
 
 bool VirtualMemory::Uncommit(void* address, size_t size) {
-  return mmap(address, size, PROT_NONE,
+  return UncommitRegion(address, size);
+}
+
+
+void* VirtualMemory::ReserveRegion(size_t size) {
+  void* result = mmap(GetRandomMmapAddr(),
+                      size,
+                      PROT_NONE,
+                      MAP_PRIVATE | MAP_ANON | MAP_NORESERVE,
+                      kMmapFd,
+                      kMmapFdOffset);
+
+  if (result == MAP_FAILED) return NULL;
+
+  return result;
+}
+
+
+bool VirtualMemory::CommitRegion(void* base, size_t size, bool is_executable) {
+  int prot = PROT_READ | PROT_WRITE | (is_executable ? PROT_EXEC : 0);
+  if (MAP_FAILED == mmap(base,
+                         size,
+                         prot,
+                         MAP_PRIVATE | MAP_ANON | MAP_FIXED,
+                         kMmapFd,
+                         kMmapFdOffset)) {
+    return false;
+  }
+
+  UpdateAllocatedSpaceLimits(base, size);
+  return true;
+}
+
+
+bool VirtualMemory::UncommitRegion(void* base, size_t size) {
+  return mmap(base,
+              size,
+              PROT_NONE,
               MAP_PRIVATE | MAP_ANON | MAP_NORESERVE | MAP_FIXED,
-              kMmapFd, kMmapFdOffset) != MAP_FAILED;
+              kMmapFd,
+              kMmapFdOffset) != MAP_FAILED;
+}
+
+
+bool VirtualMemory::ReleaseRegion(void* base, size_t size) {
+  return munmap(base, size) == 0;
 }
 
 
 class Thread::PlatformData : public Malloced {
  public:
+  PlatformData() : thread_(kNoThread) {}
+
   pthread_t thread_;  // Thread handle for pthread.
 };
 
-
 Thread::Thread(const Options& options)
-    : data_(new PlatformData),
+    : data_(new PlatformData()),
       stack_size_(options.stack_size) {
   set_name(options.name);
 }
 
 
 Thread::Thread(const char* name)
-    : data_(new PlatformData),
+    : data_(new PlatformData()),
       stack_size_(0) {
   set_name(name);
 }
@@ -402,6 +534,11 @@ static void* ThreadEntry(void* arg) {
   // This is also initialized by the first argument to pthread_create() but we
   // don't know which thread will run first (the original thread or the new
   // one) so we initialize it here too.
+#ifdef PR_SET_NAME
+  prctl(PR_SET_NAME,
+        reinterpret_cast<unsigned long>(thread->name()),  // NOLINT
+        0, 0, 0);
+#endif
   thread->data()->thread_ = pthread_self();
   ASSERT(thread->data()->thread_ != kNoThread);
   thread->Run();
@@ -477,6 +614,7 @@ class OpenBSDMutex : public Mutex {
     ASSERT(result == 0);
     result = pthread_mutex_init(&mutex_, &attrs);
     ASSERT(result == 0);
+    USE(result);
   }
 
   virtual ~OpenBSDMutex() { pthread_mutex_destroy(&mutex_); }
@@ -533,6 +671,14 @@ void OpenBSDSemaphore::Wait() {
 }
 
 
+#ifndef TIMEVAL_TO_TIMESPEC
+#define TIMEVAL_TO_TIMESPEC(tv, ts) do {                            \
+    (ts)->tv_sec = (tv)->tv_sec;                                    \
+    (ts)->tv_nsec = (tv)->tv_usec * 1000;                           \
+} while (false)
+#endif
+
+
 bool OpenBSDSemaphore::Wait(int timeout) {
   const long kOneSecondMicros = 1000000;  // NOLINT
 
@@ -566,28 +712,14 @@ bool OpenBSDSemaphore::Wait(int timeout) {
   }
 }
 
-
 Semaphore* OS::CreateSemaphore(int count) {
   return new OpenBSDSemaphore(count);
 }
 
 
 static pthread_t GetThreadID() {
-  pthread_t thread_id = pthread_self();
-  return thread_id;
+  return pthread_self();
 }
-
-
-class Sampler::PlatformData : public Malloced {
- public:
-  PlatformData() : vm_tid_(GetThreadID()) {}
-
-  pthread_t vm_tid() const { return vm_tid_; }
-
- private:
-  pthread_t vm_tid_;
-};
-
 
 static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   USE(info);
@@ -620,14 +752,21 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->pc = reinterpret_cast<Address>(ucontext->sc_rip);
   sample->sp = reinterpret_cast<Address>(ucontext->sc_rsp);
   sample->fp = reinterpret_cast<Address>(ucontext->sc_rbp);
-#elif V8_HOST_ARCH_ARM
-  sample->pc = reinterpret_cast<Address>(ucontext->sc_r15);
-  sample->sp = reinterpret_cast<Address>(ucontext->sc_r13);
-  sample->fp = reinterpret_cast<Address>(ucontext->sc_r11);
 #endif
   sampler->SampleStack(sample);
   sampler->Tick(sample);
 }
+
+
+class Sampler::PlatformData : public Malloced {
+ public:
+  PlatformData() : vm_tid_(GetThreadID()) {}
+
+  pthread_t vm_tid() const { return vm_tid_; }
+
+ private:
+  pthread_t vm_tid_;
+};
 
 
 class SignalSender : public Thread {
@@ -639,21 +778,31 @@ class SignalSender : public Thread {
 
   explicit SignalSender(int interval)
       : Thread("SignalSender"),
+        vm_tgid_(getpid()),
         interval_(interval) {}
+
+  static void InstallSignalHandler() {
+    struct sigaction sa;
+    sa.sa_sigaction = ProfilerSignalHandler;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART | SA_SIGINFO;
+    signal_handler_installed_ =
+        (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
+  }
+
+  static void RestoreSignalHandler() {
+    if (signal_handler_installed_) {
+      sigaction(SIGPROF, &old_signal_handler_, 0);
+      signal_handler_installed_ = false;
+    }
+  }
 
   static void AddActiveSampler(Sampler* sampler) {
     ScopedLock lock(mutex_);
     SamplerRegistry::AddActiveSampler(sampler);
     if (instance_ == NULL) {
-      // Install a signal handler.
-      struct sigaction sa;
-      sa.sa_sigaction = ProfilerSignalHandler;
-      sigemptyset(&sa.sa_mask);
-      sa.sa_flags = SA_RESTART | SA_SIGINFO;
-      signal_handler_installed_ =
-          (sigaction(SIGPROF, &sa, &old_signal_handler_) == 0);
-
-      // Start a thread that sends SIGPROF signal to VM threads.
+      // Start a thread that will send SIGPROF signal to VM threads,
+      // when CPU profiling will be enabled.
       instance_ = new SignalSender(sampler->interval());
       instance_->Start();
     } else {
@@ -668,12 +817,7 @@ class SignalSender : public Thread {
       RuntimeProfiler::StopRuntimeProfilerThreadBeforeShutdown(instance_);
       delete instance_;
       instance_ = NULL;
-
-      // Restore the old signal handler.
-      if (signal_handler_installed_) {
-        sigaction(SIGPROF, &old_signal_handler_, 0);
-        signal_handler_installed_ = false;
-      }
+      RestoreSignalHandler();
     }
   }
 
@@ -685,6 +829,11 @@ class SignalSender : public Thread {
       bool cpu_profiling_enabled =
           (state == SamplerRegistry::HAS_CPU_PROFILING_SAMPLERS);
       bool runtime_profiler_enabled = RuntimeProfiler::IsEnabled();
+      if (cpu_profiling_enabled && !signal_handler_installed_) {
+        InstallSignalHandler();
+      } else if (!cpu_profiling_enabled && signal_handler_installed_) {
+        RestoreSignalHandler();
+      }
       // When CPU profiling is enabled both JavaScript and C++ code is
       // profiled. We must not suspend.
       if (!cpu_profiling_enabled) {
@@ -751,6 +900,7 @@ class SignalSender : public Thread {
     USE(result);
   }
 
+  const int vm_tgid_;
   const int interval_;
   RuntimeProfilerRateLimiter rate_limiter_;
 
@@ -762,6 +912,7 @@ class SignalSender : public Thread {
 
   DISALLOW_COPY_AND_ASSIGN(SignalSender);
 };
+
 
 Mutex* SignalSender::mutex_ = OS::CreateMutex();
 SignalSender* SignalSender::instance_ = NULL;

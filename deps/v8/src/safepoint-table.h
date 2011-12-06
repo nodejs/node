@@ -62,10 +62,20 @@ class SafepointEntry BASE_EMBEDDED {
     return DeoptimizationIndexField::decode(info_);
   }
 
-  int gap_code_size() const {
-    ASSERT(is_valid());
-    return GapCodeSizeField::decode(info_);
-  }
+  static const int kArgumentsFieldBits = 3;
+  static const int kSaveDoublesFieldBits = 1;
+  static const int kDeoptIndexBits =
+      32 - kArgumentsFieldBits - kSaveDoublesFieldBits;
+  class DeoptimizationIndexField:
+    public BitField<int, 0, kDeoptIndexBits> {};  // NOLINT
+  class ArgumentsField:
+    public BitField<unsigned,
+                    kDeoptIndexBits,
+                    kArgumentsFieldBits> {};  // NOLINT
+  class SaveDoublesField:
+    public BitField<bool,
+                    kDeoptIndexBits + kArgumentsFieldBits,
+                    kSaveDoublesFieldBits> { }; // NOLINT
 
   int argument_count() const {
     ASSERT(is_valid());
@@ -84,27 +94,6 @@ class SafepointEntry BASE_EMBEDDED {
 
   bool HasRegisters() const;
   bool HasRegisterAt(int reg_index) const;
-
-  // Reserve 13 bits for the gap code size. On ARM a constant pool can be
-  // emitted when generating the gap code. The size of the const pool is less
-  // than what can be represented in 12 bits, so 13 bits gives room for having
-  // instructions before potentially emitting a constant pool.
-  static const int kGapCodeSizeBits = 13;
-  static const int kArgumentsFieldBits = 3;
-  static const int kSaveDoublesFieldBits = 1;
-  static const int kDeoptIndexBits =
-      32 - kGapCodeSizeBits - kArgumentsFieldBits - kSaveDoublesFieldBits;
-  class GapCodeSizeField: public BitField<unsigned, 0, kGapCodeSizeBits> {};
-  class DeoptimizationIndexField: public BitField<int,
-                                                  kGapCodeSizeBits,
-                                                  kDeoptIndexBits> {};  // NOLINT
-  class ArgumentsField: public BitField<unsigned,
-                                        kGapCodeSizeBits + kDeoptIndexBits,
-                                        kArgumentsFieldBits> {};  // NOLINT
-  class SaveDoublesField: public BitField<bool,
-                                          kGapCodeSizeBits + kDeoptIndexBits +
-                                          kArgumentsFieldBits,
-                                          kSaveDoublesFieldBits> { }; // NOLINT
 
  private:
   unsigned info_;
@@ -186,6 +175,11 @@ class Safepoint BASE_EMBEDDED {
     kWithRegistersAndDoubles = kWithRegisters | kWithDoubles
   } Kind;
 
+  enum DeoptMode {
+    kNoLazyDeopt,
+    kLazyDeopt
+  };
+
   static const int kNoDeoptimizationIndex =
       (1 << (SafepointEntry::kDeoptIndexBits)) - 1;
 
@@ -206,9 +200,11 @@ class SafepointTableBuilder BASE_EMBEDDED {
  public:
   SafepointTableBuilder()
       : deoptimization_info_(32),
+        deopt_index_list_(32),
         indexes_(32),
         registers_(32),
-        emitted_(false) { }
+        emitted_(false),
+        last_lazy_safepoint_(0) { }
 
   // Get the offset of the emitted safepoint table in the code.
   unsigned GetCodeOffset() const;
@@ -217,50 +213,34 @@ class SafepointTableBuilder BASE_EMBEDDED {
   Safepoint DefineSafepoint(Assembler* assembler,
                             Safepoint::Kind kind,
                             int arguments,
-                            int deoptimization_index);
+                            Safepoint::DeoptMode mode);
 
-  // Update the last safepoint with the size of the code generated until the
-  // end of the gap following it.
-  void SetPcAfterGap(int pc) {
-    ASSERT(!deoptimization_info_.is_empty());
-    int index = deoptimization_info_.length() - 1;
-    deoptimization_info_[index].pc_after_gap = pc;
-  }
-
-  // Get the end pc offset of the last safepoint, including the code generated
-  // until the end of the gap following it.
-  unsigned GetPcAfterGap() {
-    int index = deoptimization_info_.length();
-    if (index == 0) return 0;
-    return deoptimization_info_[index - 1].pc_after_gap;
-  }
+  // Record deoptimization index for lazy deoptimization for the last
+  // outstanding safepoints.
+  void RecordLazyDeoptimizationIndex(int index);
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.
   void Emit(Assembler* assembler, int bits_per_entry);
 
-  // Count the number of deoptimization points where the next
-  // following deoptimization point comes less than limit bytes
-  // after the end of this point's gap.
-  int CountShortDeoptimizationIntervals(unsigned limit);
 
  private:
   struct DeoptimizationInfo {
     unsigned pc;
-    unsigned deoptimization_index;
-    unsigned pc_after_gap;
     unsigned arguments;
     bool has_doubles;
   };
 
-  uint32_t EncodeExceptPC(const DeoptimizationInfo& info);
+  uint32_t EncodeExceptPC(const DeoptimizationInfo& info, unsigned index);
 
   ZoneList<DeoptimizationInfo> deoptimization_info_;
+  ZoneList<unsigned> deopt_index_list_;
   ZoneList<ZoneList<int>*> indexes_;
   ZoneList<ZoneList<int>*> registers_;
 
   unsigned offset_;
   bool emitted_;
+  int last_lazy_safepoint_;
 
   DISALLOW_COPY_AND_ASSIGN(SafepointTableBuilder);
 };

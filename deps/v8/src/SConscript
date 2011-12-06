@@ -84,6 +84,7 @@ SOURCES = {
     hydrogen.cc
     hydrogen-instructions.cc
     ic.cc
+    incremental-marking.cc
     inspector.cc
     interpreter-irregexp.cc
     isolate.cc
@@ -133,6 +134,7 @@ SOURCES = {
     v8utils.cc
     variables.cc
     version.cc
+    store-buffer.cc
     zone.cc
     extensions/gc-extension.cc
     extensions/externalize-string-extension.cc
@@ -170,6 +172,9 @@ SOURCES = {
     mips/frames-mips.cc
     mips/full-codegen-mips.cc
     mips/ic-mips.cc
+    mips/lithium-codegen-mips.cc
+    mips/lithium-gap-resolver-mips.cc
+    mips/lithium-mips.cc
     mips/macro-assembler-mips.cc
     mips/regexp-macro-assembler-mips.cc
     mips/stub-cache-mips.cc
@@ -319,7 +324,7 @@ debug-debugger.js
 
 EXPERIMENTAL_LIBRARY_FILES = '''
 proxy.js
-weakmap.js
+collection.js
 '''.split()
 
 

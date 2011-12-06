@@ -50,13 +50,13 @@
 #if(defined(__mips_hard_float) && __mips_hard_float != 0)
 // Use floating-point coprocessor instructions. This flag is raised when
 // -mhard-float is passed to the compiler.
-static const bool IsMipsSoftFloatABI = false;
+const bool IsMipsSoftFloatABI = false;
 #elif(defined(__mips_soft_float) && __mips_soft_float != 0)
 // Not using floating-point coprocessor instructions. This flag is raised when
 // -msoft-float is passed to the compiler.
-static const bool IsMipsSoftFloatABI = true;
+const bool IsMipsSoftFloatABI = true;
 #else
-static const bool IsMipsSoftFloatABI = true;
+const bool IsMipsSoftFloatABI = true;
 #endif
 
 
@@ -74,46 +74,45 @@ namespace internal {
 // Registers and FPURegisters.
 
 // Number of general purpose registers.
-static const int kNumRegisters = 32;
-static const int kInvalidRegister = -1;
+const int kNumRegisters = 32;
+const int kInvalidRegister = -1;
 
 // Number of registers with HI, LO, and pc.
-static const int kNumSimuRegisters = 35;
+const int kNumSimuRegisters = 35;
 
 // In the simulator, the PC register is simulated as the 34th register.
-static const int kPCRegister = 34;
+const int kPCRegister = 34;
 
 // Number coprocessor registers.
-static const int kNumFPURegisters = 32;
-static const int kInvalidFPURegister = -1;
+const int kNumFPURegisters = 32;
+const int kInvalidFPURegister = -1;
 
 // FPU (coprocessor 1) control registers. Currently only FCSR is implemented.
-static const int kFCSRRegister = 31;
-static const int kInvalidFPUControlRegister = -1;
-static const uint32_t kFPUInvalidResult = (uint32_t) (1 << 31) - 1;
+const int kFCSRRegister = 31;
+const int kInvalidFPUControlRegister = -1;
+const uint32_t kFPUInvalidResult = (uint32_t) (1 << 31) - 1;
 
 // FCSR constants.
-static const uint32_t kFCSRInexactFlagBit = 2;
-static const uint32_t kFCSRUnderflowFlagBit = 3;
-static const uint32_t kFCSROverflowFlagBit = 4;
-static const uint32_t kFCSRDivideByZeroFlagBit = 5;
-static const uint32_t kFCSRInvalidOpFlagBit = 6;
+const uint32_t kFCSRInexactFlagBit = 2;
+const uint32_t kFCSRUnderflowFlagBit = 3;
+const uint32_t kFCSROverflowFlagBit = 4;
+const uint32_t kFCSRDivideByZeroFlagBit = 5;
+const uint32_t kFCSRInvalidOpFlagBit = 6;
 
-static const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
-static const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
-static const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
-static const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
-static const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
+const uint32_t kFCSRInexactFlagMask = 1 << kFCSRInexactFlagBit;
+const uint32_t kFCSRUnderflowFlagMask = 1 << kFCSRUnderflowFlagBit;
+const uint32_t kFCSROverflowFlagMask = 1 << kFCSROverflowFlagBit;
+const uint32_t kFCSRDivideByZeroFlagMask = 1 << kFCSRDivideByZeroFlagBit;
+const uint32_t kFCSRInvalidOpFlagMask = 1 << kFCSRInvalidOpFlagBit;
 
-static const uint32_t kFCSRFlagMask =
+const uint32_t kFCSRFlagMask =
     kFCSRInexactFlagMask |
     kFCSRUnderflowFlagMask |
     kFCSROverflowFlagMask |
     kFCSRDivideByZeroFlagMask |
     kFCSRInvalidOpFlagMask;
 
-static const uint32_t kFCSRExceptionFlagMask =
-    kFCSRFlagMask ^ kFCSRInexactFlagMask;
+const uint32_t kFCSRExceptionFlagMask = kFCSRFlagMask ^ kFCSRInexactFlagMask;
 
 // Helper functions for converting between register numbers and names.
 class Registers {
@@ -177,67 +176,66 @@ enum SoftwareInterruptCodes {
 //   instructions (see Assembler::stop()).
 // - Breaks larger than kMaxStopCode are simple breaks, dropping you into the
 //   debugger.
-static const uint32_t kMaxWatchpointCode = 31;
-static const uint32_t kMaxStopCode = 127;
+const uint32_t kMaxWatchpointCode = 31;
+const uint32_t kMaxStopCode = 127;
 STATIC_ASSERT(kMaxWatchpointCode < kMaxStopCode);
 
 
 // ----- Fields offset and length.
-static const int kOpcodeShift   = 26;
-static const int kOpcodeBits    = 6;
-static const int kRsShift       = 21;
-static const int kRsBits        = 5;
-static const int kRtShift       = 16;
-static const int kRtBits        = 5;
-static const int kRdShift       = 11;
-static const int kRdBits        = 5;
-static const int kSaShift       = 6;
-static const int kSaBits        = 5;
-static const int kFunctionShift = 0;
-static const int kFunctionBits  = 6;
-static const int kLuiShift      = 16;
+const int kOpcodeShift   = 26;
+const int kOpcodeBits    = 6;
+const int kRsShift       = 21;
+const int kRsBits        = 5;
+const int kRtShift       = 16;
+const int kRtBits        = 5;
+const int kRdShift       = 11;
+const int kRdBits        = 5;
+const int kSaShift       = 6;
+const int kSaBits        = 5;
+const int kFunctionShift = 0;
+const int kFunctionBits  = 6;
+const int kLuiShift      = 16;
 
-static const int kImm16Shift = 0;
-static const int kImm16Bits  = 16;
-static const int kImm26Shift = 0;
-static const int kImm26Bits  = 26;
-static const int kImm28Shift = 0;
-static const int kImm28Bits  = 28;
+const int kImm16Shift = 0;
+const int kImm16Bits  = 16;
+const int kImm26Shift = 0;
+const int kImm26Bits  = 26;
+const int kImm28Shift = 0;
+const int kImm28Bits  = 28;
 
 // In branches and jumps immediate fields point to words, not bytes,
 // and are therefore shifted by 2.
-static const int kImmFieldShift = 2;
+const int kImmFieldShift = 2;
 
-static const int kFsShift       = 11;
-static const int kFsBits        = 5;
-static const int kFtShift       = 16;
-static const int kFtBits        = 5;
-static const int kFdShift       = 6;
-static const int kFdBits        = 5;
-static const int kFCccShift     = 8;
-static const int kFCccBits      = 3;
-static const int kFBccShift     = 18;
-static const int kFBccBits      = 3;
-static const int kFBtrueShift   = 16;
-static const int kFBtrueBits    = 1;
+const int kFsShift       = 11;
+const int kFsBits        = 5;
+const int kFtShift       = 16;
+const int kFtBits        = 5;
+const int kFdShift       = 6;
+const int kFdBits        = 5;
+const int kFCccShift     = 8;
+const int kFCccBits      = 3;
+const int kFBccShift     = 18;
+const int kFBccBits      = 3;
+const int kFBtrueShift   = 16;
+const int kFBtrueBits    = 1;
 
 // ----- Miscellaneous useful masks.
 // Instruction bit masks.
-static const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
-static const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
-static const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
-static const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
-static const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
-static const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
-static const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;
-static const int  kSaFieldMask  = ((1 << kSaBits) - 1) << kSaShift;
-static const int  kFunctionFieldMask =
-    ((1 << kFunctionBits) - 1) << kFunctionShift;
+const int  kOpcodeMask   = ((1 << kOpcodeBits) - 1) << kOpcodeShift;
+const int  kImm16Mask    = ((1 << kImm16Bits) - 1) << kImm16Shift;
+const int  kImm26Mask    = ((1 << kImm26Bits) - 1) << kImm26Shift;
+const int  kImm28Mask    = ((1 << kImm28Bits) - 1) << kImm28Shift;
+const int  kRsFieldMask  = ((1 << kRsBits) - 1) << kRsShift;
+const int  kRtFieldMask  = ((1 << kRtBits) - 1) << kRtShift;
+const int  kRdFieldMask  = ((1 << kRdBits) - 1) << kRdShift;
+const int  kSaFieldMask  = ((1 << kSaBits) - 1) << kSaShift;
+const int  kFunctionFieldMask = ((1 << kFunctionBits) - 1) << kFunctionShift;
 // Misc masks.
-static const int  kHiMask       =   0xffff << 16;
-static const int  kLoMask       =   0xffff;
-static const int  kSignMask     =   0x80000000;
-static const int  kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
+const int  kHiMask       =   0xffff << 16;
+const int  kLoMask       =   0xffff;
+const int  kSignMask     =   0x80000000;
+const int  kJumpAddrMask = (1 << (kImm26Bits + kImmFieldShift)) - 1;
 
 // ----- MIPS Opcodes and Function Fields.
 // We use this presentation to stay close to the table representation in
@@ -529,7 +527,7 @@ enum FPURoundingMode {
   kRoundToMinusInf = RM
 };
 
-static const uint32_t kFPURoundingModeMask = 3 << 0;
+const uint32_t kFPURoundingModeMask = 3 << 0;
 
 enum CheckForInexactConversion {
   kCheckForInexactConversion,
@@ -772,18 +770,18 @@ class Instruction {
 // MIPS assembly various constants.
 
 // C/C++ argument slots size.
-static const int kCArgSlotCount = 4;
-static const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize;
+const int kCArgSlotCount = 4;
+const int kCArgsSlotsSize = kCArgSlotCount * Instruction::kInstrSize;
 // JS argument slots size.
-static const int kJSArgsSlotsSize = 0 * Instruction::kInstrSize;
+const int kJSArgsSlotsSize = 0 * Instruction::kInstrSize;
 // Assembly builtins argument slots size.
-static const int kBArgsSlotsSize = 0 * Instruction::kInstrSize;
+const int kBArgsSlotsSize = 0 * Instruction::kInstrSize;
 
-static const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
+const int kBranchReturnOffset = 2 * Instruction::kInstrSize;
 
-static const int kDoubleAlignmentBits = 3;
-static const int kDoubleAlignment = (1 << kDoubleAlignmentBits);
-static const int kDoubleAlignmentMask = kDoubleAlignment - 1;
+const int kDoubleAlignmentBits = 3;
+const int kDoubleAlignment = (1 << kDoubleAlignmentBits);
+const int kDoubleAlignmentMask = kDoubleAlignment - 1;
 
 
 } }   // namespace v8::internal

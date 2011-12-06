@@ -1,4 +1,4 @@
-// Copyright 2008-2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,12 +33,12 @@ namespace v8 {
 namespace internal {
 
 
-static const int BYTECODE_MASK = 0xff;
+const int BYTECODE_MASK = 0xff;
 // The first argument is packed in with the byte code in one word, but so it
 // has 24 bits, but it can be positive and negative so only use 23 bits for
 // positive values.
-static const unsigned int MAX_FIRST_ARG = 0x7fffffu;
-static const int BYTECODE_SHIFT = 8;
+const unsigned int MAX_FIRST_ARG = 0x7fffffu;
+const int BYTECODE_SHIFT = 8;
 
 #define BYTECODE_ITERATOR(V)                                                   \
 V(BREAK,              0, 4)   /* bc8                                        */ \

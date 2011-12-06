@@ -45,16 +45,6 @@ int Deoptimizer::patch_size() {
 }
 
 
-static void ZapCodeRange(Address start, Address end) {
-#ifdef DEBUG
-  ASSERT(start <= end);
-  int size = end - start;
-  CodePatcher destroyer(start, size);
-  while (size-- > 0) destroyer.masm()->int3();
-#endif
-}
-
-
 void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   Isolate* isolate = code->GetIsolate();
   HandleScope scope(isolate);
@@ -62,30 +52,23 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   // Compute the size of relocation information needed for the code
   // patching in Deoptimizer::DeoptimizeFunction.
   int min_reloc_size = 0;
-  Address prev_reloc_address = code->instruction_start();
-  Address code_start_address = code->instruction_start();
-  SafepointTable table(*code);
-  for (unsigned i = 0; i < table.length(); ++i) {
-    Address curr_reloc_address = code_start_address + table.GetPcOffset(i);
-    ASSERT_GE(curr_reloc_address, prev_reloc_address);
-    SafepointEntry safepoint_entry = table.GetEntry(i);
-    int deoptimization_index = safepoint_entry.deoptimization_index();
-    if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      // The gap code is needed to get to the state expected at the
-      // bailout and we need to skip the call opcode to get to the
-      // address that needs reloc.
-      curr_reloc_address += safepoint_entry.gap_code_size() + 1;
-      int pc_delta = curr_reloc_address - prev_reloc_address;
-      // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
-      // if encodable with small pc delta encoding and up to 6 bytes
-      // otherwise.
-      if (pc_delta <= RelocInfo::kMaxSmallPCDelta) {
-        min_reloc_size += 2;
-      } else {
-        min_reloc_size += 6;
-      }
-      prev_reloc_address = curr_reloc_address;
+  int prev_pc_offset = 0;
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    int pc_offset = deopt_data->Pc(i)->value();
+    if (pc_offset == -1) continue;
+    ASSERT_GE(pc_offset, prev_pc_offset);
+    int pc_delta = pc_offset - prev_pc_offset;
+    // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
+    // if encodable with small pc delta encoding and up to 6 bytes
+    // otherwise.
+    if (pc_delta <= RelocInfo::kMaxSmallPCDelta) {
+      min_reloc_size += 2;
+    } else {
+      min_reloc_size += 6;
     }
+    prev_pc_offset = pc_offset;
   }
 
   // If the relocation information is not big enough we create a new
@@ -116,7 +99,7 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
         new_reloc->GetDataStartAddress() + padding, 0);
     intptr_t comment_string
         = reinterpret_cast<intptr_t>(RelocInfo::kFillerCommentString);
-    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string);
+    RelocInfo rinfo(0, RelocInfo::COMMENT, comment_string, NULL);
     for (int i = 0; i < additional_comments; ++i) {
 #ifdef DEBUG
       byte* pos_before = reloc_info_writer.pos();
@@ -150,40 +133,41 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Address reloc_end_address = reloc_info->address() + reloc_info->Size();
   RelocInfoWriter reloc_info_writer(reloc_end_address, code_start_address);
 
-  // For each return after a safepoint insert a call to the corresponding
-  // deoptimization entry.  Since the call is a relative encoding, write new
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
+
+  // Since the call is a relative encoding, write new
   // reloc info.  We do not need any of the existing reloc info because the
   // existing code will not be used again (we zap it in debug builds).
-  SafepointTable table(code);
-  Address prev_address = code_start_address;
-  for (unsigned i = 0; i < table.length(); ++i) {
-    Address curr_address = code_start_address + table.GetPcOffset(i);
-    ASSERT_GE(curr_address, prev_address);
-    ZapCodeRange(prev_address, curr_address);
-
-    SafepointEntry safepoint_entry = table.GetEntry(i);
-    int deoptimization_index = safepoint_entry.deoptimization_index();
-    if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      // The gap code is needed to get to the state expected at the bailout.
-      curr_address += safepoint_entry.gap_code_size();
-
-      CodePatcher patcher(curr_address, patch_size());
-      Address deopt_entry = GetDeoptimizationEntry(deoptimization_index, LAZY);
-      patcher.masm()->call(deopt_entry, RelocInfo::NONE);
-
-      // We use RUNTIME_ENTRY for deoptimization bailouts.
-      RelocInfo rinfo(curr_address + 1,  // 1 after the call opcode.
-                      RelocInfo::RUNTIME_ENTRY,
-                      reinterpret_cast<intptr_t>(deopt_entry));
-      reloc_info_writer.Write(&rinfo);
-      ASSERT_GE(reloc_info_writer.pos(),
-                reloc_info->address() + ByteArray::kHeaderSize);
-      curr_address += patch_size();
-    }
-    prev_address = curr_address;
+  //
+  // Emit call to lazy deoptimization at all lazy deopt points.
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+#ifdef DEBUG
+  Address prev_call_address = NULL;
+#endif
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    if (deopt_data->Pc(i)->value() == -1) continue;
+    // Patch lazy deoptimization entry.
+    Address call_address = code_start_address + deopt_data->Pc(i)->value();
+    CodePatcher patcher(call_address, patch_size());
+    Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
+    patcher.masm()->call(deopt_entry, RelocInfo::NONE);
+    // We use RUNTIME_ENTRY for deoptimization bailouts.
+    RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
+                    RelocInfo::RUNTIME_ENTRY,
+                    reinterpret_cast<intptr_t>(deopt_entry),
+                    NULL);
+    reloc_info_writer.Write(&rinfo);
+    ASSERT_GE(reloc_info_writer.pos(),
+              reloc_info->address() + ByteArray::kHeaderSize);
+    ASSERT(prev_call_address == NULL ||
+           call_address >= prev_call_address + patch_size());
+    ASSERT(call_address + patch_size() <= code->instruction_end());
+#ifdef DEBUG
+    prev_call_address = call_address;
+#endif
   }
-  ZapCodeRange(prev_address,
-               code_start_address + code->safepoint_table_offset());
 
   // Move the relocation info to the beginning of the byte array.
   int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
@@ -205,6 +189,11 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   node->set_next(data->deoptimizing_code_list_);
   data->deoptimizing_code_list_ = node;
 
+  // We might be in the middle of incremental marking with compaction.
+  // Tell collector to treat this code object in a special way and
+  // ignore all slots that might have been recorded on it.
+  isolate->heap()->mark_compact_collector()->InvalidateCode(code);
+
   // Set the code for the function to non-optimized version.
   function->ReplaceCode(function->shared()->code());
 
@@ -212,16 +201,12 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %x]\n", reinterpret_cast<uint32_t>(function));
-#ifdef DEBUG
-    if (FLAG_print_code) {
-      code->PrintLn();
-    }
-#endif
   }
 }
 
 
-void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
+void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
+                                        Address pc_after,
                                         Code* check_code,
                                         Code* replacement_code) {
   Address call_target_address = pc_after - kIntSize;
@@ -250,10 +235,14 @@ void Deoptimizer::PatchStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x90;  // nop
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
+
+  unoptimized_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, call_target_address, replacement_code);
 }
 
 
-void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
+void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
+                                         Address pc_after,
                                          Code* check_code,
                                          Code* replacement_code) {
   Address call_target_address = pc_after - kIntSize;
@@ -268,6 +257,9 @@ void Deoptimizer::RevertStackCheckCodeAt(Address pc_after,
   *(call_target_address - 2) = 0x07;  // offset
   Assembler::set_target_address_at(call_target_address,
                                    check_code->entry());
+
+  check_code->GetHeap()->incremental_marking()->RecordCodeTargetPatch(
+      unoptimized_code, call_target_address, check_code);
 }
 
 
@@ -415,7 +407,14 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0]->SetPc(reinterpret_cast<uint32_t>(from_));
   } else {
     // Setup the frame pointer and the context pointer.
-    output_[0]->SetRegister(ebp.code(), input_->GetRegister(ebp.code()));
+    // All OSR stack frames are dynamically aligned to an 8-byte boundary.
+    int frame_pointer = input_->GetRegister(ebp.code());
+    if ((frame_pointer & 0x4) == 0) {
+      // Return address at FP + 4 should be aligned, so FP mod 8 should be 4.
+      frame_pointer -= kPointerSize;
+      has_alignment_padding_ = 1;
+    }
+    output_[0]->SetRegister(ebp.code(), frame_pointer);
     output_[0]->SetRegister(esi.code(), input_->GetRegister(esi.code()));
 
     unsigned pc_offset = data->OsrPcOffset()->value();
@@ -480,9 +479,11 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // top address and the current frame's size.
   uint32_t top_address;
   if (is_bottommost) {
-    // 2 = context and function in the frame.
-    top_address =
-        input_->GetRegister(ebp.code()) - (2 * kPointerSize) - height_in_bytes;
+    // If the optimized frame had alignment padding, adjust the frame pointer
+    // to point to the new position of the old frame pointer after padding
+    // is removed. Subtract 2 * kPointerSize for the context and function slots.
+    top_address = input_->GetRegister(ebp.code()) - (2 * kPointerSize) -
+        height_in_bytes + has_alignment_padding_ * kPointerSize;
   } else {
     top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
   }
@@ -533,7 +534,9 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   }
   output_frame->SetFrameSlot(output_offset, value);
   intptr_t fp_value = top_address + output_offset;
-  ASSERT(!is_bottommost || input_->GetRegister(ebp.code()) == fp_value);
+  ASSERT(!is_bottommost ||
+      input_->GetRegister(ebp.code()) + has_alignment_padding_ * kPointerSize
+      == fp_value);
   output_frame->SetFp(fp_value);
   if (is_topmost) output_frame->SetRegister(ebp.code(), fp_value);
   if (FLAG_trace_deopt) {
@@ -638,7 +641,7 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   const int kDoubleRegsSize = kDoubleSize *
                               XMMRegister::kNumAllocatableRegisters;
-  __ sub(Operand(esp), Immediate(kDoubleRegsSize));
+  __ sub(esp, Immediate(kDoubleRegsSize));
   for (int i = 0; i < XMMRegister::kNumAllocatableRegisters; ++i) {
     XMMRegister xmm_reg = XMMRegister::FromAllocationIndex(i);
     int offset = i * kDoubleSize;
@@ -662,7 +665,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     __ mov(ecx, Operand(esp, kSavedRegistersAreaSize + 1 * kPointerSize));
     __ lea(edx, Operand(esp, kSavedRegistersAreaSize + 2 * kPointerSize));
   }
-  __ sub(edx, Operand(ebp));
+  __ sub(edx, ebp);
   __ neg(edx);
 
   // Allocate a new deoptimizer object.
@@ -675,7 +678,10 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ mov(Operand(esp, 4 * kPointerSize), edx);  // Fp-to-sp delta.
   __ mov(Operand(esp, 5 * kPointerSize),
          Immediate(ExternalReference::isolate_address()));
-  __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm());
+    __ CallCFunction(ExternalReference::new_deoptimizer_function(isolate), 6);
+  }
 
   // Preserve deoptimizer object in register eax and get the input
   // frame descriptor pointer.
@@ -698,15 +704,15 @@ void Deoptimizer::EntryGenerator::Generate() {
 
   // Remove the bailout id and the double registers from the stack.
   if (type() == EAGER) {
-    __ add(Operand(esp), Immediate(kDoubleRegsSize + kPointerSize));
+    __ add(esp, Immediate(kDoubleRegsSize + kPointerSize));
   } else {
-    __ add(Operand(esp), Immediate(kDoubleRegsSize + 2 * kPointerSize));
+    __ add(esp, Immediate(kDoubleRegsSize + 2 * kPointerSize));
   }
 
   // Compute a pointer to the unwinding limit in register ecx; that is
   // the first stack slot not part of the input frame.
   __ mov(ecx, Operand(ebx, FrameDescription::frame_size_offset()));
-  __ add(ecx, Operand(esp));
+  __ add(ecx, esp);
 
   // Unwind the stack down to - but not including - the unwinding
   // limit and copy the contents of the activation frame to the input
@@ -715,17 +721,42 @@ void Deoptimizer::EntryGenerator::Generate() {
   Label pop_loop;
   __ bind(&pop_loop);
   __ pop(Operand(edx, 0));
-  __ add(Operand(edx), Immediate(sizeof(uint32_t)));
-  __ cmp(ecx, Operand(esp));
+  __ add(edx, Immediate(sizeof(uint32_t)));
+  __ cmp(ecx, esp);
   __ j(not_equal, &pop_loop);
 
+  // If frame was dynamically aligned, pop padding.
+  Label sentinel, sentinel_done;
+  __ pop(ecx);
+  __ cmp(ecx, Operand(eax, Deoptimizer::frame_alignment_marker_offset()));
+  __ j(equal, &sentinel);
+  __ push(ecx);
+  __ jmp(&sentinel_done);
+  __ bind(&sentinel);
+  __ mov(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
+         Immediate(1));
+  __ bind(&sentinel_done);
   // Compute the output frame in the deoptimizer.
   __ push(eax);
   __ PrepareCallCFunction(1, ebx);
   __ mov(Operand(esp, 0 * kPointerSize), eax);
-  __ CallCFunction(
-      ExternalReference::compute_output_frames_function(isolate), 1);
+  {
+    AllowExternalCallThatCantCauseGC scope(masm());
+    __ CallCFunction(
+        ExternalReference::compute_output_frames_function(isolate), 1);
+  }
   __ pop(eax);
+
+  if (type() == OSR) {
+    // If alignment padding is added, push the sentinel.
+    Label no_osr_padding;
+    __ cmp(Operand(eax, Deoptimizer::has_alignment_padding_offset()),
+           Immediate(0));
+    __ j(equal, &no_osr_padding, Label::kNear);
+    __ push(Operand(eax, Deoptimizer::frame_alignment_marker_offset()));
+    __ bind(&no_osr_padding);
+  }
+
 
   // Replace the current frame with the output frames.
   Label outer_push_loop, inner_push_loop;
@@ -739,12 +770,12 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ mov(ebx, Operand(eax, 0));
   __ mov(ecx, Operand(ebx, FrameDescription::frame_size_offset()));
   __ bind(&inner_push_loop);
-  __ sub(Operand(ecx), Immediate(sizeof(uint32_t)));
+  __ sub(ecx, Immediate(sizeof(uint32_t)));
   __ push(Operand(ebx, ecx, times_1, FrameDescription::frame_content_offset()));
-  __ test(ecx, Operand(ecx));
+  __ test(ecx, ecx);
   __ j(not_zero, &inner_push_loop);
-  __ add(Operand(eax), Immediate(kPointerSize));
-  __ cmp(eax, Operand(edx));
+  __ add(eax, Immediate(kPointerSize));
+  __ cmp(eax, edx);
   __ j(below, &outer_push_loop);
 
   // In case of OSR, we have to restore the XMM registers.

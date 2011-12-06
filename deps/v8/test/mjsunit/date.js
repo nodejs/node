@@ -157,7 +157,7 @@ testToLocaleTimeString();
 // Test that -0 is treated correctly in MakeDay.
 var d = new Date();
 assertDoesNotThrow("d.setDate(-0)");
-assertDoesNotThrow("new Date(-0, -0, -0, -0, -0, -0. -0)");
+assertDoesNotThrow("new Date(-0, -0, -0, -0, -0, -0, -0)");
 assertDoesNotThrow("new Date(0x40000000, 0x40000000, 0x40000000," +
                    "0x40000000, 0x40000000, 0x40000000, 0x40000000)")
 assertDoesNotThrow("new Date(-0x40000001, -0x40000001, -0x40000001," +
@@ -178,7 +178,7 @@ assertTrue(isNaN(Date.UTC(-271821, 3, 19, 23, 59, 59, 999)));
 assertTrue(isNaN(Date.UTC(-271821, 3, 19)));
 
 
-// Test creation of large date values.
+// Test creation with large date values.
 d = new Date(1969, 12, 1, 99999999999);
 assertTrue(isNaN(d.getTime()));
 d = new Date(1969, 12, 1, -99999999999);
@@ -187,6 +187,12 @@ d = new Date(1969, 12, 1, Infinity);
 assertTrue(isNaN(d.getTime()));
 d = new Date(1969, 12, 1, -Infinity);
 assertTrue(isNaN(d.getTime()));
+
+
+// Test creation with obscure date values.
+assertEquals(8640000000000000, Date.UTC(1970, 0, 1 + 100000001, -24));
+assertEquals(-8640000000000000, Date.UTC(1970, 0, 1 - 100000001, 24));
+
 
 // Parsing ES5 ISO-8601 dates.
 // When TZ is omitted, it defaults to 'Z' meaning UTC.

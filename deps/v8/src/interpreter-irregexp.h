@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -36,11 +36,11 @@ namespace internal {
 
 class IrregexpInterpreter {
  public:
-  static bool Match(Isolate* isolate,
-                    Handle<ByteArray> code,
-                    Handle<String> subject,
-                    int* captures,
-                    int start_position);
+  static RegExpImpl::IrregexpResult Match(Isolate* isolate,
+                                          Handle<ByteArray> code,
+                                          Handle<String> subject,
+                                          int* captures,
+                                          int start_position);
 };
 
 

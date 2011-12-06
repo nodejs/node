@@ -152,8 +152,8 @@ bool LiveRange::HasOverlap(UseInterval* target) const {
 LiveRange::LiveRange(int id)
     : id_(id),
       spilled_(false),
+      is_double_(false),
       assigned_register_(kInvalidAssignment),
-      assigned_register_kind_(NONE),
       last_interval_(NULL),
       first_interval_(NULL),
       first_pos_(NULL),
@@ -169,7 +169,7 @@ LiveRange::LiveRange(int id)
 void LiveRange::set_assigned_register(int reg, RegisterKind register_kind) {
   ASSERT(!HasRegisterAssigned() && !IsSpilled());
   assigned_register_ = reg;
-  assigned_register_kind_ = register_kind;
+  is_double_ = (register_kind == DOUBLE_REGISTERS);
   ConvertOperands();
 }
 
@@ -234,7 +234,8 @@ bool LiveRange::CanBeSpilled(LifetimePosition pos) {
   // at the current or the immediate next position.
   UsePosition* use_pos = NextRegisterPosition(pos);
   if (use_pos == NULL) return true;
-  return use_pos->pos().Value() > pos.NextInstruction().Value();
+  return
+      use_pos->pos().Value() > pos.NextInstruction().InstructionEnd().Value();
 }
 
 
@@ -555,7 +556,7 @@ LAllocator::LAllocator(int num_values, HGraph* graph)
       reusable_slots_(8),
       next_virtual_register_(num_values),
       first_artificial_register_(num_values),
-      mode_(NONE),
+      mode_(GENERAL_REGISTERS),
       num_registers_(-1),
       graph_(graph),
       has_osr_entry_(false) {}
@@ -1043,11 +1044,13 @@ void LAllocator::ResolvePhis(HBasicBlock* block) {
       // it into a location different from the operand of a live range
       // covering a branch instruction.
       // Thus we need to manually record a pointer.
-      if (phi->representation().IsTagged()) {
-        LInstruction* branch =
-            InstructionAt(cur_block->last_instruction_index());
-        if (branch->HasPointerMap()) {
+      LInstruction* branch =
+          InstructionAt(cur_block->last_instruction_index());
+      if (branch->HasPointerMap()) {
+        if (phi->representation().IsTagged()) {
           branch->pointer_map()->RecordPointer(phi_operand);
+        } else if (!phi->representation().IsDouble()) {
+          branch->pointer_map()->RecordUntagged(phi_operand);
         }
       }
     }
@@ -1142,10 +1145,13 @@ void LAllocator::ResolveControlFlow(LiveRange* range,
         // it into a location different from the operand of a live range
         // covering a branch instruction.
         // Thus we need to manually record a pointer.
-        if (HasTaggedValue(range->id())) {
-          LInstruction* branch = InstructionAt(pred->last_instruction_index());
-          if (branch->HasPointerMap()) {
+        LInstruction* branch = InstructionAt(pred->last_instruction_index());
+        if (branch->HasPointerMap()) {
+          if (HasTaggedValue(range->id())) {
             branch->pointer_map()->RecordPointer(cur_op);
+          } else if (!cur_op->IsDoubleStackSlot() &&
+                     !cur_op->IsDoubleRegister()) {
+            branch->pointer_map()->RemovePointer(cur_op);
           }
         }
       }
@@ -1461,7 +1467,6 @@ void LAllocator::ProcessOsrEntry() {
 void LAllocator::AllocateGeneralRegisters() {
   HPhase phase("Allocate general registers", this);
   num_registers_ = Register::kNumAllocatableRegisters;
-  mode_ = GENERAL_REGISTERS;
   AllocateRegisters();
 }
 
@@ -1475,7 +1480,6 @@ void LAllocator::AllocateDoubleRegisters() {
 
 
 void LAllocator::AllocateRegisters() {
-  ASSERT(mode_ != NONE);
   ASSERT(unhandled_live_ranges_.is_empty());
 
   for (int i = 0; i < live_ranges_.length(); ++i) {
@@ -1580,7 +1584,6 @@ void LAllocator::AllocateRegisters() {
 
 
 const char* LAllocator::RegisterName(int allocation_index) {
-  ASSERT(mode_ != NONE);
   if (mode_ == GENERAL_REGISTERS) {
     return Register::AllocationIndexToString(allocation_index);
   } else {

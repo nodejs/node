@@ -45,7 +45,7 @@ template<typename Config, class Allocator>
 bool SplayTree<Config, Allocator>::Insert(const Key& key, Locator* locator) {
   if (is_empty()) {
     // If the tree is empty, insert the new node.
-    root_ = new Node(key, Config::kNoValue);
+    root_ = new Node(key, Config::NoValue());
   } else {
     // Splay on the key to move the last node on the search path
     // for the key to the root of the tree.
@@ -57,7 +57,7 @@ bool SplayTree<Config, Allocator>::Insert(const Key& key, Locator* locator) {
       return false;
     }
     // Insert the new node.
-    Node* node = new Node(key, Config::kNoValue);
+    Node* node = new Node(key, Config::NoValue());
     InsertInternal(cmp, node);
   }
   locator->bind(root_);
@@ -226,7 +226,7 @@ template<typename Config, class Allocator>
 void SplayTree<Config, Allocator>::Splay(const Key& key) {
   if (is_empty())
     return;
-  Node dummy_node(Config::kNoKey, Config::kNoValue);
+  Node dummy_node(Config::kNoKey, Config::NoValue());
   // Create a dummy node.  The use of the dummy node is a bit
   // counter-intuitive: The right child of the dummy node will hold
   // the L tree of the algorithm.  The left child of the dummy node

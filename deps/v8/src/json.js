@@ -345,4 +345,4 @@ function SetUpJSON() {
   ));
 }
 
-SetUpJSON()
+SetUpJSON();

@@ -40,34 +40,6 @@ namespace internal {
 
 class Variable: public ZoneObject {
  public:
-  enum Mode {
-    // User declared variables:
-    VAR,       // declared via 'var', and 'function' declarations
-
-    CONST,     // declared via 'const' declarations
-
-    LET,       // declared via 'let' declarations
-
-    // Variables introduced by the compiler:
-    DYNAMIC,         // always require dynamic lookup (we don't know
-                     // the declaration)
-
-    DYNAMIC_GLOBAL,  // requires dynamic lookup, but we know that the
-                     // variable is global unless it has been shadowed
-                     // by an eval-introduced variable
-
-    DYNAMIC_LOCAL,   // requires dynamic lookup, but we know that the
-                     // variable is local and where it is unless it
-                     // has been shadowed by an eval-introduced
-                     // variable
-
-    INTERNAL,        // like VAR, but not user-visible (may or may not
-                     // be in a context)
-
-    TEMPORARY        // temporary variables (not user-visible), never
-                     // in a context
-  };
-
   enum Kind {
     NORMAL,
     THIS,
@@ -103,12 +75,13 @@ class Variable: public ZoneObject {
 
   Variable(Scope* scope,
            Handle<String> name,
-           Mode mode,
+           VariableMode mode,
            bool is_valid_lhs,
-           Kind kind);
+           Kind kind,
+           InitializationFlag initialization_flag);
 
   // Printing support
-  static const char* Mode2String(Mode mode);
+  static const char* Mode2String(VariableMode mode);
 
   bool IsValidLeftHandSide() { return is_valid_LHS_; }
 
@@ -119,16 +92,19 @@ class Variable: public ZoneObject {
   Scope* scope() const { return scope_; }
 
   Handle<String> name() const { return name_; }
-  Mode mode() const { return mode_; }
-  bool is_accessed_from_inner_scope() const {
-    return is_accessed_from_inner_scope_;
+  VariableMode mode() const { return mode_; }
+  bool has_forced_context_allocation() const {
+    return force_context_allocation_;
   }
-  void MarkAsAccessedFromInnerScope() {
+  void ForceContextAllocation() {
     ASSERT(mode_ != TEMPORARY);
-    is_accessed_from_inner_scope_ = true;
+    force_context_allocation_ = true;
   }
   bool is_used() { return is_used_; }
   void set_is_used(bool flag) { is_used_ = flag; }
+
+  int initializer_position() { return initializer_position_; }
+  void set_initializer_position(int pos) { initializer_position_ = pos; }
 
   bool IsVariable(Handle<String> n) const {
     return !is_this() && name().is_identical_to(n);
@@ -146,6 +122,13 @@ class Variable: public ZoneObject {
             mode_ == DYNAMIC_GLOBAL ||
             mode_ == DYNAMIC_LOCAL);
   }
+  bool is_const_mode() const {
+    return (mode_ == CONST ||
+            mode_ == CONST_HARMONY);
+  }
+  bool binding_needs_init() const {
+    return initialization_flag_ == kNeedsInitialization;
+  }
 
   bool is_global() const;
   bool is_this() const { return kind_ == THIS; }
@@ -153,8 +136,7 @@ class Variable: public ZoneObject {
 
   // True if the variable is named eval and not known to be shadowed.
   bool is_possibly_eval() const {
-    return IsVariable(FACTORY->eval_symbol()) &&
-        (mode_ == DYNAMIC || mode_ == DYNAMIC_GLOBAL);
+    return IsVariable(FACTORY->eval_symbol());
   }
 
   Variable* local_if_not_shadowed() const {
@@ -168,28 +150,39 @@ class Variable: public ZoneObject {
 
   Location location() const { return location_; }
   int index() const { return index_; }
+  InitializationFlag initialization_flag() const {
+    return initialization_flag_;
+  }
 
   void AllocateTo(Location location, int index) {
     location_ = location;
     index_ = index;
   }
 
+  static int CompareIndex(Variable* const* v, Variable* const* w);
+
  private:
   Scope* scope_;
   Handle<String> name_;
-  Mode mode_;
+  VariableMode mode_;
   Kind kind_;
   Location location_;
   int index_;
+  int initializer_position_;
 
+  // If this field is set, this variable references the stored locally bound
+  // variable, but it might be shadowed by variable bindings introduced by
+  // non-strict 'eval' calls between the reference scope (inclusive) and the
+  // binding scope (exclusive).
   Variable* local_if_not_shadowed_;
 
   // Valid as a LHS? (const and this are not valid LHS, for example)
   bool is_valid_LHS_;
 
   // Usage info.
-  bool is_accessed_from_inner_scope_;  // set by variable resolver
+  bool force_context_allocation_;  // set by variable resolver
   bool is_used_;
+  InitializationFlag initialization_flag_;
 };
 
 

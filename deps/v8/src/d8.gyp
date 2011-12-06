@@ -65,7 +65,7 @@
               'sources': [ 'd8-readline.cc' ],
             }],
             [ '(OS=="linux" or OS=="mac" or OS=="freebsd" \
-              or OS=="openbsd" or OS=="solaris")', {
+              or OS=="openbsd" or OS=="solaris" or OS=="android")', {
               'sources': [ 'd8-posix.cc', ]
             }],
             [ 'OS=="win"', {

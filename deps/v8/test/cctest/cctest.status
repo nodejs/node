@@ -33,10 +33,21 @@ test-api/Bug*: FAIL
 # BUG(382): Weird test. Can't guarantee that it never times out.
 test-api/ApplyInterruption: PASS || TIMEOUT
 
+# BUG(484): This test which we thought was originally corrected in r5236
+# is re-appearing. Disabled until bug in test is fixed. This only fails
+# when snapshot is on, so I am marking it PASS || FAIL
+test-heap-profiler/HeapSnapshotsDiff: PASS || FAIL
+
 # These tests always fail.  They are here to test test.py.  If
 # they don't fail then test.py has failed.
 test-serialize/TestThatAlwaysFails: FAIL
 test-serialize/DependentTestThatAlwaysFails: FAIL
+
+# TODO(gc): Temporarily disabled in the GC branch.
+test-log/EquivalenceOfLoggingAndTraversal: PASS || FAIL
+
+# BUG(1261): Flakey test.
+test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL

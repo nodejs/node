@@ -98,20 +98,23 @@ private:
 
 // Flags for experimental language features.
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
+DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
-DEFINE_bool(harmony_weakmaps, false, "enable harmony weak maps")
-DEFINE_bool(harmony_block_scoping, false, "enable harmony block scoping")
+DEFINE_bool(harmony_collections, false,
+            "enable harmony collections (sets, maps, and weak maps)")
+DEFINE_bool(harmony, false, "enable all harmony features")
 
 // Flags for experimental implementation features.
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
-DEFINE_bool(string_slices, false, "use string slices")
+DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
+DEFINE_bool(string_slices, true, "use string slices")
+
+DEFINE_bool(clever_optimizations,
+            true,
+            "Optimize object size, Array shift, DOM strings and string +")
 
 // Flags for Crankshaft.
-#ifdef V8_TARGET_ARCH_MIPS
-  DEFINE_bool(crankshaft, false, "use crankshaft")
-#else
-  DEFINE_bool(crankshaft, true, "use crankshaft")
-#endif
+DEFINE_bool(crankshaft, true, "use crankshaft")
 DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
 DEFINE_bool(use_hydrogen, true, "use generated hydrogen for compilation")
 DEFINE_bool(build_lithium, true, "use lithium chunk builder")
@@ -125,6 +128,9 @@ DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(limit_inlining, true, "limit code size growth from inlining")
 DEFINE_bool(eliminate_empty_blocks, true, "eliminate empty blocks")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
+DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
+            true,
+            "crankshaft harvests type feedback from stub cache")
 DEFINE_bool(hydrogen_stats, false, "print statistics for hydrogen")
 DEFINE_bool(trace_hydrogen, false, "trace generated hydrogen to file")
 DEFINE_bool(trace_inlining, false, "trace inlining decisions")
@@ -180,6 +186,8 @@ DEFINE_bool(expose_gc, false, "expose gc extension")
 DEFINE_bool(expose_externalize_string, false,
             "expose externalize string extension")
 DEFINE_int(stack_trace_limit, 10, "number of stack frames to capture")
+DEFINE_bool(builtins_in_stack_traces, false,
+            "show built-in functions in stack traces")
 DEFINE_bool(disable_native_files, false, "disable builtin natives files")
 
 // builtins-ia32.cc
@@ -253,10 +261,16 @@ DEFINE_bool(print_cumulative_gc_stat, false,
             "print cumulative GC statistics in name=value format on exit")
 DEFINE_bool(trace_gc_verbose, false,
             "print more details following each garbage collection")
+DEFINE_bool(trace_fragmentation, false,
+            "report fragmentation for old pointer and data pages")
 DEFINE_bool(collect_maps, true,
             "garbage collect maps from which no objects can be reached")
 DEFINE_bool(flush_code, true,
             "flush code that we expect not to use again before full gc")
+DEFINE_bool(incremental_marking, true, "use incremental marking")
+DEFINE_bool(incremental_marking_steps, true, "do incremental marking steps")
+DEFINE_bool(trace_incremental_marking, false,
+            "trace progress of the incremental marking")
 
 // v8.cc
 DEFINE_bool(use_idle_notification, true,
@@ -276,8 +290,13 @@ DEFINE_bool(native_code_counters, false,
 
 // mark-compact.cc
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
+DEFINE_bool(lazy_sweeping, true,
+            "Use lazy sweeping for old pointer and data spaces")
+DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
+            "Flush code caches in maps during mark compact cycle.")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
+DEFINE_bool(compact_code_space, false, "Compact code space")
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")
@@ -287,9 +306,6 @@ DEFINE_int(random_seed, 0,
 
 DEFINE_bool(canonicalize_object_literal_maps, true,
             "Canonicalize maps for object literals.")
-
-DEFINE_bool(use_big_map_space, true,
-            "Use big map space, but don't compact if it grew too big.")
 
 DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
            "Maximum number of pages in map space which still allows to encode "
@@ -305,11 +321,11 @@ DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
 
 // parser.cc
 DEFINE_bool(allow_natives_syntax, false, "allow natives syntax")
-DEFINE_bool(strict_mode, true, "allow strict mode directives")
 
 // simulator-arm.cc and simulator-mips.cc
 DEFINE_bool(trace_sim, false, "Trace simulator execution")
-DEFINE_bool(check_icache, false, "Check icache flushes in ARM simulator")
+DEFINE_bool(check_icache, false,
+            "Check icache flushes in ARM and MIPS simulator")
 DEFINE_int(stop_sim_at, 0, "Simulator stop after x number of instructions")
 DEFINE_int(sim_stack_alignment, 8,
            "Stack alingment in bytes in simulator (4 or 8, 8 is default)")
@@ -326,7 +342,6 @@ DEFINE_bool(preemption, false,
 
 // Regexp
 DEFINE_bool(regexp_optimization, true, "generate optimized regexp code")
-DEFINE_bool(regexp_entry_native, true, "use native code to enter regexp")
 
 // Testing flags test/cctest/test-{flags,api,serialization}.cc
 DEFINE_bool(testing_bool_flag, true, "testing_bool_flag")
@@ -348,11 +363,15 @@ DEFINE_string(testing_serialization_file, "/tmp/serdes",
 
 DEFINE_bool(help, false, "Print usage message, including flags, on console")
 DEFINE_bool(dump_counters, false, "Dump counters on exit")
+
+#ifdef ENABLE_DEBUGGER_SUPPORT
 DEFINE_bool(debugger, false, "Enable JavaScript debugger")
 DEFINE_bool(remote_debugger, false, "Connect JavaScript debugger to the "
                                     "debugger agent in another process")
 DEFINE_bool(debugger_agent, false, "Enable debugger agent")
 DEFINE_int(debugger_port, 5858, "Port to use for remote debugging")
+#endif  // ENABLE_DEBUGGER_SUPPORT
+
 DEFINE_string(map_counters, "", "Map counters to a file")
 DEFINE_args(js_arguments, JSArguments(),
             "Pass all remaining arguments to the script. Alias for \"--\".")
@@ -377,6 +396,15 @@ DEFINE_bool(gdbjit_full, false, "enable GDBJIT interface for all code objects")
 DEFINE_bool(gdbjit_dump, false, "dump elf objects with debug info to disk")
 DEFINE_string(gdbjit_dump_filter, "",
               "dump only objects containing this substring")
+
+// mark-compact.cc
+DEFINE_bool(force_marking_deque_overflows, false,
+            "force overflows of marking deque by reducing it's size "
+            "to 64 words")
+
+DEFINE_bool(stress_compaction, false,
+            "stress the GC compactor to flush out bugs (implies "
+            "--force_marking_deque_overflows)")
 
 //
 // Debug only flags
@@ -404,7 +432,6 @@ DEFINE_bool(print_json_ast, false, "print source AST as JSON")
 DEFINE_bool(print_builtin_json_ast, false,
             "print source AST for builtins as JSON")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
-DEFINE_bool(verify_stack_height, false, "verify stack height tracing on ia32")
 
 // compiler.cc
 DEFINE_bool(print_builtin_scopes, false, "print scopes for builtins")
@@ -500,6 +527,9 @@ DEFINE_bool(ll_prof, false, "Enable low-level linux profiler.")
 #else
 #define FLAG FLAG_READONLY
 #endif
+
+// elements.cc
+DEFINE_bool(trace_elements_transitions, false, "trace elements transitions")
 
 // code-stubs.cc
 DEFINE_bool(print_code_stubs, false, "print code stubs")

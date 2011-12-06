@@ -100,63 +100,64 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList non_object_regs,
                                           bool convert_call_to_jmp) {
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Store the registers containing live values on the expression stack to
-  // make sure that these are correctly updated during GC. Non object values
-  // are stored as a smi causing it to be untouched by GC.
-  ASSERT((object_regs & ~kJSCallerSaved) == 0);
-  ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
-  ASSERT((object_regs & non_object_regs) == 0);
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    Register reg = { r };
-    if ((object_regs & (1 << r)) != 0) {
-      __ push(reg);
-    }
-    if ((non_object_regs & (1 << r)) != 0) {
-      if (FLAG_debug_code) {
-        __ test(reg, Immediate(0xc0000000));
-        __ Assert(zero, "Unable to encode value as smi");
+    // Store the registers containing live values on the expression stack to
+    // make sure that these are correctly updated during GC. Non object values
+    // are stored as a smi causing it to be untouched by GC.
+    ASSERT((object_regs & ~kJSCallerSaved) == 0);
+    ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
+    ASSERT((object_regs & non_object_regs) == 0);
+    for (int i = 0; i < kNumJSCallerSaved; i++) {
+      int r = JSCallerSavedCode(i);
+      Register reg = { r };
+      if ((object_regs & (1 << r)) != 0) {
+        __ push(reg);
       }
-      __ SmiTag(reg);
-      __ push(reg);
+      if ((non_object_regs & (1 << r)) != 0) {
+        if (FLAG_debug_code) {
+          __ test(reg, Immediate(0xc0000000));
+          __ Assert(zero, "Unable to encode value as smi");
+        }
+        __ SmiTag(reg);
+        __ push(reg);
+      }
     }
-  }
 
 #ifdef DEBUG
-  __ RecordComment("// Calling from debug break to runtime - come in - over");
+    __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-  __ Set(eax, Immediate(0));  // No arguments.
-  __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
+    __ Set(eax, Immediate(0));  // No arguments.
+    __ mov(ebx, Immediate(ExternalReference::debug_break(masm->isolate())));
 
-  CEntryStub ceb(1);
-  __ CallStub(&ceb);
+    CEntryStub ceb(1);
+    __ CallStub(&ceb);
 
-  // Restore the register values containing object pointers from the expression
-  // stack.
-  for (int i = kNumJSCallerSaved; --i >= 0;) {
-    int r = JSCallerSavedCode(i);
-    Register reg = { r };
-    if (FLAG_debug_code) {
-      __ Set(reg, Immediate(kDebugZapValue));
+    // Restore the register values containing object pointers from the
+    // expression stack.
+    for (int i = kNumJSCallerSaved; --i >= 0;) {
+      int r = JSCallerSavedCode(i);
+      Register reg = { r };
+      if (FLAG_debug_code) {
+        __ Set(reg, Immediate(kDebugZapValue));
+      }
+      if ((object_regs & (1 << r)) != 0) {
+        __ pop(reg);
+      }
+      if ((non_object_regs & (1 << r)) != 0) {
+        __ pop(reg);
+        __ SmiUntag(reg);
+      }
     }
-    if ((object_regs & (1 << r)) != 0) {
-      __ pop(reg);
-    }
-    if ((non_object_regs & (1 << r)) != 0) {
-      __ pop(reg);
-      __ SmiUntag(reg);
-    }
+
+    // Get rid of the internal frame.
   }
-
-  // Get rid of the internal frame.
-  __ LeaveInternalFrame();
 
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
   if (convert_call_to_jmp) {
-    __ add(Operand(esp), Immediate(kPointerSize));
+    __ add(esp, Immediate(kPointerSize));
   }
 
   // Now that the break point has been handled, resume normal execution by
@@ -243,12 +244,12 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   // Register state for stub CallFunction (from CallFunctionStub in ic-ia32.cc).
   // ----------- S t a t e -------------
-  //  No registers used on entry.
+  //  -- edi: function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, 0, 0, false);
+  Generate_DebugBreakCallHelper(masm, edi.bit(), 0, false);
 }
 
 
@@ -298,7 +299,7 @@ void Debug::GenerateFrameDropperLiveEdit(MacroAssembler* masm) {
   __ lea(edx, FieldOperand(edx, Code::kHeaderSize));
 
   // Re-run JSFunction, edi is function, esi is context.
-  __ jmp(Operand(edx));
+  __ jmp(edx);
 }
 
 const bool Debug::kFrameDropperSupported = true;

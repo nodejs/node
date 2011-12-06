@@ -44,21 +44,21 @@ static void InitializeVM() {
 }
 
 
-TEST(MarkingStack) {
+TEST(MarkingDeque) {
   int mem_size = 20 * kPointerSize;
   byte* mem = NewArray<byte>(20*kPointerSize);
   Address low = reinterpret_cast<Address>(mem);
   Address high = low + mem_size;
-  MarkingStack s;
+  MarkingDeque s;
   s.Initialize(low, high);
 
   Address address = NULL;
-  while (!s.is_full()) {
-    s.Push(HeapObject::FromAddress(address));
+  while (!s.IsFull()) {
+    s.PushBlack(HeapObject::FromAddress(address));
     address += kPointerSize;
   }
 
-  while (!s.is_empty()) {
+  while (!s.IsEmpty()) {
     Address value = s.Pop()->address();
     address -= kPointerSize;
     CHECK_EQ(address, value);
@@ -78,7 +78,7 @@ TEST(Promotion) {
   // from new space.
   FLAG_gc_global = true;
   FLAG_always_compact = true;
-  HEAP->ConfigureHeap(2*256*KB, 4*MB, 4*MB);
+  HEAP->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
 
   InitializeVM();
 
@@ -104,7 +104,7 @@ TEST(Promotion) {
 
 
 TEST(NoPromotion) {
-  HEAP->ConfigureHeap(2*256*KB, 4*MB, 4*MB);
+  HEAP->ConfigureHeap(2*256*KB, 8*MB, 8*MB);
 
   // Test the situation that some objects in new space are promoted to
   // the old space
@@ -116,9 +116,12 @@ TEST(NoPromotion) {
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 
   // Allocate a big Fixed array in the new space.
-  int size = (HEAP->MaxObjectSizeInPagedSpace() - FixedArray::kHeaderSize) /
-      kPointerSize;
-  Object* obj = HEAP->AllocateFixedArray(size)->ToObjectChecked();
+  int max_size =
+      Min(HEAP->MaxObjectSizeInPagedSpace(), HEAP->MaxObjectSizeInNewSpace());
+
+  int length = (max_size - FixedArray::kHeaderSize) / (2*kPointerSize);
+  Object* obj = i::Isolate::Current()->heap()->AllocateFixedArray(length)->
+      ToObjectChecked();
 
   Handle<FixedArray> array(FixedArray::cast(obj));
 
@@ -139,9 +142,6 @@ TEST(NoPromotion) {
 
   // Call mark compact GC, and it should pass.
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
-
-  // array should not be promoted because the old space is full.
-  CHECK(HEAP->InSpace(*array, NEW_SPACE));
 }
 
 
@@ -228,6 +228,8 @@ TEST(MarkCompactCollector) {
 }
 
 
+// TODO(1600): compaction of map space is temporary removed from GC.
+#if 0
 static Handle<Map> CreateMap() {
   return FACTORY->NewMap(JS_OBJECT_TYPE, JSObject::kHeaderSize);
 }
@@ -252,11 +254,11 @@ TEST(MapCompact) {
   // be able to trigger map compaction.
   // To give an additional chance to fail, try to force compaction which
   // should be impossible right now.
-  HEAP->CollectAllGarbage(true);
+  HEAP->CollectAllGarbage(Heap::kForceCompactionMask);
   // And now map pointers should be encodable again.
   CHECK(HEAP->map_space()->MapPointersEncodable());
 }
-
+#endif
 
 static int gc_starts = 0;
 static int gc_ends = 0;

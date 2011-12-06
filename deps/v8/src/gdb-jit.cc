@@ -1115,13 +1115,13 @@ class DebugInfoSection : public DebugSection {
       int context_slots = scope_info.number_of_context_slots();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope_info.NumberOfLocals();
+      int locals = scope_info.LocalCount();
       int current_abbreviation = 4;
 
       for (int param = 0; param < params; ++param) {
         w->WriteULEB128(current_abbreviation++);
         w->WriteString(
-            *scope_info.parameter_name(param)->ToCString(DISALLOW_NULLS));
+            *scope_info.ParameterName(param)->ToCString(DISALLOW_NULLS));
         w->Write<uint32_t>(ty_offset);
         Writer::Slot<uint32_t> block_size = w->CreateSlotHere<uint32_t>();
         uintptr_t block_start = w->position();
@@ -1312,7 +1312,7 @@ class DebugAbbrevSection : public DebugSection {
       int context_slots = scope_info.number_of_context_slots();
       // The real slot ID is internal_slots + context_slot_id.
       int internal_slots = Context::MIN_CONTEXT_SLOTS;
-      int locals = scope_info.NumberOfLocals();
+      int locals = scope_info.LocalCount();
       int total_children =
           params + slots + context_slots + internal_slots + locals + 2;
 

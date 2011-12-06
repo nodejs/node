@@ -111,46 +111,58 @@ function URIDecodeOctets(octets, result, index) {
     var o1 = octets[1];
     if (o0 < 0xe0) {
       var a = o0 & 0x1f;
-      if ((o1 < 0x80) || (o1 > 0xbf))
+      if ((o1 < 0x80) || (o1 > 0xbf)) {
         throw new $URIError("URI malformed");
+      }
       var b = o1 & 0x3f;
       value = (a << 6) + b;
-      if (value < 0x80 || value > 0x7ff)
+      if (value < 0x80 || value > 0x7ff) {
         throw new $URIError("URI malformed");
+      }
     } else {
       var o2 = octets[2];
       if (o0 < 0xf0) {
         var a = o0 & 0x0f;
-        if ((o1 < 0x80) || (o1 > 0xbf))
+        if ((o1 < 0x80) || (o1 > 0xbf)) {
           throw new $URIError("URI malformed");
+        }
         var b = o1 & 0x3f;
-        if ((o2 < 0x80) || (o2 > 0xbf))
+        if ((o2 < 0x80) || (o2 > 0xbf)) {
           throw new $URIError("URI malformed");
+        }
         var c = o2 & 0x3f;
         value = (a << 12) + (b << 6) + c;
-        if ((value < 0x800) || (value > 0xffff))
+        if ((value < 0x800) || (value > 0xffff)) {
           throw new $URIError("URI malformed");
+        }
       } else {
         var o3 = octets[3];
         if (o0 < 0xf8) {
           var a = (o0 & 0x07);
-          if ((o1 < 0x80) || (o1 > 0xbf))
+          if ((o1 < 0x80) || (o1 > 0xbf)) {
             throw new $URIError("URI malformed");
+          }
           var b = (o1 & 0x3f);
-          if ((o2 < 0x80) || (o2 > 0xbf))
+          if ((o2 < 0x80) || (o2 > 0xbf)) {
             throw new $URIError("URI malformed");
+          }
           var c = (o2 & 0x3f);
-          if ((o3 < 0x80) || (o3 > 0xbf))
+          if ((o3 < 0x80) || (o3 > 0xbf)) {
             throw new $URIError("URI malformed");
+          }
           var d = (o3 & 0x3f);
           value = (a << 18) + (b << 12) + (c << 6) + d;
-          if ((value < 0x10000) || (value > 0x10ffff))
+          if ((value < 0x10000) || (value > 0x10ffff)) {
             throw new $URIError("URI malformed");
+          }
         } else {
           throw new $URIError("URI malformed");
         }
       }
     }
+  }
+  if (0xD800 <= value && value <= 0xDFFF) {
+    throw new $URIError("URI malformed");
   }
   if (value < 0x10000) {
     result[index++] = value;
@@ -207,14 +219,15 @@ function Decode(uri, reserved) {
       var cc = URIHexCharsToCharCode(uri.charCodeAt(++k), uri.charCodeAt(++k));
       if (cc >> 7) {
         var n = 0;
-        while (((cc << ++n) & 0x80) != 0) ;
+        while (((cc << ++n) & 0x80) != 0) { }
         if (n == 1 || n > 4) throw new $URIError("URI malformed");
         var octets = new $Array(n);
         octets[0] = cc;
         if (k + 3 * (n - 1) >= uriLength) throw new $URIError("URI malformed");
         for (var i = 1; i < n; i++) {
           if (uri.charAt(++k) != '%') throw new $URIError("URI malformed");
-          octets[i] = URIHexCharsToCharCode(uri.charCodeAt(++k), uri.charCodeAt(++k));
+          octets[i] = URIHexCharsToCharCode(uri.charCodeAt(++k),
+                                            uri.charCodeAt(++k));
         }
         index = URIDecodeOctets(octets, result, index);
       } else {
@@ -254,7 +267,7 @@ function URIDecode(uri) {
     if (63 <= cc && cc <= 64) return true;
 
     return false;
-  };
+  }
   var string = ToString(uri);
   return Decode(string, reservedPredicate);
 }
@@ -262,7 +275,7 @@ function URIDecode(uri) {
 
 // ECMA-262 - 15.1.3.2.
 function URIDecodeComponent(component) {
-  function reservedPredicate(cc) { return false; };
+  function reservedPredicate(cc) { return false; }
   var string = ToString(component);
   return Decode(string, reservedPredicate);
 }
@@ -303,7 +316,7 @@ function URIEncode(uri) {
     if (cc == 126) return true;
 
     return false;
-  };
+  }
 
   var string = ToString(uri);
   return Encode(string, unescapePredicate);
@@ -326,7 +339,7 @@ function URIEncodeComponent(component) {
     if (cc == 126) return true;
 
     return false;
-  };
+  }
 
   var string = ToString(component);
   return Encode(string, unescapePredicate);
@@ -366,7 +379,9 @@ function CharCodeToHex4Str(cc) {
 function IsValidHex(s) {
   for (var i = 0; i < s.length; ++i) {
     var cc = s.charCodeAt(i);
-    if ((48 <= cc && cc <= 57) || (65 <= cc && cc <= 70) || (97 <= cc && cc <= 102)) {
+    if ((48 <= cc && cc <= 57) ||
+        (65 <= cc && cc <= 70) ||
+        (97 <= cc && cc <= 102)) {
       // '0'..'9', 'A'..'F' and 'a' .. 'f'.
     } else {
       return false;

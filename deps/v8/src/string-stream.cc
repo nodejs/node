@@ -350,29 +350,24 @@ void StringStream::PrintUsingMap(JSObject* js_object) {
   }
   DescriptorArray* descs = map->instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    switch (descs->GetType(i)) {
-      case FIELD: {
-        Object* key = descs->GetKey(i);
-        if (key->IsString() || key->IsNumber()) {
-          int len = 3;
-          if (key->IsString()) {
-            len = String::cast(key)->length();
-          }
-          for (; len < 18; len++)
-            Put(' ');
-          if (key->IsString()) {
-            Put(String::cast(key));
-          } else {
-            key->ShortPrint();
-          }
-          Add(": ");
-          Object* value = js_object->FastPropertyAt(descs->GetFieldIndex(i));
-          Add("%o\n", value);
+    if (descs->GetType(i) == FIELD) {
+      Object* key = descs->GetKey(i);
+      if (key->IsString() || key->IsNumber()) {
+        int len = 3;
+        if (key->IsString()) {
+          len = String::cast(key)->length();
         }
+        for (; len < 18; len++)
+          Put(' ');
+        if (key->IsString()) {
+          Put(String::cast(key));
+        } else {
+          key->ShortPrint();
+        }
+        Add(": ");
+        Object* value = js_object->FastPropertyAt(descs->GetFieldIndex(i));
+        Add("%o\n", value);
       }
-      break;
-      default:
-      break;
     }
   }
 }

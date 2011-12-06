@@ -267,34 +267,22 @@ void CheckException(v8::PreParserData* data,
 
 
 ExceptionExpectation ParseExpectation(int argc, const char* argv[]) {
+  // Parse ["throws" [<exn-type> [<start> [<end>]]]].
   ExceptionExpectation expects;
-
-  // Parse exception expectations from (the remainder of) the command line.
   int arg_index = 0;
-  // Skip any flags.
-  while (argc > arg_index && IsFlag(argv[arg_index])) arg_index++;
+  while (argc > arg_index && strncmp("throws", argv[arg_index], 7)) {
+    arg_index++;
+  }
   if (argc > arg_index) {
-    if (strncmp("throws", argv[arg_index], 7)) {
-      // First argument after filename, if present, must be the verbatim
-      // "throws", marking that the preparsing should fail with an exception.
-      fail(NULL, "ERROR: Extra arguments not prefixed by \"throws\".\n");
-    }
     expects.throws = true;
-    do {
-      arg_index++;
-    } while (argc > arg_index && IsFlag(argv[arg_index]));
-    if (argc > arg_index) {
-      // Next argument is the exception type identifier.
+    arg_index++;
+    if (argc > arg_index && !IsFlag(argv[arg_index])) {
       expects.type = argv[arg_index];
-      do {
-        arg_index++;
-      } while (argc > arg_index && IsFlag(argv[arg_index]));
-      if (argc > arg_index) {
+      arg_index++;
+      if (argc > arg_index && !IsFlag(argv[arg_index])) {
         expects.beg_pos = atoi(argv[arg_index]);  // NOLINT
-        do {
-          arg_index++;
-        } while (argc > arg_index && IsFlag(argv[arg_index]));
-        if (argc > arg_index) {
+        arg_index++;
+        if (argc > arg_index && !IsFlag(argv[arg_index])) {
           expects.end_pos = atoi(argv[arg_index]);  // NOLINT
         }
       }
@@ -308,7 +296,8 @@ int main(int argc, const char* argv[]) {
   // Parse command line.
   // Format:  preparser (<scriptfile> | -e "<source>")
   //                    ["throws" [<exn-type> [<start> [<end>]]]]
-  // Any flags (except an initial -s) are ignored.
+  // Any flags (except an initial -e) are ignored.
+  // Flags must not separate "throws" and its arguments.
 
   // Check for mandatory filename argument.
   int arg_index = 1;

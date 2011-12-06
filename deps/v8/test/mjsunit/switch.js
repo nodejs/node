@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 function f0() {
   switch (0) {
     // switch deliberately left empty
@@ -126,6 +128,42 @@ assertEquals(3, f4(1), "fallthrough-switch.1");
 assertEquals(3, f4(2), "fallthrough-switch.2");
 assertEquals(5, f4(3), "fallthrough-switch.3");
 
+function f4_string(tag, x) {
+  switch(tag) {
+    case 'zero':
+      x++;
+    case 'two':
+      x++;
+  }
+  return x;
+}
+
+// Symbols
+assertEquals(2, f4_string('zero', 0), "fallthrough-string-switch.0");
+assertEquals(1, f4_string('one', 1), "fallthrough-string-switch.1");
+assertEquals(3, f4_string('two', 2), "fallthrough-string-switch.2");
+
+// Strings
+assertEquals(2, f4_string('_zero'.slice(1), 0), "fallthrough-string-switch.3");
+assertEquals(1, f4_string('_one'.slice(1), 1), "fallthrough-string-switch.4");
+assertEquals(3, f4_string('_two'.slice(1), 2), "fallthrough-string-switch.5");
+
+// Oddball
+assertEquals(3, f4_string(null, 3), "fallthrough-string-switch.6");
+
+// Test for regression
+function regress_string(value) {
+  var json = 1;
+  switch (typeof value) {
+    case 'object':
+      break;
+
+    default:
+
+  }
+  return json;
+};
+assertEquals(1, regress_string('object'), 'regression-string');
 
 function f5(x) {
   switch(x) {
@@ -287,3 +325,138 @@ var verylong_size = 1000;
 var verylong = makeVeryLong(verylong_size);
 
 assertEquals(verylong_size * 2 + 1, verylong());
+
+//
+// Test suite below aims to cover all possible combinations of following:
+//
+//  clauses  |   tags   |   type feedback   |  optimization
+// =========================================================
+//  strings  |  symbol  |     all           |      on
+//  smis     |  string  |     target        |      off
+//  mixed    |  oddball |     non-target    |
+//           |  smis    |     none          |
+//           |  heapnum |                   |
+// =========================================================
+
+// Function-with-switch generator
+var test_id = 0,
+    clause_values = {
+      string: ['abc', 'def', 'ghi', 'jkl'],
+      smi: [1, 2, 3, 4],
+      mixed: ['abc', 1, 'def', 2, 'ghi', 3, 'jkl', 4]
+    };
+
+function switch_gen(clause_type, feedback, optimize) {
+  var values = clause_values[clause_type];
+
+  function opt(fn) {
+    if (feedback === 'all') {
+      values.forEach(fn);
+    } else if (Array.isArray(feedback)) {
+      // Non-target
+      values.filter(function(v) {
+        return feedback.indexOf(v) === -1;
+      }).forEach(fn);
+    } else if (feedback !== undefined) {
+      // Target
+      fn(feedback);
+    } else {
+      // None
+    }
+
+    if (optimize) %OptimizeFunctionOnNextCall(fn);
+
+    return fn;
+  };
+
+  return opt(new Function(
+      'tag',
+      '"' + (test_id++) + '";' +
+      'switch(tag) {' +
+      values.map(function(value) {
+        return 'case ' + JSON.stringify(value) + ': return' +
+               JSON.stringify('ok-' + value);
+      }).join(';') +
+      '}'
+  ));
+};
+
+function test_switch(clause_type, test_type, feedback, optimize) {
+  var pairs = [],
+      fn = switch_gen(clause_type, feedback, optimize);
+
+  if (Array.isArray(test_type)) {
+    pairs = test_type.map(function(v) {
+      return {
+        value: v,
+        expected: 'ok-' + v
+      };
+    });
+  } else if (test_type === 'symbols') {
+    pairs = clause_values.string.map(function(v) {
+      return {
+        value: v,
+        expected: clause_type !== 'smi' ? 'ok-' + v : undefined
+      };
+    });
+  } else if (test_type === 'strings') {
+    pairs = clause_values.string.map(function(v) {
+      return {
+        value: ('%%' + v).slice(2),
+        expected: clause_type !== 'smi' ? 'ok-' + v : undefined
+      };
+    });
+  } else if (test_type === 'oddball') {
+    pairs = [
+      { value: null, expected: undefined },
+      { value: NaN, expected: undefined },
+      { value: undefined, expected: undefined }
+    ];
+  } else if (test_type === 'smi') {
+    pairs = clause_values.smi.map(function(v) {
+      return {
+        value: v,
+        expected: clause_type !== 'string' ? 'ok-' + v : undefined
+      };
+    });
+  } else if (test_type === 'heapnum') {
+    pairs = clause_values.smi.map(function(v) {
+      return {
+        value: ((v * 17)/16) - ((v*17)%16/16),
+        expected: clause_type !== 'string' ? 'ok-' + v : undefined
+      };
+    });
+  }
+
+  pairs.forEach(function(pair) {
+    assertEquals(fn(pair.value), pair.expected);
+  });
+};
+
+// test_switch(clause_type, test_type, feedback, optimize);
+
+function test_switches(opt) {
+  var test_types = ['symbols', 'strings', 'oddball', 'smi', 'heapnum'];
+
+  function test(clause_type) {
+    var values = clause_values[clause_type];
+
+    test_types.forEach(function(test_type) {
+      test_switch(clause_type, test_type, 'all', opt);
+      test_switch(clause_type, test_type, 'none', opt);
+
+      // Targeting specific clause feedback
+      values.forEach(function(value) {
+        test_switch(clause_type, test_type, [value], value, opt);
+        test_switch(clause_type, test_type, value, value, opt);
+      });
+    });
+  };
+
+  test('string');
+  test('smi');
+  test('mixed');
+};
+
+test_switches(false);
+test_switches(true);

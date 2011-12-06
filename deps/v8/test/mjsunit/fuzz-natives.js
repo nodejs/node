@@ -163,6 +163,9 @@ var knownProblems = {
   "PromoteScheduledException": true,
   "DeleteHandleScopeExtensions": true,
 
+  // Vararg with minimum number > 0.
+  "Call": true,
+
   // Requires integer arguments to be non-negative.
   "Apply": true,
 

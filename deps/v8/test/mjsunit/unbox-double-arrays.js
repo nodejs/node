@@ -77,8 +77,6 @@ function testOneArrayType(allocator) {
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
-    assertEquals(undefined, a[large_array_size-1]);
-    assertEquals(undefined, a[-1]);
     assertEquals(large_array_size, a.length);
     assertTrue(%HasFastDoubleElements(a));
   }
@@ -89,8 +87,6 @@ function testOneArrayType(allocator) {
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
-    assertEquals(undefined, a[large_array_size-1]);
-    assertEquals(undefined, a[-1]);
     assertEquals(large_array_size, a.length);
     assertTrue(%HasFastDoubleElements(a));
   }
@@ -101,8 +97,6 @@ function testOneArrayType(allocator) {
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
-    assertEquals(undefined, a[large_array_size-1]);
-    assertEquals(undefined, a[-1]);
     assertEquals(large_array_size, a.length);
     assertTrue(%HasFastDoubleElements(a));
   }
@@ -113,20 +107,20 @@ function testOneArrayType(allocator) {
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
-    assertEquals(undefined, a[large_array_size-1]);
-    assertEquals(undefined, a[-1]);
     assertEquals(large_array_size, a.length);
     assertTrue(%HasFastDoubleElements(a));
   }
 
   function test_various_loads5(a, value_5, value_6, value_7) {
     assertTrue(%HasFastDoubleElements(a));
-    assertEquals(value_5, a[5]);
-    assertEquals(value_6, a[6]);
-    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    if (value_5 != undefined) {
+      assertEquals(value_5, a[5]);
+    };
+    if (value_6 != undefined) {
+      assertEquals(value_6, a[6]);
+      assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    }
     assertEquals(value_7, a[7]);
-    assertEquals(undefined, a[large_array_size-1]);
-    assertEquals(undefined, a[-1]);
     assertEquals(large_array_size, a.length);
     assertTrue(%HasFastDoubleElements(a));
   }
@@ -137,8 +131,16 @@ function testOneArrayType(allocator) {
     assertEquals(value_6, a[6]);
     assertEquals(value_6, a[computed_6()]); // Test non-constant key
     assertEquals(value_7, a[7]);
-    assertEquals(undefined, a[large_array_size-1]);
-    assertEquals(undefined, a[-1]);
+    assertEquals(large_array_size, a.length);
+    assertTrue(%HasFastDoubleElements(a));
+  }
+
+  function test_various_loads7(a, value_5, value_6, value_7) {
+    assertTrue(%HasFastDoubleElements(a));
+    assertEquals(value_5, a[5]);
+    assertEquals(value_6, a[6]);
+    assertEquals(value_6, a[computed_6()]); // Test non-constant key
+    assertEquals(value_7, a[7]);
     assertEquals(large_array_size, a.length);
     assertTrue(%HasFastDoubleElements(a));
   }
@@ -248,6 +250,8 @@ function testOneArrayType(allocator) {
                       expected_array_value(7));
 
   // Make sure Crankshaft code handles the hole correctly (bailout)
+  var large_array = new allocator(large_array_size);
+  force_to_fast_double_array(large_array);
   test_various_stores(large_array,
                       expected_array_value(5),
                       expected_array_value(6),
@@ -273,7 +277,12 @@ function testOneArrayType(allocator) {
                       undefined,
                       expected_array_value(7));
 
+  %DeoptimizeFunction(test_various_loads6);
+  gc();
+
   // Test stores for non-NaN.
+  var large_array = new allocator(large_array_size);
+  force_to_fast_double_array(large_array);
   %OptimizeFunctionOnNextCall(test_various_stores);
   test_various_stores(large_array,
                       expected_array_value(5),
@@ -285,7 +294,19 @@ function testOneArrayType(allocator) {
                       expected_array_value(6),
                       expected_array_value(7));
 
-  test_various_loads6(large_array,
+  test_various_loads7(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
+
+  test_various_loads7(large_array,
+                      expected_array_value(5),
+                      expected_array_value(6),
+                      expected_array_value(7));
+
+  %OptimizeFunctionOnNextCall(test_various_loads7);
+
+  test_various_loads7(large_array,
                       expected_array_value(5),
                       expected_array_value(6),
                       expected_array_value(7));
@@ -301,7 +322,7 @@ function testOneArrayType(allocator) {
                       -NaN,
                       expected_array_value(7));
 
-  test_various_loads6(large_array,
+  test_various_loads7(large_array,
                       NaN,
                       -NaN,
                       expected_array_value(7));
@@ -317,7 +338,7 @@ function testOneArrayType(allocator) {
                       -Infinity,
                       expected_array_value(7));
 
-  test_various_loads6(large_array,
+  test_various_loads7(large_array,
                       Infinity,
                       -Infinity,
                       expected_array_value(7));
@@ -434,7 +455,6 @@ large_array3[3] = Infinity;
 large_array3[4] = -Infinity;
 
 function call_apply() {
-  assertTrue(%HasFastDoubleElements(large_array3));
   called_by_apply.apply({}, large_array3);
 }
 
@@ -449,7 +469,6 @@ call_apply();
 function test_for_in() {
   // Due to previous tests, keys 0..25 and 95 should be present.
   next_expected = 0;
-  assertTrue(%HasFastDoubleElements(large_array3));
   for (x in large_array3) {
     assertTrue(next_expected++ == x);
     if (next_expected == 25) {

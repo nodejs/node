@@ -1,4 +1,4 @@
-// Copyright 2008 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -81,7 +81,7 @@ class AllStatic {
 
 
 template <typename T>
-static T* NewArray(int size) {
+T* NewArray(int size) {
   T* result = new T[size];
   if (result == NULL) Malloced::FatalProcessOutOfMemory();
   return result;
@@ -89,7 +89,7 @@ static T* NewArray(int size) {
 
 
 template <typename T>
-static void DeleteArray(T* array) {
+void DeleteArray(T* array) {
   delete[] array;
 }
 

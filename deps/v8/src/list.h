@@ -165,8 +165,11 @@ class List {
 
 class Map;
 class Code;
+template<typename T> class Handle;
 typedef List<Map*> MapList;
 typedef List<Code*> CodeList;
+typedef List<Handle<Map> > MapHandleList;
+typedef List<Handle<Code> > CodeHandleList;
 
 // Perform binary search for an element in an already sorted
 // list. Returns the index of the element of -1 if it was not found.
@@ -175,6 +178,7 @@ int SortedListBSearch(
     const List<T>& list, T elem, int (*cmp)(const T* x, const T* y));
 template <typename T>
 int SortedListBSearch(const List<T>& list, T elem);
+
 
 } }  // namespace v8::internal
 

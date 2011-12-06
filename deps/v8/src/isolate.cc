@@ -98,6 +98,15 @@ void ThreadLocalTop::InitializeInternal() {
   failed_access_check_callback_ = NULL;
   save_context_ = NULL;
   catcher_ = NULL;
+  top_lookup_result_ = NULL;
+
+  // These members are re-initialized later after deserialization
+  // is complete.
+  pending_exception_ = NULL;
+  has_pending_message_ = false;
+  pending_message_obj_ = NULL;
+  pending_message_script_ = NULL;
+  scheduled_exception_ = NULL;
 }
 
 
@@ -472,6 +481,9 @@ void Isolate::Iterate(ObjectVisitor* v, ThreadLocalTop* thread) {
   for (StackFrameIterator it(this, thread); !it.done(); it.Advance()) {
     it.frame()->Iterate(v);
   }
+
+  // Iterate pointers in live lookup results.
+  thread->top_lookup_result_->Iterate(v);
 }
 
 
@@ -1060,6 +1072,16 @@ void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
       message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
           location, HandleVector<Object>(&exception_handle, 1), stack_trace,
           stack_trace_object);
+    } else if (location != NULL && !location->script().is_null()) {
+      // We are bootstrapping and caught an error where the location is set
+      // and we have a script for the location.
+      // In this case we could have an extension (or an internal error
+      // somewhere) and we print out the line number at which the error occured
+      // to the console for easier debugging.
+      int line_number = GetScriptLineNumberSafe(location->script(),
+                                                location->start_pos());
+      OS::PrintError("Extension or internal compilation error at line %d.\n",
+                     line_number);
     }
   }
 
@@ -1284,6 +1306,9 @@ char* Isolate::ArchiveThread(char* to) {
   memcpy(to, reinterpret_cast<char*>(thread_local_top()),
          sizeof(ThreadLocalTop));
   InitializeThreadLocal();
+  clear_pending_exception();
+  clear_pending_message();
+  clear_scheduled_exception();
   return to + sizeof(ThreadLocalTop);
 }
 
@@ -1403,11 +1428,13 @@ Isolate::Isolate()
       in_use_list_(0),
       free_list_(0),
       preallocated_storage_preallocated_(false),
-      pc_to_code_cache_(NULL),
+      inner_pointer_to_code_cache_(NULL),
       write_input_buffer_(NULL),
       global_handles_(NULL),
       context_switcher_(NULL),
       thread_manager_(NULL),
+      fp_stubs_generated_(false),
+      has_installed_extensions_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
       embedder_data_(NULL) {
@@ -1575,8 +1602,8 @@ Isolate::~Isolate() {
   compilation_cache_ = NULL;
   delete bootstrapper_;
   bootstrapper_ = NULL;
-  delete pc_to_code_cache_;
-  pc_to_code_cache_ = NULL;
+  delete inner_pointer_to_code_cache_;
+  inner_pointer_to_code_cache_ = NULL;
   delete write_input_buffer_;
   write_input_buffer_ = NULL;
 
@@ -1610,9 +1637,6 @@ Isolate::~Isolate() {
 void Isolate::InitializeThreadLocal() {
   thread_local_top_.isolate_ = this;
   thread_local_top_.Initialize();
-  clear_pending_exception();
-  clear_pending_message();
-  clear_scheduled_exception();
 }
 
 
@@ -1700,7 +1724,7 @@ bool Isolate::Init(Deserializer* des) {
   context_slot_cache_ = new ContextSlotCache();
   descriptor_lookup_cache_ = new DescriptorLookupCache();
   unicode_cache_ = new UnicodeCache();
-  pc_to_code_cache_ = new PcToCodeCache(this);
+  inner_pointer_to_code_cache_ = new InnerPointerToCodeCache(this);
   write_input_buffer_ = new StringInputBuffer();
   global_handles_ = new GlobalHandles(this);
   bootstrapper_ = new Bootstrapper();
@@ -1767,8 +1791,13 @@ bool Isolate::Init(Deserializer* des) {
   // If we are deserializing, read the state into the now-empty heap.
   if (des != NULL) {
     des->Deserialize();
-    stub_cache_->Clear();
+    stub_cache_->Initialize(true);
   }
+
+  // Finish initialization of ThreadLocal after deserialization is done.
+  clear_pending_exception();
+  clear_pending_message();
+  clear_scheduled_exception();
 
   // Deserializing may put strange things in the root array's copy of the
   // stack guard.

@@ -66,7 +66,7 @@ class HandleScopeImplementer;
 class HeapProfiler;
 class InlineRuntimeFunctionsTable;
 class NoAllocationStringAllocator;
-class PcToCodeCache;
+class InnerPointerToCodeCache;
 class PreallocatedMemoryThread;
 class RegExpStack;
 class SaveContext;
@@ -255,6 +255,9 @@ class ThreadLocalTop BASE_EMBEDDED {
   // Call back function to report unsafe JS accesses.
   v8::FailedAccessCheckCallback failed_access_check_callback_;
 
+  // Head of the list of live LookupResults.
+  LookupResult* top_lookup_result_;
+
   // Whether out of memory exceptions should be ignored.
   bool ignore_out_of_memory_;
 
@@ -311,7 +314,6 @@ class HashMap;
   V(int, bad_char_shift_table, kUC16AlphabetSize)                              \
   V(int, good_suffix_shift_table, (kBMMaxShift + 1))                           \
   V(int, suffix_table, (kBMMaxShift + 1))                                      \
-  V(uint32_t, random_seed, 2)                                                  \
   V(uint32_t, private_random_seed, 2)                                          \
   ISOLATE_INIT_DEBUG_ARRAY_LIST(V)
 
@@ -841,7 +843,9 @@ class Isolate {
     return unicode_cache_;
   }
 
-  PcToCodeCache* pc_to_code_cache() { return pc_to_code_cache_; }
+  InnerPointerToCodeCache* inner_pointer_to_code_cache() {
+    return inner_pointer_to_code_cache_;
+  }
 
   StringInputBuffer* write_input_buffer() { return write_input_buffer_; }
 
@@ -879,11 +883,23 @@ class Isolate {
 
   RuntimeState* runtime_state() { return &runtime_state_; }
 
+  void set_fp_stubs_generated(bool value) {
+    fp_stubs_generated_ = value;
+  }
+
+  bool fp_stubs_generated() { return fp_stubs_generated_; }
+
   StaticResource<SafeStringInputBuffer>* compiler_safe_string_input_buffer() {
     return &compiler_safe_string_input_buffer_;
   }
 
   Builtins* builtins() { return &builtins_; }
+
+  void NotifyExtensionInstalled() {
+    has_installed_extensions_ = true;
+  }
+
+  bool has_installed_extensions() { return has_installed_extensions_; }
 
   unibrow::Mapping<unibrow::Ecma262Canonicalize>*
       regexp_macro_assembler_canonicalize() {
@@ -986,6 +1002,13 @@ class Isolate {
 
   void SetData(void* data) { embedder_data_ = data; }
   void* GetData() { return embedder_data_; }
+
+  LookupResult* top_lookup_result() {
+    return thread_local_top_.top_lookup_result_;
+  }
+  void SetTopLookupResult(LookupResult* top) {
+    thread_local_top_.top_lookup_result_ = top;
+  }
 
  private:
   Isolate();
@@ -1130,14 +1153,16 @@ class Isolate {
   PreallocatedStorage in_use_list_;
   PreallocatedStorage free_list_;
   bool preallocated_storage_preallocated_;
-  PcToCodeCache* pc_to_code_cache_;
+  InnerPointerToCodeCache* inner_pointer_to_code_cache_;
   StringInputBuffer* write_input_buffer_;
   GlobalHandles* global_handles_;
   ContextSwitcher* context_switcher_;
   ThreadManager* thread_manager_;
   RuntimeState runtime_state_;
+  bool fp_stubs_generated_;
   StaticResource<SafeStringInputBuffer> compiler_safe_string_input_buffer_;
   Builtins builtins_;
+  bool has_installed_extensions_;
   StringTracker* string_tracker_;
   unibrow::Mapping<unibrow::Ecma262UnCanonicalize> jsregexp_uncanonicalize_;
   unibrow::Mapping<unibrow::CanonicalizationRange> jsregexp_canonrange_;
@@ -1210,19 +1235,7 @@ class Isolate {
 // versions of GCC. See V8 issue 122 for details.
 class SaveContext BASE_EMBEDDED {
  public:
-  explicit SaveContext(Isolate* isolate) : prev_(isolate->save_context()) {
-    if (isolate->context() != NULL) {
-      context_ = Handle<Context>(isolate->context());
-#if __GNUC_VERSION__ >= 40100 && __GNUC_VERSION__ < 40300
-      dummy_ = Handle<Context>(isolate->context());
-#endif
-    }
-    isolate->set_save_context(this);
-
-    // If there is no JS frame under the current C frame, use the value 0.
-    JavaScriptFrameIterator it(isolate);
-    js_sp_ = it.done() ? 0 : it.frame()->sp();
-  }
+  inline explicit SaveContext(Isolate* isolate);
 
   ~SaveContext() {
     if (context_.is_null()) {
@@ -1240,8 +1253,8 @@ class SaveContext BASE_EMBEDDED {
   SaveContext* prev() { return prev_; }
 
   // Returns true if this save context is below a given JavaScript frame.
-  bool below(JavaScriptFrame* frame) {
-    return (js_sp_ == 0) || (frame->sp() < js_sp_);
+  bool IsBelowFrame(JavaScriptFrame* frame) {
+    return (c_entry_fp_ == 0) || (c_entry_fp_ > frame->sp());
   }
 
  private:
@@ -1250,7 +1263,7 @@ class SaveContext BASE_EMBEDDED {
   Handle<Context> dummy_;
 #endif
   SaveContext* prev_;
-  Address js_sp_;  // The top JS frame's sp when saving context.
+  Address c_entry_fp_;
 };
 
 

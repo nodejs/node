@@ -83,9 +83,9 @@ function TestNonPrimitive(order, f) {
 }
 
 TestNonPrimitive("xy", MaxLT);
-TestNonPrimitive("yx", MaxLE);
+TestNonPrimitive("xy", MaxLE);
 TestNonPrimitive("xy", MaxGE);
-TestNonPrimitive("yx", MaxGT);
+TestNonPrimitive("xy", MaxGT);
 
 // Test compare in case of aliased registers.
 function CmpX(x) { if (x == x) return 42; }

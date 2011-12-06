@@ -25,6 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// Flags: --allow-natives-syntax
+
 // Test function.caller.
 function A() {}
 
@@ -40,9 +42,10 @@ A.prototype.g = gee;
 
 var o = new A();
 
-for (var i=0; i<5000000; i++) {
+for (var i=0; i<5; i++) {
   o.g(i);
 }
+%OptimizeFunctionOnNextCall(o.g);
 assertEquals(gee, o.g(0));
 assertEquals(null, o.g(1));
 
@@ -53,9 +56,10 @@ function hej(x) {
   return o.g(x);
 }
 
-for (var j=0; j<5000000; j++) {
+for (var j=0; j<5; j++) {
   hej(j);
 }
+%OptimizeFunctionOnNextCall(hej);
 assertEquals(gee, hej(0));
 assertEquals(hej, hej(1));
 
@@ -66,8 +70,9 @@ function from_eval(x) {
   return o.g(x);
 }
 
-for (var j=0; j<5000000; j++) {
+for (var j=0; j<5; j++) {
   from_eval(j);
 }
+%OptimizeFunctionOnNextCall(from_eval);
 assertEquals(gee, from_eval(0));
 assertEquals(from_eval, from_eval(1));

@@ -224,12 +224,6 @@ void SetLocalPropertyNoThrow(Handle<JSObject> object,
                              Handle<Object> value,
                              PropertyAttributes attributes = NONE);
 
-Handle<Object> SetPropertyWithInterceptor(Handle<JSObject> object,
-                                          Handle<String> key,
-                                          Handle<Object> value,
-                                          PropertyAttributes attributes,
-                                          StrictModeFlag strict_mode);
-
 MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
                                           uint32_t index,
                                           Handle<Object> value,
@@ -240,19 +234,14 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
                              Handle<Object> value,
                              StrictModeFlag strict_mode);
 
+Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind);
+
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name);
 
 Handle<Object> GetProperty(Handle<Object> obj,
                            Handle<Object> key);
-
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           Handle<String> name,
-                           LookupResult* result);
-
-
-Handle<Object> GetElement(Handle<Object> obj,
-                          uint32_t index);
 
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
@@ -263,14 +252,13 @@ Handle<Object> GetPrototype(Handle<Object> obj);
 
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
 
-// Return the object's hidden properties object. If the object has no hidden
-// properties and HiddenPropertiesFlag::ALLOW_CREATION is passed, then a new
-// hidden property object will be allocated. Otherwise Heap::undefined_value
-// is returned.
-Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
-                                   JSObject::HiddenPropertiesFlag flag);
+// Sets a hidden property on an object. Returns obj on success, undefined
+// if trying to set the property on a detached proxy.
+Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value);
 
-int GetIdentityHash(Handle<JSObject> obj);
+int GetIdentityHash(Handle<JSReceiver> obj);
 
 Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
 Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
@@ -298,21 +286,23 @@ Handle<FixedArray> CalculateLineEnds(Handle<String> string,
 int GetScriptLineNumber(Handle<Script> script, int code_position);
 // The safe version does not make heap allocations but may work much slower.
 int GetScriptLineNumberSafe(Handle<Script> script, int code_position);
+int GetScriptColumnNumber(Handle<Script> script, int code_position);
 
 // Computes the enumerable keys from interceptors. Used for debug mirrors and
 // by GetKeysInFixedArrayFor below.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object);
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
                                                    Handle<JSObject> object);
 
 enum KeyCollectionType { LOCAL_ONLY, INCLUDE_PROTOS };
 
 // Computes the enumerable keys for a JSObject. Used for implementing
 // "for (n in object) { }".
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
-                                          KeyCollectionType type);
-Handle<JSArray> GetKeysFor(Handle<JSObject> object);
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
+                                          KeyCollectionType type,
+                                          bool* threw);
+Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw);
 Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                        bool cache_result);
 
@@ -347,25 +337,15 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
 
 Handle<Object> PreventExtensions(Handle<JSObject> object);
 
+Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
+                                       Handle<Object> key);
+
+Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
+                                          Handle<Object> key);
+
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSObject> key,
+                                               Handle<Object> key,
                                                Handle<Object> value);
-
-// Does lazy compilation of the given function. Returns true on success and
-// false if the compilation resulted in a stack overflow.
-enum ClearExceptionFlag { KEEP_EXCEPTION, CLEAR_EXCEPTION };
-
-bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                    ClearExceptionFlag flag);
-
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag);
-
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag);
-
-bool CompileOptimized(Handle<JSFunction> function,
-                      int osr_ast_id,
-                      ClearExceptionFlag flag);
 
 class NoHandleAllocation BASE_EMBEDDED {
  public:

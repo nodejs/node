@@ -190,3 +190,10 @@ assertEquals("morseper",
     "moreseper-prime");
 
 delete(Array.prototype["1"]);
+
+// Check correct handling of non-array argument lists.
+assertSame(this, f0.apply(this, {}), "non-array-1");
+assertSame(this, f0.apply(this, { length:1 }), "non-array-2");
+assertEquals(void 0, f1.apply(this, { length:1 }), "non-array-3");
+assertEquals(void 0, f1.apply(this, { 0:"foo" }), "non-array-4");
+assertEquals("foo", f1.apply(this, { length:1, 0:"foo" }), "non-array-5");

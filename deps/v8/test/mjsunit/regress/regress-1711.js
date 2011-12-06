@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,10 +25,14 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that direct eval calls handle the case where eval has been
-// deleted correctly.
+// string.split needs to evaluate the separator's toString even if limit
+// is 0 because toString may have side effects.
 
-// See http://code.google.com/p/v8/issues/detail?id=221
-
-assertThrows('eval(delete eval)');
-
+var side_effect = false;
+var separator = new Object();
+separator.toString = function() {
+  side_effect = true;
+  return undefined;
+}
+'subject'.split(separator, 0);
+assertTrue(side_effect);

@@ -150,11 +150,6 @@ tracker.AssertDeoptCount(f, 0);
 
 f(1);
 
-tracker.AssertOptCount(f, 0);
-tracker.AssertIsOptimized(f, false);
-tracker.AssertDeoptHappened(f, false);
-tracker.AssertDeoptCount(f, 0);
-
 %OptimizeFunctionOnNextCall(f);
 f(1);
 
@@ -172,6 +167,7 @@ tracker.AssertDeoptCount(f, 1);
 
 // Let's trigger optimization for another type.
 for (var i = 0; i < 5; i++) f("a");
+
 %OptimizeFunctionOnNextCall(f);
 f("b");
 

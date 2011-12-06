@@ -30,10 +30,6 @@ def FAIL_OK = FAIL, OKAY
 
 ############################### BUGS ###################################
 
-# A bound function should fail on access to 'caller' and 'arguments'.
-S15.3.4.5_A1: FAIL
-S15.3.4.5_A2: FAIL
-
 # '__proto__' should be treated as a normal property in JSON.
 S15.12.2_A1: FAIL
 
@@ -46,11 +42,8 @@ S15.8.2.16_A7: PASS || FAIL_OK
 S15.8.2.18_A7: PASS || FAIL_OK
 S15.8.2.13_A23: PASS || FAIL_OK
 
-# We allow calls to regexp exec() with no arguments to fail for
-# compatibility reasons.
-S15.10.6.2_A1_T16: FAIL_OK
-S15.10.6.2_A12: FAIL_OK
-S15.10.6.3_A1_T16: FAIL_OK
+# Sputnik tests (r97) assume RegExp.prototype is an Object, not a RegExp.
+S15.10.6_A2: FAIL_OK
 
 # We are silent in some regexp cases where the spec wants us to give
 # errors, for compatibility.
@@ -159,6 +152,10 @@ S11.1.5_A4.2: FAIL_OK
 S9.9_A1: FAIL_OK
 S9.9_A2: FAIL_OK
 
+# The expected evaluation order of comparison operations changed.
+S11.8.2_A2.3_T1: FAIL_OK
+S11.8.3_A2.3_T1: FAIL_OK
+
 # Calls builtins without an explicit receiver which means that
 # undefined is passed to the builtin. The tests expect the global
 # object to be passed which was true in ES3 but not in ES5.
@@ -175,6 +172,23 @@ S15.5.4.12_A1_T3: FAIL_OK
 S15.5.4.13_A1_T3: FAIL_OK
 S15.5.4.14_A1_T3: FAIL_OK
 S15.5.4.15_A1_T3: FAIL_OK
+
+# NaN, Infinity and undefined are read-only according to ES5.
+S15.1.1.1_A2_T1: FAIL_OK  # NaN
+S15.1.1.1_A2_T2: FAIL_OK  # NaN
+S15.1.1.2_A2_T1: FAIL_OK  # Infinity
+# S15.1.1.2_A2_T2 would fail if it weren't bogus in r97. sputnik bug #45.
+S15.1.1.3_A2_T1: FAIL_OK  # undefined
+S15.1.1.3_A2_T2: FAIL_OK  # undefined
+
+# Function.prototype.apply can handle arbitrary object as argument list.
+S15.3.4.3_A6_T1: FAIL_OK
+S15.3.4.3_A6_T4: FAIL_OK
+
+# Array.prototype.to[Locale]String is generic in ES5.
+S15.4.4.2_A2_T1: FAIL_OK
+S15.4.4.3_A2_T1: FAIL_OK
+
 
 ##################### SKIPPED TESTS #####################
 
@@ -193,53 +207,6 @@ S15.5.4.8_A1_T1: FAIL
 S15.3_A3_T1: FAIL
 # Invalid test case (recent change adding var changes semantics)
 S15.3_A3_T3: FAIL
-
-# These tests fail because we had to add bugs to be compatible with JSC.  See
-# http://code.google.com/p/chromium/issues/detail?id=1717
-S15.5.4.1_A1_T2: FAIL_OK
-S15.5.4_A1: FAIL_OK
-S15.5.4_A3: FAIL_OK
-S15.9.5.10_A1_T2: FAIL_OK
-S15.9.5.11_A1_T2: FAIL_OK
-S15.9.5.12_A1_T2: FAIL_OK
-S15.9.5.13_A1_T2: FAIL_OK
-S15.9.5.14_A1_T2: FAIL_OK
-S15.9.5.15_A1_T2: FAIL_OK
-S15.9.5.16_A1_T2: FAIL_OK
-S15.9.5.17_A1_T2: FAIL_OK
-S15.9.5.18_A1_T2: FAIL_OK
-S15.9.5.19_A1_T2: FAIL_OK
-S15.9.5.20_A1_T2: FAIL_OK
-S15.9.5.21_A1_T2: FAIL_OK
-S15.9.5.22_A1_T2: FAIL_OK
-S15.9.5.23_A1_T2: FAIL_OK
-S15.9.5.24_A1_T2: FAIL_OK
-S15.9.5.25_A1_T2: FAIL_OK
-S15.9.5.26_A1_T2: FAIL_OK
-S15.9.5.27_A1_T2: FAIL_OK
-S15.9.5.28_A1_T2: FAIL_OK
-S15.9.5.29_A1_T2: FAIL_OK
-S15.9.5.2_A1_T2: FAIL_OK
-S15.9.5.30_A1_T2: FAIL_OK
-S15.9.5.31_A1_T2: FAIL_OK
-S15.9.5.32_A1_T2: FAIL_OK
-S15.9.5.33_A1_T2: FAIL_OK
-S15.9.5.34_A1_T2: FAIL_OK
-S15.9.5.35_A1_T2: FAIL_OK
-S15.9.5.36_A1_T2: FAIL_OK
-S15.9.5.37_A1_T2: FAIL_OK
-S15.9.5.38_A1_T2: FAIL_OK
-S15.9.5.39_A1_T2: FAIL_OK
-S15.9.5.3_A1_T2: FAIL_OK
-S15.9.5.40_A1_T2: FAIL_OK
-S15.9.5.41_A1_T2: FAIL_OK
-S15.9.5.42_A1_T2: FAIL_OK
-S15.9.5.4_A1_T2: FAIL_OK
-S15.9.5.5_A1_T2: FAIL_OK
-S15.9.5.6_A1_T2: FAIL_OK
-S15.9.5.7_A1_T2: FAIL_OK
-S15.9.5.8_A1_T2: FAIL_OK
-S15.9.5.9_A1_T2: FAIL_OK
 
 [ $arch == arm ]
 

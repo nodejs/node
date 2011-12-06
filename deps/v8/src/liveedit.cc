@@ -602,7 +602,8 @@ static void CompileScriptForTracker(Isolate* isolate, Handle<Script> script) {
   // Build AST.
   CompilationInfo info(script);
   info.MarkAsGlobal();
-  if (ParserApi::Parse(&info)) {
+  // Parse and don't allow skipping lazy functions.
+  if (ParserApi::Parse(&info, kNoParsingFlags)) {
     // Compile the code.
     LiveEditFunctionTracker tracker(info.isolate(), info.function());
     if (Compiler::MakeCodeForLiveEdit(&info)) {
@@ -797,7 +798,7 @@ class FunctionInfoListener {
     HandleScope scope;
     FunctionInfoWrapper info = FunctionInfoWrapper::Create();
     info.SetInitialProperties(fun->name(), fun->start_position(),
-                              fun->end_position(), fun->num_parameters(),
+                              fun->end_position(), fun->parameter_count(),
                               current_parent_index_);
     current_parent_index_ = len_;
     SetElementNonStrict(result_, len_, info.GetJSArray());
@@ -855,38 +856,20 @@ class FunctionInfoListener {
       return HEAP->undefined_value();
     }
     do {
-      ZoneList<Variable*> list(10);
-      outer_scope->CollectUsedVariables(&list);
-      int j = 0;
-      for (int i = 0; i < list.length(); i++) {
-        Variable* var1 = list[i];
-        if (var1->IsContextSlot()) {
-          if (j != i) {
-            list[j] = var1;
-          }
-          j++;
-        }
-      }
+      ZoneList<Variable*> stack_list(outer_scope->StackLocalCount());
+      ZoneList<Variable*> context_list(outer_scope->ContextLocalCount());
+      outer_scope->CollectStackAndContextLocals(&stack_list, &context_list);
+      context_list.Sort(&Variable::CompareIndex);
 
-      // Sort it.
-      for (int k = 1; k < j; k++) {
-        int l = k;
-        for (int m = k + 1; m < j; m++) {
-          if (list[l]->index() > list[m]->index()) {
-            l = m;
-          }
-        }
-        list[k] = list[l];
-      }
-      for (int i = 0; i < j; i++) {
+      for (int i = 0; i < context_list.length(); i++) {
         SetElementNonStrict(scope_info_list,
                             scope_info_length,
-                            list[i]->name());
+                            context_list[i]->name());
         scope_info_length++;
         SetElementNonStrict(
             scope_info_list,
             scope_info_length,
-            Handle<Smi>(Smi::FromInt(list[i]->index())));
+            Handle<Smi>(Smi::FromInt(context_list[i]->index())));
         scope_info_length++;
       }
       SetElementNonStrict(scope_info_list,
@@ -1000,6 +983,7 @@ class ReferenceCollectorVisitor : public ObjectVisitor {
 static void ReplaceCodeObject(Code* original, Code* substitution) {
   ASSERT(!HEAP->InNewSpace(substitution));
 
+  HeapIterator iterator;
   AssertNoAllocation no_allocations_please;
 
   // A zone scope for ReferenceCollectorVisitor.
@@ -1016,7 +1000,6 @@ static void ReplaceCodeObject(Code* original, Code* substitution) {
 
   // Now iterate over all pointers of all objects, including code_target
   // implicit pointers.
-  HeapIterator iterator;
   for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
     obj->Iterate(&visitor);
   }
@@ -1101,12 +1084,14 @@ MaybeObject* LiveEdit::ReplaceFunctionCode(
 
   Handle<SharedFunctionInfo> shared_info = shared_info_wrapper.GetInfo();
 
+  HEAP->EnsureHeapIsIterable();
+
   if (IsJSFunctionCode(shared_info->code())) {
     Handle<Code> code = compile_info_wrapper.GetFunctionCode();
     ReplaceCodeObject(shared_info->code(), *code);
     Handle<Object> code_scope_info =  compile_info_wrapper.GetCodeScopeInfo();
     if (code_scope_info->IsFixedArray()) {
-      shared_info->set_scope_info(SerializedScopeInfo::cast(*code_scope_info));
+      shared_info->set_scope_info(ScopeInfo::cast(*code_scope_info));
     }
   }
 
@@ -1271,7 +1256,8 @@ class RelocInfoBuffer {
 
 // Patch positions in code (changes relocation info section) and possibly
 // returns new instance of code.
-static Handle<Code> PatchPositionsInCode(Handle<Code> code,
+static Handle<Code> PatchPositionsInCode(
+    Handle<Code> code,
     Handle<JSArray> position_change_array) {
 
   RelocInfoBuffer buffer_writer(code->relocation_size(),
@@ -1286,7 +1272,7 @@ static Handle<Code> PatchPositionsInCode(Handle<Code> code,
         int new_position = TranslatePosition(position,
                                              position_change_array);
         if (position != new_position) {
-          RelocInfo info_copy(rinfo->pc(), rinfo->rmode(), new_position);
+          RelocInfo info_copy(rinfo->pc(), rinfo->rmode(), new_position, NULL);
           buffer_writer.Write(&info_copy);
           continue;
         }
@@ -1332,6 +1318,8 @@ MaybeObject* LiveEdit::PatchFunctionPositions(
   info->set_start_position(new_function_start);
   info->set_end_position(new_function_end);
   info->set_function_token_position(new_function_token_pos);
+
+  HEAP->EnsureHeapIsIterable();
 
   if (IsJSFunctionCode(info->code())) {
     // Patch relocation info section of the code.

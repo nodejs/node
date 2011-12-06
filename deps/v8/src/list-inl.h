@@ -216,11 +216,11 @@ int SortedListBSearch(
     int mid = (low + high) / 2;
     T mid_elem = list[mid];
 
-    if (mid_elem > elem) {
+    if (cmp(&mid_elem, &elem) > 0) {
       high = mid - 1;
       continue;
     }
-    if (mid_elem < elem) {
+    if (cmp(&mid_elem, &elem) < 0) {
       low = mid + 1;
       continue;
     }
@@ -235,6 +235,7 @@ template <typename T>
 int SortedListBSearch(const List<T>& list, T elem) {
   return SortedListBSearch<T>(list, elem, PointerValueCompare<T>);
 }
+
 
 } }  // namespace v8::internal
 

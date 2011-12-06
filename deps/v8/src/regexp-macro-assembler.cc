@@ -81,7 +81,7 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   if (subject->IsAsciiRepresentation()) {
     const byte* address;
     if (StringShape(subject).IsExternal()) {
-      const char* data = ExternalAsciiString::cast(subject)->resource()->data();
+      const char* data = ExternalAsciiString::cast(subject)->GetChars();
       address = reinterpret_cast<const byte*>(data);
     } else {
       ASSERT(subject->IsSeqAsciiString());
@@ -92,7 +92,7 @@ const byte* NativeRegExpMacroAssembler::StringCharacterPosition(
   }
   const uc16* data;
   if (StringShape(subject).IsExternal()) {
-    data = ExternalTwoByteString::cast(subject)->resource()->data();
+    data = ExternalTwoByteString::cast(subject)->GetChars();
   } else {
     ASSERT(subject->IsSeqTwoByteString());
     data = SeqTwoByteString::cast(subject)->GetChars();

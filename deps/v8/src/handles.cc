@@ -190,7 +190,11 @@ static int ExpectedNofPropertiesFromEstimate(int estimate) {
 
   // Inobject slack tracking will reclaim redundant inobject space later,
   // so we can afford to adjust the estimate generously.
-  return estimate + 8;
+  if (FLAG_clever_optimizations) {
+    return estimate + 8;
+  } else {
+    return estimate + 3;
+  }
 }
 
 
@@ -372,24 +376,6 @@ Handle<Object> GetProperty(Handle<Object> obj,
 }
 
 
-Handle<Object> GetProperty(Handle<JSReceiver> obj,
-                           Handle<String> name,
-                           LookupResult* result) {
-  PropertyAttributes attributes;
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate,
-                     obj->GetProperty(*obj, result, *name, &attributes),
-                     Object);
-}
-
-
-Handle<Object> GetElement(Handle<Object> obj,
-                          uint32_t index) {
-  Isolate* isolate = Isolate::Current();
-  CALL_HEAP_FUNCTION(isolate, Runtime::GetElement(obj, index), Object);
-}
-
-
 Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<JSObject> holder,
                                           Handle<String> name,
@@ -421,17 +407,18 @@ Handle<Object> PreventExtensions(Handle<JSObject> object) {
 }
 
 
-Handle<Object> GetHiddenProperties(Handle<JSObject> obj,
-                                   JSObject::HiddenPropertiesFlag flag) {
+Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value) {
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->GetHiddenProperties(flag),
+                     obj->SetHiddenProperty(*key, *value),
                      Object);
 }
 
 
-int GetIdentityHash(Handle<JSObject> obj) {
+int GetIdentityHash(Handle<JSReceiver> obj) {
   CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(JSObject::ALLOW_CREATION),
+                 obj->GetIdentityHash(ALLOW_CREATION),
                  return Smi::cast(__object__)->value(),
                  return 0);
 }
@@ -499,6 +486,14 @@ Handle<Object> SetOwnElement(Handle<JSObject> object,
 }
 
 
+Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                      ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->TransitionElementsKind(to_kind),
+                     Object);
+}
+
+
 Handle<JSObject> Copy(Handle<JSObject> obj) {
   Isolate* isolate = obj->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
@@ -521,8 +516,9 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
   Handle<Object> cache = Utils::OpenHandle(*handle);
   JSValue* wrapper = JSValue::cast(*cache);
   Foreign* foreign = Script::cast(wrapper->value())->wrapper();
-  ASSERT(foreign->address() == reinterpret_cast<Address>(cache.location()));
-  foreign->set_address(0);
+  ASSERT(foreign->foreign_address() ==
+         reinterpret_cast<Address>(cache.location()));
+  foreign->set_foreign_address(0);
   Isolate* isolate = Isolate::Current();
   isolate->global_handles()->Destroy(cache.location());
   isolate->counters()->script_wrappers()->Decrement();
@@ -530,10 +526,10 @@ static void ClearWrapperCache(Persistent<v8::Value> handle, void*) {
 
 
 Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
-  if (script->wrapper()->address() != NULL) {
+  if (script->wrapper()->foreign_address() != NULL) {
     // Return the script wrapper directly from the cache.
     return Handle<JSValue>(
-        reinterpret_cast<JSValue**>(script->wrapper()->address()));
+        reinterpret_cast<JSValue**>(script->wrapper()->foreign_address()));
   }
   Isolate* isolate = Isolate::Current();
   // Construct a new script wrapper.
@@ -549,7 +545,8 @@ Handle<JSValue> GetScriptWrapper(Handle<Script> script) {
   Handle<Object> handle = isolate->global_handles()->Create(*result);
   isolate->global_handles()->MakeWeak(handle.location(), NULL,
                                       &ClearWrapperCache);
-  script->wrapper()->set_address(reinterpret_cast<Address>(handle.location()));
+  script->wrapper()->set_foreign_address(
+      reinterpret_cast<Address>(handle.location()));
   return result;
 }
 
@@ -665,6 +662,19 @@ int GetScriptLineNumber(Handle<Script> script, int code_pos) {
   return right + script->line_offset()->value();
 }
 
+// Convert code position into column number.
+int GetScriptColumnNumber(Handle<Script> script, int code_pos) {
+  int line_number = GetScriptLineNumber(script, code_pos);
+  if (line_number == -1) return -1;
+
+  AssertNoAllocation no_allocation;
+  FixedArray* line_ends_array = FixedArray::cast(script->line_ends());
+  line_number = line_number - script->line_offset()->value();
+  if (line_number == 0) return code_pos + script->column_offset()->value();
+  int prev_line_end_pos =
+      Smi::cast(line_ends_array->get(line_number - 1))->value();
+  return code_pos - (prev_line_end_pos + 1);
+}
 
 int GetScriptLineNumberSafe(Handle<Script> script, int code_pos) {
   AssertNoAllocation no_allocation;
@@ -696,7 +706,7 @@ void CustomArguments::IterateInstance(ObjectVisitor* v) {
 
 
 // Compute the property keys from the interceptor.
-v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSReceiver> receiver,
                                                  Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetNamedInterceptor());
@@ -718,7 +728,7 @@ v8::Handle<v8::Array> GetKeysForNamedInterceptor(Handle<JSObject> receiver,
 
 
 // Compute the element keys from the interceptor.
-v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSObject> receiver,
+v8::Handle<v8::Array> GetKeysForIndexedInterceptor(Handle<JSReceiver> receiver,
                                                    Handle<JSObject> object) {
   Isolate* isolate = receiver->GetIsolate();
   Handle<InterceptorInfo> interceptor(object->GetIndexedInterceptor());
@@ -749,8 +759,9 @@ static bool ContainsOnlyValidKeys(Handle<FixedArray> array) {
 }
 
 
-Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
-                                          KeyCollectionType type) {
+Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSReceiver> object,
+                                          KeyCollectionType type,
+                                          bool* threw) {
   USE(ContainsOnlyValidKeys);
   Isolate* isolate = object->GetIsolate();
   Handle<FixedArray> content = isolate->factory()->empty_fixed_array();
@@ -765,6 +776,16 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
   for (Handle<Object> p = object;
        *p != isolate->heap()->null_value();
        p = Handle<Object>(p->GetPrototype(), isolate)) {
+    if (p->IsJSProxy()) {
+      Handle<JSProxy> proxy(JSProxy::cast(*p), isolate);
+      Handle<Object> args[] = { proxy };
+      Handle<Object> names = Execution::Call(
+          isolate->proxy_enumerate(), object, ARRAY_SIZE(args), args, threw);
+      if (*threw) return content;
+      content = AddKeysFromJSArray(content, Handle<JSArray>::cast(names));
+      break;
+    }
+
     Handle<JSObject> current(JSObject::cast(*p), isolate);
 
     // Check access rights if required.
@@ -831,11 +852,11 @@ Handle<FixedArray> GetKeysInFixedArrayFor(Handle<JSObject> object,
 }
 
 
-Handle<JSArray> GetKeysFor(Handle<JSObject> object) {
+Handle<JSArray> GetKeysFor(Handle<JSReceiver> object, bool* threw) {
   Isolate* isolate = object->GetIsolate();
   isolate->counters()->for_in()->Increment();
-  Handle<FixedArray> elements = GetKeysInFixedArrayFor(object,
-                                                       INCLUDE_PROTOS);
+  Handle<FixedArray> elements =
+      GetKeysInFixedArrayFor(object, INCLUDE_PROTOS, threw);
   return isolate->factory()->NewJSArrayWithElements(elements);
 }
 
@@ -885,62 +906,29 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
 }
 
 
+Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
+                                       Handle<Object> key) {
+  CALL_HEAP_FUNCTION(table->GetIsolate(),
+                     table->Add(*key),
+                     ObjectHashSet);
+}
+
+
+Handle<ObjectHashSet> ObjectHashSetRemove(Handle<ObjectHashSet> table,
+                                          Handle<Object> key) {
+  CALL_HEAP_FUNCTION(table->GetIsolate(),
+                     table->Remove(*key),
+                     ObjectHashSet);
+}
+
+
 Handle<ObjectHashTable> PutIntoObjectHashTable(Handle<ObjectHashTable> table,
-                                               Handle<JSObject> key,
+                                               Handle<Object> key,
                                                Handle<Object> value) {
   CALL_HEAP_FUNCTION(table->GetIsolate(),
                      table->Put(*key, *value),
                      ObjectHashTable);
 }
 
-
-bool EnsureCompiled(Handle<SharedFunctionInfo> shared,
-                    ClearExceptionFlag flag) {
-  return shared->is_compiled() || CompileLazyShared(shared, flag);
-}
-
-
-static bool CompileLazyHelper(CompilationInfo* info,
-                              ClearExceptionFlag flag) {
-  // Compile the source information to a code object.
-  ASSERT(info->IsOptimizing() || !info->shared_info()->is_compiled());
-  ASSERT(!info->isolate()->has_pending_exception());
-  bool result = Compiler::CompileLazy(info);
-  ASSERT(result != Isolate::Current()->has_pending_exception());
-  if (!result && flag == CLEAR_EXCEPTION) {
-    info->isolate()->clear_pending_exception();
-  }
-  return result;
-}
-
-
-bool CompileLazyShared(Handle<SharedFunctionInfo> shared,
-                       ClearExceptionFlag flag) {
-  CompilationInfo info(shared);
-  return CompileLazyHelper(&info, flag);
-}
-
-
-bool CompileLazy(Handle<JSFunction> function, ClearExceptionFlag flag) {
-  bool result = true;
-  if (function->shared()->is_compiled()) {
-    function->ReplaceCode(function->shared()->code());
-    function->shared()->set_code_age(0);
-  } else {
-    CompilationInfo info(function);
-    result = CompileLazyHelper(&info, flag);
-    ASSERT(!result || function->is_compiled());
-  }
-  return result;
-}
-
-
-bool CompileOptimized(Handle<JSFunction> function,
-                      int osr_ast_id,
-                      ClearExceptionFlag flag) {
-  CompilationInfo info(function);
-  info.SetOptimizing(osr_ast_id);
-  return CompileLazyHelper(&info, flag);
-}
 
 } }  // namespace v8::internal

@@ -377,9 +377,12 @@ void RegExpMacroAssemblerMIPS::CheckNotBackReferenceIgnoreCase(
     // Isolate.
     __ li(a3, Operand(ExternalReference::isolate_address()));
 
-    ExternalReference function =
-        ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
-    __ CallCFunction(function, argument_count);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm_);
+      ExternalReference function =
+          ExternalReference::re_case_insensitive_compare_uc16(masm_->isolate());
+      __ CallCFunction(function, argument_count);
+    }
 
     // Restore regexp engine registers.
     __ MultiPop(regexp_registers_to_retain);
@@ -607,6 +610,12 @@ Handle<HeapObject> RegExpMacroAssemblerMIPS::GetCode(Handle<String> source) {
 
     // Entry code:
     __ bind(&entry_label_);
+
+    // Tell the system that we have a stack frame.  Because the type is MANUAL,
+    // no is generated.
+    FrameScope scope(masm_, StackFrame::MANUAL);
+
+    // Actually emit code to start a new stack frame.
     // Push arguments
     // Save callee-save registers.
     // Start new stack frame.
@@ -1103,6 +1112,11 @@ int RegExpMacroAssemblerMIPS::CheckStackGuardState(Address* return_address,
     frame_entry<const String*>(re_frame, kInputString) = *subject;
     frame_entry<const byte*>(re_frame, kInputStart) = new_address;
     frame_entry<const byte*>(re_frame, kInputEnd) = new_address + byte_length;
+  } else if (frame_entry<const String*>(re_frame, kInputString) != *subject) {
+    // Subject string might have been a ConsString that underwent
+    // short-circuiting during GC. That will not change start_address but
+    // will change pointer inside the subject handle.
+    frame_entry<const String*>(re_frame, kInputString) = *subject;
   }
 
   return 0;
@@ -1244,13 +1258,14 @@ void RegExpCEntryStub::Generate(MacroAssembler* masm_) {
   if (stack_alignment < kPointerSize) stack_alignment = kPointerSize;
   // Stack is already aligned for call, so decrement by alignment
   // to make room for storing the return address.
-  __ Subu(sp, sp, Operand(stack_alignment));
-  __ sw(ra, MemOperand(sp, 0));
-  __ mov(a0, sp);
+  __ Subu(sp, sp, Operand(stack_alignment + kCArgsSlotsSize));
+  const int return_address_offset = kCArgsSlotsSize;
+  __ Addu(a0, sp, return_address_offset);
+  __ sw(ra, MemOperand(a0, 0));
   __ mov(t9, t1);
   __ Call(t9);
-  __ lw(ra, MemOperand(sp, 0));
-  __ Addu(sp, sp, Operand(stack_alignment));
+  __ lw(ra, MemOperand(sp, return_address_offset));
+  __ Addu(sp, sp, Operand(stack_alignment + kCArgsSlotsSize));
   __ Jump(ra);
 }
 

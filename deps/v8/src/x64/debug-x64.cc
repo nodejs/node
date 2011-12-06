@@ -100,64 +100,65 @@ static void Generate_DebugBreakCallHelper(MacroAssembler* masm,
                                           RegList non_object_regs,
                                           bool convert_call_to_jmp) {
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Store the registers containing live values on the expression stack to
-  // make sure that these are correctly updated during GC. Non object values
-  // are stored as as two smis causing it to be untouched by GC.
-  ASSERT((object_regs & ~kJSCallerSaved) == 0);
-  ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
-  ASSERT((object_regs & non_object_regs) == 0);
-  for (int i = 0; i < kNumJSCallerSaved; i++) {
-    int r = JSCallerSavedCode(i);
-    Register reg = { r };
-    ASSERT(!reg.is(kScratchRegister));
-    if ((object_regs & (1 << r)) != 0) {
-      __ push(reg);
+    // Store the registers containing live values on the expression stack to
+    // make sure that these are correctly updated during GC. Non object values
+    // are stored as as two smis causing it to be untouched by GC.
+    ASSERT((object_regs & ~kJSCallerSaved) == 0);
+    ASSERT((non_object_regs & ~kJSCallerSaved) == 0);
+    ASSERT((object_regs & non_object_regs) == 0);
+    for (int i = 0; i < kNumJSCallerSaved; i++) {
+      int r = JSCallerSavedCode(i);
+      Register reg = { r };
+      ASSERT(!reg.is(kScratchRegister));
+      if ((object_regs & (1 << r)) != 0) {
+        __ push(reg);
+      }
+      // Store the 64-bit value as two smis.
+      if ((non_object_regs & (1 << r)) != 0) {
+        __ movq(kScratchRegister, reg);
+        __ Integer32ToSmi(reg, reg);
+        __ push(reg);
+        __ sar(kScratchRegister, Immediate(32));
+        __ Integer32ToSmi(kScratchRegister, kScratchRegister);
+        __ push(kScratchRegister);
+      }
     }
-    // Store the 64-bit value as two smis.
-    if ((non_object_regs & (1 << r)) != 0) {
-      __ movq(kScratchRegister, reg);
-      __ Integer32ToSmi(reg, reg);
-      __ push(reg);
-      __ sar(kScratchRegister, Immediate(32));
-      __ Integer32ToSmi(kScratchRegister, kScratchRegister);
-      __ push(kScratchRegister);
-    }
-  }
 
 #ifdef DEBUG
-  __ RecordComment("// Calling from debug break to runtime - come in - over");
+    __ RecordComment("// Calling from debug break to runtime - come in - over");
 #endif
-  __ Set(rax, 0);  // No arguments (argc == 0).
-  __ movq(rbx, ExternalReference::debug_break(masm->isolate()));
+    __ Set(rax, 0);  // No arguments (argc == 0).
+    __ movq(rbx, ExternalReference::debug_break(masm->isolate()));
 
-  CEntryStub ceb(1);
-  __ CallStub(&ceb);
+    CEntryStub ceb(1);
+    __ CallStub(&ceb);
 
-  // Restore the register values from the expression stack.
-  for (int i = kNumJSCallerSaved - 1; i >= 0; i--) {
-    int r = JSCallerSavedCode(i);
-    Register reg = { r };
-    if (FLAG_debug_code) {
-      __ Set(reg, kDebugZapValue);
+    // Restore the register values from the expression stack.
+    for (int i = kNumJSCallerSaved - 1; i >= 0; i--) {
+      int r = JSCallerSavedCode(i);
+      Register reg = { r };
+      if (FLAG_debug_code) {
+        __ Set(reg, kDebugZapValue);
+      }
+      if ((object_regs & (1 << r)) != 0) {
+        __ pop(reg);
+      }
+      // Reconstruct the 64-bit value from two smis.
+      if ((non_object_regs & (1 << r)) != 0) {
+        __ pop(kScratchRegister);
+        __ SmiToInteger32(kScratchRegister, kScratchRegister);
+        __ shl(kScratchRegister, Immediate(32));
+        __ pop(reg);
+        __ SmiToInteger32(reg, reg);
+        __ or_(reg, kScratchRegister);
+      }
     }
-    if ((object_regs & (1 << r)) != 0) {
-      __ pop(reg);
-    }
-    // Reconstruct the 64-bit value from two smis.
-    if ((non_object_regs & (1 << r)) != 0) {
-      __ pop(kScratchRegister);
-      __ SmiToInteger32(kScratchRegister, kScratchRegister);
-      __ shl(kScratchRegister, Immediate(32));
-      __ pop(reg);
-      __ SmiToInteger32(reg, reg);
-      __ or_(reg, kScratchRegister);
-    }
+
+    // Get rid of the internal frame.
   }
-
-  // Get rid of the internal frame.
-  __ LeaveInternalFrame();
 
   // If this call did not replace a call but patched other code then there will
   // be an unwanted return address left on the stack. Here we get rid of that.
@@ -249,12 +250,12 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateStubNoRegistersDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
   // Register state for stub CallFunction (from CallFunctionStub in ic-x64.cc).
   // ----------- S t a t e -------------
-  //  No registers used on entry.
+  //  -- rdi : function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, 0, 0, false);
+  Generate_DebugBreakCallHelper(masm, rdi.bit(), 0, false);
 }
 
 

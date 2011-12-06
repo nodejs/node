@@ -25,7 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-block-scoping
+// Flags: --harmony-scoping
+
+// TODO(ES6): properly activate extended mode
+"use strict";
 
 // We want to test the context chain shape.  In each of the tests cases
 // below, the outer with is to force a runtime lookup of the identifier 'x'
@@ -64,31 +67,30 @@ try {
 } catch (e) {
   caught = true;
   assertEquals(25, e);
-  with ({y:19}) {
-    assertEquals(19, y);
+  (function () {
     try {
       // NOTE: This checks that the block scope containing xx has been
       // removed from the context chain.
-      xx;
+      eval('xx');
       assertTrue(false);  // should not reach here
     } catch (e2) {
       assertTrue(e2 instanceof ReferenceError);
     }
-  }
+  })();
 }
 assertTrue(caught);
 
 
-with ({x: 'outer'}) {
+(function(x) {
   label: {
     let x = 'inner';
     break label;
   }
-  assertEquals('outer', x);
-}
+  assertEquals('outer', eval('x'));
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   label: {
     let x = 'middle';
     {
@@ -96,20 +98,20 @@ with ({x: 'outer'}) {
       break label;
     }
   }
-  assertEquals('outer', x);
-}
+  assertEquals('outer', eval('x'));
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   for (var i = 0; i < 10; ++i) {
     let x = 'inner' + i;
     continue;
   }
-  assertEquals('outer', x);
-}
+  assertEquals('outer', eval('x'));
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   label: for (var i = 0; i < 10; ++i) {
     let x = 'middle' + i;
     for (var j = 0; j < 10; ++j) {
@@ -117,21 +119,21 @@ with ({x: 'outer'}) {
       continue label;
     }
   }
-  assertEquals('outer', x);
-}
+  assertEquals('outer', eval('x'));
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   try {
     let x = 'inner';
     throw 0;
   } catch (e) {
-    assertEquals('outer', x);
+    assertEquals('outer', eval('x'));
   }
-}
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   try {
     let x = 'middle';
     {
@@ -139,27 +141,27 @@ with ({x: 'outer'}) {
       throw 0;
     }
   } catch (e) {
-    assertEquals('outer', x);
+    assertEquals('outer', eval('x'));
   }
-}
+})('outer');
 
 
 try {
-  with ({x: 'outer'}) {
+  (function(x) {
     try {
       let x = 'inner';
       throw 0;
     } finally {
-      assertEquals('outer', x);
+      assertEquals('outer', eval('x'));
     }
-  }
+  })('outer');
 } catch (e) {
   if (e instanceof MjsUnitAssertionError) throw e;
 }
 
 
 try {
-  with ({x: 'outer'}) {
+  (function(x) {
     try {
       let x = 'middle';
       {
@@ -167,9 +169,9 @@ try {
         throw 0;
       }
     } finally {
-      assertEquals('outer', x);
+      assertEquals('outer', eval('x'));
     }
-  }
+  })('outer');
 } catch (e) {
   if (e instanceof MjsUnitAssertionError) throw e;
 }
@@ -179,47 +181,47 @@ try {
 // from with.
 function f() {}
 
-with ({x: 'outer'}) {
+(function(x) {
   label: {
     let x = 'inner';
     break label;
   }
   f();  // The context could be restored from the stack after the call.
-  assertEquals('outer', x);
-}
+  assertEquals('outer', eval('x'));
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   for (var i = 0; i < 10; ++i) {
     let x = 'inner';
     continue;
   }
   f();
-  assertEquals('outer', x);
-}
+  assertEquals('outer', eval('x'));
+})('outer');
 
 
-with ({x: 'outer'}) {
+(function(x) {
   try {
     let x = 'inner';
     throw 0;
   } catch (e) {
     f();
-    assertEquals('outer', x);
+    assertEquals('outer', eval('x'));
   }
-}
+})('outer');
 
 
 try {
-  with ({x: 'outer'}) {
+  (function(x) {
     try {
       let x = 'inner';
       throw 0;
     } finally {
       f();
-      assertEquals('outer', x);
+      assertEquals('outer', eval('x'));
     }
-  }
+  })('outer');
 } catch (e) {
   if (e instanceof MjsUnitAssertionError) throw e;
 }

@@ -34,13 +34,13 @@ namespace v8 {
 namespace internal {
 
 // Convert from Number object to C integer.
-static inline int32_t NumberToInt32(Object* number) {
+inline int32_t NumberToInt32(Object* number) {
   if (number->IsSmi()) return Smi::cast(number)->value();
   return DoubleToInt32(number->Number());
 }
 
 
-static inline uint32_t NumberToUint32(Object* number) {
+inline uint32_t NumberToUint32(Object* number) {
   if (number->IsSmi()) return Smi::cast(number)->value();
   return DoubleToUint32(number->Number());
 }

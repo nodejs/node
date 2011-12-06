@@ -49,7 +49,7 @@ class ParserRecorder {
                            int end,
                            int literals,
                            int properties,
-                           int strict_mode) = 0;
+                           LanguageMode language_mode) = 0;
 
   // Logs a symbol creation of a literal or identifier.
   virtual void LogAsciiSymbol(int start, Vector<const char> literal) { }
@@ -89,12 +89,12 @@ class FunctionLoggingParserRecorder : public ParserRecorder {
                            int end,
                            int literals,
                            int properties,
-                           int strict_mode) {
+                           LanguageMode language_mode) {
     function_store_.Add(start);
     function_store_.Add(end);
     function_store_.Add(literals);
     function_store_.Add(properties);
-    function_store_.Add(strict_mode);
+    function_store_.Add(language_mode);
   }
 
   // Logs an error message and marks the log as containing an error.

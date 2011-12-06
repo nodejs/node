@@ -41,6 +41,25 @@
 namespace v8 {
 namespace internal {
 
+
+// General collection of (multi-)bit-flags that can be passed to scanners and
+// parsers to signify their (initial) mode of operation.
+enum ParsingFlags {
+  kNoParsingFlags = 0,
+  // Embed LanguageMode values in parsing flags, i.e., equivalent to:
+  // CLASSIC_MODE = 0,
+  // STRICT_MODE,
+  // EXTENDED_MODE,
+  kLanguageModeMask = 0x03,
+  kAllowLazy = 4,
+  kAllowNativesSyntax = 8
+};
+
+STATIC_ASSERT((kLanguageModeMask & CLASSIC_MODE) == CLASSIC_MODE);
+STATIC_ASSERT((kLanguageModeMask & STRICT_MODE) == STRICT_MODE);
+STATIC_ASSERT((kLanguageModeMask & EXTENDED_MODE) == EXTENDED_MODE);
+
+
 // Returns the value (0 .. 15) of a hexadecimal character c.
 // If c is not a legal hexadecimal character, returns a value < 0.
 inline int HexValue(uc32 c) {
@@ -158,7 +177,7 @@ class LiteralBuffer {
     }
   }
 
-  inline void AddChar(uc16 character) {
+  INLINE(void AddChar(uc16 character)) {
     if (position_ >= backing_store_.length()) ExpandBuffer();
     if (is_ascii_) {
       if (character < kMaxAsciiCharCodeU) {
@@ -249,35 +268,32 @@ class LiteralBuffer {
 
 
 // ----------------------------------------------------------------------------
-// Scanner base-class.
+// JavaScript Scanner.
 
-// Generic functionality used by both JSON and JavaScript scanners.
 class Scanner {
  public:
-  // -1 is outside of the range of any real source code.
-  static const int kNoOctalLocation = -1;
-
-  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
-
+  // Scoped helper for literal recording. Automatically drops the literal
+  // if aborting the scanning before it's complete.
   class LiteralScope {
    public:
-    explicit LiteralScope(Scanner* self);
-    ~LiteralScope();
-    void Complete();
+    explicit LiteralScope(Scanner* self)
+        : scanner_(self), complete_(false) {
+      scanner_->StartLiteral();
+    }
+     ~LiteralScope() {
+       if (!complete_) scanner_->DropLiteral();
+     }
+    void Complete() {
+      scanner_->TerminateLiteral();
+      complete_ = true;
+    }
 
    private:
     Scanner* scanner_;
     bool complete_;
   };
 
-  explicit Scanner(UnicodeCache* scanner_contants);
-
-  // Returns the current token again.
-  Token::Value current_token() { return current_.token; }
-
-  // One token look-ahead (past the token returned by Next()).
-  Token::Value peek() const { return next_.token; }
-
+  // Representation of an interval of source positions.
   struct Location {
     Location(int b, int e) : beg_pos(b), end_pos(e) { }
     Location() : beg_pos(0), end_pos(0) { }
@@ -292,21 +308,28 @@ class Scanner {
     int end_pos;
   };
 
-  // Returns the location information for the current token
-  // (the token returned by Next()).
-  Location location() const { return current_.location; }
-  Location peek_location() const { return next_.location; }
+  // -1 is outside of the range of any real source code.
+  static const int kNoOctalLocation = -1;
 
+  typedef unibrow::Utf8InputBuffer<1024> Utf8Decoder;
+
+  explicit Scanner(UnicodeCache* scanner_contants);
+
+  void Initialize(UC16CharacterStream* source);
+
+  // Returns the next token and advances input.
+  Token::Value Next();
+  // Returns the current token again.
+  Token::Value current_token() { return current_.token; }
+  // Returns the location information for the current token
+  // (the token last returned by Next()).
+  Location location() const { return current_.location; }
   // Returns the literal string, if any, for the current token (the
-  // token returned by Next()). The string is 0-terminated and in
-  // UTF-8 format; they may contain 0-characters. Literal strings are
-  // collected for identifiers, strings, and numbers.
+  // token last returned by Next()). The string is 0-terminated.
+  // Literal strings are collected for identifiers, strings, and
+  // numbers.
   // These functions only give the correct result if the literal
   // was scanned between calls to StartLiteral() and TerminateLiteral().
-  bool is_literal_ascii() {
-    ASSERT_NOT_NULL(current_.literal_chars);
-    return current_.literal_chars->is_ascii();
-  }
   Vector<const char> literal_ascii_string() {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->ascii_literal();
@@ -314,6 +337,10 @@ class Scanner {
   Vector<const uc16> literal_uc16_string() {
     ASSERT_NOT_NULL(current_.literal_chars);
     return current_.literal_chars->uc16_literal();
+  }
+  bool is_literal_ascii() {
+    ASSERT_NOT_NULL(current_.literal_chars);
+    return current_.literal_chars->is_ascii();
   }
   int literal_length() const {
     ASSERT_NOT_NULL(current_.literal_chars);
@@ -330,12 +357,15 @@ class Scanner {
     return current_.literal_chars->length() != source_length;
   }
 
+  // Similar functions for the upcoming token.
+
+  // One token look-ahead (past the token returned by Next()).
+  Token::Value peek() const { return next_.token; }
+
+  Location peek_location() const { return next_.location; }
+
   // Returns the literal string for the next token (the token that
   // would be returned if Next() were called).
-  bool is_next_literal_ascii() {
-    ASSERT_NOT_NULL(next_.literal_chars);
-    return next_.literal_chars->is_ascii();
-  }
   Vector<const char> next_literal_ascii_string() {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->ascii_literal();
@@ -343,6 +373,10 @@ class Scanner {
   Vector<const uc16> next_literal_uc16_string() {
     ASSERT_NOT_NULL(next_.literal_chars);
     return next_.literal_chars->uc16_literal();
+  }
+  bool is_next_literal_ascii() {
+    ASSERT_NOT_NULL(next_.literal_chars);
+    return next_.literal_chars->is_ascii();
   }
   int next_literal_length() const {
     ASSERT_NOT_NULL(next_.literal_chars);
@@ -353,7 +387,46 @@ class Scanner {
 
   static const int kCharacterLookaheadBufferSize = 1;
 
- protected:
+  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
+  uc32 ScanOctalEscape(uc32 c, int length);
+
+  // Returns the location of the last seen octal literal.
+  Location octal_position() const { return octal_pos_; }
+  void clear_octal_position() { octal_pos_ = Location::invalid(); }
+
+  // Seek forward to the given position.  This operation does not
+  // work in general, for instance when there are pushed back
+  // characters, but works for seeking forward until simple delimiter
+  // tokens, which is what it is used for.
+  void SeekForward(int pos);
+
+  bool HarmonyScoping() const {
+    return harmony_scoping_;
+  }
+  void SetHarmonyScoping(bool block_scoping) {
+    harmony_scoping_ = block_scoping;
+  }
+
+
+  // Returns true if there was a line terminator before the peek'ed token,
+  // possibly inside a multi-line comment.
+  bool HasAnyLineTerminatorBeforeNext() const {
+    return has_line_terminator_before_next_ ||
+           has_multiline_comment_before_next_;
+  }
+
+  // Scans the input as a regular expression pattern, previous
+  // character(s) must be /(=). Returns true if a pattern is scanned.
+  bool ScanRegExpPattern(bool seen_equal);
+  // Returns true if regexp flags are scanned (always since flags can
+  // be empty).
+  bool ScanRegExpFlags();
+
+  // Tells whether the buffer contains an identifier (no escapes).
+  // Used for checking if a property name is an identifier.
+  static bool IsIdentifier(unibrow::CharacterStream* buffer);
+
+ private:
   // The current and look-ahead token.
   struct TokenDesc {
     Token::Value token;
@@ -378,7 +451,7 @@ class Scanner {
     next_.literal_chars = free_buffer;
   }
 
-  inline void AddLiteralChar(uc32 c) {
+  INLINE(void AddLiteralChar(uc32 c)) {
     ASSERT_NOT_NULL(next_.literal_chars);
     next_.literal_chars->AddChar(c);
   }
@@ -423,6 +496,31 @@ class Scanner {
 
   uc32 ScanHexNumber(int expected_length);
 
+  // Scans a single JavaScript token.
+  void Scan();
+
+  bool SkipWhiteSpace();
+  Token::Value SkipSingleLineComment();
+  Token::Value SkipMultiLineComment();
+  // Scans a possible HTML comment -- begins with '<!'.
+  Token::Value ScanHtmlComment();
+
+  void ScanDecimalDigits();
+  Token::Value ScanNumber(bool seen_period);
+  Token::Value ScanIdentifierOrKeyword();
+  Token::Value ScanIdentifierSuffix(LiteralScope* literal);
+
+  void ScanEscape();
+  Token::Value ScanString();
+
+  // Decodes a unicode escape-sequence which is part of an identifier.
+  // If the escape sequence cannot be decoded the result is kBadChar.
+  uc32 ScanIdentifierUnicodeEscape();
+  // Recognizes a uniocde escape-sequence and adds its characters,
+  // uninterpreted, to the current literal. Used for parsing RegExp
+  // flags.
+  bool ScanLiteralUnicodeEscape();
+
   // Return the current source position.
   int source_pos() {
     return source_->pos() - kCharacterLookaheadBufferSize;
@@ -440,112 +538,12 @@ class Scanner {
   // Input stream. Must be initialized to an UC16CharacterStream.
   UC16CharacterStream* source_;
 
-  // One Unicode character look-ahead; c0_ < 0 at the end of the input.
-  uc32 c0_;
-};
-
-// ----------------------------------------------------------------------------
-// JavaScriptScanner - base logic for JavaScript scanning.
-
-class JavaScriptScanner : public Scanner {
- public:
-  // A LiteralScope that disables recording of some types of JavaScript
-  // literals. If the scanner is configured to not record the specific
-  // type of literal, the scope will not call StartLiteral.
-  class LiteralScope {
-   public:
-    explicit LiteralScope(JavaScriptScanner* self)
-        : scanner_(self), complete_(false) {
-      scanner_->StartLiteral();
-    }
-     ~LiteralScope() {
-       if (!complete_) scanner_->DropLiteral();
-     }
-    void Complete() {
-      scanner_->TerminateLiteral();
-      complete_ = true;
-    }
-
-   private:
-    JavaScriptScanner* scanner_;
-    bool complete_;
-  };
-
-  explicit JavaScriptScanner(UnicodeCache* scanner_contants);
-
-  void Initialize(UC16CharacterStream* source);
-
-  // Returns the next token.
-  Token::Value Next();
-
-  // Returns true if there was a line terminator before the peek'ed token,
-  // possibly inside a multi-line comment.
-  bool HasAnyLineTerminatorBeforeNext() const {
-    return has_line_terminator_before_next_ ||
-           has_multiline_comment_before_next_;
-  }
-
-  // Scans the input as a regular expression pattern, previous
-  // character(s) must be /(=). Returns true if a pattern is scanned.
-  bool ScanRegExpPattern(bool seen_equal);
-  // Returns true if regexp flags are scanned (always since flags can
-  // be empty).
-  bool ScanRegExpFlags();
-
-  // Tells whether the buffer contains an identifier (no escapes).
-  // Used for checking if a property name is an identifier.
-  static bool IsIdentifier(unibrow::CharacterStream* buffer);
-
-  // Scans octal escape sequence. Also accepts "\0" decimal escape sequence.
-  uc32 ScanOctalEscape(uc32 c, int length);
-
-  // Returns the location of the last seen octal literal
-  Location octal_position() const { return octal_pos_; }
-  void clear_octal_position() { octal_pos_ = Location::invalid(); }
-
-  // Seek forward to the given position.  This operation does not
-  // work in general, for instance when there are pushed back
-  // characters, but works for seeking forward until simple delimiter
-  // tokens, which is what it is used for.
-  void SeekForward(int pos);
-
-  bool HarmonyBlockScoping() const {
-    return harmony_block_scoping_;
-  }
-  void SetHarmonyBlockScoping(bool block_scoping) {
-    harmony_block_scoping_ = block_scoping;
-  }
-
-
- protected:
-  bool SkipWhiteSpace();
-  Token::Value SkipSingleLineComment();
-  Token::Value SkipMultiLineComment();
-
-  // Scans a single JavaScript token.
-  void Scan();
-
-  void ScanDecimalDigits();
-  Token::Value ScanNumber(bool seen_period);
-  Token::Value ScanIdentifierOrKeyword();
-  Token::Value ScanIdentifierSuffix(LiteralScope* literal);
-
-  void ScanEscape();
-  Token::Value ScanString();
-
-  // Scans a possible HTML comment -- begins with '<!'.
-  Token::Value ScanHtmlComment();
-
-  // Decodes a unicode escape-sequence which is part of an identifier.
-  // If the escape sequence cannot be decoded the result is kBadChar.
-  uc32 ScanIdentifierUnicodeEscape();
-  // Recognizes a uniocde escape-sequence and adds its characters,
-  // uninterpreted, to the current literal. Used for parsing RegExp
-  // flags.
-  bool ScanLiteralUnicodeEscape();
 
   // Start position of the octal literal last scanned.
   Location octal_pos_;
+
+  // One Unicode character look-ahead; c0_ < 0 at the end of the input.
+  uc32 c0_;
 
   // Whether there is a line terminator whitespace character after
   // the current token, and  before the next. Does not count newlines
@@ -556,7 +554,7 @@ class JavaScriptScanner : public Scanner {
   bool has_multiline_comment_before_next_;
   // Whether we scan 'let' as a keyword for harmony block scoped
   // let bindings.
-  bool harmony_block_scoping_;
+  bool harmony_scoping_;
 };
 
 } }  // namespace v8::internal

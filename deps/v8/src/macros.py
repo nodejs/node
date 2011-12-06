@@ -82,8 +82,6 @@ const kMinYear  = -1000000;
 const kMaxYear  = 1000000;
 const kMinMonth = -10000000;
 const kMaxMonth = 10000000;
-const kMinDate  = -100000000;
-const kMaxDate  = 100000000;
 
 # Native cache ids.
 const STRING_TO_REGEXP_CACHE_ID = 0;
@@ -127,6 +125,11 @@ macro IS_SPEC_OBJECT(arg)   = (%_IsSpecObject(arg));
 # proxy. That ignores host objects with [[Call]] methods, but in most situations
 # we cannot handle those anyway.
 macro IS_SPEC_FUNCTION(arg) = (%_ClassOf(arg) === 'Function');
+
+# Indices in bound function info retrieved by %BoundFunctionGetBindings(...).
+const kBoundFunctionIndex = 0;
+const kBoundThisIndex = 1;
+const kBoundArgumentsStartIndex = 2;
 
 # Inline macros. Use %IS_VAR to make sure arg is evaluated only once.
 macro NUMBER_IS_NAN(arg) = (!%_IsSmi(%IS_VAR(arg)) && !(arg == arg));

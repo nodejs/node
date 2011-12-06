@@ -25,11 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test that we match JSC in making some functions undeletable.
-// See http://code.google.com/p/chromium/issues/detail?id=1717
-// The functions on these prototypes are not just undeletable.  It is
-// possible to override them with new definitions, then get the old
-// version back by deleting the new definition.
+// Test that we match ECMAScript in making most builtin functions
+// deletable and only specific ones undeletable or read-only.
 
 var array;
 
@@ -37,7 +34,7 @@ array = [
   "toString", "toLocaleString", "join", "pop", "push", "concat", "reverse",
   "shift", "unshift", "slice", "splice", "sort", "filter", "forEach", "some",
   "every", "map", "indexOf", "lastIndexOf", "reduce", "reduceRight"];
-CheckJSCSemantics(Array.prototype, array, "Array prototype");
+CheckEcmaSemantics(Array.prototype, array, "Array prototype");
 
 var old_Array_prototype = Array.prototype;
 var new_Array_prototype = {};
@@ -57,12 +54,12 @@ array = [
   "setUTCMinutes", "setHours", "setUTCHours", "setDate", "setUTCDate",
   "setMonth", "setUTCMonth", "setFullYear", "setUTCFullYear", "toGMTString",
   "toUTCString", "getYear", "setYear", "toISOString", "toJSON"];
-CheckJSCSemantics(Date.prototype, array, "Date prototype");
+CheckEcmaSemantics(Date.prototype, array, "Date prototype");
 
 array = [
   "random", "abs", "acos", "asin", "atan", "ceil", "cos", "exp", "floor", "log",
   "round", "sin", "sqrt", "tan", "atan2", "pow", "max", "min"];
-CheckJSCSemantics(Math, array, "Math1");
+CheckEcmaSemantics(Math, array, "Math1");
 
 CheckEcmaSemantics(Date, ["UTC", "parse", "now"], "Date");
 
@@ -76,6 +73,8 @@ array = [
   "execScript"];
 CheckEcmaSemantics(this, array, "Global");
 CheckReadOnlyAttr(this, "Infinity");
+CheckReadOnlyAttr(this, "NaN");
+CheckReadOnlyAttr(this, "undefined");
 
 array = ["exec", "test", "toString", "compile"];
 CheckEcmaSemantics(RegExp.prototype, array, "RegExp prototype");
@@ -112,7 +111,7 @@ array = [
   "toUpperCase", "toLocaleUpperCase", "link", "anchor", "fontcolor", "fontsize",
   "big", "blink", "bold", "fixed", "italics", "small", "strike", "sub", "sup",
   "toJSON", "toString", "valueOf"];
-CheckJSCSemantics(String.prototype, array, "String prototype");
+CheckEcmaSemantics(String.prototype, array, "String prototype");
 CheckEcmaSemantics(String, ["fromCharCode"], "String");
 
 
@@ -120,14 +119,6 @@ function CheckEcmaSemantics(type, props, name) {
   print(name);
   for (var i = 0; i < props.length; i++) {
     CheckDeletable(type, props[i]);
-  }
-}
-
-
-function CheckJSCSemantics(type, props, name) {
-  print(name);
-  for (var i = 0; i < props.length; i++) {
-    CheckNotDeletable(type, props[i]);
   }
 }
 
@@ -154,21 +145,6 @@ function CheckDeletable(type, prop) {
 }
 
 
-function CheckNotDeletable(type, prop) {
-  var old = type[prop];
-  if (!type[prop]) return;
-  assertTrue(type.hasOwnProperty(prop), "inherited: " + prop);
-  var deleted = delete type[prop];
-  assertTrue(deleted, "delete operator returned false: " + prop);
-  assertTrue(type.hasOwnProperty(prop), "not there after delete: " + prop);
-  type[prop] = "foo";
-  assertEquals("foo", type[prop], "not overwritable: " + prop);
-  deleted = delete type[prop];
-  assertTrue(deleted, "delete operator returned false 2nd time: " + prop);
-  assertEquals(old.toString(), type[prop].toString(), "delete didn't restore the old value: " + prop);
-}
-
-
 function CheckDontDeleteAttr(type, prop) {
   var old = type[prop];
   if (!type[prop]) return;
@@ -189,7 +165,7 @@ function CheckReadOnlyAttr(type, prop) {
   assertFalse(deleted, "delete operator returned true: " + prop);
   assertTrue(type.hasOwnProperty(prop), "not there after delete: " + prop);
   type[prop] = "foo";
-  assertEquals("foo", type[prop], "overwritable: " + prop);
+  assertEquals(old, type[prop], "overwritable: " + prop);
 }
 
 print("OK");

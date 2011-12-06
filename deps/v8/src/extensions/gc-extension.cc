@@ -40,19 +40,15 @@ v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
 
 
 v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  bool compact = false;
-  // All allocation spaces other than NEW_SPACE have the same effect.
-  if (args.Length() >= 1 && args[0]->IsBoolean()) {
-    compact = args[0]->BooleanValue();
-  }
-  HEAP->CollectAllGarbage(compact);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
   return v8::Undefined();
 }
 
 
 void GCExtension::Register() {
-  static GCExtension gc_extension;
-  static v8::DeclareExtension gc_extension_declaration(&gc_extension);
+  static GCExtension* gc_extension = NULL;
+  if (gc_extension == NULL) gc_extension = new GCExtension();
+  static v8::DeclareExtension gc_extension_declaration(gc_extension);
 }
 
 } }  // namespace v8::internal

@@ -55,6 +55,7 @@ struct ByteMnemonic {
 
 
 static const ByteMnemonic two_operands_instr[] = {
+  {0x01, "add", OPER_REG_OP_ORDER},
   {0x03, "add", REG_OPER_OP_ORDER},
   {0x09, "or", OPER_REG_OP_ORDER},
   {0x0B, "or", REG_OPER_OP_ORDER},
@@ -117,6 +118,19 @@ static const ByteMnemonic short_immediate_instr[] = {
 };
 
 
+// Generally we don't want to generate these because they are subject to partial
+// register stalls.  They are included for completeness and because the cmp
+// variant is used by the RecordWrite stub.  Because it does not update the
+// register it is not subject to partial register stalls.
+static ByteMnemonic byte_immediate_instr[] = {
+  {0x0c, "or", UNSET_OP_ORDER},
+  {0x24, "and", UNSET_OP_ORDER},
+  {0x34, "xor", UNSET_OP_ORDER},
+  {0x3c, "cmp", UNSET_OP_ORDER},
+  {-1, "", UNSET_OP_ORDER}
+};
+
+
 static const char* const jump_conditional_mnem[] = {
   /*0*/ "jo", "jno", "jc", "jnc",
   /*4*/ "jz", "jnz", "jna", "ja",
@@ -149,7 +163,8 @@ enum InstructionType {
   REGISTER_INSTR,
   MOVE_REG_INSTR,
   CALL_JUMP_INSTR,
-  SHORT_IMMEDIATE_INSTR
+  SHORT_IMMEDIATE_INSTR,
+  BYTE_IMMEDIATE_INSTR
 };
 
 
@@ -164,6 +179,10 @@ class InstructionTable {
  public:
   InstructionTable();
   const InstructionDesc& Get(byte x) const { return instructions_[x]; }
+  static InstructionTable* get_instance() {
+    static InstructionTable table;
+    return &table;
+  }
 
  private:
   InstructionDesc instructions_[256];
@@ -198,6 +217,7 @@ void InstructionTable::Init() {
   CopyTable(zero_operands_instr, ZERO_OPERANDS_INSTR);
   CopyTable(call_jump_instr, CALL_JUMP_INSTR);
   CopyTable(short_immediate_instr, SHORT_IMMEDIATE_INSTR);
+  CopyTable(byte_immediate_instr, BYTE_IMMEDIATE_INSTR);
   AddJumpConditionalShort();
   SetTableRange(REGISTER_INSTR, 0x40, 0x47, "inc");
   SetTableRange(REGISTER_INSTR, 0x48, 0x4F, "dec");
@@ -243,15 +263,13 @@ void InstructionTable::AddJumpConditionalShort() {
 }
 
 
-static InstructionTable instruction_table;
-
-
 // The IA32 disassembler implementation.
 class DisassemblerIA32 {
  public:
   DisassemblerIA32(const NameConverter& converter,
                    bool abort_on_unimplemented = true)
       : converter_(converter),
+        instruction_table_(InstructionTable::get_instance()),
         tmp_buffer_pos_(0),
         abort_on_unimplemented_(abort_on_unimplemented) {
     tmp_buffer_[0] = '\0';
@@ -265,10 +283,10 @@ class DisassemblerIA32 {
 
  private:
   const NameConverter& converter_;
+  InstructionTable* instruction_table_;
   v8::internal::EmbeddedVector<char, 128> tmp_buffer_;
   unsigned int tmp_buffer_pos_;
   bool abort_on_unimplemented_;
-
 
   enum {
     eax = 0,
@@ -868,7 +886,7 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
   }
   bool processed = true;  // Will be set to false if the current instruction
                           // is not in 'instructions' table.
-  const InstructionDesc& idesc = instruction_table.Get(*data);
+  const InstructionDesc& idesc = instruction_table_->Get(*data);
   switch (idesc.type) {
     case ZERO_OPERANDS_INSTR:
       AppendToBuffer(idesc.mnem);
@@ -909,6 +927,12 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
       byte* addr = reinterpret_cast<byte*>(*reinterpret_cast<int32_t*>(data+1));
       AppendToBuffer("%s eax, %s", idesc.mnem, NameOfAddress(addr));
       data += 5;
+      break;
+    }
+
+    case BYTE_IMMEDIATE_INSTR: {
+      AppendToBuffer("%s al, 0x%x", idesc.mnem, data[1]);
+      data += 2;
       break;
     }
 
@@ -1343,11 +1367,6 @@ int DisassemblerIA32::InstructionDecode(v8::internal::Vector<char> out_buffer,
 
       case 0xA8:
         AppendToBuffer("test al,0x%x", *reinterpret_cast<uint8_t*>(data+1));
-        data += 2;
-        break;
-
-      case 0x2C:
-        AppendToBuffer("subb eax,0x%x", *reinterpret_cast<uint8_t*>(data+1));
         data += 2;
         break;
 

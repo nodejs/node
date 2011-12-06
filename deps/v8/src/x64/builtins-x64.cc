@@ -79,12 +79,12 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- rdi: constructor function
   // -----------------------------------
 
-  Label non_function_call;
+  Label slow, non_function_call;
   // Check that function is not a smi.
   __ JumpIfSmi(rdi, &non_function_call);
   // Check that function is a JSFunction.
   __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &non_function_call);
+  __ j(not_equal, &slow);
 
   // Jump to the function-specific construct stub.
   __ movq(rbx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
@@ -94,10 +94,19 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
 
   // rdi: called object
   // rax: number of arguments
+  // rcx: object map
+  Label do_call;
+  __ bind(&slow);
+  __ CmpInstanceType(rcx, JS_FUNCTION_PROXY_TYPE);
+  __ j(not_equal, &non_function_call);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
+  __ jmp(&do_call);
+
   __ bind(&non_function_call);
+  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
+  __ bind(&do_call);
   // Set expected number of arguments to zero (not changing rax).
   __ Set(rbx, 0);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
   __ SetCallKind(rcx, CALL_AS_METHOD);
   __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
           RelocInfo::CODE_TARGET);
@@ -110,272 +119,278 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
   // Should never count constructions for api objects.
   ASSERT(!is_api_function || !count_constructions);
 
-    // Enter a construct frame.
-  __ EnterConstructFrame();
+  // Enter a construct frame.
+  {
+    FrameScope scope(masm, StackFrame::CONSTRUCT);
 
-  // Store a smi-tagged arguments count on the stack.
-  __ Integer32ToSmi(rax, rax);
-  __ push(rax);
+    // Store a smi-tagged arguments count on the stack.
+    __ Integer32ToSmi(rax, rax);
+    __ push(rax);
 
-  // Push the function to invoke on the stack.
-  __ push(rdi);
+    // Push the function to invoke on the stack.
+    __ push(rdi);
 
-  // Try to allocate the object without transitioning into C code. If any of the
-  // preconditions is not met, the code bails out to the runtime call.
-  Label rt_call, allocated;
-  if (FLAG_inline_new) {
-    Label undo_allocation;
+    // Try to allocate the object without transitioning into C code. If any of
+    // the preconditions is not met, the code bails out to the runtime call.
+    Label rt_call, allocated;
+    if (FLAG_inline_new) {
+      Label undo_allocation;
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-    ExternalReference debug_step_in_fp =
-        ExternalReference::debug_step_in_fp_address(masm->isolate());
-    __ movq(kScratchRegister, debug_step_in_fp);
-    __ cmpq(Operand(kScratchRegister, 0), Immediate(0));
-    __ j(not_equal, &rt_call);
+      ExternalReference debug_step_in_fp =
+          ExternalReference::debug_step_in_fp_address(masm->isolate());
+      __ movq(kScratchRegister, debug_step_in_fp);
+      __ cmpq(Operand(kScratchRegister, 0), Immediate(0));
+      __ j(not_equal, &rt_call);
 #endif
 
-    // Verified that the constructor is a JSFunction.
-    // Load the initial map and verify that it is in fact a map.
-    // rdi: constructor
-    __ movq(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
-    // Will both indicate a NULL and a Smi
-    STATIC_ASSERT(kSmiTag == 0);
-    __ JumpIfSmi(rax, &rt_call);
-    // rdi: constructor
-    // rax: initial map (if proven valid below)
-    __ CmpObjectType(rax, MAP_TYPE, rbx);
-    __ j(not_equal, &rt_call);
+      // Verified that the constructor is a JSFunction.
+      // Load the initial map and verify that it is in fact a map.
+      // rdi: constructor
+      __ movq(rax, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+      // Will both indicate a NULL and a Smi
+      ASSERT(kSmiTag == 0);
+      __ JumpIfSmi(rax, &rt_call);
+      // rdi: constructor
+      // rax: initial map (if proven valid below)
+      __ CmpObjectType(rax, MAP_TYPE, rbx);
+      __ j(not_equal, &rt_call);
 
-    // Check that the constructor is not constructing a JSFunction (see comments
-    // in Runtime_NewObject in runtime.cc). In which case the initial map's
-    // instance type would be JS_FUNCTION_TYPE.
-    // rdi: constructor
-    // rax: initial map
-    __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
-    __ j(equal, &rt_call);
+      // Check that the constructor is not constructing a JSFunction (see
+      // comments in Runtime_NewObject in runtime.cc). In which case the
+      // initial map's instance type would be JS_FUNCTION_TYPE.
+      // rdi: constructor
+      // rax: initial map
+      __ CmpInstanceType(rax, JS_FUNCTION_TYPE);
+      __ j(equal, &rt_call);
 
-    if (count_constructions) {
-      Label allocate;
-      // Decrease generous allocation count.
-      __ movq(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-      __ decb(FieldOperand(rcx, SharedFunctionInfo::kConstructionCountOffset));
-      __ j(not_zero, &allocate);
-
-      __ push(rax);
-      __ push(rdi);
-
-      __ push(rdi);  // constructor
-      // The call will replace the stub, so the countdown is only done once.
-      __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
-
-      __ pop(rdi);
-      __ pop(rax);
-
-      __ bind(&allocate);
-    }
-
-    // Now allocate the JSObject on the heap.
-    __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
-    __ shl(rdi, Immediate(kPointerSizeLog2));
-    // rdi: size of new object
-    __ AllocateInNewSpace(rdi,
-                          rbx,
-                          rdi,
-                          no_reg,
-                          &rt_call,
-                          NO_ALLOCATION_FLAGS);
-    // Allocated the JSObject, now initialize the fields.
-    // rax: initial map
-    // rbx: JSObject (not HeapObject tagged - the actual address).
-    // rdi: start of next object
-    __ movq(Operand(rbx, JSObject::kMapOffset), rax);
-    __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
-    __ movq(Operand(rbx, JSObject::kPropertiesOffset), rcx);
-    __ movq(Operand(rbx, JSObject::kElementsOffset), rcx);
-    // Set extra fields in the newly allocated object.
-    // rax: initial map
-    // rbx: JSObject
-    // rdi: start of next object
-    { Label loop, entry;
-      // To allow for truncation.
       if (count_constructions) {
-        __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
-      } else {
-        __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+        Label allocate;
+        // Decrease generous allocation count.
+        __ movq(rcx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+        __ decb(FieldOperand(rcx,
+                             SharedFunctionInfo::kConstructionCountOffset));
+        __ j(not_zero, &allocate);
+
+        __ push(rax);
+        __ push(rdi);
+
+        __ push(rdi);  // constructor
+        // The call will replace the stub, so the countdown is only done once.
+        __ CallRuntime(Runtime::kFinalizeInstanceSize, 1);
+
+        __ pop(rdi);
+        __ pop(rax);
+
+        __ bind(&allocate);
       }
+
+      // Now allocate the JSObject on the heap.
+      __ movzxbq(rdi, FieldOperand(rax, Map::kInstanceSizeOffset));
+      __ shl(rdi, Immediate(kPointerSizeLog2));
+      // rdi: size of new object
+      __ AllocateInNewSpace(rdi,
+                            rbx,
+                            rdi,
+                            no_reg,
+                            &rt_call,
+                            NO_ALLOCATION_FLAGS);
+      // Allocated the JSObject, now initialize the fields.
+      // rax: initial map
+      // rbx: JSObject (not HeapObject tagged - the actual address).
+      // rdi: start of next object
+      __ movq(Operand(rbx, JSObject::kMapOffset), rax);
+      __ LoadRoot(rcx, Heap::kEmptyFixedArrayRootIndex);
+      __ movq(Operand(rbx, JSObject::kPropertiesOffset), rcx);
+      __ movq(Operand(rbx, JSObject::kElementsOffset), rcx);
+      // Set extra fields in the newly allocated object.
+      // rax: initial map
+      // rbx: JSObject
+      // rdi: start of next object
       __ lea(rcx, Operand(rbx, JSObject::kHeaderSize));
-      __ jmp(&entry);
-      __ bind(&loop);
-      __ movq(Operand(rcx, 0), rdx);
-      __ addq(rcx, Immediate(kPointerSize));
-      __ bind(&entry);
-      __ cmpq(rcx, rdi);
-      __ j(less, &loop);
-    }
-
-    // Add the object tag to make the JSObject real, so that we can continue and
-    // jump into the continuation code at any time from now on. Any failures
-    // need to undo the allocation, so that the heap is in a consistent state
-    // and verifiable.
-    // rax: initial map
-    // rbx: JSObject
-    // rdi: start of next object
-    __ or_(rbx, Immediate(kHeapObjectTag));
-
-    // Check if a non-empty properties array is needed.
-    // Allocate and initialize a FixedArray if it is.
-    // rax: initial map
-    // rbx: JSObject
-    // rdi: start of next object
-    // Calculate total properties described map.
-    __ movzxbq(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
-    __ movzxbq(rcx, FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
-    __ addq(rdx, rcx);
-    // Calculate unused properties past the end of the in-object properties.
-    __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
-    __ subq(rdx, rcx);
-    // Done if no extra properties are to be allocated.
-    __ j(zero, &allocated);
-    __ Assert(positive, "Property allocation count failed.");
-
-    // Scale the number of elements by pointer size and add the header for
-    // FixedArrays to the start of the next object calculation from above.
-    // rbx: JSObject
-    // rdi: start of next object (will be start of FixedArray)
-    // rdx: number of elements in properties array
-    __ AllocateInNewSpace(FixedArray::kHeaderSize,
-                          times_pointer_size,
-                          rdx,
-                          rdi,
-                          rax,
-                          no_reg,
-                          &undo_allocation,
-                          RESULT_CONTAINS_TOP);
-
-    // Initialize the FixedArray.
-    // rbx: JSObject
-    // rdi: FixedArray
-    // rdx: number of elements
-    // rax: start of next object
-    __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
-    __ movq(Operand(rdi, HeapObject::kMapOffset), rcx);  // setup the map
-    __ Integer32ToSmi(rdx, rdx);
-    __ movq(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
-
-    // Initialize the fields to undefined.
-    // rbx: JSObject
-    // rdi: FixedArray
-    // rax: start of next object
-    // rdx: number of elements
-    { Label loop, entry;
       __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
-      __ lea(rcx, Operand(rdi, FixedArray::kHeaderSize));
-      __ jmp(&entry);
-      __ bind(&loop);
-      __ movq(Operand(rcx, 0), rdx);
-      __ addq(rcx, Immediate(kPointerSize));
-      __ bind(&entry);
-      __ cmpq(rcx, rax);
-      __ j(below, &loop);
+      if (count_constructions) {
+        __ movzxbq(rsi,
+                   FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
+        __ lea(rsi,
+               Operand(rbx, rsi, times_pointer_size, JSObject::kHeaderSize));
+        // rsi: offset of first field after pre-allocated fields
+        if (FLAG_debug_code) {
+          __ cmpq(rsi, rdi);
+          __ Assert(less_equal,
+                    "Unexpected number of pre-allocated property fields.");
+        }
+        __ InitializeFieldsWithFiller(rcx, rsi, rdx);
+        __ LoadRoot(rdx, Heap::kOnePointerFillerMapRootIndex);
+      }
+      __ InitializeFieldsWithFiller(rcx, rdi, rdx);
+
+      // Add the object tag to make the JSObject real, so that we can continue
+      // and jump into the continuation code at any time from now on. Any
+      // failures need to undo the allocation, so that the heap is in a
+      // consistent state and verifiable.
+      // rax: initial map
+      // rbx: JSObject
+      // rdi: start of next object
+      __ or_(rbx, Immediate(kHeapObjectTag));
+
+      // Check if a non-empty properties array is needed.
+      // Allocate and initialize a FixedArray if it is.
+      // rax: initial map
+      // rbx: JSObject
+      // rdi: start of next object
+      // Calculate total properties described map.
+      __ movzxbq(rdx, FieldOperand(rax, Map::kUnusedPropertyFieldsOffset));
+      __ movzxbq(rcx,
+                 FieldOperand(rax, Map::kPreAllocatedPropertyFieldsOffset));
+      __ addq(rdx, rcx);
+      // Calculate unused properties past the end of the in-object properties.
+      __ movzxbq(rcx, FieldOperand(rax, Map::kInObjectPropertiesOffset));
+      __ subq(rdx, rcx);
+      // Done if no extra properties are to be allocated.
+      __ j(zero, &allocated);
+      __ Assert(positive, "Property allocation count failed.");
+
+      // Scale the number of elements by pointer size and add the header for
+      // FixedArrays to the start of the next object calculation from above.
+      // rbx: JSObject
+      // rdi: start of next object (will be start of FixedArray)
+      // rdx: number of elements in properties array
+      __ AllocateInNewSpace(FixedArray::kHeaderSize,
+                            times_pointer_size,
+                            rdx,
+                            rdi,
+                            rax,
+                            no_reg,
+                            &undo_allocation,
+                            RESULT_CONTAINS_TOP);
+
+      // Initialize the FixedArray.
+      // rbx: JSObject
+      // rdi: FixedArray
+      // rdx: number of elements
+      // rax: start of next object
+      __ LoadRoot(rcx, Heap::kFixedArrayMapRootIndex);
+      __ movq(Operand(rdi, HeapObject::kMapOffset), rcx);  // setup the map
+      __ Integer32ToSmi(rdx, rdx);
+      __ movq(Operand(rdi, FixedArray::kLengthOffset), rdx);  // and length
+
+      // Initialize the fields to undefined.
+      // rbx: JSObject
+      // rdi: FixedArray
+      // rax: start of next object
+      // rdx: number of elements
+      { Label loop, entry;
+        __ LoadRoot(rdx, Heap::kUndefinedValueRootIndex);
+        __ lea(rcx, Operand(rdi, FixedArray::kHeaderSize));
+        __ jmp(&entry);
+        __ bind(&loop);
+        __ movq(Operand(rcx, 0), rdx);
+        __ addq(rcx, Immediate(kPointerSize));
+        __ bind(&entry);
+        __ cmpq(rcx, rax);
+        __ j(below, &loop);
+      }
+
+      // Store the initialized FixedArray into the properties field of
+      // the JSObject
+      // rbx: JSObject
+      // rdi: FixedArray
+      __ or_(rdi, Immediate(kHeapObjectTag));  // add the heap tag
+      __ movq(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
+
+
+      // Continue with JSObject being successfully allocated
+      // rbx: JSObject
+      __ jmp(&allocated);
+
+      // Undo the setting of the new top so that the heap is verifiable. For
+      // example, the map's unused properties potentially do not match the
+      // allocated objects unused properties.
+      // rbx: JSObject (previous new top)
+      __ bind(&undo_allocation);
+      __ UndoAllocationInNewSpace(rbx);
     }
 
-    // Store the initialized FixedArray into the properties field of
-    // the JSObject
-    // rbx: JSObject
-    // rdi: FixedArray
-    __ or_(rdi, Immediate(kHeapObjectTag));  // add the heap tag
-    __ movq(FieldOperand(rbx, JSObject::kPropertiesOffset), rdi);
+    // Allocate the new receiver object using the runtime call.
+    // rdi: function (constructor)
+    __ bind(&rt_call);
+    // Must restore rdi (constructor) before calling runtime.
+    __ movq(rdi, Operand(rsp, 0));
+    __ push(rdi);
+    __ CallRuntime(Runtime::kNewObject, 1);
+    __ movq(rbx, rax);  // store result in rbx
 
+    // New object allocated.
+    // rbx: newly allocated object
+    __ bind(&allocated);
+    // Retrieve the function from the stack.
+    __ pop(rdi);
 
-    // Continue with JSObject being successfully allocated
-    // rbx: JSObject
-    __ jmp(&allocated);
+    // Retrieve smi-tagged arguments count from the stack.
+    __ movq(rax, Operand(rsp, 0));
+    __ SmiToInteger32(rax, rax);
 
-    // Undo the setting of the new top so that the heap is verifiable. For
-    // example, the map's unused properties potentially do not match the
-    // allocated objects unused properties.
-    // rbx: JSObject (previous new top)
-    __ bind(&undo_allocation);
-    __ UndoAllocationInNewSpace(rbx);
+    // Push the allocated receiver to the stack. We need two copies
+    // because we may have to return the original one and the calling
+    // conventions dictate that the called function pops the receiver.
+    __ push(rbx);
+    __ push(rbx);
+
+    // Setup pointer to last argument.
+    __ lea(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
+
+    // Copy arguments and receiver to the expression stack.
+    Label loop, entry;
+    __ movq(rcx, rax);
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ push(Operand(rbx, rcx, times_pointer_size, 0));
+    __ bind(&entry);
+    __ decq(rcx);
+    __ j(greater_equal, &loop);
+
+    // Call the function.
+    if (is_api_function) {
+      __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+      Handle<Code> code =
+          masm->isolate()->builtins()->HandleApiCallConstruct();
+      ParameterCount expected(0);
+      __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
+                    CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
+    } else {
+      ParameterCount actual(rax);
+      __ InvokeFunction(rdi, actual, CALL_FUNCTION,
+                        NullCallWrapper(), CALL_AS_METHOD);
+    }
+
+    // Restore context from the frame.
+    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+
+    // If the result is an object (in the ECMA sense), we should get rid
+    // of the receiver and use the result; see ECMA-262 section 13.2.2-7
+    // on page 74.
+    Label use_receiver, exit;
+    // If the result is a smi, it is *not* an object in the ECMA sense.
+    __ JumpIfSmi(rax, &use_receiver);
+
+    // If the type of the result (stored in its map) is less than
+    // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
+    __ j(above_equal, &exit);
+
+    // Throw away the result of the constructor invocation and use the
+    // on-stack receiver as the result.
+    __ bind(&use_receiver);
+    __ movq(rax, Operand(rsp, 0));
+
+    // Restore the arguments count and leave the construct frame.
+    __ bind(&exit);
+    __ movq(rbx, Operand(rsp, kPointerSize));  // Get arguments count.
+
+    // Leave construct frame.
   }
-
-  // Allocate the new receiver object using the runtime call.
-  // rdi: function (constructor)
-  __ bind(&rt_call);
-  // Must restore rdi (constructor) before calling runtime.
-  __ movq(rdi, Operand(rsp, 0));
-  __ push(rdi);
-  __ CallRuntime(Runtime::kNewObject, 1);
-  __ movq(rbx, rax);  // store result in rbx
-
-  // New object allocated.
-  // rbx: newly allocated object
-  __ bind(&allocated);
-  // Retrieve the function from the stack.
-  __ pop(rdi);
-
-  // Retrieve smi-tagged arguments count from the stack.
-  __ movq(rax, Operand(rsp, 0));
-  __ SmiToInteger32(rax, rax);
-
-  // Push the allocated receiver to the stack. We need two copies
-  // because we may have to return the original one and the calling
-  // conventions dictate that the called function pops the receiver.
-  __ push(rbx);
-  __ push(rbx);
-
-  // Setup pointer to last argument.
-  __ lea(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
-
-  // Copy arguments and receiver to the expression stack.
-  Label loop, entry;
-  __ movq(rcx, rax);
-  __ jmp(&entry);
-  __ bind(&loop);
-  __ push(Operand(rbx, rcx, times_pointer_size, 0));
-  __ bind(&entry);
-  __ decq(rcx);
-  __ j(greater_equal, &loop);
-
-  // Call the function.
-  if (is_api_function) {
-    __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
-    Handle<Code> code =
-        masm->isolate()->builtins()->HandleApiCallConstruct();
-    ParameterCount expected(0);
-    __ InvokeCode(code, expected, expected, RelocInfo::CODE_TARGET,
-                  CALL_FUNCTION, NullCallWrapper(), CALL_AS_METHOD);
-  } else {
-    ParameterCount actual(rax);
-    __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
-  }
-
-  // Restore context from the frame.
-  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-
-  // If the result is an object (in the ECMA sense), we should get rid
-  // of the receiver and use the result; see ECMA-262 section 13.2.2-7
-  // on page 74.
-  Label use_receiver, exit;
-  // If the result is a smi, it is *not* an object in the ECMA sense.
-  __ JumpIfSmi(rax, &use_receiver);
-
-  // If the type of the result (stored in its map) is less than
-  // FIRST_SPEC_OBJECT_TYPE, it is not an object in the ECMA sense.
-  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-  __ CmpObjectType(rax, FIRST_SPEC_OBJECT_TYPE, rcx);
-  __ j(above_equal, &exit);
-
-  // Throw away the result of the constructor invocation and use the
-  // on-stack receiver as the result.
-  __ bind(&use_receiver);
-  __ movq(rax, Operand(rsp, 0));
-
-  // Restore the arguments count and leave the construct frame.
-  __ bind(&exit);
-  __ movq(rbx, Operand(rsp, kPointerSize));  // get arguments count
-  __ LeaveConstructFrame();
 
   // Remove caller arguments from the stack and return.
   __ pop(rcx);
@@ -413,104 +428,108 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // - Object*** argv
   // (see Handle::Invoke in execution.cc).
 
-  // Platform specific argument handling. After this, the stack contains
-  // an internal frame and the pushed function and receiver, and
-  // register rax and rbx holds the argument count and argument array,
-  // while rdi holds the function pointer and rsi the context.
+  // Open a C++ scope for the FrameScope.
+  {
+    // Platform specific argument handling. After this, the stack contains
+    // an internal frame and the pushed function and receiver, and
+    // register rax and rbx holds the argument count and argument array,
+    // while rdi holds the function pointer and rsi the context.
+
 #ifdef _WIN64
-  // MSVC parameters in:
-  // rcx : entry (ignored)
-  // rdx : function
-  // r8 : receiver
-  // r9 : argc
-  // [rsp+0x20] : argv
+    // MSVC parameters in:
+    // rcx : entry (ignored)
+    // rdx : function
+    // r8 : receiver
+    // r9 : argc
+    // [rsp+0x20] : argv
 
-  // Clear the context before we push it when entering the JS frame.
-  __ Set(rsi, 0);
-  __ EnterInternalFrame();
+    // Clear the context before we push it when entering the internal frame.
+    __ Set(rsi, 0);
+    // Enter an internal frame.
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Load the function context into rsi.
-  __ movq(rsi, FieldOperand(rdx, JSFunction::kContextOffset));
+    // Load the function context into rsi.
+    __ movq(rsi, FieldOperand(rdx, JSFunction::kContextOffset));
 
-  // Push the function and the receiver onto the stack.
-  __ push(rdx);
-  __ push(r8);
+    // Push the function and the receiver onto the stack.
+    __ push(rdx);
+    __ push(r8);
 
-  // Load the number of arguments and setup pointer to the arguments.
-  __ movq(rax, r9);
-  // Load the previous frame pointer to access C argument on stack
-  __ movq(kScratchRegister, Operand(rbp, 0));
-  __ movq(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
-  // Load the function pointer into rdi.
-  __ movq(rdi, rdx);
+    // Load the number of arguments and setup pointer to the arguments.
+    __ movq(rax, r9);
+    // Load the previous frame pointer to access C argument on stack
+    __ movq(kScratchRegister, Operand(rbp, 0));
+    __ movq(rbx, Operand(kScratchRegister, EntryFrameConstants::kArgvOffset));
+    // Load the function pointer into rdi.
+    __ movq(rdi, rdx);
 #else  // _WIN64
-  // GCC parameters in:
-  // rdi : entry (ignored)
-  // rsi : function
-  // rdx : receiver
-  // rcx : argc
-  // r8  : argv
+    // GCC parameters in:
+    // rdi : entry (ignored)
+    // rsi : function
+    // rdx : receiver
+    // rcx : argc
+    // r8  : argv
 
-  __ movq(rdi, rsi);
-  // rdi : function
+    __ movq(rdi, rsi);
+    // rdi : function
 
-  // Clear the context before we push it when entering the JS frame.
-  __ Set(rsi, 0);
-  // Enter an internal frame.
-  __ EnterInternalFrame();
+    // Clear the context before we push it when entering the internal frame.
+    __ Set(rsi, 0);
+    // Enter an internal frame.
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Push the function and receiver and setup the context.
-  __ push(rdi);
-  __ push(rdx);
-  __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    // Push the function and receiver and setup the context.
+    __ push(rdi);
+    __ push(rdx);
+    __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Load the number of arguments and setup pointer to the arguments.
-  __ movq(rax, rcx);
-  __ movq(rbx, r8);
+    // Load the number of arguments and setup pointer to the arguments.
+    __ movq(rax, rcx);
+    __ movq(rbx, r8);
 #endif  // _WIN64
 
-  // Current stack contents:
-  // [rsp + 2 * kPointerSize ... ]: Internal frame
-  // [rsp + kPointerSize]         : function
-  // [rsp]                        : receiver
-  // Current register contents:
-  // rax : argc
-  // rbx : argv
-  // rsi : context
-  // rdi : function
+    // Current stack contents:
+    // [rsp + 2 * kPointerSize ... ]: Internal frame
+    // [rsp + kPointerSize]         : function
+    // [rsp]                        : receiver
+    // Current register contents:
+    // rax : argc
+    // rbx : argv
+    // rsi : context
+    // rdi : function
 
-  // Copy arguments to the stack in a loop.
-  // Register rbx points to array of pointers to handle locations.
-  // Push the values of these handles.
-  Label loop, entry;
-  __ Set(rcx, 0);  // Set loop variable to 0.
-  __ jmp(&entry);
-  __ bind(&loop);
-  __ movq(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
-  __ push(Operand(kScratchRegister, 0));  // dereference handle
-  __ addq(rcx, Immediate(1));
-  __ bind(&entry);
-  __ cmpq(rcx, rax);
-  __ j(not_equal, &loop);
+    // Copy arguments to the stack in a loop.
+    // Register rbx points to array of pointers to handle locations.
+    // Push the values of these handles.
+    Label loop, entry;
+    __ Set(rcx, 0);  // Set loop variable to 0.
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ movq(kScratchRegister, Operand(rbx, rcx, times_pointer_size, 0));
+    __ push(Operand(kScratchRegister, 0));  // dereference handle
+    __ addq(rcx, Immediate(1));
+    __ bind(&entry);
+    __ cmpq(rcx, rax);
+    __ j(not_equal, &loop);
 
-  // Invoke the code.
-  if (is_construct) {
-    // Expects rdi to hold function pointer.
-    __ Call(masm->isolate()->builtins()->JSConstructCall(),
-            RelocInfo::CODE_TARGET);
-  } else {
-    ParameterCount actual(rax);
-    // Function must be in rdi.
-    __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                      NullCallWrapper(), CALL_AS_METHOD);
+    // Invoke the code.
+    if (is_construct) {
+      // Expects rdi to hold function pointer.
+      __ Call(masm->isolate()->builtins()->JSConstructCall(),
+              RelocInfo::CODE_TARGET);
+    } else {
+      ParameterCount actual(rax);
+      // Function must be in rdi.
+      __ InvokeFunction(rdi, actual, CALL_FUNCTION,
+                        NullCallWrapper(), CALL_AS_METHOD);
+    }
+    // Exit the internal frame. Notice that this also removes the empty
+    // context and the function left on the stack by the code
+    // invocation.
   }
 
-  // Exit the JS frame. Notice that this also removes the empty
-  // context and the function left on the stack by the code
-  // invocation.
-  __ LeaveInternalFrame();
   // TODO(X64): Is argument correct? Is there a receiver to remove?
-  __ ret(1 * kPointerSize);  // remove receiver
+  __ ret(1 * kPointerSize);  // Remove receiver.
 }
 
 
@@ -526,23 +545,24 @@ void Builtins::Generate_JSConstructEntryTrampoline(MacroAssembler* masm) {
 
 void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Push a copy of the function onto the stack.
-  __ push(rdi);
-  // Push call kind information.
-  __ push(rcx);
+    // Push a copy of the function onto the stack.
+    __ push(rdi);
+    // Push call kind information.
+    __ push(rcx);
 
-  __ push(rdi);  // Function is also the parameter to the runtime call.
-  __ CallRuntime(Runtime::kLazyCompile, 1);
+    __ push(rdi);  // Function is also the parameter to the runtime call.
+    __ CallRuntime(Runtime::kLazyCompile, 1);
 
-  // Restore call kind information.
-  __ pop(rcx);
-  // Restore receiver.
-  __ pop(rdi);
+    // Restore call kind information.
+    __ pop(rcx);
+    // Restore receiver.
+    __ pop(rdi);
 
-  // Tear down temporary frame.
-  __ LeaveInternalFrame();
+    // Tear down internal frame.
+  }
 
   // Do a tail-call of the compiled function.
   __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
@@ -552,23 +572,24 @@ void Builtins::Generate_LazyCompile(MacroAssembler* masm) {
 
 void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Push a copy of the function onto the stack.
-  __ push(rdi);
-  // Push call kind information.
-  __ push(rcx);
+    // Push a copy of the function onto the stack.
+    __ push(rdi);
+    // Push call kind information.
+    __ push(rcx);
 
-  __ push(rdi);  // Function is also the parameter to the runtime call.
-  __ CallRuntime(Runtime::kLazyRecompile, 1);
+    __ push(rdi);  // Function is also the parameter to the runtime call.
+    __ CallRuntime(Runtime::kLazyRecompile, 1);
 
-  // Restore call kind information.
-  __ pop(rcx);
-  // Restore function.
-  __ pop(rdi);
+    // Restore call kind information.
+    __ pop(rcx);
+    // Restore function.
+    __ pop(rdi);
 
-  // Tear down temporary frame.
-  __ LeaveInternalFrame();
+    // Tear down internal frame.
+  }
 
   // Do a tail-call of the compiled function.
   __ lea(rax, FieldOperand(rax, Code::kHeaderSize));
@@ -579,14 +600,15 @@ void Builtins::Generate_LazyRecompile(MacroAssembler* masm) {
 static void Generate_NotifyDeoptimizedHelper(MacroAssembler* masm,
                                              Deoptimizer::BailoutType type) {
   // Enter an internal frame.
-  __ EnterInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
 
-  // Pass the deoptimization type to the runtime system.
-  __ Push(Smi::FromInt(static_cast<int>(type)));
+    // Pass the deoptimization type to the runtime system.
+    __ Push(Smi::FromInt(static_cast<int>(type)));
 
-  __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
-  // Tear down temporary frame.
-  __ LeaveInternalFrame();
+    __ CallRuntime(Runtime::kNotifyDeoptimized, 1);
+    // Tear down internal frame.
+  }
 
   // Get the full codegen state from the stack and untag it.
   __ SmiToInteger32(rcx, Operand(rsp, 1 * kPointerSize));
@@ -623,9 +645,10 @@ void Builtins::Generate_NotifyOSR(MacroAssembler* masm) {
   // the registers without worrying about which of them contain
   // pointers. This seems a bit fragile.
   __ Pushad();
-  __ EnterInternalFrame();
-  __ CallRuntime(Runtime::kNotifyOSR, 0);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ CallRuntime(Runtime::kNotifyOSR, 0);
+  }
   __ Popad();
   __ ret(0);
 }
@@ -647,7 +670,7 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ testq(rax, rax);
     __ j(not_zero, &done);
     __ pop(rbx);
-    __ Push(FACTORY->undefined_value());
+    __ Push(masm->isolate()->factory()->undefined_value());
     __ push(rbx);
     __ incq(rax);
     __ bind(&done);
@@ -695,18 +718,21 @@ void Builtins::Generate_FunctionCall(MacroAssembler* masm) {
     __ j(above_equal, &shift_arguments);
 
     __ bind(&convert_to_object);
-    __ EnterInternalFrame();  // In order to preserve argument count.
-    __ Integer32ToSmi(rax, rax);
-    __ push(rax);
+    {
+      // Enter an internal frame in order to preserve argument count.
+      FrameScope scope(masm, StackFrame::INTERNAL);
+      __ Integer32ToSmi(rax, rax);
+      __ push(rax);
 
-    __ push(rbx);
-    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-    __ movq(rbx, rax);
-    __ Set(rdx, 0);  // indicate regular JS_FUNCTION
+      __ push(rbx);
+      __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+      __ movq(rbx, rax);
+      __ Set(rdx, 0);  // indicate regular JS_FUNCTION
 
-    __ pop(rax);
-    __ SmiToInteger32(rax, rax);
-    __ LeaveInternalFrame();
+      __ pop(rax);
+      __ SmiToInteger32(rax, rax);
+    }
+
     // Restore the function to rdi.
     __ movq(rdi, Operand(rsp, rax, times_pointer_size, 1 * kPointerSize));
     __ jmp(&patch_receiver, Label::kNear);
@@ -807,166 +833,164 @@ void Builtins::Generate_FunctionApply(MacroAssembler* masm) {
   //  rsp+8: arguments
   // rsp+16: receiver ("this")
   // rsp+24: function
-  __ EnterInternalFrame();
-  // Stack frame:
-  //    rbp: Old base pointer
-  // rbp[1]: return address
-  // rbp[2]: function arguments
-  // rbp[3]: receiver
-  // rbp[4]: function
-  static const int kArgumentsOffset = 2 * kPointerSize;
-  static const int kReceiverOffset = 3 * kPointerSize;
-  static const int kFunctionOffset = 4 * kPointerSize;
+  {
+    FrameScope frame_scope(masm, StackFrame::INTERNAL);
+    // Stack frame:
+    //    rbp: Old base pointer
+    // rbp[1]: return address
+    // rbp[2]: function arguments
+    // rbp[3]: receiver
+    // rbp[4]: function
+    static const int kArgumentsOffset = 2 * kPointerSize;
+    static const int kReceiverOffset = 3 * kPointerSize;
+    static const int kFunctionOffset = 4 * kPointerSize;
 
-  __ push(Operand(rbp, kFunctionOffset));
-  __ push(Operand(rbp, kArgumentsOffset));
-  __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
+    __ push(Operand(rbp, kFunctionOffset));
+    __ push(Operand(rbp, kArgumentsOffset));
+    __ InvokeBuiltin(Builtins::APPLY_PREPARE, CALL_FUNCTION);
 
-  // Check the stack for overflow. We are not trying to catch
-  // interruptions (e.g. debug break and preemption) here, so the "real stack
-  // limit" is checked.
-  Label okay;
-  __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
-  __ movq(rcx, rsp);
-  // Make rcx the space we have left. The stack might already be overflowed
-  // here which will cause rcx to become negative.
-  __ subq(rcx, kScratchRegister);
-  // Make rdx the space we need for the array when it is unrolled onto the
-  // stack.
-  __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
-  // Check if the arguments will overflow the stack.
-  __ cmpq(rcx, rdx);
-  __ j(greater, &okay);  // Signed comparison.
+    // Check the stack for overflow. We are not trying to catch
+    // interruptions (e.g. debug break and preemption) here, so the "real stack
+    // limit" is checked.
+    Label okay;
+    __ LoadRoot(kScratchRegister, Heap::kRealStackLimitRootIndex);
+    __ movq(rcx, rsp);
+    // Make rcx the space we have left. The stack might already be overflowed
+    // here which will cause rcx to become negative.
+    __ subq(rcx, kScratchRegister);
+    // Make rdx the space we need for the array when it is unrolled onto the
+    // stack.
+    __ PositiveSmiTimesPowerOfTwoToInteger64(rdx, rax, kPointerSizeLog2);
+    // Check if the arguments will overflow the stack.
+    __ cmpq(rcx, rdx);
+    __ j(greater, &okay);  // Signed comparison.
 
-  // Out of stack space.
-  __ push(Operand(rbp, kFunctionOffset));
-  __ push(rax);
-  __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
-  __ bind(&okay);
-  // End of stack check.
+    // Out of stack space.
+    __ push(Operand(rbp, kFunctionOffset));
+    __ push(rax);
+    __ InvokeBuiltin(Builtins::APPLY_OVERFLOW, CALL_FUNCTION);
+    __ bind(&okay);
+    // End of stack check.
 
-  // Push current index and limit.
-  const int kLimitOffset =
-      StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
-  const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
-  __ push(rax);  // limit
-  __ push(Immediate(0));  // index
+    // Push current index and limit.
+    const int kLimitOffset =
+        StandardFrameConstants::kExpressionsOffset - 1 * kPointerSize;
+    const int kIndexOffset = kLimitOffset - 1 * kPointerSize;
+    __ push(rax);  // limit
+    __ push(Immediate(0));  // index
 
-  // Get the receiver.
-  __ movq(rbx, Operand(rbp, kReceiverOffset));
+    // Get the receiver.
+    __ movq(rbx, Operand(rbp, kReceiverOffset));
 
-  // Check that the function is a JS function (otherwise it must be a proxy).
-  Label push_receiver;
-  __ movq(rdi, Operand(rbp, kFunctionOffset));
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &push_receiver);
+    // Check that the function is a JS function (otherwise it must be a proxy).
+    Label push_receiver;
+    __ movq(rdi, Operand(rbp, kFunctionOffset));
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &push_receiver);
 
-  // Change context eagerly to get the right global object if necessary.
-  __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
+    // Change context eagerly to get the right global object if necessary.
+    __ movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
-  // Do not transform the receiver for strict mode functions.
-  Label call_to_object, use_global_receiver;
-  __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
-           Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
-  __ j(not_equal, &push_receiver);
+    // Do not transform the receiver for strict mode functions.
+    Label call_to_object, use_global_receiver;
+    __ movq(rdx, FieldOperand(rdi, JSFunction::kSharedFunctionInfoOffset));
+    __ testb(FieldOperand(rdx, SharedFunctionInfo::kStrictModeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kStrictModeBitWithinByte));
+    __ j(not_equal, &push_receiver);
 
-  // Do not transform the receiver for natives.
-  __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
-           Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
-  __ j(not_equal, &push_receiver);
+    // Do not transform the receiver for natives.
+    __ testb(FieldOperand(rdx, SharedFunctionInfo::kNativeByteOffset),
+             Immediate(1 << SharedFunctionInfo::kNativeBitWithinByte));
+    __ j(not_equal, &push_receiver);
 
-  // Compute the receiver in non-strict mode.
-  __ JumpIfSmi(rbx, &call_to_object, Label::kNear);
-  __ CompareRoot(rbx, Heap::kNullValueRootIndex);
-  __ j(equal, &use_global_receiver);
-  __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
-  __ j(equal, &use_global_receiver);
+    // Compute the receiver in non-strict mode.
+    __ JumpIfSmi(rbx, &call_to_object, Label::kNear);
+    __ CompareRoot(rbx, Heap::kNullValueRootIndex);
+    __ j(equal, &use_global_receiver);
+    __ CompareRoot(rbx, Heap::kUndefinedValueRootIndex);
+    __ j(equal, &use_global_receiver);
 
-  // If given receiver is already a JavaScript object then there's no
-  // reason for converting it.
-  STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
-  __ CmpObjectType(rbx, FIRST_SPEC_OBJECT_TYPE, rcx);
-  __ j(above_equal, &push_receiver);
+    // If given receiver is already a JavaScript object then there's no
+    // reason for converting it.
+    STATIC_ASSERT(LAST_SPEC_OBJECT_TYPE == LAST_TYPE);
+    __ CmpObjectType(rbx, FIRST_SPEC_OBJECT_TYPE, rcx);
+    __ j(above_equal, &push_receiver);
 
-  // Convert the receiver to an object.
-  __ bind(&call_to_object);
-  __ push(rbx);
-  __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
-  __ movq(rbx, rax);
-  __ jmp(&push_receiver, Label::kNear);
+    // Convert the receiver to an object.
+    __ bind(&call_to_object);
+    __ push(rbx);
+    __ InvokeBuiltin(Builtins::TO_OBJECT, CALL_FUNCTION);
+    __ movq(rbx, rax);
+    __ jmp(&push_receiver, Label::kNear);
 
-  // Use the current global receiver object as the receiver.
-  __ bind(&use_global_receiver);
-  const int kGlobalOffset =
-      Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
-  __ movq(rbx, FieldOperand(rsi, kGlobalOffset));
-  __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalContextOffset));
-  __ movq(rbx, FieldOperand(rbx, kGlobalOffset));
-  __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
+    // Use the current global receiver object as the receiver.
+    __ bind(&use_global_receiver);
+    const int kGlobalOffset =
+        Context::kHeaderSize + Context::GLOBAL_INDEX * kPointerSize;
+    __ movq(rbx, FieldOperand(rsi, kGlobalOffset));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalContextOffset));
+    __ movq(rbx, FieldOperand(rbx, kGlobalOffset));
+    __ movq(rbx, FieldOperand(rbx, GlobalObject::kGlobalReceiverOffset));
 
-  // Push the receiver.
-  __ bind(&push_receiver);
-  __ push(rbx);
+    // Push the receiver.
+    __ bind(&push_receiver);
+    __ push(rbx);
 
-  // Copy all arguments from the array to the stack.
-  Label entry, loop;
-  __ movq(rax, Operand(rbp, kIndexOffset));
-  __ jmp(&entry);
-  __ bind(&loop);
-  __ movq(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
+    // Copy all arguments from the array to the stack.
+    Label entry, loop;
+    __ movq(rax, Operand(rbp, kIndexOffset));
+    __ jmp(&entry);
+    __ bind(&loop);
+    __ movq(rdx, Operand(rbp, kArgumentsOffset));  // load arguments
 
-  // Use inline caching to speed up access to arguments.
-  Handle<Code> ic =
-      masm->isolate()->builtins()->KeyedLoadIC_Initialize();
-  __ Call(ic, RelocInfo::CODE_TARGET);
-  // It is important that we do not have a test instruction after the
-  // call.  A test instruction after the call is used to indicate that
-  // we have generated an inline version of the keyed load.  In this
-  // case, we know that we are not generating a test instruction next.
+    // Use inline caching to speed up access to arguments.
+    Handle<Code> ic =
+        masm->isolate()->builtins()->KeyedLoadIC_Initialize();
+    __ Call(ic, RelocInfo::CODE_TARGET);
+    // It is important that we do not have a test instruction after the
+    // call.  A test instruction after the call is used to indicate that
+    // we have generated an inline version of the keyed load.  In this
+    // case, we know that we are not generating a test instruction next.
 
-  // Push the nth argument.
-  __ push(rax);
+    // Push the nth argument.
+    __ push(rax);
 
-  // Update the index on the stack and in register rax.
-  __ movq(rax, Operand(rbp, kIndexOffset));
-  __ SmiAddConstant(rax, rax, Smi::FromInt(1));
-  __ movq(Operand(rbp, kIndexOffset), rax);
+    // Update the index on the stack and in register rax.
+    __ movq(rax, Operand(rbp, kIndexOffset));
+    __ SmiAddConstant(rax, rax, Smi::FromInt(1));
+    __ movq(Operand(rbp, kIndexOffset), rax);
 
-  __ bind(&entry);
-  __ cmpq(rax, Operand(rbp, kLimitOffset));
-  __ j(not_equal, &loop);
+    __ bind(&entry);
+    __ cmpq(rax, Operand(rbp, kLimitOffset));
+    __ j(not_equal, &loop);
 
-  // Invoke the function.
-  Label call_proxy;
-  ParameterCount actual(rax);
-  __ SmiToInteger32(rax, rax);
-  __ movq(rdi, Operand(rbp, kFunctionOffset));
-  __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
-  __ j(not_equal, &call_proxy);
-  __ InvokeFunction(rdi, actual, CALL_FUNCTION,
-                    NullCallWrapper(), CALL_AS_METHOD);
+    // Invoke the function.
+    Label call_proxy;
+    ParameterCount actual(rax);
+    __ SmiToInteger32(rax, rax);
+    __ movq(rdi, Operand(rbp, kFunctionOffset));
+    __ CmpObjectType(rdi, JS_FUNCTION_TYPE, rcx);
+    __ j(not_equal, &call_proxy);
+    __ InvokeFunction(rdi, actual, CALL_FUNCTION,
+                      NullCallWrapper(), CALL_AS_METHOD);
 
-  __ LeaveInternalFrame();
-  __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
+    frame_scope.GenerateLeaveFrame();
+    __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 
-  // Invoke the function proxy.
-  __ bind(&call_proxy);
-  __ push(rdi);  // add function proxy as last argument
-  __ incq(rax);
-  __ Set(rbx, 0);
-  __ SetCallKind(rcx, CALL_AS_METHOD);
-  __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
-  __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
+    // Invoke the function proxy.
+    __ bind(&call_proxy);
+    __ push(rdi);  // add function proxy as last argument
+    __ incq(rax);
+    __ Set(rbx, 0);
+    __ SetCallKind(rcx, CALL_AS_METHOD);
+    __ GetBuiltinEntry(rdx, Builtins::CALL_FUNCTION_PROXY);
+    __ call(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
+            RelocInfo::CODE_TARGET);
 
-  __ LeaveInternalFrame();
+    // Leave internal frame.
+  }
   __ ret(3 * kPointerSize);  // remove this, receiver, and arguments
 }
-
-
-// Number of empty elements to allocate for an empty array.
-static const int kPreallocatedArrayElements = 4;
 
 
 // Allocate an empty JSArray. The allocated array is put into the result
@@ -979,9 +1003,9 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Register scratch1,
                                  Register scratch2,
                                  Register scratch3,
-                                 int initial_capacity,
                                  Label* gc_required) {
-  ASSERT(initial_capacity >= 0);
+  const int initial_capacity = JSArray::kPreallocatedArrayElements;
+  STATIC_ASSERT(initial_capacity >= 0);
 
   // Load the initial map from the array function.
   __ movq(scratch1, FieldOperand(array_function,
@@ -1005,9 +1029,10 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // result: JSObject
   // scratch1: initial map
   // scratch2: start of next object
+  Factory* factory = masm->isolate()->factory();
   __ movq(FieldOperand(result, JSObject::kMapOffset), scratch1);
   __ Move(FieldOperand(result, JSArray::kPropertiesOffset),
-          FACTORY->empty_fixed_array());
+          factory->empty_fixed_array());
   // Field JSArray::kElementsOffset is initialized later.
   __ Move(FieldOperand(result, JSArray::kLengthOffset), Smi::FromInt(0));
 
@@ -1015,7 +1040,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // fixed array.
   if (initial_capacity == 0) {
     __ Move(FieldOperand(result, JSArray::kElementsOffset),
-            FACTORY->empty_fixed_array());
+            factory->empty_fixed_array());
     return;
   }
 
@@ -1032,15 +1057,14 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
   // scratch1: elements array
   // scratch2: start of next object
   __ Move(FieldOperand(scratch1, HeapObject::kMapOffset),
-          FACTORY->fixed_array_map());
+          factory->fixed_array_map());
   __ Move(FieldOperand(scratch1, FixedArray::kLengthOffset),
           Smi::FromInt(initial_capacity));
 
   // Fill the FixedArray with the hole value. Inline the code if short.
   // Reconsider loop unfolding if kPreallocatedArrayElements gets changed.
   static const int kLoopUnfoldLimit = 4;
-  ASSERT(kPreallocatedArrayElements <= kLoopUnfoldLimit);
-  __ Move(scratch3, FACTORY->the_hole_value());
+  __ LoadRoot(scratch3, Heap::kTheHoleValueRootIndex);
   if (initial_capacity <= kLoopUnfoldLimit) {
     // Use a scratch register here to have only one reloc info when unfolding
     // the loop.
@@ -1051,13 +1075,17 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
     }
   } else {
     Label loop, entry;
+    __ movq(scratch2, Immediate(initial_capacity));
     __ jmp(&entry);
     __ bind(&loop);
-    __ movq(Operand(scratch1, 0), scratch3);
-    __ addq(scratch1, Immediate(kPointerSize));
+    __ movq(FieldOperand(scratch1,
+                         scratch2,
+                         times_pointer_size,
+                         FixedArray::kHeaderSize),
+            scratch3);
     __ bind(&entry);
-    __ cmpq(scratch1, scratch2);
-    __ j(below, &loop);
+    __ decq(scratch2);
+    __ j(not_sign, &loop);
   }
 }
 
@@ -1073,38 +1101,25 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
 // register elements_array is scratched.
 static void AllocateJSArray(MacroAssembler* masm,
                             Register array_function,  // Array function.
-                            Register array_size,  // As a smi.
+                            Register array_size,  // As a smi, cannot be 0.
                             Register result,
                             Register elements_array,
                             Register elements_array_end,
                             Register scratch,
                             bool fill_with_hole,
                             Label* gc_required) {
-  Label not_empty, allocated;
-
   // Load the initial map from the array function.
   __ movq(elements_array,
           FieldOperand(array_function,
                        JSFunction::kPrototypeOrInitialMapOffset));
 
-  // Check whether an empty sized array is requested.
-  __ testq(array_size, array_size);
-  __ j(not_zero, &not_empty);
-
-  // If an empty array is requested allocate a small elements array anyway. This
-  // keeps the code below free of special casing for the empty array.
-  int size = JSArray::kSize + FixedArray::SizeFor(kPreallocatedArrayElements);
-  __ AllocateInNewSpace(size,
-                        result,
-                        elements_array_end,
-                        scratch,
-                        gc_required,
-                        TAG_OBJECT);
-  __ jmp(&allocated);
+  if (FLAG_debug_code) {  // Assert that array size is not zero.
+    __ testq(array_size, array_size);
+    __ Assert(not_zero, "array size is unexpectedly 0");
+  }
 
   // Allocate the JSArray object together with space for a FixedArray with the
   // requested elements.
-  __ bind(&not_empty);
   SmiIndex index =
       masm->SmiToIndex(kScratchRegister, array_size, kPointerSizeLog2);
   __ AllocateInNewSpace(JSArray::kSize + FixedArray::kHeaderSize,
@@ -1122,9 +1137,9 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array: initial map
   // elements_array_end: start of next object
   // array_size: size of array (smi)
-  __ bind(&allocated);
+  Factory* factory = masm->isolate()->factory();
   __ movq(FieldOperand(result, JSObject::kMapOffset), elements_array);
-  __ Move(elements_array, FACTORY->empty_fixed_array());
+  __ Move(elements_array, factory->empty_fixed_array());
   __ movq(FieldOperand(result, JSArray::kPropertiesOffset), elements_array);
   // Field JSArray::kElementsOffset is initialized later.
   __ movq(FieldOperand(result, JSArray::kLengthOffset), array_size);
@@ -1143,16 +1158,7 @@ static void AllocateJSArray(MacroAssembler* masm,
   // elements_array_end: start of next object
   // array_size: size of array (smi)
   __ Move(FieldOperand(elements_array, JSObject::kMapOffset),
-          FACTORY->fixed_array_map());
-  Label not_empty_2, fill_array;
-  __ SmiTest(array_size);
-  __ j(not_zero, &not_empty_2);
-  // Length of the FixedArray is the number of pre-allocated elements even
-  // though the actual JSArray has length 0.
-  __ Move(FieldOperand(elements_array, FixedArray::kLengthOffset),
-          Smi::FromInt(kPreallocatedArrayElements));
-  __ jmp(&fill_array);
-  __ bind(&not_empty_2);
+          factory->fixed_array_map());
   // For non-empty JSArrays the length of the FixedArray and the JSArray is the
   // same.
   __ movq(FieldOperand(elements_array, FixedArray::kLengthOffset), array_size);
@@ -1161,10 +1167,9 @@ static void AllocateJSArray(MacroAssembler* masm,
   // result: JSObject
   // elements_array: elements array
   // elements_array_end: start of next object
-  __ bind(&fill_array);
   if (fill_with_hole) {
     Label loop, entry;
-    __ Move(scratch, FACTORY->the_hole_value());
+    __ LoadRoot(scratch, Heap::kTheHoleValueRootIndex);
     __ lea(elements_array, Operand(elements_array,
                                    FixedArray::kHeaderSize - kHeapObjectTag));
     __ jmp(&entry);
@@ -1194,12 +1199,13 @@ static void AllocateJSArray(MacroAssembler* masm,
 // a construct call and a normal call.
 static void ArrayNativeCode(MacroAssembler* masm,
                             Label *call_generic_code) {
-  Label argc_one_or_more, argc_two_or_more;
+  Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array;
 
   // Check for array construction with zero arguments.
   __ testq(rax, rax);
   __ j(not_zero, &argc_one_or_more);
 
+  __ bind(&empty_array);
   // Handle construction of an empty array.
   AllocateEmptyJSArray(masm,
                        rdi,
@@ -1207,7 +1213,6 @@ static void ArrayNativeCode(MacroAssembler* masm,
                        rcx,
                        rdx,
                        r8,
-                       kPreallocatedArrayElements,
                        call_generic_code);
   Counters* counters = masm->isolate()->counters();
   __ IncrementCounter(counters->array_function_native(), 1);
@@ -1220,6 +1225,16 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ cmpq(rax, Immediate(1));
   __ j(not_equal, &argc_two_or_more);
   __ movq(rdx, Operand(rsp, kPointerSize));  // Get the argument from the stack.
+
+  __ SmiTest(rdx);
+  __ j(not_zero, &not_empty_array);
+  __ pop(r8);  // Adjust stack.
+  __ Drop(1);
+  __ push(r8);
+  __ movq(rax, Immediate(0));  // Treat this as a call with argc of zero.
+  __ jmp(&empty_array);
+
+  __ bind(&not_empty_array);
   __ JumpUnlessNonNegativeSmi(rdx, call_generic_code);
 
   // Handle construction of an empty array of a certain size. Bail out if size
@@ -1520,10 +1535,11 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   // Pass the function to optimize as the argument to the on-stack
   // replacement runtime function.
-  __ EnterInternalFrame();
-  __ push(rax);
-  __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
-  __ LeaveInternalFrame();
+  {
+    FrameScope scope(masm, StackFrame::INTERNAL);
+    __ push(rax);
+    __ CallRuntime(Runtime::kCompileForOnStackReplacement, 1);
+  }
 
   // If the result was -1 it means that we couldn't optimize the
   // function. Just return and continue in the unoptimized version.
@@ -1541,7 +1557,9 @@ void Builtins::Generate_OnStackReplacement(MacroAssembler* masm) {
 
   StackCheckStub stub;
   __ TailCallStub(&stub);
-  __ Abort("Unreachable code: returned from tail call.");
+  if (FLAG_debug_code) {
+    __ Abort("Unreachable code: returned from tail call.");
+  }
   __ bind(&ok);
   __ ret(0);
 

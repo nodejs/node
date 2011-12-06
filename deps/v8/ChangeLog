@@ -1,3 +1,231 @@
+2011-12-01: Version 3.7.12
+
+        Increase tick interval for the android platform.
+
+        Fix a bug in the register allocator. (chromium:105112)
+
+        Fix handling of recompiling code. (chromium:105375, v8:1782)
+
+        Start incremental marking on idle notification. (v8:1458)
+
+        Build fixes for various platforms.
+
+        Various performance improvements.
+
+
+2011-11-29: Version 3.7.11
+
+        Fixed bug when generating padding to ensure space for lazy
+        deoptimization.
+        (issue 1846)
+
+        Further reduced pause times due to GC.
+
+        Stability and performance improvements on all platforms.
+
+
+2011-11-23: Version 3.7.10
+
+        Set maximum length of FixedArray in terms of elements instead an
+        absolute number of bytes.
+        (Chromium issue 103103)
+
+        Stability and performance improvements on all platforms.
+
+
+2011-11-21: Version 3.7.9
+
+        Removed exit-time destructors.
+
+        Stability and performance improvements on all platforms.
+
+
+2011-11-17: Version 3.7.8
+
+        Removed hidden prototype from builtins, i.e., deleting an overridden
+        function on builtins will not make the original function reappear.
+
+        Added NetBSD support for scons build.
+
+        Performance improvements on all platforms.
+
+
+2011-11-14: Version 3.7.7
+
+        Fix missing fast property accessors in heap snapshots.
+        (issue 1818)
+
+
+2011-11-11: Version 3.7.6
+
+        Fixed filtering of store buffer for large object pages.
+        (issue 1817)
+
+        Fixed generated hash function on all platforms.
+        (issue 1808)
+
+        Fixed Heap::Shrink to ensure that it does not free pages that are
+        still in use.
+        (Chromium issue 100414)
+
+        Stability and performance improvements on all platforms.
+
+
+2011-11-10: Version 3.7.5
+
+        Added initial gyp infrastructure for MIPS.
+
+        Implemented performance improvements to the incremental garbage
+        collector.
+
+        Added optimizations and stability improvements on all platforms.
+
+
+2011-11-07: Version 3.7.4
+
+        Proper "libv8.so.3.7.4" SONAME for Linux shared library (issue 1786).
+
+        Fix Harmony sets and maps to allow null and undefined as keys
+        (still hidden behind --harmony flag) (issue 1622).
+
+        Implement VirtualMemory on FreeBSD to fix build (issue 1807).
+
+        Enable VFP instructions for Android.
+
+        Fix error handling in Date.prototype.toISOString (issue 1792).
+
+        Bug fixes and performance improvements for all platforms.
+
+        Not officially supported but noteworthy: Crankshaft for MIPS :-)
+
+
+2011-10-28: Version 3.7.3
+
+        Slight deoptimization as a workaround for issue with jslint: Issue
+        1789.
+
+
+2011-10-27: Version 3.7.2
+
+        Fix bug in deoptimization.  Known issue with jslint: Issue 1789.
+
+
+2011-10-26: Version 3.7.1
+
+        Achieved 33% speedup in debug-mode tests.
+
+        Removed special casing of calls to RegExp test and exec methods with no
+        argument.  Now matches new JSC behaviour.  crbug.com/75740.
+
+        Return the empty string on cyclic references in toString (ES5
+        conformance).
+
+        Fixed bug triggered by JSBeautifier.  crbug.com/100409.
+
+        Made Math.random state per-context instead of per-process (issue 864).
+
+        Fixed stack traces to skip native functions.
+
+        Make snapshots (new contexts) smaller and faster.
+
+        Fixed handling of Function.apply for non-array arguments.
+
+        Fixed evaluation order in defineProperties to match FireFox.
+
+        Fixed handling of non-object receivers for array builtins,
+        crbug.com/100702.
+
+        Multiple fixes to improve compliance with test262.
+
+        Fixed compatibility with older Android releases.
+
+        Fixed compilation with gcc-4.5.3.
+
+        Improved performance of WriteUtf8, issue 1665.
+
+        Made native syntax an early error in the preparser.
+
+        Fixed issues 793 and 893 relating to Function.prototype.bind.
+
+        Improved let, const, Set and Map support and other Harmony features
+        (behind the --harmony flag).
+
+        Changed evaluation order for > and <= to match ES5 instead of ES3.
+
+        Bug fixes and performance improvements on all platforms.
+
+
+2011-10-13: Version 3.7.0
+
+        Fixed array handling for Object.defineOwnProperty (ES5 conformance).
+
+        Fixed issue 1757 (string slices of external strings).
+
+        Fixed issue 1759 (ARM).
+
+        Added flag --noclever-optimizations to disable some things that
+        caused trouble in the past.
+
+        Added flag --stress-compaction for testing.
+
+        Added flag --harmony to activate all experimental Harmony features.
+
+
+2011-10-10: Version 3.6.6
+
+        Added a GC pause visualization tool.
+
+        Added presubmit=no and werror=no flags to Makefile.
+
+        ES5/Test262 conformance improvements.
+
+        Fixed compilation issues with GCC 4.5.x (issue 1743).
+
+        Bug fixes and performance improvements on all platforms.
+
+
+2011-10-05: Version 3.6.5
+
+        New incremental garbage collector.
+
+        Removed the hard heap size limit (soft heap size limit is still
+        700/1400Mbytes by default).
+
+        Implemented ES5 generic Array.prototype.toString (Issue 1361).
+
+        V8 now allows surrogate pair codes in decodeURIComponent (Issue 1415).
+
+        Fixed x64 RegExp start-of-string bug (Issues 1746, 1748).
+
+        Fixed propertyIsEnumerable for numeric properties (Issue 1692).
+
+        Fixed the MinGW and Windows 2000 builds.
+
+        Fixed "Prototype chain is not searched if named property handler does
+        not set a property" (Issue 1636).
+
+        Made the RegExp.prototype object be a RegExp object (Issue 1217).
+
+        Disallowed future reserved words as labels in strict mode.
+
+        Fixed string split to correctly coerce the separator to a string
+        (Issue 1711).
+
+        API: Added an optional source length field to the Extension
+        constructor.
+
+        API: Added Debug::DisableAgent to match existing Debug::EnableAgent
+        (Issue 1573).
+
+        Added "native" target to Makefile for the benefit of Linux distros.
+
+        Fixed: debugger stops stepping outside evaluate (Issue 1639).
+
+        More work on ES-Harmony proxies.  Still hidden behind a flag.
+
+        Bug fixes and performance improvements on all platforms.
+
+
 2011-09-15: Version 3.6.4
 
         Fixed d8's broken readline history.
@@ -194,7 +422,7 @@
 
         Fix the debugger for strict-mode functions. (Chromium issue 89236)
 
-        Add GetPropertyAttribute method for Object in the API. (Patch by 
+        Add GetPropertyAttribute method for Object in the API. (Patch by
         Peter Varga)
 
         Fix -Wunused-but-set-variable for gcc-4.6 on x64. (Issue 1291)

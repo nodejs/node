@@ -25,22 +25,103 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Test printing of cyclic errors which return the empty string for
-// compatibility with Safari and Firefox.
+// Flags: --allow-natives-syntax --always-compact --expose-gc
 
-var e = new Error();
-assertEquals('Error', e + '');
+var O = { get f() { return 0; } };
 
-e = new Error();
-e.name = e;
-e.message = e;
-e.stack = e;
-e.arguments = e;
-assertEquals(': ', e + '');
+var CODE = [];
 
-e = new Error();
-e.name = [ e ];
-e.message = [ e ];
-e.stack = [ e ];
-e.arguments = [ e ];
-assertEquals(': ', e + '');
+var R = [];
+
+function Allocate4Kb(N) {
+  var arr = [];
+  do {arr.push(new Array(1024));} while (--N > 0);
+  return arr;
+}
+
+function AllocateXMb(X) {
+  return Allocate4Kb((1024 * X) / 4);
+}
+
+function Node(v, next) { this.v = v; this.next = next; }
+
+Node.prototype.execute = function (O) {
+  var n = this;
+  while (n.next !== null) n = n.next;
+  n.v(O);
+};
+
+function LongList(N, x) {
+  if (N == 0) return new Node(x, null);
+  return new Node(new Array(1024), LongList(N - 1, x));
+}
+
+var L = LongList(1024, function (O) {
+  for (var i = 0; i < 5; i++) O.f;
+});
+
+
+
+function Incremental(O, x) {
+  if (!x) {
+    return;
+  }
+  function CreateCode(i) {
+    var f = new Function("return O.f_" + i);
+    CODE.push(f);
+    f(); // compile
+    f(); // compile
+    f(); // compile
+  }
+
+  for (var i = 0; i < 1e4; i++) CreateCode(i);
+  gc();
+  gc();
+  gc();
+
+  print(">>> 1 <<<");
+
+  L.execute(O);
+
+  try {} catch (e) {}
+
+  L = null;
+  print(">>> 2 <<<");
+  AllocateXMb(8);
+ //rint("1");
+ //llocateXMb(8);
+ //rint("1");
+ //llocateXMb(8);
+
+}
+
+function foo(O, x) {
+  Incremental(O, x);
+
+  print('f');
+
+  for (var i = 0; i < 5; i++) O.f;
+
+
+  print('g');
+
+  bar(x);
+}
+
+function bar(x) {
+  if (!x) return;
+  %DeoptimizeFunction(foo);
+  AllocateXMb(8);
+  AllocateXMb(8);
+}
+
+var O1 = {};
+var O2 = {};
+var O3 = {};
+var O4 = {f:0};
+
+foo(O1, false);
+foo(O2, false);
+foo(O3, false);
+%OptimizeFunctionOnNextCall(foo);
+foo(O4, true);
