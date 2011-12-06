@@ -64,11 +64,31 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
 
   UNWRAP
 
-  // Calling this function twice should never happen.
-  assert(wrap->unref == false);
+  // Calling unnecessarily is a no-op
+  if (wrap->unref) {
+    return v8::Undefined();
+  }
 
   wrap->unref = true;
   uv_unref(uv_default_loop());
+
+  return v8::Undefined();
+}
+
+
+// Adds a reference to keep uv alive because of this thing.
+Handle<Value> HandleWrap::Ref(const Arguments& args) {
+  HandleScope scope;
+
+  UNWRAP
+
+  // Calling multiple times is a no-op
+  if (!wrap->unref) {
+    return v8::Undefined();
+  }
+
+  wrap->unref = false;
+  uv_ref(uv_default_loop());
 
   return v8::Undefined();
 }
@@ -82,10 +102,8 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
   assert(!wrap->object_.IsEmpty());
   uv_close(wrap->handle__, OnClose);
 
-  if (wrap->unref) {
-    uv_ref(uv_default_loop());
-    wrap->unref = false;
-  }
+
+  HandleWrap::Ref(args);
 
   wrap->StateChange();
 

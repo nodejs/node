@@ -19,26 +19,9 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Original test written by Jakub Lekstan <kuebzky@gmail.com>
-
-// FIXME add sunos support
-if ('linux freebsd'.indexOf(process.platform) === -1) {
-  console.error("Skipping test, platform not supported.");
-  process.exit();
-}
-
-var assert = require('assert');
-var exec = require('child_process').exec;
-
-var title = "testTestTESTtest123123123123123123HiHaiJo";
-
-assert.notEqual(process.title, title);
-process.title = title;
-assert.equal(process.title, title);
-
-exec('ps -p ' + process.pid + ' -o args=', function(error, stdout, stderr) {
-  assert.equal(error, null);
-  assert.equal(stderr, '');
-  // omitting trailing whitespace and \n
-  assert.equal(stdout.replace(/\s+$/, ''), title);
-});
+// This tests that pausing and resuming stdin does not hang and timeout
+// when done in a child process.  See test/simple/test-stdin-pause-resume.js
+var child_process = require('child_process');
+var path = require('path');
+child_process.spawn(process.execPath,
+                    [ path.resolve(__dirname, 'test-stdin-pause-resume.js') ]);

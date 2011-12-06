@@ -79,8 +79,8 @@ The externally maintained libraries used by Node are:
     licensed under a permissive free software license. See
     deps/zlib/LICENSE.
 
-  - deps/npm NPM is a package manager program copyright 2009, 2010, 2011
-    Isaac Z. Schlueter and licensed under MIT. NPM includes several
+  - deps/npm npm is a package manager program copyright 2009, 2010, 2011
+    Isaac Z. Schlueter and licensed under MIT. npm includes several
     subpackages MIT or Apache licenses, see deps/npm/LICENSE for more
-    information. NPM is included in the Node .msi and .pkg distributions
+    information. npm is included in the Node .msi and .pkg distributions
     but not in the Node binary itself.

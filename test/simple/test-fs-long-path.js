@@ -19,6 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+var common = require('../common');
 var fs = require('fs');
 var path = require('path');
 var assert = require('assert');
@@ -26,9 +27,8 @@ var assert = require('assert');
 var successes = 0;
 
 // make a path that will be at least 260 chars long.
-var cwd = process.cwd();
-var fileNameLen = Math.max(260 - cwd.length - 1, 1);
-var fileName = new Array(fileNameLen + 1).join('x');
+var fileNameLen = Math.max(260 - common.tmpDir.length - 1, 1);
+var fileName = path.join(common.tmpDir, new Array(fileNameLen + 1).join('x'));
 var fullPath = path.resolve(fileName);
 
 console.log({ filenameLength: fileName.length,

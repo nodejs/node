@@ -82,6 +82,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case EHOSTUNREACH: return UV_EHOSTUNREACH;
     case EAI_NONAME: return UV_ENOENT;
     case ESRCH: return UV_ESRCH;
+    case ETIMEDOUT: return UV_ETIMEDOUT;
     default: return UV_UNKNOWN;
   }
 

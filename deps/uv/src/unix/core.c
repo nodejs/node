@@ -169,7 +169,15 @@ uv_loop_t* uv_loop_new(void) {
 void uv_loop_delete(uv_loop_t* loop) {
   uv_ares_destroy(loop, loop->channel);
   ev_loop_destroy(loop->ev);
-  free(loop);
+
+#ifndef NDEBUG
+  memset(loop, 0, sizeof *loop);
+#endif
+
+  if (loop == default_loop_ptr)
+    default_loop_ptr = NULL;
+  else
+    free(loop);
 }
 
 

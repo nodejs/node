@@ -19,26 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-// Original test written by Jakub Lekstan <kuebzky@gmail.com>
-
-// FIXME add sunos support
-if ('linux freebsd'.indexOf(process.platform) === -1) {
-  console.error("Skipping test, platform not supported.");
-  process.exit();
-}
-
-var assert = require('assert');
-var exec = require('child_process').exec;
-
-var title = "testTestTESTtest123123123123123123HiHaiJo";
-
-assert.notEqual(process.title, title);
-process.title = title;
-assert.equal(process.title, title);
-
-exec('ps -p ' + process.pid + ' -o args=', function(error, stdout, stderr) {
-  assert.equal(error, null);
-  assert.equal(stderr, '');
-  // omitting trailing whitespace and \n
-  assert.equal(stdout.replace(/\s+$/, ''), title);
-});
+console.error("before opening stdin");
+process.stdin.resume();
+console.error("stdin opened");
+setTimeout(function() {
+  console.error("pausing stdin");
+  process.stdin.pause();
+  setTimeout(function() {
+    console.error("opening again");
+    process.stdin.resume();
+    setTimeout(function() {
+      console.error("pausing again");
+      process.stdin.pause();
+      console.error("should exit now");
+    }, 1);
+  }, 1);
+}, 1);

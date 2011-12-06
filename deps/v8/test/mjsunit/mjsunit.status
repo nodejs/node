@@ -34,6 +34,10 @@ bugs: FAIL
 # Fails.
 regress/regress-1119: FAIL
 
+#############################################################################
+# Fails due to r10102 which reverts precise stepping on the 3.6 branch.
+debug-step-2: FAIL
+
 ##############################################################################
 
 # Issue 1845: http://code.google.com/p/v8/issues/detail?id=1845

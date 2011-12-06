@@ -144,7 +144,8 @@ function unpack_ ( tarball, unpackTarget, dMode, fMode, uid, gid, cb ) {
       rm(unpackTarget, function (er) {
         if (er) return cb(er)
         log.verbose(unpackTarget, "rm'ed")
-        fs.rename(folder, unpackTarget, function (er) {
+
+        moveIntoPlace(folder, unpackTarget, function (er) {
           if (er) return cb(er)
           log.verbose([folder, unpackTarget], "renamed")
           // curse you, nfs!  It will lie and tell you that the
@@ -160,6 +161,24 @@ function unpack_ ( tarball, unpackTarget, dMode, fMode, uid, gid, cb ) {
     })
   })
 }
+
+// on Windows, A/V software can lock the directory, causing this
+// to fail with an EACCES.  Try again on failure, for up to 1 second.
+// XXX Fix this by not unpacking into a temp directory, instead just
+// renaming things on the way out of the tarball.
+function moveIntoPlace (folder, unpackTarget, cb) {
+  var start = Date.now()
+  fs.rename(folder, unpackTarget, function CB (er) {
+    if (er
+        && process.platform === "win32"
+        && er.code === "EACCES"
+        && Date.now() - start < 1000) {
+      return fs.rename(folder, unpackTarget, CB)
+    }
+    cb(er)
+  })
+}
+
 
 function gunzTarPerm (tarball, tmp, dMode, fMode, uid, gid, cb) {
   if (!dMode) dMode = npm.modes.exec
