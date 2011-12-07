@@ -55,6 +55,15 @@
     return scope.Close(Integer::New(-1)); \
   }
 
+#include <node_vars.h>
+
+// We do the following to minimize the detal between v0.6 branch. We want to
+// use the variables as they were being used before.
+#define tcpConstructor NODE_VAR(tcpConstructor)
+#define family_symbol NODE_VAR(family_symbol)
+#define address_symbol NODE_VAR(address_symbol)
+#define port_symbol NODE_VAR(port_symbol)
+
 namespace node {
 
 using v8::Object;
@@ -71,12 +80,6 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 using v8::Undefined;
-
-static Persistent<Function> tcpConstructor;
-static Persistent<String> family_symbol;
-static Persistent<String> address_symbol;
-static Persistent<String> port_symbol;
-
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 

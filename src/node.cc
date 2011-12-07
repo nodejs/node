@@ -95,76 +95,51 @@ using namespace v8;
 extern char **environ;
 # endif
 
+
+#include <node_vars.h>
+
+// We do the following to minimize the detal between v0.6 branch. We want to
+// use the variables as they were being used before.
+#define check_tick_watcher NODE_VAR(check_tick_watcher)
+#define code_symbol NODE_VAR(code_symbol)
+#define debug_port NODE_VAR(debug_port)
+#define debug_wait_connect NODE_VAR(debug_wait_connect)
+#define emit_symbol NODE_VAR(emit_symbol)
+#define errno_symbol NODE_VAR(errno_symbol)
+#define errpath_symbol NODE_VAR(errpath_symbol)
+#define eval_string NODE_VAR(eval_string)
+#define gc_check NODE_VAR(gc_check)
+#define gc_idle NODE_VAR(gc_idle)
+#define gc_timer NODE_VAR(gc_timer)
+#define getbuf NODE_VAR(getbuf)
+#define heap_total_symbol NODE_VAR(heap_total_symbol)
+#define heap_used_symbol NODE_VAR(heap_used_symbol)
+#define listeners_symbol NODE_VAR(listeners_symbol)
+#define max_stack_size NODE_VAR(max_stack_size)
+#define need_tick_cb NODE_VAR(need_tick_cb)
+#define option_end_index NODE_VAR(option_end_index)
+#define prepare_tick_watcher NODE_VAR(prepare_tick_watcher)
+#define print_eval NODE_VAR(print_eval)
+#define process NODE_VAR(process)
+#define rss_symbol NODE_VAR(rss_symbol)
+#define syscall_symbol NODE_VAR(syscall_symbol)
+#define tick_callback_sym NODE_VAR(tick_callback_sym)
+#define tick_spinner NODE_VAR(tick_spinner)
+#define tick_time_head NODE_VAR(tick_time_head)
+#define tick_times NODE_VAR(tick_times)
+#define uncaught_exception_symbol NODE_VAR(uncaught_exception_symbol)
+#define use_debug_agent NODE_VAR(use_debug_agent)
+#define use_npn NODE_VAR(use_npn)
+#define use_sni NODE_VAR(use_sni)
+
+
 namespace node {
 
-static Persistent<Object> process;
-
-static Persistent<String> errno_symbol;
-static Persistent<String> syscall_symbol;
-static Persistent<String> errpath_symbol;
-static Persistent<String> code_symbol;
-
-static Persistent<String> rss_symbol;
-static Persistent<String> heap_total_symbol;
-static Persistent<String> heap_used_symbol;
-
-static Persistent<String> listeners_symbol;
-static Persistent<String> uncaught_exception_symbol;
-static Persistent<String> emit_symbol;
 
 
-static bool print_eval = false;
-static char *eval_string = NULL;
-static int option_end_index = 0;
-static bool use_debug_agent = false;
-static bool debug_wait_connect = false;
-static int debug_port=5858;
-static int max_stack_size = 0;
-
-static uv_check_t check_tick_watcher;
-static uv_prepare_t prepare_tick_watcher;
-static uv_idle_t tick_spinner;
-static bool need_tick_cb;
-static Persistent<String> tick_callback_sym;
-
-
-#ifdef OPENSSL_NPN_NEGOTIATED
-static bool use_npn = true;
-#else
-static bool use_npn = false;
-#endif
-
-#ifdef SSL_CTRL_SET_TLSEXT_SERVERNAME_CB
-static bool use_sni = true;
-#else
-static bool use_sni = false;
-#endif
-
-#ifdef __POSIX__
-// Buffer for getpwnam_r(), getgrpam_r() and other misc callers; keep this
-// scoped at file-level rather than method-level to avoid excess stack usage.
-static char getbuf[PATH_MAX + 1];
-#endif
-
-// We need to notify V8 when we're idle so that it can run the garbage
-// collector. The interface to this is V8::IdleNotification(). It returns
-// true if the heap hasn't be fully compacted, and needs to be run again.
-// Returning false means that it doesn't have anymore work to do.
-//
-// A rather convoluted algorithm has been devised to determine when Node is
-// idle. You'll have to figure it out for yourself.
-static uv_check_t gc_check;
-static uv_idle_t gc_idle;
-static uv_timer_t gc_timer;
-bool need_gc;
-
-
-#define FAST_TICK 700.
-#define GC_WAIT_TIME 5000.
-#define RPM_SAMPLES 100
 #define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
-static int64_t tick_times[RPM_SAMPLES];
-static int tick_time_head;
+
+
 
 static void CheckStatus(uv_timer_t* watcher, int status);
 

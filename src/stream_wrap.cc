@@ -26,6 +26,17 @@
 #include <tcp_wrap.h>
 #include <req_wrap.h>
 
+#include <node_vars.h>
+
+// We do the following to minimize the detal between v0.6 branch. We want to
+// use the variables as they were being used before.
+#define slab_used NODE_VAR(slab_used)
+#define slab_sym NODE_VAR(slab_sym)
+#define handle_that_last_alloced NODE_VAR(handle_that_last_alloced)
+#define buffer_sym NODE_VAR(buffer_sym)
+#define write_queue_size_sym NODE_VAR(write_queue_size_sym)
+#define stream_wrap_initialized NODE_VAR(stream_wrap_initialized)
+
 
 namespace node {
 
@@ -66,19 +77,11 @@ typedef class ReqWrap<uv_shutdown_t> ShutdownWrap;
 typedef class ReqWrap<uv_write_t> WriteWrap;
 
 
-static size_t slab_used;
-static uv_stream_t* handle_that_last_alloced;
-static Persistent<String> slab_sym;
-static Persistent<String> buffer_sym;
-static Persistent<String> write_queue_size_sym;
-static bool initialized;
-
-
 void StreamWrap::Initialize(Handle<Object> target) {
-  if (initialized) {
+  if (stream_wrap_initialized) {
     return;
   } else {
-    initialized = true;
+    stream_wrap_initialized = true;
   }
 
   HandleScope scope;
