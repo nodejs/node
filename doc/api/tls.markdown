@@ -119,6 +119,10 @@ defaults to `localhost`.) `options` should be an object which specifies
     omitted several well known "root" CAs will be used, like VeriSign.
     These are used to authorize connections.
 
+  - `rejectUnauthorized`: If `true`, the server certificate is verified against
+    the list of supplied CAs. An `'error'` event is emitted if verification
+    fails. Default: `false`.
+
   - `NPNProtocols`: An array of string or `Buffer` containing supported NPN
     protocols. `Buffer` should have following format: `0x05hello0x05world`,
     where first byte is next protocol name's length. (Passing array should
