@@ -170,7 +170,7 @@ static void CheckStatus(uv_timer_t* watcher, int status);
 
 static void StartGCTimer () {
   if (!uv_is_active((uv_handle_t*) &gc_timer)) {
-    uv_timer_start(&node::gc_timer, node::CheckStatus, 5000, 5000);
+    uv_timer_start(&gc_timer, node::CheckStatus, 5000, 5000);
   }
 }
 
@@ -213,7 +213,7 @@ static void Check(uv_check_t* watcher, int status) {
   // Otherwise start the gc!
 
   //fprintf(stderr, "start idle 2\n");
-  uv_idle_start(&node::gc_idle, node::Idle);
+  uv_idle_start(&gc_idle, node::Idle);
 }
 
 
@@ -821,10 +821,6 @@ Local<Value> UVException(int errorno,
                          const char *syscall,
                          const char *msg,
                          const char *path) {
-  static Persistent<String> syscall_symbol;
-  static Persistent<String> errpath_symbol;
-  static Persistent<String> code_symbol;
-
   if (syscall_symbol.IsEmpty()) {
     syscall_symbol = NODE_PSYMBOL("syscall");
     errno_symbol = NODE_PSYMBOL("errno");
@@ -1487,7 +1483,7 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
     V8::GetHeapStatistics(&stats);
     if (stats.total_heap_size() > 1024 * 1024 * 128) {
       // larger than 128 megs, just start the idle watcher
-      uv_idle_start(&node::gc_idle, node::Idle);
+      uv_idle_start(&gc_idle, node::Idle);
       return;
     }
   }
@@ -1498,7 +1494,7 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
 
   if (d  >= GC_WAIT_TIME - 1.) {
     //fprintf(stderr, "start idle\n");
-    uv_idle_start(&node::gc_idle, node::Idle);
+    uv_idle_start(&gc_idle, node::Idle);
   }
 }
 
@@ -2132,7 +2128,7 @@ static void SignalExit(int signal) {
 }
 
 
-void Load(Handle<Object> process) {
+void Load(Handle<Object> process_l) {
   // Compile, execute the src/node.js file. (Which was included as static C
   // string in node_natives.h. 'natve_node' is the string containing that
   // source code.)
@@ -2162,7 +2158,7 @@ void Load(Handle<Object> process) {
 
   // Add a reference to the global object
   Local<Object> global = v8::Context::GetCurrent()->Global();
-  Local<Value> args[1] = { Local<Value>::New(process) };
+  Local<Value> args[1] = { Local<Value>::New(process_l) };
 
 #ifdef HAVE_DTRACE
   InitDTrace(global);
@@ -2429,7 +2425,7 @@ static Handle<Value> DebugProcess(const Arguments& args) {
   HandleScope scope;
   Handle<Value> rv = Undefined();
   DWORD pid;
-  HANDLE process = NULL;
+  HANDLE process_l = NULL;
   HANDLE thread = NULL;
   HANDLE mapping = NULL;
   char mapping_name[32];
@@ -2442,12 +2438,12 @@ static Handle<Value> DebugProcess(const Arguments& args) {
 
   pid = (DWORD) args[0]->IntegerValue();
 
-  process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+  process_l = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                             PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
                             PROCESS_VM_READ,
                         FALSE,
                         pid);
-  if (process == NULL) {
+  if (process_l == NULL) {
     rv = ThrowException(WinapiErrnoException(GetLastError(), "OpenProcess"));
     goto out;
   }
@@ -2475,7 +2471,7 @@ static Handle<Value> DebugProcess(const Arguments& args) {
     goto out;
   }
 
-  thread = CreateRemoteThread(process,
+  thread = CreateRemoteThread(process_l,
                               NULL,
                               0,
                               *handler,
@@ -2496,8 +2492,8 @@ static Handle<Value> DebugProcess(const Arguments& args) {
   }
 
  out:
-  if (process != NULL) {
-   CloseHandle(process);
+  if (process_l != NULL) {
+   CloseHandle(process_l);
   }
   if (thread != NULL) {
     CloseHandle(thread);
@@ -2522,18 +2518,18 @@ char** Init(int argc, char *argv[]) {
   node::ParseArgs(argc, argv);
   // Parse the rest of the args (up to the 'option_end_index' (where '--' was
   // in the command line))
-  int v8argc = node::option_end_index;
+  int v8argc = option_end_index;
   char **v8argv = argv;
 
-  if (node::debug_wait_connect) {
+  if (debug_wait_connect) {
     // v8argv is a copy of argv up to the script file argument +2 if --debug-brk
     // to expose the v8 debugger js object so that node.js can set
     // a breakpoint on the first line of the startup script
     v8argc += 2;
     v8argv = new char*[v8argc];
-    memcpy(v8argv, argv, sizeof(argv) * node::option_end_index);
-    v8argv[node::option_end_index] = const_cast<char*>("--expose_debug_as");
-    v8argv[node::option_end_index + 1] = const_cast<char*>("v8debug");
+    memcpy(v8argv, argv, sizeof(argv) * option_end_index);
+    v8argv[option_end_index] = const_cast<char*>("--expose_debug_as");
+    v8argv[option_end_index + 1] = const_cast<char*>("v8debug");
   }
 
   // For the normal stack which moves from high to low addresses when frames
@@ -2541,11 +2537,11 @@ char** Init(int argc, char *argv[]) {
   // the address of a stack variable (e.g. &stack_var) as an approximation
   // of the start of the stack (we're assuming that we haven't pushed a lot
   // of frames yet).
-  if (node::max_stack_size != 0) {
+  if (max_stack_size != 0) {
     uint32_t stack_var;
     ResourceConstraints constraints;
 
-    uint32_t *stack_limit = &stack_var - (node::max_stack_size / sizeof(uint32_t));
+    uint32_t *stack_limit = &stack_var - (max_stack_size / sizeof(uint32_t));
     constraints.set_stack_limit(stack_limit);
     SetResourceConstraints(&constraints); // Must be done before V8::Initialize
   }
@@ -2558,25 +2554,25 @@ char** Init(int argc, char *argv[]) {
   RegisterSignalHandler(SIGTERM, SignalExit);
 #endif // __POSIX__
 
-  uv_prepare_init(uv_default_loop(), &node::prepare_tick_watcher);
-  uv_prepare_start(&node::prepare_tick_watcher, PrepareTick);
+  uv_prepare_init(uv_default_loop(), &prepare_tick_watcher);
+  uv_prepare_start(&prepare_tick_watcher, PrepareTick);
   uv_unref(uv_default_loop());
 
-  uv_check_init(uv_default_loop(), &node::check_tick_watcher);
-  uv_check_start(&node::check_tick_watcher, node::CheckTick);
+  uv_check_init(uv_default_loop(), &check_tick_watcher);
+  uv_check_start(&check_tick_watcher, node::CheckTick);
   uv_unref(uv_default_loop());
 
-  uv_idle_init(uv_default_loop(), &node::tick_spinner);
+  uv_idle_init(uv_default_loop(), &tick_spinner);
   uv_unref(uv_default_loop());
 
-  uv_check_init(uv_default_loop(), &node::gc_check);
-  uv_check_start(&node::gc_check, node::Check);
+  uv_check_init(uv_default_loop(), &gc_check);
+  uv_check_start(&gc_check, node::Check);
   uv_unref(uv_default_loop());
 
-  uv_idle_init(uv_default_loop(), &node::gc_idle);
+  uv_idle_init(uv_default_loop(), &gc_idle);
   uv_unref(uv_default_loop());
 
-  uv_timer_init(uv_default_loop(), &node::gc_timer);
+  uv_timer_init(uv_default_loop(), &gc_timer);
   uv_unref(uv_default_loop());
 
   V8::SetFatalErrorHandler(node::OnFatalError);
@@ -2600,7 +2596,7 @@ char** Init(int argc, char *argv[]) {
   node_isolate = Isolate::GetCurrent();
 
   // If the --debug flag was specified then initialize the debug thread.
-  if (node::use_debug_agent) {
+  if (use_debug_agent) {
     EnableDebug(debug_wait_connect);
   } else {
 #ifdef _WIN32
@@ -2614,14 +2610,14 @@ char** Init(int argc, char *argv[]) {
 }
 
 
-void EmitExit(v8::Handle<v8::Object> process) {
+void EmitExit(v8::Handle<v8::Object> process_l) {
   // process.emit('exit')
-  Local<Value> emit_v = process->Get(String::New("emit"));
+  Local<Value> emit_v = process_l->Get(String::New("emit"));
   assert(emit_v->IsFunction());
   Local<Function> emit = Local<Function>::Cast(emit_v);
   Local<Value> args[] = { String::New("exit") };
   TryCatch try_catch;
-  emit->Call(process, 1, args);
+  emit->Call(process_l, 1, args);
   if (try_catch.HasCaught()) {
     FatalException(try_catch);
   }
@@ -2639,12 +2635,12 @@ int Start(int argc, char *argv[]) {
   Persistent<v8::Context> context = v8::Context::New();
   v8::Context::Scope context_scope(context);
 
-  Handle<Object> process = SetupProcessObject(argc, argv);
+  Handle<Object> process_l = SetupProcessObject(argc, argv);
   v8_typed_array::AttachBindings(context->Global());
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
-  Load(process);
+  Load(process_l);
 
   // All our arguments are loaded. We've evaluated all of the scripts. We
   // might even have created TCP servers. Now we enter the main eventloop. If
@@ -2653,7 +2649,7 @@ int Start(int argc, char *argv[]) {
   // watchers, it blocks.
   uv_run(uv_default_loop());
 
-  EmitExit(process);
+  EmitExit(process_l);
 
 #ifndef NDEBUG
   // Clean up.
