@@ -47,60 +47,56 @@
 // allocations.
 
 
+#include <node_vars.h>
+// We do the following to minimize the detal between v0.6 branch. We want to
+// use the variables as they were being used before.
+#define on_headers_sym NODE_VAR(on_headers_sym)
+#define on_headers_complete_sym NODE_VAR(on_headers_complete_sym)
+#define on_body_sym NODE_VAR(on_body_sym)
+#define on_message_complete_sym NODE_VAR(on_message_complete_sym)
+#define delete_sym NODE_VAR(delete_sym)
+#define get_sym NODE_VAR(get_sym)
+#define head_sym NODE_VAR(head_sym)
+#define post_sym NODE_VAR(post_sym)
+#define put_sym NODE_VAR(put_sym)
+#define connect_sym NODE_VAR(connect_sym)
+#define options_sym NODE_VAR(options_sym)
+#define trace_sym NODE_VAR(trace_sym)
+#define patch_sym NODE_VAR(patch_sym)
+#define copy_sym NODE_VAR(copy_sym)
+#define lock_sym NODE_VAR(lock_sym)
+#define mkcol_sym NODE_VAR(mkcol_sym)
+#define move_sym NODE_VAR(move_sym)
+#define propfind_sym NODE_VAR(propfind_sym)
+#define proppatch_sym NODE_VAR(proppatch_sym)
+#define unlock_sym NODE_VAR(unlock_sym)
+#define report_sym NODE_VAR(report_sym)
+#define mkactivity_sym NODE_VAR(mkactivity_sym)
+#define checkout_sym NODE_VAR(checkout_sym)
+#define merge_sym NODE_VAR(merge_sym)
+#define msearch_sym NODE_VAR(msearch_sym)
+#define notify_sym NODE_VAR(notify_sym)
+#define subscribe_sym NODE_VAR(subscribe_sym)
+#define unsubscribe_sym NODE_VAR(unsubscribe_sym)
+#define unknown_method_sym NODE_VAR(unknown_method_sym)
+#define method_sym NODE_VAR(method_sym)
+#define status_code_sym NODE_VAR(status_code_sym)
+#define http_version_sym NODE_VAR(http_version_sym)
+#define version_major_sym NODE_VAR(version_major_sym)
+#define version_minor_sym NODE_VAR(version_minor_sym)
+#define should_keep_alive_sym NODE_VAR(should_keep_alive_sym)
+#define upgrade_sym NODE_VAR(upgrade_sym)
+#define headers_sym NODE_VAR(headers_sym)
+#define url_sym NODE_VAR(url_sym)
+#define settings NODE_VAR(settings)
+#define current_buffer NODE_VAR(current_buffer)
+#define current_buffer_data NODE_VAR(current_buffer_data)
+#define current_buffer_len NODE_VAR(current_buffer_len)
+
+
 namespace node {
 
 using namespace v8;
-
-static Persistent<String> on_headers_sym;
-static Persistent<String> on_headers_complete_sym;
-static Persistent<String> on_body_sym;
-static Persistent<String> on_message_complete_sym;
-
-static Persistent<String> delete_sym;
-static Persistent<String> get_sym;
-static Persistent<String> head_sym;
-static Persistent<String> post_sym;
-static Persistent<String> put_sym;
-static Persistent<String> connect_sym;
-static Persistent<String> options_sym;
-static Persistent<String> trace_sym;
-static Persistent<String> patch_sym;
-static Persistent<String> copy_sym;
-static Persistent<String> lock_sym;
-static Persistent<String> mkcol_sym;
-static Persistent<String> move_sym;
-static Persistent<String> propfind_sym;
-static Persistent<String> proppatch_sym;
-static Persistent<String> unlock_sym;
-static Persistent<String> report_sym;
-static Persistent<String> mkactivity_sym;
-static Persistent<String> checkout_sym;
-static Persistent<String> merge_sym;
-static Persistent<String> msearch_sym;
-static Persistent<String> notify_sym;
-static Persistent<String> subscribe_sym;
-static Persistent<String> unsubscribe_sym;
-static Persistent<String> unknown_method_sym;
-
-static Persistent<String> method_sym;
-static Persistent<String> status_code_sym;
-static Persistent<String> http_version_sym;
-static Persistent<String> version_major_sym;
-static Persistent<String> version_minor_sym;
-static Persistent<String> should_keep_alive_sym;
-static Persistent<String> upgrade_sym;
-static Persistent<String> headers_sym;
-static Persistent<String> url_sym;
-
-static struct http_parser_settings settings;
-
-
-// This is a hack to get the current_buffer to the callbacks with the least
-// amount of overhead. Nothing else will run while http_parser_execute()
-// runs, therefore this pointer can be set and used for the execution.
-static Local<Value>* current_buffer;
-static char* current_buffer_data;
-static size_t current_buffer_len;
 
 
 // gcc 3.x knows the always_inline attribute but fails at build time with a
