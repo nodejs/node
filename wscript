@@ -292,7 +292,7 @@ def configure(conf):
     conf.env.append_value("CCFLAGS", "-rdynamic")
     conf.env.append_value("LINKFLAGS_DL", "-rdynamic")
 
-  if sys.platform.startswith("freebsd") or sys.platform.startswith("openbsd"):
+  if 'bsd' in sys.platform:
     conf.check(lib='kvm', uselib_store='KVM')
 
   #if Options.options.debug:
@@ -309,7 +309,7 @@ def configure(conf):
   if Options.options.efence:
     conf.check(lib='efence', libpath=['/usr/lib', '/usr/local/lib'], uselib_store='EFENCE')
 
-  if sys.platform.startswith("freebsd"):
+  if 'bsd' in sys.platform:
      if not conf.check(lib="execinfo",
                        includes=['/usr/include', '/usr/local/include'],
                        libpath=['/usr/lib', '/usr/local/lib'],
