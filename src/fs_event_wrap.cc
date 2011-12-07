@@ -133,18 +133,30 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
 
   assert(wrap->object_.IsEmpty() == false);
 
+  // We're in a bind here. libuv can set both UV_RENAME and UV_CHANGE but
+  // the Node API only lets us pass a single event to JS land.
+  //
+  // The obvious solution is to run the callback twice, once for each event.
+  // However, since the second event is not allowed to fire if the handle is
+  // closed after the first event, and since there is no good way to detect
+  // closed handles, that option is out.
+  //
+  // For now, ignore the UV_CHANGE event if UV_RENAME is also set. Make the
+  // assumption that a rename implicitly means an attribute change. Not too
+  // unreasonable, right? Still, we should revisit this before v1.0.
   if (status) {
     SetErrno(uv_last_error(uv_default_loop()));
     eventStr = String::Empty();
-  } else {
-    switch (events) {
-      case UV_RENAME:
-        eventStr = String::New("rename");
-        break;
-      case UV_CHANGE:
-        eventStr = String::New("change");
-        break;
-    }
+  }
+  else if (events & UV_RENAME) {
+    eventStr = String::New("rename");
+  }
+  else if (events & UV_CHANGE) {
+    eventStr = String::New("change");
+  }
+  else {
+    assert(0 && "bad fs events flag");
+    abort();
   }
 
   Local<Value> argv[3] = {
