@@ -56,35 +56,39 @@
 
 static const char PUBLIC_KEY_PFX[] =  "-----BEGIN PUBLIC KEY-----";
 static const int PUBLIC_KEY_PFX_LEN = sizeof(PUBLIC_KEY_PFX) - 1;
-
 static const char PUBRSA_KEY_PFX[] =  "-----BEGIN RSA PUBLIC KEY-----";
 static const int PUBRSA_KEY_PFX_LEN = sizeof(PUBRSA_KEY_PFX) - 1;
-
 static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
                                  | ASN1_STRFLGS_ESC_MSB
                                  | XN_FLAG_SEP_MULTILINE
                                  | XN_FLAG_FN_SN;
+
+
+#include <node_vars.h>
+// We do the following to minimize the detal between v0.6 branch. We want to
+// use the variables as they were being used before.
+#define on_headers_sym NODE_VAR(on_headers_sym)
+#define errno_symbol NODE_VAR(errno_symbol)
+#define syscall_symbol NODE_VAR(syscall_symbol)
+#define subject_symbol NODE_VAR(subject_symbol)
+#define subjectaltname_symbol NODE_VAR(subjectaltname_symbol)
+#define modulus_symbol NODE_VAR(modulus_symbol)
+#define exponent_symbol NODE_VAR(exponent_symbol)
+#define issuer_symbol NODE_VAR(issuer_symbol)
+#define valid_from_symbol NODE_VAR(valid_from_symbol)
+#define valid_to_symbol NODE_VAR(valid_to_symbol)
+#define fingerprint_symbol NODE_VAR(fingerprint_symbol)
+#define name_symbol NODE_VAR(name_symbol)
+#define version_symbol NODE_VAR(version_symbol)
+#define ext_key_usage_symbol NODE_VAR(ext_key_usage_symbol)
+#define secure_context_constructor NODE_VAR(secure_context_constructor)
+
 
 namespace node {
 namespace crypto {
 
 using namespace v8;
 
-static Persistent<String> errno_symbol;
-static Persistent<String> syscall_symbol;
-static Persistent<String> subject_symbol;
-static Persistent<String> subjectaltname_symbol;
-static Persistent<String> modulus_symbol;
-static Persistent<String> exponent_symbol;
-static Persistent<String> issuer_symbol;
-static Persistent<String> valid_from_symbol;
-static Persistent<String> valid_to_symbol;
-static Persistent<String> fingerprint_symbol;
-static Persistent<String> name_symbol;
-static Persistent<String> version_symbol;
-static Persistent<String> ext_key_usage_symbol;
-
-static Persistent<FunctionTemplate> secure_context_constructor;
 
 static unsigned long crypto_id_cb(void) {
 #ifdef _WIN32

@@ -126,6 +126,41 @@ struct globals {
   char* current_buffer_data;
   size_t current_buffer_len;
 
+  // node_file.cc
+  v8::Persistent<v8::String> encoding_symbol;
+  v8::Persistent<v8::String> buf_symbol;
+  v8::Persistent<v8::String> oncomplete_sym;
+  v8::Persistent<v8::FunctionTemplate> stats_constructor_template;
+  v8::Persistent<v8::String> dev_symbol;
+  v8::Persistent<v8::String> ino_symbol;
+  v8::Persistent<v8::String> mode_symbol;
+  v8::Persistent<v8::String> nlink_symbol;
+  v8::Persistent<v8::String> uid_symbol;
+  v8::Persistent<v8::String> gid_symbol;
+  v8::Persistent<v8::String> rdev_symbol;
+  v8::Persistent<v8::String> size_symbol;
+  v8::Persistent<v8::String> blksize_symbol;
+  v8::Persistent<v8::String> blocks_symbol;
+  v8::Persistent<v8::String> atime_symbol;
+  v8::Persistent<v8::String> mtime_symbol;
+  v8::Persistent<v8::String> ctime_symbol;
+
+  // node_zlib.cc
+  v8::Persistent<v8::String> callback_sym;
+
+  // node_crypto.cc
+  v8::Persistent<v8::String> subject_symbol;
+  v8::Persistent<v8::String> subjectaltname_symbol;
+  v8::Persistent<v8::String> modulus_symbol;
+  v8::Persistent<v8::String> exponent_symbol;
+  v8::Persistent<v8::String> issuer_symbol;
+  v8::Persistent<v8::String> valid_from_symbol;
+  v8::Persistent<v8::String> valid_to_symbol;
+  v8::Persistent<v8::String> fingerprint_symbol;
+  v8::Persistent<v8::String> name_symbol;
+  v8::Persistent<v8::String> version_symbol;
+  v8::Persistent<v8::String> ext_key_usage_symbol;
+  v8::Persistent<v8::FunctionTemplate> secure_context_constructor;
 };
 
 struct globals* globals_get();

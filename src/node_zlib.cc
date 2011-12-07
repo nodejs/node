@@ -31,6 +31,10 @@
 #include <node_buffer.h>
 #include <req_wrap.h>
 
+#include <node_vars.h>
+// We do the following to minimize the detal between v0.6 branch. We want to
+// use the variables as they were being used before.
+#define callback_sym NODE_VAR(callback_sym)
 
 
 namespace node {
@@ -38,8 +42,6 @@ using namespace v8;
 
 // write() returns one of these, and then calls the cb() when it's done.
 typedef ReqWrap<uv_work_t> WorkReqWrap;
-
-static Persistent<String> callback_sym;
 
 enum node_zlib_mode {
   DEFLATE = 1,
