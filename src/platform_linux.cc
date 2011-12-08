@@ -48,19 +48,17 @@
 # include <sys/sysinfo.h>
 #endif
 
+#include <node_vars.h>
+#define linux_process_title NODE_VAR(linux_process_title)
+#define getbuf NODE_VAR(getbuf)
+
 extern char **environ;
 
 namespace node {
 
 using namespace v8;
 
-static char buf[MAXPATHLEN + 1];
 double Platform::prog_start_time = Platform::GetUptime();
-
-static struct {
-  char *str;
-  size_t len;
-} process_title;
 
 
 char** Platform::SetupArgs(int argc, char *argv[]) {
@@ -75,23 +73,23 @@ char** Platform::SetupArgs(int argc, char *argv[]) {
 
   s = envc ? environ[envc - 1] : argv[argc - 1];
 
-  process_title.str = argv[0];
-  process_title.len = s + strlen(s) + 1 - argv[0];
+  linux_process_title.str = argv[0];
+  linux_process_title.len = s + strlen(s) + 1 - argv[0];
 
-  size = process_title.len;
+  size = linux_process_title.len;
   size += (argc + 1) * sizeof(char **);
   size += (envc + 1) * sizeof(char **);
 
   if ((s = (char *) malloc(size)) == NULL) {
-    process_title.str = NULL;
-    process_title.len = 0;
+    linux_process_title.str = NULL;
+    linux_process_title.len = 0;
     return argv;
   }
 
   new_argv = (char **) s;
   new_env = new_argv + argc + 1;
   s = (char *) (new_env + envc + 1);
-  memcpy(s, process_title.str, process_title.len);
+  memcpy(s, linux_process_title.str, linux_process_title.len);
 
   for (i = 0; i < argc; i++)
     new_argv[i] = s + (argv[i] - argv[0]);
@@ -110,15 +108,15 @@ char** Platform::SetupArgs(int argc, char *argv[]) {
 
 void Platform::SetProcessTitle(char *title) {
   /* No need to terminate, last char is always '\0'. */
-  if (process_title.len)
-    strncpy(process_title.str, title, process_title.len - 1);
+  if (linux_process_title.len)
+    strncpy(linux_process_title.str, title, linux_process_title.len - 1);
 }
 
 
 const char* Platform::GetProcessTitle(int *len) {
-  if (process_title.str) {
-    *len = strlen(process_title.str);
-    return process_title.str;
+  if (linux_process_title.str) {
+    *len = strlen(linux_process_title.str);
+    return linux_process_title.str;
   }
   else {
     *len = 0;
@@ -140,7 +138,7 @@ int Platform::GetMemory(size_t *rss) {
   /* PID */
   if (fscanf(f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
   /* Exec file */
-  cbuf = buf;
+  cbuf = getbuf;
   foundExeEnd = false;
   if (fscanf (f, "%c", cbuf++) == 0) goto error; // (
   while (1) {

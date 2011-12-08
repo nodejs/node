@@ -35,11 +35,13 @@
 #include <platform_win32.h>
 #include <psapi.h>
 
+#include <node_vars.h>
+#define process_title NODE_VAR(process_title)
+
 namespace node {
 
 using namespace v8;
 
-static char *process_title = NULL;
 double Platform::prog_start_time = Platform::GetUptime();
 
 

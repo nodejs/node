@@ -82,6 +82,7 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
 #define version_symbol NODE_VAR(version_symbol)
 #define ext_key_usage_symbol NODE_VAR(ext_key_usage_symbol)
 #define secure_context_constructor NODE_VAR(secure_context_constructor)
+#define locks NODE_VAR(locks)
 
 
 namespace node {
@@ -97,8 +98,6 @@ static unsigned long crypto_id_cb(void) {
   return (unsigned long) pthread_self();
 #endif /* !_WIN32 */
 }
-
-static uv_rwlock_t* locks;
 
 
 static void crypto_lock_init(void) {

@@ -149,6 +149,7 @@ struct globals {
   v8::Persistent<v8::String> callback_sym;
 
   // node_crypto.cc
+  uv_rwlock_t* locks;
   v8::Persistent<v8::String> subject_symbol;
   v8::Persistent<v8::String> subjectaltname_symbol;
   v8::Persistent<v8::String> modulus_symbol;
@@ -167,6 +168,17 @@ struct globals {
   v8::Persistent<v8::String> chars_written_sym;
   v8::Persistent<v8::String> write_sym;
   v8::Persistent<v8::FunctionTemplate> buffer_constructor_template;
+
+  // platform*.cc
+  char* process_title;
+  struct {
+    char *str;
+    size_t len;
+  } linux_process_title;
+
+  // node_signal_watcher.cc
+  v8::Persistent<v8::String> callback_symbol;
+  v8::Persistent<v8::FunctionTemplate> signal_watcher_constructor_template;
 };
 
 struct globals* globals_get();

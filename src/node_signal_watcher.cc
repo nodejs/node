@@ -22,26 +22,27 @@
 #include <node_signal_watcher.h>
 #include <assert.h>
 
+#include <node_vars.h>
+#define callback_symbol NODE_VAR(callback_symbol)
+#define signal_watcher_constructor_template NODE_VAR(signal_watcher_constructor_template)
+
 namespace node {
 
 using namespace v8;
-
-Persistent<FunctionTemplate> SignalWatcher::constructor_template;
-static Persistent<String> callback_symbol;
 
 void SignalWatcher::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(SignalWatcher::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("SignalWatcher"));
+  signal_watcher_constructor_template = Persistent<FunctionTemplate>::New(t);
+  signal_watcher_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  signal_watcher_constructor_template->SetClassName(String::NewSymbol("SignalWatcher"));
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "start", SignalWatcher::Start);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "stop", SignalWatcher::Stop);
+  NODE_SET_PROTOTYPE_METHOD(signal_watcher_constructor_template, "start", SignalWatcher::Start);
+  NODE_SET_PROTOTYPE_METHOD(signal_watcher_constructor_template, "stop", SignalWatcher::Stop);
 
   target->Set(String::NewSymbol("SignalWatcher"),
-      constructor_template->GetFunction());
+      signal_watcher_constructor_template->GetFunction());
 
   callback_symbol = NODE_PSYMBOL("callback");
 }
@@ -73,7 +74,7 @@ void SignalWatcher::Callback(EV_P_ ev_signal *watcher, int revents) {
 
 Handle<Value> SignalWatcher::New(const Arguments& args) {
   if (!args.IsConstructCall()) {
-    return FromConstructorTemplate(constructor_template, args);
+    return FromConstructorTemplate(signal_watcher_constructor_template, args);
   }
 
   HandleScope scope;
