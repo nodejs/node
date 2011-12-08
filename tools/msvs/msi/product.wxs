@@ -4,7 +4,7 @@
   <?define repoDir="$(var.ProjectDir)..\..\..\" ?>
   <?define sourcedir="$(var.repoDir)\$(var.Configuration)\" ?>
 
-  <Product Id="cc6c176e-e26c-48ec-8970-f58bd1d046cf"
+  <Product Id="$(var.ProductId)"
            Name="node.js"
            Language="1033"
            Version="$(var.ProductVersion)"
@@ -14,6 +14,9 @@
     <Package InstallerVersion="200" Compressed="yes" Platform="x86" />
 
     <Media Id="1" Cabinet="media1.cab" EmbedCab="yes" />
+
+    <MajorUpgrade AllowSameVersionUpgrades="yes" 
+                  DowngradeErrorMessage="A later version of node.js is already installed. Setup will now exit." />
     
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFilesFolder">
