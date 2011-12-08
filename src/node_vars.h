@@ -157,7 +157,6 @@ struct globals {
   v8::Persistent<v8::String> callback_sym;
 
   // node_crypto.cc
-  uv_rwlock_t* locks;
   v8::Persistent<v8::String> subject_symbol;
   v8::Persistent<v8::String> subjectaltname_symbol;
   v8::Persistent<v8::String> modulus_symbol;

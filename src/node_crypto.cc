@@ -82,11 +82,12 @@ static const int X509_NAME_FLAGS = ASN1_STRFLGS_ESC_CTRL
 #define version_symbol NODE_VAR(version_symbol)
 #define ext_key_usage_symbol NODE_VAR(ext_key_usage_symbol)
 #define secure_context_constructor NODE_VAR(secure_context_constructor)
-#define locks NODE_VAR(locks)
 
 
 namespace node {
 namespace crypto {
+
+static uv_rwlock_t* locks;
 
 using namespace v8;
 
