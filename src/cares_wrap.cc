@@ -48,6 +48,11 @@
 #endif
 
 
+#include <node_vars.h>
+#define oncomplete_sym NODE_VAR(oncomplete_sym)
+#define ares_channel NODE_VAR(ares_channel)
+
+
 namespace node {
 
 namespace cares_wrap {
@@ -68,11 +73,6 @@ using v8::Value;
 
 
 typedef class ReqWrap<uv_getaddrinfo_t> GetAddrInfoReqWrap;
-
-static Persistent<String> oncomplete_sym;
-
-static ares_channel ares_channel;
-
 
 static Local<Array> HostentToAddresses(struct hostent* host) {
   HandleScope scope;

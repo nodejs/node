@@ -64,6 +64,14 @@ struct globals {
 # define RPM_SAMPLES 100
   int64_t tick_times[RPM_SAMPLES];
   int tick_time_head;
+  int uncaught_exception_counter;
+  uv_async_t debug_watcher;
+  v8::Persistent<v8::Object> binding_cache;
+  v8::Persistent<v8::Array> module_load_list;
+  v8::Isolate* node_isolate;
+  volatile bool debugger_running;
+
+
 
   // stream_wrap.cc
   size_t slab_used;
@@ -179,6 +187,9 @@ struct globals {
   // node_signal_watcher.cc
   v8::Persistent<v8::String> callback_symbol;
   v8::Persistent<v8::FunctionTemplate> signal_watcher_constructor_template;
+
+  // cares_wrap.cc
+  ::ares_channel ares_channel;
 };
 
 struct globals* globals_get();

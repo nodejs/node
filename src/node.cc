@@ -131,6 +131,12 @@ extern char **environ;
 #define use_debug_agent NODE_VAR(use_debug_agent)
 #define use_npn NODE_VAR(use_npn)
 #define use_sni NODE_VAR(use_sni)
+#define uncaught_exception_counter NODE_VAR(uncaught_exception_counter)
+#define debug_watcher NODE_VAR(debug_watcher)
+#define binding_cache NODE_VAR(binding_cache)
+#define module_load_list NODE_VAR(module_load_list)
+#define node_isolate NODE_VAR(node_isolate)
+#define debugger_running NODE_VAR(debugger_running)
 
 
 namespace node {
@@ -1685,7 +1691,6 @@ static void OnFatalError(const char* location, const char* message) {
   exit(1);
 }
 
-static int uncaught_exception_counter = 0;
 
 void FatalException(TryCatch &try_catch) {
   HandleScope scope;
@@ -1738,8 +1743,6 @@ void FatalException(TryCatch &try_catch) {
 }
 
 
-static uv_async_t debug_watcher;
-
 static void DebugMessageCallback(uv_async_t* watcher, int status) {
   HandleScope scope;
   assert(watcher == &debug_watcher);
@@ -1761,9 +1764,6 @@ static void DebugBreakMessageHandler(const Debug::Message& message) {
   // debug-agent.cc of v8/src when a new session is created
 }
 
-
-Persistent<Object> binding_cache;
-Persistent<Array> module_load_list;
 
 static Handle<Value> Binding(const Arguments& args) {
   HandleScope scope;
@@ -2256,9 +2256,6 @@ static void ParseArgs(int argc, char **argv) {
 }
 
 
-static Isolate* node_isolate = NULL;
-static volatile bool debugger_running = false;
-
 static void EnableDebug(bool wait_connect) {
   // If we're called from another thread, make sure to enter the right
   // v8 isolate.
@@ -2561,8 +2558,7 @@ char** Init(int argc, char *argv[]) {
   // main thread to execute a random bit of javascript - which will give V8
   // control so it can handle whatever new message had been received on the
   // debug thread.
-  uv_async_init(uv_default_loop(), &node::debug_watcher,
-      node::DebugMessageCallback);
+  uv_async_init(uv_default_loop(), &debug_watcher, node::DebugMessageCallback);
   // unref it so that we exit the event loop despite it being active.
   uv_unref(uv_default_loop());
 
