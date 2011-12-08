@@ -161,6 +161,12 @@ struct globals {
   v8::Persistent<v8::String> version_symbol;
   v8::Persistent<v8::String> ext_key_usage_symbol;
   v8::Persistent<v8::FunctionTemplate> secure_context_constructor;
+
+  // node_buffer.cc
+  v8::Persistent<v8::String> length_symbol;
+  v8::Persistent<v8::String> chars_written_sym;
+  v8::Persistent<v8::String> write_sym;
+  v8::Persistent<v8::FunctionTemplate> buffer_constructor_template;
 };
 
 struct globals* globals_get();

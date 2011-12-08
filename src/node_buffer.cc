@@ -40,6 +40,12 @@
 
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
+#include <node_vars.h>
+#define length_symbol NODE_VAR(length_symbol)
+#define chars_written_sym NODE_VAR(chars_written_sym)
+#define write_sym NODE_VAR(write_sym)
+#define buffer_constructor_template NODE_VAR(buffer_constructor_template)
+
 namespace node {
 
 using namespace v8;
@@ -65,10 +71,6 @@ using namespace v8;
   }
 
 
-static Persistent<String> length_symbol;
-static Persistent<String> chars_written_sym;
-static Persistent<String> write_sym;
-Persistent<FunctionTemplate> Buffer::constructor_template;
 
 
 static inline size_t base64_decoded_size(const char *src, size_t size) {
@@ -134,7 +136,7 @@ Buffer* Buffer::New(size_t length) {
   HandleScope scope;
 
   Local<Value> arg = Integer::NewFromUnsigned(length);
-  Local<Object> b = constructor_template->GetFunction()->NewInstance(1, &arg);
+  Local<Object> b = buffer_constructor_template->GetFunction()->NewInstance(1, &arg);
   if (b.IsEmpty()) return NULL;
 
   return ObjectWrap::Unwrap<Buffer>(b);
@@ -145,7 +147,7 @@ Buffer* Buffer::New(char* data, size_t length) {
   HandleScope scope;
 
   Local<Value> arg = Integer::NewFromUnsigned(0);
-  Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
+  Local<Object> obj = buffer_constructor_template->GetFunction()->NewInstance(1, &arg);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
   buffer->Replace(data, length, NULL, NULL);
@@ -159,7 +161,7 @@ Buffer* Buffer::New(char *data, size_t length,
   HandleScope scope;
 
   Local<Value> arg = Integer::NewFromUnsigned(0);
-  Local<Object> obj = constructor_template->GetFunction()->NewInstance(1, &arg);
+  Local<Object> obj = buffer_constructor_template->GetFunction()->NewInstance(1, &arg);
 
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(obj);
   buffer->Replace(data, length, callback, hint);
@@ -170,7 +172,7 @@ Buffer* Buffer::New(char *data, size_t length,
 
 Handle<Value> Buffer::New(const Arguments &args) {
   if (!args.IsConstructCall()) {
-    return FromConstructorTemplate(constructor_template, args);
+    return FromConstructorTemplate(buffer_constructor_template, args);
   }
 
   HandleScope scope;
@@ -472,7 +474,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
   int length = s->Length();
 
   if (length == 0) {
-    constructor_template->GetFunction()->Set(chars_written_sym,
+    buffer_constructor_template->GetFunction()->Set(chars_written_sym,
                                              Integer::New(0));
     return scope.Close(Integer::New(0));
   }
@@ -496,7 +498,7 @@ Handle<Value> Buffer::Utf8Write(const Arguments &args) {
                              (String::HINT_MANY_WRITES_EXPECTED |
                               String::NO_NULL_TERMINATION));
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
+  buffer_constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(char_written));
 
   return scope.Close(Integer::New(written));
@@ -534,7 +536,7 @@ Handle<Value> Buffer::Ucs2Write(const Arguments &args) {
                          (String::HINT_MANY_WRITES_EXPECTED |
                           String::NO_NULL_TERMINATION));
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
+  buffer_constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(written));
 
   return scope.Close(Integer::New(written * 2));
@@ -573,7 +575,7 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
                               (String::HINT_MANY_WRITES_EXPECTED |
                                String::NO_NULL_TERMINATION));
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
+  buffer_constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(written));
 
   return scope.Close(Integer::New(written));
@@ -663,7 +665,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
     *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
   }
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
+  buffer_constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(s.length()));
 
   return scope.Close(Integer::New(dst - start));
@@ -697,7 +699,7 @@ Handle<Value> Buffer::BinaryWrite(const Arguments &args) {
 
   int written = DecodeWrite(p, max_length, s, BINARY);
 
-  constructor_template->GetFunction()->Set(chars_written_sym,
+  buffer_constructor_template->GetFunction()->Set(chars_written_sym,
                                            Integer::New(written));
 
   return scope.Close(Integer::New(written));
@@ -749,7 +751,7 @@ bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
     return true;
 
   // Also check for SlowBuffers that are empty.
-  if (constructor_template->HasInstance(obj))
+  if (buffer_constructor_template->HasInstance(obj))
     return true;
 
   return false;
@@ -763,35 +765,35 @@ void Buffer::Initialize(Handle<Object> target) {
   chars_written_sym = Persistent<String>::New(String::NewSymbol("_charsWritten"));
 
   Local<FunctionTemplate> t = FunctionTemplate::New(Buffer::New);
-  constructor_template = Persistent<FunctionTemplate>::New(t);
-  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
-  constructor_template->SetClassName(String::NewSymbol("SlowBuffer"));
+  buffer_constructor_template = Persistent<FunctionTemplate>::New(t);
+  buffer_constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  buffer_constructor_template->SetClassName(String::NewSymbol("SlowBuffer"));
 
   // copy free
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "binarySlice", Buffer::BinarySlice);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiSlice", Buffer::AsciiSlice);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Slice", Buffer::Base64Slice);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "ucs2Slice", Buffer::Ucs2Slice);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "binarySlice", Buffer::BinarySlice);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "asciiSlice", Buffer::AsciiSlice);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "base64Slice", Buffer::Base64Slice);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "ucs2Slice", Buffer::Ucs2Slice);
   // TODO NODE_SET_PROTOTYPE_METHOD(t, "utf16Slice", Utf16Slice);
   // copy
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Slice", Buffer::Utf8Slice);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "utf8Slice", Buffer::Utf8Slice);
 
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "utf8Write", Buffer::Utf8Write);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "asciiWrite", Buffer::AsciiWrite);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "binaryWrite", Buffer::BinaryWrite);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "base64Write", Buffer::Base64Write);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "ucs2Write", Buffer::Ucs2Write);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "fill", Buffer::Fill);
-  NODE_SET_PROTOTYPE_METHOD(constructor_template, "copy", Buffer::Copy);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "utf8Write", Buffer::Utf8Write);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "asciiWrite", Buffer::AsciiWrite);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "binaryWrite", Buffer::BinaryWrite);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "base64Write", Buffer::Base64Write);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "ucs2Write", Buffer::Ucs2Write);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "fill", Buffer::Fill);
+  NODE_SET_PROTOTYPE_METHOD(buffer_constructor_template, "copy", Buffer::Copy);
 
-  NODE_SET_METHOD(constructor_template->GetFunction(),
+  NODE_SET_METHOD(buffer_constructor_template->GetFunction(),
                   "byteLength",
                   Buffer::ByteLength);
-  NODE_SET_METHOD(constructor_template->GetFunction(),
+  NODE_SET_METHOD(buffer_constructor_template->GetFunction(),
                   "makeFastBuffer",
                   Buffer::MakeFastBuffer);
 
-  target->Set(String::NewSymbol("SlowBuffer"), constructor_template->GetFunction());
+  target->Set(String::NewSymbol("SlowBuffer"), buffer_constructor_template->GetFunction());
 }
 
 
