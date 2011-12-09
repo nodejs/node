@@ -47,6 +47,9 @@ Isolate::Isolate(uv_loop_t* loop) {
   assert(v8_isolate_->GetData() == NULL);
   v8_isolate_->SetData(this);
 
+  v8_context_ = v8::Context::New();
+  v8_context_->Enter();
+
   globals_init(&globals_);
 }
 
@@ -77,6 +80,15 @@ void Isolate::Dispose() {
     it->callback_(it->arg_);
     delete it;
   }
+
+  assert(v8_context_->InContext());
+  v8_context_->Exit();
+  v8_context_.Clear();
+  v8_context_.Dispose();
+
+  v8_isolate_->Exit();
+  v8_isolate_->Dispose();
+  v8_isolate_ = NULL;
 }
 
 
