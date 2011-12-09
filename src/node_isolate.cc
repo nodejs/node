@@ -38,14 +38,14 @@ Isolate::Isolate(uv_loop_t* loop) {
   SLIST_INIT(&at_exit_callbacks_);
   loop_ = loop;
 
-  isolate_ = v8::Isolate::GetCurrent();
-  if (isolate_ == NULL) {
-    isolate_ = v8::Isolate::New();
-    isolate_->Enter();
+  v8_isolate_ = v8::Isolate::GetCurrent();
+  if (v8_isolate_ == NULL) {
+    v8_isolate_ = v8::Isolate::New();
+    v8_isolate_->Enter();
   }
 
-  assert(isolate_->GetData() == NULL);
-  isolate_->SetData(this);
+  assert(v8_isolate_->GetData() == NULL);
+  v8_isolate_->SetData(this);
 
   globals_init(&globals_);
 }
