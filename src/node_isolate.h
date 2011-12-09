@@ -57,9 +57,9 @@ public:
     return loop_;
   }
 
-  operator v8::Isolate*() {
+  v8::Isolate* GetV8Isolate() {
     NODE_ISOLATE_CHECK(this);
-    return isolate_;
+    return v8_isolate_;
   }
 
   /* Register a handler that should run when the current isolate exits.
@@ -82,7 +82,7 @@ private:
   };
 
   SLIST_HEAD(AtExitCallbacks, AtExitCallbackInfo) at_exit_callbacks_;
-  v8::Isolate* isolate_;
+  v8::Isolate* v8_isolate_;
   uv_loop_t* loop_;
 
   // Global variables for this isolate.
