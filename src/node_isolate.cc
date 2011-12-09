@@ -46,6 +46,13 @@ Isolate::Isolate(uv_loop_t* loop) {
 
   assert(isolate_->GetData() == NULL);
   isolate_->SetData(this);
+
+  globals_init(&globals_);
+}
+
+
+struct globals* Isolate::Globals() {
+  return &globals_;
 }
 
 
