@@ -2365,6 +2365,7 @@ static void EnableDebug(bool wait_connect) {
 
 
 #ifdef __POSIX__
+// FIXME this is positively unsafe with isolates/threads
 static void EnableDebugSignalHandler(int signal) {
   // Break once process will return execution to v8
   v8::Debug::DebugBreak(node_isolate);
@@ -2567,7 +2568,7 @@ static Handle<Value> DebugPause(const Arguments& args) {
 }
 
 
-char** Init(int argc, char *argv[]) {
+char** ProcessInit(int argc, char *argv[]) {
   // Initialize prog_start_time to get relative uptime.
   uv_uptime(&prog_start_time);
 
@@ -2610,36 +2611,54 @@ char** Init(int argc, char *argv[]) {
 #ifdef __POSIX__
   // Ignore SIGPIPE
   RegisterSignalHandler(SIGPIPE, SIG_IGN);
+  // TODO decide whether to handle these signals per-process or per-thread
   RegisterSignalHandler(SIGINT, SignalExit);
   RegisterSignalHandler(SIGTERM, SignalExit);
 #endif // __POSIX__
 
-  // Don't use NODE_LOOP(), the node::Isolate() has not yet been initialized.
-  uv_loop_t* const loop = uv_default_loop();
+  return argv;
+}
 
-  uv_prepare_init(uv_default_loop(), &prepare_tick_watcher);
+
+void EmitExit(v8::Handle<v8::Object> process_l) {
+  // process.emit('exit')
+  Local<Value> emit_v = process_l->Get(String::New("emit"));
+  assert(emit_v->IsFunction());
+  Local<Function> emit = Local<Function>::Cast(emit_v);
+  Local<Value> args[] = { String::New("exit") };
+  TryCatch try_catch;
+  emit->Call(process_l, 1, args);
+  if (try_catch.HasCaught()) {
+    FatalException(try_catch);
+  }
+}
+
+
+void StartThread(Isolate* isolate, int argc, char** argv) {
+  uv_loop_t* loop = isolate->GetLoop();
+
+  uv_prepare_init(loop, &prepare_tick_watcher);
   uv_prepare_start(&prepare_tick_watcher, PrepareTick);
   uv_unref(loop);
 
-  uv_check_init(uv_default_loop(), &check_tick_watcher);
+  uv_check_init(loop, &check_tick_watcher);
   uv_check_start(&check_tick_watcher, node::CheckTick);
   uv_unref(loop);
 
-  uv_idle_init(uv_default_loop(), &tick_spinner);
+  uv_idle_init(loop, &tick_spinner);
   uv_unref(loop);
 
-  uv_check_init(uv_default_loop(), &gc_check);
+  uv_check_init(loop, &gc_check);
   uv_check_start(&gc_check, node::Check);
   uv_unref(loop);
 
-  uv_idle_init(uv_default_loop(), &gc_idle);
+  uv_idle_init(loop, &gc_idle);
   uv_unref(loop);
 
-  uv_timer_init(uv_default_loop(), &gc_timer);
+  uv_timer_init(loop, &gc_timer);
   uv_unref(loop);
 
   V8::SetFatalErrorHandler(node::OnFatalError);
-
 
   // Set the callback DebugMessageDispatch which is called from the debug
   // thread.
@@ -2668,41 +2687,8 @@ char** Init(int argc, char *argv[]) {
 #endif // __POSIX__
   }
 
-  return argv;
-}
-
-
-void EmitExit(v8::Handle<v8::Object> process_l) {
-  // process.emit('exit')
-  Local<Value> emit_v = process_l->Get(String::New("emit"));
-  assert(emit_v->IsFunction());
-  Local<Function> emit = Local<Function>::Cast(emit_v);
-  Local<Value> args[] = { String::New("exit") };
-  TryCatch try_catch;
-  emit->Call(process_l, 1, args);
-  if (try_catch.HasCaught()) {
-    FatalException(try_catch);
-  }
-}
-
-
-int Start(int argc, char *argv[]) {
-  // This needs to run *before* V8::Initialize()
-  argv = Init(argc, argv);
-
-  v8::V8::Initialize();
-  v8::HandleScope handle_scope;
-
-  // Create the one and only Context.
-  Persistent<v8::Context> context = v8::Context::New();
-  v8::Context::Scope context_scope(context);
-
-  // Create the main node::Isolate object
-  Isolate* isolate = Isolate::New(uv_default_loop());
-
   Handle<Object> process_l = SetupProcessObject(argc, argv);
-
-  v8_typed_array::AttachBindings(context->Global());
+  v8_typed_array::AttachBindings(v8::Context::GetCurrent()->Global());
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
@@ -2713,10 +2699,26 @@ int Start(int argc, char *argv[]) {
   // there are no watchers on the loop (except for the ones that were
   // uv_unref'd) then this function exits. As long as there are active
   // watchers, it blocks.
-  uv_run(NODE_LOOP());
+  uv_run(loop);
 
   EmitExit(process_l);
+}
 
+
+int Start(int argc, char *argv[]) {
+  // This needs to run *before* V8::Initialize()
+  argv = ProcessInit(argc, argv);
+
+  v8::V8::Initialize();
+  v8::HandleScope handle_scope;
+
+  // Create the one and only Context.
+  Persistent<v8::Context> context = v8::Context::New();
+  v8::Context::Scope context_scope(context);
+
+  // Create the main node::Isolate object
+  Isolate* isolate = Isolate::New(uv_default_loop());
+  StartThread(isolate, argc, argv);
   isolate->Dispose();
 
 #ifndef NDEBUG
