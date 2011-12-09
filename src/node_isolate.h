@@ -25,6 +25,7 @@
 #include "queue.h"
 #include "v8.h"
 #include "uv.h"
+#include "node_vars.h"
 
 #ifdef NDEBUG
 # define NODE_ISOLATE_CHECK(ptr) ((void) (ptr))
@@ -69,6 +70,8 @@ public:
   /* Shutdown the isolate. Call this method at thread death. */
   void Dispose();
 
+  struct globals* Globals();
+
 private:
   Isolate(uv_loop_t* loop);
 
@@ -81,6 +84,9 @@ private:
   SLIST_HEAD(AtExitCallbacks, AtExitCallbackInfo) at_exit_callbacks_;
   v8::Isolate* isolate_;
   uv_loop_t* loop_;
+
+  // Global variables for this isolate.
+  struct globals globals_;
 };
 
 } // namespace node

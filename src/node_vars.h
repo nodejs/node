@@ -183,6 +183,11 @@ struct globals {
   ::ares_channel ares_channel;
 };
 
+// Initialize globals struct.
+void globals_init(struct globals*);
+
+// Get the globals struct for the current Isolate. The returned pointer is
+// already initialized.
 struct globals* globals_get();
 
 }  // namespace node

@@ -1,4 +1,5 @@
 #include <node_vars.h>
+#include <node_isolate.h>
 #if HAVE_OPENSSL
 # include <node_crypto.h>
 #endif
@@ -9,11 +10,7 @@ namespace node {
 // For now we just statically initialize the globals structure. Later there
 // will be one struct globals for each isolate.
 
-static struct globals g_struct;
-static struct globals* g_ptr;
-
-
-static void globals_init(struct globals* g) {
+void globals_init(struct globals* g) {
   memset(g, 0, sizeof(struct globals));
   g->debug_port = 5858;
 
@@ -31,6 +28,15 @@ static void globals_init(struct globals* g) {
 }
 
 
+#if HAVE_ISOLATES
+struct globals* globals_get() {
+  node::Isolate* isolate = node::Isolate::GetCurrent();
+  return isolate->Globals();
+}
+#else
+static struct globals g_struct;
+static struct globals* g_ptr;
+
 struct globals* globals_get() {
   if (!g_ptr) {
     g_ptr = &g_struct;
@@ -38,5 +44,6 @@ struct globals* globals_get() {
   }
   return g_ptr;
 }
+#endif  // HAVE_ISOLATES
 
 }  // namespace node
