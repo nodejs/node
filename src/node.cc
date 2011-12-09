@@ -129,6 +129,8 @@ extern char **environ;
 
 namespace node {
 
+#define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
+
 static int option_end_index;
 static unsigned long max_stack_size;
 static unsigned short debug_port = 5858;
@@ -137,11 +139,14 @@ static bool use_debug_agent;
 static const char* eval_string;
 static bool print_eval;
 
-
-
-#define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
-
 static void CheckStatus(uv_timer_t* watcher, int status);
+static unsigned long NewThreadId();
+
+void StartThread(unsigned long thread_id,
+                 Isolate* isolate,
+                 int argc,
+                 char** argv);
+
 
 static void StartGCTimer () {
   if (!uv_is_active((uv_handle_t*) &gc_timer)) {
@@ -1846,9 +1851,71 @@ static Handle<Value> Binding(const Arguments& args) {
 }
 
 
+static struct {
+  uv_mutex_t lock_;
+  unsigned long counter_;
+} thread_id_generator_;
+
+
+static unsigned long NewThreadId() {
+  unsigned long thread_id;
+
+  uv_mutex_lock(&thread_id_generator_.lock_);
+  thread_id = ++thread_id_generator_.counter_;
+  uv_mutex_unlock(&thread_id_generator_.lock_);
+
+  return thread_id;
+}
+
+
+struct ThreadInfo {
+  unsigned long thread_id_;
+  uv_thread_t thread_;
+  char** argv_;
+  int argc_;
+
+  ThreadInfo(int argc, char** argv) {
+    argc_ = argc;
+    argv_ = new char*[argc_ + 1];
+
+    for (int i = 0; i < argc_; ++i) {
+      size_t size = 1 + strlen(argv[i]);
+      argv_[i] = new char[size];
+      memcpy(argv_[i], argv[i], size);
+    }
+    argv_[argc_] = NULL;
+  }
+
+  ThreadInfo(Handle<Array> args) {
+    argc_ = args->Length();
+    argv_ = new char*[argc_ + 1];
+
+    for (int i = 0; i < argc_; ++i) {
+      String::Utf8Value str(args->Get(i));
+      size_t size = 1 + strlen(*str);
+      argv_[i] = new char[size];
+      memcpy(argv_[i], *str, size);
+    }
+    argv_[argc_] = NULL;
+  }
+
+  ~ThreadInfo() {
+    for (int i = 0; i < argc_; ++i) {
+      delete[] argv_[i];
+    }
+    delete argv_;
+  }
+};
+
+
 static void RunIsolate(void* arg) {
+  ThreadInfo* ti = reinterpret_cast<ThreadInfo*>(arg);
+
   uv_loop_t* loop = uv_loop_new();
   Isolate* isolate = Isolate::New(loop);
+
+  StartThread(ti->thread_id_, isolate, ti->argc_, ti->argv_);
+  delete ti;
 }
 
 
@@ -1858,17 +1925,25 @@ static char magic_isolate_cookie_[] = "magic isolate cookie";
 static Handle<Value> NewIsolate(const Arguments& args) {
   HandleScope scope;
 
-  uv_thread_t* tid = new uv_thread_t;
+  assert(args[0]->IsArray());
 
-  if (uv_thread_create(tid, RunIsolate, NULL))
+  Local<Array> argv = args[0].As<Array>();
+  assert(argv->Length() >= 2);
+
+  ThreadInfo* ti = new ThreadInfo(argv);
+  ti->thread_id_ = NewThreadId();
+
+  if (uv_thread_create(&ti->thread_, RunIsolate, ti)) {
+    delete ti;
     return Null();
+  }
 
   Local<ObjectTemplate> tpl = ObjectTemplate::New();
   tpl->SetInternalFieldCount(2);
 
   Local<Object> obj = tpl->NewInstance();
   obj->SetPointerInInternalField(0, magic_isolate_cookie_);
-  obj->SetPointerInInternalField(1, tid);
+  obj->SetPointerInInternalField(1, ti);
 
   return scope.Close(obj);
 }
@@ -1883,9 +1958,10 @@ static Handle<Value> JoinIsolate(const Arguments& args) {
   assert(obj->InternalFieldCount() == 2);
   assert(obj->GetPointerFromInternalField(0) == magic_isolate_cookie_);
 
-  uv_thread_t* tid = (uv_thread_t*) obj->GetPointerFromInternalField(1);
+  ThreadInfo* ti = reinterpret_cast<ThreadInfo*>(
+      obj->GetPointerFromInternalField(1));
 
-  if (uv_thread_join(tid))
+  if (uv_thread_join(&ti->thread_))
     return False(); // error
   else
     return True();  // ok
@@ -2037,7 +2113,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   Local<FunctionTemplate> process_template = FunctionTemplate::New();
 
   process = Persistent<Object>::New(process_template->GetFunction()->NewInstance());
-
 
   process->SetAccessor(String::New("title"),
                        ProcessTitleGetter,
@@ -2634,9 +2709,17 @@ void EmitExit(v8::Handle<v8::Object> process_l) {
 }
 
 
-void StartThread(Isolate* isolate, int argc, char** argv) {
-  uv_loop_t* loop = isolate->GetLoop();
+// Create a new isolate with node::Isolate::New() before you call this function
+void StartThread(unsigned long thread_id,
+                 Isolate* isolate,
+                 int argc,
+                 char** argv) {
+  HandleScope scope;
 
+  v8::Isolate::Scope isolate_scope(isolate->GetV8Isolate());
+  v8::Context::Scope context_scope(isolate->GetV8Context());
+
+  uv_loop_t* loop = isolate->GetLoop();
   uv_prepare_init(loop, &prepare_tick_watcher);
   uv_prepare_start(&prepare_tick_watcher, PrepareTick);
   uv_unref(loop);
@@ -2688,7 +2771,12 @@ void StartThread(Isolate* isolate, int argc, char** argv) {
   }
 
   Handle<Object> process_l = SetupProcessObject(argc, argv);
-  v8_typed_array::AttachBindings(v8::Context::GetCurrent()->Global());
+
+  process_l->Set(String::NewSymbol("tid"),
+                 Integer::NewFromUnsigned(thread_id));
+
+  // FIXME crashes with "CHECK(heap->isolate() == Isolate::Current()) failed"
+  //v8_typed_array::AttachBindings(v8::Context::GetCurrent()->Global());
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
@@ -2706,24 +2794,21 @@ void StartThread(Isolate* isolate, int argc, char** argv) {
 
 
 int Start(int argc, char *argv[]) {
+  if (uv_mutex_init(&thread_id_generator_.lock_)) abort();
+
   // This needs to run *before* V8::Initialize()
   argv = ProcessInit(argc, argv);
 
   v8::V8::Initialize();
   v8::HandleScope handle_scope;
 
-  // Create the one and only Context.
-  Persistent<v8::Context> context = v8::Context::New();
-  v8::Context::Scope context_scope(context);
-
   // Create the main node::Isolate object
   Isolate* isolate = Isolate::New(uv_default_loop());
-  StartThread(isolate, argc, argv);
+  StartThread(NewThreadId(), isolate, argc, argv);
   isolate->Dispose();
 
 #ifndef NDEBUG
   // Clean up.
-  context.Dispose();
   V8::Dispose();
 #endif  // NDEBUG
 
