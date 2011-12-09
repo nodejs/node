@@ -62,6 +62,11 @@ public:
     return v8_isolate_;
   }
 
+  v8::Handle<v8::Context> GetV8Context() {
+    NODE_ISOLATE_CHECK(this);
+    return v8_context_;
+  }
+
   /* Register a handler that should run when the current isolate exits.
    * Handlers run in LIFO order.
    */
@@ -82,6 +87,7 @@ private:
   };
 
   SLIST_HEAD(AtExitCallbacks, AtExitCallbackInfo) at_exit_callbacks_;
+  v8::Persistent<v8::Context> v8_context_;
   v8::Isolate* v8_isolate_;
   uv_loop_t* loop_;
 
