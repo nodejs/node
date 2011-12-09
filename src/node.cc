@@ -97,12 +97,9 @@ extern char **environ;
 // use the variables as they were being used before.
 #define check_tick_watcher NODE_VAR(check_tick_watcher)
 #define code_symbol NODE_VAR(code_symbol)
-#define debug_port NODE_VAR(debug_port)
-#define debug_wait_connect NODE_VAR(debug_wait_connect)
 #define emit_symbol NODE_VAR(emit_symbol)
 #define errno_symbol NODE_VAR(errno_symbol)
 #define errpath_symbol NODE_VAR(errpath_symbol)
-#define eval_string NODE_VAR(eval_string)
 #define gc_check NODE_VAR(gc_check)
 #define gc_idle NODE_VAR(gc_idle)
 #define gc_timer NODE_VAR(gc_timer)
@@ -110,11 +107,8 @@ extern char **environ;
 #define heap_total_symbol NODE_VAR(heap_total_symbol)
 #define heap_used_symbol NODE_VAR(heap_used_symbol)
 #define listeners_symbol NODE_VAR(listeners_symbol)
-#define max_stack_size NODE_VAR(max_stack_size)
 #define need_tick_cb NODE_VAR(need_tick_cb)
-#define option_end_index NODE_VAR(option_end_index)
 #define prepare_tick_watcher NODE_VAR(prepare_tick_watcher)
-#define print_eval NODE_VAR(print_eval)
 #define process NODE_VAR(process)
 #define rss_symbol NODE_VAR(rss_symbol)
 #define syscall_symbol NODE_VAR(syscall_symbol)
@@ -123,7 +117,6 @@ extern char **environ;
 #define tick_time_head NODE_VAR(tick_time_head)
 #define tick_times NODE_VAR(tick_times)
 #define uncaught_exception_symbol NODE_VAR(uncaught_exception_symbol)
-#define use_debug_agent NODE_VAR(use_debug_agent)
 #define use_npn NODE_VAR(use_npn)
 #define use_sni NODE_VAR(use_sni)
 #define uncaught_exception_counter NODE_VAR(uncaught_exception_counter)
@@ -136,11 +129,17 @@ extern char **environ;
 
 namespace node {
 
+static int option_end_index;
+static unsigned long max_stack_size;
+static unsigned short debug_port = 5858;
+static bool debug_wait_connect;
+static bool use_debug_agent;
+static const char* eval_string;
+static bool print_eval;
+
 
 
 #define TICK_TIME(n) tick_times[(tick_time_head - (n)) % RPM_SAMPLES]
-
-
 
 static void CheckStatus(uv_timer_t* watcher, int status);
 

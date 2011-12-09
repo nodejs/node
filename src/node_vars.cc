@@ -12,7 +12,6 @@ namespace node {
 
 void globals_init(struct globals* g) {
   memset(g, 0, sizeof(struct globals));
-  g->debug_port = 5858;
 
 #ifdef OPENSSL_NPN_NEGOTIATED
   g->use_npn = true;
