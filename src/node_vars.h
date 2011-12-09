@@ -31,13 +31,6 @@ struct globals {
   v8::Persistent<v8::String> listeners_symbol;
   v8::Persistent<v8::String> uncaught_exception_symbol;
   v8::Persistent<v8::String> emit_symbol;
-  bool print_eval;
-  char *eval_string;
-  int option_end_index;
-  bool use_debug_agent;
-  bool debug_wait_connect;
-  int debug_port;
-  int max_stack_size;
   uv_check_t check_tick_watcher;
   uv_prepare_t prepare_tick_watcher;
   uv_idle_t tick_spinner;
