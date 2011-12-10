@@ -114,8 +114,8 @@
     </UI>
 
     <UIRef Id="WixUI_Common" />
-    <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\windows_banner_nodejs_installer_logo.jpg" />
-    <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\windows_dialog_nodejs_installer_logo.jpg" />
+    <WixVariable Id="WixUIBannerBmp" Value="..\..\..\doc\thin-white-stripe.bmp" />
+    <WixVariable Id="WixUIDialogBmp" Value="..\..\..\doc\full-white-stripe.bmp" />
   </Product>
 
 </Wix>
