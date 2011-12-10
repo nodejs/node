@@ -1773,7 +1773,7 @@ void FatalException(TryCatch &try_catch) {
 static void DebugMessageCallback(uv_async_t* watcher, int status) {
   HandleScope scope;
   assert(watcher == &debug_watcher);
-  Debug::ProcessDebugMessages();
+  v8::Debug::ProcessDebugMessages();
 }
 
 static void DebugMessageDispatch(void) {
@@ -1785,7 +1785,7 @@ static void DebugMessageDispatch(void) {
   uv_async_send(&debug_watcher);
 }
 
-static void DebugBreakMessageHandler(const Debug::Message& message) {
+static void DebugBreakMessageHandler(const v8::Debug::Message& message) {
   // do nothing with debug messages.
   // The message handler will get changed by DebuggerAgent::CreateSession in
   // debug-agent.cc of v8/src when a new session is created
@@ -1982,6 +1982,7 @@ static Handle<Object> GetFeatures() {
 
 
 static Handle<Value> DebugProcess(const Arguments& args);
+static Handle<Value> DebugPause(const Arguments& args);
 
 Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   HandleScope scope;
@@ -2108,6 +2109,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "_kill", Kill);
 
   NODE_SET_METHOD(process, "_debugProcess", DebugProcess);
+  NODE_SET_METHOD(process, "_debugPause", DebugPause);
 
   NODE_SET_METHOD(process, "dlopen", DLOpen);
 
@@ -2291,14 +2293,14 @@ static void EnableDebug(bool wait_connect) {
   node_isolate->Enter();
 
   // Start the debug thread and it's associated TCP server on port 5858.
-  bool r = Debug::EnableAgent("node " NODE_VERSION, debug_port);
+  bool r = v8::Debug::EnableAgent("node " NODE_VERSION, debug_port);
 
   if (wait_connect) {
     // Set up an empty handler so v8 will not continue until a debugger
     // attaches. This is the same behavior as Debug::EnableAgent(_,_,true)
     // except we don't break at the beginning of the script.
     // see Debugger::StartAgent in debug.cc of v8/src
-    Debug::SetMessageHandler2(node::DebugBreakMessageHandler);
+    v8::Debug::SetMessageHandler2(node::DebugBreakMessageHandler);
   }
 
   // Crappy check that everything went well. FIXME
@@ -2511,6 +2513,11 @@ static Handle<Value> DebugProcess(const Arguments& args) {
 #endif // _WIN32
 
 
+static Handle<Value> DebugPause(const Arguments& args) {
+  v8::Debug::DebugBreak(node_isolate);
+}
+
+
 char** Init(int argc, char *argv[]) {
   // Initialize prog_start_time to get relative uptime.
   uv_uptime(&prog_start_time);
@@ -2584,7 +2591,7 @@ char** Init(int argc, char *argv[]) {
 
   // Set the callback DebugMessageDispatch which is called from the debug
   // thread.
-  Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
+  v8::Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
 
   // Initialize the async watcher. DebugMessageCallback() is called from the
   // main thread to execute a random bit of javascript - which will give V8
