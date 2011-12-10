@@ -16,12 +16,12 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x86' ">
     <OutputPath>..\..\..\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);ProductId=$(NodeProductId);NPMSourceDir=..\..\..\deps\npm\</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);NPMSourceDir=..\..\..\deps\npm\</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x86' ">
     <OutputPath>..\..\..\$(Configuration)\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);ProductId=$(NodeProductId);NPMSourceDir=..\..\..\deps\npm\</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);NPMSourceDir=..\..\..\deps\npm\</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="product.wxs" />
@@ -33,13 +33,25 @@
       <Name>WixUIExtension</Name>
     </WixExtension>
   </ItemGroup>
+  <UsingTask TaskName="GenerateProductId" TaskFactory="CodeTaskFactory" AssemblyFile="$(MSBuildToolsPath)\Microsoft.Build.Tasks.v4.0.dll">
+    <ParameterGroup>
+      <ProductId ParameterType="System.String" Output="true" />
+    </ParameterGroup>
+    <Task>
+      <Code Type="Fragment" Language="cs">
+        <![CDATA[
+          this.ProductId = System.Guid.NewGuid().ToString().ToUpper();
+        ]]>
+      </Code>
+    </Task>
+  </UsingTask>
   <Import Project="$(WixTargetsPath)" />
-  <!--
-	To modify your build process, add your task inside one of the targets below and uncomment it.
-	Other similar extension points exist, see Wix.targets.
-	<Target Name="BeforeBuild">
-	</Target>
-	<Target Name="AfterBuild">
-	</Target>
-	-->
+    <Target Name="BeforeBuild">
+      <GenerateProductId>
+        <Output PropertyName="NodeProductId" TaskParameter="ProductId"/>
+      </GenerateProductId>
+      <CreateProperty Value="$(DefineConstants);ProductId=$(NodeProductId)">
+        <Output TaskParameter="Value" PropertyName="DefineConstants" />
+      </CreateProperty>
+    </Target>
 </Project>
