@@ -3,59 +3,36 @@ html {
 }
 
 body {
-	background: #353129;
+	background: #46483e;
 	color: #eee;
-	font-size: 14pt;
-	line-height: 150%;
-	font-family: Georgia, "Times New Roman", Times, serif;
-	max-width: 30em;
-	margin: 0 0 5em 9em;
+	font-size: 12px;
+	line-height: 180%;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+	margin: 0;
+    padding-top: 40px;
+    border-top: 6px #8cc84b solid;
 }
+
 img {
 	border: 0;
-}
-#toc {
-  position: absolute;
-  top: 2em;
-  left: 0;
-  width: 10em;
-  font-family: Helvetica, Arial, sans-serif;
-  font-size: 12pt;
-  line-height: 150%;
 }
 @media all and (min-height: 650px) { #toc { position: fixed; }}
 #toctitle {
   display: none;
 }
-#toc ol {
-  list-style: none;
-}
-#toc ol, .toclevel2 {
-  margin: 0;
-  padding: 0;
-  padding-left: 1em;
-}
-#toc ol li {
-  margin: 0;
-  padding: 0;
-}
-#toc a {
-	color: #8BC84B;
-}
-
 h1, h2, h3, h4 {
-	color: #CCD2BC;
+	color: #d2d8ba;
 	font-family: Helvetica, Arial, sans-serif;
 	margin-top: 2em;
 	margin-right: 0;
 	margin-bottom: 10px;
 	margin-left: 0;
+    text-transform: uppercase;
 }
 
-#toc ol ol {
-  font-size: 8pt;
-  line-height: 110%;
-  list-style: circle;
+h2 {
+    font-size: 12px;
+    font-weight: normal;
 }
 
 h1 code, h2 code, h3 code, h4 code, 
@@ -65,18 +42,273 @@ h1 a, h2 a, h3 a, h4 a
   font-size: inherit; 
 }
 
+#intro {
+    width: 775px;
+    margin: 0 auto;
+    text-align: center;
+	color: #d2d8ba;
+
+  /* preload platform-icons.png */
+  background-image: url(platform-icons.png);
+  background-repeat: no-repeat;
+  background-position: -1000px -1000px;
+}
+
+#intro p {
+    width: 680px;
+    line-height: 180%;
+    padding-top: 30px;
+    margin: 0 auto 30px auto;
+    font-size: 14px;
+}
+
+#intro #downloadbutton {
+    background-color: #8BC84B;
+    color: #46483e;
+    font-weight: bold;
+    font-size: 14px;
+    text-transform: uppercase;
+    padding: 7px 10px;
+    -webkit-border-radius: 4px;
+    -moz-border-radius: 4px;
+    border-radius: 4px;
+}
+
+
+#intro #downloadbutton:hover {
+    text-decoration: none;
+    background-color: #73a53e;
+}
+
+#quotes {
+    text-align: center;
+    width: 100%;
+    background-color: #33342d;
+    margin-top: 40px;
+    padding-top: 20px;
+    padding-bottom: 20px;
+}
+
+#quotes h2 {
+    margin-top: 0;
+}
+
+#quotes ul {
+    display: block;
+    width: 775px;
+    margin: 0 auto;
+    padding-top: 20px;
+}
+
+#quotes ul li {
+    display: block;
+    text-align: left;
+    width: 180px;
+    float: left;
+    padding-right: 15px;
+    font-size: 11px;
+}
+
+#quotes ul li.ebay {
+    margin-top: -10px;
+}
+
+#quotes ul li.linkedin {
+    margin-top: -4px;
+}
+
+#quotes ul li.yahoo {
+    margin-top: -4px;
+    padding-right: 0;
+}
+
+#quotes ul li p span {
+    font-size: 10px;
+}
+
+#content {
+    width: 775px;
+    margin: 0 auto;
+}
+
+#content #column1 {
+    width: 420px;
+    float: left;
+}
+
+#content #column2 {
+    width: 260px;
+    float: right;
+}
+
+#content #column1.interior {
+    width: 510px;
+    float: right;
+}
+
+#content #column2.interior {
+}
+
+#explore {
+    background: url(icons.png) no-repeat left 15px;
+}
+
+#explore li {
+    list-style-type: none;
+    color: #d2d8ba;
+    line-height: 14px;
+    padding: 10px 0 10px 40px;
+    border-top: 1px solid #626557;
+}
+
+#explore li span {
+}
+
+#explore li a.explore {
+    text-transform: uppercase;
+}
+
+#explore ol.jobs {
+    padding: 0;
+}
+
+#explore ol.jobs li {
+    display: inline;
+    padding: 0;
+    border: none;
+}
+
+#explore ol.jobs li:after {
+    content: ', ';
+}
+
+#explore ol.jobs li:last-child:after {
+    content: '';
+}
+
+#footer {
+    width: 775px;
+    border-top: 1px solid #626557;
+    margin: 50px auto 30px auto;
+    padding-top: 15px;
+}
+
+#footer p {
+	color: #8BC84B;
+    height: 32px;
+    padding-top: 3px;
+    background: url(footer-logo.png) left top no-repeat;
+    padding-left: 130px;
+}
+
+#footer p a {
+    text-decoration: underline;
+}
+
+div#download {
+    position: absolute;
+    width: 580px;
+    text-align: center;
+    top: 0;
+    left: 50%;
+    margin-left: -290px;
+    -webkit-border-bottom-right-radius: 4px;
+    -webkit-border-bottom-left-radius: 4px;
+    -moz-border-radius-bottomright: 4px;
+    -moz-border-radius-bottomleft: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    padding-top: 40px;
+  -webkit-box-shadow: 0 0 32px #000; 
+     -moz-box-shadow: 0 0 32px #000; 
+          box-shadow: 0 0 32px #000; 
+    background: url(close-downloads.png) no-repeat top right white;
+    display: none;
+}
+
+div#download:target {
+    display: block;
+}
+
+div#download a#close {
+    width: 50px;
+    height: 50px;
+    position: absolute;
+    width: 660px;
+    height: 100px;
+    display: block;
+    margin-top: -40px;
+}
+
+div#download ul#installers {
+    width: 550px;
+    text-align: center;
+    margin: 0 auto;
+    background: url(platform-icons.png) no-repeat top center;
+    padding-top: 65px;
+    padding-bottom: 50px;
+}
+
+div#download ul#installers li {
+    list-style-type: none;
+    width: 165px;
+    padding-left: 18px;
+    float: left;
+    display: block;
+    color: #33342d;
+    font-size: 10px;
+}
+
+div#download ul#installers li#source {
+    padding-left: 0;
+}
+
+div#download ul#installers li a {
+    font-size: 16px;
+    padding-top: 50px;
+    margin-top: -50px;
+}
+
+div#download ul#documentation {
+    background-color: #d4d7c3;
+    padding: 20px 0 20px 40px;
+    -webkit-border-bottom-right-radius: 4px;
+    -webkit-border-bottom-left-radius: 4px;
+    -moz-border-radius-bottomright: 4px;
+    -moz-border-radius-bottomleft: 4px;
+    border-bottom-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+}
+
+div#download ul#documentation li {
+    margin-left: 40px;
+    text-align: left;
+    color: #33342d;
+    font-size: 14px;
+    font-weight: bold;
+    padding-bottom: 5px;
+}
+
+div#download ul#documentation li a {
+    color: #76a83f;
+}
+
+#download-logo {
+    margin-bottom: 37px;
+}
+
 pre, code {
 	font-family: Monaco, 'Andale Mono', 'Lucida Console', 'Bitstream Vera Sans Mono', 'Courier New', monospace, serif;
-	;
-	font-size: 11pt;
-	color: #C3CC88;
+	font-size: 12px;
+	color: #d2d8ba;
 }
 
 pre {
 	padding-left: 1em;
+    margin-left: -1em;
 	border-left-width: 1px;
 	border-left-style: solid;
-	border-left-color: #8BC84B;
+	border-left-color: #626557;
 }
 
 dd {
@@ -95,9 +327,31 @@ a:hover { text-decoration: underline; }
   padding: 0.2em 0;
 }
 .desktops {
-	font-size: 14px;
+	font-size: 12px;
 }
 
 .release {
   margin: 0 0 0 2em;
 }
+
+.clearfix:after {
+	content: ".";
+	display: block;
+	clear: both;
+	visibility: hidden;
+	line-height: 0;
+	height: 0;
+}
+ 
+.clearfix {
+	display: inline-block;
+}
+ 
+html[xmlns] .clearfix {
+	display: block;
+}
+ 
+* html .clearfix {
+	height: 1%;
+}
+
