@@ -22,7 +22,6 @@
 #ifndef SRC_NODE_ISOLATE_H_
 #define SRC_NODE_ISOLATE_H_
 
-#include "queue.h"
 #include "v8.h"
 #include "uv.h"
 #include "node_vars.h"
@@ -81,12 +80,12 @@ private:
   Isolate(uv_loop_t* loop);
 
   struct AtExitCallbackInfo {
-    SLIST_ENTRY(AtExitCallbackInfo) entries_;
+    ngx_queue_t at_exit_callbacks_;
     AtExitCallback callback_;
     void* arg_;
   };
 
-  SLIST_HEAD(AtExitCallbacks, AtExitCallbackInfo) at_exit_callbacks_;
+  ngx_queue_t at_exit_callbacks_;
   v8::Persistent<v8::Context> v8_context_;
   v8::Isolate* v8_isolate_;
   uv_loop_t* loop_;
