@@ -35,7 +35,7 @@ Isolate* Isolate::New(uv_loop_t* loop) {
 
 
 Isolate::Isolate(uv_loop_t* loop) {
-  SLIST_INIT(&at_exit_callbacks_);
+  ngx_queue_init(&at_exit_callbacks_);
   loop_ = loop;
 
   v8_isolate_ = v8::Isolate::GetCurrent();
@@ -67,19 +67,22 @@ void Isolate::AtExit(AtExitCallback callback, void* arg) {
   it->callback_ = callback;
   it->arg_ = arg;
 
-  SLIST_INSERT_HEAD(&at_exit_callbacks_, it, entries_);
+  ngx_queue_insert_head(&at_exit_callbacks_, &it->at_exit_callbacks_);
 }
 
 
 void Isolate::Dispose() {
   struct AtExitCallbackInfo* it;
+  ngx_queue_t* q;
 
   NODE_ISOLATE_CHECK(this);
 
-  SLIST_FOREACH(it, &at_exit_callbacks_, entries_) {
+  ngx_queue_foreach(q, &at_exit_callbacks_) {
+    it = ngx_queue_data(q, struct AtExitCallbackInfo, at_exit_callbacks_);
     it->callback_(it->arg_);
     delete it;
   }
+  ngx_queue_init(&at_exit_callbacks_);
 
   assert(v8_context_->InContext());
   v8_context_->Exit();
