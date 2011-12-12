@@ -30,6 +30,10 @@
             $('body').click(function() {
                 $('#download').hide();
             });
+            $('#installers li a').click(function() {
+                window.location = $(this).attr('href');
+                return false;
+            });
         });
     </script>
   </head>
