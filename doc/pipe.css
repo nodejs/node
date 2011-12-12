@@ -35,11 +35,11 @@ h2 {
     font-weight: normal;
 }
 
-h1 code, h2 code, h3 code, h4 code, 
-h1 a, h2 a, h3 a, h4 a 
-{ 
-  color: inherit; 
-  font-size: inherit; 
+h1 code, h2 code, h3 code, h4 code,
+h1 a, h2 a, h3 a, h4 a
+{
+  color: inherit;
+  font-size: inherit;
 }
 
 #intro {
@@ -219,10 +219,10 @@ div#download {
     border-bottom-right-radius: 4px;
     border-bottom-left-radius: 4px;
     padding-top: 40px;
-  -webkit-box-shadow: 0 0 32px #000; 
-     -moz-box-shadow: 0 0 32px #000; 
-          box-shadow: 0 0 32px #000; 
-    background: url(close-downloads.png) no-repeat top right white;
+  -webkit-box-shadow: 0 0 32px #000;
+     -moz-box-shadow: 0 0 32px #000;
+          box-shadow: 0 0 32px #000;
+    background:white;
     display: none;
 }
 
@@ -230,14 +230,15 @@ div#download:target {
     display: block;
 }
 
-div#download a#close {
-    width: 50px;
-    height: 50px;
+#download-close {
+    background: url(close-downloads.png) no-repeat top right;
+    width: 64px;
+    height: 64px;
     position: absolute;
-    width: 660px;
-    height: 100px;
     display: block;
-    margin-top: -40px;
+    top:0;
+    right:0;
+    text-indent:-999em;
 }
 
 div#download ul#installers {
@@ -334,24 +335,13 @@ a:hover { text-decoration: underline; }
   margin: 0 0 0 2em;
 }
 
-.clearfix:after {
-	content: ".";
-	display: block;
-	clear: both;
-	visibility: hidden;
-	line-height: 0;
-	height: 0;
-}
- 
+/* simpler clearfix */
 .clearfix {
-	display: inline-block;
+  /* be an independent layout island */
+  overflow:hidden;
+  /* but don't actually cut anything off */
+  height:auto;
+  /* trigger hasLayout in IE */
+  zoom:1;
+  /* fin. */
 }
- 
-html[xmlns] .clearfix {
-	display: block;
-}
- 
-* html .clearfix {
-	height: 1%;
-}
-

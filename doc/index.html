@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!doctype html>
+<html>
   <head>
     <style type="text/css">
     ul {
@@ -7,39 +7,20 @@
       margin: 0;
     }
     </style>
-    <script type='text/javascript' src='http://ajax.googleapis.com/ajax/libs/jquery/1.5/jquery.min.js?ver=3.1.3'></script>
-    <script type="text/javascript" src="sh_main.js"></script>
-    <script type="text/javascript" src="sh_javascript.min.js"></script>
-    <link type="image/x-icon" rel="icon" href="favicon.ico" />
-    <link type="image/x-icon" rel="shortcut icon" href="favicon.ico" />
-    <link type="text/css" rel="stylesheet" href="pipe.css" />
-    <link type="text/css" rel="stylesheet" href="sh_vim-dark.css" />
+    <link type="image/x-icon" rel="icon" href="favicon.ico">
+    <link type="image/x-icon" rel="shortcut icon" href="favicon.ico">
+    <link type="text/css" rel="stylesheet" href="pipe.css">
+    <link type="text/css" rel="stylesheet" href="sh_vim-dark.css">
     <link rel="alternate"
           type="application/rss+xml"
           title="node blog"
-          href="http://feeds.feedburner.com/nodejs/123123123"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+          href="http://feeds.feedburner.com/nodejs/123123123">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
     <title>node.js</title>
-    <script>
-        $(document).ready(function() {
-            $('#close').hide();
-            $('#downloadbutton').click(function() {
-                $('#download').show();
-                return false;
-            });
-            $('body').click(function() {
-                $('#download').hide();
-            });
-            $('#installers li a').click(function() {
-                window.location = $(this).attr('href');
-                return false;
-            });
-        });
-    </script>
   </head>
   <body>
     <div id="intro">
-        <img id="logo" src="logo.png" alt="node.js"/>
+        <img id="logo" src="logo.png" alt="node.js">
 
         <p>Node.js is a platform built on <a
         href="http://code.google.com/p/v8/">Chrome's JavaScript runtime</a>
@@ -53,43 +34,103 @@
     <div id="quotes" class="clearfix">
         <h2>Node.js in the Industry</h2>
         <ul>
-            <li class="microsoft"><img src="microsoft-logo.png" />
+            <li class="microsoft"><img src="microsoft-logo.png">
             <p>Node gives Azure users the first end-to-end JavaScript
             experience for the development of a whole new class of real-time
             applications.
-            <br/>
+            <br>
             <a href="http://blogs.msdn.com/b/interoperability/">Claudio Caldato</a>
-            <br/>
+            <br>
             <span>Principal Program Manager, Interoperability Strategy</span></p></li>
 
-            <li class="ebay"><img src="ebay-logo.png" />
+            <li class="ebay"><img src="ebay-logo.png">
             <p>Node’s evented I/O model freed us from worrying about locking
             and concurrency issues that are common with multithreaded async
             I/O.
-            <br/>
+            <br>
             <a href="http://www.ebaytechblog.com/2011/11/30/announcing-ql-io/">Subbu Allamarju</a>
-            <br/>
+            <br>
             <span>Principal Member, Technical Staff</span></p></li>
 
-            <li class="linkedin"><img src="linkedin-logo.png" />
+            <li class="linkedin"><img src="linkedin-logo.png">
             <p>On the server side, our entire mobile software stack is
             completely built in Node. One reason was scale. The second is
             Node showed us huge performance gains.
-            <br/>
+            <br>
             <a href="http://venturebeat.com/2011/08/16/linkedin-node/">Kiran Prasad</a>
-            <br/>
+            <br>
             <span>Director of Engineering, Mobile</span></p></li>
 
-            <li class="yahoo"><img src="yahoo-logo.png" />
+            <li class="yahoo"><img src="yahoo-logo.png">
             <p>Node.js is the execution core of Manhattan. Allowing
             developers to build one code base using one language – that is
             the nirvana for developers.
-            <br/>
+            <br>
             <a href="http://developer.yahoo.com/blogs/ydn/posts/2011/11/yahoo-announces-cocktails-%E2%80%93-shaken-not-stirred/">Renaud Waldura</a>
-            <br/>
+            <br>
             <span>Sr. Product Manger, Cocktail</span></p></li>
         </ul>
     </div>
+
+    <div id="download">
+        <a href="#" id="download-close">X</a>
+        <img id="download-logo" src="download-logo.png" alt="node.js">
+        <ul id="installers" class="clearfix">
+            <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.msi">Windows Installer</a><br>node-v0.6.5.msi</li>
+            <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.pkg">Macintosh Installer</a><br>node-v0.6.5.pkg</li>
+            <li id="source"><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.tar.gz">Source Code</a><br>node-v0.6.5.tar.gz</li>
+        </ul>
+        <ul id="documentation">
+            <li><a href="http://nodejs.org/docs/v0.6.5/api/index.html">Documentation</a></li>
+            <li><a href="http://nodejs.org/dist/v0.6.5">Other release files</a></li>
+            <li><a href="https://raw.github.com/joyent/node/v0.6.5/LICENSE">License</a></li>
+            <li><a href="https://github.com/joyent/node">Git Repository</a></li>
+        </ul>
+    </div>
+
+    <script>;(function() {
+      // attach as soon as the required elements are in the DOM.
+      // don't need to wait for entire document to be ready, since we're
+      // not adding any *new* nodes to the <body>, so there's no threat
+      // of 'Invalid operation' errors in old MSIE 6.
+      document.getElementById('downloadbutton').onclick = function(e) {
+        e = e || window.event;
+        e.stopPropagation && e.stopPropagation();
+        downloadDialogUpdate();
+      };
+
+      document.getElementById('download-close').onclick =
+      document.documentElement.onclick = function(e) {
+        e = e || window.event;
+        if (location.hash === '#download') location.hash = '';
+        downloadDialogUpdate();
+      };
+
+      document.getElementById('download').onclick = function(e) {
+        e = e || window.event;
+        e.stopPropagation && e.stopPropagation();
+      };
+
+      // I keep expecting <Esc> to close the dialog...
+      document.documentElement.onkeydown = function(e) {
+        e = e || window.event;
+        var k = e.which || e.keyCode || e.keyIdentifier;
+        if (typeof k === 'string') k = k.charCodeAt(0);
+        if (k === 27) document.documentElement.onclick(e);
+      };
+
+      // hacky workaround for old ie browsers that don't support :target css.
+      function downloadDialogUpdate () {
+        var div = document.getElementById('download');
+        var expect = location.hash === '#download' ? 'block' : 'none';
+        var m = div.getComputedStyle || div.currentStyle || null;
+        if (!m) return;
+        var actual = m.call(div, 'display');
+        if (actual !== expect) div.style.diplay = expect;
+      }
+      downloadDialogUpdate();
+    })();</script>
+
     <div id="content" class="clearfix">
             <div id="column1">
                 <h2>An example: Webserver</h2>
@@ -123,41 +164,30 @@ server.listen(1337, "127.0.0.1");</pre>
         </div>
         <div id="column2">
             <h2>Featured</h2>
-            <a href="http://www.youtube.com/watch?v=jo_B4LTHi3I"><img src="ryan-speaker.jpg" /></a>
+            <a href="http://www.youtube.com/watch?v=jo_B4LTHi3I"><img src="ryan-speaker.jpg"></a>
             A guided introduction to Node
 
             <h2>Explore Node.js</h2>
             <ul id="explore">
-                <li><a href="http://blog.nodejs.org" class="explore">Node.js Blog</a><br /><span>Insight, perspective and events</span></li>
-                <li><a href="about/" class="explore">About</a><br /><span>Technical overview</span></li>
-                <li><a href="community/" class="explore">Community</a><br /><span>Mailing lists, blogs, and more</span></li>
-                <li><a href="http://nodejs.org/docs/latest/api/index.html" class="explore">Documentation</a><br /><span>API Specifications</span></li>
-                <li><a href="http://search.npmjs.org/" class="explore">npm Registry</a><br /><span>Modules, resources and more</span></li>
-                <li><a href="logos/" class="explore">Logos</a><br /><span>Logo and desktop background</span></li>
-                <li><a href="http://jobs.nodejs.org/" class="explore">Jobs</a><br /><ol class="jobs"><!-- JOBS --><!-- JOBS --></ol></li>
+                <li><a href="http://blog.nodejs.org" class="explore">Node.js Blog</a><br><span>Insight, perspective and events</span></li>
+                <li><a href="about/" class="explore">About</a><br><span>Technical overview</span></li>
+                <li><a href="community/" class="explore">Community</a><br><span>Mailing lists, blogs, and more</span></li>
+                <li><a href="http://nodejs.org/docs/latest/api/index.html" class="explore">Documentation</a><br><span>API Specifications</span></li>
+                <li><a href="http://search.npmjs.org/" class="explore">npm Registry</a><br><span>Modules, resources and more</span></li>
+                <li><a href="logos/" class="explore">Logos</a><br><span>Logo and desktop background</span></li>
+                <li><a href="http://jobs.nodejs.org/" class="explore">Jobs</a><br><ol class="jobs"><!-- JOBS --><!-- JOBS --></ol></li>
             </ul>
     </div>
 </div>
+
     <div id="footer">
       <p>Copyright <a href="http://joyent.com">Joyent, Inc</a>, Node.js
       is a <a href="trademark-policy.pdf">trademark of Joyent, Inc</a>.
     </div>
-    <div id="download">
-        <a href="/" id="close"></a>
-        <img id="download-logo" src="download-logo.png" alt="node.js"/>
-        <ul id="installers" class="clearfix">
-            <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.msi">Windows Installer</a><br />node-v0.6.5.msi</li>
-            <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.pkg">Macintosh Installer</a><br />node-v0.6.5.pkg</li>
-            <li id="source"><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.tar.gz">Source Code</a><br />node-v0.6.5.tar.gz</li>
-        </ul>
-        <ul id="documentation">
-            <li><a href="http://nodejs.org/docs/v0.6.5/api/index.html">Documentation</a></li>
-            <li><a href="http://nodejs.org/dist/v0.6.5">Other release files</a></li>
-            <li><a href="https://raw.github.com/joyent/node/v0.6.5/LICENSE">License</a></li>
-            <li><a href="https://github.com/joyent/node">Git Repository</a></li>
-        </ul>
-    </div>
 
+    <script type="text/javascript" src="sh_main.js"></script>
+    <script type="text/javascript" src="sh_javascript.min.js"></script>
+    <script type="text/javascript">highlight(undefined, undefined, 'pre');</script>
 
     <script type="text/javascript">
       var gaJsHost = (("https:" == document.location.protocol) ?
@@ -168,7 +198,7 @@ server.listen(1337, "127.0.0.1");</pre>
       try {
         var pageTracker = _gat._getTracker("UA-10874194-2");
         pageTracker._trackPageview();
-        } catch(err) {}</script>
-    <script type="text/javascript">highlight(undefined, undefined, 'pre');</script>
+      } catch(err) {}
+    </script>
   </body>
 </html>
