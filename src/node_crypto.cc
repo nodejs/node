@@ -2327,7 +2327,12 @@ class Decipher : public ObjectWrap {
   }
 
   int DecipherUpdate(char* data, int len, unsigned char** out, int* out_len) {
-    if (!initialised_) return 0;
+    if (!initialised_) {
+      *out_len = 0;
+      *out = NULL;
+      return 0;
+    }
+
     *out_len=len+EVP_CIPHER_CTX_block_size(&ctx);
     *out= new unsigned char[*out_len];
 
@@ -2337,7 +2342,12 @@ class Decipher : public ObjectWrap {
 
   // coverity[alloc_arg]
   int DecipherFinal(unsigned char** out, int *out_len, bool tolerate_padding) {
-    if (!initialised_) return 0;
+    if (!initialised_) {
+      *out_len = 0;
+      *out = NULL;
+      return 0;
+    }
+
     *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
     if (tolerate_padding) {
       local_EVP_DecryptFinal_ex(&ctx,*out,out_len);
@@ -2597,9 +2607,9 @@ class Decipher : public ObjectWrap {
     int r = cipher->DecipherFinal(&out_value, &out_len, false);
 
     if (out_len == 0 || r == 0) {
+      delete[] out_value;
       return scope.Close(String::New(""));
     }
-
 
     if (args.Length() == 0 || !args[0]->IsString()) {
       outString = Encode(out_value, out_len, BINARY);
