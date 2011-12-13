@@ -40,20 +40,26 @@ void Isolate::Initialize() {
   }
 }
 
-Isolate* Isolate::New(uv_loop_t* loop) {
-  return new Isolate(loop);
+
+Isolate* Isolate::New() {
+  return new Isolate();
 }
 
 
-Isolate::Isolate(uv_loop_t* loop) {
+Isolate::Isolate() {
   assert(initialized && "node::Isolate::Initialize() hasn't been called");
 
   uv_mutex_lock(&id_lock);
   id_ = ++id;
   uv_mutex_unlock(&id_lock);
 
+  if (id_ == 1) {
+    loop_ = uv_default_loop();
+  } else {
+    loop_ = uv_loop_new();
+  }
+
   ngx_queue_init(&at_exit_callbacks_);
-  loop_ = loop;
 
   v8_isolate_ = v8::Isolate::GetCurrent();
   if (v8_isolate_ == NULL) {

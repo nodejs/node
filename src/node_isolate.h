@@ -48,7 +48,7 @@ public:
 
   typedef void (*AtExitCallback)(void* arg);
 
-  static Isolate* New(uv_loop_t* loop);
+  static Isolate* New();
 
   static Isolate* GetCurrent() {
     return reinterpret_cast<Isolate*>(v8::Isolate::GetCurrent()->GetData());
@@ -82,7 +82,7 @@ public:
   unsigned int id_;
 
 private:
-  Isolate(uv_loop_t* loop);
+  Isolate();
 
   struct AtExitCallbackInfo {
     ngx_queue_t at_exit_callbacks_;
