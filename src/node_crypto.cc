@@ -4097,43 +4097,79 @@ Handle<Value>
 PBKDF2(const Arguments& args) {
   HandleScope scope;
 
-  if (args.Length() != 5)
-    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
+  const char* type_error = NULL;
+  char* pass = NULL;
+  char* salt = NULL;
+  char* key = NULL;
+  ssize_t passlen = -1;
+  ssize_t saltlen = -1;
+  ssize_t keylen = -1;
+  ssize_t pass_written = -1;
+  ssize_t salt_written = -1;
+  ssize_t iter = -1;
+  Local<Function> callback;
+  pbkdf2_req* request = NULL;
+  uv_work_t* req = NULL;
+
+  if (args.Length() != 5) {
+    type_error = "Bad parameter";
+    goto err;
+  }
 
   ASSERT_IS_STRING_OR_BUFFER(args[0]);
-  ssize_t passlen = DecodeBytes(args[0], BINARY);
-  if (passlen < 0)
-    return ThrowException(Exception::TypeError(String::New("Bad password")));
-  char* pass = new char[passlen];
-  ssize_t pass_written = DecodeWrite(pass, passlen, args[0], BINARY);
+  passlen = DecodeBytes(args[0], BINARY);
+  if (passlen < 0) {
+    type_error = "Bad password";
+    goto err;
+  }
+
+  pass = new char[passlen];
+  pass_written = DecodeWrite(pass, passlen, args[0], BINARY);
   assert(pass_written == passlen);
 
   ASSERT_IS_STRING_OR_BUFFER(args[1]);
-  ssize_t saltlen = DecodeBytes(args[1], BINARY);
-  if (saltlen < 0)
-    return ThrowException(Exception::TypeError(String::New("Bad salt")));
-  char* salt = new char[saltlen];
-  ssize_t salt_written = DecodeWrite(salt, saltlen, args[1], BINARY);
+  saltlen = DecodeBytes(args[1], BINARY);
+  if (saltlen < 0) {
+    type_error = "Bad salt";
+    goto err;
+  }
+
+  salt = new char[saltlen];
+  salt_written = DecodeWrite(salt, saltlen, args[1], BINARY);
   assert(salt_written == saltlen);
 
-  if (!args[2]->IsNumber())
-    return ThrowException(Exception::TypeError(String::New("Iterations not a number")));
-  ssize_t iter = args[2]->Int32Value();
-  if (iter < 0)
-    return ThrowException(Exception::TypeError(String::New("Bad iterations")));
+  if (!args[2]->IsNumber()) {
+    type_error = "Iterations not a number";
+    goto err;
+  }
 
-  if (!args[3]->IsNumber())
-    return ThrowException(Exception::TypeError(String::New("Key length not a number")));
-  ssize_t keylen = args[3]->Int32Value();
-  if (keylen < 0)
-    return ThrowException(Exception::TypeError(String::New("Bad key length")));
-  char* key = new char[keylen];
+  iter = args[2]->Int32Value();
+  if (iter < 0) {
+    type_error = "Bad iterations";
+    goto err;
+  }
 
-  if (!args[4]->IsFunction())
-    return ThrowException(Exception::TypeError(String::New("Callback not a function")));
-  Local<Function> callback = Local<Function>::Cast(args[4]);
+  if (!args[3]->IsNumber()) {
+    type_error = "Key length not a number";
+    goto err;
+  }
 
-  pbkdf2_req* request = new pbkdf2_req;
+  keylen = args[3]->Int32Value();
+  if (keylen < 0) {
+    type_error = "Bad key length";
+    goto err;
+  }
+
+  key = new char[keylen];
+
+  if (!args[4]->IsFunction()) {
+    type_error = "Callback not a function";
+    goto err;
+  }
+
+  callback = Local<Function>::Cast(args[4]);
+
+  request = new pbkdf2_req;
   request->err = 0;
   request->pass = pass;
   request->passlen = passlen;
@@ -4144,11 +4180,16 @@ PBKDF2(const Arguments& args) {
   request->keylen = keylen;
   request->callback = Persistent<Function>::New(callback);
 
-  uv_work_t* req = new uv_work_t();
+  req = new uv_work_t();
   req->data = request;
   uv_queue_work(uv_default_loop(), req, EIO_PBKDF2, EIO_PBKDF2After);
-
   return Undefined();
+
+err:
+  delete[] key;
+  delete[] salt;
+  delete[] pass;
+  return ThrowException(Exception::TypeError(String::New(type_error)));
 }
 
 
