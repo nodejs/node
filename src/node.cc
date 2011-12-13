@@ -140,10 +140,8 @@ static const char* eval_string;
 static bool print_eval;
 
 static void CheckStatus(uv_timer_t* watcher, int status);
-static unsigned long NewThreadId();
 
-void StartThread(unsigned long thread_id,
-                 Isolate* isolate,
+void StartThread(Isolate* isolate,
                  int argc,
                  char** argv);
 
@@ -1851,25 +1849,7 @@ static Handle<Value> Binding(const Arguments& args) {
 }
 
 
-static struct {
-  uv_mutex_t lock_;
-  unsigned long counter_;
-} thread_id_generator_;
-
-
-static unsigned long NewThreadId() {
-  unsigned long thread_id;
-
-  uv_mutex_lock(&thread_id_generator_.lock_);
-  thread_id = ++thread_id_generator_.counter_;
-  uv_mutex_unlock(&thread_id_generator_.lock_);
-
-  return thread_id;
-}
-
-
 struct ThreadInfo {
-  unsigned long thread_id_;
   uv_thread_t thread_;
   char** argv_;
   int argc_;
@@ -1914,7 +1894,7 @@ static void RunIsolate(void* arg) {
   uv_loop_t* loop = uv_loop_new();
   Isolate* isolate = Isolate::New(loop);
 
-  StartThread(ti->thread_id_, isolate, ti->argc_, ti->argv_);
+  StartThread(isolate, ti->argc_, ti->argv_);
   delete ti;
 }
 
@@ -1931,7 +1911,6 @@ static Handle<Value> NewIsolate(const Arguments& args) {
   assert(argv->Length() >= 2);
 
   ThreadInfo* ti = new ThreadInfo(argv);
-  ti->thread_id_ = NewThreadId();
 
   if (uv_thread_create(&ti->thread_, RunIsolate, ti)) {
     delete ti;
@@ -2710,8 +2689,7 @@ void EmitExit(v8::Handle<v8::Object> process_l) {
 
 
 // Create a new isolate with node::Isolate::New() before you call this function
-void StartThread(unsigned long thread_id,
-                 Isolate* isolate,
+void StartThread(node::Isolate* isolate,
                  int argc,
                  char** argv) {
   HandleScope scope;
@@ -2773,7 +2751,7 @@ void StartThread(unsigned long thread_id,
   Handle<Object> process_l = SetupProcessObject(argc, argv);
 
   process_l->Set(String::NewSymbol("tid"),
-                 Integer::NewFromUnsigned(thread_id));
+                 Integer::NewFromUnsigned(isolate->id_));
 
   // FIXME crashes with "CHECK(heap->isolate() == Isolate::Current()) failed"
   //v8_typed_array::AttachBindings(v8::Context::GetCurrent()->Global());
@@ -2794,8 +2772,6 @@ void StartThread(unsigned long thread_id,
 
 
 int Start(int argc, char *argv[]) {
-  if (uv_mutex_init(&thread_id_generator_.lock_)) abort();
-
   // This needs to run *before* V8::Initialize()
   argv = ProcessInit(argc, argv);
 
@@ -2803,8 +2779,9 @@ int Start(int argc, char *argv[]) {
   v8::HandleScope handle_scope;
 
   // Create the main node::Isolate object
-  Isolate* isolate = Isolate::New(uv_default_loop());
-  StartThread(NewThreadId(), isolate, argc, argv);
+  node::Isolate::Initialize();
+  Isolate* isolate = node::Isolate::New(uv_default_loop());
+  StartThread(isolate, argc, argv);
   isolate->Dispose();
 
 #ifndef NDEBUG

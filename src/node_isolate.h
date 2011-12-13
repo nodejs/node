@@ -43,6 +43,9 @@ namespace node {
 
 class Isolate {
 public:
+  // Call this before instantiating any Isolate
+  static void Initialize();
+
   typedef void (*AtExitCallback)(void* arg);
 
   static Isolate* New(uv_loop_t* loop);
@@ -75,6 +78,8 @@ public:
   void Dispose();
 
   struct globals* Globals();
+
+  unsigned int id_;
 
 private:
   Isolate(uv_loop_t* loop);
