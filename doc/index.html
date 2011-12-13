@@ -97,7 +97,9 @@
       document.getElementById('downloadbutton').onclick = function(e) {
         e = e || window.event;
         e.stopPropagation && e.stopPropagation();
-        downloadDialogUpdate();
+        e.cancelBubble = true;
+        // need to give the hash a tick to update
+        setTimeout(downloadDialogUpdate, 0);
       };
 
       document.getElementById('download-close').onclick =
@@ -110,6 +112,7 @@
       document.getElementById('download').onclick = function(e) {
         e = e || window.event;
         e.stopPropagation && e.stopPropagation();
+        e.cancelBubble = true;
       };
 
       // I keep expecting <Esc> to close the dialog...
@@ -123,11 +126,20 @@
       // hacky workaround for old ie browsers that don't support :target css.
       function downloadDialogUpdate () {
         var div = document.getElementById('download');
+        if (!div) return;
         var expect = location.hash === '#download' ? 'block' : 'none';
-        var m = div.getComputedStyle || div.currentStyle || null;
-        if (!m) return;
-        var actual = m.call(div, 'display');
-        if (actual !== expect) div.style.diplay = expect;
+        var actual = div.currentStyle ? div.currentStyle.display
+                   : window.getComputedStyle
+                     ? document.defaultView.getComputedStyle(div, null).getPropertyValue('display')
+                   : null;
+
+        // it looks like a string, but it might not actually be a string.
+        // explicitly cast for MSIE 6 and 7.
+        actual = '' + actual;
+        expect = '' + expect;
+        if (actual !== expect) {
+          div.style.display = expect;
+        }
       }
       downloadDialogUpdate();
     })();</script>
