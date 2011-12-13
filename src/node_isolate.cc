@@ -26,8 +26,19 @@
 #include <assert.h>
 
 
+
 namespace node {
 
+static volatile bool initialized;
+static volatile int id;
+static uv_mutex_t id_lock;
+
+void Isolate::Initialize() {
+  if (!initialized) {
+    initialized = true;
+    if (uv_mutex_init(&id_lock)) abort();
+  }
+}
 
 Isolate* Isolate::New(uv_loop_t* loop) {
   return new Isolate(loop);
@@ -35,6 +46,12 @@ Isolate* Isolate::New(uv_loop_t* loop) {
 
 
 Isolate::Isolate(uv_loop_t* loop) {
+  assert(initialized && "node::Isolate::Initialize() hasn't been called");
+
+  uv_mutex_lock(&id_lock);
+  id_ = ++id;
+  uv_mutex_unlock(&id_lock);
+
   ngx_queue_init(&at_exit_callbacks_);
   loop_ = loop;
 
