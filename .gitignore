@@ -1,4 +1,5 @@
-
+core
+vgcore.*
 .waf*
 tags
 .lock-wscript
