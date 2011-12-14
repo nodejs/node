@@ -11,7 +11,8 @@ out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/z
 	tools/gyp_node -f make
 
 install uninstall:
-	@echo '`make $(@)` is not implemented yet. Bug bnoordhuis about it in #node.js'
+	@echo '`make $(@)` is being reworked, please use the latest stable tag.'
+	@echo 'Git users, type `git checkout -b v0.6` now.'
 
 clean:
 	rm -rf out
