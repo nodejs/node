@@ -574,7 +574,7 @@ static void GenerateFastApiDirectCall(MacroAssembler* masm,
   // -----------------------------------
   // Get the function and setup the context.
   Handle<JSFunction> function = optimization.constant_function();
-  __ li(t1, Operand(function));
+  __ LoadHeapObject(t1, function);
   __ lw(cp, FieldMemOperand(t1, JSFunction::kContextOffset));
 
   // Pass the additional arguments FastHandleApiCall expects.
@@ -1115,7 +1115,7 @@ void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
                                         Register scratch1,
                                         Register scratch2,
                                         Register scratch3,
-                                        Handle<Object> value,
+                                        Handle<JSFunction> value,
                                         Handle<String> name,
                                         Label* miss) {
   // Check that the receiver isn't a smi.
@@ -1127,7 +1127,7 @@ void StubCompiler::GenerateLoadConstant(Handle<JSObject> object,
                       scratch1, scratch2, scratch3, name, miss);
 
   // Return the constant value.
-  __ li(v0, Operand(value));
+  __ LoadHeapObject(v0, value);
   __ Ret();
 }
 
@@ -2605,15 +2605,7 @@ Handle<Code> StoreStubCompiler::CompileStoreGlobal(
   // Store the value in the cell.
   __ sw(a0, FieldMemOperand(t0, JSGlobalPropertyCell::kValueOffset));
   __ mov(v0, a0);  // Stored value must be returned in v0.
-
-  // This trashes a0 but the value is returned in v0 anyway.
-  __ RecordWriteField(t0,
-                      JSGlobalPropertyCell::kValueOffset,
-                      a0,
-                      a2,
-                      kRAHasNotBeenSaved,
-                      kDontSaveFPRegs,
-                      OMIT_REMEMBERED_SET);
+  // Cells are always rescanned, so no write barrier here.
 
   Counters* counters = masm()->isolate()->counters();
   __ IncrementCounter(counters->named_store_global_inline(), 1, a1, a3);
@@ -2709,7 +2701,7 @@ Handle<Code> LoadStubCompiler::CompileLoadCallback(
 
 Handle<Code> LoadStubCompiler::CompileLoadConstant(Handle<JSObject> object,
                                                    Handle<JSObject> holder,
-                                                   Handle<Object> value,
+                                                   Handle<JSFunction> value,
                                                    Handle<String> name) {
   // ----------- S t a t e -------------
   //  -- a0    : receiver
@@ -2847,7 +2839,7 @@ Handle<Code> KeyedLoadStubCompiler::CompileLoadConstant(
     Handle<String> name,
     Handle<JSObject> receiver,
     Handle<JSObject> holder,
-    Handle<Object> value) {
+    Handle<JSFunction> value) {
   // ----------- S t a t e -------------
   //  -- ra    : return address
   //  -- a0    : key

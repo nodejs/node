@@ -85,9 +85,11 @@ test-debug/DebugBreakLoop: SKIP
 
 ##############################################################################
 [ $arch == mips ]
-test-deoptimization: SKIP
 test-serialize: SKIP
 
-# Tests that may time out.
-test-api/ExternalArrays: PASS || TIMEOUT
-test-api/Threading: PASS || TIMEOUT
+##############################################################################
+[ $arch == mips && $crankshaft ]
+
+# Tests that time out with crankshaft.
+test-debug/ThreadedDebugging: SKIP
+test-debug/DebugBreakLoop: SKIP

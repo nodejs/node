@@ -109,7 +109,7 @@ class StoreBuffer {
   // been promoted.  Rebuilds the store buffer completely if it overflowed.
   void SortUniq();
 
-  void HandleFullness();
+  void EnsureSpace(intptr_t space_needed);
   void Verify();
 
   bool PrepareForIteration();
@@ -134,6 +134,8 @@ class StoreBuffer {
   Address* old_start_;
   Address* old_limit_;
   Address* old_top_;
+  Address* old_reserved_limit_;
+  VirtualMemory* old_virtual_memory_;
 
   bool old_buffer_is_sorted_;
   bool old_buffer_is_filtered_;

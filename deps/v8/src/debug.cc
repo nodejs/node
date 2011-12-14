@@ -1796,8 +1796,9 @@ void Debug::PrepareForBreakPoints() {
           }
         } else if (frame->function()->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(frame->function());
-          if (function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots()) {
+          ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
+          if (!frame->LookupCode()->has_debug_break_slots() ||
+              !function->shared()->code()->has_debug_break_slots()) {
             active_functions.Add(Handle<JSFunction>(function));
           }
         }
@@ -1853,20 +1854,16 @@ void Debug::PrepareForBreakPoints() {
       if (function->code() == *lazy_compile) {
         function->set_code(shared->code());
       }
-      Handle<Code> current_code(function->code());
-      if (shared->code()->has_debug_break_slots()) {
-        // if the code is already recompiled to have break slots skip
-        // recompilation.
-        ASSERT(!function->code()->has_debug_break_slots());
-      } else {
+      if (!shared->code()->has_debug_break_slots()) {
         // Try to compile the full code with debug break slots. If it
         // fails just keep the current code.
-        ASSERT(shared->code() == *current_code);
+        Handle<Code> current_code(function->shared()->code());
         ZoneScope zone_scope(isolate_, DELETE_ON_EXIT);
         shared->set_code(*lazy_compile);
         bool prev_force_debugger_active =
             isolate_->debugger()->force_debugger_active();
         isolate_->debugger()->set_force_debugger_active(true);
+        ASSERT(current_code->kind() == Code::FUNCTION);
         CompileFullCodeForDebugging(shared, current_code);
         isolate_->debugger()->set_force_debugger_active(
             prev_force_debugger_active);
@@ -1883,10 +1880,13 @@ void Debug::PrepareForBreakPoints() {
         // If the current frame is for this function in its
         // non-optimized form rewrite the return address to continue
         // in the newly compiled full code with debug break slots.
-        if (frame->function()->IsJSFunction() &&
-            frame->function() == *function &&
-            frame->LookupCode()->kind() == Code::FUNCTION) {
-          intptr_t delta = frame->pc() - current_code->instruction_start();
+        if (!frame->is_optimized() &&
+            frame->function()->IsJSFunction() &&
+            frame->function() == *function) {
+          ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
+          Handle<Code> frame_code(frame->LookupCode());
+          if (frame_code->has_debug_break_slots()) continue;
+          intptr_t delta = frame->pc() - frame_code->instruction_start();
           int debug_break_slot_count = 0;
           int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT);
           for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
@@ -1915,11 +1915,11 @@ void Debug::PrepareForBreakPoints() {
                    "for debugging, "
                    "changing pc from %08" V8PRIxPTR " to %08" V8PRIxPTR "\n",
                    reinterpret_cast<intptr_t>(
-                       current_code->instruction_start()),
+                       frame_code->instruction_start()),
                    reinterpret_cast<intptr_t>(
-                       current_code->instruction_start()) +
-                       current_code->instruction_size(),
-                   current_code->instruction_size(),
+                       frame_code->instruction_start()) +
+                       frame_code->instruction_size(),
+                   frame_code->instruction_size(),
                    reinterpret_cast<intptr_t>(new_code->instruction_start()),
                    reinterpret_cast<intptr_t>(new_code->instruction_start()) +
                        new_code->instruction_size(),

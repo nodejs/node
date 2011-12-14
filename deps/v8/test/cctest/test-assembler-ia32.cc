@@ -408,4 +408,72 @@ TEST(AssemblerIa3210) {
   __ nop();
 }
 
+
+TEST(AssemblerMultiByteNop) {
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::internal::byte buffer[1024];
+  Assembler assm(Isolate::Current(), buffer, sizeof(buffer));
+  __ push(ebx);
+  __ push(ecx);
+  __ push(edx);
+  __ push(edi);
+  __ push(esi);
+  __ mov(eax, 1);
+  __ mov(ebx, 2);
+  __ mov(ecx, 3);
+  __ mov(edx, 4);
+  __ mov(edi, 5);
+  __ mov(esi, 6);
+  for (int i = 0; i < 16; i++) {
+    int before = assm.pc_offset();
+    __ Nop(i);
+    CHECK_EQ(assm.pc_offset() - before, i);
+  }
+
+  Label fail;
+  __ cmp(eax, 1);
+  __ j(not_equal, &fail);
+  __ cmp(ebx, 2);
+  __ j(not_equal, &fail);
+  __ cmp(ecx, 3);
+  __ j(not_equal, &fail);
+  __ cmp(edx, 4);
+  __ j(not_equal, &fail);
+  __ cmp(edi, 5);
+  __ j(not_equal, &fail);
+  __ cmp(esi, 6);
+  __ j(not_equal, &fail);
+  __ mov(eax, 42);
+  __ pop(esi);
+  __ pop(edi);
+  __ pop(edx);
+  __ pop(ecx);
+  __ pop(ebx);
+  __ ret(0);
+  __ bind(&fail);
+  __ mov(eax, 13);
+  __ pop(esi);
+  __ pop(edi);
+  __ pop(edx);
+  __ pop(ecx);
+  __ pop(ebx);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Code* code = Code::cast(HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
+  CHECK(code->IsCode());
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  int res = f();
+  CHECK_EQ(42, res);
+}
+
+
+
+
 #undef __

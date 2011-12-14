@@ -80,7 +80,7 @@ Heap::Heap()
 #endif
       reserved_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
       max_semispace_size_(8 * Max(LUMP_OF_MEMORY, Page::kPageSize)),
-      initial_semispace_size_(Max(LUMP_OF_MEMORY, Page::kPageSize)),
+      initial_semispace_size_(Page::kPageSize),
       max_old_generation_size_(700ul * LUMP_OF_MEMORY),
       max_executable_size_(128l * LUMP_OF_MEMORY),
 
@@ -1012,7 +1012,7 @@ void StoreBufferRebuilder::Callback(MemoryChunk* page, StoreBufferEvent event) {
       // Store Buffer overflowed while scanning promoted objects.  These are not
       // in any particular page, though they are likely to be clustered by the
       // allocation routines.
-      store_buffer_->HandleFullness();
+      store_buffer_->EnsureSpace(StoreBuffer::kStoreBufferSize);
     } else {
       // Store Buffer overflowed while scanning a particular old space page for
       // pointers to new space.
@@ -1813,7 +1813,7 @@ MaybeObject* Heap::AllocateMap(InstanceType instance_type,
   }
 
   Map* map = reinterpret_cast<Map*>(result);
-  map->set_map_unsafe(meta_map());
+  map->set_map_no_write_barrier(meta_map());
   map->set_instance_type(instance_type);
   map->set_visitor_id(
       StaticVisitorBase::GetVisitorId(instance_type, instance_size));
@@ -2173,7 +2173,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value, PretenureFlag pretenure) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  HeapObject::cast(result)->set_map_unsafe(heap_number_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -2191,7 +2191,7 @@ MaybeObject* Heap::AllocateHeapNumber(double value) {
   { MaybeObject* maybe_result = new_space_.AllocateRaw(HeapNumber::kSize);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  HeapObject::cast(result)->set_map_unsafe(heap_number_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(heap_number_map());
   HeapNumber::cast(result)->set_value(value);
   return result;
 }
@@ -2202,7 +2202,8 @@ MaybeObject* Heap::AllocateJSGlobalPropertyCell(Object* value) {
   { MaybeObject* maybe_result = AllocateRawCell();
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  HeapObject::cast(result)->set_map_unsafe(global_property_cell_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(
+      global_property_cell_map());
   JSGlobalPropertyCell::cast(result)->set_value(value);
   return result;
 }
@@ -2416,6 +2417,7 @@ bool Heap::CreateInitialObjects() {
   }
   set_code_stubs(NumberDictionary::cast(obj));
 
+
   // Allocate the non_monomorphic_cache used in stub-cache.cc. The initial size
   // is set to avoid expanding the dictionary during bootstrapping.
   { MaybeObject* maybe_obj = NumberDictionary::Allocate(64);
@@ -2543,7 +2545,7 @@ void StringSplitCache::Enter(Heap* heap,
       }
     }
   }
-  array->set_map(heap->fixed_cow_array_map());
+  array->set_map_no_write_barrier(heap->fixed_cow_array_map());
 }
 
 
@@ -3139,7 +3141,8 @@ MaybeObject* Heap::AllocateByteArray(int length, PretenureFlag pretenure) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<ByteArray*>(result)->set_map_unsafe(byte_array_map());
+  reinterpret_cast<ByteArray*>(result)->set_map_no_write_barrier(
+      byte_array_map());
   reinterpret_cast<ByteArray*>(result)->set_length(length);
   return result;
 }
@@ -3157,7 +3160,8 @@ MaybeObject* Heap::AllocateByteArray(int length) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<ByteArray*>(result)->set_map_unsafe(byte_array_map());
+  reinterpret_cast<ByteArray*>(result)->set_map_no_write_barrier(
+      byte_array_map());
   reinterpret_cast<ByteArray*>(result)->set_length(length);
   return result;
 }
@@ -3167,11 +3171,11 @@ void Heap::CreateFillerObjectAt(Address addr, int size) {
   if (size == 0) return;
   HeapObject* filler = HeapObject::FromAddress(addr);
   if (size == kPointerSize) {
-    filler->set_map_unsafe(one_pointer_filler_map());
+    filler->set_map_no_write_barrier(one_pointer_filler_map());
   } else if (size == 2 * kPointerSize) {
-    filler->set_map_unsafe(two_pointer_filler_map());
+    filler->set_map_no_write_barrier(two_pointer_filler_map());
   } else {
-    filler->set_map_unsafe(free_space_map());
+    filler->set_map_no_write_barrier(free_space_map());
     FreeSpace::cast(filler)->set_size(size);
   }
 }
@@ -3189,7 +3193,7 @@ MaybeObject* Heap::AllocateExternalArray(int length,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<ExternalArray*>(result)->set_map_unsafe(
+  reinterpret_cast<ExternalArray*>(result)->set_map_no_write_barrier(
       MapForExternalArrayType(array_type));
   reinterpret_cast<ExternalArray*>(result)->set_length(length);
   reinterpret_cast<ExternalArray*>(result)->set_external_pointer(
@@ -3226,7 +3230,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   if (!maybe_result->ToObject(&result)) return maybe_result;
 
   // Initialize the object
-  HeapObject::cast(result)->set_map_unsafe(code_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(code_map());
   Code* code = Code::cast(result);
   ASSERT(!isolate_->code_range()->exists() ||
       isolate_->code_range()->contains(code->address()));
@@ -3355,7 +3359,7 @@ MaybeObject* Heap::Allocate(Map* map, AllocationSpace space) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   // No need for write barrier since object is white and map is in old space.
-  HeapObject::cast(result)->set_map_unsafe(map);
+  HeapObject::cast(result)->set_map_no_write_barrier(map);
   return result;
 }
 
@@ -4084,7 +4088,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  reinterpret_cast<HeapObject*>(result)->set_map_unsafe(map);
+  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(map);
   // Set length and hash fields of the allocated string.
   String* answer = String::cast(result);
   answer->set_length(chars);
@@ -4128,7 +4132,7 @@ MaybeObject* Heap::AllocateRawAsciiString(int length, PretenureFlag pretenure) {
   }
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map_unsafe(ascii_string_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(ascii_string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -4163,7 +4167,7 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
   }
 
   // Partially initialize the object.
-  HeapObject::cast(result)->set_map_unsafe(string_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(string_map());
   String::cast(result)->set_length(length);
   String::cast(result)->set_hash_field(String::kEmptyHashField);
   ASSERT_EQ(size, HeapObject::cast(result)->Size());
@@ -4179,7 +4183,8 @@ MaybeObject* Heap::AllocateEmptyFixedArray() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   // Initialize the object.
-  reinterpret_cast<FixedArray*>(result)->set_map_unsafe(fixed_array_map());
+  reinterpret_cast<FixedArray*>(result)->set_map_no_write_barrier(
+      fixed_array_map());
   reinterpret_cast<FixedArray*>(result)->set_length(0);
   return result;
 }
@@ -4208,13 +4213,13 @@ MaybeObject* Heap::CopyFixedArrayWithMap(FixedArray* src, Map* map) {
   }
   if (InNewSpace(obj)) {
     HeapObject* dst = HeapObject::cast(obj);
-    dst->set_map_unsafe(map);
+    dst->set_map_no_write_barrier(map);
     CopyBlock(dst->address() + kPointerSize,
               src->address() + kPointerSize,
               FixedArray::SizeFor(len) - kPointerSize);
     return obj;
   }
-  HeapObject::cast(obj)->set_map_unsafe(map);
+  HeapObject::cast(obj)->set_map_no_write_barrier(map);
   FixedArray* result = FixedArray::cast(obj);
   result->set_length(len);
 
@@ -4234,7 +4239,7 @@ MaybeObject* Heap::CopyFixedDoubleArrayWithMap(FixedDoubleArray* src,
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
   HeapObject* dst = HeapObject::cast(obj);
-  dst->set_map_unsafe(map);
+  dst->set_map_no_write_barrier(map);
   CopyBlock(
       dst->address() + FixedDoubleArray::kLengthOffset,
       src->address() + FixedDoubleArray::kLengthOffset,
@@ -4252,7 +4257,7 @@ MaybeObject* Heap::AllocateFixedArray(int length) {
   }
   // Initialize header.
   FixedArray* array = reinterpret_cast<FixedArray*>(result);
-  array->set_map_unsafe(fixed_array_map());
+  array->set_map_no_write_barrier(fixed_array_map());
   array->set_length(length);
   // Initialize body.
   ASSERT(!InNewSpace(undefined_value()));
@@ -4300,7 +4305,7 @@ MUST_USE_RESULT static MaybeObject* AllocateFixedArrayWithFiller(
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
 
-  HeapObject::cast(result)->set_map_unsafe(heap->fixed_array_map());
+  HeapObject::cast(result)->set_map_no_write_barrier(heap->fixed_array_map());
   FixedArray* array = FixedArray::cast(result);
   array->set_length(length);
   MemsetPointer(array->data_start(), filler, length);
@@ -4333,7 +4338,8 @@ MaybeObject* Heap::AllocateUninitializedFixedArray(int length) {
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  reinterpret_cast<FixedArray*>(obj)->set_map_unsafe(fixed_array_map());
+  reinterpret_cast<FixedArray*>(obj)->set_map_no_write_barrier(
+      fixed_array_map());
   FixedArray::cast(obj)->set_length(length);
   return obj;
 }
@@ -4347,7 +4353,7 @@ MaybeObject* Heap::AllocateEmptyFixedDoubleArray() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   // Initialize the object.
-  reinterpret_cast<FixedDoubleArray*>(result)->set_map_unsafe(
+  reinterpret_cast<FixedDoubleArray*>(result)->set_map_no_write_barrier(
       fixed_double_array_map());
   reinterpret_cast<FixedDoubleArray*>(result)->set_length(0);
   return result;
@@ -4364,7 +4370,7 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
 
-  reinterpret_cast<FixedDoubleArray*>(obj)->set_map_unsafe(
+  reinterpret_cast<FixedDoubleArray*>(obj)->set_map_no_write_barrier(
       fixed_double_array_map());
   FixedDoubleArray::cast(obj)->set_length(length);
   return obj;
@@ -4401,7 +4407,8 @@ MaybeObject* Heap::AllocateHashTable(int length, PretenureFlag pretenure) {
   { MaybeObject* maybe_result = AllocateFixedArray(length, pretenure);
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  reinterpret_cast<HeapObject*>(result)->set_map_unsafe(hash_table_map());
+  reinterpret_cast<HeapObject*>(result)->set_map_no_write_barrier(
+      hash_table_map());
   ASSERT(result->IsHashTable());
   return result;
 }
@@ -4414,7 +4421,7 @@ MaybeObject* Heap::AllocateGlobalContext() {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_unsafe(global_context_map());
+  context->set_map_no_write_barrier(global_context_map());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;
@@ -4428,7 +4435,7 @@ MaybeObject* Heap::AllocateFunctionContext(int length, JSFunction* function) {
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_unsafe(function_context_map());
+  context->set_map_no_write_barrier(function_context_map());
   context->set_closure(function);
   context->set_previous(function->context());
   context->set_extension(NULL);
@@ -4448,7 +4455,7 @@ MaybeObject* Heap::AllocateCatchContext(JSFunction* function,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_unsafe(catch_context_map());
+  context->set_map_no_write_barrier(catch_context_map());
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(name);
@@ -4466,7 +4473,7 @@ MaybeObject* Heap::AllocateWithContext(JSFunction* function,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_unsafe(with_context_map());
+  context->set_map_no_write_barrier(with_context_map());
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(extension);
@@ -4484,7 +4491,7 @@ MaybeObject* Heap::AllocateBlockContext(JSFunction* function,
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
   Context* context = reinterpret_cast<Context*>(result);
-  context->set_map_unsafe(block_context_map());
+  context->set_map_no_write_barrier(block_context_map());
   context->set_closure(function);
   context->set_previous(previous);
   context->set_extension(scope_info);
@@ -4497,7 +4504,7 @@ MaybeObject* Heap::AllocateScopeInfo(int length) {
   FixedArray* scope_info;
   MaybeObject* maybe_scope_info = AllocateFixedArray(length, TENURED);
   if (!maybe_scope_info->To(&scope_info)) return maybe_scope_info;
-  scope_info->set_map_unsafe(scope_info_map());
+  scope_info->set_map_no_write_barrier(scope_info_map());
   return scope_info;
 }
 
@@ -4541,8 +4548,10 @@ void Heap::EnsureHeapIsIterable() {
 
 
 bool Heap::IdleNotification(int hint) {
-  if (!FLAG_incremental_marking || FLAG_expose_gc || Serializer::enabled()) {
-    return hint < 1000 ? true : IdleGlobalGC();
+  if (hint >= 1000) return IdleGlobalGC();
+  if (contexts_disposed_ > 0 || !FLAG_incremental_marking ||
+      FLAG_expose_gc || Serializer::enabled()) {
+    return true;
   }
 
   // By doing small chunks of GC work in each IdleNotification,
@@ -5150,29 +5159,29 @@ void Heap::IterateRoots(ObjectVisitor* v, VisitMode mode) {
 
 void Heap::IterateWeakRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointer(reinterpret_cast<Object**>(&roots_[kSymbolTableRootIndex]));
-  v->Synchronize("symbol_table");
+  v->Synchronize(VisitorSynchronization::kSymbolTable);
   if (mode != VISIT_ALL_IN_SCAVENGE &&
       mode != VISIT_ALL_IN_SWEEP_NEWSPACE) {
     // Scavenge collections have special processing for this.
     external_string_table_.Iterate(v);
   }
-  v->Synchronize("external_string_table");
+  v->Synchronize(VisitorSynchronization::kExternalStringsTable);
 }
 
 
 void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   v->VisitPointers(&roots_[0], &roots_[kStrongRootListLength]);
-  v->Synchronize("strong_root_list");
+  v->Synchronize(VisitorSynchronization::kStrongRootList);
 
   v->VisitPointer(BitCast<Object**>(&hidden_symbol_));
-  v->Synchronize("symbol");
+  v->Synchronize(VisitorSynchronization::kSymbol);
 
   isolate_->bootstrapper()->Iterate(v);
-  v->Synchronize("bootstrapper");
+  v->Synchronize(VisitorSynchronization::kBootstrapper);
   isolate_->Iterate(v);
-  v->Synchronize("top");
+  v->Synchronize(VisitorSynchronization::kTop);
   Relocatable::Iterate(v);
-  v->Synchronize("relocatable");
+  v->Synchronize(VisitorSynchronization::kRelocatable);
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   isolate_->debug()->Iterate(v);
@@ -5180,13 +5189,13 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
     isolate_->deoptimizer_data()->Iterate(v);
   }
 #endif
-  v->Synchronize("debug");
+  v->Synchronize(VisitorSynchronization::kDebug);
   isolate_->compilation_cache()->Iterate(v);
-  v->Synchronize("compilationcache");
+  v->Synchronize(VisitorSynchronization::kCompilationCache);
 
   // Iterate over local handles in handle scopes.
   isolate_->handle_scope_implementer()->Iterate(v);
-  v->Synchronize("handlescope");
+  v->Synchronize(VisitorSynchronization::kHandleScope);
 
   // Iterate over the builtin code objects and code stubs in the
   // heap. Note that it is not necessary to iterate over code objects
@@ -5194,7 +5203,7 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
   if (mode != VISIT_ALL_IN_SCAVENGE) {
     isolate_->builtins()->IterateBuiltins(v);
   }
-  v->Synchronize("builtins");
+  v->Synchronize(VisitorSynchronization::kBuiltins);
 
   // Iterate over global handles.
   switch (mode) {
@@ -5209,11 +5218,11 @@ void Heap::IterateStrongRoots(ObjectVisitor* v, VisitMode mode) {
       isolate_->global_handles()->IterateAllRoots(v);
       break;
   }
-  v->Synchronize("globalhandles");
+  v->Synchronize(VisitorSynchronization::kGlobalHandles);
 
   // Iterate over pointers being held by inactive threads.
   isolate_->thread_manager()->Iterate(v);
-  v->Synchronize("threadmanager");
+  v->Synchronize(VisitorSynchronization::kThreadManager);
 
   // Iterate over the pointers the Serialization/Deserialization code is
   // holding.
@@ -5413,7 +5422,7 @@ class HeapDebugUtils {
 
     Address map_addr = map_p->address();
 
-    obj->set_map(reinterpret_cast<Map*>(map_addr + kMarkTag));
+    obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_addr + kMarkTag));
 
     MarkObjectRecursively(&map);
 
@@ -5460,7 +5469,7 @@ class HeapDebugUtils {
 
     HeapObject* map_p = HeapObject::FromAddress(map_addr);
 
-    obj->set_map(reinterpret_cast<Map*>(map_p));
+    obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_p));
 
     UnmarkObjectRecursively(reinterpret_cast<Object**>(&map_p));
 
@@ -6172,7 +6181,7 @@ void PathTracer::MarkRecursively(Object** p, MarkVisitor* mark_visitor) {
 
   Address map_addr = map_p->address();
 
-  obj->set_map(reinterpret_cast<Map*>(map_addr + kMarkTag));
+  obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_addr + kMarkTag));
 
   // Scan the object body.
   if (is_global_context && (visit_mode_ == VISIT_ONLY_STRONG)) {
@@ -6214,7 +6223,7 @@ void PathTracer::UnmarkRecursively(Object** p, UnmarkVisitor* unmark_visitor) {
 
   HeapObject* map_p = HeapObject::FromAddress(map_addr);
 
-  obj->set_map(reinterpret_cast<Map*>(map_p));
+  obj->set_map_no_write_barrier(reinterpret_cast<Map*>(map_p));
 
   UnmarkRecursively(reinterpret_cast<Object**>(&map_p), unmark_visitor);
 

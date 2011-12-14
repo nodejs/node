@@ -1238,37 +1238,42 @@ static void ArrayNativeCode(MacroAssembler* masm,
                   false,
                   &prepare_generic_code_call);
   __ IncrementCounter(counters->array_function_native(), 1);
-  __ mov(eax, ebx);
-  __ pop(ebx);
-  if (construct_call) {
-    __ pop(edi);
-  }
-  __ push(eax);
-  // eax: JSArray
+  __ push(ebx);
+  __ mov(ebx, Operand(esp, kPointerSize));
   // ebx: argc
   // edx: elements_array_end (untagged)
   // esp[0]: JSArray
-  // esp[4]: return address
-  // esp[8]: last argument
+  // esp[4]: argc
+  // esp[8]: constructor (only if construct_call)
+  // esp[12]: return address
+  // esp[16]: last argument
 
   // Location of the last argument
-  __ lea(edi, Operand(esp, 2 * kPointerSize));
+  int last_arg_offset = (construct_call ? 4 : 3) * kPointerSize;
+  __ lea(edi, Operand(esp, last_arg_offset));
 
   // Location of the first array element (Parameter fill_with_holes to
-  // AllocateJSArrayis false, so the FixedArray is returned in ecx).
+  // AllocateJSArray is false, so the FixedArray is returned in ecx).
   __ lea(edx, Operand(ecx, FixedArray::kHeaderSize - kHeapObjectTag));
+
+  Label has_non_smi_element;
 
   // ebx: argc
   // edx: location of the first array element
   // edi: location of the last argument
   // esp[0]: JSArray
-  // esp[4]: return address
-  // esp[8]: last argument
+  // esp[4]: argc
+  // esp[8]: constructor (only if construct_call)
+  // esp[12]: return address
+  // esp[16]: last argument
   Label loop, entry;
   __ mov(ecx, ebx);
   __ jmp(&entry);
   __ bind(&loop);
   __ mov(eax, Operand(edi, ecx, times_pointer_size, 0));
+  if (FLAG_smi_only_arrays) {
+    __ JumpIfNotSmi(eax, &has_non_smi_element);
+  }
   __ mov(Operand(edx, 0), eax);
   __ add(edx, Immediate(kPointerSize));
   __ bind(&entry);
@@ -1278,13 +1283,20 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // Remove caller arguments from the stack and return.
   // ebx: argc
   // esp[0]: JSArray
-  // esp[4]: return address
-  // esp[8]: last argument
+  // esp[4]: argc
+  // esp[8]: constructor (only if construct_call)
+  // esp[12]: return address
+  // esp[16]: last argument
+  __ mov(ecx, Operand(esp, last_arg_offset - kPointerSize));
   __ pop(eax);
-  __ pop(ecx);
-  __ lea(esp, Operand(esp, ebx, times_pointer_size, 1 * kPointerSize));
-  __ push(ecx);
-  __ ret(0);
+  __ pop(ebx);
+  __ lea(esp, Operand(esp, ebx, times_pointer_size,
+                      last_arg_offset - kPointerSize));
+  __ jmp(ecx);
+
+  __ bind(&has_non_smi_element);
+  // Throw away the array that's only been partially constructed.
+  __ pop(eax);
 
   // Restore argc and constructor before running the generic code.
   __ bind(&prepare_generic_code_call);

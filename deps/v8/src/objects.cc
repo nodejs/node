@@ -961,14 +961,14 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.
   if (size >= ExternalString::kSize) {
-    this->set_map(
+    this->set_map_no_write_barrier(
         is_symbol
             ? (is_ascii ?  heap->external_symbol_with_ascii_data_map()
                         :  heap->external_symbol_map())
             : (is_ascii ?  heap->external_string_with_ascii_data_map()
                         :  heap->external_string_map()));
   } else {
-    this->set_map(
+    this->set_map_no_write_barrier(
         is_symbol
             ? (is_ascii ?  heap->short_external_symbol_with_ascii_data_map()
                         :  heap->short_external_symbol_map())
@@ -1011,11 +1011,13 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   // Morph the object to an external string by adjusting the map and
   // reinitializing the fields.  Use short version if space is limited.
   if (size >= ExternalString::kSize) {
-    this->set_map(is_symbol ? heap->external_ascii_symbol_map()
-                            : heap->external_ascii_string_map());
+    this->set_map_no_write_barrier(
+        is_symbol ? heap->external_ascii_symbol_map()
+                  : heap->external_ascii_string_map());
   } else {
-    this->set_map(is_symbol ? heap->short_external_ascii_symbol_map()
-                            : heap->short_external_ascii_string_map());
+    this->set_map_no_write_barrier(
+        is_symbol ? heap->short_external_ascii_symbol_map()
+                  : heap->short_external_ascii_string_map());
   }
   ExternalAsciiString* self = ExternalAsciiString::cast(this);
   self->set_resource(resource);
@@ -1640,8 +1642,6 @@ MaybeObject* JSObject::AddConstantFunctionProperty(
     String* name,
     JSFunction* function,
     PropertyAttributes attributes) {
-  ASSERT(!GetHeap()->InNewSpace(function));
-
   // Allocate new instance descriptors with (name, function) added
   ConstantFunctionDescriptor d(name, function, attributes);
   Object* new_descriptors;
@@ -1756,7 +1756,7 @@ MaybeObject* JSObject::AddProperty(String* name,
     // Ensure the descriptor array does not get too big.
     if (map_of_this->instance_descriptors()->number_of_descriptors() <
         DescriptorArray::kMaxNumberOfDescriptors) {
-      if (value->IsJSFunction() && !heap->InNewSpace(value)) {
+      if (value->IsJSFunction()) {
         return AddConstantFunctionProperty(name,
                                            JSFunction::cast(value),
                                            attributes);
@@ -2995,7 +2995,6 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
       ASSERT(target_descriptors->GetType(number) == CONSTANT_FUNCTION);
       JSFunction* function =
           JSFunction::cast(target_descriptors->GetValue(number));
-      ASSERT(!HEAP->InNewSpace(function));
       if (value == function) {
         set_map(target_map);
         return value;
@@ -4855,7 +4854,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
           // of the next map and recording the index in the transition array in
           // the map field of the array.
           Map* next = Map::cast(contents->get(i));
-          next->set_map_unsafe(current);
+          next->set_map_no_write_barrier(current);
           *map_or_index_field = Smi::FromInt(i + 2);
           current = next;
           map_done = false;
@@ -4880,7 +4879,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
       Object* perhaps_map = prototype_transitions->get(i);
       if (perhaps_map->IsMap()) {
         Map* next = Map::cast(perhaps_map);
-        next->set_map_unsafe(current);
+        next->set_map_no_write_barrier(current);
         *proto_map_or_index_field =
             Smi::FromInt(i + kProtoTransitionElementsPerEntry);
         current = next;
@@ -4896,7 +4895,7 @@ void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
     // the map field, which is being used to track the traversal and put the
     // correct map (the meta_map) in place while we do the callback.
     Map* prev = current->map();
-    current->set_map_unsafe(meta_map);
+    current->set_map_no_write_barrier(meta_map);
     callback(current, data);
     current = prev;
   }
@@ -5395,7 +5394,9 @@ MaybeObject* FixedArray::CopySize(int new_length) {
   AssertNoAllocation no_gc;
   int len = length();
   if (new_length < len) len = new_length;
-  result->set_map(map());
+  // We are taking the map from the old fixed array so the map is sure to
+  // be an immortal immutable object.
+  result->set_map_no_write_barrier(map());
   WriteBarrierMode mode = result->GetWriteBarrierMode(no_gc);
   for (int i = 0; i < len; i++) {
     result->set(i, get(i), mode);
@@ -5635,7 +5636,7 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
         }
       }
       if (child_hash <= parent_hash) break;
-      NoWriteBarrierSwapDescriptors(parent_index, child_index);
+      NoIncrementalWriteBarrierSwapDescriptors(parent_index, child_index);
       // Now element at child_index could be < its children.
       parent_index = child_index;  // parent_hash remains correct.
     }
@@ -5644,7 +5645,7 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
   // Extract elements and create sorted array.
   for (int i = len - 1; i > 0; --i) {
     // Put max element at the back of the array.
-    NoWriteBarrierSwapDescriptors(0, i);
+    NoIncrementalWriteBarrierSwapDescriptors(0, i);
     // Shift down the new top element.
     int parent_index = 0;
     const uint32_t parent_hash = GetKey(parent_index)->Hash();
@@ -5660,7 +5661,7 @@ void DescriptorArray::SortUnchecked(const WhitenessWitness& witness) {
         }
       }
       if (child_hash <= parent_hash) break;
-      NoWriteBarrierSwapDescriptors(parent_index, child_index);
+      NoIncrementalWriteBarrierSwapDescriptors(parent_index, child_index);
       parent_index = child_index;
     }
   }
@@ -7639,6 +7640,22 @@ void SharedFunctionInfo::CompleteInobjectSlackTracking() {
 }
 
 
+#define DECLARE_TAG(ignore1, name, ignore2) name,
+const char* const VisitorSynchronization::kTags[
+    VisitorSynchronization::kNumberOfSyncTags] = {
+  VISITOR_SYNCHRONIZATION_TAGS_LIST(DECLARE_TAG)
+};
+#undef DECLARE_TAG
+
+
+#define DECLARE_TAG(ignore1, ignore2, name) name,
+const char* const VisitorSynchronization::kTagNames[
+    VisitorSynchronization::kNumberOfSyncTags] = {
+  VISITOR_SYNCHRONIZATION_TAGS_LIST(DECLARE_TAG)
+};
+#undef DECLARE_TAG
+
+
 void ObjectVisitor::VisitCodeTarget(RelocInfo* rinfo) {
   ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
   Object* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
@@ -8115,9 +8132,20 @@ void Code::Disassemble(const char* name, FILE* out) {
 static void CopyFastElementsToFast(FixedArray* source,
                                    FixedArray* destination,
                                    WriteBarrierMode mode) {
-  uint32_t count = static_cast<uint32_t>(source->length());
-  for (uint32_t i = 0; i < count; ++i) {
-    destination->set(i, source->get(i), mode);
+  int count = source->length();
+  int copy_size = Min(count, destination->length());
+  if (mode == SKIP_WRITE_BARRIER ||
+      !Page::FromAddress(destination->address())->IsFlagSet(
+          MemoryChunk::POINTERS_FROM_HERE_ARE_INTERESTING)) {
+    Address to = destination->address() + FixedArray::kHeaderSize;
+    Address from = source->address() + FixedArray::kHeaderSize;
+    memcpy(reinterpret_cast<void*>(to),
+           reinterpret_cast<void*>(from),
+           kPointerSize * copy_size);
+  } else {
+    for (int i = 0; i < copy_size; ++i) {
+      destination->set(i, source->get(i), mode);
+    }
   }
 }
 
@@ -8125,11 +8153,14 @@ static void CopyFastElementsToFast(FixedArray* source,
 static void CopySlowElementsToFast(NumberDictionary* source,
                                    FixedArray* destination,
                                    WriteBarrierMode mode) {
+  int destination_length = destination->length();
   for (int i = 0; i < source->Capacity(); ++i) {
     Object* key = source->KeyAt(i);
     if (key->IsNumber()) {
       uint32_t entry = static_cast<uint32_t>(key->Number());
-      destination->set(entry, source->ValueAt(i), mode);
+      if (entry < static_cast<uint32_t>(destination_length)) {
+        destination->set(entry, source->ValueAt(i), mode);
+      }
     }
   }
 }
@@ -8340,14 +8371,8 @@ MaybeObject* JSArray::Initialize(int capacity) {
 
 
 void JSArray::Expand(int required_size) {
-  Handle<JSArray> self(this);
-  Handle<FixedArray> old_backing(FixedArray::cast(elements()));
-  int old_size = old_backing->length();
-  int new_size = required_size > old_size ? required_size : old_size;
-  Handle<FixedArray> new_backing = FACTORY->NewFixedArray(new_size);
-  // Can't use this any more now because we may have had a GC!
-  for (int i = 0; i < old_size; i++) new_backing->set(i, old_backing->get(i));
-  GetIsolate()->factory()->SetContent(self, new_backing);
+  GetIsolate()->factory()->SetElementsCapacityAndLength(
+      Handle<JSArray>(this), required_size, required_size);
 }
 
 
@@ -8501,13 +8526,14 @@ MaybeObject* JSReceiver::SetPrototype(Object* value,
 
 MaybeObject* JSObject::EnsureCanContainElements(Arguments* args,
                                                 uint32_t first_arg,
-                                                uint32_t arg_count) {
+                                                uint32_t arg_count,
+                                                EnsureElementsMode mode) {
   // Elements in |Arguments| are ordered backwards (because they're on the
   // stack), but the method that's called here iterates over them in forward
   // direction.
   return EnsureCanContainElements(
       args->arguments() - first_arg - (arg_count - 1),
-      arg_count);
+      arg_count, mode);
 }
 
 
@@ -9459,31 +9485,45 @@ MUST_USE_RESULT MaybeObject* JSObject::TransitionElementsKind(
   FixedArrayBase* elms = FixedArrayBase::cast(elements());
   uint32_t capacity = static_cast<uint32_t>(elms->length());
   uint32_t length = capacity;
+
   if (IsJSArray()) {
-    CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
-  }
-  if (from_kind == FAST_SMI_ONLY_ELEMENTS) {
-    if (to_kind == FAST_DOUBLE_ELEMENTS) {
-      MaybeObject* maybe_result =
-          SetFastDoubleElementsCapacityAndLength(capacity, length);
-      if (maybe_result->IsFailure()) return maybe_result;
-      return this;
-    } else if (to_kind == FAST_ELEMENTS) {
-      MaybeObject* maybe_new_map = GetElementsTransitionMap(FAST_ELEMENTS);
-      Map* new_map;
-      if (!maybe_new_map->To(&new_map)) return maybe_new_map;
-      if (FLAG_trace_elements_transitions) {
-        PrintElementsTransition(stdout, from_kind, elms, FAST_ELEMENTS, elms);
-      }
-      set_map(new_map);
-      return this;
+    Object* raw_length = JSArray::cast(this)->length();
+    if (raw_length->IsUndefined()) {
+      // If length is undefined, then JSArray is being initialized and has no
+      // elements, assume a length of zero.
+      length = 0;
+    } else {
+      CHECK(JSArray::cast(this)->length()->ToArrayIndex(&length));
     }
-  } else if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
+  }
+
+  if ((from_kind == FAST_SMI_ONLY_ELEMENTS && to_kind == FAST_ELEMENTS) ||
+      (length == 0)) {
+    MaybeObject* maybe_new_map = GetElementsTransitionMap(to_kind);
+    Map* new_map;
+    if (!maybe_new_map->To(&new_map)) return maybe_new_map;
+    if (FLAG_trace_elements_transitions) {
+      PrintElementsTransition(stdout, from_kind, elms, to_kind, elms);
+    }
+    set_map(new_map);
+    return this;
+  }
+
+  if (from_kind == FAST_SMI_ONLY_ELEMENTS &&
+      to_kind == FAST_DOUBLE_ELEMENTS) {
+    MaybeObject* maybe_result =
+        SetFastDoubleElementsCapacityAndLength(capacity, length);
+    if (maybe_result->IsFailure()) return maybe_result;
+    return this;
+  }
+
+  if (from_kind == FAST_DOUBLE_ELEMENTS && to_kind == FAST_ELEMENTS) {
     MaybeObject* maybe_result = SetFastElementsCapacityAndLength(
         capacity, length, kDontAllowSmiOnlyElements);
     if (maybe_result->IsFailure()) return maybe_result;
     return this;
   }
+
   // This method should never be called for any other case than the ones
   // handled above.
   UNREACHABLE();
@@ -10598,7 +10638,7 @@ class SymbolKey : public HashTableKey {
     // Transform string to symbol if possible.
     Map* map = heap->SymbolMapForString(string_);
     if (map != NULL) {
-      string_->set_map(map);
+      string_->set_map_no_write_barrier(map);
       ASSERT(string_->IsSymbol());
       return string_;
     }

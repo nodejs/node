@@ -1115,7 +1115,7 @@ void HeapObject::set_map(Map* value) {
 
 
 // Unsafe accessor omitting write barrier.
-void HeapObject::set_map_unsafe(Map* value) {
+void HeapObject::set_map_no_write_barrier(Map* value) {
   set_map_word(MapWord::FromMap(value));
 }
 
@@ -1183,6 +1183,22 @@ int HeapNumber::get_sign() {
 ACCESSORS(JSObject, properties, FixedArray, kPropertiesOffset)
 
 
+Object** FixedArray::GetFirstElementAddress() {
+  return reinterpret_cast<Object**>(FIELD_ADDR(this, OffsetOfElementAt(0)));
+}
+
+
+bool FixedArray::ContainsOnlySmisOrHoles() {
+  Object* the_hole = GetHeap()->the_hole_value();
+  Object** current = GetFirstElementAddress();
+  for (int i = 0; i < length(); ++i) {
+    Object* candidate = *current++;
+    if (!candidate->IsSmi() && candidate != the_hole) return false;
+  }
+  return true;
+}
+
+
 FixedArrayBase* JSObject::elements() {
   Object* array = READ_FIELD(this, kElementsOffset);
   return static_cast<FixedArrayBase*>(array);
@@ -1211,38 +1227,66 @@ void JSObject::ValidateSmiOnlyElements() {
 }
 
 
-MaybeObject* JSObject::EnsureCanContainNonSmiElements() {
+MaybeObject* JSObject::EnsureCanContainHeapObjectElements() {
 #if DEBUG
   ValidateSmiOnlyElements();
 #endif
-  if ((map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS)) {
-    Object* obj;
-    MaybeObject* maybe_obj = GetElementsTransitionMap(FAST_ELEMENTS);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-    set_map(Map::cast(obj));
+  if ((map()->elements_kind() != FAST_ELEMENTS)) {
+    return TransitionElementsKind(FAST_ELEMENTS);
   }
   return this;
 }
 
 
 MaybeObject* JSObject::EnsureCanContainElements(Object** objects,
-                                                uint32_t count) {
-  if (map()->elements_kind() == FAST_SMI_ONLY_ELEMENTS) {
-    for (uint32_t i = 0; i < count; ++i) {
-      Object* current = *objects++;
-      if (!current->IsSmi() && current != GetHeap()->the_hole_value()) {
-        return EnsureCanContainNonSmiElements();
+                                                uint32_t count,
+                                                EnsureElementsMode mode) {
+  ElementsKind current_kind = map()->elements_kind();
+  ElementsKind target_kind = current_kind;
+  ASSERT(mode != ALLOW_COPIED_DOUBLE_ELEMENTS);
+  if (current_kind == FAST_ELEMENTS) return this;
+
+  Heap* heap = GetHeap();
+  Object* the_hole = heap->the_hole_value();
+  Object* heap_number_map = heap->heap_number_map();
+  for (uint32_t i = 0; i < count; ++i) {
+    Object* current = *objects++;
+    if (!current->IsSmi() && current != the_hole) {
+      if (mode == ALLOW_CONVERTED_DOUBLE_ELEMENTS &&
+          HeapObject::cast(current)->map() == heap_number_map) {
+        target_kind = FAST_DOUBLE_ELEMENTS;
+      } else {
+        target_kind = FAST_ELEMENTS;
+        break;
       }
     }
+  }
+
+  if (target_kind != current_kind) {
+    return TransitionElementsKind(target_kind);
   }
   return this;
 }
 
 
-MaybeObject* JSObject::EnsureCanContainElements(FixedArray* elements) {
-  Object** objects = reinterpret_cast<Object**>(
-      FIELD_ADDR(elements, elements->OffsetOfElementAt(0)));
-  return EnsureCanContainElements(objects, elements->length());
+MaybeObject* JSObject::EnsureCanContainElements(FixedArrayBase* elements,
+                                                EnsureElementsMode mode) {
+  if (elements->map() != GetHeap()->fixed_double_array_map()) {
+    ASSERT(elements->map() == GetHeap()->fixed_array_map() ||
+           elements->map() == GetHeap()->fixed_cow_array_map());
+    if (mode == ALLOW_COPIED_DOUBLE_ELEMENTS) {
+      mode = DONT_ALLOW_DOUBLE_ELEMENTS;
+    }
+    Object** objects = FixedArray::cast(elements)->GetFirstElementAddress();
+    return EnsureCanContainElements(objects, elements->length(), mode);
+  }
+
+  ASSERT(mode == ALLOW_COPIED_DOUBLE_ELEMENTS);
+  if (GetElementsKind() == FAST_SMI_ONLY_ELEMENTS) {
+    return TransitionElementsKind(FAST_DOUBLE_ELEMENTS);
+  }
+
+  return this;
 }
 
 
@@ -1311,8 +1355,6 @@ void JSGlobalPropertyCell::set_value(Object* val, WriteBarrierMode ignored) {
   // The write barrier is not used for global property cells.
   ASSERT(!val->IsJSGlobalPropertyCell());
   WRITE_FIELD(this, kValueOffset, val);
-  GetHeap()->incremental_marking()->RecordWrite(
-      this, HeapObject::RawField(this, kValueOffset), val);
 }
 
 
@@ -1703,6 +1745,20 @@ void FixedArray::set(int index,
 }
 
 
+void FixedArray::NoIncrementalWriteBarrierSet(FixedArray* array,
+                                              int index,
+                                              Object* value) {
+  ASSERT(array->map() != HEAP->raw_unchecked_fixed_cow_array_map());
+  ASSERT(index >= 0 && index < array->length());
+  int offset = kHeaderSize + index * kPointerSize;
+  WRITE_FIELD(array, offset, value);
+  Heap* heap = array->GetHeap();
+  if (heap->InNewSpace(value)) {
+    heap->RecordWrite(array->address(), offset);
+  }
+}
+
+
 void FixedArray::NoWriteBarrierSet(FixedArray* array,
                                    int index,
                                    Object* value) {
@@ -1797,12 +1853,12 @@ void DescriptorArray::set_bit_field3_storage(int value) {
 }
 
 
-void DescriptorArray::NoWriteBarrierSwap(FixedArray* array,
-                                         int first,
-                                         int second) {
+void DescriptorArray::NoIncrementalWriteBarrierSwap(FixedArray* array,
+                                                    int first,
+                                                    int second) {
   Object* tmp = array->get(first);
-  NoWriteBarrierSet(array, first, array->get(second));
-  NoWriteBarrierSet(array, second, tmp);
+  NoIncrementalWriteBarrierSet(array, first, array->get(second));
+  NoIncrementalWriteBarrierSet(array, second, tmp);
 }
 
 
@@ -1914,20 +1970,16 @@ void DescriptorArray::Set(int descriptor_number,
   // Range check.
   ASSERT(descriptor_number < number_of_descriptors());
 
-  // Make sure none of the elements in desc are in new space.
-  ASSERT(!HEAP->InNewSpace(desc->GetKey()));
-  ASSERT(!HEAP->InNewSpace(desc->GetValue()));
-
-  NoWriteBarrierSet(this,
-                    ToKeyIndex(descriptor_number),
-                    desc->GetKey());
+  NoIncrementalWriteBarrierSet(this,
+                               ToKeyIndex(descriptor_number),
+                               desc->GetKey());
   FixedArray* content_array = GetContentArray();
-  NoWriteBarrierSet(content_array,
-                    ToValueIndex(descriptor_number),
-                    desc->GetValue());
-  NoWriteBarrierSet(content_array,
-                    ToDetailsIndex(descriptor_number),
-                    desc->GetDetails().AsSmi());
+  NoIncrementalWriteBarrierSet(content_array,
+                               ToValueIndex(descriptor_number),
+                               desc->GetValue());
+  NoIncrementalWriteBarrierSet(content_array,
+                               ToDetailsIndex(descriptor_number),
+                               desc->GetDetails().AsSmi());
 }
 
 
@@ -1941,15 +1993,16 @@ void DescriptorArray::CopyFrom(int index,
 }
 
 
-void DescriptorArray::NoWriteBarrierSwapDescriptors(int first, int second) {
-  NoWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
+void DescriptorArray::NoIncrementalWriteBarrierSwapDescriptors(
+    int first, int second) {
+  NoIncrementalWriteBarrierSwap(this, ToKeyIndex(first), ToKeyIndex(second));
   FixedArray* content_array = GetContentArray();
-  NoWriteBarrierSwap(content_array,
-                     ToValueIndex(first),
-                     ToValueIndex(second));
-  NoWriteBarrierSwap(content_array,
-                     ToDetailsIndex(first),
-                     ToDetailsIndex(second));
+  NoIncrementalWriteBarrierSwap(content_array,
+                                ToValueIndex(first),
+                                ToValueIndex(second));
+  NoIncrementalWriteBarrierSwap(content_array,
+                                ToDetailsIndex(first),
+                                ToDetailsIndex(second));
 }
 
 
@@ -4111,7 +4164,8 @@ ElementsKind JSObject::GetElementsKind() {
             (map == GetHeap()->fixed_array_map() ||
              map == GetHeap()->fixed_cow_array_map())) ||
            (kind == FAST_DOUBLE_ELEMENTS &&
-            fixed_array->IsFixedDoubleArray()) ||
+            (fixed_array->IsFixedDoubleArray() ||
+            fixed_array == GetHeap()->empty_fixed_array())) ||
            (kind == DICTIONARY_ELEMENTS &&
             fixed_array->IsFixedArray() &&
             fixed_array->IsDictionary()) ||
@@ -4570,11 +4624,18 @@ void JSArray::set_length(Smi* length) {
 }
 
 
-MaybeObject* JSArray::SetContent(FixedArray* storage) {
-  MaybeObject* maybe_object = EnsureCanContainElements(storage);
-  if (maybe_object->IsFailure()) return maybe_object;
-  set_length(Smi::FromInt(storage->length()));
+MaybeObject* JSArray::SetContent(FixedArrayBase* storage) {
+  MaybeObject* maybe_result = EnsureCanContainElements(
+      storage, ALLOW_COPIED_DOUBLE_ELEMENTS);
+  if (maybe_result->IsFailure()) return maybe_result;
+  ASSERT((storage->map() == GetHeap()->fixed_double_array_map() &&
+          GetElementsKind() == FAST_DOUBLE_ELEMENTS) ||
+         ((storage->map() != GetHeap()->fixed_double_array_map()) &&
+          ((GetElementsKind() == FAST_ELEMENTS) ||
+           (GetElementsKind() == FAST_SMI_ONLY_ELEMENTS &&
+            FixedArray::cast(storage)->ContainsOnlySmisOrHoles()))));
   set_elements(storage);
+  set_length(Smi::FromInt(storage->length()));
   return this;
 }
 

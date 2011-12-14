@@ -59,7 +59,7 @@ function test() {
   } catch (ex) { }
   assertEquals("1", charat_short.charAt(1));
 
-  // Test regexp.
+  // Test regexp and short substring.
   var re = /(A|B)/;
   var rere = /(T.{1,2}B)/;
   var ascii = "ABCDEFGHIJKLMNOPQRST";
@@ -81,6 +81,10 @@ function test() {
     assertEquals(["A", "A"], re.exec(twobyte));
     assertEquals(["B", "B"], re.exec(twobyte_slice));
     assertEquals(["T_AB", "T_AB"], rere.exec(twobyte_cons));
+    assertEquals("DEFG", ascii_slice.substr(2, 4));
+    assertEquals("DEFG", twobyte_slice.substr(2, 4));
+    assertEquals("DEFG", ascii_cons.substr(3, 4));
+    assertEquals("DEFG", twobyte_cons.substr(4, 4));
   }
 }
 

@@ -219,8 +219,9 @@ class V8EXPORT HeapGraphEdge {
                            // (e.g. parts of a ConsString).
     kHidden = 4,           // A link that is needed for proper sizes
                            // calculation, but may be hidden from user.
-    kShortcut = 5          // A link that must not be followed during
+    kShortcut = 5,         // A link that must not be followed during
                            // sizes calculation.
+    kWeak = 6              // A weak reference (ignored by the GC).
   };
 
   /** Returns edge type (see HeapGraphEdge::Type). */

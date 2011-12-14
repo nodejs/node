@@ -1152,6 +1152,13 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LOperand* input = UseFixedDouble(instr->value(), f4);
     LUnaryMathOperation* result = new LUnaryMathOperation(input, NULL);
     return MarkAsCall(DefineFixedDouble(result, f4), instr);
+  } else if (op == kMathPowHalf) {
+    // Input cannot be the same as the result.
+    // See lithium-codegen-mips.cc::DoMathPowHalf.
+    LOperand* input = UseFixedDouble(instr->value(), f8);
+    LOperand* temp = FixedTemp(f6);
+    LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
+    return DefineFixedDouble(result, f4);
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
@@ -1165,8 +1172,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         return DefineAsRegister(result);
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
-      case kMathPowHalf:
-        return DefineAsRegister(result);
       default:
         UNREACHABLE();
         return NULL;
@@ -1401,9 +1406,9 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   LOperand* left = UseFixedDouble(instr->left(), f2);
   LOperand* right = exponent_type.IsDouble() ?
       UseFixedDouble(instr->right(), f4) :
-      UseFixed(instr->right(), a0);
+      UseFixed(instr->right(), a2);
   LPower* result = new LPower(left, right);
-  return MarkAsCall(DefineFixedDouble(result, f6),
+  return MarkAsCall(DefineFixedDouble(result, f0),
                     instr,
                     CAN_DEOPTIMIZE_EAGERLY);
 }
@@ -1796,7 +1801,8 @@ LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadContextSlot(context));
+  LInstruction* result = DefineAsRegister(new LLoadContextSlot(context));
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 
@@ -1810,7 +1816,8 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     context = UseRegister(instr->context());
     value = UseRegister(instr->value());
   }
-  return new LStoreContextSlot(context, value);
+  LInstruction* result = new LStoreContextSlot(context, value);
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 
@@ -2071,8 +2078,14 @@ LInstruction* LChunkBuilder::DoArrayLiteral(HArrayLiteral* instr) {
 }
 
 
-LInstruction* LChunkBuilder::DoObjectLiteral(HObjectLiteral* instr) {
-  return MarkAsCall(DefineFixed(new LObjectLiteral, v0), instr);
+LInstruction* LChunkBuilder::DoObjectLiteralFast(HObjectLiteralFast* instr) {
+  return MarkAsCall(DefineFixed(new LObjectLiteralFast, v0), instr);
+}
+
+
+LInstruction* LChunkBuilder::DoObjectLiteralGeneric(
+    HObjectLiteralGeneric* instr) {
+  return MarkAsCall(DefineFixed(new LObjectLiteralGeneric, v0), instr);
 }
 
 

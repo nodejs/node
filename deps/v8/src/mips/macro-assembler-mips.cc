@@ -81,6 +81,19 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
+void MacroAssembler::LoadHeapObject(Register result,
+                                    Handle<HeapObject> object) {
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    li(result, Operand(cell));
+    lw(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
+  } else {
+    li(result, Operand(object));
+  }
+}
+
+
 // Push and pop all registers that can hold pointers.
 void MacroAssembler::PushSafepointRegisters() {
   // Safepoints expect a block of kNumSafepointRegisters values on the
@@ -3555,7 +3568,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  li(a1, Operand(function));
+  LoadHeapObject(a1, function);
   lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   ParameterCount expected(function->shared()->formal_parameter_count());

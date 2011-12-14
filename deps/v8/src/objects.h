@@ -1131,7 +1131,10 @@ class HeapObject: public Object {
   // information.
   inline Map* map();
   inline void set_map(Map* value);
-  inline void set_map_unsafe(Map* value);
+  // The no-write-barrier version.  This is OK if the object is white and in
+  // new space, or if the value is an immortal immutable object, like the maps
+  // of primitive (non-JS) objects like strings, heap numbers etc.
+  inline void set_map_no_write_barrier(Map* value);
 
   // During garbage collection, the map word of a heap object does not
   // necessarily contain a map pointer.
@@ -1316,6 +1319,13 @@ class HeapNumber: public HeapObject {
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(HeapNumber);
+};
+
+
+enum EnsureElementsMode {
+  DONT_ALLOW_DOUBLE_ELEMENTS,
+  ALLOW_COPIED_DOUBLE_ELEMENTS,
+  ALLOW_CONVERTED_DOUBLE_ELEMENTS
 };
 
 
@@ -1612,16 +1622,19 @@ class JSObject: public JSReceiver {
 
   inline void ValidateSmiOnlyElements();
 
-  // Makes sure that this object can contain non-smi Object as elements.
-  inline MaybeObject* EnsureCanContainNonSmiElements();
+  // Makes sure that this object can contain HeapObject as elements.
+  inline MaybeObject* EnsureCanContainHeapObjectElements();
 
   // Makes sure that this object can contain the specified elements.
   inline MaybeObject* EnsureCanContainElements(Object** elements,
-                                               uint32_t count);
-  inline MaybeObject* EnsureCanContainElements(FixedArray* elements);
+                                               uint32_t count,
+                                               EnsureElementsMode mode);
+  inline MaybeObject* EnsureCanContainElements(FixedArrayBase* elements,
+                                               EnsureElementsMode mode);
   MaybeObject* EnsureCanContainElements(Arguments* arguments,
                                         uint32_t first_arg,
-                                        uint32_t arg_count);
+                                        uint32_t arg_count,
+                                        EnsureElementsMode mode);
 
   // Do we want to keep the elements in fast case when increasing the
   // capacity?
@@ -2121,6 +2134,9 @@ class FixedArray: public FixedArrayBase {
   // Gives access to raw memory which stores the array's data.
   inline Object** data_start();
 
+  inline Object** GetFirstElementAddress();
+  inline bool ContainsOnlySmisOrHoles();
+
   // Copy operations.
   MUST_USE_RESULT inline MaybeObject* Copy();
   MUST_USE_RESULT MaybeObject* CopySize(int new_length);
@@ -2186,6 +2202,13 @@ class FixedArray: public FixedArrayBase {
   static inline void NoWriteBarrierSet(FixedArray* array,
                                        int index,
                                        Object* value);
+
+  // Set operation on FixedArray without incremental write barrier. Can
+  // only be used if the object is guaranteed to be white (whiteness witness
+  // is present).
+  static inline void NoIncrementalWriteBarrierSet(FixedArray* array,
+                                                  int index,
+                                                  Object* value);
 
  private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(FixedArray);
@@ -2465,12 +2488,12 @@ class DescriptorArray: public FixedArray {
         NULL_DESCRIPTOR;
   }
   // Swap operation on FixedArray without using write barriers.
-  static inline void NoWriteBarrierSwap(FixedArray* array,
-                                        int first,
-                                        int second);
+  static inline void NoIncrementalWriteBarrierSwap(
+      FixedArray* array, int first, int second);
 
   // Swap descriptor first and second.
-  inline void NoWriteBarrierSwapDescriptors(int first, int second);
+  inline void NoIncrementalWriteBarrierSwapDescriptors(
+      int first, int second);
 
   FixedArray* GetContentArray() {
     return FixedArray::cast(get(kContentArrayIndex));
@@ -3737,11 +3760,6 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ELEMENT_ACCESSORS(LiteralArray, FixedArray)
   DEFINE_ELEMENT_ACCESSORS(OsrAstId, Smi)
   DEFINE_ELEMENT_ACCESSORS(OsrPcOffset, Smi)
-
-  // Unchecked accessor to be used during GC.
-  FixedArray* UncheckedLiteralArray() {
-    return reinterpret_cast<FixedArray*>(get(kLiteralArrayIndex));
-  }
 
 #undef DEFINE_ELEMENT_ACCESSORS
 
@@ -7381,7 +7399,7 @@ class JSArray: public JSObject {
   MUST_USE_RESULT MaybeObject* Initialize(int capacity);
 
   // Set the content of the array to the content of storage.
-  inline MaybeObject* SetContent(FixedArray* storage);
+  inline MaybeObject* SetContent(FixedArrayBase* storage);
 
   // Casting.
   static inline JSArray* cast(Object* obj);
@@ -7862,6 +7880,34 @@ class BreakPointInfo: public Struct {
 #undef DECL_BOOLEAN_ACCESSORS
 #undef DECL_ACCESSORS
 
+#define VISITOR_SYNCHRONIZATION_TAGS_LIST(V)                            \
+  V(kSymbolTable, "symbol_table", "(Symbols)")                          \
+  V(kExternalStringsTable, "external_strings_table", "(External strings)") \
+  V(kStrongRootList, "strong_root_list", "(Strong roots)")              \
+  V(kSymbol, "symbol", "(Symbol)")                                      \
+  V(kBootstrapper, "bootstrapper", "(Bootstrapper)")                    \
+  V(kTop, "top", "(Isolate)")                                           \
+  V(kRelocatable, "relocatable", "(Relocatable)")                       \
+  V(kDebug, "debug", "(Debugger)")                                      \
+  V(kCompilationCache, "compilationcache", "(Compilation cache)")       \
+  V(kHandleScope, "handlescope", "(Handle scope)")                      \
+  V(kBuiltins, "builtins", "(Builtins)")                                \
+  V(kGlobalHandles, "globalhandles", "(Global handles)")                \
+  V(kThreadManager, "threadmanager", "(Thread manager)")                \
+  V(kExtensions, "Extensions", "(Extensions)")
+
+class VisitorSynchronization : public AllStatic {
+ public:
+#define DECLARE_ENUM(enum_item, ignore1, ignore2) enum_item,
+  enum SyncTag {
+    VISITOR_SYNCHRONIZATION_TAGS_LIST(DECLARE_ENUM)
+    kNumberOfSyncTags
+  };
+#undef DECLARE_ENUM
+
+  static const char* const kTags[kNumberOfSyncTags];
+  static const char* const kTagNames[kNumberOfSyncTags];
+};
 
 // Abstract base class for visiting, and optionally modifying, the
 // pointers contained in Objects. Used in GC and serialization/deserialization.
@@ -7917,13 +7963,10 @@ class ObjectVisitor BASE_EMBEDDED {
   // Visits a handle that has an embedder-assigned class ID.
   virtual void VisitEmbedderReference(Object** p, uint16_t class_id) {}
 
-#ifdef DEBUG
   // Intended for serialization/deserialization checking: insert, or
   // check for the presence of, a tag at this position in the stream.
-  virtual void Synchronize(const char* tag) {}
-#else
-  inline void Synchronize(const char* tag) {}
-#endif
+  // Also used for marking up GC roots in heap snapshots.
+  virtual void Synchronize(VisitorSynchronization::SyncTag tag) {}
 };
 
 

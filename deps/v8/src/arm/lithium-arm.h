@@ -1793,6 +1793,8 @@ class LCheckFunction: public LTemplateInstruction<0, 1, 0> {
     inputs_[0] = value;
   }
 
+  LOperand* value() { return InputAt(0); }
+
   DECLARE_CONCRETE_INSTRUCTION(CheckFunction, "check-function")
   DECLARE_HYDROGEN_ACCESSOR(CheckFunction)
 };

@@ -659,6 +659,7 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m. m must be a power of 2.
   void Align(int m);
+  void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
 
@@ -673,7 +674,6 @@ class Assembler : public AssemblerBase {
   void push_imm32(int32_t imm32);
   void push(Register src);
   void push(const Operand& src);
-  void push(Handle<Object> handle);
 
   void pop(Register dst);
   void pop(const Operand& dst);
@@ -926,6 +926,9 @@ class Assembler : public AssemblerBase {
   void fsin();
   void fptan();
   void fyl2x();
+  void f2xm1();
+  void fscale();
+  void fninit();
 
   void fadd(int i);
   void fsub(int i);
@@ -983,6 +986,7 @@ class Assembler : public AssemblerBase {
   void andpd(XMMRegister dst, XMMRegister src);
 
   void ucomisd(XMMRegister dst, XMMRegister src);
+  void ucomisd(XMMRegister dst, const Operand& src);
 
   enum RoundingMode {
     kRoundToNearest = 0x0,
@@ -1017,6 +1021,7 @@ class Assembler : public AssemblerBase {
   void movss(XMMRegister dst, const Operand& src);
   void movss(const Operand& dst, XMMRegister src);
   void movss(XMMRegister dst, XMMRegister src);
+  void extractps(Register dst, XMMRegister src, byte imm8);
 
   void pand(XMMRegister dst, XMMRegister src);
   void pxor(XMMRegister dst, XMMRegister src);
@@ -1080,7 +1085,7 @@ class Assembler : public AssemblerBase {
   // Get the number of bytes available in the buffer.
   inline int available_space() const { return reloc_info_writer.pos() - pc_; }
 
-  static bool IsNop(Address addr) { return *addr == 0x90; }
+  static bool IsNop(Address addr);
 
   PositionsRecorder* positions_recorder() { return &positions_recorder_; }
 

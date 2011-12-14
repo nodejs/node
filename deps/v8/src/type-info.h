@@ -273,6 +273,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   TypeInfo BinaryType(BinaryOperation* expr);
   TypeInfo CompareType(CompareOperation* expr);
   bool IsSymbolCompare(CompareOperation* expr);
+  Handle<Map> GetCompareMap(CompareOperation* expr);
   TypeInfo SwitchType(CaseClause* clause);
   TypeInfo IncrementType(CountOperation* expr);
 

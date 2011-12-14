@@ -134,7 +134,8 @@ class LCodeGen;
   V(NumberTagD)                                 \
   V(NumberTagI)                                 \
   V(NumberUntagD)                               \
-  V(ObjectLiteral)                              \
+  V(ObjectLiteralFast)                          \
+  V(ObjectLiteralGeneric)                       \
   V(OsrEntry)                                   \
   V(OuterContext)                               \
   V(Parameter)                                  \
@@ -1792,6 +1793,8 @@ class LCheckFunction: public LTemplateInstruction<0, 1, 0> {
     inputs_[0] = value;
   }
 
+  LOperand* value() { return InputAt(0); }
+
   DECLARE_CONCRETE_INSTRUCTION(CheckFunction, "check-function")
   DECLARE_HYDROGEN_ACCESSOR(CheckFunction)
 };
@@ -1899,10 +1902,17 @@ class LArrayLiteral: public LTemplateInstruction<1, 0, 0> {
 };
 
 
-class LObjectLiteral: public LTemplateInstruction<1, 0, 0> {
+class LObjectLiteralFast: public LTemplateInstruction<1, 0, 0> {
  public:
-  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteral, "object-literal")
-  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteral)
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralFast, "object-literal-fast")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralFast)
+};
+
+
+class LObjectLiteralGeneric: public LTemplateInstruction<1, 0, 0> {
+ public:
+  DECLARE_CONCRETE_INSTRUCTION(ObjectLiteralGeneric, "object-literal-generic")
+  DECLARE_HYDROGEN_ACCESSOR(ObjectLiteralGeneric)
 };
 
 

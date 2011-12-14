@@ -44,10 +44,23 @@ class ElementsAccessor {
                            JSObject* holder,
                            Object* receiver) = 0;
 
-  // Modifies the length data property as specified for JSArrays and resizes
-  // the underlying backing store accordingly.
+  // Modifies the length data property as specified for JSArrays and resizes the
+  // underlying backing store accordingly. The method honors the semantics of
+  // changing array sizes as defined in EcmaScript 5.1 15.4.5.2, i.e. array that
+  // have non-deletable elements can only be shrunk to the size of highest
+  // element that is non-deletable.
   virtual MaybeObject* SetLength(JSObject* holder,
                                  Object* new_length) = 0;
+
+  // Modifies both the length and capacity of a JSArray, resizing the underlying
+  // backing store as necessary. This method does NOT honor the semantics of
+  // EcmaScript 5.1 15.4.5.2, arrays can be shrunk beyond non-deletable
+  // elements. This method should only be called for array expansion OR by
+  // runtime JavaScript code that use InternalArrays and don't care about
+  // EcmaScript 5.1 semantics.
+  virtual MaybeObject* SetCapacityAndLength(JSArray* array,
+                                            int capacity,
+                                            int length) = 0;
 
   virtual MaybeObject* Delete(JSObject* holder,
                               uint32_t key,

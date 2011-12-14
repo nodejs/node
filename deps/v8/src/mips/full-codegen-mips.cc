@@ -1424,10 +1424,11 @@ void FullCodeGenerator::VisitRegExpLiteral(RegExpLiteral* expr) {
 
 void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
   Comment cmnt(masm_, "[ ObjectLiteral");
+  Handle<FixedArray> constant_properties = expr->constant_properties();
   __ lw(a3, MemOperand(fp,  JavaScriptFrameConstants::kFunctionOffset));
   __ lw(a3, FieldMemOperand(a3, JSFunction::kLiteralsOffset));
   __ li(a2, Operand(Smi::FromInt(expr->literal_index())));
-  __ li(a1, Operand(expr->constant_properties()));
+  __ li(a1, Operand(constant_properties));
   int flags = expr->fast_elements()
       ? ObjectLiteral::kFastElements
       : ObjectLiteral::kNoFlags;
@@ -1436,10 +1437,15 @@ void FullCodeGenerator::VisitObjectLiteral(ObjectLiteral* expr) {
       : ObjectLiteral::kNoFlags;
   __ li(a0, Operand(Smi::FromInt(flags)));
   __ Push(a3, a2, a1, a0);
+  int properties_count = constant_properties->length() / 2;
   if (expr->depth() > 1) {
     __ CallRuntime(Runtime::kCreateObjectLiteral, 4);
-  } else {
+  } else if (flags != ObjectLiteral::kFastElements ||
+      properties_count > FastCloneShallowObjectStub::kMaximumClonedProperties) {
     __ CallRuntime(Runtime::kCreateObjectLiteralShallow, 4);
+  } else {
+    FastCloneShallowObjectStub stub(properties_count);
+    __ CallStub(&stub);
   }
 
   // If result_saved is true the result is on top of the stack.  If
@@ -1540,6 +1546,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   ASSERT_EQ(2, constant_elements->length());
   ElementsKind constant_elements_kind =
       static_cast<ElementsKind>(Smi::cast(constant_elements->get(0))->value());
+  bool has_fast_elements = constant_elements_kind == FAST_ELEMENTS;
   Handle<FixedArrayBase> constant_elements_values(
       FixedArrayBase::cast(constant_elements->get(1)));
 
@@ -1549,7 +1556,7 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
   __ li(a2, Operand(Smi::FromInt(expr->literal_index())));
   __ li(a1, Operand(constant_elements));
   __ Push(a3, a2, a1);
-  if (constant_elements_values->map() ==
+  if (has_fast_elements && constant_elements_values->map() ==
       isolate()->heap()->fixed_cow_array_map()) {
     FastCloneShallowArrayStub stub(
         FastCloneShallowArrayStub::COPY_ON_WRITE_ELEMENTS, length);
@@ -1564,10 +1571,9 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
     ASSERT(constant_elements_kind == FAST_ELEMENTS ||
            constant_elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            FLAG_smi_only_arrays);
-    FastCloneShallowArrayStub::Mode mode =
-        constant_elements_kind == FAST_DOUBLE_ELEMENTS
-        ? FastCloneShallowArrayStub::CLONE_DOUBLE_ELEMENTS
-        : FastCloneShallowArrayStub::CLONE_ELEMENTS;
+    FastCloneShallowArrayStub::Mode mode = has_fast_elements
+      ? FastCloneShallowArrayStub::CLONE_ELEMENTS
+      : FastCloneShallowArrayStub::CLONE_ANY_ELEMENTS;
     FastCloneShallowArrayStub stub(mode, length);
     __ CallStub(&stub);
   }
@@ -1589,65 +1595,30 @@ void FullCodeGenerator::VisitArrayLiteral(ArrayLiteral* expr) {
       __ push(v0);
       result_saved = true;
     }
+
     VisitForAccumulatorValue(subexpr);
 
-    __ lw(t6, MemOperand(sp));  // Copy of array literal.
-    __ lw(a1, FieldMemOperand(t6, JSObject::kElementsOffset));
-    __ lw(a2, FieldMemOperand(t6, JSObject::kMapOffset));
-    int offset = FixedArray::kHeaderSize + (i * kPointerSize);
-
-    Label element_done;
-    Label double_elements;
-    Label smi_element;
-    Label slow_elements;
-    Label fast_elements;
-    __ CheckFastElements(a2, a3, &double_elements);
-
-    // FAST_SMI_ONLY_ELEMENTS or FAST_ELEMENTS
-    __ JumpIfSmi(result_register(), &smi_element);
-    __ CheckFastSmiOnlyElements(a2, a3, &fast_elements);
-
-    // Store into the array literal requires a elements transition. Call into
-    // the runtime.
-    __ bind(&slow_elements);
-    __ push(t6);  // Copy of array literal.
-    __ li(a1, Operand(Smi::FromInt(i)));
-    __ li(a2, Operand(Smi::FromInt(NONE)));  // PropertyAttributes
-    StrictModeFlag strict_mode_flag = (language_mode() == CLASSIC_MODE)
-        ? kNonStrictMode : kStrictMode;
-    __ li(a3, Operand(Smi::FromInt(strict_mode_flag)));  // Strict mode.
-    __ Push(a1, result_register(), a2, a3);
-    __ CallRuntime(Runtime::kSetProperty, 5);
-    __ Branch(&element_done);
-
-      // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
-    __ bind(&double_elements);
-    __ li(a3, Operand(Smi::FromInt(i)));
-    __ StoreNumberToDoubleElements(result_register(), a3, t6, a1, t0, t1, t5,
-                                   t3, &slow_elements);
-    __ Branch(&element_done);
-
-    // Array literal has ElementsKind of FAST_ELEMENTS and value is an object.
-    __ bind(&fast_elements);
-    __ sw(result_register(), FieldMemOperand(a1, offset));
-    // Update the write barrier for the array store.
-
-    __ RecordWriteField(
-        a1, offset, result_register(), a2, kRAHasBeenSaved, kDontSaveFPRegs,
-        EMIT_REMEMBERED_SET, OMIT_SMI_CHECK);
-    __ Branch(&element_done);
-
-    // Array literal has ElementsKind of FAST_SMI_ONLY_ELEMENTS or
-    // FAST_ELEMENTS, and value is Smi.
-    __ bind(&smi_element);
-    __ sw(result_register(), FieldMemOperand(a1, offset));
-    // Fall through
-
-    __ bind(&element_done);
+    if (constant_elements_kind == FAST_ELEMENTS) {
+      int offset = FixedArray::kHeaderSize + (i * kPointerSize);
+      __ lw(t2, MemOperand(sp));  // Copy of array literal.
+      __ lw(a1, FieldMemOperand(t2, JSObject::kElementsOffset));
+      __ sw(result_register(), FieldMemOperand(a1, offset));
+      // Update the write barrier for the array store.
+      __ RecordWriteField(a1, offset, result_register(), a2,
+                          kRAHasBeenSaved, kDontSaveFPRegs,
+                          EMIT_REMEMBERED_SET, INLINE_SMI_CHECK);
+    } else {
+      __ lw(a1, MemOperand(sp));  // Copy of array literal.
+      __ lw(a2, FieldMemOperand(a1, JSObject::kMapOffset));
+      __ li(a3, Operand(Smi::FromInt(i)));
+      __ li(t0, Operand(Smi::FromInt(expr->literal_index())));
+      __ mov(a0, result_register());
+      StoreArrayLiteralElementStub stub;
+      __ CallStub(&stub);
+    }
 
     PrepareForBailoutForId(expr->GetIdForElement(i), NO_REGISTERS);
   }
-
   if (result_saved) {
     context()->PlugTOS();
   } else {
@@ -2987,8 +2958,12 @@ void FullCodeGenerator::EmitMathPow(CallRuntime* expr) {
   ASSERT(args->length() == 2);
   VisitForStackValue(args->at(0));
   VisitForStackValue(args->at(1));
-  MathPowStub stub;
-  __ CallStub(&stub);
+  if (CpuFeatures::IsSupported(FPU)) {
+    MathPowStub stub(MathPowStub::ON_STACK);
+    __ CallStub(&stub);
+  } else {
+    __ CallRuntime(Runtime::kMath_pow, 2);
+  }
   context()->Plug(v0);
 }
 

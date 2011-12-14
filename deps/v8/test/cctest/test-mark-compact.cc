@@ -27,6 +27,14 @@
 
 #include <stdlib.h>
 
+#ifdef __linux__
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
+#endif
+
 #include "v8.h"
 
 #include "global-handles.h"
@@ -444,3 +452,87 @@ TEST(EmptyObjectGroups) {
   global_handles->AddImplicitReferences(
         Handle<HeapObject>::cast(object).location(), NULL, 0);
 }
+
+
+// Here is a memory use test that uses /proc, and is therefore Linux-only.  We
+// do not care how much memory the simulator uses, since it is only there for
+// debugging purposes.
+#if defined(__linux__) && !defined(USE_SIMULATOR)
+
+
+static uintptr_t ReadLong(char* buffer, intptr_t* position, int base) {
+  char* end_address = buffer + *position;
+  uintptr_t result = strtoul(buffer + *position, &end_address, base);
+  CHECK(result != ULONG_MAX || errno != ERANGE);
+  CHECK(end_address > buffer + *position);
+  *position = end_address - buffer;
+  return result;
+}
+
+
+static intptr_t MemoryInUse() {
+  intptr_t memory_use = 0;
+
+  int fd = open("/proc/self/maps", O_RDONLY);
+  if (fd < 0) return -1;
+
+  const int kBufSize = 10000;
+  char buffer[kBufSize];
+  int length = read(fd, buffer, kBufSize);
+  intptr_t line_start = 0;
+  CHECK_LT(length, kBufSize);  // Make the buffer bigger.
+  CHECK_GT(length, 0);  // We have to find some data in the file.
+  while (line_start < length) {
+    if (buffer[line_start] == '\n') {
+      line_start++;
+      continue;
+    }
+    intptr_t position = line_start;
+    uintptr_t start = ReadLong(buffer, &position, 16);
+    CHECK_EQ(buffer[position++], '-');
+    uintptr_t end = ReadLong(buffer, &position, 16);
+    CHECK_EQ(buffer[position++], ' ');
+    CHECK(buffer[position] == '-' || buffer[position] == 'r');
+    bool read_permission = (buffer[position++] == 'r');
+    CHECK(buffer[position] == '-' || buffer[position] == 'w');
+    bool write_permission = (buffer[position++] == 'w');
+    CHECK(buffer[position] == '-' || buffer[position] == 'x');
+    bool execute_permission = (buffer[position++] == 'x');
+    CHECK(buffer[position] == '-' || buffer[position] == 'p');
+    bool private_mapping = (buffer[position++] == 'p');
+    CHECK_EQ(buffer[position++], ' ');
+    uintptr_t offset = ReadLong(buffer, &position, 16);
+    USE(offset);
+    CHECK_EQ(buffer[position++], ' ');
+    uintptr_t major = ReadLong(buffer, &position, 16);
+    USE(major);
+    CHECK_EQ(buffer[position++], ':');
+    uintptr_t minor = ReadLong(buffer, &position, 16);
+    USE(minor);
+    CHECK_EQ(buffer[position++], ' ');
+    uintptr_t inode = ReadLong(buffer, &position, 10);
+    while (position < length && buffer[position] != '\n') position++;
+    if ((read_permission || write_permission || execute_permission) &&
+        private_mapping && inode == 0) {
+      memory_use += (end - start);
+    }
+
+    line_start = position;
+  }
+  close(fd);
+  return memory_use;
+}
+
+
+TEST(BootUpMemoryUse) {
+  intptr_t initial_memory = MemoryInUse();
+  // Only Linux has the proc filesystem and only if it is mapped.  If it's not
+  // there we just skip the test.
+  if (initial_memory >= 0) {
+    InitializeVM();
+    intptr_t booted_memory = MemoryInUse();
+    CHECK_LE(booted_memory - initial_memory, 16 * 1024 * 1024);
+  }
+}
+
+#endif  // __linux__ and !USE_SIMULATOR

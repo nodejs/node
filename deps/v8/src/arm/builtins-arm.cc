@@ -394,13 +394,18 @@ static void ArrayNativeCode(MacroAssembler* masm,
   // r5: elements_array_end (untagged)
   // sp[0]: last argument
   Label loop, entry;
+  __ mov(r7, sp);
   __ jmp(&entry);
   __ bind(&loop);
-  __ ldr(r2, MemOperand(sp, kPointerSize, PostIndex));
+  __ ldr(r2, MemOperand(r7, kPointerSize, PostIndex));
+  if (FLAG_smi_only_arrays) {
+    __ JumpIfNotSmi(r2, call_generic_code);
+  }
   __ str(r2, MemOperand(r5, -kPointerSize, PreIndex));
   __ bind(&entry);
   __ cmp(r4, r5);
   __ b(lt, &loop);
+  __ mov(sp, r7);
 
   // Remove caller arguments and receiver from the stack, setup return value and
   // return.

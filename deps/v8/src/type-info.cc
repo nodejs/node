@@ -259,6 +259,7 @@ TypeInfo TypeFeedbackOracle::CompareType(CompareOperation* expr) {
     case CompareIC::STRINGS:
       return TypeInfo::String();
     case CompareIC::OBJECTS:
+    case CompareIC::KNOWN_OBJECTS:
       // TODO(kasperl): We really need a type for JS objects here.
       return TypeInfo::NonPrimitive();
     case CompareIC::GENERIC:
@@ -275,6 +276,19 @@ bool TypeFeedbackOracle::IsSymbolCompare(CompareOperation* expr) {
   if (!code->is_compare_ic_stub()) return false;
   CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
   return state == CompareIC::SYMBOLS;
+}
+
+
+Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
+  Handle<Object> object = GetInfo(expr->id());
+  if (!object->IsCode()) return Handle<Map>::null();
+  Handle<Code> code = Handle<Code>::cast(object);
+  if (!code->is_compare_ic_stub()) return Handle<Map>::null();
+  CompareIC::State state = static_cast<CompareIC::State>(code->compare_state());
+  if (state != CompareIC::KNOWN_OBJECTS) {
+    return Handle<Map>::null();
+  }
+  return Handle<Map>(code->FindFirstMap());
 }
 
 
@@ -367,6 +381,7 @@ TypeInfo TypeFeedbackOracle::SwitchType(CaseClause* clause) {
     case CompareIC::HEAP_NUMBERS:
       return TypeInfo::Number();
     case CompareIC::OBJECTS:
+    case CompareIC::KNOWN_OBJECTS:
       // TODO(kasperl): We really need a type for JS objects here.
       return TypeInfo::NonPrimitive();
     case CompareIC::GENERIC:

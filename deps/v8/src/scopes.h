@@ -187,6 +187,11 @@ class Scope: public ZoneObject {
   // scope over a let binding of the same name.
   Declaration* CheckConflictingVarDeclarations();
 
+  // For harmony block scoping mode: Check if the scope has variable proxies
+  // that are used as lvalues and point to const variables. Assumes that scopes
+  // have been analyzed and variables been resolved.
+  VariableProxy* CheckAssignmentToConst();
+
   // ---------------------------------------------------------------------------
   // Scope-specific info.
 

@@ -398,7 +398,7 @@ static Handle<SharedFunctionInfo> MakeFunctionInfo(CompilationInfo* info) {
   FunctionLiteral* lit = info->function();
   LiveEditFunctionTracker live_edit_tracker(isolate, lit);
   if (!MakeCode(info)) {
-    isolate->StackOverflow();
+    if (!isolate->has_pending_exception()) isolate->StackOverflow();
     return Handle<SharedFunctionInfo>::null();
   }
 

@@ -661,6 +661,11 @@ class Parser {
                                                bool* is_set,
                                                bool* ok);
 
+  // Determine if the expression is a variable proxy and mark it as being used
+  // in an assignment or with a increment/decrement operator. This is currently
+  // used on for the statically checking assignments to harmony const bindings.
+  void MarkAsLValue(Expression* expression);
+
   // Strict mode validation of LValue expressions
   void CheckStrictModeLValue(Expression* expression,
                              const char* error,

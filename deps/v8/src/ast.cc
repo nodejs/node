@@ -70,6 +70,7 @@ VariableProxy::VariableProxy(Isolate* isolate, Variable* var)
       var_(NULL),  // Will be set by the call to BindTo.
       is_this_(var->is_this()),
       is_trivial_(false),
+      is_lvalue_(false),
       position_(RelocInfo::kNoPosition) {
   BindTo(var);
 }
@@ -84,6 +85,7 @@ VariableProxy::VariableProxy(Isolate* isolate,
       var_(NULL),
       is_this_(is_this),
       is_trivial_(false),
+      is_lvalue_(false),
       position_(position) {
   // Names must be canonicalized for fast equality checks.
   ASSERT(name->IsSymbol());

@@ -1153,6 +1153,11 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
     LOperand* input = UseFixedDouble(instr->value(), d2);
     LUnaryMathOperation* result = new LUnaryMathOperation(input, NULL);
     return MarkAsCall(DefineFixedDouble(result, d2), instr);
+  } else if (op == kMathPowHalf) {
+    LOperand* input = UseFixedDouble(instr->value(), d2);
+    LOperand* temp = FixedTemp(d3);
+    LUnaryMathOperation* result = new LUnaryMathOperation(input, temp);
+    return DefineFixedDouble(result, d2);
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* temp = (op == kMathFloor) ? TempRegister() : NULL;
@@ -1166,8 +1171,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
         return DefineAsRegister(result);
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
-      case kMathPowHalf:
-        return DefineAsRegister(result);
       default:
         UNREACHABLE();
         return NULL;
@@ -1402,7 +1405,7 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   LOperand* left = UseFixedDouble(instr->left(), d1);
   LOperand* right = exponent_type.IsDouble() ?
       UseFixedDouble(instr->right(), d2) :
-      UseFixed(instr->right(), r0);
+      UseFixed(instr->right(), r2);
   LPower* result = new LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, d3),
                     instr,
@@ -1795,7 +1798,8 @@ LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new LLoadContextSlot(context));
+  LInstruction* result = DefineAsRegister(new LLoadContextSlot(context));
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 
@@ -1809,7 +1813,8 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     context = UseRegister(instr->context());
     value = UseRegister(instr->value());
   }
-  return new LStoreContextSlot(context, value);
+  LInstruction* result = new LStoreContextSlot(context, value);
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 

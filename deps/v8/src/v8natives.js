@@ -660,6 +660,21 @@ function GetOwnProperty(obj, v) {
 }
 
 
+// ES5 section 8.12.7.
+function Delete(obj, p, should_throw) {
+  var desc = GetOwnProperty(obj, p);
+  if (IS_UNDEFINED(desc)) return true;
+  if (desc.isConfigurable()) {
+    %DeleteProperty(obj, p, 0);
+    return true;
+  } else if (should_throw) {
+    throw MakeTypeError("define_disallowed", [p]);
+  } else {
+    return;
+  }
+}
+
+
 // Harmony proxies.
 function DefineProxyProperty(obj, p, attributes, should_throw) {
   var handler = %GetHandler(obj);
@@ -677,12 +692,7 @@ function DefineProxyProperty(obj, p, attributes, should_throw) {
 
 
 // ES5 8.12.9.
-function DefineOwnProperty(obj, p, desc, should_throw) {
-  if (%IsJSProxy(obj)) {
-    var attributes = FromGenericPropertyDescriptor(desc);
-    return DefineProxyProperty(obj, p, attributes, should_throw);
-  }
-
+function DefineObjectProperty(obj, p, desc, should_throw) {
   var current_or_access = %GetOwnProperty(ToObject(obj), ToString(p));
   // A false value here means that access checks failed.
   if (current_or_access === false) return void 0;
@@ -843,6 +853,90 @@ function DefineOwnProperty(obj, p, desc, should_throw) {
     }
   }
   return true;
+}
+
+
+// ES5 section 15.4.5.1.
+function DefineArrayProperty(obj, p, desc, should_throw) {
+  // Note that the length of an array is not actually stored as part of the
+  // property, hence we use generated code throughout this function instead of
+  // DefineObjectProperty() to modify its value.
+
+  // Step 3 - Special handling for length property.
+  if (p == "length") {
+    var length = obj.length;
+    if (!desc.hasValue()) {
+      return DefineObjectProperty(obj, "length", desc, should_throw);
+    }
+    var new_length = ToUint32(desc.getValue());
+    if (new_length != ToNumber(desc.getValue())) {
+      throw new $RangeError('defineProperty() array length out of range');
+    }
+    var length_desc = GetOwnProperty(obj, "length");
+    if (new_length != length && !length_desc.isWritable()) {
+      if (should_throw) {
+        throw MakeTypeError("redefine_disallowed", [p]);
+      } else {
+        return false;
+      }
+    }
+    var threw = false;
+    while (new_length < length--) {
+      if (!Delete(obj, ToString(length), false)) {
+        new_length = length + 1;
+        threw = true;
+        break;
+      }
+    }
+    // Make sure the below call to DefineObjectProperty() doesn't overwrite
+    // any magic "length" property by removing the value.
+    obj.length = new_length;
+    desc.value_ = void 0;
+    desc.hasValue_ = false;
+    if (!DefineObjectProperty(obj, "length", desc, should_throw) || threw) {
+      if (should_throw) {
+        throw MakeTypeError("redefine_disallowed", [p]);
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Step 4 - Special handling for array index.
+  var index = ToUint32(p);
+  if (index == ToNumber(p) && index != 4294967295) {
+    var length = obj.length;
+    var length_desc = GetOwnProperty(obj, "length");
+    if ((index >= length && !length_desc.isWritable()) ||
+        !DefineObjectProperty(obj, p, desc, true)) {
+      if (should_throw) {
+        throw MakeTypeError("define_disallowed", [p]);
+      } else {
+        return false;
+      }
+    }
+    if (index >= length) {
+      obj.length = index + 1;
+    }
+    return true;
+  }
+
+  // Step 5 - Fallback to default implementation.
+  return DefineObjectProperty(obj, p, desc, should_throw);
+}
+
+
+// ES5 section 8.12.9, ES5 section 15.4.5.1 and Harmony proxies.
+function DefineOwnProperty(obj, p, desc, should_throw) {
+  if (%IsJSProxy(obj)) {
+    var attributes = FromGenericPropertyDescriptor(desc);
+    return DefineProxyProperty(obj, p, attributes, should_throw);
+  } else if (IS_ARRAY(obj)) {
+    return DefineArrayProperty(obj, p, desc, should_throw);
+  } else {
+    return DefineObjectProperty(obj, p, desc, should_throw);
+  }
 }
 
 

@@ -259,12 +259,19 @@ class Factory {
                              PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
-      Handle<FixedArray> elements,
+      Handle<FixedArrayBase> elements,
       PretenureFlag pretenure = NOT_TENURED);
 
-  void SetContent(Handle<JSArray> array, Handle<FixedArray> elements);
+  void SetElementsCapacityAndLength(Handle<JSArray> array,
+                                    int capacity,
+                                    int length);
 
-  void EnsureCanContainNonSmiElements(Handle<JSArray> array);
+  void SetContent(Handle<JSArray> array, Handle<FixedArrayBase> elements);
+
+  void EnsureCanContainHeapObjectElements(Handle<JSArray> array);
+  void EnsureCanContainElements(Handle<JSArray> array,
+                                Handle<FixedArrayBase> elements,
+                                EnsureElementsMode mode);
 
   Handle<JSProxy> NewJSProxy(Handle<Object> handler, Handle<Object> prototype);
 

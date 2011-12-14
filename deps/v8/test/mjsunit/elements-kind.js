@@ -34,7 +34,7 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
-support_smi_only_arrays = %HasFastSmiOnlyElements([]);
+support_smi_only_arrays = %HasFastSmiOnlyElements([1,2,3,4,5,6,7,8,9,10]);
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");

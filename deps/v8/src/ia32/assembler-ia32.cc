@@ -388,8 +388,91 @@ void Assembler::GetCode(CodeDesc* desc) {
 
 void Assembler::Align(int m) {
   ASSERT(IsPowerOf2(m));
-  while ((pc_offset() & (m - 1)) != 0) {
-    nop();
+  int mask = m - 1;
+  int addr = pc_offset();
+  Nop((m - (addr & mask)) & mask);
+}
+
+
+bool Assembler::IsNop(Address addr) {
+  Address a = addr;
+  while (*a == 0x66) a++;
+  if (*a == 0x90) return true;
+  if (a[0] == 0xf && a[1] == 0x1f) return true;
+  return false;
+}
+
+
+void Assembler::Nop(int bytes) {
+  EnsureSpace ensure_space(this);
+
+  if (!CpuFeatures::IsSupported(SSE2)) {
+    // Older CPUs that do not support SSE2 may not support multibyte NOP
+    // instructions.
+    for (; bytes > 0; bytes--) {
+      EMIT(0x90);
+    }
+    return;
+  }
+
+  // Multi byte nops from http://support.amd.com/us/Processor_TechDocs/40546.pdf
+  while (bytes > 0) {
+    switch (bytes) {
+      case 2:
+        EMIT(0x66);
+      case 1:
+        EMIT(0x90);
+        return;
+      case 3:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0);
+        return;
+      case 4:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x40);
+        EMIT(0);
+        return;
+      case 6:
+        EMIT(0x66);
+      case 5:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x44);
+        EMIT(0);
+        EMIT(0);
+        return;
+      case 7:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x80);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        return;
+      default:
+      case 11:
+        EMIT(0x66);
+        bytes--;
+      case 10:
+        EMIT(0x66);
+        bytes--;
+      case 9:
+        EMIT(0x66);
+        bytes--;
+      case 8:
+        EMIT(0xf);
+        EMIT(0x1f);
+        EMIT(0x84);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        EMIT(0);
+        bytes -= 8;
+    }
   }
 }
 
@@ -460,13 +543,6 @@ void Assembler::push(const Operand& src) {
   EnsureSpace ensure_space(this);
   EMIT(0xFF);
   emit_operand(esi, src);
-}
-
-
-void Assembler::push(Handle<Object> handle) {
-  EnsureSpace ensure_space(this);
-  EMIT(0x68);
-  emit(handle);
 }
 
 
@@ -1640,6 +1716,27 @@ void Assembler::fyl2x() {
 }
 
 
+void Assembler::f2xm1() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xF0);
+}
+
+
+void Assembler::fscale() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xD9);
+  EMIT(0xFD);
+}
+
+
+void Assembler::fninit() {
+  EnsureSpace ensure_space(this);
+  EMIT(0xDB);
+  EMIT(0xE3);
+}
+
+
 void Assembler::fadd(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xC0, i);
@@ -1953,6 +2050,16 @@ void Assembler::ucomisd(XMMRegister dst, XMMRegister src) {
 }
 
 
+void Assembler::ucomisd(XMMRegister dst, const Operand& src) {
+  ASSERT(CpuFeatures::IsEnabled(SSE2));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x2E);
+  emit_sse_operand(dst, src);
+}
+
+
 void Assembler::roundsd(XMMRegister dst, XMMRegister src, RoundingMode mode) {
   ASSERT(CpuFeatures::IsEnabled(SSE4_1));
   EnsureSpace ensure_space(this);
@@ -2155,6 +2262,19 @@ void Assembler::movd(const Operand& dst, XMMRegister src) {
   EMIT(0x0F);
   EMIT(0x7E);
   emit_sse_operand(src, dst);
+}
+
+
+void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
+  ASSERT(CpuFeatures::IsSupported(SSE4_1));
+  ASSERT(is_uint8(imm8));
+  EnsureSpace ensure_space(this);
+  EMIT(0x66);
+  EMIT(0x0F);
+  EMIT(0x3A);
+  EMIT(0x17);
+  emit_sse_operand(dst, src);
+  EMIT(imm8);
 }
 
 

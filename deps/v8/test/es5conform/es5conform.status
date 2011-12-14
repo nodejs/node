@@ -314,8 +314,3 @@ chapter15/15.3/15.3.2/15.3.2.1/15.3.2.1-11-6-s: FAIL
 # Array.prototype.reduce - null passed as thisValue to strict callbackfn
 # Invalid test case: http://es5conform.codeplex.com/workitem/29085
 chapter15/15.4/15.4.4/15.4.4.21/15.4.4.21-9-c-ii-4-s: FAIL
-
-[ $arch == mips ]
-
-# Skip all tests on MIPS.
-*: SKIP

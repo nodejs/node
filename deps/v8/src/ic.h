@@ -91,10 +91,13 @@ class IC {
   // Construct the IC structure with the given number of extra
   // JavaScript frames on the stack.
   IC(FrameDepth depth, Isolate* isolate);
+  virtual ~IC() {}
 
   // Get the call-site target; used for determining the state.
-  Code* target() { return GetTargetAtAddress(address()); }
-  inline Address address();
+  Code* target() const { return GetTargetAtAddress(address()); }
+  inline Address address() const;
+
+  virtual bool IsGeneric() const { return false; }
 
   // Compute the current IC state based on the target stub, receiver and name.
   static State StateFrom(Code* target, Object* receiver, Object* name);
@@ -139,13 +142,15 @@ class IC {
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Computes the address in the original code when the code running is
   // containing break points (calls to DebugBreakXXX builtins).
-  Address OriginalCodeAddress();
+  Address OriginalCodeAddress() const;
 #endif
 
   // Set the call-site target.
   void set_target(Code* code) { SetTargetAtAddress(address(), code); }
 
 #ifdef DEBUG
+  char TransitionMarkFromState(IC::State state);
+
   void TraceIC(const char* type,
                Handle<Object> name,
                State old_state,
@@ -452,6 +457,10 @@ class KeyedLoadIC: public KeyedIC {
       bool is_js_array,
       ElementsKind elements_kind);
 
+  virtual bool IsGeneric() const {
+    return target() == *generic_stub();
+  }
+
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_LOAD_IC; }
 
@@ -477,7 +486,7 @@ class KeyedLoadIC: public KeyedIC {
   Handle<Code> megamorphic_stub() {
     return isolate()->builtins()->KeyedLoadIC_Generic();
   }
-  Handle<Code> generic_stub() {
+  Handle<Code> generic_stub() const {
     return isolate()->builtins()->KeyedLoadIC_Generic();
   }
   Handle<Code> pre_monomorphic_stub() {
@@ -595,6 +604,11 @@ class KeyedStoreIC: public KeyedIC {
       bool is_js_array,
       ElementsKind elements_kind);
 
+  virtual bool IsGeneric() const {
+    return target() == *generic_stub() ||
+        target() == *generic_stub_strict();
+  }
+
  protected:
   virtual Code::Kind kind() const { return Code::KEYED_STORE_IC; }
 
@@ -632,10 +646,10 @@ class KeyedStoreIC: public KeyedIC {
   Handle<Code> megamorphic_stub_strict() {
     return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
   }
-  Handle<Code> generic_stub() {
+  Handle<Code> generic_stub() const {
     return isolate()->builtins()->KeyedStoreIC_Generic();
   }
-  Handle<Code> generic_stub_strict() {
+  Handle<Code> generic_stub_strict() const {
     return isolate()->builtins()->KeyedStoreIC_Generic_Strict();
   }
   Handle<Code> non_strict_arguments_stub() {
@@ -710,6 +724,7 @@ class CompareIC: public IC {
     SYMBOLS,
     STRINGS,
     OBJECTS,
+    KNOWN_OBJECTS,
     GENERIC
   };
 

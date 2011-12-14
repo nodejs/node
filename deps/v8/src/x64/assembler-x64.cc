@@ -426,18 +426,21 @@ void Assembler::GetCode(CodeDesc* desc) {
 void Assembler::Align(int m) {
   ASSERT(IsPowerOf2(m));
   int delta = (m - (pc_offset() & (m - 1))) & (m - 1);
-  while (delta >= 9) {
-    nop(9);
-    delta -= 9;
-  }
-  if (delta > 0) {
-    nop(delta);
-  }
+  Nop(delta);
 }
 
 
 void Assembler::CodeTargetAlign() {
   Align(16);  // Preferred alignment of jump targets on x64.
+}
+
+
+bool Assembler::IsNop(Address addr) {
+  Address a = addr;
+  while (*a == 0x66) a++;
+  if (*a == 0x90) return true;
+  if (a[0] == 0xf && a[1] == 0x1f) return true;
+  return false;
 }
 
 
@@ -1763,7 +1766,7 @@ void Assembler::notl(Register dst) {
 }
 
 
-void Assembler::nop(int n) {
+void Assembler::Nop(int n) {
   // The recommended muti-byte sequences of NOP instructions from the Intel 64
   // and IA-32 Architectures Software Developer's Manual.
   //
@@ -1778,73 +1781,64 @@ void Assembler::nop(int n) {
   // 9 bytes  66 NOP DWORD ptr [EAX + EAX*1 +         66 0F 1F 84 00 00 00 00
   //          00000000H]                              00H
 
-  ASSERT(1 <= n);
-  ASSERT(n <= 9);
   EnsureSpace ensure_space(this);
-  switch (n) {
-  case 1:
-    emit(0x90);
-    return;
-  case 2:
-    emit(0x66);
-    emit(0x90);
-    return;
-  case 3:
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x00);
-    return;
-  case 4:
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x40);
-    emit(0x00);
-    return;
-  case 5:
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x44);
-    emit(0x00);
-    emit(0x00);
-    return;
-  case 6:
-    emit(0x66);
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x44);
-    emit(0x00);
-    emit(0x00);
-    return;
-  case 7:
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x80);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    return;
-  case 8:
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x84);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    return;
-  case 9:
-    emit(0x66);
-    emit(0x0f);
-    emit(0x1f);
-    emit(0x84);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    emit(0x00);
-    return;
+  while (n > 0) {
+    switch (n) {
+      case 2:
+        emit(0x66);
+      case 1:
+        emit(0x90);
+        return;
+      case 3:
+        emit(0x0f);
+        emit(0x1f);
+        emit(0x00);
+        return;
+      case 4:
+        emit(0x0f);
+        emit(0x1f);
+        emit(0x40);
+        emit(0x00);
+        return;
+      case 6:
+        emit(0x66);
+      case 5:
+        emit(0x0f);
+        emit(0x1f);
+        emit(0x44);
+        emit(0x00);
+        emit(0x00);
+        return;
+      case 7:
+        emit(0x0f);
+        emit(0x1f);
+        emit(0x80);
+        emit(0x00);
+        emit(0x00);
+        emit(0x00);
+        emit(0x00);
+        return;
+      default:
+      case 11:
+        emit(0x66);
+        n--;
+      case 10:
+        emit(0x66);
+        n--;
+      case 9:
+        emit(0x66);
+        n--;
+      case 8:
+        emit(0x0f);
+        emit(0x1f);
+        emit(0x84);
+        emit(0x00);
+        emit(0x00);
+        emit(0x00);
+        emit(0x00);
+        emit(0x00);
+        n -= 8;
+    }
   }
 }
 
@@ -2313,6 +2307,27 @@ void Assembler::fyl2x() {
 }
 
 
+void Assembler::f2xm1() {
+  EnsureSpace ensure_space(this);
+  emit(0xD9);
+  emit(0xF0);
+}
+
+
+void Assembler::fscale() {
+  EnsureSpace ensure_space(this);
+  emit(0xD9);
+  emit(0xFD);
+}
+
+
+void Assembler::fninit() {
+  EnsureSpace ensure_space(this);
+  emit(0xDB);
+  emit(0xE3);
+}
+
+
 void Assembler::fadd(int i) {
   EnsureSpace ensure_space(this);
   emit_farith(0xDC, 0xC0, i);
@@ -2572,7 +2587,8 @@ void Assembler::movdqa(XMMRegister dst, const Operand& src) {
 
 
 void Assembler::extractps(Register dst, XMMRegister src, byte imm8) {
-  ASSERT(is_uint2(imm8));
+  ASSERT(CpuFeatures::IsSupported(SSE4_1));
+  ASSERT(is_uint8(imm8));
   EnsureSpace ensure_space(this);
   emit(0x66);
   emit_optional_rex_32(dst, src);

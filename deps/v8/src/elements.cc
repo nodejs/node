@@ -134,6 +134,22 @@ class ElementsAccessorBase : public ElementsAccessor {
                                 JSObject* obj,
                                 Object* length);
 
+  virtual MaybeObject* SetCapacityAndLength(JSArray* array,
+                                            int capacity,
+                                            int length) {
+    return ElementsAccessorSubclass::SetFastElementsCapacityAndLength(
+        array,
+        capacity,
+        length);
+  }
+
+  static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
+                                                       int capacity,
+                                                       int length) {
+    UNIMPLEMENTED();
+    return obj;
+  }
+
   virtual MaybeObject* Delete(JSObject* obj,
                               uint32_t key,
                               JSReceiver::DeleteMode mode) = 0;
@@ -376,11 +392,6 @@ class FastObjectElementsAccessor
     return heap->true_value();
   }
 
- protected:
-  friend class FastElementsAccessor<FastObjectElementsAccessor,
-                                    FixedArray,
-                                    kPointerSize>;
-
   static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
                                                        uint32_t capacity,
                                                        uint32_t length) {
@@ -392,6 +403,11 @@ class FastObjectElementsAccessor
                                                  length,
                                                  set_capacity_mode);
   }
+
+ protected:
+  friend class FastElementsAccessor<FastObjectElementsAccessor,
+                                    FixedArray,
+                                    kPointerSize>;
 
   virtual MaybeObject* Delete(JSObject* obj,
                               uint32_t key,
@@ -405,18 +421,18 @@ class FastDoubleElementsAccessor
     : public FastElementsAccessor<FastDoubleElementsAccessor,
                                   FixedDoubleArray,
                                   kDoubleSize> {
+  static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
+                                                       uint32_t capacity,
+                                                       uint32_t length) {
+    return obj->SetFastDoubleElementsCapacityAndLength(capacity, length);
+  }
+
  protected:
   friend class ElementsAccessorBase<FastDoubleElementsAccessor,
                                     FixedDoubleArray>;
   friend class FastElementsAccessor<FastDoubleElementsAccessor,
                                     FixedDoubleArray,
                                     kDoubleSize>;
-
-  static MaybeObject* SetFastElementsCapacityAndLength(JSObject* obj,
-                                                       uint32_t capacity,
-                                                       uint32_t length) {
-    return obj->SetFastDoubleElementsCapacityAndLength(capacity, length);
-  }
 
   virtual MaybeObject* Delete(JSObject* obj,
                               uint32_t key,

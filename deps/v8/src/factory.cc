@@ -926,28 +926,48 @@ Handle<JSArray> Factory::NewJSArray(int capacity,
 }
 
 
-Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArray> elements,
+Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
                                                 PretenureFlag pretenure) {
   Handle<JSArray> result =
       Handle<JSArray>::cast(NewJSObject(isolate()->array_function(),
                                         pretenure));
+  result->set_length(Smi::FromInt(0));
   SetContent(result, elements);
   return result;
 }
 
 
+void Factory::SetElementsCapacityAndLength(Handle<JSArray> array,
+                                           int capacity,
+                                           int length) {
+  ElementsAccessor* accessor = array->GetElementsAccessor();
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      accessor->SetCapacityAndLength(*array, capacity, length));
+}
+
+
 void Factory::SetContent(Handle<JSArray> array,
-                         Handle<FixedArray> elements) {
+                         Handle<FixedArrayBase> elements) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
       array->SetContent(*elements));
 }
 
 
-void Factory::EnsureCanContainNonSmiElements(Handle<JSArray> array) {
+void Factory::EnsureCanContainHeapObjectElements(Handle<JSArray> array) {
   CALL_HEAP_FUNCTION_VOID(
       isolate(),
-      array->EnsureCanContainNonSmiElements());
+      array->EnsureCanContainHeapObjectElements());
+}
+
+
+void Factory::EnsureCanContainElements(Handle<JSArray> array,
+                                       Handle<FixedArrayBase> elements,
+                                       EnsureElementsMode mode) {
+  CALL_HEAP_FUNCTION_VOID(
+      isolate(),
+      array->EnsureCanContainElements(*elements, mode));
 }
 
 

@@ -1227,10 +1227,7 @@ void HConstant::PrintDataTo(StringStream* stream) {
 
 
 bool HArrayLiteral::IsCopyOnWrite() const {
-  Handle<FixedArray> constant_elements = this->constant_elements();
-  FixedArrayBase* constant_elements_values =
-      FixedArrayBase::cast(constant_elements->get(1));
-  return constant_elements_values->map() == HEAP->fixed_cow_array_map();
+  return boilerplate_object_->elements()->map() == HEAP->fixed_cow_array_map();
 }
 
 

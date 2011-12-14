@@ -1625,6 +1625,9 @@ void CompareIC::UpdateCaches(Handle<Object> x, Handle<Object> y) {
     rewritten = stub.GetCode();
   } else {
     ICCompareStub stub(op_, state);
+    if (state == KNOWN_OBJECTS) {
+      stub.set_known_map(Handle<Map>(Handle<JSObject>::cast(x)->map()));
+    }
     rewritten = stub.GetCode();
   }
   set_target(*rewritten);

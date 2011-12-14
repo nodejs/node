@@ -109,6 +109,7 @@ static const ByteMnemonic zero_operands_instr[] = {
   { 0xC3, UNSET_OP_ORDER, "ret" },
   { 0xC9, UNSET_OP_ORDER, "leave" },
   { 0xF4, UNSET_OP_ORDER, "hlt" },
+  { 0xFC, UNSET_OP_ORDER, "cld" },
   { 0xCC, UNSET_OP_ORDER, "int3" },
   { 0x60, UNSET_OP_ORDER, "pushad" },
   { 0x61, UNSET_OP_ORDER, "popad" },
@@ -910,15 +911,19 @@ int DisassemblerX64::RegisterFPUInstruction(int escape_opcode,
           switch (modrm_byte) {
             case 0xE0: mnem = "fchs"; break;
             case 0xE1: mnem = "fabs"; break;
+            case 0xE3: mnem = "fninit"; break;
             case 0xE4: mnem = "ftst"; break;
             case 0xE8: mnem = "fld1"; break;
             case 0xEB: mnem = "fldpi"; break;
             case 0xED: mnem = "fldln2"; break;
             case 0xEE: mnem = "fldz"; break;
+            case 0xF0: mnem = "f2xm1"; break;
             case 0xF1: mnem = "fyl2x"; break;
+            case 0xF2: mnem = "fptan"; break;
             case 0xF5: mnem = "fprem1"; break;
             case 0xF7: mnem = "fincstp"; break;
             case 0xF8: mnem = "fprem"; break;
+            case 0xFD: mnem = "fscale"; break;
             case 0xFE: mnem = "fsin"; break;
             case 0xFF: mnem = "fcos"; break;
             default: UnimplementedInstruction();
@@ -1034,7 +1039,18 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
       }
     } else {
       get_modrm(*current, &mod, &regop, &rm);
-      if (opcode == 0x28) {
+      if (opcode == 0x1f) {
+        current++;
+        if (rm == 4) {  // SIB byte present.
+          current++;
+        }
+        if (mod == 1) {  // Byte displacement.
+          current += 1;
+        } else if (mod == 2) {  // 32-bit displacement.
+          current += 4;
+        }  // else no immediate displacement.
+        AppendToBuffer("nop");
+      } else if (opcode == 0x28) {
         AppendToBuffer("movapd %s, ", NameOfXMMRegister(regop));
         current += PrintRightXMMOperand(current);
       } else if (opcode == 0x29) {
@@ -1178,7 +1194,7 @@ int DisassemblerX64::TwoByteOpcodeInstruction(byte* data) {
     int mod, regop, rm;
     get_modrm(*current, &mod, &regop, &rm);
     current++;
-    if (regop == 4) {  // SIB byte present.
+    if (rm == 4) {  // SIB byte present.
       current++;
     }
     if (mod == 1) {  // Byte displacement.

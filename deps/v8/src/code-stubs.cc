@@ -101,7 +101,14 @@ Handle<Code> CodeStub::GetCode() {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   Code* code;
-  if (!FindCodeInCache(&code)) {
+  if (UseSpecialCache()
+      ? FindCodeInSpecialCache(&code)
+      : FindCodeInCache(&code)) {
+    ASSERT(IsPregenerated() == code->is_pregenerated());
+    return Handle<Code>(code);
+  }
+
+  {
     HandleScope scope(isolate);
 
     // Generate the new code.
@@ -121,19 +128,21 @@ Handle<Code> CodeStub::GetCode() {
     RecordCodeGeneration(*new_object, &masm);
     FinishCode(new_object);
 
-    // Update the dictionary and the root in Heap.
-    Handle<NumberDictionary> dict =
-        factory->DictionaryAtNumberPut(
-            Handle<NumberDictionary>(heap->code_stubs()),
-            GetKey(),
-            new_object);
-    heap->public_set_code_stubs(*dict);
+    if (UseSpecialCache()) {
+      AddToSpecialCache(new_object);
+    } else {
+      // Update the dictionary and the root in Heap.
+      Handle<NumberDictionary> dict =
+          factory->DictionaryAtNumberPut(
+              Handle<NumberDictionary>(heap->code_stubs()),
+              GetKey(),
+              new_object);
+      heap->public_set_code_stubs(*dict);
+    }
     code = *new_object;
-    Activate(code);
-  } else {
-    CHECK(IsPregenerated() == code->is_pregenerated());
   }
 
+  Activate(code);
   ASSERT(!NeedsImmovableCode() || heap->lo_space()->Contains(code));
   return Handle<Code>(code, isolate);
 }
@@ -156,6 +165,32 @@ const char* CodeStub::MajorName(CodeStub::Major major_key,
 
 void CodeStub::PrintName(StringStream* stream) {
   stream->Add("%s", MajorName(MajorKey(), false));
+}
+
+
+void ICCompareStub::AddToSpecialCache(Handle<Code> new_object) {
+  ASSERT(*known_map_ != NULL);
+  Isolate* isolate = new_object->GetIsolate();
+  Factory* factory = isolate->factory();
+  return Map::UpdateCodeCache(known_map_,
+                              factory->compare_ic_symbol(),
+                              new_object);
+}
+
+
+bool ICCompareStub::FindCodeInSpecialCache(Code** code_out) {
+  Isolate* isolate = known_map_->GetIsolate();
+  Factory* factory = isolate->factory();
+  Code::Flags flags = Code::ComputeFlags(
+      static_cast<Code::Kind>(GetCodeKind()),
+      UNINITIALIZED);
+  Handle<Object> probe(
+      known_map_->FindInCodeCache(*factory->compare_ic_symbol(), flags));
+  if (probe->IsCode()) {
+    *code_out = Code::cast(*probe);
+    return true;
+  }
+  return false;
 }
 
 
@@ -183,6 +218,10 @@ void ICCompareStub::Generate(MacroAssembler* masm) {
       break;
     case CompareIC::OBJECTS:
       GenerateObjects(masm);
+      break;
+    case CompareIC::KNOWN_OBJECTS:
+      ASSERT(*known_map_ != NULL);
+      GenerateKnownObjects(masm);
       break;
     default:
       UNREACHABLE();

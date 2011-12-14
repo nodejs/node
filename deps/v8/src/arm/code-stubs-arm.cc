@@ -3455,110 +3455,202 @@ void StackCheckStub::Generate(MacroAssembler* masm) {
 
 
 void MathPowStub::Generate(MacroAssembler* masm) {
-  Label call_runtime;
+  CpuFeatures::Scope vfp3_scope(VFP3);
+  const Register base = r1;
+  const Register exponent = r2;
+  const Register heapnumbermap = r5;
+  const Register heapnumber = r0;
+  const DoubleRegister double_base = d1;
+  const DoubleRegister double_exponent = d2;
+  const DoubleRegister double_result = d3;
+  const DoubleRegister double_scratch = d0;
+  const SwVfpRegister single_scratch = s0;
+  const Register scratch = r9;
+  const Register scratch2 = r7;
 
-  if (CpuFeatures::IsSupported(VFP3)) {
-    CpuFeatures::Scope scope(VFP3);
-
-    Label base_not_smi;
-    Label exponent_not_smi;
-    Label convert_exponent;
-
-    const Register base = r0;
-    const Register exponent = r1;
-    const Register heapnumbermap = r5;
-    const Register heapnumber = r6;
-    const DoubleRegister double_base = d0;
-    const DoubleRegister double_exponent = d1;
-    const DoubleRegister double_result = d2;
-    const SwVfpRegister single_scratch = s0;
-    const Register scratch = r9;
-    const Register scratch2 = r7;
-
-    __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
+  Label call_runtime, done, exponent_not_smi, int_exponent;
+  if (exponent_type_ == ON_STACK) {
+    Label base_is_smi, unpack_exponent;
+    // The exponent and base are supplied as arguments on the stack.
+    // This can only happen if the stub is called from non-optimized code.
+    // Load input parameters from stack to double registers.
     __ ldr(base, MemOperand(sp, 1 * kPointerSize));
     __ ldr(exponent, MemOperand(sp, 0 * kPointerSize));
 
-    // Convert base to double value and store it in d0.
-    __ JumpIfNotSmi(base, &base_not_smi);
-    // Base is a Smi. Untag and convert it.
-    __ SmiUntag(base);
-    __ vmov(single_scratch, base);
-    __ vcvt_f64_s32(double_base, single_scratch);
-    __ b(&convert_exponent);
+    __ LoadRoot(heapnumbermap, Heap::kHeapNumberMapRootIndex);
 
-    __ bind(&base_not_smi);
+    __ JumpIfSmi(base, &base_is_smi);
     __ ldr(scratch, FieldMemOperand(base, JSObject::kMapOffset));
     __ cmp(scratch, heapnumbermap);
     __ b(ne, &call_runtime);
-    // Base is a heapnumber. Load it into double register.
-    __ vldr(double_base, FieldMemOperand(base, HeapNumber::kValueOffset));
 
-    __ bind(&convert_exponent);
+    __ vldr(double_base, FieldMemOperand(base, HeapNumber::kValueOffset));
+    __ jmp(&unpack_exponent);
+
+    __ bind(&base_is_smi);
+    __ SmiUntag(base);
+    __ vmov(single_scratch, base);
+    __ vcvt_f64_s32(double_base, single_scratch);
+    __ bind(&unpack_exponent);
+
     __ JumpIfNotSmi(exponent, &exponent_not_smi);
     __ SmiUntag(exponent);
-
-    // The base is in a double register and the exponent is
-    // an untagged smi. Allocate a heap number and call a
-    // C function for integer exponents. The register containing
-    // the heap number is callee-saved.
-    __ AllocateHeapNumber(heapnumber,
-                          scratch,
-                          scratch2,
-                          heapnumbermap,
-                          &call_runtime);
-    __ push(lr);
-    __ PrepareCallCFunction(1, 1, scratch);
-    __ SetCallCDoubleArguments(double_base, exponent);
-    {
-      AllowExternalCallThatCantCauseGC scope(masm);
-      __ CallCFunction(
-          ExternalReference::power_double_int_function(masm->isolate()),
-          1, 1);
-      __ pop(lr);
-      __ GetCFunctionDoubleResult(double_result);
-    }
-    __ vstr(double_result,
-            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
-    __ mov(r0, heapnumber);
-    __ Ret(2 * kPointerSize);
+    __ jmp(&int_exponent);
 
     __ bind(&exponent_not_smi);
     __ ldr(scratch, FieldMemOperand(exponent, JSObject::kMapOffset));
     __ cmp(scratch, heapnumbermap);
     __ b(ne, &call_runtime);
-    // Exponent is a heapnumber. Load it into double register.
     __ vldr(double_exponent,
             FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  } else if (exponent_type_ == TAGGED) {
+    // Base is already in double_base.
+    __ JumpIfNotSmi(exponent, &exponent_not_smi);
+    __ SmiUntag(exponent);
+    __ jmp(&int_exponent);
 
-    // The base and the exponent are in double registers.
-    // Allocate a heap number and call a C function for
-    // double exponents. The register containing
-    // the heap number is callee-saved.
-    __ AllocateHeapNumber(heapnumber,
-                          scratch,
-                          scratch2,
-                          heapnumbermap,
-                          &call_runtime);
+    __ bind(&exponent_not_smi);
+    __ vldr(double_exponent,
+            FieldMemOperand(exponent, HeapNumber::kValueOffset));
+  }
+
+  if (exponent_type_ != INTEGER) {
+    Label int_exponent_convert;
+    // Detect integer exponents stored as double.
+    __ vcvt_u32_f64(single_scratch, double_exponent);
+    // We do not check for NaN or Infinity here because comparing numbers on
+    // ARM correctly distinguishes NaNs.  We end up calling the built-in.
+    __ vcvt_f64_u32(double_scratch, single_scratch);
+    __ VFPCompareAndSetFlags(double_scratch, double_exponent);
+    __ b(eq, &int_exponent_convert);
+
+    if (exponent_type_ == ON_STACK) {
+      // Detect square root case.  Crankshaft detects constant +/-0.5 at
+      // compile time and uses DoMathPowHalf instead.  We then skip this check
+      // for non-constant cases of +/-0.5 as these hardly occur.
+      Label not_plus_half;
+
+      // Test for 0.5.
+      __ vmov(double_scratch, 0.5);
+      __ VFPCompareAndSetFlags(double_exponent, double_scratch);
+      __ b(ne, &not_plus_half);
+
+      // Calculates square root of base.  Check for the special case of
+      // Math.pow(-Infinity, 0.5) == Infinity (ECMA spec, 15.8.2.13).
+      __ vmov(double_scratch, -V8_INFINITY);
+      __ VFPCompareAndSetFlags(double_base, double_scratch);
+      __ vneg(double_result, double_scratch, eq);
+      __ b(eq, &done);
+
+      // Add +0 to convert -0 to +0.
+      __ vadd(double_scratch, double_base, kDoubleRegZero);
+      __ vsqrt(double_result, double_scratch);
+      __ jmp(&done);
+
+      __ bind(&not_plus_half);
+      __ vmov(double_scratch, -0.5);
+      __ VFPCompareAndSetFlags(double_exponent, double_scratch);
+      __ b(ne, &call_runtime);
+
+      // Calculates square root of base.  Check for the special case of
+      // Math.pow(-Infinity, -0.5) == 0 (ECMA spec, 15.8.2.13).
+      __ vmov(double_scratch, -V8_INFINITY);
+      __ VFPCompareAndSetFlags(double_base, double_scratch);
+      __ vmov(double_result, kDoubleRegZero, eq);
+      __ b(eq, &done);
+
+      // Add +0 to convert -0 to +0.
+      __ vadd(double_scratch, double_base, kDoubleRegZero);
+      __ vmov(double_result, 1);
+      __ vsqrt(double_scratch, double_scratch);
+      __ vdiv(double_result, double_result, double_scratch);
+      __ jmp(&done);
+    }
+
     __ push(lr);
-    __ PrepareCallCFunction(0, 2, scratch);
-    __ SetCallCDoubleArguments(double_base, double_exponent);
     {
       AllowExternalCallThatCantCauseGC scope(masm);
+      __ PrepareCallCFunction(0, 2, scratch);
+      __ SetCallCDoubleArguments(double_base, double_exponent);
       __ CallCFunction(
           ExternalReference::power_double_double_function(masm->isolate()),
           0, 2);
-      __ pop(lr);
-      __ GetCFunctionDoubleResult(double_result);
     }
-    __ vstr(double_result,
-            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
-    __ mov(r0, heapnumber);
-    __ Ret(2 * kPointerSize);
+    __ pop(lr);
+    __ GetCFunctionDoubleResult(double_result);
+    __ jmp(&done);
+
+    __ bind(&int_exponent_convert);
+    __ vcvt_u32_f64(single_scratch, double_exponent);
+    __ vmov(exponent, single_scratch);
   }
 
-  __ bind(&call_runtime);
-  __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+  // Calculate power with integer exponent.
+  __ bind(&int_exponent);
+
+  __ mov(scratch, exponent);  // Back up exponent.
+  __ vmov(double_scratch, double_base);  // Back up base.
+  __ vmov(double_result, 1.0);
+
+  // Get absolute value of exponent.
+  __ cmp(scratch, Operand(0));
+  __ mov(scratch2, Operand(0), LeaveCC, mi);
+  __ sub(scratch, scratch2, scratch, LeaveCC, mi);
+
+  Label while_true;
+  __ bind(&while_true);
+  __ mov(scratch, Operand(scratch, ASR, 1), SetCC);
+  __ vmul(double_result, double_result, double_scratch, cs);
+  __ vmul(double_scratch, double_scratch, double_scratch, ne);
+  __ b(ne, &while_true);
+
+  __ cmp(exponent, Operand(0));
+  __ b(ge, &done);
+  __ vmov(double_scratch, 1.0);
+  __ vdiv(double_result, double_scratch, double_result);
+  // Test whether result is zero.  Bail out to check for subnormal result.
+  // Due to subnormals, x^-y == (1/x)^y does not hold in all cases.
+  __ VFPCompareAndSetFlags(double_result, 0.0);
+  __ b(ne, &done);
+  // double_exponent may not containe the exponent value if the input was a
+  // smi.  We set it with exponent value before bailing out.
+  __ vmov(single_scratch, exponent);
+  __ vcvt_f64_s32(double_exponent, single_scratch);
+
+  // Returning or bailing out.
+  Counters* counters = masm->isolate()->counters();
+  if (exponent_type_ == ON_STACK) {
+    // The arguments are still on the stack.
+    __ bind(&call_runtime);
+    __ TailCallRuntime(Runtime::kMath_pow_cfunction, 2, 1);
+
+    // The stub is called from non-optimized code, which expects the result
+    // as heap number in exponent.
+    __ bind(&done);
+    __ AllocateHeapNumber(
+        heapnumber, scratch, scratch2, heapnumbermap, &call_runtime);
+    __ vstr(double_result,
+            FieldMemOperand(heapnumber, HeapNumber::kValueOffset));
+    ASSERT(heapnumber.is(r0));
+    __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
+    __ Ret(2);
+  } else {
+    __ push(lr);
+    {
+      AllowExternalCallThatCantCauseGC scope(masm);
+      __ PrepareCallCFunction(0, 2, scratch);
+      __ SetCallCDoubleArguments(double_base, double_exponent);
+      __ CallCFunction(
+          ExternalReference::power_double_double_function(masm->isolate()),
+          0, 2);
+    }
+    __ pop(lr);
+    __ GetCFunctionDoubleResult(double_result);
+
+    __ bind(&done);
+    __ IncrementCounter(counters->math_pow(), 1, scratch, scratch2);
+    __ Ret();
+  }
 }
 
 
@@ -6628,26 +6720,47 @@ void ICCompareStub::GenerateObjects(MacroAssembler* masm) {
 }
 
 
-void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
-  __ Push(r1, r0);
-  __ push(lr);
+void ICCompareStub::GenerateKnownObjects(MacroAssembler* masm) {
+  Label miss;
+  __ and_(r2, r1, Operand(r0));
+  __ JumpIfSmi(r2, &miss);
+  __ ldr(r2, FieldMemOperand(r0, HeapObject::kMapOffset));
+  __ ldr(r3, FieldMemOperand(r1, HeapObject::kMapOffset));
+  __ cmp(r2, Operand(known_map_));
+  __ b(ne, &miss);
+  __ cmp(r3, Operand(known_map_));
+  __ b(ne, &miss);
 
-  // Call the runtime system in a fresh internal frame.
-  ExternalReference miss =
-      ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
+  __ sub(r0, r0, Operand(r1));
+  __ Ret();
+
+  __ bind(&miss);
+  GenerateMiss(masm);
+}
+
+
+
+void ICCompareStub::GenerateMiss(MacroAssembler* masm) {
   {
+    // Call the runtime system in a fresh internal frame.
+    ExternalReference miss =
+        ExternalReference(IC_Utility(IC::kCompareIC_Miss), masm->isolate());
+
     FrameScope scope(masm, StackFrame::INTERNAL);
+    __ Push(r1, r0);
+    __ push(lr);
     __ Push(r1, r0);
     __ mov(ip, Operand(Smi::FromInt(op_)));
     __ push(ip);
     __ CallExternalReference(miss, 3);
+    // Compute the entry point of the rewritten stub.
+    __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
+    // Restore registers.
+    __ pop(lr);
+    __ pop(r0);
+    __ pop(r1);
   }
-  // Compute the entry point of the rewritten stub.
-  __ add(r2, r0, Operand(Code::kHeaderSize - kHeapObjectTag));
-  // Restore registers.
-  __ pop(lr);
-  __ pop(r0);
-  __ pop(r1);
+
   __ Jump(r2);
 }
 

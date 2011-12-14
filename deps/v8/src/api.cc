@@ -1462,31 +1462,35 @@ Local<Script> Script::New(v8::Handle<String> source,
   ON_BAILOUT(isolate, "v8::Script::New()", return Local<Script>());
   LOG_API(isolate, "Script::New");
   ENTER_V8(isolate);
-  i::Handle<i::String> str = Utils::OpenHandle(*source);
-  i::Handle<i::Object> name_obj;
-  int line_offset = 0;
-  int column_offset = 0;
-  if (origin != NULL) {
-    if (!origin->ResourceName().IsEmpty()) {
-      name_obj = Utils::OpenHandle(*origin->ResourceName());
+  i::SharedFunctionInfo* raw_result = NULL;
+  { i::HandleScope scope(isolate);
+    i::Handle<i::String> str = Utils::OpenHandle(*source);
+    i::Handle<i::Object> name_obj;
+    int line_offset = 0;
+    int column_offset = 0;
+    if (origin != NULL) {
+      if (!origin->ResourceName().IsEmpty()) {
+        name_obj = Utils::OpenHandle(*origin->ResourceName());
+      }
+      if (!origin->ResourceLineOffset().IsEmpty()) {
+        line_offset = static_cast<int>(origin->ResourceLineOffset()->Value());
+      }
+      if (!origin->ResourceColumnOffset().IsEmpty()) {
+        column_offset =
+            static_cast<int>(origin->ResourceColumnOffset()->Value());
+      }
     }
-    if (!origin->ResourceLineOffset().IsEmpty()) {
-      line_offset = static_cast<int>(origin->ResourceLineOffset()->Value());
+    EXCEPTION_PREAMBLE(isolate);
+    i::ScriptDataImpl* pre_data_impl =
+        static_cast<i::ScriptDataImpl*>(pre_data);
+    // We assert that the pre-data is sane, even though we can actually
+    // handle it if it turns out not to be in release mode.
+    ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
+    // If the pre-data isn't sane we simply ignore it
+    if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
+      pre_data_impl = NULL;
     }
-    if (!origin->ResourceColumnOffset().IsEmpty()) {
-      column_offset = static_cast<int>(origin->ResourceColumnOffset()->Value());
-    }
-  }
-  EXCEPTION_PREAMBLE(isolate);
-  i::ScriptDataImpl* pre_data_impl = static_cast<i::ScriptDataImpl*>(pre_data);
-  // We assert that the pre-data is sane, even though we can actually
-  // handle it if it turns out not to be in release mode.
-  ASSERT(pre_data_impl == NULL || pre_data_impl->SanityCheck());
-  // If the pre-data isn't sane we simply ignore it
-  if (pre_data_impl != NULL && !pre_data_impl->SanityCheck()) {
-    pre_data_impl = NULL;
-  }
-  i::Handle<i::SharedFunctionInfo> result =
+    i::Handle<i::SharedFunctionInfo> result =
       i::Compiler::Compile(str,
                            name_obj,
                            line_offset,
@@ -1495,8 +1499,11 @@ Local<Script> Script::New(v8::Handle<String> source,
                            pre_data_impl,
                            Utils::OpenHandle(*script_data),
                            i::NOT_NATIVES_CODE);
-  has_pending_exception = result.is_null();
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
+    has_pending_exception = result.is_null();
+    EXCEPTION_BAILOUT_CHECK(isolate, Local<Script>());
+    raw_result = *result;
+  }
+  i::Handle<i::SharedFunctionInfo> result(raw_result, isolate);
   return Local<Script>(ToApi<Script>(result));
 }
 

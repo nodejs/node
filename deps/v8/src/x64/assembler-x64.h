@@ -636,6 +636,7 @@ class Assembler : public AssemblerBase {
   // possible to align the pc offset to a multiple
   // of m, where m must be a power of 2.
   void Align(int m);
+  void Nop(int bytes = 1);
   // Aligns code to something that's optimal for a jump target for the platform.
   void CodeTargetAlign();
 
@@ -1154,7 +1155,6 @@ class Assembler : public AssemblerBase {
   void hlt();
   void int3();
   void nop();
-  void nop(int n);
   void rdtsc();
   void ret(int imm16);
   void setcc(Condition cc, Register reg);
@@ -1277,6 +1277,9 @@ class Assembler : public AssemblerBase {
   void fcos();
   void fptan();
   void fyl2x();
+  void f2xm1();
+  void fscale();
+  void fninit();
 
   void frndint();
 
@@ -1398,7 +1401,7 @@ class Assembler : public AssemblerBase {
     return static_cast<int>(reloc_info_writer.pos() - pc_);
   }
 
-  static bool IsNop(Address addr) { return *addr == 0x90; }
+  static bool IsNop(Address addr);
 
   // Avoid overflows for displacements etc.
   static const int kMaximalBufferSize = 512*MB;

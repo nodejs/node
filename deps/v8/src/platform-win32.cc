@@ -889,6 +889,11 @@ void OS::Free(void* address, const size_t size) {
 }
 
 
+intptr_t OS::CommitPageSize() {
+  return 4096;
+}
+
+
 void OS::ProtectCode(void* address, const size_t size) {
   DWORD old_protect;
   VirtualProtect(address, size, PAGE_EXECUTE_READ, &old_protect);

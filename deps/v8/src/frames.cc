@@ -723,12 +723,17 @@ void JavaScriptFrame::PrintTop(FILE* file,
       JavaScriptFrame* frame = it.frame();
       if (frame->IsConstructor()) PrintF(file, "new ");
       // function name
-      Object* fun = frame->function();
-      if (fun->IsJSFunction()) {
-        SharedFunctionInfo* shared = JSFunction::cast(fun)->shared();
-        shared->DebugName()->ShortPrint(file);
+      Object* maybe_fun = frame->function();
+      if (maybe_fun->IsJSFunction()) {
+        JSFunction* fun = JSFunction::cast(maybe_fun);
+        fun->PrintName();
+        Code* js_code = frame->unchecked_code();
+        Address pc = frame->pc();
+        int code_offset =
+            static_cast<int>(pc - js_code->instruction_start());
+        PrintF("+%d", code_offset);
+        SharedFunctionInfo* shared = fun->shared();
         if (print_line_number) {
-          Address pc = frame->pc();
           Code* code = Code::cast(
               v8::internal::Isolate::Current()->heap()->FindCodeObject(pc));
           int source_pos = code->SourcePosition(pc);
@@ -751,7 +756,7 @@ void JavaScriptFrame::PrintTop(FILE* file,
           }
         }
       } else {
-        fun->ShortPrint(file);
+        PrintF("<unknown>");
       }
 
       if (print_args) {

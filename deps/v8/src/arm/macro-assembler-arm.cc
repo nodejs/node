@@ -407,6 +407,19 @@ void MacroAssembler::StoreRoot(Register source,
 }
 
 
+void MacroAssembler::LoadHeapObject(Register result,
+                                    Handle<HeapObject> object) {
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    mov(result, Operand(cell));
+    ldr(result, FieldMemOperand(result, JSGlobalPropertyCell::kValueOffset));
+  } else {
+    mov(result, Operand(object));
+  }
+}
+
+
 void MacroAssembler::InNewSpace(Register object,
                                 Register scratch,
                                 Condition cond,
@@ -1111,7 +1124,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  mov(r1, Operand(function));
+  LoadHeapObject(r1, function);
   ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
 
   ParameterCount expected(function->shared()->formal_parameter_count());

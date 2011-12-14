@@ -31,9 +31,3 @@ prefix preparser
 # escapes (we need to parse to distinguish octal escapes from valid
 # back-references).
 strict-octal-regexp: FAIL
-
-##############################################################################
-[ $arch == mips ]
-
-# Skip all tests on MIPS.
-*: SKIP

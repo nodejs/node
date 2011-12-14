@@ -194,6 +194,17 @@ class CodeStub BASE_EMBEDDED {
     return UNINITIALIZED;
   }
 
+  // Add the code to a specialized cache, specific to an individual
+  // stub type. Please note, this method must add the code object to a
+  // roots object, otherwise we will remove the code during GC.
+  virtual void AddToSpecialCache(Handle<Code> new_object) { }
+
+  // Find code in a specialized cache, work is delegated to the specific stub.
+  virtual bool FindCodeInSpecialCache(Code** code_out) { return false; }
+
+  // If a stub uses a special cache override this.
+  virtual bool UseSpecialCache() { return false; }
+
   // Returns a name for logging/debugging purposes.
   SmartArrayPointer<const char> GetName();
   virtual void PrintName(StringStream* stream);
@@ -442,12 +453,17 @@ class InstanceofStub: public CodeStub {
 
 class MathPowStub: public CodeStub {
  public:
-  MathPowStub() {}
+  enum ExponentType { INTEGER, DOUBLE, TAGGED, ON_STACK};
+
+  explicit MathPowStub(ExponentType exponent_type)
+      : exponent_type_(exponent_type) { }
   virtual void Generate(MacroAssembler* masm);
 
  private:
   virtual CodeStub::Major MajorKey() { return MathPow; }
-  virtual int MinorKey() { return 0; }
+  virtual int MinorKey() { return exponent_type_; }
+
+  ExponentType exponent_type_;
 };
 
 
@@ -459,6 +475,8 @@ class ICCompareStub: public CodeStub {
   }
 
   virtual void Generate(MacroAssembler* masm);
+
+  void set_known_map(Handle<Map> map) { known_map_ = map; }
 
  private:
   class OpField: public BitField<int, 0, 3> { };
@@ -479,12 +497,18 @@ class ICCompareStub: public CodeStub {
   void GenerateStrings(MacroAssembler* masm);
   void GenerateObjects(MacroAssembler* masm);
   void GenerateMiss(MacroAssembler* masm);
+  void GenerateKnownObjects(MacroAssembler* masm);
 
   bool strict() const { return op_ == Token::EQ_STRICT; }
   Condition GetCondition() const { return CompareIC::ComputeCondition(op_); }
 
+  virtual void AddToSpecialCache(Handle<Code> new_object);
+  virtual bool FindCodeInSpecialCache(Code** code_out);
+  virtual bool UseSpecialCache() { return state_ == CompareIC::KNOWN_OBJECTS; }
+
   Token::Value op_;
   CompareIC::State state_;
+  Handle<Map> known_map_;
 };
 
 

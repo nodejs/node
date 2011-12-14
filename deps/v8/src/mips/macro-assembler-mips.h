@@ -262,6 +262,7 @@ class MacroAssembler: public Assembler {
                  Heap::RootListIndex index,
                  Condition cond, Register src1, const Operand& src2);
 
+  void LoadHeapObject(Register dst, Handle<HeapObject> object);
 
   // ---------------------------------------------------------------------------
   // GC Support

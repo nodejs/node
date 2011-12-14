@@ -207,8 +207,6 @@ class LCodeGen BASE_EMBEDDED {
                          LInstruction* instr,
                          CallKind call_kind);
 
-  void LoadHeapObject(Register result, Handle<HeapObject> object);
-
   void RecordSafepointWithLazyDeopt(LInstruction* instr,
                                     SafepointMode safepoint_mode);
 
@@ -227,6 +225,7 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   int ToInteger32(LConstantOperand* op) const;
+  Handle<Object> ToHandle(LConstantOperand* op) const;
   double ToDouble(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,
@@ -239,7 +238,6 @@ class LCodeGen BASE_EMBEDDED {
   void DoMathFloor(LUnaryMathOperation* instr);
   void DoMathRound(LUnaryMathOperation* instr);
   void DoMathSqrt(LUnaryMathOperation* instr);
-  void DoMathPowHalf(LUnaryMathOperation* instr);
   void DoMathLog(LUnaryMathOperation* instr);
   void DoMathTan(LUnaryMathOperation* instr);
   void DoMathCos(LUnaryMathOperation* instr);
@@ -305,6 +303,10 @@ class LCodeGen BASE_EMBEDDED {
                     int* offset);
 
   void EnsureSpaceForLazyDeopt();
+
+  // Emits code for pushing either a tagged constant, a (non-double)
+  // register, or a stack slot operand.
+  void EmitPushTaggedOperand(LOperand* operand);
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;

@@ -1290,7 +1290,8 @@ TEST(CollectingAllAvailableGarbageShrinksNewSpace) {
   CHECK(old_capacity == new_capacity);
 }
 
-
+// This just checks the contract of the IdleNotification() function,
+// and does not verify that it does reasonable work.
 TEST(IdleNotificationAdvancesIncrementalMarking) {
   if (!FLAG_incremental_marking || !FLAG_incremental_marking_steps) return;
   InitializeVM();
@@ -1312,8 +1313,8 @@ TEST(IdleNotificationAdvancesIncrementalMarking) {
     CompileRun(source);
   }
   intptr_t old_size = HEAP->SizeOfObjects();
-  bool no_idle_work = v8::V8::IdleNotification();
-  while (!v8::V8::IdleNotification()) ;
+  bool no_idle_work = v8::V8::IdleNotification(900);
+  while (!v8::V8::IdleNotification(900)) ;
   intptr_t new_size = HEAP->SizeOfObjects();
-  CHECK(no_idle_work || new_size < 3 * old_size / 4);
+  CHECK(no_idle_work || new_size < old_size);
 }

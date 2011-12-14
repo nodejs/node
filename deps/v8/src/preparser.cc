@@ -627,6 +627,7 @@ PreParser::Statement PreParser::ParseDoWhileStatement(bool* ok) {
   Expect(i::Token::LPAREN, CHECK_OK);
   ParseExpression(true, CHECK_OK);
   Expect(i::Token::RPAREN, ok);
+  if (peek() == i::Token::SEMICOLON) Consume(i::Token::SEMICOLON);
   return Statement::Default();
 }
 

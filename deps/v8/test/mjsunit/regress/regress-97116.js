@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,19 +25,26 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// See http://code.google.com/p/v8/issues/detail?id=397
+// Flags: --expose-gc --allow-natives-syntax
 
+// Check that we are not flushing code for inlined functions that
+// have a pending lazy deoptimization on the stack.
 
-function test() {
-  assertEquals("Infinity", String(Math.pow(Infinity, 0.5)));
-  assertEquals(0, Math.pow(Infinity, -0.5));
-
-  assertEquals("Infinity", String(Math.pow(-Infinity, 0.5)));
-  assertEquals(0, Math.pow(-Infinity, -0.5));
+function deopt() {
+  try { } catch (e) { }  // Avoid inlining.
+  %DeoptimizeFunction(outer);
+  for (var i = 0; i < 10; i++) gc();  // Force code flushing.
 }
 
-test();
-test();
-%OptimizeFunctionOnNextCall(test);
-test();
+function outer(should_deopt) {
+  inner(should_deopt);
+}
+
+function inner(should_deopt) {
+  if (should_deopt) deopt();
+}
+
+outer(false);
+outer(false);
+%OptimizeFunctionOnNextCall(outer);
+outer(true);

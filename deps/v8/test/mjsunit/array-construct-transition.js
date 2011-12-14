@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,19 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
-// See http://code.google.com/p/v8/issues/detail?id=397
+// Flags: --allow-natives-syntax --smi-only-arrays
 
+support_smi_only_arrays = %HasFastSmiOnlyElements([1,2,3,4,5,6,7,8,9,10]);
 
-function test() {
-  assertEquals("Infinity", String(Math.pow(Infinity, 0.5)));
-  assertEquals(0, Math.pow(Infinity, -0.5));
-
-  assertEquals("Infinity", String(Math.pow(-Infinity, 0.5)));
-  assertEquals(0, Math.pow(-Infinity, -0.5));
+if (support_smi_only_arrays) {
+  var a = new Array(0, 1, 2);
+  assertTrue(%HasFastSmiOnlyElements(a));
+  var b = new Array(0.5, 1.2, 2.3);
+  assertTrue(%HasFastDoubleElements(b));
+  var c = new Array(0.5, 1.2, new Object());
+  assertTrue(%HasFastElements(c));
 }
-
-test();
-test();
-%OptimizeFunctionOnNextCall(test);
-test();

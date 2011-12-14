@@ -1113,17 +1113,9 @@ double power_double_int(double x, int y) {
 
 
 double power_double_double(double x, double y) {
-  int y_int = static_cast<int>(y);
-  if (y == y_int) {
-    return power_double_int(x, y_int);  // Returns 1.0 for exponent 0.
-  }
-  if (!isinf(x)) {
-    if (y == 0.5) return sqrt(x + 0.0);  // -0 must be converted to +0.
-    if (y == -0.5) return 1.0 / sqrt(x + 0.0);
-  }
-  if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return OS::nan_value();
-  }
+  // The checks for special cases can be dropped in ia32 because it has already
+  // been done in generated code before bailing out here.
+  if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) return OS::nan_value();
   return pow(x, y);
 }
 

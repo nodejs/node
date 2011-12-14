@@ -383,6 +383,10 @@ class SlotsBuffer {
 };
 
 
+// Defined in isolate.h.
+class ThreadLocalTop;
+
+
 // -------------------------------------------------------------------------
 // Mark-Compact collector
 class MarkCompactCollector {
@@ -602,6 +606,14 @@ class MarkCompactCollector {
   friend class StaticMarkingVisitor;
   friend class CodeMarkingVisitor;
   friend class SharedFunctionInfoMarkingVisitor;
+
+  // Mark non-optimize code for functions inlined into the given optimized
+  // code. This will prevent it from being flushed.
+  void MarkInlinedFunctionsCode(Code* code);
+
+  // Mark code objects that are active on the stack to prevent them
+  // from being flushed.
+  void PrepareThreadForCodeFlushing(Isolate* isolate, ThreadLocalTop* top);
 
   void PrepareForCodeFlushing();
 

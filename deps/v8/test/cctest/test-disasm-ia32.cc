@@ -449,6 +449,11 @@ TEST(DisasmIa320) {
     }
   }
 
+  // Nop instructions
+  for (int i = 0; i < 16; i++) {
+    __ Nop(i);
+  }
+
   __ ret(0);
 
   CodeDesc desc;

@@ -1159,12 +1159,17 @@ class VariableProxy: public Expression {
 
   bool IsArguments() { return var_ != NULL && var_->is_arguments(); }
 
+  bool IsLValue() {
+    return is_lvalue_;
+  }
+
   Handle<String> name() const { return name_; }
   Variable* var() const { return var_; }
   bool is_this() const { return is_this_; }
   int position() const { return position_; }
 
   void MarkAsTrivial() { is_trivial_ = true; }
+  void MarkAsLValue() { is_lvalue_ = true; }
 
   // Bind this proxy to the variable var.
   void BindTo(Variable* var);
@@ -1174,6 +1179,9 @@ class VariableProxy: public Expression {
   Variable* var_;  // resolved variable, or NULL
   bool is_this_;
   bool is_trivial_;
+  // True if this variable proxy is being used in an assignment
+  // or with a increment/decrement operator.
+  bool is_lvalue_;
   int position_;
 };
 

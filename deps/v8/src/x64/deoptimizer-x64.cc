@@ -138,8 +138,8 @@ void Deoptimizer::PatchStackCheckCodeAt(Code* unoptimized_code,
   ASSERT(*(call_target_address - 3) == 0x73 &&  // jae
          *(call_target_address - 2) == 0x07 &&  // offset
          *(call_target_address - 1) == 0xe8);   // call
-  *(call_target_address - 3) = 0x90;  // nop
-  *(call_target_address - 2) = 0x90;  // nop
+  *(call_target_address - 3) = 0x66;  // 2 byte nop part 1
+  *(call_target_address - 2) = 0x90;  // 2 byte nop part 2
   Assembler::set_target_address_at(call_target_address,
                                    replacement_code->entry());
 
@@ -157,8 +157,8 @@ void Deoptimizer::RevertStackCheckCodeAt(Code* unoptimized_code,
          Assembler::target_address_at(call_target_address));
   // Replace the nops from patching (Deoptimizer::PatchStackCheckCode) to
   // restore the conditional branch.
-  ASSERT(*(call_target_address - 3) == 0x90 &&  // nop
-         *(call_target_address - 2) == 0x90 &&  // nop
+  ASSERT(*(call_target_address - 3) == 0x66 &&  // 2 byte nop part 1
+         *(call_target_address - 2) == 0x90 &&  // 2 byte nop part 2
          *(call_target_address - 1) == 0xe8);   // call
   *(call_target_address - 3) = 0x73;  // jae
   *(call_target_address - 2) = 0x07;  // offset

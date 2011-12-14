@@ -625,6 +625,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
+    ASSERT(*elements != isolate->heap()->empty_fixed_array());
     boilerplate = CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
@@ -4651,6 +4652,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
   if (value->IsNumber()) {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
     TransitionElementsKind(object, FAST_DOUBLE_ELEMENTS);
+    TransitionElementsKind(boilerplate_object, FAST_DOUBLE_ELEMENTS);
     ASSERT(object->GetElementsKind() == FAST_DOUBLE_ELEMENTS);
     FixedDoubleArray* double_array =
         FixedDoubleArray::cast(object->elements());
@@ -4660,6 +4662,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StoreArrayLiteralElement) {
     ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS ||
            elements_kind == FAST_DOUBLE_ELEMENTS);
     TransitionElementsKind(object, FAST_ELEMENTS);
+    TransitionElementsKind(boilerplate_object, FAST_ELEMENTS);
     FixedArray* object_array =
         FixedArray::cast(object->elements());
     object_array->set(store_index, *value);
@@ -6293,7 +6296,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
   int part_count = indices.length();
 
   Handle<JSArray> result = isolate->factory()->NewJSArray(part_count);
-  MaybeObject* maybe_result = result->EnsureCanContainNonSmiElements();
+  MaybeObject* maybe_result = result->EnsureCanContainHeapObjectElements();
   if (maybe_result->IsFailure()) return maybe_result;
   result->set_length(Smi::FromInt(part_count));
 
@@ -6669,7 +6672,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringBuilderConcat) {
   // This assumption is used by the slice encoding in one or two smis.
   ASSERT(Smi::kMaxValue >= String::kMaxLength);
 
-  MaybeObject* maybe_result = array->EnsureCanContainNonSmiElements();
+  MaybeObject* maybe_result = array->EnsureCanContainHeapObjectElements();
   if (maybe_result->IsFailure()) return maybe_result;
 
   int special_length = special->length();
@@ -7395,7 +7398,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_log) {
   return isolate->transcendental_cache()->Get(TranscendentalCache::LOG, x);
 }
 
-
+// Slow version of Math.pow.  We check for fast paths for special cases.
+// Used if SSE2/VFP3 is not available.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7411,22 +7415,36 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
   }
 
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
-  return isolate->heap()->AllocateHeapNumber(power_double_double(x, y));
+  int y_int = static_cast<int>(y);
+  double result;
+  if (y == y_int) {
+    result = power_double_int(x, y_int);  // Returns 1 if exponent is 0.
+  } else  if (y == 0.5) {
+    result = (isinf(x)) ? V8_INFINITY : sqrt(x + 0.0);  // Convert -0 to +0.
+  } else if (y == -0.5) {
+    result = (isinf(x)) ? 0 : 1.0 / sqrt(x + 0.0);  // Convert -0 to +0.
+  } else {
+    result = power_double_double(x, y);
+  }
+  if (isnan(result)) return isolate->heap()->nan_value();
+  return isolate->heap()->AllocateHeapNumber(result);
 }
 
-// Fast version of Math.pow if we know that y is not an integer and
-// y is not -0.5 or 0.5. Used as slowcase from codegen.
+// Fast version of Math.pow if we know that y is not an integer and y is not
+// -0.5 or 0.5.  Used as slow case from fullcodegen.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
+  isolate->counters()->math_pow()->Increment();
+
   CONVERT_DOUBLE_ARG_CHECKED(x, 0);
   CONVERT_DOUBLE_ARG_CHECKED(y, 1);
   if (y == 0) {
     return Smi::FromInt(1);
-  } else if (isnan(y) || ((x == 1 || x == -1) && isinf(y))) {
-    return isolate->heap()->nan_value();
   } else {
-    return isolate->heap()->AllocateHeapNumber(pow(x, y));
+    double result = power_double_double(x, y);
+    if (isnan(result)) return isolate->heap()->nan_value();
+    return isolate->heap()->AllocateHeapNumber(result);
   }
 }
 
@@ -7991,7 +8009,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_NewStrictArgumentsFast) {
 
     AssertNoAllocation no_gc;
     FixedArray* array = reinterpret_cast<FixedArray*>(obj);
-    array->set_map(isolate->heap()->fixed_array_map());
+    array->set_map_no_write_barrier(isolate->heap()->fixed_array_map());
     array->set_length(length);
 
     WriteBarrierMode mode = array->GetWriteBarrierMode(no_gc);
@@ -8111,7 +8129,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionBindArguments) {
   for (int j = 0; j < argc; j++, i++) {
     new_bindings->set(i, *arguments[j + 1]);
   }
-  new_bindings->set_map(isolate->heap()->fixed_cow_array_map());
+  new_bindings->set_map_no_write_barrier(
+      isolate->heap()->fixed_cow_array_map());
   bound_function->set_function_bindings(*new_bindings);
 
   // Update length.
@@ -9299,7 +9318,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DateParseString) {
   CONVERT_ARG_CHECKED(JSArray, output, 1);
 
   MaybeObject* maybe_result_array =
-      output->EnsureCanContainNonSmiElements();
+      output->EnsureCanContainHeapObjectElements();
   if (maybe_result_array->IsFailure()) return maybe_result_array;
   RUNTIME_ASSERT(output->HasFastElements());
 

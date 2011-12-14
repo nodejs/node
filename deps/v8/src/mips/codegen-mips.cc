@@ -310,6 +310,98 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ pop(ra);
 }
 
+
+void StringCharLoadGenerator::Generate(MacroAssembler* masm,
+                                       Register string,
+                                       Register index,
+                                       Register result,
+                                       Label* call_runtime) {
+  // Fetch the instance type of the receiver into result register.
+  __ lw(result, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+
+  // We need special handling for indirect strings.
+  Label check_sequential;
+  __ And(at, result, Operand(kIsIndirectStringMask));
+  __ Branch(&check_sequential, eq, at, Operand(zero_reg));
+
+  // Dispatch on the indirect string shape: slice or cons.
+  Label cons_string;
+  __ And(at, result, Operand(kSlicedNotConsMask));
+  __ Branch(&cons_string, eq, at, Operand(zero_reg));
+
+  // Handle slices.
+  Label indirect_string_loaded;
+  __ lw(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
+  __ sra(at, result, kSmiTagSize);
+  __ Addu(index, index, at);
+  __ lw(string, FieldMemOperand(string, SlicedString::kParentOffset));
+  __ jmp(&indirect_string_loaded);
+
+  // Handle cons strings.
+  // Check whether the right hand side is the empty string (i.e. if
+  // this is really a flat string in a cons string). If that is not
+  // the case we would rather go to the runtime system now to flatten
+  // the string.
+  __ bind(&cons_string);
+  __ lw(result, FieldMemOperand(string, ConsString::kSecondOffset));
+  __ LoadRoot(at, Heap::kEmptyStringRootIndex);
+  __ Branch(call_runtime, ne, result, Operand(at));
+  // Get the first of the two strings and load its instance type.
+  __ lw(string, FieldMemOperand(string, ConsString::kFirstOffset));
+
+  __ bind(&indirect_string_loaded);
+  __ lw(result, FieldMemOperand(string, HeapObject::kMapOffset));
+  __ lbu(result, FieldMemOperand(result, Map::kInstanceTypeOffset));
+
+  // Distinguish sequential and external strings. Only these two string
+  // representations can reach here (slices and flat cons strings have been
+  // reduced to the underlying sequential or external string).
+  Label external_string, check_encoding;
+  __ bind(&check_sequential);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ And(at, result, Operand(kStringRepresentationMask));
+  __ Branch(&external_string, ne, at, Operand(zero_reg));
+
+  // Prepare sequential strings
+  STATIC_ASSERT(SeqTwoByteString::kHeaderSize == SeqAsciiString::kHeaderSize);
+  __ Addu(string,
+          string,
+          SeqTwoByteString::kHeaderSize - kHeapObjectTag);
+  __ jmp(&check_encoding);
+
+  // Handle external strings.
+  __ bind(&external_string);
+  if (FLAG_debug_code) {
+    // Assert that we do not have a cons or slice (indirect strings) here.
+    // Sequential strings have already been ruled out.
+    __ And(at, result, Operand(kIsIndirectStringMask));
+    __ Assert(eq, "external string expected, but not found",
+        at, Operand(zero_reg));
+  }
+  // Rule out short external strings.
+  STATIC_CHECK(kShortExternalStringTag != 0);
+  __ And(at, result, Operand(kShortExternalStringMask));
+  __ Branch(call_runtime, ne, at, Operand(zero_reg));
+  __ lw(string, FieldMemOperand(string, ExternalString::kResourceDataOffset));
+
+  Label ascii, done;
+  __ bind(&check_encoding);
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ And(at, result, Operand(kStringEncodingMask));
+  __ Branch(&ascii, ne, at, Operand(zero_reg));
+  // Two-byte string.
+  __ sll(at, index, 1);
+  __ Addu(at, string, at);
+  __ lhu(result, MemOperand(at));
+  __ jmp(&done);
+  __ bind(&ascii);
+  // Ascii string.
+  __ Addu(at, string, index);
+  __ lbu(result, MemOperand(at));
+  __ bind(&done);
+}
+
 #undef __
 
 } }  // namespace v8::internal

@@ -298,6 +298,12 @@ void LUnaryMathOperation::PrintDataTo(StringStream* stream) {
 }
 
 
+void LMathPowHalf::PrintDataTo(StringStream* stream) {
+  stream->Add("/pow_half ");
+  InputAt(0)->PrintTo(stream);
+}
+
+
 void LLoadContextSlot::PrintDataTo(StringStream* stream) {
   InputAt(0)->PrintTo(stream);
   stream->Add("[%d]", slot_index());
@@ -1184,6 +1190,11 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
   } else {
     LOperand* input = UseRegisterAtStart(instr->value());
     LOperand* context = UseAny(instr->context());  // Deferred use by MathAbs.
+    if (op == kMathPowHalf) {
+      LOperand* temp = TempRegister();
+      LMathPowHalf* result = new(zone()) LMathPowHalf(context, input, temp);
+      return DefineSameAsFirst(result);
+    }
     LUnaryMathOperation* result = new(zone()) LUnaryMathOperation(context,
                                                                   input);
     switch (op) {
@@ -1194,8 +1205,6 @@ LInstruction* LChunkBuilder::DoUnaryMathOperation(HUnaryMathOperation* instr) {
       case kMathRound:
         return AssignEnvironment(DefineAsRegister(result));
       case kMathSqrt:
-        return DefineSameAsFirst(result);
-      case kMathPowHalf:
         return DefineSameAsFirst(result);
       default:
         UNREACHABLE();
@@ -1437,9 +1446,9 @@ LInstruction* LChunkBuilder::DoPower(HPower* instr) {
   // We need to use fixed result register for the call.
   Representation exponent_type = instr->right()->representation();
   ASSERT(instr->left()->representation().IsDouble());
-  LOperand* left = UseFixedDouble(instr->left(), xmm1);
+  LOperand* left = UseFixedDouble(instr->left(), xmm2);
   LOperand* right = exponent_type.IsDouble() ?
-      UseFixedDouble(instr->right(), xmm2) :
+      UseFixedDouble(instr->right(), xmm1) :
       UseFixed(instr->right(), eax);
   LPower* result = new(zone()) LPower(left, right);
   return MarkAsCall(DefineFixedDouble(result, xmm3), instr,
@@ -1866,7 +1875,9 @@ LInstruction* LChunkBuilder::DoStoreGlobalGeneric(HStoreGlobalGeneric* instr) {
 
 LInstruction* LChunkBuilder::DoLoadContextSlot(HLoadContextSlot* instr) {
   LOperand* context = UseRegisterAtStart(instr->value());
-  return DefineAsRegister(new(zone()) LLoadContextSlot(context));
+  LInstruction* result =
+      DefineAsRegister(new(zone()) LLoadContextSlot(context));
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 
@@ -1881,7 +1892,8 @@ LInstruction* LChunkBuilder::DoStoreContextSlot(HStoreContextSlot* instr) {
     value = UseRegister(instr->value());
     temp = NULL;
   }
-  return new(zone()) LStoreContextSlot(context, value, temp);
+  LInstruction* result = new(zone()) LStoreContextSlot(context, value, temp);
+  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
 }
 
 

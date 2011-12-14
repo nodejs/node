@@ -784,6 +784,14 @@ class MacroAssembler: public Assembler {
   void Cmp(const Operand& dst, Smi* src);
   void Push(Handle<Object> source);
 
+  // Load a heap object and handle the case of new-space objects by
+  // indirecting via a global cell.
+  void LoadHeapObject(Register result, Handle<HeapObject> object);
+  void PushHeapObject(Handle<HeapObject> object);
+
+  // Load a global cell into a register.
+  void LoadGlobalCell(Register dst, Handle<JSGlobalPropertyCell> cell);
+
   // Emit code to discard a non-negative number of pointer-sized elements
   // from the stack, clobbering only the rsp register.
   void Drop(int stack_elements);

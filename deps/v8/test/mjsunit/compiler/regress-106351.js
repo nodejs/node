@@ -1,4 +1,4 @@
-// Copyright 2009 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -26,18 +26,13 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 // Flags: --allow-natives-syntax
-// See http://code.google.com/p/v8/issues/detail?id=397
 
-
-function test() {
-  assertEquals("Infinity", String(Math.pow(Infinity, 0.5)));
-  assertEquals(0, Math.pow(Infinity, -0.5));
-
-  assertEquals("Infinity", String(Math.pow(-Infinity, 0.5)));
-  assertEquals(0, Math.pow(-Infinity, -0.5));
+// Test Math.round with the input reused in the same expression.
+function test(x) {
+  var v = Math.round(x) - x;
+  assertEquals(0.5, v);
 }
 
-test();
-test();
+for (var i = 0; i < 5; ++i) test(0.5);
 %OptimizeFunctionOnNextCall(test);
-test();
+test(0.5);

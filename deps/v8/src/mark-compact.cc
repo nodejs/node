@@ -619,8 +619,7 @@ class CodeFlusher {
   }
 
   void AddCandidate(JSFunction* function) {
-    ASSERT(function->unchecked_code() ==
-           function->unchecked_shared()->unchecked_code());
+    ASSERT(function->code() == function->shared()->code());
 
     SetNextCandidate(function, jsfunction_candidates_head_);
     jsfunction_candidates_head_ = function;
@@ -640,15 +639,15 @@ class CodeFlusher {
     while (candidate != NULL) {
       next_candidate = GetNextCandidate(candidate);
 
-      SharedFunctionInfo* shared = candidate->unchecked_shared();
+      SharedFunctionInfo* shared = candidate->shared();
 
-      Code* code = shared->unchecked_code();
+      Code* code = shared->code();
       MarkBit code_mark = Marking::MarkBitFrom(code);
       if (!code_mark.Get()) {
         shared->set_code(lazy_compile);
         candidate->set_code(lazy_compile);
       } else {
-        candidate->set_code(shared->unchecked_code());
+        candidate->set_code(shared->code());
       }
 
       // We are in the middle of a GC cycle so the write barrier in the code
@@ -674,7 +673,7 @@ class CodeFlusher {
       next_candidate = GetNextCandidate(candidate);
       SetNextCandidate(candidate, NULL);
 
-      Code* code = candidate->unchecked_code();
+      Code* code = candidate->code();
       MarkBit code_mark = Marking::MarkBitFrom(code);
       if (!code_mark.Get()) {
         candidate->set_code(lazy_compile);
@@ -702,7 +701,7 @@ class CodeFlusher {
 
   static SharedFunctionInfo** GetNextCandidateField(
       SharedFunctionInfo* candidate) {
-    Code* code = candidate->unchecked_code();
+    Code* code = candidate->code();
     return reinterpret_cast<SharedFunctionInfo**>(
         code->address() + Code::kNextCodeFlushingCandidateOffset);
   }
@@ -884,8 +883,6 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()) {
       IC::Clear(rinfo->pc());
-      // Please note targets for cleared inline cached do not have to be
-      // marked since they are contained in HEAP->non_monomorphic_cache().
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     } else {
       if (FLAG_cleanup_code_caches_at_gc &&
@@ -894,9 +891,10 @@ class StaticMarkingVisitor : public StaticVisitorBase {
           target->has_function_cache()) {
         CallFunctionStub::Clear(heap, rinfo->pc());
       }
-      MarkBit code_mark = Marking::MarkBitFrom(target);
-      heap->mark_compact_collector()->MarkObject(target, code_mark);
     }
+    MarkBit code_mark = Marking::MarkBitFrom(target);
+    heap->mark_compact_collector()->MarkObject(target, code_mark);
+
     heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   }
 
@@ -1037,12 +1035,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
 
   inline static bool IsCompiled(JSFunction* function) {
-    return function->unchecked_code() !=
+    return function->code() !=
         function->GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
   inline static bool IsCompiled(SharedFunctionInfo* function) {
-    return function->unchecked_code() !=
+    return function->code() !=
         function->GetIsolate()->builtins()->builtin(Builtins::kLazyCompile);
   }
 
@@ -1051,8 +1049,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
-    MarkBit code_mark =
-        Marking::MarkBitFrom(function->unchecked_code());
+    MarkBit code_mark = Marking::MarkBitFrom(function->code());
     if (code_mark.Get()) {
       if (!Marking::MarkBitFrom(shared_info).Get()) {
         shared_info->set_code_age(0);
@@ -1061,7 +1058,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
 
     // We do not flush code for optimized functions.
-    if (function->code() != shared_info->unchecked_code()) {
+    if (function->code() != shared_info->code()) {
       return false;
     }
 
@@ -1072,7 +1069,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     // Code is either on stack, in compilation cache or referenced
     // by optimized version of function.
     MarkBit code_mark =
-        Marking::MarkBitFrom(shared_info->unchecked_code());
+        Marking::MarkBitFrom(shared_info->code());
     if (code_mark.Get()) {
       return false;
     }
@@ -1085,16 +1082,24 @@ class StaticMarkingVisitor : public StaticVisitorBase {
 
     // We never flush code for Api functions.
     Object* function_data = shared_info->function_data();
-    if (function_data->IsFunctionTemplateInfo()) return false;
+    if (function_data->IsFunctionTemplateInfo()) {
+      return false;
+    }
 
     // Only flush code for functions.
-    if (shared_info->code()->kind() != Code::FUNCTION) return false;
+    if (shared_info->code()->kind() != Code::FUNCTION) {
+      return false;
+    }
 
     // Function must be lazy compilable.
-    if (!shared_info->allows_lazy_compilation()) return false;
+    if (!shared_info->allows_lazy_compilation()) {
+      return false;
+    }
 
     // If this is a full script wrapped in a function we do no flush the code.
-    if (shared_info->is_toplevel()) return false;
+    if (shared_info->is_toplevel()) {
+      return false;
+    }
 
     // Age this shared function info.
     if (shared_info->code_age() < kCodeAgeThreshold) {
@@ -1267,30 +1272,12 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
 
     if (!flush_code_candidate) {
-      Code* code = jsfunction->unchecked_shared()->unchecked_code();
+      Code* code = jsfunction->shared()->code();
       MarkBit code_mark = Marking::MarkBitFrom(code);
-      heap->mark_compact_collector()->MarkObject(code, code_mark);
+      collector->MarkObject(code, code_mark);
 
-      if (jsfunction->unchecked_code()->kind() == Code::OPTIMIZED_FUNCTION) {
-        // For optimized functions we should retain both non-optimized version
-        // of it's code and non-optimized version of all inlined functions.
-        // This is required to support bailing out from inlined code.
-        DeoptimizationInputData* data =
-            reinterpret_cast<DeoptimizationInputData*>(
-                jsfunction->unchecked_code()->unchecked_deoptimization_data());
-
-        FixedArray* literals = data->UncheckedLiteralArray();
-
-        for (int i = 0, count = data->InlinedFunctionCount()->value();
-             i < count;
-             i++) {
-          JSFunction* inlined = reinterpret_cast<JSFunction*>(literals->get(i));
-          Code* inlined_code = inlined->unchecked_shared()->unchecked_code();
-          MarkBit inlined_code_mark =
-              Marking::MarkBitFrom(inlined_code);
-          heap->mark_compact_collector()->MarkObject(
-              inlined_code, inlined_code_mark);
-        }
+      if (jsfunction->code()->kind() == Code::OPTIMIZED_FUNCTION) {
+        collector->MarkInlinedFunctionsCode(jsfunction->code());
       }
     }
 
@@ -1415,11 +1402,7 @@ class CodeMarkingVisitor : public ThreadVisitor {
       : collector_(collector) {}
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      Code* code = it.frame()->unchecked_code();
-      MarkBit code_bit = Marking::MarkBitFrom(code);
-      collector_->MarkObject(it.frame()->unchecked_code(), code_bit);
-    }
+    collector_->PrepareThreadForCodeFlushing(isolate, top);
   }
 
  private:
@@ -1441,8 +1424,8 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
     if (obj->IsSharedFunctionInfo()) {
       SharedFunctionInfo* shared = reinterpret_cast<SharedFunctionInfo*>(obj);
       MarkBit shared_mark = Marking::MarkBitFrom(shared);
-      MarkBit code_mark = Marking::MarkBitFrom(shared->unchecked_code());
-      collector_->MarkObject(shared->unchecked_code(), code_mark);
+      MarkBit code_mark = Marking::MarkBitFrom(shared->code());
+      collector_->MarkObject(shared->code(), code_mark);
       collector_->MarkObject(shared, shared_mark);
     }
   }
@@ -1450,6 +1433,44 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
  private:
   MarkCompactCollector* collector_;
 };
+
+
+void MarkCompactCollector::MarkInlinedFunctionsCode(Code* code) {
+  // For optimized functions we should retain both non-optimized version
+  // of it's code and non-optimized version of all inlined functions.
+  // This is required to support bailing out from inlined code.
+  DeoptimizationInputData* data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+
+  FixedArray* literals = data->LiteralArray();
+
+  for (int i = 0, count = data->InlinedFunctionCount()->value();
+       i < count;
+       i++) {
+    JSFunction* inlined = JSFunction::cast(literals->get(i));
+    Code* inlined_code = inlined->shared()->code();
+    MarkBit inlined_code_mark = Marking::MarkBitFrom(inlined_code);
+    MarkObject(inlined_code, inlined_code_mark);
+  }
+}
+
+
+void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
+                                                        ThreadLocalTop* top) {
+  for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    // Note: for the frame that has a pending lazy deoptimization
+    // StackFrame::unchecked_code will return a non-optimized code object for
+    // the outermost function and StackFrame::LookupCode will return
+    // actual optimized code object.
+    StackFrame* frame = it.frame();
+    Code* code = frame->unchecked_code();
+    MarkBit code_mark = Marking::MarkBitFrom(code);
+    MarkObject(code, code_mark);
+    if (frame->is_optimized()) {
+      MarkInlinedFunctionsCode(frame->LookupCode());
+    }
+  }
+}
 
 
 void MarkCompactCollector::PrepareForCodeFlushing() {
@@ -1479,11 +1500,8 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
 
   // Make sure we are not referencing the code from the stack.
   ASSERT(this == heap()->mark_compact_collector());
-  for (StackFrameIterator it; !it.done(); it.Advance()) {
-    Code* code = it.frame()->unchecked_code();
-    MarkBit code_mark = Marking::MarkBitFrom(code);
-    MarkObject(code, code_mark);
-  }
+  PrepareThreadForCodeFlushing(heap()->isolate(),
+                               heap()->isolate()->thread_local_top());
 
   // Iterate the archived stacks in all threads to check if
   // the code is referenced.
@@ -2080,6 +2098,24 @@ void MarkCompactCollector::MarkLiveObjects() {
   }
 
   PrepareForCodeFlushing();
+
+  if (was_marked_incrementally_) {
+    // There is no write barrier on cells so we have to scan them now at the end
+    // of the incremental marking.
+    {
+      HeapObjectIterator cell_iterator(heap()->cell_space());
+      HeapObject* cell;
+      while ((cell = cell_iterator.Next()) != NULL) {
+        ASSERT(cell->IsJSGlobalPropertyCell());
+        if (IsMarked(cell)) {
+          int offset = JSGlobalPropertyCell::kValueOffset;
+          StaticMarkingVisitor::VisitPointer(
+              heap(),
+              reinterpret_cast<Object**>(cell->address() + offset));
+        }
+      }
+    }
+  }
 
   RootMarkingVisitor root_visitor(heap());
   MarkRoots(&root_visitor);
@@ -3673,6 +3709,7 @@ void MarkCompactCollector::SweepSpaces() {
 #endif
   SweeperType how_to_sweep =
       FLAG_lazy_sweeping ? LAZY_CONSERVATIVE : CONSERVATIVE;
+  if (FLAG_expose_gc) how_to_sweep = CONSERVATIVE;
   if (sweep_precisely_) how_to_sweep = PRECISE;
   // Noncompacting collections simply sweep the spaces to clear the mark
   // bits and free the nonlive blocks (for old and map spaces).  We sweep

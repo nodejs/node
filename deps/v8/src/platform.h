@@ -172,6 +172,10 @@ class OS {
                         bool is_executable);
   static void Free(void* address, const size_t size);
 
+  // This is the granularity at which the ProtectCode(...) call can set page
+  // permissions.
+  static intptr_t CommitPageSize();
+
   // Mark code segments non-writable.
   static void ProtectCode(void* address, const size_t size);
 

@@ -1305,6 +1305,9 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ jmp(&entry);
   __ bind(&loop);
   __ movq(kScratchRegister, Operand(r9, rcx, times_pointer_size, 0));
+  if (FLAG_smi_only_arrays) {
+    __ JumpIfNotSmi(kScratchRegister, call_generic_code);
+  }
   __ movq(Operand(rdx, 0), kScratchRegister);
   __ addq(rdx, Immediate(kPointerSize));
   __ bind(&entry);

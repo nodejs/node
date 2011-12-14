@@ -224,5 +224,14 @@ S15.1.3.2_A2.5_T1: SKIP
 
 [ $arch == mips ]
 
-# Skip all tests on MIPS.
-*: SKIP
+# BUG(3251225): Tests that timeout with --nocrankshaft.
+S15.1.3.1_A2.5_T1: SKIP
+S15.1.3.2_A2.5_T1: SKIP
+S15.1.3.1_A2.4_T1: SKIP
+S15.1.3.1_A2.5_T1: SKIP
+S15.1.3.2_A2.4_T1: SKIP
+S15.1.3.2_A2.5_T1: SKIP
+S15.1.3.3_A2.3_T1: SKIP
+S15.1.3.4_A2.3_T1: SKIP
+S15.1.3.1_A2.5_T1: SKIP
+S15.1.3.2_A2.5_T1: SKIP

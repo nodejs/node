@@ -70,6 +70,11 @@ intptr_t OS::MaxVirtualMemory() {
 }
 
 
+intptr_t OS::CommitPageSize() {
+  return 4096;
+}
+
+
 #ifndef __CYGWIN__
 // Get rid of writable permission on code allocations.
 void OS::ProtectCode(void* address, const size_t size) {

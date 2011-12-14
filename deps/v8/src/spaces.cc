@@ -1656,14 +1656,14 @@ void FreeListNode::set_size(Heap* heap, int size_in_bytes) {
   // field and a next pointer, we give it a filler map that gives it the
   // correct size.
   if (size_in_bytes > FreeSpace::kHeaderSize) {
-    set_map_unsafe(heap->raw_unchecked_free_space_map());
+    set_map_no_write_barrier(heap->raw_unchecked_free_space_map());
     // Can't use FreeSpace::cast because it fails during deserialization.
     FreeSpace* this_as_free_space = reinterpret_cast<FreeSpace*>(this);
     this_as_free_space->set_size(size_in_bytes);
   } else if (size_in_bytes == kPointerSize) {
-    set_map_unsafe(heap->raw_unchecked_one_pointer_filler_map());
+    set_map_no_write_barrier(heap->raw_unchecked_one_pointer_filler_map());
   } else if (size_in_bytes == 2 * kPointerSize) {
-    set_map_unsafe(heap->raw_unchecked_two_pointer_filler_map());
+    set_map_no_write_barrier(heap->raw_unchecked_two_pointer_filler_map());
   } else {
     UNREACHABLE();
   }

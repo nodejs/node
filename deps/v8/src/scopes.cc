@@ -31,6 +31,7 @@
 
 #include "bootstrapper.h"
 #include "compiler.h"
+#include "messages.h"
 #include "scopeinfo.h"
 
 #include "allocation-inl.h"
@@ -284,8 +285,25 @@ bool Scope::Analyze(CompilationInfo* info) {
   }
 #endif
 
+  if (FLAG_harmony_scoping) {
+    VariableProxy* proxy = scope->CheckAssignmentToConst();
+    if (proxy != NULL) {
+      // Found an assignment to const. Throw a syntax error.
+      MessageLocation location(info->script(),
+                               proxy->position(),
+                               proxy->position());
+      Isolate* isolate = info->isolate();
+      Factory* factory = isolate->factory();
+      Handle<JSArray> array = factory->NewJSArray(0);
+      Handle<Object> result =
+          factory->NewSyntaxError("harmony_const_assign", array);
+      isolate->Throw(*result, &location);
+      return false;
+    }
+  }
+
   info->SetScope(scope);
-  return true;  // Can not fail.
+  return true;
 }
 
 
@@ -550,6 +568,29 @@ Declaration* Scope::CheckConflictingVarDeclarations() {
       current = current->outer_scope_;
     } while (!previous->is_declaration_scope());
   }
+  return NULL;
+}
+
+
+VariableProxy* Scope::CheckAssignmentToConst() {
+  // Check this scope.
+  if (is_extended_mode()) {
+    for (int i = 0; i < unresolved_.length(); i++) {
+      ASSERT(unresolved_[i]->var() != NULL);
+      if (unresolved_[i]->var()->is_const_mode() &&
+          unresolved_[i]->IsLValue()) {
+        return unresolved_[i];
+      }
+    }
+  }
+
+  // Check inner scopes.
+  for (int i = 0; i < inner_scopes_.length(); i++) {
+    VariableProxy* proxy = inner_scopes_[i]->CheckAssignmentToConst();
+    if (proxy != NULL) return proxy;
+  }
+
+  // No assignments to const found.
   return NULL;
 }
 

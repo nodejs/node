@@ -36,6 +36,7 @@
 #include "cctest.h"
 
 using v8::internal::Assembler;
+using v8::internal::Code;
 using v8::internal::CodeDesc;
 using v8::internal::FUNCTION_CAST;
 using v8::internal::Immediate;
@@ -53,6 +54,7 @@ using v8::internal::r15;
 using v8::internal::r8;
 using v8::internal::r9;
 using v8::internal::rax;
+using v8::internal::rbx;
 using v8::internal::rbp;
 using v8::internal::rcx;
 using v8::internal::rdi;
@@ -84,6 +86,16 @@ static const v8::internal::Register arg2 = rsi;
 #endif
 
 #define __ assm.
+
+
+static v8::Persistent<v8::Context> env;
+
+
+static void InitializeVM() {
+  if (env.IsEmpty()) {
+    env = v8::Context::New();
+  }
+}
 
 
 TEST(AssemblerX64ReturnOperation) {
@@ -358,5 +370,74 @@ TEST(AssemblerX64LabelChaining) {
   __ bind(&target);
   __ nop();
 }
+
+
+TEST(AssemblerMultiByteNop) {
+  InitializeVM();
+  v8::HandleScope scope;
+  v8::internal::byte buffer[1024];
+  Assembler assm(Isolate::Current(), buffer, sizeof(buffer));
+  __ push(rbx);
+  __ push(rcx);
+  __ push(rdx);
+  __ push(rdi);
+  __ push(rsi);
+  __ movq(rax, Immediate(1));
+  __ movq(rbx, Immediate(2));
+  __ movq(rcx, Immediate(3));
+  __ movq(rdx, Immediate(4));
+  __ movq(rdi, Immediate(5));
+  __ movq(rsi, Immediate(6));
+  for (int i = 0; i < 16; i++) {
+    int before = assm.pc_offset();
+    __ Nop(i);
+    CHECK_EQ(assm.pc_offset() - before, i);
+  }
+
+  Label fail;
+  __ cmpq(rax, Immediate(1));
+  __ j(not_equal, &fail);
+  __ cmpq(rbx, Immediate(2));
+  __ j(not_equal, &fail);
+  __ cmpq(rcx, Immediate(3));
+  __ j(not_equal, &fail);
+  __ cmpq(rdx, Immediate(4));
+  __ j(not_equal, &fail);
+  __ cmpq(rdi, Immediate(5));
+  __ j(not_equal, &fail);
+  __ cmpq(rsi, Immediate(6));
+  __ j(not_equal, &fail);
+  __ movq(rax, Immediate(42));
+  __ pop(rsi);
+  __ pop(rdi);
+  __ pop(rdx);
+  __ pop(rcx);
+  __ pop(rbx);
+  __ ret(0);
+  __ bind(&fail);
+  __ movq(rax, Immediate(13));
+  __ pop(rsi);
+  __ pop(rdi);
+  __ pop(rdx);
+  __ pop(rcx);
+  __ pop(rbx);
+  __ ret(0);
+
+  CodeDesc desc;
+  assm.GetCode(&desc);
+  Code* code = Code::cast(HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      v8::internal::Handle<v8::internal::Object>(
+          HEAP->undefined_value()))->ToObjectChecked());
+  CHECK(code->IsCode());
+
+  F0 f = FUNCTION_CAST<F0>(code->entry());
+  int res = f();
+  CHECK_EQ(42, res);
+}
+
+
+
 
 #undef __

@@ -1,3 +1,15 @@
+2011-12-13: Version 3.8.0
+
+        Fixed handling of arrays in DefineOwnProperty. (issue 1756)
+
+        Sync parser and preparser on do-while and return statements. 
+        (issue 1856)
+
+        Fixed another corner case for DefineOwnProperty on arrays (issue 1756).
+
+        Stability and performance improvements on all platforms.
+
+
 2011-12-01: Version 3.7.12
 
         Increase tick interval for the android platform.

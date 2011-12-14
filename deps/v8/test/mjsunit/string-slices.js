@@ -160,6 +160,23 @@ for ( var i = 0; i < 1000; i++) {
   f(flat, cons, slice, i);
 }
 
+// Short substrings.
+flat = "abcdefghijkl12345";
+cons = flat + flat.toUpperCase();
+/x/.exec(cons);  // Flatten cons
+slice = "abcdefghijklmn12345".slice(1, -1);
+assertEquals("cdefg", flat.substr(2, 5));
+assertEquals("cdefg", cons.substr(2, 5));
+assertEquals("cdefg", slice.substr(1, 5));
+
+flat = "abc\u1234defghijkl12345";
+cons = flat + flat.toUpperCase();
+/x/.exec(cons);  // Flatten cons
+slice = "abc\u1234defghijklmn12345".slice(1, -1);
+assertEquals("c\u1234def", flat.substr(2, 5));
+assertEquals("c\u1234def", cons.substr(2, 5));
+assertEquals("c\u1234def", slice.substr(1, 5));
+
 // Concatenate substrings.
 var ascii = 'abcdefghijklmnop';
 var utf = '\u03B1\u03B2\u03B3\u03B4\u03B5\u03B6\u03B7\u03B8\u03B9\u03BA\u03BB';

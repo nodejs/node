@@ -2238,6 +2238,43 @@ void MacroAssembler::Push(Handle<Object> source) {
 }
 
 
+void MacroAssembler::LoadHeapObject(Register result,
+                                    Handle<HeapObject> object) {
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    movq(result, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    movq(result, Operand(result, 0));
+  } else {
+    Move(result, object);
+  }
+}
+
+
+void MacroAssembler::PushHeapObject(Handle<HeapObject> object) {
+  if (isolate()->heap()->InNewSpace(*object)) {
+    Handle<JSGlobalPropertyCell> cell =
+        isolate()->factory()->NewJSGlobalPropertyCell(object);
+    movq(kScratchRegister, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    movq(kScratchRegister, Operand(kScratchRegister, 0));
+    push(kScratchRegister);
+  } else {
+    Push(object);
+  }
+}
+
+
+void MacroAssembler::LoadGlobalCell(Register dst,
+                                    Handle<JSGlobalPropertyCell> cell) {
+  if (dst.is(rax)) {
+    load_rax(cell.location(), RelocInfo::GLOBAL_PROPERTY_CELL);
+  } else {
+    movq(dst, cell, RelocInfo::GLOBAL_PROPERTY_CELL);
+    movq(dst, Operand(dst, 0));
+  }
+}
+
+
 void MacroAssembler::Push(Smi* source) {
   intptr_t smi = reinterpret_cast<intptr_t>(source);
   if (is_int32(smi)) {
@@ -3049,7 +3086,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   // Get the function and setup the context.
-  Move(rdi, function);
+  LoadHeapObject(rdi, function);
   movq(rsi, FieldOperand(rdi, JSFunction::kContextOffset));
 
   // We call indirectly through the code field in the function to

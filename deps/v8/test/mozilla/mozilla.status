@@ -122,14 +122,14 @@ ecma/Date/15.9.2.2-4: PASS || FAIL
 ecma/Date/15.9.2.2-5: PASS || FAIL
 ecma/Date/15.9.2.2-6: PASS || FAIL
 
-# 1026139: These date tests fail on arm
-ecma/Date/15.9.5.29-1: PASS || ($ARM && FAIL)
-ecma/Date/15.9.5.34-1: PASS || ($ARM && FAIL)
-ecma/Date/15.9.5.28-1: PASS || ($ARM && FAIL)
+# 1026139: These date tests fail on arm and mips
+ecma/Date/15.9.5.29-1: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Date/15.9.5.34-1: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Date/15.9.5.28-1: PASS || (($ARM || $MIPS) && FAIL)
 
-# 1050186: Arm vm is broken; probably unrelated to dates
-ecma/Array/15.4.4.5-3: PASS || ($ARM && FAIL)
-ecma/Date/15.9.5.22-2: PASS || ($ARM && FAIL)
+# 1050186: Arm/MIPS vm is broken; probably unrelated to dates
+ecma/Array/15.4.4.5-3: PASS || (($ARM || $MIPS) && FAIL)
+ecma/Date/15.9.5.22-2: PASS || (($ARM || $MIPS) && FAIL)
 
 # Flaky test that fails due to what appears to be a bug in the test.
 # Occurs depending on current time
@@ -834,6 +834,62 @@ js1_5/GC/regress-203278-2: PASS || TIMEOUT
 [ $fast == yes && $arch == arm ]
 
 # In fast mode on arm we try to skip all tests that would time out,
+# since running the tests takes so long in the first place.
+
+js1_5/Regress/regress-280769-2: SKIP
+js1_5/Regress/regress-280769-3: SKIP
+js1_5/Regress/regress-244470: SKIP
+js1_5/Regress/regress-203278-1: SKIP
+js1_5/Regress/regress-290575: SKIP
+js1_5/Regress/regress-159334: SKIP
+js1_5/Regress/regress-321971: SKIP
+js1_5/Regress/regress-347306-01: SKIP
+js1_5/Regress/regress-280769-1: SKIP
+js1_5/Regress/regress-280769-5: SKIP
+js1_5/GC/regress-306788: SKIP
+js1_5/GC/regress-278725: SKIP
+js1_5/GC/regress-203278-3: SKIP
+js1_5/GC/regress-311497: SKIP
+js1_5/Array/regress-99120-02: SKIP
+ecma/Date/15.9.5.22-1: SKIP
+ecma/Date/15.9.5.20: SKIP
+ecma/Date/15.9.5.12-2: SKIP
+ecma/Date/15.9.5.8: SKIP
+ecma/Date/15.9.5.9: SKIP
+ecma/Date/15.9.5.11-2: SKIP
+ecma/Expressions/11.7.2: SKIP
+ecma/Expressions/11.10-2: SKIP
+ecma/Expressions/11.7.3: SKIP
+ecma/Expressions/11.10-3: SKIP
+ecma/Expressions/11.7.1: SKIP
+ecma_3/RegExp/regress-209067: SKIP
+
+[ $arch == mips ]
+
+# Times out and print so much output that we need to skip it to not
+# hang the builder.
+js1_5/extensions/regress-342960: SKIP
+
+# BUG(3251229): Times out when running new crankshaft test script.
+ecma_3/RegExp/regress-311414: SKIP
+ecma/Date/15.9.5.8: SKIP
+ecma/Date/15.9.5.10-2: SKIP
+ecma/Date/15.9.5.11-2: SKIP
+ecma/Date/15.9.5.12-2: SKIP
+js1_5/Array/regress-99120-02: SKIP
+js1_5/extensions/regress-371636: SKIP
+js1_5/Regress/regress-203278-1: SKIP
+js1_5/Regress/regress-404755:  SKIP
+js1_5/Regress/regress-451322: SKIP
+
+
+# BUG(1040): Allow this test to timeout.
+js1_5/GC/regress-203278-2: PASS || TIMEOUT
+
+
+[ $fast == yes && $arch == mips ]
+
+# In fast mode on mips we try to skip all tests that would time out,
 # since running the tests takes so long in the first place.
 
 js1_5/Regress/regress-280769-2: SKIP

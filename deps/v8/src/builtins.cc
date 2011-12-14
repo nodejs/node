@@ -233,30 +233,57 @@ BUILTIN(ArrayCodeGeneric) {
     return array->Initialize(JSArray::kPreallocatedArrayElements);
   }
 
-  // Take the arguments as elements.
-  int number_of_elements = args.length() - 1;
-  Smi* len = Smi::FromInt(number_of_elements);
-  Object* obj;
-  { MaybeObject* maybe_obj = heap->AllocateFixedArrayWithHoles(len->value());
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
-  }
-
   // Set length and elements on the array.
+  int number_of_elements = args.length() - 1;
   MaybeObject* maybe_object =
-      array->EnsureCanContainElements(FixedArray::cast(obj));
+      array->EnsureCanContainElements(&args, 1, number_of_elements,
+                                      ALLOW_CONVERTED_DOUBLE_ELEMENTS);
   if (maybe_object->IsFailure()) return maybe_object;
 
-  AssertNoAllocation no_gc;
-  FixedArray* elms = FixedArray::cast(obj);
-  WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+  // Allocate an appropriately typed elements array.
+  MaybeObject* maybe_elms;
+  ElementsKind elements_kind = array->GetElementsKind();
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    maybe_elms = heap->AllocateUninitializedFixedDoubleArray(
+        number_of_elements);
+  } else {
+    maybe_elms = heap->AllocateFixedArrayWithHoles(number_of_elements);
+  }
+  FixedArrayBase* elms;
+  if (!maybe_elms->To<FixedArrayBase>(&elms)) return maybe_elms;
+
   // Fill in the content
-  for (int index = 0; index < number_of_elements; index++) {
-    elms->set(index, args[index+1], mode);
+  switch (array->GetElementsKind()) {
+    case FAST_SMI_ONLY_ELEMENTS: {
+      FixedArray* smi_elms = FixedArray::cast(elms);
+      for (int index = 0; index < number_of_elements; index++) {
+        smi_elms->set(index, args[index+1], SKIP_WRITE_BARRIER);
+      }
+      break;
+    }
+    case FAST_ELEMENTS: {
+      AssertNoAllocation no_gc;
+      WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
+      FixedArray* object_elms = FixedArray::cast(elms);
+      for (int index = 0; index < number_of_elements; index++) {
+        object_elms->set(index, args[index+1], mode);
+      }
+      break;
+    }
+    case FAST_DOUBLE_ELEMENTS: {
+      FixedDoubleArray* double_elms = FixedDoubleArray::cast(elms);
+      for (int index = 0; index < number_of_elements; index++) {
+        double_elms->set(index, args[index+1]->Number());
+      }
+      break;
+    }
+    default:
+      UNREACHABLE();
+      break;
   }
 
-  array->set_elements(FixedArray::cast(obj));
-  array->set_length(len);
-
+  array->set_elements(elms);
+  array->set_length(Smi::FromInt(number_of_elements));
   return array;
 }
 
@@ -424,7 +451,8 @@ static inline MaybeObject* EnsureJSArrayWithWritableFastElements(
   MaybeObject* maybe_array = array->EnsureCanContainElements(
       args,
       first_added_arg,
-      args_length - first_added_arg);
+      args_length - first_added_arg,
+      DONT_ALLOW_DOUBLE_ELEMENTS);
   if (maybe_array->IsFailure()) return maybe_array;
   return array->elements();
 }
@@ -627,7 +655,8 @@ BUILTIN(ArrayUnshift) {
   ASSERT(to_add <= (Smi::kMaxValue - len));
 
   MaybeObject* maybe_object =
-      array->EnsureCanContainElements(&args, 1, to_add);
+      array->EnsureCanContainElements(&args, 1, to_add,
+                                      DONT_ALLOW_DOUBLE_ELEMENTS);
   if (maybe_object->IsFailure()) return maybe_object;
 
   if (new_length > elms->length()) {
@@ -758,7 +787,8 @@ BUILTIN(ArraySlice) {
   FixedArray* result_elms = FixedArray::cast(result);
 
   MaybeObject* maybe_object =
-      result_array->EnsureCanContainElements(result_elms);
+      result_array->EnsureCanContainElements(result_elms,
+                                             DONT_ALLOW_DOUBLE_ELEMENTS);
   if (maybe_object->IsFailure()) return maybe_object;
 
   AssertNoAllocation no_gc;
@@ -1022,7 +1052,7 @@ BUILTIN(ArrayConcat) {
     for (int i = 0; i < n_arguments; i++) {
       JSArray* array = JSArray::cast(args[i]);
       if (!array->HasFastSmiOnlyElements()) {
-        result_array->EnsureCanContainNonSmiElements();
+        result_array->EnsureCanContainHeapObjectElements();
         break;
       }
     }

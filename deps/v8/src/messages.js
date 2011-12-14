@@ -246,6 +246,7 @@ function FormatMessage(message) {
       "unprotected_const",            ["Illegal const declaration in unprotected statement context."],
       "cant_prevent_ext_external_array_elements", ["Cannot prevent extension of an object with external array elements"],
       "redef_external_array_element", ["Cannot redefine a property of an object with external array elements"],
+      "harmony_const_assign",         ["Assignment to constant variable."],
     ];
     var messages = { __proto__ : null };
     for (var i = 0; i < messagesDictionary.length; i += 2) {
