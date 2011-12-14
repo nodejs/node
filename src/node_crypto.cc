@@ -2256,8 +2256,8 @@ class Decipher : public ObjectWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "init", DecipherInit);
     NODE_SET_PROTOTYPE_METHOD(t, "initiv", DecipherInitIv);
     NODE_SET_PROTOTYPE_METHOD(t, "update", DecipherUpdate);
-    NODE_SET_PROTOTYPE_METHOD(t, "final", DecipherFinal);
-    NODE_SET_PROTOTYPE_METHOD(t, "finaltol", DecipherFinalTolerate);
+    NODE_SET_PROTOTYPE_METHOD(t, "final", DecipherFinal<false>);
+    NODE_SET_PROTOTYPE_METHOD(t, "finaltol", DecipherFinal<true>);
 
     target->Set(String::NewSymbol("Decipher"), t->GetFunction());
   }
@@ -2341,7 +2341,8 @@ class Decipher : public ObjectWrap {
   }
 
   // coverity[alloc_arg]
-  int DecipherFinal(unsigned char** out, int *out_len, bool tolerate_padding) {
+  template <bool TOLERATE_PADDING>
+  int DecipherFinal(unsigned char** out, int *out_len) {
     if (!initialised_) {
       *out_len = 0;
       *out = NULL;
@@ -2349,7 +2350,7 @@ class Decipher : public ObjectWrap {
     }
 
     *out = new unsigned char[EVP_CIPHER_CTX_block_size(&ctx)];
-    if (tolerate_padding) {
+    if (TOLERATE_PADDING) {
       local_EVP_DecryptFinal_ex(&ctx,*out,out_len);
     } else {
       EVP_CipherFinal_ex(&ctx,*out,out_len);
@@ -2595,6 +2596,7 @@ class Decipher : public ObjectWrap {
 
   }
 
+  template <bool TOLERATE_PADDING>
   static Handle<Value> DecipherFinal(const Arguments& args) {
     HandleScope scope;
 
@@ -2604,7 +2606,7 @@ class Decipher : public ObjectWrap {
     int out_len;
     Local<Value> outString;
 
-    int r = cipher->DecipherFinal(&out_value, &out_len, false);
+    int r = cipher->DecipherFinal<TOLERATE_PADDING>(&out_value, &out_len);
 
     if (out_len == 0 || r == 0) {
       delete[] out_value;
@@ -2624,51 +2626,6 @@ class Decipher : public ObjectWrap {
 
           delete [] cipher->incomplete_utf8;
           cipher->incomplete_utf8=NULL;
-
-          outString = Encode(complete_out, cipher->incomplete_utf8_len+out_len, enc);
-          delete [] complete_out;
-        } else {
-          outString = Encode(out_value, out_len, enc);
-        }
-      } else {
-        outString = Encode(out_value, out_len, enc);
-      }
-    }
-    delete [] out_value;
-    return scope.Close(outString);
-  }
-
-  static Handle<Value> DecipherFinalTolerate(const Arguments& args) {
-    Decipher *cipher = ObjectWrap::Unwrap<Decipher>(args.This());
-
-    HandleScope scope;
-
-    unsigned char* out_value;
-    int out_len;
-    Local<Value> outString ;
-
-    out_value = NULL;
-    int r = cipher->DecipherFinal(&out_value, &out_len, true);
-
-    if (out_len == 0 || r == 0) {
-      delete [] out_value;
-      return scope.Close(String::New(""));
-    }
-
-
-    if (args.Length() == 0 || !args[0]->IsString()) {
-      outString = Encode(out_value, out_len, BINARY);
-    } else {
-      enum encoding enc = ParseEncoding(args[0]);
-      if (enc == UTF8) {
-        // See if we have any overhang from last utf8 partial ending
-        if (cipher->incomplete_utf8!=NULL) {
-          char* complete_out = new char[cipher->incomplete_utf8_len + out_len];
-          memcpy(complete_out, cipher->incomplete_utf8, cipher->incomplete_utf8_len);
-          memcpy((char *)complete_out+cipher->incomplete_utf8_len, out_value, out_len);
-
-          delete [] cipher->incomplete_utf8;
-          cipher->incomplete_utf8 = NULL;
 
           outString = Encode(complete_out, cipher->incomplete_utf8_len+out_len, enc);
           delete [] complete_out;
