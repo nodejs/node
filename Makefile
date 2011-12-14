@@ -10,9 +10,11 @@ out/Release/node: all
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp options.gypi
 	tools/gyp_node -f make
 
-install uninstall:
-	@echo '`make $(@)` is being reworked, please use the latest stable tag.'
-	@echo 'Git users, type `git checkout -b v0.6` now.'
+install: all
+	out/Release/node tools/installer.js ./options.gypi install
+
+uninstall:
+	out/Release/node tools/installer.js ./options.gypi uninstall
 
 clean:
 	rm -rf out
@@ -321,4 +323,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install all program staticlib dynamiclib test test-all website-upload
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all program staticlib dynamiclib test test-all website-upload
