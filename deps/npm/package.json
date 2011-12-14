@@ -2,7 +2,7 @@
 , "publishConfig": { "tag": "alpha", "proprietary-attribs": false }
 , "description": "A package manager for node"
 , "keywords": [ "package manager", "modules", "install", "package.json" ]
-, "version": "1.1.0-alpha-6"
+, "version": "1.1.0-beta-2"
 , "preferGlobal": true
 , "config": { "publishtest": false }
 , "homepage": "http://npmjs.org/"
@@ -24,6 +24,7 @@
 , "bin": { "npm": "./bin/npm-cli.js"
          , "npm_g": "./bin/npm-cli.js"
          , "npm-g": "./bin/npm-cli.js" }
+
 , "dependencies":
   { "semver": "1"
   , "ini": "1"
@@ -43,7 +44,10 @@
   , "inherits": "1"
   , "mkdirp": "0.1"
   , "fast-list": "~1.0.1"
+  , "read": "0"
+  , "lru-cache": "1"
   }
+
 , "bundleDependencies":
   [ "slide"
   , "ini"
@@ -63,9 +67,13 @@
   , "inherits"
   , "mkdirp"
   , "fast-list"
+  , "read"
+  , "lru-cache"
   ]
+
 , "devDependencies":
   { "ronn": "https://github.com/isaacs/ronnjs/tarball/master" }
+
 , "engines": { "node": "0.6 || 0.7 || 0.8", "npm": "1" }
 , "scripts": { "test": "./test/run"
              , "prepublish": "make -j4 doc"

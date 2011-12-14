@@ -29,7 +29,10 @@ exports.makeList = makeList
 
 function pack (targetTarball, folder, pkg, dfc, cb) {
   if (typeof cb !== "function") cb = dfc, dfc = true
-  folder = path.resolve(process.cwd(), folder)
+  folder = path.resolve(folder)
+
+  log.verbose(folder, "pack")
+
   if (typeof pkg === "function") {
     cb = pkg, pkg = null
     return readJson(path.resolve(folder, "package.json"), function (er, pkg) {
@@ -88,7 +91,22 @@ function packFiles (targetTarball, parent, files, pkg, cb_) {
                      // being installed from some wackey vm-mounted
                      // read-only filesystem.
                      this.props.mode = this.props.mode | 0200
-                     return -1 !== files.indexOf(this.path)
+                     var inc = -1 !== files.indexOf(this.path)
+
+                     // WARNING! Hackety hack!
+                     // XXX Fix this in a better way.
+                     // Rename .gitignore to .npmignore if there is not a
+                     // .npmignore file there already, the better to lock
+                     // down installed packages with git for deployment.
+                     if (this.basename === ".gitignore") {
+                       if (this.parent._entries.indexOf(".npmignore") !== -1) {
+                         return false
+                       }
+                       var d = path.dirname(this.path)
+                       this.basename = ".npmignore"
+                       this.path = path.join(d, ".npmignore")
+                     }
+                     return inc
                    }
                  })
     .on("error", log.er(cb, "error reading "+parent))

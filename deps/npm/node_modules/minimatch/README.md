@@ -1,3 +1,10 @@
+# minimatch
+
+A minimal matching utility.
+
+[![Build Status](https://secure.travis-ci.org/isaacs/minimatch.png)](http://travis-ci.org/isaacs/minimatch)
+
+
 This is the matching library used internally by npm.
 
 Eventually, it will replace the C binding in node-glob.

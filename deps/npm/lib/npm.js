@@ -11,9 +11,6 @@ if (typeof WScript !== "undefined") {
 }
 
 
-process.title = "npm"
-
-
 // FIXME there really ought to be a path.split in node core
 require("path").SPLIT_CHAR = process.platform === "win32" ? "\\" : "/"
 
@@ -166,6 +163,7 @@ var commandCache = {}
   , plumbing = [ "build"
                , "unbuild"
                , "xmas"
+               , "substack"
                ]
   , fullList = npm.fullList = cmdList.concat(aliasNames).filter(function (c) {
       return plumbing.indexOf(c) === -1

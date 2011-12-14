@@ -1,21 +1,4 @@
 
-/*
-log levels:
-0,1,2,3
-verbose,info,warn,error
-
-Default setting for logs is "info"
-Default setting to show is "info"
-
-Possible values of level/loglevel:
-silly,verbose,info,warn,error,win,silent
-
-silent quiets everything
-
-
-*/
-
-
 module.exports = log
 
 var output = require("./output.js")
@@ -28,6 +11,7 @@ var l = -1
   , LEVEL = { silly   : l++
             , verbose : l++
             , info    : l++
+            , "http"  : l++
             , WARN    : l++
             , "ERR!"  : l++
             , ERROR   : "ERR!"
@@ -59,6 +43,7 @@ Object.keys(LEVEL).forEach(function (l) {
 COLOR[LEVEL.silly] = 30
 COLOR[LEVEL.verbose] = "34;40"
 COLOR[LEVEL.info] = 32
+COLOR[LEVEL.http] = "32;40"
 COLOR[LEVEL.warn] = "30;41"
 COLOR[LEVEL.error] = "31;40"
 for (var c in COLOR) COLOR[LEVEL[c]] = COLOR[c]

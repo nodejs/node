@@ -82,13 +82,19 @@ function filter (data, args, notArgs) {
 }
 
 function stripData (data) {
-  return { name:data.name
-         , description:npm.config.get("description") ? data.description : ""
-         , maintainers:(data.maintainers || []).map(function (m) {
+  return { name: data.name
+         , description: npm.config.get("description") ? data.description : ""
+         , maintainers: (data.maintainers || []).map(function (m) {
              return "=" + m.name
            })
-         , url:!Object.keys(data.versions || {}).length ? data.url : null
-         , keywords:data.keywords || []
+         , url: !Object.keys(data.versions || {}).length ? data.url : null
+         , keywords: data.keywords || []
+         , time: data.time
+                 && data.time.modified
+                 && (new Date(data.time.modified).toISOString()
+                     .split("T").join(" ")
+                     .replace(/:[0-9]{2}\.[0-9]{3}Z$/, ""))
+                 || "(prehistoric)"
          }
 }
 
@@ -108,14 +114,21 @@ function getWords (data) {
 function filterWords (data, args, notArgs) {
   var words = data.words
   for (var i = 0, l = args.length; i < l; i ++) {
-    if (words.indexOf(args[i]) === -1) {
-      return false
-    }
+    if (!match(words, args[i])) return false
   }
   for (var i = 0, l = notArgs.length; i < l; i ++) {
-    if (words.indexOf(notArgs[i]) !== -1) return false
+    if (match(words, notArgs[i])) return false
   }
   return true
+}
+
+function match (words, arg) {
+  if (arg.charAt(0) === "/") {
+    arg = arg.replace(/\/$/, "")
+    arg = new RegExp(arg.substr(1, arg.length - 1))
+    return words.match(arg)
+  }
+  return words.indexOf(arg) !== -1
 }
 
 function prettify (data, args) {
@@ -130,14 +143,24 @@ function prettify (data, args) {
   // name, desc, author, keywords
   var longest = []
     , spaces
-    , maxLen = [20, 60, 20, Infinity]
-    , headings = ["NAME", "DESCRIPTION", "AUTHOR", "KEYWORDS"]
+    , maxLen = npm.config.get("description")
+             ? [20, 60, 20, 20, Infinity]
+             : [20, 20, 20, Infinity]
+    , headings = npm.config.get("description")
+               ? ["NAME", "DESCRIPTION", "AUTHOR", "DATE", "KEYWORDS"]
+               : ["NAME", "AUTHOR", "DATE", "KEYWORDS"]
     , lines
+    , searchsort = (npm.config.get("searchsort") || "NAME").toLowerCase()
+    , sortFields = { name: 0
+                   , description: 1
+                   , author: 2
+                   , date: 3
+                   , keywords: 4 }
+    , searchRev = searchsort.charAt(0) === "-"
+    , sortField = sortFields[searchsort.replace(/^\-+/, "")]
 
   lines = Object.keys(data).map(function (d) {
     return data[d]
-  }).filter(function (data) {
-    return data.name
   }).map(function (data) {
     // turn a pkg data into a string
     // [name,who,desc,targets,keywords] tuple
@@ -149,6 +172,7 @@ function prettify (data, args) {
     var l = [ data.name
             , data.description || ""
             , data.maintainers.join(" ")
+            , data.time
             , (data.keywords || []).join(" ")
             ]
     l.forEach(function (s, i) {
@@ -162,6 +186,13 @@ function prettify (data, args) {
       l[i] = l[i].replace(/\s+/g, " ")
     })
     return l
+  }).sort(function (a, b) {
+    // a and b are "line" objects of [name, desc, maint, time, kw]
+    var aa = a[sortField].toLowerCase()
+      , bb = b[sortField].toLowerCase()
+    return aa === bb ? 0
+         : aa < bb ? (searchRev ? 1 : -1)
+         : (searchRev ? -1 : 1)
   }).map(function (line) {
     return line.map(function (s, i) {
       spaces = spaces || longest.map(function (n) {
@@ -173,8 +204,6 @@ function prettify (data, args) {
       }
       return s + spaces[i].substr(len)
     }).join(" ").substr(0, cols).trim()
-  }).sort(function (a, b) {
-    return a === b ? 0 : a > b ? 1 : -1
   }).map(function (line) {
     // colorize!
     args.forEach(function (arg, i) {
@@ -201,8 +230,18 @@ function addColorMarker (str, arg, i) {
   var m = i % cl + 1
     , markStart = String.fromCharCode(m)
     , markEnd = String.fromCharCode(0)
-    , pieces = str.toLowerCase().split(arg.toLowerCase())
+
+  if (arg.charAt(0) === "/") {
+    //arg = arg.replace(/\/$/, "")
+    return str.replace( new RegExp(arg.substr(1, arg.length - 1), "gi")
+                      , function (bit) { return markStart + bit + markEnd } )
+
+  }
+
+  // just a normal string, do the split/map thing
+  var pieces = str.toLowerCase().split(arg.toLowerCase())
     , p = 0
+
   return pieces.map(function (piece, i) {
     piece = str.substr(p, piece.length)
     var mark = markStart
@@ -211,8 +250,8 @@ function addColorMarker (str, arg, i) {
     p += piece.length + arg.length
     return piece + mark
   }).join("")
-  return str.split(arg).join(mark)
 }
+
 function colorize (line) {
   for (var i = 0; i < cl; i ++) {
     var m = i + 1

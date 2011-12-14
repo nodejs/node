@@ -98,7 +98,7 @@ function test (file, excludeList) {
 
     // chop the filename down to be relative to excludeDir
     var rf = relativize(file, dir, true)
-    rf = rf.replace(/^\.\//, "")
+    rf = rf.replace(/^\.?\//, "")
 
     for (var ii = 0, ll = excludes.length; ii < ll; ii ++) {
       //log.warn(JSON.stringify(excludes[ii]), "ex")

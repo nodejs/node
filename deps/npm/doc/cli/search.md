@@ -9,28 +9,9 @@ npm-search(1) -- Search for packages
 
 Search the registry for packages matching the search terms.
 
-## CONFIGURATION
-
-### description
-
-* Default: true
-* Type: Boolean
-
-Show the description in `npm search`
-
-### searchopts
-
-* Default: ""
-* Type: String
-
-Space-separated options that are always passed to search.
-
-### searchexclude
-
-* Default: ""
-* Type: String
-
-Space-separated options that limit the results from search.
+If a term starts with `/`, then it's interpreted as a regular expression.
+A trailing `/` will be ignored in this case.  (Note that many regular
+expression characters must be escaped or quoted in most shells.)
 
 ## SEE ALSO
 

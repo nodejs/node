@@ -115,8 +115,16 @@ DirReader.prototype._read = function () {
         return me.once("resume", EMITCHILD)
       }
 
-      me.emit("entry", entry)
-      me.emit("child", entry)
+      // skip over sockets.  they can't be piped around properly,
+      // so there's really no sense even acknowledging them.
+      // if someone really wants to see them, they can listen to
+      // the "socket" events.
+      if (entry.type === "Socket") {
+        me.emit("socket", entry)
+      } else {
+        me.emit("entry", entry)
+        me.emit("child", entry)
+      }
     })
 
     var ended = false

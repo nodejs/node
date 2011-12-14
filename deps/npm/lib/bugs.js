@@ -23,8 +23,8 @@ function bugs (args, cb) {
     var bugs = d.bugs
       , repo = d.repository || d.repositories
     if (bugs) {
-        if (typeof bugs === "string") return open(bugs, cb)
-        if (bugs.url) return open(bugs.url, cb)
+      if (typeof bugs === "string") return open(bugs, cb)
+      if (bugs.url) return open(bugs.url, cb)
     }
     if (repo) {
       if (Array.isArray(repo)) repo = repo.shift()

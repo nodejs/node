@@ -232,7 +232,10 @@ function makeEnv (data, prefix, env) {
     if (i.charAt(0) === "_" && i.indexOf("_"+namePref) !== 0) {
       return
     }
-    var value = String(ini.get(i))
+    var value = ini.get(i)
+    if (!value) value = ""
+    else if (typeof value !== "string") value = JSON.stringify(value)
+
     value = -1 !== value.indexOf("\n")
           ? JSON.stringify(value)
           : value

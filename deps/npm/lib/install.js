@@ -565,7 +565,7 @@ function write (target, targetFolder, family, ancestors, cb_) {
     // cache.unpack returns the data object, and all we care about
     // is the list of installed packages from that last thing.
     if (!er) return cb_(er, data)
-    log.error(er, "error installing "+target._id)
+    log.error(target._id,"error installing")
     if (false === npm.config.get("rollback")) return cb_(er)
     npm.commands.unbuild([targetFolder], function (er2) {
       if (er2) log.error(er2, "error rolling back "+target._id)
