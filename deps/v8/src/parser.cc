@@ -2036,6 +2036,20 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
   // reported (underlining).
   Expect(Token::RETURN, CHECK_OK);
 
+  Token::Value tok = peek();
+  Statement* result;
+  if (scanner().HasAnyLineTerminatorBeforeNext() ||
+      tok == Token::SEMICOLON ||
+      tok == Token::RBRACE ||
+      tok == Token::EOS) {
+    ExpectSemicolon(CHECK_OK);
+    result = new(zone()) ReturnStatement(GetLiteralUndefined());
+  } else {
+    Expression* expr = ParseExpression(true, CHECK_OK);
+    ExpectSemicolon(CHECK_OK);
+    result = new(zone()) ReturnStatement(expr);
+  }
+
   // An ECMAScript program is considered syntactically incorrect if it
   // contains a return statement that is not within the body of a
   // function. See ECMA-262, section 12.9, page 67.
@@ -2048,19 +2062,7 @@ Statement* Parser::ParseReturnStatement(bool* ok) {
     Expression* throw_error = NewThrowSyntaxError(type, Handle<Object>::null());
     return new(zone()) ExpressionStatement(throw_error);
   }
-
-  Token::Value tok = peek();
-  if (scanner().HasAnyLineTerminatorBeforeNext() ||
-      tok == Token::SEMICOLON ||
-      tok == Token::RBRACE ||
-      tok == Token::EOS) {
-    ExpectSemicolon(CHECK_OK);
-    return new(zone()) ReturnStatement(GetLiteralUndefined());
-  }
-
-  Expression* expr = ParseExpression(true, CHECK_OK);
-  ExpectSemicolon(CHECK_OK);
-  return new(zone()) ReturnStatement(expr);
+  return result;
 }
 
 

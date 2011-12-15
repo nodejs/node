@@ -665,13 +665,19 @@ class StaticMarkingVisitor : public StaticVisitorBase {
     }
 
     // Only flush code for functions.
-    if (shared_info->code()->kind() != Code::FUNCTION) return false;
+    if (shared_info->code()->kind() != Code::FUNCTION) {
+      return false;
+    }
 
     // Function must be lazy compilable.
-    if (!shared_info->allows_lazy_compilation()) return false;
+    if (!shared_info->allows_lazy_compilation()) {
+      return false;
+    }
 
     // If this is a full script wrapped in a function we do no flush the code.
-    if (shared_info->is_toplevel()) return false;
+    if (shared_info->is_toplevel()) {
+      return false;
+    }
 
     // Age this shared function info.
     if (shared_info->code_age() < kCodeAgeThreshold) {
@@ -864,21 +870,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       collector->MarkObject(jsfunction->unchecked_shared()->unchecked_code());
 
       if (jsfunction->unchecked_code()->kind() == Code::OPTIMIZED_FUNCTION) {
-        // For optimized functions we should retain both non-optimized version
-        // of it's code and non-optimized version of all inlined functions.
-        // This is required to support bailing out from inlined code.
-        DeoptimizationInputData* data =
-            reinterpret_cast<DeoptimizationInputData*>(
-                jsfunction->unchecked_code()->unchecked_deoptimization_data());
-
-        FixedArray* literals = data->UncheckedLiteralArray();
-
-        for (int i = 0, count = data->InlinedFunctionCount()->value();
-             i < count;
-             i++) {
-          JSFunction* inlined = reinterpret_cast<JSFunction*>(literals->get(i));
-          collector->MarkObject(inlined->unchecked_shared()->unchecked_code());
-        }
+        collector->MarkInlinedFunctionsCode(jsfunction->unchecked_code());
       }
     }
 
@@ -994,9 +986,7 @@ class CodeMarkingVisitor : public ThreadVisitor {
       : collector_(collector) {}
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
-    for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
-      collector_->MarkObject(it.frame()->unchecked_code());
-    }
+    collector_->PrepareThreadForCodeFlushing(isolate, top);
   }
 
  private:
@@ -1027,6 +1017,42 @@ class SharedFunctionInfoMarkingVisitor : public ObjectVisitor {
 };
 
 
+void MarkCompactCollector::MarkInlinedFunctionsCode(Code* code) {
+  // For optimized functions we should retain both non-optimized version
+  // of it's code and non-optimized version of all inlined functions.
+  // This is required to support bailing out from inlined code.
+  DeoptimizationInputData* data =
+      reinterpret_cast<DeoptimizationInputData*>(
+          code->unchecked_deoptimization_data());
+
+  FixedArray* literals = data->UncheckedLiteralArray();
+
+  for (int i = 0, count = data->InlinedFunctionCount()->value();
+       i < count;
+       i++) {
+    JSFunction* inlined = reinterpret_cast<JSFunction*>(literals->get(i));
+    MarkObject(inlined->unchecked_shared()->unchecked_code());
+  }
+}
+
+
+void MarkCompactCollector::PrepareThreadForCodeFlushing(Isolate* isolate,
+                                                        ThreadLocalTop* top) {
+  for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    // Note: for the frame that has a pending lazy deoptimization
+    // StackFrame::unchecked_code will return a non-optimized code object for
+    // the outermost function and StackFrame::LookupCode will return
+    // actual optimized code object.
+    StackFrame* frame = it.frame();
+    Code* code = frame->unchecked_code();
+    MarkObject(code);
+    if (frame->is_optimized()) {
+      MarkInlinedFunctionsCode(frame->LookupCode());
+    }
+  }
+}
+
+
 void MarkCompactCollector::PrepareForCodeFlushing() {
   ASSERT(heap() == Isolate::Current()->heap());
 
@@ -1050,9 +1076,8 @@ void MarkCompactCollector::PrepareForCodeFlushing() {
 
   // Make sure we are not referencing the code from the stack.
   ASSERT(this == heap()->mark_compact_collector());
-  for (StackFrameIterator it; !it.done(); it.Advance()) {
-    MarkObject(it.frame()->unchecked_code());
-  }
+  PrepareThreadForCodeFlushing(heap()->isolate(),
+                               heap()->isolate()->thread_local_top());
 
   // Iterate the archived stacks in all threads to check if
   // the code is referenced.

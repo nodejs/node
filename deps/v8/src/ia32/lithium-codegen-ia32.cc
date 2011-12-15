@@ -2770,12 +2770,12 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   __ movdbl(xmm_scratch, Operand::StaticVariable(one_half));
   __ ucomisd(xmm_scratch, input_reg);
   __ j(above, &below_half);
-  // input = input + 0.5
-  __ addsd(input_reg, xmm_scratch);
+  // xmm_scratch = input + 0.5
+  __ addsd(xmm_scratch, input_reg);
 
   // Compute Math.floor(value + 0.5).
   // Use truncating instruction (OK because input is positive).
-  __ cvttsd2si(output_reg, Operand(input_reg));
+  __ cvttsd2si(output_reg, Operand(xmm_scratch));
 
   // Overflow is signalled with minint.
   __ cmp(output_reg, 0x80000000u);

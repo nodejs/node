@@ -2773,10 +2773,10 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   // This addition might give a result that isn't the correct for
   // rounding, due to loss of precision, but only for a number that's
   // so big that the conversion below will overflow anyway.
-  __ addsd(input_reg, xmm_scratch);
+  __ addsd(xmm_scratch, input_reg);
   // Compute Math.floor(input).
   // Use truncating instruction (OK because input is positive).
-  __ cvttsd2si(output_reg, input_reg);
+  __ cvttsd2si(output_reg, xmm_scratch);
   // Overflow is signalled with minint.
   __ cmpl(output_reg, Immediate(0x80000000));
   DeoptimizeIf(equal, instr->environment());

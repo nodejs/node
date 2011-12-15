@@ -2992,11 +2992,11 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
   __ and_(scratch, result, Operand(HeapNumber::kSignMask));
 
   __ Vmov(double_scratch0(), 0.5);
-  __ vadd(input, input, double_scratch0());
+  __ vadd(double_scratch0(), input, double_scratch0());
 
   // Check sign of the result: if the sign changed, the input
   // value was in ]0.5, 0[ and the result should be -0.
-  __ vmov(result, input.high());
+  __ vmov(result, double_scratch0().high());
   __ eor(result, result, Operand(scratch), SetCC);
   if (instr->hydrogen()->CheckFlag(HValue::kBailoutOnMinusZero)) {
     DeoptimizeIf(mi, instr->environment());
@@ -3007,7 +3007,7 @@ void LCodeGen::DoMathRound(LUnaryMathOperation* instr) {
 
   __ EmitVFPTruncate(kRoundToMinusInf,
                      double_scratch0().low(),
-                     input,
+                     double_scratch0(),
                      result,
                      scratch);
   DeoptimizeIf(ne, instr->environment());

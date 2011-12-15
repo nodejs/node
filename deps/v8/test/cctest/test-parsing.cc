@@ -706,3 +706,179 @@ TEST(RegExpScanning) {
   TestScanRegExp("/=/", "=");
   TestScanRegExp("/=?/", "=?");
 }
+
+
+void TestParserSync(i::Handle<i::String> source, bool allow_lazy) {
+  uintptr_t stack_limit = i::Isolate::Current()->stack_guard()->real_climit();
+
+  // Preparse the data.
+  i::CompleteParserRecorder log;
+  i::JavaScriptScanner scanner(i::Isolate::Current()->unicode_cache());
+  i::GenericStringUC16CharacterStream stream(source, 0, source->length());
+  scanner.Initialize(&stream);
+  v8::preparser::PreParser::PreParseResult result =
+      v8::preparser::PreParser::PreParseProgram(
+          &scanner, &log, allow_lazy, stack_limit);
+  CHECK_EQ(v8::preparser::PreParser::kPreParseSuccess, result);
+  i::ScriptDataImpl data(log.ExtractData());
+
+  // Parse the data
+  i::Handle<i::Script> script = FACTORY->NewScript(source);
+  i::Parser parser(script, false, NULL, NULL);
+  i::FunctionLiteral* function =
+      parser.ParseProgram(source, true, i::kNonStrictMode);
+
+  i::String* type_string = NULL;
+  if (function == NULL) {
+    // Extract exception from the parser.
+    i::Handle<i::String> type_symbol = FACTORY->LookupAsciiSymbol("type");
+    CHECK(i::Isolate::Current()->has_pending_exception());
+    i::MaybeObject* maybe_object = i::Isolate::Current()->pending_exception();
+    i::JSObject* exception = NULL;
+    CHECK(maybe_object->To(&exception));
+
+    // Get the type string.
+    maybe_object = exception->GetProperty(*type_symbol);
+    CHECK(maybe_object->To(&type_string));
+  }
+
+  // Check that preparsing fails iff parsing fails.
+  if (data.has_error() && function != NULL) {
+    i::OS::Print(
+        "Preparser failed on:\n"
+        "\t%s\n"
+        "with error:\n"
+        "\t%s\n"
+        "However, the parser succeeded",
+        *source->ToCString(), data.BuildMessage());
+    CHECK(false);
+  } else if (!data.has_error() && function == NULL) {
+    i::OS::Print(
+        "Parser failed on:\n"
+        "\t%s\n"
+        "with error:\n"
+        "\t%s\n"
+        "However, the preparser succeeded",
+        *source->ToCString(), *type_string->ToCString());
+    CHECK(false);
+  }
+
+  // Check that preparser and parser produce the same error.
+  if (function == NULL) {
+    if (!type_string->IsEqualTo(i::CStrVector(data.BuildMessage()))) {
+      i::OS::Print(
+          "Expected parser and preparser to produce the same error on:\n"
+          "\t%s\n"
+          "However, found the following error messages\n"
+          "\tparser:    %s\n"
+          "\tpreparser: %s\n",
+          *source->ToCString(), *type_string->ToCString(), data.BuildMessage());
+      CHECK(false);
+    }
+  }
+}
+
+
+TEST(ParserSync) {
+  const char* context_data[][2] = {
+    { "", "" },
+    { "{", "}" },
+    { "if (true) ", " else {}" },
+    { "if (true) {} else ", "" },
+    { "if (true) ", "" },
+    { "do ", " while (false)" },
+    { "while (false) ", "" },
+    { "for (;;) ", "" },
+    { "with ({})", "" },
+    { "switch (12) { case 12: ", "}" },
+    { "switch (12) { default: ", "}" },
+    { "label2: ", "" },
+    { NULL, NULL }
+  };
+
+  const char* statement_data[] = {
+    "{}",
+    "var x",
+    "var x = 1",
+    "const x",
+    "const x = 1",
+    ";",
+    "12",
+    "if (false) {} else ;",
+    "if (false) {} else {}",
+    "if (false) {} else 12",
+    "if (false) ;"
+    "if (false) {}",
+    "if (false) 12",
+    "do {} while (false)",
+    "for (;;) ;",
+    "for (;;) {}",
+    "for (;;) 12",
+    "continue",
+    "continue label",
+    "continue\nlabel",
+    "break",
+    "break label",
+    "break\nlabel",
+    "return",
+    "return  12",
+    "return\n12",
+    "with ({}) ;",
+    "with ({}) {}",
+    "with ({}) 12",
+    "switch ({}) { default: }"
+    "label3: "
+    "throw",
+    "throw  12",
+    "throw\n12",
+    "try {} catch(e) {}",
+    "try {} finally {}",
+    "try {} catch(e) {} finally {}",
+    "debugger",
+    NULL
+  };
+
+  const char* termination_data[] = {
+    "",
+    ";",
+    "\n",
+    ";\n",
+    "\n;",
+    NULL
+  };
+
+  v8::HandleScope handles;
+  v8::Persistent<v8::Context> context = v8::Context::New();
+  v8::Context::Scope context_scope(context);
+
+  int marker;
+  i::Isolate::Current()->stack_guard()->SetStackLimit(
+      reinterpret_cast<uintptr_t>(&marker) - 128 * 1024);
+
+  for (int i = 0; context_data[i][0] != NULL; ++i) {
+    for (int j = 0; statement_data[j] != NULL; ++j) {
+      for (int k = 0; termination_data[k] != NULL; ++k) {
+        int kPrefixLen = i::StrLength(context_data[i][0]);
+        int kStatementLen = i::StrLength(statement_data[j]);
+        int kTerminationLen = i::StrLength(termination_data[k]);
+        int kSuffixLen = i::StrLength(context_data[i][1]);
+        int kProgramSize = kPrefixLen + kStatementLen + kTerminationLen
+            + kSuffixLen + i::StrLength("label: for (;;) {  }");
+
+        // Plug the source code pieces together.
+        i::Vector<char> program = i::Vector<char>::New(kProgramSize + 1);
+        int length = i::OS::SNPrintF(program,
+            "label: for (;;) { %s%s%s%s }",
+            context_data[i][0],
+            statement_data[j],
+            termination_data[k],
+            context_data[i][1]);
+        CHECK(length == kProgramSize);
+        i::Handle<i::String> source =
+            FACTORY->NewStringFromAscii(i::CStrVector(program.start()));
+        TestParserSync(source, true);
+        TestParserSync(source, false);
+      }
+    }
+  }
+}
