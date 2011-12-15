@@ -1,0 +1,4 @@
+{ "name":"npm-test-url-dep"
+, "version" : "1.2.3"
+, "dependencies" :
+  { "dnode" : "https://github.com/substack/dnode/tarball/master" } }

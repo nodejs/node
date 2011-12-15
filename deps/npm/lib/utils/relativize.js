@@ -30,7 +30,18 @@ var split = process.platform === "win32" ? /[\/\\]/ : "/"
 
 function isAbsolute (p) {
   if (process.platform !== "win32") return p.charAt(0) === "/"
-  return path.resolve(p) === p
+
+
+  // yanked from node/lib/path.js
+  var splitDeviceRe =
+    /^([a-zA-Z]:|[\\\/]{2}[^\\\/]+[\\\/][^\\\/]+)?([\\\/])?([\s\S]*?)$/
+
+  var result = p.match(splitDeviceRe)
+    , device = result[1] || ""
+    , isUnc = device && device.charAt(1) !== ":"
+    , isAbs = !!result[2] || isUnc // UNC always absolute
+
+  return isAbs
 }
 
 if (module === require.main) {

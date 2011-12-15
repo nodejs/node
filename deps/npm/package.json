@@ -2,7 +2,7 @@
 , "publishConfig": { "tag": "alpha", "proprietary-attribs": false }
 , "description": "A package manager for node"
 , "keywords": [ "package manager", "modules", "install", "package.json" ]
-, "version": "1.1.0-beta-3"
+, "version": "1.1.0-beta-4"
 , "preferGlobal": true
 , "config": { "publishtest": false }
 , "homepage": "http://npmjs.org/"
