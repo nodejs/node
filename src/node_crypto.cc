@@ -3504,8 +3504,7 @@ class DiffieHellman : public ObjectWrap {
 
     if (args.Length() > 0) {
       if (args[0]->IsInt32()) {
-        diffieHellman->Init(args[0]->Int32Value());
-        initialized = true;
+        initialized = diffieHellman->Init(args[0]->Int32Value());
       } else {
         if (args[0]->IsString()) {
           char* buf;
@@ -3521,16 +3520,15 @@ class DiffieHellman : public ObjectWrap {
             return ThrowException(Exception::Error(
                   String::New("Invalid argument")));
           } else {
-            diffieHellman->Init(reinterpret_cast<unsigned char*>(buf), len);
+            initialized = diffieHellman->Init(
+                reinterpret_cast<unsigned char*>(buf), len);
             delete[] buf;
-            initialized = true;
           }
         } else if (Buffer::HasInstance(args[0])) {
           Local<Object> buffer = args[0]->ToObject();
-          diffieHellman->Init(
+          initialized = diffieHellman->Init(
                   reinterpret_cast<unsigned char*>(Buffer::Data(buffer)),
                   Buffer::Length(buffer));
-          initialized = true;
         }
       }
     }
