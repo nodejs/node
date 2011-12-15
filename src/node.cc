@@ -1894,7 +1894,10 @@ static void RunIsolate(void* arg) {
   Isolate* isolate = Isolate::New();
 
   StartThread(isolate, ti->argc_, ti->argv_);
+  isolate->Dispose();
+
   delete ti;
+  delete isolate;
 }
 
 
@@ -1924,6 +1927,12 @@ static Handle<Value> NewIsolate(const Arguments& args) {
   obj->SetPointerInInternalField(1, ti);
 
   return scope.Close(obj);
+}
+
+
+static Handle<Value> CountIsolate(const Arguments& args) {
+  HandleScope scope;
+  return scope.Close(Integer::New(Isolate::Count()));
 }
 
 
@@ -2218,6 +2227,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "binding", Binding);
 
   NODE_SET_METHOD(process, "_newIsolate", NewIsolate);
+  NODE_SET_METHOD(process, "_countIsolate", CountIsolate);
   NODE_SET_METHOD(process, "_joinIsolate", JoinIsolate);
 
   return process;

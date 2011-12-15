@@ -45,6 +45,7 @@ class Isolate {
 public:
   // Call this before instantiating any Isolate
   static void Initialize();
+  static int Count();
 
   typedef void (*AtExitCallback)(void* arg);
 
@@ -94,6 +95,9 @@ private:
   v8::Persistent<v8::Context> v8_context_;
   v8::Isolate* v8_isolate_;
   uv_loop_t* loop_;
+
+  // Each isolate is a member of the static list_head.
+  ngx_queue_t list_member_;
 
   // Global variables for this isolate.
   struct globals globals_;

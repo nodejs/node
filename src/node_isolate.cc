@@ -29,14 +29,19 @@
 
 namespace node {
 
+
 static volatile bool initialized;
 static volatile int id;
-static uv_mutex_t id_lock;
+static volatile int isolate_count;
+static uv_mutex_t list_lock;
+static ngx_queue_t list_head;
+
 
 void Isolate::Initialize() {
   if (!initialized) {
     initialized = true;
-    if (uv_mutex_init(&id_lock)) abort();
+    if (uv_mutex_init(&list_lock)) abort();
+    ngx_queue_init(&list_head);
   }
 }
 
@@ -46,12 +51,17 @@ Isolate* Isolate::New() {
 }
 
 
+int Isolate::Count() {
+  return isolate_count;
+}
+
+
 Isolate::Isolate() {
+  uv_mutex_lock(&list_lock);
+
   assert(initialized && "node::Isolate::Initialize() hasn't been called");
 
-  uv_mutex_lock(&id_lock);
   id_ = ++id;
-  uv_mutex_unlock(&id_lock);
 
   if (id_ == 1) {
     loop_ = uv_default_loop();
@@ -60,6 +70,14 @@ Isolate::Isolate() {
   }
 
   ngx_queue_init(&at_exit_callbacks_);
+
+  ngx_queue_init(&list_member_);
+
+  // Add this isolate into the list of all isolates.
+  ngx_queue_insert_tail(&list_head, &list_member_);
+  isolate_count++;
+
+  uv_mutex_unlock(&list_lock);
 
   v8_isolate_ = v8::Isolate::GetCurrent();
   if (v8_isolate_ == NULL) {
@@ -95,6 +113,8 @@ void Isolate::AtExit(AtExitCallback callback, void* arg) {
 
 
 void Isolate::Dispose() {
+  uv_mutex_lock(&list_lock);
+
   struct AtExitCallbackInfo* it;
   ngx_queue_t* q;
 
@@ -115,6 +135,13 @@ void Isolate::Dispose() {
   v8_isolate_->Exit();
   v8_isolate_->Dispose();
   v8_isolate_ = NULL;
+
+  ngx_queue_remove(&list_member_);
+  isolate_count--;
+  assert(isolate_count >= 0);
+  assert(isolate_count > 0 || ngx_queue_empty(&list_head));
+
+  uv_mutex_unlock(&list_lock);
 }
 
 
