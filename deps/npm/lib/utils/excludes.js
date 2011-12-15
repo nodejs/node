@@ -88,8 +88,8 @@ function addIgnoreFile (file, gitBase, list, dir, cb) {
 // see if a file should be included or not, given those exclude lists.
 function test (file, excludeList) {
   if (path.basename(file) === "package.json") return true
-  //log.warn(file, "test file")
-  //log.warn(excludeList, "test list")
+  // log.warn(file, "test file")
+  // log.warn(excludeList, "test list")
   var incRe = /^\!(\!\!)*/
     , excluded = false
   for (var i = 0, l = excludeList.length; i < l; i ++) {
@@ -99,12 +99,15 @@ function test (file, excludeList) {
     // chop the filename down to be relative to excludeDir
     var rf = relativize(file, dir, true)
     rf = rf.replace(/^\.?\//, "")
+    if (file.slice(-1) === "/") rf += "/"
+
+    // log.warn([file, rf], "rf")
 
     for (var ii = 0, ll = excludes.length; ii < ll; ii ++) {
-      //log.warn(JSON.stringify(excludes[ii]), "ex")
-      var ex = excludes[ii].replace(/^(!*)\.\//, "$1")
+      var ex = excludes[ii].replace(/^(!*)\//, "$1")
         , inc = !!ex.match(incRe)
 
+      // log.warn([ex, rf], "ex, rf")
       // excluding/including a dir excludes/includes all the files in it.
       if (ex.slice(-1) === "/") ex += "**"
 
@@ -118,20 +121,27 @@ function test (file, excludeList) {
       if (inc && !excluded) continue
 
       // if it matches the pattern, then it should be excluded.
-      excluded = !!minimatch(rf, ex, { baseMatch: true })
-      //if (inc) excluded = !excluded
-
-      //if (excluded) {
-      //  console.error("excluded %s %s", rf, ex)
-      //}
+      excluded = !!minimatch(rf, ex, { matchBase: true })
+      // log.error([rf, ex, excluded], "rf, ex, excluded")
 
       // if you include foo, then it also includes foo/bar.js
       if (inc && excluded && ex.slice(-3) !== "/**") {
-        excluded = minimatch(rf, ex + "/**", { baseMatch: true })
-        // console.error(rf, ex + "/**", inc, excluded)
+        excluded = minimatch(rf, ex + "/**", { matchBase: true })
+        // log.warn([rf, ex + "/**", inc, excluded], "dir without /")
+      }
+
+      // if you exclude foo, then it also excludes foo/bar.js
+      if (!inc
+          && excluded
+          && ex.slice(-3) !== "/**"
+          && rf.slice(-1) === "/"
+          && excludes.indexOf(ex + "/**") === -1) {
+        // log.warn(ex + "/**", "adding dir-matching exclude pattern")
+        excludes.push(ex + "/**")
+        ll ++
       }
     }
-    //log.warn([rf, excluded, excludes], "file, excluded, excludes")
+    // log.warn([rf, excluded, excludes], "rf, excluded, excludes")
   }
   // true if it *should* be included
   // log.warn([file, excludeList, excluded], "file, excluded")
@@ -141,5 +151,7 @@ function test (file, excludeList) {
 // returns a function suitable for Array#filter
 function filter (dir, list) { return function (file) {
   file = file.trim()
-  return file && test(path.resolve(dir, file), list)
+  var testFile = path.resolve(dir, file)
+  if (file.slice(-1) === "/") testFile += "/"
+  return file && test(testFile, list)
 }}
