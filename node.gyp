@@ -109,7 +109,6 @@
         'src/node_string.h',
         'src/node_version.h',
         'src/pipe_wrap.h',
-        'src/platform.h',
         'src/req_wrap.h',
         'src/stream_wrap.h',
         'src/v8_typed_array.h',
@@ -152,9 +151,6 @@
 
         [ 'OS=="win"', {
           'sources': [
-            'src/platform_win32.cc',
-            # headers to make for a more pleasant IDE experience
-            'src/platform_win32.h',
             'tools/msvs/res/node.rc',
           ],
           'defines': [
@@ -172,25 +168,21 @@
           ]
         }],
         [ 'OS=="mac"', {
-          'sources': [ 'src/platform_darwin.cc' ],
           'libraries': [ '-framework Carbon' ],
         }],
         [ 'OS=="linux"', {
-          'sources': [ 'src/platform_linux.cc' ],
           'libraries': [
             '-ldl',
             '-lutil' # needed for openpty
           ],
         }],
         [ 'OS=="freebsd"', {
-          'sources': [ 'src/platform_freebsd.cc' ],
           'libraries': [
             '-lutil',
             '-lkvm',
           ],
         }],
         [ 'OS=="solaris"', {
-          'sources': [ 'src/platform_sunos.cc' ],
           'libraries': [
             '-lkstat',
           ],

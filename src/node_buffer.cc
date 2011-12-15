@@ -29,10 +29,6 @@
 #include <stdlib.h> // malloc, free
 #include <string.h> // memcpy
 
-#ifdef __MINGW32__
-# include "platform.h"
-#endif
-
 #ifdef __POSIX__
 # include <arpa/inet.h> // htons, htonl
 #endif

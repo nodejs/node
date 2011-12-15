@@ -32,10 +32,6 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
-#if defined(__MINGW32__) || defined(_MSC_VER)
-# include <platform_win32.h>
-#endif
-
 #if HAVE_OPENSSL
 # include <openssl/ssl.h>
 #endif

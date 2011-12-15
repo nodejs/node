@@ -37,7 +37,6 @@
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
 # include <io.h>
-# include <platform_win32.h>
 #endif
 
 

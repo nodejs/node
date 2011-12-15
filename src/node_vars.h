@@ -70,8 +70,7 @@ struct globals {
   v8::Persistent<v8::Array> module_load_list;
   v8::Isolate* node_isolate;
   volatile bool debugger_running;
-
-
+  double prog_start_time;
 
   // stream_wrap.cc
   size_t slab_used;
@@ -175,13 +174,6 @@ struct globals {
   v8::Persistent<v8::String> chars_written_sym;
   v8::Persistent<v8::String> write_sym;
   v8::Persistent<v8::FunctionTemplate> buffer_constructor_template;
-
-  // platform*.cc
-  char* process_title;
-  struct {
-    char *str;
-    size_t len;
-  } linux_process_title;
 
   // node_signal_watcher.cc
   v8::Persistent<v8::String> callback_symbol;

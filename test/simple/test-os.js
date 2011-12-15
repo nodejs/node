@@ -72,4 +72,10 @@ switch (platform) {
     var expected = [{ address: '127.0.0.1', family: 'IPv4', internal: true }];
     assert.deepEqual(actual, expected);
     break;
+  case 'win32':
+    var filter = function(e) { return e.address == '127.0.0.1'; };
+    var actual = interfaces['Loopback Pseudo-Interface 1'].filter(filter);
+    var expected = [{ address: '127.0.0.1', family: 'IPv4', internal: true }];
+    assert.deepEqual(actual, expected);
+    break;
 }

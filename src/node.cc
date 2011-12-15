@@ -56,16 +56,11 @@ typedef int mode_t;
 #include <errno.h>
 #include <sys/types.h>
 
-#if defined(__MINGW32__) || defined(_MSC_VER)
-# include <platform_win32.h> /* winapi_perror() */
-#endif
-
 #ifdef __POSIX__
 # include <pwd.h> /* getpwnam() */
 # include <grp.h> /* getgrnam() */
 #endif
 
-#include "platform.h"
 #include <node_buffer.h>
 #ifdef __POSIX__
 # include <node_io_watcher.h>
@@ -137,7 +132,7 @@ extern char **environ;
 #define module_load_list NODE_VAR(module_load_list)
 #define node_isolate NODE_VAR(node_isolate)
 #define debugger_running NODE_VAR(debugger_running)
-
+#define prog_start_time NODE_VAR(prog_start_time)
 
 namespace node {
 
@@ -854,6 +849,30 @@ Local<Value> UVException(int errorno,
 
 
 #ifdef _WIN32
+// Does about the same as strerror(),
+// but supports all windows error messages
+static const char *winapi_strerror(const int errorno) {
+  char *errmsg = NULL;
+
+  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+      FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
+
+  if (errmsg) {
+    // Remove trailing newlines
+    for (int i = strlen(errmsg) - 1;
+        i >= 0 && (errmsg[i] == '\n' || errmsg[i] == '\r'); i--) {
+      errmsg[i] = '\0';
+    }
+
+    return errmsg;
+  } else {
+    // FormatMessage failed
+    return "Unknown error";
+  }
+}
+
+
 Local<Value> WinapiErrnoException(int errorno,
                                   const char* syscall,
                                   const char* msg,
@@ -1485,17 +1504,19 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
   }
 }
 
+
 static Handle<Value> Uptime(const Arguments& args) {
   HandleScope scope;
   assert(args.Length() == 0);
+  double uptime;
 
-  double uptime =  Platform::GetUptime(true);
+  uv_err_t err = uv_uptime(&uptime);
 
-  if (uptime < 0) {
+  if (err.code != UV_OK) {
     return Undefined();
   }
 
-  return scope.Close(Number::New(uptime));
+  return scope.Close(Number::New(uptime - prog_start_time));
 }
 
 
@@ -1537,10 +1558,10 @@ v8::Handle<v8::Value> MemoryUsage(const v8::Arguments& args) {
 
   size_t rss;
 
-  int r = Platform::GetMemory(&rss);
+  uv_err_t err = uv_resident_set_memory(&rss);
 
-  if (r != 0) {
-    return ThrowException(Exception::Error(String::New(strerror(errno))));
+  if (err.code != UV_OK) {
+    return ThrowException(UVException(err.code, "uv_resident_set_memory"));
   }
 
   Local<Object> info = Object::New();
@@ -1829,9 +1850,9 @@ static Handle<Value> Binding(const Arguments& args) {
 static Handle<Value> ProcessTitleGetter(Local<String> property,
                                         const AccessorInfo& info) {
   HandleScope scope;
-  int len;
-  const char *s = Platform::GetProcessTitle(&len);
-  return scope.Close(s ? String::New(s, len) : String::Empty());
+  char buffer[512];
+  uv_get_process_title(buffer, sizeof(buffer));
+  return scope.Close(String::New(buffer));
 }
 
 
@@ -1840,7 +1861,8 @@ static void ProcessTitleSetter(Local<String> property,
                                const AccessorInfo& info) {
   HandleScope scope;
   String::Utf8Value title(value->ToString());
-  Platform::SetProcessTitle(*title);
+  // TODO: protect with a lock
+  uv_set_process_title(*title);
 }
 
 
@@ -2490,8 +2512,11 @@ static Handle<Value> DebugProcess(const Arguments& args) {
 
 
 char** Init(int argc, char *argv[]) {
+  // Initialize prog_start_time to get relative uptime.
+  uv_uptime(&prog_start_time);
+
   // Hack aroung with the argv pointer. Used for process.title = "blah".
-  argv = node::Platform::SetupArgs(argc, argv);
+  argv = uv_setup_args(argc, argv);
 
   // Parse a few arguments which are specific to Node.
   node::ParseArgs(argc, argv);
