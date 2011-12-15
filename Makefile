@@ -73,7 +73,7 @@ out/Release/node: all
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html))
 
-apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets
+apidoc_dirs = out/doc out/doc/api/ out/doc/api/assets out/doc/about out/doc/community out/doc/logos
 
 apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
 
@@ -86,8 +86,22 @@ website_files = \
 	out/doc/sh_vim-dark.css \
 	out/doc/logo.png      \
 	out/doc/sponsored.png \
-  out/doc/favicon.ico   \
-	out/doc/pipe.css
+	out/doc/favicon.ico   \
+	out/doc/pipe.css \
+	out/doc/about/index.html \
+	out/doc/close-downloads.png \
+	out/doc/community/index.html \
+	out/doc/community/not-invented-here.png \
+	out/doc/download-logo.png \
+	out/doc/ebay-logo.png \
+	out/doc/footer-logo.png \
+	out/doc/icons.png \
+	out/doc/linkedin-logo.png \
+	out/doc/logos/index.html \
+	out/doc/microsoft-logo.png \
+	out/doc/platform-icons.png \
+	out/doc/ryan-speaker.jpg \
+	out/doc/yahoo-logo.png
 
 doc docs: out/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
 
