@@ -120,7 +120,7 @@ out/doc/api/%.html: doc/api/%.markdown out/Release/node $(apidoc_dirs) $(apiasse
 out/doc/%:
 
 website-upload: doc
-	scp -r out/doc/* $(web_root)
+	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
 
 docopen: out/doc/api/all.html
 	-google-chrome out/doc/api/all.html
