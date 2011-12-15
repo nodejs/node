@@ -74,7 +74,7 @@ int uv_pipe_bind(uv_pipe_t* handle, const char* name) {
   }
 
   memset(&saddr, 0, sizeof saddr);
-  uv__strlcpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path));
+  uv_strlcpy(saddr.sun_path, pipe_fname, sizeof(saddr.sun_path));
   saddr.sun_family = AF_UNIX;
 
   if (bind(sockfd, (struct sockaddr*)&saddr, sizeof saddr) == -1) {
@@ -197,7 +197,7 @@ void uv_pipe_connect(uv_connect_t* req,
   }
 
   memset(&saddr, 0, sizeof saddr);
-  uv__strlcpy(saddr.sun_path, name, sizeof(saddr.sun_path));
+  uv_strlcpy(saddr.sun_path, name, sizeof(saddr.sun_path));
   saddr.sun_family = AF_UNIX;
 
   /* We don't check for EINPROGRESS. Think about it: the socket
@@ -274,5 +274,4 @@ void uv__pipe_accept(EV_P_ ev_io* watcher, int revents) {
 
 
 void uv_pipe_pending_instances(uv_pipe_t* handle, int count) {
-  return 0;
 }

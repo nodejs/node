@@ -23,8 +23,8 @@
 #include "internal.h"
 
 #include <pthread.h>
+#include <assert.h>
 #include <errno.h>
-
 
 #ifdef NDEBUG
 # define CHECK(r) ((void) (r))
@@ -38,6 +38,14 @@
     }                                             \
     while (0)
 #endif
+
+
+int uv_thread_join(uv_thread_t *tid) {
+  if (pthread_join(*tid, NULL))
+    return -1;
+  else
+    return 0;
+}
 
 
 int uv_mutex_init(uv_mutex_t* mutex) {

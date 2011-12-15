@@ -43,6 +43,7 @@ BENCHMARK_DECLARE (udp_packet_storm_1000v1000)
 BENCHMARK_DECLARE (gethostbyname)
 BENCHMARK_DECLARE (getaddrinfo)
 BENCHMARK_DECLARE (spawn)
+BENCHMARK_DECLARE (thread_create)
 HELPER_DECLARE    (tcp4_blackhole_server)
 HELPER_DECLARE    (tcp_pump_server)
 HELPER_DECLARE    (pipe_pump_server)
@@ -100,4 +101,5 @@ TASK_LIST_START
   BENCHMARK_ENTRY  (getaddrinfo)
 
   BENCHMARK_ENTRY  (spawn)
+  BENCHMARK_ENTRY  (thread_create)
 TASK_LIST_END

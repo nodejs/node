@@ -22,18 +22,30 @@
 #include "internal.h"
 
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 #include <errno.h>
 
+#include <ifaddrs.h>
+#include <net/if.h>
 #include <sys/inotify.h>
+#include <sys/param.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
 #include <time.h>
 
 #undef NANOSEC
 #define NANOSEC 1000000000
+
+
+static char buf[MAXPATHLEN + 1];
+
+static struct {
+  char *str;
+  size_t len;
+} process_title;
 
 
 /* Don't look aghast, this is exactly how glibc's basename() works. */
@@ -161,6 +173,8 @@ int uv_fs_event_init(uv_loop_t* loop,
   int events;
   int fd;
 
+  loop->counters.fs_event_init++;
+
   /* We don't support any flags yet. */
   assert(!flags);
 
@@ -206,4 +220,355 @@ void uv__fs_event_destroy(uv_fs_event_t* handle) {
   handle->fd = -1;
   free(handle->filename);
   handle->filename = NULL;
+}
+
+
+char** uv_setup_args(int argc, char** argv) {
+  char **new_argv;
+  char **new_env;
+  size_t size;
+  int envc;
+  char *s;
+  int i;
+
+  for (envc = 0; environ[envc]; envc++);
+
+  s = envc ? environ[envc - 1] : argv[argc - 1];
+
+  process_title.str = argv[0];
+  process_title.len = s + strlen(s) + 1 - argv[0];
+
+  size = process_title.len;
+  size += (argc + 1) * sizeof(char **);
+  size += (envc + 1) * sizeof(char **);
+
+  if ((s = (char *) malloc(size)) == NULL) {
+    process_title.str = NULL;
+    process_title.len = 0;
+    return argv;
+  }
+
+  new_argv = (char **) s;
+  new_env = new_argv + argc + 1;
+  s = (char *) (new_env + envc + 1);
+  memcpy(s, process_title.str, process_title.len);
+
+  for (i = 0; i < argc; i++)
+    new_argv[i] = s + (argv[i] - argv[0]);
+  new_argv[argc] = NULL;
+
+  s += environ[0] - argv[0];
+
+  for (i = 0; i < envc; i++)
+    new_env[i] = s + (environ[i] - environ[0]);
+  new_env[envc] = NULL;
+
+  environ = new_env;
+  return new_argv;
+}
+
+
+uv_err_t uv_set_process_title(const char* title) {
+  /* No need to terminate, last char is always '\0'. */
+  if (process_title.len)
+    strncpy(process_title.str, title, process_title.len - 1);
+
+  return uv_ok_;
+}
+
+
+uv_err_t uv_get_process_title(char* buffer, size_t size) {
+  if (process_title.str) {
+    strncpy(buffer, process_title.str, size);
+  } else {
+    if (size > 0) {
+      buffer[0] = '\0';
+    }
+  }
+
+  return uv_ok_;
+}
+
+
+uv_err_t uv_resident_set_memory(size_t* rss) {
+  FILE* f;
+  int itmp;
+  char ctmp;
+  size_t page_size = getpagesize();
+  char *cbuf;
+  int foundExeEnd;
+
+  f = fopen("/proc/self/stat", "r");
+  if (!f) return uv__new_sys_error(errno);
+
+  /* PID */
+  if (fscanf(f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Exec file */
+  cbuf = buf;
+  foundExeEnd = 0;
+  if (fscanf (f, "%c", cbuf++) == 0) goto error;
+  while (1) {
+    if (fscanf(f, "%c", cbuf) == 0) goto error;
+    if (*cbuf == ')') {
+      foundExeEnd = 1;
+    } else if (foundExeEnd && *cbuf == ' ') {
+      *cbuf = 0;
+      break;
+    }
+
+    cbuf++;
+  }
+  /* State */
+  if (fscanf (f, "%c ", &ctmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Parent process */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Process group */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Session id */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* TTY */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* TTY owner process group */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Flags */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Minor faults (no memory page) */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Minor faults, children */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Major faults (memory page faults) */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Major faults, children */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* utime */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* stime */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* utime, children */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* stime, children */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* jiffies remaining in current time slice */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* 'nice' value */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* jiffies until next timeout */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* jiffies until next SIGALRM */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* start time (jiffies since system boot) */
+  if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+
+  /* Virtual memory size */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+
+  /* Resident set size */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  *rss = (size_t) itmp * page_size;
+
+  /* rlim */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Start of text */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* End of text */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  /* Start of stack */
+  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+
+  fclose (f);
+  return uv_ok_;
+
+error:
+  fclose (f);
+  return uv__new_sys_error(errno);
+}
+
+
+uv_err_t uv_uptime(double* uptime) {
+#ifdef CLOCK_MONOTONIC
+  struct timespec now;
+  if (0 == clock_gettime(CLOCK_MONOTONIC, &now)) {
+    *uptime = now.tv_sec;
+    *uptime += (double)now.tv_nsec / 1000000000.0;
+    return uv_ok_;
+  }
+  return uv__new_sys_error(errno);
+#else
+  struct sysinfo info;
+  if (sysinfo(&info) < 0) {
+    return uv__new_sys_error(errno);
+  }
+  *uptime = (double)info.uptime;
+  return uv_ok_;
+#endif
+}
+
+
+uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
+  unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
+               multiplier = ((uint64_t)1000L / ticks), cpuspeed;
+  int numcpus = 0, i = 0;
+  unsigned long long ticks_user, ticks_sys, ticks_idle, ticks_nice, ticks_intr;
+  char line[512], speedPath[256], model[512];
+  FILE *fpStat = fopen("/proc/stat", "r");
+  FILE *fpModel = fopen("/proc/cpuinfo", "r");
+  FILE *fpSpeed;
+  uv_cpu_info_t* cpu_info;
+
+  if (fpModel) {
+    while (fgets(line, 511, fpModel) != NULL) {
+      if (strncmp(line, "model name", 10) == 0) {
+        numcpus++;
+        if (numcpus == 1) {
+          char *p = strchr(line, ':') + 2;
+          strcpy(model, p);
+          model[strlen(model)-1] = 0;
+        }
+      } else if (strncmp(line, "cpu MHz", 7) == 0) {
+        if (numcpus == 1) {
+          sscanf(line, "%*s %*s : %u", &cpuspeed);
+        }
+      }
+    }
+    fclose(fpModel);
+  }
+
+  *cpu_infos = (uv_cpu_info_t*)malloc(numcpus * sizeof(uv_cpu_info_t));
+  if (!(*cpu_infos)) {
+    return uv__new_artificial_error(UV_ENOMEM);
+  }
+
+  *count = numcpus;
+
+  cpu_info = *cpu_infos;
+
+  if (fpStat) {
+    while (fgets(line, 511, fpStat) != NULL) {
+      if (strncmp(line, "cpu ", 4) == 0) {
+        continue;
+      } else if (strncmp(line, "cpu", 3) != 0) {
+        break;
+      }
+
+      sscanf(line, "%*s %llu %llu %llu %llu %*llu %llu",
+             &ticks_user, &ticks_nice, &ticks_sys, &ticks_idle, &ticks_intr);
+      snprintf(speedPath, sizeof(speedPath),
+               "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_max_freq", i);
+
+      fpSpeed = fopen(speedPath, "r");
+
+      if (fpSpeed) {
+        if (fgets(line, 511, fpSpeed) != NULL) {
+          sscanf(line, "%u", &cpuspeed);
+          cpuspeed /= 1000;
+        }
+        fclose(fpSpeed);
+      }
+
+      cpu_info->cpu_times.user = ticks_user * multiplier;
+      cpu_info->cpu_times.nice = ticks_nice * multiplier;
+      cpu_info->cpu_times.sys = ticks_sys * multiplier;
+      cpu_info->cpu_times.idle = ticks_idle * multiplier;
+      cpu_info->cpu_times.irq = ticks_intr * multiplier;
+
+      cpu_info->model = strdup(model);
+      cpu_info->speed = cpuspeed;
+
+      cpu_info++;
+    }
+    fclose(fpStat);
+  }
+
+  return uv_ok_;
+}
+
+
+void uv_free_cpu_info(uv_cpu_info_t* cpu_infos, int count) {
+  int i;
+
+  for (i = 0; i < count; i++) {
+    free(cpu_infos[i].model);
+  }
+
+  free(cpu_infos);
+}
+
+
+uv_err_t uv_interface_addresses(uv_interface_address_t** addresses,
+  int* count) {
+  struct ifaddrs *addrs, *ent;
+  char ip[INET6_ADDRSTRLEN];
+  uv_interface_address_t* address;
+
+  if (getifaddrs(&addrs) != 0) {
+    return uv__new_sys_error(errno);
+  }
+
+  *count = 0;
+
+  /* Count the number of interfaces */
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING) ||
+        (ent->ifa_addr == NULL) ||
+        (ent->ifa_addr->sa_family == PF_PACKET)) {
+      continue;
+    }
+
+    (*count)++;
+  }
+
+  *addresses = (uv_interface_address_t*)
+    malloc(*count * sizeof(uv_interface_address_t));
+  if (!(*addresses)) {
+    return uv__new_artificial_error(UV_ENOMEM);
+  }
+
+  address = *addresses;
+
+  for (ent = addrs; ent != NULL; ent = ent->ifa_next) {
+    bzero(&ip, sizeof (ip));
+    if (!(ent->ifa_flags & IFF_UP && ent->ifa_flags & IFF_RUNNING)) {
+      continue;
+    }
+
+    if (ent->ifa_addr == NULL) {
+      continue;
+    }
+
+    /*
+     * On Linux getifaddrs returns information related to the raw underlying
+     * devices. We're not interested in this information.
+     */
+    if (ent->ifa_addr->sa_family == PF_PACKET) {
+      continue;
+    }
+
+    address->name = strdup(ent->ifa_name);
+
+    if (ent->ifa_addr->sa_family == AF_INET6) {
+      address->address.address6 = *((struct sockaddr_in6 *)ent->ifa_addr);
+    } else {
+      address->address.address4 = *((struct sockaddr_in *)ent->ifa_addr);
+    }
+
+    address->is_internal = ent->ifa_flags & IFF_LOOPBACK ? 1 : 0;
+
+    address++;
+  }
+
+  freeifaddrs(addrs);
+
+  return uv_ok_;
+}
+
+
+void uv_free_interface_addresses(uv_interface_address_t* addresses,
+  int count) {
+  int i;
+
+  for (i = 0; i < count; i++) {
+    free(addresses[i].name);
+  }
+
+  free(addresses);
 }

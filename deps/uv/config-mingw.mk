@@ -24,7 +24,7 @@ CC = $(PREFIX)gcc
 AR = $(PREFIX)ar
 E=.exe
 
-CFLAGS=$(CPPFLAGS) -g --std=gnu89 -D_WIN32_WINNT=0x0501 -Isrc/ares/config_win32
+CFLAGS=$(CPPFLAGS) -g --std=gnu89 -D_WIN32_WINNT=0x0600 -Isrc/ares/config_win32
 LINKFLAGS=-lm
 
 CARES_OBJS += src/ares/windows_port.o

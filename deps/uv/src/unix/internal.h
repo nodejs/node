@@ -142,10 +142,7 @@ enum {
   UV_TCP_KEEPALIVE = 0x100   /* Turn on keep-alive. */
 };
 
-size_t uv__strlcpy(char* dst, const char* src, size_t size);
-
 int uv__close(int fd);
-void uv__req_init(uv_req_t*);
 void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle, uv_handle_type type);
 
 
@@ -156,6 +153,9 @@ int uv__socket(int domain, int type, int protocol);
 /* error */
 uv_err_code uv_translate_sys_error(int sys_errno);
 void uv_fatal_error(const int errorno, const char* syscall);
+
+/* requests */
+void uv__req_init(uv_loop_t* loop, uv_req_t*);
 
 /* stream */
 void uv__stream_init(uv_loop_t* loop, uv_stream_t* stream,

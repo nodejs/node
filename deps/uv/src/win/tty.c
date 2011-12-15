@@ -90,6 +90,8 @@ int uv_tty_init(uv_loop_t* loop, uv_tty_t* tty, uv_file fd, int readable) {
   HANDLE win_handle;
   CONSOLE_SCREEN_BUFFER_INFO info;
 
+  loop->counters.tty_init++;
+
   win_handle = (HANDLE) _get_osfhandle(fd);
   if (win_handle == INVALID_HANDLE_VALUE) {
     uv__set_sys_error(loop, ERROR_INVALID_HANDLE);

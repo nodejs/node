@@ -401,8 +401,7 @@ static int uv__udp_send(uv_udp_send_t* req,
   if (uv__udp_maybe_deferred_bind(handle, addr->sa_family))
     return -1;
 
-  /* Don't use uv__req_init(), it zeroes the data field. */
-  handle->loop->counters.req_init++;
+  uv__req_init(handle->loop, (uv_req_t*)req);
 
   memcpy(&req->addr, addr, addrlen);
   req->addrlen = addrlen;

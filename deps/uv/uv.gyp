@@ -3,6 +3,8 @@
     'conditions': [
       ['OS != "win"', {
         'defines': [
+          '_LARGEFILE_SOURCE',
+          '_FILE_OFFSET_BITS=64',
           '_GNU_SOURCE',
           'EIO_STACKSIZE=262144'
         ],
@@ -155,6 +157,8 @@
           'link_settings': {
             'libraries': [
               '-lws2_32.lib',
+              '-lpsapi.lib',
+              '-liphlpapi.lib'
             ],
           },
         }, { # Not Windows i.e. POSIX
@@ -273,6 +277,7 @@
         'test/runner.h',
         'test/test-get-loadavg.c',
         'test/task.h',
+        'test/test-util.c',
         'test/test-async.c',
         'test/test-error.c',
         'test/test-callback-stack.c',
@@ -297,6 +302,8 @@
         'test/test-ping-pong.c',
         'test/test-pipe-bind-error.c',
         'test/test-pipe-connect-error.c',
+        'test/test-platform-output.c',
+        'test/test-process-title.c',
         'test/test-ref.c',
         'test/test-shutdown-eof.c',
         'test/test-spawn.c',
@@ -312,6 +319,7 @@
         'test/test-tcp-writealot.c',
         'test/test-threadpool.c',
         'test/test-mutexes.c',
+        'test/test-thread.c',
         'test/test-timer-again.c',
         'test/test-timer.c',
         'test/test-tty.c',
@@ -319,6 +327,7 @@
         'test/test-udp-ipv6.c',
         'test/test-udp-send-and-recv.c',
         'test/test-udp-multicast-join.c',
+        'test/test-counters-init.c',
       ],
       'conditions': [
         [ 'OS=="win"', {
@@ -361,6 +370,7 @@
         'test/benchmark-pump.c',
         'test/benchmark-sizes.c',
         'test/benchmark-spawn.c',
+        'test/benchmark-thread.c',
         'test/benchmark-tcp-write-batch.c',
         'test/benchmark-udp-packet-storm.c',
         'test/dns-server.c',

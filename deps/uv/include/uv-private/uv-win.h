@@ -137,10 +137,14 @@ typedef struct uv_buf_t {
 
 typedef int uv_file;
 
+typedef HANDLE uv_thread_t;
+
 typedef CRITICAL_SECTION uv_mutex_t;
 
 typedef union {
-  SRWLOCK srwlock_;
+  /* srwlock_ has type SRWLOCK, but not all toolchains define this type in */
+  /* windows.h. */
+  void* srwlock_;
   struct {
     uv_mutex_t read_mutex_;
     uv_mutex_t write_mutex_;

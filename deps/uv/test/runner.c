@@ -71,7 +71,7 @@ int run_tests(int timeout, int benchmark_output) {
     log_progress(total, passed, failed, "Done.\n");
   }
 
-  return 0;
+  return failed;
 }
 
 
@@ -191,8 +191,10 @@ out:
   }
 
   /* Show error and output from processes if the test failed. */
-  if (status != 0) {
-    LOGF("\n`%s` failed: %s\n", test, errmsg);
+  if (status != 0 || task->show_output) {
+    if (status != 0) {
+      LOGF("\n`%s` failed: %s\n", test, errmsg);
+    }
 
     for (i = 0; i < process_count; i++) {
       switch (process_output_size(&processes[i])) {

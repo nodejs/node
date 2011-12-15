@@ -90,6 +90,8 @@ int uv_fs_event_init(uv_loop_t* loop,
                      int flags) {
   int fd;
 
+  loop->counters.fs_event_init++;
+
   /* We don't support any flags yet. */
   assert(!flags);
 
@@ -129,6 +131,7 @@ int uv_fs_event_init(uv_loop_t* loop,
                      const char* filename,
                      uv_fs_event_cb cb,
                      int flags) {
+  loop->counters.fs_event_init++;
   uv__set_sys_error(loop, ENOSYS);
   return -1;
 }

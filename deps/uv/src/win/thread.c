@@ -101,6 +101,18 @@ void uv_once(uv_once_t* guard, void (*callback)(void)) {
   uv__once_inner(guard, callback);
 }
 
+
+int uv_thread_join(uv_thread_t *tid) {
+  if (WaitForSingleObject(*tid, INFINITE))
+    return -1;
+  else {
+    CloseHandle(*tid);
+    *tid = 0;
+    return 0;
+  }
+}
+
+
 int uv_mutex_init(uv_mutex_t* mutex) {
   InitializeCriticalSection(mutex);
   return 0;

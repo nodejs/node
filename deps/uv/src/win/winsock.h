@@ -23,6 +23,7 @@
 #define UV_WIN_WINSOCK_H_
 
 #include <winsock2.h>
+#include <iptypes.h>
 #include <mswsock.h>
 #include <ws2tcpip.h>
 #include <windows.h>
@@ -106,5 +107,28 @@ typedef struct _AFD_RECV_INFO {
 
 #define IOCTL_AFD_RECEIVE_DATAGRAM \
     _AFD_CONTROL_CODE(AFD_RECEIVE_DATAGRAM, METHOD_NEITHER)
+
+#if defined(__MINGW32__) && !defined(__MINGW64__)
+
+typedef struct _IP_ADAPTER_UNICAST_ADDRESS_XP {
+  /* FIXME: __C89_NAMELESS was removed */
+  /* __C89_NAMELESS */ union {
+    ULONGLONG Alignment;
+    /* __C89_NAMELESS */ struct {
+      ULONG Length;
+      DWORD Flags;
+    };
+  };
+  struct _IP_ADAPTER_UNICAST_ADDRESS_XP *Next;
+  SOCKET_ADDRESS Address;
+  IP_PREFIX_ORIGIN PrefixOrigin;
+  IP_SUFFIX_ORIGIN SuffixOrigin;
+  IP_DAD_STATE DadState;
+  ULONG ValidLifetime;
+  ULONG PreferredLifetime;
+  ULONG LeaseLifetime;
+} IP_ADAPTER_UNICAST_ADDRESS_XP,*PIP_ADAPTER_UNICAST_ADDRESS_XP;
+
+#endif
 
 #endif /* UV_WIN_WINSOCK_H_ */

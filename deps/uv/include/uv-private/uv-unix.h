@@ -44,6 +44,7 @@ typedef struct {
 
 typedef int uv_file;
 
+typedef pthread_t uv_thread_t;
 typedef pthread_mutex_t uv_mutex_t;
 typedef pthread_rwlock_t uv_rwlock_t;
 

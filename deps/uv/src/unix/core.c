@@ -202,6 +202,12 @@ int uv_run(uv_loop_t* loop) {
 }
 
 
+int uv_run_once(uv_loop_t* loop) {
+  ev_run(loop->ev, EVRUN_NOWAIT);
+  return 0;
+}
+
+
 void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle,
     uv_handle_type type) {
   loop->counters.handle_init++;
@@ -317,8 +323,8 @@ int64_t uv_now(uv_loop_t* loop) {
 }
 
 
-void uv__req_init(uv_req_t* req) {
-  /* loop->counters.req_init++; */
+void uv__req_init(uv_loop_t* loop, uv_req_t* req) {
+  loop->counters.req_init++;
   req->type = UV_UNKNOWN_REQ;
 }
 
@@ -658,7 +664,7 @@ int uv_getaddrinfo(uv_loop_t* loop,
     return -1;
   }
 
-  uv__req_init((uv_req_t*)handle);
+  uv__req_init(loop, (uv_req_t*)handle);
   handle->type = UV_GETADDRINFO;
   handle->loop = loop;
   handle->cb = cb;

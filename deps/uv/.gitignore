@@ -7,6 +7,8 @@
 *.orig
 *.sdf
 *.suo
+core
+vgcore.*
 /out/
 /build/gyp
 

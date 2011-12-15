@@ -99,14 +99,34 @@ static void fs_event_cb_file(uv_fs_event_t* handle, const char* filename,
   uv_close((uv_handle_t*)handle, close_cb);
 }
 
+static void timber_cb_close_handle(uv_timer_t* timer, int status) {
+  uv_handle_t* handle;
+
+  ASSERT(timer != NULL);
+  ASSERT(status == 0);
+  handle = timer->data;
+
+  uv_close((uv_handle_t*)timer, NULL);
+  uv_close((uv_handle_t*)handle, close_cb);
+}
+
 static void fs_event_cb_file_current_dir(uv_fs_event_t* handle,
   const char* filename, int events, int status) {
+  ASSERT(fs_event_cb_called == 0);
   ++fs_event_cb_called;
+
   ASSERT(handle == &fs_event);
   ASSERT(status == 0);
   ASSERT(events == UV_CHANGE);
   ASSERT(filename == NULL || strcmp(filename, "watch_file") == 0);
-  uv_close((uv_handle_t*)handle, close_cb);
+
+  /* Regression test for SunOS: touch should generate just one event. */
+  {
+    static uv_timer_t timer;
+    uv_timer_init(handle->loop, &timer);
+    timer.data = handle;
+    uv_timer_start(&timer, timber_cb_close_handle, 250, 0);
+  }
 }
 
 static void timer_cb_dir(uv_timer_t* handle, int status) {

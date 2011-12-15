@@ -231,6 +231,37 @@ TEST_IMPL(spawn_and_kill) {
 }
 
 
+TEST_IMPL(spawn_and_kill_with_std) {
+  int r;
+  uv_pipe_t out;
+  uv_pipe_t in;
+
+  init_process_options("spawn_helper4", kill_cb);
+
+  uv_pipe_init(uv_default_loop(), &out, 0);
+  uv_pipe_init(uv_default_loop(), &in, 0);
+  options.stdout_stream = &out;
+  options.stdin_stream = &in;
+
+  r = uv_spawn(uv_default_loop(), &process, options);
+  ASSERT(r == 0);
+
+  r = uv_timer_init(uv_default_loop(), &timer);
+  ASSERT(r == 0);
+
+  r = uv_timer_start(&timer, timer_cb, 500, 0);
+  ASSERT(r == 0);
+
+  r = uv_run(uv_default_loop());
+  ASSERT(r == 0);
+
+  ASSERT(exit_cb_called == 1);
+  ASSERT(close_cb_called == 2); /* Once for process and once for timer. */
+
+  return 0;
+}
+
+
 TEST_IMPL(spawn_and_ping) {
   uv_write_t write_req;
   uv_pipe_t in, out;

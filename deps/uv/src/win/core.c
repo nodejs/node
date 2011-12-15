@@ -192,9 +192,8 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
   }
 }
 
-
-#define UV_LOOP(loop, poll)                                                   \
-  while ((loop)->refs > 0) {                                                  \
+#define UV_LOOP_ONCE(loop, poll)                                              \
+  do {                                                                        \
     uv_update_time((loop));                                                   \
     uv_process_timers((loop));                                                \
                                                                               \
@@ -219,7 +218,22 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
                  (loop)->refs > 0);                                           \
                                                                               \
     uv_check_invoke((loop));                                                  \
+  } while (0);
+
+#define UV_LOOP(loop, poll)                                                   \
+  while ((loop)->refs > 0) {                                                  \
+    UV_LOOP_ONCE(loop, poll)                                                  \
   }
+
+
+int uv_run_once(uv_loop_t* loop) {
+  if (pGetQueuedCompletionStatusEx) {
+    UV_LOOP_ONCE(loop, uv_poll_ex);
+  } else {
+    UV_LOOP_ONCE(loop, uv_poll);
+  }
+  return 0;
+}
 
 
 int uv_run(uv_loop_t* loop) {
