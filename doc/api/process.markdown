@@ -145,6 +145,11 @@ Example:
     /usr/local/bin/node
 
 
+### process.abort()
+
+This causes node to emit an abort. This will cause node to exit and
+generate a core file.
+
 ### process.chdir(directory)
 
 Changes the current working directory of the process or throws an exception if that fails.

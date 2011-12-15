@@ -1199,6 +1199,11 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
 }
 
 
+static Handle<Value> Abort(const Arguments& args) {
+  abort();
+}
+
+
 static Handle<Value> Chdir(const Arguments& args) {
   HandleScope scope;
 
@@ -2059,6 +2064,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   // define various internal methods
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
   NODE_SET_METHOD(process, "reallyExit", Exit);
+  NODE_SET_METHOD(process, "abort", Abort);
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
 
