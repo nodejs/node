@@ -56,5 +56,4 @@ if __name__ == '__main__':
   args.append('-Dcomponent=static_library')
   args.append('-Dlibrary=static_library')
   gyp_args = list(args)
-  print gyp_args
   run_gyp(gyp_args)
