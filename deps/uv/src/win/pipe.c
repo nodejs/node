@@ -1047,7 +1047,7 @@ static int uv_pipe_write_impl(uv_loop_t* loop, uv_write_t* req,
         ipc_header_req = (uv_write_t*)&handle->ipc_header_write_req;
       } else {
         ipc_header_req = (uv_write_t*)malloc(sizeof(uv_write_t));
-        if (!handle->accept_reqs) {
+        if (!ipc_header_req) {
           uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
         }
       }

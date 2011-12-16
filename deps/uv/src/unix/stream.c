@@ -662,7 +662,7 @@ int uv_shutdown(uv_shutdown_t* req, uv_stream_t* stream, uv_shutdown_cb cb) {
   }
 
   /* Initialize request */
-  uv__req_init((uv_req_t*)req);
+  uv__req_init(stream->loop, (uv_req_t*)req);
   req->handle = stream;
   req->cb = cb;
 
@@ -772,7 +772,7 @@ int uv__connect(uv_connect_t* req, uv_stream_t* stream, struct sockaddr* addr,
     }
   }
 
-  uv__req_init((uv_req_t*)req);
+  uv__req_init(stream->loop, (uv_req_t*)req);
   req->cb = cb;
   req->handle = stream;
   req->type = UV_CONNECT;
@@ -847,7 +847,7 @@ int uv_write2(uv_write_t* req, uv_stream_t* stream, uv_buf_t bufs[], int bufcnt,
   empty_queue = (stream->write_queue_size == 0);
 
   /* Initialize the req */
-  uv__req_init((uv_req_t*) req);
+  uv__req_init(stream->loop, (uv_req_t*)req);
   req->cb = cb;
   req->handle = stream;
   req->error = 0;

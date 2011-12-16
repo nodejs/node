@@ -319,6 +319,7 @@
         'test/test-udp-ipv6.c',
         'test/test-udp-send-and-recv.c',
         'test/test-udp-multicast-join.c',
+        'test/test-counters-init.c',
       ],
       'conditions': [
         [ 'OS=="win"', {

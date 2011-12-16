@@ -71,7 +71,7 @@ int run_tests(int timeout, int benchmark_output) {
     log_progress(total, passed, failed, "Done.\n");
   }
 
-  return 0;
+  return failed;
 }
 
 

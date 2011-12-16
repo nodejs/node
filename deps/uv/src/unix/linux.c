@@ -27,13 +27,97 @@
 #include <assert.h>
 #include <errno.h>
 
-#include <sys/inotify.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <time.h>
 
 #undef NANOSEC
 #define NANOSEC 1000000000
+
+#undef HAVE_INOTIFY_INIT
+#undef HAVE_INOTIFY_INIT1
+#undef HAVE_INOTIFY_ADD_WATCH
+#undef HAVE_INOTIFY_RM_WATCH
+
+#if __NR_inotify_init
+# define HAVE_INOTIFY_INIT 1
+#endif
+#if __NR_inotify_init1
+# define HAVE_INOTIFY_INIT1 1
+#endif
+#if __NR_inotify_add_watch
+# define HAVE_INOTIFY_ADD_WATCH 1
+#endif
+#if __NR_inotify_rm_watch
+# define HAVE_INOTIFY_RM_WATCH 1
+#endif
+
+#if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
+# undef IN_ACCESS
+# undef IN_MODIFY
+# undef IN_ATTRIB
+# undef IN_CLOSE_WRITE
+# undef IN_CLOSE_NOWRITE
+# undef IN_OPEN
+# undef IN_MOVED_FROM
+# undef IN_MOVED_TO
+# undef IN_CREATE
+# undef IN_DELETE
+# undef IN_DELETE_SELF
+# undef IN_MOVE_SELF
+# define IN_ACCESS         0x001
+# define IN_MODIFY         0x002
+# define IN_ATTRIB         0x004
+# define IN_CLOSE_WRITE    0x008
+# define IN_CLOSE_NOWRITE  0x010
+# define IN_OPEN           0x020
+# define IN_MOVED_FROM     0x040
+# define IN_MOVED_TO       0x080
+# define IN_CREATE         0x100
+# define IN_DELETE         0x200
+# define IN_DELETE_SELF    0x400
+# define IN_MOVE_SELF      0x800
+struct inotify_event {
+  int32_t wd;
+  uint32_t mask;
+  uint32_t cookie;
+  uint32_t len;
+  /* char name[0]; */
+};
+#endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
+
+#undef IN_CLOEXEC
+#undef IN_NONBLOCK
+
+#if HAVE_INOTIFY_INIT1
+# define IN_CLOEXEC O_CLOEXEC
+# define IN_NONBLOCK O_NONBLOCK
+#endif /* HAVE_INOTIFY_INIT1 */
+
+#if HAVE_INOTIFY_INIT
+inline static int inotify_init(void) {
+  return syscall(__NR_inotify_init);
+}
+#endif /* HAVE_INOTIFY_INIT */
+
+#if HAVE_INOTIFY_INIT1
+inline static int inotify_init1(int flags) {
+  return syscall(__NR_inotify_init1, flags);
+}
+#endif /* HAVE_INOTIFY_INIT1 */
+
+#if HAVE_INOTIFY_ADD_WATCH
+inline static int inotify_add_watch(int fd, const char* path, uint32_t mask) {
+  return syscall(__NR_inotify_add_watch, fd, path, mask);
+}
+#endif /* HAVE_INOTIFY_ADD_WATCH */
+
+#if HAVE_INOTIFY_RM_WATCH
+inline static int inotify_rm_watch(int fd, uint32_t wd) {
+  return syscall(__NR_inotify_rm_watch, fd, wd);
+}
+#endif /* HAVE_INOTIFY_RM_WATCH */
 
 
 /* Don't look aghast, this is exactly how glibc's basename() works. */
@@ -83,8 +167,10 @@ uint64_t uv_get_total_memory(void) {
   return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
 }
 
+#if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
+
 static int new_inotify_fd(void) {
-#if defined(IN_NONBLOCK) && defined(IN_CLOEXEC)
+#if HAVE_INOTIFY_INIT1
   return inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
 #else
   int fd;
@@ -141,7 +227,7 @@ static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
        * for modifications. Repurpose the filename for API compatibility.
        * I'm not convinced this is a good thing, maybe it should go.
        */
-      filename = e->len ? e->name : basename_r(handle->filename);
+      filename = e->len ? (const char*) (e + 1) : basename_r(handle->filename);
 
       handle->cb(handle, filename, events, 0);
 
@@ -160,6 +246,8 @@ int uv_fs_event_init(uv_loop_t* loop,
                      int flags) {
   int events;
   int fd;
+
+  loop->counters.fs_event_init++;
 
   /* We don't support any flags yet. */
   assert(!flags);
@@ -207,3 +295,23 @@ void uv__fs_event_destroy(uv_fs_event_t* handle) {
   free(handle->filename);
   handle->filename = NULL;
 }
+
+#else /* !HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
+
+int uv_fs_event_init(uv_loop_t* loop,
+                     uv_fs_event_t* handle,
+                     const char* filename,
+                     uv_fs_event_cb cb,
+                     int flags) {
+  loop->counters.fs_event_init++;
+  uv__set_sys_error(loop, ENOSYS);
+  return -1;
+}
+
+
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  assert(0 && "unreachable");
+  abort();
+}
+
+#endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */

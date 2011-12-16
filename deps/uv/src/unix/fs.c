@@ -66,7 +66,7 @@ static void uv_fs_req_init(uv_loop_t* loop, uv_fs_t* req, uv_fs_type fs_type,
   /* Make sure the thread pool is initialized. */
   uv_eio_init(loop);
 
-  uv__req_init((uv_req_t*) req);
+  uv__req_init(loop, (uv_req_t*)req);
   req->type = UV_FS;
   req->loop = loop;
   req->fs_type = fs_type;
@@ -685,7 +685,7 @@ int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb,
 
   uv_eio_init(loop);
 
-  uv__req_init((uv_req_t*) req);
+  uv__req_init(loop, (uv_req_t*)req);
   uv_ref(loop);
   req->loop = loop;
   req->data = data;
