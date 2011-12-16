@@ -1201,6 +1201,7 @@ Local<Value> ExecuteString(Handle<String> source, Handle<Value> filename) {
 
 static Handle<Value> Abort(const Arguments& args) {
   abort();
+  return Undefined();
 }
 
 
