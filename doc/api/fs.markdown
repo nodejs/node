@@ -170,12 +170,14 @@ the completion callback.
 
 Synchronous link(2).
 
-### fs.symlink(linkdata, path, [callback])
+### fs.symlink(linkdata, path, [type], [callback])
 
 Asynchronous symlink(2). No arguments other than a possible exception are given
 to the completion callback.
+`type` argument can be either `'dir'` or `'file'` (default is `'file'`).  It is only 
+used on Windows (ignored on other platforms).
 
-### fs.symlinkSync(linkdata, path)
+### fs.symlinkSync(linkdata, path, [type])
 
 Synchronous symlink(2).
 
