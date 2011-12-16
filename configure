@@ -54,6 +54,11 @@ parser.add_option("--shared-v8-libname",
     dest="shared_v8_libname",
     help="Alternative lib name to link to (default: 'v8')")
 
+parser.add_option("--openssl-use-sys",
+    action="store",
+    dest="openssl_use_sys",
+    help="Use the system OpenSSL instead of one included with Node")
+
 parser.add_option("--openssl-includes",
     action="store",
     dest="openssl_includes",
@@ -201,21 +206,24 @@ def configure_openssl(o):
   if options.no_ssl2:
     o['defines'] += ['OPENSSL_NO_SSL2=1']
 
-  out = pkg_config('openssl')
-  (libs, cflags) = out if out else ('', '')
-
-  if options.openssl_libpath:
-    o['libraries'] += ['-L%s' % options.openssl_libpath, '-lssl', '-lcrypto']
+  if not options.openssl_use_sys:
+    o['variables']['node_use_system_openssl'] = b(False)
   else:
-    o['libraries'] += libs.split()
+    out = pkg_config('openssl')
+    (libs, cflags) = out if out else ('', '')
 
-  if options.openssl_includes:
-    o['include_dirs'] += [options.openssl_includes]
-  else:
-    o['cflags'] += cflags.split()
+    if options.openssl_libpath:
+      o['libraries'] += ['-L%s' % options.openssl_libpath, '-lssl', '-lcrypto']
+    else:
+      o['libraries'] += libs.split()
 
-  o['variables']['node_use_system_openssl'] = b(
-    libs or cflags or options.openssl_libpath or options.openssl_includes)
+    if options.openssl_includes:
+      o['include_dirs'] += [options.openssl_includes]
+    else:
+      o['cflags'] += cflags.split()
+
+    o['variables']['node_use_system_openssl'] = b(
+      libs or cflags or options.openssl_libpath or options.openssl_includes)
 
 
 print "configure options:", options
