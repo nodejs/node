@@ -30,14 +30,98 @@
 
 #include <ifaddrs.h>
 #include <net/if.h>
-#include <sys/inotify.h>
 #include <sys/param.h>
 #include <sys/sysinfo.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <time.h>
 
 #undef NANOSEC
 #define NANOSEC 1000000000
+
+#undef HAVE_INOTIFY_INIT
+#undef HAVE_INOTIFY_INIT1
+#undef HAVE_INOTIFY_ADD_WATCH
+#undef HAVE_INOTIFY_RM_WATCH
+
+#if __NR_inotify_init
+# define HAVE_INOTIFY_INIT 1
+#endif
+#if __NR_inotify_init1
+# define HAVE_INOTIFY_INIT1 1
+#endif
+#if __NR_inotify_add_watch
+# define HAVE_INOTIFY_ADD_WATCH 1
+#endif
+#if __NR_inotify_rm_watch
+# define HAVE_INOTIFY_RM_WATCH 1
+#endif
+
+#if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
+# undef IN_ACCESS
+# undef IN_MODIFY
+# undef IN_ATTRIB
+# undef IN_CLOSE_WRITE
+# undef IN_CLOSE_NOWRITE
+# undef IN_OPEN
+# undef IN_MOVED_FROM
+# undef IN_MOVED_TO
+# undef IN_CREATE
+# undef IN_DELETE
+# undef IN_DELETE_SELF
+# undef IN_MOVE_SELF
+# define IN_ACCESS         0x001
+# define IN_MODIFY         0x002
+# define IN_ATTRIB         0x004
+# define IN_CLOSE_WRITE    0x008
+# define IN_CLOSE_NOWRITE  0x010
+# define IN_OPEN           0x020
+# define IN_MOVED_FROM     0x040
+# define IN_MOVED_TO       0x080
+# define IN_CREATE         0x100
+# define IN_DELETE         0x200
+# define IN_DELETE_SELF    0x400
+# define IN_MOVE_SELF      0x800
+struct inotify_event {
+  int32_t wd;
+  uint32_t mask;
+  uint32_t cookie;
+  uint32_t len;
+  /* char name[0]; */
+};
+#endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
+
+#undef IN_CLOEXEC
+#undef IN_NONBLOCK
+
+#if HAVE_INOTIFY_INIT1
+# define IN_CLOEXEC O_CLOEXEC
+# define IN_NONBLOCK O_NONBLOCK
+#endif /* HAVE_INOTIFY_INIT1 */
+
+#if HAVE_INOTIFY_INIT
+inline static int inotify_init(void) {
+  return syscall(__NR_inotify_init);
+}
+#endif /* HAVE_INOTIFY_INIT */
+
+#if HAVE_INOTIFY_INIT1
+inline static int inotify_init1(int flags) {
+  return syscall(__NR_inotify_init1, flags);
+}
+#endif /* HAVE_INOTIFY_INIT1 */
+
+#if HAVE_INOTIFY_ADD_WATCH
+inline static int inotify_add_watch(int fd, const char* path, uint32_t mask) {
+  return syscall(__NR_inotify_add_watch, fd, path, mask);
+}
+#endif /* HAVE_INOTIFY_ADD_WATCH */
+
+#if HAVE_INOTIFY_RM_WATCH
+inline static int inotify_rm_watch(int fd, uint32_t wd) {
+  return syscall(__NR_inotify_rm_watch, fd, wd);
+}
+#endif /* HAVE_INOTIFY_RM_WATCH */
 
 
 static char buf[MAXPATHLEN + 1];
@@ -65,6 +149,7 @@ uint64_t uv_hrtime() {
   return (ts.tv_sec * NANOSEC + ts.tv_nsec);
 }
 
+
 void uv_loadavg(double avg[3]) {
   struct sysinfo info;
 
@@ -87,139 +172,14 @@ int uv_exepath(char* buffer, size_t* size) {
   return 0;
 }
 
+
 uint64_t uv_get_free_memory(void) {
   return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_AVPHYS_PAGES);
 }
 
+
 uint64_t uv_get_total_memory(void) {
   return (uint64_t) sysconf(_SC_PAGESIZE) * sysconf(_SC_PHYS_PAGES);
-}
-
-static int new_inotify_fd(void) {
-#if defined(IN_NONBLOCK) && defined(IN_CLOEXEC)
-  return inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
-#else
-  int fd;
-
-  if ((fd = inotify_init()) == -1)
-    return -1;
-
-  if (uv__cloexec(fd, 1) || uv__nonblock(fd, 1)) {
-    SAVE_ERRNO(uv__close(fd));
-    fd = -1;
-  }
-
-  return fd;
-#endif
-}
-
-
-static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
-  struct inotify_event* e;
-  uv_fs_event_t* handle;
-  const char* filename;
-  ssize_t size;
-  int events;
-  char *p;
-  /* needs to be large enough for sizeof(inotify_event) + strlen(filename) */
-  char buf[4096];
-
-  handle = container_of(w, uv_fs_event_t, read_watcher);
-
-  do {
-    do {
-      size = read(handle->fd, buf, sizeof buf);
-    }
-    while (size == -1 && errno == EINTR);
-
-    if (size == -1) {
-      assert(errno == EAGAIN || errno == EWOULDBLOCK);
-      break;
-    }
-
-    assert(size > 0); /* pre-2.6.21 thing, size=0 == read buffer too small */
-
-    /* Now we have one or more inotify_event structs. */
-    for (p = buf; p < buf + size; p += sizeof(*e) + e->len) {
-      e = (void*)p;
-
-      events = 0;
-      if (e->mask & (IN_ATTRIB|IN_MODIFY))
-        events |= UV_CHANGE;
-      if (e->mask & ~(IN_ATTRIB|IN_MODIFY))
-        events |= UV_RENAME;
-
-      /* inotify does not return the filename when monitoring a single file
-       * for modifications. Repurpose the filename for API compatibility.
-       * I'm not convinced this is a good thing, maybe it should go.
-       */
-      filename = e->len ? e->name : basename_r(handle->filename);
-
-      handle->cb(handle, filename, events, 0);
-
-      if (handle->fd == -1)
-        break;
-    }
-  }
-  while (handle->fd != -1); /* handle might've been closed by callback */
-}
-
-
-int uv_fs_event_init(uv_loop_t* loop,
-                     uv_fs_event_t* handle,
-                     const char* filename,
-                     uv_fs_event_cb cb,
-                     int flags) {
-  int events;
-  int fd;
-
-  loop->counters.fs_event_init++;
-
-  /* We don't support any flags yet. */
-  assert(!flags);
-
-  /*
-   * TODO share a single inotify fd across the event loop?
-   * We'll run into fs.inotify.max_user_instances if we
-   * keep creating new inotify fds.
-   */
-  if ((fd = new_inotify_fd()) == -1) {
-    uv__set_sys_error(loop, errno);
-    return -1;
-  }
-
-  events = IN_ATTRIB
-         | IN_CREATE
-         | IN_MODIFY
-         | IN_DELETE
-         | IN_DELETE_SELF
-         | IN_MOVED_FROM
-         | IN_MOVED_TO;
-
-  if (inotify_add_watch(fd, filename, events) == -1) {
-    uv__set_sys_error(loop, errno);
-    uv__close(fd);
-    return -1;
-  }
-
-  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
-  handle->filename = strdup(filename); /* this should go! */
-  handle->cb = cb;
-  handle->fd = fd;
-
-  ev_io_init(&handle->read_watcher, uv__inotify_read, fd, EV_READ);
-  ev_io_start(loop->ev, &handle->read_watcher);
-
-  return 0;
-}
-
-
-void uv__fs_event_destroy(uv_fs_event_t* handle) {
-  ev_io_stop(handle->loop->ev, &handle->read_watcher);
-  uv__close(handle->fd);
-  handle->fd = -1;
-  free(handle->filename);
-  handle->filename = NULL;
 }
 
 
@@ -294,6 +254,7 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   FILE* f;
   int itmp;
   char ctmp;
+  unsigned int utmp;
   size_t page_size = getpagesize();
   char *cbuf;
   int foundExeEnd;
@@ -331,15 +292,15 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   /* TTY owner process group */
   if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
   /* Flags */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* Minor faults (no memory page) */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* Minor faults, children */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* Major faults (memory page faults) */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* Major faults, children */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* utime */
   if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
   /* stime */
@@ -353,27 +314,27 @@ uv_err_t uv_resident_set_memory(size_t* rss) {
   /* 'nice' value */
   if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
   /* jiffies until next timeout */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* jiffies until next SIGALRM */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* start time (jiffies since system boot) */
   if (fscanf (f, "%d ", &itmp) == 0) goto error; /* coverity[secure_coding] */
 
   /* Virtual memory size */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
 
   /* Resident set size */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
-  *rss = (size_t) itmp * page_size;
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
+  *rss = (size_t) utmp * page_size;
 
   /* rlim */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* Start of text */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* End of text */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
   /* Start of stack */
-  if (fscanf (f, "%u ", &itmp) == 0) goto error; /* coverity[secure_coding] */
+  if (fscanf (f, "%u ", &utmp) == 0) goto error; /* coverity[secure_coding] */
 
   fclose (f);
   return uv_ok_;
@@ -408,7 +369,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
                multiplier = ((uint64_t)1000L / ticks), cpuspeed;
   int numcpus = 0, i = 0;
-  unsigned long long ticks_user, ticks_sys, ticks_idle, ticks_nice, ticks_intr;
+  unsigned long ticks_user, ticks_sys, ticks_idle, ticks_nice, ticks_intr;
   char line[512], speedPath[256], model[512];
   FILE *fpStat = fopen("/proc/stat", "r");
   FILE *fpModel = fopen("/proc/cpuinfo", "r");
@@ -450,7 +411,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
         break;
       }
 
-      sscanf(line, "%*s %llu %llu %llu %llu %*llu %llu",
+      sscanf(line, "%*s %lu %lu %lu %lu %*s %lu",
              &ticks_user, &ticks_nice, &ticks_sys, &ticks_idle, &ticks_intr);
       snprintf(speedPath, sizeof(speedPath),
                "/sys/devices/system/cpu/cpu%u/cpufreq/cpuinfo_max_freq", i);
@@ -572,3 +533,152 @@ void uv_free_interface_addresses(uv_interface_address_t* addresses,
 
   free(addresses);
 }
+
+#if HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1
+
+static int new_inotify_fd(void) {
+#if HAVE_INOTIFY_INIT1
+  return inotify_init1(IN_NONBLOCK | IN_CLOEXEC);
+#else
+  int fd;
+
+  if ((fd = inotify_init()) == -1)
+    return -1;
+
+  if (uv__cloexec(fd, 1) || uv__nonblock(fd, 1)) {
+    SAVE_ERRNO(uv__close(fd));
+    fd = -1;
+  }
+
+  return fd;
+#endif
+}
+
+
+static void uv__inotify_read(EV_P_ ev_io* w, int revents) {
+  struct inotify_event* e;
+  uv_fs_event_t* handle;
+  const char* filename;
+  ssize_t size;
+  int events;
+  char *p;
+  /* needs to be large enough for sizeof(inotify_event) + strlen(filename) */
+  char buf[4096];
+
+  handle = container_of(w, uv_fs_event_t, read_watcher);
+
+  do {
+    do {
+      size = read(handle->fd, buf, sizeof buf);
+    }
+    while (size == -1 && errno == EINTR);
+
+    if (size == -1) {
+      assert(errno == EAGAIN || errno == EWOULDBLOCK);
+      break;
+    }
+
+    assert(size > 0); /* pre-2.6.21 thing, size=0 == read buffer too small */
+
+    /* Now we have one or more inotify_event structs. */
+    for (p = buf; p < buf + size; p += sizeof(*e) + e->len) {
+      e = (void*)p;
+
+      events = 0;
+      if (e->mask & (IN_ATTRIB|IN_MODIFY))
+        events |= UV_CHANGE;
+      if (e->mask & ~(IN_ATTRIB|IN_MODIFY))
+        events |= UV_RENAME;
+
+      /* inotify does not return the filename when monitoring a single file
+       * for modifications. Repurpose the filename for API compatibility.
+       * I'm not convinced this is a good thing, maybe it should go.
+       */
+      filename = e->len ? (const char*) (e + 1) : basename_r(handle->filename);
+
+      handle->cb(handle, filename, events, 0);
+
+      if (handle->fd == -1)
+        break;
+    }
+  }
+  while (handle->fd != -1); /* handle might've been closed by callback */
+}
+
+
+int uv_fs_event_init(uv_loop_t* loop,
+                     uv_fs_event_t* handle,
+                     const char* filename,
+                     uv_fs_event_cb cb,
+                     int flags) {
+  int events;
+  int fd;
+
+  loop->counters.fs_event_init++;
+
+  /* We don't support any flags yet. */
+  assert(!flags);
+
+  /*
+   * TODO share a single inotify fd across the event loop?
+   * We'll run into fs.inotify.max_user_instances if we
+   * keep creating new inotify fds.
+   */
+  if ((fd = new_inotify_fd()) == -1) {
+    uv__set_sys_error(loop, errno);
+    return -1;
+  }
+
+  events = IN_ATTRIB
+         | IN_CREATE
+         | IN_MODIFY
+         | IN_DELETE
+         | IN_DELETE_SELF
+         | IN_MOVED_FROM
+         | IN_MOVED_TO;
+
+  if (inotify_add_watch(fd, filename, events) == -1) {
+    uv__set_sys_error(loop, errno);
+    uv__close(fd);
+    return -1;
+  }
+
+  uv__handle_init(loop, (uv_handle_t*)handle, UV_FS_EVENT);
+  handle->filename = strdup(filename); /* this should go! */
+  handle->cb = cb;
+  handle->fd = fd;
+
+  ev_io_init(&handle->read_watcher, uv__inotify_read, fd, EV_READ);
+  ev_io_start(loop->ev, &handle->read_watcher);
+
+  return 0;
+}
+
+
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  ev_io_stop(handle->loop->ev, &handle->read_watcher);
+  uv__close(handle->fd);
+  handle->fd = -1;
+  free(handle->filename);
+  handle->filename = NULL;
+}
+
+#else /* !HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
+
+int uv_fs_event_init(uv_loop_t* loop,
+                     uv_fs_event_t* handle,
+                     const char* filename,
+                     uv_fs_event_cb cb,
+                     int flags) {
+  loop->counters.fs_event_init++;
+  uv__set_sys_error(loop, ENOSYS);
+  return -1;
+}
+
+
+void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  assert(0 && "unreachable");
+  abort();
+}
+
+#endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */
