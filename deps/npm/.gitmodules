@@ -36,19 +36,25 @@
 	url = https://github.com/mikeal/request.git
 [submodule "node_modules/tar"]
 	path = node_modules/tar
-	url = git://github.com/isaacs/node-tar.git
+	url = https://github.com/isaacs/node-tar.git
 [submodule "node_modules/fstream"]
 	path = node_modules/fstream
-	url = git://github.com/isaacs/fstream.git
+	url = https://github.com/isaacs/fstream.git
 [submodule "node_modules/inherits"]
 	path = node_modules/inherits
-	url = git://github.com/isaacs/inherits.git
+	url = https://github.com/isaacs/inherits.git
 [submodule "node_modules/block-stream"]
 	path = node_modules/block-stream
-	url = git://github.com/isaacs/block-stream.git
+	url = https://github.com/isaacs/block-stream.git
 [submodule "node_modules/mkdirp"]
 	path = node_modules/mkdirp
-	url = git://github.com/isaacs/node-mkdirp.git
+	url = https://github.com/isaacs/node-mkdirp.git
 [submodule "node_modules/fast-list"]
 	path = node_modules/fast-list
-	url = git://github.com/isaacs/fast-list.git
+	url = https://github.com/isaacs/fast-list.git
+[submodule "node_modules/read"]
+	path = node_modules/read
+	url = https://github.com/isaacs/read.git
+[submodule "node_modules/lru-cache"]
+	path = node_modules/lru-cache
+	url = https://github.com/isaacs/node-lru-cache.git

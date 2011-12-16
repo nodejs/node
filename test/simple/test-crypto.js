@@ -385,6 +385,14 @@ var secret3 = dh3.computeSecret(key2, 'hex', 'base64');
 
 assert.equal(secret1, secret3);
 
+// https://github.com/joyent/node/issues/2338
+assert.throws(function() {
+  var p = 'FFFFFFFFFFFFFFFFC90FDAA22168C234C4C6628B80DC1CD129024E088A67CC74' +
+          '020BBEA63B139B22514A08798E3404DDEF9519B3CD3A431B302B0A6DF25F1437' +
+          '4FE1356D6D51C245E485B576625E7EC6F44C42E9A637ED6B0BFF5CB6F406B7ED' +
+          'EE386BFB5A899FA5AE9F24117C4B1FE649286651ECE65381FFFFFFFFFFFFFFFF';
+  crypto.createDiffieHellman(p, 'hex');
+});
 
 // Test RSA key signing/verification
 var rsaSign = crypto.createSign('RSA-SHA1');
@@ -473,4 +481,9 @@ crypto.pbkdf2('passwordPASSWORDpassword', 'saltSALTsaltSALTsaltSALTsaltSALTsalt'
 
 crypto.pbkdf2('pass\0word', 'sa\0lt', 4096, 16, function(err, result) {
   assert.equal(result, '\x56\xfa\x6a\xa7\x55\x48\x09\x9d\xcc\x37\xd7\xf0\x34\x25\xe0\xc3', 'pbkdf1 test vector 6');
+});
+
+// Error path should not leak memory (check with valgrind).
+assert.throws(function() {
+  crypto.pbkdf2('password', 'salt', 1, 20, null);
 });

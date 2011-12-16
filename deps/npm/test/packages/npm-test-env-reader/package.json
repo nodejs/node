@@ -1,0 +1,14 @@
+{ "name":"npm-test-env-reader"
+, "version" : "1.2.3"
+, "scripts" :
+  { "install"       : "./test.sh"
+  , "preinstall"    : "./test.sh"
+  , "preuninstall"  : "./test.sh"
+  , "postuninstall" : "./test.sh"
+  , "test"          : "./test.sh"
+  , "stop"          : "./test.sh"
+  , "start"         : "./test.sh"
+  , "restart"       : "./test.sh"
+  , "foo"           : "./test.sh"
+  }
+}

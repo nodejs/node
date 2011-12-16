@@ -16,31 +16,15 @@
 
 <p>Search the registry for packages matching the search terms.</p>
 
-<h2 id="CONFIGURATION">CONFIGURATION</h2>
-
-<h3 id="description">description</h3>
-
-<ul><li>Default: true</li><li>Type: Boolean</li></ul>
-
-<p>Show the description in <code>npm search</code></p>
-
-<h3 id="searchopts">searchopts</h3>
-
-<ul><li>Default: ""</li><li>Type: String</li></ul>
-
-<p>Space-separated options that are always passed to search.</p>
-
-<h3 id="searchexclude">searchexclude</h3>
-
-<ul><li>Default: ""</li><li>Type: String</li></ul>
-
-<p>Space-separated options that limit the results from search.</p>
+<p>If a term starts with <code>/</code>, then it's interpreted as a regular expression.
+A trailing <code>/</code> will be ignored in this case.  (Note that many regular
+expression characters must be escaped or quoted in most shells.)</p>
 
 <h2 id="SEE-ALSO">SEE ALSO</h2>
 
 <ul><li><a href="../doc/registry.html">registry(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/view.html">view(1)</a></li></ul>
 </div>
-<p id="footer">search &mdash; npm@1.1.0-alpha-6</p>
+<p id="footer">search &mdash; npm@1.1.0-beta-4</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

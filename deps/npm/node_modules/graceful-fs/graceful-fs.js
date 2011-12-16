@@ -1,20 +1,27 @@
 // this keeps a queue of opened file descriptors, and will make
 // fs operations wait until some have closed before trying to open more.
+
 var fs = require("fs")
-  , FastList = require("fast-list")
+
+// there is such a thing as TOO graceful.
+if (fs.open === gracefulOpen) return
+
+var FastList = require("fast-list")
   , queue = new FastList()
   , curOpen = 0
   , constants = require("constants")
 
+
 exports = module.exports = fs
+
 
 fs.MIN_MAX_OPEN = 64
 fs.MAX_OPEN = 1024
 
-fs._open = fs.open
-fs._openSync = fs.openSync
-fs._close = fs.close
-fs._closeSync = fs.closeSync
+var originalOpen = fs.open
+  , originalOpenSync = fs.openSync
+  , originalClose = fs.close
+  , originalCloseSync = fs.closeSync
 
 
 // prevent EMFILE errors
@@ -27,7 +34,9 @@ function OpenReq (path, flags, mode, cb) {
 
 function noop () {}
 
-fs.open = function (path, flags, mode, cb) {
+fs.open = gracefulOpen
+
+function gracefulOpen (path, flags, mode, cb) {
   if (typeof mode === "function") cb = mode, mode = null
   if (typeof cb !== "function") cb = noop
 
@@ -51,7 +60,7 @@ fs.open = function (path, flags, mode, cb) {
 function open (path, flags, mode, cb) {
   cb = cb || noop
   curOpen ++
-  fs._open(path, flags, mode, function (er, fd) {
+  originalOpen.call(fs, path, flags, mode, function (er, fd) {
     if (er) {
       onclose()
     }
@@ -62,7 +71,7 @@ function open (path, flags, mode, cb) {
 
 fs.openSync = function (path, flags, mode) {
   curOpen ++
-  return fs._openSync(path, flags, mode)
+  return originalOpenSync.call(fs, path, flags, mode)
 }
 
 function onclose () {
@@ -81,7 +90,7 @@ function flush () {
 
 fs.close = function (fd, cb) {
   cb = cb || noop
-  fs._close(fd, function (er) {
+  originalClose.call(fs, fd, function (er) {
     onclose()
     cb(er)
   })
@@ -89,7 +98,7 @@ fs.close = function (fd, cb) {
 
 fs.closeSync = function (fd) {
   onclose()
-  return fs._closeSync(fd)
+  return originalCloseSync.call(fs, fd)
 }
 
 

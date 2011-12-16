@@ -133,6 +133,15 @@ file5.on('end', function() {
   assert.equal(file5.data, 'yz\n');
 });
 
+// https://github.com/joyent/node/issues/2320
+var file6 = fs.createReadStream(rangeFile, {bufferSize: 1.23, start: 1});
+file6.data = '';
+file6.on('data', function(data) {
+  file6.data += data.toString('utf-8');
+});
+file6.on('end', function() {
+  assert.equal(file6.data, 'yz\n');
+});
 
 assert.throws(function() {
   fs.createReadStream(rangeFile, {start: 10, end: 2});

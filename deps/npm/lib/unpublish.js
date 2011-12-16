@@ -39,9 +39,18 @@ unpublish.completion = function (opts, cb) {
 }
 
 function unpublish (args, cb) {
+
+  if (args.length > 1) return cb(unpublish.usage)
+
   var thing = args.length ? args.shift().split("@") : []
     , project = thing.shift()
     , version = thing.join("@")
+
+  if (!version && !npm.config.get("force")) {
+    return cb("Refusing to delete entire project.\n"
+             +"Run with --force to do this.\n"
+             +unpublish.usage)
+  }
 
   if (!project || path.resolve(project) === npm.prefix) {
     // if there's a package.json in the current folder, then

@@ -148,6 +148,10 @@ Pack.prototype._process = function () {
   }
 
   switch (wprops.type) {
+    // sockets not supported
+    case "Socket":
+      return
+
     case "Directory":
       wprops.path += "/"
       wprops.size = 0

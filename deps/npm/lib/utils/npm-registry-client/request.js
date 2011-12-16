@@ -23,8 +23,6 @@ function regRequest (method, where, what, etag, nofollow, cb_) {
   if (typeof cb_ !== "function") cb_ = etag, etag = null
   if (typeof cb_ !== "function") cb_ = what, what = null
 
-  log.verbose(where||"/", method)
-
   // Since there are multiple places where an error could occur,
   // don't let the cb be called more than once.
   var errState = null
@@ -119,6 +117,8 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb) {
     opts.followRedirect = false
   }
 
+  log.http(remote.href || "/", method)
+
   var req = request(opts, requestDone(method, where, cb))
   var r = npm.config.get("registry")
   if (!r) {
@@ -135,6 +135,8 @@ function makeRequest (method, remote, where, what, etag, nofollow, cb) {
 // cb(er, parsed, raw, response)
 function requestDone (method, where, cb) { return function (er, response, data) {
   if (er) return cb(er)
+
+  log.http(response.statusCode + " " + url.parse(where).href)
 
   var parsed
 

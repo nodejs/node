@@ -3,7 +3,7 @@
 
 module.exports = init
 
-var prompt = require("./utils/prompt.js")
+var read = require("read")
   , path = require("path")
   , readJson = require("./utils/read-json.js")
   , fs = require("graceful-fs")
@@ -66,24 +66,26 @@ function init_ (data, folder, cb) {
     ,""
     ].join("\n"))
   promiseChain(cb)
-    ( prompt
-    , ["Package name: ", defaultName(folder, data)]
+    ( read
+    , [{prompt: "Package name: ", default: defaultName(folder, data)}]
     , function (n) { data.name = n }
     )
-    ( prompt
-    , ["Description: ", data.description]
+    ( read
+    , [{prompt: "Description: ", default: data.description}]
     , function (d) { data.description = d }
     )
     ( defaultVersion, [folder, data], function (v) { data.version = v } )
     (function (cb) {
-      prompt("Package version: ", data.version, function (er, v) {
+      read( { prompt: "Package version: ", default: data.version }
+          , function (er, v) {
         if (er) return cb(er)
         data.version = v
         cb()
       })
     }, [])
-    ( prompt
-    , ["Project homepage: ", data.homepage || data.url || "none"]
+    ( read
+    , [ { prompt: "Project homepage: "
+        , default: data.homepage || data.url || "none" } ]
     , function (u) {
         if (u === "none") return
         data.homepage = u
@@ -92,40 +94,42 @@ function init_ (data, folder, cb) {
     )
     ( defaultRepo, [folder, data], function (r) { data.repository = r } )
     (function (cb) {
-      prompt( "Project git repository: "
-            , data.repository && data.repository.url || "none"
-            , function (er, r) {
-                if (er) return cb(er)
-                if (r !== "none") {
-                  data.repository = (data.repository || {}).url = r
-                }
-                cb()
+      read( { prompt: "Project git repository: "
+            , default: data.repository && data.repository.url || "none" }
+          , function (er, r) {
+              if (er) return cb(er)
+              if (r !== "none") {
+                data.repository = (data.repository || {}).url = r
               }
-            )
+              cb()
+            }
+          )
     }, [])
-    ( prompt
-    , ["Author name: ", data.author && data.author.name]
+    ( read
+    , [{ prompt: "Author name: ", default: data.author && data.author.name }]
     , function (n) {
         if (!n) return
         (data.author = data.author || {}).name = n
       }
     )
-    ( prompt
-    , ["Author email: ", data.author && data.author.email || "none"]
+    ( read
+    , [ { prompt: "Author email: " 
+        , default: data.author && data.author.email || "none" } ]
     , function (n) {
         if (n === "none") return
         (data.author = data.author || {}).email = n
       }
     )
-    ( prompt
-    , ["Author url: ", data.author && data.author.url || "none"]
+    ( read
+    , [ { prompt: "Author url: "
+        , default: data.author && data.author.url || "none" } ]
     , function (n) {
         if (n === "none") return
         (data.author = data.author || {}).url = n
       }
     )
-    ( prompt
-    , ["Main module/entry point: ", data.main || "none"]
+    ( read
+    , [ { prompt: "Main module/entry point: ", default: data.main || "none" } ]
     , function (m) {
         if (m === "none") {
           delete data.main
@@ -134,18 +138,17 @@ function init_ (data, folder, cb) {
         data.main = m
       }
     )
-    ( prompt
-    , ["Test command: ", data.scripts && data.scripts.test || "none"]
+    ( read
+    , [ { prompt: "Test command: "
+        , default: data.scripts && data.scripts.test || "none" } ]
     , function (t) {
         if (t === "none") return
         (data.scripts = data.scripts || {}).test = t
       }
     )
-    ( prompt
-    , [ "What versions of node does it run on? "
-      , data.engines && data.engines.node
-        || (eng)
-      ]
+    ( read
+    , [ { prompt: "What versions of node does it run on? "
+        , default: data.engines && data.engines.node || (eng) } ]
     , function (nodever) {
         (data.engines = data.engines || {}).node = nodever
       }
@@ -167,7 +170,7 @@ function init_ (data, folder, cb) {
       output.write(msg, cb)
     })
     (function (cb) {
-      prompt("\nIs this ok? ", "yes", function (er, ok) {
+      read({ prompt: "\nIs this ok? ", default: "yes" }, function (er, ok) {
         if (er) return cb(er)
         if (ok.toLowerCase().charAt(0) !== "y") {
           return cb(new Error("cancelled"))

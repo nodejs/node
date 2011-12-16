@@ -17,6 +17,7 @@ minimatch.filter = function (pattern, options) {
 minimatch.match = function (list, pattern, options) {
   if (!options) options = {}
   var ret = list.filter(minimatch.filter(pattern, options))
+  if (options.debug) console.error("\nmatch: %s %j %j", pattern, list, ret)
 
   // set the null flag to allow empty match sets
   // Note that minimatch itself, and filter(), do not
@@ -47,7 +48,7 @@ function minimatch (p, pattern, options) {
   if (pattern.trim().charAt(0) === "#") return false
 
   // check the cache
-  var re = cache.get(pattern)
+  var re = cache.get(pattern + "\n" + JSON.stringify(options))
   if (!re && re !== false) {
     cache.set(pattern, re = minimatch.makeRe(pattern, options))
   }
@@ -93,18 +94,45 @@ minimatch.makeRe = makeRe
 function makeRe (pattern, options) {
   options = options || {}
 
+  function clearStateChar () {
+    if (stateChar) {
+      // we had some state-tracking character
+      // that wasn't consumed by this pass.
+      switch (stateChar) {
+        case "*":
+          re += oneStar
+          break
+        case "?":
+          re += "."
+          break
+        default:
+          re += "\\"+stateChar
+          break
+      }
+      stateChar = false
+    }
+  }
+
   var braceDepth = 0
     , re = ""
     , escaping = false
-    , oneStar = "[^\\/]*?"
-    , twoStar = ".*?"
+    , oneStar = options.dot ? "[^\\/]*?"
+      : "(?:(?!(?:\\\/|^)\\.)[^\\/])*?"
+    , twoStar = options.dot ? ".*?"
+      // not a ^ or / followed by a dot,
+      // followed by anything, any number of times.
+      : "(?:(?!(?:\\\/|^)\\.).)*?"
     , reSpecials = "().*{}+?[]^$/\\"
     , patternListStack = []
     , stateChar
     , negate = false
     , negating = false
     , inClass = false
-    , reClassStart = []
+    , reClassStart = -1
+    , classStart = -1
+    , classStartPattern = options.dot ? ""
+      : "(?:(?!(?:\\\/|^)\\.)"
+    , classEndPattern = options.dot ? "" : ")"
 
   for ( var i = 0, len = pattern.length, c
       ; (i < len) && (c = pattern.charAt(i))
@@ -129,6 +157,7 @@ function makeRe (pattern, options) {
         }
         continue
 
+      // the various stateChar values
       case "!":
         if (i === 0 || negating) {
           negate = !negate
@@ -213,21 +242,8 @@ function makeRe (pattern, options) {
 
       // these are mostly the same in regexp and glob :)
       case "[":
-        if (stateChar) {
-          // some state-tracking char was before the [
-          switch (stateChar) {
-            case "*":
-              re += oneStar
-              break
-            case "?":
-              re += "."
-              break
-            default:
-              re += "\\"+stateChar
-              break
-          }
-          stateChar = false
-        }
+        // swallow any state-tracking char before the [
+        clearStateChar()
 
         if (escaping || inClass) {
           re += "\\" + c
@@ -236,6 +252,7 @@ function makeRe (pattern, options) {
           inClass = true
           classStart = i
           reClassStart = re.length
+          re += classStartPattern
           re += c
         }
         continue
@@ -252,7 +269,7 @@ function makeRe (pattern, options) {
           escaping = false
         } else {
           inClass = false
-          re += c
+          re += c + classEndPattern
         }
         continue
 
@@ -271,6 +288,8 @@ function makeRe (pattern, options) {
           re += "\\}"
           escaping = false
         } else {
+          // swallow any state char that wasn't consumed
+          clearStateChar()
           re += ")"
           braceDepth --
         }
@@ -281,27 +300,15 @@ function makeRe (pattern, options) {
           re += ","
           escaping = false
         } else {
+          // swallow any state char that wasn't consumed
+          clearStateChar()
           re += "|"
         }
         continue
 
       default:
-        if (stateChar) {
-          // we had some state-tracking character
-          // that wasn't consumed by this pass.
-          switch (stateChar) {
-            case "*":
-              re += oneStar
-              break
-            case "?":
-              re += "."
-              break
-            default:
-              re += "\\"+stateChar
-              break
-          }
-          stateChar = false
-        }
+        // swallow any state char that wasn't consumed
+        clearStateChar()
 
         if (escaping) {
           // no need
@@ -321,20 +328,7 @@ function makeRe (pattern, options) {
 
   // handle trailing things that only matter at the very end.
   if (stateChar) {
-    // we had some state-tracking character
-    // that wasn't consumed by this pass.
-    switch (stateChar) {
-      case "*":
-        re += oneStar
-        break
-      case "?":
-        re += "."
-        break
-      default:
-        re += "\\"+stateChar
-        break
-    }
-    stateChar = false
+    clearStateChar()
   } else if (escaping) {
     re += "\\\\"
   }
@@ -345,7 +339,7 @@ function makeRe (pattern, options) {
     // this is a huge pita.  We now have to re-walk
     // the contents of the would-be class to re-translate
     // any characters that were passed through as-is
-    var cs = re.substr(reClassStart + 1)
+    var cs = re.substr(reClassStart + classStartPattern.length + 1)
       , csOpts = Object.create(options)
     csOpts.partial = true
 
@@ -354,11 +348,6 @@ function makeRe (pattern, options) {
   }
 
   if (options.partial) return re
-
-  // don't match "." files unless pattern starts with "."
-  if (!options.dot && pattern.charAt(0) !== ".") {
-    re = "(?!\\.)" + re
-  }
 
   // must match entire pattern
   // ending in a * or ** will make it less strict.
@@ -380,20 +369,4 @@ function makeRe (pattern, options) {
   } catch(ex) {
     return false
   }
-}
-
-if (require.main === module) {
-  // more tests in test/*.js
-  var tests = ["{a,b{c,d}}"
-              ,"a.*$?"
-              ,"\\{a,b{c,d}}"
-              ,"a/{c/,}d/{e/,f/{g,h,i}/}k"
-              ,"!*.bak"
-              ,"!!*.bak"
-              ,"!!!*.bak"
-              ,"\\a\\b\\c\\d"
-              ]
-  tests.forEach(function (t) {
-    console.log([t,makeRe(t)])
-  })
 }

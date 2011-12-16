@@ -773,7 +773,7 @@ static Handle<Value> Read(const Arguments& args) {
   len = args[3]->Int32Value();
   if (off + len > buffer_length) {
     return ThrowException(Exception::Error(
-          String::New("Length is extends beyond buffer")));
+          String::New("Length extends beyond buffer")));
   }
 
   pos = GET_OFFSET(args[4]);

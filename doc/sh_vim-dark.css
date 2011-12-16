@@ -15,7 +15,7 @@
 .sh_sourceCode .sh_string, .sh_sourceCode .sh_regexp, .sh_sourceCode .sh_number,
 .sh_sourceCode .sh_specialchar
 {
-	color: #B9CCC5;
+	color: #a0c874;
 }
 
 .sh_sourceCode .sh_comment {

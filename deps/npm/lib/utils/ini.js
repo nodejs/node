@@ -162,6 +162,8 @@ function parseEnv (env) {
   Object.keys(env)
     .filter(function (k) { return k.match(/^npm_config_[^_]/i) })
     .forEach(function (k) {
+      if (!env[k]) return
+
       conf[k.replace(/^npm_config_/i, "")
             .toLowerCase()
             .replace(/_/g, "-")] = parseField(env[k], k)

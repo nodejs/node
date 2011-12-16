@@ -12,6 +12,9 @@ if (typeof WScript !== "undefined") {
   return
 }
 
+
+process.title = "npm"
+
 var log = require("../lib/utils/log.js")
 log.waitForConfig()
 log.info("ok", "it worked if it ends with")

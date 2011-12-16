@@ -207,6 +207,13 @@ to trust only that specific signing authority.</p>
 <p>If false, never shows colors.  If <code>"always"</code> then always shows colors.
 If true, then only prints color codes for tty file descriptors.</p>
 
+<h3 id="coverage">coverage</h3>
+
+<ul><li>Default: false</li><li>Type: Boolean</li></ul>
+
+<p>A flag to tell test-harness to run with their coverage options enabled,
+if they respond to the <code>npm_config_coverage</code> environment variable.</p>
+
 <h3 id="depth">depth</h3>
 
 <ul><li>Default: Infinity</li><li>Type: Number</li></ul>
@@ -338,10 +345,13 @@ being installed locally.</li></ul>
 
 <h3 id="loglevel">loglevel</h3>
 
-<ul><li>Default: "warn"</li><li>Type: String</li><li>Values: "silent", "win", "error", "warn", "info", "verbose", "silly"</li></ul>
+<ul><li>Default: "http"</li><li>Type: String</li><li>Values: "silent", "win", "error", "warn", "http", "info", "verbose", "silly"</li></ul>
 
 <p>What level of logs to report.  On failure, <em>all</em> logs are written to
 <code>npm-debug.log</code> in the current working directory.</p>
+
+<p>Any logs of a higher level than the setting are shown.
+The default is "http", which shows http, warn, and error output.</p>
 
 <h3 id="logprefix">logprefix</h3>
 
@@ -474,6 +484,14 @@ this as true.</p>
 
 <p>Space-separated options that limit the results from search.</p>
 
+<h3 id="searchsort">searchsort</h3>
+
+<ul><li>Default: "name"</li><li>Type: String</li><li>Values: "name", "-name", "date", "-date", "description",
+"-description", "keywords", "-keywords"</li></ul>
+
+<p>Indication of which field to sort search results by.  Prefix with a <code>-</code>
+character to indicate reverse sort.</p>
+
 <h3 id="shell">shell</h3>
 
 <ul><li>Default: SHELL environment variable, or "bash" on Posix, or "cmd" on
@@ -597,7 +615,7 @@ then answer "no" to any prompt.</p>
 
 <ul><li><a href="../doc/folders.html">folders(1)</a></li><li><a href="../doc/npm.html">npm(1)</a></li></ul>
 </div>
-<p id="footer">config &mdash; npm@1.1.0-alpha-6</p>
+<p id="footer">config &mdash; npm@1.1.0-beta-4</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

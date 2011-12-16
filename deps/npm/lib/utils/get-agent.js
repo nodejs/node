@@ -13,7 +13,7 @@ var npm = require("../npm.js")
   , url = require("url")
   , agents = {}
   , isHttp2 = !!require("http").globalAgent
-  , registry = url.parse(npm.config.get("registry"))
+  , registry = url.parse(npm.config.get("registry") || "")
   , regCA = npm.config.get("ca")
 
 function getAgent (remote) {

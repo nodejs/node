@@ -141,6 +141,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
             : path.resolve( home || temp, ".npm")
 
     , color : process.platform !== "win32" || winColor
+    , coverage: false
     , depth: Infinity
     , description : true
     , dev : false
@@ -159,7 +160,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , "init.author.url" : ""
     , link: false
     , logfd : 2
-    , loglevel : "warn"
+    , loglevel : "http"
     , logprefix : process.platform !== "win32" || winColor
     , long : false
     , message : "%s"
@@ -182,6 +183,7 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , save : false
     , searchopts: ""
     , searchexclude: null
+    , searchsort: "name"
     , shell : process.platform === "win32"
             ? process.env.ComSpec || "cmd"
             : process.env.SHELL || "bash"
@@ -216,6 +218,7 @@ exports.types =
   , ca: [null, String]
   , cache : path
   , color : ["always", Boolean]
+  , coverage: Boolean
   , depth : Number
   , description : Boolean
   , dev : Boolean
@@ -233,7 +236,7 @@ exports.types =
   , "init.author.url" : ["", url]
   , link: Boolean
   , logfd : [Number, Stream]
-  , loglevel : ["silent","win","error","warn","info","verbose","silly"]
+  , loglevel : ["silent","win","error","warn","http","info","verbose","silly"]
   , logprefix : Boolean
   , long : Boolean
   , message: String
@@ -254,6 +257,11 @@ exports.types =
   , save : Boolean
   , searchopts : String
   , searchexclude: [null, String]
+  , searchsort: [ "name", "-name"
+                , "description", "-description"
+                , "author", "-author"
+                , "date", "-date"
+                , "keywords", "-keywords" ]
   , shell : String
   , "strict-ssl": Boolean
   , tag : String

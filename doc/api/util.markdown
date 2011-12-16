@@ -50,7 +50,7 @@ Output with timestamp on `stdout`.
     require('util').log('Timestamped message.');
 
 
-### util.inspect(object, showHidden=false, depth=2)
+### util.inspect(object, showHidden=false, depth=2, colors=false)
 
 Return a string representation of `object`, which is useful for debugging.
 
@@ -62,6 +62,8 @@ formatting the object. This is useful for inspecting large complicated objects.
 
 The default is to only recurse twice.  To make it recurse indefinitely, pass
 in `null` for `depth`.
+
+If `colors` is `true`, the output will be styled with ANSI color codes.
 
 Example of inspecting all properties of the `util` object:
 

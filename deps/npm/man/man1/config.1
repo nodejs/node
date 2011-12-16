@@ -368,6 +368,20 @@ Type: Boolean or \fB"always"\fR
 If false, never shows colors\.  If \fB"always"\fR then always shows colors\.
 If true, then only prints color codes for tty file descriptors\.
 .
+.SS "coverage"
+.
+.IP "\(bu" 4
+Default: false
+.
+.IP "\(bu" 4
+Type: Boolean
+.
+.IP "" 0
+.
+.P
+A flag to tell test\-harness to run with their coverage options enabled,
+if they respond to the \fBnpm_config_coverage\fR environment variable\.
+.
 .SS "depth"
 .
 .IP "\(bu" 4
@@ -645,18 +659,22 @@ The location to write log output\.
 .SS "loglevel"
 .
 .IP "\(bu" 4
-Default: "warn"
+Default: "http"
 .
 .IP "\(bu" 4
 Type: String
 .
 .IP "\(bu" 4
-Values: "silent", "win", "error", "warn", "info", "verbose", "silly"
+Values: "silent", "win", "error", "warn", "http", "info", "verbose", "silly"
 .
 .IP "" 0
 .
 .P
 What level of logs to report\.  On failure, \fIall\fR logs are written to \fBnpm\-debug\.log\fR in the current working directory\.
+.
+.P
+Any logs of a higher level than the setting are shown\.
+The default is "http", which shows http, warn, and error output\.
 .
 .SS "logprefix"
 .
@@ -929,6 +947,24 @@ Type: String
 .
 .P
 Space\-separated options that limit the results from search\.
+.
+.SS "searchsort"
+.
+.IP "\(bu" 4
+Default: "name"
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "\(bu" 4
+Values: "name", "\-name", "date", "\-date", "description",
+"\-description", "keywords", "\-keywords"
+.
+.IP "" 0
+.
+.P
+Indication of which field to sort search results by\.  Prefix with a \fB\-\fR
+character to indicate reverse sort\.
 .
 .SS "shell"
 .

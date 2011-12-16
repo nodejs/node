@@ -1,5 +1,5 @@
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml">
+<!doctype html>
+<html>
   <head>
     <style type="text/css">
     ul {
@@ -7,76 +7,163 @@
       margin: 0;
     }
     </style>
-    <script type="text/javascript" src="sh_main.js"></script>
-    <script type="text/javascript" src="sh_javascript.min.js"></script>
-    <link type="image/x-icon" rel="icon" href="favicon.ico" />
-    <link type="image/x-icon" rel="shortcut icon" href="favicon.ico" />
-    <link type="text/css" rel="stylesheet" href="pipe.css" />
-    <link type="text/css" rel="stylesheet" href="sh_vim-dark.css" />
+    <link type="image/x-icon" rel="icon" href="favicon.ico">
+    <link type="image/x-icon" rel="shortcut icon" href="favicon.ico">
+    <link type="text/css" rel="stylesheet" href="pipe.css">
+    <link type="text/css" rel="stylesheet" href="sh_vim-dark.css">
     <link rel="alternate"
           type="application/rss+xml"
           title="node blog"
-          href="http://feeds.feedburner.com/nodejs/123123123"/>
-    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+          href="http://feeds.feedburner.com/nodejs/123123123">
+    <meta http-equiv="content-type" content="text/html; charset=utf-8">
     <title>node.js</title>
   </head>
   <body>
-    <div id="toc">
-      <ol>
-        <li><a href="#download">Download</a></li>
-        <li><a href="https://github.com/joyent/node/wiki/ChangeLog">ChangeLog</a></li>
-        <li><a href="#about">About</a></li>
-        <li><a href="http://nodejs.org/docs/v0.6.5/api">v0.6.5 docs</a></li>
-        <br/>
-        <li><a href="https://github.com/joyent/node/wiki">Wiki</a></li>
-        <li><a href="http://blog.nodejs.org/">Blog</a></li>
-        <li><a href="https://github.com/joyent/node/wiki/Community">Community</a></li>
-        <li><a href="http://chat.nodejs.org/">Demo</a></li>
-        <li><a href="/logos/">Logos</a></li>
-        <li><a href="http://jobs.nodejs.org/">Jobs</a></li>
-        <ol><!-- JOBS --><!-- JOBS --></ol>
-      </ol>
+    <div id="intro">
+        <img id="logo" src="logo.png" alt="node.js">
+
+        <p>Node.js is a platform built on <a
+        href="http://code.google.com/p/v8/">Chrome's JavaScript runtime</a>
+        for easily building fast, scalable network applications.  Node.js
+        uses an event-driven, non-blocking I/O model that makes it
+        lightweight and efficient, perfect for data-intensive real-time
+        applications that run across distributed devices.</p>
+
+        <a href="#download" id="downloadbutton">Download</a>
     </div>
-    <div id="content">
+    <div id="quotes" class="clearfix">
+        <h2>Node.js in the Industry</h2>
+        <ul>
+            <li class="microsoft"><img src="microsoft-logo.png">
+            <p>Node gives Azure users the first end-to-end JavaScript
+            experience for the development of a whole new class of real-time
+            applications.
+            <br>
+            <a href="http://blogs.msdn.com/b/interoperability/">Claudio Caldato</a>
+            <br>
+            <span>Principal Program Manager, Interoperability Strategy</span></p></li>
 
-      <!-- <h1><a href="http://nodejs.org/">Node</a></h1> -->
-      <br /><br />
-      <img id="logo" src="logo.png" alt="node.js"/>
+            <li class="ebay"><img src="ebay-logo.png">
+            <p>Node’s evented I/O model freed us from worrying about locking
+            and concurrency issues that are common with multithreaded async
+            I/O.
+            <br>
+            <a href="http://www.ebaytechblog.com/2011/11/30/announcing-ql-io/">Subbu Allamarju</a>
+            <br>
+            <span>Principal Member, Technical Staff</span></p></li>
 
-      <p id="introduction">
-        Evented I/O for
-        <a href="http://code.google.com/p/v8/">V8 JavaScript</a>.
-      </p>
+            <li class="linkedin"><img src="linkedin-logo.png">
+            <p>On the server side, our entire mobile software stack is
+            completely built in Node. One reason was scale. The second is
+            Node showed us huge performance gains.
+            <br>
+            <a href="http://venturebeat.com/2011/08/16/linkedin-node/">Kiran Prasad</a>
+            <br>
+            <span>Director of Engineering, Mobile</span></p></li>
 
-      <p>
-        An example of a web server written in Node which responds with
-        "Hello World" for every request.
-      </p>
+            <li class="yahoo"><img src="yahoo-logo.png">
+            <p>Node.js is the execution core of Manhattan. Allowing
+            developers to build one code base using one language – that is
+            the nirvana for developers.
+            <br>
+            <a href="http://developer.yahoo.com/blogs/ydn/posts/2011/11/yahoo-announces-cocktails-%E2%80%93-shaken-not-stirred/">Renaud Waldura</a>
+            <br>
+            <span>Sr. Product Manger, Cocktail</span></p></li>
+        </ul>
+    </div>
 
-      <pre>
+    <div id="download">
+        <a href="#" id="download-close">X</a>
+        <img id="download-logo" src="download-logo.png" alt="node.js">
+        <ul id="installers" class="clearfix">
+            <li><a href="http://nodejs.org/dist/v0.6.6/node-v0.6.6.msi">Windows Installer</a><br>node-v0.6.6.msi</li>
+            <li><a href="http://nodejs.org/dist/v0.6.6/node-v0.6.6.pkg">Macintosh Installer</a><br>node-v0.6.6.pkg</li>
+            <li id="source"><a href="http://nodejs.org/dist/v0.6.6/node-v0.6.6.tar.gz">Source Code</a><br>node-v0.6.6.tar.gz</li>
+        </ul>
+        <ul id="documentation">
+            <li><a href="https://raw.github.com/joyent/node/v0.6.6/ChangeLog">Change Log</a></li>
+            <li><a href="http://nodejs.org/docs/v0.6.6/api/index.html">Documentation</a></li>
+            <li><a href="http://nodejs.org/dist/v0.6.6">Other release files</a></li>
+            <li><a href="https://raw.github.com/joyent/node/v0.6.6/LICENSE">License</a></li>
+            <li><a href="https://github.com/joyent/node">Git Repository</a></li>
+        </ul>
+    </div>
+
+    <script>;(function() {
+      // attach as soon as the required elements are in the DOM.
+      // don't need to wait for entire document to be ready, since we're
+      // not adding any *new* nodes to the <body>, so there's no threat
+      // of 'Invalid operation' errors in old MSIE 6.
+      document.getElementById('downloadbutton').onclick = function(e) {
+        e = e || window.event;
+        e.stopPropagation && e.stopPropagation();
+        e.cancelBubble = true;
+        // need to give the hash a tick to update
+        setTimeout(downloadDialogUpdate, 0);
+      };
+
+      document.getElementById('download-close').onclick =
+      document.documentElement.onclick = function(e) {
+        e = e || window.event;
+        if (location.hash === '#download') location.hash = '';
+        downloadDialogUpdate();
+      };
+
+      document.getElementById('download').onclick = function(e) {
+        e = e || window.event;
+        e.stopPropagation && e.stopPropagation();
+        e.cancelBubble = true;
+      };
+
+      // I keep expecting <Esc> to close the dialog...
+      document.documentElement.onkeydown = function(e) {
+        e = e || window.event;
+        var k = e.which || e.keyCode || e.keyIdentifier;
+        if (typeof k === 'string') k = k.charCodeAt(0);
+        if (k === 27) document.documentElement.onclick(e);
+      };
+
+      // hacky workaround for old ie browsers that don't support :target css.
+      function downloadDialogUpdate () {
+        var div = document.getElementById('download');
+        if (!div) return;
+        var expect = location.hash === '#download' ? 'block' : 'none';
+        var actual = div.currentStyle ? div.currentStyle.display
+                   : window.getComputedStyle
+                     ? document.defaultView.getComputedStyle(div, null).getPropertyValue('display')
+                   : null;
+
+        // it looks like a string, but it might not actually be a string.
+        // explicitly cast for MSIE 6 and 7.
+        actual = '' + actual;
+        expect = '' + expect;
+        if (actual !== expect) {
+          div.style.display = expect;
+        }
+      }
+      downloadDialogUpdate();
+    })();</script>
+
+    <div id="content" class="clearfix">
+            <div id="column1">
+                <h2>An example: Webserver</h2>
+                <p>This simple web server written in Node responds with "Hello World" for every request.</p>
+              <pre>
 var http = require('http');
 http.createServer(function (req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
 }).listen(1337, "127.0.0.1");
-console.log('Server running at http://127.0.0.1:1337/');
-</pre>
+console.log('Server running at http://127.0.0.1:1337/');</pre>
 
-      <p>
-        To run the server, put the code into a file
-        <code>example.js</code> and execute it with the <code>node</code>
-        program:
-      </p>
-      <pre class="sh_none">
+              <p>To run the server, put the code into a file <code>example.js</code> and execute it with the <code>node</code> program:</p>
+              <pre class="sh_none">
 % node example.js
 Server running at http://127.0.0.1:1337/</pre>
 
-      <p>
-        Here is an example of a simple TCP server which listens on port 1337
-        and echoes whatever you send it:
-      </p>
+                <p>Here is an example of a simple TCP server which listens on port 1337 and echoes whatever you send it:</p>
 
-      <pre>
+                <pre>
 var net = require('net');
 
 var server = net.createServer(function (socket) {
@@ -84,146 +171,36 @@ var server = net.createServer(function (socket) {
   socket.pipe(socket);
 });
 
-server.listen(1337, "127.0.0.1");
-</pre>
+server.listen(1337, "127.0.0.1");</pre>
 
-      <p>
-        See the <a href="/docs/latest/api/">API documentation</a> for more
-        examples.
-      </p>
+                <!-- <p>Ready to dig in? <a href="">Download the latest version</a> of node.js or learn how other organizations are <a href="">using the technology</a>.</p> -->
+        </div>
+        <div id="column2">
+            <h2>Featured</h2>
+            <a href="http://www.youtube.com/watch?v=jo_B4LTHi3I"><img src="ryan-speaker.jpg"></a>
+            A guided introduction to Node
 
+            <h2>Explore Node.js</h2>
+            <ul id="explore">
+                <li><a href="about/" class="explore">About</a><br><span>Technical overview</span></li>
+                <li><a href="http://search.npmjs.org/" class="explore">npm Registry</a><br><span>Modules, resources and more</span></li>
+                <li><a href="http://nodejs.org/docs/latest/api/index.html" class="explore">Documentation</a><br><span>API Specifications</span></li>
+                <li><a href="http://blog.nodejs.org" class="explore">Node.js Blog</a><br><span>Insight, perspective and events</span></li>
+                <li><a href="community/" class="explore">Community</a><br><span>Mailing lists, blogs, and more</span></li>
+                <li><a href="logos/" class="explore">Logos</a><br><span>Logo and desktop background</span></li>
+                <li><a href="http://jobs.nodejs.org/" class="explore">Jobs</a><br><ol class="jobs"><!-- JOBS --><!-- JOBS --></ol></li>
+            </ul>
+    </div>
+</div>
 
-      <p>
-        Go to <a href="https://github.com/joyent/node/wiki">the Wiki</a> for lots more information.
-      </p>
-
-      <h2 id="video">Introduction</h2>
-
-      <iframe title="YouTube video player" width="640" height="390"
-        src="http://www.youtube.com/embed/jo_B4LTHi3I" frameborder="0"
-        allowfullscreen></iframe>
-
-      <h2 id="download">Download</h2>
-
-      <p>2011.12.04 v0.6.5
-      <ul class="release">
-        <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.tar.gz"><code>node-v0.6.5.tar.gz</code>
-          Source code</a> (<a href="https://github.com/joyent/node/wiki/Installation">build instructions</a>)
-        <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.msi"><code>node-v0.6.5.msi</code> Windows installer</a>
-        <li><a href="http://nodejs.org/dist/v0.6.5/node-v0.6.5.pkg"><code>node-v0.6.5.pkg</code> Macintosh installer</a>
-        <li><a href="http://nodejs.org/docs/v0.6.5/api/index.html">Documentation</a>
-        <li><a href="https://raw.github.com/joyent/node/v0.6.5/LICENSE">License</a>
-        <li><a href="http://nodejs.org/dist/v0.6.5">Other release files
-          (like <code>.exe</code> and <code>.pdb</code>)</a>
-      </ul>
-
-
-      <p>Historical: <a href="http://nodejs.org/dist">versions</a>, <a href="http://nodejs.org/docs">docs</a></p>
-
-      <p>
-        <a href="https://github.com/joyent/node/tree/master">git repository</a>
-      </p>
-
-
-      <h2 id="about">About</h2>
-
-      <p>
-        Node's goal is to provide an easy way to build scalable network
-        programs. In the "hello world" web server example above, many
-        client connections can be handled concurrently.  Node tells the
-        operating system (through <code>epoll</code>, <code>kqueue</code>,
-        <code class="sh_none">/dev/poll</code>, or <code>select</code>)
-        that it should be notified when a new connection is made, and 
-        then it goes to sleep. If someone new connects, then it executes
-        the callback.  Each connection is only a small heap allocation.
-      </p>
-
-      <p>
-        This is in contrast to today's more common concurrency model where
-        OS threads are employed. Thread-based networking is relatively 
-        inefficient and very difficult to use.  See:
-        <a href="http://www.kegel.com/c10k.html">this</a> and 
-        <a href="http://bulk.fefe.de/scalable-networking.pdf">this.</a>
-
-        Node will show much better memory efficiency under high-loads
-        <!-- TODO benchmark -->
-        than systems which allocate 2mb thread stacks for each connection.
-
-        Furthermore, users of Node are free from worries of dead-locking
-        the process&mdash;there are no locks.  Almost no function in Node
-        directly performs I/O, so the process never blocks. Because
-        nothing blocks, less-than-expert programmers are able to develop
-        fast systems.
-      </p>
-
-      <p>
-        Node is similar in design to and influenced by systems like Ruby's <a
-        href="http://rubyeventmachine.com/">Event Machine</a> or Python's <a
-        href="http://twistedmatrix.com/">Twisted</a>.  Node takes the event
-        model a bit further&mdash;it presents the event loop as a language
-        construct instead of as a library. In other systems there is always
-        a blocking call to start the event-loop.  Typically one defines
-        behavior through callbacks at the beginning of a script and at the
-        end starts a server through a blocking call like
-        <code>EventMachine::run()</code>. In Node there is no such
-        start-the-event-loop call.  Node simply enters the event loop after
-        executing the input script. Node exits the event loop when there are
-        no more callbacks to perform.  This behavior is like browser
-        javascript&mdash;the event loop is hidden from the user.
-      </p>
-
-      <p>
-        HTTP is a first class protocol in Node.  Node's HTTP library has
-        grown out of the author's experiences developing and working with
-        web servers. For example, streaming data through most web frameworks
-        is impossible.  Node attempts to correct these problems in its HTTP
-        <a href="https://github.com/joyent/http-parser/tree/master">parser</a>
-        and API. Coupled with Node's purely evented infrastructure, it makes
-        a good foundation for web libraries or frameworks.
-      </p>
-
-      <p>
-        <i>
-        But what about multiple-processor concurrency? Aren't threads
-        necessary to scale programs to multi-core computers?
-        </i>
-        You can start new processes via
-        <a href="http://nodejs.org/docs/latest/api/child_processes.html#child_process.fork"><code>child_process.fork()</code></a>
-        these other processes will be scheduled in parallel.
-        For load balancing incoming connections across multiple processes
-        use <a href="http://nodejs.org/docs/latest/api/cluster.html">the
-        cluster module</a>
-      </p>
-
-      <p>
-        See also:
-        <ul>
-          <li><a href="http://s3.amazonaws.com/four.livejournal/20091117/jsconf.pdf">slides</a> from JSConf 2009</li>
-          <li><a href="http://nodejs.org/jsconf2010.pdf">slides</a> from JSConf 2010</li>
-          <li><a href="http://www.yuiblog.com/blog/2010/05/20/video-dahl/">video</a> from a talk at Yahoo in May 2010</li>
-        </ul>
-      </p>
-
-
+    <div id="footer">
+      <p>Copyright <a href="http://joyent.com">Joyent, Inc</a>, Node.js
+      is a <a href="trademark-policy.pdf">trademark of Joyent, Inc</a>.
     </div>
 
-    <div style="float: right;">
-      <a
-        href='https://developer.mozilla.org/en/JavaScript/Reference/Global_Objects/String'
-        title='JS String match'><img
-        src='http://static.jsconf.us/promotejsh.gif' height='150' width='180'
-        alt='JS String match'/></a>
-    </div>
-
-    <a href="http://no.de/"><img src="sponsored.png" height="58" width="120"/></a>
-
-    <div style="clear: both; font-size: 8pt">
-      Copyright 2010 Joyent, Inc
-      <br/>
-      Node.js is a trademark of Joyent, Inc.
-      See the <a href="trademark-policy.pdf">trademark policy</a>
-      for more information.
-    </div>
+    <script type="text/javascript" src="sh_main.js"></script>
+    <script type="text/javascript" src="sh_javascript.min.js"></script>
+    <script type="text/javascript">highlight(undefined, undefined, 'pre');</script>
 
     <script type="text/javascript">
       var gaJsHost = (("https:" == document.location.protocol) ?
@@ -234,7 +211,7 @@ server.listen(1337, "127.0.0.1");
       try {
         var pageTracker = _gat._getTracker("UA-10874194-2");
         pageTracker._trackPageview();
-        } catch(err) {}</script>
-    <script type="text/javascript">highlight(undefined, undefined, 'pre');</script>
+      } catch(err) {}
+    </script>
   </body>
 </html>

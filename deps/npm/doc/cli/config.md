@@ -225,6 +225,14 @@ The location of npm's cache directory.  See `npm-cache(1)`
 If false, never shows colors.  If `"always"` then always shows colors.
 If true, then only prints color codes for tty file descriptors.
 
+### coverage
+
+* Default: false
+* Type: Boolean
+
+A flag to tell test-harness to run with their coverage options enabled,
+if they respond to the `npm_config_coverage` environment variable.
+
 ### depth
 
 * Default: Infinity
@@ -379,12 +387,15 @@ The location to write log output.
 
 ### loglevel
 
-* Default: "warn"
+* Default: "http"
 * Type: String
-* Values: "silent", "win", "error", "warn", "info", "verbose", "silly"
+* Values: "silent", "win", "error", "warn", "http", "info", "verbose", "silly"
 
 What level of logs to report.  On failure, *all* logs are written to
 `npm-debug.log` in the current working directory.
+
+Any logs of a higher level than the setting are shown.
+The default is "http", which shows http, warn, and error output.
 
 ### logprefix
 
@@ -536,6 +547,16 @@ Space-separated options that are always passed to search.
 * Type: String
 
 Space-separated options that limit the results from search.
+
+### searchsort
+
+* Default: "name"
+* Type: String
+* Values: "name", "-name", "date", "-date", "description",
+  "-description", "keywords", "-keywords"
+
+Indication of which field to sort search results by.  Prefix with a `-`
+character to indicate reverse sort.
 
 ### shell
 

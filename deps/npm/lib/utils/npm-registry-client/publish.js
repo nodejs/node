@@ -13,7 +13,7 @@ var request = require("./request.js")
   , url = require("url")
 
 function publish (data, prebuilt, readme, cb) {
-  if (typeof readme === "function") cb = readme, readme = null
+  if (typeof readme === "function") cb = readme, readme = ""
   if (typeof prebuilt === "function") cb = prebuilt, prebuilt = null
   // add the dist-url to the data, pointing at the tarball.
   // if the {name} isn't there, then create it.
@@ -23,13 +23,15 @@ function publish (data, prebuilt, readme, cb) {
   var registry = reg()
   if (registry instanceof Error) return cb(registry)
 
+  readme = readme ? "" + readme : ""
+
   var fullData =
     { _id : data.name
     , name : data.name
     , description : data.description
     , "dist-tags" : {}
     , versions : {}
-    , readme: readme ? "" + readme : null
+    , readme: readme
     , maintainers :
       [ { name : npm.config.get("username")
         , email : npm.config.get("email")
@@ -103,6 +105,11 @@ function publish (data, prebuilt, readme, cb) {
         })
       }
 
+      // this way, it'll also get attached to packages that were previously
+      // published with a version of npm that lacked this feature.
+      if (!fullData.readme) {
+        data.readme = readme
+      }
       PUT(dataURI, data, function (er) {
         if (er) {
           if (er.message.indexOf("conflict Document update conflict.") === 0) {

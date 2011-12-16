@@ -119,6 +119,13 @@ function get_ (uri, timeout, cache, stat, data, nofollow, staleOk, cb) {
   }
 
   GET(uri, etag, nofollow, function (er, remoteData, raw, response) {
+    // if we get an error talking to the registry, but we have it
+    // from the cache, then just pretend we got it.
+    if (er && cache) {
+      er = null
+      response = {statusCode: 304}
+    }
+
     if (response) {
       log.silly([response.statusCode, response.headers], "get cb")
       if (response.statusCode === 304 && etag) {
@@ -128,6 +135,10 @@ function get_ (uri, timeout, cache, stat, data, nofollow, staleOk, cb) {
     }
 
     data = remoteData
+    if (!data) {
+      er = new Error("failed to fetch from registry: " + uri)
+    }
+
     if (er) return cb(er, data, raw, response)
 
     // just give the write the old college try.  if it fails, whatever.

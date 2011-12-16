@@ -16,7 +16,6 @@ module.exports = fetch
 
 function fetch (remote, local, headers, cb) {
   if (typeof cb !== "function") cb = headers, headers = {}
-  log.info(remote, "fetch")
   log.verbose(local, "fetch to")
   mkdir(path.dirname(local), function (er) {
     if (er) return cb(er)
@@ -42,6 +41,7 @@ function fetch_ (remote, local, headers, cb) {
 
 function makeRequest (remote, fstr, headers) {
   remote = url.parse(remote)
+  log.http(remote.href, "GET")
   regHost = regHost || url.parse(npm.config.get("registry")).host
 
   if (remote.host === regHost && npm.config.get("always-auth")) {
@@ -58,5 +58,10 @@ function makeRequest (remote, fstr, headers) {
   request({ url: remote
           , proxy: proxy
           , agent: getAgent(remote)
-          , strictSSL: npm.config.get("strict-ssl") }).pipe(fstr)
+          , strictSSL: npm.config.get("strict-ssl")
+          , onResponse: onResponse }).pipe(fstr)
+  function onResponse (er, res) {
+    if (er) return cb(er)
+    log.http(res.statusCode + " " + remote.href)
+  }
 }

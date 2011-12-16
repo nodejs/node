@@ -105,9 +105,7 @@ function read (name, ver, forceBypass, cb) {
     return cb(er, data)
   }
 
-  if (forceBypass
-      && (npm.config.get("force")
-          || process.platform === "cygwin")) {
+  if (forceBypass && npm.config.get("force")) {
     log.verbose(true, "force found, skipping cache")
     return addNamed(name, ver, c)
   }
@@ -335,7 +333,7 @@ function addRemoteGit (u, parsed, name, cb_) {
 // name@blah thing.
 var inFlightNames = {}
 function addNamed (name, x, cb_) {
-  log.info([name, x], "addNamed")
+  log.verbose([name, x], "addNamed")
   var k = name + "@" + x
   if (!inFlightNames[k]) inFlightNames[k] = []
   var iF = inFlightNames[k]
@@ -368,10 +366,11 @@ function addNameTag (name, tag, cb) {
     engineFilter(data)
     if (data["dist-tags"] && data["dist-tags"][tag]
         && data.versions[data["dist-tags"][tag]]) {
-      return addNameVersion(name, data["dist-tags"][tag], cb)
+      var ver = data["dist-tags"][tag]
+      return addNameVersion(name, ver, data.versions[ver], cb)
     }
     if (!explicit && Object.keys(data.versions).length) {
-      return addNameRange(name, "*", cb)
+      return addNameRange(name, "*", data, cb)
     }
     return cb(installTargetsError(tag, data))
   })
@@ -393,24 +392,84 @@ function engineFilter (data) {
   })
 }
 
-function addNameRange (name, range, cb) {
+function addNameRange (name, range, data, cb) {
+  if (typeof cb !== "function") cb = data, data = null
+
   range = semver.validRange(range)
   if (range === null) return cb(new Error(
     "Invalid version range: "+range))
-  registry.get(name, function (er, data, json, response) {
+
+  log.silly([name, range, !!data], "name, range, hasData")
+
+  if (data) return next()
+  registry.get(name, function (er, d, json, response) {
     if (er) return cb(er)
+    data = d
+    next()
+  })
+
+  function next () {
+    log.silly([name, range, !!data], "name, range, hasData 2")
     engineFilter(data)
+
+    if (npm.config.get("registry")) return next_()
+
+    cachedFilter(data, range, function (er) {
+      if (er) return cb(er)
+      if (Object.keys(data.versions).length === 0) {
+        return cb(new Error( "Can't fetch, and not cached: "
+                           + data.name + "@" + range))
+      }
+      next_()
+    })
+  }
+
+  function next_ () {
+    log.silly([data.name, Object.keys(data.versions)], "versions")
     // if the tagged version satisfies, then use that.
     var tagged = data["dist-tags"][npm.config.get("tag")]
     if (tagged && data.versions[tagged] && semver.satisfies(tagged, range)) {
-      return addNameVersion(name, tagged, cb)
+      return addNameVersion(name, tagged, data.versions[tagged], cb)
     }
+
     // find the max satisfying version.
     var ms = semver.maxSatisfying(Object.keys(data.versions || {}), range)
     if (!ms) {
       return cb(installTargetsError(range, data))
     }
-    addNameVersion(name, ms, cb)
+
+    // if we don't have a registry connection, try to see if
+    // there's a cached copy that will be ok.
+    addNameVersion(name, ms, data.versions[ms], cb)
+  }
+}
+
+// filter the versions down based on what's already in cache.
+function cachedFilter (data, range, cb) {
+  log.silly(data.name, "cachedFilter")
+  ls_(data.name, 1, function (er, files) {
+    if (er) return log.er(cb, "Not in cache, can't fetch: "+data.name)(er)
+    files = files.map(function (f) {
+      return path.basename(f.replace(/(\\|\/)$/, ""))
+    }).filter(function (f) {
+      return semver.valid(f) && semver.satisfies(f, range)
+    })
+
+    if (files.length === 0) {
+      return cb(new Error("Not in cache, can't fetch: "+data.name+"@"+range))
+    }
+
+    log.silly([data.name, files], "cached")
+    Object.keys(data.versions).forEach(function (v) {
+      if (files.indexOf(v) === -1) delete data.versions[v]
+    })
+
+    if (Object.keys(data.versions).length === 0) {
+      return log.er(cb, "Not in cache, can't fetch: "+data.name)(er)
+    }
+
+    log.silly([data.name, Object.keys(data.versions)], "filtered")
+    cb(null, data)
   })
 }
 
@@ -430,11 +489,26 @@ function installTargetsError (requested, data) {
                   + requested + "\n" + targets)
 }
 
-function addNameVersion (name, ver, cb) {
+function addNameVersion (name, ver, data, cb) {
+  if (typeof cb !== "function") cb = data, data = null
+
   ver = semver.valid(ver)
   if (ver === null) return cb(new Error("Invalid version: "+ver))
-  registry.get(name, ver, function (er, data, json, response) {
+
+  var response
+
+  if (data) {
+    response = null
+    return next()
+  }
+  registry.get(name, ver, function (er, d, json, resp) {
     if (er) return cb(er)
+    data = d
+    response = resp
+    next()
+  })
+
+  function next () {
     deprCheck(data)
     var dist = data.dist
 
@@ -452,8 +526,7 @@ function addNameVersion (name, ver, cb) {
     if (!dist.tarball) return cb(new Error(
       "No dist.tarball in " + data._id + " package"))
 
-    if (response.statusCode !== 304 || npm.config.get("force")
-        || process.platform === "cygwin") {
+    if ((response && response.statusCode !== 304) || npm.config.get("force")) {
       return fetchit()
     }
 
@@ -469,6 +542,10 @@ function addNameVersion (name, ver, cb) {
     })
 
     function fetchit () {
+      if (!npm.config.get("registry")) {
+        return cb(new Error("Cannot fetch: "+dist.tarball))
+      }
+
       // use the same protocol as the registry.
       // https registry --> https tarballs.
       var tb = url.parse(dist.tarball)
@@ -480,7 +557,7 @@ function addNameVersion (name, ver, cb) {
                              , name+"-"+ver
                              , cb )
     }
-  })
+  }
 }
 
 function addLocal (p, name, cb_) {

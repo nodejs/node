@@ -1,4 +1,27 @@
-2011.12.04, Version 0.6.5 (stable)
+2011.12.14, Version 0.6.6 (stable)
+
+* npm update to 1.1.0-beta-4 (Isaac Z. Schlueter)
+
+* cli: fix output of --help (Ben Noordhuis)
+
+* new website
+
+* pause/resume semantics for stdin (Isaac Z. Schlueter)
+
+* Travis CI integration (Maciej Małecki)
+
+* child_process: Fix bug regarding closed stdin (Ben Noordhuis)
+
+* Enable upgrades in MSI. (Igor Zinkovsky)
+
+* net: Fixes memory leak (Ben Noordhuis)
+
+* fs: handle fractional or NaN ReadStream buffer size (Ben Noordhuis)
+
+* crypto: fix memory leaks in PBKDF2 error path (Ben Noordhuis)
+
+
+2011.12.04, Version 0.6.5 (stable), 6cc94db653a2739ab28e33b2d6a63c51bd986a9f
 
 * npm workaround Windows antivirus software (isaacs)
 
