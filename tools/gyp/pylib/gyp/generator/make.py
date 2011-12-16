@@ -2015,6 +2015,27 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                          order_only = True,
                          multiple_output_trick = False)
 
+    if self.flavor == 'mac':
+      # Write an envvar for postbuilds.
+      # CHROMIUM_STRIP_SAVE_FILE is a chromium-specific hack.
+      # TODO(thakis): It would be nice to have some general mechanism instead.
+      # This variable may be referenced by TARGET_POSTBUILDS_$(BUILDTYPE),
+      # so we must output its definition first, since we declare variables
+      # using ":=".
+      # TODO(thakis): Write this only for targets that actually have
+      # postbuilds.
+      strip_save_file = self.xcode_settings.GetPerTargetSetting(
+          'CHROMIUM_STRIP_SAVE_FILE')
+      if strip_save_file:
+        strip_save_file = self.Absolutify(strip_save_file)
+      else:
+        # Explicitly clear this out, else a postbuild might pick up an export
+        # from an earlier target.
+        strip_save_file = ''
+      self.WriteXcodeEnv(
+          self.output, spec,
+          additional_settings={'CHROMIUM_STRIP_SAVE_FILE': strip_save_file})
+
     has_target_postbuilds = False
     if self.type != 'none':
       for configname in sorted(configs.keys()):
@@ -2078,23 +2099,6 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         postbuilds.append(gyp.common.EncodePOSIXShellList(shell_list))
 
     if postbuilds:
-      # Write envvars for postbuilds.
-      extra_settings = {}
-
-      # CHROMIUM_STRIP_SAVE_FILE is a chromium-specific hack.
-      # TODO(thakis): It would be nice to have some general mechanism instead.
-      strip_save_file = self.xcode_settings.GetPerTargetSetting(
-          'CHROMIUM_STRIP_SAVE_FILE')
-      if strip_save_file:
-        strip_save_file = self.Absolutify(strip_save_file)
-      else:
-        # Explicitly clear this out, else a postbuild might pick up an export
-        # from an earlier target.
-        strip_save_file = ''
-      extra_settings['CHROMIUM_STRIP_SAVE_FILE'] = strip_save_file
-
-      self.WriteXcodeEnv(self.output, spec, additional_settings=extra_settings)
-
       for i in xrange(len(postbuilds)):
         if not postbuilds[i].startswith('$'):
           postbuilds[i] = EscapeShellArgument(postbuilds[i])

@@ -100,5 +100,16 @@
         'STRIP_STYLE': 'all',
       },
     },
+    {
+      'target_name': 'strip_save',
+      'type': 'shared_library',
+      'sources': [ 'file.c', ],
+      'xcode_settings': {
+        'DEPLOYMENT_POSTPROCESSING': 'YES',
+        'STRIP_INSTALLED_PRODUCT': 'YES',
+        'STRIPFLAGS': '-s $(CHROMIUM_STRIP_SAVE_FILE)',
+        'CHROMIUM_STRIP_SAVE_FILE': 'strip.saves',
+      },
+    },
   ],
 }

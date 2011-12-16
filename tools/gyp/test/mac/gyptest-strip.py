@@ -49,5 +49,6 @@ if sys.platform == 'darwin':
   CheckNsyms(test.built_file_path(
       'strip_all_bundle.framework/Versions/A/strip_all_bundle', chdir='strip'),
       0)
+  CheckNsyms(OutPath('strip_save'), 3)
 
   test.pass_test()
