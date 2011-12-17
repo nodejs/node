@@ -2632,9 +2632,6 @@ static Handle<Value> DebugPause(const Arguments& args) {
 
 
 char** ProcessInit(int argc, char *argv[]) {
-  // Initialize prog_start_time to get relative uptime.
-  uv_uptime(&prog_start_time);
-
   // Hack aroung with the argv pointer. Used for process.title = "blah".
   argv = uv_setup_args(argc, argv);
 
@@ -2764,6 +2761,9 @@ void StartThread(node::Isolate* isolate,
 
   // FIXME crashes with "CHECK(heap->isolate() == Isolate::Current()) failed"
   //v8_typed_array::AttachBindings(v8::Context::GetCurrent()->Global());
+
+  // Initialize prog_start_time to get relative uptime.
+  uv_uptime(&prog_start_time);
 
   // Create all the objects, load modules, do everything.
   // so your next reading stop should be node::Load()!
