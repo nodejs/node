@@ -205,7 +205,8 @@ function parseField (f, k, emptyIsFalse) {
   f = envReplace(f)
 
   if (isPath) {
-    if (f.substr(0, 2) === "~/" && process.env.HOME) {
+    var homePattern = process.platform === "win32" ? /^~(\/|\\)/ : /^~\//
+    if (f.match(homePattern) && process.env.HOME) {
       f = path.resolve(process.env.HOME, f.substr(2))
     }
     f = path.resolve(f)

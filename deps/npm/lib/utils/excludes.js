@@ -137,7 +137,7 @@ function test (file, excludeList) {
           && rf.slice(-1) === "/"
           && excludes.indexOf(ex + "/**") === -1) {
         // log.warn(ex + "/**", "adding dir-matching exclude pattern")
-        excludes.push(ex + "/**")
+        excludes.splice(ii, 1, ex, ex + "/**")
         ll ++
       }
     }
