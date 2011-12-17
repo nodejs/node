@@ -1,11 +1,22 @@
 BUILDTYPE ?= Release
 
-all: out/Makefile
-	$(MAKE) -C out BUILDTYPE=$(BUILDTYPE)
+ifeq ($(BUILDTYPE),Release)
+all: out/Makefile node
+else
+all: out/Makefile node_g
+endif
+
+node: out/Release/node
 	-ln -fs out/Release/node node
+
+out/Release/node:
+	$(MAKE) -C out BUILDTYPE=Release
+
+node_g: out/Debug/node
 	-ln -fs out/Debug/node node_g
 
-out/Release/node: all
+out/Debug/node:
+	$(MAKE) -C out BUILDTYPE=Debug
 
 out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp options.gypi
 	tools/gyp_node -f make
@@ -17,7 +28,7 @@ uninstall:
 	out/Release/node tools/installer.js ./options.gypi uninstall
 
 clean:
-	rm -rf out
+	-rm -rf out/Makefile node node_g out/**/*.o  out/**/*.a out/$(BUILDTYPE)/node
 
 distclean:
 	-rm -rf out
