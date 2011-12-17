@@ -229,8 +229,9 @@ And then the child script, `'sub.js'` might look like this:
 In the child the `process` object will have a `send()` method, and `process`
 will emit objects each time it receives a message on its channel.
 
-By default the spawned Node process will have the stdin, stdout, stderr
-associated with the parent's.
+By default the spawned Node process will have the stdout, stderr associated
+with the parent's. To change this behavior set the `silent` property in the
+`options` object to `true`.
 
 These child Nodes are still whole new instances of V8. Assume at least 30ms
 startup and 10mb memory for each new Node. That is, you cannot create many
