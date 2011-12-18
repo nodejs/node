@@ -43,13 +43,17 @@ namespace node {
 
 class Isolate {
 public:
+  char** argv_;
+  int argc_;
+  uv_thread_t tid_;
+
   // Call this before instantiating any Isolate
   static void Initialize();
   static int Count();
 
   typedef void (*AtExitCallback)(void* arg);
 
-  static Isolate* New();
+  static void JoinAll();
 
   static Isolate* GetCurrent() {
     return reinterpret_cast<Isolate*>(v8::Isolate::GetCurrent()->GetData());
@@ -75,15 +79,25 @@ public:
    */
   void AtExit(AtExitCallback callback, void *arg);
 
-  /* Shutdown the isolate. Call this method at thread death. */
-  void Dispose();
-
   struct globals* Globals();
 
   unsigned int id_;
 
-private:
+  // This constructor is used for every non-main thread
   Isolate();
+
+  ~Isolate() {
+    if (argv_) {
+      delete argv_;
+    }
+  }
+
+  void Enter();
+
+  /* Shutdown the isolate. Call this method at thread death. */
+  void Dispose();
+
+private:
 
   struct AtExitCallbackInfo {
     ngx_queue_t at_exit_callbacks_;
@@ -101,6 +115,7 @@ private:
 
   // Global variables for this isolate.
   struct globals globals_;
+  bool globals_init_;
 };
 
 } // namespace node

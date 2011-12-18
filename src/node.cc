@@ -1849,54 +1849,11 @@ static Handle<Value> Binding(const Arguments& args) {
 }
 
 
-struct ThreadInfo {
-  uv_thread_t thread_;
-  char** argv_;
-  int argc_;
-
-  ThreadInfo(int argc, char** argv) {
-    argc_ = argc;
-    argv_ = new char*[argc_ + 1];
-
-    for (int i = 0; i < argc_; ++i) {
-      size_t size = 1 + strlen(argv[i]);
-      argv_[i] = new char[size];
-      memcpy(argv_[i], argv[i], size);
-    }
-    argv_[argc_] = NULL;
-  }
-
-  ThreadInfo(Handle<Array> args) {
-    argc_ = args->Length();
-    argv_ = new char*[argc_ + 1];
-
-    for (int i = 0; i < argc_; ++i) {
-      String::Utf8Value str(args->Get(i));
-      size_t size = 1 + strlen(*str);
-      argv_[i] = new char[size];
-      memcpy(argv_[i], *str, size);
-    }
-    argv_[argc_] = NULL;
-  }
-
-  ~ThreadInfo() {
-    for (int i = 0; i < argc_; ++i) {
-      delete[] argv_[i];
-    }
-    delete argv_;
-  }
-};
-
-
 static void RunIsolate(void* arg) {
-  ThreadInfo* ti = reinterpret_cast<ThreadInfo*>(arg);
-
-  Isolate* isolate = Isolate::New();
-
-  StartThread(isolate, ti->argc_, ti->argv_);
+  node::Isolate* isolate = reinterpret_cast<node::Isolate*>(arg);
+  isolate->Enter();
+  StartThread(isolate, isolate->argc_, isolate->argv_);
   isolate->Dispose();
-
-  delete ti;
   delete isolate;
 }
 
@@ -1912,10 +1869,23 @@ static Handle<Value> NewIsolate(const Arguments& args) {
   Local<Array> argv = args[0].As<Array>();
   assert(argv->Length() >= 2);
 
-  ThreadInfo* ti = new ThreadInfo(argv);
+  // Note that isolate lock is aquired in the constructor here. It will not
+  // be unlocked until RunIsolate starts and calls isolate->Enter().
+  Isolate* isolate = new node::Isolate();
 
-  if (uv_thread_create(&ti->thread_, RunIsolate, ti)) {
-    delete ti;
+  // Copy over arguments into isolate
+  isolate->argc_ = argv->Length();
+  isolate->argv_ = new char*[isolate->argc_ + 1];
+  for (int i = 0; i < isolate->argc_; ++i) {
+    String::Utf8Value str(argv->Get(i));
+    size_t size = 1 + strlen(*str);
+    isolate->argv_[i] = new char[size];
+    memcpy(isolate->argv_[i], *str, size);
+  }
+  isolate->argv_[isolate->argc_] = NULL;
+
+  if (uv_thread_create(&isolate->tid_, RunIsolate, isolate)) {
+    delete isolate;
     return Null();
   }
 
@@ -1924,7 +1894,7 @@ static Handle<Value> NewIsolate(const Arguments& args) {
 
   Local<Object> obj = tpl->NewInstance();
   obj->SetPointerInInternalField(0, magic_isolate_cookie_);
-  obj->SetPointerInInternalField(1, ti);
+  obj->SetPointerInInternalField(1, isolate);
 
   return scope.Close(obj);
 }
@@ -1945,10 +1915,10 @@ static Handle<Value> JoinIsolate(const Arguments& args) {
   assert(obj->InternalFieldCount() == 2);
   assert(obj->GetPointerFromInternalField(0) == magic_isolate_cookie_);
 
-  ThreadInfo* ti = reinterpret_cast<ThreadInfo*>(
+  Isolate* ti = reinterpret_cast<Isolate*>(
       obj->GetPointerFromInternalField(1));
 
-  if (uv_thread_join(&ti->thread_))
+  if (uv_thread_join(&ti->tid_))
     return False(); // error
   else
     return True();  // ok
@@ -2700,8 +2670,7 @@ void StartThread(node::Isolate* isolate,
                  char** argv) {
   HandleScope scope;
 
-  v8::Isolate::Scope isolate_scope(isolate->GetV8Isolate());
-  v8::Context::Scope context_scope(isolate->GetV8Context());
+  assert(node::Isolate::GetCurrent() == isolate);
 
   uv_loop_t* loop = isolate->GetLoop();
   uv_prepare_init(loop, &prepare_tick_watcher);
@@ -2787,11 +2756,20 @@ int Start(int argc, char *argv[]) {
   v8::V8::Initialize();
   v8::HandleScope handle_scope;
 
+  // Get the id of the this, the main, thread.
+  uv_thread_t tid = uv_thread_self();
+
   // Create the main node::Isolate object
   node::Isolate::Initialize();
-  Isolate* isolate = node::Isolate::New();
+  Isolate* isolate = new node::Isolate();
+  isolate->tid_ = tid;
+  isolate->Enter();
   StartThread(isolate, argc, argv);
   isolate->Dispose();
+
+  // The main thread/isolate is done. Wait for all other thread/isolates to
+  // finish.
+  node::Isolate::JoinAll();
 
 #ifndef NDEBUG
   // Clean up.
