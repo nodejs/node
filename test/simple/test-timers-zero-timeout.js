@@ -27,6 +27,7 @@ var assert = require('assert');
   var ncalled = 0;
 
   setTimeout(f, 0, 'foo', 'bar', 'baz');
+  var timer = setTimeout(function(){}, 0);
 
   function f(a, b, c) {
     assert.equal(a, 'foo');
@@ -37,6 +38,8 @@ var assert = require('assert');
 
   process.on('exit', function() {
     assert.equal(ncalled, 1);
+    // timer should be already closed
+    assert.equal(timer.close(), -1);
   });
 })();
 
