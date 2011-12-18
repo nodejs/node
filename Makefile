@@ -6,14 +6,17 @@ else
 all: out/Makefile node_g
 endif
 
-node: out/Release/node
-	-ln -fs out/Release/node node
+# The .PHONY is needed to ensure that we recursively use the out/Makefile
+# to check for changes.
+.PHONY: node node_g
 
-out/Release/node:
+node:
 	$(MAKE) -C out BUILDTYPE=Release
+	ln -fs out/Release/node node
 
-node_g: out/Debug/node
-	-ln -fs out/Debug/node node_g
+node_g:
+	$(MAKE) -C out BUILDTYPE=Debug
+	ln -fs out/Debug/node node_g
 
 out/Debug/node:
 	$(MAKE) -C out BUILDTYPE=Debug
