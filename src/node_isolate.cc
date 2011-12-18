@@ -46,13 +46,31 @@ void Isolate::Initialize() {
 }
 
 
-Isolate* Isolate::New() {
-  return new Isolate();
+int Isolate::Count() {
+  return isolate_count;
 }
 
 
-int Isolate::Count() {
-  return isolate_count;
+void Isolate::JoinAll() {
+  uv_mutex_lock(&list_lock);
+
+  while (ngx_queue_empty(&list_head) == false) {
+    ngx_queue_t* q = ngx_queue_head(&list_head);
+    assert(q);
+    Isolate* isolate = ngx_queue_data(q, Isolate, list_member_);
+    assert(isolate);
+
+    // Unlock the list while we join the thread.
+    uv_mutex_unlock(&list_lock);
+
+    uv_thread_join(&isolate->tid_);
+
+    // Relock to check the next element in the list.
+    uv_mutex_lock(&list_lock);
+  }
+
+  // Unlock the list finally.
+  uv_mutex_unlock(&list_lock);
 }
 
 
@@ -79,19 +97,11 @@ Isolate::Isolate() {
 
   uv_mutex_unlock(&list_lock);
 
-  v8_isolate_ = v8::Isolate::GetCurrent();
-  if (v8_isolate_ == NULL) {
-    v8_isolate_ = v8::Isolate::New();
-    v8_isolate_->Enter();
-  }
-
+  v8_isolate_ = v8::Isolate::New();
   assert(v8_isolate_->GetData() == NULL);
   v8_isolate_->SetData(this);
 
-  v8_context_ = v8::Context::New();
-  v8_context_->Enter();
-
-  globals_init(&globals_);
+  globals_init_ = false;
 }
 
 
@@ -112,20 +122,31 @@ void Isolate::AtExit(AtExitCallback callback, void* arg) {
 }
 
 
+void Isolate::Enter() {
+  v8_isolate_->Enter();
+
+  if (v8_context_.IsEmpty()) {
+    v8_context_ = v8::Context::New();
+  }
+  v8_context_->Enter();
+
+  if (!globals_init_) {
+    globals_init_ = true;
+    globals_init(&globals_);
+  }
+
+  NODE_ISOLATE_CHECK(this);
+}
+
+
 void Isolate::Dispose() {
   uv_mutex_lock(&list_lock);
+
+  NODE_ISOLATE_CHECK(this);
 
   struct AtExitCallbackInfo* it;
   ngx_queue_t* q;
 
-  NODE_ISOLATE_CHECK(this);
-
-  ngx_queue_foreach(q, &at_exit_callbacks_) {
-    it = ngx_queue_data(q, struct AtExitCallbackInfo, at_exit_callbacks_);
-    it->callback_(it->arg_);
-    delete it;
-  }
-  ngx_queue_init(&at_exit_callbacks_);
 
   assert(v8_context_->InContext());
   v8_context_->Exit();
