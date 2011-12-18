@@ -31,7 +31,7 @@ assert.equal('[Function]', common.inspect(function() {}));
 assert.equal('undefined', common.inspect(undefined));
 assert.equal('null', common.inspect(null));
 assert.equal('/foo(bar\\n)?/gi', common.inspect(/foo(bar\n)?/gi));
-assert.equal('Sun, 14 Feb 2010 11:48:40 GMT',
+assert.equal('Sun Feb 14 2010 12:48:40 GMT+0100 (CET)',
              common.inspect(new Date('Sun, 14 Feb 2010 11:48:40 GMT')));
 
 assert.equal("'\\n\\u0001'", common.inspect('\n\u0001'));
