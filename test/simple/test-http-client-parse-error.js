@@ -48,6 +48,7 @@ srv.listen(common.PORT, '127.0.0.1', function() {
     console.log('got error from client');
     srv.close();
     assert.ok(e.message.indexOf('Parse Error') >= 0);
+    assert.equal(e.code, 'HPE_INVALID_CONSTANT');
     parseError = true;
   });
 });

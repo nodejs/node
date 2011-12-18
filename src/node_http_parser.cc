@@ -432,9 +432,12 @@ public:
     // If there was a parse error in one of the callbacks
     // TODO What if there is an error on EOF?
     if (!parser->parser_.upgrade && nparsed != len) {
+      enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
+
       Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
       Local<Object> obj = e->ToObject();
       obj->Set(String::NewSymbol("bytesParsed"), nparsed_obj);
+      obj->Set(String::NewSymbol("code"), String::New(http_errno_name(err)));
       return scope.Close(e);
     } else {
       return scope.Close(nparsed_obj);
@@ -455,9 +458,12 @@ public:
     if (parser->got_exception_) return Local<Value>();
 
     if (rv != 0) {
+      enum http_errno err = HTTP_PARSER_ERRNO(&parser->parser_);
+
       Local<Value> e = Exception::Error(String::NewSymbol("Parse Error"));
       Local<Object> obj = e->ToObject();
       obj->Set(String::NewSymbol("bytesParsed"), Integer::New(0));
+      obj->Set(String::NewSymbol("code"), String::New(http_errno_name(err)));
       return scope.Close(e);
     }
 
