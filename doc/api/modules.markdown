@@ -115,6 +115,9 @@ That is, `circle.js` must be in the same directory as `foo.js` for
 Without a leading '/' or './' to indicate a file, the module is either a
 "core module" or is loaded from a `node_modules` folder.
 
+If the given path does not exist, `require()` will throw an Error with its
+`code` property set to `'MODULE_NOT_FOUND'`.
+
 ### Loading from `node_modules` Folders
 
 If the module identifier passed to `require()` is not a native module,
