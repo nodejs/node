@@ -8,7 +8,6 @@
       'target_name': 'openssl',
       'type': '<(library)',
       'defines': [
-        'OPENSSL_NO_ASM=1', # revisit, this slows down most algorithms
         'L_ENDIAN',
         'OPENSSLDIR="ssl"',
         'ENGINESDIR="ssl/lib/engines"',
@@ -39,7 +38,7 @@
             'TERMIO',
           ],
         }],
-        ['target_arch=="ia32"', {
+        ['target_arch=="ia32" or target_arch=="x64"', {
           'include_dirs': [
             'config/piii',
           ],
