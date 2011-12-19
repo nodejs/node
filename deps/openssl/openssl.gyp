@@ -8,6 +8,7 @@
       'target_name': 'openssl',
       'type': '<(library)',
       'defines': [
+        'OPENSSL_NO_ASM=1', # revisit, this slows down most algorithms
         'L_ENDIAN',
         'OPENSSLDIR="ssl"',
         'ENGINESDIR="ssl/lib/engines"',
