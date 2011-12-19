@@ -72,9 +72,11 @@ in the master process via message passing:
 
 
 
-### cluster.fork()
+### cluster.fork([env])
 
 Spawn a new worker process. This can only be called from the master process.
+The function takes an optional `env` object. The propertyies in this object
+will be added to the process environment in the worker.
 
 ### cluster.isMaster
 ### cluster.isWorker
@@ -92,6 +94,6 @@ This can be used to restart the worker by calling `fork()` again.
       console.log('worker ' + worker.pid + ' died. restart...');
       cluster.fork();
     });
-  
+
 Different techniques can be used to restart the worker depending on the
 application.
