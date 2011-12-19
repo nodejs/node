@@ -4257,10 +4257,10 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 
 
 // Search for a getter or setter in an elements dictionary and update its
-// attributes.  Returns either undefined if the element is read-only, or the
-// getter/setter pair (fixed array) if there is an existing one, or the hole
-// value if the element does not exist or is a normal non-getter/setter data
-// element.
+// attributes.  Returns either undefined if the element is non-deletable, or
+// the getter/setter pair (fixed array) if there is an existing one, or the
+// hole value if the element does not exist or is a normal non-getter/setter
+// data element.
 static Object* UpdateGetterSetterInDictionary(NumberDictionary* dictionary,
                                               uint32_t index,
                                               PropertyAttributes attributes,
@@ -4269,7 +4269,8 @@ static Object* UpdateGetterSetterInDictionary(NumberDictionary* dictionary,
   if (entry != NumberDictionary::kNotFound) {
     Object* result = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
-    if (details.IsReadOnly()) return heap->undefined_value();
+    // TODO(mstarzinger): We should check for details.IsDontDelete() here once
+    // we only call into the runtime once to set both getter and setter.
     if (details.type() == CALLBACKS && result->IsFixedArray()) {
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(entry,
@@ -4353,7 +4354,8 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     LookupResult result(heap->isolate());
     LocalLookup(name, &result);
     if (result.IsProperty()) {
-      if (result.IsReadOnly()) return heap->undefined_value();
+      // TODO(mstarzinger): We should check for result.IsDontDelete() here once
+      // we only call into the runtime once to set both getter and setter.
       if (result.type() == CALLBACKS) {
         Object* obj = result.GetCallbackObject();
         // Need to preserve old getters/setters.
@@ -8376,7 +8378,7 @@ void JSArray::Expand(int required_size) {
 }
 
 
-MaybeObject* JSObject::SetElementsLength(Object* len) {
+MaybeObject* JSArray::SetElementsLength(Object* len) {
   // We should never end in here with a pixel or external array.
   ASSERT(AllowsSetElementsLength());
   return GetElementsAccessor()->SetLength(this, len);

@@ -434,7 +434,8 @@ static Handle<Object> CreateObjectLiteralBoilerplate(
 static const int kSmiOnlyLiteralMinimumLength = 1024;
 
 
-static Handle<Object> CreateArrayLiteralBoilerplate(
+// static
+Handle<Object> Runtime::CreateArrayLiteralBoilerplate(
     Isolate* isolate,
     Handle<FixedArray> literals,
     Handle<FixedArray> elements) {
@@ -536,7 +537,8 @@ static Handle<Object> CreateLiteralBoilerplate(
                                             false,
                                             kHasNoFunctionLiteral);
     case CompileTimeValue::ARRAY_LITERAL:
-      return CreateArrayLiteralBoilerplate(isolate, literals, elements);
+      return Runtime::CreateArrayLiteralBoilerplate(
+          isolate, literals, elements);
     default:
       UNREACHABLE();
       return Handle<Object>::null();
@@ -606,7 +608,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteral) {
   // Check if boilerplate exists. If not, create it first.
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
-    boilerplate = CreateArrayLiteralBoilerplate(isolate, literals, elements);
+    boilerplate =
+        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -626,7 +629,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CreateArrayLiteralShallow) {
   Handle<Object> boilerplate(literals->get(literals_index), isolate);
   if (*boilerplate == isolate->heap()->undefined_value()) {
     ASSERT(*elements != isolate->heap()->empty_fixed_array());
-    boilerplate = CreateArrayLiteralBoilerplate(isolate, literals, elements);
+    boilerplate =
+        Runtime::CreateArrayLiteralBoilerplate(isolate, literals, elements);
     if (boilerplate.is_null()) return Failure::Exception();
     // Update the functions literal and return the boilerplate.
     literals->set(literals_index, *boilerplate);
@@ -4244,27 +4248,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineAccessorProperty) {
   CONVERT_CHECKED(String, name, args[1]);
   CONVERT_CHECKED(Smi, flag_setter, args[2]);
   Object* fun = args[3];
-  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
   CONVERT_CHECKED(Smi, flag_attr, args[4]);
+
   int unchecked = flag_attr->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-  RUNTIME_ASSERT(!obj->IsNull());
-  LookupResult result(isolate);
-  obj->LocalLookupRealNamedProperty(name, &result);
-
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
-  // If an existing property is either FIELD, NORMAL or CONSTANT_FUNCTION
-  // delete it to avoid running into trouble in DefineAccessor, which
-  // handles this incorrectly if the property is readonly (does nothing)
-  if (result.IsProperty() &&
-      (result.type() == FIELD || result.type() == NORMAL
-       || result.type() == CONSTANT_FUNCTION)) {
-    Object* ok;
-    { MaybeObject* maybe_ok =
-          obj->DeleteProperty(name, JSReceiver::NORMAL_DELETION);
-      if (!maybe_ok->ToObject(&ok)) return maybe_ok;
-    }
-  }
+
+  RUNTIME_ASSERT(!obj->IsNull());
+  RUNTIME_ASSERT(fun->IsSpecFunction() || fun->IsUndefined());
   return obj->DefineAccessor(name, flag_setter->value() == 0, fun, attr);
 }
 
@@ -4280,11 +4271,10 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   CONVERT_ARG_CHECKED(JSObject, js_object, 0);
   CONVERT_ARG_CHECKED(String, name, 1);
   Handle<Object> obj_value = args.at<Object>(2);
-
   CONVERT_CHECKED(Smi, flag, args[3]);
+
   int unchecked = flag->value();
   RUNTIME_ASSERT((unchecked & ~(READ_ONLY | DONT_ENUM | DONT_DELETE)) == 0);
-
   PropertyAttributes attr = static_cast<PropertyAttributes>(unchecked);
 
   // Check if this is an element.

@@ -5474,7 +5474,7 @@ void StringCharAtGenerator::GenerateSlow(
 
 
 void StringAddStub::Generate(MacroAssembler* masm) {
-  Label string_add_runtime, call_builtin;
+  Label call_runtime, call_builtin;
   Builtins::JavaScript builtin_id = Builtins::ADD;
 
   // Load the two arguments.
@@ -5483,14 +5483,14 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   // Make sure that both arguments are strings if not known in advance.
   if (flags_ == NO_STRING_ADD_FLAGS) {
-    __ JumpIfSmi(eax, &string_add_runtime);
+    __ JumpIfSmi(eax, &call_runtime);
     __ CmpObjectType(eax, FIRST_NONSTRING_TYPE, ebx);
-    __ j(above_equal, &string_add_runtime);
+    __ j(above_equal, &call_runtime);
 
     // First argument is a a string, test second.
-    __ JumpIfSmi(edx, &string_add_runtime);
+    __ JumpIfSmi(edx, &call_runtime);
     __ CmpObjectType(edx, FIRST_NONSTRING_TYPE, ebx);
-    __ j(above_equal, &string_add_runtime);
+    __ j(above_equal, &call_runtime);
   } else {
     // Here at least one of the arguments is definitely a string.
     // We convert the one that is not known to be a string.
@@ -5541,15 +5541,14 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ add(ebx, ecx);
   STATIC_ASSERT(Smi::kMaxValue == String::kMaxLength);
   // Handle exceptionally long strings in the runtime system.
-  __ j(overflow, &string_add_runtime);
+  __ j(overflow, &call_runtime);
   // Use the symbol table when adding two one character strings, as it
   // helps later optimizations to return a symbol here.
   __ cmp(ebx, Immediate(Smi::FromInt(2)));
   __ j(not_equal, &longer_than_two);
 
   // Check that both strings are non-external ascii strings.
-  __ JumpIfNotBothSequentialAsciiStrings(eax, edx, ebx, ecx,
-                                         &string_add_runtime);
+  __ JumpIfNotBothSequentialAsciiStrings(eax, edx, ebx, ecx, &call_runtime);
 
   // Get the two characters forming the new string.
   __ movzx_b(ebx, FieldOperand(eax, SeqAsciiString::kHeaderSize));
@@ -5574,11 +5573,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ movzx_b(ecx, FieldOperand(edx, SeqAsciiString::kHeaderSize));
   __ bind(&make_two_character_string_no_reload);
   __ IncrementCounter(counters->string_add_make_two_char(), 1);
-  __ AllocateAsciiString(eax,  // Result.
-                         2,    // Length.
-                         edi,  // Scratch 1.
-                         edx,  // Scratch 2.
-                         &string_add_runtime);
+  __ AllocateAsciiString(eax, 2, edi, edx, &call_runtime);
   // Pack both characters in ebx.
   __ shl(ecx, kBitsPerByte);
   __ or_(ebx, ecx);
@@ -5606,7 +5601,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ j(zero, &non_ascii);
   __ bind(&ascii_data);
   // Allocate an acsii cons string.
-  __ AllocateAsciiConsString(ecx, edi, no_reg, &string_add_runtime);
+  __ AllocateAsciiConsString(ecx, edi, no_reg, &call_runtime);
   __ bind(&allocated);
   // Fill the fields of the cons string.
   if (FLAG_debug_code) __ AbortIfNotSmi(ebx);
@@ -5633,64 +5628,93 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ cmp(edi, kAsciiStringTag | kAsciiDataHintTag);
   __ j(equal, &ascii_data);
   // Allocate a two byte cons string.
-  __ AllocateTwoByteConsString(ecx, edi, no_reg, &string_add_runtime);
+  __ AllocateTwoByteConsString(ecx, edi, no_reg, &call_runtime);
   __ jmp(&allocated);
 
-  // Handle creating a flat result. First check that both strings are not
-  // external strings.
+  // We cannot encounter sliced strings or cons strings here since:
+  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  // Handle creating a flat result from either external or sequential strings.
+  // Locate the first characters' locations.
   // eax: first string
   // ebx: length of resulting flat string as a smi
   // edx: second string
+  Label first_prepared, second_prepared;
+  Label first_is_sequential, second_is_sequential;
   __ bind(&string_add_flat_result);
   __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
   __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ and_(ecx, kStringRepresentationMask);
-  __ cmp(ecx, kExternalStringTag);
-  __ j(equal, &string_add_runtime);
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ movzx_b(ecx, FieldOperand(ecx, Map::kInstanceTypeOffset));
-  __ and_(ecx, kStringRepresentationMask);
-  __ cmp(ecx, kExternalStringTag);
-  __ j(equal, &string_add_runtime);
-  // We cannot encounter sliced strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
-  // Now check if both strings are ascii strings.
-  // eax: first string
-  // ebx: length of resulting flat string as a smi
-  // edx: second string
-  Label non_ascii_string_add_flat_result;
-  STATIC_ASSERT((kStringEncodingMask & kAsciiStringTag) != 0);
-  STATIC_ASSERT((kStringEncodingMask & kTwoByteStringTag) == 0);
-  __ mov(ecx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kStringEncodingMask);
-  __ j(zero, &non_ascii_string_add_flat_result);
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kStringEncodingMask);
-  __ j(zero, &string_add_runtime);
+  // ecx: instance type of first string
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ test_b(ecx, kStringRepresentationMask);
+  __ j(zero, &first_is_sequential, Label::kNear);
+  // Rule out short external string and load string resource.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ test_b(ecx, kShortExternalStringMask);
+  __ j(not_zero, &call_runtime);
+  __ mov(eax, FieldOperand(eax, ExternalString::kResourceDataOffset));
+  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ jmp(&first_prepared, Label::kNear);
+  __ bind(&first_is_sequential);
+  __ add(eax, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ bind(&first_prepared);
 
-  // Both strings are ascii strings.  As they are short they are both flat.
+  __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
+  __ movzx_b(edi, FieldOperand(edi, Map::kInstanceTypeOffset));
+  // Check whether both strings have same encoding.
+  // edi: instance type of second string
+  __ xor_(ecx, edi);
+  __ test_b(ecx, kStringEncodingMask);
+  __ j(not_zero, &call_runtime);
+  STATIC_ASSERT(kSeqStringTag == 0);
+  __ test_b(edi, kStringRepresentationMask);
+  __ j(zero, &second_is_sequential, Label::kNear);
+  // Rule out short external string and load string resource.
+  STATIC_ASSERT(kShortExternalStringTag != 0);
+  __ test_b(edi, kShortExternalStringMask);
+  __ j(not_zero, &call_runtime);
+  __ mov(edx, FieldOperand(edx, ExternalString::kResourceDataOffset));
+  STATIC_ASSERT(SeqAsciiString::kHeaderSize == SeqTwoByteString::kHeaderSize);
+  __ jmp(&second_prepared, Label::kNear);
+  __ bind(&second_is_sequential);
+  __ add(edx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ bind(&second_prepared);
+
+  // Push the addresses of both strings' first characters onto the stack.
+  __ push(edx);
+  __ push(eax);
+
+  Label non_ascii_string_add_flat_result, call_runtime_drop_two;
+  // edi: instance type of second string
+  // First string and second string have the same encoding.
+  STATIC_ASSERT(kTwoByteStringTag == 0);
+  __ test_b(edi, kStringEncodingMask);
+  __ j(zero, &non_ascii_string_add_flat_result);
+
+  // Both strings are ascii strings.
   // ebx: length of resulting flat string as a smi
   __ SmiUntag(ebx);
-  __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &string_add_runtime);
+  __ AllocateAsciiString(eax, ebx, ecx, edx, edi, &call_runtime_drop_two);
   // eax: result string
   __ mov(ecx, eax);
   // Locate first character of result.
   __ add(ecx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
-  // Load first argument and locate first character.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
+  // Load first argument's length and first character location.  Account for
+  // values currently on the stack when fetching arguments from it.
+  __ mov(edx, Operand(esp, 4 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
   __ SmiUntag(edi);
-  __ add(edx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ pop(edx);
   // eax: result string
   // ecx: first character of result
   // edx: first char of first argument
   // edi: length of first argument
   StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, true);
-  // Load second argument and locate first character.
-  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  // Load second argument's length and first character location.  Account for
+  // values currently on the stack when fetching arguments from it.
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
   __ SmiUntag(edi);
-  __ add(edx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ pop(edx);
   // eax: result string
   // ecx: next character of result
   // edx: first char of second argument
@@ -5704,34 +5728,30 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   // ebx: length of resulting flat string as a smi
   // edx: second string
   __ bind(&non_ascii_string_add_flat_result);
-  __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
-  __ test_b(FieldOperand(ecx, Map::kInstanceTypeOffset), kStringEncodingMask);
-  __ j(not_zero, &string_add_runtime);
-  // Both strings are two byte strings. As they are short they are both
-  // flat.
+  // Both strings are two byte strings.
   __ SmiUntag(ebx);
-  __ AllocateTwoByteString(eax, ebx, ecx, edx, edi, &string_add_runtime);
+  __ AllocateTwoByteString(eax, ebx, ecx, edx, edi, &call_runtime_drop_two);
   // eax: result string
   __ mov(ecx, eax);
   // Locate first character of result.
-  __ add(ecx,
-         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
-  // Load first argument and locate first character.
-  __ mov(edx, Operand(esp, 2 * kPointerSize));
+  __ add(ecx, Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  // Load second argument's length and first character location.  Account for
+  // values currently on the stack when fetching arguments from it.
+  __ mov(edx, Operand(esp, 4 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
   __ SmiUntag(edi);
-  __ add(edx,
-         Immediate(SeqTwoByteString::kHeaderSize - kHeapObjectTag));
+  __ pop(edx);
   // eax: result string
   // ecx: first character of result
   // edx: first char of first argument
   // edi: length of first argument
   StringHelper::GenerateCopyCharacters(masm, ecx, edx, edi, ebx, false);
-  // Load second argument and locate first character.
-  __ mov(edx, Operand(esp, 1 * kPointerSize));
+  // Load second argument's length and first character location.  Account for
+  // values currently on the stack when fetching arguments from it.
+  __ mov(edx, Operand(esp, 2 * kPointerSize));
   __ mov(edi, FieldOperand(edx, String::kLengthOffset));
   __ SmiUntag(edi);
-  __ add(edx, Immediate(SeqAsciiString::kHeaderSize - kHeapObjectTag));
+  __ pop(edx);
   // eax: result string
   // ecx: next character of result
   // edx: first char of second argument
@@ -5740,8 +5760,11 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ IncrementCounter(counters->string_add_native(), 1);
   __ ret(2 * kPointerSize);
 
+  // Recover stack pointer before jumping to runtime.
+  __ bind(&call_runtime_drop_two);
+  __ Drop(2);
   // Just jump to runtime to add the two strings.
-  __ bind(&string_add_runtime);
+  __ bind(&call_runtime);
   __ TailCallRuntime(Runtime::kStringAdd, 2, 1);
 
   if (call_builtin.is_linked()) {
@@ -6120,20 +6143,20 @@ void SubStringStub::Generate(MacroAssembler* masm) {
              FieldOperand(eax, edx, times_1, SeqAsciiString::kHeaderSize + 1));
 
   // Try to lookup two character string in symbol table.
-  Label make_two_character_string;
+  Label combine_two_char, save_two_char;
   StringHelper::GenerateTwoCharacterSymbolTableProbe(
-      masm, ebx, ecx, eax, edx, edi,
-      &make_two_character_string, &make_two_character_string);
+      masm, ebx, ecx, eax, edx, edi, &combine_two_char, &save_two_char);
   __ IncrementCounter(counters->sub_string_native(), 1);
   __ ret(3 * kPointerSize);
 
-  __ bind(&make_two_character_string);
-  // Setup registers for allocating the two character string.
-  __ mov(eax, Operand(esp, 3 * kPointerSize));
-  __ mov(ebx, FieldOperand(eax, HeapObject::kMapOffset));
-  __ movzx_b(ebx, FieldOperand(ebx, Map::kInstanceTypeOffset));
-  __ Set(ecx, Immediate(Smi::FromInt(2)));
-  __ mov(edx, Operand(esp, 2 * kPointerSize));  // Load index.
+  __ bind(&combine_two_char);
+  __ shl(ecx, kBitsPerByte);
+  __ or_(ebx, ecx);
+  __ bind(&save_two_char);
+  __ AllocateAsciiString(eax, 2, ecx, edx, &runtime);
+  __ mov_w(FieldOperand(eax, SeqAsciiString::kHeaderSize), ebx);
+  __ IncrementCounter(counters->sub_string_native(), 1);
+  __ ret(3 * kPointerSize);
 
   __ bind(&result_longer_than_two);
   // eax: string
@@ -6181,7 +6204,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   if (FLAG_string_slices) {
     Label copy_routine;
     // edi: underlying subject string
-    // ebx: instance type of original subject string
+    // ebx: instance type of underlying subject string
     // edx: adjusted start index (smi)
     // ecx: length (smi)
     __ cmp(ecx, Immediate(Smi::FromInt(SlicedString::kMinLength)));
@@ -6214,7 +6237,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   }
 
   // edi: underlying subject string
-  // ebx: instance type of original subject string
+  // ebx: instance type of underlying subject string
   // edx: adjusted start index (smi)
   // ecx: length (smi)
   // The subject string can only be external or sequential string of either
@@ -6226,7 +6249,6 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ j(zero, &sequential_string);
 
   // Handle external string.
-  Label ascii_external, done;
   // Rule out short external strings.
   STATIC_CHECK(kShortExternalStringTag != 0);
   __ test_b(ebx, kShortExternalStringMask);

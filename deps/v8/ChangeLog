@@ -1,3 +1,10 @@
+2011-12-19: Version 3.8.1
+
+        Fixed GCC 4.7 warnings. Patch from Tobias Burnus.
+
+        Stability improvements on all platforms.
+
+
 2011-12-13: Version 3.8.0
 
         Fixed handling of arrays in DefineOwnProperty. (issue 1756)

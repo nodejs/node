@@ -1470,11 +1470,10 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   //  -- ra    : return address
   // -----------------------------------
   //
-  // This accepts as a receiver anything JSObject::SetElementsLength accepts
-  // (currently anything except for external and pixel arrays which means
-  // anything with elements of FixedArray type.), but currently is restricted
-  // to JSArray.
-  // Value must be a number, but only smis are accepted as the most common case.
+  // This accepts as a receiver anything JSArray::SetElementsLength accepts
+  // (currently anything except for external arrays which means anything with
+  // elements of FixedArray type).  Value must be a number, but only smis are
+  // accepted as the most common case.
 
   Label miss;
 
@@ -1495,6 +1494,10 @@ void StoreIC::GenerateArrayLength(MacroAssembler* masm) {
   __ lw(scratch, FieldMemOperand(receiver, JSArray::kElementsOffset));
   __ GetObjectType(scratch, scratch, scratch);
   __ Branch(&miss, ne, scratch, Operand(FIXED_ARRAY_TYPE));
+
+  // Check that the array has fast properties, otherwise the length
+  // property might have been redefined.
+  // TODO(mstarzinger): Port this check to MIPS.
 
   // Check that value is a smi.
   __ JumpIfNotSmi(value, &miss);

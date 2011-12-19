@@ -248,7 +248,8 @@ class StubCache {
   // Collect all maps that match the name and flags.
   void CollectMatchingMaps(SmallMapList* types,
                            String* name,
-                           Code::Flags flags);
+                           Code::Flags flags,
+                           Handle<Context> global_context);
 
   // Generate code for probing the stub cache table.
   // Arguments extra and extra2 may be used to pass additional scratch

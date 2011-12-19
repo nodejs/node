@@ -1318,3 +1318,83 @@ TEST(IdleNotificationAdvancesIncrementalMarking) {
   intptr_t new_size = HEAP->SizeOfObjects();
   CHECK(no_idle_work || new_size < old_size);
 }
+
+
+static int NumberOfGlobalObjects() {
+  int count = 0;
+  HeapIterator iterator;
+  for (HeapObject* obj = iterator.next(); obj != NULL; obj = iterator.next()) {
+    if (obj->IsGlobalObject()) count++;
+  }
+  return count;
+}
+
+
+// Test that we don't embed maps from foreign contexts into
+// optimized code.
+TEST(LeakGlobalContextViaMap) {
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = {x: 42}");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() { return o.x; }"
+        "for (var i = 0; i < 1000000; ++i) f();"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+// Test that we don't embed functions from foreign contexts into
+// optimized code.
+TEST(LeakGlobalContextViaFunction) {
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = function() { return 42; }");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f(x) { return x(); }"
+        "for (var i = 0; i < 1000000; ++i) f(o);"
+        "f(o);");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}

@@ -877,7 +877,8 @@ void StubCache::Clear() {
 
 void StubCache::CollectMatchingMaps(SmallMapList* types,
                                     String* name,
-                                    Code::Flags flags) {
+                                    Code::Flags flags,
+                                    Handle<Context> global_context) {
   for (int i = 0; i < kPrimaryTableSize; i++) {
     if (primary_[i].key == name) {
       Map* map = primary_[i].value->FindFirstMap();
@@ -886,7 +887,8 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
       if (map == NULL) continue;
 
       int offset = PrimaryOffset(name, flags, map);
-      if (entry(primary_, offset) == &primary_[i]) {
+      if (entry(primary_, offset) == &primary_[i] &&
+          !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
         types->Add(Handle<Map>(map));
       }
     }
@@ -909,7 +911,8 @@ void StubCache::CollectMatchingMaps(SmallMapList* types,
 
       // Lookup in secondary table and add matches.
       int offset = SecondaryOffset(name, flags, primary_offset);
-      if (entry(secondary_, offset) == &secondary_[i]) {
+      if (entry(secondary_, offset) == &secondary_[i] &&
+          !TypeFeedbackOracle::CanRetainOtherContext(map, *global_context)) {
         types->Add(Handle<Map>(map));
       }
     }

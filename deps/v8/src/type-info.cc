@@ -438,8 +438,42 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
       Handle<Code>::cast(object)->ic_state() == MEGAMORPHIC) {
     types->Reserve(4);
     ASSERT(object->IsCode());
-    isolate_->stub_cache()->CollectMatchingMaps(types, *name, flags);
+    isolate_->stub_cache()->CollectMatchingMaps(types,
+                                                *name,
+                                                flags,
+                                                global_context_);
   }
+}
+
+
+// Check if a map originates from a given global context. We use this
+// information to filter out maps from different context to avoid
+// retaining objects from different tabs in Chrome via optimized code.
+bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
+                                               Context* global_context) {
+  Object* constructor = map->constructor();
+  ASSERT(constructor != NULL);
+  while (!constructor->IsJSFunction()) {
+    // If the constructor is not null or a JSFunction, we have to
+    // conservatively assume that it may retain a global context.
+    if (!constructor->IsNull()) return true;
+
+    // If both, constructor and prototype are null, we conclude
+    // that no global context will be retained by this map.
+    if (map->prototype()->IsNull()) return false;
+
+    map = JSObject::cast(map->prototype())->map();
+    constructor = map->constructor();
+  }
+  JSFunction* function = JSFunction::cast(constructor);
+  return CanRetainOtherContext(function, global_context);
+}
+
+
+bool TypeFeedbackOracle::CanRetainOtherContext(JSFunction* function,
+                                               Context* global_context) {
+  return function->context()->global() != global_context->global()
+      && function->context()->global() != global_context->builtins();
 }
 
 
@@ -539,7 +573,12 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
             SetInfo(ast_id, Smi::FromInt(target->check_type()));
           } else {
             Object* map = target->FindFirstMap();
-            SetInfo(ast_id, map == NULL ? static_cast<Object*>(target) : map);
+            if (map == NULL) {
+              SetInfo(ast_id, static_cast<Object*>(target));
+            } else if (!CanRetainOtherContext(Map::cast(map),
+                                              *global_context_)) {
+              SetInfo(ast_id, map);
+            }
           }
         } else if (target->ic_state() == MEGAMORPHIC) {
           SetInfo(ast_id, target);
@@ -565,7 +604,9 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
         if (target->major_key() == CodeStub::CallFunction &&
             target->has_function_cache()) {
           Object* value = CallFunctionStub::GetCachedValue(reloc_entry.pc());
-          if (value->IsJSFunction()) {
+          if (value->IsJSFunction() &&
+              !CanRetainOtherContext(JSFunction::cast(value),
+                                     *global_context_)) {
             SetInfo(ast_id, value);
           }
         }

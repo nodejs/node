@@ -590,7 +590,6 @@ class ExternalReference BASE_EMBEDDED {
   // Deoptimization support.
   static ExternalReference new_deoptimizer_function(Isolate* isolate);
   static ExternalReference compute_output_frames_function(Isolate* isolate);
-  static ExternalReference global_contexts_list(Isolate* isolate);
 
   // Static data in the keyed lookup cache.
   static ExternalReference keyed_lookup_cache_keys(Isolate* isolate);

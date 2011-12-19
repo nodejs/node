@@ -4256,14 +4256,6 @@ bool JSObject::HasIndexedInterceptor() {
 }
 
 
-bool JSObject::AllowsSetElementsLength() {
-  bool result = elements()->IsFixedArray() ||
-      elements()->IsFixedDoubleArray();
-  ASSERT(result == !HasExternalArrayElements());
-  return result;
-}
-
-
 MaybeObject* JSObject::EnsureWritableFastElements() {
   ASSERT(HasFastTypeElements());
   FixedArray* elems = FixedArray::cast(elements());
@@ -4621,6 +4613,13 @@ void JSArray::EnsureSize(int required_size) {
 void JSArray::set_length(Smi* length) {
   // Don't need a write barrier for a Smi.
   set_length(static_cast<Object*>(length), SKIP_WRITE_BARRIER);
+}
+
+
+bool JSArray::AllowsSetElementsLength() {
+  bool result = elements()->IsFixedArray() || elements()->IsFixedDoubleArray();
+  ASSERT(result == !HasExternalArrayElements());
+  return result;
 }
 
 

@@ -447,6 +447,7 @@ void PrettyPrinter::Print(const char* format, ...) {
 
 
 void PrettyPrinter::PrintStatements(ZoneList<Statement*>* statements) {
+  if (statements == NULL) return;
   for (int i = 0; i < statements->length(); i++) {
     if (i != 0) Print(" ");
     Visit(statements->at(i));

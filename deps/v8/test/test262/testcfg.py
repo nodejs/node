@@ -55,7 +55,6 @@ class Test262TestCase(test.TestCase):
 
   def GetCommand(self):
     result = self.context.GetVmCommand(self, self.mode)
-    result += ['-e', 'var window = this']
     result += self.framework
     result.append(self.filename)
     return result

@@ -109,7 +109,7 @@ class PartialSnapshotSink : public i::SnapshotByteSink {
       if (j != 0) {
         fprintf(fp, ",");
       }
-      fprintf(fp, "%d", at(j));
+      fprintf(fp, "%u", static_cast<unsigned char>(at(j)));
     }
   }
   char at(int i) { return data_[i]; }

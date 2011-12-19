@@ -817,11 +817,6 @@ ExternalReference ExternalReference::compute_output_frames_function(
 }
 
 
-ExternalReference ExternalReference::global_contexts_list(Isolate* isolate) {
-  return ExternalReference(isolate->heap()->global_contexts_list_address());
-}
-
-
 ExternalReference ExternalReference::keyed_lookup_cache_keys(Isolate* isolate) {
   return ExternalReference(isolate->keyed_lookup_cache()->keys_address());
 }

@@ -264,11 +264,16 @@ void Deoptimizer::VisitAllOptimizedFunctions(
   AssertNoAllocation no_allocation;
 
   // Run through the list of all global contexts and deoptimize.
-  Object* global = Isolate::Current()->heap()->global_contexts_list();
-  while (!global->IsUndefined()) {
-    VisitAllOptimizedFunctionsForGlobalObject(Context::cast(global)->global(),
-                                              visitor);
-    global = Context::cast(global)->get(Context::NEXT_CONTEXT_LINK);
+  Object* context = Isolate::Current()->heap()->global_contexts_list();
+  while (!context->IsUndefined()) {
+    // GC can happen when the context is not fully initialized,
+    // so the global field of the context can be undefined.
+    Object* global = Context::cast(context)->get(Context::GLOBAL_INDEX);
+    if (!global->IsUndefined()) {
+      VisitAllOptimizedFunctionsForGlobalObject(JSObject::cast(global),
+                                                visitor);
+    }
+    context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
 }
 

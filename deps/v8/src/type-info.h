@@ -256,6 +256,10 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   void CollectKeyedReceiverTypes(unsigned ast_id,
                                  SmallMapList* types);
 
+  static bool CanRetainOtherContext(Map* map, Context* global_context);
+  static bool CanRetainOtherContext(JSFunction* function,
+                                    Context* global_context);
+
   CheckType GetCallCheckType(Call* expr);
   Handle<JSObject> GetPrototypeForPrimitiveCheck(CheckType check);
 

@@ -752,7 +752,7 @@ int PagedSpace::CountTotalPages() {
 void PagedSpace::ReleasePage(Page* page) {
   ASSERT(page->LiveBytes() == 0);
 
-  // Adjust list of unswept pages if the page is it's head or tail.
+  // Adjust list of unswept pages if the page is the head of the list.
   if (first_unswept_page_ == page) {
     first_unswept_page_ = page->next_page();
     if (first_unswept_page_ == anchor()) {

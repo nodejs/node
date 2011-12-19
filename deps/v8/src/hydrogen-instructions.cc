@@ -1227,7 +1227,9 @@ void HConstant::PrintDataTo(StringStream* stream) {
 
 
 bool HArrayLiteral::IsCopyOnWrite() const {
-  return boilerplate_object_->elements()->map() == HEAP->fixed_cow_array_map();
+  if (!boilerplate_object_->IsJSObject()) return false;
+  return Handle<JSObject>::cast(boilerplate_object_)->elements()->map() ==
+      HEAP->fixed_cow_array_map();
 }
 
 

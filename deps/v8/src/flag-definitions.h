@@ -41,6 +41,7 @@
   extern ctype FLAG_##nam;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt) \
   static ctype const FLAG_##nam = def;
+#define DEFINE_implication(whenflag, thenflag)
 
 // We want to supply the actual storage and value for the flag variable in the
 // .cc file.  We only do this for writable flags.
@@ -48,6 +49,7 @@
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   ctype FLAG_##nam = def;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#define DEFINE_implication(whenflag, thenflag)
 
 // We need to define all of our default values so that the Flag structure can
 // access them by pointer.  These are just used internally inside of one .cc,
@@ -56,7 +58,7 @@
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   static ctype const FLAGDEFAULT_##nam = def;
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt)
-
+#define DEFINE_implication(whenflag, thenflag)
 
 // We want to write entries into our meta data table, for internal parsing and
 // printing / etc in the flag parser code.  We only do this for writable flags.
@@ -64,6 +66,14 @@
 #define FLAG_FULL(ftype, ctype, nam, def, cmt) \
   { Flag::TYPE_##ftype, #nam, &FLAG_##nam, &FLAGDEFAULT_##nam, cmt, false },
 #define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#define DEFINE_implication(whenflag, thenflag)
+
+// We produce the code to set flags when it is implied by another flag.
+#elif defined(FLAG_MODE_DEFINE_IMPLICATIONS)
+#define FLAG_FULL(ftype, ctype, nam, def, cmt)
+#define FLAG_READONLY(ftype, ctype, nam, def, cmt)
+#define DEFINE_implication(whenflag, thenflag) \
+  if (FLAG_##whenflag) FLAG_##thenflag = true;
 
 #else
 #error No mode supplied when including flags.defs
@@ -103,6 +113,10 @@ DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony, false, "enable all harmony features")
+DEFINE_implication(harmony, harmony_typeof)
+DEFINE_implication(harmony, harmony_scoping)
+DEFINE_implication(harmony, harmony_proxies)
+DEFINE_implication(harmony, harmony_collections)
 
 // Flags for experimental implementation features.
 DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
@@ -542,6 +556,18 @@ DEFINE_bool(print_unopt_code, false, "print unoptimized code before "
 DEFINE_bool(print_code_verbose, false, "print more information for code")
 DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
 
+#ifdef ENABLE_DISASSEMBLER
+DEFINE_bool(print_all_code, false, "enable all flags related to printing code")
+DEFINE_implication(print_all_code, print_code)
+DEFINE_implication(print_all_code, print_opt_code)
+DEFINE_implication(print_all_code, print_unopt_code)
+DEFINE_implication(print_all_code, print_code_verbose)
+DEFINE_implication(print_all_code, print_builtin_code)
+DEFINE_implication(print_all_code, print_code_stubs)
+DEFINE_implication(print_all_code, trace_codegen)
+DEFINE_implication(print_all_code, code_comments)
+#endif
+
 // Cleanup...
 #undef FLAG_FULL
 #undef FLAG_READONLY
@@ -550,8 +576,10 @@ DEFINE_bool(print_builtin_code, false, "print generated code for builtins")
 #undef DEFINE_bool
 #undef DEFINE_int
 #undef DEFINE_string
+#undef DEFINE_implication
 
 #undef FLAG_MODE_DECLARE
 #undef FLAG_MODE_DEFINE
 #undef FLAG_MODE_DEFINE_DEFAULTS
 #undef FLAG_MODE_META
+#undef FLAG_MODE_DEFINE_IMPLICATIONS

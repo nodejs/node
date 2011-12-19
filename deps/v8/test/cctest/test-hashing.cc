@@ -106,6 +106,7 @@ void generate(MacroAssembler* assm, i::Vector<const char> string) {
   }
   StringHelper::GenerateHashGetHash(assm, v0);
   __ jr(ra);
+  __ nop();
 #endif
 }
 
@@ -125,7 +126,7 @@ void check(i::Vector<const char> string) {
       Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
   CHECK(code->IsCode());
 
-  HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(Code::cast(code)->entry());
+  HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
   Handle<String> v8_string = FACTORY->NewStringFromAscii(string);
   v8_string->set_hash_field(String::kEmptyHashField);
 #ifdef USE_SIMULATOR

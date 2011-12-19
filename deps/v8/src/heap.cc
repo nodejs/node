@@ -642,13 +642,17 @@ void Heap::ClearJSFunctionResultCaches() {
 
   Object* context = global_contexts_list_;
   while (!context->IsUndefined()) {
-    // Get the caches for this context:
-    FixedArray* caches =
-      Context::cast(context)->jsfunction_result_caches();
-    // Clear the caches:
-    int length = caches->length();
-    for (int i = 0; i < length; i++) {
-      JSFunctionResultCache::cast(caches->get(i))->Clear();
+    // Get the caches for this context. GC can happen when the context
+    // is not fully initialized, so the caches can be undefined.
+    Object* caches_or_undefined =
+        Context::cast(context)->get(Context::JSFUNCTION_RESULT_CACHES_INDEX);
+    if (!caches_or_undefined->IsUndefined()) {
+      FixedArray* caches = FixedArray::cast(caches_or_undefined);
+      // Clear the caches:
+      int length = caches->length();
+      for (int i = 0; i < length; i++) {
+        JSFunctionResultCache::cast(caches->get(i))->Clear();
+      }
     }
     // Get the next context:
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
@@ -665,7 +669,13 @@ void Heap::ClearNormalizedMapCaches() {
 
   Object* context = global_contexts_list_;
   while (!context->IsUndefined()) {
-    Context::cast(context)->normalized_map_cache()->Clear();
+    // GC can happen when the context is not fully initialized,
+    // so the cache can be undefined.
+    Object* cache =
+        Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX);
+    if (!cache->IsUndefined()) {
+      NormalizedMapCache::cast(cache)->Clear();
+    }
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }
 }

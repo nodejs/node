@@ -296,14 +296,26 @@ Handle<Value> Shell::CreateExternalArray(const Arguments& args,
   ASSERT(kMaxLength == i::ExternalArray::kMaxLength);
 #endif  // V8_SHARED
   size_t length = 0;
+  TryCatch try_catch;
   if (args[0]->IsUint32()) {
     length = args[0]->Uint32Value();
   } else {
     Local<Number> number = args[0]->ToNumber();
-    if (number.IsEmpty() || !number->IsNumber()) {
-      return ThrowException(String::New("Array length must be a number."));
+    if (number.IsEmpty()) {
+      ASSERT(try_catch.HasCaught());
+      return try_catch.Exception();
     }
-    int32_t raw_length = number->ToInt32()->Int32Value();
+    ASSERT(number->IsNumber());
+    Local<Int32> int32 = number->ToInt32();
+    if (int32.IsEmpty()) {
+      if (try_catch.HasCaught()) {
+        return try_catch.Exception();
+      }
+    }
+    int32_t raw_length = int32->Int32Value();
+    if (try_catch.HasCaught()) {
+      return try_catch.Exception();
+    }
     if (raw_length < 0) {
       return ThrowException(String::New("Array length must not be negative."));
     }

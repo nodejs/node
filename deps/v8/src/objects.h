@@ -1471,7 +1471,6 @@ class JSObject: public JSReceiver {
   inline bool HasExternalDoubleElements();
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
-  inline bool AllowsSetElementsLength();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
   // Requires: HasFastElements().
@@ -1732,9 +1731,6 @@ class JSObject: public JSReceiver {
   bool HasRealNamedProperty(String* key);
   bool HasRealElementProperty(uint32_t index);
   bool HasRealNamedCallbackProperty(String* key);
-
-  // Initializes the array to a certain length
-  MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Get the header size for a JSObject.  Used to compute the index of
   // internal fields as well as the number of internal fields.
@@ -7397,6 +7393,10 @@ class JSArray: public JSObject {
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
   MUST_USE_RESULT MaybeObject* Initialize(int capacity);
+
+  // Initializes the array to a certain length.
+  inline bool AllowsSetElementsLength();
+  MUST_USE_RESULT MaybeObject* SetElementsLength(Object* length);
 
   // Set the content of the array to the content of storage.
   inline MaybeObject* SetContent(FixedArrayBase* storage);

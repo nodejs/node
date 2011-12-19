@@ -1272,10 +1272,13 @@ MaybeObject* StoreIC::Store(State state,
     return *value;
   }
 
-  // Use specialized code for setting the length of arrays.
-  if (receiver->IsJSArray()
-      && name->Equals(isolate()->heap()->length_symbol())
-      && Handle<JSArray>::cast(receiver)->AllowsSetElementsLength()) {
+  // Use specialized code for setting the length of arrays with fast
+  // properties.  Slow properties might indicate redefinition of the
+  // length property.
+  if (receiver->IsJSArray() &&
+      name->Equals(isolate()->heap()->length_symbol()) &&
+      Handle<JSArray>::cast(receiver)->AllowsSetElementsLength() &&
+      receiver->HasFastProperties()) {
 #ifdef DEBUG
     if (FLAG_trace_ic) PrintF("[StoreIC : +#length /array]\n");
 #endif
@@ -1879,11 +1882,18 @@ RUNTIME_FUNCTION(MaybeObject*, StoreIC_ArrayLength) {
   NoHandleAllocation nha;
 
   ASSERT(args.length() == 2);
-  JSObject* receiver = JSObject::cast(args[0]);
+  JSArray* receiver = JSArray::cast(args[0]);
   Object* len = args[1];
 
   // The generated code should filter out non-Smis before we get here.
   ASSERT(len->IsSmi());
+
+#ifdef DEBUG
+  // The length property has to be a writable callback property.
+  LookupResult debug_lookup(isolate);
+  receiver->LocalLookup(isolate->heap()->length_symbol(), &debug_lookup);
+  ASSERT(debug_lookup.type() == CALLBACKS && !debug_lookup.IsReadOnly());
+#endif
 
   Object* result;
   { MaybeObject* maybe_result = receiver->SetElementsLength(len);

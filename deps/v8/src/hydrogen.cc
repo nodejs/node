@@ -3285,9 +3285,6 @@ void HGraphBuilder::VisitVariableProxy(VariableProxy* expr) {
     }
 
     case Variable::CONTEXT: {
-      if (variable->mode() == CONST) {
-        return Bailout("reference to const context slot");
-      }
       HValue* context = BuildContextChainWalk(variable);
       HLoadContextSlot* instr = new(zone()) HLoadContextSlot(context, variable);
       return ast_context()->ReturnInstruction(instr, expr->id());
@@ -3467,14 +3464,22 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
   Handle<FixedArray> literals(environment()->closure()->literals());
   Handle<Object> raw_boilerplate(literals->get(expr->literal_index()));
 
-  // For now, no boilerplate causes a deopt.
   if (raw_boilerplate->IsUndefined()) {
-    AddInstruction(new(zone()) HSoftDeoptimize);
-    return ast_context()->ReturnValue(graph()->GetConstantUndefined());
+    raw_boilerplate = Runtime::CreateArrayLiteralBoilerplate(
+        isolate(), literals, expr->constant_elements());
+    if (raw_boilerplate.is_null()) {
+      return Bailout("array boilerplate creation failed");
+    }
+    literals->set(expr->literal_index(), *raw_boilerplate);
+    if (JSObject::cast(*raw_boilerplate)->elements()->map() ==
+        isolate()->heap()->fixed_cow_array_map()) {
+      isolate()->counters()->cow_arrays_created_runtime()->Increment();
+    }
   }
 
-  Handle<JSObject> boilerplate(Handle<JSObject>::cast(raw_boilerplate));
-  ElementsKind boilerplate_elements_kind = boilerplate->GetElementsKind();
+  Handle<JSObject> boilerplate = Handle<JSObject>::cast(raw_boilerplate);
+  ElementsKind boilerplate_elements_kind =
+        Handle<JSObject>::cast(boilerplate)->GetElementsKind();
 
   HArrayLiteral* literal = new(zone()) HArrayLiteral(
       context,
@@ -3805,8 +3810,8 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
   if (proxy != NULL) {
     Variable* var = proxy->var();
-    if (var->mode() == CONST || var->mode() == LET)  {
-      return Bailout("unsupported let or const compound assignment");
+    if (var->mode() == LET)  {
+      return Bailout("unsupported let compound assignment");
     }
 
     CHECK_ALIVE(VisitForValue(operation));
@@ -3821,6 +3826,9 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
 
       case Variable::PARAMETER:
       case Variable::LOCAL:
+        if (var->mode() == CONST)  {
+          return Bailout("unsupported const compound assignment");
+        }
         Bind(var, Top());
         break;
 
@@ -3841,10 +3849,23 @@ void HGraphBuilder::HandleCompoundAssignment(Assignment* expr) {
           }
         }
 
+        HStoreContextSlot::Mode mode;
+
+        switch (var->mode()) {
+          case LET:
+            mode = HStoreContextSlot::kCheckDeoptimize;
+            break;
+          case CONST:
+            return ast_context()->ReturnValue(Pop());
+          case CONST_HARMONY:
+            // This case is checked statically so no need to
+            // perform checks here
+            UNREACHABLE();
+          default:
+            mode = HStoreContextSlot::kNoCheck;
+        }
+
         HValue* context = BuildContextChainWalk(var);
-        HStoreContextSlot::Mode mode =
-            (var->mode() == LET || var->mode() == CONST_HARMONY)
-            ? HStoreContextSlot::kAssignCheck : HStoreContextSlot::kAssign;
         HStoreContextSlot* instr =
             new(zone()) HStoreContextSlot(context, var->index(), mode, Top());
         AddInstruction(instr);
@@ -3955,17 +3976,19 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
     HandlePropertyAssignment(expr);
   } else if (proxy != NULL) {
     Variable* var = proxy->var();
+
     if (var->mode() == CONST) {
       if (expr->op() != Token::INIT_CONST) {
-        return Bailout("non-initializer assignment to const");
+        CHECK_ALIVE(VisitForValue(expr->value()));
+        return ast_context()->ReturnValue(Pop());
       }
-      if (!var->IsStackAllocated()) {
-        return Bailout("assignment to const context slot");
+
+      if (var->IsStackAllocated()) {
+        // We insert a use of the old value to detect unsupported uses of const
+        // variables (e.g. initialization inside a loop).
+        HValue* old_value = environment()->Lookup(var);
+        AddInstruction(new HUseConst(old_value));
       }
-      // We insert a use of the old value to detect unsupported uses of const
-      // variables (e.g. initialization inside a loop).
-      HValue* old_value = environment()->Lookup(var);
-      AddInstruction(new HUseConst(old_value));
     } else if (var->mode() == CONST_HARMONY) {
       if (expr->op() != Token::INIT_CONST_HARMONY) {
         return Bailout("non-initializer assignment to const");
@@ -4004,7 +4027,6 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
       }
 
       case Variable::CONTEXT: {
-        ASSERT(var->mode() != CONST);
         // Bail out if we try to mutate a parameter value in a function using
         // the arguments object.  We do not (yet) correctly handle the
         // arguments property of the function.
@@ -4020,17 +4042,32 @@ void HGraphBuilder::VisitAssignment(Assignment* expr) {
         }
 
         CHECK_ALIVE(VisitForValue(expr->value()));
-        HValue* context = BuildContextChainWalk(var);
         HStoreContextSlot::Mode mode;
         if (expr->op() == Token::ASSIGN) {
-          mode = (var->mode() == LET || var->mode() == CONST_HARMONY)
-              ? HStoreContextSlot::kAssignCheck : HStoreContextSlot::kAssign;
+          switch (var->mode()) {
+            case LET:
+              mode = HStoreContextSlot::kCheckDeoptimize;
+              break;
+            case CONST:
+              return ast_context()->ReturnValue(Pop());
+            case CONST_HARMONY:
+              // This case is checked statically so no need to
+              // perform checks here
+              UNREACHABLE();
+            default:
+              mode = HStoreContextSlot::kNoCheck;
+          }
+        } else if (expr->op() == Token::INIT_VAR ||
+                   expr->op() == Token::INIT_LET ||
+                   expr->op() == Token::INIT_CONST_HARMONY) {
+          mode = HStoreContextSlot::kNoCheck;
         } else {
-          ASSERT(expr->op() == Token::INIT_VAR ||
-                 expr->op() == Token::INIT_LET ||
-                 expr->op() == Token::INIT_CONST_HARMONY);
-          mode = HStoreContextSlot::kAssign;
+          ASSERT(expr->op() == Token::INIT_CONST);
+
+          mode = HStoreContextSlot::kCheckIgnoreAssignment;
         }
+
+        HValue* context = BuildContextChainWalk(var);
         HStoreContextSlot* instr = new(zone()) HStoreContextSlot(
             context, var->index(), mode, Top());
         AddInstruction(instr);
@@ -5643,7 +5680,7 @@ void HGraphBuilder::VisitCountOperation(CountOperation* expr) {
         HValue* context = BuildContextChainWalk(var);
         HStoreContextSlot::Mode mode =
             (var->mode() == LET || var->mode() == CONST_HARMONY)
-            ? HStoreContextSlot::kAssignCheck : HStoreContextSlot::kAssign;
+            ? HStoreContextSlot::kCheckDeoptimize : HStoreContextSlot::kNoCheck;
         HStoreContextSlot* instr =
             new(zone()) HStoreContextSlot(context, var->index(), mode, after);
         AddInstruction(instr);
@@ -6251,7 +6288,7 @@ void HGraphBuilder::HandleDeclaration(VariableProxy* proxy,
         if (var->IsContextSlot()) {
           HValue* context = environment()->LookupContext();
           HStoreContextSlot* store = new HStoreContextSlot(
-              context, var->index(), HStoreContextSlot::kAssign, value);
+              context, var->index(), HStoreContextSlot::kNoCheck, value);
           AddInstruction(store);
           if (store->HasObservableSideEffects()) AddSimulate(proxy->id());
         } else {

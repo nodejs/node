@@ -679,6 +679,12 @@ class Runtime : public AllStatic {
 
   // Helper functions used stubs.
   static void PerformGC(Object* result);
+
+  // Used in runtime.cc and hydrogen's VisitArrayLiteral.
+  static Handle<Object> CreateArrayLiteralBoilerplate(
+      Isolate* isolate,
+      Handle<FixedArray> literals,
+      Handle<FixedArray> elements);
 };
 
 

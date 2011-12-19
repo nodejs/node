@@ -3623,14 +3623,6 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
       continue;
     }
 
-    if (lazy_sweeping_active) {
-      if (FLAG_gc_verbose) {
-        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
-               reinterpret_cast<intptr_t>(p));
-      }
-      continue;
-    }
-
     // One unused page is kept, all further are released before sweeping them.
     if (p->LiveBytes() == 0) {
       if (unused_page_present) {
@@ -3642,6 +3634,14 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         continue;
       }
       unused_page_present = true;
+    }
+
+    if (lazy_sweeping_active) {
+      if (FLAG_gc_verbose) {
+        PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
+               reinterpret_cast<intptr_t>(p));
+      }
+      continue;
     }
 
     switch (sweeper) {

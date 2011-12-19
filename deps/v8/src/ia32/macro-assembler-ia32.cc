@@ -357,6 +357,14 @@ void MacroAssembler::CompareRoot(Register with, Heap::RootListIndex index) {
 }
 
 
+void MacroAssembler::CompareRoot(const Operand& with,
+                                 Heap::RootListIndex index) {
+  // see ROOT_ACCESSOR macro in factory.h
+  Handle<Object> value(&isolate()->heap()->roots_array_start()[index]);
+  cmp(with, value);
+}
+
+
 void MacroAssembler::CmpObjectType(Register heap_object,
                                    InstanceType type,
                                    Register map) {

@@ -42,13 +42,11 @@ S10.4.2.1_A1: FAIL
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1530
 S15.3.3.1_A4: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1756
-15.2.3.6-4-167: FAIL || PASS
-15.2.3.6-4-181: FAIL || PASS
-15.2.3.7-6-a-163: FAIL || PASS
-15.2.3.7-6-a-164: FAIL || PASS
-15.2.3.7-6-a-176: FAIL || PASS
-15.2.3.7-6-a-177: FAIL || PASS
+# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
+15.2.3.6-4-405: FAIL
+15.2.3.6-4-410: FAIL
+15.2.3.6-4-415: FAIL
+15.2.3.6-4-420: FAIL
 
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1772
 15.2.3.6-4-292-1: FAIL
@@ -206,37 +204,6 @@ S15.1.1.3_A2_T2: FAIL_OK  # undefined
 # Array.prototype.to[Locale]String is generic in ES5.
 S15.4.4.2_A2_T1: FAIL_OK
 S15.4.4.3_A2_T1: FAIL_OK
-
-######################### UNANALYZED FAILURES ##########################
-
-# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
-#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
-#      accessor property, 'A' is an Array object (8.12.9 - step 9.b.i)
-15.2.3.6-4-360-1: FAIL
-# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
-#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
-#      accessor property, 'O' is an Arguments object (8.12.9 - step 9.b.i)
-15.2.3.6-4-360-6: FAIL
-# Bug? ES5 Attributes - Updating indexed data property 'P' whose attributes are
-#      [[Writable]]: false, [[Enumerable]]: true, [[Configurable]]: true to an
-#      accessor property, 'O' is the global object (8.12.9 - step 9.b.i)
-15.2.3.6-4-360-7: FAIL
-# Bug? ES5 Attributes - Failed to add a property to an object when the object's
-#      object has a property with same name and [[Writable]] attribute is set to
-#      false (Number instance)
-15.2.3.6-4-405: FAIL
-# Bug? ES5 Attributes - Failed to add a property to an object when the object's
-#      prototype has a property with the same name and [[Writable]] set to false
-#      (JSON)
-15.2.3.6-4-410: FAIL
-# Bug? ES5 Attributes - Failed to add properties to an object when the object's
-#      prototype has properties with the same name and [[Writable]] set to false
-#      (Object.create)
-15.2.3.6-4-415: FAIL
-# Bug? ES5 Attributes - Failed to add a property to an object when the object's
-#      prototype has a property with the same name and [[Writable]] set to
-#      false(Function.prototype.bind)
-15.2.3.6-4-420: FAIL
 
 ############################ SKIPPED TESTS #############################
 

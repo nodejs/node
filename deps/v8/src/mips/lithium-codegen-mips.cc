@@ -2180,10 +2180,19 @@ void LCodeGen::DoStoreGlobalGeneric(LStoreGlobalGeneric* instr) {
 void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register result = ToRegister(instr->result());
+
   __ lw(result, ContextOperand(context, instr->slot_index()));
   if (instr->hydrogen()->RequiresHoleCheck()) {
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(eq, instr->environment(), result, Operand(at));
+
+    if (instr->hydrogen()->DeoptimizesOnHole()) {
+      DeoptimizeIf(eq, instr->environment(), result, Operand(at));
+    } else {
+      Label is_not_hole;
+      __ Branch(&is_not_hole, ne, result, Operand(at));
+      __ LoadRoot(result, Heap::kUndefinedValueRootIndex);
+      __ bind(&is_not_hole);
+    }
   }
 }
 
@@ -2191,13 +2200,22 @@ void LCodeGen::DoLoadContextSlot(LLoadContextSlot* instr) {
 void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
   Register context = ToRegister(instr->context());
   Register value = ToRegister(instr->value());
+  Register scratch = scratch0();
   MemOperand target = ContextOperand(context, instr->slot_index());
+
+  Label skip_assignment;
+
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    Register scratch = scratch0();
     __ lw(scratch, target);
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(eq, instr->environment(), scratch, Operand(at));
+
+    if (instr->hydrogen()->DeoptimizesOnHole()) {
+      DeoptimizeIf(eq, instr->environment(), scratch, Operand(at));
+    } else {
+      __ Branch(&skip_assignment, ne, scratch, Operand(at));
+    }
   }
+
   __ sw(value, target);
   if (instr->hydrogen()->NeedsWriteBarrier()) {
     HType type = instr->hydrogen()->value()->type();
@@ -2212,6 +2230,8 @@ void LCodeGen::DoStoreContextSlot(LStoreContextSlot* instr) {
                               EMIT_REMEMBERED_SET,
                               check_needed);
   }
+
+  __ bind(&skip_assignment);
 }
 
 

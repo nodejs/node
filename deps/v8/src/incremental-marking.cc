@@ -677,11 +677,16 @@ void IncrementalMarking::Hurry() {
 
   Object* context = heap_->global_contexts_list();
   while (!context->IsUndefined()) {
-    NormalizedMapCache* cache = Context::cast(context)->normalized_map_cache();
-    MarkBit mark_bit = Marking::MarkBitFrom(cache);
-    if (Marking::IsGrey(mark_bit)) {
-      Marking::GreyToBlack(mark_bit);
-      MemoryChunk::IncrementLiveBytes(cache->address(), cache->Size());
+    // GC can happen when the context is not fully initialized,
+    // so the cache can be undefined.
+    HeapObject* cache = HeapObject::cast(
+        Context::cast(context)->get(Context::NORMALIZED_MAP_CACHE_INDEX));
+    if (!cache->IsUndefined()) {
+      MarkBit mark_bit = Marking::MarkBitFrom(cache);
+      if (Marking::IsGrey(mark_bit)) {
+        Marking::GreyToBlack(mark_bit);
+        MemoryChunk::IncrementLiveBytes(cache->address(), cache->Size());
+      }
     }
     context = Context::cast(context)->get(Context::NEXT_CONTEXT_LINK);
   }

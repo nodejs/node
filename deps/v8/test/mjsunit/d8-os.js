@@ -54,6 +54,8 @@ function str_error(str) {
 
 
 if (this.os && os.system) {
+  // Ensure that we have a valid working directory.
+  os.chdir("/tmp");
   try {
     // Delete the dir if it is lying around from last time.
     os.system("ls", [TEST_DIR]);
@@ -143,42 +145,43 @@ if (this.os && os.system) {
       assertEquals("baz\n", os.system("echo", ["baz"]));
       //}
     }
+
+    // Too few args.
+    arg_error("os.umask();");
+    arg_error("os.system();");
+    arg_error("os.mkdirp();");
+    arg_error("os.chdir();");
+    arg_error("os.setenv();");
+    arg_error("os.rmdir();");
+
+    // Too many args.
+    arg_error("os.setenv('FOO=bar');");
+    arg_error("os.umask(0, 0);");
+    arg_error("os.system('ls', [], -1, -1, -1);");
+    arg_error("os.mkdirp('foo', 0, 0)");
+    arg_error("os.chdir('foo', 'bar')");
+    arg_error("os.rmdir('foo', 'bar');");
+
+    // Wrong kind of args.
+    arg_error("os.umask([]);");
+    arg_error("os.system('ls', 'foo');");
+    arg_error("os.system('ls', 123);");
+    arg_error("os.system('ls', [], 'foo');");
+    arg_error("os.system('ls', [], -1, 'foo');");
+    arg_error("os.mkdirp('foo', 'bar');");
+
+    // Test broken toString().
+    str_error("os.system(e);");
+    str_error("os.system('ls', [e]);");
+    str_error("os.system('ls', ['.', e]);");
+    str_error("os.system('ls', [e, '.']);");
+    str_error("os.mkdirp(e);");
+    str_error("os.setenv(e, 'goo');");
+    str_error("os.setenv('goo', e);");
+    str_error("os.chdir(e);");
+    str_error("os.rmdir(e);");
+
   } finally {
     os.system("rm", ["-r", TEST_DIR]);
   }
-
-  // Too few args.
-  arg_error("os.umask();");
-  arg_error("os.system();");
-  arg_error("os.mkdirp();");
-  arg_error("os.chdir();");
-  arg_error("os.setenv();");
-  arg_error("os.rmdir();");
-
-  // Too many args.
-  arg_error("os.setenv('FOO=bar');");
-  arg_error("os.umask(0, 0);");
-  arg_error("os.system('ls', [], -1, -1, -1);");
-  arg_error("os.mkdirp('foo', 0, 0)");
-  arg_error("os.chdir('foo', 'bar')");
-  arg_error("os.rmdir('foo', 'bar');");
-
-  // Wrong kind of args.
-  arg_error("os.umask([]);");
-  arg_error("os.system('ls', 'foo');");
-  arg_error("os.system('ls', 123);");
-  arg_error("os.system('ls', [], 'foo');");
-  arg_error("os.system('ls', [], -1, 'foo');");
-  arg_error("os.mkdirp('foo', 'bar');");
-
-  // Test broken toString().
-  str_error("os.system(e);");
-  str_error("os.system('ls', [e]);");
-  str_error("os.system('ls', ['.', e]);");
-  str_error("os.system('ls', [e, '.']);");
-  str_error("os.mkdirp(e);");
-  str_error("os.setenv(e, 'goo');");
-  str_error("os.setenv('goo', e);");
-  str_error("os.chdir(e);");
-  str_error("os.rmdir(e);");
 }

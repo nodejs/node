@@ -144,9 +144,9 @@ if (support_smi_only_arrays) {
   var array = deopt_array(false);
   assertTrue(2 != %GetOptimizationStatus(deopt_array));
   deopt_array(true);
-  assertTrue(1 != %GetOptimizationStatus(deopt_array));
+  assertTrue(2 != %GetOptimizationStatus(deopt_array));
   array = deopt_array(false);
-  assertTrue(1 != %GetOptimizationStatus(deopt_array));
+  assertTrue(2 != %GetOptimizationStatus(deopt_array));
 
   // Check that unexpected changes in the objects stored into the boilerplate
   // also force a deopt.
@@ -201,3 +201,10 @@ if (support_smi_only_arrays) {
   assertEquals(1, array[1]);
   assertEquals(foo, array[2]);
 }
+
+(function literals_after_osr() {
+  var color = [0];
+  // Trigger OSR.
+  while (%GetOptimizationStatus(literals_after_osr) == 2) {}
+  return [color[0]];
+})();

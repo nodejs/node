@@ -308,8 +308,9 @@ class MacroAssembler: public Assembler {
   void SafeSet(Register dst, const Immediate& x);
   void SafePush(const Immediate& x);
 
-  // Compare a register against a known root, e.g. undefined, null, true, ...
+  // Compare against a known root, e.g. undefined, null, true, ...
   void CompareRoot(Register with, Heap::RootListIndex index);
+  void CompareRoot(const Operand& with, Heap::RootListIndex index);
 
   // Compare object type for heap object.
   // Incoming register is heap_object and outgoing register is map.
