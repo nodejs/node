@@ -9,6 +9,10 @@ if (cmd !== 'install' && cmd !== 'uninstall') {
   process.exit(1);
 }
 
+// Python pprint.pprint() uses single quotes instead of double.
+// awful.
+options = options.replace(/'/gi, '"')
+
 // Parse options file and remove first comment line
 options = JSON.parse(options.split('\n').slice(1).join(''));
 var variables = options.variables,
