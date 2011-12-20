@@ -72,7 +72,7 @@ if (isTestRunner) {
   // Cluster stuff.
   if (cluster.isMaster) {
     var worker = cluster.fork();
-    process.send({ workerPID: worker.pid });
+    process.send({ workerPID: worker.process.pid });
     // should kill the worker too
     throw new Error('kill master');
   } else {

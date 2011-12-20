@@ -19,45 +19,40 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
 var common = require('../common');
 var assert = require('assert');
-var cluster = require('cluster');
 
-if (cluster.isWorker) {
-  cluster.worker.send({
-    prop: process.env['cluster_test_prop'],
-    overwrite: process.env['cluster_test_overwrite']
+//messages
+var PREFIX = 'NODE_';
+var normal = {cmd: 'foo' + PREFIX};
+var internal = {cmd: PREFIX + 'bar'};
+
+if (process.argv[2] === 'child') {
+  //send non-internal message containing PREFIX at a non prefix position
+  process.send(normal);
+
+  //send inernal message
+  process.send(internal);
+
+  process.exit(0);
+
+} else {
+
+  var fork = require('child_process').fork;
+  var child = fork(process.argv[1], ['child']);
+
+  var gotNormal;
+  child.once('message', function(data) {
+    gotNormal = data;
   });
 
-} else if (cluster.isMaster) {
-
-  var checks = {
-    using: false,
-    overwrite: false
-  };
-
-  // To check that the cluster extend on the process.env we will overwrite a
-  // property
-  process.env['cluster_test_overwrite'] = 'old';
-
-  // Fork worker
-  var worker = cluster.fork({
-    'cluster_test_prop': 'custom',
-    'cluster_test_overwrite': 'new'
+  var gotInternal;
+  child.once('inernalMessage', function(data) {
+    gotInternal = data;
   });
 
-  // Checks worker env
-  worker.on('message', function(data) {
-    checks.using = (data.prop === 'custom');
-    checks.overwrite = (data.overwrite === 'new');
-    process.exit(0);
+  process.on('exit', function() {
+    assert.deepEqual(gotNormal, normal);
+    assert.deepEqual(gotInternal, internal);
   });
-
-  process.once('exit', function() {
-    assert.ok(checks.using, 'The worker did not receive the correct env.');
-    assert.ok(checks.overwrite, 'The custom environment did not overwrite ' +
-              'the existing environment.');
-  });
-
 }

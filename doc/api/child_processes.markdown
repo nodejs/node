@@ -229,6 +229,12 @@ And then the child script, `'sub.js'` might look like this:
 In the child the `process` object will have a `send()` method, and `process`
 will emit objects each time it receives a message on its channel.
 
+There is a special case when seinding a `{cmd: 'NODE_foo'}` message. All messages
+containging a `NODE_` prefix in its `cmd` property will not be emitted in
+the `message` event, since this are internal messages used by node core.
+Messages contain the prefix are emitted in the `internalMessage` event, you
+should by all means avoid using this feature, it may change without warranty.
+
 By default the spawned Node process will have the stdout, stderr associated
 with the parent's. To change this behavior set the `silent` property in the
 `options` object to `true`.
