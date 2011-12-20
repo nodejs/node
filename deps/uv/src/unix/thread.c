@@ -47,6 +47,10 @@ int uv_thread_join(uv_thread_t *tid) {
     return 0;
 }
 
+uv_thread_t uv_thread_self(void) {
+  return pthread_self();
+}
+
 
 int uv_mutex_init(uv_mutex_t* mutex) {
   if (pthread_mutex_init(mutex, NULL))
@@ -146,4 +150,9 @@ int uv_rwlock_trywrlock(uv_rwlock_t* rwlock) {
 
 void uv_rwlock_wrunlock(uv_rwlock_t* rwlock) {
   CHECK(pthread_rwlock_unlock(rwlock));
+}
+
+
+void uv_once(uv_once_t* guard, void (*callback)(void)) {
+  CHECK(pthread_once(guard, callback));
 }

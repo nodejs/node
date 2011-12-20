@@ -152,6 +152,16 @@ typedef union {
   } fallback_;
 } uv_rwlock_t;
 
+#define UV_ONCE_INIT { 0, NULL, NULL }
+
+typedef struct uv_once_s {
+  unsigned char ran;
+  /* The actual event handle must be aligned to sizeof(HANDLE), so in */
+  /* practice it might overlap padding a little. */
+  HANDLE event;
+  HANDLE padding;
+} uv_once_t;
+
 /* Platform-specific definitions for uv_dlopen support. */
 typedef HMODULE uv_lib_t;
 #define UV_DYNAMIC FAR WINAPI

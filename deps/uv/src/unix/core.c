@@ -158,10 +158,30 @@ void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
 }
 
 
-uv_loop_t* uv_loop_new(void) {
-  uv_loop_t* loop = calloc(1, sizeof(uv_loop_t));
-  loop->ev = ev_loop_new(0);
+static int uv__loop_init(uv_loop_t* loop,
+                         struct ev_loop *(ev_loop_new)(unsigned int flags)) {
+  memset(loop, 0, sizeof(*loop));
+#if HAVE_KQUEUE
+  loop->ev = ev_loop_new(EVBACKEND_KQUEUE);
+#else
+  loop->ev = ev_loop_new(EVFLAG_AUTO);
+#endif
   ev_set_userdata(loop->ev, loop);
+  return 0;
+}
+
+
+uv_loop_t* uv_loop_new(void) {
+  uv_loop_t* loop;
+
+  if ((loop = malloc(sizeof(*loop))) == NULL)
+    return NULL;
+
+  if (uv__loop_init(loop, ev_loop_new)) {
+    free(loop);
+    return NULL;
+  }
+
   return loop;
 }
 
@@ -182,16 +202,13 @@ void uv_loop_delete(uv_loop_t* loop) {
 
 
 uv_loop_t* uv_default_loop(void) {
-  if (!default_loop_ptr) {
-    default_loop_ptr = &default_loop_struct;
-#if HAVE_KQUEUE
-    default_loop_struct.ev = ev_default_loop(EVBACKEND_KQUEUE);
-#else
-    default_loop_struct.ev = ev_default_loop(EVFLAG_AUTO);
-#endif
-    ev_set_userdata(default_loop_struct.ev, default_loop_ptr);
-  }
-  assert(default_loop_ptr->ev == EV_DEFAULT_UC);
+  if (default_loop_ptr)
+    return default_loop_ptr;
+
+  if (uv__loop_init(&default_loop_struct, ev_default_loop))
+    return NULL;
+
+  default_loop_ptr = &default_loop_struct;
   return default_loop_ptr;
 }
 

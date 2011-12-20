@@ -343,22 +343,4 @@ extern int uv_allow_ipv6;
 extern struct sockaddr_in uv_addr_ip4_any_;
 extern struct sockaddr_in6 uv_addr_ip6_any_;
 
-
-/*
- * Threads and synchronization
- */
-typedef struct uv_once_s {
-  unsigned char ran;
-  /* The actual event handle must be aligned to sizeof(HANDLE), so in */
-  /* practice it might overlap padding a little. */
-  HANDLE event;
-  HANDLE padding;
-} uv_once_t;
-
-#define UV_ONCE_INIT \
-  { 0, NULL, NULL }
-
-void uv_once(uv_once_t* guard, void (*callback)(void));
-
-
 #endif /* UV_WIN_INTERNAL_H_ */

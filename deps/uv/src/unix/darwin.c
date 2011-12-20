@@ -28,7 +28,12 @@
 #include <ifaddrs.h>
 #include <net/if.h>
 
+#include <TargetConditionals.h>
+
+#if !TARGET_OS_IPHONE
 #include <CoreServices/CoreServices.h>
+#endif
+
 #include <mach/mach.h>
 #include <mach/mach_time.h>
 #include <mach-o/dyld.h> /* _NSGetExecutablePath */
@@ -36,10 +41,26 @@
 #include <sys/sysctl.h>
 #include <unistd.h>  /* sysconf */
 
-
 static char *process_title;
 
+#if TARGET_OS_IPHONE
+/* see: http://developer.apple.com/library/mac/#qa/qa1398/_index.html */
+uint64_t uv_hrtime() {
+    uint64_t time;
+    uint64_t enano;
+    static mach_timebase_info_data_t sTimebaseInfo;
 
+    time = mach_absolute_time();
+
+    if (0 == sTimebaseInfo.denom) {
+        (void)mach_timebase_info(&sTimebaseInfo);
+    }
+
+    enano = time * sTimebaseInfo.numer / sTimebaseInfo.denom;
+
+    return enano;
+}
+#else
 uint64_t uv_hrtime() {
   uint64_t time;
   Nanoseconds enano;
@@ -47,7 +68,7 @@ uint64_t uv_hrtime() {
   enano = AbsoluteToNanoseconds(*(AbsoluteTime *)&time);
   return (*(uint64_t *)&enano);
 }
-
+#endif
 
 int uv_exepath(char* buffer, size_t* size) {
   uint32_t usize;

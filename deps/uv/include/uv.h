@@ -1339,9 +1339,16 @@ UV_EXTERN void uv_rwlock_wrlock(uv_rwlock_t* rwlock);
 UV_EXTERN int uv_rwlock_trywrlock(uv_rwlock_t* rwlock);
 UV_EXTERN void uv_rwlock_wrunlock(uv_rwlock_t* rwlock);
 
+/* Runs a function once and only once. Concurrent calls to uv_once() with the
+ * same guard will block all callers except one (it's unspecified which one).
+ * The guard should be initialized statically with the UV_ONCE_INIT macro.
+ */
+UV_EXTERN void uv_once(uv_once_t* guard, void (*callback)(void));
+
 UV_EXTERN int uv_thread_create(uv_thread_t *tid,
     void (*entry)(void *arg), void *arg);
 UV_EXTERN int uv_thread_join(uv_thread_t *tid);
+UV_EXTERN uv_thread_t uv_thread_self(void);
 
 /* the presence of these unions force similar struct layout */
 union uv_any_handle {
