@@ -119,15 +119,17 @@ static size_t current_buffer_len;
 
 
 #define HTTP_CB(name)                                               \
-	  static int name(http_parser* p_) {                              \
-	    Parser* self = container_of(p_, Parser, parser_);             \
-	    return self->name##_();                                       \
-	  }                                                               \
-	  int always_inline name##_()
+    static int name(http_parser* p_) {                              \
+      HandleScope scope;                                            \
+      Parser* self = container_of(p_, Parser, parser_);             \
+      return self->name##_();                                       \
+    }                                                               \
+    int always_inline name##_()
 
 
 #define HTTP_DATA_CB(name)                                          \
   static int name(http_parser* p_, const char* at, size_t length) { \
+    HandleScope scope;                                              \
     Parser* self = container_of(p_, Parser, parser_);               \
     return self->name##_(at, length);                               \
   }                                                                 \
@@ -212,10 +214,12 @@ struct StringPtr {
 
 
   Handle<String> ToString() const {
-    if (str_)
-      return String::New(str_, size_);
-    else
-      return String::Empty();
+    HandleScope scope;
+    if (str_) {
+      return scope.Close(String::New(str_, size_));
+    } else {
+      return scope.Close(String::Empty());
+    }
   }
 
 
@@ -513,6 +517,8 @@ public:
 private:
 
   Local<Array> CreateHeaders() {
+    HandleScope scope;
+
     // num_values_ is either -1 or the entry # of the last header
     // so num_values_ == 0 means there's a single header
     Local<Array> headers = Array::New(2 * (num_values_ + 1));
@@ -522,7 +528,7 @@ private:
       headers->Set(2 * i + 1, values_[i].ToString());
     }
 
-    return headers;
+    return scope.Close(headers);
   }
 
 
