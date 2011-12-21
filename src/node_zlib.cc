@@ -29,6 +29,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
+#include <node_isolate.h>
 #include <req_wrap.h>
 
 #include <node_vars.h>

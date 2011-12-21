@@ -24,6 +24,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
+#include <node_isolate.h>
 #include <node_root_certs.h>
 
 #include <string.h>

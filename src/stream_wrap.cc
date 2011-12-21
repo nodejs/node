@@ -21,6 +21,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
+#include <node_isolate.h>
 #include <handle_wrap.h>
 #include <stream_wrap.h>
 #include <tcp_wrap.h>

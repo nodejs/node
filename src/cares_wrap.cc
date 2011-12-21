@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <node.h>
 #include <req_wrap.h>
+#include <node_isolate.h>
 #include <uv.h>
 
 #include <string.h>

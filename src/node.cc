@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <node.h>
+#include <node_isolate.h>
 
 #include <uv.h>
 
