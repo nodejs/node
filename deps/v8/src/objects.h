@@ -2172,7 +2172,7 @@ class FixedArray: public FixedArrayBase {
   // Maximal allowed size, in bytes, of a single FixedArray.
   // Prevents overflowing size computations, as well as extreme memory
   // consumption.
-  static const int kMaxSize = 512 * MB;
+  static const int kMaxSize = 128 * MB * kPointerSize;
   // Maximally allowed length of a FixedArray.
   static const int kMaxLength = (kMaxSize - kHeaderSize) / kPointerSize;
 
