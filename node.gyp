@@ -199,9 +199,6 @@
       'target_name': 'node_js2c',
       'type': 'none',
       'toolsets': ['host'],
-      'variables': {
-      },
-
       'actions': [
         {
           'action_name': 'node_js2c',
