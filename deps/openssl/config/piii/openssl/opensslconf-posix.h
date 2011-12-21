@@ -187,10 +187,18 @@
  * for debuging the bignum libraries */
 #undef SIXTY_FOUR_BIT_LONG
 #undef SIXTY_FOUR_BIT
-#define THIRTY_TWO_BIT
+#undef THIRTY_TWO_BIT
 #undef SIXTEEN_BIT
 #undef EIGHT_BIT
+
+/* Let's hope ARM never releases a 64 bits CPU... */
+#if __x86_64__
+# define SIXTY_FOUR_BIT
+#else
+# define THIRTY_TWO_BIT
 #endif
+
+#endif /* defined(HEADER_BN_H) && !defined(CONFIG_HEADER_BN_H) */
 
 #if defined(HEADER_RC4_LOCL_H) && !defined(CONFIG_HEADER_RC4_LOCL_H)
 #define CONFIG_HEADER_RC4_LOCL_H
@@ -211,6 +219,10 @@
  * protected undef/define */
 #ifndef DES_PTR
 #define DES_PTR
+#endif
+
+#if __x86_64__
+#undef DES_PTR
 #endif
 
 /* This helps C compiler generate the correct code for multiple functional
