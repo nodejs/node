@@ -22,6 +22,7 @@
 #include "node.h"
 #include "node_file.h"
 #include "node_buffer.h"
+#include <node_isolate.h>
 #ifdef __POSIX__
 # include "node_stat_watcher.h"
 #endif

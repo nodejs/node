@@ -21,6 +21,7 @@
 
 #include <node.h>
 #include <handle_wrap.h>
+#include <node_isolate.h>
 
 namespace node {
 

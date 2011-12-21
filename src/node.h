@@ -64,7 +64,6 @@
 #include <sys/stat.h>
 #include <assert.h>
 
-#include <node_isolate.h>
 #include <node_object_wrap.h>
 
 #if NODE_WANT_INTERNALS
