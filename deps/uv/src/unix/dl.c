@@ -25,11 +25,17 @@
 #include <dlfcn.h>
 #include <errno.h>
 
+/* The dl family of functions don't set errno. We need a good way to communicate
+ * errors to the caller but there is only dlerror() and that returns a string -
+ * a string that may or may not be safe to keep a reference to...
+ */
+static const uv_err_t uv_inval_ = { UV_EINVAL, EINVAL };
+
 
 uv_err_t uv_dlopen(const char* filename, uv_lib_t* library) {
   void* handle = dlopen(filename, RTLD_LAZY);
   if (handle == NULL) {
-    return uv__new_sys_error(errno);
+    return uv_inval_;
   }
 
   *library = handle;
@@ -39,7 +45,7 @@ uv_err_t uv_dlopen(const char* filename, uv_lib_t* library) {
 
 uv_err_t uv_dlclose(uv_lib_t library) {
   if (dlclose(library) != 0) {
-    return uv__new_sys_error(errno);
+    return uv_inval_;
   }
 
   return uv_ok_;
@@ -47,9 +53,15 @@ uv_err_t uv_dlclose(uv_lib_t library) {
 
 
 uv_err_t uv_dlsym(uv_lib_t library, const char* name, void** ptr) {
-  void* address = dlsym(library, name);
-  if (address == NULL) {
-    return uv__new_sys_error(errno);
+  void* address;
+
+  /* Reset error status. */
+  dlerror();
+
+  address = dlsym(library, name);
+
+  if (dlerror()) {
+    return uv_inval_;
   }
 
   *ptr = (void*) address;

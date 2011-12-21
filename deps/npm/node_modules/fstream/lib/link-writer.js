@@ -60,8 +60,14 @@ function create (me, lp, link) {
     // directory, it's very possible that the thing we're linking to
     // doesn't exist yet (especially if it was intended as a symlink),
     // so swallow ENOENT errors here and just soldier in.
+    // Additionally, an EPERM or EACCES can happen on win32 if it's trying
+    // to make a link to a directory.  Again, just skip it.
+    // A better solution would be to have fs.symlink be supported on
+    // windows in some nice fashion.
     if (er) {
-      if (er.code === "ENOENT" && process.platform === "win32") {
+      if ((er.code === "ENOENT" ||
+           er.code === "EACCES" ||
+           er.code === "EPERM" ) && process.platform === "win32") {
         me.ready = true
         me.emit("ready")
         me.emit("end")

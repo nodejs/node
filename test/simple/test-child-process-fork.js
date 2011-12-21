@@ -35,6 +35,11 @@ n.on('message', function(m) {
   messageCount++;
 });
 
+// https://github.com/joyent/node/issues/2355 - JSON.stringify(undefined)
+// returns "undefined" but JSON.parse() cannot parse that...
+assert.throws(function() { n.send(undefined); }, TypeError);
+assert.throws(function() { n.send(); }, TypeError);
+
 n.send({ hello: 'world' });
 
 var childExitCode = -1;

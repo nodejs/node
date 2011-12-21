@@ -241,6 +241,14 @@ server, you unauthorized connections may be accepted.
 SNI.
 
 
+### Event: 'clientError'
+
+`function (exception) { }`
+
+When a client connection emits an 'error' event before secure connection is
+established - it will be forwarded here.
+
+
 #### server.listen(port, [host], [callback])
 
 Begin accepting connections on the specified `port` and `host`.  If the

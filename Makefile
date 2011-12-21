@@ -48,6 +48,7 @@ test-valgrind: all
 
 test-all: all
 	python tools/test.py --mode=debug,release
+	$(MAKE) test-npm
 
 test-all-http1: all
 	python tools/test.py --mode=debug,release --use-http1
@@ -72,6 +73,12 @@ test-pummel: all
 
 test-internet: all
 	python tools/test.py internet
+
+test-npm: node
+	./node deps/npm/test/run.js
+
+test-npm-publish: node
+	npm_package_config_publishtest=true ./node deps/npm/test/run.js
 
 apidoc_sources = $(wildcard doc/api/*.markdown)
 apidocs = $(addprefix out/,$(apidoc_sources:.markdown=.html))

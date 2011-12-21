@@ -1687,7 +1687,7 @@ Handle<Value> DLOpen(const v8::Arguments& args) {
       if (err.code == UV_ENOENT)
         message = "Module entry point not found.";
       else
-        message = "Out of memory.";
+        message = uv_strerror(err);
 
       return ThrowException(Exception::Error(String::New(message)));
     }
