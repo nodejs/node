@@ -1242,6 +1242,8 @@ class LStoreGlobalCell: public LTemplateInstruction<0, 1, 1> {
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
+
+  LOperand* value() { return inputs_[0]; }
 };
 
 

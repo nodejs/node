@@ -1768,11 +1768,12 @@ LInstruction* LChunkBuilder::DoLoadGlobalGeneric(HLoadGlobalGeneric* instr) {
 
 
 LInstruction* LChunkBuilder::DoStoreGlobalCell(HStoreGlobalCell* instr) {
-  LStoreGlobalCell* result =
-      new LStoreGlobalCell(UseTempRegister(instr->value()),
-                           TempRegister(),
-                           TempRegister());
-  return instr->RequiresHoleCheck() ? AssignEnvironment(result) : result;
+  LOperand* value = UseRegister(instr->value());
+  // Use a temp to avoid reloading the cell value address in the case where
+  // we perform a hole check.
+  return instr->RequiresHoleCheck()
+      ? AssignEnvironment(new LStoreGlobalCell(value, TempRegister()))
+      : new LStoreGlobalCell(value, NULL);
 }
 
 

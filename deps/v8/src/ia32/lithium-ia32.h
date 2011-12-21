@@ -1269,16 +1269,16 @@ class LLoadGlobalGeneric: public LTemplateInstruction<1, 2, 0> {
 };
 
 
-class LStoreGlobalCell: public LTemplateInstruction<0, 1, 2> {
+class LStoreGlobalCell: public LTemplateInstruction<0, 1, 0> {
  public:
-  explicit LStoreGlobalCell(LOperand* value, LOperand* temp1, LOperand* temp2) {
+  explicit LStoreGlobalCell(LOperand* value) {
     inputs_[0] = value;
-    temps_[0] = temp1;
-    temps_[1] = temp2;
   }
 
   DECLARE_CONCRETE_INSTRUCTION(StoreGlobalCell, "store-global-cell")
   DECLARE_HYDROGEN_ACCESSOR(StoreGlobalCell)
+
+  LOperand* value() { return inputs_[0]; }
 };
 
 

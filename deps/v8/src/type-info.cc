@@ -85,7 +85,8 @@ bool TypeFeedbackOracle::LoadIsMonomorphicNormal(Property* expr) {
     return code->is_keyed_load_stub() &&
         code->ic_state() == MONOMORPHIC &&
         Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
-        code->FindFirstMap() != NULL;
+        code->FindFirstMap() != NULL &&
+        !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
   }
   return false;
 }
@@ -111,7 +112,9 @@ bool TypeFeedbackOracle::StoreIsMonomorphicNormal(Expression* expr) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     return code->is_keyed_store_stub() &&
         code->ic_state() == MONOMORPHIC &&
-        Code::ExtractTypeFromFlags(code->flags()) == NORMAL;
+        Code::ExtractTypeFromFlags(code->flags()) == NORMAL &&
+        code->FindFirstMap() != NULL &&
+        !CanRetainOtherContext(code->FindFirstMap(), *global_context_);
   }
   return false;
 }
@@ -144,7 +147,9 @@ Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
     Map* first_map = code->FindFirstMap();
     ASSERT(first_map != NULL);
-    return Handle<Map>(first_map);
+    return CanRetainOtherContext(first_map, *global_context_)
+        ? Handle<Map>::null()
+        : Handle<Map>(first_map);
   }
   return Handle<Map>::cast(map_or_code);
 }
@@ -155,7 +160,11 @@ Handle<Map> TypeFeedbackOracle::StoreMonomorphicReceiverType(Expression* expr) {
   Handle<Object> map_or_code = GetInfo(expr->id());
   if (map_or_code->IsCode()) {
     Handle<Code> code = Handle<Code>::cast(map_or_code);
-    return Handle<Map>(code->FindFirstMap());
+    Map* first_map = code->FindFirstMap();
+    ASSERT(first_map != NULL);
+    return CanRetainOtherContext(first_map, *global_context_)
+        ? Handle<Map>::null()
+        : Handle<Map>(first_map);
   }
   return Handle<Map>::cast(map_or_code);
 }
@@ -288,7 +297,11 @@ Handle<Map> TypeFeedbackOracle::GetCompareMap(CompareOperation* expr) {
   if (state != CompareIC::KNOWN_OBJECTS) {
     return Handle<Map>::null();
   }
-  return Handle<Map>(code->FindFirstMap());
+  Map* first_map = code->FindFirstMap();
+  ASSERT(first_map != NULL);
+  return CanRetainOtherContext(first_map, *global_context_)
+      ? Handle<Map>::null()
+      : Handle<Map>(first_map);
 }
 
 
@@ -451,20 +464,23 @@ void TypeFeedbackOracle::CollectReceiverTypes(unsigned ast_id,
 // retaining objects from different tabs in Chrome via optimized code.
 bool TypeFeedbackOracle::CanRetainOtherContext(Map* map,
                                                Context* global_context) {
-  Object* constructor = map->constructor();
-  ASSERT(constructor != NULL);
-  while (!constructor->IsJSFunction()) {
-    // If the constructor is not null or a JSFunction, we have to
-    // conservatively assume that it may retain a global context.
-    if (!constructor->IsNull()) return true;
-
-    // If both, constructor and prototype are null, we conclude
-    // that no global context will be retained by this map.
-    if (map->prototype()->IsNull()) return false;
-
-    map = JSObject::cast(map->prototype())->map();
+  Object* constructor = NULL;
+  while (!map->prototype()->IsNull()) {
     constructor = map->constructor();
+    if (!constructor->IsNull()) {
+      // If the constructor is not null or a JSFunction, we have to
+      // conservatively assume that it may retain a global context.
+      if (!constructor->IsJSFunction()) return true;
+      // Check if the constructor directly references a foreign context.
+      if (CanRetainOtherContext(JSFunction::cast(constructor),
+                                global_context)) {
+        return true;
+      }
+    }
+    map = HeapObject::cast(map->prototype())->map();
   }
+  constructor = map->constructor();
+  if (constructor->IsNull()) return false;
   JSFunction* function = JSFunction::cast(constructor);
   return CanRetainOtherContext(function, global_context);
 }
@@ -498,7 +514,10 @@ void TypeFeedbackOracle::CollectKeyedReceiverTypes(unsigned ast_id,
       RelocInfo* info = it.rinfo();
       Object* object = info->target_object();
       if (object->IsMap()) {
-        AddMapIfMissing(Handle<Map>(Map::cast(object)), types);
+        Map* map = Map::cast(object);
+        if (!CanRetainOtherContext(map, *global_context_)) {
+          AddMapIfMissing(Handle<Map>(map), types);
+        }
       }
     }
   }

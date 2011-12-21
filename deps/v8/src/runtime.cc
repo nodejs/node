@@ -4326,12 +4326,26 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   LookupResult result(isolate);
   js_object->LocalLookupRealNamedProperty(*name, &result);
 
-  // To be compatible with safari we do not change the value on API objects
-  // in defineProperty. Firefox disagrees here, and actually changes the value.
-  if (result.IsProperty() &&
-      (result.type() == CALLBACKS) &&
-      result.GetCallbackObject()->IsAccessorInfo()) {
-    return isolate->heap()->undefined_value();
+  // Special case for callback properties.
+  if (result.IsProperty() && result.type() == CALLBACKS) {
+    Object* callback = result.GetCallbackObject();
+    // To be compatible with Safari we do not change the value on API objects
+    // in Object.defineProperty(). Firefox disagrees here, and actually changes
+    // the value.
+    if (callback->IsAccessorInfo()) {
+      return isolate->heap()->undefined_value();
+    }
+    // Avoid redefining foreign callback as data property, just use the stored
+    // setter to update the value instead.
+    // TODO(mstarzinger): So far this only works if property attributes don't
+    // change, this should be fixed once we cleanup the underlying code.
+    if (callback->IsForeign() && result.GetAttributes() == attr) {
+      return js_object->SetPropertyWithCallback(callback,
+                                                *name,
+                                                *obj_value,
+                                                result.holder(),
+                                                kStrictMode);
+    }
   }
 
   // Take special care when attributes are different and there is already

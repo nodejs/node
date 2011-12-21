@@ -2141,26 +2141,26 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
 
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
-  Register value = ToRegister(instr->InputAt(0));
-  Register scratch = scratch0();
-  Register scratch2 = ToRegister(instr->TempAt(0));
+  Register value = ToRegister(instr->value());
+  Register cell = scratch0();
 
   // Load the cell.
-  __ li(scratch, Operand(Handle<Object>(instr->hydrogen()->cell())));
+  __ li(cell, Operand(instr->hydrogen()->cell()));
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted.
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ lw(scratch2,
-          FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+    // We use a temp to check the payload.
+    Register payload = ToRegister(instr->TempAt(0));
+    __ lw(payload, FieldMemOperand(cell, JSGlobalPropertyCell::kValueOffset));
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
-    DeoptimizeIf(eq, instr->environment(), scratch2, Operand(at));
+    DeoptimizeIf(eq, instr->environment(), payload, Operand(at));
   }
 
   // Store the value.
-  __ sw(value, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
+  __ sw(value, FieldMemOperand(cell, JSGlobalPropertyCell::kValueOffset));
   // Cells are always rescanned, so no write barrier here.
 }
 

@@ -1333,6 +1333,7 @@ static int NumberOfGlobalObjects() {
 // Test that we don't embed maps from foreign contexts into
 // optimized code.
 TEST(LeakGlobalContextViaMap) {
+  i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
   v8::Persistent<v8::Context> ctx2 = v8::Context::New();
@@ -1349,7 +1350,8 @@ TEST(LeakGlobalContextViaMap) {
     ctx2->Global()->Set(v8_str("o"), v);
     v8::Local<v8::Value> res = CompileRun(
         "function f() { return o.x; }"
-        "for (var i = 0; i < 1000000; ++i) f();"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
         "f();");
     CHECK_EQ(42, res->Int32Value());
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
@@ -1368,6 +1370,7 @@ TEST(LeakGlobalContextViaMap) {
 // Test that we don't embed functions from foreign contexts into
 // optimized code.
 TEST(LeakGlobalContextViaFunction) {
+  i::FLAG_allow_natives_syntax = true;
   v8::HandleScope outer_scope;
   v8::Persistent<v8::Context> ctx1 = v8::Context::New();
   v8::Persistent<v8::Context> ctx2 = v8::Context::New();
@@ -1384,8 +1387,83 @@ TEST(LeakGlobalContextViaFunction) {
     ctx2->Global()->Set(v8_str("o"), v);
     v8::Local<v8::Value> res = CompileRun(
         "function f(x) { return x(); }"
-        "for (var i = 0; i < 1000000; ++i) f(o);"
+        "for (var i = 0; i < 10; ++i) f(o);"
+        "%OptimizeFunctionOnNextCall(f);"
         "f(o);");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+TEST(LeakGlobalContextViaMapKeyed) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = [42, 43]");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() { return o[0]; }"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
+    CHECK_EQ(42, res->Int32Value());
+    ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
+    ctx2->Exit();
+    ctx1->Exit();
+    ctx1.Dispose();
+  }
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(2, NumberOfGlobalObjects());
+  ctx2.Dispose();
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+TEST(LeakGlobalContextViaMapProto) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope outer_scope;
+  v8::Persistent<v8::Context> ctx1 = v8::Context::New();
+  v8::Persistent<v8::Context> ctx2 = v8::Context::New();
+  ctx1->Enter();
+
+  HEAP->CollectAllAvailableGarbage();
+  CHECK_EQ(4, NumberOfGlobalObjects());
+
+  {
+    v8::HandleScope inner_scope;
+    CompileRun("var v = { y: 42}");
+    v8::Local<v8::Value> v = ctx1->Global()->Get(v8_str("v"));
+    ctx2->Enter();
+    ctx2->Global()->Set(v8_str("o"), v);
+    v8::Local<v8::Value> res = CompileRun(
+        "function f() {"
+        "  var p = {x: 42};"
+        "  p.__proto__ = o;"
+        "  return p.x;"
+        "}"
+        "for (var i = 0; i < 10; ++i) f();"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f();");
     CHECK_EQ(42, res->Int32Value());
     ctx2->Global()->Set(v8_str("o"), v8::Int32::New(0));
     ctx2->Exit();

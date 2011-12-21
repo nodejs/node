@@ -219,7 +219,7 @@ def other_scope(r):
   if r['gc'] == 's':
     # there is no 'other' scope for scavenging collections.
     return 0
-  return r['pause'] - r['mark'] - r['sweep'] - r['compact'] - r['external']
+  return r['pause'] - r['mark'] - r['sweep'] - r['external']
 
 def scavenge_scope(r):
   if r['gc'] == 's':
@@ -238,7 +238,6 @@ plots = [
     Plot(Item('Scavenge', scavenge_scope, lc = 'green'),
          Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
-         Item('Compaction', 'compact', lc = 'red'),
          Item('External', 'external', lc = '#489D43'),
          Item('Other', other_scope, lc = 'grey'),
          Item('IGC Steps', 'stepstook', lc = '#FF6347'))
@@ -250,7 +249,6 @@ plots = [
     Plot(Item('Scavenge', scavenge_scope, lc = 'green'),
          Item('Marking', 'mark', lc = 'purple'),
          Item('Sweep', 'sweep', lc = 'blue'),
-         Item('Compaction', 'compact', lc = 'red'),
          Item('External', 'external', lc = '#489D43'),
          Item('Other', other_scope, lc = '#ADD8E6'),
          Item('External', 'external', lc = '#D3D3D3'))
@@ -309,7 +307,6 @@ def process_trace(filename):
   trace = parse_gc_trace(filename)
 
   marksweeps = filter(lambda r: r['gc'] == 'ms', trace)
-  markcompacts = filter(lambda r: r['gc'] == 'mc', trace)
   scavenges = filter(lambda r: r['gc'] == 's', trace)
   globalgcs = filter(lambda r: r['gc'] != 's', trace)
 
@@ -368,10 +365,8 @@ def process_trace(filename):
     stats(out, 'Total in GC', trace, 'pause')
     stats(out, 'Scavenge', scavenges, 'pause')
     stats(out, 'MarkSweep', marksweeps, 'pause')
-    stats(out, 'MarkCompact', markcompacts, 'pause')
     stats(out, 'Mark', filter(lambda r: r['mark'] != 0, trace), 'mark')
     stats(out, 'Sweep', filter(lambda r: r['sweep'] != 0, trace), 'sweep')
-    stats(out, 'Compact', filter(lambda r: r['compact'] != 0, trace), 'compact')
     stats(out,
           'External',
           filter(lambda r: r['external'] != 0, trace),
@@ -379,7 +374,6 @@ def process_trace(filename):
     out.write('</table>')
     throughput('TOTAL', trace)
     throughput('MS', marksweeps)
-    throughput('MC', markcompacts)
     throughput('OLDSPACE', globalgcs)
     out.write('<br/>')
     for chart in charts:

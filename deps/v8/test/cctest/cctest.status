@@ -52,10 +52,6 @@ test-profile-generator/RecordStackTraceAtStartProfiling: PASS || FAIL
 # We do not yet shrink weak maps after they have been emptied by the GC
 test-weakmaps/Shrinking: FAIL
 
-# TODO(1823): Fails without snapshot. Temporarily disabled until fixed.
-test-heap/LeakGlobalContextViaMap: SKIP
-test-heap/LeakGlobalContextViaFunction: SKIP
-
 ##############################################################################
 [ $arch == arm ]
 

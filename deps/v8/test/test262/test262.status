@@ -39,9 +39,6 @@ S8.7_A5_T2: FAIL
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1624
 S10.4.2.1_A1: FAIL
 
-# V8 Bug: http://code.google.com/p/v8/issues/detail?id=1530
-S15.3.3.1_A4: FAIL
-
 # V8 Bug: http://code.google.com/p/v8/issues/detail?id=1475
 15.2.3.6-4-405: FAIL
 15.2.3.6-4-410: FAIL

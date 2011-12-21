@@ -2028,25 +2028,27 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
 
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
-  Register object = ToRegister(instr->TempAt(0));
-  Register address = ToRegister(instr->TempAt(1));
-  Register value = ToRegister(instr->InputAt(0));
-  ASSERT(!value.is(object));
-  Handle<JSGlobalPropertyCell> cell_handle(instr->hydrogen()->cell());
-
-  __ movq(address, cell_handle, RelocInfo::GLOBAL_PROPERTY_CELL);
+  Register value = ToRegister(instr->value());
+  Handle<JSGlobalPropertyCell> cell_handle = instr->hydrogen()->cell();
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted. We deoptimize in that case.
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ CompareRoot(Operand(address, 0), Heap::kTheHoleValueRootIndex);
+    // We have a temp because CompareRoot might clobber kScratchRegister.
+    Register cell = ToRegister(instr->TempAt(0));
+    ASSERT(!value.is(cell));
+    __ movq(cell, cell_handle, RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ CompareRoot(Operand(cell, 0), Heap::kTheHoleValueRootIndex);
     DeoptimizeIf(equal, instr->environment());
+    // Store the value.
+    __ movq(Operand(cell, 0), value);
+  } else {
+    // Store the value.
+    __ movq(kScratchRegister, cell_handle, RelocInfo::GLOBAL_PROPERTY_CELL);
+    __ movq(Operand(kScratchRegister, 0), value);
   }
-
-  // Store the value.
-  __ movq(Operand(address, 0), value);
   // Cells are always rescanned, so no write barrier here.
 }
 

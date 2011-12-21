@@ -84,6 +84,10 @@
 
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
+
+    # We want max optimization for the V8 build (if this is not set, chrome
+    # defaults to low optimization settings)
+    'optimize': 'max',
   },
   'target_defaults': {
     'conditions': [

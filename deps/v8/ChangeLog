@@ -1,3 +1,13 @@
+2011-12-21: Version 3.8.2
+
+        Add max optimization flag to v8 gyp build to ensure V8 is always built 
+        fully optimized in Chrome.
+
+        MIPS: Bring MIPS to parity with other platforms.
+
+        Optimizations and stability improvements on all platforms.
+
+
 2011-12-19: Version 3.8.1
 
         Fixed GCC 4.7 warnings. Patch from Tobias Burnus.

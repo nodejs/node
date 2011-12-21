@@ -2124,26 +2124,20 @@ void LCodeGen::DoLoadGlobalGeneric(LLoadGlobalGeneric* instr) {
 
 
 void LCodeGen::DoStoreGlobalCell(LStoreGlobalCell* instr) {
-  Register object = ToRegister(instr->TempAt(0));
-  Register address = ToRegister(instr->TempAt(1));
-  Register value = ToRegister(instr->InputAt(0));
-  ASSERT(!value.is(object));
-  Handle<JSGlobalPropertyCell> cell_handle(instr->hydrogen()->cell());
-
-  int offset = JSGlobalPropertyCell::kValueOffset;
-  __ mov(object, Immediate(cell_handle));
+  Register value = ToRegister(instr->value());
+  Handle<JSGlobalPropertyCell> cell_handle = instr->hydrogen()->cell();
 
   // If the cell we are storing to contains the hole it could have
   // been deleted from the property dictionary. In that case, we need
   // to update the property details in the property dictionary to mark
   // it as no longer deleted. We deoptimize in that case.
   if (instr->hydrogen()->RequiresHoleCheck()) {
-    __ cmp(FieldOperand(object, offset), factory()->the_hole_value());
+    __ cmp(Operand::Cell(cell_handle), factory()->the_hole_value());
     DeoptimizeIf(equal, instr->environment());
   }
 
   // Store the value.
-  __ mov(FieldOperand(object, offset), value);
+  __ mov(Operand::Cell(cell_handle), value);
   // Cells are always rescanned, so no write barrier here.
 }
 
