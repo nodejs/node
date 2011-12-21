@@ -13,18 +13,15 @@ import sys
 import gyp.ninja_syntax as ninja_syntax
 
 generator_default_variables = {
-  'OS': 'linux',
-
   'EXECUTABLE_PREFIX': '',
   'EXECUTABLE_SUFFIX': '',
   'STATIC_LIB_PREFIX': '',
   'STATIC_LIB_SUFFIX': '.a',
   'SHARED_LIB_PREFIX': 'lib',
-  'SHARED_LIB_SUFFIX': '.so',
 
   # Gyp expects the following variables to be expandable by the build
   # system to the appropriate locations.  Ninja prefers paths to be
-  # known at compile time.  To resolve this, introduce special
+  # known at gyp time.  To resolve this, introduce special
   # variables starting with $! (which begin with a $ so gyp knows it
   # should be treated as a path, but is otherwise an invalid
   # ninja/shell variable) that are passed to gyp here but expanded
@@ -103,7 +100,7 @@ def InvertRelativePath(path):
 #   to the input file name as well as the output target name.
 
 class NinjaWriter:
-  def __init__(self, target_outputs, base_dir, build_dir, output_file):
+  def __init__(self, target_outputs, base_dir, build_dir, output_file, flavor):
     """
     base_dir: path from source root to directory containing this gyp file,
               by gyp semantics, all input paths are relative to this
@@ -114,6 +111,7 @@ class NinjaWriter:
     self.base_dir = base_dir
     self.build_dir = build_dir
     self.ninja = ninja_syntax.Writer(output_file)
+    self.flavor = flavor
 
     # Relative path from build output dir to base dir.
     self.build_to_base = os.path.join(InvertRelativePath(build_dir), base_dir)
@@ -422,18 +420,32 @@ class NinjaWriter:
       self.ninja.variable('cc', '$cc_host')
       self.ninja.variable('cxx', '$cxx_host')
 
+    if self.flavor == 'mac':
+      # TODO(jeremya/thakis): Extract these from XcodeSettings instead.
+      cflags = []
+      cflags_c = []
+      cflags_cc = []
+      cflags_objc = []
+      cflags_objcc = []
+    else:
+      cflags = config.get('cflags', [])
+      cflags_c = config.get('cflags_c', [])
+      cflags_cc = config.get('cflags_cc', [])
+
     self.WriteVariableList('defines',
         [QuoteShellArgument(ninja_syntax.escape('-D' + d))
          for d in config.get('defines', [])])
     self.WriteVariableList('includes',
                            ['-I' + self.GypPathToNinja(i)
                             for i in config.get('include_dirs', [])])
-    self.WriteVariableList('cflags', map(self.ExpandSpecial,
-                                         config.get('cflags', [])))
-    self.WriteVariableList('cflags_c', map(self.ExpandSpecial,
-                                           config.get('cflags_c', [])))
-    self.WriteVariableList('cflags_cc', map(self.ExpandSpecial,
-                                            config.get('cflags_cc', [])))
+    self.WriteVariableList('cflags', map(self.ExpandSpecial, cflags))
+    self.WriteVariableList('cflags_c', map(self.ExpandSpecial, cflags_c))
+    self.WriteVariableList('cflags_cc', map(self.ExpandSpecial, cflags_cc))
+    if self.flavor == 'mac':
+      self.WriteVariableList('cflags_objc', map(self.ExpandSpecial,
+                                             cflags_objc))
+      self.WriteVariableList('cflags_objcc', map(self.ExpandSpecial,
+                                              cflags_objcc))
     self.ninja.newline()
     outputs = []
     for source in sources:
@@ -443,6 +455,10 @@ class NinjaWriter:
         command = 'cxx'
       elif ext in ('c', 's', 'S'):
         command = 'cc'
+      elif self.flavor == 'mac' and ext == 'm':
+        command = 'objc'
+      elif self.flavor == 'mac' and ext == 'mm':
+        command = 'objcxx'
       else:
         # TODO: should we assert here on unexpected extensions?
         continue
@@ -498,9 +514,14 @@ class NinjaWriter:
     command = command_map[spec['type']]
 
     if output_uses_linker:
+      if self.flavor == 'mac':
+        # TODO(jeremya/thakis): Get this from XcodeSettings.
+        ldflags = []
+      else:
+        ldflags = config.get('ldflags', [])
       self.WriteVariableList('ldflags',
                              gyp.common.uniquer(map(self.ExpandSpecial,
-                                                    config.get('ldflags', []))))
+                                                    ldflags)))
       self.WriteVariableList('libs',
                              gyp.common.uniquer(map(self.ExpandSpecial,
                                                     spec.get('libraries', []))))
@@ -534,6 +555,10 @@ class NinjaWriter:
       'loadable_module': 'so',
       'shared_library': 'so',
       }
+    # TODO(thakis/jeremya): Remove once the mac path name computation is done
+    # by XcodeSettings.
+    if self.flavor == 'mac':
+      DEFAULT_EXTENSION['shared_library'] = 'dylib'
     extension = spec.get('product_extension',
                          DEFAULT_EXTENSION.get(spec['type'], ''))
     if extension:
@@ -576,6 +601,10 @@ class NinjaWriter:
       if self.toolset != 'target':
         libdir = 'lib/%s' % self.toolset
       return os.path.join(libdir, filename)
+    # TODO(thakis/jeremya): Remove once the mac path name computation is done
+    # by XcodeSettings.
+    elif spec['type'] == 'static_library' and self.flavor == 'mac':
+      return filename
     else:
       return self.GypPathToUniqueOutput(filename, qualified=False)
 
@@ -619,6 +648,32 @@ def CalculateVariables(default_variables, params):
   default_variables['LINKER_SUPPORTS_ICF'] = \
       gyp.system_test.TestLinkerSupportsICF(cc_command=cc_target)
 
+  flavor = gyp.common.GetFlavor(params)
+  if flavor == 'mac':
+    default_variables.setdefault('OS', 'mac')
+    default_variables.setdefault('SHARED_LIB_SUFFIX', '.dylib')
+
+    # TODO(jeremya/thakis): Set SHARED_LIB_DIR / LIB_DIR.
+
+    # Copy additional generator configuration data from Xcode, which is shared
+    # by the Mac Ninja generator.
+    import gyp.generator.xcode as xcode_generator
+    global generator_additional_non_configuration_keys
+    generator_additional_non_configuration_keys = getattr(xcode_generator,
+        'generator_additional_non_configuration_keys', [])
+    global generator_additional_path_sections
+    generator_additional_path_sections = getattr(xcode_generator,
+        'generator_additional_path_sections', [])
+    global generator_extra_sources_for_rules
+    generator_extra_sources_for_rules = getattr(xcode_generator,
+        'generator_extra_sources_for_rules', [])
+  else:
+    operating_system = flavor
+    if flavor == 'android':
+      operating_system = 'linux'  # Keep this legacy behavior for now.
+    default_variables.setdefault('OS', operating_system)
+    default_variables.setdefault('SHARED_LIB_SUFFIX', '.so')
+
 
 def OpenOutput(path):
   """Open |path| for writing, creating directories if necessary."""
@@ -631,6 +686,7 @@ def OpenOutput(path):
 
 def GenerateOutput(target_list, target_dicts, data, params):
   options = params['options']
+  flavor = gyp.common.GetFlavor(params)
   generator_flags = params.get('generator_flags', {})
 
   if options.generator_output:
@@ -653,7 +709,13 @@ def GenerateOutput(target_list, target_dicts, data, params):
   # TODO: compute cc/cxx/ld/etc. by command-line arguments and system tests.
   master_ninja.variable('cc', os.environ.get('CC', 'gcc'))
   master_ninja.variable('cxx', os.environ.get('CXX', 'g++'))
-  master_ninja.variable('ld', '$cxx -Wl,--threads -Wl,--thread-count=4')
+  # TODO(bradnelson): remove NOGOLD when this is resolved:
+  #     http://code.google.com/p/chromium/issues/detail?id=108251
+  if flavor != 'mac' and not os.environ.get('NOGOLD'):
+    master_ninja.variable('ld', '$cxx -Wl,--threads -Wl,--thread-count=4')
+  else:
+    # TODO(jeremya/thakis): flock
+    master_ninja.variable('ld', '$cxx')
   master_ninja.variable('cc_host', '$cc')
   master_ninja.variable('cxx_host', '$cxx')
   master_ninja.newline()
@@ -670,25 +732,60 @@ def GenerateOutput(target_list, target_dicts, data, params):
     command=('$cxx -MMD -MF $out.d $defines $includes $cflags $cflags_cc '
              '-c $in -o $out'),
     depfile='$out.d')
-  master_ninja.rule(
-    'alink',
-    description='AR $out',
-    command='rm -f $out && ar rcsT $out $in')
-  master_ninja.rule(
-    'solink',
-    description='SOLINK $out',
-    command=('$ld -shared $ldflags -o $out -Wl,-soname=$soname '
-             '-Wl,--whole-archive $in -Wl,--no-whole-archive $libs'))
-  master_ninja.rule(
-    'solink_module',
-    description='SOLINK(module) $out',
-    command=('$ld -shared $ldflags -o $out -Wl,-soname=$soname '
-             '-Wl,--start-group $in -Wl,--end-group $libs'))
-  master_ninja.rule(
-    'link',
-    description='LINK $out',
-    command=('$ld $ldflags -o $out -Wl,-rpath=\$$ORIGIN/lib '
-             '-Wl,--start-group $in -Wl,--end-group $libs'))
+  if flavor != 'mac':
+    master_ninja.rule(
+      'alink',
+      description='AR $out',
+      command='rm -f $out && ar rcsT $out $in')
+    master_ninja.rule(
+      'solink',
+      description='SOLINK $out',
+      command=('$ld -shared $ldflags -o $out -Wl,-soname=$soname '
+               '-Wl,--whole-archive $in -Wl,--no-whole-archive $libs'))
+    master_ninja.rule(
+      'solink_module',
+      description='SOLINK(module) $out',
+      command=('$ld -shared $ldflags -o $out -Wl,-soname=$soname '
+               '-Wl,--start-group $in -Wl,--end-group $libs'))
+    master_ninja.rule(
+      'link',
+      description='LINK $out',
+      command=('$ld $ldflags -o $out -Wl,-rpath=\$$ORIGIN/lib '
+               '-Wl,--start-group $in -Wl,--end-group $libs'))
+  else:
+    master_ninja.rule(
+      'objc',
+      description='OBJC $out',
+      command=('$cc -MMD -MF $out.d $defines $includes $cflags $cflags_c '
+               '$cflags_objc -c $in -o $out'),
+      depfile='$out.d')
+    master_ninja.rule(
+      'objcxx',
+      description='OBJCXX $out',
+      command=('$cxx -MMD -MF $out.d $defines $includes $cflags $cflags_cc '
+               '$cflags_objcc -c $in -o $out'),
+      depfile='$out.d')
+    master_ninja.rule(
+      'alink',
+      description='LIBTOOL-STATIC $out',
+      command='rm -f $out && libtool -static -o $out $in')
+    # TODO(thakis): The solink_module rule is likely wrong. Xcode seems to pass
+    # -bundle -single_module here (for osmesa.so).
+    master_ninja.rule(
+      'solink',
+      description='SOLINK $out',
+      command=('$ld -shared $ldflags -o $out '
+               '$in $libs'))
+    master_ninja.rule(
+      'solink_module',
+      description='SOLINK(module) $out',
+      command=('$ld -shared $ldflags -o $out '
+               '$in $libs'))
+    master_ninja.rule(
+      'link',
+      description='LINK $out',
+      command=('$ld $ldflags -o $out '
+               '$in $libs'))
   master_ninja.rule(
     'stamp',
     description='STAMP $out',
@@ -696,7 +793,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
   master_ninja.rule(
     'copy',
     description='COPY $in $out',
-    command='ln -f $in $out 2>/dev/null || cp -af $in $out')
+    command='ln -f $in $out 2>/dev/null || (rm -rf $out && cp -af $in $out)')
   master_ninja.newline()
 
   all_targets = set()
@@ -726,7 +823,8 @@ def GenerateOutput(target_list, target_dicts, data, params):
     writer = NinjaWriter(target_outputs, base_path, builddir,
                          OpenOutput(os.path.join(options.toplevel_dir,
                                                  builddir,
-                                                 output_file)))
+                                                 output_file)),
+                         flavor)
     master_ninja.subninja(output_file)
 
     output, compile_depends = writer.WriteSpec(spec, config)

@@ -55,25 +55,13 @@ generator_supports_multiple_toolsets = True
 generator_wants_sorted_dependencies = False
 
 
-def GetFlavor(params):
-  """Returns |params.flavor| if it's set, the system's default flavor else."""
-  flavors = {
-    'darwin': 'mac',
-    'sunos5': 'solaris',
-    'freebsd7': 'freebsd',
-    'freebsd8': 'freebsd',
-  }
-  flavor = flavors.get(sys.platform, 'linux')
-  return params.get('flavor', flavor)
-
-
 def CalculateVariables(default_variables, params):
   """Calculate additional variables for use in the build (called by gyp)."""
   cc_target = os.environ.get('CC.target', os.environ.get('CC', 'cc'))
   default_variables['LINKER_SUPPORTS_ICF'] = \
       gyp.system_test.TestLinkerSupportsICF(cc_command=cc_target)
 
-  flavor = GetFlavor(params)
+  flavor = gyp.common.GetFlavor(params)
   if flavor == 'mac':
     default_variables.setdefault('OS', 'mac')
     default_variables.setdefault('SHARED_LIB_SUFFIX', '.dylib')
@@ -2722,7 +2710,7 @@ def CopyTool(flavor, out_path):
 
 def GenerateOutput(target_list, target_dicts, data, params):
   options = params['options']
-  flavor = GetFlavor(params)
+  flavor = gyp.common.GetFlavor(params)
   generator_flags = params.get('generator_flags', {})
   builddir_name = generator_flags.get('output_dir', 'out')
   android_ndk_version = generator_flags.get('android_ndk_version', None)

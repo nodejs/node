@@ -212,7 +212,7 @@ def main(argv=None):
       'win32':    ['msvs'],
       'linux2':   ['make', 'ninja'],
       'linux3':   ['make', 'ninja'],
-      'darwin':   ['make', 'xcode'],
+      'darwin':   ['make', 'ninja', 'xcode'],
     }[sys.platform]
 
   for format in format_list:

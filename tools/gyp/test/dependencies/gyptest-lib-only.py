@@ -29,7 +29,7 @@ if sys.platform == 'darwin':
   if test.format == 'xcode':
     test.built_file_must_not_exist('b', type=test.STATIC_LIB)
   else:
-    assert test.format == 'make'
+    assert test.format in ('make', 'ninja')
     test.built_file_must_exist('b', type=test.STATIC_LIB)
 else:
   # Make puts the resulting library in a directory matching the input gyp file;

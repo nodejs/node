@@ -1,4 +1,4 @@
-# Copyright (c) 2011 The Chromium Authors. All rights reserved.
+# Copyright (c) 2011 Google Inc. All rights reserved.
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
@@ -1356,6 +1356,13 @@ class DependencyGraphNode(object):
       # return an empty list of link dependencies, because the link
       # dependencies are intended to apply to the target itself (initial is
       # True) and this target won't be linked.
+      return dependencies
+
+    # Don't traverse 'none' targets if explicitly excluded.
+    if (target_type == 'none' and
+        not targets[self.ref].get('dependencies_traverse', True)):
+      if self.ref not in dependencies:
+        dependencies.append(self.ref)
       return dependencies
 
     # Executables and loadable modules are already fully and finally linked.

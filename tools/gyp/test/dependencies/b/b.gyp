@@ -11,5 +11,12 @@
         'b.c',
       ],
     },
+    {
+      'target_name': 'b3',
+      'type': 'static_library',
+      'sources': [
+        'b3.c',
+      ],
+    },
   ],
 }

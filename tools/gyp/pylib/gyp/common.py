@@ -344,6 +344,18 @@ def WriteOnDiff(filename):
   return Writer()
 
 
+def GetFlavor(params):
+  """Returns |params.flavor| if it's set, the system's default flavor else."""
+  flavors = {
+    'darwin': 'mac',
+    'sunos5': 'solaris',
+    'freebsd7': 'freebsd',
+    'freebsd8': 'freebsd',
+  }
+  flavor = flavors.get(sys.platform, 'linux')
+  return params.get('flavor', flavor)
+
+
 # From Alex Martelli,
 # http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/52560
 # ASPN: Python Cookbook: Remove duplicates from a sequence

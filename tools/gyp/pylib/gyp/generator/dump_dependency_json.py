@@ -25,21 +25,10 @@ for unused in ['RULE_INPUT_PATH', 'RULE_INPUT_ROOT', 'RULE_INPUT_NAME',
   generator_default_variables[unused] = ''
 
 
-def GetFlavor(params):
-  """Returns |params.flavor| if it's set, the system's default flavor else."""
-  flavors = {
-    'darwin': 'mac',
-    'sunos5': 'solaris',
-    'freebsd7': 'freebsd',
-    'freebsd8': 'freebsd',
-  }
-  flavor = flavors.get(sys.platform, 'linux')
-  return params.get('flavor', flavor)
-
-
 def CalculateVariables(default_variables, params):
   generator_flags = params.get('generator_flags', {})
-  default_variables['OS'] = generator_flags.get('os', GetFlavor(params))
+  default_variables['OS'] = generator_flags.get(
+      'os', gyp.common.GetFlavor(params))
 
 
 def CalculateGeneratorInputInfo(params):
