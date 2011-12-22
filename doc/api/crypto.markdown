@@ -47,9 +47,10 @@ Example: this program that takes the sha1 sum of a file
       console.log(d + '  ' + filename);
     });
 
-### hash.update(data)
+### hash.update(data, input_encoding='binary')
 
-Updates the hash content with the given `data`.
+Updates the hash content with the given `data`, the encoding of which is given
+in `input_encoding` and can be `'utf8'`, `'ascii'` or `'binary'`.
 This can be called many times with new data as it is streamed.
 
 ### hash.digest(encoding='binary')
