@@ -147,6 +147,15 @@ void StartThread(Isolate* isolate,
                  char** argv);
 
 
+uv_loop_t* Loop() {
+#if defined(HAVE_ISOLATES) && HAVE_ISOLATES
+  return Isolate::GetCurrent()->GetLoop();
+#else
+  return uv_default_loop();
+#endif
+}
+
+
 static void StartGCTimer () {
   if (!uv_is_active((uv_handle_t*) &gc_timer)) {
     uv_timer_start(&gc_timer, node::CheckStatus, 5000, 5000);
@@ -173,7 +182,7 @@ static void Idle(uv_idle_t* watcher, int status) {
 static void Check(uv_check_t* watcher, int status) {
   assert(watcher == &gc_check);
 
-  tick_times[tick_time_head] = uv_now(NODE_LOOP());
+  tick_times[tick_time_head] = uv_now(Loop());
   tick_time_head = (tick_time_head + 1) % RPM_SAMPLES;
 
   StartGCTimer();
@@ -203,7 +212,7 @@ static void Tick(void) {
   need_tick_cb = false;
   if (uv_is_active((uv_handle_t*) &tick_spinner)) {
     uv_idle_stop(&tick_spinner);
-    uv_unref(NODE_LOOP());
+    uv_unref(Loop());
   }
 
   HandleScope scope;
@@ -245,7 +254,7 @@ static Handle<Value> NeedTickCallback(const Arguments& args) {
   // tick_spinner to keep the event loop alive long enough to handle it.
   if (!uv_is_active((uv_handle_t*) &tick_spinner)) {
     uv_idle_start(&tick_spinner, Spin);
-    uv_ref(NODE_LOOP());
+    uv_ref(Loop());
   }
   return Undefined();
 }
@@ -1497,7 +1506,7 @@ static void CheckStatus(uv_timer_t* watcher, int status) {
     }
   }
 
-  double d = uv_now(NODE_LOOP()) - TICK_TIME(3);
+  double d = uv_now(Loop()) - TICK_TIME(3);
 
   //printfb("timer d = %f\n", d);
 
@@ -1526,7 +1535,7 @@ static Handle<Value> Uptime(const Arguments& args) {
 v8::Handle<v8::Value> UVCounters(const v8::Arguments& args) {
   HandleScope scope;
 
-  uv_counters_t* c = &NODE_LOOP()->counters;
+  uv_counters_t* c = &Loop()->counters;
 
   Local<Object> obj = Object::New();
 

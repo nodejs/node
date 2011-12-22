@@ -29,7 +29,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_isolate.h>
+#include <node_vars.h>
 #include <req_wrap.h>
 
 #include <node_vars.h>
@@ -134,7 +134,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     uv_work_t* work_req = new uv_work_t();
     work_req->data = req_wrap;
 
-    uv_queue_work(NODE_LOOP(),
+    uv_queue_work(Loop(),
                   work_req,
                   ZCtx<mode>::Process,
                   ZCtx<mode>::After);

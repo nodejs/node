@@ -21,7 +21,7 @@
 
 #include <node.h>
 #include <handle_wrap.h>
-#include <node_isolate.h>
+#include <node_vars.h>
 
 #include <stdlib.h>
 
@@ -110,15 +110,15 @@ Handle<Value> FSEventWrap::Start(const Arguments& args) {
 
   String::Utf8Value path(args[0]->ToString());
 
-  int r = uv_fs_event_init(NODE_LOOP(), &wrap->handle_, *path, OnEvent, 0);
+  int r = uv_fs_event_init(Loop(), &wrap->handle_, *path, OnEvent, 0);
   if (r == 0) {
     // Check for persistent argument
     if (!args[1]->IsTrue()) {
-      uv_unref(NODE_LOOP());
+      uv_unref(Loop());
     }
     wrap->initialized_ = true;
   } else {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
   }
 
   return scope.Close(Integer::New(r));
@@ -146,7 +146,7 @@ void FSEventWrap::OnEvent(uv_fs_event_t* handle, const char* filename,
   // assumption that a rename implicitly means an attribute change. Not too
   // unreasonable, right? Still, we should revisit this before v1.0.
   if (status) {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
     eventStr = String::Empty();
   }
   else if (events & UV_RENAME) {

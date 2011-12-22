@@ -21,7 +21,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_isolate.h>
+#include <node_vars.h>
 #include <req_wrap.h>
 #include <handle_wrap.h>
 #include <stream_wrap.h>
@@ -124,7 +124,7 @@ Handle<Value> PipeWrap::New(const Arguments& args) {
 
 PipeWrap::PipeWrap(Handle<Object> object, bool ipc)
     : StreamWrap(object, (uv_stream_t*) &handle_) {
-  int r = uv_pipe_init(NODE_LOOP(), &handle_, ipc);
+  int r = uv_pipe_init(Loop(), &handle_, ipc);
   assert(r == 0); // How do we proxy this error up to javascript?
                   // Suggestion: uv_pipe_init() returns void.
   handle_.data = reinterpret_cast<void*>(this);
@@ -142,7 +142,7 @@ Handle<Value> PipeWrap::Bind(const Arguments& args) {
   int r = uv_pipe_bind(&wrap->handle_, *name);
 
   // Error starting the pipe.
-  if (r) SetErrno(uv_last_error(NODE_LOOP()));
+  if (r) SetErrno(uv_last_error(Loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -173,7 +173,7 @@ Handle<Value> PipeWrap::Listen(const Arguments& args) {
   int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
 
   // Error starting the pipe.
-  if (r) SetErrno(uv_last_error(NODE_LOOP()));
+  if (r) SetErrno(uv_last_error(Loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -226,7 +226,7 @@ void PipeWrap::AfterConnect(uv_connect_t* req, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
   }
 
   Local<Value> argv[3] = {

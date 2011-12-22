@@ -24,7 +24,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_isolate.h>
+#include <node_vars.h>
 #include <node_root_certs.h>
 
 #include <string.h>
@@ -4118,7 +4118,7 @@ PBKDF2(const Arguments& args) {
 
   req = new uv_work_t();
   req->data = request;
-  uv_queue_work(NODE_LOOP(), req, EIO_PBKDF2, EIO_PBKDF2After);
+  uv_queue_work(Loop(), req, EIO_PBKDF2, EIO_PBKDF2After);
 
   return Undefined();
 
@@ -4241,7 +4241,7 @@ Handle<Value> RandomBytes(const Arguments& args) {
     Local<Function> callback_v = Local<Function>(Function::Cast(*args[1]));
     req->callback_ = Persistent<Function>::New(callback_v);
 
-    uv_queue_work(NODE_LOOP(),
+    uv_queue_work(Loop(),
                   &req->work_req_,
                   RandomBytesWork<generator>,
                   RandomBytesAfter<generator>);
