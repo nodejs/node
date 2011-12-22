@@ -44,7 +44,7 @@
   uv_fs_req_init(loop, req, type, path, cb); \
   if (cb) { \
     /* async */ \
-    req->eio = eiofunc(args, EIO_PRI_DEFAULT, uv__fs_after, req); \
+    req->eio = eiofunc(args, EIO_PRI_DEFAULT, uv__fs_after, req, &loop->uv_eio_channel); \
     if (!req->eio) { \
       uv__set_sys_error(loop, ENOMEM); \
       return -1; \
@@ -191,7 +191,7 @@ int uv_fs_open(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
   if (cb) {
     /* async */
     uv_ref(loop);
-    req->eio = eio_open(path, flags, mode, EIO_PRI_DEFAULT, uv__fs_after, req);
+    req->eio = eio_open(path, flags, mode, EIO_PRI_DEFAULT, uv__fs_after, req, &loop->uv_eio_channel);
     if (!req->eio) {
       uv__set_sys_error(loop, ENOMEM);
       return -1;
@@ -222,7 +222,7 @@ int uv_fs_read(uv_loop_t* loop, uv_fs_t* req, uv_file fd, void* buf,
     /* async */
     uv_ref(loop);
     req->eio = eio_read(fd, buf, length, offset, EIO_PRI_DEFAULT,
-        uv__fs_after, req);
+        uv__fs_after, req,  &loop->uv_eio_channel);
 
     if (!req->eio) {
       uv__set_sys_error(loop, ENOMEM);
@@ -260,7 +260,7 @@ int uv_fs_write(uv_loop_t* loop, uv_fs_t* req, uv_file file, void* buf,
     /* async */
     uv_ref(loop);
     req->eio = eio_write(file, buf, length, offset, EIO_PRI_DEFAULT,
-        uv__fs_after, req);
+        uv__fs_after, req,  &loop->uv_eio_channel);
     if (!req->eio) {
       uv__set_sys_error(loop, ENOMEM);
       return -1;
@@ -307,7 +307,7 @@ int uv_fs_readdir(uv_loop_t* loop, uv_fs_t* req, const char* path, int flags,
   if (cb) {
     /* async */
     uv_ref(loop);
-    req->eio = eio_readdir(path, flags, EIO_PRI_DEFAULT, uv__fs_after, req);
+    req->eio = eio_readdir(path, flags, EIO_PRI_DEFAULT, uv__fs_after, req,  &loop->uv_eio_channel);
     if (!req->eio) {
       uv__set_sys_error(loop, ENOMEM);
       return -1;
@@ -377,7 +377,7 @@ int uv_fs_stat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   if (cb) {
     /* async */
     uv_ref(loop);
-    req->eio = eio_stat(pathdup, EIO_PRI_DEFAULT, uv__fs_after, req);
+    req->eio = eio_stat(pathdup, EIO_PRI_DEFAULT, uv__fs_after, req,  &loop->uv_eio_channel);
 
     free(pathdup);
 
@@ -411,7 +411,7 @@ int uv_fs_fstat(uv_loop_t* loop, uv_fs_t* req, uv_file file, uv_fs_cb cb) {
   if (cb) {
     /* async */
     uv_ref(loop);
-    req->eio = eio_fstat(file, EIO_PRI_DEFAULT, uv__fs_after, req);
+    req->eio = eio_fstat(file, EIO_PRI_DEFAULT, uv__fs_after, req,  &loop->uv_eio_channel);
 
     if (!req->eio) {
       uv__set_sys_error(loop, ENOMEM);
@@ -550,7 +550,7 @@ int uv_fs_lstat(uv_loop_t* loop, uv_fs_t* req, const char* path, uv_fs_cb cb) {
   if (cb) {
     /* async */
     uv_ref(loop);
-    req->eio = eio_lstat(pathdup, EIO_PRI_DEFAULT, uv__fs_after, req);
+    req->eio = eio_lstat(pathdup, EIO_PRI_DEFAULT, uv__fs_after, req,  &loop->uv_eio_channel);
 
     free(pathdup);
 
@@ -598,7 +598,7 @@ int uv_fs_readlink(uv_loop_t* loop, uv_fs_t* req, const char* path,
   uv_fs_req_init(loop, req, UV_FS_READLINK, path, cb);
 
   if (cb) {
-    if ((req->eio = eio_readlink(path, EIO_PRI_DEFAULT, uv__fs_after, req))) {
+    if ((req->eio = eio_readlink(path, EIO_PRI_DEFAULT, uv__fs_after, req,  &loop->uv_eio_channel))) {
       uv_ref(loop);
       return 0;
     } else {
@@ -692,7 +692,7 @@ int uv_queue_work(uv_loop_t* loop, uv_work_t* req, uv_work_cb work_cb,
   req->work_cb = work_cb;
   req->after_work_cb = after_work_cb;
 
-  req->eio = eio_custom(uv__work, EIO_PRI_DEFAULT, uv__after_work, req);
+  req->eio = eio_custom(uv__work, EIO_PRI_DEFAULT, uv__after_work, req,  &loop->uv_eio_channel);
 
   if (!req->eio) {
     uv__set_sys_error(loop, ENOMEM);

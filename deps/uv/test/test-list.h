@@ -126,7 +126,6 @@ TEST_DECLARE   (thread_self)
 TEST_DECLARE   (strlcpy)
 TEST_DECLARE   (strlcat)
 TEST_DECLARE   (counters_init)
-
 #ifdef _WIN32
 TEST_DECLARE   (spawn_detect_pipe_name_collisions_on_windows)
 TEST_DECLARE   (argument_escaping)
@@ -293,7 +292,6 @@ TASK_LIST_START
   TEST_ENTRY  (strlcpy)
   TEST_ENTRY  (strlcat)
   TEST_ENTRY  (counters_init)
-
 #if 0
   /* These are for testing the test runner. */
   TEST_ENTRY  (fail_always)
