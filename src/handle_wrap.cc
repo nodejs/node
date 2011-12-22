@@ -21,7 +21,7 @@
 
 #include <node.h>
 #include <handle_wrap.h>
-#include <node_isolate.h>
+#include <node_vars.h>
 
 namespace node {
 
@@ -71,7 +71,7 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
   }
 
   wrap->unref = true;
-  uv_unref(NODE_LOOP());
+  uv_unref(Loop());
 
   return v8::Undefined();
 }

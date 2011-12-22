@@ -21,7 +21,7 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_isolate.h>
+#include <node_vars.h>
 #include <handle_wrap.h>
 #include <stream_wrap.h>
 #include <tcp_wrap.h>
@@ -133,7 +133,7 @@ Handle<Value> StreamWrap::ReadStart(const Arguments& args) {
   }
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(NODE_LOOP()));
+  if (r) SetErrno(uv_last_error(Loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -147,7 +147,7 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
   int r = uv_read_stop(wrap->stream_);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(NODE_LOOP()));
+  if (r) SetErrno(uv_last_error(Loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -226,7 +226,7 @@ void StreamWrap::OnReadCommon(uv_stream_t* handle, ssize_t nread,
       slab_used -= buf.len;
     }
 
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
     MakeCallback(wrap->object_, "onread", 0, NULL);
     return;
   }
@@ -339,7 +339,7 @@ Handle<Value> StreamWrap::Write(const Arguments& args) {
   wrap->UpdateWriteQueueSize();
 
   if (r) {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -359,7 +359,7 @@ void StreamWrap::AfterWrite(uv_write_t* req, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
   }
 
   wrap->UpdateWriteQueueSize();
@@ -389,7 +389,7 @@ Handle<Value> StreamWrap::Shutdown(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -409,7 +409,7 @@ void StreamWrap::AfterShutdown(uv_shutdown_t* req, int status) {
   HandleScope scope;
 
   if (status) {
-    SetErrno(uv_last_error(NODE_LOOP()));
+    SetErrno(uv_last_error(Loop()));
   }
 
   Local<Value> argv[3] = {
