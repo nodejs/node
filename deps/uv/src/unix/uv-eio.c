@@ -27,16 +27,12 @@
 #include <stdio.h>
 
 
-/* TODO remove me! */
-static uv_loop_t* main_loop;
-
-
 static void uv_eio_do_poll(uv_idle_t* watcher, int status) {
   assert(watcher == &(watcher->loop->uv_eio_poller));
 
   /* printf("uv_eio_poller\n"); */
 
-  if (eio_poll() != -1 && uv_is_active((uv_handle_t*) watcher)) {
+  if (eio_poll(&watcher->loop->uv_eio_channel) != -1 && uv_is_active((uv_handle_t*) watcher)) {
     /* printf("uv_eio_poller stop\n"); */
     uv_idle_stop(watcher);
     uv_unref(watcher->loop);
@@ -52,7 +48,7 @@ static void uv_eio_want_poll_notifier_cb(uv_async_t* watcher, int status) {
 
   /* printf("want poll notifier\n"); */
 
-  if (eio_poll() == -1 && !uv_is_active((uv_handle_t*) &loop->uv_eio_poller)) {
+  if (eio_poll(&watcher->loop->uv_eio_channel) == -1 && !uv_is_active((uv_handle_t*) &loop->uv_eio_poller)) {
     /* printf("uv_eio_poller start\n"); */
     uv_idle_start(&loop->uv_eio_poller, uv_eio_do_poll);
     uv_ref(loop);
@@ -67,7 +63,7 @@ static void uv_eio_done_poll_notifier_cb(uv_async_t* watcher, int revents) {
 
   /* printf("done poll notifier\n"); */
 
-  if (eio_poll() != -1 && uv_is_active((uv_handle_t*) &loop->uv_eio_poller)) {
+  if (eio_poll(&watcher->loop->uv_eio_channel) != -1 && uv_is_active((uv_handle_t*) &loop->uv_eio_poller)) {
     /* printf("uv_eio_poller stop\n"); */
     uv_idle_stop(&loop->uv_eio_poller);
     uv_unref(loop);
@@ -79,7 +75,7 @@ static void uv_eio_done_poll_notifier_cb(uv_async_t* watcher, int revents) {
  * uv_eio_want_poll() is called from the EIO thread pool each time an EIO
  * request (that is, one of the node.fs.* functions) has completed.
  */
-static void uv_eio_want_poll(void) {
+static void uv_eio_want_poll(eio_channel *channel) {
   /* Signal the main thread that eio_poll need to be processed. */
 
   /*
@@ -87,24 +83,22 @@ static void uv_eio_want_poll(void) {
    * uv_eio_want_poll_notifier.
    */
 
-  uv_async_send(&main_loop->uv_eio_want_poll_notifier);
+  uv_async_send(&((uv_loop_t *)channel->data)->uv_eio_want_poll_notifier);
 }
 
 
-static void uv_eio_done_poll(void) {
+static void uv_eio_done_poll(eio_channel *channel) {
   /*
    * Signal the main thread that we should stop calling eio_poll().
    * from the idle watcher.
    */
-  uv_async_send(&main_loop->uv_eio_done_poll_notifier);
+  uv_async_send(&((uv_loop_t *)channel->data)->uv_eio_done_poll_notifier);
 }
 
 
 void uv_eio_init(uv_loop_t* loop) {
   if (loop->counters.eio_init == 0) {
     loop->counters.eio_init++;
-
-    main_loop = loop;
 
     uv_idle_init(loop, &loop->uv_eio_poller);
     uv_idle_start(&loop->uv_eio_poller, uv_eio_do_poll);
@@ -124,11 +118,5 @@ void uv_eio_init(uv_loop_t* loop) {
      * race conditions. See Node's test/simple/test-eio-race.js
      */
     eio_set_max_poll_reqs(10);
-  } else {
-    /*
-     * If this assertion breaks then Ryan hasn't implemented support for
-     * receiving thread pool requests back to multiple threads.
-     */
-    assert(main_loop == loop);
   }
 }

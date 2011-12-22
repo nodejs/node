@@ -206,6 +206,28 @@ enum {
   EIO_PRI_DEFAULT =  0
 };
 
+#define ETP_PRI_MIN EIO_PRI_MIN
+#define ETP_PRI_MAX EIO_PRI_MAX
+
+#define ETP_NUM_PRI (ETP_PRI_MAX - ETP_PRI_MIN + 1)
+
+#define ETP_REQ eio_req
+
+/*
+ * a somewhat faster data structure might be nice, but
+ * with 8 priorities this actually needs <20 insns
+ * per shift, the most expensive operation.
+ */
+typedef struct {
+  ETP_REQ *qs[ETP_NUM_PRI], *qe[ETP_NUM_PRI]; /* qstart, qend */
+  int size;
+} etp_reqq;
+
+typedef struct {
+  etp_reqq res_queue; /* queue of outstanding responses for this channel */
+  void *data;         /* use this for what you want */
+} eio_channel;
+
 /* eio request structure */
 /* this structure is mostly read-only */
 /* when initialising it, all members must be zero-initialised */
@@ -226,6 +248,8 @@ struct eio_req
   long int2;       /* chown, fchown: uid; sendfile: input fd; open, chmod, mkdir, mknod: file mode, sync_file_range, fallocate: flags */
   long int3;       /* chown, fchown: gid */
   int errorno;     /* errno value on syscall return */
+
+  eio_channel *channel; /* data used to direct poll callbacks arising from this req */
 
 #if __i386 || __amd64
   unsigned char cancelled;
@@ -261,11 +285,14 @@ enum {
  * and eio_poll_cb needs to be invoked (it MUST NOT call eio_poll_cb itself).
  * done_poll is called when the need to poll is gone.
  */
-int eio_init (void (*want_poll)(void), void (*done_poll)(void));
+int eio_init (void (*want_poll)(eio_channel *), void (*done_poll)(eio_channel *));
+
+/* initialises a channel */
+void eio_channel_init(eio_channel *, void *data);
 
 /* must be called regularly to handle pending requests */
 /* returns 0 if all requests were handled, -1 if not, or the value of EIO_FINISH if != 0 */
-int eio_poll (void);
+int eio_poll (eio_channel *channel);
 
 /* stop polling if poll took longer than duration seconds */
 void eio_set_max_poll_time (eio_tstamp nseconds);
@@ -289,55 +316,55 @@ unsigned int eio_nthreads (void); /* number of worker threads in use currently *
 /* convenience wrappers */
 
 #ifndef EIO_NO_WRAPPERS
-eio_req *eio_nop       (int pri, eio_cb cb, void *data); /* does nothing except go through the whole process */
-eio_req *eio_busy      (eio_tstamp delay, int pri, eio_cb cb, void *data); /* ties a thread for this long, simulating busyness */
-eio_req *eio_sync      (int pri, eio_cb cb, void *data);
-eio_req *eio_fsync     (int fd, int pri, eio_cb cb, void *data);
-eio_req *eio_fdatasync (int fd, int pri, eio_cb cb, void *data);
-eio_req *eio_syncfs    (int fd, int pri, eio_cb cb, void *data);
-eio_req *eio_msync     (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data);
-eio_req *eio_mtouch    (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data);
-eio_req *eio_mlock     (void *addr, size_t length, int pri, eio_cb cb, void *data);
-eio_req *eio_mlockall  (int flags, int pri, eio_cb cb, void *data);
-eio_req *eio_sync_file_range (int fd, off_t offset, size_t nbytes, unsigned int flags, int pri, eio_cb cb, void *data);
-eio_req *eio_fallocate (int fd, int mode, off_t offset, size_t len, int pri, eio_cb cb, void *data);
-eio_req *eio_close     (int fd, int pri, eio_cb cb, void *data);
-eio_req *eio_readahead (int fd, off_t offset, size_t length, int pri, eio_cb cb, void *data);
-eio_req *eio_read      (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data);
-eio_req *eio_write     (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data);
-eio_req *eio_fstat     (int fd, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
-eio_req *eio_fstatvfs  (int fd, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
-eio_req *eio_futime    (int fd, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data);
-eio_req *eio_ftruncate (int fd, off_t offset, int pri, eio_cb cb, void *data);
-eio_req *eio_fchmod    (int fd, eio_mode_t mode, int pri, eio_cb cb, void *data);
-eio_req *eio_fchown    (int fd, eio_uid_t uid, eio_gid_t gid, int pri, eio_cb cb, void *data);
-eio_req *eio_dup2      (int fd, int fd2, int pri, eio_cb cb, void *data);
-eio_req *eio_sendfile  (int out_fd, int in_fd, off_t in_offset, size_t length, int pri, eio_cb cb, void *data);
-eio_req *eio_open      (const char *path, int flags, eio_mode_t mode, int pri, eio_cb cb, void *data);
-eio_req *eio_utime     (const char *path, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data);
-eio_req *eio_truncate  (const char *path, off_t offset, int pri, eio_cb cb, void *data);
-eio_req *eio_chown     (const char *path, eio_uid_t uid, eio_gid_t gid, int pri, eio_cb cb, void *data);
-eio_req *eio_chmod     (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data);
-eio_req *eio_mkdir     (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data);
-eio_req *eio_readdir   (const char *path, int flags, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
-eio_req *eio_rmdir     (const char *path, int pri, eio_cb cb, void *data);
-eio_req *eio_unlink    (const char *path, int pri, eio_cb cb, void *data);
-eio_req *eio_readlink  (const char *path, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
-eio_req *eio_realpath  (const char *path, int pri, eio_cb cb, void *data); /* result=ptr2 allocated dynamically */
-eio_req *eio_stat      (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
-eio_req *eio_lstat     (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
-eio_req *eio_statvfs   (const char *path, int pri, eio_cb cb, void *data); /* stat buffer=ptr2 allocated dynamically */
-eio_req *eio_mknod     (const char *path, eio_mode_t mode, dev_t dev, int pri, eio_cb cb, void *data);
-eio_req *eio_link      (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
-eio_req *eio_symlink   (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
-eio_req *eio_rename    (const char *path, const char *new_path, int pri, eio_cb cb, void *data);
-eio_req *eio_custom    (void (*execute)(eio_req *), int pri, eio_cb cb, void *data);
+eio_req *eio_nop       (int pri, eio_cb cb, void *data, eio_channel *channel); /* does nothing except go through the whole process */
+eio_req *eio_busy      (eio_tstamp delay, int pri, eio_cb cb, void *data, eio_channel *channel); /* ties a thread for this long, simulating busyness */
+eio_req *eio_sync      (int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_fsync     (int fd, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_fdatasync (int fd, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_syncfs    (int fd, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_msync     (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_mtouch    (void *addr, size_t length, int flags, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_mlock     (void *addr, size_t length, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_mlockall  (int flags, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_sync_file_range (int fd, off_t offset, size_t nbytes, unsigned int flags, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_fallocate (int fd, int mode, off_t offset, size_t len, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_close     (int fd, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_readahead (int fd, off_t offset, size_t length, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_read      (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_write     (int fd, void *buf, size_t length, off_t offset, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_fstat     (int fd, int pri, eio_cb cb, void *data, eio_channel *channel); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_fstatvfs  (int fd, int pri, eio_cb cb, void *data, eio_channel *channel); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_futime    (int fd, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_ftruncate (int fd, off_t offset, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_fchmod    (int fd, eio_mode_t mode, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_fchown    (int fd, eio_uid_t uid, eio_gid_t gid, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_dup2      (int fd, int fd2, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_sendfile  (int out_fd, int in_fd, off_t in_offset, size_t length, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_open      (const char *path, int flags, eio_mode_t mode, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_utime     (const char *path, eio_tstamp atime, eio_tstamp mtime, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_truncate  (const char *path, off_t offset, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_chown     (const char *path, eio_uid_t uid, eio_gid_t gid, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_chmod     (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_mkdir     (const char *path, eio_mode_t mode, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_readdir   (const char *path, int flags, int pri, eio_cb cb, void *data, eio_channel *channel); /* result=ptr2 allocated dynamically */
+eio_req *eio_rmdir     (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_unlink    (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_readlink  (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel); /* result=ptr2 allocated dynamically */
+eio_req *eio_realpath  (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel); /* result=ptr2 allocated dynamically */
+eio_req *eio_stat      (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_lstat     (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_statvfs   (const char *path, int pri, eio_cb cb, void *data, eio_channel *channel); /* stat buffer=ptr2 allocated dynamically */
+eio_req *eio_mknod     (const char *path, eio_mode_t mode, dev_t dev, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_link      (const char *path, const char *new_path, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_symlink   (const char *path, const char *new_path, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_rename    (const char *path, const char *new_path, int pri, eio_cb cb, void *data, eio_channel *channel);
+eio_req *eio_custom    (void (*execute)(eio_req *), int pri, eio_cb cb, void *data, eio_channel *channel);
 #endif
 
 /*****************************************************************************/
 /* groups */
 
-eio_req *eio_grp       (eio_cb cb, void *data);
+eio_req *eio_grp       (eio_cb cb, void *data, eio_channel *channel);
 void eio_grp_feed      (eio_req *grp, void (*feed)(eio_req *req), int limit);
 void eio_grp_limit     (eio_req *grp, int limit);
 void eio_grp_add       (eio_req *grp, eio_req *req);
