@@ -23,6 +23,11 @@ var common = require('../common');
 var assert = require('assert');
 var net = require('net');
 
+var gotError = false;
+
+process.on('exit', function() {
+  assert(gotError);
+});
 
 var server = net.createServer(function(socket) {
   setTimeout(function() {
@@ -32,7 +37,8 @@ var server = net.createServer(function(socket) {
       },
       /This socket is closed/
     );
-    process.exit();
+    server.close();
+    gotError = true;
   }, 250);
 });
 
