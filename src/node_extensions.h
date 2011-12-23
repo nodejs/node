@@ -34,6 +34,10 @@ NODE_EXT_LIST_ITEM(node_signal_watcher)
 NODE_EXT_LIST_ITEM(node_os)
 NODE_EXT_LIST_ITEM(node_zlib)
 
+#if defined(HAVE_ISOLATES) && HAVE_ISOLATES
+NODE_EXT_LIST_ITEM(node_isolates)
+#endif
+
 // libuv rewrite
 NODE_EXT_LIST_ITEM(node_timer_wrap)
 NODE_EXT_LIST_ITEM(node_tcp_wrap)

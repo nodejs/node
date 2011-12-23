@@ -21,6 +21,7 @@
 
 #include <node.h>
 #include <node_isolate.h>
+#include <node_internals.h>
 
 #include <uv.h>
 
@@ -141,10 +142,6 @@ static const char* eval_string;
 static bool print_eval;
 
 static void CheckStatus(uv_timer_t* watcher, int status);
-
-void StartThread(Isolate* isolate,
-                 int argc,
-                 char** argv);
 
 
 uv_loop_t* Loop() {
@@ -1859,82 +1856,6 @@ static Handle<Value> Binding(const Arguments& args) {
 }
 
 
-static void RunIsolate(void* arg) {
-  node::Isolate* isolate = reinterpret_cast<node::Isolate*>(arg);
-  isolate->Enter();
-  StartThread(isolate, isolate->argc_, isolate->argv_);
-  isolate->Dispose();
-  delete isolate;
-}
-
-
-static char magic_isolate_cookie_[] = "magic isolate cookie";
-
-
-static Handle<Value> NewIsolate(const Arguments& args) {
-  HandleScope scope;
-
-  assert(args[0]->IsArray());
-
-  Local<Array> argv = args[0].As<Array>();
-  assert(argv->Length() >= 2);
-
-  // Note that isolate lock is aquired in the constructor here. It will not
-  // be unlocked until RunIsolate starts and calls isolate->Enter().
-  Isolate* isolate = new node::Isolate();
-
-  // Copy over arguments into isolate
-  isolate->argc_ = argv->Length();
-  isolate->argv_ = new char*[isolate->argc_ + 1];
-  for (int i = 0; i < isolate->argc_; ++i) {
-    String::Utf8Value str(argv->Get(i));
-    size_t size = 1 + strlen(*str);
-    isolate->argv_[i] = new char[size];
-    memcpy(isolate->argv_[i], *str, size);
-  }
-  isolate->argv_[isolate->argc_] = NULL;
-
-  if (uv_thread_create(&isolate->tid_, RunIsolate, isolate)) {
-    delete isolate;
-    return Null();
-  }
-
-  Local<ObjectTemplate> tpl = ObjectTemplate::New();
-  tpl->SetInternalFieldCount(2);
-
-  Local<Object> obj = tpl->NewInstance();
-  obj->SetPointerInInternalField(0, magic_isolate_cookie_);
-  obj->SetPointerInInternalField(1, isolate);
-
-  return scope.Close(obj);
-}
-
-
-static Handle<Value> CountIsolate(const Arguments& args) {
-  HandleScope scope;
-  return scope.Close(Integer::New(Isolate::Count()));
-}
-
-
-static Handle<Value> JoinIsolate(const Arguments& args) {
-  HandleScope scope;
-
-  assert(args[0]->IsObject());
-
-  Local<Object> obj = args[0]->ToObject();
-  assert(obj->InternalFieldCount() == 2);
-  assert(obj->GetPointerFromInternalField(0) == magic_isolate_cookie_);
-
-  Isolate* ti = reinterpret_cast<Isolate*>(
-      obj->GetPointerFromInternalField(1));
-
-  if (uv_thread_join(&ti->tid_))
-    return False(); // error
-  else
-    return True();  // ok
-}
-
-
 static Handle<Value> ProcessTitleGetter(Local<String> property,
                                         const AccessorInfo& info) {
   HandleScope scope;
@@ -2205,10 +2126,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "uvCounters", UVCounters);
 
   NODE_SET_METHOD(process, "binding", Binding);
-
-  NODE_SET_METHOD(process, "_newIsolate", NewIsolate);
-  NODE_SET_METHOD(process, "_countIsolate", CountIsolate);
-  NODE_SET_METHOD(process, "_joinIsolate", JoinIsolate);
 
   return process;
 }

@@ -24,6 +24,13 @@
 
 namespace node {
 
+// This function starts an Isolate. This function is defined in node.cc
+// currently so that we minimize the diff between master and v0.6 for easy
+// merging. In the future, when v0.6 is extinct, StartThread should be moved
+// to node_isolate.cc.
+class Isolate;
+void StartThread(Isolate* isolate, int argc, char** argv);
+
 #ifndef offset_of
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
