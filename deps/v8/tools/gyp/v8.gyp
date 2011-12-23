@@ -221,6 +221,9 @@
         {
           'target_name': 'v8_base',
           'type': '<(library)',
+          'variables': {
+            'optimize': 'max',
+          },
           'include_dirs+': [
             '../../src',
           ],
