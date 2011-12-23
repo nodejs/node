@@ -19,15 +19,33 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-#include "node_isolate.h"
+#include <node.h>
+#include <node_isolate.h>
+#include <node_internals.h>
+#include <v8.h>
 
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
 
 
-
 namespace node {
+
+using v8::Arguments;
+using v8::Array;
+using v8::False;
+using v8::Handle;
+using v8::HandleScope;
+using v8::Integer;
+using v8::Local;
+using v8::Null;
+using v8::Object;
+using v8::ObjectTemplate;
+using v8::String;
+using v8::True;
+using v8::Value;
+
+static char magic_isolate_cookie_[] = "magic isolate cookie";
 
 
 static volatile bool initialized;
@@ -166,4 +184,95 @@ void Isolate::Dispose() {
 }
 
 
+static void RunIsolate(void* arg) {
+  node::Isolate* isolate = reinterpret_cast<node::Isolate*>(arg);
+  isolate->Enter();
+
+  // TODO in the future when v0.6 is dead, move StartThread and related
+  // handles into node_isolate.cc. It is currently organized like this to
+  // minimize diff (and thus merge conflicts) between the legacy v0.6
+  // branch.
+  StartThread(isolate, isolate->argc_, isolate->argv_);
+
+  isolate->Dispose();
+  delete isolate;
+}
+
+
+static Handle<Value> CreateIsolate(const Arguments& args) {
+  HandleScope scope;
+
+  assert(args[0]->IsArray());
+
+  Local<Array> argv = args[0].As<Array>();
+  assert(argv->Length() >= 2);
+
+  // Note that isolate lock is aquired in the constructor here. It will not
+  // be unlocked until RunIsolate starts and calls isolate->Enter().
+  Isolate* isolate = new node::Isolate();
+
+  // Copy over arguments into isolate
+  isolate->argc_ = argv->Length();
+  isolate->argv_ = new char*[isolate->argc_ + 1];
+  for (int i = 0; i < isolate->argc_; ++i) {
+    String::Utf8Value str(argv->Get(i));
+    size_t size = 1 + strlen(*str);
+    isolate->argv_[i] = new char[size];
+    memcpy(isolate->argv_[i], *str, size);
+  }
+  isolate->argv_[isolate->argc_] = NULL;
+
+  if (uv_thread_create(&isolate->tid_, RunIsolate, isolate)) {
+    delete isolate;
+    return Null();
+  }
+
+  // TODO instead of ObjectTemplate - have a special wrapper.
+  Local<ObjectTemplate> tpl = ObjectTemplate::New();
+  tpl->SetInternalFieldCount(2);
+
+  Local<Object> obj = tpl->NewInstance();
+  obj->SetPointerInInternalField(0, magic_isolate_cookie_);
+  obj->SetPointerInInternalField(1, isolate);
+
+  return scope.Close(obj);
+}
+
+
+static Handle<Value> CountIsolate(const Arguments& args) {
+  HandleScope scope;
+  return scope.Close(Integer::New(Isolate::Count()));
+}
+
+
+static Handle<Value> JoinIsolate(const Arguments& args) {
+  HandleScope scope;
+
+  assert(args[0]->IsObject());
+
+  Local<Object> obj = args[0]->ToObject();
+  assert(obj->InternalFieldCount() == 2);
+  assert(obj->GetPointerFromInternalField(0) == magic_isolate_cookie_);
+
+  Isolate* ti = reinterpret_cast<Isolate*>(
+      obj->GetPointerFromInternalField(1));
+
+  if (uv_thread_join(&ti->tid_))
+    return False(); // error
+  else
+    return True();  // ok
+}
+
+
+void InitIsolates(Handle<Object> target) {
+  HandleScope scope;
+  NODE_SET_METHOD(target, "create", CreateIsolate);
+  NODE_SET_METHOD(target, "count", CountIsolate);
+  NODE_SET_METHOD(target, "join", JoinIsolate);
+}
+
+
 } // namespace node
+
+
+NODE_MODULE(node_isolates, node::InitIsolates)
