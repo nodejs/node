@@ -88,4 +88,4 @@ the recently built module:
     console.log(addon.hello()); // 'world'
 
 For the moment, that is all the documentation on addons. Please see
-<https://github.com/ry/node_postgres> for a real example.
+<https://github.com/pietern/hiredis-node> for a real example.
