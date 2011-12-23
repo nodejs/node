@@ -21,21 +21,21 @@ node_g:
 out/Debug/node:
 	$(MAKE) -C out BUILDTYPE=Debug
 
-out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp options.gypi
+out/Makefile: common.gypi deps/uv/uv.gyp deps/http_parser/http_parser.gyp deps/zlib/zlib.gyp deps/v8/build/common.gypi deps/v8/tools/gyp/v8.gyp node.gyp config.gypi
 	tools/gyp_node -f make
 
 install: all
-	out/Release/node tools/installer.js ./options.gypi install
+	out/Release/node tools/installer.js ./config.gypi install
 
 uninstall:
-	out/Release/node tools/installer.js ./options.gypi uninstall
+	out/Release/node tools/installer.js ./config.gypi uninstall
 
 clean:
 	-rm -rf out/Makefile node node_g out/**/*.o  out/**/*.a out/$(BUILDTYPE)/node
 
 distclean:
 	-rm -rf out
-	-rm options.gypi
+	-rm config.gypi
 
 test: all
 	python tools/test.py --mode=release simple message

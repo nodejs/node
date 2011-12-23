@@ -31,7 +31,7 @@ ipch/
 *.sdf
 *.opensdf
 
-/options.gypi
+/config.gypi
 *-nodegyp*
 /gyp-mac-tool
 /dist-osx

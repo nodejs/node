@@ -231,8 +231,6 @@ def configure_openssl(o):
       libs or cflags or options.openssl_libpath or options.openssl_includes)
 
 
-print "configure options:", options
-
 output = {
   'variables': {},
   'include_dirs': [],
@@ -255,8 +253,9 @@ output = {
   'variables': variables,
   'target_defaults': output
 }
+pprint.pprint(output, indent=2)
 
-fn = os.path.join(root_dir, 'options.gypi')
+fn = os.path.join(root_dir, 'config.gypi')
 print "creating ", fn
 
 f = open(fn, 'w+')

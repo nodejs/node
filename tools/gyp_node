@@ -29,11 +29,11 @@ if __name__ == '__main__':
   if sys.platform == 'win32':
     args.append(os.path.join(node_root, 'node.gyp'))
     common_fn  = os.path.join(node_root, 'common.gypi')
-    options_fn = os.path.join(node_root, 'options.gypi')
+    options_fn = os.path.join(node_root, 'config.gypi')
   else:
     args.append(os.path.join(os.path.abspath(node_root), 'node.gyp'))
     common_fn  = os.path.join(os.path.abspath(node_root), 'common.gypi')
-    options_fn = os.path.join(os.path.abspath(node_root), 'options.gypi')
+    options_fn = os.path.join(os.path.abspath(node_root), 'config.gypi')
 
   if os.path.exists(common_fn):
     args.extend(['-I', common_fn])
