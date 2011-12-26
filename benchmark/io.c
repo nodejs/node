@@ -51,7 +51,6 @@ static void writetest(int size, size_t bsize)
       exit(254);
     }
   }
-  close(fd);
 
 #ifndef NSYNC
 # ifdef __linux__
@@ -60,6 +59,8 @@ static void writetest(int size, size_t bsize)
   fsync(fd);
 # endif
 #endif /* SYNC */
+
+  close(fd);
 
   end = now();
   elapsed = (end - start) / 1e6;
