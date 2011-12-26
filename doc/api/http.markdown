@@ -120,6 +120,7 @@ See also [net.Server.listen()](net.html#server.listen).
 ### server.close()
 
 Stops the server from accepting new connections.
+See [net.Server.close()](net.html#server.close).
 
 
 ## http.ServerRequest
