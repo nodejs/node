@@ -125,7 +125,7 @@ void Platform::SetProcessTitle(char *title) {
   length = MultiByteToWideChar(CP_UTF8, 0, title, -1, title_w, length);
   if (!length) {
     winapi_perror("MultiByteToWideChar");
-    delete title_w;
+    delete[] title_w;
     return;
   };
 
@@ -141,7 +141,7 @@ void Platform::SetProcessTitle(char *title) {
   free(process_title);
   process_title = strdup(title);
 
-  delete title_w;
+  delete[] title_w;
 }
 
 
