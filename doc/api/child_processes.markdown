@@ -50,7 +50,7 @@ Example:
     grep.stdin.end();
 
 
-### child_process.spawn(command, args=[], [options])
+### child_process.spawn(command, [args], [options])
 
 Launches a new process with the given `command`, with  command line arguments in `args`.
 If omitted, `args` defaults to an empty Array.
@@ -259,7 +259,7 @@ processes:
 
 
 
-### child.kill(signal='SIGTERM')
+### child.kill([signal])
 
 Send a signal to the child process. If no argument is given, the process will
 be sent `'SIGTERM'`. See `signal(7)` for a list of available signals.

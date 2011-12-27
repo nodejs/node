@@ -172,7 +172,7 @@ Returns the current working directory of the process.
 An object containing the user environment. See environ(7).
 
 
-### process.exit(code=0)
+### process.exit([code])
 
 Ends the process with the specified `code`.  If omitted, exit uses the
 'success' code `0`.
@@ -260,7 +260,7 @@ A compiled-in property that exposes `NODE_PREFIX`.
     console.log('Prefix: ' + process.installPrefix);
 
 
-### process.kill(pid, signal='SIGTERM')
+### process.kill(pid, [signal])
 
 Send a signal to a process. `pid` is the process id and `signal` is the
 string describing the signal to send.  Signal names are strings like
