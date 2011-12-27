@@ -1986,6 +1986,15 @@ static Handle<Object> GetFeatures() {
   obj->Set(String::NewSymbol("tls"),
       Boolean::New(get_builtin_module("crypto") != NULL));
 
+
+  obj->Set(String::NewSymbol("isolates"),
+#if HAVE_ISOLATES
+    True()
+#else
+    False()
+#endif
+  );
+
   return scope.Close(obj);
 }
 
