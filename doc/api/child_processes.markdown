@@ -198,7 +198,7 @@ subshell but rather the specified file directly. This makes it slightly
 leaner than `child_process.exec`. It has the same options.
 
 
-### child_process.fork(modulePath, arguments, options)
+### child_process.fork(modulePath, [arguments], [options])
 
 This is a special case of the `spawn()` functionality for spawning Node
 processes. In addition to having all the methods in a normal ChildProcess
