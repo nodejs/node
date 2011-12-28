@@ -96,6 +96,18 @@ static void uv_eio_done_poll(eio_channel *channel) {
 }
 
 
+static void uv__eio_init(void) {
+  eio_init(uv_eio_want_poll, uv_eio_done_poll);
+  /*
+   * Don't handle more than 10 reqs on each eio_poll(). This is to avoid
+   * race conditions. See Node's test/simple/test-eio-race.js
+   */
+  eio_set_max_poll_reqs(10);
+}
+
+static uv_once_t uv__eio_init_once_guard = UV_ONCE_INIT;
+
+
 void uv_eio_init(uv_loop_t* loop) {
   if (loop->counters.eio_init == 0) {
     loop->counters.eio_init++;
@@ -112,11 +124,6 @@ void uv_eio_init(uv_loop_t* loop) {
         uv_eio_done_poll_notifier_cb);
     uv_unref(loop);
 
-    eio_init(uv_eio_want_poll, uv_eio_done_poll);
-    /*
-     * Don't handle more than 10 reqs on each eio_poll(). This is to avoid
-     * race conditions. See Node's test/simple/test-eio-race.js
-     */
-    eio_set_max_poll_reqs(10);
+    uv_once(&uv__eio_init_once_guard, uv__eio_init);
   }
 }

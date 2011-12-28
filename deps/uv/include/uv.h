@@ -1400,8 +1400,6 @@ struct uv_loop_s {
   uv_async_t uv_eio_want_poll_notifier;
   uv_async_t uv_eio_done_poll_notifier;
   uv_idle_t uv_eio_poller;
-  /* Poll result queue */
-  eio_channel uv_eio_channel;
   /* Diagnostic counters */
   uv_counters_t counters;
   /* The last error */
