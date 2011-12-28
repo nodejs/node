@@ -42,13 +42,6 @@ dns.lookup('::1', function(error, result, addressType) {
   assert.equal(6, addressType);
 });
 
-dns.lookup('ipv6.google.com', function(error, result, addressType) {
-  if (error) throw error;
-  console.dir(arguments);
-  //assert.equal('string', typeof result);
-  assert.equal(6, addressType);
-});
-
 // Windows doesn't usually have an entry for localhost 127.0.0.1 in
 // C:\Windows\System32\drivers\etc\hosts
 // so we disable this test on Windows.
