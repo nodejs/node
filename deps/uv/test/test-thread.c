@@ -23,10 +23,121 @@
 #include "task.h"
 
 #include <stdio.h>
+#include <stddef.h>
 #include <stdlib.h>
 
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
+
+#define container_of(ptr, type, member) \
+  ((type *) ((char *) (ptr) - offsetof(type, member)))
+
+struct getaddrinfo_req {
+  uv_thread_t thread_id;
+  unsigned int counter;
+  uv_loop_t* loop;
+  uv_getaddrinfo_t handle;
+};
+
+
+struct fs_req {
+  uv_thread_t thread_id;
+  unsigned int counter;
+  uv_loop_t* loop;
+  uv_fs_t handle;
+};
+
+static void getaddrinfo_do(struct getaddrinfo_req* req);
+static void getaddrinfo_cb(uv_getaddrinfo_t* handle,
+                           int status,
+                           struct addrinfo* res);
+static void fs_do(struct fs_req* req);
+static void fs_cb(uv_fs_t* handle);
 
 static volatile int thread_called;
+
+
+static void getaddrinfo_do(struct getaddrinfo_req* req) {
+  int r;
+
+  ASSERT(req->thread_id == uv_thread_self());
+
+  r = uv_getaddrinfo(req->loop,
+                     &req->handle,
+                     getaddrinfo_cb,
+                     "localhost",
+                     NULL,
+                     NULL);
+  ASSERT(r == 0);
+}
+
+
+static void getaddrinfo_cb(uv_getaddrinfo_t* handle,
+                           int status,
+                           struct addrinfo* res) {
+  struct getaddrinfo_req* req;
+
+  ASSERT(status == 0);
+
+  req = container_of(handle, struct getaddrinfo_req, handle);
+  uv_freeaddrinfo(res);
+
+  if (--req->counter)
+    getaddrinfo_do(req);
+}
+
+
+static void fs_do(struct fs_req* req) {
+  int r;
+
+  ASSERT(req->thread_id == uv_thread_self());
+
+  r = uv_fs_stat(req->loop, &req->handle, ".", fs_cb);
+  ASSERT(r == 0);
+}
+
+
+static void fs_cb(uv_fs_t* handle) {
+  struct fs_req* req = container_of(handle, struct fs_req, handle);
+
+  if (--req->counter)
+    fs_do(req);
+}
+
+
+static void do_work(void* arg) {
+  struct getaddrinfo_req getaddrinfo_reqs[16];
+  struct fs_req fs_reqs[16];
+  uv_thread_t self;
+  uv_loop_t* loop;
+  size_t i;
+  int r;
+
+  self = uv_thread_self();
+
+  loop = uv_loop_new();
+  ASSERT(loop != NULL);
+
+  for (i = 0; i < ARRAY_SIZE(getaddrinfo_reqs); i++) {
+    struct getaddrinfo_req* req = getaddrinfo_reqs + i;
+    req->thread_id = self;
+    req->counter = 16;
+    req->loop = loop;
+    getaddrinfo_do(req);
+  }
+
+  for (i = 0; i < ARRAY_SIZE(fs_reqs); i++) {
+    struct fs_req* req = fs_reqs + i;
+    req->thread_id = self;
+    req->counter = 16;
+    req->loop = loop;
+    fs_do(req);
+  }
+
+  r = uv_run(loop);
+  ASSERT(r == 0);
+
+  uv_loop_delete(loop);
+}
 
 
 static void thread_entry(void* arg) {
@@ -54,5 +165,27 @@ TEST_IMPL(thread_create) {
 TEST_IMPL(thread_self) {
   uv_thread_t tid;
   tid = uv_thread_self();
+  return 0;
+}
+
+
+/* Hilariously bad test name. Run a lot of tasks in the thread pool and verify
+ * that each "finished" callback is run in its originating thread.
+ */
+TEST_IMPL(threadpool_multiple_event_loops) {
+  uv_thread_t threads[8];
+  size_t i;
+  int r;
+
+  for (i = 0; i < ARRAY_SIZE(threads); i++) {
+    r = uv_thread_create(threads + i, do_work, NULL);
+    ASSERT(r == 0);
+  }
+
+  for (i = 0; i < ARRAY_SIZE(threads); i++) {
+    r = uv_thread_join(threads + i);
+    ASSERT(r == 0);
+  }
+
   return 0;
 }
