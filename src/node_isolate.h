@@ -25,6 +25,7 @@
 #include "v8.h"
 #include "uv.h"
 #include "node_vars.h"
+#include "ngx-queue.h"
 
 #ifdef NDEBUG
 # define NODE_ISOLATE_CHECK(ptr) ((void) (ptr))
