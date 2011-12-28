@@ -2023,8 +2023,7 @@ LInstruction* LChunkBuilder::DoStoreKeyedFastElement(
   LOperand* key = needs_write_barrier
       ? UseTempRegister(instr->key())
       : UseRegisterOrConstantAtStart(instr->key());
-
-  return AssignEnvironment(new(zone()) LStoreKeyedFastElement(obj, key, val));
+  return new(zone()) LStoreKeyedFastElement(obj, key, val);
 }
 
 

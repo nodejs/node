@@ -354,18 +354,8 @@ double LCodeGen::ToDouble(LConstantOperand* op) const {
 }
 
 
-Immediate LCodeGen::ToImmediate(LOperand* op) {
-  LConstantOperand* const_op = LConstantOperand::cast(op);
-  Handle<Object> literal = chunk_->LookupLiteral(const_op);
-  Representation r = chunk_->LookupLiteralRepresentation(const_op);
-  if (r.IsInteger32()) {
-    ASSERT(literal->IsNumber());
-    return Immediate(static_cast<int32_t>(literal->Number()));
-  } else if (r.IsDouble()) {
-    Abort("unsupported double immediate");
-  }
-  ASSERT(r.IsTagged());
-  return Immediate(literal);
+bool LCodeGen::IsInteger32(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsInteger32();
 }
 
 
@@ -1167,7 +1157,7 @@ void LCodeGen::DoSubI(LSubI* instr) {
   ASSERT(left->Equals(instr->result()));
 
   if (right->IsConstantOperand()) {
-    __ sub(ToOperand(left), ToImmediate(right));
+    __ sub(ToOperand(left), ToInteger32Immediate(right));
   } else {
     __ sub(ToRegister(left), ToOperand(right));
   }
@@ -1306,7 +1296,7 @@ void LCodeGen::DoAddI(LAddI* instr) {
   ASSERT(left->Equals(instr->result()));
 
   if (right->IsConstantOperand()) {
-    __ add(ToOperand(left), ToImmediate(right));
+    __ add(ToOperand(left), ToInteger32Immediate(right));
   } else {
     __ add(ToRegister(left), ToOperand(right));
   }
@@ -1578,9 +1568,9 @@ void LCodeGen::DoCmpIDAndBranch(LCmpIDAndBranch* instr) {
       __ j(parity_even, chunk_->GetAssemblyLabel(false_block));
     } else {
       if (right->IsConstantOperand()) {
-        __ cmp(ToRegister(left), ToImmediate(right));
+        __ cmp(ToRegister(left), ToInteger32Immediate(right));
       } else if (left->IsConstantOperand()) {
-        __ cmp(ToOperand(right), ToImmediate(left));
+        __ cmp(ToOperand(right), ToInteger32Immediate(left));
         // We transposed the operands. Reverse the condition.
         cc = ReverseCondition(cc);
       } else {
@@ -3261,7 +3251,7 @@ void LCodeGen::DoStoreNamedGeneric(LStoreNamedGeneric* instr) {
 void LCodeGen::DoBoundsCheck(LBoundsCheck* instr) {
   if (instr->index()->IsConstantOperand()) {
     __ cmp(ToOperand(instr->length()),
-           ToImmediate(LConstantOperand::cast(instr->index())));
+           Immediate(ToInteger32(LConstantOperand::cast(instr->index()))));
     DeoptimizeIf(below_equal, instr->environment());
   } else {
     __ cmp(ToRegister(instr->index()), ToOperand(instr->length()));
@@ -3314,13 +3304,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   Register value = ToRegister(instr->value());
   Register elements = ToRegister(instr->object());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
-
-  // This instruction cannot handle the FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  // conversion, so it deopts in that case.
-  if (instr->hydrogen()->ValueNeedsSmiCheck()) {
-    __ test(value, Immediate(kSmiTagMask));
-    DeoptimizeIf(not_zero, instr->environment());
-  }
 
   // Do the store.
   if (instr->key()->IsConstantOperand()) {

@@ -463,6 +463,8 @@ void Heap::CollectAllAvailableGarbage() {
   }
   mark_compact_collector()->SetFlags(kNoGCFlags);
   new_space_.Shrink();
+  UncommitFromSpace();
+  Shrink();
   incremental_marking()->UncommitMarkingDeque();
 }
 

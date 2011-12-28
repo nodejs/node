@@ -3933,10 +3933,6 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
     }
   }
 
-  bool ValueNeedsSmiCheck() {
-    return value_is_smi();
-  }
-
   virtual void PrintDataTo(StringStream* stream);
 
   DECLARE_CONCRETE_INSTRUCTION(StoreKeyedFastElement)

@@ -1146,7 +1146,7 @@ void Debug::SetBreakPoint(Handle<SharedFunctionInfo> shared,
 
   Handle<DebugInfo> debug_info = GetDebugInfo(shared);
   // Source positions starts with zero.
-  ASSERT(source_position >= 0);
+  ASSERT(*source_position >= 0);
 
   // Find the break point and change it.
   BreakLocationIterator it(debug_info, SOURCE_BREAK_LOCATIONS);

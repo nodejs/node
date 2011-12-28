@@ -1,3 +1,11 @@
+2011-12-27: Version 3.8.3
+
+        Avoid embedding new space objects into code objects in the lithium gap
+        resolver. (chromium:108296)
+
+        Bug fixes and performance optimizations on all platforms.
+
+
 2011-12-21: Version 3.8.2
 
         Add max optimization flag to v8 gyp build to ensure V8 is always built 

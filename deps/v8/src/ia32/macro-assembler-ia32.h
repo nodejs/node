@@ -240,6 +240,14 @@ class MacroAssembler: public Assembler {
   void LoadHeapObject(Register result, Handle<HeapObject> object);
   void PushHeapObject(Handle<HeapObject> object);
 
+  void LoadObject(Register result, Handle<Object> object) {
+    if (object->IsHeapObject()) {
+      LoadHeapObject(result, Handle<HeapObject>::cast(object));
+    } else {
+      Set(result, Immediate(object));
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 

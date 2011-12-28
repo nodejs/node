@@ -78,7 +78,13 @@ class LCodeGen BASE_EMBEDDED {
   Operand ToOperand(LOperand* op) const;
   Register ToRegister(LOperand* op) const;
   XMMRegister ToDoubleRegister(LOperand* op) const;
-  Immediate ToImmediate(LOperand* op);
+
+  bool IsInteger32(LConstantOperand* op) const;
+  Immediate ToInteger32Immediate(LOperand* op) const {
+    return Immediate(ToInteger32(LConstantOperand::cast(op)));
+  }
+
+  Handle<Object> ToHandle(LConstantOperand* op) const;
 
   // The operand denoting the second word (the one with a higher address) of
   // a double stack slot.
@@ -225,7 +231,7 @@ class LCodeGen BASE_EMBEDDED {
   Register ToRegister(int index) const;
   XMMRegister ToDoubleRegister(int index) const;
   int ToInteger32(LConstantOperand* op) const;
-  Handle<Object> ToHandle(LConstantOperand* op) const;
+
   double ToDouble(LConstantOperand* op) const;
   Operand BuildFastArrayOperand(LOperand* elements_pointer,
                                 LOperand* key,

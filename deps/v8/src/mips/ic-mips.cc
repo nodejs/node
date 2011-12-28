@@ -868,22 +868,26 @@ void KeyedStoreIC::GenerateNonStrictArguments(MacroAssembler* masm) {
   //  -- lr     : return address
   // -----------------------------------
   Label slow, notin;
+  // Store address is returned in register (of MemOperand) mapped_location.
   MemOperand mapped_location =
       GenerateMappedArgumentsLookup(masm, a2, a1, a3, t0, t1, &notin, &slow);
   __ sw(a0, mapped_location);
-  __ Addu(t2, a3, t1);
   __ mov(t5, a0);
-  __ RecordWrite(a3, t2, t5, kRAHasNotBeenSaved, kDontSaveFPRegs);
+  ASSERT_EQ(mapped_location.offset(), 0);
+  __ RecordWrite(a3, mapped_location.rm(), t5,
+                 kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&notin);
   // The unmapped lookup expects that the parameter map is in a3.
+  // Store address is returned in register (of MemOperand) unmapped_location.
   MemOperand unmapped_location =
       GenerateUnmappedArgumentsLookup(masm, a1, a3, t0, &slow);
   __ sw(a0, unmapped_location);
-  __ Addu(t2, a3, t0);
   __ mov(t5, a0);
-  __ RecordWrite(a3, t2, t5, kRAHasNotBeenSaved, kDontSaveFPRegs);
+  ASSERT_EQ(unmapped_location.offset(), 0);
+  __ RecordWrite(a3, unmapped_location.rm(), t5,
+                 kRAHasNotBeenSaved, kDontSaveFPRegs);
   __ Ret(USE_DELAY_SLOT);
   __ mov(v0, a0);  // (In delay slot) return the value stored in v0.
   __ bind(&slow);

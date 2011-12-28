@@ -385,6 +385,18 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
 }
 
 
+Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
+  Handle<Object> literal = chunk_->LookupLiteral(op);
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
+  return literal;
+}
+
+
+bool LCodeGen::IsInteger32(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+}
+
+
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   Handle<Object> value = chunk_->LookupLiteral(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());
@@ -3403,13 +3415,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   Register elements = ToRegister(instr->object());
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Register scratch = scratch0();
-
-  // This instruction cannot handle the FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  // conversion, so it deopts in that case.
-  if (instr->hydrogen()->ValueNeedsSmiCheck()) {
-    __ tst(value, Operand(kSmiTagMask));
-    DeoptimizeIf(ne, instr->environment());
-  }
 
   // Do the store.
   if (instr->key()->IsConstantOperand()) {

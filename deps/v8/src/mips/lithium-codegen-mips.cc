@@ -3311,13 +3311,6 @@ void LCodeGen::DoStoreKeyedFastElement(LStoreKeyedFastElement* instr) {
   Register key = instr->key()->IsRegister() ? ToRegister(instr->key()) : no_reg;
   Register scratch = scratch0();
 
-  // This instruction cannot handle the FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
-  // conversion, so it deopts in that case.
-  if (instr->hydrogen()->ValueNeedsSmiCheck()) {
-    __ And(at, value, Operand(kSmiTagMask));
-    DeoptimizeIf(ne, instr->environment(), at, Operand(zero_reg));
-  }
-
   // Do the store.
   if (instr->key()->IsConstantOperand()) {
     ASSERT(!instr->hydrogen()->NeedsWriteBarrier());

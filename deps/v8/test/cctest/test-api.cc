@@ -1423,6 +1423,40 @@ THREADED_TEST(EmptyInterceptorDoesNotAffectJSProperties) {
 
 THREADED_TEST(SwitchFromInterceptorToAccessor) {
   v8::HandleScope scope;
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddAccessor(templ, v8_str("age"),
+              SimpleAccessorGetter, SimpleAccessorSetter);
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             "function setAge(i){ obj.age = i; };"
+             "for(var i = 0; i <= 10000; i++) setAge(i);");
+  // All i < 10000 go to the interceptor.
+  ExpectInt32("obj.interceptor_age", 9999);
+  // The last i goes to the accessor.
+  ExpectInt32("obj.accessor_age", 10000);
+}
+
+THREADED_TEST(SwitchFromAccessorToInterceptor) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddAccessor(templ, v8_str("age"),
+              SimpleAccessorGetter, SimpleAccessorSetter);
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             "function setAge(i){ obj.age = i; };"
+             "for(var i = 20000; i >= 9999; i--) setAge(i);");
+  // All i >= 10000 go to the accessor.
+  ExpectInt32("obj.accessor_age", 10000);
+  // The last i goes to the interceptor.
+  ExpectInt32("obj.interceptor_age", 9999);
+}
+
+THREADED_TEST(SwitchFromInterceptorToAccessorWithInheritance) {
+  v8::HandleScope scope;
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
   Handle<FunctionTemplate> child = FunctionTemplate::New();
   child->Inherit(parent);
@@ -1440,7 +1474,7 @@ THREADED_TEST(SwitchFromInterceptorToAccessor) {
   ExpectInt32("child.accessor_age", 10000);
 }
 
-THREADED_TEST(SwitchFromAccessorToInterceptor) {
+THREADED_TEST(SwitchFromAccessorToInterceptorWithInheritance) {
   v8::HandleScope scope;
   Handle<FunctionTemplate> parent = FunctionTemplate::New();
   Handle<FunctionTemplate> child = FunctionTemplate::New();
@@ -1457,6 +1491,54 @@ THREADED_TEST(SwitchFromAccessorToInterceptor) {
   ExpectInt32("child.accessor_age", 10000);
   // The last i goes to the interceptor.
   ExpectInt32("child.interceptor_age", 9999);
+}
+
+THREADED_TEST(SwitchFromInterceptorToJSAccessor) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             "function setter(i) { this.accessor_age = i; };"
+             "function getter() { return this.accessor_age; };"
+             "function setAge(i) { obj.age = i; };"
+             "Object.defineProperty(obj, 'age', { get:getter, set:setter });"
+             "for(var i = 0; i <= 10000; i++) setAge(i);");
+  // All i < 10000 go to the interceptor.
+  ExpectInt32("obj.interceptor_age", 9999);
+  // The last i goes to the JavaScript accessor.
+  ExpectInt32("obj.accessor_age", 10000);
+  // The installed JavaScript getter is still intact.
+  // This last part is a regression test for issue 1651 and relies on the fact
+  // that both interceptor and accessor are being installed on the same object.
+  ExpectInt32("obj.age", 10000);
+  ExpectBoolean("obj.hasOwnProperty('age')", true);
+  ExpectUndefined("Object.getOwnPropertyDescriptor(obj, 'age').value");
+}
+
+THREADED_TEST(SwitchFromJSAccessorToInterceptor) {
+  v8::HandleScope scope;
+  Handle<FunctionTemplate> templ = FunctionTemplate::New();
+  AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
+  LocalContext env;
+  env->Global()->Set(v8_str("Obj"), templ->GetFunction());
+  CompileRun("var obj = new Obj;"
+             "function setter(i) { this.accessor_age = i; };"
+             "function getter() { return this.accessor_age; };"
+             "function setAge(i) { obj.age = i; };"
+             "Object.defineProperty(obj, 'age', { get:getter, set:setter });"
+             "for(var i = 20000; i >= 9999; i--) setAge(i);");
+  // All i >= 10000 go to the accessor.
+  ExpectInt32("obj.accessor_age", 10000);
+  // The last i goes to the interceptor.
+  ExpectInt32("obj.interceptor_age", 9999);
+  // The installed JavaScript getter is still intact.
+  // This last part is a regression test for issue 1651 and relies on the fact
+  // that both interceptor and accessor are being installed on the same object.
+  ExpectInt32("obj.age", 10000);
+  ExpectBoolean("obj.hasOwnProperty('age')", true);
+  ExpectUndefined("Object.getOwnPropertyDescriptor(obj, 'age').value");
 }
 
 THREADED_TEST(SwitchFromInterceptorToProperty) {

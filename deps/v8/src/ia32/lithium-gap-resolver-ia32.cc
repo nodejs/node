@@ -303,14 +303,24 @@ void LGapResolver::EmitMove(int index) {
     }
 
   } else if (source->IsConstantOperand()) {
-    ASSERT(destination->IsRegister() || destination->IsStackSlot());
-    Immediate src = cgen_->ToImmediate(source);
+    LConstantOperand* constant_source = LConstantOperand::cast(source);
     if (destination->IsRegister()) {
       Register dst = cgen_->ToRegister(destination);
-      __ Set(dst, src);
+      if (cgen_->IsInteger32(constant_source)) {
+        __ Set(dst, cgen_->ToInteger32Immediate(constant_source));
+      } else {
+        __ LoadObject(dst, cgen_->ToHandle(constant_source));
+      }
     } else {
+      ASSERT(destination->IsStackSlot());
       Operand dst = cgen_->ToOperand(destination);
-      __ Set(dst, src);
+      if (cgen_->IsInteger32(constant_source)) {
+        __ Set(dst, cgen_->ToInteger32Immediate(constant_source));
+      } else {
+        Register tmp = EnsureTempRegister();
+        __ LoadObject(tmp, cgen_->ToHandle(constant_source));
+        __ mov(dst, tmp);
+      }
     }
 
   } else if (source->IsDoubleRegister()) {

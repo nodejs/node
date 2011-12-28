@@ -789,6 +789,14 @@ class MacroAssembler: public Assembler {
   void LoadHeapObject(Register result, Handle<HeapObject> object);
   void PushHeapObject(Handle<HeapObject> object);
 
+  void LoadObject(Register result, Handle<Object> object) {
+    if (object->IsHeapObject()) {
+      LoadHeapObject(result, Handle<HeapObject>::cast(object));
+    } else {
+      Move(result, object);
+    }
+  }
+
   // Load a global cell into a register.
   void LoadGlobalCell(Register dst, Handle<JSGlobalPropertyCell> cell);
 

@@ -4352,7 +4352,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
   } else {
     // Lookup the name.
     LookupResult result(heap->isolate());
-    LocalLookup(name, &result);
+    LocalLookupRealNamedProperty(name, &result);
     if (result.IsProperty()) {
       // TODO(mstarzinger): We should check for result.IsDontDelete() here once
       // we only call into the runtime once to set both getter and setter.

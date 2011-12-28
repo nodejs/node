@@ -369,6 +369,10 @@ void StringSearch<PatternChar, SubjectChar>::PopulateBoyerMooreTable() {
   shift_table[pattern_length] = 1;
   suffix_table[pattern_length] = pattern_length + 1;
 
+  if (pattern_length <= start) {
+    return;
+  }
+
   // Find suffixes.
   PatternChar last_char = pattern[pattern_length - 1];
   int suffix = pattern_length + 1;

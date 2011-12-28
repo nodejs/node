@@ -3513,6 +3513,9 @@ void HGraphBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
 
     switch (boilerplate_elements_kind) {
       case FAST_SMI_ONLY_ELEMENTS:
+        // Smi-only arrays need a smi check.
+        AddInstruction(new(zone()) HCheckSmi(value));
+        // Fall through.
       case FAST_ELEMENTS:
         AddInstruction(new(zone()) HStoreKeyedFastElement(
             elements,
@@ -4223,12 +4226,20 @@ HInstruction* HGraphBuilder::BuildFastElementAccess(HValue* elements,
                                                     bool is_store) {
   if (is_store) {
     ASSERT(val != NULL);
-    if (elements_kind == FAST_DOUBLE_ELEMENTS) {
-      return new(zone()) HStoreKeyedFastDoubleElement(
-          elements, checked_key, val);
-    } else {  // FAST_ELEMENTS or FAST_SMI_ONLY_ELEMENTS.
-      return new(zone()) HStoreKeyedFastElement(
-          elements, checked_key, val, elements_kind);
+    switch (elements_kind) {
+      case FAST_DOUBLE_ELEMENTS:
+        return new(zone()) HStoreKeyedFastDoubleElement(
+            elements, checked_key, val);
+      case FAST_SMI_ONLY_ELEMENTS:
+        // Smi-only arrays need a smi check.
+        AddInstruction(new(zone()) HCheckSmi(val));
+        // Fall through.
+      case FAST_ELEMENTS:
+        return new(zone()) HStoreKeyedFastElement(
+            elements, checked_key, val, elements_kind);
+      default:
+        UNREACHABLE();
+        return NULL;
     }
   }
   // It's an element load (!is_store).
@@ -4399,9 +4410,6 @@ HValue* HGraphBuilder::HandlePolymorphicElementAccess(HValue* object,
       if (elements_kind == FAST_SMI_ONLY_ELEMENTS ||
           elements_kind == FAST_ELEMENTS ||
           elements_kind == FAST_DOUBLE_ELEMENTS) {
-        if (is_store && elements_kind == FAST_SMI_ONLY_ELEMENTS) {
-          AddInstruction(new(zone()) HCheckSmi(val));
-        }
         if (is_store && elements_kind != FAST_DOUBLE_ELEMENTS) {
           AddInstruction(new(zone()) HCheckMap(
               elements, isolate()->factory()->fixed_array_map(),
