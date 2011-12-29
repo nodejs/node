@@ -22,6 +22,7 @@
 #include "node.h"
 #include "node_file.h"
 #include "node_buffer.h"
+#include <node_vars.h>
 #ifdef __POSIX__
 # include "node_stat_watcher.h"
 #endif
@@ -225,7 +226,7 @@ struct fs_req_wrap {
 
 #define ASYNC_CALL(func, callback, ...)                           \
   FSReqWrap* req_wrap = new FSReqWrap();                          \
-  int r = uv_fs_##func(uv_default_loop(), &req_wrap->req_,        \
+  int r = uv_fs_##func(Loop(), &req_wrap->req_,              \
       __VA_ARGS__, After);                                        \
   assert(r == 0);                                                 \
   req_wrap->object_->Set(oncomplete_sym, callback);               \
@@ -234,9 +235,9 @@ struct fs_req_wrap {
 
 #define SYNC_CALL(func, path, ...)                                \
   fs_req_wrap req_wrap;                                           \
-  int result = uv_fs_##func(uv_default_loop(), &req_wrap.req, __VA_ARGS__, NULL); \
+  int result = uv_fs_##func(Loop(), &req_wrap.req, __VA_ARGS__, NULL); \
   if (result < 0) {                                               \
-    int code = uv_last_error(uv_default_loop()).code;             \
+    int code = uv_last_error(Loop()).code;             \
     return ThrowException(UVException(code, #func, "", path));    \
   }
 

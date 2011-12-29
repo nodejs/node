@@ -21,6 +21,7 @@
 
 #include <node.h>
 #include <handle_wrap.h>
+#include <node_vars.h>
 
 namespace node {
 
@@ -70,7 +71,7 @@ Handle<Value> HandleWrap::Unref(const Arguments& args) {
   }
 
   wrap->unref = true;
-  uv_unref(uv_default_loop());
+  uv_unref(Loop());
 
   return v8::Undefined();
 }
@@ -101,7 +102,6 @@ Handle<Value> HandleWrap::Close(const Arguments& args) {
 
   assert(!wrap->object_.IsEmpty());
   uv_close(wrap->handle__, OnClose);
-
 
   HandleWrap::Ref(args);
 

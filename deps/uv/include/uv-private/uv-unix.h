@@ -63,6 +63,8 @@ typedef void* uv_lib_t;
    * definition of ares_timeout(). \
    */ \
   ev_timer timer; \
+  /* Poll result queue */ \
+  eio_channel uv_eio_channel; \
   struct ev_loop* ev;
 
 #define UV_REQ_BUFSML_SIZE (4)

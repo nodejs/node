@@ -1313,8 +1313,7 @@ UV_EXTERN uv_err_t uv_dlopen(const char* filename, uv_lib_t* library);
 UV_EXTERN uv_err_t uv_dlclose(uv_lib_t library);
 
 /*
- * Retrieves a data pointer from a dynamic library. It is legal for a symbol to
- * map to NULL.
+ * Retrieves a data pointer from a dynamic library.
  */
 UV_EXTERN uv_err_t uv_dlsym(uv_lib_t library, const char* name, void** ptr);
 

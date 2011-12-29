@@ -74,6 +74,7 @@
         'src/node.cc',
         'src/node_vars.cc',
         'src/node_buffer.cc',
+        'src/node_isolate.cc',
         'src/node_constants.cc',
         'src/node_extensions.cc',
         'src/node_file.cc',
@@ -97,6 +98,7 @@
         'src/node.h',
         'src/node_vars.h',
         'src/node_buffer.h',
+        'src/node_isolate.h',
         'src/node_constants.h',
         'src/node_crypto.h',
         'src/node_extensions.h',
@@ -123,11 +125,18 @@
       ],
 
       'defines': [
+        'NODE_WANT_INTERNALS=1',
         'ARCH="<(target_arch)"',
         'PLATFORM="<(OS)"',
       ],
 
       'conditions': [
+        [ 'node_use_isolates=="true"', {
+          'defines': [ 'HAVE_ISOLATES=1' ],
+        }, {
+          'defines': [ 'HAVE_ISOLATES=0' ],
+        }],
+
         [ 'node_use_openssl=="true"', {
           'defines': [ 'HAVE_OPENSSL=1' ],
           'sources': [ 'src/node_crypto.cc' ],

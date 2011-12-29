@@ -21,6 +21,7 @@
 
 #include <node.h>
 #include <handle_wrap.h>
+#include <node_vars.h>
 
 #define UNWRAP \
   assert(!args.Holder().IsEmpty()); \
@@ -91,7 +92,7 @@ class TimerWrap : public HandleWrap {
       : HandleWrap(object, (uv_handle_t*) &handle_) {
     active_ = false;
 
-    int r = uv_timer_init(uv_default_loop(), &handle_);
+    int r = uv_timer_init(Loop(), &handle_);
     assert(r == 0);
 
     handle_.data = this;
@@ -99,11 +100,11 @@ class TimerWrap : public HandleWrap {
     // uv_timer_init adds a loop reference. (That is, it calls uv_ref.) This
     // is not the behavior we want in Node. Timers should not increase the
     // ref count of the loop except when active.
-    uv_unref(uv_default_loop());
+    uv_unref(Loop());
   }
 
   ~TimerWrap() {
-    if (!active_) uv_ref(uv_default_loop());
+    if (!active_) uv_ref(Loop());
   }
 
   void StateChange() {
@@ -113,11 +114,11 @@ class TimerWrap : public HandleWrap {
     if (!was_active && active_) {
       // If our state is changing from inactive to active, we
       // increase the loop's reference count.
-      uv_ref(uv_default_loop());
+      uv_ref(Loop());
     } else if (was_active && !active_) {
       // If our state is changing from active to inactive, we
       // decrease the loop's reference count.
-      uv_unref(uv_default_loop());
+      uv_unref(Loop());
     }
   }
 
@@ -132,7 +133,7 @@ class TimerWrap : public HandleWrap {
     int r = uv_timer_start(&wrap->handle_, OnTimeout, timeout, repeat);
 
     // Error starting the timer.
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
+    if (r) SetErrno(uv_last_error(Loop()));
 
     wrap->StateChange();
 
@@ -146,7 +147,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_stop(&wrap->handle_);
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
+    if (r) SetErrno(uv_last_error(Loop()));
 
     wrap->StateChange();
 
@@ -160,7 +161,7 @@ class TimerWrap : public HandleWrap {
 
     int r = uv_timer_again(&wrap->handle_);
 
-    if (r) SetErrno(uv_last_error(uv_default_loop()));
+    if (r) SetErrno(uv_last_error(Loop()));
 
     wrap->StateChange();
 
@@ -186,7 +187,7 @@ class TimerWrap : public HandleWrap {
 
     int64_t repeat = uv_timer_get_repeat(&wrap->handle_);
 
-    if (repeat < 0) SetErrno(uv_last_error(uv_default_loop()));
+    if (repeat < 0) SetErrno(uv_last_error(Loop()));
 
     return scope.Close(Integer::New(repeat));
   }

@@ -66,20 +66,8 @@
 
 #include <node_object_wrap.h>
 
-#ifndef offset_of
-// g++ in strict mode complains loudly about the system offsetof() macro
-// because it uses NULL as the base address.
-#define offset_of(type, member) \
-  ((intptr_t) ((char *) &(((type *) 8)->member) - 8))
-#endif
-
-#ifndef container_of
-#define container_of(ptr, type, member) \
-  ((type *) ((char *) (ptr) - offset_of(type, member)))
-#endif
-
-#ifndef ARRAY_SIZE
-#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
+#if NODE_WANT_INTERNALS
+# include "node_internals.h"
 #endif
 
 #ifndef NODE_STRINGIFY
@@ -95,6 +83,10 @@ char** Init(int argc, char *argv[]);
 v8::Handle<v8::Object> SetupProcessObject(int argc, char *argv[]);
 void Load(v8::Handle<v8::Object> process);
 void EmitExit(v8::Handle<v8::Object> process);
+
+// Returns the loop for the current isolate. If compiled with
+// --without-isolates then this will always return uv_default_loop();
+uv_loop_t* Loop();
 
 #define NODE_PSYMBOL(s) \
   v8::Persistent<v8::String>::New(v8::String::NewSymbol(s))

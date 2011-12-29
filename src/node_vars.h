@@ -31,13 +31,6 @@ struct globals {
   v8::Persistent<v8::String> listeners_symbol;
   v8::Persistent<v8::String> uncaught_exception_symbol;
   v8::Persistent<v8::String> emit_symbol;
-  bool print_eval;
-  char *eval_string;
-  int option_end_index;
-  bool use_debug_agent;
-  bool debug_wait_connect;
-  int debug_port;
-  int max_stack_size;
   uv_check_t check_tick_watcher;
   uv_prepare_t prepare_tick_watcher;
   uv_idle_t tick_spinner;
@@ -183,6 +176,11 @@ struct globals {
   ::ares_channel ares_channel;
 };
 
+// Initialize globals struct.
+void globals_init(struct globals*);
+
+// Get the globals struct for the current Isolate. The returned pointer is
+// already initialized.
 struct globals* globals_get();
 
 }  // namespace node
