@@ -269,10 +269,10 @@ Users who experience large or growing `bufferSize` should attempt to
 "throttle" the data flows in their program with `pause()` and `resume()`.
 
 
-#### socket.setEncoding(encoding=null)
+#### socket.setEncoding([encoding])
 
 Sets the encoding (either `'ascii'`, `'utf8'`, or `'base64'`) for data that is
-received.
+received. Defaults to `null`.
 
 #### socket.setSecure()
 
@@ -333,20 +333,23 @@ If `timeout` is 0, then the existing idle timeout is disabled.
 The optional `callback` parameter will be added as a one time listener for the
 `'timeout'` event.
 
-#### socket.setNoDelay(noDelay=true)
+#### socket.setNoDelay([noDelay])
 
 Disables the Nagle algorithm. By default TCP connections use the Nagle
-algorithm, they buffer data before sending it off. Setting `noDelay` will
-immediately fire off data each time `socket.write()` is called.
+algorithm, they buffer data before sending it off. Setting `true` for
+`noDelay` will immediately fire off data each time `socket.write()` is called.
+`noDelay` defaults to `true`.
 
-#### socket.setKeepAlive(enable=false, [initialDelay])
+#### socket.setKeepAlive([enable], [initialDelay])
 
 Enable/disable keep-alive functionality, and optionally set the initial
 delay before the first keepalive probe is sent on an idle socket.
+`enable` defaults to `false`.
+
 Set `initialDelay` (in milliseconds) to set the delay between the last
 data packet received and the first keepalive probe. Setting 0 for
 initialDelay will leave the value unchanged from the default
-(or previous) setting.
+(or previous) setting. Defaults to `0`.
 
 #### socket.address()
 
