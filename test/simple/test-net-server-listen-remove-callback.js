@@ -34,6 +34,9 @@ server.on('close', function() {
 
 server.listen(common.PORT, function() {
   server.close();
+});
+
+server.once('close', function() {
   server.listen(common.PORT + 1, function() {
     server.close();
   });
