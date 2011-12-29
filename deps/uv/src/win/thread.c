@@ -113,6 +113,11 @@ int uv_thread_join(uv_thread_t *tid) {
 }
 
 
+uv_thread_t uv_thread_self(void) {
+  return GetCurrentThreadId();
+}
+
+
 int uv_mutex_init(uv_mutex_t* mutex) {
   InitializeCriticalSection(mutex);
   return 0;
