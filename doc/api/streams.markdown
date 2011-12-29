@@ -128,7 +128,7 @@ Emitted when the stream is passed to a readable stream's pipe method.
 A boolean that is `true` by default, but turns `false` after an `'error'`
 occurred or `end()` / `destroy()` was called.
 
-### stream.write(string, encoding='utf8', [fd])
+### stream.write(string, [encoding], [fd])
 
 Writes `string` with the given `encoding` to the stream.  Returns `true` if
 the string has been flushed to the kernel buffer.  Returns `false` to

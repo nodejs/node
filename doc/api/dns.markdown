@@ -31,10 +31,12 @@ resolves the IP addresses which are returned.
       });
     });
 
-### dns.lookup(domain, family=null, callback)
+### dns.lookup(domain, [family], callback)
 
 Resolves a domain (e.g. `'google.com'`) into the first found A (IPv4) or
 AAAA (IPv6) record.
+The `family` can be the integer `4` or `6`. Defaults to `null` that indicates
+both Ip v4 and v6 address family.
 
 The callback has arguments `(err, address, family)`.  The `address` argument
 is a string representation of a IP v4 or v6 address. The `family` argument
@@ -42,13 +44,13 @@ is either the integer 4 or 6 and denotes the family of `address` (not
 necessarily the value initially passed to `lookup`).
 
 
-### dns.resolve(domain, rrtype='A', callback)
+### dns.resolve(domain, [rrtype], callback)
 
 Resolves a domain (e.g. `'google.com'`) into an array of the record types
-specified by rrtype. Valid rrtypes are `A` (IPV4 addresses), `AAAA` (IPV6
-addresses), `MX` (mail exchange records), `TXT` (text records), `SRV` (SRV
-records), `PTR` (used for reverse IP lookups), `NS` (name server records)
-and `CNAME` (canonical name records).
+specified by rrtype. Valid rrtypes are `'A'` (IPV4 addresses, default),
+`'AAAA'` (IPV6 addresses), `'MX'` (mail exchange records), `'TXT'` (text
+records), `'SRV'` (SRV records), `'PTR'` (used for reverse IP lookups),
+`'NS'` (name server records) and `'CNAME'` (canonical name records).
 
 The callback has arguments `(err, addresses)`.  The type of each item
 in `addresses` is determined by the record type, and described in the

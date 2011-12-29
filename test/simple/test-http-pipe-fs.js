@@ -21,33 +21,48 @@
 
 var common = require('../common');
 var assert = require('assert');
+var http = require('http');
+var fs = require('fs');
+var path = require('path');
 
-var dns = require('dns');
+var file = path.join(common.tmpDir, 'http-pipe-fs-test.txt');
+var requests = 0;
 
-
-// Try resolution without callback
-
-dns.lookup(null, function(error, result, addressType) {
-  assert.equal(null, result);
-  assert.equal(4, addressType);
-});
-
-dns.lookup('127.0.0.1', function(error, result, addressType) {
-  assert.equal('127.0.0.1', result);
-  assert.equal(4, addressType);
-});
-
-dns.lookup('::1', function(error, result, addressType) {
-  assert.equal('::1', result);
-  assert.equal(6, addressType);
-});
-
-// Windows doesn't usually have an entry for localhost 127.0.0.1 in
-// C:\Windows\System32\drivers\etc\hosts
-// so we disable this test on Windows.
-if (process.platform != 'win32') {
-  dns.resolve('127.0.0.1', 'PTR', function(error, domains) {
-    if (error) throw error;
-    assert.ok(Array.isArray(domains));
+var server = http.createServer(function(req, res) {
+  ++requests;
+  var stream = fs.createWriteStream(file);
+  req.pipe(stream);
+  stream.on('close', function() {
+    res.writeHead(200);
+    res.end();
   });
-}
+}).listen(common.PORT, function() {
+  http.globalAgent.maxSockets = 1;
+
+  for (var i = 0; i < 2; ++i) {
+    (function(i) {
+      var req = http.request({
+        port: common.PORT,
+        method: 'POST',
+        headers: {
+          'Content-Length': 5
+        }
+      }, function(res) {
+        res.on('end', function() {
+          common.debug('res' + i + ' end');
+          if (i === 2) {
+            server.close();
+          }
+        });
+      });
+      req.on('socket', function(s) {
+        common.debug('req' + i + ' start');
+      });
+      req.end('12345');
+    }(i + 1));
+  }
+});
+
+process.on('exit', function() {
+  assert.equal(requests, 2);
+});
