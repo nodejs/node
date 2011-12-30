@@ -103,27 +103,12 @@ static char* current_buffer_data;
 static size_t current_buffer_len;
 
 
-// gcc 3.x knows the always_inline attribute but fails at build time with a
-// "sorry, unimplemented: inlining failed" error when compiling at -O0
-#if defined(__GNUC__)
-# if __GNUC__ >= 4
-#  define always_inline __attribute__((always_inline))
-# else
-#  define always_inline inline
-# endif
-#elif defined(_MSC_VER)
-# define always_inline __forceinline
-#else
-# define always_inline
-#endif
-
-
 #define HTTP_CB(name)                                               \
 	  static int name(http_parser* p_) {                              \
 	    Parser* self = container_of(p_, Parser, parser_);             \
 	    return self->name##_();                                       \
 	  }                                                               \
-	  int always_inline name##_()
+	  int name##_()
 
 
 #define HTTP_DATA_CB(name)                                          \
@@ -131,7 +116,7 @@ static size_t current_buffer_len;
     Parser* self = container_of(p_, Parser, parser_);               \
     return self->name##_(at, length);                               \
   }                                                                 \
-  int always_inline name##_(const char* at, size_t length)
+  int name##_(const char* at, size_t length)
 
 
 static inline Persistent<String>
@@ -176,6 +161,19 @@ struct StringPtr {
 
   ~StringPtr() {
     Reset();
+  }
+
+
+  // If str_ does not point to a heap string yet, this function makes it do
+  // so. This is called at the end of each http_parser_execute() so as not
+  // to leak references. See issue #2438 and test-http-parser-bad-ref.js.
+  void Save() {
+    if (!on_heap_ && size_ > 0) {
+      char* s = new char[size_];
+      memcpy(s, str_, size_);
+      str_ = s;
+      on_heap_ = true;
+    }
   }
 
 
@@ -237,7 +235,7 @@ public:
 
 
   HTTP_CB(on_message_begin) {
-    num_fields_ = num_values_ = -1;
+    num_fields_ = num_values_ = 0;
     url_.Reset();
     return 0;
   }
@@ -252,18 +250,20 @@ public:
   HTTP_DATA_CB(on_header_field) {
     if (num_fields_ == num_values_) {
       // start of new field name
-      if (++num_fields_ == ARRAY_SIZE(fields_)) {
+      num_fields_++;
+      if (num_fields_ == ARRAY_SIZE(fields_)) {
+        // ran out of space - flush to javascript land
         Flush();
-        num_fields_ = 0;
-        num_values_ = -1;
+        num_fields_ = 1;
+        num_values_ = 0;
       }
-      fields_[num_fields_].Reset();
+      fields_[num_fields_ - 1].Reset();
     }
 
     assert(num_fields_ < (int)ARRAY_SIZE(fields_));
     assert(num_fields_ == num_values_ + 1);
 
-    fields_[num_fields_].Update(at, length);
+    fields_[num_fields_ - 1].Update(at, length);
 
     return 0;
   }
@@ -272,13 +272,14 @@ public:
   HTTP_DATA_CB(on_header_value) {
     if (num_values_ != num_fields_) {
       // start of new header value
-      values_[++num_values_].Reset();
+      num_values_++;
+      values_[num_values_ - 1].Reset();
     }
 
     assert(num_values_ < (int)ARRAY_SIZE(values_));
     assert(num_values_ == num_fields_);
 
-    values_[num_values_].Update(at, length);
+    values_[num_values_ - 1].Update(at, length);
 
     return 0;
   }
@@ -302,7 +303,7 @@ public:
       if (parser_.type == HTTP_REQUEST)
         message_info->Set(url_sym, url_.ToString());
     }
-    num_fields_ = num_values_ = -1;
+    num_fields_ = num_values_ = 0;
 
     // METHOD
     if (parser_.type == HTTP_REQUEST) {
@@ -364,7 +365,7 @@ public:
   HTTP_CB(on_message_complete) {
     HandleScope scope;
 
-    if (num_fields_ != -1)
+    if (num_fields_)
       Flush(); // Flush trailing HTTP headers.
 
     Local<Value> cb = handle_->Get(on_message_complete_sym);
@@ -398,6 +399,19 @@ public:
     parser->Wrap(args.This());
 
     return args.This();
+  }
+
+
+  void Save() {
+    url_.Save();
+
+    for (int i = 0; i < num_fields_; i++) {
+      fields_[i].Save();
+    }
+
+    for (int i = 0; i < num_values_; i++) {
+      values_[i].Save();
+    }
   }
 
 
@@ -446,6 +460,8 @@ public:
 
     size_t nparsed =
       http_parser_execute(&parser->parser_, &settings, buffer_data + off, len);
+
+    parser->Save();
 
     // Unassign the 'buffer_' variable
     assert(current_buffer);
@@ -515,9 +531,9 @@ private:
   Local<Array> CreateHeaders() {
     // num_values_ is either -1 or the entry # of the last header
     // so num_values_ == 0 means there's a single header
-    Local<Array> headers = Array::New(2 * (num_values_ + 1));
+    Local<Array> headers = Array::New(2 * num_values_);
 
-    for (int i = 0; i < num_values_ + 1; ++i) {
+    for (int i = 0; i < num_values_; ++i) {
       headers->Set(2 * i, fields_[i].ToString());
       headers->Set(2 * i + 1, values_[i].ToString());
     }
@@ -553,8 +569,8 @@ private:
   void Init(enum http_parser_type type) {
     http_parser_init(&parser_, type);
     url_.Reset();
-    num_fields_ = -1;
-    num_values_ = -1;
+    num_fields_ = 0;
+    num_values_ = 0;
     have_flushed_ = false;
     got_exception_ = false;
   }
