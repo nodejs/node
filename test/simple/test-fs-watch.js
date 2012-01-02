@@ -141,3 +141,9 @@ setTimeout(function() {
   var fd = fs.openSync(filepathThree, 'w');
   fs.closeSync(fd);
 }, 1000);
+
+// https://github.com/joyent/node/issues/2293 - non-persistent watcher should
+// not block the event loop
+fs.watch(__filename, {persistent: false}, function() {
+  assert(0);
+});
