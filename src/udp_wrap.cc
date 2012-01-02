@@ -366,6 +366,7 @@ void UDPWrap::OnRecv(uv_udp_t* handle,
 
   if (nread == -1) {
     SetErrno(uv_last_error(Loop()));
+    ReleaseMemory(buf.base, NULL);
   }
   else {
     Local<Object> rinfo = Object::New();

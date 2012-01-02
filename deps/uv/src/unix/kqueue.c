@@ -43,10 +43,12 @@ static void uv__fs_event_start(uv_fs_event_t* handle) {
              handle->fd,
              EV_LIBUV_KQUEUE_HACK);
   ev_io_start(handle->loop->ev, &handle->event_watcher);
+  ev_unref(handle->loop->ev);
 }
 
 
 static void uv__fs_event_stop(uv_fs_event_t* handle) {
+  ev_ref(handle->loop->ev);
   ev_io_stop(handle->loop->ev, &handle->event_watcher);
 }
 

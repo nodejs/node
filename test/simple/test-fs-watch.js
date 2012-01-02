@@ -30,8 +30,7 @@ var watchSeenOne = 0;
 var watchSeenTwo = 0;
 var watchSeenThree = 0;
 
-var startDir = process.cwd();
-var testDir = common.fixturesDir;
+var testDir = common.tmpDir;
 
 var filenameOne = 'watch.txt';
 var filepathOne = path.join(testDir, filenameOne);
@@ -46,15 +45,16 @@ var filepathThree = path.join(testsubdir, filenameThree);
 
 
 process.on('exit', function() {
-  fs.unlinkSync(filepathOne);
-  fs.unlinkSync(filepathTwoAbs);
-  fs.unlinkSync(filepathThree);
-  fs.rmdirSync(testsubdir);
   assert.ok(watchSeenOne > 0);
   assert.ok(watchSeenTwo > 0);
   assert.ok(watchSeenThree > 0);
 });
 
+// Clean up stale files (if any) from previous run.
+try { fs.unlinkSync(filepathOne);    } catch (e) { }
+try { fs.unlinkSync(filepathTwoAbs); } catch (e) { }
+try { fs.unlinkSync(filepathThree);  } catch (e) { }
+try { fs.rmdirSync(testsubdir);      } catch (e) { }
 
 fs.writeFileSync(filepathOne, 'hello');
 
@@ -141,3 +141,9 @@ setTimeout(function() {
   var fd = fs.openSync(filepathThree, 'w');
   fs.closeSync(fd);
 }, 1000);
+
+// https://github.com/joyent/node/issues/2293 - non-persistent watcher should
+// not block the event loop
+fs.watch(__filename, {persistent: false}, function() {
+  assert(0);
+});

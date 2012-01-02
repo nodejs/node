@@ -647,7 +647,7 @@ A client server pair that show you how to listen for the `upgrade` event using `
 
 ### Event: 'continue'
 
-`function ()`
+`function () { }`
 
 Emitted when the server sends a '100 Continue' HTTP response, usually because
 the request contained 'Expect: 100-continue'. This is an instruction that

@@ -302,7 +302,7 @@ static void timer_cb(uv_timer_t* handle, int status) {
   ASSERT(status == 0);
 
   r = uv_fs_event_init(handle->loop, &fs_event, ".", fs_event_fail, 0);
-  ASSERT(r != -1);
+  ASSERT(r == 0);
 
   uv_close((uv_handle_t*)&fs_event, close_cb);
   uv_close((uv_handle_t*)handle, close_cb);
@@ -325,6 +325,24 @@ TEST_IMPL(fs_event_immediate_close) {
   uv_run(loop);
 
   ASSERT(close_cb_called == 2);
+
+  return 0;
+}
+
+
+TEST_IMPL(fs_event_unref) {
+  uv_loop_t* loop;
+  int r;
+
+  loop = uv_default_loop();
+
+  r = uv_fs_event_init(loop, &fs_event, ".", fs_event_fail, 0);
+  ASSERT(r == 0);
+
+  uv_unref(loop);
+
+  r = uv_run(loop);
+  ASSERT(r == 0);
 
   return 0;
 }
