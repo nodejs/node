@@ -542,8 +542,12 @@ void fs__fstat(uv_fs_t* req, uv_file file) {
 
 
 void fs__rename(uv_fs_t* req, const wchar_t* path, const wchar_t* new_path) {
-  int result = _wrename(path, new_path);
-  SET_REQ_RESULT(req, result);
+  if (!MoveFileExW(path, new_path, MOVEFILE_REPLACE_EXISTING)) {
+    SET_REQ_RESULT_WIN32_ERROR(req, GetLastError());
+    return;
+  }
+
+  SET_REQ_RESULT(req, 0);
 }
 
 

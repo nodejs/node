@@ -22,6 +22,7 @@
 #include <assert.h>
 #include <malloc.h>
 #include <errno.h>
+#include <stdio.h>
 #include <string.h>
 #include "uv.h"
 #include "internal.h"
@@ -36,12 +37,12 @@ static void uv_fs_event_init_handle(uv_loop_t* loop, uv_fs_event_t* handle,
   handle->loop = loop;
   handle->flags = 0;
   handle->cb = cb;
-  handle->is_path_dir = 0;
   handle->dir_handle = INVALID_HANDLE_VALUE;
   handle->buffer = NULL;
   handle->req_pending = 0;
   handle->filew = NULL;
   handle->short_filew = NULL;
+  handle->dirw = NULL;
 
   uv_req_init(loop, (uv_req_t*)&handle->req);
   handle->req.type = UV_FS_EVENT_REQ;
@@ -134,9 +135,9 @@ static int uv_split_path(const wchar_t* filename, wchar_t** dir,
 
 int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     const char* filename, uv_fs_event_cb cb, int flags) {
-  int name_size;
+  int name_size, is_path_dir;
   DWORD attr, last_error;
-  wchar_t* dir = NULL, *dir_to_watch, *filenamew;
+  wchar_t* dir = NULL, *dir_to_watch, *filenamew = NULL;
   wchar_t short_path[MAX_PATH];
 
   /* We don't support any flags yet. */
@@ -164,10 +165,11 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     goto error;
   }
 
-  handle->is_path_dir = (attr & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
+  is_path_dir = (attr & FILE_ATTRIBUTE_DIRECTORY) ? 1 : 0;
 
-  if (handle->is_path_dir) {
+  if (is_path_dir) {
      /* filename is a directory, so that's the directory that we will watch. */
+    handle->dirw = filenamew;
     dir_to_watch = filenamew;
   } else {
     /* 
@@ -192,6 +194,8 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
     }
 
     dir_to_watch = dir;
+    free(filenamew);
+    filenamew = NULL;
   }
 
   handle->dir_handle = CreateFileW(dir_to_watch,
@@ -268,6 +272,8 @@ error:
     handle->short_filew = NULL;
   }
 
+  free(filenamew);
+
   if (handle->dir_handle != INVALID_HANDLE_VALUE) {
     CloseHandle(handle->dir_handle);
     handle->dir_handle = INVALID_HANDLE_VALUE;
@@ -286,8 +292,9 @@ error:
 void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     uv_fs_event_t* handle) {
   FILE_NOTIFY_INFORMATION* file_info;
+  int sizew, size, result;
   char* filename = NULL;
-  int utf8size;
+  wchar_t* filenamew, *long_filenamew = NULL;
   DWORD offset = 0;
 
   assert(req->type == UV_FS_EVENT_REQ);
@@ -300,39 +307,114 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
     if (req->overlapped.InternalHigh > 0) {
       do {
         file_info = (FILE_NOTIFY_INFORMATION*)((char*)file_info + offset);
+        assert(!filename);
+        assert(!long_filenamew);
 
         /* 
          * Fire the event only if we were asked to watch a directory,
          * or if the filename filter matches.
          */
-        if (handle->is_path_dir ||
+        if (handle->dirw ||
           _wcsnicmp(handle->filew, file_info->FileName,
             file_info->FileNameLength / sizeof(wchar_t)) == 0 ||
           _wcsnicmp(handle->short_filew, file_info->FileName,
             file_info->FileNameLength / sizeof(wchar_t)) == 0) {
-        
-          /* Convert the filename to utf8. */
-          utf8size = uv_utf16_to_utf8(file_info->FileName,
-                                      file_info->FileNameLength / 
-                                        sizeof(wchar_t),
-                                      NULL,
-                                      0);
-          if (utf8size) {
-            filename = (char*)malloc(utf8size + 1);
-            if (!filename) {
-              uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
-            }
 
-            utf8size = uv_utf16_to_utf8(file_info->FileName,
-                                        file_info->FileNameLength /
-                                          sizeof(wchar_t),
-                                        filename,
-                                        utf8size);
-            if (utf8size) {
-              filename[utf8size] = '\0';
+          if (handle->dirw) {
+            /* 
+             * We attempt to convert the file name to its long form for 
+             * events that still point to valid files on disk.
+             * For removed and renamed events, we do not provide the file name.
+             */
+            if (file_info->Action != FILE_ACTION_REMOVED &&
+              file_info->Action != FILE_ACTION_RENAMED_OLD_NAME) {
+              /* Construct a full path to the file. */
+              size = wcslen(handle->dirw) +
+                file_info->FileNameLength / sizeof(wchar_t) + 2;
+
+              filenamew = (wchar_t*)malloc(size * sizeof(wchar_t));
+              if (!filenamew) {
+                uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+              }
+
+              _snwprintf(filenamew, size, L"%s\\%s", handle->dirw,
+                file_info->FileName);
+
+              filenamew[size - 1] = L'\0';
+
+              /* Convert to long name. */
+              size = GetLongPathNameW(filenamew, NULL, 0);
+
+              if (size) {
+                long_filenamew = (wchar_t*)malloc(size * sizeof(wchar_t));
+                if (!long_filenamew) {
+                  uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+                }
+
+                size = GetLongPathNameW(filenamew, long_filenamew, size);
+                if (size) {
+                  long_filenamew[size] = '\0';
+                } else {
+                  free(long_filenamew);
+                  long_filenamew = NULL;
+                }
+              }
+
+              free(filenamew);
+
+              if (long_filenamew) {
+                /* Get the file name out of the long path. */
+                result = uv_split_path(long_filenamew, NULL, &filenamew);
+                free(long_filenamew);
+
+                if (result == 0) {
+                  long_filenamew = filenamew;
+                  sizew = -1;
+                } else {
+                  long_filenamew = NULL;
+                }
+              }
+
+              /* 
+               * If we couldn't get the long name - just use the name
+               * provided by ReadDirectoryChangesW.
+               */
+              if (!long_filenamew) {
+                filenamew = file_info->FileName;
+                sizew = file_info->FileNameLength / sizeof(wchar_t);
+              }
             } else {
-              free(filename);
-              filename = NULL;
+              /* Removed or renamed callbacks don't provide filename. */
+              filenamew = NULL;
+            }
+          } else {
+            /* We already have the long name of the file, so just use it. */
+            filenamew = handle->filew;
+            sizew = -1;
+          }
+
+          if (filenamew) {
+            /* Convert the filename to utf8. */
+            size = uv_utf16_to_utf8(filenamew,
+                                    sizew,
+                                    NULL,
+                                    0);
+            if (size) {
+              filename = (char*)malloc(size + 1);
+              if (!filename) {
+                uv_fatal_error(ERROR_OUTOFMEMORY, "malloc");
+              }
+
+              size = uv_utf16_to_utf8(filenamew,
+                                      sizew,
+                                      filename,
+                                      size);
+              if (size) {
+                filename[size] = '\0';
+              } else {
+                free(filename);
+                filename = NULL;
+              }
             }
           }
 
@@ -351,6 +433,8 @@ void uv_process_fs_event_req(uv_loop_t* loop, uv_req_t* req,
 
           free(filename);
           filename = NULL;
+          free(long_filenamew);
+          long_filenamew = NULL;
         }
 
         offset = file_info->NextEntryOffset;
@@ -409,6 +493,11 @@ void uv_fs_event_endgame(uv_loop_t* loop, uv_fs_event_t* handle) {
     if (handle->filename) {
       free(handle->filename);
       handle->filename = NULL;
+    }
+
+    if (handle->dirw) {
+      free(handle->dirw);
+      handle->dirw = NULL;
     }
 
     if (handle->close_cb) {

@@ -166,12 +166,14 @@ int uv_fs_event_init(uv_loop_t* loop,
 
   ev_io_init(&handle->event_watcher, uv__fs_event_read, portfd, EV_READ);
   ev_io_start(loop->ev, &handle->event_watcher);
+  ev_unref(loop->ev);
 
   return 0;
 }
 
 
 void uv__fs_event_destroy(uv_fs_event_t* handle) {
+  ev_ref(handle->loop->ev);
   ev_io_stop(handle->loop->ev, &handle->event_watcher);
   uv__close(handle->fd);
   handle->fd = -1;
