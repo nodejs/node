@@ -25,24 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
+// See: http://code.google.com/p/v8/issues/detail?id=1878
+
 // Flags: --allow-natives-syntax
 
-function get_double_array() {
-  var a = new Array(100000);
-  var i = 0;
-  while (!%HasFastDoubleElements(a)) {
-    a[i] = i;
-    i += 0.5;
-  }
-  assertTrue(%HasFastDoubleElements(a));
-  a.length = 1;
-  a[0] = 1.5;
-  a.length = 2;
-  a[1] = 2.5;
-  assertEquals(a[0], 1.5);
-  assertEquals(a[1], 2.5);
-  assertTrue(%HasFastDoubleElements(a));
-  return a;
+var count = 1e5;
+var arr = new Array(count);
+assertFalse(%HasFastDoubleElements(arr));
+for (var i = 0; i < count; i++) {
+  arr[i] = 0;
 }
-
-var a = get_double_array();
+assertFalse(%HasFastDoubleElements(arr));
+assertTrue(%HasFastSmiOnlyElements(arr));

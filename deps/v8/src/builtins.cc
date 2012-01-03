@@ -184,17 +184,17 @@ BUILTIN(EmptyFunction) {
 }
 
 
-BUILTIN(ArrayCodeGeneric) {
+static MaybeObject* ArrayCodeGenericCommon(Arguments* args,
+                                           Isolate* isolate,
+                                           JSFunction* constructor) {
   Heap* heap = isolate->heap();
   isolate->counters()->array_function_runtime()->Increment();
 
   JSArray* array;
   if (CalledAsConstructor(isolate)) {
-    array = JSArray::cast(*args.receiver());
+    array = JSArray::cast((*args)[0]);
   } else {
     // Allocate the JS Array
-    JSFunction* constructor =
-        isolate->context()->global_context()->array_function();
     Object* obj;
     { MaybeObject* maybe_obj = heap->AllocateJSObject(constructor);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
@@ -202,13 +202,10 @@ BUILTIN(ArrayCodeGeneric) {
     array = JSArray::cast(obj);
   }
 
-  // 'array' now contains the JSArray we should initialize.
-  ASSERT(array->HasFastTypeElements());
-
   // Optimize the case where there is one argument and the argument is a
   // small smi.
-  if (args.length() == 2) {
-    Object* obj = args[1];
+  if (args->length() == 2) {
+    Object* obj = (*args)[1];
     if (obj->IsSmi()) {
       int len = Smi::cast(obj)->value();
       if (len >= 0 && len < JSObject::kInitialMaxFastElementArray) {
@@ -225,18 +222,18 @@ BUILTIN(ArrayCodeGeneric) {
     { MaybeObject* maybe_obj = array->Initialize(0);
       if (!maybe_obj->ToObject(&obj)) return maybe_obj;
     }
-    return array->SetElementsLength(args[1]);
+    return array->SetElementsLength((*args)[1]);
   }
 
   // Optimize the case where there are no parameters passed.
-  if (args.length() == 1) {
+  if (args->length() == 1) {
     return array->Initialize(JSArray::kPreallocatedArrayElements);
   }
 
   // Set length and elements on the array.
-  int number_of_elements = args.length() - 1;
+  int number_of_elements = args->length() - 1;
   MaybeObject* maybe_object =
-      array->EnsureCanContainElements(&args, 1, number_of_elements,
+      array->EnsureCanContainElements(args, 1, number_of_elements,
                                       ALLOW_CONVERTED_DOUBLE_ELEMENTS);
   if (maybe_object->IsFailure()) return maybe_object;
 
@@ -257,7 +254,7 @@ BUILTIN(ArrayCodeGeneric) {
     case FAST_SMI_ONLY_ELEMENTS: {
       FixedArray* smi_elms = FixedArray::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
-        smi_elms->set(index, args[index+1], SKIP_WRITE_BARRIER);
+        smi_elms->set(index, (*args)[index+1], SKIP_WRITE_BARRIER);
       }
       break;
     }
@@ -266,14 +263,14 @@ BUILTIN(ArrayCodeGeneric) {
       WriteBarrierMode mode = elms->GetWriteBarrierMode(no_gc);
       FixedArray* object_elms = FixedArray::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
-        object_elms->set(index, args[index+1], mode);
+        object_elms->set(index, (*args)[index+1], mode);
       }
       break;
     }
     case FAST_DOUBLE_ELEMENTS: {
       FixedDoubleArray* double_elms = FixedDoubleArray::cast(elms);
       for (int index = 0; index < number_of_elements; index++) {
-        double_elms->set(index, args[index+1]->Number());
+        double_elms->set(index, (*args)[index+1]->Number());
       }
       break;
     }
@@ -285,6 +282,22 @@ BUILTIN(ArrayCodeGeneric) {
   array->set_elements(elms);
   array->set_length(Smi::FromInt(number_of_elements));
   return array;
+}
+
+
+BUILTIN(InternalArrayCodeGeneric) {
+  return ArrayCodeGenericCommon(
+      &args,
+      isolate,
+      isolate->context()->global_context()->internal_array_function());
+}
+
+
+BUILTIN(ArrayCodeGeneric) {
+  return ArrayCodeGenericCommon(
+      &args,
+      isolate,
+      isolate->context()->global_context()->array_function());
 }
 
 

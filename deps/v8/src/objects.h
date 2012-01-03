@@ -1473,6 +1473,11 @@ class JSObject: public JSReceiver {
   bool HasDictionaryArgumentsElements();
   inline NumberDictionary* element_dictionary();  // Gets slow elements.
 
+  inline void set_map_and_elements(
+      Map* map,
+      FixedArrayBase* value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
   // Requires: HasFastElements().
   MUST_USE_RESULT inline MaybeObject* EnsureWritableFastElements();
 
@@ -1644,8 +1649,9 @@ class JSObject: public JSReceiver {
   // elements.
   bool ShouldConvertToFastElements();
   // Returns true if the elements of JSObject contains only values that can be
-  // represented in a FixedDoubleArray.
-  bool CanConvertToFastDoubleElements();
+  // represented in a FixedDoubleArray and has at least one value that can only
+  // be represented as a double and not a Smi.
+  bool ShouldConvertToFastDoubleElements(bool* has_smi_only_elements);
 
   // Tells whether the index'th element is present.
   bool HasElementWithReceiver(JSReceiver* receiver, uint32_t index);
@@ -1708,6 +1714,7 @@ class JSObject: public JSReceiver {
 
   enum SetFastElementsCapacityMode {
     kAllowSmiOnlyElements,
+    kForceSmiOnlyElements,
     kDontAllowSmiOnlyElements
   };
 

@@ -1,3 +1,10 @@
+2012-01-02: Version 3.8.4
+
+        Performance improvements for large Smi-only arrays.
+
+        Fixed InternalArrays construction. (issue 1878)
+
+
 2011-12-27: Version 3.8.3
 
         Avoid embedding new space objects into code objects in the lithium gap

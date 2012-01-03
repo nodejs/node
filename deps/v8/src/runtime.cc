@@ -9229,22 +9229,6 @@ static void PrintTransition(Object* result) {
 }
 
 
-RUNTIME_FUNCTION(MaybeObject*, Runtime_TraceElementsKindTransition) {
-  ASSERT(args.length() == 5);
-  CONVERT_ARG_CHECKED(JSObject, obj, 0);
-  CONVERT_SMI_ARG_CHECKED(from_kind, 1);
-  CONVERT_ARG_CHECKED(FixedArrayBase, from_elements, 2);
-  CONVERT_SMI_ARG_CHECKED(to_kind, 3);
-  CONVERT_ARG_CHECKED(FixedArrayBase, to_elements, 4);
-  NoHandleAllocation ha;
-  PrintF("*");
-  obj->PrintElementsTransition(stdout,
-      static_cast<ElementsKind>(from_kind), *from_elements,
-      static_cast<ElementsKind>(to_kind), *to_elements);
-  return isolate->heap()->undefined_value();
-}
-
-
 RUNTIME_FUNCTION(MaybeObject*, Runtime_TraceEnter) {
   ASSERT(args.length() == 0);
   NoHandleAllocation ha;

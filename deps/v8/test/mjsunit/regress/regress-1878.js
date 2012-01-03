@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2009 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,24 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --allow-natives-syntax
+// See: http://code.google.com/p/v8/issues/detail?id=1878
 
-function get_double_array() {
-  var a = new Array(100000);
-  var i = 0;
-  while (!%HasFastDoubleElements(a)) {
-    a[i] = i;
-    i += 0.5;
-  }
-  assertTrue(%HasFastDoubleElements(a));
-  a.length = 1;
-  a[0] = 1.5;
-  a.length = 2;
-  a[1] = 2.5;
-  assertEquals(a[0], 1.5);
-  assertEquals(a[1], 2.5);
-  assertTrue(%HasFastDoubleElements(a));
-  return a;
-}
+// Flags: --allow-natives-syntax --expose_natives_as=natives
 
-var a = get_double_array();
+var a = Array();
+var ai = natives.InternalArray();
+assertFalse(%HaveSameMap(ai, a));

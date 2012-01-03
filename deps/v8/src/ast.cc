@@ -748,7 +748,8 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
     type->LookupInDescriptors(NULL, *name, &lookup);
     // If the function wasn't found directly in the map, we start
     // looking upwards through the prototype chain.
-    if (!lookup.IsFound() && type->prototype()->IsJSObject()) {
+    if ((!lookup.IsFound() || IsTransitionType(lookup.type()))
+        && type->prototype()->IsJSObject()) {
       holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
       type = Handle<Map>(holder()->map());
     } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {

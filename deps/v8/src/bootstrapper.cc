@@ -1613,16 +1613,13 @@ bool Genesis::InstallNatives() {
     // doesn't inherit from Object.prototype.
     // To be used only for internal work by builtins. Instances
     // must not be leaked to user code.
-    // Only works correctly when called as a constructor. The normal
-    // Array code uses Array.prototype as prototype when called as
-    // a function.
     Handle<JSFunction> array_function =
         InstallFunction(builtins,
                         "InternalArray",
                         JS_ARRAY_TYPE,
                         JSArray::kSize,
                         isolate()->initial_object_prototype(),
-                        Builtins::kArrayCode,
+                        Builtins::kInternalArrayCode,
                         true);
     Handle<JSObject> prototype =
         factory()->NewJSObject(isolate()->object_function(), TENURED);
@@ -1654,6 +1651,8 @@ bool Genesis::InstallNatives() {
 
     array_function->initial_map()->set_instance_descriptors(
         *array_descriptors);
+
+    global_context()->set_internal_array_function(*array_function);
   }
 
   if (FLAG_disable_native_files) {

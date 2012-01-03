@@ -1308,6 +1308,40 @@ static void ArrayNativeCode(MacroAssembler* masm,
 }
 
 
+void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- eax : argc
+  //  -- esp[0] : return address
+  //  -- esp[4] : last argument
+  // -----------------------------------
+  Label generic_array_code;
+
+  // Get the InternalArray function.
+  __ LoadGlobalFunction(Context::INTERNAL_ARRAY_FUNCTION_INDEX, edi);
+
+  if (FLAG_debug_code) {
+    // Initial map for the builtin InternalArray function shoud be a map.
+    __ mov(ebx, FieldOperand(edi, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    __ test(ebx, Immediate(kSmiTagMask));
+    __ Assert(not_zero, "Unexpected initial map for InternalArray function");
+    __ CmpObjectType(ebx, MAP_TYPE, ecx);
+    __ Assert(equal, "Unexpected initial map for InternalArray function");
+  }
+
+  // Run the native code for the InternalArray function called as a normal
+  // function.
+  ArrayNativeCode(masm, false, &generic_array_code);
+
+  // Jump to the generic array code in case the specialized code cannot handle
+  // the construction.
+  __ bind(&generic_array_code);
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->InternalArrayCodeGeneric();
+  __ jmp(array_code, RelocInfo::CODE_TARGET);
+}
+
+
 void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- eax : argc

@@ -1219,7 +1219,7 @@ void JSObject::ValidateSmiOnlyElements() {
         map != heap->free_space_map()) {
       for (int i = 0; i < fixed_array->length(); i++) {
         Object* current = fixed_array->get(i);
-        ASSERT(current->IsSmi() || current == heap->the_hole_value());
+        ASSERT(current->IsSmi() || current->IsTheHole());
       }
     }
   }
@@ -1290,19 +1290,34 @@ MaybeObject* JSObject::EnsureCanContainElements(FixedArrayBase* elements,
 }
 
 
-void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
+void JSObject::set_map_and_elements(Map* new_map,
+                                    FixedArrayBase* value,
+                                    WriteBarrierMode mode) {
+  ASSERT(value->HasValidElements());
+#ifdef DEBUG
+  ValidateSmiOnlyElements();
+#endif
+  if (new_map != NULL) {
+    if (mode == UPDATE_WRITE_BARRIER) {
+      set_map(new_map);
+    } else {
+      ASSERT(mode == SKIP_WRITE_BARRIER);
+      set_map_no_write_barrier(new_map);
+    }
+  }
   ASSERT((map()->has_fast_elements() ||
           map()->has_fast_smi_only_elements()) ==
          (value->map() == GetHeap()->fixed_array_map() ||
           value->map() == GetHeap()->fixed_cow_array_map()));
   ASSERT(map()->has_fast_double_elements() ==
          value->IsFixedDoubleArray());
-  ASSERT(value->HasValidElements());
-#ifdef DEBUG
-  ValidateSmiOnlyElements();
-#endif
   WRITE_FIELD(this, kElementsOffset, value);
   CONDITIONAL_WRITE_BARRIER(GetHeap(), this, kElementsOffset, value, mode);
+}
+
+
+void JSObject::set_elements(FixedArrayBase* value, WriteBarrierMode mode) {
+  set_map_and_elements(NULL, value, mode);
 }
 
 

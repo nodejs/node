@@ -72,6 +72,22 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
+// Load the built-in InternalArray function from the current context.
+static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
+                                              Register result) {
+  // Load the global context.
+
+  __ ldr(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ ldr(result,
+         FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
+  // Load the InternalArray function from the global context.
+  __ ldr(result,
+         MemOperand(result,
+                    Context::SlotOffset(
+                        Context::INTERNAL_ARRAY_FUNCTION_INDEX)));
+}
+
+
 // Load the built-in Array function from the current context.
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
   // Load the global context.
@@ -415,6 +431,40 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ add(sp, sp, Operand(kPointerSize));
   __ mov(r0, r3);
   __ Jump(lr);
+}
+
+
+void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- r0     : number of arguments
+  //  -- lr     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
+
+  // Get the InternalArray function.
+  GenerateLoadInternalArrayFunction(masm, r1);
+
+  if (FLAG_debug_code) {
+    // Initial map for the builtin InternalArray functions should be maps.
+    __ ldr(r2, FieldMemOperand(r1, JSFunction::kPrototypeOrInitialMapOffset));
+    __ tst(r2, Operand(kSmiTagMask));
+    __ Assert(ne, "Unexpected initial map for InternalArray function");
+    __ CompareObjectType(r2, r3, r4, MAP_TYPE);
+    __ Assert(eq, "Unexpected initial map for InternalArray function");
+  }
+
+  // Run the native code for the InternalArray function called as a normal
+  // function.
+  ArrayNativeCode(masm, &generic_array_code);
+
+  // Jump to the generic array code if the specialized code cannot handle the
+  // construction.
+  __ bind(&generic_array_code);
+
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->InternalArrayCodeGeneric();
+  __ Jump(array_code, RelocInfo::CODE_TARGET);
 }
 
 

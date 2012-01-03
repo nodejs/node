@@ -341,7 +341,6 @@ namespace internal {
   /* Debugging */ \
   F(DebugPrint, 1, 1) \
   F(DebugTrace, 0, 1) \
-  F(TraceElementsKindTransition, 5, 1) \
   F(TraceEnter, 0, 1) \
   F(TraceExit, 1, 1) \
   F(Abort, 2, 1) \

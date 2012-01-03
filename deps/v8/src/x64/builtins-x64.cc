@@ -1327,6 +1327,41 @@ static void ArrayNativeCode(MacroAssembler* masm,
 }
 
 
+void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- rax : argc
+  //  -- rsp[0] : return address
+  //  -- rsp[8] : last argument
+  // -----------------------------------
+  Label generic_array_code;
+
+  // Get the InternalArray function.
+  __ LoadGlobalFunction(Context::INTERNAL_ARRAY_FUNCTION_INDEX, rdi);
+
+  if (FLAG_debug_code) {
+    // Initial map for the builtin InternalArray functions should be maps.
+    __ movq(rbx, FieldOperand(rdi, JSFunction::kPrototypeOrInitialMapOffset));
+    // Will both indicate a NULL and a Smi.
+    STATIC_ASSERT(kSmiTag == 0);
+    Condition not_smi = NegateCondition(masm->CheckSmi(rbx));
+    __ Check(not_smi, "Unexpected initial map for InternalArray function");
+    __ CmpObjectType(rbx, MAP_TYPE, rcx);
+    __ Check(equal, "Unexpected initial map for InternalArray function");
+  }
+
+  // Run the native code for the InternalArray function called as a normal
+  // function.
+  ArrayNativeCode(masm, &generic_array_code);
+
+  // Jump to the generic array code in case the specialized code cannot handle
+  // the construction.
+  __ bind(&generic_array_code);
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->InternalArrayCodeGeneric();
+  __ Jump(array_code, RelocInfo::CODE_TARGET);
+}
+
+
 void Builtins::Generate_ArrayCode(MacroAssembler* masm) {
   // ----------- S t a t e -------------
   //  -- rax : argc
