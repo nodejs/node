@@ -785,6 +785,13 @@ struct uv_pipe_s {
 UV_EXTERN int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
 
 /*
+ * Connects two initialized pipes on different loops.
+ * Data written to one pipe will appear on the other side.
+ * This function is thread-safe.
+ */
+UV_EXTERN uv_err_t uv_pipe_pair(uv_pipe_t* a, uv_pipe_t* b);
+
+/*
  * Opens an existing file descriptor or HANDLE as a pipe.
  */
 UV_EXTERN void uv_pipe_open(uv_pipe_t*, uv_file file);
@@ -1313,7 +1320,8 @@ UV_EXTERN uv_err_t uv_dlopen(const char* filename, uv_lib_t* library);
 UV_EXTERN uv_err_t uv_dlclose(uv_lib_t library);
 
 /*
- * Retrieves a data pointer from a dynamic library.
+ * Retrieves a data pointer from a dynamic library. It is legal for a symbol to
+ * map to NULL.
  */
 UV_EXTERN uv_err_t uv_dlsym(uv_lib_t library, const char* name, void** ptr);
 

@@ -29,6 +29,7 @@ TEST_DECLARE   (tcp_ping_pong_v6)
 TEST_DECLARE   (tcp_ref)
 TEST_DECLARE   (tcp_ref2)
 TEST_DECLARE   (pipe_ping_pong)
+TEST_DECLARE   (pipe_pair)
 TEST_DECLARE   (delayed_accept)
 TEST_DECLARE   (multiple_listen)
 TEST_DECLARE   (tcp_writealot)
@@ -164,6 +165,8 @@ TASK_LIST_START
 
   TEST_ENTRY  (pipe_ping_pong)
   TEST_HELPER (pipe_ping_pong, pipe_echo_server)
+
+  TEST_ENTRY  (pipe_pair)
 
   TEST_ENTRY  (delayed_accept)
   TEST_ENTRY  (multiple_listen)

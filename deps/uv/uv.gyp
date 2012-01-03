@@ -302,6 +302,7 @@
         'test/test-ping-pong.c',
         'test/test-pipe-bind-error.c',
         'test/test-pipe-connect-error.c',
+        'test/test-pipe-pair.c',
         'test/test-platform-output.c',
         'test/test-process-title.c',
         'test/test-ref.c',

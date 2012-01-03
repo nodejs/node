@@ -91,6 +91,12 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
 }
 
 
+uv_err_t uv_pipe_pair(uv_pipe_t* a, uv_pipe_t* b) {
+  /* Implement me */
+  return uv__new_artificial_error(UV_ENOSYS);
+}
+
+
 static void uv_pipe_connection_init(uv_pipe_t* handle) {
   uv_connection_init((uv_stream_t*) handle);
   handle->read_req.data = handle;

@@ -185,4 +185,9 @@ void uv__udp_watcher_stop(uv_udp_t* handle, ev_io* w);
 /* fs */
 void uv__fs_event_destroy(uv_fs_event_t* handle);
 
+#define UV__F_IPC        (1 << 0)
+#define UV__F_NONBLOCK   (1 << 1)
+int uv__make_socketpair(int fds[2], int flags);
+int uv__make_pipe(int fds[2], int flags);
+
 #endif /* UV_UNIX_INTERNAL_H_ */
