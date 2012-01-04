@@ -101,7 +101,7 @@ if (cmd === 'install') {
   // Install npm (eventually)
   if (variables.node_install_npm == 'true') {
     copy('deps/npm', 'lib/node_modules/npm');
-    queue.push('ln -sF ../lib/node_modules/npm/bin/npm-cli.js ' +
+    queue.push('ln -sf ../lib/node_modules/npm/bin/npm-cli.js ' +
                path.join(node_prefix, 'bin/npm'));
   }
 } else {
