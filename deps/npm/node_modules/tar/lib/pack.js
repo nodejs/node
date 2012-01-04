@@ -158,12 +158,12 @@ Pack.prototype._process = function () {
       break
     case "Link":
       var lp = path.resolve(path.dirname(entry.path), entry.linkpath)
-      wprops.linkpath = path.relative(root, lp)
+      wprops.linkpath = path.relative(root, lp) || "."
       wprops.size = 0
       break
     case "SymbolicLink":
       var lp = path.resolve(path.dirname(entry.path), entry.linkpath)
-      wprops.linkpath = path.relative(path.dirname(entry.path), lp)
+      wprops.linkpath = path.relative(path.dirname(entry.path), lp) || "."
       wprops.size = 0
       break
   }

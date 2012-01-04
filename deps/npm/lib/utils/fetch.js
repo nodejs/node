@@ -61,7 +61,7 @@ function makeRequest (remote, fstr, headers) {
           , strictSSL: npm.config.get("strict-ssl")
           , onResponse: onResponse }).pipe(fstr)
   function onResponse (er, res) {
-    if (er) return cb(er)
+    if (er) return fstr.emit("error", er)
     log.http(res.statusCode + " " + remote.href)
   }
 }

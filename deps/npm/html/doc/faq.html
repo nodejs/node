@@ -38,35 +38,63 @@ command to see where executables go</li><li>Global installs are different from l
 something with the <code>-g</code> flag, then its executables go in <code>npm bin -g</code>
 and its modules go in <code>npm root -g</code>.</li></ul>
 
-<h2 id="How-do-I-install-something-everywhere">How do I install something everywhere?</h2>
+<h2 id="How-do-I-install-something-on-my-computer-in-a-central-location">How do I install something on my computer in a central location?</h2>
 
-<p>Install it globally by tacking <code>-g</code> or <code>--global</code> to the command.</p>
+<p>Install it globally by tacking <code>-g</code> or <code>--global</code> to the command.  (This
+is especially important for command line utilities that need to add
+their bins to the global system <code>PATH</code>.)</p>
 
 <h2 id="I-installed-something-globally-but-I-can-t-require-it">I installed something globally, but I can't `require()` it</h2>
 
 <p>Install it locally.</p>
 
-<h2 id="I-don-t-wanna">I don't wanna.</h2>
+<p>The global install location is a place for command-line utilities
+to put their bins in the system <code>PATH</code>.  It's not for use with <code>require()</code>.</p>
 
-<p>Check out <code>npm link</code>.  You might like it.</p>
+<p>If you <code>require()</code> a module in your code, then that means it's a
+dependency, and a part of your program.  You need to install it locally
+in your program.</p>
 
-<h2 id="No-I-really-want-0-x-style-everything-global-style">No, I really want 0.x style 'everything global' style.</h2>
+<h2 id="Why-can-t-npm-just-put-everything-in-one-place-like-other-package-managers">Why can't npm just put everything in one place, like other package managers?</h2>
 
-<p>Ok, fine.  Do this:</p>
+<p>Not every change is an improvement, but every improvement is a change.
+This would be like asking git to do network IO for every commit.  It's
+not going to happen, because it's a terrible idea that causes more
+problems than it solves.</p>
 
-<pre><code>echo 'export NODE_PATH="'$(npm root -g)'"' &gt;&gt; ~/.bashrc
-. ~/.bashrc
-npm config set global true</code></pre>
+<p>It is much harder to avoid dependency conflicts without nesting
+dependencies.  This is fundamental to the way that npm works, and has
+proven to be an extremely successful approach.  See <code><a href="../doc/folders.html">folders(1)</a></code> for
+more details.</p>
 
-<p>This is not recommended.</p>
+<p>If you want a package to be installed in one place, and have all your
+programs reference the same copy of it, then use the <code>npm link</code> command.
+That's what it's for.  Install it globally, then link it into each
+program that uses it.</p>
 
-<p>Many things <strong>will not work</strong> if you do this.  Make sure you read and
-understand <code><a href="../doc/config.html">config(1)</a></code> and <code><a href="../doc/global.html">global(1)</a></code> before you complain
-about things being broken.</p>
+<h2 id="Whatever-I-really-want-the-old-style-everything-global-style">Whatever, I really want the old style 'everything global' style.</h2>
 
-<p>When you realize what a mistake it was, do this to switch back:</p>
+<p>Write your own package manager, then.  It's not that hard.</p>
 
-<pre><code>npm config delete global --local</code></pre>
+<p>npm will not help you do something that is known to be a bad idea.</p>
+
+<h2 id="Should-I-check-my-node_modules-folder-into-git">Should I check my `node_modules` folder into git?</h2>
+
+<p>Mikeal Rogers answered this question very well:</p>
+
+<p><a href="http://www.mikealrogers.com/posts/nodemodules-in-git.html">http://www.mikealrogers.com/posts/nodemodules-in-git.html</a></p>
+
+<p>tl;dr</p>
+
+<ul><li>Check <code>node_modules</code> into git for things you <strong>deploy</strong>, such as
+websites and apps.</li><li>Do not check <code>node_modules</code> into git for libraries and modules
+intended to be reused.</li><li>Use npm to manage dependencies in your dev environment, but not in
+your deployment scripts.</li></ul>
+
+<h2 id="Is-it-npm-or-NPM-or-Npm">Is it 'npm' or 'NPM' or 'Npm'?</h2>
+
+<p>npm should never be capitalized unless it is being displayed in a
+location that is customarily all-caps (such as the title of man pages.)</p>
 
 <h2 id="If-npm-is-an-acronym-why-is-it-never-capitalized">If 'npm' is an acronym, why is it never capitalized?</h2>
 
@@ -79,7 +107,7 @@ acronym, and thus incorrectly named.)</p>
 National Association of Pastoral Musicians.  You can learn more
 about them at <a href="http://npm.org/">http://npm.org/</a>.</p>
 
-<p>In software, "NPM" is a non-parametric mapping utility written by
+<p>In software, "NPM" is a Non-Parametric Mapping utility written by
 Chris Rorden.  You can analyze pictures of brains with it.  Learn more
 about the (capitalized) NPM program at <a href="http://www.cabiatl.com/mricro/npm/">http://www.cabiatl.com/mricro/npm/</a>.</p>
 
@@ -183,12 +211,10 @@ means that publishes go over HTTP by default in those versions of node.</p>
 
 <h2 id="I-get-ECONNREFUSED-a-lot-What-s-up">I get ECONNREFUSED a lot.  What's up?</h2>
 
-<p>Either the registry is down, or node's DNS isn't able to reach out.
-This happens a lot if you don't follow <em>all</em> the steps in the Cygwin
-setup doc.</p>
+<p>Either the registry is down, or node's DNS isn't able to reach out.</p>
 
 <p>To check if the registry is down, open up
-<a href="http://registry.npmjs.org/-/short">http://registry.npmjs.org/-/short</a>
+<a href="http://registry.npmjs.org/">http://registry.npmjs.org/</a>
 in a web browser.  This will also tell you if you are just unable to
 access the internet for some reason.</p>
 
@@ -215,7 +241,7 @@ We'll have someone kick it or something.</p>
 
 <ul><li><a href="../doc/npm.html">npm(1)</a></li><li><a href="../doc/developers.html">developers(1)</a></li><li><a href="../doc/json.html">json(1)</a></li><li><a href="../doc/config.html">config(1)</a></li><li><a href="../doc/folders.html">folders(1)</a></li></ul>
 </div>
-<p id="footer">faq &mdash; npm@1.1.0-beta-7</p>
+<p id="footer">faq &mdash; npm@1.1.0-beta-10</p>
 <script>
 ;(function () {
 var wrapper = document.getElementById("wrapper")

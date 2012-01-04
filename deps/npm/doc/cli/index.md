@@ -54,6 +54,10 @@ npm-index(1) -- Index of all npm documentation
 
  Developer Guide
 
+## npm-disputes(1)
+
+ Handling Module Name Disputes
+
 ## npm-docs(1)
 
  Docs for a package in a web browser maybe

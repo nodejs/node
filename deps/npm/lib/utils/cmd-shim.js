@@ -20,7 +20,7 @@ var fs = require("graceful-fs")
   , path = require("path")
   , relativize = require("./relativize.js")
   , npm = require("../npm.js")
-  , shebangExpr = /^#\!(?:\/usr\/bin\/env )?([^ \t]+)(.*)$/
+  , shebangExpr = /^#\!\s*(?:\/usr\/bin\/env)?\s*([^ \t]+)(.*)$/
 
 function cmdShimIfExists (from, to, cb) {
   fs.stat(from, function (er) {

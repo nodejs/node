@@ -137,9 +137,39 @@ else
   clean="no"
 fi
 
+node_version=`"$node" --version 2>&1`
+ret=$?
+if [ $ret -ne 0 ]; then
+  echo "You need node to run this program." >&2
+  echo "node --version reports: $node_version" >&2
+  echo "with exit code = $ret" >&2
+  echo "Please install node before continuing." >&2
+  exit $ret
+fi
+
 t="${npm_install}"
 if [ -z "$t" ]; then
-  t="latest"
+  # switch based on node version.
+  # note that we can only use strict sh-compatible patterns here.
+  case $node_version in
+    0.[0123].* | v0.[0123].*)
+      echo "You are using an outdated and unsupported version of" >&2
+      echo "node ($node_version).  Please update node and try again." >&2
+      exit 99
+      ;;
+    v0.[45].* | 0.[45].*)
+      echo "install npm@1.0"
+      t=1.0
+      ;;
+    v0.[678].* | 0.[678].*)
+      echo "install npm@1.1"
+      t=1.1
+      ;;
+    *)
+      echo "install npm@latest"
+      t="latest"
+      ;;
+  esac
 fi
 
 # the npmca cert
@@ -196,22 +226,18 @@ cd "$TMP" \
      | $tar -xzf - \
   && rm "$cacert" \
   && cd "$TMP"/* \
-  && (node_version=`"$node" --version 2>&1`
-      ret=$?
-      if [ $ret -eq 0 ]; then
-        req=`"$node" bin/read-package-json.js package.json engines.node`
-        if [ -d node_modules ]; then
-          "$node" node_modules/semver/bin/semver -v "$node_version" -r "$req"
-          ret=$?
-        else
-          "$node" bin/semver.js -v "$node_version" -r "$req"
-          ret=$?
-        fi
+  && (req=`"$node" bin/read-package-json.js package.json engines.node`
+      if [ -d node_modules ]; then
+        "$node" node_modules/semver/bin/semver -v "$node_version" -r "$req"
+        ret=$?
+      else
+        "$node" bin/semver.js -v "$node_version" -r "$req"
+        ret=$?
       fi
       if [ $ret -ne 0 ]; then
         echo "You need node $req to run this program." >&2
         echo "node --version reports: $node_version" >&2
-        echo "Please upgrade node before continuing."
+        echo "Please upgrade node before continuing." >&2
         exit $ret
       fi) \
   && (ver=`"$node" bin/read-package-json.js package.json version`

@@ -108,18 +108,29 @@ version: link
 	git add package.json &&\
 	git ci -m v$(shell npm -v)
 
-publish: link
+publish: link doc
+	git tag -d v$(shell npm -v) || true
+	git push origin :v$(shell npm -v) || true
+	npm unpublish npm@$(shell npm -v) || true
 	git tag -s -m v$(shell npm -v) v$(shell npm -v) &&\
 	git push origin --tags &&\
 	npm publish &&\
-	make doc-publish
+	npm tag npm@$(shell npm -v) $(shell npm -v | awk -F. '{print $$1 "." $$2}') &&\
+	make doc-publish &&\
+	make zip-publish
 
 docpublish: doc-publish
 doc-publish: doc
 	rsync -vazu --stats --no-implied-dirs --delete html/doc/ npmjs.org:/var/www/npmjs.org/public/doc
 	rsync -vazu --stats --no-implied-dirs --delete html/api/ npmjs.org:/var/www/npmjs.org/public/api
 
+zip-publish: release
+	scp release/*.zip npmjs.org:/var/www/npmjs.org/public/dist/
+
+release:
+	@bash scripts/release.sh
+
 sandwich:
 	@[ $$(whoami) = "root" ] && (echo "ok"; echo "ham" > sandwich) || echo "make it yourself"
 
-.PHONY: all latest install dev link doc clean uninstall test man doc-publish doc-clean docclean docpublish
+.PHONY: all latest install dev link doc clean uninstall test man doc-publish doc-clean docclean docpublish release zip-publish

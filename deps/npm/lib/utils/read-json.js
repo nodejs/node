@@ -161,6 +161,7 @@ function typoWarn (json) {
               , "depdenencies": "dependencies"
               , "devEependencies": "devDependencies"
               , "depends": "dependencies"
+              , "dev-dependencies": "devDependencies"
               , "devDependences": "devDependencies"
               , "devDepenencies": "devDependencies"
               , "devdependencies": "devDependencies"
@@ -362,7 +363,7 @@ function processObject (opts, cb) { return function (er, json) {
   }
 
   ;["dependencies", "devDependencies"].forEach(function (d) {
-    json[d] = json[d] ? depObjectify(json[d]) : {}
+    json[d] = json.hasOwnProperty(d) ? depObjectify(json[d], d, json._id) : {}
   })
 
   if (opts.dev || npm.config.get("dev") || npm.config.get("npat")) {
@@ -394,7 +395,19 @@ function processObject (opts, cb) { return function (er, json) {
   return json
 }}
 
-function depObjectify (deps) {
+var depObjectifyWarn = {}
+function depObjectify (deps, d, id) {
+  if ((!deps || typeof deps !== "object" || Array.isArray(deps))
+      && !depObjectifyWarn[id+d]) {
+    log.warn( d + " field should be hash of <name>:<version-range> pairs"
+            , id )
+    depObjectifyWarn[id + d] = true
+  }
+
+  if (!deps) return {}
+  if (typeof deps === "string") {
+    deps = deps.trim().split(/[\n\r\s\t ,]+/)
+  }
   if (!Array.isArray(deps)) return deps
   var o = {}
   deps.forEach(function (d) {

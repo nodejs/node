@@ -71,6 +71,7 @@ function exec (cmd, shouldFail, cb) {
 
   // special: replace 'node' with the current execPath,
   // and 'npm' with the thing we installed.
+  var cmdShow = cmd
   cmd = cmd.replace(/^npm /, path.resolve(npmPath, "npm") + " ")
   cmd = cmd.replace(/^node /, process.execPath + " ")
 
@@ -85,11 +86,11 @@ function exec (cmd, shouldFail, cb) {
     execCount ++
     if (!shouldFail && !er || shouldFail && er) {
       // stdout = (""+stdout).trim()
-      console.log("ok " + execCount + " " + cmd)
+      console.log("ok " + execCount + " " + cmdShow)
       return cb()
     } else {
-      console.log("not ok " + execCount + " " + cmd)
-      cb(new Error("failed "+cmd))
+      console.log("not ok " + execCount + " " + cmdShow)
+      cb(new Error("failed "+cmdShow))
     }
   })
 }
