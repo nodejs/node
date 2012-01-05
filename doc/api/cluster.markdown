@@ -101,6 +101,40 @@ This can be used to restart the worker by calling `fork()` again.
       cluster.fork();
     });
 
+### Event 'setup'
+
+When the `.setupMaster()` function has been executed this event emits. If `.setupMaster()`
+was not executed before `fork()` or `.autoFork()`, they will execute the function with no
+arguments.
+
+### cluster.setupMaster([options])
+
+The `setupMaster` is used to change the default 'fork' behavior. It takes one option
+object argument.
+
+Example:
+
+    var cluster = require("cluster");
+    cluster.setupMaster({
+      exec : "worker.js",
+      args : ["--use", "https"],
+      silent : true
+    });
+    cluster.autoFork();
+
+The options argument can contain 3 different properties.
+
+- `exec` are the file path to the worker file, by default this is the same file as the master.
+- `args` are a array of arguments send along with the worker, by default this is `process.argv.slice(2)`.
+- `silent`, if this option is true the output of a worker won't propagate to the master, by default this is false.
+
+### cluster.settings
+
+All settings set by the `.setupMaster` is stored in this settings object.
+This object is not supposed to be change or set manually, by you.
+
+All propertys are `undefined` if they are not yet set.
+
 ### cluster.fork([env])
 
 Spawn a new worker process. This can only be called from the master process.
