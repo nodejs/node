@@ -110,9 +110,9 @@ will be added to the process environment in the worker.
 ### cluster.workers
 
 In the cluster all living worker objects are stored in this object by there
-`uniqueID` as the key. This makes it easy to loop thouge all liveing workers.
+`uniqueID` as the key. This makes it easy to loop through all living workers.
 
-    // Go througe all workers
+    // Go through all workers
     function eachWorker(callback) {
       for (var uniqueID in cluster.workers) {
         callback(cluster.workers[uniqueID]);
@@ -122,8 +122,8 @@ In the cluster all living worker objects are stored in this object by there
       worker.send('big announcement to all workers');
     });
 
-Should you wich to reference a worker over a communication channel this unsing
-there `uniqueID` this is also the easies way to find the worker.
+Should you wish to reference a worker over a communication channel, using
+the worker's uniqueID is the easiest way to find the worker.
 
     socket.on('data', function (uniqueID) {
       var worker = cluster.workers[uniqueID];
@@ -132,12 +132,12 @@ there `uniqueID` this is also the easies way to find the worker.
 ## Worker
 
 This object contains all public information and method about a worker.
-In the master it can be obtainedusing `cluster.workers`. In a worker
-it can be obtained ained using `cluster.worker`.
+In the master it can be obtained using `cluster.workers`. In a worker
+it can be obtained using `cluster.worker`.
 
 ### Worker.uniqueID
 
-Each new worker is given its own unique id, this id i stored in the `uniqueID`.
+Each new worker is given its own unique id, this id is stored in the `uniqueID`.
 
 ### Worker.process
 
@@ -166,7 +166,7 @@ This example will echo back all messages from the master:
 ### Worker.destroy()
 
 This function will kill the worker, and inform the master to not spawn a new worker.
-To know the difference between suicide and accidently death a suicide boolean is set to true.
+To know the difference between suicide and accidentally death a suicide boolean is set to true.
 
     cluster.on('death', function (worker) {
       if (worker.suicide === true) {
