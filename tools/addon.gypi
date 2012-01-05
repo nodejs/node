@@ -2,6 +2,7 @@
   'target_defaults': {
     'type': 'loadable_module',
     'product_extension': 'node',
+    'product_prefix': '',
     'include_dirs': [
       '../src',
       '../deps/uv/include',
