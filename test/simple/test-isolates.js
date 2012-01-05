@@ -6,7 +6,14 @@ console.log("count: %d", isolates.count());
 
 if (process.tid === 1) {
   var isolate = isolates.create(process.argv);
-  //process._joinIsolate(isolate);
+
+  isolate.onmessage = function() {
+    console.error("onmessage");
+  };
+  isolate.onexit = function() {
+    console.error("onexit");
+  };
+
   console.error("master");
   fs.stat(__dirname, function(err, stat) {
     if (err) throw err;

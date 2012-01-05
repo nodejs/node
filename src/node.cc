@@ -2664,6 +2664,12 @@ void StartThread(node::Isolate* isolate,
   process_l->Set(String::NewSymbol("tid"),
                  Integer::NewFromUnsigned(isolate->id_));
 
+  // TODO check (isolate->channel_ != NULL)
+  if (isolate->id_ > 1) {
+    process_l->Set(String::NewSymbol("_send"),
+                   FunctionTemplate::New(Isolate::Send)->GetFunction());
+  }
+
   // FIXME crashes with "CHECK(heap->isolate() == Isolate::Current()) failed"
   //v8_typed_array::AttachBindings(v8::Context::GetCurrent()->Global());
 

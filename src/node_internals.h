@@ -47,59 +47,13 @@ void StartThread(Isolate* isolate, int argc, char** argv);
 #define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
 
-//
-// isolates support
-//
-#if HAVE_ISOLATES
+#define DISALLOW_COPY_AND_ASSIGN(TypeName)        \
+  TypeName(const TypeName&);                      \
+  void operator=(const TypeName&)
 
-# if _WIN32
-#  define THREAD __declspec(thread)
-# else
-#  define THREAD __thread
-# endif
-
-# define TLS(type, name)      THREAD type* __tls_##name
-# define VAR(name)            (*__tls_##name)
-# define EMPTY(name)          (__tls_##name == NULL)
-# define ASSIGN(name, val)    ((__tls_##name) = P(val))
-
-# define LAZY_ASSIGN(name, val) \
-  do if (!__tls_##name) ((__tls_##name) = P(val)); while (0)
-
-template <class T> inline v8::Persistent<T>* P(v8::Handle<T> v)
-{
-  return new v8::Persistent<T>(v8::Persistent<T>::New(v));
-}
-
-inline v8::Persistent<v8::String>* P(const char* symbol)
-{
-  return new v8::Persistent<v8::String>(
-    v8::Persistent<v8::String>::New(
-      v8::String::NewSymbol(symbol)));
-}
-
-#else // !HAVE_ISOLATES
-
-# define THREAD             /* nothing */
-# define TLS(type, name)    type name
-# define VAR(name)          (name)
-# define EMPTY(name)        ((name).IsEmpty())
-# define ASSIGN(name, val)  ((name) = P(val))
-
-# define LAZY_ASSIGN(name, val) \
-  do if ((name).IsEmpty()) (name) = P(val); while (0)
-
-template <class T> inline v8::Persistent<T> P(v8::Handle<T> v)
-{
-  return v8::Persistent<T>(v);
-}
-
-inline v8::Persistent<v8::String> P(const char* symbol)
-{
-  return v8::Persistent<v8::String>::New(
-    v8::String::NewSymbol(symbol));
-}
-#endif // HAVE_ISOLATES
+#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
+  TypeName();                                     \
+  DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 } // namespace node
 

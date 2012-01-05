@@ -42,6 +42,10 @@
 
 namespace node {
 
+class IsolateWrap;
+class IsolateChannel;
+class IsolateMessage;
+
 class Isolate {
 public:
   char** argv_;
@@ -55,6 +59,7 @@ public:
   typedef void (*AtExitCallback)(void* arg);
 
   static void JoinAll();
+  static v8::Handle<v8::Value> Send(const v8::Arguments& args);
 
   static Isolate* GetCurrent() {
     return reinterpret_cast<Isolate*>(v8::Isolate::GetCurrent()->GetData());
@@ -86,29 +91,34 @@ public:
 
   // This constructor is used for every non-main thread
   Isolate();
-
-  ~Isolate() {
-    if (argv_) {
-      delete argv_;
-    }
-  }
+  ~Isolate();
 
   void Enter();
+  void Exit();
 
   /* Shutdown the isolate. Call this method at thread death. */
   void Dispose();
 
 private:
+  friend class IsolateWrap;
 
   struct AtExitCallbackInfo {
-    ngx_queue_t at_exit_callbacks_;
     AtExitCallback callback_;
+    ngx_queue_t queue_;
     void* arg_;
   };
+
+  static void OnMessage(IsolateMessage*, void*);
+
+  // Forbid implicit constructors and copy constructors
+  void operator=(const Isolate&) {}
+  Isolate(const Isolate&) {}
 
   ngx_queue_t at_exit_callbacks_;
   v8::Persistent<v8::Context> v8_context_;
   v8::Isolate* v8_isolate_;
+  IsolateChannel* send_channel_;
+  IsolateChannel* recv_channel_;
   uv_loop_t* loop_;
 
   // Each isolate is a member of the static list_head.
