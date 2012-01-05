@@ -2709,10 +2709,6 @@ int Start(int argc, char *argv[]) {
   StartThread(isolate, argc, argv);
   isolate->Dispose();
 
-  // The main thread/isolate is done. Wait for all other thread/isolates to
-  // finish.
-  node::Isolate::JoinAll();
-
 #ifndef NDEBUG
   // Clean up.
   V8::Dispose();

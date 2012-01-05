@@ -58,7 +58,6 @@ public:
 
   typedef void (*AtExitCallback)(void* arg);
 
-  static void JoinAll();
   static v8::Handle<v8::Value> Send(const v8::Arguments& args);
 
   static Isolate* GetCurrent() {
@@ -120,9 +119,6 @@ private:
   IsolateChannel* send_channel_;
   IsolateChannel* recv_channel_;
   uv_loop_t* loop_;
-
-  // Each isolate is a member of the static list_head.
-  ngx_queue_t list_member_;
 
   // Global variables for this isolate.
   struct globals globals_;

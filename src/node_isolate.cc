@@ -53,9 +53,7 @@ using v8::Undefined;
 static volatile bool initialized;
 static volatile int id;
 static volatile int isolate_count;
-static uv_mutex_t list_lock;
-static ngx_queue_t list_head;
-
+static uv_mutex_t isolate_mutex;
 
 #ifdef NDEBUG
 # define IF_DEBUG(expr)
@@ -217,39 +215,18 @@ void Isolate::OnMessage(IsolateMessage* msg, void* arg) {
 
 
 void Isolate::Initialize() {
-  if (!initialized) {
-    initialized = true;
-    if (uv_mutex_init(&list_lock)) abort();
-    ngx_queue_init(&list_head);
-  }
+  if (initialized) return;
+  if (uv_mutex_init(&isolate_mutex)) abort();
+  initialized = true;
 }
 
 
 int Isolate::Count() {
-  return isolate_count;
-}
-
-
-void Isolate::JoinAll() {
-  uv_mutex_lock(&list_lock);
-
-  while (ngx_queue_empty(&list_head) == false) {
-    ngx_queue_t* q = ngx_queue_head(&list_head);
-    assert(q);
-    Isolate* isolate = ngx_queue_data(q, Isolate, list_member_);
-    assert(isolate);
-
-    // Unlock the list while we join the thread.
-    uv_mutex_unlock(&list_lock);
-
-    uv_thread_join(&isolate->tid_);
-
-    // Relock to check the next element in the list.
-    uv_mutex_lock(&list_lock);
-  }
-
-  // Unlock the list finally.
-  uv_mutex_unlock(&list_lock);
+  int count;
+  uv_mutex_lock(&isolate_mutex);
+  count = isolate_count;
+  uv_mutex_unlock(&isolate_mutex);
+  return count;
 }
 
 
@@ -257,11 +234,11 @@ Isolate::Isolate() {
   send_channel_ = NULL; // set (and deleted) by the parent isolate
   recv_channel_ = NULL;
 
-  uv_mutex_lock(&list_lock);
-
+  uv_mutex_lock(&isolate_mutex);
   assert(initialized && "node::Isolate::Initialize() hasn't been called");
-
+  isolate_count++;
   id_ = ++id;
+  uv_mutex_unlock(&isolate_mutex);
 
   if (id_ == 1) {
     loop_ = uv_default_loop();
@@ -270,14 +247,6 @@ Isolate::Isolate() {
   }
 
   ngx_queue_init(&at_exit_callbacks_);
-
-  ngx_queue_init(&list_member_);
-
-  // Add this isolate into the list of all isolates.
-  ngx_queue_insert_tail(&list_head, &list_member_);
-  isolate_count++;
-
-  uv_mutex_unlock(&list_lock);
 
   v8_isolate_ = v8::Isolate::New();
   assert(v8_isolate_->GetData() == NULL);
@@ -336,8 +305,6 @@ void Isolate::Exit() {
 
 
 void Isolate::Dispose() {
-  uv_mutex_lock(&list_lock);
-
   NODE_ISOLATE_CHECK(this);
 
   while (!ngx_queue_empty(&at_exit_callbacks_)) {
@@ -359,12 +326,10 @@ void Isolate::Dispose() {
   v8_isolate_->Dispose();
   v8_isolate_ = NULL;
 
-  ngx_queue_remove(&list_member_);
+  uv_mutex_lock(&isolate_mutex);
   isolate_count--;
   assert(isolate_count >= 0);
-  assert(isolate_count > 0 || ngx_queue_empty(&list_head));
-
-  uv_mutex_unlock(&list_lock);
+  uv_mutex_unlock(&isolate_mutex);
 }
 
 
