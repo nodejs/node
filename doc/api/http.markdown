@@ -247,6 +247,13 @@ authentication details.
 This object is created internally by a HTTP server--not by the user. It is
 passed as the second parameter to the `'request'` event. It is a `Writable Stream`.
 
+### Event: 'close'
+
+`function () { }`
+
+Indicates that the underlaying connection was terminated before
+`response.end()` was called or able to flush.
+
 ### response.writeContinue()
 
 Sends a HTTP/1.1 100 Continue message to the client, indicating that
