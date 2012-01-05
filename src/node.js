@@ -120,6 +120,21 @@
         });
       }
     }
+
+    if (process.tid === 1) return;
+
+    // isolate initialization
+    process.send = function(msg) {
+      if (typeof msg === 'undefined') throw new TypeError('Bad argument.');
+      msg = JSON.stringify(msg);
+      msg = new Buffer(msg);
+      return process._send(msg);
+    };
+
+    process._onmessage = function(msg) {
+      msg = JSON.parse('' + msg);
+      process.emit('message', msg);
+    };
   }
 
   startup.globalVariables = function() {
