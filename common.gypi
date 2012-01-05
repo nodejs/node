@@ -127,9 +127,7 @@
           }],
           [ 'OS=="linux"', {
             'cflags': [ '-ansi' ],
-          }],
-          [ 'visibility=="hidden"', {
-            'cflags': [ '-fvisibility=hidden' ],
+            'ldflags': [ '-rdynamic' ],
           }],
         ],
       }],
