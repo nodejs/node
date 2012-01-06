@@ -166,7 +166,6 @@ void SecureContext::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "addRootCerts", SecureContext::AddRootCerts);
   NODE_SET_PROTOTYPE_METHOD(t, "setCiphers", SecureContext::SetCiphers);
   NODE_SET_PROTOTYPE_METHOD(t, "setOptions", SecureContext::SetOptions);
-  NODE_SET_PROTOTYPE_METHOD(t, "clearOptions", SecureContext::ClearOptions);
   NODE_SET_PROTOTYPE_METHOD(t, "setSessionIdContext",
                                SecureContext::SetSessionIdContext);
   NODE_SET_PROTOTYPE_METHOD(t, "close", SecureContext::Close);
@@ -541,23 +540,21 @@ Handle<Value> SecureContext::SetCiphers(const Arguments& args) {
   return True();
 }
 
-#define X(name, fn)                                                           \
-  Handle<Value> name(const Arguments& args) {                                 \
-    HandleScope scope;                                                        \
-    SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());     \
-    if (args.Length() != 1 || !args[0]->IsInt32()) {                          \
-      return ThrowException(                                                  \
-          Exception::TypeError(String::New("Bad parameter")));                \
-    }                                                                         \
-    fn(sc->ctx_, args[0]->Int32Value());                                      \
-    return True();                                                            \
+Handle<Value> SecureContext::SetOptions(const Arguments& args) {
+  HandleScope scope;
+
+  SecureContext *sc = ObjectWrap::Unwrap<SecureContext>(args.Holder());
+
+  if (args.Length() != 1 || !args[0]->IsUint32()) {
+    return ThrowException(Exception::TypeError(String::New("Bad parameter")));
   }
 
-// can't use templates, SSL_CTX_set_options and SSL_CTX_clear_options are macros
-X(SecureContext::SetOptions,   SSL_CTX_set_options)
-X(SecureContext::ClearOptions, SSL_CTX_clear_options)
+  unsigned int opts = args[0]->Uint32Value();
 
-#undef X
+  SSL_CTX_set_options(sc->ctx_, opts);
+
+  return True();
+}
 
 Handle<Value> SecureContext::SetSessionIdContext(const Arguments& args) {
   HandleScope scope;
