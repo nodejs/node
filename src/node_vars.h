@@ -58,7 +58,6 @@ struct globals {
   int64_t tick_times[RPM_SAMPLES];
   int tick_time_head;
   int uncaught_exception_counter;
-  uv_async_t debug_watcher;
   v8::Persistent<v8::Object> binding_cache;
   v8::Persistent<v8::Array> module_load_list;
   v8::Isolate* node_isolate;

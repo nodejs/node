@@ -122,7 +122,6 @@ extern char **environ;
 #define use_npn NODE_VAR(use_npn)
 #define use_sni NODE_VAR(use_sni)
 #define uncaught_exception_counter NODE_VAR(uncaught_exception_counter)
-#define debug_watcher NODE_VAR(debug_watcher)
 #define binding_cache NODE_VAR(binding_cache)
 #define module_load_list NODE_VAR(module_load_list)
 #define node_isolate NODE_VAR(node_isolate)
@@ -1783,21 +1782,6 @@ void FatalException(TryCatch &try_catch) {
 }
 
 
-static void DebugMessageCallback(uv_async_t* watcher, int status) {
-  HandleScope scope;
-  assert(watcher == &debug_watcher);
-  v8::Debug::ProcessDebugMessages();
-}
-
-static void DebugMessageDispatch(void) {
-  // This function is called from V8's debug thread when a debug TCP client
-  // has sent a message.
-
-  // Send a signal to our main thread saying that it should enter V8 to
-  // handle the message.
-  uv_async_send(&debug_watcher);
-}
-
 static void DebugBreakMessageHandler(const v8::Debug::Message& message) {
   // do nothing with debug messages.
   // The message handler will get changed by DebuggerAgent::CreateSession in
@@ -2635,18 +2619,6 @@ void StartThread(node::Isolate* isolate,
   uv_unref(loop);
 
   V8::SetFatalErrorHandler(node::OnFatalError);
-
-  // Set the callback DebugMessageDispatch which is called from the debug
-  // thread.
-  v8::Debug::SetDebugMessageDispatchHandler(node::DebugMessageDispatch);
-
-  // Initialize the async watcher. DebugMessageCallback() is called from the
-  // main thread to execute a random bit of javascript - which will give V8
-  // control so it can handle whatever new message had been received on the
-  // debug thread.
-  uv_async_init(loop, &debug_watcher, node::DebugMessageCallback);
-  // unref it so that we exit the event loop despite it being active.
-  uv_unref(loop);
 
   // Fetch a reference to the main isolate, so we have a reference to it
   // even when we need it to access it from another (debugger) thread.
