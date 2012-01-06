@@ -2318,6 +2318,10 @@ bool Heap::CreateInitialObjects() {
   }
   set_infinity_value(HeapNumber::cast(obj));
 
+  // The hole has not been created yet, but we want to put something
+  // predictable in the gaps in the symbol table, so lets make that Smi zero.
+  set_the_hole_value(reinterpret_cast<Oddball*>(Smi::FromInt(0)));
+
   // Allocate initial symbol table.
   { MaybeObject* maybe_obj = SymbolTable::Allocate(kInitialSymbolTableSize);
     if (!maybe_obj->ToObject(&obj)) return false;
@@ -5638,6 +5642,18 @@ bool Heap::Setup(bool create_heap_objects) {
   lo_space_ = new LargeObjectSpace(this, max_old_generation_size_, LO_SPACE);
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
+
+  // Setup the seed that is used to randomize the string hash function.
+  ASSERT(string_hash_seed() == 0);
+  if (FLAG_randomize_string_hashes) {
+    if (FLAG_string_hash_seed == 0) {
+      set_string_hash_seed(
+          Smi::FromInt(V8::RandomPrivate(isolate()) & 0x3fffffff));
+    } else {
+      set_string_hash_seed(Smi::FromInt(FLAG_string_hash_seed));
+    }
+  }
+
   if (create_heap_objects) {
     // Create initial maps.
     if (!CreateInitialMaps()) return false;

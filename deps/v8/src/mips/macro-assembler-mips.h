@@ -264,6 +264,14 @@ class MacroAssembler: public Assembler {
 
   void LoadHeapObject(Register dst, Handle<HeapObject> object);
 
+  void LoadObject(Register result, Handle<Object> object) {
+    if (object->IsHeapObject()) {
+      LoadHeapObject(result, Handle<HeapObject>::cast(object));
+    } else {
+      li(result, object);
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // GC Support
 

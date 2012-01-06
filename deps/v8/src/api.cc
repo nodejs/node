@@ -78,7 +78,7 @@ namespace v8 {
   bool has_pending_exception = false
 
 
-#define EXCEPTION_BAILOUT_CHECK(isolate, value)                                \
+#define EXCEPTION_BAILOUT_CHECK_GENERIC(isolate, value, do_callback)           \
   do {                                                                         \
     i::HandleScopeImplementer* handle_scope_implementer =                      \
         (isolate)->handle_scope_implementer();                                 \
@@ -91,9 +91,20 @@ namespace v8 {
       }                                                                        \
       bool call_depth_is_zero = handle_scope_implementer->CallDepthIsZero();   \
       (isolate)->OptionalRescheduleException(call_depth_is_zero);              \
+      do_callback                                                              \
       return value;                                                            \
     }                                                                          \
+    do_callback                                                                \
   } while (false)
+
+
+#define EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, value)                    \
+  EXCEPTION_BAILOUT_CHECK_GENERIC(                                             \
+      isolate, value, i::V8::FireCallCompletedCallback(isolate);)
+
+
+#define EXCEPTION_BAILOUT_CHECK(isolate, value)                                \
+  EXCEPTION_BAILOUT_CHECK_GENERIC(isolate, value, ;)
 
 
 #define API_ENTRY_CHECK(isolate, msg)                                          \
@@ -1568,7 +1579,7 @@ Local<Value> Script::Run() {
         isolate->context()->global_proxy(), isolate);
     i::Handle<i::Object> result =
         i::Execution::Call(fun, receiver, 0, NULL, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
     raw_result = *result;
   }
   i::Handle<i::Object> result(raw_result, isolate);
@@ -3494,7 +3505,7 @@ Local<v8::Value> Object::CallAsFunction(v8::Handle<v8::Object> recv,
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned =
       i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<Value>());
+  EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Value>());
   return Utils::ToLocal(scope.CloseAndEscape(returned));
 }
 
@@ -3515,7 +3526,7 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned =
         i::Execution::New(fun, argc, args, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
     return Utils::ToLocal(scope.CloseAndEscape(
         i::Handle<i::JSObject>::cast(returned)));
   }
@@ -3528,7 +3539,7 @@ Local<v8::Value> Object::CallAsConstructor(int argc,
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned =
         i::Execution::Call(fun, obj, argc, args, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
     ASSERT(!delegate->IsUndefined());
     return Utils::ToLocal(scope.CloseAndEscape(returned));
   }
@@ -3555,7 +3566,7 @@ Local<v8::Object> Function::NewInstance(int argc,
   EXCEPTION_PREAMBLE(isolate);
   i::Handle<i::Object> returned =
       i::Execution::New(function, argc, args, &has_pending_exception);
-  EXCEPTION_BAILOUT_CHECK(isolate, Local<v8::Object>());
+  EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<v8::Object>());
   return scope.Close(Utils::ToLocal(i::Handle<i::JSObject>::cast(returned)));
 }
 
@@ -3576,7 +3587,7 @@ Local<v8::Value> Function::Call(v8::Handle<v8::Object> recv, int argc,
     EXCEPTION_PREAMBLE(isolate);
     i::Handle<i::Object> returned =
         i::Execution::Call(fun, recv_obj, argc, args, &has_pending_exception);
-    EXCEPTION_BAILOUT_CHECK(isolate, Local<Object>());
+    EXCEPTION_BAILOUT_CHECK_DO_CALLBACK(isolate, Local<Object>());
     raw_result = *returned;
   }
   i::Handle<i::Object> result(raw_result);
@@ -5042,6 +5053,21 @@ void V8::RemoveMemoryAllocationCallback(MemoryAllocationCallback callback) {
   if (IsDeadCheck(isolate, "v8::V8::RemoveMemoryAllocationCallback()")) return;
   isolate->memory_allocator()->RemoveMemoryAllocationCallback(
       callback);
+}
+
+
+void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
+  if (callback == NULL) return;
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::AddLeaveScriptCallback()")) return;
+  i::V8::AddCallCompletedCallback(callback);
+}
+
+
+void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  i::Isolate* isolate = i::Isolate::Current();
+  if (IsDeadCheck(isolate, "v8::V8::RemoveLeaveScriptCallback()")) return;
+  i::V8::RemoveCallCompletedCallback(callback);
 }
 
 

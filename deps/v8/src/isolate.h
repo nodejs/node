@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -106,15 +106,21 @@ class Simulator;
 // of handles to the actual constants.
 typedef ZoneList<Handle<Object> > ZoneObjectList;
 
-#define RETURN_IF_SCHEDULED_EXCEPTION(isolate)    \
-  if (isolate->has_scheduled_exception())         \
-      return isolate->PromoteScheduledException()
+#define RETURN_IF_SCHEDULED_EXCEPTION(isolate)            \
+  do {                                                    \
+    Isolate* __isolate__ = (isolate);                     \
+    if (__isolate__->has_scheduled_exception()) {         \
+      return __isolate__->PromoteScheduledException();    \
+    }                                                     \
+  } while (false)
 
 #define RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, value) \
-  if (call.is_null()) {                                    \
-    ASSERT(isolate->has_pending_exception());              \
-    return value;                                          \
-  }
+  do {                                                     \
+    if ((call).is_null()) {                                \
+      ASSERT((isolate)->has_pending_exception());          \
+      return (value);                                      \
+    }                                                      \
+  } while (false)
 
 #define RETURN_IF_EMPTY_HANDLE(isolate, call)                       \
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, Failure::Exception())

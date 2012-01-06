@@ -6033,10 +6033,24 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character,
                                     Register scratch) {
-  // hash = character + (character << 10);
-  __ mov(hash, character);
-  __ shl(hash, 10);
-  __ add(hash, character);
+  // hash = (seed + character) + ((seed + character) << 10);
+  if (Serializer::enabled()) {
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(masm->isolate());
+    __ mov(scratch, Immediate(Heap::kStringHashSeedRootIndex));
+    __ mov(scratch, Operand::StaticArray(scratch,
+                                         times_pointer_size,
+                                         roots_array_start));
+    __ add(scratch, character);
+    __ mov(hash, scratch);
+    __ shl(scratch, 10);
+    __ add(hash, scratch);
+  } else {
+    int32_t seed = masm->isolate()->heap()->StringHashSeed();
+    __ lea(scratch, Operand(character, seed));
+    __ shl(scratch, 10);
+    __ lea(hash, Operand(scratch, character, times_1, seed));
+  }
   // hash ^= hash >> 6;
   __ mov(scratch, hash);
   __ shr(scratch, 6);

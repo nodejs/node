@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -265,16 +265,16 @@ extern bool FLAG_enable_slow_asserts;
 // The ASSERT macro is equivalent to CHECK except that it only
 // generates code in debug builds.
 #ifdef DEBUG
-#define ASSERT_RESULT(expr)  CHECK(expr)
-#define ASSERT(condition)    CHECK(condition)
-#define ASSERT_EQ(v1, v2)    CHECK_EQ(v1, v2)
-#define ASSERT_NE(v1, v2)    CHECK_NE(v1, v2)
-#define ASSERT_GE(v1, v2)    CHECK_GE(v1, v2)
-#define ASSERT_LT(v1, v2)    CHECK_LT(v1, v2)
-#define ASSERT_LE(v1, v2)    CHECK_LE(v1, v2)
-#define SLOW_ASSERT(condition) if (FLAG_enable_slow_asserts) CHECK(condition)
+#define ASSERT_RESULT(expr)    CHECK(expr)
+#define ASSERT(condition)      CHECK(condition)
+#define ASSERT_EQ(v1, v2)      CHECK_EQ(v1, v2)
+#define ASSERT_NE(v1, v2)      CHECK_NE(v1, v2)
+#define ASSERT_GE(v1, v2)      CHECK_GE(v1, v2)
+#define ASSERT_LT(v1, v2)      CHECK_LT(v1, v2)
+#define ASSERT_LE(v1, v2)      CHECK_LE(v1, v2)
+#define SLOW_ASSERT(condition) CHECK(!FLAG_enable_slow_asserts || (condition))
 #else
-#define ASSERT_RESULT(expr)     (expr)
+#define ASSERT_RESULT(expr)    (expr)
 #define ASSERT(condition)      ((void) 0)
 #define ASSERT_EQ(v1, v2)      ((void) 0)
 #define ASSERT_NE(v1, v2)      ((void) 0)

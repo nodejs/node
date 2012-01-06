@@ -47,6 +47,10 @@ function SetConstructor() {
 
 
 function SetAdd(key) {
+  if (!IS_SET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Set.prototype.add', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -55,6 +59,10 @@ function SetAdd(key) {
 
 
 function SetHas(key) {
+  if (!IS_SET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Set.prototype.has', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -63,6 +71,10 @@ function SetHas(key) {
 
 
 function SetDelete(key) {
+  if (!IS_SET(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Set.prototype.delete', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -80,6 +92,10 @@ function MapConstructor() {
 
 
 function MapGet(key) {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.get', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -88,6 +104,10 @@ function MapGet(key) {
 
 
 function MapSet(key, value) {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.set', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -96,6 +116,10 @@ function MapSet(key, value) {
 
 
 function MapHas(key) {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.has', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -104,6 +128,10 @@ function MapHas(key) {
 
 
 function MapDelete(key) {
+  if (!IS_MAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['Map.prototype.delete', this]);
+  }
   if (IS_UNDEFINED(key)) {
     key = undefined_sentinel;
   }
@@ -126,6 +154,10 @@ function WeakMapConstructor() {
 
 
 function WeakMapGet(key) {
+  if (!IS_WEAKMAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakMap.prototype.get', this]);
+  }
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
@@ -134,6 +166,10 @@ function WeakMapGet(key) {
 
 
 function WeakMapSet(key, value) {
+  if (!IS_WEAKMAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakMap.prototype.set', this]);
+  }
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
@@ -142,6 +178,10 @@ function WeakMapSet(key, value) {
 
 
 function WeakMapHas(key) {
+  if (!IS_WEAKMAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakMap.prototype.has', this]);
+  }
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }
@@ -150,6 +190,10 @@ function WeakMapHas(key) {
 
 
 function WeakMapDelete(key) {
+  if (!IS_WEAKMAP(this)) {
+    throw MakeTypeError('incompatible_method_receiver',
+                        ['WeakMap.prototype.delete', this]);
+  }
   if (!IS_SPEC_OBJECT(key)) {
     throw %MakeTypeError('invalid_weakmap_key', [this, key]);
   }

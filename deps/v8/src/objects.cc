@@ -6682,6 +6682,20 @@ bool String::SlowEquals(String* other) {
   // Fast check: if hash code is computed for both strings
   // a fast negative check can be performed.
   if (HasHashCode() && other->HasHashCode()) {
+#ifdef DEBUG
+    if (FLAG_enable_slow_asserts) {
+      if (Hash() != other->Hash()) {
+        bool found_difference = false;
+        for (int i = 0; i < len; i++) {
+          if (Get(i) != other->Get(i)) {
+            found_difference = true;
+            break;
+          }
+        }
+        ASSERT(found_difference);
+      }
+    }
+#endif
     if (Hash() != other->Hash()) return false;
   }
 
@@ -6817,12 +6831,16 @@ uint32_t String::ComputeAndSetHash() {
   // Compute the hash code.
   uint32_t field = 0;
   if (StringShape(this).IsSequentialAscii()) {
-    field = HashSequentialString(SeqAsciiString::cast(this)->GetChars(), len);
+    field = HashSequentialString(SeqAsciiString::cast(this)->GetChars(),
+                                 len,
+                                 GetHeap()->StringHashSeed());
   } else if (StringShape(this).IsSequentialTwoByte()) {
-    field = HashSequentialString(SeqTwoByteString::cast(this)->GetChars(), len);
+    field = HashSequentialString(SeqTwoByteString::cast(this)->GetChars(),
+                                 len,
+                                 GetHeap()->StringHashSeed());
   } else {
     StringInputBuffer buffer(this);
-    field = ComputeHashField(&buffer, len);
+    field = ComputeHashField(&buffer, len, GetHeap()->StringHashSeed());
   }
 
   // Store the hash code in the object.
@@ -6913,8 +6931,9 @@ uint32_t StringHasher::GetHashField() {
 
 
 uint32_t String::ComputeHashField(unibrow::CharacterStream* buffer,
-                                  int length) {
-  StringHasher hasher(length);
+                                  int length,
+                                  uint32_t seed) {
+  StringHasher hasher(length, seed);
 
   // Very long strings have a trivial hash that doesn't inspect the
   // string contents.
@@ -10456,8 +10475,8 @@ class RegExpKey : public HashTableKey {
 // Utf8SymbolKey carries a vector of chars as key.
 class Utf8SymbolKey : public HashTableKey {
  public:
-  explicit Utf8SymbolKey(Vector<const char> string)
-      : string_(string), hash_field_(0) { }
+  explicit Utf8SymbolKey(Vector<const char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) { }
 
   bool IsMatch(Object* string) {
     return String::cast(string)->IsEqualTo(string_);
@@ -10468,7 +10487,7 @@ class Utf8SymbolKey : public HashTableKey {
     unibrow::Utf8InputBuffer<> buffer(string_.start(),
                                       static_cast<unsigned>(string_.length()));
     chars_ = buffer.Length();
-    hash_field_ = String::ComputeHashField(&buffer, chars_);
+    hash_field_ = String::ComputeHashField(&buffer, chars_, seed_);
     uint32_t result = hash_field_ >> String::kHashShift;
     ASSERT(result != 0);  // Ensure that the hash value of 0 is never computed.
     return result;
@@ -10487,17 +10506,18 @@ class Utf8SymbolKey : public HashTableKey {
   Vector<const char> string_;
   uint32_t hash_field_;
   int chars_;  // Caches the number of characters when computing the hash code.
+  uint32_t seed_;
 };
 
 
 template <typename Char>
 class SequentialSymbolKey : public HashTableKey {
  public:
-  explicit SequentialSymbolKey(Vector<const Char> string)
-      : string_(string), hash_field_(0) { }
+  explicit SequentialSymbolKey(Vector<const Char> string, uint32_t seed)
+      : string_(string), hash_field_(0), seed_(seed) { }
 
   uint32_t Hash() {
-    StringHasher hasher(string_.length());
+    StringHasher hasher(string_.length(), seed_);
 
     // Very long strings have a trivial hash that doesn't inspect the
     // string contents.
@@ -10533,14 +10553,15 @@ class SequentialSymbolKey : public HashTableKey {
 
   Vector<const Char> string_;
   uint32_t hash_field_;
+  uint32_t seed_;
 };
 
 
 
 class AsciiSymbolKey : public SequentialSymbolKey<char> {
  public:
-  explicit AsciiSymbolKey(Vector<const char> str)
-      : SequentialSymbolKey<char>(str) { }
+  AsciiSymbolKey(Vector<const char> str, uint32_t seed)
+      : SequentialSymbolKey<char>(str, seed) { }
 
   bool IsMatch(Object* string) {
     return String::cast(string)->IsAsciiEqualTo(string_);
@@ -10557,13 +10578,14 @@ class SubStringAsciiSymbolKey : public HashTableKey {
  public:
   explicit SubStringAsciiSymbolKey(Handle<SeqAsciiString> string,
                                    int from,
-                                   int length)
-      : string_(string), from_(from), length_(length) { }
+                                   int length,
+                                   uint32_t seed)
+      : string_(string), from_(from), length_(length), seed_(seed) { }
 
   uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    StringHasher hasher(length_);
+    StringHasher hasher(length_, string_->GetHeap()->StringHashSeed());
 
     // Very long strings have a trivial hash that doesn't inspect the
     // string contents.
@@ -10615,13 +10637,14 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   int from_;
   int length_;
   uint32_t hash_field_;
+  uint32_t seed_;
 };
 
 
 class TwoByteSymbolKey : public SequentialSymbolKey<uc16> {
  public:
-  explicit TwoByteSymbolKey(Vector<const uc16> str)
-      : SequentialSymbolKey<uc16>(str) { }
+  explicit TwoByteSymbolKey(Vector<const uc16> str, uint32_t seed)
+      : SequentialSymbolKey<uc16>(str, seed) { }
 
   bool IsMatch(Object* string) {
     return String::cast(string)->IsTwoByteEqualTo(string_);
@@ -11406,10 +11429,12 @@ MaybeObject* SymbolTable::LookupString(String* string, Object** s) {
 // algorithm.
 class TwoCharHashTableKey : public HashTableKey {
  public:
-  TwoCharHashTableKey(uint32_t c1, uint32_t c2)
+  TwoCharHashTableKey(uint32_t c1, uint32_t c2, uint32_t seed)
     : c1_(c1), c2_(c2) {
     // Char 1.
-    uint32_t hash = c1 + (c1 << 10);
+    uint32_t hash = seed;
+    hash += c1;
+    hash += hash << 10;
     hash ^= hash >> 6;
     // Char 2.
     hash += c2;
@@ -11419,9 +11444,9 @@ class TwoCharHashTableKey : public HashTableKey {
     hash += hash << 3;
     hash ^= hash >> 11;
     hash += hash << 15;
-    if (hash == 0) hash = 27;
+    if ((hash & String::kHashBitMask) == 0) hash = 27;
 #ifdef DEBUG
-    StringHasher hasher(2);
+    StringHasher hasher(2, seed);
     hasher.AddCharacter(c1);
     hasher.AddCharacter(c2);
     // If this assert fails then we failed to reproduce the two-character
@@ -11478,7 +11503,7 @@ bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
 bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
                                                uint32_t c2,
                                                String** symbol) {
-  TwoCharHashTableKey key(c1, c2);
+  TwoCharHashTableKey key(c1, c2, GetHeap()->StringHashSeed());
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
     return false;
@@ -11491,15 +11516,16 @@ bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
 }
 
 
-MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str, Object** s) {
-  Utf8SymbolKey key(str);
+MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str,
+                                       Object** s) {
+  Utf8SymbolKey key(str, GetHeap()->StringHashSeed());
   return LookupKey(&key, s);
 }
 
 
 MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
                                             Object** s) {
-  AsciiSymbolKey key(str);
+  AsciiSymbolKey key(str, GetHeap()->StringHashSeed());
   return LookupKey(&key, s);
 }
 
@@ -11508,14 +11534,14 @@ MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(Handle<SeqAsciiString> str,
                                                      int from,
                                                      int length,
                                                      Object** s) {
-  SubStringAsciiSymbolKey key(str, from, length);
+  SubStringAsciiSymbolKey key(str, from, length, GetHeap()->StringHashSeed());
   return LookupKey(&key, s);
 }
 
 
 MaybeObject* SymbolTable::LookupTwoByteSymbol(Vector<const uc16> str,
                                               Object** s) {
-  TwoByteSymbolKey key(str);
+  TwoByteSymbolKey key(str, GetHeap()->StringHashSeed());
   return LookupKey(&key, s);
 }
 

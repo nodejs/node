@@ -25,8 +25,8 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Platform specific code for OpenBSD goes here. For the POSIX comaptible parts
-// the implementation is in platform-posix.cc.
+// Platform specific code for OpenBSD and NetBSD goes here. For the POSIX
+// comaptible parts the implementation is in platform-posix.cc.
 
 #include <pthread.h>
 #include <semaphore.h>
@@ -742,8 +742,20 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   if (sample == NULL) sample = &sample_obj;
 
   // Extracting the sample from the context is extremely machine dependent.
-  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
   sample->state = isolate->current_vm_state();
+  ucontext_t* ucontext = reinterpret_cast<ucontext_t*>(context);
+#ifdef __NetBSD__
+  mcontext_t& mcontext = ucontext->uc_mcontext;
+#if V8_HOST_ARCH_IA32
+  sample->pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_EIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_ESP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_EBP]);
+#elif V8_HOST_ARCH_X64
+  sample->pc = reinterpret_cast<Address>(mcontext.__gregs[_REG_RIP]);
+  sample->sp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RSP]);
+  sample->fp = reinterpret_cast<Address>(mcontext.__gregs[_REG_RBP]);
+#endif  // V8_HOST_ARCH
+#else  // OpenBSD
 #if V8_HOST_ARCH_IA32
   sample->pc = reinterpret_cast<Address>(ucontext->sc_eip);
   sample->sp = reinterpret_cast<Address>(ucontext->sc_esp);
@@ -752,7 +764,8 @@ static void ProfilerSignalHandler(int signal, siginfo_t* info, void* context) {
   sample->pc = reinterpret_cast<Address>(ucontext->sc_rip);
   sample->sp = reinterpret_cast<Address>(ucontext->sc_rsp);
   sample->fp = reinterpret_cast<Address>(ucontext->sc_rbp);
-#endif
+#endif  // V8_HOST_ARCH
+#endif  // __NetBSD__
   sampler->SampleStack(sample);
   sampler->Tick(sample);
 }

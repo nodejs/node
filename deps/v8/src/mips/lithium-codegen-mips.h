@@ -93,6 +93,9 @@ class LCodeGen BASE_EMBEDDED {
   // Returns a MemOperand pointing to the high word of a DoubleStackSlot.
   MemOperand ToHighMemOperand(LOperand* op) const;
 
+  bool IsInteger32(LConstantOperand* op) const;
+  Handle<Object> ToHandle(LConstantOperand* op) const;
+
   // Try to generate code for the entire chunk, but it may fail if the
   // chunk contains constructs we cannot handle. Returns true if the
   // code generation attempt succeeded.

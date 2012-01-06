@@ -49,8 +49,9 @@ StoreBuffer::StoreBuffer(Heap* heap)
       callback_(NULL),
       may_move_store_buffer_entries_(true),
       virtual_memory_(NULL),
-      hash_map_1_(NULL),
-      hash_map_2_(NULL) {
+      hash_set_1_(NULL),
+      hash_set_2_(NULL),
+      hash_sets_are_empty_(true) {
 }
 
 
@@ -97,18 +98,19 @@ void StoreBuffer::Setup() {
                                 false));  // Not executable.
   heap_->public_set_store_buffer_top(start_);
 
-  hash_map_1_ = new uintptr_t[kHashMapLength];
-  hash_map_2_ = new uintptr_t[kHashMapLength];
+  hash_set_1_ = new uintptr_t[kHashSetLength];
+  hash_set_2_ = new uintptr_t[kHashSetLength];
+  hash_sets_are_empty_ = false;
 
-  ZapHashTables();
+  ClearFilteringHashSets();
 }
 
 
 void StoreBuffer::TearDown() {
   delete virtual_memory_;
   delete old_virtual_memory_;
-  delete[] hash_map_1_;
-  delete[] hash_map_2_;
+  delete[] hash_set_1_;
+  delete[] hash_set_2_;
   old_start_ = old_top_ = old_limit_ = old_reserved_limit_ = NULL;
   start_ = limit_ = NULL;
   heap_->public_set_store_buffer_top(start_);
@@ -148,7 +150,6 @@ static int CompareAddresses(const void* void_a, const void* void_b) {
 
 
 void StoreBuffer::Uniq() {
-  ASSERT(HashTablesAreZapped());
   // Remove adjacent duplicates and cells that do not point at new space.
   Address previous = NULL;
   Address* write = old_start_;
@@ -272,13 +273,16 @@ void StoreBuffer::Filter(int flag) {
     }
   }
   old_top_ = new_top;
+
+  // Filtering hash sets are inconsistent with the store buffer after this
+  // operation.
+  ClearFilteringHashSets();
 }
 
 
 void StoreBuffer::SortUniq() {
   Compact();
   if (old_buffer_is_sorted_) return;
-  ZapHashTables();
   qsort(reinterpret_cast<void*>(old_start_),
         old_top_ - old_start_,
         sizeof(*old_top_),
@@ -286,6 +290,10 @@ void StoreBuffer::SortUniq() {
   Uniq();
 
   old_buffer_is_sorted_ = true;
+
+  // Filtering hash sets are inconsistent with the store buffer after this
+  // operation.
+  ClearFilteringHashSets();
 }
 
 
@@ -301,32 +309,20 @@ bool StoreBuffer::PrepareForIteration() {
   if (page_has_scan_on_scavenge_flag) {
     Filter(MemoryChunk::SCAN_ON_SCAVENGE);
   }
-  ZapHashTables();
+
+  // Filtering hash sets are inconsistent with the store buffer after
+  // iteration.
+  ClearFilteringHashSets();
+
   return page_has_scan_on_scavenge_flag;
 }
 
 
 #ifdef DEBUG
 void StoreBuffer::Clean() {
-  ZapHashTables();
+  ClearFilteringHashSets();
   Uniq();  // Also removes things that no longer point to new space.
   CheckForFullBuffer();
-}
-
-
-static bool Zapped(char* start, int size) {
-  for (int i = 0; i < size; i++) {
-    if (start[i] != 0) return false;
-  }
-  return true;
-}
-
-
-bool StoreBuffer::HashTablesAreZapped() {
-  return Zapped(reinterpret_cast<char*>(hash_map_1_),
-                sizeof(uintptr_t) * kHashMapLength) &&
-      Zapped(reinterpret_cast<char*>(hash_map_2_),
-             sizeof(uintptr_t) * kHashMapLength);
 }
 
 
@@ -357,18 +353,21 @@ bool StoreBuffer::CellIsInStoreBuffer(Address cell_address) {
 #endif
 
 
-void StoreBuffer::ZapHashTables() {
-  memset(reinterpret_cast<void*>(hash_map_1_),
-         0,
-         sizeof(uintptr_t) * kHashMapLength);
-  memset(reinterpret_cast<void*>(hash_map_2_),
-         0,
-         sizeof(uintptr_t) * kHashMapLength);
+void StoreBuffer::ClearFilteringHashSets() {
+  if (!hash_sets_are_empty_) {
+    memset(reinterpret_cast<void*>(hash_set_1_),
+           0,
+           sizeof(uintptr_t) * kHashSetLength);
+    memset(reinterpret_cast<void*>(hash_set_2_),
+           0,
+           sizeof(uintptr_t) * kHashSetLength);
+    hash_sets_are_empty_ = true;
+  }
 }
 
 
 void StoreBuffer::GCPrologue() {
-  ZapHashTables();
+  ClearFilteringHashSets();
   during_gc_ = true;
 }
 
@@ -676,8 +675,9 @@ void StoreBuffer::Compact() {
   ASSERT(may_move_store_buffer_entries_);
   // Goes through the addresses in the store buffer attempting to remove
   // duplicates.  In the interest of speed this is a lossy operation.  Some
-  // duplicates will remain.  We have two hash tables with different hash
+  // duplicates will remain.  We have two hash sets with different hash
   // functions to reduce the number of unnecessary clashes.
+  hash_sets_are_empty_ = false;  // Hash sets are in use.
   for (Address* current = start_; current < top; current++) {
     ASSERT(!heap_->cell_space()->Contains(*current));
     ASSERT(!heap_->code_space()->Contains(*current));
@@ -686,21 +686,21 @@ void StoreBuffer::Compact() {
     // Shift out the last bits including any tags.
     int_addr >>= kPointerSizeLog2;
     int hash1 =
-        ((int_addr ^ (int_addr >> kHashMapLengthLog2)) & (kHashMapLength - 1));
-    if (hash_map_1_[hash1] == int_addr) continue;
-    int hash2 =
-        ((int_addr - (int_addr >> kHashMapLengthLog2)) & (kHashMapLength - 1));
-    hash2 ^= hash2 >> (kHashMapLengthLog2 * 2);
-    if (hash_map_2_[hash2] == int_addr) continue;
-    if (hash_map_1_[hash1] == 0) {
-      hash_map_1_[hash1] = int_addr;
-    } else if (hash_map_2_[hash2] == 0) {
-      hash_map_2_[hash2] = int_addr;
+        ((int_addr ^ (int_addr >> kHashSetLengthLog2)) & (kHashSetLength - 1));
+    if (hash_set_1_[hash1] == int_addr) continue;
+    uintptr_t hash2 = (int_addr - (int_addr >> kHashSetLengthLog2));
+    hash2 ^= hash2 >> (kHashSetLengthLog2 * 2);
+    hash2 &= (kHashSetLength - 1);
+    if (hash_set_2_[hash2] == int_addr) continue;
+    if (hash_set_1_[hash1] == 0) {
+      hash_set_1_[hash1] = int_addr;
+    } else if (hash_set_2_[hash2] == 0) {
+      hash_set_2_[hash2] = int_addr;
     } else {
       // Rather than slowing down we just throw away some entries.  This will
       // cause some duplicates to remain undetected.
-      hash_map_1_[hash1] = int_addr;
-      hash_map_2_[hash2] = 0;
+      hash_set_1_[hash1] = int_addr;
+      hash_set_2_[hash2] = 0;
     }
     old_buffer_is_sorted_ = false;
     old_buffer_is_filtered_ = false;

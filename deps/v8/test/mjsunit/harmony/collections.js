@@ -274,6 +274,40 @@ var o = Object.create({}, { myValue: {
 assertEquals(10, o.myValue);
 
 
+// Regression test for issue 1884: Invoking any of the methods for Harmony
+// maps, sets, or weak maps, with a wrong type of receiver should be throwing
+// a proper TypeError.
+var alwaysBogus = [ undefined, null, true, "x", 23, {} ];
+var bogusReceiversTestSet = [
+  { proto: Set.prototype,
+    funcs: [ 'add', 'has', 'delete' ],
+    receivers: alwaysBogus.concat([ new Map, new WeakMap ]),
+  },
+  { proto: Map.prototype,
+    funcs: [ 'get', 'set', 'has', 'delete' ],
+    receivers: alwaysBogus.concat([ new Set, new WeakMap ]),
+  },
+  { proto: WeakMap.prototype,
+    funcs: [ 'get', 'set', 'has', 'delete' ],
+    receivers: alwaysBogus.concat([ new Set, new Map ]),
+  },
+];
+function TestBogusReceivers(testSet) {
+  for (var i = 0; i < testSet.length; i++) {
+    var proto = testSet[i].proto;
+    var funcs = testSet[i].funcs;
+    var receivers = testSet[i].receivers;
+    for (var j = 0; j < funcs.length; j++) {
+      var func = proto[funcs[j]];
+      for (var k = 0; k < receivers.length; k++) {
+        assertThrows(function () { func.call(receivers[k], {}) }, TypeError);
+      }
+    }
+  }
+}
+TestBogusReceivers(bogusReceiversTestSet);
+
+
 // Stress Test
 // There is a proposed stress-test available at the es-discuss mailing list
 // which cannot be reasonably automated.  Check it out by hand if you like:

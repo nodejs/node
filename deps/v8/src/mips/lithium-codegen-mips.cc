@@ -353,6 +353,18 @@ DoubleRegister LCodeGen::EmitLoadDoubleRegister(LOperand* op,
 }
 
 
+Handle<Object> LCodeGen::ToHandle(LConstantOperand* op) const {
+  Handle<Object> literal = chunk_->LookupLiteral(op);
+  ASSERT(chunk_->LookupLiteralRepresentation(op).IsTagged());
+  return literal;
+}
+
+
+bool LCodeGen::IsInteger32(LConstantOperand* op) const {
+  return chunk_->LookupLiteralRepresentation(op).IsInteger32();
+}
+
+
 int LCodeGen::ToInteger32(LConstantOperand* op) const {
   Handle<Object> value = chunk_->LookupLiteral(op);
   ASSERT(chunk_->LookupLiteralRepresentation(op).IsInteger32());

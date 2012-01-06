@@ -1,3 +1,29 @@
+2012-01-05: Version 3.8.5
+
+        Fix broken test that assumes that no GC can clear the regexp cache (GC
+        can happen at any time due to Crankshaft).
+
+        Fix handling of bogus receivers for Harmony collections. (issue 1884)
+
+        Add netbsd support to gyp build.
+
+        Determine page size at runtime on posix platforms.
+
+        Ensure that store buffer filtering hash sets are cleared after
+        StoreBuffer::Filter.
+
+        Randomize the seed used for string hashing.  This helps guard against
+        CPU-eating DOS attacks against node.js servers.  Based on code from
+        Bert Belder.  This version only solves the issue for those that compile
+        V8 themselves or those that do not use snapshots.  A snapshot-based
+        precompiled V8 will still have predictable string hash codes.
+
+        Implement callback when script finishes running in V8 API.
+
+        Improve performance of Math.min and Math.max for the case of two
+        arguments. (issue 1325)
+
+
 2012-01-02: Version 3.8.4
 
         Performance improvements for large Smi-only arrays.

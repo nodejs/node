@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1199,7 +1199,8 @@ static void AllocateJSArray(MacroAssembler* masm,
 // a construct call and a normal call.
 static void ArrayNativeCode(MacroAssembler* masm,
                             Label *call_generic_code) {
-  Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array;
+  Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array,
+      has_non_smi_element;
 
   // Check for array construction with zero arguments.
   __ testq(rax, rax);
@@ -1306,7 +1307,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ bind(&loop);
   __ movq(kScratchRegister, Operand(r9, rcx, times_pointer_size, 0));
   if (FLAG_smi_only_arrays) {
-    __ JumpIfNotSmi(kScratchRegister, call_generic_code);
+    __ JumpIfNotSmi(kScratchRegister, &has_non_smi_element);
   }
   __ movq(Operand(rdx, 0), kScratchRegister);
   __ addq(rdx, Immediate(kPointerSize));
@@ -1324,6 +1325,10 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ push(rcx);
   __ movq(rax, rbx);
   __ ret(0);
+
+  __ bind(&has_non_smi_element);
+  __ UndoAllocationInNewSpace(rbx);
+  __ jmp(call_generic_code);
 }
 
 

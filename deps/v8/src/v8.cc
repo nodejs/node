@@ -51,6 +51,7 @@ bool V8::has_been_setup_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 bool V8::use_crankshaft_ = true;
+List<CallCompletedCallback>* V8::call_completed_callbacks_ = NULL;
 
 static Mutex* entropy_mutex = OS::CreateMutex();
 static EntropySource entropy_source;
@@ -104,6 +105,9 @@ void V8::TearDown() {
 
   is_running_ = false;
   has_been_disposed_ = true;
+
+  delete call_completed_callbacks_;
+  call_completed_callbacks_ = NULL;
 }
 
 
@@ -166,6 +170,41 @@ bool V8::IdleNotification(int hint) {
 
   // Tell the heap that it may want to adjust.
   return HEAP->IdleNotification(hint);
+}
+
+
+void V8::AddCallCompletedCallback(CallCompletedCallback callback) {
+  if (call_completed_callbacks_ == NULL) {  // Lazy init.
+    call_completed_callbacks_ = new List<CallCompletedCallback>();
+  }
+  for (int i = 0; i < call_completed_callbacks_->length(); i++) {
+    if (callback == call_completed_callbacks_->at(i)) return;
+  }
+  call_completed_callbacks_->Add(callback);
+}
+
+
+void V8::RemoveCallCompletedCallback(CallCompletedCallback callback) {
+  if (call_completed_callbacks_ == NULL) return;
+  for (int i = 0; i < call_completed_callbacks_->length(); i++) {
+    if (callback == call_completed_callbacks_->at(i)) {
+      call_completed_callbacks_->Remove(i);
+    }
+  }
+}
+
+
+void V8::FireCallCompletedCallback(Isolate* isolate) {
+  if (call_completed_callbacks_ == NULL) return;
+  HandleScopeImplementer* handle_scope_implementer =
+      isolate->handle_scope_implementer();
+  if (!handle_scope_implementer->CallDepthIsZero()) return;
+  // Fire callbacks.  Increase call depth to prevent recursive callbacks.
+  handle_scope_implementer->IncrementCallDepth();
+  for (int i = 0; i < call_completed_callbacks_->length(); i++) {
+    call_completed_callbacks_->at(i)();
+  }
+  handle_scope_implementer->DecrementCallDepth();
 }
 
 

@@ -71,7 +71,8 @@ intptr_t OS::MaxVirtualMemory() {
 
 
 intptr_t OS::CommitPageSize() {
-  return 4096;
+  static intptr_t page_size = getpagesize();
+  return page_size;
 }
 
 

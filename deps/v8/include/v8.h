@@ -2635,6 +2635,9 @@ typedef void (*MemoryAllocationCallback)(ObjectSpace space,
                                          AllocationAction action,
                                          int size);
 
+// --- Leave Script Callback ---
+typedef void (*CallCompletedCallback)();
+
 // --- Failed Access Check Callback ---
 typedef void (*FailedAccessCheckCallback)(Local<Object> target,
                                           AccessType type,
@@ -3033,10 +3036,23 @@ class V8EXPORT V8 {
                                           AllocationAction action);
 
   /**
-   * This function removes callback which was installed by
-   * AddMemoryAllocationCallback function.
+   * Removes callback that was installed by AddMemoryAllocationCallback.
    */
   static void RemoveMemoryAllocationCallback(MemoryAllocationCallback callback);
+
+  /**
+   * Adds a callback to notify the host application when a script finished
+   * running.  If a script re-enters the runtime during executing, the
+   * CallCompletedCallback is only invoked when the outer-most script
+   * execution ends.  Executing scripts inside the callback do not trigger
+   * further callbacks.
+   */
+  static void AddCallCompletedCallback(CallCompletedCallback callback);
+
+  /**
+   * Removes callback that was installed by AddCallCompletedCallback.
+   */
+  static void RemoveCallCompletedCallback(CallCompletedCallback callback);
 
   /**
    * Allows the host application to group objects together. If one

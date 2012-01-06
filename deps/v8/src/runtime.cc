@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -8707,14 +8707,11 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Call) {
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 5);
-  CONVERT_CHECKED(JSReceiver, fun, args[0]);
-  Object* receiver = args[1];
-  CONVERT_CHECKED(JSObject, arguments, args[2]);
-  CONVERT_CHECKED(Smi, shift, args[3]);
-  CONVERT_CHECKED(Smi, arity, args[4]);
-
-  int offset = shift->value();
-  int argc = arity->value();
+  CONVERT_ARG_CHECKED(JSReceiver, fun, 0);
+  Handle<Object> receiver = args.at<Object>(1);
+  CONVERT_ARG_CHECKED(JSObject, arguments, 2);
+  CONVERT_SMI_ARG_CHECKED(offset, 3);
+  CONVERT_SMI_ARG_CHECKED(argc, 4);
   ASSERT(offset >= 0);
   ASSERT(argc >= 0);
 
@@ -8730,17 +8727,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Apply) {
   }
 
   for (int i = 0; i < argc; ++i) {
-     MaybeObject* maybe = arguments->GetElement(offset + i);
-     Object* object;
-     if (!maybe->To<Object>(&object)) return maybe;
-     argv[i] = Handle<Object>(object);
+    argv[i] = Object::GetElement(arguments, offset + i);
   }
 
   bool threw;
-  Handle<JSReceiver> hfun(fun);
-  Handle<Object> hreceiver(receiver);
   Handle<Object> result =
-      Execution::Call(hfun, hreceiver, argc, argv, &threw, true);
+      Execution::Call(fun, receiver, argc, argv, &threw, true);
 
   if (threw) return Failure::Exception();
   return *result;

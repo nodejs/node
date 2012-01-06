@@ -349,6 +349,14 @@ DEFINE_bool(trace_exception, false,
             "print stack trace when throwing exceptions")
 DEFINE_bool(preallocate_message_memory, false,
             "preallocate some memory to build stack traces.")
+DEFINE_bool(randomize_string_hashes,
+            true,
+            "randomize string hashes to avoid predictable hash collisions "
+            "(with snapshots this option cannot override the baked-in seed)")
+DEFINE_int(string_hash_seed,
+           0,
+           "Fixed seed to use to string hashing (0 means random)"
+           "(with snapshots this option cannot override the baked-in seed)")
 
 // v8.cc
 DEFINE_bool(preemption, false,

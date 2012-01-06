@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -74,17 +74,33 @@ void Builtins::Generate_Adaptor(MacroAssembler* masm,
 }
 
 
+// Load the built-in InternalArray function from the current context.
+static void GenerateLoadInternalArrayFunction(MacroAssembler* masm,
+                                              Register result) {
+  // Load the global context.
+
+  __ lw(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  __ lw(result,
+        FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
+  // Load the InternalArray function from the global context.
+  __ lw(result,
+         MemOperand(result,
+                    Context::SlotOffset(
+                        Context::INTERNAL_ARRAY_FUNCTION_INDEX)));
+}
+
+
 // Load the built-in Array function from the current context.
 static void GenerateLoadArrayFunction(MacroAssembler* masm, Register result) {
   // Load the global context.
 
   __ lw(result, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
   __ lw(result,
-         FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
+        FieldMemOperand(result, GlobalObject::kGlobalContextOffset));
   // Load the Array function from the global context.
   __ lw(result,
-         MemOperand(result,
-                    Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
+        MemOperand(result,
+                   Context::SlotOffset(Context::ARRAY_FUNCTION_INDEX)));
 }
 
 
@@ -308,7 +324,8 @@ static void AllocateJSArray(MacroAssembler* masm,
 static void ArrayNativeCode(MacroAssembler* masm,
                             Label* call_generic_code) {
   Counters* counters = masm->isolate()->counters();
-  Label argc_one_or_more, argc_two_or_more, not_empty_array, empty_array;
+  Label argc_one_or_more, argc_two_or_more, not_empty_array, empty_array,
+      has_non_smi_element;
 
   // Check for array construction with zero arguments or one.
   __ Branch(&argc_one_or_more, ne, a0, Operand(zero_reg));
@@ -406,7 +423,7 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ lw(a2, MemOperand(t3));
   __ Addu(t3, t3, kPointerSize);
   if (FLAG_smi_only_arrays) {
-    __ JumpIfNotSmi(a2, call_generic_code);
+    __ JumpIfNotSmi(a2, &has_non_smi_element);
   }
   __ Addu(t1, t1, -kPointerSize);
   __ sw(a2, MemOperand(t1));
@@ -422,6 +439,46 @@ static void ArrayNativeCode(MacroAssembler* masm,
   __ Addu(sp, sp, Operand(kPointerSize));
   __ mov(v0, a3);
   __ Ret();
+
+  __ bind(&has_non_smi_element);
+  __ UndoAllocationInNewSpace(a3, t0);
+  __ b(call_generic_code);
+}
+
+
+void Builtins::Generate_InternalArrayCode(MacroAssembler* masm) {
+  // ----------- S t a t e -------------
+  //  -- a0     : number of arguments
+  //  -- ra     : return address
+  //  -- sp[...]: constructor arguments
+  // -----------------------------------
+  Label generic_array_code, one_or_more_arguments, two_or_more_arguments;
+
+  // Get the InternalArray function.
+  GenerateLoadInternalArrayFunction(masm, a1);
+
+  if (FLAG_debug_code) {
+    // Initial map for the builtin InternalArray functions should be maps.
+    __ lw(a2, FieldMemOperand(a1, JSFunction::kPrototypeOrInitialMapOffset));
+    __ And(t0, a2, Operand(kSmiTagMask));
+    __ Assert(ne, "Unexpected initial map for InternalArray function",
+              t0, Operand(zero_reg));
+    __ GetObjectType(a2, a3, t0);
+    __ Assert(eq, "Unexpected initial map for InternalArray function",
+              t0, Operand(MAP_TYPE));
+  }
+
+  // Run the native code for the InternalArray function called as a normal
+  // function.
+  ArrayNativeCode(masm, &generic_array_code);
+
+  // Jump to the generic array code if the specialized code cannot handle the
+  // construction.
+  __ bind(&generic_array_code);
+
+  Handle<Code> array_code =
+      masm->isolate()->builtins()->InternalArrayCodeGeneric();
+  __ Jump(array_code, RelocInfo::CODE_TARGET);
 }
 
 

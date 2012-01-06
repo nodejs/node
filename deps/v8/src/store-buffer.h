@@ -85,8 +85,8 @@ class StoreBuffer {
   static const int kStoreBufferSize = kStoreBufferOverflowBit;
   static const int kStoreBufferLength = kStoreBufferSize / sizeof(Address);
   static const int kOldStoreBufferLength = kStoreBufferLength * 16;
-  static const int kHashMapLengthLog2 = 12;
-  static const int kHashMapLength = 1 << kHashMapLengthLog2;
+  static const int kHashSetLengthLog2 = 12;
+  static const int kHashSetLength = 1 << kHashSetLengthLog2;
 
   void Compact();
 
@@ -148,13 +148,18 @@ class StoreBuffer {
   bool may_move_store_buffer_entries_;
 
   VirtualMemory* virtual_memory_;
-  uintptr_t* hash_map_1_;
-  uintptr_t* hash_map_2_;
+
+  // Two hash sets used for filtering.
+  // If address is in the hash set then it is guaranteed to be in the
+  // old part of the store buffer.
+  uintptr_t* hash_set_1_;
+  uintptr_t* hash_set_2_;
+  bool hash_sets_are_empty_;
+
+  void ClearFilteringHashSets();
 
   void CheckForFullBuffer();
   void Uniq();
-  void ZapHashTables();
-  bool HashTablesAreZapped();
   void ExemptPopularPages(int prime_sample_step, int threshold);
 
   void FindPointersToNewSpaceInRegion(Address start,

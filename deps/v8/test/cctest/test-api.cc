@@ -14238,7 +14238,7 @@ THREADED_TEST(RoundRobinGetFromCache) {
       "  for (var i = 0; i < 16; i++) values[i] = %_GetFromCache(0, keys[i]);"
       "  for (var i = 0; i < 16; i++) {"
       "    var v = %_GetFromCache(0, keys[i]);"
-      "    if (v !== values[i])"
+      "    if (v.toString() !== values[i].toString())"
       "      return 'Wrong value for ' + "
       "          keys[i] + ': ' + v + ' vs. ' + values[i];"
       "  };"
@@ -15725,4 +15725,99 @@ THREADED_TEST(ForeignFunctionReceiver) {
   TestReceiver(o, context->Global(), "(1,func)()");
 
   foreign_context.Dispose();
+}
+
+
+uint8_t callback_fired = 0;
+
+
+void CallCompletedCallback1() {
+  i::OS::Print("Firing callback 1.\n");
+  callback_fired ^= 1;  // Toggle first bit.
+}
+
+
+void CallCompletedCallback2() {
+  i::OS::Print("Firing callback 2.\n");
+  callback_fired ^= 2;  // Toggle second bit.
+}
+
+
+Handle<Value> RecursiveCall(const Arguments& args) {
+  int32_t level = args[0]->Int32Value();
+  if (level < 3) {
+    level++;
+    i::OS::Print("Entering recursion level %d.\n", level);
+    char script[64];
+    i::Vector<char> script_vector(script, sizeof(script));
+    i::OS::SNPrintF(script_vector, "recursion(%d)", level);
+    CompileRun(script_vector.start());
+    i::OS::Print("Leaving recursion level %d.\n", level);
+    CHECK_EQ(0, callback_fired);
+  } else {
+    i::OS::Print("Recursion ends.\n");
+    CHECK_EQ(0, callback_fired);
+  }
+  return Undefined();
+}
+
+
+TEST(CallCompletedCallback) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::Handle<v8::FunctionTemplate> recursive_runtime =
+      v8::FunctionTemplate::New(RecursiveCall);
+  env->Global()->Set(v8_str("recursion"),
+                     recursive_runtime->GetFunction());
+  // Adding the same callback a second time has no effect.
+  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
+  v8::V8::AddCallCompletedCallback(CallCompletedCallback1);
+  v8::V8::AddCallCompletedCallback(CallCompletedCallback2);
+  i::OS::Print("--- Script (1) ---\n");
+  Local<Script> script =
+      v8::Script::Compile(v8::String::New("recursion(0)"));
+  script->Run();
+  CHECK_EQ(3, callback_fired);
+
+  i::OS::Print("\n--- Script (2) ---\n");
+  callback_fired = 0;
+  v8::V8::RemoveCallCompletedCallback(CallCompletedCallback1);
+  script->Run();
+  CHECK_EQ(2, callback_fired);
+
+  i::OS::Print("\n--- Function ---\n");
+  callback_fired = 0;
+  Local<Function> recursive_function =
+      Local<Function>::Cast(env->Global()->Get(v8_str("recursion")));
+  v8::Handle<Value> args[] = { v8_num(0) };
+  recursive_function->Call(env->Global(), 1, args);
+  CHECK_EQ(2, callback_fired);
+}
+
+
+void CallCompletedCallbackNoException() {
+  v8::HandleScope scope;
+  CompileRun("1+1;");
+}
+
+
+void CallCompletedCallbackException() {
+  v8::HandleScope scope;
+  CompileRun("throw 'second exception';");
+}
+
+
+TEST(CallCompletedCallbackOneException) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddCallCompletedCallback(CallCompletedCallbackNoException);
+  CompileRun("throw 'exception';");
+}
+
+
+TEST(CallCompletedCallbackTwoExceptions) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::V8::AddCallCompletedCallback(CallCompletedCallbackException);
+  CompileRun("throw 'first exception';");
 }

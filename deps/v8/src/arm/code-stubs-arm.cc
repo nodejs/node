@@ -5730,7 +5730,11 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character) {
   // hash = character + (character << 10);
-  __ add(hash, character, Operand(character, LSL, 10));
+  __ LoadRoot(hash, Heap::kStringHashSeedRootIndex);
+  // Untag smi seed and add the character.
+  __ add(hash, character, Operand(hash, LSR, kSmiTagSize));
+  // hash += hash << 10;
+  __ add(hash, hash, Operand(hash, LSL, 10));
   // hash ^= hash >> 6;
   __ eor(hash, hash, Operand(hash, LSR, 6));
 }

@@ -486,7 +486,7 @@ class MinidumpReader(object):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
       return self.exception_context.rsp
     elif self.arch == MD_CPU_ARCHITECTURE_X86:
-      return self.exception_context.rbp
+      return self.exception_context.esp
 
   def FormatIntPtr(self, value):
     if self.arch == MD_CPU_ARCHITECTURE_AMD64:
@@ -523,13 +523,20 @@ INSTANCE_TYPES = {
   66: "EXTERNAL_SYMBOL_TYPE",
   74: "EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE",
   70: "EXTERNAL_ASCII_SYMBOL_TYPE",
+  82: "SHORT_EXTERNAL_SYMBOL_TYPE",
+  90: "SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE",
+  86: "SHORT_EXTERNAL_ASCII_SYMBOL_TYPE",
   0: "STRING_TYPE",
   4: "ASCII_STRING_TYPE",
   1: "CONS_STRING_TYPE",
   5: "CONS_ASCII_STRING_TYPE",
+  3: "SLICED_STRING_TYPE",
   2: "EXTERNAL_STRING_TYPE",
   10: "EXTERNAL_STRING_WITH_ASCII_DATA_TYPE",
   6: "EXTERNAL_ASCII_STRING_TYPE",
+  18: "SHORT_EXTERNAL_STRING_TYPE",
+  26: "SHORT_EXTERNAL_STRING_WITH_ASCII_DATA_TYPE",
+  22: "SHORT_EXTERNAL_ASCII_STRING_TYPE",
   6: "PRIVATE_EXTERNAL_ASCII_STRING_TYPE",
   128: "MAP_TYPE",
   129: "CODE_TYPE",
@@ -538,43 +545,45 @@ INSTANCE_TYPES = {
   132: "HEAP_NUMBER_TYPE",
   133: "FOREIGN_TYPE",
   134: "BYTE_ARRAY_TYPE",
-  135: "EXTERNAL_BYTE_ARRAY_TYPE",
-  136: "EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE",
-  137: "EXTERNAL_SHORT_ARRAY_TYPE",
-  138: "EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE",
-  139: "EXTERNAL_INT_ARRAY_TYPE",
-  140: "EXTERNAL_UNSIGNED_INT_ARRAY_TYPE",
-  141: "EXTERNAL_FLOAT_ARRAY_TYPE",
-  143: "EXTERNAL_PIXEL_ARRAY_TYPE",
-  145: "FILLER_TYPE",
-  146: "ACCESSOR_INFO_TYPE",
-  147: "ACCESS_CHECK_INFO_TYPE",
-  148: "INTERCEPTOR_INFO_TYPE",
-  149: "CALL_HANDLER_INFO_TYPE",
-  150: "FUNCTION_TEMPLATE_INFO_TYPE",
-  151: "OBJECT_TEMPLATE_INFO_TYPE",
-  152: "SIGNATURE_INFO_TYPE",
-  153: "TYPE_SWITCH_INFO_TYPE",
-  154: "SCRIPT_TYPE",
-  155: "CODE_CACHE_TYPE",
-  156: "POLYMORPHIC_CODE_CACHE_TYPE",
-  159: "FIXED_ARRAY_TYPE",
-  160: "SHARED_FUNCTION_INFO_TYPE",
-  161: "JS_MESSAGE_OBJECT_TYPE",
-  162: "JS_VALUE_TYPE",
-  163: "JS_OBJECT_TYPE",
-  164: "JS_CONTEXT_EXTENSION_OBJECT_TYPE",
-  165: "JS_GLOBAL_OBJECT_TYPE",
-  166: "JS_BUILTINS_OBJECT_TYPE",
-  167: "JS_GLOBAL_PROXY_TYPE",
-  168: "JS_ARRAY_TYPE",
-  169: "JS_PROXY_TYPE",
-  170: "JS_WEAK_MAP_TYPE",
-  171: "JS_REGEXP_TYPE",
-  172: "JS_FUNCTION_TYPE",
-  173: "JS_FUNCTION_PROXY_TYPE",
-  157: "DEBUG_INFO_TYPE",
-  158: "BREAK_POINT_INFO_TYPE",
+  135: "FREE_SPACE_TYPE",
+  136: "EXTERNAL_BYTE_ARRAY_TYPE",
+  137: "EXTERNAL_UNSIGNED_BYTE_ARRAY_TYPE",
+  138: "EXTERNAL_SHORT_ARRAY_TYPE",
+  139: "EXTERNAL_UNSIGNED_SHORT_ARRAY_TYPE",
+  140: "EXTERNAL_INT_ARRAY_TYPE",
+  141: "EXTERNAL_UNSIGNED_INT_ARRAY_TYPE",
+  142: "EXTERNAL_FLOAT_ARRAY_TYPE",
+  144: "EXTERNAL_PIXEL_ARRAY_TYPE",
+  146: "FILLER_TYPE",
+  147: "ACCESSOR_INFO_TYPE",
+  148: "ACCESS_CHECK_INFO_TYPE",
+  149: "INTERCEPTOR_INFO_TYPE",
+  150: "CALL_HANDLER_INFO_TYPE",
+  151: "FUNCTION_TEMPLATE_INFO_TYPE",
+  152: "OBJECT_TEMPLATE_INFO_TYPE",
+  153: "SIGNATURE_INFO_TYPE",
+  154: "TYPE_SWITCH_INFO_TYPE",
+  155: "SCRIPT_TYPE",
+  156: "CODE_CACHE_TYPE",
+  157: "POLYMORPHIC_CODE_CACHE_TYPE",
+  160: "FIXED_ARRAY_TYPE",
+  145: "FIXED_DOUBLE_ARRAY_TYPE",
+  161: "SHARED_FUNCTION_INFO_TYPE",
+  162: "JS_MESSAGE_OBJECT_TYPE",
+  165: "JS_VALUE_TYPE",
+  166: "JS_OBJECT_TYPE",
+  167: "JS_CONTEXT_EXTENSION_OBJECT_TYPE",
+  168: "JS_GLOBAL_OBJECT_TYPE",
+  169: "JS_BUILTINS_OBJECT_TYPE",
+  170: "JS_GLOBAL_PROXY_TYPE",
+  171: "JS_ARRAY_TYPE",
+  164: "JS_PROXY_TYPE",
+  174: "JS_WEAK_MAP_TYPE",
+  175: "JS_REGEXP_TYPE",
+  176: "JS_FUNCTION_TYPE",
+  163: "JS_FUNCTION_PROXY_TYPE",
+  158: "DEBUG_INFO_TYPE",
+  159: "BREAK_POINT_INFO_TYPE",
 }
 
 
@@ -652,7 +661,7 @@ class HeapObject(object):
 
 
 class Map(HeapObject):
-  def InstanceTypeOffset():
+  def InstanceTypeOffset(self):
     return self.heap.PointerSize() + self.heap.IntSize()
 
   def __init__(self, heap, map, address):
@@ -886,7 +895,7 @@ class Code(HeapObject):
   def HeaderSize(heap):
     return (heap.PointerSize() + heap.IntSize() + \
         4 * heap.PointerSize() + 3 * heap.IntSize() + \
-        CODE_ALIGNMENT_MASK) & ~CODE_ALIGNMENT_MASK
+        Code.CODE_ALIGNMENT_MASK) & ~Code.CODE_ALIGNMENT_MASK
 
   def __init__(self, heap, map, address):
     HeapObject.__init__(self, heap, map, address)
@@ -916,6 +925,9 @@ class V8Heap(object):
     "EXTERNAL_SYMBOL_TYPE": ExternalString,
     "EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE": ExternalString,
     "EXTERNAL_ASCII_SYMBOL_TYPE": ExternalString,
+    "SHORT_EXTERNAL_SYMBOL_TYPE": ExternalString,
+    "SHORT_EXTERNAL_SYMBOL_WITH_ASCII_DATA_TYPE": ExternalString,
+    "SHORT_EXTERNAL_ASCII_SYMBOL_TYPE": ExternalString,
     "STRING_TYPE": SeqString,
     "ASCII_STRING_TYPE": SeqString,
     "CONS_STRING_TYPE": ConsString,
@@ -945,7 +957,7 @@ class V8Heap(object):
   def FindObject(self, tagged_address):
     if tagged_address in self.objects:
       return self.objects[tagged_address]
-    if (tagged_address & 1) != 1: return None
+    if (tagged_address & self.ObjectAlignmentMask()) != 1: return None
     address = tagged_address - 1
     if not self.reader.IsValidAddress(address): return None
     map_tagged_address = self.reader.ReadUIntPtr(address)
@@ -957,7 +969,7 @@ class V8Heap(object):
       meta_map.map = meta_map
       object = meta_map
     else:
-      map = self.FindObject(map_tagged_address)
+      map = self.FindMap(map_tagged_address)
       if map is None: return None
       instance_type_name = INSTANCE_TYPES.get(map.instance_type)
       if instance_type_name is None: return None
@@ -966,9 +978,27 @@ class V8Heap(object):
     self.objects[tagged_address] = object
     return object
 
+  def FindMap(self, tagged_address):
+    if (tagged_address & self.MapAlignmentMask()) != 1: return None
+    address = tagged_address - 1
+    if not self.reader.IsValidAddress(address): return None
+    object = Map(self, None, address)
+    return object
+
+  def IntSize(self):
+    return 4
+
   def PointerSize(self):
     return self.reader.PointerSize()
 
+  def ObjectAlignmentMask(self):
+    return self.PointerSize() - 1
+
+  def MapAlignmentMask(self):
+    if self.reader.arch == MD_CPU_ARCHITECTURE_AMD64:
+      return (1 << 4) - 1
+    elif self.reader.arch == MD_CPU_ARCHITECTURE_X86:
+      return (1 << 5) - 1
 
 
 EIP_PROXIMITY = 64

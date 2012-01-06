@@ -4958,10 +4958,13 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character,
                                     Register scratch) {
-  // hash = character + (character << 10);
-  __ movl(hash, character);
-  __ shll(hash, Immediate(10));
-  __ addl(hash, character);
+  // hash = (seed + character) + ((seed + character) << 10);
+  __ LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  __ SmiToInteger32(scratch, scratch);
+  __ addl(scratch, character);
+  __ movl(hash, scratch);
+  __ shll(scratch, Immediate(10));
+  __ addl(hash, scratch);
   // hash ^= hash >> 6;
   __ movl(scratch, hash);
   __ shrl(scratch, Immediate(6));
