@@ -736,9 +736,7 @@ void Deoptimizer::EntryGenerator::Generate() {
   __ pop(ip);  // remove sp
   __ pop(ip);  // remove lr
 
-  // Set up the roots register.
-  ExternalReference roots_address = ExternalReference::roots_address(isolate);
-  __ mov(r10, Operand(roots_address));
+  __ InitializeRootRegister();
 
   __ pop(ip);  // remove pc
   __ pop(r7);  // get continuation, leave pc on stack

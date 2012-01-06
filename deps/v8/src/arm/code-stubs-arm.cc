@@ -5043,70 +5043,6 @@ void StringCharAtGenerator::GenerateSlow(
 }
 
 
-class StringHelper : public AllStatic {
- public:
-  // Generate code for copying characters using a simple loop. This should only
-  // be used in places where the number of characters is small and the
-  // additional setup and checking in GenerateCopyCharactersLong adds too much
-  // overhead. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharacters(MacroAssembler* masm,
-                                     Register dest,
-                                     Register src,
-                                     Register count,
-                                     Register scratch,
-                                     bool ascii);
-
-  // Generate code for copying a large number of characters. This function
-  // is allowed to spend extra time setting up conditions to make copying
-  // faster. Copying of overlapping regions is not supported.
-  // Dest register ends at the position after the last character written.
-  static void GenerateCopyCharactersLong(MacroAssembler* masm,
-                                         Register dest,
-                                         Register src,
-                                         Register count,
-                                         Register scratch1,
-                                         Register scratch2,
-                                         Register scratch3,
-                                         Register scratch4,
-                                         Register scratch5,
-                                         int flags);
-
-
-  // Probe the symbol table for a two character string. If the string is
-  // not found by probing a jump to the label not_found is performed. This jump
-  // does not guarantee that the string is not in the symbol table. If the
-  // string is found the code falls through with the string in register r0.
-  // Contents of both c1 and c2 registers are modified. At the exit c1 is
-  // guaranteed to contain halfword with low and high bytes equal to
-  // initial contents of c1 and c2 respectively.
-  static void GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
-                                                   Register c1,
-                                                   Register c2,
-                                                   Register scratch1,
-                                                   Register scratch2,
-                                                   Register scratch3,
-                                                   Register scratch4,
-                                                   Register scratch5,
-                                                   Label* not_found);
-
-  // Generate string hash.
-  static void GenerateHashInit(MacroAssembler* masm,
-                               Register hash,
-                               Register character);
-
-  static void GenerateHashAddCharacter(MacroAssembler* masm,
-                                       Register hash,
-                                       Register character);
-
-  static void GenerateHashGetHash(MacroAssembler* masm,
-                                  Register hash);
-
- private:
-  DISALLOW_IMPLICIT_CONSTRUCTORS(StringHelper);
-};
-
-
 void StringHelper::GenerateCopyCharacters(MacroAssembler* masm,
                                           Register dest,
                                           Register src,
@@ -5359,9 +5295,8 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   static const int kProbes = 4;
   Label found_in_symbol_table;
   Label next_probe[kProbes];
+  Register candidate = scratch5;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
-    Register candidate = scratch5;  // Scratch register contains candidate.
-
     // Calculate entry in symbol table.
     if (i > 0) {
       __ add(candidate, hash, Operand(SymbolTable::GetProbeOffset(i)));
@@ -5418,7 +5353,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ jmp(not_found);
 
   // Scratch register contains result when we fall through to here.
-  Register result = scratch;
+  Register result = candidate;
   __ bind(&found_in_symbol_table);
   __ Move(r0, result);
 }
@@ -5428,9 +5363,13 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character) {
   // hash = character + (character << 10);
-  __ add(hash, character, Operand(character, LSL, 10));
+  __ LoadRoot(hash, Heap::kStringHashSeedRootIndex);
+  // Untag smi seed and add the character.
+  __ add(hash, character, Operand(hash, LSR, kSmiTagSize));
+  // hash += hash << 10;
+  __ add(hash, hash, Operand(hash, LSL, 10));
   // hash ^= hash >> 6;
-  __ eor(hash, hash, Operand(hash, ASR, 6));
+  __ eor(hash, hash, Operand(hash, LSR, 6));
 }
 
 
@@ -5442,7 +5381,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
   // hash += hash << 10;
   __ add(hash, hash, Operand(hash, LSL, 10));
   // hash ^= hash >> 6;
-  __ eor(hash, hash, Operand(hash, ASR, 6));
+  __ eor(hash, hash, Operand(hash, LSR, 6));
 }
 
 
@@ -5451,12 +5390,15 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   // hash += hash << 3;
   __ add(hash, hash, Operand(hash, LSL, 3));
   // hash ^= hash >> 11;
-  __ eor(hash, hash, Operand(hash, ASR, 11));
+  __ eor(hash, hash, Operand(hash, LSR, 11));
   // hash += hash << 15;
   __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
 
+  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
+  __ and_(hash, hash, Operand(kHashShiftCutOffMask));
+
   // if (hash == 0) hash = 27;
-  __ mov(hash, Operand(27), LeaveCC, ne);
+  __ mov(hash, Operand(27), LeaveCC, eq);
 }
 
 

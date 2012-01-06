@@ -760,8 +760,13 @@ Persistent<Context> Shell::CreateEvaluationContext() {
 #endif  // V8_SHARED
   // Initialize the global objects
   Handle<ObjectTemplate> global_template = CreateGlobalTemplate();
+
+  v8::TryCatch try_catch;
   Persistent<Context> context = Context::New(NULL, global_template);
-  ASSERT(!context.IsEmpty());
+  if (context.IsEmpty()) {
+    v8::Local<v8::Value> st = try_catch.StackTrace();
+    ASSERT(!context.IsEmpty());
+  }
   Context::Scope scope(context);
 
 #ifndef V8_SHARED

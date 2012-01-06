@@ -5577,11 +5577,15 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
 
 
 void StringHelper::GenerateHashInit(MacroAssembler* masm,
-                                      Register hash,
-                                      Register character) {
-  // hash = character + (character << 10);
-  __ sll(hash, character, 10);
+                                    Register hash,
+                                    Register character) {
+  // hash = seed + character + ((seed + character) << 10);
+  __ LoadRoot(hash, Heap::kStringHashSeedRootIndex);
+  // Untag smi seed and add the character.
+  __ SmiUntag(hash);
   __ addu(hash, hash, character);
+  __ sll(at, hash, 10);
+  __ addu(hash, hash, at);
   // hash ^= hash >> 6;
   __ sra(at, hash, 6);
   __ xor_(hash, hash, at);
@@ -5589,8 +5593,8 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
 
 
 void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
-                                              Register hash,
-                                              Register character) {
+                                            Register hash,
+                                            Register character) {
   // hash += character;
   __ addu(hash, hash, character);
   // hash += hash << 10;

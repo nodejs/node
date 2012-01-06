@@ -4542,6 +4542,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   static const int kProbes = 4;
   Label found_in_symbol_table;
   Label next_probe[kProbes];
+  Register candidate = scratch;  // Scratch register contains candidate.
   for (int i = 0; i < kProbes; i++) {
     // Calculate entry in symbol table.
     __ movl(scratch, hash);
@@ -4551,7 +4552,6 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
     __ andl(scratch, mask);
 
     // Load the entry from the symbol table.
-    Register candidate = scratch;  // Scratch register contains candidate.
     STATIC_ASSERT(SymbolTable::kEntrySize == 1);
     __ movq(candidate,
             FieldOperand(symbol_table,
@@ -4597,7 +4597,7 @@ void StringHelper::GenerateTwoCharacterSymbolTableProbe(MacroAssembler* masm,
   __ jmp(not_found);
 
   // Scratch register contains result when we fall through to here.
-  Register result = scratch;
+  Register result = candidate;
   __ bind(&found_in_symbol_table);
   if (!result.is(rax)) {
     __ movq(rax, result);
@@ -4609,13 +4609,16 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character,
                                     Register scratch) {
-  // hash = character + (character << 10);
-  __ movl(hash, character);
-  __ shll(hash, Immediate(10));
-  __ addl(hash, character);
+  // hash = (seed + character) + ((seed + character) << 10);
+  __ LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  __ SmiToInteger32(scratch, scratch);
+  __ addl(scratch, character);
+  __ movl(hash, scratch);
+  __ shll(scratch, Immediate(10));
+  __ addl(hash, scratch);
   // hash ^= hash >> 6;
   __ movl(scratch, hash);
-  __ sarl(scratch, Immediate(6));
+  __ shrl(scratch, Immediate(6));
   __ xorl(hash, scratch);
 }
 
@@ -4632,7 +4635,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
   __ addl(hash, scratch);
   // hash ^= hash >> 6;
   __ movl(scratch, hash);
-  __ sarl(scratch, Immediate(6));
+  __ shrl(scratch, Immediate(6));
   __ xorl(hash, scratch);
 }
 
@@ -4644,12 +4647,15 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ leal(hash, Operand(hash, hash, times_8, 0));
   // hash ^= hash >> 11;
   __ movl(scratch, hash);
-  __ sarl(scratch, Immediate(11));
+  __ shrl(scratch, Immediate(11));
   __ xorl(hash, scratch);
   // hash += hash << 15;
   __ movl(scratch, hash);
   __ shll(scratch, Immediate(15));
   __ addl(hash, scratch);
+
+  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
+  __ andl(hash, Immediate(kHashShiftCutOffMask));
 
   // if (hash == 0) hash = 27;
   Label hash_not_zero;

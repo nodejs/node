@@ -395,14 +395,14 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(roots, index << kPointerSizeLog2), cond);
+  ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
 
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond) {
-  str(source, MemOperand(roots, index << kPointerSizeLog2), cond);
+  str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
 

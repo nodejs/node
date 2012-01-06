@@ -110,7 +110,8 @@ const char* StringsStorage::GetCopy(const char* src) {
   Vector<char> dst = Vector<char>::New(len + 1);
   OS::StrNCpy(dst, src, len);
   dst[len] = '\0';
-  uint32_t hash = HashSequentialString(dst.start(), len);
+  uint32_t hash =
+      HashSequentialString(dst.start(), len, HEAP->StringHashSeed());
   return AddOrDisposeString(dst.start(), hash);
 }
 
@@ -143,7 +144,8 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
     DeleteArray(str.start());
     return format;
   }
-  uint32_t hash = HashSequentialString(str.start(), len);
+  uint32_t hash = HashSequentialString(
+      str.start(), len, HEAP->StringHashSeed());
   return AddOrDisposeString(str.start(), hash);
 }
 
@@ -1462,7 +1464,9 @@ void HeapObjectsMap::RemoveDeadEntries() {
 uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
   uint64_t id = static_cast<uint64_t>(info->GetHash());
   const char* label = info->GetLabel();
-  id ^= HashSequentialString(label, static_cast<int>(strlen(label)));
+  id ^= HashSequentialString(label,
+                             static_cast<int>(strlen(label)),
+                             HEAP->StringHashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
     id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));

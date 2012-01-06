@@ -2001,8 +2001,6 @@ void MacroAssembler::Ret(int bytes_dropped, Register scratch) {
 }
 
 
-
-
 void MacroAssembler::Drop(int stack_elements) {
   if (stack_elements > 0) {
     add(Operand(esp), Immediate(stack_elements * kPointerSize));

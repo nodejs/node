@@ -51,7 +51,7 @@ static inline Operand SmiUntagOperand(Register object) {
 
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
-const Register roots = { 10 };  // Roots array pointer.
+const Register kRootRegister = { 10 };  // Roots array pointer.
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -349,6 +349,12 @@ class MacroAssembler: public Assembler {
   void LoadGlobalFunctionInitialMap(Register function,
                                     Register map,
                                     Register scratch);
+
+  void InitializeRootRegister() {
+    ExternalReference roots_address =
+        ExternalReference::roots_address(isolate());
+    mov(kRootRegister, Operand(roots_address));
+  }
 
   // ---------------------------------------------------------------------------
   // JavaScript invokes

@@ -5734,7 +5734,7 @@ enum RobustnessFlag {ROBUST_STRING_TRAVERSAL, FAST_STRING_TRAVERSAL};
 
 class StringHasher {
  public:
-  explicit inline StringHasher(int length);
+  explicit inline StringHasher(int length, uint32_t seed);
 
   // Returns true if the hash of this string can be computed without
   // looking at the contents.
@@ -5785,7 +5785,9 @@ class StringHasher {
 
 // Calculates string hash.
 template <typename schar>
-inline uint32_t HashSequentialString(const schar* chars, int length);
+inline uint32_t HashSequentialString(const schar* chars,
+                                     int length,
+                                     uint32_t seed);
 
 
 // The characteristics of a string are stored in its map.  Retrieving these
@@ -6007,7 +6009,8 @@ class String: public HeapObject {
   inline uint32_t Hash();
 
   static uint32_t ComputeHashField(unibrow::CharacterStream* buffer,
-                                   int length);
+                                   int length,
+                                   uint32_t seed);
 
   static bool ComputeArrayIndex(unibrow::CharacterStream* buffer,
                                 uint32_t* index,
@@ -6071,6 +6074,10 @@ class String: public HeapObject {
 
   // Shift constant retrieving hash code from hash field.
   static const int kHashShift = kNofHashBitFields;
+
+  // Only these bits are relevant in the hash, since the top two are shifted
+  // out.
+  static const uint32_t kHashBitMask = 0xffffffffu >> kHashShift;
 
   // Array index strings this short can keep their index in the hash
   // field.

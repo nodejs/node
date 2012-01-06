@@ -2082,8 +2082,9 @@ int HashTable<Shape, Key>::FindEntry(Isolate* isolate, Key key) {
   // EnsureCapacity will guarantee the hash table is never full.
   while (true) {
     Object* element = KeyAt(entry);
-    if (element == isolate->heap()->undefined_value()) break;  // Empty entry.
-    if (element != isolate->heap()->null_value() &&
+    // Empty entry.
+    if (element == isolate->heap()->raw_unchecked_undefined_value()) break;
+    if (element != isolate->heap()->raw_unchecked_null_value() &&
         Shape::IsMatch(key, element)) return entry;
     entry = NextProbe(entry, count++, capacity);
   }
@@ -4235,13 +4236,15 @@ uint32_t String::Hash() {
 }
 
 
-StringHasher::StringHasher(int length)
+StringHasher::StringHasher(int length, uint32_t seed)
   : length_(length),
-    raw_running_hash_(0),
+    raw_running_hash_(seed),
     array_index_(0),
     is_array_index_(0 < length_ && length_ <= String::kMaxArrayIndexSize),
     is_first_char_(true),
-    is_valid_(true) { }
+    is_valid_(true) {
+  ASSERT(FLAG_randomize_string_hashes || raw_running_hash_ == 0);
+}
 
 
 bool StringHasher::has_trivial_hash() {
@@ -4293,7 +4296,7 @@ uint32_t StringHasher::GetHash() {
   result += (result << 3);
   result ^= (result >> 11);
   result += (result << 15);
-  if (result == 0) {
+  if ((result & String::kHashBitMask) == 0) {
     result = 27;
   }
   return result;
@@ -4301,8 +4304,8 @@ uint32_t StringHasher::GetHash() {
 
 
 template <typename schar>
-uint32_t HashSequentialString(const schar* chars, int length) {
-  StringHasher hasher(length);
+uint32_t HashSequentialString(const schar* chars, int length, uint32_t seed) {
+  StringHasher hasher(length, seed);
   if (!hasher.has_trivial_hash()) {
     int i;
     for (i = 0; hasher.is_array_index() && (i < length); i++) {

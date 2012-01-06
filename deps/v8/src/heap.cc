@@ -5362,6 +5362,17 @@ bool Heap::Setup(bool create_heap_objects) {
   if (lo_space_ == NULL) return false;
   if (!lo_space_->Setup()) return false;
 
+  // Set up the seed that is used to randomize the string hash function.
+  ASSERT(string_hash_seed() == 0);
+  if (FLAG_randomize_string_hashes) {
+    if (FLAG_string_hash_seed == 0) {
+      set_string_hash_seed(
+          Smi::FromInt(V8::RandomPrivate(isolate()) & 0x3fffffff));
+    } else {
+      set_string_hash_seed(Smi::FromInt(FLAG_string_hash_seed));
+    }
+  }
+
   if (create_heap_objects) {
     // Create initial maps.
     if (!CreateInitialMaps()) return false;
