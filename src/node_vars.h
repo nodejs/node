@@ -168,6 +168,10 @@ struct globals {
   v8::Persistent<v8::String> write_sym;
   v8::Persistent<v8::FunctionTemplate> buffer_constructor_template;
 
+  // node_script.cc
+  v8::Persistent<v8::FunctionTemplate> wrapped_context_constructor;
+  v8::Persistent<v8::FunctionTemplate> wrapped_script_constructor;
+
   // node_signal_watcher.cc
   v8::Persistent<v8::String> callback_symbol;
   v8::Persistent<v8::FunctionTemplate> signal_watcher_constructor_template;
