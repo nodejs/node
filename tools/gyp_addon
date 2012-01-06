@@ -16,6 +16,7 @@ if __name__ == '__main__':
   args.extend(['-I', common_gypi])
   args.extend(['-Dlibrary=shared_library'])
   args.extend(['-Dvisibility=default'])
+  args.extend(['-Dnode_root_dir=%s' % node_root])
   args.extend(['--depth=.']);
 
   gyp_args = list(args)
