@@ -23,8 +23,10 @@
 #define SRC_NODE_ISOLATE_H_
 
 #include "v8.h"
+#include "v8-debug.h"
 #include "uv.h"
 #include "node_vars.h"
+#include "node_object_wrap.h"
 #include "ngx-queue.h"
 
 #ifdef NDEBUG
@@ -42,15 +44,28 @@
 
 namespace node {
 
+template <class T>
+
+class Channel;
+
 class IsolateWrap;
 class IsolateChannel;
 class IsolateMessage;
+class IsolateDebugger;
+class IsolateDebuggerMessage;
 
 class Isolate {
 public:
   char** argv_;
   int argc_;
   uv_thread_t tid_;
+
+  enum {
+    kNone,
+    kDebug,
+    kDebugBrk
+  } debug_state;
+  IsolateDebugger* debugger_instance;
 
   // Call this before instantiating any Isolate
   static void Initialize();
@@ -123,6 +138,44 @@ private:
   // Global variables for this isolate.
   struct globals globals_;
   bool globals_init_;
+};
+
+class IsolateDebugger : ObjectWrap {
+public:
+  static void Initialize();
+  void Init();
+  static void InitCallback(uv_async_t* c, int status);
+
+  static v8::Handle<v8::Value> New(const v8::Arguments& args);
+  static IsolateDebugger* New(v8::Handle<v8::Value> init);
+
+  static v8::Handle<v8::Value> Write(const v8::Arguments& args);
+
+  static void DebugMessageHandler(const v8::Debug::Message& message);
+  static void MessageCallback(IsolateDebuggerMessage* msg, void*);
+
+  IsolateDebugger(v8::Handle<v8::Value> init);
+  ~IsolateDebugger();
+
+protected:
+  Isolate* host_;
+  uv_loop_t* host_loop_;
+
+  uv_async_t init_callback_;
+  v8::Persistent<v8::Value> init_callback_fn_;
+
+  bool initialized_;
+  Isolate* debuggee_;
+  v8::Isolate* debuggee_v8_;
+
+  struct debug_msg_s {
+    uint16_t* value;
+    int len;
+
+    IsolateDebugger* d;
+  };
+
+  Channel<IsolateDebuggerMessage*>* msg_channel_;
 };
 
 } // namespace node

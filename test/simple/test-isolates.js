@@ -5,7 +5,20 @@ var isolates = process.binding('isolates');
 console.log("count: %d", isolates.count());
 
 if (process.tid === 1) {
-  var isolate = isolates.create(process.argv);
+  var isolate = isolates.create(process.argv, {
+    debug: function init(d) {
+      d.onmessage = function(data) {
+        data = JSON.parse(data);
+        if (data.event === 'break') {
+          d.write(JSON.stringify({
+            type: 'request',
+            seq: 1,
+            command: 'continue'
+          }));
+        }
+      };
+    }
+  });
 
   isolate.onmessage = function() {
     console.error("onmessage");

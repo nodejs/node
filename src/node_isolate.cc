@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <v8.h>
+#include <v8-debug.h>
 #include <node.h>
 #include <node_buffer.h>
 #include <node_isolate.h>
@@ -31,11 +32,16 @@
 #include <assert.h>
 
 
+#define isolate_debugger_constructor NODE_VAR(isolate_debugger_constructor)
+
+
 namespace node {
 
 using v8::Arguments;
 using v8::Array;
+using v8::Context;
 using v8::False;
+using v8::Function;
 using v8::FunctionTemplate;
 using v8::Handle;
 using v8::HandleScope;
@@ -47,6 +53,7 @@ using v8::ObjectTemplate;
 using v8::Persistent;
 using v8::String;
 using v8::True;
+using v8::Undefined;
 using v8::Value;
 using v8::Undefined;
 
@@ -252,6 +259,9 @@ Isolate::Isolate() {
     loop_ = uv_loop_new();
   }
 
+  debug_state = kNone;
+  debugger_instance = NULL;
+
   ngx_queue_init(&at_exit_callbacks_);
 
   v8_isolate_ = v8::Isolate::New();
@@ -290,7 +300,7 @@ void Isolate::Enter() {
   v8_isolate_->Enter();
 
   if (v8_context_.IsEmpty()) {
-    v8_context_ = v8::Context::New();
+    v8_context_ = Context::New();
   }
   v8_context_->Enter();
 
@@ -476,6 +486,22 @@ static Handle<Value> CreateIsolate(const Arguments& args) {
   }
   isolate->argv_[isolate->argc_] = NULL;
 
+  // If options object was provided
+  if (args.Length() > 1) {
+    Local<Object> options = args[1].As<Object>();
+    Local<Value> opt_debug = options->Get(String::New("debug"));
+    Local<Value> opt_debug_brk = options->Get(String::New("debugBrk"));
+
+    // Handle .debug = true case
+    if (opt_debug->IsFunction()) {
+      isolate->debug_state = opt_debug_brk->IsTrue() ?
+          Isolate::kDebugBrk
+          :
+          Isolate::kDebug;
+      isolate->debugger_instance = IsolateDebugger::New(opt_debug);
+    }
+  }
+
   if (uv_thread_create(&isolate->tid_, RunIsolate, isolate))
     return Null(); // wrap is collected by the GC
   else
@@ -493,6 +519,186 @@ void InitIsolates(Handle<Object> target) {
   HandleScope scope;
   NODE_SET_METHOD(target, "create", CreateIsolate);
   NODE_SET_METHOD(target, "count", CountIsolate);
+
+  IsolateDebugger::Initialize();
+}
+
+
+class IsolateDebuggerMessage {
+ public:
+  IsolateDebugger* d_;
+  uint16_t* value_;
+  int len_;
+
+  IsolateDebuggerMessage(IsolateDebugger* d, uint16_t* value, int len) {
+    d_ = d;
+    value_ = new uint16_t[len];
+    len_ = len;
+    memcpy(value_, value, len * sizeof(value_[0]));
+  }
+
+  ~IsolateDebuggerMessage() {
+    delete[] value_;
+  }
+};
+
+
+void IsolateDebugger::Initialize() {
+  HandleScope scope;
+
+  Local<FunctionTemplate> t = FunctionTemplate::New(IsolateDebugger::New);
+  isolate_debugger_constructor = Persistent<FunctionTemplate>::New(t);
+
+  t->InstanceTemplate()->SetInternalFieldCount(1);
+  t->SetClassName(String::NewSymbol("IsolateDebugger"));
+
+  NODE_SET_PROTOTYPE_METHOD(t, "write", IsolateDebugger::Write);
+}
+
+
+IsolateDebugger::IsolateDebugger(Handle<Value> init) {
+  debuggee_ = NULL;
+  initialized_ = false;
+  host_ = Isolate::GetCurrent();
+  host_loop_ = host_->GetLoop();
+  init_callback_fn_ = Persistent<Value>::New(init);
+
+  // Init async handle to invoke js callback once
+  // debugger will be initialized
+  uv_async_init(host_loop_,
+                &init_callback_,
+                IsolateDebugger::InitCallback);
+  init_callback_.data = reinterpret_cast<void*>(this);
+
+  msg_channel_ = new Channel<IsolateDebuggerMessage*>(
+      host_loop_, MessageCallback, NULL);
+}
+
+
+IsolateDebugger::~IsolateDebugger() {
+  init_callback_fn_.Clear();
+  init_callback_fn_.Dispose();
+  delete msg_channel_;
+}
+
+
+void IsolateDebugger::Init(void) {
+  HandleScope scope;
+
+  Isolate* isolate = Isolate::GetCurrent();
+
+  debuggee_ = isolate;
+  debuggee_v8_ = isolate->GetV8Isolate();
+  v8::Debug::SetMessageHandler2(IsolateDebugger::DebugMessageHandler);
+
+  // Expose v8debug for isolate
+
+  if (isolate->debug_state == Isolate::kDebugBrk) {
+    Local<Context> debugContext = v8::Debug::GetDebugContext();
+
+    debugContext->SetSecurityToken(
+        isolate->GetV8Context()->GetSecurityToken()
+    );
+    isolate->GetV8Context()->Global()->Set(
+        String::New("v8debug"),
+        debugContext->Global()
+    );
+  }
+
+  initialized_ = true;
+
+  uv_async_send(&init_callback_);
+}
+
+
+void IsolateDebugger::InitCallback(uv_async_t* c, int status) {
+  assert(c->data != NULL);
+
+  IsolateDebugger* d = reinterpret_cast<IsolateDebugger*>(c->data);
+
+  d->host_->Enter();
+  HandleScope scope;
+
+  Handle<Value> argv[1] = { d->handle_ };
+  Function::Cast(*d->init_callback_fn_)->Call(d->handle_, 1, argv);
+
+  d->host_->Exit();
+
+  // Unreference loop
+  uv_unref(d->host_loop_);
+}
+
+
+Handle<Value> IsolateDebugger::New(const Arguments& args) {
+  HandleScope scope;
+
+  IsolateDebugger* d = new IsolateDebugger(args[0]);
+  d->Wrap(args.Holder());
+
+  return args.This();
+}
+
+
+IsolateDebugger* IsolateDebugger::New(Handle<Value> init) {
+  HandleScope scope;
+
+  Handle<Value> argv[1] = { init };
+  Handle<Object> i = isolate_debugger_constructor->GetFunction()->NewInstance(
+      1,
+      argv
+  );
+
+  return ObjectWrap::Unwrap<IsolateDebugger>(i);
+}
+
+
+Handle<Value> IsolateDebugger::Write(const Arguments& args) {
+  HandleScope scope;
+
+  if (args.Length() != 1) {
+    return ThrowException(String::New(
+        "IsolateDebugger::Write requires one argument"
+    ));
+  }
+
+  IsolateDebugger* d = ObjectWrap::Unwrap<IsolateDebugger>(args.This());
+  assert(d->initialized_);
+
+  String::Value v(args[0]->ToString());
+  v8::Debug::SendCommand(*v,
+                         v.length(),
+                         NULL,
+                         d->debuggee_v8_);
+
+  return Undefined();
+}
+
+
+void IsolateDebugger::DebugMessageHandler(const v8::Debug::Message& message) {
+  IsolateDebugger* d = Isolate::GetCurrent()->debugger_instance;
+
+  String::Value v(message.GetJSON());
+  d->msg_channel_->Send(new IsolateDebuggerMessage(d, *v, v.length()));
+}
+
+
+void IsolateDebugger::MessageCallback(IsolateDebuggerMessage* msg, void*) {
+  assert(msg != NULL);
+
+  IsolateDebugger *d = msg->d_;
+  // Enter parent isolate context
+  d->host_->Enter();
+  HandleScope scope;
+
+  // debugger.onmessage should be a function!
+  Handle<Value> argv[] = { String::New(msg->value_, msg->len_) };
+  MakeCallback(d->handle_, "onmessage", ARRAY_SIZE(argv), argv);
+
+  // Free memory allocated for message
+  delete msg;
+
+  // And leave isolate
+  d->host_->Exit();
 }
 
 

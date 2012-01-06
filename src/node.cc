@@ -2624,15 +2624,20 @@ void StartThread(node::Isolate* isolate,
   // even when we need it to access it from another (debugger) thread.
   node_isolate = v8::Isolate::GetCurrent();
 
-  // If the --debug flag was specified then initialize the debug thread.
-  if (use_debug_agent) {
-    EnableDebug(debug_wait_connect);
-  } else {
+  // Only main isolate is allowed to run a debug agent and listen for signals
+  if (isolate->id_ == 1) {
+    // If the --debug flag was specified then initialize the debug thread.
+    if (use_debug_agent) {
+      EnableDebug(debug_wait_connect);
+    } else {
 #ifdef _WIN32
-    RegisterDebugSignalHandler();
+      RegisterDebugSignalHandler();
 #else // Posix
-    RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
+      RegisterSignalHandler(SIGUSR1, EnableDebugSignalHandler);
 #endif // __POSIX__
+    }
+  } else if (isolate->debug_state != Isolate::kNone) {
+    isolate->debugger_instance->Init();
   }
 
   Handle<Object> process_l = SetupProcessObject(argc, argv);
