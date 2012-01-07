@@ -17,6 +17,7 @@ set target=Build
 set noprojgen=
 set nobuild=
 set nosign=
+set nosnapshot=
 set test=
 set test_args=
 set msi=
@@ -30,6 +31,7 @@ if /i "%1"=="clean"        set target=Clean&goto arg-ok
 if /i "%1"=="noprojgen"    set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"      set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"       set nosign=1&goto arg-ok
+if /i "%1"=="nosnapshot"   set nosnapshot=1&goto arg-ok
 if /i "%1"=="test-uv"      set test=test-uv&goto arg-ok
 if /i "%1"=="test-internet"set test=test-internet&goto arg-ok
 if /i "%1"=="test-pummel"  set test=test-pummel&goto arg-ok
@@ -53,7 +55,15 @@ if defined upload goto upload
 if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
+if defined nosnapshot goto nosnapshotgen
 python tools\gyp_node -f msvs -G msvs_version=2010
+if errorlevel 1 goto create-msvs-files-failed
+if not exist node.sln goto create-msvs-files-failed
+echo Project files generated.
+goto msbuild
+
+:nosnapshotgen
+python tools\gyp_node -f msvs -G msvs_version=2010 -D v8_use_snapshot='false'
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
