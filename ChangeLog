@@ -11,7 +11,7 @@
 
 * Fix segfault in node_http_parser.cc
 
-* dgram, timers: fix memory leaks (Ben Noordhuis, Yoshihiro Kukuchi)
+* dgram, timers: fix memory leaks (Ben Noordhuis, Yoshihiro Kikuchi)
 
 * repl: fix repl.start not passing the `ignoreUndefined` arg (Damon Oehlman)
 
