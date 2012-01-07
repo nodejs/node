@@ -237,7 +237,7 @@ server, you unauthorized connections may be accepted.
 SNI.
 
 
-### Event: 'clientError'
+#### Event: 'clientError'
 
 `function (exception) { }`
 

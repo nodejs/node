@@ -131,9 +131,10 @@ would be to wait a second and then try again. This can be done with
 
 Start a UNIX socket server listening for connections on the given `path`.
 
-This function is asynchronous. The last parameter `listeningListener` will be
-called when the server has been bound.
-See also ['listening'](#event_listening_) event.
+This function is asynchronous.  When the server has been bound,
+['listening'](#event_listening_) event will be emitted.
+the last parameter `listeningListener` will be added as an listener for the
+['listening'](#event_listening_) event.
 
 #### server.pause(msecs)
 
