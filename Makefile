@@ -1,4 +1,5 @@
-WAF=python tools/waf-light
+PYTHON ?= python
+WAF    = $(PYTHON) tools/waf-light
 
 web_root = node@nodejs.org:~/web/nodejs.org/
 
@@ -32,41 +33,41 @@ uninstall:
 	@$(WAF) uninstall
 
 test: all
-	python tools/test.py --mode=release simple message
+	$(PYTHON) tools/test.py --mode=release simple message
 
 test-http1: all
-	python tools/test.py --mode=release --use-http1 simple message
+	$(PYTHON) tools/test.py --mode=release --use-http1 simple message
 
 test-valgrind: all
-	python tools/test.py --mode=release --valgrind simple message
+	$(PYTHON) tools/test.py --mode=release --valgrind simple message
 
 test-all: all
-	python tools/test.py --mode=debug,release
+	$(PYTHON) tools/test.py --mode=debug,release
 	make test-npm
 
 test-all-http1: all
-	python tools/test.py --mode=debug,release --use-http1
+	$(PYTHON) tools/test.py --mode=debug,release --use-http1
 
 test-all-valgrind: all
-	python tools/test.py --mode=debug,release --valgrind
+	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-release: all
-	python tools/test.py --mode=release
+	$(PYTHON) tools/test.py --mode=release
 
 test-debug: all
-	python tools/test.py --mode=debug
+	$(PYTHON) tools/test.py --mode=debug
 
 test-message: all
-	python tools/test.py message
+	$(PYTHON) tools/test.py message
 
 test-simple: all
-	python tools/test.py simple
+	$(PYTHON) tools/test.py simple
 
 test-pummel: all
-	python tools/test.py pummel
+	$(PYTHON) tools/test.py pummel
 
 test-internet: all
-	python tools/test.py internet
+	$(PYTHON) tools/test.py internet
 
 test-npm: all
 	./node deps/npm/test/run.js
@@ -146,7 +147,7 @@ distclean: docclean
 check:
 	@tools/waf-light check
 
-VERSION=v$(shell python tools/getnodeversion.py)
+VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
 TARNAME=node-$(VERSION)
 TARBALL=$(TARNAME).tar.gz
 PKG=out/$(TARNAME).pkg
@@ -194,10 +195,10 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 jslint:
-	PYTHONPATH=tools/closure_linter/ python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/
+	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/
 
 cpplint:
-	@python tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
+	@$(PYTHON) tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
 
 lint: jslint cpplint
 

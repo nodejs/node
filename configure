@@ -7,6 +7,10 @@ if [ ! -z "`echo $CC | grep ccache`" ]; then
   exit 1
 fi
 
+if [ -z "$PYTHON" ]; then
+  PYTHON=python
+fi
+
 CUR_DIR=$PWD
 
 #possible relative path
@@ -16,6 +20,6 @@ cd "$WORKINGDIR"
 WORKINGDIR=`pwd`
 cd "$CUR_DIR"
 
-"${WORKINGDIR}/tools/waf-light" --jobs=1 configure $*
+"$PYTHON" "${WORKINGDIR}/tools/waf-light" --jobs=1 configure $*
 
 exit $?
