@@ -1046,6 +1046,10 @@ ssize_t DecodeBytes(v8::Handle<v8::Value> val, enum encoding encoding) {
     return -1;
   }
 
+  if (encoding == BINARY && Buffer::HasInstance(val)) {
+    return Buffer::Length(val->ToObject());
+  }
+
   Local<String> str = val->ToString();
 
   if (encoding == UTF8) return str->Utf8Length();
