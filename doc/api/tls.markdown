@@ -113,6 +113,10 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `port`: Port the client should connect to
 
+  - `socket`: Establish secure connection on a given socket rather than
+    creating a new socket. If this option is specified, `host` and `port`
+    are ignored.
+
   - `key`: A string or `Buffer` containing the private key of the client in
     PEM format.
 
