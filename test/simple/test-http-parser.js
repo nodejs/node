@@ -404,7 +404,7 @@ function expectBody(expected) {
 //
 (function() {
   var request = Buffer(
-    'POST /it HTTP/1.1' + CRLF +
+    'POST /helpme HTTP/1.1' + CRLF +
     'Content-Type: text/plain' + CRLF +
     'Transfer-Encoding: chunked' + CRLF +
     CRLF +
@@ -426,7 +426,7 @@ function expectBody(expected) {
 
     parser.onHeadersComplete = mustCall(function(info) {
       assert.equal(info.method, 'POST');
-      assert.equal(info.url || parser.url, '/it');
+      assert.equal(info.url || parser.url, '/helpme');
       assert.equal(info.versionMajor, 1);
       assert.equal(info.versionMinor, 1);
     });
@@ -447,7 +447,9 @@ function expectBody(expected) {
 
   for (var i = 1; i < request.length - 1; ++i) {
     var a = request.slice(0, i);
+    console.error("request.slice(0, " + i + ") = ", JSON.stringify(a.toString()));
     var b = request.slice(i);
+    console.error("request.slice(" + i + ") = ", JSON.stringify(b.toString()));
     test(a, b);
   }
 })();

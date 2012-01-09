@@ -90,3 +90,4 @@ Stay tuned!
 
 * npm-config(1)
 * npm-developers(1)
+* npm-disputes(1)

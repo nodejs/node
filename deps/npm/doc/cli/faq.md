@@ -32,35 +32,65 @@ tl;dr:
   something with the `-g` flag, then its executables go in `npm bin -g`
   and its modules go in `npm root -g`.
 
-## How do I install something everywhere?
+## How do I install something on my computer in a central location?
 
-Install it globally by tacking `-g` or `--global` to the command.
+Install it globally by tacking `-g` or `--global` to the command.  (This
+is especially important for command line utilities that need to add
+their bins to the global system `PATH`.)
 
 ## I installed something globally, but I can't `require()` it
 
 Install it locally.
 
-## I don't wanna.
+The global install location is a place for command-line utilities
+to put their bins in the system `PATH`.  It's not for use with `require()`.
 
-Check out `npm link`.  You might like it.
+If you `require()` a module in your code, then that means it's a
+dependency, and a part of your program.  You need to install it locally
+in your program.
 
-## No, I really want 0.x style 'everything global' style.
+## Why can't npm just put everything in one place, like other package managers?
 
-Ok, fine.  Do this:
+Not every change is an improvement, but every improvement is a change.
+This would be like asking git to do network IO for every commit.  It's
+not going to happen, because it's a terrible idea that causes more
+problems than it solves.
 
-    echo 'export NODE_PATH="'$(npm root -g)'"' >> ~/.bashrc
-    . ~/.bashrc
-    npm config set global true
+It is much harder to avoid dependency conflicts without nesting
+dependencies.  This is fundamental to the way that npm works, and has
+proven to be an extremely successful approach.  See `npm-folders(1)` for
+more details.
 
-This is not recommended.
+If you want a package to be installed in one place, and have all your
+programs reference the same copy of it, then use the `npm link` command.
+That's what it's for.  Install it globally, then link it into each
+program that uses it.
 
-Many things **will not work** if you do this.  Make sure you read and
-understand `npm-config(1)` and `npm-global(1)` before you complain
-about things being broken.
+## Whatever, I really want the old style 'everything global' style.
 
-When you realize what a mistake it was, do this to switch back:
+Write your own package manager, then.  It's not that hard.
 
-    npm config delete global --local
+npm will not help you do something that is known to be a bad idea.
+
+## Should I check my `node_modules` folder into git?
+
+Mikeal Rogers answered this question very well:
+
+<http://www.mikealrogers.com/posts/nodemodules-in-git.html>
+
+tl;dr
+
+* Check `node_modules` into git for things you **deploy**, such as
+  websites and apps.
+* Do not check `node_modules` into git for libraries and modules
+  intended to be reused.
+* Use npm to manage dependencies in your dev environment, but not in
+  your deployment scripts.
+
+## Is it 'npm' or 'NPM' or 'Npm'?
+
+npm should never be capitalized unless it is being displayed in a
+location that is customarily all-caps (such as the title of man pages.)
 
 ## If 'npm' is an acronym, why is it never capitalized?
 
@@ -73,7 +103,7 @@ acronym, and thus incorrectly named.)
 National Association of Pastoral Musicians.  You can learn more
 about them at <http://npm.org/>.
 
-In software, "NPM" is a non-parametric mapping utility written by
+In software, "NPM" is a Non-Parametric Mapping utility written by
 Chris Rorden.  You can analyze pictures of brains with it.  Learn more
 about the (capitalized) NPM program at <http://www.cabiatl.com/mricro/npm/>.
 
@@ -186,11 +216,9 @@ Go to <http://admin.npmjs.org/reset>.
 ## I get ECONNREFUSED a lot.  What's up?
 
 Either the registry is down, or node's DNS isn't able to reach out.
-This happens a lot if you don't follow *all* the steps in the Cygwin
-setup doc.
 
 To check if the registry is down, open up
-<http://registry.npmjs.org/-/short>
+<http://registry.npmjs.org/>
 in a web browser.  This will also tell you if you are just unable to
 access the internet for some reason.
 

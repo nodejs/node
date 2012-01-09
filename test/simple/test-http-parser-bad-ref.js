@@ -15,6 +15,8 @@ function flushPool() {
 }
 
 function demoBug(part1, part2) {
+  flushPool();
+
   var parser = new HTTPParser('REQUEST');
 
   parser.headers = [];
@@ -56,6 +58,8 @@ function demoBug(part1, part2) {
     parser.execute(b, 0, b.length);
     parser.finish();
   })();
+
+  flushPool();
 }
 
 
@@ -64,9 +68,13 @@ demoBug('POST /1', '/22 HTTP/1.1\r\n' +
         'Content-Length: 4\r\n\r\n' +
         'pong');
 
+demoBug('POST /1/22 HTTP/1.1\r\n' +
+        'Content-Type: tex', 't/plain\r\n' +
+        'Content-Length: 4\r\n\r\n' +
+        'pong');
 
 process.on('exit', function() {
-  assert.equal(1, headersComplete);
-  assert.equal(1, messagesComplete);
+  assert.equal(2, headersComplete);
+  assert.equal(2, messagesComplete);
   console.log("done!");
 });

@@ -30,3 +30,4 @@ that is not implemented at this time.
 * npm-publish(1)
 * npm-registry(1)
 * npm-adduser(1)
+* npm-disputes(1)

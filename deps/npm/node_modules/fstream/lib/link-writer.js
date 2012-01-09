@@ -21,6 +21,7 @@ function LinkWriter (props) {
     throw new Error("Non-link type "+ props.type)
   }
 
+  if (props.linkpath === "") props.linkpath = "."
   if (!props.linkpath) {
     me.error("Need linkpath property to create " + props.type)
   }

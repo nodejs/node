@@ -41,6 +41,13 @@ assert.ok(!e._events['specific'].hasOwnProperty('warned'));
 e.on('specific', function() {});
 assert.ok(e._events['specific'].warned);
 
+// only one
+e.setMaxListeners(1);
+e.on('only one', function() {});
+assert.ok(!e._events['only one'].hasOwnProperty('warned'));
+e.on('only one', function() {});
+assert.ok(e._events['only one'].hasOwnProperty('warned'));
+
 // unlimited
 e.setMaxListeners(0);
 for (var i = 0; i < 1000; i++) {

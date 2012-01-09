@@ -29,6 +29,8 @@ var EventEmitter = require("events").EventEmitter
   , findPrefix = require("./utils/find-prefix.js")
   , getUid = require("./utils/uid-number.js")
   , mkdir = require("./utils/mkdir-p.js")
+  , slide = require("slide")
+  , chain = slide.chain
 
 npm.commands = {}
 npm.ELIFECYCLE = {}
@@ -109,6 +111,7 @@ var commandCache = {}
               , "home" : "docs"
               , "unstar": "star" // same function
               , "apihelp" : "help"
+              , "login": "adduser"
               }
 
   , aliasNames = Object.keys(aliases)
@@ -261,7 +264,6 @@ npm.load = function (conf, cb_) {
 
 function load (npm, conf, cb) {
   which(process.argv[0], function (er, node) {
-    //console.error("back from which")
     if (!er && node.toUpperCase() !== process.execPath.toUpperCase()) {
       log.verbose("node symlink", node)
       process.execPath = node
@@ -275,23 +277,15 @@ function load (npm, conf, cb) {
       //console.error("back from config lookup", er && er.stack)
       if (er) return cb(er)
 
-      var n = 2
-        , errState
-
       var umask = parseInt(conf.umask, 8)
       npm.modes = { exec: 0777 & (~umask)
                   , file: 0666 & (~umask)
                   , umask: umask }
 
-      loadPrefix(npm, conf, next)
-      loadUid(npm, conf, next)
-
-      function next (er) {
-        //console.error("next", er && er.stack)
-        if (errState) return
-        if (er) return cb(errState = er)
-        if (-- n <= 0) return cb()
-      }
+      chain([ [ loadPrefix, npm, conf ]
+            , [ setUser, ini.configList, ini.defaultConfig ]
+            , [ loadUid, npm, conf ]
+            ], cb)
     })
   })
 }
@@ -308,14 +302,17 @@ function loadPrefix (npm, conf, cb) {
   gp = npm.config.get("prefix")
 
   findPrefix(p, function (er, p) {
-    //console.log("Back from findPrefix", er && er.stack, p)
     Object.defineProperty(npm, "localPrefix",
       { get : function () { return p }
       , set : function (r) { return p = r }
       , enumerable : true
       })
     // the prefix MUST exist, or else nothing works.
-    mkdir(p, npm.modes.exec, null, null, true, next)
+    if (!npm.config.get("global")) {
+      mkdir(p, npm.modes.exec, null, null, true, next)
+    } else {
+      next(er)
+    }
   })
 
   findPrefix(gp, function (er, gp) {
@@ -344,9 +341,31 @@ function loadUid (npm, conf, cb) {
   if (!npm.config.get("unsafe-perm")) {
     getUid(npm.config.get("user"), npm.config.get("group"), cb)
   } else {
-    //console.error("skipping loadUid")
     process.nextTick(cb)
   }
+}
+
+function setUser (cl, dc, cb) {
+  // If global, leave it as-is.
+  // If not global, then set the user to the owner of the prefix folder.
+  // Just set the default, so it can be overridden.
+  if (cl.get("global")) return cb()
+  if (process.env.SUDO_UID) {
+    dc.user = +(process.env.SUDO_UID)
+    return cb()
+  }
+
+  var prefix = path.resolve(cl.get("prefix"))
+  mkdir(prefix, function (er) {
+    if (er) {
+      log.error(prefix, "could not create prefix directory")
+      return cb(er)
+    }
+    fs.stat(prefix, function (er, st) {
+      dc.user = st && st.uid
+      return cb(er)
+    })
+  })
 }
 
 

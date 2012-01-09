@@ -79,7 +79,7 @@ function requestAll_ (c, data, cb) {
   var uri = "/-/all/since?stale=update_after&startkey=" + c
 
   if (c === 0) {
-    log.warn("Building the index for the first time, please be patient")
+    log.warn("Building the local index for the first time, please be patient")
     uri = "/-/all"
   }
 
@@ -121,7 +121,7 @@ function get_ (uri, timeout, cache, stat, data, nofollow, staleOk, cb) {
   GET(uri, etag, nofollow, function (er, remoteData, raw, response) {
     // if we get an error talking to the registry, but we have it
     // from the cache, then just pretend we got it.
-    if (er && cache) {
+    if (er && cache && data && !data.error) {
       er = null
       response = {statusCode: 304}
     }

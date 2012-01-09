@@ -1,6 +1,6 @@
 {
   'variables': {
-    'v8_use_snapshot': 'true',
+    'v8_use_snapshot%': 'true',
     # Turn off -Werror in V8
     # See http://codereview.chromium.org/8159015
     'werror': '',

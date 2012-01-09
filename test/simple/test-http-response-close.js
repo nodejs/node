@@ -23,15 +23,20 @@ var common = require('../common');
 var assert = require('assert');
 var http = require('http');
 
-var gotEnd = false;
+var requestGotEnd = false;
+var responseGotEnd = false;
 
 var server = http.createServer(function(req, res) {
   res.writeHead(200);
   res.write('a');
 
   req.on('close', function() {
-    console.error('aborted');
-    gotEnd = true;
+    console.error('request aborted');
+    requestGotEnd = true;
+  });
+  res.on('close', function() {
+    console.error('response aborted');
+    responseGotEnd = true;
   });
 });
 server.listen(common.PORT);
@@ -51,5 +56,6 @@ server.on('listening', function() {
 });
 
 process.on('exit', function() {
-  assert.ok(gotEnd);
+  assert.ok(requestGotEnd);
+  assert.ok(responseGotEnd);
 });

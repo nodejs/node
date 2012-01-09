@@ -1,7 +1,7 @@
 .\" Generated with Ronnjs/v0.1
 .\" http://github.com/kapouer/ronnjs/
 .
-.TH "NPM\-FAQ" "1" "December 2011" "" ""
+.TH "NPM\-FAQ" "1" "January 2012" "" ""
 .
 .SH "NAME"
 \fBnpm-faq\fR \-\- Frequently Asked Questions
@@ -48,48 +48,73 @@ and its modules go in \fBnpm root \-g\fR\|\.
 .
 .IP "" 0
 .
-.SH "How do I install something everywhere?"
-Install it globally by tacking \fB\-g\fR or \fB\-\-global\fR to the command\.
+.SH "How do I install something on my computer in a central location?"
+Install it globally by tacking \fB\-g\fR or \fB\-\-global\fR to the command\.  (This
+is especially important for command line utilities that need to add
+their bins to the global system \fBPATH\fR\|\.)
 .
 .SH "I installed something globally, but I can\'t `require()` it"
 Install it locally\.
 .
-.SH "I don\'t wanna\."
-Check out \fBnpm link\fR\|\.  You might like it\.
+.P
+The global install location is a place for command\-line utilities
+to put their bins in the system \fBPATH\fR\|\.  It\'s not for use with \fBrequire()\fR\|\.
 .
-.SH "No, I really want 0\.x style \'everything global\' style\."
-Ok, fine\.  Do this:
+.P
+If you \fBrequire()\fR a module in your code, then that means it\'s a
+dependency, and a part of your program\.  You need to install it locally
+in your program\.
 .
-.IP "" 4
+.SH "Why can\'t npm just put everything in one place, like other package managers?"
+Not every change is an improvement, but every improvement is a change\.
+This would be like asking git to do network IO for every commit\.  It\'s
+not going to happen, because it\'s a terrible idea that causes more
+problems than it solves\.
 .
-.nf
-echo \'export NODE_PATH="\'$(npm root \-g)\'"\' >> ~/\.bashrc
-\|\. ~/\.bashrc
-npm config set global true
+.P
+It is much harder to avoid dependency conflicts without nesting
+dependencies\.  This is fundamental to the way that npm works, and has
+proven to be an extremely successful approach\.  See \fBnpm help folders\fR for
+more details\.
 .
-.fi
+.P
+If you want a package to be installed in one place, and have all your
+programs reference the same copy of it, then use the \fBnpm link\fR command\.
+That\'s what it\'s for\.  Install it globally, then link it into each
+program that uses it\.
+.
+.SH "Whatever, I really want the old style \'everything global\' style\."
+Write your own package manager, then\.  It\'s not that hard\.
+.
+.P
+npm will not help you do something that is known to be a bad idea\.
+.
+.SH "Should I check my `node_modules` folder into git?"
+Mikeal Rogers answered this question very well:
+.
+.P
+\fIhttp://www\.mikealrogers\.com/posts/nodemodules\-in\-git\.html\fR
+.
+.P
+tl;dr
+.
+.IP "\(bu" 4
+Check \fBnode_modules\fR into git for things you \fBdeploy\fR, such as
+websites and apps\.
+.
+.IP "\(bu" 4
+Do not check \fBnode_modules\fR into git for libraries and modules
+intended to be reused\.
+.
+.IP "\(bu" 4
+Use npm to manage dependencies in your dev environment, but not in
+your deployment scripts\.
 .
 .IP "" 0
 .
-.P
-This is not recommended\.
-.
-.P
-Many things \fBwill not work\fR if you do this\.  Make sure you read and
-understand \fBnpm help config\fR and \fBnpm help global\fR before you complain
-about things being broken\.
-.
-.P
-When you realize what a mistake it was, do this to switch back:
-.
-.IP "" 4
-.
-.nf
-npm config delete global \-\-local
-.
-.fi
-.
-.IP "" 0
+.SH "Is it \'npm\' or \'NPM\' or \'Npm\'?"
+npm should never be capitalized unless it is being displayed in a
+location that is customarily all\-caps (such as the title of man pages\.)
 .
 .SH "If \'npm\' is an acronym, why is it never capitalized?"
 Contrary to the belief of many, "npm" is not in fact an abbreviation for
@@ -103,7 +128,7 @@ National Association of Pastoral Musicians\.  You can learn more
 about them at \fIhttp://npm\.org/\fR\|\.
 .
 .P
-In software, "NPM" is a non\-parametric mapping utility written by
+In software, "NPM" is a Non\-Parametric Mapping utility written by
 Chris Rorden\.  You can analyze pictures of brains with it\.  Learn more
 about the (capitalized) NPM program at \fIhttp://www\.cabiatl\.com/mricro/npm/\fR\|\.
 .
@@ -255,11 +280,9 @@ Go to \fIhttp://admin\.npmjs\.org/reset\fR\|\.
 .
 .SH "I get ECONNREFUSED a lot\.  What\'s up?"
 Either the registry is down, or node\'s DNS isn\'t able to reach out\.
-This happens a lot if you don\'t follow \fIall\fR the steps in the Cygwin
-setup doc\.
 .
 .P
-To check if the registry is down, open up \fIhttp://registry\.npmjs\.org/\-/short\fR
+To check if the registry is down, open up \fIhttp://registry\.npmjs\.org/\fR
 in a web browser\.  This will also tell you if you are just unable to
 access the internet for some reason\.
 .

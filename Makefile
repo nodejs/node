@@ -1,4 +1,5 @@
 BUILDTYPE ?= Release
+PYTHON ?= python
 
 ifeq ($(BUILDTYPE),Release)
 all: out/Makefile node
@@ -38,41 +39,41 @@ distclean:
 	-rm config.gypi
 
 test: all
-	python tools/test.py --mode=release simple message
+	$(PYTHON) tools/test.py --mode=release simple message
 
 test-http1: all
-	python tools/test.py --mode=release --use-http1 simple message
+	$(PYTHON) tools/test.py --mode=release --use-http1 simple message
 
 test-valgrind: all
-	python tools/test.py --mode=release --valgrind simple message
+	$(PYTHON) tools/test.py --mode=release --valgrind simple message
 
 test-all: all
 	python tools/test.py --mode=debug,release
 	$(MAKE) test-npm
 
 test-all-http1: all
-	python tools/test.py --mode=debug,release --use-http1
+	$(PYTHON) tools/test.py --mode=debug,release --use-http1
 
 test-all-valgrind: all
-	python tools/test.py --mode=debug,release --valgrind
+	$(PYTHON) tools/test.py --mode=debug,release --valgrind
 
 test-release: all
-	python tools/test.py --mode=release
+	$(PYTHON) tools/test.py --mode=release
 
 test-debug: all
-	python tools/test.py --mode=debug
+	$(PYTHON) tools/test.py --mode=debug
 
 test-message: all
-	python tools/test.py message
+	$(PYTHON) tools/test.py message
 
 test-simple: all
-	python tools/test.py simple
+	$(PYTHON) tools/test.py simple
 
 test-pummel: all
-	python tools/test.py pummel
+	$(PYTHON) tools/test.py pummel
 
 test-internet: all
-	python tools/test.py internet
+	$(PYTHON) tools/test.py internet
 
 test-npm: node
 	./node deps/npm/test/run.js
@@ -138,11 +139,25 @@ docopen: out/doc/api/all.html
 docclean:
 	-rm -rf out/doc
 
-VERSION=$(shell git describe)
+VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
 TARNAME=node-$(VERSION)
 
-#dist: doc/node.1 doc/api
-dist: doc
+dist: $(TARBALL) $(PKG)
+
+PKGDIR=out/dist-osx
+
+pkg: $(PKG)
+
+$(PKG):
+	-rm -rf $(PKGDIR)
+	$(WAF) configure --prefix=/usr/local --without-snapshot
+	DESTDIR=$(PKGDIR) $(WAF) install
+	$(packagemaker) \
+		--id "org.nodejs.NodeJS-$(VERSION)" \
+		--doc tools/osx-pkg.pmdoc \
+		--out $(PKG)
+
+$(TARBALL): out/doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
@@ -162,10 +177,10 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 jslint:
-	PYTHONPATH=tools/closure_linter/ python tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/
+	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/
 
 cpplint:
-	@python tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
+	@$(PYTHON) tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)
 
 lint: jslint cpplint
 
