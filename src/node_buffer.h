@@ -65,6 +65,7 @@ namespace node {
 
 class NODE_EXTERN Buffer: public ObjectWrap {
  public:
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   static bool HasInstance(v8::Handle<v8::Value> val);
 
@@ -99,8 +100,6 @@ class NODE_EXTERN Buffer: public ObjectWrap {
                      free_callback callback, void *hint); // public constructor
 
   private:
-  static v8::Persistent<v8::FunctionTemplate> constructor_template;
-
   static v8::Handle<v8::Value> New(const v8::Arguments &args);
   static v8::Handle<v8::Value> BinarySlice(const v8::Arguments &args);
   static v8::Handle<v8::Value> AsciiSlice(const v8::Arguments &args);

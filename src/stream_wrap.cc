@@ -149,13 +149,17 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
 }
 
 
-inline char* StreamWrap::NewSlab(Handle<Object> global,
-                                        Handle<Object> wrap_obj) {
-  Buffer* b = Buffer::New(SLAB_SIZE);
-  global->SetHiddenValue(slab_sym, b->handle_);
+char* StreamWrap::NewSlab(Handle<Object> global,
+                          Handle<Object> wrap_obj) {
+  HandleScope scope;
+  Local<Value> arg = Integer::NewFromUnsigned(SLAB_SIZE);
+  Local<Object> b = Buffer::constructor_template->GetFunction()->
+    NewInstance(1, &arg);
+  if (b.IsEmpty()) return NULL;
+  global->SetHiddenValue(slab_sym, b);
   assert(Buffer::Length(b) == SLAB_SIZE);
   slab_used = 0;
-  wrap_obj->SetHiddenValue(slab_sym, b->handle_);
+  wrap_obj->SetHiddenValue(slab_sym, b);
   return Buffer::Data(b);
 }
 
