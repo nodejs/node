@@ -125,7 +125,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     ctx->chunk_size_ = out_len;
 
     // build up the work request
-    uv_work_t* work_req = new uv_work_t();
+    uv_work_t* work_req = &req_wrap->req_;
     work_req->data = req_wrap;
 
     uv_queue_work(uv_default_loop(),
