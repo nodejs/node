@@ -27,7 +27,11 @@ var net = require('net');
 var socketCloses = 0;
 var N = 10;
 
-var n = fork(common.fixturesDir + '/fork2.js');
+var options = {
+  thread: process.TEST_ISOLATE ? true : false
+};
+
+var n = fork(common.fixturesDir + '/fork2.js', [], options);
 
 var messageCount = 0;
 
