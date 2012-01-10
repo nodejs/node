@@ -29,15 +29,11 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <req_wrap.h>
-
 
 
 namespace node {
 using namespace v8;
 
-// write() returns one of these, and then calls the cb() when it's done.
-typedef ReqWrap<uv_work_t> WorkReqWrap;
 
 static Persistent<String> callback_sym;
 
@@ -83,6 +79,9 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     ZCtx<mode> *ctx = ObjectWrap::Unwrap< ZCtx<mode> >(args.This());
     assert(ctx->init_done_ && "write before init");
 
+    assert(!ctx->write_in_progress_ && "write already in progress");
+    ctx->write_in_progress_ = true;
+
     unsigned int flush = args[0]->Uint32Value();
     Bytef *in;
     Bytef *out;
@@ -112,9 +111,9 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     assert(out_off + out_len <= Buffer::Length(out_buf));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
-    WorkReqWrap *req_wrap = new WorkReqWrap();
+    // build up the work request
+    uv_work_t* work_req = &(ctx->work_req_);
 
-    req_wrap->data_ = ctx;
     ctx->strm_.avail_in = in_len;
     ctx->strm_.next_in = &(*in);
     ctx->strm_.avail_out = out_len;
@@ -124,19 +123,14 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     // set this so that later on, I can easily tell how much was written.
     ctx->chunk_size_ = out_len;
 
-    // build up the work request
-    uv_work_t* work_req = &req_wrap->req_;
-    work_req->data = req_wrap;
-
     uv_queue_work(uv_default_loop(),
                   work_req,
                   ZCtx<mode>::Process,
                   ZCtx<mode>::After);
 
-    req_wrap->Dispatched();
     ctx->Ref();
 
-    return req_wrap->object_;
+    return ctx->handle_;
   }
 
 
@@ -146,8 +140,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   // been consumed.
   static void
   Process(uv_work_t* work_req) {
-    WorkReqWrap *req_wrap = reinterpret_cast<WorkReqWrap *>(work_req->data);
-    ZCtx<mode> *ctx = (ZCtx<mode> *)req_wrap->data_;
+    ZCtx<mode> *ctx = container_of(work_req, ZCtx<mode>, work_req_);
 
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
@@ -179,19 +172,18 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   static void
   After(uv_work_t* work_req) {
     HandleScope scope;
-    WorkReqWrap *req_wrap = reinterpret_cast<WorkReqWrap *>(work_req->data);
-    ZCtx<mode> *ctx = (ZCtx<mode> *)req_wrap->data_;
+    ZCtx<mode> *ctx = container_of(work_req, ZCtx<mode>, work_req_);
     Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in);
 
+    ctx->write_in_progress_ = false;
+
     // call the write() cb
-    assert(req_wrap->object_->Get(callback_sym)->IsFunction() &&
+    assert(ctx->handle_->Get(callback_sym)->IsFunction() &&
            "Invalid callback");
     Local<Value> args[2] = { avail_in, avail_out };
-    MakeCallback(req_wrap->object_, "callback", 2, args);
+    MakeCallback(ctx->handle_, "callback", 2, args);
 
-    // delete the ReqWrap
-    delete req_wrap;
     ctx->Unref();
   }
 
@@ -284,6 +276,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
         assert(0 && "wtf?");
     }
 
+    ctx->write_in_progress_ = false;
     ctx->init_done_ = true;
     assert(err == Z_OK);
   }
@@ -301,6 +294,10 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   int flush_;
 
   int chunk_size_;
+
+  bool write_in_progress_;
+
+  uv_work_t work_req_;
 };
 
 
