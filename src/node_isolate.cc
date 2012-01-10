@@ -60,6 +60,7 @@ using v8::Undefined;
 static volatile bool initialized;
 static volatile int id;
 static volatile int isolate_count;
+static ngx_queue_t isolate_list;
 static uv_mutex_t isolate_mutex;
 
 #ifdef NDEBUG
@@ -230,6 +231,7 @@ void Isolate::OnMessage(IsolateMessage* msg, void* arg) {
 void Isolate::Initialize() {
   if (initialized) return;
   if (uv_mutex_init(&isolate_mutex)) abort();
+  ngx_queue_init(&isolate_list);
   initialized = true;
 }
 
@@ -249,6 +251,7 @@ Isolate::Isolate() {
 
   uv_mutex_lock(&isolate_mutex);
   assert(initialized && "node::Isolate::Initialize() hasn't been called");
+  ngx_queue_insert_tail(&isolate_list, &isolate_list_);
   isolate_count++;
   id_ = ++id;
   uv_mutex_unlock(&isolate_mutex);
@@ -344,7 +347,10 @@ void Isolate::Dispose() {
 
   uv_mutex_lock(&isolate_mutex);
   isolate_count--;
+  ngx_queue_remove(&isolate_list_);
   assert(isolate_count >= 0);
+  assert((isolate_count == 0 && ngx_queue_empty(&isolate_list))
+      || (isolate_count > 0 && !ngx_queue_empty(&isolate_list)));
   uv_mutex_unlock(&isolate_mutex);
 }
 

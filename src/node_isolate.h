@@ -128,6 +128,7 @@ private:
   void operator=(const Isolate&) {}
   Isolate(const Isolate&) {}
 
+  ngx_queue_t isolate_list_; // linked list of all isolates
   ngx_queue_t at_exit_callbacks_;
   v8::Persistent<v8::Context> v8_context_;
   v8::Isolate* v8_isolate_;
