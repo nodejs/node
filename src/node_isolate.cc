@@ -87,17 +87,23 @@ public:
     uv_mutex_unlock(&mutex_);
   }
 
-  T Consume() {
+  bool Consume(T& item) {
+    ngx_queue_t* q = NULL;
+
     uv_mutex_lock(&mutex_);
-    ngx_queue_t* q = ngx_queue_head(&queue_);
-    ngx_queue_remove(q);
+    if (!ngx_queue_empty(&queue_)) {
+      q = ngx_queue_head(&queue_);
+      ngx_queue_remove(q);
+    }
     uv_mutex_unlock(&mutex_);
 
+    if (q == NULL) return false;
+
     Message* m = ngx_queue_data(q, Message, queue_);
-    T item = m->item_;
+    item = m->item_;
     delete m;
 
-    return item;
+    return true;
   }
 
 private:
@@ -140,8 +146,8 @@ private:
   }
 
   void OnMessage() {
-    T item = queue_.Consume();
-    callback_(item, arg_);
+    T item;
+    while (queue_.Consume(item)) callback_(item, arg_);
   }
 
   void* arg_;
