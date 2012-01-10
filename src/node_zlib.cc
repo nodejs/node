@@ -134,6 +134,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
                   ZCtx<mode>::After);
 
     req_wrap->Dispatched();
+    ctx->Ref();
 
     return req_wrap->object_;
   }
@@ -191,6 +192,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
 
     // delete the ReqWrap
     delete req_wrap;
+    ctx->Unref();
   }
 
   static Handle<Value>
