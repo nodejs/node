@@ -178,6 +178,9 @@
         }],
         [ 'OS=="mac"', {
           'libraries': [ '-framework Carbon' ],
+          'defines!': [
+            'PLATFORM="mac"',
+          ],
           'defines': [
             # we need to use node's preferred "darwin" rather than gyp's preferred "mac"
             'PLATFORM="darwin"',
