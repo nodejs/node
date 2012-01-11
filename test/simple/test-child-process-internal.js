@@ -47,7 +47,7 @@ if (process.argv[2] === 'child') {
   });
 
   var gotInternal;
-  child.once('inernalMessage', function(data) {
+  child.once('internalMessage', function(data) {
     gotInternal = data;
   });
 
