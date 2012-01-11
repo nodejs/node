@@ -166,15 +166,13 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
           assert(ctx->dictionary_ != NULL && "Stream has no dictionary");
 
           // Load it
-          err = inflateSetDictionary(
-              &(ctx->strm_),
-              ctx->dictionary_,
-              ctx->dictionary_len_
-          );
+          err = inflateSetDictionary(&ctx->strm_,
+                                     ctx->dictionary_,
+                                     ctx->dictionary_len_);
           assert(err == Z_OK && "Failed to set dictionary");
 
           // And try to decode again
-          err = inflate(&(ctx->strm_), ctx->flush_);
+          err = inflate(&ctx->strm_, ctx->flush_);
         }
         break;
       default:
@@ -284,7 +282,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        err = deflateInit2(&(ctx->strm_),
+        err = deflateInit2(&ctx->strm_,
                            ctx->level_,
                            Z_DEFLATED,
                            ctx->windowBits_,
@@ -295,7 +293,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       case GUNZIP:
       case INFLATERAW:
       case UNZIP:
-        err = inflateInit2(&(ctx->strm_), ctx->windowBits_);
+        err = inflateInit2(&ctx->strm_, ctx->windowBits_);
         break;
       default:
         assert(0 && "wtf?");
@@ -310,11 +308,9 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       switch (mode) {
         case DEFLATE:
         case DEFLATERAW:
-          err = deflateSetDictionary(
-              &(ctx->strm_),
-              ctx->dictionary_,
-              dictionary_len
-          );
+          err = deflateSetDictionary(&ctx->strm_,
+                                     ctx->dictionary_,
+                                     dictionary_len);
           break;
         default:
           break;
