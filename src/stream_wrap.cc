@@ -35,6 +35,7 @@
 #define slab_sym NODE_VAR(slab_sym)
 #define handle_that_last_alloced NODE_VAR(handle_that_last_alloced)
 #define buffer_sym NODE_VAR(buffer_sym)
+#define buffer_constructor_template NODE_VAR(buffer_constructor_template)
 #define write_queue_size_sym NODE_VAR(write_queue_size_sym)
 #define stream_wrap_initialized NODE_VAR(stream_wrap_initialized)
 
@@ -153,13 +154,17 @@ Handle<Value> StreamWrap::ReadStop(const Arguments& args) {
 }
 
 
-inline char* StreamWrap::NewSlab(Handle<Object> global,
-                                        Handle<Object> wrap_obj) {
-  Buffer* b = Buffer::New(SLAB_SIZE);
-  global->SetHiddenValue(slab_sym, b->handle_);
+char* StreamWrap::NewSlab(Handle<Object> global,
+                          Handle<Object> wrap_obj) {
+  HandleScope scope;
+  Local<Value> arg = Integer::NewFromUnsigned(SLAB_SIZE);
+  Local<Object> b = buffer_constructor_template->GetFunction()->
+    NewInstance(1, &arg);
+  if (b.IsEmpty()) return NULL;
+  global->SetHiddenValue(slab_sym, b);
   assert(Buffer::Length(b) == SLAB_SIZE);
   slab_used = 0;
-  wrap_obj->SetHiddenValue(slab_sym, b->handle_);
+  wrap_obj->SetHiddenValue(slab_sym, b);
   return Buffer::Data(b);
 }
 

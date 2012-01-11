@@ -177,7 +177,7 @@ bench-idle:
 	./node benchmark/idle_clients.js &
 
 jslint:
-	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/
+	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ -r test/ --exclude_files lib/punycode.js
 
 cpplint:
 	@$(PYTHON) tools/cpplint.py $(wildcard src/*.cc src/*.h src/*.c)

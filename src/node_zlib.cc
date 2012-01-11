@@ -30,9 +30,6 @@
 #include <node.h>
 #include <node_buffer.h>
 #include <node_vars.h>
-#include <req_wrap.h>
-
-#include <node_vars.h>
 // We do the following to minimize the detal between v0.6 branch. We want to
 // use the variables as they were being used before.
 #define callback_sym NODE_VAR(callback_sym)
@@ -41,8 +38,6 @@
 namespace node {
 using namespace v8;
 
-// write() returns one of these, and then calls the cb() when it's done.
-typedef ReqWrap<uv_work_t> WorkReqWrap;
 
 enum node_zlib_mode {
   DEFLATE = 1,
@@ -81,13 +76,15 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   // write(flush, in, in_off, in_len, out, out_off, out_len)
-  static Handle<Value>
-  Write(const Arguments& args) {
+  static Handle<Value> Write(const Arguments& args) {
     HandleScope scope;
     assert(args.Length() == 7);
 
     ZCtx<mode> *ctx = ObjectWrap::Unwrap< ZCtx<mode> >(args.This());
     assert(ctx->init_done_ && "write before init");
+
+    assert(!ctx->write_in_progress_ && "write already in progress");
+    ctx->write_in_progress_ = true;
 
     unsigned int flush = args[0]->Uint32Value();
     Bytef *in;
@@ -104,8 +101,8 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       assert(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
       in_buf = args[1]->ToObject();
-      in_off = (size_t)args[2]->Uint32Value();
-      in_len = (size_t)args[3]->Uint32Value();
+      in_off = args[2]->Uint32Value();
+      in_len = args[3]->Uint32Value();
 
       assert(in_off + in_len <= Buffer::Length(in_buf));
       in = reinterpret_cast<Bytef *>(Buffer::Data(in_buf) + in_off);
@@ -113,16 +110,16 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
 
     assert(Buffer::HasInstance(args[4]));
     Local<Object> out_buf = args[4]->ToObject();
-    out_off = (size_t)args[5]->Uint32Value();
-    out_len = (size_t)args[6]->Uint32Value();
+    out_off = args[5]->Uint32Value();
+    out_len = args[6]->Uint32Value();
     assert(out_off + out_len <= Buffer::Length(out_buf));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
-    WorkReqWrap *req_wrap = new WorkReqWrap();
+    // build up the work request
+    uv_work_t* work_req = &(ctx->work_req_);
 
-    req_wrap->data_ = ctx;
     ctx->strm_.avail_in = in_len;
-    ctx->strm_.next_in = &(*in);
+    ctx->strm_.next_in = in;
     ctx->strm_.avail_out = out_len;
     ctx->strm_.next_out = out;
     ctx->flush_ = flush;
@@ -130,18 +127,14 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     // set this so that later on, I can easily tell how much was written.
     ctx->chunk_size_ = out_len;
 
-    // build up the work request
-    uv_work_t* work_req = new uv_work_t();
-    work_req->data = req_wrap;
-
     uv_queue_work(Loop(),
                   work_req,
                   ZCtx<mode>::Process,
                   ZCtx<mode>::After);
 
-    req_wrap->Dispatched();
+    ctx->Ref();
 
-    return req_wrap->object_;
+    return ctx->handle_;
   }
 
 
@@ -149,10 +142,8 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   // This function may be called multiple times on the uv_work pool
   // for a single write() call, until all of the input bytes have
   // been consumed.
-  static void
-  Process(uv_work_t* work_req) {
-    WorkReqWrap *req_wrap = reinterpret_cast<WorkReqWrap *>(work_req->data);
-    ZCtx<mode> *ctx = (ZCtx<mode> *)req_wrap->data_;
+  static void Process(uv_work_t* work_req) {
+    ZCtx<mode> *ctx = container_of(work_req, ZCtx<mode>, work_req_);
 
     // If the avail_out is left at 0, then it means that it ran out
     // of room.  If there was avail_out left over, then it means
@@ -162,13 +153,13 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        err = deflate(&(ctx->strm_), ctx->flush_);
+        err = deflate(&ctx->strm_, ctx->flush_);
         break;
       case UNZIP:
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
-        err = inflate(&(ctx->strm_), ctx->flush_);
+        err = inflate(&ctx->strm_, ctx->flush_);
 
         // If data was encoded with dictionary
         if (err == Z_NEED_DICT) {
@@ -197,26 +188,25 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   // v8 land!
-  static void
-  After(uv_work_t* work_req) {
+  static void After(uv_work_t* work_req) {
     HandleScope scope;
-    WorkReqWrap *req_wrap = reinterpret_cast<WorkReqWrap *>(work_req->data);
-    ZCtx<mode> *ctx = (ZCtx<mode> *)req_wrap->data_;
+    ZCtx<mode> *ctx = container_of(work_req, ZCtx<mode>, work_req_);
+
     Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in);
 
+    ctx->write_in_progress_ = false;
+
     // call the write() cb
-    assert(req_wrap->object_->Get(callback_sym)->IsFunction() &&
+    assert(ctx->handle_->Get(callback_sym)->IsFunction() &&
            "Invalid callback");
     Local<Value> args[2] = { avail_in, avail_out };
-    MakeCallback(req_wrap->object_, "callback", 2, args);
+    MakeCallback(ctx->handle_, "callback", 2, args);
 
-    // delete the ReqWrap
-    delete req_wrap;
+    ctx->Unref();
   }
 
-  static Handle<Value>
-  New(const Arguments& args) {
+  static Handle<Value> New(const Arguments& args) {
     HandleScope scope;
     ZCtx<mode> *ctx = new ZCtx<mode>();
     ctx->Wrap(args.This());
@@ -224,8 +214,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   // just pull the ints out of the args and call the other Init
-  static Handle<Value>
-  Init(const Arguments& args) {
+  static Handle<Value> Init(const Arguments& args) {
     HandleScope scope;
 
     assert((args.Length() == 4 || args.Length() == 5) &&
@@ -265,14 +254,8 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     return Undefined();
   }
 
-  static void
-  Init(ZCtx *ctx,
-       int level,
-       int windowBits,
-       int memLevel,
-       int strategy,
-       char* dictionary,
-       size_t dictionary_len) {
+  static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,
+                   int strategy, char* dictionary, size_t dictionary_len) {
     ctx->level_ = level;
     ctx->windowBits_ = windowBits;
     ctx->memLevel_ = memLevel;
@@ -340,6 +323,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       assert(err == Z_OK && "Failed to set dictionary");
     }
 
+    ctx->write_in_progress_ = false;
     ctx->init_done_ = true;
   }
 
@@ -359,6 +343,10 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   int flush_;
 
   int chunk_size_;
+
+  bool write_in_progress_;
+
+  uv_work_t work_req_;
 };
 
 

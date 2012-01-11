@@ -178,10 +178,14 @@ class ProcessWrap : public HandleWrap {
 
     int r = uv_spawn(Loop(), &wrap->process_, options);
 
-    wrap->SetHandle((uv_handle_t*)&wrap->process_);
-    assert(wrap->process_.data == wrap);
-
-    wrap->object_->Set(String::New("pid"), Integer::New(wrap->process_.pid));
+    if (r) {
+      SetErrno(uv_last_error(Loop()));
+    }
+    else {
+      wrap->SetHandle((uv_handle_t*)&wrap->process_);
+      assert(wrap->process_.data == wrap);
+      wrap->object_->Set(String::New("pid"), Integer::New(wrap->process_.pid));
+    }
 
     if (options.args) {
       for (int i = 0; options.args[i]; i++) free(options.args[i]);
@@ -195,8 +199,6 @@ class ProcessWrap : public HandleWrap {
       for (int i = 0; options.env[i]; i++) free(options.env[i]);
       delete [] options.env;
     }
-
-    if (r) SetErrno(uv_last_error(Loop()));
 
     return scope.Close(Integer::New(r));
   }
