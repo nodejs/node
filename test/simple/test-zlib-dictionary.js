@@ -43,7 +43,6 @@ var spdyDict = new Buffer([
 ].join(''));
 
 var deflate = zlib.createDeflate({ dictionary: spdyDict });
-var inflate = zlib.createInflate({ dictionary: spdyDict });
 
 var input = [
   'HTTP/1.1 200 Ok',
@@ -52,22 +51,45 @@ var input = [
   ''
 ].join('\r\n');
 
-// Put data into deflate stream
-deflate.on('data', function(chunk) {
-  inflate.write(chunk);
-});
-deflate.on('end', function() {
-  inflate.end();
-});
+var called = 0;
 
-// Get data from inflate stream
-var output = [];
-inflate.on('data', function(chunk) {
-  output.push(chunk);
-});
-inflate.on('end', function() {
-  assert.equal(output.join(''), input);
-});
+//
+// We'll use clean-new inflate stream each time
+// and .reset() old dirty deflate one
+//
+function run(num) {
+  var inflate = zlib.createInflate({ dictionary: spdyDict });
 
-deflate.write(input);
-deflate.end();
+  if (num === 2) {
+    deflate.reset();
+    deflate.removeAllListeners('data');
+  }
+
+  // Put data into deflate stream
+  deflate.on('data', function(chunk) {
+    inflate.write(chunk);
+  });
+
+  // Get data from inflate stream
+  var output = [];
+  inflate.on('data', function(chunk) {
+    output.push(chunk);
+  });
+  inflate.on('end', function() {
+    called++;
+
+    assert.equal(output.join(''), input);
+
+    if (num < 2) run(num + 1);
+  });
+
+  deflate.write(input);
+  deflate.flush(function() {
+    inflate.end();
+  });
+}
+run(1);
+
+process.on('exit', function() {
+  assert.equal(called, 2);
+});
