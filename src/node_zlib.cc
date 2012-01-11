@@ -71,8 +71,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   // write(flush, in, in_off, in_len, out, out_off, out_len)
-  static Handle<Value>
-  Write(const Arguments& args) {
+  static Handle<Value> Write(const Arguments& args) {
     HandleScope scope;
     assert(args.Length() == 7);
 
@@ -97,8 +96,8 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       assert(Buffer::HasInstance(args[1]));
       Local<Object> in_buf;
       in_buf = args[1]->ToObject();
-      in_off = (size_t)args[2]->Uint32Value();
-      in_len = (size_t)args[3]->Uint32Value();
+      in_off = args[2]->Uint32Value();
+      in_len = args[3]->Uint32Value();
 
       assert(in_off + in_len <= Buffer::Length(in_buf));
       in = reinterpret_cast<Bytef *>(Buffer::Data(in_buf) + in_off);
@@ -106,8 +105,8 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
 
     assert(Buffer::HasInstance(args[4]));
     Local<Object> out_buf = args[4]->ToObject();
-    out_off = (size_t)args[5]->Uint32Value();
-    out_len = (size_t)args[6]->Uint32Value();
+    out_off = args[5]->Uint32Value();
+    out_len = args[6]->Uint32Value();
     assert(out_off + out_len <= Buffer::Length(out_buf));
     out = reinterpret_cast<Bytef *>(Buffer::Data(out_buf) + out_off);
 
@@ -115,7 +114,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     uv_work_t* work_req = &(ctx->work_req_);
 
     ctx->strm_.avail_in = in_len;
-    ctx->strm_.next_in = &(*in);
+    ctx->strm_.next_in = in;
     ctx->strm_.avail_out = out_len;
     ctx->strm_.next_out = out;
     ctx->flush_ = flush;
@@ -138,8 +137,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   // This function may be called multiple times on the uv_work pool
   // for a single write() call, until all of the input bytes have
   // been consumed.
-  static void
-  Process(uv_work_t* work_req) {
+  static void Process(uv_work_t* work_req) {
     ZCtx<mode> *ctx = container_of(work_req, ZCtx<mode>, work_req_);
 
     // If the avail_out is left at 0, then it means that it ran out
@@ -150,13 +148,13 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
       case DEFLATE:
       case GZIP:
       case DEFLATERAW:
-        err = deflate(&(ctx->strm_), ctx->flush_);
+        err = deflate(&ctx->strm_, ctx->flush_);
         break;
       case UNZIP:
       case INFLATE:
       case GUNZIP:
       case INFLATERAW:
-        err = inflate(&(ctx->strm_), ctx->flush_);
+        err = inflate(&ctx->strm_, ctx->flush_);
         break;
       default:
         assert(0 && "wtf?");
@@ -169,10 +167,10 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   // v8 land!
-  static void
-  After(uv_work_t* work_req) {
+  static void After(uv_work_t* work_req) {
     HandleScope scope;
     ZCtx<mode> *ctx = container_of(work_req, ZCtx<mode>, work_req_);
+
     Local<Integer> avail_out = Integer::New(ctx->strm_.avail_out);
     Local<Integer> avail_in = Integer::New(ctx->strm_.avail_in);
 
@@ -187,8 +185,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     ctx->Unref();
   }
 
-  static Handle<Value>
-  New(const Arguments& args) {
+  static Handle<Value> New(const Arguments& args) {
     HandleScope scope;
     ZCtx<mode> *ctx = new ZCtx<mode>();
     ctx->Wrap(args.This());
@@ -196,8 +193,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   // just pull the ints out of the args and call the other Init
-  static Handle<Value>
-  Init(const Arguments& args) {
+  static Handle<Value> Init(const Arguments& args) {
     HandleScope scope;
 
     assert(args.Length() == 4 &&
@@ -225,12 +221,8 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     return Undefined();
   }
 
-  static void
-  Init(ZCtx *ctx,
-       int level,
-       int windowBits,
-       int memLevel,
-       int strategy) {
+  static void Init(ZCtx *ctx, int level, int windowBits, int memLevel,
+                   int strategy) {
     ctx->level_ = level;
     ctx->windowBits_ = windowBits;
     ctx->memLevel_ = memLevel;
