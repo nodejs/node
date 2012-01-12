@@ -62,22 +62,36 @@ h1 a, h2 a, h3 a, h4 a
     font-size: 14px;
 }
 
-#intro #downloadbutton {
-    background-color: #8BC84B;
-    color: #46483e;
-    font-weight: bold;
-    font-size: 14px;
-    text-transform: uppercase;
-    padding: 7px 10px;
-    -webkit-border-radius: 4px;
-    -moz-border-radius: 4px;
-    border-radius: 4px;
+#intro .button {
+  font-weight: bold;
+  font-size: 14px;
+  text-transform: uppercase;
+  padding: 7px 10px;
+  -webkit-border-radius: 4px;
+  -moz-border-radius: 4px;
+  border-radius: 4px;
+  margin: 0 5px;
+  color: #46483e;
 }
 
+#intro .button:hover {
+  text-decoration: none;
+}
+
+#intro #downloadbutton {
+  background-color: #8BC84B;
+}
 
 #intro #downloadbutton:hover {
-    text-decoration: none;
-    background-color: #73a53e;
+  background-color: #73a53e;
+}
+
+#intro #docsbutton {
+  background-color: #d2d8ba;
+}
+
+#intro #docsbutton:hover {
+  background-color: #aab293;
 }
 
 #quotes {
