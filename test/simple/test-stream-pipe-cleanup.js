@@ -47,14 +47,16 @@ function Readable() {
 }
 util.inherits(Readable, stream.Stream);
 
+function Duplex() {
+  this.readable = true;
+  Writable.call(this);
+}
+util.inherits(Duplex, Writable);
+
 var i = 0;
 var limit = 100;
 
 var w = new Writable();
-
-console.error = function(text) {
-  throw new Error(text);
-};
 
 var r;
 
@@ -83,14 +85,38 @@ r = new Readable();
 for (i = 0; i < limit; i++) {
   w = new Writable();
   r.pipe(w);
-  w.emit('end');
-}
-assert.equal(0, w.listeners('end').length);
-
-for (i = 0; i < limit; i++) {
-  w = new Writable();
-  r.pipe(w);
   w.emit('close');
 }
 assert.equal(0, w.listeners('close').length);
 
+r = new Readable();
+w = new Writable();
+var d = new Duplex();
+r.pipe(d); // pipeline A
+d.pipe(w); // pipeline B
+assert.equal(r.listeners('end').length, 2);   // A.onend, A.cleanup
+assert.equal(r.listeners('close').length, 2); // A.onclose, A.cleanup
+assert.equal(d.listeners('end').length, 2);   // B.onend, B.cleanup
+assert.equal(d.listeners('close').length, 3); // A.cleanup, B.onclose, B.cleanup
+assert.equal(w.listeners('end').length, 0);
+assert.equal(w.listeners('close').length, 1); // B.cleanup
+
+r.emit('end');
+assert.equal(d.endCalls, 1);
+assert.equal(w.endCalls, 0);
+assert.equal(r.listeners('end').length, 0);
+assert.equal(r.listeners('close').length, 0);
+assert.equal(d.listeners('end').length, 2);   // B.onend, B.cleanup
+assert.equal(d.listeners('close').length, 2); // B.onclose, B.cleanup
+assert.equal(w.listeners('end').length, 0);
+assert.equal(w.listeners('close').length, 1); // B.cleanup
+
+d.emit('end');
+assert.equal(d.endCalls, 1);
+assert.equal(w.endCalls, 1);
+assert.equal(r.listeners('end').length, 0);
+assert.equal(r.listeners('close').length, 0);
+assert.equal(d.listeners('end').length, 0);
+assert.equal(d.listeners('close').length, 0);
+assert.equal(w.listeners('end').length, 0);
+assert.equal(w.listeners('close').length, 0);
