@@ -9,8 +9,9 @@ JavaScript code can be compiled and run immediately or compiled, saved, and run 
 
 ### vm.runInThisContext(code, [filename])
 
-`vm.runInThisContext()` compiles `code` as if it were loaded from `filename`,
-runs it and returns the result. Running code does not have access to local scope. `filename` is optional.
+`vm.runInThisContext()` compiles `code`, runs it and returns the result. Running
+code does not have access to local scope. `filename` is optional, it's used only
+in stack traces.
 
 Example of using `vm.runInThisContext` and `eval` to run the same code:
 
@@ -38,10 +39,10 @@ and throws an exception.
 
 ### vm.runInNewContext(code, [sandbox], [filename])
 
-`vm.runInNewContext` compiles `code` to run in `sandbox` as if it were loaded from `filename`,
-then runs it and returns the result. Running code does not have access to local scope and
-the object `sandbox` will be used as the global object for `code`.
-`sandbox` and `filename` are optional.
+`vm.runInNewContext` compiles `code`, then runs it in `sandbox` and returns the
+result. Running code does not have access to local scope. The object `sandbox`
+will be used as the global object for `code`.
+`sandbox` and `filename` are optional, `filename` is only used in stack traces.
 
 Example: compile and execute code that increments a global variable and sets a new one.
 These globals are contained in the sandbox.
@@ -67,11 +68,12 @@ and throws an exception.
 
 ### vm.runInContext(code, context, [filename])
 
-`vm.runInContext` compiles `code` to run in context `context` as if it were loaded from `filename`,
-then runs it and returns the result. A (V8) context comprises a global object, together with a
-set of built-in objects and functions. Running code does not have access to local scope and
-the global object held within `context` will be used as the global object for `code`.
-`filename` is optional.
+`vm.runInContext` compiles `code`, then runs it in `context` and returns the
+result. A (V8) context comprises a global object, together with a set of
+built-in objects and functions. Running code does not have access to local scope
+and the global object held within `context` will be used as the global object
+for `code`.
+`filename` is optional, it's used only in stack traces.
 
 Example: compile and execute code in a existing context.
 
@@ -107,11 +109,11 @@ to seed the initial contents of the global object used by the context.
 
 ### vm.createScript(code, [filename])
 
-`createScript` compiles `code` as if it were loaded from `filename`,
-but does not run it. Instead, it returns a `vm.Script` object representing this compiled code.
-This script can be run later many times using methods below.
-The returned script is not bound to any global object.
-It is bound before each run, just for that run. `filename` is optional.
+`createScript` compiles `code` but does not run it. Instead, it returns a
+`vm.Script` object representing this compiled code. This script can be run
+later many times using methods below. The returned script is not bound to any
+global object. It is bound before each run, just for that run. `filename` is
+optional, it's only used in stack traces.
 
 In case of syntax error in `code`, `createScript` prints the syntax error to stderr
 and throws an exception.
