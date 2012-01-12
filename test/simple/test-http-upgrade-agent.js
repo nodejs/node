@@ -74,11 +74,11 @@ srv.listen(common.PORT, '127.0.0.1', function() {
                             'connection': 'upgrade',
                             'upgrade': 'websocket' };
     assert.deepEqual(expectedHeaders, res.headers);
-    assert.equal(http.globalAgent.sockets[name].length, 1);
 
-    process.nextTick(function() {
-      // Make sure this request got removed from the pool.
-      assert(!http.globalAgent.sockets.hasOwnProperty(name));
+    // Make sure this request got removed from the pool.
+    assert(!http.globalAgent.sockets.hasOwnProperty(name));
+
+    req.on('close', function() {
       socket.end();
       srv.close();
 
