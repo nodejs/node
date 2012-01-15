@@ -183,6 +183,12 @@ assert.equal(f, 'a:b;q:x%3Ay%3By%3Az');
 assert.deepEqual({}, qs.parse());
 
 
+// Test limiting
+assert.equal(
+  Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
+  1
+);
+
 
 var b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
                           '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
@@ -207,4 +213,3 @@ assert.equal(0xeb, b[16]);
 assert.equal(0xd8, b[17]);
 assert.equal(0xa2, b[18]);
 assert.equal(0xe6, b[19]);
-
