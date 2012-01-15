@@ -162,19 +162,18 @@ def host_arch():
 
 
 def target_arch():
-  # TODO act on options.dest_cpu
   return host_arch()
 
 
 def configure_node(o):
-  # TODO add gdb and dest_cpu
+  # TODO add gdb
   o['variables']['node_use_isolates'] = b(not options.without_isolates)
   o['variables']['node_debug'] = b(options.debug)
   o['variables']['node_prefix'] = options.prefix if options.prefix else ''
   o['variables']['node_use_dtrace'] = b(options.with_dtrace)
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['host_arch'] = host_arch()
-  o['variables']['target_arch'] = target_arch()
+  o['variables']['target_arch'] = options.dest_cpu or target_arch()
 
   # TODO move to node.gyp
   if sys.platform == 'sunos5':
