@@ -93,7 +93,13 @@ if (cmd === 'install') {
   copy([
     'deps/uv/include/ares.h',
     'deps/uv/include/ares_version.h'
-  ], 'include/node/c-ares/');
+  ], 'include/node/');
+
+  // Copy node-gyp files
+  copy('common.gypi', 'lib/node/');
+  copy('tools/*', 'lib/node/tools/');
+  queue.push('ln -sf ../lib/node/tools/node-gyp ' +
+             path.join(node_prefix, 'bin/node-gyp'));
 
   // Copy binary file
   copy('out/Release/node', 'bin/node');
@@ -106,7 +112,8 @@ if (cmd === 'install') {
   }
 } else {
   remove([
-     'bin/node', 'bin/npm', 'include/node/*', 'lib/node_modules'
+     'bin/node', 'bin/npm', 'bin/node-gyp', 'include/node/*',
+     'lib/node', 'lib/node_modules'
   ]);
 }
 
