@@ -8,6 +8,7 @@
     'node_use_dtrace': 'false',
     'node_use_openssl%': 'true',
     'node_use_system_openssl%': 'false',
+    'node_use_isolates%': 'true',
     'library_files': [
       'src/node.js',
       'lib/_debugger.js',
@@ -94,6 +95,7 @@
         'src/v8_typed_array.cc',
         'src/udp_wrap.cc',
         # headers to make for a more pleasant IDE experience
+        'src/ngx-queue.h',
         'src/handle_wrap.h',
         'src/node.h',
         'src/node_vars.h',

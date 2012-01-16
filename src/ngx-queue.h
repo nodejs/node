@@ -7,6 +7,9 @@
 #ifndef _NGX_QUEUE_H_INCLUDED_
 #define _NGX_QUEUE_H_INCLUDED_
 
+#ifdef _WIN32
+# include <stddef.h>
+#endif
 
 typedef struct ngx_queue_s  ngx_queue_t;
 

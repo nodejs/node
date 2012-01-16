@@ -9,6 +9,10 @@
 #include <uv.h>
 #include <http_parser.h>
 
+#if defined(_MSC_VER)
+# define PATH_MAX MAX_PATH
+#endif
+
 #ifndef PATH_MAX 
 # define PATH_MAX 4096
 #endif
