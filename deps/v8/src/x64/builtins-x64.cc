@@ -337,7 +337,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
     __ push(rbx);
     __ push(rbx);
 
-    // Setup pointer to last argument.
+    // Set up pointer to last argument.
     __ lea(rbx, Operand(rbp, StandardFrameConstants::kCallerSPOffset));
 
     // Copy arguments and receiver to the expression stack.
@@ -1198,7 +1198,7 @@ static void AllocateJSArray(MacroAssembler* masm,
 // Both registers are preserved by this code so no need to differentiate between
 // a construct call and a normal call.
 static void ArrayNativeCode(MacroAssembler* masm,
-                            Label *call_generic_code) {
+                            Label* call_generic_code) {
   Label argc_one_or_more, argc_two_or_more, empty_array, not_empty_array,
       has_non_smi_element;
 

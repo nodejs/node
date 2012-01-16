@@ -203,10 +203,10 @@ class Block {
 
 TEST(CodeRange) {
   const int code_range_size = 32*MB;
-  OS::Setup();
+  OS::SetUp();
   Isolate::Current()->InitializeLoggingAndCounters();
   CodeRange* code_range = new CodeRange(Isolate::Current());
-  code_range->Setup(code_range_size);
+  code_range->SetUp(code_range_size);
   int current_allocated = 0;
   int total_allocated = 0;
   List<Block> blocks(1000);

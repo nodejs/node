@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,6 +42,50 @@ f(a);
 
 assertEquals(0, a[0]);
 assertEquals(0, a[1]);
+
+// No-parameter constructor should fail right now.
+function abfunc1() {
+  return new ArrayBuffer();
+}
+assertThrows(abfunc1);
+
+// Test derivation from an ArrayBuffer
+var ab = new ArrayBuffer(12);
+var derived_uint8 = new Uint8Array(ab);
+assertEquals(12, derived_uint8.length);
+var derived_uint32 = new Uint32Array(ab);
+assertEquals(3, derived_uint32.length);
+var derived_uint32_2 = new Uint32Array(ab,4);
+assertEquals(2, derived_uint32_2.length);
+var derived_uint32_3 = new Uint32Array(ab,4,1);
+assertEquals(1, derived_uint32_3.length);
+
+// If a given byteOffset and length references an area beyond the end of the
+// ArrayBuffer an exception is raised.
+function abfunc3() {
+  new Uint32Array(ab,4,3);
+}
+assertThrows(abfunc3);
+function abfunc4() {
+  new Uint32Array(ab,16);
+}
+assertThrows(abfunc4);
+
+// The given byteOffset must be a multiple of the element size of the specific
+// type, otherwise an exception is raised.
+function abfunc5() {
+  new Uint32Array(ab,5);
+}
+assertThrows(abfunc5);
+
+// If length is not explicitly specified, the length of the ArrayBuffer minus
+// the byteOffset must be a multiple of the element size of the specific type,
+// or an exception is raised.
+var ab2 = new ArrayBuffer(13);
+function abfunc6() {
+  new Uint32Array(ab2,4);
+}
+assertThrows(abfunc6);
 
 // Test the correct behavior of the |BYTES_PER_ELEMENT| property (which is
 // "constant", but not read-only).

@@ -59,7 +59,7 @@ void LiveObjectList::IterateElements(ObjectVisitor* v) {
 }
 
 
-void LiveObjectList::ProcessNonLive(HeapObject *obj) {
+void LiveObjectList::ProcessNonLive(HeapObject* obj) {
   // Only do work if we have at least one list to process.
   if (last()) DoProcessNonLive(obj);
 }
@@ -93,7 +93,7 @@ LiveObjectList* LiveObjectList::FindLolForId(int id,
 template <typename T>
 inline LiveObjectList::Element*
 LiveObjectList::FindElementFor(T (*GetValue)(LiveObjectList::Element*), T key) {
-  LiveObjectList *lol = last();
+  LiveObjectList* lol = last();
   while (lol != NULL) {
     Element* elements = lol->elements_;
     for (int i = 0; i < lol->obj_count_; i++) {

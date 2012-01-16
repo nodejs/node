@@ -741,7 +741,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
-  // Setup simulator support first. Some of this information is needed to
+  // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   size_t stack_size = 1 * 1024*1024;  // allocate 1MB for stack
   stack_ = reinterpret_cast<char*>(malloc(stack_size));
@@ -750,7 +750,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   break_pc_ = NULL;
   break_instr_ = 0;
 
-  // Setup architecture state.
+  // Set up architecture state.
   // All registers are initialized to zero to start with.
   for (int i = 0; i < num_registers; i++) {
     registers_[i] = 0;
@@ -3324,7 +3324,7 @@ void Simulator::Execute() {
 int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   va_list parameters;
   va_start(parameters, argument_count);
-  // Setup arguments
+  // Set up arguments
 
   // First four arguments passed in registers.
   ASSERT(argument_count >= 4);
@@ -3367,7 +3367,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   int32_t r10_val = get_register(r10);
   int32_t r11_val = get_register(r11);
 
-  // Setup the callee-saved registers with a known value. To be able to check
+  // Set up the callee-saved registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
   int32_t callee_saved_value = icount_;
   set_register(r4, callee_saved_value);

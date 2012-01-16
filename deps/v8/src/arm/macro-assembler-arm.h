@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -52,7 +52,7 @@ inline Operand SmiUntagOperand(Register object) {
 
 // Give alias names to registers
 const Register cp = { 8 };  // JavaScript context pointer
-const Register roots = { 10 };  // Roots array pointer.
+const Register kRootRegister = { 10 };  // Roots array pointer.
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -499,10 +499,16 @@ class MacroAssembler: public Assembler {
                                     Register map,
                                     Register scratch);
 
+  void InitializeRootRegister() {
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    mov(kRootRegister, Operand(roots_array_start));
+  }
+
   // ---------------------------------------------------------------------------
   // JavaScript invokes
 
-  // Setup call kind marking in ecx. The method takes ecx as an
+  // Set up call kind marking in ecx. The method takes ecx as an
   // explicit first parameter to make the code more readable at the
   // call sites.
   void SetCallKind(Register dst, CallKind kind);
@@ -584,6 +590,7 @@ class MacroAssembler: public Assembler {
                               Register scratch,
                               Label* miss);
 
+  void GetNumberHash(Register t0, Register scratch);
 
   void LoadFromNumberDictionary(Label* miss,
                                 Register elements,
@@ -790,15 +797,26 @@ class MacroAssembler: public Assembler {
                                    Register scratch4,
                                    Label* fail);
 
-  // Check if the map of an object is equal to a specified map (either
-  // given directly or as an index into the root list) and branch to
-  // label if not. Skip the smi check if not required (object is known
-  // to be a heap object)
+  // Compare an object's map with the specified map and its transitioned
+  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Condition flags are
+  // set with result of map compare. If multiple map compares are required, the
+  // compare sequences branches to early_success.
+  void CompareMap(Register obj,
+                  Register scratch,
+                  Handle<Map> map,
+                  Label* early_success,
+                  CompareMapMode mode = REQUIRE_EXACT_MAP);
+
+  // Check if the map of an object is equal to a specified map and branch to
+  // label if not. Skip the smi check if not required (object is known to be a
+  // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
+  // against maps that are ElementsKind transition maps of the specificed map.
   void CheckMap(Register obj,
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                SmiCheckType smi_check_type);
+                SmiCheckType smi_check_type,
+                CompareMapMode mode = REQUIRE_EXACT_MAP);
 
 
   void CheckMap(Register obj,

@@ -169,7 +169,7 @@ void RemoteDebugger::Run() {
   bool ok;
 
   // Make sure that socket support is initialized.
-  ok = i::Socket::Setup();
+  ok = i::Socket::SetUp();
   if (!ok) {
     printf("Unable to initialize socket support %d\n", i::Socket::LastError());
     return;

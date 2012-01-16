@@ -371,7 +371,7 @@ class RelocInfo BASE_EMBEDDED {
   // routines expect to access these pointers indirectly. The following
   // location provides a place for these pointers to exist natually
   // when accessed via the Iterator.
-  Object *reconstructed_obj_ptr_;
+  Object* reconstructed_obj_ptr_;
   // External-reference pointers are also split across instruction-pairs
   // in mips, but are accessed via indirect pointers. This location
   // provides a place for that pointer to exist naturally. Its address

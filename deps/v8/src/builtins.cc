@@ -1719,7 +1719,7 @@ void Builtins::InitBuiltinFunctionTable() {
 #undef DEF_FUNCTION_PTR_A
 }
 
-void Builtins::Setup(bool create_heap_objects) {
+void Builtins::SetUp(bool create_heap_objects) {
   ASSERT(!initialized_);
   Isolate* isolate = Isolate::Current();
   Heap* heap = isolate->heap();

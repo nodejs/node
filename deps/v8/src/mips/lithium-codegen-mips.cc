@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2794,7 +2794,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   __ lw(at, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
   __ Call(at);
 
-  // Setup deoptimization.
+  // Set up deoptimization.
   RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
 
   // Restore context.
@@ -3092,6 +3092,27 @@ void LCodeGen::DoPower(LPower* instr) {
     MathPowStub stub(MathPowStub::DOUBLE);
     __ CallStub(&stub);
   }
+}
+
+
+void LCodeGen::DoRandom(LRandom* instr) {
+  // Having marked this instruction as a call we can use any
+  // registers.
+  ASSERT(ToDoubleRegister(instr->result()).is(f0));
+  ASSERT(ToRegister(instr->InputAt(0)).is(a0));
+
+  __ PrepareCallCFunction(1, a1);
+  __ lw(a0, FieldMemOperand(a0, GlobalObject::kGlobalContextOffset));
+  __ CallCFunction(ExternalReference::random_uint32_function(isolate()), 1);
+
+  // 0x41300000 is the top half of 1.0 x 2^20 as a double.
+  __ li(a2, Operand(0x41300000));
+  // Move 0x41300000xxxxxxxx (x = random bits in v0) to FPU.
+  __ Move(f12, v0, a2);
+  // Move 0x4130000000000000 to FPU.
+  __ Move(f14, zero_reg, a2);
+  // Subtract to get the result.
+  __ sub_d(f0, f12, f14);
 }
 
 

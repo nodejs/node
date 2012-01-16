@@ -678,11 +678,10 @@ Handle<Code> StubCache::ComputeCallGlobal(int argc,
 
 
 static void FillCache(Isolate* isolate, Handle<Code> code) {
-  Handle<NumberDictionary> dictionary =
-      NumberDictionarySet(isolate->factory()->non_monomorphic_cache(),
-                          code->flags(),
-                          code,
-                          PropertyDetails(NONE, NORMAL));
+  Handle<UnseededNumberDictionary> dictionary =
+      UnseededNumberDictionary::Set(isolate->factory()->non_monomorphic_cache(),
+                                    code->flags(),
+                                    code);
   isolate->heap()->public_set_non_monomorphic_cache(*dictionary);
 }
 
@@ -697,7 +696,7 @@ Code* StubCache::FindCallInitialize(int argc,
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, NORMAL, argc);
 
   // Use raw_unchecked... so we don't get assert failures during GC.
-  NumberDictionary* dictionary =
+  UnseededNumberDictionary* dictionary =
       isolate()->heap()->raw_unchecked_non_monomorphic_cache();
   int entry = dictionary->FindEntry(isolate(), flags);
   ASSERT(entry != -1);
@@ -716,7 +715,8 @@ Handle<Code> StubCache::ComputeCallInitialize(int argc,
       CallICBase::Contextual::encode(mode == RelocInfo::CODE_TARGET_CONTEXT);
   Code::Flags flags =
       Code::ComputeFlags(kind, UNINITIALIZED, extra_state, NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -744,7 +744,8 @@ Handle<Code> StubCache::ComputeCallPreMonomorphic(
     Code::ExtraICState extra_state) {
   Code::Flags flags =
       Code::ComputeFlags(kind, PREMONOMORPHIC, extra_state, NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -760,7 +761,8 @@ Handle<Code> StubCache::ComputeCallNormal(int argc,
                                           Code::ExtraICState extra_state) {
   Code::Flags flags =
       Code::ComputeFlags(kind, MONOMORPHIC, extra_state, NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -776,7 +778,8 @@ Handle<Code> StubCache::ComputeCallArguments(int argc, Code::Kind kind) {
   Code::Flags flags =
       Code::ComputeFlags(kind, MEGAMORPHIC, Code::kNoExtraICState,
                          NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -794,7 +797,8 @@ Handle<Code> StubCache::ComputeCallMegamorphic(
   Code::Flags flags =
       Code::ComputeFlags(kind, MEGAMORPHIC, extra_state,
                          NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -813,7 +817,8 @@ Handle<Code> StubCache::ComputeCallMiss(int argc,
   Code::Flags flags =
       Code::ComputeFlags(kind, MONOMORPHIC_PROTOTYPE_FAILURE, extra_state,
                          NORMAL, argc, OWN_MAP);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -832,7 +837,8 @@ Handle<Code> StubCache::ComputeCallDebugBreak(int argc,
   Code::Flags flags =
       Code::ComputeFlags(kind, DEBUG_BREAK, Code::kNoExtraICState,
                          NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 
@@ -850,7 +856,8 @@ Handle<Code> StubCache::ComputeCallDebugPrepareStepIn(int argc,
   Code::Flags flags =
       Code::ComputeFlags(kind, DEBUG_PREPARE_STEP_IN, Code::kNoExtraICState,
                          NORMAL, argc);
-  Handle<NumberDictionary> cache = isolate_->factory()->non_monomorphic_cache();
+  Handle<UnseededNumberDictionary> cache =
+      isolate_->factory()->non_monomorphic_cache();
   int entry = cache->FindEntry(isolate_, flags);
   if (entry != -1) return Handle<Code>(Code::cast(cache->ValueAt(entry)));
 

@@ -47,7 +47,7 @@ static Mutex* init_once_mutex = OS::CreateMutex();
 static bool init_once_called = false;
 
 bool V8::is_running_ = false;
-bool V8::has_been_setup_ = false;
+bool V8::has_been_set_up_ = false;
 bool V8::has_been_disposed_ = false;
 bool V8::has_fatal_error_ = false;
 bool V8::use_crankshaft_ = true;
@@ -82,7 +82,7 @@ bool V8::Initialize(Deserializer* des) {
   if (isolate->IsInitialized()) return true;
 
   is_running_ = true;
-  has_been_setup_ = true;
+  has_been_set_up_ = true;
   has_fatal_error_ = false;
   has_been_disposed_ = false;
 
@@ -100,7 +100,7 @@ void V8::TearDown() {
   Isolate* isolate = Isolate::Current();
   ASSERT(isolate->IsDefaultIsolate());
 
-  if (!has_been_setup_ || has_been_disposed_) return;
+  if (!has_been_set_up_ || has_been_disposed_) return;
   isolate->TearDown();
 
   is_running_ = false;
@@ -239,8 +239,8 @@ void V8::InitializeOncePerProcess() {
   if (init_once_called) return;
   init_once_called = true;
 
-  // Setup the platform OS support.
-  OS::Setup();
+  // Set up the platform OS support.
+  OS::SetUp();
 
   use_crankshaft_ = FLAG_crankshaft;
 
@@ -248,7 +248,7 @@ void V8::InitializeOncePerProcess() {
     use_crankshaft_ = false;
   }
 
-  CPU::Setup();
+  CPU::SetUp();
   if (!CPU::SupportsCrankshaft()) {
     use_crankshaft_ = false;
   }

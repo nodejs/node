@@ -303,7 +303,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
 
   Handle<Context> global_context_;
   Isolate* isolate_;
-  Handle<NumberDictionary> dictionary_;
+  Handle<UnseededNumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

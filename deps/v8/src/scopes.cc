@@ -808,7 +808,7 @@ void Scope::Print(int n) {
     PrintF(")");
   }
 
-  PrintF(" {\n");
+  PrintF(" { // (%d, %d)\n", start_position(), end_position());
 
   // Function name, if any (named function literals, only).
   if (function_ != NULL) {

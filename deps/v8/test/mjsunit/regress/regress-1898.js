@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,45 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This module contains the architecture-specific code. This make the rest of
-// the code less dependent on differences between different processor
-// architecture.
-// The classes have the same definition for all architectures. The
-// implementation for a particular architecture is put in cpu_<arch>.cc.
-// The build system then uses the implementation for the target architecture.
-//
+// Flags: --allow-natives-syntax
 
-#ifndef V8_CPU_H_
-#define V8_CPU_H_
+function f(x) {
+  Math.log(Math.min(0.1, Math.abs(x)));
+}
 
-#include "allocation.h"
-
-namespace v8 {
-namespace internal {
-
-// ----------------------------------------------------------------------------
-// CPU
-//
-// This class has static methods for the architecture specific functions. Add
-// methods here to cope with differences between the supported architectures.
-//
-// For each architecture the file cpu_<arch>.cc contains the implementation of
-// these functions.
-
-class CPU : public AllStatic {
- public:
-  // Initializes the cpu architecture support. Called once at VM startup.
-  static void SetUp();
-
-  static bool SupportsCrankshaft();
-
-  // Flush instruction cache.
-  static void FlushICache(void* start, size_t size);
-
-  // Try to activate a system level debugger.
-  static void DebugBreak();
-};
-
-} }  // namespace v8::internal
-
-#endif  // V8_CPU_H_
+f(0.1);
+f(0.1);
+%OptimizeFunctionOnNextCall(f);
+f(0.1);

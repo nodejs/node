@@ -75,7 +75,9 @@
 // makes it impossible to have them elsewhere.
 #include <winsock2.h>
 #include <ws2tcpip.h>
+#ifndef __MINGW32__
 #include <wspiapi.h>
+#endif  // __MINGW32__
 #include <process.h>  // for _beginthreadex()
 #include <stdlib.h>
 #endif  // V8_WIN32_HEADERS_FULL

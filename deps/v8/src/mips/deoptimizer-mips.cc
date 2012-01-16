@@ -326,7 +326,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0] = input_;
     output_[0]->SetPc(reinterpret_cast<uint32_t>(from_));
   } else {
-    // Setup the frame pointer and the context pointer.
+    // Set up the frame pointer and the context pointer.
     output_[0]->SetRegister(fp.code(), input_->GetRegister(fp.code()));
     output_[0]->SetRegister(cp.code(), input_->GetRegister(cp.code()));
 
@@ -733,10 +733,7 @@ void Deoptimizer::EntryGenerator::Generate() {
     }
   }
 
-  // Set up the roots register.
-  ExternalReference roots_array_start =
-      ExternalReference::roots_array_start(isolate);
-  __ li(roots, Operand(roots_array_start));
+  __ InitializeRootRegister();
 
   __ pop(at);  // Get continuation, leave pc on stack.
   __ pop(ra);

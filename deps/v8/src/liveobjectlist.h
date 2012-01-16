@@ -77,7 +77,7 @@ class LiveObjectList {
   inline static void GCEpilogue();
   inline static void GCPrologue();
   inline static void IterateElements(ObjectVisitor* v);
-  inline static void ProcessNonLive(HeapObject *obj);
+  inline static void ProcessNonLive(HeapObject* obj);
   inline static void UpdateReferencesForScavengeGC();
 
   // Note: LOLs can be listed by calling Dump(0, <lol id>), and 2 LOLs can be
@@ -125,7 +125,7 @@ class LiveObjectList {
   static void GCEpiloguePrivate();
   static void IterateElementsPrivate(ObjectVisitor* v);
 
-  static void DoProcessNonLive(HeapObject *obj);
+  static void DoProcessNonLive(HeapObject* obj);
 
   static int CompareElement(const Element* a, const Element* b);
 
@@ -138,7 +138,7 @@ class LiveObjectList {
                           int dump_limit,
                           int* total_count,
                           LolFilter* filter,
-                          LiveObjectSummary *summary,
+                          LiveObjectSummary* summary,
                           JSFunction* arguments_function,
                           Handle<Object> error);
 
@@ -151,7 +151,7 @@ class LiveObjectList {
                                        bool is_tracking_roots);
 
   static bool NeedLOLProcessing() { return (last() != NULL); }
-  static void NullifyNonLivePointer(HeapObject **p) {
+  static void NullifyNonLivePointer(HeapObject** p) {
     // Mask out the low bit that marks this as a heap object.  We'll use this
     // cleared bit as an indicator that this pointer needs to be collected.
     //
@@ -202,7 +202,7 @@ class LiveObjectList {
   int id_;
   int capacity_;
   int obj_count_;
-  Element *elements_;
+  Element* elements_;
 
   // Statics for managing all the lists.
   static uint32_t next_element_id_;

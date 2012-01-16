@@ -845,13 +845,13 @@ Object* Execution::DebugBreakHelper() {
   // Clear the debug break request flag.
   isolate->stack_guard()->Continue(DEBUGBREAK);
 
-  ProcessDebugMesssages(debug_command_only);
+  ProcessDebugMessages(debug_command_only);
 
   // Return to continue execution.
   return isolate->heap()->undefined_value();
 }
 
-void Execution::ProcessDebugMesssages(bool debug_command_only) {
+void Execution::ProcessDebugMessages(bool debug_command_only) {
   Isolate* isolate = Isolate::Current();
   // Clear the debug command request flag.
   isolate->stack_guard()->Continue(DEBUGCOMMAND);

@@ -109,7 +109,7 @@ class Socket;
 class OS {
  public:
   // Initializes the platform OS support. Called once at VM startup.
-  static void Setup();
+  static void SetUp();
 
   // Returns the accumulated user time for thread. This routine
   // can be used for profiling. The implementation should
@@ -477,7 +477,7 @@ class Thread {
   PlatformData* data() { return data_; }
 
  private:
-  void set_name(const char *name);
+  void set_name(const char* name);
 
   PlatformData* data_;
 
@@ -553,7 +553,7 @@ class Semaphore {
   virtual void Wait() = 0;
 
   // Suspends the calling thread until the counter is non zero or the timeout
-  // time has passsed. If timeout happens the return value is false and the
+  // time has passed. If timeout happens the return value is false and the
   // counter is unchanged. Otherwise the semaphore counter is decremented and
   // true is returned. The timeout value is specified in microseconds.
   virtual bool Wait(int timeout) = 0;
@@ -593,7 +593,7 @@ class Socket {
 
   virtual bool IsValid() const = 0;
 
-  static bool Setup();
+  static bool SetUp();
   static int LastError();
   static uint16_t HToN(uint16_t value);
   static uint16_t NToH(uint16_t value);

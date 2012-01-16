@@ -1178,7 +1178,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
   }
   ExitFinallyBlock();  // Return to the calling code.
 
-  // Setup try handler.
+  // Set up try handler.
   __ bind(&try_entry);
   __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER, stmt->index());
   { TryFinally try_body(this, &finally_entry);
@@ -1284,7 +1284,7 @@ FullCodeGenerator::NestedStatement* FullCodeGenerator::TryCatch::Exit(
 
 
 bool FullCodeGenerator::TryLiteralCompare(CompareOperation* expr) {
-  Expression *sub_expr;
+  Expression* sub_expr;
   Handle<String> check;
   if (expr->IsLiteralCompareTypeof(&sub_expr, &check)) {
     EmitLiteralCompareTypeof(expr, sub_expr, check);

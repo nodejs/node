@@ -1615,7 +1615,7 @@ void Logger::LogAccessorCallbacks() {
 }
 
 
-bool Logger::Setup() {
+bool Logger::SetUp() {
   // Tests and EnsureInitialize() can call this twice in a row. It's harmless.
   if (is_initialized_) return true;
   is_initialized_ = true;
@@ -1708,9 +1708,9 @@ FILE* Logger::TearDown() {
 
 
 void Logger::EnableSlidingStateWindow() {
-  // If the ticker is NULL, Logger::Setup has not been called yet.  In
+  // If the ticker is NULL, Logger::SetUp has not been called yet.  In
   // that case, we set the sliding_state_window flag so that the
-  // sliding window computation will be started when Logger::Setup is
+  // sliding window computation will be started when Logger::SetUp is
   // called.
   if (ticker_ == NULL) {
     FLAG_sliding_state_window = true;

@@ -56,7 +56,7 @@ double modulo(double x, double y) {
 
 
 // Initialize OS class early in the V8 startup.
-void OS::Setup() {
+void OS::SetUp() {
   // Seed the random number generator.
   UNIMPLEMENTED();
 }

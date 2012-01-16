@@ -2743,7 +2743,7 @@ TEST(DebugStepKeyedLoadLoop) {
   v8::Handle<v8::Value> args[kArgc] = { a };
   foo->Call(env->Global(), kArgc, args);
 
-  // Setup break point and step through the function.
+  // Set up break point and step through the function.
   SetBreakPoint(foo, 3);
   step_action = StepNext;
   break_point_hit_count = 0;
@@ -2790,7 +2790,7 @@ TEST(DebugStepKeyedStoreLoop) {
   v8::Handle<v8::Value> args[kArgc] = { a };
   foo->Call(env->Global(), kArgc, args);
 
-  // Setup break point and step through the function.
+  // Set up break point and step through the function.
   SetBreakPoint(foo, 3);
   step_action = StepNext;
   break_point_hit_count = 0;
@@ -2834,7 +2834,7 @@ TEST(DebugStepNamedLoadLoop) {
   // Call function without any break points to ensure inlining is in place.
   foo->Call(env->Global(), 0, NULL);
 
-  // Setup break point and step through the function.
+  // Set up break point and step through the function.
   SetBreakPoint(foo, 4);
   step_action = StepNext;
   break_point_hit_count = 0;
@@ -2869,7 +2869,7 @@ static void DoDebugStepNamedStoreLoop(int expected) {
   // Call function without any break points to ensure inlining is in place.
   foo->Call(env->Global(), 0, NULL);
 
-  // Setup break point and step through the function.
+  // Set up break point and step through the function.
   SetBreakPoint(foo, 3);
   step_action = StepNext;
   break_point_hit_count = 0;
@@ -5709,7 +5709,7 @@ void HostDispatchV8Thread::Run() {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  // Setup message and host dispatch handlers.
+  // Set up message and host dispatch handlers.
   v8::Debug::SetMessageHandler2(HostDispatchMessageHandler);
   v8::Debug::SetHostDispatchHandler(HostDispatchDispatchHandler, 10 /* ms */);
 
@@ -5797,7 +5797,7 @@ void DebugMessageDispatchV8Thread::Run() {
   v8::HandleScope scope;
   DebugLocalContext env;
 
-  // Setup debug message dispatch handler.
+  // Set up debug message dispatch handler.
   v8::Debug::SetDebugMessageDispatchHandler(DebugMessageHandler);
 
   CompileRun("var y = 1 + 2;\n");
@@ -5851,7 +5851,7 @@ TEST(DebuggerAgent) {
   bool ok;
 
   // Initialize the socket library.
-  i::Socket::Setup();
+  i::Socket::SetUp();
 
   // Test starting and stopping the agent without any client connection.
   debugger->StartAgent("test", kPort1);
@@ -5949,7 +5949,7 @@ TEST(DebuggerAgentProtocolOverflowHeader) {
   OS::SNPrintF(i::Vector<char>(port_str, kPortBufferLen), "%d", kPort);
 
   // Initialize the socket library.
-  i::Socket::Setup();
+  i::Socket::SetUp();
 
   // Create a socket server to receive a debugger agent message.
   DebuggerAgentProtocolServerThread* server =

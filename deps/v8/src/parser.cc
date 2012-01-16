@@ -1186,8 +1186,8 @@ void* Parser::ParseSourceElements(ZoneList<Statement*>* processor,
 
     if (directive_prologue) {
       // A shot at a directive.
-      ExpressionStatement *e_stat;
-      Literal *literal;
+      ExpressionStatement* e_stat;
+      Literal* literal;
       // Still processing directive prologue?
       if ((e_stat = stat->AsExpressionStatement()) != NULL &&
           (literal = e_stat->expression()->AsLiteral()) != NULL &&
@@ -1562,7 +1562,7 @@ Statement* Parser::ParseNativeDeclaration(bool* ok) {
 
   // TODO(1240846): It's weird that native function declarations are
   // introduced dynamically when we meet their declarations, whereas
-  // other functions are setup when entering the surrounding scope.
+  // other functions are set up when entering the surrounding scope.
   SharedFunctionInfoLiteral* lit =
       new(zone()) SharedFunctionInfoLiteral(isolate(), shared);
   VariableProxy* var = Declare(name, VAR, NULL, true, CHECK_OK);
@@ -3003,7 +3003,19 @@ Expression* Parser::ParseLeftHandSideExpression(bool* ok) {
       }
 
       case Token::LPAREN: {
-        int pos = scanner().location().beg_pos;
+        int pos;
+        if (scanner().current_token() == Token::IDENTIFIER) {
+          // For call of an identifier we want to report position of
+          // the identifier as position of the call in the stack trace.
+          pos = scanner().location().beg_pos;
+        } else {
+          // For other kinds of calls we record position of the parenthesis as
+          // position of the call.  Note that this is extremely important for
+          // expressions of the form function(){...}() for which call position
+          // should not point to the closing brace otherwise it will intersect
+          // with positions recorded for function literal and confuse debugger.
+          pos = scanner().peek_location().beg_pos;
+        }
         ZoneList<Expression*>* args = ParseArguments(CHECK_OK);
 
         // Keep track of eval() calls since they disable all local variable
@@ -3595,7 +3607,7 @@ void ObjectLiteralPropertyChecker::CheckProperty(
 
   ASSERT(property != NULL);
 
-  Literal *lit = property->key();
+  Literal* lit = property->key();
   Handle<Object> handle = lit->handle();
 
   uint32_t hash;

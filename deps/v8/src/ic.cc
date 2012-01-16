@@ -1267,7 +1267,8 @@ MaybeObject* StoreIC::Store(State state,
   // Check if the given name is an array index.
   uint32_t index;
   if (name->AsArrayIndex(&index)) {
-    Handle<Object> result = SetElement(receiver, index, value, strict_mode);
+    Handle<Object> result =
+        JSObject::SetElement(receiver, index, value, strict_mode);
     RETURN_IF_EMPTY_HANDLE(isolate(), result);
     return *value;
   }
@@ -1644,7 +1645,8 @@ MaybeObject* KeyedStoreIC::Store(State state,
     // Check if the given name is an array index.
     uint32_t index;
     if (name->AsArrayIndex(&index)) {
-      Handle<Object> result = SetElement(receiver, index, value, strict_mode);
+      Handle<Object> result =
+          JSObject::SetElement(receiver, index, value, strict_mode);
       RETURN_IF_EMPTY_HANDLE(isolate(), result);
       return *value;
     }

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -628,7 +628,11 @@ HGraph::HGraph(CompilationInfo* info)
 Handle<Code> HGraph::Compile(CompilationInfo* info) {
   int values = GetMaximumValueID();
   if (values > LAllocator::max_initial_value_ids()) {
-    if (FLAG_trace_bailout) PrintF("Function is too big\n");
+    if (FLAG_trace_bailout) {
+      SmartArrayPointer<char> name(
+          info->shared_info()->DebugName()->ToCString());
+      PrintF("Function @\"%s\" is too big.\n", *name);
+    }
     return Handle<Code>::null();
   }
 
@@ -2301,7 +2305,7 @@ HGraph* HGraphBuilder::CreateGraph() {
       Bailout("function with illegal redeclaration");
       return NULL;
     }
-    SetupScope(scope);
+    SetUpScope(scope);
 
     // Add an edge to the body entry.  This is warty: the graph's start
     // environment will be used by the Lithium translation as the initial
@@ -2465,7 +2469,7 @@ HInstruction* HGraphBuilder::PreProcessCall(HCall<V>* call) {
 }
 
 
-void HGraphBuilder::SetupScope(Scope* scope) {
+void HGraphBuilder::SetUpScope(Scope* scope) {
   HConstant* undefined_constant = new(zone()) HConstant(
       isolate()->factory()->undefined_value(), Representation::Tagged());
   AddInstruction(undefined_constant);
@@ -3572,7 +3576,8 @@ HInstruction* HGraphBuilder::BuildStoreNamedField(HValue* object,
                                                   bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(new(zone()) HCheckMap(object, type));
+    AddInstruction(new(zone()) HCheckMap(object, type, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
   }
 
   int index = ComputeStoredFieldIndex(type, name, lookup);
@@ -4117,7 +4122,8 @@ HLoadNamedField* HGraphBuilder::BuildLoadNamedField(HValue* object,
                                                     bool smi_and_map_check) {
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(object));
-    AddInstruction(new(zone()) HCheckMap(object, type));
+    AddInstruction(new(zone()) HCheckMap(object, type, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
   }
 
   int index = lookup->GetLocalFieldIndexFromMap(*type);
@@ -4157,7 +4163,8 @@ HInstruction* HGraphBuilder::BuildLoadNamed(HValue* obj,
                                true);
   } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
     AddInstruction(new(zone()) HCheckNonSmi(obj));
-    AddInstruction(new(zone()) HCheckMap(obj, map));
+    AddInstruction(new(zone()) HCheckMap(obj, map, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
     Handle<JSFunction> function(lookup.GetConstantFunctionFromMap(*map));
     return new(zone()) HConstant(function, Representation::Tagged());
   } else {
@@ -4652,7 +4659,8 @@ void HGraphBuilder::AddCheckConstantFunction(Call* expr,
   // its prototypes.
   if (smi_and_map_check) {
     AddInstruction(new(zone()) HCheckNonSmi(receiver));
-    AddInstruction(new(zone()) HCheckMap(receiver, receiver_map));
+    AddInstruction(new(zone()) HCheckMap(receiver, receiver_map, NULL,
+                                         ALLOW_ELEMENT_TRANSITION_MAPS));
   }
   if (!expr->holder().is_null()) {
     AddInstruction(new(zone()) HCheckPrototypeMaps(
@@ -5121,6 +5129,69 @@ bool HGraphBuilder::TryInlineBuiltinFunction(Call* expr,
           result = new(zone()) HPower(left, right);
         }
         ast_context()->ReturnInstruction(result, expr->id());
+        return true;
+      }
+      break;
+    case kMathRandom:
+      if (argument_count == 1 && check_type == RECEIVER_MAP_CHECK) {
+        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        Drop(1);
+        HValue* context = environment()->LookupContext();
+        HGlobalObject* global_object = new(zone()) HGlobalObject(context);
+        AddInstruction(global_object);
+        HRandom* result = new(zone()) HRandom(global_object);
+        ast_context()->ReturnInstruction(result, expr->id());
+        return true;
+      }
+      break;
+    case kMathMax:
+    case kMathMin:
+      if (argument_count == 3 && check_type == RECEIVER_MAP_CHECK) {
+        AddCheckConstantFunction(expr, receiver, receiver_map, true);
+        HValue* right = Pop();
+        HValue* left = Pop();
+        // Do not inline if the return representation is not certain.
+        if (!left->representation().Equals(right->representation())) {
+          Push(left);
+          Push(right);
+          return false;
+        }
+
+        Pop();  // Pop receiver.
+        Token::Value op = (id == kMathMin) ? Token::LT : Token::GT;
+        HCompareIDAndBranch* compare = NULL;
+
+        if (left->representation().IsTagged()) {
+          HChange* left_cvt =
+              new(zone()) HChange(left, Representation::Double(), false, true);
+          left_cvt->SetFlag(HValue::kBailoutOnMinusZero);
+          AddInstruction(left_cvt);
+          HChange* right_cvt =
+              new(zone()) HChange(right, Representation::Double(), false, true);
+          right_cvt->SetFlag(HValue::kBailoutOnMinusZero);
+          AddInstruction(right_cvt);
+          compare = new(zone()) HCompareIDAndBranch(left_cvt, right_cvt, op);
+          compare->SetInputRepresentation(Representation::Double());
+        } else {
+          compare = new(zone()) HCompareIDAndBranch(left, right, op);
+          compare->SetInputRepresentation(left->representation());
+        }
+
+        HBasicBlock* return_left = graph()->CreateBasicBlock();
+        HBasicBlock* return_right = graph()->CreateBasicBlock();
+
+        compare->SetSuccessorAt(0, return_left);
+        compare->SetSuccessorAt(1, return_right);
+        current_block()->Finish(compare);
+
+        set_current_block(return_left);
+        Push(left);
+        set_current_block(return_right);
+        Push(right);
+
+        HBasicBlock* join = CreateJoin(return_left, return_right, expr->id());
+        set_current_block(join);
+        ast_context()->ReturnValue(Pop());
         return true;
       }
       break;
@@ -6195,9 +6266,11 @@ void HGraphBuilder::VisitCompareOperation(CompareOperation* expr) {
         Handle<Map> map = oracle()->GetCompareMap(expr);
         if (!map.is_null()) {
           AddInstruction(new(zone()) HCheckNonSmi(left));
-          AddInstruction(new(zone()) HCheckMap(left, map));
+          AddInstruction(new(zone()) HCheckMap(left, map, NULL,
+                                               ALLOW_ELEMENT_TRANSITION_MAPS));
           AddInstruction(new(zone()) HCheckNonSmi(right));
-          AddInstruction(new(zone()) HCheckMap(right, map));
+          AddInstruction(new(zone()) HCheckMap(right, map, NULL,
+                                               ALLOW_ELEMENT_TRANSITION_MAPS));
           HCompareObjectEqAndBranch* result =
               new(zone()) HCompareObjectEqAndBranch(left, right);
           result->set_position(expr->position());
@@ -6569,7 +6642,11 @@ void HGraphBuilder::GenerateLog(CallRuntime* call) {
 
 // Fast support for Math.random().
 void HGraphBuilder::GenerateRandomHeapNumber(CallRuntime* call) {
-  return Bailout("inlined runtime function: RandomHeapNumber");
+  HValue* context = environment()->LookupContext();
+  HGlobalObject* global_object = new(zone()) HGlobalObject(context);
+  AddInstruction(global_object);
+  HRandom* result = new(zone()) HRandom(global_object);
+  return ast_context()->ReturnInstruction(result, call->id());
 }
 
 

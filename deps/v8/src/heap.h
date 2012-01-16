@@ -96,7 +96,7 @@ inline Heap* _inline_get_heap_();
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(Object, termination_exception, TerminationException)                       \
-  V(Smi, string_hash_seed, StringHashSeed)                                     \
+  V(Smi, hash_seed, HashSeed)                                                  \
   V(Map, string_map, StringMap)                                                \
   V(Map, symbol_map, SymbolMap)                                                \
   V(Map, cons_string_map, ConsStringMap)                                       \
@@ -146,8 +146,8 @@ inline Heap* _inline_get_heap_();
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
-  V(NumberDictionary, code_stubs, CodeStubs)                                   \
-  V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
+  V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
+  V(UnseededNumberDictionary, non_monomorphic_cache, NonMonomorphicCache)      \
   V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
@@ -434,7 +434,7 @@ class ExternalStringTable {
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
-  // setup already.
+  // set up already.
   bool ConfigureHeap(int max_semispace_size,
                      intptr_t max_old_gen_size,
                      intptr_t max_executable_size);
@@ -443,7 +443,7 @@ class Heap {
   // Initializes the global object heap. If create_heap_objects is true,
   // also creates the basic non-mutable objects.
   // Returns whether it succeeded.
-  bool Setup(bool create_heap_objects);
+  bool SetUp(bool create_heap_objects);
 
   // Destroys all memory allocated by the heap.
   void TearDown();
@@ -453,8 +453,8 @@ class Heap {
   // jslimit_/real_jslimit_ variable in the StackGuard.
   void SetStackLimits();
 
-  // Returns whether Setup has been called.
-  bool HasBeenSetup();
+  // Returns whether SetUp has been called.
+  bool HasBeenSetUp();
 
   // Returns the maximum amount of memory reserved for the heap.  For
   // the young generation, we reserve 4 times the amount needed for a
@@ -614,6 +614,9 @@ class Heap {
 
   // Allocates an empty PolymorphicCodeCache.
   MUST_USE_RESULT MaybeObject* AllocatePolymorphicCodeCache();
+
+  // Allocates a pre-tenured empty AccessorPair.
+  MUST_USE_RESULT MaybeObject* AllocateAccessorPair();
 
   // Clear the Instanceof cache (used when a prototype changes).
   inline void ClearInstanceofCache();
@@ -1136,7 +1139,7 @@ class Heap {
   inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void public_set_code_stubs(NumberDictionary* value) {
+  void public_set_code_stubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;
   }
 
@@ -1148,7 +1151,7 @@ class Heap {
   }
 
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  void public_set_non_monomorphic_cache(NumberDictionary* value) {
+  void public_set_non_monomorphic_cache(UnseededNumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
   }
 
@@ -1409,6 +1412,8 @@ class Heap {
 
   void ProcessWeakReferences(WeakObjectRetainer* retainer);
 
+  void VisitExternalResources(v8::ExternalResourceVisitor* visitor);
+
   // Helper function that governs the promotion policy from new space to
   // old.  If the object's old address lies below the new space's age
   // mark or if we've already filled the bottom 1/16th of the to space,
@@ -1506,9 +1511,9 @@ class Heap {
     return idle_notification_will_schedule_next_gc_;
   }
 
-  uint32_t StringHashSeed() {
-    uint32_t seed = static_cast<uint32_t>(string_hash_seed()->value());
-    ASSERT(FLAG_randomize_string_hashes || seed == 0);
+  uint32_t HashSeed() {
+    uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+    ASSERT(FLAG_randomize_hashes || seed == 0);
     return seed;
   }
 
@@ -1911,7 +1916,7 @@ class Heap {
   PromotionQueue promotion_queue_;
 
   // Flag is set when the heap has been configured.  The heap can be repeatedly
-  // configured through the API until it is setup.
+  // configured through the API until it is set up.
   bool configured_;
 
   ExternalStringTable external_string_table_;

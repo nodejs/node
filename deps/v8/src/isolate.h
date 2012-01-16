@@ -122,6 +122,13 @@ typedef ZoneList<Handle<Object> > ZoneObjectList;
     }                                                      \
   } while (false)
 
+#define CHECK_NOT_EMPTY_HANDLE(isolate, call)     \
+  do {                                            \
+    ASSERT(!(isolate)->has_pending_exception());  \
+    CHECK(!(call).is_null());                     \
+    CHECK(!(isolate)->has_pending_exception());   \
+  } while (false)
+
 #define RETURN_IF_EMPTY_HANDLE(isolate, call)                       \
   RETURN_IF_EMPTY_HANDLE_VALUE(isolate, call, Failure::Exception())
 

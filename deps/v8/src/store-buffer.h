@@ -54,7 +54,7 @@ class StoreBuffer {
 
   inline Address TopAddress();
 
-  void Setup();
+  void SetUp();
   void TearDown();
 
   // This is used by the mutator to enter addresses into the store buffer.

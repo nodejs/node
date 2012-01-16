@@ -1187,6 +1187,44 @@ TEST(TestInternalWeakListsTraverseWithGC) {
 }
 
 
+TEST(TestSizeOfObjects) {
+  v8::V8::Initialize();
+
+  // Get initial heap size after several full GCs, which will stabilize
+  // the heap size and return with sweeping finished completely.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(HEAP->old_pointer_space()->IsSweepingComplete());
+  int initial_size = static_cast<int>(HEAP->SizeOfObjects());
+
+  {
+    // Allocate objects on several different old-space pages so that
+    // lazy sweeping kicks in for subsequent GC runs.
+    AlwaysAllocateScope always_allocate;
+    int filler_size = static_cast<int>(FixedArray::SizeFor(8192));
+    for (int i = 1; i <= 100; i++) {
+      HEAP->AllocateFixedArray(8192, TENURED)->ToObjectChecked();
+      CHECK_EQ(initial_size + i * filler_size,
+               static_cast<int>(HEAP->SizeOfObjects()));
+    }
+  }
+
+  // The heap size should go back to initial size after a full GC, even
+  // though sweeping didn't finish yet.
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(!HEAP->old_pointer_space()->IsSweepingComplete());
+  CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
+
+  // Advancing the sweeper step-wise should not change the heap size.
+  while (!HEAP->old_pointer_space()->IsSweepingComplete()) {
+    HEAP->old_pointer_space()->AdvanceSweeper(KB);
+    CHECK_EQ(initial_size, static_cast<int>(HEAP->SizeOfObjects()));
+  }
+}
+
+
 TEST(TestSizeOfObjectsVsHeapIteratorPrecision) {
   InitializeVM();
   HEAP->EnsureHeapIsIterable();
@@ -1475,4 +1513,62 @@ TEST(LeakGlobalContextViaMapProto) {
   ctx2.Dispose();
   HEAP->CollectAllAvailableGarbage();
   CHECK_EQ(0, NumberOfGlobalObjects());
+}
+
+
+TEST(InstanceOfStubWriteBarrier) {
+  i::FLAG_allow_natives_syntax = true;
+#ifdef DEBUG
+  i::FLAG_verify_heap = true;
+#endif
+  InitializeVM();
+  if (!i::V8::UseCrankshaft()) return;
+  v8::HandleScope outer_scope;
+
+  {
+    v8::HandleScope scope;
+    CompileRun(
+        "function foo () { }"
+        "function mkbar () { return new (new Function(\"\")) (); }"
+        "function f (x) { return (x instanceof foo); }"
+        "function g () { f(mkbar()); }"
+        "f(new foo()); f(new foo());"
+        "%OptimizeFunctionOnNextCall(f);"
+        "f(new foo()); g();");
+  }
+
+  IncrementalMarking* marking = HEAP->incremental_marking();
+  marking->Abort();
+  marking->Start();
+
+  Handle<JSFunction> f =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Function>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("f"))));
+
+  CHECK(f->IsOptimized());
+
+  while (!Marking::IsBlack(Marking::MarkBitFrom(f->code())) &&
+         !marking->IsStopped()) {
+    marking->Step(MB);
+  }
+
+  CHECK(marking->IsMarking());
+
+  // Discard any pending GC requests otherwise we will get GC when we enter
+  // code below.
+  if (ISOLATE->stack_guard()->IsGCRequest()) {
+    ISOLATE->stack_guard()->Continue(GC_REQUEST);
+  }
+
+  {
+    v8::HandleScope scope;
+    v8::Handle<v8::Object> global = v8::Context::GetCurrent()->Global();
+    v8::Handle<v8::Function> g =
+        v8::Handle<v8::Function>::Cast(global->Get(v8_str("g")));
+    g->Call(global, 0, NULL);
+  }
+
+  HEAP->incremental_marking()->set_should_hurry(true);
+  HEAP->CollectGarbage(OLD_POINTER_SPACE);
 }

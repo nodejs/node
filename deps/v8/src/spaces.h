@@ -815,7 +815,7 @@ class CodeRange {
   // Reserves a range of virtual memory, but does not commit any of it.
   // Can only be called once, at heap initialization time.
   // Returns false on failure.
-  bool Setup(const size_t requested_size);
+  bool SetUp(const size_t requested_size);
 
   // Frees the range of virtual memory, and frees the data structures used to
   // manage it.
@@ -943,7 +943,7 @@ class MemoryAllocator {
 
   // Initializes its internal bookkeeping structures.
   // Max capacity of the total space and executable memory limit.
-  bool Setup(intptr_t max_capacity, intptr_t capacity_executable);
+  bool SetUp(intptr_t max_capacity, intptr_t capacity_executable);
 
   void TearDown();
 
@@ -1419,11 +1419,11 @@ class PagedSpace : public Space {
   // the memory allocator's initial chunk) if possible.  If the block of
   // addresses is not big enough to contain a single page-aligned page, a
   // fresh chunk will be allocated.
-  bool Setup();
+  bool SetUp();
 
   // Returns true if the space has been successfully set up and not
   // subsequently torn down.
-  bool HasBeenSetup();
+  bool HasBeenSetUp();
 
   // Cleans up the space, frees all pages in this space except those belonging
   // to the initial chunk, uncommits addresses in the initial chunk.
@@ -1469,9 +1469,12 @@ class PagedSpace : public Space {
   // linear allocation area (between top and limit) are also counted here.
   virtual intptr_t Size() { return accounting_stats_.Size(); }
 
-  // As size, but the bytes in the current linear allocation area are not
-  // included.
-  virtual intptr_t SizeOfObjects() { return Size() - (limit() - top()); }
+  // As size, but the bytes in lazily swept pages are estimated and the bytes
+  // in the current linear allocation area are not included.
+  virtual intptr_t SizeOfObjects() {
+    ASSERT(!IsSweepingComplete() || (unswept_free_bytes_ == 0));
+    return Size() - unswept_free_bytes_ - (limit() - top());
+  }
 
   // Wasted bytes in this space.  These are just the bytes that were thrown away
   // due to being too small to use for allocation.  They do not include the
@@ -1479,9 +1482,7 @@ class PagedSpace : public Space {
   virtual intptr_t Waste() { return accounting_stats_.Waste(); }
 
   // Returns the allocation pointer in this space.
-  Address top() {
-    return allocation_info_.top;
-  }
+  Address top() { return allocation_info_.top; }
   Address limit() { return allocation_info_.limit; }
 
   // Allocate the requested number of bytes in the space if possible, return a
@@ -1557,8 +1558,13 @@ class PagedSpace : public Space {
   }
 
   void SetPagesToSweep(Page* first) {
+    ASSERT(unswept_free_bytes_ == 0);
     if (first == &anchor_) first = NULL;
     first_unswept_page_ = first;
+  }
+
+  void MarkPageForLazySweeping(Page* p) {
+    unswept_free_bytes_ += (Page::kObjectAreaSize - p->LiveBytes());
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);
@@ -1647,7 +1653,14 @@ class PagedSpace : public Space {
 
   bool was_swept_conservatively_;
 
+  // The first page to be swept when the lazy sweeper advances. Is set
+  // to NULL when all pages have been swept.
   Page* first_unswept_page_;
+
+  // The number of free bytes which could be reclaimed by advancing the
+  // lazy sweeper.  This is only an estimation because lazy sweeping is
+  // done conservatively.
+  intptr_t unswept_free_bytes_;
 
   // Expands the space by allocating a fixed number of pages. Returns false if
   // it cannot allocate requested number of pages from OS, or if the hard heap
@@ -1808,14 +1821,14 @@ class SemiSpace : public Space {
       current_page_(NULL) { }
 
   // Sets up the semispace using the given chunk.
-  bool Setup(Address start, int initial_capacity, int maximum_capacity);
+  bool SetUp(Address start, int initial_capacity, int maximum_capacity);
 
   // Tear down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
   void TearDown();
 
   // True if the space has been set up but not torn down.
-  bool HasBeenSetup() { return start_ != NULL; }
+  bool HasBeenSetUp() { return start_ != NULL; }
 
   // Grow the semispace to the new capacity.  The new capacity
   // requested must be larger than the current capacity and less than
@@ -2054,15 +2067,15 @@ class NewSpace : public Space {
       inline_allocation_limit_step_(0) {}
 
   // Sets up the new space using the given chunk.
-  bool Setup(int reserved_semispace_size_, int max_semispace_size);
+  bool SetUp(int reserved_semispace_size_, int max_semispace_size);
 
   // Tears down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.
   void TearDown();
 
   // True if the space has been set up but not torn down.
-  bool HasBeenSetup() {
-    return to_space_.HasBeenSetup() && from_space_.HasBeenSetup();
+  bool HasBeenSetUp() {
+    return to_space_.HasBeenSetUp() && from_space_.HasBeenSetUp();
   }
 
   // Flip the pair of spaces.
@@ -2461,7 +2474,7 @@ class LargeObjectSpace : public Space {
   virtual ~LargeObjectSpace() {}
 
   // Initializes internal data structures.
-  bool Setup();
+  bool SetUp();
 
   // Releases internal resources, frees objects in this space.
   void TearDown();

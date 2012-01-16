@@ -1173,7 +1173,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
   __ EnterExitFrame(false, kApiStackSpace);
 
   // Create AccessorInfo instance on the stack above the exit frame with
-  // scratch2 (internal::Object **args_) as the data.
+  // scratch2 (internal::Object** args_) as the data.
   __ sw(a2, MemOperand(sp, kPointerSize));
   // a2 (second argument - see note above) = AccessorInfo&
   __ Addu(a2, sp, kPointerSize);
@@ -2430,7 +2430,7 @@ Handle<Code> CallStubCompiler::CompileCallGlobal(
     __ sw(a3, MemOperand(sp, argc * kPointerSize));
   }
 
-  // Setup the context (function already in r1).
+  // Set up the context (function already in r1).
   __ lw(cp, FieldMemOperand(a1, JSFunction::kContextOffset));
 
   // Jump to the cached code (tail call).

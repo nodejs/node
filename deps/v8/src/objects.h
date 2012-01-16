@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -107,6 +107,7 @@
 //       - SharedFunctionInfo
 //       - Struct
 //         - AccessorInfo
+//         - AccessorPair
 //         - AccessCheckInfo
 //         - InterceptorInfo
 //         - CallHandlerInfo
@@ -160,6 +161,11 @@ enum ElementsKind {
   LAST_EXTERNAL_ARRAY_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS,
   FIRST_ELEMENTS_KIND = FAST_SMI_ONLY_ELEMENTS,
   LAST_ELEMENTS_KIND = EXTERNAL_PIXEL_ELEMENTS
+};
+
+enum CompareMapMode {
+  REQUIRE_EXACT_MAP,
+  ALLOW_ELEMENT_TRANSITION_MAPS
 };
 
 const int kElementsKindCount = LAST_ELEMENTS_KIND - FIRST_ELEMENTS_KIND + 1;
@@ -270,6 +276,7 @@ const int kVariableSizeSentinel = 0;
   V(FILLER_TYPE)                                                               \
                                                                                \
   V(ACCESSOR_INFO_TYPE)                                                        \
+  V(ACCESSOR_PAIR_TYPE)                                                        \
   V(ACCESS_CHECK_INFO_TYPE)                                                    \
   V(INTERCEPTOR_INFO_TYPE)                                                     \
   V(CALL_HANDLER_INFO_TYPE)                                                    \
@@ -417,6 +424,7 @@ const int kVariableSizeSentinel = 0;
 // manually.
 #define STRUCT_LIST_ALL(V)                                                     \
   V(ACCESSOR_INFO, AccessorInfo, accessor_info)                                \
+  V(ACCESSOR_PAIR, AccessorPair, accessor_pair)                                \
   V(ACCESS_CHECK_INFO, AccessCheckInfo, access_check_info)                     \
   V(INTERCEPTOR_INFO, InterceptorInfo, interceptor_info)                       \
   V(CALL_HANDLER_INFO, CallHandlerInfo, call_handler_info)                     \
@@ -570,6 +578,7 @@ enum InstanceType {
 
   // Structs.
   ACCESSOR_INFO_TYPE,
+  ACCESSOR_PAIR_TYPE,
   ACCESS_CHECK_INFO_TYPE,
   INTERCEPTOR_INFO_TYPE,
   CALL_HANDLER_INFO_TYPE,
@@ -1342,6 +1351,11 @@ class JSReceiver: public HeapObject {
   // Casting.
   static inline JSReceiver* cast(Object* obj);
 
+  static Handle<Object> SetProperty(Handle<JSReceiver> object,
+                                    Handle<String> key,
+                                    Handle<Object> value,
+                                    PropertyAttributes attributes,
+                                    StrictModeFlag strict_mode);
   // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetProperty(String* key,
                                            Object* value,
@@ -1471,7 +1485,7 @@ class JSObject: public JSReceiver {
   inline bool HasExternalDoubleElements();
   bool HasFastArgumentsElements();
   bool HasDictionaryArgumentsElements();
-  inline NumberDictionary* element_dictionary();  // Gets slow elements.
+  inline SeededNumberDictionary* element_dictionary();  // Gets slow elements.
 
   inline void set_map_and_elements(
       Map* map,
@@ -1521,6 +1535,14 @@ class JSObject: public JSReceiver {
       Object* value,
       PropertyAttributes attributes,
       StrictModeFlag strict_mode);
+
+  static Handle<Object> SetLocalPropertyIgnoreAttributes(
+      Handle<JSObject> object,
+      Handle<String> key,
+      Handle<Object> value,
+      PropertyAttributes attributes);
+
+  // Can cause GC.
   MUST_USE_RESULT MaybeObject* SetLocalPropertyIgnoreAttributes(
       String* key,
       Object* value,
@@ -1536,6 +1558,11 @@ class JSObject: public JSReceiver {
 
   // Sets the property value in a normalized object given (key, value, details).
   // Handles the special representation of JS global objects.
+  static Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
+                                              Handle<String> key,
+                                              Handle<Object> value,
+                                              PropertyDetails details);
+
   MUST_USE_RESULT MaybeObject* SetNormalizedProperty(String* name,
                                                      Object* value,
                                                      PropertyDetails details);
@@ -1605,8 +1632,11 @@ class JSObject: public JSReceiver {
   // hidden properties.
 
   // Sets a hidden property on this object. Returns this object if successful,
-  // undefined if called on a detached proxy, and a failure if a GC
-  // is required
+  // undefined if called on a detached proxy.
+  static Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
+                                          Handle<String> key,
+                                          Handle<Object> value);
+  // Returns a failure if a GC is required.
   MaybeObject* SetHiddenProperty(String* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns undefined
   // if the property doesn't exist (or if called on a detached proxy),
@@ -1618,10 +1648,15 @@ class JSObject: public JSReceiver {
   // Returns true if the object has a property with the hidden symbol as name.
   bool HasHiddenProperties();
 
+  static int GetIdentityHash(Handle<JSObject> obj);
   MUST_USE_RESULT MaybeObject* GetIdentityHash(CreationFlag flag);
   MUST_USE_RESULT MaybeObject* SetIdentityHash(Object* hash, CreationFlag flag);
 
+  static Handle<Object> DeleteProperty(Handle<JSObject> obj,
+                                       Handle<String> name);
   MUST_USE_RESULT MaybeObject* DeleteProperty(String* name, DeleteMode mode);
+
+  static Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
   MUST_USE_RESULT MaybeObject* DeleteElement(uint32_t index, DeleteMode mode);
 
   inline void ValidateSmiOnlyElements();
@@ -1701,7 +1736,18 @@ class JSObject: public JSReceiver {
       StrictModeFlag strict_mode,
       bool check_prototype = true);
 
-  // Set the index'th array element.
+
+  static Handle<Object> SetOwnElement(Handle<JSObject> object,
+                                      uint32_t index,
+                                      Handle<Object> value,
+                                      StrictModeFlag strict_mode);
+
+  // Empty handle is returned if the element cannot be set to the given value.
+  static MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
+                                                   uint32_t index,
+                                                   Handle<Object> value,
+                                                   StrictModeFlag strict_mode);
+
   // A Failure object is returned if GC is needed.
   MUST_USE_RESULT MaybeObject* SetElement(uint32_t index,
                                           Object* value,
@@ -1811,6 +1857,9 @@ class JSObject: public JSReceiver {
   MUST_USE_RESULT MaybeObject* GetElementsTransitionMap(
       ElementsKind elements_kind);
 
+  static Handle<Object> TransitionElementsKind(Handle<JSObject> object,
+                                               ElementsKind to_kind);
+
   MUST_USE_RESULT MaybeObject* TransitionElementsKind(ElementsKind to_kind);
 
   // Converts a descriptor of any other type to a real field,
@@ -1851,12 +1900,19 @@ class JSObject: public JSReceiver {
   // representation. If the object is expected to have additional properties
   // added this number can be indicated to have the backing store allocated to
   // an initial capacity for holding these properties.
+  static void NormalizeProperties(Handle<JSObject> object,
+                                  PropertyNormalizationMode mode,
+                                  int expected_additional_properties);
+
   MUST_USE_RESULT MaybeObject* NormalizeProperties(
       PropertyNormalizationMode mode,
       int expected_additional_properties);
 
-  // Convert and update the elements backing store to be a NumberDictionary
-  // dictionary.  Returns the backing after conversion.
+  // Convert and update the elements backing store to be a
+  // SeededNumberDictionary dictionary.  Returns the backing after conversion.
+  static Handle<SeededNumberDictionary> NormalizeElements(
+      Handle<JSObject> object);
+
   MUST_USE_RESULT MaybeObject* NormalizeElements();
 
   static void UpdateMapCodeCache(Handle<JSObject> object,
@@ -1867,6 +1923,9 @@ class JSObject: public JSReceiver {
 
   // Transform slow named properties to fast variants.
   // Returns failure if allocation failed.
+  static void TransformToFastProperties(Handle<JSObject> object,
+                                        int unused_property_fields);
+
   MUST_USE_RESULT MaybeObject* TransformToFastProperties(
       int unused_property_fields);
 
@@ -1898,6 +1957,7 @@ class JSObject: public JSReceiver {
   static inline JSObject* cast(Object* obj);
 
   // Disalow further properties to be added to the object.
+  static Handle<Object> PreventExtensions(Handle<JSObject> object);
   MUST_USE_RESULT MaybeObject* PreventExtensions();
 
 
@@ -1950,11 +2010,6 @@ class JSObject: public JSReceiver {
   void IncrementSpillStatistics(SpillInformation* info);
 #endif
   Object* SlowReverseLookup(Object* value);
-
-  // Getters and setters are stored in a fixed array property.
-  // These are constants for their indices.
-  static const int kGetterIndex = 0;
-  static const int kSetterIndex = 1;
 
   // Maximal number of fast properties for the JSObject. Used to
   // restrict the number of map transitions to avoid an explosion in
@@ -2223,7 +2278,7 @@ class FixedDoubleArray: public FixedArrayBase {
  public:
   inline void Initialize(FixedArray* from);
   inline void Initialize(FixedDoubleArray* from);
-  inline void Initialize(NumberDictionary* from);
+  inline void Initialize(SeededNumberDictionary* from);
 
   // Setter and getter for elements.
   inline double get_scalar(int index);
@@ -2538,9 +2593,44 @@ class DescriptorArray: public FixedArray {
 // beginning of the backing storage that can be used for non-element
 // information by subclasses.
 
+template<typename Key>
+class BaseShape {
+ public:
+  static const bool UsesSeed = false;
+  static uint32_t Hash(Key key) { return 0; }
+  static uint32_t SeededHash(Key key, uint32_t seed) {
+    ASSERT(UsesSeed);
+    return Hash(key);
+  }
+  static uint32_t HashForObject(Key key, Object* object) { return 0; }
+  static uint32_t SeededHashForObject(Key key, uint32_t seed, Object* object) {
+    ASSERT(UsesSeed);
+    return HashForObject(key, object);
+  }
+};
+
 template<typename Shape, typename Key>
 class HashTable: public FixedArray {
  public:
+  // Wrapper methods
+  inline uint32_t Hash(Key key) {
+    if (Shape::UsesSeed) {
+      return Shape::SeededHash(key,
+          GetHeap()->HashSeed());
+    } else {
+      return Shape::Hash(key);
+    }
+  }
+
+  inline uint32_t HashForObject(Key key, Object* object) {
+    if (Shape::UsesSeed) {
+      return Shape::SeededHashForObject(key,
+          GetHeap()->HashSeed(), object);
+    } else {
+      return Shape::HashForObject(key, object);
+    }
+  }
+
   // Returns the number of elements in the hash table.
   int NumberOfElements() {
     return Smi::cast(get(kNumberOfElementsIndex))->value();
@@ -2682,7 +2772,6 @@ class HashTable: public FixedArray {
 };
 
 
-
 // HashTableKey is an abstract superclass for virtual key behavior.
 class HashTableKey {
  public:
@@ -2699,7 +2788,8 @@ class HashTableKey {
   virtual ~HashTableKey() {}
 };
 
-class SymbolTableShape {
+
+class SymbolTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -2758,7 +2848,7 @@ class SymbolTable: public HashTable<SymbolTableShape, HashTableKey*> {
 };
 
 
-class MapCacheShape {
+class MapCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -2914,7 +3004,7 @@ class Dictionary: public HashTable<Shape, Key> {
 };
 
 
-class StringDictionaryShape {
+class StringDictionaryShape : public BaseShape<String*> {
  public:
   static inline bool IsMatch(String* key, Object* other);
   static inline uint32_t Hash(String* key);
@@ -2947,23 +3037,42 @@ class StringDictionary: public Dictionary<StringDictionaryShape, String*> {
 };
 
 
-class NumberDictionaryShape {
+class NumberDictionaryShape : public BaseShape<uint32_t> {
  public:
   static inline bool IsMatch(uint32_t key, Object* other);
-  static inline uint32_t Hash(uint32_t key);
-  static inline uint32_t HashForObject(uint32_t key, Object* object);
   MUST_USE_RESULT static inline MaybeObject* AsObject(uint32_t key);
-  static const int kPrefixSize = 2;
   static const int kEntrySize = 3;
   static const bool kIsEnumerable = false;
 };
 
 
-class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
+class SeededNumberDictionaryShape : public NumberDictionaryShape {
  public:
-  static NumberDictionary* cast(Object* obj) {
+  static const bool UsesSeed = true;
+  static const int kPrefixSize = 2;
+
+  static inline uint32_t SeededHash(uint32_t key, uint32_t seed);
+  static inline uint32_t SeededHashForObject(uint32_t key,
+                                             uint32_t seed,
+                                             Object* object);
+};
+
+
+class UnseededNumberDictionaryShape : public NumberDictionaryShape {
+ public:
+  static const int kPrefixSize = 0;
+
+  static inline uint32_t Hash(uint32_t key);
+  static inline uint32_t HashForObject(uint32_t key, Object* object);
+};
+
+
+class SeededNumberDictionary
+    : public Dictionary<SeededNumberDictionaryShape, uint32_t> {
+ public:
+  static SeededNumberDictionary* cast(Object* obj) {
     ASSERT(obj->IsDictionary());
-    return reinterpret_cast<NumberDictionary*>(obj);
+    return reinterpret_cast<SeededNumberDictionary*>(obj);
   }
 
   // Type specific at put (default NONE attributes is used when adding).
@@ -2973,6 +3082,13 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
                                               PropertyDetails details);
 
   // Set an existing entry or add a new one if needed.
+  // Return the updated dictionary.
+  MUST_USE_RESULT static Handle<SeededNumberDictionary> Set(
+      Handle<SeededNumberDictionary> dictionary,
+      uint32_t index,
+      Handle<Object> value,
+      PropertyDetails details);
+
   MUST_USE_RESULT MaybeObject* Set(uint32_t key,
                                    Object* value,
                                    PropertyDetails details);
@@ -2999,8 +3115,31 @@ class NumberDictionary: public Dictionary<NumberDictionaryShape, uint32_t> {
 };
 
 
+class UnseededNumberDictionary
+    : public Dictionary<UnseededNumberDictionaryShape, uint32_t> {
+ public:
+  static UnseededNumberDictionary* cast(Object* obj) {
+    ASSERT(obj->IsDictionary());
+    return reinterpret_cast<UnseededNumberDictionary*>(obj);
+  }
+
+  // Type specific at put (default NONE attributes is used when adding).
+  MUST_USE_RESULT MaybeObject* AtNumberPut(uint32_t key, Object* value);
+  MUST_USE_RESULT MaybeObject* AddNumberEntry(uint32_t key, Object* value);
+
+  // Set an existing entry or add a new one if needed.
+  // Return the updated dictionary.
+  MUST_USE_RESULT static Handle<UnseededNumberDictionary> Set(
+      Handle<UnseededNumberDictionary> dictionary,
+      uint32_t index,
+      Handle<Object> value);
+
+  MUST_USE_RESULT MaybeObject* Set(uint32_t key, Object* value);
+};
+
+
 template <int entrysize>
-class ObjectHashTableShape {
+class ObjectHashTableShape : public BaseShape<Object*> {
  public:
   static inline bool IsMatch(Object* key, Object* other);
   static inline uint32_t Hash(Object* key);
@@ -4791,7 +4930,10 @@ class Script: public Struct {
   V(Math, atan, MathATan)                           \
   V(Math, exp, MathExp)                             \
   V(Math, sqrt, MathSqrt)                           \
-  V(Math, pow, MathPow)
+  V(Math, pow, MathPow)                             \
+  V(Math, random, MathRandom)                       \
+  V(Math, max, MathMax)                             \
+  V(Math, min, MathMin)
 
 
 enum BuiltinFunctionId {
@@ -5912,7 +6054,7 @@ class JSRegExp: public JSObject {
 };
 
 
-class CompilationCacheShape {
+class CompilationCacheShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -6016,7 +6158,7 @@ class CodeCache: public Struct {
 };
 
 
-class CodeCacheHashTableShape {
+class CodeCacheHashTableShape : public BaseShape<HashTableKey*> {
  public:
   static inline bool IsMatch(HashTableKey* key, Object* value) {
     return key->IsMatch(value);
@@ -6147,6 +6289,11 @@ class StringHasher {
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
   static uint32_t MakeArrayIndexHash(uint32_t value, int length);
+
+  // No string is allowed to have a hash of zero.  That value is reserved
+  // for internal properties.  If the hash calculation yields zero then we
+  // use 27 instead.
+  static const int kZeroHash = 27;
 
  private:
   uint32_t array_index() {
@@ -7525,6 +7672,35 @@ class AccessorInfo: public Struct {
   class AttributesField: public BitField<PropertyAttributes, 3, 3> {};
 
   DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorInfo);
+};
+
+
+// Support for JavaScript accessors: A pair of a getter and a setter. Each
+// accessor can either be
+//   * a pointer to a JavaScript function or proxy: a real accessor
+//   * undefined: considered an accessor by the spec, too, strangely enough
+//   * the hole: an accessor which has not been set
+//   * a pointer to a map: a transition used to ensure map sharing
+class AccessorPair: public Struct {
+ public:
+  DECL_ACCESSORS(getter, Object)
+  DECL_ACCESSORS(setter, Object)
+
+  static inline AccessorPair* cast(Object* obj);
+
+#ifdef OBJECT_PRINT
+  void AccessorPairPrint(FILE* out = stdout);
+#endif
+#ifdef DEBUG
+  void AccessorPairVerify();
+#endif
+
+  static const int kGetterOffset = HeapObject::kHeaderSize;
+  static const int kSetterOffset = kGetterOffset + kPointerSize;
+  static const int kSize = kSetterOffset + kPointerSize;
+
+ private:
+  DISALLOW_IMPLICIT_CONSTRUCTORS(AccessorPair);
 };
 
 

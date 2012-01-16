@@ -56,6 +56,7 @@ class IncrementalMarking {
   }
 
   bool should_hurry() { return should_hurry_; }
+  void set_should_hurry(bool val) { should_hurry_ = val; }
 
   inline bool IsStopped() { return state() == STOPPED; }
 
@@ -219,10 +220,6 @@ class IncrementalMarking {
   void UncommitMarkingDeque();
 
  private:
-  void set_should_hurry(bool val) {
-    should_hurry_ = val;
-  }
-
   int64_t SpaceLeftInOldSpace();
 
   void ResetStepCounters();

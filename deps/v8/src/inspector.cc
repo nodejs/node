@@ -38,11 +38,11 @@ namespace internal {
 //============================================================================
 // The Inspector.
 
-void Inspector::DumpObjectType(FILE* out, Object *obj, bool print_more) {
+void Inspector::DumpObjectType(FILE* out, Object* obj, bool print_more) {
   // Dump the object pointer.
   OS::FPrint(out, "%p:", reinterpret_cast<void*>(obj));
   if (obj->IsHeapObject()) {
-    HeapObject *hobj = HeapObject::cast(obj);
+    HeapObject* hobj = HeapObject::cast(obj);
     OS::FPrint(out, " size %d :", hobj->Size());
   }
 

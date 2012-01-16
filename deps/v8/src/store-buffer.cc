@@ -55,7 +55,7 @@ StoreBuffer::StoreBuffer(Heap* heap)
 }
 
 
-void StoreBuffer::Setup() {
+void StoreBuffer::SetUp() {
   virtual_memory_ = new VirtualMemory(kStoreBufferSize * 3);
   uintptr_t start_as_int =
       reinterpret_cast<uintptr_t>(virtual_memory_->address());

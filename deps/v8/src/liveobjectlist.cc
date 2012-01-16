@@ -165,7 +165,7 @@ const char* GetObjectTypeDesc(HeapObject* heap_obj) {
 }
 
 
-bool IsOfType(LiveObjectType type, HeapObject *obj) {
+bool IsOfType(LiveObjectType type, HeapObject* obj) {
   // Note: there are types that are more general (e.g. JSObject) that would
   // have passed the Is##type_() test for more specialized types (e.g.
   // JSFunction).  If we find a more specialized match but we're looking for
@@ -211,7 +211,7 @@ static AllocationSpace FindSpaceFor(String* space_str) {
 }
 
 
-static bool InSpace(AllocationSpace space, HeapObject *heap_obj) {
+static bool InSpace(AllocationSpace space, HeapObject* heap_obj) {
   Heap* heap = ISOLATE->heap();
   if (space != LO_SPACE) {
     return heap->InSpace(heap_obj, space);
@@ -498,7 +498,7 @@ static void GenerateObjectDesc(HeapObject* obj,
                  length);
 
   } else if (obj->IsString()) {
-    String *str = String::cast(obj);
+    String* str = String::cast(obj);
     // Only grab up to 160 chars in case they are double byte.
     // We'll only dump 80 of them after we compact them.
     const int kMaxCharToDump = 80;
@@ -842,7 +842,7 @@ class LiveObjectSummary {
   bool found_root_;
   bool found_weak_root_;
 
-  LolFilter *filter_;
+  LolFilter* filter_;
 };
 
 
@@ -857,8 +857,8 @@ class SummaryWriter {
 // A summary writer for filling in a summary of lol lists and diffs.
 class LolSummaryWriter: public SummaryWriter {
  public:
-  LolSummaryWriter(LiveObjectList *older_lol,
-                   LiveObjectList *newer_lol)
+  LolSummaryWriter(LiveObjectList* older_lol,
+                   LiveObjectList* newer_lol)
       : older_(older_lol), newer_(newer_lol) {
   }
 
@@ -944,7 +944,7 @@ LiveObjectList::~LiveObjectList() {
 int LiveObjectList::GetTotalObjCountAndSize(int* size_p) {
   int size = 0;
   int count = 0;
-  LiveObjectList *lol = this;
+  LiveObjectList* lol = this;
   do {
     // Only compute total size if requested i.e. when size_p is not null.
     if (size_p != NULL) {
@@ -1183,7 +1183,7 @@ MaybeObject* LiveObjectList::Capture() {
 // only time we'll actually delete the lol is when we Reset() or if the lol is
 // invisible, and its element count reaches 0.
 bool LiveObjectList::Delete(int id) {
-  LiveObjectList *lol = last();
+  LiveObjectList* lol = last();
   while (lol != NULL) {
     if (lol->id() == id) {
       break;
@@ -1246,8 +1246,8 @@ MaybeObject* LiveObjectList::Dump(int older_id,
     newer_id = temp;
   }
 
-  LiveObjectList *newer_lol = FindLolForId(newer_id, last());
-  LiveObjectList *older_lol = FindLolForId(older_id, newer_lol);
+  LiveObjectList* newer_lol = FindLolForId(newer_id, last());
+  LiveObjectList* older_lol = FindLolForId(older_id, newer_lol);
 
   // If the id is defined, and we can't find a LOL for it, then we have an
   // invalid id.
@@ -1365,8 +1365,8 @@ MaybeObject* LiveObjectList::Summarize(int older_id,
     newer_id = temp;
   }
 
-  LiveObjectList *newer_lol = FindLolForId(newer_id, last());
-  LiveObjectList *older_lol = FindLolForId(older_id, newer_lol);
+  LiveObjectList* newer_lol = FindLolForId(newer_id, last());
+  LiveObjectList* older_lol = FindLolForId(older_id, newer_lol);
 
   // If the id is defined, and we can't find a LOL for it, then we have an
   // invalid id.
@@ -1626,7 +1626,7 @@ MaybeObject* LiveObjectList::Info(int start_idx, int dump_limit) {
 
 // Deletes all captured lols.
 void LiveObjectList::Reset() {
-  LiveObjectList *lol = last();
+  LiveObjectList* lol = last();
   // Just delete the last.  Each lol will delete it's prev automatically.
   delete lol;
 
@@ -1715,8 +1715,8 @@ class LolVisitor: public ObjectVisitor {
 
 inline bool AddRootRetainerIfFound(const LolVisitor& visitor,
                                    LolFilter* filter,
-                                   LiveObjectSummary *summary,
-                                   void (*SetRootFound)(LiveObjectSummary *s),
+                                   LiveObjectSummary* summary,
+                                   void (*SetRootFound)(LiveObjectSummary* s),
                                    int start,
                                    int dump_limit,
                                    int* total_count,
@@ -1762,12 +1762,12 @@ inline bool AddRootRetainerIfFound(const LolVisitor& visitor,
 }
 
 
-inline void SetFoundRoot(LiveObjectSummary *summary) {
+inline void SetFoundRoot(LiveObjectSummary* summary) {
   summary->set_found_root();
 }
 
 
-inline void SetFoundWeakRoot(LiveObjectSummary *summary) {
+inline void SetFoundWeakRoot(LiveObjectSummary* summary) {
   summary->set_found_weak_root();
 }
 
@@ -1779,7 +1779,7 @@ int LiveObjectList::GetRetainers(Handle<HeapObject> target,
                                  int dump_limit,
                                  int* total_count,
                                  LolFilter* filter,
-                                 LiveObjectSummary *summary,
+                                 LiveObjectSummary* summary,
                                  JSFunction* arguments_function,
                                  Handle<Object> error) {
   HandleScope scope;
@@ -2267,7 +2267,7 @@ Object* LiveObjectList::GetPath(int obj_id1,
 }
 
 
-void LiveObjectList::DoProcessNonLive(HeapObject *obj) {
+void LiveObjectList::DoProcessNonLive(HeapObject* obj) {
   // We should only be called if we have at least one lol to search.
   ASSERT(last() != NULL);
   Element* element = last()->Find(obj);
@@ -2284,7 +2284,7 @@ void LiveObjectList::IterateElementsPrivate(ObjectVisitor* v) {
     int count = lol->obj_count_;
     for (int i = 0; i < count; i++) {
       HeapObject** p = &elements[i].obj_;
-      v->VisitPointer(reinterpret_cast<Object **>(p));
+      v->VisitPointer(reinterpret_cast<Object** >(p));
     }
     lol = lol->prev_;
   }
@@ -2389,11 +2389,11 @@ void LiveObjectList::GCEpiloguePrivate() {
   PurgeDuplicates();
 
   // After the GC, sweep away all free'd Elements and compact.
-  LiveObjectList *prev = NULL;
-  LiveObjectList *next = NULL;
+  LiveObjectList* prev = NULL;
+  LiveObjectList* next = NULL;
 
   // Iterating from the youngest lol to the oldest lol.
-  for (LiveObjectList *lol = last(); lol; lol = prev) {
+  for (LiveObjectList* lol = last(); lol; lol = prev) {
     Element* elements = lol->elements_;
     prev = lol->prev();  // Save the prev.
 
@@ -2446,7 +2446,7 @@ void LiveObjectList::GCEpiloguePrivate() {
       const int kMaxUnusedSpace = 64;
       if (diff > kMaxUnusedSpace) {  // Threshold for shrinking.
         // Shrink the list.
-        Element *new_elements = NewArray<Element>(new_count);
+        Element* new_elements = NewArray<Element>(new_count);
         memcpy(new_elements, elements, new_count * sizeof(Element));
 
         DeleteArray<Element>(elements);

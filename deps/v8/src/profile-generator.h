@@ -750,7 +750,8 @@ class HeapObjectsMap {
 
   static uint32_t AddressHash(Address addr) {
     return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(addr)),
+        v8::internal::kZeroHashSeed);
   }
 
   bool initial_fill_mode_;
@@ -833,7 +834,7 @@ class HeapEntriesMap {
   int total_children_count() { return total_children_count_; }
   int total_retainers_count() { return total_retainers_count_; }
 
-  static HeapEntry *const kHeapEntryPlaceholder;
+  static HeapEntry* const kHeapEntryPlaceholder;
 
  private:
   struct EntryInfo {
@@ -851,7 +852,8 @@ class HeapEntriesMap {
 
   static uint32_t Hash(HeapThing thing) {
     return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(thing)),
+        v8::internal::kZeroHashSeed);
   }
   static bool HeapThingsMatch(HeapThing key1, HeapThing key2) {
     return key1 == key2;
@@ -1047,7 +1049,8 @@ class NativeObjectsExplorer : public HeapEntriesAllocator {
   void VisitSubtreeWrapper(Object** p, uint16_t class_id);
 
   static uint32_t InfoHash(v8::RetainedObjectInfo* info) {
-    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()));
+    return ComputeIntegerHash(static_cast<uint32_t>(info->GetHash()),
+                              v8::internal::kZeroHashSeed);
   }
   static bool RetainedInfosMatch(void* key1, void* key2) {
     return key1 == key2 ||
@@ -1125,7 +1128,8 @@ class HeapSnapshotJSONSerializer {
 
   INLINE(static uint32_t ObjectHash(const void* key)) {
     return ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(key)),
+        v8::internal::kZeroHashSeed);
   }
 
   void EnumerateNodes();

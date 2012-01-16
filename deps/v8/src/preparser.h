@@ -630,7 +630,7 @@ class PreParser {
 
   void SetStrictModeViolation(i::Scanner::Location,
                               const char* type,
-                              bool *ok);
+                              bool* ok);
 
   void CheckDelayedStrictModeViolation(int beg_pos, int end_pos, bool* ok);
 

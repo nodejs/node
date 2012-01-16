@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,45 +25,41 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// This module contains the architecture-specific code. This make the rest of
-// the code less dependent on differences between different processor
-// architecture.
-// The classes have the same definition for all architectures. The
-// implementation for a particular architecture is put in cpu_<arch>.cc.
-// The build system then uses the implementation for the target architecture.
-//
+// Flags: --expose-debug-as debug
+var Debug = debug.Debug;
 
-#ifndef V8_CPU_H_
-#define V8_CPU_H_
+function listener(event, exec_state, event_data, data) {
+  for (var i = 0, n = exec_state.frameCount(); i < n; i++) {
+    exec_state.frame().scopeCount(i);
+  }
+  exec_state.prepareStep(Debug.StepAction.Continue, 1);
+}
 
-#include "allocation.h"
+Debug.setListener(listener);
 
-namespace v8 {
-namespace internal {
-
-// ----------------------------------------------------------------------------
-// CPU
-//
-// This class has static methods for the architecture specific functions. Add
-// methods here to cope with differences between the supported architectures.
-//
-// For each architecture the file cpu_<arch>.cc contains the implementation of
-// these functions.
-
-class CPU : public AllStatic {
- public:
-  // Initializes the cpu architecture support. Called once at VM startup.
-  static void SetUp();
-
-  static bool SupportsCrankshaft();
-
-  // Flush instruction cache.
-  static void FlushICache(void* start, size_t size);
-
-  // Try to activate a system level debugger.
-  static void DebugBreak();
+var F = function () {
+  1, function () {
+    var d = 0;
+    (function () { d; });
+    debugger;
+  }();
 };
 
-} }  // namespace v8::internal
+var src = "(" + F.toString() + ")()";
+eval(src);
 
-#endif  // V8_CPU_H_
+Function.prototype.__defineGetter__("f", function () {
+  debugger;
+  return 0;
+});
+
+var G = function () {
+  1, function () {
+    var d = 0;
+    (function () { d; });
+    debugger;
+  }['f'];
+};
+
+var src = "(" + G.toString() + ")()";
+eval(src);

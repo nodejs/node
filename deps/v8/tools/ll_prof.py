@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2010 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -673,7 +673,9 @@ OBJDUMP_SECTION_HEADER_RE = re.compile(
 OBJDUMP_SYMBOL_LINE_RE = re.compile(
   r"^([a-f0-9]+)\s(.{7})\s(\S+)\s+([a-f0-9]+)\s+(?:\.hidden\s+)?(.*)$")
 OBJDUMP_DYNAMIC_SYMBOLS_START_RE = re.compile(
-   r"^DYNAMIC SYMBOL TABLE")
+  r"^DYNAMIC SYMBOL TABLE")
+OBJDUMP_SKIP_RE = re.compile(
+  r"^.*ld\.so\.cache$")
 KERNEL_ALLSYMS_FILE = "/proc/kallsyms"
 PERF_KERNEL_ALLSYMS_RE = re.compile(
   r".*kallsyms.*")
@@ -691,6 +693,8 @@ class LibraryRepo(object):
     # Skip kernel mmaps when requested using the fact that their tid
     # is 0.
     if mmap_info.tid == 0 and not options.kernel:
+      return True
+    if OBJDUMP_SKIP_RE.match(mmap_info.filename):
       return True
     if PERF_KERNEL_ALLSYMS_RE.match(mmap_info.filename):
       return self._LoadKernelSymbols(code_map)

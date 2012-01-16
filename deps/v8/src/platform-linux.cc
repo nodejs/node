@@ -78,7 +78,7 @@ double ceiling(double x) {
 static Mutex* limit_mutex = NULL;
 
 
-void OS::Setup() {
+void OS::SetUp() {
   // Seed the random number generator. We preserve microsecond resolution.
   uint64_t seed = Ticks() ^ (getpid() << 16);
   srandom(static_cast<unsigned int>(seed));
@@ -512,7 +512,7 @@ void OS::LogSharedLibraryAddresses() {
       }
       LOG(isolate, SharedLibraryEvent(lib_name, start, end));
     } else {
-      // Entry not describing executable data. Skip to end of line to setup
+      // Entry not describing executable data. Skip to end of line to set up
       // reading the next entry.
       do {
         c = getc(fp);

@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 // A light-weight ARM Assembler
 // Generates user mode instructions for the ARM architecture up to version 5
@@ -176,14 +176,11 @@ struct DwVfpRegister {
   static const int kNumAllocatableRegisters = kNumRegisters -
       kNumReservedRegisters;
 
-  static int ToAllocationIndex(DwVfpRegister reg) {
-    ASSERT(reg.code() != 0);
-    return reg.code() - 1;
-  }
+  inline static int ToAllocationIndex(DwVfpRegister reg);
 
   static DwVfpRegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
-    return from_code(index + 1);
+    return from_code(index);
   }
 
   static const char* AllocationIndexToString(int index) {
@@ -307,6 +304,7 @@ const DwVfpRegister d15 = { 15 };
 static const DwVfpRegister& kFirstCalleeSavedDoubleReg = d8;
 static const DwVfpRegister& kLastCalleeSavedDoubleReg = d15;
 static const DwVfpRegister& kDoubleRegZero = d14;
+static const DwVfpRegister& kScratchDoubleReg = d15;
 
 
 // Coprocessor register

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -487,15 +487,48 @@ void MacroAssembler::StoreNumberToDoubleElements(
 }
 
 
+void MacroAssembler::CompareMap(Register obj,
+                                Handle<Map> map,
+                                Label* early_success,
+                                CompareMapMode mode) {
+  cmp(FieldOperand(obj, HeapObject::kMapOffset), map);
+  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
+    Map* transitioned_fast_element_map(
+        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL));
+    ASSERT(transitioned_fast_element_map == NULL ||
+           map->elements_kind() != FAST_ELEMENTS);
+    if (transitioned_fast_element_map != NULL) {
+      j(equal, early_success, Label::kNear);
+      cmp(FieldOperand(obj, HeapObject::kMapOffset),
+          Handle<Map>(transitioned_fast_element_map));
+    }
+
+    Map* transitioned_double_map(
+        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL));
+    ASSERT(transitioned_double_map == NULL ||
+           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+    if (transitioned_double_map != NULL) {
+      j(equal, early_success, Label::kNear);
+      cmp(FieldOperand(obj, HeapObject::kMapOffset),
+          Handle<Map>(transitioned_double_map));
+    }
+  }
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type) {
+                              SmiCheckType smi_check_type,
+                              CompareMapMode mode) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
-  cmp(FieldOperand(obj, HeapObject::kMapOffset), Immediate(map));
+
+  Label success;
+  CompareMap(obj, map, &success, mode);
   j(not_equal, fail);
+  bind(&success);
 }
 
 
@@ -616,7 +649,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFramePrologue() {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   ASSERT(ExitFrameConstants::kCallerSPDisplacement == +2 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerPCOffset == +1 * kPointerSize);
   ASSERT(ExitFrameConstants::kCallerFPOffset ==  0 * kPointerSize);
@@ -668,7 +701,7 @@ void MacroAssembler::EnterExitFrameEpilogue(int argc, bool save_doubles) {
 void MacroAssembler::EnterExitFrame(bool save_doubles) {
   EnterExitFramePrologue();
 
-  // Setup argc and argv in callee-saved registers.
+  // Set up argc and argv in callee-saved registers.
   int offset = StandardFrameConstants::kCallerSPOffset - kPointerSize;
   mov(edi, eax);
   lea(esi, Operand(ebp, eax, times_4, offset));
@@ -959,6 +992,50 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+// Compute the hash code from the untagged key.  This must be kept in sync
+// with ComputeIntegerHash in utils.h.
+//
+// Note: r0 will contain hash code
+void MacroAssembler::GetNumberHash(Register r0, Register scratch) {
+  // Xor original key with a seed.
+  if (Serializer::enabled()) {
+    ExternalReference roots_array_start =
+        ExternalReference::roots_array_start(isolate());
+    mov(scratch, Immediate(Heap::kHashSeedRootIndex));
+    mov(scratch,
+        Operand::StaticArray(scratch, times_pointer_size, roots_array_start));
+    SmiUntag(scratch);
+    xor_(r0, scratch);
+  } else {
+    int32_t seed = isolate()->heap()->HashSeed();
+    xor_(r0, Immediate(seed));
+  }
+
+  // hash = ~hash + (hash << 15);
+  mov(scratch, r0);
+  not_(r0);
+  shl(scratch, 15);
+  add(r0, scratch);
+  // hash = hash ^ (hash >> 12);
+  mov(scratch, r0);
+  shr(scratch, 12);
+  xor_(r0, scratch);
+  // hash = hash + (hash << 2);
+  lea(r0, Operand(r0, r0, times_4, 0));
+  // hash = hash ^ (hash >> 4);
+  mov(scratch, r0);
+  shr(scratch, 4);
+  xor_(r0, scratch);
+  // hash = hash * 2057;
+  imul(r0, r0, 2057);
+  // hash = hash ^ (hash >> 16);
+  mov(scratch, r0);
+  shr(scratch, 16);
+  xor_(r0, scratch);
+}
+
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -984,33 +1061,10 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  mov(r1, r0);
-  not_(r0);
-  shl(r1, 15);
-  add(r0, r1);
-  // hash = hash ^ (hash >> 12);
-  mov(r1, r0);
-  shr(r1, 12);
-  xor_(r0, r1);
-  // hash = hash + (hash << 2);
-  lea(r0, Operand(r0, r0, times_4, 0));
-  // hash = hash ^ (hash >> 4);
-  mov(r1, r0);
-  shr(r1, 4);
-  xor_(r0, r1);
-  // hash = hash * 2057;
-  imul(r0, r0, 2057);
-  // hash = hash ^ (hash >> 16);
-  mov(r1, r0);
-  shr(r1, 16);
-  xor_(r0, r1);
+  GetNumberHash(r0, r1);
 
   // Compute capacity mask.
-  mov(r1, FieldOperand(elements, NumberDictionary::kCapacityOffset));
+  mov(r1, FieldOperand(elements, SeededNumberDictionary::kCapacityOffset));
   shr(r1, kSmiTagSize);  // convert smi to int
   dec(r1);
 
@@ -1021,19 +1075,19 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     mov(r2, r0);
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
-      add(r2, Immediate(NumberDictionary::GetProbeOffset(i)));
+      add(r2, Immediate(SeededNumberDictionary::GetProbeOffset(i)));
     }
     and_(r2, r1);
 
     // Scale the index by multiplying by the entry size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
+    ASSERT(SeededNumberDictionary::kEntrySize == 3);
     lea(r2, Operand(r2, r2, times_2, 0));  // r2 = r2 * 3
 
     // Check if the key matches.
     cmp(key, FieldOperand(elements,
                           r2,
                           times_pointer_size,
-                          NumberDictionary::kElementsStartOffset));
+                          SeededNumberDictionary::kElementsStartOffset));
     if (i != (kProbes - 1)) {
       j(equal, &done);
     } else {
@@ -1044,7 +1098,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   bind(&done);
   // Check that the value is a normal propety.
   const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ASSERT_EQ(NORMAL, 0);
   test(FieldOperand(elements, r2, times_pointer_size, kDetailsOffset),
        Immediate(PropertyDetails::TypeField::kMask << kSmiTagSize));
@@ -1052,7 +1106,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
 
   // Get the value at the masked, scaled index.
   const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
   mov(result, FieldOperand(elements, r2, times_pointer_size, kValueOffset));
 }
 

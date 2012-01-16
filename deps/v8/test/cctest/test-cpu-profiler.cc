@@ -216,7 +216,7 @@ TEST(TickEvents) {
 TEST(CrashIfStoppingLastNonExistentProfile) {
   InitializeVM();
   TestSetup test_setup;
-  CpuProfiler::Setup();
+  CpuProfiler::SetUp();
   CpuProfiler::StartProfiling("1");
   CpuProfiler::StopProfiling("2");
   CpuProfiler::StartProfiling("1");
@@ -268,7 +268,7 @@ TEST(Issue1398) {
 TEST(DeleteAllCpuProfiles) {
   InitializeVM();
   TestSetup test_setup;
-  CpuProfiler::Setup();
+  CpuProfiler::SetUp();
   CHECK_EQ(0, CpuProfiler::GetProfilesCount());
   CpuProfiler::DeleteAllProfiles();
   CHECK_EQ(0, CpuProfiler::GetProfilesCount());

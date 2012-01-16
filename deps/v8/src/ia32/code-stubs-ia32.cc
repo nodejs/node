@@ -128,14 +128,14 @@ void FastNewContextStub::Generate(MacroAssembler* masm) {
   // Get the function from the stack.
   __ mov(ecx, Operand(esp, 1 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   Factory* factory = masm->isolate()->factory();
   __ mov(FieldOperand(eax, HeapObject::kMapOffset),
          factory->function_context_map());
   __ mov(FieldOperand(eax, Context::kLengthOffset),
          Immediate(Smi::FromInt(length)));
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ Set(ebx, Immediate(0));  // Set to NULL.
   __ mov(Operand(eax, Context::SlotOffset(Context::CLOSURE_INDEX)), ecx);
   __ mov(Operand(eax, Context::SlotOffset(Context::PREVIOUS_INDEX)), esi);
@@ -179,7 +179,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   // Get the serialized scope info from the stack.
   __ mov(ebx, Operand(esp, 2 * kPointerSize));
 
-  // Setup the object header.
+  // Set up the object header.
   Factory* factory = masm->isolate()->factory();
   __ mov(FieldOperand(eax, HeapObject::kMapOffset),
          factory->block_context_map());
@@ -202,7 +202,7 @@ void FastNewBlockContextStub::Generate(MacroAssembler* masm) {
   __ mov(ecx, ContextOperand(ecx, Context::CLOSURE_INDEX));
   __ bind(&after_sentinel);
 
-  // Setup the fixed slots.
+  // Set up the fixed slots.
   __ mov(ContextOperand(eax, Context::CLOSURE_INDEX), ecx);
   __ mov(ContextOperand(eax, Context::PREVIOUS_INDEX), esi);
   __ mov(ContextOperand(eax, Context::EXTENSION_INDEX), ebx);
@@ -3379,7 +3379,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
     __ mov(FieldOperand(eax, i), edx);
   }
 
-  // Setup the callee in-object property.
+  // Set up the callee in-object property.
   STATIC_ASSERT(Heap::kArgumentsCalleeIndex == 1);
   __ mov(edx, Operand(esp, 4 * kPointerSize));
   __ mov(FieldOperand(eax, JSObject::kHeaderSize +
@@ -3392,7 +3392,7 @@ void ArgumentsAccessStub::GenerateNewNonStrictFast(MacroAssembler* masm) {
                       Heap::kArgumentsLengthIndex * kPointerSize),
          ecx);
 
-  // Setup the elements pointer in the allocated arguments object.
+  // Set up the elements pointer in the allocated arguments object.
   // If we allocated a parameter map, edi will point there, otherwise to the
   // backing store.
   __ lea(edi, Operand(eax, Heap::kArgumentsObjectSize));
@@ -3571,7 +3571,7 @@ void ArgumentsAccessStub::GenerateNewStrict(MacroAssembler* masm) {
   // Get the parameters pointer from the stack.
   __ mov(edx, Operand(esp, 2 * kPointerSize));
 
-  // Setup the elements pointer in the allocated arguments object and
+  // Set up the elements pointer in the allocated arguments object and
   // initialize the header in the elements fixed array.
   __ lea(edi, Operand(eax, Heap::kArgumentsObjectSizeStrict));
   __ mov(FieldOperand(eax, JSObject::kElementsOffset), edi);
@@ -4950,7 +4950,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   Label invoke, handler_entry, exit;
   Label not_outermost_js, not_outermost_js_2;
 
-  // Setup frame.
+  // Set up frame.
   __ push(ebp);
   __ mov(ebp, esp);
 
@@ -5081,8 +5081,8 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   static const int kDeltaToCmpImmediate = 2;
   static const int kDeltaToMov = 8;
   static const int kDeltaToMovImmediate = 9;
-  static const int8_t kCmpEdiImmediateByte1 = BitCast<int8_t, uint8_t>(0x81);
-  static const int8_t kCmpEdiImmediateByte2 = BitCast<int8_t, uint8_t>(0xff);
+  static const int8_t kCmpEdiOperandByte1 = BitCast<int8_t, uint8_t>(0x3b);
+  static const int8_t kCmpEdiOperandByte2 = BitCast<int8_t, uint8_t>(0x3d);
   static const int8_t kMovEaxImmediateByte = BitCast<int8_t, uint8_t>(0xb8);
 
   ExternalReference roots_array_start =
@@ -5147,12 +5147,13 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     __ mov(scratch, Operand(esp, 0 * kPointerSize));
     __ sub(scratch, Operand(esp, 1 * kPointerSize));
     if (FLAG_debug_code) {
-      __ cmpb(Operand(scratch, 0), kCmpEdiImmediateByte1);
+      __ cmpb(Operand(scratch, 0), kCmpEdiOperandByte1);
       __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 1)");
-      __ cmpb(Operand(scratch, 1), kCmpEdiImmediateByte2);
+      __ cmpb(Operand(scratch, 1), kCmpEdiOperandByte2);
       __ Assert(equal, "InstanceofStub unexpected call site cache (cmp 2)");
     }
-    __ mov(Operand(scratch, kDeltaToCmpImmediate), map);
+    __ mov(scratch, Operand(scratch, kDeltaToCmpImmediate));
+    __ mov(Operand(scratch, 0), map);
   }
 
   // Loop through the prototype chain of the object looking for the function
@@ -6037,7 +6038,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
   if (Serializer::enabled()) {
     ExternalReference roots_array_start =
         ExternalReference::roots_array_start(masm->isolate());
-    __ mov(scratch, Immediate(Heap::kStringHashSeedRootIndex));
+    __ mov(scratch, Immediate(Heap::kHashSeedRootIndex));
     __ mov(scratch, Operand::StaticArray(scratch,
                                          times_pointer_size,
                                          roots_array_start));
@@ -6046,7 +6047,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
     __ shl(scratch, 10);
     __ add(hash, scratch);
   } else {
-    int32_t seed = masm->isolate()->heap()->StringHashSeed();
+    int32_t seed = masm->isolate()->heap()->HashSeed();
     __ lea(scratch, Operand(character, seed));
     __ shl(scratch, 10);
     __ lea(hash, Operand(scratch, character, times_1, seed));
@@ -6091,14 +6092,12 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   __ shl(scratch, 15);
   __ add(hash, scratch);
 
-  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
-  __ and_(hash, kHashShiftCutOffMask);
+  __ and_(hash, String::kHashBitMask);
 
   // if (hash == 0) hash = 27;
   Label hash_not_zero;
-  __ test(hash, hash);
   __ j(not_zero, &hash_not_zero, Label::kNear);
-  __ mov(hash, Immediate(27));
+  __ mov(hash, Immediate(StringHasher::kZeroHash));
   __ bind(&hash_not_zero);
 }
 

@@ -71,7 +71,7 @@ TypeFeedbackOracle::TypeFeedbackOracle(Handle<Code> code,
 
 Handle<Object> TypeFeedbackOracle::GetInfo(unsigned ast_id) {
   int entry = dictionary_->FindEntry(ast_id);
-  return entry != NumberDictionary::kNotFound
+  return entry != UnseededNumberDictionary::kNotFound
       ? Handle<Object>(dictionary_->ValueAt(entry))
       : Handle<Object>::cast(isolate_->factory()->undefined_value());
 }
@@ -559,7 +559,7 @@ void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   DisableAssertNoAllocation allocation_allowed;
   byte* old_start = code->instruction_start();
-  dictionary_ = FACTORY->NewNumberDictionary(infos->length());
+  dictionary_ = FACTORY->NewUnseededNumberDictionary(infos->length());
   byte* new_start = code->instruction_start();
   RelocateRelocInfos(infos, old_start, new_start);
 }
@@ -639,7 +639,7 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
 
 
 void TypeFeedbackOracle::SetInfo(unsigned ast_id, Object* target) {
-  ASSERT(dictionary_->FindEntry(ast_id) == NumberDictionary::kNotFound);
+  ASSERT(dictionary_->FindEntry(ast_id) == UnseededNumberDictionary::kNotFound);
   MaybeObject* maybe_result = dictionary_->AtNumberPut(ast_id, target);
   USE(maybe_result);
 #ifdef DEBUG

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -246,8 +246,8 @@ MaybeObject* JSObject::GetPropertyWithCallback(Object* receiver,
   }
 
   // __defineGetter__ callback
-  if (structure->IsFixedArray()) {
-    Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
+  if (structure->IsAccessorPair()) {
+    Object* getter = AccessorPair::cast(structure)->getter();
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
@@ -482,6 +482,16 @@ Object* JSObject::SetNormalizedProperty(LookupResult* result, Object* value) {
     property_dictionary()->ValueAtPut(result->GetDictionaryEntry(), value);
   }
   return value;
+}
+
+
+Handle<Object> JSObject::SetNormalizedProperty(Handle<JSObject> object,
+                                               Handle<String> key,
+                                               Handle<Object> value,
+                                               PropertyDetails details) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetNormalizedProperty(*key, *value, details),
+                     Object);
 }
 
 
@@ -1961,6 +1971,17 @@ MaybeObject* JSObject::SetPropertyWithInterceptor(
 }
 
 
+Handle<Object> JSReceiver::SetProperty(Handle<JSReceiver> object,
+                                       Handle<String> key,
+                                       Handle<Object> value,
+                                       PropertyAttributes attributes,
+                                       StrictModeFlag strict_mode) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetProperty(*key, *value, attributes, strict_mode),
+                     Object);
+}
+
+
 MaybeObject* JSReceiver::SetProperty(String* name,
                                      Object* value,
                                      PropertyAttributes attributes,
@@ -2018,8 +2039,8 @@ MaybeObject* JSObject::SetPropertyWithCallback(Object* structure,
     return *value_handle;
   }
 
-  if (structure->IsFixedArray()) {
-    Object* setter = FixedArray::cast(structure)->get(kSetterIndex);
+  if (structure->IsAccessorPair()) {
+    Object* setter = AccessorPair::cast(structure)->setter();
     if (setter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
      return SetPropertyWithDefinedSetter(JSReceiver::cast(setter), value);
@@ -2107,9 +2128,10 @@ MaybeObject* JSObject::SetElementWithCallbackSetterInPrototypes(
     if (!JSObject::cast(pt)->HasDictionaryElements()) {
       continue;
     }
-    NumberDictionary* dictionary = JSObject::cast(pt)->element_dictionary();
+    SeededNumberDictionary* dictionary =
+        JSObject::cast(pt)->element_dictionary();
     int entry = dictionary->FindEntry(index);
-    if (entry != NumberDictionary::kNotFound) {
+    if (entry != SeededNumberDictionary::kNotFound) {
       PropertyDetails details = dictionary->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
         *found = true;
@@ -2342,7 +2364,9 @@ Object* Map::GetDescriptorContents(String* sentinel_name,
     if (details.type() == ELEMENTS_TRANSITION) {
       return descriptors->GetValue(index);
     } else {
-      *safe_to_add_transition = false;
+      if (safe_to_add_transition != NULL) {
+        *safe_to_add_transition = false;
+      }
     }
   }
   return NULL;
@@ -3024,6 +3048,18 @@ MaybeObject* JSObject::SetPropertyForResult(LookupResult* result,
 // Note that this method cannot be used to set the prototype of a function
 // because ConvertDescriptorToField() which is called in "case CALLBACKS:"
 // doesn't handle function prototypes correctly.
+Handle<Object> JSObject::SetLocalPropertyIgnoreAttributes(
+    Handle<JSObject> object,
+    Handle<String> key,
+    Handle<Object> value,
+    PropertyAttributes attributes) {
+  CALL_HEAP_FUNCTION(
+    object->GetIsolate(),
+    object->SetLocalPropertyIgnoreAttributes(*key, *value, attributes),
+    Object);
+}
+
+
 MaybeObject* JSObject::SetLocalPropertyIgnoreAttributes(
     String* name,
     Object* value,
@@ -3314,6 +3350,15 @@ MaybeObject* JSObject::UpdateMapCodeCache(String* name, Code* code) {
 }
 
 
+void JSObject::NormalizeProperties(Handle<JSObject> object,
+                                   PropertyNormalizationMode mode,
+                                   int expected_additional_properties) {
+  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
+                          object->NormalizeProperties(
+                              mode, expected_additional_properties));
+}
+
+
 MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
                                            int expected_additional_properties) {
   if (!HasFastProperties()) return this;
@@ -3436,11 +3481,27 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
 }
 
 
+void JSObject::TransformToFastProperties(Handle<JSObject> object,
+                                         int unused_property_fields) {
+  CALL_HEAP_FUNCTION_VOID(
+      object->GetIsolate(),
+      object->TransformToFastProperties(unused_property_fields));
+}
+
+
 MaybeObject* JSObject::TransformToFastProperties(int unused_property_fields) {
   if (HasFastProperties()) return this;
   ASSERT(!IsGlobalObject());
   return property_dictionary()->
       TransformPropertiesToFastFor(this, unused_property_fields);
+}
+
+
+Handle<SeededNumberDictionary> JSObject::NormalizeElements(
+    Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->NormalizeElements(),
+                     SeededNumberDictionary);
 }
 
 
@@ -3468,11 +3529,11 @@ MaybeObject* JSObject::NormalizeElements() {
   int old_capacity = 0;
   int used_elements = 0;
   GetElementsCapacityAndUsage(&old_capacity, &used_elements);
-  NumberDictionary* dictionary = NULL;
+  SeededNumberDictionary* dictionary = NULL;
   { Object* object;
-    MaybeObject* maybe = NumberDictionary::Allocate(used_elements);
+    MaybeObject* maybe = SeededNumberDictionary::Allocate(used_elements);
     if (!maybe->ToObject(&object)) return maybe;
-    dictionary = NumberDictionary::cast(object);
+    dictionary = SeededNumberDictionary::cast(object);
   }
 
   // Copy the elements to the new backing store.
@@ -3503,7 +3564,7 @@ MaybeObject* JSObject::NormalizeElements() {
       MaybeObject* maybe_result =
           dictionary->AddNumberEntry(i, value, details);
       if (!maybe_result->ToObject(&result)) return maybe_result;
-      dictionary = NumberDictionary::cast(result);
+      dictionary = SeededNumberDictionary::cast(result);
     }
   }
 
@@ -3560,6 +3621,14 @@ MaybeObject* JSObject::SetIdentityHash(Object* hash, CreationFlag flag) {
 }
 
 
+int JSObject::GetIdentityHash(Handle<JSObject> obj) {
+  CALL_AND_RETRY(obj->GetIsolate(),
+                 obj->GetIdentityHash(ALLOW_CREATION),
+                 return Smi::cast(__object__)->value(),
+                 return 0);
+}
+
+
 MaybeObject* JSObject::GetIdentityHash(CreationFlag flag) {
   Object* stored_value = GetHiddenProperty(GetHeap()->identity_hash_symbol());
   if (stored_value->IsSmi()) return stored_value;
@@ -3609,6 +3678,15 @@ Object* JSObject::GetHiddenProperty(String* key) {
   int entry = dictionary->FindEntry(key);
   if (entry == StringDictionary::kNotFound) return GetHeap()->undefined_value();
   return dictionary->ValueAt(entry);
+}
+
+
+Handle<Object> JSObject::SetHiddenProperty(Handle<JSObject> obj,
+                                 Handle<String> key,
+                                 Handle<Object> value) {
+  CALL_HEAP_FUNCTION(obj->GetIsolate(),
+                     obj->SetHiddenProperty(*key, *value),
+                     Object);
 }
 
 
@@ -3839,6 +3917,14 @@ MaybeObject* JSObject::DeleteElementWithInterceptor(uint32_t index) {
 }
 
 
+Handle<Object> JSObject::DeleteElement(Handle<JSObject> obj,
+                                       uint32_t index) {
+  CALL_HEAP_FUNCTION(obj->GetIsolate(),
+                     obj->DeleteElement(index, JSObject::NORMAL_DELETION),
+                     Object);
+}
+
+
 MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
   Isolate* isolate = GetIsolate();
   // Check access rights if needed.
@@ -3867,19 +3953,11 @@ MaybeObject* JSObject::DeleteElement(uint32_t index, DeleteMode mode) {
 }
 
 
-MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
-  }
-  return JSObject::cast(this)->DeleteProperty(name, mode);
-}
-
-
-MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
-  if (IsJSProxy()) {
-    return JSProxy::cast(this)->DeleteElementWithHandler(index, mode);
-  }
-  return JSObject::cast(this)->DeleteElement(index, mode);
+Handle<Object> JSObject::DeleteProperty(Handle<JSObject> obj,
+                              Handle<String> prop) {
+  CALL_HEAP_FUNCTION(obj->GetIsolate(),
+                     obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
+                     Object);
 }
 
 
@@ -3940,6 +4018,22 @@ MaybeObject* JSObject::DeleteProperty(String* name, DeleteMode mode) {
 }
 
 
+MaybeObject* JSReceiver::DeleteElement(uint32_t index, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeleteElementWithHandler(index, mode);
+  }
+  return JSObject::cast(this)->DeleteElement(index, mode);
+}
+
+
+MaybeObject* JSReceiver::DeleteProperty(String* name, DeleteMode mode) {
+  if (IsJSProxy()) {
+    return JSProxy::cast(this)->DeletePropertyWithHandler(name, mode);
+  }
+  return JSObject::cast(this)->DeleteProperty(name, mode);
+}
+
+
 bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
                                             ElementsKind kind,
                                             Object* object) {
@@ -3954,7 +4048,8 @@ bool JSObject::ReferencesObjectFromElements(FixedArray* elements,
       if (!element->IsTheHole() && element == object) return true;
     }
   } else {
-    Object* key = NumberDictionary::cast(elements)->SlowReverseLookup(object);
+    Object* key =
+        SeededNumberDictionary::cast(elements)->SlowReverseLookup(object);
     if (!key->IsUndefined()) return true;
   }
   return false;
@@ -4066,6 +4161,11 @@ bool JSObject::ReferencesObject(Object* obj) {
 }
 
 
+Handle<Object> JSObject::PreventExtensions(Handle<JSObject> object) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(), object->PreventExtensions(), Object);
+}
+
+
 MaybeObject* JSObject::PreventExtensions() {
   Isolate* isolate = GetIsolate();
   if (IsAccessCheckNeeded() &&
@@ -4095,9 +4195,9 @@ MaybeObject* JSObject::PreventExtensions() {
   }
 
   // If there are fast elements we normalize.
-  NumberDictionary* dictionary = NULL;
+  SeededNumberDictionary* dictionary = NULL;
   { MaybeObject* maybe = NormalizeElements();
-    if (!maybe->To<NumberDictionary>(&dictionary)) return maybe;
+    if (!maybe->To<SeededNumberDictionary>(&dictionary)) return maybe;
   }
   ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
   // Make sure that we never go back to fast case.
@@ -4257,21 +4357,21 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
 
 
 // Search for a getter or setter in an elements dictionary and update its
-// attributes.  Returns either undefined if the element is non-deletable, or
-// the getter/setter pair (fixed array) if there is an existing one, or the
-// hole value if the element does not exist or is a normal non-getter/setter
-// data element.
-static Object* UpdateGetterSetterInDictionary(NumberDictionary* dictionary,
-                                              uint32_t index,
-                                              PropertyAttributes attributes,
-                                              Heap* heap) {
+// attributes.  Returns either undefined if the element is non-deletable, or the
+// getter/setter pair if there is an existing one, or the hole value if the
+// element does not exist or is a normal non-getter/setter data element.
+static Object* UpdateGetterSetterInDictionary(
+    SeededNumberDictionary* dictionary,
+    uint32_t index,
+    PropertyAttributes attributes,
+    Heap* heap) {
   int entry = dictionary->FindEntry(index);
-  if (entry != NumberDictionary::kNotFound) {
+  if (entry != SeededNumberDictionary::kNotFound) {
     Object* result = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     // TODO(mstarzinger): We should check for details.IsDontDelete() here once
     // we only call into the runtime once to set both getter and setter.
-    if (details.type() == CALLBACKS && result->IsFixedArray()) {
+    if (details.type() == CALLBACKS && result->IsAccessorPair()) {
       if (details.attributes() != attributes) {
         dictionary->DetailsAtPut(entry,
                                  PropertyDetails(attributes, CALLBACKS, index));
@@ -4338,7 +4438,8 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
         if (probe == NULL || probe->IsTheHole()) {
           FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
           if (arguments->IsDictionary()) {
-            NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+            SeededNumberDictionary* dictionary =
+                SeededNumberDictionary::cast(arguments);
             probe = UpdateGetterSetterInDictionary(dictionary,
                                                    index,
                                                    attributes,
@@ -4359,7 +4460,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
       if (result.type() == CALLBACKS) {
         Object* obj = result.GetCallbackObject();
         // Need to preserve old getters/setters.
-        if (obj->IsFixedArray()) {
+        if (obj->IsAccessorPair()) {
           // Use set to update attributes.
           return SetPropertyCallback(name, obj, attributes);
         }
@@ -4367,16 +4468,15 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     }
   }
 
-  // Allocate the fixed array to hold getter and setter.
-  Object* structure;
-  { MaybeObject* maybe_structure = heap->AllocateFixedArray(2, TENURED);
-    if (!maybe_structure->ToObject(&structure)) return maybe_structure;
+  AccessorPair* accessors;
+  { MaybeObject* maybe_accessors = heap->AllocateAccessorPair();
+    if (!maybe_accessors->To<AccessorPair>(&accessors)) return maybe_accessors;
   }
 
   if (is_element) {
-    return SetElementCallback(index, structure, attributes);
+    return SetElementCallback(index, accessors, attributes);
   } else {
-    return SetPropertyCallback(name, structure, attributes);
+    return SetPropertyCallback(name, accessors, attributes);
   }
 }
 
@@ -4411,11 +4511,11 @@ MaybeObject* JSObject::SetElementCallback(uint32_t index,
   PropertyDetails details = PropertyDetails(attributes, CALLBACKS);
 
   // Normalize elements to make this operation simple.
-  NumberDictionary* dictionary = NULL;
+  SeededNumberDictionary* dictionary = NULL;
   { Object* result;
     MaybeObject* maybe = NormalizeElements();
     if (!maybe->ToObject(&result)) return maybe;
-    dictionary = NumberDictionary::cast(result);
+    dictionary = SeededNumberDictionary::cast(result);
   }
   ASSERT(HasDictionaryElements() || HasDictionaryArgumentsElements());
 
@@ -4423,7 +4523,7 @@ MaybeObject* JSObject::SetElementCallback(uint32_t index,
   { Object* result;
     MaybeObject* maybe = dictionary->Set(index, structure, details);
     if (!maybe->ToObject(&result)) return maybe;
-    dictionary = NumberDictionary::cast(result);
+    dictionary = SeededNumberDictionary::cast(result);
   }
 
   dictionary->set_requires_slow_elements();
@@ -4512,12 +4612,16 @@ MaybeObject* JSObject::DefineAccessor(String* name,
                                                  fun, attributes);
   }
 
-  Object* array;
-  { MaybeObject* maybe_array = DefineGetterSetter(name, attributes);
-    if (!maybe_array->ToObject(&array)) return maybe_array;
+  Object* accessors;
+  { MaybeObject* maybe_accessors = DefineGetterSetter(name, attributes);
+    if (!maybe_accessors->To<Object>(&accessors)) return maybe_accessors;
   }
-  if (array->IsUndefined()) return array;
-  FixedArray::cast(array)->set(is_getter ? 0 : 1, fun);
+  if (accessors->IsUndefined()) return accessors;
+  if (is_getter) {
+    AccessorPair::cast(accessors)->set_getter(fun);
+  } else {
+    AccessorPair::cast(accessors)->set_setter(fun);
+  }
   return this;
 }
 
@@ -4621,11 +4725,6 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
   }
 
   // Make the lookup and include prototypes.
-  // Introducing constants below makes static constants usage purely static
-  // and avoids linker errors in debug build using gcc.
-  const int getter_index = kGetterIndex;
-  const int setter_index = kSetterIndex;
-  int accessor_index = is_getter ? getter_index : setter_index;
   uint32_t index = 0;
   if (name->AsArrayIndex(&index)) {
     for (Object* obj = this;
@@ -4633,14 +4732,15 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
          obj = JSObject::cast(obj)->GetPrototype()) {
       JSObject* js_object = JSObject::cast(obj);
       if (js_object->HasDictionaryElements()) {
-        NumberDictionary* dictionary = js_object->element_dictionary();
+        SeededNumberDictionary* dictionary = js_object->element_dictionary();
         int entry = dictionary->FindEntry(index);
-        if (entry != NumberDictionary::kNotFound) {
+        if (entry != SeededNumberDictionary::kNotFound) {
           Object* element = dictionary->ValueAt(entry);
           PropertyDetails details = dictionary->DetailsAt(entry);
           if (details.type() == CALLBACKS) {
-            if (element->IsFixedArray()) {
-              return FixedArray::cast(element)->get(accessor_index);
+            if (element->IsAccessorPair()) {
+              AccessorPair* accessors = AccessorPair::cast(element);
+              return is_getter ? accessors->getter() : accessors->setter();
             }
           }
         }
@@ -4656,8 +4756,9 @@ Object* JSObject::LookupAccessor(String* name, bool is_getter) {
         if (result.IsReadOnly()) return heap->undefined_value();
         if (result.type() == CALLBACKS) {
           Object* obj = result.GetCallbackObject();
-          if (obj->IsFixedArray()) {
-            return FixedArray::cast(obj)->get(accessor_index);
+          if (obj->IsAccessorPair()) {
+            AccessorPair* accessors = AccessorPair::cast(obj);
+            return is_getter ? accessors->getter() : accessors->setter();
           }
         }
       }
@@ -6833,14 +6934,14 @@ uint32_t String::ComputeAndSetHash() {
   if (StringShape(this).IsSequentialAscii()) {
     field = HashSequentialString(SeqAsciiString::cast(this)->GetChars(),
                                  len,
-                                 GetHeap()->StringHashSeed());
+                                 GetHeap()->HashSeed());
   } else if (StringShape(this).IsSequentialTwoByte()) {
     field = HashSequentialString(SeqTwoByteString::cast(this)->GetChars(),
                                  len,
-                                 GetHeap()->StringHashSeed());
+                                 GetHeap()->HashSeed());
   } else {
     StringInputBuffer buffer(this);
-    field = ComputeHashField(&buffer, len, GetHeap()->StringHashSeed());
+    field = ComputeHashField(&buffer, len, GetHeap()->HashSeed());
   }
 
   // Store the hash code in the object.
@@ -8171,7 +8272,7 @@ static void CopyFastElementsToFast(FixedArray* source,
 }
 
 
-static void CopySlowElementsToFast(NumberDictionary* source,
+static void CopySlowElementsToFast(SeededNumberDictionary* source,
                                    FixedArray* destination,
                                    WriteBarrierMode mode) {
   int destination_length = destination->length();
@@ -8237,7 +8338,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
     case DICTIONARY_ELEMENTS: {
       AssertNoAllocation no_gc;
       WriteBarrierMode mode = new_elements->GetWriteBarrierMode(no_gc);
-      CopySlowElementsToFast(NumberDictionary::cast(old_elements_raw),
+      CopySlowElementsToFast(SeededNumberDictionary::cast(old_elements_raw),
                              new_elements,
                              mode);
       set_map_and_elements(new_map, new_elements);
@@ -8251,7 +8352,7 @@ MaybeObject* JSObject::SetFastElementsCapacityAndLength(
       FixedArray* parameter_map = FixedArray::cast(old_elements_raw);
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       if (arguments->IsDictionary()) {
-        CopySlowElementsToFast(NumberDictionary::cast(arguments),
+        CopySlowElementsToFast(SeededNumberDictionary::cast(arguments),
                                new_elements,
                                mode);
       } else {
@@ -8347,7 +8448,7 @@ MaybeObject* JSObject::SetFastDoubleElementsCapacityAndLength(
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      elems->Initialize(NumberDictionary::cast(old_elements));
+      elems->Initialize(SeededNumberDictionary::cast(old_elements));
       break;
     }
     default:
@@ -8607,7 +8708,7 @@ bool JSObject::HasElementPostInterceptor(JSReceiver* receiver, uint32_t index) {
     }
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index)
-          != NumberDictionary::kNotFound) {
+          != SeededNumberDictionary::kNotFound) {
         return true;
       }
       break;
@@ -8745,7 +8846,7 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
     }
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index) !=
-          NumberDictionary::kNotFound) {
+          SeededNumberDictionary::kNotFound) {
         return DICTIONARY_ELEMENT;
       }
       break;
@@ -8762,8 +8863,9 @@ JSObject::LocalElementType JSObject::HasLocalElement(uint32_t index) {
       // If not aliased, check the arguments.
       FixedArray* arguments = FixedArray::cast(parameter_map->get(1));
       if (arguments->IsDictionary()) {
-        NumberDictionary* dictionary = NumberDictionary::cast(arguments);
-        if (dictionary->FindEntry(index) != NumberDictionary::kNotFound) {
+        SeededNumberDictionary* dictionary =
+            SeededNumberDictionary::cast(arguments);
+        if (dictionary->FindEntry(index) != SeededNumberDictionary::kNotFound) {
           return DICTIONARY_ELEMENT;
         }
       } else {
@@ -8792,8 +8894,8 @@ bool JSObject::HasElementInElements(FixedArray* elements,
       return true;
     }
   } else {
-    if (NumberDictionary::cast(elements)->FindEntry(index) !=
-        NumberDictionary::kNotFound) {
+    if (SeededNumberDictionary::cast(elements)->FindEntry(index) !=
+        SeededNumberDictionary::kNotFound) {
       return true;
     }
   }
@@ -8860,7 +8962,7 @@ bool JSObject::HasElementWithReceiver(JSReceiver* receiver, uint32_t index) {
     }
     case DICTIONARY_ELEMENTS: {
       if (element_dictionary()->FindEntry(index)
-          != NumberDictionary::kNotFound) {
+          != SeededNumberDictionary::kNotFound) {
         return true;
       }
       break;
@@ -8964,8 +9066,8 @@ MaybeObject* JSObject::GetElementWithCallback(Object* receiver,
   }
 
   // __defineGetter__ callback
-  if (structure->IsFixedArray()) {
-    Object* getter = FixedArray::cast(structure)->get(kGetterIndex);
+  if (structure->IsAccessorPair()) {
+    Object* getter = AccessorPair::cast(structure)->getter();
     if (getter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return GetPropertyWithDefinedGetter(receiver, JSReceiver::cast(getter));
@@ -9021,8 +9123,8 @@ MaybeObject* JSObject::SetElementWithCallback(Object* structure,
     return *value_handle;
   }
 
-  if (structure->IsFixedArray()) {
-    Handle<Object> setter(FixedArray::cast(structure)->get(kSetterIndex));
+  if (structure->IsAccessorPair()) {
+    Handle<Object> setter(AccessorPair::cast(structure)->setter());
     if (setter->IsSpecFunction()) {
       // TODO(rossberg): nicer would be to cast to some JSCallable here...
       return SetPropertyWithDefinedSetter(JSReceiver::cast(*setter), value);
@@ -9183,15 +9285,15 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
   FixedArray* elements = FixedArray::cast(this->elements());
   bool is_arguments =
       (elements->map() == heap->non_strict_arguments_elements_map());
-  NumberDictionary* dictionary = NULL;
+  SeededNumberDictionary* dictionary = NULL;
   if (is_arguments) {
-    dictionary = NumberDictionary::cast(elements->get(1));
+    dictionary = SeededNumberDictionary::cast(elements->get(1));
   } else {
-    dictionary = NumberDictionary::cast(elements);
+    dictionary = SeededNumberDictionary::cast(elements);
   }
 
   int entry = dictionary->FindEntry(index);
-  if (entry != NumberDictionary::kNotFound) {
+  if (entry != SeededNumberDictionary::kNotFound) {
     Object* element = dictionary->ValueAt(entry);
     PropertyDetails details = dictionary->DetailsAt(entry);
     if (details.type() == CALLBACKS) {
@@ -9236,13 +9338,13 @@ MaybeObject* JSObject::SetDictionaryElement(uint32_t index,
     FixedArrayBase* new_dictionary;
     MaybeObject* maybe = dictionary->AtNumberPut(index, value);
     if (!maybe->To<FixedArrayBase>(&new_dictionary)) return maybe;
-    if (dictionary != NumberDictionary::cast(new_dictionary)) {
+    if (dictionary != SeededNumberDictionary::cast(new_dictionary)) {
       if (is_arguments) {
         elements->set(1, new_dictionary);
       } else {
         set_elements(new_dictionary);
       }
-      dictionary = NumberDictionary::cast(new_dictionary);
+      dictionary = SeededNumberDictionary::cast(new_dictionary);
     }
   }
 
@@ -9388,6 +9490,35 @@ MaybeObject* JSReceiver::SetElement(uint32_t index,
 }
 
 
+Handle<Object> JSObject::SetOwnElement(Handle<JSObject> object,
+                                       uint32_t index,
+                                       Handle<Object> value,
+                                       StrictModeFlag strict_mode) {
+  ASSERT(!object->HasExternalArrayElements());
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetElement(index, *value, strict_mode, false),
+                     Object);
+}
+
+
+Handle<Object> JSObject::SetElement(Handle<JSObject> object,
+                                    uint32_t index,
+                                    Handle<Object> value,
+                                    StrictModeFlag strict_mode) {
+  if (object->HasExternalArrayElements()) {
+    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
+      bool has_exception;
+      Handle<Object> number = Execution::ToNumber(value, &has_exception);
+      if (has_exception) return Handle<Object>();
+      value = number;
+    }
+  }
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->SetElement(index, *value, strict_mode, true),
+                     Object);
+}
+
+
 MaybeObject* JSObject::SetElement(uint32_t index,
                                   Object* value,
                                   StrictModeFlag strict_mode,
@@ -9507,6 +9638,14 @@ MaybeObject* JSObject::SetElementWithoutInterceptor(uint32_t index,
   // complaints from the compiler.
   UNREACHABLE();
   return isolate->heap()->null_value();
+}
+
+
+Handle<Object> JSObject::TransitionElementsKind(Handle<JSObject> object,
+                                                ElementsKind to_kind) {
+  CALL_HEAP_FUNCTION(object->GetIsolate(),
+                     object->TransitionElementsKind(to_kind),
+                     Object);
 }
 
 
@@ -9653,7 +9792,8 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
           FixedArray::cast(FixedArray::cast(backing_store_base)->get(1));
       backing_store = FixedArray::cast(backing_store_base);
       if (backing_store->IsDictionary()) {
-        NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
+        SeededNumberDictionary* dictionary =
+            SeededNumberDictionary::cast(backing_store);
         *capacity = dictionary->Capacity();
         *used = dictionary->NumberOfElements();
         break;
@@ -9668,8 +9808,8 @@ void JSObject::GetElementsCapacityAndUsage(int* capacity, int* used) {
       }
       break;
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dictionary =
-          NumberDictionary::cast(FixedArray::cast(elements()));
+      SeededNumberDictionary* dictionary =
+          SeededNumberDictionary::cast(FixedArray::cast(elements()));
       *capacity = dictionary->Capacity();
       *used = dictionary->NumberOfElements();
       break;
@@ -9714,8 +9854,8 @@ bool JSObject::ShouldConvertToSlowElements(int new_capacity) {
   int old_capacity = 0;
   int used_elements = 0;
   GetElementsCapacityAndUsage(&old_capacity, &used_elements);
-  int dictionary_size = NumberDictionary::ComputeCapacity(used_elements) *
-      NumberDictionary::kEntrySize;
+  int dictionary_size = SeededNumberDictionary::ComputeCapacity(used_elements) *
+      SeededNumberDictionary::kEntrySize;
   return 3 * dictionary_size <= new_capacity;
 }
 
@@ -9729,11 +9869,11 @@ bool JSObject::ShouldConvertToFastElements() {
   if (IsAccessCheckNeeded()) return false;
 
   FixedArray* elements = FixedArray::cast(this->elements());
-  NumberDictionary* dictionary = NULL;
+  SeededNumberDictionary* dictionary = NULL;
   if (elements->map() == GetHeap()->non_strict_arguments_elements_map()) {
-    dictionary = NumberDictionary::cast(elements->get(1));
+    dictionary = SeededNumberDictionary::cast(elements->get(1));
   } else {
-    dictionary = NumberDictionary::cast(elements);
+    dictionary = SeededNumberDictionary::cast(elements);
   }
   // If an element has been added at a very high index in the elements
   // dictionary, we cannot go back to fast case.
@@ -9748,7 +9888,7 @@ bool JSObject::ShouldConvertToFastElements() {
     array_size = dictionary->max_number_key();
   }
   uint32_t dictionary_size = static_cast<uint32_t>(dictionary->Capacity()) *
-      NumberDictionary::kEntrySize;
+      SeededNumberDictionary::kEntrySize;
   return 2 * dictionary_size >= array_size;
 }
 
@@ -9758,7 +9898,8 @@ bool JSObject::ShouldConvertToFastDoubleElements(
   *has_smi_only_elements = false;
   if (FLAG_unbox_double_arrays) {
     ASSERT(HasDictionaryElements());
-    NumberDictionary* dictionary = NumberDictionary::cast(elements());
+    SeededNumberDictionary* dictionary =
+        SeededNumberDictionary::cast(elements());
     bool found_double = false;
     for (int i = 0; i < dictionary->Capacity(); i++) {
       Object* key = dictionary->KeyAt(i);
@@ -9978,7 +10119,7 @@ bool JSObject::HasRealElementProperty(uint32_t index) {
     }
     case DICTIONARY_ELEMENTS: {
       return element_dictionary()->FindEntry(index)
-          != NumberDictionary::kNotFound;
+          != SeededNumberDictionary::kNotFound;
     }
     case NON_STRICT_ARGUMENTS_ELEMENTS:
       UNIMPLEMENTED();
@@ -10247,7 +10388,7 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       if (storage != NULL) {
         element_dictionary()->CopyKeysTo(storage,
                                          filter,
-                                         NumberDictionary::SORTED);
+                                         SeededNumberDictionary::SORTED);
       }
       counter += element_dictionary()->NumberOfElementsFilterAttributes(filter);
       break;
@@ -10259,9 +10400,11 @@ int JSObject::GetLocalElementKeys(FixedArray* storage,
       if (arguments->IsDictionary()) {
         // Copy the keys from arguments first, because Dictionary::CopyKeysTo
         // will insert in storage starting at index 0.
-        NumberDictionary* dictionary = NumberDictionary::cast(arguments);
+        SeededNumberDictionary* dictionary =
+            SeededNumberDictionary::cast(arguments);
         if (storage != NULL) {
-          dictionary->CopyKeysTo(storage, filter, NumberDictionary::UNSORTED);
+          dictionary->CopyKeysTo(
+              storage, filter, SeededNumberDictionary::UNSORTED);
         }
         counter += dictionary->NumberOfElementsFilterAttributes(filter);
         for (int i = 0; i < mapped_length; ++i) {
@@ -10585,7 +10728,7 @@ class SubStringAsciiSymbolKey : public HashTableKey {
   uint32_t Hash() {
     ASSERT(length_ >= 0);
     ASSERT(from_ + length_ <= string_->length());
-    StringHasher hasher(length_, string_->GetHeap()->StringHashSeed());
+    StringHasher hasher(length_, string_->GetHeap()->HashSeed());
 
     // Very long strings have a trivial hash that doesn't inspect the
     // string contents.
@@ -10794,7 +10937,7 @@ MaybeObject* HashTable<Shape, Key>::Rehash(HashTable* new_table, Key key) {
     uint32_t from_index = EntryToIndex(i);
     Object* k = get(from_index);
     if (IsKey(k)) {
-      uint32_t hash = Shape::HashForObject(key, k);
+      uint32_t hash = HashTable<Shape, Key>::HashForObject(key, k);
       uint32_t insertion_index =
           EntryToIndex(new_table->FindInsertionEntry(hash));
       for (int j = 0; j < Shape::kEntrySize; j++) {
@@ -10892,38 +11035,46 @@ template class HashTable<ObjectHashTableShape<2>, Object*>;
 
 template class Dictionary<StringDictionaryShape, String*>;
 
-template class Dictionary<NumberDictionaryShape, uint32_t>;
+template class Dictionary<SeededNumberDictionaryShape, uint32_t>;
 
-template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::Allocate(
-    int);
+template class Dictionary<UnseededNumberDictionaryShape, uint32_t>;
+
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    Allocate(int at_least_space_for);
+
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+    Allocate(int at_least_space_for);
 
 template MaybeObject* Dictionary<StringDictionaryShape, String*>::Allocate(
     int);
 
-template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::AtPut(
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::AtPut(
     uint32_t, Object*);
 
-template Object* Dictionary<NumberDictionaryShape, uint32_t>::SlowReverseLookup(
-    Object*);
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+    AtPut(uint32_t, Object*);
+
+template Object* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+    SlowReverseLookup(Object* value);
 
 template Object* Dictionary<StringDictionaryShape, String*>::SlowReverseLookup(
     Object*);
 
-template void Dictionary<NumberDictionaryShape, uint32_t>::CopyKeysTo(
+template void Dictionary<SeededNumberDictionaryShape, uint32_t>::CopyKeysTo(
     FixedArray*,
     PropertyAttributes,
-    Dictionary<NumberDictionaryShape, uint32_t>::SortMode);
+    Dictionary<SeededNumberDictionaryShape, uint32_t>::SortMode);
 
 template Object* Dictionary<StringDictionaryShape, String*>::DeleteProperty(
     int, JSObject::DeleteMode);
 
-template Object* Dictionary<NumberDictionaryShape, uint32_t>::DeleteProperty(
-    int, JSObject::DeleteMode);
+template Object* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    DeleteProperty(int, JSObject::DeleteMode);
 
 template MaybeObject* Dictionary<StringDictionaryShape, String*>::Shrink(
     String*);
 
-template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::Shrink(
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Shrink(
     uint32_t);
 
 template void Dictionary<StringDictionaryShape, String*>::CopyKeysTo(
@@ -10942,32 +11093,41 @@ template MaybeObject*
 Dictionary<StringDictionaryShape, String*>::GenerateNewEnumerationIndices();
 
 template int
-Dictionary<NumberDictionaryShape, uint32_t>::NumberOfElementsFilterAttributes(
-    PropertyAttributes);
+Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    NumberOfElementsFilterAttributes(PropertyAttributes);
 
-template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::Add(
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::Add(
     uint32_t, Object*, PropertyDetails);
 
-template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::Add(
+    uint32_t, Object*, PropertyDetails);
+
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    EnsureCapacity(int, uint32_t);
+
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
     EnsureCapacity(int, uint32_t);
 
 template MaybeObject* Dictionary<StringDictionaryShape, String*>::
     EnsureCapacity(int, String*);
 
-template MaybeObject* Dictionary<NumberDictionaryShape, uint32_t>::AddEntry(
-    uint32_t, Object*, PropertyDetails, uint32_t);
+template MaybeObject* Dictionary<SeededNumberDictionaryShape, uint32_t>::
+    AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
+
+template MaybeObject* Dictionary<UnseededNumberDictionaryShape, uint32_t>::
+    AddEntry(uint32_t, Object*, PropertyDetails, uint32_t);
 
 template MaybeObject* Dictionary<StringDictionaryShape, String*>::AddEntry(
     String*, Object*, PropertyDetails, uint32_t);
 
 template
-int Dictionary<NumberDictionaryShape, uint32_t>::NumberOfEnumElements();
+int Dictionary<SeededNumberDictionaryShape, uint32_t>::NumberOfEnumElements();
 
 template
 int Dictionary<StringDictionaryShape, String*>::NumberOfEnumElements();
 
 template
-int HashTable<NumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
+int HashTable<SeededNumberDictionaryShape, uint32_t>::FindEntry(uint32_t);
 
 
 // Collates undefined and unexisting elements below limit from position
@@ -10977,7 +11137,7 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
   // Must stay in dictionary mode, either because of requires_slow_elements,
   // or because we are not going to sort (and therefore compact) all of the
   // elements.
-  NumberDictionary* dict = element_dictionary();
+  SeededNumberDictionary* dict = element_dictionary();
   HeapNumber* result_double = NULL;
   if (limit > static_cast<uint32_t>(Smi::kMaxValue)) {
     // Allocate space for result before we start mutating the object.
@@ -10990,10 +11150,10 @@ MaybeObject* JSObject::PrepareSlowElementsForSort(uint32_t limit) {
 
   Object* obj;
   { MaybeObject* maybe_obj =
-        NumberDictionary::Allocate(dict->NumberOfElements());
+        SeededNumberDictionary::Allocate(dict->NumberOfElements());
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
-  NumberDictionary* new_dict = NumberDictionary::cast(obj);
+  SeededNumberDictionary* new_dict = SeededNumberDictionary::cast(obj);
 
   AssertNoAllocation no_alloc;
 
@@ -11077,7 +11237,7 @@ MaybeObject* JSObject::PrepareElementsForSort(uint32_t limit) {
   if (HasDictionaryElements()) {
     // Convert to fast elements containing only the existing properties.
     // Ordering is irrelevant, since we are going to sort anyway.
-    NumberDictionary* dict = element_dictionary();
+    SeededNumberDictionary* dict = element_dictionary();
     if (IsJSArray() || dict->requires_slow_elements() ||
         dict->max_number_key() >= limit) {
       return PrepareSlowElementsForSort(limit);
@@ -11444,7 +11604,7 @@ class TwoCharHashTableKey : public HashTableKey {
     hash += hash << 3;
     hash ^= hash >> 11;
     hash += hash << 15;
-    if ((hash & String::kHashBitMask) == 0) hash = 27;
+    if ((hash & String::kHashBitMask) == 0) hash = String::kZeroHash;
 #ifdef DEBUG
     StringHasher hasher(2, seed);
     hasher.AddCharacter(c1);
@@ -11503,7 +11663,7 @@ bool SymbolTable::LookupSymbolIfExists(String* string, String** symbol) {
 bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
                                                uint32_t c2,
                                                String** symbol) {
-  TwoCharHashTableKey key(c1, c2, GetHeap()->StringHashSeed());
+  TwoCharHashTableKey key(c1, c2, GetHeap()->HashSeed());
   int entry = FindEntry(&key);
   if (entry == kNotFound) {
     return false;
@@ -11518,14 +11678,14 @@ bool SymbolTable::LookupTwoCharsSymbolIfExists(uint32_t c1,
 
 MaybeObject* SymbolTable::LookupSymbol(Vector<const char> str,
                                        Object** s) {
-  Utf8SymbolKey key(str, GetHeap()->StringHashSeed());
+  Utf8SymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
 
 MaybeObject* SymbolTable::LookupAsciiSymbol(Vector<const char> str,
                                             Object** s) {
-  AsciiSymbolKey key(str, GetHeap()->StringHashSeed());
+  AsciiSymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
@@ -11534,14 +11694,14 @@ MaybeObject* SymbolTable::LookupSubStringAsciiSymbol(Handle<SeqAsciiString> str,
                                                      int from,
                                                      int length,
                                                      Object** s) {
-  SubStringAsciiSymbolKey key(str, from, length, GetHeap()->StringHashSeed());
+  SubStringAsciiSymbolKey key(str, from, length, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
 
 MaybeObject* SymbolTable::LookupTwoByteSymbol(Vector<const uc16> str,
                                               Object** s) {
-  TwoByteSymbolKey key(str, GetHeap()->StringHashSeed());
+  TwoByteSymbolKey key(str, GetHeap()->HashSeed());
   return LookupKey(&key, s);
 }
 
@@ -11880,8 +12040,9 @@ MaybeObject* Dictionary<Shape, Key>::AtPut(Key key, Object* value) {
     if (!maybe_k->ToObject(&k)) return maybe_k;
   }
   PropertyDetails details = PropertyDetails(NONE, NORMAL);
-  return Dictionary<Shape, Key>::cast(obj)->
-      AddEntry(key, value, details, Shape::Hash(key));
+
+  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
+      Dictionary<Shape, Key>::Hash(key));
 }
 
 
@@ -11896,8 +12057,9 @@ MaybeObject* Dictionary<Shape, Key>::Add(Key key,
   { MaybeObject* maybe_obj = EnsureCapacity(1, key);
     if (!maybe_obj->ToObject(&obj)) return maybe_obj;
   }
-  return Dictionary<Shape, Key>::cast(obj)->
-      AddEntry(key, value, details, Shape::Hash(key));
+
+  return Dictionary<Shape, Key>::cast(obj)->AddEntry(key, value, details,
+      Dictionary<Shape, Key>::Hash(key));
 }
 
 
@@ -11930,7 +12092,7 @@ MaybeObject* Dictionary<Shape, Key>::AddEntry(Key key,
 }
 
 
-void NumberDictionary::UpdateMaxNumberKey(uint32_t key) {
+void SeededNumberDictionary::UpdateMaxNumberKey(uint32_t key) {
   // If the dictionary requires slow elements an element has already
   // been added at a high index.
   if (requires_slow_elements()) return;
@@ -11949,34 +12111,80 @@ void NumberDictionary::UpdateMaxNumberKey(uint32_t key) {
 }
 
 
-MaybeObject* NumberDictionary::AddNumberEntry(uint32_t key,
-                                              Object* value,
-                                              PropertyDetails details) {
+MaybeObject* SeededNumberDictionary::AddNumberEntry(uint32_t key,
+                                                    Object* value,
+                                                    PropertyDetails details) {
   UpdateMaxNumberKey(key);
   SLOW_ASSERT(this->FindEntry(key) == kNotFound);
   return Add(key, value, details);
 }
 
 
-MaybeObject* NumberDictionary::AtNumberPut(uint32_t key, Object* value) {
+MaybeObject* UnseededNumberDictionary::AddNumberEntry(uint32_t key,
+                                                      Object* value) {
+  SLOW_ASSERT(this->FindEntry(key) == kNotFound);
+  return Add(key, value, PropertyDetails(NONE, NORMAL));
+}
+
+
+MaybeObject* SeededNumberDictionary::AtNumberPut(uint32_t key, Object* value) {
   UpdateMaxNumberKey(key);
   return AtPut(key, value);
 }
 
 
-MaybeObject* NumberDictionary::Set(uint32_t key,
-                                   Object* value,
-                                   PropertyDetails details) {
+MaybeObject* UnseededNumberDictionary::AtNumberPut(uint32_t key,
+                                                   Object* value) {
+  return AtPut(key, value);
+}
+
+
+Handle<SeededNumberDictionary> SeededNumberDictionary::Set(
+    Handle<SeededNumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value,
+    PropertyDetails details) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->Set(index, *value, details),
+                     SeededNumberDictionary);
+}
+
+
+Handle<UnseededNumberDictionary> UnseededNumberDictionary::Set(
+    Handle<UnseededNumberDictionary> dictionary,
+    uint32_t index,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
+                     dictionary->Set(index, *value),
+                     UnseededNumberDictionary);
+}
+
+
+MaybeObject* SeededNumberDictionary::Set(uint32_t key,
+                                         Object* value,
+                                         PropertyDetails details) {
   int entry = FindEntry(key);
   if (entry == kNotFound) return AddNumberEntry(key, value, details);
   // Preserve enumeration index.
   details = PropertyDetails(details.attributes(),
                             details.type(),
                             DetailsAt(entry).index());
-  MaybeObject* maybe_object_key = NumberDictionaryShape::AsObject(key);
+  MaybeObject* maybe_object_key = SeededNumberDictionaryShape::AsObject(key);
   Object* object_key;
   if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
   SetEntry(entry, object_key, value, details);
+  return this;
+}
+
+
+MaybeObject* UnseededNumberDictionary::Set(uint32_t key,
+                                           Object* value) {
+  int entry = FindEntry(key);
+  if (entry == kNotFound) return AddNumberEntry(key, value);
+  MaybeObject* maybe_object_key = UnseededNumberDictionaryShape::AsObject(key);
+  Object* object_key;
+  if (!maybe_object_key->ToObject(&object_key)) return maybe_object_key;
+  SetEntry(entry, object_key, value);
   return this;
 }
 

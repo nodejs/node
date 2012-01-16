@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -785,6 +785,29 @@ HValue* HConstant::Canonicalize() {
 
 HValue* HTypeof::Canonicalize() {
   return HasNoUses() && !IsBlockEntry() ? NULL : this;
+}
+
+
+HValue* HBitwise::Canonicalize() {
+  if (!representation().IsInteger32()) return this;
+  // If x is an int32, then x & -1 == x, x | 0 == x and x ^ 0 == x.
+  int32_t nop_constant = (op() == Token::BIT_AND) ? -1 : 0;
+  if (left()->IsConstant() &&
+      HConstant::cast(left())->HasInteger32Value() &&
+      HConstant::cast(left())->Integer32Value() == nop_constant) {
+    return right();
+  }
+  if (right()->IsConstant() &&
+      HConstant::cast(right())->HasInteger32Value() &&
+      HConstant::cast(right())->Integer32Value() == nop_constant) {
+    return left();
+  }
+  return this;
+}
+
+
+HValue* HChange::Canonicalize() {
+  return (from().Equals(to())) ? value() : this;
 }
 
 

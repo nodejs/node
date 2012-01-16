@@ -786,6 +786,15 @@ void AccessorInfo::AccessorInfoPrint(FILE* out) {
 }
 
 
+void AccessorPair::AccessorPairPrint(FILE* out) {
+  HeapObject::PrintHeader(out, "AccessorPair");
+  PrintF(out, "\n - getter: ");
+  getter()->ShortPrint(out);
+  PrintF(out, "\n - setter: ");
+  setter()->ShortPrint(out);
+}
+
+
 void AccessCheckInfo::AccessCheckInfoPrint(FILE* out) {
   HeapObject::PrintHeader(out, "AccessCheckInfo");
   PrintF(out, "\n - named_callback: ");

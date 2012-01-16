@@ -888,7 +888,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
     isolate_->set_simulator_i_cache(i_cache_);
   }
   Initialize(isolate);
-  // Setup simulator support first. Some of this information is needed to
+  // Set up simulator support first. Some of this information is needed to
   // setup the architecture state.
   stack_ = reinterpret_cast<char*>(malloc(stack_size_));
   pc_modified_ = false;
@@ -897,7 +897,7 @@ Simulator::Simulator(Isolate* isolate) : isolate_(isolate) {
   break_pc_ = NULL;
   break_instr_ = 0;
 
-  // Setup architecture state.
+  // Set up architecture state.
   // All registers are initialized to zero to start with.
   for (int i = 0; i < kNumSimuRegisters; i++) {
     registers_[i] = 0;
@@ -1944,7 +1944,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
   // Next pc
   int32_t next_pc = 0;
 
-  // Setup the variables if needed before executing the instruction.
+  // Set up the variables if needed before executing the instruction.
   ConfigureTypeRegister(instr,
                         alu_out,
                         i64hilo,
@@ -2711,7 +2711,7 @@ void Simulator::Execute() {
 int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   va_list parameters;
   va_start(parameters, argument_count);
-  // Setup arguments.
+  // Set up arguments.
 
   // First four arguments passed in registers.
   ASSERT(argument_count >= 4);
@@ -2758,7 +2758,7 @@ int32_t Simulator::Call(byte* entry, int argument_count, ...) {
   int32_t sp_val = get_register(sp);
   int32_t fp_val = get_register(fp);
 
-  // Setup the callee-saved registers with a known value. To be able to check
+  // Set up the callee-saved registers with a known value. To be able to check
   // that they are preserved properly across JS execution.
   int32_t callee_saved_value = icount_;
   set_register(s0, callee_saved_value);

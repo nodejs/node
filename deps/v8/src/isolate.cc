@@ -570,7 +570,7 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     frame->Summarize(&frames);
     for (int i = frames.length() - 1; i >= 0 && frames_seen < limit; i--) {
       // Create a JSObject to hold the information for the StackFrame.
-      Handle<JSObject> stackFrame = factory()->NewJSObject(object_function());
+      Handle<JSObject> stack_frame = factory()->NewJSObject(object_function());
 
       Handle<JSFunction> fun = frames[i].function();
       Handle<Script> script(Script::cast(fun->shared()->script()));
@@ -591,16 +591,24 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
             // tag.
             column_offset += script->column_offset()->value();
           }
-          SetLocalPropertyNoThrow(stackFrame, column_key,
-                                  Handle<Smi>(Smi::FromInt(column_offset + 1)));
+          CHECK_NOT_EMPTY_HANDLE(
+              this,
+              JSObject::SetLocalPropertyIgnoreAttributes(
+                  stack_frame, column_key,
+                  Handle<Smi>(Smi::FromInt(column_offset + 1)), NONE));
         }
-        SetLocalPropertyNoThrow(stackFrame, line_key,
-                                Handle<Smi>(Smi::FromInt(line_number + 1)));
+        CHECK_NOT_EMPTY_HANDLE(
+            this,
+            JSObject::SetLocalPropertyIgnoreAttributes(
+                stack_frame, line_key,
+                Handle<Smi>(Smi::FromInt(line_number + 1)), NONE));
       }
 
       if (options & StackTrace::kScriptName) {
         Handle<Object> script_name(script->name(), this);
-        SetLocalPropertyNoThrow(stackFrame, script_key, script_name);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, script_key, script_name, NONE));
       }
 
       if (options & StackTrace::kScriptNameOrSourceURL) {
@@ -616,8 +624,10 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         if (caught_exception) {
           result = factory()->undefined_value();
         }
-        SetLocalPropertyNoThrow(stackFrame, script_name_or_source_url_key,
-                                result);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, script_name_or_source_url_key,
+                                   result, NONE));
       }
 
       if (options & StackTrace::kFunctionName) {
@@ -625,23 +635,30 @@ Handle<JSArray> Isolate::CaptureCurrentStackTrace(
         if (fun_name->ToBoolean()->IsFalse()) {
           fun_name = Handle<Object>(fun->shared()->inferred_name(), this);
         }
-        SetLocalPropertyNoThrow(stackFrame, function_key, fun_name);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, function_key, fun_name, NONE));
       }
 
       if (options & StackTrace::kIsEval) {
         int type = Smi::cast(script->compilation_type())->value();
         Handle<Object> is_eval = (type == Script::COMPILATION_TYPE_EVAL) ?
             factory()->true_value() : factory()->false_value();
-        SetLocalPropertyNoThrow(stackFrame, eval_key, is_eval);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, eval_key, is_eval, NONE));
       }
 
       if (options & StackTrace::kIsConstructor) {
         Handle<Object> is_constructor = (frames[i].is_constructor()) ?
             factory()->true_value() : factory()->false_value();
-        SetLocalPropertyNoThrow(stackFrame, constructor_key, is_constructor);
+        CHECK_NOT_EMPTY_HANDLE(this,
+                               JSObject::SetLocalPropertyIgnoreAttributes(
+                                   stack_frame, constructor_key,
+                                   is_constructor, NONE));
       }
 
-      FixedArray::cast(stack_trace->elements())->set(frames_seen, *stackFrame);
+      FixedArray::cast(stack_trace->elements())->set(frames_seen, *stack_frame);
       frames_seen++;
     }
     it.Advance();
@@ -1734,10 +1751,10 @@ bool Isolate::Init(Deserializer* des) {
   regexp_stack_->isolate_ = this;
 
   // Enable logging before setting up the heap
-  logger_->Setup();
+  logger_->SetUp();
 
-  CpuProfiler::Setup();
-  HeapProfiler::Setup();
+  CpuProfiler::SetUp();
+  HeapProfiler::SetUp();
 
   // Initialize other runtime facilities
 #if defined(USE_SIMULATOR)
@@ -1754,10 +1771,10 @@ bool Isolate::Init(Deserializer* des) {
     stack_guard_.InitThread(lock);
   }
 
-  // Setup the object heap.
+  // SetUp the object heap.
   const bool create_heap_objects = (des == NULL);
-  ASSERT(!heap_.HasBeenSetup());
-  if (!heap_.Setup(create_heap_objects)) {
+  ASSERT(!heap_.HasBeenSetUp());
+  if (!heap_.SetUp(create_heap_objects)) {
     V8::SetFatalError();
     return false;
   }
@@ -1765,7 +1782,7 @@ bool Isolate::Init(Deserializer* des) {
   InitializeThreadLocal();
 
   bootstrapper_->Initialize(create_heap_objects);
-  builtins_.Setup(create_heap_objects);
+  builtins_.SetUp(create_heap_objects);
 
   // Only preallocate on the first initialization.
   if (FLAG_preallocate_message_memory && preallocated_message_space_ == NULL) {
@@ -1784,7 +1801,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
-  debug_->Setup(create_heap_objects);
+  debug_->SetUp(create_heap_objects);
 #endif
   stub_cache_->Initialize(create_heap_objects);
 
@@ -1805,7 +1822,7 @@ bool Isolate::Init(Deserializer* des) {
 
   deoptimizer_data_ = new DeoptimizerData;
   runtime_profiler_ = new RuntimeProfiler(this);
-  runtime_profiler_->Setup();
+  runtime_profiler_->SetUp();
 
   // If we are deserializing, log non-function code objects and compiled
   // functions found in the snapshot.

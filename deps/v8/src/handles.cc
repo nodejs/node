@@ -208,42 +208,6 @@ void SetExpectedNofPropertiesFromEstimate(Handle<SharedFunctionInfo> shared,
 }
 
 
-void NormalizeProperties(Handle<JSObject> object,
-                         PropertyNormalizationMode mode,
-                         int expected_additional_properties) {
-  CALL_HEAP_FUNCTION_VOID(object->GetIsolate(),
-                          object->NormalizeProperties(
-                              mode,
-                              expected_additional_properties));
-}
-
-
-Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->NormalizeElements(),
-                     NumberDictionary);
-}
-
-
-void TransformToFastProperties(Handle<JSObject> object,
-                               int unused_property_fields) {
-  CALL_HEAP_FUNCTION_VOID(
-      object->GetIsolate(),
-      object->TransformToFastProperties(unused_property_fields));
-}
-
-
-Handle<NumberDictionary> NumberDictionarySet(
-    Handle<NumberDictionary> dictionary,
-    uint32_t index,
-    Handle<Object> value,
-    PropertyDetails details) {
-  CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
-                     dictionary->Set(index, *value, details),
-                     NumberDictionary);
-}
-
-
 void FlattenString(Handle<String> string) {
   CALL_HEAP_FUNCTION_VOID(string->GetIsolate(), string->TryFlatten());
 }
@@ -261,17 +225,6 @@ Handle<Object> SetPrototype(Handle<JSFunction> function,
                      Accessors::FunctionSetPrototype(*function,
                                                      *prototype,
                                                      NULL),
-                     Object);
-}
-
-
-Handle<Object> SetProperty(Handle<JSReceiver> object,
-                           Handle<String> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes,
-                           StrictModeFlag strict_mode) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetProperty(*key, *value, attributes, strict_mode),
                      Object);
 }
 
@@ -303,46 +256,12 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
 }
 
 
-Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
-                                     Handle<String> key,
-                                     Handle<Object> value,
-                                     PropertyDetails details) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetNormalizedProperty(*key, *value, details),
-                     Object);
-}
-
-
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key) {
   Isolate* isolate = object->GetIsolate();
   CALL_HEAP_FUNCTION(isolate,
                      Runtime::ForceDeleteObjectProperty(isolate, object, key),
                      Object);
-}
-
-
-Handle<Object> SetLocalPropertyIgnoreAttributes(
-    Handle<JSObject> object,
-    Handle<String> key,
-    Handle<Object> value,
-    PropertyAttributes attributes) {
-  CALL_HEAP_FUNCTION(
-    object->GetIsolate(),
-    object->SetLocalPropertyIgnoreAttributes(*key, *value, attributes),
-    Object);
-}
-
-
-void SetLocalPropertyNoThrow(Handle<JSObject> object,
-                             Handle<String> key,
-                             Handle<Object> value,
-                             PropertyAttributes attributes) {
-  Isolate* isolate = object->GetIsolate();
-  ASSERT(!isolate->has_pending_exception());
-  CHECK(!SetLocalPropertyIgnoreAttributes(
-        object, key, value, attributes).is_null());
-  CHECK(!isolate->has_pending_exception());
 }
 
 
@@ -389,54 +308,10 @@ Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
 }
 
 
-Handle<Object> GetPrototype(Handle<Object> obj) {
-  Handle<Object> result(obj->GetPrototype());
-  return result;
-}
-
-
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value) {
   const bool skip_hidden_prototypes = false;
   CALL_HEAP_FUNCTION(obj->GetIsolate(),
                      obj->SetPrototype(*value, skip_hidden_prototypes), Object);
-}
-
-
-Handle<Object> PreventExtensions(Handle<JSObject> object) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(), object->PreventExtensions(), Object);
-}
-
-
-Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
-                                 Handle<String> key,
-                                 Handle<Object> value) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->SetHiddenProperty(*key, *value),
-                     Object);
-}
-
-
-int GetIdentityHash(Handle<JSReceiver> obj) {
-  CALL_AND_RETRY(obj->GetIsolate(),
-                 obj->GetIdentityHash(ALLOW_CREATION),
-                 return Smi::cast(__object__)->value(),
-                 return 0);
-}
-
-
-Handle<Object> DeleteElement(Handle<JSObject> obj,
-                             uint32_t index) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->DeleteElement(index, JSObject::NORMAL_DELETION),
-                     Object);
-}
-
-
-Handle<Object> DeleteProperty(Handle<JSObject> obj,
-                              Handle<String> prop) {
-  CALL_HEAP_FUNCTION(obj->GetIsolate(),
-                     obj->DeleteProperty(*prop, JSObject::NORMAL_DELETION),
-                     Object);
 }
 
 
@@ -454,43 +329,6 @@ Handle<String> SubString(Handle<String> str,
                          PretenureFlag pretenure) {
   CALL_HEAP_FUNCTION(str->GetIsolate(),
                      str->SubString(start, end, pretenure), String);
-}
-
-
-Handle<Object> SetElement(Handle<JSObject> object,
-                          uint32_t index,
-                          Handle<Object> value,
-                          StrictModeFlag strict_mode) {
-  if (object->HasExternalArrayElements()) {
-    if (!value->IsSmi() && !value->IsHeapNumber() && !value->IsUndefined()) {
-      bool has_exception;
-      Handle<Object> number = Execution::ToNumber(value, &has_exception);
-      if (has_exception) return Handle<Object>();
-      value = number;
-    }
-  }
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetElement(index, *value, strict_mode, true),
-                     Object);
-}
-
-
-Handle<Object> SetOwnElement(Handle<JSObject> object,
-                             uint32_t index,
-                             Handle<Object> value,
-                             StrictModeFlag strict_mode) {
-  ASSERT(!object->HasExternalArrayElements());
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->SetElement(index, *value, strict_mode, false),
-                     Object);
-}
-
-
-Handle<Object> TransitionElementsKind(Handle<JSObject> object,
-                                      ElementsKind to_kind) {
-  CALL_HEAP_FUNCTION(object->GetIsolate(),
-                     object->TransitionElementsKind(to_kind),
-                     Object);
 }
 
 

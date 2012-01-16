@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -2864,6 +2864,16 @@ THREADED_TEST(isNumberType) {
   CHECK(!obj->IsUint32());
   // Large negative fraction.
   CompileRun("var obj = -5726623061.75;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(!obj->IsInt32());
+  CHECK(!obj->IsUint32());
+  // Positive zero
+  CompileRun("var obj = 0.0;");
+  obj = env->Global()->Get(v8_str("obj"));
+  CHECK(obj->IsInt32());
+  CHECK(obj->IsUint32());
+  // Positive zero
+  CompileRun("var obj = -0.0;");
   obj = env->Global()->Get(v8_str("obj"));
   CHECK(!obj->IsInt32());
   CHECK(!obj->IsUint32());
@@ -7941,7 +7951,7 @@ THREADED_TEST(CrossEval) {
   other->SetSecurityToken(token);
   current->SetSecurityToken(token);
 
-  // Setup reference from current to other.
+  // Set up reference from current to other.
   current->Global()->Set(v8_str("other"), other->Global());
 
   // Check that new variables are introduced in other context.
@@ -8021,7 +8031,7 @@ THREADED_TEST(EvalInDetachedGlobal) {
   v8::Persistent<Context> context0 = Context::New();
   v8::Persistent<Context> context1 = Context::New();
 
-  // Setup function in context0 that uses eval from context0.
+  // Set up function in context0 that uses eval from context0.
   context0->Enter();
   v8::Handle<v8::Value> fun =
       CompileRun("var x = 42;"
@@ -8059,7 +8069,7 @@ THREADED_TEST(CrossLazyLoad) {
   other->SetSecurityToken(token);
   current->SetSecurityToken(token);
 
-  // Setup reference from current to other.
+  // Set up reference from current to other.
   current->Global()->Set(v8_str("other"), other->Global());
 
   // Trigger lazy loading in other context.
@@ -10170,7 +10180,7 @@ void ApiTestFuzzer::Run() {
 static unsigned linear_congruential_generator;
 
 
-void ApiTestFuzzer::Setup(PartOfTest part) {
+void ApiTestFuzzer::SetUp(PartOfTest part) {
   linear_congruential_generator = i::FLAG_testing_prng_seed;
   fuzzing_ = true;
   int count = RegisterThreadedTest::count();
@@ -10234,25 +10244,25 @@ void ApiTestFuzzer::TearDown() {
 
 // Lets not be needlessly self-referential.
 TEST(Threading) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::FIRST_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::FIRST_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 TEST(Threading2) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::SECOND_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::SECOND_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 TEST(Threading3) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::THIRD_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::THIRD_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
 
 TEST(Threading4) {
-  ApiTestFuzzer::Setup(ApiTestFuzzer::FOURTH_PART);
+  ApiTestFuzzer::SetUp(ApiTestFuzzer::FOURTH_PART);
   ApiTestFuzzer::RunAllTests();
   ApiTestFuzzer::TearDown();
 }
@@ -12111,7 +12121,7 @@ THREADED_TEST(GetCallingContext) {
                                   callback_templ->GetFunction());
   calling_context0->Exit();
 
-  // Expose context0 in context1 and setup a function that calls the
+  // Expose context0 in context1 and set up a function that calls the
   // callback function.
   calling_context1->Enter();
   calling_context1->Global()->Set(v8_str("context0"),
@@ -12269,18 +12279,18 @@ THREADED_TEST(PixelArray) {
 
   i::Handle<i::Smi> value(i::Smi::FromInt(2));
   i::Handle<i::Object> no_failure;
-  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::JSObject::SetElement(jsobj, 1, value, i::kNonStrictMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CHECK_EQ(2, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(256);
-  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::JSObject::SetElement(jsobj, 1, value, i::kNonStrictMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CHECK_EQ(255,
            i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
   *value.location() = i::Smi::FromInt(-1);
-  no_failure = i::SetElement(jsobj, 1, value, i::kNonStrictMode);
+  no_failure = i::JSObject::SetElement(jsobj, 1, value, i::kNonStrictMode);
   ASSERT(!no_failure.is_null());
   i::USE(no_failure);
   CHECK_EQ(0, i::Smi::cast(jsobj->GetElement(1)->ToObjectChecked())->value());
@@ -13549,21 +13559,24 @@ THREADED_TEST(IdleNotification) {
 // Test that idle notification can be handled and eventually returns true.
 // This just checks the contract of the IdleNotification() function,
 // and does not verify that it does reasonable work.
-THREADED_TEST(IdleNotificationWithHint) {
+TEST(IdleNotificationWithHint) {
   v8::HandleScope scope;
   LocalContext env;
-  CompileRun("function binom(n, m) {"
-             "  var C = [[1]];"
-             "  for (var i = 1; i <= n; ++i) {"
-             "    C[i] = [1];"
-             "    for (var j = 1; j < i; ++j) {"
-             "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
-             "    }"
-             "    C[i][i] = 1;"
-             "  }"
-             "  return C[n][m];"
-             "};"
-             "binom(1000, 500)");
+  {
+    i::AlwaysAllocateScope always_allocate;
+    CompileRun("function binom(n, m) {"
+               "  var C = [[1]];"
+               "  for (var i = 1; i <= n; ++i) {"
+               "    C[i] = [1];"
+               "    for (var j = 1; j < i; ++j) {"
+               "      C[i][j] = C[i-1][j-1] + C[i-1][j];"
+               "    }"
+               "    C[i][i] = 1;"
+               "  }"
+               "  return C[n][m];"
+               "};"
+               "binom(1000, 500)");
+  }
   bool rv = false;
   intptr_t old_size = HEAP->SizeOfObjects();
   bool no_idle_work = v8::V8::IdleNotification(10);
@@ -13662,6 +13675,59 @@ THREADED_TEST(GetHeapStatistics) {
   v8::V8::GetHeapStatistics(&heap_statistics);
   CHECK_NE(static_cast<int>(heap_statistics.total_heap_size()), 0);
   CHECK_NE(static_cast<int>(heap_statistics.used_heap_size()), 0);
+}
+
+
+class VisitorImpl : public v8::ExternalResourceVisitor {
+ public:
+  VisitorImpl(TestResource* r1, TestResource* r2)
+      : resource1_(r1),
+        resource2_(r2),
+        found_resource1_(false),
+        found_resource2_(false) {}
+  virtual ~VisitorImpl() {}
+  virtual void VisitExternalString(v8::Handle<v8::String> string) {
+    if (!string->IsExternal()) {
+      CHECK(string->IsExternalAscii());
+      return;
+    }
+    v8::String::ExternalStringResource* resource =
+        string->GetExternalStringResource();
+    CHECK(resource);
+    if (resource1_ == resource) {
+      CHECK(!found_resource1_);
+      found_resource1_ = true;
+    }
+    if (resource2_ == resource) {
+      CHECK(!found_resource2_);
+      found_resource2_ = true;
+    }
+  }
+  void CheckVisitedResources() {
+    CHECK(found_resource1_);
+    CHECK(found_resource2_);
+  }
+
+ private:
+  v8::String::ExternalStringResource* resource1_;
+  v8::String::ExternalStringResource* resource2_;
+  bool found_resource1_;
+  bool found_resource2_;
+};
+
+TEST(VisitExternalStrings) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const char* string = "Some string";
+  uint16_t* two_byte_string = AsciiToTwoByteString(string);
+  TestResource* resource1 = new TestResource(two_byte_string);
+  v8::Local<v8::String> string1 = v8::String::NewExternal(resource1);
+  TestResource* resource2 = new TestResource(two_byte_string);
+  v8::Local<v8::String> string2 = v8::String::NewExternal(resource2);
+
+  VisitorImpl visitor(resource1, resource2);
+  v8::V8::VisitExternalResources(&visitor);
+  visitor.CheckVisitedResources();
 }
 
 

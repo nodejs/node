@@ -46,7 +46,7 @@ class RuntimeProfiler {
   static void GlobalSetup();
 
   static inline bool IsEnabled() {
-    ASSERT(has_been_globally_setup_);
+    ASSERT(has_been_globally_set_up_);
     return enabled_;
   }
 
@@ -54,7 +54,7 @@ class RuntimeProfiler {
 
   void NotifyTick();
 
-  void Setup();
+  void SetUp();
   void Reset();
   void TearDown();
 
@@ -126,7 +126,7 @@ class RuntimeProfiler {
   static Semaphore* semaphore_;
 
 #ifdef DEBUG
-  static bool has_been_globally_setup_;
+  static bool has_been_globally_set_up_;
 #endif
   static bool enabled_;
 };

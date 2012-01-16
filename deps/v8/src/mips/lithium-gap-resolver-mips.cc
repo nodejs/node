@@ -33,8 +33,8 @@
 namespace v8 {
 namespace internal {
 
-static const Register kSavedValueRegister = lithiumScratchReg;
-static const DoubleRegister kSavedDoubleValueRegister = lithiumScratchDouble;
+static const Register kSavedValueRegister = kLithiumScratchReg;
+static const DoubleRegister kSavedDoubleValueRegister = kLithiumScratchDouble;
 
 LGapResolver::LGapResolver(LCodeGen* owner)
     : cgen_(owner),

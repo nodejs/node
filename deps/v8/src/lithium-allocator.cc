@@ -49,13 +49,13 @@ namespace internal {
 
 #define DEFINE_OPERAND_CACHE(name, type)                      \
   name name::cache[name::kNumCachedOperands];                 \
-  void name::SetupCache() {                                   \
+  void name::SetUpCache() {                                   \
     for (int i = 0; i < kNumCachedOperands; i++) {            \
       cache[i].ConvertTo(type, i);                            \
     }                                                         \
   }                                                           \
   static bool name##_initialize() {                           \
-    name::SetupCache();                                       \
+    name::SetUpCache();                                       \
     return true;                                              \
   }                                                           \
   static bool name##_cache_initialized = name##_initialize();

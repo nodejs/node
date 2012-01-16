@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -396,14 +396,14 @@ void MacroAssembler::Usat(Register dst, int satpos, const Operand& src,
 void MacroAssembler::LoadRoot(Register destination,
                               Heap::RootListIndex index,
                               Condition cond) {
-  ldr(destination, MemOperand(roots, index << kPointerSizeLog2), cond);
+  ldr(destination, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
 
 void MacroAssembler::StoreRoot(Register source,
                                Heap::RootListIndex index,
                                Condition cond) {
-  str(source, MemOperand(roots, index << kPointerSizeLog2), cond);
+  str(source, MemOperand(kRootRegister, index << kPointerSizeLog2), cond);
 }
 
 
@@ -496,13 +496,10 @@ void MacroAssembler::RecordWrite(Register object,
   // registers are cp.
   ASSERT(!address.is(cp) && !value.is(cp));
 
-  if (FLAG_debug_code) {
-    Label ok;
+  if (emit_debug_code()) {
     ldr(ip, MemOperand(address));
     cmp(ip, value);
-    b(eq, &ok);
-    stop("Wrong address or value passed to RecordWrite");
-    bind(&ok);
+    Check(eq, "Wrong address or value passed to RecordWrite");
   }
 
   Label done;
@@ -551,7 +548,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          SaveFPRegsMode fp_mode,
                                          RememberedSetFinalAction and_then) {
   Label done;
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, scratch, &ok);
     stop("Remembered set pointer is in new space");
@@ -820,12 +817,12 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 
 void MacroAssembler::EnterExitFrame(bool save_doubles, int stack_space) {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   ASSERT_EQ(2 * kPointerSize, ExitFrameConstants::kCallerSPDisplacement);
   ASSERT_EQ(1 * kPointerSize, ExitFrameConstants::kCallerPCOffset);
   ASSERT_EQ(0 * kPointerSize, ExitFrameConstants::kCallerFPOffset);
   Push(lr, fp);
-  mov(fp, Operand(sp));  // Setup new frame pointer.
+  mov(fp, Operand(sp));  // Set up new frame pointer.
   // Reserve room for saved entry sp and code object.
   sub(sp, sp, Operand(2 * kPointerSize));
   if (emit_debug_code()) {
@@ -1414,6 +1411,35 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::GetNumberHash(Register t0, Register scratch) {
+  // First of all we assign the hash seed to scratch.
+  LoadRoot(scratch, Heap::kHashSeedRootIndex);
+  SmiUntag(scratch);
+
+  // Xor original key with a seed.
+  eor(t0, t0, Operand(scratch));
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  mvn(scratch, Operand(t0));
+  add(t0, scratch, Operand(t0, LSL, 15));
+  // hash = hash ^ (hash >> 12);
+  eor(t0, t0, Operand(t0, LSR, 12));
+  // hash = hash + (hash << 2);
+  add(t0, t0, Operand(t0, LSL, 2));
+  // hash = hash ^ (hash >> 4);
+  eor(t0, t0, Operand(t0, LSR, 4));
+  // hash = hash * 2057;
+  mov(scratch, Operand(t0, LSL, 11));
+  add(t0, t0, Operand(t0, LSL, 3));
+  add(t0, t0, scratch);
+  // hash = hash ^ (hash >> 16);
+  eor(t0, t0, Operand(t0, LSR, 16));
+}
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -1443,26 +1469,10 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // t2 - used for the index into the dictionary.
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  mvn(t1, Operand(t0));
-  add(t0, t1, Operand(t0, LSL, 15));
-  // hash = hash ^ (hash >> 12);
-  eor(t0, t0, Operand(t0, LSR, 12));
-  // hash = hash + (hash << 2);
-  add(t0, t0, Operand(t0, LSL, 2));
-  // hash = hash ^ (hash >> 4);
-  eor(t0, t0, Operand(t0, LSR, 4));
-  // hash = hash * 2057;
-  mov(t1, Operand(2057));
-  mul(t0, t0, t1);
-  // hash = hash ^ (hash >> 16);
-  eor(t0, t0, Operand(t0, LSR, 16));
+  GetNumberHash(t0, t1);
 
   // Compute the capacity mask.
-  ldr(t1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  ldr(t1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
   mov(t1, Operand(t1, ASR, kSmiTagSize));  // convert smi to int
   sub(t1, t1, Operand(1));
 
@@ -1473,17 +1483,17 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     mov(t2, t0);
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
-      add(t2, t2, Operand(NumberDictionary::GetProbeOffset(i)));
+      add(t2, t2, Operand(SeededNumberDictionary::GetProbeOffset(i)));
     }
     and_(t2, t2, Operand(t1));
 
     // Scale the index by multiplying by the element size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
+    ASSERT(SeededNumberDictionary::kEntrySize == 3);
     add(t2, t2, Operand(t2, LSL, 1));  // t2 = t2 * 3
 
     // Check if the key is identical to the name.
     add(t2, elements, Operand(t2, LSL, kPointerSizeLog2));
-    ldr(ip, FieldMemOperand(t2, NumberDictionary::kElementsStartOffset));
+    ldr(ip, FieldMemOperand(t2, SeededNumberDictionary::kElementsStartOffset));
     cmp(key, Operand(ip));
     if (i != kProbes - 1) {
       b(eq, &done);
@@ -1496,14 +1506,14 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a normal property.
   // t2: elements + (index * kPointerSize)
   const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   ldr(t1, FieldMemOperand(t2, kDetailsOffset));
   tst(t1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   b(ne, miss);
 
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
   ldr(result, FieldMemOperand(t2, kValueOffset));
 }
 
@@ -1992,18 +2002,49 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 }
 
 
+void MacroAssembler::CompareMap(Register obj,
+                                Register scratch,
+                                Handle<Map> map,
+                                Label* early_success,
+                                CompareMapMode mode) {
+  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  cmp(scratch, Operand(map));
+  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
+    Map* transitioned_fast_element_map(
+        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL));
+    ASSERT(transitioned_fast_element_map == NULL ||
+           map->elements_kind() != FAST_ELEMENTS);
+    if (transitioned_fast_element_map != NULL) {
+      b(eq, early_success);
+      cmp(scratch, Operand(Handle<Map>(transitioned_fast_element_map)));
+    }
+
+    Map* transitioned_double_map(
+        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL));
+    ASSERT(transitioned_double_map == NULL ||
+           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+    if (transitioned_double_map != NULL) {
+      b(eq, early_success);
+      cmp(scratch, Operand(Handle<Map>(transitioned_double_map)));
+    }
+  }
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type) {
+                              SmiCheckType smi_check_type,
+                              CompareMapMode mode) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
-  ldr(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  mov(ip, Operand(map));
-  cmp(scratch, ip);
+
+  Label success;
+  CompareMap(obj, scratch, map, &success, mode);
   b(ne, fail);
+  bind(&success);
 }
 
 
@@ -3460,7 +3501,7 @@ void MacroAssembler::EnsureNotWhite(
   tst(mask_scratch, load_scratch);
   b(ne, &done);
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check for impossible bit pattern.
     Label ok;
     // LSL may overflow, making the check conservative.

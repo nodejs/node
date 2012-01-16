@@ -870,7 +870,7 @@ class HGraphBuilder: public AstVisitor {
                            Representation rep);
   static Representation ToRepresentation(TypeInfo info);
 
-  void SetupScope(Scope* scope);
+  void SetUpScope(Scope* scope);
   virtual void VisitStatements(ZoneList<Statement*>* statements);
 
 #define DECLARE_VISIT(type) virtual void Visit##type(type* node);

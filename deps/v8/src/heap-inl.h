@@ -463,7 +463,7 @@ MaybeObject* Heap::PrepareForCompare(String* str) {
 
 
 int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
-  ASSERT(HasBeenSetup());
+  ASSERT(HasBeenSetUp());
   int amount = amount_of_external_allocated_memory_ + change_in_bytes;
   if (change_in_bytes >= 0) {
     // Avoid overflow.

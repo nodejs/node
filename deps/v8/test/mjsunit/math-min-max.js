@@ -115,3 +115,67 @@ assertEquals(NaN, Math.max(1, 'oxen'));
 
 assertEquals(Infinity, 1/Math.max(ZERO, -0));
 assertEquals(Infinity, 1/Math.max(-0, ZERO));
+
+function run(crankshaft_test) {
+  crankshaft_test(1);
+  crankshaft_test(1);
+  %OptimizeFunctionOnNextCall(crankshaft_test);
+  crankshaft_test(-0);
+}
+
+function crankshaft_test_1(arg) {
+  var v1 = 1;
+  var v2 = 5;
+  var v3 = 1.5;
+  var v4 = 5.5;
+  var v5 = 2;
+  var v6 = 6;
+  var v7 = 0;
+  var v8 = -0;
+
+  var v9 = 9.9;
+  var v0 = 10.1;
+  // Integer32 representation.
+  assertEquals(v2, Math.max(v1++, v2++));
+  assertEquals(v1, Math.min(v1++, v2++));
+  // Tagged representation.
+  assertEquals(v4, Math.max(v3, v4));
+  assertEquals(v3, Math.min(v3, v4));
+  assertEquals(v6, Math.max(v5, v6));
+  assertEquals(v5, Math.min(v5, v6));
+  // Double representation.
+  assertEquals(v0, Math.max(v0++, v9++));
+  assertEquals(v9, Math.min(v0++, v9++));
+  // Minus zero.
+  assertEquals(Infinity, 1/Math.max(v7, v8));
+  assertEquals(-Infinity, 1/Math.min(v7, v8));
+  // NaN.
+  assertEquals(NaN, Math.max(NaN, v8));
+  assertEquals(NaN, Math.min(NaN, v9));
+  assertEquals(NaN, Math.max(v8, NaN));
+  assertEquals(NaN, Math.min(v9, NaN));
+  // Minus zero as Integer32.
+  assertEquals((arg === -0) ? -Infinity : 1, 1/Math.min(arg, v2));
+}
+
+run(crankshaft_test_1);
+
+function crankshaft_test_2() {
+  var v9 = {};
+  v9.valueOf = function() { return 6; }
+  // Deopt expected due to non-heapnumber objects.
+  assertEquals(6, Math.min(v9, 12));
+}
+
+run(crankshaft_test_2);
+
+// Test overriding Math.min and Math.max
+Math.min = function(a, b) { return a + b; }
+Math.max = function(a, b) { return a - b; }
+
+function crankshaft_test_3() {
+  assertEquals(8, Math.min(3, 5));
+  assertEquals(3, Math.max(5, 2));
+}
+
+run(crankshaft_test_3);

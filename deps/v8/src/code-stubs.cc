@@ -40,7 +40,7 @@ namespace internal {
 bool CodeStub::FindCodeInCache(Code** code_out) {
   Heap* heap = Isolate::Current()->heap();
   int index = heap->code_stubs()->FindEntry(GetKey());
-  if (index != NumberDictionary::kNotFound) {
+  if (index != UnseededNumberDictionary::kNotFound) {
     *code_out = Code::cast(heap->code_stubs()->ValueAt(index));
     return true;
   }
@@ -132,9 +132,9 @@ Handle<Code> CodeStub::GetCode() {
       AddToSpecialCache(new_object);
     } else {
       // Update the dictionary and the root in Heap.
-      Handle<NumberDictionary> dict =
+      Handle<UnseededNumberDictionary> dict =
           factory->DictionaryAtNumberPut(
-              Handle<NumberDictionary>(heap->code_stubs()),
+              Handle<UnseededNumberDictionary>(heap->code_stubs()),
               GetKey(),
               new_object);
       heap->public_set_code_stubs(*dict);

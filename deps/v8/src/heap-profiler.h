@@ -48,7 +48,7 @@ class HeapSnapshotsCollection;
 // to generate .hp files for use by the GHC/Valgrind tool hp2ps.
 class HeapProfiler {
  public:
-  static void Setup();
+  static void SetUp();
   static void TearDown();
 
   static HeapSnapshot* TakeSnapshot(const char* name,

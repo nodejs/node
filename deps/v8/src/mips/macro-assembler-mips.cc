@@ -252,6 +252,12 @@ void MacroAssembler::RecordWrite(Register object,
   // registers are cp.
   ASSERT(!address.is(cp) && !value.is(cp));
 
+  if (emit_debug_code()) {
+    lw(at, MemOperand(address));
+    Assert(
+        eq, "Wrong address or value passed to RecordWrite", at, Operand(value));
+  }
+
   Label done;
 
   if (smi_check == INLINE_SMI_CHECK) {
@@ -297,7 +303,7 @@ void MacroAssembler::RememberedSetHelper(Register object,  // For debug tests.
                                          SaveFPRegsMode fp_mode,
                                          RememberedSetFinalAction and_then) {
   Label done;
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     Label ok;
     JumpIfNotInNewSpace(object, scratch, &ok);
     stop("Remembered set pointer is in new space");
@@ -409,6 +415,44 @@ void MacroAssembler::CheckAccessGlobalProxy(Register holder_reg,
 }
 
 
+void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
+  // First of all we assign the hash seed to scratch.
+  LoadRoot(scratch, Heap::kHashSeedRootIndex);
+  SmiUntag(scratch);
+
+  // Xor original key with a seed.
+  xor_(reg0, reg0, scratch);
+
+  // Compute the hash code from the untagged key.  This must be kept in sync
+  // with ComputeIntegerHash in utils.h.
+  //
+  // hash = ~hash + (hash << 15);
+  nor(scratch, reg0, zero_reg);
+  sll(at, reg0, 15);
+  addu(reg0, scratch, at);
+
+  // hash = hash ^ (hash >> 12);
+  srl(at, reg0, 12);
+  xor_(reg0, reg0, at);
+
+  // hash = hash + (hash << 2);
+  sll(at, reg0, 2);
+  addu(reg0, reg0, at);
+
+  // hash = hash ^ (hash >> 4);
+  srl(at, reg0, 4);
+  xor_(reg0, reg0, at);
+
+  // hash = hash * 2057;
+  li(scratch, Operand(2057));
+  mul(reg0, reg0, scratch);
+
+  // hash = hash ^ (hash >> 16);
+  srl(at, reg0, 16);
+  xor_(reg0, reg0, at);
+}
+
+
 void MacroAssembler::LoadFromNumberDictionary(Label* miss,
                                               Register elements,
                                               Register key,
@@ -440,36 +484,10 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // at   - Temporary (avoid MacroAssembler instructions also using 'at').
   Label done;
 
-  // Compute the hash code from the untagged key.  This must be kept in sync
-  // with ComputeIntegerHash in utils.h.
-  //
-  // hash = ~hash + (hash << 15);
-  nor(reg1, reg0, zero_reg);
-  sll(at, reg0, 15);
-  addu(reg0, reg1, at);
-
-  // hash = hash ^ (hash >> 12);
-  srl(at, reg0, 12);
-  xor_(reg0, reg0, at);
-
-  // hash = hash + (hash << 2);
-  sll(at, reg0, 2);
-  addu(reg0, reg0, at);
-
-  // hash = hash ^ (hash >> 4);
-  srl(at, reg0, 4);
-  xor_(reg0, reg0, at);
-
-  // hash = hash * 2057;
-  li(reg1, Operand(2057));
-  mul(reg0, reg0, reg1);
-
-  // hash = hash ^ (hash >> 16);
-  srl(at, reg0, 16);
-  xor_(reg0, reg0, at);
+  GetNumberHash(reg0, reg1);
 
   // Compute the capacity mask.
-  lw(reg1, FieldMemOperand(elements, NumberDictionary::kCapacityOffset));
+  lw(reg1, FieldMemOperand(elements, SeededNumberDictionary::kCapacityOffset));
   sra(reg1, reg1, kSmiTagSize);
   Subu(reg1, reg1, Operand(1));
 
@@ -480,12 +498,12 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     mov(reg2, reg0);
     // Compute the masked index: (hash + i + i * i) & mask.
     if (i > 0) {
-      Addu(reg2, reg2, Operand(NumberDictionary::GetProbeOffset(i)));
+      Addu(reg2, reg2, Operand(SeededNumberDictionary::GetProbeOffset(i)));
     }
     and_(reg2, reg2, reg1);
 
     // Scale the index by multiplying by the element size.
-    ASSERT(NumberDictionary::kEntrySize == 3);
+    ASSERT(SeededNumberDictionary::kEntrySize == 3);
     sll(at, reg2, 1);  // 2x.
     addu(reg2, reg2, at);  // reg2 = reg2 * 3.
 
@@ -493,7 +511,7 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
     sll(at, reg2, kPointerSizeLog2);
     addu(reg2, elements, at);
 
-    lw(at, FieldMemOperand(reg2, NumberDictionary::kElementsStartOffset));
+    lw(at, FieldMemOperand(reg2, SeededNumberDictionary::kElementsStartOffset));
     if (i != kProbes - 1) {
       Branch(&done, eq, key, Operand(at));
     } else {
@@ -505,14 +523,14 @@ void MacroAssembler::LoadFromNumberDictionary(Label* miss,
   // Check that the value is a normal property.
   // reg2: elements + (index * kPointerSize).
   const int kDetailsOffset =
-      NumberDictionary::kElementsStartOffset + 2 * kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + 2 * kPointerSize;
   lw(reg1, FieldMemOperand(reg2, kDetailsOffset));
   And(at, reg1, Operand(Smi::FromInt(PropertyDetails::TypeField::kMask)));
   Branch(miss, ne, at, Operand(zero_reg));
 
   // Get the value at the masked, scaled index and return.
   const int kValueOffset =
-      NumberDictionary::kElementsStartOffset + kPointerSize;
+      SeededNumberDictionary::kElementsStartOffset + kPointerSize;
   lw(result, FieldMemOperand(reg2, kValueOffset));
 }
 
@@ -4261,7 +4279,7 @@ void MacroAssembler::LeaveFrame(StackFrame::Type type) {
 
 void MacroAssembler::EnterExitFrame(bool save_doubles,
                                     int stack_space) {
-  // Setup the frame structure on the stack.
+  // Set up the frame structure on the stack.
   STATIC_ASSERT(2 * kPointerSize == ExitFrameConstants::kCallerSPDisplacement);
   STATIC_ASSERT(1 * kPointerSize == ExitFrameConstants::kCallerPCOffset);
   STATIC_ASSERT(0 * kPointerSize == ExitFrameConstants::kCallerFPOffset);
@@ -4279,7 +4297,7 @@ void MacroAssembler::EnterExitFrame(bool save_doubles,
   addiu(sp, sp, -4 * kPointerSize);
   sw(ra, MemOperand(sp, 3 * kPointerSize));
   sw(fp, MemOperand(sp, 2 * kPointerSize));
-  addiu(fp, sp, 2 * kPointerSize);  // Setup new frame pointer.
+  addiu(fp, sp, 2 * kPointerSize);  // Set up new frame pointer.
 
   if (emit_debug_code()) {
     sw(zero_reg, MemOperand(fp, ExitFrameConstants::kSPOffset));
@@ -4826,7 +4844,7 @@ void MacroAssembler::EnsureNotWhite(
   And(t8, mask_scratch, load_scratch);
   Branch(&done, ne, t8, Operand(zero_reg));
 
-  if (FLAG_debug_code) {
+  if (emit_debug_code()) {
     // Check for impossible bit pattern.
     Label ok;
     // sll may overflow, making the check conservative.

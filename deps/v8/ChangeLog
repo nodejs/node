@@ -1,3 +1,22 @@
+2012-01-16: Version 3.8.6
+
+        Add primitive WebGL array support to d8.
+
+        Improve heap size estimation (issue 1893).
+
+        Hash collision DOS workaround extended from string keys
+        to numeric keys.
+
+        Provide an API for iterating through all external strings referenced
+        from the JS heap.
+
+        Adjust position recorded for call expressions. http://crbug.com/109195
+
+        Fix GC crash related to instanceof. http://crbug.com/109448
+
+        Performance improvements and bug fixes.
+
+
 2012-01-05: Version 3.8.5
 
         Fix broken test that assumes that no GC can clear the regexp cache (GC

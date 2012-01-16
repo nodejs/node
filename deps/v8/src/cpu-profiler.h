@@ -204,7 +204,7 @@ namespace internal {
 // TODO(isolates): isolatify this class.
 class CpuProfiler {
  public:
-  static void Setup();
+  static void SetUp();
   static void TearDown();
 
   static void StartProfiling(const char* title);
@@ -230,11 +230,11 @@ class CpuProfiler {
                               Code* code, String* name);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code,
-                              SharedFunctionInfo *shared,
+                              SharedFunctionInfo* shared,
                               String* name);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code,
-                              SharedFunctionInfo *shared,
+                              SharedFunctionInfo* shared,
                               String* source, int line);
   static void CodeCreateEvent(Logger::LogEventsAndTags tag,
                               Code* code, int args_count);

@@ -406,7 +406,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0] = input_;
     output_[0]->SetPc(reinterpret_cast<uint32_t>(from_));
   } else {
-    // Setup the frame pointer and the context pointer.
+    // Set up the frame pointer and the context pointer.
     // All OSR stack frames are dynamically aligned to an 8-byte boundary.
     int frame_pointer = input_->GetRegister(ebp.code());
     if ((frame_pointer & 0x4) == 0) {

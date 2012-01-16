@@ -71,10 +71,10 @@ bool DisassembleAndCompare(byte* pc, const char* compare_string) {
 }
 
 
-// Setup V8 to a state where we can at least run the assembler and
+// Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SETUP()                                           \
+#define SET_UP()                                           \
   InitializeVM();                                         \
   v8::HandleScope scope;                                  \
   byte *buffer = reinterpret_cast<byte*>(malloc(4*1024)); \
@@ -104,7 +104,7 @@ if (failure) { \
 
 
 TEST(Type0) {
-  SETUP();
+  SET_UP();
 
   COMPARE(addu(a0, a1, a2),
           "00a62021       addu    a0, a1, a2");

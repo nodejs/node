@@ -493,7 +493,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
     NoBarrier_Store(&is_profiling_, true);
     processor_->Start();
     // Enumerate stuff we already have in the heap.
-    if (isolate->heap()->HasBeenSetup()) {
+    if (isolate->heap()->HasBeenSetUp()) {
       if (!FLAG_prof_browser_mode) {
         bool saved_log_code_flag = FLAG_log_code;
         FLAG_log_code = true;
@@ -562,7 +562,7 @@ void CpuProfiler::StopProcessor() {
 }
 
 
-void CpuProfiler::Setup() {
+void CpuProfiler::SetUp() {
   Isolate* isolate = Isolate::Current();
   if (isolate->cpu_profiler() == NULL) {
     isolate->set_cpu_profiler(new CpuProfiler());

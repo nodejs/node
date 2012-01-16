@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -265,7 +265,7 @@ class LConstantOperand: public LOperand {
     return reinterpret_cast<LConstantOperand*>(op);
   }
 
-  static void SetupCache();
+  static void SetUpCache();
 
  private:
   static const int kNumCachedOperands = 128;
@@ -300,7 +300,7 @@ class LStackSlot: public LOperand {
     return reinterpret_cast<LStackSlot*>(op);
   }
 
-  static void SetupCache();
+  static void SetUpCache();
 
  private:
   static const int kNumCachedOperands = 128;
@@ -324,7 +324,7 @@ class LDoubleStackSlot: public LOperand {
     return reinterpret_cast<LDoubleStackSlot*>(op);
   }
 
-  static void SetupCache();
+  static void SetUpCache();
 
  private:
   static const int kNumCachedOperands = 128;
@@ -348,7 +348,7 @@ class LRegister: public LOperand {
     return reinterpret_cast<LRegister*>(op);
   }
 
-  static void SetupCache();
+  static void SetUpCache();
 
  private:
   static const int kNumCachedOperands = 16;
@@ -372,7 +372,7 @@ class LDoubleRegister: public LOperand {
     return reinterpret_cast<LDoubleRegister*>(op);
   }
 
-  static void SetupCache();
+  static void SetUpCache();
 
  private:
   static const int kNumCachedOperands = 16;
@@ -523,8 +523,6 @@ class LEnvironment: public ZoneObject {
   LOperand** spilled_double_registers_;
 
   LEnvironment* outer_;
-
-  friend class LCodegen;
 };
 
 

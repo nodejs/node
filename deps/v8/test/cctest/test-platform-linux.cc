@@ -67,7 +67,7 @@ TEST(BusyLock) {
 
 
 TEST(VirtualMemory) {
-  OS::Setup();
+  OS::SetUp();
   VirtualMemory* vm = new VirtualMemory(1 * MB);
   CHECK(vm->IsReserved());
   void* block_addr = vm->address();

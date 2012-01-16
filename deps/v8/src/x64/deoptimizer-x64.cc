@@ -314,7 +314,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
     output_[0] = input_;
     output_[0]->SetPc(reinterpret_cast<intptr_t>(from_));
   } else {
-    // Setup the frame pointer and the context pointer.
+    // Set up the frame pointer and the context pointer.
     output_[0]->SetRegister(rbp.code(), input_->GetRegister(rbp.code()));
     output_[0]->SetRegister(rsi.code(), input_->GetRegister(rsi.code()));
 

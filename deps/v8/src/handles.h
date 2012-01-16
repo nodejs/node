@@ -167,30 +167,12 @@ class HandleScope {
 // an object of expected type, or the handle is an error if running out
 // of space or encountering an internal error.
 
-void NormalizeProperties(Handle<JSObject> object,
-                         PropertyNormalizationMode mode,
-                         int expected_additional_properties);
-Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object);
-void TransformToFastProperties(Handle<JSObject> object,
-                               int unused_property_fields);
-MUST_USE_RESULT Handle<NumberDictionary> NumberDictionarySet(
-    Handle<NumberDictionary> dictionary,
-    uint32_t index,
-    Handle<Object> value,
-    PropertyDetails details);
-
 // Flattens a string.
 void FlattenString(Handle<String> str);
 
 // Flattens a string and returns the underlying external or sequential
 // string.
 Handle<String> FlattenGetString(Handle<String> str);
-
-Handle<Object> SetProperty(Handle<JSReceiver> object,
-                           Handle<String> key,
-                           Handle<Object> value,
-                           PropertyAttributes attributes,
-                           StrictModeFlag strict_mode);
 
 Handle<Object> SetProperty(Handle<Object> object,
                            Handle<Object> key,
@@ -203,39 +185,8 @@ Handle<Object> ForceSetProperty(Handle<JSObject> object,
                                 Handle<Object> value,
                                 PropertyAttributes attributes);
 
-Handle<Object> SetNormalizedProperty(Handle<JSObject> object,
-                                     Handle<String> key,
-                                     Handle<Object> value,
-                                     PropertyDetails details);
-
 Handle<Object> ForceDeleteProperty(Handle<JSObject> object,
                                    Handle<Object> key);
-
-Handle<Object> SetLocalPropertyIgnoreAttributes(
-    Handle<JSObject> object,
-    Handle<String> key,
-    Handle<Object> value,
-    PropertyAttributes attributes);
-
-// Used to set local properties on the object we totally control
-// and which therefore has no accessors and alikes.
-void SetLocalPropertyNoThrow(Handle<JSObject> object,
-                             Handle<String> key,
-                             Handle<Object> value,
-                             PropertyAttributes attributes = NONE);
-
-MUST_USE_RESULT Handle<Object> SetElement(Handle<JSObject> object,
-                                          uint32_t index,
-                                          Handle<Object> value,
-                                          StrictModeFlag strict_mode);
-
-Handle<Object> SetOwnElement(Handle<JSObject> object,
-                             uint32_t index,
-                             Handle<Object> value,
-                             StrictModeFlag strict_mode);
-
-Handle<Object> TransitionElementsKind(Handle<JSObject> object,
-                                      ElementsKind to_kind);
 
 Handle<Object> GetProperty(Handle<JSReceiver> obj,
                            const char* name);
@@ -248,20 +199,7 @@ Handle<Object> GetPropertyWithInterceptor(Handle<JSObject> receiver,
                                           Handle<String> name,
                                           PropertyAttributes* attributes);
 
-Handle<Object> GetPrototype(Handle<Object> obj);
-
 Handle<Object> SetPrototype(Handle<JSObject> obj, Handle<Object> value);
-
-// Sets a hidden property on an object. Returns obj on success, undefined
-// if trying to set the property on a detached proxy.
-Handle<Object> SetHiddenProperty(Handle<JSObject> obj,
-                                 Handle<String> key,
-                                 Handle<Object> value);
-
-int GetIdentityHash(Handle<JSReceiver> obj);
-
-Handle<Object> DeleteElement(Handle<JSObject> obj, uint32_t index);
-Handle<Object> DeleteProperty(Handle<JSObject> obj, Handle<String> prop);
 
 Handle<Object> LookupSingleCharacterStringFromCode(uint32_t index);
 
@@ -316,7 +254,6 @@ Handle<String> SubString(Handle<String> str,
                          int end,
                          PretenureFlag pretenure = NOT_TENURED);
 
-
 // Sets the expected number of properties for the function's instances.
 void SetExpectedNofProperties(Handle<JSFunction> func, int nof);
 
@@ -334,8 +271,6 @@ Handle<JSGlobalProxy> ReinitializeJSGlobalProxy(
 
 Handle<Object> SetPrototype(Handle<JSFunction> function,
                             Handle<Object> prototype);
-
-Handle<Object> PreventExtensions(Handle<JSObject> object);
 
 Handle<ObjectHashSet> ObjectHashSetAdd(Handle<ObjectHashSet> table,
                                        Handle<Object> key);

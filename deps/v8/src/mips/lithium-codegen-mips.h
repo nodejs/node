@@ -148,9 +148,9 @@ class LCodeGen BASE_EMBEDDED {
   Scope* scope() const { return scope_; }
   HGraph* graph() const { return chunk_->graph(); }
 
-  Register scratch0() { return lithiumScratchReg; }
-  Register scratch1() { return lithiumScratchReg2; }
-  DoubleRegister double_scratch0() { return lithiumScratchDouble; }
+  Register scratch0() { return kLithiumScratchReg; }
+  Register scratch1() { return kLithiumScratchReg2; }
+  DoubleRegister double_scratch0() { return kLithiumScratchDouble; }
 
   int GetNextEmittedBlock(int block);
   LInstruction* GetNextInstruction();
@@ -423,7 +423,7 @@ class LDeferredCode: public ZoneObject {
   virtual void Generate() = 0;
   virtual LInstruction* instr() = 0;
 
-  void SetExit(Label *exit) { external_exit_ = exit; }
+  void SetExit(Label* exit) { external_exit_ = exit; }
   Label* entry() { return &entry_; }
   Label* exit() { return external_exit_ != NULL ? external_exit_ : &exit_; }
   int instruction_index() const { return instruction_index_; }

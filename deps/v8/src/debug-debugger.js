@@ -1547,7 +1547,7 @@ DebugCommandProcessor.prototype.continueRequest_ = function(request, response) {
       }
     }
 
-    // Setup the VM for stepping.
+    // Set up the VM for stepping.
     this.exec_state_.prepareStep(action, count);
   }
 

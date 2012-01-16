@@ -2636,7 +2636,7 @@ void TextNode::MakeCaseIndependent(bool is_ascii) {
     TextElement elm = elms_->at(i);
     if (elm.type == TextElement::CHAR_CLASS) {
       RegExpCharacterClass* cc = elm.data.u_char_class;
-      // None of the standard character classses is different in the case
+      // None of the standard character classes is different in the case
       // independent case and it slows us down if we don't know that.
       if (cc->is_standard()) continue;
       ZoneList<CharacterRange>* ranges = cc->ranges();

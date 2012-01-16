@@ -418,7 +418,7 @@ void IncrementalMarking::ActivateGeneratedStub(Code* stub) {
 
 static void PatchIncrementalMarkingRecordWriteStubs(
     Heap* heap, RecordWriteStub::Mode mode) {
-  NumberDictionary* stubs = heap->code_stubs();
+  UnseededNumberDictionary* stubs = heap->code_stubs();
 
   int capacity = stubs->Capacity();
   for (int i = 0; i < capacity; i++) {

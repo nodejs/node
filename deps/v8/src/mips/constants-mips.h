@@ -125,7 +125,7 @@ class Registers {
 
   struct RegisterAlias {
     int reg;
-    const char *name;
+    const char* name;
   };
 
   static const int32_t kMaxValue = 0x7fffffff;
@@ -147,7 +147,7 @@ class FPURegisters {
 
   struct RegisterAlias {
     int creg;
-    const char *name;
+    const char* name;
   };
 
  private:

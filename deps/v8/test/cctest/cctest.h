@@ -104,7 +104,7 @@ class ApiTestFuzzer: public v8::internal::Thread {
                     FOURTH_PART,
                     LAST_PART = FOURTH_PART };
 
-  static void Setup(PartOfTest part);
+  static void SetUp(PartOfTest part);
   static void RunAllTests();
   static void TearDown();
   // This method switches threads if we are running the Threading test.

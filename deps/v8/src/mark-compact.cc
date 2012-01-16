@@ -3641,6 +3641,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
                reinterpret_cast<intptr_t>(p));
       }
+      space->MarkPageForLazySweeping(p);
       continue;
     }
 

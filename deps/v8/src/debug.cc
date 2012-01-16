@@ -682,7 +682,7 @@ void ScriptCache::HandleWeakScript(v8::Persistent<v8::Value> obj, void* data) {
 }
 
 
-void Debug::Setup(bool create_heap_objects) {
+void Debug::SetUp(bool create_heap_objects) {
   ThreadInit();
   if (create_heap_objects) {
     // Get code to handle debug break on return.
@@ -827,8 +827,8 @@ bool Debug::Load() {
   Handle<GlobalObject> global = Handle<GlobalObject>(context->global());
   RETURN_IF_EMPTY_HANDLE_VALUE(
       isolate_,
-      SetProperty(global, key, Handle<Object>(global->builtins()),
-                  NONE, kNonStrictMode),
+      JSReceiver::SetProperty(global, key, Handle<Object>(global->builtins()),
+                              NONE, kNonStrictMode),
       false);
 
   // Compile the JavaScript for the debugger in the debugger context.
@@ -1213,7 +1213,7 @@ void Debug::ClearAllBreakPoints() {
 
 void Debug::FloodWithOneShot(Handle<SharedFunctionInfo> shared) {
   PrepareForBreakPoints();
-  // Make sure the function has setup the debug info.
+  // Make sure the function has set up the debug info.
   if (!EnsureDebugInfo(shared)) {
     // Return if we failed to retrieve the debug info.
     return;
@@ -2855,7 +2855,7 @@ void Debugger::NotifyMessageHandler(v8::DebugEvent event,
     command.Dispose();
 
     // Return from debug event processing if either the VM is put into the
-    // runnning state (through a continue command) or auto continue is active
+    // running state (through a continue command) or auto continue is active
     // and there are no more commands queued.
     if (running && !HasCommands()) {
       return;
@@ -3065,7 +3065,7 @@ bool Debugger::StartAgent(const char* name, int port,
     v8::Debug::DebugBreak();
   }
 
-  if (Socket::Setup()) {
+  if (Socket::SetUp()) {
     if (agent_ == NULL) {
       agent_ = new DebuggerAgent(name, port);
       agent_->Start();

@@ -129,7 +129,7 @@ TEST(Socket) {
   bool ok;
 
   // Initialize socket support.
-  ok = Socket::Setup();
+  ok = Socket::SetUp();
   CHECK(ok);
 
   // Send and receive some data.

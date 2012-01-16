@@ -136,7 +136,7 @@ class Execution : public AllStatic {
                                           Handle<Object> is_global);
 #ifdef ENABLE_DEBUGGER_SUPPORT
   static Object* DebugBreakHelper();
-  static void ProcessDebugMesssages(bool debug_command_only);
+  static void ProcessDebugMessages(bool debug_command_only);
 #endif
 
   // If the stack guard is triggered, but it is not an actual

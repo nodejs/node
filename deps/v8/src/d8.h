@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -289,6 +289,7 @@ class Shell : public i::AllStatic {
   static Handle<Value> Read(const Arguments& args);
   static Handle<Value> ReadLine(const Arguments& args);
   static Handle<Value> Load(const Arguments& args);
+  static Handle<Value> ArrayBuffer(const Arguments& args);
   static Handle<Value> Int8Array(const Arguments& args);
   static Handle<Value> Uint8Array(const Arguments& args);
   static Handle<Value> Int16Array(const Arguments& args);
