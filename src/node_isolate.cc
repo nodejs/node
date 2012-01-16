@@ -219,7 +219,6 @@ void Isolate::OnMessage(IsolateMessage* msg, void* arg) {
   HandleScope scope;
 
   Isolate* self = static_cast<Isolate*>(arg);
-  assert(uv_thread_self() == self->tid_);
   NODE_ISOLATE_CHECK(self);
 
   Buffer* buf = Buffer::New(msg->data_, msg->size_, IsolateMessage::Free, msg);
@@ -426,7 +425,6 @@ private:
   }
 
   void OnMessage(IsolateMessage* msg) {
-    assert(uv_thread_self() != isolate_->tid_);
     NODE_ISOLATE_CHECK(parent_isolate_);
     HandleScope scope;
     Buffer* buf = Buffer::New(
