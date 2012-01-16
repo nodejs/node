@@ -306,7 +306,7 @@ function addRemoteGit (u, parsed, name, cb_) {
   var tmp = path.join(npm.tmp, Date.now()+"-"+Math.random())
   mkdir(path.dirname(tmp), function (er) {
     if (er) return cb(er)
-    exec( "git", ["clone", u, tmp], null, false
+    exec( npm.config.get("git"), ["clone", u, tmp], null, false
         , function (er, code, stdout, stderr) {
       stdout = (stdout + "\n" + stderr).trim()
       if (er) {
@@ -314,7 +314,7 @@ function addRemoteGit (u, parsed, name, cb_) {
         return cb(er)
       }
       log.verbose(stdout, "git clone "+u)
-      exec( "git", ["checkout", co], null, false, tmp
+      exec( npm.config.get("git"), ["checkout", co], null, false, tmp
           , function (er, code, stdout, stderr) {
         stdout = (stdout + "\n" + stderr).trim()
         if (er) {

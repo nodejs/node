@@ -31,7 +31,7 @@ function rimraf (p, opts, cb) {
 
   rimraf_(p, opts, function CB (er) {
     if (er) {
-      if (er.message.match(/^EBUSY/) && busyTries < opts.maxBusyTries) {
+      if (er.code === "EBUSY" && busyTries < opts.maxBusyTries) {
         var time = (opts.maxBusyTries - busyTries) * 100
         busyTries ++
         // try again, with the same exact callback as this one.
@@ -41,14 +41,14 @@ function rimraf (p, opts, cb) {
       }
 
       // this one won't happen if graceful-fs is used.
-      if (er.message.match(/^EMFILE/) && timeout < EMFILE_MAX) {
+      if (er.code === "EMFILE" && timeout < EMFILE_MAX) {
         return setTimeout(function () {
           rimraf_(p, opts, CB)
         }, timeout ++)
       }
 
       // already gone
-      if (er.message.match(/^ENOENT/)) er = null
+      if (er.code === "ENOENT") er = null
     }
 
     timeout = 0
@@ -61,7 +61,7 @@ function rimraf_ (p, opts, cb) {
     // if the stat fails, then assume it's already gone.
     if (er) {
       // already gone
-      if (er.message.match(/^ENOENT/)) return cb()
+      if (er.code === "ENOENT") return cb()
       // some other kind of error, permissions, etc.
       return cb(er)
     }
@@ -131,7 +131,12 @@ function asyncForEach (list, fn, cb) {
 // this looks simpler, but it will fail with big directory trees,
 // or on slow stupid awful cygwin filesystems
 function rimrafSync (p) {
-  var s = fs[lstatSync](p)
+  try {
+    var s = fs[lstatSync](p)
+  } catch (er) {
+    if (er.code === "ENOENT") return
+    throw er
+  }
   if (!s.isDirectory()) return fs.unlinkSync(p)
   fs.readdirSync(p).forEach(function (f) {
     rimrafSync(path.join(p, f))

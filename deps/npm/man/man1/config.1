@@ -129,6 +129,9 @@ The following shorthands are parsed on the command\-line:
 \fB\-s\fR, \fB\-\-silent\fR: \fB\-\-loglevel silent\fR
 .
 .IP "\(bu" 4
+\fB\-q\fR, \fB\-\-quiet\fR: \fB\-\-loglevel warn\fR
+.
+.IP "\(bu" 4
 \fB\-d\fR: \fB\-\-loglevel info\fR
 .
 .IP "\(bu" 4
@@ -465,6 +468,21 @@ skips cache when requesting from the registry\.
 prevents checks against clobbering non\-npm files\.
 .
 .IP "" 0
+.
+.SS "git"
+.
+.IP "\(bu" 4
+Default: \fB"git"\fR
+.
+.IP "\(bu" 4
+Type: String
+.
+.IP "" 0
+.
+.P
+The command to use for git commands\.  If git is installed on the
+computer, but is not in the \fBPATH\fR, then set this to the full path to
+the git binary\.
 .
 .SS "global"
 .

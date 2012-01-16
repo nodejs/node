@@ -196,6 +196,16 @@ function readInstalled_ (folder, parent, name, reqver, depth, maxDepth, cb) {
       installedData.forEach(function (dep) {
         obj.dependencies[dep.realName] = dep
       })
+
+      // any strings here are unmet things.  however, if it's
+      // optional, then that's fine, so just delete it.
+      if (obj.optionalDependencies) {
+        Object.keys(obj.optionalDependencies).forEach(function (dep) {
+          if (typeof obj.dependencies[dep] === "string") {
+            delete obj.dependencies[dep]
+          }
+        })
+      }
       return cb(null, obj)
     })
   }
@@ -253,6 +263,7 @@ function findUnmet (obj) {
         }
         deps[d] = found
       }
+
     })
   log.verbose([obj._id], "returning")
   return obj

@@ -148,6 +148,9 @@ Object.defineProperty(exports, "defaults", {get: function () {
     , editor : process.env.EDITOR ||
              ( process.platform === "win32" ? "notepad" : "vi" )
     , force : false
+
+    , git: "git"
+
     , global : false
     , globalconfig : path.resolve(globalPrefix, "etc", "npmrc")
     , globalignorefile : path.resolve( globalPrefix, "etc", "npmignore")
@@ -224,6 +227,7 @@ exports.types =
   , dev : Boolean
   , editor : String
   , force : Boolean
+  , git: String
   , global : Boolean
   , globalconfig : path
   , globalignorefile: path
@@ -290,6 +294,8 @@ exports.shorthands =
   , "no-reg" : ["--no-registry"]
   , silent : ["--loglevel", "silent"]
   , verbose : ["--loglevel", "verbose"]
+  , quiet: ["--loglevel", "warn"]
+  , q: ["--loglevel", "warn"]
   , h : ["--usage"]
   , H : ["--usage"]
   , "?" : ["--usage"]

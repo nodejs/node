@@ -195,7 +195,7 @@ function defaultName (folder, data) {
 
 function defaultVersion (folder, data, cb) {
   if (data.version) return cb(null, data.version)
-  exec("git", ["describe", "--tags"], process.env, false, folder,
+  exec(npm.config.get("git"), ["describe", "--tags"], process.env, false, folder,
        function (er, code, out) {
     out = (out || "").trim()
     if (semver.valid(out)) return cb(null, out)
@@ -207,7 +207,7 @@ function defaultVersion (folder, data, cb) {
 
 function defaultRepo (folder, data, cb) {
   if (data.repository) return cb(null, data.repository)
-  exec( "git", ["remote", "-v"], process.env, false, folder
+  exec( npm.config.get("git"), ["remote", "-v"], process.env, false, folder
       , function (er, code, out) {
     out = (out || "")
       .trim()

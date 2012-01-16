@@ -36,6 +36,7 @@ function Parse () {
   me.writable = true
   me.readable = true
   me._stream = new BlockStream(512)
+  me.position = 0
 
   me._stream.on("error", function (e) {
     me.emit("error", e)
@@ -125,6 +126,8 @@ Parse.prototype._process = function (c) {
     }
 
   }
+
+  this.position += 512
 }
 
 // take a header chunk, start the right kind of entry.
@@ -136,6 +139,14 @@ Parse.prototype._startEntry = function (c) {
     , EntryType
     , onend
     , meta = false
+
+  if (null === header.size || !header.cksumValid) {
+    var e = new Error("invalid tar file")
+    e.header = header
+    e.tar_file_offset = this.position
+    e.tar_block = this.position / 512
+    this.emit("error", e)
+  }
 
   switch (tar.types[header.type]) {
     case "File":

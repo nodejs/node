@@ -100,6 +100,11 @@ console.log(list.shift()) // foo
 * `item(n)`: Retrieve the nth item in the list.  This involves a walk
   every time.  It's very slow.  If you find yourself using this,
   consider using a normal Array instead.
+* `map(fn, thisp)`: Like `Array.prototype.map`.  Returns a new FastList.
+* `reduce(fn, startValue, thisp)`: Like `Array.prototype.reduce`
+* `forEach(fn, this)`: Like `Array.prototype.forEach`
+* `filter(fn, thisp)`: Like `Array.prototype.filter`. Returns a new
+  FastList.
 * `slice(start, end)`: Retrieve an array of the items at this position.
   This involves a walk every time.  It's very slow.  If you find
   yourself using this, consider using a normal Array instead.

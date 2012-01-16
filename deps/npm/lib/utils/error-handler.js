@@ -59,16 +59,13 @@ function errorHandler (er) {
     er.errno = npm[m] || constants[m]
   }
 
-  switch (er.errno) {
+  console.error("")
+  switch (er.code || er.errno) {
   case "ECONNREFUSED":
   case constants.ECONNREFUSED:
     log.error(er)
-    log.error(["If you are using Cygwin, please set up your /etc/resolv.conf"
-              ,"See step 4 in this wiki page:"
-              ,"    http://github.com/ry/node/wiki/Building-node.js-on-Cygwin-%28Windows%29"
-              ,"If you are not using Cygwin, please report this"
-              ,"at <http://github.com/isaacs/npm/issues>"
-              ,"or email it to <npm-@googlegroups.com>"
+    log.error(["\nIf you are behind a proxy, please make sure that the"
+              ,"'proxy' config is set properly.  See: 'npm help config'"
               ].join("\n"))
     break
 
@@ -77,15 +74,7 @@ function errorHandler (er) {
   case constants.EACCES:
   case constants.EPERM:
     log.error(er)
-    log.error(["",
-              "Please use 'sudo' or log in as root to run this command."
-              ,""
-              ,"    sudo npm "
-                +npm.config.get("argv").original.map(JSON.stringify).join(" ")
-              ,""
-              ,"or set the 'unsafe-perm' config var to true."
-              ,""
-              ,"    npm config set unsafe-perm true"
+    log.error(["\nPlease try running this command again as root/Administrator."
               ].join("\n"))
     break
 
@@ -118,15 +107,16 @@ function errorHandler (er) {
     er.code = "E404"
     if (er.pkgid && er.pkgid !== "-") {
       var msg = ["'"+er.pkgid+"' is not in the npm registry."
-                ,"You could maybe bug the author to publish it"]
+                ,"You should bug the author to publish it"]
       if (er.pkgid.match(/^node[\.\-]|[\.\-]js$/)) {
         var s = er.pkgid.replace(/^node[\.\-]|[\.\-]js$/g, "")
         if (s !== er.pkgid) {
           s = s.replace(/[^a-z0-9]/g, ' ')
-          msg.push("Maybe try 'npm search " + s + "'")
+          msg.push("\nMaybe try 'npm search " + s + "'")
         }
       }
-      msg.push("Note that you can also install from a tarball or folder.")
+      msg.push("\nNote that you can also install from a"
+              ,"tarball, folder, or http url, or git url.")
       log.error(msg.join("\n"), "404")
     }
     break
@@ -178,7 +168,7 @@ function errorHandler (er) {
 
   default:
     log.error(er)
-    log.error(["Report this *entire* log at:"
+    log.error(["You may report this log at:"
               ,"    <http://github.com/isaacs/npm/issues>"
               ,"or email it to:"
               ,"    <npm-@googlegroups.com>"
@@ -208,6 +198,7 @@ function errorHandler (er) {
     , "arguments"
     , "code"
     , "message"
+    , "errno"
     ].forEach(function (k) {
       if (er[k]) log.error(er[k], k)
     })

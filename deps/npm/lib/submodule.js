@@ -57,13 +57,13 @@ function submodule_ (pkg, cb) {
 }
 
 function updateSubmodule (name, cb) {
-  exec( "git", [ "submodule", "update", "--init"
+  exec( npm.config.get("git"), [ "submodule", "update", "--init"
                , "node_modules/" + name ]
       , null, true, npm.prefix, cb)
 }
 
 function addSubmodule (name, url, cb) {
-  exec( "git", [ "submodule", "add", url
+  exec( npm.config.get("git"), [ "submodule", "add", url
                , "node_modules/" + name ]
       , null, true, npm.prefix, function (er) {
     if (er) return cb(er)
@@ -73,7 +73,7 @@ function addSubmodule (name, url, cb) {
 
 
 var getSubmodules = function getSubmodules (cb) {
-  exec( "git", ["submodule", "status"], null, false
+  exec( npm.config.get("git"), ["submodule", "status"], null, false
       , npm.prefix, function (er, code, stdout, stderr) {
     if (er) return cb(er)
     res = stdout.trim().split(/\n/).map(function (line) {

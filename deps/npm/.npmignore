@@ -10,3 +10,4 @@ node_modules/.bin
 npm-debug.log
 ./npmrc
 .gitignore
+release/

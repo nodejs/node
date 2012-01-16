@@ -7,7 +7,13 @@ set -o errexit
 set -o pipefail
 
 if ! [ -x node_modules/.bin/ronn ]; then
+  ps=0
   if [ -f .building_ronn ]; then
+    pid=$(cat .building_ronn)
+    ps=$(ps -p $pid | grep $pid | wc -l) || true
+  fi
+
+  if [ -f .building_ronn ] && [ $ps != 0 ]; then
     while [ -f .building_ronn ]; do
       sleep 1
     done
@@ -16,7 +22,7 @@ if ! [ -x node_modules/.bin/ronn ]; then
     echo $$ > .building_ronn
     sleep 1
     if [ $(cat .building_ronn) == $$ ]; then
-      make node_modules/ronn
+      make node_modules/.bin/ronn
       rm .building_ronn
     else
       while [ -f .building_ronn ]; do

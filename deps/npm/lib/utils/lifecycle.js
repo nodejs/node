@@ -269,7 +269,7 @@ function cmd (stage) {
         return [npm.commands, "run-script", [p, stage]]
       }), cb)
     } else npm.commands["run-script"]([stage], cb)
- }
+  }
   CMD.usage = "npm "+stage+" <name>"
   var installedShallow = require("./completion/installed-shallow.js")
   CMD.completion = function (opts, cb) {
