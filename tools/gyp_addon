@@ -4,20 +4,18 @@ import sys
 
 script_dir = os.path.dirname(__file__)
 node_root  = os.path.normpath(os.path.join(script_dir, os.pardir))
-node_tools = os.path.join(node_root, 'lib', 'node', 'tools')
 
-sys.path.insert(0, os.path.join(node_tools, 'gyp', 'pylib'))
+sys.path.insert(0, os.path.join(node_root, 'tools', 'gyp', 'pylib'))
 import gyp
 
 if __name__ == '__main__':
   args = sys.argv[1:]
-  addon_gypi = os.path.join(node_tools, 'addon.gypi')
-  common_gypi = os.path.join(node_root, 'lib', 'node', 'common.gypi')
+  addon_gypi = os.path.join(node_root, 'tools', 'addon.gypi')
+  common_gypi = os.path.join(node_root, 'common.gypi')
   args.extend(['-I', addon_gypi])
   args.extend(['-I', common_gypi])
   args.extend(['-Dlibrary=shared_library'])
   args.extend(['-Dvisibility=default'])
-  args.extend(['-Dnode_root_dir=%s' % node_root])
   args.extend(['--depth=.']);
 
   gyp_args = list(args)
