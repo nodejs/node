@@ -27,12 +27,9 @@ mandocs = $(api_mandocs) $(cli_mandocs)
 
 htmldocs = $(api_htmldocs) $(cli_htmldocs)
 
-all: submodules doc
+all: doc
 
-submodules:
-	! [ -d .git ] || git submodule update --init --recursive
-
-latest: submodules
+latest:
 	@echo "Installing latest published npm"
 	@echo "Use 'make install' or 'make link' to install the code"
 	@echo "in this folder that you're looking at right now."
@@ -51,7 +48,7 @@ clean: doc-clean uninstall
 	rm npmrc
 	node cli.js cache clean
 
-uninstall: submodules
+uninstall:
 	node cli.js rm npm -g -f
 
 doc: $(mandocs) $(htmldocs)
@@ -94,14 +91,14 @@ html/api/%.html: doc/api/%.md html/dochead.html html/docfoot.html scripts/doc-bu
 doc/cli/index.md: $(markdowns) scripts/index-build.js scripts/doc-build.sh package.json
 	node scripts/index-build.js > $@
 
-node_modules/ronn:
+node_modules/.bin/ronn:
 	node cli.js install https://github.com/isaacs/ronnjs/tarball/master
 
 doc: man
 
 man: $(cli_docs) $(api_docs)
 
-test: submodules
+test:
 	node cli.js test
 
 version: link
@@ -109,9 +106,10 @@ version: link
 	git ci -m v$(shell npm -v)
 
 publish: link doc
-	git tag -d v$(shell npm -v) || true
-	git push origin :v$(shell npm -v) || true
-	npm unpublish npm@$(shell npm -v) || true
+	@git tag -d v$(shell npm -v) || true
+	@git push origin :v$(shell npm -v) || true
+	@npm unpublish npm@$(shell npm -v) || true
+	git clean -fd
 	git tag -s -m v$(shell npm -v) v$(shell npm -v) &&\
 	git push origin --tags &&\
 	npm publish &&\

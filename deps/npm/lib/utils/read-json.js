@@ -362,11 +362,23 @@ function processObject (opts, cb) { return function (er, json) {
     delete json["dev-dependencies"]
   }
 
-  ;["dependencies", "devDependencies"].forEach(function (d) {
-    json[d] = json.hasOwnProperty(d) ? depObjectify(json[d], d, json._id) : {}
+  ; [ "dependencies"
+    , "devDependencies"
+    , "optionalDependencies"
+    ].forEach(function (d) {
+      json[d] = json.hasOwnProperty(d)
+              ? depObjectify(json[d], d, json._id)
+              : {}
+    })
+
+  // always merge optionals into deps
+  Object.keys(json.optionalDependencies).forEach(function (d) {
+    json.dependencies[d] = json.optionalDependencies[d]
   })
 
-  if (opts.dev || npm.config.get("dev") || npm.config.get("npat")) {
+  if (opts.dev
+      || npm.config.get("dev")
+      || npm.config.get("npat")) {
     // log.warn(json._id, "Adding devdeps")
     Object.keys(json.devDependencies || {}).forEach(function (d) {
       json.dependencies[d] = json.devDependencies[d]

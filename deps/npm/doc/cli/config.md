@@ -101,6 +101,7 @@ The following shorthands are parsed on the command-line:
 * `-v`: `--version`
 * `-h`, `-?`, `--help`, `-H`: `--usage`
 * `-s`, `--silent`: `--loglevel silent`
+* `-q`, `--quiet`: `--loglevel warn`
 * `-d`: `--loglevel info`
 * `-dd`, `--verbose`: `--loglevel verbose`
 * `-ddd`: `--loglevel silly`
@@ -277,6 +278,15 @@ Makes various commands more forceful.
 * publishing clobbers previously published versions.
 * skips cache when requesting from the registry.
 * prevents checks against clobbering non-npm files.
+
+### git
+
+* Default: `"git"`
+* Type: String
+
+The command to use for git commands.  If git is installed on the
+computer, but is not in the `PATH`, then set this to the full path to
+the git binary.
 
 ### global
 

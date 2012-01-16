@@ -40,7 +40,7 @@ function version (args, cb) {
   })
 }
 function checkGit (data, cb) {
-  exec( "git", ["status", "--porcelain"], process.env, false
+  exec( npm.config.get("git"), ["status", "--porcelain"], process.env, false
       , function (er, code, stdout, stderr) {
     var lines = stdout.trim().split("\n").filter(function (line) {
       return line.trim() && !line.match(/^\?\? /)
@@ -51,10 +51,12 @@ function checkGit (data, cb) {
       if (er) return cb(er)
       var message = npm.config.get("message").replace(/%s/g, data.version)
       chain
-        ( [ [ exec, "git", ["add","package.json"], process.env, false ]
-          , [ exec, "git", ["commit", "-m", message ]
-            , process.env, false ]
-          , [ exec, "git", ["tag", "v"+data.version], process.env, false ] ]
+        ( [ [ exec, npm.config.get("git")
+            , ["add","package.json"], process.env, false ]
+          , [ exec, npm.config.get("git")
+            , ["commit", "-m", message ], process.env, false ]
+          , [ exec, npm.config.get("git")
+            , ["tag", "v"+data.version], process.env, false ] ]
         , cb )
     })
   })

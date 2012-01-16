@@ -156,7 +156,7 @@ function unParseField (f, k) {
   if (isPath) {
     if (typeof process.env.HOME !== 'undefined') {
       if (process.env.HOME.substr(-1) === "/") {
-        process.env.HOME = process.env.HOME(0, process.env.HOME.length-1)
+        process.env.HOME = process.env.HOME.slice(0, process.env.HOME.length-1)
       }
       if (f.indexOf(process.env.HOME) === 0) {
         f = "~"+f.substr(process.env.HOME.length)

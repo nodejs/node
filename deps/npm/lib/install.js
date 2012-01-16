@@ -118,11 +118,9 @@ function install (args, cb_) {
         installManyTop(deps.map(function (dep) {
           var target = data.dependencies[dep]
             , parsed = url.parse(target.replace(/^git\+/, "git"))
-          if (!parsed.protocol) {
-            target = dep + "@" + target
-          }
+          target = dep + "@" + target
           return target
-        }), where, family, ancestors, false, cb)
+        }), where, family, ancestors, false, data, cb)
       })
     }
 
@@ -134,7 +132,7 @@ function install (args, cb_) {
         , ancestors = {}
       if (data) family[data.name] = ancestors[data.name] = data.version
       var fn = npm.config.get("global") ? installMany : installManyTop
-      fn(args, where, family, ancestors, true, cb)
+      fn(args, where, family, ancestors, true, data, cb)
     })
   })
 }
@@ -151,15 +149,12 @@ function save (where, installed, tree, pretty, cb) {
   // The relevant tree shape is { <folder>: {what:<pkg>} }
   var saveTarget = path.resolve(where, "package.json")
     , things = Object.keys(tree).map(function (k) {
-        //log.warn(k, "k")
         return tree[k].what.split("@")
       }).reduce(function (set, k) {
         var rangeDescriptor = semver.gte(k[1], "0.1.0") ? "~" : ""
         set[k[0]] = rangeDescriptor + k[1]
         return set
       }, {})
-
-  //log.warn(things, "things")
 
   // don't use readJson, because we don't want to do all the other
   // tricky npm-specific stuff that's in there.
@@ -257,7 +252,7 @@ function treeify (installed) {
 
 // just like installMany, but also add the existing packages in
 // where/node_modules to the family object.
-function installManyTop (what, where, family, ancestors, explicit, cb_) {
+function installManyTop (what, where, family, ancestors, explicit, parent, cb_) {
 
   function cb (er, d) {
     if (explicit || er) return cb_(er, d)
@@ -277,18 +272,18 @@ function installManyTop (what, where, family, ancestors, explicit, cb_) {
 
   function next (er) {
     if (er) return cb(er)
-    installManyTop_(what, where, family, ancestors, explicit, cb)
+    installManyTop_(what, where, family, ancestors, explicit, parent, cb)
   }
 }
 
-function installManyTop_ (what, where, family, ancestors, explicit, cb) {
+function installManyTop_ (what, where, family, ancestors, explicit, parent, cb) {
   var nm = path.resolve(where, "node_modules")
     , names = explicit
             ? what.map(function (w) { return w.split(/@/).shift() })
             : []
 
   fs.readdir(nm, function (er, pkgs) {
-    if (er) return installMany(what, where, family, ancestors, explicit, cb)
+    if (er) return installMany(what, where, family, ancestors, explicit, parent, cb)
     pkgs = pkgs.filter(function (p) {
       return !p.match(/^[\._-]/)
           && (!explicit || names.indexOf(p) === -1)
@@ -306,12 +301,12 @@ function installManyTop_ (what, where, family, ancestors, explicit, cb) {
       packages.forEach(function (p) {
         family[p[0]] = p[1]
       })
-      return installMany(what, where, family, ancestors, explicit, cb)
+      return installMany(what, where, family, ancestors, explicit, parent, cb)
     })
   })
 }
 
-function installMany (what, where, family, ancestors, explicit, cb) {
+function installMany (what, where, family, ancestors, explicit, parent, cb) {
   // 'npm install foo' should install the version of foo
   // that satisfies the dep in the current folder.
   // This will typically return immediately, since we already read
@@ -320,15 +315,16 @@ function installMany (what, where, family, ancestors, explicit, cb) {
     if (er) data = {}
 
     d = data.dependencies || {}
-    var parent = data._id
+    var parent = data
 
-    log.verbose(what, "into "+where)
     // what is a list of things.
     // resolve each one.
     asyncMap( what
-            , targetResolver(where, family, ancestors, explicit, d)
+            , targetResolver(where, family, ancestors, explicit, d, parent)
             , function (er, targets) {
+
       if (er) return cb(er)
+
       // each target will be a data object corresponding
       // to a package, folder, or whatever that is in the cache now.
       var newPrev = Object.create(family)
@@ -350,7 +346,7 @@ function installMany (what, where, family, ancestors, explicit, cb) {
   })
 }
 
-function targetResolver (where, family, ancestors, explicit, deps) {
+function targetResolver (where, family, ancestors, explicit, deps, parent) {
   var alreadyInstalledManually = explicit ? [] : null
     , nm = path.resolve(where, "node_modules")
 
@@ -389,8 +385,13 @@ function targetResolver (where, family, ancestors, explicit, deps) {
     if (deps[what]) {
       what = what + "@" + deps[what]
     }
-    log.verbose(what, "cache add")
+
     cache.add(what, function (er, data) {
+      if (er && parent && parent.optionalDependencies &&
+          parent.optionalDependencies.hasOwnProperty(what.split("@").shift())) {
+        log.warn(what, "optional dependency failed, continuing")
+        return cb(null, [])
+      }
       if (!er && data && family[data.name] === data.version) {
         return cb(null, [])
       }
@@ -430,7 +431,7 @@ function localLink (target, where, family, ancestors, parent, cb) {
       function thenLink () {
         npm.commands.link([target.name], function (er, d) {
           log.silly([er, d], "back from link")
-          cb(er, [resultList(target, where, parent)])
+          cb(er, [resultList(target, where, parent && parent._id)])
         })
       }
 
@@ -441,7 +442,7 @@ function localLink (target, where, family, ancestors, parent, cb) {
   })
 }
 
-function resultList (target, where, parent) {
+function resultList (target, where, parentId) {
   var nm = path.resolve(where, "node_modules")
     , targetFolder = path.resolve(nm, target.name)
     , prettyWhere = relativize(where, process.cwd() + "/x")
@@ -456,8 +457,8 @@ function resultList (target, where, parent) {
 
   return [ target._id
          , targetFolder
-         , prettyWhere && parent
-         , parent && prettyWhere ]
+         , prettyWhere && parentId
+         , parentId && prettyWhere ]
 }
 
 function installOne_ (target, where, family, ancestors, parent, cb) {
@@ -475,8 +476,7 @@ function installOne_ (target, where, family, ancestors, parent, cb) {
     , function (er, d) {
         log.verbose(target._id, "installOne cb")
         if (er) return cb(er)
-
-        d.push(resultList(target, where, parent))
+        d.push(resultList(target, where, parent && parent._id))
         cb(er, d)
       }
     )
@@ -591,12 +591,9 @@ function write (target, targetFolder, family, ancestors, cb_) {
       }).map(function (d) {
         var t = target.dependencies[d]
           , parsed = url.parse(t.replace(/^git\+/, "git"))
-        if (!parsed.protocol) {
-          t = d + "@" + t
-        }
+        t = d + "@" + t
         return t
-      }), targetFolder, family, ancestors, false, function (er, d) {
-        //log.warn(d, "write installMany cb")
+      }), targetFolder, family, ancestors, false, target, function (er, d) {
         log.verbose(targetFolder, "about to build")
         if (er) return cb(er)
         npm.commands.build( [targetFolder]

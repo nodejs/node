@@ -22,13 +22,16 @@ var Cookie = exports = module.exports = function Cookie(str, req) {
   this.str = str;
 
   // First key is the name
-  this.name = str.substr(0, str.indexOf('='));
+  this.name = str.substr(0, str.indexOf('=')).trim();
 
   // Map the key/val pairs
   str.split(/ *; */).reduce(function(obj, pair){
-    pair = pair.split(/ *= */);
-    obj[pair[0].toLowerCase()] = pair[1] || true;
-    return obj;
+   var p = pair.indexOf('=');
+   if(p > 0)
+    obj[pair.substring(0, p).trim()] = pair.substring(p + 1).trim();
+   else
+    obj[pair.trim()] = true;
+   return obj;
   }, this);
 
   // Assign value
@@ -40,7 +43,9 @@ var Cookie = exports = module.exports = function Cookie(str, req) {
     : Infinity;
 
   // Default or trim path
-  this.path = this.path || '/';
+  this.path = this.path
+    ? this.path.trim(): req 
+    ? url.parse(req.url).pathname: '/';
 };
 
 /**

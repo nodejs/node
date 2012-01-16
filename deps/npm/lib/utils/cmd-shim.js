@@ -1,4 +1,4 @@
-// XXX Todo: 
+// XXX Todo:
 // On windows, create a .cmd file.
 // Read the #! in the file to see what it uses.  The vast majority
 // of the time, this will be either:
@@ -37,13 +37,14 @@ function cmdShim (from, to, cb) {
   chain
     ( [ [fs, "stat", from]
       , [rm, to + ".cmd"]
+      , [rm, to]
       , [mkdir, path.dirname(to)]
       , [writeShim, from, to] ]
     , cb )
 }
 
 function writeShim (from, to, cb) {
-  // make a cmd file
+  // make a cmd file and a sh script
   // First, check if the bin is a #! of some sort.
   // If not, then assume it's something that'll be compiled, or some other
   // sort of script, and just call it directly.
@@ -59,16 +60,23 @@ function writeShim (from, to, cb) {
 }
 
 function writeShim_ (from, to, prog, args, cb) {
-  var target = relativize(from, to).split("/").join("\\")
+  var shTarget = relativize(from, to)
+    , target = shTarget.split("/").join("\\")
     , longProg
+    , shProg = prog
+    , shLongProg
   args = args || ""
   if (!prog) {
     prog = "\"%~dp0\\" + target + "\""
+    shProg = "\"`dirname \"$0\"`/" + shTarget + "\""
     args = ""
     target = ""
+    shTarget = ""
   } else {
     longProg = "\"%~dp0\"\\\"" + prog + ".exe\""
+    shLongProg = "\"`dirname \"$0\"`/" + prog + "\""
     target = "\"%~dp0\\" + target + "\""
+    shTarget = "\"`dirname \"$0\"`/" + shTarget + "\""
   }
 
   // @IF EXIST "%~dp0"\"node.exe" (
@@ -89,10 +97,40 @@ function writeShim_ (from, to, prog, args, cb) {
 
   cmd = ":: Created by npm, please don't edit manually.\r\n" + cmd
 
+  // #!/bin/sh
+  // if [ -x "`dirname "$0"`/node.exe" ]; then
+  //   "`dirname "$0"`/node.exe" "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  // else
+  //   node "`dirname "$0"`/node_modules/npm/bin/npm-cli.js" "$@"
+  // fi
+  var sh = "#!/bin/sh\n"
+
+  if (shLongProg) {
+    sh = sh
+       + "if [ -x "+shLongProg+" ]; then\n"
+       + "  " + shLongProg + " " + args + " " + shTarget + " \"$@\"\n"
+       + "  ret=$?\n"
+       + "else \n"
+       + "  " + shProg + " " + args + " " + shTarget + " \"$@\"\n"
+       + "  ret=$?\n"
+       + "fi\n"
+       + "exit $ret\n"
+  } else {
+    sh = shProg + " " + args + " " + shTarget + " \"$@\"\n"
+       + "exit $?\n"
+  }
+
   fs.writeFile(to + ".cmd", cmd, "utf8", function (er) {
     if (er) {
       log.warn("Could not write "+to+".cmd", "cmdShim")
+      return cb(er)
     }
-    cb(er)
+    fs.writeFile(to, sh, "utf8", function (er) {
+      if (er) {
+        log.warn("Could not write "+to, "shShim")
+        return cb(er)
+      }
+      fs.chmod(to, 0755, cb)
+    })
   })
 }

@@ -7,7 +7,7 @@ are saved on the object directly.
 
 Consider an ini-file `config.ini` that looks like this:
 
-    ; this comment is beeing ignored
+    ; this comment is being ignored
     scope = global
 
     [database]
