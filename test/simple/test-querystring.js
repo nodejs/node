@@ -189,6 +189,22 @@ assert.equal(
   1
 );
 
+// Test removing limit
+function testUnlimitedKeys() {
+  var query = {},
+      url;
+
+  for (var i = 0; i < 2000; i++) query[i] = i;
+
+  url = qs.stringify(query);
+
+  assert.equal(
+    Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
+    2000
+  );
+}
+testUnlimitedKeys();
+
 
 var b = qs.unescapeBuffer('%d3%f2Ug%1f6v%24%5e%98%cb' +
                           '%0d%ac%a2%2f%9d%eb%d8%a2%e6');
