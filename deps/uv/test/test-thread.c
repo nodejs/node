@@ -59,8 +59,6 @@ static volatile int thread_called;
 static void getaddrinfo_do(struct getaddrinfo_req* req) {
   int r;
 
-  ASSERT(req->thread_id == uv_thread_self());
-
   r = uv_getaddrinfo(req->loop,
                      &req->handle,
                      getaddrinfo_cb,
@@ -89,8 +87,6 @@ static void getaddrinfo_cb(uv_getaddrinfo_t* handle,
 static void fs_do(struct fs_req* req) {
   int r;
 
-  ASSERT(req->thread_id == uv_thread_self());
-
   r = uv_fs_stat(req->loop, &req->handle, ".", fs_cb);
   ASSERT(r == 0);
 }
@@ -107,19 +103,15 @@ static void fs_cb(uv_fs_t* handle) {
 static void do_work(void* arg) {
   struct getaddrinfo_req getaddrinfo_reqs[16];
   struct fs_req fs_reqs[16];
-  uv_thread_t self;
   uv_loop_t* loop;
   size_t i;
   int r;
-
-  self = uv_thread_self();
 
   loop = uv_loop_new();
   ASSERT(loop != NULL);
 
   for (i = 0; i < ARRAY_SIZE(getaddrinfo_reqs); i++) {
     struct getaddrinfo_req* req = getaddrinfo_reqs + i;
-    req->thread_id = self;
     req->counter = 16;
     req->loop = loop;
     getaddrinfo_do(req);
@@ -127,7 +119,6 @@ static void do_work(void* arg) {
 
   for (i = 0; i < ARRAY_SIZE(fs_reqs); i++) {
     struct fs_req* req = fs_reqs + i;
-    req->thread_id = self;
     req->counter = 16;
     req->loop = loop;
     fs_do(req);
@@ -158,13 +149,6 @@ TEST_IMPL(thread_create) {
 
   ASSERT(thread_called == 1);
 
-  return 0;
-}
-
-
-TEST_IMPL(thread_self) {
-  uv_thread_t tid;
-  tid = uv_thread_self();
   return 0;
 }
 

@@ -30,10 +30,6 @@
 #include <stdlib.h>
 
 
-static uv_once_t uv__pipe_pair_lock_guard = UV_ONCE_INIT;
-static uv_mutex_t uv__pipe_pair_lock;
-
-
 int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   uv__stream_init(loop, (uv_stream_t*)handle, UV_NAMED_PIPE);
   loop->counters.pipe_init++;
@@ -41,38 +37,6 @@ int uv_pipe_init(uv_loop_t* loop, uv_pipe_t* handle, int ipc) {
   handle->ipc = ipc;
   return 0;
 }
-
-
-void uv__pipe_pair_lock_init() {
-  uv_mutex_init(&uv__pipe_pair_lock);
-}
-
-
-uv_err_t uv_pipe_pair(uv_pipe_t* a, uv_pipe_t* b) {
-  int fds[2];
-  int r;
-  uv_err_t err;
-
-  /* Make sure that the mutex is only initialized once. */
-  uv_once(&uv__pipe_pair_lock_guard, uv__pipe_pair_lock_init);
-
-  uv_mutex_lock(&uv__pipe_pair_lock);
-
-  r = uv__make_socketpair(fds, UV__F_NONBLOCK | UV__F_IPC);
-
-  if (r) {
-    err = uv__new_sys_error(errno);
-  } else {
-    uv_pipe_open(a, fds[0]);
-    uv_pipe_open(b, fds[1]);
-    err = uv_ok_;
-  }
-
-  uv_mutex_unlock(&uv__pipe_pair_lock);
-
-  return err;
-}
-
 
 
 int uv_pipe_bind(uv_pipe_t* handle, const char* name) {

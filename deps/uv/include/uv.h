@@ -785,13 +785,6 @@ struct uv_pipe_s {
 UV_EXTERN int uv_pipe_init(uv_loop_t*, uv_pipe_t* handle, int ipc);
 
 /*
- * Connects two initialized pipes on different loops.
- * Data written to one pipe will appear on the other side.
- * This function is thread-safe.
- */
-UV_EXTERN uv_err_t uv_pipe_pair(uv_pipe_t* a, uv_pipe_t* b);
-
-/*
  * Opens an existing file descriptor or HANDLE as a pipe.
  */
 UV_EXTERN void uv_pipe_open(uv_pipe_t*, uv_file file);
@@ -1356,7 +1349,6 @@ UV_EXTERN void uv_once(uv_once_t* guard, void (*callback)(void));
 UV_EXTERN int uv_thread_create(uv_thread_t *tid,
     void (*entry)(void *arg), void *arg);
 UV_EXTERN int uv_thread_join(uv_thread_t *tid);
-UV_EXTERN uv_thread_t uv_thread_self(void);
 
 /* the presence of these unions force similar struct layout */
 union uv_any_handle {

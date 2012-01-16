@@ -47,10 +47,6 @@ int uv_thread_join(uv_thread_t *tid) {
     return 0;
 }
 
-uv_thread_t uv_thread_self(void) {
-  return pthread_self();
-}
-
 
 int uv_mutex_init(uv_mutex_t* mutex) {
   if (pthread_mutex_init(mutex, NULL))

@@ -221,7 +221,7 @@ int uv_run(uv_loop_t* loop) {
 
 
 int uv_run_once(uv_loop_t* loop) {
-  ev_run(loop->ev, EVRUN_NOWAIT);
+  ev_run(loop->ev, EVRUN_ONCE);
   return 0;
 }
 

@@ -23,6 +23,7 @@
 # define _WIN32_WINNT   0x0502
 #endif
 
+#include <process.h>
 #include <stdint.h>
 #include <winsock2.h>
 #include <mswsock.h>
@@ -102,6 +103,9 @@
                        LPOVERLAPPED lpOverlapped,
                        LPTRANSMIT_FILE_BUFFERS lpTransmitBuffers,
                        DWORD dwFlags);
+
+  typedef PVOID RTL_SRWLOCK;
+  typedef RTL_SRWLOCK SRWLOCK, *PSRWLOCK;
 #endif
 
 typedef int (WSAAPI* LPFN_WSARECV)
@@ -144,7 +148,7 @@ typedef CRITICAL_SECTION uv_mutex_t;
 typedef union {
   /* srwlock_ has type SRWLOCK, but not all toolchains define this type in */
   /* windows.h. */
-  void* srwlock_;
+  SRWLOCK srwlock_;
   struct {
     uv_mutex_t read_mutex_;
     uv_mutex_t write_mutex_;

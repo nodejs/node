@@ -4337,11 +4337,6 @@ typedef NTSTATUS (NTAPI *sNtSetInformationFile)
   } OVERLAPPED_ENTRY, *LPOVERLAPPED_ENTRY;
 #endif
 
-#ifdef __MINGW32__
-  typedef PVOID RTL_SRWLOCK;
-  typedef RTL_SRWLOCK SRWLOCK, *PSRWLOCK;
-#endif
-
 /* from wincon.h */
 #ifndef ENABLE_INSERT_MODE
 # define ENABLE_INSERT_MODE 0x20
