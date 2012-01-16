@@ -46,9 +46,11 @@ void after_work_cb(uv_work_t* work) {
 
 
 void make_eio_req(void) {
+  uv_work_t* w;
+
   opened++;
 
-  uv_work_t* w = (uv_work_t*) malloc(sizeof(*w));
+  w = (uv_work_t*) malloc(sizeof(*w));
   ASSERT(w != NULL);
 
   uv_queue_work(uv_default_loop(), w, work_cb, after_work_cb);

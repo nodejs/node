@@ -328,21 +328,3 @@ TEST_IMPL(fs_event_immediate_close) {
 
   return 0;
 }
-
-
-TEST_IMPL(fs_event_unref) {
-  uv_loop_t* loop;
-  int r;
-
-  loop = uv_default_loop();
-
-  r = uv_fs_event_init(loop, &fs_event, ".", fs_event_fail, 0);
-  ASSERT(r == 0);
-
-  uv_unref(loop);
-
-  r = uv_run(loop);
-  ASSERT(r == 0);
-
-  return 0;
-}

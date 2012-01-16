@@ -63,12 +63,6 @@ void uv__next(EV_P_ ev_idle* watcher, int revents);
 static void uv__finish_close(uv_handle_t* handle);
 
 
-
-#ifndef __GNUC__
-#define __attribute__(a)
-#endif
-
-
 void uv_close(uv_handle_t* handle, uv_close_cb close_cb) {
   uv_udp_t* udp;
   uv_async_t* async;
@@ -199,6 +193,11 @@ void uv_loop_delete(uv_loop_t* loop) {
     default_loop_ptr = NULL;
   else
     free(loop);
+}
+
+
+int uv_loop_refcount(const uv_loop_t* loop) {
+  return ev_loop_refcount(loop->ev);
 }
 
 

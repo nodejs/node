@@ -202,6 +202,9 @@ typedef struct uv_work_s uv_work_t;
 UV_EXTERN uv_loop_t* uv_loop_new(void);
 UV_EXTERN void uv_loop_delete(uv_loop_t*);
 
+/* This is a debugging tool. It's NOT part of the official API. */
+UV_EXTERN int uv_loop_refcount(const uv_loop_t*);
+
 
 /*
  * Returns the default loop.

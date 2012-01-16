@@ -42,6 +42,10 @@ static int uv__udp_send(uv_udp_send_t* req, uv_udp_t* handle, uv_buf_t bufs[],
 static void uv__udp_watcher_start(uv_udp_t* handle, ev_io* w) {
   int flags;
 
+  if (ev_is_active(w)) {
+    return;
+  }
+
   assert(w == &handle->read_watcher
       || w == &handle->write_watcher);
 
@@ -51,17 +55,23 @@ static void uv__udp_watcher_start(uv_udp_t* handle, ev_io* w) {
   ev_set_cb(w, uv__udp_io);
   ev_io_set(w, handle->fd, flags);
   ev_io_start(handle->loop->ev, w);
+  ev_unref(handle->loop->ev);
 }
 
 
 void uv__udp_watcher_stop(uv_udp_t* handle, ev_io* w) {
   int flags;
 
+  if (!ev_is_active(w)) {
+    return;
+  }
+
   assert(w == &handle->read_watcher
       || w == &handle->write_watcher);
 
   flags = (w == &handle->read_watcher ? EV_READ : EV_WRITE);
 
+  ev_ref(handle->loop->ev);
   ev_io_stop(handle->loop->ev, w);
   ev_io_set(w, -1, flags);
   ev_set_cb(w, NULL);
@@ -332,7 +342,7 @@ static int uv__bind(uv_udp_t* handle,
       goto out;
     }
 #else
-    uv__set_sys_error((uv_handle_t*)handle, ENOTSUP);
+    uv__set_sys_error(handle->loop, ENOTSUP);
     goto out;
 #endif
   }

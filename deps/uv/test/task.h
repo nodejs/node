@@ -42,6 +42,7 @@
 
 typedef enum {
   TCP = 0,
+  UDP,
   PIPE
 } stream_type;
 
