@@ -38,7 +38,7 @@ elsewhere.
 - [ncurses](https://github.com/mscdex/node-ncurses)
 
 - Testing/TDD/BDD: [vows](http://vowsjs.org/),
-  [expresso](https://github.com/visionmedia/expresso),
+  [mocha](https://github.com/visionmedia/mocha),
   [mjsunit.runner](https://github.com/tmpvar/mjsunit.runner)
 
 Patches to this list are welcome.
