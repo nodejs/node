@@ -31,6 +31,7 @@ ipch/
 *.sdf
 *.opensdf
 
+/config.mk
 /config.gypi
 *-nodegyp*
 /gyp-mac-tool
