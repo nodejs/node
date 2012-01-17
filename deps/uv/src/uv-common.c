@@ -33,14 +33,6 @@
 #include "ares/inet_ntop.h"
 
 
-static uv_counters_t counters;
-
-
-uv_counters_t* uv_counters() {
-  return &counters;
-}
-
-
 size_t uv_strlcpy(char* dst, const char* src, size_t size) {
   size_t n;
 
@@ -300,7 +292,7 @@ int uv_tcp_connect6(uv_connect_t* req,
 
 
 #ifdef _WIN32
-static DWORD __stdcall uv__thread_start(void *ctx_v)
+static UINT __stdcall uv__thread_start(void *ctx_v)
 #else
 static void *uv__thread_start(void *ctx_v)
 #endif

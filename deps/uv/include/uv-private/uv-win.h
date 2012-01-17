@@ -200,7 +200,11 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
   uv_idle_t* next_idle_handle;                                                \
   ares_channel ares_chan;                                                     \
   int ares_active_sockets;                                                    \
-  uv_timer_t ares_polling_timer;
+  uv_timer_t ares_polling_timer;                                              \
+  /* Counter to keep track of active tcp streams */                           \
+  unsigned int active_tcp_streams;                                            \
+  /* Counter to keep track of active udp streams */                           \
+  unsigned int active_udp_streams;
 
 #define UV_REQ_TYPE_PRIVATE               \
   /* TODO: remove the req suffix */       \

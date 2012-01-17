@@ -46,6 +46,12 @@ struct fs_req {
   uv_fs_t handle;
 };
 
+
+struct thread {
+  uv_thread_t thread_id;
+  volatile int thread_called;
+};
+
 static void getaddrinfo_do(struct getaddrinfo_req* req);
 static void getaddrinfo_cb(uv_getaddrinfo_t* handle,
                            int status,
@@ -95,6 +101,8 @@ static void fs_do(struct fs_req* req) {
 static void fs_cb(uv_fs_t* handle) {
   struct fs_req* req = container_of(handle, struct fs_req, handle);
 
+  uv_fs_req_cleanup(handle);
+
   if (--req->counter)
     fs_do(req);
 }
@@ -106,6 +114,7 @@ static void do_work(void* arg) {
   uv_loop_t* loop;
   size_t i;
   int r;
+  struct thread* thread = arg;
 
   loop = uv_loop_new();
   ASSERT(loop != NULL);
@@ -128,6 +137,7 @@ static void do_work(void* arg) {
   ASSERT(r == 0);
 
   uv_loop_delete(loop);
+  thread->thread_called = 1;
 }
 
 
@@ -157,18 +167,21 @@ TEST_IMPL(thread_create) {
  * that each "finished" callback is run in its originating thread.
  */
 TEST_IMPL(threadpool_multiple_event_loops) {
-  uv_thread_t threads[8];
+  struct thread threads[8];
   size_t i;
   int r;
 
+  memset(threads, 0, sizeof(threads));
+
   for (i = 0; i < ARRAY_SIZE(threads); i++) {
-    r = uv_thread_create(threads + i, do_work, NULL);
+    r = uv_thread_create(&threads[i].thread_id, do_work, &threads[i]);
     ASSERT(r == 0);
   }
 
   for (i = 0; i < ARRAY_SIZE(threads); i++) {
-    r = uv_thread_join(threads + i);
+    r = uv_thread_join(&threads[i].thread_id);
     ASSERT(r == 0);
+    ASSERT(threads[i].thread_called);
   }
 
   return 0;
