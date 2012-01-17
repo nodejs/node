@@ -1,3 +1,18 @@
+2012.01.16, Version 0.7.0 (unstable)
+
+* Upgrade V8 to 3.8.6
+
+* Use GYP build system on unix (Ben Noordhuis)
+
+* Experimenetal isolates support (Ben Noordhuis)
+
+* Improvements to Cluster API (Andreas Madsen)
+
+* Use isolates for internal debugger (Fedor Indutny)
+
+* Bug fixes
+
+
 2012.01.06, Version 0.6.7 (stable)
 
 * V8 hash collision fix (Breaks MIPS) (Bert Belder, Erik Corry)
