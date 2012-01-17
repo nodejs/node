@@ -171,6 +171,11 @@ $(TARBALL): node out/doc
 	rm -rf $(TARNAME)
 	gzip -f -9 $(TARNAME).tar
 
+dist-upload: $(TARBALL) $(PKG)
+	ssh node@nodejs.org mkdir -p web/nodejs.org/dist/$(VERSION)
+	scp $(TARBALL) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARBALL)
+	scp $(PKG) node@nodejs.org:~/web/nodejs.org/dist/$(VERSION)/$(TARNAME).pkg
+
 bench:
 	 benchmark/http_simple_bench.sh
 
