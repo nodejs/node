@@ -170,7 +170,7 @@ To know the difference between suicide and accidentally death a suicide boolean 
 
     cluster.on('death', function (worker) {
       if (worker.suicide === true) {
-        console.log('Oh, it was just suicide' – no need to worry').
+        console.log('Oh, it was just suicide\' – no need to worry').
       }
     });
 
