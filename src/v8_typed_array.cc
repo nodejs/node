@@ -140,6 +140,7 @@ class TypedArray {
     v8::HandleScope scope;
     ft_cache = v8::Persistent<v8::FunctionTemplate>::New(
         v8::FunctionTemplate::New(&TypedArray<TBytes, TEAType>::V8New));
+    ft_cache->SetClassName(v8::String::New(TypeName()));
     v8::Local<v8::ObjectTemplate> instance = ft_cache->InstanceTemplate();
     instance->SetInternalFieldCount(0);
 
@@ -375,6 +376,20 @@ class TypedArray {
         v8::Integer::New(end - begin)};
     return TypedArray<TBytes, TEAType>::GetTemplate()->
         GetFunction()->NewInstance(3, argv);
+  }
+
+  static const char* TypeName() {
+    switch (TEAType) {
+      case v8::kExternalByteArray: return "Int8Array";
+      case v8::kExternalUnsignedByteArray: return "Uint8Array";
+      case v8::kExternalShortArray: return "Int16Array";
+      case v8::kExternalUnsignedShortArray: return "Uint16Array";
+      case v8::kExternalIntArray: return "Int32Array";
+      case v8::kExternalUnsignedIntArray: return "Uint32Array";
+      case v8::kExternalFloatArray: return "Float32Array";
+      case v8::kExternalDoubleArray: return "Float64Array";
+    }
+    abort();
   }
 };
 
