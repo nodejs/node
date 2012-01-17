@@ -26,9 +26,9 @@ var repl = require('repl');
 
 // A stream to push an array into a REPL
 function ArrayStream() {
-  this.run = function (data) {
+  this.run = function(data) {
     var self = this;
-    data.forEach(function (line) {
+    data.forEach(function(line) {
       self.emit('data', line);
     });
   }
@@ -36,11 +36,11 @@ function ArrayStream() {
 util.inherits(ArrayStream, require('stream').Stream);
 ArrayStream.prototype.readable = true;
 ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function () {};
-ArrayStream.prototype.write = function () {};
+ArrayStream.prototype.resume = function() {};
+ArrayStream.prototype.write = function() {};
 
-var works = [ [ 'inner.one' ], 'inner.o' ];
-var doesNotBreak = [ [], 'inner.o' ];
+var works = [['inner.one'], 'inner.o'];
+var doesNotBreak = [[], 'inner.o'];
 
 var putIn = new ArrayStream();
 var testMe = repl.start('', putIn);
@@ -49,14 +49,15 @@ var testMe = repl.start('', putIn);
 putIn.run(['.clear']);
 putIn.run([
   'var inner = {',
-  'one:1']);
-testMe.complete('inner.o', function (error, data) {
+  'one:1'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
 // Tab Complete will return globaly scoped variables
 putIn.run(['};']);
-testMe.complete('inner.o', function (error, data) {
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
@@ -66,8 +67,9 @@ putIn.run(['.clear']);
 putIn.run([
   'var inner = ( true ' ,
   '?',
-  '{one: 1} : ']);
-testMe.complete('inner.o', function (error, data) {
+  '{one: 1} : '
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
@@ -76,15 +78,16 @@ putIn.run(['.clear']);
 // Tab Complete will return a simple local variable
 putIn.run([
   'var top = function () {',
-    'var inner = {one:1};']);
-testMe.complete('inner.o', function (error, data) {
+  'var inner = {one:1};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
 // When you close the function scope tab complete will not return the
 // locally scoped variable
 putIn.run(['};']);
-testMe.complete('inner.o', function (error, data) {
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
@@ -93,10 +96,11 @@ putIn.run(['.clear']);
 // Tab Complete will return a complex local variable
 putIn.run([
   'var top = function () {',
-    'var inner = {',
-    ' one:1',
-    '};']);
-testMe.complete('inner.o', function (error, data) {
+  'var inner = {',
+  ' one:1',
+  '};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
@@ -106,10 +110,11 @@ putIn.run(['.clear']);
 // has paramaters
 putIn.run([
   'var top = function (one, two) {',
-    'var inner = {',
-    ' one:1',
-    '};']);
-testMe.complete('inner.o', function (error, data) {
+  'var inner = {',
+  ' one:1',
+  '};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
@@ -119,11 +124,12 @@ putIn.run(['.clear']);
 // scope is nested inside an immediately executed function
 putIn.run([
   'var top = function () {',
-    '(function test () {',
-    'var inner = {',
-    ' one:1',
-    '};']);
-testMe.complete('inner.o', function (error, data) {
+  '(function test () {',
+  'var inner = {',
+  ' one:1',
+  '};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
@@ -133,12 +139,13 @@ putIn.run(['.clear']);
 // def has the params and { on a seperate line
 putIn.run([
   'var top = function () {',
-    'r = function test (',
-    ' one, two) {',
-    'var inner = {',
-    ' one:1',
-    '};']);
-testMe.complete('inner.o', function (error, data) {
+  'r = function test (',
+  ' one, two) {',
+  'var inner = {',
+  ' one:1',
+  '};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
@@ -147,12 +154,13 @@ putIn.run(['.clear']);
 // currently does not work, but should not break, not the {
 putIn.run([
   'var top = function () {',
-    'r = function test ()',
-    '{',
-    'var inner = {',
-    ' one:1',
-    '};']);
-testMe.complete('inner.o', function (error, data) {
+  'r = function test ()',
+  '{',
+  'var inner = {',
+  ' one:1',
+  '};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
@@ -161,13 +169,14 @@ putIn.run(['.clear']);
 // currently does not work, but should not break
 putIn.run([
   'var top = function () {',
-    'r = function test (',
-    ')',
-    '{',
-    'var inner = {',
-    ' one:1',
-    '};']);
-testMe.complete('inner.o', function (error, data) {
+  'r = function test (',
+  ')',
+  '{',
+  'var inner = {',
+  ' one:1',
+  '};'
+]);
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 

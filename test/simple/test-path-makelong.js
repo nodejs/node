@@ -26,13 +26,13 @@ if (process.platform === 'win32') {
 
   var file = path.join(common.fixturesDir, 'a.js');
   var resolvedFile = path.resolve(file);
-  var networkFile = '\\\\someserver\\someshare\\somefile';
 
   assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
   assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));
   assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-    path._makeLong('\\\\someserver\\someshare\\somefile'));
+               path._makeLong('\\\\someserver\\someshare\\somefile'));
   assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-    path._makeLong('\\\\?\\UNC\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\.\\pipe\\somepipe', path._makeLong('\\\\.\\pipe\\somepipe'));
+               path._makeLong('\\\\?\\UNC\\someserver\\someshare\\somefile'));
+  assert.equal('\\\\.\\pipe\\somepipe',
+               path._makeLong('\\\\.\\pipe\\somepipe'));
 }

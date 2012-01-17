@@ -24,4 +24,4 @@
 var child_process = require('child_process');
 var path = require('path');
 child_process.spawn(process.execPath,
-                    [ path.resolve(__dirname, 'test-stdin-pause-resume.js') ]);
+                    [path.resolve(__dirname, 'test-stdin-pause-resume.js')]);

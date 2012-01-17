@@ -28,11 +28,16 @@ var assert = require('assert'),
 // We're trying to reproduce:
 // $ echo "hello\nnode\nand\nworld" | grep o | sed s/o/a/
 
-var echo = is_windows ? spawn('cmd.exe', ['/c', 'echo', 'hello&&', 'echo',
-             'node&&', 'echo', 'and&&', 'echo', 'world']) :
-           spawn('echo', ['hello\nnode\nand\nworld\n']),
-    grep = spawn('grep', ['o']),
-    sed = spawn('sed', ['s/o/O/']);
+var grep = spawn('grep', ['o']),
+    sed = spawn('sed', ['s/o/O/']),
+    echo;
+
+if (is_windows) {
+  echo = spawn('cmd.exe', ['/c', 'echo', 'hello&&', 'echo',
+               'node&&', 'echo', 'and&&', 'echo', 'world']);
+} else {
+  echo = spawn('echo', ['hello\nnode\nand\nworld\n']);
+}
 
 /*
  * grep and sed hang if the spawn function leaks file descriptors to child
