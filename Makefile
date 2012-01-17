@@ -114,7 +114,7 @@ website_files = \
 	out/doc/ryan-speaker.jpg \
 	out/doc/yahoo-logo.png
 
-doc: out/Release/node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
+doc: node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)
 
 $(apidoc_dirs):
 	mkdir -p $@
@@ -125,7 +125,7 @@ out/doc/api/assets/%: doc/api_assets/% out/doc/api/assets/
 out/doc/%: doc/%
 	cp $< $@
 
-out/doc/api/%.html: doc/api/%.markdown out/Release/node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
+out/doc/api/%.html: doc/api/%.markdown node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
 	out/Release/node tools/doctool/doctool.js doc/template.html $< > $@
 
 out/doc/%:
@@ -141,8 +141,11 @@ docclean:
 
 VERSION=v$(shell $(PYTHON) tools/getnodeversion.py)
 TARNAME=node-$(VERSION)
+TARBALL=$(TARNAME).tar.gz
+PKG=out/$(TARNAME).pkg
+packagemaker=/Developer/Applications/Utilities/PackageMaker.app/Contents/MacOS/PackageMaker
 
-dist: $(TARBALL) $(PKG)
+dist: doc $(TARBALL) $(PKG)
 
 PKGDIR=out/dist-osx
 
@@ -150,14 +153,14 @@ pkg: $(PKG)
 
 $(PKG):
 	-rm -rf $(PKGDIR)
-	$(WAF) configure --prefix=/usr/local --without-snapshot
-	DESTDIR=$(PKGDIR) $(WAF) install
+	./configure --prefix=$(PKGDIR)/usr/local --without-snapshot
+	$(MAKE) install
 	$(packagemaker) \
 		--id "org.nodejs.NodeJS-$(VERSION)" \
 		--doc tools/osx-pkg.pmdoc \
 		--out $(PKG)
 
-$(TARBALL): out/doc
+$(TARBALL): node out/doc
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
@@ -184,4 +187,4 @@ cpplint:
 
 lint: jslint cpplint
 
-.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all program staticlib dynamiclib test test-all website-upload
+.PHONY: lint cpplint jslint bench clean docopen docclean doc dist distclean check uninstall install install-includes install-bin all program staticlib dynamiclib test test-all website-upload pkg
