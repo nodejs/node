@@ -61,16 +61,16 @@ assert.ok(ex.indexOf('[type]') != -1);
 
 // GH-1941
 // should not throw:
-assert.equal(util.inspect(Object.create(Date.prototype)), '{}')
+assert.equal(util.inspect(Object.create(Date.prototype)), '{}');
 
 // GH-1944
-assert.doesNotThrow(function () {
+assert.doesNotThrow(function() {
   var d = new Date();
   d.toUTCString = null;
   util.inspect(d);
 });
 
-assert.doesNotThrow(function () {
+assert.doesNotThrow(function() {
   var r = /regexp/;
   r.toString = null;
   util.inspect(r);

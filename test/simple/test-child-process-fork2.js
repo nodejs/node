@@ -47,12 +47,12 @@ server.listen(common.PORT, function() {
 function makeConnections() {
   for (var i = 0; i < N; i++) {
     var socket = net.connect(common.PORT, function() {
-      console.log("CLIENT connected");
+      console.log('CLIENT connected');
     });
 
-    socket.on("close", function() {
+    socket.on('close', function() {
       socketCloses++;
-      console.log("CLIENT closed " + socketCloses);
+      console.log('CLIENT closed ' + socketCloses);
       if (socketCloses == N) {
         n.kill();
         server.close();

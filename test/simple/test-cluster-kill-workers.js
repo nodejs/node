@@ -32,17 +32,17 @@ var fork = require('child_process').fork;
 var isTestRunner = process.argv[2] != 'child';
 
 if (isTestRunner) {
-  console.log("starting master...");
-  var master = fork(__filename, [ 'child' ]);
+  console.log('starting master...');
+  var master = fork(__filename, ['child']);
 
-  console.log("master pid =", master.pid);
+  console.log('master pid =', master.pid);
 
   var workerPID;
 
-  master.on("message", function(m) {
-    console.log("got message from master:", m);
+  master.on('message', function(m) {
+    console.log('got message from master:', m);
     if (m.workerPID) {
-      console.log("worker pid =", m.workerPID);
+      console.log('worker pid =', m.workerPID);
       workerPID = m.workerPID;
     }
   });
@@ -56,13 +56,13 @@ if (isTestRunner) {
     assert(workerPID > 0);
     try {
       process.kill(workerPID, 0);
-    } catch(e) {
+    } catch (e) {
       // workerPID is no longer running
-      console.log(e)
+      console.log(e);
       assert(e.code == 'ESRCH');
       gotKillException = true;
     }
-  })
+  });
 
   process.on('exit', function() {
     assert(gotExit);

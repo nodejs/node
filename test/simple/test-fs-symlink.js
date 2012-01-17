@@ -38,8 +38,7 @@ var runtest = function(skip_symlinks) {
     // Delete previously created link
     try {
       fs.unlinkSync(linkPath);
-    } catch(e)
-    {}
+    } catch (e) {}
 
     fs.symlink(linkData, linkPath, function(err) {
       if (err) throw err;
@@ -60,8 +59,7 @@ var runtest = function(skip_symlinks) {
   // Delete previously created link
   try {
     fs.unlinkSync(dstPath);
-  } catch(e)
-  {}
+  } catch (e) {}
 
   fs.link(srcPath, dstPath, function(err) {
     if (err) throw err;
@@ -71,12 +69,12 @@ var runtest = function(skip_symlinks) {
     assert.equal(srcContent, dstContent);
     completed++;
   });
-}
+};
 
 if (is_windows) {
   // On Windows, creating symlinks requires admin privileges.
   // We'll only try to run symlink test if we have enough privileges.
-  exec("whoami /priv", function(err, o) {
+  exec('whoami /priv', function(err, o) {
     if (err || o.indexOf('SeCreateSymbolicLinkPrivilege') == -1) {
       expected_tests = 1;
       runtest(true);

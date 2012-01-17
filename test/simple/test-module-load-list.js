@@ -24,19 +24,20 @@
 // beginning of this file.
 
 function assertEqual(x, y) {
-  if (x !== y) throw new Error("Expected '" + x + "' got '" + y + "'");
+  if (x !== y) throw new Error('Expected \'' + x + '\' got \'' + y + '\'');
 }
 
 function checkExpected() {
   var toCompare = Math.max(expected.length, process.moduleLoadList.length);
   for (var i = 0; i < toCompare; i++) {
     if (expected[i] !== process.moduleLoadList[i]) {
-      console.error("process.moduleLoadList[" + i + "] = " + process.moduleLoadList[i]);
-      console.error("expected[" + i + "] = " + expected[i]);
+      console.error('process.moduleLoadList[' + i + '] = ' +
+                    process.moduleLoadList[i]);
+      console.error('expected[' + i + '] = ' + expected[i]);
 
-      console.error("process.moduleLoadList", process.moduleLoadList);
-      console.error("expected = ", expected);
-      throw new Error("mismatch");
+      console.error('process.moduleLoadList', process.moduleLoadList);
+      console.error('expected = ', expected);
+      throw new Error('mismatch');
     }
   }
 }

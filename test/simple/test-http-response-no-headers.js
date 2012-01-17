@@ -27,8 +27,8 @@ var net = require('net');
 var expected = {
   '0.9': 'I AM THE WALRUS',
   '1.0': 'I AM THE WALRUS',
-  '1.1': '',
-}
+  '1.1': ''
+};
 
 var gotExpected = false;
 
@@ -38,11 +38,12 @@ function test(httpVersion, callback) {
   });
 
   var server = net.createServer(function(conn) {
-    var reply = 'HTTP/' + httpVersion + ' 200 OK\r\n\r\n' + expected[httpVersion];
+    var reply = 'HTTP/' + httpVersion + ' 200 OK\r\n\r\n' +
+                expected[httpVersion];
 
     conn.write(reply, function() {
       conn.destroy();
-    })
+    });
   });
 
   server.listen(common.PORT, '127.0.0.1', function() {

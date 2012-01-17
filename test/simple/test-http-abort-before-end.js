@@ -28,7 +28,7 @@ var server = http.createServer(function(req, res) {
 });
 
 server.listen(common.PORT, function() {
-  var req = http.request({method:'GET', host:'127.0.0.1', port:common.PORT});
+  var req = http.request({method: 'GET', host: '127.0.0.1', port: common.PORT});
 
   req.on('error', function(ex) {
     // https://github.com/joyent/node/issues/1399#issuecomment-2597359

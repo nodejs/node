@@ -37,7 +37,7 @@ var server = tls.Server({
   key: key,
   passphrase: 'passphrase',
   cert: cert,
-  ca: [ cert ],
+  ca: [cert],
   requestCert: true,
   rejectUnauthorized: true
 }, function(s) {

@@ -35,12 +35,14 @@ assert.equal(path.basename(f, '.js'), 'test-path');
 // c.f. http://www.dwheeler.com/essays/fixing-unix-linux-filenames.html
 if (!isWindows) {
   var controlCharFilename = 'Icon' + String.fromCharCode(13);
-  assert.equal(path.basename('/a/b/' + controlCharFilename), controlCharFilename);
+  assert.equal(path.basename('/a/b/' + controlCharFilename),
+               controlCharFilename);
 }
 
 assert.equal(path.extname(f), '.js');
 
-assert.equal(path.dirname(f).substr(-11), isWindows ? 'test\\simple' : 'test/simple');
+assert.equal(path.dirname(f).substr(-11),
+             isWindows ? 'test\\simple' : 'test/simple');
 assert.equal(path.dirname('/a/b/'), '/a');
 assert.equal(path.dirname('/a/b'), '/a');
 assert.equal(path.dirname('/a'), '/');
@@ -237,7 +239,9 @@ var failures = [];
 relativeTests.forEach(function(test) {
   var actual = path.relative(test[0], test[1]);
   var expected = test[2];
-  var message = 'path.relative(' + test.slice(0, 2).map(JSON.stringify).join(',') + ')' +
+  var message = 'path.relative(' +
+                test.slice(0, 2).map(JSON.stringify).join(',') +
+                ')' +
                 '\n  expect=' + JSON.stringify(expected) +
                 '\n  actual=' + JSON.stringify(actual);
   if (actual !== expected) failures.push('\n' + message);

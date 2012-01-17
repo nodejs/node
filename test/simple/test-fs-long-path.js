@@ -31,8 +31,10 @@ var fileNameLen = Math.max(260 - common.tmpDir.length - 1, 1);
 var fileName = path.join(common.tmpDir, new Array(fileNameLen + 1).join('x'));
 var fullPath = path.resolve(fileName);
 
-console.log({ filenameLength: fileName.length,
-              fullPathLength: fullPath.length });
+console.log({
+  filenameLength: fileName.length,
+  fullPathLength: fullPath.length
+});
 
 fs.writeFile(fullPath, 'ok', function(err) {
   if (err) throw err;

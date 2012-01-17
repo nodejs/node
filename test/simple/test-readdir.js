@@ -66,7 +66,7 @@ process.on('exit', function() {
   var has_caught = false;
 
   try {
-    fs.readdirSync(__filename)
+    fs.readdirSync(__filename);
   }
   catch (e) {
     has_caught = true;
