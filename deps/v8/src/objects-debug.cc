@@ -700,7 +700,7 @@ void JSObject::IncrementSpillStatistics(SpillInformation* info) {
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* dict = element_dictionary();
+      SeededNumberDictionary* dict = element_dictionary();
       info->number_of_slow_used_elements_ += dict->NumberOfElements();
       info->number_of_slow_unused_elements_ +=
           dict->Capacity() - dict->NumberOfElements();

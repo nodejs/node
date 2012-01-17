@@ -117,6 +117,41 @@ void generate(MacroAssembler* masm, i::Vector<const char> string) {
 }
 
 
+void generate(MacroAssembler* masm, uint32_t key) {
+#ifdef V8_TARGET_ARCH_IA32
+  __ push(ebx);
+  __ mov(eax, Immediate(key));
+  __ GetNumberHash(eax, ebx);
+  __ pop(ebx);
+  __ Ret();
+#elif V8_TARGET_ARCH_X64
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ push(rbx);
+  __ movq(rax, Immediate(key));
+  __ GetNumberHash(rax, rbx);
+  __ pop(rbx);
+  __ pop(kRootRegister);
+  __ Ret();
+#elif V8_TARGET_ARCH_ARM
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ mov(r0, Operand(key));
+  __ GetNumberHash(r0, ip);
+  __ pop(kRootRegister);
+  __ mov(pc, Operand(lr));
+#elif V8_TARGET_ARCH_MIPS
+  __ push(kRootRegister);
+  __ InitializeRootRegister();
+  __ li(v0, Operand(key));
+  __ GetNumberHash(v0, t1);
+  __ pop(kRootRegister);
+  __ jr(ra);
+  __ nop();
+#endif
+}
+
+
 void check(i::Vector<const char> string) {
   v8::HandleScope scope;
   v8::internal::byte buffer[2048];
@@ -146,9 +181,44 @@ void check(i::Vector<const char> string) {
 }
 
 
+void check(uint32_t key) {
+  v8::HandleScope scope;
+  v8::internal::byte buffer[2048];
+  MacroAssembler masm(Isolate::Current(), buffer, sizeof buffer);
+
+  generate(&masm, key);
+
+  CodeDesc desc;
+  masm.GetCode(&desc);
+  Code* code = Code::cast(HEAP->CreateCode(
+      desc,
+      Code::ComputeFlags(Code::STUB),
+      Handle<Object>(HEAP->undefined_value()))->ToObjectChecked());
+  CHECK(code->IsCode());
+
+  HASH_FUNCTION hash = FUNCTION_CAST<HASH_FUNCTION>(code->entry());
+#ifdef USE_SIMULATOR
+  uint32_t codegen_hash =
+      reinterpret_cast<uint32_t>(CALL_GENERATED_CODE(hash, 0, 0, 0, 0, 0));
+#else
+  uint32_t codegen_hash = hash();
+#endif
+
+  uint32_t runtime_hash = ComputeIntegerHash(
+      key,
+      Isolate::Current()->heap()->HashSeed());
+  CHECK(runtime_hash == codegen_hash);
+}
+
+
 void check_twochars(char a, char b) {
   char ab[2] = {a, b};
   check(i::Vector<const char>(ab, 2));
+}
+
+
+static uint32_t PseudoRandom(uint32_t i, uint32_t j) {
+  return ~(~((i * 781) ^ (j * 329)));
 }
 
 
@@ -167,6 +237,24 @@ TEST(StringHash) {
   check(i::Vector<const char>("muc",     3));
   check(i::Vector<const char>("(>'_')>", 7));
   check(i::Vector<const char>("-=[ vee eight ftw ]=-", 21));
+}
+
+
+TEST(NumberHash) {
+  if (env.IsEmpty()) env = v8::Context::New();
+
+  // Some specific numbers
+  for (uint32_t key = 0; key < 42; key += 7) {
+    check(key);
+  }
+
+  // Some pseudo-random numbers
+  static const uint32_t kLimit = 1000;
+  for (uint32_t i = 0; i < 5; i++) {
+    for (uint32_t j = 0; j < 5; j++) {
+      check(PseudoRandom(i, j) % kLimit);
+    }
+  }
 }
 
 #undef __

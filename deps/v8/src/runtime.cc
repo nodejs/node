@@ -202,7 +202,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary* element_dictionary = copy->element_dictionary();
+      SeededNumberDictionary* element_dictionary = copy->element_dictionary();
       int capacity = element_dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Object* k = element_dictionary->KeyAt(i);
@@ -978,14 +978,14 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetOwnProperty) {
           holder = Handle<JSObject>(JSObject::cast(proto));
         }
         FixedArray* elements = FixedArray::cast(holder->elements());
-        NumberDictionary* dictionary = NULL;
+        SeededNumberDictionary* dictionary = NULL;
         if (elements->map() == heap->non_strict_arguments_elements_map()) {
-          dictionary = NumberDictionary::cast(elements->get(1));
+          dictionary = SeededNumberDictionary::cast(elements->get(1));
         } else {
-          dictionary = NumberDictionary::cast(elements);
+          dictionary = SeededNumberDictionary::cast(elements);
         }
         int entry = dictionary->FindEntry(index);
-        ASSERT(entry != NumberDictionary::kNotFound);
+        ASSERT(entry != SeededNumberDictionary::kNotFound);
         PropertyDetails details = dictionary->DetailsAt(entry);
         switch (details.type()) {
           case CALLBACKS: {
@@ -4342,12 +4342,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
       return isolate->Throw(*error);
     }
 
-    Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
+    Handle<SeededNumberDictionary> dictionary = NormalizeElements(js_object);
     // Make sure that we never go back to fast case.
     dictionary->set_requires_slow_elements();
     PropertyDetails details = PropertyDetails(attr, NORMAL);
-    Handle<NumberDictionary> extended_dictionary =
-        NumberDictionarySet(dictionary, index, obj_value, details);
+    Handle<SeededNumberDictionary> extended_dictionary =
+        SeededNumberDictionarySet(dictionary, index, obj_value, details);
     if (*extended_dictionary != *dictionary) {
       if (js_object->GetElementsKind() == NON_STRICT_ARGUMENTS_ELEMENTS) {
         FixedArray::cast(js_object->elements())->set(1, *extended_dictionary);
@@ -4408,12 +4408,12 @@ static MaybeObject* NormalizeObjectSetElement(Isolate* isolate,
                                               Handle<Object> value,
                                               PropertyAttributes attr) {
   // Normalize the elements to enable attributes on the property.
-  Handle<NumberDictionary> dictionary = NormalizeElements(js_object);
+  Handle<SeededNumberDictionary> dictionary = NormalizeElements(js_object);
   // Make sure that we never go back to fast case.
   dictionary->set_requires_slow_elements();
   PropertyDetails details = PropertyDetails(attr, NORMAL);
-  Handle<NumberDictionary> extended_dictionary =
-      NumberDictionarySet(dictionary, index, value, details);
+  Handle<SeededNumberDictionary> extended_dictionary =
+      SeededNumberDictionarySet(dictionary, index, value, details);
   if (*extended_dictionary != *dictionary) {
     js_object->set_elements(*extended_dictionary);
   }
@@ -9485,8 +9485,9 @@ class ArrayConcatVisitor {
       // Fall-through to dictionary mode.
     }
     ASSERT(!fast_elements_);
-    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_));
-    Handle<NumberDictionary> result =
+    Handle<SeededNumberDictionary> dict(
+        SeededNumberDictionary::cast(*storage_));
+    Handle<SeededNumberDictionary> result =
         isolate_->factory()->DictionaryAtNumberPut(dict, index, elm);
     if (!result.is_identical_to(dict)) {
       // Dictionary needed to grow.
@@ -9524,14 +9525,15 @@ class ArrayConcatVisitor {
   void SetDictionaryMode(uint32_t index) {
     ASSERT(fast_elements_);
     Handle<FixedArray> current_storage(*storage_);
-    Handle<NumberDictionary> slow_storage(
-        isolate_->factory()->NewNumberDictionary(current_storage->length()));
+    Handle<SeededNumberDictionary> slow_storage(
+        isolate_->factory()->NewSeededNumberDictionary(
+            current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
     for (uint32_t i = 0; i < current_length; i++) {
       HandleScope loop_scope;
       Handle<Object> element(current_storage->get(i));
       if (!element->IsTheHole()) {
-        Handle<NumberDictionary> new_storage =
+        Handle<SeededNumberDictionary> new_storage =
           isolate_->factory()->DictionaryAtNumberPut(slow_storage, i, element);
         if (!new_storage.is_identical_to(slow_storage)) {
           slow_storage = loop_scope.CloseAndEscape(new_storage);
@@ -9578,8 +9580,8 @@ static uint32_t EstimateElementCount(Handle<JSArray> array) {
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> dictionary(
-          NumberDictionary::cast(array->elements()));
+      Handle<SeededNumberDictionary> dictionary(
+          SeededNumberDictionary::cast(array->elements()));
       int capacity = dictionary->Capacity();
       for (int i = 0; i < capacity; i++) {
         Handle<Object> key(dictionary->KeyAt(i));
@@ -9667,7 +9669,8 @@ static void CollectElementIndices(Handle<JSObject> object,
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> dict(NumberDictionary::cast(object->elements()));
+      Handle<SeededNumberDictionary> dict(
+          SeededNumberDictionary::cast(object->elements()));
       uint32_t capacity = dict->Capacity();
       for (uint32_t j = 0; j < capacity; j++) {
         HandleScope loop_scope;
@@ -9796,7 +9799,7 @@ static bool IterateElements(Isolate* isolate,
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      Handle<NumberDictionary> dict(receiver->element_dictionary());
+      Handle<SeededNumberDictionary> dict(receiver->element_dictionary());
       List<uint32_t> indices(dict->Capacity() / 2);
       // Collect all indices in the object and the prototypes less
       // than length. This might introduce duplicates in the indices list.
@@ -9945,7 +9948,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ArrayConcat) {
     uint32_t at_least_space_for = estimate_nof_elements +
                                   (estimate_nof_elements >> 2);
     storage = Handle<FixedArray>::cast(
-        isolate->factory()->NewNumberDictionary(at_least_space_for));
+        isolate->factory()->NewSeededNumberDictionary(at_least_space_for));
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -10031,7 +10034,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_EstimateNumberOfElements) {
   CONVERT_CHECKED(JSObject, object, args[0]);
   HeapObject* elements = object->elements();
   if (elements->IsDictionary()) {
-    return Smi::FromInt(NumberDictionary::cast(elements)->NumberOfElements());
+    int result = SeededNumberDictionary::cast(elements)->NumberOfElements();
+    return Smi::FromInt(result);
   } else if (object->IsJSArray()) {
     return JSArray::cast(object)->length();
   } else {

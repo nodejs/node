@@ -111,7 +111,7 @@ const char* StringsStorage::GetCopy(const char* src) {
   OS::StrNCpy(dst, src, len);
   dst[len] = '\0';
   uint32_t hash =
-      HashSequentialString(dst.start(), len, HEAP->StringHashSeed());
+      HashSequentialString(dst.start(), len, HEAP->HashSeed());
   return AddOrDisposeString(dst.start(), hash);
 }
 
@@ -145,7 +145,7 @@ const char* StringsStorage::GetVFormatted(const char* format, va_list args) {
     return format;
   }
   uint32_t hash = HashSequentialString(
-      str.start(), len, HEAP->StringHashSeed());
+      str.start(), len, HEAP->HashSeed());
   return AddOrDisposeString(str.start(), hash);
 }
 
@@ -178,18 +178,21 @@ void CodeEntry::CopyData(const CodeEntry& source) {
 
 
 uint32_t CodeEntry::GetCallUid() const {
-  uint32_t hash = ComputeIntegerHash(tag_);
+  uint32_t hash = ComputeIntegerHash(tag_, v8::internal::kZeroHashSeed);
   if (shared_id_ != 0) {
-    hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(shared_id_));
+    hash ^= ComputeIntegerHash(static_cast<uint32_t>(shared_id_),
+                               v8::internal::kZeroHashSeed);
   } else {
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_prefix_)),
+        v8::internal::kZeroHashSeed);
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)));
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(name_)),
+        v8::internal::kZeroHashSeed);
     hash ^= ComputeIntegerHash(
-        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)));
-    hash ^= ComputeIntegerHash(line_number_);
+        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(resource_name_)),
+        v8::internal::kZeroHashSeed);
+    hash ^= ComputeIntegerHash(line_number_, v8::internal::kZeroHashSeed);
   }
   return hash;
 }
@@ -1213,7 +1216,7 @@ HeapSnapshot::HeapSnapshot(HeapSnapshotsCollection* collection,
       entries_sorted_(false) {
   STATIC_ASSERT(
       sizeof(HeapGraphEdge) ==
-      SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapGraphEdgeSize);  // NOLINT
+      SnapshotSizeConstants<kPointerSize>::kExpectedHeapGraphEdgeSize);
   STATIC_ASSERT(
       sizeof(HeapEntry) ==
       SnapshotSizeConstants<sizeof(void*)>::kExpectedHeapEntrySize);  // NOLINT
@@ -1466,10 +1469,11 @@ uint64_t HeapObjectsMap::GenerateId(v8::RetainedObjectInfo* info) {
   const char* label = info->GetLabel();
   id ^= HashSequentialString(label,
                              static_cast<int>(strlen(label)),
-                             HEAP->StringHashSeed());
+                             HEAP->HashSeed());
   intptr_t element_count = info->GetElementCount();
   if (element_count != -1)
-    id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count));
+    id ^= ComputeIntegerHash(static_cast<uint32_t>(element_count),
+                             v8::internal::kZeroHashSeed);
   return id << 1;
 }
 
@@ -2131,7 +2135,7 @@ void V8HeapExplorer::ExtractElementReferences(JSObject* js_obj,
       }
     }
   } else if (js_obj->HasDictionaryElements()) {
-    NumberDictionary* dictionary = js_obj->element_dictionary();
+    SeededNumberDictionary* dictionary = js_obj->element_dictionary();
     int length = dictionary->Capacity();
     for (int i = 0; i < length; ++i) {
       Object* k = dictionary->KeyAt(i);

@@ -77,11 +77,21 @@ Handle<StringDictionary> Factory::NewStringDictionary(int at_least_space_for) {
 }
 
 
-Handle<NumberDictionary> Factory::NewNumberDictionary(int at_least_space_for) {
+Handle<SeededNumberDictionary> Factory::NewSeededNumberDictionary(
+    int at_least_space_for) {
   ASSERT(0 <= at_least_space_for);
   CALL_HEAP_FUNCTION(isolate(),
-                     NumberDictionary::Allocate(at_least_space_for),
-                     NumberDictionary);
+                     SeededNumberDictionary::Allocate(at_least_space_for),
+                     SeededNumberDictionary);
+}
+
+
+Handle<UnseededNumberDictionary> Factory::NewUnseededNumberDictionary(
+    int at_least_space_for) {
+  ASSERT(0 <= at_least_space_for);
+  CALL_HEAP_FUNCTION(isolate(),
+                     UnseededNumberDictionary::Allocate(at_least_space_for),
+                     UnseededNumberDictionary);
 }
 
 
@@ -990,13 +1000,23 @@ Handle<String> Factory::NumberToString(Handle<Object> number) {
 }
 
 
-Handle<NumberDictionary> Factory::DictionaryAtNumberPut(
-    Handle<NumberDictionary> dictionary,
+Handle<SeededNumberDictionary> Factory::DictionaryAtNumberPut(
+    Handle<SeededNumberDictionary> dictionary,
     uint32_t key,
     Handle<Object> value) {
   CALL_HEAP_FUNCTION(isolate(),
                      dictionary->AtNumberPut(key, *value),
-                     NumberDictionary);
+                     SeededNumberDictionary);
+}
+
+
+Handle<UnseededNumberDictionary> Factory::DictionaryAtNumberPut(
+    Handle<UnseededNumberDictionary> dictionary,
+    uint32_t key,
+    Handle<Object> value) {
+  CALL_HEAP_FUNCTION(isolate(),
+                     dictionary->AtNumberPut(key, *value),
+                     UnseededNumberDictionary);
 }
 
 

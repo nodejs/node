@@ -79,7 +79,7 @@ inline Heap* _inline_get_heap_();
   V(FixedArray, single_character_string_cache, SingleCharacterStringCache)     \
   V(FixedArray, string_split_cache, StringSplitCache)                          \
   V(Object, termination_exception, TerminationException)                       \
-  V(Smi, string_hash_seed, StringHashSeed)                                     \
+  V(Smi, hash_seed, HashSeed)                                                  \
   V(FixedArray, empty_fixed_array, EmptyFixedArray)                            \
   V(ByteArray, empty_byte_array, EmptyByteArray)                               \
   V(FixedDoubleArray, empty_fixed_double_array, EmptyFixedDoubleArray)         \
@@ -128,8 +128,8 @@ inline Heap* _inline_get_heap_();
   V(Map, neander_map, NeanderMap)                                              \
   V(JSObject, message_listeners, MessageListeners)                             \
   V(Foreign, prototype_accessors, PrototypeAccessors)                          \
-  V(NumberDictionary, code_stubs, CodeStubs)                                   \
-  V(NumberDictionary, non_monomorphic_cache, NonMonomorphicCache)              \
+  V(UnseededNumberDictionary, code_stubs, CodeStubs)                           \
+  V(UnseededNumberDictionary, non_monomorphic_cache, NonMonomorphicCache)      \
   V(PolymorphicCodeCache, polymorphic_code_cache, PolymorphicCodeCache)        \
   V(Code, js_entry_code, JsEntryCode)                                          \
   V(Code, js_construct_entry_code, JsConstructEntryCode)                       \
@@ -1037,7 +1037,7 @@ class Heap {
   inline AllocationSpace TargetSpaceId(InstanceType type);
 
   // Sets the stub_cache_ (only used when expanding the dictionary).
-  void public_set_code_stubs(NumberDictionary* value) {
+  void public_set_code_stubs(UnseededNumberDictionary* value) {
     roots_[kCodeStubsRootIndex] = value;
   }
 
@@ -1049,7 +1049,7 @@ class Heap {
   }
 
   // Sets the non_monomorphic_cache_ (only used when expanding the dictionary).
-  void public_set_non_monomorphic_cache(NumberDictionary* value) {
+  void public_set_non_monomorphic_cache(UnseededNumberDictionary* value) {
     roots_[kNonMonomorphicCacheRootIndex] = value;
   }
 
@@ -1301,9 +1301,9 @@ class Heap {
     if (global_gc_epilogue_callback_ != NULL) global_gc_epilogue_callback_();
   }
 
-  uint32_t StringHashSeed() {
-    uint32_t seed = static_cast<uint32_t>(string_hash_seed()->value());
-    ASSERT(FLAG_randomize_string_hashes || seed == 0);
+  uint32_t HashSeed() {
+    uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
+    ASSERT(FLAG_randomize_hashes || seed == 0);
     return seed;
   }
 

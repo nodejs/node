@@ -392,7 +392,7 @@ class PixelElementsAccessor
 
 class DictionaryElementsAccessor
     : public ElementsAccessorBase<DictionaryElementsAccessor,
-                                  NumberDictionary> {
+                                  SeededNumberDictionary> {
  public:
   static MaybeObject* DeleteCommon(JSObject* obj,
                                    uint32_t key,
@@ -405,9 +405,10 @@ class DictionaryElementsAccessor
     if (is_arguments) {
       backing_store = FixedArray::cast(backing_store->get(1));
     }
-    NumberDictionary* dictionary = NumberDictionary::cast(backing_store);
+    SeededNumberDictionary* dictionary =
+        SeededNumberDictionary::cast(backing_store);
     int entry = dictionary->FindEntry(key);
-    if (entry != NumberDictionary::kNotFound) {
+    if (entry != SeededNumberDictionary::kNotFound) {
       Object* result = dictionary->DeleteProperty(entry, mode);
       if (result == heap->true_value()) {
         MaybeObject* maybe_elements = dictionary->Shrink(key);
@@ -440,7 +441,7 @@ class DictionaryElementsAccessor
 
  protected:
   friend class ElementsAccessorBase<DictionaryElementsAccessor,
-                                    NumberDictionary>;
+                                    SeededNumberDictionary>;
 
   virtual MaybeObject* Delete(JSObject* obj,
                               uint32_t key,
@@ -448,12 +449,12 @@ class DictionaryElementsAccessor
     return DeleteCommon(obj, key, mode);
   }
 
-  static MaybeObject* Get(NumberDictionary* backing_store,
+  static MaybeObject* Get(SeededNumberDictionary* backing_store,
                           uint32_t key,
                           JSObject* obj,
                           Object* receiver) {
     int entry = backing_store->FindEntry(key);
-    if (entry != NumberDictionary::kNotFound) {
+    if (entry != SeededNumberDictionary::kNotFound) {
       Object* element = backing_store->ValueAt(entry);
       PropertyDetails details = backing_store->DetailsAt(entry);
       if (details.type() == CALLBACKS) {
@@ -468,7 +469,7 @@ class DictionaryElementsAccessor
     return obj->GetHeap()->the_hole_value();
   }
 
-  static uint32_t GetKeyForIndex(NumberDictionary* dict,
+  static uint32_t GetKeyForIndex(SeededNumberDictionary* dict,
                                  uint32_t index) {
     Object* key = dict->KeyAt(index);
     return Smi::cast(key)->value();

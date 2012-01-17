@@ -280,7 +280,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   Handle<Object> GetInfo(unsigned ast_id);
 
   Handle<Context> global_context_;
-  Handle<NumberDictionary> dictionary_;
+  Handle<UnseededNumberDictionary> dictionary_;
 
   DISALLOW_COPY_AND_ASSIGN(TypeFeedbackOracle);
 };

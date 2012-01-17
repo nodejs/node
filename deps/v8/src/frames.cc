@@ -1187,7 +1187,8 @@ PcToCodeCache::PcToCodeCacheEntry* PcToCodeCache::GetCacheEntry(Address pc) {
   isolate_->counters()->pc_to_code()->Increment();
   ASSERT(IsPowerOf2(kPcToCodeCacheSize));
   uint32_t hash = ComputeIntegerHash(
-      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pc)));
+      static_cast<uint32_t>(reinterpret_cast<uintptr_t>(pc)),
+      v8::internal::kZeroHashSeed);
   uint32_t index = hash & (kPcToCodeCacheSize - 1);
   PcToCodeCacheEntry* entry = cache(index);
   if (entry->pc == pc) {

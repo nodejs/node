@@ -4610,7 +4610,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register character,
                                     Register scratch) {
   // hash = (seed + character) + ((seed + character) << 10);
-  __ LoadRoot(scratch, Heap::kStringHashSeedRootIndex);
+  __ LoadRoot(scratch, Heap::kHashSeedRootIndex);
   __ SmiToInteger32(scratch, scratch);
   __ addl(scratch, character);
   __ movl(hash, scratch);

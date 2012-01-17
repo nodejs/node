@@ -860,7 +860,7 @@ MaybeObject* StubCache::ComputeCallGlobal(int argc,
 
 static Object* GetProbeValue(Isolate* isolate, Code::Flags flags) {
   // Use raw_unchecked... so we don't get assert failures during GC.
-  NumberDictionary* dictionary =
+  UnseededNumberDictionary* dictionary =
       isolate->heap()->raw_unchecked_non_monomorphic_cache();
   int entry = dictionary->FindEntry(isolate, flags);
   if (entry != -1) return dictionary->ValueAt(entry);
@@ -882,7 +882,8 @@ MUST_USE_RESULT static MaybeObject* ProbeCache(Isolate* isolate,
                                                    heap->undefined_value());
     if (!maybe_result->ToObject(&result)) return maybe_result;
   }
-  heap->public_set_non_monomorphic_cache(NumberDictionary::cast(result));
+  heap->public_set_non_monomorphic_cache(
+      UnseededNumberDictionary::cast(result));
   return probe;
 }
 

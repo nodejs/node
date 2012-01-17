@@ -5580,7 +5580,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
                                     Register hash,
                                     Register character) {
   // hash = seed + character + ((seed + character) << 10);
-  __ LoadRoot(hash, Heap::kStringHashSeedRootIndex);
+  __ LoadRoot(hash, Heap::kHashSeedRootIndex);
   // Untag smi seed and add the character.
   __ SmiUntag(hash);
   __ addu(hash, hash, character);

@@ -214,10 +214,10 @@ void NormalizeProperties(Handle<JSObject> object,
 }
 
 
-Handle<NumberDictionary> NormalizeElements(Handle<JSObject> object) {
+Handle<SeededNumberDictionary> NormalizeElements(Handle<JSObject> object) {
   CALL_HEAP_FUNCTION(object->GetIsolate(),
                      object->NormalizeElements(),
-                     NumberDictionary);
+                     SeededNumberDictionary);
 }
 
 
@@ -229,14 +229,14 @@ void TransformToFastProperties(Handle<JSObject> object,
 }
 
 
-Handle<NumberDictionary> NumberDictionarySet(
-    Handle<NumberDictionary> dictionary,
+Handle<SeededNumberDictionary> SeededNumberDictionarySet(
+    Handle<SeededNumberDictionary> dictionary,
     uint32_t index,
     Handle<Object> value,
     PropertyDetails details) {
   CALL_HEAP_FUNCTION(dictionary->GetIsolate(),
                      dictionary->Set(index, *value, details),
-                     NumberDictionary);
+                     SeededNumberDictionary);
 }
 
 
