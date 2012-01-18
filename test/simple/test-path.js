@@ -102,6 +102,34 @@ assert.equal(path.extname('/.file.ext'), '.ext');
 assert.equal(path.extname('.path/file.ext'), '.ext');
 assert.equal(path.extname('file.ext.ext'), '.ext');
 assert.equal(path.extname('file.'), '.');
+assert.equal(path.extname('.'), '');
+assert.equal(path.extname('./'), '');
+assert.equal(path.extname('.file.ext'), '.ext');
+assert.equal(path.extname('.file'), '');
+assert.equal(path.extname('.file.'), '.');
+assert.equal(path.extname('.file..'), '.');
+assert.equal(path.extname('..'), '');
+assert.equal(path.extname('../'), '');
+assert.equal(path.extname('..file.ext'), '.ext');
+assert.equal(path.extname('..file'), '.file');
+assert.equal(path.extname('..file.'), '.');
+assert.equal(path.extname('..file..'), '.');
+assert.equal(path.extname('...'), '.');
+assert.equal(path.extname('...ext'), '.ext');
+assert.equal(path.extname('....'), '.');
+assert.equal(path.extname('file.ext/'), '');
+
+if (isWindows) {
+  // On windows, backspace is a path separator.
+  assert.equal(path.extname('.\\'), '');
+  assert.equal(path.extname('..\\'), '');
+  assert.equal(path.extname('file.ext\\'), '');
+} else {
+  // On unix, backspace is a valid name component like any other character.
+  assert.equal(path.extname('.\\'), '');
+  assert.equal(path.extname('..\\'), '.\\');
+  assert.equal(path.extname('file.ext\\'), '.ext\\');
+}
 
 // path.join tests
 var failures = [];
