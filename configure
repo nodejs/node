@@ -189,6 +189,7 @@ def configure_node(o):
   o['variables']['node_install_waf'] = b(not options.without_waf)
   o['variables']['host_arch'] = host_arch()
   o['variables']['target_arch'] = options.dest_cpu or target_arch()
+  o['default_configuration'] = 'Debug' if options.debug else 'Release'
 
   # TODO move to node.gyp
   if sys.platform == 'sunos5':

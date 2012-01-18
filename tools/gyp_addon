@@ -12,8 +12,10 @@ if __name__ == '__main__':
   args = sys.argv[1:]
   addon_gypi = os.path.join(node_root, 'tools', 'addon.gypi')
   common_gypi = os.path.join(node_root, 'common.gypi')
+  config_gypi = os.path.join(node_root, 'config.gypi')
   args.extend(['-I', addon_gypi])
   args.extend(['-I', common_gypi])
+  args.extend(['-I', config_gypi])
   args.extend(['-Dlibrary=shared_library'])
   args.extend(['-Dvisibility=default'])
   args.extend(['-Dnode_root_dir=%s' % node_root])
