@@ -173,7 +173,6 @@ def target_arch():
 def configure_node(o):
   # TODO add gdb
   o['variables']['node_use_isolates'] = b(not options.without_isolates)
-  o['variables']['node_debug'] = b(options.debug)
   o['variables']['node_prefix'] = options.prefix if options.prefix else ''
   o['variables']['node_use_dtrace'] = b(options.with_dtrace)
   o['variables']['node_install_npm'] = b(not options.without_npm)
