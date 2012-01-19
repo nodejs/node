@@ -5614,6 +5614,7 @@ void StringHelper::GenerateHashInit(MacroAssembler* masm,
     __ mov(scratch, Operand::StaticArray(scratch,
                                          times_pointer_size,
                                          roots_address));
+    __ SmiUntag(scratch);
     __ add(scratch, Operand(character));
     __ mov(hash, scratch);
     __ shl(scratch, 10);

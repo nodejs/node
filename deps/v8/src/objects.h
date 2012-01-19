@@ -2534,9 +2534,7 @@ class HashTable: public FixedArray {
   // Wrapper methods
   inline uint32_t Hash(Key key) {
     if (Shape::UsesSeed) {
-      // I'm using map()->heap() to skip is_safe_to_read_maps assertion.
-      // That was done, because NumberDictionary is used inside GC.
-      return Shape::SeededHash(key, map()->heap()->HashSeed());
+      return Shape::SeededHash(key, GetHeap()->HashSeed());
     } else {
       return Shape::Hash(key);
     }
@@ -2544,9 +2542,7 @@ class HashTable: public FixedArray {
 
   inline uint32_t HashForObject(Key key, Object* object) {
     if (Shape::UsesSeed) {
-      // I'm using map()->heap() to skip is_safe_to_read_maps assertion.
-      // That was done, because NumberDictionary is used inside GC.
-      return Shape::SeededHashForObject(key, map()->heap()->HashSeed(), object);
+      return Shape::SeededHashForObject(key, GetHeap()->HashSeed(), object);
     } else {
       return Shape::HashForObject(key, object);
     }
