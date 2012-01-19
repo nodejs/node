@@ -696,6 +696,10 @@
               }
             ],
             ['OS=="solaris"', {
+                'link_settings': {
+                  'libraries': [
+                    '-lsocket -lnsl',
+                ]},
                 'sources': [
                   '../../src/platform-solaris.cc',
                   '../../src/platform-posix.cc',
