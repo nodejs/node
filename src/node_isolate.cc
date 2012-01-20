@@ -215,6 +215,16 @@ Handle<Value> Isolate::Send(const Arguments& args) {
 }
 
 
+Handle<Value> Isolate::Unref(const Arguments& args) {
+  HandleScope scope;
+
+  Isolate* isolate = Isolate::GetCurrent();
+  uv_unref(isolate->loop_);
+
+  return Undefined();
+}
+
+
 void Isolate::OnMessage(IsolateMessage* msg, void* arg) {
   HandleScope scope;
 
@@ -269,6 +279,11 @@ Isolate::Isolate() {
   v8_isolate_ = v8::Isolate::New();
   assert(v8_isolate_->GetData() == NULL);
   v8_isolate_->SetData(this);
+
+  // Artificially ref the isolate loop so that the child
+  // isolate stays alive by default.  process.exit will
+  // unref the loop (see Isolate::Unref).
+  uv_ref(loop_);
 
   globals_init_ = false;
 }

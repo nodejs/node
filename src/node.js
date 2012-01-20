@@ -135,6 +135,8 @@
       msg = JSON.parse('' + msg);
       process.emit('message', msg);
     };
+
+    process.exit = process._exit;
   }
 
   startup.globalVariables = function() {

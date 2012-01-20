@@ -74,6 +74,7 @@ public:
   typedef void (*AtExitCallback)(void* arg);
 
   static v8::Handle<v8::Value> Send(const v8::Arguments& args);
+  static v8::Handle<v8::Value> Unref(const v8::Arguments& args);
 
   static Isolate* GetCurrent() {
     return reinterpret_cast<Isolate*>(v8::Isolate::GetCurrent()->GetData());

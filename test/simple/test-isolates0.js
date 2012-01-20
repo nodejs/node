@@ -52,6 +52,7 @@ if (process.tid === 1) {
     fs.stat(__dirname, function(err, stat) {
       if (err) throw err;
       console.error('thread 2', stat.mtime);
+      process.exit();
     });
   }, 500);
 

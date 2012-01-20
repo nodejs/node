@@ -2649,6 +2649,9 @@ void StartThread(node::Isolate* isolate,
   if (isolate->id_ > 1) {
     process_l->Set(String::NewSymbol("_send"),
                    FunctionTemplate::New(Isolate::Send)->GetFunction());
+
+    process_l->Set(String::NewSymbol("_exit"),
+                   FunctionTemplate::New(Isolate::Unref)->GetFunction());
   }
 
   // FIXME crashes with "CHECK(heap->isolate() == Isolate::Current()) failed"
