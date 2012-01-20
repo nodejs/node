@@ -234,7 +234,7 @@ struct fs_req_wrap {
     uv_fs_t* req = &req_wrap->req_;                               \
     req->result = r;                                              \
     req->path = NULL;                                             \
-    req->errorno = uv_last_error(uv_default_loop()).code;         \
+    req->errorno = uv_last_error(Loop()).code;                    \
     After(req);                                                   \
   }                                                               \
   return scope.Close(req_wrap->object_);

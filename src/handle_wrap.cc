@@ -89,7 +89,7 @@ Handle<Value> HandleWrap::Ref(const Arguments& args) {
   }
 
   wrap->unref = false;
-  uv_ref(uv_default_loop());
+  uv_ref(Loop());
 
   return v8::Undefined();
 }
