@@ -20,6 +20,8 @@
 
 * fix segfault #2473
 
+* #2521 60% improvement in fs.stat on Windows (Igor Zinkovsky)
+
 
 2012.01.06, Version 0.6.7 (stable), d5a189acef14a851287ee555f7a39431fe276e1c
 
