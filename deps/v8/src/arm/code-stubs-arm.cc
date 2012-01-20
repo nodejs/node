@@ -5392,13 +5392,12 @@ void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
   // hash ^= hash >> 11;
   __ eor(hash, hash, Operand(hash, LSR, 11));
   // hash += hash << 15;
-  __ add(hash, hash, Operand(hash, LSL, 15), SetCC);
+  __ add(hash, hash, Operand(hash, LSL, 15));
 
-  uint32_t kHashShiftCutOffMask = (1 << (32 - String::kHashShift)) - 1;
-  __ and_(hash, hash, Operand(kHashShiftCutOffMask));
+  __ and_(hash, hash, Operand(String::kHashBitMask), SetCC);
 
   // if (hash == 0) hash = 27;
-  __ mov(hash, Operand(27), LeaveCC, eq);
+  __ mov(hash, Operand(StringHasher::kZeroHash), LeaveCC, eq);
 }
 
 

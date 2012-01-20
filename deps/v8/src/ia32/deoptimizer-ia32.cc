@@ -45,16 +45,6 @@ int Deoptimizer::patch_size() {
 }
 
 
-static void ZapCodeRange(Address start, Address end) {
-#ifdef DEBUG
-  ASSERT(start <= end);
-  int size = end - start;
-  CodePatcher destroyer(start, size);
-  while (size-- > 0) destroyer.masm()->int3();
-#endif
-}
-
-
 void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   Isolate* isolate = code->GetIsolate();
   HandleScope scope(isolate);
@@ -62,30 +52,23 @@ void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
   // Compute the size of relocation information needed for the code
   // patching in Deoptimizer::DeoptimizeFunction.
   int min_reloc_size = 0;
-  Address prev_reloc_address = code->instruction_start();
-  Address code_start_address = code->instruction_start();
-  SafepointTable table(*code);
-  for (unsigned i = 0; i < table.length(); ++i) {
-    Address curr_reloc_address = code_start_address + table.GetPcOffset(i);
-    ASSERT_GE(curr_reloc_address, prev_reloc_address);
-    SafepointEntry safepoint_entry = table.GetEntry(i);
-    int deoptimization_index = safepoint_entry.deoptimization_index();
-    if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      // The gap code is needed to get to the state expected at the
-      // bailout and we need to skip the call opcode to get to the
-      // address that needs reloc.
-      curr_reloc_address += safepoint_entry.gap_code_size() + 1;
-      int pc_delta = curr_reloc_address - prev_reloc_address;
-      // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
-      // if encodable with small pc delta encoding and up to 6 bytes
-      // otherwise.
-      if (pc_delta <= RelocInfo::kMaxSmallPCDelta) {
-        min_reloc_size += 2;
-      } else {
-        min_reloc_size += 6;
-      }
-      prev_reloc_address = curr_reloc_address;
+  int prev_pc_offset = 0;
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    int pc_offset = deopt_data->Pc(i)->value();
+    if (pc_offset == -1) continue;
+    ASSERT_GE(pc_offset, prev_pc_offset);
+    int pc_delta = pc_offset - prev_pc_offset;
+    // We use RUNTIME_ENTRY reloc info which has a size of 2 bytes
+    // if encodable with small pc delta encoding and up to 6 bytes
+    // otherwise.
+    if (pc_delta <= RelocInfo::kMaxSmallPCDelta) {
+      min_reloc_size += 2;
+    } else {
+      min_reloc_size += 6;
     }
+    prev_pc_offset = pc_offset;
   }
 
   // If the relocation information is not big enough we create a new
@@ -150,40 +133,40 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   Address reloc_end_address = reloc_info->address() + reloc_info->Size();
   RelocInfoWriter reloc_info_writer(reloc_end_address, code_start_address);
 
-  // For each return after a safepoint insert a call to the corresponding
-  // deoptimization entry.  Since the call is a relative encoding, write new
+  // For each LLazyBailout instruction insert a call to the corresponding
+  // deoptimization entry.
+
+  // Since the call is a relative encoding, write new
   // reloc info.  We do not need any of the existing reloc info because the
   // existing code will not be used again (we zap it in debug builds).
-  SafepointTable table(code);
-  Address prev_address = code_start_address;
-  for (unsigned i = 0; i < table.length(); ++i) {
-    Address curr_address = code_start_address + table.GetPcOffset(i);
-    ASSERT_GE(curr_address, prev_address);
-    ZapCodeRange(prev_address, curr_address);
-
-    SafepointEntry safepoint_entry = table.GetEntry(i);
-    int deoptimization_index = safepoint_entry.deoptimization_index();
-    if (deoptimization_index != Safepoint::kNoDeoptimizationIndex) {
-      // The gap code is needed to get to the state expected at the bailout.
-      curr_address += safepoint_entry.gap_code_size();
-
-      CodePatcher patcher(curr_address, patch_size());
-      Address deopt_entry = GetDeoptimizationEntry(deoptimization_index, LAZY);
-      patcher.masm()->call(deopt_entry, RelocInfo::NONE);
-
-      // We use RUNTIME_ENTRY for deoptimization bailouts.
-      RelocInfo rinfo(curr_address + 1,  // 1 after the call opcode.
-                      RelocInfo::RUNTIME_ENTRY,
-                      reinterpret_cast<intptr_t>(deopt_entry));
-      reloc_info_writer.Write(&rinfo);
-      ASSERT_GE(reloc_info_writer.pos(),
-                reloc_info->address() + ByteArray::kHeaderSize);
-      curr_address += patch_size();
-    }
-    prev_address = curr_address;
+  //
+  // Emit call to lazy deoptimization at all lazy deopt points.
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+#ifdef DEBUG
+  Address prev_call_address = NULL;
+#endif
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    if (deopt_data->Pc(i)->value() == -1) continue;
+    // Patch lazy deoptimization entry.
+    Address call_address = code_start_address + deopt_data->Pc(i)->value();
+    CodePatcher patcher(call_address, patch_size());
+    Address deopt_entry = GetDeoptimizationEntry(i, LAZY);
+    patcher.masm()->call(deopt_entry, RelocInfo::NONE);
+    // We use RUNTIME_ENTRY for deoptimization bailouts.
+    RelocInfo rinfo(call_address + 1,  // 1 after the call opcode.
+                    RelocInfo::RUNTIME_ENTRY,
+                    reinterpret_cast<intptr_t>(deopt_entry));
+    reloc_info_writer.Write(&rinfo);
+    ASSERT_GE(reloc_info_writer.pos(),
+              reloc_info->address() + ByteArray::kHeaderSize);
+    ASSERT(prev_call_address == NULL ||
+           call_address >= prev_call_address + patch_size());
+    ASSERT(call_address + patch_size() <= code->instruction_end());
+#ifdef DEBUG
+    prev_call_address = call_address;
+#endif
   }
-  ZapCodeRange(prev_address,
-               code_start_address + code->safepoint_table_offset());
 
   // Move the relocation info to the beginning of the byte array.
   int new_reloc_size = reloc_end_address - reloc_info_writer.pos();
@@ -212,11 +195,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %x]\n", reinterpret_cast<uint32_t>(function));
-#ifdef DEBUG
-    if (FLAG_print_code) {
-      code->PrintLn();
-    }
-#endif
   }
 }
 

@@ -60,7 +60,7 @@ class LCodeGen BASE_EMBEDDED {
         status_(UNUSED),
         deferred_(8),
         osr_pc_offset_(-1),
-        deoptimization_reloc_size(),
+        last_lazy_deopt_pc_(0),
         resolver_(this),
         expected_safepoint_kind_(Safepoint::kSimple) {
     PopulateDeoptimizationLiteralsWithInlinedFunctions();
@@ -100,8 +100,8 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredStackCheck(LStackCheck* instr);
   void DoDeferredStringCharCodeAt(LStringCharCodeAt* instr);
   void DoDeferredStringCharFromCode(LStringCharFromCode* instr);
-  void DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                        Label* map_check);
+  void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                       Label* map_check);
 
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
@@ -139,7 +139,6 @@ class LCodeGen BASE_EMBEDDED {
   HGraph* graph() const { return chunk_->graph(); }
 
   int GetNextEmittedBlock(int block);
-  LInstruction* GetNextInstruction();
 
   void EmitClassOfTest(Label* if_true,
                        Label* if_false,
@@ -205,10 +204,11 @@ class LCodeGen BASE_EMBEDDED {
 
   void LoadHeapObject(Register result, Handle<HeapObject> object);
 
-  void RegisterLazyDeoptimization(LInstruction* instr,
-                                  SafepointMode safepoint_mode);
+  void RecordSafepointWithLazyDeopt(LInstruction* instr,
+                                    SafepointMode safepoint_mode);
 
-  void RegisterEnvironmentForDeoptimization(LEnvironment* environment);
+  void RegisterEnvironmentForDeoptimization(LEnvironment* environment,
+                                            Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition cc, LEnvironment* environment);
 
   void AddToTranslation(Translation* translation,
@@ -242,16 +242,13 @@ class LCodeGen BASE_EMBEDDED {
   void RecordSafepoint(LPointerMap* pointers,
                        Safepoint::Kind kind,
                        int arguments,
-                       int deoptimization_index);
-  void RecordSafepoint(LPointerMap* pointers, int deoptimization_index);
-  void RecordSafepoint(int deoptimization_index);
+                       Safepoint::DeoptMode mode);
+  void RecordSafepoint(LPointerMap* pointers, Safepoint::DeoptMode mode);
+  void RecordSafepoint(Safepoint::DeoptMode mode);
   void RecordSafepointWithRegisters(LPointerMap* pointers,
                                     int arguments,
-                                    int deoptimization_index);
+                                    Safepoint::DeoptMode mode);
   void RecordPosition(int position);
-  int LastSafepointEnd() {
-    return static_cast<int>(safepoints_.GetPcAfterGap());
-  }
 
   static Condition TokenToCondition(Token::Value op, bool is_unsigned);
   void EmitGoto(int block);
@@ -284,6 +281,7 @@ class LCodeGen BASE_EMBEDDED {
                                        Register object,
                                        Handle<Map> type,
                                        Handle<String> name);
+  void EnsureSpaceForLazyDeopt();
 
   LChunk* const chunk_;
   MacroAssembler* const masm_;
@@ -300,13 +298,7 @@ class LCodeGen BASE_EMBEDDED {
   TranslationBuffer translations_;
   ZoneList<LDeferredCode*> deferred_;
   int osr_pc_offset_;
-
-  struct DeoptimizationRelocSize {
-    int min_size;
-    int last_pc_offset;
-  };
-
-  DeoptimizationRelocSize deoptimization_reloc_size;
+  int last_lazy_deopt_pc_;
 
   // Builder that keeps track of safepoints in the code. The table
   // itself is emitted at the end of the generated code.

@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2011 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -27,52 +27,22 @@
 
 // Flags: --allow-natives-syntax
 
-// Test function.caller.
-function A() {}
+// Test lazy deoptimization after CallFunctionStub.
 
-function fun(x) {
-  if (x == 0) return fun.caller;
-  if (x == 1) return gee.caller;
-  return 42;
-}
-function gee(x) { return this.f(x); }
+function foo() { return 1; }
 
-A.prototype.f = fun;
-A.prototype.g = gee;
-
-var o = new A();
-
-for (var i=0; i<5; i++) {
-  o.g(i);
-}
-%OptimizeFunctionOnNextCall(o.g);
-assertEquals(gee, o.g(0));
-assertEquals(null, o.g(1));
-
-// Test when called from another function.
-function hej(x) {
-  if (x == 0) return o.g(x);
-  if (x == 1) return o.g(x);
-  return o.g(x);
+function f(x, y) {
+  var a = [0];
+  if (x == 0) {
+    %DeoptimizeFunction(f);
+    return 1;
+  }
+  a[0] = %_CallFunction(null, x - 1, f);
+  return x >> a[0];
 }
 
-for (var j=0; j<5; j++) {
-  hej(j);
-}
-%OptimizeFunctionOnNextCall(hej);
-assertEquals(gee, hej(0));
-assertEquals(hej, hej(1));
-
-// Test when called from eval.
-function from_eval(x) {
-  if (x == 0) return eval("o.g(x);");
-  if (x == 1) return eval("o.g(x);");
-  return o.g(x);
-}
-
-for (var j=0; j<5; j++) {
-  from_eval(j);
-}
-%OptimizeFunctionOnNextCall(from_eval);
-assertEquals(gee, from_eval(0));
-assertEquals(from_eval, from_eval(1));
+f(42);
+f(42);
+assertEquals(42, f(42));
+%OptimizeFunctionOnNextCall(f);
+assertEquals(42, f(42));

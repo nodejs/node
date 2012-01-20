@@ -442,6 +442,7 @@ class LEnvironment: public ZoneObject {
         translation_index_(-1),
         ast_id_(ast_id),
         parameter_count_(parameter_count),
+        pc_offset_(-1),
         values_(value_count),
         representations_(value_count),
         spilled_registers_(NULL),
@@ -455,6 +456,7 @@ class LEnvironment: public ZoneObject {
   int translation_index() const { return translation_index_; }
   int ast_id() const { return ast_id_; }
   int parameter_count() const { return parameter_count_; }
+  int pc_offset() const { return pc_offset_; }
   LOperand** spilled_registers() const { return spilled_registers_; }
   LOperand** spilled_double_registers() const {
     return spilled_double_registers_;
@@ -471,10 +473,13 @@ class LEnvironment: public ZoneObject {
     return representations_[index].IsTagged();
   }
 
-  void Register(int deoptimization_index, int translation_index) {
+  void Register(int deoptimization_index,
+                int translation_index,
+                int pc_offset) {
     ASSERT(!HasBeenRegistered());
     deoptimization_index_ = deoptimization_index;
     translation_index_ = translation_index;
+    pc_offset_ = pc_offset;
   }
   bool HasBeenRegistered() const {
     return deoptimization_index_ != Safepoint::kNoDeoptimizationIndex;
@@ -495,6 +500,7 @@ class LEnvironment: public ZoneObject {
   int translation_index_;
   int ast_id_;
   int parameter_count_;
+  int pc_offset_;
   ZoneList<LOperand*> values_;
   ZoneList<Representation> representations_;
 

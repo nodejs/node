@@ -42,67 +42,7 @@ const int Deoptimizer::table_entry_size_ = 10;
 
 
 int Deoptimizer::patch_size() {
-  return MacroAssembler::kCallInstructionLength;
-}
-
-
-#ifdef DEBUG
-// Overwrites code with int3 instructions.
-static void ZapCodeRange(Address from, Address to) {
-  CHECK(from <= to);
-  int length = static_cast<int>(to - from);
-  CodePatcher destroyer(from, length);
-  while (length-- > 0) {
-    destroyer.masm()->int3();
-  }
-}
-#endif
-
-
-// Iterate through the entries of a SafepointTable that corresponds to
-// deoptimization points.
-class SafepointTableDeoptimiztionEntryIterator {
- public:
-  explicit SafepointTableDeoptimiztionEntryIterator(Code* code)
-      : code_(code), table_(code), index_(-1), limit_(table_.length()) {
-    FindNextIndex();
-  }
-
-  SafepointEntry Next(Address* pc) {
-    if (index_ >= limit_) {
-      *pc = NULL;
-      return SafepointEntry();  // Invalid entry.
-    }
-    *pc = code_->instruction_start() + table_.GetPcOffset(index_);
-    SafepointEntry entry = table_.GetEntry(index_);
-    FindNextIndex();
-    return entry;
-  }
-
- private:
-  void FindNextIndex() {
-    ASSERT(index_ < limit_);
-    while (++index_ < limit_) {
-      if (table_.GetEntry(index_).deoptimization_index() !=
-          Safepoint::kNoDeoptimizationIndex) {
-        return;
-      }
-    }
-  }
-
-  Code* code_;
-  SafepointTable table_;
-  // Index of next deoptimization entry. If negative after calling
-  // FindNextIndex, there are no more, and Next will return an invalid
-  // SafepointEntry.
-  int index_;
-  // Table length.
-  int limit_;
-};
-
-
-void Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(Handle<Code> code) {
-  // TODO(1276): Implement.
+  return Assembler::kCallInstructionLength;
 }
 
 
@@ -119,84 +59,34 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
   // code patching below, and is not needed any more.
   code->InvalidateRelocation();
 
-  // For each return after a safepoint insert a absolute call to the
+  // For each LLazyBailout instruction insert a absolute call to the
   // corresponding deoptimization entry, or a short call to an absolute
   // jump if space is short. The absolute jumps are put in a table just
   // before the safepoint table (space was allocated there when the Code
   // object was created, if necessary).
 
   Address instruction_start = function->code()->instruction_start();
-  Address jump_table_address =
-      instruction_start + function->code()->safepoint_table_offset();
 #ifdef DEBUG
-  Address previous_pc = instruction_start;
+  Address prev_call_address = NULL;
 #endif
-
-  SafepointTableDeoptimiztionEntryIterator deoptimizations(function->code());
-  Address entry_pc = NULL;
-
-  SafepointEntry current_entry = deoptimizations.Next(&entry_pc);
-  while (current_entry.is_valid()) {
-    int gap_code_size = current_entry.gap_code_size();
-    unsigned deoptimization_index = current_entry.deoptimization_index();
-
-#ifdef DEBUG
-    // Destroy the code which is not supposed to run again.
-    ZapCodeRange(previous_pc, entry_pc);
-#endif
+  DeoptimizationInputData* deopt_data =
+      DeoptimizationInputData::cast(code->deoptimization_data());
+  for (int i = 0; i < deopt_data->DeoptCount(); i++) {
+    if (deopt_data->Pc(i)->value() == -1) continue;
     // Position where Call will be patched in.
-    Address call_address = entry_pc + gap_code_size;
-    // End of call instruction, if using a direct call to a 64-bit address.
-    Address call_end_address =
-        call_address + MacroAssembler::kCallInstructionLength;
-
-    // Find next deoptimization entry, if any.
-    Address next_pc = NULL;
-    SafepointEntry next_entry = deoptimizations.Next(&next_pc);
-
-    if (!next_entry.is_valid() || next_pc >= call_end_address) {
-      // Room enough to write a long call instruction.
-      CodePatcher patcher(call_address, Assembler::kCallInstructionLength);
-      patcher.masm()->Call(GetDeoptimizationEntry(deoptimization_index, LAZY),
-                           RelocInfo::NONE);
+    Address call_address = instruction_start + deopt_data->Pc(i)->value();
+    // There is room enough to write a long call instruction because we pad
+    // LLazyBailout instructions with nops if necessary.
+    CodePatcher patcher(call_address, Assembler::kCallInstructionLength);
+    patcher.masm()->Call(GetDeoptimizationEntry(i, LAZY), RelocInfo::NONE);
+    ASSERT(prev_call_address == NULL ||
+           call_address >= prev_call_address + patch_size());
+    ASSERT(call_address + patch_size() <= code->instruction_end());
 #ifdef DEBUG
-      previous_pc = call_end_address;
+    prev_call_address = call_address;
 #endif
-    } else {
-      // Not room enough for a long Call instruction. Write a short call
-      // instruction to a long jump placed elsewhere in the code.
-#ifdef DEBUG
-      Address short_call_end_address =
-          call_address + MacroAssembler::kShortCallInstructionLength;
-#endif
-      ASSERT(next_pc >= short_call_end_address);
-
-      // Write jump in jump-table.
-      jump_table_address -= MacroAssembler::kJumpInstructionLength;
-      CodePatcher jump_patcher(jump_table_address,
-                               MacroAssembler::kJumpInstructionLength);
-      jump_patcher.masm()->Jump(
-          GetDeoptimizationEntry(deoptimization_index, LAZY),
-          RelocInfo::NONE);
-
-      // Write call to jump at call_offset.
-      CodePatcher call_patcher(call_address,
-                               MacroAssembler::kShortCallInstructionLength);
-      call_patcher.masm()->call(jump_table_address);
-#ifdef DEBUG
-      previous_pc = short_call_end_address;
-#endif
-    }
-
-    // Continue with next deoptimization entry.
-    current_entry = next_entry;
-    entry_pc = next_pc;
   }
 
-#ifdef DEBUG
-  // Destroy the code which is not supposed to run again.
-  ZapCodeRange(previous_pc, jump_table_address);
-#endif
 
   // Add the deoptimizing code to the list.
   DeoptimizingCodeListNode* node = new DeoptimizingCodeListNode(code);
@@ -211,11 +101,6 @@ void Deoptimizer::DeoptimizeFunction(JSFunction* function) {
     PrintF("[forced deoptimization: ");
     function->PrintName();
     PrintF(" / %" V8PRIxPTR "]\n", reinterpret_cast<intptr_t>(function));
-#ifdef DEBUG
-    if (FLAG_print_code) {
-      code->PrintLn();
-    }
-#endif
   }
 }
 

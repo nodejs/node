@@ -43,35 +43,24 @@ class SafepointGenerator : public CallWrapper {
  public:
   SafepointGenerator(LCodeGen* codegen,
                      LPointerMap* pointers,
-                     int deoptimization_index)
+                     Safepoint::DeoptMode mode)
       : codegen_(codegen),
         pointers_(pointers),
-        deoptimization_index_(deoptimization_index) { }
+        deopt_mode_(mode) { }
   virtual ~SafepointGenerator() { }
 
   virtual void BeforeCall(int call_size) const {
-    ASSERT(call_size >= 0);
-    // Ensure that we have enough space after the previous safepoint position
-    // for the jump generated there.
-    int call_end = codegen_->masm()->pc_offset() + call_size;
-    int prev_jump_end = codegen_->LastSafepointEnd() + kMinSafepointSize;
-    if (call_end < prev_jump_end) {
-      int padding_size = prev_jump_end - call_end;
-      STATIC_ASSERT(kMinSafepointSize <= 9);  // One multibyte nop is enough.
-      codegen_->masm()->nop(padding_size);
-    }
+    codegen_->EnsureSpaceForLazyDeopt(Deoptimizer::patch_size() - call_size);
   }
 
   virtual void AfterCall() const {
-    codegen_->RecordSafepoint(pointers_, deoptimization_index_);
+    codegen_->RecordSafepoint(pointers_, deopt_mode_);
   }
 
  private:
-  static const int kMinSafepointSize =
-      MacroAssembler::kShortCallInstructionLength;
   LCodeGen* codegen_;
   LPointerMap* pointers_;
-  int deoptimization_index_;
+  Safepoint::DeoptMode deopt_mode_;
 };
 
 
@@ -94,7 +83,6 @@ void LCodeGen::FinishCode(Handle<Code> code) {
   code->set_stack_slots(GetStackSlotCount());
   code->set_safepoint_table_offset(safepoints_.GetCodeOffset());
   PopulateDeoptimizationData(code);
-  Deoptimizer::EnsureRelocSpaceForLazyDeoptimization(code);
 }
 
 
@@ -200,7 +188,7 @@ bool LCodeGen::GeneratePrologue() {
     } else {
       __ CallRuntime(Runtime::kNewFunctionContext, 1);
     }
-    RecordSafepoint(Safepoint::kNoDeoptimizationIndex);
+    RecordSafepoint(Safepoint::kNoLazyDeopt);
     // Context is returned in both rax and rsi.  It replaces the context
     // passed to us.  It's saved in the stack and kept live in rsi.
     __ movq(Operand(rbp, StandardFrameConstants::kContextOffset), rsi);
@@ -252,16 +240,8 @@ bool LCodeGen::GenerateBody() {
       instr->CompileToNative(this);
     }
   }
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
   return !is_aborted();
-}
-
-
-LInstruction* LCodeGen::GetNextInstruction() {
-  if (current_instruction_ < instructions_->length() - 1) {
-    return instructions_->at(current_instruction_ + 1);
-  } else {
-    return NULL;
-  }
 }
 
 
@@ -283,18 +263,6 @@ bool LCodeGen::GenerateDeferredCode() {
       code->Generate();
       __ jmp(code->exit());
     }
-
-    // Pad code to ensure that the last piece of deferred code have
-    // room for lazy bailout.
-    while ((masm()->pc_offset() - LastSafepointEnd())
-           < Deoptimizer::patch_size()) {
-      int padding = masm()->pc_offset() - LastSafepointEnd();
-      if (padding > 9) {
-        __ nop(9);
-      } else {
-        __ nop(padding);
-      }
-    }
   }
 
   // Deferred code is the last part of the instruction sequence. Mark
@@ -306,20 +274,6 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateSafepointTable() {
   ASSERT(is_done());
-  // Ensure that there is space at the end of the code to write a number
-  // of jump instructions, as well as to afford writing a call near the end
-  // of the code.
-  // The jumps are used when there isn't room in the code stream to write
-  // a long call instruction. Instead it writes a shorter call to a
-  // jump instruction in the same code object.
-  // The calls are used when lazy deoptimizing a function and calls to a
-  // deoptimization function.
-  int short_deopts = safepoints_.CountShortDeoptimizationIntervals(
-      static_cast<unsigned>(MacroAssembler::kJumpInstructionLength));
-  int byte_count = (short_deopts) * MacroAssembler::kJumpInstructionLength;
-  while (byte_count-- > 0) {
-    __ int3();
-  }
   safepoints_.Emit(masm(), GetStackSlotCount());
   return !is_aborted();
 }
@@ -475,11 +429,12 @@ void LCodeGen::CallCodeGeneric(Handle<Code> code,
                                LInstruction* instr,
                                SafepointMode safepoint_mode,
                                int argc) {
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size() - masm()->CallSize(code));
   ASSERT(instr != NULL);
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
   __ call(code, mode);
-  RegisterLazyDeoptimization(instr, safepoint_mode, argc);
+  RecordSafepointWithLazyDeopt(instr, safepoint_mode, argc);
 
   // Signal that we don't inline smi code before these stubs in the
   // optimizing code generator.
@@ -506,7 +461,7 @@ void LCodeGen::CallRuntime(const Runtime::Function* function,
   RecordPosition(pointers->position());
 
   __ CallRuntime(function, num_arguments);
-  RegisterLazyDeoptimization(instr, RECORD_SIMPLE_SAFEPOINT, 0);
+  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT, 0);
 }
 
 
@@ -516,39 +471,12 @@ void LCodeGen::CallRuntimeFromDeferred(Runtime::FunctionId id,
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
   __ CallRuntimeSaveDoubles(id);
   RecordSafepointWithRegisters(
-      instr->pointer_map(), argc, Safepoint::kNoDeoptimizationIndex);
+      instr->pointer_map(), argc, Safepoint::kNoLazyDeopt);
 }
 
 
-void LCodeGen::RegisterLazyDeoptimization(LInstruction* instr,
-                                          SafepointMode safepoint_mode,
-                                          int argc) {
-  // Create the environment to bailout to. If the call has side effects
-  // execution has to continue after the call otherwise execution can continue
-  // from a previous bailout point repeating the call.
-  LEnvironment* deoptimization_environment;
-  if (instr->HasDeoptimizationEnvironment()) {
-    deoptimization_environment = instr->deoptimization_environment();
-  } else {
-    deoptimization_environment = instr->environment();
-  }
-
-  RegisterEnvironmentForDeoptimization(deoptimization_environment);
-  if (safepoint_mode == RECORD_SIMPLE_SAFEPOINT) {
-    ASSERT(argc == 0);
-    RecordSafepoint(instr->pointer_map(),
-                    deoptimization_environment->deoptimization_index());
-  } else {
-    ASSERT(safepoint_mode == RECORD_SAFEPOINT_WITH_REGISTERS);
-    RecordSafepointWithRegisters(
-        instr->pointer_map(),
-        argc,
-        deoptimization_environment->deoptimization_index());
-  }
-}
-
-
-void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment) {
+void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment,
+                                                    Safepoint::DeoptMode mode) {
   if (!environment->HasBeenRegistered()) {
     // Physical stack frame layout:
     // -x ............. -4  0 ..................................... y
@@ -570,14 +498,17 @@ void LCodeGen::RegisterEnvironmentForDeoptimization(LEnvironment* environment) {
     Translation translation(&translations_, frame_count);
     WriteTranslation(environment, &translation);
     int deoptimization_index = deoptimizations_.length();
-    environment->Register(deoptimization_index, translation.index());
+    int pc_offset = masm()->pc_offset();
+    environment->Register(deoptimization_index,
+                          translation.index(),
+                          (mode == Safepoint::kLazyDeopt) ? pc_offset : -1);
     deoptimizations_.Add(environment);
   }
 }
 
 
 void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
-  RegisterEnvironmentForDeoptimization(environment);
+  RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(environment->HasBeenRegistered());
   int id = environment->deoptimization_index();
   Address entry = Deoptimizer::GetDeoptimizationEntry(id, Deoptimizer::EAGER);
@@ -629,6 +560,7 @@ void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
     data->SetTranslationIndex(i, Smi::FromInt(env->translation_index()));
     data->SetArgumentsStackHeight(i,
                                   Smi::FromInt(env->arguments_stack_height()));
+    data->SetPc(i, Smi::FromInt(env->pc_offset()));
   }
   code->set_deoptimization_data(*data);
 }
@@ -660,17 +592,29 @@ void LCodeGen::PopulateDeoptimizationLiteralsWithInlinedFunctions() {
 }
 
 
+void LCodeGen::RecordSafepointWithLazyDeopt(
+    LInstruction* instr, SafepointMode safepoint_mode, int argc) {
+  if (safepoint_mode == RECORD_SIMPLE_SAFEPOINT) {
+    RecordSafepoint(instr->pointer_map(), Safepoint::kLazyDeopt);
+  } else {
+    ASSERT(safepoint_mode == RECORD_SAFEPOINT_WITH_REGISTERS);
+    RecordSafepointWithRegisters(
+        instr->pointer_map(), argc, Safepoint::kLazyDeopt);
+  }
+}
+
+
 void LCodeGen::RecordSafepoint(
     LPointerMap* pointers,
     Safepoint::Kind kind,
     int arguments,
-    int deoptimization_index) {
+    Safepoint::DeoptMode deopt_mode) {
   ASSERT(kind == expected_safepoint_kind_);
 
   const ZoneList<LOperand*>* operands = pointers->operands();
 
   Safepoint safepoint = safepoints_.DefineSafepoint(masm(),
-      kind, arguments, deoptimization_index);
+      kind, arguments, deopt_mode);
   for (int i = 0; i < operands->length(); i++) {
     LOperand* pointer = operands->at(i);
     if (pointer->IsStackSlot()) {
@@ -687,22 +631,21 @@ void LCodeGen::RecordSafepoint(
 
 
 void LCodeGen::RecordSafepoint(LPointerMap* pointers,
-                               int deoptimization_index) {
-  RecordSafepoint(pointers, Safepoint::kSimple, 0, deoptimization_index);
+                               Safepoint::DeoptMode deopt_mode) {
+  RecordSafepoint(pointers, Safepoint::kSimple, 0, deopt_mode);
 }
 
 
-void LCodeGen::RecordSafepoint(int deoptimization_index) {
+void LCodeGen::RecordSafepoint(Safepoint::DeoptMode deopt_mode) {
   LPointerMap empty_pointers(RelocInfo::kNoPosition);
-  RecordSafepoint(&empty_pointers, deoptimization_index);
+  RecordSafepoint(&empty_pointers, deopt_mode);
 }
 
 
 void LCodeGen::RecordSafepointWithRegisters(LPointerMap* pointers,
                                             int arguments,
-                                            int deoptimization_index) {
-  RecordSafepoint(pointers, Safepoint::kWithRegisters, arguments,
-      deoptimization_index);
+                                            Safepoint::DeoptMode deopt_mode) {
+  RecordSafepoint(pointers, Safepoint::kWithRegisters, arguments, deopt_mode);
 }
 
 
@@ -736,12 +679,6 @@ void LCodeGen::DoGap(LGap* gap) {
     LGap::InnerPosition inner_pos = static_cast<LGap::InnerPosition>(i);
     LParallelMove* move = gap->GetParallelMove(inner_pos);
     if (move != NULL) DoParallelMove(move);
-  }
-
-  LInstruction* next = GetNextInstruction();
-  if (next != NULL && next->IsLazyBailout()) {
-    int pc = masm()->pc_offset();
-    safepoints_.SetPcAfterGap(pc);
   }
 }
 
@@ -1851,7 +1788,7 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
                                   LInstanceOfKnownGlobal* instr)
         : LDeferredCode(codegen), instr_(instr) { }
     virtual void Generate() {
-      codegen()->DoDeferredLInstanceOfKnownGlobal(instr_, &map_check_);
+      codegen()->DoDeferredInstanceOfKnownGlobal(instr_, &map_check_);
     }
 
     Label* map_check() { return &map_check_; }
@@ -1910,8 +1847,8 @@ void LCodeGen::DoInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr) {
 }
 
 
-void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
-                                                Label* map_check) {
+void LCodeGen::DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
+                                               Label* map_check) {
   {
     PushSafepointRegistersScope scope(this);
     InstanceofStub::Flags flags = static_cast<InstanceofStub::Flags>(
@@ -1937,6 +1874,9 @@ void LCodeGen::DoDeferredLInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                     RECORD_SAFEPOINT_WITH_REGISTERS,
                     2);
     ASSERT(delta == masm_->SizeOfCodeGeneratedSince(map_check));
+    ASSERT(instr->HasDeoptimizationEnvironment());
+    LEnvironment* env = instr->deoptimization_environment();
+    safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
     // Move result to a register that survives the end of the
     // PushSafepointRegisterScope.
     __ movq(kScratchRegister, rax);
@@ -2508,12 +2448,9 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
   __ bind(&invoke);
   ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
-  LEnvironment* env = instr->deoptimization_environment();
   RecordPosition(pointers->position());
-  RegisterEnvironmentForDeoptimization(env);
-  SafepointGenerator safepoint_generator(this,
-                                         pointers,
-                                         env->deoptimization_index());
+  SafepointGenerator safepoint_generator(
+      this, pointers, Safepoint::kLazyDeopt);
   v8::internal::ParameterCount actual(rax);
   __ InvokeFunction(function, actual, CALL_FUNCTION,
                     safepoint_generator, CALL_AS_METHOD);
@@ -2591,7 +2528,7 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
   }
 
   // Setup deoptimization.
-  RegisterLazyDeoptimization(instr, RECORD_SIMPLE_SAFEPOINT, 0);
+  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT, 0);
 
   // Restore context.
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -2938,10 +2875,8 @@ void LCodeGen::DoInvokeFunction(LInvokeFunction* instr) {
   ASSERT(instr->HasPointerMap());
   ASSERT(instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
-  LEnvironment* env = instr->deoptimization_environment();
   RecordPosition(pointers->position());
-  RegisterEnvironmentForDeoptimization(env);
-  SafepointGenerator generator(this, pointers, env->deoptimization_index());
+  SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
   ParameterCount count(instr->arity());
   __ InvokeFunction(rdi, count, CALL_FUNCTION, generator, CALL_AS_METHOD);
   __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
@@ -4037,9 +3972,28 @@ void LCodeGen::EmitIsConstructCall(Register temp) {
 }
 
 
+void LCodeGen::EnsureSpaceForLazyDeopt(int space_needed) {
+  // Ensure that we have enough space after the previous lazy-bailout
+  // instruction for patching the code here.
+  int current_pc = masm()->pc_offset();
+  if (current_pc < last_lazy_deopt_pc_ + space_needed) {
+    int padding_size = last_lazy_deopt_pc_ + space_needed - current_pc;
+    while (padding_size > 0) {
+      int nop_size = padding_size > 9 ? 9 : padding_size;
+      __ nop(nop_size);
+      padding_size -= nop_size;
+    }
+  }
+}
+
+
 void LCodeGen::DoLazyBailout(LLazyBailout* instr) {
-  // No code for lazy bailout instruction. Used to capture environment after a
-  // call for populating the safepoint data with deoptimization data.
+  EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
+  last_lazy_deopt_pc_ = masm()->pc_offset();
+  ASSERT(instr->HasEnvironment());
+  LEnvironment* env = instr->environment();
+  RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
+  safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
 }
 
 
@@ -4055,15 +4009,12 @@ void LCodeGen::DoDeleteProperty(LDeleteProperty* instr) {
   EmitPushTaggedOperand(key);
   ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
-  LEnvironment* env = instr->deoptimization_environment();
   RecordPosition(pointers->position());
-  RegisterEnvironmentForDeoptimization(env);
   // Create safepoint generator that will also ensure enough space in the
   // reloc info for patching in deoptimization (since this is invoking a
   // builtin)
-  SafepointGenerator safepoint_generator(this,
-                                         pointers,
-                                         env->deoptimization_index());
+  SafepointGenerator safepoint_generator(
+      this, pointers, Safepoint::kLazyDeopt);
   __ Push(Smi::FromInt(strict_mode_flag()));
   __ InvokeBuiltin(Builtins::DELETE, CALL_FUNCTION, safepoint_generator);
 }
@@ -4076,30 +4027,21 @@ void LCodeGen::DoIn(LIn* instr) {
   EmitPushTaggedOperand(obj);
   ASSERT(instr->HasPointerMap() && instr->HasDeoptimizationEnvironment());
   LPointerMap* pointers = instr->pointer_map();
-  LEnvironment* env = instr->deoptimization_environment();
   RecordPosition(pointers->position());
-  RegisterEnvironmentForDeoptimization(env);
-  // Create safepoint generator that will also ensure enough space in the
-  // reloc info for patching in deoptimization (since this is invoking a
-  // builtin)
-  SafepointGenerator safepoint_generator(this,
-                                         pointers,
-                                         env->deoptimization_index());
+  SafepointGenerator safepoint_generator(
+      this, pointers, Safepoint::kLazyDeopt);
   __ InvokeBuiltin(Builtins::IN, CALL_FUNCTION, safepoint_generator);
 }
 
 
 void LCodeGen::DoDeferredStackCheck(LStackCheck* instr) {
-  {
-    PushSafepointRegistersScope scope(this);
-    __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
-    __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
-    RegisterLazyDeoptimization(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
-  }
-
-  // The gap code includes the restoring of the safepoint registers.
-  int pc = masm()->pc_offset();
-  safepoints_.SetPcAfterGap(pc);
+  PushSafepointRegistersScope scope(this);
+  __ movq(rsi, Operand(rbp, StandardFrameConstants::kContextOffset));
+  __ CallRuntimeSaveDoubles(Runtime::kStackGuard);
+  RecordSafepointWithLazyDeopt(instr, RECORD_SAFEPOINT_WITH_REGISTERS, 0);
+  ASSERT(instr->HasEnvironment());
+  LEnvironment* env = instr->environment();
+  safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
 }
 
 
@@ -4113,6 +4055,10 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     LStackCheck* instr_;
   };
 
+  ASSERT(instr->HasEnvironment());
+  LEnvironment* env = instr->environment();
+  // There is no LLazyBailout instruction for stack-checks. We have to
+  // prepare for lazy deoptimization explicitly here.
   if (instr->hydrogen()->is_function_entry()) {
     // Perform stack overflow check.
     Label done;
@@ -4120,7 +4066,11 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
     __ j(above_equal, &done, Label::kNear);
     StackCheckStub stub;
     CallCode(stub.GetCode(), RelocInfo::CODE_TARGET, instr);
+    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(&done);
+    RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
+    safepoints_.RecordLazyDeoptimizationIndex(env->deoptimization_index());
   } else {
     ASSERT(instr->hydrogen()->is_backwards_branch());
     // Perform stack overflow check if this goto needs it before jumping.
@@ -4128,8 +4078,14 @@ void LCodeGen::DoStackCheck(LStackCheck* instr) {
         new DeferredStackCheck(this, instr);
     __ CompareRoot(rsp, Heap::kStackLimitRootIndex);
     __ j(below, deferred_stack_check->entry());
+    EnsureSpaceForLazyDeopt(Deoptimizer::patch_size());
+    last_lazy_deopt_pc_ = masm()->pc_offset();
     __ bind(instr->done_label());
     deferred_stack_check->SetExit(instr->done_label());
+    RegisterEnvironmentForDeoptimization(env, Safepoint::kLazyDeopt);
+    // Don't record a deoptimization index for the safepoint here.
+    // This will be done explicitly when emitting call and the safepoint in
+    // the deferred code.
   }
 }
 
@@ -4145,7 +4101,7 @@ void LCodeGen::DoOsrEntry(LOsrEntry* instr) {
   // If the environment were already registered, we would have no way of
   // backpatching it with the spill slot operands.
   ASSERT(!environment->HasBeenRegistered());
-  RegisterEnvironmentForDeoptimization(environment);
+  RegisterEnvironmentForDeoptimization(environment, Safepoint::kNoLazyDeopt);
   ASSERT(osr_pc_offset_ == -1);
   osr_pc_offset_ = masm()->pc_offset();
 }

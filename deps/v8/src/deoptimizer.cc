@@ -112,25 +112,11 @@ DeoptimizedFrameInfo* Deoptimizer::DebuggerInspectableFrame(
   // Get the function and code from the frame.
   JSFunction* function = JSFunction::cast(frame->function());
   Code* code = frame->LookupCode();
-  Address code_start_address = code->instruction_start();
 
   // Locate the deoptimization point in the code. As we are at a call the
   // return address must be at a place in the code with deoptimization support.
-  int deoptimization_index = Safepoint::kNoDeoptimizationIndex;
-  // Scope this as the safe point constructor will disallow allocation.
-  {
-    SafepointTable table(code);
-    for (unsigned i = 0; i < table.length(); ++i) {
-      Address address = code_start_address + table.GetPcOffset(i);
-      if (address == frame->pc()) {
-        SafepointEntry safepoint_entry = table.GetEntry(i);
-        ASSERT(safepoint_entry.deoptimization_index() !=
-               Safepoint::kNoDeoptimizationIndex);
-        deoptimization_index = safepoint_entry.deoptimization_index();
-        break;
-      }
-    }
-  }
+  SafepointEntry safepoint_entry = code->GetSafepointEntry(frame->pc());
+  int deoptimization_index = safepoint_entry.deoptimization_index();
   ASSERT(deoptimization_index != Safepoint::kNoDeoptimizationIndex);
 
   // Always use the actual stack slots when calculating the fp to sp

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,7 +34,6 @@ namespace v8 {
 namespace internal {
 
 static const Register kSavedValueRegister = { 9 };
-static const DoubleRegister kSavedDoubleValueRegister = { 0 };
 
 LGapResolver::LGapResolver(LCodeGen* owner)
     : cgen_(owner), moves_(32), root_index_(0), in_cycle_(false),
@@ -172,9 +171,9 @@ void LGapResolver::BreakCycle(int index) {
   } else if (source->IsStackSlot()) {
     __ ldr(kSavedValueRegister, cgen_->ToMemOperand(source));
   } else if (source->IsDoubleRegister()) {
-    __ vmov(kSavedDoubleValueRegister, cgen_->ToDoubleRegister(source));
+    __ vmov(kScratchDoubleReg, cgen_->ToDoubleRegister(source));
   } else if (source->IsDoubleStackSlot()) {
-    __ vldr(kSavedDoubleValueRegister, cgen_->ToMemOperand(source));
+    __ vldr(kScratchDoubleReg, cgen_->ToMemOperand(source));
   } else {
     UNREACHABLE();
   }
@@ -193,11 +192,9 @@ void LGapResolver::RestoreValue() {
   } else if (saved_destination_->IsStackSlot()) {
     __ str(kSavedValueRegister, cgen_->ToMemOperand(saved_destination_));
   } else if (saved_destination_->IsDoubleRegister()) {
-    __ vmov(cgen_->ToDoubleRegister(saved_destination_),
-            kSavedDoubleValueRegister);
+    __ vmov(cgen_->ToDoubleRegister(saved_destination_), kScratchDoubleReg);
   } else if (saved_destination_->IsDoubleStackSlot()) {
-    __ vstr(kSavedDoubleValueRegister,
-            cgen_->ToMemOperand(saved_destination_));
+    __ vstr(kScratchDoubleReg, cgen_->ToMemOperand(saved_destination_));
   } else {
     UNREACHABLE();
   }
@@ -235,8 +232,8 @@ void LGapResolver::EmitMove(int index) {
           // ip is overwritten while saving the value to the destination.
           // Therefore we can't use ip.  It is OK if the read from the source
           // destroys ip, since that happens before the value is read.
-          __ vldr(kSavedDoubleValueRegister.low(), source_operand);
-          __ vstr(kSavedDoubleValueRegister.low(), destination_operand);
+          __ vldr(kScratchDoubleReg.low(), source_operand);
+          __ vstr(kScratchDoubleReg.low(), destination_operand);
         } else {
           __ ldr(ip, source_operand);
           __ str(ip, destination_operand);
@@ -286,8 +283,8 @@ void LGapResolver::EmitMove(int index) {
         __ ldr(kSavedValueRegister, source_high_operand);
         __ str(kSavedValueRegister, destination_high_operand);
       } else {
-        __ vldr(kSavedDoubleValueRegister, source_operand);
-        __ vstr(kSavedDoubleValueRegister, destination_operand);
+        __ vldr(kScratchDoubleReg, source_operand);
+        __ vstr(kScratchDoubleReg, destination_operand);
       }
     }
   } else {

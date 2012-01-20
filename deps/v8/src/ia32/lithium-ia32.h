@@ -368,17 +368,7 @@ class LGoto: public LTemplateInstruction<0, 0, 0> {
 
 class LLazyBailout: public LTemplateInstruction<0, 0, 0> {
  public:
-  LLazyBailout() : gap_instructions_size_(0) { }
-
   DECLARE_CONCRETE_INSTRUCTION(LazyBailout, "lazy-bailout")
-
-  void set_gap_instructions_size(int gap_instructions_size) {
-    gap_instructions_size_ = gap_instructions_size;
-  }
-  int gap_instructions_size() { return gap_instructions_size_; }
-
- private:
-  int gap_instructions_size_;
 };
 
 

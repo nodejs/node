@@ -3535,7 +3535,8 @@ class DeoptimizationInputData: public FixedArray {
   static const int kAstIdOffset = 0;
   static const int kTranslationIndexOffset = 1;
   static const int kArgumentsStackHeightOffset = 2;
-  static const int kDeoptEntrySize = 3;
+  static const int kPcOffset = 3;
+  static const int kDeoptEntrySize = 4;
 
   // Simple element accessors.
 #define DEFINE_ELEMENT_ACCESSORS(name, type)      \
@@ -3571,6 +3572,7 @@ class DeoptimizationInputData: public FixedArray {
   DEFINE_ENTRY_ACCESSORS(AstId, Smi)
   DEFINE_ENTRY_ACCESSORS(TranslationIndex, Smi)
   DEFINE_ENTRY_ACCESSORS(ArgumentsStackHeight, Smi)
+  DEFINE_ENTRY_ACCESSORS(Pc, Smi)
 
 #undef DEFINE_ENTRY_ACCESSORS
 
@@ -5831,6 +5833,11 @@ class StringHasher {
   // String::kMaxArrayIndexSize digits with no leading zeros (except "0").
   // value is represented decimal value.
   static uint32_t MakeArrayIndexHash(uint32_t value, int length);
+
+  // No string is allowed to have a hash of zero.  That value is reserved
+  // for internal properties.  If the hash calculation yields zero then we
+  // use 27 instead.
+  static const int kZeroHash = 27;
 
  private:
   uint32_t array_index() {

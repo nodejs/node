@@ -5607,7 +5607,7 @@ void StringHelper::GenerateHashAddCharacter(MacroAssembler* masm,
 
 
 void StringHelper::GenerateHashGetHash(MacroAssembler* masm,
-                                         Register hash) {
+                                       Register hash) {
   // hash += hash << 3;
   __ sll(at, hash, 3);
   __ addu(hash, hash, at);

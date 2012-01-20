@@ -4058,6 +4058,7 @@ class HRegExpLiteral: public HMaterializedLiteral<1> {
         pattern_(pattern),
         flags_(flags) {
     SetOperandAt(0, context);
+    SetAllSideEffects();
   }
 
   HValue* context() { return OperandAt(0); }

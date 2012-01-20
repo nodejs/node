@@ -32,7 +32,7 @@
 
 // The original source code covered by the above license above has been modified
 // significantly by Google Inc.
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 #ifndef V8_ARM_ASSEMBLER_ARM_INL_H_
 #define V8_ARM_ASSEMBLER_ARM_INL_H_
@@ -44,6 +44,13 @@
 
 namespace v8 {
 namespace internal {
+
+
+int DwVfpRegister::ToAllocationIndex(DwVfpRegister reg) {
+  ASSERT(!reg.is(kDoubleRegZero));
+  ASSERT(!reg.is(kScratchDoubleReg));
+  return reg.code();
+}
 
 
 void RelocInfo::apply(intptr_t delta) {
