@@ -269,6 +269,10 @@ Isolate::Isolate() {
     loop_ = uv_default_loop();
   } else {
     loop_ = uv_loop_new();
+    // Artificially ref the isolate loop so that the child
+    // isolate stays alive by default.  process.exit will
+    // unref the loop (see Isolate::Unref).
+    uv_ref(loop_);
   }
 
   debug_state = kNone;
@@ -279,11 +283,6 @@ Isolate::Isolate() {
   v8_isolate_ = v8::Isolate::New();
   assert(v8_isolate_->GetData() == NULL);
   v8_isolate_->SetData(this);
-
-  // Artificially ref the isolate loop so that the child
-  // isolate stays alive by default.  process.exit will
-  // unref the loop (see Isolate::Unref).
-  uv_ref(loop_);
 
   globals_init_ = false;
 }
