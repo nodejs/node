@@ -120,8 +120,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
   struct stat s;
 
   if (file < 0) {
-    uv__set_sys_error(NULL, EINVAL); /* XXX Need loop? */
-    return -1;
+    return UV_UNKNOWN_HANDLE;
   }
 
   if (isatty(file)) {
@@ -129,8 +128,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
   }
 
   if (fstat(file, &s)) {
-    uv__set_sys_error(NULL, errno); /* XXX Need loop? */
-    return -1;
+    return UV_UNKNOWN_HANDLE;
   }
 
   if (!S_ISSOCK(s.st_mode) && !S_ISFIFO(s.st_mode)) {

@@ -200,8 +200,6 @@ kqueue_destroy (EV_P)
 void inline_size
 kqueue_fork (EV_P)
 {
-  close (backend_fd);
-
   while ((backend_fd = kqueue ()) < 0)
     ev_syserr ("(libev) kqueue");
 

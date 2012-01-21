@@ -116,6 +116,11 @@ void uv_loop_delete(uv_loop_t* loop) {
 }
 
 
+int uv_loop_refcount(const uv_loop_t* loop) {
+  return loop->refs;
+}
+
+
 void uv_ref(uv_loop_t* loop) {
   loop->refs++;
 }

@@ -200,6 +200,9 @@ typedef struct uv_work_s uv_work_t;
 UV_EXTERN uv_loop_t* uv_loop_new(void);
 UV_EXTERN void uv_loop_delete(uv_loop_t*);
 
+/* This is a debugging tool. It's NOT part of the official API. */
+UV_EXTERN int uv_loop_refcount(const uv_loop_t*);
+
 
 /*
  * Returns the default loop.
@@ -627,6 +630,32 @@ UV_EXTERN int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
 UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
     const char* multicast_addr, const char* interface_addr,
     uv_membership membership);
+
+/*
+ * Set the multicast ttl
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  ttl                 1 through 255
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
+
+/*
+ * Set broadcast on or off
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  on                  1 for on, 0 for off
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_set_broadcast(uv_udp_t* handle, int on);
 
 /*
  * Send data. If the socket has not previously been bound with `uv_udp_bind`

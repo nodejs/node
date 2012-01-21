@@ -45,12 +45,12 @@ if __name__ == '__main__':
 
   # There's a bug with windows which doesn't allow this feature.
   if sys.platform != 'win32':
-
     # Tell gyp to write the Makefiles into output_dir
     args.extend(['--generator-output', output_dir])
-
     # Tell make to write its output into the same dir
     args.extend(['-Goutput_dir=' + output_dir])
+    # Create Makefiles, not XCode projects
+    args.extend('-f make'.split())
 
   args.append('-Dtarget_arch=ia32')
   args.append('-Dcomponent=static_library')

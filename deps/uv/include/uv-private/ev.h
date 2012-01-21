@@ -562,6 +562,8 @@ EV_MAYBE_UNUSED ev_is_default_loop (EV_P)
 /* create and destroy alternative loops that don't handle signals */
 struct ev_loop *ev_loop_new (unsigned int flags EV_CPP (= 0));
 
+int ev_loop_refcount (EV_P);
+
 ev_tstamp ev_now (EV_P); /* time w.r.t. timers and the eventloop, updated after each poll */
 
 #else
