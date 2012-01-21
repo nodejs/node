@@ -76,9 +76,6 @@ if (isWindows) {
                '\\\\unc\\share\\foo\\bar');
 }
 
-path.exists(f, function(y) { assert.equal(y, true) });
-
-assert.equal(path.existsSync(f), true);
 
 assert.equal(path.extname(''), '');
 assert.equal(path.extname('/path/to/file'), '');

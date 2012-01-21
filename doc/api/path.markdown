@@ -4,9 +4,6 @@ This module contains utilities for handling and transforming file
 paths.  Almost all these methods perform only string transformations.
 The file system is not consulted to check whether paths are valid.
 
-`path.exists` and `path.existsSync` are the exceptions, and should
-logically be found in the fs module as they do access the file system.
-
 Use `require('path')` to use this module.  The following methods are provided:
 
 ### path.normalize(p)
@@ -140,16 +137,3 @@ an empty string.  Examples:
     // returns
     ''
 
-### path.exists(p, [callback])
-
-Test whether or not the given path exists by checking with the file system.
-Then call the `callback` argument with either true or false.  Example:
-
-    path.exists('/etc/passwd', function (exists) {
-      util.debug(exists ? "it's there" : "no passwd!");
-    });
-
-
-### path.existsSync(p)
-
-Synchronous version of `path.exists`.

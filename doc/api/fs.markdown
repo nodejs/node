@@ -464,6 +464,20 @@ callback, and have some fallback logic if it is null.
 	  }
     });
 
+### fs.exists(p, [callback])
+
+Test whether or not the given path exists by checking with the file system.
+Then call the `callback` argument with either true or false.  Example:
+
+    fs.exists('/etc/passwd', function (exists) {
+      util.debug(exists ? "it's there" : "no passwd!");
+    });
+
+
+### fs.existsSync(p)
+
+Synchronous version of `fs.exists`.
+
 ## fs.Stats
 
 Objects returned from `fs.stat()`, `fs.lstat()` and `fs.fstat()` and their
