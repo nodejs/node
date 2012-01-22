@@ -21,3 +21,13 @@
 .sh_sourceCode .sh_comment {
   color: #777;
 }
+
+.alt .sh_sourceCode .sh_keyword {
+    font-style: normal;
+    color: #996633;
+}
+
+.alt .sh_sourceCode .sh_symbol , .alt .sh_sourceCode .sh_cbracket {
+    color: #46483e;
+}
+
