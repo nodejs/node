@@ -20,6 +20,7 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 #include <node_crypto.h>
+#include <node_crypto_groups.h>
 #include <v8.h>
 
 #include <node.h>
@@ -3535,6 +3536,18 @@ class DiffieHellman : public ObjectWrap {
     NODE_SET_PROTOTYPE_METHOD(t, "setPrivateKey", SetPrivateKey);
 
     target->Set(String::NewSymbol("DiffieHellman"), t->GetFunction());
+
+    Local<FunctionTemplate> t2 = FunctionTemplate::New(DiffieHellmanGroup);
+    t2->InstanceTemplate()->SetInternalFieldCount(1);
+
+    NODE_SET_PROTOTYPE_METHOD(t2, "generateKeys", GenerateKeys);
+    NODE_SET_PROTOTYPE_METHOD(t2, "computeSecret", ComputeSecret);
+    NODE_SET_PROTOTYPE_METHOD(t2, "getPrime", GetPrime);
+    NODE_SET_PROTOTYPE_METHOD(t2, "getGenerator", GetGenerator);
+    NODE_SET_PROTOTYPE_METHOD(t2, "getPublicKey", GetPublicKey);
+    NODE_SET_PROTOTYPE_METHOD(t2, "getPrivateKey", GetPrivateKey);
+
+    target->Set(String::NewSymbol("DiffieHellmanGroup"), t2->GetFunction());
   }
 
   bool Init(int primeLength) {
@@ -3557,7 +3570,48 @@ class DiffieHellman : public ObjectWrap {
     return true;
   }
 
+  bool Init(unsigned char* p, int p_len, unsigned char* g, int g_len) {
+    dh = DH_new();
+    dh->p = BN_bin2bn(p, p_len, 0);
+    dh->g = BN_bin2bn(g, g_len, 0);
+    initialised_ = true;
+    return true;
+  }
+
  protected:
+  static Handle<Value> DiffieHellmanGroup(const Arguments& args) {
+    HandleScope scope;
+
+    DiffieHellman* diffieHellman = new DiffieHellman();
+
+    if (args.Length() != 1 || !args[0]->IsString()) {
+      return ThrowException(Exception::Error(
+          String::New("No group name given")));
+    }
+
+    String::Utf8Value group_name(args[0]->ToString());
+
+    modp_group* it = modp_groups;
+
+    while(it->name != NULL) {
+      if (!strcasecmp(*group_name, it->name))
+          break;
+      it++;
+    }
+
+    if (it->name != NULL) {
+      diffieHellman->Init(it->prime, it->prime_size,
+              it->gen, it->gen_size);
+    } else {
+      return ThrowException(Exception::Error(
+          String::New("Unknown group")));
+    }
+
+    diffieHellman->Wrap(args.This());
+
+    return args.This();
+  }
+
   static Handle<Value> New(const Arguments& args) {
     HandleScope scope;
 
@@ -4375,4 +4429,3 @@ void InitCrypto(Handle<Object> target) {
 }  // namespace node
 
 NODE_MODULE(node_crypto, node::crypto::InitCrypto)
-
