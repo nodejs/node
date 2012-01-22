@@ -42,6 +42,27 @@ assert.equal(util.inspect(a), "[ 'foo', , 'baz' ]");
 assert.equal(util.inspect(a, true), "[ 'foo', , 'baz', [length]: 3 ]");
 assert.equal(util.inspect(new Array(5)), '[ , , , ,  ]');
 
+// test for property descriptors
+var getter = Object.create(null, {
+  a: {
+    get: function() { return 'aaa'; }
+  }
+});
+var setter = Object.create(null, {
+  b: {
+    set: function() {}
+  },
+});
+var getterAndSetter = Object.create(null, {
+  c: {
+    get: function() { return 'ccc'; },
+    set: function() {}
+  }
+});
+assert.equal(util.inspect(getter, true), "{ [a]: [Getter] }");
+assert.equal(util.inspect(setter, true), "{ [b]: [Setter] }");
+assert.equal(util.inspect(getterAndSetter, true), "{ [c]: [Getter/Setter] }");
+
 // exceptions should print the error message, not "{}"
 assert.equal(util.inspect(new Error()), '[Error]');
 assert.equal(util.inspect(new Error('FAIL')), '[Error: FAIL]');
