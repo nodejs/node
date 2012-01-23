@@ -102,6 +102,7 @@ if (cluster.isMaster) {
                      // before calling any of the set*() functions - the bind()
                      // call is what creates the actual socket...
 
+  sendSocket.setTTL(1);
   sendSocket.setBroadcast(true);
   sendSocket.setMulticastTTL(1);
   sendSocket.setMulticastLoopback(true);
