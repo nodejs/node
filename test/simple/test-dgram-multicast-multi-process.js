@@ -98,10 +98,13 @@ if (cluster.isMaster) {
   }
 
   var sendSocket = dgram.createSocket('udp4');
+  sendSocket.bind(); // FIXME a libuv limitation makes it necessary to bind()
+                     // before calling any of the set*() functions - the bind()
+                     // call is what creates the actual socket...
 
-  //sendSocket.setBroadcast(true);
-  //sendSocket.setMulticastTTL(1);
-  //sendSocket.setMulticastLoopback(true);
+  sendSocket.setBroadcast(true);
+  sendSocket.setMulticastTTL(1);
+  sendSocket.setMulticastLoopback(true);
 
   sendSocket.on('close', function() {
     console.error('sendSocket closed');
