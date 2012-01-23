@@ -578,3 +578,24 @@ void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
   DECREASE_PENDING_REQ_COUNT(handle);
 }
 
+
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
+  if (setsockopt(handle->socket, IPPROTO_IP, IP_MULTICAST_TTL,
+      (const char*)&ttl, sizeof ttl) == -1) {
+    uv__set_sys_error(handle->loop, WSAGetLastError());
+    return -1;
+  }
+
+  return 0;
+}
+
+
+int uv_udp_set_broadcast(uv_udp_t* handle, int on) {
+  if (setsockopt(handle->socket, SOL_SOCKET, SO_BROADCAST, (const char*)&on,
+      sizeof on) == -1) {
+    uv__set_sys_error(handle->loop, WSAGetLastError());
+    return -1;
+  }
+
+  return 0;
+}
