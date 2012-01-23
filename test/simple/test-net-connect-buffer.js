@@ -85,7 +85,7 @@ tcp.listen(common.PORT, function() {
   // Write a string that contains a multi-byte character sequence to test that
   // `bytesWritten` is incremented with the # of bytes, not # of characters.
   var a = "L'État, c'est ";
-  var b = "moi";
+  var b = 'moi';
 
   // We're still connecting at this point so the datagram is first pushed onto
   // the connect queue. Make sure that it's not added to `bytesWritten` again

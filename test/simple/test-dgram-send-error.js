@@ -73,9 +73,9 @@ function doSend() {
 }
 
 process.on('exit', function() {
-  console.log(packetsSent + ' UDP packets sent, ' + 
+  console.log(packetsSent + ' UDP packets sent, ' +
               packetsReceived + ' received');
-  
+
   assert.strictEqual(packetsSent, ITERATIONS * 2);
   assert.strictEqual(packetsReceived, ITERATIONS);
 });

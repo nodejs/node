@@ -35,6 +35,8 @@ var server = http.createServer(function(req, res) {
   res.end('Hello World\n');
 });
 
+var addrString = '127.0.0.1:' + common.PORT;
+
 server.listen(common.PORT, '127.0.0.1', function() {
   for (var i = 0; i < N; i++) {
     var options = {
@@ -50,12 +52,15 @@ server.listen(common.PORT, '127.0.0.1', function() {
 
     assert.equal(req.agent, agent);
 
-    console.log('Socket: ' + agent.sockets['127.0.0.1:' + common.PORT].length +
-                '/' + agent.maxSockets +
-                ' queued: ' + (agent.requests['127.0.0.1:' + common.PORT] ? agent.requests['127.0.0.1:' + common.PORT].length : 0));
+    console.log('Socket: ' + agent.sockets[addrString].length + '/' +
+                agent.maxSockets + ' queued: ' + (agent.requests[addrString] ?
+                agent.requests['127.0.0.1:' + common.PORT].length : 0));
 
-    if (maxQueued < (agent.requests['127.0.0.1:' + common.PORT] ? agent.requests['127.0.0.1:' + common.PORT].length : 0)) {
-      maxQueued = (agent.requests['127.0.0.1:' + common.PORT] ? agent.requests['127.0.0.1:' + common.PORT].length : 0);
+    var agentRequests = agent.requests[addrString] ?
+          agent.requests[addrString].length : 0;
+
+    if (maxQueued < agentRequests) {
+      maxQueued = agentRequests;
     }
   }
 });

@@ -42,9 +42,7 @@ var server = net.createServer(function(connection) {
 });
 
 server.listen(common.PORT, function() {
-  for (var i = 0; i < N; i++) {
-    makeConnection(i);
-  }
+  makeConnection(0);
 });
 
 server.maxConnections = N / 2;
@@ -53,50 +51,54 @@ console.error('server.maxConnections = %d', server.maxConnections);
 
 
 function makeConnection(index) {
-  setTimeout(function() {
-    var c = net.createConnection(common.PORT);
-    var gotData = false;
+  var c = net.createConnection(common.PORT);
+  var gotData = false;
 
-    c.on('end', function() { c.end(); });
+  c.on('connect', function() {
+    if (index + 1 < N) {
+      makeConnection(index + 1);
+    }
+  });
 
-    c.on('data', function(b) {
-      gotData = true;
-      assert.ok(0 < b.length);
-    });
+  c.on('end', function() { c.end(); });
 
-    c.on('error', function(e) {
-      console.error('error %d: %s', index, e);
-    });
+  c.on('data', function(b) {
+    gotData = true;
+    assert.ok(0 < b.length);
+  });
 
-    c.on('close', function() {
-      console.error('closed %d', index);
-      closes++;
+  c.on('error', function(e) {
+    console.error('error %d: %s', index, e);
+  });
 
-      if (closes < N / 2) {
-        assert.ok(server.maxConnections <= index,
-                  index +
-                  ' was one of the first closed connections ' +
-                  'but shouldnt have been');
+  c.on('close', function() {
+    console.error('closed %d', index);
+    closes++;
+
+    if (closes < N / 2) {
+      assert.ok(server.maxConnections <= index,
+                index +
+                ' was one of the first closed connections ' +
+                'but shouldnt have been');
+    }
+
+    if (closes === N / 2) {
+      var cb;
+      console.error('calling wait callback.');
+      while (cb = waits.shift()) {
+        cb();
       }
+      server.close();
+    }
 
-      if (closes === N / 2) {
-        var cb;
-        console.error('calling wait callback.');
-        while (cb = waits.shift()) {
-          cb();
-        }
-        server.close();
-      }
-
-      if (index < server.maxConnections) {
-        assert.equal(true, gotData,
-                     index + ' didn\'t get data, but should have');
-      } else {
-        assert.equal(false, gotData,
-                     index + ' got data, but shouldn\'t have');
-      }
-    });
-  }, index);
+    if (index < server.maxConnections) {
+      assert.equal(true, gotData,
+                   index + ' didn\'t get data, but should have');
+    } else {
+      assert.equal(false, gotData,
+                   index + ' got data, but shouldn\'t have');
+    }
+  });
 }
 
 

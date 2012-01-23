@@ -68,7 +68,7 @@ function expect_ok(syscall, resource, err, atime, mtime) {
 // the tests assume that __filename belongs to the user running the tests
 // this should be a fairly safe assumption; testing against a temp file
 // would be even better though (node doesn't have such functionality yet)
-function runTests(atime, mtime, callback) {
+function runTest(atime, mtime, callback) {
 
   var fd, err;
   //
@@ -144,10 +144,10 @@ function runTests(atime, mtime, callback) {
 
 var stats = fs.statSync(__filename);
 
-runTests(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
-  runTests(new Date(), new Date(), function() {
-    runTests(123456.789, 123456.789, function() {
-      runTests(stats.mtime, stats.mtime, function() {
+runTest(new Date('1982-09-10 13:37'), new Date('1982-09-10 13:37'), function() {
+  runTest(new Date(), new Date(), function() {
+    runTest(123456.789, 123456.789, function() {
+      runTest(stats.mtime, stats.mtime, function() {
         // done
       });
     });

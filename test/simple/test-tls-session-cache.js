@@ -20,12 +20,12 @@
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 if (!process.versions.openssl) {
-  console.error("Skipping because node compiled without OpenSSL.");
+  console.error('Skipping because node compiled without OpenSSL.');
   process.exit(0);
 }
 require('child_process').exec('openssl version', function(err) {
   if (err !== null) {
-    console.error("Skipping because openssl command is not available.");
+    console.error('Skipping because openssl command is not available.');
     process.exit(0);
   }
   doTest();
@@ -46,7 +46,7 @@ function doTest() {
   var options = {
     key: key,
     cert: cert,
-    ca: [ cert ],
+    ca: [cert],
     requestCert: true
   };
   var requestCount = 0;

@@ -19,20 +19,20 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (process.platform === 'win32') {
-  var assert = require('assert');
-  var path = require('path');
-  var common = require('../common');
+// test uncompressing invalid input
 
-  var file = path.join(common.fixturesDir, 'a.js');
-  var resolvedFile = path.resolve(file);
+var common = require('../common.js'),
+    assert = require('assert'),
+    zlib = require('zlib');
 
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\?\\UNC\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\.\\pipe\\somepipe',
-               path._makeLong('\\\\.\\pipe\\somepipe'));
-}
+var nonStringInputs = [1, true, {a: 1}, ['a']];
+
+nonStringInputs.forEach(function(input) {
+  // zlib.gunzip should not throw an error when called with bad input.
+  assert.doesNotThrow(function () {
+    zlib.gunzip(input, function (err, buffer) {
+      // zlib.gunzip should pass the error to the callback.
+      assert.ok(err);
+    });
+  });
+});

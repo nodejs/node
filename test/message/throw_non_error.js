@@ -28,6 +28,6 @@ var assert = require('assert');
 common.error('before');
 
 // custom error throwing
-throw { foo: 'bar' }
+throw { foo: 'bar' };
 
 common.error('after');

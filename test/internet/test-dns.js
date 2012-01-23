@@ -383,11 +383,11 @@ TEST(function test_lookup_localhost_ipv4(done) {
 
 var getaddrinfoCallbackCalled = false;
 
-console.log("looking up nodejs.org...");
+console.log('looking up nodejs.org...');
 var req = process.binding('cares_wrap').getaddrinfo('nodejs.org');
 
 req.oncomplete = function(domains) {
-  console.log("nodejs.org = ", domains);
+  console.log('nodejs.org = ', domains);
   assert.ok(Array.isArray(domains));
   assert.ok(domains.length >= 1);
   assert.ok(typeof domains[0] == 'string');

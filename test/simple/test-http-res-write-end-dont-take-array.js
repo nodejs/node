@@ -25,7 +25,7 @@ var http = require('http');
 
 var test = 1;
 
-var server = http.createServer(function (req, res) {
+var server = http.createServer(function(req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   if (test === 1) {
     // write should accept string
@@ -53,11 +53,11 @@ var server = http.createServer(function (req, res) {
 
 server.listen(common.PORT, function() {
   // just make a request, other tests handle responses
-  http.get({port:common.PORT}, function() {
+  http.get({port: common.PORT}, function() {
     // lazy serial test, becuase we can only call end once per request
     test += 1;
     // do it again to test .end(Buffer);
-    http.get({port:common.PORT}, function() {
+    http.get({port: common.PORT}, function() {
       server.close();
     });
   });

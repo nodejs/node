@@ -13,7 +13,32 @@
 * Bug fixes
 
 
-2012.01.06, Version 0.6.7 (stable)
+2012.01.19, Version 0.6.8 (stable)
+
+* Update V8 to 3.6.6.19
+
+* Numeric key hash collision fix for V8 (Erik Corry, Fedor Indutny)
+
+* Add missing TTY key translations for F1-F5 on Windows (Brandon Benvie)
+
+* path.extname bugfix with . and .. paths (Bert Belder)
+
+* cluster: don't always kill the master on uncaughtException (Ben Noordhuis)
+
+* Update npm to 1.1.0-2 (isaacs)
+
+* typed arrays: set class name (Ben Noordhuis)
+
+* zlib binding cleanup (isaacs, Bert Belder)
+
+* dgram: use slab memory allocator (Michael Bernstein)
+
+* fix segfault #2473
+
+* #2521 60% improvement in fs.stat on Windows (Igor Zinkovsky)
+
+
+2012.01.06, Version 0.6.7 (stable), d5a189acef14a851287ee555f7a39431fe276e1c
 
 * V8 hash collision fix (Breaks MIPS) (Bert Belder, Erik Corry)
 

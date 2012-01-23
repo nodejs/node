@@ -19,20 +19,36 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (process.platform === 'win32') {
-  var assert = require('assert');
-  var path = require('path');
-  var common = require('../common');
+var common = require('../common');
+var assert = require('assert');
+var http = require('http');
+var N = 100;
+var responses = 0;
 
-  var file = path.join(common.fixturesDir, 'a.js');
-  var resolvedFile = path.resolve(file);
+var server = http.createServer(function(req, res) {
+  res.end('Hello');
+});
 
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\?\\UNC\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\.\\pipe\\somepipe',
-               path._makeLong('\\\\.\\pipe\\somepipe'));
-}
+server.listen(common.PORT, function() {
+  http.globalAgent.maxSockets = 1;
+  var parser;
+  for (var i = 0; i < N; ++i) {
+    (function makeRequest(i) {
+      var req = http.get({port: common.PORT}, function(res) {
+        if (!parser) {
+          parser = req.parser;
+        } else {
+          assert.strictEqual(req.parser, parser);
+        }
+
+        if (++responses === N) {
+          server.close();
+        }
+      });
+    })(i);
+  }
+});
+
+process.on('exit', function() {
+  assert.equal(responses, N);
+});

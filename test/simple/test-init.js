@@ -36,11 +36,13 @@
 
     child.exec(process.execPath + ' test-init', {env: {'TEST_INIT': 1}},
         function(err, stdout, stderr) {
-          assert.equal(stdout, 'Loaded successfully!', '`node test-init` failed!');
+          assert.equal(stdout, 'Loaded successfully!',
+                       '`node test-init` failed!');
         });
     child.exec(process.execPath + ' test-init.js', {env: {'TEST_INIT': 1}},
         function(err, stdout, stderr) {
-          assert.equal(stdout, 'Loaded successfully!', '`node test-init.js` failed!');
+          assert.equal(stdout, 'Loaded successfully!',
+                       '`node test-init.js` failed!');
         });
 
     // test-init-index is in fixtures dir as requested by ry, so go there
@@ -48,16 +50,19 @@
 
     child.exec(process.execPath + ' test-init-index', {env: {'TEST_INIT': 1}},
         function(err, stdout, stderr) {
-          assert.equal(stdout, 'Loaded successfully!', '`node test-init-index failed!');
+          assert.equal(stdout, 'Loaded successfully!',
+                       '`node test-init-index failed!');
         });
 
     // ensures that `node fs` does not mistakenly load the native 'fs' module
-    // instead of the desired file and that the fs module loads as expected in node
+    // instead of the desired file and that the fs module loads as
+    // expected in node
     process.chdir(common.fixturesDir + '/test-init-native/');
 
     child.exec(process.execPath + ' fs', {env: {'TEST_INIT': 1}},
         function(err, stdout, stderr) {
-          assert.equal(stdout, 'fs loaded successfully', '`node fs` failed!');
+          assert.equal(stdout, 'fs loaded successfully',
+                       '`node fs` failed!');
         });
   }
 })();

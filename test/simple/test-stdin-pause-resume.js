@@ -19,19 +19,19 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-console.error("before opening stdin");
+console.error('before opening stdin');
 process.stdin.resume();
-console.error("stdin opened");
+console.error('stdin opened');
 setTimeout(function() {
-  console.error("pausing stdin");
+  console.error('pausing stdin');
   process.stdin.pause();
   setTimeout(function() {
-    console.error("opening again");
+    console.error('opening again');
     process.stdin.resume();
     setTimeout(function() {
-      console.error("pausing again");
+      console.error('pausing again');
       process.stdin.pause();
-      console.error("should exit now");
+      console.error('should exit now');
     }, 1);
   }, 1);
 }, 1);

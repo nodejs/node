@@ -55,7 +55,7 @@ exports.indirectInstanceOf = function(obj, cls) {
 exports.ddCommand = function(filename, kilobytes) {
   if (process.platform == 'win32') {
     return '"' + process.argv[0] + '" "' + path.resolve(exports.fixturesDir,
-      'create-file.js') + '" "' + filename + '" ' + (kilobytes * 1024);
+           'create-file.js') + '" "' + filename + '" ' + (kilobytes * 1024);
   } else {
     return 'dd if=/dev/zero of="' + filename + '" bs=1024 count=' + kilobytes;
   }

@@ -26,14 +26,14 @@ var match = false;
 
 var isDebug = process.features.debug;
 
-var debugPaths = [ path.normalize(path.join(__dirname, '..', '..',
-                                         'out', 'Debug', 'node')),
-                   path.normalize(path.join(__dirname, '..', '..',
-                                         'Debug', 'node'))];
-var defaultPaths = [ path.normalize(path.join(__dirname, '..', '..',
-                                           'out', 'Release', 'node')),
-                     path.normalize(path.join(__dirname, '..', '..',
-                                           'Release', 'node'))];
+var debugPaths = [path.normalize(path.join(__dirname, '..', '..',
+                                           'out', 'Debug', 'node')),
+                  path.normalize(path.join(__dirname, '..', '..',
+                                           'Debug', 'node'))];
+var defaultPaths = [path.normalize(path.join(__dirname, '..', '..',
+                                             'out', 'Release', 'node')),
+                    path.normalize(path.join(__dirname, '..', '..',
+                                             'Release', 'node'))];
 
 console.error('debugPaths: ' + debugPaths);
 console.error('defaultPaths: ' + defaultPaths);

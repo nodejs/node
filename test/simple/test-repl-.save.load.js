@@ -29,9 +29,9 @@ var repl = require('repl');
 
 // A stream to push an array into a REPL
 function ArrayStream() {
-  this.run = function (data) {
+  this.run = function(data) {
     var self = this;
-    data.forEach(function (line) {
+    data.forEach(function(line) {
       self.emit('data', line);
     });
   }
@@ -39,10 +39,10 @@ function ArrayStream() {
 util.inherits(ArrayStream, require('stream').Stream);
 ArrayStream.prototype.readable = true;
 ArrayStream.prototype.writable = true;
-ArrayStream.prototype.resume = function () {};
-ArrayStream.prototype.write = function () {};
+ArrayStream.prototype.resume = function() {};
+ArrayStream.prototype.write = function() {};
 
-var works = [ [ 'inner.one' ], 'inner.o' ];
+var works = [['inner.one'], 'inner.o'];
 
 var putIn = new ArrayStream();
 var testMe = repl.start('', putIn);
@@ -61,13 +61,11 @@ putIn.run(testFile);
 putIn.run(['.save ' + saveFileName]);
 
 // the file should have what I wrote
-assert.equal(
-  fs.readFileSync(saveFileName, 'utf8'),
-  testFile.join('\n') + '\n');
+assert.equal(fs.readFileSync(saveFileName, 'utf8'), testFile.join('\n') + '\n');
 
 // make sure that the REPL data is "correct"
 // so when I load it back I know I'm good
-testMe.complete('inner.o', function (error, data) {
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
@@ -78,7 +76,7 @@ putIn.run(['.clear']);
 putIn.run(['.load ' + saveFileName]);
 
 // make sure that the REPL data is "correct"
-testMe.complete('inner.o', function (error, data) {
+testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, works);
 });
 
@@ -90,12 +88,11 @@ var loadFile = join(common.tmpDir, 'file.does.not.exist');
 // shold not break
 putIn.write = function(data) {
   // make sure I get a failed to load message and not some crazy error
-  assert.equal(data,
-  'Failed to load:' + loadFile + '\n');
+  assert.equal(data, 'Failed to load:' + loadFile + '\n');
   // eat me to avoid work
   putIn.write = function() {};
 };
-putIn.run(['.load ' +loadFile]);
+putIn.run(['.load ' + loadFile]);
 
 
 //TODO how do I do a failed .save test?

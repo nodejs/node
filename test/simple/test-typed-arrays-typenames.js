@@ -19,20 +19,30 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (process.platform === 'win32') {
-  var assert = require('assert');
-  var path = require('path');
-  var common = require('../common');
+var common = require('../common');
+var assert = require('assert');
 
-  var file = path.join(common.fixturesDir, 'a.js');
-  var resolvedFile = path.resolve(file);
+// TODO: merge with test-typed-arrays.js some time in the future.
+// That file only exists in master right now.
+[
+  'ArrayBuffer',
+  'Int8Array',
+  'Uint8Array',
+  'Int16Array',
+  'Uint16Array',
+  'Int32Array',
+  'Uint32Array',
+  'Float32Array',
+  'Float64Array'
+].forEach(function(name) {
+  var expected = '[object ' + name + ']';
+  var clazz = global[name];
+  var obj = new clazz(1);
 
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\?\\UNC\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\.\\pipe\\somepipe',
-               path._makeLong('\\\\.\\pipe\\somepipe'));
-}
+  assert.equal(obj.toString(), expected);
+  assert.equal(Object.prototype.toString.call(obj), expected);
+
+  obj = new DataView(obj);
+  assert.equal(obj.toString(), '[object DataView]');
+  assert.equal(Object.prototype.toString.call(obj), '[object DataView]');
+});

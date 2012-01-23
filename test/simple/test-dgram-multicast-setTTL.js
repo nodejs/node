@@ -19,20 +19,23 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-if (process.platform === 'win32') {
-  var assert = require('assert');
-  var path = require('path');
-  var common = require('../common');
+var common = require('../common'),
+    assert = require('assert'),
+    dgram = require('dgram'),
+    thrown = false,
+    socket = dgram.createSocket('udp4');
 
-  var file = path.join(common.fixturesDir, 'a.js');
-  var resolvedFile = path.resolve(file);
+socket.bind(common.PORT);
+socket.setMulticastTTL(16);
 
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong(file));
-  assert.equal('\\\\?\\' + resolvedFile, path._makeLong('\\\\?\\' + file));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\?\\UNC\\someserver\\someshare\\somefile',
-               path._makeLong('\\\\?\\UNC\\someserver\\someshare\\somefile'));
-  assert.equal('\\\\.\\pipe\\somepipe',
-               path._makeLong('\\\\.\\pipe\\somepipe'));
+//Try to set an invalid TTL (valid ttl is > 0 and < 256)
+try {
+    socket.setMulticastTTL(1000);
+} catch (e) {
+    thrown = true;
 }
+
+assert(thrown, 'Setting an invalid mutlicast TTL should throw some error');
+
+//close the socket
+socket.close();

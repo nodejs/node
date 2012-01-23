@@ -51,7 +51,8 @@ var server = tls.createServer(options, function(conn) {
 });
 
 server.listen(common.PORT, '127.0.0.1', function() {
-  var cmd = 'openssl s_client -cipher NULL-MD5 -connect 127.0.0.1:' + common.PORT;
+  var cmd = 'openssl s_client -cipher NULL-MD5 -connect 127.0.0.1:' +
+            common.PORT;
 
   exec(cmd, function(err, stdout, stderr) {
     if (err) throw err;
