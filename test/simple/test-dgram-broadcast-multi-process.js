@@ -140,9 +140,7 @@ if (!cluster.isMaster) {
     process.send({ message : buf.toString() });
 
     if (receivedMessages.length == messages.length) {
-      listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
-      process.nextTick(function() { // TODO should be changed to below.
-        // listenSocket.dropMembership(LOCAL_BROADCAST_HOST, function() {
+      process.nextTick(function() {
         listenSocket.close();
       });
     }
