@@ -35,7 +35,7 @@ try {
     thrown = true;
 }
 
-assert(thrown, 'Setting an invalid mutlicast TTL should throw some error');
+assert(thrown, 'Setting an invalid multicast TTL should throw some error');
 
 //close the socket
 socket.close();

@@ -85,7 +85,7 @@ if (cluster.isMaster) {
                 }
               });
 
-              console.error('%d received %d matching messges.', worker.pid
+              console.error('%d received %d matching messages.', worker.pid
                     , count);
 
               assert.equal(count, messages.length
