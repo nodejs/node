@@ -237,14 +237,14 @@ Handle<Value> UDPWrap::SetMembership(const Arguments& args,
   assert(args.Length() == 2);
 
   String::Utf8Value address(args[0]->ToString());
-  String::Utf8Value interface(args[1]->ToString());
+  String::Utf8Value iface(args[1]->ToString());
 
-  const char* interface_cstr = *interface;
+  const char* iface_cstr = *iface;
   if (args[1]->IsUndefined() || args[1]->IsNull()) {
-      interface_cstr = NULL;
+      iface_cstr = NULL;
   }
 
-  int r = uv_udp_set_membership(&wrap->handle_, *address, interface_cstr,
+  int r = uv_udp_set_membership(&wrap->handle_, *address, iface_cstr,
                                 membership);
 
   if (r)
