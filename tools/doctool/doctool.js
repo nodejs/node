@@ -129,6 +129,9 @@ if (argc > 3) {
 
       output = output.replace("{{section}}", filename+" - ")
     } else {
+      if (filename === "index") {
+        html = '<div id="toc">' + html + '</div>';
+      }
       output = output.replace("{{section}}", "");
       output = output.replace(/<body([^>]*)>/, '<body class="'+filename+'" $1>');
     }
