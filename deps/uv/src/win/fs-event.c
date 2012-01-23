@@ -178,7 +178,7 @@ int uv_fs_event_init(uv_loop_t* loop, uv_fs_event_t* handle,
      */
     
     /* Convert to short path. */
-    if (!GetShortPathNameW(filenamew, short_path, COUNTOF(short_path))) {
+    if (!GetShortPathNameW(filenamew, short_path, ARRAY_SIZE(short_path))) {
       last_error = GetLastError();
       goto error;
     }

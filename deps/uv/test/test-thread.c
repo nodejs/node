@@ -23,13 +23,8 @@
 #include "task.h"
 
 #include <stdio.h>
-#include <stddef.h>
 #include <stdlib.h>
-
-#define ARRAY_SIZE(a) (sizeof(a) / sizeof((a)[0]))
-
-#define container_of(ptr, type, member) \
-  ((type *) ((char *) (ptr) - offsetof(type, member)))
+#include <string.h> /* memset */
 
 struct getaddrinfo_req {
   uv_thread_t thread_id;

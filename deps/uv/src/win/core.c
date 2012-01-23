@@ -197,7 +197,7 @@ static void uv_poll_ex(uv_loop_t* loop, int block) {
 
   success = pGetQueuedCompletionStatusEx(loop->iocp,
                                          overlappeds,
-                                         COUNTOF(overlappeds),
+                                         ARRAY_SIZE(overlappeds),
                                          &count,
                                          timeout,
                                          FALSE);

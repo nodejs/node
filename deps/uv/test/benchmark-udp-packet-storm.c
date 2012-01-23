@@ -35,8 +35,6 @@
 
 #define BASE_PORT 12345
 
-#define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
-
 static uv_loop_t* loop;
 
 static int n_senders_;

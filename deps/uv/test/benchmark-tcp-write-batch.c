@@ -23,14 +23,10 @@
 #include "task.h"
 
 #include <stdio.h>
-#include <stddef.h>
 #include <stdlib.h>
 
 #define WRITE_REQ_DATA  "Hello, world."
 #define NUM_WRITE_REQS  (1000 * 1000)
-
-#define container_of(ptr, type, member) \
-  ((type *) ((char *) (ptr) - offsetof(type, member)))
 
 typedef struct {
   uv_write_t req;

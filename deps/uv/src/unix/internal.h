@@ -154,13 +154,18 @@ enum {
   UV_TCP_KEEPALIVE = 0x100   /* Turn on keep-alive. */
 };
 
-int uv__close(int fd);
+/* core */
 void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle, uv_handle_type type);
-
-
 int uv__nonblock(int fd, int set) __attribute__((unused));
 int uv__cloexec(int fd, int set) __attribute__((unused));
 int uv__socket(int domain, int type, int protocol);
+
+/* We used to handle EINTR in uv__close() but linux 2.6 will have closed the
+ * file descriptor anyway, even on EINTR. Retrying in that case isn't merely
+ * useless, it's actively harmful - the file descriptor may have been acquired
+ * by another thread.
+ */
+#define uv__close(fd) close(fd)
 
 /* error */
 uv_err_code uv_translate_sys_error(int sys_errno);
@@ -191,8 +196,8 @@ void uv__pipe_accept(EV_P_ ev_io* watcher, int revents);
 int uv_pipe_cleanup(uv_pipe_t* handle);
 
 /* udp */
-void uv__udp_destroy(uv_udp_t* handle);
-void uv__udp_watcher_stop(uv_udp_t* handle, ev_io* w);
+void uv__udp_start_close(uv_udp_t* handle);
+void uv__udp_finish_close(uv_udp_t* handle);
 
 /* fs */
 void uv__fs_event_destroy(uv_fs_event_t* handle);

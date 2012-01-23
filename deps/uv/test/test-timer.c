@@ -37,8 +37,6 @@ static void once_close_cb(uv_handle_t* handle) {
   ASSERT(handle != NULL);
 
   once_close_cb_called++;
-
-  free(handle);
 }
 
 
@@ -86,6 +84,7 @@ static void never_cb(uv_timer_t* handle, int status) {
 
 
 TEST_IMPL(timer) {
+  uv_timer_t once_timers[10];
   uv_timer_t *once;
   uv_timer_t repeat, never;
   int i, r;
@@ -94,9 +93,8 @@ TEST_IMPL(timer) {
   ASSERT(0 < start_time);
 
   /* Let 10 timers time out in 500 ms total. */
-  for (i = 0; i < 10; i++) {
-    once = (uv_timer_t*)malloc(sizeof(*once));
-    ASSERT(once != NULL);
+  for (i = 0; i < ARRAY_SIZE(once_timers); i++) {
+    once = once_timers + i;
     r = uv_timer_init(uv_default_loop(), once);
     ASSERT(r == 0);
     r = uv_timer_start(once, once_cb, i * 50, 0);

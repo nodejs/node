@@ -654,6 +654,32 @@ UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
     uv_membership membership);
 
 /*
+ * Set the multicast ttl
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  ttl                 1 through 255
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
+
+/*
+ * Set broadcast on or off
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  on                  1 for on, 0 for off
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+int uv_udp_set_broadcast(uv_udp_t* handle, int on);
+
+/*
  * Send data. If the socket has not previously been bound with `uv_udp_bind`
  * or `uv_udp_bind6`, it is bound to 0.0.0.0 (the "all interfaces" address)
  * and a random port number.

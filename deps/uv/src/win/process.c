@@ -545,12 +545,12 @@ wchar_t* make_program_env(char** env_block) {
 
   for (env = env_block; *env; env++) {
     check_required_vars_contains_var(required_vars,
-                                     COUNTOF(required_vars),
+                                     ARRAY_SIZE(required_vars),
                                      *env);
     env_len += (uv_utf8_to_utf16(*env, NULL, 0) * sizeof(wchar_t));
   }
 
-  for (i = 0; i < COUNTOF(required_vars); ++i) {
+  for (i = 0; i < ARRAY_SIZE(required_vars); ++i) {
     if (!required_vars[i].supplied) {
       env_len += required_vars[i].len * sizeof(wchar_t);
       var_size = GetEnvironmentVariableW(required_vars[i].wide, NULL, 0);
@@ -577,7 +577,7 @@ wchar_t* make_program_env(char** env_block) {
     }
   }
 
-  for (i = 0; i < COUNTOF(required_vars); ++i) {
+  for (i = 0; i < ARRAY_SIZE(required_vars); ++i) {
     if (!required_vars[i].supplied) {
       wcscpy(ptr, required_vars[i].wide);
       ptr += required_vars[i].len - 1;
@@ -675,7 +675,7 @@ static void close_child_stdio(uv_process_t* process) {
   int i;
   HANDLE handle;
 
-  for (i = 0; i < COUNTOF(process->child_stdio); i++) {
+  for (i = 0; i < ARRAY_SIZE(process->child_stdio); i++) {
     handle = process->child_stdio[i];
     if (handle != NULL && handle != INVALID_HANDLE_VALUE) {
       CloseHandle(handle);
@@ -1048,7 +1048,7 @@ done:
     /* We're keeping the handles open, the thread pool is going to have */
     /* it's way with them. But at least make them non-inheritable. */
     int i;
-    for (i = 0; i < COUNTOF(process->child_stdio); i++) {
+    for (i = 0; i < ARRAY_SIZE(process->child_stdio); i++) {
       SetHandleInformation(child_stdio[i], HANDLE_FLAG_INHERIT, 0);
     }
   }
