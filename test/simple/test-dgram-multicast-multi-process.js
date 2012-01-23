@@ -129,8 +129,6 @@ if (!cluster.isMaster) {
   var receivedMessages = [];
   var listenSocket = dgram.createSocket('udp4');
 
-  listenSocket.addMembership(LOCAL_BROADCAST_HOST);
-
   listenSocket.on('message', function(buf, rinfo) {
     console.error('%s received %s from %j', process.pid
                 ,util.inspect(buf.toString()), rinfo);
@@ -157,4 +155,6 @@ if (!cluster.isMaster) {
   });
 
   listenSocket.bind(common.PORT);
+
+  listenSocket.addMembership(LOCAL_BROADCAST_HOST);
 }
