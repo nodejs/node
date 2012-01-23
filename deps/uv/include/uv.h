@@ -115,7 +115,8 @@ typedef intptr_t ssize_t;
   XX( 45, EAISOCKTYPE, "") \
   XX( 46, ESHUTDOWN, "") \
   XX( 47, EEXIST, "file already exists") \
-  XX( 48, ESRCH, "no such process")
+  XX( 48, ESRCH, "no such process") \
+  XX( 49, ENAMETOOLONG, "name too long")
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,
@@ -632,6 +633,20 @@ UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
     uv_membership membership);
 
 /*
+ * Set IP multicast loop flag. Makes multicast packets loop back to
+ * local sockets.
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  on                  1 for on, 0 for off
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+UV_EXTERN int uv_udp_set_multicast_loop(uv_udp_t* handle, int on);
+
+/*
  * Set the multicast ttl
  *
  * Arguments:
@@ -642,7 +657,7 @@ UV_EXTERN int uv_udp_set_membership(uv_udp_t* handle,
  * Returns:
  *  0 on success, -1 on error.
  */
-int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
+UV_EXTERN int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
 
 /*
  * Set broadcast on or off
@@ -655,7 +670,20 @@ int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl);
  * Returns:
  *  0 on success, -1 on error.
  */
-int uv_udp_set_broadcast(uv_udp_t* handle, int on);
+UV_EXTERN int uv_udp_set_broadcast(uv_udp_t* handle, int on);
+
+/*
+ * Set the time to live
+ *
+ * Arguments:
+ *  handle              UDP handle. Should have been initialized with
+ *                      `uv_udp_init`.
+ *  ttl                 1 through 255
+ *
+ * Returns:
+ *  0 on success, -1 on error.
+ */
+UV_EXTERN int uv_udp_set_ttl(uv_udp_t* handle, int ttl);
 
 /*
  * Send data. If the socket has not previously been bound with `uv_udp_bind`

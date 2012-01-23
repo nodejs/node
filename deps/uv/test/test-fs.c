@@ -45,6 +45,7 @@
 # define close _close
 #endif
 
+#define TOO_LONG_NAME_LENGTH 8192
 
 typedef struct {
   const char* path;
@@ -416,6 +417,14 @@ static void open_noent_cb(uv_fs_t* req) {
   uv_fs_req_cleanup(req);
 }
 
+static void open_nametoolong_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_OPEN);
+  ASSERT(req->errorno == UV_ENAMETOOLONG);
+  ASSERT(req->result == -1);
+  open_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
 
 TEST_IMPL(fs_file_noent) {
   uv_fs_t req;
@@ -441,6 +450,31 @@ TEST_IMPL(fs_file_noent) {
   return 0;
 }
 
+TEST_IMPL(fs_file_nametoolong) {
+  uv_fs_t req;
+  int r;
+
+  loop = uv_default_loop();
+
+  char name[TOO_LONG_NAME_LENGTH + 1];
+  memset(name, 'a', TOO_LONG_NAME_LENGTH);
+  name[TOO_LONG_NAME_LENGTH] = 0;
+
+  r = uv_fs_open(loop, &req, name, O_RDONLY, 0, NULL);
+  ASSERT(r == -1);
+  ASSERT(req.result == -1);
+  ASSERT(uv_last_error(loop).code == UV_ENAMETOOLONG);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_open(loop, &req, name, O_RDONLY, 0, open_nametoolong_cb);
+  ASSERT(r == 0);
+
+  ASSERT(open_cb_count == 0);
+  uv_run(loop);
+  ASSERT(open_cb_count == 1);
+
+  return 0;
+}
 
 static void check_utime(const char* path, double atime, double mtime) {
   struct stat* s;
