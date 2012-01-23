@@ -249,6 +249,7 @@ code.pre {
 
 #intro.interior #logo {
     margin-left: -298px;
+    border:0;
 }
 
 hr {
