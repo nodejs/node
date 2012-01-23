@@ -66,6 +66,10 @@
 
 #include <node_object_wrap.h>
 
+#if defined(_MSC_VER)
+#undef interface
+#endif
+
 #ifndef offset_of
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
