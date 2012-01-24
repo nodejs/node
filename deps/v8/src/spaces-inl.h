@@ -248,7 +248,7 @@ void Page::set_prev_page(Page* page) {
 
 
 // Try linear allocation in the page of alloc_info's allocation top.  Does
-// not contain slow case logic (eg, move to the next page or try free list
+// not contain slow case logic (e.g. move to the next page or try free list
 // allocation) so it can be used by all the allocation functions and for all
 // the paged spaces.
 HeapObject* PagedSpace::AllocateLinearly(int size_in_bytes) {
@@ -332,7 +332,7 @@ void NewSpace::ShrinkStringAtAllocationBoundary(String* string, int length) {
   string->set_length(length);
   if (Marking::IsBlack(Marking::MarkBitFrom(string))) {
     int delta = static_cast<int>(old_top - allocation_info_.top);
-    MemoryChunk::IncrementLiveBytes(string->address(), -delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(string->address(), -delta);
   }
 }
 

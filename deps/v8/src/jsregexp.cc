@@ -704,7 +704,7 @@ Handle<Object> RegExpImpl::IrregexpExec(Handle<JSRegExp> jsregexp,
 //   the virtualized backtrack stack and some register changes.  When a node is
 //   to be emitted it can flush the Trace or update it.  Flushing the Trace
 //   will emit code to bring the actual state into line with the virtual state.
-//   Avoiding flushing the state can postpone some work (eg updates of capture
+//   Avoiding flushing the state can postpone some work (e.g. updates of capture
 //   registers).  Postponing work can save time when executing the regular
 //   expression since it may be found that the work never has to be done as a
 //   failure to match can occur.  In addition it is much faster to jump to a

@@ -197,6 +197,7 @@ namespace internal {
   F(StringLocaleCompare, 2, 1) \
   F(SubString, 3, 1) \
   F(StringReplaceRegExpWithString, 4, 1) \
+  F(StringReplaceOneCharWithString, 3, 1) \
   F(StringMatch, 3, 1) \
   F(StringTrim, 3, 1) \
   F(StringToArray, 2, 1) \
@@ -628,6 +629,13 @@ class Runtime : public AllStatic {
 
   // Get the intrinsic function with the given FunctionId.
   static const Function* FunctionForId(FunctionId id);
+
+  static Handle<String> StringReplaceOneCharWithString(Isolate* isolate,
+                                                       Handle<String> subject,
+                                                       Handle<String> search,
+                                                       Handle<String> replace,
+                                                       bool* found,
+                                                       int recursion_limit);
 
   // General-purpose helper functions for runtime system.
   static int StringMatch(Isolate* isolate,

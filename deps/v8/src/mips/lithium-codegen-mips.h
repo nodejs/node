@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -115,6 +115,9 @@ class LCodeGen BASE_EMBEDDED {
   void DoDeferredInstanceOfKnownGlobal(LInstanceOfKnownGlobal* instr,
                                        Label* map_check);
 
+  void DoCheckMapCommon(Register reg, Register scratch, Handle<Map> map,
+                        CompareMapMode mode, LEnvironment* env);
+
   // Parallel move support.
   void DoParallelMove(LParallelMove* move);
   void DoGap(LGap* instr);
@@ -223,8 +226,8 @@ class LCodeGen BASE_EMBEDDED {
                                             Safepoint::DeoptMode mode);
   void DeoptimizeIf(Condition cc,
                     LEnvironment* environment,
-                    Register src1,
-                    const Operand& src2);
+                    Register src1 = zero_reg,
+                    const Operand& src2 = Operand(zero_reg));
 
   void AddToTranslation(Translation* translation,
                         LOperand* op,
@@ -280,6 +283,7 @@ class LCodeGen BASE_EMBEDDED {
   void EmitNumberUntagD(Register input,
                         DoubleRegister result,
                         bool deoptimize_on_undefined,
+                        bool deoptimize_on_minus_zero,
                         LEnvironment* env);
 
   // Emits optimized code for typeof x == "y".  Modifies input register.

@@ -992,7 +992,7 @@ void StubCompiler::GenerateLoadCallback(Handle<JSObject> object,
 
   __ push(scratch3);  // Restore return address.
 
-  // 3 elements array for v8::Agruments::values_, handler for name and pointer
+  // 3 elements array for v8::Arguments::values_, handler for name and pointer
   // to the values (it considered as smi in GC).
   const int kStackSpace = 5;
   const int kApiArgc = 2;
@@ -1053,7 +1053,7 @@ void StubCompiler::GenerateLoadInterceptor(Handle<JSObject> object,
   // and CALLBACKS, so inline only them, other cases may be added
   // later.
   bool compile_followup_inline = false;
-  if (lookup->IsProperty() && lookup->IsCacheable()) {
+  if (lookup->IsFound() && lookup->IsCacheable()) {
     if (lookup->type() == FIELD) {
       compile_followup_inline = true;
     } else if (lookup->type() == CALLBACKS &&

@@ -67,7 +67,7 @@ class List {
 
   // Returns a reference to the element at index i.  This reference is
   // not safe to use after operations that can change the list's
-  // backing store (eg, Add).
+  // backing store (e.g. Add).
   inline T& operator[](int i) const {
     ASSERT(0 <= i);
     ASSERT(i < length_);

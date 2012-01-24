@@ -895,7 +895,7 @@ static void Generate_JSConstructStubHelper(MacroAssembler* masm,
 
       // Initialize the FixedArray.
       // a1: constructor
-      // a3: number of elements in properties array (un-tagged)
+      // a3: number of elements in properties array (untagged)
       // t4: JSObject
       // t5: start of next object
       __ LoadRoot(t6, Heap::kFixedArrayMapRootIndex);
@@ -1099,7 +1099,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
   // ----------- S t a t e -------------
   //  -- a0: code entry
   //  -- a1: function
-  //  -- a2: reveiver_pointer
+  //  -- a2: receiver_pointer
   //  -- a3: argc
   //  -- s0: argv
   // -----------------------------------
@@ -1121,7 +1121,7 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
 
     // Copy arguments to the stack in a loop.
     // a3: argc
-    // s0: argv, ie points to first arg
+    // s0: argv, i.e. points to first arg
     Label loop, entry;
     __ sll(t0, a3, kPointerSizeLog2);
     __ addu(t2, s0, t0);

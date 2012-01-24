@@ -356,7 +356,7 @@ void StackGuard::EnableInterrupts() {
 
 void StackGuard::SetStackLimit(uintptr_t limit) {
   ExecutionAccess access(isolate_);
-  // If the current limits are special (eg due to a pending interrupt) then
+  // If the current limits are special (e.g. due to a pending interrupt) then
   // leave them alone.
   uintptr_t jslimit = SimulatorStack::JsLimitFromCLimit(isolate_, limit);
   if (thread_local_.jslimit_ == thread_local_.real_jslimit_) {

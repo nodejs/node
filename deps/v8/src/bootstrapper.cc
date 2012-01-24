@@ -1099,11 +1099,11 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 #ifdef DEBUG
     LookupResult lookup(isolate);
     result->LocalLookup(heap->callee_symbol(), &lookup);
-    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
+    ASSERT(lookup.IsFound() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsCalleeIndex);
 
     result->LocalLookup(heap->length_symbol(), &lookup);
-    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
+    ASSERT(lookup.IsFound() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
 
     ASSERT(result->map()->inobject_properties() > Heap::kArgumentsCalleeIndex);
@@ -1197,7 +1197,7 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
 #ifdef DEBUG
     LookupResult lookup(isolate);
     result->LocalLookup(heap->length_symbol(), &lookup);
-    ASSERT(lookup.IsProperty() && (lookup.type() == FIELD));
+    ASSERT(lookup.IsFound() && (lookup.type() == FIELD));
     ASSERT(lookup.GetFieldIndex() == Heap::kArgumentsLengthIndex);
 
     ASSERT(result->map()->inobject_properties() > Heap::kArgumentsLengthIndex);

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1219,7 +1219,7 @@ bool Isolate::OptionalRescheduleException(bool is_bottom_call) {
   ASSERT(has_pending_exception());
   PropagatePendingExceptionToExternalTryCatch();
 
-  // Allways reschedule out of memory exceptions.
+  // Always reschedule out of memory exceptions.
   if (!is_out_of_memory()) {
     bool is_termination_exception =
         pending_exception() == heap_.termination_exception();
@@ -1454,7 +1454,8 @@ Isolate::Isolate()
       has_installed_extensions_(false),
       string_tracker_(NULL),
       regexp_stack_(NULL),
-      embedder_data_(NULL) {
+      embedder_data_(NULL),
+      context_exit_happened_(false) {
   TRACE_ISOLATE(constructor);
 
   memset(isolate_addresses_, 0,

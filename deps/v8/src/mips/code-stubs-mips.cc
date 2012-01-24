@@ -4061,7 +4061,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Registers:
   // a0: entry address
   // a1: function
-  // a2: reveiver
+  // a2: receiver
   // a3: argc
   //
   // Stack:
@@ -4103,7 +4103,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Registers:
   // a0: entry_address
   // a1: function
-  // a2: reveiver_pointer
+  // a2: receiver_pointer
   // a3: argc
   // s0: argv
   //
@@ -4170,7 +4170,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // Registers:
   // a0: entry_address
   // a1: function
-  // a2: reveiver_pointer
+  // a2: receiver_pointer
   // a3: argc
   // s0: argv
   //
@@ -4252,7 +4252,7 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
   const Register inline_site = t5;
   const Register scratch = a2;
 
-  const int32_t kDeltaToLoadBoolResult = 4 * kPointerSize;
+  const int32_t kDeltaToLoadBoolResult = 5 * kPointerSize;
 
   Label slow, loop, is_instance, is_not_instance, not_js_object;
 
@@ -4296,11 +4296,12 @@ void InstanceofStub::Generate(MacroAssembler* masm) {
     // Patch the (relocated) inlined map check.
 
     // The offset was stored in t0 safepoint slot.
-    // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal)
+    // (See LCodeGen::DoDeferredLInstanceOfKnownGlobal).
     __ LoadFromSafepointRegisterSlot(scratch, t0);
     __ Subu(inline_site, ra, scratch);
-    // Patch the relocated value to map.
-    __ PatchRelocatedValue(inline_site, scratch, map);
+    // Get the map location in scratch and patch it.
+    __ GetRelocatedValue(inline_site, scratch, v1);  // v1 used as scratch.
+    __ sw(map, FieldMemOperand(scratch, JSGlobalPropertyCell::kValueOffset));
   }
 
   // Register mapping: a3 is object map and t0 is function prototype.
@@ -5006,9 +5007,9 @@ void RegExpExecStub::Generate(MacroAssembler* masm) {
   STATIC_ASSERT(kAsciiStringTag == 4);
   STATIC_ASSERT(kTwoByteStringTag == 0);
   // Find the code object based on the assumptions above.
-  __ And(a0, a0, Operand(kStringEncodingMask));  // Non-zero for ascii.
+  __ And(a0, a0, Operand(kStringEncodingMask));  // Non-zero for ASCII.
   __ lw(t9, FieldMemOperand(regexp_data, JSRegExp::kDataAsciiCodeOffset));
-  __ sra(a3, a0, 2);  // a3 is 1 for ascii, 0 for UC16 (usyed below).
+  __ sra(a3, a0, 2);  // a3 is 1 for ASCII, 0 for UC16 (used below).
   __ lw(t1, FieldMemOperand(regexp_data, JSRegExp::kDataUC16CodeOffset));
   __ movz(t9, t1, a0);  // If UC16 (a0 is 0), replace t9 w/kDataUC16CodeOffset.
 
@@ -6033,7 +6034,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
 
 
   Label result_longer_than_two;
-  // Check for special case of two character ascii string, in which case
+  // Check for special case of two character ASCII string, in which case
   // we do a lookup in the symbol table first.
   __ li(t0, 2);
   __ Branch(&result_longer_than_two, gt, a2, Operand(t0));
@@ -6164,7 +6165,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ And(t0, a1, Operand(kStringEncodingMask));
   __ Branch(&two_byte_sequential, eq, t0, Operand(zero_reg));
 
-  // Allocate and copy the resulting ascii string.
+  // Allocate and copy the resulting ASCII string.
   __ AllocateAsciiString(v0, a2, t0, t2, t3, &runtime);
 
   // Locate first character of substring to copy.
@@ -6491,7 +6492,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
   __ Branch(&string_add_flat_result, lt, t2,
-           Operand(String::kMinNonFlatLength));
+           Operand(ConsString::kMinLength));
   // Handle exceptionally long strings in the runtime system.
   STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
   ASSERT(IsPowerOf2(String::kMaxLength + 1));
@@ -6508,7 +6509,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   }
   Label non_ascii, allocated, ascii_data;
   STATIC_ASSERT(kTwoByteStringTag == 0);
-  // Branch to non_ascii if either string-encoding field is zero (non-ascii).
+  // Branch to non_ascii if either string-encoding field is zero (non-ASCII).
   __ And(t4, t0, Operand(t1));
   __ And(t4, t4, Operand(kStringEncodingMask));
   __ Branch(&non_ascii, eq, t4, Operand(zero_reg));
@@ -6543,7 +6544,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ Branch(&allocated);
 
   // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
   // Handle creating a flat result from either external or sequential strings.
   // Locate the first characters' locations.
   // a0: first string

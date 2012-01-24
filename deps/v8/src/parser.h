@@ -186,7 +186,7 @@ class ParserApi {
 // ----------------------------------------------------------------------------
 // REGEXP PARSING
 
-// A BuffferedZoneList is an automatically growing list, just like (and backed
+// A BufferedZoneList is an automatically growing list, just like (and backed
 // by) a ZoneList, that is optimized for the case of adding and removing
 // a single element. The last element added is stored outside the backing list,
 // and if no more than one element is ever added, the ZoneList isn't even

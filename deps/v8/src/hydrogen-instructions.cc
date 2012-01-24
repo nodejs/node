@@ -416,18 +416,18 @@ void HValue::PrintRangeTo(StringStream* stream) {
 
 
 void HValue::PrintChangesTo(StringStream* stream) {
-  int changes_flags = ChangesFlags();
-  if (changes_flags == 0) return;
+  GVNFlagSet changes_flags = ChangesFlags();
+  if (changes_flags.IsEmpty()) return;
   stream->Add(" changes[");
-  if (changes_flags == AllSideEffects()) {
+  if (changes_flags == AllSideEffectsFlagSet()) {
     stream->Add("*");
   } else {
     bool add_comma = false;
-#define PRINT_DO(type)                         \
-    if (changes_flags & (1 << kChanges##type)) { \
-      if (add_comma) stream->Add(",");           \
-      add_comma = true;                          \
-      stream->Add(#type);                        \
+#define PRINT_DO(type)                            \
+    if (changes_flags.Contains(kChanges##type)) { \
+      if (add_comma) stream->Add(",");            \
+      add_comma = true;                           \
+      stream->Add(#type);                         \
     }
     GVN_FLAG_LIST(PRINT_DO);
 #undef PRINT_DO
@@ -1408,21 +1408,21 @@ HLoadNamedFieldPolymorphic::HLoadNamedFieldPolymorphic(HValue* context,
   SetOperandAt(0, context);
   SetOperandAt(1, object);
   set_representation(Representation::Tagged());
-  SetFlag(kDependsOnMaps);
+  SetGVNFlag(kDependsOnMaps);
   for (int i = 0;
        i < types->length() && types_.length() < kMaxLoadPolymorphism;
        ++i) {
     Handle<Map> map = types->at(i);
     LookupResult lookup(map->GetIsolate());
     map->LookupInDescriptors(NULL, *name, &lookup);
-    if (lookup.IsProperty()) {
+    if (lookup.IsFound()) {
       switch (lookup.type()) {
         case FIELD: {
           int index = lookup.GetLocalFieldIndexFromMap(*map);
           if (index < 0) {
-            SetFlag(kDependsOnInobjectFields);
+            SetGVNFlag(kDependsOnInobjectFields);
           } else {
-            SetFlag(kDependsOnBackingStoreFields);
+            SetGVNFlag(kDependsOnBackingStoreFields);
           }
           types_.Add(types->at(i));
           break;

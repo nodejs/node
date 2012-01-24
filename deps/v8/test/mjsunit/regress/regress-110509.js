@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,19 +25,17 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
-#define V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
+// Verify that LRandom preserves rsi correctly.
 
-class I18Natives {
- public:
-  // Gets script source from generated file.
-  // Source is statically allocated string.
-  static const char* GetScriptSource();
-};
+function foo() {
+  Math.random();
+  new Function("");
+}
 
-} }  // namespace v8::internal
-
-#endif  // V8_EXTENSIONS_EXPERIMENTAL_I18N_NATIVES_H_
+foo();
+foo();
+foo();
+%OptimizeFunctionOnNextCall(foo);
+foo();

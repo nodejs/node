@@ -611,6 +611,22 @@ TestAccessorCall(
 
 
 
+// Passing a proxy function to higher-order library functions.
+
+function TestHigherOrder(f) {
+  assertEquals(6, [6, 2].map(f)[0])
+  assertEquals(4, [5, 2].reduce(f, 4))
+  assertTrue([1, 2].some(f))
+  assertEquals("a.b.c", "a.b.c".replace(".", f))
+}
+
+TestHigherOrder(function(x) { return x })
+TestHigherOrder(function(x) { "use strict"; return x })
+TestHigherOrder(Proxy.createFunction({}, function(x) { return x }))
+TestHigherOrder(CreateFrozen({}, function(x) { return x }))
+
+
+
 // TODO(rossberg): Ultimately, I want to have the following test function
 // run through, but it currently fails on so many cases (some not even
 // involving proxies), that I leave that for later...

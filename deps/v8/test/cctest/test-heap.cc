@@ -1572,3 +1572,57 @@ TEST(InstanceOfStubWriteBarrier) {
   HEAP->incremental_marking()->set_should_hurry(true);
   HEAP->CollectGarbage(OLD_POINTER_SPACE);
 }
+
+
+TEST(PrototypeTransitionClearing) {
+  InitializeVM();
+  v8::HandleScope scope;
+
+  CompileRun(
+      "var base = {};"
+      "var live = [];"
+      "for (var i = 0; i < 10; i++) {"
+      "  var object = {};"
+      "  var prototype = {};"
+      "  object.__proto__ = prototype;"
+      "  if (i >= 3) live.push(object, prototype);"
+      "}");
+
+  Handle<JSObject> baseObject =
+      v8::Utils::OpenHandle(
+          *v8::Handle<v8::Object>::Cast(
+              v8::Context::GetCurrent()->Global()->Get(v8_str("base"))));
+
+  // Verify that only dead prototype transitions are cleared.
+  CHECK_EQ(10, baseObject->map()->NumberOfProtoTransitions());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK_EQ(10 - 3, baseObject->map()->NumberOfProtoTransitions());
+
+  // Verify that prototype transitions array was compacted.
+  FixedArray* trans = baseObject->map()->prototype_transitions();
+  for (int i = 0; i < 10 - 3; i++) {
+    int j = Map::kProtoTransitionHeaderSize +
+        i * Map::kProtoTransitionElementsPerEntry;
+    CHECK(trans->get(j + Map::kProtoTransitionMapOffset)->IsMap());
+    CHECK(trans->get(j + Map::kProtoTransitionPrototypeOffset)->IsJSObject());
+  }
+
+  // Make sure next prototype is placed on an old-space evacuation candidate.
+  Handle<JSObject> prototype;
+  PagedSpace* space = HEAP->old_pointer_space();
+  do {
+    prototype = FACTORY->NewJSArray(32 * KB, TENURED);
+  } while (space->FirstPage() == space->LastPage() ||
+      !space->LastPage()->Contains(prototype->address()));
+
+  // Add a prototype on an evacuation candidate and verify that transition
+  // clearing correctly records slots in prototype transition array.
+  i::FLAG_always_compact = true;
+  Handle<Map> map(baseObject->map());
+  CHECK(!space->LastPage()->Contains(map->prototype_transitions()->address()));
+  CHECK(space->LastPage()->Contains(prototype->address()));
+  baseObject->SetPrototype(*prototype, false)->ToObjectChecked();
+  CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
+  HEAP->CollectAllGarbage(Heap::kNoGCFlags);
+  CHECK(map->GetPrototypeTransition(*prototype)->IsMap());
+}

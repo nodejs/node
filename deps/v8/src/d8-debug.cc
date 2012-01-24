@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -310,9 +310,7 @@ void RemoteDebugger::HandleKeyboardCommand(char* command) {
   Handle<Value> request =
       Shell::DebugCommandToJSONRequest(String::New(command));
   if (try_catch.HasCaught()) {
-    v8::String::Utf8Value exception(try_catch.Exception());
-    const char* exception_string = Shell::ToCString(exception);
-    printf("%s\n", exception_string);
+    Shell::ReportException(&try_catch);
     PrintPrompt();
     return;
   }

@@ -634,7 +634,7 @@ class RegExpNode: public ZoneObject {
   static const int kNodeIsTooComplexForGreedyLoops = -1;
   virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
   Label* label() { return &label_; }
-  // If non-generic code is generated for a node (ie the node is not at the
+  // If non-generic code is generated for a node (i.e. the node is not at the
   // start of the trace) then it cannot be reused.  This variable sets a limit
   // on how often we allow that to happen before we insist on starting a new
   // trace and generating generic code for a node that can be reused by flushing

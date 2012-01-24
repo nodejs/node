@@ -106,7 +106,7 @@ class JumpPatchSite BASE_EMBEDDED {
 // formal parameter count expected by the function.
 //
 // The live registers are:
-//   o edi: the JS function object being called (ie, ourselves)
+//   o edi: the JS function object being called (i.e. ourselves)
 //   o esi: our context
 //   o ebp: our caller's frame pointer
 //   o esp: stack pointer (pointing to return address)
@@ -227,7 +227,7 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
            Operand(ebp, StandardFrameConstants::kCallerSPOffset + offset));
     __ push(edx);
     __ SafePush(Immediate(Smi::FromInt(num_parameters)));
-    // Arguments to ArgumentsAccessStub and/or New...:
+    // Arguments to ArgumentsAccessStub:
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
@@ -3571,7 +3571,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // One-character separator case
   __ bind(&one_char_separator);
-  // Replace separator with its ascii character value.
+  // Replace separator with its ASCII character value.
   __ mov_b(scratch, FieldOperand(string, SeqAsciiString::kHeaderSize));
   __ mov_b(separator_operand, scratch);
 

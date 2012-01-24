@@ -133,7 +133,7 @@ NativeRegExpMacroAssembler::Result NativeRegExpMacroAssembler::Match(
     subject_ptr = slice->parent();
     slice_offset = slice->offset();
   }
-  // Ensure that an underlying string has the same ascii-ness.
+  // Ensure that an underlying string has the same ASCII-ness.
   bool is_ascii = subject_ptr->IsAsciiRepresentation();
   ASSERT(subject_ptr->IsExternalString() || subject_ptr->IsSeqString());
   // String is now either Sequential or External

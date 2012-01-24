@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1056,10 +1056,10 @@ class HValueMap: public ZoneObject {
     Resize(kInitialSize);
   }
 
-  void Kill(int flags);
+  void Kill(GVNFlagSet flags);
 
   void Add(HValue* value) {
-    present_flags_ |= value->flags();
+    present_flags_.Add(value->gvn_flags());
     Insert(value);
   }
 
@@ -1092,7 +1092,8 @@ class HValueMap: public ZoneObject {
   int array_size_;
   int lists_size_;
   int count_;  // The number of values stored in the HValueMap.
-  int present_flags_;  // All flags that are in any value in the HValueMap.
+  GVNFlagSet present_flags_;  // All flags that are in any value in the
+                              // HValueMap.
   HValueMapListElement* array_;  // Primary store - contains the first value
   // with a given hash.  Colliding elements are stored in linked lists.
   HValueMapListElement* lists_;  // The linked lists containing hash collisions.

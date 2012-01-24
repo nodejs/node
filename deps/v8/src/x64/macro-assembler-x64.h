@@ -203,7 +203,7 @@ class MacroAssembler: public Assembler {
                    Label* on_black,
                    Label::Distance on_black_distance = Label::kFar);
 
-  // Detects conservatively whether an object is data-only, ie it does need to
+  // Detects conservatively whether an object is data-only, i.e. it does need to
   // be scanned by the garbage collector.
   void JumpIfDataObject(Register value,
                         Register scratch,
@@ -745,7 +745,7 @@ class MacroAssembler: public Assembler {
       Label* on_not_both_flat_ascii,
       Label::Distance near_jump = Label::kFar);
 
-  // Check whether the instance type represents a flat ascii string. Jump to the
+  // Check whether the instance type represents a flat ASCII string. Jump to the
   // label if not. If the instance type can be scratched specify same register
   // for both instance type and scratch.
   void JumpIfInstanceTypeIsNotSequentialAscii(
@@ -901,7 +901,7 @@ class MacroAssembler: public Assembler {
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
   // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specificed map.
+  // against maps that are ElementsKind transition maps of the specified map.
   void CheckMap(Register obj,
                 Handle<Map> map,
                 Label* fail,
@@ -1309,6 +1309,7 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       Register code_register,
                       Label* done,
+                      bool* definitely_mismatches,
                       InvokeFlag flag,
                       Label::Distance near_jump = Label::kFar,
                       const CallWrapper& call_wrapper = NullCallWrapper(),

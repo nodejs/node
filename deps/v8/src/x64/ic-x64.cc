@@ -462,23 +462,43 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ movl(rdi, FieldOperand(rax, String::kHashFieldOffset));
   __ shr(rdi, Immediate(String::kHashShift));
   __ xor_(rcx, rdi);
-  __ and_(rcx, Immediate(KeyedLookupCache::kCapacityMask));
+  int mask = (KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
+  __ and_(rcx, Immediate(mask));
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
+  Label try_second_entry, hit_on_first_entry, load_in_object_property;
   ExternalReference cache_keys
       = ExternalReference::keyed_lookup_cache_keys(masm->isolate());
   __ movq(rdi, rcx);
   __ shl(rdi, Immediate(kPointerSizeLog2 + 1));
   __ LoadAddress(kScratchRegister, cache_keys);
   __ cmpq(rbx, Operand(kScratchRegister, rdi, times_1, 0));
-  __ j(not_equal, &slow);
+  __ j(not_equal, &try_second_entry);
   __ cmpq(rax, Operand(kScratchRegister, rdi, times_1, kPointerSize));
+  __ j(equal, &hit_on_first_entry);
+
+  __ bind(&try_second_entry);
+  __ cmpq(rbx, Operand(kScratchRegister, rdi, times_1, kPointerSize * 2));
+  __ j(not_equal, &slow);
+  __ cmpq(rax, Operand(kScratchRegister, rdi, times_1, kPointerSize * 3));
   __ j(not_equal, &slow);
 
   // Get field offset, which is a 32-bit integer.
   ExternalReference cache_field_offsets
       = ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
+
+  // Hit on second entry.
+  __ LoadAddress(kScratchRegister, cache_field_offsets);
+  __ addl(rcx, Immediate(1));
+  __ movl(rdi, Operand(kScratchRegister, rcx, times_4, 0));
+  __ movzxbq(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
+  __ subq(rdi, rcx);
+  __ j(above_equal, &property_array_property);
+  __ jmp(&load_in_object_property);
+
+  // Hit on first entry.
+  __ bind(&hit_on_first_entry);
   __ LoadAddress(kScratchRegister, cache_field_offsets);
   __ movl(rdi, Operand(kScratchRegister, rcx, times_4, 0));
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInObjectPropertiesOffset));
@@ -486,6 +506,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(above_equal, &property_array_property);
 
   // Load in-object property.
+  __ bind(&load_in_object_property);
   __ movzxbq(rcx, FieldOperand(rbx, Map::kInstanceSizeOffset));
   __ addq(rcx, rdi);
   __ movq(rax, FieldOperand(rdx, rcx, times_pointer_size, 0));

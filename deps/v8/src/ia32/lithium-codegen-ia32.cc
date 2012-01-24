@@ -2216,7 +2216,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Handle<String> name) {
   LookupResult lookup(isolate());
   type->LookupInDescriptors(NULL, *name, &lookup);
-  ASSERT(lookup.IsProperty() &&
+  ASSERT(lookup.IsFound() &&
          (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION));
   if (lookup.type() == FIELD) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
@@ -2701,41 +2701,53 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
                                  LInstruction* instr,
                                  CallKind call_kind) {
-  // Change context if needed.
-  bool change_context =
-      (info()->closure()->context() != function->context()) ||
-      scope()->contains_with() ||
-      (scope()->num_heap_slots() > 0);
-  if (change_context) {
-    __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
-  } else {
-    __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
-  }
-
-  // Set eax to arguments count if adaption is not needed. Assumes that eax
-  // is available to write to at this point.
-  if (!function->NeedsArgumentsAdaption()) {
-    __ mov(eax, arity);
-  }
+  bool can_invoke_directly = !function->NeedsArgumentsAdaption() ||
+      function->shared()->formal_parameter_count() == arity;
 
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
 
-  // Invoke function.
-  __ SetCallKind(ecx, call_kind);
-  if (*function == *info()->closure()) {
-    __ CallSelf();
-  } else {
-    __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
-  }
+  if (can_invoke_directly) {
+    __ LoadHeapObject(edi, function);
 
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+    // Change context if needed.
+    bool change_context =
+        (info()->closure()->context() != function->context()) ||
+        scope()->contains_with() ||
+        (scope()->num_heap_slots() > 0);
+
+    if (change_context) {
+      __ mov(esi, FieldOperand(edi, JSFunction::kContextOffset));
+    } else {
+      __ mov(esi, Operand(ebp, StandardFrameConstants::kContextOffset));
+    }
+
+    // Set eax to arguments count if adaption is not needed. Assumes that eax
+    // is available to write to at this point.
+    if (!function->NeedsArgumentsAdaption()) {
+      __ mov(eax, arity);
+    }
+
+    // Invoke function directly.
+    __ SetCallKind(ecx, call_kind);
+    if (*function == *info()->closure()) {
+      __ CallSelf();
+    } else {
+      __ call(FieldOperand(edi, JSFunction::kCodeEntryOffset));
+    }
+    RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+  } else {
+    // We need to adapt arguments.
+    SafepointGenerator generator(
+        this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount count(arity);
+    __ InvokeFunction(function, count, CALL_FUNCTION, generator, call_kind);
+  }
 }
 
 
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
-  __ LoadHeapObject(edi, instr->function());
   CallKnownFunction(instr->function(),
                     instr->arity(),
                     instr,
@@ -3190,7 +3202,6 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(eax));
-  __ LoadHeapObject(edi, instr->target());
   CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 

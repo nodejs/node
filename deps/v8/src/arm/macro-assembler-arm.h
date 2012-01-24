@@ -243,7 +243,7 @@ class MacroAssembler: public Assembler {
                       Register scratch3,
                       Label* object_is_white_and_not_data);
 
-  // Detects conservatively whether an object is data-only, ie it does need to
+  // Detects conservatively whether an object is data-only, i.e. it does need to
   // be scanned by the garbage collector.
   void JumpIfDataObject(Register value,
                         Register scratch,
@@ -539,6 +539,7 @@ class MacroAssembler: public Assembler {
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
+                      const CallWrapper& call_wrapper,
                       CallKind call_kind);
 
   void IsObjectJSObjectType(Register heap_object,
@@ -606,7 +607,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Check if the given instruction is a 'type' marker.
-  // ie. check if is is a mov r<type>, r<type> (referenced as nop(type))
+  // i.e. check if is is a mov r<type>, r<type> (referenced as nop(type))
   // These instructions are generated to mark special location in the code,
   // like some special IC code.
   static inline bool IsMarkedCode(Instr instr, int type) {
@@ -810,7 +811,7 @@ class MacroAssembler: public Assembler {
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
   // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specificed map.
+  // against maps that are ElementsKind transition maps of the specified map.
   void CheckMap(Register obj,
                 Register scratch,
                 Handle<Map> map,
@@ -908,7 +909,7 @@ class MacroAssembler: public Assembler {
   // Truncates a double using a specific rounding mode.
   // Clears the z flag (ne condition) if an overflow occurs.
   // If exact_conversion is true, the z flag is also cleared if the conversion
-  // was inexact, ie. if the double value could not be converted exactly
+  // was inexact, i.e. if the double value could not be converted exactly
   // to a 32bit integer.
   void EmitVFPTruncate(VFPRoundingMode rounding_mode,
                        SwVfpRegister result,
@@ -1025,7 +1026,7 @@ class MacroAssembler: public Assembler {
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space
-  // - space to be unwound on exit (includes the call js arguments space and
+  // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
   void CallApiFunctionAndReturn(ExternalReference function, int stack_space);
 
@@ -1248,6 +1249,7 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       Register code_reg,
                       Label* done,
+                      bool* definitely_mismatches,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper,
                       CallKind call_kind);

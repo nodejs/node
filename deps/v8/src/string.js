@@ -244,6 +244,15 @@ function StringReplace(search, replace) {
 
   // Convert the search argument to a string and search for it.
   search = TO_STRING_INLINE(search);
+  if (search.length == 1 &&
+      subject.length > 0xFF &&
+      IS_STRING(replace) &&
+      %StringIndexOf(replace, '$', 0) < 0) {
+    // Searching by traversing a cons string tree and replace with cons of
+    // slices works only when the replaced string is a single character, being
+    // replaced by a simple string and only pays off for long strings.
+    return %StringReplaceOneCharWithString(subject, search, replace);
+  }
   var start = %StringIndexOf(subject, search, 0);
   if (start < 0) return subject;
   var end = start + search.length;

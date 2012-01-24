@@ -262,7 +262,7 @@ bool LCodeGen::GenerateDeferredCode() {
 
 bool LCodeGen::GenerateDeoptJumpTable() {
   // Check that the jump table is accessible from everywhere in the function
-  // code, ie that offsets to the table can be encoded in the 24bit signed
+  // code, i.e. that offsets to the table can be encoded in the 24bit signed
   // immediate of a branch instruction.
   // To simplify we consider the code size from the first instruction to the
   // end of the jump table. We also don't consider the pc load delta.
@@ -2387,7 +2387,7 @@ void LCodeGen::EmitLoadFieldOrConstantFunction(Register result,
                                                Handle<String> name) {
   LookupResult lookup(isolate());
   type->LookupInDescriptors(NULL, *name, &lookup);
-  ASSERT(lookup.IsProperty() &&
+  ASSERT(lookup.IsFound() &&
          (lookup.type() == FIELD || lookup.type() == CONSTANT_FUNCTION));
   if (lookup.type() == FIELD) {
     int index = lookup.GetLocalFieldIndexFromMap(*type);
@@ -2828,7 +2828,7 @@ void LCodeGen::DoApplyArguments(LApplyArguments* instr) {
       this, pointers, Safepoint::kLazyDeopt);
   // The number of arguments is stored in receiver which is r0, as expected
   // by InvokeFunction.
-  v8::internal::ParameterCount actual(receiver);
+  ParameterCount actual(receiver);
   __ InvokeFunction(function, actual, CALL_FUNCTION,
                     safepoint_generator, CALL_AS_METHOD);
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2883,31 +2883,41 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
                                  int arity,
                                  LInstruction* instr,
                                  CallKind call_kind) {
-  // Change context if needed.
-  bool change_context =
-      (info()->closure()->context() != function->context()) ||
-      scope()->contains_with() ||
-      (scope()->num_heap_slots() > 0);
-  if (change_context) {
-    __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
-  }
-
-  // Set r0 to arguments count if adaption is not needed. Assumes that r0
-  // is available to write to at this point.
-  if (!function->NeedsArgumentsAdaption()) {
-    __ mov(r0, Operand(arity));
-  }
+  bool can_invoke_directly = !function->NeedsArgumentsAdaption() ||
+      function->shared()->formal_parameter_count() == arity;
 
   LPointerMap* pointers = instr->pointer_map();
   RecordPosition(pointers->position());
 
-  // Invoke function.
-  __ SetCallKind(r5, call_kind);
-  __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
-  __ Call(ip);
+  if (can_invoke_directly) {
+    __ LoadHeapObject(r1, function);
+    // Change context if needed.
+    bool change_context =
+        (info()->closure()->context() != function->context()) ||
+        scope()->contains_with() ||
+        (scope()->num_heap_slots() > 0);
+    if (change_context) {
+      __ ldr(cp, FieldMemOperand(r1, JSFunction::kContextOffset));
+    }
 
-  // Set up deoptimization.
-  RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+    // Set r0 to arguments count if adaption is not needed. Assumes that r0
+    // is available to write to at this point.
+    if (!function->NeedsArgumentsAdaption()) {
+      __ mov(r0, Operand(arity));
+    }
+
+    // Invoke function.
+    __ SetCallKind(r5, call_kind);
+    __ ldr(ip, FieldMemOperand(r1, JSFunction::kCodeEntryOffset));
+    __ Call(ip);
+
+    // Set up deoptimization.
+    RecordSafepointWithLazyDeopt(instr, RECORD_SIMPLE_SAFEPOINT);
+  } else {
+    SafepointGenerator generator(this, pointers, Safepoint::kLazyDeopt);
+    ParameterCount count(arity);
+    __ InvokeFunction(function, count, CALL_FUNCTION, generator, call_kind);
+  }
 
   // Restore context.
   __ ldr(cp, MemOperand(fp, StandardFrameConstants::kContextOffset));
@@ -2916,7 +2926,6 @@ void LCodeGen::CallKnownFunction(Handle<JSFunction> function,
 
 void LCodeGen::DoCallConstantFunction(LCallConstantFunction* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
-  __ LoadHeapObject(r1, instr->function());
   CallKnownFunction(instr->function(),
                     instr->arity(),
                     instr,
@@ -3351,7 +3360,6 @@ void LCodeGen::DoCallGlobal(LCallGlobal* instr) {
 
 void LCodeGen::DoCallKnownGlobal(LCallKnownGlobal* instr) {
   ASSERT(ToRegister(instr->result()).is(r0));
-  __ LoadHeapObject(r1, instr->target());
   CallKnownFunction(instr->target(), instr->arity(), instr, CALL_AS_FUNCTION);
 }
 

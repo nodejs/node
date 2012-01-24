@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -63,6 +63,7 @@ MarkCompactCollector::MarkCompactCollector() :  // NOLINT
       compacting_(false),
       was_marked_incrementally_(false),
       collect_maps_(FLAG_collect_maps),
+      flush_monomorphic_ics_(false),
       tracer_(NULL),
       migration_slots_buffer_(NULL),
       heap_(NULL),
@@ -515,6 +516,12 @@ void MarkCompactCollector::Prepare(GCTracer* tracer) {
   // order which is not implemented for incremental marking.
   collect_maps_ = FLAG_collect_maps && !was_marked_incrementally_;
 
+  // Monomorphic ICs are preserved when possible, but need to be flushed
+  // when they might be keeping a Context alive, or when the heap is about
+  // to be serialized.
+  flush_monomorphic_ics_ =
+      heap()->isolate()->context_exit_happened() || Serializer::enabled();
+
   // Rather than passing the tracer around we stash it in a static member
   // variable.
   tracer_ = tracer;
@@ -737,7 +744,7 @@ static inline HeapObject* ShortCircuitConsString(Object** p) {
   // it in place to its left substring.  Return the updated value.
   //
   // Here we assume that if we change *p, we replace it with a heap object
-  // (ie, the left substring of a cons string is always a heap object).
+  // (i.e., the left substring of a cons string is always a heap object).
   //
   // The check performed is:
   //   object->IsConsString() && !object->IsSymbol() &&
@@ -881,7 +888,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   static inline void VisitCodeTarget(Heap* heap, RelocInfo* rinfo) {
     ASSERT(RelocInfo::IsCodeTarget(rinfo->rmode()));
     Code* target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()) {
+    if (FLAG_cleanup_code_caches_at_gc && target->is_inline_cache_stub()
+        && (target->ic_state() == MEGAMORPHIC ||
+            heap->mark_compact_collector()->flush_monomorphic_ics_)) {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
     } else {
@@ -1196,7 +1205,7 @@ class StaticMarkingVisitor : public StaticVisitorBase {
       return;
     }
     JSRegExp* re = reinterpret_cast<JSRegExp*>(object);
-    // Flush code or set age on both ascii and two byte code.
+    // Flush code or set age on both ASCII and two byte code.
     UpdateRegExpCodeAgeAndFlush(heap, re, true);
     UpdateRegExpCodeAgeAndFlush(heap, re, false);
     // Visit the fields of the RegExp, including the updated FixedArray.
@@ -1614,9 +1623,7 @@ void MarkCompactCollector::ProcessNewlyMarkedObject(HeapObject* object) {
   ASSERT(HEAP->Contains(object));
   if (object->IsMap()) {
     Map* map = Map::cast(object);
-    if (FLAG_cleanup_code_caches_at_gc) {
-      map->ClearCodeCache(heap());
-    }
+    ClearCacheOnMap(map);
 
     // When map collection is enabled we have to mark through map's transitions
     // in a special way to make transition links weak.
@@ -1641,8 +1648,8 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
   MarkBit mark = Marking::MarkBitFrom(prototype_transitions);
   if (!mark.Get()) {
     mark.Set();
-    MemoryChunk::IncrementLiveBytes(prototype_transitions->address(),
-                                    prototype_transitions->Size());
+    MemoryChunk::IncrementLiveBytesFromGC(prototype_transitions->address(),
+                                          prototype_transitions->Size());
   }
 
   Object** raw_descriptor_array_slot =
@@ -1756,7 +1763,7 @@ static void DiscoverGreyObjectsWithIterator(Heap* heap,
     MarkBit markbit = Marking::MarkBitFrom(object);
     if ((object->map() != filler_map) && Marking::IsGrey(markbit)) {
       Marking::GreyToBlack(markbit);
-      MemoryChunk::IncrementLiveBytes(object->address(), object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), object->Size());
       marking_deque->PushBlack(object);
       if (marking_deque->IsFull()) return;
     }
@@ -1808,7 +1815,7 @@ static void DiscoverGreyObjectsOnPage(MarkingDeque* marking_deque, Page* p) {
       Marking::GreyToBlack(markbit);
       Address addr = cell_base + offset * kPointerSize;
       HeapObject* object = HeapObject::FromAddress(addr);
-      MemoryChunk::IncrementLiveBytes(object->address(), object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), object->Size());
       marking_deque->PushBlack(object);
       if (marking_deque->IsFull()) return;
       offset += 2;
@@ -2297,38 +2304,37 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       Object* prototype = prototype_transitions->get(proto_offset + i * step);
       Object* cached_map = prototype_transitions->get(map_offset + i * step);
       if (IsMarked(prototype) && IsMarked(cached_map)) {
+        int proto_index = proto_offset + new_number_of_transitions * step;
+        int map_index = map_offset + new_number_of_transitions * step;
         if (new_number_of_transitions != i) {
           prototype_transitions->set_unchecked(
               heap_,
-              proto_offset + new_number_of_transitions * step,
+              proto_index,
               prototype,
               UPDATE_WRITE_BARRIER);
           prototype_transitions->set_unchecked(
               heap_,
-              map_offset + new_number_of_transitions * step,
+              map_index,
               cached_map,
               SKIP_WRITE_BARRIER);
         }
+        Object** slot =
+            HeapObject::RawField(prototype_transitions,
+                                 FixedArray::OffsetOfElementAt(proto_index));
+        RecordSlot(slot, slot, prototype);
+        new_number_of_transitions++;
       }
+    }
 
-      // Fill slots that became free with undefined value.
-      Object* undefined = heap()->undefined_value();
-      for (int i = new_number_of_transitions * step;
-           i < number_of_transitions * step;
-           i++) {
-        // The undefined object is on a page that is never compacted and never
-        // in new space so it is OK to skip the write barrier.  Also it's a
-        // root.
-        prototype_transitions->set_unchecked(heap_,
-                                             header + i,
-                                             undefined,
-                                             SKIP_WRITE_BARRIER);
-
-        Object** undefined_slot =
-            prototype_transitions->data_start() + i;
-        RecordSlot(undefined_slot, undefined_slot, undefined);
-      }
+    if (new_number_of_transitions != number_of_transitions) {
       map->SetNumberOfProtoTransitions(new_number_of_transitions);
+    }
+
+    // Fill slots that became free with undefined value.
+    for (int i = new_number_of_transitions * step;
+         i < number_of_transitions * step;
+         i++) {
+      prototype_transitions->set_undefined(heap_, header + i);
     }
 
     // Follow the chain of back pointers to find the prototype.
@@ -3630,6 +3636,9 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
           PrintF("Sweeping 0x%" V8PRIxPTR " released page.\n",
                  reinterpret_cast<intptr_t>(p));
         }
+        // Adjust unswept free bytes because releasing a page expects said
+        // counter to be accurate for unswept pages.
+        space->IncreaseUnsweptFreeBytes(p);
         space->ReleasePage(p);
         continue;
       }
@@ -3641,7 +3650,7 @@ void MarkCompactCollector::SweepSpace(PagedSpace* space, SweeperType sweeper) {
         PrintF("Sweeping 0x%" V8PRIxPTR " lazily postponed.\n",
                reinterpret_cast<intptr_t>(p));
       }
-      space->MarkPageForLazySweeping(p);
+      space->IncreaseUnsweptFreeBytes(p);
       continue;
     }
 

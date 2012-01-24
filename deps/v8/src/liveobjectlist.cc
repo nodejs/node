@@ -462,7 +462,7 @@ static int CompactString(char* str) {
   char prev_ch = 0;
   while (*dst != '\0') {
     char ch = *src++;
-    // We will treat non-ascii chars as '?'.
+    // We will treat non-ASCII chars as '?'.
     if ((ch & 0x80) != 0) {
       ch = '?';
     }

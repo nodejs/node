@@ -271,7 +271,7 @@ class RelocInfo BASE_EMBEDDED {
   INLINE(void apply(intptr_t delta));
 
   // Is the pointer this relocation info refers to coded like a plain pointer
-  // or is it strange in some way (eg relative or patched into a series of
+  // or is it strange in some way (e.g. relative or patched into a series of
   // instructions).
   bool IsCodedSpecially();
 

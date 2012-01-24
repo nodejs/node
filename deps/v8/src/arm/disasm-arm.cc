@@ -473,7 +473,7 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
       return 1;
     }
     case 'i': {  // 'i: immediate value from adjacent bits.
-      // Expects tokens in the form imm%02d@%02d, ie. imm05@07, imm10@16
+      // Expects tokens in the form imm%02d@%02d, i.e. imm05@07, imm10@16
       int width = (format[3] - '0') * 10 + (format[4] - '0');
       int lsb   = (format[6] - '0') * 10 + (format[7] - '0');
 

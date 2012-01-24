@@ -473,7 +473,6 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   Counters* counters = isolate->counters();
   __ IncrementCounter(counters->keyed_load_generic_smi(), 1);
   __ ret(0);
-
   __ bind(&check_number_dictionary);
   __ mov(ebx, eax);
   __ SmiUntag(ebx);
@@ -535,13 +534,23 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(edi, FieldOperand(eax, String::kHashFieldOffset));
   __ shr(edi, String::kHashShift);
   __ xor_(ecx, edi);
-  __ and_(ecx, KeyedLookupCache::kCapacityMask);
+  __ and_(ecx, KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask);
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
+  Label try_second_entry, hit_on_first_entry, load_in_object_property;
   ExternalReference cache_keys =
       ExternalReference::keyed_lookup_cache_keys(masm->isolate());
   __ mov(edi, ecx);
+  __ shl(edi, kPointerSizeLog2 + 1);
+  __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
+  __ j(not_equal, &try_second_entry);
+  __ add(edi, Immediate(kPointerSize));
+  __ cmp(eax, Operand::StaticArray(edi, times_1, cache_keys));
+  __ j(equal, &hit_on_first_entry);
+
+  __ bind(&try_second_entry);
+  __ lea(edi, Operand(ecx, 1));
   __ shl(edi, kPointerSizeLog2 + 1);
   __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
   __ j(not_equal, &slow);
@@ -556,6 +565,18 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // ecx     : lookup cache index
   ExternalReference cache_field_offsets =
       ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
+
+  // Hit on second entry.
+  __ add(ecx, Immediate(1));
+  __ mov(edi,
+         Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
+  __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
+  __ sub(edi, ecx);
+  __ j(above_equal, &property_array_property);
+  __ jmp(&load_in_object_property);
+
+  // Hit on first entry.
+  __ bind(&hit_on_first_entry);
   __ mov(edi,
          Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
@@ -563,6 +584,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ j(above_equal, &property_array_property);
 
   // Load in-object property.
+  __ bind(&load_in_object_property);
   __ movzx_b(ecx, FieldOperand(ebx, Map::kInstanceSizeOffset));
   __ add(ecx, edi);
   __ mov(eax, FieldOperand(edx, ecx, times_pointer_size, 0));

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -583,7 +583,9 @@ void Heap::ReserveSpace(
   PagedSpace* cell_space = Heap::cell_space();
   LargeObjectSpace* lo_space = Heap::lo_space();
   bool gc_performed = true;
-  while (gc_performed) {
+  int counter = 0;
+  static const int kThreshold = 20;
+  while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
       Heap::CollectGarbage(NEW_SPACE);
@@ -621,6 +623,11 @@ void Heap::ReserveSpace(
       Heap::CollectGarbage(LO_SPACE);
       gc_performed = true;
     }
+  }
+
+  if (gc_performed) {
+    // Failed to reserve the space after several attempts.
+    V8::FatalProcessOutOfMemory("Heap::ReserveSpace");
   }
 }
 
@@ -872,6 +879,8 @@ void Heap::MarkCompact(GCTracer* tracer) {
   isolate_->counters()->objs_since_last_full()->Set(0);
 
   contexts_disposed_ = 0;
+
+  isolate_->set_context_exit_happened(false);
 }
 
 
@@ -1552,7 +1561,7 @@ class ScavengingVisitor : public StaticVisitorBase {
 
     if (marks_handling == TRANSFER_MARKS) {
       if (Marking::TransferColor(source, target)) {
-        MemoryChunk::IncrementLiveBytes(target->address(), size);
+        MemoryChunk::IncrementLiveBytesFromGC(target->address(), size);
       }
     }
   }
@@ -2923,8 +2932,8 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   bool is_ascii_data_in_two_byte_string = false;
   if (!is_ascii) {
     // At least one of the strings uses two-byte representation so we
-    // can't use the fast case code for short ascii strings below, but
-    // we can try to save memory if all chars actually fit in ascii.
+    // can't use the fast case code for short ASCII strings below, but
+    // we can try to save memory if all chars actually fit in ASCII.
     is_ascii_data_in_two_byte_string =
         first->HasOnlyAsciiChars() && second->HasOnlyAsciiChars();
     if (is_ascii_data_in_two_byte_string) {
@@ -2933,9 +2942,9 @@ MaybeObject* Heap::AllocateConsString(String* first, String* second) {
   }
 
   // If the resulting string is small make a flat string.
-  if (length < String::kMinNonFlatLength) {
+  if (length < ConsString::kMinLength) {
     // Note that neither of the two inputs can be a slice because:
-    STATIC_ASSERT(String::kMinNonFlatLength <= SlicedString::kMinLength);
+    STATIC_ASSERT(ConsString::kMinLength <= SlicedString::kMinLength);
     ASSERT(first->IsFlat());
     ASSERT(second->IsFlat());
     if (is_ascii) {
@@ -3011,7 +3020,7 @@ MaybeObject* Heap::AllocateSubString(String* buffer,
                                      int end,
                                      PretenureFlag pretenure) {
   int length = end - start;
-  if (length == 0) {
+  if (length <= 0) {
     return empty_string();
   } else if (length == 1) {
     return LookupSingleCharacterStringFromCode(buffer->Get(start));
@@ -3635,8 +3644,8 @@ void Heap::InitializeJSObjectFromMap(JSObject* obj,
   // TODO(1240798): Initialize the object's body using valid initial values
   // according to the object's initial map.  For example, if the map's
   // instance type is JS_ARRAY_TYPE, the length field should be initialized
-  // to a number (eg, Smi::FromInt(0)) and the elements initialized to a
-  // fixed array (eg, Heap::empty_fixed_array()).  Currently, the object
+  // to a number (e.g. Smi::FromInt(0)) and the elements initialized to a
+  // fixed array (e.g. Heap::empty_fixed_array()).  Currently, the object
   // verification code has to cope with (temporarily) invalid objects.  See
   // for example, JSArray::JSArrayVerify).
   Object* filler;
@@ -4103,7 +4112,7 @@ MaybeObject* Heap::AllocateInternalSymbol(unibrow::CharacterStream* buffer,
   ASSERT(chars >= 0);
   // Ensure the chars matches the number of characters in the buffer.
   ASSERT(static_cast<unsigned>(chars) == buffer->Length());
-  // Determine whether the string is ascii.
+  // Determine whether the string is ASCII.
   bool is_ascii = true;
   while (buffer->has_more()) {
     if (buffer->GetNext() > unibrow::Utf8::kMaxOneByteChar) {
@@ -5596,7 +5605,7 @@ bool Heap::SetUp(bool create_heap_objects) {
   // goes wrong, just return false. The caller should check the results and
   // call Heap::TearDown() to release allocated memory.
   //
-  // If the heap is not yet configured (eg, through the API), configure it.
+  // If the heap is not yet configured (e.g. through the API), configure it.
   // Configuration is based on the flags new-space-size (really the semispace
   // size) and old-space-size if set or the initial values of semispace_size_
   // and old_generation_size_ otherwise.
@@ -6513,10 +6522,16 @@ int KeyedLookupCache::Hash(Map* map, String* name) {
 
 
 int KeyedLookupCache::Lookup(Map* map, String* name) {
-  int index = Hash(map, name);
+  int index = (Hash(map, name) & kHashMask);
   Key& key = keys_[index];
   if ((key.map == map) && key.name->Equals(name)) {
     return field_offsets_[index];
+  }
+  ASSERT(kEntriesPerBucket == 2);  // There are two entries to check.
+  // First entry in the bucket missed, check the second.
+  Key& key2 = keys_[index + 1];
+  if ((key2.map == map) && key2.name->Equals(name)) {
+    return field_offsets_[index + 1];
   }
   return kNotFound;
 }
@@ -6525,8 +6540,14 @@ int KeyedLookupCache::Lookup(Map* map, String* name) {
 void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
   String* symbol;
   if (HEAP->LookupSymbolIfExists(name, &symbol)) {
-    int index = Hash(map, symbol);
+    int index = (Hash(map, symbol) & kHashMask);
     Key& key = keys_[index];
+    Key& key2 = keys_[index + 1];  // Second entry in the bucket.
+    // Demote the first entry to the second in the bucket.
+    key2.map = key.map;
+    key2.name = key.name;
+    field_offsets_[index + 1] = field_offsets_[index];
+    // Write the new first entry.
     key.map = map;
     key.name = symbol;
     field_offsets_[index] = field_offset;

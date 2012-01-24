@@ -993,7 +993,8 @@ bool String::MakeExternal(v8::String::ExternalStringResource* resource) {
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               new_size - size);
   }
   return true;
 }
@@ -1037,7 +1038,8 @@ bool String::MakeExternal(v8::String::ExternalAsciiStringResource* resource) {
   int new_size = this->Size();  // Byte size of the external String object.
   heap->CreateFillerObjectAt(this->address() + new_size, size - new_size);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), new_size - size);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               new_size - size);
   }
   return true;
 }
@@ -3460,7 +3462,8 @@ MaybeObject* JSObject::NormalizeProperties(PropertyNormalizationMode mode,
   current_heap->CreateFillerObjectAt(this->address() + new_instance_size,
                                      instance_size_delta);
   if (Marking::IsBlack(Marking::MarkBitFrom(this))) {
-    MemoryChunk::IncrementLiveBytes(this->address(), -instance_size_delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(this->address(),
+                                               -instance_size_delta);
   }
 
 
@@ -4350,7 +4353,7 @@ void JSObject::LookupCallback(String* name, LookupResult* result) {
        current != heap->null_value() && current->IsJSObject();
        current = JSObject::cast(current)->GetPrototype()) {
     JSObject::cast(current)->LocalLookupRealNamedProperty(name, result);
-    if (result->IsProperty() && result->type() == CALLBACKS) return;
+    if (result->IsFound() && result->type() == CALLBACKS) return;
   }
   result->NotFound();
 }
@@ -4454,7 +4457,7 @@ MaybeObject* JSObject::DefineGetterSetter(String* name,
     // Lookup the name.
     LookupResult result(heap->isolate());
     LocalLookupRealNamedProperty(name, &result);
-    if (result.IsProperty()) {
+    if (result.IsFound()) {
       // TODO(mstarzinger): We should check for result.IsDontDelete() here once
       // we only call into the runtime once to set both getter and setter.
       if (result.type() == CALLBACKS) {
@@ -4932,75 +4935,191 @@ void Map::RemoveFromCodeCache(String* name, Code* code, int index) {
 }
 
 
-void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
-  // Traverse the transition tree without using a stack.  We do this by
-  // reversing the pointers in the maps and descriptor arrays.
-  Map* current = this;
-  Map* meta_map = GetHeap()->meta_map();
-  Object** map_or_index_field = NULL;
-  while (current != meta_map) {
-    DescriptorArray* d = reinterpret_cast<DescriptorArray*>(
-        *RawField(current, Map::kInstanceDescriptorsOrBitField3Offset));
-    if (!d->IsEmpty()) {
-      FixedArray* contents = reinterpret_cast<FixedArray*>(
-          d->get(DescriptorArray::kContentArrayIndex));
-      map_or_index_field = RawField(contents, HeapObject::kMapOffset);
-      Object* map_or_index = *map_or_index_field;
-      bool map_done = true;  // Controls a nested continue statement.
-      for (int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : 0;
-           i < contents->length();
-           i += 2) {
-        PropertyDetails details(Smi::cast(contents->get(i + 1)));
-        if (details.IsTransition()) {
-          // Found a map in the transition array.  We record our progress in
-          // the transition array by recording the current map in the map field
-          // of the next map and recording the index in the transition array in
-          // the map field of the array.
-          Map* next = Map::cast(contents->get(i));
-          next->set_map_no_write_barrier(current);
-          *map_or_index_field = Smi::FromInt(i + 2);
-          current = next;
-          map_done = false;
-          break;
-        }
-      }
-      if (!map_done) continue;
-    } else {
-      map_or_index_field = NULL;
-    }
-    // That was the regular transitions, now for the prototype transitions.
-    FixedArray* prototype_transitions =
-        current->unchecked_prototype_transitions();
-    Object** proto_map_or_index_field =
-        RawField(prototype_transitions, HeapObject::kMapOffset);
-    Object* map_or_index = *proto_map_or_index_field;
-    const int start = kProtoTransitionHeaderSize + kProtoTransitionMapOffset;
-    int i = map_or_index->IsSmi() ? Smi::cast(map_or_index)->value() : start;
-    if (i < prototype_transitions->length()) {
-      // Found a map in the prototype transition array.  Record progress in
-      // an analogous way to the regular transitions array above.
-      Object* perhaps_map = prototype_transitions->get(i);
-      if (perhaps_map->IsMap()) {
-        Map* next = Map::cast(perhaps_map);
-        next->set_map_no_write_barrier(current);
-        *proto_map_or_index_field =
-            Smi::FromInt(i + kProtoTransitionElementsPerEntry);
-        current = next;
-        continue;
-      }
-    }
-    *proto_map_or_index_field = GetHeap()->fixed_array_map();
-    if (map_or_index_field != NULL) {
-      *map_or_index_field = GetHeap()->fixed_array_map();
-    }
+// An iterator over all map transitions in an descriptor array, reusing the map
+// field of the contens array while it is running.
+class IntrusiveMapTransitionIterator {
+ public:
+  explicit IntrusiveMapTransitionIterator(DescriptorArray* descriptor_array)
+      : descriptor_array_(descriptor_array) { }
 
-    // The callback expects a map to have a real map as its map, so we save
-    // the map field, which is being used to track the traversal and put the
-    // correct map (the meta_map) in place while we do the callback.
-    Map* prev = current->map();
-    current->set_map_no_write_barrier(meta_map);
-    callback(current, data);
-    current = prev;
+  void Start() {
+    ASSERT(!IsIterating());
+    if (HasContentArray()) *ContentHeader() = Smi::FromInt(0);
+  }
+
+  bool IsIterating() {
+    return HasContentArray() && (*ContentHeader())->IsSmi();
+  }
+
+  Map* Next() {
+    ASSERT(IsIterating());
+    FixedArray* contents = ContentArray();
+    int index = Smi::cast(*ContentHeader())->value();
+    while (index < contents->length()) {
+      int next_index = index + 2;
+      PropertyDetails details(Smi::cast(contents->get(index + 1)));
+      if (details.IsTransition()) {
+        *ContentHeader() = Smi::FromInt(next_index);
+        return static_cast<Map*>(contents->get(index));
+      }
+      index = next_index;
+    }
+    *ContentHeader() = descriptor_array_->GetHeap()->fixed_array_map();
+    return NULL;
+  }
+
+ private:
+  bool HasContentArray() {
+    return descriptor_array_-> length() > DescriptorArray::kContentArrayIndex;
+  }
+
+  FixedArray* ContentArray() {
+    Object* array = descriptor_array_->get(DescriptorArray::kContentArrayIndex);
+    return static_cast<FixedArray*>(array);
+  }
+
+  Object** ContentHeader() {
+    return HeapObject::RawField(ContentArray(), DescriptorArray::kMapOffset);
+  }
+
+  DescriptorArray* descriptor_array_;
+};
+
+
+// An iterator over all prototype transitions, reusing the map field of the
+// underlying array while it is running.
+class IntrusivePrototypeTransitionIterator {
+ public:
+  explicit IntrusivePrototypeTransitionIterator(FixedArray* proto_trans)
+      : proto_trans_(proto_trans) { }
+
+  void Start() {
+    ASSERT(!IsIterating());
+    if (HasTransitions()) *Header() = Smi::FromInt(0);
+  }
+
+  bool IsIterating() {
+    return HasTransitions() && (*Header())->IsSmi();
+  }
+
+  Map* Next() {
+    ASSERT(IsIterating());
+    int transitionNumber = Smi::cast(*Header())->value();
+    if (transitionNumber < NumberOfTransitions()) {
+      *Header() = Smi::FromInt(transitionNumber + 1);
+      return GetTransition(transitionNumber);
+    }
+    *Header() = proto_trans_->GetHeap()->fixed_array_map();
+    return NULL;
+  }
+
+ private:
+  bool HasTransitions() {
+    return proto_trans_->length() >= Map::kProtoTransitionHeaderSize;
+  }
+
+  Object** Header() {
+    return HeapObject::RawField(proto_trans_, FixedArray::kMapOffset);
+  }
+
+  int NumberOfTransitions() {
+    Object* num = proto_trans_->get(Map::kProtoTransitionNumberOfEntriesOffset);
+    return Smi::cast(num)->value();
+  }
+
+  Map* GetTransition(int transitionNumber) {
+    return Map::cast(proto_trans_->get(IndexFor(transitionNumber)));
+  }
+
+  int IndexFor(int transitionNumber) {
+    return Map::kProtoTransitionHeaderSize +
+        Map::kProtoTransitionMapOffset +
+        transitionNumber * Map::kProtoTransitionElementsPerEntry;
+  }
+
+  FixedArray* proto_trans_;
+};
+
+
+// To traverse the transition tree iteratively, we have to store two kinds of
+// information in a map: The parent map in the traversal and which children of a
+// node have already been visited. To do this without additional memory, we
+// temporarily reuse two maps with known values:
+//
+//  (1) The map of the map temporarily holds the parent, and is restored to the
+//      meta map afterwards.
+//
+//  (2) The info which children have already been visited depends on which part
+//      of the map we currently iterate:
+//
+//    (a) If we currently follow normal map transitions, we temporarily store
+//        the current index in the map of the FixedArray of the desciptor
+//        array's contents, and restore it to the fixed array map afterwards.
+//        Note that a single descriptor can have 0, 1, or 2 transitions.
+//
+//    (b) If we currently follow prototype transitions, we temporarily store
+//        the current index in the map of the FixedArray holding the prototype
+//        transitions, and restore it to the fixed array map afterwards.
+//
+// Note that the child iterator is just a concatenation of two iterators: One
+// iterating over map transitions and one iterating over prototype transisitons.
+class TraversableMap : public Map {
+ public:
+  // Record the parent in the traversal within this map. Note that this destroys
+  // this map's map!
+  void SetParent(TraversableMap* parent) { set_map_no_write_barrier(parent); }
+
+  // Reset the current map's map, returning the parent previously stored in it.
+  TraversableMap* GetAndResetParent() {
+    TraversableMap* old_parent = static_cast<TraversableMap*>(map());
+    set_map_no_write_barrier(GetHeap()->meta_map());
+    return old_parent;
+  }
+
+  // Start iterating over this map's children, possibly destroying a FixedArray
+  // map (see explanation above).
+  void ChildIteratorStart() {
+    IntrusiveMapTransitionIterator(instance_descriptors()).Start();
+    IntrusivePrototypeTransitionIterator(
+        unchecked_prototype_transitions()).Start();
+  }
+
+  // If we have an unvisited child map, return that one and advance. If we have
+  // none, return NULL and reset any destroyed FixedArray maps.
+  TraversableMap* ChildIteratorNext() {
+    IntrusiveMapTransitionIterator descriptor_iterator(instance_descriptors());
+    if (descriptor_iterator.IsIterating()) {
+      Map* next = descriptor_iterator.Next();
+      if (next != NULL) return static_cast<TraversableMap*>(next);
+    }
+    IntrusivePrototypeTransitionIterator
+        proto_iterator(unchecked_prototype_transitions());
+    if (proto_iterator.IsIterating()) {
+      Map* next = proto_iterator.Next();
+      if (next != NULL) return static_cast<TraversableMap*>(next);
+    }
+    return NULL;
+  }
+};
+
+
+// Traverse the transition tree in postorder without using the C++ stack by
+// doing pointer reversal.
+void Map::TraverseTransitionTree(TraverseCallback callback, void* data) {
+  TraversableMap* current = static_cast<TraversableMap*>(this);
+  current->ChildIteratorStart();
+  while (true) {
+    TraversableMap* child = current->ChildIteratorNext();
+    if (child != NULL) {
+      child->ChildIteratorStart();
+      child->SetParent(current);
+      current = child;
+    } else {
+      TraversableMap* parent = current->GetAndResetParent();
+      callback(current, data);
+      if (current == this) break;
+      current = parent;
+    }
   }
 }
 
@@ -7469,7 +7588,7 @@ bool SharedFunctionInfo::CanGenerateInlineConstructor(Object* prototype) {
       LookupResult result(heap->isolate());
       String* name = GetThisPropertyAssignmentName(i);
       js_object->LocalLookupRealNamedProperty(name, &result);
-      if (result.IsProperty() && result.type() == CALLBACKS) {
+      if (result.IsFound() && result.type() == CALLBACKS) {
         return false;
       }
     }
@@ -10143,7 +10262,7 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
   LookupResult result(isolate);
   LocalLookupRealNamedProperty(key, &result);
-  return result.IsProperty() && (result.type() == CALLBACKS);
+  return result.IsFound() && (result.type() == CALLBACKS);
 }
 
 
@@ -10885,7 +11004,7 @@ int StringDictionary::FindEntry(String* key) {
 
   // Optimized for symbol key. Knowledge of the key type allows:
   // 1. Move the check if the key is a symbol out of the loop.
-  // 2. Avoid comparing hash codes in symbol to symbol comparision.
+  // 2. Avoid comparing hash codes in symbol to symbol comparison.
   // 3. Detect a case when a dictionary key is not a symbol but the key is.
   //    In case of positive result the dictionary key may be replaced by
   //    the symbol with minimal performance penalty. It gives a chance to

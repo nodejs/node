@@ -26,7 +26,7 @@
 # OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 # Dictionary that is passed as defines for js2c.py.
-# Used for defines that must be defined for all native js files.
+# Used for defines that must be defined for all native JS files.
 
 const NONE        = 0;
 const READ_ONLY   = 1;

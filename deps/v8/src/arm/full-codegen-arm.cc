@@ -115,7 +115,7 @@ class JumpPatchSite BASE_EMBEDDED {
 // function.
 //
 // The live registers are:
-//   o r1: the JS function object being called (ie, ourselves)
+//   o r1: the JS function object being called (i.e., ourselves)
 //   o cp: our context
 //   o fp: our caller's frame pointer
 //   o sp: stack pointer
@@ -3618,7 +3618,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // One-character separator case
   __ bind(&one_char_separator);
-  // Replace separator with its ascii character value.
+  // Replace separator with its ASCII character value.
   __ ldrb(separator, FieldMemOperand(separator, SeqAsciiString::kHeaderSize));
   // Jump into the loop after the code that copies the separator, so the first
   // element is not preceded by a separator
@@ -3629,7 +3629,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
   //   result_pos: the position to which we are currently copying characters.
   //   element: Current array element.
   //   elements_end: Array end.
-  //   separator: Single separator ascii char (in lower byte).
+  //   separator: Single separator ASCII char (in lower byte).
 
   // Copy the separator character to the result.
   __ strb(separator, MemOperand(result_pos, 1, PostIndex));

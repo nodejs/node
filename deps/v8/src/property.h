@@ -265,11 +265,6 @@ class LookupResult BASE_EMBEDDED {
     return IsFound() && GetPropertyDetails().IsProperty();
   }
 
-  // Is the result a property or a transition?
-  bool IsPropertyOrTransition() {
-    return IsFound() && (type() != NULL_DESCRIPTOR);
-  }
-
   bool IsCacheable() { return cacheable_; }
   void DisallowCaching() { cacheable_ = false; }
 

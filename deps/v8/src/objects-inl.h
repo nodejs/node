@@ -1391,11 +1391,11 @@ int JSObject::GetHeaderSize() {
     case JS_VALUE_TYPE:
       return JSValue::kSize;
     case JS_ARRAY_TYPE:
-      return JSValue::kSize;
+      return JSArray::kSize;
     case JS_WEAK_MAP_TYPE:
       return JSWeakMap::kSize;
     case JS_REGEXP_TYPE:
-      return JSValue::kSize;
+      return JSRegExp::kSize;
     case JS_CONTEXT_EXTENSION_OBJECT_TYPE:
       return JSObject::kHeaderSize;
     case JS_MESSAGE_OBJECT_TYPE:

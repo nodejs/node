@@ -233,7 +233,7 @@ class Factory {
   Handle<FixedDoubleArray> CopyFixedDoubleArray(
       Handle<FixedDoubleArray> array);
 
-  // Numbers (eg, literals) are pretenured by the parser.
+  // Numbers (e.g. literals) are pretenured by the parser.
   Handle<Object> NewNumber(double value,
                            PretenureFlag pretenure = NOT_TENURED);
 

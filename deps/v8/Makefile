@@ -1,4 +1,4 @@
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -33,6 +33,8 @@ OUTDIR ?= out
 TESTJOBS ?= -j16
 GYPFLAGS ?=
 TESTFLAGS ?=
+ANDROID_NDK_ROOT ?=
+ANDROID_TOOL_PREFIX = $(ANDROID_NDK_ROOT)/toolchain/bin/arm-linux-androideabi
 
 # Special build flags. Use them like this: "make library=shared"
 
@@ -85,6 +87,10 @@ endif
 ifeq ($(presubmit), no)
   TESTFLAGS += --no-presubmit
 endif
+# strictaliasing=off (workaround for GCC-4.5)
+ifeq ($(strictaliasing), off)
+  GYPFLAGS += -Dv8_no_strict_aliasing=1
+endif
 
 # ----------------- available targets: --------------------
 # - "dependencies": pulls in external dependencies (currently: GYP)
@@ -93,6 +99,7 @@ endif
 # - every combination <arch>.<mode>, e.g. "ia32.release"
 # - "native": current host's architecture, release mode
 # - any of the above with .check appended, e.g. "ia32.release.check"
+# - "android": cross-compile for Android/ARM (release mode)
 # - default (no target specified): build all DEFAULT_ARCHES and MODES
 # - "check": build all targets and run all tests
 # - "<arch>.clean" for any <arch> in ARCHES
@@ -120,7 +127,8 @@ ENVFILE = $(OUTDIR)/environment
 
 .PHONY: all check clean dependencies $(ENVFILE).new native \
         $(ARCHES) $(MODES) $(BUILDS) $(CHECKS) $(addsuffix .clean,$(ARCHES)) \
-        $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES))
+        $(addsuffix .check,$(MODES)) $(addsuffix .check,$(ARCHES)) \
+        must-set-ANDROID_NDK_ROOT
 
 # Target definitions. "all" is the default.
 all: $(MODES)
@@ -143,6 +151,18 @@ native: $(OUTDIR)/Makefile-native
 	@$(MAKE) -C "$(OUTDIR)" -f Makefile-native \
 	         CXX="$(CXX)" LINK="$(LINK)" BUILDTYPE=Release \
 	         builddir="$(shell pwd)/$(OUTDIR)/$@"
+
+# TODO(jkummerow): add "android.debug" when we need it.
+android android.release: $(OUTDIR)/Makefile-android
+	@$(MAKE) -C "$(OUTDIR)" -f Makefile-android \
+	        CXX="$(ANDROID_TOOL_PREFIX)-g++" \
+	        AR="$(ANDROID_TOOL_PREFIX)-ar" \
+	        RANLIB="$(ANDROID_TOOL_PREFIX)-ranlib" \
+	        CC="$(ANDROID_TOOL_PREFIX)-gcc" \
+	        LD="$(ANDROID_TOOL_PREFIX)-ld" \
+	        LINK="$(ANDROID_TOOL_PREFIX)-g++" \
+	        BUILDTYPE=Release \
+	        builddir="$(shell pwd)/$(OUTDIR)/android.release"
 
 # Test targets.
 check: all
@@ -178,6 +198,11 @@ native.clean:
 	rm -rf $(OUTDIR)/native
 	find $(OUTDIR) -regex '.*\(host\|target\)-native\.mk' -delete
 
+android.clean:
+	rm -f $(OUTDIR)/Makefile-android
+	rm -rf $(OUTDIR)/android.release
+	find $(OUTDIR) -regex '.*\(host\|target\)-android\.mk' -delete
+
 clean: $(addsuffix .clean,$(ARCHES)) native.clean
 
 # GYP file generation targets.
@@ -204,6 +229,18 @@ $(OUTDIR)/Makefile-mips: $(GYPFILES) $(ENVFILE) build/mipsu.gypi
 $(OUTDIR)/Makefile-native: $(GYPFILES) $(ENVFILE)
 	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
 	              -Ibuild/standalone.gypi --depth=. -S-native $(GYPFLAGS)
+
+$(OUTDIR)/Makefile-android: $(GYPFILES) $(ENVFILE) build/android.gypi \
+                            must-set-ANDROID_NDK_ROOT
+	CC="${ANDROID_TOOL_PREFIX}-gcc" \
+	build/gyp/gyp --generator-output="$(OUTDIR)" build/all.gyp \
+	              -Ibuild/standalone.gypi --depth=. -Ibuild/android.gypi \
+	              -S-android $(GYPFLAGS)
+
+must-set-ANDROID_NDK_ROOT:
+ifndef ANDROID_NDK_ROOT
+	  $(error ANDROID_NDK_ROOT is not set)
+endif
 
 # Replaces the old with the new environment file if they're different, which
 # will trigger GYP to regenerate Makefiles.

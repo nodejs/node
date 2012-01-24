@@ -1033,19 +1033,26 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ lw(t0, FieldMemOperand(a0, String::kHashFieldOffset));
   __ sra(at, t0, String::kHashShift);
   __ xor_(a3, a3, at);
-  __ And(a3, a3, Operand(KeyedLookupCache::kCapacityMask));
+  int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
+  __ And(a3, a3, Operand(mask));
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
+  Label try_second_entry, hit_on_first_entry, load_in_object_property;
   ExternalReference cache_keys =
       ExternalReference::keyed_lookup_cache_keys(isolate);
   __ li(t0, Operand(cache_keys));
   __ sll(at, a3, kPointerSizeLog2 + 1);
   __ addu(t0, t0, at);
-  __ lw(t1, MemOperand(t0));  // Move t0 to symbol.
-  __ Addu(t0, t0, Operand(kPointerSize));
-  __ Branch(&slow, ne, a2, Operand(t1));
   __ lw(t1, MemOperand(t0));
+  __ Branch(&try_second_entry, ne, a2, Operand(t1));
+  __ lw(t1, MemOperand(t0, kPointerSize));
+  __ Branch(&hit_on_first_entry, eq, a0, Operand(t1));
+
+  __ bind(&try_second_entry);
+  __ lw(t1, MemOperand(t0, kPointerSize * 2));
+  __ Branch(&slow, ne, a2, Operand(t1));
+  __ lw(t1, MemOperand(t0, kPointerSize * 3));
   __ Branch(&slow, ne, a0, Operand(t1));
 
   // Get field offset.
@@ -1055,6 +1062,19 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // a3     : lookup cache index
   ExternalReference cache_field_offsets =
       ExternalReference::keyed_lookup_cache_field_offsets(isolate);
+
+  // Hit on second entry.
+  __ li(t0, Operand(cache_field_offsets));
+  __ sll(at, a3, kPointerSizeLog2);
+  __ addu(at, t0, at);
+  __ lw(t1, MemOperand(at, kPointerSize));
+  __ lbu(t2, FieldMemOperand(a2, Map::kInObjectPropertiesOffset));
+  __ Subu(t1, t1, t2);
+  __ Branch(&property_array_property, ge, t1, Operand(zero_reg));
+  __ Branch(&load_in_object_property);
+
+  // Hit on first entry.
+  __ bind(&hit_on_first_entry);
   __ li(t0, Operand(cache_field_offsets));
   __ sll(at, a3, kPointerSizeLog2);
   __ addu(at, t0, at);
@@ -1064,6 +1084,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ Branch(&property_array_property, ge, t1, Operand(zero_reg));
 
   // Load in-object property.
+  __ bind(&load_in_object_property);
   __ lbu(t2, FieldMemOperand(a2, Map::kInstanceSizeOffset));
   __ addu(t2, t2, t1);  // Index from start of object.
   __ Subu(a1, a1, Operand(kHeapObjectTag));  // Remove the heap tag.

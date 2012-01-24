@@ -44,7 +44,7 @@ enum BignumDtoaMode {
   BIGNUM_DTOA_PRECISION
 };
 
-// Converts the given double 'v' to ascii.
+// Converts the given double 'v' to ASCII.
 // The result should be interpreted as buffer * 10^(point-length).
 // The buffer will be null-terminated.
 //

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -50,16 +50,6 @@ class JumpTarget;
 // trying to update gp register for position-independent-code. Whenever
 // MIPS generated code calls C code, it must be via t9 register.
 
-
-// Register aliases.
-// cp is assumed to be a callee saved register.
-const Register kLithiumScratchReg = s3;  // Scratch register.
-const Register kLithiumScratchReg2 = s4;  // Scratch register.
-const Register kCondReg = s5;  // Simulated (partial) condition code for mips.
-const Register kRootRegister = s6;  // Roots array pointer.
-const Register cp = s7;     // JavaScript context pointer.
-const Register fp = s8_fp;  // Alias for fp.
-const DoubleRegister kLithiumScratchDouble = f30;  // Double scratch register.
 
 // Flags used for the AllocateInNewSpace functions.
 enum AllocationFlags {
@@ -340,7 +330,7 @@ class MacroAssembler: public Assembler {
                       Register scratch3,
                       Label* object_is_white_and_not_data);
 
-  // Detects conservatively whether an object is data-only, ie it does need to
+  // Detects conservatively whether an object is data-only, i.e. it does need to
   // be scanned by the garbage collector.
   void JumpIfDataObject(Register value,
                         Register scratch,
@@ -421,7 +411,7 @@ class MacroAssembler: public Assembler {
   }
 
   // Check if the given instruction is a 'type' marker.
-  // ie. check if it is a sll zero_reg, zero_reg, <type> (referenced as
+  // i.e. check if it is a sll zero_reg, zero_reg, <type> (referenced as
   // nop(type)). These instructions are generated to mark special location in
   // the code, like some special IC code.
   static inline bool IsMarkedCode(Instr instr, int type) {
@@ -830,6 +820,7 @@ class MacroAssembler: public Assembler {
   void InvokeFunction(Handle<JSFunction> function,
                       const ParameterCount& actual,
                       InvokeFlag flag,
+                      const CallWrapper& call_wrapper,
                       CallKind call_kind);
 
 
@@ -940,15 +931,29 @@ class MacroAssembler: public Assembler {
                                    Register scratch4,
                                    Label* fail);
 
-  // Check if the map of an object is equal to a specified map (either
-  // given directly or as an index into the root list) and branch to
-  // label if not. Skip the smi check if not required (object is known
-  // to be a heap object).
+  // Compare an object's map with the specified map and its transitioned
+  // elements maps if mode is ALLOW_ELEMENT_TRANSITION_MAPS. Jumps to
+  // "branch_to" if the result of the comparison is "cond". If multiple map
+  // compares are required, the compare sequences branches to early_success.
+  void CompareMapAndBranch(Register obj,
+                           Register scratch,
+                           Handle<Map> map,
+                           Label* early_success,
+                           Condition cond,
+                           Label* branch_to,
+                           CompareMapMode mode = REQUIRE_EXACT_MAP);
+
+  // Check if the map of an object is equal to a specified map and branch to
+  // label if not. Skip the smi check if not required (object is known to be a
+  // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
+  // against maps that are ElementsKind transition maps of the specificed map.
   void CheckMap(Register obj,
                 Register scratch,
                 Handle<Map> map,
                 Label* fail,
-                SmiCheckType smi_check_type);
+                SmiCheckType smi_check_type,
+                CompareMapMode mode = REQUIRE_EXACT_MAP);
+
 
   void CheckMap(Register obj,
                 Register scratch,
@@ -1132,7 +1137,7 @@ class MacroAssembler: public Assembler {
 
   // Calls an API function.  Allocates HandleScope, extracts returned value
   // from handle and propagates exceptions.  Restores context.  stack_space
-  // - space to be unwound on exit (includes the call js arguments space and
+  // - space to be unwound on exit (includes the call JS arguments space and
   // the additional space allocated for the fast call).
   void CallApiFunctionAndReturn(ExternalReference function, int stack_space);
 
@@ -1337,6 +1342,10 @@ class MacroAssembler: public Assembler {
   void PatchRelocatedValue(Register li_location,
                            Register scratch,
                            Register new_value);
+  // Get the relocatad value (loaded data) from the lui/ori pair.
+  void GetRelocatedValue(Register li_location,
+                         Register value,
+                         Register scratch);
 
  private:
   void CallCFunctionHelper(Register function,
@@ -1369,6 +1378,7 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       Register code_reg,
                       Label* done,
+                      bool* definitely_mismatches,
                       InvokeFlag flag,
                       const CallWrapper& call_wrapper,
                       CallKind call_kind);

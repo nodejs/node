@@ -1434,7 +1434,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DeclareContextSlot) {
         !object->IsJSContextExtensionObject()) {
       LookupResult lookup(isolate);
       object->Lookup(*name, &lookup);
-      if (lookup.IsProperty() && (lookup.type() == CALLBACKS)) {
+      if (lookup.IsFound() && (lookup.type() == CALLBACKS)) {
         return ThrowRedeclarationError(isolate, "const", name);
       }
     }
@@ -1482,7 +1482,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeVarGlobal) {
          JSObject::cast(object)->map()->is_hidden_prototype()) {
     JSObject* raw_holder = JSObject::cast(object);
     raw_holder->LocalLookup(*name, &lookup);
-    if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
+    if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
       HandleScope handle_scope(isolate);
       Handle<JSObject> holder(raw_holder);
       PropertyAttributes intercepted = holder->GetPropertyAttribute(*name);
@@ -1648,7 +1648,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_InitializeConstContextSlot) {
     // GetProperty() to get the current value as it 'unholes' the value.
     LookupResult lookup(isolate);
     object->LocalLookupRealNamedProperty(*name, &lookup);
-    ASSERT(lookup.IsProperty());  // the property was declared
+    ASSERT(lookup.IsFound());  // the property was declared
     ASSERT(lookup.IsReadOnly());  // and it was declared as read-only
 
     PropertyType type = lookup.type();
@@ -1869,9 +1869,19 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_SpecialArrayFunctions) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_GetDefaultReceiver) {
-  NoHandleAllocation handle_free;
   ASSERT(args.length() == 1);
-  CONVERT_CHECKED(JSFunction, function, args[0]);
+  CONVERT_CHECKED(JSReceiver, callable, args[0]);
+
+  if (!callable->IsJSFunction()) {
+    HandleScope scope(isolate);
+    bool threw = false;
+    Handle<Object> delegate =
+        Execution::TryGetFunctionDelegate(Handle<JSReceiver>(callable), &threw);
+    if (threw) return Failure::Exception();
+    callable = JSFunction::cast(*delegate);
+  }
+  JSFunction* function = JSFunction::cast(callable);
+
   SharedFunctionInfo* shared = function->shared();
   if (shared->native() || !shared->is_classic_mode()) {
     return isolate->heap()->undefined_value();
@@ -3178,7 +3188,7 @@ MUST_USE_RESULT static MaybeObject* StringReplaceRegExpWithEmptyString(
   Address end_of_string = answer->address() + string_size;
   isolate->heap()->CreateFillerObjectAt(end_of_string, delta);
   if (Marking::IsBlack(Marking::MarkBitFrom(*answer))) {
-    MemoryChunk::IncrementLiveBytes(answer->address(), -delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(answer->address(), -delta);
   }
 
   return *answer;
@@ -3230,6 +3240,79 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceRegExpWithString) {
                                        regexp,
                                        replacement,
                                        last_match_info);
+}
+
+
+Handle<String> Runtime::StringReplaceOneCharWithString(Isolate* isolate,
+                                                       Handle<String> subject,
+                                                       Handle<String> search,
+                                                       Handle<String> replace,
+                                                       bool* found,
+                                                       int recursion_limit) {
+  if (recursion_limit == 0) return Handle<String>::null();
+  if (subject->IsConsString()) {
+    ConsString* cons = ConsString::cast(*subject);
+    Handle<String> first = Handle<String>(cons->first());
+    Handle<String> second = Handle<String>(cons->second());
+    Handle<String> new_first =
+        StringReplaceOneCharWithString(isolate,
+                                       first,
+                                       search,
+                                       replace,
+                                       found,
+                                       recursion_limit - 1);
+    if (*found) return isolate->factory()->NewConsString(new_first, second);
+    if (new_first.is_null()) return new_first;
+
+    Handle<String> new_second =
+        StringReplaceOneCharWithString(isolate,
+                                       second,
+                                       search,
+                                       replace,
+                                       found,
+                                       recursion_limit - 1);
+    if (*found) return isolate->factory()->NewConsString(first, new_second);
+    if (new_second.is_null()) return new_second;
+
+    return subject;
+  } else {
+    int index = StringMatch(isolate, subject, search, 0);
+    if (index == -1) return subject;
+    *found = true;
+    Handle<String> first = isolate->factory()->NewSubString(subject, 0, index);
+    Handle<String> cons1 = isolate->factory()->NewConsString(first, replace);
+    Handle<String> second =
+        isolate->factory()->NewSubString(subject, index + 1, subject->length());
+    return isolate->factory()->NewConsString(cons1, second);
+  }
+}
+
+
+RUNTIME_FUNCTION(MaybeObject*, Runtime_StringReplaceOneCharWithString) {
+  ASSERT(args.length() == 3);
+  HandleScope scope(isolate);
+  CONVERT_ARG_CHECKED(String, subject, 0);
+  CONVERT_ARG_CHECKED(String, search, 1);
+  CONVERT_ARG_CHECKED(String, replace, 2);
+
+  // If the cons string tree is too deep, we simply abort the recursion and
+  // retry with a flattened subject string.
+  const int kRecursionLimit = 0x1000;
+  bool found = false;
+  Handle<String> result =
+      Runtime::StringReplaceOneCharWithString(isolate,
+                                              subject,
+                                              search,
+                                              replace,
+                                              &found,
+                                              kRecursionLimit);
+  if (!result.is_null()) return *result;
+  return *Runtime::StringReplaceOneCharWithString(isolate,
+                                                  FlattenGetString(subject),
+                                                  search,
+                                                  replace,
+                                                  &found,
+                                                  kRecursionLimit);
 }
 
 
@@ -4173,7 +4256,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_KeyedGetProperty) {
         // appropriate.
         LookupResult result(isolate);
         receiver->LocalLookup(key, &result);
-        if (result.IsProperty() && result.type() == FIELD) {
+        if (result.IsFound() && result.type() == FIELD) {
           int offset = result.GetFieldIndex();
           keyed_lookup_cache->Update(receiver_map, key, offset);
           return receiver->FastPropertyAt(offset);
@@ -4321,7 +4404,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DefineOrRedefineDataProperty) {
   js_object->LocalLookupRealNamedProperty(*name, &result);
 
   // Special case for callback properties.
-  if (result.IsProperty() && result.type() == CALLBACKS) {
+  if (result.IsFound() && result.type() == CALLBACKS) {
     Object* callback = result.GetCallbackObject();
     // To be compatible with Safari we do not change the value on API objects
     // in Object.defineProperty(). Firefox disagrees here, and actually changes
@@ -5926,8 +6009,8 @@ MUST_USE_RESULT static MaybeObject* ConvertCaseHelper(
   //
   // Allocate the resulting string.
   //
-  // NOTE: This assumes that the upper/lower case of an ascii
-  // character is also ascii.  This is currently the case, but it
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   Object* o;
@@ -6027,9 +6110,9 @@ static const uintptr_t kOneInEveryByte = kUintptrAllBitsSet / 0xFF;
 // This function is only useful when it can be inlined and the
 // boundaries are statically known.
 // Requires: all bytes in the input word and the boundaries must be
-// ascii (less than 0x7F).
+// ASCII (less than 0x7F).
 static inline uintptr_t AsciiRangeMask(uintptr_t w, char m, char n) {
-  // Every byte in an ascii string is less than or equal to 0x7F.
+  // Every byte in an ASCII string is less than or equal to 0x7F.
   ASSERT((w & (kOneInEveryByte * 0x7F)) == w);
   // Use strict inequalities since in edge cases the function could be
   // further simplified.
@@ -6157,10 +6240,10 @@ MUST_USE_RESULT static MaybeObject* ConvertCase(
   // Assume that the string is not empty; we need this assumption later
   if (length == 0) return s;
 
-  // Simpler handling of ascii strings.
+  // Simpler handling of ASCII strings.
   //
-  // NOTE: This assumes that the upper/lower case of an ascii
-  // character is also ascii.  This is currently the case, but it
+  // NOTE: This assumes that the upper/lower case of an ASCII
+  // character is also ASCII.  This is currently the case, but it
   // might break in the future if we implement more context and locale
   // dependent upper/lower conversions.
   if (s->IsSeqAsciiString()) {
@@ -6323,7 +6406,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_StringSplit) {
 }
 
 
-// Copies ascii characters to the given fixed array looking up
+// Copies ASCII characters to the given fixed array looking up
 // one-char strings in the cache. Gives up on the first char that is
 // not in the cache and fills the remainder with smi zeros. Returns
 // the length of the successfully copied prefix.
@@ -7422,7 +7505,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow) {
 }
 
 // Fast version of Math.pow if we know that y is not an integer and y is not
-// -0.5 or 0.5.  Used as slow case from fullcodegen.
+// -0.5 or 0.5.  Used as slow case from full codegen.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_Math_pow_cfunction) {
   NoHandleAllocation ha;
   ASSERT(args.length() == 2);
@@ -7465,7 +7548,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_RoundNumber) {
 
   // We compare with kSmiValueSize - 2 because (2^30 - 0.1) has exponent 29 and
   // should be rounded to 2^30, which is not smi (for 31-bit smis, similar
-  // agument holds for 32-bit smis).
+  // argument holds for 32-bit smis).
   if (!sign && exponent < kSmiValueSize - 2) {
     return Smi::FromInt(static_cast<int>(value + 0.5));
   }
@@ -9355,7 +9438,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_ParseJson) {
   CONVERT_ARG_CHECKED(String, source, 0);
 
   source = Handle<String>(source->TryFlattenGetString());
-  // Optimized fast case where we only have ascii characters.
+  // Optimized fast case where we only have ASCII characters.
   Handle<Object> result;
   if (source->IsSeqAsciiString()) {
     result = JsonParser<true>::Parse(source);
@@ -10257,7 +10340,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetArrayKeys) {
 
 
 // DefineAccessor takes an optional final argument which is the
-// property attributes (eg, DONT_ENUM, DONT_DELETE).  IMPORTANT: due
+// property attributes (e.g. DONT_ENUM, DONT_DELETE).  IMPORTANT: due
 // to the way accessors are implemented, it is set for both the getter
 // and setter on the first call to DefineAccessor and ignored on
 // subsequent calls.
@@ -11089,7 +11172,7 @@ static Handle<JSObject> MaterializeClosure(Isolate* isolate,
   Handle<SharedFunctionInfo> shared(context->closure()->shared());
   Handle<ScopeInfo> scope_info(shared->scope_info());
 
-  // Allocate and initialize a JSObject with all the content of theis function
+  // Allocate and initialize a JSObject with all the content of this function
   // closure.
   Handle<JSObject> closure_scope =
       isolate->factory()->NewJSObject(isolate->object_function());
@@ -12257,7 +12340,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_DebugGetLoadedScripts) {
     // because using
     //   instances->set(i, *GetScriptWrapper(script))
     // is unsafe as GetScriptWrapper might call GC and the C++ compiler might
-    // already have deferenced the instances handle.
+    // already have dereferenced the instances handle.
     Handle<JSValue> wrapper = GetScriptWrapper(script);
     instances->set(i, *wrapper);
   }

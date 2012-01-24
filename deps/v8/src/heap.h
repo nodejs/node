@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -690,7 +690,7 @@ class Heap {
       PretenureFlag pretenure = NOT_TENURED);
 
   // Computes a single character string where the character has code.
-  // A cache is used for ascii codes.
+  // A cache is used for ASCII codes.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
   // failed. Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* LookupSingleCharacterStringFromCode(
@@ -2135,9 +2135,11 @@ class KeyedLookupCache {
   // Clear the cache.
   void Clear();
 
-  static const int kLength = 64;
+  static const int kLength = 128;
   static const int kCapacityMask = kLength - 1;
-  static const int kMapHashShift = 2;
+  static const int kMapHashShift = 5;
+  static const int kHashMask = -2;  // Zero the last bit.
+  static const int kEntriesPerBucket = 2;
   static const int kNotFound = -1;
 
  private:
@@ -2376,7 +2378,7 @@ class GCTracer BASE_EMBEDDED {
   intptr_t start_size_;  // Size of objects in heap set in constructor.
   GarbageCollector collector_;  // Type of collector.
 
-  // A count (including this one, eg, the first collection is 1) of the
+  // A count (including this one, e.g. the first collection is 1) of the
   // number of garbage collections.
   unsigned int gc_count_;
 
@@ -2613,6 +2615,7 @@ class PathTracer : public ObjectVisitor {
 
   AssertNoAllocation no_alloc;  // i.e. no gc allowed.
 
+ private:
   DISALLOW_IMPLICIT_CONSTRUCTORS(PathTracer);
 };
 #endif  // DEBUG || LIVE_OBJECT_LIST

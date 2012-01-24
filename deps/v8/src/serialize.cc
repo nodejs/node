@@ -1364,6 +1364,13 @@ void PartialSerializer::SerializeObject(
   CHECK(o->IsHeapObject());
   HeapObject* heap_object = HeapObject::cast(o);
 
+  if (heap_object->IsMap()) {
+    // The code-caches link to context-specific code objects, which
+    // the startup and context serializes cannot currently handle.
+    ASSERT(Map::cast(heap_object)->code_cache() ==
+           heap_object->GetHeap()->raw_unchecked_empty_fixed_array());
+  }
+
   int root_index;
   if ((root_index = RootIndex(heap_object)) != kInvalidRootIndex) {
     PutRoot(root_index, heap_object, how_to_code, where_to_point);
