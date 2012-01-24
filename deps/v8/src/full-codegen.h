@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -142,11 +142,13 @@ class FullCodeGenerator: public AstVisitor {
       return previous_;
     }
 
- protected:
+   protected:
     MacroAssembler* masm() { return codegen_->masm(); }
 
     FullCodeGenerator* codegen_;
     NestedStatement* previous_;
+
+   private:
     DISALLOW_COPY_AND_ASSIGN(NestedStatement);
   };
 
@@ -618,8 +620,8 @@ class FullCodeGenerator: public AstVisitor {
                              Label** if_false,
                              Label** fall_through) const = 0;
 
-    // Returns true if we are evaluating only for side effects (ie if the result
-    // will be discarded).
+    // Returns true if we are evaluating only for side effects (i.e. if the
+    // result will be discarded).
     virtual bool IsEffect() const { return false; }
 
     // Returns true if we are evaluating for the value (in accu/on stack).

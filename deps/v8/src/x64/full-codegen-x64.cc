@@ -106,7 +106,7 @@ class JumpPatchSite BASE_EMBEDDED {
 // formal parameter count expected by the function.
 //
 // The live registers are:
-//   o rdi: the JS function object being called (ie, ourselves)
+//   o rdi: the JS function object being called (i.e. ourselves)
 //   o rsi: our context
 //   o rbp: our caller's frame pointer
 //   o rsp: stack pointer (pointing to return address)
@@ -226,9 +226,15 @@ void FullCodeGenerator::Generate(CompilationInfo* info) {
     //   function, receiver address, parameter count.
     // The stub will rewrite receiver and parameter count if the previous
     // stack frame was an arguments adapter frame.
-    ArgumentsAccessStub stub(
-        is_classic_mode() ? ArgumentsAccessStub::NEW_NON_STRICT_SLOW
-                          : ArgumentsAccessStub::NEW_STRICT);
+    ArgumentsAccessStub::Type type;
+    if (!is_classic_mode()) {
+      type = ArgumentsAccessStub::NEW_STRICT;
+    } else if (function()->has_duplicate_parameters()) {
+      type = ArgumentsAccessStub::NEW_NON_STRICT_SLOW;
+    } else {
+      type = ArgumentsAccessStub::NEW_NON_STRICT_FAST;
+    }
+    ArgumentsAccessStub stub(type);
     __ CallStub(&stub);
 
     SetVar(arguments, rax, rbx, rdx);
@@ -3530,7 +3536,7 @@ void FullCodeGenerator::EmitFastAsciiArrayJoin(CallRuntime* expr) {
 
   // One-character separator case
   __ bind(&one_char_separator);
-  // Get the separator ascii character value.
+  // Get the separator ASCII character value.
   // Register "string" holds the separator.
   __ movzxbl(scratch, FieldOperand(string, SeqAsciiString::kHeaderSize));
   __ Set(index, 0);

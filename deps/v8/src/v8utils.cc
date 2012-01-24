@@ -316,7 +316,7 @@ bool MemoryMappedExternalResource::EnsureIsAscii(bool abort_if_failed) const {
   for (const char* p = data_; p < end; p++) {
     char c = *p;
     if ((c & 0x80) != 0) {
-      // Non-ascii detected:
+      // Non-ASCII detected:
       is_ascii = false;
 
       // Report the error and abort if appropriate:
@@ -329,7 +329,7 @@ bool MemoryMappedExternalResource::EnsureIsAscii(bool abort_if_failed) const {
                c, filename_, line_no, char_no);
 
         // Allow for some context up to kNumberOfLeadingContextChars chars
-        // before the offending non-ascii char to help the user see where
+        // before the offending non-ASCII char to help the user see where
         // the offending char is.
         const int kNumberOfLeadingContextChars = 10;
         const char* err_context = p - kNumberOfLeadingContextChars;
@@ -345,7 +345,7 @@ bool MemoryMappedExternalResource::EnsureIsAscii(bool abort_if_failed) const {
         OS::Abort();
       }
 
-      break;  // Non-ascii detected.  No need to continue scanning.
+      break;  // Non-ASCII detected.  No need to continue scanning.
     }
     if (c == '\n') {
       start_of_line = p;

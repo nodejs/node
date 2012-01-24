@@ -1,3 +1,41 @@
+2012-01-23: Version 3.8.8
+
+        Limited number of loop iterations in Heap::ReserveSpace
+        (Chromium issue 99027).
+
+        Fixed solaris build (VirtualMemory) (issue 1761).
+
+        Fixed strict vs. non-strict handling of function proxies in
+        higher-order array and string methods.
+
+        Enabled asynchronous remote debugging with d8 (issue 1691).
+
+        Stability and performance improvements on all platforms.
+
+
+2012-01-19: Version 3.8.7
+
+        Ensure that LRandom restores rsi after call to the C function on x64.
+        (Chromium issue http://crbug.com/110509)
+
+        Fixing include issues on *bsd when building with scons.
+        (issue 1897)
+
+        Provide a switch to specify -fno-strict-aliasing
+        (issue 1887)
+
+        Move WIN32 define from standalone.gypi to common.gypi
+        (issue 1760)
+
+        Fix corner-case in heap size estimation.
+        (issue 1893)
+
+        Fix and enable NEW_NON_STRICT_FAST ArgumentsAccess stub on x64.
+        (issue 1903)
+
+        Performance improvements and bug fixes.
+
+
 2012-01-16: Version 3.8.6
 
         Add primitive WebGL array support to d8.

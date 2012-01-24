@@ -3757,7 +3757,7 @@ ObjectLiteral::Property* Parser::ParseObjectLiteralGetSet(bool is_getter,
                              RelocInfo::kNoPosition,
                              FunctionLiteral::ANONYMOUS_EXPRESSION,
                              CHECK_OK);
-    // Allow any number of parameters for compatiabilty with JSC.
+    // Allow any number of parameters for compatibilty with JSC.
     // Specification only allows zero parameters for get and one for set.
     ObjectLiteral::Property* property =
         new(zone()) ObjectLiteral::Property(is_getter, value);

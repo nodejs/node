@@ -573,13 +573,13 @@ class Instruction {
   // The naming of these accessor corresponds to figure A3-1.
   //
   // Two kind of accessors are declared:
-  // - <Name>Field() will return the raw field, ie the field's bits at their
+  // - <Name>Field() will return the raw field, i.e. the field's bits at their
   //   original place in the instruction encoding.
-  //   eg. if instr is the 'addgt r0, r1, r2' instruction, encoded as 0xC0810002
-  //   ConditionField(instr) will return 0xC0000000.
+  //   e.g. if instr is the 'addgt r0, r1, r2' instruction, encoded as
+  //   0xC0810002 ConditionField(instr) will return 0xC0000000.
   // - <Name>Value() will return the field value, shifted back to bit 0.
-  //   eg. if instr is the 'addgt r0, r1, r2' instruction, encoded as 0xC0810002
-  //   ConditionField(instr) will return 0xC.
+  //   e.g. if instr is the 'addgt r0, r1, r2' instruction, encoded as
+  //   0xC0810002 ConditionField(instr) will return 0xC.
 
 
   // Generally applicable fields

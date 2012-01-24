@@ -5821,7 +5821,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ b(eq, &return_r0);
 
   Label result_longer_than_two;
-  // Check for special case of two character ascii string, in which case
+  // Check for special case of two character ASCII string, in which case
   // we do a lookup in the symbol table first.
   __ cmp(r2, Operand(2));
   __ b(gt, &result_longer_than_two);
@@ -5951,7 +5951,7 @@ void SubStringStub::Generate(MacroAssembler* masm) {
   __ tst(r1, Operand(kStringEncodingMask));
   __ b(eq, &two_byte_sequential);
 
-  // Allocate and copy the resulting ascii string.
+  // Allocate and copy the resulting ASCII string.
   __ AllocateAsciiString(r0, r2, r4, r6, r7, &runtime);
 
   // Locate first character of substring to copy.
@@ -6268,7 +6268,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
 
   __ bind(&longer_than_two);
   // Check if resulting string will be flat.
-  __ cmp(r6, Operand(String::kMinNonFlatLength));
+  __ cmp(r6, Operand(ConsString::kMinLength));
   __ b(lt, &string_add_flat_result);
   // Handle exceptionally long strings in the runtime system.
   STATIC_ASSERT((String::kMaxLength & 0x80000000) == 0);
@@ -6322,7 +6322,7 @@ void StringAddStub::Generate(MacroAssembler* masm) {
   __ jmp(&allocated);
 
   // We cannot encounter sliced strings or cons strings here since:
-  STATIC_ASSERT(SlicedString::kMinLength >= String::kMinNonFlatLength);
+  STATIC_ASSERT(SlicedString::kMinLength >= ConsString::kMinLength);
   // Handle creating a flat result from either external or sequential strings.
   // Locate the first characters' locations.
   // r0: first string

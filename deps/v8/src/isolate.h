@@ -258,7 +258,7 @@ class ThreadLocalTop BASE_EMBEDDED {
 #endif
 #endif  // USE_SIMULATOR
 
-  Address js_entry_sp_;  // the stack pointer of the bottom js entry frame
+  Address js_entry_sp_;  // the stack pointer of the bottom JS entry frame
   Address external_callback_;  // the external callback we're currently in
   StateTag current_vm_state_;
 
@@ -485,7 +485,7 @@ class Isolate {
   bool IsDefaultIsolate() const { return this == default_isolate_; }
 
   // Ensures that process-wide resources and the default isolate have been
-  // allocated. It is only necessary to call this method in rare casses, for
+  // allocated. It is only necessary to call this method in rare cases, for
   // example if you are using V8 from within the body of a static initializer.
   // Safe to call multiple times.
   static void EnsureDefaultIsolate();
@@ -635,7 +635,7 @@ class Isolate {
   void* formal_count_address() { return &thread_local_top_.formal_count_; }
 
   // Returns the global object of the current context. It could be
-  // a builtin object, or a js global object.
+  // a builtin object, or a JS global object.
   Handle<GlobalObject> global() {
     return Handle<GlobalObject>(context()->global());
   }
@@ -1023,6 +1023,13 @@ class Isolate {
     thread_local_top_.top_lookup_result_ = top;
   }
 
+  bool context_exit_happened() {
+    return context_exit_happened_;
+  }
+  void set_context_exit_happened(bool context_exit_happened) {
+    context_exit_happened_ = context_exit_happened;
+  }
+
  private:
   Isolate();
 
@@ -1064,6 +1071,7 @@ class Isolate {
     Isolate* previous_isolate;
     EntryStackItem* previous_item;
 
+   private:
     DISALLOW_COPY_AND_ASSIGN(EntryStackItem);
   };
 
@@ -1187,6 +1195,10 @@ class Isolate {
   RegExpStack* regexp_stack_;
   unibrow::Mapping<unibrow::Ecma262Canonicalize> interp_canonicalize_mapping_;
   void* embedder_data_;
+
+  // The garbage collector should be a little more aggressive when it knows
+  // that a context was recently exited.
+  bool context_exit_happened_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)

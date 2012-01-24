@@ -232,7 +232,7 @@ class GlobalHandles::Node {
       VMState state(isolate, EXTERNAL);
       func(object, par);
     }
-    // Absense of explicit cleanup or revival of weak handle
+    // Absence of explicit cleanup or revival of weak handle
     // in most of the cases would lead to memory leak.
     ASSERT(state_ != NEAR_DEATH);
     return true;

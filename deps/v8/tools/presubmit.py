@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Copyright 2011 the V8 project authors. All rights reserved.
+# Copyright 2012 the V8 project authors. All rights reserved.
 # Redistribution and use in source and binary forms, with or without
 # modification, are permitted provided that the following conditions are
 # met:
@@ -42,6 +42,7 @@ import pickle
 import re
 import sys
 import subprocess
+import multiprocessing
 from subprocess import PIPE
 
 # Disabled LINT rules and reason.
@@ -99,6 +100,33 @@ whitespace/parens
 whitespace/tab
 whitespace/todo
 """.split()
+
+
+LINT_OUTPUT_PATTERN = re.compile(r'^.+[:(]\d+[:)]|^Done processing')
+
+
+def CppLintWorker(command):
+  try:
+    process = subprocess.Popen(command, stderr=subprocess.PIPE)
+    process.wait()
+    out_lines = ""
+    error_count = -1
+    while True:
+      out_line = process.stderr.readline()
+      if out_line == '' and process.poll() != None:
+        break
+      m = LINT_OUTPUT_PATTERN.match(out_line)
+      if m:
+        out_lines += out_line
+        error_count += 1
+    sys.stderr.write(out_lines)
+    return error_count
+  except KeyboardInterrupt:
+    process.kill()
+  except:
+    print('Error running cpplint.py. Please make sure you have depot_tools' +
+          ' in your $PATH. Lint check skipped.')
+    process.kill()
 
 
 class FileContentsCache(object):
@@ -206,29 +234,28 @@ class CppLintProcessor(SourceFileProcessor):
       return True
 
     filt = '-,' + ",".join(['+' + n for n in ENABLED_LINT_RULES])
-    command = ['cpplint.py', '--filter', filt] + join(files)
+    command = ['cpplint.py', '--filter', filt]
     local_cpplint = join(path, "tools", "cpplint.py")
     if exists(local_cpplint):
-      command = ['python', local_cpplint, '--filter', filt] + join(files)
+      command = ['python', local_cpplint, '--filter', filt]
 
+    commands = join([command + [file] for file in files])
+    count = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(count)
     try:
-      process = subprocess.Popen(command, stderr=subprocess.PIPE)
-    except:
-      print('Error running cpplint.py. Please make sure you have depot_tools' +
-            ' in your $PATH. Lint check skipped.')
-      return True
-    LINT_ERROR_PATTERN = re.compile(r'^(.+)[:(]\d+[:)]')
-    while True:
-      out_line = process.stderr.readline()
-      if out_line == '' and process.poll() != None:
-        break
-      sys.stderr.write(out_line)
-      m = LINT_ERROR_PATTERN.match(out_line)
-      if m:
-        good_files_cache.RemoveFile(m.group(1))
+      results = pool.map_async(CppLintWorker, commands).get(999999)
+    except KeyboardInterrupt:
+      print "\nCaught KeyboardInterrupt, terminating workers."
+      sys.exit(1)
 
+    for i in range(len(files)):
+      if results[i] > 0:
+        good_files_cache.RemoveFile(files[i])
+
+    total_errors = sum(results)
+    print "Total errors found: %d" % total_errors
     good_files_cache.Save()
-    return process.returncode == 0
+    return total_errors == 0
 
 
 COPYRIGHT_HEADER_PATTERN = re.compile(

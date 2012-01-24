@@ -1031,14 +1031,25 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ mov(r3, Operand(r2, ASR, KeyedLookupCache::kMapHashShift));
   __ ldr(r4, FieldMemOperand(r0, String::kHashFieldOffset));
   __ eor(r3, r3, Operand(r4, ASR, String::kHashShift));
-  __ And(r3, r3, Operand(KeyedLookupCache::kCapacityMask));
+  int mask = KeyedLookupCache::kCapacityMask & KeyedLookupCache::kHashMask;
+  __ And(r3, r3, Operand(mask));
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
+  Label try_second_entry, hit_on_first_entry, load_in_object_property;
   ExternalReference cache_keys =
       ExternalReference::keyed_lookup_cache_keys(isolate);
   __ mov(r4, Operand(cache_keys));
   __ add(r4, r4, Operand(r3, LSL, kPointerSizeLog2 + 1));
+  // Move r4 to second entry.
+  __ ldr(r5, MemOperand(r4, kPointerSize * 2, PostIndex));
+  __ cmp(r2, r5);
+  __ b(ne, &try_second_entry);
+  __ ldr(r5, MemOperand(r4, -kPointerSize));  // Load symbol
+  __ cmp(r0, r5);
+  __ b(eq, &hit_on_first_entry);
+
+  __ bind(&try_second_entry);
   __ ldr(r5, MemOperand(r4, kPointerSize, PostIndex));  // Move r4 to symbol.
   __ cmp(r2, r5);
   __ b(ne, &slow);
@@ -1053,6 +1064,18 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   // r3     : lookup cache index
   ExternalReference cache_field_offsets =
       ExternalReference::keyed_lookup_cache_field_offsets(isolate);
+
+  // Hit on second entry.
+  __ mov(r4, Operand(cache_field_offsets));
+  __ add(r3, r3, Operand(1));
+  __ ldr(r5, MemOperand(r4, r3, LSL, kPointerSizeLog2));
+  __ ldrb(r6, FieldMemOperand(r2, Map::kInObjectPropertiesOffset));
+  __ sub(r5, r5, r6, SetCC);
+  __ b(ge, &property_array_property);
+  __ jmp(&load_in_object_property);
+
+  // Hit on first entry.
+  __ bind(&hit_on_first_entry);
   __ mov(r4, Operand(cache_field_offsets));
   __ ldr(r5, MemOperand(r4, r3, LSL, kPointerSizeLog2));
   __ ldrb(r6, FieldMemOperand(r2, Map::kInObjectPropertiesOffset));
@@ -1060,6 +1083,7 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   __ b(ge, &property_array_property);
 
   // Load in-object property.
+  __ bind(&load_in_object_property);
   __ ldrb(r6, FieldMemOperand(r2, Map::kInstanceSizeOffset));
   __ add(r6, r6, r5);  // Index from start of object.
   __ sub(r1, r1, Operand(kHeapObjectTag));  // Remove the heap tag.

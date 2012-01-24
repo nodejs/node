@@ -154,7 +154,7 @@ namespace internal {
 
 bool ThreadManager::RestoreThread() {
   ASSERT(IsLockedByCurrentThread());
-  // First check whether the current thread has been 'lazily archived', ie
+  // First check whether the current thread has been 'lazily archived', i.e.
   // not archived at all.  If that is the case we put the state storage we
   // had prepared back in the free list, since we didn't need it after all.
   if (lazily_archived_thread_.Equals(ThreadId::Current())) {

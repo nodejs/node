@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -444,8 +444,10 @@ void MacroAssembler::GetNumberHash(Register reg0, Register scratch) {
   xor_(reg0, reg0, at);
 
   // hash = hash * 2057;
-  li(scratch, Operand(2057));
-  mul(reg0, reg0, scratch);
+  sll(scratch, reg0, 11);
+  sll(at, reg0, 3);
+  addu(reg0, reg0, at);
+  addu(reg0, reg0, scratch);
 
   // hash = hash ^ (hash >> 16);
   srl(at, reg0, 16);
@@ -1176,7 +1178,7 @@ void MacroAssembler::ConvertToInt32(Register source,
   Branch(not_int32, gt, scratch2, Operand(non_smi_exponent));
 
   // We know the exponent is smaller than 30 (biased).  If it is less than
-  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, ie
+  // 0 (biased) then the number is smaller in magnitude than 1.0 * 2^0, i.e.
   // it rounds to zero.
   const uint32_t zero_exponent =
       (HeapNumber::kExponentBias + 0) << HeapNumber::kExponentShift;
@@ -3313,17 +3315,51 @@ void MacroAssembler::StoreNumberToDoubleElements(Register value_reg,
 }
 
 
+void MacroAssembler::CompareMapAndBranch(Register obj,
+                                         Register scratch,
+                                         Handle<Map> map,
+                                         Label* early_success,
+                                         Condition cond,
+                                         Label* branch_to,
+                                         CompareMapMode mode) {
+  lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
+  Operand right = Operand(map);
+  if (mode == ALLOW_ELEMENT_TRANSITION_MAPS) {
+    Map* transitioned_fast_element_map(
+        map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL));
+    ASSERT(transitioned_fast_element_map == NULL ||
+           map->elements_kind() != FAST_ELEMENTS);
+    if (transitioned_fast_element_map != NULL) {
+      Branch(early_success, eq, scratch, right);
+      right = Operand(Handle<Map>(transitioned_fast_element_map));
+    }
+
+    Map* transitioned_double_map(
+        map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL));
+    ASSERT(transitioned_double_map == NULL ||
+           map->elements_kind() == FAST_SMI_ONLY_ELEMENTS);
+    if (transitioned_double_map != NULL) {
+      Branch(early_success, eq, scratch, right);
+      right = Operand(Handle<Map>(transitioned_double_map));
+    }
+  }
+
+  Branch(branch_to, cond, scratch, right);
+}
+
+
 void MacroAssembler::CheckMap(Register obj,
                               Register scratch,
                               Handle<Map> map,
                               Label* fail,
-                              SmiCheckType smi_check_type) {
+                              SmiCheckType smi_check_type,
+                              CompareMapMode mode) {
   if (smi_check_type == DO_SMI_CHECK) {
     JumpIfSmi(obj, fail);
   }
-  lw(scratch, FieldMemOperand(obj, HeapObject::kMapOffset));
-  li(at, Operand(map));
-  Branch(fail, ne, scratch, Operand(at));
+  Label success;
+  CompareMapAndBranch(obj, scratch, map, &success, ne, fail, mode);
+  bind(&success);
 }
 
 
@@ -3430,10 +3466,12 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     Register code_reg,
                                     Label* done,
+                                    bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   bool definitely_matches = false;
+  *definitely_mismatches = false;
   Label regular_invoke;
 
   // Check whether the expected and actual arguments count match. If not,
@@ -3464,6 +3502,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         // arguments.
         definitely_matches = true;
       } else {
+        *definitely_mismatches = true;
         li(a2, Operand(expected.immediate()));
       }
     }
@@ -3487,7 +3526,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       SetCallKind(t1, call_kind);
       Call(adaptor);
       call_wrapper.AfterCall();
-      jmp(done);
+      if (!*definitely_mismatches) {
+        Branch(done);
+      }
     } else {
       SetCallKind(t1, call_kind);
       Jump(adaptor, RelocInfo::CODE_TARGET);
@@ -3508,21 +3549,25 @@ void MacroAssembler::InvokeCode(Register code,
 
   Label done;
 
-  InvokePrologue(expected, actual, Handle<Code>::null(), code, &done, flag,
+  bool definitely_mismatches = false;
+  InvokePrologue(expected, actual, Handle<Code>::null(), code,
+                 &done, &definitely_mismatches, flag,
                  call_wrapper, call_kind);
-  if (flag == CALL_FUNCTION) {
-    call_wrapper.BeforeCall(CallSize(code));
-    SetCallKind(t1, call_kind);
-    Call(code);
-    call_wrapper.AfterCall();
-  } else {
-    ASSERT(flag == JUMP_FUNCTION);
-    SetCallKind(t1, call_kind);
-    Jump(code);
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      call_wrapper.BeforeCall(CallSize(code));
+      SetCallKind(t1, call_kind);
+      Call(code);
+      call_wrapper.AfterCall();
+    } else {
+      ASSERT(flag == JUMP_FUNCTION);
+      SetCallKind(t1, call_kind);
+      Jump(code);
+    }
+    // Continue here if InvokePrologue does handle the invocation due to
+    // mismatched parameter counts.
+    bind(&done);
   }
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
 }
 
 
@@ -3537,18 +3582,22 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 
   Label done;
 
-  InvokePrologue(expected, actual, code, no_reg, &done, flag,
+  bool definitely_mismatches = false;
+  InvokePrologue(expected, actual, code, no_reg,
+                 &done, &definitely_mismatches, flag,
                  NullCallWrapper(), call_kind);
-  if (flag == CALL_FUNCTION) {
-    SetCallKind(t1, call_kind);
-    Call(code, rmode);
-  } else {
-    SetCallKind(t1, call_kind);
-    Jump(code, rmode);
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      SetCallKind(t1, call_kind);
+      Call(code, rmode);
+    } else {
+      SetCallKind(t1, call_kind);
+      Jump(code, rmode);
+    }
+    // Continue here if InvokePrologue does handle the invocation due to
+    // mismatched parameter counts.
+    bind(&done);
   }
-  // Continue here if InvokePrologue does handle the invocation due to
-  // mismatched parameter counts.
-  bind(&done);
 }
 
 
@@ -3581,6 +3630,7 @@ void MacroAssembler::InvokeFunction(Register function,
 void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
                                     const ParameterCount& actual,
                                     InvokeFlag flag,
+                                    const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   // You can't call a function without a valid frame.
   ASSERT(flag == JUMP_FUNCTION || has_frame());
@@ -3594,7 +3644,7 @@ void MacroAssembler::InvokeFunction(Handle<JSFunction> function,
   // allow recompilation to take effect without changing any of the
   // call sites.
   lw(a3, FieldMemOperand(a1, JSFunction::kCodeEntryOffset));
-  InvokeCode(a3, expected, actual, flag, NullCallWrapper(), call_kind);
+  InvokeCode(a3, expected, actual, flag, call_wrapper, call_kind);
 }
 
 
@@ -4729,6 +4779,34 @@ void MacroAssembler::PatchRelocatedValue(Register li_location,
 
   // Update the I-cache so the new lui and ori can be executed.
   FlushICache(li_location, 2);
+}
+
+void MacroAssembler::GetRelocatedValue(Register li_location,
+                                       Register value,
+                                       Register scratch) {
+  lw(value, MemOperand(li_location));
+  if (emit_debug_code()) {
+    And(value, value, kOpcodeMask);
+    Check(eq, "The instruction should be a lui.",
+        value, Operand(LUI));
+    lw(value, MemOperand(li_location));
+  }
+
+  // value now holds a lui instruction. Extract the immediate.
+  sll(value, value, kImm16Bits);
+
+  lw(scratch, MemOperand(li_location, kInstrSize));
+  if (emit_debug_code()) {
+    And(scratch, scratch, kOpcodeMask);
+    Check(eq, "The instruction should be an ori.",
+        scratch, Operand(ORI));
+    lw(scratch, MemOperand(li_location, kInstrSize));
+  }
+  // "scratch" now holds an ori instruction. Extract the immediate.
+  andi(scratch, scratch, kImm16Mask);
+
+  // Merge the results.
+  or_(value, value, scratch);
 }
 
 

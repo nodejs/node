@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -49,10 +49,14 @@ namespace v8 {
 class ReadLineEditor: public LineEditor {
  public:
   ReadLineEditor() : LineEditor(LineEditor::READLINE, "readline") { }
-  virtual i::SmartArrayPointer<char> Prompt(const char* prompt);
+  virtual Handle<String> Prompt(const char* prompt);
   virtual bool Open();
   virtual bool Close();
   virtual void AddHistory(const char* str);
+
+  static const char* kHistoryFileName;
+  static const int kMaxHistoryEntries;
+
  private:
   static char** AttemptedCompletion(const char* text, int start, int end);
   static char* CompletionGenerator(const char* text, int state);
@@ -66,25 +70,38 @@ char ReadLineEditor::kWordBreakCharacters[] = {' ', '\t', '\n', '"',
     '\0'};
 
 
+const char* ReadLineEditor::kHistoryFileName = ".d8_history";
+const int ReadLineEditor::kMaxHistoryEntries = 1000;
+
+
 bool ReadLineEditor::Open() {
   rl_initialize();
   rl_attempted_completion_function = AttemptedCompletion;
   rl_completer_word_break_characters = kWordBreakCharacters;
   rl_bind_key('\t', rl_complete);
   using_history();
-  stifle_history(Shell::kMaxHistoryEntries);
-  return read_history(Shell::kHistoryFileName) == 0;
+  stifle_history(kMaxHistoryEntries);
+  return read_history(kHistoryFileName) == 0;
 }
 
 
 bool ReadLineEditor::Close() {
-  return write_history(Shell::kHistoryFileName) == 0;
+  return write_history(kHistoryFileName) == 0;
 }
 
 
-i::SmartArrayPointer<char> ReadLineEditor::Prompt(const char* prompt) {
-  char* result = readline(prompt);
-  return i::SmartArrayPointer<char>(result);
+Handle<String> ReadLineEditor::Prompt(const char* prompt) {
+  char* result = NULL;
+  {  // Release lock for blocking input.
+    Unlocker unlock(Isolate::GetCurrent());
+    result = readline(prompt);
+  }
+  if (result != NULL) {
+    AddHistory(result);
+  } else {
+    return Handle<String>();
+  }
+  return String::New(result);
 }
 
 
@@ -118,10 +135,10 @@ char* ReadLineEditor::CompletionGenerator(const char* text, int state) {
   static unsigned current_index;
   static Persistent<Array> current_completions;
   if (state == 0) {
-    i::SmartArrayPointer<char> full_text(i::StrNDup(rl_line_buffer, rl_point));
     HandleScope scope;
+    Local<String> full_text = String::New(rl_line_buffer, rl_point);
     Handle<Array> completions =
-      Shell::GetCompletions(String::New(text), String::New(*full_text));
+      Shell::GetCompletions(String::New(text), full_text);
     current_completions = Persistent<Array>::New(completions);
     current_index = 0;
   }

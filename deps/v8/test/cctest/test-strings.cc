@@ -355,7 +355,7 @@ TEST(ExternalShortStringAdd) {
 
   // Make sure we cover all always-flat lengths and at least one above.
   static const int kMaxLength = 20;
-  CHECK_GT(kMaxLength, i::String::kMinNonFlatLength);
+  CHECK_GT(kMaxLength, i::ConsString::kMinLength);
 
   // Allocate two JavaScript arrays for holding short strings.
   v8::Handle<v8::Array> ascii_external_strings =

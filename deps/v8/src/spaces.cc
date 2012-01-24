@@ -649,6 +649,17 @@ void MemoryAllocator::ReportStatistics() {
 #endif
 
 // -----------------------------------------------------------------------------
+// MemoryChunk implementation
+
+void MemoryChunk::IncrementLiveBytesFromMutator(Address address, int by) {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(address);
+  if (!chunk->InNewSpace() && !static_cast<Page*>(chunk)->WasSwept()) {
+    static_cast<PagedSpace*>(chunk->owner())->IncrementUnsweptFreeBytes(-by);
+  }
+  chunk->IncrementLiveBytes(by);
+}
+
+// -----------------------------------------------------------------------------
 // PagedSpace implementation
 
 PagedSpace::PagedSpace(Heap* heap,
@@ -765,6 +776,8 @@ void PagedSpace::ReleasePage(Page* page) {
     intptr_t size = free_list_.EvictFreeListItems(page);
     accounting_stats_.AllocateBytes(size);
     ASSERT_EQ(Page::kObjectAreaSize, static_cast<int>(size));
+  } else {
+    DecreaseUnsweptFreeBytes(page);
   }
 
   if (Page::FromAllocationTop(allocation_info_.top) == page) {
@@ -2112,7 +2125,7 @@ bool PagedSpace::AdvanceSweeper(intptr_t bytes_to_sweep) {
         PrintF("Sweeping 0x%" V8PRIxPTR " lazily advanced.\n",
                reinterpret_cast<intptr_t>(p));
       }
-      unswept_free_bytes_ -= (Page::kObjectAreaSize - p->LiveBytes());
+      DecreaseUnsweptFreeBytes(p);
       freed_bytes += MarkCompactCollector::SweepConservatively(this, p);
     }
     p = next_page;
@@ -2513,7 +2526,7 @@ void LargeObjectSpace::FreeUnmarkedObjects() {
     MarkBit mark_bit = Marking::MarkBitFrom(object);
     if (mark_bit.Get()) {
       mark_bit.Clear();
-      MemoryChunk::IncrementLiveBytes(object->address(), -object->Size());
+      MemoryChunk::IncrementLiveBytesFromGC(object->address(), -object->Size());
       previous = current;
       current = current->next_page();
     } else {

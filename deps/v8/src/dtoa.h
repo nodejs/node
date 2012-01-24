@@ -49,7 +49,7 @@ enum DtoaMode {
 // be at least kBase10MaximalLength + 1 characters long.
 const int kBase10MaximalLength = 17;
 
-// Converts the given double 'v' to ascii.
+// Converts the given double 'v' to ASCII.
 // The result should be interpreted as buffer * 10^(point-length).
 //
 // The output depends on the given mode:

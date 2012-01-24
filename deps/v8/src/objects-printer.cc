@@ -627,7 +627,7 @@ void String::StringPrint(FILE* out) {
 
 
 // This method is only meant to be called from gdb for debugging purposes.
-// Since the string can also be in two-byte encoding, non-ascii characters
+// Since the string can also be in two-byte encoding, non-ASCII characters
 // will be ignored in the output.
 char* String::ToAsciiArray() {
   // Static so that subsequent calls frees previously allocated space.

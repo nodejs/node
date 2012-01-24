@@ -2291,7 +2291,7 @@ void Simulator::DecodeTypeRegister(Instruction* instr) {
 }
 
 
-// Type 2: instructions using a 16 bytes immediate. (eg: addi, beq).
+// Type 2: instructions using a 16 bytes immediate. (e.g. addi, beq).
 void Simulator::DecodeTypeImmediate(Instruction* instr) {
   // Instruction fields.
   Opcode   op     = instr->OpcodeFieldRaw();
@@ -2614,7 +2614,7 @@ void Simulator::DecodeTypeImmediate(Instruction* instr) {
 }
 
 
-// Type 3: instructions using a 26 bytes immediate. (eg: j, jal).
+// Type 3: instructions using a 26 bytes immediate. (e.g. j, jal).
 void Simulator::DecodeTypeJump(Instruction* instr) {
   // Get current pc.
   int32_t current_pc = get_pc();

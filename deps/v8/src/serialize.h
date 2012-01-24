@@ -1,4 +1,4 @@
-// Copyright 2006-2009 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -228,7 +228,7 @@ class SerializerDeserializer: public ObjectVisitor {
     kFromStart = 0x20,              // Object is described relative to start.
     // 0x21-0x28                       One per space.
     // 0x29-0x2f                       Free.
-    // 0x30-0x3f                       Used by misc tags below.
+    // 0x30-0x3f                       Used by misc. tags below.
     kPointedToMask = 0x3f
   };
 
@@ -359,8 +359,8 @@ class Deserializer: public SerializerDeserializer {
   // Fills in some heap data in an area from start to end (non-inclusive).  The
   // space id is used for the write barrier.  The object_address is the address
   // of the object we are writing into, or NULL if we are not writing into an
-  // object, ie if we are writing a series of tagged values that are not on the
-  // heap.
+  // object, i.e. if we are writing a series of tagged values that are not on
+  // the heap.
   void ReadChunk(
       Object** start, Object** end, int space, Address object_address);
   HeapObject* GetAddressFromStart(int space);
@@ -581,6 +581,7 @@ class Serializer : public SerializerDeserializer {
   friend class ObjectSerializer;
   friend class Deserializer;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(Serializer);
 };
 
@@ -632,7 +633,7 @@ class StartupSerializer : public Serializer {
   // Serialize the current state of the heap.  The order is:
   // 1) Strong references.
   // 2) Partial snapshot cache.
-  // 3) Weak references (eg the symbol table).
+  // 3) Weak references (e.g. the symbol table).
   virtual void SerializeStrongReferences();
   virtual void SerializeObject(Object* o,
                                HowToCode how_to_code,

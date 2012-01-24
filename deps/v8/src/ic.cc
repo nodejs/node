@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -860,7 +860,7 @@ MaybeObject* LoadIC::Load(State state,
   }
 
   PropertyAttributes attr;
-  if (lookup.IsProperty() &&
+  if (lookup.IsFound() &&
       (lookup.type() == INTERCEPTOR || lookup.type() == HANDLER)) {
     // Get the property.
     Handle<Object> result =
@@ -1083,7 +1083,7 @@ MaybeObject* KeyedLoadIC::Load(State state,
     }
 
     PropertyAttributes attr;
-    if (lookup.IsProperty() && lookup.type() == INTERCEPTOR) {
+    if (lookup.IsFound() && lookup.type() == INTERCEPTOR) {
       // Get the property.
       Handle<Object> result =
           Object::GetProperty(object, object, &lookup, name, &attr);
@@ -1206,10 +1206,12 @@ void KeyedLoadIC::UpdateCaches(LookupResult* lookup,
 
 static bool StoreICableLookup(LookupResult* lookup) {
   // Bail out if we didn't find a result.
-  if (!lookup->IsPropertyOrTransition() || !lookup->IsCacheable()) return false;
+  if (!lookup->IsFound() || lookup->type() == NULL_DESCRIPTOR) return false;
 
-  // If the property is read-only, we leave the IC in its current
-  // state.
+  // Bail out if inline caching is not allowed.
+  if (!lookup->IsCacheable()) return false;
+
+  // If the property is read-only, we leave the IC in its current state.
   if (lookup->IsReadOnly()) return false;
 
   return true;

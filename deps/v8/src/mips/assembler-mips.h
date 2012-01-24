@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 
 #ifndef V8_MIPS_ASSEMBLER_MIPS_H_
@@ -182,12 +182,7 @@ struct FPURegister {
       kNumReservedRegisters;
 
 
-  static int ToAllocationIndex(FPURegister reg) {
-    ASSERT(reg.code() % 2 == 0);
-    ASSERT(reg.code() / 2 < kNumAllocatableRegisters);
-    ASSERT(reg.is_valid());
-    return (reg.code() / 2);
-  }
+  inline static int ToAllocationIndex(FPURegister reg);
 
   static FPURegister FromAllocationIndex(int index) {
     ASSERT(index >= 0 && index < kNumAllocatableRegisters);
@@ -302,6 +297,14 @@ const FPURegister f29 = { 29 };
 const FPURegister f30 = { 30 };
 const FPURegister f31 = { 31 };
 
+// Register aliases.
+// cp is assumed to be a callee saved register.
+static const Register& kLithiumScratchReg = s3;  // Scratch register.
+static const Register& kLithiumScratchReg2 = s4;  // Scratch register.
+static const Register& kRootRegister = s6;  // Roots array pointer.
+static const Register& cp = s7;     // JavaScript context pointer.
+static const Register& fp = s8_fp;  // Alias for fp.
+static const DoubleRegister& kLithiumScratchDouble = f30;
 static const FPURegister& kDoubleRegZero = f28;
 
 // FPU (coprocessor 1) control registers.
@@ -667,7 +670,7 @@ class Assembler : public AssemblerBase {
   // Never use the int16_t b(l)cond version with a branch offset
   // instead of using the Label* version.
 
-  // Jump targets must be in the current 256 MB-aligned region. ie 28 bits.
+  // Jump targets must be in the current 256 MB-aligned region. i.e. 28 bits.
   void j(int32_t target);
   void jal(int32_t target);
   void jalr(Register rs, Register rd = ra);

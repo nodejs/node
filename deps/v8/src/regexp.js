@@ -436,8 +436,8 @@ function SetUpRegExp() {
   // value is set in SpiderMonkey, the value it is set to is coerced to a
   // boolean.  We mimic that behavior with a slight difference: in SpiderMonkey
   // the value of the expression 'RegExp.multiline = null' (for instance) is the
-  // boolean false (ie, the value after coercion), while in V8 it is the value
-  // null (ie, the value before coercion).
+  // boolean false (i.e., the value after coercion), while in V8 it is the value
+  // null (i.e., the value before coercion).
 
   // Getter and setter for multiline.
   var multiline = false;

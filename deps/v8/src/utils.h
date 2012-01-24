@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -931,9 +931,17 @@ class EnumSet {
   explicit EnumSet(T bits = 0) : bits_(bits) {}
   bool IsEmpty() const { return bits_ == 0; }
   bool Contains(E element) const { return (bits_ & Mask(element)) != 0; }
+  bool ContainsAnyOf(const EnumSet& set) const {
+    return (bits_ & set.bits_) != 0;
+  }
   void Add(E element) { bits_ |= Mask(element); }
+  void Add(const EnumSet& set) { bits_ |= set.bits_; }
   void Remove(E element) { bits_ &= ~Mask(element); }
+  void Remove(const EnumSet& set) { bits_ &= ~set.bits_; }
+  void RemoveAll() { bits_ = 0; }
+  void Intersect(const EnumSet& set) { bits_ &= set.bits_; }
   T ToIntegral() const { return bits_; }
+  bool operator==(const EnumSet& set) { return bits_ == set.bits_; }
 
  private:
   T Mask(E element) const {

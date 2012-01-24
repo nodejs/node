@@ -30,7 +30,7 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 
 #ifndef V8_MIPS_ASSEMBLER_MIPS_INL_H_
@@ -75,6 +75,16 @@ Operand::Operand(Register rm) {
 
 bool Operand::is_reg() const {
   return rm_.is_valid();
+}
+
+
+int FPURegister::ToAllocationIndex(FPURegister reg) {
+  ASSERT(reg.code() % 2 == 0);
+  ASSERT(reg.code() / 2 < kNumAllocatableRegisters);
+  ASSERT(reg.is_valid());
+  ASSERT(!reg.is(kDoubleRegZero));
+  ASSERT(!reg.is(kLithiumScratchDouble));
+  return (reg.code() / 2);
 }
 
 

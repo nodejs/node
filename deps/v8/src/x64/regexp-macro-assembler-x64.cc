@@ -226,7 +226,7 @@ void RegExpMacroAssemblerX64::CheckCharacters(Vector<const uc16> str,
                                               bool check_end_of_string) {
 #ifdef DEBUG
   // If input is ASCII, don't even bother calling here if the string to
-  // match contains a non-ascii character.
+  // match contains a non-ASCII character.
   if (mode_ == ASCII) {
     ASSERT(String::IsAscii(str.start(), str.length()));
   }

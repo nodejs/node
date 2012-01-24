@@ -492,18 +492,26 @@ class HUseIterator BASE_EMBEDDED {
 };
 
 
+// There must be one corresponding kDepends flag for every kChanges flag and
+// the order of the kChanges flags must be exactly the same as of the kDepends
+// flags.
+enum GVNFlag {
+  // Declare global value numbering flags.
+#define DECLARE_FLAG(type) kChanges##type, kDependsOn##type,
+  GVN_FLAG_LIST(DECLARE_FLAG)
+#undef DECLARE_FLAG
+  kAfterLastFlag,
+  kLastFlag = kAfterLastFlag - 1
+};
+
+typedef EnumSet<GVNFlag> GVNFlagSet;
+
+
 class HValue: public ZoneObject {
  public:
   static const int kNoNumber = -1;
 
-  // There must be one corresponding kDepends flag for every kChanges flag and
-  // the order of the kChanges flags must be exactly the same as of the kDepends
-  // flags.
   enum Flag {
-    // Declare global value numbering flags.
-  #define DECLARE_DO(type) kChanges##type, kDependsOn##type,
-    GVN_FLAG_LIST(DECLARE_DO)
-  #undef DECLARE_DO
     kFlexibleRepresentation,
     // Participate in Global Value Numbering, i.e. elimination of
     // unnecessary recomputations. If an instruction sets this flag, it must
@@ -523,8 +531,8 @@ class HValue: public ZoneObject {
 
   static const int kChangesToDependsFlagsLeftShift = 1;
 
-  static int ConvertChangesToDependsFlags(int flags) {
-    return flags << kChangesToDependsFlagsLeftShift;
+  static GVNFlagSet ConvertChangesToDependsFlags(GVNFlagSet flags) {
+    return GVNFlagSet(flags.ToIntegral() << kChangesToDependsFlagsLeftShift);
   }
 
   static HValue* cast(HValue* value) { return value; }
@@ -622,16 +630,32 @@ class HValue: public ZoneObject {
   void ClearFlag(Flag f) { flags_ &= ~(1 << f); }
   bool CheckFlag(Flag f) const { return (flags_ & (1 << f)) != 0; }
 
-  void SetAllSideEffects() { flags_ |= AllSideEffects(); }
-  void ClearAllSideEffects() { flags_ &= ~AllSideEffects(); }
-  bool HasSideEffects() const { return (flags_ & AllSideEffects()) != 0; }
+  GVNFlagSet gvn_flags() const { return gvn_flags_; }
+  void SetGVNFlag(GVNFlag f) { gvn_flags_.Add(f); }
+  void ClearGVNFlag(GVNFlag f) { gvn_flags_.Remove(f); }
+  bool CheckGVNFlag(GVNFlag f) const { return gvn_flags_.Contains(f); }
+  void SetAllSideEffects() { gvn_flags_.Add(AllSideEffectsFlagSet()); }
+  void ClearAllSideEffects() {
+    gvn_flags_.Remove(AllSideEffectsFlagSet());
+  }
+  bool HasSideEffects() const {
+    return gvn_flags_.ContainsAnyOf(AllSideEffectsFlagSet());
+  }
   bool HasObservableSideEffects() const {
-    return (flags_ & ObservableSideEffects()) != 0;
+    return gvn_flags_.ContainsAnyOf(AllObservableSideEffectsFlagSet());
   }
 
-  int ChangesFlags() const { return flags_ & ChangesFlagsMask(); }
-  int ObservableChangesFlags() const {
-    return flags_ & ChangesFlagsMask() & ObservableSideEffects();
+  GVNFlagSet ChangesFlags() const {
+    GVNFlagSet result = gvn_flags_;
+    result.Intersect(AllChangesFlagSet());
+    return result;
+  }
+
+  GVNFlagSet ObservableChangesFlags() const {
+    GVNFlagSet result = gvn_flags_;
+    result.Intersect(AllChangesFlagSet());
+    result.Intersect(AllObservableSideEffectsFlagSet());
+    return result;
   }
 
   Range* range() const { return range_; }
@@ -697,25 +721,28 @@ class HValue: public ZoneObject {
     representation_ = r;
   }
 
- private:
-  static int ChangesFlagsMask() {
-    int result = 0;
+  static GVNFlagSet AllChangesFlagSet() {
+    GVNFlagSet result;
     // Create changes mask.
-#define ADD_FLAG(type) result |= (1 << kChanges##type);
+#define ADD_FLAG(type) result.Add(kChanges##type);
   GVN_FLAG_LIST(ADD_FLAG)
 #undef ADD_FLAG
     return result;
   }
 
   // A flag mask to mark an instruction as having arbitrary side effects.
-  static int AllSideEffects() {
-    return ChangesFlagsMask() & ~(1 << kChangesOsrEntries);
+  static GVNFlagSet AllSideEffectsFlagSet() {
+    GVNFlagSet result = AllChangesFlagSet();
+    result.Remove(kChangesOsrEntries);
+    return result;
   }
 
   // A flag mask of all side effects that can make observable changes in
   // an executing program (i.e. are not safe to repeat, move or remove);
-  static int ObservableSideEffects() {
-    return ChangesFlagsMask() & ~(1 << kChangesElementsKind);
+  static GVNFlagSet AllObservableSideEffectsFlagSet() {
+    GVNFlagSet result = AllChangesFlagSet();
+    result.Remove(kChangesElementsKind);
+    return result;
   }
 
   // Remove the matching use from the use list if present.  Returns the
@@ -735,6 +762,7 @@ class HValue: public ZoneObject {
   HUseListNode* use_list_;
   Range* range_;
   int flags_;
+  GVNFlagSet gvn_flags_;
 
   DISALLOW_COPY_AND_ASSIGN(HValue);
 };
@@ -772,7 +800,7 @@ class HInstruction: public HValue {
       : next_(NULL),
         previous_(NULL),
         position_(RelocInfo::kNoPosition) {
-    SetFlag(kDependsOnOsrEntries);
+    SetGVNFlag(kDependsOnOsrEntries);
   }
 
   virtual void DeleteFromGraph() { Unlink(); }
@@ -1716,8 +1744,8 @@ class HJSArrayLength: public HTemplateInstruction<2> {
     SetOperandAt(1, typecheck);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnArrayLengths);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnArrayLengths);
+    SetGVNFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1741,7 +1769,7 @@ class HFixedArrayBaseLength: public HUnaryOperation {
   explicit HFixedArrayBaseLength(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnArrayLengths);
+    SetGVNFlag(kDependsOnArrayLengths);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1760,7 +1788,7 @@ class HElementsKind: public HUnaryOperation {
   explicit HElementsKind(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnElementsKind);
+    SetGVNFlag(kDependsOnElementsKind);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1886,8 +1914,8 @@ class HLoadElements: public HUnaryOperation {
   explicit HLoadElements(HValue* value) : HUnaryOperation(value) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
-    SetFlag(kDependsOnElementsKind);
+    SetGVNFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnElementsKind);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -1937,7 +1965,7 @@ class HCheckMap: public HTemplateInstruction<2> {
     SetOperandAt(1, typecheck != NULL ? typecheck : value);
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnMaps);
     has_element_transitions_ =
         map->LookupElementsTransitionMap(FAST_DOUBLE_ELEMENTS, NULL) != NULL ||
         map->LookupElementsTransitionMap(FAST_ELEMENTS, NULL) != NULL;
@@ -2105,7 +2133,7 @@ class HCheckPrototypeMaps: public HTemplateInstruction<0> {
   HCheckPrototypeMaps(Handle<JSObject> prototype, Handle<JSObject> holder)
       : prototype_(prototype), holder_(holder) {
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnMaps);
   }
 
 #ifdef DEBUG
@@ -3255,7 +3283,7 @@ class HSar: public HBitwiseBinaryOperation {
 class HOsrEntry: public HTemplateInstruction<0> {
  public:
   explicit HOsrEntry(int ast_id) : ast_id_(ast_id) {
-    SetFlag(kChangesOsrEntries);
+    SetGVNFlag(kChangesOsrEntries);
   }
 
   int ast_id() const { return ast_id_; }
@@ -3343,7 +3371,7 @@ class HLoadGlobalCell: public HTemplateInstruction<0> {
       : cell_(cell), details_(details) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnGlobalVars);
+    SetGVNFlag(kDependsOnGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell>  cell() const { return cell_; }
@@ -3422,7 +3450,7 @@ class HStoreGlobalCell: public HUnaryOperation {
       : HUnaryOperation(value),
         cell_(cell),
         details_(details) {
-    SetFlag(kChangesGlobalVars);
+    SetGVNFlag(kChangesGlobalVars);
   }
 
   Handle<JSGlobalPropertyCell> cell() const { return cell_; }
@@ -3513,7 +3541,7 @@ class HLoadContextSlot: public HUnaryOperation {
     }
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnContextSlots);
+    SetGVNFlag(kDependsOnContextSlots);
   }
 
   int slot_index() const { return slot_index_; }
@@ -3566,7 +3594,7 @@ class HStoreContextSlot: public HTemplateInstruction<2> {
       : slot_index_(slot_index), mode_(mode) {
     SetOperandAt(0, context);
     SetOperandAt(1, value);
-    SetFlag(kChangesContextSlots);
+    SetGVNFlag(kChangesContextSlots);
   }
 
   HValue* context() { return OperandAt(0); }
@@ -3608,11 +3636,11 @@ class HLoadNamedField: public HUnaryOperation {
         offset_(offset) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnMaps);
     if (is_in_object) {
-      SetFlag(kDependsOnInobjectFields);
+      SetGVNFlag(kDependsOnInobjectFields);
     } else {
-      SetFlag(kDependsOnBackingStoreFields);
+      SetGVNFlag(kDependsOnBackingStoreFields);
     }
   }
 
@@ -3706,7 +3734,7 @@ class HLoadFunctionPrototype: public HUnaryOperation {
       : HUnaryOperation(function) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnCalls);
+    SetGVNFlag(kDependsOnCalls);
   }
 
   HValue* function() { return OperandAt(0); }
@@ -3728,7 +3756,7 @@ class HLoadKeyedFastElement: public HTemplateInstruction<2> {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     set_representation(Representation::Tagged());
-    SetFlag(kDependsOnArrayElements);
+    SetGVNFlag(kDependsOnArrayElements);
     SetFlag(kUseGVN);
   }
 
@@ -3759,7 +3787,7 @@ class HLoadKeyedFastDoubleElement: public HTemplateInstruction<2> {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     set_representation(Representation::Double());
-    SetFlag(kDependsOnDoubleArrayElements);
+    SetGVNFlag(kDependsOnDoubleArrayElements);
     SetFlag(kUseGVN);
   }
 
@@ -3796,9 +3824,9 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
     } else {
       set_representation(Representation::Integer32());
     }
-    SetFlag(kDependsOnSpecializedArrayElements);
+    SetGVNFlag(kDependsOnSpecializedArrayElements);
     // Native code could change the specialized array.
-    SetFlag(kDependsOnCalls);
+    SetGVNFlag(kDependsOnCalls);
     SetFlag(kUseGVN);
   }
 
@@ -3868,9 +3896,9 @@ class HStoreNamedField: public HTemplateInstruction<2> {
     SetOperandAt(0, obj);
     SetOperandAt(1, val);
     if (is_in_object_) {
-      SetFlag(kChangesInobjectFields);
+      SetGVNFlag(kChangesInobjectFields);
     } else {
-      SetFlag(kChangesBackingStoreFields);
+      SetGVNFlag(kChangesBackingStoreFields);
     }
   }
 
@@ -3945,7 +3973,7 @@ class HStoreKeyedFastElement: public HTemplateInstruction<3> {
     SetOperandAt(0, obj);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-    SetFlag(kChangesArrayElements);
+    SetGVNFlag(kChangesArrayElements);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -3987,7 +4015,7 @@ class HStoreKeyedFastDoubleElement: public HTemplateInstruction<3> {
     SetOperandAt(0, elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
-    SetFlag(kChangesDoubleArrayElements);
+    SetGVNFlag(kChangesDoubleArrayElements);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4021,7 +4049,7 @@ class HStoreKeyedSpecializedArrayElement: public HTemplateInstruction<3> {
                                      HValue* val,
                                      ElementsKind elements_kind)
       : elements_kind_(elements_kind) {
-    SetFlag(kChangesSpecializedArrayElements);
+    SetGVNFlag(kChangesSpecializedArrayElements);
     SetOperandAt(0, external_elements);
     SetOperandAt(1, key);
     SetOperandAt(2, val);
@@ -4099,7 +4127,7 @@ class HTransitionElementsKind: public HTemplateInstruction<1> {
         transitioned_map_(transitioned_map) {
     SetOperandAt(0, object);
     SetFlag(kUseGVN);
-    SetFlag(kChangesElementsKind);
+    SetGVNFlag(kChangesElementsKind);
     set_representation(Representation::Tagged());
   }
 
@@ -4134,7 +4162,7 @@ class HStringAdd: public HBinaryOperation {
       : HBinaryOperation(context, left, right) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4160,7 +4188,7 @@ class HStringCharCodeAt: public HTemplateInstruction<3> {
     SetOperandAt(2, index);
     set_representation(Representation::Integer32());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {
@@ -4215,7 +4243,7 @@ class HStringLength: public HUnaryOperation {
   explicit HStringLength(HValue* string) : HUnaryOperation(string) {
     set_representation(Representation::Tagged());
     SetFlag(kUseGVN);
-    SetFlag(kDependsOnMaps);
+    SetGVNFlag(kDependsOnMaps);
   }
 
   virtual Representation RequiredInputRepresentation(int index) {

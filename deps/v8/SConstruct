@@ -33,6 +33,7 @@ import os
 from os.path import join, dirname, abspath
 from types import DictType, StringTypes
 root_dir = dirname(File('SConstruct').rfile().abspath)
+src_dir = join(root_dir, 'src')
 sys.path.insert(0, join(root_dir, 'tools'))
 import js2c, utils
 
@@ -53,7 +54,7 @@ GCC_DTOA_EXTRA_CCFLAGS = []
 
 LIBRARY_FLAGS = {
   'all': {
-    'CPPPATH': [join(root_dir, 'src')],
+    'CPPPATH': [src_dir],
     'regexp:interpreted': {
       'CPPDEFINES': ['V8_INTERPRETED_REGEXP']
     },
@@ -111,13 +112,13 @@ LIBRARY_FLAGS = {
       }
     },
     'os:freebsd': {
-      'CPPPATH' : ['/usr/local/include'],
+      'CPPPATH' : [src_dir, '/usr/local/include'],
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
       'LIBS': ['execinfo']
     },
     'os:openbsd': {
-      'CPPPATH' : ['/usr/local/include'],
+      'CPPPATH' : [src_dir, '/usr/local/include'],
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
     },
@@ -125,12 +126,12 @@ LIBRARY_FLAGS = {
       # On Solaris, to get isinf, INFINITY, fpclassify and other macros one
       # needs to define __C99FEATURES__.
       'CPPDEFINES': ['__C99FEATURES__'],
-      'CPPPATH' : ['/usr/local/include'],
+      'CPPPATH' : [src_dir, '/usr/local/include'],
       'LIBPATH' : ['/usr/local/lib'],
       'CCFLAGS':      ['-ansi'],
     },
     'os:netbsd': {
-      'CPPPATH' : ['/usr/pkg/include'],
+      'CPPPATH' : [src_dir, '/usr/pkg/include'],
       'LIBPATH' : ['/usr/pkg/lib'],
     },
     'os:win32': {
@@ -403,7 +404,7 @@ DTOA_EXTRA_FLAGS = {
 
 CCTEST_EXTRA_FLAGS = {
   'all': {
-    'CPPPATH': [join(root_dir, 'src')],
+    'CPPPATH': [src_dir],
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
     },
@@ -460,7 +461,7 @@ CCTEST_EXTRA_FLAGS = {
 
 SAMPLE_FLAGS = {
   'all': {
-    'CPPPATH': [join(abspath('.'), 'include')],
+    'CPPPATH': [join(root_dir, 'include')],
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
     },
@@ -643,7 +644,7 @@ SAMPLE_FLAGS = {
 
 PREPARSER_FLAGS = {
   'all': {
-    'CPPPATH': [join(abspath('.'), 'include'), join(abspath('.'), 'src')],
+    'CPPPATH': [join(root_dir, 'include'), src_dir],
     'library:shared': {
       'CPPDEFINES': ['USING_V8_SHARED']
     },

@@ -368,7 +368,7 @@ class MacroAssembler: public Assembler {
   // Check if the map of an object is equal to a specified map and branch to
   // label if not. Skip the smi check if not required (object is known to be a
   // heap object). If mode is ALLOW_ELEMENT_TRANSITION_MAPS, then also match
-  // against maps that are ElementsKind transition maps of the specificed map.
+  // against maps that are ElementsKind transition maps of the specified map.
   void CheckMap(Register obj,
                 Handle<Map> map,
                 Label* fail,
@@ -791,7 +791,7 @@ class MacroAssembler: public Assembler {
   // ---------------------------------------------------------------------------
   // String utilities.
 
-  // Check whether the instance type represents a flat ascii string. Jump to the
+  // Check whether the instance type represents a flat ASCII string. Jump to the
   // label if not. If the instance type can be scratched specify same register
   // for both instance type and scratch.
   void JumpIfInstanceTypeIsNotSequentialAscii(Register instance_type,
@@ -827,6 +827,7 @@ class MacroAssembler: public Assembler {
                       Handle<Code> code_constant,
                       const Operand& code_operand,
                       Label* done,
+                      bool* definitely_mismatches,
                       InvokeFlag flag,
                       Label::Distance done_distance,
                       const CallWrapper& call_wrapper = NullCallWrapper(),

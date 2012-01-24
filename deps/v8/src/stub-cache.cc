@@ -1452,13 +1452,13 @@ Handle<Code> ConstructStubCompiler::GetCode() {
 
 
 CallOptimization::CallOptimization(LookupResult* lookup) {
-  if (!lookup->IsProperty() ||
-      !lookup->IsCacheable() ||
-      lookup->type() != CONSTANT_FUNCTION) {
-    Initialize(Handle<JSFunction>::null());
-  } else {
+  if (lookup->IsFound() &&
+      lookup->IsCacheable() &&
+      lookup->type() == CONSTANT_FUNCTION) {
     // We only optimize constant function calls.
     Initialize(Handle<JSFunction>(lookup->GetConstantFunction()));
+  } else {
+    Initialize(Handle<JSFunction>::null());
   }
 }
 

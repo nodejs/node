@@ -724,17 +724,11 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 }
 
 
-static bool CanCallWithoutIC(Handle<JSFunction> target, int arity) {
-  SharedFunctionInfo* info = target->shared();
-  // If the number of formal parameters of the target function does
-  // not match the number of arguments we're passing, we don't want to
-  // deal with it. Otherwise, we can call it directly.
-  return !target->NeedsArgumentsAdaption() ||
-      info->formal_parameter_count() == arity;
-}
-
-
 bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
+  // If there is an interceptor, we can't compute the target for
+  // a direct call.
+  if (type->has_named_interceptor()) return false;
+
   if (check_type_ == RECEIVER_MAP_CHECK) {
     // For primitive checks the holder is set up to point to the
     // corresponding prototype object, i.e. one step of the algorithm
@@ -752,9 +746,9 @@ bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
         && type->prototype()->IsJSObject()) {
       holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
       type = Handle<Map>(holder()->map());
-    } else if (lookup.IsProperty() && lookup.type() == CONSTANT_FUNCTION) {
+    } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
       target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-      return CanCallWithoutIC(target_, arguments()->length());
+      return true;
     } else {
       return false;
     }
@@ -766,7 +760,7 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
                                LookupResult* lookup) {
   target_ = Handle<JSFunction>::null();
   cell_ = Handle<JSGlobalPropertyCell>::null();
-  ASSERT(lookup->IsProperty() &&
+  ASSERT(lookup->IsFound() &&
          lookup->type() == NORMAL &&
          lookup->holder() == *global);
   cell_ = Handle<JSGlobalPropertyCell>(global->GetPropertyCell(lookup));
@@ -774,8 +768,7 @@ bool Call::ComputeGlobalTarget(Handle<GlobalObject> global,
     Handle<JSFunction> candidate(JSFunction::cast(cell_->value()));
     // If the function is in new space we assume it's more likely to
     // change and thus prefer the general IC code.
-    if (!HEAP->InNewSpace(*candidate) &&
-        CanCallWithoutIC(candidate, arguments()->length())) {
+    if (!HEAP->InNewSpace(*candidate)) {
       target_ = candidate;
       return true;
     }

@@ -210,7 +210,7 @@ static int LookupMapping(const int32_t* table,
 uchar Utf8::CalculateValue(const byte* str,
                            unsigned length,
                            unsigned* cursor) {
-  // We only get called for non-ascii characters.
+  // We only get called for non-ASCII characters.
   if (length == 1) {
     *cursor += 1;
     return kBadChar;
@@ -286,8 +286,8 @@ const byte* Utf8::ReadBlock(Buffer<const char*> str, byte* buffer,
   }
   const byte* data = reinterpret_cast<const byte*>(str.data());
   if (data[offset] <= kMaxOneByteChar) {
-    // The next character is an ascii char so we scan forward over
-    // the following ascii characters and return the next pure ascii
+    // The next character is an ASCII char so we scan forward over
+    // the following ASCII characters and return the next pure ASCII
     // substring
     const byte* result = data + offset;
     offset++;
@@ -297,13 +297,13 @@ const byte* Utf8::ReadBlock(Buffer<const char*> str, byte* buffer,
     *offset_ptr = offset;
     return result;
   } else {
-    // The next character is non-ascii so we just fill the buffer
+    // The next character is non-ASCII so we just fill the buffer
     unsigned cursor = 0;
     unsigned chars_read = 0;
     while (offset < str.length()) {
       uchar c = data[offset];
       if (c <= kMaxOneByteChar) {
-        // Fast case for ascii characters
+        // Fast case for ASCII characters
         if (!CharacterStream::EncodeAsciiCharacter(c,
                                                    buffer,
                                                    capacity,

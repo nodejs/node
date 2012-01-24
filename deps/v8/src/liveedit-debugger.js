@@ -581,7 +581,7 @@ Debug.LiveEdit = new function() {
   // children of unchanged functions are ignored.
   function MarkChangedFunctions(code_info_tree, chunks) {
 
-    // A convenient interator over diff chunks that also translates
+    // A convenient iterator over diff chunks that also translates
     // positions from old to new in a current non-changed part of script.
     var chunk_it = new function() {
       var chunk_index = 0;

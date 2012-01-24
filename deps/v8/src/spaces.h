@@ -295,7 +295,7 @@ class SlotsBuffer;
 
 // MemoryChunk represents a memory region owned by a specific space.
 // It is divided into the header and the body. Chunk start is always
-// 1MB aligned. Start of the body is aligned so it can accomodate
+// 1MB aligned. Start of the body is aligned so it can accommodate
 // any heap object.
 class MemoryChunk {
  public:
@@ -472,9 +472,12 @@ class MemoryChunk {
     ASSERT(static_cast<unsigned>(live_byte_count_) <= size_);
     return live_byte_count_;
   }
-  static void IncrementLiveBytes(Address address, int by) {
+
+  static void IncrementLiveBytesFromGC(Address address, int by) {
     MemoryChunk::FromAddress(address)->IncrementLiveBytes(by);
   }
+
+  static void IncrementLiveBytesFromMutator(Address address, int by);
 
   static const intptr_t kAlignment =
       (static_cast<uintptr_t>(1) << kPageSizeBits);
@@ -1181,11 +1184,11 @@ class AllocationInfo {
 
 
 // An abstraction of the accounting statistics of a page-structured space.
-// The 'capacity' of a space is the number of object-area bytes (ie, not
+// The 'capacity' of a space is the number of object-area bytes (i.e., not
 // including page bookkeeping structures) currently in the space. The 'size'
 // of a space is the number of allocated bytes, the 'waste' in the space is
 // the number of bytes that are not allocated and not available to
-// allocation without reorganizing the space via a GC (eg, small blocks due
+// allocation without reorganizing the space via a GC (e.g. small blocks due
 // to internal fragmentation, top of page areas in map space), and the bytes
 // 'available' is the number of unallocated bytes that are not waste.  The
 // capacity is the sum of size, waste, and available.
@@ -1198,7 +1201,7 @@ class AllocationStats BASE_EMBEDDED {
  public:
   AllocationStats() { Clear(); }
 
-  // Zero out all the allocation statistics (ie, no capacity).
+  // Zero out all the allocation statistics (i.e., no capacity).
   void Clear() {
     capacity_ = 0;
     size_ = 0;
@@ -1210,7 +1213,7 @@ class AllocationStats BASE_EMBEDDED {
     waste_ = 0;
   }
 
-  // Reset the allocation statistics (ie, available = capacity with no
+  // Reset the allocation statistics (i.e., available = capacity with no
   // wasted or allocated bytes).
   void Reset() {
     size_ = 0;
@@ -1341,7 +1344,7 @@ class FreeList BASE_EMBEDDED {
   // starting at 'start' is placed on the free list.  The return value is the
   // number of bytes that have been lost due to internal fragmentation by
   // freeing the block.  Bookkeeping information will be written to the block,
-  // ie, its contents will be destroyed.  The start address should be word
+  // i.e., its contents will be destroyed.  The start address should be word
   // aligned, and the size should be a non-zero multiple of the word size.
   int Free(Address start, int size_in_bytes);
 
@@ -1563,8 +1566,18 @@ class PagedSpace : public Space {
     first_unswept_page_ = first;
   }
 
-  void MarkPageForLazySweeping(Page* p) {
+  void IncrementUnsweptFreeBytes(int by) {
+    unswept_free_bytes_ += by;
+  }
+
+  void IncreaseUnsweptFreeBytes(Page* p) {
+    ASSERT(ShouldBeSweptLazily(p));
     unswept_free_bytes_ += (Page::kObjectAreaSize - p->LiveBytes());
+  }
+
+  void DecreaseUnsweptFreeBytes(Page* p) {
+    ASSERT(ShouldBeSweptLazily(p));
+    unswept_free_bytes_ -= (Page::kObjectAreaSize - p->LiveBytes());
   }
 
   bool AdvanceSweeper(intptr_t bytes_to_sweep);

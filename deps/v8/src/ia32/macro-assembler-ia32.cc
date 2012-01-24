@@ -1387,7 +1387,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
   add(scratch1, Immediate(kObjectAlignmentMask));
   and_(scratch1, Immediate(~kObjectAlignmentMask));
 
-  // Allocate ascii string in new space.
+  // Allocate ASCII string in new space.
   AllocateInNewSpace(SeqAsciiString::kHeaderSize,
                      times_1,
                      scratch1,
@@ -1415,7 +1415,7 @@ void MacroAssembler::AllocateAsciiString(Register result,
                                          Label* gc_required) {
   ASSERT(length > 0);
 
-  // Allocate ascii string in new space.
+  // Allocate ASCII string in new space.
   AllocateInNewSpace(SeqAsciiString::SizeFor(length),
                      result,
                      scratch1,
@@ -1933,11 +1933,13 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
                                     Handle<Code> code_constant,
                                     const Operand& code_operand,
                                     Label* done,
+                                    bool* definitely_mismatches,
                                     InvokeFlag flag,
                                     Label::Distance done_near,
                                     const CallWrapper& call_wrapper,
                                     CallKind call_kind) {
   bool definitely_matches = false;
+  *definitely_mismatches = false;
   Label invoke;
   if (expected.is_immediate()) {
     ASSERT(actual.is_immediate());
@@ -1953,6 +1955,7 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
         // arguments.
         definitely_matches = true;
       } else {
+        *definitely_mismatches = true;
         mov(ebx, expected.immediate());
       }
     }
@@ -1990,7 +1993,9 @@ void MacroAssembler::InvokePrologue(const ParameterCount& expected,
       SetCallKind(ecx, call_kind);
       call(adaptor, RelocInfo::CODE_TARGET);
       call_wrapper.AfterCall();
-      jmp(done, done_near);
+      if (!*definitely_mismatches) {
+        jmp(done, done_near);
+      }
     } else {
       SetCallKind(ecx, call_kind);
       jmp(adaptor, RelocInfo::CODE_TARGET);
@@ -2010,20 +2015,23 @@ void MacroAssembler::InvokeCode(const Operand& code,
   ASSERT(flag == JUMP_FUNCTION || has_frame());
 
   Label done;
+  bool definitely_mismatches = false;
   InvokePrologue(expected, actual, Handle<Code>::null(), code,
-                 &done, flag, Label::kNear, call_wrapper,
-                 call_kind);
-  if (flag == CALL_FUNCTION) {
-    call_wrapper.BeforeCall(CallSize(code));
-    SetCallKind(ecx, call_kind);
-    call(code);
-    call_wrapper.AfterCall();
-  } else {
-    ASSERT(flag == JUMP_FUNCTION);
-    SetCallKind(ecx, call_kind);
-    jmp(code);
+                 &done, &definitely_mismatches, flag, Label::kNear,
+                 call_wrapper, call_kind);
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      call_wrapper.BeforeCall(CallSize(code));
+      SetCallKind(ecx, call_kind);
+      call(code);
+      call_wrapper.AfterCall();
+    } else {
+      ASSERT(flag == JUMP_FUNCTION);
+      SetCallKind(ecx, call_kind);
+      jmp(code);
+    }
+    bind(&done);
   }
-  bind(&done);
 }
 
 
@@ -2039,19 +2047,22 @@ void MacroAssembler::InvokeCode(Handle<Code> code,
 
   Label done;
   Operand dummy(eax, 0);
-  InvokePrologue(expected, actual, code, dummy, &done, flag, Label::kNear,
-                 call_wrapper, call_kind);
-  if (flag == CALL_FUNCTION) {
-    call_wrapper.BeforeCall(CallSize(code, rmode));
-    SetCallKind(ecx, call_kind);
-    call(code, rmode);
-    call_wrapper.AfterCall();
-  } else {
-    ASSERT(flag == JUMP_FUNCTION);
-    SetCallKind(ecx, call_kind);
-    jmp(code, rmode);
+  bool definitely_mismatches = false;
+  InvokePrologue(expected, actual, code, dummy, &done, &definitely_mismatches,
+                 flag, Label::kNear, call_wrapper, call_kind);
+  if (!definitely_mismatches) {
+    if (flag == CALL_FUNCTION) {
+      call_wrapper.BeforeCall(CallSize(code, rmode));
+      SetCallKind(ecx, call_kind);
+      call(code, rmode);
+      call_wrapper.AfterCall();
+    } else {
+      ASSERT(flag == JUMP_FUNCTION);
+      SetCallKind(ecx, call_kind);
+      jmp(code, rmode);
+    }
+    bind(&done);
   }
-  bind(&done);
 }
 
 
@@ -2464,7 +2475,7 @@ void MacroAssembler::JumpIfNotBothSequentialAsciiStrings(Register object1,
   movzx_b(scratch1, FieldOperand(scratch1, Map::kInstanceTypeOffset));
   movzx_b(scratch2, FieldOperand(scratch2, Map::kInstanceTypeOffset));
 
-  // Check that both are flat ascii strings.
+  // Check that both are flat ASCII strings.
   const int kFlatAsciiStringMask =
       kIsNotStringMask | kStringRepresentationMask | kStringEncodingMask;
   const int kFlatAsciiStringTag = ASCII_STRING_TYPE;

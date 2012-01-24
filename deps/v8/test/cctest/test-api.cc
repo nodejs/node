@@ -8912,17 +8912,6 @@ THREADED_TEST(InterceptorCallICInvalidatedCacheable) {
 }
 
 
-static v8::Handle<Value> call_ic_function5;
-static v8::Handle<Value> InterceptorCallICGetter5(Local<String> name,
-                                                  const AccessorInfo& info) {
-  ApiTestFuzzer::Fuzz();
-  if (v8_str("x")->Equals(name))
-    return call_ic_function5;
-  else
-    return Local<Value>();
-}
-
-
 // This test checks that if interceptor doesn't provide a function,
 // cached constant function is used
 THREADED_TEST(InterceptorCallICConstantFunctionUsed) {
@@ -8940,6 +8929,17 @@ THREADED_TEST(InterceptorCallICConstantFunctionUsed) {
     "  result = o.x(42);"
     "}");
   CHECK_EQ(43, value->Int32Value());
+}
+
+
+static v8::Handle<Value> call_ic_function5;
+static v8::Handle<Value> InterceptorCallICGetter5(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (v8_str("x")->Equals(name))
+    return call_ic_function5;
+  else
+    return Local<Value>();
 }
 
 
@@ -8962,6 +8962,48 @@ THREADED_TEST(InterceptorCallICConstantFunctionNotNeeded) {
     "for (var i = 0; i < 1000; i++) {"
     "  result = o.x(42);"
     "}");
+  CHECK_EQ(41, value->Int32Value());
+}
+
+
+static v8::Handle<Value> call_ic_function6;
+static v8::Handle<Value> InterceptorCallICGetter6(Local<String> name,
+                                                  const AccessorInfo& info) {
+  ApiTestFuzzer::Fuzz();
+  if (v8_str("x")->Equals(name))
+    return call_ic_function6;
+  else
+    return Local<Value>();
+}
+
+
+// Same test as above, except the code is wrapped in a function
+// to test the optimized compiler.
+THREADED_TEST(InterceptorCallICConstantFunctionNotNeededWrapped) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  v8::Handle<v8::ObjectTemplate> templ = ObjectTemplate::New();
+  templ->SetNamedPropertyHandler(InterceptorCallICGetter6);
+  LocalContext context;
+  context->Global()->Set(v8_str("o"), templ->NewInstance());
+  call_ic_function6 =
+      v8_compile("function f(x) { return x - 1; }; f")->Run();
+  v8::Handle<Value> value = CompileRun(
+    "function inc(x) { return x + 1; };"
+    "inc(1);"
+    "o.x = inc;"
+    "function test() {"
+    "  var result = 0;"
+    "  for (var i = 0; i < 1000; i++) {"
+    "    result = o.x(42);"
+    "  }"
+    "  return result;"
+    "};"
+    "test();"
+    "test();"
+    "test();"
+    "%OptimizeFunctionOnNextCall(test);"
+    "test()");
   CHECK_EQ(41, value->Int32Value());
 }
 
@@ -13724,6 +13766,10 @@ TEST(VisitExternalStrings) {
   v8::Local<v8::String> string1 = v8::String::NewExternal(resource1);
   TestResource* resource2 = new TestResource(two_byte_string);
   v8::Local<v8::String> string2 = v8::String::NewExternal(resource2);
+
+  // We need to add usages for string1 and string2 to avoid warnings in GCC 4.7
+  CHECK(string1->IsExternal());
+  CHECK(string2->IsExternal());
 
   VisitorImpl visitor(resource1, resource2);
   v8::V8::VisitExternalResources(&visitor);

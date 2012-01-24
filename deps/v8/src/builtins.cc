@@ -411,7 +411,7 @@ static FixedArray* LeftTrimFixedArray(Heap* heap,
   int size_delta = to_trim * kPointerSize;
   if (heap->marking()->TransferMark(elms->address(),
                                     elms->address() + size_delta)) {
-    MemoryChunk::IncrementLiveBytes(elms->address(), -size_delta);
+    MemoryChunk::IncrementLiveBytesFromMutator(elms->address(), -size_delta);
   }
 
   return FixedArray::cast(HeapObject::FromAddress(
