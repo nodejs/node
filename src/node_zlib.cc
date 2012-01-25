@@ -322,7 +322,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   static void SetDictionary(ZCtx* ctx) {
     if (ctx->dictionary_ == NULL) return;
 
-    int err;
+    int err = Z_OK;
 
     switch (mode) {
       case DEFLATE:
@@ -339,7 +339,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
   }
 
   static void Reset(ZCtx* ctx) {
-    int err;
+    int err = Z_OK;
 
     switch (mode) {
       case DEFLATE:
