@@ -3,10 +3,12 @@
 BUILDTYPE ?= Release
 PYTHON ?= python
 
+# BUILDTYPE=Debug builds both release and debug builds. If you want to compile
+# just the debug build, run `make -C out BUILDTYPE=Debug` instead.
 ifeq ($(BUILDTYPE),Release)
 all: out/Makefile node
 else
-all: out/Makefile node_g
+all: out/Makefile node node_g
 endif
 
 # The .PHONY is needed to ensure that we recursively use the out/Makefile
