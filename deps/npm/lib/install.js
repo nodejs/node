@@ -75,12 +75,15 @@ function install (args, cb_) {
     output = output || require("./utils/output.js")
 
     var tree = treeify(installed)
-      , pretty = prettify(tree, installed)
+      , pretty = prettify(tree, installed).trim()
 
-    output.write(pretty, function (er) {
+    if (pretty) output.write(pretty, afterWrite)
+    else afterWrite()
+
+    function afterWrite (er) {
       if (er) return cb_(er)
       save(where, installed, tree, pretty, cb_)
-    })
+    }
   }
 
   // the /path/to/node_modules/..
