@@ -528,11 +528,42 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
   }
 
 X(multicast_loop, IPPROTO_IP, IP_MULTICAST_LOOP)
-X(multicast_ttl, IPPROTO_IP, IP_MULTICAST_TTL)
 X(broadcast, SOL_SOCKET, SO_BROADCAST)
-X(ttl, IPPROTO_IP, IP_TTL)
 
 #undef X
+
+
+static int uv__udp_set_ttl(uv_udp_t* handle, int option, int ttl) {
+#if __sun
+  char arg = ttl;
+#else
+  int arg = ttl;
+#endif
+
+#if __sun
+  if (ttl < 0 || ttl > 255) {
+    uv__set_sys_error(handle->loop, EINVAL);
+    return -1;
+  }
+#endif
+
+  if (setsockopt(handle->fd, IPPROTO_IP, option, &arg, sizeof(arg))) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+
+  return 0;
+}
+
+
+int uv_udp_set_ttl(uv_udp_t* handle, int ttl) {
+  return uv__udp_set_ttl(handle, IP_TTL, ttl);
+}
+
+
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
+  return uv__udp_set_ttl(handle, IP_MULTICAST_TTL, ttl);
+}
 
 
 int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
