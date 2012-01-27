@@ -22,6 +22,7 @@
 #include "uv.h"
 #include "internal.h"
 
+#include <unistd.h>
 #include <assert.h>
 #include <errno.h>
 

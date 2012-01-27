@@ -197,10 +197,12 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   unsigned int ticks = (unsigned int)sysconf(_SC_CLK_TCK),
                multiplier = ((uint64_t)1000L / ticks), cpuspeed, maxcpus,
                cur = 0;
+  uv_cpu_info_t* cpu_info;
   char model[512];
+  long* cp_times;
   int numcpus;
   size_t size;
-  uv_cpu_info_t* cpu_info;
+  int i;
 
   size = sizeof(model);
   if (sysctlbyname("hw.model", &model, &size, NULL, 0) < 0) {
@@ -223,20 +225,28 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     free(*cpu_infos);
     return uv__new_sys_error(errno);
   }
-  // kern.cp_times on FreeBSD i386 gives an array up to maxcpus instead of ncpu
+  /* kern.cp_times on FreeBSD i386 gives an array up to maxcpus instead of ncpu */
   size = sizeof(maxcpus);
   if (sysctlbyname("kern.smp.maxcpus", &maxcpus, &size, NULL, 0) < 0) {
     free(*cpu_infos);
     return uv__new_sys_error(errno);
   }
+
   size = maxcpus * CPUSTATES * sizeof(long);
-  long cp_times[size];
+
+  cp_times = malloc(size);
+  if (cp_times == NULL) {
+    free(*cpu_infos);
+    return uv__new_sys_error(ENOMEM);
+  }
+
   if (sysctlbyname("kern.cp_times", &cp_times, &size, NULL, 0) < 0) {
+    free(cp_times);
     free(*cpu_infos);
     return uv__new_sys_error(errno);
   }
 
-  for (int i = 0; i < numcpus; i++) {
+  for (i = 0; i < numcpus; i++) {
     cpu_info = &(*cpu_infos)[i];
     
     cpu_info->cpu_times.user = (uint64_t)(cp_times[CP_USER+cur]) * multiplier;
@@ -251,6 +261,7 @@ uv_err_t uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
     cur+=CPUSTATES;
   }
 
+  free(cp_times);
   return uv_ok_;
 }
 

@@ -575,6 +575,12 @@ void uv_process_udp_send_req(uv_loop_t* loop, uv_udp_t* handle,
 }
 
 
+int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
+  uv__set_artificial_error(handle->loop, UV_ENOSYS);
+  return -1;
+}
+
+
 int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
   if (setsockopt(handle->socket, IPPROTO_IP, IP_MULTICAST_TTL,
       (const char*)&ttl, sizeof ttl) == -1) {
@@ -594,4 +600,10 @@ int uv_udp_set_broadcast(uv_udp_t* handle, int on) {
   }
 
   return 0;
+}
+
+
+int uv_udp_set_ttl(uv_udp_t* handle, int ttl) {
+  uv__set_artificial_error(handle->loop, UV_ENOSYS);
+  return -1;
 }

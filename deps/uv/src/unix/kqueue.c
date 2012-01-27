@@ -31,6 +31,7 @@
 #include <sys/sysctl.h>
 #include <sys/types.h>
 #include <sys/event.h>
+#include <unistd.h>
 #include <fcntl.h>
 #include <time.h>
 

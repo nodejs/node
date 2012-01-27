@@ -1069,12 +1069,25 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
       bg_bright = 0;
 
     } else if (arg == 1) {
-      /* Bright */
+      /* Foreground bright on */
       fg_bright = 1;
 
-    } else if (arg == 21 || arg == 22) {
-      /* Bright off. */
+    } else if (arg == 2) {
+      /* Both bright off */
       fg_bright = 0;
+      bg_bright = 0;
+
+    } else if (arg == 5) {
+      /* Background bright on */
+      bg_bright = 1;
+
+    } else if (arg == 21 || arg == 22) {
+      /* Foreground bright off */
+      fg_bright = 0;
+
+    } else if (arg == 25) {
+      /* Background bright off */
+      bg_bright = 0;
 
     } else if (arg >= 30 && arg <= 37) {
       /* Set foreground color */
@@ -1091,6 +1104,17 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
     } else if (arg ==  49) {
       /* Default background color */
       bg_color = 0;
+
+    } else if (arg >= 90 && arg <= 97) {
+      /* Set bold foreground color */
+      fg_bright = 1;
+      fg_color = arg - 90;
+
+    } else if (arg >= 100 && arg <= 107) {
+      /* Set bold background color */
+      bg_bright = 1;
+      bg_color = arg - 100;
+
     }
   }
 

@@ -26,6 +26,7 @@
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 
 static void uv__udp_run_completed(uv_udp_t* handle);
@@ -343,6 +344,14 @@ static int uv__bind(uv_udp_t* handle,
     goto out;
   }
 
+#ifdef SO_REUSEPORT /* Apple's version of SO_REUSEADDR... */
+  yes = 1;
+  if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1) {
+    uv__set_sys_error(handle->loop, errno);
+    goto out;
+  }
+#endif
+
   if (flags & UV_UDP_IPV6ONLY) {
 #ifdef IPV6_V6ONLY
     yes = 1;
@@ -512,27 +521,25 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
   return 0;
 }
 
-int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
-  if (setsockopt(handle->fd, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, sizeof ttl) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    return -1;
+
+#define X(name, level, option)                                                \
+  int uv_udp_set_##name(uv_udp_t* handle, int flag) {                         \
+    if (setsockopt(handle->fd, level, option, &flag, sizeof(flag))) {         \
+      uv__set_sys_error(handle->loop, errno);                                 \
+      return -1;                                                              \
+    }                                                                         \
+    return 0;                                                                 \
   }
 
-  return 0;
-}
+X(multicast_loop, IPPROTO_IP, IP_MULTICAST_LOOP)
+X(multicast_ttl, IPPROTO_IP, IP_MULTICAST_TTL)
+X(broadcast, SOL_SOCKET, SO_BROADCAST)
+X(ttl, IPPROTO_IP, IP_TTL)
 
-int uv_udp_set_broadcast(uv_udp_t* handle, int on) {
-  if (setsockopt(handle->fd, SOL_SOCKET, SO_BROADCAST, &on, sizeof on) == -1) {
-    uv__set_sys_error(handle->loop, errno);
-    return -1;
-  }
-
-  return 0;
-}
+#undef X
 
 
-int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name,
-    int* namelen) {
+int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {
   socklen_t socklen;
   int saved_errno;
   int rv = 0;
