@@ -1,5 +1,5 @@
 import os
-import TaskGen, Utils, Utils, Runner, Options, Build
+import TaskGen, Utils, Runner, Options, Build
 from TaskGen import extension, taskgen, before, after, feature
 from Configure import conf, conftest
 
@@ -26,6 +26,7 @@ def detect(conf):
   conf.env['PREFIX_NODE'] = get_prefix()
   prefix = conf.env['PREFIX_NODE']
   lib = join(prefix, 'lib')
+  nodebin = join(prefix, 'bin', 'node')
 
   conf.env['LIBPATH_NODE'] = lib
   conf.env['CPPPATH_NODE'] = join(prefix, 'include', 'node')
@@ -49,14 +50,20 @@ def detect(conf):
   found = os.path.exists(conf.env['NODE_PATH'])
   conf.check_message('node path', '', found, conf.env['NODE_PATH'])
 
-  found = os.path.exists(join(prefix, 'bin', 'node'))
+  found = os.path.exists(nodebin)
   conf.check_message('node prefix', '', found, prefix)
 
   ## On Cygwin we need to link to the generated symbol definitions
   if Options.platform.startswith('cygwin'): conf.env['LIB_NODE'] = 'node'
 
   ## On Mac OSX we need to use mac bundles
-  if Options.platform == 'darwin': conf.check_tool('osx')
+  if Options.platform == 'darwin':
+    if 'i386' in Utils.cmd_output(['file', nodebin]):
+      conf.env.append_value('CPPFLAGS_NODE', ['-arch', 'i386'])
+      conf.env.append_value('CXXFLAGS_NODE', ['-arch', 'i386'])
+      conf.env.append_value('LINKFLAGS', ['-arch', 'i386'])
+      conf.env['DEST_CPU'] = 'i386'
+    conf.check_tool('osx')
 
 def get_node_path():
     join = os.path.join
