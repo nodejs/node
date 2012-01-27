@@ -1,4 +1,22 @@
-2012.01.19, Version 0.6.8 (stable)
+2012.01.27, Version 0.6.9 (stable)
+
+* dgram: Bring back missing functionality for Unix (Dan VerWeire, Roman Shtylman, Ben Noordnuis)
+  - Note: Windows UDP support not yet complete.
+
+* http: Fix parser memory leak (koichik)
+
+* zlib: Fix #2365 crashes on invalid input (Nicolas LaCasse)
+
+* module: fix --debug-brk on symlinked scripts (Fedor Indutny)
+
+* Documentation Restyling (Matthew Fitzsimmons)
+
+* Update npm to 1.1.0-3 (isaacs)
+
+* Windows: fix regression in stat() calls to C:\ (Bert Belder)
+
+
+2012.01.19, Version 0.6.8 (stable), d18cebaf8a7ac701dabd71a3aa4eb0571db6a645
 
 * Update V8 to 3.6.6.19
 
