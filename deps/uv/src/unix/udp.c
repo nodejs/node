@@ -527,21 +527,21 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
     return 0;                                                                 \
   }
 
-X(multicast_loop, IPPROTO_IP, IP_MULTICAST_LOOP)
 X(broadcast, SOL_SOCKET, SO_BROADCAST)
+X(ttl, IPPROTO_IP, IP_TTL)
 
 #undef X
 
 
-static int uv__udp_set_ttl(uv_udp_t* handle, int option, int ttl) {
+static int uv__setsockopt_maybe_char(uv_udp_t* handle, int option, int val) {
 #if __sun
-  char arg = ttl;
+  char arg = val;
 #else
-  int arg = ttl;
+  int arg = val;
 #endif
 
 #if __sun
-  if (ttl < 0 || ttl > 255) {
+  if (val < 0 || val > 255) {
     uv__set_sys_error(handle->loop, EINVAL);
     return -1;
   }
@@ -556,13 +556,13 @@ static int uv__udp_set_ttl(uv_udp_t* handle, int option, int ttl) {
 }
 
 
-int uv_udp_set_ttl(uv_udp_t* handle, int ttl) {
-  return uv__udp_set_ttl(handle, IP_TTL, ttl);
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
+  return uv__setsockopt_maybe_char(handle, IP_MULTICAST_TTL, ttl);
 }
 
 
-int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
-  return uv__udp_set_ttl(handle, IP_MULTICAST_TTL, ttl);
+int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
+  return uv__setsockopt_maybe_char(handle, IP_MULTICAST_LOOP, on);
 }
 
 
