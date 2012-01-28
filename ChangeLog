@@ -1,6 +1,6 @@
 2012.01.27, Version 0.6.9 (stable)
 
-* dgram: Bring back missing functionality for Unix (Dan VerWeire, Roman Shtylman, Ben Noordnuis)
+* dgram: Bring back missing functionality for Unix (Dan VerWeire, Roman Shtylman, Ben Noordhuis)
   - Note: Windows UDP support not yet complete.
 
 * http: Fix parser memory leak (koichik)
