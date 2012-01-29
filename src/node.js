@@ -459,9 +459,15 @@
   };
 
   startup.removedMethods = function() {
+    var desc = {
+      configurable: true,
+      writable: true,
+      enumerable: false
+    };
     for (var method in startup._removedProcessMethods) {
       var reason = startup._removedProcessMethods[method];
-      process[method] = startup._removedMethod(reason);
+      desc.value = startup._removedMethod(reason);
+      Object.defineProperty(process, method, desc);
     }
   };
 
