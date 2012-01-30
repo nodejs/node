@@ -46,8 +46,11 @@ if (process.argv[2] !== 'child') {
 
   //exit the test if it doesn't succeed within TIMEOUT
   timer = setTimeout(function () {
-    console.error('Responses were not received within %d ms.', TIMEOUT);
-    console.error('Fail');
+    console.error('[PARENT] Responses were not received within %d ms.', TIMEOUT);
+    console.error('[PARENT] Fail');
+
+    killChildren(workers);
+
     process.exit(1);
   }, TIMEOUT);
 
@@ -62,16 +65,20 @@ if (process.argv[2] !== 'child') {
       //handle the death of workers
       worker.on('exit', function (code, signal) {
          //don't consider this the true death if the worker has finished successfully
-        if (worker.isDone) {
+         //or if the exit code is 0
+        if (worker.isDone || code == 0) {
           return;
         }
         
         dead += 1;
-        console.error('Worker %d died. %d dead of %d', worker.pid, dead, listeners);
+        console.error('[PARENT] Worker %d died. %d dead of %d', worker.pid, dead, listeners);
 
         if (dead === listeners) {
-          console.error('All workers have died.');
-          console.error('Fail');
+          console.error('[PARENT] All workers have died.');
+          console.error('[PARENT] Fail');
+
+          killChildren(workers);
+
           process.exit(1);
         }
       });
@@ -91,12 +98,12 @@ if (process.argv[2] !== 'child') {
           if (worker.messagesReceived.length === messages.length) {
             done += 1;
             worker.isDone = true;
-            console.error('%d received %d messages total.', worker.pid,
+            console.error('[PARENT] %d received %d messages total.', worker.pid,
                     worker.messagesReceived.length);
           }
 
           if (done === listeners) {
-            console.error('All workers have received the required number of '
+            console.error('[PARENT] All workers have received the required number of '
                     + 'messages. Will now compare.');
 
             Object.keys(workers).forEach(function (pid) {
@@ -113,7 +120,7 @@ if (process.argv[2] !== 'child') {
                 }
               });
 
-              console.error('%d received %d matching messges.', worker.pid
+              console.error('[PARENT] %d received %d matching messges.', worker.pid
                     , count);
 
               assert.equal(count, messages.length
@@ -121,7 +128,8 @@ if (process.argv[2] !== 'child') {
             });
 
             clearTimeout(timer);
-            console.error('Success');
+            console.error('[PARENT] Success');
+            killChildren(workers);
           }
         }
       });
@@ -134,7 +142,7 @@ if (process.argv[2] !== 'child') {
   sendSocket.setBroadcast(true);
 
   sendSocket.on('close', function() {
-    console.error('sendSocket closed');
+    console.error('[PARENT] sendSocket closed');
   });
 
   sendSocket.sendNext = function() {
@@ -150,12 +158,19 @@ if (process.argv[2] !== 'child') {
 
       if (err) throw err;
 
-      console.error('sent %s to %s:%s', util.inspect(buf.toString())
+      console.error('[PARENT] sent %s to %s:%s', util.inspect(buf.toString())
                 , LOCAL_BROADCAST_HOST, common.PORT);
 
       process.nextTick(sendSocket.sendNext);
     });
   };
+  
+  function killChildren(children) {
+    Object.keys(children).forEach(function(key) {
+      var child = children[key];
+      child.kill();
+    });
+  }
 }
 
 if (process.argv[2] === 'child') {
@@ -163,7 +178,7 @@ if (process.argv[2] === 'child') {
   var listenSocket = dgram.createSocket('udp4');
 
   listenSocket.on('message', function(buf, rinfo) {
-    console.error('%s received %s from %j', process.pid
+    console.error('[CHILD] %s received %s from %j', process.pid
                 , util.inspect(buf.toString()), rinfo);
 
     receivedMessages.push(buf);
@@ -171,14 +186,19 @@ if (process.argv[2] === 'child') {
     process.send({ message : buf.toString() });
 
     if (receivedMessages.length == messages.length) {
-      process.nextTick(function() {
+      process.nextTick(function () {
         listenSocket.close();
       });
     }
   });
 
   listenSocket.on('close', function() {
-    process.exit();
+    //HACK: Wait to exit the process to ensure that the parent
+    //process has had time to receive all messages via process.send()
+    //This may be indicitave of some other issue.
+    setTimeout(function() {
+      process.exit();
+    }, 1000);
   });
 
   listenSocket.on('listening', function() {
