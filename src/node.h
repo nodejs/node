@@ -101,19 +101,25 @@ uv_loop_t* Loop();
                 static_cast<v8::PropertyAttribute>(                       \
                     v8::ReadOnly|v8::DontDelete))
 
-#define NODE_SET_METHOD(obj, name, callback)                              \
-  obj->Set(v8::String::NewSymbol(name),                                   \
-           v8::FunctionTemplate::New(callback)->GetFunction())
+template <typename target_t>
+void SetMethod(target_t obj, const char* name,
+        v8::InvocationCallback callback)
+{
+    obj->Set(v8::String::NewSymbol(name),
+        v8::FunctionTemplate::New(callback)->GetFunction());
+}
 
-#define NODE_SET_PROTOTYPE_METHOD(templ, name, callback)                  \
-do {                                                                      \
-  v8::Local<v8::Signature> __callback##_SIG = v8::Signature::New(templ);  \
-  v8::Local<v8::FunctionTemplate> __callback##_TEM =                      \
-    v8::FunctionTemplate::New(callback, v8::Handle<v8::Value>(),          \
-                          __callback##_SIG);                              \
-  templ->PrototypeTemplate()->Set(v8::String::NewSymbol(name),            \
-                                  __callback##_TEM);                      \
-} while (0)
+template <typename target_t>
+void SetPrototypeMethod(target_t target,
+        const char* name, v8::InvocationCallback callback)
+{
+    v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(callback);
+    target->PrototypeTemplate()->Set(v8::String::NewSymbol(name), templ);
+}
+
+// for backwards compatibility
+#define NODE_SET_METHOD node::SetMethod
+#define NODE_SET_PROTOTYPE_METHOD node::SetPrototypeMethod
 
 enum encoding {ASCII, UTF8, BASE64, UCS2, BINARY, HEX};
 enum encoding ParseEncoding(v8::Handle<v8::Value> encoding_v,
