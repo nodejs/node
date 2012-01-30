@@ -1019,7 +1019,7 @@ void uv_process_tcp_connect_req(uv_loop_t* loop, uv_tcp_t* handle,
 }
 
 
-int uv_tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info) {
+int uv__tcp_import(uv_tcp_t* tcp, WSAPROTOCOL_INFOW* socket_protocol_info) {
   SOCKET socket = WSASocketW(AF_INET,
                              SOCK_STREAM,
                              IPPROTO_IP,
@@ -1140,4 +1140,25 @@ int uv_tcp_simultaneous_accepts(uv_tcp_t* handle, int enable) {
   }
 
   return 0;
+}
+
+
+int uv_tcp_export(uv_tcp_t* tcp, uv_stream_info_t* info) {
+  if (uv_tcp_duplicate_socket(tcp, GetCurrentProcessId(),
+      &info->socket_info) == -1) {
+    return -1;
+  }
+
+  info->type = UV_TCP;
+  return 0;
+}
+
+
+int uv_tcp_import(uv_tcp_t* tcp, uv_stream_info_t* info) {
+  if (info->type != UV_TCP) {
+    uv__set_sys_error(tcp->loop, WSAEINVAL);
+    return -1;
+  }
+
+  return uv__tcp_import(tcp, &info->socket_info);
 }

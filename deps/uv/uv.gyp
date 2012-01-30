@@ -301,6 +301,7 @@
         'test/test-hrtime.c',
         'test/test-idle.c',
         'test/test-ipc.c',
+        'test/test-ipc-threads.c',
         'test/test-list.h',
         'test/test-loop-handles.c',
         'test/test-multiple-listen.c',

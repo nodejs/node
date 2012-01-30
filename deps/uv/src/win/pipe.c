@@ -649,7 +649,7 @@ int uv_pipe_accept(uv_pipe_t* server, uv_stream_t* client) {
       return -1;
     }
 
-    return uv_tcp_import((uv_tcp_t*)client, server->pending_socket_info);
+    return uv__tcp_import((uv_tcp_t*)client, server->pending_socket_info);
   } else {
     pipe_client = (uv_pipe_t*)client;
 

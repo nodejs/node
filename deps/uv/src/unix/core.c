@@ -825,6 +825,24 @@ int uv__cloexec(int fd, int set) {
 }
 
 
+/* This function is not execve-safe, there is a race window
+ * between the call to dup() and fcntl(FD_CLOEXEC).
+ */
+int uv__dup(int fd) {
+  fd = dup(fd);
+
+  if (fd == -1)
+    return -1;
+
+  if (uv__cloexec(fd, 1)) {
+    SAVE_ERRNO(uv__close(fd));
+    return -1;
+  }
+
+  return fd;
+}
+
+
 /* TODO move to uv-common.c? */
 size_t uv__strlcpy(char* dst, const char* src, size_t size) {
   const char *org;

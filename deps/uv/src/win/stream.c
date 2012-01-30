@@ -186,3 +186,27 @@ size_t uv_count_bufs(uv_buf_t bufs[], int count) {
 
   return bytes;
 }
+
+
+int uv_export(uv_stream_t* stream, uv_stream_info_t* info) {
+  switch (stream->type) {
+    case UV_TCP:
+      return uv_tcp_export((uv_tcp_t*)stream, info);
+    default:
+      assert(0);
+      uv__set_sys_error(stream->loop, WSAEINVAL);
+      return -1;
+  }
+}
+
+
+int uv_import(uv_stream_t* stream, uv_stream_info_t* info) {
+  switch (stream->type) {
+    case UV_TCP:
+      return uv_tcp_import((uv_tcp_t*)stream, info);
+    default:
+      assert(0);
+      uv__set_sys_error(stream->loop, WSAEINVAL);
+      return -1;
+  }
+}

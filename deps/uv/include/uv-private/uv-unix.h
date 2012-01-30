@@ -192,6 +192,9 @@ typedef void* uv_lib_t;
   struct termios orig_termios; \
   int mode;
 
+#define UV_STREAM_INFO_PRIVATE_FIELDS \
+  int fd;
+
 /* UV_FS_EVENT_PRIVATE_FIELDS */
 #if defined(__linux__)
 

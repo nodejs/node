@@ -141,13 +141,13 @@ int uv_fs_event_init(uv_loop_t* loop,
 
 
 void uv__fs_event_destroy(uv_fs_event_t* handle) {
-  assert(0 && "unreachable");
+  UNREACHABLE();
 }
 
 
 /* Called by libev, don't touch. */
 void uv__kqueue_hack(EV_P_ int fflags, ev_io *w) {
-  assert(0 && "unreachable");
+  UNREACHABLE();
 }
 
 #endif /* HAVE_KQUEUE */

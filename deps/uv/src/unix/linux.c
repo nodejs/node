@@ -679,8 +679,7 @@ int uv_fs_event_init(uv_loop_t* loop,
 
 
 void uv__fs_event_destroy(uv_fs_event_t* handle) {
-  assert(0 && "unreachable");
-  abort();
+  UNREACHABLE();
 }
 
 #endif /* HAVE_INOTIFY_INIT || HAVE_INOTIFY_INIT1 */

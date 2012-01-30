@@ -25,6 +25,8 @@
 #include "uv-common.h"
 #include "uv-eio.h"
 
+#include <assert.h>
+#include <stdlib.h> /* abort */
 #include <stddef.h> /* offsetof */
 
 #if __STRICT_ANSI__
@@ -133,13 +135,20 @@ inline static int sys_accept4(int fd,
 #define container_of(ptr, type, member) \
   ((type *) ((char *) (ptr) - offsetof(type, member)))
 
-#define SAVE_ERRNO(block) \
-  do { \
-    int _saved_errno = errno; \
-    do { block; } while (0); \
-    errno = _saved_errno; \
-  } \
-  while (0);
+#define UNREACHABLE()                                                         \
+  do {                                                                        \
+    assert(0 && "unreachable code");                                          \
+    abort();                                                                  \
+  }                                                                           \
+  while (0)
+
+#define SAVE_ERRNO(block)                                                     \
+  do {                                                                        \
+    int _saved_errno = errno;                                                 \
+    do { block; } while (0);                                                  \
+    errno = _saved_errno;                                                     \
+  }                                                                           \
+  while (0)
 
 /* flags */
 enum {
@@ -159,6 +168,7 @@ void uv__handle_init(uv_loop_t* loop, uv_handle_t* handle, uv_handle_type type);
 int uv__nonblock(int fd, int set) __attribute__((unused));
 int uv__cloexec(int fd, int set) __attribute__((unused));
 int uv__socket(int domain, int type, int protocol);
+int uv__dup(int fd);
 
 /* We used to handle EINTR in uv__close() but linux 2.6 will have closed the
  * file descriptor anyway, even on EINTR. Retrying in that case isn't merely
