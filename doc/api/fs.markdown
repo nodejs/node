@@ -259,16 +259,28 @@ An exception occurs if the file does not exist.
 * `'w'` - Open file for writing.
 The file is created (if it does not exist) or truncated (if it exists).
 
+* `'wx'` - Like `'w'` but opens the file in exclusive mode.
+
 * `'w+'` - Open file for reading and writing.
 The file is created (if it does not exist) or truncated (if it exists).
+
+* `'wx+'` - Like `'w+'` but opens the file in exclusive mode.
 
 * `'a'` - Open file for appending.
 The file is created if it does not exist.
 
+* `'ax'` - Like `'a'` but opens the file in exclusive mode.
+
 * `'a+'` - Open file for reading and appending.
 The file is created if it does not exist.
 
+* `'ax+'` - Like `'a+'` but opens the file in exclusive mode.
+
 `mode` defaults to `0666`. The callback gets two arguments `(err, fd)`.
+
+Exclusive mode (`O_EXCL`) ensures that `path` is newly created. `fs.open()`
+fails if a file by that name already exists. On POSIX systems, symlinks are
+not followed. Exclusive mode may or may not work with network file systems.
 
 ### fs.openSync(path, flags, [mode])
 

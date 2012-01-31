@@ -45,6 +45,16 @@ assert.equal(fs._stringToFlags('w+'), O_TRUNC|O_CREAT|O_RDWR);
 assert.equal(fs._stringToFlags('a'),  O_APPEND|O_CREAT|O_WRONLY);
 assert.equal(fs._stringToFlags('a+'), O_APPEND|O_CREAT|O_RDWR);
 
-'+ +a +r +w rw wa war raw r++ a++ w++'.split(' ').forEach(function(flags) {
+assert.equal(fs._stringToFlags('wx'),  O_TRUNC|O_CREAT|O_WRONLY|O_EXCL);
+assert.equal(fs._stringToFlags('xw'),  O_TRUNC|O_CREAT|O_WRONLY|O_EXCL);
+assert.equal(fs._stringToFlags('wx+'), O_TRUNC|O_CREAT|O_RDWR|O_EXCL);
+assert.equal(fs._stringToFlags('xw+'), O_TRUNC|O_CREAT|O_RDWR|O_EXCL);
+assert.equal(fs._stringToFlags('ax'),  O_APPEND|O_CREAT|O_WRONLY|O_EXCL);
+assert.equal(fs._stringToFlags('xa'),  O_APPEND|O_CREAT|O_WRONLY|O_EXCL);
+assert.equal(fs._stringToFlags('ax+'), O_APPEND|O_CREAT|O_RDWR|O_EXCL);
+assert.equal(fs._stringToFlags('xa+'), O_APPEND|O_CREAT|O_RDWR|O_EXCL);
+
+('+ +a +r +w rw wa war raw r++ a++ w++' +
+ 'x +x x+ rx rx+ wxx wax xwx xxx').split(' ').forEach(function(flags) {
   assert.throws(function() { fs._stringToFlags(flags); });
 });
