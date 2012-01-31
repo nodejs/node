@@ -26,7 +26,7 @@ var common = require('../common'),
     assert = require('assert'),
     Buffer = require('buffer').Buffer,
     fork = require('child_process').fork,
-    LOCAL_BROADCAST_HOST = '224.0.0.1',
+    LOCAL_BROADCAST_HOST = '224.0.0.114',
     TIMEOUT = 5000,
     messages = [
       new Buffer('First message to send'),
@@ -153,8 +153,8 @@ if (process.argv[2] !== 'child') {
     sendSocket.send(buf, 0, buf.length,
                 common.PORT, LOCAL_BROADCAST_HOST, function(err) {
       if (err) throw err;
-      console.error('sent %s to %s', util.inspect(buf.toString()),
-                LOCAL_BROADCAST_HOST + common.PORT);
+      console.error('sent %s to %s:%s', util.inspect(buf.toString()),
+                LOCAL_BROADCAST_HOST, common.PORT);
       process.nextTick(sendSocket.sendNext);
     });
   };
