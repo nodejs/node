@@ -85,6 +85,7 @@ if (process.argv[2] === 'child') {
         // ready to be disconnected
         if (data === 'ready') {
           child.disconnect();
+          assert.throws(child.disconnect.bind(child), Error);
           return;
         }
 
