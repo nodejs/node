@@ -1293,6 +1293,9 @@ TEST_IMPL(fs_stat_root) {
   int r;
   uv_loop_t* loop = uv_default_loop();
 
+  r = uv_fs_stat(loop, &stat_req, "\\", NULL);
+  ASSERT(r == 0);
+
   r = uv_fs_stat(loop, &stat_req, "c:\\", NULL);
   ASSERT(r == 0);
 
