@@ -123,17 +123,27 @@
 
     if (process.tid === 1) return;
 
+    var net = NativeModule.require('net');
+
     // isolate initialization
-    process.send = function(msg) {
+    process.send = function(msg, sendHandle) {
       if (typeof msg === 'undefined') throw new TypeError('Bad argument.');
       msg = JSON.stringify(msg);
       msg = new Buffer(msg);
-      return process._send(msg);
+
+      // Update simultaneous accepts on Windows
+      net._setSimultaneousAccepts(sendHandle);
+
+      return process._send(msg, sendHandle);
     };
 
-    process._onmessage = function(msg) {
+    process._onmessage = function(msg, recvHandle) {
       msg = JSON.parse('' + msg);
-      process.emit('message', msg);
+
+      // Update simultaneous accepts on Windows
+      net._setSimultaneousAccepts(recvHandle);
+
+      process.emit('message', msg, recvHandle);
     };
 
     process.exit = process._exit;
@@ -441,10 +451,15 @@
       // Load tcp_wrap to avoid situation where we might immediately receive
       // a message.
       // FIXME is this really necessary?
-      process.binding('tcp_wrap')
+      process.binding('tcp_wrap');
 
       cp._forkChild();
       assert(process.send);
+    } else if (process.tid !== 1) {
+      // Load tcp_wrap to avoid situation where we might immediately receive
+      // a message.
+      // FIXME is this really necessary?
+      process.binding('tcp_wrap');
     }
   }
 

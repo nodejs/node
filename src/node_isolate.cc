@@ -26,6 +26,7 @@
 #include <node_isolate.h>
 #include <node_internals.h>
 #include <node_object_wrap.h>
+#include <tcp_wrap.h>
 
 #include <stdlib.h>
 #include <string.h>
@@ -33,6 +34,8 @@
 
 
 #define isolate_debugger_constructor NODE_VAR(isolate_debugger_constructor)
+
+#define ISOLATEMESSAGE_SHARED_STREAM    0x0001
 
 
 namespace node {
@@ -166,23 +169,35 @@ private:
 
 
 struct IsolateMessage {
-  size_t size_;
-  char* data_;
+  int flags;
+  struct {
+    size_t size_;
+    char* buffer_;
+  } data_;
+  uv_stream_info_t shared_stream_info_;
 
-  IsolateMessage(const char* data, size_t size) {
+  IsolateMessage(const char* buffer, size_t size,
+                 uv_stream_info_t* shared_stream_info) {
+    flags = 0;
+
     // make a copy for now
-    size_ = size;
-    data_ = new char[size];
-    memcpy(data_, data, size);
+    data_.size_ = size;
+    data_.buffer_ = new char[size];
+    memcpy(data_.buffer_, buffer, size);
+
+    if (shared_stream_info) {
+      flags |= ISOLATEMESSAGE_SHARED_STREAM;
+      shared_stream_info_ = *shared_stream_info;
+    }
   }
 
   ~IsolateMessage() {
-    delete[] data_;
+    delete[] data_.buffer_;
   }
 
   static void Free(char* data, void* arg) {
     IsolateMessage* msg = static_cast<IsolateMessage*>(arg);
-    assert(data == msg->data_);
+    assert(data == msg->data_.buffer_);
     delete msg;
   }
 };
@@ -208,7 +223,23 @@ Handle<Value> Isolate::Send(const Arguments& args) {
   const char* data = Buffer::Data(obj);
   size_t size = Buffer::Length(obj);
 
-  IsolateMessage* msg = new IsolateMessage(data, size);
+  IsolateMessage* msg;
+
+  if (args[1]->IsObject()) {
+    uv_stream_info_t stream_info;
+
+    Local<Object> send_stream_obj = args[1]->ToObject();
+    assert(send_stream_obj->InternalFieldCount() > 0);
+    StreamWrap* send_stream_wrap = static_cast<StreamWrap*>(
+        send_stream_obj->GetPointerFromInternalField(0));
+    uv_stream_t* send_stream = send_stream_wrap->GetStream();
+    int r = uv_export(send_stream, &stream_info);
+    assert(r == 0);
+    msg = new IsolateMessage(data, size, &stream_info);
+  } else {
+    msg = new IsolateMessage(data, size, NULL);
+  }
+
   isolate->send_channel_->Send(msg);
 
   return Undefined();
@@ -231,9 +262,31 @@ void Isolate::OnMessage(IsolateMessage* msg, void* arg) {
   Isolate* self = static_cast<Isolate*>(arg);
   NODE_ISOLATE_CHECK(self);
 
-  Buffer* buf = Buffer::New(msg->data_, msg->size_, IsolateMessage::Free, msg);
-  Handle<Value> argv[] = { buf->handle_ };
-  MakeCallback(self->globals_.process, "_onmessage", ARRAY_SIZE(argv), argv);
+  Buffer* buf = Buffer::New(msg->data_.buffer_, msg->data_.size_,
+    IsolateMessage::Free, msg);
+
+  int argc = 1;
+  Handle<Value> argv[2] = {
+    buf->handle_
+  };
+
+  if (msg->flags & ISOLATEMESSAGE_SHARED_STREAM) {
+    // Instantiate the client javascript object and handle.
+    Local<Object> pending_obj = TCPWrap::Instantiate();
+
+    // Unwrap the client javascript object.
+    assert(pending_obj->InternalFieldCount() > 0);
+    TCPWrap* pending_wrap =
+        static_cast<TCPWrap*>(pending_obj->GetPointerFromInternalField(0));
+
+    int r = uv_import(pending_wrap->GetStream(), &msg->shared_stream_info_);
+    assert(r == 0);
+
+    argv[1] = pending_obj;
+    argc++;
+  }
+
+  MakeCallback(self->globals_.process, "_onmessage", argc, argv);
 }
 
 
@@ -442,9 +495,30 @@ private:
     NODE_ISOLATE_CHECK(parent_isolate_);
     HandleScope scope;
     Buffer* buf = Buffer::New(
-        msg->data_, msg->size_, IsolateMessage::Free, msg);
-    Handle<Value> argv[] = { buf->handle_ };
-    MakeCallback(handle_, "onmessage", ARRAY_SIZE(argv), argv);
+        msg->data_.buffer_, msg->data_.size_, IsolateMessage::Free, msg);
+
+    int argc = 1;
+    Handle<Value> argv[2] = {
+      buf->handle_
+    };
+
+    if (msg->flags & ISOLATEMESSAGE_SHARED_STREAM) {
+      // Instantiate the client javascript object and handle.
+      Local<Object> pending_obj = TCPWrap::Instantiate();
+
+      // Unwrap the client javascript object.
+      assert(pending_obj->InternalFieldCount() > 0);
+      TCPWrap* pending_wrap =
+          static_cast<TCPWrap*>(pending_obj->GetPointerFromInternalField(0));
+
+      int r = uv_import(pending_wrap->GetStream(), &msg->shared_stream_info_);
+      assert(r == 0);
+
+      argv[1] = pending_obj;
+      argc++;
+    }
+
+    MakeCallback(handle_, "onmessage", argc, argv);
   }
 
   // TODO merge with Isolate::Send(), it's almost identical
@@ -457,9 +531,24 @@ private:
     const char* data = Buffer::Data(obj);
     size_t size = Buffer::Length(obj);
 
-    IsolateMessage* msg = new IsolateMessage(data, size);
-    self->send_channel_->Send(msg);
+    IsolateMessage* msg;
 
+    if (args[1]->IsObject()) {
+      uv_stream_info_t stream_info;
+
+      Local<Object> send_stream_obj = args[1]->ToObject();
+      assert(send_stream_obj->InternalFieldCount() > 0);
+      StreamWrap* send_stream_wrap = static_cast<StreamWrap*>(
+          send_stream_obj->GetPointerFromInternalField(0));
+      uv_stream_t* send_stream = send_stream_wrap->GetStream();
+      int r = uv_export(send_stream, &stream_info);
+      assert(r == 0);
+      msg = new IsolateMessage(data, size, &stream_info);
+    } else {
+      msg = new IsolateMessage(data, size, NULL);
+    }
+
+    self->send_channel_->Send(msg);
     return Undefined();
   }
 
