@@ -104,8 +104,7 @@ This can be used to restart the worker by calling `fork()` again.
 ### Event 'setup'
 
 When the `.setupMaster()` function has been executed this event emits. If `.setupMaster()`
-was not executed before `fork()` or `.autoFork()`, they will execute the function with no
-arguments.
+was not executed before `fork()` this function will call `.setupMaster()` with no arguments.
 
 ### cluster.setupMaster([options])
 
