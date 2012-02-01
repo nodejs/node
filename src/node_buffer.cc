@@ -584,17 +584,6 @@ Handle<Value> Buffer::AsciiWrite(const Arguments &args) {
 Handle<Value> Buffer::Base64Write(const Arguments &args) {
   HandleScope scope;
 
-  assert(unbase64('/') == 63);
-  assert(unbase64('+') == 62);
-  assert(unbase64('T') == 19);
-  assert(unbase64('Z') == 25);
-  assert(unbase64('t') == 45);
-  assert(unbase64('z') == 51);
-
-  assert(unbase64(' ') == -2);
-  assert(unbase64('\n') == -2);
-  assert(unbase64('\r') == -2);
-
   Buffer *buffer = ObjectWrap::Unwrap<Buffer>(args.This());
 
   if (!args[0]->IsString()) {
@@ -604,67 +593,52 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
 
   String::AsciiValue s(args[0]->ToString());
   size_t offset = args[1]->Int32Value();
-
-  // handle zero-length buffers graciously
-  if (offset == 0 && buffer->length_ == 0) {
-    return scope.Close(Integer::New(0));
-  }
+  size_t max_length = args[2]->IsUndefined() ? buffer->length_ - offset
+                                             : args[2]->Uint32Value();
+  max_length = MIN(s.length(), MIN(buffer->length_ - offset, max_length));
 
   if (offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
 
-  const size_t size = base64_decoded_size(*s, s.length());
-  if (size > buffer->length_ - offset) {
-    // throw exception, don't silently truncate
-    return ThrowException(Exception::TypeError(String::New(
-            "Buffer too small")));
-  }
-
   char a, b, c, d;
   char* start = buffer->data_ + offset;
   char* dst = start;
-  const char *src = *s;
-  const char *const srcEnd = src + s.length();
+  char* const dstEnd = dst + max_length;
+  const char* src = *s;
+  const char* const srcEnd = src + s.length();
 
-  while (src < srcEnd) {
+  while (src < srcEnd && dst < dstEnd) {
     int remaining = srcEnd - src;
 
-    while (unbase64(*src) < 0 && src < srcEnd) {
-      src++;
-      remaining--;
-    }
+    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
     if (remaining == 0 || *src == '=') break;
     a = unbase64(*src++);
 
-    while (unbase64(*src) < 0 && src < srcEnd) {
-      src++;
-      remaining--;
-    }
+    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
     if (remaining <= 1 || *src == '=') break;
     b = unbase64(*src++);
-    *dst++ = (a << 2) | ((b & 0x30) >> 4);
 
-    while (unbase64(*src) < 0 && src < srcEnd) {
-      src++;
-      remaining--;
-    }
+    *dst++ = (a << 2) | ((b & 0x30) >> 4);
+    if (dst == dstEnd) break;
+
+    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
     if (remaining <= 2 || *src == '=') break;
     c = unbase64(*src++);
-    *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
 
-    while (unbase64(*src) < 0 && src < srcEnd) {
-      src++;
-      remaining--;
-    }
+    *dst++ = ((b & 0x0F) << 4) | ((c & 0x3C) >> 2);
+    if (dst == dstEnd) break;
+
+    while (unbase64(*src) < 0 && src < srcEnd) src++, remaining--;
     if (remaining <= 3 || *src == '=') break;
     d = unbase64(*src++);
+
     *dst++ = ((c & 0x03) << 6) | (d & 0x3F);
   }
 
   constructor_template->GetFunction()->Set(chars_written_sym,
-                                           Integer::New(s.length()));
+                                           Integer::New(dst - start));
 
   return scope.Close(Integer::New(dst - start));
 }
@@ -758,6 +732,17 @@ bool Buffer::HasInstance(v8::Handle<v8::Value> val) {
 
 void Buffer::Initialize(Handle<Object> target) {
   HandleScope scope;
+
+  // sanity checks
+  assert(unbase64('/') == 63);
+  assert(unbase64('+') == 62);
+  assert(unbase64('T') == 19);
+  assert(unbase64('Z') == 25);
+  assert(unbase64('t') == 45);
+  assert(unbase64('z') == 51);
+  assert(unbase64(' ') == -2);
+  assert(unbase64('\n') == -2);
+  assert(unbase64('\r') == -2);
 
   length_symbol = Persistent<String>::New(String::NewSymbol("length"));
   chars_written_sym = Persistent<String>::New(String::NewSymbol("_charsWritten"));
