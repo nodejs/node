@@ -1,4 +1,31 @@
-2012.01.23, Version 0.7.1 (unstable)
+2012.02.01, Version 0.7.2 (unstable)
+
+* Update V8 to 3.8.9
+
+* Support for sharing streams across Isolates (Igor Zinkovsky)
+
+* #2636 - Fix case where http_parsers are freed too early (koichik)
+
+* url: Support for IPv6 addresses in URLs (Łukasz Walukiewicz)
+
+* child_process: Add disconnect() method to child processes (Andreas Madsen)
+
+* fs: add O_EXCL support, exclusive open file (Ben Noordhuis)
+
+* fs: more specific error messages (Tj Holowaychuk)
+
+* tty: emit 'unknown' key event if key sequence not found (Dan VerWeire, Nathan Rajlich)
+
+* build: compile release build too if BUILDTYPE=Debug (Ben Noordhuis)
+
+* module: fix --debug-brk on symlinked scripts (Fedor Indutny)
+
+* zlib: fix `Failed to set dictionary` issue (Fedor Indutny)
+
+* waf: predict target arch for OS X (Fedor Indutny)
+
+
+2012.01.23, Version 0.7.1 (unstable), a74354735ab5d5b0fa35a1e4ff7e653757d2069b
 
 * Update V8 to 3.8.8
 
@@ -32,7 +59,7 @@
 * Bug fixes
 
 
-2012.01.27, Version 0.6.9 (stable)
+2012.01.27, Version 0.6.9 (stable), f19e20d33f57c4d2853aaea7d2724d44f3b0012f
 
 * dgram: Bring back missing functionality for Unix (Dan VerWeire, Roman Shtylman, Ben Noordhuis)
   - Note: Windows UDP support not yet complete.
