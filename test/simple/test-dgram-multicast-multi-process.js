@@ -21,12 +21,13 @@
 
 var common = require('../common'),
     assert = require('assert'),
-    cluster = require('cluster'),
     dgram = require('dgram'),
     util = require('util'),
     assert = require('assert'),
     Buffer = require('buffer').Buffer,
-    LOCAL_BROADCAST_HOST = '224.0.0.1',
+    fork = require('child_process').fork,
+    LOCAL_BROADCAST_HOST = '224.0.0.114',
+    TIMEOUT = 5000,
     messages = [
       new Buffer('First message to send'),
       new Buffer('Second message to send'),
@@ -34,20 +35,54 @@ var common = require('../common'),
       new Buffer('Fourth message to send')
     ];
 
-if (cluster.isMaster) {
+if (process.argv[2] !== 'child') {
   var workers = {},
     listeners = 3,
     listening = 0,
+    dead = 0,
     i = 0,
-    done = 0;
+    done = 0,
+    timer = null;
+
+  //exit the test if it doesn't succeed within TIMEOUT
+  timer = setTimeout(function () {
+    console.error('[PARENT] Responses were not received within %d ms.', TIMEOUT);
+    console.error('[PARENT] Fail');
+
+    killChildren(workers);
+
+    process.exit(1);
+  }, TIMEOUT);
 
   //launch child processes
   for (var x = 0; x < listeners; x++) {
     (function () {
-      var worker = cluster.fork();
+      var worker = fork(process.argv[1], ['child']);
       workers[worker.pid] = worker;
 
       worker.messagesReceived = [];
+
+      //handle the death of workers
+      worker.on('exit', function (code, signal) {
+         //don't consider this the true death if the worker has finished successfully
+
+         //or if the exit code is 0
+        if (worker.isDone || code === 0) {
+          return;
+        }
+        
+        dead += 1;
+        console.error('[PARENT] Worker %d died. %d dead of %d', worker.pid, dead, listeners);
+
+        if (dead === listeners) {
+          console.error('[PARENT] All workers have died.');
+          console.error('[PARENT] Fail');
+
+          killChildren(workers);
+
+          process.exit(1);
+        }
+      });
 
       worker.on('message', function (msg) {
         if (msg.listening) {
@@ -63,12 +98,13 @@ if (cluster.isMaster) {
 
           if (worker.messagesReceived.length === messages.length) {
             done += 1;
-            console.error('%d received %d messages total.', worker.pid,
+            worker.isDone = true;
+            console.error('[PARENT] %d received %d messages total.', worker.pid,
                     worker.messagesReceived.length);
           }
 
           if (done === listeners) {
-            console.error('All workers have received the required number of'
+            console.error('[PARENT] All workers have received the required number of '
                     + 'messages. Will now compare.');
 
             Object.keys(workers).forEach(function (pid) {
@@ -85,12 +121,16 @@ if (cluster.isMaster) {
                 }
               });
 
-              console.error('%d received %d matching messges.', worker.pid
+              console.error('[PARENT] %d received %d matching messages.', worker.pid
                     , count);
 
               assert.equal(count, messages.length
                 ,'A worker received an invalid multicast message');
             });
+
+            clearTimeout(timer);
+            console.error('[PARENT] Success');
+            killChildren(workers);
           }
         }
       });
@@ -98,13 +138,17 @@ if (cluster.isMaster) {
   }
 
   var sendSocket = dgram.createSocket('udp4');
+  sendSocket.bind(); // FIXME a libuv limitation makes it necessary to bind()
+                     // before calling any of the set*() functions - the bind()
+                     // call is what creates the actual socket...
 
-  //sendSocket.setBroadcast(true);
-  //sendSocket.setMulticastTTL(1);
-  //sendSocket.setMulticastLoopback(true);
+  sendSocket.setTTL(1);
+  sendSocket.setBroadcast(true);
+  sendSocket.setMulticastTTL(1);
+  sendSocket.setMulticastLoopback(true);
 
   sendSocket.on('close', function() {
-    console.error('sendSocket closed');
+    console.error('[PARENT] sendSocket closed');
   });
 
   sendSocket.sendNext = function() {
@@ -118,21 +162,26 @@ if (cluster.isMaster) {
     sendSocket.send(buf, 0, buf.length,
                 common.PORT, LOCAL_BROADCAST_HOST, function(err) {
       if (err) throw err;
-      console.error('sent %s to %s', util.inspect(buf.toString()),
-                LOCAL_BROADCAST_HOST + common.PORT);
+      console.error('[PARENT] sent %s to %s:%s', util.inspect(buf.toString()),
+                LOCAL_BROADCAST_HOST, common.PORT);
       process.nextTick(sendSocket.sendNext);
     });
   };
+
+  function killChildren(children) {
+    Object.keys(children).forEach(function(key) {
+      var child = children[key];
+      child.kill();
+    });
+  }
 }
 
-if (!cluster.isMaster) {
+if (process.argv[2] === 'child') {
   var receivedMessages = [];
   var listenSocket = dgram.createSocket('udp4');
 
-  listenSocket.addMembership(LOCAL_BROADCAST_HOST);
-
   listenSocket.on('message', function(buf, rinfo) {
-    console.error('%s received %s from %j', process.pid
+    console.error('[CHILD] %s received %s from %j', process.pid
                 ,util.inspect(buf.toString()), rinfo);
 
     receivedMessages.push(buf);
@@ -141,6 +190,7 @@ if (!cluster.isMaster) {
 
     if (receivedMessages.length == messages.length) {
       listenSocket.dropMembership(LOCAL_BROADCAST_HOST);
+
       process.nextTick(function() { // TODO should be changed to below.
         // listenSocket.dropMembership(LOCAL_BROADCAST_HOST, function() {
         listenSocket.close();
@@ -149,7 +199,12 @@ if (!cluster.isMaster) {
   });
 
   listenSocket.on('close', function() {
-    process.exit();
+    //HACK: Wait to exit the process to ensure that the parent
+    //process has had time to receive all messages via process.send()
+    //This may be indicitave of some other issue.
+    setTimeout(function () {
+      process.exit();
+	}, 1000);
   });
 
   listenSocket.on('listening', function() {
@@ -157,4 +212,6 @@ if (!cluster.isMaster) {
   });
 
   listenSocket.bind(common.PORT);
+
+  listenSocket.addMembership(LOCAL_BROADCAST_HOST);
 }

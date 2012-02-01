@@ -251,7 +251,6 @@ void uv__pipe_accept(EV_P_ ev_io* watcher, int revents) {
   pipe = watcher->data;
 
   assert(pipe->type == UV_NAMED_PIPE);
-  assert(pipe->pipe_fname != NULL);
 
   sockfd = uv__accept(pipe->fd, (struct sockaddr *)&saddr, sizeof saddr);
   if (sockfd == -1) {

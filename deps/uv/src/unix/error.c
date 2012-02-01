@@ -59,6 +59,7 @@ void uv_fatal_error(const int errorno, const char* syscall) {
 uv_err_code uv_translate_sys_error(int sys_errno) {
   switch (sys_errno) {
     case 0: return UV_OK;
+    case EPERM: return UV_EPERM;
     case ENOSYS: return UV_ENOSYS;
     case ENOTSOCK: return UV_ENOTSOCK;
     case ENOENT: return UV_ENOENT;

@@ -102,23 +102,33 @@ website_files = \
 	out/doc/sh_main.js    \
 	out/doc/sh_javascript.min.js \
 	out/doc/sh_vim-dark.css \
+	out/doc/sh.css \
 	out/doc/logo.png      \
-	out/doc/sponsored.png \
 	out/doc/favicon.ico   \
 	out/doc/pipe.css \
 	out/doc/about/index.html \
 	out/doc/close-downloads.png \
 	out/doc/community/index.html \
 	out/doc/community/not-invented-here.png \
-	out/doc/download-logo.png \
-	out/doc/ebay-logo.png \
-	out/doc/footer-logo.png \
-	out/doc/icons.png \
-	out/doc/linkedin-logo.png \
 	out/doc/logos/index.html \
 	out/doc/microsoft-logo.png \
-	out/doc/platform-icons.png \
 	out/doc/ryan-speaker.jpg \
+	out/doc/download-logo.png \
+	out/doc/ebay-logo.png \
+	out/doc/footer-logo-alt.png \
+	out/doc/footer-logo.png \
+	out/doc/icons-interior.png \
+	out/doc/icons.png \
+	out/doc/home-icons.png \
+	out/doc/joyent-logo_orange_nodeorg-01.png \
+	out/doc/linkedin-logo.png \
+	out/doc/logo-light.png \
+	out/doc/mac_osx_nodejs_installer_logo.png \
+	out/doc/microsoft-logo.png \
+	out/doc/platform-icons.png \
+	out/doc/sponsored.png \
+	out/doc/twitter-bird.png \
+	out/doc/community-icons.png \
 	out/doc/yahoo-logo.png
 
 doc: node $(apidoc_dirs) $(website_files) $(apiassets) $(apidocs)

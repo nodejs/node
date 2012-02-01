@@ -1,24 +1,28 @@
 /*--------------------- Layout and Typography ----------------------------*/
+html {
+	-webkit-font-smoothing: antialiased;
+}
+
 body {
-//  font-family: "Helvetica Neue", Helvetica, FreeSans, Arial, sans-serif;
-  font-family: Georgia, FreeSerif, Times, serif;
-  font-size: 0.9375em;
-  line-height: 1.4667em;
-  color: #222;
-  margin: 0; padding: 0;
+  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+	font-size: 14px;
+  line-height: 180%;
+  color: black;
+  margin: 0; padding: 49px 0 0 0;
+  border-top: 6px #8CC84B solid;
 }
 a {
-  color: #0050c0;
+  color: #690;
   text-decoration: underline;
 }
   a:visited {
-    color: #b950b7;
+    color: #46483e;
     text-decoration: underline;
   }
   a:hover, a:focus {
     text-decoration: none;
   }
-  
+
     code a:hover {
       background: none;
       color: #b950b7;
@@ -26,6 +30,23 @@ a {
 
 #changelog #gtoc {
   display: none;
+}
+
+#gtoc p {
+  margin:0;
+  font-size:18px;
+  line-height: 30px;
+}
+
+#gtoc a {
+  font-family: Georgia, FreeSerif, Times, serif;
+  text-decoration: none;
+  color: #46483e;
+}
+
+#gtoc a:hover {
+    color: #669900;
+    text-decoration: underline;
 }
 
 .notice {
@@ -52,6 +73,13 @@ p {
   margin: 0 0 1.4667em 0;
   position: relative;
   text-rendering: optimizeLegibility;
+}
+
+.apidoc p {
+  font-size: 15px;
+  line-height: 22px;
+  color: #000;
+  font-family: Georgia, FreeSerif, Times, serif;
 }
 
 ol, ul, dl {
@@ -89,25 +117,34 @@ dd + dt.pre {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: Georgia, FreeSerif, Times, serif;
+  font-family: Helvetica, Arial, sans-serif;
   color: #000;
   text-rendering: optimizeLegibility;
   position: relative;
 }
 
 h1 {
-  font-size: 2.55em;
-  line-height: 1.375em;
+  font-family: Georgia, FreeSerif, Times, serif;
+  font-size: 30px;
+  font-weight: normal;
+  line-height: 36px;
+  color: #690;
+  margin: 15px 0 11px;
 }
 
 h2 {
-  font-size: 1.9em;
-  line-height: 1.227em;
-  margin: 0 0 0.5em;
+  font-size: 29px;
+  line-height: 33px;
+  margin: 2em 0 15px;
+}
+
+#toc + h2 {
+  margin-top:1em;
+  padding-top:0;
 }
 
 h3 {
-  font-size: 1.5em;
+  font-size: 1.4em;
   line-height: 1.0909em;
   margin: 1.5em 0 0.5em;
 }
@@ -126,13 +163,35 @@ h4 + h4 {
   margin: 0 0 0.5em;
 }
 
-  h3 a,
-  h4 a {
+  h3, h4 {
+    position:relative;
+    padding-right:40px;
+  }
+  h2 span, h3 span, h4 span {
+    position:absolute;
+    display:block;
+    top:0;
+    right:0;
+    opacity: 0.3;
+  }
+  h2 span:hover, h3 span:hover, h4 span:hover {
+    opacity: 1;
+  }
+  h2 span a, h3 span a, h4 span a {
     font-size: 0.8em;
-    float: right;
     color: #000;
     text-decoration: none;
-    opacity: 0.3;
+    font-family: Helvetica, Arial, sans-serif;
+    font-weight:bold;
+  }
+
+  h2 span a.top, h3 span a.top, h4 span a.top {
+    /* XXX Get an image and clean up these two links
+     * so that they look nice next to one another.
+     * http://www.chrisglass.com/work/nodejs/website/v05/docs.html
+     * -isaacs
+     */
+    display:none;
   }
 
 h5 {
@@ -146,7 +205,7 @@ h6 {
 }
 
   pre, tt, code {
-    font-size: 0.95em;
+    font-size: 14px;
     line-height: 1.5438em;
     font-family: Monaco, Consolas, "Lucida Console", monospace;
     margin: 0; padding: 0;
@@ -159,12 +218,13 @@ h6 {
   }
 
   pre {
-    padding: 2em 1.6em 2em 1.2em;
+    padding: 1em 1.6em 1em 1.2em;
     vertical-align: top;
     background: #f8f8f8;
     border: 1px solid #e8e8e8;
     border-width: 1px 1px 1px 6px;
     margin: -0.5em 0 1.1em;
+    overflow-x:auto;
   }
   
   pre + h3 {
@@ -175,37 +235,41 @@ code.pre {
   white-space: pre;
 }
 
-#container {
-  position: relative;
-  padding: 6em;
-  max-width: 50em;
-  text-align: left;
+#intro {
+    width: 775px;
+    margin: 0 auto;
+    text-align: center;
+	color: #d2d8ba;
+
+  /* preload platform-icons.png */
+  background-image: url(platform-icons.png);
+  background-repeat: no-repeat;
+  background-position: -999em -999em;
 }
 
-#container header {
-  margin: 1.25em -0.5em 1.3em;
-  padding: 0 0.5em 0.225em;
+#intro.interior #logo {
+    margin-left: -298px;
+    border:0;
 }
 
 hr {
   background: none;
   border: medium none;
   border-bottom: 1px solid #ccc;
-  margin: 5em 0 2em;
-}
-
-#container header hr {
-  margin: 0;
-  padding: 0;
+  margin: 1em 0;
 }
 
 #toc {
-  
+  font-size:15px;
+  line-height:1.5em;
+  line-height: 22px;
+  padding-top:4px;
 }
 
   #toc h2 {
-    font-size: 1em;
-    line-height: 1.4em;
+    font-size: 15px;
+    line-height: 21px;
+    margin: 0 0 0.5em;
   }
   
   #toc h2 a {
@@ -216,29 +280,209 @@ hr {
     margin: 1em 0 2em;
   }
 
+  #toc ul {
+    font-family: Georgia, FreeSerif, Times, serif;
+  }
+
+  #toc ul a {
+    text-decoration:none;
+    border-bottom:1px dotted #690;
+  }
+  #toc ul a:hover, #toc ul a:focus {
+    border-bottom:1px dotted #fff;
+    color:#000;
+  }
+
+
 p tt, p code {
   background: #f8f8ff;
   border: 1px solid #dedede;
   padding: 0 0.2em;
 }
 
-a.octothorpe {
-  text-decoration: none;
-  color: #777;
-  position: absolute;
-  top: 0; left: -1.4em;
-  padding: 1px 2px;
-  opacity: 0;
-  -webkit-transition: opacity 0.2s linear;
+#content {
+    width: 953px;
+    margin: 0 auto;
+    overflow: visible;
+    clear: both;
+    display: block;
 }
-    p:hover  > a.octothorpe, 
-    dt:hover > a.octothorpe,
-    dd:hover > a.octothorpe,
-    h1:hover > a.octothorpe,
-    h2:hover > a.octothorpe,
-    h3:hover > a.octothorpe,
-    h4:hover > a.octothorpe,
-    h5:hover > a.octothorpe,
-    h6:hover > a.octothorpe {
-      opacity: 1;
-    }
+
+#column1.interior {
+    width: 749px;
+    float: right;
+    padding-top: 7px;
+    padding-top: 11px;
+    font-size:18px;
+}
+
+#column2.interior {
+    width: 140px;
+    float: left;
+    margin-top: -55px;
+    overflow: visible;
+}
+
+#column2.interior ul {
+    margin-left: 0;
+}
+
+#column2.interior li {
+    list-style-type: none;
+}
+
+#column2.interior li a {
+    display: block;
+    padding: 0 0 0 35px;
+    color: #878b78;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 11px;
+    line-height: 23px;
+}
+
+#column2.interior li a.home { background: url(icons-interior.png) no-repeat -156px 3px; }
+#column2.interior li a.download { background: url(icons-interior.png) no-repeat -156px -21px; }
+#column2.interior li a.about { background: url(icons-interior.png) no-repeat -156px -45px; }
+#column2.interior li a.npm { background: url(icons-interior.png) no-repeat -156px -69px; }
+#column2.interior li a.docs { background: url(icons-interior.png) no-repeat -156px -93px; }
+#column2.interior li a.blog { background: url(icons-interior.png) no-repeat -156px -117px; }
+#column2.interior li a.community { background: url(icons-interior.png) no-repeat -156px -141px; }
+#column2.interior li a.logos { background: url(icons-interior.png) no-repeat -156px -165px; }
+#column2.interior li a.jobs { background: url(icons-interior.png) no-repeat -156px -189px; } 
+
+#column2.interior li a.home.current { background-position: 2px 3px; }
+#column2.interior li a.download.current { background-position: 2px -21px; }
+#column2.interior li a.about.current { background-position: 2px -45px; }
+#column2.interior li a.npm.current { background-position: 2px -69px; }
+#column2.interior li a.docs.current { background-position: 2px -93px; }
+#column2.interior li a.blog.current { background-position: 2px -117px; }
+#column2.interior li a.community.current { background-position: 2px -141px; }
+#column2.interior li a.logos.current { background-position: 2px -165px; }
+#column2.interior li a.jobs.current { background-position: 2px -189px; }
+#column2.interior li a.current { color: #8cc84b; font-weight: bold; }
+
+#column2.interior li a.home:hover { background-position: -331px 3px; }
+#column2.interior li a.download:hover { background-position: -331px -21px; }
+#column2.interior li a.about:hover { background-position: -331px -45px; }
+#column2.interior li a.npm:hover { background-position: -331px -69px; }
+#column2.interior li a.docs:hover { background-position: -331px -93px; }
+#column2.interior li a.blog:hover { background-position: -331px -117px; }
+#column2.interior li a.community:hover { background-position: -331px -141px; }
+#column2.interior li a.logos:hover { background-position: -331px -165px; }
+#column2.interior li a.jobs:hover { background-position: -331px -189px; }
+#column2.interior li a:hover { color: #000000; text-decoration: none; }
+
+#column2.interior li + li {
+    border-top: 1px solid #c1c7ac;
+}
+#column2.interior p.twitter {
+    padding-top: 20px;
+}
+
+#column2.interior p.twitter a {
+    background: url(twitter-bird.png) no-repeat 0 4px;
+    padding-left: 37px;
+    text-decoration: none;
+}
+
+#column2.interior p.twitter a:hover {
+    text-decoration: underline;
+}
+
+a.totop {
+  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+  font-weight: bold;
+  text-indent: -9999999px;
+  background: url(anchor.png) no-repeat top left;
+  margin-right: 7px;
+  display: block;
+  width: 13px;
+  border-bottom: 1px solid #cccccc;
+}
+
+a.anchor {
+  font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+  font-weight: bold;
+  text-indent: -9999999px;
+  background: url(anchor.png) no-repeat top right;
+  display: block;
+  width: 13px;
+  border-bottom: 1px solid #cccccc;
+}
+#footer {
+    width: 942px;
+    margin: 150px auto 55px auto;
+    padding:0;
+}
+
+#footer p {
+    font-size: 11px;
+    line-height:1em;
+    padding: 0 0 0 195px;
+    color: #666;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+}
+
+#footer a {
+  text-decoration:none;
+  border:none;
+  color: #690;
+}
+#footer a:hover {
+  color:#000;
+}
+
+#footer p a {
+    border-bottom:1px dotted #690;
+    color: #878b78;
+}
+
+#footer ul {
+    background: url(footer-logo-alt.png) left 17px no-repeat;
+    padding: 23px 0 0 195px;
+    height: 26px;
+    margin-left: -1px;
+    border-top: 1px solid #626557;
+}
+
+#footer ul li {
+    list-style-type: none;
+    float: left;
+    font-size: 12px;
+    margin:0!important;
+    padding:0;
+    height: 12px;
+}
+
+#footer ul li a {
+    margin: 0;
+    padding: 0 6px 0 0;
+    display: block;
+    height:12px;
+    line-height:12px;
+}
+
+#footer ul li + li {
+    margin-left: 3px;
+}
+
+#footer ul li + li a {
+    padding: 0 6px 0 6px;
+    border-left: 1px solid #878b78;
+}
+
+#footer ul li a.twitter  {
+    background: url(twitter-bird.png) no-repeat 5px 0px;
+    padding-left: 25px;
+}
+
+/* simpler clearfix */
+.clearfix:after {
+    content: ".";
+    display: block;
+    height: 0;
+    clear: both;
+    visibility: hidden;
+}
+

@@ -344,7 +344,15 @@ static int uv__bind(uv_udp_t* handle,
     goto out;
   }
 
-#ifdef SO_REUSEPORT /* Apple's version of SO_REUSEADDR... */
+  /* On the BSDs, SO_REUSEADDR lets you reuse an address that's in the TIME_WAIT
+   * state (i.e. was until recently tied to a socket) while SO_REUSEPORT lets
+   * multiple processes bind to the same address. Yes, it's something of a
+   * misnomer but then again, SO_REUSEADDR was already taken.
+   *
+   * None of the above applies to Linux: SO_REUSEADDR implies SO_REUSEPORT on
+   * Linux and hence it does not have SO_REUSEPORT at all.
+   */
+#ifdef SO_REUSEPORT
   yes = 1;
   if (setsockopt(fd, SOL_SOCKET, SO_REUSEPORT, &yes, sizeof yes) == -1) {
     uv__set_sys_error(handle->loop, errno);
@@ -531,12 +539,43 @@ int uv_udp_set_membership(uv_udp_t* handle, const char* multicast_addr,
     return 0;                                                                 \
   }
 
-X(multicast_loop, IPPROTO_IP, IP_MULTICAST_LOOP)
-X(multicast_ttl, IPPROTO_IP, IP_MULTICAST_TTL)
 X(broadcast, SOL_SOCKET, SO_BROADCAST)
 X(ttl, IPPROTO_IP, IP_TTL)
 
 #undef X
+
+
+static int uv__setsockopt_maybe_char(uv_udp_t* handle, int option, int val) {
+#if __sun
+  char arg = val;
+#else
+  int arg = val;
+#endif
+
+#if __sun
+  if (val < 0 || val > 255) {
+    uv__set_sys_error(handle->loop, EINVAL);
+    return -1;
+  }
+#endif
+
+  if (setsockopt(handle->fd, IPPROTO_IP, option, &arg, sizeof(arg))) {
+    uv__set_sys_error(handle->loop, errno);
+    return -1;
+  }
+
+  return 0;
+}
+
+
+int uv_udp_set_multicast_ttl(uv_udp_t* handle, int ttl) {
+  return uv__setsockopt_maybe_char(handle, IP_MULTICAST_TTL, ttl);
+}
+
+
+int uv_udp_set_multicast_loop(uv_udp_t* handle, int on) {
+  return uv__setsockopt_maybe_char(handle, IP_MULTICAST_LOOP, on);
+}
 
 
 int uv_udp_getsockname(uv_udp_t* handle, struct sockaddr* name, int* namelen) {

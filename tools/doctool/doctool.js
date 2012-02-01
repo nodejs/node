@@ -42,7 +42,11 @@ function generateToc(data) {
     }
 
     if (level > last_level) {
-      toc.push("<ul>");
+      var c = last_level - level;
+      do {
+        toc.push("<ul>");
+        c ++;
+      } while (c < -1);
     } else if (level < last_level) {
       for(var c=last_level-level; 0 < c ; c-- ) {
         toc.push("</ul>");
@@ -61,7 +65,7 @@ function generateToc(data) {
     toc.push("</ul>");
   }
 
-  toc.push("<hr />")
+  toc.push("<hr>")
   toc.push("</div>");
 
   return toc.join("");
@@ -89,8 +93,14 @@ function convertData(data) {
     .replace(/(\<h[2-6])\>([^<]+)(\<\/h[1-6]\>)/gmi, function(o, ts, c, te) {
       return ts+' id="'+formatIdString(c)+'">'+c+te;
     })
-    .replace(/(\<h[3-4][^>]+\>)([^<]+)(\<\/h[3-4]\>)/gmi, function(o, ts, c, te) {
-       return ts+c+' <a href="#'+formatIdString(c)+'">#</a>'+te;
+    .replace(/(\<h[2-4][^>]+\>)([^<]+)(\<\/h[2-4]\>)/gmi,
+             function(o, ts, c, te) {
+      var mark = ' <span>' +
+          '<a class="top" href="#">↑</a>' +
+          '<a class="mark" href="#' +
+          formatIdString(c) + '">#</a></span>';
+
+      return ts+c+mark+te;
     });
 
   return html;
@@ -119,6 +129,9 @@ if (argc > 3) {
 
       output = output.replace("{{section}}", filename+" - ")
     } else {
+      if (filename === "index") {
+        html = '<div id="toc">' + html + '</div>';
+      }
       output = output.replace("{{section}}", "");
       output = output.replace(/<body([^>]*)>/, '<body class="'+filename+'" $1>');
     }

@@ -11,22 +11,48 @@
     <link type="image/x-icon" rel="icon" href="../favicon.ico">
     <link type="image/x-icon" rel="shortcut icon" href="../favicon.ico">
     <link rel="stylesheet" href="../pipe.css">
-    <link rel="stylesheet" href="../sh_vim-dark.css">
+    <link rel="stylesheet" href="../sh.css">
     <link rel="alternate"
           type="application/rss+xml"
           title="node blog"
           href="http://feeds.feedburner.com/nodejs/123123123">
     <title>node.js</title>
   </head>
-  <body>
-    <div id="intro">
+  <body class="alt int" id="about">
+    <div id="intro" class="interior">
         <a href="/" title="Go back to the home page">
-            <img id="logo" src="../logo.png" alt="node.js">
+            <img id="logo" src="../logo-light.png" alt="node.js">
         </a>
     </div>
     <div id="content" class="clearfix">
+            <div id="column2" class="interior">
+                <ul>
+                    <li><a href="/" class="home">Home</a></li>
+                    <li><a href="/#download" class="download">Download</a></li>
+                    <li><a href="/about/" class="about current">About</a></li>
+                    <li><a href="http://search.npmjs.org/" class="npm">npm Registry</a></li>
+                    <li><a href="http://nodejs.org/docs/latest/api/index.html" class="docs">Docs</a></li>
+                    <li><a href="http://blog.nodejs.org" class="blog">Blog</a></li>
+                    <li><a href="/community/" class="community">Community</a></li>
+                    <li><a href="/logos/" class="logos">Logos</a></li>
+                    <li><a href="http://jobs.nodejs.org/" class="jobs">Jobs</a></li>
+                </ul>
+                <p class="twitter"><a href="http://twitter.com/nodejs">@nodejs</a></p>
+            </div>
+
             <div id="column1" class="interior">
-                <h2>About</h2>
+                <h1>Node's goal is to provide an easy way to build scalable
+              network programs</h1>
+
+
+              <p>In the "hello world" web server example
+              below, many client connections can be handled concurrently.
+              Node tells the operating system (through <code>epoll</code>,
+              <code>kqueue</code>, <code>/dev/poll</code>, or
+              <code>select</code>) that it should be notified when a new
+              connection is made, and then it goes to sleep. If someone new
+              connects, then it executes the callback. Each connection is
+              only a small heap allocation.</p>
 
               <pre>
 var http = require('http');
@@ -35,17 +61,6 @@ http.createServer(function (req, res) {
   res.end('Hello World\n');
 }).listen(1337, "127.0.0.1");
 console.log('Server running at http://127.0.0.1:1337/');</pre>
-
-              <p>Node's goal is to provide an easy way to build scalable
-              network programs. In the "hello world" web server example
-              above, many client connections can be handled concurrently.
-              Node tells the operating system (through <code>epoll</code>,
-              <code>kqueue</code>, <code>/dev/poll</code>, or
-              <code>select</code>) that it should be notified when a new
-              connection is made, and then it goes to sleep. If someone new
-              connects, then it executes the callback. Each connection is
-              only a small heap allocation.</p>
-
               <p>This is in contrast to today's more common concurrency
               model where OS threads are employed. Thread-based networking
               is relatively inefficient and very difficult to use. See: <a
@@ -99,15 +114,25 @@ console.log('Server running at http://127.0.0.1:1337/');</pre>
                 <li><a href="http://nodejs.org/jsconf2010.pdf">Slides from JSConf 2010</a></li>
                 <li><a href="http://www.yuiblog.com/blog/2010/05/20/video-dahl/">Video from a talk at Yahoo in May 2010</a></li>
             </ul>
-            <p><a href="/">Go back to the home page</a></p>
         </div>
-        <div id="column2" class="interior">
-    </div>
 </div>
     <div id="footer">
-      <p>Copyright <a href="http://joyent.com">Joyent, Inc</a>, Node.js
-      is a <a href="trademark-policy.pdf">trademark of Joyent, Inc</a>.
+        <ul class="clearfix">
+            <li><a href="/">Node.js</a></li>
+            <li><a href="/#download">Download</a></li>
+            <li><a href="/about/">About</a></li>
+            <li><a href="http://search.npmjs.org/">npm Registry</a></li>
+            <li><a href="http://nodejs.org/docs/latest/api/index.html">Docs</a></li>
+            <li><a href="http://blog.nodejs.org">Blog</a></li>
+            <li><a href="/community/">Community</a></li>
+            <li><a href="/logos/">Logos</a></li>
+            <li><a href="http://jobs.nodejs.org/">Jobs</a></li>
+            <li><a href="http://twitter.com/nodejs" class="twitter">@nodejs</a></li>
+        </ul>
+
+        <p>Copyright 2010 <a href="http://joyent.com">Joyent, Inc</a>, Node.js is a <a href="/trademark-policy.pdf">trademark</a> of Joyent, Inc. View <a href="https://raw.github.com/joyent/node/v0.6.9/LICENSE">license</a>.</p>
     </div>
+
 
     <script src="../sh_main.js"></script>
     <script src="../sh_javascript.min.js"></script>

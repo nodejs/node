@@ -184,6 +184,13 @@ static void chown_cb(uv_fs_t* req) {
   uv_fs_req_cleanup(req);
 }
 
+static void chown_root_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_CHOWN);
+  ASSERT(req->result == -1);
+  ASSERT(req->errorno == UV_EPERM);
+  chown_cb_count++;
+  uv_fs_req_cleanup(req);
+}
 
 static void unlink_cb(uv_fs_t* req) {
   ASSERT(req == &unlink_req);
@@ -1018,6 +1025,12 @@ TEST_IMPL(fs_chown) {
   uv_run(loop);
   ASSERT(chown_cb_count == 1);
 
+  /* chown to root (fail) */
+  chown_cb_count = 0;
+  r = uv_fs_chown(loop, &req, "test_file", 0, 0, chown_root_cb);
+  uv_run(loop);
+  ASSERT(chown_cb_count == 1);
+
   /* async fchown */
   r = uv_fs_fchown(loop, &req, file, -1, -1, fchown_cb);
   ASSERT(r == 0);
@@ -1292,6 +1305,9 @@ TEST_IMPL(fs_utime) {
 TEST_IMPL(fs_stat_root) {
   int r;
   uv_loop_t* loop = uv_default_loop();
+
+  r = uv_fs_stat(loop, &stat_req, "\\", NULL);
+  ASSERT(r == 0);
 
   r = uv_fs_stat(loop, &stat_req, "c:\\", NULL);
   ASSERT(r == 0);

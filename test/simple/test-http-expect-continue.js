@@ -44,7 +44,9 @@ server.on('checkContinue', function(req, res) {
   common.debug('Server got Expect: 100-continue...');
   res.writeContinue();
   sent_continue = true;
-  handler(req, res);
+  setTimeout(function() {
+    handler(req, res);
+  }, 100);
 });
 server.listen(common.PORT);
 

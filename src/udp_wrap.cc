@@ -95,7 +95,9 @@ public:
   static Handle<Value> AddMembership(const Arguments& args);
   static Handle<Value> DropMembership(const Arguments& args);
   static Handle<Value> SetMulticastTTL(const Arguments& args);
+  static Handle<Value> SetMulticastLoopback(const Arguments& args);
   static Handle<Value> SetBroadcast(const Arguments& args);
+  static Handle<Value> SetTTL(const Arguments& args);
 
 private:
   static inline char* NewSlab(v8::Handle<v8::Object> global, v8::Handle<v8::Object> wrap_obj);
@@ -157,7 +159,9 @@ void UDPWrap::Initialize(Handle<Object> target) {
   NODE_SET_PROTOTYPE_METHOD(t, "addMembership", AddMembership);
   NODE_SET_PROTOTYPE_METHOD(t, "dropMembership", DropMembership);
   NODE_SET_PROTOTYPE_METHOD(t, "setMulticastTTL", SetMulticastTTL);
+  NODE_SET_PROTOTYPE_METHOD(t, "setMulticastLoopback", SetMulticastLoopback);
   NODE_SET_PROTOTYPE_METHOD(t, "setBroadcast", SetBroadcast);
+  NODE_SET_PROTOTYPE_METHOD(t, "setTTL", SetTTL);
 
   target->Set(String::NewSymbol("UDP"),
               Persistent<FunctionTemplate>::New(t)->GetFunction());
@@ -214,20 +218,25 @@ Handle<Value> UDPWrap::Bind6(const Arguments& args) {
   return DoBind(args, AF_INET6);
 }
 
-Handle<Value> UDPWrap::SetBroadcast(const Arguments& args) {
-  HandleScope scope;
-  UNWRAP
 
-  assert(args.Length() == 1);
+#define X(name, fn)                                                           \
+  Handle<Value> UDPWrap::name(const Arguments& args) {                        \
+    HandleScope scope;                                                        \
+    UNWRAP                                                                    \
+    assert(args.Length() == 1);                                               \
+    int flag = args[0]->Int32Value();                                         \
+    int r = fn(&wrap->handle_, flag);                                         \
+    if (r) SetErrno(uv_last_error(uv_default_loop()));                        \
+    return scope.Close(Integer::New(r));                                      \
+  }
 
-  int on = args[0]->Uint32Value();
-  int r = uv_udp_set_broadcast(&wrap->handle_, on);
+X(SetTTL, uv_udp_set_ttl)
+X(SetBroadcast, uv_udp_set_broadcast)
+X(SetMulticastTTL, uv_udp_set_multicast_ttl)
+X(SetMulticastLoopback, uv_udp_set_multicast_loop)
 
-  if (r)
-    SetErrno(uv_last_error(uv_default_loop()));
+#undef X
 
-  return scope.Close(Integer::New(r));
-}
 
 Handle<Value> UDPWrap::SetMembership(const Arguments& args,
                                      uv_membership membership) {
@@ -263,20 +272,6 @@ Handle<Value> UDPWrap::DropMembership(const Arguments& args) {
   return SetMembership(args, UV_LEAVE_GROUP);
 }
 
-Handle<Value> UDPWrap::SetMulticastTTL(const Arguments& args) {
-  HandleScope scope;
-  UNWRAP
-
-  assert(args.Length() == 1);
-
-  int ttl = args[0]->Uint32Value();
-  int r = uv_udp_set_multicast_ttl(&wrap->handle_, ttl);
-
-  if (r)
-    SetErrno(uv_last_error(uv_default_loop()));
-
-  return scope.Close(Integer::New(r));
-}
 
 Handle<Value> UDPWrap::DoSend(const Arguments& args, int family) {
   HandleScope scope;

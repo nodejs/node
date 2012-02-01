@@ -541,7 +541,7 @@ static int uv__is_root(const wchar_t* path) {
   size_t len = wcslen(path);
 
   /* Test for \ */
-  if (len == 0 && IS_SLASH(path[0])) {
+  if (len == 1 && IS_SLASH(path[0])) {
     return 1;
   }
 

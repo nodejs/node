@@ -13,6 +13,15 @@ body {
     border-top: 6px #8cc84b solid;
 }
 
+body.alt {
+    background: white;
+    color: #46483e;
+}
+
+body.int {
+  padding-top:49px;
+}
+
 img {
 	border: 0;
 }
@@ -28,6 +37,15 @@ h1, h2, h3, h4 {
 	margin-bottom: 10px;
 	margin-left: 0;
     text-transform: uppercase;
+}
+h1 {
+    font-family: Georgia, FreeSerif, Times, serif;
+    font-size: 30px;
+    line-height: 36px;
+    text-transform: none;
+    color: #669900;
+    font-weight: normal;
+    margin: 15px 0 11px;
 }
 
 h2 {
@@ -51,7 +69,7 @@ h1 a, h2 a, h3 a, h4 a
   /* preload platform-icons.png */
   background-image: url(platform-icons.png);
   background-repeat: no-repeat;
-  background-position: -1000px -1000px;
+  background-position: -999em -999em;
 }
 
 #intro p {
@@ -62,15 +80,24 @@ h1 a, h2 a, h3 a, h4 a
     font-size: 14px;
 }
 
+#intro.interior #logo {
+    margin-left: -298px;
+}
+
+#intro p.version {
+    padding-top: 10px;
+    font-size: 12px;
+}
+
 #intro .button {
   font-weight: bold;
   font-size: 14px;
   text-transform: uppercase;
-  padding: 7px 10px;
+  padding: 6px 12px;
   -webkit-border-radius: 4px;
   -moz-border-radius: 4px;
   border-radius: 4px;
-  margin: 0 5px;
+  margin: 0 1px;
   color: #46483e;
 }
 
@@ -87,7 +114,7 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #intro #docsbutton {
-  background-color: #d2d8ba;
+  background-color: #9a9f8b;
 }
 
 #intro #docsbutton:hover {
@@ -140,31 +167,173 @@ h1 a, h2 a, h3 a, h4 a
     font-size: 10px;
 }
 
+#quotes ul li p {
+  color: #D2D8BA
+}
+
 #content {
     width: 775px;
     margin: 0 auto;
+    overflow: visible;
+    clear: both;
+    display: block;
+}
+.int #content {
+  width: 953px;
 }
 
-#content #column1 {
-    width: 420px;
+#column1 {
+    width: 460px;
     float: left;
 }
 
-#content #column2 {
+#content p {
+    font-size: 14px;
+    line-height:24px;
+}
+#front #content p {
+  font-size:12px;
+}
+
+#content h1 + p {
+    font-size: 18px;
+    line-height: 30px;
+    color: #46483e;
+    font-family: Georgia, FreeSerif, Times, serif;
+}
+
+#column2 {
     width: 260px;
     float: right;
 }
 
-#content #column1.interior {
-    width: 510px;
+#column1.interior {
+    width: 600px;
     float: right;
+    padding-top: 11px;
+    font-size:18px;
+    padding-right:150px;
 }
 
-#content #column2.interior {
+#column2.interior {
+    width: 140px;
+    float: left;
+    margin-top: -54px;
+    overflow: visible;
+}
+
+#column2.interior ul {
+    margin-left: 0;
+}
+
+#column2.interior li {
+    list-style-type: none;
+}
+
+#column2.interior li a {
+    display: block;
+    padding: 0 0 0 35px;
+    color: #878b78;
+    text-transform: uppercase;
+    text-decoration: none;
+    font-size: 11px;
+    line-height: 23px;
+}
+
+#column2.interior li a.home { background: url(icons-interior.png) no-repeat -156px 3px; }
+#column2.interior li a.download { background: url(icons-interior.png) no-repeat -156px -21px; }
+#column2.interior li a.about { background: url(icons-interior.png) no-repeat -156px -44px; }
+#column2.interior li a.npm { background: url(icons-interior.png) no-repeat -156px -69px; }
+#column2.interior li a.docs { background: url(icons-interior.png) no-repeat -156px -93px; }
+#column2.interior li a.blog { background: url(icons-interior.png) no-repeat -156px -117px; }
+#column2.interior li a.community { background: url(icons-interior.png) no-repeat -156px -141px; }
+#column2.interior li a.logos { background: url(icons-interior.png) no-repeat -156px -165px; }
+#column2.interior li a.jobs { background: url(icons-interior.png) no-repeat -156px -189px; } 
+
+#column2.interior li a.home.current { background-position: 2px 3px; }
+#column2.interior li a.download.current { background-position: 2px -21px; }
+#column2.interior li a.about.current { background-position: 2px -45px; }
+#column2.interior li a.npm.current { background-position: 2px -69px; }
+#column2.interior li a.docs.current { background-position: 2px -93px; }
+#column2.interior li a.blog.current { background-position: 2px -117px; }
+#column2.interior li a.community.current { background-position: 2px -141px; }
+#column2.interior li a.logos.current { background-position: 2px -165px; }
+#column2.interior li a.jobs.current { background-position: 2px -189px; }
+#column2.interior li a.current { color: #8cc84b; font-weight: bold; }
+
+#column2.interior li a.home:hover { background-position: -331px 3px; }
+#column2.interior li a.download:hover { background-position: -331px -21px; }
+#column2.interior li a.about:hover { background-position: -331px -45px; }
+#column2.interior li a.npm:hover { background-position: -331px -69px; }
+#column2.interior li a.docs:hover { background-position: -331px -93px; }
+#column2.interior li a.blog:hover { background-position: -331px -117px; }
+#column2.interior li a.community:hover { background-position: -331px -141px; }
+#column2.interior li a.logos:hover { background-position: -331px -165px; }
+#column2.interior li a.jobs:hover { background-position: -331px -189px; }
+#column2.interior li a:hover { color: #000000; text-decoration: none; }
+
+#column2.interior li + li {
+    border-top: 1px solid #c1c7ac;
+    border-top:1px solid #65675c;
+}
+.alt #column2.interior li + li {
+    border-top: 1px solid #c1c7ac;
+}
+
+#column2.interior p.twitter {
+    padding-top: 20px;
+}
+
+#column2.interior p.twitter a {
+    background: url(twitter-bird.png) no-repeat 0 4px;
+    padding-left: 37px;
+}
+
+.row {
+    padding-top: 10px;
+    padding-bottom: 10px;
+}
+
+.row + .row {
+    border-top: 1px solid #626557;
+}
+
+.row h2 {
+    font-size: 24px;
+    color: white;
+    text-transform: none;
+    font-family: Georgia, FreeSerif, Times, serif;
+    background: url(community-icons.png) no-repeat;
+    padding-left: 45px;
+    padding-top: 6px;
+    padding-bottom: 10px;
+    margin-top: 10px;
+}
+
+.row h2.github { background-position: left -92px; }
+.row h2.mailing { background-position: left -308px; }
+.row h2.periodicals { background-position: left -198px; padding-top: 9px; margin-top: 7px; }
+.row h2.conferences { background-position: left -522px; }
+.row h2.localized { background-position: left -414px; }
+.row h2.irc { background-position: left -626px; }
+
+.block {
+    width: 280px;
+    float: left;
+}
+
+.block + .block {
+    margin-left: 20px;
+    width: 300px;
+}
+
+#content .block p {
+    font-size: 13px;
+    line-height:21px;
 }
 
 #explore {
-    background: url(icons.png) no-repeat left 15px;
+    background: url(home-icons.png) no-repeat left 17px;
 }
 
 #explore li {
@@ -201,23 +370,91 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #footer {
-    width: 775px;
-    border-top: 1px solid #626557;
-    margin: 50px auto 30px auto;
-    padding-top: 15px;
+    width: 942px;
+    margin: 150px auto 55px auto;
+    padding:0;
 }
 
 #footer p {
-	color: #8BC84B;
-    height: 32px;
-    padding-top: 3px;
-    background: url(footer-logo.png) left top no-repeat;
-    padding-left: 130px;
+    font-size: 11px;
+    line-height:1em;
+    padding: 0 0 0 195px;
+    color: #666;
+    font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
+}
+
+#front #footer {
+  width: 775px;
+  margin: 50px auto 30px auto;
+  padding-top: 15px;
+}
+#front #footer ul {
+  margin-right:0;
+  padding-right:0;
+}
+
+#footer a {
+  text-decoration:none;
+  border:none;
+  color: #690;
+}
+
+#footer a:hover {
+  color:#000;
+}
+#front #footer a:hover {
+  color:#fff;
 }
 
 #footer p a {
-    text-decoration: underline;
+    border-bottom:1px dotted #690;
+    color: #878b78;
 }
+
+#footer ul {
+    background: url(footer-logo.png) left 17px no-repeat;
+    border-top: 1px solid #626557;
+    border-color:#90918b;
+    padding-top:23px;
+    padding-left: 195px;
+    height: 26px;
+    margin-right:137px;
+}
+.alt #footer ul {
+    background-image: url(footer-logo-alt.png);
+}
+
+#footer ul li {
+    list-style-type: none;
+    float: left;
+    font-size: 12px;
+    margin:0!important;
+    height: 12px;
+}
+
+#footer ul li a {
+    margin: 0;
+    padding: 0 6px 0 0;
+    display: block;
+    height:12px;
+    line-height:12px;
+}
+
+#footer ul li + li {
+    margin-left: 3px;
+}
+
+#footer ul li + li a {
+    padding: 0 6px 0 6px;
+    border-left: 1px solid #878b78;
+}
+
+#footer ul li a.twitter  {
+    background: url(twitter-bird.png) no-repeat 5px 0px;
+    padding-left: 25px;
+}
+
+
 
 div#download {
     position: absolute;
@@ -312,11 +549,17 @@ div#download ul#documentation li a {
     margin-bottom: 37px;
 }
 
-pre, code {
-	font-family: Monaco, 'Andale Mono', 'Lucida Console', 'Bitstream Vera Sans Mono', 'Courier New', monospace, serif;
-	font-size: 12px;
-	color: #d2d8ba;
-}
+  pre, tt, code {
+	  color: #d2d8ba;
+    font-size: 14px;
+    line-height: 22px;
+    font-family: Monaco, Consolas, "Lucida Console", monospace;
+    margin: 0; padding: 0;
+  }
+  #front pre, #front tt, #front code {
+    font-size:12px;
+    line-height:22px;
+  }
 
 pre {
 	padding-left: 1em;
@@ -326,16 +569,40 @@ pre {
 	border-left-color: #626557;
 }
 
+.alt pre {
+    font-size: 14px;
+    margin-left: 0;
+    border-left: 2px solid #dadad7;
+    background-color: #f4f4f2;
+    color: #46483e;
+    padding: 1em 1.5em;
+    line-height: 2em;
+}
+
+.alt code {
+    color: #996633;
+}
+
 dd {
   margin: 1em 0;
   margin-left: 1em;
 }
 
+
 a {
-	color: #8BC84B;
+	color: #690;
 	text-decoration: none;
 }
 a:hover { text-decoration: underline; }
+
+.alt a {
+    background-color: #eff2db;
+    padding: 0 2px;
+}
+
+.alt #intro a, .alt #footer a {
+    background-color: transparent;
+}
 
 .highlight {
   background: #733;
@@ -350,12 +617,11 @@ a:hover { text-decoration: underline; }
 }
 
 /* simpler clearfix */
-.clearfix {
-  /* be an independent layout island */
-  overflow:hidden;
-  /* but don't actually cut anything off */
-  height:auto;
-  /* trigger hasLayout in IE */
-  zoom:1;
-  /* fin. */
+.clearfix:after {
+    content: ".";
+    display: block;
+    height: 0;
+    clear: both;
+    visibility: hidden;
 }
+
