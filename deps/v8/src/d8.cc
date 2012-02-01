@@ -120,6 +120,9 @@ ShellOptions Shell::options;
 const char* Shell::kPrompt = "d8> ";
 
 
+const int MB = 1024 * 1024;
+
+
 #ifndef V8_SHARED
 bool CounterMap::Match(void* key1, void* key2) {
   const char* name1 = reinterpret_cast<const char*>(key1);
@@ -803,6 +806,8 @@ Handle<ObjectTemplate> Shell::CreateGlobalTemplate() {
   global_template->Set(String::New("print"), FunctionTemplate::New(Print));
   global_template->Set(String::New("write"), FunctionTemplate::New(Write));
   global_template->Set(String::New("read"), FunctionTemplate::New(Read));
+  global_template->Set(String::New("readbinary"),
+                       FunctionTemplate::New(ReadBinary));
   global_template->Set(String::New("readline"),
                        FunctionTemplate::New(ReadLine));
   global_template->Set(String::New("load"), FunctionTemplate::New(Load));
@@ -1021,6 +1026,23 @@ static char* ReadChars(const char* name, int* size_out) {
 }
 
 
+Handle<Value> Shell::ReadBinary(const Arguments& args) {
+  String::Utf8Value filename(args[0]);
+  int size;
+  if (*filename == NULL) {
+    return ThrowException(String::New("Error loading file"));
+  }
+  char* chars = ReadChars(*filename, &size);
+  if (chars == NULL) {
+    return ThrowException(String::New("Error reading file"));
+  }
+  // We skip checking the string for UTF8 characters and use it raw as
+  // backing store for the external string with 8-bit characters.
+  BinaryResource* resource = new BinaryResource(chars, size);
+  return String::NewExternal(resource);
+}
+
+
 #ifndef V8_SHARED
 static char* ReadToken(char* data, char token) {
   char* next = i::OS::StrChr(data, token);
@@ -1191,14 +1213,11 @@ Handle<String> SourceGroup::ReadFile(const char* name) {
 
 #ifndef V8_SHARED
 i::Thread::Options SourceGroup::GetThreadOptions() {
-  i::Thread::Options options;
-  options.name = "IsolateThread";
   // On some systems (OSX 10.6) the stack size default is 0.5Mb or less
   // which is not enough to parse the big literal expressions used in tests.
   // The stack size should be at least StackGuard::kLimitSize + some
-  // OS-specific padding for thread startup code.
-  options.stack_size = 2 << 20;  // 2 Mb seems to be enough
-  return options;
+  // OS-specific padding for thread startup code.  2Mbytes seems to be enough.
+  return i::Thread::Options("IsolateThread", 2 * MB);
 }
 
 

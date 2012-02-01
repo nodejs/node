@@ -764,6 +764,7 @@ class HValue: public ZoneObject {
   int flags_;
   GVNFlagSet gvn_flags_;
 
+ private:
   DISALLOW_COPY_AND_ASSIGN(HValue);
 };
 
@@ -1340,9 +1341,11 @@ class HStackCheck: public HTemplateInstruction<1> {
 class HEnterInlined: public HTemplateInstruction<0> {
  public:
   HEnterInlined(Handle<JSFunction> closure,
+                int arguments_count,
                 FunctionLiteral* function,
                 CallKind call_kind)
       : closure_(closure),
+        arguments_count_(arguments_count),
         function_(function),
         call_kind_(call_kind) {
   }
@@ -1350,6 +1353,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
   virtual void PrintDataTo(StringStream* stream);
 
   Handle<JSFunction> closure() const { return closure_; }
+  int arguments_count() const { return arguments_count_; }
   FunctionLiteral* function() const { return function_; }
   CallKind call_kind() const { return call_kind_; }
 
@@ -1361,6 +1365,7 @@ class HEnterInlined: public HTemplateInstruction<0> {
 
  private:
   Handle<JSFunction> closure_;
+  int arguments_count_;
   FunctionLiteral* function_;
   CallKind call_kind_;
 };
@@ -3843,6 +3848,8 @@ class HLoadKeyedSpecializedArrayElement: public HTemplateInstruction<2> {
   HValue* external_pointer() { return OperandAt(0); }
   HValue* key() { return OperandAt(1); }
   ElementsKind elements_kind() const { return elements_kind_; }
+
+  virtual Range* InferRange();
 
   DECLARE_CONCRETE_INSTRUCTION(LoadKeyedSpecializedArrayElement)
 

@@ -195,6 +195,27 @@ class SourceGroup {
 };
 
 
+class BinaryResource : public v8::String::ExternalAsciiStringResource {
+ public:
+  BinaryResource(const char* string, int length)
+      : data_(string),
+        length_(length) { }
+
+  ~BinaryResource() {
+    delete[] data_;
+    data_ = NULL;
+    length_ = 0;
+  }
+
+  virtual const char* data() const { return data_; }
+  virtual size_t length() const { return length_; }
+
+ private:
+  const char* data_;
+  size_t length_;
+};
+
+
 class ShellOptions {
  public:
   ShellOptions() :
@@ -286,6 +307,7 @@ class Shell : public i::AllStatic {
   static Handle<Value> EnableProfiler(const Arguments& args);
   static Handle<Value> DisableProfiler(const Arguments& args);
   static Handle<Value> Read(const Arguments& args);
+  static Handle<Value> ReadBinary(const Arguments& args);
   static Handle<String> ReadFromStdin();
   static Handle<Value> ReadLine(const Arguments& args) {
     return ReadFromStdin();

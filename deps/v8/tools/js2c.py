@@ -128,12 +128,13 @@ def ExpandMacros(lines, macros):
       end = pattern_match.end()
       assert lines[end - 1] == '('
       last_match = end
-      arg_index = 0
+      arg_index = [0]  # Wrap state into array, to work around Python "scoping"
       mapping = { }
       def add_arg(str):
         # Remember to expand recursively in the arguments
         replacement = ExpandMacros(str.strip(), macros)
-        mapping[macro.args[arg_index]] = replacement
+        mapping[macro.args[arg_index[0]]] = replacement
+        arg_index[0] += 1
       while end < len(lines) and height > 0:
         # We don't count commas at higher nesting levels.
         if lines[end] == ',' and height == 1:

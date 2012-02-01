@@ -505,7 +505,6 @@ Isolate* Heap::isolate() {
 #define GC_GREEDY_CHECK() { }
 #endif
 
-
 // Calls the FUNCTION_CALL function and retries it up to three times
 // to guarantee that any allocations performed during the call will
 // succeed if there's enough memory.

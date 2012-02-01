@@ -1211,6 +1211,7 @@ def BuildOptions():
         dest="suppress_dialogs", default=True, action="store_true")
   result.add_option("--no-suppress-dialogs", help="Display Windows dialogs for crashing tests",
         dest="suppress_dialogs", action="store_false")
+  result.add_option("--mips-arch-variant", help="mips architecture variant: mips32r1/mips32r2", default="mips32r2");
   result.add_option("--shell", help="Path to V8 shell", default="d8")
   result.add_option("--isolates", help="Whether to test isolates", default=False, action="store_true")
   result.add_option("--store-unexpected-output",
@@ -1272,6 +1273,9 @@ def ProcessOptions(options):
   if options.snapshot:
     options.scons_flags.append("snapshot=on")
   global VARIANT_FLAGS
+  if options.mips_arch_variant:
+    options.scons_flags.append("mips_arch_variant=" + options.mips_arch_variant)
+
   if options.stress_only:
     VARIANT_FLAGS = [['--stress-opt', '--always-opt']]
   if options.nostress:

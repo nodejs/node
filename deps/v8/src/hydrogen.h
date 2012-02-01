@@ -343,6 +343,17 @@ class HEnvironment: public ZoneObject {
                Scope* scope,
                Handle<JSFunction> closure);
 
+  bool is_arguments_adaptor() const {
+    return arguments_adaptor_;
+  }
+
+  HEnvironment* DiscardInlined(bool drop_extra) {
+    HEnvironment* outer = outer_->is_arguments_adaptor() ?
+        outer_->outer_ : outer_;
+    if (drop_extra) outer->Drop(1);
+    return outer;
+  }
+
   // Simple accessors.
   Handle<JSFunction> closure() const { return closure_; }
   const ZoneList<HValue*>* values() const { return &values_; }
@@ -427,6 +438,7 @@ class HEnvironment: public ZoneObject {
   // environment is the outer environment but the top expression stack
   // elements are moved to an inner environment as parameters.
   HEnvironment* CopyForInlining(Handle<JSFunction> target,
+                                int arguments,
                                 FunctionLiteral* function,
                                 HConstant* undefined,
                                 CallKind call_kind) const;
@@ -449,6 +461,10 @@ class HEnvironment: public ZoneObject {
 
  private:
   explicit HEnvironment(const HEnvironment* other);
+
+  // Create an argument adaptor environment.
+  HEnvironment(HEnvironment* outer, Handle<JSFunction> closure, int arguments);
+
 
   // True if index is included in the expression stack part of the environment.
   bool HasExpressionAt(int index) const;
@@ -478,6 +494,7 @@ class HEnvironment: public ZoneObject {
   int pop_count_;
   int push_count_;
   int ast_id_;
+  bool arguments_adaptor_;
 };
 
 

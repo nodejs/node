@@ -66,6 +66,19 @@ void MarkCompactCollector::MarkObject(HeapObject* obj, MarkBit mark_bit) {
 }
 
 
+bool MarkCompactCollector::MarkObjectWithoutPush(HeapObject* object) {
+  MarkBit mark = Marking::MarkBitFrom(object);
+  bool old_mark = mark.Get();
+  if (!old_mark) SetMark(object, mark);
+  return old_mark;
+}
+
+
+void MarkCompactCollector::MarkObjectAndPush(HeapObject* object) {
+  if (!MarkObjectWithoutPush(object)) marking_deque_.PushBlack(object);
+}
+
+
 void MarkCompactCollector::SetMark(HeapObject* obj, MarkBit mark_bit) {
   ASSERT(!mark_bit.Get());
   ASSERT(Marking::MarkBitFrom(obj) == mark_bit);

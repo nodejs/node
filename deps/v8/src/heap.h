@@ -156,6 +156,7 @@ inline Heap* _inline_get_heap_();
   V(Script, empty_script, EmptyScript)                                         \
   V(Smi, real_stack_limit, RealStackLimit)                                     \
   V(StringDictionary, intrinsic_function_names, IntrinsicFunctionNames)        \
+  V(Smi, arguments_adaptor_deopt_pc_offset, ArgumentsAdaptorDeoptPCOffset)
 
 #define ROOT_LIST(V)                                  \
   STRONG_ROOT_LIST(V)                                 \
@@ -1067,7 +1068,7 @@ class Heap {
   // Heap root getters.  We have versions with and without type::cast() here.
   // You can't use type::cast during GC because the assert fails.
   // TODO(1490): Try removing the unchecked accessors, now that GC marking does
-  // not corrupt the stack.
+  // not corrupt the map.
 #define ROOT_ACCESSOR(type, name, camel_name)                                  \
   type* name() {                                                               \
     return type::cast(roots_[k##camel_name##RootIndex]);                       \
@@ -1381,6 +1382,7 @@ class Heap {
   void CheckNewSpaceExpansionCriteria();
 
   inline void IncrementYoungSurvivorsCounter(int survived) {
+    ASSERT(survived >= 0);
     young_survivors_after_last_gc_ = survived;
     survived_since_last_expansion_ += survived;
   }
@@ -1430,6 +1432,7 @@ class Heap {
 
   // Returns the size of objects residing in non new spaces.
   intptr_t PromotedSpaceSize();
+  intptr_t PromotedSpaceSizeOfObjects();
 
   double total_regexp_code_generated() { return total_regexp_code_generated_; }
   void IncreaseTotalRegexpCodeGenerated(int size) {
@@ -1515,6 +1518,11 @@ class Heap {
     uint32_t seed = static_cast<uint32_t>(hash_seed()->value());
     ASSERT(FLAG_randomize_hashes || seed == 0);
     return seed;
+  }
+
+  void SetArgumentsAdaptorDeoptPCOffset(int pc_offset) {
+    ASSERT(arguments_adaptor_deopt_pc_offset() == Smi::FromInt(0));
+    set_arguments_adaptor_deopt_pc_offset(Smi::FromInt(pc_offset));
   }
 
  private:
@@ -1799,11 +1807,13 @@ class Heap {
 
   enum SurvivalRateTrend { INCREASING, STABLE, DECREASING, FLUCTUATING };
 
-  static const int kYoungSurvivalRateThreshold = 90;
+  static const int kYoungSurvivalRateHighThreshold = 90;
+  static const int kYoungSurvivalRateLowThreshold = 10;
   static const int kYoungSurvivalRateAllowedDeviation = 15;
 
   int young_survivors_after_last_gc_;
   int high_survival_rate_period_length_;
+  int low_survival_rate_period_length_;
   double survival_rate_;
   SurvivalRateTrend previous_survival_rate_trend_;
   SurvivalRateTrend survival_rate_trend_;
@@ -1836,16 +1846,26 @@ class Heap {
     }
   }
 
+  bool IsStableOrDecreasingSurvivalTrend() {
+    switch (survival_rate_trend()) {
+      case STABLE:
+      case DECREASING:
+        return true;
+      default:
+        return false;
+    }
+  }
+
   bool IsIncreasingSurvivalTrend() {
     return survival_rate_trend() == INCREASING;
   }
 
-  bool IsDecreasingSurvivalTrend() {
-    return survival_rate_trend() == DECREASING;
-  }
-
   bool IsHighSurvivalRate() {
     return high_survival_rate_period_length_ > 0;
+  }
+
+  bool IsLowSurvivalRate() {
+    return low_survival_rate_period_length_ > 0;
   }
 
   void SelectScavengingVisitorsTable();
@@ -2135,12 +2155,16 @@ class KeyedLookupCache {
   // Clear the cache.
   void Clear();
 
-  static const int kLength = 128;
+  static const int kLength = 256;
   static const int kCapacityMask = kLength - 1;
   static const int kMapHashShift = 5;
-  static const int kHashMask = -2;  // Zero the last bit.
-  static const int kEntriesPerBucket = 2;
+  static const int kHashMask = -4;  // Zero the last two bits.
+  static const int kEntriesPerBucket = 4;
   static const int kNotFound = -1;
+
+  // kEntriesPerBucket should be a power of 2.
+  STATIC_ASSERT((kEntriesPerBucket & (kEntriesPerBucket - 1)) == 0);
+  STATIC_ASSERT(kEntriesPerBucket == -kHashMask);
 
  private:
   KeyedLookupCache() {

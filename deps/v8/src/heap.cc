@@ -695,10 +695,16 @@ void Heap::UpdateSurvivalRateTrend(int start_new_space_size) {
       (static_cast<double>(young_survivors_after_last_gc_) * 100) /
       start_new_space_size;
 
-  if (survival_rate > kYoungSurvivalRateThreshold) {
+  if (survival_rate > kYoungSurvivalRateHighThreshold) {
     high_survival_rate_period_length_++;
   } else {
     high_survival_rate_period_length_ = 0;
+  }
+
+  if (survival_rate < kYoungSurvivalRateLowThreshold) {
+    low_survival_rate_period_length_++;
+  } else {
+    low_survival_rate_period_length_ = 0;
   }
 
   double survival_rate_diff = survival_rate_ - survival_rate;
@@ -760,32 +766,6 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
 
     UpdateSurvivalRateTrend(start_new_space_size);
 
-    if (!new_space_high_promotion_mode_active_ &&
-        new_space_.Capacity() == new_space_.MaximumCapacity() &&
-        IsStableOrIncreasingSurvivalTrend() &&
-        IsHighSurvivalRate()) {
-      // Stable high survival rates even though young generation is at
-      // maximum capacity indicates that most objects will be promoted.
-      // To decrease scavenger pauses and final mark-sweep pauses, we
-      // have to limit maximal capacity of the young generation.
-      new_space_high_promotion_mode_active_ = true;
-      if (FLAG_trace_gc) {
-        PrintF("Limited new space size due to high promotion rate: %d MB\n",
-               new_space_.InitialCapacity() / MB);
-      }
-    } else if (new_space_high_promotion_mode_active_ &&
-        IsDecreasingSurvivalTrend() &&
-        !IsHighSurvivalRate()) {
-      // Decreasing low survival rates might indicate that the above high
-      // promotion mode is over and we should allow the young generation
-      // to grow again.
-      new_space_high_promotion_mode_active_ = false;
-      if (FLAG_trace_gc) {
-        PrintF("Unlimited new space size due to low promotion rate: %d MB\n",
-               new_space_.MaximumCapacity() / MB);
-      }
-    }
-
     size_of_old_gen_at_last_old_space_gc_ = PromotedSpaceSize();
 
     if (high_survival_rate_during_scavenges &&
@@ -813,6 +793,32 @@ bool Heap::PerformGarbageCollection(GarbageCollector collector,
     tracer_ = NULL;
 
     UpdateSurvivalRateTrend(start_new_space_size);
+  }
+
+  if (!new_space_high_promotion_mode_active_ &&
+      new_space_.Capacity() == new_space_.MaximumCapacity() &&
+      IsStableOrIncreasingSurvivalTrend() &&
+      IsHighSurvivalRate()) {
+    // Stable high survival rates even though young generation is at
+    // maximum capacity indicates that most objects will be promoted.
+    // To decrease scavenger pauses and final mark-sweep pauses, we
+    // have to limit maximal capacity of the young generation.
+    new_space_high_promotion_mode_active_ = true;
+    if (FLAG_trace_gc) {
+      PrintF("Limited new space size due to high promotion rate: %d MB\n",
+             new_space_.InitialCapacity() / MB);
+    }
+  } else if (new_space_high_promotion_mode_active_ &&
+      IsStableOrDecreasingSurvivalTrend() &&
+      IsLowSurvivalRate()) {
+    // Decreasing low survival rates might indicate that the above high
+    // promotion mode is over and we should allow the young generation
+    // to grow again.
+    new_space_high_promotion_mode_active_ = false;
+    if (FLAG_trace_gc) {
+      PrintF("Unlimited new space size due to low promotion rate: %d MB\n",
+             new_space_.MaximumCapacity() / MB);
+    }
   }
 
   if (new_space_high_promotion_mode_active_ &&
@@ -1099,7 +1105,7 @@ void Heap::Scavenge() {
   isolate_->descriptor_lookup_cache()->Clear();
 
   // Used for updating survived_since_last_expansion_ at function end.
-  intptr_t survived_watermark = PromotedSpaceSize();
+  intptr_t survived_watermark = PromotedSpaceSizeOfObjects();
 
   CheckNewSpaceExpansionCriteria();
 
@@ -1191,7 +1197,7 @@ void Heap::Scavenge() {
 
   // Update how much has survived scavenge.
   IncrementYoungSurvivorsCounter(static_cast<int>(
-      (PromotedSpaceSize() - survived_watermark) + new_space_.Size()));
+      (PromotedSpaceSizeOfObjects() - survived_watermark) + new_space_.Size()));
 
   LOG(isolate_, ResourceEvent("scavenge", "end"));
 
@@ -3302,7 +3308,7 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
   }
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
-  code->set_next_code_flushing_candidate(undefined_value());
+  code->set_gc_metadata(Smi::FromInt(0));
   // Allow self references to created code object by patching the handle to
   // point to the newly allocated Code object.
   if (!self_reference.is_null()) {
@@ -5422,6 +5428,16 @@ intptr_t Heap::PromotedSpaceSize() {
 }
 
 
+intptr_t Heap::PromotedSpaceSizeOfObjects() {
+  return old_pointer_space_->SizeOfObjects()
+      + old_data_space_->SizeOfObjects()
+      + code_space_->SizeOfObjects()
+      + map_space_->SizeOfObjects()
+      + cell_space_->SizeOfObjects()
+      + lo_space_->SizeOfObjects();
+}
+
+
 int Heap::PromotedExternalMemorySize() {
   if (amount_of_external_allocated_memory_
       <= amount_of_external_allocated_memory_at_last_global_gc_) return 0;
@@ -6523,15 +6539,11 @@ int KeyedLookupCache::Hash(Map* map, String* name) {
 
 int KeyedLookupCache::Lookup(Map* map, String* name) {
   int index = (Hash(map, name) & kHashMask);
-  Key& key = keys_[index];
-  if ((key.map == map) && key.name->Equals(name)) {
-    return field_offsets_[index];
-  }
-  ASSERT(kEntriesPerBucket == 2);  // There are two entries to check.
-  // First entry in the bucket missed, check the second.
-  Key& key2 = keys_[index + 1];
-  if ((key2.map == map) && key2.name->Equals(name)) {
-    return field_offsets_[index + 1];
+  for (int i = 0; i < kEntriesPerBucket; i++) {
+    Key& key = keys_[index + i];
+    if ((key.map == map) && key.name->Equals(name)) {
+      return field_offsets_[index + i];
+    }
   }
   return kNotFound;
 }
@@ -6541,13 +6553,29 @@ void KeyedLookupCache::Update(Map* map, String* name, int field_offset) {
   String* symbol;
   if (HEAP->LookupSymbolIfExists(name, &symbol)) {
     int index = (Hash(map, symbol) & kHashMask);
-    Key& key = keys_[index];
-    Key& key2 = keys_[index + 1];  // Second entry in the bucket.
-    // Demote the first entry to the second in the bucket.
-    key2.map = key.map;
-    key2.name = key.name;
-    field_offsets_[index + 1] = field_offsets_[index];
+    // After a GC there will be free slots, so we use them in order (this may
+    // help to get the most frequently used one in position 0).
+    for (int i = 0; i< kEntriesPerBucket; i++) {
+      Key& key = keys_[index];
+      Object* free_entry_indicator = NULL;
+      if (key.map == free_entry_indicator) {
+        key.map = map;
+        key.name = symbol;
+        field_offsets_[index + i] = field_offset;
+        return;
+      }
+    }
+    // No free entry found in this bucket, so we move them all down one and
+    // put the new entry at position zero.
+    for (int i = kEntriesPerBucket - 1; i > 0; i--) {
+      Key& key = keys_[index + i];
+      Key& key2 = keys_[index + i - 1];
+      key = key2;
+      field_offsets_[index + i] = field_offsets_[index + i - 1];
+    }
+
     // Write the new first entry.
+    Key& key = keys_[index];
     key.map = map;
     key.name = symbol;
     field_offsets_[index] = field_offset;

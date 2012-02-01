@@ -1189,7 +1189,6 @@ THREADED_TEST(GlobalPrototype) {
   templ->Set("x", v8_num(200));
   templ->SetAccessor(v8_str("m"), GetM);
   LocalContext env(0, templ);
-  v8::Handle<v8::Object> obj(env->Global());
   v8::Handle<Script> script(v8_compile("dummy()"));
   v8::Handle<Value> result(script->Run());
   CHECK_EQ(13.4, result->NumberValue());
@@ -1847,7 +1846,7 @@ THREADED_TEST(DeepCrossLanguageRecursion) {
 
   env->Global()->Set(v8_str("depth"), v8::Integer::New(0));
   call_recursively_script = v8_compile("callScriptRecursively()");
-  v8::Handle<Value> result(call_recursively_script->Run());
+  call_recursively_script->Run();
   call_recursively_script = v8::Handle<Script>();
 
   env->Global()->Set(v8_str("depth"), v8::Integer::New(0));
@@ -4476,7 +4475,7 @@ THREADED_TEST(ExtensibleOnUndetectable) {
 
   source = v8_str("undetectable.y = 2000;");
   script = Script::Compile(source);
-  Local<Value> result(script->Run());
+  script->Run();
   ExpectBoolean("undetectable.y == undefined", true);
 }
 
@@ -4829,8 +4828,9 @@ THREADED_TEST(NativeFunctionDeclarationError) {
   const char* extension_names[] = { name };
   v8::ExtensionConfiguration extensions(1, extension_names);
   v8::Handle<Context> context(Context::New(&extensions));
-  ASSERT(context.IsEmpty());
+  CHECK(context.IsEmpty());
 }
+
 
 THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
   v8::HandleScope handle_scope;
@@ -4843,7 +4843,7 @@ THREADED_TEST(NativeFunctionDeclarationErrorEscape) {
   const char* extension_names[] = { name };
   v8::ExtensionConfiguration extensions(1, extension_names);
   v8::Handle<Context> context(Context::New(&extensions));
-  ASSERT(context.IsEmpty());
+  CHECK(context.IsEmpty());
 }
 
 
@@ -5009,7 +5009,7 @@ TEST(RegexpOutOfMemory) {
   Local<Script> script =
       Script::Compile(String::New(js_code_causing_huge_string_flattening));
   last_location = NULL;
-  Local<Value> result(script->Run());
+  script->Run();
 
   CHECK(false);  // Should not return.
 }
@@ -5787,7 +5787,6 @@ THREADED_TEST(ErrorConstruction) {
   v8::Handle<String> message = v8_str("message");
   v8::Handle<Value> range_error = v8::Exception::RangeError(foo);
   CHECK(range_error->IsObject());
-  v8::Handle<v8::Object> range_obj(range_error.As<v8::Object>());
   CHECK(range_error.As<v8::Object>()->Get(message)->Equals(foo));
   v8::Handle<Value> reference_error = v8::Exception::ReferenceError(foo);
   CHECK(reference_error->IsObject());
@@ -7357,7 +7356,7 @@ THREADED_TEST(CallKnownGlobalReceiver) {
     // Create new environment reusing the global object.
     LocalContext env(NULL, instance_template, global_object);
     env->Global()->Set(v8_str("foo"), foo);
-    Local<Value> value(Script::Compile(v8_str("foo()"))->Run());
+    Script::Compile(v8_str("foo()"))->Run();
   }
 }
 
@@ -7683,6 +7682,7 @@ THREADED_TEST(Constructor) {
   context->Global()->Set(v8_str("Fun"), cons);
   Local<v8::Object> inst = cons->NewInstance();
   i::Handle<i::JSObject> obj(v8::Utils::OpenHandle(*inst));
+  CHECK(obj->IsJSObject());
   Local<Value> value = CompileRun("(new Fun()).constructor === Fun");
   CHECK(value->BooleanValue());
 }
@@ -8154,6 +8154,7 @@ THREADED_TEST(CallAsFunction) {
 
   { Local<v8::FunctionTemplate> t = v8::FunctionTemplate::New();
     Local<ObjectTemplate> instance_template(t->InstanceTemplate());
+    USE(instance_template);
     Local<v8::Object> instance = t->GetFunction()->NewInstance();
     context->Global()->Set(v8_str("obj2"), instance);
     v8::TryCatch try_catch;
@@ -8783,10 +8784,10 @@ THREADED_TEST(InterceptorStoreIC) {
                                  0, 0, 0, v8_str("data"));
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
-  v8::Handle<Value> value(CompileRun(
-    "for (var i = 0; i < 1000; i++) {"
-    "  o.x = 42;"
-    "}"));
+  CompileRun(
+      "for (var i = 0; i < 1000; i++) {"
+      "  o.x = 42;"
+      "}");
 }
 
 
@@ -9254,11 +9255,11 @@ THREADED_TEST(InterceptorCallICFastApi_TrivialSignature) {
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "var result = 0;"
       "for (var i = 0; i < 100; i++) {"
       "  result = o.method(41);"
-      "}"));
+      "}");
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(100, interceptor_call_count);
 }
@@ -9281,14 +9282,14 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature) {
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
       "var result = 0;"
       "for (var i = 0; i < 100; i++) {"
       "  result = receiver.method(41);"
-      "}"));
+      "}");
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(100, interceptor_call_count);
 }
@@ -9311,7 +9312,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
@@ -9323,7 +9324,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss1) {
       "    saved_result = result;"
       "    receiver = {method: function(x) { return x - 1 }};"
       "  }"
-      "}"));
+      "}");
   CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
   CHECK_GE(interceptor_call_count, 50);
@@ -9347,7 +9348,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
@@ -9359,7 +9360,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss2) {
       "    saved_result = result;"
       "    o.method = function(x) { return x - 1 };"
       "  }"
-      "}"));
+      "}");
   CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
   CHECK_GE(interceptor_call_count, 50);
@@ -9384,7 +9385,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
   v8::TryCatch try_catch;
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
@@ -9396,7 +9397,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_Miss3) {
       "    saved_result = result;"
       "    receiver = 333;"
       "  }"
-      "}"));
+      "}");
   CHECK(try_catch.HasCaught());
   CHECK_EQ(v8_str("TypeError: Object 333 has no method 'method'"),
            try_catch.Exception()->ToString());
@@ -9423,7 +9424,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
   v8::TryCatch try_catch;
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
@@ -9435,7 +9436,7 @@ THREADED_TEST(InterceptorCallICFastApi_SimpleSignature_TypeError) {
       "    saved_result = result;"
       "    receiver = {method: receiver.method};"
       "  }"
-      "}"));
+      "}");
   CHECK(try_catch.HasCaught());
   CHECK_EQ(v8_str("TypeError: Illegal invocation"),
            try_catch.Exception()->ToString());
@@ -9453,15 +9454,16 @@ THREADED_TEST(CallICFastApi_TrivialSignature) {
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
+  USE(templ);
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "var result = 0;"
       "for (var i = 0; i < 100; i++) {"
       "  result = o.method(41);"
-      "}"));
+      "}");
 
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
@@ -9476,18 +9478,19 @@ THREADED_TEST(CallICFastApi_SimpleSignature) {
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
+  CHECK(!templ.IsEmpty());
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
       "var result = 0;"
       "for (var i = 0; i < 100; i++) {"
       "  result = receiver.method(41);"
-      "}"));
+      "}");
 
   CHECK_EQ(42, context->Global()->Get(v8_str("result"))->Int32Value());
 }
@@ -9502,11 +9505,12 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
+  CHECK(!templ.IsEmpty());
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
@@ -9518,7 +9522,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss1) {
       "    saved_result = result;"
       "    receiver = {method: function(x) { return x - 1 }};"
       "  }"
-      "}"));
+      "}");
   CHECK_EQ(40, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(42, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
@@ -9533,12 +9537,13 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
   v8::Handle<v8::ObjectTemplate> proto_templ = fun_templ->PrototypeTemplate();
   proto_templ->Set(v8_str("method"), method_templ);
   v8::Handle<v8::ObjectTemplate> templ(fun_templ->InstanceTemplate());
+  CHECK(!templ.IsEmpty());
   LocalContext context;
   v8::Handle<v8::Function> fun = fun_templ->GetFunction();
   GenerateSomeGarbage();
   context->Global()->Set(v8_str("o"), fun->NewInstance());
   v8::TryCatch try_catch;
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
       "o.foo = 17;"
       "var receiver = {};"
       "receiver.__proto__ = o;"
@@ -9550,7 +9555,7 @@ THREADED_TEST(CallICFastApi_SimpleSignature_Miss2) {
       "    saved_result = result;"
       "    receiver = 333;"
       "  }"
-      "}"));
+      "}");
   CHECK(try_catch.HasCaught());
   CHECK_EQ(v8_str("TypeError: Object 333 has no method 'method'"),
            try_catch.Exception()->ToString());
@@ -9578,7 +9583,7 @@ THREADED_TEST(InterceptorKeyedCallICKeyChange1) {
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
     "proto = new Object();"
     "proto.y = function(x) { return x + 1; };"
     "proto.z = function(x) { return x - 1; };"
@@ -9588,7 +9593,7 @@ THREADED_TEST(InterceptorKeyedCallICKeyChange1) {
     "for (var i = 0; i < 10; i++) {"
     "  if (i == 5) { method = 'z'; };"
     "  result += o[method](41);"
-    "}"));
+    "}");
   CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
@@ -9604,7 +9609,7 @@ THREADED_TEST(InterceptorKeyedCallICKeyChange2) {
   context->Global()->Set(v8_str("proto1"), templ->NewInstance());
   keyed_call_ic_function =
       v8_compile("function f(x) { return x - 1; }; f")->Run();
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
     "o = new Object();"
     "proto2 = new Object();"
     "o.y = function(x) { return x + 1; };"
@@ -9616,7 +9621,7 @@ THREADED_TEST(InterceptorKeyedCallICKeyChange2) {
     "for (var i = 0; i < 10; i++) {"
     "  if (i == 5) { method = 'y'; };"
     "  result += o[method](41);"
-    "}"));
+    "}");
   CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
@@ -9629,7 +9634,7 @@ THREADED_TEST(InterceptorKeyedCallICKeyChangeOnGlobal) {
   templ->SetNamedPropertyHandler(NoBlockGetterX);
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ->NewInstance());
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
     "function inc(x) { return x + 1; };"
     "inc(1);"
     "function dec(x) { return x - 1; };"
@@ -9642,7 +9647,7 @@ THREADED_TEST(InterceptorKeyedCallICKeyChangeOnGlobal) {
     "for (var i = 0; i < 10; i++) {"
     "  if (i == 5) { method = 'y'; };"
     "  result += o[method](41);"
-    "}"));
+    "}");
   CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
@@ -9655,7 +9660,7 @@ THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ_o->NewInstance());
 
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
     "function len(x) { return x.length; };"
     "o.__proto__ = this;"
     "var m = 'parseFloat';"
@@ -9666,7 +9671,7 @@ THREADED_TEST(InterceptorKeyedCallICFromGlobal) {
     "    saved_result = result;"
     "  };"
     "  result = o[m]('239');"
-    "}"));
+    "}");
   CHECK_EQ(3, context->Global()->Get(v8_str("result"))->Int32Value());
   CHECK_EQ(239, context->Global()->Get(v8_str("saved_result"))->Int32Value());
 }
@@ -9679,7 +9684,7 @@ THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
   LocalContext context;
   context->Global()->Set(v8_str("proto"), templ_o->NewInstance());
 
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
     "var o = new Object();"
     "o.__proto__ = proto;"
     "o.method = function(x) { return x + 1; };"
@@ -9688,7 +9693,7 @@ THREADED_TEST(InterceptorKeyedCallICMapChangeBefore) {
     "for (var i = 0; i < 10; i++) {"
     "  if (i == 5) { o.method = function(x) { return x - 1; }; };"
     "  result += o[m](41);"
-    "}"));
+    "}");
   CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
@@ -9701,7 +9706,7 @@ THREADED_TEST(InterceptorKeyedCallICMapChangeAfter) {
   LocalContext context;
   context->Global()->Set(v8_str("o"), templ_o->NewInstance());
 
-  v8::Handle<Value> value(CompileRun(
+  CompileRun(
     "var proto = new Object();"
     "o.__proto__ = proto;"
     "proto.method = function(x) { return x + 1; };"
@@ -9710,7 +9715,7 @@ THREADED_TEST(InterceptorKeyedCallICMapChangeAfter) {
     "for (var i = 0; i < 10; i++) {"
     "  if (i == 5) { proto.method = function(x) { return x - 1; }; };"
     "  result += o[m](41);"
-    "}"));
+    "}");
   CHECK_EQ(42*5 + 40*5, context->Global()->Get(v8_str("result"))->Int32Value());
 }
 
@@ -10627,6 +10632,7 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
   env->Enter();
   v8::Handle<Value> value = NestedScope(env);
   v8::Handle<String> str(value->ToString());
+  CHECK(!str.IsEmpty());
   env->Exit();
   env.Dispose();
 }
@@ -10635,6 +10641,7 @@ THREADED_TEST(NestedHandleScopeAndContexts) {
 THREADED_TEST(ExternalAllocatedMemory) {
   v8::HandleScope outer;
   v8::Persistent<Context> env(Context::New());
+  CHECK(!env.IsEmpty());
   const int kSize = 1024*1024;
   CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(kSize), kSize);
   CHECK_EQ(v8::V8::AdjustAmountOfExternalAllocatedMemory(-kSize), 0);
@@ -10973,6 +10980,7 @@ THREADED_TEST(AccessControlRepeatedContextCreation) {
       i::FunctionTemplateInfo::cast(internal_template->constructor()));
   CHECK(!constructor->access_check_info()->IsUndefined());
   v8::Persistent<Context> context0(Context::New(NULL, global_template));
+  CHECK(!context0.IsEmpty());
   CHECK(!constructor->access_check_info()->IsUndefined());
 }
 
@@ -13048,11 +13056,6 @@ static void ExternalArrayTestHelper(v8::ExternalArrayType array_type,
     const int kLargeElementCount = kXSize * kYSize * 4;
     ElementType* large_array_data =
         static_cast<ElementType*>(malloc(kLargeElementCount * element_size));
-    i::Handle<ExternalArrayClass> large_array(
-        i::Handle<ExternalArrayClass>::cast(
-            FACTORY->NewExternalArray(kLargeElementCount,
-                                      array_type,
-                                      array_data)));
     v8::Handle<v8::Object> large_obj = v8::Object::New();
     // Set the elements to be the external array.
     large_obj->SetIndexedPropertiesToExternalArrayData(large_array_data,
@@ -13453,8 +13456,8 @@ TEST(CaptureStackTrace) {
   v8::Handle<v8::String> overview_src = v8::String::New(overview_source);
   v8::Handle<Value> overview_result(
       v8::Script::New(overview_src, origin)->Run());
-  ASSERT(!overview_result.IsEmpty());
-  ASSERT(overview_result->IsObject());
+  CHECK(!overview_result.IsEmpty());
+  CHECK(overview_result->IsObject());
 
   // Test getting DETAILED information.
   const char *detailed_source =
@@ -13473,8 +13476,8 @@ TEST(CaptureStackTrace) {
   v8::Handle<v8::Script> detailed_script(
       v8::Script::New(detailed_src, &detailed_origin));
   v8::Handle<Value> detailed_result(detailed_script->Run());
-  ASSERT(!detailed_result.IsEmpty());
-  ASSERT(detailed_result->IsObject());
+  CHECK(!detailed_result.IsEmpty());
+  CHECK(detailed_result->IsObject());
 }
 
 
@@ -13894,6 +13897,7 @@ static v8::Handle<Value> SpaghettiIncident(const v8::Arguments& args) {
   v8::HandleScope scope;
   v8::TryCatch tc;
   v8::Handle<v8::String> str(args[0]->ToString());
+  USE(str);
   if (tc.HasCaught())
     return tc.ReThrow();
   return v8::Undefined();
@@ -14038,6 +14042,17 @@ THREADED_TEST(ScriptOrigin) {
   CHECK_EQ(0, script_origin_g.ResourceLineOffset()->Int32Value());
 }
 
+THREADED_TEST(FunctionGetInferredName) {
+  v8::HandleScope scope;
+  LocalContext env;
+  v8::ScriptOrigin origin = v8::ScriptOrigin(v8::String::New("test"));
+  v8::Handle<v8::String> script = v8::String::New(
+      "var foo = { bar : { baz : function() {}}}; var f = foo.bar.baz;");
+  v8::Script::Compile(script, &origin)->Run();
+  v8::Local<v8::Function> f = v8::Local<v8::Function>::Cast(
+      env->Global()->Get(v8::String::New("f")));
+  CHECK_EQ("foo.bar.baz", *v8::String::AsciiValue(f->GetInferredName()));
+}
 
 THREADED_TEST(ScriptLineNumber) {
   v8::HandleScope scope;
@@ -15192,7 +15207,7 @@ TEST(RegExp) {
   // RegExps are objects on which you can set properties.
   re->Set(v8_str("property"), v8::Integer::New(32));
   v8::Handle<v8::Value> value(CompileRun("re.property"));
-  ASSERT_EQ(32, value->Int32Value());
+  CHECK_EQ(32, value->Int32Value());
 
   v8::TryCatch try_catch;
   re = v8::RegExp::New(v8_str("foo["), v8::RegExp::kNone);

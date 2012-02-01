@@ -167,8 +167,7 @@ void HBasicBlock::Finish(HControlInstruction* end) {
 void HBasicBlock::Goto(HBasicBlock* block, bool drop_extra) {
   if (block->IsInlineReturnTarget()) {
     AddInstruction(new(zone()) HLeaveInlined);
-    last_environment_ = last_environment()->outer();
-    if (drop_extra) last_environment_->Drop(1);
+    last_environment_ = last_environment()->DiscardInlined(drop_extra);
   }
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new(zone()) HGoto(block);
@@ -182,8 +181,7 @@ void HBasicBlock::AddLeaveInlined(HValue* return_value,
   ASSERT(target->IsInlineReturnTarget());
   ASSERT(return_value != NULL);
   AddInstruction(new(zone()) HLeaveInlined);
-  last_environment_ = last_environment()->outer();
-  if (drop_extra) last_environment_->Drop(1);
+  last_environment_ = last_environment()->DiscardInlined(drop_extra);
   last_environment()->Push(return_value);
   AddSimulate(AstNode::kNoNumber);
   HGoto* instr = new(zone()) HGoto(target);
@@ -2076,6 +2074,7 @@ AstContext::AstContext(HGraphBuilder* owner, Expression::Context kind)
       for_typeof_(false) {
   owner->set_ast_context(this);  // Push.
 #ifdef DEBUG
+  ASSERT(!owner->environment()->is_arguments_adaptor());
   original_length_ = owner->environment()->length();
 #endif
 }
@@ -2089,14 +2088,16 @@ AstContext::~AstContext() {
 EffectContext::~EffectContext() {
   ASSERT(owner()->HasStackOverflow() ||
          owner()->current_block() == NULL ||
-         owner()->environment()->length() == original_length_);
+         (owner()->environment()->length() == original_length_ &&
+          !owner()->environment()->is_arguments_adaptor()));
 }
 
 
 ValueContext::~ValueContext() {
   ASSERT(owner()->HasStackOverflow() ||
          owner()->current_block() == NULL ||
-         owner()->environment()->length() == original_length_ + 1);
+         (owner()->environment()->length() == original_length_ + 1 &&
+          !owner()->environment()->is_arguments_adaptor()));
 }
 
 
@@ -4828,7 +4829,9 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
       TraceInline(target, caller, "inline depth limit reached");
       return false;
     }
-    current_level++;
+    if (!env->outer()->is_arguments_adaptor()) {
+      current_level++;
+    }
     env = env->outer();
   }
 
@@ -4876,11 +4879,8 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
     return false;
   }
 
-  // Don't inline functions that uses the arguments object or that
-  // have a mismatching number of parameters.
-  int arity = expr->arguments()->length();
-  if (function->scope()->arguments() != NULL ||
-      arity != target_shared->formal_parameter_count()) {
+  // Don't inline functions that uses the arguments object.
+  if (function->scope()->arguments() != NULL) {
     TraceInline(target, caller, "target requires special argument handling");
     return false;
   }
@@ -4944,6 +4944,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   HConstant* undefined = graph()->GetConstantUndefined();
   HEnvironment* inner_env =
       environment()->CopyForInlining(target,
+                                     expr->arguments()->length(),
                                      function,
                                      undefined,
                                      call_kind);
@@ -4963,6 +4964,7 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   body_entry->SetJoinId(expr->ReturnId());
   set_current_block(body_entry);
   AddInstruction(new(zone()) HEnterInlined(target,
+                                           expr->arguments()->length(),
                                            function,
                                            call_kind));
   VisitDeclarations(target_info.scope()->declarations());
@@ -6902,7 +6904,8 @@ HEnvironment::HEnvironment(HEnvironment* outer,
       outer_(outer),
       pop_count_(0),
       push_count_(0),
-      ast_id_(AstNode::kNoNumber) {
+      ast_id_(AstNode::kNoNumber),
+      arguments_adaptor_(false) {
   Initialize(scope->num_parameters() + 1, scope->num_stack_slots(), 0);
 }
 
@@ -6916,8 +6919,25 @@ HEnvironment::HEnvironment(const HEnvironment* other)
       outer_(NULL),
       pop_count_(0),
       push_count_(0),
-      ast_id_(other->ast_id()) {
+      ast_id_(other->ast_id()),
+      arguments_adaptor_(false) {
   Initialize(other);
+}
+
+
+HEnvironment::HEnvironment(HEnvironment* outer,
+                           Handle<JSFunction> closure,
+                           int arguments)
+    : closure_(closure),
+      values_(arguments),
+      assigned_variables_(0),
+      parameter_count_(arguments),
+      local_count_(0),
+      outer_(outer),
+      pop_count_(0),
+      push_count_(0),
+      ast_id_(AstNode::kNoNumber),
+      arguments_adaptor_(true) {
 }
 
 
@@ -6944,6 +6964,7 @@ void HEnvironment::Initialize(const HEnvironment* other) {
   pop_count_ = other->pop_count_;
   push_count_ = other->push_count_;
   ast_id_ = other->ast_id_;
+  arguments_adaptor_ = other->arguments_adaptor_;
 }
 
 
@@ -7047,20 +7068,36 @@ HEnvironment* HEnvironment::CopyAsLoopHeader(HBasicBlock* loop_header) const {
 
 HEnvironment* HEnvironment::CopyForInlining(
     Handle<JSFunction> target,
+    int arguments,
     FunctionLiteral* function,
     HConstant* undefined,
     CallKind call_kind) const {
+  ASSERT(!is_arguments_adaptor());
+
+  Zone* zone = closure()->GetIsolate()->zone();
+
   // Outer environment is a copy of this one without the arguments.
   int arity = function->scope()->num_parameters();
+
   HEnvironment* outer = Copy();
-  outer->Drop(arity + 1);  // Including receiver.
+  outer->Drop(arguments + 1);  // Including receiver.
   outer->ClearHistory();
-  Zone* zone = closure()->GetIsolate()->zone();
+
+  if (arity != arguments) {
+    // Create artificial arguments adaptation environment.
+    outer = new(zone) HEnvironment(outer, target, arguments + 1);
+    for (int i = 0; i <= arguments; ++i) {  // Include receiver.
+      outer->Push(ExpressionStackAt(arguments - i));
+    }
+    outer->ClearHistory();
+  }
+
   HEnvironment* inner =
       new(zone) HEnvironment(outer, function->scope(), target);
   // Get the argument values from the original environment.
   for (int i = 0; i <= arity; ++i) {  // Include receiver.
-    HValue* push = ExpressionStackAt(arity - i);
+    HValue* push = (i <= arguments) ?
+        ExpressionStackAt(arguments - i) : undefined;
     inner->SetValueAt(i, push);
   }
   // If the function we are inlining is a strict mode function or a
@@ -7070,7 +7107,7 @@ HEnvironment* HEnvironment::CopyForInlining(
       call_kind == CALL_AS_FUNCTION) {
     inner->SetValueAt(0, undefined);
   }
-  inner->SetValueAt(arity + 1, outer->LookupContext());
+  inner->SetValueAt(arity + 1, LookupContext());
   for (int i = arity + 2; i < inner->length(); ++i) {
     inner->SetValueAt(i, undefined);
   }
@@ -7086,7 +7123,7 @@ void HEnvironment::PrintTo(StringStream* stream) {
     if (i == parameter_count()) stream->Add("specials\n");
     if (i == parameter_count() + specials_count()) stream->Add("locals\n");
     if (i == parameter_count() + specials_count() + local_count()) {
-      stream->Add("expressions");
+      stream->Add("expressions\n");
     }
     HValue* val = values_.at(i);
     stream->Add("%d: ", i);
@@ -7097,6 +7134,7 @@ void HEnvironment::PrintTo(StringStream* stream) {
     }
     stream->Add("\n");
   }
+  PrintF("\n");
 }
 
 

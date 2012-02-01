@@ -1834,7 +1834,7 @@ class SemiSpace : public Space {
       current_page_(NULL) { }
 
   // Sets up the semispace using the given chunk.
-  bool SetUp(Address start, int initial_capacity, int maximum_capacity);
+  void SetUp(Address start, int initial_capacity, int maximum_capacity);
 
   // Tear down the space.  Heap memory was not allocated by the space, so it
   // is not deallocated here.

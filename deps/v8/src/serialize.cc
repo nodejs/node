@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1081,36 +1081,6 @@ void SnapshotByteSink::PutInt(uintptr_t integer, const char* description) {
   PutSection(static_cast<int>(integer & 0x7f), "IntLastPart");
 }
 
-#ifdef DEBUG
-
-void Deserializer::Synchronize(const char* tag) {
-  int data = source_->Get();
-  // If this assert fails then that indicates that you have a mismatch between
-  // the number of GC roots when serializing and deserializing.
-  ASSERT_EQ(kSynchronize, data);
-  do {
-    int character = source_->Get();
-    if (character == 0) break;
-    if (FLAG_debug_serialization) {
-      PrintF("%c", character);
-    }
-  } while (true);
-  if (FLAG_debug_serialization) {
-    PrintF("\n");
-  }
-}
-
-
-void Serializer::Synchronize(const char* tag) {
-  sink_->Put(kSynchronize, tag);
-  int character;
-  do {
-    character = *tag++;
-    sink_->PutSection(character, "TagCharacter");
-  } while (character != 0);
-}
-
-#endif
 
 Serializer::Serializer(SnapshotByteSink* sink)
     : sink_(sink),

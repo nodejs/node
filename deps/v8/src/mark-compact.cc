@@ -710,16 +710,17 @@ class CodeFlusher {
       SharedFunctionInfo* candidate) {
     Code* code = candidate->code();
     return reinterpret_cast<SharedFunctionInfo**>(
-        code->address() + Code::kNextCodeFlushingCandidateOffset);
+        code->address() + Code::kGCMetadataOffset);
   }
 
   static SharedFunctionInfo* GetNextCandidate(SharedFunctionInfo* candidate) {
-    return *GetNextCandidateField(candidate);
+    return reinterpret_cast<SharedFunctionInfo*>(
+        candidate->code()->gc_metadata());
   }
 
   static void SetNextCandidate(SharedFunctionInfo* candidate,
                                SharedFunctionInfo* next_candidate) {
-    *GetNextCandidateField(candidate) = next_candidate;
+    candidate->code()->set_gc_metadata(next_candidate);
   }
 
   Isolate* isolate_;
@@ -1672,6 +1673,16 @@ void MarkCompactCollector::MarkMapContents(Map* map) {
 }
 
 
+void MarkCompactCollector::MarkAccessorPairSlot(HeapObject* accessors,
+                                                int offset) {
+  Object** slot = HeapObject::RawField(accessors, offset);
+  HeapObject* accessor = HeapObject::cast(*slot);
+  if (accessor->IsMap()) return;
+  RecordSlot(slot, slot, accessor);
+  MarkObjectAndPush(accessor);
+}
+
+
 void MarkCompactCollector::MarkDescriptorArray(
     DescriptorArray* descriptors) {
   MarkBit descriptors_mark = Marking::MarkBitFrom(descriptors);
@@ -1699,27 +1710,37 @@ void MarkCompactCollector::MarkDescriptorArray(
     PropertyDetails details(Smi::cast(contents->get(i + 1)));
 
     Object** slot = contents->data_start() + i;
-    Object* value = *slot;
-    if (!value->IsHeapObject()) continue;
+    if (!(*slot)->IsHeapObject()) continue;
+    HeapObject* value = HeapObject::cast(*slot);
 
     RecordSlot(slot, slot, *slot);
 
-    if (details.IsProperty()) {
-      HeapObject* object = HeapObject::cast(value);
-      MarkBit mark = Marking::MarkBitFrom(HeapObject::cast(object));
-      if (!mark.Get()) {
-        SetMark(HeapObject::cast(object), mark);
-        marking_deque_.PushBlack(object);
-      }
-    } else if (details.type() == ELEMENTS_TRANSITION && value->IsFixedArray()) {
-      // For maps with multiple elements transitions, the transition maps are
-      // stored in a FixedArray. Keep the fixed array alive but not the maps
-      // that it refers to.
-      HeapObject* object = HeapObject::cast(value);
-      MarkBit mark = Marking::MarkBitFrom(HeapObject::cast(object));
-      if (!mark.Get()) {
-        SetMark(HeapObject::cast(object), mark);
-      }
+    switch (details.type()) {
+      case NORMAL:
+      case FIELD:
+      case CONSTANT_FUNCTION:
+      case HANDLER:
+      case INTERCEPTOR:
+        MarkObjectAndPush(value);
+        break;
+      case CALLBACKS:
+        if (!value->IsAccessorPair()) {
+          MarkObjectAndPush(value);
+        } else if (!MarkObjectWithoutPush(value)) {
+          MarkAccessorPairSlot(value, AccessorPair::kGetterOffset);
+          MarkAccessorPairSlot(value, AccessorPair::kSetterOffset);
+        }
+        break;
+      case ELEMENTS_TRANSITION:
+        // For maps with multiple elements transitions, the transition maps are
+        // stored in a FixedArray. Keep the fixed array alive but not the maps
+        // that it refers to.
+        if (value->IsFixedArray()) MarkObjectWithoutPush(value);
+        break;
+      case MAP_TRANSITION:
+      case CONSTANT_TRANSITION:
+      case NULL_DESCRIPTOR:
+        break;
     }
   }
   // The DescriptorArray descriptors contains a pointer to its contents array,
@@ -2290,88 +2311,92 @@ void MarkCompactCollector::ClearNonLiveTransitions() {
       map->unchecked_constructor()->unchecked_shared()->AttachInitialMap(map);
     }
 
-    // Clear dead prototype transitions.
-    int number_of_transitions = map->NumberOfProtoTransitions();
-    FixedArray* prototype_transitions = map->prototype_transitions();
+    ClearNonLivePrototypeTransitions(map);
+    ClearNonLiveMapTransitions(map, map_mark);
+  }
+}
 
-    int new_number_of_transitions = 0;
-    const int header = Map::kProtoTransitionHeaderSize;
-    const int proto_offset =
-        header + Map::kProtoTransitionPrototypeOffset;
-    const int map_offset = header + Map::kProtoTransitionMapOffset;
-    const int step = Map::kProtoTransitionElementsPerEntry;
-    for (int i = 0; i < number_of_transitions; i++) {
-      Object* prototype = prototype_transitions->get(proto_offset + i * step);
-      Object* cached_map = prototype_transitions->get(map_offset + i * step);
-      if (IsMarked(prototype) && IsMarked(cached_map)) {
-        int proto_index = proto_offset + new_number_of_transitions * step;
-        int map_index = map_offset + new_number_of_transitions * step;
-        if (new_number_of_transitions != i) {
-          prototype_transitions->set_unchecked(
-              heap_,
-              proto_index,
-              prototype,
-              UPDATE_WRITE_BARRIER);
-          prototype_transitions->set_unchecked(
-              heap_,
-              map_index,
-              cached_map,
-              SKIP_WRITE_BARRIER);
-        }
-        Object** slot =
-            HeapObject::RawField(prototype_transitions,
-                                 FixedArray::OffsetOfElementAt(proto_index));
-        RecordSlot(slot, slot, prototype);
-        new_number_of_transitions++;
+
+void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
+  int number_of_transitions = map->NumberOfProtoTransitions();
+  FixedArray* prototype_transitions = map->prototype_transitions();
+
+  int new_number_of_transitions = 0;
+  const int header = Map::kProtoTransitionHeaderSize;
+  const int proto_offset = header + Map::kProtoTransitionPrototypeOffset;
+  const int map_offset = header + Map::kProtoTransitionMapOffset;
+  const int step = Map::kProtoTransitionElementsPerEntry;
+  for (int i = 0; i < number_of_transitions; i++) {
+    Object* prototype = prototype_transitions->get(proto_offset + i * step);
+    Object* cached_map = prototype_transitions->get(map_offset + i * step);
+    if (IsMarked(prototype) && IsMarked(cached_map)) {
+      int proto_index = proto_offset + new_number_of_transitions * step;
+      int map_index = map_offset + new_number_of_transitions * step;
+      if (new_number_of_transitions != i) {
+        prototype_transitions->set_unchecked(
+            heap_,
+            proto_index,
+            prototype,
+            UPDATE_WRITE_BARRIER);
+        prototype_transitions->set_unchecked(
+            heap_,
+            map_index,
+            cached_map,
+            SKIP_WRITE_BARRIER);
       }
+      Object** slot =
+          HeapObject::RawField(prototype_transitions,
+                               FixedArray::OffsetOfElementAt(proto_index));
+      RecordSlot(slot, slot, prototype);
+      new_number_of_transitions++;
+    }
+  }
+
+  if (new_number_of_transitions != number_of_transitions) {
+    map->SetNumberOfProtoTransitions(new_number_of_transitions);
+  }
+
+  // Fill slots that became free with undefined value.
+  for (int i = new_number_of_transitions * step;
+       i < number_of_transitions * step;
+       i++) {
+    prototype_transitions->set_undefined(heap_, header + i);
+  }
+}
+
+
+void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
+                                                      MarkBit map_mark) {
+  // Follow the chain of back pointers to find the prototype.
+  Map* real_prototype = map;
+  while (real_prototype->IsMap()) {
+    real_prototype = reinterpret_cast<Map*>(real_prototype->prototype());
+    ASSERT(real_prototype->IsHeapObject());
+  }
+
+  // Follow back pointers, setting them to prototype, clearing map transitions
+  // when necessary.
+  Map* current = map;
+  bool current_is_alive = map_mark.Get();
+  bool on_dead_path = !current_is_alive;
+  while (current->IsMap()) {
+    Object* next = current->prototype();
+    // There should never be a dead map above a live map.
+    ASSERT(on_dead_path || current_is_alive);
+
+    // A live map above a dead map indicates a dead transition. This test will
+    // always be false on the first iteration.
+    if (on_dead_path && current_is_alive) {
+      on_dead_path = false;
+      current->ClearNonLiveTransitions(heap(), real_prototype);
     }
 
-    if (new_number_of_transitions != number_of_transitions) {
-      map->SetNumberOfProtoTransitions(new_number_of_transitions);
-    }
+    Object** slot = HeapObject::RawField(current, Map::kPrototypeOffset);
+    *slot = real_prototype;
+    if (current_is_alive) RecordSlot(slot, slot, real_prototype);
 
-    // Fill slots that became free with undefined value.
-    for (int i = new_number_of_transitions * step;
-         i < number_of_transitions * step;
-         i++) {
-      prototype_transitions->set_undefined(heap_, header + i);
-    }
-
-    // Follow the chain of back pointers to find the prototype.
-    Map* current = map;
-    while (current->IsMap()) {
-      current = reinterpret_cast<Map*>(current->prototype());
-      ASSERT(current->IsHeapObject());
-    }
-    Object* real_prototype = current;
-
-    // Follow back pointers, setting them to prototype,
-    // clearing map transitions when necessary.
-    current = map;
-    bool on_dead_path = !map_mark.Get();
-    Object* next;
-    while (current->IsMap()) {
-      next = current->prototype();
-      // There should never be a dead map above a live map.
-      MarkBit current_mark = Marking::MarkBitFrom(current);
-      bool is_alive = current_mark.Get();
-      ASSERT(on_dead_path || is_alive);
-
-      // A live map above a dead map indicates a dead transition.
-      // This test will always be false on the first iteration.
-      if (on_dead_path && is_alive) {
-        on_dead_path = false;
-        current->ClearNonLiveTransitions(heap(), real_prototype);
-      }
-      *HeapObject::RawField(current, Map::kPrototypeOffset) =
-          real_prototype;
-
-      if (is_alive) {
-        Object** slot = HeapObject::RawField(current, Map::kPrototypeOffset);
-        RecordSlot(slot, slot, real_prototype);
-      }
-      current = reinterpret_cast<Map*>(next);
-    }
+    current = reinterpret_cast<Map*>(next);
+    current_is_alive = Marking::MarkBitFrom(current).Get();
   }
 }
 

@@ -300,11 +300,13 @@ const DwVfpRegister d13 = { 13 };
 const DwVfpRegister d14 = { 14 };
 const DwVfpRegister d15 = { 15 };
 
-// Aliases for double registers.
-static const DwVfpRegister& kFirstCalleeSavedDoubleReg = d8;
-static const DwVfpRegister& kLastCalleeSavedDoubleReg = d15;
-static const DwVfpRegister& kDoubleRegZero = d14;
-static const DwVfpRegister& kScratchDoubleReg = d15;
+// Aliases for double registers.  Defined using #define instead of
+// "static const DwVfpRegister&" because Clang complains otherwise when a
+// compilation unit that includes this header doesn't use the variables.
+#define kFirstCalleeSavedDoubleReg d8
+#define kLastCalleeSavedDoubleReg d15
+#define kDoubleRegZero d14
+#define kScratchDoubleReg d15
 
 
 // Coprocessor register

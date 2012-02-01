@@ -341,10 +341,6 @@ class Deserializer: public SerializerDeserializer {
   // Deserialize a single object and the objects reachable from it.
   void DeserializePartial(Object** root);
 
-#ifdef DEBUG
-  virtual void Synchronize(const char* tag);
-#endif
-
  private:
   virtual void VisitPointers(Object** start, Object** end);
 
@@ -485,9 +481,6 @@ class Serializer : public SerializerDeserializer {
   SerializationAddressMapper* address_mapper() { return &address_mapper_; }
   void PutRoot(
       int index, HeapObject* object, HowToCode how, WhereToPoint where);
-#ifdef DEBUG
-  virtual void Synchronize(const char* tag);
-#endif
 
  protected:
   static const int kInvalidRootIndex = -1;

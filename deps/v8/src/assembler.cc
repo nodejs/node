@@ -30,25 +30,42 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
-#include "v8.h"
+#include "assembler.h"
 
-#include "arguments.h"
+#include <math.h>  // For cos, log, pow, sin, tan, etc.
+#include "api.h"
+#include "builtins.h"
+#include "counters.h"
+#include "cpu.h"
+#include "debug.h"
 #include "deoptimizer.h"
 #include "execution.h"
-#include "ic-inl.h"
-#include "incremental-marking.h"
-#include "factory.h"
-#include "runtime.h"
-#include "runtime-profiler.h"
-#include "serialize.h"
-#include "stub-cache.h"
-#include "regexp-stack.h"
-#include "ast.h"
-#include "regexp-macro-assembler.h"
+#include "ic.h"
+#include "isolate.h"
+#include "jsregexp.h"
 #include "platform.h"
-#include "store-buffer.h"
+#include "regexp-macro-assembler.h"
+#include "regexp-stack.h"
+#include "runtime.h"
+#include "serialize.h"
+#include "store-buffer-inl.h"
+#include "stub-cache.h"
+#include "token.h"
+
+#if V8_TARGET_ARCH_IA32
+#include "ia32/assembler-ia32-inl.h"
+#elif V8_TARGET_ARCH_X64
+#include "x64/assembler-x64-inl.h"
+#elif V8_TARGET_ARCH_ARM
+#include "arm/assembler-arm-inl.h"
+#elif V8_TARGET_ARCH_MIPS
+#include "mips/assembler-mips-inl.h"
+#else
+#error "Unknown architecture."
+#endif
+
 // Include native regexp-macro-assembler.
 #ifndef V8_INTERPRETED_REGEXP
 #if V8_TARGET_ARCH_IA32

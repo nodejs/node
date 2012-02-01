@@ -4954,15 +4954,43 @@ class IntrusiveMapTransitionIterator {
   Map* Next() {
     ASSERT(IsIterating());
     FixedArray* contents = ContentArray();
+    // Attention, tricky index manipulation ahead: Every entry in the contents
+    // array consists of a value/details pair, so the index is typically even.
+    // An exception is made for CALLBACKS entries: An even index means we look
+    // at its getter, and an odd index means we look at its setter.
     int index = Smi::cast(*ContentHeader())->value();
     while (index < contents->length()) {
-      int next_index = index + 2;
-      PropertyDetails details(Smi::cast(contents->get(index + 1)));
-      if (details.IsTransition()) {
-        *ContentHeader() = Smi::FromInt(next_index);
-        return static_cast<Map*>(contents->get(index));
+      PropertyDetails details(Smi::cast(contents->get(index | 1)));
+      switch (details.type()) {
+        case MAP_TRANSITION:
+        case CONSTANT_TRANSITION:
+        case ELEMENTS_TRANSITION:
+          // We definitely have a map transition.
+          *ContentHeader() = Smi::FromInt(index + 2);
+          return static_cast<Map*>(contents->get(index));
+        case CALLBACKS: {
+          // We might have a map transition in a getter or in a setter.
+          AccessorPair* accessors =
+              static_cast<AccessorPair*>(contents->get(index & ~1));
+          Object* accessor =
+              ((index & 1) == 0) ? accessors->getter() : accessors->setter();
+          index++;
+          if (accessor->IsMap()) {
+            *ContentHeader() = Smi::FromInt(index);
+            return static_cast<Map*>(accessor);
+          }
+          break;
+        }
+        case NORMAL:
+        case FIELD:
+        case CONSTANT_FUNCTION:
+        case HANDLER:
+        case INTERCEPTOR:
+        case NULL_DESCRIPTOR:
+          // We definitely have no map transition.
+          index += 2;
+          break;
       }
-      index = next_index;
     }
     *ContentHeader() = descriptor_array_->GetHeap()->fixed_array_map();
     return NULL;
@@ -8113,8 +8141,11 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
         static_cast<Translation::Opcode>(iterator.Next());
     ASSERT(Translation::BEGIN == opcode);
     int frame_count = iterator.Next();
-    PrintF(out, "  %s {count=%d}\n", Translation::StringFor(opcode),
-           frame_count);
+    int jsframe_count = iterator.Next();
+    PrintF(out, "  %s {frame count=%d, js frame count=%d}\n",
+           Translation::StringFor(opcode),
+           frame_count,
+           jsframe_count);
 
     while (iterator.HasNext() &&
            Translation::BEGIN !=
@@ -8126,7 +8157,7 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           UNREACHABLE();
           break;
 
-        case Translation::FRAME: {
+        case Translation::JS_FRAME: {
           int ast_id = iterator.Next();
           int function_id = iterator.Next();
           JSFunction* function =
@@ -8135,6 +8166,12 @@ void DeoptimizationInputData::DeoptimizationInputDataPrint(FILE* out) {
           PrintF(out, "{ast_id=%d, function=", ast_id);
           function->PrintName(out);
           PrintF(out, ", height=%u}", height);
+          break;
+        }
+
+        case Translation::ARGUMENTS_ADAPTOR_FRAME: {
+          unsigned height = iterator.Next();
+          PrintF(out, "{arguments adaptor, height=%d}", height);
           break;
         }
 

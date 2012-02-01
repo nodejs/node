@@ -662,6 +662,15 @@ void Decoder::Format(Instruction* instr, const char* format) {
 }
 
 
+// The disassembler may end up decoding data inlined in the code. We do not want
+// it to crash if the data does not ressemble any known instruction.
+#define VERIFY(condition) \
+if(!(condition)) {        \
+  Unknown(instr);         \
+  return;                 \
+}
+
+
 // For currently unimplemented decodings the disassembler calls Unknown(instr)
 // which will just print "unknown" of the instruction bits.
 void Decoder::Unknown(Instruction* instr) {
@@ -947,13 +956,13 @@ void Decoder::DecodeType2(Instruction* instr) {
 void Decoder::DecodeType3(Instruction* instr) {
   switch (instr->PUField()) {
     case da_x: {
-      ASSERT(!instr->HasW());
+      VERIFY(!instr->HasW());
       Format(instr, "'memop'cond'b 'rd, ['rn], -'shift_rm");
       break;
     }
     case ia_x: {
       if (instr->HasW()) {
-        ASSERT(instr->Bits(5, 4) == 0x1);
+        VERIFY(instr->Bits(5, 4) == 0x1);
         if (instr->Bit(22) == 0x1) {
           Format(instr, "usat 'rd, #'imm05@16, 'rm'shift_sat");
         } else {
@@ -1074,8 +1083,8 @@ int Decoder::DecodeType7(Instruction* instr) {
 // vmsr
 // Dd = vsqrt(Dm)
 void Decoder::DecodeTypeVFP(Instruction* instr) {
-  ASSERT((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0) );
-  ASSERT(instr->Bits(11, 9) == 0x5);
+  VERIFY((instr->TypeValue() == 7) && (instr->Bit(24) == 0x0) );
+  VERIFY(instr->Bits(11, 9) == 0x5);
 
   if (instr->Bit(4) == 0) {
     if (instr->Opc1Value() == 0x7) {
@@ -1166,7 +1175,7 @@ void Decoder::DecodeTypeVFP(Instruction* instr) {
 
 void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
     Instruction* instr) {
-  ASSERT((instr->Bit(4) == 1) && (instr->VCValue() == 0x0) &&
+  VERIFY((instr->Bit(4) == 1) && (instr->VCValue() == 0x0) &&
          (instr->VAValue() == 0x0));
 
   bool to_arm_register = (instr->VLValue() == 0x1);
@@ -1180,8 +1189,8 @@ void Decoder::DecodeVMOVBetweenCoreAndSinglePrecisionRegisters(
 
 
 void Decoder::DecodeVCMP(Instruction* instr) {
-  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
-  ASSERT(((instr->Opc2Value() == 0x4) || (instr->Opc2Value() == 0x5)) &&
+  VERIFY((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
+  VERIFY(((instr->Opc2Value() == 0x4) || (instr->Opc2Value() == 0x5)) &&
          (instr->Opc3Value() & 0x1));
 
   // Comparison.
@@ -1203,8 +1212,8 @@ void Decoder::DecodeVCMP(Instruction* instr) {
 
 
 void Decoder::DecodeVCVTBetweenDoubleAndSingle(Instruction* instr) {
-  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
-  ASSERT((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3));
+  VERIFY((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
+  VERIFY((instr->Opc2Value() == 0x7) && (instr->Opc3Value() == 0x3));
 
   bool double_to_single = (instr->SzValue() == 1);
 
@@ -1217,8 +1226,8 @@ void Decoder::DecodeVCVTBetweenDoubleAndSingle(Instruction* instr) {
 
 
 void Decoder::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
-  ASSERT((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
-  ASSERT(((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) ||
+  VERIFY((instr->Bit(4) == 0) && (instr->Opc1Value() == 0x7));
+  VERIFY(((instr->Opc2Value() == 0x8) && (instr->Opc3Value() & 0x1)) ||
          (((instr->Opc2Value() >> 1) == 0x6) && (instr->Opc3Value() & 0x1)));
 
   bool to_integer = (instr->Bit(18) == 1);
@@ -1265,7 +1274,7 @@ void Decoder::DecodeVCVTBetweenFloatingPointAndInteger(Instruction* instr) {
 // Ddst = MEM(Rbase + 4*offset).
 // MEM(Rbase + 4*offset) = Dsrc.
 void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
-  ASSERT(instr->TypeValue() == 6);
+  VERIFY(instr->TypeValue() == 6);
 
   if (instr->CoprocessorValue() == 0xA) {
     switch (instr->OpcodeValue()) {
@@ -1347,6 +1356,7 @@ void Decoder::DecodeType6CoprocessorIns(Instruction* instr) {
   }
 }
 
+#undef VERIFIY
 
 bool Decoder::IsConstantPoolAt(byte* instr_ptr) {
   int instruction_bits = *(reinterpret_cast<int*>(instr_ptr));

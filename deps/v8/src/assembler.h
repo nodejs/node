@@ -30,19 +30,27 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 #ifndef V8_ASSEMBLER_H_
 #define V8_ASSEMBLER_H_
 
+#include "v8.h"
+
 #include "allocation.h"
+#include "builtins.h"
 #include "gdb-jit.h"
+#include "isolate.h"
 #include "runtime.h"
 #include "token.h"
 
 namespace v8 {
+
+class ApiFunction;
+
 namespace internal {
 
+struct StatsCounter;
 const unsigned kNoASTId = -1;
 // -----------------------------------------------------------------------------
 // Platform independent assembler base class.

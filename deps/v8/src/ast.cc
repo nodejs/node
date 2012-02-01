@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,10 +25,15 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "v8.h"
-
 #include "ast.h"
+
+#include <math.h>  // For isfinite.
+#include "builtins.h"
+#include "conversions.h"
+#include "hashmap.h"
 #include "parser.h"
+#include "property-details.h"
+#include "property.h"
 #include "scopes.h"
 #include "string-stream.h"
 #include "type-info.h"

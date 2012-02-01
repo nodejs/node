@@ -161,9 +161,8 @@ LiveRange::LiveRange(int id)
       next_(NULL),
       current_interval_(NULL),
       last_processed_use_(NULL),
-      spill_start_index_(kMaxInt) {
-  spill_operand_ = new LUnallocated(LUnallocated::IGNORE);
-}
+      spill_operand_(new LOperand()),
+      spill_start_index_(kMaxInt) { }
 
 
 void LiveRange::set_assigned_register(int reg, RegisterKind register_kind) {
@@ -184,14 +183,15 @@ void LiveRange::MakeSpilled() {
 
 
 bool LiveRange::HasAllocatedSpillOperand() const {
-  return spill_operand_ != NULL && !spill_operand_->IsUnallocated();
+  ASSERT(spill_operand_ != NULL);
+  return !spill_operand_->IsIgnored();
 }
 
 
 void LiveRange::SetSpillOperand(LOperand* operand) {
   ASSERT(!operand->IsUnallocated());
   ASSERT(spill_operand_ != NULL);
-  ASSERT(spill_operand_->IsUnallocated());
+  ASSERT(spill_operand_->IsIgnored());
   spill_operand_->ConvertTo(operand->kind(), operand->index());
 }
 
@@ -1643,7 +1643,7 @@ void LAllocator::RecordUse(HValue* value, LUnallocated* operand) {
 
 
 int LAllocator::max_initial_value_ids() {
-  return LUnallocated::kMaxVirtualRegisters / 32;
+  return LUnallocated::kMaxVirtualRegisters / 16;
 }
 
 

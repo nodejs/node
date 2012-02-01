@@ -38,6 +38,7 @@
 #define V8_ARM_ASSEMBLER_ARM_INL_H_
 
 #include "arm/assembler-arm.h"
+
 #include "cpu.h"
 #include "debug.h"
 

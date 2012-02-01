@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,10 +28,14 @@
 #ifndef V8_API_H_
 #define V8_API_H_
 
-#include "apiutils.h"
-#include "factory.h"
+#include "v8.h"
 
 #include "../include/v8-testing.h"
+#include "apiutils.h"
+#include "contexts.h"
+#include "factory.h"
+#include "isolate.h"
+#include "list-inl.h"
 
 namespace v8 {
 

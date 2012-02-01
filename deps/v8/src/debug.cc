@@ -1758,6 +1758,135 @@ static bool CompileFullCodeForDebugging(Handle<SharedFunctionInfo> shared,
 }
 
 
+static void CollectActiveFunctionsFromThread(
+    Isolate* isolate,
+    ThreadLocalTop* top,
+    List<Handle<JSFunction> >* active_functions,
+    Object* active_code_marker) {
+  // Find all non-optimized code functions with activation frames
+  // on the stack. This includes functions which have optimized
+  // activations (including inlined functions) on the stack as the
+  // non-optimized code is needed for the lazy deoptimization.
+  for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+    if (frame->is_optimized()) {
+      List<JSFunction*> functions(Compiler::kMaxInliningLevels + 1);
+      frame->GetFunctions(&functions);
+      for (int i = 0; i < functions.length(); i++) {
+        JSFunction* function = functions[i];
+        active_functions->Add(Handle<JSFunction>(function));
+        function->shared()->code()->set_gc_metadata(active_code_marker);
+      }
+    } else if (frame->function()->IsJSFunction()) {
+      JSFunction* function = JSFunction::cast(frame->function());
+      ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
+      active_functions->Add(Handle<JSFunction>(function));
+      function->shared()->code()->set_gc_metadata(active_code_marker);
+    }
+  }
+}
+
+
+static void RedirectActivationsToRecompiledCodeOnThread(
+    Isolate* isolate,
+    ThreadLocalTop* top) {
+  for (JavaScriptFrameIterator it(isolate, top); !it.done(); it.Advance()) {
+    JavaScriptFrame* frame = it.frame();
+
+    if (frame->is_optimized() || !frame->function()->IsJSFunction()) continue;
+
+    JSFunction* function = JSFunction::cast(frame->function());
+
+    ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
+
+    Handle<Code> frame_code(frame->LookupCode());
+    if (frame_code->has_debug_break_slots()) continue;
+
+    Handle<Code> new_code(function->shared()->code());
+    if (new_code->kind() != Code::FUNCTION ||
+        !new_code->has_debug_break_slots()) {
+      continue;
+    }
+
+    intptr_t delta = frame->pc() - frame_code->instruction_start();
+    int debug_break_slot_count = 0;
+    int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT);
+    for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
+      // Check if the pc in the new code with debug break
+      // slots is before this slot.
+      RelocInfo* info = it.rinfo();
+      int debug_break_slot_bytes =
+          debug_break_slot_count * Assembler::kDebugBreakSlotLength;
+      intptr_t new_delta =
+          info->pc() -
+          new_code->instruction_start() -
+          debug_break_slot_bytes;
+      if (new_delta > delta) {
+        break;
+      }
+
+      // Passed a debug break slot in the full code with debug
+      // break slots.
+      debug_break_slot_count++;
+    }
+    int debug_break_slot_bytes =
+        debug_break_slot_count * Assembler::kDebugBreakSlotLength;
+    if (FLAG_trace_deopt) {
+      PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
+             "with %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
+             "for debugging, "
+             "changing pc from %08" V8PRIxPTR " to %08" V8PRIxPTR "\n",
+             reinterpret_cast<intptr_t>(
+                 frame_code->instruction_start()),
+             reinterpret_cast<intptr_t>(
+                 frame_code->instruction_start()) +
+             frame_code->instruction_size(),
+             frame_code->instruction_size(),
+             reinterpret_cast<intptr_t>(new_code->instruction_start()),
+             reinterpret_cast<intptr_t>(new_code->instruction_start()) +
+             new_code->instruction_size(),
+             new_code->instruction_size(),
+             reinterpret_cast<intptr_t>(frame->pc()),
+             reinterpret_cast<intptr_t>(new_code->instruction_start()) +
+             delta + debug_break_slot_bytes);
+    }
+
+    // Patch the return address to return into the code with
+    // debug break slots.
+    frame->set_pc(
+        new_code->instruction_start() + delta + debug_break_slot_bytes);
+  }
+}
+
+
+class ActiveFunctionsCollector : public ThreadVisitor {
+ public:
+  explicit ActiveFunctionsCollector(List<Handle<JSFunction> >* active_functions,
+                                    Object* active_code_marker)
+      : active_functions_(active_functions),
+        active_code_marker_(active_code_marker) { }
+
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    CollectActiveFunctionsFromThread(isolate,
+                                     top,
+                                     active_functions_,
+                                     active_code_marker_);
+  }
+
+ private:
+  List<Handle<JSFunction> >* active_functions_;
+  Object* active_code_marker_;
+};
+
+
+class ActiveFunctionsRedirector : public ThreadVisitor {
+ public:
+  void VisitThread(Isolate* isolate, ThreadLocalTop* top) {
+    RedirectActivationsToRecompiledCodeOnThread(isolate, top);
+  }
+};
+
+
 void Debug::PrepareForBreakPoints() {
   // If preparing for the first break point make sure to deoptimize all
   // functions as debugging does not work with optimized code.
@@ -1776,71 +1905,59 @@ void Debug::PrepareForBreakPoints() {
       // debug break slots.
       isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
 
-      // Ensure no GC in this scope as we are comparing raw pointer
-      // values and performing a heap iteration.
+      // Ensure no GC in this scope as we are going to use gc_metadata
+      // field in the Code object to mark active functions.
       AssertNoAllocation no_allocation;
 
-      // Find all non-optimized code functions with activation frames
-      // on the stack. This includes functions which have optimized
-      // activations (including inlined functions) on the stack as the
-      // non-optimized code is needed for the lazy deoptimization.
-      for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
-        JavaScriptFrame* frame = it.frame();
-        if (frame->is_optimized()) {
-          List<JSFunction*> functions(Compiler::kMaxInliningLevels + 1);
-          frame->GetFunctions(&functions);
-          for (int i = 0; i < functions.length(); i++) {
-            if (!functions[i]->shared()->code()->has_debug_break_slots()) {
-              active_functions.Add(Handle<JSFunction>(functions[i]));
-            }
-          }
-        } else if (frame->function()->IsJSFunction()) {
-          JSFunction* function = JSFunction::cast(frame->function());
-          ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
-          if (!frame->LookupCode()->has_debug_break_slots() ||
-              !function->shared()->code()->has_debug_break_slots()) {
-            active_functions.Add(Handle<JSFunction>(function));
-          }
-        }
-      }
+      Object* active_code_marker = isolate_->heap()->the_hole_value();
 
-      // Sort the functions on the object pointer value to prepare for
-      // the binary search below.
-      active_functions.Sort(HandleObjectPointerCompare<JSFunction>);
+      CollectActiveFunctionsFromThread(isolate_,
+                                       isolate_->thread_local_top(),
+                                       &active_functions,
+                                       active_code_marker);
+      ActiveFunctionsCollector active_functions_collector(&active_functions,
+                                                          active_code_marker);
+      isolate_->thread_manager()->IterateArchivedThreads(
+          &active_functions_collector);
 
-      // Scan the heap for all non-optimized functions which has no
-      // debug break slots.
+      // Scan the heap for all non-optimized functions which have no
+      // debug break slots and are not active or inlined into an active
+      // function and mark them for lazy compilation.
       HeapIterator iterator;
       HeapObject* obj = NULL;
       while (((obj = iterator.next()) != NULL)) {
         if (obj->IsJSFunction()) {
           JSFunction* function = JSFunction::cast(obj);
-          if (function->shared()->allows_lazy_compilation() &&
-              function->shared()->script()->IsScript() &&
+          SharedFunctionInfo* shared = function->shared();
+          if (shared->allows_lazy_compilation() &&
+              shared->script()->IsScript() &&
               function->code()->kind() == Code::FUNCTION &&
-              !function->code()->has_debug_break_slots()) {
-            bool has_activation =
-                SortedListBSearch<Handle<JSFunction> >(
-                    active_functions,
-                    Handle<JSFunction>(function),
-                    HandleObjectPointerCompare<JSFunction>) != -1;
-            if (!has_activation) {
-              function->set_code(*lazy_compile);
-              function->shared()->set_code(*lazy_compile);
-            }
+              !function->code()->has_debug_break_slots() &&
+              shared->code()->gc_metadata() != active_code_marker) {
+            function->set_code(*lazy_compile);
+            function->shared()->set_code(*lazy_compile);
           }
         }
       }
-    }
 
-    // Now the non-GC scope is left, and the sorting of the functions
-    // in active_function is not ensured any more. The code below does
-    // not rely on it.
+      // Clear gc_metadata field.
+      for (int i = 0; i < active_functions.length(); i++) {
+        Handle<JSFunction> function = active_functions[i];
+        function->shared()->code()->set_gc_metadata(Smi::FromInt(0));
+      }
+    }
 
     // Now recompile all functions with activation frames and and
     // patch the return address to run in the new compiled code.
     for (int i = 0; i < active_functions.length(); i++) {
       Handle<JSFunction> function = active_functions[i];
+
+      if (function->code()->kind() == Code::FUNCTION &&
+          function->code()->has_debug_break_slots()) {
+        // Nothing to do. Function code already had debug break slots.
+        continue;
+      }
+
       Handle<SharedFunctionInfo> shared(function->shared());
       // If recompilation is not possible just skip it.
       if (shared->is_toplevel() ||
@@ -1851,9 +1968,6 @@ void Debug::PrepareForBreakPoints() {
 
       // Make sure that the shared full code is compiled with debug
       // break slots.
-      if (function->code() == *lazy_compile) {
-        function->set_code(shared->code());
-      }
       if (!shared->code()->has_debug_break_slots()) {
         // Try to compile the full code with debug break slots. If it
         // fails just keep the current code.
@@ -1872,70 +1986,17 @@ void Debug::PrepareForBreakPoints() {
           continue;
         }
       }
-      Handle<Code> new_code(shared->code());
 
-      // Find the function and patch the return address.
-      for (JavaScriptFrameIterator it(isolate_); !it.done(); it.Advance()) {
-        JavaScriptFrame* frame = it.frame();
-        // If the current frame is for this function in its
-        // non-optimized form rewrite the return address to continue
-        // in the newly compiled full code with debug break slots.
-        if (!frame->is_optimized() &&
-            frame->function()->IsJSFunction() &&
-            frame->function() == *function) {
-          ASSERT(frame->LookupCode()->kind() == Code::FUNCTION);
-          Handle<Code> frame_code(frame->LookupCode());
-          if (frame_code->has_debug_break_slots()) continue;
-          intptr_t delta = frame->pc() - frame_code->instruction_start();
-          int debug_break_slot_count = 0;
-          int mask = RelocInfo::ModeMask(RelocInfo::DEBUG_BREAK_SLOT);
-          for (RelocIterator it(*new_code, mask); !it.done(); it.next()) {
-            // Check if the pc in the new code with debug break
-            // slots is before this slot.
-            RelocInfo* info = it.rinfo();
-            int debug_break_slot_bytes =
-                debug_break_slot_count * Assembler::kDebugBreakSlotLength;
-            intptr_t new_delta =
-                info->pc() -
-                new_code->instruction_start() -
-                debug_break_slot_bytes;
-            if (new_delta > delta) {
-              break;
-            }
-
-            // Passed a debug break slot in the full code with debug
-            // break slots.
-            debug_break_slot_count++;
-          }
-          int debug_break_slot_bytes =
-              debug_break_slot_count * Assembler::kDebugBreakSlotLength;
-          if (FLAG_trace_deopt) {
-            PrintF("Replacing code %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
-                   "with %08" V8PRIxPTR " - %08" V8PRIxPTR " (%d) "
-                   "for debugging, "
-                   "changing pc from %08" V8PRIxPTR " to %08" V8PRIxPTR "\n",
-                   reinterpret_cast<intptr_t>(
-                       frame_code->instruction_start()),
-                   reinterpret_cast<intptr_t>(
-                       frame_code->instruction_start()) +
-                       frame_code->instruction_size(),
-                   frame_code->instruction_size(),
-                   reinterpret_cast<intptr_t>(new_code->instruction_start()),
-                   reinterpret_cast<intptr_t>(new_code->instruction_start()) +
-                       new_code->instruction_size(),
-                   new_code->instruction_size(),
-                   reinterpret_cast<intptr_t>(frame->pc()),
-                   reinterpret_cast<intptr_t>(new_code->instruction_start()) +
-                       delta + debug_break_slot_bytes);
-          }
-
-          // Patch the return address to return into the code with
-          // debug break slots.
-          frame->set_pc(
-              new_code->instruction_start() + delta + debug_break_slot_bytes);
-        }
-      }
+      // Keep function code in sync with shared function info.
+      function->set_code(shared->code());
     }
+
+    RedirectActivationsToRecompiledCodeOnThread(isolate_,
+                                                isolate_->thread_local_top());
+
+    ActiveFunctionsRedirector active_functions_redirector;
+    isolate_->thread_manager()->IterateArchivedThreads(
+          &active_functions_redirector);
   }
 }
 

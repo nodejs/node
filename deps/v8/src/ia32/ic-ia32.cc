@@ -538,20 +538,30 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
 
   // Load the key (consisting of map and symbol) from the cache and
   // check for match.
-  Label try_second_entry, hit_on_first_entry, load_in_object_property;
+  Label load_in_object_property;
+  static const int kEntriesPerBucket = KeyedLookupCache::kEntriesPerBucket;
+  Label hit_on_nth_entry[kEntriesPerBucket];
   ExternalReference cache_keys =
       ExternalReference::keyed_lookup_cache_keys(masm->isolate());
-  __ mov(edi, ecx);
-  __ shl(edi, kPointerSizeLog2 + 1);
-  __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
-  __ j(not_equal, &try_second_entry);
-  __ add(edi, Immediate(kPointerSize));
-  __ cmp(eax, Operand::StaticArray(edi, times_1, cache_keys));
-  __ j(equal, &hit_on_first_entry);
 
-  __ bind(&try_second_entry);
+  for (int i = 0; i < kEntriesPerBucket - 1; i++) {
+    Label try_next_entry;
+    __ mov(edi, ecx);
+    __ shl(edi, kPointerSizeLog2 + 1);
+    if (i != 0) {
+      __ add(edi, Immediate(kPointerSize * i * 2));
+    }
+    __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
+    __ j(not_equal, &try_next_entry);
+    __ add(edi, Immediate(kPointerSize));
+    __ cmp(eax, Operand::StaticArray(edi, times_1, cache_keys));
+    __ j(equal, &hit_on_nth_entry[i]);
+    __ bind(&try_next_entry);
+  }
+
   __ lea(edi, Operand(ecx, 1));
   __ shl(edi, kPointerSizeLog2 + 1);
+  __ add(edi, Immediate(kPointerSize * (kEntriesPerBucket - 1) * 2));
   __ cmp(ebx, Operand::StaticArray(edi, times_1, cache_keys));
   __ j(not_equal, &slow);
   __ add(edi, Immediate(kPointerSize));
@@ -566,22 +576,21 @@ void KeyedLoadIC::GenerateGeneric(MacroAssembler* masm) {
   ExternalReference cache_field_offsets =
       ExternalReference::keyed_lookup_cache_field_offsets(masm->isolate());
 
-  // Hit on second entry.
-  __ add(ecx, Immediate(1));
-  __ mov(edi,
-         Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
-  __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
-  __ sub(edi, ecx);
-  __ j(above_equal, &property_array_property);
-  __ jmp(&load_in_object_property);
-
-  // Hit on first entry.
-  __ bind(&hit_on_first_entry);
-  __ mov(edi,
-         Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
-  __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
-  __ sub(edi, ecx);
-  __ j(above_equal, &property_array_property);
+  // Hit on nth entry.
+  for (int i = kEntriesPerBucket - 1; i >= 0; i--) {
+    __ bind(&hit_on_nth_entry[i]);
+    if (i != 0) {
+      __ add(ecx, Immediate(i));
+    }
+    __ mov(edi,
+           Operand::StaticArray(ecx, times_pointer_size, cache_field_offsets));
+    __ movzx_b(ecx, FieldOperand(ebx, Map::kInObjectPropertiesOffset));
+    __ sub(edi, ecx);
+    __ j(above_equal, &property_array_property);
+    if (i != 0) {
+      __ jmp(&load_in_object_property);
+    }
+  }
 
   // Load in-object property.
   __ bind(&load_in_object_property);

@@ -295,7 +295,7 @@
               '-O3',
             ],
             'conditions': [
-              [ 'gcc_version==44', {
+              [ 'gcc_version==44 and clang==0', {
                 'cflags': [
                   # Avoid crashes with gcc 4.4 in the v8 test suite.
                   '-fno-tree-vrp',

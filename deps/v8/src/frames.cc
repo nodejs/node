@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -813,17 +813,18 @@ void OptimizedFrame::Summarize(List<FrameSummary>* frames) {
                          data->TranslationIndex(deopt_index)->value());
   Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
   ASSERT(opcode == Translation::BEGIN);
-  int frame_count = it.Next();
+  it.Next();  // Drop frame count.
+  int jsframe_count = it.Next();
 
   // We create the summary in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
-  int i = frame_count;
+  int i = jsframe_count;
   while (i > 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::FRAME) {
+    if (opcode == Translation::JS_FRAME) {
       // We don't inline constructor calls, so only the first, outermost
       // frame can be a constructor frame in case of inlining.
-      bool is_constructor = (i == frame_count) && IsConstructor();
+      bool is_constructor = (i == jsframe_count) && IsConstructor();
 
       i--;
       int ast_id = it.Next();
@@ -918,8 +919,9 @@ int OptimizedFrame::GetInlineCount() {
   Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
   ASSERT(opcode == Translation::BEGIN);
   USE(opcode);
-  int frame_count = it.Next();
-  return frame_count;
+  it.Next();  // Drop frame count.
+  int jsframe_count = it.Next();
+  return jsframe_count;
 }
 
 
@@ -934,14 +936,15 @@ void OptimizedFrame::GetFunctions(List<JSFunction*>* functions) {
                          data->TranslationIndex(deopt_index)->value());
   Translation::Opcode opcode = static_cast<Translation::Opcode>(it.Next());
   ASSERT(opcode == Translation::BEGIN);
-  int frame_count = it.Next();
+  it.Next();  // Drop frame count.
+  int jsframe_count = it.Next();
 
   // We insert the frames in reverse order because the frames
   // in the deoptimization translation are ordered bottom-to-top.
-  while (frame_count > 0) {
+  while (jsframe_count > 0) {
     opcode = static_cast<Translation::Opcode>(it.Next());
-    if (opcode == Translation::FRAME) {
-      frame_count--;
+    if (opcode == Translation::JS_FRAME) {
+      jsframe_count--;
       it.Next();  // Skip ast id.
       int function_id = it.Next();
       it.Next();  // Skip height.

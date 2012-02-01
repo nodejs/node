@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -270,8 +270,7 @@ TEST(UncaughtThrow) {
   CHECK(!fun.is_null());
   bool has_pending_exception;
   Handle<JSObject> global(Isolate::Current()->context()->global());
-  Handle<Object> result(
-      Execution::Call(fun, global, 0, NULL, &has_pending_exception));
+  Execution::Call(fun, global, 0, NULL, &has_pending_exception);
   CHECK(has_pending_exception);
   CHECK_EQ(42.0, Isolate::Current()->pending_exception()->
            ToObjectChecked()->Number());

@@ -370,12 +370,14 @@ void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
       StateField::encode(state) | PcField::encode(masm_->pc_offset());
   BailoutEntry entry = { id, pc_and_state };
 #ifdef DEBUG
-  // Assert that we don't have multiple bailout entries for the same node.
-  for (int i = 0; i < bailout_entries_.length(); i++) {
-    if (bailout_entries_.at(i).id == entry.id) {
-      AstPrinter printer;
-      PrintF("%s", printer.PrintProgram(info_->function()));
-      UNREACHABLE();
+  if (FLAG_enable_slow_asserts) {
+    // Assert that we don't have multiple bailout entries for the same node.
+    for (int i = 0; i < bailout_entries_.length(); i++) {
+      if (bailout_entries_.at(i).id == entry.id) {
+        AstPrinter printer;
+        PrintF("%s", printer.PrintProgram(info_->function()));
+        UNREACHABLE();
+      }
     }
   }
 #endif  // DEBUG

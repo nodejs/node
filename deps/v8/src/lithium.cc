@@ -36,6 +36,7 @@ void LOperand::PrintTo(StringStream* stream) {
   LUnallocated* unalloc = NULL;
   switch (kind()) {
     case INVALID:
+      stream->Add("(0)");
       break;
     case UNALLOCATED:
       unalloc = LUnallocated::cast(this);
@@ -69,9 +70,6 @@ void LOperand::PrintTo(StringStream* stream) {
           break;
         case LUnallocated::ANY:
           stream->Add("(-)");
-          break;
-        case LUnallocated::IGNORE:
-          stream->Add("(0)");
           break;
       }
       break;

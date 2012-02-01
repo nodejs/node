@@ -30,12 +30,14 @@
 
 // The original source code covered by the above license above has been
 // modified significantly by Google Inc.
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 // A light-weight IA32 Assembler.
 
 #ifndef V8_IA32_ASSEMBLER_IA32_INL_H_
 #define V8_IA32_ASSEMBLER_IA32_INL_H_
+
+#include "ia32/assembler-ia32.h"
 
 #include "cpu.h"
 #include "debug.h"

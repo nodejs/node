@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -30,6 +30,7 @@
 #ifndef V8STDINT_H_
 #define V8STDINT_H_
 
+#include <stddef.h>
 #include <stdio.h>
 
 #if defined(_WIN32) && !defined(__MINGW32__)

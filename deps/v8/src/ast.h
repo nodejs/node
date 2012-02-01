@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -28,14 +28,19 @@
 #ifndef V8_AST_H_
 #define V8_AST_H_
 
-#include "allocation.h"
-#include "execution.h"
+#include "v8.h"
+
+#include "assembler.h"
 #include "factory.h"
+#include "isolate.h"
 #include "jsregexp.h"
+#include "list-inl.h"
 #include "runtime.h"
 #include "small-pointer-list.h"
+#include "smart-array-pointer.h"
 #include "token.h"
 #include "variables.h"
+#include "zone-inl.h"
 
 namespace v8 {
 namespace internal {
@@ -98,11 +103,27 @@ namespace internal {
   EXPRESSION_NODE_LIST(V)
 
 // Forward declarations
-class BitVector;
-class DefinitionInfo;
+class AstVisitor;
+class BreakableStatement;
+class Expression;
+class IterationStatement;
 class MaterializedLiteral;
+class Statement;
 class TargetCollector;
 class TypeFeedbackOracle;
+
+class RegExpAlternative;
+class RegExpAssertion;
+class RegExpAtom;
+class RegExpBackReference;
+class RegExpCapture;
+class RegExpCharacterClass;
+class RegExpCompiler;
+class RegExpDisjunction;
+class RegExpEmpty;
+class RegExpLookahead;
+class RegExpQuantifier;
+class RegExpText;
 
 #define DEF_FORWARD_DECLARATION(type) class type;
 AST_NODE_LIST(DEF_FORWARD_DECLARATION)
@@ -113,11 +134,6 @@ AST_NODE_LIST(DEF_FORWARD_DECLARATION)
 // Please do appreciate the required space in "> >".
 typedef ZoneList<Handle<String> > ZoneStringList;
 typedef ZoneList<Handle<Object> > ZoneObjectList;
-
-
-#define DECLARE_NODE_TYPE(type)                                         \
-  virtual void Accept(AstVisitor* v);                                   \
-  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
 
 
 class AstNode: public ZoneObject {
@@ -188,6 +204,11 @@ class AstNode: public ZoneObject {
 
   friend class CaseClause;  // Generates AST IDs.
 };
+
+
+#define DECLARE_NODE_TYPE(type)                                         \
+  virtual void Accept(AstVisitor* v);                                   \
+  virtual AstNode::Type node_type() const { return AstNode::k##type; }  \
 
 
 class Statement: public AstNode {
