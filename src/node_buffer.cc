@@ -597,7 +597,7 @@ Handle<Value> Buffer::Base64Write(const Arguments &args) {
                                              : args[2]->Uint32Value();
   max_length = MIN(s.length(), MIN(buffer->length_ - offset, max_length));
 
-  if (offset >= buffer->length_) {
+  if (max_length && offset >= buffer->length_) {
     return ThrowException(Exception::TypeError(String::New(
             "Offset is out of bounds")));
   }
