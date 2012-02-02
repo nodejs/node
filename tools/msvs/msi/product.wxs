@@ -46,6 +46,9 @@
           <Component Id="npmcmd" Guid="31e9986d-74cd-44e1-878c-194d3e997d32">
             <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm.cmd" />
           </Component>
+          <Component Id="npmsh" Guid="57754e12-9269-4198-a38c-2c098bf5276e">
+            <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm" />
+          </Component>
           <?if $(var.Configuration) = Debug ?>
           <Component Id="nodepdb" Guid="BEC0F08E-89B3-4C35-A286-8DB8598597F2">
             <File Id="filenodepdb" KeyPath="yes" Source="$(var.sourcedir)\node.pdb" />
