@@ -563,7 +563,9 @@ void Heap::ReserveSpace(
   PagedSpace* cell_space = Heap::cell_space();
   LargeObjectSpace* lo_space = Heap::lo_space();
   bool gc_performed = true;
-  while (gc_performed) {
+  int counter = 0;
+  static const int kThreshold = 20;
+  while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
       Heap::CollectGarbage(NEW_SPACE);
@@ -601,6 +603,11 @@ void Heap::ReserveSpace(
       Heap::CollectGarbage(LO_SPACE);
       gc_performed = true;
     }
+  }
+
+  if (gc_performed) {
+    // Failed to reserve the space after several attempts.
+    V8::FatalProcessOutOfMemory("Heap::ReserveSpace");
   }
 }
 
