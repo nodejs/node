@@ -288,7 +288,6 @@ V8_EXTRA_FLAGS = {
   'gcc': {
     'all': {
       'WARNINGFLAGS': ['-Wall',
-                       '-Werror',
                        '-W',
                        '-Wno-unused-parameter',
                        '-Wnon-virtual-dtor']
@@ -382,7 +381,7 @@ MKSNAPSHOT_EXTRA_FLAGS = {
 DTOA_EXTRA_FLAGS = {
   'gcc': {
     'all': {
-      'WARNINGFLAGS': ['-Werror', '-Wno-uninitialized'],
+      'WARNINGFLAGS': ['-Wno-uninitialized'],
       'CCFLAGS': GCC_DTOA_EXTRA_CCFLAGS
     }
   },
