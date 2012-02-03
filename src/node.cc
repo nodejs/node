@@ -2429,7 +2429,7 @@ static Handle<Value> DebugProcess(const Arguments& args) {
   HandleScope scope;
   Handle<Value> rv = Undefined();
   DWORD pid;
-  HANDLE process_l = NULL;
+  HANDLE process = NULL;
   HANDLE thread = NULL;
   HANDLE mapping = NULL;
   char mapping_name[32];
@@ -2442,12 +2442,12 @@ static Handle<Value> DebugProcess(const Arguments& args) {
 
   pid = (DWORD) args[0]->IntegerValue();
 
-  process_l = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
+  process = OpenProcess(PROCESS_CREATE_THREAD | PROCESS_QUERY_INFORMATION |
                             PROCESS_VM_OPERATION | PROCESS_VM_WRITE |
                             PROCESS_VM_READ,
                         FALSE,
                         pid);
-  if (process_l == NULL) {
+  if (process == NULL) {
     rv = ThrowException(WinapiErrnoException(GetLastError(), "OpenProcess"));
     goto out;
   }
@@ -2475,7 +2475,7 @@ static Handle<Value> DebugProcess(const Arguments& args) {
     goto out;
   }
 
-  thread = CreateRemoteThread(process_l,
+  thread = CreateRemoteThread(process,
                               NULL,
                               0,
                               *handler,
@@ -2496,8 +2496,8 @@ static Handle<Value> DebugProcess(const Arguments& args) {
   }
 
  out:
-  if (process_l != NULL) {
-   CloseHandle(process_l);
+  if (process != NULL) {
+   CloseHandle(process);
   }
   if (thread != NULL) {
     CloseHandle(thread);
