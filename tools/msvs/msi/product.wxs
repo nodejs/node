@@ -47,7 +47,7 @@
             <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm.cmd" />
           </Component>
           <Component Id="npmsh" Guid="57754e12-9269-4198-a38c-2c098bf5276e">
-            <File Id="filenpmcmd" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm" />
+            <File Id="filenpmsh" KeyPath="yes" Source="$(var.NPMSourceDir)\bin\npm" />
           </Component>
           <?if $(var.Configuration) = Debug ?>
           <Component Id="nodepdb" Guid="BEC0F08E-89B3-4C35-A286-8DB8598597F2">
@@ -72,6 +72,7 @@
     <ComponentGroup Id="allfiles">
       <ComponentRef Id="nodeexe"/>
       <ComponentRef Id="npmcmd"/>
+      <ComponentRef Id="npmsh"/>
       <ComponentRef Id="npmrc" />
       <ComponentRef Id="npmappdata_folder" />
       <ComponentGroupRef Id="NPMFiles" />
