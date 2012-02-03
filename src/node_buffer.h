@@ -65,6 +65,7 @@ namespace node {
 
 class NODE_EXTERN Buffer: public ObjectWrap {
  public:
+  static v8::Persistent<v8::FunctionTemplate> constructor_template;
 
   static bool HasInstance(v8::Handle<v8::Value> val);
 

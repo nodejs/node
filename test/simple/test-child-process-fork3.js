@@ -25,12 +25,8 @@ var fork = require('child_process').fork;
 
 var filename = common.fixturesDir + '/destroy-stdin.js';
 
-var options = {
-  thread: process.TEST_ISOLATE ? true : false
-};
-
 // Ensure that we don't accidentally close fd 0 and
 // reuse it for something else, it causes all kinds
 // of obscure bugs.
 process.stdin.destroy();
-fork(filename, [], options).stdin.on('end', process.exit);
+fork(filename).stdin.on('end', process.exit);

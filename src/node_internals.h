@@ -24,13 +24,6 @@
 
 namespace node {
 
-// This function starts an Isolate. This function is defined in node.cc
-// currently so that we minimize the diff between master and v0.6 for easy
-// merging. In the future, when v0.6 is extinct, StartThread should be moved
-// to node_isolate.cc.
-class Isolate;
-void StartThread(Isolate* isolate, int argc, char** argv);
-
 #ifndef offset_of
 // g++ in strict mode complains loudly about the system offsetof() macro
 // because it uses NULL as the base address.
@@ -46,14 +39,6 @@ void StartThread(Isolate* isolate, int argc, char** argv);
 #ifndef ARRAY_SIZE
 #define ARRAY_SIZE(a) (sizeof((a)) / sizeof((a)[0]))
 #endif
-
-#define DISALLOW_COPY_AND_ASSIGN(TypeName)        \
-  TypeName(const TypeName&);                      \
-  void operator=(const TypeName&)
-
-#define DISALLOW_IMPLICIT_CONSTRUCTORS(TypeName)  \
-  TypeName();                                     \
-  DISALLOW_COPY_AND_ASSIGN(TypeName)
 
 } // namespace node
 

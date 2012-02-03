@@ -76,19 +76,12 @@ function addTest(input, output) {
 }
 
 // Initial lines
-if (process.features.isolates) {
-  addTest(null, [
-    /break in .*:1/,
-    /1/, /2/, /3/
-  ]);
-} else {
-  addTest(null, [
-    /listening on port 5858/,
-    /connecting... ok/,
-    /break in .*:1/,
-    /1/, /2/, /3/
-  ]);
-}
+addTest(null, [
+  /listening on port 5858/,
+  /connecting... ok/,
+  /break in .*:1/,
+  /1/, /2/, /3/
+]);
 
 // Next
 addTest('n', [

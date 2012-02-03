@@ -21,7 +21,6 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_vars.h>
 #include <req_wrap.h>
 #include <handle_wrap.h>
 #include <stream_wrap.h>
@@ -56,15 +55,6 @@
     return scope.Close(Integer::New(-1)); \
   }
 
-#include <node_vars.h>
-
-// We do the following to minimize the detal between v0.6 branch. We want to
-// use the variables as they were being used before.
-#define tcpConstructor NODE_VAR(tcpConstructor)
-#define family_symbol NODE_VAR(family_symbol)
-#define address_symbol NODE_VAR(address_symbol)
-#define port_symbol NODE_VAR(port_symbol)
-
 namespace node {
 
 using v8::Object;
@@ -81,6 +71,12 @@ using v8::Context;
 using v8::Arguments;
 using v8::Integer;
 using v8::Undefined;
+
+static Persistent<Function> tcpConstructor;
+static Persistent<String> family_symbol;
+static Persistent<String> address_symbol;
+static Persistent<String> port_symbol;
+
 
 typedef class ReqWrap<uv_connect_t> ConnectWrap;
 
@@ -155,7 +151,7 @@ Handle<Value> TCPWrap::New(const Arguments& args) {
 
 TCPWrap::TCPWrap(Handle<Object> object)
     : StreamWrap(object, (uv_stream_t*) &handle_) {
-  int r = uv_tcp_init(Loop(), &handle_);
+  int r = uv_tcp_init(uv_default_loop(), &handle_);
   assert(r == 0); // How do we proxy this error up to javascript?
                   // Suggestion: uv_tcp_init() returns void.
   UpdateWriteQueueSize();
@@ -183,7 +179,7 @@ Handle<Value> TCPWrap::GetSockName(const Arguments& args) {
 
   Local<Object> sockname = Object::New();
   if (r != 0) {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
   } else {
     family = address.ss_family;
 
@@ -225,7 +221,7 @@ Handle<Value> TCPWrap::GetPeerName(const Arguments& args) {
 
   Local<Object> sockname = Object::New();
   if (r != 0) {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
   } else {
     family = address.ss_family;
 
@@ -258,7 +254,7 @@ Handle<Value> TCPWrap::SetNoDelay(const Arguments& args) {
 
   int r = uv_tcp_nodelay(&wrap->handle_, 1);
   if (r)
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
 
   return Undefined();
 }
@@ -274,7 +270,7 @@ Handle<Value> TCPWrap::SetKeepAlive(const Arguments& args) {
 
   int r = uv_tcp_keepalive(&wrap->handle_, enable, delay);
   if (r)
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
 
   return Undefined();
 }
@@ -290,7 +286,7 @@ Handle<Value> TCPWrap::SetSimultaneousAccepts(const Arguments& args) {
 
   int r = uv_tcp_simultaneous_accepts(&wrap->handle_, enable ? 1 : 0);
   if (r)
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
 
   return Undefined();
 }
@@ -309,7 +305,7 @@ Handle<Value> TCPWrap::Bind(const Arguments& args) {
   int r = uv_tcp_bind(&wrap->handle_, address);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(Loop()));
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -327,7 +323,7 @@ Handle<Value> TCPWrap::Bind6(const Arguments& args) {
   int r = uv_tcp_bind6(&wrap->handle_, address);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(Loop()));
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -343,7 +339,7 @@ Handle<Value> TCPWrap::Listen(const Arguments& args) {
   int r = uv_listen((uv_stream_t*)&wrap->handle_, backlog, OnConnection);
 
   // Error starting the tcp.
-  if (r) SetErrno(uv_last_error(Loop()));
+  if (r) SetErrno(uv_last_error(uv_default_loop()));
 
   return scope.Close(Integer::New(r));
 }
@@ -378,7 +374,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     // Successful accept. Call the onconnection callback in JavaScript land.
     argv[0] = client_obj;
   } else {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
     argv[0] = v8::Null();
   }
 
@@ -397,7 +393,7 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
   assert(wrap->object_.IsEmpty() == false);
 
   if (status) {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
   }
 
   Local<Value> argv[3] = {
@@ -433,7 +429,7 @@ Handle<Value> TCPWrap::Connect(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -460,7 +456,7 @@ Handle<Value> TCPWrap::Connect6(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {

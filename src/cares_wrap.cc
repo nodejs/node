@@ -22,7 +22,6 @@
 #include <assert.h>
 #include <node.h>
 #include <req_wrap.h>
-#include <node_vars.h>
 #include <uv.h>
 
 #include <string.h>
@@ -49,11 +48,6 @@
 #endif
 
 
-#include <node_vars.h>
-#define oncomplete_sym NODE_VAR(oncomplete_sym)
-#define ares_channel NODE_VAR(ares_channel)
-
-
 namespace node {
 
 namespace cares_wrap {
@@ -74,6 +68,11 @@ using v8::Value;
 
 
 typedef class ReqWrap<uv_getaddrinfo_t> GetAddrInfoReqWrap;
+
+static Persistent<String> oncomplete_sym;
+
+static ares_channel ares_channel;
+
 
 static Local<Array> HostentToAddresses(struct hostent* host) {
   HandleScope scope;
@@ -608,7 +607,7 @@ void AfterGetAddrInfo(uv_getaddrinfo_t* req, int status, struct addrinfo* res) {
 
   if (status) {
     // Error
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
     argv[0] = Local<Value>::New(Null());
   } else {
     // Success
@@ -711,7 +710,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   hints.ai_family = fam;
   hints.ai_socktype = SOCK_STREAM;
 
-  int r = uv_getaddrinfo(Loop(),
+  int r = uv_getaddrinfo(uv_default_loop(),
                          &req_wrap->req_,
                          AfterGetAddrInfo,
                          *hostname,
@@ -720,7 +719,7 @@ static Handle<Value> GetAddrInfo(const Arguments& args) {
   req_wrap->Dispatched();
 
   if (r) {
-    SetErrno(uv_last_error(Loop()));
+    SetErrno(uv_last_error(uv_default_loop()));
     delete req_wrap;
     return scope.Close(v8::Null());
   } else {
@@ -737,7 +736,7 @@ static void Initialize(Handle<Object> target) {
   assert(r == ARES_SUCCESS);
 
   struct ares_options options;
-  uv_ares_init_options(Loop(), &ares_channel, &options, 0);
+  uv_ares_init_options(uv_default_loop(), &ares_channel, &options, 0);
   assert(r == 0);
 
   NODE_SET_METHOD(target, "queryA", Query<QueryAWrap>);

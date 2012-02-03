@@ -21,7 +21,6 @@
 
 #include <node.h>
 #include <node_script.h>
-#include <node_vars.h>
 #include <assert.h>
 
 namespace node {
@@ -44,8 +43,6 @@ using v8::Integer;
 using v8::Function;
 using v8::FunctionTemplate;
 
-#define wrapped_context_constructor NODE_VAR(wrapped_context_constructor)
-#define wrapped_script_constructor NODE_VAR(wrapped_script_constructor)
 
 class WrappedContext : ObjectWrap {
  public:
@@ -58,11 +55,16 @@ class WrappedContext : ObjectWrap {
 
  protected:
 
+  static Persistent<FunctionTemplate> constructor_template;
+
   WrappedContext();
   ~WrappedContext();
 
   Persistent<Context> context_;
 };
+
+
+Persistent<FunctionTemplate> WrappedContext::constructor_template;
 
 
 class WrappedScript : ObjectWrap {
@@ -79,6 +81,8 @@ class WrappedScript : ObjectWrap {
   static Handle<Value> EvalMachine(const Arguments& args);
 
  protected:
+  static Persistent<FunctionTemplate> constructor_template;
+
   WrappedScript() : ObjectWrap() {}
   ~WrappedScript();
 
@@ -131,17 +135,17 @@ void WrappedContext::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedContext::New);
-  wrapped_context_constructor = Persistent<FunctionTemplate>::New(t);
-  wrapped_context_constructor->InstanceTemplate()->SetInternalFieldCount(1);
-  wrapped_context_constructor->SetClassName(String::NewSymbol("Context"));
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template->SetClassName(String::NewSymbol("Context"));
 
   target->Set(String::NewSymbol("Context"),
-              wrapped_context_constructor->GetFunction());
+              constructor_template->GetFunction());
 }
 
 
 bool WrappedContext::InstanceOf(Handle<Value> value) {
-  return !value.IsEmpty() && wrapped_context_constructor->HasInstance(value);
+  return !value.IsEmpty() && constructor_template->HasInstance(value);
 }
 
 
@@ -166,7 +170,7 @@ WrappedContext::~WrappedContext() {
 
 
 Local<Object> WrappedContext::NewInstance() {
-  Local<Object> context = wrapped_context_constructor->GetFunction()->NewInstance();
+  Local<Object> context = constructor_template->GetFunction()->NewInstance();
   return context;
 }
 
@@ -176,57 +180,60 @@ Persistent<Context> WrappedContext::GetV8Context() {
 }
 
 
+Persistent<FunctionTemplate> WrappedScript::constructor_template;
+
+
 void WrappedScript::Initialize(Handle<Object> target) {
   HandleScope scope;
 
   Local<FunctionTemplate> t = FunctionTemplate::New(WrappedScript::New);
-  wrapped_script_constructor = Persistent<FunctionTemplate>::New(t);
-  wrapped_script_constructor->InstanceTemplate()->SetInternalFieldCount(1);
+  constructor_template = Persistent<FunctionTemplate>::New(t);
+  constructor_template->InstanceTemplate()->SetInternalFieldCount(1);
   // Note: We use 'NodeScript' instead of 'Script' so that we do not
   // conflict with V8's Script class defined in v8/src/messages.js
   // See GH-203 https://github.com/joyent/node/issues/203
-  wrapped_script_constructor->SetClassName(String::NewSymbol("NodeScript"));
+  constructor_template->SetClassName(String::NewSymbol("NodeScript"));
 
-  NODE_SET_PROTOTYPE_METHOD(wrapped_script_constructor,
+  NODE_SET_PROTOTYPE_METHOD(constructor_template,
                             "createContext",
                             WrappedScript::CreateContext);
 
-  NODE_SET_PROTOTYPE_METHOD(wrapped_script_constructor,
+  NODE_SET_PROTOTYPE_METHOD(constructor_template,
                             "runInContext",
                             WrappedScript::RunInContext);
 
-  NODE_SET_PROTOTYPE_METHOD(wrapped_script_constructor,
+  NODE_SET_PROTOTYPE_METHOD(constructor_template,
                             "runInThisContext",
                             WrappedScript::RunInThisContext);
 
-  NODE_SET_PROTOTYPE_METHOD(wrapped_script_constructor,
+  NODE_SET_PROTOTYPE_METHOD(constructor_template,
                             "runInNewContext",
                             WrappedScript::RunInNewContext);
 
-  NODE_SET_METHOD(wrapped_script_constructor,
+  NODE_SET_METHOD(constructor_template,
                   "createContext",
                   WrappedScript::CreateContext);
 
-  NODE_SET_METHOD(wrapped_script_constructor,
+  NODE_SET_METHOD(constructor_template,
                   "runInContext",
                   WrappedScript::CompileRunInContext);
 
-  NODE_SET_METHOD(wrapped_script_constructor,
+  NODE_SET_METHOD(constructor_template,
                   "runInThisContext",
                   WrappedScript::CompileRunInThisContext);
 
-  NODE_SET_METHOD(wrapped_script_constructor,
+  NODE_SET_METHOD(constructor_template,
                   "runInNewContext",
                   WrappedScript::CompileRunInNewContext);
 
   target->Set(String::NewSymbol("NodeScript"),
-              wrapped_script_constructor->GetFunction());
+              constructor_template->GetFunction());
 }
 
 
 Handle<Value> WrappedScript::New(const Arguments& args) {
   if (!args.IsConstructCall()) {
-    return FromConstructorTemplate(wrapped_script_constructor, args);
+    return FromConstructorTemplate(constructor_template, args);
   }
 
   HandleScope scope;

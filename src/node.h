@@ -84,10 +84,6 @@ v8::Handle<v8::Object> SetupProcessObject(int argc, char *argv[]);
 void Load(v8::Handle<v8::Object> process);
 void EmitExit(v8::Handle<v8::Object> process);
 
-// Returns the loop for the current isolate. If compiled with
-// --without-isolates then this will always return uv_default_loop();
-uv_loop_t* Loop();
-
 #define NODE_PSYMBOL(s) \
   v8::Persistent<v8::String>::New(v8::String::NewSymbol(s))
 

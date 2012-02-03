@@ -21,7 +21,6 @@
 
 #include <node.h>
 #include <handle_wrap.h>
-#include <node_vars.h>
 #include <pipe_wrap.h>
 #include <string.h>
 #include <stdlib.h>
@@ -176,10 +175,10 @@ class ProcessWrap : public HandleWrap {
         Get(String::NewSymbol("windowsVerbatimArguments"))->IsTrue();
 #endif
 
-    int r = uv_spawn(Loop(), &wrap->process_, options);
+    int r = uv_spawn(uv_default_loop(), &wrap->process_, options);
 
     if (r) {
-      SetErrno(uv_last_error(Loop()));
+      SetErrno(uv_last_error(uv_default_loop()));
     }
     else {
       wrap->SetHandle((uv_handle_t*)&wrap->process_);
@@ -212,7 +211,7 @@ class ProcessWrap : public HandleWrap {
 
     int r = uv_process_kill(&wrap->process_, signal);
 
-    if (r) SetErrno(uv_last_error(Loop()));
+    if (r) SetErrno(uv_last_error(uv_default_loop()));
 
     return scope.Close(Integer::New(r));
   }

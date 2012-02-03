@@ -29,15 +29,13 @@
 
 #include <node.h>
 #include <node_buffer.h>
-#include <node_vars.h>
-// We do the following to minimize the detal between v0.6 branch. We want to
-// use the variables as they were being used before.
-#define callback_sym NODE_VAR(callback_sym)
 
 
 namespace node {
 using namespace v8;
 
+
+static Persistent<String> callback_sym;
 
 enum node_zlib_mode {
   DEFLATE = 1,
@@ -127,7 +125,7 @@ template <node_zlib_mode mode> class ZCtx : public ObjectWrap {
     // set this so that later on, I can easily tell how much was written.
     ctx->chunk_size_ = out_len;
 
-    uv_queue_work(Loop(),
+    uv_queue_work(uv_default_loop(),
                   work_req,
                   ZCtx<mode>::Process,
                   ZCtx<mode>::After);
