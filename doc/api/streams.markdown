@@ -15,6 +15,9 @@ A `Readable Stream` has the following methods, members, and events.
 The `'data'` event emits either a `Buffer` (by default) or a string if
 `setEncoding()` was used.
 
+Note that the __data will be lost__ if there is no listener when a
+`Readable Stream` emits a `'data'` event.
+
 ### Event: 'end'
 
 `function () { }`
