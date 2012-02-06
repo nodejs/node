@@ -1309,6 +1309,19 @@ TEST_IMPL(fs_stat_root) {
   r = uv_fs_stat(loop, &stat_req, "\\", NULL);
   ASSERT(r == 0);
 
+  r = uv_fs_stat(loop, &stat_req, "..\\..\\..\\..\\..\\..\\..", NULL);
+  ASSERT(r == 0);
+
+  r = uv_fs_stat(loop, &stat_req, "..", NULL);
+  ASSERT(r == 0);
+
+  r = uv_fs_stat(loop, &stat_req, "..\\", NULL);
+  ASSERT(r == 0);
+
+  /* stats the current directory on c: */
+  r = uv_fs_stat(loop, &stat_req, "c:", NULL);
+  ASSERT(r == 0);
+
   r = uv_fs_stat(loop, &stat_req, "c:\\", NULL);
   ASSERT(r == 0);
 

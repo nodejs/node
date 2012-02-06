@@ -415,6 +415,9 @@ Emitted when data is received.  The argument `data` will be a `Buffer` or
 (See the [Readable Stream](streams.html#readable_Stream) section for more
 information.)
 
+Note that the __data will be lost__ if there is no listener when a `Socket`
+emits a `'data'` event.
+
 #### Event: 'end'
 
 `function () { }`

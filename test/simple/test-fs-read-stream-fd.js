@@ -19,50 +19,26 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-var common = require('../common');
+var fs = require('fs');
 var assert = require('assert');
+var path = require('path');
 
-var http = require('http');
-var https = require('https');
+var common = require('../common');
 
-var expected_bad_requests = 0;
-var actual_bad_requests = 0;
+var file = path.join(common.tmpDir, '/read_stream_fd_test.txt');
+var input = 'hello world';
+var output = '';
+var fd, stream;
 
-var host = '********';
-host += host;
-host += host;
-host += host;
-host += host;
-host += host;
+fs.writeFileSync(file, input);
+fd = fs.openSync(file, 'r');
 
-function do_not_call() {
-  throw new Error('This function should not have been called.');
-}
-
-function test(mod) {
-  expected_bad_requests += 2;
-
-  // Bad host name should not throw an uncatchable exception.
-  // Ensure that there is time to attach an error listener.
-  var req = mod.get({host: host, port: 42}, do_not_call);
-  req.on('error', function(err) {
-    assert.equal(err.code, 'ENOTFOUND');
-    actual_bad_requests++;
-  });
-  // http.get() called req.end() for us
-
-  var req = mod.request({method: 'GET', host: host, port: 42}, do_not_call);
-  req.on('error', function(err) {
-    assert.equal(err.code, 'ENOTFOUND');
-    actual_bad_requests++;
-  });
-  req.end();
-}
-
-test(https);
-test(http);
-
-process.on('exit', function() {
-  assert.equal(actual_bad_requests, expected_bad_requests);
+stream = fs.createReadStream(null, { fd: fd, encoding: 'utf8' });
+stream.on('data', function(data) {
+  output += data;
 });
 
+process.on('exit', function() {
+  fs.unlinkSync(file);
+  assert.equal(output, input);
+});

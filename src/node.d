@@ -64,26 +64,63 @@ translator node_connection_t <node_dtrace_connection_t *nc> {
 	    &((node_dtrace_connection64_t *)nc)->buffered, sizeof (int32_t));
 };
 
-typedef struct {
-	uint32_t version;
-} node_dtrace_http_request_t;
-
+/*
+ * 32-bit and 64-bit structures received from node for HTTP client request
+ * probe.
+ */
 typedef struct {
 	uint32_t url;
 	uint32_t method;
-} node_dtrace_http_request_v0_t;
+} node_dtrace_http_client_request_t;
+
+typedef struct {
+	uint64_t url;
+	uint64_t method;
+} node_dtrace_http_client_request64_t;
+
+/*
+ * The following structures are never used directly, but must exist to bind the
+ * types specified in the provider to the translators defined here.
+ * Ultimately, they always get cast to a more specific type inside the
+ * translator.  To add to the confusion, the DTrace compiler does not allow
+ * declaring two translators with the same destination type if the source types
+ * are structures with the same size (because libctf says they're compatible,
+ * so dtrace considers them equivalent).  Since we must define translators from
+ * node_dtrace_http_client_request_t (above), node_dtrace_http_request_t, and
+ * node_dtrace_http_server_request_t (both below), each of these three structs
+ * must be declared with a different size.
+ */
+typedef struct {
+	uint32_t version;
+	uint64_t dummy1;
+} node_dtrace_http_request_t;
+
+typedef struct {
+	uint32_t version;
+	uint64_t dummy2;
+	uint64_t dummy3;
+} node_dtrace_http_server_request_t;
+
+/*
+ * Actual 32-bit and 64-bit, v0 and v1 structures received from node for the
+ * HTTP server request probe.
+ */
+typedef struct {
+	uint32_t url;
+	uint32_t method;
+} node_dtrace_http_server_request_v0_t;
 
 typedef struct {
 	uint32_t version;
 	uint32_t url;
 	uint32_t method;
 	uint32_t forwardedFor;
-} node_dtrace_http_request_v1_t;
+} node_dtrace_http_server_request_v1_t;
 
 typedef struct {
 	uint64_t url;
 	uint64_t method;
-} node_dtrace_http_request64_v0_t;
+} node_dtrace_http_server_request64_v0_t;
 
 typedef struct {
 	uint32_t version;
@@ -91,8 +128,13 @@ typedef struct {
 	uint64_t url;
 	uint64_t method;
 	uint64_t forwardedFor;
-} node_dtrace_http_request64_v1_t;
+} node_dtrace_http_server_request64_v1_t;
 
+/*
+ * In the end, both client and server request probes from both old and new
+ * binaries translate their arguments to node_http_request_t, which is what the
+ * user's D script ultimately sees.
+ */
 typedef struct {
 	string url;
 	string method;
@@ -100,60 +142,174 @@ typedef struct {
 } node_http_request_t;
 
 /*
- * This translator is even filthier than usual owing to our attempts to
- * maintain backwards compatibility.  Previous versions of node used an
- * http_request struct that had fields for "url" and "method".  The current
- * version also provides a "forwardedFor" field.  To distinguish the binary
- * representations of these structs, the new version also prepends a "version"
- * member (where the old one has a "url" pointer).  So each field that we're
- * translating below first switches on the value of this "version" field: if
- * it's larger than 4096, we know we must be looking at the "url" pointer of
- * the older structure version.  Otherwise, we must be looking at the new
- * version.  Besides this, we have the usual switch based on the userland
- * process data model.  This would all be simpler with macros, but those aren't
- * available in delivered D library files since that would make DTrace
- * dependent on cpp, which isn't always available.
+ * The following translators are particularly filthy for reasons of backwards
+ * compatibility.  Stable versions of node prior to 0.6 used a single
+ * http_request struct with fields for "url" and "method" for both client and
+ * server probes.  0.6 added a "forwardedFor" field intended for the server
+ * probe only, and the http_request struct passed by the application was split
+ * first into client_http_request and server_http_request and the latter was
+ * again split for v0 (the old struct) and v1.
+ *
+ * To distinguish the binary representations of the two versions of these
+ * structs, the new version prepends a "version" member (where the old one has
+ * a "url" pointer).  Each field that we're translating below first switches on
+ * the value of this "version" field: if it's larger than 4096, we know we must
+ * be looking at the "url" pointer of the older structure version.  Otherwise,
+ * we must be looking at the new version.  Besides this, we have the usual
+ * switch based on the userland process data model.  This would all be simpler
+ * with macros, but those aren't available in D library files since we cannot
+ * rely on cpp being present at runtime.
+ *
+ * In retrospect, the versioning bit might have been unnecessary since the type
+ * of the object passed in should allow DTrace to select which translator to
+ * use.  However, DTrace does sometimes use translators whose source types
+ * don't quite match, and since we know this versioning logic works, we just
+ * leave it alone.  Each of the translators below is functionally identical
+ * (except that the client -> client translator doesn't bother translating
+ * forwardedFor) and should actually work with any version of any of the client
+ * or server structs transmitted by the application up to this point.
  */
-translator node_http_request_t <node_dtrace_http_request_t *nd> {
-	url = (*(uint32_t *)copyin((uintptr_t)&nd->version, sizeof (uint32_t))) >= 4096 ?
+
+/*
+ * Translate from node_dtrace_http_server_request_t (received from node 0.6 and
+ * later versions) to node_http_request_t.
+ */
+translator node_http_request_t <node_dtrace_http_server_request_t *nd> {
+	url = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ?
 	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
 		copyinstr(*(uint32_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request_v0_t *)nd)->url,
+		    &((node_dtrace_http_server_request_v0_t *)nd)->url,
 		    sizeof (uint32_t))) :
 		copyinstr(*(uint64_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request64_v0_t *)nd)->url,
+		    &((node_dtrace_http_server_request64_v0_t *)nd)->url,
 		    sizeof (uint64_t)))) :
 	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
 		copyinstr(*(uint32_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request_v1_t *)nd)->url,
+		    &((node_dtrace_http_server_request_v1_t *)nd)->url,
 		    sizeof (uint32_t))) :
 		copyinstr(*(uint64_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request64_v1_t *)nd)->url,
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->url,
 		    sizeof (uint64_t))));
 
-	method = (*(uint32_t *)copyin((uintptr_t)&nd->version, sizeof (uint32_t))) >= 4096 ?
+	method = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ?
 	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
 		copyinstr(*(uint32_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request_v0_t *)nd)->method,
+		    &((node_dtrace_http_server_request_v0_t *)nd)->method,
 		    sizeof (uint32_t))) :
 		copyinstr(*(uint64_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request64_v0_t *)nd)->method,
+		    &((node_dtrace_http_server_request64_v0_t *)nd)->method,
 		    sizeof (uint64_t)))) :
 	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
 		copyinstr(*(uint32_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request_v1_t *)nd)->method,
+		    &((node_dtrace_http_server_request_v1_t *)nd)->method,
 		    sizeof (uint32_t))) :
 		copyinstr(*(uint64_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request64_v1_t *)nd)->method,
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->method,
 		    sizeof (uint64_t))));
-	
-	forwardedFor = (*(uint32_t *)
-	    copyin((uintptr_t)&nd->version, sizeof (uint32_t))) >= 4096 ? "" :
+
+	forwardedFor = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ? "" :
 	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
 		copyinstr(*(uint32_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request_v1_t *)nd)->forwardedFor,
+		    &((node_dtrace_http_server_request_v1_t *)nd)->forwardedFor,
 		    sizeof (uint32_t))) :
 		copyinstr(*(uint64_t *)copyin((uintptr_t)
-		    &((node_dtrace_http_request64_v1_t *)nd)->forwardedFor,
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->
+		    forwardedFor, sizeof (uint64_t))));
+};
+
+/*
+ * Translate from node_dtrace_http_client_request_t (received from node 0.6 and
+ * later versions) to node_http_request_t.
+ */
+translator node_http_request_t <node_dtrace_http_client_request_t *nd> {
+	url = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ?
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v0_t *)nd)->url,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v0_t *)nd)->url,
+		    sizeof (uint64_t)))) :
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v1_t *)nd)->url,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->url,
 		    sizeof (uint64_t))));
+
+	method = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ?
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v0_t *)nd)->method,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v0_t *)nd)->method,
+		    sizeof (uint64_t)))) :
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v1_t *)nd)->method,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->method,
+		    sizeof (uint64_t))));
+
+	forwardedFor = "";
+};
+
+/*
+ * Translate from node_dtrace_http_request_t (received from versions of node
+ * prior to 0.6) to node_http_request_t.  This is used for both the server and
+ * client probes since these versions of node didn't distinguish between the
+ * types used in these probes.
+ */
+translator node_http_request_t <node_dtrace_http_request_t *nd> {
+	url = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ?
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v0_t *)nd)->url,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v0_t *)nd)->url,
+		    sizeof (uint64_t)))) :
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v1_t *)nd)->url,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->url,
+		    sizeof (uint64_t))));
+
+	method = (*(uint32_t *)copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ?
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v0_t *)nd)->method,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v0_t *)nd)->method,
+		    sizeof (uint64_t)))) :
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v1_t *)nd)->method,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->method,
+		    sizeof (uint64_t))));
+
+	forwardedFor = (*(uint32_t *) copyin((uintptr_t)(uint32_t *)nd,
+		sizeof (uint32_t))) >= 4096 ? "" :
+	    (curpsinfo->pr_dmodel == PR_MODEL_ILP32 ?
+		copyinstr(*(uint32_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request_v1_t *)nd)->forwardedFor,
+		    sizeof (uint32_t))) :
+		copyinstr(*(uint64_t *)copyin((uintptr_t)
+		    &((node_dtrace_http_server_request64_v1_t *)nd)->
+		    forwardedFor, sizeof (uint64_t))));
 };
