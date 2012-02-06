@@ -3376,9 +3376,9 @@ void LCodeGen::DoCallNew(LCallNew* instr) {
   ASSERT(ToRegister(instr->InputAt(0)).is(r1));
   ASSERT(ToRegister(instr->result()).is(r0));
 
-  Handle<Code> builtin = isolate()->builtins()->JSConstructCall();
+  CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
   __ mov(r0, Operand(instr->arity()));
-  CallCode(builtin, RelocInfo::CONSTRUCT_CALL, instr);
+  CallCode(stub.GetCode(), RelocInfo::CONSTRUCT_CALL, instr);
 }
 
 
@@ -3796,12 +3796,11 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
     LNumberTagI* instr_;
   };
 
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
-  Register reg = ToRegister(input);
+  Register src = ToRegister(instr->InputAt(0));
+  Register dst = ToRegister(instr->result());
 
   DeferredNumberTagI* deferred = new DeferredNumberTagI(this, instr);
-  __ SmiTag(reg, SetCC);
+  __ SmiTag(dst, src, SetCC);
   __ b(vs, deferred->entry());
   __ bind(deferred->exit());
 }
@@ -3809,7 +3808,8 @@ void LCodeGen::DoNumberTagI(LNumberTagI* instr) {
 
 void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   Label slow;
-  Register reg = ToRegister(instr->InputAt(0));
+  Register src = ToRegister(instr->InputAt(0));
+  Register dst = ToRegister(instr->result());
   DoubleRegister dbl_scratch = double_scratch0();
   SwVfpRegister flt_scratch = dbl_scratch.low();
 
@@ -3820,14 +3820,16 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // disagree. Try to allocate a heap number in new space and store
   // the value in there. If that fails, call the runtime system.
   Label done;
-  __ SmiUntag(reg);
-  __ eor(reg, reg, Operand(0x80000000));
-  __ vmov(flt_scratch, reg);
+  if (dst.is(src)) {
+    __ SmiUntag(src, dst);
+    __ eor(src, src, Operand(0x80000000));
+  }
+  __ vmov(flt_scratch, src);
   __ vcvt_f64_s32(dbl_scratch, flt_scratch);
   if (FLAG_inline_new) {
     __ LoadRoot(r6, Heap::kHeapNumberMapRootIndex);
     __ AllocateHeapNumber(r5, r3, r4, r6, &slow);
-    if (!reg.is(r5)) __ mov(reg, r5);
+    __ Move(dst, r5);
     __ b(&done);
   }
 
@@ -3838,16 +3840,16 @@ void LCodeGen::DoDeferredNumberTagI(LNumberTagI* instr) {
   // register is stored, as this register is in the pointer map, but contains an
   // integer value.
   __ mov(ip, Operand(0));
-  __ StoreToSafepointRegisterSlot(ip, reg);
+  __ StoreToSafepointRegisterSlot(ip, dst);
   CallRuntimeFromDeferred(Runtime::kAllocateHeapNumber, 0, instr);
-  if (!reg.is(r0)) __ mov(reg, r0);
+  __ Move(dst, r0);
 
   // Done. Put the value in dbl_scratch into the value of the allocated heap
   // number.
   __ bind(&done);
-  __ sub(ip, reg, Operand(kHeapObjectTag));
+  __ sub(ip, dst, Operand(kHeapObjectTag));
   __ vstr(dbl_scratch, ip, HeapNumber::kValueOffset);
-  __ StoreToSafepointRegisterSlot(reg, reg);
+  __ StoreToSafepointRegisterSlot(dst, dst);
 }
 
 
@@ -3895,23 +3897,21 @@ void LCodeGen::DoDeferredNumberTagD(LNumberTagD* instr) {
 
 
 void LCodeGen::DoSmiTag(LSmiTag* instr) {
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
   ASSERT(!instr->hydrogen_value()->CheckFlag(HValue::kCanOverflow));
-  __ SmiTag(ToRegister(input));
+  __ SmiTag(ToRegister(instr->result()), ToRegister(instr->InputAt(0)));
 }
 
 
 void LCodeGen::DoSmiUntag(LSmiUntag* instr) {
-  LOperand* input = instr->InputAt(0);
-  ASSERT(input->IsRegister() && input->Equals(instr->result()));
+  Register input = ToRegister(instr->InputAt(0));
+  Register result = ToRegister(instr->result());
   if (instr->needs_check()) {
     STATIC_ASSERT(kHeapObjectTag == 1);
     // If the input is a HeapObject, SmiUntag will set the carry flag.
-    __ SmiUntag(ToRegister(input), SetCC);
+    __ SmiUntag(result, input, SetCC);
     DeoptimizeIf(cs, instr->environment());
   } else {
-    __ SmiUntag(ToRegister(input));
+    __ SmiUntag(result, input);
   }
 }
 
@@ -3928,7 +3928,7 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
   Label load_smi, heap_number, done;
 
   // Smi check.
-  __ JumpIfSmi(input_reg, &load_smi);
+  __ UntagAndJumpIfSmi(scratch, input_reg, &load_smi);
 
   // Heap number map check.
   __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
@@ -3967,10 +3967,9 @@ void LCodeGen::EmitNumberUntagD(Register input_reg,
 
   // Smi to double register conversion
   __ bind(&load_smi);
-  __ SmiUntag(input_reg);  // Untag smi before converting to float.
-  __ vmov(flt_scratch, input_reg);
+  // scratch: untagged value of input_reg
+  __ vmov(flt_scratch, scratch);
   __ vcvt_f64_s32(result_reg, flt_scratch);
-  __ SmiTag(input_reg);  // Retag smi.
   __ bind(&done);
 }
 
@@ -4256,7 +4255,7 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
   Label is_smi, done, heap_number;
 
   // Both smi and heap number cases are handled.
-  __ JumpIfSmi(input_reg, &is_smi);
+  __ UntagAndJumpIfSmi(result_reg, input_reg, &is_smi);
 
   // Check for heap number
   __ ldr(scratch, FieldMemOperand(input_reg, HeapObject::kMapOffset));
@@ -4279,7 +4278,6 @@ void LCodeGen::DoClampTToUint8(LClampTToUint8* instr) {
 
   // smi
   __ bind(&is_smi);
-  __ SmiUntag(result_reg, input_reg);
   __ ClampUint8(result_reg, result_reg);
 
   __ bind(&done);

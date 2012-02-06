@@ -230,6 +230,18 @@ void MarkCompactCollector::AddEvacuationCandidate(Page* p) {
 }
 
 
+static void TraceFragmentation(PagedSpace* space) {
+  int number_of_pages = space->CountTotalPages();
+  intptr_t reserved = (number_of_pages * Page::kObjectAreaSize);
+  intptr_t free = reserved - space->SizeOfObjects();
+  PrintF("[%s]: %d pages, %d (%.1f%%) free\n",
+         AllocationSpaceName(space->identity()),
+         number_of_pages,
+         static_cast<int>(free),
+         static_cast<double>(free) * 100 / reserved);
+}
+
+
 bool MarkCompactCollector::StartCompaction() {
   if (!compacting_) {
     ASSERT(evacuation_candidates_.length() == 0);
@@ -239,6 +251,13 @@ bool MarkCompactCollector::StartCompaction() {
 
     if (FLAG_compact_code_space) {
       CollectEvacuationCandidates(heap()->code_space());
+    } else if (FLAG_trace_fragmentation) {
+      TraceFragmentation(heap()->code_space());
+    }
+
+    if (FLAG_trace_fragmentation) {
+      TraceFragmentation(heap()->map_space());
+      TraceFragmentation(heap()->cell_space());
     }
 
     heap()->old_pointer_space()->EvictEvacuationCandidatesFromFreeLists();
@@ -414,6 +433,65 @@ const char* AllocationSpaceName(AllocationSpace space) {
 }
 
 
+// Returns zero for pages that have so little fragmentation that it is not
+// worth defragmenting them.  Otherwise a positive integer that gives an
+// estimate of fragmentation on an arbitrary scale.
+static int FreeListFragmentation(PagedSpace* space, Page* p) {
+  // If page was not swept then there are no free list items on it.
+  if (!p->WasSwept()) {
+    if (FLAG_trace_fragmentation) {
+      PrintF("%p [%s]: %d bytes live (unswept)\n",
+             reinterpret_cast<void*>(p),
+             AllocationSpaceName(space->identity()),
+             p->LiveBytes());
+    }
+    return 0;
+  }
+
+  FreeList::SizeStats sizes;
+  space->CountFreeListItems(p, &sizes);
+
+  intptr_t ratio;
+  intptr_t ratio_threshold;
+  if (space->identity() == CODE_SPACE) {
+    ratio = (sizes.medium_size_ * 10 + sizes.large_size_ * 2) * 100 /
+        Page::kObjectAreaSize;
+    ratio_threshold = 10;
+  } else {
+    ratio = (sizes.small_size_ * 5 + sizes.medium_size_) * 100 /
+        Page::kObjectAreaSize;
+    ratio_threshold = 15;
+  }
+
+  if (FLAG_trace_fragmentation) {
+    PrintF("%p [%s]: %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %d (%.2f%%) %s\n",
+           reinterpret_cast<void*>(p),
+           AllocationSpaceName(space->identity()),
+           static_cast<int>(sizes.small_size_),
+           static_cast<double>(sizes.small_size_ * 100) /
+           Page::kObjectAreaSize,
+           static_cast<int>(sizes.medium_size_),
+           static_cast<double>(sizes.medium_size_ * 100) /
+           Page::kObjectAreaSize,
+           static_cast<int>(sizes.large_size_),
+           static_cast<double>(sizes.large_size_ * 100) /
+           Page::kObjectAreaSize,
+           static_cast<int>(sizes.huge_size_),
+           static_cast<double>(sizes.huge_size_ * 100) /
+           Page::kObjectAreaSize,
+           (ratio > ratio_threshold) ? "[fragmented]" : "");
+  }
+
+  if (FLAG_always_compact && sizes.Total() != Page::kObjectAreaSize) {
+    return 1;
+  }
+
+  if (ratio <= ratio_threshold) return 0;  // Not fragmented.
+
+  return static_cast<int>(ratio - ratio_threshold);
+}
+
+
 void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
   ASSERT(space->identity() == OLD_POINTER_SPACE ||
          space->identity() == OLD_DATA_SPACE ||
@@ -421,7 +499,6 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
 
   int number_of_pages = space->CountTotalPages();
 
-  PageIterator it(space);
   const int kMaxMaxEvacuationCandidates = 1000;
   int max_evacuation_candidates = Min(
     kMaxMaxEvacuationCandidates,
@@ -444,22 +521,89 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
     Page* page_;
   };
 
+  enum CompactionMode {
+    COMPACT_FREE_LISTS,
+    REDUCE_MEMORY_FOOTPRINT
+  };
+
+  CompactionMode mode = COMPACT_FREE_LISTS;
+
+  intptr_t reserved = number_of_pages * Page::kObjectAreaSize;
+  intptr_t over_reserved = reserved - space->SizeOfObjects();
+  static const intptr_t kFreenessThreshold = 50;
+
+  if (over_reserved >= 2 * Page::kObjectAreaSize &&
+      reduce_memory_footprint_) {
+    mode = REDUCE_MEMORY_FOOTPRINT;
+
+    // We expect that empty pages are easier to compact so slightly bump the
+    // limit.
+    max_evacuation_candidates += 2;
+
+    if (FLAG_trace_fragmentation) {
+      PrintF("Estimated over reserved memory: %.1f MB (setting threshold %d)\n",
+             static_cast<double>(over_reserved) / MB,
+             static_cast<int>(kFreenessThreshold));
+    }
+  }
+
+  intptr_t estimated_release = 0;
+
   Candidate candidates[kMaxMaxEvacuationCandidates];
 
   int count = 0;
-  if (it.has_next()) it.next();  // Never compact the first page.
   int fragmentation = 0;
   Candidate* least = NULL;
+
+  PageIterator it(space);
+  if (it.has_next()) it.next();  // Never compact the first page.
+
   while (it.has_next()) {
     Page* p = it.next();
     p->ClearEvacuationCandidate();
+
     if (FLAG_stress_compaction) {
       int counter = space->heap()->ms_count();
       uintptr_t page_number = reinterpret_cast<uintptr_t>(p) >> kPageSizeBits;
       if ((counter & 1) == (page_number & 1)) fragmentation = 1;
+    } else if (mode == REDUCE_MEMORY_FOOTPRINT) {
+      // Don't try to release too many pages.
+      if (estimated_release >= ((over_reserved * 3) / 4)) {
+        continue;
+      }
+
+      intptr_t free_bytes = 0;
+
+      if (!p->WasSwept()) {
+        free_bytes = (Page::kObjectAreaSize - p->LiveBytes());
+      } else {
+        FreeList::SizeStats sizes;
+        space->CountFreeListItems(p, &sizes);
+        free_bytes = sizes.Total();
+      }
+
+      int free_pct = static_cast<int>(free_bytes * 100 / Page::kObjectAreaSize);
+
+      if (free_pct >= kFreenessThreshold) {
+        estimated_release += Page::kObjectAreaSize +
+            (Page::kObjectAreaSize - free_bytes);
+        fragmentation = free_pct;
+      } else {
+        fragmentation = 0;
+      }
+
+      if (FLAG_trace_fragmentation) {
+        PrintF("%p [%s]: %d (%.2f%%) free %s\n",
+               reinterpret_cast<void*>(p),
+               AllocationSpaceName(space->identity()),
+               static_cast<int>(free_bytes),
+               static_cast<double>(free_bytes * 100) / Page::kObjectAreaSize,
+               (fragmentation > 0) ? "[fragmented]" : "");
+      }
     } else {
-      fragmentation = space->Fragmentation(p);
+      fragmentation = FreeListFragmentation(space, p);
     }
+
     if (fragmentation != 0) {
       if (count < max_evacuation_candidates) {
         candidates[count++] = Candidate(fragmentation, p);
@@ -479,6 +623,7 @@ void MarkCompactCollector::CollectEvacuationCandidates(PagedSpace* space) {
       }
     }
   }
+
   for (int i = 0; i < count; i++) {
     AddEvacuationCandidate(candidates[i].page());
   }
@@ -894,17 +1039,9 @@ class StaticMarkingVisitor : public StaticVisitorBase {
             heap->mark_compact_collector()->flush_monomorphic_ics_)) {
       IC::Clear(rinfo->pc());
       target = Code::GetCodeFromTargetAddress(rinfo->target_address());
-    } else {
-      if (FLAG_cleanup_code_caches_at_gc &&
-          target->kind() == Code::STUB &&
-          target->major_key() == CodeStub::CallFunction &&
-          target->has_function_cache()) {
-        CallFunctionStub::Clear(heap, rinfo->pc());
-      }
     }
     MarkBit code_mark = Marking::MarkBitFrom(target);
     heap->mark_compact_collector()->MarkObject(target, code_mark);
-
     heap->mark_compact_collector()->RecordRelocSlot(rinfo, target);
   }
 
@@ -1025,8 +1162,17 @@ class StaticMarkingVisitor : public StaticVisitorBase {
   }
 
   static void VisitCode(Map* map, HeapObject* object) {
-    reinterpret_cast<Code*>(object)->CodeIterateBody<StaticMarkingVisitor>(
-        map->GetHeap());
+    Heap* heap = map->GetHeap();
+    Code* code = reinterpret_cast<Code*>(object);
+    if (FLAG_cleanup_code_caches_at_gc) {
+      TypeFeedbackCells* type_feedback_cells = code->type_feedback_cells();
+      for (int i = 0; i < type_feedback_cells->CellCount(); i++) {
+        ASSERT(type_feedback_cells->AstId(i)->IsSmi());
+        JSGlobalPropertyCell* cell = type_feedback_cells->Cell(i);
+        cell->set_value(TypeFeedbackCells::RawUninitializedSentinel(heap));
+      }
+    }
+    code->CodeIterateBody<StaticMarkingVisitor>(heap);
   }
 
   // Code flushing support.
@@ -2368,9 +2514,9 @@ void MarkCompactCollector::ClearNonLivePrototypeTransitions(Map* map) {
 void MarkCompactCollector::ClearNonLiveMapTransitions(Map* map,
                                                       MarkBit map_mark) {
   // Follow the chain of back pointers to find the prototype.
-  Map* real_prototype = map;
+  Object* real_prototype = map;
   while (real_prototype->IsMap()) {
-    real_prototype = reinterpret_cast<Map*>(real_prototype->prototype());
+    real_prototype = Map::cast(real_prototype)->prototype();
     ASSERT(real_prototype->IsHeapObject());
   }
 
@@ -3241,6 +3387,8 @@ void MarkCompactCollector::EvacuateNewSpaceAndCandidates() {
     p->set_scan_on_scavenge(false);
     slots_buffer_allocator_.DeallocateChain(p->slots_buffer_address());
     p->ClearEvacuationCandidate();
+    p->ResetLiveBytes();
+    space->ReleasePage(p);
   }
   evacuation_candidates_.Rewind(0);
   compacting_ = false;

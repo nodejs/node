@@ -140,6 +140,12 @@ bool TypeFeedbackOracle::CallIsMonomorphic(Call* expr) {
 }
 
 
+bool TypeFeedbackOracle::CallNewIsMonomorphic(CallNew* expr) {
+  Handle<Object> value = GetInfo(expr->id());
+  return value->IsJSFunction();
+}
+
+
 Handle<Map> TypeFeedbackOracle::LoadMonomorphicReceiverType(Property* expr) {
   ASSERT(LoadIsMonomorphicNormal(expr));
   Handle<Object> map_or_code = GetInfo(expr->id());
@@ -541,6 +547,7 @@ void TypeFeedbackOracle::BuildDictionary(Handle<Code> code) {
   GetRelocInfos(code, &infos);
   CreateDictionary(code, &infos);
   ProcessRelocInfos(&infos);
+  ProcessTypeFeedbackCells(code);
   // Allocate handle in the parent scope.
   dictionary_ = scope.CloseAndEscape(dictionary_);
 }
@@ -558,8 +565,9 @@ void TypeFeedbackOracle::GetRelocInfos(Handle<Code> code,
 void TypeFeedbackOracle::CreateDictionary(Handle<Code> code,
                                           ZoneList<RelocInfo>* infos) {
   DisableAssertNoAllocation allocation_allowed;
+  int length = infos->length() + code->type_feedback_cells()->CellCount();
   byte* old_start = code->instruction_start();
-  dictionary_ = FACTORY->NewUnseededNumberDictionary(infos->length());
+  dictionary_ = FACTORY->NewUnseededNumberDictionary(length);
   byte* new_start = code->instruction_start();
   RelocateRelocInfos(infos, old_start, new_start);
 }
@@ -619,20 +627,22 @@ void TypeFeedbackOracle::ProcessRelocInfos(ZoneList<RelocInfo>* infos) {
         SetInfo(ast_id, target);
         break;
 
-      case Code::STUB:
-        if (target->major_key() == CodeStub::CallFunction &&
-            target->has_function_cache()) {
-          Object* value = CallFunctionStub::GetCachedValue(reloc_entry.pc());
-          if (value->IsJSFunction() &&
-              !CanRetainOtherContext(JSFunction::cast(value),
-                                     *global_context_)) {
-            SetInfo(ast_id, value);
-          }
-        }
-        break;
-
       default:
         break;
+    }
+  }
+}
+
+
+void TypeFeedbackOracle::ProcessTypeFeedbackCells(Handle<Code> code) {
+  Handle<TypeFeedbackCells> cache(code->type_feedback_cells());
+  for (int i = 0; i < cache->CellCount(); i++) {
+    unsigned ast_id = cache->AstId(i)->value();
+    Object* value = cache->Cell(i)->value();
+    if (value->IsJSFunction() &&
+        !CanRetainOtherContext(JSFunction::cast(value),
+                               *global_context_)) {
+      SetInfo(ast_id, value);
     }
   }
 }

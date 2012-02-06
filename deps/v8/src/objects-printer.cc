@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -569,7 +569,11 @@ void FixedDoubleArray::FixedDoubleArrayPrint(FILE* out) {
   HeapObject::PrintHeader(out, "FixedDoubleArray");
   PrintF(out, " - length: %d", length());
   for (int i = 0; i < length(); i++) {
-    PrintF(out, "\n  [%d]: %g", i, get_scalar(i));
+    if (is_the_hole(i)) {
+      PrintF(out, "\n  [%d]: <the hole>", i);
+    } else {
+      PrintF(out, "\n  [%d]: %g", i, get_scalar(i));
+    }
   }
   PrintF(out, "\n");
 }

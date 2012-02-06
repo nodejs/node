@@ -222,8 +222,36 @@ void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
+void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // Register state just before return from JS function (from codegen-ia32.cc).
+  // ----------- S t a t e -------------
+  //  -- eax: return value
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, eax.bit(), 0, true);
+}
+
+
+void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallFunctionStub (from code-stubs-ia32.cc).
+  // ----------- S t a t e -------------
+  //  -- edi: function
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, edi.bit(), 0, false);
+}
+
+
+void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
+  // Register state for CallFunctionStub (from code-stubs-ia32.cc).
+  // ----------- S t a t e -------------
+  //  -- ebx: cache cell for call target
+  //  -- edi: function
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, ebx.bit() | edi.bit(), 0, false);
+}
+
+
+void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallConstructStub (from code-stubs-ia32.cc).
   // eax is the actual number of arguments not encoded as a smi see comment
   // above IC call.
   // ----------- S t a t e -------------
@@ -235,21 +263,17 @@ void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
-  // Register state just before return from JS function (from codegen-ia32.cc).
+void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
+  // Register state for CallConstructStub (from code-stubs-ia32.cc).
+  // eax is the actual number of arguments not encoded as a smi see comment
+  // above IC call.
   // ----------- S t a t e -------------
-  //  -- eax: return value
+  //  -- eax: number of arguments (not smi)
+  //  -- ebx: cache cell for call target
+  //  -- edi: constructor function
   // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, eax.bit(), 0, true);
-}
-
-
-void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
-  // Register state for stub CallFunction (from CallFunctionStub in ic-ia32.cc).
-  // ----------- S t a t e -------------
-  //  -- edi: function
-  // -----------------------------------
-  Generate_DebugBreakCallHelper(masm, edi.bit(), 0, false);
+  // The number of arguments in eax is not smi encoded.
+  Generate_DebugBreakCallHelper(masm, ebx.bit() | edi.bit(), eax.bit(), false);
 }
 
 

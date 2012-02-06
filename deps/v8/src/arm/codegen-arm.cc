@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -104,10 +104,10 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ add(lr, lr, Operand(r5, LSL, 2));
   __ AllocateInNewSpace(lr, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
   // r6: destination FixedDoubleArray, not tagged as heap object
+  // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(r9, Heap::kFixedDoubleArrayMapRootIndex);
-  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
-  // Set destination FixedDoubleArray's length.
   __ str(r5, MemOperand(r6, FixedDoubleArray::kLengthOffset));
+  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
   // Update receiver's map.
 
   __ str(r3, FieldMemOperand(r2, HeapObject::kMapOffset));
@@ -155,10 +155,9 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ bind(&loop);
   __ ldr(r9, MemOperand(r3, 4, PostIndex));
   // r9: current element
-  __ JumpIfNotSmi(r9, &convert_hole);
+  __ UntagAndJumpIfNotSmi(r9, r9, &convert_hole);
 
   // Normal smi, convert to double and store.
-  __ SmiUntag(r9);
   if (vfp3_supported) {
     CpuFeatures::Scope scope(VFP3);
     __ vmov(s0, r9);
@@ -181,6 +180,9 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
   if (FLAG_debug_code) {
+    // Restore a "smi-untagged" heap object.
+    __ SmiTag(r9);
+    __ orr(r9, r9, Operand(1));
     __ CompareRoot(r9, Heap::kTheHoleValueRootIndex);
     __ Assert(eq, "object found in smi-only array");
   }
@@ -208,9 +210,8 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   Label entry, loop, convert_hole, gc_required;
 
   __ push(lr);
-  __ Push(r3, r2, r1, r0);
-
   __ ldr(r4, FieldMemOperand(r2, JSObject::kElementsOffset));
+  __ Push(r3, r2, r1, r0);
   __ ldr(r5, FieldMemOperand(r4, FixedArray::kLengthOffset));
   // r4: source FixedDoubleArray
   // r5: number of elements (smi-tagged)
@@ -220,10 +221,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ add(r0, r0, Operand(r5, LSL, 1));
   __ AllocateInNewSpace(r0, r6, r7, r9, &gc_required, NO_ALLOCATION_FLAGS);
   // r6: destination FixedArray, not tagged as heap object
+  // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(r9, Heap::kFixedArrayMapRootIndex);
-  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
-  // Set destination FixedDoubleArray's length.
   __ str(r5, MemOperand(r6, FixedDoubleArray::kLengthOffset));
+  __ str(r9, MemOperand(r6, HeapObject::kMapOffset));
 
   // Prepare for conversion loop.
   __ add(r4, r4, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
@@ -325,8 +326,8 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Handle slices.
   Label indirect_string_loaded;
   __ ldr(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
-  __ add(index, index, Operand(result, ASR, kSmiTagSize));
   __ ldr(string, FieldMemOperand(string, SlicedString::kParentOffset));
+  __ add(index, index, Operand(result, ASR, kSmiTagSize));
   __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.
@@ -336,8 +337,7 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // the string.
   __ bind(&cons_string);
   __ ldr(result, FieldMemOperand(string, ConsString::kSecondOffset));
-  __ LoadRoot(ip, Heap::kEmptyStringRootIndex);
-  __ cmp(result, ip);
+  __ CompareRoot(result, Heap::kEmptyStringRootIndex);
   __ b(ne, call_runtime);
   // Get the first of the two strings and load its instance type.
   __ ldr(string, FieldMemOperand(string, ConsString::kFirstOffset));

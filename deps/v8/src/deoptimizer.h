@@ -267,7 +267,11 @@ class Deoptimizer : public Malloced {
   int ConvertJSFrameIndexToFrameIndex(int jsframe_index);
 
  private:
-  static const int kNumberOfEntries = 8192;
+#ifdef V8_TARGET_ARCH_MIPS
+  static const int kNumberOfEntries = 4096;
+#else
+  static const int kNumberOfEntries = 16384;
+#endif
 
   Deoptimizer(Isolate* isolate,
               JSFunction* function,
@@ -745,6 +749,10 @@ class DeoptimizedFrameInfo : public Malloced {
     return expression_stack_[index];
   }
 
+  int GetSourcePosition() {
+    return source_position_;
+  }
+
  private:
   // Set the frame function.
   void SetFunction(JSFunction* function) {
@@ -768,6 +776,7 @@ class DeoptimizedFrameInfo : public Malloced {
   int expression_count_;
   Object** parameters_;
   Object** expression_stack_;
+  int source_position_;
 
   friend class Deoptimizer;
 };

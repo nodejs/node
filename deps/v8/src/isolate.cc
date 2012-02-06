@@ -1834,6 +1834,7 @@ bool Isolate::Init(Deserializer* des) {
   }
 
   state_ = INITIALIZED;
+  time_millis_at_init_ = OS::TimeCurrentMillis();
   return true;
 }
 

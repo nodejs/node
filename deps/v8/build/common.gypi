@@ -85,6 +85,11 @@
     'v8_use_liveobjectlist%': 'false',
     'werror%': '-Werror',
 
+    # With post mortem support enabled, metadata is embedded into libv8 that
+    # describes various parameters of the VM for use by debuggers. See
+    # tools/gen-postmortem-metadata.py for details.
+    'v8_postmortem_support%': 'false',
+
     # For a shared library build, results in "libv8-<(soname_version).so".
     'soname_version%': '',
   },
@@ -322,6 +327,7 @@
           }],  # OS=="mac"
           ['OS=="win"', {
             'msvs_configuration_attributes': {
+              'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
               'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
               'CharacterSet': '1',
             },

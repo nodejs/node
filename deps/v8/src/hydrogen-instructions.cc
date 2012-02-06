@@ -67,6 +67,14 @@ const char* Representation::Mnemonic() const {
 }
 
 
+int HValue::LoopWeight() const {
+  const int w = FLAG_loop_weight;
+  static const int weights[] = { 1, w, w*w, w*w*w, w*w*w*w };
+  return weights[Min(block()->LoopNestingDepth(),
+                     static_cast<int>(ARRAY_SIZE(weights)-1))];
+}
+
+
 void HValue::AssumeRepresentation(Representation r) {
   if (CheckFlag(kFlexibleRepresentation)) {
     ChangeRepresentation(r);
@@ -1139,7 +1147,7 @@ void HPhi::InitRealUses(int phi_id) {
     HValue* value = it.value();
     if (!value->IsPhi()) {
       Representation rep = value->RequiredInputRepresentation(it.index());
-      ++non_phi_uses_[rep.kind()];
+      non_phi_uses_[rep.kind()] += value->LoopWeight();
     }
   }
 }

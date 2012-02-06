@@ -571,7 +571,7 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
     ExternalReference map = ExternalReference::re_word_character_map();
     __ mov(r0, Operand(map));
     __ ldrb(r0, MemOperand(r0, current_character()));
-    __ tst(r0, Operand(r0));
+    __ cmp(r0, Operand(0));
     BranchOrBacktrack(eq, on_no_match);
     return true;
   }
@@ -585,7 +585,7 @@ bool RegExpMacroAssemblerARM::CheckSpecialCharacterClass(uc16 type,
     ExternalReference map = ExternalReference::re_word_character_map();
     __ mov(r0, Operand(map));
     __ ldrb(r0, MemOperand(r0, current_character()));
-    __ tst(r0, Operand(r0));
+    __ cmp(r0, Operand(0));
     BranchOrBacktrack(ne, on_no_match);
     if (mode_ != ASCII) {
       __ bind(&done);
@@ -681,7 +681,7 @@ Handle<HeapObject> RegExpMacroAssemblerARM::GetCode(Handle<String> source) {
 
   // Determine whether the start index is zero, that is at the start of the
   // string, and store that value in a local variable.
-  __ tst(r1, Operand(r1));
+  __ cmp(r1, Operand(0));
   __ mov(r1, Operand(1), LeaveCC, eq);
   __ mov(r1, Operand(0, RelocInfo::NONE), LeaveCC, ne);
   __ str(r1, MemOperand(frame_pointer(), kAtStart));

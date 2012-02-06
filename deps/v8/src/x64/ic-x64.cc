@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -635,6 +635,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label slow, slow_with_tagged_index, fast, array, extra, check_extra_double;
   Label fast_object_with_map_check, fast_object_without_map_check;
   Label fast_double_with_map_check, fast_double_without_map_check;
+  Label transition_smi_elements, finish_object_store, non_double_value;
+  Label transition_double_elements;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(rdx, &slow_with_tagged_index);
@@ -737,7 +739,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&non_smi_value);
   // Writing a non-smi, check whether array allows non-smi elements.
   // r9: receiver's map
-  __ CheckFastObjectElements(r9, &slow, Label::kNear);
+  __ CheckFastObjectElements(r9, &transition_smi_elements);
+  __ bind(&finish_object_store);
   __ movq(FieldOperand(rbx, rcx, times_pointer_size, FixedArray::kHeaderSize),
           rax);
   __ movq(rdx, rax);  // Preserve the value which is returned.
@@ -754,8 +757,53 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&fast_double_without_map_check);
   // If the value is a number, store it as a double in the FastDoubleElements
   // array.
-  __ StoreNumberToDoubleElements(rax, rbx, rcx, xmm0, &slow);
+  __ StoreNumberToDoubleElements(rax, rbx, rcx, xmm0,
+                                 &transition_double_elements);
   __ ret(0);
+
+  __ bind(&transition_smi_elements);
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+
+  // Transition the array appropriately depending on the value type.
+  __ movq(r9, FieldOperand(rax, HeapObject::kMapOffset));
+  __ CompareRoot(r9, Heap::kHeapNumberMapRootIndex);
+  __ j(not_equal, &non_double_value);
+
+  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
+  // FAST_DOUBLE_ELEMENTS and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_DOUBLE_ELEMENTS,
+                                         rbx,
+                                         rdi,
+                                         &slow);
+  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ jmp(&fast_double_without_map_check);
+
+  __ bind(&non_double_value);
+  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         rbx,
+                                         rdi,
+                                         &slow);
+  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
+
+  __ bind(&transition_double_elements);
+  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
+  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
+  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
+  __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         rbx,
+                                         rdi,
+                                         &slow);
+  ElementsTransitionGenerator::GenerateDoubleToObject(masm, &slow);
+  __ movq(rbx, FieldOperand(rdx, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
 }
 
 

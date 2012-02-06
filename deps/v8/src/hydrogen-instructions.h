@@ -569,6 +569,7 @@ class HValue: public ZoneObject {
 
   HBasicBlock* block() const { return block_; }
   void SetBlock(HBasicBlock* block);
+  int LoopWeight() const;
 
   int id() const { return id_; }
   void set_id(int id) { id_ = id; }

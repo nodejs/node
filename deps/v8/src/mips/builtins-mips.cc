@@ -116,9 +116,7 @@ static void AllocateEmptyJSArray(MacroAssembler* masm,
                                  Label* gc_required) {
   const int initial_capacity = JSArray::kPreallocatedArrayElements;
   STATIC_ASSERT(initial_capacity >= 0);
-  // Load the initial map from the array function.
-  __ lw(scratch1, FieldMemOperand(array_function,
-                                  JSFunction::kPrototypeOrInitialMapOffset));
+  __ LoadGlobalInitialConstructedArrayMap(array_function, scratch2, scratch1);
 
   // Allocate the JSArray object together with space for a fixed array with the
   // requested elements.
@@ -214,9 +212,8 @@ static void AllocateJSArray(MacroAssembler* masm,
                             bool fill_with_hole,
                             Label* gc_required) {
   // Load the initial map from the array function.
-  __ lw(elements_array_storage,
-         FieldMemOperand(array_function,
-                         JSFunction::kPrototypeOrInitialMapOffset));
+  __ LoadGlobalInitialConstructedArrayMap(array_function, scratch2,
+                                          elements_array_storage);
 
   if (FLAG_debug_code) {  // Assert that array size is not zero.
     __ Assert(
@@ -681,7 +678,9 @@ void Builtins::Generate_StringConstructCode(MacroAssembler* masm) {
 }
 
 
-void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
+static void Generate_JSConstructStubHelper(MacroAssembler* masm,
+                                           bool is_api_function,
+                                           bool count_constructions) {
   // ----------- S t a t e -------------
   //  -- a0     : number of arguments
   //  -- a1     : constructor function
@@ -689,45 +688,6 @@ void Builtins::Generate_JSConstructCall(MacroAssembler* masm) {
   //  -- sp[...]: constructor arguments
   // -----------------------------------
 
-  Label slow, non_function_call;
-  // Check that the function is not a smi.
-  __ JumpIfSmi(a1, &non_function_call);
-  // Check that the function is a JSFunction.
-  __ GetObjectType(a1, a2, a2);
-  __ Branch(&slow, ne, a2, Operand(JS_FUNCTION_TYPE));
-
-  // Jump to the function-specific construct stub.
-  __ lw(a2, FieldMemOperand(a1, JSFunction::kSharedFunctionInfoOffset));
-  __ lw(a2, FieldMemOperand(a2, SharedFunctionInfo::kConstructStubOffset));
-  __ Addu(t9, a2, Operand(Code::kHeaderSize - kHeapObjectTag));
-  __ Jump(t9);
-
-  // a0: number of arguments
-  // a1: called object
-  // a2: object type
-  Label do_call;
-  __ bind(&slow);
-  __ Branch(&non_function_call, ne, a2, Operand(JS_FUNCTION_PROXY_TYPE));
-  __ GetBuiltinEntry(a3, Builtins::CALL_FUNCTION_PROXY_AS_CONSTRUCTOR);
-  __ jmp(&do_call);
-
-  __ bind(&non_function_call);
-  __ GetBuiltinEntry(a3, Builtins::CALL_NON_FUNCTION_AS_CONSTRUCTOR);
-  __ bind(&do_call);
-  // CALL_NON_FUNCTION expects the non-function constructor as receiver
-  // (instead of the original receiver from the call site). The receiver is
-  // stack element argc.
-  // Set expected number of arguments to zero (not changing a0).
-  __ mov(a2, zero_reg);
-  __ SetCallKind(t1, CALL_AS_METHOD);
-  __ Jump(masm->isolate()->builtins()->ArgumentsAdaptorTrampoline(),
-          RelocInfo::CODE_TARGET);
-}
-
-
-static void Generate_JSConstructStubHelper(MacroAssembler* masm,
-                                           bool is_api_function,
-                                           bool count_constructions) {
   // Should never count constructions for api objects.
   ASSERT(!is_api_function || !count_constructions);
 
@@ -1150,7 +1110,8 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
     // Invoke the code and pass argc as a0.
     __ mov(a0, a3);
     if (is_construct) {
-      __ Call(masm->isolate()->builtins()->JSConstructCall());
+      CallConstructStub stub(NO_CALL_FUNCTION_FLAGS);
+      __ CallStub(&stub);
     } else {
       ParameterCount actual(a0);
       __ InvokeFunction(a1, actual, CALL_FUNCTION,
@@ -1800,6 +1761,7 @@ void Builtins::Generate_ArgumentsAdaptorTrampoline(MacroAssembler* masm) {
 
   __ Call(a3);
 
+  masm->isolate()->heap()->SetArgumentsAdaptorDeoptPCOffset(masm->pc_offset());
   // Exit frame and return.
   LeaveArgumentsAdaptorFrame(masm);
   __ Ret();

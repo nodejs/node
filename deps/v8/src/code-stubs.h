@@ -38,6 +38,7 @@ namespace internal {
 // List of code stubs used on all platforms.
 #define CODE_STUB_LIST_ALL_PLATFORMS(V)  \
   V(CallFunction)                        \
+  V(CallConstruct)                       \
   V(UnaryOp)                             \
   V(BinaryOp)                            \
   V(StringAdd)                           \
@@ -738,30 +739,12 @@ class CallFunctionStub: public CodeStub {
 
   void Generate(MacroAssembler* masm);
 
-  virtual void FinishCode(Handle<Code> code);
-
-  static void Clear(Heap* heap, Address address);
-
-  static Object* GetCachedValue(Address address);
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_has_function_cache(RecordCallTarget());
+  }
 
   static int ExtractArgcFromMinorKey(int minor_key) {
     return ArgcBits::decode(minor_key);
-  }
-
-  // The object that indicates an uninitialized cache.
-  static Handle<Object> UninitializedSentinel(Isolate* isolate) {
-    return isolate->factory()->the_hole_value();
-  }
-
-  // A raw version of the uninitialized sentinel that's safe to read during
-  // garbage collection (e.g., for patching the cache).
-  static Object* RawUninitializedSentinel(Heap* heap) {
-    return heap->raw_unchecked_the_hole_value();
-  }
-
-  // The object that indicates a megamorphic state.
-  static Handle<Object> MegamorphicSentinel(Isolate* isolate) {
-    return isolate->factory()->undefined_value();
   }
 
  private:
@@ -783,6 +766,30 @@ class CallFunctionStub: public CodeStub {
   bool ReceiverMightBeImplicit() {
     return (flags_ & RECEIVER_MIGHT_BE_IMPLICIT) != 0;
   }
+
+  bool RecordCallTarget() {
+    return (flags_ & RECORD_CALL_TARGET) != 0;
+  }
+};
+
+
+class CallConstructStub: public CodeStub {
+ public:
+  explicit CallConstructStub(CallFunctionFlags flags) : flags_(flags) {}
+
+  void Generate(MacroAssembler* masm);
+
+  virtual void FinishCode(Handle<Code> code) {
+    code->set_has_function_cache(RecordCallTarget());
+  }
+
+ private:
+  CallFunctionFlags flags_;
+
+  virtual void PrintName(StringStream* stream);
+
+  Major MajorKey() { return CallConstruct; }
+  int MinorKey() { return flags_; }
 
   bool RecordCallTarget() {
     return (flags_ & RECORD_CALL_TARGET) != 0;

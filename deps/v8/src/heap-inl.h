@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -438,8 +438,10 @@ void Heap::ScavengeObject(HeapObject** p, HeapObject* object) {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space) {
-  return CollectGarbage(space, SelectGarbageCollector(space));
+bool Heap::CollectGarbage(AllocationSpace space, const char* gc_reason) {
+  const char* collector_reason = NULL;
+  GarbageCollector collector = SelectGarbageCollector(space, &collector_reason);
+  return CollectGarbage(space, collector, gc_reason, collector_reason);
 }
 
 
@@ -474,7 +476,7 @@ int Heap::AdjustAmountOfExternalAllocatedMemory(int change_in_bytes) {
         amount_of_external_allocated_memory_ -
         amount_of_external_allocated_memory_at_last_global_gc_;
     if (amount_since_last_global_gc > external_allocation_limit_) {
-      CollectAllGarbage(kNoGCFlags);
+      CollectAllGarbage(kNoGCFlags, "external memory allocation limit reached");
     }
   } else {
     // Avoid underflow.
@@ -523,7 +525,8 @@ Isolate* Heap::isolate() {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->heap()->CollectGarbage(Failure::cast(__maybe_object__)->     \
-                                    allocation_space());                  \
+                                    allocation_space(),                   \
+                                    "allocation failure");                \
     __maybe_object__ = FUNCTION_CALL;                                     \
     if (__maybe_object__->ToObject(&__object__)) RETURN_VALUE;            \
     if (__maybe_object__->IsOutOfMemory()) {                              \
@@ -531,7 +534,7 @@ Isolate* Heap::isolate() {
     }                                                                     \
     if (!__maybe_object__->IsRetryAfterGC()) RETURN_EMPTY;                \
     ISOLATE->counters()->gc_last_resort_from_handles()->Increment();      \
-    ISOLATE->heap()->CollectAllAvailableGarbage();                        \
+    ISOLATE->heap()->CollectAllAvailableGarbage("last resort gc");        \
     {                                                                     \
       AlwaysAllocateScope __scope__;                                      \
       __maybe_object__ = FUNCTION_CALL;                                   \
@@ -700,9 +703,92 @@ MaybeObject* TranscendentalCache::SubCache::Get(double input) {
 }
 
 
-Heap* _inline_get_heap_() {
-  return HEAP;
+AlwaysAllocateScope::AlwaysAllocateScope() {
+  // We shouldn't hit any nested scopes, because that requires
+  // non-handle code to call handle code. The code still works but
+  // performance will degrade, so we want to catch this situation
+  // in debug mode.
+  ASSERT(HEAP->always_allocate_scope_depth_ == 0);
+  HEAP->always_allocate_scope_depth_++;
 }
+
+
+AlwaysAllocateScope::~AlwaysAllocateScope() {
+  HEAP->always_allocate_scope_depth_--;
+  ASSERT(HEAP->always_allocate_scope_depth_ == 0);
+}
+
+
+LinearAllocationScope::LinearAllocationScope() {
+  HEAP->linear_allocation_scope_depth_++;
+}
+
+
+LinearAllocationScope::~LinearAllocationScope() {
+  HEAP->linear_allocation_scope_depth_--;
+  ASSERT(HEAP->linear_allocation_scope_depth_ >= 0);
+}
+
+
+#ifdef DEBUG
+void VerifyPointersVisitor::VisitPointers(Object** start, Object** end) {
+  for (Object** current = start; current < end; current++) {
+    if ((*current)->IsHeapObject()) {
+      HeapObject* object = HeapObject::cast(*current);
+      ASSERT(HEAP->Contains(object));
+      ASSERT(object->map()->IsMap());
+    }
+  }
+}
+#endif
+
+
+double GCTracer::SizeOfHeapObjects() {
+  return (static_cast<double>(HEAP->SizeOfObjects())) / MB;
+}
+
+
+#ifdef DEBUG
+DisallowAllocationFailure::DisallowAllocationFailure() {
+  old_state_ = HEAP->disallow_allocation_failure_;
+  HEAP->disallow_allocation_failure_ = true;
+}
+
+
+DisallowAllocationFailure::~DisallowAllocationFailure() {
+  HEAP->disallow_allocation_failure_ = old_state_;
+}
+#endif
+
+
+#ifdef DEBUG
+AssertNoAllocation::AssertNoAllocation() {
+  old_state_ = HEAP->allow_allocation(false);
+}
+
+
+AssertNoAllocation::~AssertNoAllocation() {
+  HEAP->allow_allocation(old_state_);
+}
+
+
+DisableAssertNoAllocation::DisableAssertNoAllocation() {
+  old_state_ = HEAP->allow_allocation(true);
+}
+
+
+DisableAssertNoAllocation::~DisableAssertNoAllocation() {
+  HEAP->allow_allocation(old_state_);
+}
+
+#else
+
+AssertNoAllocation::AssertNoAllocation() { }
+AssertNoAllocation::~AssertNoAllocation() { }
+DisableAssertNoAllocation::DisableAssertNoAllocation() { }
+DisableAssertNoAllocation::~DisableAssertNoAllocation() { }
+
+#endif
 
 
 } }  // namespace v8::internal

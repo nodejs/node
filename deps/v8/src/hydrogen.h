@@ -773,6 +773,12 @@ class HGraphBuilder: public AstVisitor {
   static const int kMaxInlinedSize = 196;
   static const int kMaxSourceSize = 600;
 
+  // Even in the 'unlimited' case we have to have some limit in order not to
+  // overflow the stack.
+  static const int kUnlimitedMaxInlinedNodes = 1000;
+  static const int kUnlimitedMaxInlinedSize = 1000;
+  static const int kUnlimitedMaxSourceSize = 600;
+
   // Simple accessors.
   void set_function_state(FunctionState* state) { function_state_ = state; }
 

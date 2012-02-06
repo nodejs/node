@@ -540,7 +540,7 @@ TEST(BootUpMemoryUse) {
       }
     } else {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(booted_memory - initial_memory, 6500 * 1024);  // 6365.
+        CHECK_LE(booted_memory - initial_memory, 6500 * 1024);  // 6356.
       } else {
         CHECK_LE(booted_memory - initial_memory, 6654 * 1024);  // 6424
       }

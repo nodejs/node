@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,30 +25,38 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
+// Flags: --allow-natives-syntax
 
-namespace v8 {
-namespace internal {
+// Test inlining at call sites with mismatched arity.
 
-const char* const GCExtension::kSource = "native function gc();";
+function f(a) {
+  return a.x;
+}
 
+function g(a, b) {
+  return a.x;
+}
 
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
+function h1(a, b) {
+  return f(a, a) * g(b);
+}
+
+function h2(a, b) {
+  return f(a, a) * g(b);
 }
 
 
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  return v8::Undefined();
-}
+var o = {x: 2};
 
+assertEquals(4, h1(o, o));
+assertEquals(4, h1(o, o));
+assertEquals(4, h2(o, o));
+assertEquals(4, h2(o, o));
+%OptimizeFunctionOnNextCall(h1);
+%OptimizeFunctionOnNextCall(h2);
+assertEquals(4, h1(o, o));
+assertEquals(4, h2(o, o));
 
-void GCExtension::Register() {
-  static GCExtension* gc_extension = NULL;
-  if (gc_extension == NULL) gc_extension = new GCExtension();
-  static v8::DeclareExtension gc_extension_declaration(gc_extension);
-}
-
-} }  // namespace v8::internal
+var u = {y:0, x:1};
+assertEquals(2, h1(u, o));
+assertEquals(2, h2(o, u));

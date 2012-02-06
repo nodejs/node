@@ -46,6 +46,7 @@ MarkBit Marking::MarkBitFrom(Address addr) {
 
 void MarkCompactCollector::SetFlags(int flags) {
   sweep_precisely_ = ((flags & Heap::kMakeHeapIterableMask) != 0);
+  reduce_memory_footprint_ = ((flags & Heap::kReduceMemoryFootprintMask) != 0);
 }
 
 

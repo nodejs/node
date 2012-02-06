@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 
 #include <stdlib.h>
 
@@ -612,7 +612,7 @@ TEST(ObjectProperties) {
   CHECK(!obj->HasLocalProperty(*second));
 
   // check string and symbol match
-  static const char* string1 = "fisk";
+  const char* string1 = "fisk";
   Handle<String> s1 = FACTORY->NewStringFromAscii(CStrVector(string1));
   obj->SetProperty(
       *s1, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
@@ -620,7 +620,7 @@ TEST(ObjectProperties) {
   CHECK(obj->HasLocalProperty(*s1_symbol));
 
   // check symbol and string match
-  static const char* string2 = "fugl";
+  const char* string2 = "fugl";
   Handle<String> s2_symbol = FACTORY->LookupAsciiSymbol(string2);
   obj->SetProperty(
       *s2_symbol, Smi::FromInt(1), NONE, kNonStrictMode)->ToObjectChecked();
@@ -811,7 +811,7 @@ TEST(Iteration) {
 
   // Allocate a JS array to OLD_POINTER_SPACE and NEW_SPACE
   objs[next_objs_index++] = FACTORY->NewJSArray(10);
-  objs[next_objs_index++] = FACTORY->NewJSArray(10, TENURED);
+  objs[next_objs_index++] = FACTORY->NewJSArray(10, FAST_ELEMENTS, TENURED);
 
   // Allocate a small string to OLD_DATA_SPACE and NEW_SPACE
   objs[next_objs_index++] =
@@ -1611,7 +1611,7 @@ TEST(PrototypeTransitionClearing) {
   Handle<JSObject> prototype;
   PagedSpace* space = HEAP->old_pointer_space();
   do {
-    prototype = FACTORY->NewJSArray(32 * KB, TENURED);
+    prototype = FACTORY->NewJSArray(32 * KB, FAST_ELEMENTS, TENURED);
   } while (space->FirstPage() == space->LastPage() ||
       !space->LastPage()->Contains(prototype->address()));
 

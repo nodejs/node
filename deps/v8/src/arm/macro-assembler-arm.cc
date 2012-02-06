@@ -2879,6 +2879,47 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::LoadTransitionedArrayMapConditional(
+    ElementsKind expected_kind,
+    ElementsKind transitioned_kind,
+    Register map_in_out,
+    Register scratch,
+    Label* no_map_match) {
+  // Load the global or builtins object from the current context.
+  ldr(scratch, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+  ldr(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
+
+  // Check that the function's map is the same as the expected cached map.
+  int expected_index =
+      Context::GetContextMapIndexFromElementsKind(expected_kind);
+  ldr(ip, MemOperand(scratch, Context::SlotOffset(expected_index)));
+  cmp(map_in_out, ip);
+  b(ne, no_map_match);
+
+  // Use the transitioned cached map.
+  int trans_index =
+      Context::GetContextMapIndexFromElementsKind(transitioned_kind);
+  ldr(map_in_out, MemOperand(scratch, Context::SlotOffset(trans_index)));
+}
+
+
+void MacroAssembler::LoadInitialArrayMap(
+    Register function_in, Register scratch, Register map_out) {
+  ASSERT(!function_in.is(map_out));
+  Label done;
+  ldr(map_out, FieldMemOperand(function_in,
+                               JSFunction::kPrototypeOrInitialMapOffset));
+  if (!FLAG_smi_only_arrays) {
+    LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                        FAST_ELEMENTS,
+                                        map_out,
+                                        scratch,
+                                        &done);
+  }
+  bind(&done);
+}
+
+
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   ldr(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
@@ -2936,6 +2977,22 @@ void MacroAssembler::JumpIfNotBothSmi(Register reg1,
   tst(reg1, Operand(kSmiTagMask));
   tst(reg2, Operand(kSmiTagMask), eq);
   b(ne, on_not_both_smi);
+}
+
+
+void MacroAssembler::UntagAndJumpIfSmi(
+    Register dst, Register src, Label* smi_case) {
+  STATIC_ASSERT(kSmiTag == 0);
+  mov(dst, Operand(src, ASR, kSmiTagSize), SetCC);
+  b(cc, smi_case);  // Shifter carry is not set for a smi.
+}
+
+
+void MacroAssembler::UntagAndJumpIfNotSmi(
+    Register dst, Register src, Label* non_smi_case) {
+  STATIC_ASSERT(kSmiTag == 0);
+  mov(dst, Operand(src, ASR, kSmiTagSize), SetCC);
+  b(cs, non_smi_case);  // Shifter carry is set for a non-smi.
 }
 
 

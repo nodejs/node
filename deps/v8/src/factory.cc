@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -485,8 +485,9 @@ Handle<Map> Factory::CopyMapDropTransitions(Handle<Map> src) {
 Handle<Map> Factory::GetElementsTransitionMap(
     Handle<JSObject> src,
     ElementsKind elements_kind) {
-  CALL_HEAP_FUNCTION(isolate(),
-                     src->GetElementsTransitionMap(elements_kind),
+  Isolate* i = isolate();
+  CALL_HEAP_FUNCTION(i,
+                     src->GetElementsTransitionMap(i, elements_kind),
                      Map);
 }
 
@@ -754,12 +755,9 @@ Handle<JSFunction> Factory::NewFunctionWithPrototype(Handle<String> name,
   if (force_initial_map ||
       type != JS_OBJECT_TYPE ||
       instance_size != JSObject::kHeaderSize) {
-    ElementsKind default_elements_kind = FLAG_smi_only_arrays
-        ? FAST_SMI_ONLY_ELEMENTS
-        : FAST_ELEMENTS;
     Handle<Map> initial_map = NewMap(type,
                                      instance_size,
-                                     default_elements_kind);
+                                     FAST_SMI_ONLY_ELEMENTS);
     function->set_initial_map(*initial_map);
     initial_map->set_constructor(*function);
   }
@@ -938,22 +936,28 @@ Handle<JSObject> Factory::NewJSObjectFromMap(Handle<Map> map) {
 
 
 Handle<JSArray> Factory::NewJSArray(int capacity,
+                                    ElementsKind elements_kind,
                                     PretenureFlag pretenure) {
-  Handle<JSObject> obj = NewJSObject(isolate()->array_function(), pretenure);
   CALL_HEAP_FUNCTION(isolate(),
-                     Handle<JSArray>::cast(obj)->Initialize(capacity),
+                     isolate()->heap()->AllocateJSArrayAndStorage(
+                         elements_kind,
+                         0,
+                         capacity,
+                         INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE,
+                         pretenure),
                      JSArray);
 }
 
 
 Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
+                                                ElementsKind elements_kind,
                                                 PretenureFlag pretenure) {
-  Handle<JSArray> result =
-      Handle<JSArray>::cast(NewJSObject(isolate()->array_function(),
-                                        pretenure));
-  result->set_length(Smi::FromInt(0));
-  SetContent(result, elements);
-  return result;
+  CALL_HEAP_FUNCTION(
+      isolate(),
+      isolate()->heap()->AllocateJSArrayWithElements(*elements,
+                                                     elements_kind,
+                                                     pretenure),
+      JSArray);
 }
 
 

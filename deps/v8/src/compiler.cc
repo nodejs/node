@@ -194,7 +194,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
   // Fall back to using the full code generator if it's not possible
   // to use the Hydrogen-based optimizing compiler. We already have
   // generated code for this from the shared function object.
-  if (AlwaysFullCompiler() || !FLAG_use_hydrogen) {
+  if (AlwaysFullCompiler()) {
     info->SetCode(code);
     return true;
   }
@@ -291,7 +291,7 @@ static bool MakeCrankshaftCode(CompilationInfo* info) {
     return false;
   }
 
-  if (graph != NULL && FLAG_build_lithium) {
+  if (graph != NULL) {
     Handle<Code> optimized_code = graph->Compile(info);
     if (!optimized_code.is_null()) {
       info->SetCode(optimized_code);

@@ -4279,6 +4279,31 @@ void MacroAssembler::LoadContext(Register dst, int context_chain_length) {
 }
 
 
+void MacroAssembler::LoadGlobalInitialConstructedArrayMap(
+    Register function_in, Register scratch, Register map_out) {
+  ASSERT(!function_in.is(map_out));
+  Label done;
+  lw(map_out, FieldMemOperand(function_in,
+                              JSFunction::kPrototypeOrInitialMapOffset));
+  if (!FLAG_smi_only_arrays) {
+    // Load the global or builtins object from the current context.
+    lw(scratch, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
+    lw(scratch, FieldMemOperand(scratch, GlobalObject::kGlobalContextOffset));
+
+    // Check that the function's map is same as the cached map.
+    lw(at, MemOperand(
+       scratch, Context::SlotOffset(Context::SMI_JS_ARRAY_MAP_INDEX)));
+    Branch(&done, ne, map_out, Operand(at));
+
+    // Use the cached transitioned map.
+    lw(map_out,
+       MemOperand(scratch,
+                  Context::SlotOffset(Context::OBJECT_JS_ARRAY_MAP_INDEX)));
+  }
+  bind(&done);
+}
+
+
 void MacroAssembler::LoadGlobalFunction(int index, Register function) {
   // Load the global or builtins object from the current context.
   lw(function, MemOperand(cp, Context::SlotOffset(Context::GLOBAL_INDEX)));
@@ -4489,6 +4514,64 @@ void MacroAssembler::JumpIfNotPowerOfTwoOrZero(
          scratch, Operand(zero_reg));
   and_(at, scratch, reg);  // In the delay slot.
   Branch(not_power_of_two_or_zero, ne, at, Operand(zero_reg));
+}
+
+
+void MacroAssembler::SmiTagCheckOverflow(Register reg, Register overflow) {
+  ASSERT(!reg.is(overflow));
+  mov(overflow, reg);  // Save original value.
+  SmiTag(reg);
+  xor_(overflow, overflow, reg);  // Overflow if (value ^ 2 * value) < 0.
+}
+
+
+void MacroAssembler::SmiTagCheckOverflow(Register dst,
+                                         Register src,
+                                         Register overflow) {
+  if (dst.is(src)) {
+    // Fall back to slower case.
+    SmiTagCheckOverflow(dst, overflow);
+  } else {
+    ASSERT(!dst.is(src));
+    ASSERT(!dst.is(overflow));
+    ASSERT(!src.is(overflow));
+    SmiTag(dst, src);
+    xor_(overflow, dst, src);  // Overflow if (value ^ 2 * value) < 0.
+  }
+}
+
+
+void MacroAssembler::UntagAndJumpIfSmi(Register dst,
+                                       Register src,
+                                       Label* smi_case) {
+  JumpIfSmi(src, smi_case, at, USE_DELAY_SLOT);
+  SmiUntag(dst, src);
+}
+
+
+void MacroAssembler::UntagAndJumpIfNotSmi(Register dst,
+                                          Register src,
+                                          Label* non_smi_case) {
+  JumpIfNotSmi(src, non_smi_case, at, USE_DELAY_SLOT);
+  SmiUntag(dst, src);
+}
+
+void MacroAssembler::JumpIfSmi(Register value,
+                               Label* smi_label,
+                               Register scratch,
+                               BranchDelaySlot bd) {
+  ASSERT_EQ(0, kSmiTag);
+  andi(scratch, value, kSmiTagMask);
+  Branch(bd, smi_label, eq, scratch, Operand(zero_reg));
+}
+
+void MacroAssembler::JumpIfNotSmi(Register value,
+                                  Label* not_smi_label,
+                                  Register scratch,
+                                  BranchDelaySlot bd) {
+  ASSERT_EQ(0, kSmiTag);
+  andi(scratch, value, kSmiTagMask);
+  Branch(bd, not_smi_label, ne, scratch, Operand(zero_reg));
 }
 
 

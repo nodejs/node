@@ -45,6 +45,7 @@ static void ProbeTable(Isolate* isolate,
                        StubCache::Table table,
                        Register name,
                        Register offset,
+                       int offset_shift_bits,
                        Register scratch,
                        Register scratch2) {
   ExternalReference key_offset(isolate->stub_cache()->key_reference(table));
@@ -63,23 +64,34 @@ static void ProbeTable(Isolate* isolate,
 
   // Check that the key in the entry matches the name.
   __ mov(offsets_base_addr, Operand(key_offset));
-  __ ldr(ip, MemOperand(offsets_base_addr, offset, LSL, 1));
+  __ ldr(ip, MemOperand(offsets_base_addr, offset, LSL, 1 + offset_shift_bits));
   __ cmp(name, ip);
   __ b(ne, &miss);
 
   // Get the code entry from the cache.
   __ add(offsets_base_addr, offsets_base_addr,
          Operand(value_off_addr - key_off_addr));
-  __ ldr(scratch2, MemOperand(offsets_base_addr, offset, LSL, 1));
+  __ ldr(scratch2,
+         MemOperand(offsets_base_addr, offset, LSL, 1 + offset_shift_bits));
 
   // Check that the flags match what we're looking for.
   __ ldr(scratch2, FieldMemOperand(scratch2, Code::kFlagsOffset));
-  __ bic(scratch2, scratch2, Operand(Code::kFlagsNotUsedInLookup));
-  __ cmp(scratch2, Operand(flags));
+  // It's a nice optimization if this constant is encodable in the bic insn.
+
+  uint32_t mask = Code::kFlagsNotUsedInLookup;
+  ASSERT(__ ImmediateFitsAddrMode1Instruction(mask));
+  __ bic(scratch2, scratch2, Operand(mask));
+  // Using cmn and the negative instead of cmp means we can use movw.
+  if (flags < 0) {
+    __ cmn(scratch2, Operand(-flags));
+  } else {
+    __ cmp(scratch2, Operand(flags));
+  }
   __ b(ne, &miss);
 
   // Re-load code entry from cache.
-  __ ldr(offset, MemOperand(offsets_base_addr, offset, LSL, 1));
+  __ ldr(offset,
+         MemOperand(offsets_base_addr, offset, LSL, 1 + offset_shift_bits));
 
   // Jump to the first instruction in the code stub.
   __ add(offset, offset, Operand(Code::kHeaderSize - kHeapObjectTag));
@@ -189,23 +201,41 @@ void StubCache::GenerateProbe(MacroAssembler* masm,
   __ ldr(scratch, FieldMemOperand(name, String::kHashFieldOffset));
   __ ldr(ip, FieldMemOperand(receiver, HeapObject::kMapOffset));
   __ add(scratch, scratch, Operand(ip));
-  __ eor(scratch, scratch, Operand(flags));
-  __ and_(scratch,
-          scratch,
-          Operand((kPrimaryTableSize - 1) << kHeapObjectTagSize));
+  uint32_t mask = (kPrimaryTableSize - 1) << kHeapObjectTagSize;
+  // Mask down the eor argument to the minimum to keep the immediate
+  // ARM-encodable.
+  __ eor(scratch, scratch, Operand(flags & mask));
+  // Prefer and_ to ubfx here because ubfx takes 2 cycles.
+  __ and_(scratch, scratch, Operand(mask));
+  __ mov(scratch, Operand(scratch, LSR, 1));
 
   // Probe the primary table.
-  ProbeTable(isolate, masm, flags, kPrimary, name, scratch, extra, extra2);
+  ProbeTable(isolate,
+             masm,
+             flags,
+             kPrimary,
+             name,
+             scratch,
+             1,
+             extra,
+             extra2);
 
   // Primary miss: Compute hash for secondary probe.
-  __ sub(scratch, scratch, Operand(name));
-  __ add(scratch, scratch, Operand(flags));
-  __ and_(scratch,
-          scratch,
-          Operand((kSecondaryTableSize - 1) << kHeapObjectTagSize));
+  __ sub(scratch, scratch, Operand(name, LSR, 1));
+  uint32_t mask2 = (kSecondaryTableSize - 1) << (kHeapObjectTagSize - 1);
+  __ add(scratch, scratch, Operand((flags >> 1) & mask2));
+  __ and_(scratch, scratch, Operand(mask2));
 
   // Probe the secondary table.
-  ProbeTable(isolate, masm, flags, kSecondary, name, scratch, extra, extra2);
+  ProbeTable(isolate,
+             masm,
+             flags,
+             kSecondary,
+             name,
+             scratch,
+             1,
+             extra,
+             extra2);
 
   // Cache miss: Fall-through and let caller handle the miss by
   // entering the runtime system.

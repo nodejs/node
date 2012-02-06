@@ -1030,6 +1030,10 @@ class Isolate {
     context_exit_happened_ = context_exit_happened;
   }
 
+  double time_millis_since_init() {
+    return OS::TimeCurrentMillis() - time_millis_at_init_;
+  }
+
  private:
   Isolate();
 
@@ -1199,6 +1203,9 @@ class Isolate {
   // The garbage collector should be a little more aggressive when it knows
   // that a context was recently exited.
   bool context_exit_happened_;
+
+  // Time stamp at initialization.
+  double time_millis_at_init_;
 
 #if defined(V8_TARGET_ARCH_ARM) && !defined(__arm__) || \
     defined(V8_TARGET_ARCH_MIPS) && !defined(__mips__)

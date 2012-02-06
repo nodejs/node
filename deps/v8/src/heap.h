@@ -45,12 +45,6 @@
 namespace v8 {
 namespace internal {
 
-// TODO(isolates): remove HEAP here
-#define HEAP (_inline_get_heap_())
-class Heap;
-inline Heap* _inline_get_heap_();
-
-
 // Defines all the roots in Heap.
 #define STRONG_ROOT_LIST(V)                                                    \
   V(Map, byte_array_map, ByteArrayMap)                                         \
@@ -432,6 +426,11 @@ class ExternalStringTable {
 };
 
 
+enum ArrayStorageAllocationMode {
+  DONT_INITIALIZE_ARRAY_ELEMENTS,
+  INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE
+};
+
 class Heap {
  public:
   // Configure heap size before setup. Return false if the heap has been
@@ -532,6 +531,30 @@ class Heap {
   // Please note this does not perform a garbage collection.
   MUST_USE_RESULT MaybeObject* AllocateJSObject(
       JSFunction* constructor, PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateEmptyJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED) {
+    return AllocateJSArrayAndStorage(elements_kind, 0, 0,
+                                     DONT_INITIALIZE_ARRAY_ELEMENTS,
+                                     pretenure);
+  }
+
+  // Allocate a JSArray with a specified length but elements that are left
+  // uninitialized.
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayAndStorage(
+      ElementsKind elements_kind,
+      int length,
+      int capacity,
+      ArrayStorageAllocationMode mode = DONT_INITIALIZE_ARRAY_ELEMENTS,
+      PretenureFlag pretenure = NOT_TENURED);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateJSArrayWithElements(
+      FixedArrayBase* array_base,
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocates and initializes a new global object based on a constructor.
   // Returns Failure::RetryAfterGC(requested_bytes, space) if the allocation
@@ -779,6 +802,13 @@ class Heap {
       int length,
       PretenureFlag pretenure = NOT_TENURED);
 
+  // Allocates a fixed double array with hole values. Returns
+  // Failure::RetryAfterGC(requested_bytes, space) if the allocation failed.
+  // Please note this does not perform a garbage collection.
+  MUST_USE_RESULT MaybeObject* AllocateFixedDoubleArrayWithHoles(
+      int length,
+      PretenureFlag pretenure = NOT_TENURED);
+
   // AllocateHashTable is identical to AllocateFixedArray except
   // that the resulting object has hash_table_map as map.
   MUST_USE_RESULT MaybeObject* AllocateHashTable(
@@ -995,23 +1025,28 @@ class Heap {
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  bool CollectGarbage(AllocationSpace space, GarbageCollector collector);
+  bool CollectGarbage(AllocationSpace space,
+                      GarbageCollector collector,
+                      const char* gc_reason,
+                      const char* collector_reason);
 
   // Performs garbage collection operation.
   // Returns whether there is a chance that another major GC could
   // collect more garbage.
-  inline bool CollectGarbage(AllocationSpace space);
+  inline bool CollectGarbage(AllocationSpace space,
+                             const char* gc_reason = NULL);
 
   static const int kNoGCFlags = 0;
   static const int kMakeHeapIterableMask = 1;
+  static const int kReduceMemoryFootprintMask = 2;
 
   // Performs a full garbage collection.  If (flags & kMakeHeapIterableMask) is
   // non-zero, then the slower precise sweeper is used, which leaves the heap
   // in a state where we can iterate over the heap visiting all objects.
-  void CollectAllGarbage(int flags);
+  void CollectAllGarbage(int flags, const char* gc_reason = NULL);
 
   // Last hope GC, should try to squeeze as much as possible.
-  void CollectAllAvailableGarbage();
+  void CollectAllAvailableGarbage(const char* gc_reason = NULL);
 
   // Check whether the heap is currently iterable.
   bool IsHeapIterable();
@@ -1711,7 +1746,8 @@ class Heap {
   }
 
   // Checks whether a global GC is necessary
-  GarbageCollector SelectGarbageCollector(AllocationSpace space);
+  GarbageCollector SelectGarbageCollector(AllocationSpace space,
+                                          const char** reason);
 
   // Performs garbage collection
   // Returns whether there is a chance another major GC could
@@ -1750,6 +1786,11 @@ class Heap {
   MaybeObject* CreateOddball(const char* to_string,
                              Object* to_number,
                              byte kind);
+
+  // Allocate a JSArray with no elements
+  MUST_USE_RESULT MaybeObject* AllocateJSArray(
+      ElementsKind elements_kind,
+      PretenureFlag pretenure = NOT_TENURED);
 
   // Allocate empty fixed array.
   MUST_USE_RESULT MaybeObject* AllocateEmptyFixedArray();
@@ -1798,8 +1839,13 @@ class Heap {
   GCTracer* tracer_;
 
 
-  // Initializes the number to string cache based on the max semispace size.
-  MUST_USE_RESULT MaybeObject* InitializeNumberStringCache();
+  // Allocates a small number to string cache.
+  MUST_USE_RESULT MaybeObject* AllocateInitialNumberStringCache();
+  // Creates and installs the full-sized number string cache.
+  void AllocateFullSizeNumberStringCache();
+  // Get the length of the number to string cache based on the max semispace
+  // size.
+  int FullSizeNumberStringCacheLength();
   // Flush the number to string cache.
   void FlushNumberStringCache();
 
@@ -1896,6 +1942,7 @@ class Heap {
 
   static const int kInitialSymbolTableSize = 2048;
   static const int kInitialEvalCacheSize = 64;
+  static const int kInitialNumberStringCacheSize = 256;
 
   // Maximum GC pause.
   int max_gc_pause_;
@@ -1995,32 +2042,15 @@ class HeapStats {
 
 class AlwaysAllocateScope {
  public:
-  AlwaysAllocateScope() {
-    // We shouldn't hit any nested scopes, because that requires
-    // non-handle code to call handle code. The code still works but
-    // performance will degrade, so we want to catch this situation
-    // in debug mode.
-    ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-    HEAP->always_allocate_scope_depth_++;
-  }
-
-  ~AlwaysAllocateScope() {
-    HEAP->always_allocate_scope_depth_--;
-    ASSERT(HEAP->always_allocate_scope_depth_ == 0);
-  }
+  inline AlwaysAllocateScope();
+  inline ~AlwaysAllocateScope();
 };
 
 
 class LinearAllocationScope {
  public:
-  LinearAllocationScope() {
-    HEAP->linear_allocation_scope_depth_++;
-  }
-
-  ~LinearAllocationScope() {
-    HEAP->linear_allocation_scope_depth_--;
-    ASSERT(HEAP->linear_allocation_scope_depth_ >= 0);
-  }
+  inline LinearAllocationScope();
+  inline ~LinearAllocationScope();
 };
 
 
@@ -2032,15 +2062,7 @@ class LinearAllocationScope {
 // objects in a heap space but above the allocation pointer.
 class VerifyPointersVisitor: public ObjectVisitor {
  public:
-  void VisitPointers(Object** start, Object** end) {
-    for (Object** current = start; current < end; current++) {
-      if ((*current)->IsHeapObject()) {
-        HeapObject* object = HeapObject::cast(*current);
-        ASSERT(HEAP->Contains(object));
-        ASSERT(object->map()->IsMap());
-      }
-    }
-  }
+  inline void VisitPointers(Object** start, Object** end);
 };
 #endif
 
@@ -2266,6 +2288,18 @@ class DescriptorLookupCache {
 };
 
 
+#ifdef DEBUG
+class DisallowAllocationFailure {
+ public:
+  inline DisallowAllocationFailure();
+  inline ~DisallowAllocationFailure();
+
+ private:
+  bool old_state_;
+};
+#endif
+
+
 // A helper class to document/test C++ scopes where we do not
 // expect a GC. Usage:
 //
@@ -2273,65 +2307,28 @@ class DescriptorLookupCache {
 // { AssertNoAllocation nogc;
 //   ...
 // }
+class AssertNoAllocation {
+ public:
+  inline AssertNoAllocation();
+  inline ~AssertNoAllocation();
 
 #ifdef DEBUG
-
-class DisallowAllocationFailure {
- public:
-  DisallowAllocationFailure() {
-    old_state_ = HEAP->disallow_allocation_failure_;
-    HEAP->disallow_allocation_failure_ = true;
-  }
-  ~DisallowAllocationFailure() {
-    HEAP->disallow_allocation_failure_ = old_state_;
-  }
  private:
   bool old_state_;
-};
-
-class AssertNoAllocation {
- public:
-  AssertNoAllocation() {
-    old_state_ = HEAP->allow_allocation(false);
-  }
-
-  ~AssertNoAllocation() {
-    HEAP->allow_allocation(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
-class DisableAssertNoAllocation {
- public:
-  DisableAssertNoAllocation() {
-    old_state_ = HEAP->allow_allocation(true);
-  }
-
-  ~DisableAssertNoAllocation() {
-    HEAP->allow_allocation(old_state_);
-  }
-
- private:
-  bool old_state_;
-};
-
-#else  // ndef DEBUG
-
-class AssertNoAllocation {
- public:
-  AssertNoAllocation() { }
-  ~AssertNoAllocation() { }
-};
-
-class DisableAssertNoAllocation {
- public:
-  DisableAssertNoAllocation() { }
-  ~DisableAssertNoAllocation() { }
-};
-
 #endif
+};
+
+
+class DisableAssertNoAllocation {
+ public:
+  inline DisableAssertNoAllocation();
+  inline ~DisableAssertNoAllocation();
+
+#ifdef DEBUG
+ private:
+  bool old_state_;
+#endif
+};
 
 // GCTracer collects and prints ONE line after each garbage collector
 // invocation IFF --trace_gc is used.
@@ -2373,7 +2370,9 @@ class GCTracer BASE_EMBEDDED {
     double start_time_;
   };
 
-  explicit GCTracer(Heap* heap);
+  explicit GCTracer(Heap* heap,
+                    const char* gc_reason,
+                    const char* collector_reason);
   ~GCTracer();
 
   // Sets the collector.
@@ -2394,13 +2393,19 @@ class GCTracer BASE_EMBEDDED {
   const char* CollectorString();
 
   // Returns size of object in heap (in MB).
-  double SizeOfHeapObjects() {
-    return (static_cast<double>(HEAP->SizeOfObjects())) / MB;
-  }
+  inline double SizeOfHeapObjects();
 
-  double start_time_;  // Timestamp set in the constructor.
-  intptr_t start_size_;  // Size of objects in heap set in constructor.
-  GarbageCollector collector_;  // Type of collector.
+  // Timestamp set in the constructor.
+  double start_time_;
+
+  // Size of objects in heap set in constructor.
+  intptr_t start_object_size_;
+
+  // Size of memory allocated from OS set in constructor.
+  intptr_t start_memory_size_;
+
+  // Type of collector.
+  GarbageCollector collector_;
 
   // A count (including this one, e.g. the first collection is 1) of the
   // number of garbage collections.
@@ -2435,6 +2440,9 @@ class GCTracer BASE_EMBEDDED {
   double steps_took_since_last_gc_;
 
   Heap* heap_;
+
+  const char* gc_reason_;
+  const char* collector_reason_;
 };
 
 
@@ -2645,7 +2653,5 @@ class PathTracer : public ObjectVisitor {
 #endif  // DEBUG || LIVE_OBJECT_LIST
 
 } }  // namespace v8::internal
-
-#undef HEAP
 
 #endif  // V8_HEAP_H_

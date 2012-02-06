@@ -236,16 +236,19 @@ int Heap::GcSafeSizeOfOldObject(HeapObject* object) {
 }
 
 
-GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
+GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space,
+                                              const char** reason) {
   // Is global GC requested?
   if (space != NEW_SPACE || FLAG_gc_global) {
     isolate_->counters()->gc_compactor_caused_by_request()->Increment();
+    *reason = "GC in old space requested";
     return MARK_COMPACTOR;
   }
 
   // Is enough data promoted to justify a global GC?
   if (OldGenerationPromotionLimitReached()) {
     isolate_->counters()->gc_compactor_caused_by_promoted_data()->Increment();
+    *reason = "promotion limit reached";
     return MARK_COMPACTOR;
   }
 
@@ -253,6 +256,7 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   if (old_gen_exhausted_) {
     isolate_->counters()->
         gc_compactor_caused_by_oldspace_exhaustion()->Increment();
+    *reason = "old generations exhausted";
     return MARK_COMPACTOR;
   }
 
@@ -268,10 +272,12 @@ GarbageCollector Heap::SelectGarbageCollector(AllocationSpace space) {
   if (isolate_->memory_allocator()->MaxAvailable() <= new_space_.Size()) {
     isolate_->counters()->
         gc_compactor_caused_by_oldspace_exhaustion()->Increment();
+    *reason = "scavenge might not succeed";
     return MARK_COMPACTOR;
   }
 
   // Default
+  *reason = NULL;
   return SCAVENGER;
 }
 
@@ -431,17 +437,17 @@ void Heap::GarbageCollectionEpilogue() {
 }
 
 
-void Heap::CollectAllGarbage(int flags) {
+void Heap::CollectAllGarbage(int flags, const char* gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
   mark_compact_collector_.SetFlags(flags);
-  CollectGarbage(OLD_POINTER_SPACE);
+  CollectGarbage(OLD_POINTER_SPACE, gc_reason);
   mark_compact_collector_.SetFlags(kNoGCFlags);
 }
 
 
-void Heap::CollectAllAvailableGarbage() {
+void Heap::CollectAllAvailableGarbage(const char* gc_reason) {
   // Since we are ignoring the return value, the exact choice of space does
   // not matter, so long as we do not specify NEW_SPACE, which would not
   // cause a full GC.
@@ -453,11 +459,12 @@ void Heap::CollectAllAvailableGarbage() {
   // Note: as weak callbacks can execute arbitrary code, we cannot
   // hope that eventually there will be no weak callbacks invocations.
   // Therefore stop recollecting after several attempts.
-  mark_compact_collector()->SetFlags(kMakeHeapIterableMask);
+  mark_compact_collector()->SetFlags(kMakeHeapIterableMask |
+                                     kReduceMemoryFootprintMask);
   isolate_->compilation_cache()->Clear();
   const int kMaxNumberOfAttempts = 7;
   for (int attempt = 0; attempt < kMaxNumberOfAttempts; attempt++) {
-    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR)) {
+    if (!CollectGarbage(OLD_POINTER_SPACE, MARK_COMPACTOR, gc_reason, NULL)) {
       break;
     }
   }
@@ -469,7 +476,10 @@ void Heap::CollectAllAvailableGarbage() {
 }
 
 
-bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
+bool Heap::CollectGarbage(AllocationSpace space,
+                          GarbageCollector collector,
+                          const char* gc_reason,
+                          const char* collector_reason) {
   // The VM is in the GC state until exiting this function.
   VMState state(isolate_, GC);
 
@@ -497,11 +507,12 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
       PrintF("[IncrementalMarking] Delaying MarkSweep.\n");
     }
     collector = SCAVENGER;
+    collector_reason = "incremental marking delaying mark-sweep";
   }
 
   bool next_gc_likely_to_collect_more = false;
 
-  { GCTracer tracer(this);
+  { GCTracer tracer(this, gc_reason, collector_reason);
     GarbageCollectionPrologue();
     // The GC count was incremented in the prologue.  Tell the tracer about
     // it.
@@ -533,7 +544,7 @@ bool Heap::CollectGarbage(AllocationSpace space, GarbageCollector collector) {
 
 
 void Heap::PerformScavenge() {
-  GCTracer tracer(this);
+  GCTracer tracer(this, NULL, NULL);
   if (incremental_marking()->IsStopped()) {
     PerformGarbageCollection(SCAVENGER, &tracer);
   } else {
@@ -588,27 +599,33 @@ void Heap::ReserveSpace(
   while (gc_performed && counter++ < kThreshold) {
     gc_performed = false;
     if (!new_space->ReserveSpace(new_space_size)) {
-      Heap::CollectGarbage(NEW_SPACE);
+      Heap::CollectGarbage(NEW_SPACE,
+                           "failed to reserve space in the new space");
       gc_performed = true;
     }
     if (!old_pointer_space->ReserveSpace(pointer_space_size)) {
-      Heap::CollectGarbage(OLD_POINTER_SPACE);
+      Heap::CollectGarbage(OLD_POINTER_SPACE,
+                           "failed to reserve space in the old pointer space");
       gc_performed = true;
     }
     if (!(old_data_space->ReserveSpace(data_space_size))) {
-      Heap::CollectGarbage(OLD_DATA_SPACE);
+      Heap::CollectGarbage(OLD_DATA_SPACE,
+                           "failed to reserve space in the old data space");
       gc_performed = true;
     }
     if (!(code_space->ReserveSpace(code_space_size))) {
-      Heap::CollectGarbage(CODE_SPACE);
+      Heap::CollectGarbage(CODE_SPACE,
+                           "failed to reserve space in the code space");
       gc_performed = true;
     }
     if (!(map_space->ReserveSpace(map_space_size))) {
-      Heap::CollectGarbage(MAP_SPACE);
+      Heap::CollectGarbage(MAP_SPACE,
+                           "failed to reserve space in the map space");
       gc_performed = true;
     }
     if (!(cell_space->ReserveSpace(cell_space_size))) {
-      Heap::CollectGarbage(CELL_SPACE);
+      Heap::CollectGarbage(CELL_SPACE,
+                           "failed to reserve space in the cell space");
       gc_performed = true;
     }
     // We add a slack-factor of 2 in order to have space for a series of
@@ -620,7 +637,8 @@ void Heap::ReserveSpace(
     large_object_size += cell_space_size + map_space_size + code_space_size +
         data_space_size + pointer_space_size;
     if (!(lo_space->ReserveSpace(large_object_size))) {
-      Heap::CollectGarbage(LO_SPACE);
+      Heap::CollectGarbage(LO_SPACE,
+                           "failed to reserve space in the large object space");
       gc_performed = true;
     }
   }
@@ -902,8 +920,7 @@ void Heap::MarkCompactPrologue() {
 
   CompletelyClearInstanceofCache();
 
-  // TODO(1605) select heuristic for flushing NumberString cache with
-  // FlushNumberStringCache
+  FlushNumberStringCache();
   if (FLAG_cleanup_code_caches_at_gc) {
     polymorphic_code_cache()->set_cache(undefined_value());
   }
@@ -2512,7 +2529,10 @@ bool Heap::CreateInitialObjects() {
   }
   set_intrinsic_function_names(StringDictionary::cast(obj));
 
-  if (InitializeNumberStringCache()->IsFailure()) return false;
+  { MaybeObject* maybe_obj = AllocateInitialNumberStringCache();
+    if (!maybe_obj->ToObject(&obj)) return false;
+  }
+  set_number_string_cache(FixedArray::cast(obj));
 
   // Allocate cache for single character ASCII strings.
   { MaybeObject* maybe_obj =
@@ -2622,17 +2642,41 @@ void StringSplitCache::Clear(FixedArray* cache) {
 }
 
 
-MaybeObject* Heap::InitializeNumberStringCache() {
-  // Compute the size of the number string cache based on the max heap size.
-  // max_semispace_size_ == 512 KB => number_string_cache_size = 32.
-  // max_semispace_size_ ==   8 MB => number_string_cache_size = 16KB.
-  int number_string_cache_size = max_semispace_size_ / 512;
-  number_string_cache_size = Max(32, Min(16*KB, number_string_cache_size));
-  Object* obj;
+MaybeObject* Heap::AllocateInitialNumberStringCache() {
   MaybeObject* maybe_obj =
-      AllocateFixedArray(number_string_cache_size * 2, TENURED);
-  if (maybe_obj->ToObject(&obj)) set_number_string_cache(FixedArray::cast(obj));
+      AllocateFixedArray(kInitialNumberStringCacheSize * 2, TENURED);
   return maybe_obj;
+}
+
+
+int Heap::FullSizeNumberStringCacheLength() {
+  // Compute the size of the number string cache based on the max newspace size.
+  // The number string cache has a minimum size based on twice the initial cache
+  // size to ensure that it is bigger after being made 'full size'.
+  int number_string_cache_size = max_semispace_size_ / 512;
+  number_string_cache_size = Max(kInitialNumberStringCacheSize * 2,
+                                 Min(0x4000, number_string_cache_size));
+  // There is a string and a number per entry so the length is twice the number
+  // of entries.
+  return number_string_cache_size * 2;
+}
+
+
+void Heap::AllocateFullSizeNumberStringCache() {
+  // The idea is to have a small number string cache in the snapshot to keep
+  // boot-time memory usage down.  If we expand the number string cache already
+  // while creating the snapshot then that didn't work out.
+  ASSERT(!Serializer::enabled());
+  MaybeObject* maybe_obj =
+      AllocateFixedArray(FullSizeNumberStringCacheLength(), TENURED);
+  Object* new_cache;
+  if (maybe_obj->ToObject(&new_cache)) {
+    // We don't bother to repopulate the cache with entries from the old cache.
+    // It will be repopulated soon enough with new strings.
+    set_number_string_cache(FixedArray::cast(new_cache));
+  }
+  // If allocation fails then we just return without doing anything.  It is only
+  // a cache, so best effort is OK here.
 }
 
 
@@ -2681,11 +2725,17 @@ void Heap::SetNumberStringCache(Object* number, String* string) {
   int mask = (number_string_cache()->length() >> 1) - 1;
   if (number->IsSmi()) {
     hash = smi_get_hash(Smi::cast(number)) & mask;
-    number_string_cache()->set(hash * 2, Smi::cast(number));
   } else {
     hash = double_get_hash(number->Number()) & mask;
-    number_string_cache()->set(hash * 2, number);
   }
+  if (number_string_cache()->get(hash * 2) != undefined_value() &&
+      number_string_cache()->length() != FullSizeNumberStringCacheLength()) {
+    // The first time we have a hash collision, we move to the full sized
+    // number string cache.
+    AllocateFullSizeNumberStringCache();
+    return;
+  }
+  number_string_cache()->set(hash * 2, number);
   number_string_cache()->set(hash * 2 + 1, string);
 }
 
@@ -3307,6 +3357,8 @@ MaybeObject* Heap::CreateCode(const CodeDesc& desc,
     code->set_check_type(RECEIVER_MAP_CHECK);
   }
   code->set_deoptimization_data(empty_fixed_array(), SKIP_WRITE_BARRIER);
+  code->set_type_feedback_cells(TypeFeedbackCells::cast(empty_fixed_array()),
+                                SKIP_WRITE_BARRIER);
   code->set_handler_table(empty_fixed_array(), SKIP_WRITE_BARRIER);
   code->set_gc_metadata(Smi::FromInt(0));
   // Allow self references to created code object by patching the handle to
@@ -3726,14 +3778,72 @@ MaybeObject* Heap::AllocateJSObject(JSFunction* constructor,
     Map::cast(initial_map)->set_constructor(constructor);
   }
   // Allocate the object based on the constructors initial map.
-  MaybeObject* result =
-      AllocateJSObjectFromMap(constructor->initial_map(), pretenure);
+  MaybeObject* result = AllocateJSObjectFromMap(
+      constructor->initial_map(), pretenure);
 #ifdef DEBUG
   // Make sure result is NOT a global object if valid.
   Object* non_failure;
   ASSERT(!result->ToObject(&non_failure) || !non_failure->IsGlobalObject());
 #endif
   return result;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayAndStorage(
+    ElementsKind elements_kind,
+    int length,
+    int capacity,
+    ArrayStorageAllocationMode mode,
+    PretenureFlag pretenure) {
+  ASSERT(capacity >= length);
+  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+
+  if (capacity == 0) {
+    array->set_length(Smi::FromInt(0));
+    array->set_elements(empty_fixed_array());
+    return array;
+  }
+
+  FixedArrayBase* elms;
+  MaybeObject* maybe_elms = NULL;
+  if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedDoubleArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedDoubleArrayWithHoles(capacity);
+    }
+  } else {
+    ASSERT(elements_kind == FAST_ELEMENTS ||
+           elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    if (mode == DONT_INITIALIZE_ARRAY_ELEMENTS) {
+      maybe_elms = AllocateUninitializedFixedArray(capacity);
+    } else {
+      ASSERT(mode == INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
+      maybe_elms = AllocateFixedArrayWithHoles(capacity);
+    }
+  }
+  if (!maybe_elms->To(&elms)) return maybe_elms;
+
+  array->set_elements(elms);
+  array->set_length(Smi::FromInt(length));
+  return array;
+}
+
+
+MaybeObject* Heap::AllocateJSArrayWithElements(
+    FixedArrayBase* elements,
+    ElementsKind elements_kind,
+    PretenureFlag pretenure) {
+  MaybeObject* maybe_array = AllocateJSArray(elements_kind, pretenure);
+  JSArray* array;
+  if (!maybe_array->To(&array)) return maybe_array;
+
+  array->set_elements(elements);
+  array->set_length(Smi::FromInt(elements->length()));
+  return array;
 }
 
 
@@ -4241,6 +4351,25 @@ MaybeObject* Heap::AllocateRawTwoByteString(int length,
 }
 
 
+MaybeObject* Heap::AllocateJSArray(
+    ElementsKind elements_kind,
+    PretenureFlag pretenure) {
+  Context* global_context = isolate()->context()->global_context();
+  JSFunction* array_function = global_context->array_function();
+  Map* map = array_function->initial_map();
+  if (elements_kind == FAST_ELEMENTS || !FLAG_smi_only_arrays) {
+    map = Map::cast(global_context->object_js_array_map());
+  } else if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+    map = Map::cast(global_context->double_js_array_map());
+  } else {
+    ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+    ASSERT(map == global_context->smi_js_array_map());
+  }
+
+  return AllocateJSObjectFromMap(map, pretenure);
+}
+
+
 MaybeObject* Heap::AllocateEmptyFixedArray() {
   int size = FixedArray::SizeFor(0);
   Object* result;
@@ -4431,15 +4560,36 @@ MaybeObject* Heap::AllocateUninitializedFixedDoubleArray(
     PretenureFlag pretenure) {
   if (length == 0) return empty_fixed_double_array();
 
-  Object* obj;
-  { MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
-    if (!maybe_obj->ToObject(&obj)) return maybe_obj;
+  Object* elements_object;
+  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
+  FixedDoubleArray* elements =
+      reinterpret_cast<FixedDoubleArray*>(elements_object);
+
+  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_length(length);
+  return elements;
+}
+
+
+MaybeObject* Heap::AllocateFixedDoubleArrayWithHoles(
+    int length,
+    PretenureFlag pretenure) {
+  if (length == 0) return empty_fixed_double_array();
+
+  Object* elements_object;
+  MaybeObject* maybe_obj = AllocateRawFixedDoubleArray(length, pretenure);
+  if (!maybe_obj->ToObject(&elements_object)) return maybe_obj;
+  FixedDoubleArray* elements =
+      reinterpret_cast<FixedDoubleArray*>(elements_object);
+
+  for (int i = 0; i < length; ++i) {
+    elements->set_the_hole(i);
   }
 
-  reinterpret_cast<FixedDoubleArray*>(obj)->set_map_no_write_barrier(
-      fixed_double_array_map());
-  FixedDoubleArray::cast(obj)->set_length(length);
-  return obj;
+  elements->set_map_no_write_barrier(fixed_double_array_map());
+  elements->set_length(length);
+  return elements;
 }
 
 
@@ -4488,6 +4638,9 @@ MaybeObject* Heap::AllocateGlobalContext() {
   }
   Context* context = reinterpret_cast<Context*>(result);
   context->set_map_no_write_barrier(global_context_map());
+  context->set_smi_js_array_map(undefined_value());
+  context->set_double_js_array_map(undefined_value());
+  context->set_object_js_array_map(undefined_value());
   ASSERT(context->IsGlobalContext());
   ASSERT(result->IsContext());
   return result;
@@ -4607,7 +4760,7 @@ bool Heap::IsHeapIterable() {
 void Heap::EnsureHeapIsIterable() {
   ASSERT(IsAllocationAllowed());
   if (!IsHeapIterable()) {
-    CollectAllGarbage(kMakeHeapIterableMask);
+    CollectAllGarbage(kMakeHeapIterableMask, "Heap::EnsureHeapIsIterable");
   }
   ASSERT(IsHeapIterable());
 }
@@ -4677,7 +4830,7 @@ bool Heap::IdleNotification(int hint) {
       isolate_->compilation_cache()->Clear();
       uncommit = true;
     }
-    CollectAllGarbage(kNoGCFlags);
+    CollectAllGarbage(kNoGCFlags, "idle notification: finalize incremental");
     gc_count_at_last_idle_gc_ = gc_count_;
     if (uncommit) {
       new_space_.Shrink();
@@ -4718,9 +4871,10 @@ bool Heap::IdleGlobalGC() {
   if (number_idle_notifications_ == kIdlesBeforeScavenge) {
     if (contexts_disposed_ > 0) {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kNoGCFlags);
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        "idle notification: contexts disposed");
     } else {
-      CollectGarbage(NEW_SPACE);
+      CollectGarbage(NEW_SPACE, "idle notification");
     }
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
@@ -4730,12 +4884,12 @@ bool Heap::IdleGlobalGC() {
     // generated code for cached functions.
     isolate_->compilation_cache()->Clear();
 
-    CollectAllGarbage(kNoGCFlags);
+    CollectAllGarbage(kReduceMemoryFootprintMask, "idle notification");
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
 
   } else if (number_idle_notifications_ == kIdlesBeforeMarkCompact) {
-    CollectAllGarbage(kNoGCFlags);
+    CollectAllGarbage(kReduceMemoryFootprintMask, "idle notification");
     new_space_.Shrink();
     last_idle_notification_gc_count_ = gc_count_;
     number_idle_notifications_ = 0;
@@ -4745,7 +4899,8 @@ bool Heap::IdleGlobalGC() {
       contexts_disposed_ = 0;
     } else {
       HistogramTimerScope scope(isolate_->counters()->gc_context());
-      CollectAllGarbage(kNoGCFlags);
+      CollectAllGarbage(kReduceMemoryFootprintMask,
+                        "idle notification: contexts disposed");
       last_idle_notification_gc_count_ = gc_count_;
     }
     // If this is the first idle notification, we reset the
@@ -6376,18 +6531,24 @@ static intptr_t CountTotalHolesSize() {
 }
 
 
-GCTracer::GCTracer(Heap* heap)
+GCTracer::GCTracer(Heap* heap,
+                   const char* gc_reason,
+                   const char* collector_reason)
     : start_time_(0.0),
-      start_size_(0),
+      start_object_size_(0),
+      start_memory_size_(0),
       gc_count_(0),
       full_gc_count_(0),
       allocated_since_last_gc_(0),
       spent_in_mutator_(0),
       promoted_objects_size_(0),
-      heap_(heap) {
+      heap_(heap),
+      gc_reason_(gc_reason),
+      collector_reason_(collector_reason) {
   if (!FLAG_trace_gc && !FLAG_print_cumulative_gc_stat) return;
   start_time_ = OS::TimeCurrentMillis();
-  start_size_ = heap_->SizeOfObjects();
+  start_object_size_ = heap_->SizeOfObjects();
+  start_memory_size_ = heap_->isolate()->memory_allocator()->Size();
 
   for (int i = 0; i < Scope::kNumberOfScopes; i++) {
     scopes_[i] = 0;
@@ -6434,13 +6595,20 @@ GCTracer::~GCTracer() {
     }
   }
 
+  PrintF("%8.0f ms: ", heap_->isolate()->time_millis_since_init());
+
   if (!FLAG_trace_gc_nvp) {
     int external_time = static_cast<int>(scopes_[Scope::EXTERNAL]);
 
-    PrintF("%s %.1f -> %.1f MB, ",
+    double end_memory_size_mb =
+        static_cast<double>(heap_->isolate()->memory_allocator()->Size()) / MB;
+
+    PrintF("%s %.1f (%.1f) -> %.1f (%.1f) MB, ",
            CollectorString(),
-           static_cast<double>(start_size_) / MB,
-           SizeOfHeapObjects());
+           static_cast<double>(start_object_size_) / MB,
+           static_cast<double>(start_memory_size_) / MB,
+           SizeOfHeapObjects(),
+           end_memory_size_mb);
 
     if (external_time > 0) PrintF("%d / ", external_time);
     PrintF("%d ms", time);
@@ -6457,6 +6625,15 @@ GCTracer::~GCTracer() {
                longest_step_);
       }
     }
+
+    if (gc_reason_ != NULL) {
+      PrintF(" [%s]", gc_reason_);
+    }
+
+    if (collector_reason_ != NULL) {
+      PrintF(" [%s]", collector_reason_);
+    }
+
     PrintF(".\n");
   } else {
     PrintF("pause=%d ", time);
@@ -6494,7 +6671,7 @@ GCTracer::~GCTracer() {
     PrintF("misc_compaction=%d ",
            static_cast<int>(scopes_[Scope::MC_UPDATE_MISC_POINTERS]));
 
-    PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_size_);
+    PrintF("total_size_before=%" V8_PTR_PREFIX "d ", start_object_size_);
     PrintF("total_size_after=%" V8_PTR_PREFIX "d ", heap_->SizeOfObjects());
     PrintF("holes_size_before=%" V8_PTR_PREFIX "d ",
            in_free_list_or_wasted_before_gc_);

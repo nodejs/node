@@ -149,12 +149,10 @@ Scope::Scope(Scope* inner_scope,
   SetDefaults(type, NULL, scope_info);
   if (!scope_info.is_null()) {
     num_heap_slots_ = scope_info_->ContextLength();
-    if (*scope_info != ScopeInfo::Empty()) {
-      language_mode_ = scope_info->language_mode();
-    }
-  } else if (is_with_scope()) {
-    num_heap_slots_ = Context::MIN_CONTEXT_SLOTS;
   }
+  // Ensure at least MIN_CONTEXT_SLOTS to indicate a materialized context.
+  num_heap_slots_ = Max(num_heap_slots_,
+                        static_cast<int>(Context::MIN_CONTEXT_SLOTS));
   AddInnerScope(inner_scope);
 }
 

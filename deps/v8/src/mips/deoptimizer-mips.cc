@@ -218,12 +218,13 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   ASSERT(Translation::BEGIN == opcode);
   USE(opcode);
   int count = iterator.Next();
+  iterator.Skip(1);  // Drop JS frame count.
   ASSERT(count == 1);
   USE(count);
 
   opcode = static_cast<Translation::Opcode>(iterator.Next());
   USE(opcode);
-  ASSERT(Translation::FRAME == opcode);
+  ASSERT(Translation::JS_FRAME == opcode);
   unsigned node_id = iterator.Next();
   USE(node_id);
   ASSERT(node_id == ast_id);
@@ -259,9 +260,7 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
   output_ = new FrameDescription*[1];
   output_[0] = new(output_frame_size) FrameDescription(
       output_frame_size, function_);
-#ifdef DEBUG
-  output_[0]->SetKind(Code::OPTIMIZED_FUNCTION);
-#endif
+  output_[0]->SetFrameType(StackFrame::JAVA_SCRIPT);
 
   // Clear the incoming parameters in the optimized frame to avoid
   // confusing the garbage collector.
@@ -349,15 +348,115 @@ void Deoptimizer::DoComputeOsrOutputFrame() {
 }
 
 
+void Deoptimizer::DoComputeArgumentsAdaptorFrame(TranslationIterator* iterator,
+                                                 int frame_index) {
+  JSFunction* function = JSFunction::cast(ComputeLiteral(iterator->Next()));
+  unsigned height = iterator->Next();
+  unsigned height_in_bytes = height * kPointerSize;
+  if (FLAG_trace_deopt) {
+    PrintF("  translating arguments adaptor => height=%d\n", height_in_bytes);
+  }
+
+  unsigned fixed_frame_size = ArgumentsAdaptorFrameConstants::kFrameSize;
+  unsigned input_frame_size = input_->GetFrameSize();
+  unsigned output_frame_size = height_in_bytes + fixed_frame_size;
+
+  // Allocate and store the output frame description.
+  FrameDescription* output_frame =
+      new(output_frame_size) FrameDescription(output_frame_size, function);
+  output_frame->SetFrameType(StackFrame::ARGUMENTS_ADAPTOR);
+
+  // Arguments adaptor can not be topmost or bottommost.
+  ASSERT(frame_index > 0 && frame_index < output_count_ - 1);
+  ASSERT(output_[frame_index] == NULL);
+  output_[frame_index] = output_frame;
+
+  // The top address of the frame is computed from the previous
+  // frame's top and this frame's size.
+  uint32_t top_address;
+  top_address = output_[frame_index - 1]->GetTop() - output_frame_size;
+  output_frame->SetTop(top_address);
+
+  // Compute the incoming parameter translation.
+  int parameter_count = height;
+  unsigned output_offset = output_frame_size;
+  unsigned input_offset = input_frame_size;
+  for (int i = 0; i < parameter_count; ++i) {
+    output_offset -= kPointerSize;
+    DoTranslateCommand(iterator, frame_index, output_offset);
+  }
+  input_offset -= (parameter_count * kPointerSize);
+
+  // Read caller's PC from the previous frame.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  intptr_t callers_pc = output_[frame_index - 1]->GetPc();
+  output_frame->SetFrameSlot(output_offset, callers_pc);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's pc\n",
+           top_address + output_offset, output_offset, callers_pc);
+  }
+
+  // Read caller's FP from the previous frame, and set this frame's FP.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  intptr_t value = output_[frame_index - 1]->GetFp();
+  output_frame->SetFrameSlot(output_offset, value);
+  intptr_t fp_value = top_address + output_offset;
+  output_frame->SetFp(fp_value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08x: [top + %d] <- 0x%08x ; caller's fp\n",
+           fp_value, output_offset, value);
+  }
+
+  // A marker value is used in place of the context.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  intptr_t context = reinterpret_cast<intptr_t>(
+      Smi::FromInt(StackFrame::ARGUMENTS_ADAPTOR));
+  output_frame->SetFrameSlot(output_offset, context);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08x: [top + %d] <- 0x%08x ; context (adaptor sentinel)\n",
+           top_address + output_offset, output_offset, context);
+  }
+
+  // The function was mentioned explicitly in the ARGUMENTS_ADAPTOR_FRAME.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  value = reinterpret_cast<intptr_t>(function);
+  output_frame->SetFrameSlot(output_offset, value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08x: [top + %d] <- 0x%08x ; function\n",
+           top_address + output_offset, output_offset, value);
+  }
+
+  // Number of incoming arguments.
+  output_offset -= kPointerSize;
+  input_offset -= kPointerSize;
+  value = reinterpret_cast<uint32_t>(Smi::FromInt(height - 1));
+  output_frame->SetFrameSlot(output_offset, value);
+  if (FLAG_trace_deopt) {
+    PrintF("    0x%08x: [top + %d] <- 0x%08x ; argc (%d)\n",
+           top_address + output_offset, output_offset, value, height - 1);
+  }
+
+  ASSERT(0 == output_offset);
+
+  Builtins* builtins = isolate_->builtins();
+  Code* adaptor_trampoline =
+      builtins->builtin(Builtins::kArgumentsAdaptorTrampoline);
+  uint32_t pc = reinterpret_cast<uint32_t>(
+      adaptor_trampoline->instruction_start() +
+      isolate_->heap()->arguments_adaptor_deopt_pc_offset()->value());
+  output_frame->SetPc(pc);
+}
+
+
 // This code is very similar to ia32/arm code, but relies on register names
 // (fp, sp) and how the frame is laid out.
-void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
-                                 int frame_index) {
+void Deoptimizer::DoComputeJSFrame(TranslationIterator* iterator,
+                                   int frame_index) {
   // Read the ast node id, function, and frame height for this output frame.
-  Translation::Opcode opcode =
-      static_cast<Translation::Opcode>(iterator->Next());
-  USE(opcode);
-  ASSERT(Translation::FRAME == opcode);
   int node_id = iterator->Next();
   JSFunction* function = JSFunction::cast(ComputeLiteral(iterator->Next()));
   unsigned height = iterator->Next();
@@ -377,9 +476,7 @@ void Deoptimizer::DoComputeFrame(TranslationIterator* iterator,
   // Allocate and store the output frame description.
   FrameDescription* output_frame =
       new(output_frame_size) FrameDescription(output_frame_size, function);
-#ifdef DEBUG
-  output_frame->SetKind(Code::FUNCTION);
-#endif
+  output_frame->SetFrameType(StackFrame::JAVA_SCRIPT);
 
   bool is_bottommost = (0 == frame_index);
   bool is_topmost = (output_count_ - 1 == frame_index);

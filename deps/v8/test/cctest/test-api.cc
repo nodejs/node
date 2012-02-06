@@ -15558,10 +15558,12 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   LocalContext context;
 
   // eval and the Function constructor allowed by default.
+  CHECK(context->IsCodeGenerationFromStringsAllowed());
   CheckCodeGenerationAllowed();
 
   // Disallow eval and the Function constructor.
   context->AllowCodeGenerationFromStrings(false);
+  CHECK(!context->IsCodeGenerationFromStringsAllowed());
   CheckCodeGenerationDisallowed();
 
   // Allow again.
@@ -15571,10 +15573,12 @@ THREADED_TEST(AllowCodeGenFromStrings) {
   // Disallow but setting a global callback that will allow the calls.
   context->AllowCodeGenerationFromStrings(false);
   V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationAllowed);
+  CHECK(!context->IsCodeGenerationFromStringsAllowed());
   CheckCodeGenerationAllowed();
 
   // Set a callback that disallows the code generation.
   V8::SetAllowCodeGenerationFromStringsCallback(&CodeGenerationDisallowed);
+  CHECK(!context->IsCodeGenerationFromStringsAllowed());
   CheckCodeGenerationDisallowed();
 }
 

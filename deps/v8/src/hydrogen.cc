@@ -625,25 +625,23 @@ HGraph::HGraph(CompilationInfo* info)
 
 Handle<Code> HGraph::Compile(CompilationInfo* info) {
   int values = GetMaximumValueID();
-  if (values > LAllocator::max_initial_value_ids()) {
+  if (values > LUnallocated::kMaxVirtualRegisters) {
     if (FLAG_trace_bailout) {
-      SmartArrayPointer<char> name(
-          info->shared_info()->DebugName()->ToCString());
-      PrintF("Function @\"%s\" is too big.\n", *name);
+      PrintF("Not enough virtual registers for (values).\n");
     }
     return Handle<Code>::null();
   }
-
   LAllocator allocator(values, this);
   LChunkBuilder builder(info, this, &allocator);
   LChunk* chunk = builder.Build();
   if (chunk == NULL) return Handle<Code>::null();
 
-  if (!FLAG_alloc_lithium) return Handle<Code>::null();
-
-  allocator.Allocate(chunk);
-
-  if (!FLAG_use_lithium) return Handle<Code>::null();
+  if (!allocator.Allocate(chunk)) {
+    if (FLAG_trace_bailout) {
+      PrintF("Not enough virtual registers (regalloc).\n");
+    }
+    return Handle<Code>::null();
+  }
 
   MacroAssembler assembler(info->isolate(), NULL, 0);
   LCodeGen generator(chunk, &assembler, info);
@@ -1672,7 +1670,7 @@ Representation HInferRepresentation::TryChange(HValue* value) {
     Representation rep = use->RequiredInputRepresentation(it.index());
     if (rep.IsNone()) continue;
     if (use->IsPhi()) HPhi::cast(use)->AddIndirectUsesTo(&use_count[0]);
-    ++use_count[rep.kind()];
+    use_count[rep.kind()] += use->LoopWeight();
   }
   int tagged_count = use_count[Representation::kTagged];
   int double_count = use_count[Representation::kDouble];
@@ -4798,7 +4796,8 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
 
   // Do a quick check on source code length to avoid parsing large
   // inlining candidates.
-  if (FLAG_limit_inlining && target->shared()->SourceSize() > kMaxSourceSize) {
+  if ((FLAG_limit_inlining && target->shared()->SourceSize() > kMaxSourceSize)
+      || target->shared()->SourceSize() > kUnlimitedMaxSourceSize) {
     TraceInline(target, caller, "target text too big");
     return false;
   }
@@ -4846,7 +4845,8 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
   }
 
   // We don't want to add more than a certain number of nodes from inlining.
-  if (FLAG_limit_inlining && inlined_count_ > kMaxInlinedNodes) {
+  if ((FLAG_limit_inlining && inlined_count_ > kMaxInlinedNodes) ||
+      inlined_count_ > kUnlimitedMaxInlinedNodes) {
     TraceInline(target, caller, "cumulative AST node limit reached");
     return false;
   }
@@ -4874,7 +4874,8 @@ bool HGraphBuilder::TryInline(Call* expr, bool drop_extra) {
 
   // Count the number of AST nodes added by inlining this call.
   int nodes_added = AstNode::Count() - count_before;
-  if (FLAG_limit_inlining && nodes_added > kMaxInlinedSize) {
+  if ((FLAG_limit_inlining && nodes_added > kMaxInlinedSize) ||
+      nodes_added > kUnlimitedMaxInlinedSize) {
     TraceInline(target, caller, "target AST is too large");
     return false;
   }
@@ -7326,7 +7327,9 @@ void HTracer::TraceLiveRange(LiveRange* range, const char* type) {
     }
     LOperand* op = range->FirstHint();
     int hint_index = -1;
-    if (op != NULL && op->IsUnallocated()) hint_index = op->VirtualRegister();
+    if (op != NULL && op->IsUnallocated()) {
+      hint_index = LUnallocated::cast(op)->virtual_register();
+    }
     trace_.Add(" %d %d", parent_index, hint_index);
     UseInterval* cur_interval = range->first_interval();
     while (cur_interval != NULL && range->Covers(cur_interval->start())) {

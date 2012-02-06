@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -34,7 +34,7 @@
 // in this test case.  Depending on whether smi-only arrays are actually
 // enabled, this test takes the appropriate code path to check smi-only arrays.
 
-support_smi_only_arrays = %HasFastSmiOnlyElements([1,2,3,4,5,6,7,8,9,10]);
+support_smi_only_arrays = %HasFastSmiOnlyElements(new Array(1,2,3,4,5,6,7,8));
 
 if (support_smi_only_arrays) {
   print("Tests include smi-only arrays.");
@@ -108,11 +108,13 @@ me.dance = 0xD15C0;
 me.drink = 0xC0C0A;
 assertKind(elements_kind.fast, me);
 
-var too = [1,2,3];
-assertKind(elements_kind.fast_smi_only, too);
-too.dance = 0xD15C0;
-too.drink = 0xC0C0A;
-assertKind(elements_kind.fast_smi_only, too);
+if (support_smi_only_arrays) {
+  var too = [1,2,3];
+  assertKind(elements_kind.fast_smi_only, too);
+  too.dance = 0xD15C0;
+  too.drink = 0xC0C0A;
+  assertKind(elements_kind.fast_smi_only, too);
+}
 
 // Make sure the element kind transitions from smionly when a non-smi is stored.
 var you = new Array();
@@ -154,7 +156,7 @@ function monomorphic(array) {
     assertEquals(i + 10, a);
   }
 }
-var smi_only = [1, 2, 3];
+var smi_only = new Array(1, 2, 3);
 for (var i = 0; i < 3; i++) monomorphic(smi_only);
 %OptimizeFunctionOnNextCall(monomorphic);
 monomorphic(smi_only);
@@ -232,15 +234,17 @@ if (support_smi_only_arrays) {
 function get(foo) { return foo; }  // Used to generate dynamic values.
 
 function crankshaft_test() {
-  var a = [get(1), get(2), get(3)];
-  assertKind(elements_kind.fast_smi_only, a);
+  if (support_smi_only_arrays) {
+    var a1 = [get(1), get(2), get(3)];
+    assertKind(elements_kind.fast_smi_only, a1);
+  }
+  var a2 = new Array(get(1), get(2), get(3));
+  assertKind(elements_kind.fast_smi_only, a2);
   var b = [get(1), get(2), get("three")];
   assertKind(elements_kind.fast, b);
   var c = [get(1), get(2), get(3.5)];
   if (support_smi_only_arrays) {
     assertKind(elements_kind.fast_double, c);
-  } else {
-    assertKind(elements_kind.fast, c);
   }
 }
 for (var i = 0; i < 3; i++) {

@@ -431,24 +431,13 @@ class LAllocator BASE_EMBEDDED {
 
   static void TraceAlloc(const char* msg, ...);
 
-  // Lithium translation support.
-  // Record a use of an input operand in the current instruction.
-  void RecordUse(HValue* value, LUnallocated* operand);
-  // Record the definition of the output operand.
-  void RecordDefinition(HInstruction* instr, LUnallocated* operand);
-  // Record a temporary operand.
-  void RecordTemporary(LUnallocated* operand);
-
   // Checks whether the value of a given virtual register is tagged.
   bool HasTaggedValue(int virtual_register) const;
 
   // Returns the register kind required by the given virtual register.
   RegisterKind RequiredRegisterKind(int virtual_register) const;
 
-  // Control max function size.
-  static int max_initial_value_ids();
-
-  void Allocate(LChunk* chunk);
+  bool Allocate(LChunk* chunk);
 
   const ZoneList<LiveRange*>* live_ranges() const { return &live_ranges_; }
   const Vector<LiveRange*>* fixed_live_ranges() const {
@@ -460,6 +449,15 @@ class LAllocator BASE_EMBEDDED {
 
   LChunk* chunk() const { return chunk_; }
   HGraph* graph() const { return graph_; }
+
+  int GetVirtualRegister() {
+    if (next_virtual_register_ > LUnallocated::kMaxVirtualRegisters) {
+      allocation_ok_ = false;
+    }
+    return next_virtual_register_++;
+  }
+
+  bool AllocationOk() { return allocation_ok_; }
 
   void MarkAsOsrEntry() {
     // There can be only one.
@@ -533,7 +531,7 @@ class LAllocator BASE_EMBEDDED {
   // Otherwise returns the live range that starts at pos and contains
   // all uses from the original range that follow pos. Uses at pos will
   // still be owned by the original range after splitting.
-  LiveRange* SplitAt(LiveRange* range, LifetimePosition pos);
+  LiveRange* SplitRangeAt(LiveRange* range, LifetimePosition pos);
 
   // Split the given range in a position from the interval [start, end].
   LiveRange* SplitBetween(LiveRange* range,
@@ -590,6 +588,9 @@ class LAllocator BASE_EMBEDDED {
   inline LGap* GapAt(int index);
 
   LChunk* chunk_;
+
+  // Indicates success or failure during register allocation.
+  bool allocation_ok_;
 
   // During liveness analysis keep a mapping from block id to live_in sets
   // for blocks already analyzed.

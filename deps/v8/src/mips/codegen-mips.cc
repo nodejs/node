@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -105,10 +105,10 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ Addu(scratch, scratch, FixedDoubleArray::kHeaderSize);
   __ AllocateInNewSpace(scratch, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
   // t2: destination FixedDoubleArray, not tagged as heap object
+  // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(t5, Heap::kFixedDoubleArrayMapRootIndex);
-  __ sw(t5, MemOperand(t2, HeapObject::kMapOffset));
-  // Set destination FixedDoubleArray's length.
   __ sw(t1, MemOperand(t2, FixedDoubleArray::kLengthOffset));
+  __ sw(t5, MemOperand(t2, HeapObject::kMapOffset));
   // Update receiver's map.
 
   __ sw(a3, FieldMemOperand(a2, HeapObject::kMapOffset));
@@ -159,10 +159,9 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   __ lw(t5, MemOperand(a3));
   __ Addu(a3, a3, kIntSize);
   // t5: current element
-  __ JumpIfNotSmi(t5, &convert_hole);
+  __ UntagAndJumpIfNotSmi(t5, t5, &convert_hole);
 
   // Normal smi, convert to double and store.
-  __ SmiUntag(t5);
   if (fpu_supported) {
     CpuFeatures::Scope scope(FPU);
     __ mtc1(t5, f0);
@@ -187,6 +186,9 @@ void ElementsTransitionGenerator::GenerateSmiOnlyToDouble(
   // Hole found, store the-hole NaN.
   __ bind(&convert_hole);
   if (FLAG_debug_code) {
+    // Restore a "smi-untagged" heap object.
+    __ SmiTag(t5);
+    __ Or(t5, t5, Operand(1));
     __ LoadRoot(at, Heap::kTheHoleValueRootIndex);
     __ Assert(eq, "object found in smi-only array", at, Operand(t5));
   }
@@ -225,10 +227,10 @@ void ElementsTransitionGenerator::GenerateDoubleToObject(
   __ Addu(a0, a0, FixedDoubleArray::kHeaderSize);
   __ AllocateInNewSpace(a0, t2, t3, t5, &gc_required, NO_ALLOCATION_FLAGS);
   // t2: destination FixedArray, not tagged as heap object
+  // Set destination FixedDoubleArray's length and map.
   __ LoadRoot(t5, Heap::kFixedArrayMapRootIndex);
-  __ sw(t5, MemOperand(t2, HeapObject::kMapOffset));
-  // Set destination FixedDoubleArray's length.
   __ sw(t1, MemOperand(t2, FixedDoubleArray::kLengthOffset));
+  __ sw(t5, MemOperand(t2, HeapObject::kMapOffset));
 
   // Prepare for conversion loop.
   __ Addu(t0, t0, Operand(FixedDoubleArray::kHeaderSize - kHeapObjectTag + 4));
@@ -333,9 +335,9 @@ void StringCharLoadGenerator::Generate(MacroAssembler* masm,
   // Handle slices.
   Label indirect_string_loaded;
   __ lw(result, FieldMemOperand(string, SlicedString::kOffsetOffset));
+  __ lw(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ sra(at, result, kSmiTagSize);
   __ Addu(index, index, at);
-  __ lw(string, FieldMemOperand(string, SlicedString::kParentOffset));
   __ jmp(&indirect_string_loaded);
 
   // Handle cons strings.

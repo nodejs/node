@@ -219,6 +219,7 @@ enum StringStubFeedback {
 class Assignment;
 class BinaryOperation;
 class Call;
+class CallNew;
 class CaseClause;
 class CompareOperation;
 class CompilationInfo;
@@ -240,6 +241,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
   bool StoreIsMonomorphicNormal(Expression* expr);
   bool StoreIsMegamorphicWithTypeInfo(Expression* expr);
   bool CallIsMonomorphic(Call* expr);
+  bool CallNewIsMonomorphic(CallNew* expr);
 
   Handle<Map> LoadMonomorphicReceiverType(Property* expr);
   Handle<Map> StoreMonomorphicReceiverType(Expression* expr);
@@ -297,6 +299,7 @@ class TypeFeedbackOracle BASE_EMBEDDED {
                           byte* old_start,
                           byte* new_start);
   void ProcessRelocInfos(ZoneList<RelocInfo>* infos);
+  void ProcessTypeFeedbackCells(Handle<Code> code);
 
   // Returns an element from the backing store. Returns undefined if
   // there is no information.

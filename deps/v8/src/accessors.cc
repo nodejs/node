@@ -487,16 +487,6 @@ MaybeObject* Accessors::FunctionSetPrototype(JSObject* object,
                                                     NONE);
   }
 
-  if (function->has_initial_map()) {
-    // If the function has allocated the initial map
-    // replace it with a copy containing the new prototype.
-    Object* new_map;
-    { MaybeObject* maybe_new_map =
-          function->initial_map()->CopyDropTransitions();
-      if (!maybe_new_map->ToObject(&new_map)) return maybe_new_map;
-    }
-    function->set_initial_map(Map::cast(new_map));
-  }
   Object* prototype;
   { MaybeObject* maybe_prototype = function->SetPrototype(value);
     if (!maybe_prototype->ToObject(&prototype)) return maybe_prototype;

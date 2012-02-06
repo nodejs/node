@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -765,7 +765,8 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   // -----------------------------------
   Label slow, fast_object_with_map_check, fast_object_without_map_check;
   Label fast_double_with_map_check, fast_double_without_map_check;
-  Label check_if_double_array, array, extra;
+  Label check_if_double_array, array, extra, transition_smi_elements;
+  Label finish_object_store, non_double_value, transition_double_elements;
 
   // Check that the object isn't a smi.
   __ JumpIfSmi(edx, &slow);
@@ -862,11 +863,12 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ ret(0);
 
   __ bind(&non_smi_value);
-  // Escape to slow case when writing non-smi into smi-only array.
+  // Escape to elements kind transition case.
   __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-  __ CheckFastObjectElements(edi, &slow, Label::kNear);
+  __ CheckFastObjectElements(edi, &transition_smi_elements);
 
   // Fast elements array, store the value to the elements backing store.
+  __ bind(&finish_object_store);
   __ mov(CodeGenerator::FixedArrayElementOperand(ebx, ecx), eax);
   // Update write barrier for the elements array address.
   __ mov(edx, eax);  // Preserve the value which is returned.
@@ -882,8 +884,54 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ bind(&fast_double_without_map_check);
   // If the value is a number, store it as a double in the FastDoubleElements
   // array.
-  __ StoreNumberToDoubleElements(eax, ebx, ecx, edx, xmm0, &slow, false);
+  __ StoreNumberToDoubleElements(eax, ebx, ecx, edx, xmm0,
+                                 &transition_double_elements, false);
   __ ret(0);
+
+  __ bind(&transition_smi_elements);
+  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+
+  // Transition the array appropriately depending on the value type.
+  __ CheckMap(eax,
+              masm->isolate()->factory()->heap_number_map(),
+              &non_double_value,
+              DONT_DO_SMI_CHECK);
+
+  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
+  // FAST_DOUBLE_ELEMENTS and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_DOUBLE_ELEMENTS,
+                                         ebx,
+                                         edi,
+                                         &slow);
+  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+  __ jmp(&fast_double_without_map_check);
+
+  __ bind(&non_double_value);
+  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         ebx,
+                                         edi,
+                                         &slow);
+  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
+
+  __ bind(&transition_double_elements);
+  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
+  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
+  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
+  __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         ebx,
+                                         edi,
+                                         &slow);
+  ElementsTransitionGenerator::GenerateDoubleToObject(masm, &slow);
+  __ mov(ebx, FieldOperand(edx, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
 }
 
 

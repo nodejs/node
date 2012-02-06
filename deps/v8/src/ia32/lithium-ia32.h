@@ -2273,7 +2273,6 @@ class LChunkBuilder BASE_EMBEDDED {
   void Abort(const char* format, ...);
 
   // Methods for getting operands for Use / Define / Temp.
-  LRegister* ToOperand(Register reg);
   LUnallocated* ToUnallocated(Register reg);
   LUnallocated* ToUnallocated(XMMRegister reg);
 
@@ -2323,8 +2322,6 @@ class LChunkBuilder BASE_EMBEDDED {
   template<int I, int T>
       LInstruction* Define(LTemplateInstruction<1, I, T>* instr,
                            LUnallocated* result);
-  template<int I, int T>
-      LInstruction* Define(LTemplateInstruction<1, I, T>* instr);
   template<int I, int T>
       LInstruction* DefineAsRegister(LTemplateInstruction<1, I, T>* instr);
   template<int I, int T>

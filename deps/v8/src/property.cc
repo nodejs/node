@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -91,6 +91,9 @@ void LookupResult::Print(FILE* out) {
       break;
     case CONSTANT_TRANSITION:
       PrintF(out, " -type = constant property transition\n");
+      PrintF(out, " -map:\n");
+      GetTransitionMap()->Print(out);
+      PrintF(out, "\n");
       break;
     case NULL_DESCRIPTOR:
       PrintF(out, " =type = null descriptor\n");
@@ -109,6 +112,30 @@ void Descriptor::Print(FILE* out) {
 
 
 #endif
+
+
+bool Descriptor::ContainsTransition() {
+  switch (details_.type()) {
+    case MAP_TRANSITION:
+    case CONSTANT_TRANSITION:
+    case ELEMENTS_TRANSITION:
+      return true;
+    case CALLBACKS: {
+      if (!value_->IsAccessorPair()) return false;
+      AccessorPair* accessors = AccessorPair::cast(value_);
+      return accessors->getter()->IsMap() || accessors->setter()->IsMap();
+    }
+    case NORMAL:
+    case FIELD:
+    case CONSTANT_FUNCTION:
+    case HANDLER:
+    case INTERCEPTOR:
+    case NULL_DESCRIPTOR:
+      return false;
+  }
+  UNREACHABLE();  // Keep the compiler happy.
+  return false;
+}
 
 
 } }  // namespace v8::internal

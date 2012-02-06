@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -1312,14 +1312,16 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   Label slow, array, extra, check_if_double_array;
   Label fast_object_with_map_check, fast_object_without_map_check;
   Label fast_double_with_map_check, fast_double_without_map_check;
+  Label transition_smi_elements, finish_object_store, non_double_value;
+  Label transition_double_elements;
 
   // Register usage.
   Register value = r0;
   Register key = r1;
   Register receiver = r2;
-  Register elements = r3;  // Elements array of the receiver.
+  Register receiver_map = r3;
   Register elements_map = r6;
-  Register receiver_map = r7;
+  Register elements = r7;  // Elements array of the receiver.
   // r4 and r5 are used as general scratch registers.
 
   // Check that the key is a smi.
@@ -1417,9 +1419,11 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
   __ Ret();
 
   __ bind(&non_smi_value);
-  // Escape to slow case when writing non-smi into smi-only array.
-  __ CheckFastObjectElements(receiver_map, scratch_value, &slow);
+  // Escape to elements kind transition case.
+  __ CheckFastObjectElements(receiver_map, scratch_value,
+                             &transition_smi_elements);
   // Fast elements array, store the value to the elements backing store.
+  __ bind(&finish_object_store);
   __ add(address, elements, Operand(FixedArray::kHeaderSize - kHeapObjectTag));
   __ add(address, address, Operand(key, LSL, kPointerSizeLog2 - kSmiTagSize));
   __ str(value, MemOperand(address));
@@ -1445,12 +1449,56 @@ void KeyedStoreIC::GenerateGeneric(MacroAssembler* masm,
                                  key,
                                  receiver,
                                  elements,
+                                 r3,
                                  r4,
                                  r5,
                                  r6,
-                                 r7,
-                                 &slow);
+                                 &transition_double_elements);
   __ Ret();
+
+  __ bind(&transition_smi_elements);
+  // Transition the array appropriately depending on the value type.
+  __ ldr(r4, FieldMemOperand(value, HeapObject::kMapOffset));
+  __ CompareRoot(r4, Heap::kHeapNumberMapRootIndex);
+  __ b(ne, &non_double_value);
+
+  // Value is a double. Transition FAST_SMI_ONLY_ELEMENTS ->
+  // FAST_DOUBLE_ELEMENTS and complete the store.
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_DOUBLE_ELEMENTS,
+                                         receiver_map,
+                                         r4,
+                                         &slow);
+  ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
+  ElementsTransitionGenerator::GenerateSmiOnlyToDouble(masm, &slow);
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ jmp(&fast_double_without_map_check);
+
+  __ bind(&non_double_value);
+  // Value is not a double, FAST_SMI_ONLY_ELEMENTS -> FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         receiver_map,
+                                         r4,
+                                         &slow);
+  ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
+  ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm);
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
+
+  __ bind(&transition_double_elements);
+  // Elements are FAST_DOUBLE_ELEMENTS, but value is an Object that's not a
+  // HeapNumber. Make sure that the receiver is a Array with FAST_ELEMENTS and
+  // transition array from FAST_DOUBLE_ELEMENTS to FAST_ELEMENTS
+  __ LoadTransitionedArrayMapConditional(FAST_DOUBLE_ELEMENTS,
+                                         FAST_ELEMENTS,
+                                         receiver_map,
+                                         r4,
+                                         &slow);
+  ASSERT(receiver_map.is(r3));  // Transition code expects map in r3
+  ElementsTransitionGenerator::GenerateDoubleToObject(masm, &slow);
+  __ ldr(elements, FieldMemOperand(receiver, JSObject::kElementsOffset));
+  __ jmp(&finish_object_store);
 }
 
 

@@ -772,6 +772,11 @@ class MacroAssembler: public Assembler {
 
   void LoadContext(Register dst, int context_chain_length);
 
+  // Load the initial map for new Arrays of a given type.
+  void LoadGlobalInitialConstructedArrayMap(Register function_in,
+                                            Register scratch,
+                                            Register map_out);
+
   void LoadGlobalFunction(int index, Register function);
 
   // Load the initial map from the global function. The registers
@@ -1217,24 +1222,13 @@ class MacroAssembler: public Assembler {
   // -------------------------------------------------------------------------
   // Smi utilities.
 
-  // Try to convert int32 to smi. If the value is to large, preserve
-  // the original value and jump to not_a_smi. Destroys scratch and
-  // sets flags.
-  // This is only used by crankshaft atm so it is unimplemented on MIPS.
-  void TrySmiTag(Register reg, Label* not_a_smi, Register scratch) {
-    UNIMPLEMENTED_MIPS();
-  }
-
   void SmiTag(Register reg) {
     Addu(reg, reg, reg);
   }
 
   // Test for overflow < 0: use BranchOnOverflow() or BranchOnNoOverflow().
-  void SmiTagCheckOverflow(Register reg, Register overflow) {
-    mov(overflow, reg);  // Save original value.
-    addu(reg, reg, reg);
-    xor_(overflow, overflow, reg);  // Overflow if (value ^ 2 * value) < 0.
-  }
+  void SmiTagCheckOverflow(Register reg, Register overflow);
+  void SmiTagCheckOverflow(Register dst, Register src, Register overflow);
 
   void SmiTag(Register dst, Register src) {
     Addu(dst, src, src);
@@ -1248,22 +1242,25 @@ class MacroAssembler: public Assembler {
     sra(dst, src, kSmiTagSize);
   }
 
+  // Untag the source value into destination and jump if source is a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfSmi(Register dst, Register src, Label* smi_case);
+
+  // Untag the source value into destination and jump if source is not a smi.
+  // Souce and destination can be the same register.
+  void UntagAndJumpIfNotSmi(Register dst, Register src, Label* non_smi_case);
+
   // Jump the register contains a smi.
-  inline void JumpIfSmi(Register value, Label* smi_label,
-                        Register scratch = at,
-                        BranchDelaySlot bd = PROTECT) {
-    ASSERT_EQ(0, kSmiTag);
-    andi(scratch, value, kSmiTagMask);
-    Branch(bd, smi_label, eq, scratch, Operand(zero_reg));
-  }
+  void JumpIfSmi(Register value,
+                 Label* smi_label,
+                 Register scratch = at,
+                 BranchDelaySlot bd = PROTECT);
 
   // Jump if the register contains a non-smi.
-  inline void JumpIfNotSmi(Register value, Label* not_smi_label,
-                           Register scratch = at) {
-    ASSERT_EQ(0, kSmiTag);
-    andi(scratch, value, kSmiTagMask);
-    Branch(not_smi_label, ne, scratch, Operand(zero_reg));
-  }
+  void JumpIfNotSmi(Register value,
+                    Label* not_smi_label,
+                    Register scratch = at,
+                    BranchDelaySlot bd = PROTECT);
 
   // Jump if either of the registers contain a non-smi.
   void JumpIfNotBothSmi(Register reg1, Register reg2, Label* on_not_both_smi);

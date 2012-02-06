@@ -85,13 +85,15 @@ class FullCodeGenerator: public AstVisitor {
         loop_depth_(0),
         context_(NULL),
         bailout_entries_(0),
-        stack_checks_(2) {  // There's always at least one.
+        stack_checks_(2),  // There's always at least one.
+        type_feedback_cells_(0) {
   }
 
   static bool MakeCode(CompilationInfo* info);
 
   void Generate(CompilationInfo* info);
   void PopulateDeoptimizationData(Handle<Code> code);
+  void PopulateTypeFeedbackCells(Handle<Code> code);
 
   Handle<FixedArray> handler_table() { return handler_table_; }
 
@@ -394,6 +396,10 @@ class FullCodeGenerator: public AstVisitor {
   void PrepareForBailout(Expression* node, State state);
   void PrepareForBailoutForId(unsigned id, State state);
 
+  // Cache cell support.  This associates AST ids with global property cells
+  // that will be cleared during GC and collected by the type-feedback oracle.
+  void RecordTypeFeedbackCell(unsigned id, Handle<JSGlobalPropertyCell> cell);
+
   // Record a call's return site offset, used to rebuild the frame if the
   // called function was inlined at the site.
   void RecordJSReturnSite(Call* call);
@@ -571,6 +577,11 @@ class FullCodeGenerator: public AstVisitor {
   struct BailoutEntry {
     unsigned id;
     unsigned pc_and_state;
+  };
+
+  struct TypeFeedbackCellEntry {
+    unsigned ast_id;
+    Handle<JSGlobalPropertyCell> cell;
   };
 
 
@@ -759,6 +770,7 @@ class FullCodeGenerator: public AstVisitor {
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;
+  ZoneList<TypeFeedbackCellEntry> type_feedback_cells_;
   Handle<FixedArray> handler_table_;
 
   friend class NestedStatement;

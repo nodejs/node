@@ -195,6 +195,9 @@ class ExitFrameConstants : public AllStatic {
 
 class StandardFrameConstants : public AllStatic {
  public:
+  // Fixed part of the frame consists of return address, caller fp,
+  // context and function.
+  static const int kFixedFrameSize    =  4 * kPointerSize;
   static const int kExpressionsOffset = -3 * kPointerSize;
   static const int kMarkerOffset      = -2 * kPointerSize;
   static const int kContextOffset     = -1 * kPointerSize;
@@ -230,6 +233,8 @@ class JavaScriptFrameConstants : public AllStatic {
 class ArgumentsAdaptorFrameConstants : public AllStatic {
  public:
   static const int kLengthOffset = StandardFrameConstants::kExpressionsOffset;
+  static const int kFrameSize =
+      StandardFrameConstants::kFixedFrameSize + kPointerSize;
 };
 
 

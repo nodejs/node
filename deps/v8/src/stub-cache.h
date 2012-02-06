@@ -343,8 +343,10 @@ class StubCache {
         reinterpret_cast<Address>(table) + (offset << shift_amount));
   }
 
-  static const int kPrimaryTableSize = 2048;
-  static const int kSecondaryTableSize = 512;
+  static const int kPrimaryTableBits = 11;
+  static const int kPrimaryTableSize = (1 << kPrimaryTableBits);
+  static const int kSecondaryTableBits = 9;
+  static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
   Entry primary_[kPrimaryTableSize];
   Entry secondary_[kSecondaryTableSize];

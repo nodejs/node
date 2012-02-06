@@ -132,13 +132,13 @@ function baz(x) {
 
 function bar(x, y, z) {
   var non_construct = baz(0); /* baz should be inlined */
-  assertEquals(non_construct, NON_CONSTRUCT_MARKER);
+  assertSame(non_construct, NON_CONSTRUCT_MARKER);
   var non_construct = baz(); /* baz should be inlined */
-  assertEquals(non_construct, NON_CONSTRUCT_MARKER);
+  assertSame(non_construct, NON_CONSTRUCT_MARKER);
   var non_construct = baz(0, 0); /* baz should be inlined */
-  assertEquals(non_construct, NON_CONSTRUCT_MARKER);
+  assertSame(non_construct, NON_CONSTRUCT_MARKER);
   var construct = new baz(0);
-  assertEquals(construct, CONSTRUCT_MARKER);
+  assertSame(construct, CONSTRUCT_MARKER);
 }
 
 invoke(bar, [1, 2, 3]);

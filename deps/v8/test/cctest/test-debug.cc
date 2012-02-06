@@ -7286,4 +7286,65 @@ TEST(DebugBreakLoop) {
 }
 
 
+v8::Local<v8::Script> inline_script;
+
+static void DebugBreakInlineListener(v8::DebugEvent event,
+                                     v8::Handle<v8::Object> exec_state,
+                                     v8::Handle<v8::Object> event_data,
+                                     v8::Handle<v8::Value> data) {
+  if (event != v8::Break) return;
+
+  int expected_frame_count = 4;
+  int expected_line_number[] = {1, 4, 7, 12};
+
+  i::Handle<i::Object> compiled_script = v8::Utils::OpenHandle(*inline_script);
+  i::Handle<i::Script> source_script = i::Handle<i::Script>(i::Script::cast(
+      i::JSFunction::cast(*compiled_script)->shared()->script()));
+
+  int break_id = v8::internal::Isolate::Current()->debug()->break_id();
+  char script[128];
+  i::Vector<char> script_vector(script, sizeof(script));
+  OS::SNPrintF(script_vector, "%%GetFrameCount(%d)", break_id);
+  v8::Local<v8::Value> result = CompileRun(script);
+
+  int frame_count = result->Int32Value();
+  CHECK_EQ(expected_frame_count, frame_count);
+
+  for (int i = 0; i < frame_count; i++) {
+    // The 5. element in the returned array of GetFrameDetails contains the
+    // source position of that frame.
+    OS::SNPrintF(script_vector, "%%GetFrameDetails(%d, %d)[5]", break_id, i);
+    v8::Local<v8::Value> result = CompileRun(script);
+    CHECK_EQ(expected_line_number[i],
+             i::GetScriptLineNumber(source_script, result->Int32Value()));
+  }
+  v8::Debug::SetDebugEventListener(NULL);
+  v8::V8::TerminateExecution();
+}
+
+
+TEST(DebugBreakInline) {
+  i::FLAG_allow_natives_syntax = true;
+  v8::HandleScope scope;
+  DebugLocalContext env;
+  const char* source =
+      "function debug(b) {             \n"
+      "  if (b) debugger;              \n"
+      "}                               \n"
+      "function f(b) {                 \n"
+      "  debug(b)                      \n"
+      "};                              \n"
+      "function g(b) {                 \n"
+      "  f(b);                         \n"
+      "};                              \n"
+      "g(false);                       \n"
+      "g(false);                       \n"
+      "%OptimizeFunctionOnNextCall(g); \n"
+      "g(true);";
+  v8::Debug::SetDebugEventListener(DebugBreakInlineListener);
+  inline_script = v8::Script::Compile(v8::String::New(source));
+  inline_script->Run();
+}
+
+
 #endif  // ENABLE_DEBUGGER_SUPPORT

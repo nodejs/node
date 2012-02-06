@@ -95,12 +95,6 @@ void LOperand::PrintTo(StringStream* stream) {
 }
 
 
-int LOperand::VirtualRegister() {
-  LUnallocated* unalloc = LUnallocated::cast(this);
-  return unalloc->virtual_register();
-}
-
-
 bool LParallelMove::IsRedundant() const {
   for (int i = 0; i < move_operands_.length(); ++i) {
     if (!move_operands_[i].IsRedundant()) return false;

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -112,28 +112,24 @@ DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
-DEFINE_bool(harmony, false, "enable all harmony features")
-DEFINE_implication(harmony, harmony_typeof)
+DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 
 // Flags for experimental implementation features.
-DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
 DEFINE_bool(smi_only_arrays, false, "tracks arrays with only smi values")
-DEFINE_bool(string_slices, true, "use string slices")
-
 DEFINE_bool(clever_optimizations,
             true,
             "Optimize object size, Array shift, DOM strings and string +")
 
+// Flags for data representation optimizations
+DEFINE_bool(unbox_double_arrays, true, "automatically unbox arrays of doubles")
+DEFINE_bool(string_slices, true, "use string slices")
+
 // Flags for Crankshaft.
 DEFINE_bool(crankshaft, true, "use crankshaft")
 DEFINE_string(hydrogen_filter, "", "hydrogen use/trace filter")
-DEFINE_bool(use_hydrogen, true, "use generated hydrogen for compilation")
-DEFINE_bool(build_lithium, true, "use lithium chunk builder")
-DEFINE_bool(alloc_lithium, true, "use lithium register allocator")
-DEFINE_bool(use_lithium, true, "use lithium code generator")
 DEFINE_bool(use_range, true, "use hydrogen range analysis")
 DEFINE_bool(eliminate_dead_phis, true, "eliminate dead phis")
 DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
@@ -166,6 +162,7 @@ DEFINE_bool(use_osr, true, "use on-stack replacement")
 DEFINE_bool(trace_osr, false, "trace on-stack replacement")
 DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
+DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
@@ -250,7 +247,7 @@ DEFINE_bool(enable_liveedit, true, "enable liveedit experimental feature")
 
 // execution.cc
 DEFINE_int(stack_size, kPointerSize * 128,
-           "default size of stack region v8 is allowed to use (in KkBytes)")
+           "default size of stack region v8 is allowed to use (in kBytes)")
 
 // frames.cc
 DEFINE_int(max_stack_trace_source_length, 300,
@@ -325,10 +322,6 @@ DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
            "Maximum number of pages in map space which still allows to encode "
            "forwarding pointers.  That's actually a constant, but it's useful "
            "to control it with a flag for better testing.")
-
-// mksnapshot.cc
-DEFINE_bool(h, false, "print this message")
-DEFINE_bool(new_snapshot, true, "use new snapshot implementation")
 
 // objects.cc
 DEFINE_bool(use_verbose_printer, true, "allows verbose printing")

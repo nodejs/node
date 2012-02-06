@@ -374,7 +374,7 @@ class SlotsBuffer {
   static const int kNumberOfElements = 1021;
 
  private:
-  static const int kChainLengthThreshold = 6;
+  static const int kChainLengthThreshold = 15;
 
   intptr_t idx_;
   intptr_t chain_length_;
@@ -571,6 +571,8 @@ class MarkCompactCollector {
   // Global flag that forces sweeping to be precise, so we can traverse the
   // heap.
   bool sweep_precisely_;
+
+  bool reduce_memory_footprint_;
 
   // True if we are collecting slots to perform evacuation from evacuation
   // candidates.

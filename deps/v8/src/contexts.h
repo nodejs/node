@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -106,6 +106,9 @@ enum BindingFlags {
   V(OBJECT_FUNCTION_INDEX, JSFunction, object_function) \
   V(INTERNAL_ARRAY_FUNCTION_INDEX, JSFunction, internal_array_function) \
   V(ARRAY_FUNCTION_INDEX, JSFunction, array_function) \
+  V(SMI_JS_ARRAY_MAP_INDEX, Object, smi_js_array_map) \
+  V(DOUBLE_JS_ARRAY_MAP_INDEX, Object, double_js_array_map) \
+  V(OBJECT_JS_ARRAY_MAP_INDEX, Object, object_js_array_map) \
   V(DATE_FUNCTION_INDEX, JSFunction, date_function) \
   V(JSON_OBJECT_INDEX, JSObject, json_object) \
   V(REGEXP_FUNCTION_INDEX, JSFunction, regexp_function) \
@@ -129,7 +132,6 @@ enum BindingFlags {
   V(FUNCTION_INSTANCE_MAP_INDEX, Map, function_instance_map) \
   V(STRICT_MODE_FUNCTION_INSTANCE_MAP_INDEX, Map, \
     strict_mode_function_instance_map) \
-  V(JS_ARRAY_MAP_INDEX, Map, js_array_map)\
   V(REGEXP_RESULT_MAP_INDEX, Map, regexp_result_map)\
   V(ARGUMENTS_BOILERPLATE_INDEX, JSObject, arguments_boilerplate) \
   V(ALIASED_ARGUMENTS_BOILERPLATE_INDEX, JSObject, \
@@ -231,7 +233,6 @@ class Context: public FixedArray {
     ARGUMENTS_BOILERPLATE_INDEX,
     ALIASED_ARGUMENTS_BOILERPLATE_INDEX,
     STRICT_MODE_ARGUMENTS_BOILERPLATE_INDEX,
-    JS_ARRAY_MAP_INDEX,
     REGEXP_RESULT_MAP_INDEX,
     FUNCTION_MAP_INDEX,
     STRICT_MODE_FUNCTION_MAP_INDEX,
@@ -247,6 +248,9 @@ class Context: public FixedArray {
     OBJECT_FUNCTION_INDEX,
     INTERNAL_ARRAY_FUNCTION_INDEX,
     ARRAY_FUNCTION_INDEX,
+    SMI_JS_ARRAY_MAP_INDEX,
+    DOUBLE_JS_ARRAY_MAP_INDEX,
+    OBJECT_JS_ARRAY_MAP_INDEX,
     DATE_FUNCTION_INDEX,
     JSON_OBJECT_INDEX,
     REGEXP_FUNCTION_INDEX,
@@ -364,6 +368,18 @@ class Context: public FixedArray {
   void RemoveOptimizedFunction(JSFunction* function);
   Object* OptimizedFunctionsListHead();
   void ClearOptimizedFunctions();
+
+  static int GetContextMapIndexFromElementsKind(
+      ElementsKind elements_kind) {
+    if (elements_kind == FAST_DOUBLE_ELEMENTS) {
+      return Context::DOUBLE_JS_ARRAY_MAP_INDEX;
+    } else if (elements_kind == FAST_ELEMENTS) {
+      return Context::OBJECT_JS_ARRAY_MAP_INDEX;
+    } else {
+      ASSERT(elements_kind == FAST_SMI_ONLY_ELEMENTS);
+      return Context::SMI_JS_ARRAY_MAP_INDEX;
+    }
+  }
 
 #define GLOBAL_CONTEXT_FIELD_ACCESSORS(index, type, name) \
   void  set_##name(type* value) {                         \

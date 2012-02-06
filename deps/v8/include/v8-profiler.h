@@ -476,10 +476,21 @@ class V8EXPORT RetainedObjectInfo {  // NOLINT
   virtual intptr_t GetHash() = 0;
 
   /**
-   * Returns human-readable label. It must be a NUL-terminated UTF-8
+   * Returns human-readable label. It must be a null-terminated UTF-8
    * encoded string. V8 copies its contents during a call to GetLabel.
    */
   virtual const char* GetLabel() = 0;
+
+  /**
+   * Returns human-readable group label. It must be a null-terminated UTF-8
+   * encoded string. V8 copies its contents during a call to GetGroupLabel.
+   * Heap snapshot generator will collect all the group names, create
+   * top level entries with these names and attach the objects to the
+   * corresponding top level group objects. There is a default
+   * implementation which is required because embedders don't have their
+   * own implementation yet.
+   */
+  virtual const char* GetGroupLabel() { return GetLabel(); }
 
   /**
    * Returns element count in case if a global handle retains

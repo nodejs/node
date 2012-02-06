@@ -243,14 +243,6 @@ void Debug::GenerateCallICDebugBreak(MacroAssembler* masm) {
 }
 
 
-void Debug::GenerateConstructCallDebugBreak(MacroAssembler* masm) {
-  // Calling convention for construct call (from builtins-mips.cc).
-  //  -- a0     : number of arguments (not smi)
-  //  -- a1     : constructor function
-  Generate_DebugBreakCallHelper(masm, a1.bit(), a0.bit());
-}
-
-
 void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
   // In places other than IC call sites it is expected that v0 is TOS which
   // is an object - this is not generally the case so this should be used with
@@ -260,10 +252,42 @@ void Debug::GenerateReturnDebugBreak(MacroAssembler* masm) {
 
 
 void Debug::GenerateCallFunctionStubDebugBreak(MacroAssembler* masm) {
+  // Register state for CallFunctionStub (from code-stubs-mips.cc).
   // ----------- S t a t e -------------
   //  -- a1 : function
   // -----------------------------------
   Generate_DebugBreakCallHelper(masm, a1.bit(), 0);
+}
+
+
+void Debug::GenerateCallFunctionStubRecordDebugBreak(MacroAssembler* masm) {
+  // Register state for CallFunctionStub (from code-stubs-mips.cc).
+  // ----------- S t a t e -------------
+  //  -- a1 : function
+  //  -- a2 : cache cell for call target
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit(), 0);
+}
+
+
+void Debug::GenerateCallConstructStubDebugBreak(MacroAssembler* masm) {
+  // Calling convention for CallConstructStub (from code-stubs-mips.cc).
+  // ----------- S t a t e -------------
+  //  -- a0     : number of arguments (not smi)
+  //  -- a1     : constructor function
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, a1.bit() , a0.bit());
+}
+
+
+void Debug::GenerateCallConstructStubRecordDebugBreak(MacroAssembler* masm) {
+  // Calling convention for CallConstructStub (from code-stubs-mips.cc).
+  // ----------- S t a t e -------------
+  //  -- a0     : number of arguments (not smi)
+  //  -- a1     : constructor function
+  //  -- a2     : cache cell for call target
+  // -----------------------------------
+  Generate_DebugBreakCallHelper(masm, a1.bit() | a2.bit(), a0.bit());
 }
 
 

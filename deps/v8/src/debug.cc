@@ -85,12 +85,6 @@ static void PrintLn(v8::Local<v8::Value> value) {
 }
 
 
-static Handle<Code> ComputeCallDebugBreak(int argc, Code::Kind kind) {
-  Isolate* isolate = Isolate::Current();
-  return isolate->stub_cache()->ComputeCallDebugBreak(argc, kind);
-}
-
-
 static Handle<Code> ComputeCallDebugPrepareStepIn(int argc, Code::Kind kind) {
   Isolate* isolate = Isolate::Current();
   return isolate->stub_cache()->ComputeCallDebugPrepareStepIn(argc, kind);
@@ -1538,40 +1532,47 @@ bool Debug::IsBreakStub(Code* code) {
 
 // Find the builtin to use for invoking the debug break
 Handle<Code> Debug::FindDebugBreak(Handle<Code> code, RelocInfo::Mode mode) {
+  Isolate* isolate = Isolate::Current();
+
   // Find the builtin debug break function matching the calling convention
   // used by the call site.
   if (code->is_inline_cache_stub()) {
     switch (code->kind()) {
       case Code::CALL_IC:
       case Code::KEYED_CALL_IC:
-        return ComputeCallDebugBreak(code->arguments_count(), code->kind());
+        return isolate->stub_cache()->ComputeCallDebugBreak(
+            code->arguments_count(), code->kind());
 
       case Code::LOAD_IC:
-        return Isolate::Current()->builtins()->LoadIC_DebugBreak();
+        return isolate->builtins()->LoadIC_DebugBreak();
 
       case Code::STORE_IC:
-        return Isolate::Current()->builtins()->StoreIC_DebugBreak();
+        return isolate->builtins()->StoreIC_DebugBreak();
 
       case Code::KEYED_LOAD_IC:
-        return Isolate::Current()->builtins()->KeyedLoadIC_DebugBreak();
+        return isolate->builtins()->KeyedLoadIC_DebugBreak();
 
       case Code::KEYED_STORE_IC:
-        return Isolate::Current()->builtins()->KeyedStoreIC_DebugBreak();
+        return isolate->builtins()->KeyedStoreIC_DebugBreak();
 
       default:
         UNREACHABLE();
     }
   }
   if (RelocInfo::IsConstructCall(mode)) {
-    Handle<Code> result =
-        Isolate::Current()->builtins()->ConstructCall_DebugBreak();
-    return result;
+    if (code->has_function_cache()) {
+      return isolate->builtins()->CallConstructStub_Recording_DebugBreak();
+    } else {
+      return isolate->builtins()->CallConstructStub_DebugBreak();
+    }
   }
   if (code->kind() == Code::STUB) {
     ASSERT(code->major_key() == CodeStub::CallFunction);
-    Handle<Code> result =
-        Isolate::Current()->builtins()->CallFunctionStub_DebugBreak();
-    return result;
+    if (code->has_function_cache()) {
+      return isolate->builtins()->CallFunctionStub_Recording_DebugBreak();
+    } else {
+      return isolate->builtins()->CallFunctionStub_DebugBreak();
+    }
   }
 
   UNREACHABLE();
@@ -1903,7 +1904,8 @@ void Debug::PrepareForBreakPoints() {
     {
       // We are going to iterate heap to find all functions without
       // debug break slots.
-      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+      isolate_->heap()->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                                          "preparing for breakpoints");
 
       // Ensure no GC in this scope as we are going to use gc_metadata
       // field in the Code object to mark active functions.
@@ -2229,8 +2231,9 @@ void Debug::CreateScriptCache() {
   // rid of all the cached script wrappers and the second gets rid of the
   // scripts which are no longer referenced.  The second also sweeps precisely,
   // which saves us doing yet another GC to make the heap iterable.
-  heap->CollectAllGarbage(Heap::kNoGCFlags);
-  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask);
+  heap->CollectAllGarbage(Heap::kNoGCFlags, "Debug::CreateScriptCache");
+  heap->CollectAllGarbage(Heap::kMakeHeapIterableMask,
+                          "Debug::CreateScriptCache");
 
   ASSERT(script_cache_ == NULL);
   script_cache_ = new ScriptCache();
@@ -2280,7 +2283,8 @@ Handle<FixedArray> Debug::GetLoadedScripts() {
 
   // Perform GC to get unreferenced scripts evicted from the cache before
   // returning the content.
-  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags);
+  isolate_->heap()->CollectAllGarbage(Heap::kNoGCFlags,
+                                      "Debug::GetLoadedScripts");
 
   // Get the scripts from the cache.
   return script_cache_->GetScripts();

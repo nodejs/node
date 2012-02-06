@@ -342,6 +342,12 @@ void CallFunctionStub::PrintName(StringStream* stream) {
 }
 
 
+void CallConstructStub::PrintName(StringStream* stream) {
+  stream->Add("CallConstructStub");
+  if (RecordCallTarget()) stream->Add("_Recording");
+}
+
+
 void ToBooleanStub::PrintName(StringStream* stream) {
   stream->Add("ToBooleanStub_");
   types_.Print(stream);

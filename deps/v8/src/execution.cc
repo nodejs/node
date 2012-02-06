@@ -877,7 +877,7 @@ MaybeObject* Execution::HandleStackGuardInterrupt() {
   StackGuard* stack_guard = isolate->stack_guard();
 
   if (stack_guard->IsGCRequest()) {
-    isolate->heap()->CollectAllGarbage(false);
+    isolate->heap()->CollectAllGarbage(false, "StackGuard GC request");
     stack_guard->Continue(GC_REQUEST);
   }
 

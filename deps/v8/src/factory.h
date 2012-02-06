@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -262,10 +262,12 @@ class Factory {
 
   // JS arrays are pretenured when allocated by the parser.
   Handle<JSArray> NewJSArray(int capacity,
+                             ElementsKind elements_kind = FAST_ELEMENTS,
                              PretenureFlag pretenure = NOT_TENURED);
 
   Handle<JSArray> NewJSArrayWithElements(
       Handle<FixedArrayBase> elements,
+      ElementsKind elements_kind = FAST_ELEMENTS,
       PretenureFlag pretenure = NOT_TENURED);
 
   void SetElementsCapacityAndLength(Handle<JSArray> array,

@@ -285,6 +285,7 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   Handle<Code> code = CodeGenerator::MakeCodeEpilogue(&masm, flags, info);
   code->set_optimizable(info->IsOptimizable());
   cgen.PopulateDeoptimizationData(code);
+  cgen.PopulateTypeFeedbackCells(code);
   code->set_has_deoptimization_support(info->HasDeoptimizationSupport());
   code->set_handler_table(*cgen.handler_table());
 #ifdef ENABLE_DEBUGGER_SUPPORT
@@ -329,8 +330,7 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   ASSERT(info_->HasDeoptimizationSupport() || bailout_entries_.is_empty());
   if (!info_->HasDeoptimizationSupport()) return;
   int length = bailout_entries_.length();
-  Handle<DeoptimizationOutputData> data =
-      isolate()->factory()->
+  Handle<DeoptimizationOutputData> data = isolate()->factory()->
       NewDeoptimizationOutputData(length, TENURED);
   for (int i = 0; i < length; i++) {
     data->SetAstId(i, Smi::FromInt(bailout_entries_[i].id));
@@ -338,6 +338,21 @@ void FullCodeGenerator::PopulateDeoptimizationData(Handle<Code> code) {
   }
   code->set_deoptimization_data(*data);
 }
+
+
+void FullCodeGenerator::PopulateTypeFeedbackCells(Handle<Code> code) {
+  if (type_feedback_cells_.is_empty()) return;
+  int length = type_feedback_cells_.length();
+  int array_size = TypeFeedbackCells::LengthOfFixedArray(length);
+  Handle<TypeFeedbackCells> cache = Handle<TypeFeedbackCells>::cast(
+      isolate()->factory()->NewFixedArray(array_size, TENURED));
+  for (int i = 0; i < length; i++) {
+    cache->SetAstId(i, Smi::FromInt(type_feedback_cells_[i].ast_id));
+    cache->SetCell(i, *type_feedback_cells_[i].cell);
+  }
+  code->set_type_feedback_cells(*cache);
+}
+
 
 
 void FullCodeGenerator::PrepareForBailout(Expression* node, State state) {
@@ -382,6 +397,13 @@ void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
   }
 #endif  // DEBUG
   bailout_entries_.Add(entry);
+}
+
+
+void FullCodeGenerator::RecordTypeFeedbackCell(
+    unsigned id, Handle<JSGlobalPropertyCell> cell) {
+  TypeFeedbackCellEntry entry = { id, cell };
+  type_feedback_cells_.Add(entry);
 }
 
 

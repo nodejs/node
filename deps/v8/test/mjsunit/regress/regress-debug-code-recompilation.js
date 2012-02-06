@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -25,30 +25,23 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include "gc-extension.h"
+// Flags: --allow-natives-syntax --hydrogen-filter=Debug.setBreakPoint --expose-debug-as debug
 
-namespace v8 {
-namespace internal {
+Debug = debug.Debug
 
-const char* const GCExtension::kSource = "native function gc();";
-
-
-v8::Handle<v8::FunctionTemplate> GCExtension::GetNativeFunction(
-    v8::Handle<v8::String> str) {
-  return v8::FunctionTemplate::New(GCExtension::GC);
+function f() {a=1;b=2};
+function g() {
+  a=1;
+  b=2;
 }
 
-
-v8::Handle<v8::Value> GCExtension::GC(const v8::Arguments& args) {
-  HEAP->CollectAllGarbage(Heap::kNoGCFlags, "gc extension");
-  return v8::Undefined();
-}
-
-
-void GCExtension::Register() {
-  static GCExtension* gc_extension = NULL;
-  if (gc_extension == NULL) gc_extension = new GCExtension();
-  static v8::DeclareExtension gc_extension_declaration(gc_extension);
-}
-
-} }  // namespace v8::internal
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);
+%OptimizeFunctionOnNextCall(Debug.setBreakPoint);
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);
+%OptimizeFunctionOnNextCall(Debug.setBreakPoint);
+bp = Debug.setBreakPoint(f, 0, 0);
+Debug.clearBreakPoint(bp);

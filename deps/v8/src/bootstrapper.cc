@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -76,22 +76,15 @@ Handle<String> Bootstrapper::NativesSourceLookup(int index) {
   Factory* factory = isolate->factory();
   Heap* heap = isolate->heap();
   if (heap->natives_source_cache()->get(index)->IsUndefined()) {
-    if (!Snapshot::IsEnabled() || FLAG_new_snapshot) {
-      // We can use external strings for the natives.
-      Vector<const char> source = Natives::GetRawScriptSource(index);
-      NativesExternalStringResource* resource =
-          new NativesExternalStringResource(this,
-                                            source.start(),
-                                            source.length());
-      Handle<String> source_code =
-          factory->NewExternalStringFromAscii(resource);
-      heap->natives_source_cache()->set(index, *source_code);
-    } else {
-      // Old snapshot code can't cope with external strings at all.
-      Handle<String> source_code =
-        factory->NewStringFromAscii(Natives::GetRawScriptSource(index));
-      heap->natives_source_cache()->set(index, *source_code);
-    }
+    // We can use external strings for the natives.
+    Vector<const char> source = Natives::GetRawScriptSource(index);
+    NativesExternalStringResource* resource =
+        new NativesExternalStringResource(this,
+                                          source.start(),
+                                          source.length());
+    Handle<String> source_code =
+        factory->NewExternalStringFromAscii(resource);
+    heap->natives_source_cache()->set(index, *source_code);
   }
   Handle<Object> cached_source(heap->natives_source_cache()->get(index));
   return Handle<String>::cast(cached_source);
@@ -894,15 +887,12 @@ void Genesis::InitializeGlobal(Handle<GlobalObject> inner_global,
             factory->NewForeign(&Accessors::ArrayLength),
             static_cast<PropertyAttributes>(DONT_ENUM | DONT_DELETE));
 
-    // Cache the fast JavaScript array map
-    global_context()->set_js_array_map(array_function->initial_map());
-    global_context()->js_array_map()->set_instance_descriptors(
-        *array_descriptors);
     // array_function is used internally. JS code creating array object should
     // search for the 'Array' property on the global object and use that one
     // as the constructor. 'Array' property on a global object can be
     // overwritten by JS code.
     global_context()->set_array_function(*array_function);
+    array_function->initial_map()->set_instance_descriptors(*array_descriptors);
   }
 
   {  // --- N u m b e r ---
@@ -1646,7 +1636,7 @@ bool Genesis::InstallNatives() {
     MaybeObject* maybe_map =
         array_function->initial_map()->CopyDropTransitions();
     Map* new_map;
-    if (!maybe_map->To<Map>(&new_map)) return maybe_map;
+    if (!maybe_map->To<Map>(&new_map)) return false;
     new_map->set_elements_kind(FAST_ELEMENTS);
     array_function->set_initial_map(new_map);
 
@@ -1745,17 +1735,15 @@ bool Genesis::InstallNatives() {
     initial_map->set_prototype(*array_prototype);
 
     // Update map with length accessor from Array and add "index" and "input".
-    Handle<Map> array_map(global_context()->js_array_map());
-    Handle<DescriptorArray> array_descriptors(
-        array_map->instance_descriptors());
-    ASSERT_EQ(1, array_descriptors->number_of_descriptors());
-
     Handle<DescriptorArray> reresult_descriptors =
         factory()->NewDescriptorArray(3);
-
     DescriptorArray::WhitenessWitness witness(*reresult_descriptors);
 
-    reresult_descriptors->CopyFrom(0, *array_descriptors, 0, witness);
+    JSFunction* array_function = global_context()->array_function();
+    Handle<DescriptorArray> array_descriptors(
+        array_function->initial_map()->instance_descriptors());
+    int index = array_descriptors->SearchWithCache(heap()->length_symbol());
+    reresult_descriptors->CopyFrom(0, *array_descriptors, index, witness);
 
     int enum_index = 0;
     {

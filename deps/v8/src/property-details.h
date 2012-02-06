@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -73,26 +73,6 @@ enum PropertyType {
 };
 
 
-inline bool IsTransitionType(PropertyType type) {
-  switch (type) {
-    case MAP_TRANSITION:
-    case CONSTANT_TRANSITION:
-    case ELEMENTS_TRANSITION:
-      return true;
-    case NORMAL:
-    case FIELD:
-    case CONSTANT_FUNCTION:
-    case CALLBACKS:
-    case HANDLER:
-    case INTERCEPTOR:
-    case NULL_DESCRIPTOR:
-      return false;
-  }
-  UNREACHABLE();  // keep the compiler happy
-  return false;
-}
-
-
 inline bool IsRealProperty(PropertyType type) {
   switch (type) {
     case NORMAL:
@@ -138,12 +118,6 @@ class PropertyDetails BASE_EMBEDDED {
   inline Smi* AsSmi();
 
   PropertyType type() { return TypeField::decode(value_); }
-
-  bool IsTransition() {
-    PropertyType t = type();
-    ASSERT(t != INTERCEPTOR);
-    return IsTransitionType(t);
-  }
 
   bool IsProperty() {
     return IsRealProperty(type());

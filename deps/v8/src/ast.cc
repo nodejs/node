@@ -730,33 +730,32 @@ void CaseClause::RecordTypeFeedback(TypeFeedbackOracle* oracle) {
 
 
 bool Call::ComputeTarget(Handle<Map> type, Handle<String> name) {
-  // If there is an interceptor, we can't compute the target for
-  // a direct call.
+  // If there is an interceptor, we can't compute the target for a direct call.
   if (type->has_named_interceptor()) return false;
 
   if (check_type_ == RECEIVER_MAP_CHECK) {
-    // For primitive checks the holder is set up to point to the
-    // corresponding prototype object, i.e. one step of the algorithm
-    // below has been already performed.
-    // For non-primitive checks we clear it to allow computing targets
-    // for polymorphic calls.
+    // For primitive checks the holder is set up to point to the corresponding
+    // prototype object, i.e. one step of the algorithm below has been already
+    // performed. For non-primitive checks we clear it to allow computing
+    // targets for polymorphic calls.
     holder_ = Handle<JSObject>::null();
   }
+  LookupResult lookup(type->GetIsolate());
   while (true) {
-    LookupResult lookup(type->GetIsolate());
     type->LookupInDescriptors(NULL, *name, &lookup);
-    // If the function wasn't found directly in the map, we start
-    // looking upwards through the prototype chain.
-    if ((!lookup.IsFound() || IsTransitionType(lookup.type()))
-        && type->prototype()->IsJSObject()) {
-      holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
-      type = Handle<Map>(holder()->map());
-    } else if (lookup.IsFound() && lookup.type() == CONSTANT_FUNCTION) {
-      target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
-      return true;
-    } else {
+    // For properties we know the target iff we have a constant function.
+    if (lookup.IsFound() && lookup.IsProperty()) {
+      if (lookup.type() == CONSTANT_FUNCTION) {
+        target_ = Handle<JSFunction>(lookup.GetConstantFunctionFromMap(*type));
+        return true;
+      }
       return false;
     }
+    // If we reach the end of the prototype chain, we don't know the target.
+    if (!type->prototype()->IsJSObject()) return false;
+    // Go up the prototype chain, recording where we are currently.
+    holder_ = Handle<JSObject>(JSObject::cast(type->prototype()));
+    type = Handle<Map>(holder()->map());
   }
 }
 
