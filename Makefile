@@ -178,6 +178,15 @@ $(PKG):
 		--out $(PKG)
 
 $(TARBALL): node out/doc
+	@if [ $(shell ./node --version) = "$(VERSION)" ]; then \
+		exit 0; \
+	else \
+	  echo "" >&2 ; \
+		echo "$(shell ./node --version) doesn't match $(VERSION)." >&2 ; \
+	  echo "Did you remember to update src/node_version.cc?" >&2 ; \
+	  echo "" >&2 ; \
+		exit 1 ; \
+	fi
 	git archive --format=tar --prefix=$(TARNAME)/ HEAD | tar xf -
 	mkdir -p $(TARNAME)/doc
 	cp doc/node.1 $(TARNAME)/doc/node.1
