@@ -14,6 +14,7 @@ if /i "%1"=="/?" goto help
 @rem Process arguments.
 set config=Debug
 set target=Build
+set target_arch=ia32
 set noprojgen=
 set nobuild=
 set nosign=
@@ -28,6 +29,9 @@ if "%1"=="" goto args-done
 if /i "%1"=="debug"        set config=Debug&goto arg-ok
 if /i "%1"=="release"      set config=Release&goto arg-ok
 if /i "%1"=="clean"        set target=Clean&goto arg-ok
+if /i "%1"=="ia32"         set target_arch=ia32&goto arg-ok
+if /i "%1"=="x86"          set target_arch=ia32&goto arg-ok
+if /i "%1"=="x64"          set target_arch=x64&goto arg-ok
 if /i "%1"=="noprojgen"    set noprojgen=1&goto arg-ok
 if /i "%1"=="nobuild"      set nobuild=1&goto arg-ok
 if /i "%1"=="nosign"       set nosign=1&goto arg-ok
@@ -56,14 +60,14 @@ if defined noprojgen goto msbuild
 
 @rem Generate the VS project.
 if defined nosnapshot goto nosnapshotgen
-python tools\gyp_node -f msvs -G msvs_version=2010
+python tools\gyp_node -f msvs -G msvs_version=2010 -Dtarget_arch=%target_arch%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.
 goto msbuild
 
 :nosnapshotgen
-python tools\gyp_node -f msvs -G msvs_version=2010 -D v8_use_snapshot='false'
+python tools\gyp_node -f msvs -G msvs_version=2010 -D v8_use_snapshot='false' -Dtarget_arch=%target_arch%
 if errorlevel 1 goto create-msvs-files-failed
 if not exist node.sln goto create-msvs-files-failed
 echo Project files generated.

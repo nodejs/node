@@ -48,20 +48,18 @@
               'config/piii',
             ],
           },
-        }
-        # commented out until we have node producing 64-bit builds.
-        #, {
-        #  'include_dirs': [
-        #    'config/k8',
-        #  ],
-        #  'direct_dependent_settings': {
-        #    'include_dirs': [
-        #      'openssl/include',
-        #      'config/k8',
-        #    ],
-        #  },
-        #}
-        ],
+        }],
+        ['target_arch=="x64"', {
+          'include_dirs': [
+            'config/k8',
+          ],
+          'direct_dependent_settings': {
+            'include_dirs': [
+              'openssl/include',
+              'config/k8',
+            ],
+          },
+        }],
       ],
 
       'copts': [
