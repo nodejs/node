@@ -34,8 +34,13 @@
         },
       },
       'Release': {
+        'conditions': [
+          [ 'OS!="solaris"', {
+            'cflags': [ '-fomit-frame-pointer' ]
+          }],
+        ],
         # 'defines': [ 'NDEBUG' ],
-        'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
+        'cflags': [ '-O3', '-fdata-sections', '-ffunction-sections' ],
         'conditions': [
           ['target_arch=="x64"', {
             'msvs_configuration_platform': 'x64',
