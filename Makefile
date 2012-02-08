@@ -39,7 +39,8 @@ uninstall:
 	out/Release/node tools/installer.js ./config.gypi uninstall
 
 clean:
-	-rm -rf out/Makefile node node_g out/**/*.o  out/**/*.a out/$(BUILDTYPE)/node
+	-rm -rf out/Makefile node node_g out/$(BUILDTYPE)/node
+	-find out/ -name '*.o' -o -name '*.a' | xargs rm -rf
 
 distclean:
 	-rm -rf out
