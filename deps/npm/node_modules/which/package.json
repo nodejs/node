@@ -2,7 +2,7 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me)",
   "name": "which",
   "description": "Like which(1) unix command. Find the first instance of an executable in the PATH.",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "repository": {
     "type": "git",
     "url": "git://github.com/isaacs/node-which.git"

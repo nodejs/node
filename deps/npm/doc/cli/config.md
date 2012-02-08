@@ -353,7 +353,7 @@ The value `npm init` should use by default for the package version.
 
 ### init.author.name
 
-* Default: "0.0.0"
+* Default: ""
 * Type: String
 
 The value `npm init` should use by default for the package author's name.

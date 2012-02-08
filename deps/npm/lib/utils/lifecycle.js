@@ -11,6 +11,17 @@ var log = require("./log.js")
   , chain = require("slide").chain
   , constants = require("constants")
   , output = require("./output.js")
+  , PATH = "PATH"
+
+// windows calls it's path "Path" usually, but this is not guaranteed.
+if (process.platform === "win32") {
+  PATH = "Path"
+  Object.keys(process.env).forEach(function (e) {
+    if (e.match(/^PATH$/i)) {
+      PATH = e
+    }
+  })
+}
 
 function lifecycle (pkg, stage, wd, unsafe, failOk, cb) {
   if (typeof cb !== "function") cb = failOk, failOk = false
@@ -54,16 +65,16 @@ function checkForLink (pkg, cb) {
 }
 
 function lifecycle_ (pkg, stage, wd, env, unsafe, failOk, cb) {
-  var PATH = []
+  var pathArr = []
     , p = wd.split("node_modules")
     , acc = path.resolve(p.shift())
   p.forEach(function (pp) {
-    PATH.unshift(path.join(acc, "node_modules", ".bin"))
+    pathArr.unshift(path.join(acc, "node_modules", ".bin"))
     acc = path.join(acc, "node_modules", pp)
   })
-  PATH.unshift(path.join(acc, "node_modules", ".bin"))
-  if (env.PATH) PATH.push(env.PATH)
-  env.PATH = PATH.join(process.platform === "win32" ? ";" : ":")
+  pathArr.unshift(path.join(acc, "node_modules", ".bin"))
+  if (env[PATH]) pathArr.push(env[PATH])
+  env[PATH] = pathArr.join(process.platform === "win32" ? ";" : ":")
 
   var packageLifecycle = pkg.scripts && pkg.scripts.hasOwnProperty(stage)
 
@@ -113,7 +124,7 @@ function runPackageLifecycle (pkg, env, wd, unsafe, cb) {
     , cmd = env.npm_lifecycle_script
     , sh = "sh"
     , shFlag = "-c"
-  
+
   if (process.platform === "win32") {
     sh = "cmd"
     shFlag = "/c"
@@ -121,9 +132,12 @@ function runPackageLifecycle (pkg, env, wd, unsafe, cb) {
 
   log.verbose(unsafe, "unsafe-perm in lifecycle")
 
-  output.write("\n> "+pkg._id+" " + stage+" "+wd+"\n> "+cmd+"\n", function (er) {
+  var note = "\n> " + pkg._id + " " + stage + " " + wd
+           + "\n> " + cmd + "\n"
+
+  output.write(note, function (er) {
     if (er) return cb(er)
-    
+
     exec( sh, [shFlag, cmd], env, true, wd
         , user, group
         , function (er, code, stdout, stderr) {

@@ -45,7 +45,7 @@ function bfsify (root, current, queue, seen) {
   // which looks nicer
   current = current || root
   queue = queue || []
-  seen = seen || []
+  seen = seen || [root]
   var deps = current.dependencies = current.dependencies || {}
   Object.keys(deps).forEach(function (d) {
     var dep = deps[d]
