@@ -127,7 +127,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES': ['__C99FEATURES__'],
       'CPPPATH' : ['/usr/local/include'],
       'LIBPATH' : ['/usr/local/lib'],
-      'CCFLAGS':      ['-ansi'],
+      'CCFLAGS':      ['-ansi', '-fno-omit-frame-pointer'],
     },
     'os:win32': {
       'CCFLAGS':      ['-DWIN32'],
