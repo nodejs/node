@@ -46,6 +46,10 @@ The `options` object has these possibilities:
     omitted several well known "root" CAs will be used, like VeriSign.
     These are used to authorize connections.
 
+  - `ciphers`: A string describing the ciphers to use or exclude. Consult
+    <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT> for
+    details on the format.
+
   - `requestCert`: If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Default:
     `false`.
