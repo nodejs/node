@@ -117,7 +117,9 @@ typedef intptr_t ssize_t;
   XX( 47, EEXIST, "file already exists") \
   XX( 48, ESRCH, "no such process") \
   XX( 49, ENAMETOOLONG, "name too long") \
-  XX( 50, EPERM, "operation not permitted")
+  XX( 50, EPERM, "operation not permitted") \
+  XX( 51, ELOOP, "too many symbolic links encountered") \
+  XX( 52, EXDEV, "cross-device link not permitted")
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,
@@ -467,6 +469,13 @@ struct uv_write_s {
   UV_WRITE_PRIVATE_FIELDS
 };
 
+
+/*
+ * Used to determine whether a stream is readable or writable.
+ * TODO: export in v0.8.
+ */
+/* UV_EXTERN */ int uv_is_readable(uv_stream_t* handle);
+/* UV_EXTERN */ int uv_is_writable(uv_stream_t* handle);
 
 
 /*

@@ -45,6 +45,10 @@
   #define IPV6_V6ONLY 27
 #endif
 
+#ifndef IPV6_HOPLIMIT
+  #define IPV6_HOPLIMIT 21
+#endif
+
 /*
  * TDI defines that are only in the DDK.
  * We only need receive flags so far.

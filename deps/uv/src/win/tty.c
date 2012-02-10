@@ -1096,6 +1096,7 @@ static int uv_tty_set_style(uv_tty_t* handle, DWORD* error) {
     } else if (arg == 39) {
       /* Default text color */
       fg_color = 7;
+      fg_bright = 0;
 
     } else if (arg >= 40 && arg <= 47) {
       /* Set background color */

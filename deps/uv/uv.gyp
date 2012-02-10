@@ -321,6 +321,7 @@
         'test/test-udp-send-and-recv.c',
         'test/test-udp-multicast-join.c',
         'test/test-counters-init.c',
+        'test/test-udp-multicast-ttl.c',
       ],
       'conditions': [
         [ 'OS=="win"', {
