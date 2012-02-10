@@ -82,9 +82,27 @@ The `options` object has these possibilities:
     omitted several well known "root" CAs will be used, like VeriSign.
     These are used to authorize connections.
 
+  - `crl` : Either a string or list of strings of PEM encoded CRLs (Certificate
+    Revocation List)
+
   - `ciphers`: A string describing the ciphers to use or exclude. Consult
     <http://www.openssl.org/docs/apps/ciphers.html#CIPHER_LIST_FORMAT> for
     details on the format.
+    To mitigate [BEAST attacks]
+    (http://blog.ivanristic.com/2011/10/mitigating-the-beast-attack-on-tls.html),
+    it is recommended that you use this option in conjunction with the
+    `honorCipherOrder` option described below to prioritize the RC4 algorithm,
+    since it is a non-CBC cipher. A recommended cipher list follows:
+    `ECDHE-RSA-AES256-SHA384:AES256-SHA256:RC4-SHA:RC4:HIGH:!MD5:!aNULL:!EDH:!AESGCM`
+
+  - `honorCipherOrder` :
+	When choosing a cipher, use the server's preferences instead of the client
+	preferences.
+	Note that if SSLv2 is used, the server will send its list of preferences
+	to the client, and the client chooses the cipher.
+	Although, this option is disabled by default, it is *recommended* that you
+	use this option in conjunction with the `ciphers` option to mitigate
+	BEAST attacks.
 
   - `requestCert`: If `true` the server will request a certificate from
     clients that connect and attempt to verify that certificate. Default:
