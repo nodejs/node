@@ -75,7 +75,7 @@ p {
   text-rendering: optimizeLegibility;
 }
 
-.apidoc p {
+.apidoc p, .apidoc li {
   font-size: 15px;
   line-height: 22px;
   color: #000;
