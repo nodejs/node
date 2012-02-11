@@ -421,6 +421,9 @@ a.anchor {
     line-height:1em;
     padding: 0 0 0 195px;
     color: #666;
+}
+
+#footer p, #footer li {
     font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
 }
 
