@@ -167,6 +167,7 @@ Example:
       console.log("opened server on %j", address);
     });
 
+Don't call `server.address()` until the `'listening'` event has been emitted.
 
 #### server.maxConnections
 
