@@ -1996,8 +1996,24 @@ static Handle<Object> GetFeatures() {
 }
 
 
+static Handle<Value> DebugPortGetter(Local<String> property,
+                                     const AccessorInfo& info) {
+  HandleScope scope;
+  return scope.Close(Integer::NewFromUnsigned(debug_port));
+}
+
+
+static void DebugPortSetter(Local<String> property,
+                            Local<Value> value,
+                            const AccessorInfo& info) {
+  HandleScope scope;
+  debug_port = value->NumberValue();
+}
+
+
 static Handle<Value> DebugProcess(const Arguments& args);
 static Handle<Value> DebugPause(const Arguments& args);
+static Handle<Value> DebugEnd(const Arguments& args);
 
 Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   HandleScope scope;
@@ -2099,6 +2115,10 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   }
   delete [] execPath;
 
+  process->SetAccessor(String::New("debug_port"),
+                       DebugPortGetter,
+                       DebugPortSetter);
+
 
   // define various internal methods
   NODE_SET_METHOD(process, "_needTickCallback", NeedTickCallback);
@@ -2125,6 +2145,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
 
   NODE_SET_METHOD(process, "_debugProcess", DebugProcess);
   NODE_SET_METHOD(process, "_debugPause", DebugPause);
+  NODE_SET_METHOD(process, "_debugEnd", DebugEnd);
 
   NODE_SET_METHOD(process, "dlopen", DLOpen);
 
@@ -2533,6 +2554,16 @@ static Handle<Value> DebugProcess(const Arguments& args) {
 
 static Handle<Value> DebugPause(const Arguments& args) {
   v8::Debug::DebugBreak(node_isolate);
+  return Undefined();
+}
+
+
+static Handle<Value> DebugEnd(const Arguments& args) {
+  if (debugger_running) {
+    v8::Debug::DisableAgent();
+    debugger_running = false;
+  }
+
   return Undefined();
 }
 
