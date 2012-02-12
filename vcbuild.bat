@@ -26,26 +26,27 @@ set upload=
 
 :next-arg
 if "%1"=="" goto args-done
-if /i "%1"=="debug"        set config=Debug&goto arg-ok
-if /i "%1"=="release"      set config=Release&goto arg-ok
-if /i "%1"=="clean"        set target=Clean&goto arg-ok
-if /i "%1"=="ia32"         set target_arch=ia32&goto arg-ok
-if /i "%1"=="x86"          set target_arch=ia32&goto arg-ok
-if /i "%1"=="x64"          set target_arch=x64&goto arg-ok
-if /i "%1"=="noprojgen"    set noprojgen=1&goto arg-ok
-if /i "%1"=="nobuild"      set nobuild=1&goto arg-ok
-if /i "%1"=="nosign"       set nosign=1&goto arg-ok
-if /i "%1"=="nosnapshot"   set nosnapshot=1&goto arg-ok
-if /i "%1"=="test-uv"      set test=test-uv&goto arg-ok
-if /i "%1"=="test-internet"set test=test-internet&goto arg-ok
-if /i "%1"=="test-pummel"  set test=test-pummel&goto arg-ok
-if /i "%1"=="test-simple"  set test=test-simple&goto arg-ok
-if /i "%1"=="test-message" set test=test-message&goto arg-ok
-if /i "%1"=="test-all"     set test=test-all&goto arg-ok
-if /i "%1"=="test"         set test=test&goto arg-ok
-if /i "%1"=="msi"          set msi=1&goto arg-ok
-if /i "%1"=="upload"       set upload=1&goto arg-ok
+if /i "%1"=="debug"         set config=Debug&goto arg-ok
+if /i "%1"=="release"       set config=Release&goto arg-ok
+if /i "%1"=="clean"         set target=Clean&goto arg-ok
+if /i "%1"=="ia32"          set target_arch=ia32&goto arg-ok
+if /i "%1"=="x86"           set target_arch=ia32&goto arg-ok
+if /i "%1"=="x64"           set target_arch=x64&goto arg-ok
+if /i "%1"=="noprojgen"     set noprojgen=1&goto arg-ok
+if /i "%1"=="nobuild"       set nobuild=1&goto arg-ok
+if /i "%1"=="nosign"        set nosign=1&goto arg-ok
+if /i "%1"=="nosnapshot"    set nosnapshot=1&goto arg-ok
+if /i "%1"=="test-uv"       set test=test-uv&goto arg-ok
+if /i "%1"=="test-internet" set test=test-internet&goto arg-ok
+if /i "%1"=="test-pummel"   set test=test-pummel&goto arg-ok
+if /i "%1"=="test-simple"   set test=test-simple&goto arg-ok
+if /i "%1"=="test-message"  set test=test-message&goto arg-ok
+if /i "%1"=="test-all"      set test=test-all&goto arg-ok
+if /i "%1"=="test"          set test=test&goto arg-ok
+if /i "%1"=="msi"           set msi=1&goto arg-ok
+if /i "%1"=="upload"        set upload=1&goto arg-ok
 
+echo Warning: ignoring invalid command line option `%1`.
 
 :arg-ok
 shift
