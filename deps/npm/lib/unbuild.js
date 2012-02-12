@@ -3,6 +3,7 @@ unbuild.usage = "npm unbuild <folder>\n(this is plumbing)"
 
 var readJson = require("./utils/read-json.js")
   , rm = require("rimraf")
+  , gentlyRm = require("./utils/gently-rm.js")
   , npm = require("./npm.js")
   , path = require("path")
   , fs = require("graceful-fs")
@@ -56,9 +57,9 @@ function rmBins (pkg, folder, parent, top, cb) {
     if (process.platform === "win32") {
       rm(path.resolve(binRoot, b) + ".cmd", cb)
     } else {
-      rm( path.resolve(binRoot, b)
-        , { gently: !npm.config.get("force") && folder }
-        , cb )
+      gentlyRm( path.resolve(binRoot, b)
+              , !npm.config.get("force") && folder
+              , cb )
     }
   }, cb)
 }
@@ -78,8 +79,8 @@ function rmMans (pkg, folder, parent, top, cb) {
                              : pkg.name + "-" + bn)
                              + "." + sxn + gz
                            )
-    rm( manDest
-      , { gently: !npm.config.get("force") && folder }
-      , cb )
+    gentlyRm( manDest
+            , !npm.config.get("force") && folder
+            , cb )
   }, cb)
 }

@@ -15,6 +15,11 @@
       'Debug': {
         'defines': [ 'DEBUG', '_DEBUG' ],
         'cflags': [ '-g', '-O0' ],
+        'conditions': [
+          ['target_arch=="x64"', {
+            'msvs_configuration_platform': 'x64',
+          }],
+        ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [
@@ -37,6 +42,11 @@
       'Release': {
         # 'defines': [ 'NDEBUG' ],
         'cflags': [ '-O3', '-fomit-frame-pointer', '-fdata-sections', '-ffunction-sections' ],
+        'conditions': [
+          ['target_arch=="x64"', {
+            'msvs_configuration_platform': 'x64',
+          }],
+        ],
         'msvs_settings': {
           'VCCLCompilerTool': {
             'target_conditions': [
@@ -86,6 +96,11 @@
       'VCLibrarianTool': {
       },
       'VCLinkerTool': {
+        'conditions': [
+          ['target_arch=="x64"', {
+            'TargetMachine' : 17 # /MACHINE:X64
+          }],
+        ],
         'GenerateDebugInformation': 'true',
         'RandomizedBaseAddress': 2, # enable ASLR
         'DataExecutionPrevention': 2, # enable DEP

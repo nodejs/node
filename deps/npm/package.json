@@ -10,7 +10,7 @@
     "install",
     "package.json"
   ],
-  "version": "1.1.0-3",
+  "version": "1.1.1",
   "preferGlobal": true,
   "config": {
     "publishtest": false
@@ -43,14 +43,14 @@
     "nopt": "1",
     "node-uuid": "~1.3",
     "proto-list": "1",
-    "rimraf": "1",
+    "rimraf": "2",
     "request": "~2.9",
     "which": "1",
     "tar": "~0.1.12",
     "fstream": "~0.1.5",
     "block-stream": "*",
     "inherits": "1",
-    "mkdirp": "0.1",
+    "mkdirp": "0.3",
     "fast-list": "~1.0.1",
     "read": "0",
     "lru-cache": "1"

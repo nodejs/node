@@ -396,13 +396,15 @@ void TCPWrap::AfterConnect(uv_connect_t* req, int status) {
     SetErrno(uv_last_error(uv_default_loop()));
   }
 
-  Local<Value> argv[3] = {
+  Local<Value> argv[5] = {
     Integer::New(status),
     Local<Value>::New(wrap->object_),
-    Local<Value>::New(req_wrap->object_)
+    Local<Value>::New(req_wrap->object_),
+    Local<Value>::New(v8::True()),
+    Local<Value>::New(v8::True())
   };
 
-  MakeCallback(req_wrap->object_, "oncomplete", 3, argv);
+  MakeCallback(req_wrap->object_, "oncomplete", 5, argv);
 
   delete req_wrap;
 }

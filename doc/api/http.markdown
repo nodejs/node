@@ -161,12 +161,9 @@ interface. This is an `EventEmitter` with the following events:
 
 `function (chunk) { }`
 
-Emitted when a piece of the message body is received.
-
-Example: A chunk of the body is given as the single
-argument. The transfer-encoding has been decoded.  The
-body chunk is a string.  The body encoding is set with
-`request.setEncoding()`.
+Emitted when a piece of the message body is received. The chunk is a string if
+an encoding has been set with `request.setEncoding()`, otherwise it's a
+[Buffer](buffers.html).
 
 Note that the __data will be lost__ if there is no listener when a
 `ServerRequest` emits a `'data'` event.
