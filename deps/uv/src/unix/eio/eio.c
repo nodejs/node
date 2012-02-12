@@ -1039,8 +1039,15 @@ eio__utimes (const char *filename, const struct timeval times[2])
 static int
 eio__futimes (int fd, const struct timeval tv[2])
 {
+#if defined(__linux) && defined(__NR_utimensat)
+  struct timespec ts[2];
+  ts[0].tv_sec = tv[0].tv_sec, ts[0].tv_nsec = tv[0].tv_usec * 1000;
+  ts[1].tv_sec = tv[1].tv_sec, ts[1].tv_nsec = tv[1].tv_usec * 1000;
+  return syscall(__NR_utimensat, fd, NULL, ts, 0);
+#else
   errno = ENOSYS;
   return -1;
+#endif
 }
 
 #endif

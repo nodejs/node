@@ -115,7 +115,7 @@
             'src/ares/config_win32'
           ],
           'defines': [
-            '_WIN32_WINNT=0x0502',
+            '_WIN32_WINNT=0x0600',
             'EIO_STACKSIZE=262144',
             '_GNU_SOURCE',
           ],
@@ -301,7 +301,6 @@
         'test/test-hrtime.c',
         'test/test-idle.c',
         'test/test-ipc.c',
-        'test/test-ipc-threads.c',
         'test/test-list.h',
         'test/test-loop-handles.c',
         'test/test-multiple-listen.c',
@@ -336,6 +335,7 @@
         'test/test-udp-send-and-recv.c',
         'test/test-udp-multicast-join.c',
         'test/test-counters-init.c',
+        'test/test-udp-multicast-ttl.c',
       ],
       'conditions': [
         [ 'OS=="win"', {

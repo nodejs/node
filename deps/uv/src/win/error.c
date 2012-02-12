@@ -89,6 +89,7 @@ uv_err_code uv_translate_sys_error(int sys_errno) {
     case WSAEHOSTUNREACH:                   return UV_EHOSTUNREACH;
     case ERROR_INVALID_DATA:                return UV_EINVAL;
     case WSAEINVAL:                         return UV_EINVAL;
+    case ERROR_CANT_RESOLVE_FILENAME:       return UV_ELOOP;
     case ERROR_TOO_MANY_OPEN_FILES:         return UV_EMFILE;
     case WSAEMFILE:                         return UV_EMFILE;
     case WSAEMSGSIZE:                       return UV_EMSGSIZE;

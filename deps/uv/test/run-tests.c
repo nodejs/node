@@ -131,6 +131,9 @@ static int ipc_helper(int listen_after_write) {
 
   uv_pipe_open(&channel, 0);
 
+  ASSERT(uv_is_readable(&channel));
+  ASSERT(uv_is_writable(&channel));
+
   r = uv_tcp_init(uv_default_loop(), &tcp_server);
   ASSERT(r == 0);
 

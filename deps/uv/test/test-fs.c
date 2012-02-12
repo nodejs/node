@@ -432,6 +432,14 @@ static void open_nametoolong_cb(uv_fs_t* req) {
   uv_fs_req_cleanup(req);
 }
 
+static void open_loop_cb(uv_fs_t* req) {
+  ASSERT(req->fs_type == UV_FS_OPEN);
+  ASSERT(req->errorno == UV_ELOOP);
+  ASSERT(req->result == -1);
+  open_cb_count++;
+  uv_fs_req_cleanup(req);
+}
+
 
 TEST_IMPL(fs_file_noent) {
   uv_fs_t req;
@@ -479,6 +487,34 @@ TEST_IMPL(fs_file_nametoolong) {
   ASSERT(open_cb_count == 0);
   uv_run(loop);
   ASSERT(open_cb_count == 1);
+
+  return 0;
+}
+
+TEST_IMPL(fs_file_loop) {
+  uv_fs_t req;
+  int r;
+
+  loop = uv_default_loop();
+
+  unlink("test_symlink");
+  uv_fs_symlink(loop, &req, "test_symlink", "test_symlink", 0, NULL);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_open(loop, &req, "test_symlink", O_RDONLY, 0, NULL);
+  ASSERT(r == -1);
+  ASSERT(req.result == -1);
+  ASSERT(uv_last_error(loop).code == UV_ELOOP);
+  uv_fs_req_cleanup(&req);
+
+  r = uv_fs_open(loop, &req, "test_symlink", O_RDONLY, 0, open_loop_cb);
+  ASSERT(r == 0);
+
+  ASSERT(open_cb_count == 0);
+  uv_run(loop);
+  ASSERT(open_cb_count == 1);
+
+  unlink("test_symlink");
 
   return 0;
 }

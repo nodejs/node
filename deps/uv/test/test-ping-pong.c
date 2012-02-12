@@ -138,6 +138,9 @@ static void pinger_on_connect(uv_connect_t *req, int status) {
 
   ASSERT(status == 0);
 
+  ASSERT(uv_is_readable(req->handle));
+  ASSERT(uv_is_writable(req->handle));
+
   pinger_write_ping(pinger);
 
   uv_read_start((uv_stream_t*)(req->handle), alloc_cb, pinger_read_cb);

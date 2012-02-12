@@ -13,8 +13,8 @@
 /* utimes(2) is available */
 #define HAVE_UTIMES 1
 
-/* futimes(2) is available */
-#define HAVE_FUTIMES 1
+/* futimes(2) is available but we make the syscall directly. */
+#undef HAVE_FUTIMES
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #define HAVE_INTTYPES_H 1
@@ -55,6 +55,9 @@
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #define HAVE_SYS_TYPES_H 1
+
+/* Define to 1 if you have the <sys/syscall.h> header file. */
+#define HAVE_SYS_SYSCALL_H 1
 
 /* Define to 1 if you have the <unistd.h> header file. */
 #define HAVE_UNISTD_H 1

@@ -41,8 +41,9 @@ extern "C" {
 #   define UV_EXTERN /* nothing */
 #   define CARES_STATICLIB 1
 # endif
+#elif __GNUC__ >= 4
+# define UV_EXTERN __attribute__((visibility("default")))
 #else
-  /* Unix. TODO: symbol hiding */
 # define UV_EXTERN /* nothing */
 #endif
 
@@ -117,7 +118,9 @@ typedef intptr_t ssize_t;
   XX( 47, EEXIST, "file already exists") \
   XX( 48, ESRCH, "no such process") \
   XX( 49, ENAMETOOLONG, "name too long") \
-  XX( 50, EPERM, "operation not permitted")
+  XX( 50, EPERM, "operation not permitted") \
+  XX( 51, ELOOP, "too many symbolic links encountered") \
+  XX( 52, EXDEV, "cross-device link not permitted")
 
 
 #define UV_ERRNO_GEN(val, name, s) UV_##name = val,
@@ -181,7 +184,6 @@ typedef struct uv_process_s uv_process_t;
 typedef struct uv_counters_s uv_counters_t;
 typedef struct uv_cpu_info_s uv_cpu_info_t;
 typedef struct uv_interface_address_s uv_interface_address_t;
-typedef struct uv_stream_info_s uv_stream_info_t;
 /* Request types */
 typedef struct uv_req_s uv_req_t;
 typedef struct uv_shutdown_s uv_shutdown_t;
@@ -237,15 +239,27 @@ UV_EXTERN int64_t uv_now(uv_loop_t*);
 
 
 /*
- * The status parameter is 0 if the request completed successfully,
- * and should be -1 if the request was cancelled or failed.
- * Error details can be obtained by calling uv_last_error().
+ * Should return a buffer that libuv can use to read data into.
  *
- * In the case of uv_read_cb the uv_buf_t returned should be freed by the
- * user.
+ * `suggested_size` is a hint. Returning a buffer that is smaller is perfectly
+ * okay as long as `buf.len > 0`.
  */
 typedef uv_buf_t (*uv_alloc_cb)(uv_handle_t* handle, size_t suggested_size);
+
+/*
+ * `nread` is > 0 if there is data available, 0 if libuv is done reading for now
+ * or -1 on error.
+ *
+ * Error details can be obtained by calling uv_last_error(). UV_EOF indicates
+ * that the stream has been closed.
+ *
+ * The callee is responsible for closing the stream when an error happens.
+ * Trying to read from the stream again is undefined.
+ *
+ * The callee is responsible for freeing the buffer, libuv does not reuse it.
+ */
 typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
+
 /*
  * Just like the uv_read_cb except that if the pending parameter is true
  * then you can use uv_accept() to pull the new handle into the process.
@@ -253,6 +267,7 @@ typedef void (*uv_read_cb)(uv_stream_t* stream, ssize_t nread, uv_buf_t buf);
  */
 typedef void (*uv_read2_cb)(uv_pipe_t* pipe, ssize_t nread, uv_buf_t buf,
     uv_handle_type pending);
+
 typedef void (*uv_write_cb)(uv_write_t* req, int status);
 typedef void (*uv_connect_cb)(uv_connect_t* req, int status);
 typedef void (*uv_shutdown_cb)(uv_shutdown_t* req, int status);
@@ -491,6 +506,13 @@ struct uv_write_s {
 };
 
 
+/*
+ * Used to determine whether a stream is readable or writable.
+ * TODO: export in v0.8.
+ */
+/* UV_EXTERN */ int uv_is_readable(uv_stream_t* handle);
+/* UV_EXTERN */ int uv_is_writable(uv_stream_t* handle);
+
 
 /*
  * uv_tcp_t is a subclass of uv_stream_t
@@ -531,28 +553,6 @@ UV_EXTERN int uv_tcp_getsockname(uv_tcp_t* handle, struct sockaddr* name,
     int* namelen);
 UV_EXTERN int uv_tcp_getpeername(uv_tcp_t* handle, struct sockaddr* name,
     int* namelen);
-
-/*
- * uv_stream_info_t is used to store exported stream (using uv_export),
- * which can be imported into a different event-loop within the same process
- * (using uv_import).
- */
-struct uv_stream_info_s {
-  uv_handle_type type;
-  UV_STREAM_INFO_PRIVATE_FIELDS
-};
-
-/*
- * Exports uv_stream_t as uv_stream_info_t value, which could
- * be used to initialize shared streams within the same process.
- */
-UV_EXTERN int uv_export(uv_stream_t* stream, uv_stream_info_t* info);
-
-/*
- * Imports uv_stream_info_t value into uv_stream_t to initialize
- * shared stream.
- */
-UV_EXTERN int uv_import(uv_stream_t* stream, uv_stream_info_t* info);
 
 /*
  * uv_tcp_connect, uv_tcp_connect6
