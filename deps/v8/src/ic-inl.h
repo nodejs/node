@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -29,6 +29,8 @@
 #define V8_IC_INL_H_
 
 #include "ic.h"
+
+#include "compiler.h"
 #include "debug.h"
 #include "macro-assembler.h"
 
@@ -89,6 +91,7 @@ void IC::SetTargetAtAddress(Address address, Code* target) {
   Assembler::set_target_address_at(address, target->instruction_start());
   target->GetHeap()->incremental_marking()->RecordCodeTargetPatch(address,
                                                                   target);
+  PostPatching();
 }
 
 

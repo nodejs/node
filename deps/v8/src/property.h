@@ -264,7 +264,7 @@ class LookupResult BASE_EMBEDDED {
   // Is the result is a property excluding transitions and the null
   // descriptor?
   bool IsProperty() {
-    return IsFound() && GetPropertyDetails().IsProperty();
+    return IsFound() && IsRealProperty(GetPropertyDetails().type());
   }
 
   bool IsCacheable() { return cacheable_; }

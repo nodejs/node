@@ -1,4 +1,4 @@
-// Copyright 2006-2008 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -534,15 +534,15 @@ TEST(BootUpMemoryUse) {
     intptr_t booted_memory = MemoryInUse();
     if (sizeof(initial_memory) == 8) {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(booted_memory - initial_memory, 6654 * 1024);  // 6444.
+        CHECK_LE(booted_memory - initial_memory, 6686 * 1024);  // 6476.
       } else {
-        CHECK_LE(booted_memory - initial_memory, 6777 * 1024);  // 6596.
+        CHECK_LE(booted_memory - initial_memory, 6809 * 1024);  // 6628.
       }
     } else {
       if (v8::internal::Snapshot::IsEnabled()) {
-        CHECK_LE(booted_memory - initial_memory, 6500 * 1024);  // 6356.
+        CHECK_LE(booted_memory - initial_memory, 6532 * 1024);  // 6388.
       } else {
-        CHECK_LE(booted_memory - initial_memory, 6654 * 1024);  // 6424
+        CHECK_LE(booted_memory - initial_memory, 6686 * 1024);  // 6456
       }
     }
   }

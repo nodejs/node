@@ -36,9 +36,6 @@ regress/regress-1119: FAIL
 
 ##############################################################################
 
-# Issue 1845: http://code.google.com/p/v8/issues/detail?id=1845
-harmony/proxies-example-membrane: SKIP
-
 # NewGC: BUG(1719) slow to collect arrays over several contexts.
 regress/regress-524: SKIP
 
@@ -67,6 +64,13 @@ regress/regress-524: (PASS || TIMEOUT), SKIP if $mode == debug
 # Stack manipulations in LiveEdit are buggy - see bug 915
 debug-liveedit-check-stack: SKIP
 debug-liveedit-patch-positions-replace: SKIP
+
+##############################################################################
+[ $isolates ]
+
+# This test sets the umask on a per-process basis and hence cannot be
+# used in multi-threaded runs.
+d8-os: SKIP
 
 ##############################################################################
 [ $arch == arm ]

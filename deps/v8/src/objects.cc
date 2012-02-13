@@ -3773,12 +3773,15 @@ MaybeObject* JSObject::GetHiddenPropertiesDictionary(bool create_if_absent) {
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == GetHeap()->hidden_symbol()) &&
-        descriptors->IsProperty(0)) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      Object* hidden_store =
-          this->FastPropertyAt(descriptors->GetFieldIndex(0));
-      return StringDictionary::cast(hidden_store);
+        (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
+      if (descriptors->GetType(0) == FIELD) {
+        Object* hidden_store =
+            this->FastPropertyAt(descriptors->GetFieldIndex(0));
+        return StringDictionary::cast(hidden_store);
+      } else {
+        ASSERT(descriptors->GetType(0) == NULL_DESCRIPTOR ||
+               descriptors->GetType(0) == MAP_TRANSITION);
+      }
     }
   } else {
     PropertyAttributes attributes;
@@ -3819,11 +3822,14 @@ MaybeObject* JSObject::SetHiddenPropertiesDictionary(
     // code zero) it will always occupy the first entry if present.
     DescriptorArray* descriptors = this->map()->instance_descriptors();
     if ((descriptors->number_of_descriptors() > 0) &&
-        (descriptors->GetKey(0) == GetHeap()->hidden_symbol()) &&
-        descriptors->IsProperty(0)) {
-      ASSERT(descriptors->GetType(0) == FIELD);
-      this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
-      return this;
+        (descriptors->GetKey(0) == GetHeap()->hidden_symbol())) {
+      if (descriptors->GetType(0) == FIELD) {
+        this->FastPropertyAtPut(descriptors->GetFieldIndex(0), dictionary);
+        return this;
+      } else {
+        ASSERT(descriptors->GetType(0) == NULL_DESCRIPTOR ||
+               descriptors->GetType(0) == MAP_TRANSITION);
+      }
     }
   }
   MaybeObject* store_result =
@@ -4247,11 +4253,14 @@ bool JSReceiver::IsSimpleEnum() {
 }
 
 
-int Map::NumberOfDescribedProperties() {
+int Map::NumberOfDescribedProperties(PropertyAttributes filter) {
   int result = 0;
   DescriptorArray* descs = instance_descriptors();
   for (int i = 0; i < descs->number_of_descriptors(); i++) {
-    if (descs->IsProperty(i)) result++;
+    PropertyDetails details(descs->GetDetails(i));
+    if (descs->IsProperty(i) && (details.attributes() & filter) == 0) {
+      result++;
+    }
   }
   return result;
 }
@@ -5502,7 +5511,7 @@ class PolymorphicCodeCacheHashTableKey : public HashTableKey {
     for (int i = 0; i < maps_->length(); ++i) {
       bool match_found = false;
       for (int j = 0; j < other_maps.length(); ++j) {
-        if (maps_->at(i)->EquivalentTo(*other_maps.at(j))) {
+        if (*(maps_->at(i)) == *(other_maps.at(j))) {
           match_found = true;
           break;
         }
@@ -5721,6 +5730,11 @@ void DescriptorArray::SetEnumCache(FixedArray* bridge_storage,
 }
 
 
+static bool InsertionPointFound(String* key1, String* key2) {
+  return key1->Hash() > key2->Hash() || key1 == key2;
+}
+
+
 MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
                                          TransitionFlag transition_flag) {
   // Transitions are only kept when inserting another transition.
@@ -5793,28 +5807,24 @@ MaybeObject* DescriptorArray::CopyInsert(Descriptor* descriptor,
 
   // Copy the descriptors, filtering out transitions and null descriptors,
   // and inserting or replacing a descriptor.
-  uint32_t descriptor_hash = descriptor->GetKey()->Hash();
-  int from_index = 0;
   int to_index = 0;
-
-  for (; from_index < number_of_descriptors(); from_index++) {
-    String* key = GetKey(from_index);
-    if (key->Hash() > descriptor_hash || key == descriptor->GetKey()) {
-      break;
+  int insertion_index = -1;
+  int from_index = 0;
+  while (from_index < number_of_descriptors()) {
+    if (insertion_index < 0 &&
+        InsertionPointFound(GetKey(from_index), descriptor->GetKey())) {
+      insertion_index = to_index++;
+      if (replacing) from_index++;
+    } else {
+      if (!(IsNullDescriptor(from_index) ||
+            (remove_transitions && IsTransitionOnly(from_index)))) {
+        new_descriptors->CopyFrom(to_index++, this, from_index, witness);
+      }
+      from_index++;
     }
-    if (IsNullDescriptor(from_index)) continue;
-    if (remove_transitions && IsTransitionOnly(from_index)) continue;
-    new_descriptors->CopyFrom(to_index++, this, from_index, witness);
   }
-
-  new_descriptors->Set(to_index++, descriptor, witness);
-  if (replacing) from_index++;
-
-  for (; from_index < number_of_descriptors(); from_index++) {
-    if (IsNullDescriptor(from_index)) continue;
-    if (remove_transitions && IsTransitionOnly(from_index)) continue;
-    new_descriptors->CopyFrom(to_index++, this, from_index, witness);
-  }
+  if (insertion_index < 0) insertion_index = to_index++;
+  new_descriptors->Set(insertion_index, descriptor, witness);
 
   ASSERT(to_index == new_descriptors->number_of_descriptors());
   SLOW_ASSERT(new_descriptors->IsSortedNoDuplicates());
@@ -5829,14 +5839,14 @@ MaybeObject* DescriptorArray::RemoveTransitions() {
   // not be allocated.
 
   // Compute the size of the map transition entries to be removed.
-  int num_removed = 0;
+  int new_number_of_descriptors = 0;
   for (int i = 0; i < number_of_descriptors(); i++) {
-    if (!IsProperty(i)) num_removed++;
+    if (IsProperty(i)) new_number_of_descriptors++;
   }
 
   // Allocate the new descriptor array.
   DescriptorArray* new_descriptors;
-  { MaybeObject* maybe_result = Allocate(number_of_descriptors() - num_removed);
+  { MaybeObject* maybe_result = Allocate(new_number_of_descriptors);
     if (!maybe_result->To<DescriptorArray>(&new_descriptors)) {
       return maybe_result;
     }
@@ -7606,13 +7616,10 @@ bool SharedFunctionInfo::HasSourceCode() {
 }
 
 
-Object* SharedFunctionInfo::GetSourceCode() {
-  Isolate* isolate = GetIsolate();
-  if (!HasSourceCode()) return isolate->heap()->undefined_value();
-  HandleScope scope(isolate);
-  Object* source = Script::cast(script())->source();
-  return *SubString(Handle<String>(String::cast(source), isolate),
-                    start_position(), end_position());
+Handle<Object> SharedFunctionInfo::GetSourceCode() {
+  if (!HasSourceCode()) return GetIsolate()->factory()->undefined_value();
+  Handle<String> source(String::cast(Script::cast(script())->source()));
+  return SubString(source, start_position(), end_position());
 }
 
 
@@ -10355,24 +10362,9 @@ bool JSObject::HasRealNamedCallbackProperty(String* key) {
 
 
 int JSObject::NumberOfLocalProperties(PropertyAttributes filter) {
-  if (HasFastProperties()) {
-    DescriptorArray* descs = map()->instance_descriptors();
-    int result = 0;
-    for (int i = 0; i < descs->number_of_descriptors(); i++) {
-      PropertyDetails details(descs->GetDetails(i));
-      if (details.IsProperty() && (details.attributes() & filter) == 0) {
-        result++;
-      }
-    }
-    return result;
-  } else {
-    return property_dictionary()->NumberOfElementsFilterAttributes(filter);
-  }
-}
-
-
-int JSObject::NumberOfEnumProperties() {
-  return NumberOfLocalProperties(static_cast<PropertyAttributes>(DONT_ENUM));
+  return HasFastProperties() ?
+      map()->NumberOfDescribedProperties(filter) :
+      property_dictionary()->NumberOfElementsFilterAttributes(filter);
 }
 
 
@@ -10493,7 +10485,7 @@ void FixedArray::SortPairs(FixedArray* numbers, uint32_t len) {
 // purpose of this function is to provide reflection information for the object
 // mirrors.
 void JSObject::GetLocalPropertyNames(FixedArray* storage, int index) {
-  ASSERT(storage->length() >= (NumberOfLocalProperties(NONE) - index));
+  ASSERT(storage->length() >= (NumberOfLocalProperties() - index));
   if (HasFastProperties()) {
     DescriptorArray* descs = map()->instance_descriptors();
     for (int i = 0; i < descs->number_of_descriptors(); i++) {

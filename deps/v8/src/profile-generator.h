@@ -525,7 +525,8 @@ class HeapEntry BASE_EMBEDDED {
     kClosure = v8::HeapGraphNode::kClosure,
     kRegExp = v8::HeapGraphNode::kRegExp,
     kHeapNumber = v8::HeapGraphNode::kHeapNumber,
-    kNative = v8::HeapGraphNode::kNative
+    kNative = v8::HeapGraphNode::kNative,
+    kSynthetic = v8::HeapGraphNode::kSynthetic
   };
 
   HeapEntry() { }
@@ -1026,16 +1027,16 @@ class V8HeapExplorer : public HeapEntriesAllocator {
   DISALLOW_COPY_AND_ASSIGN(V8HeapExplorer);
 };
 
+
 class NativeGroupRetainedObjectInfo;
 
+
 // An implementation of retained native objects extractor.
-class NativeObjectsExplorer : public HeapEntriesAllocator {
+class NativeObjectsExplorer {
  public:
   NativeObjectsExplorer(HeapSnapshot* snapshot,
                       SnapshottingProgressReportingInterface* progress);
   virtual ~NativeObjectsExplorer();
-  virtual HeapEntry* AllocateEntry(
-      HeapThing ptr, int children_count, int retainers_count);
   void AddRootEntries(SnapshotFillerInterface* filler);
   int EstimateObjectsCount();
   bool IterateAndExtractReferences(SnapshotFillerInterface* filler);
@@ -1074,6 +1075,8 @@ class NativeObjectsExplorer : public HeapEntriesAllocator {
   // RetainedObjectInfo* -> List<HeapObject*>*
   HashMap objects_by_info_;
   HashMap native_groups_;
+  HeapEntriesAllocator* synthetic_entries_allocator_;
+  HeapEntriesAllocator* native_entries_allocator_;
   // Used during references extraction.
   SnapshotFillerInterface* filler_;
 

@@ -555,7 +555,6 @@ void LCodeGen::DeoptimizeIf(Condition cc, LEnvironment* environment) {
 void LCodeGen::PopulateDeoptimizationData(Handle<Code> code) {
   int length = deoptimizations_.length();
   if (length == 0) return;
-  ASSERT(FLAG_deopt);
   Handle<DeoptimizationInputData> data =
       factory()->NewDeoptimizationInputData(length, TENURED);
 
@@ -993,11 +992,11 @@ void LCodeGen::DoMulI(LMulI* instr) {
         DeoptimizeIf(no_condition, instr->environment());
       }
     } else if (right->IsStackSlot()) {
-      __ or_(kScratchRegister, ToOperand(right));
+      __ orl(kScratchRegister, ToOperand(right));
       DeoptimizeIf(sign, instr->environment());
     } else {
       // Test the non-zero operand for negative sign.
-      __ or_(kScratchRegister, ToRegister(right));
+      __ orl(kScratchRegister, ToRegister(right));
       DeoptimizeIf(sign, instr->environment());
     }
     __ bind(&done);

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -58,7 +58,7 @@ void PrettyPrinter::VisitBlock(Block* node) {
 }
 
 
-void PrettyPrinter::VisitDeclaration(Declaration* node) {
+void PrettyPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
   Print("var ");
   PrintLiteral(node->proxy()->name(), false);
   if (node->fun() != NULL) {
@@ -66,6 +66,38 @@ void PrettyPrinter::VisitDeclaration(Declaration* node) {
     PrintFunctionLiteral(node->fun());
   }
   Print(";");
+}
+
+
+void PrettyPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
+  Print("module ");
+  PrintLiteral(node->proxy()->name(), false);
+  Print(" = ");
+  Visit(node->module());
+  Print(";");
+}
+
+
+void PrettyPrinter::VisitModuleLiteral(ModuleLiteral* node) {
+  VisitBlock(node->body());
+}
+
+
+void PrettyPrinter::VisitModuleVariable(ModuleVariable* node) {
+  PrintLiteral(node->var()->name(), false);
+}
+
+
+void PrettyPrinter::VisitModulePath(ModulePath* node) {
+  Visit(node->module());
+  Print(".");
+  PrintLiteral(node->name(), false);
+}
+
+
+void PrettyPrinter::VisitModuleUrl(ModuleUrl* node) {
+  Print("at ");
+  PrintLiteral(node->url(), true);
 }
 
 
@@ -711,7 +743,7 @@ void AstPrinter::VisitBlock(Block* node) {
 }
 
 
-void AstPrinter::VisitDeclaration(Declaration* node) {
+void AstPrinter::VisitVariableDeclaration(VariableDeclaration* node) {
   if (node->fun() == NULL) {
     // var or const declarations
     PrintLiteralWithModeIndented(Variable::Mode2String(node->mode()),
@@ -725,6 +757,35 @@ void AstPrinter::VisitDeclaration(Declaration* node) {
     PrintLiteral(node->fun()->name(), false);
     Print("\n");
   }
+}
+
+
+void AstPrinter::VisitModuleDeclaration(ModuleDeclaration* node) {
+  IndentedScope indent(this, "MODULE");
+  PrintLiteralIndented("NAME", node->proxy()->name(), true);
+  Visit(node->module());
+}
+
+
+void AstPrinter::VisitModuleLiteral(ModuleLiteral* node) {
+  VisitBlock(node->body());
+}
+
+
+void AstPrinter::VisitModuleVariable(ModuleVariable* node) {
+  PrintLiteralIndented("VARIABLE", node->var()->name(), false);
+}
+
+
+void AstPrinter::VisitModulePath(ModulePath* node) {
+  IndentedScope indent(this, "PATH");
+  PrintIndentedVisit("MODULE", node->module());
+  PrintLiteralIndented("NAME", node->name(), false);
+}
+
+
+void AstPrinter::VisitModuleUrl(ModuleUrl* node) {
+  PrintLiteralIndented("URL", node->url(), true);
 }
 
 
@@ -1017,393 +1078,6 @@ void AstPrinter::VisitCompareOperation(CompareOperation* node) {
 void AstPrinter::VisitThisFunction(ThisFunction* node) {
   IndentedScope indent(this, "THIS-FUNCTION");
 }
-
-
-TagScope::TagScope(JsonAstBuilder* builder, const char* name)
-    : builder_(builder), next_(builder->tag()), has_body_(false) {
-  if (next_ != NULL) {
-    next_->use();
-    builder->Print(",\n");
-  }
-  builder->set_tag(this);
-  builder->PrintIndented("[");
-  builder->Print("\"%s\"", name);
-  builder->increase_indent(JsonAstBuilder::kTagIndentSize);
-}
-
-
-TagScope::~TagScope() {
-  builder_->decrease_indent(JsonAstBuilder::kTagIndentSize);
-  if (has_body_) {
-    builder_->Print("\n");
-    builder_->PrintIndented("]");
-  } else {
-    builder_->Print("]");
-  }
-  builder_->set_tag(next_);
-}
-
-
-AttributesScope::AttributesScope(JsonAstBuilder* builder)
-    : builder_(builder), attribute_count_(0) {
-  builder->set_attributes(this);
-  builder->tag()->use();
-  builder->Print(",\n");
-  builder->PrintIndented("{");
-  builder->increase_indent(JsonAstBuilder::kAttributesIndentSize);
-}
-
-
-AttributesScope::~AttributesScope() {
-  builder_->decrease_indent(JsonAstBuilder::kAttributesIndentSize);
-  if (attribute_count_ > 1) {
-    builder_->Print("\n");
-    builder_->PrintIndented("}");
-  } else {
-    builder_->Print("}");
-  }
-  builder_->set_attributes(NULL);
-}
-
-
-const char* JsonAstBuilder::BuildProgram(FunctionLiteral* program) {
-  Init();
-  Visit(program);
-  Print("\n");
-  return Output();
-}
-
-
-void JsonAstBuilder::AddAttributePrefix(const char* name) {
-  if (attributes()->is_used()) {
-    Print(",\n");
-    PrintIndented("\"");
-  } else {
-    Print("\"");
-  }
-  Print("%s\":", name);
-  attributes()->use();
-}
-
-
-void JsonAstBuilder::AddAttribute(const char* name, Handle<String> value) {
-  SmartArrayPointer<char> value_string = value->ToCString();
-  AddAttributePrefix(name);
-  Print("\"%s\"", *value_string);
-}
-
-
-void JsonAstBuilder::AddAttribute(const char* name, const char* value) {
-  AddAttributePrefix(name);
-  Print("\"%s\"", value);
-}
-
-
-void JsonAstBuilder::AddAttribute(const char* name, int value) {
-  AddAttributePrefix(name);
-  Print("%d", value);
-}
-
-
-void JsonAstBuilder::AddAttribute(const char* name, bool value) {
-  AddAttributePrefix(name);
-  Print(value ? "true" : "false");
-}
-
-
-void JsonAstBuilder::VisitBlock(Block* stmt) {
-  TagScope tag(this, "Block");
-  VisitStatements(stmt->statements());
-}
-
-
-void JsonAstBuilder::VisitExpressionStatement(ExpressionStatement* stmt) {
-  TagScope tag(this, "ExpressionStatement");
-  Visit(stmt->expression());
-}
-
-
-void JsonAstBuilder::VisitEmptyStatement(EmptyStatement* stmt) {
-  TagScope tag(this, "EmptyStatement");
-}
-
-
-void JsonAstBuilder::VisitIfStatement(IfStatement* stmt) {
-  TagScope tag(this, "IfStatement");
-  Visit(stmt->condition());
-  Visit(stmt->then_statement());
-  Visit(stmt->else_statement());
-}
-
-
-void JsonAstBuilder::VisitContinueStatement(ContinueStatement* stmt) {
-  TagScope tag(this, "ContinueStatement");
-}
-
-
-void JsonAstBuilder::VisitBreakStatement(BreakStatement* stmt) {
-  TagScope tag(this, "BreakStatement");
-}
-
-
-void JsonAstBuilder::VisitReturnStatement(ReturnStatement* stmt) {
-  TagScope tag(this, "ReturnStatement");
-  Visit(stmt->expression());
-}
-
-
-void JsonAstBuilder::VisitWithStatement(WithStatement* stmt) {
-  TagScope tag(this, "WithStatement");
-  Visit(stmt->expression());
-  Visit(stmt->statement());
-}
-
-
-void JsonAstBuilder::VisitSwitchStatement(SwitchStatement* stmt) {
-  TagScope tag(this, "SwitchStatement");
-}
-
-
-void JsonAstBuilder::VisitDoWhileStatement(DoWhileStatement* stmt) {
-  TagScope tag(this, "DoWhileStatement");
-  Visit(stmt->body());
-  Visit(stmt->cond());
-}
-
-
-void JsonAstBuilder::VisitWhileStatement(WhileStatement* stmt) {
-  TagScope tag(this, "WhileStatement");
-  Visit(stmt->cond());
-  Visit(stmt->body());
-}
-
-
-void JsonAstBuilder::VisitForStatement(ForStatement* stmt) {
-  TagScope tag(this, "ForStatement");
-  if (stmt->init() != NULL) Visit(stmt->init());
-  if (stmt->cond() != NULL) Visit(stmt->cond());
-  Visit(stmt->body());
-  if (stmt->next() != NULL) Visit(stmt->next());
-}
-
-
-void JsonAstBuilder::VisitForInStatement(ForInStatement* stmt) {
-  TagScope tag(this, "ForInStatement");
-  Visit(stmt->each());
-  Visit(stmt->enumerable());
-  Visit(stmt->body());
-}
-
-
-void JsonAstBuilder::VisitTryCatchStatement(TryCatchStatement* stmt) {
-  TagScope tag(this, "TryCatchStatement");
-  { AttributesScope attributes(this);
-    AddAttribute("variable", stmt->variable()->name());
-  }
-  Visit(stmt->try_block());
-  Visit(stmt->catch_block());
-}
-
-
-void JsonAstBuilder::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
-  TagScope tag(this, "TryFinallyStatement");
-  Visit(stmt->try_block());
-  Visit(stmt->finally_block());
-}
-
-
-void JsonAstBuilder::VisitDebuggerStatement(DebuggerStatement* stmt) {
-  TagScope tag(this, "DebuggerStatement");
-}
-
-
-void JsonAstBuilder::VisitFunctionLiteral(FunctionLiteral* expr) {
-  TagScope tag(this, "FunctionLiteral");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("name", expr->name());
-  }
-  VisitDeclarations(expr->scope()->declarations());
-  VisitStatements(expr->body());
-}
-
-
-void JsonAstBuilder::VisitSharedFunctionInfoLiteral(
-    SharedFunctionInfoLiteral* expr) {
-  TagScope tag(this, "SharedFunctionInfoLiteral");
-}
-
-
-void JsonAstBuilder::VisitConditional(Conditional* expr) {
-  TagScope tag(this, "Conditional");
-}
-
-
-void JsonAstBuilder::VisitVariableProxy(VariableProxy* expr) {
-  TagScope tag(this, "Variable");
-  {
-    AttributesScope attributes(this);
-    Variable* var = expr->var();
-    AddAttribute("name", var->name());
-    switch (var->location()) {
-      case Variable::UNALLOCATED:
-        AddAttribute("location", "UNALLOCATED");
-        break;
-      case Variable::PARAMETER:
-        AddAttribute("location", "PARAMETER");
-        AddAttribute("index", var->index());
-        break;
-      case Variable::LOCAL:
-        AddAttribute("location", "LOCAL");
-        AddAttribute("index", var->index());
-        break;
-      case Variable::CONTEXT:
-        AddAttribute("location", "CONTEXT");
-        AddAttribute("index", var->index());
-        break;
-      case Variable::LOOKUP:
-        AddAttribute("location", "LOOKUP");
-        break;
-    }
-  }
-}
-
-
-void JsonAstBuilder::VisitLiteral(Literal* expr) {
-  TagScope tag(this, "Literal");
-  {
-    AttributesScope attributes(this);
-    Handle<Object> handle = expr->handle();
-    if (handle->IsString()) {
-      AddAttribute("handle", Handle<String>(String::cast(*handle)));
-    } else if (handle->IsSmi()) {
-      AddAttribute("handle", Smi::cast(*handle)->value());
-    }
-  }
-}
-
-
-void JsonAstBuilder::VisitRegExpLiteral(RegExpLiteral* expr) {
-  TagScope tag(this, "RegExpLiteral");
-}
-
-
-void JsonAstBuilder::VisitObjectLiteral(ObjectLiteral* expr) {
-  TagScope tag(this, "ObjectLiteral");
-}
-
-
-void JsonAstBuilder::VisitArrayLiteral(ArrayLiteral* expr) {
-  TagScope tag(this, "ArrayLiteral");
-}
-
-
-void JsonAstBuilder::VisitAssignment(Assignment* expr) {
-  TagScope tag(this, "Assignment");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("op", Token::Name(expr->op()));
-  }
-  Visit(expr->target());
-  Visit(expr->value());
-}
-
-
-void JsonAstBuilder::VisitThrow(Throw* expr) {
-  TagScope tag(this, "Throw");
-  Visit(expr->exception());
-}
-
-
-void JsonAstBuilder::VisitProperty(Property* expr) {
-  TagScope tag(this, "Property");
-  Visit(expr->obj());
-  Visit(expr->key());
-}
-
-
-void JsonAstBuilder::VisitCall(Call* expr) {
-  TagScope tag(this, "Call");
-  Visit(expr->expression());
-  VisitExpressions(expr->arguments());
-}
-
-
-void JsonAstBuilder::VisitCallNew(CallNew* expr) {
-  TagScope tag(this, "CallNew");
-  Visit(expr->expression());
-  VisitExpressions(expr->arguments());
-}
-
-
-void JsonAstBuilder::VisitCallRuntime(CallRuntime* expr) {
-  TagScope tag(this, "CallRuntime");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("name", expr->name());
-  }
-  VisitExpressions(expr->arguments());
-}
-
-
-void JsonAstBuilder::VisitUnaryOperation(UnaryOperation* expr) {
-  TagScope tag(this, "UnaryOperation");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("op", Token::Name(expr->op()));
-  }
-  Visit(expr->expression());
-}
-
-
-void JsonAstBuilder::VisitCountOperation(CountOperation* expr) {
-  TagScope tag(this, "CountOperation");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("is_prefix", expr->is_prefix());
-    AddAttribute("op", Token::Name(expr->op()));
-  }
-  Visit(expr->expression());
-}
-
-
-void JsonAstBuilder::VisitBinaryOperation(BinaryOperation* expr) {
-  TagScope tag(this, "BinaryOperation");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("op", Token::Name(expr->op()));
-  }
-  Visit(expr->left());
-  Visit(expr->right());
-}
-
-
-void JsonAstBuilder::VisitCompareOperation(CompareOperation* expr) {
-  TagScope tag(this, "CompareOperation");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("op", Token::Name(expr->op()));
-  }
-  Visit(expr->left());
-  Visit(expr->right());
-}
-
-
-void JsonAstBuilder::VisitThisFunction(ThisFunction* expr) {
-  TagScope tag(this, "ThisFunction");
-}
-
-
-void JsonAstBuilder::VisitDeclaration(Declaration* decl) {
-  TagScope tag(this, "Declaration");
-  {
-    AttributesScope attributes(this);
-    AddAttribute("mode", Variable::Mode2String(decl->mode()));
-  }
-  Visit(decl->proxy());
-  if (decl->fun() != NULL) Visit(decl->fun());
-}
-
 
 #endif  // DEBUG
 

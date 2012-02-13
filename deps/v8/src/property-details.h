@@ -119,10 +119,6 @@ class PropertyDetails BASE_EMBEDDED {
 
   PropertyType type() { return TypeField::decode(value_); }
 
-  bool IsProperty() {
-    return IsRealProperty(type());
-  }
-
   PropertyAttributes attributes() { return AttributesField::decode(value_); }
 
   int index() { return StorageField::decode(value_); }

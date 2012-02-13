@@ -1894,7 +1894,7 @@ class Sampler::PlatformData : public Malloced {
 
 class SamplerThread : public Thread {
  public:
-  static const int kSamplerThreadStackSize = 32 * KB;
+  static const int kSamplerThreadStackSize = 64 * KB;
 
   explicit SamplerThread(int interval)
       : Thread(Thread::Options("SamplerThread", kSamplerThreadStackSize)),

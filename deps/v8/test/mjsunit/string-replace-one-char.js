@@ -71,13 +71,13 @@ test_replace(not_found_3, not_found_3, "\u1234", "ZZZ");
 
 // Deep cons tree.
 var nested_1 = "";
-for (var i = 0; i < 1000000; i++) nested_1 += "y";
+for (var i = 0; i < 100000; i++) nested_1 += "y";
 var nested_1_result = prefix1024 + nested_1 + "aa";
 nested_1 = prefix1024 + nested_1 + "z";
 test_replace(nested_1, nested_1_result, "z", "aa");
 
 var nested_2 = "\u2244";
-for (var i = 0; i < 1000000; i++) nested_2 += "y";
+for (var i = 0; i < 100000; i++) nested_2 += "y";
 var nested_2_result = prefix1024 + nested_2 + "aa";
 nested_2 = prefix1024 + nested_2 + "\u2012";
 test_replace(nested_2, nested_2_result, "\u2012", "aa");

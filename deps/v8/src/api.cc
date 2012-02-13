@@ -6088,9 +6088,7 @@ static void SetFlagsFromString(const char* flags) {
 
 void Testing::PrepareStressRun(int run) {
   static const char* kLazyOptimizations =
-      "--prepare-always-opt --nolimit-inlining "
-      "--noalways-opt --noopt-eagerly";
-  static const char* kEagerOptimizations = "--opt-eagerly";
+      "--prepare-always-opt --nolimit-inlining --noalways-opt";
   static const char* kForcedOptimizations = "--always-opt";
 
   // If deoptimization stressed turn on frequent deoptimization. If no value
@@ -6107,15 +6105,12 @@ void Testing::PrepareStressRun(int run) {
   if (run == GetStressRuns() - 1) {
     SetFlagsFromString(kForcedOptimizations);
   } else {
-    SetFlagsFromString(kEagerOptimizations);
     SetFlagsFromString(kLazyOptimizations);
   }
 #else
   if (run == GetStressRuns() - 1) {
     SetFlagsFromString(kForcedOptimizations);
-  } else if (run == GetStressRuns() - 2) {
-    SetFlagsFromString(kEagerOptimizations);
-  } else {
+  } else if (run != GetStressRuns() - 2) {
     SetFlagsFromString(kLazyOptimizations);
   }
 #endif

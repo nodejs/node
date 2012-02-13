@@ -3964,7 +3964,7 @@ void JSEntryStub::GenerateBody(MacroAssembler* masm, bool is_construct) {
   // handler block in this code object, so its index is 0.
   __ bind(&invoke);
   // Must preserve r0-r4, r5-r7 are available.
-  __ PushTryHandler(IN_JS_ENTRY, JS_ENTRY_HANDLER, 0);
+  __ PushTryHandler(StackHandler::JS_ENTRY, 0);
   // If an exception not caught by another handler occurs, this handler
   // returns control to the code after the bl(&invoke) above, which
   // restores all kCalleeSaved registers (including cp and fp) to their
@@ -7358,7 +7358,7 @@ void StoreArrayLiteralElementStub::Generate(MacroAssembler* masm) {
   // Array literal has ElementsKind of FAST_DOUBLE_ELEMENTS.
   __ bind(&double_elements);
   __ ldr(r5, FieldMemOperand(r1, JSObject::kElementsOffset));
-  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r10,
+  __ StoreNumberToDoubleElements(r0, r3, r1, r5, r6, r7, r9, r2,
                                  &slow_elements);
   __ Ret();
 }

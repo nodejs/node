@@ -505,7 +505,8 @@ void IncrementalMarking::StartMarking(CompactionFlag flag) {
   }
 
   is_compacting_ = !FLAG_never_compact && (flag == ALLOW_COMPACTION) &&
-      heap_->mark_compact_collector()->StartCompaction();
+      heap_->mark_compact_collector()->StartCompaction(
+          MarkCompactCollector::INCREMENTAL_COMPACTION);
 
   state_ = MARKING;
 

@@ -75,10 +75,10 @@ if (Array.prototype.toString != oldToString) {
   Array.prototype.toString = oldToString;
 }
 
-var a = new Array(123123123);
-assertEquals(123123122, String(a).length);
-assertEquals(123123122, a.join(",").length);
-assertEquals(246246244, a.join("oo").length);
+var a = new Array(123123);
+assertEquals(123122, String(a).length);
+assertEquals(123122, a.join(",").length);
+assertEquals(246244, a.join("oo").length);
 
 a = new Array(Math.pow(2,32) - 1);  // Max length.
 assertEquals("", a.join(""));

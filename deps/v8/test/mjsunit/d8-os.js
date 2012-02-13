@@ -63,52 +63,53 @@ if (this.os && os.system) {
   } catch (e) {
   }
   os.mkdirp(TEST_DIR);
-  os.chdir(TEST_DIR);
   try {
     // Check the chdir worked.
     os.system('ls', [TEST_DIR]);
     // Simple create dir.
-    os.mkdirp("dir");
+    os.mkdirp(TEST_DIR + "/dir");
     // Create dir in dir.
-    os.mkdirp("dir/foo");
+    os.mkdirp(TEST_DIR + "/dir/foo");
     // Check that they are there.
-    os.system('ls', ['dir/foo']);
+    os.system('ls', [TEST_DIR + '/dir/foo']);
     // Check that we can detect when something is not there.
-    assertThrows("os.system('ls', ['dir/bar']);", "dir not there");
+    assertThrows("os.system('ls', [TEST_DIR + '/dir/bar']);", "dir not there");
     // Check that mkdirp makes intermediate directories.
-    os.mkdirp("dir2/foo");
-    os.system("ls", ["dir2/foo"]);
+    os.mkdirp(TEST_DIR + "/dir2/foo");
+    os.system("ls", [TEST_DIR + "/dir2/foo"]);
     // Check that mkdirp doesn't mind if the dir is already there.
-    os.mkdirp("dir2/foo");
-    os.mkdirp("dir2/foo/");
+    os.mkdirp(TEST_DIR + "/dir2/foo");
+    os.mkdirp(TEST_DIR + "/dir2/foo/");
     // Check that mkdirp can cope with trailing /
-    os.mkdirp("dir3/");
-    os.system("ls", ["dir3"]);
+    os.mkdirp(TEST_DIR + "/dir3/");
+    os.system("ls", [TEST_DIR + "/dir3"]);
     // Check that we get an error if the name is taken by a file.
-    os.system("sh", ["-c", "echo foo > file1"]);
-    os.system("ls", ["file1"]);
-    assertThrows("os.mkdirp('file1');", "mkdir over file1");
-    assertThrows("os.mkdirp('file1/foo');", "mkdir over file2");
-    assertThrows("os.mkdirp('file1/');", "mkdir over file3");
-    assertThrows("os.mkdirp('file1/foo/');", "mkdir over file4");
+    os.system("sh", ["-c", "echo foo > " + TEST_DIR + "/file1"]);
+    os.system("ls", [TEST_DIR + "/file1"]);
+    assertThrows("os.mkdirp(TEST_DIR + '/file1');", "mkdir over file1");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1/foo');", "mkdir over file2");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1/');", "mkdir over file3");
+    assertThrows("os.mkdirp(TEST_DIR + '/file1/foo/');", "mkdir over file4");
     // Create a dir we cannot read.
-    os.mkdirp("dir4", 0);
+    os.mkdirp(TEST_DIR + "/dir4", 0);
     // This test fails if you are root since root can read any dir.
-    assertThrows("os.chdir('dir4');", "chdir dir4 I");
-    os.rmdir("dir4");
-    assertThrows("os.chdir('dir4');", "chdir dir4 II");
-    // Set umask.
+    assertThrows("os.chdir(TEST_DIR + '/dir4');", "chdir dir4 I");
+    os.rmdir(TEST_DIR + "/dir4");
+    assertThrows("os.chdir(TEST_DIR + '/dir4');", "chdir dir4 II");
+
+    // Set umask.  This changes the umask for the whole process and is
+    // the reason why the test cannot be run multi-threaded.
     var old_umask = os.umask(0777);
     // Create a dir we cannot read.
-    os.mkdirp("dir5");
+    os.mkdirp(TEST_DIR + "/dir5");
     // This test fails if you are root since root can read any dir.
-    assertThrows("os.chdir('dir5');", "cd dir5 I");
-    os.rmdir("dir5");
-    assertThrows("os.chdir('dir5');", "chdir dir5 II");
+    assertThrows("os.chdir(TEST_DIR + '/dir5');", "cd dir5 I");
+    os.rmdir(TEST_DIR + "/dir5");
+    assertThrows("os.chdir(TEST_DIR + '/dir5');", "chdir dir5 II");
     os.umask(old_umask);
 
-    os.mkdirp("hest/fisk/../fisk/ged");
-    os.system("ls", ["hest/fisk/ged"]);
+    os.mkdirp(TEST_DIR + "/hest/fisk/../fisk/ged");
+    os.system("ls", [TEST_DIR + "/hest/fisk/ged"]);
 
     os.setenv("FOO", "bar");
     var environment = os.system("printenv");

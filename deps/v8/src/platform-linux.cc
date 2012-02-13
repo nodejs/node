@@ -1060,7 +1060,7 @@ class SignalSender : public Thread {
     FULL_INTERVAL
   };
 
-  static const int kSignalSenderStackSize = 32 * KB;
+  static const int kSignalSenderStackSize = 64 * KB;
 
   explicit SignalSender(int interval)
       : Thread(Thread::Options("SignalSender", kSignalSenderStackSize)),

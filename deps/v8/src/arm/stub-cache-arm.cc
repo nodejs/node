@@ -1475,20 +1475,22 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
     __ Ret();
   } else {
     Label call_builtin;
-    Register elements = r3;
-    Register end_elements = r5;
-    // Get the elements array of the object.
-    __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
-
-    // Check that the elements are in fast mode and writable.
-    __ CheckMap(elements,
-                r0,
-                Heap::kFixedArrayMapRootIndex,
-                &call_builtin,
-                DONT_DO_SMI_CHECK);
 
     if (argc == 1) {  // Otherwise fall through to call the builtin.
       Label attempt_to_grow_elements;
+
+      Register elements = r6;
+      Register end_elements = r5;
+      // Get the elements array of the object.
+      __ ldr(elements, FieldMemOperand(receiver, JSArray::kElementsOffset));
+
+      // Check that the elements are in fast mode and writable.
+      __ CheckMap(elements,
+                  r0,
+                  Heap::kFixedArrayMapRootIndex,
+                  &call_builtin,
+                  DONT_DO_SMI_CHECK);
+
 
       // Get the array's length into r0 and calculate new length.
       __ ldr(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
@@ -1496,7 +1498,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       STATIC_ASSERT(kSmiTag == 0);
       __ add(r0, r0, Operand(Smi::FromInt(argc)));
 
-      // Get the element's length.
+      // Get the elements' length.
       __ ldr(r4, FieldMemOperand(elements, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
@@ -1511,7 +1513,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
-      // Push the element.
+      // Store the value.
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
       __ add(end_elements, elements,
@@ -1526,13 +1528,33 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
 
       __ bind(&with_write_barrier);
 
-      __ ldr(r6, FieldMemOperand(receiver, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(r6, r6, &call_builtin);
+      __ ldr(r3, FieldMemOperand(receiver, HeapObject::kMapOffset));
+
+      if (FLAG_smi_only_arrays  && !FLAG_trace_elements_transitions) {
+        Label fast_object, not_fast_object;
+        __ CheckFastObjectElements(r3, r7, &not_fast_object);
+        __ jmp(&fast_object);
+        // In case of fast smi-only, convert to fast object, otherwise bail out.
+        __ bind(&not_fast_object);
+        __ CheckFastSmiOnlyElements(r3, r7, &call_builtin);
+        // edx: receiver
+        // r3: map
+        __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                               FAST_ELEMENTS,
+                                               r3,
+                                               r7,
+                                               &call_builtin);
+        __ mov(r2, receiver);
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
+        __ bind(&fast_object);
+      } else {
+        __ CheckFastObjectElements(r3, r3, &call_builtin);
+      }
 
       // Save new length.
       __ str(r0, FieldMemOperand(receiver, JSArray::kLengthOffset));
 
-      // Push the element.
+      // Store the value.
       // We may need a register containing the address end_elements below,
       // so write back the value in end_elements.
       __ add(end_elements, elements,
@@ -1578,25 +1600,25 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
              Operand(r0, LSL, kPointerSizeLog2 - kSmiTagSize));
       __ add(end_elements, end_elements, Operand(kEndElementsOffset));
       __ mov(r7, Operand(new_space_allocation_top));
-      __ ldr(r6, MemOperand(r7));
-      __ cmp(end_elements, r6);
+      __ ldr(r3, MemOperand(r7));
+      __ cmp(end_elements, r3);
       __ b(ne, &call_builtin);
 
       __ mov(r9, Operand(new_space_allocation_limit));
       __ ldr(r9, MemOperand(r9));
-      __ add(r6, r6, Operand(kAllocationDelta * kPointerSize));
-      __ cmp(r6, r9);
+      __ add(r3, r3, Operand(kAllocationDelta * kPointerSize));
+      __ cmp(r3, r9);
       __ b(hi, &call_builtin);
 
       // We fit and could grow elements.
       // Update new_space_allocation_top.
-      __ str(r6, MemOperand(r7));
+      __ str(r3, MemOperand(r7));
       // Push the argument.
       __ str(r2, MemOperand(end_elements));
       // Fill the rest with holes.
-      __ LoadRoot(r6, Heap::kTheHoleValueRootIndex);
+      __ LoadRoot(r3, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
-        __ str(r6, MemOperand(end_elements, i * kPointerSize));
+        __ str(r3, MemOperand(end_elements, i * kPointerSize));
       }
 
       // Update elements' and array's sizes.

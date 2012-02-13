@@ -893,6 +893,13 @@ void HCheckInstanceType::GetCheckMaskAndTag(uint8_t* mask, uint8_t* tag) {
 void HCheckMap::PrintDataTo(StringStream* stream) {
   value()->PrintNameTo(stream);
   stream->Add(" %p", *map());
+  if (mode() == REQUIRE_EXACT_MAP) {
+    stream->Add(" [EXACT]");
+  } else if (!has_element_transitions_) {
+    stream->Add(" [EXACT*]");
+  } else {
+    stream->Add(" [MATCH ELEMENTS]");
+  }
 }
 
 

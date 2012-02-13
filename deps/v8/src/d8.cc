@@ -1288,7 +1288,7 @@ bool Shell::SetOptions(int argc, char* argv[]) {
       options.use_preemption = true;
       argv[i] = NULL;
 #endif  // V8_SHARED
-    } else if (strcmp(argv[i], "--no-preemption") == 0) {
+    } else if (strcmp(argv[i], "--nopreemption") == 0) {
 #ifdef V8_SHARED
       printf("D8 with shared library does not support multi-threading\n");
       return false;

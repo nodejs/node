@@ -1638,7 +1638,7 @@ class JSObject: public JSReceiver {
                                           Handle<String> key,
                                           Handle<Object> value);
   // Returns a failure if a GC is required.
-  MaybeObject* SetHiddenProperty(String* key, Object* value);
+  MUST_USE_RESULT MaybeObject* SetHiddenProperty(String* key, Object* value);
   // Gets the value of a hidden property with the given key. Returns undefined
   // if the property doesn't exist (or if called on a detached proxy),
   // otherwise returns the value set for the key.
@@ -1807,9 +1807,7 @@ class JSObject: public JSReceiver {
 
   // Returns the number of properties on this object filtering out properties
   // with the specified attributes (ignoring interceptors).
-  int NumberOfLocalProperties(PropertyAttributes filter);
-  // Returns the number of enumerable properties (ignoring interceptors).
-  int NumberOfEnumProperties();
+  int NumberOfLocalProperties(PropertyAttributes filter = NONE);
   // Fill in details for properties into storage starting at the specified
   // index.
   void GetLocalPropertyNames(FixedArray* storage, int index);
@@ -4638,8 +4636,9 @@ class Map: public HeapObject {
   // Returns the next free property index (only valid for FAST MODE).
   int NextFreePropertyIndex();
 
-  // Returns the number of properties described in instance_descriptors.
-  int NumberOfDescribedProperties();
+  // Returns the number of properties described in instance_descriptors
+  // filtering out properties with the specified attributes.
+  int NumberOfDescribedProperties(PropertyAttributes filter = NONE);
 
   // Casting.
   static inline Map* cast(Object* obj);
@@ -4696,12 +4695,6 @@ class Map: public HeapObject {
   // it had exactly zero inobject properties.
   // The "shared" flags of both this map and |other| are ignored.
   bool EquivalentToForNormalization(Map* other, PropertyNormalizationMode mode);
-
-  // Returns true if this map and |other| describe equivalent objects.
-  // The "shared" flags of both this map and |other| are ignored.
-  bool EquivalentTo(Map* other) {
-    return EquivalentToForNormalization(other, KEEP_INOBJECT_PROPERTIES);
-  }
 
   // Returns the contents of this map's descriptor array for the given string.
   // May return NULL. |safe_to_add_transition| is set to false and NULL
@@ -5204,8 +5197,14 @@ class SharedFunctionInfo: public HeapObject {
 
   // A counter used to determine when to stress the deoptimizer with a
   // deopt.
-  inline Smi* deopt_counter();
-  inline void set_deopt_counter(Smi* counter);
+  inline int deopt_counter();
+  inline void set_deopt_counter(int counter);
+
+  inline int profiler_ticks();
+  inline void set_profiler_ticks(int ticks);
+
+  inline int ast_node_count();
+  inline void set_ast_node_count(int count);
 
   // Add information on assignments of the form this.x = ...;
   void SetThisPropertyAssignmentsInfo(
@@ -5279,6 +5278,12 @@ class SharedFunctionInfo: public HeapObject {
   // through the API, which does not change this flag).
   DECL_BOOLEAN_ACCESSORS(is_anonymous)
 
+  // Indicates that the function cannot be crankshafted.
+  DECL_BOOLEAN_ACCESSORS(dont_crankshaft)
+
+  // Indicates that the function cannot be inlined.
+  DECL_BOOLEAN_ACCESSORS(dont_inline)
+
   // Indicates whether or not the code in the shared function support
   // deoptimization.
   inline bool has_deoptimization_support();
@@ -5316,7 +5321,7 @@ class SharedFunctionInfo: public HeapObject {
 
   // [source code]: Source code for the function.
   bool HasSourceCode();
-  Object* GetSourceCode();
+  Handle<Object> GetSourceCode();
 
   inline int opt_count();
   inline void set_opt_count(int opt_count);
@@ -5373,12 +5378,12 @@ class SharedFunctionInfo: public HeapObject {
       kInferredNameOffset + kPointerSize;
   static const int kThisPropertyAssignmentsOffset =
       kInitialMapOffset + kPointerSize;
-  static const int kDeoptCounterOffset =
+  static const int kProfilerTicksOffset =
       kThisPropertyAssignmentsOffset + kPointerSize;
 #if V8_HOST_ARCH_32_BIT
   // Smi fields.
   static const int kLengthOffset =
-      kDeoptCounterOffset + kPointerSize;
+      kProfilerTicksOffset + kPointerSize;
   static const int kFormalParameterCountOffset = kLengthOffset + kPointerSize;
   static const int kExpectedNofPropertiesOffset =
       kFormalParameterCountOffset + kPointerSize;
@@ -5396,8 +5401,11 @@ class SharedFunctionInfo: public HeapObject {
       kCompilerHintsOffset + kPointerSize;
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kPointerSize;
+  static const int kAstNodeCountOffset = kOptCountOffset + kPointerSize;
+  static const int kDeoptCounterOffset =
+      kAstNodeCountOffset + kPointerSize;
   // Total size.
-  static const int kSize = kOptCountOffset + kPointerSize;
+  static const int kSize = kDeoptCounterOffset + kPointerSize;
 #else
   // The only reason to use smi fields instead of int fields
   // is to allow iteration without maps decoding during
@@ -5409,7 +5417,7 @@ class SharedFunctionInfo: public HeapObject {
   // word is not set and thus this word cannot be treated as pointer
   // to HeapObject during old space traversal.
   static const int kLengthOffset =
-      kDeoptCounterOffset + kPointerSize;
+      kProfilerTicksOffset + kPointerSize;
   static const int kFormalParameterCountOffset =
       kLengthOffset + kIntSize;
 
@@ -5433,8 +5441,11 @@ class SharedFunctionInfo: public HeapObject {
   static const int kOptCountOffset =
       kThisPropertyAssignmentsCountOffset + kIntSize;
 
+  static const int kAstNodeCountOffset = kOptCountOffset + kIntSize;
+  static const int kDeoptCounterOffset = kAstNodeCountOffset + kIntSize;
+
   // Total size.
-  static const int kSize = kOptCountOffset + kIntSize;
+  static const int kSize = kDeoptCounterOffset + kIntSize;
 
 #endif
 
@@ -5481,6 +5492,8 @@ class SharedFunctionInfo: public HeapObject {
     kBoundFunction,
     kIsAnonymous,
     kNameShouldPrintAsAnonymous,
+    kDontCrankshaft,
+    kDontInline,
     kCompilerHintsCount  // Pseudo entry
   };
 

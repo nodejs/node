@@ -2453,8 +2453,7 @@ Operand MacroAssembler::SafepointRegisterSlot(Register reg) {
 }
 
 
-void MacroAssembler::PushTryHandler(CodeLocation try_location,
-                                    HandlerType type,
+void MacroAssembler::PushTryHandler(StackHandler::Kind kind,
                                     int handler_index) {
   // Adjust this code if not the case.
   STATIC_ASSERT(StackHandlerConstants::kSize == 5 * kPointerSize);
@@ -2465,25 +2464,22 @@ void MacroAssembler::PushTryHandler(CodeLocation try_location,
   STATIC_ASSERT(StackHandlerConstants::kFPOffset == 4 * kPointerSize);
 
   // We will build up the handler from the bottom by pushing on the stack.
-  // First compute the state and push the frame pointer and context.
-  unsigned state = StackHandler::OffsetField::encode(handler_index);
-  if (try_location == IN_JAVASCRIPT) {
-    push(rbp);
-    push(rsi);
-    state |= (type == TRY_CATCH_HANDLER)
-        ? StackHandler::KindField::encode(StackHandler::TRY_CATCH)
-        : StackHandler::KindField::encode(StackHandler::TRY_FINALLY);
-  } else {
-    ASSERT(try_location == IN_JS_ENTRY);
+  // First push the frame pointer and context.
+  if (kind == StackHandler::JS_ENTRY) {
     // The frame pointer does not point to a JS frame so we save NULL for
     // rbp. We expect the code throwing an exception to check rbp before
     // dereferencing it to restore the context.
     push(Immediate(0));  // NULL frame pointer.
     Push(Smi::FromInt(0));  // No context.
-    state |= StackHandler::KindField::encode(StackHandler::ENTRY);
+  } else {
+    push(rbp);
+    push(rsi);
   }
 
   // Push the state and the code object.
+  unsigned state =
+      StackHandler::IndexField::encode(handler_index) |
+      StackHandler::KindField::encode(kind);
   push(Immediate(state));
   Push(CodeObject());
 
@@ -2594,7 +2590,7 @@ void MacroAssembler::ThrowUncatchable(UncatchableExceptionType type,
   movq(rsp, Operand(rsp, StackHandlerConstants::kNextOffset));
 
   bind(&check_kind);
-  STATIC_ASSERT(StackHandler::ENTRY == 0);
+  STATIC_ASSERT(StackHandler::JS_ENTRY == 0);
   testl(Operand(rsp, StackHandlerConstants::kStateOffset),
         Immediate(StackHandler::KindField::kMask));
   j(not_zero, &fetch_next);

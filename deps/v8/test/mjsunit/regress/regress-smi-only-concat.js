@@ -25,35 +25,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
+// Flags: --allow-natives-syntax
 
-#include "v8.h"
+// This tests that concatenating a fast smi-only array and a fast object array
+// results in a fast object array.
 
-#include "ast.h"
-#include "cctest.h"
+var fast_array = ['a', 'b'];
+var array = fast_array.concat(fast_array);
 
-using namespace v8::internal;
-
-TEST(List) {
-  v8::internal::V8::Initialize(NULL);
-  List<AstNode*>* list = new List<AstNode*>(0);
-  CHECK_EQ(0, list->length());
-
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  AstNodeFactory<AstNullVisitor> factory(Isolate::Current());
-  AstNode* node = factory.NewEmptyStatement();
-  list->Add(node);
-  CHECK_EQ(1, list->length());
-  CHECK_EQ(node, list->at(0));
-  CHECK_EQ(node, list->last());
-
-  const int kElements = 100;
-  for (int i = 0; i < kElements; i++) {
-    list->Add(node);
-  }
-  CHECK_EQ(1 + kElements, list->length());
-
-  list->Clear();
-  CHECK_EQ(0, list->length());
-  delete list;
-}
+assertTrue(%HasFastElements(fast_array));
+assertTrue(%HasFastElements(array));

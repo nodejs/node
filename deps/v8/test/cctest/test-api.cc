@@ -13535,6 +13535,137 @@ TEST(CaptureStackTraceForUncaughtExceptionAndSetters) {
 }
 
 
+static void RethrowStackTraceHandler(v8::Handle<v8::Message> message,
+                                     v8::Handle<v8::Value> data) {
+  // Use the frame where JavaScript is called from.
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK(!stack_trace.IsEmpty());
+  int frame_count = stack_trace->GetFrameCount();
+  CHECK_EQ(3, frame_count);
+  int line_number[] = {1, 2, 5};
+  for (int i = 0; i < frame_count; i++) {
+    CHECK_EQ(line_number[i], stack_trace->GetFrame(i)->GetLineNumber());
+  }
+}
+
+
+// Test that we only return the stack trace at the site where the exception
+// is first thrown (not where it is rethrown).
+TEST(RethrowStackTrace) {
+  v8::HandleScope scope;
+  LocalContext env;
+  // We make sure that
+  // - the stack trace of the ReferenceError in g() is reported.
+  // - the stack trace is not overwritten when e1 is rethrown by t().
+  // - the stack trace of e2 does not overwrite that of e1.
+  const char* source =
+      "function g() { error; }          \n"
+      "function f() { g(); }            \n"
+      "function t(e) { throw e; }       \n"
+      "try {                            \n"
+      "  f();                           \n"
+      "} catch (e1) {                   \n"
+      "  try {                          \n"
+      "    error;                       \n"
+      "  } catch (e2) {                 \n"
+      "    t(e1);                       \n"
+      "  }                              \n"
+      "}                                \n";
+  v8::V8::AddMessageListener(RethrowStackTraceHandler);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+  CompileRun(source);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(RethrowStackTraceHandler);
+}
+
+
+static void RethrowPrimitiveStackTraceHandler(v8::Handle<v8::Message> message,
+                                              v8::Handle<v8::Value> data) {
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK(!stack_trace.IsEmpty());
+  int frame_count = stack_trace->GetFrameCount();
+  CHECK_EQ(2, frame_count);
+  int line_number[] = {3, 7};
+  for (int i = 0; i < frame_count; i++) {
+    CHECK_EQ(line_number[i], stack_trace->GetFrame(i)->GetLineNumber());
+  }
+}
+
+
+// Test that we do not recognize identity for primitive exceptions.
+TEST(RethrowPrimitiveStackTrace) {
+  v8::HandleScope scope;
+  LocalContext env;
+  // We do not capture stack trace for non Error objects on creation time.
+  // Instead, we capture the stack trace on last throw.
+  const char* source =
+      "function g() { throw 404; }      \n"
+      "function f() { g(); }            \n"
+      "function t(e) { throw e; }       \n"
+      "try {                            \n"
+      "  f();                           \n"
+      "} catch (e1) {                   \n"
+      "  t(e1)                          \n"
+      "}                                \n";
+  v8::V8::AddMessageListener(RethrowPrimitiveStackTraceHandler);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+  CompileRun(source);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(RethrowPrimitiveStackTraceHandler);
+}
+
+
+static void RethrowExistingStackTraceHandler(v8::Handle<v8::Message> message,
+                                              v8::Handle<v8::Value> data) {
+  // Use the frame where JavaScript is called from.
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK(!stack_trace.IsEmpty());
+  CHECK_EQ(1, stack_trace->GetFrameCount());
+  CHECK_EQ(1, stack_trace->GetFrame(0)->GetLineNumber());
+}
+
+
+// Test that the stack trace is captured when the error object is created and
+// not where it is thrown.
+TEST(RethrowExistingStackTrace) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const char* source =
+      "var e = new Error();           \n"
+      "throw e;                       \n";
+  v8::V8::AddMessageListener(RethrowExistingStackTraceHandler);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+  CompileRun(source);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(RethrowExistingStackTraceHandler);
+}
+
+
+static void RethrowBogusErrorStackTraceHandler(v8::Handle<v8::Message> message,
+                                               v8::Handle<v8::Value> data) {
+  // Use the frame where JavaScript is called from.
+  v8::Handle<v8::StackTrace> stack_trace = message->GetStackTrace();
+  CHECK(!stack_trace.IsEmpty());
+  CHECK_EQ(1, stack_trace->GetFrameCount());
+  CHECK_EQ(2, stack_trace->GetFrame(0)->GetLineNumber());
+}
+
+
+// Test that the stack trace is captured where the bogus Error object is thrown.
+TEST(RethrowBogusErrorStackTrace) {
+  v8::HandleScope scope;
+  LocalContext env;
+  const char* source =
+      "var e = {__proto__: new Error()} \n"
+      "throw e;                         \n";
+  v8::V8::AddMessageListener(RethrowBogusErrorStackTraceHandler);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(true);
+  CompileRun(source);
+  v8::V8::SetCaptureStackTraceForUncaughtExceptions(false);
+  v8::V8::RemoveMessageListeners(RethrowBogusErrorStackTraceHandler);
+}
+
+
 v8::Handle<Value> AnalyzeStackOfEvalWithSourceURL(const v8::Arguments& args) {
   v8::HandleScope scope;
   v8::Handle<v8::StackTrace> stackTrace =

@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -115,7 +115,8 @@ class Scope: public ZoneObject {
   // between this scope and the outer scope. (ECMA-262, 3rd., requires that
   // the name of named function literal is kept in an intermediate scope
   // in between this scope and the next outer scope.)
-  Variable* LookupFunctionVar(Handle<String> name);
+  Variable* LookupFunctionVar(Handle<String> name,
+                              AstNodeFactory<AstNullVisitor>* factory);
 
   // Lookup a variable in this scope or outer scopes.
   // Returns the variable or NULL if not found.
@@ -124,7 +125,16 @@ class Scope: public ZoneObject {
   // Declare the function variable for a function literal. This variable
   // is in an intermediate scope between this function scope and the the
   // outer scope. Only possible for function scopes; at most one variable.
-  Variable* DeclareFunctionVar(Handle<String> name, VariableMode mode);
+  template<class Visitor>
+  Variable* DeclareFunctionVar(Handle<String> name,
+                               VariableMode mode,
+                               AstNodeFactory<Visitor>* factory) {
+    ASSERT(is_function_scope() && function_ == NULL);
+    Variable* function_var = new Variable(
+        this, name, mode, true, Variable::NORMAL, kCreatedInitialized);
+    function_ = factory->NewVariableProxy(function_var);
+    return function_var;
+  }
 
   // Declare a parameter in this scope.  When there are duplicated
   // parameters the rightmost one 'wins'.  However, the implementation
@@ -144,8 +154,18 @@ class Scope: public ZoneObject {
   Variable* DeclareGlobal(Handle<String> name);
 
   // Create a new unresolved variable.
-  VariableProxy* NewUnresolved(Handle<String> name,
-                               int position = RelocInfo::kNoPosition);
+  template<class Visitor>
+  VariableProxy* NewUnresolved(AstNodeFactory<Visitor>* factory,
+                               Handle<String> name,
+                               int position = RelocInfo::kNoPosition) {
+    // Note that we must not share the unresolved variables with
+    // the same name because they may be removed selectively via
+    // RemoveUnresolved().
+    ASSERT(!already_resolved());
+    VariableProxy* proxy = factory->NewVariableProxy(name, false, position);
+    unresolved_.Add(proxy);
+    return proxy;
+  }
 
   // Remove a unresolved variable. During parsing, an unresolved variable
   // may have been added optimistically, but then only the variable name
@@ -332,7 +352,8 @@ class Scope: public ZoneObject {
   // In the case of code compiled and run using 'eval', the context
   // parameter is the context in which eval was called.  In all other
   // cases the context parameter is an empty handle.
-  void AllocateVariables(Scope* global_scope);
+  void AllocateVariables(Scope* global_scope,
+                         AstNodeFactory<AstNullVisitor>* factory);
 
   // Current number of var or const locals.
   int num_var_or_const() { return num_var_or_const_; }
@@ -519,10 +540,13 @@ class Scope: public ZoneObject {
   // scope. If the code is executed because of a call to 'eval', the context
   // parameter should be set to the calling context of 'eval'.
   Variable* LookupRecursive(Handle<String> name,
-                            BindingKind* binding_kind);
+                            BindingKind* binding_kind,
+                            AstNodeFactory<AstNullVisitor>* factory);
   void ResolveVariable(Scope* global_scope,
-                       VariableProxy* proxy);
-  void ResolveVariablesRecursively(Scope* global_scope);
+                       VariableProxy* proxy,
+                       AstNodeFactory<AstNullVisitor>* factory);
+  void ResolveVariablesRecursively(Scope* global_scope,
+                                   AstNodeFactory<AstNullVisitor>* factory);
 
   // Scope analysis.
   bool PropagateScopeInfo(bool outer_scope_calls_non_strict_eval);

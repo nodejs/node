@@ -128,7 +128,7 @@ LIBRARY_FLAGS = {
       'CPPDEFINES': ['__C99FEATURES__'],
       'CPPPATH' : [src_dir, '/usr/local/include'],
       'LIBPATH' : ['/usr/local/lib'],
-      'CCFLAGS':      ['-ansi', '-fno-omit-frame-pointer'],
+      'CCFLAGS':      ['-ansi'],
     },
     'os:netbsd': {
       'CPPPATH' : [src_dir, '/usr/pkg/include'],

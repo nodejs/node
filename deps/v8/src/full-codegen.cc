@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -51,7 +51,25 @@ void BreakableStatementChecker::Check(Expression* expr) {
 }
 
 
-void BreakableStatementChecker::VisitDeclaration(Declaration* decl) {
+void BreakableStatementChecker::VisitVariableDeclaration(
+    VariableDeclaration* decl) {
+}
+
+void BreakableStatementChecker::VisitModuleDeclaration(
+    ModuleDeclaration* decl) {
+}
+
+
+void BreakableStatementChecker::VisitModuleLiteral(ModuleLiteral* module) {
+}
+
+void BreakableStatementChecker::VisitModuleVariable(ModuleVariable* module) {
+}
+
+void BreakableStatementChecker::VisitModulePath(ModulePath* module) {
+}
+
+void BreakableStatementChecker::VisitModuleUrl(ModuleUrl* module) {
 }
 
 
@@ -297,6 +315,9 @@ bool FullCodeGenerator::MakeCode(CompilationInfo* info) {
   code->set_stack_check_table_offset(table_offset);
   CodeGenerator::PrintCode(code, info);
   info->SetCode(code);  // May be an empty handle.
+  if (!code.is_null()) {
+    isolate->runtime_profiler()->NotifyCodeGenerated(code->instruction_size());
+  }
 #ifdef ENABLE_GDB_JIT_INTERFACE
   if (FLAG_gdbjit && !code.is_null()) {
     GDBJITLineInfo* lineinfo =
@@ -380,7 +401,7 @@ void FullCodeGenerator::RecordJSReturnSite(Call* call) {
 void FullCodeGenerator::PrepareForBailoutForId(unsigned id, State state) {
   // There's no need to prepare this code for bailouts from already optimized
   // code or code that can't be optimized.
-  if (!FLAG_deopt || !info_->HasDeoptimizationSupport()) return;
+  if (!info_->HasDeoptimizationSupport()) return;
   unsigned pc_and_state =
       StateField::encode(state) | PcField::encode(masm_->pc_offset());
   BailoutEntry entry = { id, pc_and_state };
@@ -525,39 +546,40 @@ void FullCodeGenerator::DoTest(const TestContext* context) {
 
 void FullCodeGenerator::VisitDeclarations(
     ZoneList<Declaration*>* declarations) {
-  int length = declarations->length();
-  int global_count = 0;
-  for (int i = 0; i < length; i++) {
-    Declaration* decl = declarations->at(i);
-    EmitDeclaration(decl->proxy(), decl->mode(), decl->fun(), &global_count);
-  }
+  int save_global_count = global_count_;
+  global_count_ = 0;
+
+  AstVisitor::VisitDeclarations(declarations);
 
   // Batch declare global functions and variables.
-  if (global_count > 0) {
+  if (global_count_ > 0) {
     Handle<FixedArray> array =
-        isolate()->factory()->NewFixedArray(2 * global_count, TENURED);
+       isolate()->factory()->NewFixedArray(2 * global_count_, TENURED);
+    int length = declarations->length();
     for (int j = 0, i = 0; i < length; i++) {
-      Declaration* decl = declarations->at(i);
-      Variable* var = decl->proxy()->var();
+      VariableDeclaration* decl = declarations->at(i)->AsVariableDeclaration();
+      if (decl != NULL) {
+        Variable* var = decl->proxy()->var();
 
-      if (var->IsUnallocated()) {
-        array->set(j++, *(var->name()));
-        if (decl->fun() == NULL) {
-          if (var->binding_needs_init()) {
-            // In case this binding needs initialization use the hole.
-            array->set_the_hole(j++);
+        if (var->IsUnallocated()) {
+          array->set(j++, *(var->name()));
+          if (decl->fun() == NULL) {
+            if (var->binding_needs_init()) {
+              // In case this binding needs initialization use the hole.
+              array->set_the_hole(j++);
+            } else {
+              array->set_undefined(j++);
+            }
           } else {
-            array->set_undefined(j++);
+            Handle<SharedFunctionInfo> function =
+                Compiler::BuildFunctionInfo(decl->fun(), script());
+            // Check for stack-overflow exception.
+            if (function.is_null()) {
+              SetStackOverflow();
+              return;
+            }
+            array->set(j++, *function);
           }
-        } else {
-          Handle<SharedFunctionInfo> function =
-              Compiler::BuildFunctionInfo(decl->fun(), script());
-          // Check for stack-overflow exception.
-          if (function.is_null()) {
-            SetStackOverflow();
-            return;
-          }
-          array->set(j++, *function);
         }
       }
     }
@@ -565,6 +587,38 @@ void FullCodeGenerator::VisitDeclarations(
     // declaration the global functions and variables.
     DeclareGlobals(array);
   }
+
+  global_count_ = save_global_count;
+}
+
+
+void FullCodeGenerator::VisitVariableDeclaration(VariableDeclaration* decl) {
+  EmitDeclaration(decl->proxy(), decl->mode(), decl->fun());
+}
+
+
+void FullCodeGenerator::VisitModuleDeclaration(ModuleDeclaration* decl) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModuleLiteral(ModuleLiteral* module) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModuleVariable(ModuleVariable* module) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModulePath(ModulePath* module) {
+  // TODO(rossberg)
+}
+
+
+void FullCodeGenerator::VisitModuleUrl(ModuleUrl* decl) {
+  // TODO(rossberg)
 }
 
 
@@ -1147,7 +1201,7 @@ void FullCodeGenerator::VisitTryCatchStatement(TryCatchStatement* stmt) {
 
   // Try block code. Sets up the exception handler chain.
   __ bind(&try_entry);
-  __ PushTryHandler(IN_JAVASCRIPT, TRY_CATCH_HANDLER, stmt->index());
+  __ PushTryHandler(StackHandler::CATCH, stmt->index());
   { TryCatch try_body(this);
     Visit(stmt->try_block());
   }
@@ -1204,7 +1258,7 @@ void FullCodeGenerator::VisitTryFinallyStatement(TryFinallyStatement* stmt) {
 
   // Set up try handler.
   __ bind(&try_entry);
-  __ PushTryHandler(IN_JAVASCRIPT, TRY_FINALLY_HANDLER, stmt->index());
+  __ PushTryHandler(StackHandler::FINALLY, stmt->index());
   { TryFinally try_body(this, &finally_entry);
     Visit(stmt->try_block());
   }

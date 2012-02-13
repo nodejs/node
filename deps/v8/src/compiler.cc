@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -107,6 +107,18 @@ void CompilationInfo::DisableOptimization() {
     !scope_->outer_scope_calls_non_strict_eval() &&
     !scope_->inside_with();
   SetMode(is_optimizable_closure ? BASE : NONOPT);
+}
+
+
+// Primitive functions are unlikely to be picked up by the stack-walking
+// profiler, so they trigger their own optimization when they're called
+// for the SharedFunctionInfo::kCallsUntilPrimitiveOptimization-th time.
+bool CompilationInfo::ShouldSelfOptimize() {
+  return FLAG_self_optimization &&
+      FLAG_crankshaft &&
+      !Serializer::enabled() &&
+      !function()->flags()->Contains(kDontSelfOptimize) &&
+      (shared_info().is_null() || !shared_info()->optimization_disabled());
 }
 
 
@@ -652,6 +664,9 @@ bool Compiler::CompileLazy(CompilationInfo* info) {
         // Check the function has compiled code.
         ASSERT(shared->is_compiled());
         shared->set_code_age(0);
+        shared->set_dont_crankshaft(lit->flags()->Contains(kDontOptimize));
+        shared->set_dont_inline(lit->flags()->Contains(kDontInline));
+        shared->set_ast_node_count(lit->ast_node_count());
 
         if (info->AllowOptimize() && !shared->optimization_disabled()) {
           // If we're asked to always optimize, we compile the optimized
@@ -750,6 +765,9 @@ void Compiler::SetFunctionInfo(Handle<SharedFunctionInfo> function_info,
   function_info->set_language_mode(lit->language_mode());
   function_info->set_uses_arguments(lit->scope()->arguments() != NULL);
   function_info->set_has_duplicate_parameters(lit->has_duplicate_parameters());
+  function_info->set_ast_node_count(lit->ast_node_count());
+  function_info->set_dont_crankshaft(lit->flags()->Contains(kDontOptimize));
+  function_info->set_dont_inline(lit->flags()->Contains(kDontInline));
 }
 
 

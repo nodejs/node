@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -61,6 +61,15 @@ class RuntimeProfiler {
   Object** SamplerWindowAddress();
   int SamplerWindowSize();
 
+  void NotifyICChanged() { any_ic_changed_ = true; }
+
+  void NotifyCodeGenerated(int generated_code_size) {
+    if (FLAG_watch_ic_patching) {
+      code_generated_ = true;
+      total_code_generated_ += generated_code_size;
+    }
+  }
+
   // Rate limiting support.
 
   // VM thread interface.
@@ -97,7 +106,7 @@ class RuntimeProfiler {
 
   static void HandleWakeUp(Isolate* isolate);
 
-  void Optimize(JSFunction* function);
+  void Optimize(JSFunction* function, const char* reason);
 
   void AttemptOnStackReplacement(JSFunction* function);
 
@@ -118,6 +127,10 @@ class RuntimeProfiler {
   Object* sampler_window_[kSamplerWindowSize];
   int sampler_window_position_;
   int sampler_window_weight_[kSamplerWindowSize];
+
+  bool any_ic_changed_;
+  bool code_generated_;
+  int total_code_generated_;
 
   // Possible state values:
   //   -1            => the profiler thread is waiting on the semaphore

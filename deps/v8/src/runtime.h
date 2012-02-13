@@ -229,7 +229,7 @@ namespace internal {
   F(FunctionIsAPIFunction, 1, 1) \
   F(FunctionIsBuiltin, 1, 1) \
   F(GetScript, 1, 1) \
-  F(CollectStackTrace, 2, 1) \
+  F(CollectStackTrace, 3, 1) \
   F(GetV8Version, 0, 1) \
   \
   F(ClassOf, 1, 1) \

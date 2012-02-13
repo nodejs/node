@@ -51,8 +51,9 @@ enum ParsingFlags {
   // STRICT_MODE,
   // EXTENDED_MODE,
   kLanguageModeMask = 0x03,
-  kAllowLazy = 4,
-  kAllowNativesSyntax = 8
+  kAllowLazy = 0x04,
+  kAllowNativesSyntax = 0x08,
+  kAllowModules = 0x10
 };
 
 STATIC_ASSERT((kLanguageModeMask & CLASSIC_MODE) == CLASSIC_MODE);
@@ -403,8 +404,14 @@ class Scanner {
   bool HarmonyScoping() const {
     return harmony_scoping_;
   }
-  void SetHarmonyScoping(bool block_scoping) {
-    harmony_scoping_ = block_scoping;
+  void SetHarmonyScoping(bool scoping) {
+    harmony_scoping_ = scoping;
+  }
+  bool HarmonyModules() const {
+    return harmony_modules_;
+  }
+  void SetHarmonyModules(bool modules) {
+    harmony_modules_ = modules;
   }
 
 
@@ -552,9 +559,10 @@ class Scanner {
   // Whether there is a multi-line comment that contains a
   // line-terminator after the current token, and before the next.
   bool has_multiline_comment_before_next_;
-  // Whether we scan 'let' as a keyword for harmony block scoped
-  // let bindings.
+  // Whether we scan 'let' as a keyword for harmony block-scoped let bindings.
   bool harmony_scoping_;
+  // Whether we scan 'module', 'import', 'export' as keywords.
+  bool harmony_modules_;
 };
 
 } }  // namespace v8::internal

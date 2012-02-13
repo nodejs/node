@@ -109,11 +109,13 @@ private:
 // Flags for experimental language features.
 DEFINE_bool(harmony_typeof, false, "enable harmony semantics for typeof")
 DEFINE_bool(harmony_scoping, false, "enable harmony block scoping")
+DEFINE_bool(harmony_modules, false, "enable harmony modules")
 DEFINE_bool(harmony_proxies, false, "enable harmony proxies")
 DEFINE_bool(harmony_collections, false,
             "enable harmony collections (sets, maps, and weak maps)")
 DEFINE_bool(harmony, false, "enable all harmony features (except typeof)")
 DEFINE_implication(harmony, harmony_scoping)
+DEFINE_implication(harmony, harmony_modules)
 DEFINE_implication(harmony, harmony_proxies)
 DEFINE_implication(harmony, harmony_collections)
 
@@ -136,7 +138,6 @@ DEFINE_bool(use_gvn, true, "use hydrogen global value numbering")
 DEFINE_bool(use_canonicalizing, true, "use hydrogen instruction canonicalizing")
 DEFINE_bool(use_inlining, true, "use function inlining")
 DEFINE_bool(limit_inlining, true, "limit code size growth from inlining")
-DEFINE_bool(eliminate_empty_blocks, true, "eliminate empty blocks")
 DEFINE_bool(loop_invariant_code_motion, true, "loop invariant code motion")
 DEFINE_bool(collect_megamorphic_maps_from_stub_cache,
             true,
@@ -164,12 +165,19 @@ DEFINE_int(stress_runs, 0, "number of stress runs")
 DEFINE_bool(optimize_closures, true, "optimize closures")
 DEFINE_int(loop_weight, 1, "loop weight for representation inference")
 
+// Experimental profiler changes.
+DEFINE_bool(experimental_profiler, false, "enable all profiler experiments")
+DEFINE_bool(watch_ic_patching, false, "profiler considers IC stability")
+DEFINE_bool(self_optimization, false,
+            "primitive functions trigger their own optimization")
+
+DEFINE_implication(experimental_profiler, watch_ic_patching)
+DEFINE_implication(experimental_profiler, self_optimization)
+
 // assembler-ia32.cc / assembler-arm.cc / assembler-x64.cc
 DEFINE_bool(debug_code, false,
             "generate extra code (assertions) for debugging")
 DEFINE_bool(code_comments, false, "emit comments in code disassembly")
-DEFINE_bool(peephole_optimization, true,
-            "perform peephole optimizations in assembly code")
 DEFINE_bool(enable_sse2, true,
             "enable use of SSE2 instructions if available")
 DEFINE_bool(enable_sse3, true,
@@ -219,10 +227,8 @@ DEFINE_bool(lazy, true, "use lazy compilation")
 DEFINE_bool(trace_opt, false, "trace lazy optimization")
 DEFINE_bool(trace_opt_stats, false, "trace lazy optimization statistics")
 DEFINE_bool(opt, true, "use adaptive optimizations")
-DEFINE_bool(opt_eagerly, false, "be more eager when adaptively optimizing")
 DEFINE_bool(always_opt, false, "always try to optimize functions")
 DEFINE_bool(prepare_always_opt, false, "prepare for turning on always opt")
-DEFINE_bool(deopt, true, "support deoptimization")
 DEFINE_bool(trace_deopt, false, "trace deoptimization")
 
 // compiler.cc
@@ -303,25 +309,16 @@ DEFINE_bool(native_code_counters, false,
 DEFINE_bool(always_compact, false, "Perform compaction on every full GC")
 DEFINE_bool(lazy_sweeping, true,
             "Use lazy sweeping for old pointer and data spaces")
-DEFINE_bool(cleanup_caches_in_maps_at_gc, true,
-            "Flush code caches in maps during mark compact cycle.")
 DEFINE_bool(never_compact, false,
             "Never perform compaction on full GC - testing only")
-DEFINE_bool(compact_code_space, false, "Compact code space")
+DEFINE_bool(compact_code_space, true,
+            "Compact code space on full non-incremental collections")
 DEFINE_bool(cleanup_code_caches_at_gc, true,
             "Flush inline caches prior to mark compact collection and "
             "flush code caches in maps during mark compact cycle.")
 DEFINE_int(random_seed, 0,
            "Default seed for initializing random generator "
            "(0, the default, means to use system random).")
-
-DEFINE_bool(canonicalize_object_literal_maps, true,
-            "Canonicalize maps for object literals.")
-
-DEFINE_int(max_map_space_pages, MapSpace::kMaxMapPageIndex - 1,
-           "Maximum number of pages in map space which still allows to encode "
-           "forwarding pointers.  That's actually a constant, but it's useful "
-           "to control it with a flag for better testing.")
 
 // objects.cc
 DEFINE_bool(use_verbose_printer, true, "allows verbose printing")
@@ -443,9 +440,6 @@ DEFINE_bool(print_builtin_source, false,
             "pretty print source code for builtins")
 DEFINE_bool(print_ast, false, "print source AST")
 DEFINE_bool(print_builtin_ast, false, "print source AST for builtins")
-DEFINE_bool(print_json_ast, false, "print source AST as JSON")
-DEFINE_bool(print_builtin_json_ast, false,
-            "print source AST for builtins as JSON")
 DEFINE_string(stop_at, "", "function name where to insert a breakpoint")
 
 // compiler.cc
@@ -474,10 +468,6 @@ DEFINE_bool(trace_normalization,
 
 // runtime.cc
 DEFINE_bool(trace_lazy, false, "trace lazy compilation")
-
-// serialize.cc
-DEFINE_bool(debug_serialization, false,
-            "write debug information into the snapshot.")
 
 // spaces.cc
 DEFINE_bool(collect_heap_spill_statistics, false,

@@ -126,18 +126,7 @@ Assignment::Assignment(Isolate* isolate,
       assignment_id_(GetNextId(isolate)),
       block_start_(false),
       block_end_(false),
-      is_monomorphic_(false) {
-  ASSERT(Token::IsAssignmentOp(op));
-  if (is_compound()) {
-    binary_operation_ =
-        new(isolate->zone()) BinaryOperation(isolate,
-                                             binary_op(),
-                                             target,
-                                             value,
-                                             pos + 1);
-    compound_load_id_ = GetNextId(isolate);
-  }
-}
+      is_monomorphic_(false) { }
 
 
 Token::Value Assignment::binary_op() const {
@@ -197,9 +186,7 @@ ObjectLiteral::Property::Property(Literal* key, Expression* value) {
 
 
 ObjectLiteral::Property::Property(bool is_getter, FunctionLiteral* value) {
-  Isolate* isolate = Isolate::Current();
   emit_store_ = true;
-  key_ = new(isolate->zone()) Literal(isolate, value->name());
   value_ = value;
   kind_ = is_getter ? GETTER : SETTER;
 }
@@ -427,224 +414,11 @@ bool CompareOperation::IsLiteralCompareNull(Expression** expr) {
 // Inlining support
 
 bool Declaration::IsInlineable() const {
-  return proxy()->var()->IsStackAllocated() && fun() == NULL;
+  return proxy()->var()->IsStackAllocated();
 }
 
-
-bool TargetCollector::IsInlineable() const {
-  UNREACHABLE();
-  return false;
-}
-
-
-bool ForInStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool WithStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool SwitchStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool TryStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool TryCatchStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool TryFinallyStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool DebuggerStatement::IsInlineable() const {
-  return false;
-}
-
-
-bool Throw::IsInlineable() const {
-  return exception()->IsInlineable();
-}
-
-
-bool MaterializedLiteral::IsInlineable() const {
-  // TODO(1322): Allow materialized literals.
-  return false;
-}
-
-
-bool FunctionLiteral::IsInlineable() const {
-  // TODO(1322): Allow materialized literals.
-  return false;
-}
-
-
-bool ThisFunction::IsInlineable() const {
-  return true;
-}
-
-
-bool SharedFunctionInfoLiteral::IsInlineable() const {
-  return false;
-}
-
-
-bool ForStatement::IsInlineable() const {
-  return (init() == NULL || init()->IsInlineable())
-      && (cond() == NULL || cond()->IsInlineable())
-      && (next() == NULL || next()->IsInlineable())
-      && body()->IsInlineable();
-}
-
-
-bool WhileStatement::IsInlineable() const {
-  return cond()->IsInlineable()
-      && body()->IsInlineable();
-}
-
-
-bool DoWhileStatement::IsInlineable() const {
-  return cond()->IsInlineable()
-      && body()->IsInlineable();
-}
-
-
-bool ContinueStatement::IsInlineable() const {
-  return true;
-}
-
-
-bool BreakStatement::IsInlineable() const {
-  return true;
-}
-
-
-bool EmptyStatement::IsInlineable() const {
-  return true;
-}
-
-
-bool Literal::IsInlineable() const {
-  return true;
-}
-
-
-bool Block::IsInlineable() const {
-  const int count = statements_.length();
-  for (int i = 0; i < count; ++i) {
-    if (!statements_[i]->IsInlineable()) return false;
-  }
-  return true;
-}
-
-
-bool ExpressionStatement::IsInlineable() const {
-  return expression()->IsInlineable();
-}
-
-
-bool IfStatement::IsInlineable() const {
-  return condition()->IsInlineable()
-      && then_statement()->IsInlineable()
-      && else_statement()->IsInlineable();
-}
-
-
-bool ReturnStatement::IsInlineable() const {
-  return expression()->IsInlineable();
-}
-
-
-bool Conditional::IsInlineable() const {
-  return condition()->IsInlineable() && then_expression()->IsInlineable() &&
-      else_expression()->IsInlineable();
-}
-
-
-bool VariableProxy::IsInlineable() const {
-  return var()->IsUnallocated()
-      || var()->IsStackAllocated()
-      || var()->IsContextSlot();
-}
-
-
-bool Assignment::IsInlineable() const {
-  return target()->IsInlineable() && value()->IsInlineable();
-}
-
-
-bool Property::IsInlineable() const {
-  return obj()->IsInlineable() && key()->IsInlineable();
-}
-
-
-bool Call::IsInlineable() const {
-  if (!expression()->IsInlineable()) return false;
-  const int count = arguments()->length();
-  for (int i = 0; i < count; ++i) {
-    if (!arguments()->at(i)->IsInlineable()) return false;
-  }
-  return true;
-}
-
-
-bool CallNew::IsInlineable() const {
-  if (!expression()->IsInlineable()) return false;
-  const int count = arguments()->length();
-  for (int i = 0; i < count; ++i) {
-    if (!arguments()->at(i)->IsInlineable()) return false;
-  }
-  return true;
-}
-
-
-bool CallRuntime::IsInlineable() const {
-  // Don't try to inline JS runtime calls because we don't (currently) even
-  // optimize them.
-  if (is_jsruntime()) return false;
-  // Don't inline the %_ArgumentsLength or %_Arguments because their
-  // implementation will not work.  There is no stack frame to get them
-  // from.
-  if (function()->intrinsic_type == Runtime::INLINE &&
-      (name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
-       name()->IsEqualTo(CStrVector("_Arguments")))) {
-    return false;
-  }
-  const int count = arguments()->length();
-  for (int i = 0; i < count; ++i) {
-    if (!arguments()->at(i)->IsInlineable()) return false;
-  }
-  return true;
-}
-
-
-bool UnaryOperation::IsInlineable() const {
-  return expression()->IsInlineable();
-}
-
-
-bool BinaryOperation::IsInlineable() const {
-  return left()->IsInlineable() && right()->IsInlineable();
-}
-
-
-bool CompareOperation::IsInlineable() const {
-  return left()->IsInlineable() && right()->IsInlineable();
-}
-
-
-bool CountOperation::IsInlineable() const {
-  return expression()->IsInlineable();
+bool VariableDeclaration::IsInlineable() const {
+  return Declaration::IsInlineable() && fun() == NULL;
 }
 
 
@@ -1212,6 +986,171 @@ CaseClause::CaseClause(Isolate* isolate,
       compare_type_(NONE),
       compare_id_(AstNode::GetNextId(isolate)),
       entry_id_(AstNode::GetNextId(isolate)) {
+}
+
+
+#define INCREASE_NODE_COUNT(NodeType) \
+  void AstConstructionVisitor::Visit##NodeType(NodeType* node) { \
+    increase_node_count(); \
+  }
+
+INCREASE_NODE_COUNT(VariableDeclaration)
+INCREASE_NODE_COUNT(ModuleDeclaration)
+INCREASE_NODE_COUNT(ModuleLiteral)
+INCREASE_NODE_COUNT(ModuleVariable)
+INCREASE_NODE_COUNT(ModulePath)
+INCREASE_NODE_COUNT(ModuleUrl)
+INCREASE_NODE_COUNT(Block)
+INCREASE_NODE_COUNT(ExpressionStatement)
+INCREASE_NODE_COUNT(EmptyStatement)
+INCREASE_NODE_COUNT(IfStatement)
+INCREASE_NODE_COUNT(ContinueStatement)
+INCREASE_NODE_COUNT(BreakStatement)
+INCREASE_NODE_COUNT(ReturnStatement)
+INCREASE_NODE_COUNT(Conditional)
+INCREASE_NODE_COUNT(Literal)
+INCREASE_NODE_COUNT(Assignment)
+INCREASE_NODE_COUNT(Throw)
+INCREASE_NODE_COUNT(Property)
+INCREASE_NODE_COUNT(UnaryOperation)
+INCREASE_NODE_COUNT(CountOperation)
+INCREASE_NODE_COUNT(BinaryOperation)
+INCREASE_NODE_COUNT(CompareOperation)
+INCREASE_NODE_COUNT(ThisFunction)
+
+#undef INCREASE_NODE_COUNT
+
+
+void AstConstructionVisitor::VisitWithStatement(WithStatement* node) {
+  increase_node_count();
+  add_flag(kDontOptimize);
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitSwitchStatement(SwitchStatement* node) {
+  increase_node_count();
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitDoWhileStatement(DoWhileStatement* node) {
+  increase_node_count();
+  add_flag(kDontSelfOptimize);
+}
+
+
+void AstConstructionVisitor::VisitWhileStatement(WhileStatement* node) {
+  increase_node_count();
+  add_flag(kDontSelfOptimize);
+}
+
+
+void AstConstructionVisitor::VisitForStatement(ForStatement* node) {
+  increase_node_count();
+  add_flag(kDontSelfOptimize);
+}
+
+
+void AstConstructionVisitor::VisitForInStatement(ForInStatement* node) {
+  increase_node_count();
+  add_flag(kDontOptimize);
+  add_flag(kDontInline);
+  add_flag(kDontSelfOptimize);
+}
+
+
+void AstConstructionVisitor::VisitTryCatchStatement(TryCatchStatement* node) {
+  increase_node_count();
+  add_flag(kDontOptimize);
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitTryFinallyStatement(
+    TryFinallyStatement* node) {
+  increase_node_count();
+  add_flag(kDontOptimize);
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitDebuggerStatement(DebuggerStatement* node) {
+  increase_node_count();
+  add_flag(kDontOptimize);
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitFunctionLiteral(FunctionLiteral* node) {
+  increase_node_count();
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitSharedFunctionInfoLiteral(
+    SharedFunctionInfoLiteral* node) {
+  increase_node_count();
+  add_flag(kDontOptimize);
+  add_flag(kDontInline);
+}
+
+
+void AstConstructionVisitor::VisitVariableProxy(VariableProxy* node) {
+  increase_node_count();
+  // In theory, we'd have to add:
+  // if(node->var()->IsLookupSlot()) { add_flag(kDontInline); }
+  // However, node->var() is usually not bound yet at VariableProxy creation
+  // time, and LOOKUP variables only result from constructs that cannot
+  // be inlined anyway.
+}
+
+
+void AstConstructionVisitor::VisitRegExpLiteral(RegExpLiteral* node) {
+  increase_node_count();
+  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
+}
+
+
+void AstConstructionVisitor::VisitObjectLiteral(ObjectLiteral* node) {
+  increase_node_count();
+  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
+}
+
+
+void AstConstructionVisitor::VisitArrayLiteral(ArrayLiteral* node) {
+  increase_node_count();
+  add_flag(kDontInline);  // TODO(1322): Allow materialized literals.
+}
+
+
+void AstConstructionVisitor::VisitCall(Call* node) {
+  increase_node_count();
+  add_flag(kDontSelfOptimize);
+}
+
+
+void AstConstructionVisitor::VisitCallNew(CallNew* node) {
+  increase_node_count();
+  add_flag(kDontSelfOptimize);
+}
+
+
+void AstConstructionVisitor::VisitCallRuntime(CallRuntime* node) {
+  increase_node_count();
+  add_flag(kDontSelfOptimize);
+  if (node->is_jsruntime()) {
+    // Don't try to inline JS runtime calls because we don't (currently) even
+    // optimize them.
+    add_flag(kDontInline);
+  } else if (node->function()->intrinsic_type == Runtime::INLINE &&
+      (node->name()->IsEqualTo(CStrVector("_ArgumentsLength")) ||
+       node->name()->IsEqualTo(CStrVector("_Arguments")))) {
+    // Don't inline the %_ArgumentsLength or %_Arguments because their
+    // implementation will not work.  There is no stack frame to get them
+    // from.
+    add_flag(kDontInline);
+  }
 }
 
 } }  // namespace v8::internal

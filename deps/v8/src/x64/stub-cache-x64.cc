@@ -1331,24 +1331,24 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   } else {
     Label call_builtin;
 
-    // Get the elements array of the object.
-    __ movq(rbx, FieldOperand(rdx, JSArray::kElementsOffset));
-
-    // Check that the elements are in fast mode and writable.
-    __ Cmp(FieldOperand(rbx, HeapObject::kMapOffset),
-           factory()->fixed_array_map());
-    __ j(not_equal, &call_builtin);
-
     if (argc == 1) {  // Otherwise fall through to call builtin.
       Label attempt_to_grow_elements, with_write_barrier;
+
+      // Get the elements array of the object.
+      __ movq(rdi, FieldOperand(rdx, JSArray::kElementsOffset));
+
+      // Check that the elements are in fast mode and writable.
+      __ Cmp(FieldOperand(rdi, HeapObject::kMapOffset),
+             factory()->fixed_array_map());
+      __ j(not_equal, &call_builtin);
 
       // Get the array's length into rax and calculate new length.
       __ SmiToInteger32(rax, FieldOperand(rdx, JSArray::kLengthOffset));
       STATIC_ASSERT(FixedArray::kMaxLength < Smi::kMaxValue);
       __ addl(rax, Immediate(argc));
 
-      // Get the element's length into rcx.
-      __ SmiToInteger32(rcx, FieldOperand(rbx, FixedArray::kLengthOffset));
+      // Get the elements' length into rcx.
+      __ SmiToInteger32(rcx, FieldOperand(rdi, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
       __ cmpl(rax, rcx);
@@ -1361,30 +1361,52 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Save new length.
       __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
-      // Push the element.
-      __ lea(rdx, FieldOperand(rbx,
-                               rax, times_pointer_size,
-                               FixedArray::kHeaderSize - argc * kPointerSize));
-      __ movq(Operand(rdx, 0), rcx);
+      // Store the value.
+      __ movq(FieldOperand(rdi,
+                           rax,
+                           times_pointer_size,
+                           FixedArray::kHeaderSize - argc * kPointerSize),
+              rcx);
 
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&with_write_barrier);
 
-      __ movq(rdi, FieldOperand(rdx, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(rdi, &call_builtin);
+      __ movq(rbx, FieldOperand(rdx, HeapObject::kMapOffset));
+
+      if (FLAG_smi_only_arrays  && !FLAG_trace_elements_transitions) {
+        Label fast_object, not_fast_object;
+        __ CheckFastObjectElements(rbx, &not_fast_object, Label::kNear);
+        __ jmp(&fast_object);
+        // In case of fast smi-only, convert to fast object, otherwise bail out.
+        __ bind(&not_fast_object);
+        __ CheckFastSmiOnlyElements(rbx, &call_builtin);
+        // rdx: receiver
+        // rbx: map
+        __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                               FAST_ELEMENTS,
+                                               rbx,
+                                               r10,
+                                               &call_builtin);
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
+        __ bind(&fast_object);
+      } else {
+        __ CheckFastObjectElements(rbx, &call_builtin);
+      }
+
+      __ CheckFastObjectElements(rbx, &call_builtin);
 
       // Save new length.
       __ Integer32ToSmiField(FieldOperand(rdx, JSArray::kLengthOffset), rax);
 
-      // Push the element.
-      __ lea(rdx, FieldOperand(rbx,
+      // Store the value.
+      __ lea(rdx, FieldOperand(rdi,
                                rax, times_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ movq(Operand(rdx, 0), rcx);
 
-      __ RecordWrite(rbx, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+      __ RecordWrite(rdi, rdx, rcx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                      OMIT_SMI_CHECK);
 
       __ Integer32ToSmi(rax, rax);  // Return new length as smi.
@@ -1395,11 +1417,11 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ jmp(&call_builtin);
       }
 
-      __ movq(rdi, Operand(rsp, argc * kPointerSize));
+      __ movq(rbx, Operand(rsp, argc * kPointerSize));
       // Growing elements that are SMI-only requires special handling in case
       // the new element is non-Smi. For now, delegate to the builtin.
       Label no_fast_elements_check;
-      __ JumpIfSmi(rdi, &no_fast_elements_check);
+      __ JumpIfSmi(rbx, &no_fast_elements_check);
       __ movq(rcx, FieldOperand(rdx, HeapObject::kMapOffset));
       __ CheckFastObjectElements(rcx, &call_builtin, Label::kFar);
       __ bind(&no_fast_elements_check);
@@ -1414,7 +1436,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Load(rcx, new_space_allocation_top);
 
       // Check if it's the end of elements.
-      __ lea(rdx, FieldOperand(rbx,
+      __ lea(rdx, FieldOperand(rdi,
                                rax, times_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ cmpq(rdx, rcx);
@@ -1429,7 +1451,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ Store(new_space_allocation_top, rcx);
 
       // Push the argument...
-      __ movq(Operand(rdx, 0), rdi);
+      __ movq(Operand(rdx, 0), rbx);
       // ... and fill the rest with holes.
       __ LoadRoot(kScratchRegister, Heap::kTheHoleValueRootIndex);
       for (int i = 1; i < kAllocationDelta; i++) {
@@ -1441,13 +1463,13 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // tell the incremental marker to rescan the object that we just grew.  We
       // don't need to worry about the holes because they are in old space and
       // already marked black.
-      __ RecordWrite(rbx, rdx, rdi, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
+      __ RecordWrite(rdi, rdx, rbx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
 
       // Restore receiver to rdx as finish sequence assumes it's here.
       __ movq(rdx, Operand(rsp, (argc + 1) * kPointerSize));
 
       // Increment element's and array's sizes.
-      __ SmiAddConstant(FieldOperand(rbx, FixedArray::kLengthOffset),
+      __ SmiAddConstant(FieldOperand(rdi, FixedArray::kLengthOffset),
                         Smi::FromInt(kAllocationDelta));
 
       // Make new length a smi before returning it.

@@ -255,7 +255,9 @@ class V8EXPORT HeapGraphNode {
     kClosure = 5,     // Function closure.
     kRegExp = 6,      // RegExp.
     kHeapNumber = 7,  // Number stored in the heap.
-    kNative = 8       // Native object (not from V8 heap).
+    kNative = 8,      // Native object (not from V8 heap).
+    kSynthetic = 9    // Synthetic object, usualy used for grouping
+                      // snapshot items together.
   };
 
   /** Returns node type (see HeapGraphNode::Type). */

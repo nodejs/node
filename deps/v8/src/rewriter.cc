@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,11 +42,17 @@ class Processor: public AstVisitor {
       : result_(result),
         result_assigned_(false),
         is_set_(false),
-        in_try_(false) {
-  }
+        in_try_(false),
+        factory_(isolate()) { }
+
+  virtual ~Processor() { }
 
   void Process(ZoneList<Statement*>* statements);
   bool result_assigned() const { return result_assigned_; }
+
+  AstNodeFactory<AstNullVisitor>* factory() {
+    return &factory_;
+  }
 
  private:
   Variable* result_;
@@ -64,15 +70,13 @@ class Processor: public AstVisitor {
   bool is_set_;
   bool in_try_;
 
+  AstNodeFactory<AstNullVisitor> factory_;
+
   Expression* SetResult(Expression* value) {
     result_assigned_ = true;
-    Zone* zone = isolate()->zone();
-    VariableProxy* result_proxy = new(zone) VariableProxy(isolate(), result_);
-    return new(zone) Assignment(isolate(),
-                                Token::ASSIGN,
-                                result_proxy,
-                                value,
-                                RelocInfo::kNoPosition);
+    VariableProxy* result_proxy = factory()->NewVariableProxy(result_);
+    return factory()->NewAssignment(
+        Token::ASSIGN, result_proxy, value, RelocInfo::kNoPosition);
   }
 
   // Node visitors.
@@ -205,7 +209,12 @@ void Processor::VisitWithStatement(WithStatement* node) {
 
 
 // Do nothing:
-void Processor::VisitDeclaration(Declaration* node) {}
+void Processor::VisitVariableDeclaration(VariableDeclaration* node) {}
+void Processor::VisitModuleDeclaration(ModuleDeclaration* node) {}
+void Processor::VisitModuleLiteral(ModuleLiteral* node) {}
+void Processor::VisitModuleVariable(ModuleVariable* node) {}
+void Processor::VisitModulePath(ModulePath* node) {}
+void Processor::VisitModuleUrl(ModuleUrl* node) {}
 void Processor::VisitEmptyStatement(EmptyStatement* node) {}
 void Processor::VisitReturnStatement(ReturnStatement* node) {}
 void Processor::VisitDebuggerStatement(DebuggerStatement* node) {}
@@ -237,8 +246,6 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
 
     if (processor.result_assigned()) {
       ASSERT(function->end_position() != RelocInfo::kNoPosition);
-      Isolate* isolate = info->isolate();
-      Zone* zone = isolate->zone();
       // Set the position of the assignment statement one character past the
       // source code, such that it definitely is not in the source code range
       // of an immediate inner scope. For example in
@@ -246,10 +253,11 @@ bool Rewriter::Rewrite(CompilationInfo* info) {
       // the end position of the function generated for executing the eval code
       // coincides with the end of the with scope which is the position of '1'.
       int position = function->end_position();
-      VariableProxy* result_proxy = new(zone) VariableProxy(
-          isolate, result->name(), false, position);
+      VariableProxy* result_proxy = processor.factory()->NewVariableProxy(
+          result->name(), false, position);
       result_proxy->BindTo(result);
-      Statement* result_statement = new(zone) ReturnStatement(result_proxy);
+      Statement* result_statement =
+          processor.factory()->NewReturnStatement(result_proxy);
       result_statement->set_statement_pos(position);
       body->Add(result_statement);
     }

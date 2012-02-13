@@ -1245,6 +1245,7 @@ void Assembler::and_(Register rd, Register rs, Register rt) {
 
 
 void Assembler::andi(Register rt, Register rs, int32_t j) {
+  ASSERT(is_uint16(j));
   GenInstrImmediate(ANDI, rs, rt, j);
 }
 
@@ -1255,6 +1256,7 @@ void Assembler::or_(Register rd, Register rs, Register rt) {
 
 
 void Assembler::ori(Register rt, Register rs, int32_t j) {
+  ASSERT(is_uint16(j));
   GenInstrImmediate(ORI, rs, rt, j);
 }
 
@@ -1265,6 +1267,7 @@ void Assembler::xor_(Register rd, Register rs, Register rt) {
 
 
 void Assembler::xori(Register rt, Register rs, int32_t j) {
+  ASSERT(is_uint16(j));
   GenInstrImmediate(XORI, rs, rt, j);
 }
 
@@ -1445,6 +1448,7 @@ void Assembler::swr(Register rd, const MemOperand& rs) {
 
 
 void Assembler::lui(Register rd, int32_t j) {
+  ASSERT(is_uint16(j));
   GenInstrImmediate(LUI, zero_reg, rd, j);
 }
 

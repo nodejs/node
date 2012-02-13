@@ -1131,6 +1131,7 @@ const char* HeapEntry::TypeAsString() {
     case kRegExp: return "/regexp/";
     case kHeapNumber: return "/number/";
     case kNative: return "/native/";
+    case kSynthetic: return "/synthetic/";
     default: return "???";
   }
 }
@@ -2698,6 +2699,45 @@ class GlobalHandlesExtractor : public ObjectVisitor {
   NativeObjectsExplorer* explorer_;
 };
 
+
+class BasicHeapEntriesAllocator : public HeapEntriesAllocator {
+ public:
+  BasicHeapEntriesAllocator(
+      HeapSnapshot* snapshot,
+      HeapEntry::Type entries_type)
+    : snapshot_(snapshot),
+      collection_(snapshot_->collection()),
+      entries_type_(entries_type) {
+  }
+  virtual HeapEntry* AllocateEntry(
+      HeapThing ptr, int children_count, int retainers_count);
+ private:
+  HeapSnapshot* snapshot_;
+  HeapSnapshotsCollection* collection_;
+  HeapEntry::Type entries_type_;
+};
+
+
+HeapEntry* BasicHeapEntriesAllocator::AllocateEntry(
+    HeapThing ptr, int children_count, int retainers_count) {
+  v8::RetainedObjectInfo* info = reinterpret_cast<v8::RetainedObjectInfo*>(ptr);
+  intptr_t elements = info->GetElementCount();
+  intptr_t size = info->GetSizeInBytes();
+  return snapshot_->AddEntry(
+      entries_type_,
+      elements != -1 ?
+          collection_->names()->GetFormatted(
+              "%s / %" V8_PTR_PREFIX "d entries",
+              info->GetLabel(),
+              info->GetElementCount()) :
+          collection_->names()->GetCopy(info->GetLabel()),
+      HeapObjectsMap::GenerateId(info),
+      size != -1 ? static_cast<int>(size) : 0,
+      children_count,
+      retainers_count);
+}
+
+
 NativeObjectsExplorer::NativeObjectsExplorer(
     HeapSnapshot* snapshot, SnapshottingProgressReportingInterface* progress)
     : snapshot_(snapshot),
@@ -2707,6 +2747,10 @@ NativeObjectsExplorer::NativeObjectsExplorer(
       objects_by_info_(RetainedInfosMatch),
       native_groups_(StringsMatch),
       filler_(NULL) {
+  synthetic_entries_allocator_ =
+      new BasicHeapEntriesAllocator(snapshot, HeapEntry::kSynthetic);
+  native_entries_allocator_ =
+      new BasicHeapEntriesAllocator(snapshot, HeapEntry::kNative);
 }
 
 
@@ -2728,27 +2772,8 @@ NativeObjectsExplorer::~NativeObjectsExplorer() {
         reinterpret_cast<v8::RetainedObjectInfo*>(p->value);
     info->Dispose();
   }
-}
-
-
-HeapEntry* NativeObjectsExplorer::AllocateEntry(
-    HeapThing ptr, int children_count, int retainers_count) {
-  v8::RetainedObjectInfo* info =
-      reinterpret_cast<v8::RetainedObjectInfo*>(ptr);
-  intptr_t elements = info->GetElementCount();
-  intptr_t size = info->GetSizeInBytes();
-  return snapshot_->AddEntry(
-      HeapEntry::kNative,
-      elements != -1 ?
-          collection_->names()->GetFormatted(
-              "%s / %" V8_PTR_PREFIX "d entries",
-              info->GetLabel(),
-              info->GetElementCount()) :
-          collection_->names()->GetCopy(info->GetLabel()),
-      HeapObjectsMap::GenerateId(info),
-      size != -1 ? static_cast<int>(size) : 0,
-      children_count,
-      retainers_count);
+  delete synthetic_entries_allocator_;
+  delete native_entries_allocator_;
 }
 
 
@@ -2790,12 +2815,14 @@ void NativeObjectsExplorer::FillImplicitReferences() {
   for (int i = 0; i < groups->length(); ++i) {
     ImplicitRefGroup* group = groups->at(i);
     HeapObject* parent = *group->parent_;
-    HeapEntry* parent_entry = filler_->FindOrAddEntry(parent, this);
+    HeapEntry* parent_entry =
+        filler_->FindOrAddEntry(parent, native_entries_allocator_);
     ASSERT(parent_entry != NULL);
     Object*** children = group->children_;
     for (size_t j = 0; j < group->length_; ++j) {
       Object* child = *children[j];
-      HeapEntry* child_entry = filler_->FindOrAddEntry(child, this);
+      HeapEntry* child_entry =
+          filler_->FindOrAddEntry(child, native_entries_allocator_);
       filler_->SetNamedReference(
           HeapGraphEdge::kInternal,
           parent, parent_entry,
@@ -2886,11 +2913,13 @@ NativeGroupRetainedObjectInfo* NativeObjectsExplorer::FindOrAddGroupInfo(
 
 void NativeObjectsExplorer::SetNativeRootReference(
     v8::RetainedObjectInfo* info) {
-  HeapEntry* child_entry = filler_->FindOrAddEntry(info, this);
+  HeapEntry* child_entry =
+      filler_->FindOrAddEntry(info, native_entries_allocator_);
   ASSERT(child_entry != NULL);
   NativeGroupRetainedObjectInfo* group_info =
       FindOrAddGroupInfo(info->GetGroupLabel());
-  HeapEntry* group_entry = filler_->FindOrAddEntry(group_info, this);
+  HeapEntry* group_entry =
+      filler_->FindOrAddEntry(group_info, synthetic_entries_allocator_);
   filler_->SetNamedAutoIndexReference(
       HeapGraphEdge::kInternal,
       group_info, group_entry,
@@ -2902,7 +2931,8 @@ void NativeObjectsExplorer::SetWrapperNativeReferences(
     HeapObject* wrapper, v8::RetainedObjectInfo* info) {
   HeapEntry* wrapper_entry = filler_->FindEntry(wrapper);
   ASSERT(wrapper_entry != NULL);
-  HeapEntry* info_entry = filler_->FindOrAddEntry(info, this);
+  HeapEntry* info_entry =
+      filler_->FindOrAddEntry(info, native_entries_allocator_);
   ASSERT(info_entry != NULL);
   filler_->SetNamedReference(HeapGraphEdge::kInternal,
                              wrapper, wrapper_entry,
@@ -2920,7 +2950,8 @@ void NativeObjectsExplorer::SetRootNativeRootsReference() {
        entry = native_groups_.Next(entry)) {
     NativeGroupRetainedObjectInfo* group_info =
         static_cast<NativeGroupRetainedObjectInfo*>(entry->value);
-    HeapEntry* group_entry = filler_->FindOrAddEntry(group_info, this);
+    HeapEntry* group_entry =
+        filler_->FindOrAddEntry(group_info, native_entries_allocator_);
     ASSERT(group_entry != NULL);
     filler_->SetIndexedAutoIndexReference(
         HeapGraphEdge::kElement,
@@ -3547,7 +3578,8 @@ void HeapSnapshotJSONSerializer::SerializeNodes() {
             "," JSON_S("closure")
             "," JSON_S("regexp")
             "," JSON_S("number")
-            "," JSON_S("native"))
+            "," JSON_S("native")
+            "," JSON_S("synthetic"))
         "," JSON_S("string")
         "," JSON_S("number")
         "," JSON_S("number")

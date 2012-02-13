@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -435,9 +435,8 @@ class Parser {
          v8::Extension* extension,
          ScriptDataImpl* pre_data);
   virtual ~Parser() {
-    if (reusable_preparser_ != NULL) {
-      delete reusable_preparser_;
-    }
+    delete reusable_preparser_;
+    reusable_preparser_ = NULL;
   }
 
   // Returns NULL if parsing failed.
@@ -477,7 +476,69 @@ class Parser {
   };
 
   class BlockState;
-  class FunctionState;
+
+  class FunctionState BASE_EMBEDDED {
+   public:
+    FunctionState(Parser* parser,
+                  Scope* scope,
+                  Isolate* isolate);
+    ~FunctionState();
+
+    int NextMaterializedLiteralIndex() {
+      return next_materialized_literal_index_++;
+    }
+    int materialized_literal_count() {
+      return next_materialized_literal_index_ - JSFunction::kLiteralsPrefixSize;
+    }
+
+    int NextHandlerIndex() { return next_handler_index_++; }
+    int handler_count() { return next_handler_index_; }
+
+    void SetThisPropertyAssignmentInfo(
+        bool only_simple_this_property_assignments,
+        Handle<FixedArray> this_property_assignments) {
+      only_simple_this_property_assignments_ =
+          only_simple_this_property_assignments;
+      this_property_assignments_ = this_property_assignments;
+    }
+    bool only_simple_this_property_assignments() {
+      return only_simple_this_property_assignments_;
+    }
+    Handle<FixedArray> this_property_assignments() {
+      return this_property_assignments_;
+    }
+
+    void AddProperty() { expected_property_count_++; }
+    int expected_property_count() { return expected_property_count_; }
+
+    AstNodeFactory<AstConstructionVisitor>* factory() { return &factory_; }
+
+   private:
+    // Used to assign an index to each literal that needs materialization in
+    // the function.  Includes regexp literals, and boilerplate for object and
+    // array literals.
+    int next_materialized_literal_index_;
+
+    // Used to assign a per-function index to try and catch handlers.
+    int next_handler_index_;
+
+    // Properties count estimation.
+    int expected_property_count_;
+
+    // Keeps track of assignments to properties of this. Used for
+    // optimizing constructors.
+    bool only_simple_this_property_assignments_;
+    Handle<FixedArray> this_property_assignments_;
+
+    Parser* parser_;
+    FunctionState* outer_function_state_;
+    Scope* outer_scope_;
+    int saved_ast_node_id_;
+    AstNodeFactory<AstConstructionVisitor> factory_;
+  };
+
+
+
 
   FunctionLiteral* ParseLazy(CompilationInfo* info,
                              UC16CharacterStream* source,
@@ -651,7 +712,6 @@ class Parser {
   // Get odd-ball literals.
   Literal* GetLiteralUndefined();
   Literal* GetLiteralTheHole();
-  Literal* GetLiteralNumber(double value);
 
   Handle<String> ParseIdentifier(bool* ok);
   Handle<String> ParseIdentifierOrStrictReservedWord(
@@ -699,30 +759,11 @@ class Parser {
 
   // Factory methods.
 
-  Statement* EmptyStatement() {
-    static v8::internal::EmptyStatement* empty =
-        ::new v8::internal::EmptyStatement();
-    return empty;
-  }
-
   Scope* NewScope(Scope* parent, ScopeType type);
 
   Handle<String> LookupSymbol(int symbol_id);
 
   Handle<String> LookupCachedSymbol(int symbol_id);
-
-  Expression* NewCall(Expression* expression,
-                      ZoneList<Expression*>* arguments,
-                      int pos) {
-    return new(zone()) Call(isolate(), expression, arguments, pos);
-  }
-
-  inline Literal* NewLiteral(Handle<Object> handle) {
-    return new(zone()) Literal(isolate(), handle);
-  }
-
-  // Create a number literal.
-  Literal* NewNumberLiteral(double value);
 
   // Generate AST node that throw a ReferenceError with the given type.
   Expression* NewThrowReferenceError(Handle<String> type);
@@ -746,6 +787,10 @@ class Parser {
   preparser::PreParser::PreParseResult LazyParseFunctionLiteral(
        SingletonLogger* logger);
 
+  AstNodeFactory<AstConstructionVisitor>* factory() {
+    return current_function_state_->factory();
+  }
+
   Isolate* isolate_;
   ZoneList<Handle<String> > symbol_cache_;
 
@@ -762,6 +807,7 @@ class Parser {
   Mode mode_;
   bool allow_natives_syntax_;
   bool allow_lazy_;
+  bool allow_modules_;
   bool stack_overflow_;
   // If true, the next (and immediately following) function literal is
   // preceded by a parenthesis.

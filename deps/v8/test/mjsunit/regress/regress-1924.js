@@ -25,35 +25,18 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-#include <stdlib.h>
+// For http://code.google.com/p/v8/issues/detail?id=1924
 
-#include "v8.h"
+a: break a;
+a: b: break a;
+a: b: break b;
+assertThrows("a: break a a", SyntaxError)
+assertThrows("a: break a 1", SyntaxError)
+assertThrows("a: break a ''", SyntaxError)
+assertThrows("a: break a var b", SyntaxError)
+assertThrows("a: break a {}", SyntaxError)
 
-#include "ast.h"
-#include "cctest.h"
-
-using namespace v8::internal;
-
-TEST(List) {
-  v8::internal::V8::Initialize(NULL);
-  List<AstNode*>* list = new List<AstNode*>(0);
-  CHECK_EQ(0, list->length());
-
-  ZoneScope zone_scope(Isolate::Current(), DELETE_ON_EXIT);
-  AstNodeFactory<AstNullVisitor> factory(Isolate::Current());
-  AstNode* node = factory.NewEmptyStatement();
-  list->Add(node);
-  CHECK_EQ(1, list->length());
-  CHECK_EQ(node, list->at(0));
-  CHECK_EQ(node, list->last());
-
-  const int kElements = 100;
-  for (int i = 0; i < kElements; i++) {
-    list->Add(node);
-  }
-  CHECK_EQ(1 + kElements, list->length());
-
-  list->Clear();
-  CHECK_EQ(0, list->length());
-  delete list;
-}
+a: if (0) break a;
+b: if (0) {break b;} else {}
+c: if (0) break c; else {}
+d: if (0) break d; else break d;

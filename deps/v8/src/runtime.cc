@@ -165,7 +165,7 @@ MUST_USE_RESULT static MaybeObject* DeepCopyBoilerplate(Isolate* isolate,
     }
   } else {
     { MaybeObject* maybe_result =
-          heap->AllocateFixedArray(copy->NumberOfLocalProperties(NONE));
+          heap->AllocateFixedArray(copy->NumberOfLocalProperties());
       if (!maybe_result->ToObject(&result)) return maybe_result;
     }
     FixedArray* names = FixedArray::cast(result);
@@ -273,45 +273,43 @@ static Handle<Map> ComputeObjectLiteralMap(
   Isolate* isolate = context->GetIsolate();
   int properties_length = constant_properties->length();
   int number_of_properties = properties_length / 2;
-  if (FLAG_canonicalize_object_literal_maps) {
-    // Check that there are only symbols and array indices among keys.
-    int number_of_symbol_keys = 0;
-    for (int p = 0; p != properties_length; p += 2) {
-      Object* key = constant_properties->get(p);
-      uint32_t element_index = 0;
-      if (key->IsSymbol()) {
-        number_of_symbol_keys++;
-      } else if (key->ToArrayIndex(&element_index)) {
-        // An index key does not require space in the property backing store.
-        number_of_properties--;
-      } else {
-        // Bail out as a non-symbol non-index key makes caching impossible.
-        // ASSERT to make sure that the if condition after the loop is false.
-        ASSERT(number_of_symbol_keys != number_of_properties);
-        break;
-      }
+  // Check that there are only symbols and array indices among keys.
+  int number_of_symbol_keys = 0;
+  for (int p = 0; p != properties_length; p += 2) {
+    Object* key = constant_properties->get(p);
+    uint32_t element_index = 0;
+    if (key->IsSymbol()) {
+      number_of_symbol_keys++;
+    } else if (key->ToArrayIndex(&element_index)) {
+      // An index key does not require space in the property backing store.
+      number_of_properties--;
+    } else {
+      // Bail out as a non-symbol non-index key makes caching impossible.
+      // ASSERT to make sure that the if condition after the loop is false.
+      ASSERT(number_of_symbol_keys != number_of_properties);
+      break;
     }
-    // If we only have symbols and array indices among keys then we can
-    // use the map cache in the global context.
-    const int kMaxKeys = 10;
-    if ((number_of_symbol_keys == number_of_properties) &&
-        (number_of_symbol_keys < kMaxKeys)) {
-      // Create the fixed array with the key.
-      Handle<FixedArray> keys =
-          isolate->factory()->NewFixedArray(number_of_symbol_keys);
-      if (number_of_symbol_keys > 0) {
-        int index = 0;
-        for (int p = 0; p < properties_length; p += 2) {
-          Object* key = constant_properties->get(p);
-          if (key->IsSymbol()) {
-            keys->set(index++, key);
-          }
+  }
+  // If we only have symbols and array indices among keys then we can
+  // use the map cache in the global context.
+  const int kMaxKeys = 10;
+  if ((number_of_symbol_keys == number_of_properties) &&
+      (number_of_symbol_keys < kMaxKeys)) {
+    // Create the fixed array with the key.
+    Handle<FixedArray> keys =
+        isolate->factory()->NewFixedArray(number_of_symbol_keys);
+    if (number_of_symbol_keys > 0) {
+      int index = 0;
+      for (int p = 0; p < properties_length; p += 2) {
+        Object* key = constant_properties->get(p);
+        if (key->IsSymbol()) {
+          keys->set(index++, key);
         }
-        ASSERT(index == number_of_symbol_keys);
       }
-      *is_result_from_cache = true;
-      return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
+      ASSERT(index == number_of_symbol_keys);
     }
+    *is_result_from_cache = true;
+    return isolate->factory()->ObjectLiteralMapFromCache(context, keys);
   }
   *is_result_from_cache = false;
   return isolate->factory()->CopyMap(
@@ -2003,11 +2001,12 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetScript) {
 
 
 RUNTIME_FUNCTION(MaybeObject*, Runtime_FunctionGetSourceCode) {
-  NoHandleAllocation ha;
+  HandleScope scope(isolate);
   ASSERT(args.length() == 1);
 
-  CONVERT_CHECKED(JSFunction, f, args[0]);
-  return f->shared()->GetSourceCode();
+  CONVERT_ARG_CHECKED(JSFunction, f, 0);
+  Handle<SharedFunctionInfo> shared(f->shared());
+  return *shared->GetSourceCode();
 }
 
 
@@ -5010,7 +5009,7 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_GetLocalPropertyNames) {
       return *isolate->factory()->NewJSArray(0);
     }
     int n;
-    n = jsproto->NumberOfLocalProperties(static_cast<PropertyAttributes>(NONE));
+    n = jsproto->NumberOfLocalProperties();
     local_property_count[i] = n;
     total_property_count += n;
     if (i < length - 1) {
@@ -8418,6 +8417,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_LazyRecompile) {
   HandleScope scope(isolate);
   ASSERT(args.length() == 1);
   Handle<JSFunction> function = args.at<JSFunction>(0);
+
+  function->shared()->set_profiler_ticks(0);
 
   // If the function is not compiled ignore the lazy
   // recompilation. This can happen if the debugger is activated and
@@ -13263,9 +13264,10 @@ static bool ShowFrameInStackTrace(StackFrame* raw_frame,
 // element segments each containing a receiver, function, code and
 // native code offset.
 RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
-  ASSERT_EQ(args.length(), 2);
-  Handle<Object> caller = args.at<Object>(0);
-  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[1]);
+  ASSERT_EQ(args.length(), 3);
+  CONVERT_ARG_CHECKED(JSObject, error_object, 0);
+  Handle<Object> caller = args.at<Object>(1);
+  CONVERT_NUMBER_CHECKED(int32_t, limit, Int32, args[2]);
 
   HandleScope scope(isolate);
   Factory* factory = isolate->factory();
@@ -13315,6 +13317,8 @@ RUNTIME_FUNCTION(MaybeObject*, Runtime_CollectStackTrace) {
     iter.Advance();
   }
   Handle<JSArray> result = factory->NewJSArrayWithElements(elements);
+  // Capture and attach a more detailed stack trace if necessary.
+  isolate->CaptureAndSetCurrentStackTraceFor(error_object);
   result->set_length(Smi::FromInt(cursor));
   return *result;
 }

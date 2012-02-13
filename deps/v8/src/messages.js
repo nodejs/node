@@ -1078,9 +1078,9 @@ function captureStackTrace(obj, cons_opt) {
   if (stackTraceLimit < 0 || stackTraceLimit > 10000) {
     stackTraceLimit = 10000;
   }
-  var raw_stack = %CollectStackTrace(cons_opt
-                                     ? cons_opt
-                                     : captureStackTrace, stackTraceLimit);
+  var raw_stack = %CollectStackTrace(obj,
+                                     cons_opt ? cons_opt : captureStackTrace,
+                                     stackTraceLimit);
   DefineOneShotAccessor(obj, 'stack', function (obj) {
     return FormatRawStackTrace(obj, raw_stack);
   });

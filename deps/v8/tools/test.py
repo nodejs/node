@@ -711,7 +711,7 @@ class Context(object):
   def GetTimeout(self, testcase, mode):
     result = self.timeout * TIMEOUT_SCALEFACTOR[mode]
     if '--stress-opt' in self.GetVmFlags(testcase, mode):
-      return result * 2
+      return result * 4
     else:
       return result
 

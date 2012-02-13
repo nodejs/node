@@ -774,7 +774,7 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   }
 
   const v8::HeapGraphNode* native_group_aaa = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kNative, "aaa-group");
+      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "aaa-group");
   CHECK_NE(NULL, native_group_aaa);
   CHECK_EQ(1, native_group_aaa->GetChildrenCount());
   const v8::HeapGraphNode* aaa = GetNode(
@@ -783,7 +783,7 @@ TEST(HeapSnapshotRetainedObjectInfo) {
   CHECK_EQ(2, aaa->GetChildrenCount());
 
   const v8::HeapGraphNode* native_group_ccc = GetNode(
-      snapshot->GetRoot(), v8::HeapGraphNode::kNative, "ccc-group");
+      snapshot->GetRoot(), v8::HeapGraphNode::kSynthetic, "ccc-group");
   const v8::HeapGraphNode* ccc = GetNode(
       native_group_ccc, v8::HeapGraphNode::kNative, "ccc");
   CHECK_NE(NULL, ccc);

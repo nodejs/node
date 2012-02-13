@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -33,20 +33,6 @@
 enum InvokeFlag {
   CALL_FUNCTION,
   JUMP_FUNCTION
-};
-
-
-enum CodeLocation {
-  IN_JAVASCRIPT,
-  IN_JS_ENTRY,
-  IN_C_ENTRY
-};
-
-
-enum HandlerType {
-  TRY_CATCH_HANDLER,
-  TRY_FINALLY_HANDLER,
-  JS_ENTRY_HANDLER
 };
 
 

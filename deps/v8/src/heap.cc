@@ -1201,7 +1201,9 @@ void Heap::Scavenge() {
   promotion_queue_.Destroy();
 
   LiveObjectList::UpdateReferencesForScavengeGC();
-  isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
+  if (!FLAG_watch_ic_patching) {
+    isolate()->runtime_profiler()->UpdateSamplesAfterScavenge();
+  }
   incremental_marking()->UpdateMarkingDequeAfterScavenge();
 
   ASSERT(new_space_front == new_space_.top());
@@ -2865,7 +2867,9 @@ MaybeObject* Heap::AllocateSharedFunctionInfo(Object* name) {
   share->set_inferred_name(empty_string(), SKIP_WRITE_BARRIER);
   share->set_initial_map(undefined_value(), SKIP_WRITE_BARRIER);
   share->set_this_property_assignments(undefined_value(), SKIP_WRITE_BARRIER);
-  share->set_deopt_counter(Smi::FromInt(FLAG_deopt_every_n_times));
+  share->set_deopt_counter(FLAG_deopt_every_n_times);
+  share->set_profiler_ticks(0);
+  share->set_ast_node_count(0);
 
   // Set integer fields (smi or int, depending on the architecture).
   share->set_length(0);
@@ -5839,10 +5843,7 @@ bool Heap::SetUp(bool create_heap_objects) {
   if (!code_space_->SetUp()) return false;
 
   // Initialize map space.
-  map_space_ = new MapSpace(this,
-                            max_old_generation_size_,
-                            FLAG_max_map_space_pages,
-                            MAP_SPACE);
+  map_space_ = new MapSpace(this, max_old_generation_size_, MAP_SPACE);
   if (map_space_ == NULL) return false;
   if (!map_space_->SetUp()) return false;
 

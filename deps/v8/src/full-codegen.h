@@ -83,6 +83,7 @@ class FullCodeGenerator: public AstVisitor {
         scope_(NULL),
         nesting_stack_(NULL),
         loop_depth_(0),
+        global_count_(0),
         context_(NULL),
         bailout_entries_(0),
         stack_checks_(2),  // There's always at least one.
@@ -416,10 +417,10 @@ class FullCodeGenerator: public AstVisitor {
 
   // Platform-specific code for a variable, constant, or function
   // declaration.  Functions have an initial value.
+  // Increments global_count_ for unallocated variables.
   void EmitDeclaration(VariableProxy* proxy,
                        VariableMode mode,
-                       FunctionLiteral* function,
-                       int* global_count);
+                       FunctionLiteral* function);
 
   // Platform-specific code for checking the stack limit at the back edge of
   // a loop.
@@ -767,6 +768,7 @@ class FullCodeGenerator: public AstVisitor {
   Label return_label_;
   NestedStatement* nesting_stack_;
   int loop_depth_;
+  int global_count_;
   const ExpressionContext* context_;
   ZoneList<BailoutEntry> bailout_entries_;
   ZoneList<BailoutEntry> stack_checks_;

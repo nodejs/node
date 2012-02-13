@@ -542,6 +542,18 @@ Handle<String> Isolate::StackTraceString() {
 }
 
 
+void Isolate::CaptureAndSetCurrentStackTraceFor(Handle<JSObject> error_object) {
+  if (capture_stack_trace_for_uncaught_exceptions_) {
+    // Capture stack trace for a detailed exception message.
+    Handle<String> key = factory()->hidden_stack_trace_symbol();
+    Handle<JSArray> stack_trace = CaptureCurrentStackTrace(
+        stack_trace_for_uncaught_exceptions_frame_limit_,
+        stack_trace_for_uncaught_exceptions_options_);
+    JSObject::SetHiddenProperty(error_object, key, stack_trace);
+  }
+}
+
+
 Handle<JSArray> Isolate::CaptureCurrentStackTrace(
     int frame_limit, StackTrace::StackTraceOptions options) {
   // Ensure no negative values.
@@ -1011,7 +1023,7 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
   // Find the top-most try-catch handler.
   StackHandler* handler =
       StackHandler::FromAddress(Isolate::handler(thread_local_top()));
-  while (handler != NULL && !handler->is_try_catch()) {
+  while (handler != NULL && !handler->is_catch()) {
     handler = handler->next();
   }
 
@@ -1037,22 +1049,39 @@ bool Isolate::ShouldReportException(bool* can_be_caught_externally,
 }
 
 
-void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
+bool Isolate::IsErrorObject(Handle<Object> obj) {
+  if (!obj->IsJSObject()) return false;
+
+  String* error_key = *(factory()->LookupAsciiSymbol("$Error"));
+  Object* error_constructor =
+      js_builtins_object()->GetPropertyNoExceptionThrown(error_key);
+
+  for (Object* prototype = *obj; !prototype->IsNull();
+       prototype = prototype->GetPrototype()) {
+    if (!prototype->IsJSObject()) return false;
+    if (JSObject::cast(prototype)->map()->constructor() == error_constructor) {
+      return true;
+    }
+  }
+  return false;
+}
+
+
+void Isolate::DoThrow(Object* exception, MessageLocation* location) {
   ASSERT(!has_pending_exception());
 
   HandleScope scope;
-  Object* exception_object = Smi::FromInt(0);
-  bool is_object = exception->ToObject(&exception_object);
-  Handle<Object> exception_handle(exception_object);
+  Handle<Object> exception_handle(exception);
 
   // Determine reporting and whether the exception is caught externally.
   bool catchable_by_javascript = is_catchable_by_javascript(exception);
-  // Only real objects can be caught by JS.
-  ASSERT(!catchable_by_javascript || is_object);
   bool can_be_caught_externally = false;
   bool should_report_exception =
       ShouldReportException(&can_be_caught_externally, catchable_by_javascript);
   bool report_exception = catchable_by_javascript && should_report_exception;
+  bool try_catch_needs_message =
+      can_be_caught_externally && try_catch_handler()->capture_message_;
+  bool bootstrapping = bootstrapper()->IsActive();
 
 #ifdef ENABLE_DEBUGGER_SUPPORT
   // Notify debugger of exception.
@@ -1061,34 +1090,52 @@ void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
   }
 #endif
 
-  // Generate the message.
-  Handle<Object> message_obj;
-  MessageLocation potential_computed_location;
-  bool try_catch_needs_message =
-      can_be_caught_externally &&
-      try_catch_handler()->capture_message_;
+  // Generate the message if required.
   if (report_exception || try_catch_needs_message) {
+    MessageLocation potential_computed_location;
     if (location == NULL) {
-      // If no location was specified we use a computed one instead
+      // If no location was specified we use a computed one instead.
       ComputeLocation(&potential_computed_location);
       location = &potential_computed_location;
     }
-    if (!bootstrapper()->IsActive()) {
-      // It's not safe to try to make message objects or collect stack
-      // traces while the bootstrapper is active since the infrastructure
-      // may not have been properly initialized.
+    // It's not safe to try to make message objects or collect stack traces
+    // while the bootstrapper is active since the infrastructure may not have
+    // been properly initialized.
+    if (!bootstrapping) {
       Handle<String> stack_trace;
       if (FLAG_trace_exception) stack_trace = StackTraceString();
       Handle<JSArray> stack_trace_object;
-      if (report_exception && capture_stack_trace_for_uncaught_exceptions_) {
+      if (capture_stack_trace_for_uncaught_exceptions_) {
+        if (IsErrorObject(exception_handle)) {
+          // We fetch the stack trace that corresponds to this error object.
+          String* key = heap()->hidden_stack_trace_symbol();
+          Object* stack_property =
+              JSObject::cast(*exception_handle)->GetHiddenProperty(key);
+          // Property lookup may have failed.  In this case it's probably not
+          // a valid Error object.
+          if (stack_property->IsJSArray()) {
+            stack_trace_object = Handle<JSArray>(JSArray::cast(stack_property));
+          }
+        }
+        if (stack_trace_object.is_null()) {
+          // Not an error object, we capture at throw site.
           stack_trace_object = CaptureCurrentStackTrace(
               stack_trace_for_uncaught_exceptions_frame_limit_,
               stack_trace_for_uncaught_exceptions_options_);
+        }
       }
-      ASSERT(is_object);  // Can't use the handle unless there's a real object.
-      message_obj = MessageHandler::MakeMessageObject("uncaught_exception",
-          location, HandleVector<Object>(&exception_handle, 1), stack_trace,
+      Handle<Object> message_obj = MessageHandler::MakeMessageObject(
+          "uncaught_exception",
+          location,
+          HandleVector<Object>(&exception_handle, 1),
+          stack_trace,
           stack_trace_object);
+      thread_local_top()->pending_message_obj_ = *message_obj;
+      if (location != NULL) {
+        thread_local_top()->pending_message_script_ = *location->script();
+        thread_local_top()->pending_message_start_pos_ = location->start_pos();
+        thread_local_top()->pending_message_end_pos_ = location->end_pos();
+      }
     } else if (location != NULL && !location->script().is_null()) {
       // We are bootstrapping and caught an error where the location is set
       // and we have a script for the location.
@@ -1104,30 +1151,13 @@ void Isolate::DoThrow(MaybeObject* exception, MessageLocation* location) {
 
   // Save the message for reporting if the the exception remains uncaught.
   thread_local_top()->has_pending_message_ = report_exception;
-  if (!message_obj.is_null()) {
-    thread_local_top()->pending_message_obj_ = *message_obj;
-    if (location != NULL) {
-      thread_local_top()->pending_message_script_ = *location->script();
-      thread_local_top()->pending_message_start_pos_ = location->start_pos();
-      thread_local_top()->pending_message_end_pos_ = location->end_pos();
-    }
-  }
 
   // Do not forget to clean catcher_ if currently thrown exception cannot
   // be caught.  If necessary, ReThrow will update the catcher.
   thread_local_top()->catcher_ = can_be_caught_externally ?
       try_catch_handler() : NULL;
 
-  // NOTE: Notifying the debugger or generating the message
-  // may have caused new exceptions. For now, we just ignore
-  // that and set the pending exception to the original one.
-  if (is_object) {
-    set_pending_exception(*exception_handle);
-  } else {
-    // Failures are not on the heap so they neither need nor work with handles.
-    ASSERT(exception_handle->IsFailure());
-    set_pending_exception(exception);
-  }
+  set_pending_exception(*exception_handle);
 }
 
 
@@ -1163,8 +1193,8 @@ bool Isolate::IsExternallyCaught() {
   StackHandler* handler =
       StackHandler::FromAddress(Isolate::handler(thread_local_top()));
   while (handler != NULL && handler->address() < external_handler_address) {
-    ASSERT(!handler->is_try_catch());
-    if (handler->is_try_finally()) return false;
+    ASSERT(!handler->is_catch());
+    if (handler->is_finally()) return false;
 
     handler = handler->next();
   }

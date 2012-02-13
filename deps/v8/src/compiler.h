@@ -168,6 +168,9 @@ class CompilationInfo BASE_EMBEDDED {
     return V8::UseCrankshaft() && !closure_.is_null();
   }
 
+  // Determines whether or not to insert a self-optimization header.
+  bool ShouldSelfOptimize();
+
   // Disable all optimization attempts of this info for the rest of the
   // current compilation pipeline.
   void AbortOptimization();
@@ -279,6 +282,9 @@ class Compiler : public AllStatic {
   static const int kDefaultMaxOptCount = 10;
 
   static const int kMaxInliningLevels = 3;
+
+  // Call count before primitive functions trigger their own optimization.
+  static const int kCallsUntilPrimitiveOpt = 200;
 
   // All routines return a SharedFunctionInfo.
   // If an error occurs an exception is raised and the return handle

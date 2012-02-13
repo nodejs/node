@@ -978,7 +978,7 @@ BUILTIN(ArrayConcat) {
       return CallJsBuiltin(isolate, "ArrayConcat", args);
     }
 
-    if (!JSArray::cast(arg)->HasFastElements()) {
+    if (!JSArray::cast(arg)->HasFastSmiOnlyElements()) {
       elements_kind = FAST_ELEMENTS;
     }
   }

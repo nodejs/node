@@ -1174,7 +1174,7 @@ void EntryFrame::Iterate(ObjectVisitor* v) const {
   StackHandlerIterator it(this, top_handler());
   ASSERT(!it.done());
   StackHandler* handler = it.handler();
-  ASSERT(handler->is_entry());
+  ASSERT(handler->is_js_entry());
   handler->Iterate(v, LookupCode());
 #ifdef DEBUG
   // Make sure that the entry frame does not contain more than one

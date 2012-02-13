@@ -292,6 +292,31 @@ Failure* IC::ReferenceError(const char* type, Handle<String> name) {
 }
 
 
+void IC::PostPatching() {
+  if (FLAG_watch_ic_patching) {
+    Isolate::Current()->runtime_profiler()->NotifyICChanged();
+    // We do not want to optimize until the ICs have settled down,
+    // so when they are patched, we postpone optimization for the
+    // current function and the functions above it on the stack that
+    // might want to inline this one.
+    StackFrameIterator it;
+    if (it.done()) return;
+    it.Advance();
+    static const int kStackFramesToMark = Compiler::kMaxInliningLevels - 1;
+    for (int i = 0; i < kStackFramesToMark; ++i) {
+      if (it.done()) return;
+      StackFrame* raw_frame = it.frame();
+      if (raw_frame->is_java_script()) {
+        JSFunction* function =
+            JSFunction::cast(JavaScriptFrame::cast(raw_frame)->function());
+        function->shared()->set_profiler_ticks(0);
+      }
+      it.Advance();
+    }
+  }
+}
+
+
 void IC::Clear(Address address) {
   Code* target = GetTargetAtAddress(address);
 

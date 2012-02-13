@@ -126,6 +126,7 @@ class HBasicBlock: public ZoneObject {
   int PredecessorIndexOf(HBasicBlock* predecessor) const;
   void AddSimulate(int ast_id) { AddInstruction(CreateSimulate(ast_id)); }
   void AssignCommonDominator(HBasicBlock* other);
+  void AssignLoopSuccessorDominators();
 
   void FinishExitWithDeoptimization(HDeoptimize::UseEnvironment has_uses) {
     FinishExit(CreateDeoptimize(has_uses));
@@ -148,6 +149,13 @@ class HBasicBlock: public ZoneObject {
 
   bool IsDeoptimizing() const { return is_deoptimizing_; }
   void MarkAsDeoptimizing() { is_deoptimizing_ = true; }
+
+  bool IsLoopSuccessorDominator() const {
+    return dominates_loop_successors_;
+  }
+  void MarkAsLoopSuccessorDominator() {
+    dominates_loop_successors_ = true;
+  }
 
   inline Zone* zone();
 
@@ -182,6 +190,22 @@ class HBasicBlock: public ZoneObject {
   HBasicBlock* parent_loop_header_;
   bool is_inline_return_target_;
   bool is_deoptimizing_;
+  bool dominates_loop_successors_;
+};
+
+
+class HPredecessorIterator BASE_EMBEDDED {
+ public:
+  explicit HPredecessorIterator(HBasicBlock* block)
+      : predecessor_list_(block->predecessors()), current_(0) { }
+
+  bool Done() { return current_ >= predecessor_list_->length(); }
+  HBasicBlock* Current() { return predecessor_list_->at(current_); }
+  void Advance() { current_++; }
+
+ private:
+  const ZoneList<HBasicBlock*>* predecessor_list_;
+  int current_;
 };
 
 
@@ -815,9 +839,9 @@ class HGraphBuilder: public AstVisitor {
   INLINE_RUNTIME_FUNCTION_LIST(INLINE_FUNCTION_GENERATOR_DECLARATION)
 #undef INLINE_FUNCTION_GENERATOR_DECLARATION
 
-  void HandleDeclaration(VariableProxy* proxy,
-                         VariableMode mode,
-                         FunctionLiteral* function);
+  void HandleVariableDeclaration(VariableProxy* proxy,
+                                 VariableMode mode,
+                                 FunctionLiteral* function);
 
   void VisitDelete(UnaryOperation* expr);
   void VisitVoid(UnaryOperation* expr);
@@ -918,10 +942,11 @@ class HGraphBuilder: public AstVisitor {
   bool TryCallApply(Call* expr);
 
   bool TryInline(Call* expr, bool drop_extra = false);
-  bool TryInlineBuiltinFunction(Call* expr,
+  bool TryInlineBuiltinMethodCall(Call* expr,
                                 HValue* receiver,
                                 Handle<Map> receiver_map,
                                 CheckType check_type);
+  bool TryInlineBuiltinFunctionCall(Call* expr, bool drop_extra);
 
   // If --trace-inlining, print a line of the inlining trace.  Inlining
   // succeeded if the reason string is NULL and failed if there is a

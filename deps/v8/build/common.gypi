@@ -169,6 +169,28 @@
               'V8_TARGET_ARCH_MIPS',
             ],
             'conditions': [
+              [ 'target_arch=="mips"', {
+                'target_conditions': [
+                  ['_toolset=="target"', {
+                    'cflags': ['-EL'],
+                    'ldflags': ['-EL'],
+                    'conditions': [
+                      [ 'v8_use_mips_abi_hardfloat=="true"', {
+                        'cflags': ['-mhard-float'],
+                        'ldflags': ['-mhard-float'],
+                      }, {
+                        'cflags': ['-msoft-float'],
+                        'ldflags': ['-msoft-float'],
+                      }],
+                      ['mips_arch_variant=="mips32r2"', {
+                        'cflags': ['-mips32r2', '-Wa,-mips32r2'],
+                      }, {
+                        'cflags': ['-mips32', '-Wa,-mips32'],
+                      }],
+                    ],
+                  }],
+                ],
+              }],
               [ 'v8_can_use_fpu_instructions=="true"', {
                 'defines': [
                   'CAN_USE_FPU_INSTRUCTIONS',
@@ -183,6 +205,9 @@
                 'defines': [
                   '__mips_soft_float=1'
                 ],
+              }],
+              ['mips_arch_variant=="mips32r2"', {
+                'defines': ['_MIPS_ARCH_MIPS32R2',],
               }],
               # The MIPS assembler assumes the host is 32 bits,
               # so force building 32-bit host tools.
@@ -327,6 +352,7 @@
           }],  # OS=="mac"
           ['OS=="win"', {
             'msvs_configuration_attributes': {
+              'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
               'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
               'CharacterSet': '1',
             },

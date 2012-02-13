@@ -2364,12 +2364,9 @@ class FixedSpace : public PagedSpace {
 class MapSpace : public FixedSpace {
  public:
   // Creates a map space object with a maximum capacity.
-  MapSpace(Heap* heap,
-           intptr_t max_capacity,
-           int max_map_space_pages,
-           AllocationSpace id)
+  MapSpace(Heap* heap, intptr_t max_capacity, AllocationSpace id)
       : FixedSpace(heap, max_capacity, id, Map::kSize, "map"),
-        max_map_space_pages_(max_map_space_pages) {
+        max_map_space_pages_(kMaxMapPageIndex - 1) {
   }
 
   // Given an index, returns the page address.

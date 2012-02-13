@@ -711,7 +711,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
                                 isolate);
     }
     isolate->counters()->enum_cache_misses()->Increment();
-    int num_enum = object->NumberOfEnumProperties();
+    int num_enum = object->NumberOfLocalProperties(DONT_ENUM);
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(num_enum);
     Handle<FixedArray> sort_array = isolate->factory()->NewFixedArray(num_enum);
     Handle<DescriptorArray> descs =
@@ -735,7 +735,7 @@ Handle<FixedArray> GetEnumPropertyKeys(Handle<JSObject> object,
     ASSERT(storage->length() == index);
     return storage;
   } else {
-    int num_enum = object->NumberOfEnumProperties();
+    int num_enum = object->NumberOfLocalProperties(DONT_ENUM);
     Handle<FixedArray> storage = isolate->factory()->NewFixedArray(num_enum);
     Handle<FixedArray> sort_array = isolate->factory()->NewFixedArray(num_enum);
     object->property_dictionary()->CopyEnumKeysTo(*storage, *sort_array);

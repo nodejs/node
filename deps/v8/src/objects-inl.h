@@ -3530,6 +3530,8 @@ ACCESSORS(SharedFunctionInfo, inferred_name, String, kInferredNameOffset)
 ACCESSORS(SharedFunctionInfo, this_property_assignments, Object,
           kThisPropertyAssignmentsOffset)
 
+SMI_ACCESSORS(SharedFunctionInfo, profiler_ticks, kProfilerTicksOffset)
+
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, hidden_prototype,
                kHiddenPrototypeBit)
 BOOL_ACCESSORS(FunctionTemplateInfo, flag, undetectable, kUndetectableBit)
@@ -3576,6 +3578,8 @@ SMI_ACCESSORS(SharedFunctionInfo, compiler_hints,
 SMI_ACCESSORS(SharedFunctionInfo, this_property_assignments_count,
               kThisPropertyAssignmentsCountOffset)
 SMI_ACCESSORS(SharedFunctionInfo, opt_count, kOptCountOffset)
+SMI_ACCESSORS(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
+SMI_ACCESSORS(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
 #else
 
 #define PSEUDO_SMI_ACCESSORS_LO(holder, name, offset)             \
@@ -3626,6 +3630,9 @@ PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo,
                         this_property_assignments_count,
                         kThisPropertyAssignmentsCountOffset)
 PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, opt_count, kOptCountOffset)
+
+PSEUDO_SMI_ACCESSORS_LO(SharedFunctionInfo, ast_node_count, kAstNodeCountOffset)
+PSEUDO_SMI_ACCESSORS_HI(SharedFunctionInfo, deopt_counter, kDeoptCounterOffset)
 #endif
 
 
@@ -3708,6 +3715,9 @@ BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints,
                kNameShouldPrintAsAnonymous)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, bound, kBoundFunction)
 BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, is_anonymous, kIsAnonymous)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_crankshaft,
+               kDontCrankshaft)
+BOOL_ACCESSORS(SharedFunctionInfo, compiler_hints, dont_inline, kDontInline)
 
 ACCESSORS(CodeCache, default_cache, FixedArray, kDefaultCacheOffset)
 ACCESSORS(CodeCache, normal_type_cache, Object, kNormalTypeCacheOffset)
@@ -3774,16 +3784,6 @@ void SharedFunctionInfo::set_scope_info(ScopeInfo* value,
                             kScopeInfoOffset,
                             reinterpret_cast<Object*>(value),
                             mode);
-}
-
-
-Smi* SharedFunctionInfo::deopt_counter() {
-  return reinterpret_cast<Smi*>(READ_FIELD(this, kDeoptCounterOffset));
-}
-
-
-void SharedFunctionInfo::set_deopt_counter(Smi* value) {
-  WRITE_FIELD(this, kDeoptCounterOffset, value);
 }
 
 

@@ -1345,16 +1345,16 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
   } else {
     Label call_builtin;
 
-    // Get the elements array of the object.
-    __ mov(ebx, FieldOperand(edx, JSArray::kElementsOffset));
-
-    // Check that the elements are in fast mode and writable.
-    __ cmp(FieldOperand(ebx, HeapObject::kMapOffset),
-           Immediate(factory()->fixed_array_map()));
-    __ j(not_equal, &call_builtin);
-
     if (argc == 1) {  // Otherwise fall through to call builtin.
       Label attempt_to_grow_elements, with_write_barrier;
+
+      // Get the elements array of the object.
+      __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
+
+      // Check that the elements are in fast mode and writable.
+      __ cmp(FieldOperand(edi, HeapObject::kMapOffset),
+             Immediate(factory()->fixed_array_map()));
+      __ j(not_equal, &call_builtin);
 
       // Get the array's length into eax and calculate new length.
       __ mov(eax, FieldOperand(edx, JSArray::kLengthOffset));
@@ -1362,8 +1362,8 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       STATIC_ASSERT(kSmiTag == 0);
       __ add(eax, Immediate(Smi::FromInt(argc)));
 
-      // Get the element's length into ecx.
-      __ mov(ecx, FieldOperand(ebx, FixedArray::kLengthOffset));
+      // Get the elements' length into ecx.
+      __ mov(ecx, FieldOperand(edi, FixedArray::kLengthOffset));
 
       // Check if we could survive without allocation.
       __ cmp(eax, ecx);
@@ -1376,29 +1376,52 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // Save new length.
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
 
-      // Push the element.
-      __ lea(edx, FieldOperand(ebx,
-                               eax, times_half_pointer_size,
-                               FixedArray::kHeaderSize - argc * kPointerSize));
-      __ mov(Operand(edx, 0), ecx);
+      // Store the value.
+      __ mov(FieldOperand(edi,
+                          eax,
+                          times_half_pointer_size,
+                          FixedArray::kHeaderSize - argc * kPointerSize),
+             ecx);
 
       __ ret((argc + 1) * kPointerSize);
 
       __ bind(&with_write_barrier);
 
-      __ mov(edi, FieldOperand(edx, HeapObject::kMapOffset));
-      __ CheckFastObjectElements(edi, &call_builtin);
+      __ mov(ebx, FieldOperand(edx, HeapObject::kMapOffset));
+
+      if (FLAG_smi_only_arrays  && !FLAG_trace_elements_transitions) {
+        Label fast_object, not_fast_object;
+        __ CheckFastObjectElements(ebx, &not_fast_object, Label::kNear);
+        __ jmp(&fast_object);
+        // In case of fast smi-only, convert to fast object, otherwise bail out.
+        __ bind(&not_fast_object);
+        __ CheckFastSmiOnlyElements(ebx, &call_builtin);
+        // edi: elements array
+        // edx: receiver
+        // ebx: map
+        __ LoadTransitionedArrayMapConditional(FAST_SMI_ONLY_ELEMENTS,
+                                               FAST_ELEMENTS,
+                                               ebx,
+                                               edi,
+                                               &call_builtin);
+        ElementsTransitionGenerator::GenerateSmiOnlyToObject(masm());
+        // Restore edi.
+        __ mov(edi, FieldOperand(edx, JSArray::kElementsOffset));
+        __ bind(&fast_object);
+      } else {
+        __ CheckFastObjectElements(ebx, &call_builtin);
+      }
 
       // Save new length.
       __ mov(FieldOperand(edx, JSArray::kLengthOffset), eax);
 
-      // Push the element.
-      __ lea(edx, FieldOperand(ebx,
+      // Store the value.
+      __ lea(edx, FieldOperand(edi,
                                eax, times_half_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ mov(Operand(edx, 0), ecx);
 
-      __ RecordWrite(ebx, edx, ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
+      __ RecordWrite(edi, edx, ecx, kDontSaveFPRegs, EMIT_REMEMBERED_SET,
                      OMIT_SMI_CHECK);
 
       __ ret((argc + 1) * kPointerSize);
@@ -1408,11 +1431,11 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
         __ jmp(&call_builtin);
       }
 
-      __ mov(edi, Operand(esp, argc * kPointerSize));
+      __ mov(ebx, Operand(esp, argc * kPointerSize));
       // Growing elements that are SMI-only requires special handling in case
       // the new element is non-Smi. For now, delegate to the builtin.
       Label no_fast_elements_check;
-      __ JumpIfSmi(edi, &no_fast_elements_check);
+      __ JumpIfSmi(ebx, &no_fast_elements_check);
       __ mov(ecx, FieldOperand(edx, HeapObject::kMapOffset));
       __ CheckFastObjectElements(ecx, &call_builtin, Label::kFar);
       __ bind(&no_fast_elements_check);
@@ -1431,7 +1454,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ mov(ecx, Operand::StaticVariable(new_space_allocation_top));
 
       // Check if it's the end of elements.
-      __ lea(edx, FieldOperand(ebx,
+      __ lea(edx, FieldOperand(edi,
                                eax, times_half_pointer_size,
                                FixedArray::kHeaderSize - argc * kPointerSize));
       __ cmp(edx, ecx);
@@ -1444,7 +1467,7 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       __ mov(Operand::StaticVariable(new_space_allocation_top), ecx);
 
       // Push the argument...
-      __ mov(Operand(edx, 0), edi);
+      __ mov(Operand(edx, 0), ebx);
       // ... and fill the rest with holes.
       for (int i = 1; i < kAllocationDelta; i++) {
         __ mov(Operand(edx, i * kPointerSize),
@@ -1456,13 +1479,13 @@ Handle<Code> CallStubCompiler::CompileArrayPushCall(
       // tell the incremental marker to rescan the object that we just grew.  We
       // don't need to worry about the holes because they are in old space and
       // already marked black.
-      __ RecordWrite(ebx, edx, edi, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
+      __ RecordWrite(edi, edx, ebx, kDontSaveFPRegs, OMIT_REMEMBERED_SET);
 
       // Restore receiver to edx as finish sequence assumes it's here.
       __ mov(edx, Operand(esp, (argc + 1) * kPointerSize));
 
       // Increment element's and array's sizes.
-      __ add(FieldOperand(ebx, FixedArray::kLengthOffset),
+      __ add(FieldOperand(edi, FixedArray::kLengthOffset),
              Immediate(Smi::FromInt(kAllocationDelta)));
 
       // NOTE: This only happen in new-space, where we don't

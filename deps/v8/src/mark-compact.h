@@ -441,7 +441,12 @@ class MarkCompactCollector {
   // Performs a global garbage collection.
   void CollectGarbage();
 
-  bool StartCompaction();
+  enum CompactionMode {
+    INCREMENTAL_COMPACTION,
+    NON_INCREMENTAL_COMPACTION
+  };
+
+  bool StartCompaction(CompactionMode mode);
 
   void AbortCompaction();
 

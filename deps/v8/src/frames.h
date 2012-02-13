@@ -1,4 +1,4 @@
-// Copyright 2011 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -85,15 +85,17 @@ class InnerPointerToCodeCache {
 class StackHandler BASE_EMBEDDED {
  public:
   enum Kind {
-    ENTRY,
-    TRY_CATCH,
-    TRY_FINALLY
+    JS_ENTRY,
+    CATCH,
+    FINALLY,
+    LAST_KIND = FINALLY
   };
 
   static const int kKindWidth = 2;
-  static const int kOffsetWidth = 32 - kKindWidth;
+  STATIC_ASSERT(LAST_KIND < (1 << kKindWidth));
+  static const int kIndexWidth = 32 - kKindWidth;
   class KindField: public BitField<StackHandler::Kind, 0, kKindWidth> {};
-  class OffsetField: public BitField<unsigned, kKindWidth, kOffsetWidth> {};
+  class IndexField: public BitField<unsigned, kKindWidth, kIndexWidth> {};
 
   // Get the address of this stack handler.
   inline Address address() const;
@@ -111,9 +113,9 @@ class StackHandler BASE_EMBEDDED {
   static inline StackHandler* FromAddress(Address address);
 
   // Testers
-  inline bool is_entry() const;
-  inline bool is_try_catch() const;
-  inline bool is_try_finally() const;
+  inline bool is_js_entry() const;
+  inline bool is_catch() const;
+  inline bool is_finally() const;
 
  private:
   // Accessors.

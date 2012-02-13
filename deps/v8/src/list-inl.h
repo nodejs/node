@@ -72,9 +72,9 @@ void List<T, P>::ResizeAdd(const T& element) {
 template<typename T, class P>
 void List<T, P>::ResizeAddInternal(const T& element) {
   ASSERT(length_ >= capacity_);
-  // Grow the list capacity by 50%, but make sure to let it grow
+  // Grow the list capacity by 100%, but make sure to let it grow
   // even when the capacity is zero (possible initial case).
-  int new_capacity = 1 + capacity_ + (capacity_ >> 1);
+  int new_capacity = 1 + 2 * capacity_;
   // Since the element reference could be an element of the list, copy
   // it out of the old backing storage before resizing.
   T temp = element;

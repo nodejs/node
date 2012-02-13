@@ -1,4 +1,4 @@
-// Copyright 2010 the V8 project authors. All rights reserved.
+// Copyright 2012 the V8 project authors. All rights reserved.
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
 // met:
@@ -42,7 +42,7 @@ namespace internal {
 static const int kEventsBufferSize = 256 * KB;
 static const int kTickSamplesBufferChunkSize = 64 * KB;
 static const int kTickSamplesBufferChunksCount = 16;
-static const int kProfilerStackSize = 32 * KB;
+static const int kProfilerStackSize = 64 * KB;
 
 
 ProfilerEventsProcessor::ProfilerEventsProcessor(ProfileGenerator* generator)
