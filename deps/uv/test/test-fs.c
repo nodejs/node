@@ -45,7 +45,7 @@
 # define close _close
 #endif
 
-#define TOO_LONG_NAME_LENGTH 8192
+#define TOO_LONG_NAME_LENGTH 65536
 
 typedef struct {
   const char* path;
