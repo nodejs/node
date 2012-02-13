@@ -242,7 +242,7 @@ code.pre {
 	color: #d2d8ba;
 
   /* preload platform-icons.png */
-  background-image: url(platform-icons.png);
+  background-image: url(http://nodejs.org/images/platform-icons.png);
   background-repeat: no-repeat;
   background-position: -999em -999em;
 }
@@ -341,15 +341,15 @@ p tt, p code {
     line-height: 23px;
 }
 
-#column2.interior li a.home { background: url(icons-interior.png) no-repeat -156px 3px; }
-#column2.interior li a.download { background: url(icons-interior.png) no-repeat -156px -21px; }
-#column2.interior li a.about { background: url(icons-interior.png) no-repeat -156px -45px; }
-#column2.interior li a.npm { background: url(icons-interior.png) no-repeat -156px -69px; }
-#column2.interior li a.docs { background: url(icons-interior.png) no-repeat -156px -93px; }
-#column2.interior li a.blog { background: url(icons-interior.png) no-repeat -156px -117px; }
-#column2.interior li a.community { background: url(icons-interior.png) no-repeat -156px -141px; }
-#column2.interior li a.logos { background: url(icons-interior.png) no-repeat -156px -165px; }
-#column2.interior li a.jobs { background: url(icons-interior.png) no-repeat -156px -189px; } 
+#column2.interior li a.home { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px 3px; }
+#column2.interior li a.download { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -21px; }
+#column2.interior li a.about { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -45px; }
+#column2.interior li a.npm { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -69px; }
+#column2.interior li a.docs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -93px; }
+#column2.interior li a.blog { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -117px; }
+#column2.interior li a.community { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -141px; }
+#column2.interior li a.logos { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -165px; }
+#column2.interior li a.jobs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -189px; } 
 
 #column2.interior li a.home.current { background-position: 2px 3px; }
 #column2.interior li a.download.current { background-position: 2px -21px; }
@@ -381,7 +381,7 @@ p tt, p code {
 }
 
 #column2.interior p.twitter a {
-    background: url(twitter-bird.png) no-repeat 0 4px;
+    background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 0 4px;
     padding-left: 37px;
     text-decoration: none;
 }
@@ -394,7 +394,7 @@ a.totop {
   font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   font-weight: bold;
   text-indent: -9999999px;
-  background: url(anchor.png) no-repeat top left;
+  background: url(http://nodejs.org/images/anchor.png) no-repeat top left;
   margin-right: 7px;
   display: block;
   width: 13px;
@@ -405,7 +405,7 @@ a.anchor {
   font-family: "Lucida Grande", "Lucida Sans Unicode", "Lucida Sans", Verdana, Tahoma, sans-serif;
   font-weight: bold;
   text-indent: -9999999px;
-  background: url(anchor.png) no-repeat top right;
+  background: url(http://nodejs.org/images/anchor.png) no-repeat top right;
   display: block;
   width: 13px;
   border-bottom: 1px solid #cccccc;
@@ -442,7 +442,7 @@ a.anchor {
 }
 
 #footer ul {
-    background: url(footer-logo-alt.png) left 17px no-repeat;
+    background: url(http://nodejs.org/images/footer-logo-alt.png) left 17px no-repeat;
     padding: 23px 0 0 195px;
     height: 26px;
     margin-left: -1px;
@@ -476,7 +476,7 @@ a.anchor {
 }
 
 #footer ul li a.twitter  {
-    background: url(twitter-bird.png) no-repeat 5px 0px;
+    background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 5px 0px;
     padding-left: 25px;
 }
 
