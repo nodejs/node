@@ -352,7 +352,6 @@
           }],  # OS=="mac"
           ['OS=="win"', {
             'msvs_configuration_attributes': {
-              'OutputDirectory': '<(DEPTH)\\build\\$(ConfigurationName)',
               'IntermediateDirectory': '$(OutDir)\\obj\\$(ProjectName)',
               'CharacterSet': '1',
             },
