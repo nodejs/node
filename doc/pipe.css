@@ -67,7 +67,7 @@ h1 a, h2 a, h3 a, h4 a
 	color: #d2d8ba;
 
   /* preload platform-icons.png */
-  background-image: url(platform-icons.png);
+  background-image: url(http://nodejs.org/images/platform-icons.png);
   background-repeat: no-repeat;
   background-position: -999em -999em;
 }
@@ -240,15 +240,15 @@ h1 a, h2 a, h3 a, h4 a
     line-height: 23px;
 }
 
-#column2.interior li a.home { background: url(icons-interior.png) no-repeat -156px 3px; }
-#column2.interior li a.download { background: url(icons-interior.png) no-repeat -156px -21px; }
-#column2.interior li a.about { background: url(icons-interior.png) no-repeat -156px -44px; }
-#column2.interior li a.npm { background: url(icons-interior.png) no-repeat -156px -69px; }
-#column2.interior li a.docs { background: url(icons-interior.png) no-repeat -156px -93px; }
-#column2.interior li a.blog { background: url(icons-interior.png) no-repeat -156px -117px; }
-#column2.interior li a.community { background: url(icons-interior.png) no-repeat -156px -141px; }
-#column2.interior li a.logos { background: url(icons-interior.png) no-repeat -156px -165px; }
-#column2.interior li a.jobs { background: url(icons-interior.png) no-repeat -156px -189px; } 
+#column2.interior li a.home { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px 3px; }
+#column2.interior li a.download { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -21px; }
+#column2.interior li a.about { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -44px; }
+#column2.interior li a.npm { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -69px; }
+#column2.interior li a.docs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -93px; }
+#column2.interior li a.blog { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -117px; }
+#column2.interior li a.community { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -141px; }
+#column2.interior li a.logos { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -165px; }
+#column2.interior li a.jobs { background: url(http://nodejs.org/images/icons-interior.png) no-repeat -156px -189px; } 
 
 #column2.interior li a.home.current { background-position: 2px 3px; }
 #column2.interior li a.download.current { background-position: 2px -21px; }
@@ -285,7 +285,7 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #column2.interior p.twitter a {
-    background: url(twitter-bird.png) no-repeat 0 4px;
+    background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 0 4px;
     padding-left: 37px;
 }
 
@@ -303,7 +303,7 @@ h1 a, h2 a, h3 a, h4 a
     color: white;
     text-transform: none;
     font-family: Georgia, FreeSerif, Times, serif;
-    background: url(community-icons.png) no-repeat;
+    background: url(http://nodejs.org/images/community-icons.png) no-repeat;
     padding-left: 45px;
     padding-top: 6px;
     padding-bottom: 10px;
@@ -333,7 +333,7 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #explore {
-    background: url(home-icons.png) no-repeat left 17px;
+    background: url(http://nodejs.org/images/home-icons.png) no-repeat left 17px;
 }
 
 #explore li {
@@ -412,7 +412,7 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #footer ul {
-    background: url(footer-logo.png) left 17px no-repeat;
+    background: url(http://nodejs.org/images/footer-logo.png) left 17px no-repeat;
     border-top: 1px solid #626557;
     border-color:#90918b;
     padding-top:23px;
@@ -421,7 +421,7 @@ h1 a, h2 a, h3 a, h4 a
     margin-right:137px;
 }
 .alt #footer ul {
-    background-image: url(footer-logo-alt.png);
+    background-image: url(http://nodejs.org/images/footer-logo-alt.png);
 }
 
 #footer ul li {
@@ -450,7 +450,7 @@ h1 a, h2 a, h3 a, h4 a
 }
 
 #footer ul li a.twitter  {
-    background: url(twitter-bird.png) no-repeat 5px 0px;
+    background: url(http://nodejs.org/images/twitter-bird.png) no-repeat 5px 0px;
     padding-left: 25px;
 }
 
@@ -482,7 +482,7 @@ div#download:target {
 }
 
 #download-close {
-    background: url(close-downloads.png) no-repeat top right;
+    background: url(http://nodejs.org/images/close-downloads.png) no-repeat top right;
     width: 64px;
     height: 64px;
     position: absolute;
@@ -496,7 +496,7 @@ div#download ul#installers {
     width: 550px;
     text-align: center;
     margin: 0 auto;
-    background: url(platform-icons.png) no-repeat top center;
+    background: url(http://nodejs.org/images/platform-icons.png) no-repeat top center;
     padding-top: 65px;
     padding-bottom: 50px;
 }
