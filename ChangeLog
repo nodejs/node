@@ -1,4 +1,25 @@
-2012.02.07, Version 0.7.3 (unstable)
+2012.02.14, Version 0.7.4 (unstable)
+
+* Upgrade V8 to 3.9.5
+
+* Upgrade npm to 1.1.1
+
+* build: Detect host_arch better (Karl Skomski)
+
+* debugger: export `debug_port` to `process` (Fedor Indutny)
+
+* api docs: CSS bug fixes (isaacs)
+
+* build: use -fPIC for native addons on UNIX (Nathan Rajlich)
+
+* Re-add top-level v8::Locker (Marcel Laverdet)
+
+* Move images out of the dist tarballs (isaacs)
+
+* libuv: Remove uv_export and uv_import (Ben Noordhuis)
+
+
+2012.02.07, Version 0.7.3 (unstable), 99059aad8d654acda4abcfaa68df182b50f2ec90
 
 * Upgrade V8 to 3.9.2
 
