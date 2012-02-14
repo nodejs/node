@@ -56,7 +56,7 @@ server.listen(common.PORT, function() {
   var maxAndExpected = [ // for client
     [20, 20],
     [1200, 1200],
-    [0, N + 2], // Connection and Transfer-Encoding
+    [0, N + 3], // Connection, Date and Transfer-Encoding
   ];
   doRequest();
 

@@ -344,6 +344,13 @@ or
 
     response.setHeader("Set-Cookie", ["type=ninja", "language=javascript"]);
 
+### response.sendDate
+
+When true, the Date header will be automatically generated and sent in 
+the response if it is not already present in the headers. Defaults to true.
+
+This should only be disabled for testing; HTTP requires the Date header
+in responses.
 
 ### response.getHeader(name)
 
