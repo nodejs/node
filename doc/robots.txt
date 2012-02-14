@@ -1,0 +1,6 @@
+User-Agent: *
+Disallow: /dist/
+Disallow: /docs/
+Allow: /dist/latest/
+Allow: /dist/latest/docs/api/
+Allow: /api/
