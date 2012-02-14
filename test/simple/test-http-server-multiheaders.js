@@ -30,6 +30,7 @@ var http = require('http');
 var srv = http.createServer(function(req, res) {
   assert.equal(req.headers.accept, 'abc, def, ghijklmnopqrst');
   assert.equal(req.headers.host, 'foo');
+  assert.equal(req.headers['www-authenticate'], 'foo, bar, baz');
   assert.equal(req.headers['x-foo'], 'bingo');
   assert.equal(req.headers['x-bar'], 'banjo, bango');
 
@@ -51,6 +52,9 @@ srv.listen(common.PORT, function() {
       ['host', 'foo'],
       ['Host', 'bar'],
       ['hOst', 'baz'],
+      ['www-authenticate', 'foo'],
+      ['WWW-Authenticate', 'bar'],
+      ['WWW-AUTHENTICATE', 'baz'],
       ['x-foo', 'bingo'],
       ['x-bar', 'banjo'],
       ['x-bar', 'bango']
