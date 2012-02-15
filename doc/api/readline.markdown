@@ -4,8 +4,8 @@ To use this module, do `require('readline')`. Readline allows reading of a
 stream (such as STDIN) on a line-by-line basis.
 
 Note that once you've invoked this module, your node program will not
-terminate until you've closed the interface, and the STDIN stream. Here's how
-to allow your program to gracefully terminate:
+terminate until you've paused the interface. Here's how to allow your
+program to gracefully pause:
 
     var rl = require('readline');
 
@@ -14,10 +14,7 @@ to allow your program to gracefully terminate:
       // TODO: Log the answer in a database
       console.log("Thank you for your valuable feedback.");
 
-      // These two lines together allow the program to terminate. Without
-      // them, it would run forever.
-      i.close();
-      process.stdin.destroy();
+      i.pause();
     });
 
 ### rl.createInterface(input, output, completer)
@@ -48,6 +45,9 @@ Sets the prompt, for example when you run `node` on the command line, you see
 Readies readline for input from the user, putting the current `setPrompt`
 options on a new line, giving the user a new spot to write.
 
+This will also resume the `in` stream used with `createInterface` if it has
+been paused.
+
 <!-- ### rl.getColumns() Not available? -->
 
 ### rl.question(query, callback)
@@ -56,27 +56,29 @@ Prepends the prompt with `query` and invokes `callback` with the user's
 response. Displays the query to the user, and then invokes `callback` with the
 user's response after it has been typed.
 
+This will also resume the `in` stream used with `createInterface` if it has
+been paused.
+
 Example usage:
 
     interface.question('What is your favorite food?', function(answer) {
       console.log('Oh, so your favorite food is ' + answer);
     });
 
-### rl.close()
-
-  Closes tty.
-
 ### rl.pause()
 
-  Pauses tty.
+Pauses the readline `in` stream, allowing it to be resumed later if needed.
 
 ### rl.resume()
 
-  Resumes tty.
+Resumes the readline `in` stream.
 
 ### rl.write()
 
-  Writes to tty.
+Writes to tty.
+
+This will also resume the `in` stream used with `createInterface` if it has
+been paused.
 
 ### Event: 'line'
 
@@ -91,27 +93,98 @@ Example of listening for `line`:
       console.log('You just typed: '+cmd);
     });
 
-### Event: 'close'
+### Event: 'pause'
 
 `function () {}`
 
-Emitted whenever the `in` stream receives a `^C` or `^D`, respectively known
-as `SIGINT` and `EOT`. This is a good way to know the user is finished using
-your program.
+Emitted whenever the `in` stream is paused or receives `^D`, respectively known
+as `EOT`. This event is also called if there is no `SIGINT` event listener
+present when the `in` stream receives a `^C`, respectively known as `SIGINT`.
 
-Example of listening for `close`, and exiting the program afterward:
+Also emitted whenever the `in` stream is not paused and receives the `SIGCONT`
+event. (See events `SIGTSTP` and `SIGCONT`)
 
-    rl.on('close', function() {
-      console.log('goodbye!');
-      process.exit(0);
+Example of listening for `pause`:
+
+    rl.on('pause', function() {
+      console.log('Readline paused.');
     });
+
+### Event: 'resume'
+
+`function () {}`
+
+Emitted whenever the `in` stream is resumed.
+
+Example of listening for `resume`:
+
+    rl.on('resume', function() {
+      console.log('Readline resumed.');
+    });
+
+### Event: 'SIGINT'
+
+`function () {}`
+
+Emitted whenever the `in` stream receives a `^C`, respectively known as
+`SIGINT`. If there is no `SIGINT` event listener present when the `in` stream
+receives a `SIGINT`, `pause` will be triggered.
+
+Example of listening for `SIGINT`:
+
+    rl.on('SIGINT', function() {
+      rl.question('Are you sure you want to exit?', function(answer) {
+        if (answer.match(/^y(es)?$/i)) rl.pause();
+      });
+    });
+
+### Event: 'SIGTSTP'
+
+`function () {}`
+
+Emitted whenever the `in` stream receives a `^Z`, respectively known as
+`SIGTSTP`. If there is no `SIGTSTP` event listener present when the `in` stream
+receives a `SIGTSTP`, the program will be sent to the background.
+
+When the program is resumed with `fg`, the `pause` and `SIGCONT` events will be
+emitted. You can use either to resume the stream.
+
+The `pause` and `SIGCONT` events will not be triggered if the stream was paused
+before the program was sent to the background.
+
+Example of listening for `SIGTSTP`:
+
+    rl.on('SIGTSTP', function() {
+      // This will override SIGTSTP and prevent the program from going to the
+      // background.
+      console.log('Caught SIGTSTP.');
+    });
+
+### Event: 'SIGCONT'
+
+`function () {}`
+
+Emitted whenever the `in` stream is sent to the background with `^Z`,
+respectively known as `SIGTSTP`, and then continued with `fg`. This event only
+emits if the stream was not paused before sending the program to the
+background.
+
+Example of listening for `SIGCONT`:
+
+    rl.on('SIGCONT', function() {
+      // `prompt` will automatically resume the stream
+      rl.prompt();
+    });
+
 
 Here's an example of how to use all these together to craft a tiny command
 line interface:
 
     var readline = require('readline'),
-      rl = readline.createInterface(process.stdin, process.stdout),
-      prefix = 'OHAI> ';
+        rl = readline.createInterface(process.stdin, process.stdout);
+
+    rl.setPrompt('OHAI> ');
+    rl.prompt();
 
     rl.on('line', function(line) {
       switch(line.trim()) {
@@ -122,18 +195,9 @@ line interface:
           console.log('Say what? I might have heard `' + line.trim() + '`');
           break;
       }
-      rl.setPrompt(prefix, prefix.length);
       rl.prompt();
-    }).on('close', function() {
+    }).on('pause', function() {
       console.log('Have a great day!');
       process.exit(0);
     });
-    console.log(prefix + 'Good to see you. Try typing stuff.');
-    rl.setPrompt(prefix, prefix.length);
-    rl.prompt();
 
-
-Take a look at this slightly more complicated
-[example](https://gist.github.com/901104), and
-[http-console](https://github.com/cloudhead/http-console) for a real-life use
-case.
