@@ -1262,77 +1262,6 @@ static Handle<Value> Cwd(const Arguments& args) {
 }
 
 
-#ifdef _WIN32
-static Handle<Value> CwdForDrive(const Arguments& args) {
-  HandleScope scope;
-
-  if (args.Length() < 1) {
-    Local<Value> exception = Exception::Error(
-        String::New("process._cwdForDrive takes exactly 1 argument."));
-    return ThrowException(exception);
-  }
-
-  Local<String> driveLetter = args[0]->ToString();
-  if (driveLetter->Length() != 1) {
-    Local<Value> exception = Exception::Error(
-        String::New("Drive name should be 1 character."));
-    return ThrowException(exception);
-  }
-
-  char drive;
-
-  driveLetter->WriteAscii(&drive, 0, 1, 0);
-  if (drive >= 'a' && drive <= 'z') {
-    // Convert to uppercase
-    drive += 'A' - 'a';
-  } else if (drive < 'A' || drive > 'Z') {
-    // Not a letter
-    Local<Value> exception = Exception::Error(
-        String::New("Drive name should be a letter."));
-    return ThrowException(exception);
-  }
-
-  WCHAR env_key[] = L"=X:";
-  env_key[1] = (WCHAR) drive;
-
-  DWORD len = GetEnvironmentVariableW(env_key, NULL, 0);
-  if (len == 0 && (GetLastError() == ERROR_ENVVAR_NOT_FOUND ||
-      GetLastError() == ERROR_SUCCESS)) {
-    // There is no current directory for that drive. Default to drive + ":\".
-    Local<String> cwd = String::Concat(String::New(&drive, 1),
-                                       String::New(":\\"));
-    return scope.Close(cwd);
-
-  } else if (len == 0) {
-    // Error
-    Local<Value> exception = Exception::Error(
-      String::New(winapi_strerror(GetLastError())));
-    return ThrowException(exception);
-  }
-
-  WCHAR* buffer = new WCHAR[len];
-  if (buffer == NULL) {
-    Local<Value> exception = Exception::Error(
-        String::New("Out of memory."));
-    return ThrowException(exception);
-  }
-
-  DWORD len2 = GetEnvironmentVariableW(env_key, buffer, len);
-  if ((len2 == 0 && GetLastError() != ERROR_SUCCESS) || len2 >= len) {
-    // Error
-    delete[] buffer;
-    Local<Value> exception = Exception::Error(
-      String::New(winapi_strerror(GetLastError())));
-    return ThrowException(exception);
-  }
-
-  Local<String> cwd = String::New(reinterpret_cast<uint16_t*>(buffer), len2);
-  delete[] buffer;
-  return scope.Close(cwd);
-}
-#endif
-
-
 static Handle<Value> Umask(const Arguments& args) {
   HandleScope scope;
   unsigned int old;
@@ -2176,10 +2105,6 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   NODE_SET_METHOD(process, "reallyExit", Exit);
   NODE_SET_METHOD(process, "chdir", Chdir);
   NODE_SET_METHOD(process, "cwd", Cwd);
-
-#ifdef _WIN32
-  NODE_SET_METHOD(process, "_cwdForDrive", CwdForDrive);
-#endif
 
   NODE_SET_METHOD(process, "umask", Umask);
 
