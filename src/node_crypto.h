@@ -190,6 +190,8 @@ class Connection : ObjectWrap {
   }
 
  private:
+  static void SSLInfoCallback(const SSL *ssl, int where, int ret);
+
   BIO *bio_read_;
   BIO *bio_write_;
   SSL *ssl_;
