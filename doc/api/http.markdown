@@ -137,7 +137,7 @@ a listener for the ['listening'](net.html#event_listening_) event.
 See also [net.Server.listen()](net.html#server.listen).
 
 
-### server.close()
+### server.close([cb])
 
 Stops the server from accepting new connections.
 See [net.Server.close()](net.html#server.close).

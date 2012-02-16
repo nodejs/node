@@ -162,11 +162,11 @@ Stop accepting connections for the given number of milliseconds (default is
 one second).  This could be useful for throttling new connections against
 DoS attacks or other oversubscription.
 
-#### server.close()
+#### server.close([cb])
 
 Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `'close'`
-event.
+event. Optionally, you can pass a callback to listen for the `'close'` event.
 
 
 #### server.address()
