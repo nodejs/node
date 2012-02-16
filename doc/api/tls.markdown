@@ -169,17 +169,6 @@ Here is an example of a client of echo server as described previously:
     });
 
 
-### STARTTLS
-
-In the v0.4 branch no function exists for starting a TLS session on an
-already existing TCP connection.  This is possible it just requires a bit of
-work. The technique is to use `tls.createSecurePair()` which returns two
-streams: an encrypted stream and a cleartext stream. The encrypted stream is
-then piped to the socket, the cleartext stream is what the user interacts with
-thereafter.
-
-[Here is some code that does it.](http://gist.github.com/848444)
-
 ### NPN and SNI
 
 NPN (Next Protocol Negotiation) and SNI (Server Name Indication) are TLS
