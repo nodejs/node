@@ -48,9 +48,10 @@ double Platform::prog_start_time = Platform::GetUptime();
 const char *winapi_strerror(const int errorno) {
   char *errmsg = NULL;
 
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
       FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
-      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      reinterpret_cast<LPSTR>(&errmsg), 0, NULL);
 
   if (errmsg) {
     // Remove trailing newlines
@@ -72,9 +73,10 @@ void winapi_perror(const char* prefix = NULL) {
   DWORD errorno = GetLastError();
   const char *errmsg = NULL;
 
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+  FormatMessageA(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
       FORMAT_MESSAGE_IGNORE_INSERTS, NULL, errorno,
-      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPTSTR)&errmsg, 0, NULL);
+      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+      reinterpret_cast<LPSTR>(&errmsg), 0, NULL);
 
   if (!errmsg) {
     errmsg = "Unknown error\n";
@@ -203,8 +205,7 @@ int Platform::GetMemory(size_t *rss) {
   HANDLE current_process = GetCurrentProcess();
   PROCESS_MEMORY_COUNTERS pmc;
 
-  if ( !GetProcessMemoryInfo( current_process, &pmc, sizeof(pmc)) )
-  {
+  if (!GetProcessMemoryInfo(current_process, &pmc, sizeof(pmc))) {
     winapi_perror("GetProcessMemoryInfo");
   }
 
@@ -220,40 +221,49 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
 
   for (int i = 0; i < 32; i++) {
 
-    char key[128] = "HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\";
-    char processor_number[32];
-    itoa(i, processor_number, 10);
-    strncat(key, processor_number, 2);
+    wchar_t key[128] = L"HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\";
+    wchar_t processor_number[32];
+    _itow(i, processor_number, 10);
+    wcsncat(key, processor_number, 2);
 
     HKEY processor_key = NULL;
 
     DWORD cpu_speed = 0;
     DWORD cpu_speed_length = sizeof(cpu_speed);
 
-    char cpu_brand[256];
+    wchar_t cpu_brand[256];
     DWORD cpu_brand_length = sizeof(cpu_brand);
 
-    if (RegOpenKeyEx(HKEY_LOCAL_MACHINE, key, 0, KEY_QUERY_VALUE,
-        &processor_key) != ERROR_SUCCESS) {
+    if (RegOpenKeyExW(HKEY_LOCAL_MACHINE,
+                      key,
+                      0,
+                      KEY_QUERY_VALUE,
+                      &processor_key) != ERROR_SUCCESS) {
       if (i == 0) {
-        winapi_perror("RegOpenKeyEx");
+        winapi_perror("RegOpenKeyExW");
         return -1;
       }
 
       continue;
     }
 
-    if (RegQueryValueEx(processor_key, "~MHz", NULL, NULL,
-                        (LPBYTE)&cpu_speed, &cpu_speed_length)
-                        != ERROR_SUCCESS) {
-      winapi_perror("RegQueryValueEx");
+    if (RegQueryValueExW(processor_key,
+                         L"~MHz",
+                         NULL,
+                         NULL,
+                         reinterpret_cast<LPBYTE>(&cpu_speed),
+                         &cpu_speed_length) != ERROR_SUCCESS) {
+      winapi_perror("RegQueryValueExW");
       return -1;
     }
 
-    if (RegQueryValueEx(processor_key, "ProcessorNameString", NULL, NULL,
-                        (LPBYTE)&cpu_brand, &cpu_brand_length)
-                        != ERROR_SUCCESS) {
-      winapi_perror("RegQueryValueEx");
+    if (RegQueryValueExW(processor_key,
+                         L"ProcessorNameString",
+                         NULL,
+                         NULL,
+                         reinterpret_cast<LPBYTE>(&cpu_brand),
+                         &cpu_brand_length) != ERROR_SUCCESS) {
+      winapi_perror("RegQueryValueExW");
       return -1;
     }
 
@@ -267,7 +277,8 @@ int Platform::GetCPUInfo(Local<Array> *cpus) {
     times_info->Set(String::New("irq"), Integer::New(0));
 
     Local<Object> cpu_info = Object::New();
-    cpu_info->Set(String::New("model"), String::New(cpu_brand));
+    cpu_info->Set(String::New("model"),
+                  String::New(reinterpret_cast<uint16_t*>(cpu_brand)));
     cpu_info->Set(String::New("speed"), Integer::New(cpu_speed));
     cpu_info->Set(String::New("times"), times_info);
     (*cpus)->Set(i,cpu_info);

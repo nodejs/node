@@ -2361,13 +2361,14 @@ DWORD WINAPI EnableDebugThreadProc(void* arg) {
 }
 
 
-static int GetDebugSignalHandlerMappingName(DWORD pid, char* buf, size_t buf_len) {
-  return snprintf(buf, buf_len, "node-debug-handler-%u", pid);
+static int GetDebugSignalHandlerMappingName(DWORD pid, wchar_t* buf,
+    size_t buf_len) {
+  return _snwprintf(buf, buf_len, L"node-debug-handler-%u", pid);
 }
 
 
 static int RegisterDebugSignalHandler() {
-  char mapping_name[32];
+  wchar_t mapping_name[32];
   HANDLE mapping_handle;
   DWORD pid;
   LPTHREAD_START_ROUTINE* handler;
@@ -2376,11 +2377,11 @@ static int RegisterDebugSignalHandler() {
 
   if (GetDebugSignalHandlerMappingName(pid,
                                        mapping_name,
-                                       sizeof mapping_name) < 0) {
+                                       ARRAY_SIZE(mapping_name)) < 0) {
     return -1;
   }
 
-  mapping_handle = CreateFileMappingA(INVALID_HANDLE_VALUE,
+  mapping_handle = CreateFileMappingW(INVALID_HANDLE_VALUE,
                                       NULL,
                                       PAGE_READWRITE,
                                       0,
@@ -2390,11 +2391,12 @@ static int RegisterDebugSignalHandler() {
     return -1;
   }
 
-  handler = (LPTHREAD_START_ROUTINE*) MapViewOfFile(mapping_handle,
-                                                    FILE_MAP_ALL_ACCESS,
-                                                    0,
-                                                    0,
-                                                    sizeof *handler);
+  handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
+      MapViewOfFile(mapping_handle,
+                    FILE_MAP_ALL_ACCESS,
+                    0,
+                    0,
+                    sizeof *handler));
   if (handler == NULL) {
     CloseHandle(mapping_handle);
     return -1;
@@ -2415,7 +2417,7 @@ static Handle<Value> DebugProcess(const Arguments& args) {
   HANDLE process = NULL;
   HANDLE thread = NULL;
   HANDLE mapping = NULL;
-  char mapping_name[32];
+  wchar_t mapping_name[32];
   LPTHREAD_START_ROUTINE* handler = NULL;
 
   if (args.Length() != 1) {
@@ -2437,22 +2439,24 @@ static Handle<Value> DebugProcess(const Arguments& args) {
 
   if (GetDebugSignalHandlerMappingName(pid,
                                        mapping_name,
-                                       sizeof mapping_name) < 0) {
+                                       ARRAY_SIZE(mapping_name)) < 0) {
     rv = ThrowException(ErrnoException(errno, "sprintf"));
     goto out;
   }
 
-  mapping = OpenFileMapping(FILE_MAP_READ, FALSE, mapping_name);
+  mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
   if (mapping == NULL) {
-    rv = ThrowException(WinapiErrnoException(GetLastError(), "sprintf"));
+    rv = ThrowException(WinapiErrnoException(GetLastError(),
+                                             "OpenFileMappingW"));
     goto out;
   }
 
-  handler = (LPTHREAD_START_ROUTINE*) MapViewOfFile(mapping,
-                                                    FILE_MAP_READ,
-                                                    0,
-                                                    0,
-                                                    sizeof *handler);
+  handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
+      MapViewOfFile(mapping,
+                    FILE_MAP_READ,
+                    0,
+                    0,
+                    sizeof *handler));
   if (handler == NULL || *handler == NULL) {
     rv = ThrowException(WinapiErrnoException(GetLastError(), "MapViewOfFile"));
     goto out;
