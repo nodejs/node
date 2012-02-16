@@ -2032,40 +2032,12 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   process->Set(String::NewSymbol("platform"), String::New(PLATFORM));
 
   // process.argv
-#ifdef _WIN32
-  // Windows - use unicode
-  WCHAR* command_line = GetCommandLineW();
-  if (command_line == NULL) {
-    winapi_perror("GetCommandLineW");
-    exit(1);
-  }
-
-  int wargc = 0;
-  WCHAR** wargv = CommandLineToArgvW(command_line, &wargc);
-  if (wargv == NULL || wargc <= 0) {
-    winapi_perror("CommandLineToArgvW");
-    exit(1);
-  }
-
-  assert(wargc == argc);
-
-  Local<Array> arguments = Array::New(wargc - option_end_index + 1);
-  arguments->Set(Integer::New(0), String::New(reinterpret_cast<uint16_t*>(wargv[0])));
-  for (j = 1, i = option_end_index; i < wargc; j++, i++) {
-    Local<String> arg = String::New(reinterpret_cast<uint16_t*>(wargv[i]));
-    arguments->Set(Integer::New(j), arg);
-  }
-
-  LocalFree(wargv);
-#else
-  // Unix
   Local<Array> arguments = Array::New(argc - option_end_index + 1);
   arguments->Set(Integer::New(0), String::New(argv[0]));
   for (j = 1, i = option_end_index; i < argc; j++, i++) {
     Local<String> arg = String::New(argv[i]);
     arguments->Set(Integer::New(j), arg);
   }
-#endif
   // assign it
   process->Set(String::NewSymbol("argv"), arguments);
 
