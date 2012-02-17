@@ -44,7 +44,8 @@ clean:
 
 distclean:
 	-rm -rf out
-	-rm config.gypi
+	-rm -f config.gypi
+	-rm -f config.mk
 
 test: all
 	$(PYTHON) tools/test.py --mode=release simple message
