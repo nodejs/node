@@ -124,6 +124,9 @@ function error_test() {
       expect: prompt_unix },
     { client: client_unix, send: 'blah()',
       expect: '1\n' + prompt_unix },
+    // Functions should not evaluate twice (#2773)
+    { client: client_unix, send: 'var I = [1,2,3,function() {}]; I.pop()',
+      expect: '[Function]' },
     // Multiline object
     { client: client_unix, send: '{ a: ',
       expect: prompt_multiline },
