@@ -180,3 +180,12 @@ testMe.complete('inner.o', function(error, data) {
   assert.deepEqual(data, doesNotBreak);
 });
 
+putIn.run(['.clear']);
+
+// make sure tab completion works on non-Objects
+putIn.run([
+  'var str = "test";'
+]);
+testMe.complete('str.len', function(error, data) {
+  assert.deepEqual(data, [ [ 'str.length' ], 'str.len' ]);
+});
