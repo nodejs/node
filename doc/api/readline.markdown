@@ -142,6 +142,8 @@ Example of listening for `SIGINT`:
 
 `function () {}`
 
+**This does not work on Windows.**
+
 Emitted whenever the `in` stream receives a `^Z`, respectively known as
 `SIGTSTP`. If there is no `SIGTSTP` event listener present when the `in` stream
 receives a `SIGTSTP`, the program will be sent to the background.
@@ -163,6 +165,8 @@ Example of listening for `SIGTSTP`:
 ### Event: 'SIGCONT'
 
 `function () {}`
+
+**This does not work on Windows.**
 
 Emitted whenever the `in` stream is sent to the background with `^Z`,
 respectively known as `SIGTSTP`, and then continued with `fg`. This event only
