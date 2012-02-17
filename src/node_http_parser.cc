@@ -60,6 +60,7 @@ static Persistent<String> delete_sym;
 static Persistent<String> get_sym;
 static Persistent<String> head_sym;
 static Persistent<String> post_sym;
+static Persistent<String> purge_sym;
 static Persistent<String> put_sym;
 static Persistent<String> connect_sym;
 static Persistent<String> options_sym;
@@ -126,6 +127,7 @@ method_to_str(unsigned short m) {
     case HTTP_GET:        return get_sym;
     case HTTP_HEAD:       return head_sym;
     case HTTP_POST:       return post_sym;
+    case HTTP_PURGE:      return purge_sym;
     case HTTP_PUT:        return put_sym;
     case HTTP_CONNECT:    return connect_sym;
     case HTTP_OPTIONS:    return options_sym;
@@ -613,6 +615,7 @@ void InitHttpParser(Handle<Object> target) {
   get_sym = NODE_PSYMBOL("GET");
   head_sym = NODE_PSYMBOL("HEAD");
   post_sym = NODE_PSYMBOL("POST");
+  purge_sym = NODE_PSYMBOL("PURGE");
   put_sym = NODE_PSYMBOL("PUT");
   connect_sym = NODE_PSYMBOL("CONNECT");
   options_sym = NODE_PSYMBOL("OPTIONS");

@@ -24,45 +24,49 @@ var assert = require('assert');
 var net = require('net');
 var http = require('http');
 
-// Test that the PATCH verb gets passed through correctly
+// Test that the PATCH and PURGE verbs get passed through correctly
 
-var server_response = '';
-var received_method = null;
+['PATCH', 'PURGE'].forEach(function(method, index) {
+  var port = common.PORT + index;
 
-var server = http.createServer(function(req, res) {
-  received_method = req.method;
-  res.writeHead(200, {'Content-Type': 'text/plain'});
-  res.write('hello ');
-  res.write('world\n');
-  res.end();
-});
-server.listen(common.PORT);
+  var server_response = '';
+  var received_method = null;
 
-server.on('listening', function() {
-  var c = net.createConnection(common.PORT);
+  var server = http.createServer(function(req, res) {
+    received_method = req.method;
+    res.writeHead(200, {'Content-Type': 'text/plain'});
+    res.write('hello ');
+    res.write('world\n');
+    res.end();
+  });
+  server.listen(port);
 
-  c.setEncoding('utf8');
+  server.on('listening', function() {
+    var c = net.createConnection(port);
 
-  c.on('connect', function() {
-    c.write('PATCH / HTTP/1.0\r\n\r\n');
+    c.setEncoding('utf8');
+
+    c.on('connect', function() {
+      c.write(method + ' / HTTP/1.0\r\n\r\n');
+    });
+
+    c.on('data', function(chunk) {
+      console.log(chunk);
+      server_response += chunk;
+    });
+
+    c.on('end', function() {
+      c.end();
+    });
+
+    c.on('close', function() {
+      server.close();
+    });
   });
 
-  c.on('data', function(chunk) {
-    console.log(chunk);
-    server_response += chunk;
+  process.on('exit', function() {
+    var m = server_response.split('\r\n\r\n');
+    assert.equal(m[1], 'hello world\n');
+    assert.equal(received_method, method);
   });
-
-  c.on('end', function() {
-    c.end();
-  });
-
-  c.on('close', function() {
-    server.close();
-  });
-});
-
-process.on('exit', function() {
-  var m = server_response.split('\r\n\r\n');
-  assert.equal(m[1], 'hello world\n');
-  assert.equal(received_method, 'PATCH');
 });
