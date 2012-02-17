@@ -1,4 +1,44 @@
-2012.02.02, Version 0.6.10 (stable)
+2012.02.17 Version 0.6.11 (stable)
+
+* http: allow multiple WebSocket RFC6455 headers (Einar Otto Stangvik)
+
+* http: allow multiple WWW-Authenticate headers (Ben Noordhuis)
+
+* windows: support unicode argv and environment variables (Bert Belder)
+
+* tls: mitigate session renegotiation attacks (Ben Noordhuis)
+
+* tcp, pipe: don't assert on uv_accept() errors (Ben Noordhuis)
+
+* tls: Allow establishing secure connection on the existing socket (koichik)
+
+* dgram: handle close of dgram socket before DNS lookup completes (Seth Fitzsimmons)
+
+* windows: Support half-duplex pipes (Igor Zinkovsky)
+
+* build: disable omit-frame-pointer on solaris systems (Dave Pacheco)
+
+* debugger: fix --debug-brk (Ben Noordhuis)
+
+* net: fix large file downloads failing (koichik)
+
+* fs: fix ReadStream failure to read from existing fd (Christopher Jeffrey)
+
+* net: destroy socket on DNS error (Stefan Rusu)
+
+* dtrace: add missing translator (Dave Pacheco)
+
+* unix: don't flush tty on switch to raw mode (Ben Noordhuis)
+
+* windows: reset brightness when reverting to default text color (Bert Belder)
+
+* npm: update to 1.1.1
+  - Update which, fstream, mkdirp, request, and rimraf
+  - Fix #2123 Set path properly for lifecycle scripts on windows
+  - Mark the root as seen, so we don't recurse into it. Fixes #1838. (Martin Cooper)
+
+
+2012.02.02, Version 0.6.10 (stable), 051908e023f87894fa68f5b64d0b99a19a7db01e
 
 * Update V8 to 3.6.6.20
 

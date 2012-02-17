@@ -388,7 +388,7 @@ RB_HEAD(uv_timer_tree_s, uv_timer_s);
 #define UV_FS_PRIVATE_FIELDS              \
   wchar_t* pathw;                         \
   int flags;                              \
-  int last_error;                         \
+  DWORD sys_errno_;                       \
   struct _stati64 stat;                   \
   void* arg0;                             \
   union {                                 \
