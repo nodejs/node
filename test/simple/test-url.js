@@ -71,6 +71,26 @@ var parseTests = {
     'pathname': '/',
     'path': '/'
   },
+  'http://user@www.example.com/' : {
+    'href': 'http://user@www.example.com/',
+    'protocol': 'http:',
+    'slashes': true,
+    'auth': 'user',
+    'host': 'www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/',
+    'path': '/'
+  },
+  'http://user%3Apw@www.example.com/' : {
+    'href': 'http://user:pw@www.example.com/',
+    'protocol': 'http:',
+    'slashes': true,
+    'auth': 'user:pw',
+    'host': 'www.example.com',
+    'hostname': 'www.example.com',
+    'pathname': '/',
+    'path': '/'
+  },
   'http://x.com/path?that\'s#all, folks' : {
     'href': 'http://x.com/path?that%27s#all,',
     'protocol': 'http:',
@@ -324,7 +344,7 @@ var parseTests = {
     'protocol' : 'http:',
     'slashes': true,
     'host' : '127.0.0.1:8080',
-    'auth' : 'atpass:foo%40bar',
+    'auth' : 'atpass:foo@bar',
     'hostname' : '127.0.0.1',
     'port' : '8080',
     'pathname': '/path',
