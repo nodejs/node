@@ -2115,7 +2115,7 @@ Handle<Object> SetupProcessObject(int argc, char *argv[]) {
   }
   delete [] execPath;
 
-  process->SetAccessor(String::New("debug_port"),
+  process->SetAccessor(String::New("debugPort"),
                        DebugPortGetter,
                        DebugPortSetter);
 
