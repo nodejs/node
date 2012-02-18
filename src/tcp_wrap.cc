@@ -366,10 +366,7 @@ void TCPWrap::OnConnection(uv_stream_t* handle, int status) {
     TCPWrap* client_wrap =
         static_cast<TCPWrap*>(client_obj->GetPointerFromInternalField(0));
 
-    int r = uv_accept(handle, (uv_stream_t*)&client_wrap->handle_);
-
-    // uv_accept should always work.
-    assert(r == 0);
+    if (uv_accept(handle, (uv_stream_t*)&client_wrap->handle_)) return;
 
     // Successful accept. Call the onconnection callback in JavaScript land.
     argv[0] = client_obj;

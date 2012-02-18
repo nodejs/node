@@ -908,6 +908,8 @@ Handle<Value> Connection::New(const Arguments& args) {
 
   SSL_set_app_data(p->ssl_, p);
 
+  if (is_server) SSL_set_info_callback(p->ssl_, SSLInfoCallback);
+
 #ifdef OPENSSL_NPN_NEGOTIATED
   if (is_server) {
     // Server should advertise NPN protocols
@@ -967,6 +969,20 @@ Handle<Value> Connection::New(const Arguments& args) {
   }
 
   return args.This();
+}
+
+
+void Connection::SSLInfoCallback(const SSL *ssl, int where, int ret) {
+  if (where & SSL_CB_HANDSHAKE_START) {
+    HandleScope scope;
+    Connection* c = static_cast<Connection*>(SSL_get_app_data(ssl));
+    MakeCallback(c->handle_, "onhandshakestart", 0, NULL);
+  }
+  if (where & SSL_CB_HANDSHAKE_DONE) {
+    HandleScope scope;
+    Connection* c = static_cast<Connection*>(SSL_get_app_data(ssl));
+    MakeCallback(c->handle_, "onhandshakedone", 0, NULL);
+  }
 }
 
 

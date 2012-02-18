@@ -204,10 +204,7 @@ void PipeWrap::OnConnection(uv_stream_t* handle, int status) {
   PipeWrap* client_wrap =
       static_cast<PipeWrap*>(client_obj->GetPointerFromInternalField(0));
 
-  int r = uv_accept(handle, (uv_stream_t*)&client_wrap->handle_);
-
-  // uv_accept should always work.
-  assert(r == 0);
+  if (uv_accept(handle, (uv_stream_t*)&client_wrap->handle_)) return;
 
   // Successful accept. Call the onconnection callback in JavaScript land.
   Local<Value> argv[1] = { client_obj };

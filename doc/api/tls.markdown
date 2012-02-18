@@ -26,8 +26,40 @@ Alternatively you can send the CSR to a Certificate Authority for signing.
 (TODO: docs on creating a CA, for now interested users should just look at
 `test/fixtures/keys/Makefile` in the Node source code)
 
+### Client-initiated renegotiation attack mitigation
 
-#### tls.createServer(options, [secureConnectionListener])
+The TLS protocol lets the client renegotiate certain aspects of the TLS session.
+Unfortunately, session renegotiation requires a disproportional amount of
+server-side resources, which makes it a potential vector for denial-of-service
+attacks.
+
+To mitigate this, renegotiations are limited to three times every 10 minutes. An
+error is emitted on the [CleartextStream](#tls.CleartextStream) instance when
+the threshold is exceeded. The limits are configurable:
+
+  - `tls.CLIENT_RENEG_LIMIT`: renegotiation limit, default is 3.
+
+  - `tls.CLIENT_RENEG_WINDOW`: renegotiation window in seconds, default is
+                               10 minutes.
+
+Don't change the defaults unless you know what you are doing.
+
+To test your server, connect to it with `openssl s_client -connect address:port`
+and tap `R<CR>` (that's the letter `R` followed by a carriage return) a few
+times.
+
+
+### NPN and SNI
+
+NPN (Next Protocol Negotiation) and SNI (Server Name Indication) are TLS
+handshake extensions allowing you:
+
+  * NPN - to use one TLS server for multiple protocols (HTTP, SPDY)
+  * SNI - to use one TLS server for multiple hostnames with different SSL
+    certificates.
+
+
+## tls.createServer(options, [secureConnectionListener])
 
 Creates a new [tls.Server](#tls.Server).
 The `connectionListener` argument is automatically set as a listener for the
@@ -144,6 +176,11 @@ Creates a new client connection to the given `port` and `host` (old API) or
 
   - `servername`: Servername for SNI (Server Name Indication) TLS extension.
 
+  - `socket`: Establish secure connection on a given socket rather than
+    creating a new socket. If this option is specified, `host` and `port`
+    are ignored.  This is intended FOR INTERNAL USE ONLY.  As with all
+    undocumented APIs in Node, they should not be used.
+
 The `secureConnectListener` parameter will be added as a listener for the
 ['secureConnect'](#event_secureConnect_) event.
 
@@ -178,27 +215,7 @@ Here is an example of a client of echo server as described previously:
     });
 
 
-### STARTTLS
-
-In the v0.4 branch no function exists for starting a TLS session on an
-already existing TCP connection.  This is possible it just requires a bit of
-work. The technique is to use `tls.createSecurePair()` which returns two
-streams: an encrypted stream and a cleartext stream. The encrypted stream is
-then piped to the socket, the cleartext stream is what the user interacts with
-thereafter.
-
-[Here is some code that does it.](http://gist.github.com/848444)
-
-### NPN and SNI
-
-NPN (Next Protocol Negotiation) and SNI (Server Name Indication) are TLS
-handshake extensions allowing you:
-
-  * NPN - to use one TLS server for multiple protocols (HTTP, SPDY)
-  * SNI - to use one TLS server for multiple hostnames with different SSL
-    certificates.
-
-### pair = tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
+## tls.createSecurePair([credentials], [isServer], [requestCert], [rejectUnauthorized])
 
 Creates a new secure pair object with two streams, one of which reads/writes
 encrypted data, and one reads/writes cleartext data.
@@ -220,7 +237,7 @@ and the cleartext one is used as a replacement for the initial encrypted stream.
 `tls.createSecurePair()` returns a SecurePair object with
 [cleartext](#tls.CleartextStream) and `encrypted` stream properties.
 
-#### Event: 'secure'
+### Event: 'secure'
 
 The event is emitted from the SecurePair once the pair has successfully
 established a secure connection.
@@ -229,13 +246,13 @@ Similarly to the checking for the server 'secureConnection' event,
 pair.cleartext.authorized should be checked to confirm whether the certificate
 used properly authorized.
 
-### tls.Server
+## tls.Server
 
 This class is a subclass of `net.Server` and has the same methods on it.
 Instead of accepting just raw TCP connections, this accepts encrypted
 connections using TLS or SSL.
 
-#### Event: 'secureConnection'
+### Event: 'secureConnection'
 
 `function (cleartextStream) {}`
 
@@ -255,7 +272,7 @@ server, you unauthorized connections may be accepted.
 SNI.
 
 
-#### Event: 'clientError'
+### Event: 'clientError'
 
 `function (exception) { }`
 
@@ -263,7 +280,7 @@ When a client connection emits an 'error' event before secure connection is
 established - it will be forwarded here.
 
 
-#### server.listen(port, [host], [callback])
+### server.listen(port, [host], [callback])
 
 Begin accepting connections on the specified `port` and `host`.  If the
 `host` is omitted, the server will accept connections directed to any
@@ -275,35 +292,35 @@ when the server has been bound.
 See `net.Server` for more information.
 
 
-#### server.close()
+### server.close()
 
 Stops the server from accepting new connections. This function is
 asynchronous, the server is finally closed when the server emits a `'close'`
 event.
 
-#### server.address()
+### server.address()
 
 Returns the bound address and port of the server as reported by the operating
 system.
 See [net.Server.address()](net.html#server.address) for more information.
 
-#### server.addContext(hostname, credentials)
+### server.addContext(hostname, credentials)
 
 Add secure context that will be used if client request's SNI hostname is
 matching passed `hostname` (wildcards can be used). `credentials` can contain
 `key`, `cert` and `ca`.
 
-#### server.maxConnections
+### server.maxConnections
 
 Set this property to reject connections when the server's connection count
 gets high.
 
-#### server.connections
+### server.connections
 
 The number of concurrent connections on the server.
 
 
-### tls.CleartextStream
+## tls.CleartextStream
 
 This is a stream on top of the *Encrypted* stream that makes it possible to
 read/write an encrypted data as a cleartext data.
@@ -311,7 +328,7 @@ read/write an encrypted data as a cleartext data.
 This instance implements a duplex [Stream](streams.html#streams) interfaces.
 It has all the common stream methods and events.
 
-#### Event: 'secureConnect'
+### Event: 'secureConnect'
 
 `function () {}`
 
@@ -323,17 +340,17 @@ If `cleartextStream.authorized === false` then the error can be found in
 `cleartextStream.authorizationError`. Also if NPN was used - you can check
 `cleartextStream.npnProtocol` for negotiated protocol.
 
-#### cleartextStream.authorized
+### cleartextStream.authorized
 
 A boolean that is `true` if the peer certificate was signed by one of the
 specified CAs, otherwise `false`
 
-#### cleartextStream.authorizationError
+### cleartextStream.authorizationError
 
 The reason why the peer's certificate has not been verified. This property
 becomes available only when `cleartextStream.authorized === false`.
 
-#### cleartextStream.getPeerCertificate()
+### cleartextStream.getPeerCertificate()
 
 Returns an object representing the peer's certificate. The returned object has
 some properties corresponding to the field of the certificate.
@@ -361,17 +378,17 @@ Example:
 If the peer does not provide a certificate, it returns `null` or an empty
 object.
 
-#### cleartextStream.address()
+### cleartextStream.address()
 
 Returns the bound address and port of the underlying socket as reported by the
 operating system. Returns an object with two properties, e.g.
 `{"address":"192.168.57.1", "port":62053}`
 
-#### cleartextStream.remoteAddress
+### cleartextStream.remoteAddress
 
 The string representation of the remote IP address. For example,
 `'74.125.127.100'` or `'2001:4860:a005::68'`.
 
-#### cleartextStream.remotePort
+### cleartextStream.remotePort
 
 The numeric representation of the remote port. For example, `443`.

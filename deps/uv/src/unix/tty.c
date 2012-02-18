@@ -76,8 +76,8 @@ int uv_tty_set_mode(uv_tty_t* tty, int mode) {
     raw.c_cc[VMIN] = 1;
     raw.c_cc[VTIME] = 0;
 
-    /* Put terminal in raw mode after flushing */
-    if (tcsetattr(fd, TCSAFLUSH, &raw)) {
+    /* Put terminal in raw mode after draining */
+    if (tcsetattr(fd, TCSADRAIN, &raw)) {
       goto fatal;
     }
 

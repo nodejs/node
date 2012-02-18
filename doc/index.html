@@ -157,7 +157,7 @@ var http = require('http');
 http.createServer(function (req, res) {
   res.writeHead(200, {'Content-Type': 'text/plain'});
   res.end('Hello World\n');
-}).listen(1337, "127.0.0.1");
+}).listen(1337, '127.0.0.1');
 console.log('Server running at http://127.0.0.1:1337/');</pre>
 
               <p>To run the server, put the code into a file <code>example.js</code> and execute it with the <code>node</code> program:</p>
@@ -171,11 +171,11 @@ Server running at http://127.0.0.1:1337/</pre>
 var net = require('net');
 
 var server = net.createServer(function (socket) {
-  socket.write("Echo server\r\n");
+  socket.write('Echo server\r\n');
   socket.pipe(socket);
 });
 
-server.listen(1337, "127.0.0.1");</pre>
+server.listen(1337, '127.0.0.1');</pre>
 
                 <!-- <p>Ready to dig in? <a href="">Download the latest version</a> of node.js or learn how other organizations are <a href="">using the technology</a>.</p> -->
         </div>

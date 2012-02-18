@@ -155,6 +155,7 @@
             'FD_SETSIZE=1024',
             # we need to use node's preferred "win32" rather than gyp's preferred "win"
             'PLATFORM="win32"',
+            '_UNICODE=1',
           ],
           'libraries': [ '-lpsapi.lib' ]
         },{ # POSIX
