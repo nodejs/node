@@ -27,10 +27,8 @@
 (function(process) {
   global = this;
 
-  var EventEmitter;
-
   function startup() {
-    EventEmitter = NativeModule.require('events').EventEmitter;
+    var EventEmitter = NativeModule.require('events').EventEmitter;
     process.__proto__ = EventEmitter.prototype;
     process.EventEmitter = EventEmitter; // process.EventEmitter is deprecated
 
