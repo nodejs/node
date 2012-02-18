@@ -37,16 +37,17 @@ var common = require('../common'),
 
 if (process.argv[2] !== 'child') {
   var workers = {},
-    listeners = 3,
-    listening = 0,
-    dead = 0,
-    i = 0,
-    done = 0,
-    timer = null;
+      listeners = 3,
+      listening = 0,
+      dead = 0,
+      i = 0,
+      done = 0,
+      timer = null;
 
   //exit the test if it doesn't succeed within TIMEOUT
-  timer = setTimeout(function () {
-    console.error('[PARENT] Responses were not received within %d ms.', TIMEOUT);
+  timer = setTimeout(function() {
+    console.error('[PARENT] Responses were not received within %d ms.',
+                  TIMEOUT);
     console.error('[PARENT] Fail');
 
     killChildren(workers);
@@ -56,22 +57,26 @@ if (process.argv[2] !== 'child') {
 
   //launch child processes
   for (var x = 0; x < listeners; x++) {
-    (function () {
+    (function() {
       var worker = fork(process.argv[1], ['child']);
       workers[worker.pid] = worker;
 
       worker.messagesReceived = [];
 
       //handle the death of workers
-      worker.on('exit', function (code, signal) {
-         //don't consider this the true death if the worker has finished successfully
-         //or if the exit code is 0
+      worker.on('exit', function(code, signal) {
+        // don't consider this the true death if the worker
+        // has finished successfully
+        // or if the exit code is 0
         if (worker.isDone || code == 0) {
           return;
         }
-        
+
         dead += 1;
-        console.error('[PARENT] Worker %d died. %d dead of %d', worker.pid, dead, listeners);
+        console.error('[PARENT] Worker %d died. %d dead of %d',
+                      worker.pid,
+                      dead,
+                      listeners);
 
         if (dead === listeners) {
           console.error('[PARENT] All workers have died.');
@@ -83,7 +88,7 @@ if (process.argv[2] !== 'child') {
         }
       });
 
-      worker.on('message', function (msg) {
+      worker.on('message', function(msg) {
         if (msg.listening) {
           listening += 1;
 
@@ -98,15 +103,17 @@ if (process.argv[2] !== 'child') {
           if (worker.messagesReceived.length === messages.length) {
             done += 1;
             worker.isDone = true;
-            console.error('[PARENT] %d received %d messages total.', worker.pid,
-                    worker.messagesReceived.length);
+            console.error('[PARENT] %d received %d messages total.',
+                          worker.pid,
+                          worker.messagesReceived.length);
           }
 
           if (done === listeners) {
-            console.error('[PARENT] All workers have received the required number of '
-                    + 'messages. Will now compare.');
+            console.error('[PARENT] All workers have received the ' +
+                          'required number of ' +
+                          'messages. Will now compare.');
 
-            Object.keys(workers).forEach(function (pid) {
+            Object.keys(workers).forEach(function(pid) {
               var worker = workers[pid];
 
               var count = 0;
@@ -120,11 +127,12 @@ if (process.argv[2] !== 'child') {
                 }
               });
 
-              console.error('[PARENT] %d received %d matching messges.', worker.pid
-                    , count);
+              console.error('[PARENT] %d received %d matching messges.',
+                            worker.pid,
+                            count);
 
-              assert.equal(count, messages.length
-                ,'A worker received an invalid multicast message');
+              assert.equal(count, messages.length,
+                           'A worker received an invalid multicast message');
             });
 
             clearTimeout(timer);
@@ -154,17 +162,18 @@ if (process.argv[2] !== 'child') {
     }
 
     sendSocket.send(buf, 0, buf.length,
-                common.PORT, LOCAL_BROADCAST_HOST, function(err) {
+                    common.PORT, LOCAL_BROADCAST_HOST, function(err) {
 
-      if (err) throw err;
+          if (err) throw err;
 
-      console.error('[PARENT] sent %s to %s:%s', util.inspect(buf.toString())
-                , LOCAL_BROADCAST_HOST, common.PORT);
+          console.error('[PARENT] sent %s to %s:%s',
+                        util.inspect(buf.toString()),
+                        LOCAL_BROADCAST_HOST, common.PORT);
 
-      process.nextTick(sendSocket.sendNext);
-    });
+          process.nextTick(sendSocket.sendNext);
+        });
   };
-  
+
   function killChildren(children) {
     Object.keys(children).forEach(function(key) {
       var child = children[key];
@@ -178,15 +187,17 @@ if (process.argv[2] === 'child') {
   var listenSocket = dgram.createSocket('udp4');
 
   listenSocket.on('message', function(buf, rinfo) {
-    console.error('[CHILD] %s received %s from %j', process.pid
-                , util.inspect(buf.toString()), rinfo);
+    console.error('[CHILD] %s received %s from %j',
+                  process.pid,
+                  util.inspect(buf.toString()),
+                  rinfo);
 
     receivedMessages.push(buf);
 
-    process.send({ message : buf.toString() });
+    process.send({ message: buf.toString() });
 
     if (receivedMessages.length == messages.length) {
-      process.nextTick(function () {
+      process.nextTick(function() {
         listenSocket.close();
       });
     }
@@ -202,7 +213,7 @@ if (process.argv[2] === 'child') {
   });
 
   listenSocket.on('listening', function() {
-    process.send({ listening : true });
+    process.send({ listening: true });
   });
 
   listenSocket.bind(common.PORT);

@@ -26,7 +26,7 @@ var assert = require('assert'),
 
 function repeat(fn) {
   if (started != 0) {
-    assert.ok(started - done < 100)
+    assert.ok(started - done < 100);
   }
 
   process.nextTick(function() {

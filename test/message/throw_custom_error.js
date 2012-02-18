@@ -28,6 +28,6 @@ var assert = require('assert');
 common.error('before');
 
 // custom error throwing
-throw { name: 'MyCustomError', message: 'This is a custom message' };
+throw ({ name: 'MyCustomError', message: 'This is a custom message' });
 
 common.error('after');

@@ -47,4 +47,4 @@ setTimeout(function() {
   socket.destroy();
   server.close();
   assert.ok(true);
-}, T*2);
+}, T * 2);

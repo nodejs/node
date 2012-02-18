@@ -214,7 +214,7 @@ threw = false;
 try {
   assert.throws(
       function() {
-        throw {};
+        throw ({});
       },
       Array
   );

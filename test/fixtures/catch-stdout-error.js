@@ -25,12 +25,12 @@ function write() {
   } catch (ex) {
     throw new Error('this should never happen');
   }
-  process.nextTick(function () {
+  process.nextTick(function() {
     write();
   });
 }
 
-process.stdout.on('error', function (er) {
+process.stdout.on('error', function(er) {
   console.error(JSON.stringify(er));
   process.exit(42);
 });

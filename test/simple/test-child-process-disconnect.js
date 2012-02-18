@@ -29,15 +29,15 @@ if (process.argv[2] === 'child') {
 
   var server = net.createServer();
 
-  server.on('connection', function (socket) {
+  server.on('connection', function(socket) {
 
-    process.on('disconnect', function () {
+    process.on('disconnect', function() {
       socket.end((process.connected).toString());
     });
 
     // when the socket is closed, we will close the server
     // allowing the process to self terminate
-    socket.on('end', function () {
+    socket.on('end', function() {
       server.close();
     });
 
@@ -45,7 +45,7 @@ if (process.argv[2] === 'child') {
   });
 
   // when the server is ready tell parent
-  server.on('listening', function () {
+  server.on('listening', function() {
     process.send('ready');
   });
 
@@ -62,24 +62,24 @@ if (process.argv[2] === 'child') {
 
   // when calling .disconnect the event should emit
   // and the disconnected flag should be true.
-  child.on('disconnect', function () {
+  child.on('disconnect', function() {
     parentEmit = true;
     parentFlag = child.connected;
   });
 
   // the process should also self terminate without using signals
-  child.on('exit', function () {
+  child.on('exit', function() {
     childSelfTerminate = true;
   });
 
   // when child is listning
-  child.on('message', function (msg) {
+  child.on('message', function(msg) {
     if (msg === 'ready') {
 
       // connect to child using TCP to know if disconnect was emitted
       var socket = net.connect(common.PORT);
 
-      socket.on('data', function (data) {
+      socket.on('data', function(data) {
         data = data.toString();
 
         // ready to be disconnected
@@ -96,7 +96,7 @@ if (process.argv[2] === 'child') {
     }
   });
 
-  process.on('exit', function () {
+  process.on('exit', function() {
     assert.equal(childFlag, false);
     assert.equal(parentFlag, false);
 

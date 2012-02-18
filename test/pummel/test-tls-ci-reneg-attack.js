@@ -29,7 +29,7 @@ var fs = require('fs');
 var LIMITS = [0, 1, 2, 3, 5, 10, 16];
 
 if (process.platform === 'win32') {
-  console.log("Skipping test, you probably don't have openssl installed.");
+  console.log('Skipping test, you probably don\'t have openssl installed.');
   process.exit();
 }
 
@@ -93,7 +93,7 @@ function test(next) {
     // simulate renegotiation attack
     function spam() {
       if (closed) return;
-      child.stdin.write("R\n");
+      child.stdin.write('R\n');
       setTimeout(spam, 250);
     }
   });

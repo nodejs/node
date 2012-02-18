@@ -185,9 +185,8 @@ assert.deepEqual({}, qs.parse());
 
 // Test limiting
 assert.equal(
-  Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
-  1
-);
+    Object.keys(qs.parse('a=1&b=1&c=1', null, null, { maxKeys: 1 })).length,
+    1);
 
 // Test removing limit
 function testUnlimitedKeys() {
@@ -199,9 +198,8 @@ function testUnlimitedKeys() {
   url = qs.stringify(query);
 
   assert.equal(
-    Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
-    2000
-  );
+      Object.keys(qs.parse(url, null, null, { maxKeys: 0 })).length,
+      2000);
 }
 testUnlimitedKeys();
 

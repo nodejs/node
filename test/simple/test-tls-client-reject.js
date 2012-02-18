@@ -75,7 +75,7 @@ function rejectUnauthorized() {
 function authorized() {
   var socket = tls.connect(common.PORT, {
     rejectUnauthorized: true,
-    ca: [ fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem')) ]
+    ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
   }, function() {
     assert(socket.authorized);
     socket.end();

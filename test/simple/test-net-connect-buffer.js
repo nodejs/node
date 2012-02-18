@@ -64,17 +64,17 @@ tcp.listen(common.PORT, function() {
   assert.equal('opening', socket.readyState);
 
   // Make sure that anything besides a buffer or a string throws.
-  [ null,
-    true,
-    false,
-    undefined,
-    1,
-    1.0,
-    1 / 0,
-    +Infinity
-    -Infinity,
-    [],
-    {}
+  [null,
+   true,
+   false,
+   undefined,
+   1,
+   1.0,
+   1 / 0,
+   +Infinity,
+   -Infinity,
+   [],
+   {}
   ].forEach(function(v) {
     function f() {
       socket.write(v);

@@ -39,7 +39,7 @@ var outputExpect = { 'code': 'EPIPE',
                      'errno': 'EPIPE',
                      'syscall': 'write' };
 
-child.stderr.on('data', function (c) {
+child.stderr.on('data', function(c) {
   output += c;
 });
 

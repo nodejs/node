@@ -31,12 +31,9 @@ process.on('exit', function() {
 
 var server = net.createServer(function(socket) {
   setTimeout(function() {
-    assert.throws(
-      function() {
-        socket.write('test');
-      },
-      /This socket is closed/
-    );
+    assert.throws(function() {
+      socket.write('test');
+    }, /This socket is closed/);
     server.close();
     gotError = true;
   }, 250);

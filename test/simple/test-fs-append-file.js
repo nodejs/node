@@ -82,10 +82,10 @@ var buf = new Buffer(s, 'utf8');
 common.error('appending to ' + filename3);
 
 fs.appendFile(filename3, buf, function(e) {
-   if (e) throw e;
+  if (e) throw e;
 
-   ncallbacks++;
-   common.error('appended to file3');
+  ncallbacks++;
+  common.error('appended to file3');
 
   fs.readFile(filename3, function(e, buffer) {
     if (e) throw e;
@@ -111,7 +111,8 @@ fs.appendFile(filename4, n, function(e) {
     if (e) throw e;
     common.error('file4 read');
     ncallbacks++;
-    assert.equal(Buffer.byteLength('' + n) + currentFileData.length, buffer.length);
+    assert.equal(Buffer.byteLength('' + n) + currentFileData.length,
+                 buffer.length);
   });
 });
 

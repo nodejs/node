@@ -49,8 +49,8 @@ var options = {
 var server = https.createServer(options, function(req, res) {
   console.log('SERVER: got request');
   res.writeHead(200, {
-    'content-type': 'text/plain',
-   });
+    'content-type': 'text/plain'
+  });
   console.log('SERVER: sending response');
   res.end('hello world\n');
 });
@@ -63,8 +63,8 @@ var proxy = net.createServer(function(clientSocket) {
   clientSocket.on('data', function(chunk) {
     if (!serverSocket) {
       // Verify the CONNECT request
-      assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' + 
-                   'Proxy-Connections: keep-alive\r\nContent-Length:'   +
+      assert.equal('CONNECT localhost:' + common.PORT + ' HTTP/1.1\r\n' +
+                   'Proxy-Connections: keep-alive\r\nContent-Length:' +
                    ' 0\r\nHost: localhost:' + proxyPort + '\r\n\r\n',
                    chunk);
 
@@ -133,7 +133,7 @@ proxy.listen(proxyPort, function() {
       key: key,
       cert: cert,
       socket: res.socket,  // reuse the socket
-      agent: false,
+      agent: false
     }, function(res) {
       assert.equal(200, res.statusCode);
 

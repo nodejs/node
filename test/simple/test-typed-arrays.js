@@ -89,7 +89,7 @@ function test(clazz) {
   assert(0xF678, v4[0]);
 
   // test set with typed array and []
-  v2.set([ 1, 2, 3, 4 ], 2);
+  v2.set([1, 2, 3, 4], 2);
   assert(0x1234, v1[0]);
 
   var sub = new Int32Array(4);

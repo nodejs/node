@@ -29,14 +29,14 @@ fs.exists(f, function(y) {
   exists = y;
 });
 
-fs.exists(f + '-NO', function (y) {
+fs.exists(f + '-NO', function(y) {
   doesNotExist = y;
 });
 
 assert(fs.existsSync(f));
 assert(!fs.existsSync(f + '-NO'));
 
-process.on('exit', function () {
+process.on('exit', function() {
   assert.strictEqual(exists, true);
   assert.strictEqual(doesNotExist, false);
 });

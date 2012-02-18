@@ -54,7 +54,8 @@ fs.appendFileSync(filename2, data);
 
 var fileData2 = fs.readFileSync(filename2);
 
-assert.equal(Buffer.byteLength(data) + currentFileData.length, fileData2.length);
+assert.equal(Buffer.byteLength(data) + currentFileData.length,
+             fileData2.length);
 
 // test that appendFileSync accepts buffers
 var filename3 = join(common.fixturesDir, 'append-sync3.txt');
@@ -78,7 +79,8 @@ fs.appendFileSync(filename4, num);
 
 var fileData4 = fs.readFileSync(filename4);
 
-assert.equal(Buffer.byteLength('' + num) + currentFileData.length, fileData4.length);
+assert.equal(Buffer.byteLength('' + num) + currentFileData.length,
+             fileData4.length);
 
 //exit logic for cleanup
 

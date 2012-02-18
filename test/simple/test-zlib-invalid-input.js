@@ -29,8 +29,8 @@ var nonStringInputs = [1, true, {a: 1}, ['a']];
 
 nonStringInputs.forEach(function(input) {
   // zlib.gunzip should not throw an error when called with bad input.
-  assert.doesNotThrow(function () {
-    zlib.gunzip(input, function (err, buffer) {
+  assert.doesNotThrow(function() {
+    zlib.gunzip(input, function(err, buffer) {
       // zlib.gunzip should pass the error to the callback.
       assert.ok(err);
     });

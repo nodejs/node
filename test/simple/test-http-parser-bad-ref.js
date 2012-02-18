@@ -29,7 +29,7 @@ function demoBug(part1, part2) {
 
   parser.onHeadersComplete = function(info) {
     headersComplete++;
-    console.log("url", info.url);
+    console.log('url', info.url);
   };
 
   parser.onBody = function(b, start, len) { };
@@ -45,7 +45,7 @@ function demoBug(part1, part2) {
     var b = Buffer(part1);
     flushPool();
 
-    console.log("parse the first part of the message");
+    console.log('parse the first part of the message');
     parser.execute(b, 0, b.length);
   })();
 
@@ -54,7 +54,7 @@ function demoBug(part1, part2) {
   (function() {
     var b = Buffer(part2);
 
-    console.log("parse the second part of the message");
+    console.log('parse the second part of the message');
     parser.execute(b, 0, b.length);
     parser.finish();
   })();
@@ -76,5 +76,5 @@ demoBug('POST /1/22 HTTP/1.1\r\n' +
 process.on('exit', function() {
   assert.equal(2, headersComplete);
   assert.equal(2, messagesComplete);
-  console.log("done!");
+  console.log('done!');
 });

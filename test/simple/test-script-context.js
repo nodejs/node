@@ -65,7 +65,7 @@ function isTypeError(o) {
   return o instanceof TypeError;
 }
 
-[undefined, null, 0, 0.0, '', {}, []].forEach(function(e) {
+([undefined, null, 0, 0.0, '', {}, []].forEach(function(e) {
   assert.throws(function() { script.runInContext(e); }, isTypeError);
   assert.throws(function() { vm.runInContext('', e); }, isTypeError);
-});
+}));

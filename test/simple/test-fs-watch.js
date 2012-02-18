@@ -51,10 +51,10 @@ process.on('exit', function() {
 });
 
 // Clean up stale files (if any) from previous run.
-try { fs.unlinkSync(filepathOne);    } catch (e) { }
+try { fs.unlinkSync(filepathOne); } catch (e) { }
 try { fs.unlinkSync(filepathTwoAbs); } catch (e) { }
-try { fs.unlinkSync(filepathThree);  } catch (e) { }
-try { fs.rmdirSync(testsubdir);      } catch (e) { }
+try { fs.unlinkSync(filepathThree); } catch (e) { }
+try { fs.rmdirSync(testsubdir); } catch (e) { }
 
 fs.writeFileSync(filepathOne, 'hello');
 

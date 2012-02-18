@@ -77,7 +77,7 @@ function authorized() {
   var options = {
     port: common.PORT,
     rejectUnauthorized: true,
-    ca: [ fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem')) ]
+    ca: [fs.readFileSync(path.join(common.fixturesDir, 'test_cert.pem'))]
   };
   options.agent = new https.Agent(options);
   var req = https.request(options, function(res) {

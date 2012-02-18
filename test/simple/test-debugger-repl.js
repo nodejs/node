@@ -112,7 +112,7 @@ addTest('watchers', [
 ]);
 
 // Unwatch
-addTest('unwatch("\'x\'"), true', [ /true/ ]);
+addTest('unwatch("\'x\'"), true', [/true/]);
 
 // Step out
 addTest('o', [

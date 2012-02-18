@@ -57,7 +57,7 @@ server.listen(common.PORT, '127.0.0.1', function() {
                 agent.requests['127.0.0.1:' + common.PORT].length : 0));
 
     var agentRequests = agent.requests[addrString] ?
-          agent.requests[addrString].length : 0;
+        agent.requests[addrString].length : 0;
 
     if (maxQueued < agentRequests) {
       maxQueued = agentRequests;

@@ -187,5 +187,5 @@ putIn.run([
   'var str = "test";'
 ]);
 testMe.complete('str.len', function(error, data) {
-  assert.deepEqual(data, [ [ 'str.length' ], 'str.len' ]);
+  assert.deepEqual(data, [['str.length'], 'str.len']);
 });

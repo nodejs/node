@@ -27,7 +27,7 @@ var assert = require('assert');
   var ncalled = 0;
 
   setTimeout(f, 0, 'foo', 'bar', 'baz');
-  var timer = setTimeout(function(){}, 0);
+  var timer = setTimeout(function() {}, 0);
 
   function f(a, b, c) {
     assert.equal(a, 'foo');

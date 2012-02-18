@@ -35,7 +35,7 @@ for (var i = 0; i < N; ++i) {
 var maxAndExpected = [ // for server
   [50, 50],
   [1500, 1500],
-  [0, N + 2], // Host and Connection
+  [0, N + 2] // Host and Connection
 ];
 var max = maxAndExpected[requests][0];
 var expected = maxAndExpected[requests][1];
@@ -56,7 +56,7 @@ server.listen(common.PORT, function() {
   var maxAndExpected = [ // for client
     [20, 20],
     [1200, 1200],
-    [0, N + 3], // Connection, Date and Transfer-Encoding
+    [0, N + 3] // Connection, Date and Transfer-Encoding
   ];
   doRequest();
 

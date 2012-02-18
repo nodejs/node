@@ -33,8 +33,9 @@ var grep = spawn('grep', ['o']),
     echo;
 
 if (is_windows) {
-  echo = spawn('cmd.exe', ['/c', 'echo', 'hello&&', 'echo',
-               'node&&', 'echo', 'and&&', 'echo', 'world']);
+  echo = spawn('cmd.exe',
+               ['/c', 'echo', 'hello&&', 'echo',
+                'node&&', 'echo', 'and&&', 'echo', 'world']);
 } else {
   echo = spawn('echo', ['hello\nnode\nand\nworld\n']);
 }

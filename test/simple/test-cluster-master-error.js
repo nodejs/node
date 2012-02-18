@@ -125,8 +125,10 @@ if (cluster.isWorker) {
   });
 
   process.once('exit', function() {
-    assert.ok(existMaster, 'The master did not die after an error was throwed');
-    assert.ok(existWorker, 'The workers did not die after an error in the master');
+    var m = 'The master did not die after an error was throwed';
+    assert.ok(existMaster, m);
+    m = 'The workers did not die after an error in the master';
+    assert.ok(existWorker, m);
   });
 
 }

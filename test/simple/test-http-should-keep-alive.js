@@ -30,7 +30,7 @@ var SERVER_RESPONSES = [
   'HTTP/1.0 200 ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
   'HTTP/1.1 200 ok\r\nContent-Length: 0\r\n\r\n',
   'HTTP/1.1 200 ok\r\nContent-Length: 0\r\nConnection: keep-alive\r\n\r\n',
-  'HTTP/1.1 200 ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n',
+  'HTTP/1.1 200 ok\r\nContent-Length: 0\r\nConnection: close\r\n\r\n'
 ];
 var SHOULD_KEEP_ALIVE = [
   false, // HTTP/1.0, default
@@ -38,7 +38,7 @@ var SHOULD_KEEP_ALIVE = [
   false, // HTTP/1.0, Connection: close
   true,  // HTTP/1.1, default
   true,  // HTTP/1.1, Connection: keep-alive
-  false, // HTTP/1.1, Connection: close
+  false  // HTTP/1.1, Connection: close
 ];
 var requests = 0;
 var responses = 0;

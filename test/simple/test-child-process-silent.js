@@ -52,7 +52,8 @@ if (process.argv[2] === 'pipetest') {
   // testcase | start parent && child IPC test
 
   // testing: is stderr and stdout piped to parent
-  var parent = childProcess.spawn(process.execPath, [process.argv[1], 'parent']);
+  var args = [process.argv[1], 'parent'];
+  var parent = childProcess.spawn(process.execPath, args);
 
   //got any stderr or std data
   var stdoutData = false;
