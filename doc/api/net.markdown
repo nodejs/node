@@ -69,7 +69,7 @@ For UNIX domain sockets, `options` argument should be an object which specifies:
 Common options are:
 
   - `allowHalfOpen`: if `true`, the socket won't automatically send
-    a FIN packet when the other end of the socket sends a FIN packet. 
+    a FIN packet when the other end of the socket sends a FIN packet.
     Defaults to `false`.
     See ['end'](#event_end_) event for more information.
 
@@ -295,12 +295,6 @@ Users who experience large or growing `bufferSize` should attempt to
 
 Sets the encoding (either `'ascii'`, `'utf8'`, or `'base64'`) for data that is
 received. Defaults to `null`.
-
-#### socket.setSecure()
-
-This function has been removed in v0.3. It used to upgrade the connection to
-SSL/TLS. See the [TLS section](tls.html#tLS_) for the new API.
-
 
 #### socket.write(data, [encoding], [callback])
 
