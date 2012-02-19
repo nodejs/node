@@ -129,8 +129,6 @@ out/doc/%: doc/%
 out/doc/api/%.html: doc/api/%.markdown node $(apidoc_dirs) $(apiassets) tools/doctool/doctool.js
 	out/Release/node tools/doctool/doctool.js doc/template.html $< > $@
 
-out/doc/%:
-
 website-upload: doc
 	rsync -r out/doc/ node@nodejs.org:~/web/nodejs.org/
 
