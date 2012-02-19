@@ -48,6 +48,7 @@ distclean:
 	-rm -f config.mk
 
 test: all
+	PYTHONPATH=tools/closure_linter/ $(PYTHON) tools/closure_linter/closure_linter/gjslint.py --unix_mode --strict --nojsdoc -r lib/ -r src/ --exclude_files lib/punycode.js
 	$(PYTHON) tools/test.py --mode=release simple message
 
 test-http1: all
