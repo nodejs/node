@@ -429,18 +429,14 @@
 
   startup.resolveArgv0 = function() {
     var cwd = process.cwd();
-    var isWindows = process.platform === 'win32';
 
     // Make process.argv[0] into a full path, but only touch argv[0] if it's
     // not a system $PATH lookup.
     // TODO: Make this work on Windows as well.  Note that "node" might
     // execute cwd\node.exe, or some %PATH%\node.exe on Windows,
     // and that every directory has its own cwd, so d:node.exe is valid.
-    var argv0 = process.argv[0];
-    if (!isWindows && argv0.indexOf('/') !== -1 && argv0.charAt(0) !== '/') {
-      var path = NativeModule.require('path');
-      process.argv[0] = path.join(cwd, process.argv[0]);
-    }
+    var path = NativeModule.require('path');
+    process.argv[0] = path.resolve(process.argv[0]);
   };
 
   // Below you find a minimal module system, which is used to load the node
